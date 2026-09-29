@@ -352,3 +352,19 @@
   color: var(--c-cursor);
   font-weight: bold;
 }
+
+/* The start surface's client notices (src/chrome/index.tsx StartNotices):
+ * right-aligned on the top row, above every start frame. */
+.wc-start-notices {
+  position: absolute;
+  top: 0;
+  right: var(--cell-w);
+}
+
+.wc-start-notice-btn {
+  cursor: pointer;
+}
+
+.wc-start-notice-btn:hover {
+  text-decoration: underline;
+}

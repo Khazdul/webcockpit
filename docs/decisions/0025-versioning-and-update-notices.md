@@ -126,3 +126,15 @@ rule is `versionGuard` in `scripts/release.ts`, applied by
 `npm run build:pages` against the live `release.json` (ADR 0028), and
 that build writes the full manifest. `--dry-run` and `--rollback`
 belonged to `npm run publish` and are gone with it.
+
+## Amendment 2026-09-29 — start surface notices on every frame
+
+The start page footer token (C_HINT, main frame only) went unnoticed: in
+Profile, Options, History and the other sub-frames nothing showed a newer
+version until the user entered the game. The notices now sit on the start
+surface's top row, right-aligned, above whichever start frame is shown
+(every start frame leaves that row blank): `Update 0.1.3 available:
+reload` in C_YELLOW, clickable (reloads; no game is connected there), and
+`Storage: not saved` in C_ERR (`StartNotices` in `src/chrome/index.tsx`).
+The footer token is gone. The cockpit indicator and the ESC menu header
+are unchanged.

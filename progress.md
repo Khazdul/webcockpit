@@ -22,6 +22,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Update notice on every start frame
+
+- **Done:** owner feedback: no update notice until Enter MUME (the start
+  footer token was dim and on the main frame only). The notices now sit
+  on the start surface's top row, right-aligned, over every start frame:
+  `Update x.y.z available: reload` (C_YELLOW, click reloads) and
+  `Storage: not saved` (ADR 0025 amendment). 1137 unit tests; chrome e2e
+  13/13; checked in a production build with a faked newer release.json.
+- **Next:** release with the next version bump; owner checks live.
+- **Open issues:** none new.
+- **Commits:** see `git log` (fix: update notice on every start frame).
+
 ### 2026-09-29 — Marker tips, bare Spotlights
 
 - **Done:** owner feedback (ADR 0032). Spotlights reel shows no panes

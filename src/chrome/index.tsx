@@ -12,11 +12,13 @@
 import './kit/kit.css';
 import { type VNode, render } from 'preact';
 import { useRef } from 'preact/hooks';
+import { noticeIndicators } from '../app/notices';
 import { isLive } from '../app/status';
+import { CLIENT_VERSION } from '../core/build-info';
 import { EscMain, type EscActions } from './frames/esc-main';
 import { StartMain } from './frames/start-main';
-import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid } from './kit/hooks';
-import { MIN_COLS, MIN_ROWS, centreLeft, tooSmall } from './kit/nav';
+import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
+import { MIN_COLS, MIN_ROWS, centreLeft, tooSmall, truncate } from './kit/nav';
 import { FrameStack } from './kit/stack';
 import { type Quote, randomQuote } from './quotes';
 
@@ -72,11 +74,65 @@ function StartSurface(p: StartSurfaceProps): VNode {
               active={p.visible}
               paused={small}
             />
+            <StartNotices cols={g.cols} />
           </div>
           {small && <TooSmall cols={g.cols} rows={g.rows} />}
         </GridCtx.Provider>
       )}
     </div>
+  );
+}
+
+/**
+ * The client notices on the start surface (ADR 0025, amended): right-aligned
+ * on the top row, which every start frame leaves blank, so they show on the
+ * main menu and on every sub-frame. `Update 0.1.3 available: reload`
+ * (C_YELLOW) reloads on click (no game is connected here); superseded
+ * storage adds `Storage: not saved` (C_ERR).
+ */
+export function StartNotices(p: { cols: number }): VNode | null {
+  const items = startNoticeTokens(useNotices());
+  if (items.length === 0) return null;
+  const full = items.map((t) => t.text).join('  ');
+  const text = truncate(full, Math.max(0, p.cols - 2));
+  return (
+    <div class="wc-line wc-start-notices" role="status">
+      {text !== full ? (
+        <span class={items[0]!.cls} title={items[0]!.title} onClick={items[0]!.onClick}>
+          {text}
+        </span>
+      ) : (
+        items.map((t, i) => (
+          <>
+            {i > 0 && '  '}
+            <span class={t.cls + (t.onClick ? ' wc-start-notice-btn' : '')} title={t.title} onClick={t.onClick}>
+              {t.text}
+            </span>
+          </>
+        ))
+      )}
+    </div>
+  );
+}
+
+export interface StartNoticeToken {
+  text: string;
+  title: string;
+  cls: string;
+  onClick?: () => void;
+}
+
+/** The start surface's notice tokens for `s`, update first. */
+export function startNoticeTokens(s: Parameters<typeof noticeIndicators>[0]): StartNoticeToken[] {
+  return noticeIndicators(s, CLIENT_VERSION).map((n) =>
+    n.key === 'update'
+      ? {
+          text: `Update ${s.update!.version} available: reload`,
+          title: `WebCockpit ${s.update!.version} is available (this tab runs ${CLIENT_VERSION}). Click to reload.`,
+          cls: 'wc-c-yellow',
+          onClick: () => globalThis.location?.reload(),
+        }
+      : { text: n.text, title: n.title, cls: 'wc-c-err' },
   );
 }
 
