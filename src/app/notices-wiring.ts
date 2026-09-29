@@ -53,7 +53,7 @@ export function installNotices(win: Window, notices: Notices, o: NoticesWiringOp
         current: { version: CLIENT_VERSION, commit: CLIENT_COMMIT },
         fetch: o.fetch ?? ((url, init) => win.fetch(url, init)),
         now: o.now ?? Date.now,
-        url: o.url ?? `${import.meta.env.BASE_URL ?? '/'}release.json`,
+        ...(o.url ? { url: o.url } : {}),
         onNewVersion: (r) => notices.newVersion(r),
       })
     : null;

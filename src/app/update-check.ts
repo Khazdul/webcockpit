@@ -2,8 +2,9 @@
 // running in this tab?
 //
 // `npm run publish` writes `release.json` ({ version, commit, … }) at the
-// site root, and every build emits one too (vite.config.ts). The checker
-// fetches it with `cache: 'no-store'`, compares it with the running build
+// site root (under Vite's `base`, `/webcockpit/` on GitHub Pages: ADR 0028),
+// and every build emits one too (vite.config.ts). The checker fetches it
+// with `cache: 'no-store'`, compares it with the running build
 // (src/core/build-info.ts) and calls `onNewVersion` once per different
 // release. Failures (offline, 404, bad JSON) are silent.
 //
@@ -27,7 +28,7 @@ export interface UpdateCheckerOptions {
   now: () => number;
   /** Called once per release that differs from `current`. */
   onNewVersion: (served: ReleaseInfo) => void;
-  /** Where the manifest is (default `/release.json`). */
+  /** Where the manifest is (default `<base>release.json`, Vite's `base`: ADR 0028). */
   url?: string;
   /** At most one check per this many ms, unless forced (default 60 s). */
   minIntervalMs?: number;
@@ -95,7 +96,7 @@ export class UpdateChecker {
   private async fetchOnce(): Promise<ReleaseInfo | null> {
     let served: ReleaseInfo | null;
     try {
-      const res = await this.o.fetch(this.o.url ?? '/release.json', { cache: 'no-store' });
+      const res = await this.o.fetch(this.o.url ?? `${import.meta.env?.BASE_URL ?? '/'}release.json`, { cache: 'no-store' });
       if (!res.ok) return null;
       served = parseRelease(await res.json());
     } catch {

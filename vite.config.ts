@@ -304,9 +304,20 @@ function licencePlugin(): Plugin {
   };
 }
 
+/**
+ * The public path the app is served under: `$WEBCOCKPIT_BASE`, default `/`
+ * (the Tailscale site, ADR 0022). GitHub Pages builds use `/webcockpit/`
+ * (ADR 0028). Always with a leading and a trailing slash.
+ */
+export function siteBase(raw = process.env.WEBCOCKPIT_BASE): string {
+  const trimmed = (raw ?? '').trim().replace(/^\/+|\/+$/g, '');
+  return trimmed ? `/${trimmed}/` : '/';
+}
+
 export default defineConfig(({ command }) => {
   buildCommit = command === 'build' ? gitCommit() : 'dev';
   return {
+    base: siteBase(),
     define: defines(),
     oxc,
     plugins: [fixturesPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
