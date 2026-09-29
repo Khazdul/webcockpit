@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.12 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.13 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,17 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — Tips without letters, release 0.1.13
+
+- **Done:** owner reviewed the tips: lines drop the `L  ` prefix
+  (ADR 0032 amendment). Released with the start-page update notice and
+  the no-xp kill tips. 1137 unit tests; e2e 188/188.
+- **Released:** 0.1.13 (tag v0.1.13), Pages deploy OK, prod smoke 10/10.
+- **Next:** owner tests live; then plan the rest of stage 8.
+- **Open issues:** `replay.spec.ts` "plays from file://" is flaky at the
+  comment check (passed in the full run).
+- **Commits:** 9da8eb4…45a3760, plus this one.
 
 ### 2026-09-29 — No xp in kill tips
 
