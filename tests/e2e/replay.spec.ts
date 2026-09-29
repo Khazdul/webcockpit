@@ -3,8 +3,9 @@
 // test writes it to disk and opens it from file:// in a fresh context with
 // no network, and with IndexedDB, localStorage, sessionStorage, fetch,
 // XMLHttpRequest and WebSocket throwing (and counted) on any touch.
-import { writeFileSync } from 'node:fs';
-import { type Browser, type Page, expect, test } from '@playwright/test';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { gunzipSync, gzipSync } from 'node:zlib';
+import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
 import { biggestFixture } from './fixtures';
 
 interface Eng {
@@ -311,22 +312,50 @@ test('the HTML replay shows the game text and echoed commands as the log player 
 });
 
 /**
- * The first command echo's colour, the steel mix of the element's `--term-fg`
- * (ADR 0034: 55 % fg with #7fb2e6 on a dark bg, #1f5f9e on a light one) and
- * the plain fg, all as computed by the browser.
+ * The first command echo's colour, the mix of the element's `--term-fg` with
+ * `tint` (`pct` % fg; ADR 0034 steel: 55 % with #7fb2e6 on a dark bg,
+ * #1f5f9e on a light one) and the plain fg, all as computed by the browser.
  */
-function echoColours(page: Page, tint: string): Promise<{ got: string; want: string; plain: string }> {
-  return page.locator('.wc-output .wc-echo').first().evaluate((el, t) => {
-    const probe = el.ownerDocument.createElement('span');
-    const fg = getComputedStyle(el).getPropertyValue('--term-fg').trim();
-    probe.style.color = `color-mix(in oklab, ${fg} 55%, ${t})`;
-    el.parentElement!.appendChild(probe);
-    const want = getComputedStyle(probe).color;
-    probe.style.color = fg;
-    const plain = getComputedStyle(probe).color;
-    probe.remove();
-    return { got: getComputedStyle(el).color, want, plain };
-  }, tint);
+function echoColours(page: Page, tint: string, pct = 55): Promise<{ got: string; want: string; plain: string }> {
+  return page.locator('.wc-output .wc-echo').first().evaluate(
+    (el, [t, p]) => {
+      const probe = el.ownerDocument.createElement('span');
+      const fg = getComputedStyle(el).getPropertyValue('--term-fg').trim();
+      probe.style.color = `color-mix(in oklab, ${fg} ${p}%, ${t})`;
+      el.parentElement!.appendChild(probe);
+      const want = getComputedStyle(probe).color;
+      probe.style.color = fg;
+      const plain = getComputedStyle(probe).color;
+      probe.remove();
+      return { got: getComputedStyle(el).color, want, plain };
+    },
+    [tint, pct] as const,
+  );
+}
+
+/** Sets the (viewer's own) input colour in the dev app and saves it. */
+async function setInputColor(page: Page, id: string): Promise<void> {
+  await page.goto('/');
+  await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
+  await page.evaluate(async (c) => {
+    const s = (window as unknown as { __wc: { settings: { update(p: object): void; flush(): Promise<void> } } }).__wc
+      .settings;
+    s.update({ appearance: { inputColor: c } });
+    await s.flush();
+  }, id);
+}
+
+/**
+ * Serves the demo backup with `inputColor` added to every recorded VIEW
+ * appearance, as a log recorded after ADR 0035 carries it.
+ */
+async function demoWithInputColor(ctx: BrowserContext, id: string): Promise<void> {
+  const gz = readFileSync('tests/fixtures/runs-demo.jsonl.gz');
+  const text = gunzipSync(gz).toString('utf8');
+  const marked = text.replaceAll('\\"cursorBlink\\":true}', `\\"cursorBlink\\":true,\\"inputColor\\":\\"${id}\\"}`);
+  expect(marked).not.toBe(text);
+  const body = gzipSync(Buffer.from(marked, 'utf8'));
+  await ctx.route('**/__fixtures/runs-demo.jsonl.gz', (route) => route.fulfill({ body, contentType: 'application/gzip' }));
 }
 
 /** Switches the running player's viewer colour theme. */
@@ -345,11 +374,16 @@ async function viewerTheme(page: Page, theme: string): Promise<void> {
 }
 
 test('the command echo is steel in the log player and the HTML replay, dark and paper', async ({ page, browser }) => {
+  // A log recorded before the Input color setting (ADR 0035) plays with
+  // Steel, whatever the viewer chose for themselves.
   await page.setViewportSize({ width: 1400, height: 820 });
+  await setInputColor(page, 'amber');
   await page.goto('/?player=runs-demo.jsonl.gz');
   await toEnd(page, 'player');
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('amber');
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 820 } });
   const r = await ctx.newPage();
+  await setInputColor(r, 'amber');
   await r.goto('/?replayhtml=runs-demo.jsonl.gz');
   await expect.poll(() => r.url()).toMatch(/^blob:/);
   await toEnd(r, 'replay');
@@ -370,4 +404,36 @@ test('the command echo is steel in the log player and the HTML replay, dark and 
     expect(light.got).not.toBe(dark.got);
   }
   await ctx.close();
+});
+
+test('logs replay with the recorded input colour, not the viewer’s (ADR 0035)', async ({ browser }) => {
+  const pages: Page[] = [];
+  const ctxs: BrowserContext[] = [];
+  for (const which of ['player', 'replay'] as const) {
+    const ctx = await browser.newContext({ viewport: { width: 1400, height: 820 } });
+    ctxs.push(ctx);
+    await demoWithInputColor(ctx, 'cyan');
+    const p = await ctx.newPage();
+    await setInputColor(p, 'none');
+    await p.goto(which === 'player' ? '/?player=runs-demo.jsonl.gz' : '/?replayhtml=runs-demo.jsonl.gz');
+    if (which === 'replay') await expect.poll(() => p.url()).toMatch(/^blob:/);
+    await toEnd(p, which);
+    if (which === 'player') expect(await p.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('none');
+    pages.push(p);
+  }
+  for (const p of pages) {
+    const dark = await echoColours(p, '#00d7d7', 15);
+    expect(dark.got).toBe(dark.want);
+    expect(dark.got).not.toBe(dark.plain);
+    // The viewer's colour theme still applies: the recorded choice is resolved against it.
+    await viewerTheme(p, 'paper');
+    await expect(p.locator('.wc-player')).toHaveAttribute('data-light', '');
+    await expect
+      .poll(async () => {
+        const c = await echoColours(p, '#007a8a', 15);
+        return c.got === c.want && c.got !== c.plain;
+      })
+      .toBe(true);
+  }
+  for (const c of ctxs) await c.close();
 });
