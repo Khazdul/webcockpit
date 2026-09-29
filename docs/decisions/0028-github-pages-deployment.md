@@ -60,10 +60,16 @@ nothing carried).
 ### Workflow: `.github/workflows/pages.yml`
 
 On `push` of a `v*` tag and on `workflow_dispatch`: `npm ci`, Playwright's
-Chromium and Firefox, `npm run build:pages`, then
+Chromium, `npm run build:pages` with `WC_PROD_BROWSERS=chromium`, then
 `actions/configure-pages`, `actions/upload-pages-artifact` (`dist-pages`)
 and `actions/deploy-pages` in the `github-pages` environment. One
 deployment at a time (`concurrency: pages`, never cancelled).
+
+The runners have no GPU: in headless Firefox the map worker gets no
+WebGL and the pane reports `unsupported` (first run, 2026-09-29), while
+Chromium falls back to software rendering. CI therefore gates on
+Chromium only; Firefox is covered by the local `build:pages` run and by
+the live smoke test after each deploy.
 
 ### Smoke test
 

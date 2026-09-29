@@ -28,8 +28,13 @@ jobs:
           node-version: 26
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium firefox
+      - run: npx playwright install --with-deps chromium
+      # No GPU on the runner: Firefox's map worker gets no WebGL, so the
+      # smoke test runs in Chromium here; Firefox is checked against the
+      # live site afterwards (ADR 0028).
       - run: npm run build:pages
+        env:
+          WC_PROD_BROWSERS: chromium
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:

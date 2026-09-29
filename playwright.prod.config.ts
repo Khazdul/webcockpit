@@ -10,8 +10,12 @@ import { defineConfig, devices } from '@playwright/test';
 //   WC_PROD_URL      test a deployed site instead (no local server), e.g.
 //                    https://example.ts.net:8443 or https://khazdul.github.io/webcockpit
 //                    (its path is the base; WC_PROD_BASE is then ignored)
+//   WC_PROD_BROWSERS comma-separated projects to run (default chromium,firefox);
+//                    CI runs chromium only: its runners have no GPU, so
+//                    Firefox's worker gets no WebGL and the map is unsupported
 // The tests use paths relative to the base (`./release.json`, never
 // `/release.json`), so baseURL always ends with the base and a slash.
+const browsers = (process.env.WC_PROD_BROWSERS ?? 'chromium,firefox').split(',').map((b) => b.trim());
 const port = Number(process.env.WC_PROD_PORT ?? 4180);
 const dir = process.env.WC_PROD_DIR ?? 'dist';
 const profile = process.env.WC_PROD_PROFILE ?? 'site';
@@ -35,5 +39,5 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-  ],
+  ].filter((p) => browsers.includes(p.name)),
 });
