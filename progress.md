@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.14 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.15 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,14 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — Release 0.1.15
+
+- **Released:** 0.1.15 (tag v0.1.15): steel command echo (ADR 0034).
+  Pages deploy OK; live `release.json` reports 0.1.15 at d2c53c8. Prod
+  smoke against the live site not run from the session.
+- **Next:** owner tests live; then plan the rest of stage 8.
+- **Commits:** d2c53c8, plus this one.
 
 ### 2026-09-29 — Steel command echo
 
