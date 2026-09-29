@@ -33,7 +33,7 @@ MUME is free to play. No subscription, just connect.
 GETTING STARTED
 Choose Enter MUME on the start page. Press ESC at any time to open the menu. Options sets up the panes and the look; every change applies at once.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax, one command per line, for example #alias {bs} {backstab %1} or #action {You are hungry.} {eat bread}. The common TinTin++ commands work; commands that need a terminal, files or the shell are kept but do nothing. Profile → IMPORT reads an existing .tin file. The TinTin++ manual describes the syntax:
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax, one command per line, for example #alias {bs} {backstab %1} or #action {You are hungry.} {eat bread}. Profile → IMPORT reads an existing .tin file. The TinTin++ manual describes the syntax:
   TinTin++        tintin.mudhalla.net/manual/
 
 SETTINGS
