@@ -22,6 +22,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — Release 0.1.17
+
+- **Released:** 0.1.17 (tag v0.1.17): About cleanup (no COMMANDS/KEYS,
+  TinTin++ note in GETTING STARTED). Pages deploy OK; live `release.json`
+  reports 0.1.17 at 157923a. Prod smoke against the live site not run.
+- **Next:** plan the rest of stage 8.
+- **Commits:** 157923a, plus this one.
+
 ### 2026-09-30 — About without commands
 
 - **Done:** removed the COMMANDS and KEYS sections from About at the
