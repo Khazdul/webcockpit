@@ -221,3 +221,6 @@ the character in the input line is ever a problem in play.
   ´ ' - (with and without Shift). In 0.1.2 a bound `´` left the accent
   and `¨` after it did not fire (Firefox composition); fixed in 0.1.3.
   Tested live in Firefox: "works well". Approved.
+- 2026-09-29, players: Spotlights without panes and without the gear;
+  hover tips on the K/D/A/L markers in RUN LOG, Spotlights and the HTML
+  replay (ADR 0032).

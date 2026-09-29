@@ -22,6 +22,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Marker tips, bare Spotlights
+
+- **Done:** owner feedback (ADR 0032). Spotlights reel shows no panes
+  and no gear. Hovering a K/D/A/L marker shows what happened (`Killed
+  *Name the Race* (60k xp)`, `Died (level 42)` …) left of the marker, in
+  RUN LOG, Spotlights (with the character) and the HTML replay (tip in
+  the payload; older files show the letter's name). 1137 unit tests;
+  player/replay/spotlights/viewer e2e 28/28.
+- **Next:** release, owner tests; then plan the rest of stage 8.
+- **Open issues:** no tip on touch devices.
+- **Commits:** see `git log` (feat: marker tips, bare reel).
+
 ### 2026-09-29 — Replay polish
 
 - **Done:** owner feedback on the HTML replay (ADR 0031). Comment holds
