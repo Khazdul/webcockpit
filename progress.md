@@ -31,7 +31,8 @@ Newest first.
   MMapper does). `public/map/README` and `THIRD_PARTY_NOTICES.md` now say
   the GPL does not cover the file; ADR 0020 amended.
 - **Next:** plan the rest of stage 8.
-- **Open issues (owner):** README screenshots show other players' names.
+- **Open issues:** none. README screenshots showing other players' names
+  are fine (owner, 2026-09-29).
 - **Commits:** 337455a.
 
 ### 2026-09-29 — PR #1: licence text on the site
