@@ -11,7 +11,7 @@ test('a newer release.json shows the update indicator and one output line', asyn
     fetches++;
     return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ version: '99.0.0', commit: 'fffffff' }) });
   });
-  await page.goto('/?replay');
+  await page.goto('./?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   await expect(page.locator('.wc-input-notice')).toBeHidden();
 
@@ -31,7 +31,7 @@ test('a newer release.json shows the update indicator and one output line', asyn
 });
 
 test('the same release shows nothing', async ({ page }) => {
-  await page.goto('/?replay');
+  await page.goto('./?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   const served = page.waitForResponse('**/release.json');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
@@ -41,7 +41,7 @@ test('the same release shows nothing', async ({ page }) => {
 });
 
 test('a newer tab upgrading the database shows the storage notice', async ({ page }) => {
-  await page.goto('/?replay');
+  await page.goto('./?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   // Settings have opened the database by now; a "newer tab" upgrades it.
   await page.evaluate(
