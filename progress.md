@@ -22,6 +22,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — Input color setting
+
+- **Done:** owner request: Options → Appearance → `Input color` (None,
+  Steel default, Bright, Sand, Sage, Cyan, Amber) colours the command
+  echo and the input line incl. `>`. Logs replay with the recorded
+  choice (VIEW appearance); logs without it play Steel (ADR 0035,
+  amends 0034). Unit 1150/1150, e2e 192/192.
+- **Next:** owner tests locally or we release 0.1.16; then plan the rest
+  of stage 8.
+- **Commits:** b0b8f0a, 98d8e68, 34a17ed, d672531, plus this one.
+
 ### 2026-09-29 — Release 0.1.15
 
 - **Released:** 0.1.15 (tag v0.1.15): steel command echo (ADR 0034).
