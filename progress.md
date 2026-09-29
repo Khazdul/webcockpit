@@ -26,8 +26,7 @@ Newest first.
 
 - **Released:** 0.1.14 (tag v0.1.14): timers across export cuts, player
   `Font-size` label. e2e 188/188 locally; Pages deploy OK (build:pages
-  smoke passed in CI). Prod smoke (`npm run test:prod`) not run from the
-  session (permission denied); owner may run it.
+  smoke passed in CI). Prod smoke 10/10 (run by the owner).
 - **Next:** owner tests live; then plan the rest of stage 8.
 - **Commits:** 7919704, plus this one.
 
