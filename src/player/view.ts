@@ -47,7 +47,7 @@
 //   │        00:12 / 02:02         │
 //   └──────────────────────────────┘
 //
-// The chrome does not auto-hide while it is open; ESC folds it first. The
+// The chrome auto-hides with it open as without; ESC folds it first. The
 // box takes the pointer (clicks and the wheel there never reach the stage
 // or move the pause cursor). The gear cell is one cell wide whatever font
 // draws it (JetBrains Mono has no ⚙; DejaVu Sans Mono does).
@@ -610,7 +610,7 @@ export class PlayerView {
     if (!this.o.engine.playing) return;
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
-      if (this.o.engine.playing && !this.drag && !this.settingsOpen) this.setShown(false);
+      if (this.o.engine.playing && !this.drag) this.setShown(false);
     }, this.o.hideMs ?? HIDE_MS);
   }
 

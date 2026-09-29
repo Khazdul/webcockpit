@@ -169,7 +169,7 @@ describe('Export editor frame', () => {
       document.dispatchEvent(e);
     });
     expect(frame(host).querySelector('.wc-exp-preview')?.textContent).toBe('## Hello there big fight');
-    expect(frame(host).querySelector('.wc-exp-hold')?.textContent).toBe('Holds the replay for 5 s.');
+    expect(frame(host).querySelector('.wc-exp-hold')?.textContent).toBe('Holds the replay for 3 s.');
     await key('Backspace');
     await key('Enter');
     expect(title(host)).toBe('─── Export Editor ───');

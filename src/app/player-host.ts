@@ -300,7 +300,11 @@ export class PlayerHost {
       // The recorded size is not used: the player fills the viewer's window.
       size: () => {},
       paint: (on) => gate.set(on),
-      comment: (text) => app.output.pushRows('comment', commentLines(text), clock.nowUs()),
+      comment: (text) => {
+        // A leading comment would sit under the player header row.
+        if (app.output.empty) app.output.pushRows('blank', ['']);
+        app.output.pushRows('comment', commentLines(text), clock.nowUs());
+      },
       blank: (lines) => app.output.pushRows('blank', new Array<string>(Math.max(0, lines)).fill('')),
       dispose: () => {
         unsub();

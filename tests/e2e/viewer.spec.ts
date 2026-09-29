@@ -119,17 +119,16 @@ test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no t
   await page.keyboard.press(' ');
   await expect(chrome(page).locator('[data-act="play"]')).toHaveText('▌▌ Pause');
 
-  // Playing with the section open: the chrome stays; folded, it hides again.
+  // Playing with the section open: the chrome hides as it does folded.
   await box(page).locator('.wc-player-gear').click();
   await expect(section(page)).toBeVisible();
-  await page.clock.runFor(8000);
-  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
-  await box(page).locator('.wc-player-gear').click();
-  await expect(section(page)).toBeHidden();
   await page.clock.runFor(6500);
   await expect(chrome(page)).toHaveAttribute('data-hidden', '');
   await page.mouse.move(300, 300);
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(section(page)).toBeVisible();
+  await box(page).locator('.wc-player-gear').click();
+  await expect(section(page)).toBeHidden();
 
   await page.keyboard.press(' ');
   await expect(chrome(page).locator('[data-act="play"]')).toHaveText('► Play  ');

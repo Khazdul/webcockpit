@@ -527,6 +527,11 @@ export class OutputPane {
     this.onResize?.(cols, rows);
   }
 
+  /** True while no row is shown or queued. */
+  get empty(): boolean {
+    return this.rowCount === 0 && this.queue.length === this.head;
+  }
+
   /** Current number of rows in the scrollback (for tests and diagnostics). */
   get rows(): number {
     return this.rowCount;

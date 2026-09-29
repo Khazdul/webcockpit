@@ -270,7 +270,7 @@ test('system lines: a top comment plays first; an excluded login line is not pri
   const a = await openFile(browser, withComment, info.outputPath('comment.html'));
   await toEnd(a.page, 'replay');
   const ra = await outputRows(a.page);
-  expect(ra.slice(0, 3)).toEqual(['wc-comment | ## Before everything.', 'wc-sys | [SYSTEM] Rasta logged in.', ' | Reconnecting.']);
+  expect(ra.slice(0, 4)).toEqual([' | ', 'wc-comment | ## Before everything.', 'wc-sys | [SYSTEM] Rasta logged in.', ' | Reconnecting.']);
   const logins = ra.filter((r) => r === 'wc-sys | [SYSTEM] Rasta logged in.').length;
   expect(logins).toBeGreaterThan(0);
   expect(a.errors).toEqual([]);

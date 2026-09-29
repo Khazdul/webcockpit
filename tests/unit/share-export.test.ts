@@ -125,14 +125,14 @@ describe('buildReplayPayload', () => {
       { us: us(3600.5), kind: 'L' },
     ]);
     // The comment on a removed line moves to the next kept visible entry.
-    expect(p.comments).toEqual([{ beforeUs: us(9), text: 'x'.repeat(90), holdMs: 8000 }]);
+    expect(p.comments).toEqual([{ beforeUs: us(9), text: 'x'.repeat(90), holdMs: 4000 }]);
     expect(p.settings).toEqual(settings);
     expect(p.settings).not.toBe(settings);
     // It plays: the comment holds before `HP:Hurt>`, the cut is short.
     const tl = buildTimeline(p.runs, payloadEdits(p));
     const ci = [...tl.kind].indexOf(ENTRY_COMMENT);
     expect(tl.ts[ci]).toBe(us(9));
-    expect(tl.play[ci + 1]! - tl.play[ci]!).toBe(8000);
+    expect(tl.play[ci + 1]! - tl.play[ci]!).toBe(4000);
     expect(JSON.parse(JSON.stringify(p))).toEqual(p);
   });
 

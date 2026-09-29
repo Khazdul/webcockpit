@@ -112,9 +112,9 @@ describe('comments', () => {
   });
 
   it('holds for clamp(2 + len/15, 5, 20) seconds', () => {
-    expect(commentHoldMs('short')).toBe(5000);
-    expect(commentHoldMs('x'.repeat(90))).toBe(8000);
-    expect(commentHoldMs('x'.repeat(600))).toBe(20000);
+    expect(commentHoldMs('short')).toBe(2500);
+    expect(commentHoldMs('x'.repeat(90))).toBe(4000);
+    expect(commentHoldMs('x'.repeat(600))).toBe(10000);
   });
 
   it('adds before an entry in anchor order, edits and deletes', () => {

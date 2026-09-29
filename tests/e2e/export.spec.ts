@@ -55,7 +55,7 @@ test('export editor: comment, exclude, title, format, text download, persistence
   await expect(title(page)).toHaveText('─── Add comment ───');
   await page.keyboard.type('Start of the demo');
   await expect(frame(page).locator('.wc-exp-preview')).toHaveText('## Start of the demo');
-  await expect(frame(page).locator('.wc-exp-hold')).toHaveText('Holds the replay for 5 s.');
+  await expect(frame(page).locator('.wc-exp-hold')).toHaveText('Holds the replay for 3 s.');
   await page.keyboard.press('Enter');
   await expect(title(page)).toHaveText('─── Export Editor ───');
   await expect(rows(page).first()).toHaveText(/^.{3}## Start of the demo/);

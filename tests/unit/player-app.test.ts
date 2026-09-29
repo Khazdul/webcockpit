@@ -156,7 +156,7 @@ describe('PlayerHost', () => {
     return chain;
   }
 
-  function open(events: RunEvent[] = []) {
+  function open(events: RunEvent[] = [], hideMs?: number) {
     const root = document.createElement('div');
     root.style.cssText = 'width:1200px;height:800px';
     document.body.appendChild(root);
@@ -164,7 +164,7 @@ describe('PlayerHost', () => {
     const viewer = new SettingsStore({ factory: null, storage: null, win: null });
     void viewer.load();
     let closed = 0;
-    const host = new PlayerHost({ root, settings: viewer, wall, onClose: () => closed++ });
+    const host = new PlayerHost({ root, settings: viewer, wall, onClose: () => closed++, ...(hideMs !== undefined ? { hideMs } : {}) });
     host.openChain(chainWithViews(), events, { character: 'Rasta', level: 42 });
     return { root, wall, host, viewer, closed: () => closed };
   }
@@ -260,6 +260,19 @@ describe('PlayerHost', () => {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     expect(view.settingsShown).toBe(false);
     expect(root.querySelector('.wc-player')).not.toBeNull();
+    host.dispose();
+  });
+
+  it('auto-hides in play with the settings section folded out', async () => {
+    const { root, host } = open([], 20);
+    expect(host.engine!.playing).toBe(true);
+    root.querySelector<HTMLElement>('.wc-player-gear')!.click();
+    expect(host.playerView!.settingsShown).toBe(true);
+    const chrome = root.querySelector('.wc-player-chrome')!;
+    expect(chrome.hasAttribute('data-hidden')).toBe(false);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(chrome.hasAttribute('data-hidden')).toBe(true);
+    expect(host.playerView!.settingsShown).toBe(true);
     host.dispose();
   });
 

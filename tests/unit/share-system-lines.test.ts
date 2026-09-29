@@ -149,9 +149,9 @@ describe('PlayerHost hiddenSys', () => {
     expect(muted.indexOf('[SYSTEM] Rasta logged in.')).toBe(muted.indexOf('Back again.') - 1);
   });
 
-  it('shows a top comment before the login line', async () => {
+  it('shows a top comment, below a blank row, before the login line', async () => {
     const p = buildReplayPayload(chain(), [], doc({ comments: [{ beforeUs: us(1), text: 'Top.' }] }), defaultSettings());
     const out = await rows({ edits: payloadEdits(p) });
-    expect(out.slice(0, 3)).toEqual(['## Top.', '[SYSTEM] Rasta logged in.', 'Reconnecting.']);
+    expect(out.slice(0, 4)).toEqual(['', '## Top.', '[SYSTEM] Rasta logged in.', 'Reconnecting.']);
   });
 });

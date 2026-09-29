@@ -179,10 +179,10 @@ export function commentLines(text: string, cols = COMMENT_COLS): string[] {
   return lines.map((l) => COMMENT_PREFIX + l);
 }
 
-/** How long a comment holds the HTML replay, ms: clamp(2 + length / 15, 5, 20) s. */
+/** How long a comment holds the HTML replay, ms: clamp(1 + length / 30, 2.5, 10) s. */
 export function commentHoldMs(text: string): number {
-  const s = 2 + collapseComment(text).length / 15;
-  return Math.round(Math.max(5, Math.min(20, s)) * 1000);
+  const s = 1 + collapseComment(text).length / 30;
+  return Math.round(Math.max(2.5, Math.min(10, s)) * 1000);
 }
 
 // --------------------------------------------------------------- queries
