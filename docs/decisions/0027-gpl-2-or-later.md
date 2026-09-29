@@ -40,3 +40,10 @@ copyright line or a modification notice (GPL-2 §2a, GPL-3 §5a).
   GPL-2-compatible; build-only tools (Vite, TypeScript, Playwright) are not
   distributed and do not matter.
 - TinTin++ (GPL-3) stays a behavioural reference only; no code from it.
+
+## Amendment (2026-09-29): licence text on the site
+
+- The build emits the repository's `LICENSE` as `LICENSE.txt` at the site
+  root (`licencePlugin` in `vite.config.ts`; the dev server serves the
+  same file). About links it, so every copy of the app carries the GPL
+  text (GPL-2 §1). The site-root smoke test checks it.
