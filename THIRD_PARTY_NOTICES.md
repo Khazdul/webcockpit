@@ -1,7 +1,9 @@
 # Third-party notices
 
 WebCockpit is GPL-2.0-or-later (ADR 0027). It ships the following
-third-party material, each under its own GPL-compatible licence.
+third-party material, each under its own GPL-compatible licence, except
+the bundled map data (`public/map/arda.mm2`), which has no licence (see
+"Map assets").
 
 ## MMapper-derived code
 
@@ -68,6 +70,8 @@ Sources, versions and the conversion are recorded in
 - **MMapper** 26.06.0 default tileset (`pixmaps/`), GPL-2.0-or-later,
   Copyright (C) The MMapper Authors.
 - **Cantarell** bitmap fonts (`fonts/`), SIL Open Font License 1.1.
-- **arda.mm2**, a MUME map whose room texts belong to MUME.
+- **arda.mm2**, a MUME map. Its room texts and other game data belong
+  to MUME and its zone builders and carry no licence. WebCockpit's GPL
+  does not cover the file and grants no rights in it.
 
 Details and licence texts: `public/map/README`.

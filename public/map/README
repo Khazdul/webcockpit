@@ -7,11 +7,22 @@ pane is switched on. They are not part of the app's cold start.
 arda.mm2
 --------
 The owner's MMapper map (MMapper schema v42), bundled as the default map
-by owner decision (ADR 0020, 2026-09-28). It contains MUME's room names
-and descriptions. Those texts belong to MUME (https://mume.org) and carry
-no licence. The owner decided to keep the file in the public repository
-(2026-09-28), on the same terms as MMapper, which distributes a MUME map
-with its releases. The file is read as is and never changed.
+by owner decision (ADR 0020, 2026-09-28; confirmed 2026-09-29). The file
+is read as is and never changed.
+
+It contains MUME's room names, descriptions and other game data. That
+material was created by the MUME community, and the copyright in each
+zone belongs to the builders who made it (https://mume.org). MUME
+publishes no licence for it.
+
+  - WebCockpit's licence (GPL-2.0-or-later) does NOT cover this file.
+  - WebCockpit grants no rights in it. For any use beyond what the law
+    allows without permission, ask the copyright holders.
+  - The MMapper authors claim no copyright in the map data either.
+
+WebCockpit ships it on the same footing as MMapper, whose map
+(https://github.com/MUME/arda) is distributed alongside its releases
+with no licence and the same caveats.
 
 pixmaps/
 --------

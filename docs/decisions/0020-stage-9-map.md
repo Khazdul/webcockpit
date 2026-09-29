@@ -514,3 +514,19 @@ and learned ids (P2), as for the 84 % of arda.mm2 rooms without one.
   Mapper** (directly after Panes).
 - The map pane is **on by default** (`panes.map.on: true`) for new
   settings. Stored settings keep their value.
+
+## Amendment 2026-09-29: status of the bundled map data
+
+- One of the MMapper authors answered (2026-09-29): the MMapper authors
+  hold no rights in the map; it repackages the MUME world, MUME has no
+  licence, and each zone's builder owns its copyright. MMapper's own map,
+  `MUME/arda` (`arda.xml`), declares no licence and says it grants no
+  rights beyond fair use.
+- Switching to `MUME/arda` would not change the legal position (same
+  texts, same status), so **the owner's `arda.mm2` stays bundled** (owner
+  decision, 2026-09-29). WebCockpit does what MMapper does; MUME is not
+  contacted separately (owner decision).
+- `public/map/README` and `THIRD_PARTY_NOTICES.md` now state that the
+  file carries no licence, that WebCockpit's GPL does not cover it, and
+  that WebCockpit grants no rights in it. The earlier wording "on the
+  same terms as MMapper" could be read as the GPL applying.
