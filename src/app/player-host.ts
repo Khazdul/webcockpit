@@ -40,6 +40,7 @@ import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
 import { PANE_IDS, PANE_LABELS, type PaneId } from '../layout/types';
 import { applyTheme } from '../theme/apply';
+import { DEFAULT_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
@@ -260,6 +261,10 @@ export class PlayerHost {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     void store.load();
     const base = JSON.parse(JSON.stringify(this.opts.settings.get())) as Settings;
+    // The input colour is the player's, never the viewer's (ADR 0035): the
+    // recorded VIEW appearance carries it, and a log with no VIEW, or one
+    // recorded before the setting existed, plays with the default (Steel).
+    base.appearance.inputColor = DEFAULT_INPUT_COLOR;
     this.base = base;
     this.store = store;
     this.compose();

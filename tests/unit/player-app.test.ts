@@ -9,7 +9,7 @@ import { PlayerHost } from '../../src/app/player-host';
 import { ReplayClock } from '../../src/player/clock';
 import { PlayerSocket } from '../../src/player/socket';
 import type { RunEvent } from '../../src/runs/events';
-import { SettingsStore } from '../../src/settings';
+import { SettingsStore, viewSnapshot } from '../../src/settings';
 import { movePane } from '../../src/layout/model';
 import { resetLayout } from '../../src/player/viewer';
 import { BASE_US, FakeWall, makeLog, meta, twoRunChain } from './player-helpers';
@@ -292,5 +292,77 @@ describe('PlayerHost', () => {
     expect(closed()).toBe(1);
     expect(root.querySelector('.wc-player')).toBeNull();
     expect(leaked()).toEqual([]);
+  });
+});
+
+describe('PlayerHost input colour (ADR 0035)', () => {
+  /** The chain with the first VIEW's appearance replaced by `appearance` (or no VIEW at all). */
+  function chain(appearance: object | null) {
+    const c = twoRunChain();
+    const lines = c[0]!.text.split('\n');
+    const i = lines.findIndex((l) => l.includes('VIEW'));
+    if (appearance === null) lines.splice(i, 1);
+    else lines[i] = makeLog(BASE_US, [{ at: 0.0002, view: { appearance } }]).trimEnd();
+    c[0]!.text = lines.join('\n');
+    return c;
+  }
+
+  function open(recorded: object | null, viewerColor: string) {
+    const root = document.createElement('div');
+    root.style.cssText = 'width:1200px;height:800px';
+    document.body.appendChild(root);
+    const wall = new FakeWall();
+    const viewer = new SettingsStore({ factory: null, storage: null, win: null });
+    void viewer.load();
+    viewer.update({ appearance: { inputColor: viewerColor as never } });
+    const host = new PlayerHost({ root, settings: viewer, wall, onClose: () => {} });
+    host.openChain(chain(recorded), [], { character: 'Rasta', level: 42 });
+    const eng = host.engine!;
+    eng.pause();
+    eng.seek(1500);
+    wall.flush();
+    const s = () => (host.app as unknown as { settings: SettingsStore }).settings.get();
+    return { host, eng, wall, viewer, s };
+  }
+
+  const mix = (p: number, t: string) => `color-mix(in oklab, var(--term-fg) ${p}%, ${t})`;
+
+  it('uses the recorded input colour, not the viewer’s, also after a backward seek', () => {
+    const { host, eng, wall, s } = open({ size: 14, inputColor: 'cyan' }, 'none');
+    expect(s().appearance.inputColor).toBe('cyan');
+    expect(host.el.style.getPropertyValue('--term-echo')).toBe(mix(15, '#00d7d7'));
+    eng.seek(3500);
+    wall.flush();
+    eng.seek(1000);
+    wall.flush();
+    expect(eng.buildCount).toBe(2);
+    expect(s().appearance.inputColor).toBe('cyan');
+    host.dispose();
+  });
+
+  it('resolves the recorded choice against the viewer’s colour theme', () => {
+    const { host, s } = open({ size: 14, inputColor: 'amber' }, 'steel');
+    host.setViewer({ ...host.viewerOverrides, theme: 'paper' });
+    expect(s().appearance.bg).toBe('#f4ecd8');
+    expect(s().appearance.inputColor).toBe('amber');
+    expect(host.el.style.getPropertyValue('--term-echo')).toBe(mix(15, '#9a5a00'));
+    host.dispose();
+  });
+
+  it('plays a log recorded before the setting (or with no VIEW) with Steel', () => {
+    for (const recorded of [{ size: 14 }, null]) {
+      const { host, s } = open(recorded, 'amber');
+      expect(s().appearance.inputColor).toBe('steel');
+      expect(host.el.style.getPropertyValue('--term-echo')).toBe(mix(55, '#7fb2e6'));
+      host.dispose();
+    }
+  });
+
+  it('a live VIEW snapshot carries the input colour', () => {
+    const s = new SettingsStore({ factory: null, storage: null, win: null });
+    void s.load();
+    s.update({ appearance: { inputColor: 'sage' } });
+    const v = JSON.parse(JSON.stringify(viewSnapshot(s.get()))) as { appearance: { inputColor: string } };
+    expect(v.appearance.inputColor).toBe('sage');
   });
 });
