@@ -22,6 +22,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Replay polish
+
+- **Done:** owner feedback on the HTML replay (ADR 0031). Comment holds
+  halved (`clamp(1 + len/30, 2.5, 10)` s, new exports only); a leading
+  comment gets a blank row above it so the header row does not cover
+  it; the chrome auto-hides in play with the settings section open too.
+  1137 unit tests; e2e 187/188 (Firefox inline-map-worker test flaked
+  under full load, passes 3/3 alone).
+- **Next:** owner checks a fresh export; release with the next version.
+- **Open issues:** none new.
+- **Commits:** see `git log` (fix: replay polish, docs: ADR 0031).
+
 ### 2026-09-29 — Link readout matches ICMP ping
 
 - **Done:** owner saw `Link:` ~115–160 ms vs Cockpit ~38 ms. Cause: the

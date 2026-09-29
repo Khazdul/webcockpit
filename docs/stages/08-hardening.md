@@ -148,6 +148,12 @@ Link readout (owner brief 2026-09-29):
       Core.Ping minimum as fallback; not in dev (COEP), replay or player.
       Chromium 39 ms / Firefox 46 ms median vs ICMP avg 38 ms.
 
+Replay polish (owner brief 2026-09-29):
+
+- [x] ADR 0031: comment holds halved (`clamp(1 + len/30, 2.5, 10)` s);
+      a blank row before a comment on an empty output (the header row
+      covered it); the chrome auto-hides with the settings section open.
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same
