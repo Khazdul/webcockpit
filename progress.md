@@ -22,6 +22,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Steel command echo
+
+- **Done:** owner request: own commands stand out a little. Five colours
+  previewed in an artifact; owner picked "Stål" (steel). `.wc-echo` now
+  uses the root token `--term-echo`: term fg 55 % mixed with a cool blue
+  (darker blue on a light bg). Applies live, in the log player / run log,
+  Spotlights and new HTML replays (ADR 0034). Unit 1144/1144, e2e 190/190.
+- **Next:** owner tests live play and a replay; release with the next
+  version; then plan the rest of stage 8.
+- **Commits:** 15b9821, 12ee14f, fcdbb70, plus this one.
+
 ### 2026-09-29 — Release 0.1.14
 
 - **Released:** 0.1.14 (tag v0.1.14): timers across export cuts, player
