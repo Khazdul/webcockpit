@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.8 live on GitHub Pages, https://khazdul.github.io/webcockpit/, and on the Tailscale site, ADR 0028; next: owner test on Pages, plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.9 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,19 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — Custom domain, Tailscale retired
+
+- **Done:** owner bought `mumecockpit.com` (Cloudflare Registrar), set
+  the DNS (A/AAAA to GitHub, www CNAME, proxy off) and verified the
+  domain on GitHub. Repo Pages cname set, HTTPS enforced. App at the
+  root; `npm run publish` and the Caddy smoke profile removed; ADR 0029
+  (supersedes 0022, amends 0025 and 0028).
+- **Published:** 0.1.9 (dddc671) by tag; live smoke test 10/10; http,
+  www and khazdul.github.io/webcockpit/ redirect to the domain.
+- **Next:** plan the rest of stage 8.
+- **Open issues:** the owner switches off the Tailscale site (`tailweb`).
+- **Commits:** dc5a113, eb9f8ca, dddc671, plus this one.
 
 ### 2026-09-29 — GitHub Pages deployment
 

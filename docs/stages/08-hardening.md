@@ -125,7 +125,7 @@ GitHub Pages (owner brief 2026-09-29):
       WC_PROD_PROFILE=pages npm run test:prod` (0.1.8, 10/10 in Chromium
       and Firefox). CI smoke test in Chromium only (no GPU on runners);
       `github-pages` environment allows `v*` tags.
-- [ ] Owner test on the Pages URL.
+- [x] Owner test on the Pages URL (owner, 2026-09-29: works).
 
 Custom domain (owner brief 2026-09-29):
 
@@ -137,8 +137,9 @@ Custom domain (owner brief 2026-09-29):
       in `scripts/release.ts`.
 - [x] Smoke test and static server: `site` profile removed, always
       Pages headers; `npm run test:prod` tests `dist` at `/`.
-- [ ] HTTPS enforced, release on the domain, live smoke test
-      (`WC_PROD_URL=https://mumecockpit.com npm run test:prod`).
+- [x] HTTPS enforced, release on the domain, live smoke test
+      (`WC_PROD_URL=https://mumecockpit.com npm run test:prod`): 0.1.9,
+      10/10; http, www and khazdul.github.io/webcockpit/ redirect.
 
 ## Test guide (part A)
 
