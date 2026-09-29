@@ -46,3 +46,10 @@ still sits at the game text's top right, which is now the whole stage.
 ## Consequences
 
 - Touch devices get no tip (no hover); a tap still seeks.
+
+## Amendment 2026-09-29 — no xp in kill tips
+
+Owner feedback: the xp gained on a player kill is too much information in
+a tip. `markTip` now gives `Killed *Name the Race*` only (the line above
+keeps the original wording for the record). HTML replays exported before
+this carry the old text in their payload and keep showing it.

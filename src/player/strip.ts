@@ -9,7 +9,7 @@
 // `f = (y − cellH / 2) / (height − cellH)`, so the top row's centre is the
 // start and the bottom row's centre the end.
 
-import { type RunEvent, fmtXp } from '../runs/events';
+import type { RunEvent } from '../runs/events';
 
 export const STRIP_COLS = 2;
 export const MARK_COLS = 5;
@@ -49,15 +49,14 @@ export const LETTER_TIPS: Readonly<Record<MarkLetter, string>> = {
 };
 
 /**
- * The hover tip of a marker's event: `Killed *Name the Race* (1.2k xp)`,
+ * The hover tip of a marker's event: `Killed *Name the Race*`,
  * `Died (level 32)`, `Reached level 33`, `Achievement: …`. `level` is the
  * character's level when the event does not carry it (deaths).
  */
 export function markTip(e: RunEvent, level?: number): string {
   switch (e.type) {
     case 'pkill': {
-      const who = '*' + (e.race ? `${e.name} ${e.race}` : e.name) + '*';
-      return e.xpDelta > 0 ? `Killed ${who} (${fmtXp(e.xpDelta)} xp)` : `Killed ${who}`;
+      return 'Killed *' + (e.race ? `${e.name} ${e.race}` : e.name) + '*';
     }
     case 'char_death': {
       const l = e.level ?? level;

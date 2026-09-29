@@ -22,6 +22,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — No xp in kill tips
+
+- **Done:** owner feedback: kill marker tips read `Killed *Name the Race*`
+  without the xp (ADR 0032 amendment). Review page of every tip kind with
+  screenshots shared with the owner. 1137 unit tests; player/spotlights
+  e2e pass.
+- **Next:** owner reviews the tips; then release (with the start-page
+  update notice).
+- **Open issues:** `replay.spec.ts` "plays from file://" fails 2 of 3 runs
+  at the `## Watch the tank here.` comment check, also without this
+  change (pre-existing, to investigate). Old HTML replays keep the xp.
+- **Commits:** see `git log` (fix: no xp in kill marker tips).
+
 ### 2026-09-29 — Update notice on every start frame
 
 - **Done:** owner feedback: no update notice until Enter MUME (the start

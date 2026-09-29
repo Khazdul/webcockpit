@@ -121,7 +121,7 @@ describe('buildReplayPayload', () => {
     expect(p.runs[1]!.text).toBe(chain()[1]!.text);
     expect(p.cuts).toEqual([[us(6), us(9)]]);
     expect(p.markers).toEqual([
-      { us: us(4), kind: 'K', tip: 'Killed *Ibuki the Half-Elf* (1 xp)' },
+      { us: us(4), kind: 'K', tip: 'Killed *Ibuki the Half-Elf*' },
       { us: us(3600.5), kind: 'L', tip: 'Reached level 42' },
     ]);
     // The comment on a removed line moves to the next kept visible entry.

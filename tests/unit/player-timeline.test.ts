@@ -287,7 +287,7 @@ describe('strip maths', () => {
       { type: 'run_end', us: 50 },
     ];
     expect(markersOf(ev)).toEqual([
-      { letter: 'K', us: 9, tip: 'Killed *Ibuki the Half-Elf* (5 xp)' },
+      { letter: 'K', us: 9, tip: 'Killed *Ibuki the Half-Elf*' },
       { letter: 'D', us: 19, tip: 'Died' },
       { letter: 'A', us: 30, tip: 'Achievement: x' },
       { letter: 'L', us: 40, tip: 'Reached level 42' },
