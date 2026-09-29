@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { normaliseBase, serve } from '../../scripts/static-server.ts';
 
-describe('static-server (ADR 0022, ADR 0028)', () => {
+describe('static-server (ADR 0028, ADR 0029)', () => {
   let dir: string;
   const servers: Array<ReturnType<typeof serve>> = [];
   const start = async (opts: Parameters<typeof serve>[2]): Promise<string> => {
@@ -34,23 +34,23 @@ describe('static-server (ADR 0022, ADR 0028)', () => {
     expect(normaliseBase('//a/b//')).toBe('/a/b/');
   });
 
-  it('site profile at the root: isolation headers, immutable assets, no-cache elsewhere', async () => {
+  it('at the root: Pages headers (no COOP/COEP, max-age=600), MIME by extension', async () => {
     const url = await start({});
-    const index = await fetch(`${url}/`);
-    expect(index.status).toBe(200);
-    expect(index.headers.get('cross-origin-embedder-policy')).toBe('require-corp');
-    expect(index.headers.get('cache-control')).toBe('no-cache');
-    const asset = await fetch(`${url}/assets/a-123.js`);
-    expect(asset.headers.get('content-type')).toMatch(/^text\/javascript/);
-    expect(asset.headers.get('cache-control')).toContain('immutable');
-  });
-
-  it('pages profile under a base: only paths under it, a redirect for the bare base, no custom headers', async () => {
-    const url = await start({ base: '/webcockpit/', profile: 'pages' });
-    const index = await fetch(`${url}/webcockpit/?replay`);
+    const index = await fetch(`${url}/?replay`);
     expect(index.status).toBe(200);
     expect(index.headers.get('cross-origin-embedder-policy')).toBeNull();
     expect(index.headers.get('cross-origin-opener-policy')).toBeNull();
+    expect(index.headers.get('cache-control')).toBe('max-age=600');
+    const asset = await fetch(`${url}/assets/a-123.js`);
+    expect(asset.headers.get('content-type')).toMatch(/^text\/javascript/);
+    expect(asset.headers.get('cache-control')).toBe('max-age=600');
+    expect((await fetch(`${url}/missing.js`)).status).toBe(404);
+  });
+
+  it('under a base: only paths under it, a redirect for the bare base', async () => {
+    const url = await start({ base: '/webcockpit/' });
+    const index = await fetch(`${url}/webcockpit/?replay`);
+    expect(index.status).toBe(200);
     expect(index.headers.get('cache-control')).toBe('max-age=600');
     const asset = await fetch(`${url}/webcockpit/assets/a-123.js`);
     expect(asset.status).toBe(200);

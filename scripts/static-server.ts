@@ -1,43 +1,23 @@
-// A plain static file server that stands in for the production hosts:
-// files from one directory under a base path, MIME types by extension, no
-// fallback, no dev middleware.
+// A plain static file server that stands in for GitHub Pages, the
+// production host (ADR 0028, ADR 0029): files from one directory under a
+// base path, MIME types by extension, no fallback, no dev middleware.
 //
-//   node scripts/static-server.ts [dir] [--port n] [--base path] [--profile site|pages]
-//                                  (defaults: dist, 4180, /, site)
+//   node scripts/static-server.ts [dir] [--port n] [--base path]
+//                                  (defaults: dist, 4180, /)
 //
-// Profiles:
-//   site   the Tailscale/Caddy site (ADR 0022): COOP/COEP, nosniff,
-//          immutable hashed assets, everything else no-cache
-//   pages  GitHub Pages (ADR 0028): no custom headers, max-age=600 on all
+// Headers as on Pages: no COOP/COEP (so not cross-origin isolated) and
+// `Cache-Control: max-age=600` on everything. Only paths under the base
+// are served; the base without its trailing slash redirects to it (as
+// Pages does), everything else is 404.
 //
-// Only paths under the base are served; the base without its trailing
-// slash redirects to it (as GitHub Pages does), everything else is 404.
-//
-// Used by the smoke test (playwright.prod.config.ts), by `npm run publish`
-// and by `npm run build:pages` to check a build before it goes live.
+// Used by the smoke test (playwright.prod.config.ts) and by
+// `npm run build:pages` to check a build before it goes live.
 import { createReadStream, realpathSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 
-/** The headers every response carries (ADR 0022 "Headers"). */
-export const SITE_HEADERS: Record<string, string> = {
-  'Cross-Origin-Opener-Policy': 'same-origin',
-  'Cross-Origin-Embedder-Policy': 'require-corp',
-  'X-Content-Type-Options': 'nosniff',
-};
-
-/** Hashed build output: safe to cache forever. Everything else revalidates. */
-export function cacheControl(path: string): string {
-  return path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
-}
-
-export type Profile = 'site' | 'pages';
-
-/** Headers of a response for `path` (relative to the base, starting with `/`). */
-export function profileHeaders(profile: Profile, path: string): Record<string, string> {
-  if (profile === 'pages') return { 'Cache-Control': 'max-age=600' };
-  return { ...SITE_HEADERS, 'Cache-Control': cacheControl(path) };
-}
+/** The headers of every response, as GitHub Pages sends them. */
+export const PAGES_HEADERS: Record<string, string> = { 'Cache-Control': 'max-age=600' };
 
 /** `/`, or `/x/y/` for any spelling of a base path. */
 export function normaliseBase(raw: string): string {
@@ -65,16 +45,14 @@ export function mimeType(path: string): string {
 export interface ServeOptions {
   /** URL path prefix the directory is served under (default `/`). */
   base?: string;
-  profile?: Profile;
 }
 
 export function serve(dir: string, port: number, opts: ServeOptions = {}): ReturnType<typeof createServer> {
   const root = realpathSync(dir);
   const base = normaliseBase(opts.base ?? '/');
-  const profile = opts.profile ?? 'site';
   const server = createServer((req, res) => {
     const notFound = (code = 404): void => {
-      res.writeHead(code, { ...profileHeaders(profile, '/'), 'Content-Type': 'text/plain' });
+      res.writeHead(code, { ...PAGES_HEADERS, 'Content-Type': 'text/plain' });
       res.end(code === 404 ? 'not found' : 'bad request');
     };
     if (req.method !== 'GET' && req.method !== 'HEAD') return notFound(400);
@@ -88,7 +66,7 @@ export function serve(dir: string, port: number, opts: ServeOptions = {}): Retur
     }
     if (full.includes('\0')) return notFound(400);
     if (base !== '/' && `${full}/` === base) {
-      res.writeHead(301, { ...profileHeaders(profile, '/'), Location: `${base}${url.search}` });
+      res.writeHead(301, { ...PAGES_HEADERS, Location: `${base}${url.search}` });
       return res.end();
     }
     if (!full.startsWith(base)) return notFound();
@@ -102,7 +80,7 @@ export function serve(dir: string, port: number, opts: ServeOptions = {}): Retur
       return notFound();
     }
     res.writeHead(200, {
-      ...profileHeaders(profile, path),
+      ...PAGES_HEADERS,
       'Content-Type': mimeType(file),
       'Content-Length': statSync(file).size,
     });
@@ -121,10 +99,8 @@ if (import.meta.main) {
   };
   const port = Number(option('--port') ?? 4180);
   const base = normaliseBase(option('--base') ?? '/');
-  const profile = option('--profile') ?? 'site';
-  if (profile !== 'site' && profile !== 'pages') throw new Error(`static: unknown profile ${profile}`);
   const dir = resolve(args[0] ?? 'dist');
-  serve(dir, port, { base, profile }).on('listening', () =>
-    console.log(`static: ${dir} at http://127.0.0.1:${port}${base} (${profile})`),
+  serve(dir, port, { base }).on('listening', () =>
+    console.log(`static: ${dir} at http://127.0.0.1:${port}${base}`),
   );
 }

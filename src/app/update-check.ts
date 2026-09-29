@@ -1,9 +1,9 @@
 // Update check (ADR 0025): is the site serving a newer build than the one
 // running in this tab?
 //
-// `npm run publish` writes `release.json` ({ version, commit, … }) at the
-// site root (under Vite's `base`, `/webcockpit/` on GitHub Pages: ADR 0028),
-// and every build emits one too (vite.config.ts). The checker fetches it
+// `npm run build:pages` writes `release.json` ({ version, commit, … }) at
+// the site root (under Vite's `base`, ADR 0028; `/` at mumecockpit.com,
+// ADR 0029), and every build emits one too (vite.config.ts). The checker fetches it
 // with `cache: 'no-store'`, compares it with the running build
 // (src/core/build-info.ts) and calls `onNewVersion` once per different
 // release. Failures (offline, 404, bad JSON) are silent.

@@ -1,7 +1,7 @@
-// The release manifest (ADR 0022, ADR 0025): `release.json` at the root of
-// a published site. `npm run publish` and `npm run build:pages` write it;
-// the next publish reads it to know what to carry over, and the running
-// app's update check compares `version` and `commit` with its own.
+// The release manifest (ADR 0025, ADR 0028): `release.json` at the root of
+// the published site. `npm run build:pages` writes it; the next build reads
+// the live one to know what to carry over, and the running app's update
+// check compares `version` and `commit` with its own.
 
 export const MANIFEST = 'release.json';
 
@@ -36,4 +36,18 @@ export function parseRelease(text: string): Release | null {
 /** An asset name from a manifest that is safe to use as a file name under assets/. */
 export function isAssetName(name: string): boolean {
   return /^[\w.-]+$/.test(name) && name !== '.' && name !== '..';
+}
+
+/**
+ * The version rule of a release (ADR 0025): every release carries a new
+ * package.json version, so a running tab can tell that the live site
+ * changed. Why `version` may not go out over the live release
+ * `liveVersion` (null = no live release), or null when it may.
+ */
+export function versionGuard(liveVersion: string | null, version: string): string | null {
+  if (liveVersion === null || liveVersion !== version) return null;
+  return (
+    `version ${version} is already live. Bump it and commit first, e.g.\n` +
+    `  npm version patch --no-git-tag-version && git commit -am "chore: version <new version>"`
+  );
 }

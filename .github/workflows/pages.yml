@@ -1,4 +1,4 @@
-# GitHub Pages deployment (ADR 0028): https://khazdul.github.io/webcockpit/
+# GitHub Pages deployment (ADR 0028, ADR 0029): https://mumecockpit.com/
 # Runs on a version tag (`git tag vX.Y.Z && git push origin vX.Y.Z`) or by
 # hand. `npm run build:pages` does the checks, the build, the smoke test
 # and the carried assets; this workflow only uploads and deploys the result.

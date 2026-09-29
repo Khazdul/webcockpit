@@ -13,7 +13,6 @@
     "test:prod": "playwright test -c playwright.prod.config.ts",
     "bench": "node bench/text-bench.ts && node bench/script-bench.ts && node bench/browser-bench.ts",
     "typecheck": "tsc --noEmit",
-    "publish": "node scripts/publish.ts",
     "build:pages": "node scripts/pages-build.ts"
   },
   "devDependencies": {

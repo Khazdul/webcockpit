@@ -5,7 +5,8 @@ import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Plugin, defineConfig } from 'vite';
 
-// Cross-origin isolation (spec §1.5) stays possible from day one.
+// Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
+// and `vite preview` send these headers (GitHub Pages cannot, ADR 0028).
 // COEP does not apply to WebSocket connections, so the direct
 // wss://mume.org/ws-play/ socket (ADR 0002) is unaffected.
 const isolationHeaders = {
@@ -263,7 +264,7 @@ function replayBundlePlugin(): Plugin {
 /**
  * `release.json` at the site root (ADR 0025): `{ version, commit }` of the
  * build, what the running app's update check compares itself with.
- * `npm run publish` rewrites it with the full manifest (ADR 0022).
+ * `npm run build:pages` rewrites it with the full manifest (ADR 0028).
  */
 function releaseManifestPlugin(): Plugin {
   return {
@@ -306,7 +307,7 @@ function licencePlugin(): Plugin {
 
 /**
  * The public path the app is served under: `$WEBCOCKPIT_BASE`, default `/`
- * (the Tailscale site, ADR 0022). GitHub Pages builds use `/webcockpit/`
+ * (GitHub Pages at mumecockpit.com, ADR 0029). A subpath works too
  * (ADR 0028). Always with a leading and a trailing slash.
  */
 export function siteBase(raw = process.env.WEBCOCKPIT_BASE): string {

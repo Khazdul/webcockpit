@@ -11,23 +11,22 @@
 // Steps, stopping at the first failure:
 //   1. version checks (live release.json, tag)
 //   2. typecheck and unit tests
-//   3. `vite build` with the base taken from the Pages URL (`/webcockpit/`)
-//   4. the smoke test (playwright.prod.config.ts) with the pages profile
+//   3. `vite build` with the base taken from the live URL (`/`)
+//   4. the smoke test (playwright.prod.config.ts)
 //   5. carry the live release's own hashed assets (fetched from the live
 //      site), so a tab opened before the deploy still finds its lazy chunks
 //   6. the full release.json
 //
 // $WEBCOCKPIT_PAGES_URL overrides the live site
-// (default https://khazdul.github.io/webcockpit/); its path is the base.
+// (default https://mumecockpit.com/, ADR 0029); its path is the base.
 // $WEBCOCKPIT_PAGES_DIR overrides the output directory (default dist-pages).
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { versionGuard } from './publish-guard.ts';
-import { MANIFEST, type Release, isAssetName, parseRelease, releaseJson } from './release.ts';
+import { MANIFEST, type Release, isAssetName, parseRelease, releaseJson, versionGuard } from './release.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const LIVE = `${(process.env.WEBCOCKPIT_PAGES_URL ?? 'https://khazdul.github.io/webcockpit/').replace(/\/+$/, '')}/`;
+const LIVE = `${(process.env.WEBCOCKPIT_PAGES_URL ?? 'https://mumecockpit.com/').replace(/\/+$/, '')}/`;
 const BASE = new URL(LIVE).pathname;
 const OUT = resolve(ROOT, process.env.WEBCOCKPIT_PAGES_DIR ?? 'dist-pages');
 const FETCH_TIMEOUT_MS = 20_000;
@@ -93,12 +92,8 @@ step(`build (base ${BASE})`);
 run('npx', ['vite', 'build', '--outDir', OUT, '--emptyOutDir'], { WEBCOCKPIT_BASE: BASE });
 const own = readdirSync(join(OUT, 'assets')).sort();
 
-step('smoke test (pages profile)');
-run('npx', ['playwright', 'test', '-c', 'playwright.prod.config.ts'], {
-  WC_PROD_DIR: OUT,
-  WC_PROD_BASE: BASE,
-  WC_PROD_PROFILE: 'pages',
-});
+step('smoke test');
+run('npx', ['playwright', 'test', '-c', 'playwright.prod.config.ts'], { WC_PROD_DIR: OUT, WC_PROD_BASE: BASE });
 
 step('carry over live assets');
 let carried = 0;
