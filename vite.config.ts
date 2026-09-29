@@ -143,6 +143,8 @@ const oxc = { jsx: { runtime: 'automatic', importSource: 'preact' } } as const;
 /** Where the HTML replay bundle is served and emitted (src/replay/export.ts REPLAY_BUNDLE_PATH). */
 const REPLAY_BUNDLE = 'replay/replay.js';
 const ROOT = fileURLToPath(new URL('.', import.meta.url));
+/** The licence text at the site root (src/chrome/frames/about.tsx links it). */
+const LICENCE_FILE = 'LICENSE.txt';
 
 /**
  * Bundles the HTML replay runtime (src/replay/main.ts) into one IIFE with
@@ -275,12 +277,39 @@ function releaseManifestPlugin(): Plugin {
   };
 }
 
+/**
+ * `LICENSE.txt` at the site root: the repository's GPL-2 `LICENSE`
+ * (ADR 0027), linked from About, so every copy of the app carries the
+ * licence text (GPL-2 §1). `vite` (dev) serves the same file.
+ */
+function licencePlugin(): Plugin {
+  const file = resolve(ROOT, 'LICENSE');
+  return {
+    name: 'webcockpit-licence',
+    configureServer(server) {
+      const path = `${server.config.base.replace(/\/?$/, '/')}${LICENCE_FILE}`;
+      server.middlewares.use((req, res, next) => {
+        if ((req.method !== 'GET' && req.method !== 'HEAD') || req.url?.split('?')[0] !== path) return next();
+        const r = res as ServerResponse;
+        r.statusCode = 200;
+        r.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        r.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+        r.end(req.method === 'HEAD' ? undefined : readFileSync(file));
+      });
+    },
+    generateBundle() {
+      if (this.environment?.config.consumer !== undefined && this.environment.config.consumer !== 'client') return;
+      this.emitFile({ type: 'asset', fileName: LICENCE_FILE, source: readFileSync(file) });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => {
   buildCommit = command === 'build' ? gitCommit() : 'dev';
   return {
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), replayBundlePlugin(), releaseManifestPlugin()],
+    plugins: [fixturesPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     server: { headers: isolationHeaders },

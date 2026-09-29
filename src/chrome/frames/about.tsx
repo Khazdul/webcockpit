@@ -2,7 +2,8 @@
 // and the build commit (ADR 0025) follow the title on its row. Colour rule
 // per line: an ALL-CAPS line is a heading (C_TITLE); an indented line is `  key  description`
 // (key in C_ACCENT, description in C_BODY); other text is C_BODY. Web
-// addresses (mume.org, discord.gg, github.com) are links.
+// addresses (mume.org, discord.gg, github.com) and LICENSE.txt (the site's
+// copy of the GPL text, vite.config.ts) are links.
 
 import type { VNode } from 'preact';
 import { useState } from 'preact/hooks';
@@ -58,7 +59,7 @@ CREDITS
   Libraries       Preact and CodeMirror.
 
 LICENCE
-WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). Source code: github.com/Khazdul/webcockpit
+WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). Licence text: LICENSE.txt. Source code: github.com/Khazdul/webcockpit
 
 MUME is run by its own team; WebCockpit is an independent client and is not made or endorsed by MUME.`;
 
@@ -89,13 +90,18 @@ export function aboutLines(width: number): Styled[] {
   return out;
 }
 
-const LINK = /\b((?:mume\.org|discord\.gg|github\.com)(?:\/[\w./-]*[\w/])?)/;
+const LINK = /\b((?:mume\.org|discord\.gg|github\.com)(?:\/[\w./-]*[\w/])?|LICENSE\.txt)/;
 
 /** Text with the web addresses in it as links that open in a new tab. */
 function linked(text: string): (string | VNode)[] {
   return text.split(LINK).map((part, i) =>
     i % 2 === 0 ? part : (
-      <a class="wc-about-link" href={`https://${part}`} target="_blank" rel="noopener noreferrer">
+      <a
+        class="wc-about-link"
+        href={part === 'LICENSE.txt' ? `${import.meta.env.BASE_URL}${part}` : `https://${part}`}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         {part}
       </a>
     ),

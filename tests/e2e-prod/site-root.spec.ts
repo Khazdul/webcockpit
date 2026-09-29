@@ -51,6 +51,9 @@ test('files the export and the map fetch have the right types and headers', asyn
   await check('/map/arda.mm2', /^application\/octet-stream/);
   await check('/fonts/DejaVuSansMono.woff2', /^font\/woff2/);
   await check('/fonts/JetBrainsMonoNL-Regular.woff2', /^font\/woff2/);
+  // The GPL text About links to (ADR 0027).
+  await check('/LICENSE.txt', /^text\/plain/);
+  expect(await (await request.get('/LICENSE.txt')).text()).toContain('GNU GENERAL PUBLIC LICENSE');
   // The update check's manifest (ADR 0025): revalidated, never immutable.
   const release = await check('/release.json', /^application\/json/);
   expect(release['cache-control']).toBe('no-cache');
