@@ -2,10 +2,18 @@
 import { describe, expect, it } from 'vitest';
 import { PANE_IDS } from '../../src/layout/types';
 import { defaultSettings, migrateSettings } from '../../src/settings';
-import { applyPaneTheme, applyTheme, paneTokens, rootTokens, shadeVar } from '../../src/theme/apply';
+import {
+  applyPaneTheme,
+  applyTheme,
+  echoColor,
+  paneTokens,
+  rootTokens,
+  shadeVar,
+} from '../../src/theme/apply';
 import { CellMetrics, cellHeight, nominalCell } from '../../src/theme/cells';
 import { hslToHex, paneShades } from '../../src/theme/color';
 import { FONTS, fontPx } from '../../src/theme/fonts';
+import { TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
 describe('root tokens', () => {
   it('covers the Inv §10.9 names', () => {
@@ -43,6 +51,33 @@ describe('root tokens', () => {
     applyTheme(defaultSettings(), root);
     expect(root.hasAttribute('data-light')).toBe(false);
     expect(root.dataset.cursor).toBe('beam');
+  });
+});
+
+describe('command echo colour (ADR 0034)', () => {
+  const DARK = 'color-mix(in oklab, var(--term-fg) 55%, #7fb2e6)';
+  const LIGHT = 'color-mix(in oklab, var(--term-fg) 55%, #1f5f9e)';
+
+  it('is steel: the fg mixed with a light blue on dark, a dark blue on light', () => {
+    expect(rootTokens(defaultSettings())['--term-echo']).toBe(DARK);
+    expect(echoColor('#000000')).toBe(DARK);
+    expect(echoColor('#f4ecd8')).toBe(LIGHT);
+  });
+
+  it('covers every fg × bg preset, following the bg lightness', () => {
+    for (const bg of TERMINAL_BG_PRESETS) {
+      for (const fg of TERMINAL_FG_PRESETS) {
+        const t = rootTokens(migrateSettings({ appearance: { bg: bg.hex, fg: fg.hex } }));
+        expect(t['--term-fg']).toBe(fg.hex);
+        expect(t['--term-echo']).toBe(bg.name === 'paper' ? LIGHT : DARK);
+      }
+    }
+  });
+
+  it('is set on the element applyTheme themes', () => {
+    const root = document.createElement('div');
+    applyTheme(migrateSettings({ appearance: { bg: '#f4ecd8', fg: '#000000' } }), root);
+    expect(root.style.getPropertyValue('--term-echo')).toBe(LIGHT);
   });
 });
 

@@ -105,8 +105,9 @@ body {
   color: var(--c-yellow);
 }
 
+/* The command echo, "steel" (ADR 0034); --term-echo is a root token. */
 .wc-echo {
-  color: var(--term-fg);
+  color: var(--term-echo, var(--term-fg));
 }
 
 .wc-measure {
