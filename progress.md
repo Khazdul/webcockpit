@@ -22,6 +22,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Link readout matches ICMP ping
+
+- **Done:** owner saw `Link:` ~115–160 ms vs Cockpit ~38 ms. Cause: the
+  readout was the GMCP `Core.Ping` RTT, which waits on MUME's ~250 ms
+  pulse; WebSocket vs telnet floors measured equal (55 vs 58 ms). `Link:`
+  now shows an HTTPS HEAD round trip to mume.org over a warmed keep-alive
+  connection (median of 3), Core.Ping as fallback and for `?` (ADR 0030).
+  Chromium 35–44 ms, Firefox 40–49 ms vs ICMP ~38 ms. Probe is off where
+  the page is cross-origin isolated (dev server), so dev shows Core.Ping.
+- **Next:** release 0.1.10 on owner's go; owner checks `Link:` live.
+- **Open issues:** load on mume.org (~12 HEAD/min per player).
+- **Commits:** a67f358, d33f9b2, d8c451c, plus this one.
+
 ### 2026-09-29 — Custom domain, Tailscale retired
 
 - **Done:** owner bought `mumecockpit.com` (Cloudflare Registrar), set
