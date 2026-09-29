@@ -160,6 +160,13 @@ Steel command echo (owner request 2026-09-29):
       #7fb2e6 (dark bg) or #1f5f9e (light bg) via a `--term-echo` root
       token; live, log player, Spotlights and HTML replay.
 
+Input color (owner request 2026-09-30):
+
+- [x] ADR 0035: Appearance → `Input color` (None, Steel, Bright, Sand,
+      Sage, Cyan, Amber; Steel default) colours the command echo and the
+      input line (`>` included); recorded in VIEW, so RUN LOG, Spotlights
+      and the HTML replay use the player's choice (Steel for older logs).
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same

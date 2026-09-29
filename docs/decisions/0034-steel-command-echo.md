@@ -31,3 +31,7 @@ previewed and chosen by the owner. It must hold for every colour theme
   bundle is embedded in the file).
 - Needs CSS `color-mix()` (Chromium 111, Firefox 113, Safari 16.2); older
   browsers fall back to the property's inherited colour.
+
+*Amended by 0035 (2026-09-30):* the echo colour is now the "Input color"
+setting (Steel by default, six other choices), it also colours the input
+line, and logs replay with the recorded choice.
