@@ -582,7 +582,7 @@ export class PlayerView {
         btn(` ${value.padEnd(VALUE_W)} `, 'wc-player-value', () => step(1), { set: key, value }),
         btn('►', 'wc-player-step', () => step(1), { set: key, dir: '1' }),
       );
-    cycler('Font', 'font', vs.font(), vs.cycleFont);
+    cycler('Font-size', 'font', vs.font(), vs.cycleFont);
     cycler('Colours', 'theme', vs.theme(), vs.cycleTheme);
     const can = vs.canReset();
     row(btn('Reset layout', `wc-player-reset${can ? '' : ' is-off'}`, () => can && vs.reset(), { set: 'reset' }));

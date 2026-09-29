@@ -29,6 +29,8 @@ Newest first.
   ends and embeds the timers state as a `WebCockpit.Timers` GMCP record
   the replay hub takes (ADR 0033). 1141 unit tests; replay/export e2e
   18/18.
+- **Also:** the player's settings box says `Font-size` instead of `Font`
+  (owner request).
 - **Next:** owner tests an export with a cut; release with the next batch.
 - **Open issues:** timers active at a run's start (from the live archive)
   are still not in replays (not captured).
