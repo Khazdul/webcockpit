@@ -22,6 +22,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — About without commands
+
+- **Done:** removed the COMMANDS section from About at the owner's
+  request (every command has a menu route or is a developer tool). The
+  commands themselves and `#help` are unchanged.
+- **Open issue:** `timers-replay.test.ts` fails on the new Cockpit log
+  `Rasta/2026-09-30T00-11-08.log` (355 timer lines, test wants > 1000);
+  not caused by this change. Check in stage 8.
+- **Commits:** d919acb, plus this one.
+
 ### 2026-09-30 — Performance brief recorded
 
 - **Done:** owner brief for a stage 8 performance part recorded in
