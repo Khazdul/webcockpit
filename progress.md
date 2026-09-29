@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.6 public under GPL-2.0-or-later, LICENSE.txt on the site, ADR 0027; waiting for MMapper author's reply on arda.mm2; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.6 public under GPL-2.0-or-later, LICENSE.txt on the site, ADR 0027; bundled arda.mm2 kept, no licence stated (ADR 0020 amendment); next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,18 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — Bundled map data: decision
+
+- **Done:** one of the MMapper authors replied: the MMapper authors hold no
+  rights in the map; MUME's zone builders own the texts, no licence exists
+  (`MUME/arda` declares none either). Owner decision: keep the owner's
+  `arda.mm2` bundled, do not contact MUME separately (WebCockpit does what
+  MMapper does). `public/map/README` and `THIRD_PARTY_NOTICES.md` now say
+  the GPL does not cover the file; ADR 0020 amended.
+- **Next:** plan the rest of stage 8.
+- **Open issues (owner):** README screenshots show other players' names.
+- **Commits:** 337455a.
 
 ### 2026-09-29 — PR #1: licence text on the site
 
