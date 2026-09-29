@@ -65,6 +65,11 @@ Chromium, `npm run build:pages` with `WC_PROD_BROWSERS=chromium`, then
 and `actions/deploy-pages` in the `github-pages` environment. One
 deployment at a time (`concurrency: pages`, never cancelled).
 
+Repository setup (done once, 2026-09-29): Pages source "GitHub Actions",
+and the `github-pages` environment's deployment rules allow tags `v*`
+besides `main` (by default only the default branch may deploy, so a tag
+run's deploy job is rejected).
+
 The runners have no GPU: in headless Firefox the map worker gets no
 WebGL and the pane reports `unsupported` (first run, 2026-09-29), while
 Chromium falls back to software rendering. CI therefore gates on

@@ -120,9 +120,12 @@ GitHub Pages (owner brief 2026-09-29):
       `/webcockpit/`, pages smoke test, carried live assets, release.json).
 - [x] `.github/workflows/pages.yml` (tag `v*` and manual; build, upload,
       deploy).
-- [ ] Enable Pages (source: GitHub Actions), first deploy, live smoke
+- [x] Enable Pages (source: GitHub Actions), first deploy, live smoke
       test via `WC_PROD_URL=https://khazdul.github.io/webcockpit
-      WC_PROD_PROFILE=pages npm run test:prod`.
+      WC_PROD_PROFILE=pages npm run test:prod` (0.1.8, 10/10 in Chromium
+      and Firefox). CI smoke test in Chromium only (no GPU on runners);
+      `github-pages` environment allows `v*` tags.
+- [ ] Owner test on the Pages URL; later: retire the Tailscale site.
 
 ## Test guide (part A)
 

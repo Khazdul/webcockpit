@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.6 public under GPL-2.0-or-later, LICENSE.txt on the site, ADR 0027; bundled arda.mm2 kept, no licence stated (ADR 0020 amendment); next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.8 live on GitHub Pages, https://khazdul.github.io/webcockpit/, and on the Tailscale site, ADR 0028; next: owner test on Pages, plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,21 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — GitHub Pages deployment
+
+- **Done:** owner decision: host on GitHub Pages at
+  `khazdul.github.io/webcockpit/` (no custom domain), in parallel with
+  Tailscale, publish on version tags. ADR 0028: `WEBCOCKPIT_BASE`,
+  subpath audit, static-server `--base`/`--profile pages`, `build:pages`,
+  `.github/workflows/pages.yml`. CI smoke test Chromium only (no GPU on
+  runners). Environment rule for `v*` tags added by the owner.
+- **Published:** 0.1.8 (5fa661f) to Pages and to Tailscale; live smoke
+  test on Pages 10/10 (Chromium, Firefox). Tag `v0.1.7` points at an
+  undeployed commit (harmless).
+- **Next:** owner test on the Pages URL; plan the rest of stage 8;
+  retire Tailscale later (warn users to export first: new origin).
+- **Commits:** c8bec58…5fa661f, plus this one.
 
 ### 2026-09-29 — Bundled map data: decision
 
