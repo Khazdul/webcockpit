@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.9 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.10 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -31,7 +31,8 @@ Newest first.
   connection (median of 3), Core.Ping as fallback and for `?` (ADR 0030).
   Chromium 35–44 ms, Firefox 40–49 ms vs ICMP ~38 ms. Probe is off where
   the page is cross-origin isolated (dev server), so dev shows Core.Ping.
-- **Next:** release 0.1.10 on owner's go; owner checks `Link:` live.
+- **Released:** 0.1.10 (tag v0.1.10), Pages deploy OK, prod smoke 10/10.
+- **Next:** owner checks `Link:` live; then plan the rest of stage 8.
 - **Open issues:** load on mume.org (~12 HEAD/min per player).
 - **Commits:** a67f358, d33f9b2, d8c451c, plus this one.
 
