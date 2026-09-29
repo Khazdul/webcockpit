@@ -149,4 +149,42 @@ describe('KeepAlive', () => {
     k.timers.advance(10_000);
     expect(k.pings()).toBe(1);
   });
+
+  it('shows the link probe value when there is one, else the Core.Ping minimum', () => {
+    const k = make();
+    k.ka.start();
+    k.timers.advance(10_120);
+    k.ka.notePong();
+    expect(k.rtts.at(-1)).toEqual({ ms: 120, last: 120, ping: 120, http: null, suspect: false });
+    k.ka.setHttpRtt(38);
+    expect(k.rtts.at(-1)).toEqual({ ms: 38, last: 120, ping: 120, http: 38, suspect: false });
+    expect(k.ka.rtt).toBe(38);
+    expect(k.ka.pingRtt).toBe(120);
+    const n = k.rtts.length;
+    k.ka.setHttpRtt(38); // unchanged: no event
+    expect(k.rtts).toHaveLength(n);
+    k.ka.setHttpRtt(null); // probe failing: fall back
+    expect(k.rtts.at(-1)).toEqual({ ms: 120, last: 120, ping: 120, http: null, suspect: false });
+  });
+
+  it('keeps the suspect flag from Core.Ping while the probe has a value', () => {
+    const k = make();
+    k.ka.start();
+    k.ka.setHttpRtt(40);
+    k.timers.advance(20_000); // ping at 10 s, no pong by 20 s
+    expect(k.rtts.at(-1)).toEqual({ ms: 40, last: null, ping: null, http: 40, suspect: true });
+  });
+
+  it('ignores probe values while stopped and resets them on start', () => {
+    const k = make();
+    k.ka.setHttpRtt(40);
+    expect(k.rtts).toEqual([]);
+    k.ka.start();
+    k.ka.setHttpRtt(40);
+    k.ka.stop();
+    k.ka.setHttpRtt(50);
+    expect(k.rtts.at(-1)!.http).toBe(40);
+    k.ka.start();
+    expect(k.rtts.at(-1)).toEqual({ ms: null, last: null, ping: null, http: null, suspect: false });
+  });
 });

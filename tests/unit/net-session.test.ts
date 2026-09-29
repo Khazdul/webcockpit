@@ -3,7 +3,7 @@ import { Bus } from '../../src/core/bus';
 import type { BusEvents } from '../../src/core/types';
 import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT, Session } from '../../src/net/session';
 import { OPT_ECHO, OPT_GMCP, WILL, WONT } from '../../src/net/telnet';
-import { FakeSocket, IAC, RecSink, ascii, gmcpOut, sb, utf8 } from './net-helpers';
+import { FakeSocket, FakeTimers, IAC, RecSink, ascii, gmcpOut, sb, utf8 } from './net-helpers';
 
 function make() {
   const bus = new Bus();
@@ -211,3 +211,64 @@ describe('Session sending', () => {
     expect(m.sink.out).toBe('hi\r\n');
   });
 });
+
+describe('Session link probe', () => {
+  function makeProbe() {
+    const bus = new Bus();
+    const timers = new FakeTimers();
+    const urls: string[] = [];
+    const rtts: BusEvents['link.rtt'][] = [];
+    bus.on('link.rtt', (p) => rtts.push(p));
+    const sockets: FakeSocket[] = [];
+    const s = new Session({
+      bus,
+      sink: new RecSink(),
+      timers,
+      linkFetch: (url) => (urls.push(url), Promise.resolve({})),
+      socketFactory: () => {
+        const f = new FakeSocket();
+        sockets.push(f);
+        return f;
+      },
+    });
+    const flush = async (): Promise<void> => {
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+    };
+    return { s, timers, urls, rtts, sockets, flush };
+  }
+
+  it('probes from login to disconnect and feeds the Link readout', async () => {
+    const m = makeProbe();
+    m.s.connect();
+    m.timers.advance(0);
+    expect(m.urls).toHaveLength(0); // not before the socket opens
+    m.sockets[0]!.open();
+    expect(m.s.linkProbe!.active).toBe(true);
+    m.timers.advance(0);
+    await m.flush();
+    expect(m.urls).toHaveLength(3); // two warm-ups, one timed
+    expect(m.rtts.at(-1)).toMatchObject({ ms: 0, http: 0, ping: null });
+    m.s.disconnect();
+    expect(m.s.linkProbe!.active).toBe(false);
+    m.timers.advance(60_000);
+    await m.flush();
+    expect(m.urls).toHaveLength(3);
+  });
+
+  it('does not probe a replay connection', async () => {
+    const m = makeProbe();
+    const replay = Object.assign(new FakeSocket(), { replay: true as const });
+    m.s.connect(replay);
+    replay.open();
+    m.timers.advance(20_000);
+    await m.flush();
+    expect(m.s.linkProbe!.active).toBe(false);
+    expect(m.urls).toHaveLength(0);
+  });
+
+  it('has no probe without linkFetch', () => {
+    const s = new Session({ bus: new Bus(), sink: new RecSink(), socketFactory: () => new FakeSocket() });
+    expect(s.linkProbe).toBeNull();
+  });
+});
+
