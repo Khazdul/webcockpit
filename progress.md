@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.10 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.11 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -30,7 +30,8 @@ Newest first.
   it; the chrome auto-hides in play with the settings section open too.
   1137 unit tests; e2e 187/188 (Firefox inline-map-worker test flaked
   under full load, passes 3/3 alone).
-- **Next:** owner checks a fresh export; release with the next version.
+- **Released:** 0.1.11 (tag v0.1.11), Pages deploy OK, prod smoke 10/10.
+- **Next:** owner checks a fresh export live.
 - **Open issues:** none new.
 - **Commits:** see `git log` (fix: replay polish, docs: ADR 0031).
 
