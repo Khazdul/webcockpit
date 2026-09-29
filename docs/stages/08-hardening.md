@@ -42,7 +42,8 @@ Part A — out: saving the viewer's choices between opens (see ADR 0021),
 per-pane colour editing, custom palettes.
 
 Later parts (not planned yet): fixes from PvP testing, performance pass
-(Chromium burst frame 39–58 ms), polish, and the carried items in
+(Chromium burst frame 39–58 ms; see the owner brief 2026-09-30 under
+"Owner feedback"), polish, and the carried items in
 `progress.md` (map pane default height, replay font subsetting, player
 paint after a long seek, JetBrains Mono exports without DejaVu fallback
 glyphs, reel load time on a large library, live checks of stage 7,
@@ -237,3 +238,12 @@ the character in the input line is ever a problem in play.
 - 2026-09-29, players: Spotlights without panes and without the gear;
   hover tips on the K/D/A/L markers in RUN LOG, Spotlights and the HTML
   replay (ADR 0032).
+- 2026-09-30, performance (brief for the next part, not started): in
+  play WebCockpit sometimes feels a little laggier than Cockpit in the
+  terminal. Repro: `help 24-bit colours` fills the screen with colour
+  code examples; the paint stalls noticeably (Cockpit stalls too, but
+  less). Output responsiveness is a key feature for PvP. Wanted: a very
+  thorough review of the whole input → socket → parse → render path
+  by subagents (consider a higher effort level), measured against the
+  spec §1.3 budgets, ending in ranked improvement proposals before any
+  fixes are built.

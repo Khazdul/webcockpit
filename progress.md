@@ -22,6 +22,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — Performance brief recorded
+
+- **Done:** owner brief for a stage 8 performance part recorded in
+  `docs/stages/08-hardening.md` (Owner feedback): `help 24-bit colours`
+  stalls more than in Cockpit; deep subagent review of the output path,
+  proposals first. Nothing investigated yet.
+- **Next:** plan the rest of stage 8, starting with that review.
+- **Commits:** this one.
+
 ### 2026-09-30 — Release 0.1.16
 
 - **Released:** 0.1.16 (tag v0.1.16): Input color setting (ADR 0035).
