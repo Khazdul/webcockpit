@@ -9,6 +9,9 @@
 //   bus gmcp         `Char.Name` live: load that character's record and
 //                    merge it under the lines that arrived meanwhile;
 //                    in a replay: start empty, never read or write
+//                    `WebCockpit.Timers` in a replay only: the state an
+//                    HTML replay carries across a cut (ADR 0033); it
+//                    replaces the current state
 //   bus cmd.sent     every sent command (after aliases; `''` = empty
 //                    Enter) to `tracker.onSent`. Live connection: live
 //                    sends only; replay: only the replayed log's sends
@@ -39,6 +42,8 @@ import { createTrackers } from './trackers';
 export const TIMERS_STATE_VERSION = 1;
 /** Longest delay from a change to its save, ms. */
 export const TIMERS_SAVE_DELAY_MS = 250;
+/** GMCP package (lower case) of a replayed timers state (src/share/timers-state.ts). */
+export const TIMERS_GMCP_PKG = 'webcockpit.timers';
 /** The tick period, ms. */
 export const TIMERS_TICK_MS = 1000;
 
@@ -127,7 +132,12 @@ export class TimersHub {
         if (s.state === 'connecting') this.onConnecting(s.replay === true);
       }),
       bus.on('gmcp', (m) => {
-        if (m.pkg.toLowerCase() !== 'char.name') return;
+        const pkg = m.pkg.toLowerCase();
+        if (pkg === TIMERS_GMCP_PKG) {
+          if (this.replayConn) this.replaceState(m.data);
+          return;
+        }
+        if (pkg !== 'char.name') return;
         const n = (m.data as { name?: unknown } | undefined)?.name;
         if (typeof n === 'string' && n) this.onCharacter(n);
       }),
@@ -221,6 +231,13 @@ export class TimersHub {
       }
     }
     return any;
+  }
+
+  /** Forgets the state and takes `state` (a `snapshot()`) instead. Silent. */
+  replaceState(state: unknown): void {
+    for (const t of this.trackers) t.reset();
+    this.restoreState(state);
+    this.notify();
   }
 
   private resetAll(): void {

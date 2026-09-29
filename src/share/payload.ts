@@ -15,7 +15,12 @@
 // prints are rows in the export editor. One whose anchor is excluded is
 // listed in `hiddenSys` (by run: a run prints at most one), and the player
 // does not print it; its `Char.Name` GMCP is kept, so the panes are right.
+//
+// Timers (ADR 0033): the Timers pane is derived from text, so each cut's
+// end inside a run gets a `WebCockpit.Timers` GMCP record with the timers
+// state there (src/share/timers-state.ts), before the first entry after it.
 
+import { formatGmcpRecord } from '../capture/format';
 import type { RunMeta } from '../capture/store';
 import type { ChainRun, TimelineEdits } from '../player/timeline';
 import { markersOf } from '../player/strip';
@@ -25,6 +30,7 @@ import type { Settings } from '../settings';
 import { captureEntries, isCommText, isVisible } from './capture';
 import { type ExcludeRange, type ExportDoc, commentHoldMs, isExcluded } from './edits';
 import { systemLines } from './system-lines';
+import { TIMERS_GMCP, timersStatesAt } from './timers-state';
 
 export const PAYLOAD_SCHEMA = 1;
 
@@ -88,6 +94,34 @@ export function editRunText(text: string, doc: ExportDoc): string {
   return out;
 }
 
+/**
+ * `edited` (a run's text after `editRunText`) with a timers state record
+ * before the first entry at or after each cut end that lies inside the
+ * run (`full`, the unedited text, is what the states are replayed from).
+ */
+export function addTimersRecords(edited: string, full: string, cuts: readonly ExcludeRange[]): string {
+  let firstTs = -1;
+  let lastTs = -1;
+  for (const e of captureEntries(full)) {
+    if (firstTs < 0) firstTs = e.ts;
+    lastTs = e.ts;
+  }
+  const points: number[] = [];
+  for (const [, to] of cuts) if (to !== null && to > firstTs && to <= lastTs) points.push(to);
+  if (points.length === 0) return edited;
+  const states = timersStatesAt(full, points);
+  let out = '';
+  let pi = 0;
+  for (const e of captureEntries(edited)) {
+    while (pi < points.length && points[pi]! <= e.ts) {
+      out += formatGmcpRecord(e.ts, TIMERS_GMCP, JSON.stringify(states[pi]));
+      pi++;
+    }
+    out += e.line;
+  }
+  return out;
+}
+
 /** Builds the payload of a chain (oldest run first) with its events and export doc. */
 export function buildReplayPayload(
   chain: readonly ChainRun[],
@@ -95,7 +129,10 @@ export function buildReplayPayload(
   doc: ExportDoc,
   settings: Settings,
 ): ReplayPayload {
-  const runs = chain.map((r) => ({ meta: r.meta, text: editRunText(r.text, doc) }));
+  const runs = chain.map((r) => ({
+    meta: r.meta,
+    text: doc.excludes.length === 0 ? r.text : addTimersRecords(editRunText(r.text, doc), r.text, doc.excludes),
+  }));
 
   // Kept visible entries' and shown system lines' times, for moving
   // comments off removed entries.

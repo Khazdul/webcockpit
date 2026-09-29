@@ -22,6 +22,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — Timers across export cuts
+
+- **Done:** owner report: an HTML replay with a cut part lost the timers
+  running across the cut. The export now replays each run to its cut
+  ends and embeds the timers state as a `WebCockpit.Timers` GMCP record
+  the replay hub takes (ADR 0033). 1141 unit tests; replay/export e2e
+  18/18.
+- **Next:** owner tests an export with a cut; release with the next batch.
+- **Open issues:** timers active at a run's start (from the live archive)
+  are still not in replays (not captured).
+- **Commits:** see `git log` (fix: timers across export cuts).
+
 ### 2026-09-29 — Tips without letters, release 0.1.13
 
 - **Done:** owner reviewed the tips: lines drop the `L  ` prefix
