@@ -79,9 +79,10 @@ describe('ESC header', () => {
 describe('About text', () => {
   it('styles headings, keys and body, wrapped to the width', () => {
     const lines = aboutLines(60);
-    expect(lines.find((l) => l.text === 'KEYS')?.cls).toBe('wc-c-title');
-    const esc = lines.find((l) => l.key?.trim() === 'ESC');
-    expect(esc?.cls).toBe('wc-c-body');
+    expect(lines.find((l) => l.text === 'GETTING STARTED')?.cls).toBe('wc-c-title');
+    const manual = lines.find((l) => l.key?.trim() === 'TinTin++');
+    expect(manual?.cls).toBe('wc-c-body');
+    expect(manual?.text).toContain('tintin.mudhalla.net/manual/');
     for (const l of lines) expect((l.key?.length ?? 0) + l.text.length).toBeLessThanOrEqual(60);
     expect(lines.find((l) => l.text.startsWith('MUME — MULTI-USERS'))?.cls).toBe('wc-c-title');
     expect(lines.find((l) => l.key?.trim() === 'MMapper')).toBeDefined();

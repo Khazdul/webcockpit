@@ -2,7 +2,7 @@
 // and the build commit (ADR 0025) follow the title on its row. Colour rule
 // per line: an ALL-CAPS line is a heading (C_TITLE); an indented line is `  key  description`
 // (key in C_ACCENT, description in C_BODY); other text is C_BODY. Web
-// addresses (mume.org, discord.gg, github.com) and LICENSE.txt (the site's
+// addresses (mume.org, discord.gg, github.com, tintin.mudhalla.net) and LICENSE.txt (the site's
 // copy of the GPL text, vite.config.ts) are links.
 
 import type { VNode } from 'preact';
@@ -31,14 +31,10 @@ MUME is free to play. No subscription, just connect.
   Discord         discord.gg/XkZN55am9a
 
 GETTING STARTED
-Choose Enter MUME on the start page. Profile picks the set of aliases, actions and macros you play with. Options sets up the panes and the look; every change applies at once.
+Choose Enter MUME on the start page. Press ESC at any time to open the menu. Options sets up the panes and the look; every change applies at once.
 
-KEYS
-  ESC             open the menu (first leaves scrollback)
-  PageUp/Down     scroll the game output
-  Up/Down         command history
-  Enter           send; when disconnected, reconnect
-  Ctrl+W          delete the word before the cursor
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax, one command per line, for example #alias {bs} {backstab %1} or #action {You are hungry.} {eat bread}. The common TinTin++ commands work; commands that need a terminal, files or the shell are kept but do nothing. Profile → IMPORT reads an existing .tin file. The TinTin++ manual describes the syntax:
+  TinTin++        tintin.mudhalla.net/manual/
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
@@ -82,7 +78,7 @@ export function aboutLines(width: number): Styled[] {
   return out;
 }
 
-const LINK = /\b((?:mume\.org|discord\.gg|github\.com)(?:\/[\w./-]*[\w/])?|LICENSE\.txt)/;
+const LINK = /\b((?:mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt)/;
 
 /** Text with the web addresses in it as links that open in a new tab. */
 function linked(text: string): (string | VNode)[] {
