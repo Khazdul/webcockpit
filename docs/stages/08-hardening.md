@@ -141,6 +141,13 @@ Custom domain (owner brief 2026-09-29):
       (`WC_PROD_URL=https://mumecockpit.com npm run test:prod`): 0.1.9,
       10/10; http, www and khazdul.github.io/webcockpit/ redirect.
 
+Link readout (owner brief 2026-09-29):
+
+- [x] ADR 0030: `Link:` from an HTTPS probe (`HEAD` mume.org/favicon.ico
+      on a warm keep-alive connection, every 10 s, lower median of 3),
+      Core.Ping minimum as fallback; not in dev (COEP), replay or player.
+      Chromium 39 ms / Firefox 46 ms median vs ICMP avg 38 ms.
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same

@@ -153,7 +153,8 @@ Mapped to Inv §9.
   reconnect from the ESC menu. The menu opens automatically on disconnect
   (ADR 0058 behaviour).
 - **Keep-alive.** GMCP `Core.Ping` goes out every 10 s (ADR 0007, amended).
-  - Its round-trip time is shown as the `Link:` readout.
+  - The `Link:` readout is an HTTPS round trip to mume.org, with the
+    `Core.Ping` round trip as the fallback (ADR 0030).
   - A missing pong detects a half-open link.
 - **Tab close.**
   - While connected, the browser asks "Leave page?". Closing the tab by

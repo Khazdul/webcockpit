@@ -32,6 +32,10 @@ implementation.
   pulse, so single samples spread over ~250 ms above the network RTT
   (see notes/research/mume-websocket.md, "Measured 2026-09-27"). The raw
   last sample is kept in `link.rtt.last`.
+  *Amended by 0030 (2026-09-29):* `Link:` shows an HTTPS round trip to
+  mume.org (a timed `HEAD` on a warm keep-alive connection) and falls
+  back to the Core.Ping minimum only when that probe fails. Core.Ping
+  still does the keep-alive and the suspect flag.
 - **Prompts:** a line ending in `IAC GA`, or wrapped in the XML `prompt`
   tag, is a prompt. Text after the last newline with no GA stays pending
   and is shown when more data or a GA arrives.
