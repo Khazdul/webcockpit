@@ -1,5 +1,8 @@
 // Session controller (spec §2.1, Inv §9.1–9.2): owns one socket at a time,
-// the telnet parser, GMCP and the keep-alive, and implements `Sender`.
+// the telnet parser, GMCP, the keep-alive and the link probe, and
+// implements `Sender`. The link probe (ADR 0030) runs on the same edges
+// as the keep-alive, only when a probe `fetch` is given and never for a
+// replay connection; its readout feeds `KeepAlive.setHttpRtt`.
 //
 // State machine (types.ts `ConnState`):
 //   idle/disconnected --connect()--> connecting --socket open--> login
@@ -26,6 +29,7 @@ import type { ConnState, Sender, Socketish } from '../core/types';
 import { nowUs } from '../core/types';
 import { Gmcp, GmcpRegistry } from './gmcp';
 import { KeepAlive, type Timers } from './keepalive';
+import { type FetchLike, LinkProbe } from './link-probe';
 import { Telnet } from './telnet';
 import type { TextSink } from './textsink';
 import { WebSocketTransport } from './ws-transport';
@@ -75,8 +79,13 @@ export interface SessionOptions {
   /** Creates the socket for each connect. Default: `WebSocketTransport`. */
   socketFactory?: () => Socketish;
   registry?: GmcpRegistry;
-  /** Timers for the keep-alive (tests). */
+  /** Timers for the keep-alive and the link probe (tests). */
   timers?: Timers;
+  /**
+   * `fetch` for the link probe (ADR 0030). Absent or null: no probe, and
+   * `Link:` shows the Core.Ping minimum. The app passes the browser's.
+   */
+  linkFetch?: FetchLike | null;
   /** TTYPE answer. Default `WebCockpit`. */
   ttype?: string;
   /** A new MSSP table from the server (game time for the clock, ADR 0016). */
@@ -92,6 +101,8 @@ export class Session implements Sender {
   readonly telnet: Telnet;
   readonly gmcp: Gmcp;
   readonly keepalive: KeepAlive;
+  /** The link probe, or null when no `linkFetch` was given. */
+  readonly linkProbe: LinkProbe | null;
 
   private readonly bus: Bus;
   private socketFactory: () => Socketish;
@@ -128,6 +139,13 @@ export class Session implements Sender {
       sendPing: () => this.gmcp.send('Core.Ping'),
       ...(opts.timers ? { timers: opts.timers } : {}),
     });
+    this.linkProbe = opts.linkFetch
+      ? new LinkProbe({
+          fetch: opts.linkFetch,
+          onReadout: (ms) => this.keepalive.setHttpRtt(ms),
+          ...(opts.timers ? { timers: opts.timers } : {}),
+        })
+      : null;
   }
 
   // -------------------------------------------------------------------------
@@ -162,8 +180,14 @@ export class Session implements Sender {
     const prev = this.st;
     if (prev === next) return;
     this.st = next;
-    if (next === 'login') this.keepalive.start();
-    if (next === 'disconnected') this.keepalive.stop();
+    if (next === 'login') {
+      this.keepalive.start();
+      if (!this.replayConn) this.linkProbe?.start();
+    }
+    if (next === 'disconnected') {
+      this.keepalive.stop();
+      this.linkProbe?.stop();
+    }
     const ev: { state: ConnState; prev: ConnState; reason?: string; replay?: true } = { state: next, prev };
     if (reason !== undefined) ev.reason = reason;
     if (this.replayConn) ev.replay = true;
@@ -239,6 +263,7 @@ export class Session implements Sender {
   dispose(): void {
     this.detach();
     this.keepalive.stop();
+    this.linkProbe?.stop();
   }
 
   /**

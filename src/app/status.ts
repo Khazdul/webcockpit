@@ -13,7 +13,7 @@ export interface AppStatusState {
   replay: boolean;
   /** Character name from GMCP Char.Name, '' until known. */
   character: string;
-  /** Link round-trip time in ms (windowed minimum), null before the first pong. */
+  /** Link round-trip time in ms (`link.rtt.ms`: link probe, else Core.Ping minimum), null before either. */
   linkMs: number | null;
   /** The RTT is suspect (a pong is overdue). */
   linkSuspect: boolean;
@@ -31,7 +31,7 @@ export interface AppStatusView {
   subscribe(fn: AppStatusListener): () => void;
 }
 
-/** `Link: 38ms`, `Link: 38ms?` when suspect, `Link: —` before the first pong. */
+/** `Link: 38ms`, `Link: 38ms?` when suspect, `Link: —` before the first sample. */
 export function formatLink(ms: number | null, suspect: boolean): string {
   if (ms === null) return 'Link: —';
   return `Link: ${Math.round(ms)}ms${suspect ? '?' : ''}`;

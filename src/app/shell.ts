@@ -56,6 +56,7 @@ import type { ChainRun } from '../player/timeline';
 import type { ApplyResult } from '../editor';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
+import { defaultLinkFetch } from '../net/link-probe';
 import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
@@ -293,6 +294,8 @@ export class Shell {
       offline,
       cells,
       settings,
+      // The `Link:` probe (ADR 0030); offline pages never connect live.
+      linkFetch: offline ? null : defaultLinkFetch(),
       profiles: this.profiles,
       map: this.maps.host({ persistIds: true }),
       onEscape: () => void this.openMenu(),

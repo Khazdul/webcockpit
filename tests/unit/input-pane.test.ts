@@ -306,7 +306,7 @@ describe('AppStatus', () => {
     expect(formatStatus(s.get())).toBe('idle · Link: — · XML: off');
     bus.emit('conn.state', { state: 'playing', prev: 'login' });
     bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta', fullname: 'Rasta Fari' } });
-    bus.emit('link.rtt', { ms: 38.4, last: 38.4, suspect: false });
+    bus.emit('link.rtt', { ms: 38.4, last: 38.4, ping: 38.4, http: null, suspect: false });
     bus.emit('xml.seen', undefined);
     bus.emit('xml.seen', undefined);
     s.set({ capture: 'capture: recording' });

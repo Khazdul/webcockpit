@@ -171,14 +171,17 @@ export interface BusEvents {
   /** Telnet ECHO: true when the server echoes (password mode, mask input). */
   'telnet.echo': { serverEchoes: boolean };
   /**
-   * Keep-alive result (`Link:` readout). Pings go out every 10 s. `ms` is
-   * the minimum `Core.Ping` round trip over the samples received in the
-   * last 60 s (MUME answers on its ~250 ms game pulse, so the minimum is
-   * the best estimate of the network path), or null before the first
-   * reply. `last` is the latest raw round trip, or null. `suspect` is true
-   * when a ping has had no pong for more than 10 s.
+   * Keep-alive and link RTT (`Link:` readout, ADR 0030). `ms` is the
+   * readout: `http` when the link probe has a value, else `ping`, or null
+   * before either. `http` is the HTTPS link probe's round trip to
+   * mume.org (lower median of the last 3 samples; null when none or the
+   * probe fails). `ping` is the minimum GMCP `Core.Ping` round trip over
+   * the samples received in the last 60 s (MUME answers on its ~250 ms
+   * game pulse, so it reads above the network RTT). `last` is the latest
+   * raw Core.Ping round trip, or null. `suspect` is true when a ping has
+   * had no pong for more than 10 s.
    */
-  'link.rtt': { ms: number | null; last: number | null; suspect: boolean };
+  'link.rtt': { ms: number | null; last: number | null; ping: number | null; http: number | null; suspect: boolean };
   /** A client line for the output pane; the UI adds the `[SYSTEM]` prefix. */
   'sys.message': { text: string };
   /** The first MUME XML tag after connect was seen (XML mode is on). */

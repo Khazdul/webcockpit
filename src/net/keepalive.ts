@@ -1,4 +1,4 @@
-// Keep-alive and link RTT (ADR 0002, ADR 0007 as amended, Inv §9.4).
+// Keep-alive and link RTT (ADR 0002, ADR 0007 as amended, ADR 0030, Inv §9.4).
 //
 // - Every `intervalMs` (10 s) a GMCP `Core.Ping` goes out, whatever other
 //   traffic there is, so the `Link:` readout stays fresh during active
@@ -9,10 +9,14 @@
 //   stop the keep-alive for good.
 // - MUME answers with `Core.Ping`; the reply gives the round trip in ms.
 //   MUME answers on its game pulse (~250 ms), so single samples spread
-//   over ~250 ms above the network RTT. `link.rtt.ms` is therefore the
+//   over ~250 ms above the network RTT. `link.rtt.ping` is therefore the
 //   minimum of the samples received in the last `windowMs` (60 s, about
 //   six samples); `link.rtt.last` is the raw latest sample. See
 //   notes/research/mume-websocket.md, "Measured 2026-09-27".
+// - The `Link:` readout (`link.rtt.ms`) is the HTTPS link probe's value
+//   (`setHttpRtt`, src/net/link-probe.ts, ADR 0030) when it has one, and
+//   the Core.Ping minimum otherwise (probe failing or not running, e.g.
+//   in replay).
 // - When the outstanding ping has had no reply for `timeoutMs` (10 s),
 //   `link.rtt` is emitted with `suspect: true`. The link is not closed.
 //   The next reply clears it.
@@ -68,6 +72,8 @@ export class KeepAlive {
   /** RTT samples (receive time, ms) within the window, oldest first. */
   private samples: { at: number; ms: number }[] = [];
   private minRtt: number | null = null;
+  /** The link probe's readout, or null. */
+  private httpRtt: number | null = null;
   private isSuspect = false;
 
   constructor(opts: KeepAliveOptions) {
@@ -79,8 +85,13 @@ export class KeepAlive {
     this.windowMs = opts.windowMs ?? 60_000;
   }
 
-  /** Minimum round trip in ms over the window, or null before the first reply. */
+  /** The `Link:` readout: the probe's value, else the Core.Ping minimum. */
   get rtt(): number | null {
+    return this.httpRtt ?? this.minRtt;
+  }
+
+  /** Minimum Core.Ping round trip in ms over the window, or null before the first reply. */
+  get pingRtt(): number | null {
     return this.minRtt;
   }
 
@@ -104,6 +115,7 @@ export class KeepAlive {
     this.lastRtt = null;
     this.samples = [];
     this.minRtt = null;
+    this.httpRtt = null;
     this.isSuspect = false;
     this.emit();
     this.armTick();
@@ -134,10 +146,22 @@ export class KeepAlive {
     this.emit();
   }
 
+  /**
+   * The link probe's readout (null: none or failing). Ignored while
+   * stopped, so a late probe result cannot outlive the connection.
+   */
+  setHttpRtt(ms: number | null): void {
+    if (!this.running || ms === this.httpRtt) return;
+    this.httpRtt = ms;
+    this.emit();
+  }
+
   private emit(): void {
     this.o.bus.emit('link.rtt', {
-      ms: this.minRtt,
+      ms: this.httpRtt ?? this.minRtt,
       last: this.lastRtt,
+      ping: this.minRtt,
+      http: this.httpRtt,
       suspect: this.isSuspect,
     });
   }

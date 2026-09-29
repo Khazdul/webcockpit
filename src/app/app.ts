@@ -59,6 +59,7 @@ import type { ProfileStore } from '../profiles';
 import { type LoadResult, type Scheduler, ScriptEngine } from '../script/engine';
 import { Bus } from '../core/bus';
 import type { BusEvents, Socketish } from '../core/types';
+import type { FetchLike } from '../net/link-probe';
 import { ReplaySocket } from '../net/replay-socket';
 import { REASON_USER_RECONNECT, Session } from '../net/session';
 import { LineAssembler } from '../text/assembler';
@@ -111,6 +112,12 @@ export interface AppOptions {
   root: HTMLElement;
   /** Socket factory for live connections (default: the MUME WebSocket). */
   socketFactory?: () => Socketish;
+  /**
+   * `fetch` for the `Link:` probe (ADR 0030; session.ts `linkFetch`).
+   * Default none: `Link:` shows the Core.Ping minimum. The shell passes
+   * the browser's; tests and player Apps do not.
+   */
+  linkFetch?: FetchLike | null;
   /** Recorder options (tests inject the store and locks). */
   recorder?: RecorderOptions;
   /** Frame scheduler for the output pane (tests, benchmark). */
@@ -258,6 +265,7 @@ export class App {
       bus,
       sink: this.assembler,
       ...(opts.socketFactory ? { socketFactory: opts.socketFactory } : {}),
+      ...(opts.linkFetch && !player ? { linkFetch: opts.linkFetch } : {}),
       ...(opts.clockUs ? { clockUs: opts.clockUs } : {}),
       onMssp: (vars) => this.game.mssp(vars),
     });

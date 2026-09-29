@@ -1,5 +1,6 @@
 // Shared helpers for the src/net tests.
 import type { Socketish } from '../../src/core/types';
+import type { Timers } from '../../src/net/keepalive';
 import type { TextSink } from '../../src/net/textsink';
 
 export const IAC = 255;
@@ -108,4 +109,34 @@ export function gmcpOut(bytes: number[]): string[] {
     }
   }
   return out;
+}
+
+/** Deterministic fake clock with timers. */
+export class FakeTimers implements Timers {
+  t = 0;
+  private seq = 0;
+  private timers = new Map<number, { at: number; fn: () => void }>();
+  setTimeout(fn: () => void, ms: number): unknown {
+    const id = ++this.seq;
+    this.timers.set(id, { at: this.t + ms, fn });
+    return id;
+  }
+  clearTimeout(h: unknown): void {
+    this.timers.delete(h as number);
+  }
+  now(): number {
+    return this.t;
+  }
+  advance(ms: number): void {
+    const end = this.t + ms;
+    for (;;) {
+      let next: [number, { at: number; fn: () => void }] | null = null;
+      for (const e of this.timers) if (e[1].at <= end && (!next || e[1].at < next[1].at)) next = e;
+      if (!next) break;
+      this.timers.delete(next[0]);
+      this.t = next[1].at;
+      next[1].fn();
+    }
+    this.t = end;
+  }
 }
