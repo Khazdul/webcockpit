@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.13 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.14 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,15 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-29 — Release 0.1.14
+
+- **Released:** 0.1.14 (tag v0.1.14): timers across export cuts, player
+  `Font-size` label. e2e 188/188 locally; Pages deploy OK (build:pages
+  smoke passed in CI). Prod smoke (`npm run test:prod`) not run from the
+  session (permission denied); owner may run it.
+- **Next:** owner tests live; then plan the rest of stage 8.
+- **Commits:** 7919704, plus this one.
 
 ### 2026-09-29 — Timers across export cuts
 
