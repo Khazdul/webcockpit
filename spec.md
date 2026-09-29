@@ -132,6 +132,9 @@ ADR 0006.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
   open (ADR 0003).
+- **GitHub Pages** (ADR 0028) is a second deployment at
+  `khazdul.github.io/webcockpit/`. It cannot send COOP/COEP, so it is not
+  cross-origin isolated; the header goal above holds for the Caddy site.
 - **Self-hosted assets only.** Fonts and scripts are served by us; there
   are no third-party embeds.
 

@@ -108,6 +108,22 @@ Printable key macros (owner request 2026-09-28):
       input line; unbound dead keys compose as before; unit + e2e tests.
 - [x] Owner test (Firefox, Swedish keyboard).
 
+GitHub Pages (owner brief 2026-09-29):
+
+- [x] ADR 0028 (Pages at khazdul.github.io/webcockpit/, parallel with
+      Tailscale; amendment in ADR 0022, note in spec §1.5, README).
+- [x] Configurable base (`WEBCOCKPIT_BASE`); subpath audit of the build
+      (fonts, map, worker, LICENSE.txt, release.json, replay export).
+- [x] `static-server.ts` `--base` and `--profile site|pages`; prod smoke
+      test with `WC_PROD_BASE`/`WC_PROD_PROFILE` and base-relative paths.
+- [x] `npm run build:pages` (version and tag checks, gate, build under
+      `/webcockpit/`, pages smoke test, carried live assets, release.json).
+- [x] `.github/workflows/pages.yml` (tag `v*` and manual; build, upload,
+      deploy).
+- [ ] Enable Pages (source: GitHub Actions), first deploy, live smoke
+      test via `WC_PROD_URL=https://khazdul.github.io/webcockpit
+      WC_PROD_PROFILE=pages npm run test:prod`.
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same

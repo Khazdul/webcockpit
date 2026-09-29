@@ -136,3 +136,12 @@ scripts and the module worker are refused otherwise), `.css`,
   above. The running app fetches it (`cache: 'no-store'`) to tell the
   user that a newer release is live. The site-root smoke test checks its
   type and `no-cache`.
+
+## Amendment 2026-09-29 — GitHub Pages (ADR 0028)
+
+A second deployment runs in parallel: GitHub Pages at
+<https://khazdul.github.io/webcockpit/>, published by a version tag
+(`npm run build:pages`, `.github/workflows/pages.yml`). This site is
+unchanged: base `/`, the headers above, `npm run publish`. The smoke test
+now takes a base and a header profile (`site`, the default, is this
+site); see ADR 0028.
