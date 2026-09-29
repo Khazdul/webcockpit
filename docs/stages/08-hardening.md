@@ -154,6 +154,12 @@ Replay polish (owner brief 2026-09-29):
       a blank row before a comment on an empty output (the header row
       covered it); the chrome auto-hides with the settings section open.
 
+Steel command echo (owner request 2026-09-29):
+
+- [x] ADR 0034: the command echo in "Stål", the fg mixed 55 % with
+      #7fb2e6 (dark bg) or #1f5f9e (light bg) via a `--term-echo` root
+      token; live, log player, Spotlights and HTML replay.
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same
