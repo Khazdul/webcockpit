@@ -14,7 +14,7 @@ aims for tt++-level features and latency.
 
 ## Run it
 
-Open <https://khazdul.github.io/webcockpit/> in a desktop Chrome or
+Open <https://mumecockpit.com/> in a desktop Chrome or
 Firefox. Nothing to install.
 
 WebCockpit is a static site. To run it locally you need
@@ -30,11 +30,10 @@ npm run dev
 Open <http://localhost:5173> in a desktop Chrome or Firefox.
 
 To host it yourself, run `npm run build` and serve `dist/` from any
-static file server that sends `Cross-Origin-Opener-Policy: same-origin`
-and `Cross-Origin-Embedder-Policy: require-corp` on every response.
-The full header list is in
-[ADR 0022](docs/decisions/0022-private-deployment.md). To serve it under
-a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
+static file server that sends `.js` as JavaScript and `.woff2` as
+`font/woff2`; no special headers are needed (the public site is plain
+GitHub Pages, [ADR 0029](docs/decisions/0029-custom-domain-and-tailscale-retired.md)).
+To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
 ([ADR 0028](docs/decisions/0028-github-pages-deployment.md)).
 
 ## What's in the box

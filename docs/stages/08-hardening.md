@@ -125,7 +125,20 @@ GitHub Pages (owner brief 2026-09-29):
       WC_PROD_PROFILE=pages npm run test:prod` (0.1.8, 10/10 in Chromium
       and Firefox). CI smoke test in Chromium only (no GPU on runners);
       `github-pages` environment allows `v*` tags.
-- [ ] Owner test on the Pages URL; later: retire the Tailscale site.
+- [ ] Owner test on the Pages URL.
+
+Custom domain (owner brief 2026-09-29):
+
+- [x] ADR 0029 (mumecockpit.com via Cloudflare Registrar, DNS only;
+      Tailscale site retired; amendments in ADR 0022, 0025, 0028; spec
+      §1.5, README).
+- [x] `build:pages` defaults to `https://mumecockpit.com/` (base `/`).
+- [x] `npm run publish` and `scripts/publish.ts` removed; `versionGuard`
+      in `scripts/release.ts`.
+- [x] Smoke test and static server: `site` profile removed, always
+      Pages headers; `npm run test:prod` tests `dist` at `/`.
+- [ ] HTTPS enforced, release on the domain, live smoke test
+      (`WC_PROD_URL=https://mumecockpit.com npm run test:prod`).
 
 ## Test guide (part A)
 

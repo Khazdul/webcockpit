@@ -122,3 +122,16 @@ before; the same version may go to both.
   project should use these names.
 - **Limits.** Pages sites are limited to 1 GB and about 100 GB of traffic
   a month (a soft limit). A release is under 10 MB, most of it the map.
+
+## Amendment 2026-09-29 — custom domain (ADR 0029)
+
+- The site is at <https://mumecockpit.com/>, and the app at its root:
+  `npm run build:pages` builds with base `/`.
+  `https://khazdul.github.io/webcockpit/` redirects there.
+- The parallel run with the Tailscale/Caddy site has ended; that site and
+  `npm run publish` are gone. `versionGuard` is in `scripts/release.ts`.
+- The static server and the smoke test have no profiles any more: they
+  always emulate Pages (`WC_PROD_PROFILE` is gone). Live check:
+  `WC_PROD_URL=https://mumecockpit.com npm run test:prod`.
+- The shared-origin concern under "Separate storage" no longer applies:
+  the origin is `https://mumecockpit.com`.

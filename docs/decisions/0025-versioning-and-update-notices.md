@@ -118,3 +118,11 @@ when to reload.
 - A map worker script that fails to load (a module worker, not a dynamic
   import) is not covered by the chunk notice; the Map pane reports its own
   load failure.
+
+## Amendment 2026-09-29 — one release path (ADR 0029)
+
+`npm run publish` and `scripts/publish-guard.ts` are gone. The version
+rule is `versionGuard` in `scripts/release.ts`, applied by
+`npm run build:pages` against the live `release.json` (ADR 0028), and
+that build writes the full manifest. `--dry-run` and `--rollback`
+belonged to `npm run publish` and are gone with it.

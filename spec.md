@@ -129,12 +129,14 @@ ADR 0006.
 - **During development:** the owner runs `npm run dev`, a local Vite
   server. The test guide for each stage gives the exact command.
 - **Before anyone else tests:** a private deployment is decided in an ADR.
+- **Production:** GitHub Pages at <https://mumecockpit.com/>, the app at
+  the root, released by a version tag (ADR 0028, ADR 0029). The earlier
+  Tailscale/Caddy site (ADR 0022) is retired.
 - **Headers:** cross-origin isolation stays possible (COOP/COEP), and
   WebAssembly is allowed by the CSP. This keeps the MMapper iframe route
-  open (ADR 0003).
-- **GitHub Pages** (ADR 0028) is a second deployment at
-  `khazdul.github.io/webcockpit/`. It cannot send COOP/COEP, so it is not
-  cross-origin isolated; the header goal above holds for the Caddy site.
+  open (ADR 0003). `vite dev` and `vite preview` send COOP/COEP; Pages
+  cannot, so production is not cross-origin isolated
+  (`coi-serviceworker` if it is ever needed).
 - **Self-hosted assets only.** Fonts and scripts are served by us; there
   are no third-party embeds.
 

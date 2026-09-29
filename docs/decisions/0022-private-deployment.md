@@ -1,6 +1,6 @@
 # 0022 — Private deployment
 
-- Status: Accepted
+- Status: Superseded by ADR 0029
 - Date: 2026-09-28
 
 ## Context
@@ -145,3 +145,11 @@ A second deployment runs in parallel: GitHub Pages at
 unchanged: base `/`, the headers above, `npm run publish`. The smoke test
 now takes a base and a header profile (`site`, the default, is this
 site); see ADR 0028.
+
+## Note 2026-09-29 — superseded (ADR 0029)
+
+The Tailscale/Caddy site is retired. `npm run publish` and
+`scripts/publish.ts` are removed, and the smoke test's `site` header
+profile with them. The only production host is GitHub Pages at
+<https://mumecockpit.com/> (ADR 0028, ADR 0029). The body above is kept
+as history.
