@@ -25,21 +25,12 @@ import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, r
 import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { versionGuard } from './publish-guard.ts';
+import { MANIFEST, type Release, parseRelease, releaseJson } from './release.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SITE = resolve(process.env.WEBCOCKPIT_PUBLISH_DIR ?? join(homedir(), '.local/share/tailweb/sajter/webcockpit'));
 const STAGING = join(dirname(SITE), `.${basename(SITE)}.staging`);
 const PREV = join(dirname(SITE), `.${basename(SITE)}.prev`);
-const MANIFEST = 'release.json';
-
-interface Release {
-  version: string;
-  commit: string;
-  dirty: boolean;
-  publishedAt: string;
-  /** Files under assets/ that this build produced (not carried over). */
-  assets: string[];
-}
 
 const args = new Set(process.argv.slice(2));
 const dryRun = args.has('--dry-run');
@@ -74,7 +65,7 @@ function git(...argv: string[]): string {
 
 function readRelease(dir: string): Release | null {
   try {
-    return JSON.parse(readFileSync(join(dir, MANIFEST), 'utf8')) as Release;
+    return parseRelease(readFileSync(join(dir, MANIFEST), 'utf8'));
   } catch {
     return null;
   }
@@ -116,8 +107,7 @@ for (const name of live?.assets ?? []) {
   }
 }
 console.log(live ? `${carried} file(s) from ${live.commit}` : 'no live release');
-const release: Release = { version, commit, dirty, publishedAt: new Date().toISOString(), assets: own };
-writeFileSync(join(STAGING, MANIFEST), `${JSON.stringify(release, null, 2)}\n`);
+writeFileSync(join(STAGING, MANIFEST), releaseJson({ version, commit, dirty, assets: own }));
 
 if (dryRun) {
   console.log(`\npublish: dry run done; staged build left in ${STAGING}`);
