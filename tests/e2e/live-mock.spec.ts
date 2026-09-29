@@ -71,6 +71,25 @@ test('reaches playing on Char.Name and sends the width commands', async ({ page 
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: '[SYSTEM] Tester logged in.' })).toHaveCount(1);
   await expect.poll(sentText).toContain('change width all 500\r\n');
 
+  // The command echo is steel (ADR 0034): the fg mixed with a light blue.
+  await page.keyboard.type('look');
+  await page.keyboard.press('Enter');
+  await expect.poll(sentText).toContain('look\r\n');
+  const echo = page.locator('.wc-rows .wc-echo').filter({ hasText: 'look' }).last();
+  const c = await echo.evaluate((el) => {
+    const probe = el.ownerDocument.createElement('span');
+    const fg = getComputedStyle(el).getPropertyValue('--term-fg').trim();
+    probe.style.color = `color-mix(in oklab, ${fg} 55%, #7fb2e6)`;
+    el.parentElement!.appendChild(probe);
+    const want = getComputedStyle(probe).color;
+    probe.style.color = fg;
+    const plain = getComputedStyle(probe).color;
+    probe.remove();
+    return { got: getComputedStyle(el).color, want, plain };
+  });
+  expect(c.got).toBe(c.want);
+  expect(c.got).not.toBe(c.plain);
+
   await page.keyboard.type('#disconnect');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);

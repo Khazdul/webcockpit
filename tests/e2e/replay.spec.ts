@@ -309,3 +309,65 @@ test('the HTML replay shows the game text and echoed commands as the log player 
   expect(replay).toEqual(inApp);
   await ctx.close();
 });
+
+/**
+ * The first command echo's colour, the steel mix of the element's `--term-fg`
+ * (ADR 0034: 55 % fg with #7fb2e6 on a dark bg, #1f5f9e on a light one) and
+ * the plain fg, all as computed by the browser.
+ */
+function echoColours(page: Page, tint: string): Promise<{ got: string; want: string; plain: string }> {
+  return page.locator('.wc-output .wc-echo').first().evaluate((el, t) => {
+    const probe = el.ownerDocument.createElement('span');
+    const fg = getComputedStyle(el).getPropertyValue('--term-fg').trim();
+    probe.style.color = `color-mix(in oklab, ${fg} 55%, ${t})`;
+    el.parentElement!.appendChild(probe);
+    const want = getComputedStyle(probe).color;
+    probe.style.color = fg;
+    const plain = getComputedStyle(probe).color;
+    probe.remove();
+    return { got: getComputedStyle(el).color, want, plain };
+  }, tint);
+}
+
+/** Switches the running player's viewer colour theme. */
+async function viewerTheme(page: Page, theme: string): Promise<void> {
+  await page.evaluate((t) => {
+    const g = window as unknown as {
+      __wcReplay?: { host: unknown };
+      __wc?: { shell: { playerHost: unknown } };
+    };
+    const host = (g.__wcReplay?.host ?? g.__wc!.shell.playerHost) as {
+      viewerOverrides: object;
+      setViewer(o: object): void;
+    };
+    host.setViewer({ ...host.viewerOverrides, theme: t });
+  }, theme);
+}
+
+test('the command echo is steel in the log player and the HTML replay, dark and paper', async ({ page, browser }) => {
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await page.goto('/?player=runs-demo.jsonl.gz');
+  await toEnd(page, 'player');
+  const ctx = await browser.newContext({ viewport: { width: 1400, height: 820 } });
+  const r = await ctx.newPage();
+  await r.goto('/?replayhtml=runs-demo.jsonl.gz');
+  await expect.poll(() => r.url()).toMatch(/^blob:/);
+  await toEnd(r, 'replay');
+  for (const p of [page, r]) {
+    const dark = await echoColours(p, '#7fb2e6');
+    expect(dark.got).toBe(dark.want);
+    expect(dark.got).not.toBe(dark.plain);
+    await viewerTheme(p, 'paper');
+    await expect(p.locator('.wc-player')).toHaveAttribute('data-light', '');
+    await expect
+      .poll(async () => {
+        const c = await echoColours(p, '#1f5f9e');
+        return c.got === c.want;
+      })
+      .toBe(true);
+    const light = await echoColours(p, '#1f5f9e');
+    expect(light.got).not.toBe(light.plain);
+    expect(light.got).not.toBe(dark.got);
+  }
+  await ctx.close();
+});
