@@ -68,7 +68,7 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   await chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).hover();
   const tip = chrome(page).locator('.wc-player-tip');
   await expect(tip).toBeVisible();
-  await expect(tip).toContainText('K  Killed *');
+  await expect(tip).toHaveText('Killed *Ibuki the Half-Elf*');
   const [mk, tb] = await Promise.all([
     chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).boundingBox(),
     tip.boundingBox(),

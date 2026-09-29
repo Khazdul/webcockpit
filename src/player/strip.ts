@@ -128,7 +128,7 @@ export interface MarkRow {
   text: string;
   /** The earliest marker offset on the row (a click seeks there). */
   offset: number;
-  /** The hover tip: one `L  text` line per marker on the row, in time order. */
+  /** The hover tip: one line per marker on the row, in time order. */
   tips: string[];
 }
 
@@ -154,7 +154,7 @@ export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, row
       tips: v.marks
         .slice()
         .sort((a, b) => a.offset - b.offset)
-        .map((m) => `${m.letter}  ${m.tip || LETTER_TIPS[m.letter]}`),
+        .map((m) => m.tip || LETTER_TIPS[m.letter]),
     }));
 }
 

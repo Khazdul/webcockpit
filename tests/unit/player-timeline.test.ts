@@ -307,9 +307,9 @@ describe('strip maths', () => {
       10,
     );
     expect(rows).toEqual([
-      { row: 0, text: 'K►', offset: 0, tips: ['K  Killed *Ibuki*'] },
+      { row: 0, text: 'K►', offset: 0, tips: ['Killed *Ibuki*'] },
       // Tips in time order; a marker without one gets its letter's (older replays).
-      { row: 5, text: 'ADL►', offset: 50, tips: ['A  Achievement', 'L  Reached level 3', 'D  Death'] },
+      { row: 5, text: 'ADL►', offset: 50, tips: ['Achievement', 'Reached level 3', 'Death'] },
     ]);
   });
 

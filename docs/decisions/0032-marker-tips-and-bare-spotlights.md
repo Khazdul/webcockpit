@@ -53,3 +53,10 @@ Owner feedback: the xp gained on a player kill is too much information in
 a tip. `markTip` now gives `Killed *Name the Race*` only (the line above
 keeps the original wording for the record). HTML replays exported before
 this carry the old text in their payload and keep showing it.
+
+## Amendment 2026-09-29 — no letter prefix
+
+Owner feedback: the tip lines drop the `L  ` prefix; `markRows` gives
+`tips` as the plain texts (`Reached level 42`), one line per marker, in
+time order. This applies to old HTML replays opened in a new build only
+if re-exported (the replay page code ships in the file).
