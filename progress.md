@@ -22,6 +22,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-29 — PR #1: licence text on the site
+
+- **Done:** reviewed and merged PR #1 (KasparMetsa): the build ships
+  `LICENSE` as `LICENSE.txt` at the site root, About links it (GPL-2 §1),
+  ADR 0027 amended, site-root smoke test checks it. Typecheck, 1114 unit
+  tests and the prod smoke test (10/10) pass. Not yet published.
+- **Next:** publish with the next version; plan the rest of stage 8.
+- **Commits:** 7ec10ec, 839abe0.
+
 ### 2026-09-29 — Source link, licence review
 
 - **Done:** licence and etiquette review. About and the replay file notice
