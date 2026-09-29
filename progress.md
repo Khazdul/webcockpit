@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.11 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.12 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -30,7 +30,8 @@ Newest first.
   RUN LOG, Spotlights (with the character) and the HTML replay (tip in
   the payload; older files show the letter's name). 1137 unit tests;
   player/replay/spotlights/viewer e2e 28/28.
-- **Next:** release, owner tests; then plan the rest of stage 8.
+- **Released:** 0.1.12 (tag v0.1.12), Pages deploy OK, prod smoke 10/10.
+- **Next:** owner tests live; then plan the rest of stage 8.
 - **Open issues:** no tip on touch devices.
 - **Commits:** see `git log` (feat: marker tips, bare reel).
 
