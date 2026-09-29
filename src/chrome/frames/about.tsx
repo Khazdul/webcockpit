@@ -40,14 +40,6 @@ KEYS
   Enter           send; when disconnected, reconnect
   Ctrl+W          delete the word before the cursor
 
-COMMANDS
-  #help           list the built-in commands
-  #connect        connect to MUME
-  #disconnect     close the connection
-  #reconnect      close and connect again
-  #runlog         download the current run as a .log
-  #replay         replay a Cockpit .log file
-
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
