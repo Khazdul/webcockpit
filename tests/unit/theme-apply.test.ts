@@ -5,7 +5,7 @@ import { defaultSettings, migrateSettings } from '../../src/settings';
 import {
   applyPaneTheme,
   applyTheme,
-  echoColor,
+  inputColor,
   paneTokens,
   rootTokens,
   shadeVar,
@@ -13,7 +13,7 @@ import {
 import { CellMetrics, cellHeight, nominalCell } from '../../src/theme/cells';
 import { hslToHex, paneShades } from '../../src/theme/color';
 import { FONTS, fontPx } from '../../src/theme/fonts';
-import { TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
+import { INPUT_COLOR_IDS, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
 describe('root tokens', () => {
   it('covers the Inv §10.9 names', () => {
@@ -54,14 +54,34 @@ describe('root tokens', () => {
   });
 });
 
-describe('command echo colour (ADR 0034)', () => {
+describe('input colour (ADR 0034, 0035)', () => {
   const DARK = 'color-mix(in oklab, var(--term-fg) 55%, #7fb2e6)';
   const LIGHT = 'color-mix(in oklab, var(--term-fg) 55%, #1f5f9e)';
 
   it('is steel: the fg mixed with a light blue on dark, a dark blue on light', () => {
     expect(rootTokens(defaultSettings())['--term-echo']).toBe(DARK);
-    expect(echoColor('#000000')).toBe(DARK);
-    expect(echoColor('#f4ecd8')).toBe(LIGHT);
+    expect(inputColor('steel', '#000000')).toBe(DARK);
+    expect(inputColor('steel', '#f4ecd8')).toBe(LIGHT);
+  });
+
+  it('has the ADR 0035 formula for every option, dark and light', () => {
+    const mix = (p: number, t: string) => `color-mix(in oklab, var(--term-fg) ${p}%, ${t})`;
+    const want: Record<string, [string, string]> = {
+      none: ['var(--term-fg)', 'var(--term-fg)'],
+      steel: [mix(55, '#7fb2e6'), mix(55, '#1f5f9e')],
+      bright: [mix(55, '#ffffff'), mix(55, '#000000')],
+      sand: [mix(55, '#e2bf7e'), mix(55, '#8a5a12')],
+      sage: [mix(50, '#9fd08c'), mix(50, '#2f6e25')],
+      cyan: [mix(15, '#00d7d7'), mix(15, '#007a8a')],
+      amber: [mix(15, '#ffaf00'), mix(15, '#9a5a00')],
+    };
+    expect([...INPUT_COLOR_IDS]).toEqual(['none', 'steel', 'bright', 'sand', 'sage', 'cyan', 'amber']);
+    for (const id of INPUT_COLOR_IDS) {
+      expect(inputColor(id, '#000000')).toBe(want[id]![0]);
+      expect(inputColor(id, '#f4ecd8')).toBe(want[id]![1]);
+      const t = rootTokens(migrateSettings({ appearance: { inputColor: id } }));
+      expect(t['--term-echo']).toBe(want[id]![0]);
+    }
   });
 
   it('covers every fg × bg preset, following the bg lightness', () => {

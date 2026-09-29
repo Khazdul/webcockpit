@@ -105,7 +105,8 @@ body {
   color: var(--c-yellow);
 }
 
-/* The command echo, "steel" (ADR 0034); --term-echo is a root token. */
+/* The command echo in the input colour (ADR 0034, 0035); --term-echo is a
+ * root token. The input line (.wc-input-prompt, -field, -mask) uses it too. */
 .wc-echo {
   color: var(--term-echo, var(--term-fg));
 }
@@ -199,6 +200,7 @@ body {
 
 .wc-input-prompt {
   flex: 0 0 calc(2 * var(--cell-w));
+  color: var(--term-echo, var(--term-fg));
   width: calc(2 * var(--cell-w));
 }
 
@@ -218,7 +220,7 @@ body {
   outline: none;
   border-radius: 0;
   background: transparent;
-  color: var(--term-fg);
+  color: var(--term-echo, var(--term-fg));
   /* The native caret cannot be a block or underline: .wc-caret replaces it. */
   caret-color: transparent;
   font: inherit;
@@ -239,7 +241,7 @@ body {
   overflow: hidden;
   white-space: pre;
   pointer-events: none;
-  color: var(--term-fg);
+  color: var(--term-echo, var(--term-fg));
 }
 
 .wc-input-mask[hidden] {

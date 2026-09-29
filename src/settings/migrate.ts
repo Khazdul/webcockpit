@@ -19,6 +19,7 @@ import {
 } from '../layout/types';
 import { defaultFloatSize } from '../layout/allocate';
 import { normalizeHex } from '../theme/color';
+import { INPUT_COLOR_IDS } from '../theme/presets';
 import {
   type AppearanceSettings,
   COMM_FILTERS_MAX,
@@ -85,6 +86,7 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
     ansi: d.ansi.map((c, i) => hex(ansiRaw[i], c)),
     cursorStyle: oneOf(a.cursorStyle, CURSOR_STYLES, d.cursorStyle),
     cursorBlink: bool(a.cursorBlink, d.cursorBlink),
+    inputColor: oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
   };
 }
 

@@ -4,7 +4,7 @@
 // older version loads.
 
 import { type LayoutModel, type PaneColor, type PaneId, defaultLayout } from '../layout/types';
-import { DEFAULT_TERM_BG, DEFAULT_TERM_FG, DOS_PALETTE } from '../theme/presets';
+import { DEFAULT_INPUT_COLOR, DEFAULT_TERM_BG, DEFAULT_TERM_FG, DOS_PALETTE, type InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 
 /** Bundled font families (public/fonts). */
@@ -36,6 +36,11 @@ export interface AppearanceSettings {
   ansi: string[];
   cursorStyle: CursorStyle;
   cursorBlink: boolean;
+  /**
+   * Colour of the command echo and the input line (ADR 0035). Recorded
+   * with the appearance in VIEW records, so logs replay with it.
+   */
+  inputColor: InputColor;
 }
 
 export interface PaneSettings {
@@ -190,6 +195,7 @@ export function defaultSettings(): Settings {
       ansi: DOS_PALETTE.slice(),
       cursorStyle: 'beam',
       cursorBlink: true,
+      inputColor: DEFAULT_INPUT_COLOR,
     },
     panes: {
       character: { on: true, color: 'black', border: true },

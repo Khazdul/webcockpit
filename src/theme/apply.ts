@@ -5,7 +5,8 @@
 //   --font-mono --pad                      font stack, app padding
 //   --c-<role>                              UI roles (presets.ts UI_COLORS)
 //   --c-line-hl                             editor current-line band
-//   --term-echo                             command echo, "steel" (ADR 0034)
+//   --term-echo                             input colour: command echo and
+//                                           input line (ADR 0034, 0035)
 //   --banner-* --star-* --ui-*              banner and UI-message colours
 //   --st-*                                  Statistics / History data colours
 //   --pane-bg-<tint> --pane-border-<tint>   every tint for swatches
@@ -36,26 +37,33 @@ import {
   paneShades,
 } from './color';
 import { FONTS } from './fonts';
-import { BANNER_COLORS, STATS_COLORS, UI_COLORS, UI_MESSAGE_COLORS } from './presets';
+import {
+  BANNER_COLORS,
+  DEFAULT_INPUT_COLOR,
+  INPUT_COLORS,
+  type InputColor,
+  STATS_COLORS,
+  UI_COLORS,
+  UI_MESSAGE_COLORS,
+} from './presets';
 
 /** CSS name of a shade role: `paneBg` → `--pane-shade-pane-bg`. */
 export function shadeVar(role: ShadeRole): string {
   return '--pane-shade-' + role.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
 }
 
-/** The steel tint the command echo mixes into the terminal fg (ADR 0034). */
-export const ECHO_TINT_DARK = '#7fb2e6';
-export const ECHO_TINT_LIGHT = '#1f5f9e';
-
 /**
- * The command echo colour (ADR 0034, "Stål"): the terminal fg 55 % mixed
- * with a cool blue, a lighter one on a dark terminal bg and a darker one on
- * a light bg. It refers to `--term-fg`, so it follows whatever element the
- * root tokens are set on (<html>, the player).
+ * The input colour (ADR 0035; "steel" is ADR 0034): the colour of the
+ * command echo and of the input line. The terminal fg mixed with the
+ * option's tint, a lighter tint on a dark terminal bg and a darker one on a
+ * light bg; `none` is the plain fg. It refers to `--term-fg`, so it follows
+ * whatever element the root tokens are set on (<html>, the player).
  */
-export function echoColor(termBg: string): string {
-  const tint = isLight(termBg) ? ECHO_TINT_LIGHT : ECHO_TINT_DARK;
-  return `color-mix(in oklab, var(--term-fg) 55%, ${tint})`;
+export function inputColor(id: InputColor, termBg: string): string {
+  const mix = (INPUT_COLORS[id] ?? INPUT_COLORS[DEFAULT_INPUT_COLOR]).mix;
+  if (!mix) return 'var(--term-fg)';
+  const tint = isLight(termBg) ? mix.light : mix.dark;
+  return `color-mix(in oklab, var(--term-fg) ${mix.pct}%, ${tint})`;
 }
 
 /** The root custom properties for `s`. */
@@ -67,7 +75,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
     '--font-mono': FONTS[a.font].stack,
     '--pad': `${a.padding}px`,
     '--c-line-hl': lineHighlight(a.bg),
-    '--term-echo': echoColor(a.bg),
+    '--term-echo': inputColor(a.inputColor, a.bg),
   };
   for (let i = 0; i < 16; i++) t[`--ansi-${i}`] = a.ansi[i]!;
   for (const [k, v] of Object.entries(UI_COLORS)) t[`--c-${k}`] = v;

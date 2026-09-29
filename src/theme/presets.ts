@@ -159,3 +159,30 @@ export const STATS_COLORS: Readonly<Record<string, string>> = {
   ally: '#00d7d7',
   star: '#ffd060',
 };
+
+/** Input color choices (ADR 0035), in the Appearance cycle order. */
+export type InputColor = 'none' | 'steel' | 'bright' | 'sand' | 'sage' | 'cyan' | 'amber';
+export const INPUT_COLOR_IDS: readonly InputColor[] = ['none', 'steel', 'bright', 'sand', 'sage', 'cyan', 'amber'];
+/** The default for new users, and for recordings made before ADR 0035. */
+export const DEFAULT_INPUT_COLOR: InputColor = 'steel';
+
+/**
+ * One input colour: `color-mix(in oklab, <terminal fg> pct%, tint)`, the
+ * tint chosen by the terminal bg (`dark` on a dark bg, `light` on a light
+ * one). `none` has no mix: the plain terminal fg.
+ */
+export interface InputColorPreset {
+  label: string;
+  mix: { pct: number; dark: string; light: string } | null;
+}
+
+export const INPUT_COLORS: Readonly<Record<InputColor, InputColorPreset>> = {
+  none: { label: 'None', mix: null },
+  steel: { label: 'Steel', mix: { pct: 55, dark: '#7fb2e6', light: '#1f5f9e' } },
+  bright: { label: 'Bright', mix: { pct: 55, dark: '#ffffff', light: '#000000' } },
+  sand: { label: 'Sand', mix: { pct: 55, dark: '#e2bf7e', light: '#8a5a12' } },
+  sage: { label: 'Sage', mix: { pct: 50, dark: '#9fd08c', light: '#2f6e25' } },
+  // The two drastic ones: mostly the tint.
+  cyan: { label: 'Cyan', mix: { pct: 15, dark: '#00d7d7', light: '#007a8a' } },
+  amber: { label: 'Amber', mix: { pct: 15, dark: '#ffaf00', light: '#9a5a00' } },
+};

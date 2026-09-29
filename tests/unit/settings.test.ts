@@ -116,6 +116,16 @@ describe('migrateSettings', () => {
     });
   });
 
+  it('input colour: Steel by default and for older data, kept when valid (ADR 0035)', () => {
+    expect(DEFAULT_SETTINGS.appearance.inputColor).toBe('steel');
+    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.inputColor).toBe('steel');
+    expect(migrateSettings({}).appearance.inputColor).toBe('steel');
+    expect(migrateSettings({ appearance: { inputColor: 'amber' } }).appearance.inputColor).toBe('amber');
+    expect(migrateSettings({ appearance: { inputColor: 'none' } }).appearance.inputColor).toBe('none');
+    expect(migrateSettings({ appearance: { inputColor: 'pink' } }).appearance.inputColor).toBe('steel');
+    expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('steel');
+  });
+
   it('adds the group and comm options with defaults (older stored data)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);

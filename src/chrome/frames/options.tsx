@@ -32,6 +32,8 @@ import { FONTS } from '../../theme/fonts';
 import {
   ANSI_NAMES,
   DOS_PALETTE,
+  INPUT_COLORS,
+  INPUT_COLOR_IDS,
   type NamedColor,
   TERMINAL_BG_PRESETS,
   TERMINAL_FG_PRESETS,
@@ -282,6 +284,9 @@ const PREVIEW = [
   'roots and vanishes into the ferns to the south.',
   'Exits: north, south.',
 ];
+/** The last preview line: a game prompt and an echoed command (the input colour). */
+const PREVIEW_PROMPT = '*> ';
+const PREVIEW_ECHO = 'north';
 const PREVIEW_W = 50;
 
 export function AppearanceFrame(): VNode {
@@ -333,6 +338,11 @@ export function AppearanceFrame(): VNode {
       label: `Background: ${colorName(TERMINAL_BG_PRESETS, a.bg)}`,
       adjust: (d) => set({ bg: cycle(colorChoices(TERMINAL_BG_PRESETS, a.bg), a.bg.toLowerCase(), d) }),
     },
+    {
+      key: 'input',
+      label: `Input color: ${INPUT_COLORS[a.inputColor].label}`,
+      adjust: (d) => set({ inputColor: cycle(INPUT_COLOR_IDS, a.inputColor, d) }),
+    },
     { key: 'sp1', spacer: true },
     pal(0),
     pal(1),
@@ -358,11 +368,12 @@ export function AppearanceFrame(): VNode {
   const [cursor, setCursor] = useMenuCursor(items);
   useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
 
-  const before = items.slice(0, 8);
-  const after = items.slice(10);
+  const P = items.findIndex((it) => it.key === 'pal0'); // the two palette rows
+  const before = items.slice(0, P);
+  const after = items.slice(P + 2);
   const palAt = centreLeft(cols, 8 * 5 - 1);
-  const onPal = cursor === 8 || cursor === 9;
-  const palIndex = (cursor === 9 ? 8 : 0) + palCol;
+  const onPal = cursor === P || cursor === P + 1;
+  const palIndex = (cursor === P + 1 ? 8 : 0) + palCol;
   const boxAt = centreLeft(cols, PREVIEW_W + 2);
   const footer = onPal
     ? ['↑↓←→ Move', 'Enter Edit', 'ESC Back']
@@ -377,9 +388,9 @@ export function AppearanceFrame(): VNode {
           row={row}
           at={palAt}
           ansi={a.ansi}
-          cursorCol={cursor === 8 + row ? palCol : -1}
+          cursorCol={cursor === P + row ? palCol : -1}
           onPick={(c) => {
-            setCursor(8 + row);
+            setCursor(P + row);
             setPalCol(c);
           }}
           onOpen={(c) => nav.push(<HexFrame index={row * 8 + c} />)}
@@ -391,8 +402,8 @@ export function AppearanceFrame(): VNode {
       />
       <MenuRows
         items={after}
-        cursor={cursor - 10}
-        setCursor={(i) => setCursor(10 + i)}
+        cursor={cursor - P - 2}
+        setCursor={(i) => setCursor(P + 2 + i)}
       />
       <Blank />
       <FlashRow />
@@ -410,6 +421,16 @@ export function AppearanceFrame(): VNode {
             <span class="wc-box">│</span>
           </Line>
         ))}
+        <Line at={boxAt}>
+          <span class="wc-box">│</span>
+          <span class="wc-preview-text" style={{ color: 'var(--term-fg)' }}>
+            {' ' + PREVIEW_PROMPT}
+          </span>
+          <span class="wc-preview-echo" style={{ color: 'var(--term-echo)' }}>
+            {PREVIEW_ECHO.padEnd(PREVIEW_W - 1 - PREVIEW_PROMPT.length)}
+          </span>
+          <span class="wc-box">│</span>
+        </Line>
         <Line at={boxAt} class="wc-box">
           {'└' + '─'.repeat(PREVIEW_W) + '┘'}
         </Line>
