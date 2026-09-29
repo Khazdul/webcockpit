@@ -222,6 +222,20 @@
   background: var(--term-bg);
 }
 
+/* A marker's hover tip: one row per event, right-aligned left of the marker. */
+.wc-player-tip {
+  position: absolute;
+  max-width: calc(100% - var(--cell-w) * 10);
+  color: var(--c-body);
+  background: var(--c-line-hl, #303030);
+}
+
+.wc-player-tip > div {
+  height: var(--cell-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* Read-only panes (ADR 0021): the Comm header's filter cells do not take
  * the pointer, so a borderless Comm pane is still dragged by its top row. */
 .wc-player .wc-comm-cell {

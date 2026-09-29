@@ -287,19 +287,19 @@ describe('strip maths', () => {
       { type: 'run_end', us: 50 },
     ];
     expect(markersOf(ev)).toEqual([
-      { letter: 'K', us: 9 },
-      { letter: 'D', us: 19 },
-      { letter: 'A', us: 30 },
-      { letter: 'L', us: 40 },
+      { letter: 'K', us: 9, tip: 'Killed *Ibuki the Half-Elf* (5 xp)' },
+      { letter: 'D', us: 19, tip: 'Died' },
+      { letter: 'A', us: 30, tip: 'Achievement: x' },
+      { letter: 'L', us: 40, tip: 'Reached level 42' },
     ]);
   });
 
   it('stacks markers on a row as A D K L + ►, seeking to the earliest', () => {
     const rows = markRows(
       [
-        { letter: 'L', offset: 51 },
+        { letter: 'L', offset: 51, tip: 'Reached level 3' },
         { letter: 'A', offset: 50 },
-        { letter: 'K', offset: 0 },
+        { letter: 'K', offset: 0, tip: 'Killed *Ibuki*' },
         { letter: 'D', offset: 52 },
         { letter: 'K', offset: 200 }, // past the end: dropped
       ],
@@ -307,8 +307,9 @@ describe('strip maths', () => {
       10,
     );
     expect(rows).toEqual([
-      { row: 0, text: 'K►', offset: 0 },
-      { row: 5, text: 'ADL►', offset: 50 },
+      { row: 0, text: 'K►', offset: 0, tips: ['K  Killed *Ibuki*'] },
+      // Tips in time order; a marker without one gets its letter's (older replays).
+      { row: 5, text: 'ADL►', offset: 50, tips: ['A  Achievement', 'L  Reached level 3', 'D  Death'] },
     ]);
   });
 

@@ -26,7 +26,7 @@ import type { RunLibrary } from '../runs/library';
 import type { SpotlightSettings } from '../settings';
 import { runStartUs } from '../runs/stitch';
 import { type Spotlight, emptyState, hasVisibleEntry, selectSpotlights } from '../share/spotlights';
-import type { MarkLetter } from './strip';
+import { type MarkLetter, type PlacedMark, markTip } from './strip';
 import { type ChainRun, type Timeline, playAtLogUs } from './timeline';
 
 /** A reel ready to play: spotlights and their cut logs, index for index. */
@@ -149,8 +149,11 @@ const MARK_OF: Readonly<Record<Spotlight['kind'], MarkLetter>> = {
 };
 
 /** Strip markers: one per spotlight at its moment. */
-export function reelMarks(tl: Timeline, spots: readonly Spotlight[]): Array<{ letter: MarkLetter; offset: number }> {
-  return spotMoments(tl, spots).map((offset, i) => ({ letter: MARK_OF[spots[i]!.kind], offset }));
+export function reelMarks(tl: Timeline, spots: readonly Spotlight[]): PlacedMark[] {
+  return spotMoments(tl, spots).map((offset, i) => {
+    const s = spots[i]!;
+    return { letter: MARK_OF[s.kind], offset, tip: `${s.character}: ${markTip(s.event, s.level)}` };
+  });
 }
 
 // ------------------------------------------------------------- info box

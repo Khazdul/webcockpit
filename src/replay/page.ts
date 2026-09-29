@@ -130,7 +130,7 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
     {
       edits: payloadEdits(payload),
       ...(payload.hiddenSys?.length ? { hiddenSys: payload.hiddenSys } : {}),
-      marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us) })),
+      marks: (tl) => payload.markers.map((m) => ({ letter: m.kind, offset: playAtLogUs(tl, m.us), tip: m.tip })),
       view: {
         header: () => replayHeader(payload),
         onEsc: () => exitFullscreen(doc),

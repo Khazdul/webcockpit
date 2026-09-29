@@ -10,6 +10,7 @@
 //     .wc-player-strip          right edge, 2 cols, full height
 //     .wc-player-box            control box, 8 cols in from the right, 1 row up
 //     .wc-player-hint           `MM:SS` beside the pointer while dragging the strip
+//     .wc-player-tip            a marker's events, left of the marker under the pointer
 //
 // Modes. Play: the output follows the tail, the chrome hides 6 s after the
 // last key or mouse move. Pause: the chrome stays, and a cursor line
@@ -60,7 +61,7 @@ import {
   HINTS,
   HINT_SEP,
   STRIP_COLS,
-  type MarkLetter,
+  type PlacedMark,
   fitHints,
   hintsWidth,
   type MarkRow,
@@ -141,7 +142,7 @@ export interface PlayerViewOptions {
   /** The header at run `run` (called on every render; cheap). */
   header: (run: number) => PlayerHeaderModel;
   /** Markers as playback offsets (ms). */
-  marks: ReadonlyArray<{ letter: MarkLetter; offset: number }>;
+  marks: ReadonlyArray<PlacedMark>;
   /** The current player App's output pane (it changes on a rebuild). */
   output: () => OutputPane | null;
   /** The cell size in px. */
@@ -199,6 +200,7 @@ export class PlayerView {
   private readonly settingsEl: HTMLDivElement;
   private settingsOpen = false;
   private readonly hintEl: HTMLDivElement;
+  private readonly tipEl: HTMLDivElement;
   private readonly unsubs: Array<() => void> = [];
   private readonly ro: ResizeObserver | null = null;
   private raf: number | null = null;
@@ -262,7 +264,9 @@ export class PlayerView {
     this.boxEl.addEventListener('wheel', this.onBoxWheel, { passive: false });
     this.hintEl = div('wc-player-hint');
     this.hintEl.hidden = true;
-    this.el.append(this.headerEl, this.marksEl, this.stripEl, this.boxEl, this.hintEl);
+    this.tipEl = div('wc-player-tip');
+    this.tipEl.hidden = true;
+    this.el.append(this.headerEl, this.marksEl, this.stripEl, this.boxEl, this.hintEl, this.tipEl);
     opts.root.appendChild(this.el);
     if (opts.overlay) opts.root.appendChild(opts.overlay.el);
     this.quiet = opts.startHidden ?? false;
@@ -280,6 +284,8 @@ export class PlayerView {
     this.stripEl.addEventListener('pointercancel', this.onStripCancel);
     this.stripEl.addEventListener('pointerleave', this.onStripLeave);
     this.marksEl.addEventListener('click', this.onMarkClick);
+    this.marksEl.addEventListener('pointerover', this.onMarkOver);
+    this.marksEl.addEventListener('pointerout', this.onMarkOut);
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.schedule());
       this.ro.observe(opts.root);
@@ -479,6 +485,7 @@ export class PlayerView {
     const marksSig = `${rows}|${h}|${w}`;
     if (marksSig !== this.marksSig) {
       this.marksSig = marksSig;
+      this.tipEl.hidden = true;
       this.marksEl.textContent = '';
       for (const m of markRows(this.o.marks, dur, rows)) this.marksEl.appendChild(this.markEl(m, h));
     }
@@ -592,6 +599,7 @@ export class PlayerView {
     d.textContent = m.text;
     d.style.top = `${m.row * h}px`;
     d.dataset.offset = String(m.offset);
+    d.dataset.tip = m.tips.join('\n');
     return d;
   }
 
@@ -813,6 +821,37 @@ export class PlayerView {
     this.hintEl.style.top = `${Math.max(0, Math.floor((clientY - root.top) / h)) * h}px`;
     this.hintEl.hidden = false;
   }
+
+  /**
+   * Hover tip of a marker row: one line per event, right-aligned one cell
+   * left of the marker's text, from the marker's row down (up when it
+   * would run off the bottom).
+   */
+  private readonly onMarkOver = (e: PointerEvent): void => {
+    const m = (e.target as Element | null)?.closest?.('.wc-player-mark') as HTMLElement | null;
+    if (!m?.dataset.tip) return;
+    const { w, h } = this.o.cells();
+    const lines = m.dataset.tip.split('\n');
+    this.tipEl.replaceChildren(
+      ...lines.map((l) => {
+        const r = this.doc.createElement('div');
+        r.textContent = ` ${l} `;
+        return r;
+      }),
+    );
+    const row = Math.round(m.offsetTop / (h || 1));
+    const rows = h > 0 ? Math.floor(this.o.root.clientHeight / h) : 0;
+    const top = Math.max(0, Math.min(row, rows - lines.length));
+    this.tipEl.style.top = `${top * h}px`;
+    this.tipEl.style.right = `${(STRIP_COLS + (m.textContent ?? '').length) * w}px`;
+    this.tipEl.hidden = false;
+  };
+
+  private readonly onMarkOut = (e: PointerEvent): void => {
+    const to = (e.relatedTarget as Element | null)?.closest?.('.wc-player-mark');
+    if (to && to === (e.target as Element | null)?.closest?.('.wc-player-mark')) return;
+    this.tipEl.hidden = true;
+  };
 
   private readonly onMarkClick = (e: MouseEvent): void => {
     const m = (e.target as Element | null)?.closest?.('.wc-player-mark') as HTMLElement | null;

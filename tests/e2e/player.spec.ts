@@ -64,6 +64,21 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   await expect(chrome(page).locator('.wc-player-clock')).toContainText('/ 02:02');
   // K/D/A/L markers from the stored events.
   await expect(chrome(page).locator('.wc-player-mark')).toHaveText(['AL►', 'K►', 'D►']);
+  // Hovering a marker shows what happened, left of it on its row.
+  await chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).hover();
+  const tip = chrome(page).locator('.wc-player-tip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('K  Killed *');
+  const [mk, tb] = await Promise.all([
+    chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).boundingBox(),
+    tip.boundingBox(),
+  ]);
+  expect(Math.abs(tb!.y - mk!.y)).toBeLessThan(1);
+  expect(tb!.x + tb!.width).toBeLessThanOrEqual(mk!.x + 1);
+  await chrome(page).locator('.wc-player-mark', { hasText: 'AL►' }).hover();
+  await expect(tip.locator('div')).toHaveCount(2);
+  await page.mouse.move(10, 300);
+  await expect(tip).toBeHidden();
   // The panes fill from the recorded GMCP.
   await expect(player(page).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');

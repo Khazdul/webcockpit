@@ -49,7 +49,8 @@ export interface ReplayPayload {
   comments: PayloadComment[];
   /** The excluded ranges, as `TimelineEdits.cuts`. */
   cuts: ExcludeRange[];
-  markers: Array<{ us: number; kind: 'A' | 'D' | 'K' | 'L' }>;
+  /** `tip`: the marker's hover text (absent in older files). */
+  markers: Array<{ us: number; kind: 'A' | 'D' | 'K' | 'L'; tip?: string }>;
   /**
    * Runs (indexes into `runs`) whose login system line the player does not
    * print (it was excluded in the editor). Absent in older files: none.
@@ -124,7 +125,7 @@ export function buildReplayPayload(
 
   const markers = markersOf(events)
     .filter((m) => !isExcluded(doc, m.us))
-    .map((m) => ({ us: m.us, kind: m.letter }));
+    .map((m) => ({ us: m.us, kind: m.letter, tip: m.tip }));
 
   let level: number | undefined;
   for (const r of chain) if (r.meta.summary?.level !== undefined) level = r.meta.summary.level;

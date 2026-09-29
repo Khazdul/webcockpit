@@ -5,6 +5,11 @@
 // the chrome hidden (a pointer move or a key shows it; the info box stays)
 // and parks paused at the end (the engine stops there). ESC closes the
 // player (the shell shows the start page as it was).
+//
+// Stripped down (owner feedback 2026-09-29): a spotlight is a short
+// snapshot, so the reel shows the game text only — every pane is off
+// (a viewer override, so later VIEW records cannot switch one on) — and
+// the control box has no gear.
 
 import type { PlayerHost } from '../app/player-host';
 import type { HeaderHint } from './strip';
@@ -12,6 +17,8 @@ import type { PlayerHeaderModel } from './view';
 import { BOX_W, type Reel, countdownHalf, fmtDate, navTarget, reelMarks, spotAt, spotMoments, spotStarts } from './spotlight-reel';
 import { SpotlightBox } from './spotlight-box';
 import { BLANK_LINES } from './timeline';
+import { PANE_IDS, type PaneId } from '../layout/types';
+import { noOverrides } from './viewer';
 
 /** Opens `reel` on `host` and starts playing. */
 export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
@@ -53,6 +60,10 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
     };
   };
 
+  const panes: Partial<Record<PaneId, boolean>> = {};
+  for (const id of PANE_IDS) panes[id] = false;
+  host.setViewer({ ...noOverrides(), panes });
+
   host.openChain(
     chain,
     [],
@@ -77,6 +88,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
         overlay: { el: box.el, keepVisible: true },
         startHidden: true,
       },
+      viewerSettings: false,
     },
   );
 

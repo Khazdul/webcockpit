@@ -121,6 +121,8 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await expect(player(p).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
   await expect(chrome(p).locator('.wc-player-mark')).toHaveText(['AL►', 'K►', 'D►']);
+  await chrome(p).locator('.wc-player-mark', { hasText: 'D►' }).hover();
+  await expect(chrome(p).locator('.wc-player-tip')).toContainText('D  Died');
   await expect(player(p).locator('.wc-input-slot')).toBeHidden();
   await expect(chrome(p).locator('.wc-player-strip')).toBeVisible();
   // The font came from the file.

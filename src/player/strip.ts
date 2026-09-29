@@ -9,7 +9,7 @@
 // `f = (y − cellH / 2) / (height − cellH)`, so the top row's centre is the
 // start and the bottom row's centre the end.
 
-import type { RunEvent } from '../runs/events';
+import { type RunEvent, fmtXp } from '../runs/events';
 
 export const STRIP_COLS = 2;
 export const MARK_COLS = 5;
@@ -28,6 +28,48 @@ export interface Marker {
   letter: MarkLetter;
   /** Log time of the event (`logUs ?? us`), µs. */
   us: number;
+  /** What happened, as the marker's hover tip shows it (`markTip`). */
+  tip: string;
+}
+
+/** A marker as the player view places it: a playback offset, ms. */
+export interface PlacedMark {
+  letter: MarkLetter;
+  offset: number;
+  /** Hover tip; absent (older HTML replays) = `LETTER_TIPS[letter]`. */
+  tip?: string | undefined;
+}
+
+/** Hover tips of markers that carry no text of their own. */
+export const LETTER_TIPS: Readonly<Record<MarkLetter, string>> = {
+  A: 'Achievement',
+  D: 'Death',
+  K: 'Player kill',
+  L: 'Level up',
+};
+
+/**
+ * The hover tip of a marker's event: `Killed *Name the Race* (1.2k xp)`,
+ * `Died (level 32)`, `Reached level 33`, `Achievement: …`. `level` is the
+ * character's level when the event does not carry it (deaths).
+ */
+export function markTip(e: RunEvent, level?: number): string {
+  switch (e.type) {
+    case 'pkill': {
+      const who = '*' + (e.race ? `${e.name} ${e.race}` : e.name) + '*';
+      return e.xpDelta > 0 ? `Killed ${who} (${fmtXp(e.xpDelta)} xp)` : `Killed ${who}`;
+    }
+    case 'char_death': {
+      const l = e.level ?? level;
+      return l !== undefined ? `Died (level ${l})` : 'Died';
+    }
+    case 'level_up':
+      return `Reached level ${e.level}`;
+    case 'achievement':
+      return `Achievement: ${e.name}`;
+    default:
+      return '';
+  }
 }
 
 /** Markers of a chain's events: pkill → K, char_death → D, achievement → A, level_up → L. */
@@ -39,7 +81,7 @@ export function markersOf(events: readonly RunEvent[]): Marker[] {
     else if (e.type === 'char_death') letter = 'D';
     else if (e.type === 'achievement') letter = 'A';
     else if (e.type === 'level_up') letter = 'L';
-    if (letter) out.push({ letter, us: 'logUs' in e && typeof e.logUs === 'number' ? e.logUs : e.us });
+    if (letter) out.push({ letter, us: 'logUs' in e && typeof e.logUs === 'number' ? e.logUs : e.us, tip: markTip(e) });
   }
   return out;
 }
@@ -87,15 +129,13 @@ export interface MarkRow {
   text: string;
   /** The earliest marker offset on the row (a click seeks there). */
   offset: number;
+  /** The hover tip: one `L  text` line per marker on the row, in time order. */
+  tips: string[];
 }
 
 /** Markers (as playback offsets) grouped by strip row, top to bottom. */
-export function markRows(
-  marks: ReadonlyArray<{ letter: MarkLetter; offset: number }>,
-  duration: number,
-  rows: number,
-): MarkRow[] {
-  const byRow = new Map<number, { letters: Set<MarkLetter>; offset: number }>();
+export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, rows: number): MarkRow[] {
+  const byRow = new Map<number, { letters: Set<MarkLetter>; offset: number; marks: PlacedMark[] }>();
   for (const m of marks) {
     if (m.offset < 0 || m.offset > duration) continue;
     const { row } = offsetToRow(m.offset, duration, rows);
@@ -103,11 +143,20 @@ export function markRows(
     if (cur) {
       cur.letters.add(m.letter);
       cur.offset = Math.min(cur.offset, m.offset);
-    } else byRow.set(row, { letters: new Set([m.letter]), offset: m.offset });
+      cur.marks.push(m);
+    } else byRow.set(row, { letters: new Set([m.letter]), offset: m.offset, marks: [m] });
   }
   return [...byRow.entries()]
     .sort((a, b) => a[0] - b[0])
-    .map(([row, v]) => ({ row, offset: v.offset, text: MARK_ORDER.filter((l) => v.letters.has(l)).join('') + '►' }));
+    .map(([row, v]) => ({
+      row,
+      offset: v.offset,
+      text: MARK_ORDER.filter((l) => v.letters.has(l)).join('') + '►',
+      tips: v.marks
+        .slice()
+        .sort((a, b) => a.offset - b.offset)
+        .map((m) => `${m.letter}  ${m.tip || LETTER_TIPS[m.letter]}`),
+    }));
 }
 
 /** One key hint on the header's right (stage 7: any player mode brings its own list). */

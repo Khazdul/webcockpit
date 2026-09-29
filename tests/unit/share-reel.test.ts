@@ -73,15 +73,20 @@ describe('reel positions', () => {
       { windows: [{ fromUs: us(2, later), toUs: us(17, later) }, { fromUs: us(10), toUs: us(25) }] },
     );
     const spots = [
-      { atUs: us(12, later), kind: 'pkill' as const },
-      { atUs: us(20), kind: 'death' as const },
+      {
+        atUs: us(12, later),
+        kind: 'pkill' as const,
+        character: 'Ann',
+        event: { type: 'pkill', us: 0, logUs: 0, name: 'Bo', race: 'the Orc', xpDelta: 0 },
+      },
+      { atUs: us(20), kind: 'death' as const, character: 'Cy', level: 30, event: { type: 'char_death', us: 0, logUs: 0 } },
     ] as unknown as Parameters<typeof spotMoments>[1];
     // A: Hit. at 0 (pre-roll trimmed), Kill. at 4 s, dwell to 17 s → 9 s; B starts there.
     expect(spotStarts(tl)).toEqual([0, 9000]);
     expect(spotMoments(tl, spots)).toEqual([4000, 14000]);
     expect(reelMarks(tl, spots)).toEqual([
-      { letter: 'K', offset: 4000 },
-      { letter: 'D', offset: 14000 },
+      { letter: 'K', offset: 4000, tip: 'Ann: Killed *Bo the Orc*' },
+      { letter: 'D', offset: 14000, tip: 'Cy: Died (level 30)' },
     ]);
   });
 });

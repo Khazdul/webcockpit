@@ -76,6 +76,11 @@ test('Spotlights plays the reel: header, info box, ←/→, park at the end, ESC
   await expect(box(page).locator('[data-nav="next"]')).toHaveCount(1);
   // A key showed the chrome.
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  // Stripped down: no panes, no gear; the markers' tips name the character.
+  await expect(player(page).locator('.wc-pane:visible')).toHaveCount(0);
+  await expect(chrome(page).locator('.wc-player-gear')).toHaveCount(0);
+  await chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).hover();
+  await expect(chrome(page).locator('.wc-player-tip')).toContainText(': Killed *');
 
   // ← at once (under 1.5 s in): the previous one.
   await page.keyboard.press('ArrowLeft');

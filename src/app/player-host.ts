@@ -43,7 +43,7 @@ import { applyTheme } from '../theme/apply';
 import { CellMetrics } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
-import { type MarkLetter, STRIP_COLS, markersOf } from '../player/strip';
+import { type PlacedMark, STRIP_COLS, markersOf } from '../player/strip';
 import { type ChainRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs } from '../player/timeline';
 import { PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
 import {
@@ -93,7 +93,7 @@ export interface PlayerInfo {
 export interface PlayerOpenOptions {
   edits?: TimelineEdits;
   /** Markers as playback offsets; default: the events' markers (`markersOf`) on `playAtLogUs`. */
-  marks?: (tl: Timeline) => Array<{ letter: MarkLetter; offset: number }>;
+  marks?: (tl: Timeline) => PlacedMark[];
   /** View mode options; `header` and `onEsc` replace the log player's. */
   view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'overlay' | 'startHidden' | 'stripHoverTime' | 'boxButtons' | 'onEsc'>>;
   /** Start playing at once (default true). */
@@ -206,7 +206,7 @@ export class PlayerHost {
     this.engineRef = engine;
     const marks = opts.marks
       ? opts.marks(tl)
-      : markersOf(events).map((m) => ({ letter: m.letter, offset: playAtLogUs(tl, m.us) }));
+      : markersOf(events).map((m) => ({ letter: m.letter, offset: playAtLogUs(tl, m.us), tip: m.tip }));
     const onEsc = (): void => this.close();
     this.view = new PlayerView({
       root: this.el,
