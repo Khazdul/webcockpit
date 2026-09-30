@@ -46,8 +46,8 @@ Later parts (not planned yet): fixes from PvP testing, performance pass
 "Owner feedback"), polish, and the carried items in
 `progress.md` (map pane default height, replay font subsetting, player
 paint after a long seek, JetBrains Mono exports without DejaVu fallback
-glyphs, reel load time on a large library, live checks of stage 7,
-`look` → Room.Info).
+glyphs, reel load time on a large library, `look` → Room.Info; the
+live checks of stage 7 passed 2026-09-30).
 
 ## Owner decisions
 
@@ -318,3 +318,6 @@ the character in the input line is ever a problem in play.
 - 2026-09-30, marker tips on touch: no tip on touch devices is accepted
   (won't fix). Timers active at a run's start stay open (ADR 0033 "Not
   covered"; the cut fix does not cover them).
+- 2026-09-30, stage 7 live checks: Spotlights and Credits after real
+  PvP, and an HTML replay on another machine, verified live by the
+  owner: "looks good". Carried item closed.
