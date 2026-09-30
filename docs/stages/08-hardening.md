@@ -1,8 +1,10 @@
 # Stage 8 — Hardening → v1
 
-> Status: In progress (part A done 2026-09-28; later parts not planned yet).
+> Status: In progress (part A done 2026-09-28; part B, the performance
+> review, started 2026-09-30; later parts not planned yet).
 > Source: spec §5 row 8; owner brief 2026-09-28 (part A, viewer
-> settings in RUN LOG and the HTML replay). ADR 0021.
+> settings in RUN LOG and the HTML replay). ADR 0021. Owner brief
+> 2026-09-30 (part B, performance review).
 
 ## Goal
 
@@ -41,9 +43,23 @@ Part A — in:
 Part A — out: saving the viewer's choices between opens (see ADR 0021),
 per-pane colour editing, custom palettes.
 
-Later parts (not planned yet): fixes from PvP testing, performance pass
-(Chromium burst frame 39–58 ms; see the owner brief 2026-09-30 under
-"Owner feedback"), polish, and the carried items in
+Part B — performance review (owner brief 2026-09-30, see "Owner
+feedback"). In: a review of the whole input → socket → parse → render
+path, measured against the spec §1.3 budgets, widened by the owner on
+2026-09-30 to three goals: text drawn as fast as possible, no slowdown
+over long sessions, the lowest possible input latency. The owner's
+repro is `help 24-bit colours`. The review ends in ranked proposals;
+nothing is fixed before the owner has picked from them. Measured where
+the owner plays: this machine has only Firefox installed (156, Wayland
+/ Hyprland, 60 Hz, device pixel ratio 2, ~1728 × 1050 CSS px), while
+the bench measures headless at ratio 1 in 1280 × 720. Firefox is the
+primary target, Chromium second.
+
+Part B — out: building the fixes (a later part, from the owner's pick).
+
+Later parts (not planned yet): fixes from PvP testing, the performance
+fixes the owner picks in part B (Chromium burst frame 39–58 ms is part
+of the review), polish, and the carried items in
 `progress.md` (map pane default height, replay font subsetting, player
 paint after a long seek, JetBrains Mono exports without DejaVu fallback
 glyphs, reel load time on a large library, `look` → Room.Info; the
@@ -167,6 +183,18 @@ Input color (owner request 2026-09-30):
       Sage, Cyan, Amber; Steel default) colours the command echo and the
       input line (`>` included); recorded in VIEW, so RUN LOG, Spotlights
       and the HTML replay use the player's choice (Steel for older logs).
+
+Part B — performance review (owner brief 2026-09-30):
+
+- [ ] B1. Five parallel subagent reviews with measurements in Firefox
+      and Chromium at pixel ratio 2: A output rendering (incl. the
+      `help 24-bit colours` repro), B ingest CPU path, C input latency,
+      D long sessions (soak), E side panes and frame composition.
+- [ ] B2. Verify the key claims in the code; re-measure the top items
+      on a quiet machine.
+- [ ] B3. Report with ranked proposals
+      (`notes/research/performance-review.md`).
+- [ ] B4. Owner picks the proposals to build (a later part).
 
 ## Test guide (part A)
 
@@ -321,3 +349,7 @@ the character in the input line is ever a problem in play.
 - 2026-09-30, stage 7 live checks: Spotlights and Credits after real
   PvP, and an HTML replay on another machine, verified live by the
   owner: "looks good". Carried item closed.
+- 2026-09-30, performance review started (part B): wider than the
+  `help 24-bit colours` example. The owner wants the code and the
+  architecture to be optimal for drawing text fast, for not slowing
+  down after long sessions, and for the lowest possible input latency.
