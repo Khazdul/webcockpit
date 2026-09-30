@@ -413,7 +413,7 @@ export class App {
   connectLive(): void {
     if (this.isConnected) {
       if (!this.replaying) {
-        this.sys('Already connected. Use #reconnect to start over.');
+        this.sys('Already connected.');
         return;
       }
       this.session.disconnect(REASON_REPLAY_STOP);
@@ -472,7 +472,6 @@ export class App {
       if (reason === REASON_REPLAY_START || this.player) return;
       if (reason === REASON_REPLAY_STOP) return this.sys('Replay stopped.');
       this.sys(reason === REASON_REPLAY_DONE ? 'Replay finished.' : `Replay stopped: ${reason}`);
-      this.sys('#connect plays live, #replay loads another log.');
       return;
     }
     this.sys(`Connection closed: ${reason || 'unknown reason'}`);
@@ -626,7 +625,7 @@ export class App {
     // Rules and timers do not reconnect; a typed line or key does, once.
     if (!this.userAction || this.userActionHandled) return;
     this.userActionHandled = true;
-    if (this.offline) this.sys('Not connected. #connect plays live, #replay loads a log.');
+    if (this.offline) this.sys('Not connected.');
     else this.connectLive();
   }
 

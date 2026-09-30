@@ -40,6 +40,8 @@ Newest first.
   and `#un…` typed on the input line are written to the profile at once;
   script-made rules stay session-only (ADR 0038, amends 0015). Unit
   1283/1284, e2e 214/214.
+- **Owner feedback 3:** system lines no longer name `#connect`,
+  `#reconnect` or `#replay`.
 - **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
   feedback); release; then plan the rest of stage 8.
 - **Open issues:** "alias missing in EDITOR" not reproduced; underscore

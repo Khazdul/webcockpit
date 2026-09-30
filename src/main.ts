@@ -106,7 +106,7 @@ if (app) {
     const speed = Number(params.get('speed') ?? '1');
     void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
   } else if (!benchMode) {
-    app.bus.emit('sys.message', { text: 'Offline replay mode. Type #replay to load a Cockpit .log.' });
+    app.bus.emit('sys.message', { text: 'Offline replay mode.' });
   }
 }
 

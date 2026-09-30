@@ -241,6 +241,6 @@ describe('App + script engine', () => {
     enter(app, 'n;e;#showme hi');
     while (frames.length) frames.shift()!();
     const out = Array.from(app.output.el.querySelectorAll('.wc-rows .wc-row')).map((r) => r.textContent);
-    expect(out).toEqual(['[SYSTEM] Not connected. #connect plays live, #replay loads a log.', 'hi']);
+    expect(out).toEqual(['[SYSTEM] Not connected.', 'hi']);
   });
 });
