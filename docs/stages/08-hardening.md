@@ -247,3 +247,19 @@ the character in the input line is ever a problem in play.
   by subagents (consider a higher effort level), measured against the
   spec §1.3 budgets, ending in ranked improvement proposals before any
   fixes are built.
+- 2026-09-30, profile syntax: `_send` is not needed (everything sent is
+  echoed); `khazdul` becomes a reference profile without it and without
+  the autobash, `e1`/`e2` and accented aliases; a HELP view beside LITE
+  and EDITOR with a manual per command; `_show_class` lost its
+  underscore in LITE. Done in ADRs 0036–0037. Not reproduced: the alias
+  "missing" in EDITOR (buffer equals the stored text; EDITOR has no
+  search). Open: the same underscore clipping can hit chrome text
+  outside the editor (e.g. profile names); owner to pick from the
+  candidate list of odd or duplicate khazdul aliases.
+  Test guide: open the site in a private window (the new `khazdul` is
+  seeded only on a first run). Start page → Profiles → khazdul → edit:
+  check LITE shows `_show_class` with its underscore, EDITOR shows the
+  sectioned profile, HELP opens the manual (arrows, PgUp/PgDn, n/p).
+  Connect with khazdul and try `z orc`, `bh`, F1–F4, `sd gate`, `o`.
+  Feedback wanted: manual tone and length, profile layout, and whether
+  `_send` should be removed from the engine too.

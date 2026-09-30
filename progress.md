@@ -22,6 +22,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — Reference profile and editor HELP
+
+- **Done:** owner request. `khazdul.tin` rewritten as a reference
+  profile (no `_send`, topic sections, `F1`–`F9`, helper aliases);
+  `_send` deprecated but still honoured; plain commands are trimmed
+  (ADR 0036). Profile editor gets a HELP view with a per-command manual
+  kept as data and checked against the engine; underscores clipped in
+  LITE fixed (ADR 0037). Unit 1226/1227 (known `timers-replay`), e2e
+  204/204.
+- **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
+  feedback); release; then plan the rest of stage 8.
+- **Open issues:** "alias missing in EDITOR" not reproduced; underscore
+  clipping may remain in chrome text outside the editor; EDITOR has no
+  search; owner to decide on the khazdul candidate list.
+- **Commits:** see `git log` for this date (feat/fix/docs), plus this one.
+
 ### 2026-09-30 — Release 0.1.17
 
 - **Released:** 0.1.17 (tag v0.1.17): About cleanup (no COMMANDS/KEYS,
