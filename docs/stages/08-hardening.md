@@ -287,3 +287,6 @@ the character in the input line is ever a problem in play.
   Test guide: type `#alias zz smile`, `#unalias zz`, `#var target orc`,
   `#var target`, `#alias`, `#message`, `#message var`, then
   `#var target elf` (no row). Reload: variables are still off.
+- 2026-09-30, wrap-up: 0.1.18 approved and released. `khazdul` is good
+  as it is. `_send` removed from the engine entirely (ADR 0040, not yet
+  released). Paper-theme readability: a later session.

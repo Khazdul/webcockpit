@@ -89,7 +89,7 @@ function key(app: App, init: KeyboardEventInit): KeyboardEvent {
 
 describe('App + script engine', () => {
   it('runs typed lines through aliases and sends each command', async () => {
-    const t = await setup('#alias {bb} {_send bash $target}\n#variable {target} {orc}\n');
+    const t = await setup('#alias {bb} {bash $target}\n#variable {target} {orc}\n');
     const sock = await t.connect();
     enter(t.app, 'bb;look');
     expect(t.sentLines(sock).slice(-2)).toEqual(['bash orc', 'look']);
@@ -112,7 +112,7 @@ describe('App + script engine', () => {
   });
 
   it('runs macros from keydown, and a bound macro wins over input keys', async () => {
-    const t = await setup('#macro {Numpad8} {north}\n#macro {Alt+B} {_send bash}\n');
+    const t = await setup('#macro {Numpad8} {north}\n#macro {Alt+B} {bash}\n');
     const sock = await t.connect();
     const ev = key(t.app, { key: '8', code: 'Numpad8' });
     expect(ev.defaultPrevented).toBe(true);
@@ -127,7 +127,7 @@ describe('App + script engine', () => {
   });
 
   it('skips macros in password mode and with AltGr', async () => {
-    const t = await setup('#macro {Ctrl+Alt+Q} {_send altgr}\n#macro {F5} {_send f5}\n');
+    const t = await setup('#macro {Ctrl+Alt+Q} {altgr}\n#macro {F5} {f5}\n');
     const sock = await t.connect();
     const altgr = new KeyboardEvent('keydown', { key: '@', code: 'KeyQ', ctrlKey: true, altKey: true, bubbles: true, cancelable: true });
     Object.defineProperty(altgr, 'getModifierState', { value: (k: string) => k === 'AltGraph' });
@@ -211,7 +211,7 @@ describe('App + script engine', () => {
   });
 
   it('while disconnected a typed command reconnects once; rules do not', async () => {
-    const t = await setup('#alias {two} {n;e}\n#ticker {t} {_send tick} {1}');
+    const t = await setup('#alias {two} {n;e}\n#ticker {t} {tick} {1}');
     await t.connect();
     t.sockets[0]!.drop('closed by server');
     t.clock.advance(3000);

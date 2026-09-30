@@ -121,7 +121,7 @@ describe('hints and warnings', () => {
   });
 
   it('warns about aliases that can never run', () => {
-    expect(entryWarning({ kind: 'alias', pattern: '_send %1' })).toBe('_send is built in; this alias never runs.');
+    expect(entryWarning({ kind: 'alias', pattern: '_send %1' })).toBeNull();
     expect(entryWarning({ kind: 'alias', pattern: '#conn' })).toBe('#connect is a client command; this alias never runs.');
     expect(entryWarning({ kind: 'alias', pattern: 'gv %1' })).toBeNull();
   });

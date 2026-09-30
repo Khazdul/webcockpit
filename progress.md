@@ -22,6 +22,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — `_send` removed, session wrap-up
+
+- **Done:** owner decision: `_send` is gone from the engine; stored
+  profiles are cleaned at `init()` and imported files on import
+  (`stripSend`, ADR 0040, amends 0036). Unit 1312/1313 (known
+  `timers-replay`), e2e 218/218, script bench passes. Not released:
+  live is 0.1.18, which still honours `_send`.
+- **Owner decisions:** `khazdul` is good as it is (candidate list
+  closed). Paper-theme readability of `[SYSTEM]` and `#help` rows goes
+  to a later session.
+- **Next:** release 0.1.19 when the owner asks; paper-theme readability;
+  plan the rest of stage 8 (performance brief first).
+- **Open issues:** "alias missing in EDITOR" never reproduced (EDITOR
+  has no search); underscore clipping may remain in chrome text outside
+  the editor; `timers-replay.test.ts` fails on the new Cockpit log.
+- **Commits:** this one.
+
 ### 2026-09-30 — Release 0.1.18
 
 - **Released:** 0.1.18 (tag v0.1.18): reference `khazdul` profile,

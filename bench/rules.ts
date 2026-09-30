@@ -49,7 +49,7 @@ export function makeRuleProfile(lines: readonly string[], n = RULE_COUNT): strin
   const colours = ['Cyan', 'green', 'red', 'Magenta', 'yellow', 'b blue'];
   for (let i = 0; i < nH; i++) out.push(`#highlight {${pair()}} {${colours[i % colours.length]}} {5}`);
   out.push('#variable {target} {*orc*}');
-  out.push('#alias {bb} {_send bash $target}');
+  out.push('#alias {bb} {bash $target}');
   out.push('#macro {F5} {bb}');
   return out.join('\n') + '\n';
 }

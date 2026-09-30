@@ -38,7 +38,7 @@ describe('round trip', () => {
     'stray close': '#alias {a} {b}}\n}}}\n',
     escapes: '#action {\\{x\\}} {say \\}\n#nop \\\n#alias {b} {c}\n',
     'trailing text': '#alias {a} {b} junk\n#alias {c} {d};\n',
-    'non-ascii': '#alias {é} {_send north}\n#alias {ś} {south}\n#nop ẃ ń ú 😀\n',
+    'non-ascii': '#alias {é} {north}\n#alias {ś} {south}\n#nop ẃ ń ú 😀\n',
     'multi-line nop': '#nop {\n  a comment\n  over lines\n}\n#alias {a} {b}\n',
     'free text': 'hello there\n  {not a group\n}\n',
     'blank variety': '\n \n\t\n  \r\n',
@@ -106,7 +106,7 @@ describe('node classification', () => {
     const hl = listEntries(doc, 'highlight')[0]!;
     expect(hl).toMatchObject({ word: 'HIGHLIGHT', pattern: '- armour', body: 'Cyan', priority: '5' });
     const k = listEntries(doc, 'alias').find((e) => e.pattern === '^k%+1..d$')!;
-    expect(k.body).toBe("\n    _send cast $mode 'sleep' %1.$foe\n");
+    expect(k.body).toBe("\n    cast $mode 'sleep' %1.$foe\n");
     expect(k.priority).toBeNull();
     const m = listEntries(doc, 'macro')[2]!;
     expect(m.pattern).toBe('\\e[15~');
@@ -293,7 +293,7 @@ describe('removing entries', () => {
     const doc = parseProfile(CORPUS);
     const e = listEntries(doc, 'macro').find((x) => x.pattern === '\\eOQ')!;
     const out = serialize(removeEntry(doc, e.id));
-    expect(out).toContain('#MACRO {\\eOP}\n{\n    _send hit $foe\n}\n\n#MACRO {\\e[15~}');
+    expect(out).toContain('#MACRO {\\eOP}\n{\n    hit $foe\n}\n\n#MACRO {\\e[15~}');
     expect(out.length).toBe(CORPUS.length - e.text.length - 1);
   });
 });

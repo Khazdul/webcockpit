@@ -15,6 +15,7 @@
 // records in memory for the page's lifetime; `persistent` is false.
 
 import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
+import { stripSend } from './migrate';
 import { DEFAULT_PROFILE, nameError, nameFromFileName, uniqueName } from './names';
 import KHAZDUL from './khazdul.tin?raw';
 import TEMPLATE from './template.tin?raw';
@@ -77,7 +78,14 @@ export class ProfileStore {
   async init(): Promise<void> {
     await this.tx('readwrite', async (st) => {
       const cur = await st.get(DEFAULT_PROFILE);
-      if (cur) return;
+      if (cur) {
+        // Profiles stored before `_send` was removed (ADR 0040).
+        for (const rec of await st.all()) {
+          const text = stripSend(rec.text);
+          if (text !== rec.text) await st.put({ ...rec, text, modified: this.now() });
+        }
+        return;
+      }
       await st.put(this.record(DEFAULT_PROFILE, PROFILE_TEMPLATE));
       for (const b of BUNDLED_PROFILES) {
         if (!(await st.get(b.name))) await st.put(this.record(b.name, b.text));
@@ -142,7 +150,7 @@ export class ProfileStore {
   async importFile(fileName: string, text: string): Promise<string> {
     return this.tx('readwrite', async (st) => {
       const name = uniqueName(nameFromFileName(fileName), await st.names());
-      await st.put(this.record(name, text));
+      await st.put(this.record(name, stripSend(text)));
       return name;
     });
   }

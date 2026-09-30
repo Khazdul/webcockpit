@@ -54,3 +54,5 @@ echo what an alias sends. WebCockpit echoes every command (ADR 0015), so
   the common case (`#alias {look} {look; exits}`).
 - One known difference from the old copy: text typed after a spell alias
   (`bh x`) becomes part of the spell name, where it used to be ignored.
+
+*Amended by 0040 (2026-09-30):* `_send` is removed from the engine; stored and imported profiles are cleaned.

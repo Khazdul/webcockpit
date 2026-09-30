@@ -15,8 +15,8 @@ describe('splitCommands', () => {
   });
 
   it('keeps newlines inside a command (multi-line bodies)', () => {
-    const body = '\n    #if {"%1" != ""}\n    {\n        _send a;\n        _send b\n    };\n    _send c\n';
-    expect(splitCommands(body)).toEqual(['#if {"%1" != ""}\n    {\n        _send a;\n        _send b\n    }', '_send c']);
+    const body = '\n    #if {"%1" != ""}\n    {\n        a;\n        b\n    };\n    c\n';
+    expect(splitCommands(body)).toEqual(['#if {"%1" != ""}\n    {\n        a;\n        b\n    }', 'c']);
   });
 });
 

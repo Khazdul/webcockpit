@@ -28,7 +28,7 @@ test('the default profile macros and a typed alias send to the game', async ({ p
   await expect(page.locator('.wc-input-field')).toHaveValue('');
 
   // A runtime alias with a variable and ; splitting; the sends are echoed.
-  await page.keyboard.type('#var t orc;#alias {kk} {_send kill %1.$t;#showme {<Fff0000>Target: %1}}');
+  await page.keyboard.type('#var t orc;#alias {kk} {kill %1.$t;#showme {<Fff0000>Target: %1}}');
   await page.keyboard.press('Enter');
   await page.keyboard.type('kk big');
   await page.keyboard.press('Enter');

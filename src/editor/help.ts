@@ -11,7 +11,7 @@
 //
 // `#help` on the input line prints from the same data (src/app/help-command.ts).
 //
-// `_send` is deprecated (ADR 0036) and is not mentioned here.
+// `_send` is gone (ADR 0040) and is not mentioned here.
 //
 // This file must not import the engine: the editor is a lazy chunk, and a
 // shared import would move engine code between the start-up chunks. The

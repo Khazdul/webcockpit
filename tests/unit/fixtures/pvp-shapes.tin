@@ -20,12 +20,12 @@
 
 #ALIAS {4}
 {
-    _send lock $door
+    lock $door
 }
 
 #ALIAS {^k%+1..d$}
 {
-    _send cast $mode 'sleep' %1.$foe
+    cast $mode 'sleep' %1.$foe
 }
 
 #ALIAS {_swap_cloak}
@@ -34,18 +34,18 @@
     {
         #if {"$cloak" != ""}
         {
-            _send remove $cloak;
+            remove $cloak;
             #if {"$bag" == "*sack*"}
             {
-                _send put $cloak sack
+                put $cloak sack
             }
             #else
             {
-                _send put $cloak $bag
+                put $cloak $bag
             }
         };
-        _send get %1 $bag;
-        _send wear %1;
+        get %1 $bag;
+        wear %1;
         #variable {cloak} {%1}
     }
     #elseif {"%1" == ""}
@@ -61,17 +61,17 @@
 
 #ALIAS {é}
 {
-    _send north
+    north
 }
 
 #ALIAS {ś}
 {
-    _send south
+    south
 }
 
 #ALIAS {fb}
 {
-    _send bash $foe
+    bash $foe
 }
 
 #ALIAS {fe}
@@ -88,34 +88,34 @@
 #HIGHLIGHT {XX} {green} {5}
 #MACRO {\eOP}
 {
-    _send hit $foe
+    hit $foe
 }
 
 #MACRO {\eOQ}
 {
     #if {"$role" == "fighter" || "$role" == "paladin"}
     {
-        _send bash $foe
+        bash $foe
     }
     #else
     {
-        _send cast 'chill' $foe
+        cast 'chill' $foe
     }
 }
 
 #MACRO {\e[15~}
 {
-    _send draw $blade
+    draw $blade
 }
 
 #MACRO {\eOp}
 {
-    _send flee
+    flee
 }
 
 #MACRO {\eOk}
 {
-    _send open door
+    open door
 }
 
 #SUBSTITUTE {^%1 is stunned!} {<F23aaee>%0<900>} {5}

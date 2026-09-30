@@ -252,7 +252,7 @@ export const HINTS: Readonly<Record<LiteKind, readonly [string, string]>> = {
 /**
  * A warning for an entry that will not behave as the user expects, or
  * null: a macro that takes over an input-line key, an alias that can never
- * run because `_send` or a client command wins.
+ * run because a client command wins.
  */
 export function entryWarning(e: { kind: EntryKind; pattern: string }): string | null {
   if (e.kind === 'macro') {
@@ -262,7 +262,6 @@ export function entryWarning(e: { kind: EntryKind; pattern: string }): string | 
   }
   if (e.kind === 'alias') {
     const first = e.pattern.trim().split(/\s+/)[0] ?? '';
-    if (first === '_send') return '_send is built in; this alias never runs.';
     if (first.startsWith('#')) {
       const c = resolveCommand(first);
       if (c && c !== 'ambiguous' && c.kind === 'client') return `#${c.name} is a client command; this alias never runs.`;

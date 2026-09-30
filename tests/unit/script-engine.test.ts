@@ -53,17 +53,18 @@ describe('input', () => {
     expect(t.sent).toEqual(['kill orc', 'say a;b $nope']);
   });
 
-  it('_send sends its argument and cannot be shadowed', () => {
+  it('_send is an ordinary word (ADR 0040)', () => {
     const t = setup();
-    t.e.input('#alias {_send} {say shadowed}');
-    t.e.input('#var t elf;_send bash $t');
-    expect(t.sent).toEqual(['bash elf']);
+    t.e.input('_send bash');
+    t.e.input('#alias {_send} {say %0}');
+    t.e.input('_send hi');
+    expect(t.sent).toEqual(['_send bash', 'say hi']);
   });
 
-  it('a plain command is trimmed after variable expansion, like _send', () => {
+  it('a plain command is trimmed after variable expansion', () => {
     const t = setup();
     t.e.input('#var door {};#alias {c} {close $door}');
-    t.e.input('c;close $door;_send close $door');
+    t.e.input('c;close $door;close $door');
     expect(t.sent).toEqual(['close', 'close', 'close']);
   });
 
@@ -105,7 +106,7 @@ describe('aliases', () => {
   it('appends unused arguments when the body has no %N', () => {
     const t = setup();
     t.e.input('#var target *elf*');
-    t.e.input('#alias {bb} {_send bash $target}');
+    t.e.input('#alias {bb} {bash $target}');
     t.e.input('bb');
     t.e.input('bb troll');
     expect(t.sent).toEqual(['bash *elf*', 'bash *elf* troll']);
@@ -114,7 +115,7 @@ describe('aliases', () => {
   it('matches pattern aliases anchored at the start', () => {
     const t = setup();
     t.e.input('#var target orc');
-    t.e.input("#alias {^b%+1..d$} {_send cast 'blindness' %1.$target}");
+    t.e.input("#alias {^b%+1..d$} {cast 'blindness' %1.$target}");
     t.e.input('b12');
     t.e.input('b1x');
     t.e.input('#alias {tell %1 %2} {say to %1: %2}');
@@ -171,9 +172,9 @@ describe('#if', () => {
   it('handles #if/#elseif/#else chains as separate commands', () => {
     const t = setup();
     t.e.input(`#alias {cls} {
-      #if {"%1" == "warrior"} {_send bash};
-      #elseif {"%1" == "caster" || "%1" == "warcaster"} {_send cast};
-      #else {_send shoot}
+      #if {"%1" == "warrior"} {bash};
+      #elseif {"%1" == "caster" || "%1" == "warcaster"} {cast};
+      #else {shoot}
     }`);
     t.e.input('cls warrior;cls warcaster;cls thief');
     expect(t.sent).toEqual(['bash', 'cast', 'shoot']);
@@ -181,17 +182,17 @@ describe('#if', () => {
 
   it('supports the else argument and nesting', () => {
     const t = setup();
-    t.e.input('#if {1 > 2} {_send a} {_send b}');
-    t.e.input('#if {1} {#if {0} {_send x};#else {_send y}}');
-    t.e.input('#var bag sack;#if {"$bag" == "*sack*"} {_send glob}');
+    t.e.input('#if {1 > 2} {a} {b}');
+    t.e.input('#if {1} {#if {0} {x};#else {y}}');
+    t.e.input('#var bag sack;#if {"$bag" == "*sack*"} {glob}');
     expect(t.sent).toEqual(['b', 'y', 'glob']);
   });
 
   it('continues the chain when #else follows without ;', () => {
     const t = setup();
     t.e.input('#var r mage');
-    t.e.input('#if {"$r" == "x"}\n{_send a}\n#elseif {"$r" == "mage"}\n{_send b}\n#else\n{_send c};_send after');
-    t.e.input('#if {1} {_send yes} #else {_send no}');
+    t.e.input('#if {"$r" == "x"}\n{a}\n#elseif {"$r" == "mage"}\n{b}\n#else\n{c};after');
+    t.e.input('#if {1} {yes} #else {no}');
     expect(t.sent).toEqual(['b', 'after', 'yes']);
   });
 
@@ -248,8 +249,8 @@ describe('actions', () => {
   it('fire on received lines with arguments, all matching in priority order (fan-out)', () => {
     const t = setup();
     t.e.input('#action {^%1 raises his hand.$} {group %1} {5}');
-    t.e.input('#action {raises} {_send second} {7}');
-    t.e.input('#action {hand} {_send first} {1}');
+    t.e.input('#action {raises} {second} {7}');
+    t.e.input('#action {hand} {first} {1}');
     t.e.system.define('action', 'raises', '', { priority: 5, fn: (m) => t.sent.push('system ' + m.args[0]) });
     t.recv('Bob raises his hand.');
     expect(t.sent).toEqual(['first', 'group Bob', 'system raises', 'second']);
@@ -257,7 +258,7 @@ describe('actions', () => {
 
   it('match variables in patterns at match time', () => {
     const t = setup();
-    t.e.input('#var foe Bob;#action {^$foe arrives} {_send kill $foe}');
+    t.e.input('#var foe Bob;#action {^$foe arrives} {kill $foe}');
     t.recv('Bob arrives from the north.');
     t.e.input('#var foe Tim');
     t.recv('Bob arrives.');
@@ -267,7 +268,7 @@ describe('actions', () => {
 
   it('nested definitions register synchronously in line order', () => {
     const t = setup();
-    t.e.input('#alias {arm} {#action {^%%1 recovers$} {_send bash %%1};_send armed %1;#showme {%%1 recovers}}');
+    t.e.input('#alias {arm} {#action {^%%1 recovers$} {bash %%1};armed %1;#showme {%%1 recovers}}');
     t.e.input('arm now');
     // The #showme line ran the action defined two commands earlier.
     expect(t.sent).toEqual(['armed now', 'bash %1']);
@@ -309,7 +310,7 @@ describe('display pipeline', () => {
     const seen: string[] = [];
     t.bus.on('text.line', (l) => seen.push(l.text));
     t.e.input('#substitute {^%1 is stunned!} {<F23aaee>%0<900>} {5}');
-    t.e.input('#action {^Orc is stunned!$} {_send hit}');
+    t.e.input('#action {^Orc is stunned!$} {hit}');
     t.e.input('#substitute {orc} {ORC}');
     t.recv('Orc is stunned! An orc and an orc.', [{ start: 0, end: 3, fg: 1 }]);
     const d = t.shown[0]!;
@@ -331,7 +332,7 @@ describe('display pipeline', () => {
   it('gags hide the line (after substitutes) and actions still fire', () => {
     const t = setup();
     t.e.input('#gag {^You hear}');
-    t.e.input('#action {^You hear %1$} {_send listen}');
+    t.e.input('#action {^You hear %1$} {listen}');
     t.e.input('#sub {^Noise} {You hear noise}');
     t.recv('You hear a sound');
     t.recv('Noise');
@@ -361,7 +362,7 @@ describe('display pipeline', () => {
 
   it('partials get substitutes and highlights, no actions, no gags', () => {
     const t = setup();
-    t.e.input('#sub {Name} {NAME};#hi {NAME} {red};#gag {Name};#action {Name} {_send x}');
+    t.e.input('#sub {Name} {NAME};#hi {NAME} {red};#gag {Name};#action {Name} {x}');
     t.bus.emit('text.partial', line('By what Name? '));
     expect(t.partials[0]!.line.text).toBe('By what NAME? ');
     expect(t.partials[0]!.line.runs).toEqual([{ start: 8, end: 12, fg: 1 }]);
@@ -389,7 +390,7 @@ describe('display pipeline', () => {
 describe('macros', () => {
   it('runs by canonical key, accepting tt++ escape forms', () => {
     const t = setup();
-    t.e.input('#macro {\\eOp} {flee};#macro {F5} {_send draw};#mac {alt+a} {#if {1} {_send yes}}');
+    t.e.input('#macro {\\eOp} {flee};#macro {F5} {draw};#mac {alt+a} {#if {1} {yes}}');
     expect(t.e.hasMacro('Numpad0')).toBe(true);
     expect(t.e.runMacro('Numpad0')).toBe(true);
     expect(t.e.runMacro('F5')).toBe(true);
@@ -400,7 +401,7 @@ describe('macros', () => {
 
   it('binds printable keys bare and with Shift (ADR 0026)', () => {
     const t = setup();
-    t.e.input('#macro {a} {_send one};#macro {Shift+2} {_send two};#macro {Backquote} {_send three};#macro {shift+a} {_send four}');
+    t.e.input('#macro {a} {one};#macro {Shift+2} {two};#macro {Backquote} {three};#macro {shift+a} {four}');
     expect(t.msgs).toEqual([]);
     expect(t.e.runMacro('A')).toBe(true);
     expect(t.e.runMacro('Shift+2')).toBe(true);
@@ -428,7 +429,7 @@ describe('macros', () => {
 describe('timers', () => {
   it('#ticker repeats and #unticker stops', () => {
     const t = setup();
-    t.e.input('#ticker {tick} {_send beat} {2}');
+    t.e.input('#ticker {tick} {beat} {2}');
     t.clock.advance(1999);
     expect(t.sent).toEqual([]);
     t.clock.advance(1);
@@ -441,9 +442,9 @@ describe('timers', () => {
 
   it('#delay fires once, named delays replace and #undelay cancels', () => {
     const t = setup();
-    t.e.input('#delay {1.5} {_send once}');
-    t.e.input('#delay {d} {_send named1} {1};#delay {d} {_send named2} {2}');
-    t.e.input('#delay {x} {_send never} {1};#undelay x');
+    t.e.input('#delay {1.5} {once}');
+    t.e.input('#delay {d} {named1} {1};#delay {d} {named2} {2}');
+    t.e.input('#delay {x} {never} {1};#undelay x');
     t.clock.advance(5000);
     expect(t.sent).toEqual(['once', 'named2']);
     expect(t.clock.pending).toBe(0);
@@ -460,7 +461,7 @@ describe('timers', () => {
 describe('#class', () => {
   it('groups rules, variables and timers and kills them', () => {
     const t = setup();
-    t.e.input('#class {pvp} {open};#alias {x} {y};#var v 1;#ticker {t} {_send tick} {1};#class {pvp} {close};#alias {keep} {k}');
+    t.e.input('#class {pvp} {open};#alias {x} {y};#var v 1;#ticker {t} {tick} {1};#class {pvp} {close};#alias {keep} {k}');
     t.e.input('#class {pvp} {kill}');
     t.e.input('x;keep');
     t.clock.advance(5000);
@@ -486,7 +487,7 @@ describe('#event', () => {
 describe('loadProfile', () => {
   it('is atomic: the old store stays until the new one is complete, and its timers stop', () => {
     const t = setup();
-    expect(t.e.loadProfile('#alias {a} {old};#ticker {t} {_send tick} {1}').ok).toBe(true);
+    expect(t.e.loadProfile('#alias {a} {old};#ticker {t} {tick} {1}').ok).toBe(true);
     const bad = t.e.loadProfile('#alias {a} {new}\n#alias {b} {x');
     expect(bad).toEqual({ ok: false, reason: 'Unbalanced braces: the { on line 2 is never closed.' });
     t.e.input('a');
