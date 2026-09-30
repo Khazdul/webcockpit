@@ -290,3 +290,20 @@ the character in the input line is ever a problem in play.
 - 2026-09-30, wrap-up: 0.1.18 approved and released. `khazdul` is good
   as it is. `_send` removed from the engine entirely (ADR 0040, not yet
   released). Paper-theme readability: a later session.
+- 2026-09-30, four fixes: (1) the clock strip always has one blank
+  between the time and the icon (8 cells, time right-aligned); (2) light
+  UI colours on a light background such as paper: menus, `[SYSTEM]`,
+  `#help`, `#message` rows (ADR 0041); (3) EDITOR and HELP run to the
+  frame's right edge, left edge unchanged (ADR 0037, "Full width");
+  (4) underscores no longer clipped in the chrome, the input line and
+  the panes (ADR 0042). Open for the owner: pane frames and titles are
+  faint on paper; the HELP text has no maximum line length; in the game
+  "far right" is the ESC menu's box, not the window; text sits 1 px
+  higher, so marks on `Å`/`É` are cut at more font sizes; `_` on a game
+  line directly above a line with a background colour is still lost.
+  Test guide: watch the clock pass 10:00. Options → Appearance →
+  Background paper: walk the menus, type `#help`, `#help alias`,
+  `#alias zz smile`. Profile → EDITOR and HELP, from the start page and
+  from ESC, in a wide window. Create a profile `a_b_c`, look at the
+  Profiles list, rename it, type `a_b_c` on the input line (Firefox
+  too).

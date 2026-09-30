@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.18 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.18 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: release 0.1.19, then plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,24 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-30 — Clock blank, light chrome, full-width editor, underscores
+
+- **Done:** owner request, four items. Clock strip is 8 cells with the
+  time right-aligned and one blank before the icon. UI roles are
+  light-aware on a light terminal background (ADR 0041). EDITOR and HELP
+  fill the frame to its last cell at ≥ 79 cols (ADR 0037, "Full width").
+  Underscore clipping fixed in the kit, input line, panes and player
+  (ADR 0042). Unit 1323/1324 (known `timers-replay`), e2e 232/232,
+  browser bench within its usual range. Not released (live is 0.1.18).
+- **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
+  feedback); release 0.1.19; plan the rest of stage 8.
+- **Open issues:** pane frames and titles faint on paper; `_` on an
+  output row above a background-coloured row still lost; the 1 px lift
+  cuts capital accents at more sizes; editor.css line-height rules now
+  duplicate the kit; the full e2e run sometimes times out launching a
+  browser under load (passes on rerun); `timers-replay.test.ts`.
+- **Commits:** ee45018, 820820b, 6b78ba1, eb873a6, plus this one.
 
 ### 2026-09-30 — `_send` removed, session wrap-up
 
