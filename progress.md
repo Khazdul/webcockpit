@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.19 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (parts A and B done; 0.1.19 live at https://mumecockpit.com/; next: part C, the performance fixes, in the order of `docs/stages/08-hardening.md` part C).
 
 ## Stages
 
@@ -21,6 +21,29 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-30 — Stage 8 part B: performance review
+
+- **Done:** five parallel subagent reviews, measured in headless Firefox
+  and Chromium at pixel ratio 2, the owner's geometry (this machine has
+  only Firefox): rendering, ingest, input latency, long sessions (12.9 h
+  soak), panes and frames. The key comparisons were re-run on a quiet
+  machine. Report with ranked proposals: `notes/research/performance-review.md`.
+  Reports, patches and harnesses: `notes/research/perf-review/`. ADR 0044
+  holds the outcome and the performance rules.
+- **Found:** normal play is fast and nothing grows over the soak. The
+  repro is one span per colour cell. The caret's CSS blink adds ~8 ms
+  to every received line while the caret shows. Full-scrollback stalls
+  of 85–171 ms come from scroll mode, width change and drag. Recorder
+  chunk tasks reach 30–95 ms in bursts.
+- **Owner decisions:** build all four groups (small fixes, medium fixes,
+  `#perf`, the benchmark); caret blink by a timer; catch-up capped at 500
+  rows per frame; scrollback depth becomes a setting (default 20 000).
+- **Next:** stage 8 part C: C0–C17 in the stage file, in order.
+- **Open issues:** `timers-replay.test.ts` still fails (C0). The bench's
+  published frame → paint medians include the caret-blink wait. Its
+  "map off" columns have the map on.
+- **Commits:** 2cf02cb, plus this one.
 
 ### 2026-09-30 — Release 0.1.19
 

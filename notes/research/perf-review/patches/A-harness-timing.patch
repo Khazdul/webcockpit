@@ -1,0 +1,51 @@
+--- a/src/ui/output-pane.ts
++++ b/src/ui/output-pane.ts
+@@ -311,11 +311,15 @@
+     this.frameScheduled = false;
+     this.flushCount++;
+     const doc = this.el.ownerDocument;
++    // HARNESS (perf/): phase timing into globalThis.__wcFlushT when the harness set it up.
++    const T = (globalThis as { __wcFlushT?: Array<Record<string, number>> }).__wcFlushT;
++    const t0 = T ? performance.now() : 0;
+ 
+     const tail = this.queue.length;
+     let start = this.head;
+     if (tail - start > this.scrollback) start = tail - this.scrollback;
+-    const end = Math.min(tail, start + MAX_ROWS_PER_FRAME);
++    // HARNESS (perf/): globalThis.__wcMaxRows overrides the cap.
++    const end = Math.min(tail, start + ((globalThis as { __wcMaxRows?: number }).__wcMaxRows ?? MAX_ROWS_PER_FRAME));
+ 
+     const built: HTMLElement[] = [];
+     let prev = this.lastRow;
+@@ -359,6 +363,7 @@
+ 
+     const wasScrolled = this.scrolled;
+     const added = built.length;
++    const t1 = T ? performance.now() : 0;
+     if (added > 0) {
+       this.appendRows(built);
+       this.rowCount += added;
+@@ -367,13 +372,22 @@
+     }
+ 
+     if (this.partialDirty) this.renderPartial();
++    const t2 = T ? performance.now() : 0;
++    let t3 = t2;
+ 
+     if (!wasScrolled) {
+-      this.scroller.scrollTop = this.scroller.scrollHeight;
++      const h = this.scroller.scrollHeight;
++      t3 = T ? performance.now() : 0;
++      this.scroller.scrollTop = h;
+     } else if (added > 0) {
+       this.newWhileScrolled += added;
+       this.updateTailBar();
+     }
++    if (T) {
++      const t4 = performance.now();
++      T.push({ start: t0, build: t1 - t0, append: t2 - t1, read: t3 - t2, write: t4 - t3, total: t4 - t0, rows: added });
++      if (T.length > 5000) T.splice(0, 2500);
++    }
+ 
+     if (this.head < this.queue.length) this.schedule();
+   }

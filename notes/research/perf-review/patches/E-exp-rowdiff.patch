@@ -1,0 +1,193 @@
+diff --git a/src/panes/character.ts b/src/panes/character.ts
+index a19d6bc..d338bd4 100644
+--- a/src/panes/character.ts
++++ b/src/panes/character.ts
+@@ -19,7 +19,7 @@
+ import type { Settings } from '../settings/types';
+ import { ALERTNESS_STEPS, type CharView, MOOD_STEPS, POSITION_STEPS, TOGGLES } from '../gmcp/char';
+ import type { ShadeRole } from '../theme/color';
+-import { CellLine, centre, overflowLine } from './grid';
++import { CellLine, RowList, centre, overflowLine } from './grid';
+ import { PaneShell } from './pane';
+ import type { PaneContext } from './context';
+ import { paneShade } from './shade';
+@@ -136,6 +136,8 @@ export function characterLines(v: CharView, ramp: Ramp, w: number, h: number): C
+ }
+ 
+ export class CharacterPane extends PaneShell {
++  private readonly list = new RowList(this.content);
++
+   constructor(ctx: PaneContext) {
+     super(ctx, 'character');
+     this.own(ctx.game.subscribe((part) => part === 'char' && this.markDirty()));
+@@ -145,7 +147,13 @@ export class CharacterPane extends PaneShell {
+     const s: Readonly<Settings> = this.ctx.settings.get();
+     const { ramp } = paneShade(s, 'character');
+     const lines = characterLines(this.ctx.game.char.view(), ramp, this.cols, this.rows);
+-    const doc = this.ctx.doc;
+-    this.content.replaceChildren(...lines.map((l) => l.toElement(doc)));
++    // Char.Vitals on every prompt mostly changes values this board does not
++    // show (hp, mana, moves): then no row changes and no DOM is touched.
++    this.list.update(this.ctx.doc, lines);
++  }
++
++  protected override blank(): void {
++    this.list.reset();
++    super.blank();
+   }
+ }
+diff --git a/src/panes/grid.ts b/src/panes/grid.ts
+index 64e57d6..c4d5b48 100644
+--- a/src/panes/grid.ts
++++ b/src/panes/grid.ts
+@@ -64,6 +64,11 @@ export class CellLine {
+     return this.ch.join('');
+   }
+ 
++  /** Everything `toElement` draws: equal keys give equal elements. */
++  key(): string {
++    return `${this.ch.join('')}\u0000${this.fg.join(',')}\u0000${this.bg.join(',')}\u0000${this.flags.join('')}`;
++  }
++
+   /** The row element: one span per run of equal style. */
+   toElement(doc: Document): HTMLDivElement {
+     const row = doc.createElement('div');
+@@ -108,3 +113,43 @@ export const INDICATOR_FG = '#d4a04e';
+ export function overflowLine(w: number, n: number, what: string): CellLine {
+   return new CellLine(w).put(0, `↓ ${n} more ${what}`, { fg: INDICATOR_FG, italic: true });
+ }
++
++/**
++ * The rows of a pane's content, updated in place: a row whose `key()` is
++ * unchanged keeps its element, a changed row gets a new one, and nothing
++ * is touched when no row changed. `tail` (e.g. the Timers hit boxes) stays
++ * after the rows. Call `reset()` when something else emptied the host.
++ */
++export class RowList {
++  private keys: string[] = [];
++  private els: HTMLElement[] = [];
++
++  constructor(private readonly host: HTMLElement) {}
++
++  /** Shows `lines`; returns how many row elements were (re)built. */
++  update(doc: Document, lines: readonly CellLine[], tail: Node | null = null): number {
++    const keys = lines.map((l) => l.key());
++    if (keys.length !== this.keys.length || this.host.firstChild !== (this.els[0] ?? tail)) {
++      this.els = lines.map((l) => l.toElement(doc));
++      this.keys = keys;
++      this.host.replaceChildren(...this.els, ...(tail ? [tail] : []));
++      return lines.length;
++    }
++    let built = 0;
++    for (let i = 0; i < keys.length; i++) {
++      if (keys[i] === this.keys[i]) continue;
++      const el = lines[i]!.toElement(doc);
++      this.els[i]!.replaceWith(el);
++      this.els[i] = el;
++      this.keys[i] = keys[i]!;
++      built++;
++    }
++    if (tail && tail.parentNode !== this.host) this.host.append(tail);
++    return built;
++  }
++
++  reset(): void {
++    this.keys = [];
++    this.els = [];
++  }
++}
+diff --git a/src/panes/group.ts b/src/panes/group.ts
+index e1e2025..3814b64 100644
+--- a/src/panes/group.ts
++++ b/src/panes/group.ts
+@@ -15,7 +15,7 @@
+ 
+ import { VITAL_KINDS, type VitalKind } from '../gmcp/bands';
+ import { type GroupDisplay, type Member, memberTitle, vitalPct } from '../gmcp/group';
+-import { CellLine, overflowLine } from './grid';
++import { CellLine, RowList, overflowLine } from './grid';
+ import type { PaneContext } from './context';
+ import { PaneShell } from './pane';
+ import { fillFor, paneShade } from './shade';
+@@ -75,6 +75,7 @@ export function groupLines(members: readonly Member[], w: number, h: number, nam
+ 
+ export class GroupPane extends PaneShell {
+   private displayKey = '';
++  private readonly list = new RowList(this.content);
+ 
+   constructor(ctx: PaneContext) {
+     super(ctx, 'group');
+@@ -96,7 +97,12 @@ export class GroupPane extends PaneShell {
+     const display: GroupDisplay = s.group;
+     const members = this.ctx.game.group.displayed(display);
+     const lines = groupLines(members, this.cols, this.rows, shade.ramp.vtext, shade.light);
+-    const doc = this.ctx.doc;
+-    this.content.replaceChildren(...lines.map((l) => l.toElement(doc)));
++    // Usually one member's bar changed: only that row is rebuilt.
++    this.list.update(this.ctx.doc, lines);
++  }
++
++  protected override blank(): void {
++    this.list.reset();
++    super.blank();
+   }
+ }
+diff --git a/src/panes/timers.ts b/src/panes/timers.ts
+index 759d094..7a337be 100644
+--- a/src/panes/timers.ts
++++ b/src/panes/timers.ts
+@@ -37,7 +37,7 @@ import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerCell, type TimerGroup, type
+ import { TIMER_COLOR_HEX, type TimersSettings } from '../settings/types';
+ import { darkInk, lightShift } from '../theme/color';
+ import { WHEEL_STEP_PX } from './anchored-list';
+-import { CellLine, INDICATOR_FG } from './grid';
++import { CellLine, INDICATOR_FG, RowList } from './grid';
+ import type { PaneContext } from './context';
+ import { PaneShell } from './pane';
+ import { paneShade } from './shade';
+@@ -350,6 +350,8 @@ export class TimersPane extends PaneShell {
+   private wheelAcc = 0;
+   private tickTimer: ReturnType<typeof setTimeout> | null = null;
+   private readonly hits: HTMLDivElement;
++  private readonly list = new RowList(this.content);
++  private hitsKey = '';
+ 
+   constructor(ctx: PaneContext) {
+     super(ctx, 'timers');
+@@ -385,6 +387,8 @@ export class TimersPane extends PaneShell {
+ 
+   protected override blank(): void {
+     this.last = null;
++    this.list.reset();
++    this.hitsKey = '';
+     this.content.replaceChildren();
+   }
+ 
+@@ -410,7 +414,12 @@ export class TimersPane extends PaneShell {
+     this.scroll = layout.scroll;
+     if (this.hover && !layout.zones.some((z) => hitKey(z.hit) === this.hover)) this.hover = null;
+     const doc = this.ctx.doc;
+-    this.hits.replaceChildren(
++    // The 1 Hz tick mostly redraws the same cells: rebuild only changed rows,
++    // and the hit boxes only when the zones changed.
++    const hitsKey = JSON.stringify(layout.zones);
++    if (hitsKey !== this.hitsKey) {
++      this.hitsKey = hitsKey;
++      this.hits.replaceChildren(
+       ...layout.zones.map((z) => {
+         const d = doc.createElement('div');
+         d.className = 'wc-timers-hit';
+@@ -426,9 +435,10 @@ export class TimersPane extends PaneShell {
+         d.style.width = `calc(var(--cell-w) * ${z.x1 - z.x0})`;
+         return d;
+       }),
+-    );
+-    this.content.replaceChildren(...layout.lines.map((l) => l.toElement(doc)), this.hits);
+-    this.content.dataset.mode = this.mode;
++      );
++    }
++    this.list.update(doc, layout.lines, this.hits);
++    if (this.content.dataset.mode !== this.mode) this.content.dataset.mode = this.mode;
+     this.armTick(layout.timed, now);
+   }
+ 

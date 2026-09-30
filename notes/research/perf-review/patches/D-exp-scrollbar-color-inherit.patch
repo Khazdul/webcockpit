@@ -1,0 +1,18 @@
+diff --git a/src/ui/ui.css b/src/ui/ui.css
+index ee9768c..b4ad162 100644
+--- a/src/ui/ui.css
++++ b/src/ui/ui.css
+@@ -85,6 +85,13 @@ body {
+   scrollbar-color: auto;
+ }
+ 
++/* scrollbar-color is inherited: without this, toggling .wc-scrolled (every
++ * scroll back and every return to the tail) restyles every row of the
++ * scrollback (~125 ms at 20 000 rows in Chromium, perf review D). */
++.wc-rows {
++  scrollbar-color: auto;
++}
++
+ .wc-chunk {
+   /* A chunk's rows never affect layout outside it (see output-pane.ts). */
+   contain: content;

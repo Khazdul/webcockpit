@@ -1,0 +1,51 @@
+diff --git a/src/net/telnet.ts b/src/net/telnet.ts
+index b8d5d3f..be23f6b 100644
+--- a/src/net/telnet.ts
++++ b/src/net/telnet.ts
+@@ -236,20 +236,35 @@ export class Telnet {
+     let i = 0;
+     // Start of the pending plain-text run, or -1.
+     let run = -1;
++    // Position of the next NUL at or after `i` (n: none), found once per
++    // stretch with the native indexOf; NUL is rare.
++    let nul = -1;
+     while (i < n) {
++      if (this.state === S_DATA) {
++        // Plain text up to the next IAC or NUL in one native scan instead
++        // of a state switch per byte.
++        if (nul < i) {
++          nul = bytes.indexOf(0, i);
++          if (nul < 0) nul = n;
++        }
++        let stop = bytes.indexOf(IAC, i);
++        if (stop < 0 || stop > nul) stop = nul;
++        if (stop > i) {
++          if (run < 0) run = i;
++          i = stop;
++          if (i >= n) break;
++        }
++        // bytes[i] is IAC or NUL.
++        if (run >= 0) {
++          this.emitText(bytes, run, i, ts);
++          run = -1;
++        }
++        if (bytes[i] === IAC) this.state = S_IAC;
++        i++;
++        continue;
++      }
+       const b = bytes[i]!;
+       switch (this.state) {
+-        case S_DATA:
+-          if (b === IAC || b === 0) {
+-            if (run >= 0) {
+-              this.emitText(bytes, run, i, ts);
+-              run = -1;
+-            }
+-            if (b === IAC) this.state = S_IAC;
+-          } else if (run < 0) {
+-            run = i;
+-          }
+-          break;
+ 
+         case S_IAC:
+           this.state = S_DATA;

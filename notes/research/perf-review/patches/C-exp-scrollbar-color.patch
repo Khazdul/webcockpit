@@ -1,0 +1,18 @@
+diff --git a/src/ui/ui.css b/src/ui/ui.css
+index ee9768c..40f8757 100644
+--- a/src/ui/ui.css
++++ b/src/ui/ui.css
+@@ -85,6 +85,13 @@ body {
+   scrollbar-color: auto;
+ }
+ 
++/* scrollbar-color is inherited: without a value of their own, the rows would
++   all be restyled whenever .wc-scrolled toggles (PageUp, Esc, wheel). */
++.wc-rows,
++.wc-partial {
++  scrollbar-color: auto;
++}
++
+ .wc-chunk {
+   /* A chunk's rows never affect layout outside it (see output-pane.ts). */
+   contain: content;

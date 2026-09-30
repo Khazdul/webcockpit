@@ -1,0 +1,149 @@
+diff --git a/src/layout/cockpit.ts b/src/layout/cockpit.ts
+index 4dcdbd9..2f692ee 100644
+--- a/src/layout/cockpit.ts
++++ b/src/layout/cockpit.ts
+@@ -168,6 +168,12 @@ export class Cockpit {
+   private readonly barEl: HTMLDivElement;
+   private readonly ghostEl: HTMLDivElement;
+   private readonly tooSmallEl: HTMLDivElement;
++  /**
++   * Transparent cover over the whole cockpit while a drag runs: it carries
++   * the drag cursor, so a drag start or end restyles one element instead of
++   * every element under `.wc-cockpit` (the 20 000 output rows included).
++   */
++  private readonly shieldEl: HTMLDivElement;
+   private readonly shells = new Map<PaneId, PaneShell>();
+   private readonly settings: SettingsStore;
+   private readonly cells: CellSource;
+@@ -213,6 +219,8 @@ export class Cockpit {
+     this.ghostEl.hidden = true;
+     this.tooSmallEl = div('wc-too-small');
+     this.tooSmallEl.hidden = true;
++    this.shieldEl = div('wc-drag-shield');
++    this.shieldEl.hidden = true;
+     this.paneContext =
+       opts.paneContext ??
+       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
+@@ -230,7 +238,7 @@ export class Cockpit {
+       this.shells.set(id, shell);
+       this.el.append(shell.el);
+     }
+-    this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl);
++    this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
+     opts.root.appendChild(this.el);
+ 
+     this.el.addEventListener('pointerdown', this.onPointerDown);
+@@ -421,7 +429,7 @@ export class Cockpit {
+         min: floatMin(id, b.framed),
+         base: this.settings.get().layout,
+       };
+-      this.el.dataset.drag = edge.dataset.edge!;
++      this.setDragCursor(edge.dataset.edge!);
+     } else if (grip) {
+       const id = grip.dataset.grip as PaneId;
+       const b = boxOf(id);
+@@ -457,7 +465,7 @@ export class Cockpit {
+       } else {
+         this.drag = { kind: 'dock', dock, pointerId: e.pointerId, base };
+       }
+-      this.el.dataset.drag = handle.dataset.axis!;
++      this.setDragCursor(handle.dataset.axis!);
+     } else {
+       return;
+     }
+@@ -496,7 +504,7 @@ export class Cockpit {
+       if (!d.active) {
+         if (Math.hypot(x - d.x0, y - d.y0) < DRAG_THRESHOLD) return;
+         d.active = true;
+-        this.el.dataset.drag = 'move';
++        this.setDragCursor('move');
+         this.shells.get(d.id)!.el.toggleAttribute('data-dragging', true);
+       }
+       d.target = this.dropTarget(x, y, d.id, d.grab);
+@@ -583,10 +591,19 @@ export class Cockpit {
+     this.barEl.hidden = true;
+     this.ghostEl.hidden = true;
+     delete this.el.dataset.drag;
++    delete this.shieldEl.dataset.drag;
++    this.shieldEl.hidden = true;
+     for (const s of this.shells.values()) s.el.removeAttribute('data-dragging');
+     this.scheduleRelayout();
+   }
+ 
++  /** Shows the drag cursor (shield) and marks the cockpit (no style depends on the mark). */
++  private setDragCursor(kind: string): void {
++    this.el.dataset.drag = kind;
++    this.shieldEl.dataset.drag = kind;
++    this.shieldEl.hidden = false;
++  }
++
+   private setPreview(m: LayoutModel): void {
+     if (this.preview && JSON.stringify(this.preview) === JSON.stringify(m)) return;
+     this.preview = m;
+diff --git a/src/layout/layout.css b/src/layout/layout.css
+index cafaa3c..d0a3d1d 100644
+--- a/src/layout/layout.css
++++ b/src/layout/layout.css
+@@ -132,44 +132,29 @@
+   display: none;
+ }
+ 
+-.wc-cockpit[data-drag] {
++/* Drag cursor (cockpit.ts `shieldEl`): one transparent cover over the
++ * cockpit while a drag runs. Pointer capture stays on the cockpit, so the
++ * cover only decides the cursor and keeps text from being selected. Only
++ * this element restyles at a drag start or end; a `.wc-cockpit[data-drag] *`
++ * rule would restyle every output row. */
++.wc-drag-shield {
++  position: absolute;
++  inset: 0;
++  z-index: 1000;
+   user-select: none;
+ }
+ 
+-.wc-cockpit[data-drag="move"],
+-.wc-cockpit[data-drag="move"] * {
+-  cursor: grabbing !important;
+-}
+-
+-.wc-cockpit[data-drag="x"],
+-.wc-cockpit[data-drag="x"] * {
+-  cursor: col-resize !important;
+-}
+-
+-.wc-cockpit[data-drag="y"],
+-.wc-cockpit[data-drag="y"] * {
+-  cursor: row-resize !important;
+-}
+-
+-.wc-cockpit[data-drag="n"], .wc-cockpit[data-drag="n"] *,
+-.wc-cockpit[data-drag="s"], .wc-cockpit[data-drag="s"] * {
+-  cursor: ns-resize !important;
+-}
+-
+-.wc-cockpit[data-drag="e"], .wc-cockpit[data-drag="e"] *,
+-.wc-cockpit[data-drag="w"], .wc-cockpit[data-drag="w"] * {
+-  cursor: ew-resize !important;
+-}
+-
+-.wc-cockpit[data-drag="nw"], .wc-cockpit[data-drag="nw"] *,
+-.wc-cockpit[data-drag="se"], .wc-cockpit[data-drag="se"] * {
+-  cursor: nwse-resize !important;
++.wc-drag-shield[hidden] {
++  display: none;
+ }
+ 
+-.wc-cockpit[data-drag="ne"], .wc-cockpit[data-drag="ne"] *,
+-.wc-cockpit[data-drag="sw"], .wc-cockpit[data-drag="sw"] * {
+-  cursor: nesw-resize !important;
+-}
++.wc-drag-shield[data-drag="move"] { cursor: grabbing; }
++.wc-drag-shield[data-drag="x"] { cursor: col-resize; }
++.wc-drag-shield[data-drag="y"] { cursor: row-resize; }
++.wc-drag-shield[data-drag="n"], .wc-drag-shield[data-drag="s"] { cursor: ns-resize; }
++.wc-drag-shield[data-drag="e"], .wc-drag-shield[data-drag="w"] { cursor: ew-resize; }
++.wc-drag-shield[data-drag="nw"], .wc-drag-shield[data-drag="se"] { cursor: nwse-resize; }
++.wc-drag-shield[data-drag="ne"], .wc-drag-shield[data-drag="sw"] { cursor: nesw-resize; }
+ 
+ /* Below 60 × 18 cells this replaces the view (Inv §2.1). */
+ .wc-too-small {

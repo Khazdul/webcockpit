@@ -1,0 +1,19 @@
+diff --git a/src/ui/output-pane.ts b/src/ui/output-pane.ts
+index 76f7522..c0d4527 100644
+--- a/src/ui/output-pane.ts
++++ b/src/ui/output-pane.ts
+@@ -44,10 +44,12 @@ export const MAX_ROWS_PER_FRAME = 1000;
+  * Rows are grouped into chunk elements of up to this many rows (fewer for a
+  * small scrollback: scrollback / 100, at least 1). See the file header.
+  */
+-export const CHUNK_ROWS = 200;
++// EXPERIMENT (perf review D): knobs set by an init script; inert otherwise.
++const KNOBS = globalThis as { __wcScrollback?: number; __wcChunkRows?: number };
++export const CHUNK_ROWS = KNOBS.__wcChunkRows ?? 200;
+ 
+ /** Default scrollback depth in rows (spec §1.3). */
+-export const DEFAULT_SCROLLBACK = 20000;
++export const DEFAULT_SCROLLBACK = KNOBS.__wcScrollback ?? 20000;
+ 
+ const OP_LINE = 0;
+ const OP_SYS = 1;

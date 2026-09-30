@@ -1,0 +1,293 @@
+diff --git a/src/net/telnet.ts b/src/net/telnet.ts
+index b8d5d3f..10f84f3 100644
+--- a/src/net/telnet.ts
++++ b/src/net/telnet.ts
+@@ -236,20 +236,35 @@ export class Telnet {
+     let i = 0;
+     // Start of the pending plain-text run, or -1.
+     let run = -1;
++    // Position of the next NUL at or after `i` (n: none), found once per
++    // stretch with the native indexOf; NUL is rare.
++    let nul = -1;
+     while (i < n) {
++      if (this.state === S_DATA) {
++        // Plain text up to the next IAC or NUL in one native scan instead
++        // of a state switch per byte.
++        if (nul < i) {
++          nul = bytes.indexOf(0, i);
++          if (nul < 0) nul = n;
++        }
++        let stop = bytes.indexOf(IAC, i);
++        if (stop < 0 || stop > nul) stop = nul;
++        if (stop > i) {
++          if (run < 0) run = i;
++          i = stop;
++          if (i >= n) break;
++        }
++        // bytes[i] is IAC or NUL.
++        if (run >= 0) {
++          this.emitText(bytes, run, i, ts);
++          run = -1;
++        }
++        if (bytes[i] === IAC) this.state = S_IAC;
++        i++;
++        continue;
++      }
+       const b = bytes[i]!;
+       switch (this.state) {
+-        case S_DATA:
+-          if (b === IAC || b === 0) {
+-            if (run >= 0) {
+-              this.emitText(bytes, run, i, ts);
+-              run = -1;
+-            }
+-            if (b === IAC) this.state = S_IAC;
+-          } else if (run < 0) {
+-            run = i;
+-          }
+-          break;
+ 
+         case S_IAC:
+           this.state = S_DATA;
+@@ -337,6 +352,7 @@ export class Telnet {
+       i++;
+     }
+     if (run >= 0 && this.state === S_DATA) this.emitText(bytes, run, n, ts);
++    this.o.sink.endFrame?.(ts);
+   }
+ 
+   private emitText(bytes: Uint8Array, start: number, end: number, ts: number): void {
+diff --git a/src/net/textsink.ts b/src/net/textsink.ts
+index 77539ff..7826fcb 100644
+--- a/src/net/textsink.ts
++++ b/src/net/textsink.ts
+@@ -10,4 +10,6 @@ export interface TextSink {
+   text(s: string, ts: number): void;
+   /** IAC GA (or IAC EOR) seen at this point in the stream. */
+   ga(ts: number): void;
++  /** The end of one inbound frame (after its last `text` / `ga`). */
++  endFrame?(ts: number): void;
+ }
+diff --git a/src/script/engine/engine.ts b/src/script/engine/engine.ts
+index 872d937..0a58645 100644
+--- a/src/script/engine/engine.ts
++++ b/src/script/engine/engine.ts
+@@ -160,6 +160,8 @@ export class ScriptEngine {
+   private readonly anchoredCache = new WeakMap<CompiledPattern, RegExp>();
+   private readonly globalCache = new WeakMap<CompiledPattern, RegExp>();
+   private readonly mergedCache = new Map<ListKind, { sv: number; uv: number; u: RuleStore; list: readonly Rule[] }>();
++  /** Literal gates per rule list (lists are copy-on-write, so a list is its own version). */
++  private readonly gates = new WeakMap<readonly Rule[], { re: RegExp | null; open: Rule[] }>();
+ 
+   /** Set while loadProfile runs. */
+   private loading: { warnings: string[]; line: number } | null = null;
+@@ -926,9 +928,33 @@ export class ScriptEngine {
+     return c ? matchPattern(c, text) : null;
+   }
+ 
++  /**
++   * The rules of `list` that can match `text`: all of them when one of
++   * their required literals occurs in it (one combined RegExp test instead
++   * of an `indexOf` per rule), else only the rules without a literal
++   * (catch-alls, `$var` and `%i` patterns). Order is kept.
++   */
++  private gated(list: readonly Rule[], text: string): readonly Rule[] {
++    if (list.length < 4) return list;
++    let g = this.gates.get(list);
++    if (!g) {
++      const lits: string[] = [];
++      const open: Rule[] = [];
++      for (const r of list) {
++        const lit = r.compiled?.literal ?? '';
++        if (lit) lits.push(lit.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'));
++        else open.push(r);
++      }
++      g = { re: lits.length ? new RegExp(lits.join('|')) : null, open };
++      this.gates.set(list, g);
++    }
++    if (g.re === null || g.re.test(text)) return list;
++    return g.open;
++  }
++
+   /** Runs the actions for a received line, then emits its display copy. */
+   processLine(line: Line): void {
+-    const actions = this.merged('action');
++    const actions = this.gated(this.merged('action'), line.text);
+     if (actions.length > 0) this.entry(() => this.runActions(actions, line));
+     const shown = this.displayCopy(line, false);
+     if (shown) this.bus?.emit('text.display', { line: shown, source: line });
+@@ -982,10 +1008,14 @@ export class ScriptEngine {
+    * nothing applies and null when the line is gagged.
+    */
+   displayCopy(line: Line, partial: boolean): Line | null {
+-    const subs = this.merged('substitute');
+-    const gags = partial ? EMPTY : this.merged('gag');
+-    const his = this.merged('highlight');
+-    if (subs.length === 0 && gags.length === 0 && his.length === 0) return line;
++    const allSubs = this.merged('substitute');
++    const allGags = partial ? EMPTY : this.merged('gag');
++    const allHis = this.merged('highlight');
++    if (allSubs.length === 0 && allGags.length === 0 && allHis.length === 0) return line;
++    const subs = this.gated(allSubs, line.text);
++    // Gags and highlights test the substituted text (gated below when no substitute changed it).
++    let gags = allGags;
++    let his = allHis;
+     let text = line.text;
+     let runs: StyleRun[] = line.runs;
+     let changed = false;
+@@ -1013,6 +1043,8 @@ export class ScriptEngine {
+         if (re.lastIndex > text.length) break;
+       }
+     }
++    gags = this.gated(allGags, text);
++    his = this.gated(allHis, text);
+     for (let i = 0; i < gags.length; i++) {
+       const c = gags[i]!.compiled ?? this.compiledFor(gags[i]!, gags[i]!.store);
+       if (c && matchPattern(c, text)) return null;
+diff --git a/src/text/assembler.ts b/src/text/assembler.ts
+index 834d194..e0dd489 100644
+--- a/src/text/assembler.ts
++++ b/src/text/assembler.ts
+@@ -170,6 +170,13 @@ export class LineAssembler implements LineAssemblerInput {
+       this.carry = '';
+     }
+     this.process(s, ts, false);
++  }
++
++  /**
++   * End of an inbound frame: the pending tail, if it changed, becomes the
++   * partial. A prompt whose GA is in the same frame never becomes one.
++   */
++  endFrame(ts: number): void {
+     if (this.textLen > 0 && this.textLen !== this.partialLen) {
+       this.partialLen = this.textLen;
+       this.bus.emit('text.partial', this.snapshot(ts, false));
+@@ -198,10 +205,15 @@ export class LineAssembler implements LineAssemblerInput {
+ 
+   // -------------------------------------------------------------------------
+ 
++  // Raw is appended lazily (`rf`: start of the raw not yet appended): the
++  // input between dropped constructs goes in as one slice, so a line that
++  // sits in one chunk with only SGR codes (MUME's ANSI output) gets its raw
++  // as a single slice instead of a concatenation of every piece and code.
+   private process(s: string, ts: number, final: boolean): void {
+     const n = s.length;
+     let i = 0;
+     let seg = 0;
++    let rf = 0;
+     while (i < n) {
+       const c = s.charCodeAt(i);
+       if (c >= 32) {
+@@ -213,12 +225,13 @@ export class LineAssembler implements LineAssemblerInput {
+             continue;
+           }
+           if (i > seg) this.add(s.slice(seg, i));
++          if (i > rf) this.lineRaw += s.slice(rf, i);
+           if (end === INCOMPLETE) {
+             this.carry = s.slice(i);
+             return;
+           }
+           this.handleTag();
+-          i = seg = end;
++          i = seg = rf = end;
+           continue;
+         }
+         if (c === 38 && this.xmlMode) {
+@@ -229,17 +242,20 @@ export class LineAssembler implements LineAssemblerInput {
+             continue;
+           }
+           if (i > seg) this.add(s.slice(seg, i));
++          if (i > rf) this.lineRaw += s.slice(rf, i);
+           if (end === INCOMPLETE) {
+             this.carry = s.slice(i);
+             return;
+           }
+           this.add(this.entity);
+-          i = seg = end;
++          this.lineRaw += this.entity;
++          i = seg = rf = end;
+           continue;
+         }
+         if (c === 127) {
+           if (i > seg) this.add(s.slice(seg, i));
+-          i = seg = i + 1;
++          if (i > rf) this.lineRaw += s.slice(rf, i);
++          i = seg = rf = i + 1;
+           continue;
+         }
+         i++;
+@@ -251,37 +267,43 @@ export class LineAssembler implements LineAssemblerInput {
+       }
+       if (i > seg) this.add(s.slice(seg, i));
+       if (c === 10) {
++        if (i > rf) this.lineRaw += s.slice(rf, i);
+         this.endLine(ts, false);
+-        i = seg = i + 1;
++        i = seg = rf = i + 1;
+       } else if (c === 27) {
+         const end = this.parseEsc(s, i);
+         if (end === INCOMPLETE) {
++          if (i > rf) this.lineRaw += s.slice(rf, i);
+           if (!final) {
+             this.carry = s.slice(i);
+             return;
+           }
+-          i = seg = n; // drop an unfinished sequence at a prompt boundary
++          i = seg = rf = n; // drop an unfinished sequence at a prompt boundary
+           continue;
+         }
+         if (this.escSgr) {
+-          this.lineRaw += s.slice(i, end);
++          // An SGR stays in raw: `rf` does not move.
+           this.applySgr(s, i + 2, end - 1);
++        } else {
++          if (i > rf) this.lineRaw += s.slice(rf, i);
++          rf = end;
+         }
+         i = seg = end;
+       } else {
+         // CR and other C0 controls are dropped.
+-        i = seg = i + 1;
++        if (i > rf) this.lineRaw += s.slice(rf, i);
++        i = seg = rf = i + 1;
+       }
+     }
+     if (i > seg) this.add(s.slice(seg, i));
++    if (i > rf) this.lineRaw += s.slice(rf, i);
+   }
+ 
+-  /** Appends plain text in the current style to text and raw. */
++  /** Appends plain text in the current style to text (raw is appended by `process`). */
+   private add(piece: string): void {
+     const len = piece.length;
+     if (len === 0) return;
+     this.lineText += piece;
+-    this.lineRaw += piece;
+     const start = this.textLen;
+     const end = start + len;
+     this.textLen = end;
+@@ -436,19 +458,20 @@ export class LineAssembler implements LineAssemblerInput {
+ 
+   /** Applies SGR parameters in `s[a, b)`. */
+   private applySgr(s: string, a: number, b: number): void {
++    // `params` keeps its capacity: `length = 0` would drop the backing
++    // store and every SGR would allocate a new one.
+     const p = this.params;
+-    p.length = 0;
++    let n = 0;
+     let v = 0;
+     for (let j = a; j < b; j++) {
+       const c = s.charCodeAt(j);
+       if (c >= 48 && c <= 57) v = v * 10 + (c - 48);
+       else {
+-        p.push(v);
++        p[n++] = v;
+         v = 0;
+       }
+     }
+-    p.push(v);
+-    const n = p.length;
++    p[n++] = v;
+     for (let k = 0; k < n; k++) {
+       const x = p[k]!;
+       if (x === 0) {

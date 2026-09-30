@@ -1,0 +1,35 @@
+diff --git a/src/player/engine.ts b/src/player/engine.ts
+index d468901..8db2401 100644
+--- a/src/player/engine.ts
++++ b/src/player/engine.ts
+@@ -99,6 +99,8 @@ export interface Wall {
+   task(fn: () => void): void;
+   /** Runs `fn` after the next frame has rendered. */
+   frame(fn: () => void): void;
++  /** EXPERIMENT (perf review D): releases the task channel. */
++  dispose?(): void;
+ }
+ 
+ /** The browser's wall: performance.now, setTimeout, MessageChannel, rAF. */
+@@ -127,6 +129,13 @@ export function browserWall(): Wall {
+       // A task posted from the frame callback runs after that frame renders.
+       requestAnimationFrame(() => task(fn));
+     },
++    dispose: () => {
++      // An entangled port with a message handler is never collected.
++      channel?.port1.close();
++      channel?.port2.close();
++      channel = null;
++      queue.length = 0;
++    },
+   };
+ }
+ 
+@@ -302,6 +311,7 @@ export class PlayerEngine {
+     this.target.dispose();
+     this.clockRef.dispose();
+     this.listeners.clear();
++    this.wall.dispose?.();
+   }
+ 
+   // ---------------------------------------------------------------- driver

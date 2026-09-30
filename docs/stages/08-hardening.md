@@ -1,10 +1,10 @@
 # Stage 8 — Hardening → v1
 
 > Status: In progress (part A done 2026-09-28; part B, the performance
-> review, started 2026-09-30; later parts not planned yet).
+> review, done 2026-09-30; part C, the performance fixes, next).
 > Source: spec §5 row 8; owner brief 2026-09-28 (part A, viewer
 > settings in RUN LOG and the HTML replay). ADR 0021. Owner brief
-> 2026-09-30 (part B, performance review).
+> 2026-09-30 (parts B and C, performance). ADR 0044.
 
 ## Goal
 
@@ -55,11 +55,18 @@ the owner plays: this machine has only Firefox installed (156, Wayland
 the bench measures headless at ratio 1 in 1280 × 720. Firefox is the
 primary target, Chromium second.
 
-Part B — out: building the fixes (a later part, from the owner's pick).
+Part B — out: building the fixes (part C, from the owner's pick).
 
-Later parts (not planned yet): fixes from PvP testing, the performance
-fixes the owner picks in part B (Chromium burst frame 39–58 ms is part
-of the review), polish, and the carried items in
+Part C — performance fixes (owner decision 2026-09-30, after part B).
+In: the list in `notes/research/performance-review.md` §4, in its
+order: group 1 (seven small fixes), group 2 (medium fixes, including a
+scrollback-depth setting), `#perf` (a latency monitor for real
+sessions), the benchmark extension, and the small fixes listed there.
+Rules for the new code: ADR 0044. Out: the deferred and "not
+recommended" items of §4.
+
+Later parts (not planned yet): fixes from PvP testing, polish, and the
+carried items in
 `progress.md` (map pane default height, replay font subsetting, player
 paint after a long seek, JetBrains Mono exports without DejaVu fallback
 glyphs, reel load time on a large library, `look` → Room.Info; the
@@ -72,6 +79,13 @@ live checks of stage 7 passed 2026-09-30).
   toggle panes; font size small/medium/large; six colour themes as
   listed above; non-default theme → all pane colours None; no timers `+`
   in players.
+- 2026-09-30 (part B → C): build all four groups of the performance
+  report (small fixes, medium fixes, `#perf`, the benchmark); the caret
+  keeps blinking, by a timer; catch-up after a hidden tab is a simple
+  cap of 500 rows per frame; the scrollback depth becomes a setting in
+  Options (default 20 000). Not objected to: input history capped at
+  1000; a `[SYSTEM]` line for a command that could not be sent; `#perf`
+  as a command that prints a summary (no status readout, no run record).
 
 ## Tasks
 
@@ -186,15 +200,63 @@ Input color (owner request 2026-09-30):
 
 Part B — performance review (owner brief 2026-09-30):
 
-- [ ] B1. Five parallel subagent reviews with measurements in Firefox
+- [x] B1. Five parallel subagent reviews with measurements in Firefox
       and Chromium at pixel ratio 2: A output rendering (incl. the
       `help 24-bit colours` repro), B ingest CPU path, C input latency,
       D long sessions (soak), E side panes and frame composition.
-- [ ] B2. Verify the key claims in the code; re-measure the top items
-      on a quiet machine.
-- [ ] B3. Report with ranked proposals
-      (`notes/research/performance-review.md`).
-- [ ] B4. Owner picks the proposals to build (a later part).
+      Reports, patches, harnesses: `notes/research/perf-review/`.
+- [x] B2. Verify the key claims in the code; re-measure the top items
+      on a quiet machine (`notes/research/perf-review/rerun.md`).
+- [x] B3. Report with ranked proposals
+      (`notes/research/performance-review.md`); ADR 0044.
+- [x] B4. Owner picks the proposals to build: all four groups.
+
+Part C — performance fixes (numbers refer to the report's §4; each item
+verified with the review's harness before/after, Firefox first, ratio
+2; patches in `notes/research/perf-review/patches/` are measured
+experiments to rework, not finished code):
+
+- [ ] C0. Housekeeping: `tests/unit/timers-replay.test.ts` skips logs
+      shorter than its minimum (fails on the owner's 364-line log).
+- [ ] C1. (#1) Caret blink by a 500 ms timer; no infinite CSS
+      animation; restart on caret move and on the blink setting
+      (`E-exp-blinkjs.patch`).
+- [ ] C2. (#2) `scrollbar-color` stops at `.wc-rows` / `.wc-partial`
+      (`C-exp-scrollbar-color.patch`); browser test of PgUp/Esc at
+      20 000 rows.
+- [ ] C3. (#3) Background rows for colour charts
+      (`A-exp-background-rows.patch`); check
+      `tests/e2e/underscores.spec.ts` (row above a background row).
+- [ ] C4. (#4) Assembler: raw as one slice, SGR params keep capacity
+      (`B-exp-assembler-raw-params.patch`).
+- [ ] C5. (#5) Drag cursor on a shield element
+      (`E-exp-dragshield.patch`).
+- [ ] C6. (#6) Send first: `toTail()` after the send and only when
+      scrolled; macro lookup before the refocus
+      (`C-exp-send-first.patch` as a start).
+- [ ] C7. (#7) Recorder: incremental byte count, writes bounded by size
+      (≤ 256 KB per task).
+- [ ] C8. (#8) `content-visibility: auto` on chunks with an intrinsic
+      size estimate and scroll anchoring while scrolled back; e2e for
+      PgUp/PgDn, trims while scrolled, resize.
+- [ ] C9. (#9) Pane row diff for Character, Group, Timers; Character
+      skips unchanged renders (`E-exp-rowdiff.patch`).
+- [ ] C10. (#10) Telnet `indexOf` scan (`B-exp-telnet-scan.patch`).
+- [ ] C11. (#11) Rule literal gate with the extra engine tests
+      (`B-exp-engine-literal-gate.patch`).
+- [ ] C12. (#12) `MAX_ROWS_PER_FRAME` 500 (`A-exp-row-cap-500.patch`).
+- [ ] C13. (#13) Scrollback depth setting in Options, default 20 000
+      (ADR; spec §1.3 note).
+- [ ] C14. (#14) `#perf` latency monitor (ADR; `#help` manual entry).
+- [ ] C15. (#15) Benchmark: owner geometry, visible-caret latency and
+      idle, active panes, map on/off explicit, colour page, real keys
+      under load, loopback WebSocket with the recorder, full-scrollback
+      actions, soak; new `bench/results/latest.md`.
+- [ ] C16. Small fixes: input history cap 1000; `[SYSTEM]` line for a
+      command that could not be sent; player MessageChannel closed;
+      comm archive pruned on `Char.Name`; XML tag stack cap; GMCP trims;
+      map move regex; catch-all fast path and `formatTs` cache.
+- [ ] C17. Owner test (guide below), release.
 
 ## Test guide (part A)
 
@@ -243,6 +305,29 @@ Try:
 
 Feedback wanted: whether the labels match your keyboard; whether losing
 the character in the input line is ever a problem in play.
+
+## Test guide (part C, draft — finish when built)
+
+Before the build, optional, no code: Options → Appearance → cursor blink
+off, then play a while with a command half typed. The review predicts
+output that feels a little snappier (report §3.3).
+
+After the build, in Firefox, on the release:
+
+1. Type `help 24-bit colours` and page through it with Enter: no stall,
+   and the combat lines after it are as quick as before it.
+2. After an hour of play (full scrollback): PgUp, then Esc; drag a dock
+   gap; open or close another window on the same Hyprland workspace
+   (the browser is resized). None of them should freeze the output.
+3. Leave the tab for a few minutes while connected, then return: the
+   backlog is drawn without a stutter (after minutes of backlog the
+   newest line may take a fraction of a second).
+4. Options → the new scrollback setting.
+5. `#perf` after a session, and `#perf worst` right after something felt
+   slow.
+
+Feedback wanted: whether anything still feels slower than Cockpit, and
+the `#perf` output at such a moment.
 
 ## Owner feedback
 
@@ -353,3 +438,7 @@ the character in the input line is ever a problem in play.
   `help 24-bit colours` example. The owner wants the code and the
   architecture to be optimal for drawing text fast, for not slowing
   down after long sessions, and for the lowest possible input latency.
+- 2026-09-30, performance review done: the owner asked to wrap up with
+  everything documented and the choices made, and to build the fixes in
+  a new session. Decisions under "Owner decisions"; plan under part C;
+  report `notes/research/performance-review.md`, ADR 0044.

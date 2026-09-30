@@ -1,0 +1,118 @@
+diff --git a/src/ui/input-pane.ts b/src/ui/input-pane.ts
+index fd7d819..aa2970a 100644
+--- a/src/ui/input-pane.ts
++++ b/src/ui/input-pane.ts
+@@ -129,6 +129,9 @@ export class InputPane {
+   private caretX = NaN;
+   private caretText = '';
+   private caretPhase = false;
++  /** JS caret blink (see `restartBlink`); null while the caret does not blink. */
++  private blinkTimer: number | null = null;
++  private caretBlurred = false;
+   private measurer: HTMLSpanElement | null = null;
+   private readonly opts: InputPaneOptions;
+ 
+@@ -268,6 +271,7 @@ export class InputPane {
+   }
+ 
+   dispose(): void {
++    this.stopBlink();
+     for (const u of this.unsubs) u();
+     this.setLeaveGuard(false);
+     this.doc.removeEventListener('keydown', this.onKeyDown, true);
+@@ -714,6 +718,7 @@ export class InputPane {
+     if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
+     if (start !== end) {
+       c.hidden = true;
++      this.stopBlink();
+       return;
+     }
+     const v = i.value;
+@@ -727,19 +732,54 @@ export class InputPane {
+     const x = col * this.cellWidth() - scroll;
+     const cp = v.codePointAt(start);
+     const ch = cp === undefined ? ' ' : this.password ? BULLET : String.fromCodePoint(cp);
+-    c.classList.toggle('wc-blurred', this.doc.activeElement !== i);
++    const blurred = this.doc.activeElement !== i;
++    c.classList.toggle('wc-blurred', blurred);
++    let restart = blurred !== this.caretBlurred || c.hidden;
++    this.caretBlurred = blurred;
+     if (x !== this.caretX) {
+       this.caretX = x;
+       c.style.transform = `translateX(${x}px)`;
+       // Restart the blink so the caret is visible right after it moves.
+       this.caretPhase = !this.caretPhase;
+       c.classList.toggle('wc-caret-b', this.caretPhase);
++      restart = true;
+     }
+     if (ch !== this.caretText) {
+       this.caretText = ch;
+       c.textContent = ch;
+     }
+     c.hidden = false;
++    if (restart) this.restartBlink();
++  }
++
++  /**
++   * The blink is a 500 ms timer toggling `wc-caret-off` (two style changes
++   * a second) instead of a CSS animation: an infinite animation keeps
++   * Firefox's refresh driver and both browsers' compositors ticking at the
++   * display rate even though a steps() blink changes twice a second. Runs
++   * only while the caret shows, the input has the focus and blink is on.
++   */
++  private restartBlink(): void {
++    this.stopBlink();
++    const root = this.doc.documentElement;
++    if (root.dataset.cursorBlink !== 'on' || this.caretEl.hidden || this.caretBlurred) return;
++    const win = this.doc.defaultView;
++    if (!win) return;
++    this.blinkTimer = win.setInterval(() => {
++      if (this.caretEl.hidden || this.doc.activeElement !== this.input || root.dataset.cursorBlink !== 'on') {
++        this.stopBlink();
++        return;
++      }
++      this.caretEl.classList.toggle('wc-caret-off');
++    }, 500);
++  }
++
++  private stopBlink(): void {
++    if (this.blinkTimer !== null) {
++      this.doc.defaultView?.clearInterval(this.blinkTimer);
++      this.blinkTimer = null;
++    }
++    this.caretEl.classList.remove('wc-caret-off');
+   }
+ 
+   private readonly onBeforeUnload = (e: BeforeUnloadEvent): void => {
+diff --git a/src/ui/ui.css b/src/ui/ui.css
+index ee9768c..b252ede 100644
+--- a/src/ui/ui.css
++++ b/src/ui/ui.css
+@@ -356,22 +356,9 @@ body {
+   display: none;
+ }
+ 
+-/* Blink: steps, not a fade. Two identical keyframe sets so switching the
+- * name (on every caret move) restarts the cycle with the caret visible. */
+-:root[data-cursor-blink="on"] .wc-caret:not(.wc-blurred) {
+-  animation: wc-caret-a 1s steps(1, end) infinite;
+-}
+-
+-:root[data-cursor-blink="on"] .wc-caret.wc-caret-b:not(.wc-blurred) {
+-  animation-name: wc-caret-b;
+-}
+-
+-@keyframes wc-caret-a {
+-  0% { opacity: 1; }
+-  50% { opacity: 0; }
+-}
+-
+-@keyframes wc-caret-b {
+-  0% { opacity: 1; }
+-  50% { opacity: 0; }
++/* Blink (src/ui/input-pane.ts `restartBlink`): a 500 ms timer toggles
++ * .wc-caret-off, so a blinking caret costs two style changes a second
++ * instead of an animation that runs every frame. */
++:root[data-cursor-blink="on"] .wc-caret.wc-caret-off:not(.wc-blurred) {
++  visibility: hidden;
+ }

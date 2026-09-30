@@ -1,0 +1,33 @@
+--- a/src/text/assembler.ts
++++ b/src/text/assembler.ts
+@@ -170,6 +170,13 @@
+       this.carry = '';
+     }
+     this.process(s, ts, false);
++  }
++
++  /**
++   * End of an inbound frame: the pending tail, if it changed, becomes the
++   * partial. A prompt whose GA is in the same frame never becomes one.
++   */
++  endFrame(ts: number): void {
+     if (this.textLen > 0 && this.textLen !== this.partialLen) {
+       this.partialLen = this.textLen;
+       this.bus.emit('text.partial', this.snapshot(ts, false));
+diff --git a/src/net/textsink.ts b/src/net/textsink.ts
+index 77539ff..7826fcb 100644
+--- a/src/net/textsink.ts
++++ b/src/net/textsink.ts
+@@ -10,4 +10,6 @@ export interface TextSink {
+   text(s: string, ts: number): void;
+   /** IAC GA (or IAC EOR) seen at this point in the stream. */
+   ga(ts: number): void;
++  /** The end of one inbound frame (after its last `text` / `ga`). */
++  endFrame?(ts: number): void;
+ }
+--- a/src/net/telnet.ts
++++ b/src/net/telnet.ts
+@@ (end of Telnet.receive) @@
+     if (run >= 0 && this.state === S_DATA) this.emitText(bytes, run, n, ts);
++    this.o.sink.endFrame?.(ts);
+   }

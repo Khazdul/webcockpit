@@ -1,0 +1,46 @@
+diff --git a/src/ui/output-pane.ts b/src/ui/output-pane.ts
+index 76f7522..e919138 100644
+--- a/src/ui/output-pane.ts
++++ b/src/ui/output-pane.ts
+@@ -40,6 +40,13 @@ import { colorToCss, effectiveFg } from './palette';
+ /** At most this many rows are built per animation frame. */
+ export const MAX_ROWS_PER_FRAME = 1000;
+ 
++/**
++ * EXPERIMENT (perf review, area C): at most about this many styled runs
++ * (spans) are built per frame, so a page of 24-bit colour output is spread
++ * over a few frames instead of one long one that holds up key presses.
++ */
++export const MAX_RUNS_PER_FRAME = 800;
++
+ /**
+  * Rows are grouped into chunk elements of up to this many rows (fewer for a
+  * small scrollback: scrollback / 100, at least 1). See the file header.
+@@ -319,12 +326,16 @@ export class OutputPane {
+ 
+     const built: HTMLElement[] = [];
+     let prev = this.lastRow;
++    let stop = end;
++    let runs = 0;
+     for (let i = start; i < end; i++) {
+       const op = this.queue[i]!;
+       let row: HTMLElement | null;
+       if (op.kind === OP_LINE) {
+         row = renderLine(doc, op.line!);
+         if (this.stampRows) row.dataset.ts = String(op.line!.ts);
++        runs += op.line!.runs.length;
++        if (runs >= MAX_RUNS_PER_FRAME) stop = i + 1;
+       } else if (op.kind === OP_SYS) {
+         row = doc.createElement('div');
+         row.className = 'wc-row wc-sys';
+@@ -348,8 +359,9 @@ export class OutputPane {
+         built.push(row);
+         prev = row;
+       }
++      if (stop !== end) break;
+     }
+-    this.head = end;
++    this.head = stop;
+     if (this.head >= this.queue.length) {
+       this.queue.length = 0;
+       this.head = 0;

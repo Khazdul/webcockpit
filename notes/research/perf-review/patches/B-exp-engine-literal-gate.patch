@@ -1,0 +1,76 @@
+diff --git a/src/script/engine/engine.ts b/src/script/engine/engine.ts
+index 872d937..0a58645 100644
+--- a/src/script/engine/engine.ts
++++ b/src/script/engine/engine.ts
+@@ -160,6 +160,8 @@ export class ScriptEngine {
+   private readonly anchoredCache = new WeakMap<CompiledPattern, RegExp>();
+   private readonly globalCache = new WeakMap<CompiledPattern, RegExp>();
+   private readonly mergedCache = new Map<ListKind, { sv: number; uv: number; u: RuleStore; list: readonly Rule[] }>();
++  /** Literal gates per rule list (lists are copy-on-write, so a list is its own version). */
++  private readonly gates = new WeakMap<readonly Rule[], { re: RegExp | null; open: Rule[] }>();
+ 
+   /** Set while loadProfile runs. */
+   private loading: { warnings: string[]; line: number } | null = null;
+@@ -926,9 +928,33 @@ export class ScriptEngine {
+     return c ? matchPattern(c, text) : null;
+   }
+ 
++  /**
++   * The rules of `list` that can match `text`: all of them when one of
++   * their required literals occurs in it (one combined RegExp test instead
++   * of an `indexOf` per rule), else only the rules without a literal
++   * (catch-alls, `$var` and `%i` patterns). Order is kept.
++   */
++  private gated(list: readonly Rule[], text: string): readonly Rule[] {
++    if (list.length < 4) return list;
++    let g = this.gates.get(list);
++    if (!g) {
++      const lits: string[] = [];
++      const open: Rule[] = [];
++      for (const r of list) {
++        const lit = r.compiled?.literal ?? '';
++        if (lit) lits.push(lit.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&'));
++        else open.push(r);
++      }
++      g = { re: lits.length ? new RegExp(lits.join('|')) : null, open };
++      this.gates.set(list, g);
++    }
++    if (g.re === null || g.re.test(text)) return list;
++    return g.open;
++  }
++
+   /** Runs the actions for a received line, then emits its display copy. */
+   processLine(line: Line): void {
+-    const actions = this.merged('action');
++    const actions = this.gated(this.merged('action'), line.text);
+     if (actions.length > 0) this.entry(() => this.runActions(actions, line));
+     const shown = this.displayCopy(line, false);
+     if (shown) this.bus?.emit('text.display', { line: shown, source: line });
+@@ -982,10 +1008,14 @@ export class ScriptEngine {
+    * nothing applies and null when the line is gagged.
+    */
+   displayCopy(line: Line, partial: boolean): Line | null {
+-    const subs = this.merged('substitute');
+-    const gags = partial ? EMPTY : this.merged('gag');
+-    const his = this.merged('highlight');
+-    if (subs.length === 0 && gags.length === 0 && his.length === 0) return line;
++    const allSubs = this.merged('substitute');
++    const allGags = partial ? EMPTY : this.merged('gag');
++    const allHis = this.merged('highlight');
++    if (allSubs.length === 0 && allGags.length === 0 && allHis.length === 0) return line;
++    const subs = this.gated(allSubs, line.text);
++    // Gags and highlights test the substituted text (gated below when no substitute changed it).
++    let gags = allGags;
++    let his = allHis;
+     let text = line.text;
+     let runs: StyleRun[] = line.runs;
+     let changed = false;
+@@ -1013,6 +1043,8 @@ export class ScriptEngine {
+         if (re.lastIndex > text.length) break;
+       }
+     }
++    gags = this.gated(allGags, text);
++    his = this.gated(allHis, text);
+     for (let i = 0; i < gags.length; i++) {
+       const c = gags[i]!.compiled ?? this.compiledFor(gags[i]!, gags[i]!.store);
+       if (c && matchPattern(c, text)) return null;

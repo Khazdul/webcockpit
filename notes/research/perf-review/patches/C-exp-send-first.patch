@@ -1,0 +1,26 @@
+diff --git a/src/ui/input-pane.ts b/src/ui/input-pane.ts
+index fd7d819..b049673 100644
+--- a/src/ui/input-pane.ts
++++ b/src/ui/input-pane.ts
+@@ -283,10 +283,12 @@ export class InputPane {
+   /** Enter: sends the buffer (Inv §1.2 Enter semantics). */
+   submit(): void {
+     const text = this.input.value;
+-    this.opts.output?.toTail();
+ 
++    // Send first; the UI work (snap to the live tail, which reads layout)
++    // comes after the bytes are on their way.
+     if (this.password) {
+       this.opts.sender.sendCommand(text, { secret: true });
++      this.opts.output?.toTail();
+       this.input.value = '';
+       this.updateMask();
+       this.endBrowsing();
+@@ -295,6 +297,7 @@ export class InputPane {
+ 
+     const handled = this.opts.onCommand?.(text) ?? false;
+     if (!handled) this.opts.sender.sendCommand(text);
++    this.opts.output?.toTail();
+     if (text !== '') {
+       if (this.history[this.history.length - 1] !== text) this.history.push(text);
+       this.input.value = text;
