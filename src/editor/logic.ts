@@ -1,6 +1,6 @@
 // Pure helpers for the profile editor's lite view (Inv §5.6): list order
 // and previews, the highlight colour model, hints, warnings, the macro Key
-// cell and the title row. No DOM, no Preact, no CodeMirror; unit tested.
+// cell, the title row and the view toggle. No DOM, no Preact, no CodeMirror; unit tested.
 
 import { resolveCommand } from '../script/commands';
 import {
@@ -292,8 +292,22 @@ export function keyCell(pattern: string): KeyCell {
 // Title row, save text
 // ---------------------------------------------------------------------------
 
-/** Width of the LITE/EDITOR toggle: ` LITE ` + space + ` EDITOR `. */
-export const TOGGLE_W = 15;
+/** The views of the toggle in the title row, in their order. */
+export type EditorViewName = 'lite' | 'editor' | 'help';
+export const VIEWS: readonly { view: EditorViewName; label: string; width: number }[] = [
+  { view: 'lite', label: 'LITE', width: 6 },
+  { view: 'editor', label: 'EDITOR', width: 8 },
+  { view: 'help', label: 'HELP', width: 6 },
+];
+
+/** Width of the toggle: ` LITE ` + space + ` EDITOR ` + space + ` HELP `. */
+export const TOGGLE_W = VIEWS.reduce((n, v) => n + v.width, 0) + VIEWS.length - 1;
+
+/** The view ← / → moves to from `cur` in the toggle (no wrap-around). */
+export function stepView(cur: EditorViewName, dir: 1 | -1): EditorViewName {
+  const i = VIEWS.findIndex((v) => v.view === cur);
+  return VIEWS[Math.max(0, Math.min(VIEWS.length - 1, i + dir))]!.view;
+}
 
 /** The title `─── Profile Editor: <name> ───` (Inv §5.3), cut to `width` cells. */
 export function titleText(name: string, width: number): string {

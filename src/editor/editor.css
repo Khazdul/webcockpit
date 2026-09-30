@@ -91,6 +91,51 @@
   color: var(--c-item);
 }
 
+/* Text that must show every character (ADR 0037). The cell is lower than
+ * the font's ascent + descent (cells.ts rounds it down so block glyphs
+ * tile), so a line box of one cell has negative leading. Firefox takes the
+ * odd pixel from the bottom and Chromium, at fractional device pixel
+ * ratios, can too: the lowest descender row, which is where DejaVu's `_`
+ * lives, then falls outside the cell and is clipped by `.wc-line`, by a
+ * text field's own box, or painted over by the next row's band. One pixel
+ * less line-height moves the baseline up so the descent ends inside the
+ * cell in both engines; the boxes stay one cell high. */
+.wc-ped-list .wc-tr,
+.wc-ped-title > .wc-c-section,
+.wc-ped-keycell,
+.wc-ped-help-text {
+  display: inline-block;
+  height: var(--cell-h);
+  line-height: calc(var(--cell-h) - 2px);
+  vertical-align: top;
+}
+
+.wc-ped-warn,
+.wc-ped-footer {
+  line-height: calc(var(--cell-h) - 2px);
+}
+
+/* A single-line field centres its line in the content box; the bottom
+ * padding moves that centre up (Firefox ignores a line-height below
+ * `normal` on an <input>). */
+.wc-ped-input {
+  line-height: calc(var(--cell-h) + 2px);
+  padding-bottom: 2px;
+}
+
+/* The last visible row of the Commands box: one more pixel before the
+ * clip, overlapping the empty top of the border row below. */
+.wc-ped-textbox {
+  box-sizing: content-box;
+  padding-bottom: 1px;
+  margin-bottom: -1px;
+}
+
+.wc-ped-textarea {
+  box-sizing: content-box;
+  padding-bottom: 1px;
+}
+
 .wc-ped-textbox {
   display: flex;
   overflow: hidden;
@@ -220,6 +265,22 @@
 .wc-brace-match > span {
   color: var(--c-hover);
   background: var(--c-brace-match-bg);
+}
+
+/* HELP: the manual, one row per line, with the TUI scrollbar in the last
+ * cell. */
+.wc-ped-help {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.wc-ped-help-text {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.wc-ped-help .wc-scroll-track {
+  cursor: pointer;
 }
 
 /* Key capture and the apply confirm: a boxed layer over the frame. */

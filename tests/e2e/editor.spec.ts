@@ -1,6 +1,6 @@
 // Stage 3 P3: the profile editor (lite + editor views) from the start page
 // and the ESC menu, against a mocked MUME WebSocket.
-import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const IAC = 255;
 const WILL = 251;
@@ -357,4 +357,323 @@ test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
   await page.keyboard.press('Escape');
   expect(await stored(page)).toBe('one\nthree\n');
+});
+
+// ---------------------------------------------------------------- HELP view
+
+const helpRows = (page: Page) => ped(page).locator('.wc-ped-help .wc-ped-help-text');
+const helpTopRow = (page: Page) => helpRows(page).first();
+
+async function toHelp(page: Page): Promise<void> {
+  await ped(page).locator('[data-btn="HELP"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await expect(helpTopRow(page)).toHaveText('Writing a profile');
+}
+
+/** Presses `n` until the manual's top row is `heading`. */
+async function jumpToHeading(page: Page, heading: string): Promise<void> {
+  for (let i = 0; i < 40 && (await helpTopRow(page).textContent()) !== heading; i++) await page.keyboard.press('n');
+  await expect(helpTopRow(page)).toHaveText(heading);
+}
+
+test('HELP from the start page: manual, scrolling, and back to LITE with edits intact', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openFromStart(page, '#alias {b} {bee}\n#macro {F1} {one}\n');
+  await expect(ped(page).locator('.wc-ped-toggle .wc-btn')).toHaveText([' LITE ', ' EDITOR ', ' HELP ']);
+  await kind(page, 'alias');
+  await page.keyboard.press('n');
+  await page.keyboard.type('gv %1');
+  await page.keyboard.press('Tab');
+  await page.keyboard.type('get %1');
+
+  await toHelp(page);
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
+  await expect(ped(page).locator('[data-btn="HELP"]')).toHaveClass(/is-sel-focus/);
+  await expect(footer(page)).toContainText('n/p Heading');
+  await expect(ped(page).locator('.wc-ped-list')).toHaveCount(0);
+
+  // Tab goes to the manual; n jumps from heading to heading.
+  await page.keyboard.press('Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
+  await jumpToHeading(page, '#action');
+  await expect(ped(page).locator('.wc-ped-help [data-kind="heading"]').first()).toHaveClass(/wc-line/);
+  await expect(helpRows(page).nth(1)).toHaveText('#action {pattern} {commands} {priority}');
+  await expect(ped(page).locator('.wc-ped-help [data-kind="code"] .wc-syn-cmd').first()).toHaveText('#action');
+  await page.keyboard.press('n');
+  await expect(helpTopRow(page)).toHaveText('#alias');
+  await page.keyboard.press('p');
+  await expect(helpTopRow(page)).toHaveText('#action');
+
+  // ↓ ↑ one row, PgDn / PgUp a page, the wheel three rows, End / Home the ends.
+  const second = await helpRows(page).nth(1).textContent();
+  await page.keyboard.press('ArrowDown');
+  await expect(helpTopRow(page)).toHaveText(second!);
+  await page.keyboard.press('ArrowUp');
+  await expect(helpTopRow(page)).toHaveText('#action');
+  await page.keyboard.press('PageDown');
+  await expect(helpTopRow(page)).not.toHaveText('#action');
+  await page.keyboard.press('PageUp');
+  await expect(helpTopRow(page)).toHaveText('#action');
+  const fourth = await helpRows(page).nth(3).textContent();
+  await ped(page).locator('.wc-ped-help').hover();
+  await page.mouse.wheel(0, 100);
+  await expect(helpTopRow(page)).toHaveText(fourth!);
+  await page.keyboard.press('End');
+  await expect(helpRows(page).last()).toContainText('cursor is on its line.');
+  await expect(ped(page).locator('.wc-ped-help')).toContainText('#foreach');
+  await page.keyboard.press('Home');
+  await expect(helpTopRow(page)).toHaveText('Writing a profile');
+  // The manual never names the deprecated helper (ADR 0036).
+  await expect(ped(page).locator('.wc-ped-help')).not.toContainText('_send');
+  // ↑ at the top leaves the manual for the toggle; Tab cycles back.
+  await page.keyboard.press('ArrowUp');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
+  await page.keyboard.press('Shift+Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
+
+  // Back to LITE with the mouse: the unsaved entry, its field and the kind are as they were.
+  await ped(page).locator('[data-btn="LITE"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
+  await expect(listRows(page)).toHaveText([/^b\s+bee/, /^gv %1\s+get %1/, /\+ New entry/]);
+  await expect(cursorRow(page)).toHaveText(/^gv %1/);
+  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('gv %1');
+  await expect(ped(page).locator('textarea[data-field="body"]')).toHaveValue('get %1');
+
+  // With the keyboard the toggle walks LITE → EDITOR → HELP and back, flipping as usual.
+  await page.keyboard.press('ArrowRight');
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
+  await page.keyboard.press('ArrowRight');
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  await page.keyboard.press('ArrowRight');
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await page.keyboard.press('Enter');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'help');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('ArrowLeft');
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
+  expect(await bufferText(page)).toBe('#alias {b} {bee}\n#alias {gv %1} {get %1}\n#macro {F1} {one}\n');
+  await page.keyboard.press('ArrowLeft');
+  await expect(ped(page)).toHaveAttribute('data-view', 'lite');
+
+  // ESC in HELP saves and goes back, as in the other views.
+  await toHelp(page);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  expect(await stored(page)).toBe('#alias {b} {bee}\n#alias {gv %1} {get %1}\n#macro {F1} {one}\n');
+  expect(errors).toEqual([]);
+});
+
+test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ page }) => {
+  await openFromStart(page, 'one\ntwo\nthree\n');
+  await toEditor(page);
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.type('x');
+  await expect(footer(page)).toContainText('Ln 2, Col 2');
+  await toHelp(page);
+  await expect(content(page)).toBeHidden();
+  await ped(page).locator('[data-btn="EDITOR"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'editor');
+  await expect(content(page)).toBeVisible();
+  expect(await bufferText(page)).toBe('one\nxtwo\nthree\n');
+  await expect(footer(page)).toContainText('Ln 2, Col 2');
+  await page.keyboard.press('Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'buffer');
+  await page.keyboard.press('Control+z');
+  expect(await bufferText(page)).toBe('one\ntwo\nthree\n');
+  // Unchanged again: ESC from HELP pops without saving.
+  await toHelp(page);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  expect(await stored(page)).toBe('one\ntwo\nthree\n');
+});
+
+test('ESC menu → Profile → HELP while connected: ESC asks to apply', async ({ page }) => {
+  await mockMume(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.save('default', '#alias {a} {b}\n');
+  });
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  await kind(page, 'alias');
+  await page.keyboard.press('n');
+  await page.keyboard.type('z');
+
+  await toHelp(page);
+  await page.keyboard.press('Tab');
+  await jumpToHeading(page, '#action');
+  // The manual fits the 80 % box: the scrollbar is inside it.
+  const box = (await page.locator('.wc-overlay .wc-overlay-inner').boundingBox())!;
+  const bar = (await ped(page).locator('.wc-ped-help .wc-scroll-track').first().boundingBox())!;
+  expect(bar.x + bar.width).toBeLessThanOrEqual(box.x + box.width);
+
+  const modal = () => ped(page).locator('.wc-ped-overlay');
+  await page.keyboard.press('Escape');
+  await expect(modal()).toContainText('Apply changes to your profile?');
+  await page.keyboard.press('Escape'); // keep editing: still in HELP, where it was
+  await expect(modal()).toHaveCount(0);
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await expect(helpTopRow(page)).toHaveText('#action');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('y');
+  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-flash')).toHaveText('Profile updated.');
+  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
+});
+
+// ------------------------------------------- every character is visible
+
+/**
+ * How much of an underscore shows in cells `cols` of a text that starts at
+ * `loc`'s left edge: lit pixels in the lower part of the cell (plus two
+ * pixels below it, where a neighbouring row of the same background would
+ * still show it), as a fraction of the cell width. Cell 2 must hold a
+ * letter without a descender (the background sample). About 1 for a
+ * DejaVu `_`, 0 when it is clipped or painted over.
+ */
+async function underscoreInk(page: Page, loc: Locator, cols: number[]): Promise<number[]> {
+  const cell = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return { w: parseFloat(cs.getPropertyValue('--cell-w')), h: parseFloat(cs.getPropertyValue('--cell-h')) };
+  });
+  const b = (await loc.boundingBox())!;
+  const n = Math.max(...cols, 2) + 1;
+  const png = await page.screenshot({ clip: { x: b.x, y: b.y, width: cell.w * n, height: cell.h + 2 } });
+  return page.evaluate(
+    async ({ b64, cols, n, frac }) => {
+      const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+      const cv = document.createElement('canvas');
+      cv.width = bmp.width;
+      cv.height = bmp.height;
+      const g = cv.getContext('2d')!;
+      g.drawImage(bmp, 0, 0);
+      const d = g.getImageData(0, 0, cv.width, cv.height).data;
+      const px = (x: number, y: number): number[] => [d[(y * cv.width + x) * 4]!, d[(y * cv.width + x) * 4 + 1]!, d[(y * cv.width + x) * 4 + 2]!];
+      const diff = (p: number[], q: number[]): number => Math.abs(p[0]! - q[0]!) + Math.abs(p[1]! - q[1]!) + Math.abs(p[2]! - q[2]!);
+      const cw = cv.width / n;
+      const ch = cv.height * frac;
+      const refX = Math.floor(2.5 * cw);
+      const rowBg = px(refX, Math.floor(ch * 0.97) - 1);
+      return cols.map((col) => {
+        let ink = 0;
+        for (let y = Math.floor(ch * 0.6); y < cv.height; y++) {
+          const bg = px(refX, y);
+          // A pixel row that belongs to a neighbour with another background hides the glyph.
+          if (diff(bg, rowBg) > 60) continue;
+          for (let x = Math.floor(col * cw); x < Math.min(cv.width, Math.floor((col + 1) * cw)); x++) if (diff(px(x, y), bg) > 120) ink++;
+        }
+        return ink / cw;
+      });
+    },
+    { b64: png.toString('base64'), cols, n, frac: cell.h / (cell.h + 2) },
+  );
+}
+
+const UNDERSCORES = '#alias {_show_acontainer} {x}\n#alias {_show_class} {_hhhh_}\n#alias {_show_spell} {y}\n';
+
+/** The owner's report (ADR 0037): `_show_class` lost its underscores in LITE. */
+async function expectUnderscores(page: Page, font: 'dejavu' | 'jetbrains', size: number): Promise<void> {
+  await page.evaluate(([f, s]) => window.__wc!.settings.update({ appearance: { font: f as 'dejavu', size: s as number } }), [font, size] as const);
+  await page.evaluate(() => document.fonts.ready);
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-size')))
+    .not.toBe('');
+  await page.waitForTimeout(150);
+  const where = `${font} ${size}`;
+  const input = ped(page).locator('input[data-field="pattern"]');
+  await expect(input).toHaveValue('_show_class');
+  const rows = listRows(page);
+  await expect(rows).toHaveText([/^_show_a…/, /^_show_c…/, /^_show_s…/, /\+ New entry/]);
+  await expect(cursorRow(page)).toHaveText(/^_show_c…/);
+  const targets: Array<[string, Locator]> = [
+    ['Pattern box', input],
+    ['row above the cursor band', rows.nth(0)],
+    ['cursor row', rows.nth(1)],
+    ['row below the cursor band', rows.nth(2)],
+    ['Commands box', ped(page).locator('textarea[data-field="body"]')],
+  ];
+  for (const [name, loc] of targets) {
+    const ink = await underscoreInk(page, loc, [0, 5]);
+    expect(Math.min(...ink), `${name}, ${where}: underscore ink ${ink.map((v) => v.toFixed(2)).join(' / ')}`).toBeGreaterThan(0.5);
+  }
+}
+
+for (const dpr of [1, 1.5]) {
+  test.describe(`underscores at device pixel ratio ${dpr}`, () => {
+    test.use({ deviceScaleFactor: dpr });
+    test('every underscore of an entry shows in LITE, in both fonts and at several sizes', async ({ page }) => {
+      await openFromStart(page, UNDERSCORES);
+      await kind(page, 'alias');
+      await listRows(page).nth(1).click();
+      for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['dejavu', 13], ['jetbrains', 15], ['dejavu', 20]] as const) {
+        await expectUnderscores(page, font, size);
+      }
+    });
+  });
+}
+
+test('EDITOR shows the whole stored text of the bundled khazdul profile', async ({ page }) => {
+  await mockMume(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  // The seeded khazdul text, as a first run stores it, under the profile that EDIT opens.
+  const text = await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    const t = (await window.__wc!.shell.profiles.get('khazdul'))!.text;
+    await window.__wc!.shell.profiles.save('default', t);
+    return t;
+  });
+  expect(text).toContain('{_show_class}');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.locator('.wc-start [data-btn="EDIT"]').click();
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+
+  // LITE lists the alias, leading underscore included.
+  await kind(page, 'alias');
+  const row = listRows(page).filter({ hasText: /^_show_c…/ });
+  await expect(row).toHaveCount(1);
+  await row.click();
+  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('_show_class');
+
+  // The buffer holds the stored text exactly (CodeMirror only renders the
+  // lines in view, so the document is read from its state).
+  await toEditor(page);
+  const state = await content(page).evaluate((el) => {
+    type Held = { view?: { state: { doc: { toString(): string; lines: number } } } };
+    const v = ((el as unknown as { cmTile?: Held; cmView?: Held }).cmTile ?? (el as unknown as { cmView?: Held }).cmView)?.view;
+    return v ? { text: v.state.doc.toString(), lines: v.state.doc.lines } : null;
+  });
+  expect(state).not.toBeNull();
+  expect(state!.text).toBe(text);
+
+  // Scrolling to the end renders every line on the way; the alias line is among them.
+  const seen = new Set<string>();
+  const scroller = ped(page).locator('.cm-scroller');
+  for (let i = 0; i < 400; i++) {
+    for (const l of await content(page).locator('.cm-line').allTextContents()) seen.add(l);
+    const moved = await scroller.evaluate((s) => {
+      const before = s.scrollTop;
+      s.scrollTop += Math.max(1, s.clientHeight - 40);
+      return s.scrollTop > before;
+    });
+    if (!moved) break;
+    await page.waitForTimeout(20);
+  }
+  for (const l of await content(page).locator('.cm-line').allTextContents()) seen.add(l);
+  const want = new Set(text.split('\n').filter((l) => l.trim() !== ''));
+  expect([...want].filter((l) => !seen.has(l))).toEqual([]);
+  expect([...seen].some((l) => /^#alias \{_show_class\}/i.test(l))).toBe(true);
+
+  // Nothing was edited: ESC pops without saving and the text is untouched.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  expect(await stored(page)).toBe(text);
 });

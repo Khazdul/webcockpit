@@ -10,8 +10,11 @@ import {
   listRows,
   parseHighlight,
   rowText,
+  TOGGLE_W,
+  VIEWS,
   sentinelPrompt,
   serializeHighlight,
+  stepView,
   titleText,
 } from '../../src/editor/logic';
 import { balanceText, braceMatchAt, scanBraces, tokenizeLine } from '../../src/editor/syntax';
@@ -231,5 +234,23 @@ describe('syntax', () => {
     expect(braceMatchAt(scan, text, text.length)).toBeNull(); // unbalanced
     expect(balanceText(scanBraces('}} {'))).toBe('1 unclosed {  ·  2 stray }');
     expect(balanceText(scanBraces('{}'))).toBe('');
+  });
+});
+
+describe('view toggle', () => {
+  it('is LITE, EDITOR, HELP, one cell apart', () => {
+    expect(VIEWS.map((v) => v.label)).toEqual(['LITE', 'EDITOR', 'HELP']);
+    // A button is its label with one cell on each side.
+    for (const v of VIEWS) expect(v.width).toBe(v.label.length + 2);
+    expect(TOGGLE_W).toBe(' LITE   EDITOR   HELP '.length);
+  });
+
+  it('steps left and right without wrapping', () => {
+    expect(stepView('lite', 1)).toBe('editor');
+    expect(stepView('editor', 1)).toBe('help');
+    expect(stepView('help', 1)).toBe('help');
+    expect(stepView('help', -1)).toBe('editor');
+    expect(stepView('editor', -1)).toBe('lite');
+    expect(stepView('lite', -1)).toBe('lite');
   });
 });

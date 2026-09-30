@@ -1,15 +1,19 @@
 // The profile editor frame (Inv §5.3–5.9): one Preact frame on the chrome's
-// frame stack, with two views over the same profile text.
+// frame stack, with two views over the same profile text and a manual.
 //
 //   LITE    kind buttons, entry list (display sort only), detail panel,
 //           hints, highlight colour picker, macro key capture
 //   EDITOR  CodeMirror 6 buffer (cm.ts)
+//   HELP    the read-only manual (help.ts), scrollable (ADR 0037)
 //
 // The profile text is the source of truth. LITE edits a ProfileDoc
 // (src/script/doc), EDITOR edits text; a flip serialises or parses, so it
 // never reorders or drops anything (ADR 0015). Each open starts in LITE.
+// HELP is laid over whichever of the two is open: `mode` stays what it was,
+// the lite state is kept and the buffer stays mounted (hidden), so going to
+// HELP and back changes nothing.
 //
-// Focus (Inv §5.8): mode, a zone (toggle, kind, list, detail, buffer) and
+// Focus (Inv §5.8): mode, a zone (toggle, kind, list, detail, buffer, help) and
 // the detail field. Wherever keyboard focus is, it paints amber; grey marks
 // a persistent selection (current kind, entry being edited).
 //
@@ -19,7 +23,7 @@
 
 import type { EditorView } from '@codemirror/view';
 import type { JSX, VNode } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useGrid } from '../chrome/kit/hooks';
 import { centreLeft, scrollToShow, scrollbar, wrapText } from '../chrome/kit/nav';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
@@ -39,7 +43,9 @@ import {
 } from '../script/doc';
 import { bindability, displayKey, learnKeyLabel } from '../script/keys';
 import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstLine, pageScroll } from './cm';
+import { type HelpLine, MANUAL_URL, helpJump, helpLayout } from './help';
 import {
+  type EditorViewName,
   HINTS,
   HL_COLORS,
   HL_STYLES,
@@ -52,6 +58,7 @@ import {
   NEW_BODY,
   PATTERN_COL,
   TOGGLE_W,
+  VIEWS,
   ansiIndex,
   dropEmpty,
   ellipsis,
@@ -63,6 +70,7 @@ import {
   rowText,
   sentinelPrompt,
   serializeHighlight,
+  stepView,
   titleText,
 } from './logic';
 import { balanceText } from './syntax';
@@ -86,7 +94,7 @@ export interface EditorHost {
 }
 
 type Mode = 'lite' | 'editor';
-type Zone = 'toggle' | 'kind' | 'list' | 'detail' | 'buffer';
+type Zone = 'toggle' | 'kind' | 'list' | 'detail' | 'buffer' | 'help';
 type Field = 'pattern' | 'body' | 'key' | 'style' | 'text' | 'bg';
 
 const FIELDS: Readonly<Record<LiteKind, readonly Field[]>> = {
@@ -108,6 +116,24 @@ const FLASH_MS = 1500;
 const BOUND_MS = 2000;
 
 const SENTINEL = -1;
+
+/** Footer hints of the HELP view, longest first; the first that fits is shown. */
+const HELP_HINTS = [
+  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Scroll · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Scroll · ESC Save & back',
+];
+
+/** Colour class of a manual row (kit.css roles). */
+const HELP_CLS: Readonly<Record<HelpLine['kind'], string>> = {
+  blank: '',
+  group: 'wc-c-section',
+  heading: 'wc-c-title',
+  syntax: 'wc-c-active',
+  text: 'wc-c-body',
+  note: 'wc-c-hint',
+  code: 'wc-c-item',
+};
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
@@ -149,6 +175,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const { cols, rows, surface } = useGrid();
 
   const [mode, setMode] = useState<Mode>('lite');
+  const [help, setHelp] = useState(false);
+  const [helpTop, setHelpTop] = useState(0);
   const [zone, setZone] = useState<Zone>('kind');
   const [field, setField] = useState<Field>('pattern');
   const [doc, setDoc] = useState<ProfileDoc>(() => parseProfile(host.text));
@@ -201,6 +229,11 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const bodyH = Math.max(4, rows - gap - 2 - 4 - 2);
   const bufferH = Math.max(3, rows - gap - 2 - 2);
   const listVisible = Math.max(1, bodyH - 1);
+  // The manual: W - 2 cells of text, a blank cell and the scrollbar.
+  const manual = useMemo(() => helpLayout(W - 2), [W]);
+  const helpMax = Math.max(0, manual.lines.length - bufferH);
+  const hTop = Math.min(helpTop, helpMax);
+  const helpScroll = (to: number): void => setHelpTop(Math.max(0, Math.min(helpMax, to)));
 
   // ------------------------------------------------------------ lite model
 
@@ -314,6 +347,26 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     setMode(to);
   };
 
+  /** The toggle: HELP is laid over the current view; LITE and EDITOR flip as before. */
+  const view: EditorViewName = help ? 'help' : mode;
+  const select = (v: EditorViewName): void => {
+    if (v === 'help') {
+      if (!help) {
+        setHelp(true);
+        setCapture(null);
+        setFlash(null);
+      }
+      return;
+    }
+    setHelp(false);
+    flip(v);
+  };
+
+  // The buffer was hidden while HELP was up: let CodeMirror measure again.
+  useLayoutEffect(() => {
+    if (!help && mode === 'editor') viewRef.current?.requestMeasure();
+  }, [help]);
+
   // Mount the CodeMirror buffer while in EDITOR mode (a fresh state, so a
   // fresh undo history, on every flip).
   useLayoutEffect(() => {
@@ -418,7 +471,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   const cycle = (dir: 1 | -1): void => {
     let order: { z: Zone; f?: Field }[];
-    if (mode === 'editor') order = [{ z: 'toggle' }, { z: 'buffer' }];
+    if (help) order = [{ z: 'toggle' }, { z: 'help' }];
+    else if (mode === 'editor') order = [{ z: 'toggle' }, { z: 'buffer' }];
     else {
       order = [{ z: 'toggle' }, { z: 'kind' }, { z: 'list' }];
       if (cur) for (const f of fields) order.push({ z: 'detail', f });
@@ -479,15 +533,20 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     }
     switch (zone) {
       case 'toggle':
-        if (nk === 'left') flip('lite');
-        else if (nk === 'right') flip('editor');
-        else if (nk === 'activate' || nk === 'down') {
+        if (nk === 'left') select(stepView(view, -1));
+        else if (nk === 'right') select(stepView(view, 1));
+        else if (help) {
+          if (nk === 'activate' || nk === 'down') focusZone('help');
+          else return helpKey(e, nk, false);
+        } else if (nk === 'activate' || nk === 'down') {
           // ↓ / Enter enter the buffer at offset 0 (Inv §5.8); Tab keeps the cursor.
           if (mode === 'editor') viewRef.current?.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
           focusZone(mode === 'lite' ? 'kind' : 'buffer');
         }
         else return false;
         return true;
+      case 'help':
+        return helpKey(e, nk, true);
       case 'buffer': {
         const v = viewRef.current;
         if (!v) return false;
@@ -516,6 +575,43 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     }
     return false;
   });
+
+  /** Scroll keys of the manual. `inBody`: the help zone (↑ at the top leaves it, ↓ and Enter scroll). */
+  const helpKey = (e: KeyboardEvent, nk: string | null, inBody: boolean): boolean => {
+    const page = Math.max(1, bufferH - 1);
+    if (plain(e) && !e.shiftKey && (e.key === 'n' || e.key === 'p')) {
+      helpScroll(helpJump(manual.headings, hTop, e.key === 'n' ? 1 : -1));
+      return true;
+    }
+    switch (nk) {
+      case 'pgup':
+        helpScroll(hTop - page);
+        return true;
+      case 'pgdn':
+        helpScroll(hTop + page);
+        return true;
+      case 'home':
+        helpScroll(0);
+        return true;
+      case 'end':
+        helpScroll(helpMax);
+        return true;
+    }
+    if (!inBody) return false;
+    switch (nk) {
+      case 'up':
+        if (hTop === 0) focusZone('toggle');
+        else helpScroll(hTop - 1);
+        return true;
+      case 'down':
+        helpScroll(hTop + 1);
+        return true;
+      case 'activate':
+        helpScroll(hTop + page);
+        return true;
+    }
+    return false;
+  };
 
   const selectKind = (k: LiteKind): void => {
     setKind(k);
@@ -667,32 +763,27 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       </span>
       <span style={indent(Math.max(1, at + W - TOGGLE_W - Math.max(0, titleAt) - cps(title)))} />
       <span class="wc-ped-toggle">
-        <Button
-          label="LITE"
-          width={6}
-          selected={mode === 'lite'}
-          focused={toggleFocused}
-          onClick={() => {
-            flip('lite');
-            focusZone('toggle');
-          }}
-        />{' '}
-        <Button
-          label="EDITOR"
-          width={8}
-          selected={mode === 'editor'}
-          focused={toggleFocused}
-          onClick={() => {
-            flip('editor');
-            focusZone('toggle');
-          }}
-        />
+        {VIEWS.map((v, i) => (
+          <>
+            {i > 0 && ' '}
+            <Button
+              label={v.label}
+              width={v.width}
+              selected={view === v.view}
+              focused={toggleFocused}
+              onClick={() => {
+                select(v.view);
+                focusZone('toggle');
+              }}
+            />
+          </>
+        ))}
       </span>
     </div>
   );
 
   let footer: VNode;
-  if (mode === 'editor') {
+  if (mode === 'editor' && !help) {
     const right = `Ln ${status.line}, Col ${status.col}`;
     const bal = flash ? '' : balanceText(status);
     const rightFull = bal ? `${bal}  ·  ${right}` : right;
@@ -715,7 +806,13 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       </div>
     );
   } else {
-    const text = flash ? flash.text : zone === 'list' ? 'n New · Del Delete · Tab Cycle · ESC Save & back' : 'Tab Cycle · ESC Save & back';
+    const text = flash
+      ? flash.text
+      : help
+        ? (HELP_HINTS.find((h) => cps(h) <= cols) ?? HELP_HINTS.at(-1)!)
+        : zone === 'list'
+          ? 'n New · Del Delete · Tab Cycle · ESC Save & back'
+          : 'Tab Cycle · ESC Save & back';
     const t = ellipsis(text, cols);
     footer = (
       <div
@@ -729,11 +826,12 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   }
 
   return (
-    <div class="wc-page wc-ped" ref={rootRef} tabIndex={-1} data-mode={mode} data-zone={zone}>
+    <div class="wc-page wc-ped" ref={rootRef} tabIndex={-1} data-mode={mode} data-view={view} data-zone={zone}>
       <div class="wc-line" style={{ height: `calc(var(--cell-h) * ${gap})` }} />
       {titleRow}
       <div class="wc-line" />
-      {mode === 'lite' ? renderLite() : renderEditor()}
+      {mode === 'lite' ? (help ? null : renderLite()) : renderEditor()}
+      {help && renderHelp()}
       <div class="wc-ped-spacer" />
       <div class="wc-line" />
       {footer}
@@ -1104,7 +1202,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const topRow = Math.round(scroll.top / cellHpx);
     const bar = scrollbar(total, Math.min(visible, bufferH), topRow);
     return (
-      <div class="wc-ped-bufwrap" style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})` }}>
+      <div
+        class="wc-ped-bufwrap"
+        style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})`, ...(help ? { display: 'none' } : {}) }}
+      >
         <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${W - 1})` }} />
         <div class="wc-ped-bufbar">
           {Array.from({ length: bufferH }, (_, i) =>
@@ -1128,6 +1229,63 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         </div>
       </div>
     );
+  }
+
+  // ---------------------------------------------------------------- help
+
+  function renderHelp(): VNode {
+    const bar = scrollbar(manual.lines.length, bufferH, hTop);
+    const thumbAt = bar.indexOf(true);
+    const focused = zone === 'help' && !modal;
+    return (
+      <div
+        class={'wc-ped-help' + (focused ? ' is-focus' : '')}
+        style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})` }}
+        onWheel={(e) => {
+          e.preventDefault();
+          helpScroll(hTop + (e.deltaY > 0 ? 3 : -3));
+        }}
+        onMouseDown={(e) => {
+          if (!(e.target as Element).closest('a')) e.preventDefault();
+          focusZone('help');
+        }}
+      >
+        {manual.lines.slice(hTop, hTop + bufferH).map((l, i) => (
+          <div class="wc-line" key={i} data-kind={l.kind}>
+            <span
+              class={'wc-ped-help-text ' + HELP_CLS[l.kind]}
+              style={{ width: `calc(var(--cell-w) * ${W - 1})`, ...indent(l.indent) }}
+            >
+              {l.segs.map((s) => (s.cls ? <span class={`wc-syn-${s.cls}`}>{s.text}</span> : helpText(s.text)))}
+            </span>
+            {bar.length > 0 && (
+              <span
+                class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  if (!bar[i]) helpScroll(hTop + (i < thumbAt ? -1 : 1) * Math.max(1, bufferH - 1));
+                }}
+              >
+                {bar[i] ? '█' : '░'}
+              </span>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  /** Manual text with the tt++ manual's address as a link. */
+  function helpText(text: string): string | (string | VNode)[] {
+    const i = text.indexOf(MANUAL_URL);
+    if (i < 0) return text;
+    return [
+      text.slice(0, i),
+      <a class="wc-about-link" href={`https://${MANUAL_URL}`} target="_blank" rel="noopener noreferrer">
+        {MANUAL_URL}
+      </a>,
+      text.slice(i + MANUAL_URL.length),
+    ];
   }
 
   // ------------------------------------------------------------ overlays
