@@ -9,8 +9,9 @@
 //
 // Script engine (ADR 0015): the selected profile is loaded at start-up (so
 // an offline replay runs it too) and again whenever a live session starts.
-// `applyProfile(text)` swaps it atomically (the ESC-menu editor). Variables
-// set at run time are written back to the profile (src/app/writeback.ts).
+// `applyProfile(text)` swaps it atomically (the ESC-menu editor). Settings
+// typed on the input line, and declared variables a script sets, are
+// written to the stored profile (src/app/writeback.ts, ADR 0038).
 // Password mode bypasses the engine (InputPane sends secrets directly).
 //
 // The screen is the Cockpit view (src/layout/cockpit.ts): the output pane
@@ -56,7 +57,7 @@
 import { downloadRun } from '../capture/download';
 import { Recorder, type RecorderOptions, STATUS as CAPTURE_STATUS } from '../capture/recorder';
 import type { ProfileStore } from '../profiles';
-import { type LoadResult, type Scheduler, ScriptEngine } from '../script/engine';
+import { type LoadResult, type Scheduler, ScriptEngine, type TypedChange } from '../script/engine';
 import { Bus } from '../core/bus';
 import type { BusEvents, Socketish } from '../core/types';
 import type { FetchLike } from '../net/link-probe';
@@ -72,7 +73,7 @@ import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
-import { VariableWriteBack } from './writeback';
+import { ProfileWriteBack } from './writeback';
 import { attachUiMessages, uiMsg, uiValue } from './ui-messages';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
@@ -91,22 +92,6 @@ export const REASON_REPLAY_START = 'replay started';
 const REASON_REPLAY_STOP = 'replay stopped';
 /** Reason ReplaySocket gives when the log is exhausted. */
 const REASON_REPLAY_DONE = 'replay finished';
-
-export const HELP_LINES: readonly string[] = [
-  'Built-in commands:',
-  '  #connect          connect to MUME',
-  '  #disconnect       close the connection',
-  '  #reconnect        close and connect again',
-  '  #runlog           download the current (or last) run as a .log',
-  '  #replay [speed]   replay a Cockpit .log file (1 = real time, 0 = max speed)',
-  '  #help             this list',
-  'While disconnected, Enter reconnects.',
-  'tt++ commands work too: #alias #action #highlight #substitute #gag #macro',
-  '  #variable #ticker #delay (and #un...), #if #elseif #else #showme #nop',
-  '  #math #format #class #event. Separate commands with ;',
-  'The profile is edited from the ESC menu; HELP in the profile editor',
-  '  explains every command.',
-];
 
 export interface AppOptions {
   /** Element the app is built into. */
@@ -199,7 +184,7 @@ export class App {
   readonly runs: LiveRuns;
   private readonly settings: SettingsStore;
   private readonly profiles: ProfileStore | null;
-  private readonly writeBack: VariableWriteBack | null;
+  private readonly writeBack: ProfileWriteBack | null;
   /** Bumped by every profile load, so a slow store read cannot undo a newer load. */
   private loadToken = 0;
   /** True while a typed line or a macro runs (it may reconnect). */
@@ -224,6 +209,8 @@ export class App {
   quietLogin = false;
   private readonly unsubs: Array<() => void> = [];
   private disposed = false;
+  /** Pending `#help` output, in typed order (see `help`). */
+  private helpChain: Promise<void> = Promise.resolve();
 
   constructor(opts: AppOptions) {
     const doc = opts.root.ownerDocument;
@@ -345,7 +332,10 @@ export class App {
       send: (text) => this.sendFromScript(text),
       message: (text) => this.sys(text),
       client: (name, args) => this.runClient(name, args),
-      onVariable: (name, value) => this.writeBack?.queue(name, value),
+      onVariable: (name, value) => {
+        if (!this.offline) this.writeBack?.queue(name, value);
+      },
+      onTyped: (change) => this.persistTyped(change),
       ...(opts.scheduler ? { scheduler: opts.scheduler } : {}),
     });
     this.script.attach(bus);
@@ -354,12 +344,13 @@ export class App {
     this.runEvents.installRules(this.script.system);
     this.runs = new LiveRuns({ deriver: this.runEvents, recorder: this.recorder });
     this.writeBack = this.profiles
-      ? new VariableWriteBack(this.profiles, {
+      ? new ProfileWriteBack(this.profiles, {
           ...(opts.writeBackDelayMs !== undefined ? { delayMs: opts.writeBackDelayMs } : {}),
           onError: (m) => {
             this.sys(m);
-            this.ui('warn', 'Profile variables were not saved.');
+            this.ui('warn', 'The profile was not saved.');
           },
+          onRefused: (m) => this.sys(m),
         })
       : null;
     const win = doc.defaultView;
@@ -503,7 +494,13 @@ export class App {
     const name = this.settings.get().profile;
     let text: string;
     try {
-      const rec = await store.get(name);
+      // The text must hold everything typed so far (ADR 0038): wait for the
+      // write-back, and read again when something was typed meanwhile.
+      let rec: Awaited<ReturnType<ProfileStore['get']>>;
+      do {
+        await this.writeBack?.flush();
+        rec = await store.get(name);
+      } while (this.writeBack?.busy && token === this.loadToken);
       if (token !== this.loadToken) return;
       if (!rec) {
         if (announce) {
@@ -520,10 +517,11 @@ export class App {
       }
       return;
     }
-    await this.writeBack?.setTarget(null);
-    if (token !== this.loadToken) return;
+    // No await from the read to the load: nothing can be typed in between.
     const r = this.script.loadProfile(text);
     if (!r.ok) {
+      // The old rules keep running, but their text cannot be edited safely.
+      void this.writeBack?.setTarget(null);
       this.sys(`Profile ${name} not loaded: ${r.reason}`);
       this.ui('error', `Profile {${uiValue(name)}} not loaded.`);
       return;
@@ -561,6 +559,8 @@ export class App {
       this.ui('error', `Profile {${name}} not applied.`);
       return r;
     }
+    // Values queued by the rules that were just replaced are stale.
+    this.writeBack?.discard();
     if (this.writeBack && this.writeBack.target === null) void this.writeBack.setTarget(this.settings.get().profile);
     const n = r.warnings.length;
     if (n === 0) this.ui('system', `Profile {${name}} applied.`);
@@ -568,9 +568,20 @@ export class App {
     return { ok: true, warnings: r.warnings };
   }
 
-  /** Values queued for the profile write-back are saved now. */
+  /** Everything queued for the profile write-back is saved when this resolves. */
   flushWriteBack(): Promise<void> {
     return this.writeBack?.flush() ?? Promise.resolve();
+  }
+
+  /**
+   * A typed definition or `#un…` the engine accepted goes into the stored
+   * profile at once (ADR 0038). Not in the offline modes and not before a
+   * profile has loaded: then it lasts for the session, and the player is told.
+   */
+  private persistTyped(change: TypedChange): void {
+    if (!this.writeBack) return;
+    if (this.offline) this.sys('Not saved to the profile: nothing is saved in offline replay mode.');
+    else if (!this.writeBack.typed(change)) this.sys('Not saved to the profile: no profile is loaded.');
   }
 
   // -------------------------------------------------------------- commands
@@ -650,11 +661,29 @@ export class App {
         return;
       }
       case 'help':
-        for (const l of HELP_LINES) this.sys(l);
+        this.help(argText);
         return;
       default:
         this.sys(`Unknown command: #${name}`);
     }
+  }
+
+  /**
+   * `#help [command | topic]` (ADR 0037). The manual is in a lazy chunk, so
+   * the rows arrive a moment later; the chain keeps several `#help` in the
+   * order they were typed. The rows go straight to the output pane: they
+   * are not on the bus, so nothing records them and no rule fires on them.
+   */
+  private help(argText: string): void {
+    this.helpChain = this.helpChain
+      .then(() => import('./help-command'))
+      .then((m) => {
+        if (this.disposed) return;
+        const out = m.helpOutput(argText, this.output.measureCells().cols);
+        if (typeof out === 'string') this.sys(out);
+        else this.output.pushStyled(out);
+      })
+      .catch((err: unknown) => this.sys(`#help failed: ${err instanceof Error ? err.message : String(err)}`));
   }
 
   private async runlog(): Promise<void> {

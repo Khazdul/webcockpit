@@ -242,6 +242,46 @@ export function expandVars(text: string, lookup: VarLookup): string {
   return out + text.slice(last);
 }
 
+/**
+ * The inverse of `expandVars` for text that must survive one expansion
+ * unchanged: every run of `$` or `&` in front of a name or `{name}` gets
+ * one more character (`$hp` → `$$hp`), which `expandVars` takes off again
+ * without substituting. Returns `text` itself when there is nothing to do.
+ */
+export function escapeVars(text: string): string {
+  if (text.indexOf('$') < 0 && text.indexOf('&') < 0) return text;
+  let out = '';
+  let last = 0;
+  const n = text.length;
+  for (let i = 0; i < n; i++) {
+    const c = text.charCodeAt(i);
+    if (c === 0x5c) {
+      i++;
+      continue;
+    }
+    if (c !== 0x24 && c !== 0x26) continue;
+    let j = i;
+    while (j < n && text.charCodeAt(j) === c) j++;
+    let named: boolean;
+    let end = j;
+    if (text.charCodeAt(j) === 0x7b) {
+      const close = text.indexOf('}', j);
+      named = close > j + 1;
+      if (named) end = close + 1;
+    } else {
+      while (end < n && isNameChar(text.charCodeAt(end))) end++;
+      named = end > j;
+    }
+    if (named) {
+      out += text.slice(last, i) + text[i];
+      last = i;
+    }
+    i = end - 1;
+  }
+  if (last === 0 && out === '') return text;
+  return out + text.slice(last);
+}
+
 /** Characters a backslash makes literal (the backslash is removed). */
 const ESCAPABLE = new Set([0x5c, 0x3b, 0x7b, 0x7d, 0x24, 0x25, 0x26]);
 

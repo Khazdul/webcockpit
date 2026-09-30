@@ -5,7 +5,11 @@
 // what tt++ does. tests/unit/editor-help.test.ts keeps it honest: every
 // example is loaded or typed into a real engine and must give no message,
 // the examples that carry a `check` must send and show exactly what they
-// say, and every command the engine runs must have a section.
+// say, and every command the engine runs must have a section. The client
+// commands the menus cover (#connect, #disconnect, #reconnect, #replay,
+// #runlog) are left out on purpose; the test keeps them out.
+//
+// `#help` on the input line prints from the same data (src/app/help-command.ts).
 //
 // `_send` is deprecated (ADR 0036) and is not mentioned here.
 //
@@ -66,6 +70,11 @@ export interface HelpSection {
   syntax?: readonly string[];
   text: readonly string[];
   examples?: readonly HelpExample[];
+  /**
+   * Words that name the section for `#help <topic>` on the input line
+   * (lower case); the first one is listed by `#help`.
+   */
+  topics?: readonly string[];
 }
 
 export const MANUAL_URL = 'tintin.mudhalla.net/manual/';
@@ -91,6 +100,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Braces and ;',
+    topics: ['braces'],
     text: [
       'A command starts with # and takes its arguments in braces. A ; separates commands. Inside braces the commands may stand on several lines; a line break counts as a space.',
       'Put \\ before ; { } $ or % to send the character itself.',
@@ -115,6 +125,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Arguments %0 %1 …',
+    topics: ['arguments'],
     text: [
       'In an alias, %1 to %99 are the words typed after the name and %0 is all of them. Commands that use no %N get what was typed after the name added at the end.',
       'In an action or a substitute, %1 %2 … are the parts of the line that the same wildcards in the Pattern matched, and %0 is the whole matched text.',
@@ -134,6 +145,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Variables $name',
+    topics: ['variables'],
     text: [
       '#variable {target} {orc} stores text under a name. $target puts it in: in commands for the game, #showme text, conditions, patterns and New text. Use ${target} when letters follow directly.',
       'A variable that does not exist stays as written ($target is sent as it is), so give the variables you use a starting value at the top of the profile. Names use letters, digits and _.',
@@ -148,6 +160,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Patterns',
+    topics: ['patterns'],
     text: [
       'A Pattern is text to look for anywhere in a line, with upper and lower case as written. ^ first ties it to the start of the line, $ last ties it to the end.',
       'Wildcards: %1 … %99 match any text and keep it as that argument. %* any text, %+ at least one character, %? at most one, %. exactly one. %d digits, %w letters and digits, %s spaces, %S anything but spaces. %+1..d is one digit or more, %+2..4d two to four, %+3d exactly three.',
@@ -179,6 +192,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Priorities',
+    topics: ['priorities'],
     text: [
       'Actions, aliases, highlights and substitutes take an optional third argument, the priority: a number, 5 when left out. Lower runs first; equal priorities run in the order they were defined.',
       'Every action that matches a line runs. Of the aliases only the first match runs. Defining an entry with a Pattern that already exists replaces the old one.',
@@ -193,6 +207,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Colours',
+    topics: ['colours', 'colors'],
     text: [
       'In #showme and in New text: <Frrggbb> sets the text colour and <Brrggbb> the background, in hex (<Fff8800> is orange; <Frgb> is the short form). <099> goes back to the default colours.',
       'The three-digit tt++ codes work too, <abc>: a is 0 reset, 1 bold, 3 italic, 4 underline, 5 blink, 7 reverse, 8 keep; b is the text colour and c the background: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, 8 keep, 9 default.',
@@ -211,6 +226,7 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Keys',
+    topics: ['keys'],
     text: [
       'A macro is bound to a key name: F1 … F12, Numpad0 … Numpad9, NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadEnter, ArrowUp, PageUp, letters and digits (A, 1), with Ctrl+, Alt+ and Shift+ in that order in front: Ctrl+A, Alt+1, Ctrl+Shift+F1.',
       'Names are physical keys, the same on every keyboard layout. The easy way is LITE → MACROS: press Enter on the Key cell and then the key.',
@@ -226,11 +242,12 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'Typing commands',
+    topics: ['typing'],
     text: [
-      'Everything in a profile can also be typed on the input line while you play. What you type there lasts for the session: it is gone when the profile is loaded again (the next connect, or Apply). Put it in the profile to keep it.',
+      'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. ESC → Profile shows the same entries, see What is saved.',
       'Typed without Commands, a command lists what exists: #alias shows all aliases, #alias {k*} those starting with k, #variable all variables, #ticker and #delay the running timers.',
-      '#3 north repeats a command (at most 100 times). When typing, braces may be left out around single words (#var target orc); LITE only lists entries written with braces.',
-      'While a profile loads, nothing is sent to the game and client commands such as #connect are not run. A profile should only define things at its top level.',
+      '#3 north repeats a command (at most 100 times). When typing, braces may be left out around single words (#var target orc); the profile gets the line with all its braces.',
+      'While a profile loads, nothing is sent to the game. A profile should only define things at its top level.',
     ],
     examples: [
       { via: 'input', code: '#var target orc', check: { vars: { target: 'orc' } } },
@@ -240,9 +257,12 @@ const BASICS: readonly HelpSection[] = [
   {
     group: 'basics',
     heading: 'What is saved',
+    topics: ['saved'],
     text: [
-      'The profile text is what is saved. When a script or a typed command changes a variable that has its own #variable line at the top level of the profile, the new value is written to that line, so it is still there after a reload.',
-      'Other variables, and entries made by scripts or typed on the input line, last for the session.',
+      'The profile text is what is saved, and it is what runs: the entries you see in the editor are the ones in the game.',
+      'Typed on the input line: a definition is saved at once. It is added to the profile, or it replaces the entry with the same Pattern, name or Key. An #un… command removes the entry. A variable is saved with the value it got. Nothing else in the profile changes.',
+      'Made by a script (the Commands of an alias, action, macro, ticker or event): lasts for the session, so an alias that arms a temporary action does not fill the profile. One exception: when a script changes a variable that has its own #variable line at the top level of the profile, the new value is written to that line.',
+      '#delay is never saved. #class open and close are not saved: an entry typed while a class is open is saved as an ordinary entry. Nothing is saved in offline replay mode. When a typed line cannot be saved, a [SYSTEM] line says so.',
     ],
   },
 ];
@@ -337,14 +357,6 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
-    heading: '#connect',
-    covers: ['connect'],
-    syntax: ['#connect'],
-    text: ['Connects to MUME. Client commands like this one are typed, or used in Commands; they are not run while a profile loads.'],
-    examples: [{ via: 'input', code: '#connect' }],
-  },
-  {
-    group: 'commands',
     heading: '#delay',
     covers: ['delay', 'undelay'],
     syntax: ['#delay {seconds} {commands}', '#delay {name} {commands} {seconds}', '#undelay {name}'],
@@ -362,14 +374,6 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
         check: { type: ['nap', 'up'], wait: 60, sends: ['sleep', 'wake', 'stand'] },
       },
     ],
-  },
-  {
-    group: 'commands',
-    heading: '#disconnect',
-    covers: ['disconnect'],
-    syntax: ['#disconnect'],
-    text: ['Closes the connection to MUME.'],
-    examples: [{ via: 'input', code: '#disconnect' }],
   },
   {
     group: 'commands',
@@ -478,9 +482,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     group: 'commands',
     heading: '#help',
     covers: ['help'],
-    syntax: ['#help'],
-    text: ['Lists the client commands in the game window.'],
-    examples: [{ via: 'input', code: '#help' }],
+    syntax: ['#help', '#help command', '#help topic'],
+    text: [
+      'Typed on the input line. Alone, it lists the commands and the topics of this manual in the game window.',
+      'With a command it shows that command here: #help alias. The word can be shortened as commands can, and the # may be left out or written: #help al, #help #alias, #help unalias. With a topic it shows that part of Basics: #help patterns.',
+    ],
+    examples: [
+      { via: 'input', code: '#help' },
+      { via: 'input', code: '#help highlight' },
+      { via: 'input', code: '#help colours' },
+    ],
   },
   {
     group: 'commands',
@@ -535,10 +546,6 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
         code: '#variable {target} {orc}\n#macro {F1} {kill $target}\n#macro {F2} {#variable {target} {};#showme {## Target cleared}}',
         check: { keys: ['F1', 'F2'], sends: ['kill orc'], shows: ['## Target cleared'], vars: { target: '' } },
       },
-      {
-        note: 'A client command on a key:',
-        code: '#macro {F12} {#reconnect}',
-      },
     ],
   },
   {
@@ -572,32 +579,6 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     syntax: ['#nop text'],
     text: ['A comment: does nothing. Braces in the text must still be in pairs, and inside Commands a ; ends it.'],
     examples: [{ code: '#nop ---- Combat ----\n#alias {k} {kill %1}', check: { type: ['k orc'], sends: ['kill orc'] } }],
-  },
-  {
-    group: 'commands',
-    heading: '#reconnect',
-    covers: ['reconnect'],
-    syntax: ['#reconnect'],
-    text: ['Closes the connection and connects again.'],
-    examples: [{ via: 'input', code: '#reconnect' }],
-  },
-  {
-    group: 'commands',
-    heading: '#replay',
-    covers: ['replay'],
-    syntax: ['#replay', '#replay speed'],
-    text: [
-      'Replays a Cockpit .log file that you pick, closing any connection first. Speed 1 is real time (the default) and 0 is as fast as possible.',
-    ],
-    examples: [{ via: 'input', code: '#replay 0' }],
-  },
-  {
-    group: 'commands',
-    heading: '#runlog',
-    covers: ['runlog'],
-    syntax: ['#runlog'],
-    text: ['Downloads the current run, or the last one, as a .log file.'],
-    examples: [{ via: 'input', code: '#runlog' }],
   },
   {
     group: 'commands',
@@ -695,7 +676,7 @@ function endSections(): HelpSection[] {
   ];
   for (const [hint, list] of byHint) text.push(`- ${hint} ${names(list)}`);
   text.push('In the EDITOR view such a command has a wavy underline, and a note at the bottom says why when the cursor is on its line.');
-  return [{ group: 'end', heading: 'Not supported', text }];
+  return [{ group: 'end', heading: 'Not supported', topics: ['unsupported'], text }];
 }
 
 /** Every section of the manual, in display order. */
@@ -793,8 +774,22 @@ export interface HelpLayout {
   headings: number[];
 }
 
-/** The manual as rows `width` cells wide. */
-export function helpLayout(width: number, sections: readonly HelpSection[] = helpSections()): HelpLayout {
+/** Text wrapped to `width` cells as `text` rows (a `- ` item keeps a hanging indent). */
+export function helpParagraph(text: string, width: number): HelpLine[] {
+  const out: HelpLine[] = [];
+  paragraph(out, text, Math.max(24, width));
+  return out;
+}
+
+/**
+ * The manual as rows `width` cells wide. `groups: false` leaves out the
+ * group titles (one section shown alone, as `#help alias` does).
+ */
+export function helpLayout(
+  width: number,
+  sections: readonly HelpSection[] = helpSections(),
+  opts: { groups?: boolean } = {},
+): HelpLayout {
   const w = Math.max(24, width);
   const lines: HelpLine[] = [];
   const headings: number[] = [];
@@ -807,7 +802,7 @@ export function helpLayout(width: number, sections: readonly HelpSection[] = hel
     if (s.group !== group) {
       group = s.group;
       const title = GROUP_TITLES[group];
-      if (title) {
+      if (title && opts.groups !== false) {
         lines.push({ kind: 'group', indent: 0, segs: [{ text: `─── ${title} ───` }] });
         blank();
       }

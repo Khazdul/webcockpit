@@ -132,11 +132,24 @@ describe('manual examples', () => {
 describe('manual coverage (no drift from the command table)', () => {
   const covered = new Set(sections.flatMap((s) => s.covers ?? []));
 
-  it('has a section for every command the engine runs', () => {
-    const runs = COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should' || c.tier === 'client').map((c) => c.name);
+  it('has a section for every command the engine runs, except the ones the menus cover', () => {
+    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help'];
     expect(runs.filter((n) => !covered.has(n))).toEqual([]);
-    // … and documents nothing the engine does not run.
+    // … and documents nothing beyond those.
     expect([...covered].filter((n) => !runs.includes(n))).toEqual([]);
+  });
+
+  it('leaves out the client commands that the menus cover, everywhere', () => {
+    const hidden = ['connect', 'reconnect', 'replay', 'runlog', 'disconnect'];
+    // They are still commands: only the manual is silent about them.
+    expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help'].sort());
+    const all = JSON.stringify(sections);
+    for (const h of hidden) {
+      expect(covered.has(h), h).toBe(false);
+      expect(sections.some((s) => s.heading === '#' + h), h).toBe(false);
+      expect(helpMenu().some((r) => r.label === '#' + h), h).toBe(false);
+      expect(all, h).not.toContain('#' + h);
+    }
   });
 
   it('command headings are alphabetical, starting with #action', () => {

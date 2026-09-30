@@ -120,6 +120,8 @@ TypeScript, unit tested in Node.
   an edit made in the editor meanwhile is not overwritten.
 - Everything else created at runtime (rules, new variables) lives for
   the session.
+- Amended by 0038: definitions and `#un…` commands typed on the input
+  line are written to the profile at once.
 
 ### Editor host
 

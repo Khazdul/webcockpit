@@ -35,8 +35,9 @@ test('built-in commands print locally', async ({ page }) => {
   await page.goto('/?replay');
   await field(page).fill('#help');
   await page.keyboard.press('Enter');
-  await expect(rows(page).filter({ hasText: '[SYSTEM] Built-in commands:' })).toHaveCount(1);
-  await expect(rows(page).filter({ hasText: '#replay [speed]' })).toHaveCount(1);
+  // The list comes from the manual (tests/e2e/help.spec.ts has the details).
+  await expect(rows(page).filter({ hasText: /^Commands$/ })).toHaveCount(1);
+  await expect(page.locator('.wc-rows .wc-help').filter({ hasText: '#replay' })).toHaveCount(0);
   await field(page).fill('#blah');
   await page.keyboard.press('Enter');
   await expect(rows(page).last()).toHaveText('[SYSTEM] Unknown command: #blah');

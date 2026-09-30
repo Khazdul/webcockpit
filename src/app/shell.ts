@@ -172,6 +172,8 @@ export class Shell {
     if (app && app.status.get().conn !== 'disconnected' && app.status.get().conn !== 'idle') {
       app.session.disconnect(REASON_USER_DISCONNECT);
     }
+    // The start page's editor must read everything typed in the session (ADR 0038).
+    await app?.flushWriteBack();
     if (!this.start) {
       const chrome = await this.loadChrome();
       this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });

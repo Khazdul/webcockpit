@@ -34,6 +34,12 @@ Newest first.
 - **Owner feedback 1:** intro wording changed; HELP gets a navigation
   menu on the left (click or ↑/↓ jumps to a section; hidden below 77
   cols). Unit 1230/1231, e2e 210/210.
+- **Owner feedback 2:** the five menu-covered client commands left the
+  manual; `#help` lists commands and topics, `#help <command|topic>`
+  prints the manual section in the HELP colours (ADR 0037). Definitions
+  and `#un…` typed on the input line are written to the profile at once;
+  script-made rules stay session-only (ADR 0038, amends 0015). Unit
+  1283/1284, e2e 214/214.
 - **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
   feedback); release; then plan the rest of stage 8.
 - **Open issues:** "alias missing in EDITOR" not reproduced; underscore

@@ -29,6 +29,7 @@ import { type CompiledPattern, argsFrom, compilePattern, globalRe, matchPattern 
 import { overlay, splice, styleAt } from './runs';
 import {
   DefineError,
+  LIST_KINDS,
   type ListKind,
   type MatchContext,
   type Rule,
@@ -73,10 +74,36 @@ export interface EngineOptions {
    * time (not while loading). For the profile write-back.
    */
   onVariable?: (name: string, value: string) => void;
+  /**
+   * The player typed a definition or an `#un…` on the input line and the
+   * engine accepted it (ADR 0038). Fires only for commands of the typed
+   * line itself: never for commands run by an alias, action, macro, timer
+   * or event body, and never while a profile loads. A typed variable set
+   * fires this instead of `onVariable`.
+   */
+  onTyped?: (change: TypedChange) => void;
   scheduler?: Scheduler;
   /** Wall clock in ms (for #format %t/%T/%U). */
   now?: () => number;
 }
+
+/** The kinds of definition a typed command can put in the profile (ADR 0038). */
+export type PersistKind = ListKind | 'variable' | 'ticker';
+
+/**
+ * A typed command the engine accepted (ADR 0038).
+ *
+ * `define`: `args` are the arguments that reproduce what the engine now
+ * holds when written as `#<kind> {arg} {arg}…` — rule patterns and bodies
+ * raw as typed (outer braces removed), a variable's expanded name and
+ * resulting value, a ticker's resolved seconds, and the priority as a
+ * number when one was given. `key` is the rule store's key.
+ *
+ * `undefine`: the keys the engine removed (a `*` form may remove several).
+ */
+export type TypedChange =
+  | { op: 'define'; kind: PersistKind; key: string; args: string[] }
+  | { op: 'undefine'; kind: PersistKind; keys: string[] };
 
 interface Ctx {
   /** Where definitions and variables go. */
@@ -573,6 +600,7 @@ export class ScriptEngine {
             return;
           }
           store.addTimer('ticker', name, body, secs);
+          this.typed(ctx, { op: 'define', kind: 'ticker', key: name, args: [name, body, String(secs)] });
           return;
         }
         case 'delay': {
@@ -601,7 +629,12 @@ export class ScriptEngine {
           }
           const body = kind === 'gag' ? '' : r.next('all');
           const pri = kind === 'macro' || kind === 'event' || kind === 'gag' ? undefined : this.priority(r.next('one'), ctx);
-          store.define(kind, pattern, body, pri === undefined ? {} : { priority: pri });
+          const made = store.define(kind, pattern, body, pri === undefined ? {} : { priority: pri });
+          if (ctx.direct) {
+            const args = kind === 'gag' ? [pattern] : [pattern, body];
+            if (pri !== undefined) args.push(String(pri));
+            this.typed(ctx, { op: 'define', kind, key: made.pattern, args });
+          }
         }
       }
     } catch (err) {
@@ -632,14 +665,29 @@ export class ScriptEngine {
       this.warn(`#${e.name} needs an argument.`);
       return;
     }
-    if (rule === 'variable') store.deleteVar(this.vars(arg, ctx));
-    else if (rule === 'ticker' || rule === 'delay') store.removeTimer(rule as TimerKind, arg);
-    else store.remove(LIST_KIND_BY_RULE[rule]!, arg);
+    if (rule === 'variable') this.typedRemoval(ctx, 'variable', store.deleteVars(this.vars(arg, ctx)));
+    else if (rule === 'delay') store.removeTimer('delay', arg);
+    else if (rule === 'ticker') this.typedRemoval(ctx, 'ticker', store.removeTimers('ticker', arg));
+    else {
+      const kind = LIST_KIND_BY_RULE[rule]!;
+      this.typedRemoval(ctx, kind, store.removeKeys(kind, arg));
+    }
   }
 
   private setVar(ctx: Ctx, name: string, value: string): void {
     ctx.store.setVar(name, value);
-    if (ctx.store === this.userStore && !this.loading) this.opts.onVariable?.(name, value);
+    if (ctx.store !== this.userStore || this.loading) return;
+    if (ctx.direct && this.opts.onTyped) this.opts.onTyped({ op: 'define', kind: 'variable', key: name, args: [name, value] });
+    else this.opts.onVariable?.(name, value);
+  }
+
+  /** Reports a typed, accepted command (see `EngineOptions.onTyped`). */
+  private typed(ctx: Ctx, change: TypedChange): void {
+    if (ctx.direct && ctx.store === this.userStore && !this.loading) this.opts.onTyped?.(change);
+  }
+
+  private typedRemoval(ctx: Ctx, kind: PersistKind, keys: string[]): void {
+    if (keys.length > 0) this.typed(ctx, { op: 'undefine', kind, keys });
   }
 
   /**
@@ -726,7 +774,18 @@ export class ScriptEngine {
         if (op === 'open') ctx.store.openClass = cls;
         else if (op === 'close') {
           if (ctx.store.openClass === cls) ctx.store.openClass = null;
-        } else if (op === 'kill' || op === 'clear') ctx.store.killClass(cls);
+        } else if (op === 'kill' || op === 'clear') {
+          // A typed kill reports what it removed, kind by kind (ADR 0038).
+          const gone = ctx.direct ? ctx.store.classMembers(cls) : null;
+          ctx.store.killClass(cls);
+          if (gone) {
+            for (const kind of LIST_KINDS) {
+              this.typedRemoval(ctx, kind, gone.rules.filter((x) => x.kind === kind).map((x) => x.pattern));
+            }
+            this.typedRemoval(ctx, 'variable', gone.vars);
+            this.typedRemoval(ctx, 'ticker', gone.timers.filter((t) => t.kind === 'ticker').map((t) => t.name));
+          }
+        }
         else this.warn(`#class {${cls}} {${op}}: only open, close and kill are supported.`);
         return;
       }

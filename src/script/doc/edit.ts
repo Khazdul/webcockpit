@@ -6,7 +6,7 @@
 // stores what it is given, so a pattern with an unbalanced brace is written
 // as is, like Cockpit's "saving is never blocked" (Inv §5.6).
 
-import type { DocNode, EntryKind, EntryNode, ProfileDoc } from './model';
+import { type DocNode, type EntryKind, type EntryNode, type ProfileDoc, parseNodeText } from './model';
 import { isBraceBalanced } from './text';
 
 // ---------------------------------------------------------------------------
@@ -186,6 +186,84 @@ export function addEntry(doc: ProfileDoc, entry: NewEntry): { doc: ProfileDoc; i
     nodes.push(node);
   }
   return { doc: { ...doc, nodes, nextId }, id };
+}
+
+/** The rule a node's command defines (`alias`, `gag`, `ticker` …), or null. */
+function definedRule(n: DocNode): string | null {
+  if (n.type === 'entry') return n.kind;
+  if (n.type === 'passthrough' && n.command?.kind === 'define') return n.command.rule ?? null;
+  return null;
+}
+
+/**
+ * Adds a top-level definition the document does not type as an entry
+ * (`#gag`, `#ticker`, `#event`; ADR 0038) as `#<word> {arg} {arg}…`.
+ * Placement follows `addEntry`: after the last command of the same rule;
+ * with none, after the last definition of any kind with a blank line
+ * before it (and after it, when text follows); with no definitions, at the
+ * end. The word copies the last command of the rule, else it is `rule`,
+ * upper-cased when the document's definitions are written upper-case.
+ */
+export function addCommand(doc: ProfileDoc, rule: string, args: readonly string[]): { doc: ProfileDoc; id: number } {
+  const nodes = doc.nodes.slice();
+  const id = doc.nextId;
+  const eol = doc.eol;
+  let lastSame = -1;
+  let lastAny = -1;
+  for (let i = 0; i < nodes.length; i++) {
+    const r = definedRule(nodes[i]!);
+    if (r === null) continue;
+    lastAny = i;
+    if (r === rule) lastSame = i;
+  }
+  const wordOf = (i: number): string => (nodes[i] as { word: string | null }).word ?? '';
+  let word = rule;
+  if (lastSame >= 0 && wordOf(lastSame) !== '') word = wordOf(lastSame);
+  else if (lastAny >= 0 && /[A-Z]/.test(wordOf(lastAny)) && wordOf(lastAny) === wordOf(lastAny).toUpperCase()) word = rule.toUpperCase();
+  const node = parseNodeText(commandText('', word, args, eol), id);
+  const blank = (bid: number): DocNode => ({ type: 'blank', id: bid, text: eol });
+  let nextId = id + 1;
+  if (lastSame >= 0) {
+    nodes[lastSame] = withEol(nodes[lastSame]!, eol);
+    nodes.splice(lastSame + 1, 0, node);
+  } else if (lastAny >= 0) {
+    nodes[lastAny] = withEol(nodes[lastAny]!, eol);
+    const insert: DocNode[] = [blank(nextId++), node];
+    const after = nodes[lastAny + 1];
+    if (after && after.type !== 'blank') insert.push(blank(nextId++));
+    nodes.splice(lastAny + 1, 0, ...insert);
+  } else {
+    const last = nodes[nodes.length - 1];
+    if (last) {
+      nodes[nodes.length - 1] = withEol(last, eol);
+      if (last.type !== 'blank') nodes.push(blank(nextId++));
+    }
+    nodes.push(node);
+  }
+  return { doc: { ...doc, nodes, nextId }, id };
+}
+
+/** `lead#word {arg} {arg}…eol`: the canonical text of a command. */
+export function commandText(lead: string, word: string, args: readonly string[], eol: string): string {
+  return `${lead}#${word}${args.map((a) => ` {${a}}`).join('')}${eol}`;
+}
+
+/**
+ * Rewrites one command node as `#<word> {arg} {arg}…`, keeping its id,
+ * command word, leading indent and line break. For commands that are not
+ * typed entries, and for entries written in a form the document does not
+ * type (`#var x 1`). Returns `doc` itself when the id is unknown, the node
+ * is not a command, or nothing changes.
+ */
+export function rewriteCommand(doc: ProfileDoc, id: number, args: readonly string[]): ProfileDoc {
+  const i = doc.nodes.findIndex((n) => n.id === id);
+  const n = doc.nodes[i];
+  if (!n || (n.type !== 'entry' && n.type !== 'passthrough') || !n.word) return doc;
+  const lead = /^[ \t]*/.exec(n.text)![0];
+  const eol = n.text.endsWith('\r\n') ? '\r\n' : n.text.endsWith('\n') ? '\n' : '';
+  const text = commandText(lead, n.word, args, eol);
+  if (text === n.text) return doc;
+  return replaceNode(doc, i, parseNodeText(text, n.id));
 }
 
 /**

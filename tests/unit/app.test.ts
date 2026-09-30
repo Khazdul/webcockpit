@@ -3,7 +3,7 @@
 // recorder) against a fake socket fed MUME's real opening bytes.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/app/app';
 import { formatStatus } from '../../src/app/status';
 import type { LockManagerLike } from '../../src/capture/recorder';
@@ -133,7 +133,7 @@ describe('App wiring against MUME opening bytes', () => {
     expect(log).not.toContain('hunter2');
   });
 
-  it('handles built-ins locally and reconnects on Enter after a drop', () => {
+  it('handles built-ins locally and reconnects on Enter after a drop', async () => {
     const t = setup();
     const { app } = t;
     app.connectLive();
@@ -146,7 +146,29 @@ describe('App wiring against MUME opening bytes', () => {
     expect(sock.sent.length).toBe(sent0);
     const out = t.outputText();
     expect(out).toContain('[SYSTEM] Unknown command: #blah');
-    expect(out).toContain('[SYSTEM] Built-in commands:');
+    // #help prints from the manual, which is loaded on demand (ADR 0037):
+    // nothing is sent, and several #help keep their typed order.
+    enter(app, '#help al');
+    enter(app, '#help foreach');
+    enter(app, '#help blah');
+    const recorded: string[] = [];
+    app.bus.on('text.display', (d) => recorded.push(d.line.text));
+    app.bus.on('text.line', (l) => recorded.push(l.text));
+    await vi.waitFor(() => expect(t.outputText()).toContain('[SYSTEM] No help for "blah". Type #help for the list.'));
+    expect(sock.sent.length).toBe(sent0);
+    const help = t.outputText().slice(out.length);
+    const at = (text: string) => help.indexOf(text);
+    expect(at('Commands')).toBe(1);
+    expect(help[at('Commands') + 1]).toMatch(/^ {4}#action +#alias +#class +#delay/);
+    expect(at('Topics')).toBeGreaterThan(at('Commands'));
+    expect(at('#alias')).toBeGreaterThan(at('Topics'));
+    expect(help[at('#alias') + 1]).toBe('    #alias {pattern} {commands} {priority}');
+    expect(at('[SYSTEM] #foreach: Not supported yet; kept in the profile as written.')).toBeGreaterThan(at('#alias'));
+    expect(help.join('\n')).not.toMatch(/#(connect|disconnect|reconnect|replay|runlog)/);
+    const rows = Array.from(app.output.el.querySelectorAll('.wc-help-code .wc-syn-cmd')).map((e) => e.textContent);
+    expect(rows).toContain('#alias');
+    // Help rows are not on the bus: not game text, no rule sees them.
+    expect(recorded).toEqual([]);
 
     sock.drop('closed by server (code 1006)');
     expect(app.session.state).toBe('disconnected');
@@ -157,7 +179,7 @@ describe('App wiring against MUME opening bytes', () => {
     enter(app, '');
     expect(t.sockets).toHaveLength(2);
     expect(app.session.state).toBe('connecting');
-    expect(app.input.getHistory()).toEqual(['#blah', '#HELP']);
+    expect(app.input.getHistory()).toEqual(['#blah', '#HELP', '#help al', '#help foreach', '#help blah']);
   });
 
   it('reports replay in the status and does not capture a replay', async () => {

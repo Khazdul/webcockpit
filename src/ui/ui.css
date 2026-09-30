@@ -105,6 +105,23 @@ body {
   color: var(--c-yellow);
 }
 
+/* tt++ syntax colours (src/editor/syntax.ts): the profile editor, its HELP
+ * view, and `#help` rows in the game window (ADR 0037). */
+.wc-syn-cmd { color: var(--c-syn-cmd); }
+.wc-syn-brace { color: var(--c-syn-brace); }
+.wc-syn-delim { color: var(--c-syn-delim); }
+.wc-syn-var { color: var(--c-syn-var); }
+.wc-syn-code { color: var(--c-syn-code); }
+
+/* `#help` rows: the HELP view's roles (HELP_CLS in src/editor/frame.tsx;
+ * the wc-c-* classes of the chrome kit use the same tokens). */
+.wc-help-group { color: var(--c-section); font-weight: bold; }
+.wc-help-heading { color: var(--c-title); font-weight: bold; }
+.wc-help-syntax { color: var(--c-active); font-weight: bold; }
+.wc-help-text { color: var(--c-body); }
+.wc-help-note { color: var(--c-hint); }
+.wc-help-code { color: var(--c-item); }
+
 /* The command echo in the input colour (ADR 0034, 0035); --term-echo is a
  * root token. The input line (.wc-input-prompt, -field, -mask) uses it too. */
 .wc-echo {

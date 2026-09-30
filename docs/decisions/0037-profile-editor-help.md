@@ -137,6 +137,64 @@ section ("the syntax for #highlight").
   behave as before.
 - Menu rows use the list rows' line-height fix (see Underscores).
 
+### `#help` on the input line (2026-09-30)
+
+The owner: `#connect`, `#disconnect`, `#reconnect`, `#replay` and
+`#runlog` are covered by the menus and are not to be shown in help; and
+`#help alias` on the input line should print the manual's section.
+
+- **Five commands left out.** Their sections are gone from the manual,
+  and with them from the navigation menu; the manual text does not name
+  them. The commands work as before. The drift test now requires a
+  section for every `must` and `should` command plus `help`, and asserts
+  the five are absent. This replaces "every command of tier `must`,
+  `should` or `client`" above.
+- **Topics.** A section may carry `topics`: words for `#help <topic>`.
+  The Basics sections have one each (`braces`, `arguments`, `variables`,
+  `patterns`, `priorities`, `colours` / `colors`, `keys`, `typing`,
+  `saved`) and the closing section has `unsupported`.
+- **`#help`** lists the command headings and the first topic word of each
+  section in columns, from the manual data, then one paragraph: `#help
+  <command>` or `<topic>` shows the details, HELP in the profile editor
+  has the whole manual. "While disconnected, Enter reconnects." is kept
+  from the old list. `HELP_LINES` in `app.ts` is gone.
+- **`#help <word>`** (`src/app/help-command.ts`, `resolveHelp`): a topic
+  written in full; else a command, resolved by `resolveCommand`, so
+  `al`, `#alias` and `unalias` all give the `#alias` section (the
+  section that `covers` the command); else the start of a topic, two
+  letters or more (`col`). With a `#` the word is only a command. A
+  command the engine does not run gives one system line with the command
+  table's hint; one of the five gives "has no help entry; it is handled
+  from the menus"; anything else points to `#help`.
+- **Same layout, same colours.** The section is laid out by `helpLayout`
+  (new option `groups: false`: no group title) at the game pane's width
+  less one cell, at most 100; the list uses the same row kinds. Each row
+  becomes an output pane row `wc-help wc-help-<kind>` with the lexer's
+  `wc-syn-*` spans. `ui.css` gives the row kinds the tokens the HELP view
+  uses (`--c-title`, `--c-active` bold, `--c-body`, `--c-hint`,
+  `--c-item`), and the `wc-syn-*` rules moved there from `editor.css`, so
+  there is one definition and the colours follow the theme. Style runs
+  were not used: a run carries a palette index or an RGB value, not a
+  theme token.
+- **Not game text.** The rows go to the pane through
+  `OutputPane.pushStyled`, not over the bus. `#showme` lines are
+  `text.display` lines and run actions, substitutes and highlights;
+  system lines are `sys.message`. Help follows the system-line
+  convention one step further: no bus event at all, so no action,
+  substitute, gag or highlight sees the rows and nothing records them
+  (capture records `text.line`; neither `#showme` nor system lines are
+  captured either). They queue with the game lines, so they land in
+  order, above an open prompt. One-line answers (not supported, unknown)
+  are ordinary `[SYSTEM]` lines.
+- **Lazy.** `help.ts` and `help-command.ts` are their own chunks; `app.ts`
+  loads them with a dynamic import on the first `#help`, and a promise
+  chain keeps several `#help` in typed order. Measured on a production
+  build: the manual chunk is 27.4 kB (9.9 kB gzip) and is not preloaded;
+  the editor chunk shrinks by the same amount; `app` grows 0.26 kB,
+  `index` 0.11 kB and the start-up CSS 0.45 kB. `commands.ts` and the
+  kit's `wrapText` became small shared chunks of their own (4.4 kB,
+  preloaded, taken out of `keys`; 1.9 kB, loaded with the chrome).
+
 ## Consequences
 
 - The same clipping exists wherever the chrome shows text in `.wc-line`

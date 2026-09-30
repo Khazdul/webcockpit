@@ -252,11 +252,8 @@
   background: var(--c-sel-bg);
 }
 
-.wc-syn-cmd { color: var(--c-syn-cmd); }
-.wc-syn-brace { color: var(--c-syn-brace); }
-.wc-syn-delim { color: var(--c-syn-delim); }
-.wc-syn-var { color: var(--c-syn-var); }
-.wc-syn-code { color: var(--c-syn-code); }
+/* The wc-syn-* colours are in src/ui/ui.css: `#help` in the game window
+ * uses them before this chunk is loaded (ADR 0037). */
 
 .wc-syn-inert {
   text-decoration: underline wavy var(--c-note);

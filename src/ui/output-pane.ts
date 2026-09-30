@@ -58,6 +58,18 @@ const OP_ECHO_ATTACH = 3;
 const OP_COMMENT = 4;
 /** A player blank row (stage 7 spotlight transition). */
 const OP_BLANK = 5;
+/** A client row with classed spans (`#help`, ADR 0037). */
+const OP_STYLED = 6;
+
+/**
+ * A client row that is not game text: `cls` on the row, and text segments
+ * with an optional class each (colours come from the style sheet, so they
+ * follow the theme).
+ */
+export interface StyledRow {
+  cls: string;
+  segs: ReadonlyArray<{ text: string; cls?: string }>;
+}
 
 interface Op {
   kind: number;
@@ -65,6 +77,8 @@ interface Op {
   text: string;
   /** Row stamp for OP_COMMENT (µs), else 0. */
   ts?: number;
+  /** The row of an OP_STYLED. */
+  styled?: StyledRow;
 }
 
 export interface OutputPaneOptions {
@@ -252,8 +266,17 @@ export class OutputPane {
     this.schedule();
   }
 
-  private push(kind: number, line: Line | null, text: string): void {
-    this.queue.push({ kind, line, text });
+  /**
+   * Client rows with classed spans (`#help`, ADR 0037). They are not on the
+   * bus: nothing records them and no script rule sees them. They queue with
+   * the game lines, so they land in order, above an open partial.
+   */
+  pushStyled(rows: readonly StyledRow[]): void {
+    for (const styled of rows) this.push(OP_STYLED, null, '', styled);
+  }
+
+  private push(kind: number, line: Line | null, text: string, styled?: StyledRow): void {
+    this.queue.push(styled ? { kind, line, text, styled } : { kind, line, text });
     const pending = this.queue.length - this.head;
     if (pending > this.scrollback * 2) {
       // Only the newest `scrollback` rows can survive; drop the rest now so
@@ -309,6 +332,8 @@ export class OutputPane {
       } else if (op.kind === OP_BLANK) {
         row = doc.createElement('div');
         row.className = 'wc-row wc-blank';
+      } else if (op.kind === OP_STYLED) {
+        row = renderStyled(doc, op.styled!);
       } else if (op.kind === OP_ECHO_ATTACH) {
         row = renderEcho(doc, prev && !prev.classList.contains('wc-echoed') ? prev : null, op.text);
       } else {
@@ -578,6 +603,23 @@ export function renderEcho(doc: Document, prompt: HTMLElement | null, text: stri
   row.className = 'wc-row';
   span.textContent = text;
   row.appendChild(span);
+  return row;
+}
+
+/** Builds one row element for a client row with classed spans. */
+export function renderStyled(doc: Document, r: StyledRow): HTMLElement {
+  const row = doc.createElement('div');
+  row.className = r.cls ? 'wc-row ' + r.cls : 'wc-row';
+  for (const s of r.segs) {
+    if (!s.cls) {
+      row.appendChild(doc.createTextNode(s.text));
+      continue;
+    }
+    const span = doc.createElement('span');
+    span.className = s.cls;
+    span.textContent = s.text;
+    row.appendChild(span);
+  }
   return row;
 }
 

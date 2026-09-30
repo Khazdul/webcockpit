@@ -204,21 +204,26 @@ export class RuleStore {
    * `*`) every key the glob matches. Returns the number removed.
    */
   remove(kind: ListKind, pattern: string): number {
+    return this.removeKeys(kind, pattern).length;
+  }
+
+  /** As `remove`, returning the keys of the rules that were removed. */
+  removeKeys(kind: ListKind, pattern: string): string[] {
     let key = pattern;
     if (kind === 'macro') key = normalizeKey(pattern) ?? pattern;
     else if (kind === 'event') key = pattern.trim().toUpperCase().replace(/\s+/g, ' ');
     if (this.removeKey(kind, key)) {
       this.version++;
-      return 1;
+      return [key];
     }
-    if (!pattern.includes('*')) return 0;
+    if (!pattern.includes('*')) return [];
     const re = globToRegExp(pattern);
-    let n = 0;
+    const out: string[] = [];
     for (const r of this.lists[kind].slice()) {
-      if (re.test(r.pattern) && this.removeKey(kind, r.pattern)) n++;
+      if (re.test(r.pattern) && this.removeKey(kind, r.pattern)) out.push(r.pattern);
     }
-    if (n) this.version++;
-    return n;
+    if (out.length) this.version++;
+    return out;
   }
 
   /** The alias for a command's first word (plain aliases only). */
@@ -256,21 +261,26 @@ export class RuleStore {
 
   /** Removes variables by name or glob. Returns the number removed. */
   deleteVar(pattern: string): number {
+    return this.deleteVars(pattern).length;
+  }
+
+  /** As `deleteVar`, returning the names that were removed. */
+  deleteVars(pattern: string): string[] {
     if (this.vars.delete(pattern)) {
       this.varClass.delete(pattern);
-      return 1;
+      return [pattern];
     }
-    if (!pattern.includes('*')) return 0;
+    if (!pattern.includes('*')) return [];
     const re = globToRegExp(pattern);
-    let n = 0;
+    const out: string[] = [];
     for (const k of [...this.vars.keys()]) {
       if (re.test(k)) {
         this.vars.delete(k);
         this.varClass.delete(k);
-        n++;
+        out.push(k);
       }
     }
-    return n;
+    return out;
   }
 
   // ---------------------------------------------------------------- timers
@@ -310,24 +320,29 @@ export class RuleStore {
 
   /** Stops timers by name or glob. Returns the number removed. */
   removeTimer(kind: TimerKind, pattern: string): number {
+    return this.removeTimers(kind, pattern).length;
+  }
+
+  /** As `removeTimer`, returning the names of the timers that were stopped. */
+  removeTimers(kind: TimerKind, pattern: string): string[] {
     const k = kind + ':' + pattern;
     const t = this.timers.get(k);
     if (t) {
       this.scheduler.clear(t.handle);
       this.timers.delete(k);
-      return 1;
+      return [pattern];
     }
-    if (!pattern.includes('*')) return 0;
+    if (!pattern.includes('*')) return [];
     const re = globToRegExp(pattern);
-    let n = 0;
+    const out: string[] = [];
     for (const [key, tt] of [...this.timers]) {
       if (tt.kind === kind && re.test(tt.name)) {
         this.scheduler.clear(tt.handle);
         this.timers.delete(key);
-        n++;
+        out.push(tt.name);
       }
     }
-    return n;
+    return out;
   }
 
   timerList(kind: TimerKind): Timer[] {
@@ -335,6 +350,16 @@ export class RuleStore {
   }
 
   // --------------------------------------------------------------- classes
+
+  /** What `killClass(cls)` would remove: rules, variable names and timers. */
+  classMembers(cls: string): { rules: Rule[]; vars: string[]; timers: Timer[] } {
+    const rules: Rule[] = [];
+    for (const kind of LIST_KINDS) for (const r of this.lists[kind]) if (r.cls === cls) rules.push(r);
+    const vars: string[] = [];
+    for (const [name, c] of this.varClass) if (c === cls) vars.push(name);
+    const timers = [...this.timers.values()].filter((t) => t.cls === cls);
+    return { rules, vars, timers };
+  }
 
   /** Removes every rule, variable and timer of class `cls`. Returns the count. */
   killClass(cls: string): number {

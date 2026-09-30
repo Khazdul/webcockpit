@@ -266,3 +266,16 @@ the character in the input line is ever a problem in play.
 - 2026-09-30, HELP: intro wording changed (no "from the ESC menu"; LITE
   and EDITOR described in the owner's words); a navigation menu on the
   left jumps to a section (ADR 0037, "Navigation menu").
+- 2026-09-30, help and saving: `#connect`, `#reconnect`, `#replay`,
+  `#runlog`, `#disconnect` are not shown in help (menus cover them);
+  `#help` lists commands, `#help alias` / `#help al` shows the section
+  with syntax and examples in colour; settings typed in the game window
+  are saved to the profile at once so the game and ESC → Profile always
+  agree. Done in ADRs 0037 (amended) and 0038. Open for the owner:
+  script-made rules are not saved; nothing is saved in offline replay
+  mode; two system lines outside the manual still name `#connect` /
+  `#replay`.
+  Test guide: type `#help`, `#help al`, `#help patterns`. Type
+  `#alias {zz} {say hi}`, open ESC → Profile: `zz` is in LITE and
+  EDITOR. Type `#unalias zz`, reopen: gone. Type `#var target orc`,
+  reload the page: still set.
