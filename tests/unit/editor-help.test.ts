@@ -362,4 +362,21 @@ describe('layout', () => {
       if (f.menu) expect(f.at - f.menuAt).toBe(19 + 1 + HELP_MENU_GAP);
     }
   });
+
+  it('fill: the same left edges, the manual runs to the last cell of the grid', () => {
+    const at = (cols: number) => Math.floor((cols - 77) / 2);
+    for (let cols = 79; cols < 260; cols++) {
+      const plain = helpFrame(cols, 77, at(cols), 19);
+      const fill = helpFrame(cols, 77, at(cols), 19, true);
+      expect(fill.menu).toBe(true);
+      expect(fill.menuAt).toBe(plain.menuAt);
+      expect(fill.at).toBe(plain.at);
+      expect(fill.at + fill.width).toBe(cols);
+      expect(fill.width).toBeGreaterThanOrEqual(HELP_MIN_W);
+    }
+    expect(helpFrame(79, 77, 1, 19, true)).toEqual({ menu: true, menuAt: 1, at: 24, width: 55 });
+    expect(helpFrame(140, 77, 31, 19, true)).toEqual({ menu: true, menuAt: 8, at: 31, width: 109 });
+    // A menu too wide for the frame is dropped; the manual still fills from the column's left edge.
+    expect(helpFrame(79, 77, 1, 40, true)).toEqual({ menu: false, menuAt: 0, at: 1, width: 78 });
+  });
 });

@@ -57,6 +57,7 @@ import {
 } from './help';
 import {
   type EditorViewName,
+  FULL_W,
   HINTS,
   HL_COLORS,
   HL_STYLES,
@@ -71,6 +72,7 @@ import {
   TOGGLE_W,
   VIEWS,
   ansiIndex,
+  bodyWidth,
   dropEmpty,
   ellipsis,
   entryWarning,
@@ -117,7 +119,6 @@ const FIELDS: Readonly<Record<LiteKind, readonly Field[]>> = {
 };
 
 /** Sizes in cells (Inv §5.3). */
-const FULL_W = 77;
 const DETAIL_W = 35;
 const KIND_W = 13;
 const KIND_GAP = 3;
@@ -260,7 +261,9 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // and the scrollbar (help.ts `helpFrame`).
   const menu = useMemo(() => helpMenu(), []);
   const menuW = useMemo(() => helpMenuWidth(menu), [menu]);
-  const hf = helpFrame(cols, W, at, menuW);
+  // At full size EDITOR and HELP run to the last cell of the grid (ADR 0037).
+  const bufW = bodyWidth(cols, W, at);
+  const hf = helpFrame(cols, W, at, menuW, W >= FULL_W);
   const manual = useMemo(() => helpLayout(hf.width - 2), [hf.width]);
   const helpMax = Math.max(0, manual.lines.length - bufferH);
   const hTop = Math.min(helpTop, helpMax);
@@ -1287,7 +1290,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         class="wc-ped-bufwrap"
         style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})`, ...(help ? { display: 'none' } : {}) }}
       >
-        <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${W - 1})` }} />
+        <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${bufW - 1})` }} />
         <div class="wc-ped-bufbar">
           {Array.from({ length: bufferH }, (_, i) =>
             bar.length && i < bar.length ? (

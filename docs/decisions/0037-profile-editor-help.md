@@ -195,6 +195,30 @@ The owner: `#connect`, `#disconnect`, `#reconnect`, `#replay` and
   kit's `wrapText` became small shared chunks of their own (4.4 kB,
   preloaded, taken out of `keys`; 1.9 kB, loaded with the chrome).
 
+### Full width (2026-09-30)
+
+The owner asked that EDITOR and HELP use the window's width: same left
+margin, the scrollbar at the far right.
+
+- **Rule.** The frame's centred column is still `W = max(40, min(77,
+  cols - 2))` cells at `at = floor((cols - W) / 2)`. At full size (`W` =
+  77, that is `cols` ≥ 79) the body of EDITOR and HELP keeps its left
+  edge and ends in the last cell of the grid: the EDITOR buffer is
+  `cols - at - 1` cells at `at` with its scrollbar in cell `cols - 1`
+  (`bodyWidth` in `logic.ts`); the HELP menu and manual start where they
+  did (`helpFrame`, new argument `fill`) and the manual column is
+  `cols - left` cells: text, one blank cell, the scrollbar in cell
+  `cols - 1`. The manual is laid out again at that width.
+- **Flush, no right margin.** The scrollbar is in the very last cell, as
+  the output pane's is. In the game the frame's grid is the ESC menu's
+  box, so the scrollbar sits in the box's last cell, inside its border.
+- **Narrow frames are unchanged.** Under 79 cells the column already
+  spans the frame less one cell on each side; EDITOR and HELP keep it.
+- **Everything else stays on the column.** LITE, the title and the view
+  toggle, the footer (hints centred, `Ln, Col` ending at the column's
+  right edge) and the overlays are where they were, so the toggle does
+  not move when the view changes.
+
 ## Consequences
 
 - The same clipping exists wherever the chrome shows text in `.wc-line`

@@ -431,7 +431,7 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   await page.mouse.wheel(0, 100);
   await expect(helpTopRow(page)).toHaveText(fourth!);
   await page.keyboard.press('End');
-  await expect(helpRows(page).last()).toContainText('cursor is on its line.');
+  await expect(helpRows(page).last()).toContainText('on its line.');
   await expect(ped(page).locator('.wc-ped-help')).toContainText('#foreach');
   await page.keyboard.press('Home');
   await expect(helpTopRow(page)).toHaveText('Writing a profile');
@@ -599,7 +599,7 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
   for (let i = 0; i < 15; i++) await page.mouse.wheel(0, 100);
   await menuEntry(page, 'Not supported').click();
   await expect(menuCurrent(page)).toHaveText(/^ Not supported\s*$/);
-  await expect(helpRows(page).last()).toContainText('cursor is on its line.');
+  await expect(helpRows(page).last()).toContainText('on its line.');
   await expect(ped(page).locator('.wc-ped-manual [data-kind="heading"] .wc-ped-help-text').last()).toHaveText('Not supported');
   await page.keyboard.press('p');
   await expect(menuCurrent(page)).toHaveText(/^ #variable\s*$/);
@@ -619,7 +619,7 @@ test('HELP menu scrolls to keep the current section in view', async ({ page }) =
   await helpMenu(page).hover();
   for (let i = 0; i < 15; i++) await page.mouse.wheel(0, -100);
   await expect(menuEntry(page, 'Writing a profile')).toBeVisible();
-  await expect(helpRows(page).last()).toContainText('cursor is on its line.');
+  await expect(helpRows(page).last()).toContainText('on its line.');
   await menuEntry(page, 'Patterns').click();
   await expect(helpTopRow(page)).toHaveText('Patterns');
   // Walking down the menu brings the entries in, one by one, to the end.
@@ -656,6 +656,94 @@ test('HELP in a narrow window: no menu, the manual and its keys as before', asyn
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
   await expect(helpTopRow(page)).toHaveText('#help');
   expect(errors).toEqual([]);
+});
+
+// ------------------------------------------------- full width (ADR 0037)
+
+const edges = async (l: Locator): Promise<{ left: number; right: number; width: number }> => {
+  const b = (await l.boundingBox())!;
+  return { left: b.x, right: b.x + b.width, width: b.width };
+};
+const LONG = Array.from({ length: 120 }, (_, i) => `#alias {a${i}} {say ${i}}`).join('\n') + '\n';
+
+/** EDITOR and HELP at full size: the LITE block's left edge, the scrollbar in the frame's last cell. */
+async function expectFullWidth(page: Page, manualAtColumn: boolean): Promise<void> {
+  const frame = await edges(ped(page));
+  await kind(page, 'alias');
+  const lite = await edges(ped(page).locator('.wc-ped-list'));
+  const toggle = await edges(ped(page).locator('.wc-ped-toggle'));
+  expect(frame.right - toggle.right).toBeGreaterThan(20); // there is room to fill
+
+  await toEditor(page);
+  const buffer = await edges(ped(page).locator('.wc-ped-buffer'));
+  const bar = await edges(ped(page).locator('.wc-ped-bufbar'));
+  expect(buffer.left).toBeCloseTo(lite.left, 0);
+  expect(bar.left).toBeCloseTo(buffer.right, 0);
+  expect(bar.right).toBeCloseTo(frame.right, 0);
+  // The toggle stays where it is in LITE.
+  expect((await edges(ped(page).locator('.wc-ped-toggle'))).right).toBeCloseTo(toggle.right, 0);
+  // The scrollbar still pages: a click on the track below the thumb.
+  const thumbs = ped(page).locator('.wc-ped-bufbar .wc-scroll-thumb');
+  const before = (await thumbs.first().boundingBox())!.y;
+  await ped(page).locator('.wc-ped-bufbar .wc-scroll-track').last().dispatchEvent('mousedown');
+  await expect.poll(async () => (await thumbs.first().boundingBox())!.y).toBeGreaterThan(before);
+
+  await toHelp(page);
+  const menu = await edges(helpMenu(page));
+  const text = await edges(helpTopRow(page));
+  const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
+  expect(track.right).toBeCloseTo(frame.right, 0);
+  expect(menu.right).toBeLessThan(text.left);
+  if (manualAtColumn) expect(text.left).toBeCloseTo(lite.left, 0);
+  // The manual is laid out to the new width: its rows end one blank cell before the scrollbar.
+  expect(text.right).toBeCloseTo(track.left, 0);
+  expect(text.width).toBeGreaterThan(toggle.right - lite.left);
+  await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().dispatchEvent('mousedown');
+  await expect(helpTopRow(page)).not.toHaveText('Writing a profile');
+  await menuEntry(page, '#alias').click();
+  await expect(helpTopRow(page)).toHaveText('#alias');
+}
+
+test('EDITOR and HELP fill the frame to its last cell from the start page; LITE keeps its column', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await openFromStart(page, LONG);
+  await expectFullWidth(page, true);
+  // The frame ends in the window's last cell.
+  const frame = await edges(ped(page));
+  expect(1600 - frame.right).toBeLessThan(frame.width / 79);
+  expect(errors).toEqual([]);
+});
+
+test('EDITOR and HELP fill the in-game box to its last cell', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await mockMume(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.evaluate(async (t) => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.save('default', t);
+  }, LONG);
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  await expectFullWidth(page, false);
+  const box = (await page.locator('.wc-overlay .wc-overlay-inner').boundingBox())!;
+  const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
+  expect(track.right).toBeLessThanOrEqual(box.x + box.width);
+  expect(errors).toEqual([]);
+});
+
+test('EDITOR in a narrow window keeps the centred column', async ({ page }) => {
+  await page.setViewportSize({ width: 620, height: 600 });
+  await openFromStart(page, LONG);
+  const toggle = await edges(ped(page).locator('.wc-ped-toggle'));
+  await toEditor(page);
+  const bar = await edges(ped(page).locator('.wc-ped-bufbar'));
+  expect(bar.right).toBeCloseTo(toggle.right, 0);
+  expect((await edges(ped(page))).right - bar.right).toBeGreaterThan(bar.width / 2);
 });
 
 // ------------------------------------------- every character is visible

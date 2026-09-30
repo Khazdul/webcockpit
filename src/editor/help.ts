@@ -945,13 +945,14 @@ export interface HelpFrame {
  * column is `W` cells at `at`. The menu (`menuW` cells, its scrollbar and
  * the gap) goes in the left margin. With too little margin the manual moves
  * right, then narrows; under HELP_MIN_W the menu is dropped and the manual
- * keeps the centred column.
+ * keeps the centred column. With `fill` (a full-size frame, ADR 0037) the
+ * left edges are the same and the manual runs to the last cell of the grid.
  */
-export function helpFrame(cols: number, W: number, at: number, menuW: number): HelpFrame {
+export function helpFrame(cols: number, W: number, at: number, menuW: number, fill = false): HelpFrame {
   const side = menuW + 1 + HELP_MENU_GAP;
   const menuAt = Math.max(1, at - side);
   const left = menuAt + side;
-  const width = Math.min(W, cols - 1 - left);
-  if (width < HELP_MIN_W) return { menu: false, menuAt: 0, at, width: W };
+  const width = fill ? cols - left : Math.min(W, cols - 1 - left);
+  if (width < HELP_MIN_W) return { menu: false, menuAt: 0, at, width: fill ? Math.max(W, cols - at) : W };
   return { menu: true, menuAt, at: left, width };
 }

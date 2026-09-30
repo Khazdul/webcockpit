@@ -10,8 +10,10 @@ import {
   listRows,
   parseHighlight,
   rowText,
+  FULL_W,
   TOGGLE_W,
   VIEWS,
+  bodyWidth,
   sentinelPrompt,
   serializeHighlight,
   stepView,
@@ -243,6 +245,21 @@ describe('view toggle', () => {
     // A button is its label with one cell on each side.
     for (const v of VIEWS) expect(v.width).toBe(v.label.length + 2);
     expect(TOGGLE_W).toBe(' LITE   EDITOR   HELP '.length);
+  });
+
+  it('EDITOR and HELP body: the column when narrow, to the last cell at full size', () => {
+    const frame = (cols: number) => {
+      const W = Math.max(40, Math.min(FULL_W, cols - 2));
+      const at = Math.max(0, Math.floor((cols - W) / 2));
+      return { at, W, body: bodyWidth(cols, W, at) };
+    };
+    // Narrow (under 79 cells): the centred column, as LITE.
+    for (let cols = 42; cols < 79; cols++) expect(frame(cols).body).toBe(frame(cols).W);
+    expect(frame(78)).toEqual({ at: 1, W: 76, body: 76 });
+    // Full size: the left edge stays, the right edge is the grid's.
+    expect(frame(79)).toEqual({ at: 1, W: 77, body: 78 });
+    expect(frame(140)).toEqual({ at: 31, W: 77, body: 109 });
+    for (let cols = 79; cols < 300; cols++) expect(frame(cols).at + frame(cols).body).toBe(cols);
   });
 
   it('steps left and right without wrapping', () => {

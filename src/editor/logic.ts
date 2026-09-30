@@ -302,6 +302,19 @@ export const VIEWS: readonly { view: EditorViewName; label: string; width: numbe
 /** Width of the toggle: ` LITE ` + space + ` EDITOR ` + space + ` HELP `. */
 export const TOGGLE_W = VIEWS.reduce((n, v) => n + v.width, 0) + VIEWS.length - 1;
 
+/** Width of the centred column at full size (title, kind row, LITE body). */
+export const FULL_W = 77;
+
+/**
+ * Width of the EDITOR and HELP body in a frame `cols` wide whose centred
+ * column is `W` cells at `at`. At full size (`W` = FULL_W) the body keeps
+ * the column's left edge and runs to the last cell of the grid, so its
+ * scrollbar is in the rightmost cell; a narrower frame keeps the column.
+ */
+export function bodyWidth(cols: number, W: number, at: number): number {
+  return W >= FULL_W ? Math.max(W, cols - at) : W;
+}
+
 /** The view ← / → moves to from `cur` in the toggle (no wrap-around). */
 export function stepView(cur: EditorViewName, dir: 1 | -1): EditorViewName {
   const i = VIEWS.findIndex((v) => v.view === cur);
