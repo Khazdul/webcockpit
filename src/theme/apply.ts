@@ -3,12 +3,15 @@
 // Root (`applyTheme`, on <html>):
 //   --term-fg --term-bg --ansi-0..15       terminal colours
 //   --font-mono --pad                      font stack, app padding
-//   --c-<role>                              UI roles (presets.ts UI_COLORS)
+//   --c-<role>                              UI roles (presets.ts UI_COLORS, or
+//                                           UI_COLORS_LIGHT on a light bg;
+//                                           `themeColors`, ADR 0041)
 //   --c-line-hl                             editor current-line band
 //   --term-echo                             input colour: command echo and
 //                                           input line (ADR 0034, 0035)
 //   --banner-* --star-* --ui-*              banner and UI-message colours
 //   --st-*                                  Statistics / History data colours
+//                                           (all three light-aware as --c-*)
 //   --pane-bg-<tint> --pane-border-<tint>   every tint for swatches
 //   data-cursor="block|beam|underline", data-cursor-blink="on|off",
 //   data-light (present when the terminal bg is light)
@@ -29,21 +32,34 @@ import type { AppearanceSettings, Settings } from '../settings/types';
 import {
   SHADE_ROLES,
   type ShadeRole,
+  fitContrast,
   isLight,
+  lightShift,
   lineHighlight,
+  mix,
+  normalizeHex,
   paneBorder,
   paneEffectiveBg,
   paneIsLight,
   paneShades,
+  takesDarkInk,
 } from './color';
 import { FONTS } from './fonts';
 import {
   BANNER_COLORS,
+  BANNER_COLORS_LIGHT,
+  BANNER_MIN_CONTRAST,
   DEFAULT_INPUT_COLOR,
   INPUT_COLORS,
   type InputColor,
   STATS_COLORS,
+  STATS_COLORS_LIGHT,
+  STATS_LIGHT_TRACK,
+  STATS_MIN_CONTRAST,
   UI_COLORS,
+  UI_COLORS_LIGHT,
+  UI_LIGHT_FILLS,
+  UI_MIN_CONTRAST,
   UI_MESSAGE_COLORS,
 } from './presets';
 
@@ -66,6 +82,71 @@ export function inputColor(id: InputColor, termBg: string): string {
   return `color-mix(in oklab, var(--term-fg) ${mix.pct}%, ${tint})`;
 }
 
+/** The colour families of the chrome and the client's own rows. */
+export interface ThemeColors {
+  /** `--c-<role>` */
+  ui: Record<string, string>;
+  /** `--banner-*`, `--star-*` */
+  banner: Record<string, string>;
+  /** `--ui-<key>` */
+  messages: Record<string, string>;
+  /** `--st-<key>` */
+  stats: Record<string, string>;
+}
+
+/**
+ * The UI colours for a terminal background (ADR 0041).
+ *
+ * - A dark background (`isLight` false): the dark tables, exactly.
+ * - A light background that takes dark ink: the light tables, each text
+ *   role darkened as far as its least contrast asks for on this
+ *   background (nothing changes on `paper`), the fills derived from the
+ *   background.
+ * - A background that counts as light but is dark to the eye (a saturated
+ *   blue or violet): the dark tables, each text role lightened to the same
+ *   contrasts.
+ */
+export function themeColors(termBg: string): ThemeColors {
+  if (!isLight(termBg)) {
+    return { ui: { ...UI_COLORS }, banner: { ...BANNER_COLORS }, messages: { ...UI_MESSAGE_COLORS }, stats: { ...STATS_COLORS } };
+  }
+  const bg = normalizeHex(termBg) ?? '#ffffff';
+  const dark = takesDarkInk(bg);
+  const ink = dark ? '#000000' : '#ffffff';
+  const fit = (
+    table: Readonly<Record<string, string>>,
+    min: Readonly<Record<string, number>>,
+    against: (role: string) => string = () => bg,
+  ): Record<string, string> => {
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(table)) out[k] = fitContrast(v, against(k), min[k] ?? 0, ink);
+    return out;
+  };
+
+  let ui: Record<string, string>;
+  let stats: Record<string, string>;
+  if (dark) {
+    const selFg = bg;
+    ui = fit({ ...UI_COLORS_LIGHT, 'sel-fg': selFg }, UI_MIN_CONTRAST, (k) =>
+      k === 'sel-bg' || k === 'focus-bg' ? selFg : bg,
+    );
+    for (const [k, amount] of Object.entries(UI_LIGHT_FILLS)) ui[k] = mix(bg, '#000000', amount);
+    stats = fit(STATS_COLORS_LIGHT, STATS_MIN_CONTRAST);
+    stats.track = mix(bg, '#000000', STATS_LIGHT_TRACK);
+  } else {
+    // The bars keep their light fill and black ink; only text is lifted.
+    const { 'sel-bg': _s, 'focus-bg': _f, ...text } = UI_MIN_CONTRAST;
+    ui = fit(UI_COLORS, text);
+    stats = fit(STATS_COLORS, STATS_MIN_CONTRAST);
+  }
+  const banner = fit(dark ? BANNER_COLORS_LIGHT : BANNER_COLORS, BANNER_MIN_CONTRAST);
+  const messages: Record<string, string> = {};
+  for (const [k, v] of Object.entries(UI_MESSAGE_COLORS)) {
+    messages[k] = fitContrast(dark ? lightShift(v) : v, bg, 4.5, ink);
+  }
+  return { ui, banner, messages, stats };
+}
+
 /** The root custom properties for `s`. */
 export function rootTokens(s: Readonly<Settings>): Record<string, string> {
   const a = s.appearance;
@@ -78,10 +159,11 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
     '--term-echo': inputColor(a.inputColor, a.bg),
   };
   for (let i = 0; i < 16; i++) t[`--ansi-${i}`] = a.ansi[i]!;
-  for (const [k, v] of Object.entries(UI_COLORS)) t[`--c-${k}`] = v;
-  for (const [k, v] of Object.entries(BANNER_COLORS)) t[`--${k}`] = v;
-  for (const [k, v] of Object.entries(UI_MESSAGE_COLORS)) t[`--ui-${k}`] = v;
-  for (const [k, v] of Object.entries(STATS_COLORS)) t[`--st-${k}`] = v;
+  const c = themeColors(a.bg);
+  for (const [k, v] of Object.entries(c.ui)) t[`--c-${k}`] = v;
+  for (const [k, v] of Object.entries(c.banner)) t[`--${k}`] = v;
+  for (const [k, v] of Object.entries(c.messages)) t[`--ui-${k}`] = v;
+  for (const [k, v] of Object.entries(c.stats)) t[`--st-${k}`] = v;
   for (const c of PANE_COLORS) {
     const name = c === 'black' ? 'none' : c;
     t[`--pane-bg-${name}`] = paneEffectiveBg(c, a.bg);

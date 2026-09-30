@@ -10,13 +10,14 @@
   overflow: hidden;
 }
 
-/* White text; the view's mask blends it into the canvas at the bands. */
+/* White text (black on a light canvas, ADR 0041); the view's mask blends
+ * it into the canvas at the bands. */
 .wc-credits-col {
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  color: #ffffff;
+  color: var(--c-active, #ffffff);
   will-change: transform;
 }
 
@@ -26,4 +27,8 @@
   right: 0;
   top: var(--cell-h);
   color: #555555;
+}
+
+[data-light] .wc-credits-hint {
+  color: var(--c-hint);
 }

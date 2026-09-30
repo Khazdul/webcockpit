@@ -242,3 +242,53 @@ export function mix(a: string, b: string, t: number): string {
 export function lineHighlight(termBg: string): string {
   return mix(termBg, isLight(termBg) ? '#000000' : '#ffffff', 0.12);
 }
+
+// --------------------------------------------------------------- contrast
+
+/** WCAG 2 relative luminance, 0–1. */
+export function luminance(hex: string): number {
+  const { r, g, b } = hexToRgb(hex);
+  const lin = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/** WCAG 2 contrast ratio of two colours, 1–21. */
+export function contrast(a: string, b: string): number {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+
+/**
+ * Luminance at which black and white ink contrast equally (≈ 4.58:1).
+ * Above it dark ink reads better, below it light ink.
+ */
+export const INK_FLIP_LUMINANCE = 0.1791;
+
+/** True when dark ink reads better than light ink on `bg`. */
+export function takesDarkInk(bg: string): boolean {
+  return luminance(bg) >= INK_FLIP_LUMINANCE;
+}
+
+/**
+ * `fg` with at least `min` contrast against `bg`: unchanged when it already
+ * has it, else mixed toward `toward` (black or white; the hue is kept) by
+ * the smallest step that reaches `min`, or `toward` itself when nothing
+ * does.
+ */
+export function fitContrast(fg: string, bg: string, min: number, toward: string): string {
+  const base = normalizeHex(fg) ?? fg;
+  if (min <= 1 || contrast(base, bg) >= min) return base;
+  if (contrast(toward, bg) < min) return normalizeHex(toward) ?? toward;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 12; i++) {
+    const t = (lo + hi) / 2;
+    if (contrast(mix(base, toward, t), bg) >= min) hi = t;
+    else lo = t;
+  }
+  return mix(base, toward, hi);
+}

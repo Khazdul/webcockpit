@@ -34,7 +34,22 @@
 }
 
 .wc-exp-comment {
-  color: #ffd75f;
+  color: var(--c-yellow, #ffd75f);
+}
+
+/* A light terminal background (ADR 0041): the band and the greys are taken
+ * toward black instead, the reds darker. */
+[data-light] .wc-exp-row.is-cur {
+  background: var(--c-line-hl);
+}
+
+[data-light] .wc-exp-excl {
+  color: var(--c-hint);
+}
+
+[data-light] .wc-exp-bar,
+[data-light] .wc-exp-map-excl {
+  color: var(--c-danger);
 }
 
 /* A command row's `> `. */

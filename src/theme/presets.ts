@@ -79,8 +79,9 @@ export const PANE_TINTS: Readonly<Record<PaneColor, PaneTint>> = {
 };
 
 /**
- * UI colour roles (Inv §10.3, §10.9). Static: they assume a dark canvas.
- * Set on :root by src/theme/apply.ts as `--c-<key>`. Weight and style
+ * UI colour roles (Inv §10.3, §10.9) on a dark terminal background. Set on
+ * :root by src/theme/apply.ts as `--c-<key>`; on a light background the
+ * roles come from UI_COLORS_LIGHT instead (ADR 0041). Weight and style
  * (bold, italic) belong to the components that use them.
  */
 export const UI_COLORS: Readonly<Record<string, string>> = {
@@ -115,6 +116,83 @@ export const UI_COLORS: Readonly<Record<string, string>> = {
   'brace-match-bg': '#3a3a3a',
 };
 
+/**
+ * The UI roles on a light terminal background (ADR 0041): the same roles in
+ * dark ink, tuned on `paper` (#f4ecd8). src/theme/apply.ts `themeColors`
+ * darkens a text role further when another light background needs it
+ * (UI_MIN_CONTRAST) and derives the fills from the background itself:
+ * `sel-fg` is the background (a selected row is a dark bar with the
+ * background's colour as ink), `off`, `scroll-track` and `brace-match-bg`
+ * are the background mixed toward black.
+ */
+export const UI_COLORS_LIGHT: Readonly<Record<string, string>> = {
+  title: '#006068',
+  section: '#2f7474',
+  header: '#7a5200',
+  active: '#000000',
+  item: '#3a362e',
+  hover: '#1c1a15',
+  body: '#5c564a',
+  hint: '#797160',
+  accent: '#9a5400',
+  cursor: '#9a5400',
+  yellow: '#6e5a00',
+  err: '#b3261e',
+  danger: '#9c3a2a',
+  ok: '#2e6b26',
+  note: '#7a5a10',
+  quote: '#797160',
+  'quote-attr': '#4a6e4a',
+  'sel-bg': '#5a5448',
+  'focus-bg': '#8a4c00',
+  'scroll-thumb': '#2a261e',
+  'syn-cmd': '#1f6f78',
+  'syn-brace': '#5a6878',
+  'syn-delim': '#8a5a12',
+  'syn-var': '#3a7030',
+  'syn-code': '#6a4a90',
+};
+
+/** Light-background fills: the terminal bg mixed toward black by this much. */
+export const UI_LIGHT_FILLS: Readonly<Record<string, number>> = {
+  off: 0.3,
+  'scroll-track': 0.3,
+  'brace-match-bg': 0.16,
+};
+
+/**
+ * Least WCAG contrast of a UI text role against a light terminal
+ * background (`sel-bg` and `focus-bg`: against `sel-fg`). Roles not listed
+ * are fills or deliberately faint (`off`).
+ */
+export const UI_MIN_CONTRAST: Readonly<Record<string, number>> = {
+  title: 4.5,
+  section: 4.5,
+  header: 4.5,
+  active: 4.5,
+  item: 4.5,
+  hover: 4.5,
+  body: 4.5,
+  hint: 3,
+  accent: 4.5,
+  cursor: 4.5,
+  yellow: 4.5,
+  err: 4.5,
+  danger: 4.5,
+  ok: 4.5,
+  note: 4.5,
+  quote: 3,
+  'quote-attr': 4.5,
+  'sel-bg': 4.5,
+  'focus-bg': 4.5,
+  'scroll-thumb': 4.5,
+  'syn-cmd': 4.5,
+  'syn-brace': 4.5,
+  'syn-delim': 4.5,
+  'syn-var': 4.5,
+  'syn-code': 4.5,
+};
+
 /** Banner colours (Inv §10.7), set on :root as `--banner-*` / `--star-*`. */
 export const BANNER_COLORS: Readonly<Record<string, string>> = {
   'banner-word': '#00d0d0',
@@ -124,7 +202,24 @@ export const BANNER_COLORS: Readonly<Record<string, string>> = {
   'star-bright': '#74e8e8',
 };
 
-/** UI-messages pane prefix colours (Inv §10.3), set as `--ui-<key>`. */
+/** The banner on a light background: the word in dark teal, stars fading into the paper. */
+export const BANNER_COLORS_LIGHT: Readonly<Record<string, string>> = {
+  'banner-word': '#00727a',
+  'banner-word-dim': '#3a9aa0',
+  'star-dim': '#b9cfc8',
+  'star-mid': '#6aa6a6',
+  'star-bright': '#0a6f74',
+};
+
+export const BANNER_MIN_CONTRAST: Readonly<Record<string, number>> = {
+  'banner-word': 4.5,
+  'star-bright': 3,
+};
+
+/**
+ * UI-messages pane prefix colours (Inv §10.3), set as `--ui-<key>`. On a
+ * light background each is `lightShift`ed and held to 4.5:1 (ADR 0041).
+ */
 export const UI_MESSAGE_COLORS: Readonly<Record<string, string>> = {
   script: '#26c6da',
   system: '#42a5f5',
@@ -158,6 +253,40 @@ export const STATS_COLORS: Readonly<Record<string, string>> = {
   pvp: '#ff5f5f',
   ally: '#00d7d7',
   star: '#ffd060',
+};
+
+/** The Statistics / History colours on a light background (ADR 0041). */
+export const STATS_COLORS_LIGHT: Readonly<Record<string, string>> = {
+  value: '#000000',
+  label: '#5c564a',
+  gained: '#26731b',
+  loss: '#b3261e',
+  tp: '#8a5a00',
+  thumb: '#7c7564',
+  total: '#3a362e',
+  arrow: '#3a362e',
+  hint: '#797160',
+  pvp: '#b3261e',
+  ally: '#006068',
+  star: '#8a5e00',
+};
+
+/** `--st-track` on a light background: the terminal bg this far toward black. */
+export const STATS_LIGHT_TRACK = 0.12;
+
+export const STATS_MIN_CONTRAST: Readonly<Record<string, number>> = {
+  value: 4.5,
+  label: 4.5,
+  gained: 4.5,
+  loss: 4.5,
+  tp: 4.5,
+  thumb: 3,
+  total: 4.5,
+  arrow: 4.5,
+  hint: 3,
+  pvp: 4.5,
+  ally: 4.5,
+  star: 4.5,
 };
 
 /** Input color choices (ADR 0035), in the Appearance cycle order. */

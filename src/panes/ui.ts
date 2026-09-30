@@ -18,7 +18,7 @@
 import './panes.css';
 import type { UiMessage, UiMessageKind, UiMessagePart } from '../core/types';
 import { paneLight } from '../theme/apply';
-import { darkInk, lightShift, paneEffectiveBg } from '../theme/color';
+import { darkInk, fitContrast, lightShift, paneEffectiveBg } from '../theme/color';
 import { AnchoredList, type ListMetrics } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
@@ -205,8 +205,11 @@ export class UiPane extends PaneShell {
     if (this.root.parentNode !== this.content) this.content.replaceChildren(this.root);
     const s = this.ctx.settings.get();
     const light = paneLight(s, 'ui');
-    const col = (c: string): string => (light ? lightShift(c) : c);
-    const base = light ? darkInk(paneEffectiveBg(s.panes.ui.color, s.appearance.bg)) : UI_COLORS.base;
+    // On a light pane every colour is held to 4.5:1 against it (ADR 0041).
+    const bg = paneEffectiveBg(s.panes.ui.color, s.appearance.bg);
+    const ink = (c: string): string => fitContrast(c, bg, 4.5, '#000000');
+    const col = (c: string): string => (light ? ink(lightShift(c)) : c);
+    const base = light ? ink(darkInk(bg)) : UI_COLORS.base;
     const value = col(UI_COLORS.value);
     const lines = this.lines;
     this.list.render(
