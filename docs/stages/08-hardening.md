@@ -315,3 +315,6 @@ the character in the input line is ever a problem in play.
   EDITOR view. Open: measured on Linux only; Windows/macOS not checked.
   Test guide: as above, and type `Åsa_Öberg ÄÉ` on the input line and
   as a profile name.
+- 2026-09-30, marker tips on touch: no tip on touch devices is accepted
+  (won't fix). Timers active at a run's start stay open (ADR 0033 "Not
+  covered"; the cut fix does not cover them).
