@@ -281,14 +281,25 @@ data):**
 
 ## 6. Quiet-machine re-run
 
-The key comparisons were re-run one at a time after the reviews (load
-about 0.3–1.3). Details are in `notes/research/perf-review/rerun.md`.
+The key comparisons were re-run one at a time after the reviews, with
+load 0.3–1.8 for the caret run and 2.5–5 for the rest. Details and
+commands are in `notes/research/perf-review/rerun.md`.
 
-- **Caret blink, Firefox:** receipt → rendered median 10.8 / 12.7 ms with
-  today's CSS blink, 3.3 / 2.8 ms without blink, 3.3 / 2.9 ms with the
-  timer blink (two runs each). This confirms #1.
-- **The remaining comparisons** are in `rerun.md`: Chromium caret,
-  scroll mode, the repro, width change, drag, ingest and recorder.
+| # | Measure | Today | With the change |
+|---|---|---|---|
+| 1 | Receipt → rendered while the caret shows, Firefox / Chromium | 10.8–12.7 / 10.8–12.7 ms | 2.9–3.4 / 3.4–3.5 ms |
+| 2 | Leave scroll mode at 20 000 rows, Chromium / Firefox | 129 / 33.5 ms | 18.4 / 25.0 ms |
+| 3 | Repro page 2 frame, Firefox / Chromium | 38.3 / 38.7 ms | 9.4 / 7.1 ms |
+| 8 | Width change at 20 000 rows, Firefox / Chromium | 50.9 / 62.4 ms | 5.6 / 4.6 ms |
+| 5 | Drag start + drop at 20 000 rows, style, Chromium / Firefox | 105.7 / 60.1 ms | 0.2 / 0.6 ms |
+| 4 | Colour-heavy ingest, Chromium / Firefox | 13.8 / 18.1 µs per line | −22 % / −33 %; Firefox per-message p99 2.46 → 0.30 ms |
+| 7 | Recorder chunk task, 1 MB, Chromium / Firefox | 13.8 / 9.1 ms | Not prototyped |
+
+- Every comparison points the same way as in the reviews.
+- Quiet absolute numbers are lower for the width change (review: 90 ms
+  in Firefox).
+- The ingest gain of #4 is smaller than under load (review: −40 % /
+  −50 %).
 
 ## 7. Benchmark gaps (for #15)
 
