@@ -279,3 +279,11 @@ the character in the input line is ever a problem in play.
   `#alias {zz} {say hi}`, open ESC → Profile: `zz` is in LITE and
   EDITOR. Type `#unalias zz`, reopen: gone. Type `#var target orc`,
   reload the page: still set.
+- 2026-09-30, messages: `#message` added, on for everything by default;
+  a typed definition is confirmed with one row; `#message var` turns a
+  class off. Owner: no capitals, short, uniform, our colours, keep `#`
+  and braces. Done in ADR 0039. Open: `[SYSTEM]` and `#help` rows are
+  hard to read on the paper theme (older issue).
+  Test guide: type `#alias zz smile`, `#unalias zz`, `#var target orc`,
+  `#var target`, `#alias`, `#message`, `#message var`, then
+  `#var target elf` (no row). Reload: variables are still off.

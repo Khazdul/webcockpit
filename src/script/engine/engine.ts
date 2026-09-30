@@ -26,8 +26,10 @@ import { parseColored } from './color';
 import { ExprError, evalCondition, evalMath } from './expr';
 import { formatString } from './format';
 import { type CompiledPattern, argsFrom, compilePattern, globalRe, matchPattern } from './pattern';
+import { CLASS_OF, MESSAGE_CLASSES, type MessageClass, type Report, type ReportItem, type ReportStateRow, resolveMessageClass } from './report';
 import { overlay, splice, styleAt } from './runs';
 import {
+  DEFAULT_PRIORITY,
   DefineError,
   LIST_KINDS,
   type ListKind,
@@ -82,6 +84,13 @@ export interface EngineOptions {
    * fires this instead of `onVariable`.
    */
   onTyped?: (change: TypedChange) => void;
+  /**
+   * A confirmation or a listing to show (ADR 0039). Confirmations come only
+   * for commands of the typed line itself, never while a profile loads, and
+   * not for a class that `#message` switched off. Listing forms (`#alias`,
+   * `#variable {x}`, `#message`) always report.
+   */
+  report?: (report: Report) => void;
   scheduler?: Scheduler;
   /** Wall clock in ms (for #format %t/%T/%U). */
   now?: () => number;
@@ -103,7 +112,9 @@ export type PersistKind = ListKind | 'variable' | 'ticker';
  */
 export type TypedChange =
   | { op: 'define'; kind: PersistKind; key: string; args: string[] }
-  | { op: 'undefine'; kind: PersistKind; keys: string[] };
+  | { op: 'undefine'; kind: PersistKind; keys: string[] }
+  /** A typed `#message` (ADR 0039): the classes it set, and every class that is now off. */
+  | { op: 'message'; changed: MessageClass[]; off: MessageClass[] };
 
 interface Ctx {
   /** Where definitions and variables go. */
@@ -314,7 +325,7 @@ export class ScriptEngine {
 
   /** Sets a user variable (as `#variable` typed by the user would). */
   setVariable(name: string, value: string): void {
-    this.setVar({ store: this.userStore, depth: 0, direct: true }, name, value);
+    this.setVar({ store: this.userStore, depth: 0, direct: true }, name, value, true);
   }
 
   private entry(fn: () => void): void {
@@ -584,7 +595,8 @@ export class ScriptEngine {
           }
           if (r.done) {
             const v = this.lookup(ctx)(name);
-            this.opts.message(v === undefined ? `#variable {${name}} is not defined.` : `#VARIABLE {${name}} {${v}}`);
+            if (v === undefined) this.state({ word: 'variable', key: name, state: 'not found' });
+            else this.opts.report?.({ type: 'list', items: [{ kind: 'variable', key: name, body: v }] });
             return;
           }
           this.setVar(ctx, name, this.vars(r.next('all'), ctx));
@@ -601,6 +613,7 @@ export class ScriptEngine {
           }
           store.addTimer('ticker', name, body, secs);
           this.typed(ctx, { op: 'define', kind: 'ticker', key: name, args: [name, body, String(secs)] });
+          this.confirm(ctx, 'tickers', { type: 'set', item: { kind: 'ticker', key: name, body, seconds: secs } });
           return;
         }
         case 'delay': {
@@ -618,6 +631,7 @@ export class ScriptEngine {
             return;
           }
           store.addTimer('delay', named ? a : null, b, secs);
+          this.confirm(ctx, 'delays', { type: 'set', item: { kind: 'delay', key: named ? a : '', body: b, seconds: secs } });
           return;
         }
         default: {
@@ -634,6 +648,7 @@ export class ScriptEngine {
             const args = kind === 'gag' ? [pattern] : [pattern, body];
             if (pri !== undefined) args.push(String(pri));
             this.typed(ctx, { op: 'define', kind, key: made.pattern, args });
+            this.confirm(ctx, CLASS_OF[kind], { type: 'set', item: ruleItem(made) });
           }
         }
       }
@@ -665,20 +680,39 @@ export class ScriptEngine {
       this.warn(`#${e.name} needs an argument.`);
       return;
     }
-    if (rule === 'variable') this.typedRemoval(ctx, 'variable', store.deleteVars(this.vars(arg, ctx)));
-    else if (rule === 'delay') store.removeTimer('delay', arg);
-    else if (rule === 'ticker') this.typedRemoval(ctx, 'ticker', store.removeTimers('ticker', arg));
-    else {
-      const kind = LIST_KIND_BY_RULE[rule]!;
-      this.typedRemoval(ctx, kind, store.removeKeys(kind, arg));
-    }
+    let keys: string[];
+    let asked = arg;
+    if (rule === 'variable') keys = store.deleteVars((asked = this.vars(arg, ctx)));
+    else if (rule === 'delay' || rule === 'ticker') keys = store.removeTimers(rule, arg);
+    else keys = store.removeKeys(LIST_KIND_BY_RULE[rule]!, arg);
+    if (rule !== 'delay') this.typedRemoval(ctx, rule, keys);
+    if (!ctx.direct) return;
+    // One row per removed key; a `*` form that removed many gets one row.
+    let rows: ReportStateRow[];
+    if (keys.length === 0) rows = [{ word: rule, key: asked, state: 'not found' }];
+    else if (keys.length > REMOVED_ROWS) rows = [{ word: rule, key: asked, state: 'removed', count: keys.length }];
+    else rows = keys.map((key) => ({ word: rule, key, state: 'removed' }));
+    this.confirm(ctx, CLASS_OF[rule], { type: 'state', rows });
   }
 
-  private setVar(ctx: Ctx, name: string, value: string): void {
+  /** Shows a confirmation for a typed command, unless its class is off. */
+  private confirm(ctx: Ctx, cls: MessageClass, report: Report): void {
+    if (!ctx.direct || this.loading || ctx.store !== this.userStore || !this.opts.report) return;
+    if (ctx.store.messagesOff.has(cls)) return;
+    this.opts.report(report);
+  }
+
+  /** A one-row answer that is always shown (a listing that found nothing, `#message`). */
+  private state(row: ReportStateRow): void {
+    this.opts.report?.({ type: 'state', rows: [row] });
+  }
+
+  private setVar(ctx: Ctx, name: string, value: string, quiet = false): void {
     ctx.store.setVar(name, value);
     if (ctx.store !== this.userStore || this.loading) return;
     if (ctx.direct && this.opts.onTyped) this.opts.onTyped({ op: 'define', kind: 'variable', key: name, args: [name, value] });
     else this.opts.onVariable?.(name, value);
+    if (!quiet) this.confirm(ctx, 'variables', { type: 'set', item: { kind: 'variable', key: name, body: value } });
   }
 
   /** Reports a typed, accepted command (see `EngineOptions.onTyped`). */
@@ -771,13 +805,22 @@ export class ScriptEngine {
           this.warn('#class needs {name} {open|close|kill}.');
           return;
         }
-        if (op === 'open') ctx.store.openClass = cls;
-        else if (op === 'close') {
-          if (ctx.store.openClass === cls) ctx.store.openClass = null;
+        if (op === 'open') {
+          ctx.store.openClass = cls;
+          this.confirm(ctx, 'classes', { type: 'state', rows: [{ word: 'class', key: cls, state: 'opened' }] });
+        } else if (op === 'close') {
+          const open = ctx.store.openClass === cls;
+          if (open) ctx.store.openClass = null;
+          this.confirm(ctx, 'classes', { type: 'state', rows: [{ word: 'class', key: cls, state: open ? 'closed' : 'not open' }] });
         } else if (op === 'kill' || op === 'clear') {
           // A typed kill reports what it removed, kind by kind (ADR 0038).
           const gone = ctx.direct ? ctx.store.classMembers(cls) : null;
-          ctx.store.killClass(cls);
+          const known = ctx.store.openClass === cls;
+          const n = ctx.store.killClass(cls);
+          this.confirm(ctx, 'classes', {
+            type: 'state',
+            rows: [n > 0 ? { word: 'class', key: cls, state: 'removed', count: n } : { word: 'class', key: cls, state: known ? 'removed' : 'not found' }],
+          });
           if (gone) {
             for (const kind of LIST_KINDS) {
               this.typedRemoval(ctx, kind, gone.rules.filter((x) => x.kind === kind).map((x) => x.pattern));
@@ -789,9 +832,47 @@ export class ScriptEngine {
         else this.warn(`#class {${cls}} {${op}}: only open, close and kill are supported.`);
         return;
       }
+      case 'message':
+        this.messageCommand(r, ctx);
+        return;
       default:
         this.warn(`#${name} is not supported.`);
     }
+  }
+
+  /**
+   * `#message`, `#message {class}`, `#message {class} {on|off}` (ADR 0039).
+   * The state belongs to the store, so it follows a profile load.
+   */
+  private messageCommand(r: ArgReader, ctx: Ctx): void {
+    const word = this.vars(r.next('one'), ctx).trim();
+    const arg = this.vars(r.next('one'), ctx).trim().toLowerCase();
+    const off = ctx.store.messagesOff;
+    if (word === '') {
+      this.opts.report?.({ type: 'state', rows: MESSAGE_CLASSES.map((c) => ({ word: 'message', key: c, state: off.has(c) ? 'off' : 'on' })) });
+      return;
+    }
+    const cls = resolveMessageClass(word);
+    if (cls === null) {
+      if (this.loading) this.warn(`#message: unknown class {${clip(word)}}.`);
+      else this.state({ word: 'message', key: word, state: 'not found' });
+      return;
+    }
+    if (arg !== '' && arg !== 'on' && arg !== 'off') {
+      this.warn(`#message {${cls}} {${clip(arg)}}: use on or off.`);
+      return;
+    }
+    const changed: MessageClass[] = cls === 'all' ? [...MESSAGE_CLASSES] : [cls];
+    // No state: toggle. `all` goes on when anything is off, else off.
+    const on = arg === '' ? (cls === 'all' ? off.size > 0 : off.has(cls)) : arg === 'on';
+    for (const c of changed) {
+      if (on) off.delete(c);
+      else off.add(c);
+    }
+    if (!ctx.direct || this.loading || ctx.store !== this.userStore) return;
+    // Shown whatever is off: it is the answer to the command itself.
+    this.state({ word: 'message', key: cls, state: on ? 'on' : 'off' });
+    this.typed(ctx, { op: 'message', changed, off: MESSAGE_CLASSES.filter((c) => off.has(c)) });
   }
 
   // --------------------------------------------------------------- listing
@@ -799,31 +880,24 @@ export class ScriptEngine {
   private listRules(store: RuleStore, kind: ListKind, filter: string): void {
     const re = filter ? globOrExact(filter) : null;
     const rows = store.rules(kind).filter((r) => !re || re(r.pattern));
-    if (rows.length === 0) {
-      this.opts.message(filter ? `No ${kind} matches {${filter}}.` : `No ${kind}s defined.`);
-      return;
-    }
-    for (const r of rows) {
-      const pri = r.priority !== 5 && kind !== 'macro' && kind !== 'event' && kind !== 'gag' ? ` {${r.priority}}` : '';
-      this.opts.message(kind === 'gag' ? `#GAG {${r.pattern}}` : `#${kind.toUpperCase()} {${r.pattern}} {${clip(r.body.trim(), 60)}}${pri}`);
-    }
+    if (rows.length === 0) this.state({ word: kind, key: filter || null, state: filter ? 'not found' : 'none' });
+    else this.opts.report?.({ type: 'list', items: rows.map(ruleItem) });
   }
 
   private listVars(store: RuleStore): void {
-    if (store.vars.size === 0) {
-      this.opts.message('No variables defined.');
-      return;
-    }
-    for (const [k, v] of store.vars) this.opts.message(`#VARIABLE {${k}} {${v}}`);
+    if (store.vars.size === 0) this.state({ word: 'variable', key: null, state: 'none' });
+    else this.opts.report?.({ type: 'list', items: [...store.vars].map(([key, body]) => ({ kind: 'variable', key, body })) });
   }
 
   private listTimers(store: RuleStore, kind: TimerKind): void {
     const list = store.timerList(kind);
-    if (list.length === 0) {
-      this.opts.message(`No ${kind}s running.`);
-      return;
+    if (list.length === 0) this.state({ word: kind, key: null, state: 'none' });
+    else {
+      this.opts.report?.({
+        type: 'list',
+        items: list.map((t) => ({ kind, key: kind === 'delay' && t.unnamed ? '' : t.name, body: t.body, seconds: t.seconds })),
+      });
     }
-    for (const t of list) this.opts.message(`#${kind.toUpperCase()} {${t.name}} {${clip(t.body.trim(), 60)}} {${t.seconds}}`);
   }
 
   // ---------------------------------------------------------------- timers
@@ -979,6 +1053,18 @@ export class ScriptEngine {
     }
     return re;
   }
+}
+
+/** A `*` removal lists each key up to this many; beyond it, one row with the count. */
+export const REMOVED_ROWS = 5;
+
+/** A rule as a report item: the priority only when it is not the default. */
+function ruleItem(r: Rule): ReportItem {
+  const item: ReportItem = { kind: r.kind, key: r.pattern };
+  if (r.kind !== 'gag') item.body = r.body;
+  if (r.priority !== DEFAULT_PRIORITY && r.kind !== 'macro' && r.kind !== 'event' && r.kind !== 'gag') item.priority = r.priority;
+  if (r.style) item.style = r.style;
+  return item;
 }
 
 const EMPTY: readonly Rule[] = [];

@@ -20,6 +20,7 @@ import {
   helpSections,
   helpStep,
 } from '../../src/editor/help';
+import { messageRows, messageText } from '../../src/app/messages';
 import { COMMANDS, resolveCommand } from '../../src/script/commands';
 import { parseProfile, serialize } from '../../src/script/doc';
 import { EVENT_NAMES, FakeScheduler, REPEAT_MAX, ScriptEngine, evalMath } from '../../src/script/engine';
@@ -35,17 +36,20 @@ function setup() {
   const msgs: string[] = [];
   const shown: string[] = [];
   const clients: string[] = [];
+  /** Confirmation and listing rows (ADR 0039), as the game window shows them. */
+  const said: string[] = [];
   const clock = new FakeScheduler();
   const e = new ScriptEngine({
     send: (t) => sent.push(t),
     message: (m) => msgs.push(m),
     client: (n) => clients.push(n),
+    report: (r) => said.push(...messageRows(r, 200).map(messageText)),
     scheduler: clock,
     now: () => 0,
   });
   e.attach(bus);
   bus.on('text.display', (d) => shown.push(d.line.text));
-  return { bus, e, sent, msgs, shown, clients, clock };
+  return { bus, e, sent, msgs, shown, clients, said, clock };
 }
 
 /** Runs an example the way the manual says it is used. */
@@ -90,6 +94,8 @@ describe('manual examples', () => {
     expect(r.warnings).toEqual([]);
     expect(r.msgs).toEqual([]);
     const c = ex.check;
+    // Nothing is confirmed or listed unless the example says so.
+    expect(r.said).toEqual(c?.says ?? []);
     if (!c) return;
     if (c.sends || c.type || c.lines || c.keys || c.steps) expect(r.sent).toEqual(c.sends ?? []);
     if (c.shows) expect(r.shown).toEqual(c.shows);
@@ -204,13 +210,8 @@ describe('statements checked against the engine', () => {
     const t = setup();
     t.e.loadProfile('#alias {k} {kill %1}\n#alias {x} {y}\n#variable {target} {orc}\n');
     t.e.input('#alias {k*};#variable {target};#variable;#ticker;#delay');
-    expect(t.msgs).toEqual([
-      '#ALIAS {k} {kill %1}',
-      '#VARIABLE {target} {orc}',
-      '#VARIABLE {target} {orc}',
-      'No tickers running.',
-      'No delays running.',
-    ]);
+    expect(t.msgs).toEqual([]);
+    expect(t.said).toEqual(['#alias {k} {kill %1}', '#variable {target} {orc}', '#variable {target} {orc}', '#ticker none', '#delay none']);
     t.e.input('#alias {typed} {say hi}');
     t.e.loadProfile('#alias {k} {kill %1}\n');
     t.e.input('typed');

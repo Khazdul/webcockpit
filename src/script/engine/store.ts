@@ -14,6 +14,7 @@ import type { Line } from '../../core/types';
 import { keyBindability, normalizeKey } from '../keys';
 import { type HighlightStyle, parseHighlight } from './color';
 import { type CompiledPattern, compilePattern } from './pattern';
+import type { MessageClass } from './report';
 import type { Scheduler } from './timers';
 import { globToRegExp } from './text';
 
@@ -55,6 +56,8 @@ export interface Rule {
 export interface Timer {
   readonly kind: TimerKind;
   readonly name: string;
+  /** A delay that was given no name (its `name` is generated). */
+  readonly unnamed?: boolean;
   readonly body: string;
   readonly seconds: number;
   readonly cls: string | null;
@@ -98,6 +101,8 @@ export class RuleStore {
   private varClass = new Map<string, string>();
   private timers = new Map<string, Timer>();
   private delaySeq = 0;
+  /** Message classes `#message` switched off (ADR 0039); the default is all on. */
+  readonly messagesOff = new Set<MessageClass>();
   /** The class new rules join (`#class {x} {open}`), or null. */
   openClass: string | null = null;
   private disposed = false;
@@ -294,7 +299,17 @@ export class RuleStore {
     const nm = name ?? `delay#${++this.delaySeq}`;
     this.removeTimer(kind, nm);
     const ms = Math.max(kind === 'ticker' ? 50 : 0, seconds * 1000);
-    const t: Timer = { kind, name: nm, body, seconds, cls: this.openClass, handle: null, at: this.scheduler.now() + ms, ...(fn ? { fn } : {}) };
+    const t: Timer = {
+      kind,
+      name: nm,
+      body,
+      seconds,
+      cls: this.openClass,
+      handle: null,
+      at: this.scheduler.now() + ms,
+      ...(name === null ? { unnamed: true } : {}),
+      ...(fn ? { fn } : {}),
+    };
     this.timers.set(kind + ':' + nm, t);
     this.arm(t, ms);
     return t;

@@ -188,16 +188,19 @@ export function addEntry(doc: ProfileDoc, entry: NewEntry): { doc: ProfileDoc; i
   return { doc: { ...doc, nodes, nextId }, id };
 }
 
-/** The rule a node's command defines (`alias`, `gag`, `ticker` …), or null. */
+/** The rule a node's command defines (`alias`, `gag`, `ticker` …) or the setting it holds (`message`), or null. */
 function definedRule(n: DocNode): string | null {
   if (n.type === 'entry') return n.kind;
   if (n.type === 'passthrough' && n.command?.kind === 'define') return n.command.rule ?? null;
+  // A setting the profile keeps as a line of its own (ADR 0039).
+  if (n.type === 'passthrough' && n.command?.name === 'message') return 'message';
   return null;
 }
 
 /**
  * Adds a top-level definition the document does not type as an entry
- * (`#gag`, `#ticker`, `#event`; ADR 0038) as `#<word> {arg} {arg}…`.
+ * (`#gag`, `#ticker`, `#event`; ADR 0038), or a `#message` setting
+ * (ADR 0039), as `#<word> {arg} {arg}…`.
  * Placement follows `addEntry`: after the last command of the same rule;
  * with none, after the last definition of any kind with a blank line
  * before it (and after it, when text follows); with no definitions, at the

@@ -97,7 +97,7 @@ export class ProfileWriteBack {
     const name = this.targetName;
     if (name === null) return false;
     // What was typed is newer than a value a script queued for the name.
-    if (change.kind === 'variable') {
+    if (change.op !== 'message' && change.kind === 'variable') {
       for (const k of change.op === 'define' ? [change.key] : change.keys) this.pending.delete(k);
     }
     this.run(() => this.writeTyped(name, change));

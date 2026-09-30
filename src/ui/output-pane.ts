@@ -68,7 +68,12 @@ const OP_STYLED = 6;
  */
 export interface StyledRow {
   cls: string;
-  segs: ReadonlyArray<{ text: string; cls?: string }>;
+  segs: ReadonlyArray<{
+    text: string;
+    cls?: string;
+    /** A game style for the segment (the colour a `#highlight` gives), instead of `cls`. */
+    run?: Omit<StyleRun, 'start' | 'end'>;
+  }>;
 }
 
 interface Op {
@@ -611,12 +616,13 @@ export function renderStyled(doc: Document, r: StyledRow): HTMLElement {
   const row = doc.createElement('div');
   row.className = r.cls ? 'wc-row ' + r.cls : 'wc-row';
   for (const s of r.segs) {
-    if (!s.cls) {
+    if (!s.cls && !s.run) {
       row.appendChild(doc.createTextNode(s.text));
       continue;
     }
     const span = doc.createElement('span');
-    span.className = s.cls;
+    if (s.run) styleSpan(span, { ...s.run, start: 0, end: s.text.length });
+    else span.className = s.cls!;
     span.textContent = s.text;
     row.appendChild(span);
   }

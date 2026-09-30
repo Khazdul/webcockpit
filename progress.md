@@ -42,6 +42,10 @@ Newest first.
   1283/1284, e2e 214/214.
 - **Owner feedback 3:** system lines no longer name `#connect`,
   `#reconnect` or `#replay`.
+- **Owner feedback 4:** `#message` (all on by default, per class
+  on/off, saved in the profile) and confirmation rows for typed
+  definitions, shown as the profile line with `#` and braces, lower
+  case, lexer colours (ADR 0039). Unit 1309/1310, e2e 218/218.
 - **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
   feedback); release; then plan the rest of stage 8.
 - **Open issues:** "alias missing in EDITOR" not reproduced; underscore

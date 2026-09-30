@@ -75,6 +75,7 @@ import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
 import { attachUiMessages, uiMsg, uiValue } from './ui-messages';
+import { messageRows } from './messages';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
 import { LiveRuns } from '../runs/live';
@@ -336,6 +337,9 @@ export class App {
         if (!this.offline) this.writeBack?.queue(name, value);
       },
       onTyped: (change) => this.persistTyped(change),
+      // Confirmations and listings (ADR 0039): straight to the pane, as
+      // `#help` rows are, so no rule fires on them and nothing records them.
+      report: (r) => this.output.pushStyled(messageRows(r, this.output.measureCells().cols)),
       ...(opts.scheduler ? { scheduler: opts.scheduler } : {}),
     });
     this.script.attach(bus);

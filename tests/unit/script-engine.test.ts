@@ -4,7 +4,7 @@ import { Bus } from '../../src/core/bus';
 import type { BusEvents, Line, StyleRun } from '../../src/core/types';
 import { rgb } from '../../src/core/types';
 import { ENTRY_KINDS, listEntries, parseProfile, serialize } from '../../src/script/doc';
-import { ALIAS_DEPTH, FakeScheduler, ScriptEngine, splitCommands } from '../../src/script/engine';
+import { ALIAS_DEPTH, FakeScheduler, type Report, ScriptEngine, splitCommands } from '../../src/script/engine';
 import { normalizeKey } from '../../src/script/keys';
 
 function line(text: string, runs: StyleRun[] = [], prompt = false): Line {
@@ -19,12 +19,14 @@ function setup() {
   const partials: BusEvents['text.displayPartial'][] = [];
   const clients: Array<[string, string]> = [];
   const vars: Array<[string, string]> = [];
+  const reports: Report[] = [];
   const clock = new FakeScheduler();
   const e = new ScriptEngine({
     send: (t) => sent.push(t),
     message: (m) => msgs.push(m),
     client: (n, a) => clients.push([n, a]),
     onVariable: (n, v) => vars.push([n, v]),
+    report: (r) => reports.push(r),
     scheduler: clock,
     now: () => 0,
   });
@@ -33,7 +35,7 @@ function setup() {
   bus.on('text.displayPartial', (d) => partials.push(d));
   const recv = (text: string, runs: StyleRun[] = []) => bus.emit('text.line', line(text, runs));
   const texts = () => shown.map((d) => d.line.text);
-  return { bus, e, sent, msgs, shown, partials, clients, vars, clock, recv, texts };
+  return { bus, e, sent, msgs, shown, partials, clients, vars, reports, clock, recv, texts };
 }
 
 describe('input', () => {
@@ -205,7 +207,12 @@ describe('variables, #math, #format, #showme', () => {
     const t = setup();
     t.e.input('#variable {spell} {\'burning hands\'};#var x;#var {y} {}');
     expect(t.e.getVariable('spell')).toBe("'burning hands'");
-    expect(t.msgs).toEqual(["#VARIABLE {x} is not defined.".replace('#VARIABLE {x} is', '#variable {x} is')]);
+    expect(t.msgs).toEqual([]);
+    expect(t.reports).toEqual([
+      { type: 'set', item: { kind: 'variable', key: 'spell', body: "'burning hands'" } },
+      { type: 'state', rows: [{ word: 'variable', key: 'x', state: 'not found' }] },
+      { type: 'set', item: { kind: 'variable', key: 'y', body: '' } },
+    ]);
     expect(t.e.getVariable('y')).toBe('');
     t.e.input('#unvar spell');
     expect(t.e.getVariable('spell')).toBeUndefined();

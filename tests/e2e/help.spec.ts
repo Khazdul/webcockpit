@@ -91,7 +91,8 @@ test('#help lists the commands and topics; #help al shows the section in the HEL
 
   // "pattern" and "Commands" stand in the help text: the action did not
   // fire and the highlight did not colour it.
-  await expect(rows(page).filter({ hasText: 'FIRED' })).toHaveCount(0);
+  // (The typed #action is confirmed with a row that shows its body, ADR 0039.)
+  await expect(rows(page).filter({ hasText: /^FIRED$/ })).toHaveCount(0);
 
   await type(page, '#help colours');
   await expect(rows(page).filter({ hasText: /^Colours$/ })).toHaveCount(1);

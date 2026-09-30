@@ -125,7 +125,7 @@ const SPECS: readonly Spec[] = [
   ['macro', 'define', 'must', 'macro'],
   ['map', 'inert', 'inert'],
   ['math', 'command', 'should'],
-  ['message', 'inert', 'inert'],
+  ['message', 'command', 'should'],
   ['nop', 'command', 'must'],
   ['parse', 'inert', 'unsupported'],
   ['path', 'inert', 'inert'],

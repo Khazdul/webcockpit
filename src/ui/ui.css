@@ -122,6 +122,23 @@ body {
 .wc-help-note { color: var(--c-hint); }
 .wc-help-code { color: var(--c-item); }
 
+/* Confirmations and listings of typed commands (src/app/messages.ts,
+ * ADR 0039): a profile line in the editor's colours, the state word dimmer, and
+ * amber when nothing was done or something is off (not found, not open, off).
+ * The UI tokens assume a dark canvas, so on a light terminal background the
+ * row takes its colours from the terminal foreground instead. */
+.wc-msg { color: var(--c-item); }
+.wc-msg-state { color: var(--c-body); }
+.wc-msg-neg { color: var(--c-note); }
+[data-light] .wc-msg { color: color-mix(in oklab, var(--term-fg) 82%, var(--term-bg)); }
+[data-light] .wc-msg-state { color: color-mix(in oklab, var(--term-fg) 58%, var(--term-bg)); }
+[data-light] .wc-msg-neg { color: color-mix(in oklab, var(--c-note) 60%, var(--term-fg)); }
+[data-light] .wc-msg .wc-syn-cmd { color: color-mix(in oklab, var(--c-syn-cmd) 55%, var(--term-fg)); }
+[data-light] .wc-msg .wc-syn-brace { color: color-mix(in oklab, var(--c-syn-brace) 60%, var(--term-fg)); }
+[data-light] .wc-msg .wc-syn-delim { color: color-mix(in oklab, var(--c-syn-delim) 55%, var(--term-fg)); }
+[data-light] .wc-msg .wc-syn-var { color: color-mix(in oklab, var(--c-syn-var) 50%, var(--term-fg)); }
+[data-light] .wc-msg .wc-syn-code { color: color-mix(in oklab, var(--c-syn-code) 60%, var(--term-fg)); }
+
 /* The command echo in the input colour (ADR 0034, 0035); --term-echo is a
  * root token. The input line (.wc-input-prompt, -field, -mask) uses it too. */
 .wc-echo {

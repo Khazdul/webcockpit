@@ -19,8 +19,8 @@ describe('command table', () => {
     for (const n of ['unaction', 'unalias', 'unhighlight', 'unsubstitute', 'ungag', 'unmacro', 'unvariable', 'unticker', 'undelay']) {
       expect(commandByName(n), n).toMatchObject({ kind: 'undefine', tier: 'must' });
     }
-    for (const n of ['math', 'format', 'class', 'event']) expect(commandByName(n)?.tier, n).toBe('should');
-    for (const n of ['lua', 'system', 'script', 'run', 'read', 'write', 'session', 'zap', 'gts', 'line', 'buffer', 'screen', 'split', 'map', 'config', 'message', 'send']) {
+    for (const n of ['math', 'format', 'class', 'event', 'message']) expect(commandByName(n)?.tier, n).toBe('should');
+    for (const n of ['lua', 'system', 'script', 'run', 'read', 'write', 'session', 'zap', 'gts', 'line', 'buffer', 'screen', 'split', 'map', 'config', 'send']) {
       const c = commandByName(n)!;
       expect(c.inert, n).toBe(true);
       expect(c.hint, n).toBeTruthy();

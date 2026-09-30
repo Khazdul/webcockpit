@@ -46,6 +46,8 @@ export interface HelpCheck {
   sends?: readonly string[];
   /** Exactly the text of the lines shown in the game window. */
   shows?: readonly string[];
+  /** Exactly the confirmation and listing rows the typed commands give (`#message`). */
+  says?: readonly string[];
   /** Variables afterwards. */
   vars?: Readonly<Record<string, string>>;
 }
@@ -245,12 +247,14 @@ const BASICS: readonly HelpSection[] = [
     topics: ['typing'],
     text: [
       'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. ESC → Profile shows the same entries, see What is saved.',
-      'Typed without Commands, a command lists what exists: #alias shows all aliases, #alias {k*} those starting with k, #variable all variables, #ticker and #delay the running timers.',
+      'A typed command is confirmed with one row in the game window: the entry as it stands in the profile, or what happened to it (removed, not found). Commands run by an alias, action, macro or timer are not confirmed, and neither is a profile while it loads. #message switches the confirmations off, one kind at a time.',
+      'Typed without Commands, a command lists what exists, in the same form: #alias shows all aliases, #alias {k*} those starting with k, #variable all variables, #ticker and #delay the running timers.',
       '#3 north repeats a command (at most 100 times). When typing, braces may be left out around single words (#var target orc); the profile gets the line with all its braces.',
       'While a profile loads, nothing is sent to the game. A profile should only define things at its top level.',
     ],
     examples: [
-      { via: 'input', code: '#var target orc', check: { vars: { target: 'orc' } } },
+      { via: 'input', code: '#var target orc', check: { vars: { target: 'orc' }, says: ['#variable {target} {orc}'] } },
+      { via: 'input', code: '#alias gc get all corpse;#unalias gc', check: { says: ['#alias {gc} {get all corpse}', '#alias {gc} removed'] } },
       { via: 'input', code: '#3 north', check: { sends: ['north', 'north', 'north'] } },
     ],
   },
@@ -294,6 +298,8 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
         note: 'Typed, to remove every action about hunger:',
         via: 'input',
         code: '#unaction {*hungry*}',
+        // The test's engine has no action to remove.
+        check: { says: ['#action {*hungry*} not found'] },
       },
     ],
   },
@@ -384,7 +390,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     examples: [
       {
         code: '#variable {target} {}\n#alias {kk} {#if {"$target" == ""} {#showme {## No target}};#else {kill $target}}',
-        check: { type: ['kk', '#variable {target} {orc}', 'kk'], shows: ['## No target'], sends: ['kill orc'] },
+        check: { type: ['kk', '#variable {target} {orc}', 'kk'], shows: ['## No target'], sends: ['kill orc'], says: ['#variable {target} {orc}'] },
       },
     ],
   },
@@ -408,6 +414,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
           ],
           shows: ['## No target'],
           sends: ['shoot orc', 'kill orc'],
+          says: ['#variable {target} {orc}', '#variable {weapon} {sword}'],
         },
       },
     ],
@@ -522,7 +529,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     examples: [
       {
         code: '#variable {hp} {100}\n#alias {heal} {#if {$hp < 50} {quaff potion} {#showme {## No need: $hp hp}}}',
-        check: { type: ['heal', '#variable {hp} {31}', 'heal'], shows: ['## No need: 100 hp'], sends: ['quaff potion'] },
+        check: { type: ['heal', '#variable {hp} {31}', 'heal'], shows: ['## No need: 100 hp'], sends: ['quaff potion'], says: ['#variable {hp} {31}'] },
       },
       {
         code: "#action {^%1 has arrived from %2.$} {#if {\"%1\" == \"*orc*\" || \"%1\" == \"*troll*\"} {#showme {<Fff4040>## ENEMY from %2<099>}}}",
@@ -569,6 +576,28 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
       {
         code: '#alias {share} {#math {part} {%1 / 3};#showme {## Each gets $part of %1}}',
         check: { type: ['share 100', 'share 100.0'], shows: ['## Each gets 33 of 100', '## Each gets 33.3 of 100.0'] },
+      },
+    ],
+  },
+  {
+    group: 'commands',
+    heading: '#message',
+    covers: ['message'],
+    syntax: ['#message', '#message {kind}', '#message {kind} {on|off}'],
+    text: [
+      'Switches the confirmations of typed commands on or off, one kind at a time. All are on to begin with. The kinds are actions, aliases, classes, delays, events, gags, highlights, macros, substitutes, tickers and variables; a kind can be shortened as commands can (var, al, sub), and all means every kind.',
+      'Alone, #message lists each kind and whether it is on. With a kind it switches that kind over; with on or off it sets it.',
+      'Typed on the input line, the setting is saved: the profile gets a #message {kind} {off} line for each kind that is off, and none for a kind that is on. Only what is shown changes: with a kind off, its commands work and are saved as before, and the listing forms (#alias, #variable {name}) still answer.',
+    ],
+    examples: [
+      {
+        note: 'No confirmations when variables are set:',
+        code: '#message {variables} {off}',
+      },
+      {
+        via: 'input',
+        code: '#message var off;#var target orc;#alias k kill $target',
+        check: { vars: { target: 'orc' }, says: ['#message {variables} off', '#alias {k} {kill $target}'] },
       },
     ],
   },

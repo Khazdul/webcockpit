@@ -10,6 +10,8 @@
 //   `addCommand`). The written form is always `#<word> {arg} {arg}…`.
 // - undefine: every top-level definition of the kind with one of the keys
 //   is removed.
+// - message (ADR 0039): one `#message {class} {off}` line per class that is
+//   off; a class that is on has no line.
 //
 // Keys are compared as the rule store compares them: the pattern as
 // written, a macro's normalised key, an event's upper-cased name.
@@ -34,6 +36,7 @@ import {
   setVariable,
 } from './doc';
 import type { PersistKind, TypedChange } from './engine/engine';
+import { MESSAGE_CLASSES, type MessageClass, resolveMessageClass } from './engine/report';
 import { ArgReader, escapeVars, splitCommands } from './engine/text';
 import { normalizeKey } from './keys';
 
@@ -129,8 +132,69 @@ function undefine(doc: ProfileDoc, kind: PersistKind, keys: readonly string[]): 
   return { doc: out, problem };
 }
 
+interface MessageLine {
+  node: DocNode;
+  single: boolean;
+  /** The class the line sets; null when it cannot be read. */
+  cls: MessageClass | 'all' | null;
+  /** null: a toggle (`#message {x}`) or an unreadable state. */
+  state: 'on' | 'off' | null;
+}
+
+/** Top-level `#message` lines that name a class, in document order. */
+function messageLines(doc: ProfileDoc): MessageLine[] {
+  const out: MessageLine[] = [];
+  for (const node of doc.nodes) {
+    if (node.type !== 'passthrough' || node.reason !== 'command') continue;
+    const parts = splitCommands(node.text);
+    for (const part of parts) {
+      if (part.charCodeAt(0) !== 0x23 /* # */) continue;
+      let i = 1;
+      while (i < part.length && !/\s/.test(part[i]!) && part[i] !== '{') i++;
+      const e = resolveCommand(part.slice(1, i));
+      if (e === null || e === 'ambiguous' || e.name !== 'message') continue;
+      const r = new ArgReader(part.slice(i));
+      const word = r.next('one').trim();
+      if (word === '') continue;
+      const arg = r.next('one').trim().toLowerCase();
+      out.push({ node, single: parts.length === 1, cls: resolveMessageClass(word), state: arg === 'on' || arg === 'off' ? arg : null });
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * A typed `#message` (ADR 0039). The profile holds only what differs from
+ * the default: one `#message {class} {off}` line per class that is off, or
+ * `#message {all} {off}` when all are. Lines for other classes keep their
+ * text; when the profile sets classes in a way that cannot be edited line
+ * by line (`all`, a toggle), its `#message` lines are written anew.
+ */
+function setMessages(doc: ProfileDoc, changed: readonly MessageClass[], off: readonly MessageClass[]): PersistResult {
+  const lines = messageLines(doc);
+  if (lines.some((l) => !l.single)) return { doc, problem: `#message: ${COMPOUND.replace('defined', 'set')}` };
+  let out = doc;
+  const everything = off.length === MESSAGE_CLASSES.length;
+  if (everything || lines.some((l) => l.cls === 'all' || l.cls === null || l.state === null)) {
+    for (const l of lines) out = removeEntry(out, l.node.id);
+    if (everything) return { doc: addCommand(out, 'message', ['all', 'off']).doc, problem: null };
+    for (const c of off) out = addCommand(out, 'message', [c, 'off']).doc;
+    return { doc: out, problem: null };
+  }
+  for (const c of changed) {
+    const mine = lines.filter((l) => l.cls === c);
+    const keep = off.includes(c) ? mine[mine.length - 1] : undefined;
+    for (const l of mine) if (l !== keep) out = removeEntry(out, l.node.id);
+    if (!off.includes(c)) continue;
+    out = keep ? rewriteCommand(out, keep.node.id, [c, 'off']) : addCommand(out, 'message', [c, 'off']).doc;
+  }
+  return { doc: out, problem: null };
+}
+
 /** Applies one typed change to a profile document. */
 export function applyTypedChange(doc: ProfileDoc, change: TypedChange): PersistResult {
+  if (change.op === 'message') return setMessages(doc, change.changed, change.off);
   if (change.op === 'define') return define(doc, change.kind, change.key, change.args);
   return undefine(doc, change.kind, change.keys);
 }
