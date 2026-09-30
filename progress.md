@@ -22,6 +22,24 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-09-30 — Underscore glyph face
+
+- **Done:** owner rejected ADR 0042's 1 px lift (it cut accent marks).
+  Lift removed (also the editor's own rules from ADR 0037); a one-glyph
+  face "WebCockpit Underscore" (U+5F raised 278/2048 units, built by
+  `scripts/build-underscore-font.py`) sits ahead of DejaVu, also in the
+  HTML replay (ADR 0043). Accents pixel-identical to before the lift;
+  `_` whole at 256/256 settings; cell sizes unchanged. Firefox e2e now
+  really sets the pixel ratio (`tests/e2e/dpr.ts`). Unit 1326/1327
+  (known `timers-replay`), e2e 245–246/246 (flaky reruns pass).
+- **Next:** owner tests; release 0.1.19; plan the rest of stage 8.
+- **Open issues:** Windows/macOS rendering unmeasured (thin margin at
+  Firefox DejaVu 10); pane frames and titles faint on paper; other
+  Firefox specs using `deviceScaleFactor` still run at ratio 1; bench
+  Chromium software-render scrollback/burst fails on HEAD too
+  (environment).
+- **Commits:** 2966d48, plus this one.
+
 ### 2026-09-30 — Clock blank, light chrome, full-width editor, underscores
 
 - **Done:** owner request, four items. Clock strip is 8 cells with the

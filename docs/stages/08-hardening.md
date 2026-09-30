@@ -307,3 +307,11 @@ the character in the input line is ever a problem in play.
   from ESC, in a wide window. Create a profile `a_b_c`, look at the
   Profiles list, rename it, type `a_b_c` on the input line (Firefox
   too).
+- 2026-09-30, underscores again: the owner rejected the 1 px text lift
+  (accented capitals cut more often). Replaced by a one-glyph face for
+  `_` ahead of DejaVu Sans Mono (ADR 0043); text is back where it was,
+  accent marks exactly as before the lift, `_` whole at every measured
+  setting, including the row above a background-coloured row and the
+  EDITOR view. Open: measured on Linux only; Windows/macOS not checked.
+  Test guide: as above, and type `Åsa_Öberg ÄÉ` on the input line and
+  as a profile name.
