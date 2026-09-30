@@ -502,7 +502,7 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
           onClick={click}
         >
           <span class={'wc-exp-mark' + (logFocused ? ' is-focus' : '')}>{isCur && k === 0 ? '►' : ' '}</span>
-          <span class="wc-exp-bar">{excl ? '▌' : ' '}</span>
+          <span class="wc-exp-bar wc-art">{excl ? '▌' : ' '}</span>
           {' '}
           {lines[k]}
         </div>,
@@ -515,9 +515,9 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
   const mapRows = marks.map((m, r) => {
     const content =
       m === null ? (
-        <span class="wc-exp-map-track">│</span>
+        <span class="wc-exp-map-track wc-art">│</span>
       ) : m === 'excluded' ? (
-        <span class="wc-exp-map-excl">█</span>
+        <span class="wc-exp-map-excl wc-art">█</span>
       ) : m === 'comment' ? (
         <span class="wc-exp-comment">■</span>
       ) : (
@@ -537,7 +537,7 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
         }}
       >
         {content}
-        <span class={thumb ? 'wc-exp-map-thumb' : 'wc-exp-map-track'}>{thumb ? '█' : ' '}</span>
+        <span class={'wc-art ' + (thumb ? 'wc-exp-map-thumb' : 'wc-exp-map-track')}>{thumb ? '█' : ' '}</span>
       </div>
     );
   });

@@ -88,6 +88,8 @@
   height: var(--cell-h);
   display: flex;
   justify-content: space-between;
+  /* The log's name can hold `_`: one pixel up, as the chrome kit (ADR 0042). */
+  line-height: calc(var(--cell-h) - 2px);
   background: var(--term-bg);
   color: var(--c-hint);
   overflow: hidden;
@@ -232,6 +234,7 @@
 
 .wc-player-tip > div {
   height: var(--cell-h);
+  line-height: calc(var(--cell-h) - 2px);
   overflow: hidden;
   text-overflow: ellipsis;
 }

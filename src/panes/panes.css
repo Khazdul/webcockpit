@@ -1,9 +1,23 @@
 /* Pane content rows (src/panes/grid.ts): one cell high, whole cells wide. */
 .wc-prow {
   height: var(--cell-h);
-  line-height: var(--cell-h);
+  /* Text sits one pixel higher than in a plain one-cell line, so the lowest
+   * descender row (`_`) is not clipped (ADR 0042, as the chrome kit). */
+  line-height: calc(var(--cell-h) - 2px);
   white-space: pre;
   overflow: hidden;
+}
+
+/* Every styled run is a box of exactly one cell (its background too);
+ * glyph art keeps the full line-height and renders as before. */
+.wc-prow > span {
+  display: inline-block;
+  height: var(--cell-h);
+  vertical-align: top;
+}
+
+.wc-prow > .wc-art {
+  line-height: var(--cell-h);
 }
 
 /* Comm and UI message panes (src/panes/comm.ts, ui.ts, anchored-list.ts). */
@@ -23,11 +37,13 @@
   overflow: hidden;
 }
 
+/* One pixel above the bottom edge: the last row's lowest descender row
+ * (`_`) would otherwise fall outside the list and be clipped (ADR 0042). */
 .wc-alist-stack {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 1px;
 }
 
 /* One message: CSS wraps it inside the pane's whole-cell width. */
@@ -55,6 +71,7 @@
 .wc-comm-header {
   flex: none;
   height: var(--cell-h);
+  line-height: calc(var(--cell-h) - 2px);
   overflow: hidden;
   user-select: none;
 }

@@ -6,6 +6,8 @@
 //
 //   <div class="wc-prow"><span style="color:…;background:…">text</span>…</div>
 //
+// Runs of block and box glyphs get their own span, class `wc-art`.
+//
 // Colours are hex strings, or '' for the pane's own (inherited) colour.
 // Every row is exactly `w` cells (spaces pad), one cell per UTF-16 unit;
 // pane text is BMP (names, block glyphs), so that holds.
@@ -17,6 +19,21 @@ export interface CellStyle {
   bg?: string;
   bold?: boolean;
   italic?: boolean;
+}
+
+const SPACE = 0;
+const ART = 1;
+const TEXT = 2;
+
+/**
+ * Block and box glyphs (U+2500–259F) are glyph art: they keep the full
+ * line-height so they tile, while text sits one pixel higher so its lowest
+ * descender row (`_`) stays inside the cell (panes.css, ADR 0042).
+ */
+function cellKind(ch: string): number {
+  if (ch === ' ') return SPACE;
+  const c = ch.charCodeAt(0);
+  return c >= 0x2500 && c <= 0x259f ? ART : TEXT;
 }
 
 export class CellLine {
@@ -70,16 +87,26 @@ export class CellLine {
     row.className = 'wc-prow';
     let i = 0;
     while (i < this.w) {
+      // A run: equal style, and glyph art apart from text (spaces go with either).
+      let kind = cellKind(this.ch[i]!);
       let j = i + 1;
-      while (j < this.w && this.fg[j] === this.fg[i] && this.bg[j] === this.bg[i] && this.flags[j] === this.flags[i]) j++;
+      while (j < this.w && this.fg[j] === this.fg[i] && this.bg[j] === this.bg[i] && this.flags[j] === this.flags[i]) {
+        const k = cellKind(this.ch[j]!);
+        if (k !== SPACE) {
+          if (kind !== SPACE && k !== kind) break;
+          kind = k;
+        }
+        j++;
+      }
       const text = this.ch.slice(i, j).join('');
       const fg = this.fg[i]!;
       const bg = this.bg[i]!;
       const fl = this.flags[i]!;
-      if (!fg && !bg && !fl) {
+      if (!fg && !bg && !fl && kind !== ART) {
         row.append(text);
       } else {
         const span = doc.createElement('span');
+        if (kind === ART) span.className = 'wc-art';
         if (fg) span.style.color = fg;
         if (bg) span.style.backgroundColor = bg;
         if (fl & 1) span.style.fontWeight = 'bold';

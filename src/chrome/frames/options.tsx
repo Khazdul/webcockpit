@@ -470,7 +470,7 @@ function PaletteRow(p: {
               }}
             >
               <span class="wc-pal-br">{cur ? '[' : ' '}</span>
-              <span style={{ color: `var(--ansi-${i})` }}>██</span>
+              <span class="wc-art" style={{ color: `var(--ansi-${i})` }}>██</span>
               <span class="wc-pal-br">{cur ? ']' : ' '}</span>
             </span>
           </>
@@ -542,7 +542,7 @@ function HexFrame(p: { index: number }): VNode {
     >
       <Centered text={`Now ${cur}  ███`} width={cur.length + 9}>
         <span class="wc-c-body">{`Now ${cur}  `}</span>
-        <span style={{ color: `var(--ansi-${p.index})` }}>███</span>
+        <span class="wc-art" style={{ color: `var(--ansi-${p.index})` }}>███</span>
       </Centered>
       <Blank />
       <TextField
