@@ -44,6 +44,12 @@ The full history of every change is in this repository's git log.
   Bitstream Vera Fonts licence (Copyright (c) 2003 Bitstream, Inc.), DejaVu
   changes in the public domain, Arev glyphs (c) Tavmjong Bah.
   Full text: `public/fonts/LICENSE-DejaVu.txt`.
+- **WebCockpit Underscore** (regular, bold): a modified version of DejaVu
+  Sans Mono holding only its underscore (U+005F), moved up 278 font units
+  (ADR 0043). Same licence and copyright as DejaVu Sans Mono above; as the
+  Bitstream Vera licence requires of a modified version, its name contains
+  neither "Bitstream" nor "Vera" (nor "DejaVu"). Built by
+  `scripts/build-underscore-font.py`.
 - **JetBrains Mono** 2.304, NL build (regular, bold), converted to WOFF2.
   Copyright 2020 The JetBrains Mono Project Authors. SIL Open Font
   License 1.1. Full text: `public/fonts/LICENSE-JetBrainsMono-OFL.txt`.

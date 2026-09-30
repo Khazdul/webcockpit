@@ -11,7 +11,7 @@
   /* Fallbacks until src/theme applies the settings. */
   --cell-h: 17px;
   --cell-w: 9px;
-  --font-mono: "DejaVu Sans Mono", monospace;
+  --font-mono: "WebCockpit Underscore", "DejaVu Sans Mono", monospace;
   --font-size: 15px;
   --pad: 0px;
   --cell-ls: 0px;
@@ -88,24 +88,12 @@ body {
 .wc-chunk {
   /* A chunk's rows never affect layout outside it (see output-pane.ts). */
   contain: content;
-  /* Paint containment clips at the chunk's edge: one pixel more, for the
-   * lowest descender row (`_`) of the chunk's last row (ADR 0042). */
-  overflow-clip-margin: 1px;
 }
 
 .wc-row {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   min-height: var(--cell-h);
-}
-
-/* The rows are drawn one pixel up (no layout change): a row's lowest
- * descender row (`_`) can fall below its cell, which shows over the next
- * row but was clipped at the pane's bottom edge on the last one (ADR 0042). */
-.wc-rows,
-.wc-partial {
-  position: relative;
-  top: -1px;
 }
 
 /* Export comments in the log player and the HTML replay (ADR 0019). */
@@ -163,7 +151,6 @@ body {
   right: 0;
   bottom: 0;
   height: var(--cell-h);
-  line-height: calc(var(--cell-h) - 2px);
   white-space: pre;
   overflow: hidden;
   background: var(--c-hint);
@@ -232,9 +219,7 @@ body {
   height: var(--cell-h);
   font-family: var(--font-mono);
   font-size: var(--font-size);
-  /* One pixel higher than a plain one-cell line, so the lowest descender
-   * row (`_`) stays inside the cell (ADR 0042); the row is one cell high. */
-  line-height: calc(var(--cell-h) - 2px);
+  line-height: var(--cell-h);
   white-space: pre;
 }
 
@@ -265,11 +250,7 @@ body {
   caret-color: transparent;
   font: inherit;
   letter-spacing: inherit;
-  /* The same pixel up for a single-line field (ADR 0042): it centres its
-   * line in the content box, and Firefox ignores a line-height below
-   * `normal` on an <input>. */
-  line-height: calc(var(--cell-h) + 2px);
-  padding: 0 0 2px;
+  line-height: var(--cell-h);
 }
 
 /* Password mode: the real text is transparent, bullets are drawn over it. */
@@ -282,7 +263,6 @@ body {
   left: 0;
   top: 0;
   right: 0;
-  height: var(--cell-h);
   overflow: hidden;
   white-space: pre;
   pointer-events: none;

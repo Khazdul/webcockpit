@@ -13,11 +13,11 @@
 // the visited rooms and its tiles (src/replay/map-embed.ts).
 //
 // Fonts: the exporter's family plus any family a recorded VIEW switches to
-// (regular and bold woff2). URLs are relative to the page, so a subpath
+// (regular and bold woff2, and the family's glyph faces: ADR 0043). URLs are relative to the page, so a subpath
 // deploy works. The bundle is only ever read here as text: the app never
 // runs it, and this module does not import the replay runtime.
 
-import { FONTS } from '../theme/fonts';
+import { FONTS, fontFiles } from '../theme/fonts';
 import type { FontId } from '../settings/types';
 import { captureEntries } from '../share/capture';
 import type { ReplayPayload } from '../share/payload';
@@ -36,6 +36,8 @@ export interface FontFile {
   weight: 'normal' | 'bold';
   /** The woff2 bytes. */
   data: Uint8Array;
+  /** `unicode-range` of a glyph face (the underscore face, ADR 0043). */
+  unicodeRange?: string;
 }
 
 export interface ReplayHtmlParts {
@@ -88,7 +90,9 @@ function notice(version: string): string {
     '  GPL-2.0-or-later.',
     '',
     '  Embedded fonts: DejaVu Sans Mono (Bitstream Vera licence, public',
-    '  domain changes) and JetBrains Mono (SIL Open Font License 1.1), as used.',
+    '  domain changes), WebCockpit Underscore (the underscore of DejaVu Sans',
+    '  Mono, moved up; same licence) and JetBrains Mono (SIL Open Font',
+    '  License 1.1), as used.',
     '-->',
   ].join('\n');
 }
@@ -99,7 +103,9 @@ export function assembleReplayHtml(p: ReplayHtmlParts): string {
     .map(
       (f) =>
         `@font-face{font-family:"${f.family}";src:url(data:font/woff2;base64,${toBase64(f.data)}) format("woff2");` +
-        `font-weight:${f.weight};font-style:normal;font-display:block}`,
+        `font-weight:${f.weight};font-style:normal;font-display:block` +
+        (f.unicodeRange ? `;unicode-range:${f.unicodeRange}` : '') +
+        '}',
     )
     .join('\n');
   const bg = HEX.test(p.bg) ? p.bg : '#000000';
@@ -183,19 +189,14 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
       ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
     });
   }
-  const files = replayFonts(payload).flatMap((id) => {
-    const info = FONTS[id];
-    return [
-      { family: info.family, weight: 'normal' as const, file: info.regular },
-      { family: info.family, weight: 'bold' as const, file: info.bold },
-    ];
-  });
+  const files = replayFonts(payload).flatMap((id) => fontFiles(id));
   const [script, fonts, encoded] = await Promise.all([
     get(f, url(REPLAY_BUNDLE_PATH)).then((r) => r.text()),
     Promise.all(
       files.map(async (x) => ({
         family: x.family,
         weight: x.weight,
+        ...(x.unicodeRange ? { unicodeRange: x.unicodeRange } : {}),
         data: new Uint8Array(await (await get(f, url(`fonts/${x.file}`))).arrayBuffer()),
       })),
     ),

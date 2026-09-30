@@ -61,6 +61,8 @@ as ` show_class`; the owner also did not find it in the EDITOR view.
 
 ### Underscores
 
+Superseded by ADR 0043 (2026-09-30).
+
 - **Cause.** The cell is lower than the font's ascent + descent
   (`cells.ts` rounds it down so block glyphs tile), so a line box of one
   cell has negative leading. Firefox takes the odd pixel from the bottom;

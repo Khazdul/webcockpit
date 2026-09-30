@@ -3,7 +3,12 @@
  * the cell grid is measured once with the real font and never reflows.
  * Only the selected family is preloaded (src/theme/fonts.ts); the other
  * family is fetched only if something uses it (JetBrains Mono falls back
- * to DejaVu Sans Mono for the few symbols it lacks). */
+ * to DejaVu Sans Mono for the few symbols it lacks).
+ *
+ * "WebCockpit Underscore" holds one glyph: DejaVu Sans Mono's `_`, drawn
+ * higher so that it ends inside the cell (ADR 0043). It comes first in the
+ * DejaVu stack (src/theme/fonts.ts) and is preloaded with it; JetBrains
+ * Mono keeps its own `_`. */
 
 @font-face {
   font-family: "DejaVu Sans Mono";
@@ -19,6 +24,24 @@
   font-weight: bold;
   font-style: normal;
   font-display: block;
+}
+
+@font-face {
+  font-family: "WebCockpit Underscore";
+  src: url("/fonts/WebCockpitUnderscore.woff2") format("woff2");
+  font-weight: normal;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+5F;
+}
+
+@font-face {
+  font-family: "WebCockpit Underscore";
+  src: url("/fonts/WebCockpitUnderscore-Bold.woff2") format("woff2");
+  font-weight: bold;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+5F;
 }
 
 @font-face {

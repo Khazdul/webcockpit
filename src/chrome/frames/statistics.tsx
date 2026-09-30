@@ -67,18 +67,8 @@ const PVPS = 3;
 /** Rows of ALLIES / ACHIEVEMENTS. */
 const SMALL_ROWS = 3;
 
-/** Block and box glyphs only (with spaces): glyph art, which keeps the full line-height (`wc-art`, ADR 0042). */
-const ART = /^[\u2500-\u259f ]*[\u2500-\u259f][\u2500-\u259f ]*$/;
-
 function Segs(p: { segs: readonly Seg[] }): VNode {
-  return (
-    <>
-      {p.segs.map((s) => {
-        const cls = ART.test(s.text) ? (s.cls ? s.cls + ' wc-art' : 'wc-art') : s.cls;
-        return cls ? <span class={cls}>{s.text}</span> : s.text;
-      })}
-    </>
-  );
+  return <>{p.segs.map((s) => (s.cls ? <span class={s.cls}>{s.text}</span> : s.text))}</>;
 }
 
 const pad = (n: number): Seg => ({ text: ' '.repeat(Math.max(0, n)) });
@@ -183,7 +173,7 @@ export function StatsView(p: StatsViewProps): VNode {
     const cell =
       bar.length > 0 ? (
         <span
-          class={'wc-stat-bar wc-art ' + (bar[vi!] ? 'wc-st-thumb' : 'wc-st-track')}
+          class={'wc-stat-bar ' + (bar[vi!] ? 'wc-st-thumb' : 'wc-st-track')}
           onMouseDown={(e) => e.preventDefault()}
           onClick={(e) => {
             e.stopPropagation();

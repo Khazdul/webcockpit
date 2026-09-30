@@ -82,7 +82,10 @@ describe('assembleReplayHtml', () => {
     title: 'A <fight> & more',
     payload: 'QUJD',
     script: 'document.title="</script><!--";',
-    fonts: [{ family: 'DejaVu Sans Mono', weight: 'bold' as const, data: new Uint8Array([1, 2, 3]) }],
+    fonts: [
+      { family: 'DejaVu Sans Mono', weight: 'bold' as const, data: new Uint8Array([1, 2, 3]) },
+      { family: 'WebCockpit Underscore', weight: 'normal' as const, data: new Uint8Array([4]), unicodeRange: 'U+5F' },
+    ],
     bg: '#101010',
     fg: 'not a colour',
     version: '1.2.3',
@@ -98,6 +101,10 @@ describe('assembleReplayHtml', () => {
     expect(html).toContain('<title>A &#60;fight&#62; &#38; more</title>');
     expect(html).toContain(
       '@font-face{font-family:"DejaVu Sans Mono";src:url(data:font/woff2;base64,AQID) format("woff2");font-weight:bold;font-style:normal;font-display:block}',
+    );
+    // The underscore face (ADR 0043) keeps its unicode-range.
+    expect(html).toContain(
+      '@font-face{font-family:"WebCockpit Underscore";src:url(data:font/woff2;base64,BA==) format("woff2");font-weight:normal;font-style:normal;font-display:block;unicode-range:U+5F}',
     );
     expect(html).toContain('background:var(--term-bg,#101010);color:var(--term-fg,#c0c0c0)');
     const s = scripts(html);
@@ -130,6 +137,8 @@ describe('buildReplayHtml', () => {
     expect(urls.sort()).toEqual([
       'https://example.org/sub/fonts/DejaVuSansMono-Bold.woff2',
       'https://example.org/sub/fonts/DejaVuSansMono.woff2',
+      'https://example.org/sub/fonts/WebCockpitUnderscore-Bold.woff2',
+      'https://example.org/sub/fonts/WebCockpitUnderscore.woff2',
       `https://example.org/sub/${REPLAY_BUNDLE_PATH}`,
     ]);
     const html = await blob.text();
@@ -138,7 +147,9 @@ describe('buildReplayHtml', () => {
     expect(await decodePayload(s[0]!.body)).toEqual(p);
     expect(s[1]!.body).toBe('console.log("\\x3C/script>")');
     expect(html).toContain('<title>A fight</title>');
-    expect(html.match(/@font-face/g)).toHaveLength(2);
+    // DejaVu regular and bold, and the underscore face (ADR 0043) with its unicode-range.
+    expect(html.match(/@font-face/g)).toHaveLength(4);
+    expect(html.match(/unicode-range:U\+5F}/g)).toHaveLength(2);
   });
 
   it('fails when the bundle is missing', async () => {

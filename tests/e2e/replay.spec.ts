@@ -126,8 +126,12 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   await expect(chrome(p).locator('.wc-player-tip')).toHaveText('Died (level 42)');
   await expect(player(p).locator('.wc-input-slot')).toBeHidden();
   await expect(chrome(p).locator('.wc-player-strip')).toBeVisible();
-  // The font came from the file.
+  // The font came from the file, the underscore face (ADR 0043) too.
   expect(await p.evaluate(() => document.fonts.check('15px "DejaVu Sans Mono"'))).toBe(true);
+  expect(html.match(/font-family:"WebCockpit Underscore";src:url\(data:font\/woff2;base64,[^)]+\) format\("woff2"\);font-weight:(normal|bold);font-style:normal;font-display:block;unicode-range:U\+5F\}/g)).toHaveLength(2);
+  await expect
+    .poll(() => p.evaluate(() => [...document.fonts].filter((f) => f.family.includes('WebCockpit Underscore')).map((f) => f.status)))
+    .toEqual(['loaded', 'loaded']);
 
   // The comment holds playback, whatever the speed: at 8x nothing follows it for seconds.
   await p.keyboard.press('6');

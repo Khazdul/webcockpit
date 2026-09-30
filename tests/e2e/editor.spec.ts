@@ -1,6 +1,7 @@
 // Stage 3 P3: the profile editor (lite + editor views) from the start page
 // and the ESC menu, against a mocked MUME WebSocket.
 import { type Locator, type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { dprTest, expectDpr } from './dpr';
 
 const IAC = 255;
 const WILL = 251;
@@ -756,12 +757,21 @@ test('EDITOR in a narrow window keeps the centred column', async ({ page }) => {
  * letter without a descender (the background sample). About 1 for a
  * DejaVu `_`, 0 when it is clipped or painted over.
  */
-async function underscoreInk(page: Page, loc: Locator, cols: number[]): Promise<number[]> {
+async function underscoreInk(page: Page, loc: Locator, cols: number[], fromText = false): Promise<number[]> {
   const cell = await page.evaluate(() => {
     const cs = getComputedStyle(document.documentElement);
     return { w: parseFloat(cs.getPropertyValue('--cell-w')), h: parseFloat(cs.getPropertyValue('--cell-h')) };
   });
   const b = (await loc.boundingBox())!;
+  // `fromText`: the text starts at its first character, not at the box's left edge (CodeMirror's line padding).
+  if (fromText)
+    b.x = await loc.evaluate((el) => {
+      const t = document.createTreeWalker(el, NodeFilter.SHOW_TEXT).nextNode()!;
+      const r = document.createRange();
+      r.setStart(t, 0);
+      r.setEnd(t, 1);
+      return r.getBoundingClientRect().left;
+    });
   const n = Math.max(...cols, 2) + 1;
   const png = await page.screenshot({ clip: { x: b.x, y: b.y, width: cell.w * n, height: cell.h + 2 } });
   return page.evaluate(
@@ -825,14 +835,35 @@ async function expectUnderscores(page: Page, font: 'dejavu' | 'jetbrains', size:
 }
 
 for (const dpr of [1, 1.5]) {
-  test.describe(`underscores at device pixel ratio ${dpr}`, () => {
-    test.use({ deviceScaleFactor: dpr });
-    test('every underscore of an entry shows in LITE, in both fonts and at several sizes', async ({ page }) => {
+  dprTest.describe(`underscores at device pixel ratio ${dpr}`, () => {
+    dprTest.use({ dpr });
+    dprTest('every underscore of an entry shows in LITE, in both fonts and at several sizes', async ({ dprPage: page }) => {
       await openFromStart(page, UNDERSCORES);
+      await expectDpr(page, dpr);
       await kind(page, 'alias');
       await listRows(page).nth(1).click();
       for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['dejavu', 13], ['jetbrains', 15], ['dejavu', 20]] as const) {
         await expectUnderscores(page, font, size);
+      }
+    });
+
+    // ADR 0043: CodeMirror's lines, the one above the cursor's highlighted line too.
+    dprTest('every underscore shows in EDITOR, also on the line above the active line', async ({ dprPage: page }) => {
+      await openFromStart(page, UNDERSCORES);
+      await expectDpr(page, dpr);
+      await toEditor(page);
+      const line = (n: number) => content(page).locator('.cm-line').nth(n);
+      await expect(line(1)).toHaveText('#alias {_show_class} {_hhhh_}');
+      // The cursor on the third line: its highlight is the background right below line 2.
+      await line(2).click();
+      await expect(line(2)).toHaveClass(/cm-activeLine/);
+      for (const [font, size] of [['dejavu', 15], ['dejavu', 10], ['dejavu', 13], ['dejavu', 20], ['jetbrains', 15]] as const) {
+        await page.evaluate(([f, s]) => window.__wc!.settings.update({ appearance: { font: f as 'dejavu', size: s as number } }), [font, size] as const);
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(150);
+        // `#alias {_show_class}`: underscores in cells 8 and 13; cell 2 (`l`) is the background sample.
+        const ink = await underscoreInk(page, line(1), [8, 13], true);
+        expect(Math.min(...ink), `EDITOR line, ${font} ${size}: underscore ink ${ink.map((v) => v.toFixed(2)).join(' / ')}`).toBeGreaterThan(0.5);
       }
     });
   });

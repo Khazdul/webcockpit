@@ -53,55 +53,8 @@
 
 .wc-line {
   height: var(--cell-h);
-  /* Text rows (ADR 0042, after ADR 0037). The cell is lower than the font's
-   * ascent + descent (cells.ts rounds it down so block glyphs tile), so a
-   * line box of one cell has negative leading and the lowest descender row,
-   * where DejaVu draws `_`, can fall outside the cell and be clipped here.
-   * Two pixels less line-height in a row that is still one cell high puts
-   * the baseline one pixel higher in both engines. */
-  line-height: var(--line-lh, var(--cell-h));
   white-space: pre;
   overflow: hidden;
-}
-
-.wc-chrome,
-.wc-overlay {
-  --line-lh: calc(var(--cell-h) - 2px);
-}
-
-/* The profile editor marks its own text (src/editor/editor.css, ADR 0037). */
-.wc-ped {
-  --line-lh: var(--cell-h);
-}
-
-/* Bands: a box of exactly one cell (an inline box's background is the
- * font's content area, which the raised baseline would move off the cell). */
-.wc-tr,
-.wc-btn {
-  display: inline-block;
-  height: var(--cell-h);
-  vertical-align: top;
-}
-
-/* Glyph art. Block and box glyphs that continue into the row above or
- * below keep the full line-height, in a line box of their own, so they
- * render as before and tile: `wc-art` on a span inside a text row or on a
- * whole `.wc-line`; the scrollbar, box and swatch cells have it built in. */
-.wc-art,
-.wc-line.wc-box,
-.wc-banner .wc-line {
-  line-height: var(--cell-h);
-}
-
-.wc-line .wc-art,
-.wc-line .wc-scroll-thumb,
-.wc-line .wc-scroll-track,
-.wc-line .wc-box,
-.wc-line .wc-swatch {
-  display: inline-block;
-  height: var(--cell-h);
-  line-height: var(--cell-h);
-  vertical-align: top;
 }
 
 .wc-footer {
@@ -337,15 +290,6 @@
   letter-spacing: inherit;
   line-height: var(--cell-h);
   vertical-align: top;
-}
-
-/* A single-line field centres its line in the content box and clips at the
- * line box; the bottom padding moves that centre up one pixel, as the text
- * rows (ADR 0042; Firefox ignores a line-height below `normal` on an
- * <input>). */
-input.wc-field {
-  line-height: calc(var(--cell-h) + 2px);
-  padding-bottom: 2px;
 }
 
 /* Thin box (preview, Inv §10.6 "Boxes"). */

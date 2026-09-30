@@ -32,7 +32,7 @@ describe('root tokens', () => {
     expect(t['--pane-border-red']).toBe('#2e2222');
     expect(t['--pane-bg-none']).toBe('#000000');
     expect(t['--pane-border-none']).toBe('#292929');
-    expect(t['--font-mono']).toBe('"DejaVu Sans Mono", monospace');
+    expect(t['--font-mono']).toBe('"WebCockpit Underscore", "DejaVu Sans Mono", monospace');
     expect(t['--pad']).toBe('0px');
   });
 

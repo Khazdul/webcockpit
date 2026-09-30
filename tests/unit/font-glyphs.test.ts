@@ -4,7 +4,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { brotliDecompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { FONTS } from '../../src/theme/fonts';
+import { FONTS, UNDERSCORE_FACE, fontFiles } from '../../src/theme/fonts';
 
 const DIR = new URL('../../public/fonts/', import.meta.url);
 
@@ -22,8 +22,11 @@ const KNOWN_TAGS = [
   'Gloc', 'Feat', 'Sill',
 ];
 
-/** The code points in a woff2 font's cmap. */
-export function woff2CodePoints(buf: Buffer): Set<number> {
+/**
+ * The tables of a woff2 font, decompressed (one Brotli stream, node:zlib).
+ * `glyf` / `loca` come back in their WOFF2-transformed form (unused here).
+ */
+export function woff2Tables(buf: Buffer): Map<string, Buffer> {
   if (buf.toString('latin1', 0, 4) !== 'wOF2') throw new Error('not woff2');
   const numTables = buf.readUInt16BE(12);
   const compLen = buf.readUInt32BE(20);
@@ -38,10 +41,10 @@ export function woff2CodePoints(buf: Buffer): Set<number> {
     throw new Error('bad UIntBase128');
   };
   let offset = 0;
-  let cmap: { off: number; len: number } | null = null;
+  const dir: Array<{ tag: string; off: number; len: number }> = [];
   for (let t = 0; t < numTables; t++) {
     const flags = buf[p++]!;
-    let tag = KNOWN_TAGS[flags & 0x3f];
+    let tag = KNOWN_TAGS[flags & 0x3f]!;
     if ((flags & 0x3f) === 63) {
       tag = buf.toString('latin1', p, p + 4);
       p += 4;
@@ -50,12 +53,17 @@ export function woff2CodePoints(buf: Buffer): Set<number> {
     const orig = base128();
     const transformed = tag === 'glyf' || tag === 'loca' ? version === 0 : version !== 0;
     const len = transformed ? base128() : orig;
-    if (tag === 'cmap') cmap = { off: offset, len };
+    dir.push({ tag, off: offset, len });
     offset += len;
   }
-  if (!cmap) throw new Error('no cmap');
   const data = brotliDecompressSync(buf.subarray(p, p + compLen));
-  const c = data.subarray(cmap.off, cmap.off + cmap.len);
+  return new Map(dir.map((t) => [t.tag, data.subarray(t.off, t.off + t.len)]));
+}
+
+/** The code points in a woff2 font's cmap. */
+export function woff2CodePoints(buf: Buffer): Set<number> {
+  const c = woff2Tables(buf).get('cmap');
+  if (!c) throw new Error('no cmap');
   const out = new Set<number>();
   const n = c.readUInt16BE(2);
   for (let i = 0; i < n; i++) {
@@ -126,5 +134,72 @@ describe('bundled fonts', () => {
       expect(missing(jb, SYMBOLS).sort()).toEqual([...'✦✧⚔♦★☆✖▬'].sort());
     }
     expect(FONTS.jetbrains.stack).toContain('"DejaVu Sans Mono"');
+  });
+});
+
+/** The metrics that decide a line box: hhea, OS/2 and head, as numbers. */
+function lineMetrics(buf: Buffer): Record<string, number> {
+  const t = woff2Tables(buf);
+  const hhea = t.get('hhea')!;
+  const os2 = t.get('OS/2')!;
+  const head = t.get('head')!;
+  return {
+    unitsPerEm: head.readUInt16BE(18),
+    hheaAscent: hhea.readInt16BE(4),
+    hheaDescent: hhea.readInt16BE(6),
+    hheaLineGap: hhea.readInt16BE(8),
+    fsSelection: os2.readUInt16BE(62),
+    typoAscender: os2.readInt16BE(68),
+    typoDescender: os2.readInt16BE(70),
+    typoLineGap: os2.readInt16BE(72),
+    winAscent: os2.readUInt16BE(74),
+    winDescent: os2.readUInt16BE(76),
+  };
+}
+
+/** Advance width of glyph `gid` (hmtx, with hhea.numberOfHMetrics). */
+function advance(buf: Buffer, gid: number): number {
+  const t = woff2Tables(buf);
+  const n = t.get('hhea')!.readUInt16BE(34);
+  return t.get('hmtx')!.readUInt16BE(Math.min(gid, n - 1) * 4);
+}
+
+describe('the underscore face (ADR 0043)', () => {
+  const pairs = [
+    [UNDERSCORE_FACE.regular, FONTS.dejavu.regular],
+    [UNDERSCORE_FACE.bold, FONTS.dejavu.bold],
+  ] as const;
+
+  for (const [face, dejavu] of pairs) {
+    it(`${face} maps only U+005F and has DejaVu's line metrics and advance`, () => {
+      const f = readFileSync(new URL(face, DIR));
+      const d = readFileSync(new URL(dejavu, DIR));
+      expect([...woff2CodePoints(f)]).toEqual([0x5f]);
+      // Identical vertical metrics: the face cannot change a line box, so
+      // the cell (src/theme/cells.ts) and every row stay as they are.
+      expect(lineMetrics(f)).toEqual(lineMetrics(d));
+      // Glyph 1 is the underscore (glyph 0 is .notdef); every DejaVu Sans Mono glyph is 1233 wide.
+      expect(advance(f, 1)).toBe(1233);
+      expect(advance(f, 0)).toBe(1233);
+    });
+  }
+
+  it('comes first in the DejaVu stack only, and is loaded with DejaVu', () => {
+    expect(FONTS.dejavu.stack.startsWith(`"${UNDERSCORE_FACE.family}", "DejaVu Sans Mono"`)).toBe(true);
+    expect(FONTS.jetbrains.stack).not.toContain(UNDERSCORE_FACE.family);
+    expect(fontFiles('dejavu').map((f) => f.file)).toEqual([
+      FONTS.dejavu.regular,
+      FONTS.dejavu.bold,
+      UNDERSCORE_FACE.regular,
+      UNDERSCORE_FACE.bold,
+    ]);
+    expect(fontFiles('jetbrains').map((f) => f.file)).toEqual([FONTS.jetbrains.regular, FONTS.jetbrains.bold]);
+    const css = readFileSync(new URL('../../src/theme/fonts.css', import.meta.url), 'utf8');
+    for (const file of [UNDERSCORE_FACE.regular, UNDERSCORE_FACE.bold]) {
+      const face = css.split('@font-face').find((b) => b.includes(file));
+      expect(face).toContain(`font-family: "${UNDERSCORE_FACE.family}"`);
+      expect(face).toContain('unicode-range: U+5F;');
+      expect(face).toContain('font-display: block;');
+    }
   });
 });

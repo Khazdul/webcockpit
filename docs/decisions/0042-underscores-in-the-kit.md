@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-30
 - Amends: ADR 0037 (the editor-only fix; its first Consequence is closed)
+- Superseded by ADR 0043 (2026-09-30)
 
 ## Context
 
