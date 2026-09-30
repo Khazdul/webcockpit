@@ -307,10 +307,10 @@ body {
   color: var(--c-err);
 }
 
-/* The clock strip (src/ui/clock-strip.ts): gutter + 5 cols + icon. */
+/* The clock strip (src/ui/clock-strip.ts): gutter + 5 cols + blank + icon. */
 .wc-input-clock {
-  flex: 0 0 calc(7 * var(--cell-w));
-  width: calc(7 * var(--cell-w));
+  flex: 0 0 calc(8 * var(--cell-w));
+  width: calc(8 * var(--cell-w));
   white-space: pre;
   overflow: hidden;
   user-select: none;

@@ -54,7 +54,7 @@ test('the clock strip counts down to dusk after sunrise and the room clock', asy
   await demoDone(page);
   const clock = page.locator('.wc-input-clock');
   // 7:03 am in Astron: dusk at 19:00, just under 12 game hours away.
-  await expect(clock).toHaveText(/^ 11:5\d ?☼$/);
+  await expect(clock).toHaveText(/^ 11:5\d ☼$/);
   const first = await clock.textContent();
   await expect.poll(() => clock.textContent(), { timeout: 3000 }).not.toBe(first);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('wc.clock') ?? 'null'));

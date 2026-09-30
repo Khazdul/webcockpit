@@ -33,12 +33,12 @@ function setup() {
 }
 
 describe('ClockStrip', () => {
-  it('is blank (7 cells) below hour precision and runs no timer', () => {
+  it('is blank (8 cells) below hour precision and runs no timer', () => {
     const t = setup();
-    expect(t.text()).toBe('       ');
+    expect(t.text()).toBe('        ');
     expect(t.timers).toHaveLength(0);
     t.game.timeLine('Sterday, the 12th of Astron, year 2973 of the Third Age.');
-    expect(t.text()).toBe('       ');
+    expect(t.text()).toBe('        ');
   });
 
   it('counts down at minute precision, re-rendering after each second boundary', () => {
@@ -46,10 +46,10 @@ describe('ClockStrip', () => {
     // 18:55 in Astron: 5 game minutes (real seconds) to dusk.
     t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, 18, 55), precision: 'minute', lastSync: T / 1000, reason: 't' };
     t.strip.update();
-    expect(t.text()).toBe(' 0:04 ☼');
+    expect(t.text()).toBe('  0:04 ☼');
     expect(t.timers.at(-1)!.ms).toBe(705); // to the next boundary (+5 ms)
     t.tick(705);
-    expect(t.text()).toBe(' 0:03 ☼');
+    expect(t.text()).toBe('  0:03 ☼');
     const icon = t.el.querySelector('.wc-clock-icon') as HTMLElement;
     expect(icon.style.color).not.toBe('');
     expect(t.el.dataset.period).toBe('day');
@@ -62,7 +62,7 @@ describe('ClockStrip', () => {
   it('shows ~N at hour precision and updates on a sync', () => {
     const t = setup();
     t.game.timeLine('4 pm on Sterday, the 12th of Astron, year 2973 of the Third Age.');
-    expect(t.text()).toBe(' ~3   ☼');
+    expect(t.text()).toBe('    ~3 ☼');
     t.strip.dispose();
   });
 

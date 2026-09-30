@@ -1,8 +1,10 @@
-// Input-line clock strip (Inv §2.5 "Where shown"; ADR 0016 P1): the 7
+// Input-line clock strip (Inv §2.5 "Where shown"; ADR 0016 P1): the 8
 // cells at the right end of the input row.
 //
-//   ␠ + time (5 cells, left-aligned) + icon      e.g. ` 4:33 ☼`, ` ~3   ☾`
+//   ␠ + time (5 cells, right-aligned) + ␠ + icon   e.g. `  4:33 ☼`, ` 10:14 ☼`, `    ~3 ☾`
 //
+// - Always exactly one blank between the time and the icon, whatever the
+//   width of the time.
 // - Minute precision: `H:MM` to the next day/night change; hour precision
 //   `~N`; below that the strip is blank (no lone icon).
 // - The icon shows the current period: ☼ `#ffb000` by day, ☾ `#4a90e2` by
@@ -37,7 +39,7 @@ export interface ClockStripOptions {
 export function stripParts(game: GameState, nowMs: number): { time: string; icon: string; day: boolean } | null {
   const t = game.clock.nextTransition(nowMs);
   if (!t) return null;
-  return { time: countdownText(t, nowMs).slice(0, STRIP_TIME_W).padEnd(STRIP_TIME_W), icon: periodIcon(t.period), day: t.period === 'day' };
+  return { time: countdownText(t, nowMs).slice(0, STRIP_TIME_W).padStart(STRIP_TIME_W), icon: periodIcon(t.period), day: t.period === 'day' };
 }
 
 export class ClockStrip {
@@ -65,7 +67,7 @@ export class ClockStrip {
     this.timeEl.className = 'wc-clock-time';
     this.iconEl = doc.createElement('span');
     this.iconEl.className = 'wc-clock-icon';
-    el.replaceChildren(doc.createTextNode(' '), this.timeEl, this.iconEl);
+    el.replaceChildren(doc.createTextNode(' '), this.timeEl, doc.createTextNode(' '), this.iconEl);
     el.setAttribute('aria-label', 'Game clock');
     this.unsubs.push(
       o.game.subscribe((part) => part === 'clock' && this.update()),

@@ -245,7 +245,9 @@ written after each sync, loaded with the age rules (> 7 d → seed/unset,
 MONTH` (name), `GAME DAY` (0-based), `GAME HOUR`, as MMapper reads it; it
 syncs to hour precision only while the clock is at day or below. The
 strip (`src/ui/clock-strip.ts`, `InputPane.clockEl`) renders ` ` + 5-cell
-time (left-aligned) + icon and re-renders 5 ms after each wall-clock
+time (right-aligned) + ` ` + icon (8 cells; changed 2026-09-30 from
+left-aligned without the blank, so a five-character time such as `10:14`
+no longer touches the icon) and re-renders 5 ms after each wall-clock
 second boundary while a countdown shows.
 
 **Deviations.**
