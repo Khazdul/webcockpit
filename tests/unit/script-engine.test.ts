@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { BusEvents, Line, StyleRun } from '../../src/core/types';
 import { rgb } from '../../src/core/types';
-import { ALIAS_DEPTH, FakeScheduler, ScriptEngine } from '../../src/script/engine';
+import { ENTRY_KINDS, listEntries, parseProfile, serialize } from '../../src/script/doc';
+import { ALIAS_DEPTH, FakeScheduler, ScriptEngine, splitCommands } from '../../src/script/engine';
+import { normalizeKey } from '../../src/script/keys';
 
 function line(text: string, runs: StyleRun[] = [], prompt = false): Line {
   return { text, runs, tags: [], prompt, raw: text, ts: 0 };
@@ -54,6 +56,13 @@ describe('input', () => {
     t.e.input('#alias {_send} {say shadowed}');
     t.e.input('#var t elf;_send bash $t');
     expect(t.sent).toEqual(['bash elf']);
+  });
+
+  it('a plain command is trimmed after variable expansion, like _send', () => {
+    const t = setup();
+    t.e.input('#var door {};#alias {c} {close $door}');
+    t.e.input('c;close $door;_send close $door');
+    expect(t.sent).toEqual(['close', 'close', 'close']);
   });
 
   it('reports unknown, ambiguous and inert commands', () => {
@@ -539,12 +548,37 @@ describe('loadProfile', () => {
   });
 });
 
-const KHAZDUL = new URL('../../src/profiles/khazdul.tin', import.meta.url);
+const KHAZDUL = readFileSync(new URL('../../src/profiles/khazdul.tin', import.meta.url), 'utf8');
 
-describe.skipIf(!existsSync(KHAZDUL))("the owner's profile", () => {
+/** The top-level `{…}` groups of a command, without their braces. */
+function braceGroups(cmd: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < cmd.length; i++) {
+    if (cmd[i] === '\\') i++;
+    else if (cmd[i] === '{' && depth++ === 0) start = i + 1;
+    else if (cmd[i] === '}' && --depth === 0) out.push(cmd.slice(start, i));
+  }
+  return out;
+}
+
+/** The first word of every command a body can send, through its #if chains. */
+function sentWords(body: string): string[] {
+  const out: string[] = [];
+  for (const cmd of splitCommands(body)) {
+    const word = cmd.trim().split(/\s+/)[0]!;
+    if (!word.startsWith('#')) out.push(word);
+    else if (/^#(if|elseif)$/i.test(word)) for (const g of braceGroups(cmd).slice(1)) out.push(...sentWords(g));
+    else if (/^#else$/i.test(word)) for (const g of braceGroups(cmd)) out.push(...sentWords(g));
+  }
+  return out;
+}
+
+describe('the bundled reference profile (ADR 0024, 0036)', () => {
   it('loads and runs its aliases, macros, actions and highlights', () => {
     const t = setup();
-    const r = t.e.loadProfile(readFileSync(KHAZDUL, 'utf8'));
+    const r = t.e.loadProfile(KHAZDUL);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.warnings).toEqual([]);
     t.e.input('z *orc*');
@@ -552,9 +586,11 @@ describe.skipIf(!existsSync(KHAZDUL))("the owner's profile", () => {
     t.e.input('bb;bb 2.troll');
     t.e.input('tw');
     t.e.input('caster;fball');
+    expect(t.texts().at(-1)).toBe("## SPELL: 'fireball'");
     t.e.runMacro('F2');
     t.e.input('b2');
     t.recv('Bob raises his hand.');
+    t.recv('Ann raises her hand.');
     t.recv('You feel - sanctuary.');
     expect(t.sent).toEqual([
       'bash *orc*',
@@ -563,7 +599,74 @@ describe.skipIf(!existsSync(KHAZDUL))("the owner's profile", () => {
       "cast normal 'fireball' *orc*",
       "cast normal 'blindness' 2.*orc*",
       'group Bob',
+      'group Ann',
     ]);
     expect(t.shown.at(-1)!.line.runs).toEqual([{ start: 9, end: 20, fg: 13 }]);
+  });
+
+  it('sends scroll, door and equipment commands without stray spaces', () => {
+    const t = setup();
+    t.e.loadProfile(KHAZDUL);
+    t.e.input('azure;azure 2.orc;rs;rook;dx;o;dx gate;3;of;ccr;ccr');
+    expect(t.sent).toEqual([
+      'get azurescroll all',
+      'recite azurescroll',
+      'get azurescroll all',
+      'recite azurescroll 2.orc',
+      'recite scroll',
+      'get rock pack',
+      'use rock exit',
+      'open exit',
+      'open gate',
+      'order followers',
+      'rem copperring',
+      'get garnet-ring sable',
+      'wear garnet-ring',
+      'put copperring sable',
+    ]);
+    expect(t.texts().at(-1)).toBe('## SD1: exit  SD2: gate');
+    expect(t.vars).toContainEqual(['ring', 'garnet-ring']);
+  });
+
+  it('is a clean example: typed entries and #nop only, no _send, readable keys', () => {
+    expect(KHAZDUL).not.toContain('_send');
+    const doc = parseProfile(KHAZDUL);
+    expect(serialize(doc)).toBe(KHAZDUL);
+    const odd = doc.nodes.filter((n) => n.type === 'passthrough' || (n.type === 'comment' && !/^#nop\b/.test(n.text)));
+    expect(odd.map((n) => n.text)).toEqual([]);
+    expect(listEntries(doc, 'macro').map((m) => m.pattern)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9']);
+    for (const m of listEntries(doc, 'macro')) expect(normalizeKey(m.pattern)).toBe(m.pattern);
+    // One command word style throughout.
+    for (const kind of ENTRY_KINDS) for (const en of listEntries(doc, kind)) expect(en.word).toBe(kind);
+  });
+
+  it('declares every variable once and uses each of them', () => {
+    const doc = parseProfile(KHAZDUL);
+    const names = listEntries(doc, 'variable').map((v) => v.pattern);
+    expect(new Set(names).size).toBe(names.length);
+    const bodies = ENTRY_KINDS.filter((k) => k !== 'variable').flatMap((k) => listEntries(doc, k).map((en) => en.body));
+    const unused = names.filter((n) => !bodies.some((b) => new RegExp(`\\$${n}\\b`).test(b)));
+    expect(unused).toEqual([]);
+  });
+
+  it('sends no command that another alias would catch by its first word', () => {
+    const doc = parseProfile(KHAZDUL);
+    const aliases = listEntries(doc, 'alias');
+    const names = new Set(aliases.map((a) => a.pattern));
+    // Calls that are meant to run an alias: the `_` helpers and these three.
+    const intended = (w: string) => w.startsWith('_') || w === 'z' || w === 'sd' || w === 'acontainer';
+    const hits: string[] = [];
+    let checked = 0;
+    for (const kind of ['alias', 'macro', 'action'] as const) {
+      for (const en of listEntries(doc, kind)) {
+        for (const w of sentWords(en.body)) {
+          checked++;
+          if (intended(w)) expect(names.has(w), w).toBe(true);
+          else if (names.has(w) || /^b\d+$/.test(w)) hits.push(`${kind} {${en.pattern}}: ${w}`);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(250);
+    expect(hits).toEqual([]);
   });
 });

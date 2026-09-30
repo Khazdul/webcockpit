@@ -1,143 +1,463 @@
-#ACTION {WARNING}
-{
-    sc
+#nop Khazdul: a PvP profile for MUME, bundled with WebCockpit as a reference.
+#nop It shows how aliases, actions, macros and variables work together.
+#nop HELP in the profile editor explains every command used here.
+
+#nop ---- State ----
+#nop A variable declared here is saved back to the profile when a script
+#nop changes it, so target, class, spell and doors survive a reload.
+
+#variable {target} {*elf*}
+#variable {mees} {}
+#variable {character} {Rasta}
+#variable {class} {caster}
+#variable {spell} {'hold'}
+#variable {ss} {normal}
+#variable {sd1} {exit}
+#variable {sd2} {way}
+#variable {sd3} {}
+#variable {weap1} {hewer}
+#variable {weap2} {engraved}
+#variable {weap3} {engraved}
+#variable {body} {tunic}
+#variable {abody} {mantle}
+#variable {ring} {copperring}
+#variable {acontainer} {quiver}
+#variable {arrow} {arrow}
+
+#nop ---- Feedback helpers ----
+#nop Aliases starting with _ are helpers called by other aliases. Each one
+#nop prints a state variable with #showme: label in sand, value in white.
+
+#alias {_show_class} {#showme {<F9AA8B7>## CLASS: <FFFFFFF>$class<099>}}
+#alias {_show_spell_speed} {#showme {<F9AA8B7>## SPELL-SPEED: <FFFFFFF>$ss<099>}}
+#alias {_show_acontainer} {#showme {<F9AA8B7>## ARROW CONTAINER: <FFFFFFF>$acontainer  <F9AA8B7>(ammo: <FFFFFFF>$arrow<F9AA8B7>)<099>}}
+
+#alias {_show_spell} {
+    #if {"$spell" != ""} {
+        #showme {<F9AA8B7>## SPELL: <FFFFFFF>$spell<099>}
+    };
+    #else {
+        #showme {<F9AA8B7>## SPELL: <099>(none)}
+    }
 }
 
-#ACTION {^%1 raises her hand.$}
-{
-    group %1
+#nop ---- Target, mob and protected character ----
+#nop With an argument the alias stores it. Either way it shows the value.
+
+#alias {z} {
+    #if {"%1" != ""} {
+        #variable {target} {%1}
+    };
+    #if {"$target" != ""} {
+        #showme {<F9AA8B7>## TARGET: <FFFFFFF>$target<099>}
+    };
+    #else {
+        #showme {<F9AA8B7>## TARGET: <099>(none)}
+    }
 }
 
-#ACTION {^%1 raises his hand.$}
-{
-    group %1
+#alias {bear} {z *bear*}
+#alias {dwarf} {z *dwarf*}
+#alias {elf} {z *elf*}
+#alias {helf} {z *half-elf*}
+#alias {hobbit} {z *hobbit*}
+#alias {man} {z *man*}
+#alias {orc} {z *orc*}
+#alias {troll} {z *troll*}
+
+#alias {sm} {
+    #if {"%1" != ""} {
+        #variable {mees} {%1}
+    };
+    #if {"$mees" != ""} {
+        #showme {<F9AA8B7>## MEES: <FFFFFFF>$mees<099>}
+    };
+    #else {
+        #showme {<F9AA8B7>## MEES: <099>(none)}
+    }
 }
 
-#ACTION {^%1key: '%2'$}
-{
-    #showme %0
+#alias {char} {
+    #if {"%1" != ""} {
+        #variable {character} {%1}
+    };
+    #if {"$character" != ""} {
+        #showme {<F9AA8B7>## CHAR: <FFFFFFF>$character<099>}
+    };
+    #else {
+        #showme {<F9AA8B7>## CHAR: <099>(none)}
+    }
 }
 
-#ACTION {^You are already wearing an ebony tunic on your body.$}
-{
-    #variable {body} {tunic}
+#nop ---- Class and combat keys ----
+#nop The class aliases set $class. F2 to F4 branch on it, so the same keys
+#nop work for every character.
+
+#alias {caster} {#variable {class} {caster}; _show_class}
+#alias {thief} {#variable {class} {thief}; _show_class}
+#alias {warcaster} {#variable {class} {warcaster}; _show_class}
+#alias {warrior} {#variable {class} {warrior}; _show_class}
+
+#macro {F1} {hit $target}
+
+#macro {F2} {
+    #if {"$class" == "warrior"} {
+        bash $target
+    };
+    #elseif {"$class" == "caster" || "$class" == "warcaster"} {
+        cast $ss $spell $target
+    };
+    #elseif {"$class" == "thief"} {
+        backstab $target
+    }
 }
 
-#ACTION {^You wear a coarse dusky robe on your body.$}
-{
-    #variable {body} {robe}
+#macro {F3} {
+    #if {"$class" == "warrior"} {
+        bash
+    };
+    #elseif {"$class" == "caster" || "$class" == "warcaster"} {
+        cast $ss $spell
+    };
+    #elseif {"$class" == "thief"} {
+        shoot
+    }
 }
 
-#ACTION {^You wear a fine metal breastplate on your body.$}
-{
-    #variable {body} {plate}
+#macro {F4} {
+    #if {"$class" == "warrior" || "$class" == "warcaster"} {
+        kick
+    };
+    #elseif {"$class" == "caster" || "$class" == "thief"} {
+        shoot $target
+    }
 }
 
-#ACTION {^You wear a frayed tunic on your body.$}
-{
-    #variable {body} {tunic}
-}
+#macro {F5} {draw $weap1}
+#macro {F6} {draw $weap2}
+#macro {F7} {draw $weap3}
+#macro {F8} {sc}
+#macro {F9} {sc}
 
-#ACTION {^You wear a grey tunic on your body.$}
-{
-    #variable {body} {tunic}
-}
+#alias {bb} {bash $target}
 
-#ACTION {^You wear a shining breastplate on your body.$}
-{
-    #variable {body} {plate}
-}
+#nop ---- Spells ----
+#nop Each alias picks the spell that F2 and F3 cast. The text after the
+#nop alias name is passed on to _spell, which reads it as %0.
 
-#ACTION {^You wear a shining chain mail shirt on your body.$}
-{
-    #variable {body} {shirt}
-}
+#alias {_spell} {#variable {spell} {%0}; _show_spell}
 
-#ACTION {^You wear an ebony tunic on your body.$}
-{
-    #variable {body} {tunic}
-}
+#alias {bh} {_spell 'burning hands'}
+#alias {blind} {_spell 'blindness'}
+#alias {bolt} {_spell 'lightning bolt'}
+#alias {charm} {_spell 'charm'}
+#alias {chill} {_spell 'chill touch'}
+#alias {clight} {_spell 'call lightning'}
+#alias {ct} {_spell 'chill touch'}
+#alias {disp} {_spell 'dispel evil'}
+#alias {edrain} {_spell 'energy drain'}
+#alias {fball} {_spell 'fireball'}
+#alias {fireball} {_spell 'fireball'}
+#alias {grasp} {_spell 'shocking grasp'}
+#alias {harm} {_spell 'harm'}
+#alias {hold} {_spell 'hold'}
+#alias {mm} {_spell 'magic missile'}
+#alias {silence} {_spell 'silence'}
+#alias {sleep} {_spell 'sleep'}
+#alias {smo} {_spell 'smother'}
+#alias {smoth} {_spell 'smother'}
+#alias {smother} {_spell 'smother'}
+#alias {spray} {_spell 'colour spray'}
+#alias {ss} {_spell 'sleep'}
 
-#ALIAS {2}
-{
-    _send close $sd2
-}
+#nop Casting speed, used as $ss by the casts.
 
-#ALIAS {3}
-{
-    _send open $sd2
-}
+#alias {car} {#variable {ss} {careful}; _show_spell_speed}
+#alias {fast} {#variable {ss} {fast}; _show_spell_speed}
+#alias {norm} {#variable {ss} {normal}; _show_spell_speed}
+#alias {normal} {#variable {ss} {normal}; _show_spell_speed}
+#alias {quick} {#variable {ss} {quick}; _show_spell_speed}
+#alias {thor} {#variable {ss} {thoroughly}; _show_spell_speed}
 
-#ALIAS {^b%+1..d$}
-{
-    _send cast $ss 'blindness' %1.$target
-}
+#nop A pattern alias: b1, b2, b12 ... blind that number of the target.
+#nop %+1..d is one or more digits, and the digits become %1.
 
-#ALIAS {_eq_body}
-{
-    #if {"%1" != "$abody"}
-    {
-        #if {"$abody" != ""}
-        {
-            _send rem $abody
+#alias {^b%+1..d$} {cast $ss 'blindness' %1.$target}
+
+#alias {s1} {cast n 'sleep' 1.$mees}
+#alias {s2} {cast n 'sleep' 2.$mees}
+#alias {s3} {cast n 'sleep' 3.$mees}
+#alias {s4} {cast n 'sleep' 4.$mees}
+#alias {qeq} {cast n 'earthquake'}
+
+#nop ---- Doors ----
+#nop sd sets up to three door names and shows them. It builds the line
+#nop in a scratch variable, one part for each door that is set.
+
+#alias {sd} {
+    #if {"%1" != ""} {
+        #variable {sd1} {%1};
+        #if {"%2" != ""} {
+            #variable {sd2} {%2}
         };
-        _send get %1 pack;
-        _send wear %1;
-        #if {"$abody" != ""}
-        {
-            _send put $abody pack
+        #if {"%3" != ""} {
+            #variable {sd3} {%3}
+        }
+    };
+    #variable {_sd_line} {};
+    #if {"$sd1" != ""} {
+        #variable {_sd_line} {$_sd_line<F9AA8B7> SD1: <FFFFFFF>$sd1}
+    };
+    #if {"$sd2" != ""} {
+        #variable {_sd_line} {$_sd_line<F9AA8B7>  SD2: <FFFFFFF>$sd2}
+    };
+    #if {"$sd3" != ""} {
+        #variable {_sd_line} {$_sd_line<F9AA8B7>  SD3: <FFFFFFF>$sd3}
+    };
+    #if {"$_sd_line" != ""} {
+        #showme {<F9AA8B7>##$_sd_line<099>}
+    };
+    #else {
+        #showme {<F9AA8B7>## (no spam doors set)<099>}
+    }
+}
+
+#alias {dx} {sd exit %1}
+
+#alias {o} {open $sd1}
+#alias {od} {open $sd1 d}
+#alias {oe} {open $sd1 e}
+#alias {os} {open $sd1 s}
+#alias {ou} {open $sd1 u}
+#alias {ow} {open $sd1 w}
+#alias {oo} {unlock $sd1; open $sd1}
+#alias {3} {open $sd2}
+
+#alias {c} {close $sd1}
+#alias {cd} {close $sd1 d}
+#alias {ce} {close $sd1 e}
+#alias {cs} {close $sd1 s}
+#alias {cu} {close $sd1 u}
+#alias {cw} {close $sd1 w}
+#alias {cc} {close $sd1; lock $sd1}
+#alias {2} {close $sd2}
+
+#alias {ld} {lock $sd1 d}
+#alias {le} {lock $sd1 e}
+#alias {ls} {lock $sd1 s}
+#alias {lu} {lock $sd1 u}
+#alias {lw} {lock $sd1 w}
+
+#alias {ud} {unlock $sd1 d}
+#alias {ue} {unlock $sd1 e}
+#alias {us} {unlock $sd1 s}
+#alias {uu} {unlock $sd1 u}
+#alias {uw} {unlock $sd1 w}
+
+#alias {pd} {pick $sd1}
+#alias {ped} {pick $sd1 d}
+#alias {pe} {pick $sd1 e}
+#alias {ps} {pick $sd1 s}
+#alias {pu} {pick $sd1 u}
+#alias {pw} {pick $sd1 w}
+
+#alias {bd} {cast n 'block door' $sd1}
+#alias {bdd} {cast q 'block door' $sd1}
+#alias {bed} {cast n 'block door' $sd1 d}
+#alias {be} {cast n 'block door' $sd1 e}
+#alias {bs} {cast n 'block door' $sd1 s}
+#alias {bu} {cast n 'block door' $sd1 u}
+#alias {bw} {cast n 'block door' $sd1 w}
+
+#alias {rook} {get rock pack; use rock $sd1 %1}
+#alias {cb} {close board; lock board}
+#alias {ub} {unbar exit w; open exit w}
+
+#nop ---- Followers ----
+
+#alias {of} {order followers %0}
+#alias {aa} {order followers assist}
+#alias {ok} {order followers hit $target}
+#alias {op} {order followers protect $character}
+#alias {or} {order followers rescue $character}
+#alias {oft} {order followers flush t}
+#alias {obh} {order followers cast 'burning hands'}
+#alias {obt} {order followers cast 'burning hands' $target}
+#alias {olb} {order followers cast 'lightning bolt'}
+#alias {olbt} {order followers cast 'lightning bolt' $target}
+#alias {rr} {order followers kill bert}
+#alias {ab} {order bb bash}
+#alias {bt} {order bb bash $target}
+#alias {obk} {order bb hit $mees}
+#alias {oht} {order aa cast 'harm' $target}
+
+#nop ---- Movement, tracking and hiding ----
+
+#alias {ed} {escape down}
+#alias {ee} {escape east}
+#alias {en} {escape north}
+#alias {es} {escape south}
+#alias {eu} {escape up}
+#alias {ew} {escape west}
+
+#alias {td} {track donkey}
+#alias {tm} {track mule}
+#alias {tp} {track pack}
+#alias {trd} {track dales}
+#alias {trt} {track $target}
+#alias {tt} {track trained}
+
+#alias {tw} {
+    #if {"$target" == "*orc*"} {
+        track warg
+    };
+    #else {
+        track warhorse
+    }
+}
+
+#alias {hf} {hide fast}
+#alias {hn} {hide normal}
+#alias {hq} {hide quick}
+#alias {ht} {hide thorough}
+
+#alias {lm} {label m}
+#alias {lordf} {w; s; w; s; w; w; n; w; n; n}
+
+#nop ---- Equipment ----
+#nop _eq_body and _eq_ring swap the worn item for the one named and
+#nop remember it, so a second call with the same item does nothing.
+
+#alias {_eq_body} {
+    #if {"%1" != "$abody"} {
+        #if {"$abody" != ""} {
+            rem $abody
+        };
+        get %1 pack;
+        wear %1;
+        #if {"$abody" != ""} {
+            put $abody pack
         };
         #variable {abody} {%1}
     }
 }
 
-#ALIAS {_eq_ring}
-{
-    #if {"%1" != "$ring"}
-    {
-        #if {"$ring" != ""}
-        {
-            _send rem $ring
+#alias {bhc} {_eq_body hooded}
+#alias {fgc} {_eq_body forest}
+#alias {forest} {_eq_body forest}
+#alias {fur} {_eq_body fur}
+#alias {grey} {_eq_body fine-grey-cloak}
+#alias {mantle} {_eq_body mantle}
+#alias {ragged} {_eq_body ragged}
+#alias {sacred} {_eq_body sacred}
+#alias {silvery} {_eq_body fur-cloak}
+#alias {soot} {_eq_body soot}
+#alias {tainted} {_eq_body tainted-grey-cloak}
+#alias {woven} {_eq_body woven}
+
+#alias {_eq_ring} {
+    #if {"%1" != "$ring"} {
+        #if {"$ring" != ""} {
+            rem $ring
         };
-        _send get %1 sable;
-        _send wear %1;
-        #if {"$ring" != ""}
-        {
-            _send put $ring sable
+        get %1 sable;
+        wear %1;
+        #if {"$ring" != ""} {
+            put $ring sable
         };
         #variable {ring} {%1}
     }
 }
 
-#ALIAS {_show_acontainer}
-{
-    #showme {<F9AA8B7>## ARROW CONTAINER: <FFFFFFF>$acontainer  <F9AA8B7>(ammo: <FFFFFFF>$arrow<F9AA8B7>)<099>}
-}
+#alias {ccr} {_eq_ring garnet-ring}
+#alias {db} {_eq_ring sapphire}
+#alias {iron} {_eq_ring ironring}
+#alias {mana} {_eq_ring golden-ruby-ring}
+#alias {ob} {_eq_ring rubyring}
+#alias {opal} {_eq_ring opal-ring}
+#alias {rempr} {_eq_ring emerald-ring}
+#alias {sp} {_eq_ring copperring}
+#alias {strr} {_eq_ring topaz-ring}
+#alias {wooden} {_eq_ring wooden}
 
-#ALIAS {_show_class}
-{
-    #showme {<F9AA8B7>## CLASS: <FFFFFFF>$class<099>}
-}
+#nop Body armour. The actions keep $body in step with what the game says
+#nop is worn, and the aliases remove that before wearing the next piece.
 
-#ALIAS {_show_spell}
-{
-    #if {"$spell" != ""}
-    {
-        #showme {<F9AA8B7>## SPELL: <FFFFFFF>$spell<099>}
+#action {^You wear a fine metal breastplate on your body.$} {#variable {body} {plate}}
+#action {^You wear a shining breastplate on your body.$} {#variable {body} {plate}}
+#action {^You wear a shining chain mail shirt on your body.$} {#variable {body} {shirt}}
+#action {^You wear a coarse dusky robe on your body.$} {#variable {body} {robe}}
+#action {^You wear a frayed tunic on your body.$} {#variable {body} {tunic}}
+#action {^You wear a grey tunic on your body.$} {#variable {body} {tunic}}
+#action {^You wear an ebony tunic on your body.$} {#variable {body} {tunic}}
+#action {^You are already wearing an ebony tunic on your body.$} {#variable {body} {tunic}}
+
+#alias {plate} {rem $body; wear plate}
+#alias {robe} {rem $body; wear robe}
+#alias {shirt} {rem $body; wear shirt}
+#alias {tunic} {rem $body; wear tunic}
+
+#alias {circlet} {rem helm; wear circlet}
+#alias {crown} {rem helmet; wear crown}
+#alias {helm} {rem circlet; wear helmet}
+#alias {hood} {rem crown; wear hood}
+#alias {boots} {rem boots; wear 2.boots}
+#alias {gloves} {rem gloves; wear 2.gloves}
+
+#nop ---- Arrows and bolts ----
+#nop acontainer picks quiver or case and sets the matching ammo word.
+
+#alias {acontainer} {
+    #if {"%1" == "quiver" || "%1" == "case"} {
+        #variable {acontainer} {%1};
+        #if {"$acontainer" == "quiver"} {
+            #variable {arrow} {arrow}
+        };
+        #else {
+            #variable {arrow} {bolt}
+        };
+        _show_acontainer
     };
-    #else
-    {
-        #showme {<F9AA8B7>## SPELL: <099>(none)}
+    #else {
+        #if {"%1" != ""} {
+            #showme {<F9AA8B7>## ERROR: acontainer must be 'quiver' or 'case'<099>}
+        };
+        #else {
+            _show_acontainer
+        }
     }
 }
 
-#ALIAS {_show_spell_speed}
-{
-    #showme {<F9AA8B7>## SPELL-SPEED: <FFFFFFF>$ss<099>}
-}
+#alias {case} {acontainer case}
+#alias {quiver} {acontainer quiver}
 
-#ALIAS {a1}
-{
+#alias {ga} {get all.$arrow; put all.$arrow $acontainer}
+#alias {aq} {get all.ash pack; put all.ash quiver}
+#alias {as} {get all.ash quiver; put all.ash pack}
+#alias {wq} {get all.fletched pack; put all.fletched quiver}
+#alias {ws} {get all.fletched quiver; put all.fletched pack}
+
+#nop ---- Scrolls, potions and items ----
+#nop Text after a scroll alias is passed on as the target: azure 2.orc
+
+#alias {_scroll} {get %1 all; recite %0}
+
+#alias {azure} {_scroll azurescroll}
+#alias {black} {_scroll blackscroll}
+#alias {blue} {_scroll bluescroll}
+#alias {ebony} {_scroll ebonyscroll}
+#alias {purple} {_scroll purplescroll}
+#alias {vellum} {_scroll vellumscroll}
+#alias {rs} {recite scroll}
+
+#alias {miruvor} {get miruvor pack; quaff miruvor}
+#alias {qd} {get draught pack; quaff draught}
+#alias {qdd} {get zaugurz-draught pack; quaff zaugurz-draught}
+#alias {powd} {use powder}
+
+#nop ---- Puzzle ----
+
+#alias {a1} {
     push forostar north;
     push orrostar east;
     push hyarrostar southeast;
@@ -146,8 +466,7 @@
     push mittalmar center
 }
 
-#ALIAS {a2}
-{
+#alias {a2} {
     push forostar east;
     push orrostar southeast;
     push hyarrostar southwest;
@@ -156,8 +475,7 @@
     push mittalmar center
 }
 
-#ALIAS {a3}
-{
+#alias {a3} {
     push forostar southeast;
     push orrostar southwest;
     push hyarrostar west;
@@ -166,8 +484,7 @@
     push mittalmar center
 }
 
-#ALIAS {a4}
-{
+#alias {a4} {
     push forostar southwest;
     push orrostar west;
     push hyarrostar north;
@@ -176,8 +493,7 @@
     push mittalmar center
 }
 
-#ALIAS {a5}
-{
+#alias {a5} {
     push forostar west;
     push orrostar north;
     push hyarrostar east;
@@ -186,1282 +502,40 @@
     push mittalmar center
 }
 
-#ALIAS {aa}
-{
-    _send order followers assist
-}
-
-#ALIAS {ab}
-{
-    _send order bb bash
-}
-
-#ALIAS {acontainer}
-{
-    #if {"%1" == "quiver" || "%1" == "case"}
-    {
-        #variable {acontainer} {%1};
-        #if {"$acontainer" == "quiver"}
-        {
-            #variable {arrow} {arrow}
-        };
-        #else
-        {
-            #variable {arrow} {bolt}
-        };
-        _show_acontainer
-    };
-    #else
-    {
-        #if {"%1" != ""}
-        {
-            #showme {<F9AA8B7>## ERROR: acontainer must be 'quiver' or 'case'<099>}
-        };
-        #else
-        {
-            _show_acontainer
-        }
-    }
-}
-
-#ALIAS {aq}
-{
-    get all.ash pack;
-    put all.ash quiver
-}
-
-#ALIAS {as}
-{
-    get all.ash quiver;
-    put all.ash pack
-}
-
-#ALIAS {autobasha}
-{
-    #action {seems to have recovered} {bash;#show {## Autobashaa}}
-}
-
-#ALIAS {autobashoff}
-{
-    #unaction {seems to have recovered}
-}
-
-#ALIAS {autobashon}
-{
-    #action {seems to have recovered} {order bb bash}
-}
-
-#ALIAS {azure}
-{
-    _send get azurescroll all;
-    #if {"%1" != ""}
-    {
-        _send recite azurescroll %0
-    };
-    #else
-    {
-        _send recite azurescroll
-    }
-}
-
-#ALIAS {bb}
-{
-    _send bash $target
-}
-
-#ALIAS {bd}
-{
-    _send cast n 'block door' $sd1
-}
-
-#ALIAS {bdd}
-{
-    _send cast q 'block door' $sd1
-}
-
-#ALIAS {be}
-{
-    _send cast n 'block door' $sd1 e
-}
-
-#ALIAS {bear}
-{
-    z *bear*
-}
-
-#ALIAS {bed}
-{
-    _send cast n 'block door' $sd1 d
-}
-
-#ALIAS {bh}
-{
-    #variable {spell} {'burning hands'};
-    _show_spell
-}
-
-#ALIAS {bhc}
-{
-    _eq_body hooded
-}
-
-#ALIAS {black}
-{
-    _send get blackscroll all;
-    #if {"%1" != ""}
-    {
-        _send recite blackscroll %0
-    };
-    #else
-    {
-        _send recite blackscroll
-    }
-}
-
-#ALIAS {blind}
-{
-    #variable {spell} {'blindness'};
-    _show_spell
-}
-
-#ALIAS {blue}
-{
-    _send get bluescroll all;
-    #if {"%1" != ""}
-    {
-        _send recite bluescroll %0
-    };
-    #else
-    {
-        _send recite bluescroll
-    }
-}
-
-#ALIAS {bolt}
-{
-    #variable {spell} {'lightning bolt'};
-    _show_spell
-}
-
-#ALIAS {boots}
-{
-    _send rem boots;
-    _send wear 2.boots
-}
-
-#ALIAS {bs}
-{
-    _send cast n 'block door' $sd1 s
-}
-
-#ALIAS {bt}
-{
-    _send order bb bash $target
-}
-
-#ALIAS {bu}
-{
-    _send cast n 'block door' $sd1 u
-}
-
-#ALIAS {bw}
-{
-    _send cast n 'block door' $sd1 w
-}
-
-#ALIAS {c}
-{
-    _send close $sd1
-}
-
-#ALIAS {car}
-{
-    #variable {ss} {careful};
-    _show_spell_speed
-}
-
-#ALIAS {case}
-{
-    acontainer case
-}
-
-#ALIAS {caster}
-{
-    #variable {class} {caster};
-    _show_class
-}
-
-#ALIAS {cb}
-{
-    close board;
-    lock board
-}
-
-#ALIAS {cc}
-{
-    _send close $sd1;
-    _send lock $sd1
-}
-
-#ALIAS {ccr}
-{
-    _eq_ring garnet-ring
-}
-
-#ALIAS {cd}
-{
-    _send close $sd1 d
-}
-
-#ALIAS {ce}
-{
-    _send close $sd1 e
-}
-
-#ALIAS {char}
-{
-    #if {"%1" != ""}
-    {
-        #variable {character} {%1}
-    };
-    #if {"$character" != ""}
-    {
-        #showme {<F9AA8B7>## CHAR: <FFFFFFF>$character<099>}
-    };
-    #else
-    {
-        #showme {<F9AA8B7>## CHAR: <099>(none)}
-    }
-}
-
-#ALIAS {charm}
-{
-    #variable {spell} {'charm'};
-    _show_spell
-}
-
-#ALIAS {chill}
-{
-    #variable {spell} {'chill touch'};
-    _show_spell
-}
-
-#ALIAS {circlet}
-{
-    rem helm;
-    wear circlet
-}
-
-#ALIAS {clight}
-{
-    #variable {spell} {'call lightning'};
-    _show_spell
-}
-
-#ALIAS {crown}
-{
-    rem helmet;
-    wear crown
-}
-
-#ALIAS {cs}
-{
-    _send close $sd1 s
-}
-
-#ALIAS {ct}
-{
-    #variable {spell} {'chill touch'};
-    _show_spell
-}
-
-#ALIAS {cu}
-{
-    _send close $sd1 u
-}
-
-#ALIAS {cw}
-{
-    _send close $sd1 w
-}
-
-#ALIAS {db}
-{
-    _eq_ring sapphire
-}
-
-#ALIAS {disp}
-{
-    #variable {spell} {'dispel evil'};
-    _show_spell
-}
-
-#ALIAS {dwarf}
-{
-    z *dwarf*
-}
-
-#ALIAS {dx}
-{
-    #if {"%1" == ""}
-    {
-        #variable {sd1} {exit};
-        sd
-    };
-    #else
-    {
-        #variable {sd1} {exit};
-        #variable {sd2} {%1};
-        sd
-    }
-}
-
-#ALIAS {e1}
-{
-    use eye mountain
-}
-
-#ALIAS {e2}
-{
-    use eye 2.mountain
-}
-
-#ALIAS {ebony}
-{
-    _send get ebonyscroll all;
-    #if {"%1" != ""}
-    {
-        _send recite ebonyscroll %0
-    };
-    #else
-    {
-        _send recite ebonyscroll
-    }
-}
-
-#ALIAS {ed}
-{
-    _send escape down
-}
-
-#ALIAS {edrain}
-{
-    #variable {spell} {'energy drain'};
-    _show_spell
-}
-
-#ALIAS {ee}
-{
-    _send escape east
-}
-
-#ALIAS {elf}
-{
-    z *elf*
-}
-
-#ALIAS {en}
-{
-    _send escape north
-}
-
-#ALIAS {es}
-{
-    _send escape south
-}
-
-#ALIAS {eu}
-{
-    _send escape up
-}
-
-#ALIAS {ew}
-{
-    _send escape west
-}
-
-#ALIAS {fast}
-{
-    #variable {ss} {fast};
-    _show_spell_speed
-}
-
-#ALIAS {fball}
-{
-    #variable {spell} {'fireball'};
-    _show_spell
-}
-
-#ALIAS {fgc}
-{
-    _eq_body forest
-}
-
-#ALIAS {fireball}
-{
-    #variable {spell} {'fireball'};
-    _show_spell
-}
-
-#ALIAS {forest}
-{
-    _eq_body forest
-}
-
-#ALIAS {fur}
-{
-    _eq_body fur
-}
-
-#ALIAS {ga}
-{
-    _send get all.$arrow;
-    _send put all.$arrow $acontainer
-}
-
-#ALIAS {gloves}
-{
-    _send rem gloves;
-    _send wear 2.gloves
-}
-
-#ALIAS {grasp}
-{
-    #variable {spell} {'shocking grasp'};
-    _show_spell
-}
-
-#ALIAS {grey}
-{
-    _eq_body fine-grey-cloak
-}
-
-#ALIAS {harm}
-{
-    #variable {spell} {'harm'};
-    _show_spell
-}
-
-#ALIAS {helf}
-{
-    z *half-elf*
-}
-
-#ALIAS {helm}
-{
-    rem circlet;
-    wear helmet
-}
-
-#ALIAS {hf}
-{
-    _send hide fast
-}
-
-#ALIAS {hn}
-{
-    _send hide normal
-}
-
-#ALIAS {hobbit}
-{
-    z *hobbit*
-}
-
-#ALIAS {hold}
-{
-    #variable {spell} {'hold'};
-    _show_spell
-}
-
-#ALIAS {hood}
-{
-    rem crown;
-    wear hood
-}
-
-#ALIAS {hq}
-{
-    _send hide quick
-}
-
-#ALIAS {ht}
-{
-    _send hide thorough
-}
-
-#ALIAS {iron}
-{
-    _eq_ring ironring
-}
-
-#ALIAS {ld}
-{
-    _send lock $sd1 d
-}
-
-#ALIAS {le}
-{
-    _send lock $sd1 e
-}
-
-#ALIAS {lm}
-{
-    _send label m
-}
-
-#ALIAS {lordf}
-{
-    w;
-    s;
-    w;
-    s;
-    w;
-    w;
-    n;
-    w;
-    n;
-    n
-}
-
-#ALIAS {ls}
-{
-    _send lock $sd1 s
-}
-
-#ALIAS {lu}
-{
-    _send lock $sd1 u
-}
-
-#ALIAS {lw}
-{
-    _send lock $sd1 w
-}
-
-#ALIAS {man}
-{
-    z *man*
-}
-
-#ALIAS {mana}
-{
-    _eq_ring golden-ruby-ring
-}
-
-#ALIAS {mantle}
-{
-    _eq_body mantle
-}
-
-#ALIAS {miruvor}
-{
-    _send get miruvor pack;
-    _send quaff miruvor
-}
-
-#ALIAS {mm}
-{
-    #variable {spell} {'magic missile'};
-    _show_spell
-}
-
-#ALIAS {norm}
-{
-    #variable {ss} {normal};
-    _show_spell_speed
-}
-
-#ALIAS {normal}
-{
-    #variable {ss} {normal};
-    _show_spell_speed
-}
-
-#ALIAS {o}
-{
-    _send open $sd1
-}
-
-#ALIAS {ob}
-{
-    _eq_ring rubyring
-}
-
-#ALIAS {obh}
-{
-    _send order followers cast 'burning hands'
-}
-
-#ALIAS {obk}
-{
-    _send order bb hit $mees
-}
-
-#ALIAS {obt}
-{
-    _send order followers cast 'burning hands' $target
-}
-
-#ALIAS {od}
-{
-    _send open $sd1 d
-}
-
-#ALIAS {oe}
-{
-    _send open $sd1 e
-}
-
-#ALIAS {of}
-{
-    _send order followers %0
-}
-
-#ALIAS {oft}
-{
-    _send order followers flush t
-}
-
-#ALIAS {oht}
-{
-    _send order aa cast 'harm' $target
-}
-
-#ALIAS {ok}
-{
-    _send order followers hit $target
-}
-
-#ALIAS {olb}
-{
-    _send order followers cast 'lightning bolt'
-}
-
-#ALIAS {olbt}
-{
-    _send order followers cast 'lightning bolt' $target
-}
-
-#ALIAS {oo}
-{
-    _send unlock $sd1;
-    _send open $sd1
-}
-
-#ALIAS {op}
-{
-    _send order followers protect $character
-}
-
-#ALIAS {opal}
-{
-    _eq_ring opal-ring
-}
-
-#ALIAS {or}
-{
-    _send order followers rescue $character
-}
-
-#ALIAS {orc}
-{
-    z *orc*
-}
-
-#ALIAS {os}
-{
-    _send open $sd1 s
-}
-
-#ALIAS {ou}
-{
-    _send open $sd1 u
-}
-
-#ALIAS {ow}
-{
-    _send open $sd1 w
-}
-
-#ALIAS {pd}
-{
-    _send pick $sd1
-}
-
-#ALIAS {pe}
-{
-    _send pick $sd1 e
-}
-
-#ALIAS {ped}
-{
-    _send pick $sd1 d
-}
-
-#ALIAS {plate}
-{
-    rem $body;
-    wear plate
-}
-
-#ALIAS {powd}
-{
-    _send use powder
-}
-
-#ALIAS {ps}
-{
-    _send pick $sd1 s
-}
-
-#ALIAS {pu}
-{
-    _send pick $sd1 u
-}
-
-#ALIAS {purple}
-{
-    _send get purplescroll all;
-    #if {"%1" != ""}
-    {
-        _send recite purplescroll %0
-    };
-    #else
-    {
-        _send recite purplescroll
-    }
-}
-
-#ALIAS {pw}
-{
-    _send pick $sd1 w
-}
-
-#ALIAS {qd}
-{
-    _send get draught pack;
-    _send quaff draught
-}
-
-#ALIAS {qdd}
-{
-    _send get zaugurz-draught pack;
-    _send quaff zaugurz-draught
-}
-
-#ALIAS {qeq}
-{
-    cast n 'earthquake'
-}
-
-#ALIAS {quick}
-{
-    #variable {ss} {quick};
-    _show_spell_speed
-}
-
-#ALIAS {quiver}
-{
-    acontainer quiver
-}
-
-#ALIAS {ragged}
-{
-    _eq_body ragged
-}
-
-#ALIAS {rempr}
-{
-    _eq_ring emerald-ring
-}
-
-#ALIAS {robe}
-{
-    rem $body;
-    wear robe
-}
-
-#ALIAS {rook}
-{
-    #if {"%1" != ""}
-    {
-        _send get rock pack;
-        _send use rock $sd1 %1
-    };
-    #else
-    {
-        _send get rock pack;
-        _send use rock $sd1
-    }
-}
-
-#ALIAS {rr}
-{
-    order followers kill bert
-}
-
-#ALIAS {rs}
-{
-    #if {"%1" != ""}
-    {
-        _send recite scroll %0
-    };
-    #else
-    {
-        _send recite scroll
-    }
-}
-
-#ALIAS {s1}
-{
-    cast n 'sleep' 1.$mees
-}
-
-#ALIAS {s2}
-{
-    cast n 'sleep' 2.$mees
-}
-
-#ALIAS {s3}
-{
-    cast n 'sleep' 3.$mees
-}
-
-#ALIAS {s4}
-{
-    cast n 'sleep' 4.$mees
-}
-
-#ALIAS {sacred}
-{
-    _eq_body sacred
-}
-
-#ALIAS {sd}
-{
-    #if {"%1" != ""}
-    {
-        #variable {sd1} {%1};
-        #if {"%2" != ""}
-        {
-            #variable {sd2} {%2}
-        };
-        #if {"%3" != ""}
-        {
-            #variable {sd3} {%3}
-        }
-    };
-    #variable {_sd_line} {};
-    #if {"$sd1" != ""}
-    {
-        #variable {_sd_line} {$_sd_line<F9AA8B7> SD1: <FFFFFFF>$sd1}
-    };
-    #if {"$sd2" != ""}
-    {
-        #variable {_sd_line} {$_sd_line<F9AA8B7>  SD2: <FFFFFFF>$sd2}
-    };
-    #if {"$sd3" != ""}
-    {
-        #variable {_sd_line} {$_sd_line<F9AA8B7>  SD3: <FFFFFFF>$sd3}
-    };
-    #if {"$_sd_line" != ""}
-    {
-        #showme {<F9AA8B7>##$_sd_line<099>}
-    };
-    #else
-    {
-        #showme {<F9AA8B7>## (no spam doors set)<099>}
-    }
-}
-
-#ALIAS {shirt}
-{
-    rem $body;
-    wear shirt
-}
-
-#ALIAS {silence}
-{
-    #variable {spell} {'silence'};
-    _show_spell
-}
-
-#ALIAS {silvery}
-{
-    _eq_body fur-cloak
-}
-
-#ALIAS {sleep}
-{
-    #variable {spell} {'sleep'};
-    _show_spell
-}
-
-#ALIAS {sm}
-{
-    #if {"%1" != ""}
-    {
-        #variable {mees} {%1}
-    };
-    #if {"$mees" != ""}
-    {
-        #showme {<F9AA8B7>## MEES: <FFFFFFF>$mees<099>}
-    };
-    #else
-    {
-        #showme {<F9AA8B7>## MEES: <099>(none)}
-    }
-}
-
-#ALIAS {smo}
-{
-    #variable {spell} {'smother'};
-    _show_spell
-}
-
-#ALIAS {smoth}
-{
-    #variable {spell} {'smother'};
-    _show_spell
-}
-
-#ALIAS {smother}
-{
-    #variable {spell} {'smother'};
-    _show_spell
-}
-
-#ALIAS {soot}
-{
-    _eq_body soot
-}
-
-#ALIAS {sp}
-{
-    _eq_ring copperring
-}
-
-#ALIAS {spray}
-{
-    #variable {spell} {'colour spray'};
-    _show_spell
-}
-
-#ALIAS {ss}
-{
-    #variable {spell} {'sleep'};
-    _show_spell
-}
-
-#ALIAS {strr}
-{
-    _eq_ring topaz-ring
-}
-
-#ALIAS {tainted}
-{
-    _eq_body tainted-grey-cloak
-}
-
-#ALIAS {td}
-{
-    _send track donkey
-}
-
-#ALIAS {thief}
-{
-    #variable {class} {thief};
-    _show_class
-}
-
-#ALIAS {thor}
-{
-    #variable {ss} {thoroughly};
-    _show_spell_speed
-}
-
-#ALIAS {tm}
-{
-    _send track mule
-}
-
-#ALIAS {tp}
-{
-    track pack
-}
-
-#ALIAS {trd}
-{
-    _send track dales
-}
-
-#ALIAS {troll}
-{
-    z *troll*
-}
-
-#ALIAS {trt}
-{
-    _send track $target
-}
-
-#ALIAS {tt}
-{
-    _send track trained
-}
-
-#ALIAS {tunic}
-{
-    rem $body;
-    wear tunic
-}
-
-#ALIAS {tw}
-{
-    #if {"$target" == "*orc*"}
-    {
-        _send track warg
-    };
-    #else
-    {
-        _send track warhorse
-    }
-}
-
-#ALIAS {ub}
-{
-    unbar exit w;
-    open exit w
-}
-
-#ALIAS {ud}
-{
-    _send unlock $sd1 d
-}
-
-#ALIAS {ue}
-{
-    _send unlock $sd1 e
-}
-
-#ALIAS {unautobasha}
-{
-    #unaction {seems to have recovered}
-}
-
-#ALIAS {us}
-{
-    _send unlock $sd1 s
-}
-
-#ALIAS {uu}
-{
-    _send unlock $sd1 u
-}
-
-#ALIAS {uw}
-{
-    _send unlock $sd1 w
-}
-
-#ALIAS {vellum}
-{
-    _send get vellumscroll all;
-    _send recite vellumscroll
-}
-
-#ALIAS {warcaster}
-{
-    #variable {class} {warcaster};
-    _show_class
-}
-
-#ALIAS {warrior}
-{
-    #variable {class} {warrior};
-    _show_class
-}
-
-#ALIAS {wooden}
-{
-    _eq_ring wooden
-}
-
-#ALIAS {woven}
-{
-    _eq_body woven
-}
-
-#ALIAS {wq}
-{
-    get all.fletched pack;
-    put all.fletched quiver
-}
-
-#ALIAS {ws}
-{
-    get all.fletched quiver;
-    put all.fletched pack
-}
-
-#ALIAS {z}
-{
-    #if {"%1" != ""}
-    {
-        #variable {target} {%1}
-    };
-    #if {"$target" != ""}
-    {
-        #showme {<F9AA8B7>## TARGET: <FFFFFFF>$target<099>}
-    };
-    #else
-    {
-        #showme {<F9AA8B7>## TARGET: <099>(none)}
-    }
-}
-
-#ALIAS {é}
-{
-    e
-}
-
-#ALIAS {ú}
-{
-    u
-}
-
-#ALIAS {ń}
-{
-    n
-}
-
-#ALIAS {ś}
-{
-    south
-}
-
-#ALIAS {ẃ}
-{
-    w
-}
-
-#HIGHLIGHT {- armour} {Cyan} {5}
-#HIGHLIGHT {- breath of briskness} {Cyan} {5}
-#HIGHLIGHT {- comfortable} {green} {5}
-#HIGHLIGHT {- detect magic} {Cyan} {5}
-#HIGHLIGHT {- heavy burden} {red} {5}
-#HIGHLIGHT {- lethargy} {red} {5}
-#HIGHLIGHT {- protection from evil} {Cyan} {5}
-#HIGHLIGHT {- sanctuary} {Magenta} {5}
-#HIGHLIGHT {- shadow-link} {Green} {5}
-#HIGHLIGHT {- shield} {Cyan} {5}
-#HIGHLIGHT {- shroud} {Cyan} {5}
-#HIGHLIGHT {- spectral health} {Green} {5}
-#HIGHLIGHT {- stored spell %1} {magenta} {5}
-#HIGHLIGHT {- strength} {Cyan} {5}
-#HIGHLIGHT {- tiredness} {red} {5}
-#HIGHLIGHT {- very comfortable} {green} {5}
-#HIGHLIGHT {A pair of tiny eyes gleam at you from the shadows.} {Cyan} {5}
-#HIGHLIGHT {AA} {green} {5}
-#HIGHLIGHT {BB} {green} {5}
-#HIGHLIGHT {CC} {green} {5}
-#HIGHLIGHT {DD} {green} {5}
-#HIGHLIGHT {MIN} {cyan} {5}
-#MACRO {\eOP}
-{
-    _send hit $target
-}
-
-#MACRO {\eOQ}
-{
-    #if {"$class" == "warrior"}
-    {
-        _send bash $target
-    };
-    #elseif {"$class" == "caster" || "$class" == "warcaster"}
-    {
-        _send cast $ss $spell $target
-    };
-    #elseif {"$class" == "thief"}
-    {
-        _send backstab $target
-    }
-}
-
-#MACRO {\eOR}
-{
-    #if {"$class" == "warrior"}
-    {
-        _send bash
-    };
-    #elseif {"$class" == "caster" || "$class" == "warcaster"}
-    {
-        _send cast $ss $spell
-    };
-    #elseif {"$class" == "thief"}
-    {
-        _send shoot
-    }
-}
-
-#MACRO {\eOS}
-{
-    #if {"$class" == "warrior" || "$class" == "warcaster"}
-    {
-        _send kick
-    };
-    #elseif {"$class" == "caster" || "$class" == "thief"}
-    {
-        _send shoot $target
-    }
-}
-
-#MACRO {\e[15~}
-{
-    _send draw $weap1
-}
-
-#MACRO {\e[17~}
-{
-    _send draw $weap2
-}
-
-#MACRO {\e[18~}
-{
-    _send draw $weap3
-}
-
-#MACRO {\e[19~}
-{
-    _send sc
-}
-
-#MACRO {\e[20~}
-{
-    _send sc
-}
-
-#SUBSTITUTE {^%1 seems to be blinded!} {<F23aaee>%0<900>} {5}
-#SUBSTITUTE {^-%1wound%2} {<Fff0000>%0<900>} {5}
-#TICKER {clock} {#lua {state.world.clock.tick()}} {0.25}
-#VARIABLE {_sd_line} {<F9AA8B7> SD1: <FFFFFFF>exit<F9AA8B7>  SD2: <FFFFFFF>way}
-#VARIABLE {abody} {mantle}
-#VARIABLE {acontainer} {quiver}
-#VARIABLE {arrow} {arrow}
-#VARIABLE {body} {tunic}
-#VARIABLE {character} {Rasta}
-#VARIABLE {class} {caster}
-#VARIABLE {ring} {copperring}
-#VARIABLE {sd1} {exit}
-#VARIABLE {sd2} {way}
-#VARIABLE {sd3} {}
-#VARIABLE {spell} {'hold'}
-#VARIABLE {ss} {normal}
-#VARIABLE {target} {*elf*}
-#VARIABLE {test} {look}
-#VARIABLE {weap1} {hewer }
-#VARIABLE {weap2} {engraved}
-#VARIABLE {weap3} {engraved}
-#VARIABLE {weapon1} {bow}
-
+#nop ---- Actions ----
+#nop %1 captures text for the commands. A braced group is a regular
+#nop expression, here matching either word.
+
+#action {^%1 raises {his|her} hand.$} {group %1}
+#action {WARNING} {sc}
+#action {^%1key: '%2'$} {#showme %0}
+
+#nop ---- Highlights and substitutes ----
+#nop A capitalised colour name is the bright variant. A substitute
+#nop rewrites the line: %0 is the matched text and <Frrggbb> colours it.
+
+#highlight {- armour} {Cyan}
+#highlight {- breath of briskness} {Cyan}
+#highlight {- detect magic} {Cyan}
+#highlight {- protection from evil} {Cyan}
+#highlight {- shield} {Cyan}
+#highlight {- shroud} {Cyan}
+#highlight {- strength} {Cyan}
+#highlight {- sanctuary} {Magenta}
+#highlight {- stored spell %1} {magenta}
+#highlight {- shadow-link} {Green}
+#highlight {- spectral health} {Green}
+#highlight {- comfortable} {green}
+#highlight {- very comfortable} {green}
+#highlight {- heavy burden} {red}
+#highlight {- lethargy} {red}
+#highlight {- tiredness} {red}
+#highlight {A pair of tiny eyes gleam at you from the shadows.} {Cyan}
+#highlight {AA} {green}
+#highlight {BB} {green}
+#highlight {CC} {green}
+#highlight {DD} {green}
+#highlight {MIN} {cyan}
+
+#substitute {^%1 seems to be blinded!} {<F23aaee>%0}
+#substitute {^-%1wound%2} {<Fff0000>%0}

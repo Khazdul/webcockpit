@@ -347,13 +347,17 @@ export class ScriptEngine {
     let sp = 0;
     while (sp < line.length && !isSpace(line.charCodeAt(sp))) sp++;
     const word = line.slice(0, sp);
+    // Deprecated (ADR 0036): every command is echoed, so `_send x` is just
+    // `x` without alias lookup. Kept because stored profiles still use it.
     if (word === '_send') {
       this.send(finishText(line.slice(sp).trim()));
       return;
     }
     const hit = this.findAlias(line, word);
     if (!hit) {
-      this.send(finishText(line));
+      // Trimmed like `_send`: a variable that expands to nothing at the end
+      // (`close $door`) must not leave a trailing space.
+      this.send(finishText(line.trim()));
       return;
     }
     const { rule, args, plainRest } = hit;

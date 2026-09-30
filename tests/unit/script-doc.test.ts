@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   type EntryNode,
@@ -78,13 +78,13 @@ describe('round trip', () => {
     }
   });
 
-  it.skipIf(!existsSync(OWNER_PROFILE))("is byte-exact on the owner's PvP profile", () => {
+  it('is byte-exact on the bundled reference profile', () => {
     const text = readFileSync(OWNER_PROFILE, 'utf8');
     const doc = parseProfile(text);
     expect(serialize(doc)).toBe(text);
-    // Every definition in that file is a typed entry, except the ticker.
-    const pass = doc.nodes.filter((n) => n.type === 'passthrough');
-    expect(pass.map((n) => n.type === 'passthrough' && n.word)).toEqual(['TICKER']);
+    // Every definition in that file is a typed entry (ADR 0036).
+    expect(doc.nodes.filter((n) => n.type === 'passthrough')).toEqual([]);
+    expect(listEntries(doc, 'alias').length).toBeGreaterThan(150);
   });
 
   it('parses a 600-line profile quickly', () => {

@@ -104,7 +104,8 @@ export const HELP_LINES: readonly string[] = [
   'tt++ commands work too: #alias #action #highlight #substitute #gag #macro',
   '  #variable #ticker #delay (and #un...), #if #elseif #else #showme #nop',
   '  #math #format #class #event. Separate commands with ;',
-  '  _send <text> sends text as is. The profile is edited from the ESC menu.',
+  'The profile is edited from the ESC menu; HELP in the profile editor',
+  '  explains every command.',
 ];
 
 export interface AppOptions {

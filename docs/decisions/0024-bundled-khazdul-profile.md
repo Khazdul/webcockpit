@@ -25,3 +25,6 @@ a first run seeded only `default` (ADR 0010).
   always run instead of being skipped when `/home/ole/MUME` is absent.
 - Updating the bundled text later changes only what future new users
   get; nobody's stored copy is touched.
+
+Amended by 0036: the bundled text is now a curated reference profile,
+not a verbatim copy.
