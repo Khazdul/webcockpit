@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.18 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: release 0.1.19, then plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.19 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,19 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-30 — Release 0.1.19
+
+- **Released:** 0.1.19 (tag v0.1.19): clock-strip blank, light UI
+  colours on paper (ADR 0041), full-width EDITOR/HELP, underscore glyph
+  face (ADR 0043), `_send` removed (ADR 0040). Pages deploy OK; live
+  `release.json` reports 0.1.19 at cca2bb8; the underscore face is
+  served; prod smoke 10/10. A second Pages run for the same tag started
+  and was refused by the version guard (already live), harmless.
+- **Owner:** accepts the changes without further testing now and will
+  watch for problems in use.
+- **Next:** plan the rest of stage 8 (performance brief first).
+- **Commits:** cca2bb8, plus this one.
 
 ### 2026-09-30 — Underscore glyph face
 
