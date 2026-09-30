@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (part A done; 0.1.16 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
+Current stage: **8 — Hardening → v1** (part A done; 0.1.18 live at https://mumecockpit.com/ on GitHub Pages, Tailscale site retired, ADRs 0028–0029; next: plan the rest of stage 8).
 
 ## Stages
 
@@ -21,6 +21,17 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-09-30 — Release 0.1.18
+
+- **Released:** 0.1.18 (tag v0.1.18): reference `khazdul` profile,
+  `_send` deprecated, editor HELP with navigation menu, `#help` from the
+  manual, typed settings saved at once, `#message` with confirmation
+  rows (ADRs 0036–0039). Pages deploy OK; live `release.json` reports
+  0.1.18 at 0248453. Prod smoke against the live site not run.
+- **Next:** owner tests live; khazdul candidate list; plan the rest of
+  stage 8.
+- **Commits:** 0248453, plus this one.
 
 ### 2026-09-30 — Reference profile and editor HELP
 
