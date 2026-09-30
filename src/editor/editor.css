@@ -101,6 +101,8 @@
  * less line-height moves the baseline up so the descent ends inside the
  * cell in both engines; the boxes stay one cell high. */
 .wc-ped-list .wc-tr,
+.wc-ped-menu .wc-tr,
+.wc-ped-menu-label,
 .wc-ped-title > .wc-c-section,
 .wc-ped-keycell,
 .wc-ped-help-text {
@@ -267,9 +269,16 @@
   background: var(--c-brace-match-bg);
 }
 
-/* HELP: the manual, one row per line, with the TUI scrollbar in the last
- * cell. */
+/* HELP: the navigation menu (the LITE list's grammar), a gap, and the
+ * manual, one row per line, each with the TUI scrollbar in its last cell. */
 .wc-ped-help {
+  display: flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.wc-ped-menu,
+.wc-ped-manual {
   flex: 0 0 auto;
   overflow: hidden;
 }

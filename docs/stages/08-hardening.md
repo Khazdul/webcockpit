@@ -263,3 +263,6 @@ the character in the input line is ever a problem in play.
   Connect with khazdul and try `z orc`, `bh`, F1–F4, `sd gate`, `o`.
   Feedback wanted: manual tone and length, profile layout, and whether
   `_send` should be removed from the engine too.
+- 2026-09-30, HELP: intro wording changed (no "from the ESC menu"; LITE
+  and EDITOR described in the owner's words); a navigation menu on the
+  left jumps to a section (ADR 0037, "Navigation menu").

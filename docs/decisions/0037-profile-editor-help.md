@@ -95,6 +95,48 @@ as ` show_class`; the owner also did not find it in the EDITOR view.
   down; the editor has no search of its own. That is the likely reason
   the alias was not found, and it is left open.
 
+### Navigation menu (2026-09-30)
+
+The owner asked for a menu to the left of the manual that jumps to a
+section ("the syntax for #highlight").
+
+- **Content.** One entry per section in manual order, with the group
+  titles (Basics, Commands) as dim labels that cannot be selected.
+  `helpMenu()` in `help.ts` builds it from the same section list as the
+  manual; the column is as wide as the longest heading plus a cell on
+  each side (19 cells today).
+- **Layout** (`helpFrame`). The menu goes in the left margin: menu text,
+  one scrollbar cell, a gap of 3, then the manual, 23 cells in all. From
+  125 columns the manual is the same centred 77-cell column as LITE and
+  EDITOR. With less margin the menu stays at cell 1 and the manual moves
+  right, keeping its width down to 102 columns; below that it narrows.
+  Under 77 columns (a manual column of less than 52 cells) the menu is
+  hidden and the view is as before. The title and the toggle do not
+  move, so the buttons stay under the pointer when the view changes; in
+  the 79 – 124 column range the manual therefore ends up to 11 cells to
+  the right of the toggle. The same rule serves the start page and the
+  80 % ESC box.
+- **Keys.** The menu is a zone (`menu`): Tab cycles toggle → menu →
+  manual. In the menu ↑ / ↓ move to the previous / next section and the
+  manual follows at once, as the LITE list shows the entry under its
+  cursor (↑ on the first entry goes to the toggle); → or Enter / Space go
+  to the manual, ← in the manual goes back. PgUp / PgDn, Home / End and
+  `n` / `p` scroll the manual from every zone. ↓ / Enter on the toggle
+  still enter the manual, which is what lies below it. A click on an
+  entry jumps and focuses the menu; the wheel over the menu scrolls the
+  menu alone, and its scrollbar track pages.
+- **The mark.** The entry of the section on the manual's top row has the
+  list band: grey, amber while the menu has focus. It follows every
+  scroll, and the menu scrolls to keep it (and the group label above a
+  group's first entry) in view. The last sections cannot reach the top
+  row; a section jumped to (menu, `n`, `p`) stays marked until the manual
+  is scrolled by other means, and is restored to the top row when a new
+  width lays the manual out again.
+- `n` / `p` now step by section (`helpStep`, replacing `helpJump`), so
+  they agree with the mark at the end of the manual; elsewhere they
+  behave as before.
+- Menu rows use the list rows' line-height fix (see Underscores).
+
 ## Consequences
 
 - The same clipping exists wherever the chrome shows text in `.wc-line`

@@ -31,6 +31,9 @@ Newest first.
   kept as data and checked against the engine; underscores clipped in
   LITE fixed (ADR 0037). Unit 1226/1227 (known `timers-replay`), e2e
   204/204.
+- **Owner feedback 1:** intro wording changed; HELP gets a navigation
+  menu on the left (click or ↑/↓ jumps to a section; hidden below 77
+  cols). Unit 1230/1231, e2e 210/210.
 - **Next:** owner tests (guide in `docs/stages/08-hardening.md`, Owner
   feedback); release; then plan the rest of stage 8.
 - **Open issues:** "alias missing in EDITOR" not reproduced; underscore

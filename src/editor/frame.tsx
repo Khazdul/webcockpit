@@ -43,7 +43,18 @@ import {
 } from '../script/doc';
 import { bindability, displayKey, learnKeyLabel } from '../script/keys';
 import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstLine, pageScroll } from './cm';
-import { type HelpLine, MANUAL_URL, helpJump, helpLayout } from './help';
+import {
+  type HelpLine,
+  MANUAL_URL,
+  helpCurrent,
+  helpFrame,
+  helpStep,
+  helpLayout,
+  helpMenu,
+  helpMenuRow,
+  helpMenuWidth,
+  HELP_MENU_GAP,
+} from './help';
 import {
   type EditorViewName,
   HINTS,
@@ -94,7 +105,7 @@ export interface EditorHost {
 }
 
 type Mode = 'lite' | 'editor';
-type Zone = 'toggle' | 'kind' | 'list' | 'detail' | 'buffer' | 'help';
+type Zone = 'toggle' | 'kind' | 'list' | 'detail' | 'buffer' | 'menu' | 'help';
 type Field = 'pattern' | 'body' | 'key' | 'style' | 'text' | 'bg';
 
 const FIELDS: Readonly<Record<LiteKind, readonly Field[]>> = {
@@ -122,6 +133,18 @@ const HELP_HINTS = [
   '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
   '↑↓ Scroll · n/p Heading · Tab Cycle · ESC Save & back',
   '↑↓ Scroll · ESC Save & back',
+];
+/** In the navigation menu. */
+const HELP_MENU_HINTS = [
+  '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Section · → Manual · Tab Cycle · ESC Save & back',
+  '↑↓ Section · ESC Save & back',
+];
+/** In the manual, with the menu beside it. */
+const HELP_BODY_HINTS = [
+  '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Scroll · ← Menu · n/p Heading · Tab Cycle · ESC Save & back',
+  ...HELP_HINTS.slice(1),
 ];
 
 /** Colour class of a manual row (kit.css roles). */
@@ -177,6 +200,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const [mode, setMode] = useState<Mode>('lite');
   const [help, setHelp] = useState(false);
   const [helpTop, setHelpTop] = useState(0);
+  // The section jumped to from the menu, until the manual is scrolled by
+  // hand: the last sections cannot reach the top row, and are still marked.
+  const [helpSel, setHelpSel] = useState<number | null>(null);
+  const [menuTop, setMenuTop] = useState(0);
   const [zone, setZone] = useState<Zone>('kind');
   const [field, setField] = useState<Field>('pattern');
   const [doc, setDoc] = useState<ProfileDoc>(() => parseProfile(host.text));
@@ -229,11 +256,42 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const bodyH = Math.max(4, rows - gap - 2 - 4 - 2);
   const bufferH = Math.max(3, rows - gap - 2 - 2);
   const listVisible = Math.max(1, bodyH - 1);
-  // The manual: W - 2 cells of text, a blank cell and the scrollbar.
-  const manual = useMemo(() => helpLayout(W - 2), [W]);
+  // HELP: the menu in the left margin, then the manual: text, a blank cell
+  // and the scrollbar (help.ts `helpFrame`).
+  const menu = useMemo(() => helpMenu(), []);
+  const menuW = useMemo(() => helpMenuWidth(menu), [menu]);
+  const hf = helpFrame(cols, W, at, menuW);
+  const manual = useMemo(() => helpLayout(hf.width - 2), [hf.width]);
   const helpMax = Math.max(0, manual.lines.length - bufferH);
   const hTop = Math.min(helpTop, helpMax);
-  const helpScroll = (to: number): void => setHelpTop(Math.max(0, Math.min(helpMax, to)));
+  const helpScroll = (to: number): void => {
+    setHelpSel(null);
+    setHelpTop(Math.max(0, Math.min(helpMax, to)));
+  };
+  const section = helpSel ?? helpCurrent(manual.headings, hTop);
+  /** Puts section `i`'s heading on the top row (as far as the manual scrolls). */
+  const helpGoto = (i: number): void => {
+    const j = Math.max(0, Math.min(manual.headings.length - 1, i));
+    setHelpSel(j);
+    setHelpTop(Math.min(helpMax, manual.headings[j]!));
+  };
+  // A new width lays the manual out again: stay on the section jumped to.
+  useEffect(() => {
+    if (helpSel !== null) setHelpTop(manual.headings[helpSel] ?? 0);
+  }, [manual]);
+  // The menu keeps the current section in view.
+  const menuRow = helpMenuRow(menu, section);
+  const menuMax = Math.max(0, menu.length - bufferH);
+  useEffect(() => {
+    // The first entry of a group brings its label along.
+    const first = menu[menuRow - 1]?.kind === 'group' ? menuRow - 1 : menuRow;
+    setMenuTop((t) => scrollToShow(scrollToShow(t, first, bufferH, menu.length), menuRow, bufferH, menu.length));
+  }, [menuRow, bufferH]);
+  const mTop = Math.min(menuTop, menuMax);
+  // The menu is gone (narrow frame): its focus goes to the manual.
+  useEffect(() => {
+    if (zone === 'menu' && !hf.menu) setZone('help');
+  }, [zone, hf.menu]);
 
   // ------------------------------------------------------------ lite model
 
@@ -471,7 +529,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   const cycle = (dir: 1 | -1): void => {
     let order: { z: Zone; f?: Field }[];
-    if (help) order = [{ z: 'toggle' }, { z: 'help' }];
+    if (help) order = hf.menu ? [{ z: 'toggle' }, { z: 'menu' }, { z: 'help' }] : [{ z: 'toggle' }, { z: 'help' }];
     else if (mode === 'editor') order = [{ z: 'toggle' }, { z: 'buffer' }];
     else {
       order = [{ z: 'toggle' }, { z: 'kind' }, { z: 'list' }];
@@ -545,7 +603,26 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         }
         else return false;
         return true;
+      case 'menu':
+        switch (nk) {
+          case 'up':
+            if (section === 0) focusZone('toggle');
+            else helpGoto(section - 1);
+            return true;
+          case 'down':
+            helpGoto(section + 1);
+            return true;
+          case 'right':
+          case 'activate':
+            focusZone('help');
+            return true;
+        }
+        return helpKey(e, nk, false);
       case 'help':
+        if (nk === 'left' && hf.menu) {
+          focusZone('menu');
+          return true;
+        }
         return helpKey(e, nk, true);
       case 'buffer': {
         const v = viewRef.current;
@@ -580,7 +657,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const helpKey = (e: KeyboardEvent, nk: string | null, inBody: boolean): boolean => {
     const page = Math.max(1, bufferH - 1);
     if (plain(e) && !e.shiftKey && (e.key === 'n' || e.key === 'p')) {
-      helpScroll(helpJump(manual.headings, hTop, e.key === 'n' ? 1 : -1));
+      // The last section stays where it is on `n`.
+      if (e.key === 'p' || section < manual.headings.length - 1) {
+        helpGoto(helpStep(manual.headings, hTop, section, e.key === 'n' ? 1 : -1));
+      }
       return true;
     }
     switch (nk) {
@@ -782,6 +862,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     </div>
   );
 
+  const helpHints = zone === 'menu' ? HELP_MENU_HINTS : zone === 'help' && hf.menu ? HELP_BODY_HINTS : HELP_HINTS;
   let footer: VNode;
   if (mode === 'editor' && !help) {
     const right = `Ln ${status.line}, Col ${status.col}`;
@@ -809,7 +890,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const text = flash
       ? flash.text
       : help
-        ? (HELP_HINTS.find((h) => cps(h) <= cols) ?? HELP_HINTS.at(-1)!)
+        ? (helpHints.find((h) => cps(h) <= cols) ?? helpHints.at(-1)!)
         : zone === 'list'
           ? 'n New · Del Delete · Tab Cycle · ESC Save & back'
           : 'Tab Cycle · ESC Save & back';
@@ -1237,41 +1318,100 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const bar = scrollbar(manual.lines.length, bufferH, hTop);
     const thumbAt = bar.indexOf(true);
     const focused = zone === 'help' && !modal;
+    const height = `calc(var(--cell-h) * ${bufferH})`;
     return (
-      <div
-        class={'wc-ped-help' + (focused ? ' is-focus' : '')}
-        style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})` }}
-        onWheel={(e) => {
-          e.preventDefault();
-          helpScroll(hTop + (e.deltaY > 0 ? 3 : -3));
-        }}
-        onMouseDown={(e) => {
-          if (!(e.target as Element).closest('a')) e.preventDefault();
-          focusZone('help');
-        }}
-      >
-        {manual.lines.slice(hTop, hTop + bufferH).map((l, i) => (
-          <div class="wc-line" key={i} data-kind={l.kind}>
-            <span
-              class={'wc-ped-help-text ' + HELP_CLS[l.kind]}
-              style={{ width: `calc(var(--cell-w) * ${W - 1})`, ...indent(l.indent) }}
-            >
-              {l.segs.map((s) => (s.cls ? <span class={`wc-syn-${s.cls}`}>{s.text}</span> : helpText(s.text)))}
-            </span>
-            {bar.length > 0 && (
+      <div class="wc-ped-help" style={{ ...indent(hf.menu ? hf.menuAt : hf.at), height }}>
+        {hf.menu && renderHelpMenu()}
+        <div
+          class={'wc-ped-manual' + (focused ? ' is-focus' : '')}
+          onWheel={(e) => {
+            e.preventDefault();
+            helpScroll(hTop + (e.deltaY > 0 ? 3 : -3));
+          }}
+          onMouseDown={(e) => {
+            if (!(e.target as Element).closest('a')) e.preventDefault();
+            focusZone('help');
+          }}
+        >
+          {manual.lines.slice(hTop, hTop + bufferH).map((l, i) => (
+            <div class="wc-line" key={i} data-kind={l.kind}>
               <span
-                class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  if (!bar[i]) helpScroll(hTop + (i < thumbAt ? -1 : 1) * Math.max(1, bufferH - 1));
-                }}
+                class={'wc-ped-help-text ' + HELP_CLS[l.kind]}
+                style={{ width: `calc(var(--cell-w) * ${hf.width - 1})`, ...indent(l.indent) }}
               >
-                {bar[i] ? '█' : '░'}
+                {l.segs.map((s) => (s.cls ? <span class={`wc-syn-${s.cls}`}>{s.text}</span> : helpText(s.text)))}
               </span>
-            )}
-          </div>
-        ))}
+              {bar.length > 0 && (
+                <span
+                  class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    if (!bar[i]) helpScroll(hTop + (i < thumbAt ? -1 : 1) * Math.max(1, bufferH - 1));
+                  }}
+                >
+                  {bar[i] ? '█' : '░'}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
+    );
+  }
+
+  /** The navigation menu: the sections, the current one marked (grey, amber with focus). */
+  function renderHelpMenu(): VNode {
+    const bar = scrollbar(menu.length, bufferH, mTop);
+    const thumbAt = bar.indexOf(true);
+    const focused = zone === 'menu' && !modal;
+    const page = (dir: 1 | -1): void => setMenuTop(Math.max(0, Math.min(menuMax, mTop + dir * Math.max(1, bufferH - 1))));
+    return (
+      <>
+        <div
+          class="wc-ped-menu"
+          style={{ width: `calc(var(--cell-w) * ${menuW + 1})` }}
+          onWheel={(e) => {
+            e.preventDefault();
+            setMenuTop(Math.max(0, Math.min(menuMax, mTop + (e.deltaY > 0 ? 3 : -3))));
+          }}
+          onMouseDown={(e) => e.preventDefault()}
+        >
+          {Array.from({ length: bufferH }, (_, vi) => {
+            const r = menu[mTop + vi];
+            const text = r ? pad(' ' + ellipsis(r.label, menuW - 2), menuW) : '';
+            const isCur = r?.kind === 'entry' && r.section === section;
+            return (
+              <div class="wc-line" key={vi}>
+                {r?.kind === 'entry' ? (
+                  <span
+                    class={'wc-tr' + (isCur ? (focused ? ' is-cur-focus' : ' is-cur') : '')}
+                    data-section={r.label}
+                    onClick={() => {
+                      helpGoto(r.section);
+                      focusZone('menu');
+                    }}
+                  >
+                    {text}
+                  </span>
+                ) : (
+                  <span class="wc-ped-menu-label wc-c-hint">{pad(text, menuW)}</span>
+                )}
+                {bar.length > 0 && (
+                  <span
+                    class={bar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
+                    onMouseDown={() => {
+                      if (!bar[vi]) page(vi < thumbAt ? -1 : 1);
+                    }}
+                  >
+                    {bar[vi] ? '█' : '░'}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ width: `calc(var(--cell-w) * ${HELP_MENU_GAP})`, flex: '0 0 auto' }} />
+      </>
     );
   }
 

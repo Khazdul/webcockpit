@@ -4,7 +4,22 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Line } from '../../src/core/types';
-import { CODE_INDENT, type HelpExample, helpJump, helpLayout, helpLineText, helpLineWidth, helpSections } from '../../src/editor/help';
+import {
+  CODE_INDENT,
+  HELP_MENU_GAP,
+  HELP_MIN_W,
+  type HelpExample,
+  helpCurrent,
+  helpFrame,
+  helpLayout,
+  helpLineText,
+  helpLineWidth,
+  helpMenu,
+  helpMenuRow,
+  helpMenuWidth,
+  helpSections,
+  helpStep,
+} from '../../src/editor/help';
 import { COMMANDS, resolveCommand } from '../../src/script/commands';
 import { parseProfile, serialize } from '../../src/script/doc';
 import { EVENT_NAMES, FakeScheduler, REPEAT_MAX, ScriptEngine, evalMath } from '../../src/script/engine';
@@ -253,13 +268,84 @@ describe('layout', () => {
     expect(text.at(-1)).not.toBe('');
   });
 
-  it('jumps between headings', () => {
+  it('steps between sections with n and p', () => {
     const h = [0, 10, 25];
-    expect(helpJump(h, 0, 1)).toBe(10);
-    expect(helpJump(h, 12, 1)).toBe(25);
-    expect(helpJump(h, 25, 1)).toBe(25);
-    expect(helpJump(h, 12, -1)).toBe(10);
-    expect(helpJump(h, 10, -1)).toBe(0);
-    expect(helpJump(h, 0, -1)).toBe(0);
+    expect(helpStep(h, 0, 0, 1)).toBe(1);
+    expect(helpStep(h, 12, 1, 1)).toBe(2);
+    expect(helpStep(h, 25, 2, 1)).toBe(2);
+    // p: back to the heading of the section being read, then to the one before.
+    expect(helpStep(h, 12, 1, -1)).toBe(1);
+    expect(helpStep(h, 10, 1, -1)).toBe(0);
+    expect(helpStep(h, 0, 0, -1)).toBe(0);
+    // A last section that cannot reach the top row (top is clamped above its heading).
+    expect(helpStep(h, 20, 2, -1)).toBe(1);
+  });
+
+  it('lists every section in the menu, in order, under its group label', () => {
+    const menu = helpMenu();
+    const entries = menu.filter((r) => r.kind === 'entry');
+    expect(entries.map((r) => r.label)).toEqual(sections.map((s) => s.heading));
+    expect(entries.map((r) => r.section)).toEqual(sections.map((_, i) => i));
+    expect(menu.filter((r) => r.kind === 'group').map((r) => r.label)).toEqual(['Basics', 'Commands']);
+    const labels = menu.map((r) => r.label);
+    expect(labels.slice(0, 4)).toEqual(['Writing a profile', '', 'Basics', 'Braces and ;']);
+    expect(labels[labels.indexOf('Commands') + 1]).toBe('#action');
+    expect(labels.slice(-3)).toEqual(['#variable', '', 'Not supported']);
+    expect(menu.every((r) => (r.kind === 'entry') === (r.section >= 0))).toBe(true);
+    expect(helpMenuWidth(menu)).toBe(Math.max(...sections.map((s) => [...s.heading].length)) + 2);
+    expect(helpMenuRow(menu, 0)).toBe(0);
+    expect(menu[helpMenuRow(menu, sections.findIndex((s) => s.heading === '#highlight'))]!.label).toBe('#highlight');
+    expect(helpMenuRow(menu, 999)).toBe(0);
+  });
+
+  it('follows a custom section list in the menu', () => {
+    const menu = helpMenu([
+      { group: 'commands', heading: '#a', text: [] },
+      { group: 'commands', heading: '#b', text: [] },
+      { group: 'end', heading: 'Z', text: [] },
+    ]);
+    expect(menu.map((r) => `${r.kind}:${r.label}:${r.section}`)).toEqual([
+      'group:Commands:-1',
+      'entry:#a:0',
+      'entry:#b:1',
+      'blank::-1',
+      'entry:Z:2',
+    ]);
+  });
+
+  it('finds the section at the top row', () => {
+    const h = [0, 10, 25];
+    expect(helpCurrent(h, 0)).toBe(0);
+    expect(helpCurrent(h, 9)).toBe(0);
+    expect(helpCurrent(h, 10)).toBe(1);
+    expect(helpCurrent(h, 24)).toBe(1);
+    expect(helpCurrent(h, 400)).toBe(2);
+    expect(helpCurrent([], 3)).toBe(0);
+    const { headings } = helpLayout(75);
+    headings.forEach((row, i) => expect(helpCurrent(headings, row)).toBe(i));
+  });
+
+  it('places the menu in the left margin, moves and narrows the manual, then hides the menu', () => {
+    const frame = (cols: number) => {
+      const W = Math.max(40, Math.min(77, cols - 2));
+      return helpFrame(cols, W, Math.floor((cols - W) / 2), 19);
+    };
+    // Wide: the manual is the centred column, untouched.
+    expect(frame(140)).toEqual({ menu: true, menuAt: 8, at: 31, width: 77 });
+    expect(frame(125)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
+    // Less margin: the manual moves right and keeps its width …
+    expect(frame(110)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
+    expect(frame(102)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
+    // … then narrows …
+    expect(frame(101)).toEqual({ menu: true, menuAt: 1, at: 24, width: 76 });
+    expect(frame(77)).toEqual({ menu: true, menuAt: 1, at: 24, width: HELP_MIN_W });
+    // … and under the minimum the menu goes and the manual is as before.
+    expect(frame(76)).toEqual({ menu: false, menuAt: 0, at: 1, width: 74 });
+    expect(frame(60)).toEqual({ menu: false, menuAt: 0, at: 1, width: 58 });
+    for (let cols = 42; cols < 200; cols++) {
+      const f = frame(cols);
+      expect(f.at + f.width).toBeLessThanOrEqual(cols - 1);
+      if (f.menu) expect(f.at - f.menuAt).toBe(19 + 1 + HELP_MENU_GAP);
+    }
   });
 });

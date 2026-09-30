@@ -75,8 +75,9 @@ const INTRO: readonly HelpSection[] = [
     group: 'intro',
     heading: 'Writing a profile',
     text: [
-      'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes from the ESC menu.',
-      'LITE edits actions, aliases, highlights, macros and substitutes in forms. EDITOR edits the whole text. Both show the same profile: switching never reorders or drops anything.',
+      'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
+      'LITE is a simplified view where you can edit your settings.',
+      'EDITOR lets you edit the whole settings file directly (experienced users).',
       'What is different from tt++ here:',
       '- Every command sent to the game is echoed in the game window. Write game commands as they are; no echo helper is needed.',
       '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',
@@ -845,9 +846,88 @@ export function helpLineWidth(l: HelpLine): number {
   return l.indent + l.segs.reduce((n, s) => n + cps(s.text), 0);
 }
 
-/** The heading row to jump to from `top` (`dir` 1: next below, -1: previous above), or `top`. */
-export function helpJump(headings: readonly number[], top: number, dir: 1 | -1): number {
-  if (dir === 1) return headings.find((h) => h > top) ?? top;
-  for (let i = headings.length - 1; i >= 0; i--) if (headings[i]! < top) return headings[i]!;
-  return top;
+/**
+ * The section to put on the top row for `n` (`dir` 1: the next one) or `p`
+ * (-1: the current one's heading when `top` is below it, else the previous
+ * one). `section` is the current section.
+ */
+export function helpStep(headings: readonly number[], top: number, section: number, dir: 1 | -1): number {
+  if (dir === 1) return Math.min(headings.length - 1, section + 1);
+  return top > (headings[section] ?? 0) ? section : Math.max(0, section - 1);
+}
+
+// ------------------------------------------------------- navigation menu
+
+export interface HelpMenuRow {
+  kind: 'blank' | 'group' | 'entry';
+  label: string;
+  /** Index of the section (and of its row in `HelpLayout.headings`); -1 for labels and blanks. */
+  section: number;
+}
+
+/**
+ * The navigation menu: one entry per section in manual order, with the
+ * group titles as labels. A blank row sets each group apart.
+ */
+export function helpMenu(sections: readonly HelpSection[] = helpSections()): HelpMenuRow[] {
+  const rows: HelpMenuRow[] = [];
+  let group: HelpGroup | null = null;
+  sections.forEach((s, i) => {
+    if (s.group !== group) {
+      group = s.group;
+      if (rows.length > 0) rows.push({ kind: 'blank', label: '', section: -1 });
+      const title = GROUP_TITLES[group];
+      if (title) rows.push({ kind: 'group', label: title, section: -1 });
+    }
+    rows.push({ kind: 'entry', label: s.heading, section: i });
+  });
+  return rows;
+}
+
+/** Width of the menu's text column: the longest label and a cell on each side. */
+export function helpMenuWidth(menu: readonly HelpMenuRow[]): number {
+  return menu.reduce((n, r) => Math.max(n, cps(r.label)), 0) + 2;
+}
+
+/** The menu row of section `section`, or 0. */
+export function helpMenuRow(menu: readonly HelpMenuRow[], section: number): number {
+  return Math.max(0, menu.findIndex((r) => r.kind === 'entry' && r.section === section));
+}
+
+/** The section the manual shows at row `top`: the last heading at or above it. */
+export function helpCurrent(headings: readonly number[], top: number): number {
+  let cur = 0;
+  for (let i = 0; i < headings.length && headings[i]! <= top; i++) cur = i;
+  return cur;
+}
+
+/** Cells between the menu's scrollbar and the manual. */
+export const HELP_MENU_GAP = 3;
+/** The narrowest manual column the menu may leave; below it the menu is hidden. */
+export const HELP_MIN_W = 52;
+
+export interface HelpFrame {
+  /** Whether the menu is shown. */
+  menu: boolean;
+  /** Left cell of the menu. */
+  menuAt: number;
+  /** Left cell and width of the manual column (text, a blank cell, the scrollbar). */
+  at: number;
+  width: number;
+}
+
+/**
+ * Where the menu and the manual go in a frame `cols` wide whose centred
+ * column is `W` cells at `at`. The menu (`menuW` cells, its scrollbar and
+ * the gap) goes in the left margin. With too little margin the manual moves
+ * right, then narrows; under HELP_MIN_W the menu is dropped and the manual
+ * keeps the centred column.
+ */
+export function helpFrame(cols: number, W: number, at: number, menuW: number): HelpFrame {
+  const side = menuW + 1 + HELP_MENU_GAP;
+  const menuAt = Math.max(1, at - side);
+  const left = menuAt + side;
+  const width = Math.min(W, cols - 1 - left);
+  if (width < HELP_MIN_W) return { menu: false, menuAt: 0, at, width: W };
+  return { menu: true, menuAt, at: left, width };
 }
