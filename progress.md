@@ -22,6 +22,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Release 0.1.20
+
+- **Released:** 0.1.20 (tag v0.1.20): stage 8 part C performance fixes
+  and edge-to-edge EDITOR/HELP. Local `build:pages` green (Chromium and
+  Firefox smoke), Pages deploy OK, live `release.json` reports 0.1.20 at
+  c3a8d3f, prod smoke against mumecockpit.com 10/10.
+- **Owner:** asked to publish directly; the full part C test guide was
+  not run first.
+- **Next:** the later parts of stage 8 (PvP fixes, polish).
+- **Commits:** c3a8d3f, plus this one.
+
 ### 2026-10-01 — Editor edge to edge
 
 - **Done:** EDITOR and HELP in the profile editor span the frame from

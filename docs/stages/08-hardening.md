@@ -261,9 +261,9 @@ experiments to rework, not finished code):
       `<html data-cursor-blink>`; `Socketish.isOpen` is new (optional);
       the "Not connected: command not sent." line comes from `Session`,
       so pane and script sends get it too. Ingest choices: ADR 0048.
-- [ ] C17. Owner test (guide below), release. Owner played briefly on
-      2026-10-01: works well; the full guide is not done; not released
-      yet (owner: do not publish now).
+- [x] C17. Owner test (guide below), release. Owner played briefly on
+      2026-10-01: works well; the full guide is not done. Released as
+      0.1.20 on 2026-10-01 at the owner's request.
 
 ## Test guide (part A)
 
