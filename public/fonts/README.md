@@ -182,6 +182,12 @@ Firefox on Linux:
   raising a size with a fraction under half a px to the next half px
   (13.333 → 13.5), which Chrome rounds up; cell widths stay the same.
 
+Rows of the chrome kit (`.wc-line`) and the panes (`.wc-prow`) clip
+sideways only, so blocks and box lines join across rows there as in the
+output pane (ADR 0049 "Clipped rows"). The sweep above was repeated at
+device pixel ratio 2: clean in Firefox; the Chromium leftovers at ratio
+2 and both browsers at fractional ratios are listed in the ADR.
+
 SHA-256:
 
 ```

@@ -198,6 +198,44 @@ After these, no family shows a seam or gap at any size in either browser,
 apart from thin box lines at sizes ≤ 10 (anti-aliasing; DejaVu has the
 same).
 
+### Clipped rows
+
+The owner saw a thin seam between the `█` of the Options scrollbar thumb
+(JetBrains Mono 18, Firefox at device pixel ratio 2). The chrome kit's
+`.wc-line` and the panes' `.wc-prow` were `overflow: hidden`: each row
+clipped its glyphs to its own cell. A glyph's ink is placed in the cell
+with the browser's rounding, so `█` or `│` can stop up to a device pixel
+short of one cell edge while overlapping the other; in the output pane
+the next row's overlap covers that pixel, in a clipped row it was cut
+off. The seam was there for every family (DejaVu included) at some sizes
+and ratios: kit rows in Chromium at ratio 1 and 2, in Firefox at 2; pane
+`│` borders in Chromium.
+
+Fix: both rows clip sideways only (`overflow-x: clip; overflow-y:
+visible`, inside `@supports (overflow: clip)`; older browsers keep
+`hidden`), as the output pane rows already were. No cell size changes.
+Text may now show a descender or accent pixel past its row, as in the
+output pane.
+
+Sweep after the fix (every family, sizes 6–32, output-pane rows, kit
+rows with a bold `█` thumb, pane rows with `│ ║`):
+
+- Ratio 1, Chromium and Firefox: no seam or gap anywhere (thin box lines
+  at sizes ≤ 10 aside).
+- Ratio 2, Firefox (the owner's setup): no seam or gap anywhere.
+- Ratio 2, Chromium: JetBrains Mono seams between `█` columns at the
+  sizes whose font size is x.667 px (6–7, 11–12, 16–17, 21–22, 26–27,
+  31–32: Chrome draws 2 × 16.667 = 33.33 device px at 33), as before
+  this ADR; and 1-device-px gaps in output-pane `│` at a few sizes of
+  Cascadia (6–7), Fantasque (23–24), Go Mono (11–12, 16–17, 31–32), Hack
+  (6–7), mononoki (7–8) and Lucida Console (11–28).
+- Ratios 1.25 and 1.5 (spot checks): cells of whole CSS px are fractional
+  device px there, and runs of `█` show seams in every family, DejaVu
+  included, in both browsers, as before.
+
+Both remaining cases need the font size and cell height chosen in device
+pixels (`devicePixelRatio`) rather than CSS pixels; not done here.
+
 ### Symbols
 
 Symbols a family lacks (`✦ ✧ ⚔ ★ ☆ ⚠ ✖` and others, per family) still come

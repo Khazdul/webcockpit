@@ -6,6 +6,15 @@
   overflow: hidden;
 }
 
+/* Sideways only, so box lines and blocks join across rows (as .wc-line,
+ * src/chrome/kit/kit.css; ADR 0049 "Clipped rows"). */
+@supports (overflow: clip) {
+  .wc-prow {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
 /* Comm and UI message panes (src/panes/comm.ts, ui.ts, anchored-list.ts). */
 
 .wc-msgpane {

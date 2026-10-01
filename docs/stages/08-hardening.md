@@ -296,7 +296,11 @@ Part D — more fonts (ADR 0049):
       worse): `halfUpPx` and a 0.1 px `cellMargin`; swept before/after,
       cells change only at 8–9, 16–17 and 25 (ADR 0049). `wholePx` was
       tried and rejected (taller cells, Firefox seams at 21–22).
-- [ ] D10. Owner test (guide below).
+- [x] D10. Scrollbar thumb seam at ratio 2 (owner, JetBrains Mono 18,
+      Firefox): kit and pane rows clipped each glyph to its cell; now
+      they clip sideways only. Swept at ratio 1 and 2, spot checks at
+      1.25 / 1.5 (ADR 0049 "Clipped rows").
+- [ ] D11. Owner test (guide below).
 
 ## Test guide (part A)
 
@@ -397,6 +401,9 @@ On `npm run dev` (or the release that carries it), Firefox and Chromium:
    Sans Mono. With another font it opens in that font.
 6. ESC → About → CREDITS → Fonts: the list, and the link to the font
    credits.
+
+Scrollbars (e.g. Options → Highlights with a long list) and pane borders:
+no thin line between the rows of the thumb or the `│` at your 2× scaling.
 
 JetBrains Mono: its block seams in Chromium (sizes 13–14, 18–19 …) and
 Firefox (25) are gone; at size 16 its rows are 1 px lower (21 instead of

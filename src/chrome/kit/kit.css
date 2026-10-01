@@ -57,6 +57,20 @@
   overflow: hidden;
 }
 
+/* Clip the line sideways only (ADR 0049 "Clipped rows"). A glyph's ink
+ * is placed in its cell with the browser's rounding: `█` or `│` can stop
+ * a device pixel short of one cell edge while it overlaps the other. In
+ * the output pane the next row's overlap covers that pixel; a row that
+ * clipped itself vertically cut the overlap off, so stacked blocks (the
+ * scrollbar thumb, the banner) showed a seam between rows at some sizes
+ * and pixel ratios. */
+@supports (overflow: clip) {
+  .wc-line {
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+}
+
 .wc-footer {
   flex: 0 0 auto;
 }
