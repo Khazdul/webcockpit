@@ -9,6 +9,11 @@
 // from bench/rules.ts. Prints µs per line. Also times the key → send
 // script path (a macro that runs an alias that sends). The browser numbers
 // that go into bench/results/latest.md come from bench/browser-bench.ts.
+//
+// Lua scripts (ADR 0051): the 500 rules plus the system rules again, with
+// the script host running BENCH_SCRIPT (triggers on common text, two
+// regexes, a highlight, a gag that never matches and an alias). Lua runs
+// only on a match; the count of Lua calls per pass is printed.
 
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
@@ -60,7 +65,77 @@ const lines: Line[] = [];
   }
 }
 
-function perLine(profile: string | null, system = false): { us: number; shown: number; sent: number } {
+const BENCH_SCRIPT = `-- @api 1
+hits = 0
+tempTrigger("You", function() hits = hits + 1 end)
+tempTrigger(" is here", function() highlight("yellow", "is here") end)
+tempRegexTrigger("^(\\\\w+) tells you '(.*)'$", function() send("reply " .. matches[2]) end)
+tempRegexTrigger("^(\\\\w+) (?:says|narrates)", function() hits = hits + 1 end)
+tempTrigger("ZZZ never matches ZZZ", function() deleteLine() end)
+tempAlias("^lootall$", function() send("get all.coins all.corpse") end)
+`;
+
+type Engine = InstanceType<typeof ScriptEngine>;
+
+/**
+ * Starts a script host on `e` running BENCH_SCRIPT (a fake library, no
+ * storage). Returns a counter of Lua calls and a stop function.
+ */
+async function startScripts(e: Engine, bus: InstanceType<typeof Bus>): Promise<{ calls: () => number; stop: () => void }> {
+  const { ScriptHost } = await import('../src/scripts/host');
+  const { parseHeader } = await import('../src/scripts/header');
+  const { loadLuaRuntime } = await import('../src/lua');
+  const info = {
+    name: 'bench',
+    bundled: false,
+    readonly: false,
+    source: BENCH_SCRIPT,
+    header: parseHeader(BENCH_SCRIPT).header,
+    problems: [],
+    loadProblem: null,
+    enabled: true,
+    lastError: null,
+    settings: {},
+    created: 0,
+    updated: 0,
+  };
+  const host = new ScriptHost({
+    engine: e,
+    bus,
+    library: {
+      init: async () => {},
+      list: () => [info],
+      get: (n: string) => (n === 'bench' ? info : null),
+      settingsOf: () => ({}),
+      subscribe: () => () => {},
+      setEnabled: async () => {},
+      setError: (_n: string, m: string | null) => {
+        if (m) throw new Error(m);
+      },
+      setSetting: async () => ({ ok: false, reason: '' }),
+      storeGet: () => undefined,
+      storeSet: () => {},
+    },
+    send: () => {},
+    print: () => {},
+    message: () => {},
+    storage: null,
+    loadRuntime: () => loadLuaRuntime(),
+  });
+  await host.start();
+  if (!host.isRunning('bench')) throw new Error('bench script did not load');
+  let calls = 0;
+  for (const r of e.scripts.rules('action')) {
+    const fn = r.fn!;
+    (r as { fn: typeof fn }).fn = (ctx) => {
+      calls++;
+      return fn(ctx);
+    };
+  }
+  return { calls: () => calls, stop: () => host.dispose() };
+}
+
+async function perLine(profile: string | null, system = false, scripts = false): Promise<{ us: number; shown: number; sent: number; calls: number }> {
   const bus = new Bus();
   let shown = 0;
   let sent = 0;
@@ -85,6 +160,7 @@ function perLine(profile: string | null, system = false): { us: number; shown: n
     const r = e.loadProfile(profile);
     if (!r.ok) throw new Error(r.reason);
   }
+  const lua = scripts ? await startScripts(e, bus) : null;
   const once = (): number => {
     const t0 = performance.now();
     for (let i = 0; i < lines.length; i++) e.processLine(lines[i]!);
@@ -94,10 +170,12 @@ function perLine(profile: string | null, system = false): { us: number; shown: n
   const times: number[] = [];
   for (let i = 0; i < 5; i++) times.push(once());
   times.sort((a, b) => a - b);
+  const calls = (lua?.calls() ?? 0) / 6;
+  lua?.stop();
   e.dispose();
   game?.dispose();
   runs?.dispose();
-  return { us: (times[2]! / lines.length) * 1000, shown: shown / 6, sent: sent / 6 };
+  return { us: (times[2]! / lines.length) * 1000, shown: shown / 6, sent: sent / 6, calls };
 }
 
 function keyPath(profile: string): { macroUs: number; aliasUs: number } {
@@ -118,18 +196,23 @@ function keyPath(profile: string): { macroUs: number; aliasUs: number } {
 
 const profile = makeRuleProfile(lines.map((l) => l.text));
 console.log(`script-bench: ${fixture.rel}, ${lines.length} lines`);
-const base = perLine(null);
+const base = await perLine(null);
 console.log(`  no rules:  ${base.us.toFixed(2)} µs per line`);
-const full = perLine(profile);
+const full = await perLine(profile);
 console.log(
   `  ${RULE_COUNT} rules: ${full.us.toFixed(2)} µs per line (budget 200 µs) ${full.us < 200 ? 'PASS' : 'FAIL'}; ` +
     `${full.shown} lines shown`,
 );
-const sys = perLine(null, true);
+const sys = await perLine(null, true);
 console.log(`  system rules (game + timers + runs): ${sys.us.toFixed(2)} µs per line (+${(sys.us - base.us).toFixed(2)})`);
-const both = perLine(profile, true);
+const both = await perLine(profile, true);
 console.log(
   `  ${RULE_COUNT} rules + system: ${both.us.toFixed(2)} µs per line (budget 200 µs) ${both.us < 200 ? 'PASS' : 'FAIL'}`,
 );
 const key = keyPath(profile);
 console.log(`  key path:  macro → alias → send ${key.macroUs.toFixed(2)} µs, typed alias ${key.aliasUs.toFixed(2)} µs (budget 1000 µs)`);
+const lua = await perLine(profile, true, true);
+console.log(
+  `  ${RULE_COUNT} rules + system + Lua script: ${lua.us.toFixed(2)} µs per line (+${(lua.us - both.us).toFixed(2)}; ` +
+    `${lua.calls} Lua calls per pass, ${((lua.calls / lines.length) * 100).toFixed(1)} % of lines) (budget 200 µs) ${lua.us < 200 ? 'PASS' : 'FAIL'}`,
+);
