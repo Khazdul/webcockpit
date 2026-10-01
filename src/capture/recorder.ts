@@ -43,7 +43,7 @@
 // `events` runs are recorded as in stage 5 (no summary, never deleted).
 
 import type { Bus } from '../core/bus';
-import { type ConnState, nowUs } from '../core/types';
+import { type ConnState, gmcpKey, nowUs } from '../core/types';
 import {
   RECORD,
   formatGmcpRecord,
@@ -213,7 +213,7 @@ export class Recorder {
 
     this.unsubs.push(
       bus.on('gmcp', (m) => {
-        if (m.pkg.toLowerCase() !== 'char.name') return;
+        if (gmcpKey(m) !== 'char.name') return;
         const n = (m.data as { name?: unknown } | undefined)?.name;
         if (typeof n === 'string' && n) {
           this.character = n;

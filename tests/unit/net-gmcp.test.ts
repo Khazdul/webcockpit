@@ -74,7 +74,7 @@ describe('Gmcp', () => {
     g.handle('Event.Moved null');
     const gm = events.filter((e) => e[0] === 'gmcp').map((e) => e[1] as BusEvents['gmcp']);
     expect(events[0]).toEqual(['raw', { pkg: 'Char.Vitals', json: '{"climb":null}' }]);
-    expect(gm[0]).toEqual({ pkg: 'Char.Vitals', data: { climb: null } });
+    expect(gm[0]).toEqual({ pkg: 'Char.Vitals', key: 'char.vitals', data: { climb: null } });
     expect(gm[1]!.data).toBeUndefined();
     expect('data' in gm[1]!).toBe(true);
     expect(gm[2]!.data).toBeNull();

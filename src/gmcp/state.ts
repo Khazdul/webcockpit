@@ -26,6 +26,7 @@
 // tick), global for all characters; last writer wins (Inv §2.5).
 
 import type { Bus } from '../core/bus';
+import { gmcpKey } from '../core/types';
 import { CharModel } from './char';
 import { ClockModel, loadClockState } from './clock';
 import { GroupModel } from './group';
@@ -83,7 +84,7 @@ export class GameState {
   /** Follows the bus (GMCP, connection state). Returns this. */
   attach(bus: Bus): this {
     this.unsubs.push(
-      bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data)),
+      bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data, gmcpKey(m))),
       bus.on('conn.state', (s) => {
         if (s.state === 'connecting' || (s.state === 'disconnected' && !s.replay)) this.resetCharacter();
       }),
@@ -108,9 +109,8 @@ export class GameState {
     for (const fn of [...this.listeners]) fn(part);
   }
 
-  /** One GMCP message (also usable without a bus). */
-  onGmcp(pkg: string, data: unknown): void {
-    const p = pkg.toLowerCase();
+  /** One GMCP message (also usable without a bus); `p` is `pkg` in lower case. */
+  onGmcp(pkg: string, data: unknown, p = pkg.toLowerCase()): void {
     if (p.startsWith('char.')) {
       if (this.char.apply(pkg, data)) this.emit('char');
       if (p === 'char.vitals' && this.group.apply(pkg, data)) this.emit('group');

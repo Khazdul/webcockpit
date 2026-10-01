@@ -19,7 +19,7 @@
 // shell (editor saves). The game output keeps its own `[SYSTEM]` lines.
 
 import type { Bus } from '../core/bus';
-import type { UiMessage, UiMessageKind, UiMessagePart } from '../core/types';
+import { type UiMessage, type UiMessageKind, type UiMessagePart, gmcpKey } from '../core/types';
 import { REASON_USER_RECONNECT } from '../net/session';
 
 /** Reason ReplaySocket gives when the log is exhausted. */
@@ -57,7 +57,7 @@ export function attachUiMessages(bus: Bus): () => void {
   const emit = (m: UiMessage): void => bus.emit('ui.message', m);
   const offs = [
     bus.on('gmcp', (g) => {
-      const pkg = g.pkg.toLowerCase();
+      const pkg = gmcpKey(g);
       if (pkg === 'char.name') {
         const n = (g.data as { name?: unknown } | undefined)?.name;
         if (typeof n === 'string' && n) name = n;

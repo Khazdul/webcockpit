@@ -59,7 +59,7 @@ import { Recorder, type RecorderOptions, STATUS as CAPTURE_STATUS } from '../cap
 import type { ProfileStore } from '../profiles';
 import { type LoadResult, type Scheduler, ScriptEngine, type TypedChange } from '../script/engine';
 import { Bus } from '../core/bus';
-import type { BusEvents, Socketish } from '../core/types';
+import { type BusEvents, type Socketish, gmcpKey } from '../core/types';
 import type { FetchLike } from '../net/link-probe';
 import { ReplaySocket } from '../net/replay-socket';
 import { REASON_USER_RECONNECT, Session } from '../net/session';
@@ -365,7 +365,7 @@ export class App {
     if (this.profiles) void this.loadSelectedProfile(false);
 
     bus.on('gmcp', (m) => {
-      if (m.pkg.toLowerCase() !== 'char.name') return;
+      if (gmcpKey(m) !== 'char.name') return;
       const n = (m.data as { name?: unknown } | undefined)?.name;
       if (typeof n === 'string' && n) this.charName = n;
     });

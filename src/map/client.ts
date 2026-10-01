@@ -11,7 +11,7 @@
 // a case-insensitive package lookup; text.line: one precompiled regex) and
 // one postMessage per microtask sends the batch.
 
-import type { BusEvents } from '../core/types';
+import { type BusEvents, gmcpKey } from '../core/types';
 import {
   type AssetSource,
   MAP_GMCP_PACKAGES,
@@ -186,7 +186,7 @@ export class MapEventForwarder {
   };
 
   readonly onGmcp = (m: BusEvents['gmcp']): void => {
-    const pkg = MAP_PKG.get(m.pkg.toLowerCase());
+    const pkg = MAP_PKG.get(gmcpKey(m));
     if (pkg !== undefined) this.push({ k: 'gmcp', pkg, data: m.data });
   };
 

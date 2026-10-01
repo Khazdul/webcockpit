@@ -31,7 +31,7 @@
 // recorder persists what it emits (src/capture/recorder.ts).
 
 import type { Bus } from '../core/bus';
-import type { UiMessage } from '../core/types';
+import { type UiMessage, gmcpKey } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { GroupModel } from '../gmcp/group';
 import { levelFromXp } from '../gmcp/levels';
@@ -242,7 +242,7 @@ export class RunEventDeriver {
       bus.on('gmcp', (m) => {
         const ts = this.rawTs ?? this.nowUs();
         this.rawTs = undefined;
-        this.onGmcp(m.pkg, m.data, ts);
+        this.onGmcp(m.pkg, m.data, ts, gmcpKey(m));
       }),
     );
     return this;
@@ -292,9 +292,8 @@ export class RunEventDeriver {
     }, this.foldMs);
   }
 
-  /** One GMCP message received at `ts` (µs). */
-  onGmcp(pkg: string, data: unknown, ts: number): void {
-    const p = pkg.toLowerCase();
+  /** One GMCP message received at `ts` (µs); `p` is `pkg` in lower case. */
+  onGmcp(pkg: string, data: unknown, ts: number, p = pkg.toLowerCase()): void {
     if (ts > this.lastUs) this.lastUs = ts;
     if (p === 'char.vitals') {
       if (!isObj(data)) return;
