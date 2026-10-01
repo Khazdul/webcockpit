@@ -326,6 +326,16 @@ export default defineConfig(({ command }) => {
     worker: { format: 'es' as const },
     server: { headers: isolationHeaders },
     preview: { headers: isolationHeaders },
-    build: { target: 'es2022' },
+    build: {
+      target: 'es2022',
+      rolldownOptions: {
+        // wasmoon's emscripten glue (src/lua, ADR 0051) imports `module`
+        // and `url` in its Node-only branch; the browser stubs are correct.
+        onwarn(warning, warn) {
+          if (/externalized for browser compatibility/.test(warning.message) && warning.message.includes('/wasmoon/')) return;
+          warn(warning);
+        },
+      },
+    },
   };
 });
