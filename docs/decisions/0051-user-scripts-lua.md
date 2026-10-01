@@ -473,3 +473,97 @@ script in the real host).
   would hit the bundled script from a *Duplicate* copy). A
   `scriptName` value or a settings writer would close it in a later
   API version.
+
+### P2 — Scripts page and editor (2026-10-02)
+
+**Modules.** Page: `src/chrome/frames/scripts.tsx` (page, name, delete
+and import frames), `scripts-model.ts` (pure: layout, list lines, help
+rows, state words; the editor uses them too). Editor (lazy editor
+chunk): `src/editor/script-frame.tsx`, `lua-cm.ts` (CodeMirror set-up),
+`lua-api.ts` (the API docs table, completion and hover lookup, pure),
+`lua-indent.ts` (pure). `ChromeServices.scriptRunning(name)` →
+`App.scriptRunning` (`null` before the host exists); the page and the
+editor poll it once a second while shown, since the host's running set
+changes without a library event. Library and host are unchanged.
+
+**Decisions.**
+
+- *Menu.* *Scripts* is the row right under *Profile* on the start page
+  and in the ESC menu, shown only when the chrome has a library.
+- *Page layout.* One package centred like the Profile frame (not pinned
+  to the window's left edge): button row `NEW IMPORT EXPORT RENAME
+  DELETE`, then the list (`[X] name 🔒 ● EDIT` + scrollbar), a 3-cell
+  gap and the help panel (≤ 76 cells, its own scrollbar). The name
+  column is 12–32 cells and fills the width under the buttons. Below
+  ~70 columns the help panel is dropped (`#script help` still works).
+- *Rename and delete* sit in the button row (disabled for bundled
+  scripts) with the Profile frame's prompts: a validated name field
+  (`scriptNameError`), `Delete script 'x'?  (y/N)` with any other key
+  cancelling.
+- *Keys.* Two zones, buttons and list (Tab). In the list ↑↓ pick a
+  script (↑ on the first reaches the buttons), ←→ move between the
+  toggle and EDIT, Enter/Space press the one under the cursor (the
+  chrome's single activate key; no Enter-means-edit special case),
+  PgUp/PgDn scroll the help. The cursor row's name has the grey band
+  (whose help is shown); the toggle's gold brackets or EDIT's amber fill
+  mark where the key goes.
+- *Lock and state marks.* The lock is an inline SVG one cell wide in
+  `--c-body` (no font has a one-cell padlock glyph; an emoji would break
+  the grid). The state cell is `●` (`--c-ok`) while the host runs the
+  script, `!` (`--c-err`) when it is on but failed; a failed or
+  unloadable script gets its `problemText` as a red line under its row
+  (full text in the tooltip and the help).
+- *Help panel.* Name (title) and `bundled · read-only`, summary, a state
+  line (`● on · running`, `○ off`, `● on · runs when you enter MUME`
+  before the host exists), load problem, last error, header problems,
+  then Aliases, Keys, Help (blank `@help` lines kept), Settings: `name =
+  value  type`, the label, and `#script set <script> <name> <value>`
+  with the current value, coloured by the tt++ lexer. A script without
+  help says which tags to add.
+- *Import.* The file chooser, then an *Import Script* frame: a red
+  warning, the code (line numbers, scrollable) and `Y Import · ESC
+  Cancel`; the script is added off. *Export* downloads `<name>.lua`
+  (`text/x-lua`). *New* asks for the name, creates the template and
+  opens the editor in the prompt's place.
+- *Editor.* Same frame grammar as EDITOR (title row with buttons on the
+  right, full-width buffer, TUI scrollbar), but a status row (state and
+  the load error, live from the library) replaces the blank row above
+  the footer; the footer shows hints or the flash and `Modified · Ln,
+  Col`. Ctrl+S and SAVE save (`library.save`; the host reloads an
+  enabled script, its load error then shows on the status row); a new
+  `@name` renames and the page follows (`onName`). ESC with unsaved
+  changes asks `Y save · N discard · ESC keep editing`. Bundled scripts
+  are `EditorState.readOnly` with DUPLICATE, which replaces the frame
+  with the copy's editor. Tab cycles buttons ↔ buffer as in the profile
+  editor (no Tab indent; Enter auto-indents), except that inside the
+  completion list Tab accepts.
+- *Lua mode.* `@codemirror/legacy-modes` Lua via `StreamLanguage`
+  (`@codemirror/language`), colours as classes on the `--c-syn-*` roles
+  (keywords cmd, strings var, numbers code, Lua builtins delim,
+  comments body), so the light chrome needs no extra table.
+  `bracketMatching`, `closeBrackets`, `indentOnInput`. The stream mode's
+  indent counts every `(` and `function`, which indented
+  `tempTrigger("x", function()` bodies two levels; `lua-indent.ts`
+  replaces it (`Prec.highest` indent service): one level after a line
+  whose net openers are positive, one less for a line starting with
+  `end`/`else`/`elseif`/`until`/`}`/`)`.
+- *Completion and hover* (`@codemirror/autocomplete`, `hoverTooltip`)
+  read one table, `SCRIPT_API` (every host function, `store.get/set`,
+  `settings`, `gmcp`, `state`, `matches`, `line`, `command`), plus the
+  header tags after `-- @` and the sandbox's Lua names (ranked after the
+  API). Nothing completes in strings or comments. A unit test checks the
+  table against every `rt.define…` name in `host.ts`, so a new API
+  function without docs fails.
+- *Dependencies* (pinned exact, MIT): `@codemirror/autocomplete` 6.20.3,
+  `@codemirror/language` 6.12.4, `@codemirror/legacy-modes` 6.5.4,
+  `@lezer/highlight` 1.2.4 (the last two were already transitive).
+
+**Measured** (production build): editor chunk 306.0 → 386.0 kB (99.6 →
+127.1 kB gzip); chrome chunk 96.7 → 107.7 kB (35.8 → 38.9 kB gzip), and
+the kit's shared chunk 25.1 → 28.8 kB (it now also holds the page
+model). Cold start: the same preloaded code (+0.2 kB, `scriptRunning`;
+Rolldown regrouped the script library's modules into one chunk).
+
+**Open.** No syntax check for a disabled script (that needs the Lua
+runtime); its errors show once it is turned on. The narrow layout has
+no help panel.

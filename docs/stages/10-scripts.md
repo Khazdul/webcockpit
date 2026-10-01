@@ -67,7 +67,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - `settings` and `store`;
   - `#script` subcommands;
   - header parser; DB stores `scripts` and `scriptData`.
-- [ ] P2. Scripts page and editor:
+- [x] P2. Scripts page and editor (ADR 0051 "Package notes — P2"):
   - menu entry under *Profile* (start page and ESC menu);
   - list with toggle, *Edit*, lock mark, *New*, *Import* and *Export*;
   - help view;
