@@ -95,7 +95,8 @@ describe('scripts model', () => {
     expect(rows).toContain('  delay = 2  number');
     expect(rows).toContain('    #script set looter delay 2');
     expect(rows).toContain('    #script set looter greet {hello there}');
-    expect(rows.at(-1)).toBe('#script help looter shows this in the game.');
+    expect(rows.join(' ')).not.toContain('shows this in the game');
+    expect(rows.at(-1)).toBe('    #script set looter greet {hello there}');
     for (const r of rows) expect(r.length).toBeLessThanOrEqual(60);
   });
 

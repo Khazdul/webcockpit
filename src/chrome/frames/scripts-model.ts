@@ -246,8 +246,9 @@ export function helpRows(s: ScriptInfo, running: boolean | null, width: number):
   }
 
   const empty = !h.summary && h.help.length === 0 && h.aliases.length === 0 && h.keys.length === 0 && h.settings.length === 0;
-  out.push([]);
-  if (empty) wrap('No help yet. Add @summary, @help, @alias, @key and @setting lines to the header.', 'wc-c-hint');
-  else wrap(`#script help ${s.name} shows this in the game.`, 'wc-c-hint');
+  if (empty) {
+    out.push([]);
+    wrap('No help yet. Add @summary, @help, @alias, @key and @setting lines to the header.', 'wc-c-hint');
+  }
   return out;
 }
