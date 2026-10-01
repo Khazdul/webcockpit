@@ -33,7 +33,7 @@
 // `text.displayPartial`; ADR 0015), not the raw `text.line` stream.
 
 import type { Bus } from '../core/bus';
-import type { BusEvents, Line, StyleRun } from '../core/types';
+import type { BusEvents, Color, Line, StyleRun } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
 import { colorToCss, effectiveFg } from './palette';
 
@@ -317,13 +317,16 @@ export class OutputPane {
     if (tail - start > this.scrollback) start = tail - this.scrollback;
     const end = Math.min(tail, start + MAX_ROWS_PER_FRAME);
 
+    // The width for background rows. Until the resize observer has reported
+    // (the first frames after start), measure: layout is clean at this point.
+    const cols = this.lastCols || (end > start ? this.measureCells().cols : 0);
     const built: HTMLElement[] = [];
     let prev = this.lastRow;
     for (let i = start; i < end; i++) {
       const op = this.queue[i]!;
       let row: HTMLElement | null;
       if (op.kind === OP_LINE) {
-        row = renderLine(doc, op.line!);
+        row = renderLine(doc, op.line!, cols);
         if (this.stampRows) row.dataset.ts = String(op.line!.ts);
       } else if (op.kind === OP_SYS) {
         row = doc.createElement('div');
@@ -629,12 +632,141 @@ export function renderStyled(doc: Document, r: StyledRow): HTMLElement {
   return row;
 }
 
-/** Builds one row element for a game line. */
-export function renderLine(doc: Document, line: Line): HTMLElement {
+/**
+ * Builds one row element for a game line. `cols` is the pane width in
+ * cells (0 = unknown); a line that fits may become a background row.
+ */
+export function renderLine(doc: Document, line: Line, cols = 0): HTMLElement {
   const row = doc.createElement('div');
   row.className = line.prompt ? 'wc-row wc-prompt' : 'wc-row';
-  fillRow(doc, row, line);
+  if (!(cols > 0 && fillBackgroundRow(doc, row, line, cols))) fillRow(doc, row, line);
   return row;
+}
+
+/** A line needs at least this many background runs to become a background row. */
+export const BG_ROW_MIN_RUNS = 4;
+
+/** True when every character of `text` takes exactly one cell. */
+function oneCellText(text: string): boolean {
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    // ASCII, Latin-1, Latin Extended-A/B, box drawing and block elements.
+    if (!((c >= 0x20 && c <= 0x7e) || (c >= 0xa0 && c <= 0x24f) || (c >= 0x2500 && c <= 0x259f))) return false;
+  }
+  return true;
+}
+
+/** A background colour as CSS (palette 0–15 through the theme's custom properties). */
+function bgCss(c: Color): string {
+  return c < 16 ? `var(--ansi-${c})` : colorToCss(c);
+}
+
+/** A colour stop position: `k` of `n` cells, as a percentage. */
+function stopAt(k: number, n: number): string {
+  return Math.round((k / n) * 1e6) / 1e4 + '%';
+}
+
+/**
+ * Background rows (ADR 0044 rule 5; performance review #3). A span per
+ * style run costs an element to style and lay out, and two display items
+ * on every later frame while the row is on screen. A colour chart such as
+ * MUME's `help 24-bit colours` has ~50 runs per row that differ only in
+ * background: ~2 400 spans on one page.
+ *
+ * Such a line (at least BG_ROW_MIN_RUNS background runs, the same flags
+ * throughout, no inverse, one-cell characters, not wider than the pane)
+ * gets one span whose backgrounds are a single hard-stop gradient on the
+ * cell grid. Its text is text nodes in that span's foreground, with a
+ * nested span only where the foreground differs (merged across background
+ * changes). The stops are percentages of a `calc(var(--cell-w) * n)` wide
+ * background, so they follow a font or cell size change. The span is
+ * inline, as the run spans are: its background covers the same box, and
+ * when a narrower pane later wraps the row, each line fragment shows its
+ * own slice of the gradient (`box-decoration-break: slice`). Returns false
+ * when the line does not qualify; the row is then left untouched.
+ */
+function fillBackgroundRow(doc: Document, row: HTMLElement, line: Line, cols: number): boolean {
+  const text = line.text;
+  const runs = line.runs;
+  const n = text.length;
+  if (runs.length < BG_ROW_MIN_RUNS || n === 0 || n > cols) return false;
+  const r0 = runs[0]!;
+  let bgRuns = 0;
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i]!;
+    if (
+      r.inverse ||
+      !r.bold !== !r0.bold ||
+      !r.italic !== !r0.italic ||
+      !r.underline !== !r0.underline ||
+      !r.blink !== !r0.blink
+    ) {
+      return false;
+    }
+    if (r.bg !== undefined) bgRuns++;
+  }
+  if (bgRuns < BG_ROW_MIN_RUNS || !oneCellText(text)) return false;
+
+  // Background stops, and foreground segments (runs and the default-coloured
+  // text between them, merged where the foreground stays the same).
+  let stops = '';
+  const segs: Array<{ start: number; end: number; fg: Color | undefined }> = [];
+  const seg = (start: number, end: number, fg: Color | undefined): void => {
+    const last = segs[segs.length - 1];
+    if (last && last.fg === fg) last.end = end;
+    else segs.push({ start, end, fg });
+  };
+  let pos = 0;
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i]!;
+    if (r.start > pos) {
+      stops += `,transparent ${stopAt(pos, n)} ${stopAt(r.start, n)}`;
+      seg(pos, r.start, undefined);
+    }
+    const bg = r.bg === undefined ? 'transparent' : bgCss(r.bg);
+    stops += `,${bg} ${stopAt(r.start, n)} ${stopAt(r.end, n)}`;
+    seg(r.start, r.end, effectiveFg(r.fg, r.bold));
+    pos = r.end;
+  }
+  if (pos < n) {
+    stops += `,transparent ${stopAt(pos, n)} 100%`;
+    seg(pos, n, undefined);
+  }
+
+  const box = doc.createElement('span');
+  const fg = segs[0]!.fg;
+  let cls = 'wc-bgrow';
+  let css = '';
+  if (fg !== undefined) {
+    if (fg < 16) cls += ' wc-f' + fg;
+    else css = `color:${colorToCss(fg)};`;
+  }
+  if (r0.bold) cls += ' wc-bold';
+  if (r0.italic) cls += ' wc-ital';
+  if (r0.underline) cls += ' wc-ul';
+  if (r0.blink) cls += ' wc-blink';
+  box.className = cls;
+  box.style.cssText =
+    `${css}background-image:linear-gradient(90deg${stops});background-size:calc(var(--cell-w) * ${n}) 100%`;
+  if (segs.length === 1) {
+    box.textContent = text;
+  } else {
+    for (const s of segs) {
+      const t = text.slice(s.start, s.end);
+      if (s.fg === fg) {
+        box.appendChild(doc.createTextNode(t));
+        continue;
+      }
+      const span = doc.createElement('span');
+      if (s.fg === undefined) span.className = 'wc-fdef';
+      else if (s.fg < 16) span.className = 'wc-f' + s.fg;
+      else span.style.color = colorToCss(s.fg);
+      span.textContent = t;
+      box.appendChild(span);
+    }
+  }
+  row.appendChild(box);
+  return true;
 }
 
 function fillRow(doc: Document, row: HTMLElement, line: Line): void {

@@ -214,6 +214,10 @@ body {
 /* Inverse with a default colour: default bg as fg / default fg as bg. */
 .wc-fd { color: var(--term-bg); }
 .wc-bd { background: var(--term-fg); }
+/* A background row (output-pane.ts fillBackgroundRow): the gradient is set
+ * inline. .wc-fdef is the default foreground inside one that has another. */
+.wc-bgrow { background-repeat: no-repeat; }
+.wc-fdef { color: var(--term-fg); }
 .wc-bold { font-weight: bold; }
 .wc-ital { font-style: italic; }
 .wc-ul { text-decoration: underline; }
