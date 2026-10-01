@@ -71,7 +71,7 @@ describe('input', () => {
   it('reports unknown, ambiguous and inert commands', () => {
     const t = setup();
     t.e.input('#blah;#s;#lua {x}');
-    expect(t.msgs).toEqual(['Unknown command: #blah', 'Ambiguous command: #s', '#lua: Shell and Lua commands do nothing in the browser.']);
+    expect(t.msgs).toEqual(['Unknown command: #blah', 'Ambiguous command: #s', '#lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.']);
     expect(t.sent).toEqual([]);
   });
 
@@ -454,7 +454,7 @@ describe('timers', () => {
     const t = setup();
     t.e.loadProfile('#TICKER {clock} {#lua {state.world.clock.tick()}} {0.25}');
     t.clock.advance(2000);
-    expect(t.msgs).toEqual(['#lua: Shell and Lua commands do nothing in the browser.']);
+    expect(t.msgs).toEqual(['#lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.']);
   });
 });
 

@@ -381,7 +381,7 @@ describe('profile bridge, settings and store', () => {
     t.engine.input('#lua nope f');
     t.engine.input('#lua s g');
     t.engine.input('#lua {print("x")}');
-    expect(t.msgs).toEqual(['#lua: no script nope.', '#lua: s exports no function g.', '#lua: Shell and Lua commands do nothing in the browser.']);
+    expect(t.msgs).toEqual(['#lua: no script nope.', '#lua: s exports no function g.', '#lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.']);
   });
 
   it('settings are read-only and follow #script set', async () => {
@@ -572,7 +572,7 @@ describe('#script', () => {
       '  delay = 0.5  Seconds before looting',
       '    #script set looter delay <number>',
     ]);
-    expect(t.msgs).toEqual(['#script: Shell and Lua commands do nothing in the browser.', 'Usage: #script help <name>', 'No script nope. Type #script list for the list.']);
+    expect(t.msgs).toEqual(['#script: Only #script list, help, set, enable, disable and reload run; other forms do nothing.', 'Usage: #script help <name>', 'No script nope. Type #script list for the list.']);
   });
 });
 

@@ -166,7 +166,7 @@ describe('App + script engine', () => {
     enter(t.app, 'x');
     expect(t.app.applyProfile('#alias {x} {new}\n#lua {x}')).toEqual({
       ok: true,
-      warnings: ['line 2: #lua: Shell and Lua commands do nothing in the browser.'],
+      warnings: ['line 2: #lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.'],
     });
     enter(t.app, 'x');
     expect(t.sentLines(sock).slice(-2)).toEqual(['old', 'new']);

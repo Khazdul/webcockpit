@@ -142,7 +142,7 @@ test('a flip without edits keeps the text byte for byte', async ({ page }) => {
   await toEditor(page);
   // The inert #lua is marked, with its hint on hover.
   await expect(ped(page).locator('.wc-syn-inert')).toHaveText('#lua');
-  await expect(ped(page).locator('.wc-syn-inert')).toHaveAttribute('title', /do nothing in the browser/);
+  await expect(ped(page).locator('.wc-syn-inert')).toHaveAttribute('title', /other forms do nothing/);
   await page.keyboard.press('Escape');
   // Nothing changed: pops without saving.
   await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');

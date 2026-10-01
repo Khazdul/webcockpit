@@ -70,7 +70,9 @@ type Spec = [name: string, kind: CommandKind, tier: CommandTier, rule?: RuleKind
 const HINT_FILE = 'File commands are not available in the browser.';
 const HINT_SESSION = 'WebCockpit has one session; session commands do nothing.';
 const HINT_SCREEN = 'Screen and terminal commands do nothing in the browser.';
-const HINT_SCRIPT = 'Shell and Lua commands do nothing in the browser.';
+const HINT_SCRIPT = 'Shell commands do nothing in the browser.';
+const HINT_LUA = 'Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.';
+const HINT_SCRIPT_CMD = 'Only #script list, help, set, enable, disable and reload run; other forms do nothing.';
 const HINT_LATER = 'Not supported yet; kept in the profile as written.';
 
 // Alphabetical by name (checked by a test); order is the resolution order.
@@ -193,6 +195,8 @@ function hintFor(name: string, tier: CommandTier): string | undefined {
   if (tier !== 'inert') return undefined;
   if (FILE_CMDS.has(name)) return HINT_FILE;
   if (SESSION_CMDS.has(name)) return HINT_SESSION;
+  if (name === 'lua') return HINT_LUA;
+  if (name === 'script') return HINT_SCRIPT_CMD;
   if (SCRIPT_CMDS.has(name)) return HINT_SCRIPT;
   return HINT_SCREEN;
 }
