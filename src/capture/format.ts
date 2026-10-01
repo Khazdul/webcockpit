@@ -30,9 +30,19 @@
 // Readers skip record types they do not know. ReplaySocket turns GMCP
 // records back into `IAC SB GMCP … IAC SE` and ignores the rest.
 
-/** A µs timestamp as the 16-digit integer Cockpit writes. */
+let lastTsUs = NaN;
+let lastTs = '';
+
+/**
+ * A µs timestamp as the 16-digit integer Cockpit writes. The last result is
+ * reused: every line of a received frame shares its timestamp.
+ */
 export function formatTs(us: number): string {
-  return String(Math.trunc(us)).padStart(16, '0');
+  if (us !== lastTsUs) {
+    lastTsUs = us;
+    lastTs = String(Math.trunc(us)).padStart(16, '0');
+  }
+  return lastTs;
 }
 
 /** One inbound line (use `Line.raw`; prompts are ordinary lines). */

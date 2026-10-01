@@ -39,6 +39,13 @@ describe('capture format', () => {
     expect(formatTs(1790449245424814)).toBe('1790449245424814');
     expect(formatTs(42)).toBe('0000000000000042');
     expect(formatTs(1790449245424814.7)).toBe('1790449245424814');
+    // The one-entry cache: repeats and alternations give the right text.
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(43)).toBe('0000000000000043');
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(0)).toBe('0000000000000000');
+    expect(formatTs(-0)).toBe('0000000000000000');
     expect(formatOutbound(1790449245424814, 'who')).toBe('1790449245424814 > who\n');
     expect(formatOutbound(1790449245424814, '')).toBe('1790449245424814 > \n');
     expect(formatInbound(1790449247842113, '\x1b[35mA wall.\x1b[0m')).toBe(
