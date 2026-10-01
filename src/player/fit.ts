@@ -6,7 +6,7 @@
 // live client. The recorded SIZE is not used for the layout. Pure.
 
 import { MIN_VIEW_COLS, MIN_VIEW_ROWS } from '../layout/allocate';
-import { nominalCell } from '../theme/cells';
+import { type TextGrid, nominalCell } from '../theme/cells';
 import { type AppearanceSettings, FONT_SIZE_MIN, type Settings, type ViewSnapshot } from '../settings/types';
 
 /**
@@ -16,10 +16,17 @@ import { type AppearanceSettings, FONT_SIZE_MIN, type Settings, type ViewSnapsho
  * MIN_VIEW_ROWS), the largest smaller size that meets it (FONT_SIZE_MIN
  * when none does).
  */
-export function playerFontSize(a: Readonly<AppearanceSettings>, w: number, h: number, reserveCols: number): number {
+export function playerFontSize(
+  a: Readonly<AppearanceSettings>,
+  w: number,
+  h: number,
+  reserveCols: number,
+  dpr = 1,
+  grid: TextGrid = 'css',
+): number {
   for (let size = a.size; size > FONT_SIZE_MIN; size--) {
-    const c = nominalCell({ ...a, size });
-    if (Math.floor(w / c.w) - reserveCols >= MIN_VIEW_COLS && Math.floor(h / c.h) >= MIN_VIEW_ROWS) return size;
+    const c = nominalCell({ ...a, size }, dpr, grid);
+    if (Math.floor(w / c.w + 1e-6) - reserveCols >= MIN_VIEW_COLS && Math.floor(h / c.h + 1e-6) >= MIN_VIEW_ROWS) return size;
   }
   return FONT_SIZE_MIN;
 }

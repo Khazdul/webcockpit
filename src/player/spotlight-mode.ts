@@ -115,7 +115,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
       total,
       spot: spots[i]!,
       half: countdownHalf(starts[i] ?? 0, moments[i] ?? 0, p),
-      cols: cellW > 0 ? Math.floor(width / cellW) : Infinity,
+      cols: cellW > 0 ? Math.floor(width / cellW + 1e-6) : Infinity,
     });
   };
   const schedule = (): void => {

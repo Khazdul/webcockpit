@@ -288,6 +288,7 @@ export class App {
     this.announceView();
     this.unsubs.push(this.settings.subscribe(() => this.announceView()));
     const cellSource = cells ?? new CellMetrics({ doc });
+    if (!cells) this.unsubs.push(() => (cellSource as CellMetrics).dispose());
     const paneContext = createPaneContext({
       doc,
       bus,

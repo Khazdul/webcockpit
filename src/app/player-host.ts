@@ -41,7 +41,7 @@ import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
 import { PANE_IDS, PANE_LABELS, type PaneId } from '../layout/types';
 import { applyTheme } from '../theme/apply';
 import { DEFAULT_INPUT_COLOR } from '../theme/presets';
-import { CellMetrics } from '../theme/cells';
+import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, STRIP_COLS, markersOf } from '../player/strip';
@@ -251,6 +251,7 @@ export class PlayerHost {
     this.engineRef?.dispose();
     this.engineRef = null;
     this.ro?.disconnect();
+    this.cells.dispose();
     this.el.remove();
   }
 
@@ -383,7 +384,7 @@ export class PlayerHost {
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
     // The strip's columns are kept free, so it never covers a pane.
-    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, STRIP_COLS) };
+    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, STRIP_COLS, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
     const key = JSON.stringify(a);
     if (key !== this.fitKey) {
       this.fitKey = key;

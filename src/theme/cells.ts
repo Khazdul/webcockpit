@@ -39,9 +39,12 @@ import { type AppearanceSettings, defaultSettings } from '../settings/types';
 import { fontInfo, fontPx, loadFont } from './fonts';
 
 export interface CellSize {
-  /** Cell width in CSS px (whole px once a bundled font has loaded). */
+  /**
+   * Cell width in CSS px: whole device px once a bundled font has loaded
+   * (whole CSS px at device pixel ratio 1; ADR 0050).
+   */
   w: number;
-  /** Cell height in CSS px (integer). */
+  /** Cell height in CSS px: whole device px (whole CSS px at ratio 1). */
   h: number;
   /** The CSS font size in px that gives this cell. */
   px: number;
@@ -65,10 +68,131 @@ export function cellHeight(a: Readonly<AppearanceSettings>, px = fontPx(a.font, 
   return Math.max(1, Math.floor(px * f.blockEm - (f.cellMargin ?? 0) + 1e-6));
 }
 
-/** The cell the bundled font should give for `a` (used when nothing can be measured). */
-export function nominalCell(a: Readonly<AppearanceSettings>): CellSize {
+/**
+ * How the cell is fitted to the device pixels (ADR 0050):
+ *
+ * - `device` (Gecko, Firefox): fractional advances and baselines. The cell
+ *   is whole device px, with the font size whose advance is exactly the
+ *   width.
+ * - `css` (Blink, Chrome, and WebKit, at a whole ratio): font metrics are
+ *   rounded to whole CSS px and on Linux the font is drawn at the device
+ *   size rounded to a whole px. The cell stays whole CSS px (whole device
+ *   px at a whole ratio); the font size is nudged in device px where
+ *   Chrome would draw a block narrower than the cell.
+ * - `blink-device` (Blink at a fractional ratio): whole CSS px would put
+ *   column and row edges between device pixels, so the cell is whole
+ *   device px, with a font size Chrome draws at least as wide as it.
+ */
+export type TextGrid = 'device' | 'css' | 'blink-device';
+
+/** The text grid of `doc`'s engine at its device pixel ratio (see `TextGrid`). */
+export function textGridOf(doc: Document): TextGrid {
+  const css = (doc.defaultView as (Window & typeof globalThis) | null)?.CSS;
+  if (css?.supports?.('-moz-appearance', 'none')) return 'device';
+  const dpr = devicePixelRatioOf(doc);
+  return Math.abs(dpr - Math.round(dpr)) < 1e-6 ? 'css' : 'blink-device';
+}
+
+/**
+ * The cell the bundled font should give for `a` at device pixel ratio
+ * `dpr` on text grid `grid` (used when nothing can be measured). At ratio
+ * 1 the CSS px rules above, whatever the grid (ADR 0050).
+ */
+export function nominalCell(a: Readonly<AppearanceSettings>, dpr = 1, grid: TextGrid = 'css'): CellSize {
   const px = fontPx(a.font, a.size);
-  return { w: Math.round(px * fontInfo(a.font).advanceEm), h: cellHeight(a, px), px, ls: 0 };
+  const f = fontInfo(a.font);
+  const cell = { w: Math.round(px * f.advanceEm), h: cellHeight(a, px), px, ls: 0 };
+  if (!(dpr > 0) || Math.abs(dpr - 1) < 1e-6) return cell;
+  if (grid === 'device') return deviceCell(cell, f.advanceEm, f.blockEm, f.cellMargin ?? 0, dpr, false);
+  if (grid === 'blink-device') return deviceCell(cell, f.advanceEm, f.blockEm, f.cellMargin ?? 0, dpr, true);
+  return cssCell(cell, f.advanceEm, f.blockEm, f.cellMargin ?? 0, dpr, !!(f.wholePx || f.halfUpPx));
+}
+
+const round6 = (v: number): number => Math.round(v * 1e6) / 1e6;
+
+/** Largest excess of Chrome's drawn advance over the cell, device px, that it rounds away. */
+const CHROME_EXCESS = 0.45;
+
+/**
+ * The ratio-1 cell `c` taken to whole device px at ratio `dpr`: width `c.w
+ * × dpr` rounded, height rounded down from the block height less the
+ * margin. The font size gives exactly that width; with `chrome`, it is
+ * raised to a whole device px or just over a half (which rounds up) whose
+ * rounded size Chrome draws at most CHROME_EXCESS px wider than the cell,
+ * trying the next widths when none fits.
+ */
+export function deviceCell(
+  c: CellSize,
+  advanceEm: number,
+  blockEm: number,
+  margin: number,
+  dpr: number,
+  chrome: boolean,
+): CellSize {
+  const target = Math.max(1, Math.round(c.w * dpr));
+  let wd = target;
+  let pd = target / advanceEm;
+  if (chrome) {
+    search: for (const w of [target, target + 1, target - 1, target + 2, target - 2]) {
+      if (w < 1) continue;
+      const p0 = w / advanceEm;
+      const base = Math.floor(p0 + 1e-6);
+      const frac = p0 - base;
+      for (const cand of [frac < 1e-3 || frac >= 0.51 ? p0 : NaN, base + 0.51, base + 1, base + 1.51]) {
+        if (!(cand >= p0 - 1e-6)) continue;
+        const excess = Math.round(cand) * advanceEm - w;
+        if (excess > -1e-6 && excess < CHROME_EXCESS) {
+          wd = w;
+          pd = cand;
+          break search;
+        }
+      }
+    }
+  }
+  // Chrome rounds the metrics to CSS px. Below 150 % that left 1-px gaps
+  // in `│` that CSS_GRID_MARGIN more removes; at 150 % and up the margin
+  // made seams instead (seam sweep, ADR 0050).
+  const m = (margin + (chrome && dpr < 1.5 ? CSS_GRID_MARGIN : 0)) * dpr;
+  const hd = Math.max(1, Math.floor(pd * blockEm - m + 1e-6));
+  return { w: round6(wd / dpr), h: round6(hd / dpr), px: round6(pd / dpr), ls: 0 };
+}
+
+/**
+ * Extra px off the cell height on the `css` grid at a ratio other than 1:
+ * the glyph is drawn on device pixels but its baseline comes from metrics
+ * rounded to CSS px, up to half a CSS px off (ADR 0050).
+ */
+export const CSS_GRID_MARGIN = 0.5;
+
+/**
+ * The ratio-1 cell `c` on the `css` grid at ratio `dpr`: the same width;
+ * for a family that Chrome draws at whole px (`wholePx`, `halfUpPx`) a
+ * font size whose device size is whole or just over a half (which rounds
+ * up), so the block is at least as wide as the cell; the height less
+ * CSS_GRID_MARGIN.
+ */
+export function cssCell(
+  c: CellSize,
+  advanceEm: number,
+  blockEm: number,
+  margin: number,
+  dpr: number,
+  wholeDevice: boolean,
+): CellSize {
+  let px = c.px;
+  if (wholeDevice) {
+    const pd = px * dpr;
+    const frac = pd - Math.floor(pd + 1e-6);
+    if (frac > 1e-3 && frac < 0.51) px = (Math.floor(pd) + 0.51) / dpr;
+  }
+  const h = Math.max(1, Math.floor(px * blockEm - margin - CSS_GRID_MARGIN + 1e-6));
+  return { w: c.w, h, px: round6(px), ls: 0 };
+}
+
+/** The document's device pixel ratio (1 where unknown). */
+export function devicePixelRatioOf(doc: Document): number {
+  const r = doc.defaultView?.devicePixelRatio;
+  return typeof r === 'number' && r > 0 ? r : 1;
 }
 
 function advanceAt(a: Readonly<AppearanceSettings>, px: number, doc: Document): number {
@@ -86,7 +210,7 @@ function advanceAt(a: Readonly<AppearanceSettings>, px: number, doc: Document): 
 
 /** Measures (and calibrates) the cell for `a` in `doc` (see the file header). */
 export function measureCell(a: Readonly<AppearanceSettings>, doc: Document = document): CellSize {
-  const nominal = nominalCell(a);
+  const nominal = nominalCell(a, devicePixelRatioOf(doc), textGridOf(doc));
   const w = advanceAt(a, nominal.px, doc);
   if (!(w > 0)) return nominal;
   if (Math.abs(w - nominal.w) < 0.002) return nominal;
@@ -115,6 +239,10 @@ export class CellMetrics {
   private readonly measure: CellMeasure;
   private readonly waitFont: (a: Readonly<AppearanceSettings>) => Promise<void>;
   private gen = 0;
+  private last: Readonly<AppearanceSettings> | null = null;
+  private unwatch: (() => void) | null = null;
+  /** Held so that the query (and its listener) is not collected. */
+  private ratioQuery: MediaQueryList | null = null;
 
   constructor(opts: CellMetricsOptions = {}) {
     this.doc = opts.doc ?? document;
@@ -122,6 +250,41 @@ export class CellMetrics {
     this.measure = opts.measure ?? ((a) => measureCell(a, this.doc));
     this.waitFont = opts.loadFont ?? ((a) => loadFont(a.font, fontPx(a.font, a.size), this.doc));
     this.cell = nominalCell(defaultSettings().appearance);
+    this.watchRatio();
+  }
+
+  /**
+   * Re-measures when the device pixel ratio changes (browser zoom, a
+   * window moved to another screen; ADR 0050): a `(resolution: Xdppx)`
+   * query for the current ratio fires once it no longer matches.
+   */
+  private watchRatio(): void {
+    const win = this.doc.defaultView;
+    if (!win?.matchMedia) return;
+    const ratio = devicePixelRatioOf(this.doc);
+    const mq = win.matchMedia(`(resolution: ${ratio}dppx)`);
+    const check = (): void => {
+      if (devicePixelRatioOf(this.doc) === ratio) return;
+      this.unwatch?.();
+      this.watchRatio();
+      if (this.last) void this.update(this.last);
+    };
+    // The query's change event, and a resize as a fallback (a zoom resizes
+    // the viewport; Chrome does not always fire the query's event).
+    mq.addEventListener?.('change', check);
+    win.addEventListener('resize', check);
+    this.ratioQuery = mq;
+    this.unwatch = () => {
+      mq.removeEventListener?.('change', check);
+      win.removeEventListener('resize', check);
+      this.ratioQuery = null;
+    };
+  }
+
+  /** Stops following the device pixel ratio. */
+  dispose(): void {
+    this.unwatch?.();
+    this.unwatch = null;
   }
 
   /** The current cell size. */
@@ -141,6 +304,7 @@ export class CellMetrics {
    */
   async update(a: Readonly<AppearanceSettings>): Promise<void> {
     const gen = ++this.gen;
+    this.last = a;
     this.publish(this.measure(a));
     await this.waitFont(a);
     if (gen !== this.gen) return;

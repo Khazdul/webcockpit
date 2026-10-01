@@ -840,7 +840,7 @@ export class PlayerView {
       }),
     );
     const row = Math.round(m.offsetTop / (h || 1));
-    const rows = h > 0 ? Math.floor(this.o.root.clientHeight / h) : 0;
+    const rows = h > 0 ? Math.floor(this.o.root.clientHeight / h + 1e-6) : 0;
     const top = Math.max(0, Math.min(row, rows - lines.length));
     this.tipEl.style.top = `${top * h}px`;
     this.tipEl.style.right = `${(STRIP_COLS + (m.textContent ?? '').length) * w}px`;

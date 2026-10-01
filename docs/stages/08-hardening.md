@@ -300,7 +300,11 @@ Part D — more fonts (ADR 0049):
       Firefox): kit and pane rows clipped each glyph to its cell; now
       they clip sideways only. Swept at ratio 1 and 2, spot checks at
       1.25 / 1.5 (ADR 0049 "Clipped rows").
-- [ ] D11. Owner test (guide below).
+- [x] D11. Device-pixel cells (owner approved): cells fitted to device
+      pixels at ratios other than 1, ratio-1 cells unchanged (unit test
+      over every family and size); re-measured on zoom / screen change;
+      full sweep at 100/125/150/200 % in both browsers (ADR 0050).
+- [ ] D12. Owner test (guide below).
 
 ## Test guide (part A)
 
@@ -404,6 +408,11 @@ On `npm run dev` (or the release that carries it), Firefox and Chromium:
 
 Scrollbars (e.g. Options → Highlights with a long list) and pane borders:
 no thin line between the rows of the thumb or the `│` at your 2× scaling.
+
+Windows-style scaling: if you can, try 125 % and 150 % (or browser zoom
+125 % / 150 %): block art, scrollbars and pane borders should join in
+Firefox; Chrome is better than before but not clean at every size (list
+in ADR 0050). Zooming in or out should re-fit the grid at once.
 
 JetBrains Mono: its block seams in Chromium (sizes 13–14, 18–19 …) and
 Firefox (25) are gone; at size 16 its rows are 1 px lower (21 instead of

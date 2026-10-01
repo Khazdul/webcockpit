@@ -755,8 +755,9 @@ export class OutputPane {
     const { w, h } = this.cellSize();
     if (!(w > 0) || !(h > 0)) return { cols: 0, rows: 0 };
     return {
-      cols: Math.floor(this.scroller.clientWidth / w),
-      rows: Math.floor(this.scroller.clientHeight / h),
+      // Cells can be fractional CSS px (whole device px, ADR 0050).
+      cols: Math.floor(this.scroller.clientWidth / w + 1e-6),
+      rows: Math.floor(this.scroller.clientHeight / h + 1e-6),
     };
   }
 

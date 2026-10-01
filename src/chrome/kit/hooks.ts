@@ -157,13 +157,16 @@ export interface HostGrid {
 export function useHostGrid(ref: { current: HTMLElement | null }): HostGrid {
   const size = useElementSize(ref);
   const c = useCells();
-  const cols = c.w > 0 ? Math.floor(size.w / c.w) : 0;
-  const rows = c.h > 0 ? Math.floor(size.h / c.h) : 0;
+  // Cells can be fractional CSS px (whole device px, ADR 0050): the
+  // offsets are whole device px too.
+  const cols = c.w > 0 ? Math.floor(size.w / c.w + 1e-6) : 0;
+  const rows = c.h > 0 ? Math.floor(size.h / c.h + 1e-6) : 0;
+  const dpr = ref.current?.ownerDocument.defaultView?.devicePixelRatio || 1;
   return {
     cols,
     rows,
-    left: Math.floor((size.w - cols * c.w) / 2),
-    top: Math.floor((size.h - rows * c.h) / 2),
+    left: Math.floor(((size.w - cols * c.w) / 2) * dpr + 1e-6) / dpr,
+    top: Math.floor(((size.h - rows * c.h) / 2) * dpr + 1e-6) / dpr,
     cellW: c.w,
     cellH: c.h,
   };

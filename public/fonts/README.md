@@ -188,6 +188,12 @@ output pane (ADR 0049 "Clipped rows"). The sweep above was repeated at
 device pixel ratio 2: clean in Firefox; the Chromium leftovers at ratio
 2 and both browsers at fractional ratios are listed in the ADR.
 
+At device pixel ratios other than 1 the cell is fitted to device pixels
+(ADR 0050): whole device px in Firefox and in Chrome at fractional
+ratios, whole CSS px with a little more height margin in Chrome at 200 %.
+The ratio-1 cells above are unchanged. The per-ratio sweep results are
+in ADR 0050.
+
 SHA-256:
 
 ```
