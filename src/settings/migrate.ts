@@ -34,7 +34,9 @@ import {
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
+  type OutputSettings,
   type PaneSettings,
+  SCROLLBACK_CHOICES,
   SETTINGS_VERSION,
   type Settings,
   type SpotlightSettings,
@@ -216,6 +218,13 @@ export function migrateSpotlights(raw: unknown): SpotlightSettings {
   };
 }
 
+/** Game window options from anything (a depth not offered takes the default). */
+export function migrateOutput(raw: unknown): OutputSettings {
+  const d = defaultSettings().output;
+  const x = isObj(raw) ? raw : {};
+  return { scrollback: oneOf(x.scrollback, SCROLLBACK_CHOICES, d.scrollback) };
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
 export function migrateSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -231,5 +240,6 @@ export function migrateSettings(raw: unknown): Settings {
     comm: migrateComm(s.comm),
     timers: migrateTimers(s.timers),
     spotlights: migrateSpotlights(s.spotlights),
+    output: migrateOutput(s.output),
   };
 }

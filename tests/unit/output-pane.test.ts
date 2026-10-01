@@ -2,8 +2,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { type Line, type StyleRun, rgb } from '../../src/core/types';
-import { OutputPane, MAX_ROWS_PER_FRAME } from '../../src/ui/output-pane';
+import { OutputPane, MAX_ROWS_PER_FRAME, renderLine } from '../../src/ui/output-pane';
 import { PALETTE_256, colorToCss } from '../../src/ui/palette';
+import { lines } from './text-helpers';
+import { chart24Rows, chart256Rows } from '../fixtures/colour-chart';
 
 function line(text: string, prompt = false, runs: StyleRun[] = []): Line {
   return { text, runs, tags: [], prompt, raw: text, ts: 0 };
@@ -160,6 +162,116 @@ describe('OutputPane styling', () => {
   });
 });
 
+describe('Background rows', () => {
+  // A colour chart row: every 2 cells another truecolor background, one fg.
+  const chart = (n: number, fg?: number): Line => {
+    const runs: StyleRun[] = [];
+    for (let i = 0; i < n; i += 2) runs.push({ start: i, end: i + 2, bg: rgb(i, 0, 0), ...(fg !== undefined ? { fg } : {}) });
+    return line('#'.repeat(n), false, runs);
+  };
+  const box = (row: HTMLElement): HTMLElement => {
+    const b = row.querySelector('.wc-bgrow') as HTMLElement | null;
+    expect(b, 'background row').not.toBeNull();
+    return b!;
+  };
+  /** The gradient's stops as [colour, from %, to %]. */
+  const stops = (b: HTMLElement): Array<[string, number, number]> => {
+    const css = b.style.backgroundImage;
+    const m = /^linear-gradient\(90deg,(.*)\)$/.exec(css);
+    expect(m, css).not.toBeNull();
+    return m![1]!.split(/,(?![^(]*\))/).map((s) => {
+      const [c, a, z] = s.trim().split(/\s+(?![^(]*\))/);
+      return [c!, parseFloat(a!), parseFloat(z!)];
+    });
+  };
+
+  it('draws a line of background runs as one span with a gradient on the cell grid', () => {
+    const row = renderLine(document, chart(20, rgb(255, 255, 255)), 80);
+    const b = box(row);
+    expect(row.children.length).toBe(1);
+    expect(b.querySelector('span')).toBeNull();
+    expect(row.textContent).toBe('#'.repeat(20));
+    const s = stops(b);
+    expect(s.length).toBe(10);
+    s.forEach(([c, a, z], i) => {
+      expect(c).toBe(colorToCss(rgb(i * 2, 0, 0)));
+      expect(a).toBeCloseTo((i * 2 * 100) / 20, 3);
+      expect(z).toBeCloseTo(((i * 2 + 2) * 100) / 20, 3);
+    });
+    expect(b.style.backgroundSize).toBe('calc(var(--cell-w) * 20) 100%');
+    expect(b.style.color).not.toBe('');
+  });
+
+  it('keeps a span only where the foreground differs, and default text between runs', () => {
+    const l = chart(20, rgb(255, 255, 255));
+    l.runs[3] = { ...l.runs[3]!, fg: rgb(0, 0, 0) };
+    l.runs[4] = { ...l.runs[4]!, fg: rgb(0, 0, 0) };
+    // A gap without a run at the end: default colours, no background.
+    l.text += '  ';
+    const row = renderLine(document, l, 80);
+    const b = box(row);
+    const spans = b.querySelectorAll('span');
+    expect(spans.length).toBe(2);
+    expect(spans[0]!.textContent).toBe('####'); // merged across the background change
+    expect(spans[1]!.className).toBe('wc-fdef');
+    expect(spans[1]!.textContent).toBe('  ');
+    expect(row.textContent).toBe(l.text);
+    expect(stops(b).at(-1)).toEqual(['transparent', 90.9091, 100]);
+  });
+
+  it('uses theme colours for palette 0–15 and classes for the flags', () => {
+    const runs: StyleRun[] = [0, 1, 2, 3, 4].map((i) => ({ start: i * 2, end: i * 2 + 2, bg: i + 1, fg: 7, bold: true }));
+    const row = renderLine(document, line('abcdefghij', false, runs), 80);
+    const b = box(row);
+    expect(b.className).toBe('wc-bgrow wc-f7 wc-bold');
+    expect(stops(b).map((s) => s[0])).toEqual(['var(--ansi-1)', 'var(--ansi-2)', 'var(--ansi-3)', 'var(--ansi-4)', 'var(--ansi-5)']);
+  });
+
+  it('falls back to spans when the line does not qualify', () => {
+    const spans = (l: Line, cols = 80): number => renderLine(document, l, cols).querySelectorAll('span').length;
+    expect(spans(chart(20), 10)).toBe(10); // wider than the pane
+    expect(spans(chart(20), 0)).toBe(10); // pane width unknown
+    expect(spans(chart(6))).toBe(3); // too few background runs
+    const wide = chart(20);
+    wide.text = '漢'.repeat(20);
+    expect(spans(wide)).toBe(10);
+    const inv = chart(20);
+    inv.runs[2] = { ...inv.runs[2]!, inverse: true };
+    expect(spans(inv)).toBe(10);
+    const bold = chart(20);
+    bold.runs[2] = { ...bold.runs[2]!, bold: true };
+    expect(spans(bold)).toBe(10);
+    // Foreground-only runs (a highlighted line) are not background rows.
+    const fgOnly = line('abcdefghij', false, [0, 1, 2, 3, 4].map((i) => ({ start: i * 2, end: i * 2 + 2, fg: i + 1 })));
+    expect(spans(fgOnly)).toBe(5);
+  });
+
+  it('turns every row of the 24-bit and 256-colour charts into a background row', () => {
+    for (const rows of [chart24Rows(), chart256Rows()]) {
+      const ls = lines(rows.join('\r\n') + '\r\n');
+      expect(ls.length).toBe(rows.length);
+      let elements = 0;
+      for (const l of ls) {
+        const row = renderLine(document, l, 95);
+        // The 8-cell third line of a block has too few runs: spans as before.
+        if (l.text.length > 8) box(row);
+        expect(row.textContent).toBe(l.text);
+        elements += row.querySelectorAll('*').length;
+      }
+      // About one element per row instead of one per 1–2 cells.
+      expect(elements).toBeLessThan(ls.length * 4);
+    }
+  });
+
+  it('uses spans in a pane without a width', () => {
+    const t = setup();
+    t.bus.emit('text.line', chart(20));
+    t.runFrames();
+    // No layout here (happy-dom): the width is unknown, so spans.
+    expect(t.pane.el.querySelector('.wc-bgrow')).toBeNull();
+  });
+});
+
 describe('OutputPane partial line', () => {
   it('shows the latest partial and removes it when a line supersedes it', () => {
     const t = setup();
@@ -253,6 +365,60 @@ describe('OutputPane replayed commands (ADR 0018)', () => {
     t.bus.emit('cmd.sent', { text: 'eat bread', ts: 0, replay: true });
     t.runFrames();
     expect(t.rows()).toEqual(['oO> kill orc', 'You are hungry.', 'eat bread']);
+  });
+});
+
+describe('OutputPane scrollback depth (ADR 0046)', () => {
+  it('drops the oldest chunks at once when lowered, and keeps more when raised', () => {
+    const t = setup(2000); // chunks of 20 rows
+    for (let i = 0; i < 1990; i++) t.bus.emit('text.line', line('r' + i));
+    t.runFrames();
+    expect(t.pane.rows).toBe(1990);
+    t.pane.setScrollback(500);
+    // At least 500 rows, fewer than 500 + one chunk; the newest stay.
+    expect(t.pane.rows).toBeGreaterThanOrEqual(500);
+    expect(t.pane.rows).toBeLessThan(520);
+    expect(t.rows().at(-1)).toBe('r1989');
+    // New chunks take the size for the new depth (500 / 100 = 5 rows).
+    for (let i = 0; i < 20; i++) t.bus.emit('text.line', line('s' + i));
+    t.runFrames();
+    expect(t.pane.el.querySelector('.wc-rows > .wc-chunk:last-child')!.childElementCount).toBe(5);
+    expect(t.pane.rows).toBeLessThan(520);
+    t.pane.setScrollback(5000);
+    for (let i = 0; i < 1000; i++) t.bus.emit('text.line', line('u' + i));
+    t.runFrames();
+    expect(t.pane.rows).toBeGreaterThan(1000);
+  });
+});
+
+describe('OutputPane chunk height estimates (ADR 0045)', () => {
+  it('sets each chunk an estimate in screen lines of the cell height', () => {
+    const bus = new Bus();
+    bus.on('text.line', (l) => bus.emit('text.display', { line: l, source: l }));
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const frames: Array<() => void> = [];
+    const pane = new OutputPane(bus, root, {
+      scrollback: 1000, // chunks of 10 rows
+      requestFrame: (cb) => frames.push(cb),
+      cellSize: () => ({ w: 10, h: 17 }),
+    });
+    // 10 columns.
+    Object.defineProperty(pane.scroller, 'clientWidth', { get: () => 100, configurable: true });
+    Object.defineProperty(pane.scroller, 'clientHeight', { get: () => 170, configurable: true });
+    // 12 rows: 10 in the first chunk (one of 25 characters: 3 lines), 2 in the second.
+    for (let i = 0; i < 12; i++) bus.emit('text.line', line(i === 4 ? 'x'.repeat(25) : 'row ' + i));
+    while (frames.length) frames.shift()!();
+    const chunks = pane.el.querySelectorAll<HTMLElement>('.wc-rows > .wc-chunk');
+    expect(chunks).toHaveLength(2);
+    const est = (c: HTMLElement): string => c.style.getPropertyValue('contain-intrinsic-block-size');
+    expect(est(chunks[0]!)).toBe('auto calc(var(--cell-h) * 12)');
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 2)');
+    // Rows added to the last chunk add to its estimate.
+    bus.emit('text.line', line('y'.repeat(11)));
+    while (frames.length) frames.shift()!();
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 4)');
+    pane.dispose();
   });
 });
 

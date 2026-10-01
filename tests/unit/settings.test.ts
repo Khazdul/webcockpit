@@ -11,6 +11,8 @@ import {
   migrateComm,
   migrateTimers,
   migrateSpotlights,
+  migrateOutput,
+  SCROLLBACK_CHOICES,
   defaultTimersSettings,
   TIMER_COLOR_HEX,
   migrateGroup,
@@ -207,6 +209,18 @@ describe('migrateSettings', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ spotlights: { achievements: false } });
     expect(store.get().spotlights).toMatchObject({ achievements: false, deaths: true });
+  });
+
+  it('adds the scrollback depth with its default and keeps only offered depths (ADR 0046)', () => {
+    expect(migrateSettings({ profile: 'x' }).output).toEqual({ scrollback: 20000 });
+    expect(migrateOutput({ scrollback: 5000 })).toEqual({ scrollback: 5000 });
+    expect(migrateOutput({ scrollback: 50000 })).toEqual({ scrollback: 50000 });
+    for (const bad of [12345, '5000', -1, 1e9, null]) expect(migrateOutput({ scrollback: bad }).scrollback).toBe(20000);
+    expect(SCROLLBACK_CHOICES).toContain(defaultSettings().output.scrollback);
+    expect(viewSnapshot(defaultSettings())).not.toHaveProperty('output');
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ output: { scrollback: 10000 } });
+    expect(store.get().output.scrollback).toBe(10000);
   });
 
   it('viewSnapshot picks the screen settings', () => {

@@ -305,6 +305,7 @@ export class App {
       paneContext,
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
+      scrollback: this.settings.get().output.scrollback,
       onResize: (cols, rows) => this.session.setWindowSize(cols, rows),
       onFocusInput: () => this.input.focus(),
       ...(opts.requestFrame ? { requestFrame: opts.requestFrame } : {}),
@@ -320,6 +321,8 @@ export class App {
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
     });
     this.clockStrip = new ClockStrip(this.input.clockEl, { game: this.game, settings: this.settings, now });
+    // The scrollback depth applies live (ADR 0046).
+    this.unsubs.push(this.settings.subscribe((s) => this.output.setScrollback(s.output.scrollback)));
     if (cells) {
       this.unsubs.push(
         cells.subscribe(() => {

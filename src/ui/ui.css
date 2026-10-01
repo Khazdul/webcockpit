@@ -73,7 +73,8 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   scroll-behavior: auto;
-  /* We compensate top trimming ourselves; the browser must not also. */
+  /* The pane pins the tail and keeps a scrolled view in place itself
+     (output-pane.ts, ADR 0045); the browser must not also. */
   overflow-anchor: none;
   /* The scrollbar shows only while scrolled back. Transparent, not hidden,
      so a classic scrollbar keeps its width and the text never reflows;
@@ -85,9 +86,23 @@ body {
   scrollbar-color: auto;
 }
 
+/* scrollbar-color is inherited: without a value of their own, every row
+   would be restyled whenever .wc-scrolled toggles (PageUp, Esc, wheel;
+   ~130 ms at 20 000 rows in Chromium). ADR 0044 rule 2. Neither element
+   scrolls, so the value shows nowhere. */
+.wc-rows,
+.wc-partial {
+  scrollbar-color: auto;
+}
+
 .wc-chunk {
   /* A chunk's rows never affect layout outside it (see output-pane.ts). */
   contain: content;
+  /* Off-screen chunks are not laid out or painted: a width change re-wraps
+     only the chunks near the viewport. Their height until then is the one
+     last laid out, or the estimate output-pane.ts sets in
+     contain-intrinsic-block-size (ADR 0045). */
+  content-visibility: auto;
 }
 
 .wc-row {
@@ -205,6 +220,10 @@ body {
 /* Inverse with a default colour: default bg as fg / default fg as bg. */
 .wc-fd { color: var(--term-bg); }
 .wc-bd { background: var(--term-fg); }
+/* A background row (output-pane.ts fillBackgroundRow): the gradient is set
+ * inline. .wc-fdef is the default foreground inside one that has another. */
+.wc-bgrow { background-repeat: no-repeat; }
+.wc-fdef { color: var(--term-fg); }
 .wc-bold { font-weight: bold; }
 .wc-ital { font-style: italic; }
 .wc-ul { text-decoration: underline; }

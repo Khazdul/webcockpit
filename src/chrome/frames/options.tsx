@@ -11,7 +11,7 @@
 //   Communication: comm-options.tsx
 //   Group:        options-group.tsx
 //   Mapper:       options-mapper.tsx (ADR 0020)
-//   Appearance:   font, size, padding, cursor, colours, ANSI palette,
+//   Appearance:   font, size, padding, cursor, colours, scrollback, ANSI palette,
 //                 live preview box
 //   Spotlights:   options-spotlights.tsx
 
@@ -26,6 +26,7 @@ import {
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
+  SCROLLBACK_CHOICES,
   defaultSettings,
 } from '../../settings';
 import { FONTS } from '../../theme/fonts';
@@ -269,6 +270,11 @@ export function colorChoices(presets: readonly NamedColor[], cur: string): strin
 
 const colorName = (presets: readonly NamedColor[], hex: string): string => presetName(presets, hex) ?? hex;
 
+/** `20000` → `20 000`. */
+export function groupDigits(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+$)/g, ' ');
+}
+
 /** `#rgb`, `#rrggbb` or without `#` → `#rrggbb`, else null. */
 export function parseHex(s: string): string | null {
   const t = s.trim().replace(/^#/, '').toLowerCase();
@@ -342,6 +348,11 @@ export function AppearanceFrame(): VNode {
       key: 'input',
       label: `Input color: ${INPUT_COLORS[a.inputColor].label}`,
       adjust: (d) => set({ inputColor: cycle(INPUT_COLOR_IDS, a.inputColor, d) }),
+    },
+    {
+      key: 'scrollback',
+      label: `Scrollback: ${groupDigits(s.output.scrollback)} lines`,
+      adjust: (d) => settings.update({ output: { scrollback: cycle(SCROLLBACK_CHOICES, s.output.scrollback, d) } }),
     },
     { key: 'sp1', spacer: true },
     pal(0),

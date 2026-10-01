@@ -144,6 +144,20 @@ export interface SpotlightSettings {
   pvp: boolean;
 }
 
+/**
+ * The game window's scrollback depths offered in Options → Appearance
+ * (ADR 0046). Each row costs about 4–6 KB of browser memory.
+ */
+export const SCROLLBACK_CHOICES: readonly number[] = [5000, 10000, 20000, 50000];
+/** The default depth (spec §1.3). */
+export const DEFAULT_SCROLLBACK_ROWS = 20000;
+
+/** The game window (output pane). Not in `ViewSnapshot`: a log plays with the viewer's own. */
+export interface OutputSettings {
+  /** Rows kept in the scrollback, one of `SCROLLBACK_CHOICES`. */
+  scrollback: number;
+}
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -156,6 +170,7 @@ export interface Settings {
   comm: CommSettings;
   timers: TimersSettings;
   spotlights: SpotlightSettings;
+  output: OutputSettings;
 }
 
 /**
@@ -211,6 +226,7 @@ export function defaultSettings(): Settings {
     comm: { filters: {}, showHeader: true },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
+    output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
   };
 }
 
