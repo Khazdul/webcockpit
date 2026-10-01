@@ -31,7 +31,8 @@
 // settings are composed as the viewer's settings → the VIEW records so far
 // (`base`) → the overrides (`applyViewer`). A layout change the host did
 // not make itself is the viewer dragging or resizing in the player
-// cockpit; it becomes the layout override. The control box's gear shows
+// cockpit; it becomes the layout override. A pane hidden with its close
+// cross becomes a pane override, as the settings toggle. The control box's gear shows
 // the controls (`ViewerControls`, PlayerView).
 
 import type { RunLibrary } from '../runs/library';
@@ -284,10 +285,19 @@ export class PlayerHost {
     });
     this.appRef = app;
     const unsub = store.subscribe((next, prev) => {
-      // The viewer moved or resized a pane in the player cockpit.
-      if (!this.applying && this.store === store && JSON.stringify(next.layout) !== JSON.stringify(prev.layout)) {
-        this.viewer = withLayout(this.viewer, next.layout);
-        this.view?.refresh();
+      if (!this.applying && this.store === store) {
+        let viewer = this.viewer;
+        // The viewer moved or resized a pane in the player cockpit.
+        if (JSON.stringify(next.layout) !== JSON.stringify(prev.layout)) viewer = withLayout(viewer, next.layout);
+        // The viewer hid a pane with its close cross: as the settings toggle.
+        for (const id of PANE_IDS) {
+          const on = next.panes[id]?.on;
+          if (on !== undefined && on !== prev.panes[id]?.on) viewer = withPane(viewer, id, on);
+        }
+        if (viewer !== this.viewer) {
+          this.viewer = viewer;
+          this.view?.refresh();
+        }
       }
       this.relayout();
     });

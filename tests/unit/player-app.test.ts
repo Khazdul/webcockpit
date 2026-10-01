@@ -232,6 +232,27 @@ describe('PlayerHost', () => {
     host.dispose();
   });
 
+  it('a pane hidden with its close cross stays hidden after a seek, as from the settings', () => {
+    const { root, wall, host } = open();
+    const eng = host.engine!;
+    eng.pause();
+    eng.seek(1500);
+    wall.flush();
+    const store = () => (host.app as unknown as { settings: SettingsStore }).settings;
+    expect(store().get().panes.timers.on).toBe(true);
+    const cross = [...root.querySelectorAll<HTMLElement>('.wc-pane-close')].find((c) => c.title === 'Hide Timers')!;
+    cross.click();
+    expect(host.viewerOverrides.panes).toEqual({ timers: false });
+    eng.seek(3500); // past the second VIEW
+    wall.flush();
+    expect(store().get().panes.timers.on).toBe(false);
+    eng.seek(1000); // back: a new App
+    wall.flush();
+    expect(eng.buildCount).toBe(2);
+    expect(store().get().panes.timers.on).toBe(false);
+    host.dispose();
+  });
+
   it('the gear folds the settings section; its buttons change the overrides', async () => {
     const { root, host } = open();
     host.engine!.pause();
