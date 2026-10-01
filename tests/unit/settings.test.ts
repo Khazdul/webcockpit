@@ -305,7 +305,7 @@ describe('database', () => {
     });
     const cap = await CaptureStore.open(factory);
     expect(cap.db.version).toBe(DB_VERSION);
-    expect([...cap.db.objectStoreNames].sort()).toEqual(['comm', 'exports', 'mapIds', 'maps', 'profiles', 'runChunks', 'runEvents', 'runs', 'settings', 'timers']);
+    expect([...cap.db.objectStoreNames].sort()).toEqual(['comm', 'exports', 'mapIds', 'maps', 'profiles', 'runChunks', 'runEvents', 'runs', 'scriptData', 'scripts', 'settings', 'timers']);
     expect((await cap.listRuns()).map((r) => r.runId)).toEqual(['A/1']);
     cap.close();
   });

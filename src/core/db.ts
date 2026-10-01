@@ -31,6 +31,11 @@
 //     mapIds     keyPath ['mapHash', 'serverId']; server ids the locator
 //                learned: { mapHash, serverId, room } (room = index in
 //                that map; src/map, ADR 0020)
+//   version 8 (stage 10)
+//     scripts    keyPath 'id'; user scripts { id, name, source, enabled,
+//                created, updated } (src/scripts/library.ts, ADR 0051)
+//     scriptData keyPath 'name'; per script name, bundled or user:
+//                { name, enabled?, settings, store } (ADR 0051)
 //
 // The upgrade handler is a chain of `if (oldVersion < N)` steps, so every
 // older database upgrades in order. Add a step (and bump DB_VERSION) for
@@ -47,7 +52,7 @@
 // open failures (private mode, no IndexedDB) are not reported here.
 
 export const DB_NAME = 'webcockpit';
-export const DB_VERSION = 7;
+export const DB_VERSION = 8;
 
 /** Object store names, for callers outside this module. */
 export const STORE = {
@@ -61,6 +66,8 @@ export const STORE = {
   exports: 'exports',
   maps: 'maps',
   mapIds: 'mapIds',
+  scripts: 'scripts',
+  scriptData: 'scriptData',
 } as const;
 
 let persistAsked = false;
@@ -154,6 +161,10 @@ export function openWebcockpitDb(factory: IDBFactory = globalThis.indexedDB): Pr
       if (ev.oldVersion < 7) {
         db.createObjectStore(STORE.maps, { keyPath: 'key' });
         db.createObjectStore(STORE.mapIds, { keyPath: ['mapHash', 'serverId'] });
+      }
+      if (ev.oldVersion < 8) {
+        db.createObjectStore(STORE.scripts, { keyPath: 'id' });
+        db.createObjectStore(STORE.scriptData, { keyPath: 'name' });
       }
     };
     r.onsuccess = () => {
