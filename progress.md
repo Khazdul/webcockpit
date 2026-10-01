@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (parts A and B done; 0.1.19 live at https://mumecockpit.com/; next: part C, the performance fixes, in the order of `docs/stages/08-hardening.md` part C).
+Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: release part C and the owner test, C17).
 
 ## Stages
 
@@ -21,6 +21,26 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-01 — Stage 8 part C: performance fixes
+
+- **Done:** C0–C16, built by parallel subagents in worktrees, merged.
+  Caret timer blink, send first, scroll-mode and drag restyles gone,
+  background rows, `content-visibility` chunks with the pane's own
+  anchor (ADR 0045), 500-row catch-up, scrollback setting (ADR 0046),
+  `#perf` (ADR 0047), ingest and recorder fixes (ADR 0048), pane row
+  diff, small fixes. Benchmark at the owner's geometry (C15).
+- **Measured** (quiet machine, base 26cf8e8): caret latency Firefox
+  10–12 → 2.7–2.9 ms; scroll mode at 20k rows 118 → 17 ms (Chromium);
+  colour page −74/−83 %; width change 45/57 → 6 ms; drag 89 → 0.3 ms;
+  recorder task 12 → 4 ms. A Firefox flush regression from C8 was found
+  and fixed. `notes/research/perf-review/part-c-results.md`.
+- **Tests:** unit 1412 + 1 skipped, e2e 268/268, bench 19/19.
+- **Next:** C17: release (0.1.20), owner test with the part C guide.
+- **Open issues:** C-P8 (Firefox ingest slices) not built: stress-only
+  gain; Firefox may log a harmless ResizeObserver loop message while
+  scrolled back (ADR 0045).
+- **Commits:** c448d41…3832812, plus this one.
 
 ### 2026-09-30 — Stage 8 part B: performance review
 

@@ -1,7 +1,8 @@
 # Stage 8 — Hardening → v1
 
 > Status: In progress (part A done 2026-09-28; part B, the performance
-> review, done 2026-09-30; part C, the performance fixes, next).
+> review, done 2026-09-30; part C, the performance fixes, built
+> 2026-10-01, owner test next).
 > Source: spec §5 row 8; owner brief 2026-09-28 (part A, viewer
 > settings in RUN LOG and the HTML replay). ADR 0021. Owner brief
 > 2026-09-30 (parts B and C, performance). ADR 0044.
@@ -248,7 +249,7 @@ experiments to rework, not finished code):
 - [x] C13. (#13) Scrollback depth setting in Options, default 20 000
       (ADR; spec §1.3 note).
 - [x] C14. (#14) `#perf` latency monitor (ADR; `#help` manual entry).
-- [ ] C15. (#15) Benchmark: owner geometry, visible-caret latency and
+- [x] C15. (#15) Benchmark: owner geometry, visible-caret latency and
       idle, active panes, map on/off explicit, colour page, real keys
       under load, loopback WebSocket with the recorder, full-scrollback
       actions, soak; new `bench/results/latest.md`.
@@ -310,28 +311,33 @@ Try:
 Feedback wanted: whether the labels match your keyboard; whether losing
 the character in the input line is ever a problem in play.
 
-## Test guide (part C, draft — finish when built)
+## Test guide (part C)
 
-Before the build, optional, no code: Options → Appearance → cursor blink
-off, then play a while with a command half typed. The review predicts
-output that feels a little snappier (report §3.3).
+Measured before/after: `notes/research/perf-review/part-c-results.md`;
+new bench: `bench/results/latest.md` (all 19 checks pass).
 
-After the build, in Firefox, on the release:
+In Firefox, on the release (or `npm run dev`):
 
 1. Type `help 24-bit colours` and page through it with Enter: no stall,
    and the combat lines after it are as quick as before it.
-2. After an hour of play (full scrollback): PgUp, then Esc; drag a dock
-   gap; open or close another window on the same Hyprland workspace
-   (the browser is resized). None of them should freeze the output.
-3. Leave the tab for a few minutes while connected, then return: the
+2. Play a while with a command half typed (caret blinking): output
+   should feel as snappy as with the blink off.
+3. After an hour of play (full scrollback): PgUp, PgDn, then Esc; drag a
+   dock gap; open or close another window on the same Hyprland workspace
+   (the browser is resized). None of them should freeze the output, and
+   PgUp/PgDn should move exactly one page without jumping.
+4. Leave the tab for a few minutes while connected, then return: the
    backlog is drawn without a stutter (after minutes of backlog the
    newest line may take a fraction of a second).
-4. Options → the new scrollback setting.
-5. `#perf` after a session, and `#perf worst` right after something felt
-   slow.
+5. Options → Appearance → `Scrollback` (5 000 / 10 000 / 20 000 / 50 000
+   lines; about 4 KB of memory per line).
+6. `#perf` after a session, `#perf worst` right after something felt
+   slow, `#help perf` for what the numbers mean.
+7. Disconnected, type a command: one `Not connected: command not sent.`
+   line.
 
 Feedback wanted: whether anything still feels slower than Cockpit, and
-the `#perf` output at such a moment.
+the `#perf` / `#perf worst` output at such a moment.
 
 ## Owner feedback
 
