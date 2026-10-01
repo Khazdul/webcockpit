@@ -34,6 +34,34 @@ describe('CommArchive', () => {
     db.close();
   });
 
+  it('writes the appends of one task in one transaction, in order', async () => {
+    const { archive, db } = await open();
+    const real = db.transaction.bind(db);
+    const modes: string[] = [];
+    db.transaction = ((names: string | string[], mode?: IDBTransactionMode) => {
+      modes.push(mode ?? 'readonly');
+      return real(names, mode);
+    }) as typeof db.transaction;
+    const ps = [0, 1, 2, 3].map((i) => archive.append(msg('Rasta', NOW - 100 + i, `b${i}`)));
+    // A read in the same task sees them.
+    const seen = archive.loadRecent('Rasta');
+    const seqs = await Promise.all(ps);
+    expect(seqs).toEqual([seqs[0], seqs[0]! + 1, seqs[0]! + 2, seqs[0]! + 3]);
+    expect((await seen).map((r) => [r.text, r.seq])).toEqual(seqs.map((q, i) => [`b${i}`, q]));
+    expect(modes).toEqual(['readwrite', 'readonly']);
+    // A later task gets its own transaction.
+    await archive.append(msg('Rasta', NOW, 'later'));
+    expect(modes).toEqual(['readwrite', 'readonly', 'readwrite']);
+    db.close();
+  });
+
+  it('rejects every append of a batch when the database is closed', async () => {
+    const { archive, db } = await open();
+    db.close();
+    const ps = [archive.append(msg('Rasta', NOW, 'a')), archive.append(msg('Rasta', NOW, 'b'))];
+    for (const p of ps) await expect(p).rejects.toThrow();
+  });
+
   it('loads only the newest N within 7 days; equal times keep insertion order', async () => {
     const { archive, db } = await open();
     await archive.append(msg('Rasta', NOW - 8 * DAY, 'too old'));

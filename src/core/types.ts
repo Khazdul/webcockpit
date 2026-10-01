@@ -88,6 +88,11 @@ export interface Line {
   ts: number;
 }
 
+/** A `gmcp` message's package name in lower case (its `key` when set). */
+export function gmcpKey(m: { pkg: string; key?: string }): string {
+  return m.key ?? m.pkg.toLowerCase();
+}
+
 /** Current time in µs since the Unix epoch, as an integer. */
 export function nowUs(): number {
   return Math.round((performance.timeOrigin + performance.now()) * 1000);
@@ -146,11 +151,13 @@ export interface BusEvents {
   'gmcp.raw': { pkg: string; json: string; ts?: number };
   /**
    * Parsed GMCP message. `pkg` is exactly as sent by the server (MUME mixes
-   * case); consumers match case-insensitively themselves, e.g. by comparing
-   * `pkg.toLowerCase()`. `data` is `undefined` when there was no payload or
-   * the JSON did not parse (the failure is reported via `sys.message`).
+   * case); consumers match case-insensitively on `gmcpKey(m)`, the package
+   * in lower case. `key` is that lower-case name, set once by the producer
+   * (every producer in src sets it; tests may leave it out). `data` is
+   * `undefined` when there was no payload or the JSON did not parse (the
+   * failure is reported via `sys.message`).
    */
-  gmcp: { pkg: string; data: unknown };
+  gmcp: { pkg: string; key?: string; data: unknown };
   /**
    * A command sent to the game, after alias expansion. Never protocol bytes.
    * An empty Enter gives `text: ''`. When `secret` is true (password), the

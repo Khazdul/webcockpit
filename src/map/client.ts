@@ -11,7 +11,7 @@
 // a case-insensitive package lookup; text.line: one precompiled regex) and
 // one postMessage per microtask sends the batch.
 
-import type { BusEvents } from '../core/types';
+import { type BusEvents, gmcpKey } from '../core/types';
 import {
   type AssetSource,
   MAP_GMCP_PACKAGES,
@@ -115,6 +115,29 @@ export class MapClient {
 export const MOVE_FAILURE_RE =
   /^(?:(You are dead!)|You failed to climb|You need to swim to go there\.|You cannot ride there\.|You are too exhausted\.|You are too exhausted to ride\.|Your mount refuses to follow your orders!|You failed swimming there\.|You can't go into deep water!|You cannot ride into deep water!|You unsuccessfully try to break through the ice\.|Your boat cannot enter this place\.|Alas, you cannot go that way\.\.\.|No way! You are fighting for your life!|Nah\.\.\. You feel too relaxed to do that\.|Maybe you should get on your feet first\?|In your dreams, or what\?|If you still want to try, you must|ZBLAM! .+ doesn't want you riding (?:him|her|it) anymore\.$|.*(?:seems? to be closed|is too steep, you need to climb to go there|is too exhausted)\.$)/;
 
+// `moveFailure` splits MOVE_FAILURE_RE so that most lines cost a character
+// test: the anchored starts, tried only for their first letters, and the
+// `.*…$` ends as `endsWith` checks (the full regex confirms a hit).
+const MOVE_FAILURE_START_RE =
+  /^(?:(You are dead!)|You failed to climb|You need to swim to go there\.|You cannot ride there\.|You are too exhausted\.|You are too exhausted to ride\.|Your mount refuses to follow your orders!|You failed swimming there\.|You can't go into deep water!|You cannot ride into deep water!|You unsuccessfully try to break through the ice\.|Your boat cannot enter this place\.|Alas, you cannot go that way\.\.\.|No way! You are fighting for your life!|Nah\.\.\. You feel too relaxed to do that\.|Maybe you should get on your feet first\?|In your dreams, or what\?|If you still want to try, you must|ZBLAM! .+ doesn't want you riding (?:him|her|it) anymore\.$)/;
+/** First letters of the MOVE_FAILURE_START_RE alternatives. */
+const MOVE_FAILURE_FIRST = new Set(Array.from('YANMIZ', (c) => c.charCodeAt(0)));
+const MOVE_FAILURE_ENDS = ['seems to be closed.', 'seem to be closed.', 'is too steep, you need to climb to go there.', 'is too exhausted.'];
+const MOVE_FAILURE_END_RE = /^.*(?:seems? to be closed|is too steep, you need to climb to go there|is too exhausted)\.$/;
+
+/** Whether `text` is a move failure (`fail`), the death line (`dead`), or neither: as MOVE_FAILURE_RE. */
+export function moveFailure(text: string): 'fail' | 'dead' | null {
+  if (MOVE_FAILURE_FIRST.has(text.charCodeAt(0))) {
+    const m = MOVE_FAILURE_START_RE.exec(text);
+    if (m !== null) return m[1] === undefined ? 'fail' : 'dead';
+  }
+  if (text.charCodeAt(text.length - 1) !== 46) return null; // '.'
+  for (const end of MOVE_FAILURE_ENDS) {
+    if (text.endsWith(end)) return MOVE_FAILURE_END_RE.test(text) ? 'fail' : null;
+  }
+  return null;
+}
+
 /** Lower-case package name → the MAP_GMCP_PACKAGES spelling. */
 const MAP_PKG = new Map<string, MapGmcpPackage>(MAP_GMCP_PACKAGES.map((p) => [p.toLowerCase(), p]));
 
@@ -163,13 +186,13 @@ export class MapEventForwarder {
   };
 
   readonly onGmcp = (m: BusEvents['gmcp']): void => {
-    const pkg = MAP_PKG.get(m.pkg.toLowerCase());
+    const pkg = MAP_PKG.get(gmcpKey(m));
     if (pkg !== undefined) this.push({ k: 'gmcp', pkg, data: m.data });
   };
 
   readonly onLine = (l: BusEvents['text.line']): void => {
-    const m = MOVE_FAILURE_RE.exec(l.text);
-    if (m !== null) this.push({ k: 'fail', kind: m[1] === undefined ? 'fail' : 'dead' });
+    const kind = moveFailure(l.text);
+    if (kind !== null) this.push({ k: 'fail', kind });
   };
 
   readonly onConn = (s: BusEvents['conn.state']): void => {

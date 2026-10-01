@@ -322,25 +322,32 @@ function validate(inner: string, pattern: string): void {
 /** What `.` does not match (the `whole` fast path falls back to the regex). */
 const LINE_BREAK = /[\n\r\u2028\u2029]/;
 
+/** True when `text` has no line terminator, so a `whole` pattern matches all of it. */
+export function isOneLine(text: string): boolean {
+  return !LINE_BREAK.test(text);
+}
+
+/**
+ * The arguments of a `whole` pattern (`(.*)`) matching a one-line `text`:
+ * the whole text, also in group 1's argument.
+ */
+export function wholeArgs(c: CompiledPattern, text: string): string[] {
+  const a = c.groupArg[1] ?? 0;
+  if (c.maxArg === 0) return [text];
+  if (c.maxArg === 1 && a === 1) return [text, text];
+  const args = new Array<string>(c.maxArg + 1).fill('');
+  args[0] = text;
+  if (a) args[a] = text;
+  return args;
+}
+
 /**
  * Matches `text` against a compiled pattern. Returns the arguments
  * (`args[0]` = the whole match) or null. `from`: search start (for
  * repeated matches); `sticky` requires the match to start at `from`.
  */
 export function matchPattern(c: CompiledPattern, text: string): { args: string[]; index: number; end: number } | null {
-  if (c.whole && !LINE_BREAK.test(text)) {
-    // `(.*)` on a text without line terminators: the whole text, group 1.
-    const a = c.groupArg[1] ?? 0;
-    let args: string[];
-    if (c.maxArg === 0) args = [text];
-    else if (c.maxArg === 1 && a === 1) args = [text, text];
-    else {
-      args = new Array<string>(c.maxArg + 1).fill('');
-      args[0] = text;
-      if (a) args[a] = text;
-    }
-    return { args, index: 0, end: text.length };
-  }
+  if (c.whole && isOneLine(text)) return { args: wholeArgs(c, text), index: 0, end: text.length };
   // Necessary conditions first: most rules fail on most lines.
   if (c.lead && !text.startsWith(c.lead)) return null;
   if (c.tail && !text.endsWith(c.tail)) return null;

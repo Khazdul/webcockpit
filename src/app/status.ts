@@ -4,7 +4,7 @@
 // from it. Fed by the bus and by the app (capture text, replay flag).
 
 import type { Bus } from '../core/bus';
-import type { ConnState } from '../core/types';
+import { type ConnState, gmcpKey } from '../core/types';
 
 export interface AppStatusState {
   /** Session state. */
@@ -75,7 +75,7 @@ export class AppStatus implements AppStatusView {
         else this.set({ conn: s.state });
       }),
       bus.on('gmcp', (m) => {
-        if (m.pkg.toLowerCase() !== 'char.name') return;
+        if (gmcpKey(m) !== 'char.name') return;
         const n = (m.data as { name?: unknown } | undefined)?.name;
         if (typeof n === 'string' && n) this.set({ character: n });
       }),

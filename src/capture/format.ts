@@ -30,9 +30,19 @@
 // Readers skip record types they do not know. ReplaySocket turns GMCP
 // records back into `IAC SB GMCP … IAC SE` and ignores the rest.
 
-/** A µs timestamp as the 16-digit integer Cockpit writes. */
+let lastTsUs = NaN;
+let lastTs = '';
+
+/**
+ * A µs timestamp as the 16-digit integer Cockpit writes. The last result is
+ * reused: every line of a received frame shares its timestamp.
+ */
 export function formatTs(us: number): string {
-  return String(Math.trunc(us)).padStart(16, '0');
+  if (us !== lastTsUs) {
+    lastTsUs = us;
+    lastTs = String(Math.trunc(us)).padStart(16, '0');
+  }
+  return lastTs;
 }
 
 /** One inbound line (use `Line.raw`; prompts are ordinary lines). */
@@ -43,6 +53,25 @@ export function formatInbound(ts: number, raw: string): string {
 /** One outbound command. Callers skip `secret` commands. */
 export function formatOutbound(ts: number, cmd: string): string {
   return formatTs(ts) + ' > ' + cmd + '\n';
+}
+
+/**
+ * The UTF-8 length of `s` in bytes, as `TextEncoder` would encode it (a
+ * lone surrogate becomes U+FFFD, 3 bytes). Counts without allocating.
+ */
+export function utf8Length(s: string): number {
+  const len = s.length;
+  let n = len;
+  for (let i = 0; i < len; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) continue;
+    if (c < 0x800) n += 1;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < len && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+      n += 2; // a surrogate pair: 2 units, 4 bytes
+      i++;
+    } else n += 2;
+  }
+  return n;
 }
 
 /** Client record types (see the file header). */

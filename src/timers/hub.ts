@@ -30,7 +30,7 @@
 // here reads `Date.now` or calls `setTimeout` itself.
 
 import type { Bus } from '../core/bus';
-import type { UiMessage } from '../core/types';
+import { type UiMessage, gmcpKey } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { type Scheduler, realScheduler } from '../script/engine/timers';
 import { TimersArchive } from './archive';
@@ -132,7 +132,7 @@ export class TimersHub {
         if (s.state === 'connecting') this.onConnecting(s.replay === true);
       }),
       bus.on('gmcp', (m) => {
-        const pkg = m.pkg.toLowerCase();
+        const pkg = gmcpKey(m);
         if (pkg === TIMERS_GMCP_PKG) {
           if (this.replayConn) this.replaceState(m.data);
           return;

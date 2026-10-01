@@ -152,8 +152,8 @@ export class Gmcp {
     if (m.error !== undefined) {
       bus.emit('sys.message', { text: `GMCP ${m.pkg}: bad JSON (${m.error})` });
     }
-    bus.emit('gmcp', { pkg: m.pkg, data: m.data });
     const lower = m.pkg.toLowerCase();
+    bus.emit('gmcp', { pkg: m.pkg, key: lower, data: m.data });
     if (lower === 'comm.channel.list' && Array.isArray(m.data)) {
       for (const ch of m.data) {
         const name = channelName(ch);

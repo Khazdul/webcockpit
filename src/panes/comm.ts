@@ -51,7 +51,7 @@ import {
 import { paneLight } from '../theme/apply';
 import { lightShift } from '../theme/color';
 import { colorToCss, effectiveFg } from '../ui/palette';
-import type { StyleRun } from '../core/types';
+import { type StyleRun, gmcpKey } from '../core/types';
 import { AnchoredList, type ListMetrics } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
@@ -108,7 +108,7 @@ export class CommPane extends PaneShell {
       () => null,
     );
 
-    this.own(ctx.bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data)));
+    this.own(ctx.bus.on('gmcp', (m) => this.onGmcp(gmcpKey(m), m.data)));
     this.own(
       ctx.bus.on('conn.state', (s) => {
         if (s.state === 'connecting') this.replay = s.replay === true;
@@ -126,8 +126,8 @@ export class CommPane extends PaneShell {
 
   // ------------------------------------------------------------------ data
 
-  private onGmcp(pkg: string, data: unknown): void {
-    const p = pkg.toLowerCase();
+  /** One GMCP message; `p` is the package in lower case. */
+  private onGmcp(p: string, data: unknown): void {
     if (p === 'comm.channel.text') {
       const t = parseChannelText(data);
       if (t) this.addMessage({ ...t, ts: this.ctx.now() });

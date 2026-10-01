@@ -220,6 +220,74 @@ describe('Telnet parser', () => {
   });
 });
 
+describe('Telnet data state', () => {
+  /** A stream that puts IAC, NUL and subnegotiation edges right next to text. */
+  const EDGES = concat(
+    [IAC, WILL, OPT_GMCP],
+    ascii('ab'),
+    [0, 0],
+    ascii('c'),
+    [IAC, IAC, IAC, IAC],
+    ascii('d'),
+    [0, IAC, GA, 0],
+    sb(OPT_GMCP, ascii('Core.Ping')),
+    ascii('e'),
+    [IAC, 241, 0], // NOP, NUL
+    sb(200, [...ascii('X '), IAC, IAC, 0, ...ascii('y')]), // an unknown option, ignored
+    sb(OPT_GMCP, ascii('Y')),
+    [IAC, IAC],
+    ascii('f\r\n'),
+    [0],
+  );
+  const expected = 'abcÿÿd⟨GA⟩eÿf\r\n';
+
+  it('drops NULs, decodes IAC IAC and keeps text next to subnegotiations', () => {
+    const r = run([EDGES]);
+    expect(r.out).toBe(expected);
+    expect(r.gmcp).toEqual(['Core.Ping', 'Y']);
+  });
+
+  it('gives identical results for every split point and byte by byte', () => {
+    const whole = run([EDGES]);
+    expect(run(Array.from(EDGES, (b) => Uint8Array.of(b)))).toEqual(whole);
+    for (let c = 1; c < EDGES.length; c++) {
+      expect(run(split(EDGES, [c])), `cut at ${c}`).toEqual(whole);
+    }
+    for (let a = 1; a < EDGES.length; a++) {
+      for (let b = a + 1; b < EDGES.length; b++) {
+        expect(run(split(EDGES, [a, b])), `cuts ${a},${b}`).toEqual(whole);
+      }
+    }
+  });
+
+  it('completes an IAC split across messages', () => {
+    const m = make();
+    m.t.receive(Uint8Array.from([...ascii('prompt>'), IAC]), 1);
+    expect(m.sink.out).toBe('prompt>');
+    m.t.receive(Uint8Array.from([GA, ...ascii('next')]), 2);
+    expect(m.sink.out).toBe('prompt>⟨GA⟩next');
+    m.t.receive(Uint8Array.from([IAC]), 3);
+    m.t.receive(Uint8Array.from([IAC, ...ascii('!')]), 4);
+    expect(m.sink.out).toBe('prompt>⟨GA⟩nextÿ!');
+  });
+
+  it('emits a run of plain text as one piece and splits it only at IAC or NUL', () => {
+    const m = make();
+    m.t.receive(Uint8Array.from(ascii('x'.repeat(5000))), 1);
+    expect(m.sink.texts).toBe(1);
+    m.t.receive(Uint8Array.from([...ascii('one'), 0, ...ascii('two'), IAC, GA, ...ascii('three')]), 1);
+    expect(m.sink.texts).toBe(4);
+    expect(m.sink.out.endsWith('onetwo⟨GA⟩three')).toBe(true);
+  });
+
+  it('handles frames of only NULs or only IACs', () => {
+    const m = make();
+    m.t.receive(new Uint8Array(1000), 1);
+    m.t.receive(new Uint8Array(1000).fill(IAC), 1);
+    expect(m.sink.out).toBe('ÿ'.repeat(500));
+  });
+});
+
 describe('IAC escaping', () => {
   it('doubles 0xFF and leaves other bytes alone', () => {
     expect(Array.from(escapeIac(Uint8Array.from([1, 255, 2, 255])))).toEqual([1, 255, 255, 2, 255, 255]);
@@ -279,6 +347,13 @@ describe('CHARSET', () => {
     const m = make();
     m.t.receive(Uint8Array.from(sb(OPT_CHARSET, [1, ...ascii('[TTABLE]'), 1, ...ascii(';UTF-8')])), 1);
     expect(m.writes.at(-1)).toEqual([IAC, SB, OPT_CHARSET, 2, ...ascii('UTF-8'), IAC, SE]);
+  });
+
+  it('decodes each GMCP payload on its own: a cut sequence does not leak into the next', () => {
+    const m = make();
+    m.t.forceUtf8();
+    m.t.receive(concat([IAC, WILL, OPT_GMCP], sb(OPT_GMCP, [...utf8('A "x'), 0xc3]), sb(OPT_GMCP, utf8('B "é"'))), 1);
+    expect(m.gmcp).toEqual(['A "x\ufffd', 'B "é"']);
   });
 
   it('decodes multibyte UTF-8 split across frames', () => {

@@ -10,9 +10,10 @@ import {
   localStamp,
   makeRunId,
   runFileName,
+  utf8Length,
 } from '../../src/capture/format';
 import { buildRunBlob } from '../../src/capture/download';
-import { type LockManagerLike, Recorder, STATUS, runLockName } from '../../src/capture/recorder';
+import { CHUNK_BYTES, type LockManagerLike, Recorder, STATUS, runLockName } from '../../src/capture/recorder';
 import { RunStore as CaptureStore } from '../../src/runs/store';
 import { Session } from '../../src/net/session';
 import { OPT_GMCP, WILL } from '../../src/net/telnet';
@@ -38,6 +39,13 @@ describe('capture format', () => {
     expect(formatTs(1790449245424814)).toBe('1790449245424814');
     expect(formatTs(42)).toBe('0000000000000042');
     expect(formatTs(1790449245424814.7)).toBe('1790449245424814');
+    // The one-entry cache: repeats and alternations give the right text.
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(43)).toBe('0000000000000043');
+    expect(formatTs(42)).toBe('0000000000000042');
+    expect(formatTs(0)).toBe('0000000000000000');
+    expect(formatTs(-0)).toBe('0000000000000000');
     expect(formatOutbound(1790449245424814, 'who')).toBe('1790449245424814 > who\n');
     expect(formatOutbound(1790449245424814, '')).toBe('1790449245424814 > \n');
     expect(formatInbound(1790449247842113, '\x1b[35mA wall.\x1b[0m')).toBe(
@@ -45,6 +53,20 @@ describe('capture format', () => {
     );
     expect(formatInbound(1790449247842391, 'oO Mana:Hot>')).toBe('1790449247842391 oO Mana:Hot>\n');
     expect(formatInbound(1790449247842391, '')).toBe('1790449247842391 \n');
+  });
+
+  it('counts UTF-8 bytes the way TextEncoder encodes them', () => {
+    const enc = new TextEncoder();
+    for (const str of [
+      '',
+      'plain ascii',
+      'Välkommen — 🐉 till Arda',
+      'Åke the Ω ÿ\u00a0\u07ff\u0800\uffff',
+      '🐉🐉 \u{10ffff}',
+      'lone \ud800 high, lone \udc00 low, swapped \udc00\ud800, end \ud83d',
+    ]) {
+      expect(utf8Length(str), JSON.stringify(str)).toBe(enc.encode(str).byteLength);
+    }
   });
 
   it('builds run ids and file names', () => {
@@ -55,7 +77,9 @@ describe('capture format', () => {
   });
 });
 
-function setup(opts: { factory?: IDBFactory; locks?: LockManagerLike | null; flushMs?: number } = {}) {
+function setup(
+  opts: { factory?: IDBFactory; locks?: LockManagerLike | null; flushMs?: number; chunkBytes?: number } = {},
+) {
   const factory = opts.factory ?? new IDBFactory();
   const bus = new Bus();
   const statuses: string[] = [];
@@ -65,6 +89,7 @@ function setup(opts: { factory?: IDBFactory; locks?: LockManagerLike | null; flu
     locks: opts.locks === undefined ? new FakeLocks() : opts.locks,
     onStatus: (s) => statuses.push(s),
     flushMs: opts.flushMs ?? 60000,
+    ...(opts.chunkBytes !== undefined ? { chunkBytes: opts.chunkBytes } : {}),
     win: null,
     now: () => (clock += 1000),
   });
@@ -77,6 +102,73 @@ function setup(opts: { factory?: IDBFactory; locks?: LockManagerLike | null; flu
 }
 
 describe('Recorder', () => {
+  it('writes a burst as several chunks of at most CHUNK_BYTES, in order', async () => {
+    const t = setup();
+    t.play();
+    await t.rec.idle();
+    const runId = t.rec.runId!;
+    const T = 1790449245000000;
+    const body = 'x'.repeat(1000);
+    let expected = '';
+    for (let k = 0; k < 1300; k++) {
+      // ~1.3 MB in one task, as a max-speed burst would arrive.
+      t.bus.emit('text.line', line(body + k, T + k));
+      expected += formatInbound(T + k, body + k);
+    }
+    // The size limit wrote the full chunks without a flush or the timer.
+    await t.rec.idle();
+    const store = (await t.rec.getStore())!;
+    const early = await store.chunksFrom(runId, 0, () => true);
+    expect(early.length).toBe(5);
+    await t.rec.flush();
+    const chunks = await store.chunksFrom(runId, 0, () => true);
+    expect(chunks.length).toBe(6);
+    const enc = new TextEncoder();
+    chunks.forEach((c, k) => {
+      expect(c.seq).toBe(k);
+      expect(enc.encode(c.text).byteLength).toBeLessThanOrEqual(CHUNK_BYTES);
+      expect(c.text.endsWith('\n')).toBe(true);
+      expect(c.firstUs).toBe(Number(c.text.slice(0, 16)));
+      if (k > 0) expect(c.firstUs).toBeGreaterThan(chunks[k - 1]!.lastUs);
+    });
+    expect(chunks.map((c) => c.text).join('')).toBe(expected);
+    expect(await (await buildRunBlob(store, runId)).text()).toBe(expected);
+    const meta = (await store.getRun(runId))!;
+    expect(meta.lines).toBe(1300);
+    expect(meta.bytes).toBe(enc.encode(expected).byteLength);
+  });
+
+  it('counts non-ASCII text in UTF-8 bytes, for the meta and the chunk limit', async () => {
+    const t = setup({ chunkBytes: 100 });
+    t.play();
+    await t.rec.idle();
+    const runId = t.rec.runId!;
+    const T = 1790449245000000;
+    const texts = ['Välkommen — 🐉 till Arda', 'Åke the Ω', 'ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ', 'ascii', '🐉'.repeat(30)];
+    let expected = '';
+    texts.forEach((x, k) => {
+      t.bus.emit('text.line', line(x, T + k));
+      expected += formatInbound(T + k, x);
+    });
+    t.bus.emit('cmd.sent', { text: 'say hej då', ts: T + 9 });
+    expected += formatOutbound(T + 9, 'say hej då');
+    await t.rec.flush();
+    const store = (await t.rec.getStore())!;
+    const chunks = await store.chunksFrom(runId, 0, () => true);
+    const enc = new TextEncoder();
+    // Lines of 41, 29, 93, 23, 138 and 29 bytes: cut by bytes, not characters;
+    // the 138-byte line is a chunk of its own.
+    expect(chunks.map((c) => c.text.split('\n').length - 1)).toEqual([2, 1, 1, 1, 1]);
+    for (const c of chunks) {
+      const n = enc.encode(c.text).byteLength;
+      if (c.text.split('\n').length > 2) expect(n).toBeLessThanOrEqual(100);
+    }
+    expect(chunks.map((c) => c.text).join('')).toBe(expected);
+    const meta = (await store.getRun(runId))!;
+    expect(meta.bytes).toBe(enc.encode(expected).byteLength);
+    expect(meta.lines).toBe(6);
+  });
+
   it('records lines and commands in order, skipping secrets, replayed commands and partials', async () => {
     const t = setup();
     t.play();

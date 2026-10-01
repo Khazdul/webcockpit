@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_OPEN_TAGS } from '../../src/text/assembler';
 import { ESC, GA, feed, harness, lines, one } from './text-helpers';
 
 const X = '<xml>';
@@ -240,5 +241,43 @@ describe('LineAssembler: XML prompts', () => {
     expect(h.lines).toEqual([
       { text: 'text', runs: [], tags: [], prompt: false, raw: 'text', ts: 1 },
     ]);
+  });
+});
+
+describe('LineAssembler: open tag cap', () => {
+  it('closes the oldest open element when one more opens, so lines carry at most MAX_OPEN_TAGS', () => {
+    const h = harness();
+    let src = X;
+    for (let k = 0; k < MAX_OPEN_TAGS + 8; k++) src += `<t${k}>x${k}\r\n`;
+    feed(h, src);
+    const last = h.lines[h.lines.length - 1]!;
+    expect(last.tags.length).toBe(MAX_OPEN_TAGS);
+    expect(last.tags[0]!.tag).toBe('t8');
+    expect(last.tags[MAX_OPEN_TAGS - 1]!.tag).toBe(`t${MAX_OPEN_TAGS + 7}`);
+    expect(Math.max(...h.lines.map((l) => l.tags.length))).toBe(MAX_OPEN_TAGS);
+  });
+
+  it('closes the dropped element where the new one opens, mid-line', () => {
+    let src = X;
+    for (let k = 0; k < MAX_OPEN_TAGS; k++) src += `<a${k}>`;
+    const l = one(src + 'ab<new>cd</new>\r\n');
+    expect(l.tags[0]).toEqual({ tag: 'a0', start: 0, end: 2 });
+    expect(l.tags.find((t) => t.tag === 'new')).toEqual({ tag: 'new', start: 2, end: 4 });
+    expect(l.tags.find((t) => t.tag === 'a1')).toEqual({ tag: 'a1', start: 0, end: 4 });
+  });
+
+  it('a dropped element that only continued onto the line gets no span there', () => {
+    let src = X + '<prompt>';
+    for (let k = 1; k < MAX_OPEN_TAGS; k++) src += `<a${k}>`;
+    const ls = lines(src + 'p\r\n<new>q\r\n');
+    expect(ls[0]!.prompt).toBe(true);
+    expect(ls[1]!.tags.some((t) => t.tag === 'prompt')).toBe(false);
+    expect(ls[1]!.prompt).toBe(false);
+    expect(ls[1]!.tags.length).toBe(MAX_OPEN_TAGS);
+  });
+
+  it('a well-formed stream is unaffected', () => {
+    const l = one(`${X}<room><name>N</name><description>D</description></room>\r\n`);
+    expect(l.tags.map((t) => t.tag)).toEqual(['room', 'name', 'description']);
   });
 });

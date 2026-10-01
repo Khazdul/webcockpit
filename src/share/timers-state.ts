@@ -62,7 +62,7 @@ export function timersStatesAt(text: string, points: readonly number[]): TimersS
     else if (e.kind === 'gmcp' && e.pkg?.toLowerCase() === 'char.name') {
       const sp = e.body.indexOf(' ');
       try {
-        bus.emit('gmcp', { pkg: e.pkg, data: sp < 0 ? undefined : (JSON.parse(e.body.slice(sp + 1)) as unknown) });
+        bus.emit('gmcp', { pkg: e.pkg, key: 'char.name', data: sp < 0 ? undefined : (JSON.parse(e.body.slice(sp + 1)) as unknown) });
       } catch {
         // A malformed record: skip it.
       }

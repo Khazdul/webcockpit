@@ -2,7 +2,7 @@
 // the main-thread event forwarder. The map tests use the bundled arda.mm2.
 import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { MOVE_FAILURE_RE, MapEventForwarder } from '../../src/map/client';
+import { MOVE_FAILURE_RE, MapEventForwarder, moveFailure } from '../../src/map/client';
 import { ColorGenerator, GroupTable, hslColor, hueOf } from '../../src/map/group';
 import { type RoomInfo, learnIds, locate, parseRoomInfo, visibleExits } from '../../src/map/locate';
 import { DIR, type MapData } from '../../src/map/model';
@@ -80,6 +80,41 @@ describe('move-failure lines', () => {
     for (const l of ['Gibur says: Alas, you cannot go that way...', 'The door seems to be closed', 'Exits: north.', '']) {
       expect(MOVE_FAILURE_RE.test(l), l).toBe(false);
     }
+  });
+
+  it('moveFailure gives what MOVE_FAILURE_RE gives', () => {
+    const expected = (l: string) => {
+      const m = MOVE_FAILURE_RE.exec(l);
+      return m === null ? null : m[1] === undefined ? 'fail' : 'dead';
+    };
+    const lines = [
+      'Alas, you cannot go that way...',
+      'The door seems to be closed.',
+      'The gates seem to be closed.',
+      'The descent is too steep, you need to climb to go there.',
+      'Your pony is too exhausted.',
+      'You are too exhausted.',
+      'You are too exhausted to ride.',
+      "ZBLAM! The pony doesn't want you riding him anymore.",
+      "ZBLAM! The pony doesn't want you riding him anymore. Really.",
+      'You are dead! Sorry...',
+      'You are dead! The door seems to be closed.',
+      'If you still want to try, you must climb.',
+      'Gibur says: Alas, you cannot go that way...',
+      'The door seems to be closed',
+      'The door seems\u2028to be closed.',
+      'The door\u2028 seems to be closed.',
+      'seems to be closed.',
+      'Exits: north.',
+      'You',
+      '.',
+      '',
+      'Nah... You feel too relaxed to do that.',
+      'Maybe you should get on your feet first?',
+      'In your dreams, or what?',
+      'No way! You are fighting for your life!',
+    ];
+    for (const l of lines) expect(moveFailure(l), JSON.stringify(l)).toBe(expected(l));
   });
 });
 
