@@ -25,12 +25,14 @@ Newest first.
 ### 2026-10-01 — Top dock zone
 
 - **Fix:** the top screen-edge dock zone is now the upper half of row 0
-  (was 2 rows), so a dragged floating pane can sit at row 0. ADR 0014
-  amended; unit and e2e tests updated.
-- **Open issue:** e2e "a drag shows its cursor on a shield…" fails on
-  main before this change too (float handle cursor check, line ~308).
-- **Next:** owner test; later parts of stage 8.
-- **Commits:** 7b02809, plus this one.
+  (was 2 rows), so a dragged floating pane can sit at row 0. Owner
+  tested: OK.
+- **Feature:** hovering a pane shows " × " in its title row; clicking it
+  switches the pane off. ADR 0014 amended for both; unit and e2e tests.
+- **Open issue:** e2e "a drag shows its cursor on a shield…" failed once
+  in a single-file run, passed in the full run (270/270): flaky.
+- **Next:** owner test of the cross, then release; later parts of stage 8.
+- **Commits:** 7b02809, 5551a51, plus the close-cross commits.
 
 ### 2026-10-01 — Release 0.1.20
 
