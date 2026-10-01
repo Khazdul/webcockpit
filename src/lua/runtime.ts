@@ -146,6 +146,15 @@ export class LuaScript {
     if (this.refs.delete(fn)) this.rt.unref(fn);
   }
 
+  /**
+   * Sets `name` in this script's own environment (a global only this
+   * script sees). `readonly` wraps a table in a deep read-only view
+   * (`settings`). Converted like a call argument.
+   */
+  setEnv(name: string, value: unknown, readonly = false): void {
+    this.rt.setEnvValue(this, name, value, readonly);
+  }
+
   /** Releases the environment and every reference. Idempotent. */
   unload(): void {
     this.rt.unloadScript(this);
@@ -262,6 +271,9 @@ export class LuaRuntime {
   private baseRef: number;
   private envMetaRef: number;
   private collectRef: number;
+  private dataRef: number;
+  private viewRef: number;
+  private freezeRef: number;
   /** The thread whose stack the host uses now (a coroutine inside a host function). */
   private activeL: LuaState;
   private depth = 0;
@@ -290,19 +302,22 @@ export class LuaRuntime {
     this.hook = m.addFunction((Lp: number) => this.onHook(Lp), 'vii');
 
     // Sandbox: run the setup chunk unguarded (it is ours) and keep its
-    // three results.
+    // six results.
     const L = this.L;
     const top = c.lua_gettop(L);
     const name = this.cString('=sandbox');
     const len = this.encode(SANDBOX_SOURCE);
     let st = c.luaL_loadbufferx(L, this.buf, len, name, this.modePtr);
     m._free(name);
-    if (st === LUA_OK) st = c.lua_pcallk(L, 0, 3, 0, 0, 0);
+    if (st === LUA_OK) st = c.lua_pcallk(L, 0, 6, 0, 0, 0);
     if (st !== LUA_OK) {
       const msg = this.errorMessage(L);
       c.lua_settop(L, top);
       throw new Error(`lua sandbox setup failed: ${msg}`);
     }
+    this.freezeRef = c.luaL_ref(L, REGISTRY);
+    this.viewRef = c.luaL_ref(L, REGISTRY);
+    this.dataRef = c.luaL_ref(L, REGISTRY);
     this.collectRef = c.luaL_ref(L, REGISTRY);
     this.envMetaRef = c.luaL_ref(L, REGISTRY);
     this.baseRef = c.luaL_ref(L, REGISTRY);
@@ -319,7 +334,7 @@ export class LuaRuntime {
    * in a new environment and runs it under the budget. On failure
    * everything the chunk registered is released.
    */
-  loadScript(name: string, source: string): LoadResult {
+  loadScript(name: string, source: string, opts: { readonly?: Record<string, unknown> } = {}): LoadResult {
     this.assertOpen();
     const closeLine = findCloseAttrib(source);
     if (closeLine > 0) {
@@ -335,6 +350,13 @@ export class LuaRuntime {
     this.pushString(L, '_G');
     c.lua_pushvalue(L, -2);
     c.lua_rawset(L, -3);
+    if (opts.readonly) {
+      for (const [k, v] of Object.entries(opts.readonly)) {
+        this.pushString(L, k);
+        this.pushFrozen(L, v);
+        c.lua_rawset(L, -3);
+      }
+    }
     const envRef = c.luaL_ref(L, REGISTRY);
 
     const chunkName = this.cString('@' + name);
@@ -366,6 +388,81 @@ export class LuaRuntime {
    */
   defineFunction(name: string, impl: HostFunction): void {
     this.assertOpen();
+    const fp = this.closure(name, impl);
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+    this.pushString(L, name);
+    c.lua_pushcclosure(L, fp, 0);
+    c.lua_rawset(L, -3);
+    c.lua_settop(L, top);
+  }
+
+  /**
+   * Adds a read-only table of host functions to the base under `name`
+   * (`store.get`, `store.set`): no script can replace a function in it
+   * for the others. Define each table once.
+   */
+  defineTable(name: string, fns: Record<string, HostFunction>): void {
+    this.assertOpen();
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    const ptrs = Object.entries(fns).map(([k, impl]) => [k, this.closure(`${name}.${k}`, impl)] as const);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+    this.pushString(L, name);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.freezeRef));
+    c.lua_createtable(L, 0, ptrs.length);
+    for (const [k, fp] of ptrs) {
+      this.pushString(L, k);
+      c.lua_pushcclosure(L, fp, 0);
+      c.lua_rawset(L, -3);
+    }
+    const st = c.lua_pcallk(L, 1, 1, 0, 0, 0);
+    if (st !== LUA_OK) {
+      c.lua_settop(L, top);
+      throw new Error(`defineTable ${name} failed`);
+    }
+    c.lua_rawset(L, -3);
+    c.lua_settop(L, top);
+  }
+
+  /**
+   * Puts a deep read-only view of the hidden data table `name` in the
+   * base (`gmcp`, `state`). The host fills it with `setData`; scripts can
+   * read but never change it, so no script alters another's view.
+   */
+  defineView(name: string): void {
+    this.assertOpen();
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+    this.pushString(L, name);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.viewRef));
+    this.pushString(L, name);
+    const st = c.lua_pcallk(L, 1, 1, 0, 0, 0);
+    if (st !== LUA_OK) {
+      c.lua_settop(L, top);
+      throw new Error(`defineView ${name} failed`);
+    }
+    c.lua_rawset(L, -3);
+    c.lua_settop(L, top);
+  }
+
+  /**
+   * Sets a value in the hidden data table (see `defineView`): a path whose
+   * missing tables are created (`['gmcp', 'Char', 'Vitals']`). Tables are
+   * new on every set.
+   */
+  setData(path: readonly string[], value: unknown): void {
+    this.assertOpen();
+    this.setPath(this.dataRef, path, value);
+  }
+
+  /** A C closure for a host function (kept until `close`). */
+  private closure(name: string, impl: HostFunction): Ptr {
     const m = this.m;
     const c = this.c;
     const args = new LuaArgs(this, name);
@@ -393,13 +490,7 @@ export class LuaRuntime {
       return c.lua_error(Lp);
     }, 'ii');
     this.functions.push(fp);
-    const L = this.activeL;
-    const top = c.lua_gettop(L);
-    c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
-    this.pushString(L, name);
-    c.lua_pushcclosure(L, fp, 0);
-    c.lua_rawset(L, -3);
-    c.lua_settop(L, top);
+    return fp;
   }
 
   /**
@@ -409,14 +500,17 @@ export class LuaRuntime {
    */
   setGlobal(path: string | readonly string[], value: unknown): void {
     this.assertOpen();
-    const keys = typeof path === 'string' ? [path] : path;
+    this.setPath(this.baseRef, typeof path === 'string' ? [path] : path, value);
+  }
+
+  private setPath(rootRef: number, keys: readonly string[], value: unknown): void {
     if (keys.length === 0) throw new Error('setGlobal: empty path');
     const c = this.c;
     const L = this.activeL;
     const top = c.lua_gettop(L);
     try {
       c.lua_checkstack(L, keys.length + MIN_STACK);
-      c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+      c.lua_rawgeti(L, REGISTRY, BigInt(rootRef));
       for (let i = 0; i < keys.length - 1; i++) {
         this.pushString(L, keys[i]!);
         if (c.lua_rawget(L, -2) !== T_TABLE) {
@@ -476,6 +570,39 @@ export class LuaRuntime {
       return { ok: false, kind: 'error', message: `${script.name}: ${e instanceof Error ? e.message : String(e)}` };
     }
     return this.protectedCall(script, L, top, args.length);
+  }
+
+  /** @internal */
+  setEnvValue(script: LuaScript, name: string, value: unknown, readonly: boolean): void {
+    if (this.closed || !script.loaded) return;
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    try {
+      c.lua_checkstack(L, 4 + MIN_STACK);
+      c.lua_rawgeti(L, REGISTRY, BigInt(script.envRef));
+      this.pushString(L, name);
+      if (readonly) this.pushFrozen(L, value);
+      else this.push(L, value, 0);
+      c.lua_rawset(L, -3);
+    } finally {
+      c.lua_settop(L, top);
+    }
+  }
+
+  /** Pushes `v`; a table as a deep read-only view (the sandbox's `freeze`). */
+  private pushFrozen(L: LuaState, v: unknown): void {
+    const c = this.c;
+    if (typeof v !== 'object' || v === null) {
+      this.push(L, v, 0);
+      return;
+    }
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.freezeRef));
+    this.push(L, v, 0);
+    if (c.lua_pcallk(L, 1, 1, 0, 0, 0) !== LUA_OK) {
+      c.lua_settop(L, -2);
+      throw new Error('could not freeze a table');
+    }
   }
 
   /** @internal */

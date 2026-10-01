@@ -396,3 +396,93 @@ describe('references', () => {
     inner.unload();
   });
 });
+
+describe('views, read-only tables and env (P1)', () => {
+  it('defineView shows hidden data read-only, nested tables included', () => {
+    rt.defineView('gmcpv');
+    rt.setData(['gmcpv', 'Char', 'Vitals'], { hp: 10, list: [1, 2, 3] });
+    expect(value('return gmcpv.Char.Vitals.hp')).toBe(10);
+    expect(value('local n = 0; for _, v in ipairs(gmcpv.Char.Vitals.list) do n = n + v end; return #gmcpv.Char.Vitals.list .. ":" .. n')).toBe('3:6');
+    expect(value('local n = 0; for k, v in pairs(gmcpv.Char) do n = n + 1 end; return n')).toBe(1);
+    const w = run('gmcpv.Char.Vitals.hp = 1');
+    expect(w).toMatchObject({ ok: false, kind: 'error' });
+    expect((w as { message: string }).message).toMatch(/read-only/);
+    expect(run('gmcpv.Char = {}')).toMatchObject({ ok: false });
+    expect(run('rawset(gmcpv.Char.Vitals, "hp", 1)')).toMatchObject({ ok: false });
+    expect(run('rawset(gmcpv, "x", 1)')).toMatchObject({ ok: false });
+    expect(value('return gmcpv.Char.Vitals.hp')).toBe(10);
+    rt.setData(['gmcpv', 'Char', 'Vitals'], { hp: 11 });
+    expect(value('return gmcpv.Char.Vitals.hp')).toBe(11);
+    expect(value('return gmcpv.Nope')).toBe(undefined);
+  });
+
+  it('a script can shadow a view name only in its own environment', () => {
+    rt.defineView('statev');
+    rt.setData(['statev', 'x'], 1);
+    registered = [];
+    const a = load('a', 'statev = 5; register(function() return statev end)');
+    const b = load('b', 'register(function() return statev.x end)');
+    expect(a.call(registered[0]!)).toEqual({ ok: true, value: 5 });
+    expect(b.call(registered[1]!)).toEqual({ ok: true, value: 1 });
+    a.unload();
+    b.unload();
+  });
+
+  it('defineTable gives a read-only table of host functions', () => {
+    const got: string[] = [];
+    rt.defineTable('kv', { put: (a) => void got.push(a.string(1)), get: () => 'v' });
+    expect(value('kv.put("x"); return kv.get()')).toBe('v');
+    expect(got).toEqual(['x']);
+    expect(run('kv.get = function() return "evil" end')).toMatchObject({ ok: false });
+    expect(value('return kv.get()')).toBe('v');
+  });
+
+  it('loadScript readonly env and setEnv', () => {
+    registered = [];
+    const r = rt.loadScript('env', 'register(function() return settings.delay, line end)', { readonly: { settings: { delay: 0.5 } } });
+    expect(r.ok).toBe(true);
+    const s = (r as { script: LuaScript }).script;
+    expect(s.call(registered[0]!)).toEqual({ ok: true, value: 0.5 });
+    // Another script does not see this one's settings.
+    registered = [];
+    const t = load('env2', 'register(function() return settings end)');
+    expect(t.call(registered[0]!)).toEqual({ ok: true, value: undefined });
+    t.unload();
+    s.unload();
+  });
+
+  it('setEnv values are per script; frozen settings cannot be changed', () => {
+    registered = [];
+    const s = load('env3', 'register(function() return line end); register(function() settings.delay = 1 end); register(function() return settings.delay end)');
+    s.setEnv('line', 'abc');
+    expect(s.call(registered[0]!)).toEqual({ ok: true, value: 'abc' });
+    s.setEnv('settings', { delay: 3 }, true);
+    expect(s.call(registered[1]!)).toMatchObject({ ok: false, kind: 'error' });
+    expect(s.call(registered[2]!)).toEqual({ ok: true, value: 3 });
+    s.unload();
+  });
+});
+
+describe('pattern guard (P1)', () => {
+  it('refuses a pathological pattern on a long subject quickly', () => {
+    const t0 = performance.now();
+    const r = run('local s = ("a"):rep(3000):find(".-.-.-b"); return s');
+    expect(performance.now() - t0).toBeLessThan(500);
+    expect(r).toMatchObject({ ok: false, kind: 'error' });
+    expect((r as { message: string }).message).toMatch(/^t:1: pattern too complex for a 3000-byte subject \(string\.find\)/);
+    // A tail call has no caller line left to name.
+    expect(run('return ("a"):rep(3000):find(".-.-.-b")')).toMatchObject({ ok: false, message: expect.stringMatching(/^pattern too complex/) });
+    expect(run('return string.match(("a"):rep(3000), ".*.*.*b")')).toMatchObject({ ok: false });
+    expect(run('for x in ("a"):rep(3000):gmatch(".-.-.-b") do end')).toMatchObject({ ok: false });
+    expect(run('return (("a"):rep(3000):gsub(".-.-.-b", ""))')).toMatchObject({ ok: false });
+  });
+
+  it('leaves ordinary searches alone', () => {
+    const line = 'Gandalf tells you \'meet me at the gate in five minutes, bring the rope and the lamp please\'';
+    expect(value(`return select(2, ("${line.replace(/'/g, "\\'")}"):match("^(.-) tells you '(.-)'$"))`)).toBe('meet me at the gate in five minutes, bring the rope and the lamp please');
+    expect(value('return ("a"):rep(3000):find(".-.-.-b", 1, true)')).toBe(undefined);
+    expect(value('return ("a"):rep(3000):find("[%a%-]+%-%-%-")')).toBe(undefined);
+    expect(value('return ("x"):rep(100):find(".-.-.-y")')).toBe(undefined);
+    expect(value('return ("%"):rep(3):gsub("%%", "p")')).toBe('ppp');
+  });
+});
