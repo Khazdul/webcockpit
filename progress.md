@@ -22,6 +22,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Player: close cross sticks
+
+- **Fix (owner report):** a pane hidden with its close cross in RUN LOG
+  or the HTML replay came back after a seek; the player host now records
+  it as a pane override, same as the gear's pane toggle.
+- **Verified:** typecheck, unit 1497 green (new test fails without the
+  fix), e2e viewer/replay/player 26/26.
+- **Next:** unchanged (owner test of part D, then release).
+- **Commits:** d1e5ff6, plus this one.
+
 ### 2026-10-01 — More fonts (stage 8 part D)
 
 - **Fonts:** 13 more bundled families (Agave, Anonymous Pro, Cascadia
