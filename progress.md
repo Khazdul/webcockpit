@@ -25,6 +25,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 10 P1: script API
+
+- **Built:** header parser, DB v8 (`scripts`, `scriptData`), the library
+  service, a lazy script host with per-script owner registries, the
+  `scripts` rule store, API v1 without panes, `#script` and `#lua`, and
+  a hang guard (marker plus a pattern guard). ADR 0051 package notes.
+- **Verified:** typecheck; unit 1611 green; e2e `scripts.spec.ts` in
+  Chromium and Firefox. Bench: 15.4 µs per line with a Lua script, 14.5
+  without (budget 200).
+- **Open:** in Firefox the in-call hang marker is untested with a real
+  hang.
+- **Next:** P2 Scripts page and editor, and P3 coin looter (both running).
+- **Commits:** 8aff713..fefaabf, plus this one.
+
 ### 2026-10-01 — Stage 10 P0: Lua runtime
 
 - **Owner decisions:** scripts move ahead of v1; split into stages 10
