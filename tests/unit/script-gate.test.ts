@@ -147,6 +147,18 @@ describe('literal gate: behaviour', () => {
     expect(seen).toEqual([['one line', 'one line']]);
   });
 
+  it('native catch-alls called directly get the same arguments as through the regex', () => {
+    const t = setup();
+    const seen: string[][] = [];
+    t.e.system.define('action', '%3', '', { fn: (m) => seen.push(m.args) });
+    t.e.system.define('action', '%!*', '', { priority: 9, fn: (m) => seen.push(m.args) });
+    t.recv('a b');
+    t.e.input('#showme {two\nlines}');
+    expect(seen[0]).toEqual(['a b', '', '', 'a b']);
+    expect(seen[1]).toEqual(['a b']);
+    expect(seen.length).toBe(4);
+  });
+
   it('^ anchors and $ ends', () => {
     const t = setup();
     t.e.input(FILLERS + ';#action {^You hit} {a};#action {flees.$} {b};#highlight {^Exits:} {red}');

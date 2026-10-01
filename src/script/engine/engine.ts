@@ -26,7 +26,7 @@ import { parseColored } from './color';
 import { ExprError, evalCondition, evalMath } from './expr';
 import { formatString } from './format';
 import { GateCache } from './gate';
-import { type CompiledPattern, argsFrom, compilePattern, globalRe, matchPattern } from './pattern';
+import { type CompiledPattern, argsFrom, compilePattern, globalRe, isOneLine, matchPattern, wholeArgs } from './pattern';
 import { CLASS_OF, MESSAGE_CLASSES, type MessageClass, type Report, type ReportItem, type ReportStateRow, resolveMessageClass } from './report';
 import { overlay, splice, styleAt } from './runs';
 import {
@@ -956,8 +956,15 @@ export class ScriptEngine {
     const n = actions.length;
     // Without a jump table every rule is tried (gate.ts).
     const next = this.gates.skipTable(actions, text);
+    let oneLine: boolean | undefined;
     for (let i = next ? next[0]! : 0; i < n; i = next ? next[i + 1]! : i + 1) {
       const r = actions[i]!;
+      const c = r.compiled;
+      if (r.fn && c?.whole && (oneLine ??= isOneLine(text))) {
+        // A native catch-all (system rules): called directly.
+        r.fn({ args: wholeArgs(c, text), line });
+        continue;
+      }
       const m = this.matchRule(r, text);
       if (!m) continue;
       this.fire(r, m.args, line);
