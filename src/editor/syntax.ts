@@ -11,7 +11,7 @@
 // A `cmd` token whose word resolves to an inert or unsupported command
 // carries that command's hint.
 
-import { resolveCommand } from '../script/commands';
+import { resolveCommand, scriptCommandArgs } from '../script/commands';
 
 export type TokenClass = 'cmd' | 'brace' | 'delim' | 'var' | 'code';
 
@@ -92,7 +92,7 @@ export function tokenizeLine(s: string): Token[] {
       while (j < n && isIdChar(s.charCodeAt(j))) j++;
       const tok: Token = { from: i, to: j, cls: 'cmd' };
       const res = resolveCommand(s.slice(i + 1, j));
-      if (res && res !== 'ambiguous' && res.inert && res.hint) tok.hint = res.hint;
+      if (res && res !== 'ambiguous' && res.inert && res.hint && !scriptCommandArgs(res.name, restOfCommand(s, j))) tok.hint = res.hint;
       out.push(tok);
       i = j;
       continue;
@@ -231,4 +231,17 @@ export function balanceText(scan: Pick<BraceScan, 'unclosed' | 'stray'>): string
   if (scan.unclosed > 0) parts.push(`${scan.unclosed} unclosed {`);
   if (scan.stray > 0) parts.push(`${scan.stray} stray }`);
   return parts.join('  ·  ');
+}
+
+/** The text of the command from `from` up to a `;` outside braces (or the end of the line). */
+function restOfCommand(s: string, from: number): string {
+  let depth = 0;
+  for (let i = from; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c === 0x5c) i++;
+    else if (c === 0x7b) depth++;
+    else if (c === 0x7d) depth--;
+    else if (c === 0x3b && depth <= 0) return s.slice(from, i);
+  }
+  return s.slice(from);
 }

@@ -15,6 +15,9 @@
 // - One exception: a one-letter word that starts several names is
 //   'ambiguous' (tt++ would silently pick the first, e.g. `#s` → #scan).
 // - A word longer than a name never matches it: `#macros` is unknown.
+//
+// `#script` and `#lua` are inert except in the forms that act on the
+// script library (spec §3, §2.10, ADR 0051): see `scriptCommandArgs`.
 
 /** What a command does, for the engine's dispatch and the editor's hints. */
 export type CommandKind =
@@ -251,4 +254,61 @@ export function resolveCommand(word: string): CommandEntry | null | 'ambiguous' 
   if (!first) return null;
   if (w.length === 1 && count > 1) return 'ambiguous';
   return first;
+}
+
+/** `#script` subcommands that act on the script library (ADR 0051). */
+export const SCRIPT_SUBCOMMANDS: readonly string[] = ['list', 'help', 'set', 'enable', 'disable', 'reload'];
+
+/**
+ * The arguments of a `#script` or `#lua` command (`name` without `#`,
+ * `rest` the text after the word) when it is a form WebCockpit runs, else
+ * null (the command stays inert with its hint):
+ *
+ * - `#script <sub> …` with a subcommand from `SCRIPT_SUBCOMMANDS` (any
+ *   case); the first argument comes back lower-cased.
+ * - `#lua {script} {function} [args…]`: at least two arguments.
+ *
+ * Arguments are words or `{…}` groups (braces removed). So a pasted tt++
+ * `#script {var} {shell command}` stays inert.
+ */
+export function scriptCommandArgs(name: string, rest: string): string[] | null {
+  if (name !== 'script' && name !== 'lua') return null;
+  const args = commandWords(rest);
+  if (name === 'lua') return args.length >= 2 ? args : null;
+  const sub = args[0]?.toLowerCase();
+  if (sub === undefined || !SCRIPT_SUBCOMMANDS.includes(sub)) return null;
+  args[0] = sub;
+  return args;
+}
+
+/** Words and `{…}` groups of `text`, outer braces removed. */
+function commandWords(text: string): string[] {
+  const out: string[] = [];
+  let i = 0;
+  const n = text.length;
+  while (i < n) {
+    const c = text.charCodeAt(i);
+    if (c === 32 || c === 9 || c === 10 || c === 13) {
+      i++;
+      continue;
+    }
+    if (c === 0x7b) {
+      let depth = 0;
+      let j = i;
+      for (; j < n; j++) {
+        const d = text.charCodeAt(j);
+        if (d === 0x5c) j++;
+        else if (d === 0x7b) depth++;
+        else if (d === 0x7d && --depth === 0) break;
+      }
+      out.push(text.slice(i + 1, Math.min(j, n)));
+      i = j + 1;
+      continue;
+    }
+    let j = i;
+    while (j < n && !/\s/.test(text[j]!)) j++;
+    out.push(text.slice(i, j));
+    i = j;
+  }
+  return out;
 }

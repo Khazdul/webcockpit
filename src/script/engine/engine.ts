@@ -8,10 +8,16 @@
 //   processPartial     substitutes and highlights only → `text.displayPartial`
 //   loadProfile(text)  atomic: builds a new user store, swaps when done
 //
-// Two stores: `system` (built-in code; never serialised) and the user
-// store (the profile). Actions of both stores fan out in priority order;
-// the first matching alias wins. Everything runs synchronously: key →
-// send has no await.
+// Three stores: `system` (built-in code; never serialised), the user
+// store (the profile) and `scripts` (rules of enabled Lua scripts, written
+// only by src/scripts, ADR 0051). Actions of all stores fan out in
+// priority order; the first matching alias wins. Everything runs
+// synchronously: key → send has no await.
+//
+// Script line edits (ADR 0051): while a line runs its actions, a native
+// handler may ask for `lineEdit()` and gag the line, replace its displayed
+// text or highlight it; the display copy applies them. `echo` during a
+// line is shown after that line.
 //
 // Guards: alias nesting depth (ALIAS_DEPTH), an alias never re-enters
 // itself (its own name in its body is sent to the game), #showme → action
@@ -20,7 +26,7 @@
 
 import type { Bus } from '../../core/bus';
 import { type BusEvents, type Line, type StyleRun, nowUs } from '../../core/types';
-import { type CommandEntry, resolveCommand } from '../commands';
+import { type CommandEntry, resolveCommand, scriptCommandArgs } from '../commands';
 import { checkBraces, parseProfile } from '../doc';
 import { parseColored } from './color';
 import { ExprError, evalCondition, evalMath } from './expr';
@@ -28,6 +34,7 @@ import { formatString } from './format';
 import { GateCache } from './gate';
 import { type CompiledPattern, argsFrom, compilePattern, globalRe, isOneLine, matchPattern, wholeArgs } from './pattern';
 import { CLASS_OF, MESSAGE_CLASSES, type MessageClass, type Report, type ReportItem, type ReportStateRow, resolveMessageClass } from './report';
+import type { Style } from './color';
 import { overlay, splice, styleAt } from './runs';
 import {
   DEFAULT_PRIORITY,
@@ -100,7 +107,30 @@ export interface EngineOptions {
    * compare against the ungated loops in tests and benchmarks.
    */
   literalGates?: boolean;
+  /**
+   * `#script` and `#lua` in a form that acts on the script library
+   * (commands.ts `scriptCommandArgs`), with their arguments, variables
+   * expanded. Not called while a profile loads. Without it both stay inert.
+   */
+  scriptCommand?: (name: 'script' | 'lua', args: string[]) => void;
 }
+
+/**
+ * What native handlers asked for the line being processed (ADR 0051):
+ * gag it, show other text, colour it, and lines to echo after it.
+ */
+export interface LineEdit {
+  gag: boolean;
+  /** Replacement display text (colour codes already parsed), or null. */
+  replace: { text: string; runs: StyleRun[] } | null;
+  /** Highlights on the final display text: all of it (`text` null) or each occurrence of `text`. */
+  highlights: Array<{ style: Style; text: string | null }> | null;
+  /** Lines to show after this one. */
+  echoes: Line[] | null;
+}
+
+/** Listener for fired events (#event names), for the script host. */
+export type EventTap = (name: string, args: readonly string[]) => void;
 
 /** The kinds of definition a typed command can put in the profile (ADR 0038). */
 export type PersistKind = ListKind | 'variable' | 'ticker';
@@ -154,7 +184,14 @@ const LIST_KIND_BY_RULE: Partial<Record<string, ListKind>> = {
 export class ScriptEngine {
   /** Built-in rules (trackers, stage 5). Never written to a profile. */
   readonly system: RuleStore;
+  /** Rules of enabled Lua scripts (ADR 0051). Never written to a profile. */
+  readonly scripts: RuleStore;
   private userStore: RuleStore;
+  private eventTap: EventTap | null = null;
+  /** True while a line (or a #showme line) runs its actions. */
+  private lineOpen = false;
+  /** The open line's edits, created on the first `lineEdit()`. */
+  private edit: LineEdit | null = null;
   private readonly opts: EngineOptions;
   private readonly scheduler: Scheduler;
   private readonly now: () => number;
@@ -165,7 +202,7 @@ export class ScriptEngine {
   private readonly hashCache = new Map<string, ParsedHash>();
   private readonly anchoredCache = new WeakMap<CompiledPattern, RegExp>();
   private readonly globalCache = new WeakMap<CompiledPattern, RegExp>();
-  private readonly mergedCache = new Map<ListKind, { sv: number; uv: number; u: RuleStore; list: readonly Rule[] }>();
+  private readonly mergedCache = new Map<ListKind, { sv: number; uv: number; xv: number; u: RuleStore; list: readonly Rule[] }>();
   /** Literal gates of the action, substitute, gag and highlight lists (gate.ts). */
   private readonly gates: GateCache;
 
@@ -185,7 +222,34 @@ export class ScriptEngine {
     this.scheduler = opts.scheduler ?? realScheduler;
     this.now = opts.now ?? Date.now;
     this.system = new RuleStore('system', this.scheduler, this.onTimer);
+    this.scripts = new RuleStore('scripts', this.scheduler, this.onTimer);
     this.userStore = new RuleStore('user', this.scheduler, this.onTimer);
+  }
+
+  /** Sets the listener for every fired event (the script host); null removes it. */
+  setEventTap(tap: EventTap | null): void {
+    this.eventTap = tap;
+  }
+
+  /**
+   * The edits of the line whose actions are running, or null when no line
+   * is (a timer, a key). Native handlers write into it (ADR 0051).
+   */
+  lineEdit(): LineEdit | null {
+    if (!this.lineOpen) return null;
+    return (this.edit ??= { gag: false, replace: null, highlights: null, echoes: null });
+  }
+
+  /**
+   * Shows a client line in the game output (a script's `echo`): no
+   * actions, no display pipeline, not captured. During a line's actions it
+   * is shown after that line.
+   */
+  echo(text: string, runs: StyleRun[] = []): void {
+    const line: Line = { text, runs, tags: [], prompt: false, raw: text, ts: nowUs() };
+    const e = this.lineEdit();
+    if (e) (e.echoes ??= []).push(line);
+    else this.bus?.emit('text.display', { line, source: line, local: true });
   }
 
   /** The profile's store (replaced by loadProfile). */
@@ -215,17 +279,18 @@ export class ScriptEngine {
     this.unsubs.length = 0;
     this.userStore.dispose();
     this.system.dispose();
+    this.scripts.dispose();
   }
 
   private onGmcp(m: BusEvents['gmcp.raw']): void {
-    if (!this.system.hasEvents && !this.userStore.hasEvents) return;
+    if (!this.system.hasEvents && !this.userStore.hasEvents && !this.eventTap) return;
     const args = [m.pkg, m.json];
     this.fireEvent('IAC SB GMCP ' + m.pkg, args);
     this.fireEvent('IAC SB GMCP', args);
   }
 
   private onConn(s: BusEvents['conn.state']): void {
-    if (!this.system.hasEvents && !this.userStore.hasEvents) return;
+    if (!this.system.hasEvents && !this.userStore.hasEvents && !this.eventTap) return;
     if (s.state === 'login' && s.prev === 'connecting') this.fireEvent('SESSION CONNECTED', ['mume']);
     else if (s.state === 'disconnected' && s.prev !== 'disconnected' && s.prev !== 'idle') {
       this.fireEvent('SESSION DISCONNECTED', ['mume', s.reason ?? '']);
@@ -240,6 +305,8 @@ export class ScriptEngine {
       if (!r) continue;
       this.entry(() => this.fire(r, [...args], null));
     }
+    const tap = this.eventTap;
+    if (tap) this.entry(() => tap(key, args));
   }
 
   // ------------------------------------------------------------------ load
@@ -308,14 +375,14 @@ export class ScriptEngine {
 
   /** Runs the macro bound to a canonical key name. False when none is bound. */
   runMacro(key: string): boolean {
-    const r = this.userStore.macro(key) ?? this.system.macro(key);
+    const r = this.userStore.macro(key) ?? this.scripts.macro(key) ?? this.system.macro(key);
     if (!r) return false;
     this.entry(() => this.fire(r, null, null));
     return true;
   }
 
   hasMacro(key: string): boolean {
-    return this.userStore.macro(key) !== undefined || this.system.macro(key) !== undefined;
+    return this.userStore.macro(key) !== undefined || this.scripts.macro(key) !== undefined || this.system.macro(key) !== undefined;
   }
 
   /** Runs `text` as a command list in the user store context (like a rule body). */
@@ -332,9 +399,14 @@ export class ScriptEngine {
     return this.userStore.getVar(name) ?? this.system.getVar(name);
   }
 
-  /** Sets a user variable (as `#variable` typed by the user would). */
-  setVariable(name: string, value: string): void {
-    this.setVar({ store: this.userStore, depth: 0, direct: true }, name, value, true);
+  /**
+   * Sets a user variable: as `#variable` typed by the user would (`typed`,
+   * the default: a typed definition goes into the profile, ADR 0038), or as
+   * a rule body would (`typed` false: only a declared variable is written
+   * back, Lua's `setVariable`).
+   */
+  setVariable(name: string, value: string, typed = true): void {
+    this.setVar({ store: this.userStore, depth: 0, direct: typed }, name, value, true);
   }
 
   private entry(fn: () => void): void {
@@ -407,7 +479,15 @@ export class ScriptEngine {
       return;
     }
     if (rule.fn) {
-      rule.fn({ args, line: null });
+      // A native alias (a Lua script's) consumes the command unless it
+      // returns false; then the next alias may take it, or it is sent.
+      this.activeAliases.add(rule);
+      try {
+        if (rule.fn({ args, line: null, input: line }) !== false) return;
+        this.execText(cmd, ctx);
+      } finally {
+        this.activeAliases.delete(rule);
+      }
       return;
     }
     let body = expandArgs(rule.body, args);
@@ -433,7 +513,7 @@ export class ScriptEngine {
     let best: Rule | null = null;
     let bestArgs: string[] | null = null;
     let plainRest: string | null = null;
-    for (const store of [this.system, this.userStore]) {
+    for (const store of [this.system, this.userStore, this.scripts]) {
       const p = store.plainAlias(word);
       if (p && !this.activeAliases.has(p) && (!best || ruleOrder(p, best) < 0)) {
         best = p;
@@ -444,7 +524,7 @@ export class ScriptEngine {
       plainRest = line.slice(word.length).trim();
       bestArgs = [plainRest, ...splitWords(plainRest)];
     }
-    for (const store of [this.system, this.userStore]) {
+    for (const store of [this.system, this.userStore, this.scripts]) {
       const list = store.patternAliases();
       for (let i = 0; i < list.length; i++) {
         const r = list[i]!;
@@ -539,6 +619,14 @@ export class ScriptEngine {
       return IF_NONE;
     }
     if (e.inert) {
+      if (this.opts.scriptCommand && (e.name === 'script' || e.name === 'lua')) {
+        const args = scriptCommandArgs(e.name, this.vars(p.rest, ctx));
+        if (args) {
+          if (this.loading) this.warn(`#${e.name} is not run while loading`);
+          else this.opts.scriptCommand(e.name, args.map(finishText));
+          return ifState;
+        }
+      }
       this.hint(e, ctx);
       return ifState;
     }
@@ -906,7 +994,7 @@ export class ScriptEngine {
   // ---------------------------------------------------------------- timers
 
   private readonly onTimer = (t: Timer, store: RuleStore): void => {
-    if (store !== this.userStore && store !== this.system) return;
+    if (store !== this.userStore && store !== this.system && store !== this.scripts) return;
     this.entry(() => {
       if (t.fn) t.fn();
       else this.execList(t.body, { store, depth: 0, direct: false });
@@ -915,18 +1003,22 @@ export class ScriptEngine {
 
   // --------------------------------------------------------------- display
 
-  /** Sorted rules of a kind from both stores (cached until either changes). */
+  /** Sorted rules of a kind from all stores (cached until one changes). */
   private merged(kind: ListKind): readonly Rule[] {
     const sys = this.system;
     const usr = this.userStore;
+    const scr = this.scripts;
     const sl = sys.rules(kind);
-    if (sl.length === 0) return usr.rules(kind);
     const ul = usr.rules(kind);
-    if (ul.length === 0) return sl;
+    const xl = scr.rules(kind);
+    if (xl.length === 0) {
+      if (sl.length === 0) return ul;
+      if (ul.length === 0) return sl;
+    } else if (sl.length === 0 && ul.length === 0) return xl;
     const c = this.mergedCache.get(kind);
-    if (c && c.sv === sys.version && c.uv === usr.version && c.u === usr) return c.list;
-    const list = [...sl, ...ul].sort(ruleOrder);
-    this.mergedCache.set(kind, { sv: sys.version, uv: usr.version, u: usr, list });
+    if (c && c.sv === sys.version && c.uv === usr.version && c.xv === scr.version && c.u === usr) return c.list;
+    const list = [...sl, ...ul, ...xl].sort(ruleOrder);
+    this.mergedCache.set(kind, { sv: sys.version, uv: usr.version, xv: scr.version, u: usr, list });
     return list;
   }
 
@@ -938,11 +1030,29 @@ export class ScriptEngine {
   /** Runs the actions for a received line, then emits its display copy. */
   processLine(line: Line): void {
     const actions = this.merged('action');
-    if (actions.length > 0) this.entry(() => this.runActions(actions, line));
-    const shown = this.displayCopy(line, false);
+    let edit: LineEdit | null = null;
+    if (actions.length > 0) {
+      const outerOpen = this.lineOpen;
+      const outerEdit = this.edit;
+      this.lineOpen = true;
+      this.edit = null;
+      try {
+        this.entry(() => this.runActions(actions, line));
+      } finally {
+        edit = this.edit as LineEdit | null; // set by handlers meanwhile
+        this.lineOpen = outerOpen;
+        this.edit = outerEdit;
+      }
+    }
+    const shown = this.displayCopy(line, false, edit);
     if (shown) this.bus?.emit('text.display', { line: shown, source: line });
     // A gagged line still supersedes the partial it completes.
     else this.bus?.emit('text.displayPartial', { line: EMPTY_LINE, source: line });
+    if (edit?.echoes) this.emitEchoes(edit.echoes);
+  }
+
+  private emitEchoes(lines: readonly Line[]): void {
+    for (const l of lines) this.bus?.emit('text.display', { line: l, source: l, local: true });
   }
 
   /** The partial line with substitutes and highlights (no actions, no gags). */
@@ -977,12 +1087,20 @@ export class ScriptEngine {
     const c = parseColored(text);
     const line: Line = { text: c.text, runs: c.runs, tags: [], prompt: false, raw: c.text, ts: nowUs() };
     const actions = this.merged('action');
+    let edit: LineEdit | null = null;
     if (actions.length > 0) {
       if (this.showDepth < SHOW_DEPTH) {
         this.showDepth++;
+        const outerOpen = this.lineOpen;
+        const outerEdit = this.edit;
+        this.lineOpen = true;
+        this.edit = null;
         try {
           this.runActions(actions, line);
         } finally {
+          edit = this.edit as LineEdit | null; // set by handlers meanwhile
+          this.lineOpen = outerOpen;
+          this.edit = outerEdit;
           this.showDepth--;
         }
       } else if (!this.showWarned) {
@@ -991,16 +1109,42 @@ export class ScriptEngine {
       }
     }
     if (this.showDepth === 0) this.showWarned = false;
-    const shown = this.displayCopy(line, false);
+    const shown = this.displayCopy(line, false, edit);
     if (shown) this.bus?.emit('text.display', { line: shown, source: line, local: true });
+    if (edit?.echoes) this.emitEchoes(edit.echoes);
   }
 
   /**
    * The display copy of a line: substitutes, then gags (unless `partial`),
    * then highlights, on the substituted text. Returns `line` itself when
    * nothing applies and null when the line is gagged.
+   *
+   * Script edits (`edit`): a gag drops the line at once; a replacement is
+   * the text the profile's substitutes, gags and highlights then work on;
+   * script highlights apply last.
    */
-  displayCopy(line: Line, partial: boolean): Line | null {
+  displayCopy(line: Line, partial: boolean, edit: LineEdit | null = null): Line | null {
+    if (edit === null) return this.profileCopy(line, partial);
+    if (edit.gag) return null;
+    const base = edit.replace ? { ...line, text: edit.replace.text, runs: edit.replace.runs, tags: [] } : line;
+    const out = this.profileCopy(base, partial);
+    if (!out || !edit.highlights) return out;
+    let runs = out.runs;
+    const text = out.text;
+    for (const h of edit.highlights) {
+      if (h.text === null) {
+        if (text.length > 0) runs = overlay(runs, text.length, 0, text.length, h.style);
+        continue;
+      }
+      if (h.text === '') continue;
+      for (let i = text.indexOf(h.text); i >= 0; i = text.indexOf(h.text, i + h.text.length)) {
+        runs = overlay(runs, text.length, i, i + h.text.length, h.style);
+      }
+    }
+    return runs === out.runs ? out : { ...out, runs };
+  }
+
+  private profileCopy(line: Line, partial: boolean): Line | null {
     const subs = this.merged('substitute');
     const gags = partial ? EMPTY : this.merged('gag');
     const his = this.merged('highlight');

@@ -1,6 +1,6 @@
 // Rule stores (ADR 0015 "Engine contract"): one for the profile (user),
-// one for built-in code (system). A store holds rules, variables, timers
-// and the open #class.
+// one for built-in code (system), one for enabled Lua scripts (scripts,
+// ADR 0051). A store holds rules, variables, timers and the open #class.
 //
 // - Lists are kept sorted by priority (lower first, default 5), ties in
 //   definition order. Defining a rule whose pattern (key) already exists
@@ -8,7 +8,8 @@
 // - Lists are copy-on-write: a list being iterated (a line running its
 //   actions) never changes under the loop; a rule defined meanwhile takes
 //   effect from the next line.
-// - A rule has either a script `body` or, for system code, a native `fn`.
+// - A rule has either a script `body` or, for system code and Lua scripts,
+//   a native `fn`.
 
 import type { Line } from '../../core/types';
 import { keyBindability, normalizeKey } from '../keys';
@@ -31,7 +32,15 @@ export interface MatchContext {
   args: string[];
   /** The line that matched (actions), or null. */
   line: Line | null;
+  /** Aliases: the whole command line the alias matched. */
+  input?: string;
 }
+
+/**
+ * A native handler. An alias handler that returns `false` does not
+ * consume the command: the engine looks for the next alias, else sends it.
+ */
+export type NativeHandler = (ctx: MatchContext) => unknown;
 
 export interface Rule {
   readonly kind: ListKind;
@@ -49,8 +58,8 @@ export interface Rule {
   readonly dynamic: boolean;
   /** Highlights: the parsed style. */
   readonly style?: HighlightStyle;
-  /** Native handler (system rules). */
-  readonly fn?: (ctx: MatchContext) => void;
+  /** Native handler (system rules, Lua scripts). */
+  readonly fn?: NativeHandler;
 }
 
 export interface Timer {
@@ -77,8 +86,10 @@ const HAS_VAR = /[$&](\{|[A-Za-z_])/;
 
 export interface DefineOptions {
   priority?: number;
-  fn?: (ctx: MatchContext) => void;
+  fn?: NativeHandler;
 }
+
+export type StoreName = 'user' | 'system' | 'scripts';
 
 export class RuleStore {
   private lists: Record<ListKind, Rule[]> = {
@@ -109,11 +120,11 @@ export class RuleStore {
   /** Bumped on every rule list change (for callers' caches). */
   version = 0;
 
-  readonly name: 'user' | 'system';
+  readonly name: StoreName;
   private readonly scheduler: Scheduler;
   private readonly onTimer: (t: Timer, store: RuleStore) => void;
 
-  constructor(name: 'user' | 'system', scheduler: Scheduler, onTimer: (t: Timer, store: RuleStore) => void) {
+  constructor(name: StoreName, scheduler: Scheduler, onTimer: (t: Timer, store: RuleStore) => void) {
     this.name = name;
     this.scheduler = scheduler;
     this.onTimer = onTimer;
@@ -181,6 +192,33 @@ export class RuleStore {
     if (kind === 'alias') this.indexAlias(rule);
     else if (kind === 'macro') this.macros.set(key, rule);
     else if (kind === 'event') this.events.set(key, rule);
+    this.version++;
+    return rule;
+  }
+
+  /**
+   * Defines (or replaces) a native rule under `key` with a pattern
+   * compiled by the caller (Lua script triggers and aliases: substring
+   * and JavaScript regex forms, src/scripts/patterns.ts). The key only
+   * identifies the rule for `remove`.
+   */
+  defineCompiled(kind: 'action' | 'alias', key: string, compiled: CompiledPattern, opts: DefineOptions & { fn: NativeHandler }): Rule {
+    const rule: Rule = {
+      kind,
+      pattern: key,
+      body: '',
+      priority: opts.priority ?? DEFAULT_PRIORITY,
+      seq: ++seqCounter,
+      cls: null,
+      store: this,
+      compiled,
+      dynamic: false,
+      fn: opts.fn,
+    };
+    this.removeKey(kind, key);
+    this.lists[kind] = insertSorted(this.lists[kind], rule);
+    // Never a plain-name alias: script aliases are matched as patterns.
+    if (kind === 'alias') this.otherAliases = insertSorted(this.otherAliases, rule);
     this.version++;
     return rule;
   }
