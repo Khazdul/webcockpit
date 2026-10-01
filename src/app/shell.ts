@@ -351,6 +351,7 @@ export class Shell {
       openSpotlights: () => this.openSpotlights(),
       maps: this.maps,
       scripts: this.scripts,
+      scriptRunning: (name) => this.appRef?.scriptRunning(name) ?? null,
     };
   }
 

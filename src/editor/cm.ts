@@ -211,7 +211,7 @@ function pairDelete(view: EditorView): boolean {
 
 // ------------------------------------------------------------------- state
 
-function theme(): Extension {
+export function theme(): Extension {
   return EditorView.theme({
     '&': { height: '100%', backgroundColor: 'transparent', color: 'var(--c-item)' },
     '&.cm-focused': { outline: 'none' },

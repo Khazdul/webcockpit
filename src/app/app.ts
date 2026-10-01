@@ -662,6 +662,11 @@ export class App {
     return this.hostP;
   }
 
+  /** Whether the script host runs `name`; null before the host has started. */
+  scriptRunning(name: string): boolean | null {
+    return this.hostRef ? this.hostRef.isRunning(name) : null;
+  }
+
   /** `#script <sub>` and `#lua {script} {function}` from the engine (ADR 0051). */
   private scriptCommand(name: 'script' | 'lua', args: string[]): void {
     if (!this.scriptLib) {

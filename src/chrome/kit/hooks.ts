@@ -49,6 +49,11 @@ export interface ChromeServices {
    * no scripts in this page.
    */
   scripts?: ScriptLibrary;
+  /**
+   * Whether the script host runs `name` (the Scripts page's running mark).
+   * null: no host in this tab yet (nothing runs before Enter MUME).
+   */
+  scriptRunning?: (name: string) => boolean | null;
   /** Client notices (ADR 0025): the ESC header and the start page show them. */
   notices?: Notices;
 }
