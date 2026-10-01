@@ -21,6 +21,12 @@
 //   and focus changes, never synchronously in a key handler, so the
 //   Enter → send path does no extra work. It is hidden while a range is
 //   selected (like the native caret) and hollow/hidden while blurred.
+// - Caret blink (ADR 0044 rule 1): a 500 ms timer toggles `wc-caret-off`,
+//   never a CSS animation (an infinite animation keeps the frame loop on
+//   the vsync grid, +7–9 ms per received line). The timer runs only while
+//   the caret shows, the input has the focus and <html data-cursor-blink>
+//   is "on"; every caret update restarts it with the caret visible, and a
+//   change of the setting restarts or stops it at once.
 // - Macros (stage 3, ADR 0015): before its own key handling the pane asks
 //   `onMacroKey` with the key's canonical name (src/script/keys.ts); a
 //   bound macro wins and the key is consumed. Not in password mode, not
@@ -72,6 +78,9 @@ export interface InputPaneOptions {
 }
 
 const BULLET = '•';
+
+/** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
+export const BLINK_MS = 500;
 
 /** Start of the alphanumeric word before `pos` (readline backward-word). */
 export function wordStartBefore(s: string, pos: number): number {
@@ -128,7 +137,10 @@ export class InputPane {
   private caretScheduled = false;
   private caretX = NaN;
   private caretText = '';
-  private caretPhase = false;
+  /** The blink timer, or null while the caret does not blink. */
+  private blinkTimer: ReturnType<typeof setInterval> | null = null;
+  /** Watches <html data-cursor-blink> so a setting change applies at once. */
+  private readonly blinkObserver: MutationObserver | null;
   private measurer: HTMLSpanElement | null = null;
   private readonly opts: InputPaneOptions;
 
@@ -213,6 +225,10 @@ export class InputPane {
     doc.defaultView?.addEventListener('focus', this.onWindowFocus);
 
     this.unsubs.push(bus.on('telnet.echo', (e) => this.setPasswordMode(e.serverEchoes)));
+
+    const MO = doc.defaultView?.MutationObserver;
+    this.blinkObserver = MO ? new MO(() => this.restartBlink()) : null;
+    this.blinkObserver?.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-cursor-blink'] });
   }
 
   // ----------------------------------------------------------------- public
@@ -268,6 +284,8 @@ export class InputPane {
   }
 
   dispose(): void {
+    this.blinkObserver?.disconnect();
+    this.stopBlink();
     for (const u of this.unsubs) u();
     this.setLeaveGuard(false);
     this.doc.removeEventListener('keydown', this.onKeyDown, true);
@@ -714,6 +732,7 @@ export class InputPane {
     if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
     if (start !== end) {
       c.hidden = true;
+      this.stopBlink();
       return;
     }
     const v = i.value;
@@ -731,15 +750,44 @@ export class InputPane {
     if (x !== this.caretX) {
       this.caretX = x;
       c.style.transform = `translateX(${x}px)`;
-      // Restart the blink so the caret is visible right after it moves.
-      this.caretPhase = !this.caretPhase;
-      c.classList.toggle('wc-caret-b', this.caretPhase);
     }
     if (ch !== this.caretText) {
       this.caretText = ch;
       c.textContent = ch;
     }
     c.hidden = false;
+    // Visible right after every move or edit, then blinking again.
+    this.restartBlink();
+  }
+
+  /** True while the caret should blink (see the header). */
+  private blinks(): boolean {
+    return (
+      !this.caretEl.hidden &&
+      this.doc.activeElement === this.input &&
+      this.doc.documentElement.dataset.cursorBlink === 'on'
+    );
+  }
+
+  /** Shows the caret and starts a new blink cycle, or stops it. */
+  private restartBlink(): void {
+    this.stopBlink();
+    if (!this.blinks()) return;
+    this.blinkTimer = setInterval(() => {
+      // A safety net: blur, selection and setting changes stop it earlier.
+      if (this.blinks()) this.caretEl.classList.toggle('wc-caret-off');
+      else this.stopBlink();
+    }, BLINK_MS);
+  }
+
+  private stopBlink(): void {
+    if (this.blinkTimer !== null) {
+      clearInterval(this.blinkTimer);
+      this.blinkTimer = null;
+    }
+    // Only when set: a class write restyles the caret even if it changes nothing.
+    const cl = this.caretEl.classList;
+    if (cl.contains('wc-caret-off')) cl.remove('wc-caret-off');
   }
 
   private readonly onBeforeUnload = (e: BeforeUnloadEvent): void => {

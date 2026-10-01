@@ -4,8 +4,8 @@
  * set from the settings by src/theme/apply.ts and src/theme/cells.ts
  * (names after Inv §10.9). Rows and the input are exactly one cell high
  * (line-height = --cell-h) so box and block glyphs tile.
- * No smooth scrolling; the only animations are the caret blink here and
- * the banner stars (intent Goal 1, Inv §10.8). */
+ * No smooth scrolling and no CSS animations; the caret blink and the
+ * banner stars are timers (intent Goal 1, Inv §10.8, ADR 0044). */
 
 :root {
   /* Fallbacks until src/theme applies the settings. */
@@ -356,22 +356,9 @@ body {
   display: none;
 }
 
-/* Blink: steps, not a fade. Two identical keyframe sets so switching the
- * name (on every caret move) restarts the cycle with the caret visible. */
-:root[data-cursor-blink="on"] .wc-caret:not(.wc-blurred) {
-  animation: wc-caret-a 1s steps(1, end) infinite;
-}
-
-:root[data-cursor-blink="on"] .wc-caret.wc-caret-b:not(.wc-blurred) {
-  animation-name: wc-caret-b;
-}
-
-@keyframes wc-caret-a {
-  0% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-@keyframes wc-caret-b {
-  0% { opacity: 1; }
-  50% { opacity: 0; }
+/* Blink (ADR 0044 rule 1): src/ui/input-pane.ts toggles .wc-caret-off on
+ * a 500 ms timer, two style changes a second. No CSS animation: an
+ * infinite one keeps the frame loop on the vsync grid while connected. */
+.wc-caret.wc-caret-off {
+  visibility: hidden;
 }
