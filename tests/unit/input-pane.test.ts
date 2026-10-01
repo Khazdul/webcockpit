@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { Sender } from '../../src/core/types';
 import {
+  BLINK_MS,
   InputPane,
+  MAX_HISTORY,
   type ScrollTarget,
   normalizePaste,
   spaceWordStartBefore,
@@ -53,7 +55,7 @@ function setup(onCommand?: (t: string) => boolean) {
     return e;
   };
   const selected = () => [i.selectionStart, i.selectionEnd];
-  return { bus, pane, i, sent, output, onEscape, type, key, selected };
+  return { bus, pane, i, sent, sender, output, onEscape, type, key, selected };
 }
 
 describe('InputPane Enter semantics', () => {
@@ -88,11 +90,31 @@ describe('InputPane Enter semantics', () => {
     expect(t.pane.getHistory()).toEqual([]);
   });
 
-  it('snaps the output to the tail on every send', () => {
+  it('snaps the output to the tail after the send, only when scrolled back', () => {
     const t = setup();
+    const order: string[] = [];
+    const send = t.sender.sendCommand;
+    t.sender.sendCommand = (text, opts) => {
+      order.push('send');
+      send(text, opts);
+    };
+    const toTail = t.output.toTail;
+    t.output.toTail = function () {
+      order.push('toTail');
+      toTail.call(this);
+    };
+    t.type('look');
+    t.key('Enter');
+    expect(order).toEqual(['send']);
     t.key('PageUp');
     t.key('Enter');
+    expect(order).toEqual(['send', 'send', 'toTail']);
     expect(t.output.calls).toEqual(['pageUp', 'toTail']);
+    t.key('PageUp');
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    t.type('secret');
+    t.key('Enter');
+    expect(order).toEqual(['send', 'send', 'toTail', 'send', 'toTail']);
   });
 
   it('routes handled built-in commands away from the sender', () => {
@@ -111,6 +133,26 @@ describe('InputPane history', () => {
       t.key('Enter');
     }
   }
+
+  it(`keeps the newest ${MAX_HISTORY} entries`, () => {
+    const t = setup();
+    sendAll(
+      t,
+      Array.from({ length: MAX_HISTORY + 5 }, (_, n) => `cmd ${n}`),
+    );
+    const h = t.pane.getHistory();
+    expect(h.length).toBe(MAX_HISTORY);
+    expect(h[0]).toBe('cmd 5');
+    expect(h.at(-1)).toBe(`cmd ${MAX_HISTORY + 4}`);
+    // Browsing still walks the kept entries and clamps at the oldest.
+    t.type('');
+    t.key('ArrowUp');
+    expect(t.i.value).toBe(`cmd ${MAX_HISTORY + 4}`);
+    for (let n = 0; n < MAX_HISTORY + 3; n++) t.key('ArrowUp');
+    expect(t.i.value).toBe('cmd 5');
+    t.key('ArrowDown');
+    expect(t.i.value).toBe('cmd 6');
+  });
 
   it('dedups only consecutive entries', () => {
     const t = setup();
@@ -262,6 +304,46 @@ describe('InputPane keys', () => {
     expect(t.i.value).toBe('kill now');
   });
 
+  it('a macro runs before the refocus, then the input gets the focus', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    let focusedAtMacro: Element | null = null;
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: (k) => {
+        if (k !== 'F1') return false;
+        focusedAtMacro = document.activeElement;
+        return true;
+      },
+    });
+    pane.input.blur();
+    const e = new KeyboardEvent('keydown', { key: 'F1', code: 'F1', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(focusedAtMacro).not.toBe(pane.input);
+    expect(document.activeElement).toBe(pane.input);
+    pane.dispose();
+  });
+
+  it('a macro that moves the focus keeps it there', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    const other = document.createElement('button');
+    document.body.append(root, other);
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: () => {
+        other.focus();
+        return true;
+      },
+    });
+    pane.input.blur();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'F1', code: 'F1', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(other);
+    pane.dispose();
+  });
+
   it('keys typed while focus is elsewhere land in the input', () => {
     const t = setup();
     t.i.blur();
@@ -401,14 +483,114 @@ describe('InputPane custom caret', () => {
     expect(t.c.style.transform).toBe('translateX(20px)');
   });
 
-  it('restarts the blink when it moves', () => {
-    const t = caretSetup();
-    t.type('a');
-    t.run();
-    const phase = t.c.classList.contains('wc-caret-b');
-    t.type('ab');
-    t.run();
-    expect(t.c.classList.contains('wc-caret-b')).toBe(!phase);
+  describe('blink (ADR 0044 rule 1: a timer, no CSS animation)', () => {
+    const root = document.documentElement;
+    beforeEach(() => {
+      vi.useFakeTimers();
+      root.dataset.cursorBlink = 'on';
+    });
+    // Panes of earlier tests would react to the attribute changes here.
+    const live: InputPane[] = [];
+    afterEach(() => {
+      for (const p of live.splice(0)) p.dispose();
+      vi.useRealTimers();
+      delete root.dataset.cursorBlink;
+    });
+    const setup = () => {
+      const t = caretSetup();
+      live.push(t.pane);
+      return t;
+    };
+    const off = (t: ReturnType<typeof caretSetup>) => t.c.classList.contains('wc-caret-off');
+
+    it(`toggles wc-caret-off every ${BLINK_MS} ms while the caret shows`, () => {
+      const t = setup();
+      t.type('look');
+      t.run();
+      expect(off(t)).toBe(false);
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(false);
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+    });
+
+    it('shows the caret at once on every move or edit and restarts the cycle', () => {
+      const t = setup();
+      t.type('a');
+      t.run();
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+      t.type('ab');
+      t.run();
+      expect(off(t)).toBe(false);
+      // A full on phase follows the move, not the rest of the old one.
+      vi.advanceTimersByTime(BLINK_MS - 1);
+      expect(off(t)).toBe(false);
+      vi.advanceTimersByTime(1);
+      expect(off(t)).toBe(true);
+      // An edit that leaves the caret where it is (Delete) shows it too.
+      t.i.setSelectionRange(1, 1);
+      t.run();
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+      t.i.value = 'a';
+      t.i.setSelectionRange(1, 1);
+      t.i.dispatchEvent(new Event('input'));
+      t.run();
+      expect(off(t)).toBe(false);
+    });
+
+    it('follows the setting off → on without a caret move', async () => {
+      const t = setup();
+      t.type('look');
+      t.run();
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+      root.dataset.cursorBlink = 'off';
+      await Promise.resolve(); // MutationObserver callback
+      expect(off(t)).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(BLINK_MS * 4);
+      expect(off(t)).toBe(false);
+      root.dataset.cursorBlink = 'on';
+      await Promise.resolve();
+      expect(off(t)).toBe(false);
+      vi.advanceTimersByTime(BLINK_MS);
+      expect(off(t)).toBe(true);
+    });
+
+    it('does not blink with the setting off', () => {
+      root.dataset.cursorBlink = 'off';
+      const t = setup();
+      t.type('look');
+      t.run();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('stops while blurred, while a range is selected, and on dispose', () => {
+      const t = setup();
+      t.type('look');
+      t.run();
+      vi.advanceTimersByTime(BLINK_MS);
+      t.i.blur();
+      t.run();
+      expect(off(t)).toBe(false);
+      expect(vi.getTimerCount()).toBe(0);
+      t.pane.focus();
+      t.run();
+      expect(vi.getTimerCount()).toBe(1);
+      t.i.setSelectionRange(0, 4);
+      t.run();
+      expect(t.c.hidden).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+      t.i.setSelectionRange(4, 4);
+      t.run();
+      expect(vi.getTimerCount()).toBe(1);
+      t.pane.dispose();
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it('does no caret work on the Enter → send path', () => {

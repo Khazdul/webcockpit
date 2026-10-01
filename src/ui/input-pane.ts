@@ -21,6 +21,15 @@
 //   and focus changes, never synchronously in a key handler, so the
 //   Enter → send path does no extra work. It is hidden while a range is
 //   selected (like the native caret) and hollow/hidden while blurred.
+// - Caret blink (ADR 0044 rule 1): a 500 ms timer toggles `wc-caret-off`,
+//   never a CSS animation (an infinite animation keeps the frame loop on
+//   the vsync grid, +7–9 ms per received line). The timer runs only while
+//   the caret shows, the input has the focus and <html data-cursor-blink>
+//   is "on"; every caret update restarts it with the caret visible, and a
+//   change of the setting restarts or stops it at once.
+// - Send first (ADR 0044 rule 3): Enter sends before any UI work; the snap
+//   to the live tail follows the send and only runs while scrolled back. A
+//   macro runs before the refocus when focus is elsewhere.
 // - Macros (stage 3, ADR 0015): before its own key handling the pane asks
 //   `onMacroKey` with the key's canonical name (src/script/keys.ts); a
 //   bound macro wins and the key is consumed. Not in password mode, not
@@ -72,6 +81,12 @@ export interface InputPaneOptions {
 }
 
 const BULLET = '•';
+
+/** Input history depth (tt++'s default); the oldest entry is dropped. */
+export const MAX_HISTORY = 1000;
+
+/** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
+export const BLINK_MS = 500;
 
 /** Start of the alphanumeric word before `pos` (readline backward-word). */
 export function wordStartBefore(s: string, pos: number): number {
@@ -128,7 +143,10 @@ export class InputPane {
   private caretScheduled = false;
   private caretX = NaN;
   private caretText = '';
-  private caretPhase = false;
+  /** The blink timer, or null while the caret does not blink. */
+  private blinkTimer: ReturnType<typeof setInterval> | null = null;
+  /** Watches <html data-cursor-blink> so a setting change applies at once. */
+  private readonly blinkObserver: MutationObserver | null;
   private measurer: HTMLSpanElement | null = null;
   private readonly opts: InputPaneOptions;
 
@@ -213,6 +231,10 @@ export class InputPane {
     doc.defaultView?.addEventListener('focus', this.onWindowFocus);
 
     this.unsubs.push(bus.on('telnet.echo', (e) => this.setPasswordMode(e.serverEchoes)));
+
+    const MO = doc.defaultView?.MutationObserver;
+    this.blinkObserver = MO ? new MO(() => this.restartBlink()) : null;
+    this.blinkObserver?.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-cursor-blink'] });
   }
 
   // ----------------------------------------------------------------- public
@@ -268,6 +290,8 @@ export class InputPane {
   }
 
   dispose(): void {
+    this.blinkObserver?.disconnect();
+    this.stopBlink();
     for (const u of this.unsubs) u();
     this.setLeaveGuard(false);
     this.doc.removeEventListener('keydown', this.onKeyDown, true);
@@ -283,10 +307,10 @@ export class InputPane {
   /** Enter: sends the buffer (Inv §1.2 Enter semantics). */
   submit(): void {
     const text = this.input.value;
-    this.opts.output?.toTail();
 
     if (this.password) {
       this.opts.sender.sendCommand(text, { secret: true });
+      this.snapToTail();
       this.input.value = '';
       this.updateMask();
       this.endBrowsing();
@@ -295,12 +319,28 @@ export class InputPane {
 
     const handled = this.opts.onCommand?.(text) ?? false;
     if (!handled) this.opts.sender.sendCommand(text);
+    this.snapToTail();
     if (text !== '') {
-      if (this.history[this.history.length - 1] !== text) this.history.push(text);
+      const h = this.history;
+      if (h[h.length - 1] !== text) {
+        h.push(text);
+        // Browsing has not started yet (it ends on every Enter), so no
+        // index needs to shift with the dropped entries.
+        if (h.length > MAX_HISTORY) h.splice(0, h.length - MAX_HISTORY);
+      }
       this.input.value = text;
       this.input.setSelectionRange(0, text.length);
     }
     this.endBrowsing();
+  }
+
+  /**
+   * Back to the live tail after a send. Not scrolled back, the output's
+   * next flush keeps the tail anyway, so the layout read is skipped.
+   */
+  private snapToTail(): void {
+    const out = this.opts.output;
+    if (out?.isScrolled()) out.toTail();
   }
 
   // ---------------------------------------------------------------- history
@@ -387,17 +427,24 @@ export class InputPane {
     }
     learnKeyLabel(e);
     if (this.isOtherInteractive(e.target)) return;
-    if (this.doc.activeElement !== this.input && !e.isComposing) {
+    const away = this.doc.activeElement !== this.input && !e.isComposing;
+    if (!dead) {
+      // A macro sends before the refocus (send first). It may move the
+      // focus itself (an overlay); only take it back if it did not.
+      const before = this.doc.activeElement;
+      if (this.runMacro(e)) {
+        e.preventDefault();
+        if (away && this.doc.activeElement === before) this.input.focus({ preventScroll: true });
+        return;
+      }
+    }
+    if (away) {
       // Keystrokes typed while focus is elsewhere land in the input: moving
       // focus during keydown redirects the resulting character.
       this.input.focus({ preventScroll: true });
     }
     if (dead) {
       this.onDeadKey(e);
-      return;
-    }
-    if (this.runMacro(e)) {
-      e.preventDefault();
       return;
     }
     if (this.handleKey(e)) e.preventDefault();
@@ -714,6 +761,7 @@ export class InputPane {
     if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
     if (start !== end) {
       c.hidden = true;
+      this.stopBlink();
       return;
     }
     const v = i.value;
@@ -731,15 +779,44 @@ export class InputPane {
     if (x !== this.caretX) {
       this.caretX = x;
       c.style.transform = `translateX(${x}px)`;
-      // Restart the blink so the caret is visible right after it moves.
-      this.caretPhase = !this.caretPhase;
-      c.classList.toggle('wc-caret-b', this.caretPhase);
     }
     if (ch !== this.caretText) {
       this.caretText = ch;
       c.textContent = ch;
     }
     c.hidden = false;
+    // Visible right after every move or edit, then blinking again.
+    this.restartBlink();
+  }
+
+  /** True while the caret should blink (see the header). */
+  private blinks(): boolean {
+    return (
+      !this.caretEl.hidden &&
+      this.doc.activeElement === this.input &&
+      this.doc.documentElement.dataset.cursorBlink === 'on'
+    );
+  }
+
+  /** Shows the caret and starts a new blink cycle, or stops it. */
+  private restartBlink(): void {
+    this.stopBlink();
+    if (!this.blinks()) return;
+    this.blinkTimer = setInterval(() => {
+      // A safety net: blur, selection and setting changes stop it earlier.
+      if (this.blinks()) this.caretEl.classList.toggle('wc-caret-off');
+      else this.stopBlink();
+    }, BLINK_MS);
+  }
+
+  private stopBlink(): void {
+    if (this.blinkTimer !== null) {
+      clearInterval(this.blinkTimer);
+      this.blinkTimer = null;
+    }
+    // Only when set: a class write restyles the caret even if it changes nothing.
+    const cl = this.caretEl.classList;
+    if (cl.contains('wc-caret-off')) cl.remove('wc-caret-off');
   }
 
   private readonly onBeforeUnload = (e: BeforeUnloadEvent): void => {

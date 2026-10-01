@@ -16,7 +16,9 @@
 // owner's reference client) sends. MUME accepts LF alone too.
 //
 // Sending is synchronous: `sendCommand` encodes and calls `socket.send`
-// in the same call stack, then emits `cmd.sent`.
+// in the same call stack, then emits `cmd.sent`. A command the socket
+// cannot take (not open yet, or closing) emits one `[SYSTEM]` line
+// instead and no `cmd.sent`, so nothing echoes, records or tracks it.
 //
 // `cmd.sent` timestamps: a command sent while an inbound frame is being
 // parsed (e.g. the width commands sent on GMCP Char.Name) is stamped with
@@ -38,6 +40,9 @@ import { WebSocketTransport } from './ws-transport';
 export const REASON_USER_DISCONNECT = 'disconnected by user';
 /** Reason given for the close half of a user reconnect. */
 export const REASON_USER_RECONNECT = 'reconnect by user';
+
+/** The `[SYSTEM]` line for a command the socket could not take. */
+export const NOT_SENT = 'Not connected: command not sent.';
 
 /** Commands sent once on entering `playing` (Inv §9, spec §2.1). */
 export const PLAYING_COMMANDS: readonly string[] = ['change width all 500', 'change width table terminal'];
@@ -317,20 +322,24 @@ export class Session implements Sender {
   /** Writes bytes to the socket, emits `net.bytesOut`. False when not open. */
   private readonly writeRaw = (bytes: Uint8Array): boolean => {
     const sock = this.socket;
-    if (!sock || !this.open) return false;
+    if (!sock || !this.open || sock.isOpen === false) return false;
     sock.send(bytes);
     this.bus.emit('net.bytesOut', bytes);
     return true;
   };
 
   /**
-   * Sends one command line followed by CR LF. Dropped when not connected.
-   * While the server echoes (password mode) the command is always treated
-   * as secret, whatever the caller says.
+   * Sends one command line followed by CR LF. Dropped with a
+   * `sys.message` when the socket cannot write. While the server echoes
+   * (password mode) the command is always treated as secret, whatever the
+   * caller says.
    */
   sendCommand(text: string, opts?: { secret?: boolean; echo?: boolean }): void {
     const secret = opts?.secret === true || this.passwordMode;
-    if (!this.writeRaw(this.telnet.encodeText(text + '\r\n'))) return;
+    if (!this.writeRaw(this.telnet.encodeText(text + '\r\n'))) {
+      this.bus.emit('sys.message', { text: NOT_SENT });
+      return;
+    }
     const ts = this.frameTs ?? this.clockUs();
     const ev: { text: string; ts: number; secret?: boolean; echo?: boolean } = {
       text: secret ? '' : text,

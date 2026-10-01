@@ -47,12 +47,54 @@ test('custom caret follows the text column and restyles live', async ({ page }) 
 
   // Default: beam, blinking.
   expect(await page.evaluate(() => document.documentElement.dataset.cursor)).toBe('beam');
-  expect(await caret.evaluate((el) => getComputedStyle(el).animationName)).toMatch(/wc-caret-[ab]/);
   expect(await caret.evaluate((el) => el.getBoundingClientRect().width)).toBeLessThan(w);
+
+  // The blink is a timer toggling a class (ADR 0044 rule 1): no animation
+  // runs anywhere on the page, on the caret or elsewhere.
+  const off = /wc-caret-off/;
+  await expect(caret).toHaveClass(off);
+  await expect(caret).not.toHaveClass(off);
+  await expect(caret).toHaveClass(off);
+  expect(await page.evaluate(() => document.getAnimations().length)).toBe(0);
+  expect(await caret.evaluate((el) => el.getAnimations().length)).toBe(0);
+  expect(await caret.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+  expect(await caret.evaluate((el) => getComputedStyle(el).visibility)).toBe('hidden');
+  // A caret move shows it at once: in the off phase, press a key and read
+  // the class in the same task that moves the caret (load cannot race it).
+  await caret.evaluate(
+    (el) =>
+      new Promise<void>((done) => {
+        const w = window as unknown as { caretOffAtMove?: boolean };
+        const moved = new MutationObserver(() => {
+          moved.disconnect();
+          w.caretOffAtMove = el.classList.contains('wc-caret-off');
+        });
+        const offPhase = new MutationObserver(() => {
+          if (!el.classList.contains('wc-caret-off')) return;
+          offPhase.disconnect();
+          moved.observe(el, { attributes: true, attributeFilter: ['style'] });
+          done();
+        });
+        offPhase.observe(el, { attributes: true, attributeFilter: ['class'] });
+      }),
+  );
+  await page.keyboard.press('ArrowRight');
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { caretOffAtMove?: boolean }).caretOffAtMove))
+    .toBe(false);
 
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { cursorStyle: 'block', cursorBlink: false } }));
   await expect.poll(() => caret.evaluate((el) => el.getBoundingClientRect().width)).toBeCloseTo(w, 1);
-  expect(await caret.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
+  await expect(caret).toHaveText(' ');
+  // Off: steady, without a caret move or a reload.
+  await page.waitForTimeout(1200);
+  await expect(caret).not.toHaveClass(off);
+  // On again: blinks again, still without a caret move.
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { cursorBlink: true } }));
+  await expect(caret).toHaveClass(off);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { cursorBlink: false } }));
+  await expect(caret).not.toHaveClass(off);
+  await page.keyboard.press('ArrowLeft');
   await expect(caret).toHaveText('k');
 
   // A selection hides the caret, as the native one would be.

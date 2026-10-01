@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { BusEvents } from '../../src/core/types';
-import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT, Session } from '../../src/net/session';
+import { NOT_SENT, REASON_USER_DISCONNECT, REASON_USER_RECONNECT, Session } from '../../src/net/session';
 import { OPT_ECHO, OPT_GMCP, WILL, WONT } from '../../src/net/telnet';
 import { FakeSocket, FakeTimers, IAC, RecSink, ascii, gmcpOut, sb, utf8 } from './net-helpers';
 
@@ -175,13 +175,36 @@ describe('Session sending', () => {
     expect(m.echo).toEqual([true, false]);
   });
 
-  it('drops commands when not connected', () => {
+  it('drops commands when not connected, with one [SYSTEM] line each', () => {
     const m = make();
+    const sys: string[] = [];
+    m.bus.on('sys.message', (p) => sys.push(p.text));
     m.s.sendCommand('look');
     m.s.connect();
     m.s.sendCommand('look');
     expect(m.sock().sent.length).toBe(0);
     expect(m.cmds.length).toBe(0);
+    expect(sys).toEqual([NOT_SENT, NOT_SENT]);
+  });
+
+  it('drops a command while the socket is closing: no bytes, no cmd.sent', () => {
+    const m = make();
+    const sys: string[] = [];
+    m.bus.on('sys.message', (p) => sys.push(p.text));
+    m.s.connect();
+    m.sock().open();
+    const before = m.sock().sent.length;
+    m.order.length = 0;
+    (m.sock() as { isOpen?: boolean }).isOpen = false;
+    m.s.sendCommand('look');
+    expect(m.sock().sent.length).toBe(before);
+    expect(m.order).toEqual([]);
+    expect(m.cmds.length).toBe(0);
+    expect(sys).toEqual([NOT_SENT]);
+    (m.sock() as { isOpen?: boolean }).isOpen = true;
+    m.s.sendCommand('look');
+    expect(m.cmds.length).toBe(1);
+    expect(sys.length).toBe(1);
   });
 
   it('does the GMCP handshake and answers Comm.Channel.List', () => {
