@@ -22,6 +22,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Release 0.1.22
+
+- **Profile:** khazdul trimmed on owner request: sm/$mees, F8/F9, bb, rr,
+  obk, oht and the `key:` action removed; s1, s2 ... is now a pattern
+  alias like b1 (`cast $ss 'sleep' %1.$target`); char comment explains
+  it names who followers protect and rescue.
+- **Released:** 0.1.22 (tag v0.1.22). Local `build:pages` green, Pages
+  deploy OK, live `release.json` reports 0.1.22 at a24e0ec, prod smoke
+  10/10.
+- **Open:** stored copies of khazdul are not reseeded; existing users
+  keep the old profile.
+- **Commits:** db28171, a24e0ec, plus this one.
+
 ### 2026-10-01 — Release 0.1.21
 
 - **Released:** 0.1.21 (tag v0.1.21): top dock zone half a row, close
