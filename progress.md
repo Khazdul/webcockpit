@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01; next: P0 Lua runtime). Stage 8 stays open: owner test of part D, then release.
+Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01; built, owner testing on `npm run dev`). Stage 8 stays open: owner test of part D, then release.
 
 ## Stages
 
@@ -15,7 +15,7 @@ Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01
 | 7 | Sharing | Done | `docs/stages/07-sharing.md` |
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
-| 10 | Scripts | In progress | `docs/stages/10-scripts.md` |
+| 10 | Scripts | Owner testing | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Next | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
 
@@ -24,6 +24,22 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Stage 10 built: Scripts page, editor, coin looter
+
+- **Built:** P2 Scripts page (under Profile, start page and ESC menu)
+  with list, help view, import/export, rename/delete, and a full-screen
+  Lua editor with completion and hover. P3 bundled coin looter. API 1
+  gained `setSetting` and `scriptName`, so `cl on/off` persists.
+- **Verified:** typecheck; unit 1641 green; e2e scripts, scripts-page
+  and chrome 34/34 (Chromium; P2 also ran Firefox); build. Editor chunk
+  is 127 KB gz (+28); cold start unchanged.
+- **Open:** the help view hides below about 70 columns; a disabled
+  script gets no syntax check; the in-call hang marker is untested in
+  Firefox.
+- **Next:** owner test (stage 10 test guide), then stage 11.
+- **Commits:** 89806f3..1755f55 (P2), 2a71500, 307614c (P3), d3c10f2,
+  c8dec43, plus this one.
 
 ### 2026-10-02 — Stage 10 P1: script API
 

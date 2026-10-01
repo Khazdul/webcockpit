@@ -1,6 +1,6 @@
 # Stage 10 — Scripts
 
-> Status: In progress (moved ahead of v1 by owner request 2026-10-01).
+> Status: Owner testing (moved ahead of v1 by owner request 2026-10-01).
 > Source: intent Goal 10, spec §2.10, ADR 0051. Brainstorm:
 > `notes/research/scripting.md`. Spike: wasmoon 1.16.0 (numbers in
 > ADR 0051).
@@ -76,13 +76,61 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - import warning; *Duplicate*;
   - errors on the row.
 - [x] P3. Bundled coin looter (ADR 0051 "Package notes — P3").
-- [ ] Verify: typecheck, unit, e2e (page, editor, `#script`), and
+- [x] Verify: typecheck, unit, e2e (page, editor, `#script`), and
       bench within spec §1.3 with coin looter and a test script enabled.
-- [ ] Test guide filled in; owner test.
+- [x] Test guide filled in.
+- [ ] Owner test.
 
 ## Test guide
 
-Filled in when the stage is built.
+**Start:** `cd ~/proj/webcockpit && npm run dev` (restart it if it was
+already running), then open http://localhost:5173/. Firefox and
+Chromium.
+
+1. **Find the page:** start page → *Scripts* (the row under *Profile*);
+   also ESC in game → *Scripts*. Is the place and the layout right? The
+   list sits left of the help, and the block is centred like the Profile
+   page. Say if you want it pinned to the far left instead.
+2. **Read the help:** select `coinlooter` (lock mark = bundled). The
+   right side shows summary, alias, help text and each setting with its
+   `#script set` command. Would a new player understand it? Is anything
+   missing or too much?
+3. **Coin looter in play:** toggle it on (`[X]`), log in, kill
+   something. It should send `get coins all.corpse` (or `get all.coins`
+   after an undead) and hide "You can't find any coins". Kills by
+   players outside your group are left alone. Try `cl`, `cl off`,
+   `cl on`, `cl now`. `cl off` should still be off after a reload.
+   `#script help coinlooter` prints the help in the game output.
+4. **Settings:** `#script set coinlooter delay 0.5`, then
+   `#script set coinlooter quiet off`. Check that the help view shows the
+   new values.
+5. **Your own script:** *NEW*, give it a name, and the editor opens full
+   screen with a template. Try something like:
+
+   ```lua
+   tempTrigger("You are hungry.", function() send("eat bread") end)
+   tempAlias("^hi$", function() send("say hello!") end)
+   registerAnonymousEventHandler("gmcp.Char.Vitals", function()
+     -- runs on every vitals update; gmcp.Char.Vitals.hp etc.
+   end)
+   tempKey("F9", function() cecho("<green>F9 from Lua<reset>") end)
+   ```
+
+   Ctrl+S saves. Toggle it on from the list (or `#script enable
+   <name>`). Completion: type `temp` and wait, or press Ctrl+Space.
+   Hover over a function name for its help.
+6. **Errors:** put a typo in a call (`sendd("x")`), save, and trigger
+   it. The error shows on the script's row, in the editor status line and
+   in UI messages, with the line number. `while true do end` in a
+   trigger is stopped, and the script is turned off.
+7. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
+   an editable `coinlooter-copy`. Export and import a script as `.lua`
+   (import shows a warning first).
+
+**Feedback wanted:** layout and look of the page and the editor; the
+help text of coin looter; whether coin looter behaves right in real
+play; anything about the API that felt odd while writing your own
+script.
 
 ## Owner feedback
 
