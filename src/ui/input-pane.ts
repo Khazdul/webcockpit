@@ -27,6 +27,9 @@
 //   the caret shows, the input has the focus and <html data-cursor-blink>
 //   is "on"; every caret update restarts it with the caret visible, and a
 //   change of the setting restarts or stops it at once.
+// - Send first (ADR 0044 rule 3): Enter sends before any UI work; the snap
+//   to the live tail follows the send and only runs while scrolled back. A
+//   macro runs before the refocus when focus is elsewhere.
 // - Macros (stage 3, ADR 0015): before its own key handling the pane asks
 //   `onMacroKey` with the key's canonical name (src/script/keys.ts); a
 //   bound macro wins and the key is consumed. Not in password mode, not
@@ -301,10 +304,10 @@ export class InputPane {
   /** Enter: sends the buffer (Inv §1.2 Enter semantics). */
   submit(): void {
     const text = this.input.value;
-    this.opts.output?.toTail();
 
     if (this.password) {
       this.opts.sender.sendCommand(text, { secret: true });
+      this.snapToTail();
       this.input.value = '';
       this.updateMask();
       this.endBrowsing();
@@ -313,12 +316,22 @@ export class InputPane {
 
     const handled = this.opts.onCommand?.(text) ?? false;
     if (!handled) this.opts.sender.sendCommand(text);
+    this.snapToTail();
     if (text !== '') {
       if (this.history[this.history.length - 1] !== text) this.history.push(text);
       this.input.value = text;
       this.input.setSelectionRange(0, text.length);
     }
     this.endBrowsing();
+  }
+
+  /**
+   * Back to the live tail after a send. Not scrolled back, the output's
+   * next flush keeps the tail anyway, so the layout read is skipped.
+   */
+  private snapToTail(): void {
+    const out = this.opts.output;
+    if (out?.isScrolled()) out.toTail();
   }
 
   // ---------------------------------------------------------------- history
@@ -405,17 +418,24 @@ export class InputPane {
     }
     learnKeyLabel(e);
     if (this.isOtherInteractive(e.target)) return;
-    if (this.doc.activeElement !== this.input && !e.isComposing) {
+    const away = this.doc.activeElement !== this.input && !e.isComposing;
+    if (!dead) {
+      // A macro sends before the refocus (send first). It may move the
+      // focus itself (an overlay); only take it back if it did not.
+      const before = this.doc.activeElement;
+      if (this.runMacro(e)) {
+        e.preventDefault();
+        if (away && this.doc.activeElement === before) this.input.focus({ preventScroll: true });
+        return;
+      }
+    }
+    if (away) {
       // Keystrokes typed while focus is elsewhere land in the input: moving
       // focus during keydown redirects the resulting character.
       this.input.focus({ preventScroll: true });
     }
     if (dead) {
       this.onDeadKey(e);
-      return;
-    }
-    if (this.runMacro(e)) {
-      e.preventDefault();
       return;
     }
     if (this.handleKey(e)) e.preventDefault();

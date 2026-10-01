@@ -54,7 +54,7 @@ function setup(onCommand?: (t: string) => boolean) {
     return e;
   };
   const selected = () => [i.selectionStart, i.selectionEnd];
-  return { bus, pane, i, sent, output, onEscape, type, key, selected };
+  return { bus, pane, i, sent, sender, output, onEscape, type, key, selected };
 }
 
 describe('InputPane Enter semantics', () => {
@@ -89,11 +89,31 @@ describe('InputPane Enter semantics', () => {
     expect(t.pane.getHistory()).toEqual([]);
   });
 
-  it('snaps the output to the tail on every send', () => {
+  it('snaps the output to the tail after the send, only when scrolled back', () => {
     const t = setup();
+    const order: string[] = [];
+    const send = t.sender.sendCommand;
+    t.sender.sendCommand = (text, opts) => {
+      order.push('send');
+      send(text, opts);
+    };
+    const toTail = t.output.toTail;
+    t.output.toTail = function () {
+      order.push('toTail');
+      toTail.call(this);
+    };
+    t.type('look');
+    t.key('Enter');
+    expect(order).toEqual(['send']);
     t.key('PageUp');
     t.key('Enter');
+    expect(order).toEqual(['send', 'send', 'toTail']);
     expect(t.output.calls).toEqual(['pageUp', 'toTail']);
+    t.key('PageUp');
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    t.type('secret');
+    t.key('Enter');
+    expect(order).toEqual(['send', 'send', 'toTail', 'send', 'toTail']);
   });
 
   it('routes handled built-in commands away from the sender', () => {
@@ -261,6 +281,46 @@ describe('InputPane keys', () => {
     t.i.setSelectionRange(4, 4);
     t.key('d', { code: 'KeyD', altKey: true });
     expect(t.i.value).toBe('kill now');
+  });
+
+  it('a macro runs before the refocus, then the input gets the focus', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    let focusedAtMacro: Element | null = null;
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: (k) => {
+        if (k !== 'F1') return false;
+        focusedAtMacro = document.activeElement;
+        return true;
+      },
+    });
+    pane.input.blur();
+    const e = new KeyboardEvent('keydown', { key: 'F1', code: 'F1', bubbles: true, cancelable: true });
+    document.body.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(focusedAtMacro).not.toBe(pane.input);
+    expect(document.activeElement).toBe(pane.input);
+    pane.dispose();
+  });
+
+  it('a macro that moves the focus keeps it there', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    const other = document.createElement('button');
+    document.body.append(root, other);
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: () => {
+        other.focus();
+        return true;
+      },
+    });
+    pane.input.blur();
+    document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'F1', code: 'F1', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(other);
+    pane.dispose();
   });
 
   it('keys typed while focus is elsewhere land in the input', () => {
