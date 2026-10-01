@@ -44,6 +44,12 @@ const MAX_CSI = 64;
 const MAX_OSC = 512;
 /** Longest entity, from `&` to `;` inclusive (`&#x10FFFF;` is 10). */
 const MAX_ENTITY = 12;
+/**
+ * Most open XML elements. MUME nests a few; a stream of tags that never
+ * close would otherwise grow every line's tag list. Opening one more closes
+ * the oldest (outermost) at that point.
+ */
+export const MAX_OPEN_TAGS = 32;
 
 /** Tags that switch XML mode on when seen before XML mode is known. */
 const STRICT_TAGS: ReadonlySet<string> = new Set(['xml', 'prompt', 'room', 'movement']);
@@ -619,7 +625,23 @@ export class LineAssembler implements LineAssemblerInput {
     this.tags.push(span);
     if (name === 'prompt') this.linePrompt = true;
     if (this.tagSelfClosing) span.end = this.textLen;
-    else this.stack.push({ span, cont: false });
+    else {
+      if (this.stack.length >= MAX_OPEN_TAGS) this.dropOldest();
+      this.stack.push({ span, cont: false });
+    }
+  }
+
+  /** Closes the outermost open element at the current position. */
+  private dropOldest(): void {
+    const e = this.stack.shift()!;
+    const pos = this.textLen;
+    e.span.end = pos;
+    if (e.cont && pos === 0) {
+      // As in closeFrom: it never touched this line.
+      const idx = this.tags.lastIndexOf(e.span);
+      if (idx >= 0) this.tags.splice(idx, 1);
+      this.linePrompt = this.tags.some((t) => t.tag === 'prompt');
+    }
   }
 
   /** Closes `stack[k..]` at the current position. */
