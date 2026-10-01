@@ -34,7 +34,9 @@ Newest first.
   a trackpad swipe ran away. They now sum the deltas
   (`src/chrome/kit/wheel.ts`): about 3 rows per mouse notch, one per
   40 px of swipe; tables one row per notch.
-- **Next:** owner tries the wheel speed; release when the owner says so.
+- **Owner:** tried the trackpad in the dev server; the speed feels right.
+- **Next:** release (0.1.23) when the owner says so.
+- **Commits:** 4bc0ddf, a18d97e, plus this one.
 
 ### 2026-10-01 — Release 0.1.22
 
