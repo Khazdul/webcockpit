@@ -44,7 +44,13 @@ Newest first.
   instead of `wholePx` (which made 13 sizes taller); widths unchanged,
   rows 1 px lower at 16–17 and 25, 1 px taller at 8–9; no seams 6–32 in
   either browser.
-- **Commits:** 1851ae1, 1c7debd, 8fd1b98, 13d5ae5, c2e19de, plus this one.
+- **Row clipping:** kit and pane rows clipped each glyph to its cell, so
+  █/│ could stop a device px short (owner: JetBrains 18, Firefox 2x).
+  Rows now clip sideways only; Firefox 1x/2x clean for all 16 fonts.
+  Chromium at 2x and fractional DPRs still seam: needs cells chosen in
+  device px (follow-up, owner to decide).
+- **Commits:** 1851ae1, 1c7debd, 8fd1b98, 13d5ae5, c2e19de, 5669a3b,
+  9344592, plus this one.
 
 ### 2026-10-01 — Wheel speed, About, spotlight hint
 
