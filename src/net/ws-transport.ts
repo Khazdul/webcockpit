@@ -29,6 +29,10 @@ export class WebSocketTransport implements Socketish {
     return this.ws !== null && this.ws.readyState === 1;
   }
 
+  get bufferedAmount(): number {
+    return this.ws?.bufferedAmount ?? 0;
+  }
+
   /** Opens the socket. One transport instance is meant for one connection. */
   connect(): void {
     if (this.ws) return;

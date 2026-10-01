@@ -269,6 +269,8 @@ export interface Socketish {
    * `onClose`.
    */
   readonly isOpen?: boolean;
+  /** Bytes queued but not yet sent (`WebSocket.bufferedAmount`); absent = unknown. */
+  readonly bufferedAmount?: number;
   /** Closes the socket. `onClose` follows with reason 'closed by client'. */
   close(): void;
   onOpen: (() => void) | null;

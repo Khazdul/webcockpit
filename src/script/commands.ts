@@ -130,6 +130,7 @@ const SPECS: readonly Spec[] = [
   ['parse', 'inert', 'unsupported'],
   ['path', 'inert', 'inert'],
   ['pathdir', 'inert', 'inert'],
+  ['perf', 'client', 'client'],
   ['port', 'inert', 'inert'],
   ['prompt', 'inert', 'unsupported'],
   ['read', 'inert', 'inert'],

@@ -25,7 +25,7 @@ describe('command table', () => {
       expect(c.inert, n).toBe(true);
       expect(c.hint, n).toBeTruthy();
     }
-    for (const n of ['connect', 'disconnect', 'reconnect', 'runlog', 'replay', 'help']) {
+    for (const n of ['connect', 'disconnect', 'reconnect', 'runlog', 'replay', 'help', 'perf']) {
       expect(commandByName(n), n).toMatchObject({ kind: 'client', inert: false });
     }
     expect(commandByName('class')).toMatchObject({ kind: 'command', inert: false });

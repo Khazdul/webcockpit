@@ -100,6 +100,11 @@ export interface SessionOptions {
    * The log player passes its log-time clock (src/player/clock.ts).
    */
   clockUs?: () => number;
+  /**
+   * Just after each write to the socket: the bytes written and the socket's
+   * `bufferedAmount` (0 when it has none). The latency monitor (ADR 0047).
+   */
+  onSend?: (bytes: number, buffered: number) => void;
 }
 
 export class Session implements Sender {
@@ -119,10 +124,12 @@ export class Session implements Sender {
   /** The current (or last) connection is a replay. */
   private replayConn = false;
   private readonly clockUs: () => number;
+  private readonly onSend: ((bytes: number, buffered: number) => void) | null;
 
   constructor(opts: SessionOptions) {
     this.bus = opts.bus;
     this.clockUs = opts.clockUs ?? nowUs;
+    this.onSend = opts.onSend ?? null;
     this.socketFactory = opts.socketFactory ?? (() => new WebSocketTransport());
     this.telnet = new Telnet({
       sink: opts.sink,
@@ -324,6 +331,7 @@ export class Session implements Sender {
     const sock = this.socket;
     if (!sock || !this.open || sock.isOpen === false) return false;
     sock.send(bytes);
+    this.onSend?.(bytes.length, sock.bufferedAmount ?? 0);
     this.bus.emit('net.bytesOut', bytes);
     return true;
   };

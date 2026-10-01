@@ -33,6 +33,16 @@ function make() {
 const gmcp = (payload: string) => Uint8Array.from(sb(OPT_GMCP, utf8(payload)));
 
 describe('Session state machine', () => {
+  it('reports each write and the socket buffer to onSend (ADR 0047)', () => {
+    const writes: Array<[number, number]> = [];
+    const sock = Object.assign(new FakeSocket(), { bufferedAmount: 42 });
+    const s = new Session({ bus: new Bus(), sink: new RecSink(), socketFactory: () => sock, onSend: (n, b) => writes.push([n, b]) });
+    s.connect();
+    sock.open();
+    s.sendCommand('look');
+    expect(writes).toEqual([[6, 42]]);
+  });
+
   it('goes idle → connecting → login → playing → disconnected', () => {
     const m = make();
     expect(m.s.state).toBe('idle');

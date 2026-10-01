@@ -52,6 +52,19 @@ describe('OutputPane batching', () => {
     expect(t.rows()[49]).toBe('l49');
   });
 
+  it('reports the rows, runs and oldest receive time of each flush (ADR 0047)', () => {
+    const t = setup();
+    const run: StyleRun = { start: 0, end: 1, bold: true };
+    t.bus.emit('text.line', { ...line('a', false, [run, run]), ts: 5_000 });
+    t.bus.emit('text.line', { ...line('b', false, [run]), ts: 6_000 });
+    t.pane.pushStyled([{ cls: 'x', segs: [{ text: 'c' }, { text: 'd' }] }]);
+    t.runFrames();
+    expect(t.pane.flushStats).toEqual({ rows: 3, runs: 5, receivedUs: 5_000 });
+    t.pane.pushRows('blank', ['']);
+    t.runFrames();
+    expect(t.pane.flushStats).toEqual({ rows: 1, runs: 0, receivedUs: 0 });
+  });
+
   it('caps the scrollback, removing from the top', () => {
     const t = setup(10);
     for (let i = 0; i < 7; i++) t.bus.emit('text.line', line('a' + i));

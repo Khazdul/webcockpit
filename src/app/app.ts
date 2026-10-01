@@ -76,6 +76,7 @@ import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
 import { attachUiMessages, uiMsg, uiValue } from './ui-messages';
 import { messageRows } from './messages';
+import { KEY_ENTER, KEY_MACRO, PerfMonitor } from './perf-monitor';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
 import { LiveRuns } from '../runs/live';
@@ -183,6 +184,8 @@ export class App {
   readonly runEvents: RunEventDeriver;
   /** The live run for Statistics and Exit with rating (src/runs/live.ts). */
   readonly runs: LiveRuns;
+  /** The latency monitor behind `#perf` (ADR 0047); none in a log player. */
+  readonly perf: PerfMonitor | null;
   private readonly settings: SettingsStore;
   private readonly profiles: ProfileStore | null;
   private readonly writeBack: ProfileWriteBack | null;
@@ -210,7 +213,7 @@ export class App {
   quietLogin = false;
   private readonly unsubs: Array<() => void> = [];
   private disposed = false;
-  /** Pending `#help` output, in typed order (see `help`). */
+  /** Pending `#help` and `#perf` output, in typed order (see `help`). */
   private helpChain: Promise<void> = Promise.resolve();
 
   constructor(opts: AppOptions) {
@@ -250,6 +253,7 @@ export class App {
       },
     });
     this.assembler = new LineAssembler(bus);
+    const perf = (this.perf = player ? null : new PerfMonitor({ win: doc.defaultView as (Window & typeof globalThis) | null }));
     this.session = new Session({
       bus,
       sink: this.assembler,
@@ -257,6 +261,7 @@ export class App {
       ...(opts.linkFetch && !player ? { linkFetch: opts.linkFetch } : {}),
       ...(opts.clockUs ? { clockUs: opts.clockUs } : {}),
       onMssp: (vars) => this.game.mssp(vars),
+      ...(perf ? { onSend: (bytes: number, buffered: number) => perf.sent(bytes, buffered) } : {}),
     });
     // Before the panes and the script engine: models are current when
     // they react to the same message.
@@ -308,10 +313,15 @@ export class App {
       scrollback: this.settings.get().output.scrollback,
       onResize: (cols, rows) => this.session.setWindowSize(cols, rows),
       onFocusInput: () => this.input.focus(),
-      ...(opts.requestFrame ? { requestFrame: opts.requestFrame } : {}),
+      ...(perf
+        ? { requestFrame: perf.frames(opts.requestFrame ?? ((cb) => void requestAnimationFrame(() => cb()))) }
+        : opts.requestFrame
+          ? { requestFrame: opts.requestFrame }
+          : {}),
       ...(cells ? { cellSize: () => cells.get() } : {}),
       ...(player ? { stampRows: true } : {}),
     });
+    if (perf) perf.output = this.output;
     this.input = new InputPane(bus, this.cockpit.inputEl, {
       sender: this.session,
       output: this.output,
@@ -391,6 +401,7 @@ export class App {
     for (const u of this.unsubs.splice(0)) u();
     void this.writeBack?.flush();
     this.script.dispose();
+    this.perf?.dispose();
     this.runEvents.dispose();
     this.game.dispose();
     this.recorder.dispose();
@@ -602,10 +613,12 @@ export class App {
   onCommand(text: string): boolean {
     this.userAction = true;
     this.userActionHandled = false;
+    this.perf?.keyStart(KEY_ENTER);
     try {
       this.script.input(text);
     } finally {
       this.userAction = false;
+      this.perf?.keyEnd();
     }
     return true;
   }
@@ -615,10 +628,12 @@ export class App {
     if (!this.script.hasMacro(key)) return false;
     this.userAction = true;
     this.userActionHandled = false;
+    this.perf?.keyStart(KEY_MACRO);
     try {
       this.script.runMacro(key);
     } finally {
       this.userAction = false;
+      this.perf?.keyEnd();
     }
     return true;
   }
@@ -670,6 +685,9 @@ export class App {
       case 'help':
         this.help(argText);
         return;
+      case 'perf':
+        this.perfCommand(argText);
+        return;
       default:
         this.sys(`Unknown command: #${name}`);
     }
@@ -691,6 +709,26 @@ export class App {
         else this.output.pushStyled(out);
       })
       .catch((err: unknown) => this.sys(`#help failed: ${err instanceof Error ? err.message : String(err)}`));
+  }
+
+  /**
+   * `#perf [worst | reset]` (ADR 0047): the latency monitor's summary as
+   * rows, like `#help` (not on the bus: not recorded, no rule fires).
+   */
+  private perfCommand(argText: string): void {
+    const perf = this.perf;
+    if (!perf) return;
+    this.helpChain = this.helpChain
+      .then(() => import('./perf-command'))
+      .then((m) => {
+        if (this.disposed) return;
+        const win = this.el.ownerDocument.defaultView;
+        const env = { userAgent: win?.navigator.userAgent ?? '', ratio: win?.devicePixelRatio ?? 1 };
+        const out = m.perfOutput(argText, perf, env, this.output.measureCells().cols);
+        if (typeof out === 'string') this.sys(out);
+        else this.output.pushStyled(out);
+      })
+      .catch((err: unknown) => this.sys(`#perf failed: ${err instanceof Error ? err.message : String(err)}`));
   }
 
   private async runlog(): Promise<void> {

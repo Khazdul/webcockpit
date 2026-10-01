@@ -173,6 +173,12 @@ export class OutputPane {
 
   /** Number of flushes performed (for tests and the benchmark). */
   flushCount = 0;
+  /**
+   * The last flush, for the latency monitor (ADR 0047): rows built, the
+   * style runs in them, and the receive time of the oldest game line (µs,
+   * 0 = none). Updated in place.
+   */
+  readonly flushStats = { rows: 0, runs: 0, receivedUs: 0 };
 
   constructor(bus: Bus, root: HTMLElement, opts: OutputPaneOptions = {}) {
     this.scrollback = Math.max(1, opts.scrollback ?? DEFAULT_SCROLLBACK);
@@ -348,12 +354,17 @@ export class OutputPane {
     // (the first frames after start), measure: layout is clean at this point.
     const cols = this.lastCols || (end > start ? this.measureCells().cols : 0);
     const built: HTMLElement[] = [];
+    const stats = this.flushStats;
+    stats.runs = 0;
+    stats.receivedUs = 0;
     let prev = this.lastRow;
     for (let i = start; i < end; i++) {
       const op = this.queue[i]!;
       let row: HTMLElement | null;
       if (op.kind === OP_LINE) {
         row = renderLine(doc, op.line!, cols);
+        stats.runs += op.line!.runs.length;
+        if (stats.receivedUs === 0) stats.receivedUs = op.line!.ts;
         if (this.stampRows) row.dataset.ts = String(op.line!.ts);
       } else if (op.kind === OP_SYS) {
         row = doc.createElement('div');
@@ -369,6 +380,7 @@ export class OutputPane {
         row.className = 'wc-row wc-blank';
       } else if (op.kind === OP_STYLED) {
         row = renderStyled(doc, op.styled!);
+        stats.runs += op.styled!.segs.length;
       } else if (op.kind === OP_ECHO_ATTACH) {
         row = renderEcho(doc, prev && !prev.classList.contains('wc-echoed') ? prev : null, op.text);
       } else {
@@ -389,6 +401,7 @@ export class OutputPane {
 
     const wasScrolled = this.scrolled;
     const added = built.length;
+    stats.rows = added;
     if (added > 0) {
       this.appendRows(built, cols);
       this.rowCount += added;

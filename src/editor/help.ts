@@ -611,6 +611,18 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#perf',
+    covers: ['perf'],
+    syntax: ['#perf', '#perf worst', '#perf reset'],
+    text: [
+      'Typed on the input line. Shows how quickly WebCockpit has answered in this session, for when play feels slow. Nothing is sent to the game and nothing is saved; the numbers are kept in memory for the last few thousand keys and frames.',
+      'Alone, #perf prints a summary: for each measure the count, the median, the 95th and 99th percentile and the worst. key -> send is from a key press to the command leaving for the game; input delay is how long a slow key or click waited before it was handled; frame script is the work to draw new text, and received -> shown the time from text arriving to it being on screen. long frames are only measured in Chromium browsers; socket buffer above a few hundred bytes means the connection, not the client, is behind.',
+      '#perf worst lists the ten slowest moments with their time and what was happening: type it right after something felt slow. #perf reset starts over.',
+    ],
+    examples: [{ via: 'input', code: '#perf' }, { via: 'input', code: '#perf worst' }],
+  },
+  {
+    group: 'commands',
     heading: '#showme',
     covers: ['showme'],
     syntax: ['#showme {text}'],
