@@ -37,11 +37,14 @@ Newest first.
   file:// timing flake, green on rerun); seam sweep 6–32 px in Chromium
   and Firefox on Linux.
 - **Open:** missing symbols (✦★⚠…) still come from DejaVu at its width;
-  JetBrains Mono seams at some sizes in Chromium (fixable with `wholePx`,
-  changes its cells); small-size underscore clipping in a few fonts;
+  small-size underscore clipping in a few fonts;
   Windows/macOS untested.
 - **Next:** owner test (part D test guide, D9), then release.
-- **Commits:** 1851ae1, 1c7debd, 8fd1b98, plus this one.
+- **JetBrains Mono seams (owner OK'd):** `halfUpPx` + `cellMargin` 0.1
+  instead of `wholePx` (which made 13 sizes taller); widths unchanged,
+  rows 1 px lower at 16–17 and 25, 1 px taller at 8–9; no seams 6–32 in
+  either browser.
+- **Commits:** 1851ae1, 1c7debd, 8fd1b98, 13d5ae5, c2e19de, plus this one.
 
 ### 2026-10-01 — Wheel speed, About, spotlight hint
 
