@@ -24,6 +24,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type NavKey, cellLen, centreLeft, footerText, scrollbar, step, truncate } from './nav';
 import { useGrid } from './hooks';
 import { useFlash } from './stack';
+import { WHEEL_NOTCH_PX, wheelSteps } from './wheel';
 
 // ------------------------------------------------------------------- lines
 
@@ -478,7 +479,7 @@ export function Table<T>(p: TableProps<T>): VNode {
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault();
     const max = Math.max(0, p.rows.length - p.visible);
-    const next = Math.max(0, Math.min(max, p.top + (e.deltaY > 0 ? 1 : -1)));
+    const next = Math.max(0, Math.min(max, p.top + wheelSteps(e, WHEEL_NOTCH_PX)));
     if (next !== p.top) p.onScroll(next);
   };
   return (

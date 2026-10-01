@@ -28,6 +28,7 @@ import { useGrid } from '../chrome/kit/hooks';
 import { centreLeft, scrollToShow, scrollbar, wrapText } from '../chrome/kit/nav';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
+import { wheelSteps } from '../chrome/kit/wheel';
 import {
   type EntryNode,
   FIELD_LABELS,
@@ -973,7 +974,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const onWheel = (e: WheelEvent): void => {
       e.preventDefault();
       const max = Math.max(0, count - listVisible);
-      setListTop(Math.max(0, Math.min(max, top + (e.deltaY > 0 ? 3 : -3))));
+      setListTop(Math.max(0, Math.min(max, top + wheelSteps(e))));
     };
     return (
       <div class="wc-ped-list" style={{ width: `calc(var(--cell-w) * ${L + 1})` }} onWheel={onWheel}>
@@ -1327,7 +1328,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
           class={'wc-ped-manual' + (focused ? ' is-focus' : '')}
           onWheel={(e) => {
             e.preventDefault();
-            helpScroll(hTop + (e.deltaY > 0 ? 3 : -3));
+            const n = wheelSteps(e);
+            if (n !== 0) helpScroll(hTop + n);
           }}
           onMouseDown={(e) => {
             if (!(e.target as Element).closest('a')) e.preventDefault();
@@ -1373,7 +1375,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
           style={{ width: `calc(var(--cell-w) * ${menuW + 1})` }}
           onWheel={(e) => {
             e.preventDefault();
-            setMenuTop(Math.max(0, Math.min(menuMax, mTop + (e.deltaY > 0 ? 3 : -3))));
+            setMenuTop(Math.max(0, Math.min(menuMax, mTop + wheelSteps(e))));
           }}
           onMouseDown={(e) => e.preventDefault()}
         >

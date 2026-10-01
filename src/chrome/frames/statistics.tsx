@@ -30,6 +30,7 @@ import { useGrid, useServices } from '../kit/hooks';
 import { cellLen, centreLeft, scrollbar, truncate } from '../kit/nav';
 import { useIsTop, useKeys } from '../kit/stack';
 import { Footer, indent } from '../kit/widgets';
+import { WHEEL_NOTCH_PX, wheelSteps } from '../kit/wheel';
 import { fmtDate, fmtDur, fmtTime, stars } from './history-model';
 import {
   DEFAULT_KILL_SORT,
@@ -200,7 +201,8 @@ export function StatsView(p: StatsViewProps): VNode {
             : (e: WheelEvent) => {
                 e.preventDefault();
                 setFocus(id);
-                setTop(id, top[id]! + (e.deltaY > 0 ? 1 : -1));
+                const n = wheelSteps(e, WHEEL_NOTCH_PX);
+                if (n !== 0) setTop(id, top[id]! + n);
               }
         }
       >

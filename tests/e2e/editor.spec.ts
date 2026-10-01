@@ -417,7 +417,7 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   await page.keyboard.press('p');
   await expect(helpTopRow(page)).toHaveText('#action');
 
-  // ↓ ↑ one row, PgDn / PgUp a page, the wheel three rows, End / Home the ends.
+  // ↓ ↑ one row, PgDn / PgUp a page, a wheel notch (120 px) three rows, End / Home the ends.
   const second = await helpRows(page).nth(1).textContent();
   await page.keyboard.press('ArrowDown');
   await expect(helpTopRow(page)).toHaveText(second!);
@@ -429,7 +429,7 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   await expect(helpTopRow(page)).toHaveText('#action');
   const fourth = await helpRows(page).nth(3).textContent();
   await ped(page).locator('.wc-ped-help').hover();
-  await page.mouse.wheel(0, 100);
+  await page.mouse.wheel(0, 120);
   await expect(helpTopRow(page)).toHaveText(fourth!);
   await page.keyboard.press('End');
   await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line

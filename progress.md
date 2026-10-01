@@ -30,6 +30,10 @@ Newest first.
 - **About:** the profile paragraph ends at "TinTin++ syntax." and points
   to HELP and #help; TinTin++ moved to CREDITS.
 - **Spotlights:** header hints add `1–6 Speed`.
+- **Menus:** chrome and editor frames moved 1–3 rows per wheel event, so
+  a trackpad swipe ran away. They now sum the deltas
+  (`src/chrome/kit/wheel.ts`): about 3 rows per mouse notch, one per
+  40 px of swipe; tables one row per notch.
 - **Next:** owner tries the wheel speed; release when the owner says so.
 
 ### 2026-10-01 — Release 0.1.22

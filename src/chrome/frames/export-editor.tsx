@@ -57,6 +57,7 @@ import { useGrid, useServices } from '../kit/hooks';
 import { cellLen, centreLeft, step, truncate } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { Blank, Button, FlashRow, Line, Page, cellsWide, indent, useBodyRows } from '../kit/widgets';
+import { wheelSteps } from '../kit/wheel';
 import {
   type CursorKey,
   type EditorLog,
@@ -106,7 +107,6 @@ const MAP_W = 2;
 const CHROME_W = 1 + BUTTON_W + GAP + GUTTER + MAP_GAP + MAP_W + 1;
 const LOG_MIN = 20;
 const LOG_MAX = 100;
-const WHEEL_ITEMS = 3;
 const END_TEXT = '── end of log ──';
 
 type Zone = 'log' | 'buttons';
@@ -587,7 +587,8 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
           style={cellsWide(GUTTER + logW)}
           onWheel={(ev) => {
             ev.preventDefault();
-            moveTo(cur + (ev.deltaY > 0 ? WHEEL_ITEMS : -WHEEL_ITEMS));
+            const n = wheelSteps(ev);
+            if (n !== 0) moveTo(cur + n);
           }}
         >
           {rowsOut}

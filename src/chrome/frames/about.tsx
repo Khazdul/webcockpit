@@ -11,6 +11,7 @@ import { useGrid, useServices } from '../kit/hooks';
 import { centreLeft, scrollbar, wrapText } from '../kit/nav';
 import { useKeys } from '../kit/stack';
 import { Line, Page, useBodyRows } from '../kit/widgets';
+import { wheelSteps } from '../kit/wheel';
 
 export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server in between, and nothing kept anywhere but this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
 
@@ -138,7 +139,8 @@ export function AboutFrame(): VNode {
         class="wc-about"
         onWheel={(e) => {
           e.preventDefault();
-          scroll(e.deltaY > 0 ? 3 : -3);
+          const n = wheelSteps(e);
+          if (n !== 0) scroll(n);
         }}
       >
         {lines.slice(t, t + visible).map((l, i) => (
