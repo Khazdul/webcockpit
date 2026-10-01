@@ -221,6 +221,24 @@ margin, the scrollbar at the far right.
   right edge) and the overlays are where they were, so the toggle does
   not move when the view changes.
 
+### Edge to edge (2026-10-01)
+
+The owner asked that EDITOR and HELP fill the window's width, without
+the left margin. This replaces the rule under "Full width" for those two
+views.
+
+- **Rule.** At every size the EDITOR buffer starts in cell 0 and is
+  `cols - 1` cells wide, its scrollbar in cell `cols - 1`. `bodyWidth` is
+  gone. HELP's menu starts in cell 0; the manual follows after the menu,
+  its scrollbar and the gap, and runs to the last cell
+  (`helpFrame(cols, menuW)`; `fill` and `menuAt` are gone). When that
+  leaves the manual under HELP_MIN_W cells the menu is dropped and the
+  manual takes the whole width.
+- **Narrow frames too.** The earlier exception (under 79 cells the column
+  is kept) is dropped: one rule for every width.
+- **Unchanged.** LITE, the title, the view toggle, the footer and the
+  overlays stay on the centred column.
+
 ## Consequences
 
 - The same clipping exists wherever the chrome shows text in `.wc-line`

@@ -339,44 +339,12 @@ describe('layout', () => {
     headings.forEach((row, i) => expect(helpCurrent(headings, row)).toBe(i));
   });
 
-  it('places the menu in the left margin, moves and narrows the manual, then hides the menu', () => {
-    const frame = (cols: number) => {
-      const W = Math.max(40, Math.min(77, cols - 2));
-      return helpFrame(cols, W, Math.floor((cols - W) / 2), 19);
-    };
-    // Wide: the manual is the centred column, untouched.
-    expect(frame(140)).toEqual({ menu: true, menuAt: 8, at: 31, width: 77 });
-    expect(frame(125)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
-    // Less margin: the manual moves right and keeps its width …
-    expect(frame(110)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
-    expect(frame(102)).toEqual({ menu: true, menuAt: 1, at: 24, width: 77 });
-    // … then narrows …
-    expect(frame(101)).toEqual({ menu: true, menuAt: 1, at: 24, width: 76 });
-    expect(frame(77)).toEqual({ menu: true, menuAt: 1, at: 24, width: HELP_MIN_W });
-    // … and under the minimum the menu goes and the manual is as before.
-    expect(frame(76)).toEqual({ menu: false, menuAt: 0, at: 1, width: 74 });
-    expect(frame(60)).toEqual({ menu: false, menuAt: 0, at: 1, width: 58 });
-    for (let cols = 42; cols < 200; cols++) {
-      const f = frame(cols);
-      expect(f.at + f.width).toBeLessThanOrEqual(cols - 1);
-      if (f.menu) expect(f.at - f.menuAt).toBe(19 + 1 + HELP_MENU_GAP);
-    }
-  });
-
-  it('fill: the same left edges, the manual runs to the last cell of the grid', () => {
-    const at = (cols: number) => Math.floor((cols - 77) / 2);
-    for (let cols = 79; cols < 260; cols++) {
-      const plain = helpFrame(cols, 77, at(cols), 19);
-      const fill = helpFrame(cols, 77, at(cols), 19, true);
-      expect(fill.menu).toBe(true);
-      expect(fill.menuAt).toBe(plain.menuAt);
-      expect(fill.at).toBe(plain.at);
-      expect(fill.at + fill.width).toBe(cols);
-      expect(fill.width).toBeGreaterThanOrEqual(HELP_MIN_W);
-    }
-    expect(helpFrame(79, 77, 1, 19, true)).toEqual({ menu: true, menuAt: 1, at: 24, width: 55 });
-    expect(helpFrame(140, 77, 31, 19, true)).toEqual({ menu: true, menuAt: 8, at: 31, width: 109 });
-    // A menu too wide for the frame is dropped; the manual still fills from the column's left edge.
-    expect(helpFrame(79, 77, 1, 40, true)).toEqual({ menu: false, menuAt: 0, at: 1, width: 78 });
+  it('spans the whole grid: the menu in cell 0, the manual to the last cell, the menu dropped when narrow', () => {
+    const side = 19 + 1 + HELP_MENU_GAP;
+    expect(helpFrame(140, 19)).toEqual({ menu: true, at: side, width: 140 - side });
+    expect(helpFrame(side + HELP_MIN_W, 19)).toEqual({ menu: true, at: side, width: HELP_MIN_W });
+    expect(helpFrame(side + HELP_MIN_W - 1, 19)).toEqual({ menu: false, at: 0, width: side + HELP_MIN_W - 1 });
+    expect(helpFrame(140, 120)).toEqual({ menu: false, at: 0, width: 140 });
+    for (let cols = 42; cols < 260; cols++) expect(helpFrame(cols, 19).at + helpFrame(cols, 19).width).toBe(cols);
   });
 });

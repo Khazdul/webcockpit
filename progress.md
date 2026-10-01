@@ -22,6 +22,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Editor edge to edge
+
+- **Done:** EDITOR and HELP in the profile editor span the frame from
+  cell 0 to the last cell at every width; the left margin is gone
+  (ADR 0037, "Edge to edge"). LITE and the title row stay centred.
+- **Tests:** unit all green, e2e 268/268.
+- **Next:** unchanged: C17 release 0.1.20 when the owner asks.
+- **Commits:** this one.
+
 ### 2026-10-01 — Stage 8 part C: performance fixes
 
 - **Done:** C0–C16, built by parallel subagents in worktrees, merged.

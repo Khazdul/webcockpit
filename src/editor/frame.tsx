@@ -72,7 +72,6 @@ import {
   TOGGLE_W,
   VIEWS,
   ansiIndex,
-  bodyWidth,
   dropEmpty,
   ellipsis,
   entryWarning,
@@ -257,13 +256,12 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const bodyH = Math.max(4, rows - gap - 2 - 4 - 2);
   const bufferH = Math.max(3, rows - gap - 2 - 2);
   const listVisible = Math.max(1, bodyH - 1);
-  // HELP: the menu in the left margin, then the manual: text, a blank cell
+  // HELP: the menu at the left edge, then the manual: text, a blank cell
   // and the scrollbar (help.ts `helpFrame`).
   const menu = useMemo(() => helpMenu(), []);
   const menuW = useMemo(() => helpMenuWidth(menu), [menu]);
-  // At full size EDITOR and HELP run to the last cell of the grid (ADR 0037).
-  const bufW = bodyWidth(cols, W, at);
-  const hf = helpFrame(cols, W, at, menuW, W >= FULL_W);
+  // EDITOR and HELP span the whole grid, cell 0 to the last cell (ADR 0037).
+  const hf = helpFrame(cols, menuW);
   const manual = useMemo(() => helpLayout(hf.width - 2), [hf.width]);
   const helpMax = Math.max(0, manual.lines.length - bufferH);
   const hTop = Math.min(helpTop, helpMax);
@@ -1288,9 +1286,9 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     return (
       <div
         class="wc-ped-bufwrap"
-        style={{ ...indent(at), height: `calc(var(--cell-h) * ${bufferH})`, ...(help ? { display: 'none' } : {}) }}
+        style={{ height: `calc(var(--cell-h) * ${bufferH})`, ...(help ? { display: 'none' } : {}) }}
       >
-        <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${bufW - 1})` }} />
+        <div class="wc-ped-buffer" ref={bufRef} style={{ width: `calc(var(--cell-w) * ${cols - 1})` }} />
         <div class="wc-ped-bufbar">
           {Array.from({ length: bufferH }, (_, i) =>
             bar.length && i < bar.length ? (
@@ -1323,7 +1321,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const focused = zone === 'help' && !modal;
     const height = `calc(var(--cell-h) * ${bufferH})`;
     return (
-      <div class="wc-ped-help" style={{ ...indent(hf.menu ? hf.menuAt : hf.at), height }}>
+      <div class="wc-ped-help" style={{ height }}>
         {hf.menu && renderHelpMenu()}
         <div
           class={'wc-ped-manual' + (focused ? ' is-focus' : '')}

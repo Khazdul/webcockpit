@@ -945,26 +945,21 @@ export const HELP_MIN_W = 52;
 export interface HelpFrame {
   /** Whether the menu is shown. */
   menu: boolean;
-  /** Left cell of the menu. */
-  menuAt: number;
   /** Left cell and width of the manual column (text, a blank cell, the scrollbar). */
   at: number;
   width: number;
 }
 
 /**
- * Where the menu and the manual go in a frame `cols` wide whose centred
- * column is `W` cells at `at`. The menu (`menuW` cells, its scrollbar and
- * the gap) goes in the left margin. With too little margin the manual moves
- * right, then narrows; under HELP_MIN_W the menu is dropped and the manual
- * keeps the centred column. With `fill` (a full-size frame, ADR 0037) the
- * left edges are the same and the manual runs to the last cell of the grid.
+ * Where the menu and the manual go in a frame `cols` wide. HELP spans the
+ * whole grid (ADR 0037): the menu (`menuW` cells, its scrollbar and the
+ * gap) starts in cell 0 and the manual runs to the last cell. Under
+ * HELP_MIN_W for the manual the menu is dropped and the manual takes the
+ * whole width.
  */
-export function helpFrame(cols: number, W: number, at: number, menuW: number, fill = false): HelpFrame {
+export function helpFrame(cols: number, menuW: number): HelpFrame {
   const side = menuW + 1 + HELP_MENU_GAP;
-  const menuAt = Math.max(1, at - side);
-  const left = menuAt + side;
-  const width = fill ? cols - left : Math.min(W, cols - 1 - left);
-  if (width < HELP_MIN_W) return { menu: false, menuAt: 0, at, width: fill ? Math.max(W, cols - at) : W };
-  return { menu: true, menuAt, at: left, width };
+  const width = cols - side;
+  if (width < HELP_MIN_W) return { menu: false, at: 0, width: cols };
+  return { menu: true, at: side, width };
 }
