@@ -236,21 +236,34 @@ export class Telnet {
     let i = 0;
     // Start of the pending plain-text run, or -1.
     let run = -1;
+    // Positions of the next IAC and NUL at or after `i` (n: none), each
+    // found with a native scan and reused until `i` passes it.
+    let iac = -1;
+    let nul = -1;
     while (i < n) {
+      if (this.state === S_DATA) {
+        // Plain text runs to the next IAC or NUL: no per-byte work.
+        if (iac < i) {
+          iac = bytes.indexOf(IAC, i);
+          if (iac < 0) iac = n;
+        }
+        if (nul < i) {
+          nul = bytes.indexOf(0, i);
+          if (nul < 0) nul = n;
+        }
+        const stop = iac < nul ? iac : nul;
+        if (stop > i && run < 0) run = i;
+        if (stop >= n) break;
+        if (run >= 0) {
+          this.emitText(bytes, run, stop, ts);
+          run = -1;
+        }
+        if (stop === iac) this.state = S_IAC;
+        i = stop + 1;
+        continue;
+      }
       const b = bytes[i]!;
       switch (this.state) {
-        case S_DATA:
-          if (b === IAC || b === 0) {
-            if (run >= 0) {
-              this.emitText(bytes, run, i, ts);
-              run = -1;
-            }
-            if (b === IAC) this.state = S_IAC;
-          } else if (run < 0) {
-            run = i;
-          }
-          break;
-
         case S_IAC:
           this.state = S_DATA;
           switch (b) {
