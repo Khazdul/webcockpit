@@ -15,12 +15,28 @@ Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026
 | 7 | Sharing | Done | `docs/stages/07-sharing.md` |
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
+| 10 | Scripts (after v1) | Next | `docs/stages/10-scripts.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-01 — Scripts brainstorm and spec (stage 10)
+
+- **Owner decisions:** user scripts are in scope as intent Goal 10
+  (approved). They are written in Lua and kept in a separate library under
+  *Profile*: a list with toggles, a help view, and a full-screen editor.
+  Panes have gauges and clickable cells. Bundled scripts: coin looter,
+  mercenaries and key manager. Full list in `notes/research/scripting.md`.
+- **Spike:** wasmoon 1.16.0 fits. It is about 125 KB brotli, lazy, with
+  1–1.5 µs per raw line call; the sandbox, instruction budget and memory
+  cap work. ADR 0051.
+- **Docs:** spec §2.10, stage file `10-scripts.md`.
+- **Next:** stage 8 continues. Stage 10 starts after v1. The key manager
+  waits for the owner's Mudlet reference script.
+- **Commits:** ff7566e, 966b41d, plus this one.
 
 ### 2026-10-01 — Release 0.1.23
 

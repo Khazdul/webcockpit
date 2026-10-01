@@ -75,6 +75,9 @@
      **system** (built-in trackers, run capture) and **user** (the
      profile).
    - System rules are never written to the profile.
+   - A third store, **scripts**, holds the triggers, aliases and keys
+     of enabled Lua scripts (§2.10, ADR 0051). Matching stays in
+     TypeScript; Lua runs only on a match.
    - Triggers fan out: every matching consumer sees the line.
 6. **Display pipeline.** Substitutes, gags and highlights change only the
    displayed copy. Taps and the raw log see the unmodified line.
@@ -106,8 +109,8 @@ an automated benchmark that replays recorded sessions:
 
 ADR 0006.
 
-- **IndexedDB** holds profiles, settings, comm history, UI messages, runs
-  and, later, the map store.
+- **IndexedDB** holds profiles, settings, comm history, UI messages, runs,
+  the map store and scripts with their data (ADR 0051).
 - **`localStorage`** is used only for small conveniences.
 - **`navigator.storage.persist()`** is requested on first use.
 - **Saving.** Everything is saved as it changes. There is no
@@ -307,6 +310,124 @@ ADR 0003.
 - **Kept open:** the MMapper iframe route.
 - **Nothing bundled.** Map data is never shipped with the client.
 
+### 2.10 Scripts (after v1)
+
+Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
+
+- **Library.** Scripts are a separate library beside the profile.
+  - Enable and disable are global, not per profile.
+  - One `.lua` file is one script. There is no `require` between
+    scripts.
+  - Export and import work per file, like profiles. Import shows the
+    code and a warning that the script can send commands to the game.
+- **Menu.** *Scripts* sits directly under *Profile*, on the start page
+  and in the ESC menu.
+- **Scripts page:**
+  - **List on the left:** every script by name, with an enable toggle, an
+    *Edit* button, and a lock mark on bundled scripts. *New*, *Import*
+    and *Export* sit above the list.
+  - **Right side:** the selected script's help, built from its header:
+    - name and summary;
+    - its aliases and keys;
+    - the `@help` text;
+    - its settings, each with the current value and the
+      `#script set …` command that changes it.
+
+    There are no settings forms.
+  - **Edit** opens a full-screen editor like the profile's EDITOR view:
+    - CodeMirror with Lua mode;
+    - completion and hover help for the script API;
+    - save reloads the script at once if it is enabled.
+
+    A bundled script opens read-only, with *Duplicate*.
+  - Errors appear in UI messages and on the script's row as
+    `<script>:<line>: <message>`.
+- **Header:**
+
+  ```lua
+  -- @name     coinlooter
+  -- @summary  Loots coins from corpses
+  -- @api      1
+  -- @alias    cl  toggle on/off
+  -- @setting  delay number 0.5 "Seconds before looting"
+  -- @help     Free text, one line per tag.
+  ```
+- **In-game commands:**
+  - `#script list`
+  - `#script help <name>`: prints the same help in the game output
+  - `#script set <name> <setting> <value>`
+  - `#script enable <name>` and `#script disable <name>`
+  - `#script reload <name>`
+- **API, version 1.** Mudlet names where they fit and cost nothing.
+  - Triggers and aliases:
+    - `tempTrigger(substring, fn)`, `tempRegexTrigger(regex, fn)` and
+      `tempAlias(regex, fn)` return an id; `killTrigger(id)` and
+      `killAlias(id)` remove them.
+    - In a handler, `matches` and `line` are set as in Mudlet.
+    - `deleteLine()` gags the current line.
+    - `replaceLine(text)` substitutes the displayed copy.
+    - `highlight(color)` colours the displayed copy.
+    - An alias consumes the input unless its handler returns `false`.
+  - Keys: `tempKey(name, fn)` and `killKey(id)`. Key names follow
+    ADR 0005.
+  - Timers: `tempTimer(seconds, fn[, repeat])` and `killTimer(id)`.
+  - Events: `registerAnonymousEventHandler(event, fn)` and
+    `killAnonymousEventHandler(id)`. The events are:
+    - `gmcp.<Package>.<Message>`;
+    - connection events (`sysConnectionEvent`, `sysDisconnectionEvent`);
+    - `sysLoadEvent`;
+    - the curated `#event` names (spec §3).
+  - Game data:
+    - the global `gmcp` table, as in Mudlet;
+    - `state`, a read-only view of character, group and room data from
+      the client's trackers.
+  - Output:
+    - `send(cmd)` sends without alias expansion.
+    - `expandAlias(cmd)` goes through profile and script aliases.
+    - `echo(text)` writes plain text to the game output.
+    - `cecho(text)` writes coloured text. It understands Mudlet `<name>`
+      colours and tt++ `<Frrggbb>`/`<xyz>` codes.
+    - `uiMessage(source, text)` writes to the UI messages pane.
+  - Profile bridge:
+    - `getVariable(name)` and `setVariable(name, value)` read and write
+      tt++ variables.
+    - `export(name, fn)` makes a function callable from the profile as
+      `#lua {script} {name} {args}`.
+  - Script data:
+    - `settings.<name>` is read-only.
+    - `store.get(key)` and `store.set(key, value)` persist strings,
+      numbers, booleans and tables per script.
+  - Panes:
+    - `createPane{id, title, dock = "right"|"left"|"top"|"bottom"|"float", rows, cols}`
+      returns a pane. It docks, floats, toggles and is coloured like
+      built-in panes, and the user's placement is remembered per script
+      and id.
+    - Pane methods:
+      - `:clear()`, `:echo(text)` and `:cecho(text)`;
+      - `:setLine(row, text)`;
+      - `:gauge(row, {value, max, color, label})`;
+      - `:cechoLink(text, fn, hint)`, `:setLink(row, col, len, fn, hint)`.
+        Any span, down to a single cell, can be clickable and have a
+        tooltip.
+      - `:size()` returns rows and cols. A `resize` handler is called
+        when the user resizes the pane.
+- **Limits** (ADR 0051): sandboxed environment, instruction budget per
+  call, memory cap, auto-disable on repeated errors.
+- **Runs.** Script pane content is recorded and shows in the log player
+  and the HTML replay like the built-in panes.
+- **Bundled scripts:**
+  - **Coin looter:** loot coins from corpses after kills.
+  - **Mercenaries:** a pane with the mercenaries' state, with clickable
+    orders.
+  - **Key manager:** a pane listing keys and doors. It draws on the
+    owner's Mudlet reference script.
+
+  Bundled scripts are read-only and are updated with each release.
+  *Duplicate* makes an editable copy that is never overwritten.
+- **Out for now:** testing a script against a recorded run, script
+  packages with several files, and Mudlet API compatibility beyond the
+  names above.
+
 ## 3. Profile language
 
 tt++ syntax. The supported set comes from real use (Inv §6.5).
@@ -330,7 +451,8 @@ tt++ syntax. The supported set comes from real use (Inv §6.5).
   - `&var`.
 - **Preserved but inert:** file, shell, session and screen commands
   (`#lua`, `#system`, `#read`, `#session`, …). They are kept verbatim, do
-  nothing, and show a hint in the editor.
+  nothing, and show a hint in the editor. Exceptions (§2.10): `#script`
+  with a known subcommand, and `#lua {script} {function} {args}`.
 - **Nested definitions:** actions defined inside an alias are registered
   synchronously, in line order (Inv §6.4).
 
@@ -366,6 +488,7 @@ what feedback is wanted.
 | 7 | **Sharing.** The export editor, the HTML replay, Spotlights and Credits. | Export a fight and share it. |
 | 8 | **Hardening → v1.** Fixes from PvP testing, a performance pass and polish. | Several live PvP sessions; the v1 verdict. |
 | 9 | **Map** (after v1). | |
+| 10 | **Scripts** (after v1). Lua runtime and sandbox, script API, script panes, Scripts page and editor, `#script`, run capture of script panes, bundled scripts. | Enable the bundled scripts and play; write a small script of your own. |
 
 ## 6. Open questions for the owner
 
