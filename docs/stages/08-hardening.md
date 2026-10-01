@@ -247,7 +247,7 @@ experiments to rework, not finished code):
 - [x] C12. (#12) `MAX_ROWS_PER_FRAME` 500 (`A-exp-row-cap-500.patch`).
 - [x] C13. (#13) Scrollback depth setting in Options, default 20 000
       (ADR; spec §1.3 note).
-- [ ] C14. (#14) `#perf` latency monitor (ADR; `#help` manual entry).
+- [x] C14. (#14) `#perf` latency monitor (ADR; `#help` manual entry).
 - [ ] C15. (#15) Benchmark: owner geometry, visible-caret latency and
       idle, active panes, map on/off explicit, colour page, real keys
       under load, loopback WebSocket with the recorder, full-scrollback
