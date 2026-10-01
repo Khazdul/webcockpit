@@ -10,7 +10,7 @@
 // Usage (the Comm pane, P2):
 //
 //   const archive = await CommArchive.open(ctx.openDb);  // rejects without IndexedDB
-//   await archive.prune();                               // once at start
+//   await archive.prune();                               // at start and each live Char.Name
 //   const last = await archive.loadRecent('Rasta');      // oldest first, ≤ 1000, ≤ 7 days
 //   void archive.append({ character: 'Rasta', ts: Date.now(), channel, ... });
 //

@@ -359,6 +359,38 @@ describe('CommPane', () => {
     db.close();
   });
 
+  it('prunes the archive on each live Char.Name, not in a replay', async () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    let now = Date.now();
+    const c = comm({ db: true, state: 'idle', now: () => now });
+    const db = await openWebcockpitDb(c.factory!);
+    const arch = new CommArchive(db);
+    const count = async (): Promise<number> => {
+      const tx = db.transaction('comm', 'readonly');
+      const req = tx.objectStore('comm').count();
+      return new Promise((resolve, reject) => {
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    };
+    const old = (ts: number) =>
+      arch.append({ character: 'Rasta', ts, channel: 'says', talker: 'D', talkerType: null, destination: null, text: "D says 'x'" });
+    await c.pane.whenReady();
+    // Days later in the same tab: a message from then is now past the 7 days.
+    await old(now);
+    now += 8 * DAY;
+    await old(now - 1000);
+    c.setState('connecting', true);
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    expect(await count()).toBe(2); // a replay leaves the archive alone
+    c.setState('connecting');
+    c.bus.emit('gmcp', { pkg: 'Char.Name', data: { name: 'Rasta' } });
+    await flushAsync();
+    expect(await count()).toBe(1);
+    db.close();
+  });
+
   it('keeps at most 1000 messages', () => {
     const c = comm();
     for (let i = 0; i < 1005; i++) c.bus.emit('gmcp', text('says', 'D', `D says '${i}'`));

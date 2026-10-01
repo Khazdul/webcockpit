@@ -12,8 +12,9 @@
 // of 7 days; src/gmcp/comm-archive.ts); messages that arrive meanwhile are
 // kept and written after the load. Every live message is appended to the
 // archive. A replay starts from an empty history and never touches the
-// archive (`conn.state` carries `replay`). The archive is pruned once when
-// the pane starts. Without IndexedDB the pane works in memory.
+// archive (`conn.state` carries `replay`). The archive is pruned when the
+// pane starts and on every live `Char.Name`. Without IndexedDB the pane
+// works in memory.
 //
 // Header: left mouse down toggles a channel, right mouse down solos it
 // (src/gmcp/comm.ts). Filters are written to the settings at once; nothing
@@ -189,6 +190,9 @@ export class CommPane extends PaneShell {
         } catch {
           loaded = null;
         }
+        // Each live login prunes, so a tab kept open for days stays bounded
+        // (the prune at open covers only the start).
+        void a.prune().catch(() => 0);
       }
       if (token !== this.seedToken) return;
       const pending = this.pendingWrites ?? [];
