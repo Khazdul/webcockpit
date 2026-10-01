@@ -310,7 +310,7 @@ ADR 0003.
 - **Kept open:** the MMapper iframe route.
 - **Nothing bundled.** Map data is never shipped with the client.
 
-### 2.10 Scripts (after v1)
+### 2.10 Scripts
 
 Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
 
@@ -488,7 +488,7 @@ what feedback is wanted.
 | 7 | **Sharing.** The export editor, the HTML replay, Spotlights and Credits. | Export a fight and share it. |
 | 8 | **Hardening → v1.** Fixes from PvP testing, a performance pass and polish. | Several live PvP sessions; the v1 verdict. |
 | 9 | **Map** (after v1). | |
-| 10 | **Scripts** (after v1). Lua runtime and sandbox, script API, script panes, Scripts page and editor, `#script`, run capture of script panes, bundled scripts. | Enable the bundled scripts and play; write a small script of your own. |
+| 10 | **Scripts** (built before stage 8 ends, by owner request). Lua runtime and sandbox, script API, script panes, Scripts page and editor, `#script`, run capture of script panes, bundled scripts. | Enable the bundled scripts and play; write a small script of your own. |
 
 ## 6. Open questions for the owner
 

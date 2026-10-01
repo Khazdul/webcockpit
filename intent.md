@@ -65,7 +65,7 @@ reference only.
    Getting this integration right is critical. The integration path is
    researched and decided before the spec is approved, so that nothing
    built before then is incompatible with MMapper.
-10. **User scripts** (after v1, added 2026-10-01). A script library
+10. **User scripts** (added 2026-10-01, built before v1). A script library
     beside the profile, in Lua, with Mudlet-like names where that costs
     nothing:
     - Scripts trigger on incoming text, aliases, keys, timers and GMCP;

@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.23 live at https://mumecockpit.com/; next: owner test of part D, more fonts, then release).
+Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01; next: P0 Lua runtime). Stage 8 stays open: owner test of part D, then release.
 
 ## Stages
 
@@ -15,7 +15,7 @@ Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026
 | 7 | Sharing | Done | `docs/stages/07-sharing.md` |
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
-| 10 | Scripts (after v1) | Next | `docs/stages/10-scripts.md` |
+| 10 | Scripts | In progress | `docs/stages/10-scripts.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

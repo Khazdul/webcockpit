@@ -1,6 +1,6 @@
 # Stage 10 — Scripts
 
-> Status: Next (after v1).
+> Status: In progress (moved ahead of v1 by owner request 2026-10-01).
 > Source: intent Goal 10, spec §2.10, ADR 0051. Brainstorm:
 > `notes/research/scripting.md`. Spike: wasmoon 1.16.0 (numbers in
 > ADR 0051).
