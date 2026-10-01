@@ -85,6 +85,15 @@ body {
   scrollbar-color: auto;
 }
 
+/* scrollbar-color is inherited: without a value of their own, every row
+   would be restyled whenever .wc-scrolled toggles (PageUp, Esc, wheel;
+   ~130 ms at 20 000 rows in Chromium). ADR 0044 rule 2. Neither element
+   scrolls, so the value shows nowhere. */
+.wc-rows,
+.wc-partial {
+  scrollbar-color: auto;
+}
+
 .wc-chunk {
   /* A chunk's rows never affect layout outside it (see output-pane.ts). */
   contain: content;
