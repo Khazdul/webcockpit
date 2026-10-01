@@ -2,8 +2,8 @@
 // and the build commit (ADR 0025) follow the title on its row. Colour rule
 // per line: an ALL-CAPS line is a heading (C_TITLE); an indented line is `  key  description`
 // (key in C_ACCENT, description in C_BODY); other text is C_BODY. Web
-// addresses (mume.org, discord.gg, github.com, tintin.mudhalla.net) and LICENSE.txt (the site's
-// copy of the GPL text, vite.config.ts) are links.
+// addresses (mume.org, discord.gg, github.com, tintin.mudhalla.net), LICENSE.txt (the site's
+// copy of the GPL text, vite.config.ts) and fonts/README.md (the font credits) are links.
 
 import type { VNode } from 'preact';
 import { useState } from 'preact/hooks';
@@ -43,7 +43,7 @@ CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
-  Fonts           DejaVu Sans Mono and JetBrains Mono.
+  Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono, each under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
   Libraries       Preact and CodeMirror.
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
@@ -79,7 +79,9 @@ export function aboutLines(width: number): Styled[] {
   return out;
 }
 
-const LINK = /\b((?:mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt)/;
+const LINK = /\b((?:mume\.org|discord\.gg|github\.com|tintin\.mudhalla\.net)(?:\/[\w./-]*[\w/])?|LICENSE\.txt|fonts\/README\.md)/;
+/** Links to the site's own files (served from `public/`). */
+const LOCAL_FILES = new Set(['LICENSE.txt', 'fonts/README.md']);
 
 /** Text with the web addresses in it as links that open in a new tab. */
 function linked(text: string): (string | VNode)[] {
@@ -87,7 +89,7 @@ function linked(text: string): (string | VNode)[] {
     i % 2 === 0 ? part : (
       <a
         class="wc-about-link"
-        href={part === 'LICENSE.txt' ? `${import.meta.env.BASE_URL}${part}` : `https://${part}`}
+        href={LOCAL_FILES.has(part) ? `${import.meta.env.BASE_URL}${part}` : `https://${part}`}
         target="_blank"
         rel="noopener noreferrer"
       >

@@ -44,7 +44,7 @@ import {
   paneShades,
   takesDarkInk,
 } from './color';
-import { FONTS } from './fonts';
+import { fontInfo } from './fonts';
 import {
   BANNER_COLORS,
   BANNER_COLORS_LIGHT,
@@ -153,7 +153,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
   const t: Record<string, string> = {
     '--term-fg': a.fg,
     '--term-bg': a.bg,
-    '--font-mono': FONTS[a.font].stack,
+    '--font-mono': fontInfo(a.font).stack,
     '--pad': `${a.padding}px`,
     '--c-line-hl': lineHighlight(a.bg),
     '--term-echo': inputColor(a.inputColor, a.bg),

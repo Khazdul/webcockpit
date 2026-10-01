@@ -20,7 +20,6 @@ import { useState } from 'preact/hooks';
 import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
 import {
   CURSOR_STYLES,
-  FONT_IDS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   PADDING_MAX,
@@ -29,7 +28,7 @@ import {
   SCROLLBACK_CHOICES,
   defaultSettings,
 } from '../../settings';
-import { FONTS } from '../../theme/fonts';
+import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
   ANSI_NAMES,
   DOS_PALETTE,
@@ -312,9 +311,11 @@ export function AppearanceFrame(): VNode {
   const items: MenuItem[] = [
     {
       key: 'font',
-      label: `Font: ${FONTS[a.font].label}`,
+      // A stored font that is not installed here shows (and renders) as
+      // DejaVu Sans Mono (ADR 0049).
+      label: `Font: ${FONTS[effectiveFont(a.font)].label}`,
       activate: () => nav.push(<FontPicker />),
-      adjust: (d) => set({ font: cycle(FONT_IDS, a.font, d) }),
+      adjust: (d) => set({ font: cycle(fontChoices(), effectiveFont(a.font), d) }),
     },
     {
       key: 'size',
@@ -491,15 +492,19 @@ function PaletteRow(p: {
   );
 }
 
-/** Font picker: the bundled families (Inv §3.7 `terminal_font_picker`). */
+/**
+ * Font picker (Inv §3.7 `terminal_font_picker`): the bundled families, and
+ * Lucida Console where it is installed (ADR 0049).
+ */
 function FontPicker(): VNode {
   const { settings } = useServices();
   const s = useSettings();
   const nav = useNav();
+  const current = effectiveFont(s.appearance.font);
   const items: MenuItem[] = [
-    ...FONT_IDS.map((id) => ({
+    ...fontChoices().map((id) => ({
       key: id,
-      glyph: s.appearance.font === id ? '(•)' : '( )',
+      glyph: current === id ? '(•)' : '( )',
       label: FONTS[id].label,
       activate: () => {
         settings.update({ appearance: { font: id } });
@@ -509,7 +514,7 @@ function FontPicker(): VNode {
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
-  const [cursor, setCursor] = useMenuCursor(items, s.appearance.font);
+  const [cursor, setCursor] = useMenuCursor(items, current);
   useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
   return (
     <Page title="Font" footer={MENU_FOOTER}>

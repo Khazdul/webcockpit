@@ -1,6 +1,7 @@
 // HTML replay: payload codec, file assembly and escaping (ADR 0019, P2).
 import { describe, expect, it } from 'vitest';
-import { defaultSettings } from '../../src/settings';
+import { type FontId, defaultSettings } from '../../src/settings';
+import { setFontInstalled } from '../../src/theme/fonts';
 import { defaultExportDoc } from '../../src/share/edits';
 import { type ReplayPayload, buildReplayPayload } from '../../src/share/payload';
 import { decodePayload, encodePayload, fromBase64, toBase64 } from '../../src/replay/codec';
@@ -10,6 +11,7 @@ import {
   buildReplayHtml,
   escapeHtml,
   escapeScript,
+  fontNotices,
   replayFonts,
 } from '../../src/replay/export';
 import { fmtDate, replayTitle } from '../../src/replay/title';
@@ -17,7 +19,7 @@ import { REPLAY_HINTS, replayHeader } from '../../src/replay/page';
 import { fitHints } from '../../src/player/strip';
 import { BASE_US, makeLog, meta } from './player-helpers';
 
-function payload(over: Partial<ReplayPayload> = {}, font?: 'jetbrains'): ReplayPayload {
+function payload(over: Partial<ReplayPayload> = {}, font?: FontId): ReplayPayload {
   const text = makeLog(BASE_US, [
     { at: 0, view: { appearance: { ...defaultSettings().appearance, ...(font ? { font } : {}) } } },
     { at: 1, in: 'A room with </script> and <!-- in it.' },
@@ -122,6 +124,34 @@ describe('replayFonts', () => {
     expect(replayFonts(payload())).toEqual(['dejavu']);
     expect(replayFonts(payload({}, 'jetbrains'))).toEqual(['dejavu', 'jetbrains']);
   });
+
+  it('never includes Lucida Console, even where it is installed: DejaVu takes its place (ADR 0049)', () => {
+    setFontInstalled('lucida', true);
+    try {
+      expect(replayFonts(payload({}, 'lucida'))).toEqual(['dejavu']);
+      const p = payload({}, 'hack');
+      p.settings = { ...p.settings, appearance: { ...p.settings.appearance, font: 'lucida' } };
+      expect(replayFonts(p)).toEqual(['dejavu', 'hack']);
+    } finally {
+      setFontInstalled('lucida', false);
+    }
+  });
+});
+
+describe('fontNotices', () => {
+  it('names each embedded family and its glyph faces with their licences, once', () => {
+    expect(fontNotices(['dejavu'])).toEqual([
+      'DejaVu Sans Mono (Bitstream Vera licence, public domain changes)',
+      'WebCockpit Underscore (the underscore of DejaVu Sans Mono, moved up; same licence)',
+    ]);
+    expect(fontNotices(['hermit', 'hack', 'hermit'])).toEqual([
+      'Hermit (SIL Open Font License 1.1)',
+      'WebCockpit Fill H (box and block glyphs drawn for WebCockpit; SIL Open Font License 1.1)',
+      'Hack (MIT and Bitstream Vera licences)',
+    ]);
+    // Agave's regular-for-bold family is Agave itself: no line of its own.
+    expect(fontNotices(['agave'])).toEqual(['Agave (SIL Open Font License 1.1)']);
+  });
 });
 
 describe('buildReplayHtml', () => {
@@ -150,6 +180,32 @@ describe('buildReplayHtml', () => {
     // DejaVu regular and bold, and the underscore face (ADR 0043) with its unicode-range.
     expect(html.match(/@font-face/g)).toHaveLength(4);
     expect(html.match(/unicode-range:U\+5F}/g)).toHaveLength(2);
+    const notice = html.slice(html.indexOf('<!--') + 4, html.indexOf('-->'));
+    expect(notice.replace(/\s+/g, ' ')).toContain(
+      'Embedded fonts: DejaVu Sans Mono (Bitstream Vera licence, public domain changes); WebCockpit Underscore',
+    );
+    expect(notice).not.toContain('JetBrains');
+  });
+
+  it('embeds DejaVu Sans Mono for Lucida Console, never a local font, and names only what it embeds', async () => {
+    const urls: string[] = [];
+    const fetch = async (url: string): Promise<Response> => {
+      urls.push(url);
+      return new Response(url.endsWith('.js') ? '' : new Uint8Array([7]));
+    };
+    const p = payload({}, 'agave');
+    p.settings = { ...p.settings, appearance: { ...p.settings.appearance, font: 'lucida' } };
+    const html = await (await buildReplayHtml(p, { fetch, base: 'http://x/' })).text();
+    expect(urls.filter((u) => /lucida|lucon|WebCockpitFill-LC/i.test(u))).toEqual([]);
+    expect(html).not.toMatch(/local\(|Lucida|WebCockpit Fill LC/);
+    // One fetch per file: Agave Regular serves two families.
+    expect(urls.filter((u) => u.endsWith('/Agave-Regular.woff2'))).toHaveLength(1);
+    expect(html.match(/font-family:"WebCockpit Agave Regular"/g)).toHaveLength(2);
+    const notice = html.slice(html.indexOf('<!--') + 4, html.indexOf('-->'));
+    expect(notice).not.toContain('--');
+    expect(notice.replace(/\s+/g, ' ')).toContain('Embedded fonts: DejaVu Sans Mono');
+    expect(notice.replace(/\s+/g, ' ')).toContain('Agave (SIL Open Font License 1.1).');
+    for (const line of notice.split('\n')) expect(line.length).toBeLessThanOrEqual(76);
   });
 
   it('fails when the bundle is missing', async () => {

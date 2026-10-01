@@ -1,10 +1,23 @@
-// Glyph coverage of the bundled fonts (Inv §10.1 "Glyph needs", ADR 0010).
-// Reads the cmap straight from the woff2 files: the WOFF2 table directory,
-// one Brotli stream (node:zlib), then cmap format 4 / 12.
+// Glyph coverage and metrics of the terminal fonts (Inv §10.1 "Glyph needs",
+// ADR 0010, ADR 0049). Reads the cmap, hmtx and line metrics straight from
+// the woff2 files: the WOFF2 table directory, one Brotli stream (node:zlib),
+// then cmap format 4 / 12.
 import { readFileSync, readdirSync } from 'node:fs';
 import { brotliDecompressSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { FONTS, UNDERSCORE_FACE, fontFiles } from '../../src/theme/fonts';
+import { FONT_IDS, type FontId } from '../../src/settings/types';
+import {
+  AGAVE_BOLD_RANGE,
+  AGAVE_REGULAR_FACE,
+  FILL_FACES,
+  FONTS,
+  type FontFaceFile,
+  UNDERSCORE_FACE,
+  allFontFaces,
+  familyFaces,
+  fontFaceCss,
+  fontFiles,
+} from '../../src/theme/fonts';
 
 const DIR = new URL('../../public/fonts/', import.meta.url);
 
@@ -62,9 +75,18 @@ export function woff2Tables(buf: Buffer): Map<string, Buffer> {
 
 /** The code points in a woff2 font's cmap. */
 export function woff2CodePoints(buf: Buffer): Set<number> {
+  return new Set(woff2Cmap(buf).keys());
+}
+
+/**
+ * A woff2 font's cmap: code point → glyph id (formats 4 and 12). The cmap
+ * is the same table in TrueType and CFF fonts (only `glyf` / `loca` are
+ * transformed in WOFF2), so this reads Hermit's OTF-based files too.
+ */
+export function woff2Cmap(buf: Buffer): Map<number, number> {
   const c = woff2Tables(buf).get('cmap');
   if (!c) throw new Error('no cmap');
-  const out = new Set<number>();
+  const out = new Map<number, number>();
   const n = c.readUInt16BE(2);
   for (let i = 0; i < n; i++) {
     const sub = c.readUInt32BE(4 + i * 8 + 4);
@@ -88,7 +110,7 @@ export function woff2CodePoints(buf: Buffer): Set<number> {
             g = c.readUInt16BE(gi);
             if (g !== 0) g = (g + delta) & 0xffff;
           }
-          if (g !== 0) out.add(cp);
+          if (g !== 0 && !out.has(cp)) out.set(cp, g);
         }
       }
     } else if (format === 12) {
@@ -98,7 +120,7 @@ export function woff2CodePoints(buf: Buffer): Set<number> {
         const start = c.readUInt32BE(o);
         const end = c.readUInt32BE(o + 4);
         const glyph = c.readUInt32BE(o + 8);
-        for (let cp = start; cp <= end; cp++) if (glyph + (cp - start) !== 0) out.add(cp);
+        for (let cp = start; cp <= end; cp++) if (glyph + (cp - start) !== 0 && !out.has(cp)) out.set(cp, glyph + (cp - start));
       }
     }
   }
@@ -108,32 +130,93 @@ export function woff2CodePoints(buf: Buffer): Set<number> {
 const missing = (cps: Set<number>, chars: string): string[] =>
   [...chars].filter((ch) => !cps.has(ch.codePointAt(0)!));
 
-describe('bundled fonts', () => {
-  const files = Object.values(FONTS).flatMap((f) => [f.regular, f.bold]);
+const read = (file: string): Buffer => readFileSync(new URL(file, DIR));
 
-  it('every font file referenced by the code exists', () => {
+/** The code points of a CSS `unicode-range` value. */
+function rangeSet(range: string): Set<number> {
+  const out = new Set<number>();
+  for (const part of range.split(',')) {
+    const m = /^\s*U\+([0-9A-F]+)(?:-([0-9A-F]+))?\s*$/i.exec(part);
+    if (!m) throw new Error(`bad range ${part}`);
+    const a = parseInt(m[1]!, 16);
+    const b = m[2] ? parseInt(m[2], 16) : a;
+    for (let cp = a; cp <= b; cp++) out.add(cp);
+  }
+  return out;
+}
+
+/** The code points the faces `faces` (stack order) draw for one weight, unicode-range applied. */
+function covered(faces: readonly FontFaceFile[]): Set<number> {
+  const out = new Set<number>();
+  for (const f of faces) {
+    if (!f.file) continue;
+    const range = f.unicodeRange ? rangeSet(f.unicodeRange) : null;
+    for (const cp of woff2CodePoints(read(f.file))) if (!range || range.has(cp)) out.add(cp);
+  }
+  return out;
+}
+
+/** The glyphs a fill face may draw (scripts/build-fill-fonts.py FILL_SET). */
+const FILL_SET = '─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▀▄▌▐█▖▗▘▝▚▞▛▜▙▟▁▂▃▅▆▇░▒▓';
+
+const BUNDLED = FONT_IDS.filter((id) => !FONTS[id].local);
+
+describe('bundled fonts', () => {
+  it('every font file referenced by the code exists, and every woff2 is referenced', () => {
     const present = readdirSync(DIR);
-    for (const f of files) expect(present).toContain(f);
+    const used = new Set(allFontFaces().flatMap((f) => (f.file ? [f.file] : [])));
+    for (const f of used) expect(present).toContain(f);
+    expect(present.filter((f) => f.endsWith('.woff2')).sort()).toEqual([...used].sort());
   });
 
-  for (const file of files) {
-    it(`${file} has every box, block and quadrant glyph`, () => {
-      const cps = woff2CodePoints(readFileSync(new URL(file, DIR)));
-      expect(cps.has(0x41)).toBe(true);
-      expect(missing(cps, STRUCTURAL)).toEqual([]);
-    });
+  it('Lucida Console is never shipped (ADR 0049)', () => {
+    expect(readdirSync(DIR).filter((f) => /lucida|lucon/i.test(f))).toEqual([]);
+    expect(FONTS.lucida.regular).toBeNull();
+    expect(FONTS.lucida.bold).toBeNull();
+    expect(familyFaces('lucida').filter((f) => f.family === FONTS.lucida.family).every((f) => !f.file && f.local)).toBe(
+      true,
+    );
+  });
+
+  it('every bundled family has a licence file', () => {
+    const present = readdirSync(DIR);
+    for (const name of [
+      'Agave', 'AnonymousPro', 'CascadiaCode', 'DejaVu', 'FantasqueSansMono', 'FiraCode', 'GoMono', 'Hack',
+      'Hermit', '3270', 'IBMPlexMono', 'Inconsolata', 'JetBrainsMono-OFL', 'mononoki', 'NotoSansMono',
+      'WebCockpitFill',
+    ]) {
+      expect(present).toContain(`LICENSE-${name}.txt`);
+    }
+  });
+
+  for (const id of FONT_IDS) {
+    for (const weight of ['normal', 'bold'] as const) {
+      it(`${id} ${weight}: every box, block and quadrant glyph is in the family or its glyph faces`, () => {
+        const faces = familyFaces(id).filter((f) => f.weight === weight);
+        if (FONTS[id].local) {
+          // Lucida Console 5.01 has all but what its fill face draws.
+          const fill = covered(faces);
+          expect(missing(fill, '▛▜▙▟▁▂▃▅▆▇')).toEqual([]);
+          return;
+        }
+        const cps = covered(faces);
+        expect(cps.has(0x41)).toBe(true);
+        expect(missing(cps, STRUCTURAL)).toEqual([]);
+        expect(missing(cps, FILL_SET)).toEqual([]);
+      });
+    }
   }
 
   it('symbols: DejaVu has all; JetBrains Mono lacks only ✦✧⚔♦★☆✖▬ (DejaVu is its fallback)', () => {
-    const dv = woff2CodePoints(readFileSync(new URL(FONTS.dejavu.regular, DIR)));
+    const dv = woff2CodePoints(read(FONTS.dejavu.regular!));
     expect(missing(dv, SYMBOLS)).toEqual([]);
-    const dvb = woff2CodePoints(readFileSync(new URL(FONTS.dejavu.bold, DIR)));
+    const dvb = woff2CodePoints(read(FONTS.dejavu.bold!));
     expect(missing(dvb, SYMBOLS)).toEqual([]);
-    for (const f of [FONTS.jetbrains.regular, FONTS.jetbrains.bold]) {
-      const jb = woff2CodePoints(readFileSync(new URL(f, DIR)));
+    for (const f of [FONTS.jetbrains.regular!, FONTS.jetbrains.bold!]) {
+      const jb = woff2CodePoints(read(f));
       expect(missing(jb, SYMBOLS).sort()).toEqual([...'✦✧⚔♦★☆✖▬'].sort());
     }
-    expect(FONTS.jetbrains.stack).toContain('"DejaVu Sans Mono"');
+    for (const id of FONT_IDS) if (id !== 'dejavu') expect(FONTS[id].stack).toContain('"DejaVu Sans Mono", monospace');
   });
 });
 
@@ -148,13 +231,19 @@ function lineMetrics(buf: Buffer): Record<string, number> {
     hheaAscent: hhea.readInt16BE(4),
     hheaDescent: hhea.readInt16BE(6),
     hheaLineGap: hhea.readInt16BE(8),
-    fsSelection: os2.readUInt16BE(62),
+    useTypo: (os2.readUInt16BE(62) >> 7) & 1,
     typoAscender: os2.readInt16BE(68),
     typoDescender: os2.readInt16BE(70),
     typoLineGap: os2.readInt16BE(72),
     winAscent: os2.readUInt16BE(74),
     winDescent: os2.readUInt16BE(76),
   };
+}
+
+/** The line metrics browsers use: hhea, and OS/2 typo or win (USE_TYPO_METRICS). */
+function usedMetrics(m: Record<string, number>): Record<string, number> {
+  const { typoAscender, typoDescender, typoLineGap, ...rest } = m;
+  return m.useTypo ? { ...rest, typoAscender: typoAscender!, typoDescender: typoDescender!, typoLineGap: typoLineGap! } : rest;
 }
 
 /** Advance width of glyph `gid` (hmtx, with hhea.numberOfHMetrics). */
@@ -164,16 +253,183 @@ function advance(buf: Buffer, gid: number): number {
   return t.get('hmtx')!.readUInt16BE(Math.min(gid, n - 1) * 4);
 }
 
+/**
+ * `█` y-range in font units (fontTools glyph bounds; public/fonts/README.md
+ * "Metrics"). Anonymous Pro has no `█`: its line metrics, which its `│` and
+ * its fill face's blocks span.
+ */
+const BLOCK: Record<FontId, readonly [number, number]> = {
+  agave: [-544, 1568],
+  anonymous: [-373, 1675],
+  cascadia: [-480, 2226],
+  dejavu: [-512, 1921],
+  fantasque: [-505, 1820],
+  firacode: [-600, 1800],
+  gomono: [-432, 1935],
+  hack: [-512, 1950],
+  hermit: [-375, 875],
+  ibm3270: [-400, 1600],
+  plex: [-350, 950],
+  inconsolata: [-400, 1000],
+  jetbrains: [-300, 1020],
+  mononoki: [-250, 900],
+  notomono: [-240, 973],
+  lucida: [-432, 1616],
+};
+
+/** Lucida Console 5.01's line metrics (lucon.ttf; never shipped). */
+const LUCIDA_METRICS = {
+  unitsPerEm: 2048,
+  hheaAscent: 1616,
+  hheaDescent: -432,
+  hheaLineGap: 0,
+  useTypo: 0,
+  typoAscender: 1604,
+  typoDescender: -420,
+  typoLineGap: 167,
+  winAscent: 1616,
+  winDescent: 432,
+};
+
+/**
+ * The tallest cell `█` covers (ADR 0049): a line box of height L puts the
+ * baseline (A - D) / 2 above the box's middle (A, D: the ascent and
+ * descent the browser uses), so the glyph's top and bottom must lie at
+ * least L / 2 from that middle. Browsers take hhea (Linux, macOS) or OS/2
+ * win, or typo where USE_TYPO_METRICS is set (Windows); the cell must work
+ * with both.
+ */
+function coverHeight(m: Record<string, number>, [bottom, top]: readonly [number, number]): number {
+  const sets: Array<[number, number]> = [[m.hheaAscent!, -m.hheaDescent!]];
+  sets.push(m.useTypo ? [m.typoAscender!, -m.typoDescender!] : [m.winAscent!, m.winDescent!]);
+  let h = top - bottom;
+  for (const [a, d] of sets) {
+    const mid = (a - d) / 2;
+    h = Math.min(h, 2 * (top - mid), 2 * (mid - bottom));
+  }
+  return h;
+}
+
+describe('cell metrics in FONTS match the files', () => {
+  for (const id of BUNDLED) {
+    it(`${id}: units per em, a monospace advance, and the cell █ covers`, () => {
+      const f = FONTS[id];
+      const reg = read(f.regular!);
+      const m = lineMetrics(reg);
+      const upm = m.unitsPerEm!;
+      // ASCII, the grid glyphs and Swedish letters: all one advance, in both weights.
+      for (const file of [f.regular!, f.bold ?? f.regular!]) {
+        const buf = read(file);
+        const cmap = woff2Cmap(buf);
+        const chars = [...Array.from({ length: 95 }, (_, i) => String.fromCharCode(32 + i)), ...FILL_SET, ...'åäöÅÄÖé'];
+        for (const ch of chars) {
+          const gid = cmap.get(ch.codePointAt(0)!);
+          if (gid === undefined) continue;
+          expect(advance(buf, gid), `${file} ${ch}`).toBe(Math.round(f.advanceEm * upm));
+        }
+        // Bold has the regular's line metrics (those a browser uses): the
+        // cell does not depend on the weight.
+        expect(usedMetrics(lineMetrics(buf))).toEqual(usedMetrics(m));
+      }
+      expect(f.advanceEm * upm).toBeCloseTo(Math.round(f.advanceEm * upm), 6);
+      const cover = coverHeight(m, BLOCK[id]);
+      if (id === 'dejavu') {
+        // ADR 0010's value, the full ink height; the hhea centre is 9 units
+        // (0.004 em) off the glyph's, which hinting absorbs.
+        expect(f.blockEm * upm).toBeCloseTo(2433, 6);
+        expect(cover).toBe(2424);
+      } else {
+        expect(f.blockEm * upm).toBeCloseTo(cover, 6);
+      }
+    });
+  }
+
+  it('lucida: the measured Lucida Console 5.01 numbers', () => {
+    expect(FONTS.lucida.advanceEm).toBe(1234 / 2048);
+    expect(FONTS.lucida.blockEm * 2048).toBeCloseTo(coverHeight(LUCIDA_METRICS, BLOCK.lucida), 6);
+  });
+});
+
+describe('fill faces (ADR 0049)', () => {
+  const hosts = [
+    ['AP', 'anonymous'],
+    ['H', 'hermit'],
+    ['GM', 'gomono'],
+    ['LC', 'lucida'],
+  ] as const;
+
+  for (const [key, id] of hosts) {
+    const face = FILL_FACES[key];
+    it(`${face.family} draws exactly what ${FONTS[id].label} lacks, at its advance and line metrics`, () => {
+      expect(face.regular).toBe(`WebCockpitFill-${key}.woff2`);
+      expect(face.bold).toBe(face.regular);
+      const buf = read(face.regular);
+      const cps = woff2Cmap(buf);
+      const drawn = [...FILL_SET].filter((c) => cps.has(c.codePointAt(0)!)).join('');
+      expect([...cps.keys()].length).toBe([...drawn].length);
+      expect(drawn).toBe(face.text);
+      expect(rangeSet(face.unicodeRange!)).toEqual(new Set([...face.text].map((c) => c.codePointAt(0)!)));
+      const f = FONTS[id];
+      expect(f.overrides).toContain(face);
+      expect(f.stack.startsWith(`"${face.family}", "${f.family}"`)).toBe(true);
+      const upm = lineMetrics(buf).unitsPerEm!;
+      const adv = Math.round(f.advanceEm * upm);
+      for (const gid of [0, ...cps.values()]) expect(advance(buf, gid)).toBe(adv);
+      if (f.local) {
+        expect(lineMetrics(buf)).toEqual(LUCIDA_METRICS);
+        return;
+      }
+      for (const file of [f.regular!, f.bold!]) {
+        const host = read(file);
+        // Identical line metrics: the face cannot change a line box.
+        expect(lineMetrics(buf)).toEqual(lineMetrics(host));
+        // Exactly the grid glyphs this weight of the host lacks.
+        const hostCps = woff2CodePoints(host);
+        expect([...FILL_SET].filter((c) => !hostCps.has(c.codePointAt(0)!)).join('')).toBe(face.text);
+      }
+    });
+  }
+
+  it('the bundled families without a fill face need none', () => {
+    const withFill = new Set<FontId>(hosts.map(([, id]) => id));
+    for (const id of BUNDLED) {
+      if (withFill.has(id) || id === 'agave') continue;
+      for (const file of [FONTS[id].regular!, FONTS[id].bold ?? FONTS[id].regular!]) {
+        expect(missing(woff2CodePoints(read(file)), FILL_SET), file).toEqual([]);
+      }
+    }
+  });
+});
+
+describe('families without a full bold (ADR 0049)', () => {
+  it('Agave: the bold face is limited to its cmap; the rest of bold is Agave Regular', () => {
+    expect(rangeSet(AGAVE_BOLD_RANGE)).toEqual(woff2CodePoints(read(FONTS.agave.bold!)));
+    const bold = familyFaces('agave').filter((f) => f.weight === 'bold');
+    expect(bold.map((f) => [f.family, f.file, f.unicodeRange])).toEqual([
+      ['Agave', 'Agave-Bold.woff2', AGAVE_BOLD_RANGE],
+      [AGAVE_REGULAR_FACE.family, 'Agave-Regular.woff2', undefined],
+    ]);
+    expect(FONTS.agave.stack).toBe('"Agave", "WebCockpit Agave Regular", "DejaVu Sans Mono", monospace');
+  });
+
+  it('IBM 3270 and Lucida Console: the bold rule uses the regular face (no synthetic bold)', () => {
+    const b3270 = familyFaces('ibm3270').find((f) => f.family === 'IBM 3270' && f.weight === 'bold')!;
+    expect(b3270.file).toBe('IBM3270-Regular.woff2');
+    const bl = familyFaces('lucida').find((f) => f.family === FONTS.lucida.family && f.weight === 'bold')!;
+    expect(bl.local).toEqual(['Lucida Console', 'LucidaConsole']);
+  });
+});
+
 describe('the underscore face (ADR 0043)', () => {
   const pairs = [
-    [UNDERSCORE_FACE.regular, FONTS.dejavu.regular],
-    [UNDERSCORE_FACE.bold, FONTS.dejavu.bold],
+    [UNDERSCORE_FACE.regular, FONTS.dejavu.regular!],
+    [UNDERSCORE_FACE.bold, FONTS.dejavu.bold!],
   ] as const;
 
   for (const [face, dejavu] of pairs) {
     it(`${face} maps only U+005F and has DejaVu's line metrics and advance`, () => {
-      const f = readFileSync(new URL(face, DIR));
-      const d = readFileSync(new URL(dejavu, DIR));
+      const f = read(face);
+      const d = read(dejavu);
       expect([...woff2CodePoints(f)]).toEqual([0x5f]);
       // Identical vertical metrics: the face cannot change a line box, so
       // the cell (src/theme/cells.ts) and every row stay as they are.
@@ -186,7 +442,7 @@ describe('the underscore face (ADR 0043)', () => {
 
   it('comes first in the DejaVu stack only, and is loaded with DejaVu', () => {
     expect(FONTS.dejavu.stack.startsWith(`"${UNDERSCORE_FACE.family}", "DejaVu Sans Mono"`)).toBe(true);
-    expect(FONTS.jetbrains.stack).not.toContain(UNDERSCORE_FACE.family);
+    for (const id of FONT_IDS) if (id !== 'dejavu') expect(FONTS[id].stack).not.toContain(UNDERSCORE_FACE.family);
     expect(fontFiles('dejavu').map((f) => f.file)).toEqual([
       FONTS.dejavu.regular,
       FONTS.dejavu.bold,
@@ -194,12 +450,12 @@ describe('the underscore face (ADR 0043)', () => {
       UNDERSCORE_FACE.bold,
     ]);
     expect(fontFiles('jetbrains').map((f) => f.file)).toEqual([FONTS.jetbrains.regular, FONTS.jetbrains.bold]);
-    const css = readFileSync(new URL('../../src/theme/fonts.css', import.meta.url), 'utf8');
+    const css = fontFaceCss();
     for (const file of [UNDERSCORE_FACE.regular, UNDERSCORE_FACE.bold]) {
       const face = css.split('@font-face').find((b) => b.includes(file));
-      expect(face).toContain(`font-family: "${UNDERSCORE_FACE.family}"`);
-      expect(face).toContain('unicode-range: U+5F;');
-      expect(face).toContain('font-display: block;');
+      expect(face).toContain(`font-family:"${UNDERSCORE_FACE.family}"`);
+      expect(face).toContain('unicode-range:U+5F');
+      expect(face).toContain('font-display:block');
     }
   });
 });

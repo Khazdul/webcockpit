@@ -18,17 +18,17 @@
 //   ?safe                   default appearance, not saved until changed
 //                           (a way back from a setting that breaks the page)
 //
-// Start-up order: settings from the localStorage mirror → theme and font
-// preload → settings from IndexedDB (≤ 1 s) → theme again → Shell (start
-// page, or the cockpit in the offline modes). The cell metrics are
-// re-measured once the web font has loaded.
+// Start-up order: @font-face rules → settings from the localStorage mirror
+// → theme and font preload → settings from IndexedDB and the look-up of
+// installed local-only fonts (Lucida Console, ADR 0049; ≤ 1 s together) →
+// theme again → Shell (start page, or the cockpit in the offline modes).
+// The cell metrics are re-measured once the web font has loaded.
 //
 // Notices (ADR 0025): a newer version on the site (production builds only),
 // a lazy chunk that is gone, a database upgraded by a newer tab. Not in
 // `?bench`. The exported HTML replay and the log player are other entry
 // points and have none.
 
-import './theme/fonts.css';
 import './ui/ui.css';
 import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
@@ -39,18 +39,35 @@ import { initKeyLabels } from './script/keys';
 import { SettingsStore } from './settings';
 import { appearanceChanged, applyTheme } from './theme/apply';
 import { CellMetrics } from './theme/cells';
-import { preloadFont } from './theme/fonts';
+import { FONTS, detectLocalFonts, installFontFaces, preloadFont } from './theme/fonts';
 
 const params = new URLSearchParams(location.search);
 // Macro key labels follow the keyboard layout where the browser says (ADR 0026).
 void initKeyLabels();
 
+installFontFaces();
+let localFontsKnown = false;
+const localFonts = detectLocalFonts().then((found) => {
+  localFontsKnown = true;
+  return found;
+});
 const settings = new SettingsStore({ safe: params.has('safe') });
-preloadFont(settings.get().appearance.font);
+// A stored local-only font (Lucida Console) is preloaded and measured once
+// it is known whether it is installed: measuring now would fetch DejaVu.
+const earlyFont = !FONTS[settings.get().appearance.font].local;
+if (earlyFont) preloadFont(settings.get().appearance.font);
 applyTheme(settings.get());
 const cells = new CellMetrics();
-void cells.update(settings.get().appearance);
-await Promise.race([settings.load(), new Promise((r) => setTimeout(r, 1000))]);
+if (earlyFont) void cells.update(settings.get().appearance);
+await Promise.race([Promise.all([settings.load(), localFonts]), new Promise((r) => setTimeout(r, 1000))]);
+// A stored local-only font found after the wait: switch to it then.
+if (!localFontsKnown) void localFonts.then((found) => {
+  const a = settings.get().appearance;
+  if (!found.includes(a.font)) return;
+  applyTheme(settings.get());
+  preloadFont(a.font);
+  void cells.update(a);
+});
 settings.subscribe((next, prev) => {
   if (!appearanceChanged(next.appearance, prev.appearance)) return;
   applyTheme(next);
@@ -58,6 +75,7 @@ settings.subscribe((next, prev) => {
   void cells.update(next.appearance);
 });
 applyTheme(settings.get());
+preloadFont(settings.get().appearance.font);
 void cells.update(settings.get().appearance);
 
 const fixture = import.meta.env.DEV ? params.get('fixture') : null;

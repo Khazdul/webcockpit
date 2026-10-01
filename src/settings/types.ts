@@ -7,9 +7,47 @@ import { type LayoutModel, type PaneColor, type PaneId, defaultLayout } from '..
 import { DEFAULT_INPUT_COLOR, DEFAULT_TERM_BG, DEFAULT_TERM_FG, DOS_PALETTE, type InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 
-/** Bundled font families (public/fonts). */
-export type FontId = 'dejavu' | 'jetbrains';
-export const FONT_IDS: readonly FontId[] = ['dejavu', 'jetbrains'];
+/**
+ * Terminal font families (src/theme/fonts.ts, ADR 0049): the bundled ones
+ * (public/fonts), plus Lucida Console, which is never shipped and only
+ * used where it is installed.
+ */
+export type FontId =
+  | 'agave'
+  | 'anonymous'
+  | 'cascadia'
+  | 'dejavu'
+  | 'fantasque'
+  | 'firacode'
+  | 'gomono'
+  | 'hack'
+  | 'hermit'
+  | 'ibm3270'
+  | 'plex'
+  | 'inconsolata'
+  | 'jetbrains'
+  | 'mononoki'
+  | 'notomono'
+  | 'lucida';
+/** Every font id, in the font picker's order: by label, Lucida Console last. */
+export const FONT_IDS: readonly FontId[] = [
+  'agave',
+  'anonymous',
+  'cascadia',
+  'dejavu',
+  'fantasque',
+  'firacode',
+  'gomono',
+  'hack',
+  'hermit',
+  'ibm3270',
+  'plex',
+  'inconsolata',
+  'jetbrains',
+  'mononoki',
+  'notomono',
+  'lucida',
+];
 
 export type CursorStyle = 'block' | 'beam' | 'underline';
 export const CURSOR_STYLES: readonly CursorStyle[] = ['block', 'beam', 'underline'];

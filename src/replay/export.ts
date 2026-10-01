@@ -13,11 +13,14 @@
 // the visited rooms and its tiles (src/replay/map-embed.ts).
 //
 // Fonts: the exporter's family plus any family a recorded VIEW switches to
-// (regular and bold woff2, and the family's glyph faces: ADR 0043). URLs are relative to the page, so a subpath
-// deploy works. The bundle is only ever read here as text: the app never
+// (regular and bold woff2, and the family's glyph faces: ADR 0043, 0049).
+// URLs are relative to the page, so a subpath deploy works. A local-only
+// family (Lucida Console) is never embedded: the file uses DejaVu Sans Mono
+// in its place (ADR 0049), as the replay page never looks for installed
+// fonts. The notice names the fonts actually embedded. The bundle is only ever read here as text: the app never
 // runs it, and this module does not import the replay runtime.
 
-import { FONTS, fontFiles } from '../theme/fonts';
+import { FONTS, bundledFont, familyFaces, fontFaceRule } from '../theme/fonts';
 import type { FontId } from '../settings/types';
 import { captureEntries } from '../share/capture';
 import type { ReplayPayload } from '../share/payload';
@@ -36,8 +39,23 @@ export interface FontFile {
   weight: 'normal' | 'bold';
   /** The woff2 bytes. */
   data: Uint8Array;
-  /** `unicode-range` of a glyph face (the underscore face, ADR 0043). */
+  /** `unicode-range` of a glyph face (ADR 0043, 0049). */
   unicodeRange?: string;
+}
+
+/**
+ * The notice lines for the embedded families `ids` (their names and
+ * licences, and those of their glyph faces), each once.
+ */
+export function fontNotices(ids: readonly FontId[]): string[] {
+  const out: string[] = [];
+  for (const id of ids) {
+    const f = FONTS[id];
+    for (const n of [f.notice, ...(f.overrides ?? []).map((o) => o.notice), ...(f.fallbacks ?? []).map((o) => o.notice)]) {
+      if (n && !out.includes(n)) out.push(n);
+    }
+  }
+  return out;
 }
 
 export interface ReplayHtmlParts {
@@ -48,6 +66,8 @@ export interface ReplayHtmlParts {
   /** The bundle's JavaScript. */
   script: string;
   fonts: FontFile[];
+  /** `fontNotices` of the embedded families (the file's notice comment). */
+  fontNotices?: readonly string[];
   /** First-paint colours (the exporter's theme). */
   bg: string;
   fg: string;
@@ -71,8 +91,23 @@ export function escapeScript(js: string): string {
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
+/** Wraps `text` into comment lines of at most `width` characters, indented by two. */
+function wrap(text: string, width = 72): string[] {
+  const out: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/)) {
+    if (line && line.length + 1 + word.length > width) {
+      out.push(`  ${line}`);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) out.push(`  ${line}`);
+  return out;
+}
+
 /** The GPL notice at the top of the file (ADR 0001). No `--` inside. */
-function notice(version: string): string {
+function notice(version: string, fonts: readonly string[]): string {
+  const fontText = fonts.length ? `Embedded fonts: ${fonts.join('; ')}.` : 'No embedded fonts.';
   return [
     '<!--',
     `  WebCockpit log replay (WebCockpit ${version}).`,
@@ -89,10 +124,7 @@ function notice(version: string): string {
     '  (https://github.com/MUME/MMapper), Copyright (C) The MMapper Authors,',
     '  GPL-2.0-or-later.',
     '',
-    '  Embedded fonts: DejaVu Sans Mono (Bitstream Vera licence, public',
-    '  domain changes), WebCockpit Underscore (the underscore of DejaVu Sans',
-    '  Mono, moved up; same licence) and JetBrains Mono (SIL Open Font',
-    '  License 1.1), as used.',
+    ...wrap(fontText.replace(/-{2,}/g, '-')),
     '-->',
   ].join('\n');
 }
@@ -100,19 +132,13 @@ function notice(version: string): string {
 /** The whole HTML file (pure). */
 export function assembleReplayHtml(p: ReplayHtmlParts): string {
   const faces = p.fonts
-    .map(
-      (f) =>
-        `@font-face{font-family:"${f.family}";src:url(data:font/woff2;base64,${toBase64(f.data)}) format("woff2");` +
-        `font-weight:${f.weight};font-style:normal;font-display:block` +
-        (f.unicodeRange ? `;unicode-range:${f.unicodeRange}` : '') +
-        '}',
-    )
+    .map((f) => fontFaceRule(f, `url(data:font/woff2;base64,${toBase64(f.data)}) format("woff2")`))
     .join('\n');
   const bg = HEX.test(p.bg) ? p.bg : '#000000';
   const fg = HEX.test(p.fg) ? p.fg : '#c0c0c0';
   return [
     '<!doctype html>',
-    notice(p.version ?? '0.0.0'),
+    notice(p.version ?? '0.0.0', p.fontNotices ?? []),
     '<html lang="en">',
     '<head>',
     '<meta charset="utf-8">',
@@ -137,16 +163,17 @@ export function assembleReplayHtml(p: ReplayHtmlParts): string {
 
 /**
  * The font families the replay needs: the exporter's, then every other
- * family a recorded VIEW sets (the player overlays VIEW appearance).
+ * family a recorded VIEW sets (the player overlays VIEW appearance). A
+ * local-only family counts as DejaVu Sans Mono (`bundledFont`).
  */
 export function replayFonts(p: ReplayPayload): FontId[] {
-  const out = new Set<FontId>([p.settings.appearance.font]);
+  const out = new Set<FontId>([bundledFont(p.settings.appearance.font)]);
   for (const r of p.runs) {
     for (const e of captureEntries(r.text)) {
       if (e.kind !== 'view') continue;
       try {
         const f = (JSON.parse(e.body) as { appearance?: { font?: unknown } } | null)?.appearance?.font;
-        if (typeof f === 'string' && Object.hasOwn(FONTS, f)) out.add(f as FontId);
+        if (typeof f === 'string' && Object.hasOwn(FONTS, f)) out.add(bundledFont(f as FontId));
       } catch {
         /* a damaged VIEW is skipped by the player too */
       }
@@ -189,7 +216,27 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
       ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
     });
   }
-  const files = replayFonts(payload).flatMap((id) => fontFiles(id));
+  const ids = replayFonts(payload);
+  const seen = new Set<string>();
+  const files = ids
+    .flatMap((id) => familyFaces(id))
+    .filter((x) => {
+      const key = `${x.family}|${x.weight}`;
+      if (!x.file || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  // One fetch per file: some faces share one (a fill face's weights, a
+  // family without a bold).
+  const bytes = new Map<string, Promise<Uint8Array>>();
+  const fetchFont = (file: string): Promise<Uint8Array> => {
+    let p = bytes.get(file);
+    if (!p) {
+      p = get(f, url(`fonts/${file}`)).then(async (r) => new Uint8Array(await r.arrayBuffer()));
+      bytes.set(file, p);
+    }
+    return p;
+  };
   const [script, fonts, encoded] = await Promise.all([
     get(f, url(REPLAY_BUNDLE_PATH)).then((r) => r.text()),
     Promise.all(
@@ -197,7 +244,7 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
         family: x.family,
         weight: x.weight,
         ...(x.unicodeRange ? { unicodeRange: x.unicodeRange } : {}),
-        data: new Uint8Array(await (await get(f, url(`fonts/${x.file}`))).arrayBuffer()),
+        data: await fetchFont(x.file!),
       })),
     ),
     encodePayload(payload),
@@ -208,6 +255,7 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
     payload: encoded,
     script,
     fonts,
+    fontNotices: fontNotices(ids),
     bg: a.bg,
     fg: a.fg,
     version: typeof __WC_VERSION__ === 'string' ? __WC_VERSION__ : '0.0.0-dev',
