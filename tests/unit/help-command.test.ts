@@ -3,7 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { HELP_MAX_W, helpIndex, helpList, helpOutput, helpWidth, resolveHelp } from '../../src/app/help-command';
 import { type HelpSection, helpLayout, helpLineText, helpLineWidth, helpSections } from '../../src/editor/help';
-import { COMMANDS } from '../../src/script/commands';
+import { COMMANDS, SCRIPT_SUBCOMMANDS } from '../../src/script/commands';
 
 const heading = (arg: string): string | null => {
   const t = resolveHelp(arg);
@@ -73,11 +73,22 @@ describe('#help resolution', () => {
     expect(message('foreach')).toBe('#foreach: Not supported yet; kept in the profile as written.');
     expect(message('#split')).toBe('#split is not supported. Screen and terminal commands do nothing in the browser.');
     expect(message('#read')).toBe('#read is not supported. File commands are not available in the browser.');
-    for (const c of COMMANDS.filter((x) => x.inert)) {
+    // #script and #lua run in their documented forms and have a topic (below).
+    for (const c of COMMANDS.filter((x) => x.inert && x.name !== 'script' && x.name !== 'lua')) {
       const m = message('#' + c.name);
       expect(m, c.name).toContain(c.hint!);
       expect(m, c.name).toMatch(/not supported/i);
     }
+  });
+
+  it('shows Scripts for script, scripts, lua, #script and #lua', () => {
+    for (const w of ['script', 'scripts', 'lua', 'LUA', '#script', '#lua', 'scr', '{script}']) expect(heading(w), w).toBe('Scripts');
+    const s = helpSections().find((x) => x.heading === 'Scripts')!;
+    const text = [...s.syntax!, ...s.text].join('\n');
+    for (const sub of SCRIPT_SUBCOMMANDS) expect(text, sub).toContain(`#script ${sub}`);
+    expect(text).toContain('#lua {script} {function} {args}');
+    expect(text).toContain('ESC → Scripts');
+    expect(helpIndex().topics).toContain('script');
   });
 
   it('has one line for the commands the menus cover', () => {

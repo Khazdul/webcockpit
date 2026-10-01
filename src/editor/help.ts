@@ -269,6 +269,30 @@ const BASICS: readonly HelpSection[] = [
       '#delay is never saved. #class open and close are not saved: an entry typed while a class is open is saved as an ordinary entry. Nothing is saved in offline replay mode. When a typed line cannot be saved, a [SYSTEM] line says so.',
     ],
   },
+  {
+    group: 'basics',
+    heading: 'Scripts',
+    topics: ['script', 'scripts', 'lua'],
+    syntax: [
+      '#script list',
+      '#script help {name}',
+      '#script set {name} {setting} {value}',
+      '#script enable {name}',
+      '#script disable {name}',
+      '#script reload {name}',
+      '#lua {script} {function} {args}',
+    ],
+    text: [
+      'Scripts are small Lua programs kept beside the profile, not in it. ESC → Scripts (or Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      '#script list shows every script, whether it is on and what it does.',
+      '#script help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
+      '#script set {name} {setting} {value} changes a setting and saves it, for example #script set coinlooter delay 0.5. The script sees the new value at once.',
+      '#script enable {name} and #script disable {name} turn a script on and off, as the toggle on the Scripts page does.',
+      '#script reload {name} starts a script that is on again from its saved code, for example after an error stopped it.',
+      '#lua {script} {function} {args} calls a function that a script exported with export(name, fn), with the rest of the line as its argument. It works from aliases, actions and macros too.',
+      'Other forms of #script and #lua, such as a pasted tt++ #script line, do nothing.',
+    ],
+  },
 ];
 
 const COMMAND_SECTIONS: readonly HelpSection[] = [
