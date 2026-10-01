@@ -5,6 +5,7 @@ import type { Sender } from '../../src/core/types';
 import {
   BLINK_MS,
   InputPane,
+  MAX_HISTORY,
   type ScrollTarget,
   normalizePaste,
   spaceWordStartBefore,
@@ -132,6 +133,26 @@ describe('InputPane history', () => {
       t.key('Enter');
     }
   }
+
+  it(`keeps the newest ${MAX_HISTORY} entries`, () => {
+    const t = setup();
+    sendAll(
+      t,
+      Array.from({ length: MAX_HISTORY + 5 }, (_, n) => `cmd ${n}`),
+    );
+    const h = t.pane.getHistory();
+    expect(h.length).toBe(MAX_HISTORY);
+    expect(h[0]).toBe('cmd 5');
+    expect(h.at(-1)).toBe(`cmd ${MAX_HISTORY + 4}`);
+    // Browsing still walks the kept entries and clamps at the oldest.
+    t.type('');
+    t.key('ArrowUp');
+    expect(t.i.value).toBe(`cmd ${MAX_HISTORY + 4}`);
+    for (let n = 0; n < MAX_HISTORY + 3; n++) t.key('ArrowUp');
+    expect(t.i.value).toBe('cmd 5');
+    t.key('ArrowDown');
+    expect(t.i.value).toBe('cmd 6');
+  });
 
   it('dedups only consecutive entries', () => {
     const t = setup();

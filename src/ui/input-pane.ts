@@ -82,6 +82,9 @@ export interface InputPaneOptions {
 
 const BULLET = '•';
 
+/** Input history depth (tt++'s default); the oldest entry is dropped. */
+export const MAX_HISTORY = 1000;
+
 /** Half a blink cycle: the caret is on 500 ms, off 500 ms. */
 export const BLINK_MS = 500;
 
@@ -318,7 +321,13 @@ export class InputPane {
     if (!handled) this.opts.sender.sendCommand(text);
     this.snapToTail();
     if (text !== '') {
-      if (this.history[this.history.length - 1] !== text) this.history.push(text);
+      const h = this.history;
+      if (h[h.length - 1] !== text) {
+        h.push(text);
+        // Browsing has not started yet (it ends on every Enter), so no
+        // index needs to shift with the dropped entries.
+        if (h.length > MAX_HISTORY) h.splice(0, h.length - MAX_HISTORY);
+      }
       this.input.value = text;
       this.input.setSelectionRange(0, text.length);
     }
