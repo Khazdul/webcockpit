@@ -221,10 +221,10 @@ experiments to rework, not finished code):
 - [x] C1. (#1) Caret blink by a 500 ms timer; no infinite CSS
       animation; restart on caret move and on the blink setting
       (`E-exp-blinkjs.patch`).
-- [ ] C2. (#2) `scrollbar-color` stops at `.wc-rows` / `.wc-partial`
+- [x] C2. (#2) `scrollbar-color` stops at `.wc-rows` / `.wc-partial`
       (`C-exp-scrollbar-color.patch`); browser test of PgUp/Esc at
       20 000 rows.
-- [ ] C3. (#3) Background rows for colour charts
+- [x] C3. (#3) Background rows for colour charts
       (`A-exp-background-rows.patch`); check
       `tests/e2e/underscores.spec.ts` (row above a background row).
 - [x] C4. (#4) Assembler: raw as one slice, SGR params keep capacity
@@ -236,7 +236,7 @@ experiments to rework, not finished code):
       (`C-exp-send-first.patch` as a start).
 - [x] C7. (#7) Recorder: incremental byte count, writes bounded by size
       (≤ 256 KB per task).
-- [ ] C8. (#8) `content-visibility: auto` on chunks with an intrinsic
+- [x] C8. (#8) `content-visibility: auto` on chunks with an intrinsic
       size estimate and scroll anchoring while scrolled back; e2e for
       PgUp/PgDn, trims while scrolled, resize.
 - [x] C9. (#9) Pane row diff for Character, Group, Timers; Character
@@ -244,8 +244,8 @@ experiments to rework, not finished code):
 - [x] C10. (#10) Telnet `indexOf` scan (`B-exp-telnet-scan.patch`).
 - [x] C11. (#11) Rule literal gate with the extra engine tests
       (`B-exp-engine-literal-gate.patch`).
-- [ ] C12. (#12) `MAX_ROWS_PER_FRAME` 500 (`A-exp-row-cap-500.patch`).
-- [ ] C13. (#13) Scrollback depth setting in Options, default 20 000
+- [x] C12. (#12) `MAX_ROWS_PER_FRAME` 500 (`A-exp-row-cap-500.patch`).
+- [x] C13. (#13) Scrollback depth setting in Options, default 20 000
       (ADR; spec §1.3 note).
 - [ ] C14. (#14) `#perf` latency monitor (ADR; `#help` manual entry).
 - [ ] C15. (#15) Benchmark: owner geometry, visible-caret latency and
