@@ -1,0 +1,920 @@
+// The script host (spec §2.10, ADR 0051): owns the Lua runtime, loads the
+// enabled scripts from the library, defines the API (version 1) and
+// connects scripts to the engine, the bus and the trackers.
+//
+// - Lazy: the runtime (src/lua, wasm) is imported only once a script is
+//   enabled. App imports this module only then too.
+// - The host follows the library: every change re-syncs, so enabling,
+//   disabling, saving (reload when the source changed) and `#script set`
+//   take effect at once. Loads are serial and each yields a task first
+//   (HangGuard.pin).
+// - Ownership: each loaded script has an Owner holding everything it
+//   registered (triggers, aliases, keys, timers, event handlers, exports,
+//   function references). Unloading an owner releases all of it, so
+//   scripts never clean up after themselves.
+// - Errors: every failed call goes to the UI messages as
+//   `<script>:<line>: <message>` and is the script's last error. A budget
+//   or memory abort, a call slower than SLOW_CALL_MS, or ERROR_LIMIT
+//   errors within ERROR_WINDOW_MS disable the script (UI message). A
+//   script that fails to load stays enabled with its error and is tried
+//   again when its source changes or on `#script reload`.
+// - Hang guard: see guard.ts. A script that was running when the page
+//   went away is turned off at the next start.
+//
+// API names are spec §2.10's. Decisions (ADR 0051 "Package notes — P1"):
+// `print` echoes its arguments tab-separated; event handlers get the event
+// name, then its arguments (GMCP: the event name again, as Mudlet); GMCP
+// objects merge into `gmcp` key by key, as MUME sends partial updates.
+
+import type { Bus } from '../core/bus';
+import { gmcpKey } from '../core/types';
+import type { CallResult, LuaArgs, LuaRef, LuaRuntime, LuaScript } from '../lua';
+import type { GameState } from '../gmcp/state';
+import type { ScriptEngine, MatchContext } from '../script/engine';
+import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
+import { setLiveScriptKey } from '../script/script-keys';
+import type { StyledRow } from '../ui/output-pane';
+import { helpRows, listRows, settingText } from './command-rows';
+import { parseCecho, parseScriptColor } from './colors';
+import { HangGuard } from './guard';
+import { apiProblem } from './header';
+import type { ScriptInfo, ScriptLibrary, StoreValue } from './library';
+import { regexPattern, substringPattern } from './patterns';
+
+/** A call that takes longer than this disables its script. */
+export const SLOW_CALL_MS = 1000;
+/** This many errors … */
+export const ERROR_LIMIT = 5;
+/** … within this window disable a script. */
+export const ERROR_WINDOW_MS = 10_000;
+
+/** What the host uses of the library (tests and the bench may fake it). */
+export type ScriptLibraryView = Pick<
+  ScriptLibrary,
+  'init' | 'list' | 'get' | 'settingsOf' | 'subscribe' | 'setEnabled' | 'setError' | 'setSetting' | 'storeGet' | 'storeSet'
+>;
+
+export interface ScriptHostOptions {
+  engine: ScriptEngine;
+  bus: Bus;
+  library: ScriptLibraryView;
+  /** Character and group trackers for `state` (absent: empty). */
+  game?: GameState | null;
+  /** Sends one command to the game, no alias expansion (App's script sender). */
+  send: (text: string) => void;
+  /** Rows for the game output (`#script list`, `#script help`). */
+  print: (rows: StyledRow[]) => void;
+  /** A `[SYSTEM]` line in the game output. */
+  message: (text: string) => void;
+  /** The game pane's width in cells (for `#script` rows). */
+  cols?: () => number;
+  /** The runtime loader (default: `import('../lua')`). */
+  loadRuntime?: () => Promise<LuaRuntime>;
+  /** Where the hang marker lives (default `localStorage`; null: no guard). */
+  storage?: Storage | null;
+  /** Monotonic ms (default `performance.now`). */
+  clock?: () => number;
+}
+
+interface RuleReg {
+  kind: 'action' | 'alias';
+  key: string;
+  ref: LuaRef;
+}
+interface TimerReg {
+  kind: 'ticker' | 'delay';
+  tname: string;
+  ref: LuaRef;
+}
+interface Binding {
+  owner: Owner;
+  id: number;
+  ref: LuaRef;
+}
+
+/** Everything one loaded script registered. */
+class Owner {
+  readonly name: string;
+  readonly source: string;
+  script: LuaScript | null = null;
+  settingsJson = '';
+  dead = false;
+  readonly rules = new Map<number, RuleReg>();
+  readonly keys = new Map<number, string>();
+  readonly timers = new Map<number, TimerReg>();
+  readonly handlers = new Map<number, string>();
+  readonly exports = new Map<string, LuaRef>();
+  errors: number[] = [];
+
+  constructor(name: string, source: string) {
+    this.name = name;
+    this.source = source;
+  }
+}
+
+/** Normal form of an event name for lookups. */
+function eventKey(name: string): string {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** #event names (engine.ts EVENT_NAMES) start with these. */
+const ENGINE_EVENT = /^(session (dis)?connected|iac sb gmcp)/;
+
+export class ScriptHost {
+  private readonly o: ScriptHostOptions;
+  private readonly engine: ScriptEngine;
+  private readonly lib: ScriptLibraryView;
+  private readonly guard: HangGuard;
+  private readonly clock: () => number;
+  private rt: LuaRuntime | null = null;
+  private rtP: Promise<LuaRuntime> | null = null;
+  /** The runtime failed to load (reported once). */
+  private rtFailed = false;
+  private readonly owners = new Map<string, Owner>();
+  /** Scripts that failed to load, with the source that failed (not retried until it changes). */
+  private readonly failed = new Map<string, string>();
+  private readonly handlers = new Map<string, Binding[]>();
+  private readonly keyBindings = new Map<string, Binding[]>();
+  private seq = 0;
+  private syncP: Promise<void> = Promise.resolve();
+  private syncQueued = false;
+  private started: Promise<void> | null = null;
+  private disposed = false;
+  private readonly unsubs: Array<() => void> = [];
+  /** GMCP values as merged so far, by lower-case package (with the package as sent). */
+  private readonly gmcp = new Map<string, { pkg: string; value: unknown }>();
+  private room: Record<string, unknown> | null = null;
+
+  constructor(opts: ScriptHostOptions) {
+    this.o = opts;
+    this.engine = opts.engine;
+    this.lib = opts.library;
+    this.guard = new HangGuard(opts.storage === undefined ? defaultStorage() : opts.storage);
+    this.clock = opts.clock ?? (() => performance.now());
+  }
+
+  /**
+   * Starts following the library: turns off a script left running by a
+   * hung page, then loads the enabled scripts. Resolves when they are
+   * loaded. Idempotent.
+   */
+  start(): Promise<void> {
+    this.started ??= this.begin();
+    return this.started;
+  }
+
+  private async begin(): Promise<void> {
+    await this.lib.init();
+    if (this.disposed) return;
+    const hung = this.guard.takeLeftover();
+    if (hung !== null && this.lib.get(hung)?.enabled) {
+      await this.lib.setEnabled(hung, false).catch(() => {});
+      this.ui(
+        'warn',
+        `Script {${hung}} was turned off: the page closed while it was running, so it may hang. Check it before you turn it on again.`,
+      );
+    }
+    const bus = this.o.bus;
+    this.unsubs.push(
+      this.lib.subscribe(() => this.sync()),
+      bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data)),
+      bus.on('conn.state', (s) => this.onConn(s.state, s.prev, s.reason ?? '')),
+    );
+    if (this.o.game) this.unsubs.push(this.o.game.subscribe((part) => this.onGame(part)));
+    await this.sync();
+  }
+
+  /** Stops every script and frees the runtime. */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    for (const u of this.unsubs.splice(0)) u();
+    for (const o of [...this.owners.values()]) this.unload(o);
+    this.engine.setEventTap(null);
+    this.rt?.close();
+    this.rt = null;
+  }
+
+  /** True when `name` is loaded and running. */
+  isRunning(name: string): boolean {
+    return this.owners.has(name);
+  }
+
+  /** Names of the running scripts. */
+  running(): string[] {
+    return [...this.owners.keys()];
+  }
+
+  /** Resolves when every pending library change has been applied. */
+  sync(): Promise<void> {
+    if (this.syncQueued) return this.syncP;
+    this.syncQueued = true;
+    this.syncP = this.syncP.then(() => {
+      this.syncQueued = false;
+      return this.doSync();
+    });
+    return this.syncP;
+  }
+
+  // ---------------------------------------------------------------- loading
+
+  private async doSync(): Promise<void> {
+    if (this.disposed) return;
+    const want = new Map<string, ScriptInfo>();
+    for (const s of this.lib.list()) if (s.enabled) want.set(s.name, s);
+    for (const o of [...this.owners.values()]) {
+      const s = want.get(o.name);
+      if (!s || s.source !== o.source) this.unload(o);
+      else this.pushSettings(o);
+    }
+    for (const name of [...this.failed.keys()]) {
+      const s = want.get(name);
+      if (!s || s.source !== this.failed.get(name)) this.failed.delete(name);
+    }
+    const todo = [...want.values()].filter((s) => !this.owners.has(s.name) && !this.failed.has(s.name));
+    if (todo.length === 0) return;
+    let rt: LuaRuntime;
+    try {
+      rt = await this.runtime();
+    } catch (err) {
+      if (!this.rtFailed) this.ui('error', `Scripts could not start: ${err instanceof Error ? err.message : String(err)}`);
+      this.rtFailed = true;
+      return;
+    }
+    for (const s of todo) {
+      if (this.disposed) return;
+      const cur = this.lib.get(s.name);
+      if (!cur?.enabled || this.owners.has(s.name)) continue;
+      await this.guard.pin(cur.name);
+      try {
+        if (!this.disposed) this.load(rt, cur);
+      } finally {
+        this.guard.unpin();
+      }
+    }
+  }
+
+  private runtime(): Promise<LuaRuntime> {
+    this.rtP ??= (this.o.loadRuntime ?? defaultLoadRuntime)().then((rt) => {
+      if (this.disposed) {
+        rt.close();
+        throw new Error('disposed');
+      }
+      this.defineApi(rt);
+      this.rt = rt;
+      this.fillData(rt);
+      return rt;
+    });
+    this.rtP.catch(() => (this.rtP = null));
+    return this.rtP;
+  }
+
+  private load(rt: LuaRuntime, s: ScriptInfo): void {
+    const problem = apiProblem(s.header);
+    if (problem) {
+      this.loadFailed(s, `${s.name}: not loaded: ${problem}`);
+      return;
+    }
+    const o = new Owner(s.name, s.source);
+    const settings = this.lib.settingsOf(s.name);
+    o.settingsJson = JSON.stringify(settings);
+    this.owners.set(s.name, o);
+    const t0 = this.clock();
+    const r = rt.loadScript(s.name, s.source, { readonly: { settings } });
+    const dt = this.clock() - t0;
+    if (!r.ok) {
+      this.release(o);
+      const msg = withName(s.name, r.message);
+      if (r.kind === 'budget' || r.kind === 'memory') {
+        this.lib.setError(s.name, msg);
+        this.ui('error', msg);
+        this.turnOff(s.name, r.kind === 'budget' ? 'it ran too long while loading' : 'it used too much memory while loading');
+      } else this.loadFailed(s, msg);
+      return;
+    }
+    o.script = r.script;
+    this.lib.setError(s.name, null);
+    if (dt > SLOW_CALL_MS) {
+      this.disable(o, `loading took ${(dt / 1000).toFixed(1)} s`);
+      return;
+    }
+    this.fire(o, 'sysloadevent', ['sysLoadEvent']);
+  }
+
+  private loadFailed(s: ScriptInfo, msg: string): void {
+    this.failed.set(s.name, s.source);
+    this.lib.setError(s.name, msg);
+    this.ui('error', msg);
+  }
+
+  /** Unloads and loads `name` again (also after a failed load). */
+  async reload(name: string): Promise<void> {
+    const o = this.owners.get(name);
+    if (o) this.unload(o);
+    this.failed.delete(name);
+    await this.sync();
+  }
+
+  /** Releases everything the owner registered and unloads its Lua code. */
+  private unload(o: Owner): void {
+    this.release(o);
+    o.script?.unload();
+    o.script = null;
+  }
+
+  private release(o: Owner): void {
+    o.dead = true;
+    if (this.owners.get(o.name) === o) this.owners.delete(o.name);
+    const store = this.engine.scripts;
+    for (const r of o.rules.values()) store.remove(r.kind, r.key);
+    o.rules.clear();
+    for (const t of o.timers.values()) store.removeTimer(t.kind, t.tname);
+    o.timers.clear();
+    for (const [id, key] of o.keys) this.unbindKey(key, o, id);
+    o.keys.clear();
+    for (const [id, ev] of o.handlers) this.dropHandler(ev, o, id);
+    o.handlers.clear();
+    o.exports.clear();
+    // Function references go with the script (LuaScript.unload).
+  }
+
+  private pushSettings(o: Owner): void {
+    const settings = this.lib.settingsOf(o.name);
+    const json = JSON.stringify(settings);
+    if (json === o.settingsJson) return;
+    o.settingsJson = json;
+    o.script?.setEnv('settings', settings, true);
+  }
+
+  // ------------------------------------------------------------------ calls
+
+  /** Calls `ref` as `o` under the guards; failures are reported. */
+  private call(o: Owner, ref: LuaRef, ...args: unknown[]): CallResult | null {
+    const s = o.script;
+    if (!s || o.dead) return null;
+    const prev = this.guard.enter(o.name);
+    const t0 = this.clock();
+    let r: CallResult;
+    try {
+      r = s.call(ref, ...args);
+    } finally {
+      this.guard.exit(prev);
+    }
+    const dt = this.clock() - t0;
+    if (!r.ok) this.failCall(o, r.kind, r.message);
+    else if (dt > SLOW_CALL_MS) this.disable(o, `a call took ${(dt / 1000).toFixed(1)} s`);
+    return r;
+  }
+
+  private failCall(o: Owner, kind: string, message: string): void {
+    const msg = withName(o.name, message);
+    this.lib.setError(o.name, msg);
+    this.ui('error', msg);
+    if (o.dead) return;
+    if (kind === 'budget') return this.disable(o, 'it ran too long (instruction budget)');
+    if (kind === 'memory') return this.disable(o, 'it used too much memory');
+    const now = this.clock();
+    o.errors = o.errors.filter((t) => now - t < ERROR_WINDOW_MS);
+    o.errors.push(now);
+    if (o.errors.length >= ERROR_LIMIT) this.disable(o, `${ERROR_LIMIT} errors within ${ERROR_WINDOW_MS / 1000} seconds`);
+  }
+
+  /** Stops `o` now and turns it off in the library. */
+  private disable(o: Owner, reason: string): void {
+    this.unload(o);
+    this.turnOff(o.name, reason);
+  }
+
+  private turnOff(name: string, reason: string): void {
+    this.ui('warn', `Script {${name}} was turned off: ${reason}.`);
+    void this.lib.setEnabled(name, false).catch(() => {});
+  }
+
+  private ui(kind: 'system' | 'warn' | 'error', template: string): void {
+    // Script text (error messages) is plain; names in braces are values.
+    const parts: Array<string | { value: string }> = [];
+    if (kind === 'error') parts.push(template);
+    else {
+      const re = /\{([^}]*)\}/g;
+      let last = 0;
+      for (let m = re.exec(template); m; m = re.exec(template)) {
+        if (m.index > last) parts.push(template.slice(last, m.index));
+        parts.push({ value: m[1]! });
+        last = m.index + m[0].length;
+      }
+      if (last < template.length) parts.push(template.slice(last));
+    }
+    this.o.bus.emit('ui.message', { kind, parts });
+  }
+
+  // ----------------------------------------------------------------- events
+
+  /** Calls the handlers `o` (or, without `o`, every script) registered for `key`. */
+  private fire(o: Owner | null, key: string, args: readonly unknown[]): void {
+    const list = this.handlers.get(key);
+    if (!list) return;
+    for (const b of list.slice()) {
+      if (o && b.owner !== o) continue;
+      if (!b.owner.dead && b.owner.handlers.has(b.id)) this.call(b.owner, b.ref, ...args);
+    }
+  }
+
+  private onGmcp(pkg: string, data: unknown): void {
+    const rt = this.rt;
+    const key = pkg.toLowerCase();
+    let value = data;
+    if (isObject(data)) {
+      const prev = this.gmcp.get(key)?.value;
+      const merged: Record<string, unknown> = isObject(prev) ? { ...prev } : {};
+      for (const [k, v] of Object.entries(data)) {
+        if (v === null) delete merged[k];
+        else merged[k] = v;
+      }
+      value = merged;
+    }
+    this.gmcp.set(key, { pkg, value });
+    if (key === 'room.info' && isObject(value)) this.room = value;
+    // Before the runtime is up the values wait here (fillData).
+    if (!rt) return;
+    this.setGmcp(rt, pkg, value);
+    if (key === 'room.info' && isObject(value)) this.setState(rt, 'room', value);
+    if (this.handlers.size > 0) this.fire(null, 'gmcp.' + key, ['gmcp.' + pkg, 'gmcp.' + pkg]);
+  }
+
+  private onConn(state: string, prev: string, reason: string): void {
+    if (state === 'connecting') {
+      this.gmcp.clear();
+      this.room = null;
+      if (this.rt) {
+        this.rt.setData(['gmcp'], {});
+        this.setState(this.rt, 'room', null);
+      }
+    }
+    if (this.handlers.size === 0) return;
+    if (state === 'login' && prev === 'connecting') this.fire(null, 'sysconnectionevent', ['sysConnectionEvent']);
+    else if (state === 'disconnected' && prev !== 'disconnected' && prev !== 'idle') {
+      this.fire(null, 'sysdisconnectionevent', ['sysDisconnectionEvent', reason]);
+    }
+  }
+
+  /** The engine's #event names (`SESSION CONNECTED`, `IAC SB GMCP …`). */
+  private readonly onEngineEvent = (name: string, args: readonly string[]): void => {
+    this.fire(null, eventKey(name), [name, ...args]);
+  };
+
+  private updateEventTap(): void {
+    let need = false;
+    for (const k of this.handlers.keys()) if (ENGINE_EVENT.test(k)) need = true;
+    this.engine.setEventTap(need ? this.onEngineEvent : null);
+  }
+
+  private dropHandler(key: string, o: Owner, id: number): void {
+    const list = this.handlers.get(key);
+    if (!list) return;
+    const next = list.filter((b) => !(b.owner === o && b.id === id));
+    if (next.length > 0) this.handlers.set(key, next);
+    else this.handlers.delete(key);
+    if (ENGINE_EVENT.test(key)) this.updateEventTap();
+  }
+
+  // ------------------------------------------------------------ game state
+
+  private setGmcp(rt: LuaRuntime, pkg: string, value: unknown): void {
+    try {
+      rt.setData(['gmcp', ...pkg.split('.')], value);
+    } catch {
+      /* too deep: the table stays as it was */
+    }
+  }
+
+  private fillData(rt: LuaRuntime): void {
+    for (const { pkg, value } of this.gmcp.values()) this.setGmcp(rt, pkg, value);
+    this.setState(rt, 'char', this.charState());
+    this.setState(rt, 'group', this.groupState());
+    this.setState(rt, 'room', this.room);
+  }
+
+  private onGame(part: string): void {
+    const rt = this.rt;
+    if (!rt) return;
+    if (part === 'char') this.setState(rt, 'char', this.charState());
+    else if (part === 'group') this.setState(rt, 'group', this.groupState());
+  }
+
+  private setState(rt: LuaRuntime, name: string, value: unknown): void {
+    try {
+      rt.setData(['state', name], value);
+    } catch {
+      /* too deep */
+    }
+  }
+
+  private charState(): Record<string, unknown> {
+    const c = this.o.game?.char;
+    if (!c) return {};
+    return {
+      name: c.name ?? undefined,
+      fullname: c.fullname ?? undefined,
+      vitals: Object.fromEntries([...c.vitals].filter(([, v]) => v !== null)),
+      status: Object.fromEntries([...c.statusVars].filter(([, v]) => v !== null)),
+    };
+  }
+
+  private groupState(): unknown[] {
+    const g = this.o.game?.group;
+    if (!g) return [];
+    return g.list().map((m) => ({
+      id: m.id,
+      type: m.type,
+      name: m.name,
+      label: m.label ?? undefined,
+      hp: vital(m.hp),
+      mana: vital(m.mana),
+      mp: vital(m.mp),
+    }));
+  }
+
+  // ---------------------------------------------------------- #script / #lua
+
+  /** `#script <sub> …` and `#lua {script} {function} {args}` (commands.ts forms). */
+  command(name: 'script' | 'lua', args: string[]): void {
+    if (name === 'lua') {
+      this.luaCommand(args);
+      return;
+    }
+    void this.scriptCommand(args);
+  }
+
+  private luaCommand(args: string[]): void {
+    const [script, fn, ...rest] = args;
+    const o = this.owners.get(script!);
+    if (!o) {
+      this.o.message(this.lib.get(script!) ? `#lua: script ${script} is not running.` : `#lua: no script ${script}.`);
+      return;
+    }
+    const ref = o.exports.get(fn!);
+    if (ref === undefined) {
+      this.o.message(`#lua: ${script} exports no function ${fn}.`);
+      return;
+    }
+    if (rest.length > 0) this.call(o, ref, rest.join(' '));
+    else this.call(o, ref);
+  }
+
+  private async scriptCommand(args: string[]): Promise<void> {
+    await this.lib.init();
+    const [sub, name, ...rest] = args;
+    const width = Math.max(40, Math.min(100, (this.o.cols?.() ?? 80) - 1));
+    if (sub === 'list') {
+      this.o.print(listRows(this.lib.list(), (n) => this.owners.has(n), width));
+      return;
+    }
+    if (!name) {
+      this.o.message(sub === 'set' ? 'Usage: #script set <name> <setting> <value>' : `Usage: #script ${sub} <name>`);
+      return;
+    }
+    const s = this.lib.get(name);
+    if (!s) {
+      this.o.message(`No script ${name}. Type #script list for the list.`);
+      return;
+    }
+    switch (sub) {
+      case 'help':
+        this.o.print(helpRows(s, this.owners.has(name), width));
+        return;
+      case 'set': {
+        const [setting, ...value] = rest;
+        if (!setting || value.length === 0) {
+          this.o.message('Usage: #script set <name> <setting> <value>');
+          return;
+        }
+        const r = await this.lib.setSetting(name, setting, value.join(' '));
+        this.o.message(r.ok ? `${name}: ${setting} = ${settingText(r.value)}` : `#script set: ${r.reason}`);
+        return;
+      }
+      case 'enable':
+      case 'disable': {
+        const on = sub === 'enable';
+        if (s.enabled === on) {
+          this.o.message(`Script ${name} is already ${on ? 'on' : 'off'}.`);
+          return;
+        }
+        await this.lib.setEnabled(name, on);
+        await this.sync();
+        if (!on) this.o.message(`Script ${name} turned off.`);
+        else if (this.owners.has(name)) this.o.message(`Script ${name} turned on.`);
+        else this.o.message(`Script ${name} is on but did not load: ${this.lib.get(name)?.lastError ?? 'see the UI messages'}`);
+        return;
+      }
+      case 'reload':
+        if (!s.enabled) {
+          this.o.message(`Script ${name} is off; #script enable ${name} turns it on.`);
+          return;
+        }
+        await this.reload(name);
+        this.o.message(this.owners.has(name) ? `Script ${name} reloaded.` : `Script ${name} did not load: ${this.lib.get(name)?.lastError ?? ''}`);
+        return;
+    }
+  }
+
+  // -------------------------------------------------------------------- API
+
+  /** The running script's owner (inside an API function). */
+  private cur(rt: LuaRuntime): Owner {
+    const name = rt.current?.name;
+    const o = name === undefined ? undefined : this.owners.get(name);
+    if (!o || o.dead) throw new Error('no script is running');
+    return o;
+  }
+
+  private defineApi(rt: LuaRuntime): void {
+    const engine = this.engine;
+    const store = engine.scripts;
+    const id = (): number => ++this.seq;
+
+    const addRule = (a: LuaArgs, kind: 'action' | 'alias', make: (s: string) => ReturnType<typeof substringPattern>): number => {
+      const o = this.cur(rt);
+      const text = a.string(1);
+      let compiled: ReturnType<typeof substringPattern>;
+      try {
+        compiled = make(text);
+      } catch (err) {
+        throw new Error(`bad argument #1 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
+      }
+      const ref = a.function(2);
+      const n = id();
+      const key = `${o.name}#${n}`;
+      const fn =
+        kind === 'action'
+          ? (ctx: MatchContext): void => this.onTrigger(o, ref, ctx)
+          : (ctx: MatchContext): boolean => this.onAlias(o, ref, ctx);
+      store.defineCompiled(kind, key, compiled, { fn });
+      o.rules.set(n, { kind, key, ref });
+      return n;
+    };
+    const killRule = (a: LuaArgs, kind: 'action' | 'alias'): boolean => {
+      const o = this.cur(rt);
+      const n = a.number(1);
+      const r = o.rules.get(n);
+      if (!r || r.kind !== kind) return false;
+      store.remove(kind, r.key);
+      o.rules.delete(n);
+      o.script?.release(r.ref);
+      return true;
+    };
+
+    rt.defineFunction('tempTrigger', (a) => addRule(a, 'action', substringPattern));
+    rt.defineFunction('tempRegexTrigger', (a) => addRule(a, 'action', (s) => regexPattern(s)));
+    rt.defineFunction('tempAlias', (a) => addRule(a, 'alias', (s) => regexPattern(s, true)));
+    rt.defineFunction('killTrigger', (a) => killRule(a, 'action'));
+    rt.defineFunction('killAlias', (a) => killRule(a, 'alias'));
+
+    rt.defineFunction('deleteLine', () => {
+      const e = engine.lineEdit();
+      if (e) e.gag = true;
+    });
+    rt.defineFunction('replaceLine', (a) => {
+      const text = a.string(1);
+      const e = engine.lineEdit();
+      if (e) e.replace = parseCecho(text.replace(/\r?\n/g, ' '));
+    });
+    rt.defineFunction('highlight', (a) => {
+      const color = a.string(1);
+      const style = parseScriptColor(color);
+      if (!style) throw new Error(`bad argument #1 to 'highlight' (unknown colour '${color}')`);
+      const text = a.count >= 2 && a.type(2) !== 'nil' ? a.string(2) : null;
+      const e = engine.lineEdit();
+      if (e) (e.highlights ??= []).push({ style, text });
+    });
+
+    rt.defineFunction('tempKey', (a) => {
+      const o = this.cur(rt);
+      const name = a.string(1);
+      const key = normalizeKey(name);
+      if (!key) throw new Error(`bad argument #1 to 'tempKey' (unknown key '${name}')`);
+      const b = keyBindability(key);
+      if (!b.ok) throw new Error(`bad argument #1 to 'tempKey' (${name} cannot be bound: ${b.reason})`);
+      // A script never takes a key that types text (profile macros may, ADR 0026).
+      if (shadowedInputKey(key) === 'types text') throw new Error(`bad argument #1 to 'tempKey' (${name} cannot be bound: it types text)`);
+      const ref = a.function(2);
+      const n = id();
+      const list = this.keyBindings.get(key) ?? [];
+      list.push({ owner: o, id: n, ref });
+      this.keyBindings.set(key, list);
+      if (list.length === 1) store.define('macro', key, '', { fn: () => this.onKey(key) });
+      setLiveScriptKey(key, o.name);
+      o.keys.set(n, key);
+      return n;
+    });
+    rt.defineFunction('killKey', (a) => {
+      const o = this.cur(rt);
+      const n = a.number(1);
+      const key = o.keys.get(n);
+      if (key === undefined) return false;
+      const b = this.keyBindings.get(key)?.find((x) => x.owner === o && x.id === n);
+      this.unbindKey(key, o, n);
+      o.keys.delete(n);
+      if (b) o.script?.release(b.ref);
+      return true;
+    });
+
+    rt.defineFunction('tempTimer', (a) => {
+      const o = this.cur(rt);
+      const secs = a.number(1);
+      if (!Number.isFinite(secs) || secs < 0) throw new Error(`bad argument #1 to 'tempTimer' (seconds must be 0 or more)`);
+      const ref = a.function(2);
+      const repeat = a.boolean(3);
+      const n = id();
+      const tname = `${o.name}#${n}`;
+      const kind = repeat ? 'ticker' : 'delay';
+      o.timers.set(n, { kind, tname, ref });
+      store.addTimer(kind, tname, '', secs, () => this.onTimer(o, n));
+      return n;
+    });
+    rt.defineFunction('killTimer', (a) => {
+      const o = this.cur(rt);
+      const n = a.number(1);
+      const t = o.timers.get(n);
+      if (!t) return false;
+      store.removeTimer(t.kind, t.tname);
+      o.timers.delete(n);
+      o.script?.release(t.ref);
+      return true;
+    });
+
+    rt.defineFunction('registerAnonymousEventHandler', (a) => {
+      const o = this.cur(rt);
+      const event = a.string(1);
+      const key = eventKey(event);
+      if (key === '') throw new Error(`bad argument #1 to 'registerAnonymousEventHandler' (empty event name)`);
+      const ref = a.function(2);
+      const n = id();
+      const list = this.handlers.get(key) ?? [];
+      list.push({ owner: o, id: n, ref });
+      this.handlers.set(key, list);
+      o.handlers.set(n, key);
+      if (ENGINE_EVENT.test(key)) this.updateEventTap();
+      return n;
+    });
+    rt.defineFunction('killAnonymousEventHandler', (a) => {
+      const o = this.cur(rt);
+      const n = a.number(1);
+      const key = o.handlers.get(n);
+      if (key === undefined) return false;
+      const b = this.handlers.get(key)?.find((x) => x.owner === o && x.id === n);
+      o.handlers.delete(n);
+      this.dropHandler(key, o, n);
+      if (b) o.script?.release(b.ref);
+      return true;
+    });
+
+    rt.defineFunction('send', (a) => {
+      this.cur(rt);
+      this.o.send(a.string(1));
+    });
+    rt.defineFunction('expandAlias', (a) => {
+      this.cur(rt);
+      engine.run(a.string(1));
+    });
+    const echoLines = (text: string, colored: boolean): void => {
+      const lines = text.replace(/\r/g, '').split('\n');
+      if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+      for (const l of lines) {
+        if (colored) {
+          const c = parseCecho(l);
+          engine.echo(c.text, c.runs);
+        } else engine.echo(l);
+      }
+    };
+    rt.defineFunction('echo', (a) => echoLines(a.string(1), false));
+    rt.defineFunction('cecho', (a) => echoLines(a.string(1), true));
+    rt.defineFunction('print', (a) => {
+      const parts: string[] = [];
+      for (let i = 1; i <= a.count; i++) {
+        const t = a.type(i);
+        parts.push(t === 'string' || t === 'number' ? a.string(i) : t === 'boolean' ? String(a.boolean(i)) : t);
+      }
+      echoLines(parts.join('\t'), false);
+    });
+    rt.defineFunction('uiMessage', (a) => {
+      this.cur(rt);
+      const source = a.string(1).trim().toUpperCase().slice(0, 20) || 'SCRIPT';
+      this.o.bus.emit('ui.message', { kind: 'event', name: source, parts: [a.string(2)] });
+    });
+
+    rt.defineFunction('getVariable', (a) => engine.getVariable(a.string(1)) ?? null);
+    rt.defineFunction('setVariable', (a) => {
+      this.cur(rt);
+      const name = a.string(1);
+      if (name.trim() === '') throw new Error(`bad argument #1 to 'setVariable' (empty name)`);
+      const t = a.type(2);
+      const value = t === 'boolean' ? String(a.boolean(2)) : a.string(2);
+      engine.setVariable(name, value, false);
+    });
+
+    rt.defineFunction('export', (a) => {
+      const o = this.cur(rt);
+      const name = a.string(1);
+      if (!/^\S+$/.test(name)) throw new Error(`bad argument #1 to 'export' (a name without spaces expected)`);
+      const ref = a.function(2);
+      const old = o.exports.get(name);
+      if (old !== undefined) o.script?.release(old);
+      o.exports.set(name, ref);
+    });
+
+    rt.defineTable('store', {
+      get: (a) => {
+        const o = this.cur(rt);
+        return this.lib.storeGet(o.name, a.string(1)) ?? null;
+      },
+      set: (a) => {
+        const o = this.cur(rt);
+        const key = a.string(1);
+        const t = a.type(2);
+        if (t === 'nil' || t === 'no value') {
+          this.lib.storeSet(o.name, key, undefined);
+          return;
+        }
+        if (t !== 'string' && t !== 'number' && t !== 'boolean' && t !== 'table') {
+          throw new Error(`bad argument #2 to 'store.set' (string, number, boolean or table expected, got ${t})`);
+        }
+        this.lib.storeSet(o.name, key, a.value(2) as StoreValue);
+      },
+    });
+
+    rt.defineView('gmcp');
+    rt.defineView('state');
+  }
+
+  private onTrigger(o: Owner, ref: LuaRef, ctx: MatchContext): void {
+    const s = o.script;
+    if (!s || o.dead) return;
+    s.setEnv('matches', ctx.args);
+    s.setEnv('line', ctx.line?.text ?? ctx.args[0] ?? '');
+    this.call(o, ref);
+  }
+
+  /** False (the alias did not take the command) only when the handler returned false. */
+  private onAlias(o: Owner, ref: LuaRef, ctx: MatchContext): boolean {
+    const s = o.script;
+    if (!s || o.dead) return false;
+    const input = ctx.input ?? ctx.args[0] ?? '';
+    s.setEnv('matches', ctx.args);
+    s.setEnv('line', input);
+    s.setEnv('command', input);
+    const r = this.call(o, ref);
+    return !(r?.ok && r.value === false);
+  }
+
+  private onTimer(o: Owner, n: number): void {
+    const t = o.timers.get(n);
+    if (!t || o.dead) return;
+    if (t.kind === 'delay') o.timers.delete(n);
+    this.call(o, t.ref);
+    if (t.kind === 'delay' && !o.dead) o.script?.release(t.ref);
+  }
+
+  private onKey(key: string): void {
+    const list = this.keyBindings.get(key);
+    const b = list?.[list.length - 1];
+    if (b) this.call(b.owner, b.ref);
+  }
+
+  private unbindKey(key: string, o: Owner, id: number): void {
+    const list = (this.keyBindings.get(key) ?? []).filter((b) => !(b.owner === o && b.id === id));
+    if (list.length > 0) {
+      this.keyBindings.set(key, list);
+      setLiveScriptKey(key, list[list.length - 1]!.owner.name);
+      return;
+    }
+    this.keyBindings.delete(key);
+    this.engine.scripts.remove('macro', key);
+    setLiveScriptKey(key, null);
+  }
+}
+
+/** `message` with `name: ` in front unless it already names the script. */
+function withName(name: string, message: string): string {
+  return message.startsWith(name + ':') ? message : `${name}: ${message}`;
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function vital(v: { value: number | null; max: number | null; word: string | null }): Record<string, unknown> {
+  return { value: v.value ?? undefined, max: v.max ?? undefined, word: v.word ?? undefined };
+}
+
+function defaultStorage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function defaultLoadRuntime(): Promise<LuaRuntime> {
+  const { loadLuaRuntime } = await import('../lua');
+  return loadLuaRuntime();
+}
