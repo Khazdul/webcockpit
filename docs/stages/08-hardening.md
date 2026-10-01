@@ -2,7 +2,7 @@
 
 > Status: In progress (part A done 2026-09-28; part B, the performance
 > review, done 2026-09-30; part C, the performance fixes, built
-> 2026-10-01, owner test next).
+> 2026-10-01; owner played briefly, release pending).
 > Source: spec §5 row 8; owner brief 2026-09-28 (part A, viewer
 > settings in RUN LOG and the HTML replay). ADR 0021. Owner brief
 > 2026-09-30 (parts B and C, performance). ADR 0044.
@@ -261,7 +261,9 @@ experiments to rework, not finished code):
       `<html data-cursor-blink>`; `Socketish.isOpen` is new (optional);
       the "Not connected: command not sent." line comes from `Session`,
       so pane and script sends get it too. Ingest choices: ADR 0048.
-- [ ] C17. Owner test (guide below), release.
+- [ ] C17. Owner test (guide below), release. Owner played briefly on
+      2026-10-01: works well; the full guide is not done; not released
+      yet (owner: do not publish now).
 
 ## Test guide (part A)
 
@@ -452,3 +454,6 @@ the `#perf` / `#perf worst` output at such a moment.
   everything documented and the choices made, and to build the fixes in
   a new session. Decisions under "Owner decisions"; plan under part C;
   report `notes/research/performance-review.md`, ADR 0044.
+- 2026-10-01, part C: played a little on the local build, "seems to
+  work well". The full test guide is not done. Not published yet at the
+  owner's request; release 0.1.20 in a later session.

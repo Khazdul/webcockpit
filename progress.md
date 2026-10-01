@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: release part C and the owner test, C17).
+Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: C17, the release of part C (0.1.20) when the owner says so, and the full part C test guide).
 
 ## Stages
 
@@ -36,7 +36,10 @@ Newest first.
   recorder task 12 → 4 ms. A Firefox flush regression from C8 was found
   and fixed. `notes/research/perf-review/part-c-results.md`.
 - **Tests:** unit 1412 + 1 skipped, e2e 268/268, bench 19/19.
-- **Next:** C17: release (0.1.20), owner test with the part C guide.
+- **Owner:** played briefly on the local build: works well. Do not
+  publish yet.
+- **Next:** C17: release 0.1.20 when the owner asks; the full part C
+  test guide; then the later parts of stage 8 (PvP fixes, polish).
 - **Open issues:** C-P8 (Firefox ingest slices) not built: stress-only
   gain; Firefox may log a harmless ResizeObserver loop message while
   scrolled back (ADR 0045).
