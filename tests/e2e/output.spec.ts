@@ -386,3 +386,39 @@ test.describe('scrolling a full scrollback', () => {
     expect(copied).toEqual({ n: 1001, first: '[SYSTEM] row 19499', last: '[SYSTEM] row 20499' });
   });
 });
+
+// ------------------------------------------------- scrollback depth (ADR 0046)
+
+test('Options → Appearance → Scrollback changes the depth live', async ({ page }) => {
+  await fill(page, 20_500);
+  const rows = () => page.evaluate(() => window.__wc!.app.output.rows);
+  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
+  // Esc at the tail opens the menu.
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
+  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Appearance ───');
+  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowDown'); // past Input color
+  await expect(menuSel).toHaveText('<< Scrollback: 20 000 lines >>');
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(menuSel).toHaveText('<< Scrollback: 5 000 lines >>');
+  // Lowered: the oldest rows go at once, without a reload or new output.
+  await expect.poll(rows).toBeLessThan(5_200);
+  expect(await rows()).toBeGreaterThanOrEqual(5_000);
+  expect(await page.evaluate(() => window.__wc!.settings.get().output.scrollback)).toBe(5000);
+  // Raised: the pane keeps more from now on.
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await expect(menuSel).toHaveText('<< Scrollback: 50 000 lines >>');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await push(page, 20_500, 30_500);
+  expect(await rows()).toBeGreaterThan(14_000);
+  await expect.poll(() => atTail(page)).toBe(true);
+  await expect(page.locator('.wc-rows .wc-row').last()).toBeInViewport();
+  await page.evaluate(() => window.__wc!.settings.reset());
+});

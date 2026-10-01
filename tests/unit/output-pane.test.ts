@@ -368,6 +368,29 @@ describe('OutputPane replayed commands (ADR 0018)', () => {
   });
 });
 
+describe('OutputPane scrollback depth (ADR 0046)', () => {
+  it('drops the oldest chunks at once when lowered, and keeps more when raised', () => {
+    const t = setup(2000); // chunks of 20 rows
+    for (let i = 0; i < 1990; i++) t.bus.emit('text.line', line('r' + i));
+    t.runFrames();
+    expect(t.pane.rows).toBe(1990);
+    t.pane.setScrollback(500);
+    // At least 500 rows, fewer than 500 + one chunk; the newest stay.
+    expect(t.pane.rows).toBeGreaterThanOrEqual(500);
+    expect(t.pane.rows).toBeLessThan(520);
+    expect(t.rows().at(-1)).toBe('r1989');
+    // New chunks take the size for the new depth (500 / 100 = 5 rows).
+    for (let i = 0; i < 20; i++) t.bus.emit('text.line', line('s' + i));
+    t.runFrames();
+    expect(t.pane.el.querySelector('.wc-rows > .wc-chunk:last-child')!.childElementCount).toBe(5);
+    expect(t.pane.rows).toBeLessThan(520);
+    t.pane.setScrollback(5000);
+    for (let i = 0; i < 1000; i++) t.bus.emit('text.line', line('u' + i));
+    t.runFrames();
+    expect(t.pane.rows).toBeGreaterThan(1000);
+  });
+});
+
 describe('OutputPane chunk height estimates (ADR 0045)', () => {
   it('sets each chunk an estimate in screen lines of the cell height', () => {
     const bus = new Bus();

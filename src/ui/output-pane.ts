@@ -57,6 +57,11 @@ export const MAX_ROWS_PER_FRAME = 500;
  */
 export const CHUNK_ROWS = 200;
 
+/** The chunk size for a scrollback of `rows`. */
+function chunkRowsFor(rows: number): number {
+  return Math.max(1, Math.min(CHUNK_ROWS, Math.floor(rows / 100)));
+}
+
 /** Default scrollback depth in rows (spec §1.3). */
 export const DEFAULT_SCROLLBACK = 20000;
 
@@ -130,8 +135,8 @@ export class OutputPane {
   private readonly tailBar: HTMLDivElement;
   private readonly measurer: HTMLSpanElement;
 
-  private readonly scrollback: number;
-  private readonly chunkRows: number;
+  private scrollback: number;
+  private chunkRows: number;
   private readonly requestFrame: (cb: () => void) => void;
   private readonly writeClipboard: (text: string) => Promise<void>;
   private readonly onFocusInput: (() => void) | undefined;
@@ -171,7 +176,7 @@ export class OutputPane {
 
   constructor(bus: Bus, root: HTMLElement, opts: OutputPaneOptions = {}) {
     this.scrollback = Math.max(1, opts.scrollback ?? DEFAULT_SCROLLBACK);
-    this.chunkRows = Math.max(1, Math.min(CHUNK_ROWS, Math.floor(this.scrollback / 100)));
+    this.chunkRows = chunkRowsFor(this.scrollback);
     this.requestFrame =
       opts.requestFrame ?? ((cb) => void requestAnimationFrame(() => cb()));
     this.writeClipboard =
@@ -707,6 +712,19 @@ export class OutputPane {
   /** Current number of rows in the scrollback (for tests and diagnostics). */
   get rows(): number {
     return this.rowCount;
+  }
+
+  /**
+   * Changes the scrollback depth (Options, ADR 0046). A lower depth drops
+   * the oldest chunks at once; new chunks take the size for the new depth.
+   */
+  setScrollback(rows: number): void {
+    const n = Math.max(1, rows);
+    if (n === this.scrollback) return;
+    this.scrollback = n;
+    this.chunkRows = chunkRowsFor(n);
+    this.trimTop();
+    if (!this.scrolled) this.scroller.scrollTop = this.scroller.scrollHeight;
   }
 
   /** Unsubscribes and removes the pane from the DOM. */

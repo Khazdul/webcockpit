@@ -91,7 +91,7 @@ an automated benchmark that replays recorded sessions:
 | Socket frame received → text painted | next animation frame (≤ 16 ms at 60 Hz), with no smoothing or animated scroll |
 | Burst: 1 MB of output (large `who` / spam) | UI stays responsive; no frame > 50 ms |
 | 500 user rules (actions + substitutes + highlights) | < 0.2 ms per line on average |
-| Scrollback | 20 000 lines by default, with no slowdown as it fills |
+| Scrollback | 20 000 lines by default (5 000–50 000 in Options → Appearance, ADR 0046), with no slowdown as it fills |
 | Cold start (link → start page) | < 1 s on broadband; map and editor code are loaded lazily |
 
 - **Output rendering:**
