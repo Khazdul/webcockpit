@@ -99,6 +99,13 @@ anchoring instead.
   caret's CSS animation (ADR 0044 rule 1) Firefox renders a revealed chunk
   one frame later; refreshing to a row in a not yet rendered chunk let
   that chunk's real height push the view by its estimate error.
+- The estimate is written when a chunk is new (before it is in the
+  document), when it is full, while the view is scrolled back, and for the
+  open chunk on entering scroll mode; rows added to the open chunk at the
+  tail do not rewrite it. Firefox re-laid out the whole chunk on every
+  write (a 4-line flush 0.70 → 2.82 ms; part-c-results §11), and skips a
+  new chunk without one until it has checked it, so a chunk added below
+  the pinned view stayed 0 px high.
 - Firefox can log "ResizeObserver loop completed with undelivered
   notifications" while scrolling back: the pane corrects `scrollTop`
   inside the observer callback and a chunk changes height again in the
