@@ -131,6 +131,15 @@ lookup. Lucida is a trademark of its owner.
   Copyright (C) 2018-2021 by Marijn Haverbeke and others. Used for the
   profile editor's text view (`src/editor/`), loaded as a separate chunk.
   Licence texts: `node_modules/<package>/LICENSE` (MIT, GPL-compatible).
+- **wasmoon** 1.16.0 — MIT License, Copyright (c) 2023 Gabriel Francisco
+  (https://github.com/ceifa/wasmoon). The Lua runtime for user scripts
+  (`src/lua/`, ADR 0051): its JavaScript glue and its WebAssembly build
+  `glue.wasm`, emitted as a hashed asset next to the app. Both load
+  lazily, only when a script is enabled. Licence text:
+  `node_modules/wasmoon/LICENSE` (MIT, GPL-compatible).
+- **Lua** 5.4, compiled into wasmoon's `glue.wasm` — MIT License,
+  Copyright (C) 1994-2023 Lua.org, PUC-Rio (https://www.lua.org/license.html,
+  MIT, GPL-compatible).
 
 ## Map assets (`public/map/`)
 
