@@ -446,3 +446,30 @@ lines): +0.8–1.0 µs per line, budget 200 µs. Key path unchanged
   `Owner` and release them in `release`).
 - `#script` output is plain styled rows; P2's help view can reuse
   `helpRows` from `command-rows.ts` or build its own from `ScriptInfo`.
+
+### P3 — coin looter (2026-10-02)
+
+`src/scripts/bundled/coinlooter.lua`, tests in
+`tests/unit/scripts-coinlooter.test.ts` (real MUME lines, bundled
+script in the real host).
+
+- *Same purpose as Cockpit's*: after a death line it sends
+  `get coins all.corpse` (`is dead! R.I.P.`, `has drawn his/her last
+  breath! R.I.P.`) or `get all.coins` (`disappears into nothing.`, an
+  undead's coins fall to the floor); player deaths (`*Name*`) are
+  skipped; at most one of each command per second.
+- *Improved*: it loots only when `You receive your share of
+  experience.` came in the 2 s before the death line (in the logs it is
+  always 2–3 lines earlier, for solo and group kills), so other
+  players' kills in the room are left alone (setting `others` restores
+  Cockpit's any-kill behaviour). `quiet` gags the "You can't find any
+  coins" reply to its own command (210 of 344 auto-loots in the logs).
+  `delay` waits before sending.
+- *On/off*: setting `auto` is the state at load; alias `cl` (`on`,
+  `off`, `now`) changes it for the session. A changed `auto` setting
+  wins while the script runs.
+- *API gap (not fixed)*: a script cannot learn its own name, so `cl`
+  cannot write the `auto` setting (`expandAlias("#script set …")`
+  would hit the bundled script from a *Duplicate* copy). A
+  `scriptName` value or a settings writer would close it in a later
+  API version.

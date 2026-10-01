@@ -75,7 +75,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - save and reload;
   - import warning; *Duplicate*;
   - errors on the row.
-- [ ] P3. Bundled coin looter.
+- [x] P3. Bundled coin looter (ADR 0051 "Package notes — P3").
 - [ ] Verify: typecheck, unit, e2e (page, editor, `#script`), and
       bench within spec §1.3 with coin looter and a test script enabled.
 - [ ] Test guide filled in; owner test.
