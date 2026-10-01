@@ -47,6 +47,11 @@
 // `?fixture=`, `?bench`), Enter on a closed connection does not connect to
 // MUME; `#connect` does. After a live disconnect, Enter reconnects.
 //
+// User scripts (ADR 0051): with a script library (`scripts`), the script
+// host (src/scripts/host.ts, a lazy chunk, with the Lua runtime behind it)
+// is loaded once any script is enabled, or on the first `#script` / `#lua`
+// command. It follows the library from then on. Player Apps run no scripts.
+//
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
 // captures, keeps nothing (no clock, pane database or UI ring storage),
@@ -80,6 +85,8 @@ import { KEY_ENTER, KEY_MACRO, PerfMonitor } from './perf-monitor';
 import { RunEventDeriver } from '../runs/events';
 import type { MapPaneHost } from '../map/protocol';
 import { LiveRuns } from '../runs/live';
+import type { ScriptLibrary } from '../scripts';
+import type { ScriptHost } from '../scripts/host';
 
 /** UI pane warnings for capture states that mean runs are not recorded. */
 const CAPTURE_WARNINGS: Readonly<Record<string, string>> = {
@@ -159,6 +166,15 @@ export interface AppOptions {
    * Default: the bundled map (`defaultMapHost`).
    */
   map?: MapPaneHost;
+  /**
+   * The script library (ADR 0051). Enabled scripts run in this App; absent
+   * (and in player Apps): no scripts, and `#script` / `#lua` say so.
+   */
+  scripts?: ScriptLibrary;
+  /** Hang-guard storage for the script host (tests; default `localStorage`). */
+  scriptStorage?: Storage | null;
+  /** The Lua runtime loader for the script host (tests). */
+  loadLua?: () => Promise<import('../lua').LuaRuntime>;
 }
 
 export class App {
@@ -215,6 +231,10 @@ export class App {
   private disposed = false;
   /** Pending `#help` and `#perf` output, in typed order (see `help`). */
   private helpChain: Promise<void> = Promise.resolve();
+  private readonly scriptLib: ScriptLibrary | null;
+  private readonly scriptOpts: Pick<AppOptions, 'scriptStorage' | 'loadLua'>;
+  private hostP: Promise<ScriptHost> | null = null;
+  private hostRef: ScriptHost | null = null;
 
   constructor(opts: AppOptions) {
     const doc = opts.root.ownerDocument;
@@ -355,6 +375,7 @@ export class App {
       // Confirmations and listings (ADR 0039): straight to the pane, as
       // `#help` rows are, so no rule fires on them and nothing records them.
       report: (r) => this.output.pushStyled(messageRows(r, this.output.measureCells().cols)),
+      scriptCommand: (name, args) => this.scriptCommand(name, args),
       ...(opts.scheduler ? { scheduler: opts.scheduler } : {}),
     });
     this.script.attach(bus);
@@ -378,6 +399,9 @@ export class App {
       this.unsubs.push(() => win.removeEventListener('pagehide', this.onPageHide));
     }
     if (this.profiles) void this.loadSelectedProfile(false);
+    this.scriptLib = player ? null : (opts.scripts ?? null);
+    this.scriptOpts = { scriptStorage: opts.scriptStorage, loadLua: opts.loadLua };
+    if (this.scriptLib) void this.watchScripts(this.scriptLib);
 
     bus.on('gmcp', (m) => {
       if (gmcpKey(m) !== 'char.name') return;
@@ -387,7 +411,10 @@ export class App {
     bus.on('conn.state', this.onState);
   }
 
-  private readonly onPageHide = (): void => void this.writeBack?.flush();
+  private readonly onPageHide = (): void => {
+    void this.writeBack?.flush();
+    void this.scriptLib?.flush();
+  };
 
   /**
    * Tears the App down: the connection (silently), every listener, timer
@@ -401,6 +428,8 @@ export class App {
     this.session.dispose();
     for (const u of this.unsubs.splice(0)) u();
     void this.writeBack?.flush();
+    this.hostRef?.dispose();
+    void this.scriptLib?.flush();
     this.script.dispose();
     this.perf?.dispose();
     this.runEvents.dispose();
@@ -585,6 +614,69 @@ export class App {
     if (n === 0) this.ui('system', `Profile {${name}} applied.`);
     else this.ui('warn', `Profile {${name}} applied with {${n}} warning${n === 1 ? '' : 's'}.`);
     return { ok: true, warnings: r.warnings };
+  }
+
+  // --------------------------------------------------------------- scripts
+
+  /** Loads the script host as soon as a script is enabled (now or later). */
+  private async watchScripts(lib: ScriptLibrary): Promise<void> {
+    try {
+      await lib.init();
+    } catch {
+      return;
+    }
+    if (this.disposed) return;
+    const check = (): void => {
+      if (!this.hostP && lib.list().some((s) => s.enabled)) void this.scriptHost().catch(() => {});
+    };
+    this.unsubs.push(lib.subscribe(check));
+    check();
+  }
+
+  /** The script host, loaded and started on first use. */
+  scriptHost(): Promise<ScriptHost> {
+    const lib = this.scriptLib;
+    if (!lib) return Promise.reject(new Error('no script library'));
+    this.hostP ??= import('../scripts/host').then(async ({ ScriptHost }) => {
+      if (this.disposed) throw new Error('disposed');
+      const host = new ScriptHost({
+        engine: this.script,
+        bus: this.bus,
+        library: lib,
+        game: this.game,
+        send: (text) => this.sendFromScript(text),
+        print: (rows) => this.output.pushStyled(rows),
+        message: (text) => this.sys(text),
+        cols: () => this.output.measureCells().cols,
+        ...(this.scriptOpts.scriptStorage !== undefined ? { storage: this.scriptOpts.scriptStorage } : {}),
+        ...(this.scriptOpts.loadLua ? { loadRuntime: this.scriptOpts.loadLua } : {}),
+      });
+      this.hostRef = host;
+      await host.start();
+      return host;
+    });
+    this.hostP.catch((err: unknown) => {
+      this.hostP = null;
+      if (!this.disposed) this.ui('error', `Scripts could not start: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    return this.hostP;
+  }
+
+  /** `#script <sub>` and `#lua {script} {function}` from the engine (ADR 0051). */
+  private scriptCommand(name: 'script' | 'lua', args: string[]): void {
+    if (!this.scriptLib) {
+      this.sys(`#${name}: scripts are not available here.`);
+      return;
+    }
+    // A running host answers `#lua` synchronously (a macro's call keeps its order).
+    if (this.hostRef) {
+      this.hostRef.command(name, args);
+      return;
+    }
+    this.scriptHost().then(
+      (h) => h.command(name, args),
+      () => {},
+    );
   }
 
   /** Everything queued for the profile write-back is saved when this resolves. */

@@ -12,6 +12,7 @@ import {
   removeEntry,
 } from '../script/doc';
 import { compareKeys, displayKey, normalizeKey, shadowedInputKey } from '../script/keys';
+import { scriptKeyOwner } from '../script/script-keys';
 
 /** The five lite kinds as tabs (Inv §5.2), in their order. */
 export type LiteKind = 'action' | 'alias' | 'highlight' | 'macro' | 'substitute';
@@ -251,14 +252,18 @@ export const HINTS: Readonly<Record<LiteKind, readonly [string, string]>> = {
 
 /**
  * A warning for an entry that will not behave as the user expects, or
- * null: a macro that takes over an input-line key, an alias that can never
- * run because a client command wins.
+ * null: a macro on a key an enabled Lua script binds (the macro wins), a
+ * macro that takes over an input-line key, an alias that can never run
+ * because a client command wins.
  */
 export function entryWarning(e: { kind: EntryKind; pattern: string }): string | null {
   if (e.kind === 'macro') {
     const c = normalizeKey(e.pattern);
-    const what = c ? shadowedInputKey(c) : null;
-    return c && what ? `${displayKey(c)} overrides the input line (${what}).` : null;
+    if (!c) return null;
+    const script = scriptKeyOwner(c);
+    if (script) return `${displayKey(c)} is also bound by script ${script}; this macro wins.`;
+    const what = shadowedInputKey(c);
+    return what ? `${displayKey(c)} overrides the input line (${what}).` : null;
   }
   if (e.kind === 'alias') {
     const first = e.pattern.trim().split(/\s+/)[0] ?? '';

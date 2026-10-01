@@ -9,6 +9,7 @@ import type { Session } from '../../runs/stitch';
 import type { Settings, SettingsStore } from '../../settings';
 import type { CellMetrics, CellSize } from '../../theme/cells';
 import type { MapStore } from '../../map/store';
+import type { ScriptLibrary } from '../../scripts';
 import type { NoticeState, Notices } from '../../app/notices';
 
 /** Everything the chrome needs from the rest of the app. */
@@ -43,6 +44,11 @@ export interface ChromeServices {
    * and exports use the bundled map.
    */
   maps?: MapStore;
+  /**
+   * The script library (spec §2.10, ADR 0051; the Scripts page). Absent:
+   * no scripts in this page.
+   */
+  scripts?: ScriptLibrary;
   /** Client notices (ADR 0025): the ESC header and the start page show them. */
   notices?: Notices;
 }

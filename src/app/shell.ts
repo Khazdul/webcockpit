@@ -66,6 +66,7 @@ import { nowUs } from '../core/types';
 import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
+import { ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
@@ -91,6 +92,8 @@ export interface ShellOptions {
   profiles?: ProfileStore;
   /** Map store (tests inject one). */
   maps?: MapStore;
+  /** Script library (tests inject one). */
+  scripts?: ScriptLibrary;
   /** Client notices (ADR 0025). Absent: none are shown. */
   notices?: Notices;
 }
@@ -117,11 +120,14 @@ export class Shell {
   private playerOpening = false;
   /** The current map (ADR 0020): the cockpit's and the log player's Map pane, Options → Mapper. */
   readonly maps: MapStore;
+  /** The script library (ADR 0051): the cockpit's script host and the Scripts page. */
+  readonly scripts: ScriptLibrary;
 
   constructor(opts: ShellOptions) {
     this.opts = opts;
     this.profiles = opts.profiles ?? new ProfileStore();
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
+    this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
     this.startHost = doc.createElement('div');
     this.startHost.className = 'wc-start-host';
@@ -299,6 +305,7 @@ export class Shell {
       // The `Link:` probe (ADR 0030); offline pages never connect live.
       linkFetch: offline ? null : defaultLinkFetch(),
       profiles: this.profiles,
+      scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
       onEscape: () => void this.openMenu(),
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
@@ -343,6 +350,7 @@ export class Shell {
       openPlayer: (session) => void this.openPlayer(session),
       openSpotlights: () => this.openSpotlights(),
       maps: this.maps,
+      scripts: this.scripts,
     };
   }
 

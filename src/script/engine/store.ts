@@ -462,7 +462,15 @@ function insertSorted(list: readonly Rule[], rule: Rule): Rule[] {
   return out;
 }
 
-/** Compares two rules: priority, then definition order. */
+/**
+ * Compares two rules: priority, then script rules after the others (so a
+ * profile alias or macro of the same priority wins over a Lua script's,
+ * however the two were loaded), then definition order.
+ */
 export function ruleOrder(a: Rule, b: Rule): number {
-  return a.priority - b.priority || a.seq - b.seq;
+  return a.priority - b.priority || scriptRank(a) - scriptRank(b) || a.seq - b.seq;
+}
+
+function scriptRank(r: Rule): number {
+  return r.store.name === 'scripts' ? 1 : 0;
 }
