@@ -16,17 +16,8 @@
 -- @help     kill in your room. Player corpses (*Name*) are never looted.
 -- @help     It sends at most one of each command per second.
 -- @help
--- @help     Commands:
--- @help       cl       turn auto-looting on or off
--- @help       cl on    turn it on;  cl off  turn it off
--- @help       cl now   pick up coins from the floor and the corpses now
--- @help     cl lasts until you reload. To change it for good:
--- @help       #script set coinlooter auto off
--- @help
--- @help     Settings:
--- @help       #script set coinlooter delay 0.5    wait half a second first
--- @help       #script set coinlooter others on    loot after any kill, like Cockpit
--- @help       #script set coinlooter quiet off    show "You can't find any coins"
+-- @help     cl on and cl off are remembered. The settings below say
+-- @help     how to change the rest.
 
 --[[
 How it works
@@ -48,7 +39,7 @@ change what you like.
 
 -- ------------------------------------------------------------ state
 
--- Is auto-looting on? Starts from the `auto` setting; `cl` changes it.
+-- Is auto-looting on? Starts from the `auto` setting; `cl` changes both.
 local on = settings.auto
 -- The `auto` value we last saw, so `#script set coinlooter auto ...`
 -- also works while the script runs.
@@ -153,6 +144,9 @@ tempAlias("^cl(?: (on|off|now))?$", function()
   else
     on = not on
   end
+
+  -- Remember it for next time (the same as #script set ... auto).
+  setSetting("auto", on)
 
   if on then
     cecho("<green>Coin looter on.<reset>")

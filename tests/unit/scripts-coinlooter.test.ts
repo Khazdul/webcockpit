@@ -95,7 +95,7 @@ describe('bundled coin looter', () => {
     expect(s.header.api).toBe(1);
     expect(s.header.aliases.map((a) => a.name)).toEqual(['cl']);
     expect(s.settings).toEqual({ auto: true, delay: 0, others: false, quiet: true });
-    expect(s.header.help.join('\n')).toMatch(/#script set coinlooter auto off/);
+    expect(s.header.help.join('\n')).toMatch(/cl on and cl off are remembered/);
   });
 
   it('loots a corpse after your kill, and the floor after an undead', async () => {
@@ -164,6 +164,17 @@ describe('bundled coin looter', () => {
     expect(t.sent).toEqual(['get coins all.corpse', 'get all.coins', 'get coins all.corpse']);
     t.engine.input('clan');
     expect(t.sent.at(-1)).toBe('clan');
+    expect(t.lib.get('coinlooter')!.lastError).toBeNull();
+  });
+
+  it('remembers cl on and cl off in the auto setting', async () => {
+    const t = await setup();
+    t.engine.input('cl off');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.lib.settingsOf('coinlooter').auto).toBe(false);
+    t.engine.input('cl on');
+    await new Promise((r) => setTimeout(r, 0));
+    expect(t.lib.settingsOf('coinlooter').auto).toBe(true);
     expect(t.lib.get('coinlooter')!.lastError).toBeNull();
   });
 
