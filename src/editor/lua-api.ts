@@ -53,6 +53,8 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn('store.get', 'store.get(key) → value', 'A value saved with store.set, or nil.'),
   fn('store.set', 'store.set(key, value)', 'Saves a string, number, boolean or table under key. nil removes it.'),
   v('settings', 'settings.<name>', 'The values of the header\'s @setting lines (read-only). Change one with #script set <script> <name> <value>.'),
+  fn('setSetting', 'setSetting(name, value)', 'Saves one of this script\'s own @setting values, as #script set does. settings.<name> shows it once saved.'),
+  v('scriptName', 'scriptName', 'This script\'s name, as on the Scripts page (a Duplicate has its own).'),
   v('gmcp', 'gmcp.<Package>.<Message>', 'The last GMCP data from MUME, as in Mudlet: gmcp.Char.Vitals.hp, gmcp.Room.Info.name … (read-only).'),
   v('state', 'state.char / state.group / state.room', 'Read-only view of the character (name, vitals, status), the group members and the room.'),
   v('matches', 'matches[1], matches[2] …', 'In a trigger or alias: the whole match, then each group.'),

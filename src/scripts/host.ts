@@ -280,7 +280,7 @@ export class ScriptHost {
     o.settingsJson = JSON.stringify(settings);
     this.owners.set(s.name, o);
     const t0 = this.clock();
-    const r = rt.loadScript(s.name, s.source, { readonly: { settings } });
+    const r = rt.loadScript(s.name, s.source, { readonly: { settings, scriptName: s.name } });
     const dt = this.clock() - t0;
     if (!r.ok) {
       this.release(o);
@@ -820,6 +820,22 @@ export class ScriptHost {
       const old = o.exports.get(name);
       if (old !== undefined) o.script?.release(old);
       o.exports.set(name, ref);
+    });
+
+    rt.defineFunction('setSetting', (a) => {
+      const o = this.cur(rt);
+      const setting = a.string(1);
+      const t = a.type(2);
+      if (t !== 'string' && t !== 'number' && t !== 'boolean') {
+        throw new Error(`bad argument #2 to 'setSetting' (string, number or boolean expected, got ${t})`);
+      }
+      const decl = this.lib.get(o.name)?.header.settings.find((d) => d.name === setting);
+      if (!decl) throw new Error(`bad argument #1 to 'setSetting' (no @setting '${setting}')`);
+      const text = t === 'boolean' ? String(a.boolean(2)) : a.string(2);
+      // Saved like `#script set`; `settings` updates once it is stored.
+      void this.lib.setSetting(o.name, setting, text).then((r) => {
+        if (!r.ok) this.ui('error', `${o.name}: setSetting ${setting}: ${r.reason}`);
+      });
     });
 
     rt.defineTable('store', {

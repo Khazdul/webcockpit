@@ -567,3 +567,14 @@ Rolldown regrouped the script library's modules into one chunk).
 **Open.** No syntax check for a disabled script (that needs the Lua
 runtime); its errors show once it is turned on. The narrow layout has
 no help panel.
+
+### Main session — own settings (2026-10-02)
+
+P3 found that a script could not persist its own settings or learn its
+name (a Duplicate has another name). API 1 gains `scriptName` (a
+read-only value in the script's environment) and `setSetting(name,
+value)`, which checks the name against the header and saves through the
+library like `#script set`; `settings` updates once saved. The coin
+looter's `cl on` and `cl off` now persist in `auto`, and its `@help` no
+longer repeats the aliases and settings the help view lists.
+

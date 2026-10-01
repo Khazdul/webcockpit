@@ -398,6 +398,19 @@ describe('profile bridge, settings and store', () => {
     expect(t.msgs).toEqual(['s: delay = 2', 's: on = false', '#script set: delay must be a number.', '#script set: s has no setting nope (settings: delay, mode, on).']);
   });
 
+  it('setSetting saves an own setting; scriptName is the script\'s name', async () => {
+    const header = '-- @setting delay number 0.5 "Seconds"\n-- @setting on boolean true\n';
+    const t = await setup({ s: src(`export("set", function() setSetting("delay", 2); setSetting("on", false) end)
+export("show", function() send(scriptName .. settings.delay .. tostring(settings.on)) end)
+export("bad", function() send(tostring(pcall(setSetting, "nope", 1)) .. tostring(pcall(setSetting, "delay", {}))) end)`, header) });
+    t.engine.input('#lua s set');
+    await t.settle();
+    t.engine.input('#lua s show');
+    t.engine.input('#lua s bad');
+    expect(t.sent).toEqual(['s2false', 'falsefalse']);
+    expect(t.lib.settingsOf('s')).toMatchObject({ delay: 2, on: false });
+  });
+
   it('store keeps values per script and survives a reload', async () => {
     const t = await setup({
       s: src(`

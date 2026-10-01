@@ -394,7 +394,9 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     - `export(name, fn)` makes a function callable from the profile as
       `#lua {script} {name} {args}`.
   - Script data:
-    - `settings.<name>` is read-only.
+    - `settings.<name>` is read-only. `setSetting(name, value)` saves
+      one of the script's own settings, as `#script set` does.
+    - `scriptName` is the script's own name.
     - `store.get(key)` and `store.set(key, value)` persist strings,
       numbers, booleans and tables per script.
   - Panes:
