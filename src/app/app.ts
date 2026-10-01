@@ -261,6 +261,7 @@ export class App {
     // Before the panes and the script engine: models are current when
     // they react to the same message.
     this.game.attach(bus);
+    this.runEvents.shareGroup(this.game);
     this.settings = opts.settings ?? new SettingsStore({ factory: null, storage: null, win: null });
     this.profiles = opts.profiles ?? null;
     // Before the cockpit, so the recorder sees its first `view.size`.

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { UiMessage } from '../../src/core/types';
 import { xpForLevel } from '../../src/gmcp/levels';
+import { GameState } from '../../src/gmcp/state';
 import { type RunEvent, RunEventDeriver, fmtXp, parseDeathLine, stripLabel } from '../../src/runs/events';
 import { ScriptEngine } from '../../src/script/engine';
 import { FakeScheduler } from '../../src/script/engine/timers';
@@ -12,11 +13,16 @@ function plain(m: UiMessage): string {
   return `◆ ${m.tag}: ` + m.parts.map((p) => (typeof p === 'string' ? p : p.value)).join('');
 }
 
-function setup() {
+/** `own`: the deriver keeps its group model; `shared-*`: it reads GameState's, subscribed before or after it. */
+type GroupMode = 'own' | 'shared-before' | 'shared-after';
+
+function setup(mode: GroupMode = 'own') {
   const bus = new Bus();
   const sched = new FakeScheduler();
   let t = T0;
+  const game = mode === 'shared-after' ? new GameState({ storage: null }).attach(bus) : null;
   const d = new RunEventDeriver({ now: () => t, scheduler: sched }).attach(bus);
+  if (mode !== 'own') d.shareGroup(game ?? new GameState({ storage: null }).attach(bus));
   const engine = new ScriptEngine({ send: () => {}, message: () => {}, scheduler: sched });
   engine.attach(bus);
   d.installRules(engine.system);
@@ -183,8 +189,8 @@ describe('RunEventDeriver', () => {
     ]);
   });
 
-  it('writes group_changed for ally changes only, the login group once after run_start', () => {
-    const t = setup();
+  it.each(['own', 'shared-before', 'shared-after'] as const)('writes group_changed for ally changes only, the login group once after run_start (%s)', (mode) => {
+    const t = setup(mode);
     t.play();
     t.gmcp('Group.Set', [
       { id: 1, type: 'you', name: 'Rasta' },

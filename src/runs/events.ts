@@ -34,6 +34,12 @@ import type { Bus } from '../core/bus';
 import { type UiMessage, gmcpKey } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { GroupModel } from '../gmcp/group';
+
+/** A group model kept by someone else, with change notices (GameState). */
+export interface SharedGroup {
+  readonly group: GroupModel;
+  subscribe(fn: (part: string) => void): () => void;
+}
 import { levelFromXp } from '../gmcp/levels';
 import { type Scheduler, realScheduler } from '../script/engine/timers';
 
@@ -201,7 +207,13 @@ export class RunEventDeriver {
   private pending: Pending[] = [];
   private foldTimer: unknown = null;
 
-  private readonly group = new GroupModel();
+  private group = new GroupModel();
+  /** Set by `shareGroup`: the group model is someone else's, kept current by them. */
+  private sharedGroup = false;
+  /** Shared group: receive time of a Group.* message whose change may alter the allies. */
+  private allyCheckTs: number | null = null;
+  /** Shared group: the model's version at the last ally check. */
+  private groupSeen = -1;
   private allies: string[] = [];
   private list: RunEvent[] = [];
 
@@ -238,11 +250,36 @@ export class RunEventDeriver {
       }),
       bus.on('gmcp.raw', (m) => {
         this.rawTs = m.ts;
+        this.allyCheckTs = null;
       }),
       bus.on('gmcp', (m) => {
         const ts = this.rawTs ?? this.nowUs();
         this.rawTs = undefined;
         this.onGmcp(m.pkg, m.data, ts, gmcpKey(m));
+      }),
+    );
+    return this;
+  }
+
+  /**
+   * Reads the allies from `source`'s group model (the App's GameState)
+   * instead of applying every `Group.*` to a second model. The source
+   * applies the message and announces the change; whether it is subscribed
+   * to the bus before or after this deriver, the allies are checked once
+   * the model holds the message (a check that finds nothing new emits
+   * nothing). Call before the first message.
+   */
+  shareGroup(source: SharedGroup): this {
+    this.group = source.group;
+    this.sharedGroup = true;
+    this.groupSeen = source.group.version;
+    this.unsubs.push(
+      source.subscribe((part) => {
+        const ts = this.allyCheckTs;
+        if (part !== 'group' || ts === null) return;
+        this.allyCheckTs = null;
+        this.groupSeen = this.group.version;
+        this.checkAllies(ts);
       }),
     );
     return this;
@@ -300,9 +337,20 @@ export class RunEventDeriver {
       if (this.isStarted) this.vitals(data, ts);
       else if (this.armed) this.start(data, ts);
     } else if (p.startsWith('group.')) {
-      const changed = this.group.apply(pkg, data);
       // Vital updates cannot change who the allies are unless they carry a type.
-      if (changed && this.isStarted && (p !== 'group.update' || (isObj(data) && 'type' in data))) this.checkAllies(ts);
+      const mayChangeAllies = p !== 'group.update' || (isObj(data) && 'type' in data);
+      if (this.sharedGroup) {
+        if (!this.isStarted || !mayChangeAllies) return;
+        // The owner applies it after us (checked on its notice) or has already (version moved).
+        this.allyCheckTs = ts;
+        if (this.group.version !== this.groupSeen) {
+          this.groupSeen = this.group.version;
+          this.checkAllies(ts);
+        }
+        return;
+      }
+      const changed = this.group.apply(pkg, data);
+      if (changed && this.isStarted && mayChangeAllies) this.checkAllies(ts);
     } else if (p === 'char.name') {
       const n = isObj(data) ? data.name : undefined;
       if (typeof n === 'string' && n) this.character = n;
@@ -360,7 +408,8 @@ export class RunEventDeriver {
     this.level = null;
     this.statusLevel = null;
     this.allies = [];
-    this.group.reset();
+    if (!this.sharedGroup) this.group.reset();
+    this.allyCheckTs = null;
     this.rawTs = undefined;
   }
 
