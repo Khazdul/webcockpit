@@ -292,7 +292,11 @@ Part D — more fonts (ADR 0049):
       Lucida fallback, export); seam sweep of every family at sizes 6–32
       in Chromium and Firefox; ligature and network checks.
 - [x] D8. Credits: About, `THIRD_PARTY_NOTICES.md`, `public/fonts/README.md`.
-- [ ] D9. Owner test (guide below).
+- [x] D9. JetBrains Mono seams (owner approved the fix if nothing gets
+      worse): `halfUpPx` and a 0.1 px `cellMargin`; swept before/after,
+      cells change only at 8–9, 16–17 and 25 (ADR 0049). `wholePx` was
+      tried and rejected (taller cells, Firefox seams at 21–22).
+- [ ] D10. Owner test (guide below).
 
 ## Test guide (part A)
 
@@ -393,6 +397,10 @@ On `npm run dev` (or the release that carries it), Firefox and Chromium:
    Sans Mono. With another font it opens in that font.
 6. ESC → About → CREDITS → Fonts: the list, and the link to the font
    credits.
+
+JetBrains Mono: its block seams in Chromium (sizes 13–14, 18–19 …) and
+Firefox (25) are gone; at size 16 its rows are 1 px lower (21 instead of
+22). Say if 16 now looks too tight.
 
 Feedback wanted: which fonts you would keep or drop, any size where a
 font looks wrong (font, size, browser, what you saw), and whether rows

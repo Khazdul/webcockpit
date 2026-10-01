@@ -53,6 +53,14 @@ export interface FontInfo {
    */
   wholePx?: boolean;
   /**
+   * The same Chrome rounding, fixed with less change (JetBrains Mono): a
+   * size whose fraction is under half a px is raised to the next half px,
+   * which Chrome rounds up, so `█` is at least as wide as the cell; the
+   * whole-px advance (and so the cell width) stays as `fontPx` gives it
+   * (ADR 0049).
+   */
+  halfUpPx?: boolean;
+  /**
    * Px taken off the cell height before rounding down (`cellHeight`), so
    * that `█` always reaches past both cell edges: without it, a cell that
    * the block fills exactly shows hairline seams between rows where the
@@ -236,6 +244,8 @@ export const FONTS: Readonly<Record<FontId, FontInfo>> = {
     // █ spans -300..1020 of 1000 units.
     blockEm: 1320 / 1000,
     advanceEm: 600 / 1000,
+    halfUpPx: true,
+    cellMargin: 0.1,
     notice: `JetBrains Mono (${OFL})`,
   },
   // Its `█` and `│` fill the line metrics exactly; Chrome's rounded
@@ -439,7 +449,11 @@ export function fontPx(id: FontId, size: number): number {
   if (f.wholePx) return wholePx(adv, size);
   const w = Math.max(1, Math.round(size * adv));
   // Four decimals: enough for the advance, and keeps float noise out of CSS.
-  return Math.round((w / adv) * 1e4) / 1e4;
+  const px = Math.round((w / adv) * 1e4) / 1e4;
+  const frac = px - Math.floor(px);
+  // A whole px size is drawn as is.
+  if (f.halfUpPx && frac > 0.001 && frac < 0.5) return Math.floor(px) + 0.5;
+  return px;
 }
 
 /**

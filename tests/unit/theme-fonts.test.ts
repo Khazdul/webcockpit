@@ -164,15 +164,31 @@ describe('grid settings (ADR 0049)', () => {
     }
   });
 
-  it('the other families keep a whole-px advance; DejaVu and JetBrains keep their cells', () => {
+  it('the other families keep a whole-px advance; DejaVu keeps its cells', () => {
     expect(fontPx('dejavu', 15)).toBe(14.9489);
     expect(FONTS.dejavu.cellMargin ?? 0).toBe(0);
-    expect(FONTS.jetbrains.cellMargin ?? 0).toBe(0);
     for (const id of FONT_IDS) {
-      if (FONTS[id].wholePx) continue;
+      if (FONTS[id].wholePx || FONTS[id].halfUpPx) continue;
       const adv = fontPx(id, 15) * FONTS[id].advanceEm;
       expect(adv).toBeCloseTo(Math.round(adv), 3);
     }
+  });
+
+  it('JetBrains Mono: a size under half a px over a whole px goes to the half px; cell widths unchanged', () => {
+    const a = (size: number) => ({ ...defaultSettings().appearance, font: 'jetbrains' as const, size });
+    expect(fontPx('jetbrains', 13)).toBe(13.5);
+    expect(fontPx('jetbrains', 15)).toBe(15);
+    expect(fontPx('jetbrains', 16)).toBe(16.6667);
+    for (let size = 6; size <= 32; size++) {
+      const px = fontPx('jetbrains', size);
+      const frac = px - Math.floor(px);
+      expect(frac < 0.001 || frac >= 0.5).toBe(true);
+      // Chrome draws at Math.round(px): never narrower than the cell.
+      expect(Math.round(px) * 0.6).toBeGreaterThanOrEqual(nominalCell(a(size)).w);
+      expect(nominalCell(a(size)).w).toBe(Math.round(size * 0.6));
+    }
+    expect(nominalCell(a(15))).toEqual({ w: 9, h: 19, px: 15, ls: 0 });
+    expect(nominalCell(a(25)).h).toBe(32);
   });
 
   it('the cell is rounded down from the block height less the family margin', () => {

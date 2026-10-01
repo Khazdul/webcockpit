@@ -165,8 +165,9 @@ of it:
   cover height, or a block equal to the line metrics), browsers that
   round the baseline left hairline seams or a 1 px gap between rows.
   0.5 px for every new family; 1 px for mononoki (its `█` and `│` equal
-  its line metrics; Chrome left a 1 px gap at sizes 26–27 with 0.5); 0
-  for DejaVu Sans Mono and JetBrains Mono, which keep their cells.
+  its line metrics; Chrome left a 1 px gap at sizes 26–27 with 0.5);
+  0.1 px for JetBrains Mono (below); 0 for DejaVu Sans Mono, which keeps
+  its cells.
 - **`wholePx`**: Chrome on Linux draws Go Mono, IBM 3270, IBM Plex Mono
   and Lucida Console at the font size rounded to whole px (their hinting
   does not stretch `█` to the cell as DejaVu's does), so at a fractional
@@ -178,7 +179,22 @@ of it:
   letter-spacing (its limit, `MAX_LS`, is now 0.5 px). A size setting
   can move by a px or two.
 
-After both, no family shows a seam or gap at any size in either browser,
+- **`halfUpPx`** (JetBrains Mono, owner-approved fix of seams it already
+  had): Chrome showed vertical seams at sizes 8–9, 13–14, 18–19, 23–24
+  and 28–29 (font sizes x.333 px, drawn at x px), Firefox a row seam at
+  25 (33.0 px of block in a 33 px cell). `wholePx` fixed Chrome but made
+  things worse: a px taller cells at 13 sizes, letter-spacing up to
+  −0.4 px in Firefox, and new Firefox seams at 21–22. Instead a size
+  whose fraction is under half a px goes to the next half px (13.333 →
+  13.5), which Chrome rounds up; the cell width is unchanged, Firefox
+  takes 0.1 px off with letter-spacing. `cellMargin` 0.1 px removes the
+  exact fits (size 25: 33 → 32 px high). Cell changes against before:
+  sizes 8–9 5×10 → 5×11, 16–17 10×22 → 10×21, 25 15×33 → 15×32; every
+  other size the same. Text weight and sharpness at 13–16 compared in
+  screenshots: no visible difference; underscores and descenders as
+  before.
+
+After these, no family shows a seam or gap at any size in either browser,
 apart from thin box lines at sizes ≤ 10 (anti-aliasing; DejaVu has the
 same).
 
@@ -201,7 +217,3 @@ JetBrains Mono before, whose difference is 0.002 em).
 - Not checked: Windows and macOS rendering (different rasterisers and
   metrics: the cover height takes the Windows metrics into account, the
   seam sweep ran on Linux only).
-- JetBrains Mono (unchanged here) shows the same Chrome seams at sizes
-  8–9, 13–14, 18–19, 23–24, 28–29 and a Firefox seam at 25; `wholePx`
-  would fix them but changes its cells, so it is left for the owner to
-  decide.

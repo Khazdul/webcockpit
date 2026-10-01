@@ -170,13 +170,17 @@ Grid settings per family (`src/theme/fonts.ts`, `src/theme/cells.ts`,
 ADR 0049), chosen by a seam sweep of every size 6–32 in Chromium and
 Firefox on Linux:
 
-- `cellMargin` 0.5 px for every family added in ADR 0049 (0 for DejaVu
-  Sans Mono and JetBrains Mono): the cell is rounded down from
-  `px × blockEm − 0.5`, so `█` always reaches past both cell edges.
+- `cellMargin` 0.5 px for every family added in ADR 0049 (mononoki
+  1 px, JetBrains Mono 0.1 px, DejaVu Sans Mono 0): the cell is rounded
+  down from `px × blockEm − cellMargin`, so `█` always reaches past both
+  cell edges.
 - `wholePx` for Go Mono, IBM 3270, IBM Plex Mono and Lucida Console:
   whole-px font sizes whose advance is less than 0.45 px over a whole
   px. Chrome on Linux draws these fonts at the size rounded to whole px,
   so a fractional size rounded down made `█` narrower than the cell.
+- `halfUpPx` for JetBrains Mono: the same Chrome rounding, fixed by
+  raising a size with a fraction under half a px to the next half px
+  (13.333 → 13.5), which Chrome rounds up; cell widths stay the same.
 
 SHA-256:
 
