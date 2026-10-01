@@ -37,8 +37,13 @@ import type { BusEvents, Color, Line, StyleRun } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
 import { colorToCss, effectiveFg } from './palette';
 
-/** At most this many rows are built per animation frame. */
-export const MAX_ROWS_PER_FRAME = 1000;
+/**
+ * At most this many rows are built per animation frame (owner decision
+ * 2026-09-30, ADR 0044). At pixel ratio 2 a catch-up frame after a hidden
+ * tab took 14–38 ms at 1000 rows and 7–15 ms at 500; the newest line of a
+ * 5000-line backlog shows ~80 ms later in exchange.
+ */
+export const MAX_ROWS_PER_FRAME = 500;
 
 /**
  * Rows are grouped into chunk elements of up to this many rows (fewer for a
