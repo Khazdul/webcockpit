@@ -44,6 +44,7 @@ import {
 } from '../script/doc';
 import { bindability, displayKey, learnKeyLabel } from '../script/keys';
 import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstLine, pageScroll } from './cm';
+import { searchFocused, searchFrameKey } from './search';
 import {
   type HelpLine,
   MANUAL_URL,
@@ -461,7 +462,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       else if (zone === 'buffer') {
         const v = viewRef.current;
         if (v) {
-          if (!v.hasFocus) v.focus();
+          if (!v.hasFocus && !searchFocused(v)) v.focus();
           return;
         }
       }
@@ -583,6 +584,13 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       return true;
     }
     if (capture) return onCaptureKey(e);
+    // Find and replace in EDITOR: Ctrl+F, the panel's keys; ESC closes it first.
+    const buf = mode === 'editor' && !help ? viewRef.current : null;
+    const found = buf ? searchFrameKey(buf, e) : null;
+    if (found !== null) {
+      if (found && zone !== 'buffer') focusZone('buffer');
+      return found;
+    }
     if (nk === 'back') {
       void close();
       return true;
@@ -870,7 +878,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const right = `Ln ${status.line}, Col ${status.col}`;
     const bal = flash ? '' : balanceText(status);
     const rightFull = bal ? `${bal}  ·  ${right}` : right;
-    const hints = 'Tab Cycle · ESC Save & back';
+    const hints = 'Ctrl+F Find · Tab Cycle · ESC Save & back';
     const centre = flash ? flash.text : (status.hint ?? hints);
     const centreCls = flash ? (flash.kind === 'ok' ? 'wc-c-accent' : 'wc-c-hint') : status.hint ? 'wc-ped-note' : 'wc-c-hint';
     const rightAt = at + W - cps(rightFull);

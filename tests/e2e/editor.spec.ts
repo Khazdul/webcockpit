@@ -149,6 +149,29 @@ test('a flip without edits keeps the text byte for byte', async ({ page }) => {
   expect(await stored(page)).toBe(text);
 });
 
+test('EDITOR: Ctrl+F finds and replaces; ESC closes the panel, then the editor', async ({ page }) => {
+  const text = '#alias {k} {kill orc}\n#action {An orc arrives.} {kill orc}\n';
+  await openFromStart(page, text);
+  await toEditor(page);
+  await content(page).click();
+  await page.keyboard.press('Control+f');
+  const panel = ped(page).locator('.wc-search');
+  await expect(panel.getByRole('textbox', { name: 'Find' })).toBeFocused();
+  await page.keyboard.type('orc');
+  await expect(panel.locator('.wc-search-count')).toHaveText(/1 of 3/);
+  await expect(ped(page).locator('.cm-searchMatch')).toHaveCount(3);
+  await page.keyboard.press('Control+h');
+  await page.keyboard.type('troll');
+  await panel.locator('[data-btn="ALL"]').click();
+  await expect.poll(() => bufferText(page)).toBe('#alias {k} {kill troll}\n#action {An troll arrives.} {kill troll}\n');
+  await page.keyboard.press('Escape');
+  await expect(panel).toHaveCount(0);
+  await expect(content(page)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
+  expect(await stored(page)).toContain('kill troll');
+});
+
 test('macro key capture: F5 binds, Ctrl+W is rejected, ESC cancels a new entry', async ({ page }) => {
   await openFromStart(page, '#macro {F1} {one}\n');
   await kind(page, 'macro');

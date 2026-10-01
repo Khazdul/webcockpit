@@ -288,3 +288,142 @@
 .wc-lua-doc-text {
   color: var(--c-body);
 }
+
+/* Find and replace (search.ts): a rule and one or two grid rows at the
+ * bottom of the buffer, kit classes for fields, buttons and check boxes. */
+.wc-search {
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  line-height: var(--cell-h);
+  letter-spacing: var(--cell-ls);
+  font-variant-ligatures: none;
+  color: var(--c-item);
+  white-space: pre;
+  overflow: hidden;
+}
+
+.wc-search-rule {
+  height: var(--cell-h);
+  overflow: hidden;
+}
+
+.wc-search-row {
+  display: flex;
+  align-items: baseline;
+  height: var(--cell-h);
+  overflow: hidden;
+}
+
+.wc-search-row > * {
+  flex: 0 0 auto;
+}
+
+.wc-search-label {
+  width: calc(var(--cell-w) * 8);
+}
+
+.wc-search .wc-search-field {
+  flex: 0 1 calc(var(--cell-w) * 32);
+  min-width: calc(var(--cell-w) * 8);
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--c-active);
+  background: var(--c-line-hl);
+}
+
+.wc-search .wc-search-field:focus {
+  background: var(--c-brace-match-bg);
+}
+
+.wc-search-count {
+  min-width: calc(var(--cell-w) * 16);
+}
+
+.wc-search-check + .wc-search-check {
+  margin-left: calc(var(--cell-w) * 2);
+}
+
+.wc-search-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-align: right;
+  padding-left: calc(var(--cell-w) * 2);
+}
+
+.wc-search-btn.is-sel-focus {
+  color: var(--c-sel-fg);
+}
+
+/* Matches in the text; the current one like a focused selection. The
+ * selectors outrank CodeMirror's base theme (`.ͼ1.ͼ2 .cm-searchMatch`). */
+.wc-ped-buffer .cm-editor .cm-scroller .cm-searchMatch {
+  background: var(--c-brace-match-bg);
+  outline: 1px solid var(--c-hint);
+}
+
+.wc-ped-buffer .cm-editor .cm-scroller .cm-searchMatch-selected,
+.wc-ped-buffer .cm-editor .cm-scroller .cm-searchMatch-selected * {
+  color: var(--c-sel-fg);
+  background: var(--c-focus-bg);
+  outline: none;
+}
+
+.wc-ped-buffer .cm-editor .cm-panels.cm-panels-bottom {
+  background: transparent;
+  color: var(--c-item);
+  border-top: none;
+}
+
+/* Live errors (lua-lint.ts): a one-cell gutter with a red dot, a red band
+ * on the line, an underline where the message names a token; runtime
+ * errors of the saved script dashed. The selectors outrank the lint
+ * package's base theme. */
+.wc-ped-buffer .cm-editor .cm-gutter-lint {
+  width: var(--cell-w);
+}
+
+.wc-ped-buffer .cm-editor .cm-gutter-lint .cm-gutterElement {
+  padding: 0;
+}
+
+.wc-ped-buffer .cm-editor .cm-gutter-lint .cm-lint-marker {
+  content: normal;
+  width: var(--cell-w);
+  height: var(--cell-h);
+  color: var(--c-err);
+  cursor: default;
+}
+
+.wc-ped-buffer .cm-editor .cm-gutter-lint .cm-lint-marker::before {
+  content: '●';
+}
+
+.wc-ped-buffer .cm-editor .cm-scroller .wc-diag-line {
+  background-color: color-mix(in srgb, var(--c-err) 16%, transparent);
+}
+
+.wc-ped-buffer .cm-editor .cm-scroller .cm-lintRange.cm-lintRange-error {
+  background-image: none;
+  text-decoration: underline wavy var(--c-err);
+  text-decoration-skip-ink: none;
+  text-underline-offset: 2px;
+  padding-bottom: 0;
+}
+
+.wc-ped-buffer .cm-editor .cm-scroller .cm-lintRange.wc-diag-runtime {
+  text-decoration-style: dashed;
+}
+
+.wc-ped-buffer .cm-editor .cm-lintPoint::after {
+  border-bottom-color: var(--c-err);
+}
+
+.wc-diag-label {
+  color: var(--c-err);
+  font-weight: bold;
+}
+
+.wc-diag-text {
+  color: var(--c-item);
+}

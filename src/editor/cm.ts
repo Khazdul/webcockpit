@@ -12,6 +12,7 @@
 //   selection, clipboard and drag selection. Ctrl+C / Ctrl+X without a
 //   selection copy / cut the whole line (CodeMirror's line-wise copy).
 // - Alt+↑/↓ swap lines (defaultKeymap's moveLineUp/Down).
+// - Ctrl+F find and replace (search.ts; the frame routes its keys).
 //
 // Keys reach CodeMirror through `handleKey` (runScopeHandlers), not through
 // its own keydown listener: the chrome's frame stack routes every key at
@@ -40,6 +41,7 @@ import {
   lineNumbers,
   runScopeHandlers,
 } from '@codemirror/view';
+import { searchExtension } from './search';
 import { type BraceScan, braceMatchAt, scanBraces, tokenizeLine } from './syntax';
 
 /** What the frame's footer shows about the buffer. */
@@ -250,6 +252,7 @@ export function createBufferState(opts: BufferOptions): EditorState {
       keymap.of([{ key: 'Backspace', run: pairDelete }, ...defaultKeymap, ...historyKeymap]),
       syntaxPlugin,
       statusPlugin(opts),
+      searchExtension({ onFocus: opts.onFocus }),
       EditorView.contentAttributes.of({
         spellcheck: 'false',
         autocorrect: 'off',
