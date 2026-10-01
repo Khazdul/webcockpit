@@ -607,10 +607,12 @@ export class OutputPane {
   }
 
   /**
-   * Two frames after a scroll, when the browser has rendered the rows now
-   * in view, moves the anchor to the row at the top. A step's anchor ends
-   * up at the other edge or, after steps faster than the frames, outside the
-   * view, where the browser soon stops laying out its chunk.
+   * Two frames after a scroll, moves an anchor that has left the view (the
+   * anchor of steps faster than the frames) to the row at the view's edge
+   * nearest to it: outside the view the browser soon stops laying out its
+   * chunk. An anchor still in view stays: the rows the step revealed may
+   * belong to a chunk the browser renders only a frame later, and a row in
+   * it would move with the chunk's real height.
    */
   private refreshAnchorSoon(): void {
     if (this.anchorRefresh) return;
@@ -621,7 +623,11 @@ export class OutputPane {
         if (!this.scrolled) return;
         // Layout that changed since the last observation is corrected first.
         this.keepAnchor();
-        const el = this.elementAt(0);
+        const a = this.anchor;
+        const h = this.scroller.clientHeight;
+        const top = a?.el.isConnected ? this.topOf(a.el) : -1;
+        if (a && top >= 0 && top < h) return;
+        const el = this.elementAt(a && top >= h ? h - 1 : 0);
         if (el) this.anchor = { el, top: this.topOf(el) };
       }),
     );
