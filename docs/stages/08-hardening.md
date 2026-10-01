@@ -216,9 +216,9 @@ verified with the review's harness before/after, Firefox first, ratio
 2; patches in `notes/research/perf-review/patches/` are measured
 experiments to rework, not finished code):
 
-- [ ] C0. Housekeeping: `tests/unit/timers-replay.test.ts` skips logs
+- [x] C0. Housekeeping: `tests/unit/timers-replay.test.ts` skips logs
       shorter than its minimum (fails on the owner's 364-line log).
-- [ ] C1. (#1) Caret blink by a 500 ms timer; no infinite CSS
+- [x] C1. (#1) Caret blink by a 500 ms timer; no infinite CSS
       animation; restart on caret move and on the blink setting
       (`E-exp-blinkjs.patch`).
 - [ ] C2. (#2) `scrollbar-color` stops at `.wc-rows` / `.wc-partial`
@@ -227,22 +227,22 @@ experiments to rework, not finished code):
 - [ ] C3. (#3) Background rows for colour charts
       (`A-exp-background-rows.patch`); check
       `tests/e2e/underscores.spec.ts` (row above a background row).
-- [ ] C4. (#4) Assembler: raw as one slice, SGR params keep capacity
+- [x] C4. (#4) Assembler: raw as one slice, SGR params keep capacity
       (`B-exp-assembler-raw-params.patch`).
-- [ ] C5. (#5) Drag cursor on a shield element
+- [x] C5. (#5) Drag cursor on a shield element
       (`E-exp-dragshield.patch`).
-- [ ] C6. (#6) Send first: `toTail()` after the send and only when
+- [x] C6. (#6) Send first: `toTail()` after the send and only when
       scrolled; macro lookup before the refocus
       (`C-exp-send-first.patch` as a start).
-- [ ] C7. (#7) Recorder: incremental byte count, writes bounded by size
+- [x] C7. (#7) Recorder: incremental byte count, writes bounded by size
       (≤ 256 KB per task).
 - [ ] C8. (#8) `content-visibility: auto` on chunks with an intrinsic
       size estimate and scroll anchoring while scrolled back; e2e for
       PgUp/PgDn, trims while scrolled, resize.
-- [ ] C9. (#9) Pane row diff for Character, Group, Timers; Character
+- [x] C9. (#9) Pane row diff for Character, Group, Timers; Character
       skips unchanged renders (`E-exp-rowdiff.patch`).
-- [ ] C10. (#10) Telnet `indexOf` scan (`B-exp-telnet-scan.patch`).
-- [ ] C11. (#11) Rule literal gate with the extra engine tests
+- [x] C10. (#10) Telnet `indexOf` scan (`B-exp-telnet-scan.patch`).
+- [x] C11. (#11) Rule literal gate with the extra engine tests
       (`B-exp-engine-literal-gate.patch`).
 - [ ] C12. (#12) `MAX_ROWS_PER_FRAME` 500 (`A-exp-row-cap-500.patch`).
 - [ ] C13. (#13) Scrollback depth setting in Options, default 20 000
@@ -252,10 +252,14 @@ experiments to rework, not finished code):
       idle, active panes, map on/off explicit, colour page, real keys
       under load, loopback WebSocket with the recorder, full-scrollback
       actions, soak; new `bench/results/latest.md`.
-- [ ] C16. Small fixes: input history cap 1000; `[SYSTEM]` line for a
+- [x] C16. Small fixes: input history cap 1000; `[SYSTEM]` line for a
       command that could not be sent; player MessageChannel closed;
       comm archive pruned on `Char.Name`; XML tag stack cap; GMCP trims;
       map move regex; catch-all fast path and `formatTs` cache.
+      Notes: the caret follows the blink setting through an observer on
+      `<html data-cursor-blink>`; `Socketish.isOpen` is new (optional);
+      the "Not connected: command not sent." line comes from `Session`,
+      so pane and script sends get it too. Ingest choices: ADR 0048.
 - [ ] C17. Owner test (guide below), release.
 
 ## Test guide (part A)
