@@ -2,7 +2,8 @@
 // the text pipeline (LineAssembler → ScriptEngine with the timers' system
 // rules) and the trackers, on the log's own clock. Skips when the logs are
 // absent ($WEBCOCKPIT_FIXTURES, default /home/ole/MUME/data/runs); nothing
-// from them is copied into the repository.
+// from them is copied into the repository. A log too short to say anything
+// about timers is listed as a skipped test with its line count.
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -10,13 +11,23 @@ import { AFFECTS } from '../../src/timers/data/affects';
 import { listFixtures } from '../e2e/fixtures';
 import { replayLog } from './timers-helpers';
 
-const logs = listFixtures().filter((f) => f.size >= 100_000);
+/** Fewer lines than this is too short a session to check the timers against. */
+const MIN_LINES = 1000;
+
+const lineCount = (path: string): number => readFileSync(path, 'utf8').split('\n').length - 1;
+const logs = listFixtures()
+  .filter((f) => f.size >= 100_000)
+  .map((f) => ({ ...f, lines: lineCount(f.path) }));
 
 describe.skipIf(logs.length === 0)('replaying real Cockpit logs', () => {
   for (const f of logs) {
+    if (f.lines < MIN_LINES) {
+      it.skip(`${f.rel}: skipped, ${f.lines} lines is under the ${MIN_LINES}-line minimum`, () => {});
+      continue;
+    }
     it(`${f.rel}: no errors, plausible timers`, () => {
       const { b, count } = replayLog(readFileSync(f.path, 'utf8'));
-      expect(count).toBeGreaterThan(1000);
+      expect(count).toBeGreaterThan(MIN_LINES);
       expect(b.errors).toEqual([]);
       const msgs = b.msgs;
       const byTag = new Map<string, number>();
