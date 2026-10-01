@@ -256,6 +256,12 @@ export interface Socketish {
   connect(): void;
   /** Writes bytes. Ignored when not open. */
   send(bytes: Uint8Array): void;
+  /**
+   * False while the socket cannot write although `onClose` has not come
+   * yet (a WebSocket that is CLOSING). Absent: open from `onOpen` until
+   * `onClose`.
+   */
+  readonly isOpen?: boolean;
   /** Closes the socket. `onClose` follows with reason 'closed by client'. */
   close(): void;
   onOpen: (() => void) | null;
