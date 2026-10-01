@@ -198,10 +198,16 @@ export class LineAssembler implements LineAssemblerInput {
 
   // -------------------------------------------------------------------------
 
+  // Raw is appended lazily: `rawFrom` is the start of the input not yet
+  // appended to `lineRaw`. Everything between two dropped constructs (tags,
+  // non-SGR escapes, controls, line ends) goes in as one slice, so a line
+  // that sits in one chunk with only SGR codes (MUME's ANSI output) gets its
+  // raw as a single slice instead of a rope of every piece and code.
   private process(s: string, ts: number, final: boolean): void {
     const n = s.length;
     let i = 0;
     let seg = 0;
+    let rawFrom = 0;
     while (i < n) {
       const c = s.charCodeAt(i);
       if (c >= 32) {
@@ -213,12 +219,13 @@ export class LineAssembler implements LineAssemblerInput {
             continue;
           }
           if (i > seg) this.add(s.slice(seg, i));
+          if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
           if (end === INCOMPLETE) {
             this.carry = s.slice(i);
             return;
           }
           this.handleTag();
-          i = seg = end;
+          i = seg = rawFrom = end;
           continue;
         }
         if (c === 38 && this.xmlMode) {
@@ -229,17 +236,20 @@ export class LineAssembler implements LineAssemblerInput {
             continue;
           }
           if (i > seg) this.add(s.slice(seg, i));
+          if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
           if (end === INCOMPLETE) {
             this.carry = s.slice(i);
             return;
           }
           this.add(this.entity);
-          i = seg = end;
+          this.lineRaw += this.entity;
+          i = seg = rawFrom = end;
           continue;
         }
         if (c === 127) {
           if (i > seg) this.add(s.slice(seg, i));
-          i = seg = i + 1;
+          if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
+          i = seg = rawFrom = i + 1;
           continue;
         }
         i++;
@@ -251,37 +261,43 @@ export class LineAssembler implements LineAssemblerInput {
       }
       if (i > seg) this.add(s.slice(seg, i));
       if (c === 10) {
+        if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
         this.endLine(ts, false);
-        i = seg = i + 1;
+        i = seg = rawFrom = i + 1;
       } else if (c === 27) {
         const end = this.parseEsc(s, i);
         if (end === INCOMPLETE) {
+          if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
           if (!final) {
             this.carry = s.slice(i);
             return;
           }
-          i = seg = n; // drop an unfinished sequence at a prompt boundary
+          i = seg = rawFrom = n; // drop an unfinished sequence at a prompt boundary
           continue;
         }
         if (this.escSgr) {
-          this.lineRaw += s.slice(i, end);
+          // An SGR stays in raw: `rawFrom` does not move.
           this.applySgr(s, i + 2, end - 1);
+        } else {
+          if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
+          rawFrom = end;
         }
         i = seg = end;
       } else {
         // CR and other C0 controls are dropped.
-        i = seg = i + 1;
+        if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
+        i = seg = rawFrom = i + 1;
       }
     }
     if (i > seg) this.add(s.slice(seg, i));
+    if (i > rawFrom) this.lineRaw += s.slice(rawFrom, i);
   }
 
-  /** Appends plain text in the current style to text and raw. */
+  /** Appends plain text in the current style to text (rawFrom is appended by `process`). */
   private add(piece: string): void {
     const len = piece.length;
     if (len === 0) return;
     this.lineText += piece;
-    this.lineRaw += piece;
     const start = this.textLen;
     const end = start + len;
     this.textLen = end;
@@ -436,19 +452,20 @@ export class LineAssembler implements LineAssemblerInput {
 
   /** Applies SGR parameters in `s[a, b)`. */
   private applySgr(s: string, a: number, b: number): void {
+    // `params` keeps its capacity: `length = 0` would drop the backing
+    // store and every SGR would allocate a new one.
     const p = this.params;
-    p.length = 0;
+    let n = 0;
     let v = 0;
     for (let j = a; j < b; j++) {
       const c = s.charCodeAt(j);
       if (c >= 48 && c <= 57) v = v * 10 + (c - 48);
       else {
-        p.push(v);
+        p[n++] = v;
         v = 0;
       }
     }
-    p.push(v);
-    const n = p.length;
+    p[n++] = v;
     for (let k = 0; k < n; k++) {
       const x = p[k]!;
       if (x === 0) {
