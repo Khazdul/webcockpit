@@ -59,21 +59,28 @@ test('custom caret follows the text column and restyles live', async ({ page }) 
   expect(await caret.evaluate((el) => el.getAnimations().length)).toBe(0);
   expect(await caret.evaluate((el) => getComputedStyle(el).animationName)).toBe('none');
   expect(await caret.evaluate((el) => getComputedStyle(el).visibility)).toBe('hidden');
-  // A caret move shows it at once, well before the off phase would end.
+  // A caret move shows it at once: in the off phase, press a key and read
+  // the class in the same task that moves the caret (load cannot race it).
   await caret.evaluate(
     (el) =>
       new Promise<void>((done) => {
-        const mo = new MutationObserver(() => {
+        const w = window as unknown as { caretOffAtMove?: boolean };
+        const moved = new MutationObserver(() => {
+          moved.disconnect();
+          w.caretOffAtMove = el.classList.contains('wc-caret-off');
+        });
+        const offPhase = new MutationObserver(() => {
           if (!el.classList.contains('wc-caret-off')) return;
-          mo.disconnect();
+          offPhase.disconnect();
+          moved.observe(el, { attributes: true, attributeFilter: ['style'] });
           done();
         });
-        mo.observe(el, { attributes: true, attributeFilter: ['class'] });
+        offPhase.observe(el, { attributes: true, attributeFilter: ['class'] });
       }),
   );
   await page.keyboard.press('ArrowRight');
   await expect
-    .poll(() => caret.evaluate((el) => el.classList.contains('wc-caret-off')), { intervals: [16], timeout: 250 })
+    .poll(() => page.evaluate(() => (window as unknown as { caretOffAtMove?: boolean }).caretOffAtMove))
     .toBe(false);
 
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { cursorStyle: 'block', cursorBlink: false } }));
