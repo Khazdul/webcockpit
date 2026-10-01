@@ -132,44 +132,28 @@
   display: none;
 }
 
-.wc-cockpit[data-drag] {
+/* Drag cursor (cockpit.ts `shieldEl`): a transparent cover over the
+ * cockpit while a drag runs. Only this element restyles at a drag start
+ * or end; a `.wc-cockpit[data-drag] *` rule would restyle every output
+ * row (ADR 0044 rule 2). */
+.wc-drag-shield {
+  position: absolute;
+  inset: 0;
+  z-index: 300;
   user-select: none;
 }
 
-.wc-cockpit[data-drag="move"],
-.wc-cockpit[data-drag="move"] * {
-  cursor: grabbing !important;
+.wc-drag-shield[hidden] {
+  display: none;
 }
 
-.wc-cockpit[data-drag="x"],
-.wc-cockpit[data-drag="x"] * {
-  cursor: col-resize !important;
-}
-
-.wc-cockpit[data-drag="y"],
-.wc-cockpit[data-drag="y"] * {
-  cursor: row-resize !important;
-}
-
-.wc-cockpit[data-drag="n"], .wc-cockpit[data-drag="n"] *,
-.wc-cockpit[data-drag="s"], .wc-cockpit[data-drag="s"] * {
-  cursor: ns-resize !important;
-}
-
-.wc-cockpit[data-drag="e"], .wc-cockpit[data-drag="e"] *,
-.wc-cockpit[data-drag="w"], .wc-cockpit[data-drag="w"] * {
-  cursor: ew-resize !important;
-}
-
-.wc-cockpit[data-drag="nw"], .wc-cockpit[data-drag="nw"] *,
-.wc-cockpit[data-drag="se"], .wc-cockpit[data-drag="se"] * {
-  cursor: nwse-resize !important;
-}
-
-.wc-cockpit[data-drag="ne"], .wc-cockpit[data-drag="ne"] *,
-.wc-cockpit[data-drag="sw"], .wc-cockpit[data-drag="sw"] * {
-  cursor: nesw-resize !important;
-}
+.wc-drag-shield[data-drag="move"] { cursor: grabbing; }
+.wc-drag-shield[data-drag="x"] { cursor: col-resize; }
+.wc-drag-shield[data-drag="y"] { cursor: row-resize; }
+.wc-drag-shield[data-drag="n"], .wc-drag-shield[data-drag="s"] { cursor: ns-resize; }
+.wc-drag-shield[data-drag="e"], .wc-drag-shield[data-drag="w"] { cursor: ew-resize; }
+.wc-drag-shield[data-drag="nw"], .wc-drag-shield[data-drag="se"] { cursor: nwse-resize; }
+.wc-drag-shield[data-drag="ne"], .wc-drag-shield[data-drag="sw"] { cursor: nesw-resize; }
 
 /* Below 60 × 18 cells this replaces the view (Inv §2.1). */
 .wc-too-small {

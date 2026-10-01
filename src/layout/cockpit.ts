@@ -10,6 +10,7 @@
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
+//     .wc-drag-shield   transparent cover with the drag cursor while a drag runs
 //
 // Relayout is one atomic pass per animation frame after a size change of
 // the cockpit element (window resize, padding), a cell size change or a
@@ -168,6 +169,12 @@ export class Cockpit {
   private readonly barEl: HTMLDivElement;
   private readonly ghostEl: HTMLDivElement;
   private readonly tooSmallEl: HTMLDivElement;
+  /**
+   * Shown over the whole cockpit while a drag runs and carries its cursor,
+   * so a drag start or end restyles this one element, not every element
+   * under the cockpit (the output rows included; ADR 0044 rule 2).
+   */
+  private readonly shieldEl: HTMLDivElement;
   private readonly shells = new Map<PaneId, PaneShell>();
   private readonly settings: SettingsStore;
   private readonly cells: CellSource;
@@ -213,6 +220,8 @@ export class Cockpit {
     this.ghostEl.hidden = true;
     this.tooSmallEl = div('wc-too-small');
     this.tooSmallEl.hidden = true;
+    this.shieldEl = div('wc-drag-shield');
+    this.shieldEl.hidden = true;
     this.paneContext =
       opts.paneContext ??
       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
@@ -230,7 +239,7 @@ export class Cockpit {
       this.shells.set(id, shell);
       this.el.append(shell.el);
     }
-    this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl);
+    this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
     opts.root.appendChild(this.el);
 
     this.el.addEventListener('pointerdown', this.onPointerDown);
@@ -421,7 +430,7 @@ export class Cockpit {
         min: floatMin(id, b.framed),
         base: this.settings.get().layout,
       };
-      this.el.dataset.drag = edge.dataset.edge!;
+      this.showShield(edge.dataset.edge!);
     } else if (grip) {
       const id = grip.dataset.grip as PaneId;
       const b = boxOf(id);
@@ -457,7 +466,7 @@ export class Cockpit {
       } else {
         this.drag = { kind: 'dock', dock, pointerId: e.pointerId, base };
       }
-      this.el.dataset.drag = handle.dataset.axis!;
+      this.showShield(handle.dataset.axis!);
     } else {
       return;
     }
@@ -496,7 +505,7 @@ export class Cockpit {
       if (!d.active) {
         if (Math.hypot(x - d.x0, y - d.y0) < DRAG_THRESHOLD) return;
         d.active = true;
-        this.el.dataset.drag = 'move';
+        this.showShield('move');
         this.shells.get(d.id)!.el.toggleAttribute('data-dragging', true);
       }
       d.target = this.dropTarget(x, y, d.id, d.grab);
@@ -582,9 +591,21 @@ export class Cockpit {
     this.preview = null;
     this.barEl.hidden = true;
     this.ghostEl.hidden = true;
-    delete this.el.dataset.drag;
+    this.shieldEl.hidden = true;
+    delete this.shieldEl.dataset.drag;
     for (const s of this.shells.values()) s.el.removeAttribute('data-dragging');
     this.scheduleRelayout();
+  }
+
+  /**
+   * Shows the drag shield with the cursor for `kind` (`move`, a handle axis
+   * or a float edge). Pointer capture stays on the cockpit, so the shield
+   * only decides the cursor and keeps text from being selected; without
+   * capture its events still bubble to the cockpit's listeners.
+   */
+  private showShield(kind: string): void {
+    this.shieldEl.dataset.drag = kind;
+    this.shieldEl.hidden = false;
   }
 
   private setPreview(m: LayoutModel): void {

@@ -237,6 +237,74 @@ test('dock and pane resize persist across a reload', async ({ page }) => {
   expect((await box(page, '.wc-pane-timers')).height).toBe(8 * ch);
 });
 
+test('a drag shows its cursor on a shield over the cockpit, gone after the drop', async ({ page }) => {
+  const { cw, ch, cols } = await open(page);
+  const o = await origin(page);
+  /** The topmost element at (x, y), whether it is the shield, and its cursor. */
+  const at = (x: number, y: number) =>
+    page.evaluate(([px, py]) => {
+      const el = document.elementFromPoint(px!, py!)!;
+      return { shield: el.classList.contains('wc-drag-shield'), cursor: getComputedStyle(el).cursor };
+    }, [x, y]);
+  const shield = page.locator('.wc-drag-shield');
+  await expect(shield).toBeHidden();
+
+  // Dock resize: the shield carries col-resize over the gap and over the output text.
+  const gapX = o.x + (cols - 34) * cw + cw / 2;
+  await page.mouse.move(gapX, o.y + 200);
+  await page.mouse.down();
+  await page.mouse.move(gapX - 3 * cw, o.y + 200, { steps: 3 });
+  await expect(shield).toBeVisible();
+  expect(await at(gapX - 3 * cw, o.y + 200)).toEqual({ shield: true, cursor: 'col-resize' });
+  expect(await at(o.x + 100, o.y + 100)).toEqual({ shield: true, cursor: 'col-resize' });
+  await page.mouse.up();
+  await expect(shield).toBeHidden();
+  await expect.poll(() => box(page, '.wc-pane-character')).toMatchObject({ width: 36 * cw });
+  expect((await at(o.x + 100, o.y + 100)).shield).toBe(false);
+
+  // Boundary between two panes: row-resize.
+  const by = o.y + 11 * ch - 2;
+  await page.mouse.move(o.x + (cols - 20) * cw, by);
+  await page.mouse.down();
+  await page.mouse.move(o.x + (cols - 20) * cw, by + ch, { steps: 3 });
+  expect(await at(o.x + (cols - 20) * cw, by + ch)).toEqual({ shield: true, cursor: 'row-resize' });
+  await page.mouse.up();
+  await expect(shield).toBeHidden();
+
+  // Moving a pane: no shield before the drag threshold, grabbing once it moves.
+  const comm = await box(page, '.wc-pane-comm');
+  const gx = o.x + comm.x + 6 * cw;
+  const gy = o.y + comm.y + ch / 2;
+  await page.mouse.move(gx, gy);
+  await page.mouse.down();
+  await expect(shield).toBeHidden();
+  await page.mouse.move(o.x + 300, o.y + 300, { steps: 5 });
+  expect(await at(o.x + 300, o.y + 300)).toEqual({ shield: true, cursor: 'grabbing' });
+  // Drop it over the game: it floats, so the drop reached the drag logic.
+  await page.mouse.up();
+  await expect(shield).toBeHidden();
+  await expect
+    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.floating.map((f) => f.id)))
+    .toContain('comm');
+
+  // Floating pane edges and corners: their own resize cursors.
+  for (const [edge, cursor] of [
+    ['se', 'nwse-resize'],
+    ['w', 'ew-resize'],
+    ['n', 'ns-resize'],
+    ['ne', 'nesw-resize'],
+  ] as const) {
+    const h = await box(page, `.wc-pane-comm .wc-float-handle[data-edge="${edge}"]`);
+    const hx = o.x + h.x + h.width / 2;
+    const hy = o.y + h.y + h.height / 2;
+    await page.mouse.move(hx, hy);
+    await page.mouse.down();
+    expect(await at(hx, hy), edge).toEqual({ shield: true, cursor });
+    await page.mouse.up();
+    await expect(shield).toBeHidden();
+  }
+});
+
 test('too-small window shows a notice and recovers', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 400, height: 250 });
