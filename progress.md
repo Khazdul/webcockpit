@@ -25,6 +25,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Stage 10 P0: Lua runtime
+
+- **Owner decisions:** scripts move ahead of v1; split into stages 10
+  (engine, API, page, coin looter), 11 (script panes, mercenaries) and
+  12 (key manager).
+- **Built:** `src/lua/` with wasmoon 1.16.0, loaded lazily with
+  self-hosted wasm. It has a sandbox with read-only libraries and no
+  `load`, an instruction budget with poison, and a memory cap. The raw C
+  API bridge costs 1.35 µs per line call. 39 unit tests; the bench is in
+  `npm run bench`.
+- **Open:** a single pathological Lua pattern search is not interrupted
+  by the budget. P1 adds a safe-mode hang guard.
+- **Next:** P1 script API (running), then P2 page and editor, then P3
+  coin looter.
+- **Commits:** 777d177..860b682, 4bebbbd, d96db38, 7ffd2c5, plus this one.
+
 ### 2026-10-01 — Scripts brainstorm and spec (stage 10)
 
 - **Owner decisions:** user scripts are in scope as intent Goal 10
