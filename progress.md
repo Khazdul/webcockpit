@@ -47,10 +47,13 @@ Newest first.
 - **Row clipping:** kit and pane rows clipped each glyph to its cell, so
   █/│ could stop a device px short (owner: JetBrains 18, Firefox 2x).
   Rows now clip sideways only; Firefox 1x/2x clean for all 16 fonts.
-  Chromium at 2x and fractional DPRs still seam: needs cells chosen in
-  device px (follow-up, owner to decide).
+- **Device-pixel cells (owner OK'd, ADR 0050):** cells fit to device px
+  at DPR != 1; DPR 1 cells identical (fixture test); re-measure on DPR
+  change. Firefox clean at 100/125/150/200 %; Chromium clean at 100/200 %
+  (except Lucida │ at 200 %), partial at 125/150 %; Firefox 175 % kit rows
+  seam. Windows/macOS untested.
 - **Commits:** 1851ae1, 1c7debd, 8fd1b98, 13d5ae5, c2e19de, 5669a3b,
-  9344592, plus this one.
+  9344592, f0656a5, 7373890, plus this one.
 
 ### 2026-10-01 — Wheel speed, About, spotlight hint
 
