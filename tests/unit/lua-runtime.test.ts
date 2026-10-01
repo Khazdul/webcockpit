@@ -273,6 +273,44 @@ describe('errors', () => {
   });
 });
 
+describe('check (compile only)', () => {
+  it('compiles without running or registering anything', () => {
+    const before = rt.stats();
+    sent = [];
+    registered = [];
+    expect(rt.check('ok', 'send("x")\nregister(function() end)\nwhile true do end')).toEqual({ ok: true });
+    expect(sent).toEqual([]);
+    expect(registered).toEqual([]);
+    expect(rt.stats()).toMatchObject({ top: before.top, scripts: before.scripts });
+  });
+
+  it('reports syntax errors as loadScript does, name:line first', () => {
+    const src = 'x = 1\nfunction f(\n';
+    const c = rt.check('triggers/hp', src);
+    const l = rt.loadScript('triggers/hp', src);
+    expect(c).toEqual(l);
+    expect(c).toMatchObject({ ok: false, kind: 'syntax', message: expect.stringMatching(/^triggers\/hp:3: .*near <eof>$/) });
+    expect(rt.check('s', 'tempTrigger("x", function()\n  send("y"\nend)')).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/^s:3: '\)' expected \(to close '\(' at line 2\) near 'end'$/),
+    });
+  });
+
+  it('refuses <close> like loadScript', () => {
+    expect(rt.check('tbc', 'local x <close> = nil')).toEqual({
+      ok: false,
+      kind: 'syntax',
+      message: 'tbc:1: <close> variables are not allowed in scripts',
+    });
+  });
+
+  it('leaves the stack as it was, also on errors, many times', () => {
+    const top = rt.stats().top;
+    for (let i = 0; i < 200; i++) rt.check('loop', i % 2 ? 'x = = 1' : 'x = 1');
+    expect(rt.stats().top).toBe(top);
+  });
+});
+
 describe('values', () => {
   it('unicode roundtrips both ways', () => {
     const s = 'Räksmörgås åäö ÅÄÖ ┌─┐│└┘ ▓▒░ 漢字 🐉';

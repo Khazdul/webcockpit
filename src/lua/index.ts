@@ -16,6 +16,7 @@ export {
   LuaRuntime,
   LuaScript,
   type CallResult,
+  type CheckResult,
   type FailKind,
   type HostFunction,
   type LoadResult,

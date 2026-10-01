@@ -82,6 +82,9 @@ export type FailKind = 'error' | 'budget' | 'memory';
  */
 export type CallResult = { ok: true; value: LuaValue } | { ok: false; kind: FailKind; message: string };
 
+/** The outcome of `check`: compiled (and thrown away) or why not. */
+export type CheckResult = { ok: true } | { ok: false; kind: 'syntax' | 'memory'; message: string };
+
 /** The outcome of `loadScript`. `syntax` is a compile error. */
 export type LoadResult = { ok: true; script: LuaScript } | { ok: false; kind: FailKind | 'syntax'; message: string };
 
@@ -327,6 +330,31 @@ export class LuaRuntime {
   /** The script whose code is running, or null between calls. */
   get current(): LuaScript | null {
     return this.owner;
+  }
+
+  /**
+   * Compiles `source` as `loadScript` would and throws the chunk away:
+   * nothing runs, nothing is registered. For live error checks (the
+   * script editor, the Scripts page). Failures are `syntax` (with the
+   * `<close>` refusal) or `memory`.
+   */
+  check(name: string, source: string): CheckResult {
+    this.assertOpen();
+    const closeLine = findCloseAttrib(source);
+    if (closeLine > 0) {
+      return { ok: false, kind: 'syntax', message: `${name}:${closeLine}: <close> variables are not allowed in scripts` };
+    }
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    const chunkName = this.cString('@' + name);
+    const len = this.encode(source);
+    const st = c.luaL_loadbufferx(L, this.buf, len, chunkName, this.modePtr);
+    this.m._free(chunkName);
+    const message = st === LUA_OK ? '' : this.errorMessage(L);
+    c.lua_settop(L, top);
+    if (st === LUA_OK) return { ok: true };
+    return { ok: false, kind: st === LUA_ERRMEM ? 'memory' : 'syntax', message };
   }
 
   /**
