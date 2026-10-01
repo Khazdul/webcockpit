@@ -25,6 +25,7 @@ import { checkBraces, parseProfile } from '../doc';
 import { parseColored } from './color';
 import { ExprError, evalCondition, evalMath } from './expr';
 import { formatString } from './format';
+import { GateCache } from './gate';
 import { type CompiledPattern, argsFrom, compilePattern, globalRe, matchPattern } from './pattern';
 import { CLASS_OF, MESSAGE_CLASSES, type MessageClass, type Report, type ReportItem, type ReportStateRow, resolveMessageClass } from './report';
 import { overlay, splice, styleAt } from './runs';
@@ -94,6 +95,11 @@ export interface EngineOptions {
   scheduler?: Scheduler;
   /** Wall clock in ms (for #format %t/%T/%U). */
   now?: () => number;
+  /**
+   * Literal gates on the rule lists (gate.ts; default on). Off only to
+   * compare against the ungated loops in tests and benchmarks.
+   */
+  literalGates?: boolean;
 }
 
 /** The kinds of definition a typed command can put in the profile (ADR 0038). */
@@ -160,6 +166,8 @@ export class ScriptEngine {
   private readonly anchoredCache = new WeakMap<CompiledPattern, RegExp>();
   private readonly globalCache = new WeakMap<CompiledPattern, RegExp>();
   private readonly mergedCache = new Map<ListKind, { sv: number; uv: number; u: RuleStore; list: readonly Rule[] }>();
+  /** Literal gates of the action, substitute, gag and highlight lists (gate.ts). */
+  private readonly gates: GateCache;
 
   /** Set while loadProfile runs. */
   private loading: { warnings: string[]; line: number } | null = null;
@@ -173,6 +181,7 @@ export class ScriptEngine {
 
   constructor(opts: EngineOptions) {
     this.opts = opts;
+    this.gates = new GateCache(opts.literalGates !== false);
     this.scheduler = opts.scheduler ?? realScheduler;
     this.now = opts.now ?? Date.now;
     this.system = new RuleStore('system', this.scheduler, this.onTimer);
@@ -944,7 +953,10 @@ export class ScriptEngine {
 
   private runActions(actions: readonly Rule[], line: Line): void {
     const text = line.text;
-    for (let i = 0; i < actions.length; i++) {
+    const n = actions.length;
+    // Without a jump table every rule is tried (gate.ts).
+    const next = this.gates.skipTable(actions, text);
+    for (let i = next ? next[0]! : 0; i < n; i = next ? next[i + 1]! : i + 1) {
       const r = actions[i]!;
       const m = this.matchRule(r, text);
       if (!m) continue;
@@ -990,7 +1002,11 @@ export class ScriptEngine {
     let runs: StyleRun[] = line.runs;
     let changed = false;
     let substituted = false;
-    for (let i = 0; i < subs.length; i++) {
+    // Each substitute sees the text as the ones before it left it, so the
+    // jump table is dropped as soon as the text changes.
+    const subGate = this.gates.gate(subs);
+    let next = subGate && !subGate.re.test(text) ? subGate.next : null;
+    for (let i = next ? next[0]! : 0; i < subs.length; i = next ? next[i + 1]! : i + 1) {
       const r = subs[i]!;
       const c = r.compiled ?? this.compiledFor(r, r.store);
       if (!c || (c.literal && text.indexOf(c.literal) < 0)) continue;
@@ -1008,16 +1024,20 @@ export class ScriptEngine {
         text = out.text;
         runs = out.runs;
         changed = substituted = true;
+        next = null;
         if (c.anchored) break;
         re.lastIndex = start + col.text.length + (m[0].length === 0 ? 1 : 0);
         if (re.lastIndex > text.length) break;
       }
     }
-    for (let i = 0; i < gags.length; i++) {
+    // Gags and highlights test the substituted text.
+    next = this.gates.skipTable(gags, text);
+    for (let i = next ? next[0]! : 0; i < gags.length; i = next ? next[i + 1]! : i + 1) {
       const c = gags[i]!.compiled ?? this.compiledFor(gags[i]!, gags[i]!.store);
       if (c && matchPattern(c, text)) return null;
     }
-    for (let i = 0; i < his.length; i++) {
+    next = this.gates.skipTable(his, text);
+    for (let i = next ? next[0]! : 0; i < his.length; i = next ? next[i + 1]! : i + 1) {
       const r = his[i]!;
       const c = r.compiled ?? this.compiledFor(r, r.store);
       if (!c || (c.literal && text.indexOf(c.literal) < 0)) continue;
