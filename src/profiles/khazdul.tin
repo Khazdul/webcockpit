@@ -7,7 +7,6 @@
 #nop changes it, so target, class, spell and doors survive a reload.
 
 #variable {target} {*elf*}
-#variable {mees} {}
 #variable {character} {Rasta}
 #variable {class} {caster}
 #variable {spell} {'hold'}
@@ -41,7 +40,7 @@
     }
 }
 
-#nop ---- Target, mob and protected character ----
+#nop ---- Target and character ----
 #nop With an argument the alias stores it. Either way it shows the value.
 
 #alias {z} {
@@ -65,17 +64,7 @@
 #alias {orc} {z *orc*}
 #alias {troll} {z *troll*}
 
-#alias {sm} {
-    #if {"%1" != ""} {
-        #variable {mees} {%1}
-    };
-    #if {"$mees" != ""} {
-        #showme {<F9AA8B7>## MEES: <FFFFFFF>$mees<099>}
-    };
-    #else {
-        #showme {<F9AA8B7>## MEES: <099>(none)}
-    }
-}
+#nop char names the character your followers protect and rescue (op, or).
 
 #alias {char} {
     #if {"%1" != ""} {
@@ -136,10 +125,6 @@
 #macro {F5} {draw $weap1}
 #macro {F6} {draw $weap2}
 #macro {F7} {draw $weap3}
-#macro {F8} {sc}
-#macro {F9} {sc}
-
-#alias {bb} {bash $target}
 
 #nop ---- Spells ----
 #nop Each alias picks the spell that F2 and F3 cast. The text after the
@@ -179,15 +164,12 @@
 #alias {quick} {#variable {ss} {quick}; _show_spell_speed}
 #alias {thor} {#variable {ss} {thoroughly}; _show_spell_speed}
 
-#nop A pattern alias: b1, b2, b12 ... blind that number of the target.
-#nop %+1..d is one or more digits, and the digits become %1.
+#nop Pattern aliases: b1, b2, b12 ... blind that number of the target, and
+#nop s1, s2 ... put it to sleep. %+1..d is one or more digits, and the
+#nop digits become %1.
 
 #alias {^b%+1..d$} {cast $ss 'blindness' %1.$target}
-
-#alias {s1} {cast n 'sleep' 1.$mees}
-#alias {s2} {cast n 'sleep' 2.$mees}
-#alias {s3} {cast n 'sleep' 3.$mees}
-#alias {s4} {cast n 'sleep' 4.$mees}
+#alias {^s%+1..d$} {cast $ss 'sleep' %1.$target}
 #alias {qeq} {cast n 'earthquake'}
 
 #nop ---- Doors ----
@@ -285,11 +267,8 @@
 #alias {obt} {order followers cast 'burning hands' $target}
 #alias {olb} {order followers cast 'lightning bolt'}
 #alias {olbt} {order followers cast 'lightning bolt' $target}
-#alias {rr} {order followers kill bert}
 #alias {ab} {order bb bash}
 #alias {bt} {order bb bash $target}
-#alias {obk} {order bb hit $mees}
-#alias {oht} {order aa cast 'harm' $target}
 
 #nop ---- Movement, tracking and hiding ----
 
@@ -508,7 +487,6 @@
 
 #action {^%1 raises {his|her} hand.$} {group %1}
 #action {WARNING} {sc}
-#action {^%1key: '%2'$} {#showme %0}
 
 #nop ---- Highlights and substitutes ----
 #nop A capitalised colour name is the bright variant. A substitute

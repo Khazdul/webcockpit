@@ -591,21 +591,22 @@ describe('the bundled reference profile (ADR 0024, 0036)', () => {
     if (r.ok) expect(r.warnings).toEqual([]);
     t.e.input('z *orc*');
     expect(t.texts().at(-1)).toBe('## TARGET: *orc*');
-    t.e.input('bb;bb 2.troll');
+    t.e.input('ok;op');
     t.e.input('tw');
     t.e.input('caster;fball');
     expect(t.texts().at(-1)).toBe("## SPELL: 'fireball'");
     t.e.runMacro('F2');
-    t.e.input('b2');
+    t.e.input('b2;s3');
     t.recv('Bob raises his hand.');
     t.recv('Ann raises her hand.');
     t.recv('You feel - sanctuary.');
     expect(t.sent).toEqual([
-      'bash *orc*',
-      'bash *orc* 2.troll',
+      'order followers hit *orc*',
+      'order followers protect Rasta',
       'track warg',
       "cast normal 'fireball' *orc*",
       "cast normal 'blindness' 2.*orc*",
+      "cast normal 'sleep' 3.*orc*",
       'group Bob',
       'group Ann',
     ]);
@@ -642,7 +643,7 @@ describe('the bundled reference profile (ADR 0024, 0036)', () => {
     expect(serialize(doc)).toBe(KHAZDUL);
     const odd = doc.nodes.filter((n) => n.type === 'passthrough' || (n.type === 'comment' && !/^#nop\b/.test(n.text)));
     expect(odd.map((n) => n.text)).toEqual([]);
-    expect(listEntries(doc, 'macro').map((m) => m.pattern)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9']);
+    expect(listEntries(doc, 'macro').map((m) => m.pattern)).toEqual(['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']);
     for (const m of listEntries(doc, 'macro')) expect(normalizeKey(m.pattern)).toBe(m.pattern);
     // One command word style throughout.
     for (const kind of ENTRY_KINDS) for (const en of listEntries(doc, kind)) expect(en.word).toBe(kind);
@@ -670,7 +671,7 @@ describe('the bundled reference profile (ADR 0024, 0036)', () => {
         for (const w of sentWords(en.body)) {
           checked++;
           if (intended(w)) expect(names.has(w), w).toBe(true);
-          else if (names.has(w) || /^b\d+$/.test(w)) hits.push(`${kind} {${en.pattern}}: ${w}`);
+          else if (names.has(w) || /^[bs]\d+$/.test(w)) hits.push(`${kind} {${en.pattern}}: ${w}`);
         }
       }
     }
