@@ -368,6 +368,37 @@ describe('OutputPane replayed commands (ADR 0018)', () => {
   });
 });
 
+describe('OutputPane chunk height estimates (ADR 0045)', () => {
+  it('sets each chunk an estimate in screen lines of the cell height', () => {
+    const bus = new Bus();
+    bus.on('text.line', (l) => bus.emit('text.display', { line: l, source: l }));
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const frames: Array<() => void> = [];
+    const pane = new OutputPane(bus, root, {
+      scrollback: 1000, // chunks of 10 rows
+      requestFrame: (cb) => frames.push(cb),
+      cellSize: () => ({ w: 10, h: 17 }),
+    });
+    // 10 columns.
+    Object.defineProperty(pane.scroller, 'clientWidth', { get: () => 100, configurable: true });
+    Object.defineProperty(pane.scroller, 'clientHeight', { get: () => 170, configurable: true });
+    // 12 rows: 10 in the first chunk (one of 25 characters: 3 lines), 2 in the second.
+    for (let i = 0; i < 12; i++) bus.emit('text.line', line(i === 4 ? 'x'.repeat(25) : 'row ' + i));
+    while (frames.length) frames.shift()!();
+    const chunks = pane.el.querySelectorAll<HTMLElement>('.wc-rows > .wc-chunk');
+    expect(chunks).toHaveLength(2);
+    const est = (c: HTMLElement): string => c.style.getPropertyValue('contain-intrinsic-block-size');
+    expect(est(chunks[0]!)).toBe('auto calc(var(--cell-h) * 12)');
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 2)');
+    // Rows added to the last chunk add to its estimate.
+    bus.emit('text.line', line('y'.repeat(11)));
+    while (frames.length) frames.shift()!();
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 4)');
+    pane.dispose();
+  });
+});
+
 describe('OutputPane scrolling and selection', () => {
   function fakeScroll(el: HTMLElement, heights: { scrollHeight: number; clientHeight: number }) {
     let top = 0;

@@ -6,15 +6,76 @@ import { type Page, expect, test } from '@playwright/test';
 const scroller = (page: Page) => page.locator('.wc-output .wc-scroller');
 const tailBar = (page: Page) => page.locator('.wc-output .wc-tail-bar');
 
-/** Opens the offline page and fills the scrollback with `n` rows `row 0` … `row n-1`. */
-async function fill(page: Page, n: number): Promise<void> {
+/**
+ * Opens the offline page and fills the scrollback with `n` rows `row 0` …
+ * `row n-1`, in one burst. `varied`: rows of mixed length, some of which
+ * wrap (inside a word, or at spaces, which can take more lines than the
+ * length alone says).
+ */
+async function fill(page: Page, n: number, varied = false): Promise<void> {
   await page.goto('/?replay');
   await expect(page.locator('.wc-rows .wc-row').first()).toHaveText(/Offline replay mode/);
-  await page.evaluate((n) => {
-    const bus = window.__wc!.app.bus;
-    for (let i = 0; i < n; i++) bus.emit('sys.message', { text: `row ${i}` });
+  await push(page, 0, n, varied);
+}
+
+/** Emits rows `row from` … `row to-1` and waits until the last is built. */
+async function push(page: Page, from: number, to: number, varied = false): Promise<void> {
+  await page.evaluate(
+    ([from, to, varied]) => {
+      const bus = window.__wc!.app.bus;
+      const tail = (i: number): string =>
+        i % 13 === 0 ? ' ' + 'x'.repeat(150 + (i % 200)) : i % 17 === 0 ? ' word'.repeat(30 + (i % 40)) : ' .'.repeat(i % 30);
+      for (let i = from; i < to; i++) bus.emit('sys.message', { text: `row ${i}` + (varied ? tail(i) : '') });
+    },
+    [from, to, varied] as const,
+  );
+  await expect(page.locator('.wc-rows .wc-row').last()).toHaveText(new RegExp(`^\\[SYSTEM\\] row ${to - 1}\\b`));
+}
+
+/** Waits for two animation frames (content-visibility and scroll anchoring settle in a frame). */
+async function settle(page: Page): Promise<void> {
+  await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+}
+
+/** The row at the top edge of the view: its number and its top relative to the view (px, ≤ 0). */
+async function topRow(page: Page): Promise<{ n: number; top: number }> {
+  return scroller(page).evaluate((s) => {
+    const r = s.getBoundingClientRect();
+    const el = document.elementFromPoint(r.left + 4, r.top + 1)?.closest('.wc-row');
+    const m = /row (\d+)/.exec(el?.textContent ?? '');
+    if (!el || !m) throw new Error(`no row at the top: ${el?.textContent}`);
+    return { n: Number(m[1]), top: el.getBoundingClientRect().top - r.top };
+  });
+}
+
+/** The numbers of the first and the last row on screen. */
+async function shownRows(page: Page): Promise<[number, number]> {
+  return scroller(page).evaluate((s) => {
+    const r = s.getBoundingClientRect();
+    const at = (y: number): number => {
+      const el = document.elementFromPoint(r.left + 4, y)?.closest('.wc-row');
+      const m = /row (\d+)/.exec(el?.textContent ?? '');
+      if (!m) throw new Error(`no row at ${y}: ${el?.textContent}`);
+      return Number(m[1]);
+    };
+    return [at(r.top + 1), at(r.top + s.clientHeight - 2)];
+  });
+}
+
+/** The current top of row `n` relative to the view (px), or null when it is gone. */
+async function rowTop(page: Page, n: number): Promise<number | null> {
+  return scroller(page).evaluate((s, n) => {
+    const re = new RegExp(`^\\[SYSTEM\\] row ${n}\\b`);
+    const el = Array.from(s.querySelectorAll('.wc-row')).find((e) => re.test(e.textContent ?? ''));
+    return el ? el.getBoundingClientRect().top - s.getBoundingClientRect().top : null;
   }, n);
-  await expect(page.locator('.wc-rows .wc-row').last()).toHaveText(`[SYSTEM] row ${n - 1}`);
+}
+
+/** One PgUp/PgDn step in px: the view height less one line. */
+function pageStep(page: Page): Promise<number> {
+  return scroller(page).evaluate(
+    (s) => s.clientHeight - parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')),
+  );
 }
 
 /** True when the view shows the live tail. */
@@ -193,5 +254,135 @@ test.describe('background rows', () => {
         expectSameColours(c.bg, c.spans, `font ${size}, ${cols} cols`);
       }
     }
+  });
+});
+
+// ------------------------------------- off-screen chunks and anchoring (ADR 0045)
+
+test.describe('scrolling a full scrollback', () => {
+  /** Presses `key` and checks that the row at the top moved by exactly `dy` px (no jump). */
+  async function step(page: Page, key: 'PageUp' | 'PageDown', dy: number): Promise<void> {
+    const before = await topRow(page);
+    await page.keyboard.press(key);
+    await settle(page);
+    const after = await rowTop(page, before.n);
+    // Twice more: a chunk that took its real height late would move it now.
+    await settle(page);
+    const later = await rowTop(page, before.n);
+    expect(after, `${key} from row ${before.n}`).not.toBeNull();
+    expect(Math.abs(after! - (before.top + dy)), `${key} from row ${before.n} at ${before.top}: now at ${after}, expected ${before.top + dy}`).toBeLessThanOrEqual(1.5);
+    expect(later, `row ${before.n} moved after the step`).toBeCloseTo(after!, 0);
+  }
+
+  test('PgUp and PgDn move by one page through chunks never laid out', async ({ page }) => {
+    test.setTimeout(120_000);
+    await fill(page, 20_500, true);
+    await page.locator('.wc-input-field').focus();
+    const dy = await pageStep(page);
+    // Back through ~1 500 rows: most chunks there were built and passed in
+    // one frame of the burst, so they start at their estimated height.
+    for (let i = 0; i < 40; i++) await step(page, 'PageUp', dy);
+    for (let i = 0; i < 20; i++) await step(page, 'PageDown', -dy);
+    for (let i = 0; i < 10; i++) await step(page, 'PageUp', dy);
+    // Esc returns to the tail.
+    await page.keyboard.press('Escape');
+    await settle(page);
+    expect(await atTail(page)).toBe(true);
+  });
+
+  test('PgUp pressed faster than the frames lands near where single steps land, and stays', async ({ page }) => {
+    const land = async (fast: boolean): Promise<{ n: number; top: number }> => {
+      await fill(page, 20_500, true);
+      await page.locator('.wc-input-field').focus();
+      for (let i = 0; i < 25; i++) {
+        await page.keyboard.press('PageUp');
+        if (!fast) await settle(page);
+      }
+      await settle(page);
+      await settle(page);
+      const at = await topRow(page);
+      // Nothing moves once the view has been rendered.
+      await settle(page);
+      await settle(page);
+      expect(await topRow(page)).toEqual(at);
+      return at;
+    };
+    const slow = await land(false);
+    const fast = await land(true);
+    // Unrendered pages are skipped at their estimated height, so the two can
+    // differ by the estimate's error over 25 pages (a few rows).
+    expect(Math.abs(fast.n - slow.n), `fast ${fast.n}, slow ${slow.n}`).toBeLessThanOrEqual(40);
+  });
+
+  test('trims while scrolled back keep the rows on screen in place', async ({ page }) => {
+    await fill(page, 20_500, true);
+    await page.locator('.wc-input-field').focus();
+    for (let i = 0; i < 30; i++) await page.keyboard.press('PageUp');
+    await settle(page);
+    const before = await topRow(page);
+    const rowsBefore = await page.evaluate(() => window.__wc!.app.output.rows);
+    // 3 000 rows: about 15 chunks are dropped at the top, over several frames.
+    await push(page, 20_500, 23_500, true);
+    await settle(page);
+    expect(await page.evaluate(() => window.__wc!.app.output.rows)).toBeLessThan(rowsBefore + 3_000);
+    const after = await rowTop(page, before.n);
+    expect(after, `row ${before.n}`).not.toBeNull();
+    expect(Math.abs(after! - before.top), `row ${before.n} moved from ${before.top} to ${after}`).toBeLessThanOrEqual(1.5);
+    await expect(tailBar(page)).toContainText('3000 new lines');
+  });
+
+  test('a width change keeps the tail at the tail, and a scrolled view near its rows', async ({ page }) => {
+    await fill(page, 20_500, true);
+    const last = page.locator('.wc-rows .wc-row').last();
+    for (const width of [900, 1280]) {
+      await page.setViewportSize({ width, height: 720 });
+      await settle(page);
+      await expect.poll(() => atTail(page)).toBe(true);
+      await expect(last).toBeInViewport();
+    }
+    await page.locator('.wc-input-field').focus();
+    for (let i = 0; i < 20; i++) await page.keyboard.press('PageUp');
+    // Steps faster than frames settle on a row in view two frames later.
+    await settle(page);
+    await settle(page);
+    const before = await shownRows(page);
+    for (const width of [900, 1280]) {
+      await page.setViewportSize({ width, height: 720 });
+      await settle(page);
+      await settle(page);
+      expect(await atTail(page)).toBe(false);
+      // Rows re-wrap, so fewer or more of them fit, but the view still
+      // shows rows it showed before.
+      const now = await shownRows(page);
+      expect(Math.max(now[0], before[0]), `rows ${now} at width ${width}, before ${before}`).toBeLessThanOrEqual(Math.min(now[1], before[1]));
+    }
+  });
+
+  test('a selection across off-screen chunks copies every row', async ({ page }) => {
+    await fill(page, 20_500, false);
+    const r = await page.evaluate(() => {
+      const rows = document.querySelectorAll('.wc-rows .wc-row');
+      const a = rows[rows.length - 1001]!;
+      const b = rows[rows.length - 1]!;
+      const range = document.createRange();
+      range.setStartBefore(a);
+      range.setEndAfter(b);
+      const sel = getSelection()!;
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return null;
+    });
+    expect(r).toBeNull();
+    // As with a mouse selection, the copy comes a frame or more later: by
+    // then the browser renders the selected chunks (Firefox leaves chunks it
+    // skips out of the selection's text).
+    await settle(page);
+    const copied = await page.evaluate(() => {
+      const sel = getSelection()!;
+      const lines = sel.toString().replace(/\r/g, '').split('\n').filter(Boolean);
+      sel.removeAllRanges();
+      return { n: lines.length, first: lines[0], last: lines.at(-1) };
+    });
+    expect(copied).toEqual({ n: 1001, first: '[SYSTEM] row 19499', last: '[SYSTEM] row 20499' });
   });
 });

@@ -23,9 +23,15 @@
 //   remaining chunks still hold `scrollback` rows. Removing rows at the top
 //   moves every box below; the stage-1 benchmark measured 3.8 → 21 ms per
 //   50-line flush in Chromium at 20 000 flat rows trimmed per flush, and
-//   ~2.5 → ~5 ms with chunks trimmed row by row. While the user is scrolled
-//   up, the height removed at the top is compensated so the view does not
-//   move.
+//   ~2.5 → ~5 ms with chunks trimmed row by row.
+// - Chunks are `content-visibility: auto` (ADR 0045): the browser lays out
+//   and paints only those near the view, so a width change re-wraps a few
+//   chunks instead of 20 000 rows. An off-screen chunk keeps the height it
+//   last had, or an estimate from its rows until it has been rendered.
+// - At the tail every flush (and every later change of the rows' height)
+//   pins the view to the bottom. Scrolled back, the pane keeps one row in
+//   place itself (see "anchoring"), through trims, chunks taking their real
+//   height and width changes.
 //
 // Game text only ever reaches the DOM through textContent / text nodes.
 //
@@ -138,6 +144,8 @@ export class OutputPane {
   private frameScheduled = false;
 
   private rowCount = 0;
+  /** Screen lines per chunk, for its height estimate (see addChunkLines). */
+  private readonly chunkLines = new WeakMap<Element, number>();
   /** The last row element (inside the last chunk), or null. */
   private lastRow: HTMLElement | null = null;
 
@@ -147,6 +155,11 @@ export class OutputPane {
 
   private scrolled = false;
   private newWhileScrolled = 0;
+  /** Scrolled back: an element held at `top` px below the view top (see "anchoring"). */
+  private anchor: { el: Element; top: number } | null = null;
+  /** The scrollTop the pane itself last set while scrolled back. */
+  private ownScrollTop = -1;
+  private anchorRefresh = false;
 
   private lastCols = 0;
   private lastRows = 0;
@@ -203,6 +216,10 @@ export class OutputPane {
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => this.handleResize());
       this.resizeObserver.observe(this.scroller);
+      // The rows' height also changes after the flush: a chunk near the view
+      // takes its real height when the browser starts rendering it (ADR
+      // 0045). The observer runs before the paint, so the tail stays pinned.
+      this.resizeObserver.observe(this.rowsEl);
     }
   }
 
@@ -368,10 +385,10 @@ export class OutputPane {
     const wasScrolled = this.scrolled;
     const added = built.length;
     if (added > 0) {
-      this.appendRows(built);
+      this.appendRows(built, cols);
       this.rowCount += added;
       this.lastRow = built[added - 1]!;
-      this.trimTop(wasScrolled);
+      this.trimTop();
     }
 
     if (this.partialDirty) this.renderPartial();
@@ -390,7 +407,7 @@ export class OutputPane {
    * Appends `rows`: first into the room left in the last chunk,
    * then into new chunks. Each touched parent gets one fragment append.
    */
-  private appendRows(rows: HTMLElement[]): void {
+  private appendRows(rows: HTMLElement[], cols: number): void {
     const doc = this.el.ownerDocument;
     const size = this.chunkRows;
     let i = 0;
@@ -400,8 +417,10 @@ export class OutputPane {
       if (room > 0 && i < rows.length) {
         const n = Math.min(room, rows.length - i);
         const frag = doc.createDocumentFragment();
+        const from = i;
         for (const stop = i + n; i < stop; i++) frag.appendChild(rows[i]!);
         last.appendChild(frag);
+        this.addChunkLines(last, rows, from, i, cols);
       }
     }
     if (i >= rows.length) return;
@@ -409,19 +428,41 @@ export class OutputPane {
     while (i < rows.length) {
       const chunk = doc.createElement('div');
       chunk.className = 'wc-chunk';
+      const from = i;
       for (const stop = Math.min(rows.length, i + size); i < stop; i++) chunk.appendChild(rows[i]!);
+      this.addChunkLines(chunk, rows, from, i, cols);
       chunks.appendChild(chunk);
     }
     this.rowsEl.appendChild(chunks);
   }
 
   /**
+   * Adds the screen lines of `rows[from, to)` to `chunk`'s height estimate
+   * (ADR 0045): the height an off-screen chunk takes until it has been
+   * rendered once (`contain-intrinsic-size: auto`, after which the browser
+   * keeps the size it last laid out). A row takes one line per `cols`
+   * characters, so the estimate is exact for rows that do not wrap or that
+   * wrap inside words, and follows a cell height change by itself.
+   */
+  private addChunkLines(chunk: HTMLElement, rows: HTMLElement[], from: number, to: number, cols: number): void {
+    let lines = this.chunkLines.get(chunk) ?? 0;
+    for (let i = from; i < to; i++) {
+      const len = cols > 0 ? (rows[i]!.textContent ?? '').length : 0;
+      lines += len > cols ? Math.ceil(len / cols) : 1;
+    }
+    this.chunkLines.set(chunk, lines);
+    chunk.style.setProperty('contain-intrinsic-block-size', `auto calc(var(--cell-h) * ${lines})`);
+  }
+
+  /**
    * Drops whole chunks from the top while the rest still holds at least
    * `scrollback` rows. Only whole chunks are removed: removing rows at the
    * top moves every following box, and doing that once per chunk instead
-   * of once per flush keeps the cost of a full scrollback flat.
+   * of once per flush keeps the cost of a full scrollback flat. While the
+   * view is scrolled back, the browser's scroll anchoring keeps the rows on
+   * screen in place (ADR 0045).
    */
-  private trimTop(keepView: boolean): void {
+  private trimTop(): void {
     let drop = 0;
     let chunks = 0;
     let c = this.rowsEl.firstElementChild;
@@ -431,14 +472,8 @@ export class OutputPane {
       c = c.nextElementSibling;
     }
     if (chunks === 0) return;
-    const s = this.scroller;
-    const before = keepView ? s.scrollHeight : 0;
     for (let i = 0; i < chunks; i++) this.rowsEl.firstElementChild!.remove();
     this.rowCount -= drop;
-    if (keepView) {
-      const removed = before - s.scrollHeight;
-      if (removed > 0) s.scrollTop = Math.max(0, s.scrollTop - removed);
-    }
   }
 
   private renderPartial(): void {
@@ -460,6 +495,12 @@ export class OutputPane {
 
   private readonly onScroll = (): void => {
     this.updateScrolled();
+    // A scroll by the user (wheel, scrollbar, touch) re-anchors the view at
+    // its top row; the pane's own scrolls keep the anchor they set.
+    if (this.scrolled && Math.abs(this.scroller.scrollTop - this.ownScrollTop) >= 1) {
+      this.setAnchor(0);
+      this.refreshAnchorSoon();
+    }
   };
 
   private updateScrolled(): void {
@@ -468,6 +509,7 @@ export class OutputPane {
     if (atBottom) {
       if (this.scrolled) {
         this.scrolled = false;
+        this.anchor = null;
         this.scroller.classList.remove('wc-scrolled');
         this.newWhileScrolled = 0;
         this.tailBar.hidden = true;
@@ -494,20 +536,111 @@ export class OutputPane {
 
   /** Scrolls up one page (keeping one row of context). */
   pageUp(): void {
-    this.scroller.scrollTop = Math.max(0, this.scroller.scrollTop - this.pageSize());
-    this.updateScrolled();
+    this.pageBy(-this.pageSize());
   }
 
   /** Scrolls down one page; leaves scroll mode when it reaches the bottom. */
   pageDown(): void {
     if (!this.scrolled) return;
-    this.scroller.scrollTop = this.scroller.scrollTop + this.pageSize();
+    this.pageBy(this.pageSize());
+  }
+
+  /**
+   * Scrolls by `dy` px. The row that stays on screen (the top row on the
+   * way up, the bottom row on the way down) is the anchor: the rows the
+   * step reveals may not have been laid out yet, and take their real height
+   * only in the next rendering (ADR 0045).
+   */
+  private pageBy(dy: number): void {
+    const s = this.scroller;
+    // Layout that changed since the last observation is corrected first
+    // (unless the user has scrolled since: then the anchor is stale).
+    if (Math.abs(s.scrollTop - this.ownScrollTop) < 1) this.keepAnchor();
+    // Steps faster than the frames: the last step's view was never rendered
+    // (its chunks may still change height), so its anchor carries over.
+    let keep = this.anchorRefresh && this.anchor?.el.isConnected ? this.anchor : null;
+    if (!keep) {
+      const el = this.elementAt(dy < 0 ? 0 : s.clientHeight - 1);
+      keep = el ? { el, top: this.topOf(el) } : null;
+    }
+    const before = s.scrollTop;
+    s.scrollTop = Math.max(0, before + dy);
+    this.ownScrollTop = s.scrollTop;
+    this.anchor = keep ? { el: keep.el, top: keep.top - (this.ownScrollTop - before) } : null;
     this.updateScrolled();
+    this.refreshAnchorSoon();
+  }
+
+  // -------------------------------------------------------------- anchoring
+  //
+  // Scrolled back, the view keeps one row at a fixed distance from its top
+  // while the layout around it changes: chunks dropped at the top, chunks
+  // taking their real height as they come near the view (content-visibility,
+  // ADR 0045), rows re-wrapping after a width change. The resize observer
+  // sees each such change after layout and before the paint, and corrects
+  // scrollTop. The browser's own scroll anchoring is off: in Firefox it does
+  // not hold the view across a page step into chunks not laid out yet, nor
+  // across a width change.
+
+  /** Anchors the view at the row `y` px below its top. */
+  private setAnchor(y: number): void {
+    const el = this.elementAt(y);
+    this.anchor = el ? { el, top: this.topOf(el) } : null;
+  }
+
+  /**
+   * Two frames after a scroll, when the browser has rendered the rows now
+   * in view, moves the anchor to the row at the top. A step's anchor ends
+   * up at the other edge or, after steps faster than the frames, outside the
+   * view, where the browser soon stops laying out its chunk.
+   */
+  private refreshAnchorSoon(): void {
+    if (this.anchorRefresh) return;
+    this.anchorRefresh = true;
+    this.requestFrame(() =>
+      this.requestFrame(() => {
+        this.anchorRefresh = false;
+        if (!this.scrolled) return;
+        // Layout that changed since the last observation is corrected first.
+        this.keepAnchor();
+        const el = this.elementAt(0);
+        if (el) this.anchor = { el, top: this.topOf(el) };
+      }),
+    );
+  }
+
+  /** Puts the anchor back where it was (not while the pane is hidden). */
+  private keepAnchor(): void {
+    const a = this.anchor;
+    if (!a || !a.el.isConnected || this.scroller.clientHeight === 0) return;
+    const d = this.topOf(a.el) - a.top;
+    if (Math.abs(d) < 0.5) return;
+    this.scroller.scrollTop += d;
+    this.ownScrollTop = this.scroller.scrollTop;
+  }
+
+  /** The top of `el` relative to the top of the view (px). */
+  private topOf(el: Element): number {
+    return el.getBoundingClientRect().top - this.scroller.getBoundingClientRect().top;
+  }
+
+  /**
+   * The row `y` px below the top of the view (null when there is none, or
+   * the pane is hidden). A row in a chunk the browser skips is laid out for
+   * the query, so its place within the chunk is real before the chunk is
+   * rendered.
+   */
+  private elementAt(y: number): HTMLElement | null {
+    if (this.scroller.clientHeight === 0) return null;
+    const at = this.scroller.getBoundingClientRect().top + y;
+    const chunk = findAt(this.rowsEl.children, at);
+    return chunk ? findAt(chunk.children, at) : null;
   }
 
   /** Returns to the live tail. */
   toTail(): void {
     this.scroller.scrollTop = this.scroller.scrollHeight;
+    this.anchor = null;
     this.scrolled = false;
     this.scroller.classList.remove('wc-scrolled');
     this.newWhileScrolled = 0;
@@ -557,6 +690,7 @@ export class OutputPane {
 
   private handleResize(): void {
     if (!this.scrolled) this.scroller.scrollTop = this.scroller.scrollHeight;
+    else this.keepAnchor();
     const { cols, rows } = this.measureCells();
     if (cols <= 0 || rows <= 0) return;
     if (cols === this.lastCols && rows === this.lastRows) return;
@@ -583,6 +717,22 @@ export class OutputPane {
     this.scroller.removeEventListener('mouseup', this.onMouseUp);
     this.el.remove();
   }
+}
+
+/**
+ * The element of `list` (stacked top to bottom) whose box holds the
+ * viewport y `at`; the nearest one when `at` falls outside them all.
+ */
+function findAt(list: HTMLCollection, at: number): HTMLElement | null {
+  let lo = 0;
+  let hi = list.length - 1;
+  if (hi < 0) return null;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (list[mid]!.getBoundingClientRect().bottom <= at) lo = mid + 1;
+    else hi = mid;
+  }
+  return list[lo] as HTMLElement;
 }
 
 // ---------------------------------------------------------------- rendering
