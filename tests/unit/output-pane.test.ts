@@ -405,7 +405,7 @@ describe('OutputPane scrollback depth (ADR 0046)', () => {
 });
 
 describe('OutputPane chunk height estimates (ADR 0045)', () => {
-  it('sets each chunk an estimate in screen lines of the cell height', () => {
+  it('sets new and full chunks, and the open chunk while scrolled, an estimate in screen lines', () => {
     const bus = new Bus();
     bus.on('text.line', (l) => bus.emit('text.display', { line: l, source: l }));
     const root = document.createElement('div');
@@ -426,11 +426,27 @@ describe('OutputPane chunk height estimates (ADR 0045)', () => {
     expect(chunks).toHaveLength(2);
     const est = (c: HTMLElement): string => c.style.getPropertyValue('contain-intrinsic-block-size');
     expect(est(chunks[0]!)).toBe('auto calc(var(--cell-h) * 12)');
+    // A new chunk gets its estimate. Rows added to the open chunk at the
+    // tail do not rewrite it (in Firefox each write re-lays out the chunk).
     expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 2)');
-    // Rows added to the last chunk add to its estimate.
     bus.emit('text.line', line('y'.repeat(11)));
     while (frames.length) frames.shift()!();
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 2)');
+    // Entering scroll mode writes it; rows added while scrolled add to it.
+    let top = 0;
+    Object.defineProperty(pane.scroller, 'scrollHeight', { get: () => 1000, configurable: true });
+    Object.defineProperty(pane.scroller, 'scrollTop', {
+      get: () => top,
+      set: (v: number) => (top = v),
+      configurable: true,
+    });
+    top = 100;
+    pane.scroller.dispatchEvent(new Event('scroll'));
+    expect(pane.isScrolled()).toBe(true);
     expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 4)');
+    bus.emit('text.line', line('z'));
+    while (frames.length) frames.shift()!();
+    expect(est(chunks[1]!)).toBe('auto calc(var(--cell-h) * 5)');
     pane.dispose();
   });
 });

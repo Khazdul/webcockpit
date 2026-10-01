@@ -461,15 +461,32 @@ export class OutputPane {
    * keeps the size it last laid out). A row takes one line per `cols`
    * characters, so the estimate is exact for rows that do not wrap or that
    * wrap inside words, and follows a cell height change by itself.
+   *
+   * The estimate is written when the chunk is new (before it is in the
+   * document: a new chunk is skipped until the browser has checked it, and
+   * the flush pins the view to the bottom before that), when it is full,
+   * and while the view is scrolled back. Rows added to the open chunk at
+   * the tail do not rewrite it: that chunk is on screen and laid out, and in
+   * Firefox each write re-lays out the whole chunk (about 1–2 ms per flush,
+   * 4 ms at a full scrollback). Entering scroll mode writes the open chunk's
+   * estimate (writeChunkSize).
    */
   private addChunkLines(chunk: HTMLElement, rows: HTMLElement[], from: number, to: number, cols: number): void {
-    let lines = this.chunkLines.get(chunk) ?? 0;
+    const known = this.chunkLines.get(chunk);
+    let lines = known ?? 0;
     for (let i = from; i < to; i++) {
       const len = cols > 0 ? (rows[i]!.textContent ?? '').length : 0;
       lines += len > cols ? Math.ceil(len / cols) : 1;
     }
     this.chunkLines.set(chunk, lines);
-    chunk.style.setProperty('contain-intrinsic-block-size', `auto calc(var(--cell-h) * ${lines})`);
+    if (known === undefined || this.scrolled || chunk.childElementCount >= this.chunkRows) this.writeChunkSize(chunk);
+  }
+
+  /** Sets `chunk`'s height estimate from its counted screen lines. */
+  private writeChunkSize(chunk: Element | null): void {
+    const lines = chunk ? this.chunkLines.get(chunk) : undefined;
+    if (lines === undefined) return;
+    (chunk as HTMLElement).style.setProperty('contain-intrinsic-block-size', `auto calc(var(--cell-h) * ${lines})`);
   }
 
   /**
@@ -534,6 +551,8 @@ export class OutputPane {
       }
     } else if (!this.scrolled) {
       this.scrolled = true;
+      // The open chunk at the tail may now leave the view (see addChunkLines).
+      this.writeChunkSize(this.rowsEl.lastElementChild);
       this.scroller.classList.add('wc-scrolled');
       this.newWhileScrolled = 0;
       this.updateTailBar();
