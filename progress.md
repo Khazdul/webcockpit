@@ -22,6 +22,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Top dock zone
+
+- **Fix:** the top screen-edge dock zone is now the upper half of row 0
+  (was 2 rows), so a dragged floating pane can sit at row 0. ADR 0014
+  amended; unit and e2e tests updated.
+- **Open issue:** e2e "a drag shows its cursor on a shield…" fails on
+  main before this change too (float handle cursor check, line ~308).
+- **Next:** owner test; later parts of stage 8.
+- **Commits:** 7b02809, plus this one.
+
 ### 2026-10-01 — Release 0.1.20
 
 - **Released:** 0.1.20 (tag v0.1.20): stage 8 part C performance fixes
