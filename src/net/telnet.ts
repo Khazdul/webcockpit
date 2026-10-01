@@ -142,6 +142,8 @@ export function escapeIac(bytes: Uint8Array): Uint8Array {
 }
 
 const utf8Encoder = new TextEncoder();
+/** For whole byte strings (GMCP, CHARSET): without `stream` it keeps no state between calls. */
+const utf8WholeDecoder = new TextDecoder('utf-8', { ignoreBOM: true });
 
 export class Telnet {
   private readonly o: TelnetOptions;
@@ -564,7 +566,7 @@ export class Telnet {
 
   /** Decodes a complete byte string with the current charset (non-streaming). */
   decodeWhole(bytes: Uint8Array): string {
-    if (this.isUtf8) return new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
+    if (this.isUtf8) return utf8WholeDecoder.decode(bytes);
     return decodeLatin1(bytes);
   }
 

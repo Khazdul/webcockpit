@@ -349,6 +349,13 @@ describe('CHARSET', () => {
     expect(m.writes.at(-1)).toEqual([IAC, SB, OPT_CHARSET, 2, ...ascii('UTF-8'), IAC, SE]);
   });
 
+  it('decodes each GMCP payload on its own: a cut sequence does not leak into the next', () => {
+    const m = make();
+    m.t.forceUtf8();
+    m.t.receive(concat([IAC, WILL, OPT_GMCP], sb(OPT_GMCP, [...utf8('A "x'), 0xc3]), sb(OPT_GMCP, utf8('B "é"'))), 1);
+    expect(m.gmcp).toEqual(['A "x\ufffd', 'B "é"']);
+  });
+
   it('decodes multibyte UTF-8 split across frames', () => {
     const m = make();
     m.t.forceUtf8();
