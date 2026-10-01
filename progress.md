@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: C17, the release of part C (0.1.20) when the owner says so, and the full part C test guide).
+Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: owner test of part D, more fonts, then release).
 
 ## Stages
 
@@ -21,6 +21,27 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-01 — More fonts (stage 8 part D)
+
+- **Fonts:** 13 more bundled families (Agave, Anonymous Pro, Cascadia
+  Mono, Fantasque, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex
+  Mono, Inconsolata, mononoki, Noto Sans Mono) plus Lucida Console, shown
+  only when installed, never shipped or embedded in exports (ADR 0049).
+- **Owner decisions:** Noto Sans Mono replaces the deprecated Noto Mono;
+  own "WebCockpit Fill" faces draw the box/block glyphs Anonymous Pro,
+  Hermit, Go Mono and Lucida lack. Ligatures off everywhere.
+- **Credits:** licence texts in `public/fonts/`, THIRD_PARTY_NOTICES,
+  About, and the export notice lists the fonts it embeds.
+- **Verified:** typecheck, unit 1481 green, build; e2e 269/270 (replay
+  file:// timing flake, green on rerun); seam sweep 6–32 px in Chromium
+  and Firefox on Linux.
+- **Open:** missing symbols (✦★⚠…) still come from DejaVu at its width;
+  JetBrains Mono seams at some sizes in Chromium (fixable with `wholePx`,
+  changes its cells); small-size underscore clipping in a few fonts;
+  Windows/macOS untested.
+- **Next:** owner test (part D test guide, D9), then release.
+- **Commits:** 1851ae1, 1c7debd, 8fd1b98, plus this one.
 
 ### 2026-10-01 — Wheel speed, About, spotlight hint
 
