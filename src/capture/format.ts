@@ -45,6 +45,25 @@ export function formatOutbound(ts: number, cmd: string): string {
   return formatTs(ts) + ' > ' + cmd + '\n';
 }
 
+/**
+ * The UTF-8 length of `s` in bytes, as `TextEncoder` would encode it (a
+ * lone surrogate becomes U+FFFD, 3 bytes). Counts without allocating.
+ */
+export function utf8Length(s: string): number {
+  const len = s.length;
+  let n = len;
+  for (let i = 0; i < len; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) continue;
+    if (c < 0x800) n += 1;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < len && (s.charCodeAt(i + 1) & 0xfc00) === 0xdc00) {
+      n += 2; // a surrogate pair: 2 units, 4 bytes
+      i++;
+    } else n += 2;
+  }
+  return n;
+}
+
 /** Client record types (see the file header). */
 export const RECORD = { gmcp: 'GMCP', view: 'VIEW', size: 'SIZE' } as const;
 export type RecordType = (typeof RECORD)[keyof typeof RECORD];

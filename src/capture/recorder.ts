@@ -3,8 +3,12 @@
 // - A run starts when the connection reaches `playing` (after GMCP
 //   Char.Name) and is sealed when it leaves `playing`.
 // - Lines are formatted into strings as they arrive and kept in memory; a
-//   chunk is written every `flushMs` (2 s) and on pagehide / hidden. There
-//   is no IndexedDB work per line.
+//   chunk is written every `flushMs` (2 s), on pagehide / hidden, and as
+//   soon as the next line would take it over `CHUNK_BYTES`. There is no IndexedDB work per line.
+// - Bytes are counted as lines are captured, and no chunk holds more than
+//   `CHUNK_BYTES`: a burst becomes several chunks, each written in its own
+//   task (the next starts after the previous transaction completed), so the
+//   join and the structured clone stay small (ADR 0044 rule 6).
 // - One writer per character: the Web Lock `webcockpit-run-<name>` is held
 //   for the whole run. If another tab holds it, this tab does not record.
 // - Unsealed runs whose lock is free are orphans (a crashed or closed tab)
@@ -40,12 +44,22 @@
 
 import type { Bus } from '../core/bus';
 import { type ConnState, nowUs } from '../core/types';
-import { RECORD, formatGmcpRecord, formatInbound, formatOutbound, formatRecord, makeRunId } from './format';
+import {
+  RECORD,
+  formatGmcpRecord,
+  formatInbound,
+  formatOutbound,
+  formatRecord,
+  makeRunId,
+  utf8Length,
+} from './format';
 import type { RunMeta } from './store';
 import type { RunEvent } from '../runs/events';
 import { type RunEventRecord, RunStore, type RunSummary, summarize } from '../runs/store';
 
 export const FLUSH_MS = 2000;
+/** Most UTF-8 bytes in one chunk (a single longer line gets a chunk of its own). */
+export const CHUNK_BYTES = 256 * 1024;
 /** GMCP lines kept from before the run starts on one connection. */
 export const PRE_RUN_GMCP_MAX = 64;
 /** Delay before a changed view (settings, size) is written. */
@@ -81,6 +95,8 @@ export interface RecorderOptions {
   onStatus?: (text: string) => void;
   /** Chunk interval in ms (default 2000). */
   flushMs?: number;
+  /** Chunk size limit in UTF-8 bytes (default `CHUNK_BYTES`). */
+  chunkBytes?: number;
   /** Window for pagehide/visibilitychange; default `globalThis.window`. */
   win?: Window | null;
   /** Clock in µs (default `nowUs`). */
@@ -98,6 +114,14 @@ export const STATUS = {
   error: 'capture: error',
 } as const;
 
+/** Captured lines cut into one chunk. */
+interface PendingChunk {
+  lines: string[];
+  bytes: number;
+  firstUs: number;
+  lastUs: number;
+}
+
 /** One run's capture state (per run, so runs never share buffers). */
 interface RunCapture {
   character: string;
@@ -106,9 +130,13 @@ interface RunCapture {
   release: (() => void) | null;
   /** Next chunk seq. */
   seq: number;
+  /** Lines of the chunk being filled, their UTF-8 bytes and time span. */
   buf: string[];
+  bufBytes: number;
   bufFirstUs: number;
   bufLastUs: number;
+  /** Full chunks cut from `buf`, oldest first, not written yet. */
+  ready: PendingChunk[];
   /** Run events not written yet, and their state. */
   evBuf: RunEvent[];
   evSeq: number;
@@ -158,7 +186,7 @@ export class Recorder {
   private statusText = '';
   private readonly unsubs: Array<() => void> = [];
   private readonly win: Window | null;
-  private readonly encoder = new TextEncoder();
+  private readonly chunkBytes: number;
 
   constructor(bus: Bus, opts: RecorderOptions = {}) {
     this.opts = opts;
@@ -168,6 +196,7 @@ export class Recorder {
         ? opts.locks
         : ((globalThis.navigator as Navigator | undefined)?.locks ?? null);
     this.win = opts.win !== undefined ? opts.win : (globalThis.window ?? null);
+    this.chunkBytes = opts.chunkBytes ?? CHUNK_BYTES;
 
     const open = opts.openStore ?? (() => RunStore.open());
     this.storeP = open().then(
@@ -287,9 +316,16 @@ export class Recorder {
   private capture(ts: number, s: string): void {
     const run = this.run;
     if (!run) return;
+    const bytes = utf8Length(s);
+    if (run.buf.length && run.bufBytes + bytes > this.chunkBytes) {
+      // Full: the chunk is written now, in a task of its own.
+      cutChunk(run);
+      this.enqueue(() => this.writeChunk(run, true));
+    }
     if (run.buf.length === 0) run.bufFirstUs = ts;
     run.bufLastUs = ts;
     run.buf.push(s);
+    run.bufBytes += bytes;
   }
 
   private readonly onHide = (): void => {
@@ -312,8 +348,10 @@ export class Recorder {
       release: null,
       seq: 0,
       buf: [],
+      bufBytes: 0,
       bufFirstUs: 0,
       bufLastUs: 0,
+      ready: [],
       evBuf: [],
       evSeq: 0,
       hasStart: false,
@@ -337,7 +375,7 @@ export class Recorder {
     this.enqueue(() => this.startRun(run, runId, startedUs));
     const ms = this.opts.flushMs ?? FLUSH_MS;
     this.timer = setInterval(() => {
-      if (run.buf.length || run.evBuf.length) this.enqueue(() => this.writeChunk(run));
+      if (run.buf.length || run.ready.length || run.evBuf.length) this.enqueue(() => this.writeChunk(run));
     }, ms);
   }
 
@@ -442,19 +480,30 @@ export class Recorder {
     }
   }
 
-  private async writeChunk(run: RunCapture): Promise<void> {
+  /**
+   * Writes the full chunks, then (unless `fullOnly`) the lines of the chunk
+   * being filled, one `append` (and so one task) per chunk. The run's
+   * pending events go with the first.
+   */
+  private async writeChunk(run: RunCapture, fullOnly = false): Promise<void> {
+    if (!run.runId) return;
+    if (fullOnly) {
+      while (run.ready.length) await this.writeOne(run, run.ready.shift());
+      return;
+    }
+    if (run.buf.length) cutChunk(run);
+    do {
+      await this.writeOne(run, run.ready.shift());
+    } while (run.ready.length);
+  }
+
+  private async writeOne(run: RunCapture, chunk: PendingChunk | undefined): Promise<void> {
     const runId = run.runId;
-    if (!runId || (run.buf.length === 0 && run.evBuf.length === 0)) return;
+    if (!runId || (!chunk && run.evBuf.length === 0)) return;
     const store = await this.storeP;
     if (!store) return;
-    const lines = run.buf.length;
-    const text = run.buf.join('');
-    const firstUs = run.bufFirstUs;
-    const lastUs = run.bufLastUs;
     const evs = run.evBuf;
-    run.buf = [];
     run.evBuf = [];
-    const bytes = lines ? this.encoder.encode(text).byteLength : 0;
     let records: RunEventRecord[] | undefined;
     if (evs.length) {
       records = [];
@@ -468,7 +517,13 @@ export class Recorder {
       }
     }
     await store.append(runId, {
-      ...(lines ? { chunk: { runId, seq: run.seq++, firstUs, lastUs, text }, bytes, lines } : {}),
+      ...(chunk
+        ? {
+            chunk: { runId, seq: run.seq++, firstUs: chunk.firstUs, lastUs: chunk.lastUs, text: chunk.lines.join('') },
+            bytes: chunk.bytes,
+            lines: chunk.lines.length,
+          }
+        : {}),
       ...(records ? { events: records, summary: run.summary } : {}),
     });
   }
@@ -510,6 +565,13 @@ export class Recorder {
     this.statusText = text;
     this.opts.onStatus?.(text);
   }
+}
+
+/** Moves the lines being filled into a full chunk. */
+function cutChunk(run: RunCapture): void {
+  run.ready.push({ lines: run.buf, bytes: run.bufBytes, firstUs: run.bufFirstUs, lastUs: run.bufLastUs });
+  run.buf = [];
+  run.bufBytes = 0;
 }
 
 /**
