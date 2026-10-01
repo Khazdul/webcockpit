@@ -56,7 +56,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - unit tests for the sandbox escapes, runaway loop, memory bomb and
     errors;
   - benchmark added to `npm run bench`.
-- [ ] P1. API and integration:
+- [x] P1. API and integration (ADR 0051 "Package notes — P1"):
   - the `scripts` rule store in the engine;
   - triggers, aliases, keys, timers and events with owner registries;
   - `gmcp` table and `state`;
