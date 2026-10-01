@@ -159,3 +159,116 @@ leaves its return values on the stack.
   later breaking change detect old scripts and refuse them clearly.
 - Fallback if wasm becomes a problem: fengari (Lua 5.3, pure JS,
   65 KB brotli, slower). It is not planned.
+
+## Package notes
+
+### P0 — Lua runtime (2026-10-01)
+
+**Module** `src/lua/`: `index.ts` (public surface), `load.ts` (lazy
+loader), `runtime.ts` (engine, scripts, bridge), `sandbox.ts` (setup
+chunk and `<close>` scan), `raw.ts` (C API types), `wasm-url.ts`.
+Import it dynamically; nothing in the cold-start chunk may import it.
+The build emits `assets/glue-<hash>.wasm`, a ~110 KB wasmoon chunk and
+a ~14 KB runtime chunk, none preloaded.
+
+```ts
+const rt = await loadLuaRuntime();          // one per app
+rt.defineFunction('send', (a) => { send(a.string(1)); });
+rt.setGlobal(['gmcp', 'Char', 'Vitals'], msg); // into the shared base
+const r = rt.loadScript('looter', source);  // LoadResult
+if (r.ok) {
+  const res = r.script.call(ref, line, cap1); // CallResult
+  r.script.release(ref); r.script.unload();
+}
+```
+
+- `LoadResult`/`CallResult`: `{ ok: true, … }` or `{ ok: false, kind,
+  message }`, `kind` one of `syntax` (load only), `error`, `budget`,
+  `memory`. Messages start `<name>:<line>:` when Lua knows the line.
+  After `budget` or `memory` the caller disables the script; the
+  runtime itself stays usable (tested).
+- `defineFunction(name, impl)`: a C closure in the shared base.
+  `impl(args)` reads arguments with `args.string/optString/number/
+  optNumber/boolean/function/optFunction/table/value/type/count` and
+  returns one value or `undefined`. Any JS exception becomes a Lua
+  error at the caller's line (`bad argument #1 to 'send' (string
+  expected, got nil)` for the checked readers).
+- `args.function(i)` returns a `LuaRef` owned by `rt.current`, the
+  script whose code is running. `unload` releases the environment and
+  every reference of the script; `release(ref)` drops one.
+- Values: JS strings, numbers (safe integers become Lua integers),
+  booleans, null/undefined (nil), arrays and plain objects (new
+  tables). Back from Lua: nil is `undefined`; a table with keys 1..n
+  is an array, any other an object; functions read as `undefined`.
+  Nesting is limited to 32 levels.
+- Host functions may call back into Lua (`script.call` inside `impl`);
+  nested calls share the outer call's budget.
+- `stats()`: stack top (constant between calls), heap bytes, script
+  count and `direct` (see below).
+
+**Decisions.**
+
+- *Read-only proxies are shared, not per script.* Each library is one
+  proxy table with `__index` to the real table, `__newindex` raising,
+  `__pairs` iterating without handing out the real table, and
+  `__metatable = false`. `rawset` is wrapped to refuse proxies. So a
+  library cannot be changed at all; a script can only shadow a name in
+  its own `_ENV`. The environment metatable (`__index` = base) and the
+  string metatable are hidden the same way, so the base and the real
+  `string` table are unreachable.
+- *No Lua `load` at all.* Scripts compile with `luaL_loadbufferx`
+  (mode `t`, chunk `@<name>`) and get their environment through
+  `lua_setupvalue`. `collectgarbage` is kept by the host only (a full
+  collection runs after an out-of-memory abort).
+- *Budget by counting.* The hook fires every 10 000 instructions and
+  aborts at the 100th fire (1 M). Re-arming on every fire keeps a
+  coroutine that was poisoned in an earlier call from aborting early.
+  If the budget ran out during a call, the result is `budget` even when
+  the call returned normally (a host function swallowed a nested abort,
+  or a tail call returned without another instruction).
+- *Hook-off paths closed.* Lua runs code with hooks off while an error
+  raised by the hook unwinds, until a pcall recovers. Three paths ran
+  user code there and are closed: `xpcall` message handlers (`xpcall`
+  is rebuilt on `pcall`, so the handler runs after the unwind),
+  `__close` of `<close>` variables in a coroutine killed by the abort
+  (`<close>` is refused at load, `name:line: <close> variables are not
+  allowed`; a light tokenizer skips strings and comments), and `__gc`
+  finalizers, which also run outside host calls (`setmetatable`
+  refuses a metatable with `__gc`).
+- *Memory headroom.* The 32 MB cap applies while Lua runs. Between
+  calls the host pushes arguments outside any protected call, where a
+  memory error would panic the state, so the cap is raised by 4 MB
+  there.
+- *Direct wasm exports.* The upstream build's ASSERTIONS wrappers cost
+  about 30 ns per C API call. The loader wraps `WebAssembly.instantiate`
+  and `instantiateStreaming` while wasmoon instantiates, keeps the
+  instance's exports and restores both; the bridge calls them directly
+  (falls back to the wrappers if the capture fails). The wasm file and
+  wasmoon's code are unchanged.
+- *Node.* The loader reads `glue.wasm` from node_modules
+  (`createRequire().resolve`) when `process.getBuiltinModule` exists,
+  so Vitest and `node bench/lua-bench.ts` work without Vite.
+
+**Measured** (`node bench/lua-bench.ts`, Node 26, i7-12700H; hook
+armed): engine ready 30–38 ms; trigger call with an 80-character line
+and 2 captures 1.35 µs; 10-field GMCP table plus call 2.5 µs; Lua → JS
+`send` 0.17 µs; runaway loop aborted after 7 ms. In the production
+build: 1.26 µs (Chromium) and 1.44 µs (Firefox) for the trigger call.
+
+**For P1.**
+
+- Lua code runs only inside `loadScript` and `script.call`; never call
+  wasmoon's wrapper (`engine.doString`, `global.get`): it bypasses the
+  hook.
+- A base value set with `setGlobal` is a plain table shared by every
+  script: a script can modify `gmcp.Char` for the others. Rebuild it
+  per message (as `setGlobal` does) or wrap it read-only if that
+  matters.
+- `print` is still the base function (writes to the browser console);
+  redefine it with `defineFunction` to echo.
+- A redefined host function keeps its old C closure alive (closures
+  are never freed until `close`); define the API once.
+- Known limit: one C call that runs long (a pathological Lua pattern
+  such as `("a"):rep(1e5):find(".-.-.-b")`) counts as one instruction
+  and is not interrupted. Only the memory cap bounds `string.rep` and
+  friends.

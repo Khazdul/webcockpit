@@ -47,7 +47,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
 
 - [x] Brainstorm, intent Goal 10, wasmoon spike, ADR 0051, spec §2.10,
       stage file.
-- [ ] P0. Runtime (`src/lua/`):
+- [x] P0. Runtime (`src/lua/`):
   - lazy loader with the self-hosted `glue.wasm`;
   - one engine with stdlib whitelist, read-only library proxies and a
     per-script `_ENV`;
