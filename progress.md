@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.19 live at https://mumecockpit.com/; next: owner test of part D, more fonts, then release).
+Current stage: **8 — Hardening → v1** (parts A and B done, part C built 2026-10-01; 0.1.23 live at https://mumecockpit.com/; next: owner test of part D, more fonts, then release).
 
 ## Stages
 
@@ -21,6 +21,14 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-01 — Release 0.1.23
+
+- **Released:** 0.1.23 (tag v0.1.23) with the player close-cross fix.
+  Local `build:pages` green, Pages deploy OK, live `release.json`
+  reports 0.1.23 at c0eefb6, prod smoke 10/10.
+- **Open:** owner has not yet tested the fix in the browser.
+- **Commits:** c0eefb6, plus this one.
 
 ### 2026-10-01 — Player: close cross sticks
 
