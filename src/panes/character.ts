@@ -13,13 +13,15 @@
 //   ▌▀    ▀     ▀    ▀     ^       ▐
 //
 // The layout is the pure `characterLines`; the pane turns the lines into
-// DOM once per frame after a change. Shorter than nine rows: the first
+// DOM once per frame after a change, patching only the rows that changed.
+// Char.Vitals arrives with every prompt but mostly changes values the board
+// does not show (hp, mana, moves): such a render is skipped. Shorter than nine rows: the first
 // H−1 rows and `↓ N more rows`.
 
 import type { Settings } from '../settings/types';
 import { ALERTNESS_STEPS, type CharView, MOOD_STEPS, POSITION_STEPS, TOGGLES } from '../gmcp/char';
 import type { ShadeRole } from '../theme/color';
-import { CellLine, centre, overflowLine } from './grid';
+import { CellLine, RowList, centre, overflowLine } from './grid';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
 import { paneShade } from './shade';
@@ -136,6 +138,10 @@ export function characterLines(v: CharView, ramp: Ramp, w: number, h: number): C
 }
 
 export class CharacterPane extends PaneShell {
+  private readonly list = new RowList(this.content);
+  /** What the board on screen was drawn from; '' after a blank. */
+  private shownKey = '';
+
   constructor(ctx: PaneContext) {
     super(ctx, 'character');
     this.own(ctx.game.subscribe((part) => part === 'char' && this.markDirty()));
@@ -144,8 +150,16 @@ export class CharacterPane extends PaneShell {
   protected override render(): void {
     const s: Readonly<Settings> = this.ctx.settings.get();
     const { ramp } = paneShade(s, 'character');
-    const lines = characterLines(this.ctx.game.char.view(), ramp, this.cols, this.rows);
-    const doc = this.ctx.doc;
-    this.content.replaceChildren(...lines.map((l) => l.toElement(doc)));
+    const view = this.ctx.game.char.view();
+    const key = JSON.stringify([view, ramp, this.cols, this.rows]);
+    if (key === this.shownKey) return;
+    this.shownKey = key;
+    this.list.update(this.ctx.doc, characterLines(view, ramp, this.cols, this.rows));
+  }
+
+  protected override blank(): void {
+    this.shownKey = '';
+    this.list.reset();
+    super.blank();
   }
 }

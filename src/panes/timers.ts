@@ -37,7 +37,7 @@ import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerCell, type TimerGroup, type
 import { TIMER_COLOR_HEX, type TimersSettings } from '../settings/types';
 import { darkInk, lightShift } from '../theme/color';
 import { WHEEL_STEP_PX } from './anchored-list';
-import { CellLine, INDICATOR_FG } from './grid';
+import { CellLine, INDICATOR_FG, RowList } from './grid';
 import type { PaneContext } from './context';
 import { PaneShell } from './pane';
 import { paneShade } from './shade';
@@ -350,6 +350,9 @@ export class TimersPane extends PaneShell {
   private wheelAcc = 0;
   private tickTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly hits: HTMLDivElement;
+  private readonly list = new RowList(this.content);
+  /** The zones the hit boxes were built from. */
+  private hitsKey = '';
 
   constructor(ctx: PaneContext) {
     super(ctx, 'timers');
@@ -385,6 +388,7 @@ export class TimersPane extends PaneShell {
 
   protected override blank(): void {
     this.last = null;
+    this.list.reset();
     this.content.replaceChildren();
   }
 
@@ -409,9 +413,22 @@ export class TimersPane extends PaneShell {
     this.last = layout;
     this.scroll = layout.scroll;
     if (this.hover && !layout.zones.some((z) => hitKey(z.hit) === this.hover)) this.hover = null;
+    // The 1 Hz tick mostly redraws the same cells: only changed rows are
+    // rebuilt, and the hit boxes only when the zones changed.
+    const hitsKey = JSON.stringify(layout.zones);
+    if (hitsKey !== this.hitsKey) {
+      this.hitsKey = hitsKey;
+      this.buildHits(layout.zones);
+    }
+    this.list.update(this.ctx.doc, layout.lines, this.hits);
+    if (this.content.dataset.mode !== this.mode) this.content.dataset.mode = this.mode;
+    this.armTick(layout.timed, now);
+  }
+
+  private buildHits(zones: TimersLayout['zones']): void {
     const doc = this.ctx.doc;
     this.hits.replaceChildren(
-      ...layout.zones.map((z) => {
+      ...zones.map((z) => {
         const d = doc.createElement('div');
         d.className = 'wc-timers-hit';
         d.dataset.hit = z.hit.kind;
@@ -427,9 +444,6 @@ export class TimersPane extends PaneShell {
         return d;
       }),
     );
-    this.content.replaceChildren(...layout.lines.map((l) => l.toElement(doc)), this.hits);
-    this.content.dataset.mode = this.mode;
-    this.armTick(layout.timed, now);
   }
 
   /** The next redraw just after the coming wall-clock second, while anything counts. */

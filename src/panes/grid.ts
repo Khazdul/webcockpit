@@ -9,6 +9,10 @@
 // Colours are hex strings, or '' for the pane's own (inherited) colour.
 // Every row is exactly `w` cells (spaces pad), one cell per UTF-16 unit;
 // pane text is BMP (names, block glyphs), so that holds.
+//
+// A `RowList` keeps a pane's rows on screen and patches them: a row whose
+// `key()` did not change keeps its element, and a render that changes no
+// row touches no DOM (ADR 0044 rule 4).
 
 import './panes.css';
 
@@ -64,6 +68,11 @@ export class CellLine {
     return this.ch.join('');
   }
 
+  /** Everything `toElement` draws: equal keys give equal elements. */
+  key(): string {
+    return `${this.ch.join('')}\u0000${this.fg.join(',')}\u0000${this.bg.join(',')}\u0000${this.flags.join('')}`;
+  }
+
   /** The row element: one span per run of equal style. */
   toElement(doc: Document): HTMLDivElement {
     const row = doc.createElement('div');
@@ -107,4 +116,45 @@ export const INDICATOR_FG = '#d4a04e';
 /** `↓ N more <what>` as a row of `w` cells. */
 export function overflowLine(w: number, n: number, what: string): CellLine {
   return new CellLine(w).put(0, `↓ ${n} more ${what}`, { fg: INDICATOR_FG, italic: true });
+}
+
+/**
+ * The rows of a pane's content element, patched in place. `tail` (e.g. the
+ * Timers hit boxes) stays after the rows. When something else changed the
+ * host's children (a `blank()`), the next `update` rebuilds them all;
+ * `reset()` makes that explicit.
+ */
+export class RowList {
+  private keys: string[] = [];
+  private els: HTMLElement[] = [];
+
+  constructor(private readonly host: HTMLElement) {}
+
+  /** Shows `lines`; returns how many row elements were built. */
+  update(doc: Document, lines: readonly CellLine[], tail: Node | null = null): number {
+    const keys = lines.map((l) => l.key());
+    if (keys.length !== this.keys.length || this.host.firstChild !== (this.els[0] ?? tail)) {
+      this.els = lines.map((l) => l.toElement(doc));
+      this.keys = keys;
+      this.host.replaceChildren(...this.els, ...(tail ? [tail] : []));
+      return lines.length;
+    }
+    let built = 0;
+    for (let i = 0; i < keys.length; i++) {
+      if (keys[i] === this.keys[i]) continue;
+      const el = lines[i]!.toElement(doc);
+      this.els[i]!.replaceWith(el);
+      this.els[i] = el;
+      this.keys[i] = keys[i]!;
+      built++;
+    }
+    if (tail && tail.parentNode !== this.host) this.host.append(tail);
+    return built;
+  }
+
+  /** Forgets the rows: the next `update` rebuilds the host's children. */
+  reset(): void {
+    this.keys = [];
+    this.els = [];
+  }
 }

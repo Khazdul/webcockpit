@@ -15,7 +15,7 @@
 
 import { VITAL_KINDS, type VitalKind } from '../gmcp/bands';
 import { type GroupDisplay, type Member, memberTitle, vitalPct } from '../gmcp/group';
-import { CellLine, overflowLine } from './grid';
+import { CellLine, RowList, overflowLine } from './grid';
 import type { PaneContext } from './context';
 import { PaneShell } from './pane';
 import { fillFor, paneShade } from './shade';
@@ -75,6 +75,7 @@ export function groupLines(members: readonly Member[], w: number, h: number, nam
 
 export class GroupPane extends PaneShell {
   private displayKey = '';
+  private readonly list = new RowList(this.content);
 
   constructor(ctx: PaneContext) {
     super(ctx, 'group');
@@ -96,7 +97,12 @@ export class GroupPane extends PaneShell {
     const display: GroupDisplay = s.group;
     const members = this.ctx.game.group.displayed(display);
     const lines = groupLines(members, this.cols, this.rows, shade.ramp.vtext, shade.light);
-    const doc = this.ctx.doc;
-    this.content.replaceChildren(...lines.map((l) => l.toElement(doc)));
+    // Usually one member's bar changed: only that row is rebuilt.
+    this.list.update(this.ctx.doc, lines);
+  }
+
+  protected override blank(): void {
+    this.list.reset();
+    super.blank();
   }
 }
