@@ -40,22 +40,83 @@ The full history of every change is in this repository's git log.
 
 ## Fonts (`public/fonts/`)
 
-- **DejaVu Sans Mono** 2.37 (regular, bold), converted to WOFF2.
-  Bitstream Vera Fonts licence (Copyright (c) 2003 Bitstream, Inc.), DejaVu
-  changes in the public domain, Arev glyphs (c) Tavmjong Bah.
-  Full text: `public/fonts/LICENSE-DejaVu.txt`.
+Terminal fonts offered in Options → Appearance → Font (ADR 0010, ADR
+0049). Each is an unmodified font converted losslessly to WOFF2 (or
+upstream's own WOFF2), not subset; names and copyright notices are kept.
+Each licence text is shipped next to the files. Sources, versions, the
+conversion, metrics and SHA-256 sums: `public/fonts/README.md`.
+
+- **DejaVu Sans Mono** 2.37 (regular, bold). Bitstream Vera Fonts
+  licence (Copyright (c) 2003 Bitstream, Inc.), DejaVu changes in the
+  public domain, Arev glyphs (c) Tavmjong Bah. `LICENSE-DejaVu.txt`.
 - **WebCockpit Underscore** (regular, bold): a modified version of DejaVu
   Sans Mono holding only its underscore (U+005F), moved up 278 font units
   (ADR 0043). Same licence and copyright as DejaVu Sans Mono above; as the
   Bitstream Vera licence requires of a modified version, its name contains
   neither "Bitstream" nor "Vera" (nor "DejaVu"). Built by
   `scripts/build-underscore-font.py`.
-- **JetBrains Mono** 2.304, NL build (regular, bold), converted to WOFF2.
-  Copyright 2020 The JetBrains Mono Project Authors. SIL Open Font
-  License 1.1. Full text: `public/fonts/LICENSE-JetBrainsMono-OFL.txt`.
+- **JetBrains Mono** 2.304, NL build (regular, bold). Copyright 2020 The
+  JetBrains Mono Project Authors. SIL Open Font License 1.1.
+  `LICENSE-JetBrainsMono-OFL.txt`.
+- **Agave** 39 (regular, bold). Copyright 2013-2026 The agave Project
+  Authors (https://github.com/blobject/agave). SIL Open Font License 1.1.
+  `LICENSE-Agave.txt`.
+- **Anonymous Pro** 1.002 (regular, bold). Copyright (c) 2009, Mark
+  Simonson, with Reserved Font Name "Anonymous Pro". SIL Open Font
+  License 1.1. `LICENSE-AnonymousPro.txt`.
+- **Cascadia Mono** 2407.24 (regular, bold; the no-ligature sibling of
+  Cascadia Code, upstream's WOFF2). Copyright (c) 2019 - Present,
+  Microsoft Corporation, with Reserved Font Name "Cascadia Code". SIL
+  Open Font License 1.1 (https://github.com/microsoft/cascadia-code).
+  `LICENSE-CascadiaCode.txt`.
+- **Fantasque Sans Mono** 1.8.0, "Normal" variant (regular, bold).
+  Copyright (c) 2013-2017, Jany Belluz. SIL Open Font License 1.1.
+  `LICENSE-FantasqueSansMono.txt`.
+- **Fira Code** 6.2 (regular, bold). Copyright (c) 2014, The Fira Code
+  Project Authors (https://github.com/tonsky/FiraCode). SIL Open Font
+  License 1.1. `LICENSE-FiraCode.txt`. Its programming ligatures are
+  turned off in the CSS.
+- **Go Mono** 2.010 (regular, bold). Copyright (c) 2016 Bigelow & Holmes
+  Inc., under the Go project's BSD-style licence (Copyright 2009 The Go
+  Authors). `LICENSE-GoMono.txt` (the Go fonts README and the Go
+  licence).
+- **Hack** 3.003 (regular, bold). Copyright 2018 Source Foundry Authors,
+  MIT License; derived from DejaVu (public domain changes) and Bitstream
+  Vera Sans Mono, Copyright 2003 Bitstream Inc., Bitstream Vera License
+  with Reserved Font Names "Bitstream" and "Vera". `LICENSE-Hack.txt`.
+- **Hermit** 2.0 (regular, bold). Copyright (c) 2013, Pablo Caro, with
+  Reserved Font Name "Hermit". SIL Open Font License 1.1.
+  `LICENSE-Hermit.txt`.
+- **IBM 3270** 3.0.1 (regular; there is no bold). Copyright 2011-2022
+  Ricardo Banffy and the 3270font authors, 1993-2011 Paul Mattes, and
+  others; BSD 3-clause licence (https://github.com/rbanffy/3270font). The
+  font contains a Debian logo glyph, Copyright (c) 1999 Software in the
+  Public Interest, Inc., under CC BY-SA 3.0 Unported or LGPL-3.0-or-later,
+  and Ubuntu logo glyphs; Ubuntu and its logo are registered trademarks
+  of Canonical Ltd. `LICENSE-3270.txt`.
+- **IBM Plex Mono** 2.5.0 (font version 2.005; regular, bold). Copyright
+  2017 IBM Corp., with Reserved Font Name "Plex". SIL Open Font License
+  1.1. `LICENSE-IBMPlexMono.txt`.
+- **Inconsolata** 3.000 (regular, bold). Copyright 2006 The Inconsolata
+  Project Authors (https://github.com/cyrealtype/Inconsolata). SIL Open
+  Font License 1.1. `LICENSE-Inconsolata.txt`.
+- **mononoki** 1.6 (font version 1.006; regular, bold). Copyright (c)
+  2022, Matthias Tellen, with Reserved Font Name "mononoki". SIL Open
+  Font License 1.1. `LICENSE-mononoki.txt`.
+- **Noto Sans Mono** 2.014 (regular, bold). Copyright 2022 The Noto
+  Project Authors (https://github.com/notofonts/latin-greek-cyrillic).
+  SIL Open Font License 1.1. `LICENSE-NotoSansMono.txt`.
+- **WebCockpit Fill AP, H, GM, LC**: box-drawing, block and shade glyphs
+  that Anonymous Pro, Hermit, Go Mono and Lucida Console lack, drawn from
+  rectangles for WebCockpit by `scripts/build-fill-fonts.py` (no
+  third-party outlines; only the host fonts' metrics are used).
+  Copyright 2026 The WebCockpit Authors. SIL Open Font License 1.1.
+  `LICENSE-WebCockpitFill.txt`.
 
-Sources, versions and the conversion are recorded in
-`public/fonts/README.md`.
+**Lucida Console** is not distributed with WebCockpit and is never
+embedded in an exported file. It is offered only when it is installed on
+the user's device, and then used through the browser's `local()` font
+lookup. Lucida is a trademark of its owner.
 
 ## JavaScript libraries (bundled into the build)
 

@@ -210,7 +210,8 @@ Mapped to Inv §2.1 and §10.
   - cursor style and blink.
 - **Bundled fonts.** DejaVu Sans Mono (Cockpit's default) and JetBrains
   Mono are bundled. Both are checked for the box, block and quadrant
-  glyphs the UI uses.
+  glyphs the UI uses. (ADR 0049 adds thirteen more bundled families, fill
+  faces for the glyphs some lack, and Lucida Console where installed.)
 - **Settings take effect immediately**, from both the start page and the
   ESC menu. There is one settings store.
 

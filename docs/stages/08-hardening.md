@@ -66,6 +66,13 @@ sessions), the benchmark extension, and the small fixes listed there.
 Rules for the new code: ADR 0044. Out: the deferred and "not
 recommended" items of §4.
 
+Part D — more fonts (owner request 2026-10-01; ADR 0049). In: thirteen
+more bundled terminal fonts with correct licences and credits, fill
+faces for the box and block glyphs some of them lack, no ligatures,
+and Lucida Console where it is installed (never shipped). Out: subsetting
+or editing any third-party font; symbol fallbacks at the family's own
+advance.
+
 Later parts (not planned yet): fixes from PvP testing, polish, and the
 carried items in
 `progress.md` (map pane default height, replay font subsetting, player
@@ -265,6 +272,28 @@ experiments to rework, not finished code):
       2026-10-01: works well; the full guide is not done. Released as
       0.1.20 on 2026-10-01 at the owner's request.
 
+Part D — more fonts (ADR 0049):
+
+- [x] D1. Audit of candidate fonts (versions, licences, Reserved Font
+      Names, metrics, coverage, ligatures); owner picked the set and
+      approved Noto Sans Mono in place of Noto Mono.
+- [x] D2. Fonts converted unmodified to WOFF2 (Cascadia Mono: upstream's
+      WOFF2), licence texts in `public/fonts/`.
+- [x] D3. Fill faces for Anonymous Pro, Hermit, Go Mono and Lucida
+      Console (`scripts/build-fill-fonts.py`, SIL OFL 1.1, ours).
+- [x] D4. `FONTS` table, generated @font-face rules (fonts.css removed),
+      Agave's bold fallback, no synthetic bold for IBM 3270 / Lucida,
+      cover-height `blockEm`, `cellMargin`, `wholePx`.
+- [x] D5. Lucida Console local only: detection, picker and cycle only when
+      installed, DejaVu where it is set but missing, never exported.
+- [x] D6. Replay export: Lucida → DejaVu, one fetch per file, notice
+      names the embedded fonts and their licences.
+- [x] D7. Unit tests (coverage per weight, fill faces, metrics, Agave,
+      Lucida fallback, export); seam sweep of every family at sizes 6–32
+      in Chromium and Firefox; ligature and network checks.
+- [x] D8. Credits: About, `THIRD_PARTY_NOTICES.md`, `public/fonts/README.md`.
+- [ ] D9. Owner test (guide below).
+
 ## Test guide (part A)
 
 Open: History → a session with panes → RUN LOG. Then EXPORT the same
@@ -340,6 +369,35 @@ In Firefox, on the release (or `npm run dev`):
 
 Feedback wanted: whether anything still feels slower than Cockpit, and
 the `#perf` / `#perf worst` output at such a moment.
+
+## Test guide (part D — more fonts)
+
+On `npm run dev` (or the release that carries it), Firefox and Chromium:
+
+1. ESC → Options → Appearance → Font: sixteen families, alphabetical,
+   DejaVu Sans Mono still the default. Pick a few; ←/→ on the Font row
+   cycles through them. Cascadia Mono is Cascadia Code without
+   ligatures; Noto Sans Mono replaces the old Noto Mono.
+2. Lucida Console is listed last, and only on a machine where it is
+   installed (yours is). On a machine without it, the list has fifteen.
+3. For each font you care about, at your usual size and one or two
+   others: play a little or replay a log with the map, the group pane
+   and the timers open. Look for gaps in box lines, seams between block
+   rows, half blocks and quadrants that do not line up, and text that
+   drifts out of its column. Bold text (prompts, highlights) should keep
+   the grid too; in IBM 3270 and Lucida Console bold looks like regular
+   (they have no bold).
+4. With Fira Code or Fantasque Sans Mono, type `-> != === <=`: each
+   character stays separate (no ligatures).
+5. Export an HTML replay with Lucida Console selected: it opens in DejaVu
+   Sans Mono. With another font it opens in that font.
+6. ESC → About → CREDITS → Fonts: the list, and the link to the font
+   credits.
+
+Feedback wanted: which fonts you would keep or drop, any size where a
+font looks wrong (font, size, browser, what you saw), and whether rows
+feel too tight in any of the new fonts (their cells are up to a pixel
+lower than the font's own line height, so blocks always join).
 
 ## Owner feedback
 
