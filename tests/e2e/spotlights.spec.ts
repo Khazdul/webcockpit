@@ -48,7 +48,7 @@ test('Spotlights plays the reel: header, info box, ←/→, park at the end, ESC
   await expect(box(page)).toBeVisible();
   // Newest first: Rasta's death, then Gittan (not the same character twice in a row).
   await expect(header(page)).toContainText('Rasta (L42) · SPOTLIGHT 1 / 5 · 2026-09-26');
-  await expect(chrome(page).locator('.wc-player-hints')).toHaveText('ESC Back · ←→ Prev/next');
+  await expect(chrome(page).locator('.wc-player-hints')).toHaveText('ESC Back · ←→ Prev/next · 1–6 Speed');
   await expect(box(page)).toContainText('1 of 5');
   await expect(box(page)).toContainText('RASTA: Death');
   await expect(box(page).locator('.wc-spot-label')).toHaveText(['Death (level 42)', '']);

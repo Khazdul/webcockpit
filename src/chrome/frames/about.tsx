@@ -33,8 +33,7 @@ MUME is free to play. No subscription, just connect.
 GETTING STARTED
 Choose Enter MUME on the start page. Press ESC at any time to open the menu. Options sets up the panes and the look; every change applies at once.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax, one command per line, for example #alias {bs} {backstab %1} or #action {You are hungry.} {eat bread}. Profile → IMPORT reads an existing .tin file. HELP in the profile editor explains each command with examples. The TinTin++ manual describes the syntax:
-  TinTin++        tintin.mudhalla.net/manual/
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples.
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
@@ -45,6 +44,7 @@ CREDITS
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
   Fonts           DejaVu Sans Mono and JetBrains Mono.
   Libraries       Preact and CodeMirror.
+  TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
 LICENCE
 WebCockpit is free software under the GNU General Public License, version 2 or later. Parts of the map are derived from MMapper (Copyright (C) The MMapper Authors). Licence text: LICENSE.txt. Source code: github.com/Khazdul/webcockpit

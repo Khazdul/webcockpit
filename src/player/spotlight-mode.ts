@@ -44,7 +44,8 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
   const onEsc = (): void => host.close();
   const hints: HeaderHint[] = [
     { text: 'ESC Back', drop: Infinity, cls: 'wc-player-back', onClick: onEsc },
-    { text: '←→ Prev/next', drop: 1 },
+    { text: '←→ Prev/next', drop: 2 },
+    { text: '1–6 Speed', drop: 1 },
   ];
   const header = (): PlayerHeaderModel => {
     const eng = host.engine;

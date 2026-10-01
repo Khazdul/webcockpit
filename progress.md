@@ -22,6 +22,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Wheel speed, About, spotlight hint
+
+- **Output:** the game text scrolls at half the browser's wheel and
+  trackpad speed (`WHEEL_SCALE` in `src/ui/output-pane.ts`); the log
+  player keeps the wheel for its cursor. Ctrl+wheel still zooms.
+- **About:** the profile paragraph ends at "TinTin++ syntax." and points
+  to HELP and #help; TinTin++ moved to CREDITS.
+- **Spotlights:** header hints add `1–6 Speed`.
+- **Next:** owner tries the wheel speed; release when the owner says so.
+
 ### 2026-10-01 — Release 0.1.22
 
 - **Profile:** khazdul trimmed on owner request: sm/$mees, F8/F9, bb, rr,

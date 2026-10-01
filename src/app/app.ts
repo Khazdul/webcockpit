@@ -319,7 +319,7 @@ export class App {
           ? { requestFrame: opts.requestFrame }
           : {}),
       ...(cells ? { cellSize: () => cells.get() } : {}),
-      ...(player ? { stampRows: true } : {}),
+      ...(player ? { stampRows: true, wheelScale: 1 } : {}),
     });
     if (perf) perf.output = this.output;
     this.input = new InputPane(bus, this.cockpit.inputEl, {

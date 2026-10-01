@@ -80,9 +80,9 @@ describe('About text', () => {
   it('styles headings, keys and body, wrapped to the width', () => {
     const lines = aboutLines(60);
     expect(lines.find((l) => l.text === 'GETTING STARTED')?.cls).toBe('wc-c-title');
-    const manual = lines.find((l) => l.key?.trim() === 'TinTin++');
-    expect(manual?.cls).toBe('wc-c-body');
-    expect(manual?.text).toContain('tintin.mudhalla.net/manual/');
+    const tintin = lines.find((l) => l.key?.trim() === 'TinTin++');
+    expect(tintin?.cls).toBe('wc-c-body');
+    expect(lines.some((l) => l.text.includes('tintin.mudhalla.net'))).toBe(true);
     for (const l of lines) expect((l.key?.length ?? 0) + l.text.length).toBeLessThanOrEqual(60);
     expect(lines.find((l) => l.text.startsWith('MUME — MULTI-USERS'))?.cls).toBe('wc-c-title');
     expect(lines.find((l) => l.key?.trim() === 'MMapper')).toBeDefined();

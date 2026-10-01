@@ -123,7 +123,16 @@ export interface OutputPaneOptions {
    * player maps its pause cursor line to a replay time with it.
    */
   stampRows?: boolean;
+  /**
+   * Wheel and trackpad scroll speed as a share of the browser's own
+   * (default WHEEL_SCALE). 1 leaves the wheel to the browser, as the log
+   * player needs: it takes the wheel for its cursor.
+   */
+  wheelScale?: number;
 }
+
+/** Default wheel speed: the browser's own scrolls about six rows a notch. */
+export const WHEEL_SCALE = 0.5;
 
 export class OutputPane {
   /** The outer element (position: relative wrapper). */
@@ -143,6 +152,9 @@ export class OutputPane {
   private readonly onResize: ((cols: number, rows: number) => void) | undefined;
   private readonly cellSizeFn: (() => { w: number; h: number }) | undefined;
   private readonly stampRows: boolean;
+  private readonly wheelScale: number;
+  /** Sub-pixel wheel scroll not yet applied (scrollTop takes whole px). */
+  private wheelRest = 0;
 
   private queue: Op[] = [];
   private head = 0;
@@ -191,6 +203,7 @@ export class OutputPane {
     this.onResize = opts.onResize;
     this.cellSizeFn = opts.cellSize;
     this.stampRows = opts.stampRows ?? false;
+    this.wheelScale = opts.wheelScale ?? WHEEL_SCALE;
 
     const doc = root.ownerDocument;
     this.el = doc.createElement('div');
@@ -223,6 +236,7 @@ export class OutputPane {
 
     this.scroller.addEventListener('scroll', this.onScroll, { passive: true });
     this.scroller.addEventListener('mouseup', this.onMouseUp);
+    if (this.wheelScale !== 1) this.scroller.addEventListener('wheel', this.onWheel, { passive: false });
 
     if (typeof ResizeObserver !== 'undefined') {
       this.resizeObserver = new ResizeObserver(() => this.handleResize());
@@ -697,6 +711,21 @@ export class OutputPane {
 
   // ------------------------------------------------------ selection / focus
 
+  /** Scrolls by the wheel at `wheelScale` of the browser's speed. */
+  private readonly onWheel = (e: WheelEvent): void => {
+    // Ctrl+wheel (and a trackpad pinch) zooms; a sideways swipe is not ours.
+    if (e.ctrlKey || e.deltaY === 0 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? this.cellSize().h || 16 : e.deltaMode === 2 ? this.scroller.clientHeight : 1;
+    const px = e.deltaY * unit * this.wheelScale;
+    if (Math.sign(px) !== Math.sign(this.wheelRest)) this.wheelRest = 0;
+    this.wheelRest += px;
+    const step = Math.trunc(this.wheelRest);
+    if (step === 0) return;
+    this.wheelRest -= step;
+    this.scroller.scrollTop += step;
+  };
+
   private readonly onMouseUp = (): void => {
     const sel = this.el.ownerDocument.getSelection();
     const text = sel && !sel.isCollapsed ? sel.toString() : '';
@@ -771,6 +800,7 @@ export class OutputPane {
     this.resizeObserver?.disconnect();
     this.scroller.removeEventListener('scroll', this.onScroll);
     this.scroller.removeEventListener('mouseup', this.onMouseUp);
+    this.scroller.removeEventListener('wheel', this.onWheel);
     this.el.remove();
   }
 }
