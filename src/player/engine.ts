@@ -99,13 +99,21 @@ export interface Wall {
   task(fn: () => void): void;
   /** Runs `fn` after the next frame has rendered. */
   frame(fn: () => void): void;
+  /** Releases what the wall holds (the engine calls it once, on dispose). */
+  dispose?(): void;
 }
 
-/** The browser's wall: performance.now, setTimeout, MessageChannel, rAF. */
+/**
+ * The browser's wall: performance.now, setTimeout, MessageChannel, rAF.
+ * `dispose` closes the channel: an entangled port with a message handler is
+ * never collected, so without it every player open would leak one.
+ */
 export function browserWall(): Wall {
   let channel: MessageChannel | null = null;
+  let closed = false;
   const queue: Array<() => void> = [];
   const task = (fn: () => void): void => {
+    if (closed) return;
     if (typeof MessageChannel === 'undefined') {
       setTimeout(fn, 0);
       return;
@@ -126,6 +134,13 @@ export function browserWall(): Wall {
       if (typeof requestAnimationFrame !== 'function') return task(fn);
       // A task posted from the frame callback runs after that frame renders.
       requestAnimationFrame(() => task(fn));
+    },
+    dispose: () => {
+      closed = true;
+      queue.length = 0;
+      channel?.port1.close();
+      channel?.port2.close();
+      channel = null;
     },
   };
 }
@@ -302,6 +317,7 @@ export class PlayerEngine {
     this.target.dispose();
     this.clockRef.dispose();
     this.listeners.clear();
+    this.wall.dispose?.();
   }
 
   // ---------------------------------------------------------------- driver

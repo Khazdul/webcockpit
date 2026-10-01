@@ -1,8 +1,8 @@
 // Log player engine (ADR 0018): play at every speed on the wall clock,
 // gap collapse, pause, forward seek (fast-forward without painting),
 // backward seek (rebuild), chain boundaries, records, the replay clock.
-import { describe, expect, it } from 'vitest';
-import { PlayerEngine, SPEEDS } from '../../src/player/engine';
+import { describe, expect, it, vi } from 'vitest';
+import { PlayerEngine, SPEEDS, browserWall } from '../../src/player/engine';
 import { buildTimeline } from '../../src/player/timeline';
 import { BASE_US, FakeWall, RecordingTarget, makeLog, meta, twoRunChain } from './player-helpers';
 
@@ -264,5 +264,41 @@ describe('PlayerEngine seek', () => {
     wall.flush();
     // Frames at 0, 1, 2, 3 (A room.) and 63 s: folds at +0.5 s each, the last still pending.
     expect(fired).toEqual([0.5e6, 1.5e6, 2.5e6, 3.5e6]);
+  });
+});
+
+describe('player wall release', () => {
+  it('the engine releases its wall on dispose, once', () => {
+    let released = 0;
+    const wall = Object.assign(new FakeWall(), { dispose: () => void released++ });
+    const engine = new PlayerEngine({ timeline: buildTimeline(twoRunChain()), build: new RecordingTarget().build, wall });
+    engine.play();
+    wall.advance(1500);
+    engine.dispose();
+    engine.dispose();
+    expect(released).toBe(1);
+  });
+
+  it('the browser wall closes its MessageChannel and runs no task after dispose', async () => {
+    const closed: string[] = [];
+    class FakeChannel {
+      port1 = { onmessage: null as (() => void) | null, close: () => void closed.push('port1') };
+      port2 = { postMessage: () => void queueMicrotask(() => this.port1.onmessage?.()), close: () => void closed.push('port2') };
+    }
+    vi.stubGlobal('MessageChannel', FakeChannel);
+    try {
+      const wall = browserWall();
+      const ran: number[] = [];
+      wall.task(() => ran.push(1));
+      await Promise.resolve();
+      expect(ran).toEqual([1]);
+      wall.dispose!();
+      expect(closed).toEqual(['port1', 'port2']);
+      wall.task(() => ran.push(2));
+      await Promise.resolve();
+      expect(ran).toEqual([1]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
