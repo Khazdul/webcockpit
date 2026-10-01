@@ -19,6 +19,7 @@ import './scripts.css';
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { SCRIPT_NAME_MAX, type ScriptInfo, type ScriptLibrary, scriptNameError } from '../../scripts';
+import { knownSyntaxProblem, syntaxProblem } from '../../scripts/check';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
 import { centreLeft, scrollToShow, scrollbar, truncate } from '../kit/nav';
@@ -42,9 +43,11 @@ import {
   type Row,
   SCRIPT_BUTTONS,
   type ScriptButton,
+  type SyntaxLookup,
   buttonW,
   helpRows,
   listLines,
+  problemText,
   scriptState,
   scriptsLayout,
 } from './scripts-model';
@@ -83,6 +86,27 @@ function useScriptList(lib: ScriptLibrary): { list: ScriptInfo[]; ready: boolean
     };
   }, [lib]);
   return state;
+}
+
+/**
+ * Compile errors of the scripts the host has not loaded (off, or no host
+ * yet), checked lazily without running them; the page re-renders as the
+ * answers come in.
+ */
+function useSyntaxProblems(list: readonly ScriptInfo[], running: (name: string) => boolean | null): SyntaxLookup {
+  const [, setDone] = useState(0);
+  const wanted = list.filter((s) => problemText(s) === null && running(s.name) !== true);
+  const todo = wanted.filter((s) => knownSyntaxProblem(s.name, s.source) === undefined);
+  const todoKey = todo.map((s) => s.name + ':' + s.updated).join(',');
+  useEffect(() => {
+    if (todo.length === 0) return;
+    let alive = true;
+    void Promise.all(todo.map((s) => syntaxProblem(s.name, s.source))).then(() => alive && setDone((n) => n + 1));
+    return () => {
+      alive = false;
+    };
+  }, [todoKey]);
+  return (s) => (running(s.name) === true ? null : knownSyntaxProblem(s.name, s.source));
 }
 
 let editing = false;
@@ -151,7 +175,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   );
   const pkgH = Math.max(4, bodyRows - 2);
   const listVisible = Math.max(1, pkgH - 2);
-  const lines = listLines(list);
+  const syntax = useSyntaxProblems(list, running);
+  const lines = listLines(list, syntax);
   const curLine = Math.max(0, lines.findIndex((l) => l.kind === 'script' && l.index === cursor));
   const curEnd = lines[curLine + 1]?.kind === 'error' ? curLine + 1 : curLine;
   useEffect(() => {
@@ -160,7 +185,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const lTop = Math.max(0, Math.min(listTop, lines.length - listVisible));
   const listBar = scrollbar(lines.length, listVisible, lTop);
 
-  const help: Row[] = cur && L.detailW > 0 ? helpRows(cur, running(cur.name), L.detailW - 1) : [];
+  const help: Row[] = cur && L.detailW > 0 ? helpRows(cur, running(cur.name), L.detailW - 1, syntax) : [];
   const helpMax = Math.max(0, help.length - pkgH);
   const hTop = Math.min(helpTop, helpMax);
   const helpBar = scrollbar(help.length, pkgH, hTop);

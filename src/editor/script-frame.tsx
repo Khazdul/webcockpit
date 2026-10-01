@@ -4,9 +4,10 @@
 // the TUI scrollbar, a status row (state, load errors, warnings) and the
 // footer (hints or a flash, Ln/Col).
 //
-// Keys: Ctrl+S saves; Tab cycles buttons ↔ buffer (inside the completion
-// list it accepts); ↑ on the first line leaves the buffer; ESC closes and
-// asks first when there are unsaved changes. A bundled script opens
+// Keys: Ctrl+S saves; Ctrl+F finds and replaces (search.ts; ESC closes
+// the panel before it closes the editor); Tab cycles buttons ↔ buffer
+// (inside the completion list it accepts); ↑ on the first line leaves the
+// buffer; ESC closes and asks first when there are unsaved changes. A bundled script opens
 // read-only with DUPLICATE, which opens an editable copy in its place.
 
 import type { EditorView } from '@codemirror/view';
@@ -20,7 +21,11 @@ import { Button, indent } from '../chrome/kit/widgets';
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { type BufferStatus, type ScrollStatus, handleKey, onFirstLine, pageScroll } from './cm';
 import { FULL_W } from './logic';
+import { checkScript } from '../scripts/check';
 import { completing, createLuaBuffer } from './lua-cm';
+import { type ScriptDiagnostic, diagnosticText } from './lua-diagnostics';
+import { markScriptSaved, setScriptLastError } from './lua-lint';
+import { searchFocused, searchFrameKey } from './search';
 
 export interface ScriptEditorHost {
   library: ScriptLibrary;
@@ -42,11 +47,12 @@ type Btn = 'SAVE' | 'DUPLICATE' | 'CLOSE';
 const FLASH_MS = 3000;
 /** Footer hints, longest first; the first that fits beside Ln/Col is shown. */
 const HINTS = [
-  'Ctrl+S Save · Ctrl+Space Complete · Tab Cycle · ESC Back',
-  'Ctrl+S Save · Ctrl+Space Complete · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · Tab Cycle · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · ESC Back',
   'Ctrl+S Save · ESC Back',
 ];
-const RO_HINTS = ['Read-only: DUPLICATE makes your copy · Tab Cycle · ESC Back', 'Read-only · ESC Back'];
+const RO_HINTS = ['Read-only: DUPLICATE makes your copy · Ctrl+F Find · ESC Back', 'Read-only · Ctrl+F Find · ESC Back', 'Read-only · ESC Back'];
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
 
@@ -73,6 +79,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   const [flash, setFlash] = useState<LocalFlash | null>(null);
   const [status, setStatus] = useState<BufferStatus>({ line: 1, col: 1, unclosed: 0, stray: 0, hint: null });
   const [scroll, setScroll] = useState<ScrollStatus>({ top: 0, height: 0, client: 0 });
+  const [diags, setDiags] = useState<readonly ScriptDiagnostic[]>([]);
   const [, setTick] = useState(0);
 
   const rootRef = useRef<HTMLDivElement>(null);
@@ -127,6 +134,16 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       onScroll: setScroll,
       onChange: setText,
       onFocus: () => setZone('buffer'),
+      // Live errors: header and a compile-only check (the Lua runtime
+      // loads now, in its own chunk), plus the running script's last error.
+      lint: {
+        name: () => nameRef.current,
+        check: async (n, src) => {
+          const r = await checkScript(n, src);
+          return r.ok ? null : r.message;
+        },
+        onDiagnostics: setDiags,
+      },
     });
     viewRef.current = view;
     return () => {
@@ -134,6 +151,12 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       viewRef.current = null;
     };
   }, []);
+
+  // The running script's last error, marked on its line (lua-lint.ts).
+  const lastError = info?.lastError ?? null;
+  useEffect(() => {
+    if (viewRef.current) setScriptLastError(viewRef.current, lastError);
+  }, [lastError]);
 
   // Keyboard focus follows the zone.
   useLayoutEffect(() => {
@@ -143,7 +166,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     if (lh > 0) cellH.current = lh;
     const v = viewRef.current;
     if (zone === 'buffer' && v && !modal) {
-      if (!v.hasFocus) v.focus();
+      if (!v.hasFocus && !searchFocused(v)) v.focus();
       return;
     }
     if (root.ownerDocument.activeElement !== root) root.focus({ preventScroll: true });
@@ -161,6 +184,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     const before = nameRef.current;
     try {
       const r = await lib.save(before, src);
+      if (viewRef.current) markScriptSaved(viewRef.current, src);
       setSaved(src);
       setText(src);
       if (r.name !== nameRef.current) {
@@ -233,6 +257,12 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     }
     const v = viewRef.current;
     if (zone === 'buffer' && v && completing(v)) return handleKey(v, e);
+    // Find and replace: Ctrl+F, the panel's keys, and ESC closes it first.
+    const found = v ? searchFrameKey(v, e) : null;
+    if (found !== null) {
+      if (found && zone !== 'buffer') setZone('buffer');
+      return found;
+    }
     if (nk === 'back') {
       close();
       return true;
@@ -298,10 +328,14 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     </div>
   );
 
-  // Status row: state, then the load error or the header problems.
+  // Status row: state, then the first live error of the buffer (lua-lint.ts),
+  // else the saved script's load error or last error.
   const st = info ? scriptState(info, scriptRunning?.(name) ?? null) : null;
-  const problem = info ? problemText(info) : null;
-  const headerProblem = info && info.problems.length > 0 ? `Header ${info.problems[0]}` : null;
+  const live = diags[0] ? diagnosticText(diags[0]) : null;
+  // With unsaved changes the saved script's problems may be fixed already: only the live ones show.
+  const savedInfo = info && !dirty ? info : null;
+  const problem = live ?? (savedInfo ? problemText(savedInfo) : null);
+  const headerProblem = savedInfo && savedInfo.problems.length > 0 ? `Header ${savedInfo.problems[0]}` : null;
   const stText = st ? `${st.glyph} ${st.text}` : '';
   const room = Math.max(0, W - cellLen(stText) - 3);
   const extra = problem ?? headerProblem;

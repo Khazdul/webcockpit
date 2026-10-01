@@ -81,6 +81,22 @@ describe('scripts model', () => {
     ]);
   });
 
+  it('shows the page check\'s syntax error when nothing else is wrong', async () => {
+    const lib = await library();
+    await lib.create('broken', '-- @name broken\n-- @api 1\nx = = 1\n');
+    const list = lib.list();
+    const syntax = (s: ScriptInfo) => (s.name === 'broken' ? "broken:3: unexpected symbol near '='" : null);
+    const i = list.findIndex((s) => s.name === 'broken');
+    expect(listLines(list, syntax).filter((l) => l.kind === 'error')).toEqual([
+      { kind: 'error', index: i, text: "Syntax error: broken:3: unexpected symbol near '='" },
+    ]);
+    const rows = helpRows(lib.get('broken')!, null, 60, syntax).map(text);
+    expect(rows).toContain("  Syntax error: broken:3: unexpected symbol near '='");
+    // A load problem or last error comes first and alone.
+    lib.setError('broken', 'broken:3: earlier');
+    expect(listLines(lib.list(), syntax).filter((l) => l.kind === 'error').map((l) => l.kind === 'error' && l.text)).toEqual(['broken:3: earlier']);
+  });
+
   it('builds the help: summary, aliases, keys, help, settings with the #script set command', async () => {
     const lib = await library();
     await lib.setSetting('looter', 'delay', '2');

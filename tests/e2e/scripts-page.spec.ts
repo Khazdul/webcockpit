@@ -236,7 +236,9 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
   await expect(f.locator('.wc-scr-error')).toContainText('pagetest:8:');
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
-  await expect(editor(page).locator('.wc-sed-problem')).toContainText('pagetest:8:');
+  // … and on its line in the editor (lua-lint.ts).
+  await expect(editor(page).locator('.wc-sed-status')).toHaveAttribute('title', /^Ln 8: Runtime error \(saved version\): /);
+  await expect(editor(page).locator('.cm-lintRange.wc-diag-runtime')).toHaveCount(1);
   expect(errors).toEqual([]);
 });
 

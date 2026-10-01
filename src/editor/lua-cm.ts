@@ -36,6 +36,8 @@ import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
 import { type ApiDoc, completeLua, nameAt } from './lua-api';
 import { luaIndent } from './lua-indent';
+import { type ScriptLintOptions, scriptLint } from './lua-lint';
+import { searchExtension } from './search';
 
 export interface LuaBufferOptions {
   text: string;
@@ -44,6 +46,8 @@ export interface LuaBufferOptions {
   onScroll: (s: ScrollStatus) => void;
   onChange: (text: string) => void;
   onFocus: () => void;
+  /** Live error checks (lua-lint.ts). */
+  lint?: ScriptLintOptions;
 }
 
 const luaLanguage = StreamLanguage.define(lua);
@@ -166,6 +170,9 @@ function luaTheme(): Extension {
     '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: 'bold' },
     '.cm-completionInfo': { padding: '0 var(--cell-w)', maxWidth: 'calc(var(--cell-w) * 48)' },
     '.cm-tooltip-hover': { padding: '0 var(--cell-w)', maxWidth: 'calc(var(--cell-w) * 60)' },
+    '.cm-tooltip.cm-tooltip-lint': { padding: '0', maxWidth: 'calc(var(--cell-w) * 60)' },
+    '.cm-tooltip-lint .cm-diagnostic': { padding: '0 var(--cell-w)', margin: '0', borderLeft: 'none' },
+    '.cm-tooltip-section:not(:first-child)': { borderTop: '1px solid var(--c-section)' },
     '&.cm-focused .cm-matchingBracket': { color: 'var(--c-hover)', backgroundColor: 'var(--c-brace-match-bg)' },
     '.cm-nonmatchingBracket': { color: 'var(--c-err)' },
   });
@@ -190,6 +197,7 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
     selection: EditorSelection.cursor(0),
     extensions: [
       history({ minDepth: 200 }),
+      ...(opts.lint ? [scriptLint(opts.lint)] : []),
       lineNumbers(),
       highlightActiveLine(),
       EditorView.lineWrapping,
@@ -202,6 +210,7 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       indentOnInput(),
       ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false })]),
       luaHover,
+      searchExtension({ onFocus: opts.onFocus }),
       keymap.of([
         ...closeBracketsKeymap,
         ...completionKeymap,

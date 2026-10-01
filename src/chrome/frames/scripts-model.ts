@@ -121,12 +121,30 @@ export function scriptsLayout(cols: number, names: readonly string[]): ScriptsLa
 /** A row of the list: a script, or the error line under a script that failed. */
 export type ListLine = { kind: 'script'; index: number } | { kind: 'error'; index: number; text: string };
 
+/** A compile error found by the page's check (src/scripts/check.ts): `name:line: message`, or null. */
+export type SyntaxLookup = (s: ScriptInfo) => string | null | undefined;
+
+/** The text of a compile error the page's check found. */
+export const syntaxText = (message: string): string => `Syntax error: ${message}`;
+
+/**
+ * What to show under a script: its load problem or last error, else a
+ * compile error from the page's check (a script that is off is checked
+ * nowhere else).
+ */
+export function rowProblem(s: ScriptInfo, syntax?: SyntaxLookup): string | null {
+  const p = problemText(s);
+  if (p) return p;
+  const e = syntax?.(s);
+  return e ? syntaxText(e) : null;
+}
+
 /** The list's lines: each script, and under it its problem when it has one. */
-export function listLines(list: readonly ScriptInfo[]): ListLine[] {
+export function listLines(list: readonly ScriptInfo[], syntax?: SyntaxLookup): ListLine[] {
   const out: ListLine[] = [];
   list.forEach((s, index) => {
     out.push({ kind: 'script', index });
-    const p = problemText(s);
+    const p = rowProblem(s, syntax);
     if (p) out.push({ kind: 'error', index, text: p });
   });
   return out;
@@ -175,7 +193,7 @@ export function cutRow(row: Row, w: number): Row {
  * summary, state and problems, aliases and keys, the `@help` text, and
  * each setting with its value and the `#script set` command.
  */
-export function helpRows(s: ScriptInfo, running: boolean | null, width: number): Row[] {
+export function helpRows(s: ScriptInfo, running: boolean | null, width: number, syntax?: SyntaxLookup): Row[] {
   const w = Math.max(10, width);
   const out: Row[] = [];
   const wrap = (text: string, cls: string, indent = 0): void => {
@@ -190,6 +208,8 @@ export function helpRows(s: ScriptInfo, running: boolean | null, width: number):
   out.push([{ text: `${st.glyph} ${st.text}`, cls: st.cls }]);
   if (s.loadProblem) wrap(`Cannot load: ${s.loadProblem}`, 'wc-c-err', 2);
   if (s.lastError) wrap(`Last error: ${s.lastError}`, 'wc-c-err', 2);
+  const syn = problemText(s) ? null : syntax?.(s);
+  if (syn) wrap(syntaxText(syn), 'wc-c-err', 2);
   for (const p of s.problems) wrap(`Header ${p}`, 'wc-c-danger', 2);
 
   const pairs = (title: string, items: { key: string; text: string }[]): void => {
