@@ -8,19 +8,21 @@
 ## Goal
 
 The owner opens *Scripts* under *Profile*, turns on the bundled coin
-looter, mercenaries and key manager scripts, and plays with them: their
-panes dock like the built-in ones, show live state and react to clicks.
-A new player understands each script from its help without reading code.
-The owner writes a small script of their own in the full-screen editor,
-saves it, and it works at once. A broken or runaway script is stopped
-and reported without affecting play or latency.
+looter and plays with it. A new player understands it from its help
+without reading code. The owner writes a small script of their own
+(a trigger, an alias, a timer) in the full-screen editor, saves it, and
+it works at once. A broken or runaway script is stopped and reported
+without affecting play or latency.
 
 ## Scope
 
-In: everything in spec §2.10.
+In: spec §2.10 except script panes, the mercenaries and key manager
+scripts.
 
-Out: testing a script against a recorded run, multi-file packages,
-Mudlet API compatibility beyond the names in §2.10.
+Out (stage 11): `createPane` and everything about script panes, run
+capture of script panes, mercenaries. Out (stage 12): key manager.
+Out for now: testing a script against a recorded run, multi-file
+packages, Mudlet API compatibility beyond the names in §2.10.
 
 ## Owner decisions
 
@@ -65,13 +67,7 @@ Mudlet API compatibility beyond the names in §2.10.
   - `settings` and `store`;
   - `#script` subcommands;
   - header parser; DB stores `scripts` and `scriptData`.
-- [ ] P2. Script panes:
-  - `createPane` on the docking engine, with spans, gauges and links
-    down to single cells, tooltips, and resize;
-  - placement remembered per script and pane id;
-  - run capture of pane content;
-  - log player and HTML replay rendering.
-- [ ] P3. Scripts page and editor:
+- [ ] P2. Scripts page and editor:
   - menu entry under *Profile* (start page and ESC menu);
   - list with toggle, *Edit*, lock mark, *New*, *Import* and *Export*;
   - help view;
@@ -79,11 +75,9 @@ Mudlet API compatibility beyond the names in §2.10.
   - save and reload;
   - import warning; *Duplicate*;
   - errors on the row.
-- [ ] P4. Bundled scripts, coin looter and mercenaries.
-- [ ] P5. Bundled key manager. **Blocked** on the owner's Mudlet
-      reference script.
-- [ ] Verify: typecheck, unit, e2e (page, editor, panes, replay), and
-      bench within spec §1.3 with the bundled scripts enabled.
+- [ ] P3. Bundled coin looter.
+- [ ] Verify: typecheck, unit, e2e (page, editor, `#script`), and
+      bench within spec §1.3 with coin looter and a test script enabled.
 - [ ] Test guide filled in; owner test.
 
 ## Test guide

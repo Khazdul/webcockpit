@@ -16,6 +16,8 @@ Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | In progress | `docs/stages/10-scripts.md` |
+| 11 | Script panes | Next | `docs/stages/11-script-panes.md` |
+| 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

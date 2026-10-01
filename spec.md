@@ -488,7 +488,9 @@ what feedback is wanted.
 | 7 | **Sharing.** The export editor, the HTML replay, Spotlights and Credits. | Export a fight and share it. |
 | 8 | **Hardening → v1.** Fixes from PvP testing, a performance pass and polish. | Several live PvP sessions; the v1 verdict. |
 | 9 | **Map** (after v1). | |
-| 10 | **Scripts** (built before stage 8 ends, by owner request). Lua runtime and sandbox, script API, script panes, Scripts page and editor, `#script`, run capture of script panes, bundled scripts. | Enable the bundled scripts and play; write a small script of your own. |
+| 10 | **Scripts** (before v1, by owner request). Lua runtime and sandbox, script API without panes, Scripts page and editor, `#script`, bundled coin looter. | Enable coin looter and play; write a small script of your own. |
+| 11 | **Script panes.** `createPane`, gauges, clickable rows and cells, run capture and replay of script panes, bundled mercenaries. | Use the mercenaries pane in play; watch it in a replay. |
+| 12 | **Key manager.** The bundled key manager, from the owner's Mudlet reference script, over several polish rounds. | Your usual key and door routine. |
 
 ## 6. Open questions for the owner
 
