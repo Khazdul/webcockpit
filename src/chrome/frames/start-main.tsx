@@ -27,6 +27,7 @@ import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
 import { OptionsHub } from './options';
 import { ProfileFrame } from './profiles';
+import { ScriptsFrame } from './scripts';
 import { startSpotlights } from './spotlights';
 
 export const LATER = 'Coming in a later stage.';
@@ -44,6 +45,7 @@ export function StartMain(p: StartMainProps): VNode {
   const items: MenuItem[] = [
     { key: 'enter', label: 'Enter MUME', activate: p.onEnter },
     { key: 'profile', label: 'Profile', activate: () => nav.push(<ProfileFrame />) },
+    ...(services.scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
     { key: 'history', label: 'History', activate: () => nav.push(<HistoryFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => void startSpotlights(nav, services) },

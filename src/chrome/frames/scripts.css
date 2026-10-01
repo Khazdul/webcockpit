@@ -1,0 +1,43 @@
+/* Scripts page (scripts.tsx): cell-grid sizes and --c-* tokens only. */
+
+.wc-scr-left,
+.wc-scr-help {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.wc-scr-name.is-off {
+  color: var(--c-body);
+}
+
+.wc-scr-name.is-off:hover {
+  color: var(--c-hover);
+}
+
+/* The padlock of a bundled script: one cell, the hint colour. */
+.wc-scr-lock {
+  display: inline-block;
+  width: var(--cell-w);
+  height: var(--cell-h);
+  vertical-align: top;
+  color: var(--c-body);
+}
+
+.wc-scr-lock svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wc-scr-mark {
+  display: inline-block;
+  width: var(--cell-w);
+}
+
+.wc-scr-error,
+.wc-scr-help-text {
+  display: inline-block;
+  height: var(--cell-h);
+  overflow: hidden;
+  vertical-align: top;
+}
