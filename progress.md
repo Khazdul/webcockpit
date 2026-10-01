@@ -22,6 +22,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-01 — Release 0.1.21
+
+- **Released:** 0.1.21 (tag v0.1.21): top dock zone half a row, close
+  cross on pane hover. Local `build:pages` green, Pages deploy OK, live
+  `release.json` reports 0.1.21 at f49d6cd. Prod smoke against
+  mumecockpit.com: first run 9/10 (Firefox site-root, right after the
+  deploy), rerun 10/10.
+- **Owner:** tested both changes and asked to publish.
+- **Next:** the later parts of stage 8 (PvP fixes, polish).
+- **Commits:** f49d6cd, plus this one.
+
 ### 2026-10-01 — Top dock zone
 
 - **Fix:** the top screen-edge dock zone is now the upper half of row 0
