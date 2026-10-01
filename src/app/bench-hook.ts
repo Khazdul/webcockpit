@@ -12,10 +12,24 @@
 // - Map (stage 9): `mapOn` turns the Map pane on; `startFeed` delivers a
 //   GMCP-only log (Room.Info, Event.Moved, Group.*) through the fake socket
 //   on a timer, looping, while the other measures run.
+// - Owner-geometry benchmarks (stage 8, report #15). Opt-in by URL, so the
+//   default probe adds nothing to the measured paths:
+//   - `?bench&benchSettings=<json>`: a settings patch applied before the
+//     shell is built (e.g. the Map pane explicitly off or on).
+//   - `?bench&benchFrames`: wraps requestAnimationFrame and every side
+//     pane's render(), so each animation frame that runs callbacks is
+//     logged with its callback time, its time to "rendered", and whether
+//     it carried an output flush and/or pane renders (`animFrames`).
+//   - `?bench&benchCounters`: counts live timeouts, intervals and
+//     listeners on window / document (`counters()`), for the soak.
+//   - `connectWs(url)`: the session on a real WebSocket (the app's
+//     WebSocketTransport), timing every message task (`wsTasks`).
 
 import { Bus } from '../core/bus';
 import type { Line, Socketish } from '../core/types';
+import { PANE_IDS } from '../layout/types';
 import { logToFrames } from '../net/replay-socket';
+import { WebSocketTransport } from '../net/ws-transport';
 import { ScriptEngine } from '../script/engine';
 import { LineAssembler } from '../text/assembler';
 import type { SettingsStore } from '../settings/store';
@@ -47,10 +61,71 @@ class BenchSocket implements Socketish {
   }
 }
 
+/** One animation frame that ran callbacks (`?benchFrames`). */
+export interface FrameRecord {
+  /** The rAF timestamp (groups the frame's callbacks). */
+  t: number;
+  /** performance.now() when its first callback started. */
+  s: number;
+  /** Script time of all its callbacks, ms. */
+  cb: number;
+  /** From `s` until after the frame was rendered, ms (-1 until known). */
+  after: number;
+  /** Output flush script time in this frame, ms (0: no flush). */
+  flush: number;
+  /** Side panes rendered in this frame, and their script time (ms). */
+  panes: string[];
+  paneMs: number;
+}
+
+/** A WebSocketTransport that times every message task and reads as UTF-8. */
+class BenchWsSocket extends WebSocketTransport {
+  readonly forceUtf8 = true as const;
+  /** [start, duration ms, bytes] per message task. */
+  readonly tasks: Array<[number, number, number]> = [];
+  constructor(url: string) {
+    super(url);
+    let handler: ((bytes: Uint8Array) => void) | null = null;
+    const tasks = this.tasks;
+    Object.defineProperty(this, 'onData', {
+      get: () => handler,
+      set: (h: ((bytes: Uint8Array) => void) | null) => {
+        handler = h
+          ? (bytes) => {
+              const t = performance.now();
+              h(bytes);
+              tasks.push([t, performance.now() - t, bytes.length]);
+            }
+          : null;
+      },
+    });
+  }
+  /** Sends text outside the session (e.g. an acknowledgement). */
+  sendText(text: string): void {
+    super.send(new TextEncoder().encode(text));
+  }
+}
+
+export interface BenchCounters {
+  timeouts: number;
+  intervals: number;
+  listeners: number;
+}
+
 export class BenchProbe {
   app: App | null = null;
   flushes: FlushRecord[] = [];
+  /** Animation frames (`?benchFrames`), logged while `animLogOn`. */
+  animFrames: FrameRecord[] = [];
+  animLogOn = false;
+  private frameLog = false;
+  private curFrame: FrameRecord | null = null;
+  private live: BenchCounters | null = null;
   private sock: BenchSocket | null = null;
+  private ws: BenchWsSocket | null = null;
+  private playEvents: Array<{ at: number; bytes?: Uint8Array; sent?: string }> = [];
+  private playPos = 0;
+  private playEnd: (() => void) | null = null;
   private waiters: Array<(r: FlushRecord) => void> = [];
   private readonly channel = new MessageChannel();
   private postQueue: Array<() => void> = [];
@@ -60,12 +135,60 @@ export class BenchProbe {
   /** Frames delivered by the running feed. */
   fed = 0;
 
-  constructor(private readonly settings: SettingsStore | null = null) {
+  constructor(readonly settings: SettingsStore | null = null) {
     this.channel.port1.onmessage = () => {
       const q = this.postQueue;
       this.postQueue = [];
       for (const f of q) f();
     };
+  }
+
+  /**
+   * `?benchFrames`: wraps requestAnimationFrame so every frame that runs
+   * callbacks is logged (FrameRecord). Runs before the app is built.
+   */
+  logFrames(): void {
+    if (this.frameLog) return;
+    this.frameLog = true;
+    const raf = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb: FrameRequestCallback): number =>
+      raf((ts) => {
+        const t0 = performance.now();
+        let f = this.curFrame;
+        if (!f || f.t !== ts) {
+          const rec: FrameRecord = { t: ts, s: t0, cb: 0, after: -1, flush: 0, panes: [], paneMs: 0 };
+          f = this.curFrame = rec;
+          if (this.animLogOn) {
+            this.animFrames.push(rec);
+            this.afterPaint(() => (rec.after = performance.now() - rec.s));
+          }
+        }
+        try {
+          cb(ts);
+        } finally {
+          f.cb += performance.now() - t0;
+        }
+      });
+  }
+
+  /** Wraps every side pane's render() so it is logged in its frame. */
+  private trackPanes(app: App): void {
+    for (const id of PANE_IDS) {
+      const pane = app.cockpit.pane(id) as unknown as { render: () => void };
+      const orig = pane.render;
+      pane.render = () => {
+        const t0 = performance.now();
+        try {
+          orig.call(pane);
+        } finally {
+          const f = this.curFrame;
+          if (f) {
+            f.panes.push(id);
+            f.paneMs += performance.now() - t0;
+          }
+        }
+      };
+    }
   }
 
   /** Frame scheduler for the output pane. */
@@ -75,6 +198,7 @@ export class BenchProbe {
       cb();
       const script = performance.now() - start;
       const rec: FlushRecord = { start, script, frame: script };
+      if (this.curFrame) this.curFrame.flush += script;
       this.flushes.push(rec);
       const waiters = this.waiters;
       this.waiters = [];
@@ -92,6 +216,197 @@ export class BenchProbe {
 
   attach(app: App): void {
     this.app = app;
+    if (this.frameLog) this.trackPanes(app);
+  }
+
+  /** Delivers bytes as the current socket's data, without waiting for a flush. */
+  deliver(bytes: Uint8Array): void {
+    (this.ws ?? this.sock)?.onData?.(bytes);
+  }
+
+  /** Delivers frame `i` of `loadFrames` without waiting; returns its synchronous time (ms). */
+  deliverFrame(i: number): number {
+    const t0 = performance.now();
+    this.deliver(this.frames[i]!);
+    return performance.now() - t0;
+  }
+
+  /**
+   * Splits a log for `play`: telnet frames at log time (speed 1, gaps
+   * capped as ReplaySocket does) and its recorded commands, which `play`
+   * types. Returns the number of entries and the log time (ms).
+   */
+  loadPlay(logText: string): { entries: number; logMs: number } {
+    this.playEvents = [];
+    for (const f of logToFrames(logText, { speed: 1, sends: true })) {
+      if (f.sent !== undefined) this.playEvents.push({ at: f.atMs, sent: f.sent });
+      else if (f.bytes.length) this.playEvents.push({ at: f.atMs, bytes: f.bytes });
+    }
+    this.playPos = 0;
+    return { entries: this.playEvents.length, logMs: this.playEvents.at(-1)?.at ?? 0 };
+  }
+
+  /**
+   * Plays the loaded log on from where it stopped at `speed`× log time
+   * through the fake socket, typing its commands (keyToSend), for at most
+   * `maxMs` of wall time. Delivers for at most 8 ms per task. Resolves with
+   * the entries delivered, the wall time and whether the log ended.
+   */
+  play(speed: number, maxMs = Infinity): Promise<{ delivered: number; ms: number; done: boolean; keys: number[] }> {
+    const evs = this.playEvents;
+    const from = this.playPos;
+    const base = from < evs.length ? evs[from]!.at : 0;
+    const t0 = performance.now();
+    const keys: number[] = [];
+    return new Promise((resolve) => {
+      let timer = 0;
+      const finish = (): void => {
+        window.clearTimeout(timer);
+        this.playEnd = null;
+        resolve({ delivered: this.playPos - from, ms: performance.now() - t0, done: this.playPos >= evs.length, keys });
+      };
+      this.playEnd = finish;
+      const step = (): void => {
+        const now = performance.now() - t0;
+        const stop = performance.now() + 8;
+        let i = this.playPos;
+        while (i < evs.length && (evs[i]!.at - base) / speed <= now && performance.now() < stop) {
+          const e = evs[i++]!;
+          if (e.sent !== undefined) keys.push(this.keyToSend(e.sent));
+          else this.deliver(e.bytes!);
+        }
+        this.playPos = i;
+        if (i >= evs.length || now >= maxMs) return finish();
+        const due = (evs[i]!.at - base) / speed - (performance.now() - t0);
+        timer = window.setTimeout(step, Math.max(0, Math.min(due, maxMs - now)));
+      };
+      step();
+    });
+  }
+
+  /** Ends a running `play` now (it resolves). */
+  stopPlay(): void {
+    this.playEnd?.();
+  }
+
+  /** Resolves with the next output flush, after its frame was rendered. */
+  waitFlush(): Promise<FlushRecord> {
+    return new Promise((resolve) => this.waiters.push(resolve));
+  }
+
+  /** Connects the session to a real WebSocket at `url` (WebSocketTransport, UTF-8). */
+  connectWs(url: string): void {
+    const ws = new BenchWsSocket(url);
+    this.ws = ws;
+    this.sock = null;
+    this.app!.session.connect(ws);
+  }
+
+  /** The WebSocket's message tasks since connectWs: [start, ms, bytes]. */
+  get wsTasks(): Array<[number, number, number]> {
+    return this.ws?.tasks ?? [];
+  }
+
+  /** Sends text on the WebSocket outside the session (acknowledgements). */
+  wsSendText(text: string): void {
+    this.ws?.sendText(text);
+  }
+
+  /** The output queue is empty and no flush is pending. */
+  get idle(): boolean {
+    const out = this.app!.output as unknown as { queue: unknown[]; head: number; frameScheduled: boolean };
+    return out.queue.length === out.head && !out.frameScheduled;
+  }
+
+  /** Live timers and window/document listeners (`?benchCounters`), else null. */
+  counters(): BenchCounters | null {
+    return this.live ? { ...this.live } : null;
+  }
+
+  /**
+   * `?benchCounters`: counts live timeouts, intervals and listeners on the
+   * long-lived targets (window, document, <html>, <body>) from now on.
+   * Runs before the app is built.
+   */
+  countLive(): void {
+    if (this.live) return;
+    const c: BenchCounters = { timeouts: 0, intervals: 0, listeners: 0 };
+    this.live = c;
+    const timeouts = new Set<number>();
+    const intervals = new Set<number>();
+    const st = window.setTimeout.bind(window);
+    const ct = window.clearTimeout.bind(window);
+    const si = window.setInterval.bind(window);
+    const ci = window.clearInterval.bind(window);
+    const w = window as unknown as Record<string, unknown>;
+    w.setTimeout = (fn: TimerHandler, ms?: number, ...a: unknown[]): number => {
+      const run =
+        typeof fn === 'function'
+          ? (...x: unknown[]) => {
+              timeouts.delete(id);
+              c.timeouts = timeouts.size;
+              (fn as (...y: unknown[]) => void)(...x);
+            }
+          : fn;
+      const id: number = st(run, ms, ...a);
+      timeouts.add(id);
+      c.timeouts = timeouts.size;
+      return id;
+    };
+    w.clearTimeout = (id?: number): void => {
+      if (id !== undefined) timeouts.delete(id);
+      c.timeouts = timeouts.size;
+      ct(id);
+    };
+    w.setInterval = (fn: TimerHandler, ms?: number, ...a: unknown[]): number => {
+      const id = si(fn, ms, ...a);
+      intervals.add(id);
+      c.intervals = intervals.size;
+      return id;
+    };
+    w.clearInterval = (id?: number): void => {
+      if (id !== undefined) intervals.delete(id);
+      c.intervals = intervals.size;
+      ci(id);
+    };
+    const keys = new Map<EventTarget, Set<string>>();
+    const ids = new WeakMap<object, number>();
+    let next = 1;
+    const keyOf = (type: string, l: unknown, opts: unknown): string => {
+      const capture = typeof opts === 'boolean' ? opts : !!(opts as { capture?: boolean } | undefined)?.capture;
+      let id = 0;
+      if (l && (typeof l === 'object' || typeof l === 'function')) {
+        id = ids.get(l) ?? 0;
+        if (!id) ids.set(l, (id = next++));
+      }
+      return `${type}|${id}|${capture}`;
+    };
+    const watched = (t: EventTarget): boolean =>
+      t === window || t === document || t === document.documentElement || t === document.body;
+    const count = (): void => {
+      let n = 0;
+      for (const s of keys.values()) n += s.size;
+      c.listeners = n;
+    };
+    const proto = EventTarget.prototype;
+    const add = proto.addEventListener;
+    const remove = proto.removeEventListener;
+    proto.addEventListener = function (this: EventTarget, type: string, l: EventListenerOrEventListenerObject | null, opts?: boolean | AddEventListenerOptions): void {
+      if (watched(this)) {
+        let s = keys.get(this);
+        if (!s) keys.set(this, (s = new Set()));
+        s.add(keyOf(type, l, opts));
+        count();
+      }
+      add.call(this, type, l, opts);
+    };
+    proto.removeEventListener = function (this: EventTarget, type: string, l: EventListenerOrEventListenerObject | null, opts?: boolean | EventListenerOptions): void {
+      if (watched(this)) {
+        keys.get(this)?.delete(keyOf(type, l, opts));
+        count();
+      }
+      remove.call(this, type, l, opts);
+    };
   }
 
   /** Connects the session to a fake socket that is open at once. */
@@ -286,8 +601,18 @@ declare global {
   }
 }
 
+/**
+ * Installs the probe as `window.__wcBench`. Runs after the settings loaded
+ * and before the shell is built; the opt-in URL parameters (see the
+ * header) take effect here.
+ */
 export function installBenchProbe(settings: SettingsStore | null = null): BenchProbe {
   const p = new BenchProbe(settings);
   window.__wcBench = p;
+  const params = new URLSearchParams(location.search);
+  const patch = params.get('benchSettings');
+  if (patch && settings) settings.update(JSON.parse(patch) as Parameters<SettingsStore['update']>[0]);
+  if (params.has('benchFrames')) p.logFrames();
+  if (params.has('benchCounters')) p.countLive();
   return p;
 }
