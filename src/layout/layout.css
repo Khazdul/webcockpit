@@ -63,6 +63,35 @@
   z-index: 1;
 }
 
+/* Close cross (" × ") in the title row, one cell in from the right so the
+ * corner keeps its resize handle; shown while the pointer is over the
+ * pane. Above the grip and the float handles. */
+.wc-pane-close {
+  position: absolute;
+  top: 0;
+  right: var(--cell-w);
+  height: var(--cell-h);
+  white-space: pre;
+  background: var(--pane-bg, var(--term-bg));
+  color: var(--pane-border);
+  cursor: pointer;
+  user-select: none;
+  z-index: 3;
+  display: none;
+}
+
+.wc-pane:hover > .wc-pane-close {
+  display: block;
+}
+
+.wc-pane > .wc-pane-close:hover {
+  color: var(--c-accent);
+}
+
+.wc-cockpit:has(> .wc-drag-shield:not([hidden])) .wc-pane-close {
+  display: none;
+}
+
 .wc-pane[data-dragging] {
   opacity: 0.5;
 }

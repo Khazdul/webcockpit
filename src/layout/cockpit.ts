@@ -29,6 +29,9 @@
 //   where). Drag a floating pane
 //   by its title row to move it; drop it on a screen-edge zone to dock it.
 //   Its edges and corners resize it. Pressing on it brings it to front.
+// - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
+//   title row, one cell in from the right edge; clicking it switches the
+//   pane off (`panes[id].on = false`, the same as Settings).
 // - Drag the gap between the game pane and a dock to resize the dock, or
 //   the boundary between two panes (the lower part of the upper pane's last
 //   row, or the right part of the left pane's last column) to resize them.
@@ -236,6 +239,13 @@ export class Cockpit {
       const grip = div('wc-pane-grip');
       grip.dataset.grip = id;
       shell.el.append(grip);
+      const close = div('wc-pane-close');
+      close.textContent = ' × ';
+      close.title = `Hide ${shell.label}`;
+      close.setAttribute('role', 'button');
+      close.setAttribute('aria-label', `Hide ${shell.label}`);
+      close.addEventListener('click', () => this.settings.update({ panes: { [id]: { on: false } } }));
+      shell.el.append(close);
       for (const edge of FLOAT_EDGES) {
         const h = div('wc-float-handle');
         h.dataset.edge = edge;
@@ -487,7 +497,10 @@ export class Cockpit {
 
   private readonly onMouseDown = (e: MouseEvent): void => {
     // Grips, handles and the gaps between panes never take the focus.
-    if (this.swallowMouseDown || e.target === this.el || e.target === this.handlesEl) e.preventDefault();
+    const t = e.target as HTMLElement;
+    if (this.swallowMouseDown || t === this.el || t === this.handlesEl || t.closest('.wc-pane-close')) {
+      e.preventDefault();
+    }
     this.swallowMouseDown = false;
   };
 

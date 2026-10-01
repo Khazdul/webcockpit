@@ -177,3 +177,14 @@ The owner's second test of stage 2 (`docs/stages/02-look-and-layout.md`,
 - The pointer in the lower half of row 0 floats the pane at row 0. The
   left, right and bottom zones stay 2 cells (the grab offset and the clamp
   already let a pane reach those edges).
+
+## Amendment 2026-10-01 — close cross on hover
+
+- Owner request: hovering a pane (docked or floating) shows " × " in its
+  title row, three cells wide, one cell in from the right edge so the
+  corner keeps the floating pane's resize handle. It covers the frame
+  glyphs with the pane background; the cross takes the accent colour
+  under the pointer. Hidden while a drag runs.
+- Clicking it switches the pane off (`panes[id].on = false`), exactly as
+  Settings does; it is switched back on there. The press never starts a
+  drag or takes the focus; the input keeps it.

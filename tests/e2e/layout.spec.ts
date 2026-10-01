@@ -504,3 +504,28 @@ test('a tall docked pane dragged out floats at the standard 36 × 14 size', asyn
   await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: 41 * cw, y: 12 * ch, width: 36 * cw, height: 14 * ch });
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });
+
+test('hovering a pane shows a close cross in its title row; clicking it hides the pane', async ({ page }) => {
+  const { cw, ch } = await open(page);
+  const o = await origin(page);
+  const close = page.locator('.wc-pane-timers .wc-pane-close');
+  await expect(close).toBeHidden();
+  const timers = await box(page, '.wc-pane-timers');
+  await page.mouse.move(o.x + timers.x + 4 * cw, o.y + timers.y + 3 * ch);
+  await expect(close).toBeVisible();
+  // " × " in the title row, one cell in from the right edge.
+  expect(await box(page, '.wc-pane-timers .wc-pane-close')).toEqual({
+    x: timers.x + timers.width - 4 * cw,
+    y: timers.y,
+    width: 3 * cw,
+    height: ch,
+  });
+  await expect(page.locator('.wc-pane-character .wc-pane-close')).toBeHidden();
+
+  await close.click();
+  await expect(page.locator('.wc-pane-timers')).toBeHidden();
+  expect(await page.evaluate(() => window.__wc!.settings.get().panes.timers.on)).toBe(false);
+  // No drag started, and the focus is back in the input.
+  expect(await page.evaluate(() => window.__wc!.settings.get().layout.floating.map((f) => f.id))).not.toContain('timers');
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+});
