@@ -124,6 +124,11 @@ const FLOAT_EDGES = ['n', 's', 'e', 'w', 'nw', 'ne', 'sw', 'se'] as const;
 const DRAG_THRESHOLD = 4;
 /** Width in cells of the screen-edge zone that opens a hidden dock. */
 const EDGE_CELLS = 2;
+/**
+ * Height in rows of the top screen-edge zone. Panes are dragged by their
+ * title row, so a deeper zone would keep a floating pane from row 0.
+ */
+const TOP_EDGE_ROWS = 0.5;
 
 type Drag =
   | {
@@ -641,8 +646,9 @@ export class Cockpit {
    * top-left cell, so a floating pane keeps its offset under the pointer.
    *
    * A docked pane docks anywhere over a shown dock and on the screen edge of
-   * a hidden dock; a floating pane docks only from the 2-cell screen-edge
-   * zones (it may lie over a dock, and moving it there must not dock it).
+   * a hidden dock; a floating pane docks only from the screen-edge zones
+   * (2 cells; the top one half a row) — it may lie over a dock, and moving
+   * it there must not dock it.
    * Anywhere else the pane floats.
    */
   dropTarget(x: number, y: number, id: PaneId, grab: { x: number; y: number } = { x: 0, y: 0 }): DropTarget | null {
@@ -701,7 +707,7 @@ export class Cockpit {
       const zone: DockId | null =
         cx < E ? 'left'
         : cx >= r.cols - E ? 'right'
-        : cy < E && inGameCol ? 'top'
+        : cy < TOP_EDGE_ROWS && inGameCol ? 'top'
         : cy >= H - E && inGameCol ? 'bottom'
         : null;
       const shown = zone ? r.docks[zone] : undefined;

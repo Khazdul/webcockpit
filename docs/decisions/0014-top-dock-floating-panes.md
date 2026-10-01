@@ -168,3 +168,12 @@ The owner's second test of stage 2 (`docs/stages/02-look-and-layout.md`,
 - An already floating pane keeps its size when it is moved.
   `defaultFloatSize` (33 columns × default rows) is still used by the
   settings migration only.
+
+## Amendment 2026-10-01 — shallower top edge zone
+
+- The top screen-edge zone is the upper half of row 0, not 2 rows. Panes
+  are dragged by their title row, so with a 2-row zone a floating pane
+  could never be placed higher than row 2: the pointer docked it first.
+- The pointer in the lower half of row 0 floats the pane at row 0. The
+  left, right and bottom zones stay 2 cells (the grab offset and the clamp
+  already let a pane reach those edges).

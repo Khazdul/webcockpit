@@ -158,7 +158,13 @@ test('drag a pane to the top screen edge opens the top dock', async ({ page }) =
   const comm = await box(page, '.wc-pane-comm');
   await page.mouse.move(o.x + comm.x + 6 * cw, o.y + comm.y + ch / 2);
   await page.mouse.down();
-  await page.mouse.move(o.x + 300, o.y + ch / 2, { steps: 8 });
+  // The lower half of the top row floats the pane at row 0; only the upper
+  // half is the dock zone.
+  await page.mouse.move(o.x + 300, o.y + (ch * 3) / 4, { steps: 8 });
+  await expect(page.locator('.wc-drop-bar')).toBeHidden();
+  await expect(page.locator('.wc-drop-ghost')).toBeVisible();
+  expect((await box(page, '.wc-drop-ghost')).y).toBe(0);
+  await page.mouse.move(o.x + 300, o.y + ch / 4, { steps: 2 });
   await expect(page.locator('.wc-drop-bar')).toBeVisible();
   await expect(page.locator('.wc-drop-bar')).toHaveAttribute('data-dock', 'top');
   await page.mouse.up();

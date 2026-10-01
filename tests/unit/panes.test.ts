@@ -269,7 +269,9 @@ describe('Cockpit', () => {
     expect(c.dropTarget(900, 970, 'character')).toMatchObject({ dock: 'right', index: 5 });
     expect(c.dropTarget(5, 400, 'comm')).toMatchObject({ dock: 'left', index: 0, open: true });
     expect(c.dropTarget(400, 970, 'comm')).toMatchObject({ dock: 'bottom', open: true });
-    expect(c.dropTarget(400, 10, 'comm')).toMatchObject({ kind: 'dock', dock: 'top', open: true });
+    expect(c.dropTarget(400, 5, 'comm')).toMatchObject({ kind: 'dock', dock: 'top', open: true });
+    // The lower half of the top row floats at row 0 instead of docking.
+    expect(c.dropTarget(400, 15, 'comm')).toEqual({ kind: 'float', rect: { x: 40, y: 0, w: 36, h: 14 } });
     // Over the game: a docked pane floats at the pointer at the standard size, 36 × 14.
     expect(c.dropTarget(400, 400, 'comm')).toEqual({ kind: 'float', rect: { x: 40, y: 20, w: 36, h: 14 } });
     expect(c.dropTarget(400, 400, 'comm', { x: 5, y: 0 })).toEqual({ kind: 'float', rect: { x: 35, y: 20, w: 36, h: 14 } });
