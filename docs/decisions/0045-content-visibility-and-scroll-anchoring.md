@@ -94,3 +94,13 @@ anchoring instead.
   own.
 - Timing measurements before and after are left to the quiet-machine pass
   of stage 8 part C; this change ships on the review's numbers above.
+- The anchor refresh two frames after a step keeps the anchor while it is
+  still in view, and moves it only once it has left the view. Without the
+  caret's CSS animation (ADR 0044 rule 1) Firefox renders a revealed chunk
+  one frame later; refreshing to a row in a not yet rendered chunk let
+  that chunk's real height push the view by its estimate error.
+- Firefox can log "ResizeObserver loop completed with undelivered
+  notifications" while scrolling back: the pane corrects `scrollTop`
+  inside the observer callback and a chunk changes height again in the
+  same pass, so the change arrives one frame later. Harmless; moving the
+  correction out of the observer would show a one-frame jump instead.
