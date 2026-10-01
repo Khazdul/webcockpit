@@ -50,6 +50,12 @@ function value(body: string, ...args: unknown[]): unknown {
   return r.value;
 }
 
+describe('loader', () => {
+  it('calls the wasm exports directly', () => {
+    expect(rt.stats().direct).toBe(true);
+  });
+});
+
 describe('sandbox', () => {
   it('removes io, os, package, debug, load, require, dofile, collectgarbage', () => {
     for (const g of ['io', 'os', 'package', 'debug', 'load', 'loadstring', 'dofile', 'loadfile', 'require', 'collectgarbage', 'warn']) {

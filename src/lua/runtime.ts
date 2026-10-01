@@ -37,6 +37,8 @@ import {
   T_STRING,
   T_TABLE,
   typeName,
+  apiFromModule,
+  type LuaApi,
   type LuaModule,
   type LuaState,
   type Ptr,
@@ -105,6 +107,8 @@ export interface LuaStats {
   memoryUsed: number;
   /** Scripts loaded. */
   scripts: number;
+  /** True when the bridge calls the wasm exports directly (load.ts). */
+  direct: boolean;
 }
 
 /**
@@ -167,28 +171,28 @@ export class LuaArgs {
 
   /** Number of arguments passed. */
   get count(): number {
-    return this.rt.m._lua_gettop(this.L);
+    return this.rt.c.lua_gettop(this.L);
   }
 
   /** Lua type name of argument `i` (`no value` past the end). */
   type(i: number): string {
-    return typeName(this.rt.m._lua_type(this.L, i));
+    return typeName(this.rt.c.lua_type(this.L, i));
   }
 
   /** A string (numbers are converted, as in Lua). */
   string(i: number): string {
-    const t = this.rt.m._lua_type(this.L, i);
+    const t = this.rt.c.lua_type(this.L, i);
     if (t !== T_STRING && t !== T_NUMBER) throw this.bad(i, 'string', t);
     return this.rt.readString(this.L, i);
   }
 
   optString(i: number, def: string): string {
-    return this.rt.m._lua_type(this.L, i) <= T_NIL ? def : this.string(i);
+    return this.rt.c.lua_type(this.L, i) <= T_NIL ? def : this.string(i);
   }
 
   number(i: number): number {
-    const t = this.rt.m._lua_type(this.L, i);
-    if (t === T_NUMBER) return this.rt.m._lua_tonumberx(this.L, i, 0);
+    const t = this.rt.c.lua_type(this.L, i);
+    if (t === T_NUMBER) return this.rt.c.lua_tonumberx(this.L, i, 0);
     if (t === T_STRING) {
       const n = Number(this.rt.readString(this.L, i));
       if (!Number.isNaN(n)) return n;
@@ -197,28 +201,28 @@ export class LuaArgs {
   }
 
   optNumber(i: number, def: number): number {
-    return this.rt.m._lua_type(this.L, i) <= T_NIL ? def : this.number(i);
+    return this.rt.c.lua_type(this.L, i) <= T_NIL ? def : this.number(i);
   }
 
   /** Lua truthiness: false only for nil, false and a missing argument. */
   boolean(i: number): boolean {
-    return this.rt.m._lua_toboolean(this.L, i) !== 0;
+    return this.rt.c.lua_toboolean(this.L, i) !== 0;
   }
 
   /** A function, as a new reference owned by the running script. */
   function(i: number): LuaRef {
-    const t = this.rt.m._lua_type(this.L, i);
+    const t = this.rt.c.lua_type(this.L, i);
     if (t !== T_FUNCTION) throw this.bad(i, 'function', t);
     return this.rt.newRef(this.L, i);
   }
 
   optFunction(i: number): LuaRef | null {
-    return this.rt.m._lua_type(this.L, i) <= T_NIL ? null : this.function(i);
+    return this.rt.c.lua_type(this.L, i) <= T_NIL ? null : this.function(i);
   }
 
   /** A table, converted to JS (see `LuaValue`). */
   table(i: number): LuaValue[] | { [key: string]: LuaValue } {
-    const t = this.rt.m._lua_type(this.L, i);
+    const t = this.rt.c.lua_type(this.L, i);
     if (t !== T_TABLE) throw this.bad(i, 'table', t);
     return this.rt.toJs(this.L, i, 0) as LuaValue[] | { [key: string]: LuaValue };
   }
@@ -239,8 +243,10 @@ export class LuaArgs {
  */
 export class LuaRuntime {
   /** @internal */ readonly m: LuaModule;
+  /** @internal */ readonly c: LuaApi;
   private readonly engine: LuaEngine;
   private readonly L: LuaState;
+  private readonly direct: boolean;
   private readonly memoryMax: number;
   private readonly budgetFires: number;
   private readonly enc = new TextEncoder();
@@ -265,14 +271,17 @@ export class LuaRuntime {
   private closed = false;
 
   /** @internal Use `loadLuaRuntime()`. */
-  constructor(engine: LuaEngine, options: LuaRuntimeOptions = {}) {
+  constructor(engine: LuaEngine, options: LuaRuntimeOptions = {}, api?: LuaApi) {
     this.engine = engine;
     this.m = engine.global.lua.module as unknown as LuaModule;
+    this.c = api ?? apiFromModule(this.m);
+    this.direct = api !== undefined;
     this.L = this.activeL = engine.global.address;
     this.memoryMax = options.memoryMax ?? DEFAULT_MEMORY_MAX;
     this.budgetFires = Math.max(1, Math.ceil((options.instructionBudget ?? DEFAULT_INSTRUCTION_BUDGET) / HOOK_STEP));
     this.engine.global.setMemoryMax(this.memoryMax + MEMORY_HEADROOM);
     const m = this.m;
+    const c = this.c;
     this.lenPtr = m._malloc(4);
     this.modePtr = this.cString('t');
     this.bufCap = BUF_INITIAL;
@@ -283,21 +292,21 @@ export class LuaRuntime {
     // Sandbox: run the setup chunk unguarded (it is ours) and keep its
     // three results.
     const L = this.L;
-    const top = m._lua_gettop(L);
+    const top = c.lua_gettop(L);
     const name = this.cString('=sandbox');
     const len = this.encode(SANDBOX_SOURCE);
-    let st = m._luaL_loadbufferx(L, this.buf, len, name, this.modePtr);
+    let st = c.luaL_loadbufferx(L, this.buf, len, name, this.modePtr);
     m._free(name);
-    if (st === LUA_OK) st = m._lua_pcallk(L, 0, 3, 0, 0, 0);
+    if (st === LUA_OK) st = c.lua_pcallk(L, 0, 3, 0, 0, 0);
     if (st !== LUA_OK) {
       const msg = this.errorMessage(L);
-      m._lua_settop(L, top);
+      c.lua_settop(L, top);
       throw new Error(`lua sandbox setup failed: ${msg}`);
     }
-    this.collectRef = m._luaL_ref(L, REGISTRY);
-    this.envMetaRef = m._luaL_ref(L, REGISTRY);
-    this.baseRef = m._luaL_ref(L, REGISTRY);
-    m._lua_settop(L, top);
+    this.collectRef = c.luaL_ref(L, REGISTRY);
+    this.envMetaRef = c.luaL_ref(L, REGISTRY);
+    this.baseRef = c.luaL_ref(L, REGISTRY);
+    c.lua_settop(L, top);
   }
 
   /** The script whose code is running, or null between calls. */
@@ -317,29 +326,30 @@ export class LuaRuntime {
       return { ok: false, kind: 'syntax', message: `${name}:${closeLine}: <close> variables are not allowed in scripts` };
     }
     const m = this.m;
+    const c = this.c;
     const L = this.activeL;
-    const top = m._lua_gettop(L);
-    m._lua_createtable(L, 0, 4);
-    m._lua_rawgeti(L, REGISTRY, BigInt(this.envMetaRef));
-    m._lua_setmetatable(L, -2);
+    const top = c.lua_gettop(L);
+    c.lua_createtable(L, 0, 4);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.envMetaRef));
+    c.lua_setmetatable(L, -2);
     this.pushString(L, '_G');
-    m._lua_pushvalue(L, -2);
-    m._lua_rawset(L, -3);
-    const envRef = m._luaL_ref(L, REGISTRY);
+    c.lua_pushvalue(L, -2);
+    c.lua_rawset(L, -3);
+    const envRef = c.luaL_ref(L, REGISTRY);
 
     const chunkName = this.cString('@' + name);
     const len = this.encode(source);
-    const st = m._luaL_loadbufferx(L, this.buf, len, chunkName, this.modePtr);
+    const st = c.luaL_loadbufferx(L, this.buf, len, chunkName, this.modePtr);
     m._free(chunkName);
     if (st !== LUA_OK) {
       const message = this.errorMessage(L);
-      m._lua_settop(L, top);
-      m._luaL_unref(L, REGISTRY, envRef);
+      c.lua_settop(L, top);
+      c.luaL_unref(L, REGISTRY, envRef);
       return { ok: false, kind: st === LUA_ERRMEM ? 'memory' : 'syntax', message };
     }
     // The main chunk's only upvalue is _ENV.
-    m._lua_rawgeti(L, REGISTRY, BigInt(envRef));
-    m._lua_setupvalue(L, -2, 1);
+    c.lua_rawgeti(L, REGISTRY, BigInt(envRef));
+    c.lua_setupvalue(L, -2, 1);
 
     const script = new LuaScript(this, name, envRef);
     this.scripts.add(script);
@@ -357,6 +367,7 @@ export class LuaRuntime {
   defineFunction(name: string, impl: HostFunction): void {
     this.assertOpen();
     const m = this.m;
+    const c = this.c;
     const args = new LuaArgs(this, name);
     const fp = m.addFunction((Lp: number): number => {
       const prevL = this.activeL;
@@ -376,19 +387,19 @@ export class LuaRuntime {
         this.activeL = prevL;
         args.L = prevArgsL;
       }
-      m._luaL_where(Lp, 1);
+      c.luaL_where(Lp, 1);
       this.pushString(Lp, message);
-      m._lua_concat(Lp, 2);
-      return m._lua_error(Lp);
+      c.lua_concat(Lp, 2);
+      return c.lua_error(Lp);
     }, 'ii');
     this.functions.push(fp);
     const L = this.activeL;
-    const top = m._lua_gettop(L);
-    m._lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+    const top = c.lua_gettop(L);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
     this.pushString(L, name);
-    m._lua_pushcclosure(L, fp, 0);
-    m._lua_rawset(L, -3);
-    m._lua_settop(L, top);
+    c.lua_pushcclosure(L, fp, 0);
+    c.lua_rawset(L, -3);
+    c.lua_settop(L, top);
   }
 
   /**
@@ -400,35 +411,36 @@ export class LuaRuntime {
     this.assertOpen();
     const keys = typeof path === 'string' ? [path] : path;
     if (keys.length === 0) throw new Error('setGlobal: empty path');
-    const m = this.m;
+    const c = this.c;
     const L = this.activeL;
-    const top = m._lua_gettop(L);
+    const top = c.lua_gettop(L);
     try {
-      m._lua_checkstack(L, keys.length + MIN_STACK);
-      m._lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
+      c.lua_checkstack(L, keys.length + MIN_STACK);
+      c.lua_rawgeti(L, REGISTRY, BigInt(this.baseRef));
       for (let i = 0; i < keys.length - 1; i++) {
         this.pushString(L, keys[i]!);
-        if (m._lua_rawget(L, -2) !== T_TABLE) {
-          m._lua_settop(L, -2);
-          m._lua_createtable(L, 0, 0);
+        if (c.lua_rawget(L, -2) !== T_TABLE) {
+          c.lua_settop(L, -2);
+          c.lua_createtable(L, 0, 0);
           this.pushString(L, keys[i]!);
-          m._lua_pushvalue(L, -2);
-          m._lua_rawset(L, -4);
+          c.lua_pushvalue(L, -2);
+          c.lua_rawset(L, -4);
         }
       }
       this.pushString(L, keys[keys.length - 1]!);
       this.push(L, value, 0);
-      m._lua_rawset(L, -3);
+      c.lua_rawset(L, -3);
     } finally {
-      m._lua_settop(L, top);
+      c.lua_settop(L, top);
     }
   }
 
   stats(): LuaStats {
     return {
-      top: this.closed ? 0 : this.m._lua_gettop(this.L),
+      top: this.closed ? 0 : this.c.lua_gettop(this.L),
       memoryUsed: this.closed ? 0 : this.engine.global.getMemoryUsed(),
       scripts: this.scripts.size,
+      direct: this.direct,
     };
   }
 
@@ -451,15 +463,15 @@ export class LuaRuntime {
   /** @internal */
   callRef(script: LuaScript, fn: LuaRef, args: readonly unknown[]): CallResult {
     if (this.closed || !script.loaded) return { ok: false, kind: 'error', message: `${script.name}: script is not loaded` };
-    const m = this.m;
+    const c = this.c;
     const L = this.activeL;
-    const top = m._lua_gettop(L);
+    const top = c.lua_gettop(L);
     try {
-      if (args.length + 1 > MIN_STACK) m._lua_checkstack(L, args.length + 1);
-      m._lua_rawgeti(L, REGISTRY, BigInt(fn));
+      if (args.length + 1 > MIN_STACK) c.lua_checkstack(L, args.length + 1);
+      c.lua_rawgeti(L, REGISTRY, BigInt(fn));
       for (let i = 0; i < args.length; i++) this.push(L, args[i], 0);
     } catch (e) {
-      m._lua_settop(L, top);
+      c.lua_settop(L, top);
       if (e === Infinity) throw e;
       return { ok: false, kind: 'error', message: `${script.name}: ${e instanceof Error ? e.message : String(e)}` };
     }
@@ -469,25 +481,25 @@ export class LuaRuntime {
   /** @internal */
   unloadScript(script: LuaScript): void {
     if (!script.loaded) return;
-    const m = this.m;
-    for (const ref of script.refs) m._luaL_unref(this.L, REGISTRY, ref);
+    const c = this.c;
+    for (const ref of script.refs) c.luaL_unref(this.L, REGISTRY, ref);
     script.refs.clear();
-    m._luaL_unref(this.L, REGISTRY, script.envRef);
+    c.luaL_unref(this.L, REGISTRY, script.envRef);
     script.envRef = -1;
     this.scripts.delete(script);
   }
 
   /** @internal */
   unref(ref: number): void {
-    if (!this.closed) this.m._luaL_unref(this.L, REGISTRY, ref);
+    if (!this.closed) this.c.luaL_unref(this.L, REGISTRY, ref);
   }
 
   /** @internal A reference to the value at `idx`, owned by the running script. */
   newRef(L: LuaState, idx: number): LuaRef {
     const owner = this.owner;
     if (owner === null) throw new Error('no script is running');
-    this.m._lua_pushvalue(L, idx);
-    const ref = this.m._luaL_ref(L, REGISTRY);
+    this.c.lua_pushvalue(L, idx);
+    const ref = this.c.luaL_ref(L, REGISTRY);
     owner.refs.add(ref);
     return ref as LuaRef;
   }
@@ -497,7 +509,7 @@ export class LuaRuntime {
    * `base`), under the budget, as `script`. Leaves the stack at `base`.
    */
   private protectedCall(script: LuaScript, L: LuaState, base: number, nargs: number): CallResult {
-    const m = this.m;
+    const c = this.c;
     const outer = this.depth === 0;
     const prevOwner = this.owner;
     this.owner = script;
@@ -505,17 +517,17 @@ export class LuaRuntime {
       this.fires = 0;
       this.poisoned = false;
       this.engine.global.setMemoryMax(this.memoryMax);
-      m._lua_sethook(this.L, this.hook, MASK_COUNT, HOOK_STEP);
+      c.lua_sethook(this.L, this.hook, MASK_COUNT, HOOK_STEP);
     }
     this.depth++;
     let st: number;
     try {
-      st = m._lua_pcallk(L, nargs, 1, 0, 0, 0);
+      st = c.lua_pcallk(L, nargs, 1, 0, 0, 0);
     } finally {
       this.depth--;
       this.owner = prevOwner;
       if (outer) {
-        m._lua_sethook(this.L, 0, 0, 0);
+        c.lua_sethook(this.L, 0, 0, 0);
         this.engine.global.setMemoryMax(this.memoryMax + MEMORY_HEADROOM);
       }
     }
@@ -538,61 +550,61 @@ export class LuaRuntime {
     } else {
       result = { ok: false, kind: 'error', message: this.errorMessage(L) };
     }
-    m._lua_settop(L, base);
+    c.lua_settop(L, base);
     if (outer && !result.ok && result.kind === 'memory') this.collect();
     return result;
   }
 
   /** The count hook: count, then abort and poison past the budget. */
   private onHook(Lp: LuaState): void {
-    const m = this.m;
+    const c = this.c;
     if (!this.poisoned) {
       if (++this.fires < this.budgetFires) {
         // A coroutine poisoned in an earlier call may still carry count 1.
-        m._lua_sethook(Lp, this.hook, MASK_COUNT, HOOK_STEP);
+        c.lua_sethook(Lp, this.hook, MASK_COUNT, HOOK_STEP);
         return;
       }
       this.poisoned = true;
-      m._lua_sethook(this.L, this.hook, MASK_COUNT, 1);
+      c.lua_sethook(this.L, this.hook, MASK_COUNT, 1);
     }
-    m._lua_sethook(Lp, this.hook, MASK_COUNT, 1);
-    m._luaL_where(Lp, 0);
+    c.lua_sethook(Lp, this.hook, MASK_COUNT, 1);
+    c.luaL_where(Lp, 0);
     this.pushString(Lp, BUDGET_MESSAGE);
-    m._lua_concat(Lp, 2);
-    m._lua_error(Lp);
+    c.lua_concat(Lp, 2);
+    c.lua_error(Lp);
   }
 
   /** A full garbage collection (after an out-of-memory abort). */
   private collect(): void {
-    const m = this.m;
+    const c = this.c;
     const L = this.L;
-    const top = m._lua_gettop(L);
-    m._lua_rawgeti(L, REGISTRY, BigInt(this.collectRef));
+    const top = c.lua_gettop(L);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.collectRef));
     this.pushString(L, 'collect');
-    m._lua_pcallk(L, 1, 0, 0, 0, 0);
-    m._lua_settop(L, top);
+    c.lua_pcallk(L, 1, 0, 0, 0, 0);
+    c.lua_settop(L, top);
   }
 
   /** The error object on top of `L` as text. */
   private errorMessage(L: LuaState): string {
-    const t = this.m._lua_type(L, -1);
+    const t = this.c.lua_type(L, -1);
     if (t === T_STRING || t === T_NUMBER) return this.readString(L, -1);
     return `(error object is a ${typeName(t)} value)`;
   }
 
   /** @internal Pushes a JS value (see `LuaScript.call`). */
   push(L: LuaState, v: unknown, depth: number): void {
-    const m = this.m;
+    const c = this.c;
     switch (typeof v) {
       case 'string':
         this.pushString(L, v);
         return;
       case 'number':
-        if (Number.isSafeInteger(v)) m._lua_pushinteger(L, BigInt(v));
-        else m._lua_pushnumber(L, v);
+        if (Number.isSafeInteger(v)) c.lua_pushinteger(L, BigInt(v));
+        else c.lua_pushnumber(L, v);
         return;
       case 'boolean':
-        m._lua_pushboolean(L, v ? 1 : 0);
+        c.lua_pushboolean(L, v ? 1 : 0);
         return;
       case 'object':
         if (v !== null) {
@@ -601,23 +613,23 @@ export class LuaRuntime {
         }
         break;
     }
-    m._lua_pushnil(L);
+    c.lua_pushnil(L);
   }
 
   private pushTable(L: LuaState, v: object, depth: number): void {
     if (depth >= MAX_DEPTH) throw new Error('table nesting too deep');
-    const m = this.m;
-    m._lua_checkstack(L, 3);
+    const c = this.c;
+    c.lua_checkstack(L, 3);
     if (Array.isArray(v)) {
-      m._lua_createtable(L, v.length, 0);
+      c.lua_createtable(L, v.length, 0);
       for (let i = 0; i < v.length; i++) {
         this.push(L, v[i], depth + 1);
-        m._lua_rawseti(L, -2, BigInt(i + 1));
+        c.lua_rawseti(L, -2, BigInt(i + 1));
       }
       return;
     }
     const keys = Object.keys(v);
-    m._lua_createtable(L, 0, keys.length);
+    c.lua_createtable(L, 0, keys.length);
     const o = v as Record<string, unknown>;
     for (let i = 0; i < keys.length; i++) {
       const k = keys[i]!;
@@ -625,22 +637,22 @@ export class LuaRuntime {
       if (x === undefined || x === null) continue;
       this.pushString(L, k);
       this.push(L, x, depth + 1);
-      m._lua_rawset(L, -3);
+      c.lua_rawset(L, -3);
     }
   }
 
   /** @internal Converts the value at `idx` (see `LuaValue`). */
   toJs(L: LuaState, idx: number, depth: number): LuaValue {
-    const m = this.m;
-    switch (m._lua_type(L, idx)) {
+    const c = this.c;
+    switch (c.lua_type(L, idx)) {
       case T_BOOLEAN:
-        return m._lua_toboolean(L, idx) !== 0;
+        return c.lua_toboolean(L, idx) !== 0;
       case T_NUMBER:
-        return m._lua_tonumberx(L, idx, 0);
+        return c.lua_tonumberx(L, idx, 0);
       case T_STRING:
         return this.readString(L, idx);
       case T_TABLE:
-        return this.readTable(L, m._lua_absindex(L, idx), depth);
+        return this.readTable(L, c.lua_absindex(L, idx), depth);
       default:
         return undefined;
     }
@@ -648,17 +660,17 @@ export class LuaRuntime {
 
   private readTable(L: LuaState, idx: number, depth: number): LuaValue {
     if (depth >= MAX_DEPTH) throw new Error('table nesting too deep');
-    const m = this.m;
-    m._lua_checkstack(L, 3);
+    const c = this.c;
+    c.lua_checkstack(L, 3);
     const keys: (string | number)[] = [];
     const vals: LuaValue[] = [];
     let seq = true;
-    m._lua_pushnil(L);
-    while (m._lua_next(L, idx) !== 0) {
-      const kt = m._lua_type(L, -2);
+    c.lua_pushnil(L);
+    while (c.lua_next(L, idx) !== 0) {
+      const kt = c.lua_type(L, -2);
       let k: string | number | null = null;
       if (kt === T_NUMBER) {
-        k = m._lua_tonumberx(L, -2, 0);
+        k = c.lua_tonumberx(L, -2, 0);
         if (!Number.isInteger(k) || k < 1) seq = false;
       } else if (kt === T_STRING) {
         k = this.readString(L, -2);
@@ -668,7 +680,7 @@ export class LuaRuntime {
         keys.push(k);
         vals.push(this.toJs(L, -1, depth + 1));
       }
-      m._lua_settop(L, -2);
+      c.lua_settop(L, -2);
     }
     if (seq && keys.length > 0) {
       const arr: LuaValue[] = new Array(keys.length);
@@ -691,7 +703,8 @@ export class LuaRuntime {
   /** @internal Reads the string (or number) at `idx`. */
   readString(L: LuaState, idx: number): string {
     const m = this.m;
-    const p = m._lua_tolstring(L, idx, this.lenPtr);
+    const c = this.c;
+    const p = c.lua_tolstring(L, idx, this.lenPtr);
     const n = m.HEAPU32[this.lenPtr >> 2]!;
     const heap = m.HEAPU8;
     if (n <= 64) {
@@ -709,7 +722,7 @@ export class LuaRuntime {
   /** Pushes `s` as a Lua string through the shared UTF-8 buffer. */
   private pushString(L: LuaState, s: string): void {
     const n = this.encode(s);
-    this.m._lua_pushlstring(L, this.buf, n);
+    this.c.lua_pushlstring(L, this.buf, n);
   }
 
   /** Encodes `s` into the shared buffer; returns its byte length. */
@@ -719,6 +732,18 @@ export class LuaRuntime {
     if (view.buffer !== this.m.HEAPU8.buffer) {
       // The wasm memory grew, which replaces its ArrayBuffer.
       view = this.bufView = this.m.HEAPU8.subarray(this.buf, this.buf + this.bufCap);
+    }
+    // Short ASCII (keys, most captures) is copied by hand: cheaper than
+    // the encodeInto call and its result object.
+    const n = s.length;
+    if (n <= 32) {
+      let i = 0;
+      for (; i < n; i++) {
+        const c = s.charCodeAt(i);
+        if (c >= 0x80) break;
+        view[i] = c;
+      }
+      if (i === n) return n;
     }
     return this.enc.encodeInto(s, view).written;
   }
