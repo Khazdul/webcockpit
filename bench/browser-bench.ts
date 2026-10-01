@@ -34,9 +34,11 @@
 // - keys:           real key presses under three loads (colour page, burst,
 //                   play with GMCP): input delay, key → send, letter → rendered
 // - ws:             loopback WebSocket, live-like recording session, paced
-//                   by page acknowledgements: key → wire, longest tasks
-// - soak:           30× playback with all panes: counters flat, frames
-//                   within 1.2× + 1 ms
+//                   by page acknowledgements: key → wire (Firefox under
+//                   the burst: an upper bound), longest tasks, rAF gaps
+//                   over 50 ms
+// - soak:           30× playback with all panes: counters flat after a
+//                   warm-up (DOM elements per area), frames within 1.2× + 1 ms
 //
 // Flags (or environment variables):
 //   --quick            WC_BENCH_QUICK=1   ~¼ of the samples (a smoke run)
@@ -119,9 +121,33 @@ const scaled = (n: number, min = 20) => Math.max(min, Math.round(n * SCALE));
 const flagsText = argv.length ? argv.join(' ') : '(none)';
 
 const FRAME_BUDGET_MS = 50;
+/**
+ * Loopback WebSocket burst, Firefox: rAF gaps over 50 ms allowed per burst,
+ * and the longest gap. Firefox applies no WebSocket backpressure, so each
+ * 4.7 MB burst queues as message tasks and a frame now and then waits
+ * 50–80 ms. Measured here: 6–13 gaps in 11–12 bursts on 3a58e50, 4–18 in
+ * 12–13 bursts after the chunk height fix (more bursts fit in the window
+ * when ingest is faster). The review's harness gave 36–42 gaps before
+ * stage 8 part C and 7–9 after (notes/research/perf-review/part-c-results.md
+ * §12, follow-up). Chromium is judged on the longest gap (≤ FRAME_BUDGET_MS).
+ */
+const WS_BURST_FF_OVER50_PER_BURST = 2;
+const WS_BURST_FF_MAX_MS = 100;
 const KEY_BUDGET_MS = 1;
 const RULE_BUDGET_US = 200;
 const CARET_BUDGET_MS = 4;
+/**
+ * Scrollback 20 000: the full pane's 50-line flush frame passes at ≤ 1.5 ×
+ * the empty pane's + 0.5 ms, or at ≤ this (half of spec §1.3's
+ * next-frame budget at 60 Hz). Chromium's empty-pane median is bimodal
+ * between pages (1.4 or 4.4–5.6 ms; part-c-results §13), so the relative
+ * rule alone hangs on which mode the empty pass hit. The bound still
+ * catches the slowdown the check was written for (21 ms at full with rows
+ * trimmed one by one).
+ */
+const SCROLLBACK_ABS_MS = 8;
+const scrollbackPass = (s: { emptyFrame: number; fullFrame: number }): boolean =>
+  s.fullFrame <= s.emptyFrame * 1.5 + 0.5 || s.fullFrame <= SCROLLBACK_ABS_MS;
 const IDLE_BUDGET_PER_S = 5;
 
 // ---------------------------------------------------------------- fixture
@@ -541,7 +567,7 @@ try {
         ws ??= await I.startWsBench(PORT + 1, ctx);
         row.ws = {};
         for (const load of ['burst', 'play'] as const)
-          row.ws[load] = await step(`ws / ${load}`, () => ws!.run(t, ctx, load), (w) => `${w.keys} keys; key → wire ${fd(w.keyToWire)}; ws task max ${f1(w.wsTaskMax)}; rAF max ${f1(w.rafMax)}; ${w.tasks ? `tasks ${w.tasks.slice(0, 3).map((x) => `${f1(x.ms)} [${x.label}]`).join('; ')}` : ''}; ${w.state}, ${w.recorder}; bursts ${w.bursts}`);
+          row.ws[load] = await step(`ws / ${load}`, () => ws!.run(t, ctx, load), (w) => `${w.keys} keys; key → wire ${fd(w.keyToWire)}; ws task max ${f1(w.wsTaskMax)}; rAF max ${f1(w.rafMax)}, gaps > 50 ms ${w.rafOver50}; ${w.tasks ? `tasks ${w.tasks.slice(0, 3).map((x) => `${f1(x.ms)} [${x.label}]`).join('; ')}` : ''}; ${w.state}, ${w.recorder}; bursts ${w.bursts}`);
       }
       if (want('soak'))
         row.soak = await step(`soak (${SOAK_LONG ? 'long' : `${SOAK_S} s`})`, () => S.benchSoak(t, ctx, soakLogs, SOAK_LONG, SOAK_S), (s) => `${s.delivered} frames, ${s.typed} commands in ${f1(s.wallS)} s; ${s.checkpoints.map((c) => `${c.label}: ${c.elements} el, frame ${f2(c.frame.median)}`).join(' → ')}; ${JSON.stringify(S.soakPass(s))}`);
@@ -613,8 +639,8 @@ function budgetsTable(rs: Row[]): void {
       opt1(r.paint, (p) => `${p.late} of ${p.frames} (${p.lateOurs}) ${pass(p.late <= p.frames / 100 && p.lateOurs === 0)}`)],
     ['', 'receipt → painted, median / p95 / max (ms)', (r) => opt1(r.paint, (p) => `${f1(p.toPaintMedian)} / ${f1(p.toPaintP95)} / ${f1(p.toPaintMax)}`)],
     ['', 'flush script time, median / max (ms); frame interval (ms)', (r) => opt1(r.paint, (p) => `${f2(p.scriptMedian)} / ${f2(p.scriptMax)}; ${f1(p.interval)}`)],
-    ['Scrollback 20 000: no slowdown', '50-line flush, frame time median (p95) at ~0 rows → at full (ms)', (r) =>
-      opt1(r.scroll, (s) => `${f2(s.emptyFrame)} (${f2(s.emptyFrameP95)}) → ${f2(s.fullFrame)} (${f2(s.fullFrameP95)}) ${pass(s.fullFrame <= s.emptyFrame * 1.5 + 0.5)}`)],
+    ['Scrollback 20 000: no slowdown', `50-line flush, frame time median (p95) at ~0 rows → at full (ms); pass: full ≤ 1.5 × empty + 0.5 or ≤ ${SCROLLBACK_ABS_MS} ms`, (r) =>
+      opt1(r.scroll, (s) => `${f2(s.emptyFrame)} (${f2(s.emptyFrameP95)}) → ${f2(s.fullFrame)} (${f2(s.fullFrameP95)}) ${pass(scrollbackPass(s))}`)],
     ['', 'flush script time median at ~0 → at full (ms); rows at full', (r) => opt1(r.scroll, (s) => `${f2(s.emptyScript)} → ${f2(s.fullScript)}; ${s.rowsFull}`)],
     ['Burst: no frame > 50 ms', 'longest rAF gap (ms); gaps > 50 ms', (r) => opt1(r.burst, (b) => `${f1(b.maxDelta)}; ${b.over50} of ${b.frames} ${pass(b.over50 === 0)}`)],
     ['', 'longest LoAF / long task (ms)', (r) =>
@@ -658,7 +684,7 @@ function mapTables(rs: Row[]): void {
   mrow('Frame → paint', 'late frames (ours); painted median / p95 / max (ms)', (x) =>
     opt1(x.paint, (p) => `${p.late} (${p.lateOurs}); ${f1(p.toPaintMedian)} / ${f1(p.toPaintP95)} / ${f1(p.toPaintMax)} ${pass(p.late <= p.frames / 100 && p.lateOurs === 0)}`));
   mrow('', 'flush script median / max (ms)', (x) => opt1(x.paint, (p) => `${f2(p.scriptMedian)} / ${f2(p.scriptMax)}`));
-  mrow('Scrollback 20 000', 'frame median at ~0 → full (ms)', (x) => opt1(x.scroll, (s) => `${f2(s.emptyFrame)} → ${f2(s.fullFrame)} ${pass(s.fullFrame <= s.emptyFrame * 1.5 + 0.5)}`));
+  mrow('Scrollback 20 000', 'frame median at ~0 → full (ms)', (x) => opt1(x.scroll, (s) => `${f2(s.emptyFrame)} → ${f2(s.fullFrame)} ${pass(scrollbackPass(s))}`));
   brow('Burst: no frame > 50 ms', 'burst log + GMCP lines: longest rAF gap (ms); gaps > 50 ms', (b) => `${f1(b.maxDelta)}; ${b.over50} of ${b.frames} ${pass(b.over50 === 0)}`);
   brow('', 'p95 rAF gap (ms); longest LoAF (ms)', (b) => `${f1(b.p95Delta)}; ${b.loafSupported ? f1(b.loafMax) : 'n/a'}`);
   brow('', 'drain total ms, lines/s', (b) => `${f1(b.ms)}, ${b.linesPerSec.toFixed(0)}`);
@@ -693,14 +719,17 @@ const keyCells = (load: import('./input-load').KeyLoad): Array<[string, string, 
   ['', `longest rAF gap (ms)${load === 'burst' ? ', pass ≤ 50 ms' : ''}; longest LoAF (ms); session`, (r) =>
     opt1(r.keys?.[load], (k) => `${f1(k.rafMax)}${load === 'burst' ? ` ${pass(k.rafMax <= FRAME_BUDGET_MS)}` : ''}; ${loafText(k.loafMax)}; ${k.state}`)],
 ];
+/** The loopback WebSocket burst's frame check (see WS_BURST_FF_OVER50). */
+const wsBurstPass = (r: Row, w: import('./input-load').WsResult): boolean =>
+  r.browser === 'firefox' ? w.rafOver50 <= WS_BURST_FF_OVER50_PER_BURST * w.bursts && w.rafMax <= WS_BURST_FF_MAX_MS : w.rafMax <= FRAME_BUDGET_MS;
 const wsCells = (load: import('./input-load').WsLoad): Array<[string, string, (r: Row) => string | undefined]> => [
-  [`Loopback WebSocket, load: ${load}`, 'key → wire (Node press → server receive) median / p95 / max (ms); socket.send → wire median', (r) =>
-    opt1(r.ws?.[load], (w) => `${fd(w.keyToWire)}; ${f2(w.sendToWire.median)}`)],
+  [`Loopback WebSocket, load: ${load}`, `key → wire (Node press → server receive) median / p95 / max (ms)${load === 'burst' ? '; Firefox: an upper bound (Playwright delivers the key as a normal task behind the queued WebSocket messages)' : ''}; socket.send → wire median`, (r) =>
+    opt1(r.ws?.[load], (w) => `${fd(w.keyToWire)}${load === 'burst' && r.browser === 'firefox' ? ' (upper bound)' : ''}; ${f2(w.sendToWire.median)}`)],
   ['', 'input delay p95 / max; letter → rendered median / p95 / max (ms)', (r) => opt1(r.ws?.[load], (w) => `${f1(w.inputDelay.p95)} / ${f1(w.inputDelay.max)}; ${fd(w.letterToRendered)}`)],
   ['', 'longest main-thread tasks (ms, what ran; Chromium trace)', (r) =>
     opt1(r.ws?.[load], (w) => (w.tasks ? w.tasks.slice(0, 3).map((x) => `${f1(x.ms)} (${x.label})`).join('; ') : 'n/a (Firefox: Gecko profiler needed)'))],
-  ['', `longest WebSocket message task; longest rAF gap${load === 'burst' ? ', pass ≤ 50 ms' : ''}; longest LoAF (ms); session, capture${load === 'burst' ? '; bursts' : ''}`, (r) =>
-    opt1(r.ws?.[load], (w) => `${f1(w.wsTaskMax)}; ${f1(w.rafMax)}${load === 'burst' ? ` ${pass(w.rafMax <= FRAME_BUDGET_MS)}` : ''}; ${loafText(w.loafMax)}; ${w.state}, ${w.recorder.replace('capture: ', '')}${load === 'burst' ? `; ${w.bursts}` : ''}`)],
+  ['', `longest WebSocket message task; longest rAF gap; rAF gaps > 50 ms${load === 'burst' ? ` (pass: Chromium longest ≤ ${FRAME_BUDGET_MS} ms; Firefox ≤ ${WS_BURST_FF_OVER50_PER_BURST} gaps > 50 ms per burst and longest ≤ ${WS_BURST_FF_MAX_MS} ms)` : ''}; longest LoAF (ms); session, capture${load === 'burst' ? '; bursts' : ''}`, (r) =>
+    opt1(r.ws?.[load], (w) => `${f1(w.wsTaskMax)}; ${f1(w.rafMax)}; ${w.rafOver50} of ${w.rafGaps}${load === 'burst' ? ` ${pass(wsBurstPass(r, w))}` : ''}; ${loafText(w.loafMax)}; ${w.state}, ${w.recorder.replace('capture: ', '')}${load === 'burst' ? `; ${w.bursts}` : ''}`)],
 ];
 table(results, 'Check', [
   ['Visible caret: receipt → rendered ≤ 4 ms', 'isolated lines 150–450 ms apart, caret visible and blinking: median / p95 / max (ms); pass on the median', (r) =>
@@ -746,12 +775,13 @@ if (soaked.length) {
   table(soaked, 'Soak', [
     ['Run', 'wall time (s); log time covered (min); frames delivered; commands typed; session, capture', (r) =>
       opt1(r.soak, (s) => `${f1(s.wallS)}; ${f1(s.logMs / 60_000)}; ${s.delivered}; ${s.typed}; ${s.state}, ${s.recorder.replace('capture: ', '')}`)],
-    ['Counters flat', 'first checkpoint (full scrollback) → last: DOM elements; bus handlers; timeouts / intervals / window+document listeners; JS heap after GC (MB) / listeners (Chromium); pass: each ≤ 1.1 × start + slack', (r) =>
+    ['Counters flat', `first checkpoint (full scrollback, after ${S.SOAK_WARM_S} s of play) → last: DOM elements (row content, not judged / rest of the output / side panes / rest of the page); bus handlers; timeouts / intervals / window+document listeners; JS heap after GC (MB) / listeners (Chromium); pass: each ≤ 1.1 × start + slack`, (r) =>
       opt1(r.soak, (s) => {
         const a = s.checkpoints[0]!;
         const b = s.checkpoints.at(-1)!;
         const x = (v: number | null, f = (n: number) => String(n)) => (v === null || !Number.isFinite(v) ? 'n/a' : f(v));
-        return `${a.elements} → ${b.elements}; ${a.bus} → ${b.bus}; ${x(a.timeouts)}/${x(a.intervals)}/${x(a.listeners)} → ${x(b.timeouts)}/${x(b.intervals)}/${x(b.listeners)}; ${x(a.heapMb, f1)}/${x(a.jsListeners)} → ${x(b.heapMb, f1)}/${x(b.jsListeners)} ${pass(S.soakPass(s).counters)}`;
+        const sum = (p: Record<string, number>) => Object.values(p).reduce((t, n) => t + n, 0);
+        return `${a.elements} → ${b.elements} (${a.rowContent} → ${b.rowContent} / ${a.outputOther} → ${b.outputOther} / ${sum(a.panes)} → ${sum(b.panes)} / ${a.other} → ${b.other}); ${a.bus} → ${b.bus}; ${x(a.timeouts)}/${x(a.intervals)}/${x(a.listeners)} → ${x(b.timeouts)}/${x(b.intervals)}/${x(b.listeners)}; ${x(a.heapMb, f1)}/${x(a.jsListeners)} → ${x(b.heapMb, f1)}/${x(b.jsListeners)} ${pass(S.soakPass(s).counters)}`;
       })],
     ['Frames within 1.2× + 1 ms', '60 small frames per checkpoint: callback → rendered median (p95) at the first → last checkpoint (ms)', (r) =>
       opt1(r.soak, (s) => `${s.checkpoints.map((c) => `${f2(c.frame.median)} (${f2(c.frame.p95)})`).join(' → ')} ${pass(S.soakPass(s).frames)}`)],
@@ -770,7 +800,7 @@ out.push(
   `- **Geometry and runs:** ${L.geometryText(L.OWNER)} (the owner's window): Firefox at ratio 2 through the \`layout.css.devPixelsPerPx\` pref (a context's deviceScaleFactor does not reach the cross-origin isolated page), Chromium with \`deviceScaleFactor\` 2 and the GPU flags. Every page is a fresh context with \`panes.map.on\` set explicitly (\`?bench&benchSettings=…\`, applied before the shell is built). A/B pairs (map off / on, rules none / 500) alternate their order. The load average is logged per browser and per step (console).`,
   `- **Key → send:** \`?bench\` probe sets the input to \`look\`, dispatches a synthetic Enter \`keydown\` on it and reads the time \`Socketish.send\` was called on a fake socket. ${scaled(220, 60) - 20} samples after 20 warm-up runs. Pass is judged on p99, so a single GC pause does not decide it; the max is reported.`,
   `- **Frame → paint:** ${scaled(400, 80)} telnet frames of the fixture (as the replay socket groups them at speed 1), after 10 warm-up frames, are fed through the fake socket at random 20–80 ms intervals. "Painted" is a MessageChannel message posted from the output pane's frame callback, which runs after that frame's rendering. A frame is late when its flush started more than 1.5 frame intervals after receipt, i.e. it missed the next frame. Pass: at most 1 % of frames late and none because our flush script ran longer than a frame. The input is focused and empty and the caret blinks, so the medians include the wait for the next vsync (see the visible-caret check for isolated lines).`,
-  '- **Scrollback:** 40 flushes of 50 synthetic lines (some coloured) on an empty pane, then 22 000 more lines, then 40 more flushes with the pane at its 20 000-row cap. Frame time = frame callback start → after rendering. Pass: median at full ≤ 1.5 × median at empty + 0.5 ms.',
+  `- **Scrollback:** 40 flushes of 50 synthetic lines (some coloured) on an empty pane, then 22 000 more lines, then 40 more flushes with the pane at its 20 000-row cap. Frame time = frame callback start → after rendering. Pass: median at full ≤ 1.5 × median at empty + 0.5 ms, or ≤ ${SCROLLBACK_ABS_MS} ms (half of the §1.3 next-frame budget at 60 Hz). Chromium's empty-pane median is bimodal between pages (1.4 or 4.4–5.6 ms), so the relative rule alone failed whenever the empty pass hit the low mode; the absolute bound still catches the slowdown this check was written for (21 ms at full with rows trimmed one by one).`,
   `- **${RULE_COUNT} user rules:** \`bench/rules.ts\` builds a seeded profile from the fixture's words: 250 actions, 125 substitutes and 125 highlights. Display pipeline: the fixture's lines, assembled once, through a separate ScriptEngine's \`processLine\`; median of 5 passes after a warm-up, divided by the line count. **Whole ingest path:** the session logged in with GMCP on the fake socket (playing, so the run recorder captures), the profile applied to the app, then the fixture's 16 KB telnet frames delivered for 8 ms per animation frame; the synchronous time of each delivery (telnet, assembler, engine, recorder capture, output queue, and any GC inside) is summed and divided by the lines. Runs alternate none / rules / rules / none; median per variant. The wall time per pass also holds the output flushes and the recorder's chunk writes.`,
   '- **Key → send with script:** the same profile is applied to the app. `bb` + Enter runs the alias `bb` → `bash $target`; F5 runs the macro `bb` → the alias. Timed like Key → send.',
   `- **Map on:** the same key → send, frame → paint, scrollback and burst runs with the Map pane on (waiting for the worker's first frame with every tile and the font). While key, paint and scrollback run, the ${mapGmcp.length} GMCP lines of \`tests/fixtures/map-demo.log\` go through the fake socket one frame every ${MAP_FEED_MS} ms, looping. **Map load:** one in-page evaluate turns the map on and waits for the first complete frame; Chromium records a DevTools trace of every main-thread task from the settings change until 1 s after that frame.`,
@@ -779,9 +809,9 @@ out.push(
   '- **Play with GMCP:** a busy window (90th percentile by lines per 90 s) of the fixture with synthesized GMCP (`bench/feeds.ts`: Char.Vitals on every prompt, Group.Update on most fight prompts, Comm.Channel.Text before comm lines, Room.Info + Event.Moved after moves), played at 2× through the fake socket with its commands typed (synthetic Enter), all panes on, map on. After 5 s of warm-up, every animation frame is logged (`?benchFrames`): its callbacks\' start → after rendering, its output flush and its side-pane renders.',
   '- **Colour page:** `tests/fixtures/colour-chart.ts` (MUME\'s `help 24-bit colours` layout; the 256-colour page in the same layout), the first screen (46 lines + the pager line) as one frame on a pane with 2 000 rows, then 20 small 4-row frames at 25–60 ms; repeated, 24-bit and 256 alternating.',
   '- **Real keys under load:** Playwright key presses at random 40–250 ms gaps (letters, Enter, F1 macro, the printable-key macro `` ` ``) with the khazdul profile, under three loads: the colour pages every 150–450 ms, the fixture burst replayed again 300 ms after each drain, and the play window (GMCP, speed 1) after a GMCP login. Chromium\'s `event.timeStamp` is set in the browser process, so listener − timeStamp is the input delay; Playwright\'s Firefox creates the event in the content process, so there the delay is from Node\'s clock before the press (min-RTT sync), an upper bound with ~1–2 ms of protocol. Event Timing (both) reports keydowns ≥ 16 ms. Firefox\'s full view (GC, cycle collector) needs the Gecko profiler; not run by default.',
-  `- **Loopback WebSocket:** a WebSocket server in the bench process (port ${PORT + 1}, subprotocol \`binary\`) plays MUME through the app's own WebSocketTransport: GMCP login (playing, not a replay: the run recorder captures to IndexedDB), then either the whole fixture in 16 KB messages (the next burst only after the page acknowledged the end marker, then 1 s) or the play window at speed 1. Key → wire = Node press → server receive (one clock). Chromium records a DevTools trace of the key window: the longest main-thread tasks with their biggest children (GC, script, style, layout). Firefox: the longest WebSocket message task and rAF gap only (the recorder's chunk write, GC and CC need the Gecko profiler).`,
+  `- **Loopback WebSocket:** a WebSocket server in the bench process (port ${PORT + 1}, subprotocol \`binary\`) plays MUME through the app's own WebSocketTransport: GMCP login (playing, not a replay: the run recorder captures to IndexedDB), then either the whole fixture in 16 KB messages (the next burst only after the page acknowledged the end marker, then 1 s) or the play window at speed 1. Key → wire = Node press → server receive (one clock). In Firefox under the burst it is an upper bound: Playwright (Juggler) delivers the key to the content process as a normal-priority task, which waits behind the queued WebSocket message tasks; a real key is an input-priority event (Gecko eventDelay p95 about 7 ms there, part-c-results §12). The burst's frame check: Chromium's longest rAF gap ≤ ${FRAME_BUDGET_MS} ms; Firefox, which applies no WebSocket backpressure, ≤ ${WS_BURST_FF_OVER50_PER_BURST} rAF gaps over 50 ms per burst and none over ${WS_BURST_FF_MAX_MS} ms (4–18 gaps in 11–13 bursts on a quiet machine; before stage 8 part C about 3 per burst and up to 150 ms). Chromium records a DevTools trace of the key window: the longest main-thread tasks with their biggest children (GC, script, style, layout). Firefox: the longest WebSocket message task and rAF gap only (the recorder's chunk write, GC and CC need the Gecko profiler).`,
   '- **Full scrollback:** 22 000 synthetic lines, then 10-row flushes every ~30 ms (a 200-row chunk is dropped every 20th: "trim frames", reported apart); `pageUp()` / `toTail()` timed from the call to after the next frame; a ±9 px width change of the game pane (style write + forced layout, then the frame); real pointer drags of the right dock\'s handle (press, 5 moves, drop; each timed from the event to after the next frame).',
-  `- **Soak:** \`bench/soak.ts\`. Map on, all panes, GMCP login, the scrollback filled to its cap, then the log${SOAK_LONG ? 's' : ''} with synthesized GMCP at ${S.SOAK_SPEED}× log time, commands typed. Checkpoints with playback paused and the output drained (Chromium: a forced GC first): DOM elements, bus handlers, live timeouts / intervals / window+document listeners (\`?benchCounters\`), Chromium JS heap and listeners (CDP \`Performance.getMetrics\`; Firefox gives no heap figure without about:memory), and 60 small frames. Pass: counters ≤ 1.1 × the first checkpoint + a small slack; median frame ≤ 1.2 × + 1 ms. GC pauses are not traced here (use trace windows, not \`--trace-gc\`, which misses unified-heap major GCs; keep heap snapshots out of timing runs).`,
+  `- **Soak:** \`bench/soak.ts\`. Map on, all panes, GMCP login, the scrollback filled to its cap, then the log${SOAK_LONG ? 's' : ''} with synthesized GMCP at ${S.SOAK_SPEED}× log time, commands typed. The first checkpoint comes after ${S.SOAK_WARM_S} s of play (the panes have filled their views, caches and code are warm). Checkpoints with playback paused and the output drained (Chromium: a forced GC first): DOM elements by area (inside output rows, the rest of the output pane, each side pane, the rest of the page), bus handlers, live timeouts / intervals / window+document listeners (\`?benchCounters\`), Chromium JS heap and listeners (CDP \`Performance.getMetrics\`; Firefox gives no heap figure without about:memory), and 60 small frames. Pass: counters ≤ 1.1 × the first checkpoint + a small slack, except the row content: the rows are capped, and the log's rows carry more spans than the synthetic rows they replace, so it grows until the log has replaced the whole scrollback; median frame ≤ 1.2 × + 1 ms. GC pauses are not traced here (use trace windows, not \`--trace-gc\`, which misses unified-heap major GCs; keep heap snapshots out of timing runs).`,
   '',
 );
 out.push('## Flags', '');

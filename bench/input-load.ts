@@ -224,6 +224,9 @@ export interface KeyStats {
   letterToRendered: Dist;
   enterToEcho: Dist;
   rafMax: number;
+  /** rAF gaps over 50 ms, and all gaps. */
+  rafOver50: number;
+  rafGaps: number;
   loafMax: number;
   state: string;
   recorder: string;
@@ -264,6 +267,8 @@ function analyse(t: Target, c: Collected, nk: NodeKey[], off: number): KeyStats 
     letterToRendered: dist(letter),
     enterToEcho: dist(echo),
     rafMax: max(c.gaps),
+    rafOver50: c.gaps.filter((g) => g > 50).length,
+    rafGaps: c.gaps.length,
     loafMax: c.loaf.length ? max(c.loaf) : t.isChromium ? 0 : NaN,
     state: c.state,
     recorder: c.recorder,
