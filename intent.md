@@ -1,6 +1,7 @@
 # WebCockpit — Intent
 
-> Status: APPROVED by owner 2026-09-27.
+> Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
+> 2026-10-01.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -64,6 +65,19 @@ reference only.
    Getting this integration right is critical. The integration path is
    researched and decided before the spec is approved, so that nothing
    built before then is incompatible with MMapper.
+10. **User scripts** (after v1, added 2026-10-01). A script library
+    beside the profile, in Lua, with Mudlet-like names where that costs
+    nothing:
+    - Scripts trigger on incoming text, aliases, keys, timers and GMCP;
+      they send to the game and echo locally.
+    - Scripts can create their own TUI panes with text, gauges and
+      clickable rows and characters, docked like the built-in panes.
+    - Scripts run sandboxed: they reach only the script API, never
+      stored data, the network or the password.
+    - A Scripts page lists the scripts with enable/disable and shows
+      each script's help; a full-screen editor edits the code.
+    - Bundled scripts: key manager, coin looter and mercenaries.
+    - Scripts are exported and imported as files, like profiles.
 
 ## Non-goals
 
@@ -72,8 +86,8 @@ reference only.
 - Import of existing tt++ or Cockpit profiles.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor
   view, but the exact supported command set is defined in `spec.md`.
-- Cockpit's standalone scripts (autostab, autobow, key manager, …) and
-  readability modules.
+- Porting Cockpit's scripts or readability modules. WebCockpit's
+  scripts (Goal 10) are new code with a new API.
 - Automation limits enforced by the client: following MUME's rules is
   the player's responsibility.
 - Cross-device sync or user accounts (not in the first version).
