@@ -3,7 +3,7 @@
 -- @api      1
 -- @alias    keys      Show or hide the Keys pane (also: keys list, keys help)
 -- @alias    locatel   locatel <name>: store your room's key; locatel <target> <name>: a target's
--- @alias    kpick     Reopen the last pick list
+-- @alias    kpick     Open the last pick window again
 -- @alias    nkey      nkey <name> <key>: add a key by hand
 -- @alias    rkey      rkey <name> <new>: rename a key (also krename)
 -- @alias    dkey      dkey <name>: delete a key
@@ -26,12 +26,13 @@
 -- @help       cast 'teleport' $home any command: $home becomes the key
 -- @help
 -- @help     Every locate life is caught, however you cast it (locatel, your
--- @help     own alias, or by hand). A locate of your own room stores the key
--- @help     at once. A locate of a target opens a pick list: click a row, or
--- @help     Alt+Up/Down and Alt+Enter (Alt+Q closes it); kpick opens the
--- @help     last list again. Without a locatel name the key gets a name of
--- @help     its own (the room type's or the creature's last word, such as
--- @help     $hill or $troll); rkey <name> <new> renames it.
+-- @help     own alias, or by hand), and opens the pick window: type the
+-- @help     key's name and press Enter. Up and Down choose the hit (or
+-- @help     click a row; a double click or OK stores it), Esc closes. The
+-- @help     name is filled in: the locatel name, else one made up from the
+-- @help     room type or the creature ($hill, $troll), selected so that
+-- @help     typing replaces it. A locatel with a name and a single hit is
+-- @help     stored at once. kpick opens the last window again.
 -- @help
 -- @help     The first key you store is the safe key (the star in the pane):
 -- @help     Ctrl+S teleports there, Alt+S teleports quickly. Click another
@@ -61,12 +62,13 @@ hit: "Your mind fails to locate any such creature."
 
 Capture. The row trigger is always on and every locate block is handled
 the same way, however it was cast: its rows are gagged, and when the
-block ends a single row for your own character (state.char.name) is your
-room and is stored at once; anything else (a target, several rows)
-opens the pick list. locatel only arms the name for the next block
-(15 s); without one the key is named by itself (autoName), and a key
-already in the library is renewed under its own name. The block ends at
-the first line that is not a row (a temporary trigger, only while a
+block ends the pick window opens (a temporary pane with a name field,
+pane:setInput). locatel only arms the name for the next block (15 s):
+the window opens with it, and a single hit is stored at once without the
+window. Otherwise the field holds a suggestion: the hit's name in the
+library, else a name made up from the room type (a row for your own
+character, state.char.name) or the creature (autoName). The block ends
+at the first line that is not a row (a temporary trigger, only while a
 block is open) or 2 s after the last row. The failure lines of the
 Mudlet script cancel an armed name.
 
@@ -329,9 +331,8 @@ local function stopFresh()
   tempTimer(FRESH + 0.1, function() draw() end)
 end
 
--- Stores a key; tells the player what happened. `auto`: the name was
--- made up (the line says how to rename it).
-local function addKey(name, key, room, dist, auto)
+-- Stores a key; tells the player what happened.
+local function addKey(name, key, room, dist)
   local id = name:lower()
   local old = lib.keys[id]
   lib.keys[id] = { name = name, key = key, room = room or "", dist = dist or "", at = now() }
@@ -352,8 +353,7 @@ local function addKey(name, key, room, dist, auto)
   end
   say((old and (old.key == key and "Renewed " or "Replaced ") or "Stored ") .. nm(name) .. info .. ": <" .. DIM .. ">" .. key .. "<reset>"
     .. (other and (" <" .. DIM .. ">(same key as $" .. other .. ")<reset>") or "")
-    .. (becameSafe and " It is your safe key (Ctrl+S)." or "")
-    .. (auto and (" <" .. DIM .. ">Rename: rkey " .. name .. " <new><reset>") or ""))
+    .. (becameSafe and " It is your safe key (Ctrl+S)." or ""))
   stopFresh()
   draw()
 end
@@ -587,91 +587,116 @@ pane:onResize(function(rows, cols)
   draw()
 end)
 
--- ------------------------------------------------------------ the pick list
+-- ------------------------------------------------------------ the pick window
+
+-- True when `mob` is your own character (a locate of your own room).
+local function isMe(mob)
+  local me = state.char and state.char.name
+  return type(me) == "string" and mob:lower() == me:lower()
+end
+
+-- The name a hit is offered under: its name in the library, else one made
+-- up from the room type (your own room) or the creature.
+local function suggest(h)
+  return nameOfKey(h.key) or autoName(isMe(h.mob) and h.room or h.mob) or ""
+end
 
 local function closePick()
   local p = pick
   if not p then return end
   pick = nil
-  for _, k in ipairs(p.keys) do killKey(k) end
   p.pane:close()
 end
 
-local drawPick
-
--- Stores hit `i`: under `name`, else under the name it already has in
--- the library (renewed), else under a name of its own. `own`: the hit is
--- your own room (its name comes from the room type).
-local function storeHit(hits, i, name, own)
+-- Stores hit `i` under `name`; true when stored.
+local function storeHit(hits, i, name)
   local h = hits[i]
   if not h then return false end
   if not lib then
     notLoggedIn()
     return false
   end
-  if name then
-    addKey(name, h.key, h.room, h.dist)
-    return true
-  end
-  local known = nameOfKey(h.key)
-  if known then
-    addKey(known, h.key, h.room, h.dist)
-    return true
-  end
-  local auto = autoName(own and h.room or h.mob)
-  if not auto then
-    fail("No free name for this key: nkey <name> " .. h.key .. " stores it.")
-    return false
-  end
-  addKey(auto, h.key, h.room, h.dist, true)
+  addKey(name, h.key, h.room, h.dist)
   return true
 end
 
--- The name hit `h` of the pick list would be stored under.
-local function pickName(p, h)
-  if p.name then return p.name end
-  return nameOfKey(h.key) or autoName(h.mob) or "?"
+-- The typed name without a leading $.
+local function typed(p)
+  local v = p.field:value() or ""
+  v = trim(v):gsub("^%$", "")
+  return v
 end
 
-local function pickStore(i)
-  local p = pick
-  if not p then return end
-  if storeHit(p.hits, i, p.name) then closePick() end
+-- What Enter will do with the typed name, or why it cannot.
+local function pickStatus(p)
+  local name = typed(p)
+  local h = p.hits[p.sel]
+  if name == "" then return "<" .. DIM .. ">Type a name for the key." end
+  if not validName(name) then return "<ansi_light_red>A name is 1 to " .. NAME_MAX .. " letters, digits or _." end
+  local k = lib and lib.keys[name:lower()]
+  if k and k.key == h.key then return "<" .. DIM .. ">Enter renews $" .. k.name .. "." end
+  if k then return "<orange>Enter replaces $" .. k.name .. " (" .. k.key .. ")." end
+  return "<" .. DIM .. ">Enter stores hit " .. p.sel .. " as $" .. name .. "."
 end
 
-local function pickMove(d)
-  local p = pick
-  if not p then return end
-  p.sel = math.max(1, math.min(#p.hits, p.sel + d))
-  drawPick()
+local drawPick
+
+local function pickStore(p)
+  local name = typed(p)
+  if not validName(name) then
+    drawPick(p)
+    p.field:select()
+    return
+  end
+  if storeHit(p.hits, p.sel, name) then closePick() end
 end
 
-drawPick = function()
-  local p = pick
-  if not p then return end
+-- Selects hit `i`; an unedited name follows the selection.
+local function pickSelect(p, i)
+  p.sel = math.max(1, math.min(#p.hits, i))
+  if not p.edited then p.field:setValue(suggest(p.hits[p.sel])) end
+  drawPick(p)
+end
+
+drawPick = function(p)
   local pn = p.pane
-  pn:clear()
   local w = p.w
   local idxW = #tostring(#p.hits)
-  pn:setLine(1, "<" .. DIM .. ">   " .. pad("#", idxW) .. "  " .. pad("Mob", w.mob) .. "  " .. pad("Room type", w.room)
+  pn:setLine(2, " " .. pickStatus(p))
+  pn:setLine(3, "<" .. DIM .. ">   " .. pad("#", idxW) .. "  " .. pad("Mob", w.mob) .. "  " .. pad("Room type", w.room)
     .. "  " .. pad("Distance", w.dist) .. "  Key")
   for i, h in ipairs(p.hits) do
     local sel = i == p.sel
     local known = nameOfKey(h.key)
-    local text = (sel and " <ansi_light_green>▶<reset> " or "   ") .. pad(tostring(i), idxW) .. "  "
+    local r = i + 3
+    pn:setLine(r, (sel and " <ansi_light_green>▶<reset> " or "   ") .. pad(tostring(i), idxW) .. "  "
       .. (sel and "<ansi_white>" or "") .. pad(cut(h.mob, w.mob), w.mob) .. (sel and "<reset>" or "") .. "  "
       .. pad(cut(h.room, w.room), w.room) .. "  " .. pad(cut(h.dist, w.dist), w.dist) .. "  "
       .. "<" .. DIM .. ">" .. h.key .. "<reset>"
-      .. (known and ("  <ansi_light_green>= $" .. known .. "<reset>") or "")
-    pn:setLine(i + 1, text)
-    local hint = "Store as $" .. pickName(p, h) .. ":\n" .. h.mob .. " - " .. h.room .. ", " .. h.dist .. "\nkey " .. h.key
-    if known then hint = hint .. "\n(already stored as $" .. known .. ")" end
-    pn:setLink(i + 1, 1, w.total, function() pickStore(i) end, hint)
+      .. (known and ("  <ansi_light_green>= $" .. known .. "<reset>") or ""))
+    local hint = h.mob .. " - " .. h.room .. ", " .. h.dist .. "\nkey " .. h.key
+      .. (known and ("\n(stored as $" .. known .. ")") or "") .. "\nClick: select · double-click: store"
+    pn:setLink(r, 1, w.total, function()
+      local t = now()
+      local again = p.lastClick and p.lastClick.i == i and t - p.lastClick.at < 0.5
+      p.lastClick = { i = i, at = t }
+      if again and p.sel == i then
+        pickStore(p)
+        return
+      end
+      pickSelect(p, i)
+      p.field:focus()
+    end, hint)
   end
-  local foot = "Click or Alt+Enter: store · Alt+↑↓ select · Alt+Q close"
-  pn:setLine(#p.hits + 3, " <" .. DIM .. ">" .. foot)
+  local foot = #p.hits + 5
+  pn:setLine(foot - 1, "")
+  local keys = " ↑↓ select · Enter store · Esc close   "
+  pn:setLine(foot, "<" .. DIM .. ">" .. keys .. "<reset><ansi_light_green>[ OK ]")
+  pn:setLink(foot, len(keys) + 1, 6, function() pickStore(p) end, "Store the selected hit under the typed name")
 end
 
+-- Opens the pick window for `hits`, the name field filled with `name` or
+-- a suggestion, selected so that typing replaces it.
 local function openPick(hits, name)
   closePick()
   local w = { mob = 3, room = 9, dist = 8, key = 3 }
@@ -681,28 +706,32 @@ local function openPick(hits, name)
     w.dist = math.max(w.dist, math.min(12, len(h.dist)))
     w.key = math.max(w.key, len(h.key) + 14) -- room for "  = $name"
   end
-  local idxW = #tostring(#hits)
-  w.total = 3 + idxW + 2 + w.mob + 2 + w.room + 2 + w.dist + 2 + w.key
-  local foot = 56
-  local cols = math.min(110, math.max(w.total, foot) + 1)
-  local p = { hits = hits, name = name, sel = 1, keys = {}, w = w }
-  p.pane = createPane{ id = "pick", temporary = true, rows = #hits + 3, cols = cols,
-    title = name and ("Pick key for $" .. name) or "Pick a key" }
+  w.total = 3 + #tostring(#hits) + 2 + w.mob + 2 + w.room + 2 + w.dist + 2 + w.key
+  local cols = math.min(110, math.max(w.total, 48) + 1)
+  local p = { hits = hits, sel = 1, w = w, edited = name ~= nil }
+  p.pane = createPane{ id = "pick", temporary = true, rows = #hits + 5, cols = cols, title = "Pick a key" }
   pick = p
   p.pane:onClose(function()
-    if pick == p then
-      pick = nil
-      for _, k in ipairs(p.keys) do killKey(k) end
-    end
+    if pick == p then pick = nil end
   end)
-  local bind = function(key, fn) p.keys[#p.keys + 1] = tempKey(key, fn) end
-  bind("Alt+ArrowUp", function() pickMove(-1) end)
-  bind("Alt+ArrowLeft", function() pickMove(-1) end)
-  bind("Alt+ArrowDown", function() pickMove(1) end)
-  bind("Alt+ArrowRight", function() pickMove(1) end)
-  bind("Alt+Enter", function() if pick then pickStore(pick.sel) end end)
-  bind("Alt+Q", function() closePick() end)
-  drawPick()
+  p.pane:setLine(1, " Name: $")
+  p.field = p.pane:setInput(1, 9, NAME_MAX + 2, {
+    value = name or suggest(hits[1]),
+    maxLength = NAME_MAX,
+    placeholder = "name",
+    onSubmit = function() pickStore(p) end,
+    onCancel = function() closePick() end,
+    onChange = function()
+      p.edited = true
+      p.pane:setLine(2, " " .. pickStatus(p))
+    end,
+    onKey = function(key)
+      if key == "ArrowUp" or key == "PageUp" then pickSelect(p, p.sel - 1)
+      elseif key == "ArrowDown" or key == "PageDown" then pickSelect(p, p.sel + 1) end
+    end,
+  })
+  drawPick(p)
+  p.field:select()
 end
 
 -- ------------------------------------------------------------ capture
@@ -714,6 +743,8 @@ local function disarm()
   return a
 end
 
+-- A locate block ended: a locatel name with one hit is stored at once;
+-- anything else opens the pick window.
 local function finishBlock()
   local b = block
   if not b then return end
@@ -726,14 +757,10 @@ local function finishBlock()
     notLoggedIn()
     return
   end
-  -- One row for yourself: your own room.
-  local me = state.char and state.char.name
-  if #b.hits == 1 and type(me) == "string" and b.hits[1].mob:lower() == me:lower() then
-    storeHit(b.hits, 1, name, true)
+  if name and #b.hits == 1 then
+    storeHit(b.hits, 1, name)
     return
   end
-  say((#b.hits == 1 and "1 creature found" or #b.hits .. " creatures found")
-    .. (name and (" for " .. nm(name)) or "") .. ": pick a key in the list.")
   openPick(b.hits, name)
 end
 

@@ -2,7 +2,7 @@
 // opens the Keys pane; a locate over the mocked MUME WebSocket stores the
 // key (rows gagged), a pane letter casts with it, Ctrl+S teleports to the
 // safe key without the browser's save dialog, and a target locate opens
-// the pick list, where a click stores the hit and closes it.
+// the pick window, where the name is typed and Enter or a double click stores it.
 import { type Page, expect, test } from '@playwright/test';
 import type { WebSocketRoute } from '@playwright/test';
 
@@ -36,7 +36,7 @@ async function cellAt(page: Page, row: number, col: number, id = ID): Promise<{ 
   return { x: box.x + (col + 0.5) * cell.w, y: box.y + (row + 0.5) * cell.h };
 }
 
-test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick list', async ({ page }) => {
+test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick window', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const received: Buffer[] = [];
@@ -91,8 +91,10 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await page.keyboard.press('Alt+s');
   await expect.poll(() => count("cast q 'teleport' uxevjobve\r\n")).toBe(1);
   expect(await page.evaluate(() => (window as unknown as { __keys: string[] }).__keys)).toEqual(['KeyS:true', 'KeyS:true']);
+  await page.evaluate(() => ((window as unknown as { __keys: string[] }).__keys = []));
 
-  // A target locate with two hits: the pick list; a click stores and closes it.
+  // A target locate with two hits: the pick window, the name field focused
+  // with the locatel name; Down selects the second hit, Enter stores it.
   await command(page, 'locatel troll cave');
   await expect.poll(sentText).toContain("cast n 'locate life' troll\r\n");
   server!.send(
@@ -100,13 +102,38 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
       "You start to concentrate...\r\n\r\nA troll - Inside  Far away  key: 'abcdefghi'\r\nA hungry warg - In a forest  Near  key: 'qwertyuio'\r\n\r\n",
     ),
   );
+  const field = pane(page, PICK).locator('input.wc-spane-field');
   await expect(pane(page, PICK)).toBeVisible();
-  await expect(pane(page, PICK).locator('.wc-pane-frame')).toContainText('Pick key for $cave');
-  await expect(prows(page, PICK).nth(2)).toContainText('A hungry warg');
-  const hit = await cellAt(page, 2, 6, PICK);
-  await page.mouse.click(hit.x, hit.y);
+  await expect(pane(page, PICK).locator('.wc-pane-frame')).toContainText('Pick a key');
+  await expect(field).toHaveValue('cave');
+  await expect(field).toBeFocused();
+  await expect(prows(page, PICK).nth(4)).toContainText('A hungry warg');
+  await page.keyboard.press('ArrowDown');
+  await expect(prows(page, PICK).nth(4)).toHaveText(/^ ▶ 2 /);
+  await page.keyboard.press('Enter');
   await expect(pane(page, PICK)).toHaveCount(0);
   await expect(prows(page).nth(1)).toHaveText(/^ ☆ \$cave\s.*t p s w x\s*$/);
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+
+  // A locate cast by hand: the window suggests a name; typing replaces it;
+  // a click on a row selects it and a second click stores it.
+  await command(page, "cast n 'locate life' warg");
+  server!.send(bytes("You start to concentrate...\r\n\r\nA hungry warg - In a forest  Near  key: 'zzzzzzzzz'\r\n\r\n"));
+  await expect(field).toHaveValue('warg');
+  await expect(field).toBeFocused();
+  await page.keyboard.type('den');
+  await expect(field).toHaveValue('den');
+  // Ctrl+S in the field does not teleport.
+  const before = count("cast n 'teleport' uxevjobve\r\n");
+  await page.keyboard.press('Control+s');
+  const hit = await cellAt(page, 3, 6, PICK);
+  await page.mouse.click(hit.x, hit.y);
+  await expect(field).toBeFocused();
+  await page.mouse.click(hit.x, hit.y);
+  await expect(pane(page, PICK)).toHaveCount(0);
+  await expect(prows(page).nth(2)).toHaveText(/^ ☆ \$den\s.*t p s w x\s*$/);
+  expect(count("cast n 'teleport' uxevjobve\r\n")).toBe(before);
+  expect(sentText()).not.toContain('den\r\n');
 
   // keys hides and shows the pane.
   await command(page, 'keys');

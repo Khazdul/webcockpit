@@ -54,6 +54,10 @@ class FakeView implements ScriptPaneView {
   close(): void {
     this.closed = true;
   }
+  focused: Array<[number, boolean]> = [];
+  focusField(id: number, select: boolean): void {
+    this.focused.push([id, select]);
+  }
 }
 class FakeSurface implements ScriptPaneSurface {
   readonly opened: Array<{ spec: ScriptPaneSpec; content: PaneContent; events: ScriptPaneEvents; view: FakeView }> = [];
@@ -166,14 +170,24 @@ async function setup(opts: { login?: string | null; before?: (lib: ScriptLibrary
       const s = text(c, r);
       return c.linkAt(r, s.lastIndexOf(` ${ch}`) + 1);
     },
-    clickPick: (r: number) => {
+    clickPick: (r: number, col = 5) => {
       const p = t.panes.pick!;
-      const link = p.content.linkAt(r, 5);
+      const link = p.content.linkAt(r, col);
       if (!link) throw new Error(`no pick link at row ${r}`);
       p.events.onLink(link.id);
       return link;
     },
     key: (name: string) => engine.runMacro(name),
+    /** The pick window's name field: its id, value and the focus asked for. */
+    field: () => t.panes.pick!.content.fields[0]!,
+    /** Types `text` into the name field (as the input reports it). */
+    typeName: (text: string) => t.panes.pick!.events.onField!(t.field().id, { type: 'change', text }),
+    /** Enter in the name field. */
+    enter: () => t.panes.pick!.events.onField!(t.field().id, { type: 'submit', text: t.field().value }),
+    /** Esc in the name field. */
+    esc: () => t.panes.pick!.events.onField!(t.field().id, { type: 'cancel' }),
+    /** Up, Down … in the name field. */
+    fieldKey: (key: string) => t.panes.pick!.events.onField!(t.field().id, { type: 'key', key }),
     settle: async () => {
       for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0));
       await host!.sync();
@@ -262,54 +276,80 @@ describe('bundled keymanager', () => {
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
-  it('locatel <target> <name>: several hits open the pick list; click, or Alt keys, store and close', async () => {
+  it('locatel <target> <name>: the pick window, its name field filled in; Up/Down, Enter store and close', async () => {
     const t = await setup();
     locatel(t, 'troll cave', TROLL, WARG);
     expect(t.sent).toEqual(["cast n 'locate life' troll"]);
     // The rows are gagged.
     expect(t.texts().some((x) => x.includes("key: '"))).toBe(false);
-    expect(t.texts()).toContain('KEYS 2 creatures found for $cave: pick a key in the list.');
     const p = t.panes.pick!;
     expect(p.spec.temporary).toBeDefined();
-    expect(p.content.title).toBe('Pick key for $cave');
+    expect(p.content.title).toBe('Pick a key');
+    expect(t.field()).toMatchObject({ row: 0, col: 8, len: 12, value: 'cave', maxLength: 10 });
+    // Focused with the name selected, so typing replaces it.
+    expect(p.view.focused).toEqual([[t.field().id, true]]);
     expect(t.pickRows()).toEqual([
+      ' Name: $',
+      ' Enter stores hit 1 as $cave.',
       '   #  Mob            Room type    Distance  Key',
       ' ▶ 1  A troll        Inside       Far away  abcdefghi',
       '   2  A hungry warg  In a forest  Near      qwertyuio',
       '',
-      ' Click or Alt+Enter: store · Alt+↑↓ select · Alt+Q close',
+      ' ↑↓ select · Enter store · Esc close   [ OK ]',
     ]);
-    // Alt+Down moves the selection, Alt+Enter stores it and closes the list.
-    expect(t.key('Alt+ArrowDown')).toBe(true);
-    expect(t.pickRows()![2]).toMatch(/^ ▶ 2 /);
-    expect(t.key('Alt+ArrowDown')).toBe(true);
-    expect(t.pickRows()![2]).toMatch(/^ ▶ 2 /);
-    expect(t.key('Alt+ArrowLeft')).toBe(true);
-    expect(t.pickRows()![1]).toMatch(/^ ▶ 1 /);
-    t.key('Alt+ArrowRight');
-    t.key('Alt+Enter');
+    // The snapshot (runs) shows the name as text.
+    const snap = p.content.snapshot().lines[0]!;
+    expect('spans' in snap && snap.spans.map((x) => x.text).join('')).toBe(' Name: $cave        ');
+    // Down moves the selection; the locatel name stays.
+    t.fieldKey('ArrowDown');
+    expect(t.pickRows()![4]).toMatch(/^ ▶ 2 /);
+    expect(t.field().value).toBe('cave');
+    t.fieldKey('ArrowDown');
+    expect(t.pickRows()![4]).toMatch(/^ ▶ 2 /);
+    t.fieldKey('ArrowUp');
+    expect(t.pickRows()![3]).toMatch(/^ ▶ 1 /);
+    t.fieldKey('PageDown');
+    t.enter();
     expect(t.panes.pick).toBeNull();
-    expect(t.texts()).toContain('KEYS Stored $cave (In a forest, Near): qwertyuio It is your safe key (Ctrl+S).');
-    // The keys are gone with the list.
-    expect(t.key('Alt+ArrowDown')).toBe(false);
-    expect(t.key('Alt+Enter')).toBe(false);
+    expect(t.lastText()).toBe('KEYS Stored $cave (In a forest, Near): qwertyuio It is your safe key (Ctrl+S).');
 
-    // kpick reopens it; the stored hit is marked; a click stores the other.
+    // kpick opens it again; a stored hit is marked; a name that exists says
+    // it will be replaced; a bad name is refused inline.
     t.input('kpick');
-    expect(t.pickRows()![2]).toBe('   2  A hungry warg  In a forest  Near      qwertyuio  = $cave');
-    const link = t.clickPick(1);
-    expect(link.hint).toBe('Store as $cave:\nA troll - Inside, Far away\nkey abcdefghi');
-    expect(t.panes.pick).toBeNull();
-    expect(t.texts()).toContain('KEYS Replaced $cave (Inside, Far away): abcdefghi');
-    // Alt+Q closes without storing.
-    t.input('kpick');
+    expect(t.pickRows()![4]).toBe('   2  A hungry warg  In a forest  Near      qwertyuio  = $cave');
+    expect(t.pickRows()![1]).toBe(' Enter replaces $cave (qwertyuio).');
+    t.typeName('bad name');
+    expect(t.pickRows()![1]).toBe(' A name is 1 to 10 letters, digits or _.');
+    const focusedBefore = t.panes.pick!.view.focused.length;
+    t.enter();
     expect(t.panes.pick).not.toBeNull();
-    t.key('Alt+Q');
+    expect(t.panes.pick!.view.focused.length).toBe(focusedBefore + 1);
+    t.typeName('');
+    expect(t.pickRows()![1]).toBe(' Type a name for the key.');
+    t.typeName('$lair');
+    expect(t.pickRows()![1]).toBe(' Enter stores hit 1 as $lair.');
+    // Clicking a row selects it (and gives the field the keyboard back);
+    // a second click on it stores.
+    const link = t.clickPick(4);
+    expect(link.hint).toBe('A hungry warg - In a forest, Near\nkey qwertyuio\n(stored as $cave)\nClick: select · double-click: store');
+    expect(t.pickRows()![4]).toMatch(/^ ▶ 2 /);
+    expect(t.field().value).toBe('$lair');
+    t.clickPick(4);
     expect(t.panes.pick).toBeNull();
-    // The close cross closes it too (onClose kills the keys).
+    expect(t.lastText()).toBe('KEYS Stored $lair (In a forest, Near): qwertyuio (same key as $cave)');
+    // OK stores; Esc closes without storing; so does the close cross.
+    t.input('kpick');
+    t.typeName('ok1');
+    const foot = t.pickRows()![6]!;
+    t.clickPick(6, foot.indexOf('[ OK ]') + 1);
+    expect(t.lastText()).toBe('KEYS Stored $ok1 (Inside, Far away): abcdefghi');
+    t.input('kpick');
+    t.esc();
+    expect(t.panes.pick).toBeNull();
     t.input('kpick');
     t.panes.pick!.events.onClose!();
-    expect(t.key('Alt+Q')).toBe(false);
+    expect(t.panes.pick).toBeNull();
+    expect(t.store()!.keys).toHaveLength(3);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
@@ -331,48 +371,42 @@ describe('bundled keymanager', () => {
     expect(t.store()?.keys ?? []).toEqual([]);
   });
 
-  it('a locate cast any other way is caught too: own room stored at once, a target picked, names made up', async () => {
+  it('a locate cast any other way is caught too: the window suggests a name from the room or the creature', async () => {
     const t = await setup();
-    // Own room (one row, your own character), cast by hand: stored at once.
+    // Own room (one row, your own character), cast by hand.
     t.input("cast n 'locate life'");
     t.recv(CONCENTRATE, '', GITTAN, '', PROMPT);
-    expect(t.texts()).toEqual([
-      CONCENTRATE,
-      '',
-      '',
-      'KEYS Stored $hill (On a hill, Very near): uxevjobve It is your safe key (Ctrl+S). Rename: rkey hill <new>',
-      PROMPT,
-    ]);
-    // The same room again: the key is renewed under its name.
+    expect(t.texts()).toEqual([CONCENTRATE, '', '', PROMPT]);
+    expect(t.field().value).toBe('hill');
+    t.enter();
+    expect(t.lastText()).toBe('KEYS Stored $hill (On a hill, Very near): uxevjobve It is your safe key (Ctrl+S).');
+    // The same room again: its name in the library; Enter renews it.
     t.clock.advance(HOUR);
     t.recv(CONCENTRATE, '', GITTAN, '', PROMPT);
-    expect(t.texts()).toContain('KEYS Renewed $hill (On a hill, Very near): uxevjobve');
-    expect(t.store()!.keys).toHaveLength(1);
-    // Another own room with the same room type: hill2.
+    expect(t.field().value).toBe('hill');
+    expect(t.pickRows()![1]).toBe(' Enter renews $hill.');
+    t.enter();
+    expect(t.lastText()).toBe('KEYS Renewed $hill (On a hill, Very near): uxevjobve');
+    // Another own room of the same type: hill2.
     t.recv(CONCENTRATE, '', row('Gittan', 'On a hill', 'Here', 'kkkkkkk'), '', PROMPT);
-    expect(t.texts()).toContain('KEYS Stored $hill2 (On a hill, Here): kkkkkkk Rename: rkey hill2 <new>');
-
-    // A target, one hit: the pick list (a creature is not your room).
+    expect(t.field().value).toBe('hill2');
+    t.esc();
+    // A target: the creature's last word; the suggestion follows the selection until the name is edited.
     t.input("cast n 'locate life' troll");
-    t.recv(CONCENTRATE, '', TROLL, '', PROMPT);
-    expect(t.texts().some((x) => x.includes("key: '"))).toBe(false);
-    expect(t.texts()).toContain('KEYS 1 creature found: pick a key in the list.');
-    expect(t.panes.pick!.content.title).toBe('Pick a key');
-    expect(t.panes.pick!.content.linkAt(1, 5)!.hint).toBe('Store as $troll:\nA troll - Inside, Far away\nkey abcdefghi');
-    t.clickPick(1);
-    expect(t.lastText()).toBe('KEYS Stored $troll (Inside, Far away): abcdefghi Rename: rkey troll <new>');
-    expect(t.panes.pick).toBeNull();
-
-    // Several hits: the list; Alt+Enter stores the selected one; a stored
-    // key is marked and keeps its name.
     t.recv(CONCENTRATE, '', TROLL, WARG, '', PROMPT);
-    expect(t.pickRows()![1]).toMatch(/= \$troll$/);
-    t.key('Alt+ArrowDown');
-    t.key('Alt+Enter');
-    expect(t.lastText()).toBe('KEYS Stored $warg (In a forest, Near): qwertyuio Rename: rkey warg <new>');
-    t.input('kpick');
-    t.clickPick(1);
-    expect(t.lastText()).toBe('KEYS Renewed $troll (Inside, Far away): abcdefghi');
+    expect(t.texts().some((x) => x.includes("key: '"))).toBe(false);
+    expect(t.field().value).toBe('troll');
+    t.fieldKey('ArrowDown');
+    expect(t.field().value).toBe('warg');
+    t.typeName('den');
+    t.fieldKey('ArrowUp');
+    expect(t.field().value).toBe('den');
+    t.enter();
+    expect(t.lastText()).toBe('KEYS Stored $den (Inside, Far away): abcdefghi');
+    // A new locate replaces an open window.
+    t.recv(CONCENTRATE, '', WARG, '', PROMPT);
+    expect(t.panes.opened.filter((o) => o.spec.id === 'keymanager/~pick' && !o.view.closed)).toHaveLength(1);
+    expect(t.field().value).toBe('warg');
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
