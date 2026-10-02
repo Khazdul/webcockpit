@@ -260,12 +260,14 @@ const TIMERS: HelpSection = {
     "tempTimer(seconds, fn) → id",
     "tempTimer(seconds, fn, true) → id",
     "killTimer(id)",
+    "getEpoch() → seconds",
   ],
   text: [
     "tempTimer(seconds, fn) calls fn once, after seconds. Fractions work: 0.5 is half a second. 0 calls it as soon as the current work is done.",
     "tempTimer(seconds, fn, true) repeats: fn is called every seconds until you stop it. A repeating timer runs at most every 50 milliseconds (0.05 seconds).",
     "killTimer(id) stops a timer. It returns false when the timer is already gone; a one-shot timer is gone once it has fired.",
     "Timers stop when the script stops. To wait inside a function, start a timer; there is no sleep, and a loop that waits would hit the instruction budget.",
+    "Lua's os library is not there. getEpoch() gives the time now in seconds since 1970, with milliseconds as the fraction. Timers stop with the script, so for something that must last past a reload, keep its end time (getEpoch() plus the seconds) in the store and start a new timer for what is left when the script runs again.",
   ],
   examples: [
     {

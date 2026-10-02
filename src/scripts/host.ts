@@ -86,6 +86,8 @@ export interface ScriptHostOptions {
   storage?: Storage | null;
   /** Monotonic ms (default `performance.now`). */
   clock?: () => number;
+  /** Wall-clock seconds since 1970 for `getEpoch` (default `Date.now() / 1000`). */
+  epoch?: () => number;
   /**
    * The GMCP cache App keeps from its start (default: the host attaches its
    * own to the bus, so it sees only what arrives after `start`).
@@ -850,6 +852,10 @@ export class ScriptHost {
       const source = a.string(1).trim().toUpperCase().slice(0, 20) || 'SCRIPT';
       this.o.bus.emit('ui.message', { kind: 'event', name: source, parts: [a.string(2)] });
     });
+
+    // Wall-clock time (Mudlet's getEpoch): the sandbox has no `os`, and a
+    // script that keeps times across reloads (the store) needs real time.
+    rt.defineFunction('getEpoch', () => this.o.epoch?.() ?? Date.now() / 1000);
 
     rt.defineFunction('getVariable', (a) => engine.getVariable(a.string(1)) ?? null);
     rt.defineFunction('setVariable', (a) => {

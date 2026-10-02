@@ -291,6 +291,17 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     example:
       'local t = tempTimer(60, function()\n  echo("Another minute.")\nend, true)\ntempAlias("^stopclock$", function()\n  killTimer(t)\nend)',
   }),
+  fn(
+    "getEpoch",
+    "getEpoch() → seconds",
+    "The time now, in seconds since 1970 (with milliseconds as the fraction), as Mudlet's getEpoch. Use it for times that must outlast a reload, kept with store.set.",
+    {
+      params: [],
+      returns: "Seconds since 1 January 1970 UTC, a number with a fraction.",
+      example:
+        'local ends = getEpoch() + 25 * 60\nstore.set("ends", ends)\nlocal left = math.floor(ends - getEpoch())',
+    },
+  ),
   // Events.
   fn(
     "registerAnonymousEventHandler",
