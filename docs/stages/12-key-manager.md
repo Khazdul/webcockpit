@@ -169,9 +169,23 @@ recording yet); with many matches the 20 nearest are marked.
 - [x] Owner test round 4.
 - [x] Round 5: round 4 feedback (colours, prompt gag, steady hover, ADR 0056).
 - [x] Round 6: scry marks on the map (ADR 0057).
-- [ ] Owner test round 6.
+- [x] Owner test round 6.
+- [x] Round 7: round 6 feedback (TV lifetimes, ◻ blink, map linger).
+- [ ] Owner test round 7.
 
 ## Test guide
+
+### Round 7
+
+What changed: a scry's TV closes when the map blink ends (15 s), unless
+the key is being watched; a TV you open yourself (`tv <name>`, `◻`)
+stays until you close it (the TV that closed every second is fixed);
+`◻` blinks red while its key has a watch running; the map mark stays,
+steady, three minutes after the blink, with its arrows.
+
+Try: watch one key, scry another, open TVs with `◻` during the watch and
+check they stay; hover a blinking `◻`; watch the map mark after the blink
+(steady, then gone after three minutes).
 
 ### Round 6: scry on the map
 

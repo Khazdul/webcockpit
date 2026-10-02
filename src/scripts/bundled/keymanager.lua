@@ -46,16 +46,19 @@
 -- @help     your last 3 watches), or how long ago the scry was. Lines keep
 -- @help     the game's colours; for 10 seconds their plain text is white,
 -- @help     then grey. A TV closes by itself a minute after its watch ends
--- @help     (tvclose); tv <name> opens it again with its lines.
+-- @help     (tvclose), a scry's TV when its map blink ends (15 s); one you
+-- @help     open yourself (tv <name>, ◻) stays until you close it.
 -- @help     A scry also shows the room on the Map pane: it blinks magenta
 -- @help     for 15 seconds (an arrow points to it when it is off the view)
 -- @help     and the map zooms out to show it and you, then back, unless you
--- @help     moved the map meanwhile. Rooms are found by their name (several
+-- @help     moved the map meanwhile. The mark then stays, steady, for three
+-- @help     more minutes. Rooms are found by their name (several
 -- @help     with that name: the 20 nearest); the KEYS line says what it
 -- @help     found, or that the map is off.
 -- @help     In the Port keys pane, a key with a watch running or a scry in
 -- @help     the last 12 hours has a ◻ before its x: it opens and closes the
--- @help     TV. While a watch runs, the time column counts it down.
+-- @help     TV; it blinks red while a watch runs, and the time column
+-- @help     counts the watch down.
 -- @help
 -- @help     In the Port keys pane, click a key's name to rename it (Enter
 -- @help     saves, Esc cancels). The letters are casts: t teleport,
@@ -517,6 +520,10 @@ local TV_LINES = 250     -- lines kept per TV
 local WATCH_DEFAULT = 200 -- seconds a watch lasts before any is learnt (Mudlet's start)
 local WATCH_LEARN = 3    -- watches the average is taken over (as the spell timers)
 local SCRY_KEEP = 12 * 3600 -- seconds a scried room keeps its TV button
+-- How long a scry shows: the map mark blinks this long and the TV a scry
+-- opened stays this long (one value, so they never drift apart).
+local SCRY_SECS = 15
+local SCRY_LINGER = 180     -- seconds the map mark then stays, steady
 
 -- "2:31".
 local function clock(secs)
@@ -641,6 +648,16 @@ local LETTERS = {
 -- The time cells of the rows on screen: id -> { row, col, w, text } (the
 -- tick rewrites only these, ADR 0056).
 local timeAt = {}
+-- The ◻ cells: id -> { row, col } (they blink while a watch runs).
+local tvAt = {}
+
+-- The ◻'s colour: cyan (white while its TV shows); while a watch runs it
+-- alternates with red, a second each.
+local function tvButtonColor(id, t)
+  local tv = tvs[id]
+  if tv and tv.watching and math.floor(t) % 2 == 1 then return "ansi_light_red" end
+  return (tv and tv.pane and tv.pane:visible()) and "ansi_white" or "ansi_light_cyan"
+end
 
 -- The width of segments.
 local function segsW(segs)
@@ -708,7 +725,9 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, tvW)
   if tvW > 0 then
     if hasTv(id, k, t) then
       local shown = tvs[id] and tvs[id].pane and tvs[id].pane:visible()
-      acts[#acts + 1] = { text = "◻", color = shown and "ansi_white" or "ansi_light_cyan", fn = act(function()
+      -- Its cell, after the time and four letters (two cells each).
+      if fit >= #LETTERS + 1 then tvAt[id] = { row = n, col = segsW(segs) + #LETTERS * 2 + 2 } end
+      acts[#acts + 1] = { text = "◻", color = tvButtonColor(id, t), fn = act(function()
         local tv = tvs[id]
         if tv and tv.pane and tv.pane:visible() then
           closeTv(tv)
@@ -821,6 +840,7 @@ draw = function()
   local t = now()
   local nameW, timeW, roomMax, keyMax, tvW = 5, 3, 0, 0, 0
   timeAt = {}
+  tvAt = {}
   for _, e in ipairs(list) do
     nameW = math.max(nameW, len(e.k.name) + 1)
     timeW = math.max(timeW, len((timeCell(e.id, e.k, t))))
@@ -864,6 +884,10 @@ local function updateTimes()
     if len(txt) > at.w then return draw() end
     pane:setText(at.row, at.col, "<" .. (c or "reset") .. ">" .. lpad(txt, at.w))
     pane:setLink(at.row, at.col, at.w, nil, hint)
+  end
+  -- The ◻ of a watched key blinks; only its cell is written (ADR 0056).
+  for id, at in pairs(tvAt) do
+    pane:setText(at.row, at.col, "<" .. tvButtonColor(id, t) .. ">◻")
   end
 end
 
@@ -950,9 +974,14 @@ local function tvTick()
         p:setLine(tv.bright, tvLine(e, t))
         tv.bright = tv.bright + 1
       end
-      local done = not tv.watching and (tv.ended or tv.scried)
-      local since = math.max(tv.ended or 0, tv.scried or 0)
-      if done and t - since > math.max(5, tonumber(settings.tvclose) or 60) then closeTv(tv) end
+      -- Only a TV an event opened closes by itself (a running watch: never;
+      -- a scry: when its map blink ends; an ended watch: tvclose later).
+      -- One the player opened stays until the player closes it.
+      if tv.auto and not tv.watching then
+        local scry = tv.scried and (not tv.ended or tv.scried > tv.ended)
+        local due = scry and (tv.scried + SCRY_SECS) or ((tv.ended or t) + math.max(5, tonumber(settings.tvclose) or 60))
+        if t >= due then closeTv(tv) end
+      end
     end
   end
   if watching then updateTimes() end
@@ -979,7 +1008,11 @@ openTv = function(id, force)
     for _, x in ipairs(k.scry.lines) do tv.lines[#tv.lines + 1] = { t = k.scry.at, c = x.c, p = x.p } end
   end
   if not tv then return false end
-  if force then tv.shut = false end
+  -- The player's own open: no auto-close (tvTick).
+  if force then
+    tv.shut = false
+    tv.auto = false
+  end
   if tv.shut then return false end
   if tv.pane then
     tv.pane:show()
@@ -1050,6 +1083,7 @@ local function watchStarted(tv)
   tv.watching = now()
   tv.ended = nil
   tv.shut = false
+  tv.auto = true
   tvAdd(tv, nil, "· watching", true)
   openTv(tv.id)
   if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.watching)) end
@@ -1371,6 +1405,7 @@ tempRegexTrigger("^\\[(\\w+)\\] (.*)$", function()
     tv.watching = now()
     tv.resumed = true
     tv.ended = nil
+    tv.auto = true
     openTv(tv.id)
     startTvTick()
     draw()
@@ -1392,7 +1427,7 @@ local scrying = nil
 -- name, the rest narrow by the description and the Exits: line. The dim
 -- KEYS TV line says what happened.
 local MARK_COLOR = "#ff40ff"
-local MARK_SECS, MARK_FADE = 15, 5
+local MARK_FADE = 5
 
 local function tvWho(tv) return tv.id == "scry" and "TV scry" or ("TV $" .. tv.name) end
 
@@ -1408,7 +1443,7 @@ local function markScry(tv, lines)
     local p = lines[i].p
     if p:match("^%s*Exits:") then exits = p else rest[#rest + 1] = p end
   end
-  local opts = { color = MARK_COLOR, duration = MARK_SECS, fade = MARK_FADE, focus = true }
+  local opts = { color = MARK_COLOR, duration = SCRY_SECS, fade = MARK_FADE, linger = SCRY_LINGER, focus = true }
   if tv.id ~= "scry" then opts.label = "$" .. tv.name end
   local h, why = mapMark({ name = name, lines = rest, exits = exits }, opts, function(count, total)
     if count == 0 then
@@ -1475,6 +1510,7 @@ tempRegexTrigger("^You let your inner eye find the area\\.\\.\\. and you see:$",
     if scrying == sc then scryDone() end
   end)
   tv.shut = false
+  tv.auto = true
   openTv(tv.id)
   if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.scried)) end
   startTvTick()

@@ -328,3 +328,27 @@ area... and you see:` then the room and a blank line (a scry).
   Renewing the same key keeps it. Watch lines stay in memory only.
 - A rename moves the key's TV; a running watch keeps answering to its old
   label.
+
+## Round 6 feedback (round 7, 2026-10-02)
+
+- **TV lifetimes.** Cause of the TV that closed every second while a
+  watch ran: the tick closed any TV whose watch had ended or whose scry
+  was older than `tvclose`, measured from the old event — so a TV the
+  player opened for an old scry or watch (`tv <name>`, `◻`) closed on the
+  next tick (the tick only runs while a watch runs or a TV is open). Now
+  a TV has an origin: one an event opened (a watch start, a resumed watch,
+  a scry) is `auto` and closes by its rule — never while its key's watch
+  runs, a scry's `SCRY_SECS` after the scry, an ended watch's `tvclose`
+  after the end; one the player opened stays until the player closes it
+  (a later scry or watch makes it an event TV again). Unit and e2e tests
+  hold a player-opened TV open across many watch ticks.
+- **Scry TV and map blink: one value.** `SCRY_SECS = 15` is both the map
+  mark's blink and a scry TV's life. Not a setting: the owner wants them
+  equal, and a setting for one would let them drift.
+- **Map linger.** The scry mark uses `linger = 180` (ADR 0057): steady
+  for three minutes after the blink, with its arrows and label.
+- **◻ blinks** (cyan / red, a second each; white instead of cyan while
+  its TV shows) while its key's watch runs. The tick writes only that
+  cell with `pane:setText` (ADR 0056), so links and a hovered tooltip stay.
+  While the ◻ itself is hovered the hover band covers its colour; the
+  tooltip stays open (e2e).

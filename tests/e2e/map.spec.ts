@@ -136,9 +136,14 @@ test('script map marks: a scry marks its room on the map for 15 s (ADR 0057)', a
     await page.waitForTimeout(600);
     await content.screenshot({ path: `${SHOT_DIR}/map-mark-${test.info().project.name}.png` });
   }
-  // Gone after 15 s.
-  await expect(content).toHaveAttribute('data-map-marks', '0', { timeout: 25_000 });
+  // The blink ends after 15 s and the scry's TV closes with it; the mark
+  // lingers (steady, 3 min; its end is covered by the unit tests).
+  const tvScry = page.locator('.wc-pane[data-pane="keymanager/~tv1"]');
+  await expect(tvScry).toBeVisible();
+  await expect(tvScry).toHaveCount(0, { timeout: 25_000 });
   expect(Date.now() - t0).toBeGreaterThan(14_000);
+  await page.waitForTimeout(1500);
+  await expect(content).toHaveAttribute('data-map-marks', '1');
   // Map pane off: nothing is marked, the KEYS line says so.
   await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: false } } }));
   await page.evaluate(() => {

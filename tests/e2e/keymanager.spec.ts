@@ -255,6 +255,52 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
     await page.waitForTimeout(400);
   }
   await page.mouse.move(5, 5);
+  // Another key's TV, opened by the player, stays open while the watch ticks.
+  await command(page, 'nkey cave abcdefghi');
+  server!.send(bytes('[home] Wind blows.\r\n'));
+  await command(page, 'scry cave');
+  server!.send(bytes("You let your inner eye find the area... and you see:\r\nThe Dark Cave\r\n\r\nOk.\r\n"));
+  const tv2 = pane(page, 'keymanager/~tv2');
+  await expect(tv2).toBeVisible();
+  await command(page, 'tv cave');
+  for (let i = 0; i < 6; i++) {
+    await page.waitForTimeout(700);
+    await expect(tv2).toBeVisible();
+  }
+  // The ◻ of the watched key blinks (cyan / red, a second each) …
+  const texts = await prows(page).allTextContents();
+  const hr = texts.findIndex((x) => x.includes('$home'));
+  const homeRow = texts[hr]!;
+  const colour = () =>
+    prows(page)
+      .nth(hr)
+      .evaluate((el, col) => {
+        let x = 0;
+        for (const sp of el.querySelectorAll('span')) {
+          const n = (sp.textContent ?? '').length;
+          if (x <= col && col < x + n) return getComputedStyle(sp).color;
+          x += n;
+        }
+        return '';
+      }, homeRow.indexOf('◻'));
+  const seen = new Set<string>();
+  for (let i = 0; i < 6; i++) {
+    seen.add(await colour());
+    await page.waitForTimeout(400);
+  }
+  expect(seen.size).toBeGreaterThanOrEqual(2);
+  // … and while it is hovered, its tooltip stays open through the blinks.
+  const box = await cellAt(page, hr, homeRow.indexOf('◻'));
+  await page.mouse.move(box.x, box.y);
+  const tip2 = page.locator('.wc-spane-tip');
+  await expect(tip2).toContainText('the TV of $home');
+  for (let i = 0; i < 6; i++) {
+    expect(await tip2.isVisible()).toBe(true);
+    await page.waitForTimeout(400);
+  }
+  await page.mouse.move(5, 5);
+  await command(page, 'tv cave');
+
   // The end: noted, and the TV closes by itself (tvclose 5 s).
   server!.send(bytes('[home] Your awareness decreases.\r\n'));
   await expect(tv.locator('.wc-pane-frame')).toContainText('ended');

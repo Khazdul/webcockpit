@@ -948,7 +948,7 @@ describe('bundled keymanager', () => {
               exits: 'Exits: north, [south].',
             },
           },
-          style: { color: 0xff40ff, blink: true, fade: 5, arrows: true, label: '$cave' },
+          style: { color: 0xff40ff, blink: true, fade: 5, arrows: true, label: '$cave', linger: 180 },
           ms: 15000,
           focus: true,
         },
@@ -966,6 +966,94 @@ describe('bundled keymanager', () => {
       expect(t.lastText()).toBe('KEYS TV scry: scried; on the map.');
       expect((m.marks[3]!.style as { label?: string }).label).toBeUndefined();
       expect(t.lib.get('keymanager')!.lastError).toBeNull();
+    });
+
+    it('a scry TV closes when the map blink ends (15 s), unless the key has a watch running', async () => {
+      const t = await setup();
+      t.input('nkey cave abcdefghi');
+      t.input('nkey home uxevjobve');
+      t.input('scry cave');
+      t.recv(SCRY, 'The Dark Cave', '', PROMPT);
+      expect(t.panes.tv(1)).not.toBeNull();
+      t.clock.advance(14_000);
+      expect(t.panes.tv(1)).not.toBeNull();
+      t.clock.advance(2000);
+      expect(t.panes.tv(1)).toBeNull();
+      // A watched key's scry: the TV follows the watch.
+      t.input('watchr home');
+      t.recv('You feel aware of this place.');
+      t.input('scry home');
+      t.recv(SCRY, 'Home', '', PROMPT);
+      t.clock.advance(30_000);
+      expect(t.panes.opened.some((o) => !o.view.closed && /^TV \$home/.test(o.content.title))).toBe(true);
+    });
+
+    it('bug: with a watch running on A, a TV the player opens for B stays open over many ticks', async () => {
+      const t = await setup();
+      t.input('nkey aaa aaaaaaa');
+      t.input('nkey bbb bbbbbbb');
+      t.input('scry bbb');
+      t.recv(SCRY, 'Room B', '', PROMPT);
+      t.clock.advance(20_000);
+      expect(t.panes.tv(1)).toBeNull(); // the scry's TV closed on its rule
+      t.input('watchr aaa');
+      t.recv('You feel aware of this place.');
+      const tvB = () => t.panes.opened.find((o) => !o.view.closed && /^TV \$bbb/.test(o.content.title));
+      // Opened by the player (tv bbb, or ◻): it stays while A's watch ticks.
+      t.input('tv bbb');
+      expect(tvB()).toBeDefined();
+      for (let i = 0; i < 10; i++) {
+        t.clock.advance(1000);
+        expect(tvB(), `tick ${i}`).toBeDefined();
+      }
+      t.clock.advance(120_000);
+      expect(tvB()).toBeDefined();
+      // A new scry of B makes it an event TV again: it closes 15 s after it.
+      t.input('scry bbb');
+      t.recv(SCRY, 'Room B', '', PROMPT);
+      t.clock.advance(5000);
+      expect(tvB()).toBeDefined();
+      t.clock.advance(11_000);
+      expect(tvB()).toBeUndefined();
+    });
+
+    it('◻ blinks red while a watch runs, by writing only its cell (links and hover stay)', async () => {
+      const t = await setup();
+      t.input('nkey home uxevjobve');
+      t.input('watchr home');
+      t.recv('You feel aware of this place.');
+      const c = t.panes.keys.content;
+      const r = t.rows()[1]!;
+      const col = r.indexOf('◻');
+      expect(col).toBeGreaterThan(0);
+      const box = () => {
+        const l = c.lines[1]!;
+        let x = 0;
+        for (const sp of 'spans' in l ? l.spans : []) {
+          if (x <= col && col < x + sp.text.length) return sp.fg;
+          x += sp.text.length;
+        }
+        return undefined;
+      };
+      const ids = () => c.links.filter((l) => l.row === 1 && !l.tip).map((l) => l.id);
+      const before = ids();
+      const colours = new Set<number | undefined>();
+      for (let i = 0; i < 4; i++) {
+        t.clock.advance(1000);
+        colours.add(box());
+        expect(ids()).toEqual(before);
+      }
+      expect(colours.size).toBe(2);
+      // The ◻'s link (open/close) is the same one throughout.
+      expect(c.linkAt(1, col)!.id).toBe(c.linkAt(1, col)!.id);
+      // No watch: steady.
+      t.recv('[home] Your awareness decreases.');
+      const after = new Set<number | undefined>();
+      for (let i = 0; i < 3; i++) {
+        t.clock.advance(1000);
+        if (t.rows()[1]!.indexOf('◻') === col) after.add(box());
+      }
+      expect(after.size).toBeLessThanOrEqual(1);
     });
   });
 });
