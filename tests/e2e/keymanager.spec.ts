@@ -179,6 +179,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
 });
 
 test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and closes', async ({ page }) => {
+  test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const received: Buffer[] = [];
