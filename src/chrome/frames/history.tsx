@@ -33,7 +33,7 @@ import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
-import { centreLeft, scrollToShow, step } from '../kit/nav';
+import { centreLeft, step } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
@@ -98,7 +98,6 @@ export function HistoryFrame(): VNode {
   const [sort, setSort] = useState<HistorySort>(DEFAULT_HISTORY_SORT);
   const [cursorId, setCursorId] = useState<string | null>(null);
   const [cursorIdx, setCursorIdx] = useState(0);
-  const [top, setTop] = useState(0);
   const [zone, setZone] = useState<Zone>('table');
   const [btn, setBtn] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -162,10 +161,6 @@ export function HistoryFrame(): VNode {
   // Layout: pills, blank, the package, flash, storage (the body).
   // The table fits the data, at least as tall as the button column.
   const visible = Math.max(3, Math.min(Math.max(BUTTONS.length - 1, (all ?? []).length), bodyRows - 5));
-  useEffect(() => {
-    setTop((t) => scrollToShow(t, cursor, visible, list.length));
-  }, [cursor, visible, list.length]);
-  const t = Math.max(0, Math.min(top, list.length - visible));
   const charW = Math.min(12, Math.max(6, ...list.map((s) => s.character.length)));
 
   const moveTo = (i: number): void => {
@@ -179,7 +174,6 @@ export function HistoryFrame(): VNode {
     setPillStart((s) => scrollPills(widths, cols, s, n));
     setCursorId(null);
     setCursorIdx(0);
-    setTop(0);
   };
 
   const openLog = (s: Session | undefined): void => {
@@ -441,10 +435,10 @@ export function HistoryFrame(): VNode {
         <div style={{ width: `calc(var(--cell-w) * ${GAP})` }} />
         <div class="wc-history-table">
           <Table
+            key={pill}
             columns={columns}
             rows={list}
             cursor={cursor}
-            top={t}
             visible={visible}
             focused={zone === 'table'}
             sort={sort}
@@ -457,7 +451,6 @@ export function HistoryFrame(): VNode {
               setZone('table');
               openLog(list[i]);
             }}
-            onScroll={setTop}
           />
           {empty && (
             <div class="wc-history-empty" style={{ marginTop: `calc(var(--cell-h) * ${-visible})` }}>

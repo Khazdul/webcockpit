@@ -24,7 +24,7 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type NavKey, cellLen, centreLeft, footerText, scrollbar, step, truncate } from './nav';
 import { useGrid } from './hooks';
 import { useFlash } from './stack';
-import { WHEEL_NOTCH_PX, wheelSteps } from './wheel';
+import { TuiScrollbar, useScrollBox } from './scroll';
 
 // ------------------------------------------------------------------- lines
 
@@ -451,15 +451,12 @@ export interface TableProps<T> {
   columns: readonly Column<T>[];
   rows: readonly T[];
   cursor: number;
-  /** First visible row. */
-  top: number;
   /** Rows shown (the header is extra). */
   visible: number;
   focused: boolean;
   sort: { key: string; dir: 1 | -1 };
   onSort: (key: string) => void;
   onRowClick: (i: number) => void;
-  onScroll: (top: number) => void;
 }
 
 const fit = (s: string, w: number, align: 'left' | 'center' = 'left'): string => {
@@ -472,18 +469,20 @@ const fit = (s: string, w: number, align: 'left' | 'center' = 'left'): string =>
   return t + ' '.repeat(pad);
 };
 
-/** A sortable table with a cursor row and a scrollbar (Inv §3.4). One space between columns. */
+/**
+ * A sortable table with a cursor row and a scrollbar (Inv §3.4). One space
+ * between columns. The rows scroll natively (pixels, as EDITOR) under the
+ * header; the TUI scrollbar follows them, and the cursor is kept in view
+ * when it moves.
+ */
 export function Table<T>(p: TableProps<T>): VNode {
-  const bar = scrollbar(p.rows.length, p.visible, p.top);
-  const shown = p.rows.slice(p.top, p.top + p.visible);
-  const onWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    const max = Math.max(0, p.rows.length - p.visible);
-    const next = Math.max(0, Math.min(max, p.top + wheelSteps(e, WHEEL_NOTCH_PX)));
-    if (next !== p.top) p.onScroll(next);
-  };
+  const box = useScrollBox();
+  useLayoutEffect(() => box.show(p.cursor), [p.cursor, p.visible, p.rows.length]);
+  const width = p.columns.reduce((n, c) => n + c.width, 0) + Math.max(0, p.columns.length - 1);
+  const overflow = p.rows.length > p.visible;
+  const height = `calc(var(--cell-h) * ${p.visible})`;
   return (
-    <div class="wc-table" onWheel={onWheel}>
+    <div class="wc-table">
       <div class="wc-line wc-c-hint">
         {p.columns.map((c, i) => {
           const arrow = c.sortable && p.sort.key === c.key ? (p.sort.dir > 0 ? ' ▲' : ' ▼') : '';
@@ -502,34 +501,37 @@ export function Table<T>(p: TableProps<T>): VNode {
           );
         })}
       </div>
-      {Array.from({ length: p.visible }, (_, vi) => {
-        const row = shown[vi];
-        const i = p.top + vi;
-        const isCur = row !== undefined && i === p.cursor;
-        const band = isCur ? (p.focused ? ' is-cur-focus' : ' is-cur') : '';
-        return (
-          <div class="wc-line" key={vi}>
-            <span
-              class={'wc-tr' + band + (row === undefined ? ' is-empty' : '')}
-              data-row={row === undefined ? undefined : i}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={row === undefined ? undefined : () => p.onRowClick(i)}
-            >
-              {p.columns.map((c, ci) => {
-                if (row === undefined) return (ci > 0 ? ' ' : '') + ' '.repeat(c.width);
-                const v = c.cell(row);
-                return (
-                  <>
-                    {ci > 0 && ' '}
-                    <span class={isCur ? undefined : v.class}>{fit(v.text, c.width, c.align)}</span>
-                  </>
-                );
-              })}
-            </span>
-            {bar.length > 0 && <span class={bar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}>{bar[vi] ? '█' : '░'}</span>}
-          </div>
-        );
-      })}
+      <div class="wc-scrollrow" style={{ height }}>
+        <div class="wc-scrollbox wc-table-rows" ref={box.ref} style={{ ...cellsWide(width), height }}>
+          {Array.from({ length: Math.max(p.visible, p.rows.length) }, (_, i) => {
+            const row = p.rows[i];
+            const isCur = row !== undefined && i === p.cursor;
+            const band = isCur ? (p.focused ? ' is-cur-focus' : ' is-cur') : '';
+            return (
+              <div class="wc-line" key={i}>
+                <span
+                  class={'wc-tr' + band + (row === undefined ? ' is-empty' : '')}
+                  data-row={row === undefined ? undefined : i}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={row === undefined ? undefined : () => p.onRowClick(i)}
+                >
+                  {p.columns.map((c, ci) => {
+                    if (row === undefined) return (ci > 0 ? ' ' : '') + ' '.repeat(c.width);
+                    const v = c.cell(row);
+                    return (
+                      <>
+                        {ci > 0 && ' '}
+                        <span class={isCur ? undefined : v.class}>{fit(v.text, c.width, c.align)}</span>
+                      </>
+                    );
+                  })}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {overflow && <TuiScrollbar target={box.ref} rows={p.visible} />}
+      </div>
     </div>
   );
 }

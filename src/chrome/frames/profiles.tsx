@@ -22,7 +22,7 @@ import {
 } from '../../profiles';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { editProfile } from './profile-edit';
-import { cellLen, centreLeft, scrollToShow, step } from '../kit/nav';
+import { cellLen, centreLeft, step } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
@@ -63,7 +63,6 @@ export function ProfileFrame(): VNode {
   const [cursorName, setCursorName] = useState<string>(s.profile);
   const [zone, setZone] = useState<'table' | 'buttons'>('table');
   const [btn, setBtn] = useState(0);
-  const [top, setTop] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const reload = async (): Promise<void> => {
@@ -94,11 +93,6 @@ export function ProfileFrame(): VNode {
 
   // Layout.
   const visible = Math.max(3, Math.min(Math.max(rows.length, BUTTONS.length - 1), bodyRows - 3));
-  // The cursor pulls the view along; the wheel scrolls without moving it.
-  useEffect(() => {
-    setTop((cur) => scrollToShow(cur, cursor, visible, rows.length));
-  }, [cursor, visible, rows.length]);
-  const t = Math.max(0, Math.min(top, rows.length - visible));
   const nameW = Math.min(NAME_MAX, Math.max(12, ...rows.map((r) => cellLen(r.name))));
   const tableW = nameW + 1 + SEL_W + (rows.length > visible ? 1 : 0);
   const at = centreLeft(cols, BUTTON_W + GAP + tableW);
@@ -256,7 +250,6 @@ export function ProfileFrame(): VNode {
           columns={columns}
           rows={rows}
           cursor={cursor}
-          top={t}
           visible={visible}
           focused={zone === 'table'}
           sort={{ key: 'name', dir }}
@@ -265,7 +258,6 @@ export function ProfileFrame(): VNode {
             moveTo(i);
             setZone('table');
           }}
-          onScroll={setTop}
         />
       </div>
       <Blank />
