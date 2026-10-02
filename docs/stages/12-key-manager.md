@@ -416,3 +416,11 @@ the game pane, the second right of it, the third below the first, the
 fourth below the second; opening and closing keeps them together in a
 logical order without holes. Make it a generic placement feature for
 temporary panes (groups tiled in a grid).
+
+Also (2026-10-02): when a TV's watch room ends (the drop line `[name]
+Your awareness decreases.`, a disconnect or a character switch; not when
+the estimate runs out, which can be too short), that TV closes at once:
+`tvclose` defaults to 0 (a player may still set a delay). This holds for
+a TV the player opened too. Exception: a scry on the same key younger
+than 15 s keeps it until that runs out. The history stays reachable
+through `◻` / `tv <name>`.
