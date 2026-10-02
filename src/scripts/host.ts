@@ -1036,6 +1036,8 @@ export class ScriptHost {
         arrows: bool('arrows', true),
       };
       if (op.label !== undefined) style.label = String(op.label).slice(0, 40);
+      const linger = num('linger', 0, 0, 600);
+      if (linger > 0) style.linger = linger;
       const focus = bool('focus', false);
       const ref = a.optFunction(3);
       const surf = this.o.map;

@@ -128,6 +128,7 @@ function harness(map: MapData) {
   const scenes: Scene[] = [];
   const views: { x: number; y: number; zoom: number; layer: number }[] = [];
   let now = 0;
+  const timers: Array<{ at: number; cb: () => void }> = [];
   const renderer: Renderer = {
     setMap: () => {},
     setScene: (s) => void scenes.push(s),
@@ -142,6 +143,7 @@ function harness(map: MapData) {
     fetch,
     now: () => now,
     createRenderer: () => renderer,
+    setTimer: (cb, ms) => void timers.push({ at: now + ms, cb }),
   });
   core.handle({ t: 'init', protocol: MAP_PROTOCOL_VERSION, canvas, width: 400, height: 300, dpr: 1, assets: { kind: 'base', url: '/' } });
   const t = {
@@ -158,9 +160,14 @@ function harness(map: MapData) {
         const f = frames;
         frames = [];
         for (const cb of f) cb();
+        for (const tm of timers.filter((x) => x.at <= now)) {
+          timers.splice(timers.indexOf(tm), 1);
+          tm.cb();
+        }
       } while (now < end);
     },
     pending: () => frames.length,
+    timers,
     async load() {
       await core.load(1, { kind: 'data', map, name: 'test' });
     },
@@ -264,6 +271,36 @@ describe('map worker core: marks', () => {
     const mine = { ...h.core.view };
     h.run(5100);
     expect(h.core.view).toEqual(mine);
+  });
+
+  it('linger: after the blink the mark stays steady with its arrows, no ticker, and ends after duration + linger; the zoom comes back at the blink\'s end', async () => {
+    const h = harness(map());
+    await h.load();
+    h.room(0);
+    const zoom = h.core.view.zoom;
+    h.send({ t: 'mark', id: 9, target: { rooms: [1] }, style: { ...STYLE, linger: 180, label: '$cave' }, ms: 15_000, focus: true });
+    expect(h.core.view.zoom).toBeLessThan(zoom);
+    h.run(15_100);
+    // The blink is over: the zoom is back, the mark lingers steady.
+    expect(h.core.view.zoom).toBe(zoom);
+    expect(h.out.some((m) => m.t === 'markEnded')).toBe(false);
+    const steady = h.scenes.at(-1)!.marks![0]!;
+    expect(steady).toMatchObject({ rooms: [1], alpha: 0.75, arrows: true, label: '$cave' });
+    // No ticks during the linger, nor pending frames.
+    const ticks = h.core.markTicks;
+    const scenes = h.scenes.length;
+    h.run(60_000);
+    expect(h.core.markTicks).toBe(ticks);
+    expect(h.scenes.length).toBe(scenes);
+    expect(h.pending()).toBe(0);
+    // The arrows are still drawn: the room is off the view at the restored zoom.
+    const g = buildScene(h.scenes.at(-1)!, { map: h.core.map!, view: h.core.view, w: 400, h: 300, dpr: 1, font: null });
+    expect(g.arrows.count).toBeGreaterThan(0);
+    // Ends after 15 + 180 s, by the timer.
+    h.run(120_000);
+    expect(h.out.at(-1)).toEqual({ t: 'markEnded', id: 9 });
+    expect(h.scenes.at(-1)!.marks).toBeUndefined();
+    expect(h.timers).toHaveLength(0);
   });
 
   it('a map load drops the marks', async () => {

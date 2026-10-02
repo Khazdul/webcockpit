@@ -445,7 +445,7 @@ const MAP_MARKS: HelpSection = {
   syntax: ["mapMark(target, opts, fn)  mapUnmark(handle)  mapFind(query, fn)"],
   text: [
     "A script can show rooms on the Map pane: they blink in a colour for a while, and an arrow at the edge points to a room off the view.",
-    "mapMark({name = \"A Tunnel\", lines = {…}, exits = \"Exits: north, south.\"}, {color = \"magenta\", duration = 15, focus = true}, fn) finds the rooms with that name (the lines after the name narrow by the description, the Exits: line by the exits; the nearest 20 to you first) and marks them. focus = true zooms out so you and the rooms are in view; when the mark ends the zoom comes back, unless you moved the map yourself meanwhile. fn(count, total, ids) says what was found.",
+    "mapMark({name = \"A Tunnel\", lines = {…}, exits = \"Exits: north, south.\"}, {color = \"magenta\", duration = 15, focus = true}, fn) finds the rooms with that name (the lines after the name narrow by the description, the Exits: line by the exits; the nearest 20 to you first) and marks them. focus = true zooms out so you and the rooms are in view; when the duration is over the zoom comes back, unless you moved the map yourself meanwhile. linger = 180 then keeps the mark three more minutes, steady and a little dimmer, with its arrows and label. fn(count, total, ids) says what was found.",
     "mapFind(query, fn) only finds: fn(ids, total). mapMark({ids…}) marks rooms by id; mapUnmark(handle) ends a mark early.",
     "With the Map pane off (or no map loaded) mapMark and mapFind return nil, \"map off\" at once. Marks are live only: runs and replays do not show them.",
   ],

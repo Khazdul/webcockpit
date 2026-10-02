@@ -151,3 +151,21 @@ style) can add them.
 - The scry format is unverified (no log has a scry); if the first line
   after the header is not the room name, nothing matches and the KEYS
   line says so.
+
+## Feedback round 6 (2026-10-02): linger
+
+- `mapMark` option `linger` (seconds after `duration`, default 0, at
+  most 600; `MarkStyle.linger`). After the blink the mark stays steady at
+  alpha 0.75 (the blink peaks at 1, averages 0.55), with its arrows, its
+  layer arrow and its label, until `duration + linger`; then
+  `markEnded`.
+- No ticker during the linger: the core draws once when the linger starts
+  and arms a one-shot timer (`WorkerHost.setTimer`, default
+  `setTimeout`) for the end, where it draws again; a timer that fires a
+  little early re-arms for the rest. The frame loop runs only while some
+  mark still blinks. With a linger the blink does not fade out (`fade`
+  applies only to a mark without linger); no fade at the linger's end
+  either, since a fade needs ticks.
+- A `focus` ends with the blink: the zoom comes back at `duration`, not
+  after the linger.
+- The key manager marks a scry with `linger = 180`.

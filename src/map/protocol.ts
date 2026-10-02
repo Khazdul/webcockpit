@@ -27,6 +27,8 @@ export interface MarkStyle {
   fade: number;
   arrows: boolean;
   label?: string;
+  /** Seconds the mark stays, steady and without blinking, after its duration (ADR 0057). */
+  linger?: number;
 }
 
 /** What a mark marks: rooms by index, or the rooms a query finds. */

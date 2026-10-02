@@ -822,7 +822,7 @@ describe('map marks (ADR 0057)', () => {
         mm: src(`
           export("mark", function(name)
             local h, why = mapMark({name = name, lines = {"a line"}, exits = "Exits: north.", max = 5},
-              {color = "orange", duration = 15, fade = 5, focus = true, label = "$home"},
+              {color = "orange", duration = 15, fade = 5, focus = true, label = "$home", linger = 180},
               function(count, total, ids) send("marked " .. count .. "/" .. total .. " " .. table.concat(ids, ",")) end)
             send(tostring(h) .. " " .. tostring(why))
           end)
@@ -843,7 +843,7 @@ describe('map marks (ADR 0057)', () => {
       op: 'mark',
       arg: {
         target: { query: { name: 'A Tunnel', lines: ['a line'], exits: 'Exits: north.', max: 5 } },
-        style: { color: 0xffa500, blink: true, fade: 5, arrows: true, label: '$home' },
+        style: { color: 0xffa500, blink: true, fade: 5, arrows: true, label: '$home', linger: 180 },
         ms: 15000,
         focus: true,
       },

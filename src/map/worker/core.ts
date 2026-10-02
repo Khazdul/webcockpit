@@ -38,12 +38,22 @@ export const MARK_TICK_MS = 66;
 /** Blink period, ms. */
 const BLINK_MS = 1000;
 
+/** A lingering mark's alpha: steady, a little below the blink's peak. */
+export const LINGER_ALPHA = 0.75;
+/** Longest linger, ms. */
+export const LINGER_MAX_MS = 600_000;
+
 interface LiveMark {
   id: number;
   rooms: number[];
   style: MarkStyle;
   start: number;
+  /** End of the blink (and of a focus). */
+  blinkEnd: number;
+  /** End of the mark: blinkEnd + linger. */
   end: number;
+  /** The blink is over: steady until `end`, no ticker. */
+  lingering: boolean;
 }
 
 export interface WorkerHost {
@@ -57,6 +67,8 @@ export interface WorkerHost {
   createRenderer?: (gl: WebGL2RenderingContext, assets: AssetResolver, onChange: () => void) => Renderer;
   /** Where learned server ids persist (used only after `persistIds` on). */
   ids?: LearnedIdStore;
+  /** A one-shot timer (default `setTimeout`): a lingering mark's end (ADR 0057). */
+  setTimer?(cb: () => void, ms: number): void;
 }
 
 export class MapWorkerCore {
@@ -338,10 +350,17 @@ export class MapWorkerCore {
     const now = this.host.now();
     const marks: SceneMark[] = [];
     for (const k of this.marks.values()) {
-      const left = (k.end - now) / 1000;
-      const env = k.style.fade > 0 && left < k.style.fade ? Math.max(0, left / k.style.fade) : 1;
-      const wave = k.style.blink ? 0.55 + 0.45 * Math.cos((2 * Math.PI * (now - k.start)) / BLINK_MS) : 1;
-      const m: SceneMark = { rooms: k.rooms, color: k.style.color, alpha: env * wave, arrows: k.style.arrows };
+      let alpha: number;
+      if (k.lingering) alpha = LINGER_ALPHA;
+      else {
+        const left = (k.blinkEnd - now) / 1000;
+        // With a linger the blink does not fade out: it settles into the steady mark.
+        const fades = k.style.fade > 0 && k.end === k.blinkEnd;
+        const env = fades && left < k.style.fade ? Math.max(0, left / k.style.fade) : 1;
+        const wave = k.style.blink ? 0.55 + 0.45 * Math.cos((2 * Math.PI * (now - k.start)) / BLINK_MS) : 1;
+        alpha = env * wave;
+      }
+      const m: SceneMark = { rooms: k.rooms, color: k.style.color, alpha, arrows: k.style.arrows };
       if (k.style.label) m.label = k.style.label;
       marks.push(m);
     }
@@ -368,7 +387,9 @@ export class MapWorkerCore {
       return;
     }
     const now = this.host.now();
-    const live: LiveMark = { id: m.id, rooms, style: m.style, start: now, end: now + Math.max(0, m.ms) };
+    const blinkEnd = now + Math.max(0, m.ms);
+    const linger = Math.max(0, Math.min(LINGER_MAX_MS, (m.style.linger ?? 0) * 1000));
+    const live: LiveMark = { id: m.id, rooms, style: m.style, start: now, blinkEnd, end: blinkEnd + linger, lingering: false };
     this.marks.set(m.id, live);
     if (m.focus) {
       // A later focus keeps the zoom saved by the first one.
@@ -399,6 +420,15 @@ export class MapWorkerCore {
   private endMark(id: number, silent = false): void {
     if (!this.marks.delete(id)) return;
     this.host.post({ t: 'markEnded', id });
+    this.endFocus(id, silent);
+    if (!silent) {
+      this.renderer?.setScene(this.scene());
+      this.requestRender();
+    }
+  }
+
+  /** The focus of mark `id` ends: an untouched view gets its zoom back, centred on the player. */
+  private endFocus(id: number, silent: boolean): void {
     const f = this.focus;
     if (f && f.id === id) {
       this.focus = null;
@@ -410,19 +440,47 @@ export class MapWorkerCore {
         this.view = v;
       }
     }
-    if (!silent) {
+  }
+
+  /** Ends marks past their end, and moves marks past their blink into the linger. */
+  private expireMarks(): void {
+    const now = this.host.now();
+    let changed = false;
+    for (const k of [...this.marks.values()]) {
+      if (now >= k.end) this.endMark(k.id);
+      else if (!k.lingering && now >= k.blinkEnd) {
+        // Linger: steady, drawn once now; a timer ends it (no ticker).
+        k.lingering = true;
+        changed = true;
+        this.endFocus(k.id, false);
+        this.lingerTimer(k);
+      }
+    }
+    if (changed) {
       this.renderer?.setScene(this.scene());
       this.requestRender();
     }
   }
 
-  private expireMarks(): void {
-    const now = this.host.now();
-    for (const k of [...this.marks.values()]) if (now >= k.end) this.endMark(k.id);
+  private lingerTimer(k: LiveMark): void {
+    const ms = Math.max(0, k.end - this.host.now());
+    const set = this.host.setTimer ?? ((cb: () => void, t: number) => void setTimeout(cb, t));
+    set(() => {
+      if (this.marks.get(k.id) !== k) return;
+      this.expireMarks();
+      // A timer that fired a little early: again for the rest.
+      if (this.marks.get(k.id) === k) this.lingerTimer(k);
+    }, ms + 1);
+  }
+
+  /** Marks still blinking (the ticker runs only for them). */
+  private blinking(): boolean {
+    for (const k of this.marks.values()) if (!k.lingering) return true;
+    return false;
   }
 
   private startMarkLoop(): void {
-    if (this.markLoop || this.marks.size === 0 || !this.visible) return;
+    if (this.markLoop || !this.blinking() || !this.visible) return;
     this.markLoop = true;
     this.host.requestFrame(this.onMarkFrame);
   }
@@ -431,7 +489,7 @@ export class MapWorkerCore {
     this.markLoop = false;
     if (this.marks.size === 0 || !this.visible) return;
     this.expireMarks();
-    if (this.marks.size === 0) return;
+    if (!this.blinking()) return;
     const now = this.host.now();
     if (now - this.lastMarkTick >= MARK_TICK_MS) {
       this.lastMarkTick = now;

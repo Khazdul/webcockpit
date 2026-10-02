@@ -548,7 +548,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [
         p("target", "table", "Room ids (from mapFind), or {name, lines, exits, max}: the room's name as shown, the lines after it (they narrow by the description), its Exits: line, and the most rooms (default 20, at most 50; nearest to you first)."),
-        p("opts", "table?", "color (a colour name, #rrggbb or r,g,b; default magenta), duration (seconds, default 30, at most 600), fade (seconds of fading at the end, default 10), blink and arrows (default true), label (a short text at the first room), focus (true: zoom out to show you and the rooms; the view comes back when the mark ends, unless you moved it)."),
+        p("opts", "table?", "color (a colour name, #rrggbb or r,g,b; default magenta), duration (seconds, default 30, at most 600), fade (seconds of fading at the end, default 10), blink and arrows (default true), label (a short text at the first room), linger (seconds the mark then stays, steady and a little dimmer, with its arrows and label; default 0, at most 600), focus (true: zoom out to show you and the rooms; the view comes back when the duration is over (before any linger), unless you moved it)."),
         p("fn", "function?", "Called once with (count, total, ids): how many rooms were marked, how many matched, and their ids. count is 0 when nothing matched."),
       ],
       returns: "A handle for mapUnmark, or nil and why (\"map off\" when the Map pane is off or has no map).",
