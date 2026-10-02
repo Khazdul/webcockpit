@@ -298,3 +298,25 @@ Approved ("ser bra ut"). Next: round 4, the TV.
 Verified by the owner in live MUME (2026-10-02): `cast q 'teleport'` is
 accepted, and long creature and room names cause no problems. The
 failure lines that cancel a cast are still unverified.
+
+### Round 4 (2026-10-02, live MUME)
+
+1. Every watch line arrives as its own packet: `[name] text`, an empty
+   line, then a fresh prompt. With `tvgag` on the game text fills with
+   blank lines and prompts. Gag the blank line and prompt that directly
+   follow a gagged watch line (or scry block), strictly, using the
+   client's prompt detection.
+2. Learn watch durations like the spell timers: per character, average
+   of the last 3, default 200 s; a real drop line ends the measurement;
+   the hover says which estimate is used.
+3. The Port keys pane redraws every second and a hovered link loses its
+   band and tooltip. Wanted: a well-designed way for scripts to update
+   parts of a pane without disturbing the rest (ADR 0056), used by the
+   key manager so hovering stays steady.
+4. Port keys row: no ● markers. A `◻` left of `x` when the key has an
+   active watch or a scry within 12 h, toggling its TV. The countdown
+   stays, not red, not clickable, with a tooltip (time left on watch
+   room, estimate source). Save the last scry time and block per key.
+5. Colours in the TV are lost (everything grey; room names should be
+   green). Find the cause end to end; dimming after 10 s should only dim
+   the default text colour and keep the real colours (as Mudlet).
