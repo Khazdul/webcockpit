@@ -407,3 +407,12 @@ failure lines that cancel a cast are still unverified.
 4. The map mark lingers for 3 minutes after the blink: steady, a little
    dimmer, with its arrows and label; no 15 Hz ticker meanwhile; the
    zoom comes back at the end of the blink. Generic `linger` option.
+
+### Round 7 (2026-10-02)
+
+Four TVs opened one after another land in odd places (one per corner,
+plus remembered slot rectangles). Wanted: the first at the top left of
+the game pane, the second right of it, the third below the first, the
+fourth below the second; opening and closing keeps them together in a
+logical order without holes. Make it a generic placement feature for
+temporary panes (groups tiled in a grid).
