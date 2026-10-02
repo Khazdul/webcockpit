@@ -125,7 +125,7 @@ area... and you see:`, the room, and a blank line.
 - One TV pane per key (`TV $name`), in four slots placed in the game
   pane's corners (new generic `at` values), the oldest ended one replaced
   first. Status (watching with time left, scried N ago, ended) in the
-  title; the lines below, newest at the bottom, bright for 10 s then dim,
+  title (a gauge row would scroll away with the lines); the lines below, newest at the bottom, bright for 10 s then dim,
   in the game's colours (new `copy2cecho()`).
 - Watch lines and the scry block are hidden from the game text (setting
   `tvgag`); the start, end and scry header become short `KEYS` lines.
@@ -150,10 +150,36 @@ area... and you see:`, the room, and a blank line.
 - [x] Unit and e2e tests; full verification.
 - [x] Test guide.
 - [x] Owner test rounds 1–3 (round 3 approved 2026-10-02).
-- [ ] Round 4: TV for scry and watch room (plan below, ADR 0054).
+- [x] Round 4: TV for scry and watch room (plan above, ADR 0054).
 - [ ] Owner test round 4.
 
 ## Test guide
+
+### Round 4: TV
+
+**The MUME lines are taken from the Mudlet script and are unverified**:
+`You feel aware of this place.`, `[name] …`, `[name] Your awareness
+decreases.`, and `You let your inner eye find the area... and you see:`.
+If MUME prints something else, the TV will not open: please copy the
+real lines into the feedback.
+
+Try:
+
+1. `watchr home` (or `w` in the pane). A TV opens in a corner, titled
+   `TV $home ● 3:20`; the room's lines appear there in colour and not in
+   the game text (`#script set keymanager tvgag off` shows them in both).
+2. Watch until it ends: the title says `ended`, and the TV closes a
+   minute later. The next watch's time left uses what was learnt.
+3. `scry home`, and `cast n 'scry' $home`: the room goes to the TV.
+4. Several watches at once: up to four TVs in the corners. Move one; the
+   next TV in that slot opens there.
+5. In the Port keys pane: the red ● and time on a watched key, grey ● on
+   a key with TV lines; click them, and `w` on a watched key.
+6. `tv`, `tv home`, `kecho home 10`.
+
+Feedback wanted: the real MUME lines if anything did not match; the
+TV's size and place; whether the title's status is enough or you want a
+bar; the 10 s bright / dim and the one-minute close.
 
 ### Round 3
 

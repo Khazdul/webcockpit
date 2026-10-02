@@ -216,3 +216,69 @@ Round 1"). Supersedes the sections above where they differ.
   delete message: `Safe key is now $home ($old expired).` /
   `($old deleted)`, or `No safe key: no keys left.` No keys to press are
   mentioned (the star's tooltip still says Ctrl+S and Alt+S).
+
+## Round 4 — TV (2026-10-02)
+
+The scry and watch room output in temporary panes ("TV"), as the owner
+decided on 2026-10-01/02. **No MUME log has these lines**: the formats
+are the Mudlet script's and unverified — `You feel aware of this place.`
+(a watch starts), `[<name>] <text>` (a watched room's line), `[<name>]
+Your awareness decreases.` (the end), `You let your inner eye find the
+area... and you see:` then the room and a blank line (a scry).
+
+- **Linking output to a key.** A watch or scry cast by the script
+  (`watchr`, `scry`, the pane's `w` and `s`) waits for its answer (15 s,
+  as a locate); so does one typed or sent by a profile alias, found by a
+  pass-through alias on `c… [n|q] '<spell>' <key> [label]` (spell
+  prefixes `sc…`, `wat…`), also after `$name` (checked on the expanded
+  text, since the engine does not re-enter an active alias). The locate
+  failure lines cancel a pending cast with a message. Watch lines are
+  taken for a name with a TV or a key in the library; other bracketed
+  lines are left alone. A watch line for a key with no running watch (a
+  reload mid-watch) resumes it (its duration is not learnt). A scry with
+  no pending cast goes to `TV scry`.
+- **Panes.** One temporary pane per key, ids `tv1`–`tv4` (slots), so a
+  slot's place is remembered per device (ADR 0053 addendum); defaults in
+  the four corners (`at`, ADR 0053 round 4 addendum), 10 × 60. A new TV
+  takes a free slot, else the slot whose TV finished first; a running
+  watch's slot only when all four run.
+- **Status in the title, not a gauge row.** A row 1 gauge would scroll
+  away with the lines (a script pane has no fixed rows) — so the title
+  carries it: `TV $home ● 2:31` (● / ○ alternating each second, a gentle
+  blink), `+0:12` past the learnt length, `TV $home · scried 0:12 ago`,
+  `TV $home · ended`. A fixed header in script panes can come later if
+  the owner wants the bar.
+- **Lines.** Anchor bottom (a console that follows). `copy2cecho()` (new
+  API, ADR 0051 round 4 note) keeps the game's colours, the `[name] `
+  prefix cut out. Bright for 10 s, then plain text in the dim colour
+  (Mudlet dims too); our own notes (`· watching`, `· scried`, `· watch
+  ended`) are dim. 250 lines per key in memory (not in the store: a busy
+  room would rewrite it many times a second); trimmed in batches of 50,
+  so the pane is redrawn whole only then. A second-long ticker (only
+  while a TV is open or a watch runs) updates titles and dims lines.
+- **Gag.** Setting `tvgag` (default on): watch lines and the scry block
+  are hidden from the game text, and the start, end and scry header are
+  replaced by one dim `KEYS TV $home: watching.` / `watch ended.` /
+  `scried.` line — in the game text, where the player looks after
+  casting; the UI messages stay for library changes. Off: everything
+  stays in the game text and goes to the TV too.
+- **Lifetime.** A TV stays while its watch runs; `tvclose` seconds
+  (default 60, at least 5) after the watch ended or the scry, it closes
+  itself. The "unless scrolled or moved recently" idea is left out: the
+  API reports neither (a later round can add it); `tv <name>` reopens a
+  TV with its lines. A TV the player closes during a watch stays closed
+  until `tv` / `tv <name>` / the ● opens it. A disconnect ends every
+  watch; a character change closes all TVs and forgets them.
+- **Learnt duration.** Activation to drop, plausible ones only (10 s to
+  1 h, not resumed), the last five averaged, stored per character
+  (`watch` in the character's store entry); 200 s (Mudlet's start) until
+  one is learnt.
+- **Port keys pane.** A one-cell marker before the time column (only
+  while any key has one): red ● and the watch's time left in red for a
+  running watch, grey ● for a key with TV lines; clicking either opens
+  the TV. `w` on a watched key is red and opens its TV instead of
+  casting. The pane redraws every second while a watch runs.
+- **Commands.** `tv` hides every shown TV, or shows them and opens the
+  running watches' TVs; `tv <name>` opens one; `kecho <name> [rows]`
+  (Mudlet's) prints the last lines (default 20) in the game text.
+- **Runs.** TVs are temporary panes, recorded like any (ADR 0053).
