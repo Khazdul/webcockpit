@@ -25,14 +25,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Paper background sets ink and a paper palette
+### 2026-10-03 — Paper background sets ink and a paper palette, release 0.1.30
 
 - **Owner request:** choosing paper sets ink as font colour and an ANSI
   palette tuned for paper; leaving paper restores the defaults.
 - **Done:** `backgroundPatch` + `PAPER_PALETTE` (all ≥ 4.5:1), ADR 0058.
 - **Verified:** unit 1872 green, typecheck clean, Appearance e2e green.
-- **Next:** release when the owner says so.
-- **Commits:** cf64ec1, plus this one.
+- **Released:** 0.1.30 (tag v0.1.30), build:pages smoke green.
+- **Commits:** cf64ec1, 4a36598, 572708f, plus this one.
 
 ### 2026-10-03 — #showme self-loop fix, release 0.1.29
 
