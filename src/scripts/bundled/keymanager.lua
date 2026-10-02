@@ -651,12 +651,12 @@ local timeAt = {}
 -- The ◻ cells: id -> { row, col } (they blink while a watch runs).
 local tvAt = {}
 
--- The ◻'s colour: cyan (white while its TV shows); while a watch runs it
+-- The ◻'s colour: cyan, light green while its TV shows; while a watch runs it
 -- alternates with red, a second each.
 local function tvButtonColor(id, t)
   local tv = tvs[id]
   if tv and tv.watching and math.floor(t) % 2 == 1 then return "ansi_light_red" end
-  return (tv and tv.pane and tv.pane:visible()) and "ansi_white" or "ansi_light_cyan"
+  return (tv and tv.pane and tv.pane:visible()) and "ansi_light_green" or "ansi_light_cyan"
 end
 
 -- The width of segments.
@@ -949,11 +949,15 @@ drawTv = function(tv)
   p:setTitle(tvTitle(tv, t))
 end
 
+-- Every way a TV opens, closes, shows or hides ends here or in draw():
+-- the Port keys row's ◻ shows whether the TV is up (round 8 bug: it kept
+-- its "open" colour after a close).
 closeTv = function(tv)
   if not tv.pane then return end
   local p = tv.pane
   tv.pane = nil
   p:close()
+  draw()
 end
 
 -- When a TV that is not watching closes by itself: its scry's map blink
@@ -1018,6 +1022,7 @@ openTv = function(id, force)
   if tv.shut then return false end
   if tv.pane then
     tv.pane:show()
+    draw()
     return true
   end
   -- At most four TVs: the one that finished first makes room (a running
@@ -1044,9 +1049,11 @@ openTv = function(id, force)
     tv.pane = nil
     -- Closed by the player: it stays closed for the rest of this watch.
     tv.shut = tv.watching ~= nil
+    draw()
   end)
   drawTv(tv)
   startTvTick()
+  draw()
   return true
 end
 
@@ -1678,6 +1685,7 @@ tempAlias("^tv(?:\\s+\\$?(\\w+))?\\s*$", function()
     for _, tv in pairs(tvs) do
       if tv.pane then tv.pane:hide() end
     end
+    draw()
     return
   end
   local any = false
@@ -1689,6 +1697,7 @@ tempAlias("^tv(?:\\s+\\$?(\\w+))?\\s*$", function()
       any = openTv(id, true) or any
     end
   end
+  draw()
   if not any then say("No TV open: watchr <name> or scry <name>, or tv <name> for an old one.") end
 end)
 

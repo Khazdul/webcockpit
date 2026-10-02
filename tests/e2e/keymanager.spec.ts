@@ -393,3 +393,68 @@ test('keymanager TVs tile from the top left in opening order, close gaps, and mo
   near(a3.y, a2.y);
   expect(errors).toEqual([]);
 });
+
+test('keymanager: the ◻ goes back to its normal colour when its TV closes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.onMessage(() => {});
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => server !== null).toBe(true);
+  server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
+  await command(page, '#script enable keymanager');
+  await expect(pane(page)).toBeVisible();
+  await command(page, 'nkey cave abcdefghi');
+  await command(page, 'scry cave');
+  server!.send(bytes("You let your inner eye find the area... and you see:\r\nThe Dark Cave\r\n\r\nOk.\r\n"));
+  const tv = pane(page, 'keymanager/~tv_cave');
+  await expect(tv).toBeVisible();
+  const colour = () =>
+    prows(page)
+      .nth(1)
+      .evaluate((el) => {
+        const text = el.textContent ?? '';
+        const col = text.indexOf('◻');
+        let x = 0;
+        for (const sp of el.querySelectorAll('span')) {
+          const n = (sp.textContent ?? '').length;
+          if (x <= col && col < x + n) return getComputedStyle(sp).color;
+          x += n;
+        }
+        return '';
+      });
+  await expect(prows(page).nth(1)).toContainText('◻');
+  const open = await colour();
+  // Light green while the TV is open, cyan when closed.
+  const rgb = (c: string) => c.match(/\d+/g)!.map(Number);
+  const [r1, g1, b1] = rgb(open);
+  expect(g1).toBeGreaterThan(r1! + 40);
+  expect(g1).toBeGreaterThan(b1! + 20);
+  // Closed by the player (its close cross): the ◻ changes back at once.
+  await tv.hover();
+  await tv.locator('.wc-pane-close').click();
+  await expect(tv).toHaveCount(0);
+  await expect.poll(colour).not.toBe(open);
+  const closed = await colour();
+  const [r2, g2, b2] = rgb(closed);
+  expect(b2).toBeGreaterThan(r2! + 40);
+  expect(g2).toBeGreaterThan(r2! + 40);
+  // Open again with tv cave: the "open" colour; then by itself? A scry TV
+  // the player opened stays; close it with ◻ and check again.
+  await command(page, 'tv cave');
+  await expect(tv).toBeVisible();
+  await expect.poll(colour).toBe(open);
+  const text = (await prows(page).nth(1).textContent())!;
+  const at = await cellAt(page, 1, text.indexOf('◻'));
+  await page.mouse.click(at.x, at.y);
+  await expect(tv).toHaveCount(0);
+  await page.mouse.move(5, 5);
+  await expect.poll(colour).toBe(closed);
+  expect(errors).toEqual([]);
+});

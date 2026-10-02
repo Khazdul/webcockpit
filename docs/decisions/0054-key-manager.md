@@ -370,3 +370,19 @@ area... and you see:` then the room and a blank line (a scry).
   younger than 15 s keeps it until the scry's time is up (`tvDue`: the
   later of the scry's end and the watch's end + tvclose). The lines stay:
   `◻` and `tv <name>` show them again.
+
+## Round 8 feedback (2026-10-02)
+
+- **Bug: the `◻` kept its "TV open" colour after a close.** Cause: the
+  Port keys row was drawn only when the library or a watch changed; a TV
+  closing (by itself — watch end, scry time, a fifth TV, a disconnect — or
+  by the player: the close cross, `◻`, `tv`) changed nothing the pane
+  redrew, and the per-second tick, which rewrites only the `◻` cells of
+  watched keys, did not run without a watch. Now every TV open, close,
+  show and hide goes through `closeTv`, `openTv`, `pane:onClose` or the
+  `tv` alias, and each redraws the pane. A unit test walks every close
+  path; an e2e test checks the colour before and after a close in both
+  browsers.
+- **Colours.** The `◻` is cyan while its TV is closed and light green
+  while it is open (was white: green reads as "on"). During a watch it
+  alternates with red, a second each.

@@ -440,3 +440,12 @@ the estimate runs out, which can be too short), that TV closes at once:
 a TV the player opened too. Exception: a scry on the same key younger
 than 15 s keeps it until that runs out. The history stays reachable
 through `◻` / `tv <name>`.
+
+### Round 8 (2026-10-02)
+
+Bug: in Port keys the `◻` keeps its "TV open" colour (white) after its TV
+closes, however it closes (watch end, scry timeout, replaced by a fifth
+TV, disconnect, the close cross, `◻` or `tv`); it should go back to cyan.
+
+Also (owner): the `◻` of an open TV is light green, not white; closed it
+is cyan; during a watch it alternates between red and that colour.

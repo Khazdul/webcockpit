@@ -1082,5 +1082,74 @@ describe('bundled keymanager', () => {
       }
       expect(after.size).toBeLessThanOrEqual(1);
     });
+
+    it('the ◻ goes back to cyan however its TV closes (round 8 bug)', async () => {
+      const t = await setup();
+      const WHITE = 10; // ansi_light_green: the TV is open
+      const CYAN = 14;
+      const RED = 9;
+      const box = (key: string) => {
+        const rows = t.rows();
+        const r = rows.findIndex((x) => x.includes(`$${key} `));
+        const col = rows[r]!.indexOf('◻');
+        if (col < 0) return null;
+        const l = t.panes.keys.content.lines[r]!;
+        let x = 0;
+        for (const sp of 'spans' in l ? l.spans : []) {
+          if (x <= col && col < x + sp.text.length) return sp.fg;
+          x += sp.text.length;
+        }
+        return undefined;
+      };
+      const scry = (key: string) => {
+        t.input(`scry ${key}`);
+        t.recv(SCRY, `Room ${key}`, '', PROMPT);
+      };
+      for (const k of ['aa', 'bb', 'cc', 'dd', 'ee']) t.input(`nkey ${k} key${k}`);
+      // A scry's TV: open → white; its 15 s are up → cyan.
+      scry('aa');
+      expect(box('aa')).toBe(WHITE);
+      t.clock.advance(16_000);
+      expect(t.panes.tv(1)).toBeNull();
+      expect(box('aa')).toBe(CYAN);
+      // ◻ opens (white) and closes (cyan).
+      t.click(t.rows().findIndex((x) => x.includes('$aa ')), '◻');
+      expect(box('aa')).toBe(WHITE);
+      t.click(t.rows().findIndex((x) => x.includes('$aa ')), '◻');
+      expect(box('aa')).toBe(CYAN);
+      // The close cross.
+      t.input('tv aa');
+      expect(box('aa')).toBe(WHITE);
+      t.panes.tv(1)!.events.onClose!();
+      expect(box('aa')).toBe(CYAN);
+      // tv hides (cyan) and shows (white).
+      t.input('tv aa');
+      t.input('tv');
+      expect(box('aa')).toBe(CYAN);
+      t.input('tv');
+      expect(box('aa')).toBe(WHITE);
+      // Replaced by a fifth: aa (opened first) makes room.
+      for (const k of ['bb', 'cc', 'dd']) {
+        t.clock.advance(1000);
+        scry(k);
+      }
+      t.clock.advance(1000);
+      scry('ee');
+      expect(t.panes.opened.some((o) => !o.view.closed && o.spec.id === 'keymanager/~tv_aa')).toBe(false);
+      expect(box('aa')).toBe(CYAN);
+      t.clock.advance(20_000);
+      // A watch's end (the key keeps its ◻: it was scried).
+      t.input('watchr bb');
+      t.recv('You feel aware of this place.');
+      t.clock.advance(t.clock.now() % 2000 < 1000 ? 0 : 1000); // an even second: not the blink's red
+      expect([WHITE, RED]).toContain(box('bb'));
+      t.recv('[bb] Your awareness decreases.');
+      expect(box('bb')).toBe(CYAN);
+      // A disconnect.
+      t.input('watchr cc');
+      t.recv('You feel aware of this place.');
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing', reason: 'test' } as never);
+      expect(box('cc')).toBe(CYAN);
+    });
   });
 });
