@@ -1,5 +1,6 @@
-// The script MANUAL (stage 10 feedback round 1): a full-screen frame with
-// the guide and the A–Z API reference (script-reference.ts) in the
+// The script MANUAL (stage 10 feedback rounds 1 and 3): a full-screen
+// frame with the guide, the A–Z API reference and the Lua reference
+// (script-reference.ts; the Lua index's names are links) in the
 // profile editor's HELP layout (manual-view.tsx). Opened from the script
 // editor (MANUAL, F1 at the name under the cursor) and from the Scripts
 // page; ESC goes back, and the editor below keeps its buffer, cursor and
@@ -13,7 +14,7 @@ import { type Nav, useKeys } from '../chrome/kit/stack';
 import { indent } from '../chrome/kit/widgets';
 import { helpFrame, helpMenu, helpMenuWidth } from './help';
 import { type ManualControl, type ManualZone, ManualView } from './manual-view';
-import { manualSectionOf, scriptManualLayout, scriptManualSections } from './script-reference';
+import { indexLinkOf, manualSectionOf, scriptManualLayout, scriptManualSections } from './script-reference';
 
 /** Footer hints, longest first; the first that fits is shown. */
 const BODY_HINTS = [
@@ -68,6 +69,26 @@ export function ScriptManual({ section: initial = 0 }: { section?: number }): VN
   const hints = !hf.menu ? NARROW_HINTS : z === 'menu' ? MENU_HINTS : BODY_HINTS;
   const hint = truncate(hints.find((h) => cellLen(h) <= cols) ?? hints.at(-1)!, cols);
 
+  /** A Lua index line's name as a link to its entry. */
+  function indexLinks(text: string): string | (string | VNode)[] {
+    const hit = indexLinkOf(text);
+    if (!hit) return text;
+    return [
+      '- ',
+      <a
+        class="wc-about-link"
+        href={`#${hit.name}`}
+        onClick={(e) => {
+          e.preventDefault();
+          ctl.current?.goto(hit.section);
+        }}
+      >
+        {hit.name}
+      </a>,
+      text.slice(2 + hit.name.length),
+    ];
+  }
+
   return (
     <div class="wc-page wc-ped wc-sman" ref={rootRef} tabIndex={-1} data-zone={z}>
       <div class="wc-line" style={{ height: `calc(var(--cell-h) * ${gap})` }} />
@@ -87,6 +108,7 @@ export function ScriptManual({ section: initial = 0 }: { section?: number }): VN
         onZone={setZone}
         ctl={ctl}
         initial={initial}
+        text={indexLinks}
       />
       <div class="wc-ped-spacer" />
       <div class="wc-line" />

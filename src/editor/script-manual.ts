@@ -1,6 +1,7 @@
 // The script manual's guide (stage 10): how to write a Lua script for
 // WebCockpit, as data for the HELP view. The A–Z API reference is built by
-// the UI from SCRIPT_API (lua-api.ts); this file holds the chapters.
+// the UI from SCRIPT_API (lua-api.ts) and the Lua reference from LUA_REF
+// (lua-ref.ts); this file holds the chapters.
 //
 // Every statement describes what the code does: src/scripts/host.ts (the
 // API), header.ts, colors.ts, patterns.ts, guard.ts, library.ts,
@@ -29,7 +30,7 @@ const GETTING_STARTED: HelpSection = {
     "The editor helps while you type:",
     "- Errors are marked in red a moment after you stop typing: a dot in the margin, a red band on the line and the message on hover. The code is only compiled for this, never run. The status row above the footer shows the first error.",
     "- An error the saved script hit while running is marked on its line too, dashed, until you edit that line or save.",
-    "- Ctrl+Space completes API names, and the mouse over a name shows its help. F1 opens this manual at the function under the cursor.",
+    "- Ctrl+Space completes API and Lua names and keywords; for, if, while and function expand to a whole block, and Tab moves between its fields. The mouse over a name shows its help. Inside a call's parentheses a pop-up shows its parameters, the current one marked (ESC closes it). F1 opens this manual at the name under the cursor.",
     "- Ctrl+F finds and replaces. ESC leaves the editor and asks first when there are unsaved changes.",
   ],
   examples: [
@@ -42,6 +43,85 @@ const GETTING_STARTED: HelpSection = {
       note: "A first change: eat instead of just saying so.",
       lang: "lua",
       code: 'tempTrigger("You are hungry.", function()\n  send("eat bread")\nend)',
+    },
+  ],
+};
+
+const LUA_BASICS: HelpSection = {
+  group: "guide",
+  heading: "Lua basics",
+  text: [
+    "A short primer on the Lua you need for scripts. Every Lua function a script can use is in the Lua reference at the end of this manual, and the editor shows the same help on hover and while you type.",
+    "Values. A value is nil (nothing), a boolean (true or false), a number (42, 3.5), a string (\"text\"), a table or a function. type(v) tells which.",
+    "Variables. local name = value makes a variable that lives until the end of its block: the function, loop or file it is in. Without local the name is global to your script (other scripts never see it). Use local nearly always. A variable that was never set is nil, not an error.",
+    "Strings. Write them in double or single quotes, or as [[long strings]] that keep backslashes and line breaks. Join them with .. (two dots), and #s is the length. Strings have methods: line:upper(), line:find(\"orc\"), line:match(\"%d+\"). They never change in place; the methods return new strings.",
+    "Tables. One structure for lists and records. A list: local mobs = { \"orc\", \"troll\" }. mobs[1] is \"orc\" (counting starts at 1), #mobs is 2, and table.insert(mobs, \"wolf\") adds one at the end. A record: local me = { name = \"Gandalf\", hp = 100 }. me.name and me[\"name\"] are the same field. gmcp, state and settings are tables too.",
+    "Conditions. if … then … elseif … then … else … end. Compare with == and ~= (not equal), <, <=, > and >=; combine with and, or and not. Only false and nil count as false: 0 and \"\" are true.",
+    "Loops. for i = 1, 10 do … end counts. for i, v in ipairs(list) do … end walks a list in order; for k, v in pairs(t) do … end walks every key of a table. while cond do … end and repeat … until cond loop on a condition. break leaves a loop.",
+    "Functions. local function name(a, b) … return a + b end. A function is a value: tempTrigger takes one, usually written in place as function() … end. A function may return several values: local ok, err = pcall(f).",
+    "Comments. -- starts a comment to the end of the line; --[[ … ]] spans several lines.",
+    "Common mistakes:",
+    "- Not equal is ~=, not !=.",
+    "- Lists start at 1, not 0, and #t counts up to the first nil.",
+    "- Join strings with .., not +: \"HP: \" + 5 is an error.",
+    "- = sets a variable, == compares: if hp = 0 then is a syntax error.",
+    "- A missing field is nil, and indexing nil is an error: gmcp.Char.Vitals.hp fails while gmcp.Char is nil. Test step by step: local v = gmcp.Char and gmcp.Char.Vitals.",
+    "- Every if, for, while, do and function needs its own end.",
+    "- A local made inside a block is gone after its end; declare it before the block to keep it.",
+  ],
+  examples: [
+    {
+      note: "Values, strings and a condition:",
+      lang: "lua",
+      code: 'local name = "Gandalf"\nlocal hp, maxhp = 80, 120\nlocal pct = math.floor(hp * 100 / maxhp)\nif pct < 50 and name ~= "" then\n  echo(name .. " is hurt: " .. pct .. "%")\nend',
+    },
+    {
+      note: "A list and a record:",
+      lang: "lua",
+      code: 'local mobs = { "orc", "troll" }\ntable.insert(mobs, "wolf")\nfor i, mob in ipairs(mobs) do\n  echo(i .. ": " .. mob)\nend\n\nlocal me = { name = "Frodo", hp = 40 }\nme.hp = me.hp + 10\nfor key, value in pairs(me) do\n  print(key, value)\nend',
+    },
+    {
+      note: "A function with a default, and several return values:",
+      lang: "lua",
+      code: 'local function split(text, sep)\n  sep = sep or ","\n  local a, b = text:match("^(.-)" .. sep .. "(.*)$")\n  return a, b\nend\nlocal first, rest = split("orc,troll")',
+    },
+  ],
+};
+
+const LUA_PATTERNS: HelpSection = {
+  group: "guide",
+  heading: "Lua patterns",
+  syntax: [
+    ".     any character       %a     letter                %d    digit",
+    "%s    space               %w     letter or digit       %p    punctuation",
+    "%l    lower case          %u     upper case            %x    hex digit",
+    "[abc] a, b or c           [^,]   not a comma           [%w_] word character",
+    "*     0 or more, longest  -      0 or more, shortest",
+    "+     1 or more           ?      0 or 1",
+    "^     start of the text   $      end of the text",
+    "( )   capture             %1     the first capture",
+    "%b()  a balanced (…)      %f[%w] frontier: a word start",
+    "%A %D %S %W …  the opposite: not a letter, not a digit …",
+    "%.    a literal dot; % escapes any symbol: %% %( %[ %- %+",
+  ],
+  text: [
+    "string.match, find, gmatch and gsub take Lua patterns. They look like regular expressions but are smaller, and % takes the place of the backslash: %d is a digit, %s a space, %. a real dot. tempRegexTrigger and tempAlias take JavaScript regular expressions instead, and tempTrigger plain text.",
+    "Patterns have no alternation (a|b), no counted repeats ({2,3}) and no repeats of a group ((ab)+). Use two patterns or a loop instead.",
+    "The repeat - takes the shortest run and * the longest: in \"a (b) (c)\", %((.-)%) captures b, but %((.*)%) captures b) (c.",
+    "Each ( ) capture gives the text it matched: match returns all captures, or the whole match when there are none. With ^ and $ the pattern must match the whole line.",
+    "To find plain text, pass true as find's fourth argument: line:find(\"a.b\", 1, true) looks for a, a dot and b.",
+    "A pattern with two or more .- .* or .+ can take very long to fail on a long line, so scripts refuse it with pattern too complex. Anchor it and prefer narrow classes such as %a+, %S+ or [^']+.",
+  ],
+  examples: [
+    {
+      note: "Captures from a game line:",
+      lang: "lua",
+      code: 'local who, msg = line:match("^(%a+) tells you \'(.*)\'$")\nif who then\n  uiMessage("tell", who .. ": " .. msg)\nend',
+    },
+    {
+      note: "Every number in a line, and a trimmed, squeezed copy:",
+      lang: "lua",
+      code: 'for n in line:gmatch("%d+") do\n  print(tonumber(n))\nend\nlocal trimmed = line:match("^%s*(.-)%s*$")\nlocal squeezed = line:gsub("%s+", " ")',
     },
   ],
 };
@@ -480,6 +560,8 @@ const EXAMPLES: HelpSection = {
 /** The script manual's chapters, in menu order (group `guide`). */
 export const SCRIPT_GUIDE: readonly HelpSection[] = [
   GETTING_STARTED,
+  LUA_BASICS,
+  LUA_PATTERNS,
   HEADER,
   TRIGGERS,
   ALIASES,

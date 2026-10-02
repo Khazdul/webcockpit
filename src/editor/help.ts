@@ -65,8 +65,8 @@ export interface HelpExample {
   check?: HelpCheck;
 }
 
-/** The profile manual's groups, and the script manual's (`guide`, `reference`). */
-export type HelpGroup = 'intro' | 'basics' | 'commands' | 'end' | 'guide' | 'reference';
+/** The profile manual's groups, and the script manual's (`guide`, `reference`, `lua`). */
+export type HelpGroup = 'intro' | 'basics' | 'commands' | 'end' | 'guide' | 'reference' | 'lua';
 
 export interface HelpSection {
   group: HelpGroup;
@@ -778,6 +778,7 @@ const GROUP_TITLES: Readonly<Record<HelpGroup, string | null>> = {
   end: null,
   guide: 'Guide',
   reference: 'API reference',
+  lua: 'Lua reference',
 };
 
 
