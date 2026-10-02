@@ -25,6 +25,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 6 built: scry marks on the map
+
+- **Owner:** a scried room blinks magenta on the map for 15 s, with
+  arrows when off view and a zoom-out to fit; a touched view stays put;
+  map off does nothing; live only (no replay yet).
+- **Built:** ADR 0057; worker room query, marks, focus, `drawMark`;
+  `mapMark`/`mapUnmark`/`mapFind`; key manager marks each scry.
+- **Verified:** typecheck, unit 1855, full e2e 378/378, build, map bench
+  gate within budgets.
+- **Open:** scry format unverified in MUME; XML room-name tags unused;
+  marks not recorded in runs.
+- **Next:** owner test rounds 5 and 6; release 0.1.28 when asked.
+- **Commits:** ea27279, e1da999, 2655f60, c25111e, 1bd7135, 0f4aa8c,
+  38285f7, 6690e41, plus this one.
+
 ### 2026-10-02 — Stage 12 round 4 feedback built
 
 - **Owner:** gag the blank line and prompt after watch lines; learn
