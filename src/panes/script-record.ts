@@ -261,6 +261,7 @@ function sanitizeLinks(links: unknown[], rows: number): PaneSnapshot['links'] {
       col,
       len: Math.min(MAX_LINE_CELLS - col, Math.floor(len)),
       hint: typeof l.hint === 'string' ? l.hint.slice(0, MAX_HINT) : '',
+      ...(l.tip === true ? { tip: true } : {}),
     });
   }
   return out;

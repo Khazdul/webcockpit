@@ -188,6 +188,16 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "isPrompt",
+    "isPrompt() → boolean",
+    "In a trigger: true when the line is a prompt (MUME ended it with GA/EOR, or it is a <prompt> element in XML mode).",
+    {
+      params: [],
+      returns: "true or false; false outside a trigger.",
+      example: 'tempRegexTrigger("^$", function()\n  if isPrompt() then return end\nend)',
+    },
+  ),
+  fn(
     "copy2cecho",
     "copy2cecho() → string",
     "In a trigger: the current line as the game sent it, with its colours as cecho tags, so it can be shown elsewhere (a pane) in the same colours.",
@@ -646,13 +656,29 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("row", "number", "The row, from 1."),
         p("col", "number", "The first column, from 1."),
         p("len", "number", "How many cells, at least 1."),
-        p("fn", "function", "Called with no arguments on a click."),
+        p("fn", "function?", "Called with no arguments on a click; nil for a tooltip only (not clickable, no band)."),
         p("hint", "string?", "The tooltip."),
       ],
       more: [
         "The cells need no text. A link replaces the links it overlaps on that row; pane:setLine, pane:gauge and pane:clear remove the row's links.",
+        "Hovering is steady: when the pane is redrawn, a link at the same row, column and length keeps its band and its open tooltip, whose text updates when the hint changed. So a countdown's hint can be set again every second.",
       ],
       example: 'pane:setLine(3, "[x] Bob")\npane:setLink(3, 2, 1, function()\n  send("order bob leave")\nend, "Send Bob away")',
+    },
+  ),
+  fn(
+    "pane:setText",
+    "pane:setText(row, col, text)",
+    "Writes text over the cells of a row from column col, keeping the row's other cells, its links and its text fields. For a counter or a status cell that changes often.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1 (a text row, not a gauge)."),
+        p("col", "number", "The first column, from 1; a shorter row is padded with spaces."),
+        p("text", "string", "Text with colour tags."),
+      ],
+      more: ["Writing what is already there changes nothing, so it costs no redraw."],
+      example: 'pane:setLine(1, " HP:      [rest]")\npane:setLink(1, 11, 6, function() send("rest") end, "Rest")\npane:setText(1, 6, "<green>120")',
     },
   ),
   fn(

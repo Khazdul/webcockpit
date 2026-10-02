@@ -889,6 +889,12 @@ export class ScriptHost {
       const l = this.triggerLine;
       return l ? toCecho(l.text, l.runs) : null;
     });
+    // Mudlet's isPrompt(): the trigger's line is a prompt (GA/EOR or
+    // MUME's <prompt> element, as the line layer marks it).
+    rt.defineFunction('isPrompt', () => {
+      this.cur(rt);
+      return this.triggerLine?.prompt === true;
+    });
     rt.defineFunction('uiMessage', (a) => {
       this.cur(rt);
       const source = a.string(1).trim().toUpperCase().slice(0, 20) || 'SCRIPT';
@@ -1092,16 +1098,30 @@ export class ScriptHost {
         const len = a.number(4);
         if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
         if (!Number.isInteger(len) || len < 1) throw new Error(`bad argument #4 to '${a.name}' (length must be a whole number from 1)`);
-        const ref = a.function(5);
+        // No function: a tooltip only (ADR 0056).
+        const ref = a.optFunction(5);
         const hint = a.optString(6, '');
         const n = id();
-        p.links.set(n, ref);
+        if (ref !== null) p.links.set(n, ref);
         try {
-          p.content.addLink(r, col - 1, len, n, hint);
+          p.content.addLink(r, col - 1, len, n, hint, ref === null);
         } catch (err) {
           p.links.delete(n);
-          p.owner.script?.release(ref);
+          if (ref !== null) p.owner.script?.release(ref);
           throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
+        }
+        done(p);
+      },
+      setText: (a) => {
+        const p = self(a);
+        if (!p) return;
+        const r = row(a, 2);
+        const col = a.number(3);
+        if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
+        try {
+          p.content.setText(r, col - 1, parseCecho(a.string(4)));
+        } catch (err) {
+          throw new Error(`bad argument #2 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
         }
         done(p);
       },
@@ -1364,7 +1384,7 @@ export class ScriptHost {
   }
 
   /** The game line the running trigger matched (`copy2cecho`). */
-  private triggerLine: { text: string; runs: readonly StyleRun[] } | null = null;
+  private triggerLine: { text: string; runs: readonly StyleRun[]; prompt?: boolean } | null = null;
 
   /** False (the alias did not take the command) only when the handler returned false. */
   private onAlias(o: Owner, ref: LuaRef, ctx: MatchContext): boolean {

@@ -798,6 +798,39 @@ describe('hang guard', () => {
   });
 });
 
+describe('pane partial updates (ADR 0056)', () => {
+  it('setText keeps the row and its links; setLink with nil is a tooltip only; isPrompt', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        p: src(`
+          local pane = createPane{id = "p"}
+          pane:setLine(1, " HP:     [rest]")
+          pane:setLink(1, 10, 6, function() send("rest") end, "Rest")
+          pane:setText(1, 6, "<green>120")
+          pane:setLink(1, 6, 3, nil, "Hit points")
+          send(select(2, pcall(pane.setText, pane, 0, 1, "x")))
+          tempRegexTrigger(">$", function() send(tostring(isPrompt())) end)
+          send(tostring(isPrompt()))
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('p/p')!;
+    expect(paneText(p.content)).toEqual([' HP: 120 [rest]']);
+    expect(p.content.links.map((l) => [l.col, l.len, l.hint, !!l.tip])).toEqual([
+      [9, 6, 'Rest', false],
+      [5, 3, 'Hit points', true],
+    ]);
+    p.events.onLink(p.content.links[1]!.id);
+    p.events.onLink(p.content.links[0]!.id);
+    expect(t.sent.slice(0, 3)).toEqual([expect.stringMatching(/bad argument #2 to 'pane:setText'/), 'false', 'rest']);
+    t.bus.emit('text.line', { ...line('Mana:Hot>'), prompt: true });
+    t.recv('not a prompt>');
+    expect(t.sent.slice(3)).toEqual(['true', 'false']);
+  });
+});
+
 describe('pane anchor (ADR 0053 addendum)', () => {
   it('createPane takes anchor top or bottom (default) and at for a temporary pane, and refuses others', async () => {
     const panes = new FakeSurface();

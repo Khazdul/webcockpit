@@ -61,7 +61,7 @@ describe('text field methods (ADR 0055)', () => {
 
 describe('pane methods (ADR 0053)', () => {
   it('complete after a pane receiver, never as globals; hover finds them after a colon', () => {
-    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setInput', 'pane:setTitle']);
+    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setText', 'pane:setInput', 'pane:setTitle']);
     expect(completeLua('myPane:g')?.method).toBe(true);
     expect(names(completeLua('line:up'))).toEqual(['string.upper']);
     expect(names(completeLua('pane'))).toBeNull();

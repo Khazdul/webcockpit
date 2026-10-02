@@ -29,6 +29,11 @@
 //   hint as a tooltip (`.wc-spane-tip`, one cell row per hint line, under
 //   the link, over everything in the cockpit). A click calls `onLink(id)`;
 //   without `onLink` (the log player) links are inert but keep their tips.
+//   A tooltip-only link (`tip`) shows its hint without band or cursor.
+// - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
+//   After every render the link under the pointer is looked up again; one
+//   at the same row, column and length is the same link, so the band and
+//   the tooltip stay through redraws, and the tooltip text updates in place.
 // - Text fields (ADR 0055): a native <input> per field, over its cells in
 //   a layer beside the content (the rows are rebuilt freely; the inputs
 //   are not, so a focused field keeps its focus). The band under it is
@@ -174,7 +179,7 @@ export function scriptPaneRows(
   for (let i = 0; i < c.lines.length; i++) {
     const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
     if (c.fields.length > 0) fieldBands(line, c.fields, i, w, ramp);
-    if (hover && hover.row === i) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
+    if (hover && hover.row === i && !hover.tip) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
     out.push(line);
   }
   return out;
@@ -212,6 +217,8 @@ export class ScriptPane extends PaneShell {
   /** What the rows on screen were drawn from. */
   private shownKey = '';
   private hover: PaneLink | null = null;
+  /** The pointer over the content (client px), for re-resolving the hover after a change. */
+  private pointer: { x: number; y: number } | null = null;
   private tipEl: HTMLDivElement | null = null;
   private readonly onField: ((id: number, e: FieldEvent) => void) | null;
   private readonly onFocusInput: () => void;
@@ -271,9 +278,7 @@ export class ScriptPane extends PaneShell {
     const ansi = s.appearance.ansi;
     const fg = s.appearance.fg;
     const c = this.model;
-    // The hovered link may have gone with the last change.
-    if (this.hover && !c.links.some((l) => l.id === this.hover!.id && l.row === this.hover!.row)) this.setHover(null);
-    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover?.id ?? ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
+    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover ? `${this.hover.row},${this.hover.col},${this.hover.len}` : ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
     if (key === this.shownKey) return;
     this.shownKey = key;
     const n = c.lines.length;
@@ -296,6 +301,32 @@ export class ScriptPane extends PaneShell {
     if (bottom && this.live) this.scroller.scrollTop = Math.max(0, n - listH) * cellH;
     this.updateMore();
     this.syncFields(ramp);
+    this.resolveHover();
+  }
+
+  /**
+   * The link under the pointer again, after a change (ADR 0056): the same
+   * place keeps the band and the tooltip (its text updated in place);
+   * another link or none moves or ends the hover.
+   */
+  private resolveHover(): void {
+    const p = this.pointer;
+    if (!p) {
+      if (this.hover) this.setHover(null);
+      return;
+    }
+    const at = this.cellAt(p.x, p.y);
+    const link = at ? this.model.linkAt(at.row, at.col) : null;
+    const was = this.hover;
+    if (link && was && link.row === was.row && link.col === was.col && link.len === was.len && !link.tip === !was.tip) {
+      this.hover = link;
+      if (link.hint !== was.hint) {
+        if (link.hint) this.showTip(link, at!.y);
+        else this.hideTip();
+      }
+      return;
+    }
+    if (link !== was) this.setHover(link, at?.y ?? 0);
   }
 
   /** Lines scrolled off the top (partly scrolled ones count). */
@@ -322,7 +353,8 @@ export class ScriptPane extends PaneShell {
     // Live: at the end within 2 px (a layout-free model when the browser has none).
     const end = s.scrollHeight > 0 ? s.scrollHeight - s.clientHeight : Math.max(0, n - listH) * cellH;
     this.live = s.scrollTop >= end - 2;
-    if (this.hover) this.setHover(null);
+    // The content moved under the pointer: whatever is there now.
+    this.resolveHover();
     this.updateMore();
   };
 
@@ -512,9 +544,12 @@ export class ScriptPane extends PaneShell {
   }
 
   private readonly onMove = (e: PointerEvent): void => {
+    this.pointer = { x: e.clientX, y: e.clientY };
     const at = this.cellAt(e.clientX, e.clientY);
     const link = at ? this.model.linkAt(at.row, at.col) : null;
-    if (link?.id === this.hover?.id && link?.row === this.hover?.row) return;
+    const was = this.hover;
+    if (link && was && link.row === was.row && link.col === was.col && link.len === was.len) return;
+    if (!link && !was) return;
     this.setHover(link, at?.y ?? 0);
   };
 
@@ -524,6 +559,7 @@ export class ScriptPane extends PaneShell {
     // still over the content.
     const r = this.content.getBoundingClientRect();
     if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
+    this.pointer = null;
     this.setHover(null);
   };
 
@@ -534,13 +570,13 @@ export class ScriptPane extends PaneShell {
     }
     if (!this.onLink) return;
     const link = this.linkAt(e.clientX, e.clientY);
-    if (link) this.onLink(link.id);
+    if (link && !link.tip) this.onLink(link.id);
   };
 
   private setHover(link: PaneLink | null, rowY = 0): void {
     const was = this.hover;
     this.hover = link;
-    this.content.style.cursor = link && this.onLink ? 'pointer' : '';
+    this.content.style.cursor = link && !link.tip && this.onLink ? 'pointer' : '';
     if (link?.hint) this.showTip(link, rowY);
     else this.hideTip();
     if (was !== link) this.markDirty();

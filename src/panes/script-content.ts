@@ -70,6 +70,8 @@ export interface PaneLink {
   hint: string;
   /** The host's key for the link's function. */
   id: number;
+  /** A tooltip only: not clickable (ADR 0056). */
+  tip?: boolean;
 }
 
 /** An editable text field over `len` cells of `row` (ADR 0055). */
@@ -92,7 +94,7 @@ export const MAX_FIELD_VALUE = 500;
 export interface PaneSnapshot {
   title: string;
   lines: PaneLine[];
-  links: { row: number; col: number; len: number; hint: string }[];
+  links: { row: number; col: number; len: number; hint: string; tip?: boolean }[];
   /** A temporary pane's size, place and on/off (the recorder adds it; `snapshot()` never does). */
   temp?: PaneTemp;
   /** Where an overflowing pane's view sticks; absent: `bottom` (ADR 0053 addendum). */
@@ -337,12 +339,43 @@ export class PaneContent {
     });
   }
 
-  /** Replaces row `row` with `t` (one line: `\n` becomes a space). */
+  /**
+   * Replaces row `row` with `t` (one line: `\n` becomes a space). The
+   * row's links and fields go; identical spans do not count as a change
+   * (ADR 0056).
+   */
   setLine(row: number, t: StyledText): void {
     this.ensure(row);
     const one = t.text.indexOf('\n') < 0 ? t : { text: t.text.replace(/\n/g, ' '), runs: t.runs };
+    const hadLinks = this.links.some((l) => l.row === row) || this.fields.some((f) => f.row === row);
     this.dropRow(row);
-    this.lines[row] = { spans: clip(toSpans(one), MAX_LINE_CELLS) };
+    const spans = clip(toSpans(one), MAX_LINE_CELLS);
+    const old = this.lines[row]!;
+    if (!hadLinks && 'spans' in old && sameSpans(old.spans, spans)) return;
+    this.lines[row] = { spans };
+    this.version++;
+  }
+
+  /**
+   * Writes `t` over the cells of text row `row` from `col` (0-based),
+   * padding a shorter row with spaces; the row's other cells, its links
+   * and its fields stay (ADR 0056). A no-op when the cells already hold it.
+   */
+  setText(row: number, col: number, t: StyledText): void {
+    this.ensure(row);
+    const c = Math.max(0, Math.floor(col));
+    if (c >= MAX_LINE_CELLS) throw new RangeError(`column ${c + 1} is past the last column (${MAX_LINE_CELLS})`);
+    const old = this.lines[row]!;
+    if (!('spans' in old)) throw new RangeError(`row ${row + 1} is a gauge`);
+    const one = t.text.indexOf('\n') < 0 ? t : { text: t.text.replace(/\n/g, ' '), runs: t.runs };
+    let spans = old.spans;
+    let x = c;
+    for (const s of toSpans(one)) {
+      spans = overlay(spans, x, s);
+      x += s.text.length;
+    }
+    if (sameSpans(old.spans, spans)) return;
+    this.lines[row] = { spans };
     this.version++;
   }
 
@@ -362,7 +395,7 @@ export class PaneContent {
    * Makes `len` cells of `row` from `col` a link (`id`, `hint`); the row
    * need not have text there. Links it overlaps on that row are dropped.
    */
-  addLink(row: number, col: number, len: number, id: number, hint: string): void {
+  addLink(row: number, col: number, len: number, id: number, hint: string, tip = false): void {
     this.ensure(row);
     const c = Math.max(0, Math.floor(col));
     const n = Math.max(1, Math.min(MAX_LINE_CELLS - c, Math.floor(len)));
@@ -372,7 +405,9 @@ export class PaneContent {
       if (overlap) this.onDrop(l.id);
       return !overlap;
     });
-    this.links.push({ row, col: c, len: n, hint: clean(hint).slice(0, MAX_HINT), id });
+    const link: PaneLink = { row, col: c, len: n, hint: clean(hint).slice(0, MAX_HINT), id };
+    if (tip) link.tip = true;
+    this.links.push(link);
     this.version++;
   }
 
@@ -457,7 +492,11 @@ export class PaneContent {
       const text = f.value.length >= f.len ? f.value.slice(0, f.len) : f.value + ' '.repeat(f.len - f.value.length);
       l.spans = overlay(l.spans, f.col, { text, underline: true });
     }
-    const out: PaneSnapshot = { title: this.title, lines, links: this.links.map(({ row, col, len, hint }) => ({ row, col, len, hint })) };
+    const out: PaneSnapshot = {
+      title: this.title,
+      lines,
+      links: this.links.map(({ row, col, len, hint, tip }) => (tip ? { row, col, len, hint, tip } : { row, col, len, hint })),
+    };
     if (this.anchor === 'top') out.anchor = 'top';
     return out;
   }
@@ -516,4 +555,11 @@ export function overlay(spans: readonly PaneSpan[], col: number, s: PaneSpan): P
     pushSpan(out, { ...sp, text: sp.text.slice(Math.max(0, end - a)) });
   }
   return clip(out, MAX_LINE_CELLS);
+}
+
+/** Two span lists draw the same. */
+function sameSpans(a: readonly PaneSpan[], b: readonly PaneSpan[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i]!.text !== b[i]!.text || !sameStyle(a[i]!, b[i]!)) return false;
+  return true;
 }

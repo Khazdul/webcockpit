@@ -166,6 +166,43 @@ describe('PaneContent text fields (ADR 0055)', () => {
   });
 });
 
+describe('PaneContent partial updates (ADR 0056)', () => {
+  it('setText writes over cells and keeps the row\'s links and fields; identical writes change nothing', () => {
+    const dropped: number[] = [];
+    const c = new PaneContent('t', { onDrop: (id) => dropped.push(id) });
+    c.setLine(0, plain(' home  12h t'));
+    c.addLink(0, 11, 1, 1, 'Teleport');
+    c.addField(0, 1, 4, 2);
+    const v = c.version;
+    c.setText(0, 7, parseCecho('<orange>11h'));
+    expect(texts(c)[0]).toBe(' home  11h t');
+    expect(c.links).toHaveLength(1);
+    expect(c.fields).toHaveLength(1);
+    expect(c.version).toBe(v + 1);
+    c.setText(0, 7, parseCecho('<orange>11h'));
+    expect(c.version).toBe(v + 1);
+    // Past the end: padded.
+    c.setText(2, 3, plain('x'));
+    expect(texts(c)[2]).toBe('   x');
+    c.setGauge(3, { value: 1, max: 2, label: '' });
+    expect(() => c.setText(3, 0, plain('x'))).toThrow(/gauge/);
+    // setLine with the same text and no links: no change.
+    const w = c.version;
+    c.setLine(2, plain('   x'));
+    expect(c.version).toBe(w);
+    expect(dropped).toEqual([]);
+  });
+
+  it('a link without a function is a tooltip only, also in a snapshot', () => {
+    const c = new PaneContent('t');
+    c.setLine(0, plain('12h'));
+    c.addLink(0, 0, 3, 1, 'Time left', true);
+    expect(c.links[0]!.tip).toBe(true);
+    expect(c.snapshot().links).toEqual([{ row: 0, col: 0, len: 3, hint: 'Time left', tip: true }]);
+    expect(PaneContent.fromSnapshot(c.snapshot()).links[0]!.tip).toBe(true);
+  });
+});
+
 describe('script pane ids in the layout and the settings', () => {
   const id = scriptPaneId('merc', 'main');
   const present = new Set([id]);
@@ -561,6 +598,53 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(list.pane.linkAt(5, 20 * 2 + 5)?.hint).toBeUndefined();
     list.pane.scrollEl.scrollTop = 60;
     expect(list.pane.linkAt(5, 20 * 2 + 5)!.hint).toBe('six');
+  });
+
+  it('hover is steady: a redraw keeps the band and the tooltip of a link at the same place, its text updated (ADR 0056)', () => {
+    const { cockpit, surface, flush } = rig();
+    const id = scriptPaneId('s', 'hover');
+    const content = new PaneContent('H');
+    const draw = (hint: string, at = 4) => {
+      content.clear();
+      content.setLine(0, plain('[a] [b]   '));
+      content.addLink(0, at, 3, Math.floor(Math.random() * 1e9), hint);
+      content.addLink(0, 8, 2, Math.floor(Math.random() * 1e9), 'tip only', true);
+    };
+    draw('B 2:31');
+    const clicks: number[] = [];
+    surface.open({ id, place: { dock: 'right', rows: 3, cols: 20 } }, content, { onLink: (n) => clicks.push(n), onResize: () => {} });
+    flush();
+    const pane = cockpit.pane(id) as ScriptPane;
+    const at = (col: number) => ({ clientX: col * 10 + 5, clientY: 5, bubbles: true });
+    pane.content.dispatchEvent(new PointerEvent('pointermove', at(5)));
+    const tip = cockpit.el.querySelector<HTMLElement>('.wc-spane-tip')!;
+    expect(tip.hidden).toBe(false);
+    const tipEl = tip;
+    // Three redraws (new link ids each time), the pointer still: the tooltip stays and shows the new hint.
+    for (const h of ['B 2:30', 'B 2:29', 'B 2:28']) {
+      draw(h);
+      pane.changed();
+      flush();
+      expect(pane.hovered?.hint).toBe(h);
+      expect(tip.hidden).toBe(false);
+      expect(cockpit.el.querySelector('.wc-spane-tip')).toBe(tipEl);
+      expect([...tip.children].map((c) => c.textContent)).toEqual([` ${h} `]);
+      const band = pane.content.querySelector('.wc-prow')!;
+      expect(band.innerHTML).toContain('#'); // the glow band's colours are inline styles
+    }
+    // The link moves away: the hover ends.
+    draw('gone', 0);
+    pane.changed();
+    flush();
+    expect(pane.hovered).toBeNull();
+    expect(tip.hidden).toBe(true);
+    // A tooltip-only link: tooltip, no pointer, no click.
+    pane.content.dispatchEvent(new PointerEvent('pointermove', at(8)));
+    expect(tip.hidden).toBe(false);
+    expect(tip.textContent).toContain('tip only');
+    expect(pane.content.style.cursor).toBe('');
+    pane.content.dispatchEvent(new MouseEvent('click', at(8)));
+    expect(clicks).toEqual([]);
   });
 
   it('the close cross switches a script pane off with a whole settings entry', () => {

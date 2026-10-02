@@ -370,7 +370,7 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     - `deleteLine()` gags the current line.
     - `replaceLine(text)` substitutes the displayed copy.
     - `copy2cecho()` returns the trigger's line with its colours as cecho
-      tags.
+      tags; `isPrompt()` tells whether it is a prompt.
     - `highlight(color)` colours the displayed copy.
     - An alias consumes the input unless its handler returns `false`.
   - Keys: `tempKey(name, fn)` and `killKey(id)`. Key names follow
@@ -424,7 +424,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       - `:gauge(row, {value, max, color, label})`;
       - `:cechoLink(text, fn, hint)`, `:setLink(row, col, len, fn, hint)`.
         Any span, down to a single cell, can be clickable and have a
-        tooltip.
+        tooltip (`fn` nil: a tooltip only). A hovered link keeps its band
+        and tooltip through redraws while it stays at the same place
+        (ADR 0056).
+      - `:setText(row, col, text)` writes over cells, keeping the row's
+        other cells and links.
       - `:size()` returns rows and cols. `:onResize(fn)` is called
         when the pane's size changes.
       - `:show()`, `:hide()`, `:visible()` and `:setTitle(text)`.
