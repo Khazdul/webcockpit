@@ -10,7 +10,9 @@ import {
   DOS_PALETTE,
   PAPER_PALETTE,
   TERMINAL_BG_PRESETS,
+  TERMINAL_FG_PRESETS,
   backgroundTheme,
+  presetName,
 } from '../../src/theme/presets';
 
 const PAPER = '#f4ecd8';
@@ -43,6 +45,10 @@ describe('BACKGROUND_THEMES', () => {
   it('has a theme for every background preset', () => {
     for (const p of TERMINAL_BG_PRESETS) expect(backgroundTheme(p.hex), p.name).not.toBeNull();
     expect(backgroundTheme('#123456')).toBeNull();
+  });
+
+  it('uses only named font colour presets (ADR 0062)', () => {
+    for (const [name, t] of Object.entries(BACKGROUND_THEMES)) expect(presetName(TERMINAL_FG_PRESETS, t.fg), name).not.toBeNull();
   });
 
   it('keeps DOS and silver on black', () => {

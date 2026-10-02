@@ -35,13 +35,18 @@ export const ANSI_NAMES: readonly string[] = [
 export const DEFAULT_TERM_FG = '#c0c0c0';
 export const DEFAULT_TERM_BG = '#000000';
 
-/** Font colour presets, in cycle order (`TERMINAL_FG`). */
+/**
+ * Font colour presets, in cycle order (`TERMINAL_FG`). Silver and ink are
+ * the black and paper defaults; mist, wheat, lavender and frost are the
+ * dark background themes' font colours (ADR 0062).
+ */
 export const TERMINAL_FG_PRESETS: readonly NamedColor[] = [
   { name: 'sage', hex: '#778a8d' },
   { name: 'silver', hex: '#c0c0c0' },
-  { name: 'ash', hex: '#a0a0a0' },
-  { name: 'stone', hex: '#808080' },
-  { name: 'shadow', hex: '#606060' },
+  { name: 'mist', hex: '#93a1a1' },
+  { name: 'wheat', hex: '#d5c4a1' },
+  { name: 'lavender', hex: '#a9b1d6' },
+  { name: 'frost', hex: '#d8dee9' },
   { name: 'ink', hex: '#000000' },
 ];
 
@@ -85,17 +90,17 @@ export const BACKGROUND_THEMES: Readonly<Record<string, BackgroundTheme>> = {
   paper: { fg: '#000000', ansi: PAPER_PALETTE },
   red: {
     // Kanagawa Dragon
-    fg: '#c8c093',
+    fg: '#d5c4a1',
     ansi: [
-      '#2a1d1d', '#c4746e', '#87a987', '#c4b28a', '#8ba4b0', '#a292a3', '#8ea4a2', '#c8c093',
+      '#2a1d1d', '#c4746e', '#87a987', '#c4b28a', '#8ba4b0', '#a292a3', '#8ea4a2', '#d5c4a1',
       '#a6a69c', '#e6717e', '#a3c79a', '#e6c384', '#7fb4ca', '#a69fb8', '#8cb4ac', '#e8e2c8',
     ],
   },
   green: {
     // Everforest
-    fg: '#d3c6aa',
+    fg: '#d5c4a1',
     ansi: [
-      '#1f2e1f', '#e67e80', '#a7c080', '#dbbc7f', '#7fbbb3', '#d699b6', '#83c092', '#d3c6aa',
+      '#1f2e1f', '#e67e80', '#a7c080', '#dbbc7f', '#7fbbb3', '#d699b6', '#83c092', '#d5c4a1',
       '#859289', '#f4a0a2', '#bfd69a', '#ecd29a', '#9fd4cc', '#e8b4cc', '#a2d6ad', '#f2ead4',
     ],
   },
@@ -109,25 +114,25 @@ export const BACKGROUND_THEMES: Readonly<Record<string, BackgroundTheme>> = {
   },
   grey: {
     // Tomorrow Night
-    fg: '#c5c8c6',
+    fg: '#c0c0c0',
     ansi: [
-      '#282a2e', '#cc6666', '#b5bd68', '#f0c674', '#81a2be', '#b294bb', '#8abeb7', '#c5c8c6',
+      '#282a2e', '#cc6666', '#b5bd68', '#f0c674', '#81a2be', '#b294bb', '#8abeb7', '#c0c0c0',
       '#969896', '#ff8080', '#d0d87e', '#ffd98a', '#a3c4e0', '#d0b0d8', '#a8dcd4', '#eaeaea',
     ],
   },
   orange: {
     // Ayu
-    fg: '#bfbdb6',
+    fg: '#c0c0c0',
     ansi: [
-      '#2c2216', '#f07178', '#aad94c', '#e6b450', '#59c2ff', '#d2a6ff', '#95e6cb', '#bfbdb6',
+      '#2c2216', '#f07178', '#aad94c', '#e6b450', '#59c2ff', '#d2a6ff', '#95e6cb', '#c0c0c0',
       '#8a8986', '#ff9a9f', '#c4ee6e', '#ffcf6e', '#8ad4ff', '#e4c6ff', '#b8f4e0', '#ece9e0',
     ],
   },
   purple: {
     // Dracula
-    fg: '#d6d4e0',
+    fg: '#d8dee9',
     ansi: [
-      '#282236', '#ff5555', '#50fa7b', '#f1fa8c', '#8a9cff', '#ff79c6', '#8be9fd', '#d6d4e0',
+      '#282236', '#ff5555', '#50fa7b', '#f1fa8c', '#8a9cff', '#ff79c6', '#8be9fd', '#d8dee9',
       '#8a87a8', '#ff8a8a', '#86ffa4', '#fbffb0', '#b4c0ff', '#ffa6da', '#b6f3ff', '#f8f8f2',
     ],
   },
