@@ -150,7 +150,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
 already running), then open http://localhost:5173/. Firefox and
 Chromium.
 
-1. **Find the page:** start page → *Scripts* (the row under *Profile*);
+1. **Find the page:** start page → *Options* → *Scripts* (moved there in round 7);
    also ESC in game → *Scripts*. Is the place and the layout right? The
    list sits left of the help, and the block is centred like the Profile
    page. Say if you want it pinned to the far left instead.
@@ -319,3 +319,9 @@ Round 6 (2026-10-02):
    expression has to be retyped. It should follow every edit (typing,
    Backspace, Delete, word delete, undo, cut, paste) and be up to date
    for the new text.
+
+Round 7 (2026-10-02):
+
+1. Move Scripts out of the start page and ESC menus into Options:
+   Options → Scripts, in both. Done: the last entry of the Options hub
+   (shown only with a script library); help text and manual updated.
