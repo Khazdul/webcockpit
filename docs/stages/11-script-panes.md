@@ -188,4 +188,30 @@ anything in the pane API that felt odd while writing your own.
 
 ## Owner feedback
 
-None yet.
+### Round 1 (2026-10-02)
+
+Overview tests: everything seems to work. Script panes in the menus,
+working like ordinary panes, are liked.
+
+- **Mercenary cost.** At a high level a mercenary costs 1 gold (20
+  silver), not 10 silver. The script should switch to 10 silver when a
+  mercenary says so, and a click somewhere in the pane should toggle
+  the cost between 10 and 20 silver.
+- **Orders.** The only commands wanted are `ask <name> lead`, `ask
+  <name> ride` and `ask <name> flee`. The pane's buttons become these.
+- **Temporary panes.** A script may want a short-lived pane (shown for
+  a few seconds to make a choice, or similar). Such a pane should not
+  appear in the menus like the ordinary ones.
+
+Main-session decisions for round 1:
+
+- The cost is a setting (`cost`, 10 or 20 silver), toggled by a click
+  on the header and learnt from what a mercenary says about the price.
+  20 silver is paid as `give 1 gold <name>`, 10 as `give 10 silver
+  <name>`.
+- The order row is `l r f` (lead, ride, flee). Paying moves to a click
+  on the PAY DUE gauge (and `merc pay`), so it is there only when due.
+- `createPane{…, temporary = true}`: never in Options → Panes or the
+  viewer's gear, nothing persisted (placement, on/off, colour), floats
+  centred over the game pane unless placed, `pane:close()` removes it,
+  and its close cross closes it. Recorded in runs like other panes.
