@@ -137,7 +137,12 @@ style) can add them.
   (with `tvgag` it is gagged); the KEYS TV line with the map's answer
   follows the block instead, so it says one thing once.
 - Bench gate: with the map on, `bench/browser-bench.ts` keeps three marks
-  (20 rooms each, blinking, arrows) live for the whole run.
+  (20 rooms each, blinking, arrows) live for the whole run. Measured
+  2026-10-02 (`--only budgets,map`, 1728 × 1000 at ratio 2): every
+  map-on budget passes — key → send p99 0.12 ms (Firefox) / 0.065 ms
+  (Chromium GPU); frame → paint no late frames, p95 19.6 / 19.9 ms;
+  burst longest gap 20.0 / 25.8 ms, none over 50 ms; scrollback 2.76 →
+  2.80 / 5.50 → 6.14 ms; tracking located at the end.
 
 ## Consequences
 
