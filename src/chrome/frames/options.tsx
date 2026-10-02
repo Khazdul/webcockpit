@@ -342,17 +342,24 @@ export function parseHex(s: string): string | null {
   return null;
 }
 
-const PREVIEW = [
-  'A Quiet Glade',
-  'Tall beeches ring a small clearing carpeted',
-  'with moss. A thin stream winds between the',
-  'roots and vanishes into the ferns to the south.',
-  'Exits: north, south.',
+/** Preview lines and their colour (a palette index, or null for the font colour). */
+type PreviewLine = readonly [text: string, ansi: number | null];
+const PREVIEW: readonly PreviewLine[] = [
+  ['A Quiet Glade', 2],
+  ['Tall beeches ring a mossy clearing. A thin', null],
+  ['stream winds south and vanishes into the ferns.', null],
+  ['Exits: north, south.', null],
 ];
-/** The last preview line: a game prompt and an echoed command (the input colour). */
+/** Then a game prompt and an echoed command (the input colour). */
 const PREVIEW_PROMPT = '*> ';
 const PREVIEW_ECHO = 'north';
-const PREVIEW_W = 50;
+/** The last lines: what happens after the command, in palette colours. */
+const PREVIEW_AFTER: readonly PreviewLine[] = [
+  ['A grey-haired elf shrugs indifferently.', 6],
+  ['The gate magically opens for you.', 5],
+  ['A mother wolf hits your right hand and tickles it.', 1],
+];
+const PREVIEW_W = 52;
 
 export function AppearanceFrame(): VNode {
   const { settings } = useServices();
@@ -459,6 +466,16 @@ export function AppearanceFrame(): VNode {
     ? ['↑↓←→ Move', 'Enter Edit', 'ESC Back']
     : ['↑↓ Navigate', '←→ Adjust', 'Enter Select', 'ESC Back'];
 
+  const previewLine = ([text, ansi]: PreviewLine) => (
+    <Line at={boxAt}>
+      <span class="wc-box">│</span>
+      <span class="wc-preview-text" style={{ color: ansi === null ? 'var(--term-fg)' : `var(--ansi-${ansi})` }}>
+        {(' ' + text).padEnd(PREVIEW_W)}
+      </span>
+      <span class="wc-box">│</span>
+    </Line>
+  );
+
   return (
     <Page title="Appearance" footer={footer}>
       <MenuRows items={before} cursor={cursor} setCursor={setCursor} />
@@ -485,22 +502,12 @@ export function AppearanceFrame(): VNode {
         cursor={cursor - P - 2}
         setCursor={(i) => setCursor(P + 2 + i)}
       />
-      <Blank />
       <FlashRow />
-      <Blank />
       <div class="wc-preview">
         <Line at={boxAt} class="wc-box">
           {'┌' + '─'.repeat(PREVIEW_W) + '┐'}
         </Line>
-        {PREVIEW.map((l, i) => (
-          <Line at={boxAt}>
-            <span class="wc-box">│</span>
-            <span class="wc-preview-text" style={{ color: i === 0 ? 'var(--ansi-2)' : 'var(--term-fg)' }}>
-              {(' ' + l).padEnd(PREVIEW_W)}
-            </span>
-            <span class="wc-box">│</span>
-          </Line>
-        ))}
+        {PREVIEW.map(previewLine)}
         <Line at={boxAt}>
           <span class="wc-box">│</span>
           <span class="wc-preview-text" style={{ color: 'var(--term-fg)' }}>
@@ -511,6 +518,7 @@ export function AppearanceFrame(): VNode {
           </span>
           <span class="wc-box">│</span>
         </Line>
+        {PREVIEW_AFTER.map(previewLine)}
         <Line at={boxAt} class="wc-box">
           {'└' + '─'.repeat(PREVIEW_W) + '┘'}
         </Line>
