@@ -18,7 +18,7 @@ const GETTING_STARTED: HelpSection = {
   heading: "Getting started",
   text: [
     "A script is a small Lua 5.4 program that reacts to the game: it can watch the lines MUME sends, add aliases and keys, run timers, read GMCP data and send commands. Scripts live in a library beside the profile, not in it. A script that is on runs whichever profile you use.",
-    "Open the Scripts page with ESC → Scripts, or Scripts on the start page. It lists every script:",
+    "Open the Scripts page with ESC → Options → Scripts, or Options → Scripts on the start page. It lists every script:",
     "- [X] turns a script on or off. A dot after the name means it is running; ! means it is on but failed to load, with the problem in red under its row.",
     "- EDIT opens the script in the editor. The panel on the right shows the selected script's help: summary, aliases, keys, help text and settings.",
     "- Scripts with a lock are bundled with WebCockpit. They are read-only and are updated with each release. DUPLICATE in the editor makes your own copy, named <name>-copy, which you can change. The copy starts off, with the same settings and an empty store.",

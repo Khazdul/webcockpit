@@ -52,15 +52,18 @@ const bufferText = (page: Page) =>
     .locator('.cm-content')
     .evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
 
-/** Start page → Scripts → EDIT on a user script holding SOURCE; the cursor on the empty last line. */
+/** Start page → Options → Scripts → EDIT on a user script holding SOURCE; the cursor on the empty last line. */
 async function openEditor(page: Page): Promise<Locator> {
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await lib(page, 'init');
   await lib(page, 'create', 'coder', SOURCE);
+  // Options → Scripts (Options is third, Scripts fifth in the hub).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

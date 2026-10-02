@@ -179,19 +179,27 @@ async function openScripts(lib: ScriptLibrary): Promise<HTMLElement> {
   cleanup.push(() => page.dispose());
   await act(() => page.show());
   const items = [...host.querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
-  expect(items.slice(0, 3)).toEqual(['enter', 'profile', 'scripts']);
-  await act(() => (host.querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
+  expect(items.slice(0, 3)).toEqual(['enter', 'profile', 'options']);
+  // Scripts sits under Options.
+  await act(() => (host.querySelector('.wc-mrow[data-key="options"] .wc-label') as HTMLElement).click());
+  await flush();
+  const hub = [...frame(host).querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
+  expect(hub).toEqual(['panes', 'mapper', 'appearance', 'spotlights', 'scripts', 'back']);
+  await act(() => (frame(host).querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
   await flush();
   return host;
 }
 
 describe('Scripts page', () => {
-  it('is not on the start page without a library', async () => {
+  it('is not under Options without a library', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
+    await act(() => (host.querySelector('.wc-mrow[data-key="options"] .wc-label') as HTMLElement).click());
+    await flush();
+    expect(frame(host).querySelector('.wc-mrow[data-key="options"]')).toBeNull();
     expect(host.querySelector('.wc-mrow[data-key="scripts"]')).toBeNull();
   });
 

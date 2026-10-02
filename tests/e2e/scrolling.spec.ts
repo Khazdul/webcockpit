@@ -118,7 +118,8 @@ test('Scripts list and help scroll by pixels; the cursor stays in view', async (
     const w = window as unknown as { __wc: { shell: { scripts: { create(name: string): Promise<unknown> } } } };
     for (let i = 0; i < 30; i++) await w.__wc.shell.scripts.create(`s${String(i).padStart(2, '0')}`);
   });
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="scripts"] .wc-label').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   const list = f.locator('.wc-scr-list');
@@ -138,7 +139,8 @@ test('Scripts list and help scroll by pixels; the cursor stays in view', async (
 test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 500 });
   await page.goto('/');
-  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="scripts"] .wc-label').click();
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   const chooser = page.waitForEvent('filechooser');

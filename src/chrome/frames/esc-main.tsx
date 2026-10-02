@@ -6,7 +6,7 @@
 //     `Storage: not saved` (C_ERR), each with a tooltip
 //   banner (6 Hz, dropped when short)
 //   Continue (connected) · Reconnect · Statistics (while a run is on) ·
-//   Profile · Scripts · Options · Exit session
+//   Profile · Options · Exit session
 //   flash row
 //   ↑↓ Navigate · Enter Select · ESC Close
 
@@ -36,7 +36,6 @@ import {
 } from '../kit/widgets';
 import type { LiveRuns } from '../../runs/live';
 import { OptionsHub } from './options';
-import { ScriptsFrame } from './scripts';
 import { LiveStatsFrame } from './statistics';
 import { type ApplyResult, editProfile } from './profile-edit';
 
@@ -91,7 +90,7 @@ export function EscMain(p: EscMainProps): VNode {
   const { cols, rows } = useGrid();
   const st = useStatus(p.status);
   const settings = useSettings();
-  const { profiles, onProfileSaved, version, scripts } = useServices();
+  const { profiles, onProfileSaved, version } = useServices();
   const notices = useNotices();
   const connected = isLive(st);
   const runOn = useRunOn(p.runs);
@@ -119,7 +118,6 @@ export function EscMain(p: EscMainProps): VNode {
           onSaved: onProfileSaved,
         }),
     },
-    ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
   ];

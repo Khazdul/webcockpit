@@ -60,7 +60,6 @@ test('start page: banner, menu and quote; no connection until Enter MUME', async
   await expect(rows).toHaveText([
     '<< Enter MUME >>',
     '   Profile   ',
-    '   Scripts   ',
     '   Options   ',
     '   History   ',
     '   Spotlights   ',
@@ -207,7 +206,6 @@ test('Exit session returns to the start page and closes the connection', async (
 
 test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await openStart(page);
-  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');

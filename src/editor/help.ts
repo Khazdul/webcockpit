@@ -287,7 +287,7 @@ const BASICS: readonly HelpSection[] = [
       '#lua {script} {function} {args}',
     ],
     text: [
-      'Scripts are small Lua programs kept beside the profile, not in it. ESC → Scripts (or Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      'Scripts are small Lua programs kept beside the profile, not in it. ESC → Options → Scripts (or Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
       'MANUAL on the Scripts page and in the script editor opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the function under the cursor.',
       '#script list shows every script, whether it is on and what it does.',
       '#script help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',

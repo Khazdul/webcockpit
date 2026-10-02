@@ -54,16 +54,25 @@ async function openStart(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
 }
 
-/** Start page → Scripts with the keyboard (Scripts sits right under Profile). */
+/** Start page → Options → Scripts with the keyboard (Scripts is last in the Options hub). */
 async function scriptsFromStart(page: Page): Promise<Locator> {
   await openStart(page);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
+  await page.keyboard.press('Enter');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   return f;
+}
+
+/** ESC menu (open) → Options → Scripts. */
+async function openScriptsFromEsc(page: Page): Promise<void> {
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await menuFrame(page).locator('.wc-mrow[data-key="scripts"] .wc-label').click();
 }
 
 /** Replaces the buffer's text (one input event: no auto-indent or bracket closing). */
@@ -138,11 +147,10 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay .wc-mrow[data-key="scripts"]')).toBeVisible();
-  // Scripts sits right under Profile.
-  const keys = await menuFrame(page).locator('.wc-mrow').evaluateAll((els) => els.map((e) => e.getAttribute('data-key')));
-  expect(keys.indexOf('scripts')).toBe(keys.indexOf('profile') + 1);
-  await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
+  // Scripts is not in the ESC menu itself but under Options.
+  await expect(page.locator('.wc-overlay .wc-mrow[data-key="options"]')).toBeVisible();
+  await expect(menuFrame(page).locator('.wc-mrow[data-key="scripts"]')).toHaveCount(0);
+  await openScriptsFromEsc(page);
   const f = menuFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
 
@@ -188,8 +196,7 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await expect(f.locator('.wc-scr-help')).toContainText('● on · running');
 
   // Back to the game: the trigger fires.
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-overlay')).toBeHidden();
   const rows = page.locator('.wc-rows .wc-row');
   await page.keyboard.type('look');
@@ -198,7 +205,7 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
 
   // Edit and save while it runs: it reloads at once.
   await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
+  await openScriptsFromEsc(page);
   await expect(row(f, 'pagetest')).toBeVisible();
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'pagetest');
@@ -206,9 +213,7 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await setBuffer(page, SOURCE('again'));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
   await page.keyboard.type('look');
@@ -218,22 +223,20 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
 
   // A runtime error shows on the editor's status row and under the list row.
   await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
+  await openScriptsFromEsc(page);
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again').replace('echo(', 'ecko('));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
   await page.keyboard.type('look');
   await page.keyboard.press('Enter');
   await expect.poll(() => lib<{ lastError: string | null }>(page, 'get', 'pagetest').then((s) => s.lastError)).toMatch(/^pagetest:8:/);
   await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
+  await openScriptsFromEsc(page);
   await expect(f.locator('.wc-scr-error')).toContainText('pagetest:8:');
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   // … and on its line in the editor (lua-lint.ts).

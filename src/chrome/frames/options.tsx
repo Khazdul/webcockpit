@@ -3,7 +3,8 @@
 // applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
-//   Options hub:  Panes · Mapper · Appearance · Spotlights · Back
+//   Options hub:  Panes · Mapper · Appearance · Spotlights · Scripts · Back
+//                 (Scripts only with a script library)
 //   Panes hub:    General · Timers · Communication · Group · Back
 //                 (Cockpit's order)
 //   General:      pane × colour grid with a Border column, reset layout
@@ -14,6 +15,7 @@
 //   Appearance:   font, size, padding, cursor, colours, scrollback, ANSI palette,
 //                 live preview box
 //   Spotlights:   options-spotlights.tsx
+//   Scripts:      scripts.tsx (ADR 0051)
 
 import type { VNode } from 'preact';
 import { useState } from 'preact/hooks';
@@ -43,6 +45,7 @@ import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { CommOptionsFrame } from './comm-options';
 import { GroupOptionsFrame } from './options-group';
 import { MapperOptionsFrame } from './options-mapper';
+import { ScriptsFrame } from './scripts';
 import { SpotlightsOptionsFrame } from './options-spotlights';
 import { TimersOptionsFrame } from './options-timers';
 import { centreLeft, cycle, stepValue } from '../kit/nav';
@@ -68,11 +71,13 @@ const MENU_FOOTER = ['↑↓ Navigate', 'Enter Select', 'ESC Back'];
 
 export function OptionsHub(): VNode {
   const nav = useNav();
+  const { scripts } = useServices();
   const items: MenuItem[] = [
     { key: 'panes', label: 'Panes', activate: () => nav.push(<PanesHub />) },
     { key: 'mapper', label: 'Mapper', activate: () => nav.push(<MapperOptionsFrame />) },
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
+    ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
