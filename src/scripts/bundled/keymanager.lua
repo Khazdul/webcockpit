@@ -42,12 +42,14 @@
 -- @help     TV. What watch room and scry show goes to a small pane per key,
 -- @help     a TV, instead of the game text (setting tvgag). Up to four TVs
 -- @help     open in the corners of the game text; move them where you like.
--- @help     The title says how long the watch has left (learnt from your
--- @help     last watches), or how long ago the scry was. Lines from the last
--- @help     10 seconds are bright. A TV closes by itself a minute after its
--- @help     watch ends (tvclose); tv <name> opens it again with its lines.
--- @help     In the pane, a red ● is a watch running (click it for the TV),
--- @help     a grey ● a key with TV lines; w on a watched key opens its TV.
+-- @help     The title says how long the watch has left (the average of
+-- @help     your last 3 watches), or how long ago the scry was. Lines keep
+-- @help     the game's colours; for 10 seconds their plain text is white,
+-- @help     then grey. A TV closes by itself a minute after its watch ends
+-- @help     (tvclose); tv <name> opens it again with its lines.
+-- @help     In the Port keys pane, a key with a watch running or a scry in
+-- @help     the last 12 hours has a ◻ before its x: it opens and closes the
+-- @help     TV. While a watch runs, the time column counts it down.
 -- @help
 -- @help     In the Port keys pane, click a key's name to rename it (Enter
 -- @help     saves, Esc cancels). The letters are casts: t teleport,
@@ -197,7 +199,7 @@ local tvs = {}
 local slots = {}
 -- A watch or scry cast waiting for its answer: { kind, id, name, timer }.
 local pendingCast = nil
-local openTv, drawTv -- below
+local openTv, drawTv, closeTv -- below
 
 local function storeId(id) return "char." .. id end
 
@@ -207,11 +209,22 @@ local function loadLib(id)
   if type(data) ~= "table" then return l end
   for _, r in ipairs(data.keys or {}) do
     if type(r) == "table" and validName(r.name) and type(r.key) == "string" and type(r.at) == "number" then
-      l.keys[r.name:lower()] = {
+      local k = {
         name = r.name, key = r.key, at = r.at,
         room = type(r.room) == "string" and r.room or "",
         dist = type(r.dist) == "string" and r.dist or "",
       }
+      -- The last scry: when, and its lines ({ c, p }).
+      if type(r.scry) == "table" and type(r.scry.at) == "number" and type(r.scry.lines) == "table" then
+        local lines = {}
+        for _, x in ipairs(r.scry.lines) do
+          if type(x) == "table" and type(x.p) == "string" then
+            lines[#lines + 1] = { c = type(x.c) == "string" and x.c or x.p, p = x.p }
+          end
+        end
+        k.scry = { at = r.scry.at, lines = lines }
+      end
+      l.keys[r.name:lower()] = k
     end
   end
   if type(data.safe) == "string" and l.keys[data.safe:lower()] then l.safe = data.safe:lower() end
@@ -220,6 +233,7 @@ local function loadLib(id)
   for _, d in ipairs(type(data.watch) == "table" and data.watch or {}) do
     if type(d) == "number" and d > 0 then l.watch[#l.watch + 1] = d end
   end
+  while #l.watch > 3 do table.remove(l.watch, 1) end
   return l
 end
 
@@ -227,7 +241,7 @@ local function save()
   if not char or not lib then return end
   local list = {}
   for _, k in pairs(lib.keys) do
-    list[#list + 1] = { name = k.name, key = k.key, room = k.room, dist = k.dist, at = k.at }
+    list[#list + 1] = { name = k.name, key = k.key, room = k.room, dist = k.dist, at = k.at, scry = k.scry }
   end
   table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
   store.set(storeId(char.id), { name = char.name, safe = lib.safe, keys = list, watch = lib.watch })
@@ -363,7 +377,9 @@ end
 local function addKey(name, key, room, dist)
   local id = name:lower()
   local old = lib.keys[id]
-  lib.keys[id] = { name = name, key = key, room = room or "", dist = dist or "", at = now() }
+  lib.keys[id] = { name = name, key = key, room = room or "", dist = dist or "", at = now(),
+    -- The same room again keeps its last scry.
+    scry = (old and old.key == key) and old.scry or nil }
   local becameSafe = false
   if not lib.safe or not lib.keys[lib.safe] then
     lib.safe = id
@@ -416,6 +432,13 @@ local function renameKey(id, to)
   lib.keys[id] = nil
   k.name = to
   lib.keys[nid] = k
+  -- Its TV follows; a running watch still labels its lines with the old name.
+  local tv = tvs[id]
+  if tv then
+    tv.name = to
+    tvs[nid] = tv
+    if not tv.watching then tvs[id] = nil end
+  end
   if lib.safe == id then lib.safe = nid end
   if fresh[id] then fresh[nid], fresh[id] = fresh[id], nil end
   save()
@@ -486,7 +509,8 @@ end
 local BRIGHT = 10        -- seconds a TV line stays bright
 local TV_LINES = 250     -- lines kept per TV
 local WATCH_DEFAULT = 200 -- seconds a watch lasts before any is learnt (Mudlet's start)
-local WATCH_LEARN = 5    -- watches the average is taken over
+local WATCH_LEARN = 3    -- watches the average is taken over (as the spell timers)
+local SCRY_KEEP = 12 * 3600 -- seconds a scried room keeps its TV button
 
 -- "2:31".
 local function clock(secs)
@@ -494,25 +518,42 @@ local function clock(secs)
   return string.format("%d:%02d", secs // 60, secs % 60)
 end
 
--- How long a watch lasts: the average of the last few, else 200 s.
+-- How long a watch lasts: the whole seconds of the mean of the last
+-- three this character watched (the spell timers' rule), else 200 s.
 local function avgWatch()
   local w = lib and lib.watch or {}
   if #w == 0 then return WATCH_DEFAULT end
   local sum = 0
   for _, d in ipairs(w) do sum = sum + d end
-  return sum / #w
+  return math.floor(sum / #w)
 end
 
--- A key's time cell: a marker (● watch running, ● TV lines) and the time
--- left (of the watch while it runs, else of the key).
+-- Where avgWatch comes from, for the hover.
+local function estimateText()
+  local n = lib and #lib.watch or 0
+  if n == 0 then return "estimate: " .. WATCH_DEFAULT .. " s (default, none learnt yet)" end
+  return "estimate: " .. clock(avgWatch()) .. ", the average of the last " .. (n == 1 and "watch" or n .. " watches")
+end
+
+-- A key's time cell: the watch's time left while it runs, else the key's;
+-- its colour; and its tooltip.
 local function timeCell(id, k, t)
   local tv = tvs[id]
   if tv and tv.watching then
     local left = avgWatch() - (t - tv.watching)
-    return "●", "ansi_light_red", left >= 0 and clock(left) or ("+" .. clock(-left)), "ansi_light_red"
+    local txt = left >= 0 and clock(left) or ("+" .. clock(-left))
+    return txt, nil, "Watch room on $" .. k.name .. ": " .. (left >= 0 and (txt .. " left") or (clock(-left) .. " past the estimate"))
+      .. "\n" .. estimateText()
   end
   local left = expires(k) - t
-  return (tv and #tv.lines > 0) and "●" or " ", DIM, short(left), left < 3600 and "orange" or nil
+  return short(left), left < 3600 and "orange" or nil, "$" .. k.name .. " works " .. long(left) .. " more"
+end
+
+-- A key with a TV to show: a watch running, or a scry in the last 12 h.
+local function hasTv(id, k, t)
+  local tv = tvs[id]
+  if tv and tv.watching then return true end
+  return k.scry ~= nil and t - k.scry.at < SCRY_KEEP
 end
 
 -- ------------------------------------------------------------ the pane
@@ -530,7 +571,7 @@ local function row(n, segs)
     else
       out[#out + 1] = s.text
     end
-    if s.fn and w > 0 then links[#links + 1] = { col, w, s.fn, s.hint } end
+    if (s.fn or (s.tip and s.hint)) and w > 0 then links[#links + 1] = { col, w, s.fn, s.hint } end
     col = col + w
   end
   pane:setLine(n, table.concat(out))
@@ -591,7 +632,18 @@ local LETTERS = {
   { "w", "watchr", "Watch room" },
 }
 
-local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, markW)
+-- The time cells of the rows on screen: id -> { row, col, w, text } (the
+-- tick rewrites only these, ADR 0056).
+local timeAt = {}
+
+-- The width of segments.
+local function segsW(segs)
+  local w = 0
+  for _, sg in ipairs(segs) do w = w + len(sg.text) end
+  return w
+end
+
+local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, tvW)
   local segs = {}
   -- The safe marker.
   if lib.safe == id then
@@ -606,7 +658,6 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, markW)
   segs[#segs + 1] = { text = " " }
   -- The name; a fresh key is highlighted for a few seconds.
   local isFresh = fresh[id] and t - fresh[id] < FRESH
-  local left = expires(k) - t
   segs[#segs + 1] = { text = "$" .. k.name, color = isFresh and "black:" .. NAME_C or NAME_C,
     fn = function() startRename(id) end,
     hint = "Click to rename\n$" .. k.name .. (k.room ~= "" and (": " .. k.room) or "") .. (k.dist ~= "" and (", " .. k.dist) or "")
@@ -618,22 +669,18 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, markW)
   if keyW > 0 then
     segs[#segs + 1] = { text = " " .. pad(cut(k.key, keyW), keyW), color = DIM }
   end
-  -- The casts and delete: as many as fit, two cells each, ending one cell
-  -- before the right edge; the time sits just before them.
-  local used = 3 + nameW + (roomW > 0 and roomW + 1 or 0) + (keyW > 0 and keyW + 1 or 0) + 1 + markW + timeW
-  local fit = math.max(0, math.min(#LETTERS + 1, (width - used - 1) // 2))
+  -- The actions: t p s w, the TV button (when any row has one), x; as
+  -- many as fit, two cells each, ending one cell before the right edge;
+  -- the time sits just before them.
+  local nActs = #LETTERS + tvW + 1
+  local used = 3 + nameW + (roomW > 0 and roomW + 1 or 0) + (keyW > 0 and keyW + 1 or 0) + 1 + timeW
+  local fit = math.max(0, math.min(nActs, (width - used - 1) // 2))
   local gap = math.max(0, width - used - fit * 2 - 1)
   segs[#segs + 1] = { text = string.rep(" ", 1 + gap) }
-  local mark, markC, time, timeC = timeCell(id, k, t)
-  local tv = tvs[id]
-  local open = tv and (tv.watching or #tv.lines > 0)
-  if markW > 0 then
-    segs[#segs + 1] = { text = mark, color = markC, fn = open and act(function() openTv(id, true) end) or nil,
-      hint = open and (tv.watching and ("Watching $" .. k.name .. ": " .. time .. " left\nClick: its TV") or ("Open the TV of $" .. k.name)) or nil }
-  end
-  segs[#segs + 1] = { text = lpad(time, timeW), color = timeC,
-    fn = (tv and tv.watching) and act(function() openTv(id, true) end) or nil,
-    hint = (tv and tv.watching) and ("Watching $" .. k.name .. ": " .. time .. " left\nClick: its TV") or nil }
+  -- The countdown: not a button; its tooltip says what it counts.
+  local time, timeC, timeHint = timeCell(id, k, t)
+  timeAt[id] = { row = n, col = segsW(segs) + 1, w = timeW }
+  segs[#segs + 1] = { text = lpad(time, timeW), color = timeC, hint = timeHint, tip = true }
   if confirm and confirm.id == id and fit >= 1 then
     local before = (fit - 1) * 2
     local word = before + 1 >= 9 and " delete? " or ""
@@ -644,32 +691,46 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, markW)
     end, hint = "Click again to delete $" .. k.name }
     return row(n, segs)
   end
-  for i = 1, math.min(fit, #LETTERS) do
-    local l = LETTERS[i]
-    segs[#segs + 1] = { text = " " }
-    local watched = l[2] == "watchr" and tv and tv.watching
-    segs[#segs + 1] = { text = l[1], color = watched and "ansi_light_red" or "ansi_light_cyan", fn = function()
+  local acts = {}
+  for _, l in ipairs(LETTERS) do
+    acts[#acts + 1] = { text = l[1], color = "ansi_light_cyan", fn = function()
       cancelRename()
-      -- A running watch: its TV, not a second cast.
-      if watched then return openTv(id, true) end
       local key = find(k.name)
       if key then cast(l[2], key) end
-    end, hint = watched and ("Watching $" .. k.name .. ": open its TV") or (l[3] .. " $" .. k.name .. ":\n" .. castCommand(l[2], k)) }
+    end, hint = l[3] .. " $" .. k.name .. ":\n" .. castCommand(l[2], k) }
   end
-  if fit > #LETTERS then
-    segs[#segs + 1] = { text = " " }
-    segs[#segs + 1] = { text = "x", color = "ansi_light_red", fn = function()
-      cancelRename()
-      confirm = { id = id, at = now() }
-      draw()
-      local mine = confirm
-      tempTimer(CONFIRM, function()
-        if confirm == mine then
-          confirm = nil
+  if tvW > 0 then
+    if hasTv(id, k, t) then
+      local shown = tvs[id] and tvs[id].pane and tvs[id].pane:visible()
+      acts[#acts + 1] = { text = "◻", color = shown and "ansi_white" or "ansi_light_cyan", fn = act(function()
+        local tv = tvs[id]
+        if tv and tv.pane and tv.pane:visible() then
+          closeTv(tv)
           draw()
+        else
+          openTv(id, true)
         end
-      end)
-    end, hint = "Delete $" .. k.name .. " (click twice)" }
+      end), hint = (shown and "Close" or "Open") .. " the TV of $" .. k.name
+        .. ((tvs[id] and tvs[id].watching) and " (watch running)" or (k.scry and ("\nscried " .. long(t - k.scry.at) .. " ago") or "")) }
+    else
+      acts[#acts + 1] = { text = " " }
+    end
+  end
+  acts[#acts + 1] = { text = "x", color = "ansi_light_red", fn = function()
+    cancelRename()
+    confirm = { id = id, at = now() }
+    draw()
+    local mine = confirm
+    tempTimer(CONFIRM, function()
+      if confirm == mine then
+        confirm = nil
+        draw()
+      end
+    end)
+  end, hint = "Delete $" .. k.name .. " (click twice)" }
+  for i = 1, fit do
+    segs[#segs + 1] = { text = " " }
+    segs[#segs + 1] = acts[i]
   end
   row(n, segs)
 end
@@ -752,18 +813,18 @@ draw = function()
     return
   end
   local t = now()
-  local nameW, timeW, roomMax, keyMax, markW = 5, 3, 0, 0, 0
+  local nameW, timeW, roomMax, keyMax, tvW = 5, 3, 0, 0, 0
+  timeAt = {}
   for _, e in ipairs(list) do
     nameW = math.max(nameW, len(e.k.name) + 1)
-    local mark, _, time = timeCell(e.id, e.k, t)
-    timeW = math.max(timeW, len(time))
-    if mark ~= " " then markW = 1 end
+    timeW = math.max(timeW, len((timeCell(e.id, e.k, t))))
+    if hasTv(e.id, e.k, t) then tvW = 1 end
     roomMax = math.max(roomMax, len(e.k.room))
     keyMax = math.max(keyMax, len(e.k.key))
   end
   -- Marker, name and time always; then the casts and delete (11 cells);
   -- the room type and the key get what is left, the key first to go.
-  local fixed = 3 + nameW + 1 + markW + timeW + (#LETTERS + 1) * 2 + 1
+  local fixed = 3 + nameW + 1 + timeW + (#LETTERS + tvW + 1) * 2 + 1
   local avail = width - fixed
   local roomW, keyW = 0, 0
   if roomMax > 0 and keyMax > 0 and avail >= roomMax + keyMax + 2 then
@@ -774,7 +835,7 @@ draw = function()
     keyW = keyMax
   end
   for i, e in ipairs(list) do
-    if not (keep and i + 1 == rr) then drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW, markW) end
+    if not (keep and i + 1 == rr) then drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW, tvW) end
   end
   if renaming and not renaming.field then renameField(rr, nameW) end
 end
@@ -783,6 +844,22 @@ pane:onResize(function(rows, cols)
   width = cols
   draw()
 end)
+
+-- The countdowns only, once a second while a watch runs: three cells and
+-- a tooltip per key (pane:setText), so the rest of the pane, and a hover
+-- on it, stays as it is (ADR 0056). Anything wider than its cell redraws.
+local function updateTimes()
+  if not lib then return end
+  local t = now()
+  for id, at in pairs(timeAt) do
+    local k = lib.keys[id]
+    if not k then return draw() end
+    local txt, c, hint = timeCell(id, k, t)
+    if len(txt) > at.w then return draw() end
+    pane:setText(at.row, at.col, "<" .. (c or "reset") .. ">" .. lpad(txt, at.w))
+    pane:setLink(at.row, at.col, at.w, nil, hint)
+  end
+end
 
 -- ------------------------------------------------------------ the TVs
 
@@ -815,11 +892,17 @@ local function tvTitle(tv, t)
   return who .. " · ended"
 end
 
--- A line as drawn: bright (the game's colours) for BRIGHT seconds, then dim.
+-- `c` (copy2cecho text) with its default-coloured text in `color`; the
+-- game's own colours stay (copy2cecho ends each coloured run with <reset>).
+local function defaultIn(c, color)
+  return "<" .. color .. ">" .. (c:gsub("<reset>", "<reset><" .. color .. ">"))
+end
+
+-- A line as drawn, as in Mudlet: for BRIGHT seconds its plain text is
+-- white, then dim grey; the game's colours (a green room name) stay.
 local function tvLine(e, t)
   if e.mark then return "<" .. DIM .. ">" .. e.p end
-  if t - e.t < BRIGHT then return e.c end
-  return "<" .. DIM .. ">" .. e.p
+  return defaultIn(e.c or e.p, t - e.t < BRIGHT and "ansi_light_white" or DIM)
 end
 
 drawTv = function(tv)
@@ -835,7 +918,7 @@ drawTv = function(tv)
   p:setTitle(tvTitle(tv, t))
 end
 
-local function closeTv(tv)
+closeTv = function(tv)
   if not tv.pane then return end
   local p = tv.pane
   tv.pane = nil
@@ -866,7 +949,7 @@ local function tvTick()
       if done and t - since > math.max(5, tonumber(settings.tvclose) or 60) then closeTv(tv) end
     end
   end
-  if watching then draw() end
+  if watching then updateTimes() end
   if not busy and not watching and tvTicker then
     killTimer(tvTicker)
     tvTicker = nil
@@ -881,6 +964,14 @@ end
 -- TV ended first (a running watch only when all four run).
 openTv = function(id, force)
   local tv = tvs[id]
+  -- A key scried before a reload: its TV from the saved block.
+  local k = lib and lib.keys[id]
+  if (not tv or #tv.lines == 0) and k and k.scry then
+    tv = tv or tvOf(k.name)
+    tv.scried = tv.scried or k.scry.at
+    tv.lines[#tv.lines + 1] = { t = k.scry.at, p = "· scried", mark = true }
+    for _, x in ipairs(k.scry.lines) do tv.lines[#tv.lines + 1] = { t = k.scry.at, c = x.c, p = x.p } end
+  end
   if not tv then return false end
   if force then tv.shut = false end
   if tv.shut then return false end
@@ -1200,6 +1291,50 @@ local function takePending(kind)
   return pc
 end
 
+-- MUME sends each watched line as its own packet: the line, a blank line
+-- and a fresh prompt. With tvgag, after a gagged watch line the blank
+-- line right after it and the prompt right after that (or right after the
+-- line) are gagged too; anything else ends it, and nothing is gagged after
+-- 2 s. The prompt is the line layer's (GA/EOR, isPrompt), not a guess.
+local tail, tailTrig = nil, nil
+
+local function endTail()
+  if tail and tail.timer then killTimer(tail.timer) end
+  tail = nil
+  if tailTrig then
+    killTrigger(tailTrig)
+    tailTrig = nil
+  end
+end
+
+local function gagTail()
+  if not settings.tvgag then return end
+  if tail and tail.timer then killTimer(tail.timer) end
+  -- The follower already exists: it sees this line too and must skip it.
+  tail = { blank = false, skip = tailTrig ~= nil }
+  local tl = tail
+  tl.timer = tempTimer(2, function()
+    if tail == tl then endTail() end
+  end)
+  if not tailTrig then
+    tailTrig = tempRegexTrigger("^", function()
+      local cur = tail
+      if not cur then return endTail() end
+      if cur.skip then
+        cur.skip = false
+        return
+      end
+      if line == "" and not cur.blank then
+        cur.blank = true
+        deleteLine()
+        return
+      end
+      if isPrompt() then deleteLine() end
+      endTail()
+    end)
+  end
+end
+
 -- A watch starts: its lines will come as [name] ….
 tempRegexTrigger("^You feel aware of this place\\.$", function()
   local pc = takePending("watch")
@@ -1239,7 +1374,10 @@ tempRegexTrigger("^\\[(\\w+)\\] (.*)$", function()
   local at = c:find("[" .. label .. "] ", 1, true)
   if at then c = c:sub(1, at - 1) .. c:sub(at + #label + 3) end
   tvAdd(tv, c, text)
-  if settings.tvgag then deleteLine() end
+  if settings.tvgag then
+    deleteLine()
+    gagTail()
+  end
 end)
 
 -- A scry: the room's lines follow, up to a blank line.
@@ -1250,6 +1388,13 @@ local function scryDone()
   scrying = nil
   killTrigger(sc.trig)
   if sc.timer then killTimer(sc.timer) end
+  -- A key's last scry is kept (small), for its TV after a reload.
+  local k = lib and lib.keys[sc.tv.id]
+  if k and #sc.lines > 0 then
+    k.scry = { at = sc.tv.scried, lines = sc.lines }
+    save()
+    draw()
+  end
 end
 
 tempRegexTrigger("^You let your inner eye find the area\\.\\.\\. and you see:$", function()
@@ -1260,13 +1405,26 @@ tempRegexTrigger("^You let your inner eye find the area\\.\\.\\. and you see:$",
   tv.scried = now()
   tvAdd(tv, nil, "· scried", true)
   tvSay(tv, "scried")
-  local sc = { tv = tv, n = 0 }
+  local sc = { tv = tv, n = 0, lines = {} }
   scrying = sc
   sc.trig = tempRegexTrigger("^(.*)$", function()
     if scrying ~= sc then return end
-    if line == "" or sc.n >= 60 then return scryDone() end
+    -- After the block's blank line: MUME's prompt, gagged with it.
+    if sc.blank then
+      if settings.tvgag and isPrompt() then deleteLine() end
+      return scryDone()
+    end
+    if line == "" then
+      if not settings.tvgag then return scryDone() end
+      deleteLine()
+      sc.blank = true
+      return
+    end
+    if sc.n >= 60 then return scryDone() end
     sc.n = sc.n + 1
-    tvAdd(tv, copy2cecho() or line, line)
+    local c = copy2cecho() or line
+    sc.lines[#sc.lines + 1] = { c = c, p = line }
+    tvAdd(tv, c, line)
     if settings.tvgag then deleteLine() end
   end)
   sc.timer = tempTimer(3, function()

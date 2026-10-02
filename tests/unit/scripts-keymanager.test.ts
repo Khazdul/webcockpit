@@ -615,9 +615,9 @@ describe('bundled keymanager', () => {
     t.resize(16);
     expect(t.rows()[1]).toBe(' ★ $home  12h t');
     expect(t.rows()[0]).toBe(' 1 key        ?');
-    // No hint on the time left.
+    // The time left is a tooltip only, not a button.
     const l = t.panes.keys.content;
-    expect(l.linkAt(1, t.rows()[1]!.indexOf('12h'))).toBeNull();
+    expect(l.linkAt(1, t.rows()[1]!.indexOf('12h'))).toMatchObject({ tip: true, hint: expect.stringMatching(/^\$home works 1[12]h \d+m more$/) });
   });
 
   it('keys expire: pruned each minute, announced once, the safe key re-elected; time left turns orange', async () => {
@@ -740,82 +740,129 @@ describe('bundled keymanager', () => {
     const SCRY = 'You let your inner eye find the area... and you see:';
     const tvText = (p: { content: PaneContent } | null) => (p ? p.content.lines.map((_, i) => text(p.content, i).trimEnd()) : null);
 
-    it('a watch: the activation opens a TV, its lines go there in colour (hidden from the game), the end is learnt', async () => {
+    /** A game line with style runs, as the line layer makes it. */
+    const gline = (text: string, runs: StyleRunLike[] = [], prompt = false) =>
+      ({ text, runs, tags: [], prompt, raw: text, ts: 0 }) as unknown as Line;
+    type StyleRunLike = { start: number; end: number; fg?: number; bold?: boolean };
+    const span = (p: { content: PaneContent }, row: number, textOf: string) => {
+      const l = p.content.lines[row]!;
+      return 'spans' in l ? l.spans.find((x) => x.text.includes(textOf)) : undefined;
+    };
+
+    it('a watch: the TV opens, lines keep the game colours (dimming only plain text), blank and prompt after them are hidden', async () => {
       const t = await setup();
       t.input('nkey home uxevjobve');
       t.input('watchr home');
       expect(t.sent).toEqual(["cast n 'watch room' uxevjobve home"]);
       const n0 = t.texts().length;
-      t.recv(AWARE);
+      t.recv(AWARE, '', PROMPT);
       const tv = t.panes.tv(1)!;
       expect(tv.spec.temporary).toEqual({ rows: 10, cols: 60, at: 'top-left' });
       expect(tv.content.title).toMatch(/^TV \$home [●○] 3:20$/);
-      t.bus.emit('text.line', { text: '[home] A troll arrives from the north.', runs: [{ start: 9, end: 14, fg: 1 }], tags: [], prompt: false, raw: '', ts: 0 });
-      t.recv('[home] It is raining.', '[other] Not ours.');
-      // Only the KEYS line for the start shows; the watch lines are hidden; an unknown name is left alone.
-      expect(t.texts().slice(n0)).toEqual(['KEYS TV $home: watching.', '[other] Not ours.']);
-      expect(tvText(tv)).toEqual(['· watching', 'A troll arrives from the north.', 'It is raining.']);
-      // In the game's colours while bright.
-      const l = tv.content.lines[1]!;
-      expect('spans' in l && l.spans.find((x) => x.text === 'troll')!.fg).toBe(1);
-      // The Port keys pane: a red ● and the watch's time left; w opens the TV, it does not cast again.
-      expect(t.rows()[1]).toMatch(/●3:20 t p s w x$/);
-      t.click(1, 'w');
-      expect(t.sent).toHaveLength(1);
-      // Older than 10 s: dim.
+      // MUME's packets: the line, a blank line, a fresh prompt (GA).
+      t.bus.emit('text.line', gline('[home] The Dark Cave', [{ start: 7, end: 20, fg: 2 }]));
+      t.bus.emit('text.line', gline(''));
+      t.bus.emit('text.line', gline('*+ W Mana:Hot>', [], true));
+      t.bus.emit('text.line', gline('[home] A troll arrives.'));
+      t.bus.emit('text.line', gline('*+ W Mana:Hot>', [], true));
+      // Real output after it is never touched: a blank line, then a prompt after something else.
+      t.recv('[other] Not ours.', '');
+      t.bus.emit('text.line', gline('*+ W Mana:Hot>', [], true));
+      expect(t.texts().slice(n0)).toEqual(['KEYS TV $home: watching.', '', PROMPT, '[other] Not ours.', '', '*+ W Mana:Hot>']);
+      expect(tvText(tv)).toEqual(['· watching', 'The Dark Cave', 'A troll arrives.']);
+      // The room name is green (palette 2), fresh and after dimming; plain text dims.
+      expect(span(tv, 1, 'Dark')!.fg).toBe(2);
+      const plainBefore = span(tv, 2, 'troll')!.fg;
       t.clock.advance(11_000);
-      const d = tv.content.lines[1]!;
-      expect('spans' in d && d.spans.every((x) => x.fg !== 1)).toBe(true);
-      expect(tv.content.title).toMatch(/3:09$/);
-      expect(t.rows()[1]).toMatch(/●3:09 t p s w x$/);
-      // The end: noted, learnt (120 s), the TV closes 60 s later.
-      t.clock.advance(109_000);
-      t.recv(ENDS('home'));
-      expect(t.lib.get('keymanager')!.lastError).toBeNull();
-      expect(t.lastText()).toBe('KEYS TV $home: watch ended.');
-      expect(tv.content.title).toBe('TV $home · ended');
-      expect(tvText(tv)!.at(-1)).toBe('· watch ended');
-      expect((t.store() as unknown as { watch: number[] }).watch).toEqual([120]);
-      expect(t.rows()[1]).toMatch(/ ●12h t p s w x$/);
-      t.clock.advance(62_000);
+      expect(span(tv, 1, 'Dark')!.fg).toBe(2);
+      expect(span(tv, 2, 'troll')!.fg).not.toBe(plainBefore);
+      // The Port keys pane: the countdown (not red), a tooltip with the estimate; ◻ before x opens/closes the TV.
+      expect(t.rows()[1]).toMatch(/ 3:09 t p s w ◻ x$/);
+      const r = t.rows()[1]!;
+      const tip = t.panes.keys.content.linkAt(1, r.indexOf('3:09'))!;
+      expect(tip).toMatchObject({ tip: true, hint: 'Watch room on $home: 3:09 left\nestimate: 200 s (default, none learnt yet)' });
+      t.click(1, '◻');
       expect(t.panes.tv(1)).toBeNull();
-      // tv home opens it again with its lines.
-      t.input('tv home');
-      expect(tvText(t.panes.tv(1))!.slice(1, 3)).toEqual(['A troll arrives from the north.', 'It is raining.']);
-      // The next watch uses the learnt duration.
-      t.input('watchr home');
-      t.recv(AWARE);
-      expect(t.panes.tv(1)!.content.title).toMatch(/2:00$/);
+      t.click(1, '◻');
+      expect(t.panes.tv(1)).not.toBeNull();
+      // w casts again.
+      t.click(1, 'w');
+      expect(t.sent.at(-1)).toBe("cast n 'watch room' uxevjobve home");
       expect(t.lib.get('keymanager')!.lastError).toBeNull();
     });
 
-    it('a scry: the block goes to the TV of the key cast, a scry of an unknown key to TV scry', async () => {
+    it('a full watch → drop cycle learns the duration: the mean of the last 3, used by the next watch', async () => {
+      const t = await setup();
+      t.input('nkey home uxevjobve');
+      const watch = (secs: number) => {
+        t.input('watchr home');
+        t.recv(AWARE);
+        t.clock.advance(secs * 1000);
+        t.recv(ENDS('home'));
+      };
+      watch(120);
+      expect(t.lastText()).toBe('KEYS TV $home: watch ended.');
+      expect((t.store() as unknown as { watch: number[] }).watch).toEqual([120]);
+      t.input('watchr home');
+      t.recv(AWARE);
+      expect(t.panes.tv(1)!.content.title).toMatch(/2:00$/);
+      const r = t.rows()[1]!;
+      expect(t.panes.keys.content.linkAt(1, r.indexOf('2:00'))!.hint).toBe('Watch room on $home: 2:00 left\nestimate: 2:00, the average of the last watch');
+      t.clock.advance(150_000);
+      t.recv(ENDS('home'));
+      watch(181);
+      watch(200);
+      // The last three: 150, 181, 200 → 177.
+      expect((t.store() as unknown as { watch: number[] }).watch).toEqual([150, 181, 200]);
+      t.input('watchr home');
+      t.recv(AWARE);
+      expect(t.panes.tv(1)!.content.title).toMatch(/2:57$/);
+      // Kept over a reload.
+      await t.host.reload('keymanager');
+      t.resize(44);
+      t.clock.advance(1);
+      t.input('watchr home');
+      t.recv(AWARE);
+      expect(t.panes.tv(1)!.content.title).toMatch(/2:57$/);
+    });
+
+    it('a scry: the block goes to the key\'s TV, its blank line and prompt are hidden, it is saved for 12 h', async () => {
       const t = await setup();
       t.input('nkey cave abcdefghi');
       t.input('scry cave');
       const n0 = t.texts().length;
-      t.recv(SCRY, 'The Dark Cave', 'It is dark here.', 'A troll is here.', '', PROMPT);
-      expect(t.texts().slice(n0)).toEqual(['KEYS TV $cave: scried.', '', PROMPT]);
+      t.recv(SCRY);
+      t.bus.emit('text.line', gline('The Dark Cave', [{ start: 0, end: 13, fg: 2 }]));
+      t.recv('It is dark here.', '');
+      t.bus.emit('text.line', gline('*+ W Mana:Hot>', [], true));
+      t.recv('You are hungry.');
+      expect(t.texts().slice(n0)).toEqual(['KEYS TV $cave: scried.', 'You are hungry.']);
       const tv = t.panes.tv(1)!;
-      expect(tvText(tv)).toEqual(['· scried', 'The Dark Cave', 'It is dark here.', 'A troll is here.']);
+      expect(tvText(tv)).toEqual(['· scried', 'The Dark Cave', 'It is dark here.']);
+      expect(span(tv, 1, 'Dark')!.fg).toBe(2);
       expect(tv.content.title).toBe('TV $cave · scried 0:00 ago');
-      t.clock.advance(12_000);
-      expect(tv.content.title).toBe('TV $cave · scried 0:12 ago');
+      // Saved per key; ◻ shows for 12 h.
+      expect((t.store()!.keys[0] as { scry: { lines: unknown[] } }).scry.lines).toHaveLength(2);
+      expect(t.rows()[1]).toMatch(/ t p s w ◻ x$/);
       // $name in a typed cast also links the scry to the key.
       t.input("cast n 'scry' $cave");
       expect(t.sent.at(-1)).toBe("cast n 'scry' abcdefghi");
-      t.recv(SCRY, 'The Dark Cave', '');
-      expect(tvText(t.panes.tv(1))!.at(-1)).toBe('The Dark Cave');
-      // Unknown: TV scry, in the next slot.
+      // A reload: the TV opens from the saved block.
+      await t.host.reload('keymanager');
+      t.resize(44);
+      t.clock.advance(1);
+      expect(t.rows()[1]).toMatch(/ t p s w ◻ x$/);
+      t.click(1, '◻');
+      expect(tvText(t.panes.tv(1))).toEqual(['· scried', 'The Dark Cave', 'It is dark here.']);
+      expect(span(t.panes.tv(1)!, 1, 'Dark')!.fg).toBe(2);
+      // 12 h later the button is gone.
+      t.clock.advance(12 * HOUR + 60_000);
+      expect(t.rows()[1]).not.toMatch(/◻/);
+      // Unknown: TV scry, kecho prints a TV's lines.
       t.recv(SCRY, 'Somewhere', '');
-      expect(t.panes.tv(2)!.content.title).toMatch(/^TV scry · scried/);
-      // kecho prints the lines.
+      expect(t.panes.opened.some((o) => !o.view.closed && /^TV scry/.test(o.content.title))).toBe(true);
       t.input('kecho cave 2');
-      expect(t.texts().slice(-3)).toEqual(['KEYS TV $cave, the last 2 lines:', '  · scried', '  The Dark Cave']);
-      // Closed after tvclose seconds.
-      t.clock.advance(70_000);
-      expect(t.panes.tv(1)).toBeNull();
-      expect(t.panes.tv(2)).toBeNull();
+      expect(t.texts().slice(-3)[0]).toBe('KEYS TV $cave, the last 2 lines:');
     });
 
     it('tvgag off: the lines stay in the game text too; failures cancel a pending cast', async () => {

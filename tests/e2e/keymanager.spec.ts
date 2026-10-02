@@ -207,13 +207,54 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   const tv = pane(page, 'keymanager/~tv1');
   await expect(tv).toBeVisible();
   await expect(tv.locator('.wc-pane-frame')).toContainText('TV $home');
+  // MUME's packet: the line (a green room name), a blank line, a prompt with GA.
+  server!.send(bytes('[home] \x1b[32mThe Dark Cave\x1b[0m\r\n\r\n*+ W Mana:Hot>', [IAC, 249]));
   server!.send(bytes('[home] \x1b[31mA troll\x1b[0m arrives from the north.\r\n'));
-  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^A troll arrives from the north\.\s*$/);
+  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^The Dark Cave\s*$/);
+  await expect(prows(page, 'keymanager/~tv1').nth(2)).toHaveText(/^A troll arrives from the north\.\s*$/);
+  // The room name is green in the TV.
+  const green = () =>
+    prows(page, 'keymanager/~tv1')
+      .nth(1)
+      .locator('span')
+      .first()
+      .evaluate((e) => getComputedStyle(e).color);
+  const g = await green();
+  const [r0, g0, b0] = g.match(/\d+/g)!.map(Number);
+  expect(g0).toBeGreaterThan(r0! + 40);
+  expect(g0).toBeGreaterThan(b0! + 40);
+  // The blank line and the prompt after the watch line are not in the game text.
+  await expect(page.locator('.wc-output')).not.toContainText('Mana:Hot>');
   // Hidden from the game text; a short KEYS line instead of the activation.
   await expect(page.locator('.wc-output')).toContainText('TV $home: watching.');
   await expect(page.locator('.wc-output')).not.toContainText('[home] A troll');
-  // The Port keys pane shows the running watch.
-  await expect(prows(page).nth(1)).toHaveText(/●\d:\d\d t p s w x\s*$/);
+  // The Port keys pane shows the running watch; its countdown's tooltip
+  // stays open across the ticks (ADR 0056) and its text follows them.
+  await expect(prows(page).nth(1)).toHaveText(/ \d:\d\d t p s w ◻ x\s*$/);
+  const rowText = (await prows(page).nth(1).textContent())!;
+  const m = /\d:\d\d/.exec(rowText)!;
+  const at = await cellAt(page, 1, m.index + 1);
+  await page.mouse.move(at.x, at.y);
+  const tip = page.locator('.wc-spane-tip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText('Watch room on $home');
+  const first = (await tip.textContent())!;
+  await expect.poll(async () => (await tip.textContent()) !== first, { timeout: 4000 }).toBe(true);
+  // Several ticks, the pointer still: the tooltip never closes.
+  for (let i = 0; i < 6; i++) {
+    expect(await tip.isVisible()).toBe(true);
+    await page.waitForTimeout(400);
+  }
+  await expect(tip).toContainText('estimate: 200 s');
+  // The same for a clickable link (the name): band and tooltip stay.
+  const nameAt = await cellAt(page, 1, rowText.indexOf('$home') + 1);
+  await page.mouse.move(nameAt.x, nameAt.y);
+  await expect(tip).toContainText('Click to rename');
+  for (let i = 0; i < 6; i++) {
+    expect(await tip.isVisible()).toBe(true);
+    await page.waitForTimeout(400);
+  }
+  await page.mouse.move(5, 5);
   // The end: noted, and the TV closes by itself (tvclose 5 s).
   server!.send(bytes('[home] Your awareness decreases.\r\n'));
   await expect(tv.locator('.wc-pane-frame')).toContainText('ended');
@@ -221,6 +262,9 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   await expect(tv).toHaveCount(0, { timeout: 10_000 });
   // tv home opens it again with its lines.
   await command(page, 'tv home');
-  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^A troll arrives/);
+  await expect(prows(page, 'keymanager/~tv1').nth(2)).toHaveText(/^A troll arrives/);
+  // Dimmed now, the room name still green.
+  const g2 = (await green()).match(/\d+/g)!.map(Number);
+  expect(g2[1]).toBeGreaterThan(g2[0]! + 40);
   expect(errors).toEqual([]);
 });
