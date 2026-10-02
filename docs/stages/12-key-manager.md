@@ -138,6 +138,21 @@ area... and you see:`, the room, and a blank line.
 - Commands: `tv` (show or hide the TVs), `tv <name>`, `kecho <name>
   [rows]`.
 
+## Plan (round 6): scry marks on the map
+
+Design pass: `notes/research/scry-map-marks-design.md`. Decisions in ADR
+0057. After a scry the key manager marks the scried room on the map pane:
+the room is found by its name (narrowed by description lines and exits),
+blinks magenta for 15 s with arrows when off view, and the view zooms out
+to show it and the player, then returns unless the player moved the
+view. A generic script API (`mapMark`, `mapUnmark`, `mapFind`) does it.
+
+Owner decisions (2026-10-02): magenta; 15 s; if the player pans, zooms
+or changes layer during the mark the view stays where they put it,
+otherwise it returns to the old zoom centred on the player; map pane off:
+nothing is marked and the KEYS line says so; live only (no run
+recording yet); with many matches the 20 nearest are marked.
+
 ## Tasks
 
 - [x] Receive and study the Mudlet reference script
@@ -151,7 +166,9 @@ area... and you see:`, the room, and a blank line.
 - [x] Test guide.
 - [x] Owner test rounds 1–3 (round 3 approved 2026-10-02).
 - [x] Round 4: TV for scry and watch room (plan above, ADR 0054).
-- [ ] Owner test round 4.
+- [x] Owner test round 4.
+- [x] Round 5: round 4 feedback (colours, prompt gag, steady hover, ADR 0056).
+- [ ] Round 6: scry marks on the map (ADR 0057).
 
 ## Test guide
 
