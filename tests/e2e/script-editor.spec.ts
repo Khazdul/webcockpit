@@ -293,7 +293,7 @@ test('MANUAL: from the editor (button and F1 at the name under the cursor) and f
   await expect(manual(page).locator('.wc-ped-menu .wc-tr.is-cur')).toHaveText(/^ tempTrigger\s*$/);
   await expect(manual(page).locator('[data-kind="heading"]', { hasText: /^tempTrigger$/ })).toBeInViewport();
   await expect(manual(page).locator('.wc-ped-manual')).toContainText('tempTrigger(substring, fn)');
-  await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/]);
+  await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/, /Lua reference/]);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-dark-${info.project.name}.png` });
 
   // The wheel scrolls by pixels, not rows.
