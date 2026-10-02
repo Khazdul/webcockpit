@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **12 — Key manager** (round 1 built, owner testing; stages 11–12 not released yet; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 11–12 done, not released yet (latest release 0.1.27; 0.1.28 when the owner says so). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -17,13 +17,24 @@ Current stage: **12 — Key manager** (round 1 built, owner testing; stages 11�
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
-| 12 | Key manager | Owner testing | `docs/stages/12-key-manager.md` |
+| 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Stage 12 done
+
+- **Owner:** satisfied after round 8; close the stage, no release yet.
+- **Docs:** stage file marked done with carried-over items; spec §2.10
+  key manager bullet follows what shipped (Port keys, TV, map marks).
+- **Carried over:** scry/watch/failure line formats unverified in MUME;
+  map marks not in runs; KEYS lines not light-theme adjusted.
+- **Next:** release 0.1.28 when the owner says so; stage 8 part D owner
+  test and the v1 verdict.
+- **Commits:** this one.
 
 ### 2026-10-02 — Stage 12 round 8 feedback built
 

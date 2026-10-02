@@ -459,10 +459,12 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     10 silver or 1 gold, autopay, pay on click, and the orders `ask
     <name> lead`, `ride` and `flee`.
   - **Key manager:** port keys from `locate life`, per character, for
-    12 hours, in a Keys pane with casts (teleport, portal, scry, watch
-    room) and a safe key (Ctrl+S, Alt+S). Every locate opens a pick
-    window where the key's name is typed; `$name` in any command becomes
-    the key (ADR 0054). It follows the owner's Mudlet script.
+    12 hours, in a Port keys pane with casts (teleport, portal, scry,
+    watch room), inline rename and a safe key (Ctrl+S, Alt+S). Every
+    locate opens a pick window where the key's name is typed; `$name` in
+    any command becomes the key. Scry and watch room output goes to TV
+    panes tiled from the top left, and a scried room is marked on the
+    map (ADR 0054, 0057). It follows the owner's Mudlet script.
 
   Bundled scripts are read-only and are updated with each release.
   *Duplicate* makes an editable copy that is never overwritten.

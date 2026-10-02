@@ -1,6 +1,7 @@
 # Stage 12 — Key manager
 
-> Status: In progress (round 1 built 2026-10-02).
+> Status: Done 2026-10-02 (owner closed the stage after round 8
+> feedback; not released yet).
 > Source: intent Goal 10, spec §2.10 (bundled scripts), ADR 0051,
 > ADR 0053, ADR 0054.
 
@@ -173,7 +174,12 @@ recording yet); with many matches the 20 nearest are marked.
 - [x] Round 7: round 6 feedback (TV lifetimes, ◻ blink, map linger).
 - [x] Owner test round 7.
 - [x] Round 8: round 7 feedback (tiled TV group, TV closes when its watch ends).
-- [ ] Owner test round 8.
+- [x] Round 8 feedback (◻ colour bug, gold names, grey buttons, mercenaries).
+- [x] Owner closed the stage (2026-10-02).
+
+Carried over (not blocking): scry, watch and failure line formats are
+unverified in MUME; map marks are not recorded in runs; KEYS lines in
+the game text do not adapt to a light terminal.
 
 ## Test guide
 
