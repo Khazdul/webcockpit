@@ -85,3 +85,19 @@
 .wc-exp-sys {
   color: var(--c-yellow);
 }
+
+/* The log: a native scroll box over a spacer of all the rows; the rendered
+ * rows sit in a window placed at their row. */
+.wc-exp-log {
+  flex: 0 0 auto;
+}
+
+.wc-exp-spacer {
+  position: relative;
+}
+
+.wc-exp-window {
+  position: absolute;
+  left: 0;
+  right: 0;
+}

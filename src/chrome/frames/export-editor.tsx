@@ -18,13 +18,14 @@
 //
 // Two focus zones, the log and the buttons (Tab / Shift+Tab, ← / →). In the
 // log ↑↓ move the cursor one item (an entry, a comment, the end row),
-// PgUp/PgDn one viewport, Home/End; the wheel moves it 3 items. The letter
+// PgUp/PgDn one viewport, Home/End; the cursor pulls the view along. The
+// wheel and the touchpad scroll the log natively, by pixels (as EDITOR). The letter
 // keys work in both zones: X exclude / stop, C/E/D add/edit/delete comment,
 // F format, T title, S export. ESC (and BACK) return to History, whose
 // state is intact (it stays mounted below).
 //
 // Every edit is saved at once (`RunLibrary.saveExportDoc`). Only the rows
-// on screen are rendered; the model (export-model.ts) keeps a 5 h chain in
+// near the view are rendered (over a spacer of the full height); the model (export-model.ts) keeps a 5 h chain in
 // flat arrays.
 
 import './export.css';
@@ -57,7 +58,7 @@ import { useGrid, useServices } from '../kit/hooks';
 import { cellLen, centreLeft, step, truncate } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { Blank, Button, FlashRow, Line, Page, cellsWide, indent, useBodyRows } from '../kit/widgets';
-import { wheelSteps } from '../kit/wheel';
+import { cellHeight, useScrollBox } from '../kit/scroll';
 import {
   type CursorKey,
   type EditorLog,
@@ -81,7 +82,6 @@ import {
   mapMarks,
   mapThumb,
   pageItem,
-  topFor,
 } from './export-model';
 import { ExportInputFrame } from './export-input';
 import { fmtDate } from './history-model';
@@ -132,7 +132,14 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
   const [zone, setZone] = useState<Zone>('log');
   const [btn, setBtn] = useState(0);
   const [cursor, setCursor] = useState<CursorKey>({ entry: 0 });
+  /** The top row of the log view (from its native scroll position). */
   const [top, setTop] = useState(0);
+  const box = useScrollBox();
+  /** Reads the top row from the scroll position (a jump renders its rows at once, not a frame later). */
+  const syncTop = (): void => {
+    const el = box.ref.current;
+    if (el) setTop(Math.floor(el.scrollTop / cellHeight(el) + 0.01));
+  };
   const busy = useRef(false);
 
   useEffect(() => {
@@ -167,10 +174,12 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
     [log, doc?.comments, logW],
   );
   const cur = items ? keyItem(items, cursor) : 0;
-  const t = items ? topFor(items, cur, top, height) : 0;
+  // The cursor item pulls the view along when it moves (and after an edit).
   useLayoutEffect(() => {
-    if (t !== top) setTop(t);
-  }, [t, top]);
+    if (!items) return;
+    box.show(items.rowStart[cur]!, items.rowStart[cur + 1]! - 1);
+    syncTop();
+  }, [cur, items]);
 
   const excluded = useMemo(() => (log && doc ? excludedCount(doc, log.ts) : 0), [log, doc?.excludes]);
   const marks = useMemo(
@@ -448,10 +457,15 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
     cols,
   );
 
-  // The rows on screen.
+  // The log scrolls natively (pixels, as EDITOR) over a spacer of all its
+  // rows; only the rows near the view are rendered (a 5 h chain is long):
+  // a viewport above and below it, so a fast scroll does not show blanks.
+  const totalRows = Math.max(items.totalRows, height);
+  const from = Math.max(0, Math.min(top, totalRows - height) - height);
+  const to = Math.min(totalRows, top + 2 * height + 1);
   const rowsOut: VNode[] = [];
   const logFocused = zone === 'log';
-  for (let i = itemAtRow(items, t), row = items.rowStart[i]!; row < t + height && i < items.count; i++) {
+  for (let i = itemAtRow(items, from), row = items.rowStart[i]!; row < to && i < items.count; i++) {
     const kind = items.kind[i]!;
     const isCur = i === cur;
     const click = (): void => {
@@ -491,8 +505,8 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
       lines = [<span class="wc-c-hint">{END_TEXT}</span>];
     }
     for (let k = 0; k < n; k++, row++) {
-      if (row < t) continue;
-      if (row >= t + height) break;
+      if (row < from) continue;
+      if (row >= to) break;
       rowsOut.push(
         <div
           class={'wc-line wc-exp-row' + (isCur ? ' is-cur' : '')}
@@ -509,9 +523,9 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
       );
     }
   }
-  while (rowsOut.length < height) rowsOut.push(<div class="wc-line wc-exp-row is-empty" />);
+  while (rowsOut.length < to - from) rowsOut.push(<div class="wc-line wc-exp-row is-empty" />);
 
-  const [thumbA, thumbB] = mapThumb(items, t, height, height);
+  const [thumbA, thumbB] = mapThumb(items, Math.min(top, Math.max(0, items.totalRows - height)), height, height);
   const mapRows = marks.map((m, r) => {
     const content =
       m === null ? (
@@ -533,7 +547,8 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
           const it = mapItem(items, r, height);
           setZone('log');
           setCursor(itemKey(items, it));
-          setTop(centredTop(items, it, height));
+          box.toRow(centredTop(items, it, height));
+          syncTop();
         }}
       >
         {content}
@@ -583,15 +598,16 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
         </div>
         <div style={cellsWide(GAP)} />
         <div
-          class="wc-exp-log"
-          style={cellsWide(GUTTER + logW)}
-          onWheel={(ev) => {
-            ev.preventDefault();
-            const n = wheelSteps(ev);
-            if (n !== 0) moveTo(cur + n);
-          }}
+          class="wc-scrollbox wc-exp-log"
+          ref={box.ref}
+          style={{ ...cellsWide(GUTTER + logW), height: `calc(var(--cell-h) * ${height})` }}
+          onScroll={syncTop}
         >
-          {rowsOut}
+          <div class="wc-exp-spacer" style={{ height: `calc(var(--cell-h) * ${totalRows})` }}>
+            <div class="wc-exp-window" style={{ top: `calc(var(--cell-h) * ${from})` }}>
+              {rowsOut}
+            </div>
+          </div>
         </div>
         <div style={cellsWide(MAP_GAP)} />
         <div class="wc-exp-map" style={cellsWide(MAP_W)}>
