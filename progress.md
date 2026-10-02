@@ -25,7 +25,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Appearance option "Bold brightens colours"
+### 2026-10-03 — Appearance option "Bold brightens colours", release 0.1.32
 
 - **User report (Discord):** bold mob names (MUME `change colour`, bold
   in default colour) barely visible in DejaVu Sans Mono.
@@ -35,8 +35,8 @@ Newest first.
   white; paper keeps black ink. Inverse runs not brightened. ADR 0060.
 - **Verified:** typecheck clean, unit 1879 green, e2e green (one
   Firefox `scripts.spec` flake passed on rerun).
-- **Next:** release 0.1.32 when the owner says so.
-- **Commits:** a98afac, 19279be, plus this one.
+- **Released:** 0.1.32 (tag v0.1.32), build:pages smoke green.
+- **Commits:** a98afac, 19279be, f62c659, 1edbffa, plus this one.
 
 ### 2026-10-03 — Map wheel always zooms, release 0.1.31
 
