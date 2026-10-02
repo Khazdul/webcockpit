@@ -53,6 +53,8 @@
 // command. It follows the library from then on. Player Apps run no scripts.
 // A small GmcpCache (src/scripts/gmcp-cache.ts) follows the bus from the
 // start, so GMCP sent before the host loaded is in the scripts' `gmcp`.
+// Script panes go through a RecordingPaneSurface, which emits their
+// content as `view.pane` for the run capture (ADR 0053 P1).
 //
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
@@ -646,10 +648,17 @@ export class App {
     if (!lib) return Promise.reject(new Error('no script library'));
     const chunks = (): Promise<[typeof import('../scripts/host'), typeof import('../panes/script-surface')]> =>
       Promise.all([import('../scripts/host'), import('../panes/script-surface')]);
-    this.hostP ??= chunks().then(async ([{ ScriptHost }, { CockpitPaneSurface }]) => {
+    this.hostP ??= chunks().then(async ([{ ScriptHost }, { CockpitPaneSurface, RecordingPaneSurface }]) => {
       if (this.disposed) throw new Error('disposed');
+      // The panes' content goes to the run capture (ADR 0053 P1).
+      const panes = new RecordingPaneSurface(
+        new CockpitPaneSurface(this.cockpit, this.settings, this.cockpit.paneContext),
+        (id, snap) => {
+          if (!this.disposed) this.bus.emit('view.pane', { id, snap });
+        },
+      );
       const host = new ScriptHost({
-        panes: new CockpitPaneSurface(this.cockpit, this.settings, this.cockpit.paneContext),
+        panes,
         engine: this.script,
         bus: this.bus,
         library: lib,

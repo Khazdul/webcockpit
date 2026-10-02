@@ -1,6 +1,8 @@
 // Shared contracts between the net, text, ui, capture and app layers.
 // Changing anything here affects every layer: keep it small and stable.
 
+import type { PaneSnapshot } from '../panes/script-content';
+
 // ---------------------------------------------------------------------------
 // Colours
 // ---------------------------------------------------------------------------
@@ -207,6 +209,12 @@ export interface BusEvents {
   'view.settings': { json: string };
   /** The cockpit size in cells changed (emitted by the cockpit's relayout). */
   'view.size': { cols: number; rows: number };
+  /**
+   * A script pane's content (ADR 0053 P1), coalesced to at most one per
+   * frame per pane by the App's recording surface; `snap` null: the pane
+   * went away. The recorder writes it as an `ESC SPANE` record.
+   */
+  'view.pane': { id: string; snap: PaneSnapshot | null };
 }
 
 // ---------------------------------------------------------------------------

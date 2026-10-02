@@ -332,12 +332,22 @@ export class PaneContent {
     };
   }
 
-  /** Content from a snapshot (the log player; links get ids 1, 2, … and do nothing). */
+  /**
+   * Replaces the whole content with a snapshot (the log player; links get
+   * ids 1, 2, … and do nothing). Dropped links are not reported.
+   */
+  load(s: PaneSnapshot): void {
+    this.title = s.title;
+    this.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
+    this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
+    this.broken = false;
+    this.version++;
+  }
+
+  /** Content from a snapshot (see `load`). */
   static fromSnapshot(s: PaneSnapshot): PaneContent {
     const c = new PaneContent(s.title);
-    c.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
-    c.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
-    c.version = 1;
+    c.load(s);
     return c;
   }
 }

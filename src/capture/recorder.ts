@@ -30,6 +30,14 @@
 // - VIEW / SIZE: the latest `view.settings` / `view.size` are written when
 //   the run starts, and again `VIEW_DEBOUNCE_MS` after a change (the last
 //   value wins), and at the end of the run if a change is still pending.
+// - SPANE (ADR 0053 P1): `view.pane` (a script pane's snapshot, already
+//   coalesced to one per frame by the App's surface) is written at once:
+//   a pane's first record in a run in full, later ones as a delta when
+//   shorter (a full one again after PANE_KEYFRAME_US), nothing when
+//   unchanged (src/panes/script-record.ts). Every
+//   present pane is written when the run starts (after VIEW / SIZE). A
+//   pane's first record is preceded by the pending VIEW, so its placement
+//   (stored by its first creation) is in the log before it shows.
 //
 // Run events (ADR 0018, stage 6): with `events` (the App's RunEventDeriver)
 // the events of the recorded run are buffered like the lines and written
@@ -49,11 +57,14 @@ import {
   formatGmcpRecord,
   formatInbound,
   formatOutbound,
+  formatPaneRecord,
   formatRecord,
   makeRunId,
   utf8Length,
 } from './format';
 import type { RunMeta } from './store';
+import type { PaneSnapshot } from '../panes/script-content';
+import { PANE_KEYFRAME_US, type PaneRecordState, encodePaneRecord } from '../panes/script-record';
 import type { RunEvent } from '../runs/events';
 import { type RunEventRecord, RunStore, type RunSummary, summarize } from '../runs/store';
 
@@ -181,6 +192,9 @@ export class Recorder {
   private viewWritten = '';
   private sizeWritten = '';
   private viewTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Present script panes and their latest content; what this run wrote of each. */
+  private readonly panes = new Map<string, PaneSnapshot>();
+  private panesWritten = new Map<string, PaneRecordState & { fullUs: number }>();
 
   private timer: ReturnType<typeof setInterval> | null = null;
   private statusText = '';
@@ -245,6 +259,18 @@ export class Recorder {
       bus.on('view.size', (v) => {
         this.sizeJson = JSON.stringify({ cols: v.cols, rows: v.rows });
         this.viewChanged();
+      }),
+      bus.on('view.pane', (p) => {
+        if (p.snap) {
+          this.panes.set(p.id, p.snap);
+          if (this.run) this.writePane(this.now(), p.id, p.snap);
+        } else {
+          this.panes.delete(p.id);
+          if (this.run && this.panesWritten.delete(p.id)) {
+            const ts = this.now();
+            this.capture(ts, formatPaneRecord(ts, p.id, 'null'));
+          }
+        }
       }),
       bus.on('text.line', (line) => {
         if (this.run) this.capture(line.ts, formatInbound(line.ts, line.raw));
@@ -369,7 +395,10 @@ export class Recorder {
     this.preRun = [];
     this.viewWritten = '';
     this.sizeWritten = '';
-    this.writeView(ts || this.now());
+    this.panesWritten = new Map();
+    const t0 = ts || this.now();
+    this.writeView(t0);
+    for (const [id, snap] of this.panes) this.writePane(t0, id, snap);
     const startedUs = this.now();
     const runId = makeRunId(character, new Date(startedUs / 1000));
     this.enqueue(() => this.startRun(run, runId, startedUs));
@@ -478,6 +507,17 @@ export class Recorder {
       this.sizeWritten = this.sizeJson;
       this.capture(ts, formatRecord(ts, RECORD.size, this.sizeJson));
     }
+  }
+
+  /** Writes a script pane's record (full the first time in the run, then a delta), unless unchanged. */
+  private writePane(ts: number, id: string, snap: PaneSnapshot): void {
+    const prev = this.panesWritten.get(id) ?? null;
+    // Its placement first: the surface stored it when the pane was created.
+    if (!prev) this.writeView(ts);
+    const rec = encodePaneRecord(prev, snap, prev !== null && ts - prev.fullUs >= PANE_KEYFRAME_US);
+    if (!rec) return;
+    this.panesWritten.set(id, { ...rec.state, fullUs: rec.full ? ts : prev!.fullUs });
+    this.capture(ts, formatPaneRecord(ts, id, rec.payload));
   }
 
   /**

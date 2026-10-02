@@ -3,7 +3,7 @@
 // but one entry at a time with the whole line, so the payload builder can
 // copy kept lines verbatim and the text export can read their bodies.
 
-export type CaptureKind = 'in' | 'out' | 'gmcp' | 'view' | 'size' | 'record';
+export type CaptureKind = 'in' | 'out' | 'gmcp' | 'view' | 'size' | 'spane' | 'record';
 
 export interface CaptureEntry {
   ts: number;
@@ -63,6 +63,7 @@ export function* captureEntries(text: string): Generator<CaptureEntry> {
           yield { ts, kind: 'gmcp', body, pkg: sp2 < 0 ? body : body.slice(0, sp2), line };
         } else if (type === 'VIEW') yield { ts, kind: 'view', body, line };
         else if (type === 'SIZE') yield { ts, kind: 'size', body, line };
+        else if (type === 'SPANE') yield { ts, kind: 'spane', body, line };
         else yield { ts, kind: 'record', body, line };
         continue;
       }

@@ -10,6 +10,9 @@
 //   repaired settings), it is placed again the same way.
 // - `close` takes the pane off the cockpit; its place and toggles stay.
 //
+// - `RecordingPaneSurface` wraps a surface and reports the panes' content
+//   for the run capture (`view.pane`, ADR 0053 P1).
+//
 // App builds the surface lazily with the host (a dynamic import), so none
 // of this is in the cold-start chunk.
 
@@ -19,7 +22,7 @@ import type { ScriptPaneId } from '../layout/types';
 import type { SettingsStore } from '../settings';
 import { SCRIPT_PANE_DEFAULTS, paneSettingsOf } from '../settings/types';
 import type { PaneContext } from './context';
-import type { PaneContent } from './script-content';
+import type { PaneContent, PaneSnapshot } from './script-content';
 import { ScriptPane } from './script-pane';
 
 export interface ScriptPaneSpec {
@@ -116,4 +119,59 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       }
     });
   }
+}
+
+/** Coalescing interval of recorded pane content, ms (one frame). */
+export const PANE_RECORD_MS = 16;
+
+/**
+ * A surface that reports what its panes show, for the run capture (ADR
+ * 0053 P1): `emit(id, snapshot)` at most once per `PANE_RECORD_MS` per
+ * changed pane, and `emit(id, null)` when a pane closes. A timer, not an
+ * animation frame: frames stop in a hidden tab while the run goes on.
+ */
+export class RecordingPaneSurface implements ScriptPaneSurface {
+  private readonly dirty = new Map<string, PaneContent>();
+  private timer: unknown = null;
+
+  constructor(
+    private readonly inner: ScriptPaneSurface,
+    private readonly emit: (id: ScriptPaneId, snap: PaneSnapshot | null) => void,
+    private readonly after: (fn: () => void, ms: number) => unknown = (fn, ms) => setTimeout(fn, ms),
+  ) {}
+
+  open(spec: ScriptPaneSpec, content: PaneContent, events: ScriptPaneEvents): ScriptPaneView {
+    const view = this.inner.open(spec, content, events);
+    const { id } = spec;
+    let closed = false;
+    this.mark(id, content);
+    return {
+      changed: () => {
+        view.changed();
+        if (!closed) this.mark(id, content);
+      },
+      setOn: (on) => view.setOn(on),
+      isOn: () => view.isOn(),
+      size: () => view.size(),
+      close: () => {
+        view.close();
+        if (closed) return;
+        closed = true;
+        this.dirty.delete(id);
+        this.emit(id, null);
+      },
+    };
+  }
+
+  private mark(id: string, content: PaneContent): void {
+    this.dirty.set(id, content);
+    this.timer ??= this.after(this.flush, PANE_RECORD_MS);
+  }
+
+  private readonly flush = (): void => {
+    this.timer = null;
+    const panes = [...this.dirty];
+    this.dirty.clear();
+    for (const [id, content] of panes) this.emit(id as ScriptPaneId, content.snapshot());
+  };
 }

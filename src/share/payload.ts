@@ -16,11 +16,18 @@
 // listed in `hiddenSys` (by run: a run prints at most one), and the player
 // does not print it; its `Char.Name` GMCP is kept, so the panes are right.
 //
+// Script panes (ADR 0053 P1): the SPANE records inside an excluded range
+// are folded into one full record per pane (or its removal) after the
+// range's last entry, so the file holds the panes' state at the cut's end
+// but nothing they showed in between.
+//
 // Timers (ADR 0033): the Timers pane is derived from text, so each cut's
 // end inside a run gets a `WebCockpit.Timers` GMCP record with the timers
 // state there (src/share/timers-state.ts), before the first entry after it.
 
-import { formatGmcpRecord } from '../capture/format';
+import { formatGmcpRecord, formatPaneRecord } from '../capture/format';
+import type { PaneSnapshot } from '../panes/script-content';
+import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
 import type { RunMeta } from '../capture/store';
 import type { ChainRun, TimelineEdits } from '../player/timeline';
 import { markersOf } from '../player/strip';
@@ -87,10 +94,36 @@ export interface ReplayMap {
 export function editRunText(text: string, doc: ExportDoc): string {
   if (doc.excludes.length === 0) return text;
   let out = '';
+  /** Each script pane's content so far (every record applied), and the panes changed inside the current range. */
+  const panes = new Map<string, PaneSnapshot | null>();
+  const folded = new Set<string>();
+  /** The last excluded entry's time: folded records go there, after everything kept in the range. */
+  let lastExTs = 0;
+  const unfold = (): void => {
+    for (const id of folded) {
+      const s = panes.get(id) ?? null;
+      out += formatPaneRecord(lastExTs, id, s ? JSON.stringify(s) : 'null');
+    }
+    folded.clear();
+  };
   for (const e of captureEntries(text)) {
-    if (isExcluded(doc, e.ts) && (isVisible(e) || isCommText(e))) continue;
+    const ex = isExcluded(doc, e.ts);
+    if (!ex && folded.size > 0) unfold();
+    if (ex) lastExTs = e.ts;
+    if (e.kind === 'spane') {
+      const r = splitPaneRecord(e.body);
+      if (r) {
+        panes.set(r.id, applyPaneRecord(panes.get(r.id) ?? null, r.json));
+        if (ex) {
+          folded.add(r.id);
+          continue;
+        }
+      }
+    }
+    if (ex && (isVisible(e) || isCommText(e))) continue;
     out += e.line;
   }
+  unfold();
   return out;
 }
 

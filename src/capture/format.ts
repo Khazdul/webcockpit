@@ -26,6 +26,15 @@
 //                                      comm) at run start and on change
 //   ESC SIZE {"cols":C,"rows":R}       the cockpit size in cells at run start
 //                                      and on change (debounced)
+//   ESC SPANE <id> <json>              a script pane's content (ADR 0053):
+//                                      `<script>/<pane>`, then null (gone),
+//                                      a full snapshot or a delta against
+//                                      the pane's previous record in the
+//                                      run (src/panes/script-record.ts).
+//                                      At run start every present pane in
+//                                      full (after VIEW / SIZE), then at
+//                                      most one per pane per frame (16 ms)
+//                                      while it changes
 //
 // Readers skip record types they do not know. ReplaySocket turns GMCP
 // records back into `IAC SB GMCP … IAC SE` and ignores the rest.
@@ -75,7 +84,7 @@ export function utf8Length(s: string): number {
 }
 
 /** Client record types (see the file header). */
-export const RECORD = { gmcp: 'GMCP', view: 'VIEW', size: 'SIZE' } as const;
+export const RECORD = { gmcp: 'GMCP', view: 'VIEW', size: 'SIZE', spane: 'SPANE' } as const;
 export type RecordType = (typeof RECORD)[keyof typeof RECORD];
 
 const LINE_BREAKS = /[\r\n]/g;
@@ -89,6 +98,11 @@ export function formatRecord(ts: number, type: string, payload: string): string 
 /** One inbound GMCP message: `<ts> ESC GMCP <pkg>[ <json>]`. */
 export function formatGmcpRecord(ts: number, pkg: string, json: string): string {
   return formatRecord(ts, RECORD.gmcp, json === '' ? pkg : pkg + ' ' + json);
+}
+
+/** One script pane record: `<ts> ESC SPANE <id> <json>` (`json` 'null': the pane went away). */
+export function formatPaneRecord(ts: number, id: string, json: string): string {
+  return formatRecord(ts, RECORD.spane, id + ' ' + json);
 }
 
 /**
