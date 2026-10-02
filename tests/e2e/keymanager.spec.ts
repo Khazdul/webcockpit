@@ -57,8 +57,8 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
 
   await command(page, '#script enable keymanager');
   await expect(pane(page)).toBeVisible();
-  await expect(pane(page).locator('.wc-pane-frame')).toContainText('Keys');
-  await expect(prows(page).nth(0)).toHaveText(/^ Gittan\s+0 keys\s+\?\s*$/);
+  await expect(pane(page).locator('.wc-pane-frame')).toContainText('Port keys');
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys\s+\?\s*$/);
   await expect(prows(page).nth(2)).toHaveText(/^ No keys yet\.\s*$/);
 
   // locatel home: the cast, then the block; the row is gagged.
@@ -67,7 +67,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   server!.send(bytes("You start to concentrate...\r\n\r\nGittan - On a hill  Very near  key: 'uxevjobve'\r\n\r\n"));
   const key = prows(page).nth(1);
   await expect(key).toHaveText(/^ ★ \$home\s.*12h t p s w x\s*$/);
-  await expect(page.locator('.wc-output')).toContainText('Stored $home');
+  await expect(page.locator('.wc-pane[data-pane="ui"]')).toContainText('Stored $home');
   await expect(page.locator('.wc-output')).not.toContainText("key: 'uxevjobve'");
 
   // Hover t: the tooltip names the command; a click sends it.
@@ -134,6 +134,22 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await expect(prows(page).nth(2)).toHaveText(/^ ☆ \$den\s.*t p s w x\s*$/);
   expect(count("cast n 'teleport' uxevjobve\r\n")).toBe(before);
   expect(sentText()).not.toContain('den\r\n');
+
+  // A click on a name renames it inline: type, Enter.
+  const den = prows(page).nth(2);
+  const dtext = (await den.textContent())!;
+  const at2 = await cellAt(page, 2, dtext.indexOf('$den') + 1);
+  await page.mouse.click(at2.x, at2.y);
+  const rename = pane(page).locator('input.wc-spane-field');
+  await expect(rename).toBeFocused();
+  await expect(rename).toHaveValue('den');
+  await page.keyboard.type('lair');
+  await page.keyboard.press('Enter');
+  await expect(rename).toHaveCount(0);
+  await expect(prows(page).nth(3)).toHaveText(/^ ☆ \$lair\s/);
+  await expect(page.locator('.wc-pane[data-pane="ui"]')).toContainText('Renamed $den to $lair');
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+  expect(sentText()).not.toContain('lair\r\n');
 
   // keys hides and shows the pane.
   await command(page, 'keys');

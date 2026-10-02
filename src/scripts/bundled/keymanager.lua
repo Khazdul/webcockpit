@@ -1,12 +1,10 @@
 -- @name     keymanager
 -- @summary  Keeps your port keys from locate life in a pane, and casts with them
 -- @api      1
--- @alias    keys      Show or hide the Keys pane (also: keys list, keys help)
+-- @alias    keys      Show or hide the Port keys pane (also: keys list, keys help)
 -- @alias    locatel   locatel <name>: store your room's key; locatel <target> <name>: a target's
 -- @alias    kpick     Open the last pick window again
 -- @alias    nkey      nkey <name> <key>: add a key by hand
--- @alias    rkey      rkey <name> <new>: rename a key (also krename)
--- @alias    dkey      dkey <name>: delete a key
 -- @alias    skey      skey <name>: make it the safe key; skey alone names the safe key
 -- @alias    teleport  teleport <name>: cast teleport to a key (also portal, scry, watchr)
 -- @alias    tsafe     Teleport to the safe key (qtsafe: quickly, psafe: portal)
@@ -39,9 +37,11 @@
 -- @help     key's star, or type skey <name>, to change it. When the safe
 -- @help     key expires, your freshest key takes over.
 -- @help
--- @help     In the pane, the letters are casts: t teleport, p portal,
--- @help     s scry, w watch room; x deletes (click it twice). Point at one
--- @help     to see the command. Names are 1 to 10 letters, digits or _.
+-- @help     In the Port keys pane, click a key's name to rename it (Enter
+-- @help     saves, Esc cancels). The letters are casts: t teleport,
+-- @help     p portal, s scry, w watch room; x deletes (click it twice).
+-- @help     Point at one to see the command. Names are 1 to 10 letters,
+-- @help     digits or _. What changes in your keys is in the UI messages.
 
 --[[
 How it works
@@ -146,6 +146,8 @@ local function long(secs)
 end
 
 local function say(text) cecho(TAG .. text) end
+-- A change to the library: in the UI messages (▶ KEYS: …), plain text.
+local function note(text) uiMessage("keys", text) end
 local function fail(text) cecho(TAG .. "<ansi_light_red>" .. text) end
 local function nm(name) return "<" .. NAME_C .. ">$" .. name .. "<reset>" end
 
@@ -351,8 +353,8 @@ local function addKey(name, key, room, dist)
   for oid, k in pairs(lib.keys) do
     if oid ~= id and k.key == key then other = k.name end
   end
-  say((old and (old.key == key and "Renewed " or "Replaced ") or "Stored ") .. nm(name) .. info .. ": <" .. DIM .. ">" .. key .. "<reset>"
-    .. (other and (" <" .. DIM .. ">(same key as $" .. other .. ")<reset>") or "")
+  note((old and (old.key == key and "Renewed $" or "Replaced $") or "Stored $") .. name .. info .. ": " .. key .. "."
+    .. (other and (" Same key as $" .. other .. ".") or "")
     .. (becameSafe and " It is your safe key (Ctrl+S)." or ""))
   stopFresh()
   draw()
@@ -365,18 +367,38 @@ local function deleteKey(id)
   lib.keys[id] = nil
   fresh[id] = nil
   if confirm and confirm.id == id then confirm = nil end
-  local text = "Deleted " .. nm(k.name) .. "."
+  local text = "Deleted $" .. k.name .. "."
   if wasSafe then
     ensureSafe()
     if lib.safe then
-      text = text .. " The safe key is now " .. nm(lib.keys[lib.safe].name) .. "."
+      text = text .. " The safe key is now $" .. lib.keys[lib.safe].name .. "."
     else
       text = text .. " No keys left: no safe key."
     end
   end
   save()
-  say(text)
+  note(text)
   draw()
+end
+
+-- Renames key `id` to `to`; returns an error text, or nil when done.
+local function renameKey(id, to)
+  to = trim(to or ""):gsub("^%$", "")
+  local k = lib.keys[id]
+  if not k then return "That key is gone." end
+  if not validName(to) then return "A name is 1 to " .. NAME_MAX .. " letters, digits or _." end
+  local nid = to:lower()
+  if lib.keys[nid] and nid ~= id then return "There is a key $" .. lib.keys[nid].name .. " already." end
+  if to == k.name then return nil end
+  local old = k.name
+  lib.keys[id] = nil
+  k.name = to
+  lib.keys[nid] = k
+  if lib.safe == id then lib.safe = nid end
+  if fresh[id] then fresh[nid], fresh[id] = fresh[id], nil end
+  save()
+  note("Renamed $" .. old .. " to $" .. to .. ".")
+  return nil
 end
 
 local function setSafe(id)
@@ -388,7 +410,7 @@ local function setSafe(id)
   end
   lib.safe = id
   save()
-  say("Safe key: " .. nm(k.name) .. " (Ctrl+S teleports, Alt+S quickly).")
+  note("Safe key: $" .. k.name .. " (Ctrl+S teleports, Alt+S quickly).")
   draw()
 end
 
@@ -428,7 +450,7 @@ end
 
 -- ------------------------------------------------------------ the pane
 
-local pane = createPane{ id = "keys", title = "Keys", dock = "right", rows = 8, cols = 44 }
+local pane = createPane{ id = "keys", title = "Port keys", dock = "right", rows = 8, cols = 44, anchor = "top" }
 local width = 44
 
 -- Writes a row from segments { text, color, fn, hint }, with links.
@@ -449,6 +471,33 @@ local function row(n, segs)
 end
 
 local showHelp -- the alias part, below
+
+-- A rename in the pane: { id, value, err, field, row, started }.
+local renaming = nil
+-- How many lines the pane has (a rename keeps its row while this holds).
+local shownLines = 0
+
+local function startRename(id)
+  if not lib or not lib.keys[id] then return end
+  renaming = { id = id, value = lib.keys[id].name }
+  draw()
+end
+
+-- The top row: the key count and the help link, or the rename's prompt.
+local function header(n)
+  if renaming then
+    local msg = renaming.err or "Enter renames $" .. lib.keys[renaming.id].name .. ", Esc cancels"
+    row(1, { { text = " " .. cut(msg, math.max(1, width - 2)), color = renaming.err and "ansi_light_red" or DIM } })
+    return
+  end
+  local left = " " .. (n == 1 and "1 key" or n .. " keys")
+  -- The ? sits where the last letter of a key row does (one cell in).
+  row(1, {
+    { text = left, color = DIM },
+    { text = string.rep(" ", math.max(1, width - 2 - len(left))) },
+    { text = "?", color = "ansi_light_cyan", fn = function() showHelp() end, hint = "The key manager's help (keys help)" },
+  })
+end
 
 -- The casts, in the order they are dropped from the right on a narrow pane.
 local LETTERS = {
@@ -475,12 +524,9 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   local isFresh = fresh[id] and t - fresh[id] < FRESH
   local left = expires(k) - t
   segs[#segs + 1] = { text = "$" .. k.name, color = isFresh and "black:" .. NAME_C or NAME_C,
-    fn = function()
-      say(nm(k.name) .. ": " .. (k.room ~= "" and k.room or "?") .. (k.dist ~= "" and (", " .. k.dist) or "")
-        .. ", key " .. k.key .. ", " .. long(expires(k) - now()) .. " left.")
-    end,
-    hint = "$" .. k.name .. (k.room ~= "" and (": " .. k.room) or "") .. (k.dist ~= "" and (", " .. k.dist) or "")
-      .. "\nkey " .. k.key .. "\nlocated " .. long(t - k.at) .. " ago, " .. long(left) .. " left" }
+    fn = function() startRename(id) end,
+    hint = "Click to rename\n$" .. k.name .. (k.room ~= "" and (": " .. k.room) or "") .. (k.dist ~= "" and (", " .. k.dist) or "")
+      .. "\nkey " .. k.key .. ", located " .. long(t - k.at) .. " ago" }
   segs[#segs + 1] = { text = string.rep(" ", nameW - len(k.name) - 1) }
   if roomW > 0 then
     segs[#segs + 1] = { text = " " .. pad(cut(k.room, roomW), roomW) }
@@ -494,8 +540,7 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   local fit = math.max(0, math.min(#LETTERS + 1, (width - used - 1) // 2))
   local gap = math.max(0, width - used - fit * 2 - 1)
   segs[#segs + 1] = { text = string.rep(" ", 1 + gap) }
-  segs[#segs + 1] = { text = lpad(short(left), timeW), color = left < 3600 and "orange" or nil,
-    hint = long(left) .. " left (keys work " .. math.floor(life() / 3600 + 0.5) .. " h)", fn = function() end }
+  segs[#segs + 1] = { text = lpad(short(left), timeW), color = left < 3600 and "orange" or nil }
   if confirm and confirm.id == id and fit >= 1 then
     local before = (fit - 1) * 2
     local word = before + 1 >= 9 and " delete? " or ""
@@ -525,39 +570,87 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
           draw()
         end
       end)
-    end, hint = "Delete $" .. k.name .. " (click twice)\ndkey " .. k.name }
+    end, hint = "Delete $" .. k.name .. " (click twice)" }
   end
   row(n, segs)
 end
 
+-- Puts the rename field on the name cells of row `r` (after the $).
+local function renameField(r, nameW)
+  local rn = renaming
+  rn.row = r
+  rn.field = pane:setInput(r, 5, nameW - 1, {
+    value = rn.value,
+    maxLength = NAME_MAX,
+    onChange = function(text)
+      rn.value = text
+      if rn.err then
+        rn.err = nil
+        header(count())
+      end
+    end,
+    onSubmit = function(text)
+      if renaming ~= rn then return end
+      local err = renameKey(rn.id, text)
+      if err then
+        rn.err = err
+        header(count())
+        rn.field:focus()
+        return
+      end
+      renaming = nil
+      draw()
+    end,
+    onCancel = function()
+      if renaming ~= rn then return end
+      renaming = nil
+      draw()
+    end,
+  })
+  if rn.started then
+    rn.field:focus()
+  else
+    rn.started = true
+    rn.field:select()
+  end
+end
+
 draw = function()
-  pane:clear()
   if not char then
+    pane:clear()
+    shownLines = 0
+    renaming = nil
     row(1, { { text = " Not logged in", color = DIM } })
     pane:setLine(3, " <" .. DIM .. ">Keys are kept per character.")
     pane:setLine(4, " <" .. DIM .. ">Log in to see yours.")
     return
   end
-  local n = count()
-  local right = (n == 1 and "1 key" or n .. " keys") .. "  "
-  local head = { { text = " " .. char.name } }
-  -- The ? sits where the last letter of a key row does (one cell in).
-  local spaces = width - 2 - (1 + len(char.name)) - len(right)
-  if spaces >= 1 then
-    head[#head + 1] = { text = string.rep(" ", spaces) .. right, color = DIM }
-  else
-    head[#head + 1] = { text = " " }
+  local list = sorted()
+  local n = #list
+  local lines = n == 0 and 4 or n + 1
+  -- A rename keeps its row (and the field's text and focus) while the
+  -- rows stay where they are; otherwise the field is made again.
+  local rr = nil
+  if renaming then
+    for i, e in ipairs(list) do
+      if e.id == renaming.id then rr = i + 1 end
+    end
+    if not rr then renaming = nil end
   end
-  head[#head + 1] = { text = "?", color = "ansi_light_cyan", fn = function() showHelp() end,
-    hint = "The key manager's help (keys help)" }
-  row(1, head)
+  local keep = renaming and renaming.field and renaming.row == rr and lines == shownLines and renaming.field:value() ~= nil
+  if not keep then
+    pane:clear()
+    if renaming then renaming.field = nil end
+  end
+  shownLines = lines
+  header(n)
   if n == 0 then
+    pane:setLine(2, "")
     pane:setLine(3, " No keys yet.")
     pane:setLine(4, " <" .. DIM .. ">locatel <name> stores your room's key.")
     return
   end
   local t = now()
-  local list = sorted()
   local nameW, timeW, roomMax, keyMax = 5, 3, 0, 0
   for _, e in ipairs(list) do
     nameW = math.max(nameW, len(e.k.name) + 1)
@@ -578,8 +671,9 @@ draw = function()
     keyW = keyMax
   end
   for i, e in ipairs(list) do
-    drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW)
+    if not (keep and i + 1 == rr) then drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW) end
   end
+  if renaming and not renaming.field then renameField(rr, nameW) end
 end
 
 pane:onResize(function(rows, cols)
@@ -709,7 +803,7 @@ local function openPick(hits, name)
   w.total = 3 + #tostring(#hits) + 2 + w.mob + 2 + w.room + 2 + w.dist + 2 + w.key
   local cols = math.min(110, math.max(w.total, 48) + 1)
   local p = { hits = hits, sel = 1, w = w, edited = name ~= nil }
-  p.pane = createPane{ id = "pick", temporary = true, rows = #hits + 5, cols = cols, title = "Pick a key" }
+  p.pane = createPane{ id = "pick", temporary = true, at = "top", rows = #hits + 5, cols = cols, title = "Pick a key" }
   pick = p
   p.pane:onClose(function()
     if pick == p then pick = nil end
@@ -902,38 +996,6 @@ tempAlias("^nkey(?:\\s+(\\S+))?(?:\\s+(\\S+))?\\s*$", function()
   addKey(name, key, "", "")
 end)
 
-local function rename()
-  local from, to = matches[2]:gsub("^%$", ""), matches[3]:gsub("^%$", "")
-  if from == "" or to == "" then return say("Usage: rkey <name> <new name>") end
-  if not validName(to) then return fail("A key name is 1 to " .. NAME_MAX .. " letters, digits or _.") end
-  local k = find(from)
-  if not k then return end
-  local oid, nid = k.name:lower(), to:lower()
-  if lib.keys[nid] and nid ~= oid then
-    return fail("There is a key $" .. lib.keys[nid].name .. " already; dkey " .. lib.keys[nid].name .. " first.")
-  end
-  local old = k.name
-  lib.keys[oid] = nil
-  k.name = to
-  lib.keys[nid] = k
-  if lib.safe == oid then lib.safe = nid end
-  if fresh[oid] then fresh[nid], fresh[oid] = fresh[oid], nil end
-  save()
-  say("Renamed $" .. old .. " to " .. nm(to) .. ".")
-  draw()
-end
-tempAlias("^rkey(?:\\s+(\\S+))?(?:\\s+(\\S+))?\\s*$", rename)
-tempAlias("^krename(?:\\s+(\\S+))?(?:\\s+(\\S+))?\\s*$", rename)
-
-tempAlias("^dkey(?:\\s+(\\S+))?\\s*$", function()
-  if matches[2] == "" then return say("Usage: dkey <name>") end
-  if not lib then return notLoggedIn() end
-  local name = matches[2]:gsub("^%$", "")
-  local id = name:lower()
-  if not lib.keys[id] then return fail("No key $" .. name .. ".") end
-  deleteKey(id)
-end)
-
 tempAlias("^skey(?:\\s+(\\S+))?\\s*$", function()
   if not lib then return notLoggedIn() end
   if matches[2] == "" then
@@ -980,6 +1042,12 @@ tempAlias("^.*\\$[A-Za-z0-9_]", function()
 end)
 
 -- ------------------------------------------------------------ the clock
+
+-- `#script set keymanager hours …` (or the Scripts page): redraw now.
+registerAnonymousEventHandler("sysSettingChanged", function()
+  prune()
+  draw()
+end)
 
 -- Once a minute: drop expired keys, redraw the time left.
 tempTimer(60, function()

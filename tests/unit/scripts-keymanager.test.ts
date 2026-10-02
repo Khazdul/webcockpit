@@ -147,6 +147,8 @@ async function setup(opts: { login?: string | null; before?: (lib: ScriptLibrary
     input: (cmd: string) => engine.input(cmd),
     /** Texts shown in the game pane (game lines and echoes). */
     texts: () => shown.map((d) => d.line.text),
+    /** The last UI message of the script (`KEYS: …`). */
+    lastUi: () => t.uiText().filter((x) => x.startsWith('KEYS:')).at(-1) ?? '',
     lastText: () => shown.at(-1)?.line.text ?? '',
     uiText: () => ui.map((m) => `${m.kind === 'event' ? m.name : ''}: ${m.parts.map((p) => (typeof p === 'string' ? p : p.value)).join('')}`),
     rows: () => t.panes.keys.content.lines.map((_, i) => text(t.panes.keys.content, i).trimEnd()),
@@ -222,7 +224,7 @@ describe('bundled keymanager', () => {
     const s = lib.get('keymanager')!;
     expect(s).toMatchObject({ bundled: true, readonly: true, problems: [], loadProblem: null, enabled: false });
     expect(s.header.api).toBe(1);
-    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'rkey', 'dkey', 'skey', 'teleport', 'tsafe']);
+    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'skey', 'teleport', 'tsafe']);
     expect(s.header.keys.map((k) => k.key)).toEqual(['Ctrl+S', 'Alt+S']);
     expect(s.settings).toEqual({ hours: 12 });
     expect(s.header.help.join('\n')).toMatch(/safe key/);
@@ -231,7 +233,8 @@ describe('bundled keymanager', () => {
   it('shows Not logged in until the character is known, and refuses to store', async () => {
     const t = await setup({ login: null });
     expect(t.panes.keys.spec).toEqual({ id: 'keymanager/keys', place: { dock: 'right', rows: 8, cols: 44 } });
-    expect(t.panes.keys.content.title).toBe('Keys');
+    expect(t.panes.keys.content.title).toBe('Port keys');
+    expect(t.panes.keys.content.anchor).toBe('top');
     expect(t.rows()).toEqual([' Not logged in', '', ' Keys are kept per character.', ' Log in to see yours.']);
     t.input('locatel home');
     expect(t.sent).toEqual([]);
@@ -240,7 +243,7 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(['cast $home']);
     t.gmcp('Char.Name', { name: 'Gittan', fullname: 'Gittan the Tester' });
     t.clock.advance(1);
-    expect(t.rows()).toEqual([' Gittan                           0 keys  ?', '', ' No keys yet.', " locatel <name> stores your room's key."]);
+    expect(t.rows()).toEqual([' 0 keys                                   ?', '', ' No keys yet.', " locatel <name> stores your room's key."]);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
@@ -252,10 +255,12 @@ describe('bundled keymanager', () => {
     const before = t.texts().length;
     locateBlock(t, GITTAN);
     const shown = t.texts().slice(before);
-    expect(shown).toEqual([CONCENTRATE, '', '', 'KEYS Stored $home (On a hill, Very near): uxevjobve It is your safe key (Ctrl+S).', PROMPT]);
+    expect(shown).toEqual([CONCENTRATE, '', '', PROMPT]);
+    expect(t.lastUi()).toBe('KEYS: Stored $home (On a hill, Very near): uxevjobve. It is your safe key (Ctrl+S).');
     expect(t.store()).toMatchObject({ safe: 'home', keys: [{ name: 'home', key: 'uxevjobve', room: 'On a hill', dist: 'Very near' }] });
     const r = t.rows();
-    expect(r[0]).toBe(' Gittan                            1 key  ?');
+    expect(r[0]).toMatch(/^ 1 key +\?$/);
+    expect(r[0]).toHaveLength(43);
     expect(r[1]).toBe(' ★ $home On a hill uxevjobve  12h t p s w x');
     expect(r[1]).toHaveLength(43);
     // Highlighted for a few seconds.
@@ -271,7 +276,7 @@ describe('bundled keymanager', () => {
     t.input('locatel home');
     expect(t.lastText()).toBe('KEYS Locating your room for $home (replaces the old one).');
     locateBlock(t, row('Gittan', 'Inside', 'Here', 'zzzzzzzz'));
-    expect(t.texts()).toContain('KEYS Replaced $home (Inside, Here): zzzzzzzz');
+    expect(t.lastUi()).toBe('KEYS: Replaced $home (Inside, Here): zzzzzzzz.');
     expect(t.store()!.keys).toHaveLength(1);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
@@ -285,6 +290,7 @@ describe('bundled keymanager', () => {
     const p = t.panes.pick!;
     expect(p.spec.temporary).toBeDefined();
     expect(p.content.title).toBe('Pick a key');
+    expect(p.spec.temporary).toMatchObject({ at: 'top' });
     expect(t.field()).toMatchObject({ row: 0, col: 8, len: 12, value: 'cave', maxLength: 10 });
     // Focused with the name selected, so typing replaces it.
     expect(p.view.focused).toEqual([[t.field().id, true]]);
@@ -311,7 +317,7 @@ describe('bundled keymanager', () => {
     t.fieldKey('PageDown');
     t.enter();
     expect(t.panes.pick).toBeNull();
-    expect(t.lastText()).toBe('KEYS Stored $cave (In a forest, Near): qwertyuio It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $cave (In a forest, Near): qwertyuio. It is your safe key (Ctrl+S).');
 
     // kpick opens it again; a stored hit is marked; a name that exists says
     // it will be replaced; a bad name is refused inline.
@@ -336,13 +342,13 @@ describe('bundled keymanager', () => {
     expect(t.field().value).toBe('$lair');
     t.clickPick(4);
     expect(t.panes.pick).toBeNull();
-    expect(t.lastText()).toBe('KEYS Stored $lair (In a forest, Near): qwertyuio (same key as $cave)');
+    expect(t.lastUi()).toBe('KEYS: Stored $lair (In a forest, Near): qwertyuio. Same key as $cave.');
     // OK stores; Esc closes without storing; so does the close cross.
     t.input('kpick');
     t.typeName('ok1');
     const foot = t.pickRows()![6]!;
     t.clickPick(6, foot.indexOf('[ OK ]') + 1);
-    expect(t.lastText()).toBe('KEYS Stored $ok1 (Inside, Far away): abcdefghi');
+    expect(t.lastUi()).toBe('KEYS: Stored $ok1 (Inside, Far away): abcdefghi.');
     t.input('kpick');
     t.esc();
     expect(t.panes.pick).toBeNull();
@@ -379,14 +385,14 @@ describe('bundled keymanager', () => {
     expect(t.texts()).toEqual([CONCENTRATE, '', '', PROMPT]);
     expect(t.field().value).toBe('hill');
     t.enter();
-    expect(t.lastText()).toBe('KEYS Stored $hill (On a hill, Very near): uxevjobve It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $hill (On a hill, Very near): uxevjobve. It is your safe key (Ctrl+S).');
     // The same room again: its name in the library; Enter renews it.
     t.clock.advance(HOUR);
     t.recv(CONCENTRATE, '', GITTAN, '', PROMPT);
     expect(t.field().value).toBe('hill');
     expect(t.pickRows()![1]).toBe(' Enter renews $hill.');
     t.enter();
-    expect(t.lastText()).toBe('KEYS Renewed $hill (On a hill, Very near): uxevjobve');
+    expect(t.lastUi()).toBe('KEYS: Renewed $hill (On a hill, Very near): uxevjobve.');
     // Another own room of the same type: hill2.
     t.recv(CONCENTRATE, '', row('Gittan', 'On a hill', 'Here', 'kkkkkkk'), '', PROMPT);
     expect(t.field().value).toBe('hill2');
@@ -402,7 +408,7 @@ describe('bundled keymanager', () => {
     t.fieldKey('ArrowUp');
     expect(t.field().value).toBe('den');
     t.enter();
-    expect(t.lastText()).toBe('KEYS Stored $den (Inside, Far away): abcdefghi');
+    expect(t.lastUi()).toBe('KEYS: Stored $den (Inside, Far away): abcdefghi.');
     // A new locate replaces an open window.
     t.recv(CONCENTRATE, '', WARG, '', PROMPT);
     expect(t.panes.opened.filter((o) => o.spec.id === 'keymanager/~pick' && !o.view.closed)).toHaveLength(1);
@@ -419,9 +425,10 @@ describe('bundled keymanager', () => {
     expect(t.store()!.keys).toHaveLength(1);
   });
 
-  it('nkey, rkey/krename, dkey, skey; the safe key moves and is re-elected', async () => {
+  it('nkey, skey, the star, x; the safe key moves and is re-elected; all in the UI messages', async () => {
     const t = await setup();
     t.input('nkey home aaaaaaa');
+    expect(t.lastUi()).toBe('KEYS: Stored $home: aaaaaaa. It is your safe key (Ctrl+S).');
     t.clock.advance(60_000);
     t.input('nkey cave bbbbbbb');
     t.clock.advance(60_000);
@@ -432,29 +439,87 @@ describe('bundled keymanager', () => {
     t.input('skey');
     expect(t.lastText()).toMatch(/^KEYS The safe key is \$home \(aaaaaaa, 11h 5\dm left\)\.$/);
     t.input('skey cave');
-    expect(t.lastText()).toBe('KEYS Safe key: $cave (Ctrl+S teleports, Alt+S quickly).');
+    expect(t.lastUi()).toBe('KEYS: Safe key: $cave (Ctrl+S teleports, Alt+S quickly).');
     expect(t.rows()[1]).toMatch(/^ ★ \$cave /);
     expect(t.rows()[2]).toMatch(/^ ☆ \$home /);
     // Clicking a star makes that key safe.
     t.click(2, '☆');
     expect(t.store()!.safe).toBe('home');
-    t.input('rkey home base');
-    expect(t.lastText()).toBe('KEYS Renamed $home to $base.');
-    expect(t.store()!.safe).toBe('base');
-    t.input('krename base cave');
-    expect(t.lastText()).toBe('KEYS There is a key $cave already; dkey cave first.');
-    t.input('rkey nope x');
-    expect(t.lastText()).toBe('KEYS No key $nope. Type keys to see your keys.');
-    // Deleting the safe key re-elects the freshest live key.
-    t.input('dkey base');
-    expect(t.lastText()).toBe('KEYS Deleted $base. The safe key is now $lair.');
-    t.input('dkey cave');
-    t.input('dkey lair');
-    expect(t.lastText()).toBe('KEYS Deleted $lair. No keys left: no safe key.');
+    expect(t.lastUi()).toBe('KEYS: Safe key: $home (Ctrl+S teleports, Alt+S quickly).');
+    // dkey, rkey and krename are gone (the pane does it): they go to the game.
+    for (const c of ['dkey home', 'rkey home x', 'krename home x']) t.input(c);
+    expect(t.sent).toEqual(['dkey home', 'rkey home x', 'krename home x']);
+    t.sent.length = 0;
+    // Deleting the safe key (x twice) re-elects the freshest live key.
+    t.click(2, 'x');
+    t.click(2, 'x');
+    expect(t.lastUi()).toBe('KEYS: Deleted $home. The safe key is now $lair.');
+    t.click(1, 'x');
+    t.click(1, 'x');
+    t.click(1, 'x');
+    t.click(1, 'x');
+    expect(t.lastUi()).toBe('KEYS: Deleted $lair. No keys left: no safe key.');
     t.input('tsafe');
     expect(t.lastText()).toBe('KEYS No keys, so no safe key. locatel <name> stores one.');
     expect(t.sent).toEqual([]);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
+  });
+
+  it('a click on a name renames it inline: Enter checks and renames, the error inline; Esc cancels', async () => {
+    const t = await setup();
+    t.input('nkey home aaaaaaa');
+    t.input('nkey cave bbbbbbb');
+    const c = () => t.panes.keys.content;
+    const nameLink = t.panes.keys.content.linkAt(2, 4)!;
+    expect(nameLink.hint.split('\n')[0]).toBe('Click to rename');
+    // home is row 3 (cave, home): click its name.
+    t.panes.keys.events.onLink(t.panes.keys.content.linkAt(2, 4)!.id);
+    const f = () => c().fields[0]!;
+    expect(f()).toMatchObject({ row: 2, col: 4, len: 4, value: 'home', maxLength: 10 });
+    expect(t.panes.keys.view.focused.at(-1)).toEqual([f().id, true]);
+    expect(t.rows()[0]).toBe(' Enter renames $home, Esc cancels');
+    const ev = (e: Parameters<NonNullable<typeof t.panes.keys.events.onField>>[1]) => t.panes.keys.events.onField!(f().id, e);
+    // A redraw (the minute tick) keeps the field and what was typed.
+    ev({ type: 'change', text: 'ca' });
+    const id = f().id;
+    t.clock.advance(60_000);
+    expect(f().id).toBe(id);
+    expect(f().value).toBe('ca');
+    // A taken name: the error inline, the field kept and focused.
+    ev({ type: 'change', text: 'cave' });
+    ev({ type: 'submit', text: 'cave' });
+    expect(t.rows()[0]).toBe(' There is a key $cave already.');
+    expect(f().id).toBe(id);
+    expect(t.panes.keys.view.focused.at(-1)).toEqual([id, false]);
+    ev({ type: 'submit', text: 'bad name' });
+    expect(t.rows()[0]).toBe(' A name is 1 to 10 letters, digits or _.');
+    ev({ type: 'change', text: 'base' });
+    expect(t.rows()[0]).toBe(' Enter renames $home, Esc cancels');
+    ev({ type: 'submit', text: '$base' });
+    expect(c().fields).toEqual([]);
+    expect(t.lastUi()).toBe('KEYS: Renamed $home to $base.');
+    expect(t.store()!.safe).toBe('base');
+    expect(t.rows()[1]).toMatch(/^ ★ \$base /);
+    expect(t.rows()[0]).toMatch(/^ 2 keys +\?$/);
+    // Esc cancels.
+    t.panes.keys.events.onLink(t.panes.keys.content.linkAt(2, 4)!.id);
+    ev({ type: 'change', text: 'zzz' });
+    ev({ type: 'cancel' });
+    expect(c().fields).toEqual([]);
+    expect(t.rows()[2]).toMatch(/^ ☆ \$cave /);
+    expect(t.lib.get('keymanager')!.lastError).toBeNull();
+  });
+
+  it('a settings change redraws at once (sysSettingChanged)', async () => {
+    const t = await setup();
+    t.input('nkey home aaaaaaa');
+    expect(t.rows()[1]).toMatch(/ 12h t p s w x$/);
+    t.input('#script set keymanager hours 10');
+    await t.settle();
+    expect(t.rows()[1]).toMatch(/ 10h t p s w x$/);
+    t.input('#script set keymanager hours 0.5');
+    await t.settle();
+    expect(t.rows()[1]).toMatch(/ 30m t p s w x$/);
   });
 
   it('casts: teleport/portal/scry/watchr, the safe casts and Ctrl+S / Alt+S', async () => {
@@ -502,9 +567,10 @@ describe('bundled keymanager', () => {
     expect(t.rows()[1]).toBe(' ★ $home uxevjobve            12h delete? x');
     t.clock.advance(5000);
     expect(t.rows()[1]).toBe(r);
+    expect(t.linkAt(1, 'x')!.hint).toBe('Delete $home (click twice)');
     t.click(1, 'x');
     t.click(1, 'x');
-    expect(t.lastText()).toBe('KEYS Deleted $home. No keys left: no safe key.');
+    expect(t.lastUi()).toBe('KEYS: Deleted $home. No keys left: no safe key.');
     expect(t.rows()[2]).toBe(' No keys yet.');
   });
 
@@ -520,7 +586,10 @@ describe('bundled keymanager', () => {
     expect(t.rows()[1]).toBe(' ★ $home  12h t p s w x');
     t.resize(16);
     expect(t.rows()[1]).toBe(' ★ $home  12h t');
-    expect(t.rows()[0]).toBe(' Gittan ?');
+    expect(t.rows()[0]).toBe(' 1 key        ?');
+    // No hint on the time left.
+    const l = t.panes.keys.content;
+    expect(l.linkAt(1, t.rows()[1]!.indexOf('12h'))).toBeNull();
   });
 
   it('keys expire: pruned each minute, announced once, the safe key re-elected; time left turns orange', async () => {
@@ -535,11 +604,12 @@ describe('bundled keymanager', () => {
     expect(t.rows()[2]).toMatch(/ 30m t p s w x$/);
     const span = t.panes.keys.content.lines[2]!;
     expect('spans' in span && span.spans.find((s) => s.text === '30m')!.fg).toBeDefined();
+    const n0 = t.uiText().length;
     t.clock.advance(31 * 60_000);
-    expect(t.uiText().filter((x) => x.startsWith('KEYS:'))).toEqual(['KEYS: Key $home expired. The safe key is now $lair.']);
+    expect(t.uiText().slice(n0)).toEqual(['KEYS: Key $home expired. The safe key is now $lair.']);
     expect(t.store()!.safe).toBe('lair');
     t.clock.advance(5 * 60_000);
-    expect(t.uiText().filter((x) => x.startsWith('KEYS:'))).toHaveLength(1);
+    expect(t.uiText().slice(n0)).toHaveLength(1);
     // On use: cave has expired by now (11 h + …).
     t.clock.advance(2 * HOUR);
     expect(t.uiText().at(-1)).toBe('KEYS: Key $cave expired.');
@@ -566,7 +636,7 @@ describe('bundled keymanager', () => {
     t.input('nkey home aaaaaaa');
     t.gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Orc' });
     t.clock.advance(1);
-    expect(t.rows()[0]).toMatch(/^ Rasta +0 keys  \?$/);
+    expect(t.rows()[0]).toMatch(/^ 0 keys +\?$/);
     t.input('teleport home');
     expect(t.sent).toEqual([]);
     t.input('nkey home zzzzzzz');
@@ -574,7 +644,7 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(["cast n 'teleport' zzzzzzz"]);
     t.gmcp('Char.Name', { name: 'gittan', fullname: 'Gittan the Tester' });
     t.clock.advance(1);
-    expect(t.rows()[0]).toMatch(/^ Gittan +1 key  \?$/);
+    expect(t.rows()[0]).toMatch(/^ 1 key +\?$/);
     t.input('teleport home');
     expect(t.sent.at(-1)).toBe("cast n 'teleport' aaaaaaa");
     // A reload keeps them.
