@@ -203,10 +203,24 @@ const burstMapText = (() => {
 
 const MAP_CONTENT = '.wc-pane-map .wc-pane-content';
 
-/** Opens the page with the Map pane explicitly off or on (then waits for its first complete frame). */
+/**
+ * Opens the page with the Map pane explicitly off or on (then waits for
+ * its first complete frame). With the map on, three script map marks
+ * blink for the whole run (ADR 0057 gate: marks stay within the map
+ * budgets).
+ */
 async function open(t: Target, map: boolean): Promise<Page> {
   const page = await openBench(t, base, { settings: mapSetting(map) });
-  if (map) await O.waitMap(page);
+  if (map) {
+    await O.waitMap(page);
+    await page.evaluate(() => {
+      const hub = window.__wcBench!.app!.mapMarks;
+      const style = { color: 0xff40ff, blink: true, fade: 0, arrows: true };
+      for (const name of ['Old East Road', 'Grassy Plains', 'Dark Forest']) {
+        hub.mark({ query: { name, max: 20 } }, style, 3_600_000, false, { marked: () => {}, ended: () => {} });
+      }
+    });
+  }
   return page;
 }
 

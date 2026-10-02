@@ -92,3 +92,63 @@ test('the HTML replay starts the inline map worker from file://', async ({ page,
   expect(errors).toEqual([]);
   await context.close();
 });
+
+test('script map marks: a scry marks its room on the map for 15 s (ADR 0057)', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } } }));
+  const content = page.locator('.wc-pane-map .wc-pane-content');
+  await expect(content).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
+  // Locate the player: the map-demo walk ends on Hill Road.
+  await page.evaluate(async () => {
+    const text = await (await fetch('/__fixtures/map-demo.log')).text();
+    window.__wc!.app.startReplay(text, 'map-demo.log', 0);
+  });
+  await expect(content).toHaveAttribute('data-map-room', '26971', { timeout: 15_000 });
+  const input = page.locator('.wc-input-field');
+  await input.focus();
+  await page.keyboard.type('#script enable keymanager');
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => {
+    const bus = window.__wc!.app.bus;
+    const data = { name: 'Gittan', fullname: 'Gittan the Tester' };
+    bus.emit('gmcp.raw', { pkg: 'Char.Name', json: JSON.stringify(data) });
+    bus.emit('gmcp', { pkg: 'Char.Name', key: 'char.name', data });
+  });
+  await expect(page.locator('.wc-pane[data-pane="keymanager/keys"]')).toContainText('0 keys');
+  // A scry's lines, as MUME sends them (format from the Mudlet script).
+  const t0 = Date.now();
+  await page.evaluate(() => {
+    const bus = window.__wc!.app.bus;
+    const line = (text: string) => bus.emit('text.line', { text, runs: [], tags: [], prompt: false, raw: text, ts: 0 });
+    line('You let your inner eye find the area... and you see:');
+    line('Hill Road');
+    line('');
+    line('Ok.');
+  });
+  await expect(content).toHaveAttribute('data-map-marks', '1', { timeout: 5000 });
+  await expect(page.locator('.wc-output')).toContainText(/TV scry: scried; (on the map|\d+ rooms named "Hill Road")/);
+  if (SHOT_DIR) {
+    await page.waitForTimeout(600);
+    await content.screenshot({ path: `${SHOT_DIR}/map-mark-${test.info().project.name}.png` });
+  }
+  // Gone after 15 s.
+  await expect(content).toHaveAttribute('data-map-marks', '0', { timeout: 25_000 });
+  expect(Date.now() - t0).toBeGreaterThan(14_000);
+  // Map pane off: nothing is marked, the KEYS line says so.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: false } } }));
+  await page.evaluate(() => {
+    const bus = window.__wc!.app.bus;
+    const line = (text: string) => bus.emit('text.line', { text, runs: [], tags: [], prompt: false, raw: text, ts: 0 });
+    line('You let your inner eye find the area... and you see:');
+    line('Hill Road');
+    line('');
+    line('Ok.');
+  });
+  await expect(page.locator('.wc-output')).toContainText('TV scry: scried (map off).');
+  expect(errors).toEqual([]);
+});

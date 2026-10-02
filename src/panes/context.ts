@@ -143,6 +143,7 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     sessionStorage: p.sessionStorage === undefined ? storage('sessionStorage') : p.sessionStorage,
     game: p.game ?? new GameState({ now }),
     ...(p.map ? { map: p.map } : {}),
+    ...(p.mapMarks ? { mapMarks: p.mapMarks } : {}),
     ...(p.player ? { player: true } : {}),
   };
 }
