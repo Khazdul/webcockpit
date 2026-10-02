@@ -25,6 +25,26 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Lua help, stage 10 done, release 0.1.24
+
+- **Lua help (owner feedback):**
+  - the editor shows pop-ups for every sandbox Lua function and keyword
+    (`lua-ref.ts`, checked against the live sandbox);
+  - signature help with the current parameter marked;
+  - snippets for keywords;
+  - the manual gains "Lua basics", "Lua patterns" and a generated Lua
+    library index, but not the whole Lua manual (owner agreed).
+- **Stage 10:** done. Coin looter feedback from live play becomes fixes.
+- **Released:** 0.1.24 (tag v0.1.24). Local `build:pages` green, Pages
+  deploy OK, live `release.json` reports 0.1.24 at 994191b, prod smoke
+  10/10.
+- **Next (new session):** stage 11, script panes and mercenaries
+  (`docs/stages/11-script-panes.md`, starting points listed). Stage 12
+  waits for the owner's Mudlet key manager script. Stage 8 part D owner
+  test is still open.
+- **Commits:** 6cc16b5, f9d0e07, bd8b5c9, 8fd80c2, c2edd38, 994191b,
+  242447a, plus this one.
+
 ### 2026-10-02 — Script GMCP fixes, pixel scrolling in panes
 
 - **Script API:**
