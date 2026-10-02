@@ -25,6 +25,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 4 built: TV for watch room and scry
+
+- **Owner:** round 3 approved; `cast q 'teleport'` and long names
+  verified in MUME.
+- **Built:** `copy2cecho()`, more temporary pane places; TV panes
+  (`tv1`–`tv4`, corners) with coloured lines, status in the title,
+  learnt watch length, `tvgag`/`tvclose`, `tv`, `kecho` (ADR 0054).
+- **Verified:** typecheck, unit 1837, e2e 375/376 (new scroll test flaked
+  once under load, 36/36 repeated), build green.
+- **Open:** TV line formats from the Mudlet script, unverified in MUME;
+  failure lines unverified; TV history is memory only.
+- **Next:** owner test round 4; release 0.1.28 when the owner says so.
+- **Commits:** 54b3537, 9e6fc4d, 2b81d59, d349d9d, 928e952, plus this one.
+
 ### 2026-10-02 — Stage 12 feedback round 2 built
 
 - **Owner:** the rename field showed the old name through it; a click
