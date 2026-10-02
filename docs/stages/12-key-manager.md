@@ -168,9 +168,33 @@ recording yet); with many matches the 20 nearest are marked.
 - [x] Round 4: TV for scry and watch room (plan above, ADR 0054).
 - [x] Owner test round 4.
 - [x] Round 5: round 4 feedback (colours, prompt gag, steady hover, ADR 0056).
-- [ ] Round 6: scry marks on the map (ADR 0057).
+- [x] Round 6: scry marks on the map (ADR 0057).
+- [ ] Owner test round 6.
 
 ## Test guide
+
+### Round 6: scry on the map
+
+**The scry format is unverified** (no log has a scry): the script takes
+the first line after `You let your inner eye find the area... and you
+see:` as the room's name, the following lines as its description and
+the `Exits:` line as its exits. If a scry is not found on the map, please
+paste the real scry output (the header and the lines after it) into the
+feedback.
+
+Try (with the Map pane on, after `#script enable keymanager`):
+
+1. `scry <key>`: the room blinks magenta on the map for 15 s, the map
+   zooms out to show you and it, then goes back. The KEYS line says `on
+   the map`, how many rooms with that name were marked (the 20 nearest),
+   or that the name is not on the map.
+2. During the 15 s, drag or zoom the map: when the mark ends the map
+   stays where you put it.
+3. A scried room off the view: an arrow at the map's edge points to it.
+4. Turn the Map pane off and scry: the KEYS line says `(map off)`.
+
+Feedback wanted: is the room the right one; is 15 s and the zoom-out
+right; does the blink and the magenta read well on your map.
 
 ### Round 5
 

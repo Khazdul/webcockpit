@@ -54,9 +54,11 @@ nearest matches.
   scene at most every 66 ms (15 Hz): `alpha = envelope × (0.55 + 0.45 ·
   cos 2πt)` with a 1 s period (`blink`), the envelope 1 and falling
   linearly over the last `fade` seconds. The loop stops with the last
-  mark and while the pane is hidden (a hidden pane's marks expire on
-  time; a mark never outlives its duration). `markEnded` is posted at the
-  end; a map load drops every mark silently.
+  mark and while the pane is hidden. A hidden pane's marks are checked
+  when it is shown again and on every message to the worker, so a mark
+  never shows past its end, but its `markEnded` may come late while the
+  pane is hidden (the hub then counts it as live a little longer).
+  `markEnded` is posted at the end; a map load ends every mark.
 - `Scene.marks` (optional, additive): `{rooms, color, alpha, label,
   arrows}`. The renderer stays clock-free; `buildScene` draws marks
   before the group and the player (`CharBatch.drawMark`): per room a
@@ -121,6 +123,21 @@ on the map.`, `scried (map off).`
 Live only for now: marks are not recorded, so the log player and the
 HTML replay do not show them. A later `ESC MAPMARK` record (positions,
 style) can add them.
+
+## Package notes (2026-10-02)
+
+- `src/map/query.ts` (`findRooms`, `parseExits`), `src/map/marks.ts`
+  (`MapMarkHub`, `ScriptMapSurface`), `view.ts` `fitRooms`,
+  `render/characters.ts` `drawMark`, `worker/core.ts` (marks, loop,
+  focus), protocol and scene additions, `PaneContext.mapMarks`,
+  `App.mapMarks`, the pane's port, host `mapMark`/`mapUnmark`/`mapFind`.
+- An empty Lua table reads as an object in the host; `lines = {}` is
+  accepted as an empty list.
+- The key manager no longer replaces the scry header with a KEYS line
+  (with `tvgag` it is gagged); the KEYS TV line with the map's answer
+  follows the block instead, so it says one thing once.
+- Bench gate: with the map on, `bench/browser-bench.ts` keeps three marks
+  (20 rooms each, blinking, arrows) live for the whole run.
 
 ## Consequences
 
