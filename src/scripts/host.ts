@@ -37,7 +37,7 @@
 import type { Bus } from '../core/bus';
 import { gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
-import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId } from '../layout/types';
+import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
 import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
@@ -108,7 +108,13 @@ interface PaneReg {
   owner: Owner;
   /** The Lua object's handle. */
   handle: number;
+  /** The script's own id for it (`createPane{id=…}`). */
+  name: string;
   id: ScriptPaneId;
+  /** `createPane{temporary = true}`: never in the settings. */
+  temporary: boolean;
+  /** `pane:onClose(fn)`: called when the user closes a temporary pane. */
+  onClose: LuaRef | null;
   content: PaneContent;
   view: ScriptPaneView;
   /** Link id → the link's function. */
@@ -923,11 +929,16 @@ export class ScriptHost {
   /** `createPane` and the `Pane` methods (spec §2.10 "Panes", ADR 0053). */
   private definePanes(rt: LuaRuntime): void {
     const id = (): number => ++this.seq;
-    /** The pane `self` (argument 1) of the running script. */
-    const self = (a: LuaArgs): PaneReg => {
+    /**
+     * The pane `self` (argument 1) of the running script, or null when it
+     * was closed (`pane:close()`, the user's close cross): method calls on
+     * a closed pane do nothing.
+     */
+    const self = (a: LuaArgs): PaneReg | null => {
       const o = this.cur(rt);
       const p = this.paneHandles.get(a.object(1, cls));
-      if (!p || p.owner !== o) throw new Error(`${a.name}: the pane is closed`);
+      if (!p) return null;
+      if (p.owner !== o) throw new Error(`${a.name}: the pane belongs to another script`);
       return p;
     };
     const row = (a: LuaArgs, i: number): number => {
@@ -948,26 +959,31 @@ export class ScriptHost {
     const cls: LuaClass = rt.defineClass('Pane', {
       clear: (a) => {
         const p = self(a);
+        if (!p) return;
         p.content.clear();
         done(p);
       },
       echo: (a) => {
         const p = self(a);
+        if (!p) return;
         p.content.append(plain(a.string(2)));
         done(p);
       },
       cecho: (a) => {
         const p = self(a);
+        if (!p) return;
         p.content.append(parseCecho(a.string(2)));
         done(p);
       },
       setLine: (a) => {
         const p = self(a);
+        if (!p) return;
         p.content.setLine(row(a, 2), parseCecho(a.optString(3, '')));
         done(p);
       },
       gauge: (a) => {
         const p = self(a);
+        if (!p) return;
         const r = row(a, 2);
         const t = a.table(3);
         if (Array.isArray(t)) throw new Error(`bad argument #3 to '${a.name}' (a table with value and max expected)`);
@@ -989,6 +1005,7 @@ export class ScriptHost {
       },
       cechoLink: (a) => {
         const p = self(a);
+        if (!p) return;
         const text = parseCecho(a.string(2));
         const ref = a.function(3);
         const hint = a.optString(4, '');
@@ -999,6 +1016,7 @@ export class ScriptHost {
       },
       setLink: (a) => {
         const p = self(a);
+        if (!p) return;
         const r = row(a, 2);
         const col = a.number(3);
         const len = a.number(4);
@@ -1018,22 +1036,41 @@ export class ScriptHost {
         done(p);
       },
       size: (a) => {
-        const { cols, rows } = self(a).view.size();
+        const { cols, rows } = self(a)?.view.size() ?? { cols: 0, rows: 0 };
         return rt.multi(rows, cols);
       },
       onResize: (a) => {
         const p = self(a);
         const ref = a.optFunction(2);
+        if (!p) {
+          if (ref !== null) this.cur(rt).script?.release(ref);
+          return;
+        }
         if (p.resize !== null) p.owner.script?.release(p.resize);
         p.resize = ref;
       },
-      show: (a) => self(a).view.setOn(true),
-      hide: (a) => self(a).view.setOn(false),
-      visible: (a) => self(a).view.isOn(),
+      onClose: (a) => {
+        const p = self(a);
+        const ref = a.optFunction(2);
+        if (!p) {
+          if (ref !== null) this.cur(rt).script?.release(ref);
+          return;
+        }
+        if (p.onClose !== null) p.owner.script?.release(p.onClose);
+        p.onClose = ref;
+      },
+      show: (a) => self(a)?.view.setOn(true),
+      hide: (a) => self(a)?.view.setOn(false),
+      visible: (a) => self(a)?.view.isOn() ?? false,
       setTitle: (a) => {
         const p = self(a);
+        if (!p) return;
         p.content.setTitle(a.string(2));
         done(p);
+      },
+      close: (a) => {
+        const p = self(a);
+        if (p) this.closePane(p);
       },
     });
 
@@ -1046,6 +1083,10 @@ export class ScriptHost {
         throw new Error(`bad argument #1 to 'createPane' (id must be 1 to 32 letters, digits, _ or -)`);
       }
       const title = t.title === undefined ? undefined : String(t.title);
+      const temporary = t.temporary;
+      if (temporary !== undefined && typeof temporary !== 'boolean') {
+        throw new Error(`bad argument #1 to 'createPane' (temporary must be true or false)`);
+      }
       const old = o.panes.get(name);
       if (old) {
         // Reload-safe: the same pane again (a new title applies).
@@ -1067,9 +1108,20 @@ export class ScriptHost {
       };
       const rows = size('rows', PANE_DEFAULT_ROWS, PANE_MAX_ROWS);
       const cols = size('cols', PANE_DEFAULT_COLS, PANE_MAX_COLS);
-      const pid = scriptPaneId(o.name, name);
+      const temp = temporary === true;
+      const pid = temp ? tempPaneId(o.name, name) : scriptPaneId(o.name, name);
       const handle = id();
-      const reg = { owner: o, handle, id: pid, links: new Map(), resize: null, lastSize: '' } as unknown as PaneReg;
+      const reg = {
+        owner: o,
+        handle,
+        name,
+        id: pid,
+        temporary: temp,
+        onClose: null,
+        links: new Map(),
+        resize: null,
+        lastSize: '',
+      } as unknown as PaneReg;
       reg.content = new PaneContent(title ?? name, {
         onDrop: (n) => {
           const ref = reg.links.get(n);
@@ -1081,13 +1133,47 @@ export class ScriptHost {
       const events = {
         onLink: (n: number) => this.onPaneLink(reg, n),
         onResize: (c: number, r: number) => this.onPaneResize(reg, c, r),
+        onClose: () => this.onPaneClosed(reg),
       };
       const place = { dock: dock as DockId | 'float', rows, cols };
-      reg.view = this.o.panes?.open({ id: pid, place }, reg.content, events) ?? headlessView();
+      const spec = temp ? { id: pid, place, temporary: { rows, cols } } : { id: pid, place };
+      reg.view = this.o.panes?.open(spec, reg.content, events) ?? headlessView();
       o.panes.set(name, reg);
       this.paneHandles.set(handle, reg);
       return rt.object(cls, handle);
     });
+  }
+
+  /**
+   * Closes pane `p` (`pane:close()`, or the user closed a temporary pane):
+   * it leaves the screen, its functions are released and its methods do
+   * nothing from now on; `createPane` with its id makes a new one. An
+   * ordinary pane's place and toggles stay in the settings.
+   */
+  private closePane(p: PaneReg): void {
+    if (this.paneHandles.get(p.handle) !== p) return;
+    this.paneHandles.delete(p.handle);
+    if (p.owner.panes.get(p.name) === p) p.owner.panes.delete(p.name);
+    const s = p.owner.script;
+    for (const ref of p.links.values()) s?.release(ref);
+    p.links.clear();
+    if (p.resize !== null) s?.release(p.resize);
+    p.resize = null;
+    if (p.onClose !== null) s?.release(p.onClose);
+    p.onClose = null;
+    p.view.close();
+  }
+
+  /** The user closed a temporary pane with its cross: close it, then call its `onClose` handler. */
+  private onPaneClosed(p: PaneReg): void {
+    if (p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    const ref = p.onClose;
+    p.onClose = null;
+    this.closePane(p);
+    if (ref !== null) {
+      this.call(p.owner, ref);
+      if (!p.owner.dead) p.owner.script?.release(ref);
+    }
   }
 
   private onPaneLink(p: PaneReg, n: number): void {

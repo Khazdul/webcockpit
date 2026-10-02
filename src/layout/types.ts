@@ -27,12 +27,30 @@ export const SCRIPT_PANE_NAME = /^[A-Za-z0-9_-]{1,32}$/;
 /** A whole script pane id: a script name (header.ts rules), `/`, a pane name. */
 const SCRIPT_PANE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,31}\/[A-Za-z0-9_-]{1,32}$/;
 
+/**
+ * A temporary script pane's id (ADR 0053, feedback round 1):
+ * `<script>/~<pane id>`. The `~` keeps it apart from an ordinary pane of
+ * the same name, and `isScriptPaneId` is false for it, so the settings,
+ * their migration, Options and the viewer's gear never take it.
+ */
+const TEMP_PANE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,31}\/~[A-Za-z0-9_-]{1,32}$/;
+
+/** True for a temporary script pane's id (`<script>/~<pane id>`). */
+export function isTempPaneId(id: unknown): id is ScriptPaneId {
+  return typeof id === 'string' && TEMP_PANE_ID.test(id);
+}
+
+/** The id of a script's temporary pane `pane`. */
+export function tempPaneId(script: string, pane: string): ScriptPaneId {
+  return `${script}/~${pane}`;
+}
+
 /** True for a built-in pane id. */
 export function isBuiltinPaneId(id: unknown): id is BuiltinPaneId {
   return typeof id === 'string' && (PANE_IDS as readonly string[]).includes(id);
 }
 
-/** True for a well-formed script pane id (`<script>/<pane>`). */
+/** True for a well-formed (ordinary, not temporary) script pane id (`<script>/<pane>`). */
 export function isScriptPaneId(id: unknown): id is ScriptPaneId {
   return typeof id === 'string' && SCRIPT_PANE_ID.test(id);
 }

@@ -3,8 +3,9 @@
 //
 //   <json> = null                      the pane went away (its script
 //                                      stopped or closed it)
-//          | {"title","lines","links"} a full snapshot (PaneSnapshot)
-//          | {"n":N, "set":{"<row>":line, …}, "title"?, "links"?}
+//          | {"title","lines","links","temp"?}
+//                                      a full snapshot (PaneSnapshot)
+//          | {"n":N, "set":{"<row>":line, …}, "title"?, "links"?, "temp"?}
 //                                      a delta against the pane's previous
 //                                      record in the same run: the content
 //                                      has N lines; the rows in `set`
@@ -15,6 +16,11 @@
 //
 // A row in `set` is a whole line, or `{"v"?: value, "l"?: label}` for a
 // gauge that only changed its value or label (the common countdown).
+//
+// `temp` marks a temporary pane (feedback round 1; its id is
+// `<script>/~<pane>`): `{"rows","cols","rect"?,"off"?}`, its wanted
+// content size, its outer rectangle once moved, and `off` while hidden.
+// It is in every full record of such a pane and in a delta when changed.
 //
 // The recorder writes a pane's first record in a run as a full snapshot,
 // and later ones as a delta when it is shorter, with a full one again at
@@ -28,7 +34,17 @@
 // Everything read back is checked and capped (`sanitizeSnapshot`): a
 // shared HTML replay is someone else's file.
 
-import { MAX_HINT, MAX_LINE_CELLS, MAX_LINES, MAX_TITLE, type PaneGauge, type PaneLine, type PaneSnapshot, type PaneSpan } from './script-content';
+import {
+  MAX_HINT,
+  MAX_LINE_CELLS,
+  MAX_LINES,
+  MAX_TITLE,
+  type PaneGauge,
+  type PaneLine,
+  type PaneSnapshot,
+  type PaneSpan,
+  type PaneTemp,
+} from './script-content';
 
 /** What the recorder keeps of a pane's last written record, to diff the next one against. */
 export interface PaneRecordState {
@@ -37,13 +53,15 @@ export interface PaneRecordState {
   lines: string[];
   /** JSON of the link list. */
   links: string;
+  /** JSON of `temp` ('' for an ordinary pane). */
+  temp: string;
 }
 
 const lineJson = (l: PaneLine): string => JSON.stringify(l);
 
 /** The state of a pane as recorded by `s`. */
 export function recordState(s: PaneSnapshot): PaneRecordState {
-  return { title: s.title, lines: s.lines.map(lineJson), links: JSON.stringify(s.links) };
+  return { title: s.title, lines: s.lines.map(lineJson), links: JSON.stringify(s.links), temp: s.temp ? JSON.stringify(s.temp) : '' };
 }
 
 /** A changed pane gets a full record at least this often, µs. */
@@ -60,7 +78,8 @@ export function encodePaneRecord(
   forceFull = false,
 ): { payload: string; state: PaneRecordState; full: boolean } | null {
   const state = recordState(next);
-  const full = `{"title":${JSON.stringify(state.title)},"lines":[${state.lines.join(',')}],"links":${state.links}}`;
+  const tempPart = state.temp ? `,"temp":${state.temp}` : '';
+  const full = `{"title":${JSON.stringify(state.title)},"lines":[${state.lines.join(',')}],"links":${state.links}${tempPart}}`;
   if (!prev) return { payload: full, state, full: true };
   const set: string[] = [];
   const n = state.lines.length;
@@ -72,12 +91,14 @@ export function encodePaneRecord(
   }
   const titleChanged = state.title !== prev.title;
   const linksChanged = state.links !== prev.links;
-  if (set.length === 0 && n === prev.lines.length && !titleChanged && !linksChanged) return null;
+  const tempChanged = state.temp !== prev.temp && state.temp !== '';
+  if (set.length === 0 && n === prev.lines.length && !titleChanged && !linksChanged && !tempChanged) return null;
   if (forceFull) return { payload: full, state, full: true };
   let delta = `{"n":${n}`;
   if (set.length) delta += `,"set":{${set.join(',')}}`;
   if (titleChanged) delta += `,"title":${JSON.stringify(state.title)}`;
   if (linksChanged) delta += `,"links":${state.links}`;
+  if (tempChanged) delta += tempPart;
   delta += '}';
   return delta.length < full.length ? { payload: delta, state, full: false } : { payload: full, state, full: true };
 }
@@ -137,11 +158,37 @@ export function applyPaneRecord(prev: PaneSnapshot | null, json: string): PaneSn
       if (line) lines[row] = line;
     }
   }
-  return {
+  const out: PaneSnapshot = {
     title: typeof v.title === 'string' ? v.title.slice(0, MAX_TITLE) : base.title,
     lines,
     links: Array.isArray(v.links) ? sanitizeLinks(v.links, n) : base.links.filter((l) => l.row < n),
   };
+  const temp = v.temp !== undefined ? sanitizeTemp(v.temp) : base.temp;
+  if (temp) out.temp = temp;
+  return out;
+}
+
+/** Largest recorded temporary pane size and rectangle coordinate, cells. */
+const MAX_TEMP_CELLS = 1000;
+
+/** A recorded `temp`, checked and capped; undefined when malformed. */
+function sanitizeTemp(t: unknown): PaneTemp | undefined {
+  if (!isObject(t)) return undefined;
+  const cells = (v: unknown, min: number): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(min, Math.min(MAX_TEMP_CELLS, Math.round(v))) : null;
+  const rows = cells(t.rows, 1);
+  const cols = cells(t.cols, 1);
+  if (rows === null || cols === null) return undefined;
+  const out: PaneTemp = { rows, cols };
+  if (isObject(t.rect)) {
+    const x = cells(t.rect.x, 0);
+    const y = cells(t.rect.y, 0);
+    const w = cells(t.rect.w, 1);
+    const h = cells(t.rect.h, 1);
+    if (x !== null && y !== null && w !== null && h !== null) out.rect = { x, y, w, h };
+  }
+  if (t.off === true) out.off = true;
+  return out;
 }
 
 type Obj = Record<string, unknown>;
@@ -209,11 +256,14 @@ function sanitizeLinks(links: unknown[], rows: number): PaneSnapshot['links'] {
 export function sanitizeSnapshot(v: Obj): PaneSnapshot {
   const raw = Array.isArray(v.lines) ? v.lines.slice(-MAX_LINES) : [];
   const lines = raw.map((l) => sanitizeLine(l) ?? { spans: [] });
-  return {
+  const out: PaneSnapshot = {
     title: typeof v.title === 'string' ? v.title.slice(0, MAX_TITLE) : '',
     lines,
     links: Array.isArray(v.links) ? sanitizeLinks(v.links, lines.length) : [],
   };
+  const temp = sanitizeTemp(v.temp);
+  if (temp) out.temp = temp;
+  return out;
 }
 
 /** Splits a SPANE record body (`<id> <json>`) into the pane id and its JSON, or null. */

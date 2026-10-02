@@ -934,6 +934,102 @@ describe('panes', () => {
     expect(panes.get('m/main')).toBeUndefined();
   });
 
+  it('temporary = true opens a temporary pane (<script>/~<id>); the cross closes it and calls onClose', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        c: src(`
+          local ok, err = pcall(createPane, {id = "bad", temporary = "yes"})
+          send(err)
+          pick = createPane{id = "pick", title = "Pick one", temporary = true, rows = 3, cols = 24, dock = "left"}
+          pick:setLine(1, "[a] [b]")
+          pick:setLink(1, 1, 3, function() send("a") end, "A")
+          pick:onClose(function() send("closed " .. tostring(pick:visible())) end)
+          tempAlias("^again$", function()
+            local p2 = createPane{id = "pick", temporary = true}
+            send(tostring(p2 == pick))
+            p2:echo("new")
+          end)
+          tempAlias("^hide$", function() pick:hide(); send(tostring(pick:visible())) end)
+          tempAlias("^use$", function()
+            pick:echo("x"); pick:setLine(2, "y"); pick:setTitle("T"); pick:show(); pick:clear()
+            pick:onResize(function() end); pick:onClose(function() end)
+            local r, c = pick:size()
+            send(r .. "," .. c .. "," .. tostring(pick:visible()))
+            pick:close()
+          end)
+        `),
+      },
+      { panes },
+    );
+    expect(t.sent[0]).toContain("bad argument #1 to 'createPane' (temporary must be true or false)");
+    const p = panes.get('c/~pick')!;
+    expect(p.spec).toEqual({ id: 'c/~pick', place: { dock: 'left', rows: 3, cols: 24 }, temporary: { rows: 3, cols: 24 } });
+    t.engine.run('hide');
+    expect(p.view.on).toBe(false);
+    expect(t.sent.at(-1)).toBe('false');
+    const script = (t.host as unknown as { owners: Map<string, { script: { refs: Set<number> } }> }).owners.get('c')!.script;
+    const refs = script.refs.size;
+    // The user closes it: closed first, then the handler (its methods are no-ops now).
+    p.events.onClose!();
+    expect(p.view.closed).toBe(true);
+    expect(t.sent.at(-1)).toBe('closed false');
+    // The link and the handler are released.
+    expect(script.refs.size).toBe(refs - 2);
+    p.events.onLink(p.content.links[0]!.id);
+    expect(t.sent.at(-1)).toBe('closed false');
+    p.events.onClose!();
+    expect(t.sent.filter((m) => m.startsWith('closed'))).toHaveLength(1);
+    // Calls on the closed object do nothing.
+    t.engine.run('use');
+    expect(t.sent.at(-1)).toBe('0,0,false');
+    expect(t.lib.get('c')!.lastError).toBeNull();
+    // createPane with the same id makes a new one.
+    t.engine.run('again');
+    expect(t.sent.at(-1)).toBe('false');
+    const p2 = panes.get('c/~pick')!;
+    expect(p2).not.toBe(p);
+    expect(paneText(p2.content)).toEqual(['new']);
+  });
+
+  it('pane:close() takes any pane away without onClose; createPane opens it again', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        k: src(`
+          p = createPane{id = "p"}
+          p:onClose(function() send("onClose") end)
+          t = createPane{id = "t", temporary = true}
+          t:onClose(function() send("onClose") end)
+          tempAlias("^close$", function() p:close(); t:close(); p:close(); send("ok") end)
+          tempAlias("^open$", function() p = createPane{id = "p"}; p:echo("back") end)
+        `),
+      },
+      { panes },
+    );
+    const a = panes.get('k/p')!;
+    const b = panes.get('k/~t')!;
+    t.engine.run('close');
+    expect(t.sent).toEqual(['ok']);
+    expect(a.view.closed).toBe(true);
+    expect(b.view.closed).toBe(true);
+    // The ordinary pane's on/off is not touched by close.
+    expect(a.view.on).toBe(true);
+    t.engine.run('open');
+    expect(paneText(panes.get('k/p')!.content)).toEqual(['back']);
+  });
+
+  it('temporary panes are released on disable like other panes', async () => {
+    const panes = new FakeSurface();
+    const t = await setup({ d: src(`t = createPane{id = "t", temporary = true}; t:onClose(function() send("x") end)`) }, { panes });
+    const v = panes.get('d/~t')!;
+    await t.lib.setEnabled('d', false);
+    await t.settle();
+    expect(v.view.closed).toBe(true);
+    v.events.onClose!();
+    expect(t.sent).toEqual([]);
+  });
+
   it('a pane without a surface keeps its content and reports 0 x 0', async () => {
     const t = await setup({ h: src(`p = createPane{id = "p"}; p:echo("x"); local r, c = p:size(); send(r .. "," .. c .. "," .. tostring(p:visible()))`) });
     expect(t.sent).toEqual(['0,0,true']);

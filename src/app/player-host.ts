@@ -42,13 +42,17 @@
 // connect drops the previous run's panes (each run starts with the
 // present ones in full). Placement and on/off come from the VIEW records;
 // the viewer's pane toggles list the script panes of the whole log.
+// A temporary pane (`<script>/~<id>`, feedback round 1) carries its size,
+// place and on/off in its records (`temp`): it floats where the player saw
+// it, is not in the viewer's toggles, and its close cross hides it until
+// it goes away. Spotlights hide temporary panes too (`hideTempPanes`).
 
 import type { RunLibrary } from '../runs/library';
 import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
 import { paneSettingsOf } from '../settings/types';
-import { PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, paneScript } from '../layout/types';
+import { PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
 import { PaneContent, type PaneSnapshot } from '../panes/script-content';
 import { ScriptPane } from '../panes/script-pane';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
@@ -166,6 +170,10 @@ export class PlayerHost {
   private applying = false;
   /** Script pane ids with records in the open log (the viewer's toggles). */
   private scriptIds: ScriptPaneId[] = [];
+  /** Temporary script panes are not shown (Spotlights). */
+  private tempHidden = false;
+  /** Drops the temporary panes the current build shows. */
+  private dropTemps: () => void = () => {};
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -205,6 +213,12 @@ export class PlayerHost {
   /** Script pane ids with records in the open log, in order of appearance. */
   get scriptPaneIds(): readonly ScriptPaneId[] {
     return this.scriptIds;
+  }
+
+  /** Shows no temporary script panes from now on (Spotlights). */
+  hideTempPanes(): void {
+    this.tempHidden = true;
+    this.dropTemps();
   }
 
   /** The player view (stage 7 modes: refresh, cursor). */
@@ -323,7 +337,7 @@ export class PlayerHost {
     });
     this.relayout();
     // Script panes (ADR 0053 P1): the recorded content, drawn without Lua.
-    const spanes = new Map<ScriptPaneId, { snap: PaneSnapshot; pane: ScriptPane }>();
+    const spanes = new Map<ScriptPaneId, { snap: PaneSnapshot; pane: ScriptPane; closed?: boolean }>();
     const dropPane = (id: ScriptPaneId): void => {
       const p = spanes.get(id);
       if (!p) return;
@@ -331,24 +345,48 @@ export class PlayerHost {
       app.cockpit.removePane(id);
       p.pane.dispose();
     };
+    this.dropTemps = () => {
+      for (const id of [...spanes.keys()]) if (isTempPaneId(id)) dropPane(id);
+    };
     const spane = (body: string): void => {
       const rec = splitPaneRecord(body);
-      if (!rec || !isScriptPaneId(rec.id)) return;
-      const id = rec.id;
+      if (!rec) return;
+      const temp = isTempPaneId(rec.id);
+      if (!temp && !isScriptPaneId(rec.id)) return;
+      if (temp && this.tempHidden) return;
+      const id = rec.id as ScriptPaneId;
       const cur = spanes.get(id);
       const snap = applyPaneRecord(cur?.snap ?? null, rec.json);
       if (!snap) return dropPane(id);
+      // A temporary pane's place and on/off (the size of a new one if the record lacks it).
+      const t = snap.temp ?? { rows: 8, cols: 30 };
       if (cur) {
         cur.snap = snap;
         cur.pane.model.load(snap);
         cur.pane.changed();
+        if (temp) app.cockpit.setTempPane(id, { on: !t.off && !cur.closed, rect: t.rect ?? null });
         return;
       }
       const pane = new ScriptPane(app.cockpit.paneContext, id, {
         content: PaneContent.fromSnapshot(snap),
         onTitle: () => app.cockpit.paneRetitled(id),
       });
-      spanes.set(id, { snap, pane });
+      const entry: { snap: PaneSnapshot; pane: ScriptPane; closed?: boolean } = { snap, pane };
+      spanes.set(id, entry);
+      if (temp) {
+        app.cockpit.addPane(pane, {
+          rows: t.rows,
+          cols: t.cols,
+          rect: t.rect ?? null,
+          on: !t.off,
+          // The viewer's close cross hides it until it goes away.
+          onClose: () => {
+            entry.closed = true;
+            app.cockpit.setTempPane(id, { on: false });
+          },
+        });
+        return;
+      }
       app.cockpit.addPane(pane);
       this.view?.refresh();
     };

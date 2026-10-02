@@ -519,7 +519,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, dock, rows, cols} → pane",
+    "createPane{id, title, dock, rows, cols, temporary} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
@@ -528,12 +528,14 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("dock", "string?", "Where it goes the first time: \"right\" (default), \"left\", \"top\", \"bottom\" or \"float\"."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
+        p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats centred over the game text at rows × cols, above the other panes, is never listed in Options or remembered, and its close cross closes it (pane:close)."),
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
         "dock, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes lists it with its title and script, to switch it off, colour it or drop its border.",
         "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
         "Rows and columns count from 1. Text wider than the pane is cut; more lines than fit show the newest, with ↑ N more rows on top. A pane keeps at most 500 lines.",
+        "A temporary pane ignores dock. The player can still move and resize it while it is open. It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
       ],
       example:
         'local pane = createPane{id = "hp", title = "Health", dock = "right", rows = 3}\npane:gauge(1, {value = 80, max = 120, color = "green", label = "HP 80/120"})',
@@ -666,7 +668,9 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "Switches the pane on, as its row in Options → Panes does.",
     {
       params: [p("pane", "pane", "A pane from createPane.")],
-      more: ["On and off are the player's setting, kept across sessions; the close cross switches a pane off too."],
+      more: [
+        "On and off are the player's setting, kept across sessions; the close cross switches a pane off too. A temporary pane's on and off are kept only while it is open.",
+      ],
       example: 'tempAlias("^merc$", function()\n  if pane:visible() then pane:hide() else pane:show() end\nend)',
     },
   ),
@@ -696,6 +700,34 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "The new title (at most 60 characters).")],
       example: 'pane:setTitle("Mercenaries (" .. count .. ")")',
+    },
+  ),
+  fn(
+    "pane:close",
+    "pane:close()",
+    "Takes the pane away. Its methods then do nothing; createPane with the same id makes a new pane.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      more: [
+        "For an ordinary pane, close is not hide: the pane leaves the screen until the script calls createPane again, and keeps its place, colour and on/off for then. A temporary pane is gone.",
+        "pane:onClose is not called: it is for the player's close cross.",
+      ],
+      example: 'local pick = createPane{id = "pick", title = "Pick", temporary = true, rows = 2, cols = 24}\ntempTimer(5, function() pick:close() end)',
+    },
+  ),
+  fn(
+    "pane:onClose",
+    "pane:onClose(fn)",
+    "Calls fn() when the player closes a temporary pane with its close cross. nil removes the handler.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("fn", "function?", "Called with no arguments, after the pane is gone; nil removes it."),
+      ],
+      more: [
+        "Only for a temporary pane: an ordinary pane's close cross hides it (as pane:hide()). Not called by pane:close() or when the script stops.",
+      ],
+      example: 'pick:onClose(function()\n  echo("No choice made.")\nend)',
     },
   ),
   v(

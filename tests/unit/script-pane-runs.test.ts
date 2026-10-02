@@ -133,6 +133,50 @@ describe('SPANE records', () => {
   });
 });
 
+describe('SPANE records: temporary panes', () => {
+  const snap = (temp: PaneSnapshot['temp'], text = 'pick'): PaneSnapshot => ({ ...new PaneContent('Pick').snapshot(), lines: [{ spans: [{ text }] }], temp });
+
+  it('a full record carries temp; a delta only when it changed; read back and kept across deltas', () => {
+    const a = encodePaneRecord(null, snap({ rows: 3, cols: 20 }))!;
+    expect(JSON.parse(a.payload).temp).toEqual({ rows: 3, cols: 20 });
+    const b = encodePaneRecord(a.state, snap({ rows: 3, cols: 20 }, 'other'))!;
+    expect(b.full).toBe(false);
+    expect(JSON.parse(b.payload).temp).toBeUndefined();
+    // Moved by the user: only the place changes.
+    const moved = { rows: 3, cols: 20, rect: { x: 4, y: 5, w: 30, h: 7 } };
+    const c = encodePaneRecord(b.state, snap(moved, 'other'))!;
+    expect(c).not.toBeNull();
+    expect(JSON.parse(c.payload)).toEqual({ n: 1, temp: moved });
+    const hidden = { ...moved, off: true as const };
+    const d = encodePaneRecord(c.state, snap(hidden, 'other'))!;
+    let s = applyPaneRecord(null, a.payload);
+    expect(s!.temp).toEqual({ rows: 3, cols: 20 });
+    s = applyPaneRecord(s, b.payload);
+    expect(s!.temp).toEqual({ rows: 3, cols: 20 });
+    s = applyPaneRecord(s, c.payload);
+    expect(s!.temp).toEqual(moved);
+    s = applyPaneRecord(s, d.payload);
+    expect(s).toEqual(snap(hidden, 'other'));
+    // An ordinary pane has no temp, in either form.
+    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+    expect(o.payload).not.toContain('temp');
+    expect(applyPaneRecord(null, o.payload)!.temp).toBeUndefined();
+  });
+
+  it('reads temp back defensively', () => {
+    const bad = (temp: unknown) => applyPaneRecord(null, JSON.stringify({ title: 'T', lines: [], links: [], temp }))!.temp;
+    expect(bad('x')).toBeUndefined();
+    expect(bad({ rows: 'a', cols: 3 })).toBeUndefined();
+    expect(bad({ rows: 1e9, cols: -5, rect: { x: -3, y: 2, w: 0, h: 'h' }, off: 'yes' })).toEqual({ rows: 1000, cols: 1 });
+    expect(bad({ rows: 2, cols: 3, rect: { x: -3, y: 2, w: 0, h: 9 }, off: true })).toEqual({
+      rows: 2,
+      cols: 3,
+      rect: { x: 0, y: 2, w: 1, h: 9 },
+      off: true,
+    });
+  });
+});
+
 describe('RecordingPaneSurface', () => {
   function setup() {
     const timers: Array<() => void> = [];
@@ -188,6 +232,37 @@ describe('RecordingPaneSurface', () => {
     t.run();
     expect(t.emitted.slice(2)).toEqual([['s/b', null]]);
     expect(t.views.filter((v) => v === 'close s/b')).toHaveLength(2);
+  });
+
+  it('adds a temporary pane\'s placement to its snapshot and records a move', () => {
+    const timers: Array<() => void> = [];
+    const emitted: Array<[string, PaneSnapshot | null]> = [];
+    let place: PaneSnapshot['temp'] = { rows: 3, cols: 20 };
+    let onPlace: (() => void) | undefined;
+    const placed: string[] = [];
+    const inner: ScriptPaneSurface = {
+      open: (_spec, _c, events) => {
+        onPlace = events.onPlace;
+        return { changed: () => {}, setOn: () => {}, isOn: () => true, size: () => ({ cols: 0, rows: 0 }), close: () => {}, placement: () => place };
+      },
+    };
+    const surface = new RecordingPaneSurface(inner, (id, snap) => emitted.push([id, snap]), (fn) => timers.push(fn));
+    const run = (): void => {
+      while (timers.length) timers.shift()!();
+    };
+    surface.open({ id: 's/~t', place: { dock: 'right', rows: 3, cols: 20 }, temporary: { rows: 3, cols: 20 } }, new PaneContent('T'), {
+      onLink: () => {},
+      onResize: () => {},
+      onPlace: () => placed.push('x'),
+    });
+    run();
+    expect(emitted.at(-1)![1]!.temp).toEqual({ rows: 3, cols: 20 });
+    place = { rows: 3, cols: 20, rect: { x: 1, y: 2, w: 22, h: 5 } };
+    onPlace!();
+    expect(placed).toEqual(['x']);
+    run();
+    expect(emitted.at(-1)![1]!.temp).toEqual(place);
+    expect(emitted).toHaveLength(2);
   });
 });
 
@@ -278,6 +353,15 @@ describe('Recorder: SPANE', () => {
 describe('timeline and export', () => {
   const rec = (at: number, id: string, json: string): string => formatPaneRecord(BASE_US + at * 1e6, id, json);
   const full = (s: PaneSnapshot): string => JSON.stringify(s);
+
+  it('a temporary pane keeps its temp through an excluded range', () => {
+    const t = { rows: 3, cols: 20, rect: { x: 1, y: 2, w: 22, h: 5 } };
+    const a = encodePaneRecord(null, { title: 'T', lines: [], links: [], temp: t })!;
+    const text = formatInbound(BASE_US, 'before') + rec(1, 's/~t', a.payload) + formatInbound(BASE_US + 2e6, 'after');
+    const edited = editRunText(text, { ...defaultExportDoc('R/a'), excludes: [[BASE_US + 0.5e6, BASE_US + 1.5e6]] });
+    const line = edited.split('\n').find((l) => l.includes('SPANE'))!;
+    expect(JSON.parse(line.slice(line.indexOf('{'))).temp).toEqual(t);
+  });
 
   it('the timeline has SPANE entries and lists the pane ids', () => {
     const text =
@@ -418,6 +502,75 @@ describe('log player', () => {
     const store = () => (host.app as unknown as { settings: SettingsStore }).settings;
     expect(store().get().panes[ID]?.on).toBe(false);
     expect(host.viewerOverrides.panes).toEqual({ [ID]: false });
+    root.remove();
+    host.dispose();
+  });
+
+  it('draws a temporary pane where the player saw it, keeps it out of the gear, and its cross hides it', () => {
+    const TID = 'merc/~pick';
+    const s0 = defaultSettings();
+    const view = { appearance: { size: 14 }, panes: s0.panes, layout: s0.layout };
+    const pick = (text: string, temp: PaneSnapshot['temp']): string => {
+      const c = new PaneContent('Pick');
+      c.setLine(0, plain(text));
+      return JSON.stringify({ ...c.snapshot(), temp });
+    };
+    let r1 = makeLog(BASE_US, [
+      { at: 0, gmcp: 'Char.Name', json: { name: 'Rasta' } },
+      { at: 0.0002, view },
+      { at: 1, in: 'Hello.' },
+    ]);
+    r1 += formatPaneRecord(BASE_US + 1.1e6, TID, pick('a or b?', { rows: 2, cols: 20 }));
+    r1 += formatPaneRecord(BASE_US + 2e6, TID, JSON.stringify({ n: 1, temp: { rows: 2, cols: 20, rect: { x: 3, y: 4, w: 24, h: 6 } } }));
+    r1 += formatInbound(BASE_US + 2.5e6, 'moved');
+    r1 += formatPaneRecord(BASE_US + 3e6, TID, JSON.stringify({ n: 1, temp: { rows: 2, cols: 20, rect: { x: 3, y: 4, w: 24, h: 6 }, off: true } }));
+    r1 += formatInbound(BASE_US + 3.5e6, 'hidden');
+    r1 += formatPaneRecord(BASE_US + 4e6, TID, JSON.stringify({ n: 1, set: { 0: { spans: [{ text: 'again' }] } }, temp: { rows: 2, cols: 20, rect: { x: 3, y: 4, w: 24, h: 6 } } }));
+    r1 += formatInbound(BASE_US + 4.5e6, 'shown');
+    r1 += formatPaneRecord(BASE_US + 5e6, TID, 'null') + formatInbound(BASE_US + 6e6, 'Gone.');
+    const root = document.createElement('div');
+    root.style.cssText = 'width:1200px;height:800px';
+    document.body.appendChild(root);
+    const wall = new FakeWall();
+    const viewer = new SettingsStore({ factory: null, storage: null, win: null });
+    void viewer.load();
+    const host = new PlayerHost({ root, settings: viewer, wall, onClose: () => {} });
+    host.openChain([{ meta: meta('Rasta/a', BASE_US), text: r1 }], [], { character: 'Rasta' });
+    host.engine!.pause();
+    const seekLog = (us: number): void => {
+      const eng = host.engine!;
+      const tl = eng.timeline;
+      let i = 0;
+      while (i < tl.n && tl.ts[i]! <= us) i++;
+      eng.seek(tl.play[i - 1]!);
+      wall.flush();
+    };
+    const cockpit = () => host.app!.cockpit;
+    seekLog(BASE_US + 1.5e6);
+    expect(cockpit().tempPane(TID)).toEqual({ rows: 2, cols: 20, rect: null, on: true });
+    expect(cockpit().scriptPanes()).toEqual([]);
+    expect(host.scriptPaneIds).toEqual([]);
+    const controls = (host.playerView as unknown as { o: { settings: ViewerControls } }).o.settings;
+    expect(controls.panes().some((p) => p.id === TID)).toBe(false);
+    seekLog(BASE_US + 2.5e6);
+    expect(cockpit().tempPane(TID)!.rect).toEqual({ x: 3, y: 4, w: 24, h: 6 });
+    seekLog(BASE_US + 3.5e6);
+    expect(cockpit().tempPane(TID)!.on).toBe(false);
+    seekLog(BASE_US + 4.5e6);
+    expect(cockpit().tempPane(TID)!.on).toBe(true);
+    const shell = (cockpit() as unknown as { shells: Map<string, ScriptPane> }).shells.get(TID)!;
+    expect(shell.model.lines[0]).toEqual({ spans: [{ text: 'again' }] });
+    // The viewer closes it with its cross: hidden, not in the viewer's settings.
+    const before = JSON.stringify((host.app as unknown as { settings: SettingsStore }).settings.get());
+    shell.el.querySelector<HTMLElement>('.wc-pane-close')!.click();
+    expect(cockpit().tempPane(TID)!.on).toBe(false);
+    expect(JSON.stringify((host.app as unknown as { settings: SettingsStore }).settings.get())).toBe(before);
+    seekLog(BASE_US + 5.5e6);
+    expect(cockpit().tempPane(TID)).toBeNull();
+    // Spotlights hide temporary panes.
+    host.hideTempPanes();
+    seekLog(BASE_US + 1.5e6);
+    expect(cockpit().tempPane(TID)).toBeNull();
     root.remove();
     host.dispose();
   });

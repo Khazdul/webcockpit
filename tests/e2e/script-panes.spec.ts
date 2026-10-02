@@ -2,6 +2,8 @@
 // floats, docks and toggles like the built-in panes; a link click runs Lua
 // and sends; the hint shows as a tooltip; Options → Panes lists the pane;
 // disabling the script removes it and enabling it again restores its place.
+// A temporary pane (feedback round 1) floats centred over the game, is not
+// in Options or the settings, and closes with its cross and pane:close().
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -20,7 +22,7 @@ tempAlias("^pt$", function() if p:visible() then p:hide() else p:show() end end)
 `;
 
 /** Stores an enabled user script before the cockpit (and its library) starts. */
-async function putScript(page: Page): Promise<void> {
+async function putScript(page: Page, source = SCRIPT, name = 'panes'): Promise<void> {
   await expect
     .poll(() =>
       page.evaluate(
@@ -38,14 +40,14 @@ async function putScript(page: Page): Promise<void> {
     )
     .toBe(true);
   await page.evaluate(
-    (source) =>
+    ({ source, name }) =>
       new Promise<void>((resolve, reject) => {
         const r = indexedDB.open('webcockpit');
         r.onerror = () => reject(r.error);
         r.onsuccess = () => {
           const db = r.result;
           const tx = db.transaction('scripts', 'readwrite');
-          tx.objectStore('scripts').put({ id: 'panes-1', name: 'panes', source, enabled: true, created: 1, updated: 1 });
+          tx.objectStore('scripts').put({ id: `${name}-1`, name, source, enabled: true, created: 1, updated: 1 });
           tx.oncomplete = () => {
             db.close();
             resolve();
@@ -53,7 +55,7 @@ async function putScript(page: Page): Promise<void> {
           tx.onerror = () => reject(tx.error);
         };
       }),
-    SCRIPT,
+    { source, name },
   );
 }
 
@@ -159,5 +161,106 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await expect(pane(page)).not.toHaveAttribute('data-floating', '');
   expect((await pane(page).boundingBox())!.x).toBe(cockpit!.x);
   await expect(prows(page).nth(0)).toHaveText(/^\[order\] other/);
+  expect(errors).toEqual([]);
+});
+
+const TEMP = `-- @name temps
+-- @api 1
+local function open()
+  local t = createPane{id = "pick", title = "Pick", temporary = true, rows = 3, cols = 20, dock = "left"}
+  t:setLine(1, "<yellow>[a]<reset> [b]")
+  t:setLink(1, 1, 3, function() send("chose a"); t:close() end, "Choose a")
+  t:onClose(function() send("closed by cross") end)
+end
+tempAlias("^tp$", open)
+tempAlias("^tpc$", function() createPane{id = "pick", temporary = true}:close() end)
+echo("temps ready")
+`;
+const TID = 'temps/~pick';
+
+test('a temporary pane floats centred, stays out of Options and the settings, and closes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const received: Buffer[] = [];
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.onMessage((m) => received.push(typeof m === 'string' ? Buffer.from(m) : m));
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  const sentText = () => Buffer.concat(received).toString('latin1');
+  const temp = page.locator(`.wc-pane[data-pane="${TID}"]`);
+  const inSettings = () => page.evaluate((id) => JSON.stringify(window.__wc!.settings.get()).includes(id), TID);
+
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(page, TEMP, 'temps');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-output')).toContainText('temps ready');
+  await command(page, 'tp');
+
+  // Centred over the game pane, framed, floating above the map.
+  await expect(temp).toBeVisible();
+  await expect(temp).toHaveAttribute('data-floating', '');
+  await expect(temp.locator('.wc-pane-frame')).toContainText('Pick');
+  await expect(temp.locator('.wc-pane-content .wc-prow').nth(0)).toHaveText(/^\[a\] \[b\]\s*$/);
+  const cell = await page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    return { w: parseFloat(s.getPropertyValue('--cell-w')), h: parseFloat(s.getPropertyValue('--cell-h')) };
+  });
+  const box = (await temp.boundingBox())!;
+  const game = (await page.locator('.wc-game').boundingBox())!;
+  expect(Math.abs(box.x + box.width / 2 - (game.x + game.width / 2))).toBeLessThanOrEqual(cell.w);
+  expect(Math.abs(box.y + box.height / 2 - (game.y + game.height / 2))).toBeLessThanOrEqual(cell.h);
+  expect(Math.round(box.width / cell.w)).toBe(22);
+  expect(Math.round(box.height / cell.h)).toBe(5);
+  const z = await temp.evaluate((el) => Number(el.style.zIndex));
+  const map = await page.locator('.wc-pane[data-pane="map"]').evaluate((el) => Number(el.style.zIndex || 0));
+  expect(z).toBeGreaterThan(map);
+  expect(await inSettings()).toBe(false);
+
+  // Drag it by its title row: it moves, stays floating, and nothing is saved.
+  const grip = (await temp.locator('.wc-pane-grip').boundingBox())!;
+  await page.mouse.move(grip.x + 3 * cell.w, grip.y + grip.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 3 * cell.w - 10 * cell.w, grip.y + grip.height / 2 - 3 * cell.h, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(async () => Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(-10);
+  await expect(temp).toHaveAttribute('data-floating', '');
+  expect(await inSettings()).toBe(false);
+
+  // Options → Panes → General does not list it.
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await expect(menuTitle(page)).toHaveText('─── Options ───');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await expect(page.locator('.wc-overlay')).not.toContainText('Pick (temps)');
+  await expect(page.locator(`[data-pane-row="${TID}"]`)).toHaveCount(0);
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-overlay')).toBeHidden();
+
+  // Its close cross closes it (not hide) and calls onClose.
+  await temp.hover();
+  await expect(temp.locator('.wc-pane-close')).toHaveAttribute('title', 'Close Pick');
+  await temp.locator('.wc-pane-close').click();
+  await expect(temp).toHaveCount(0);
+  await expect.poll(sentText).toContain('closed by cross\r\n');
+
+  // Again: back in the centre; a link that calls pane:close().
+  await command(page, 'tp');
+  await expect(temp).toBeVisible();
+  expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(0);
+  const content = (await temp.locator('.wc-pane-content').boundingBox())!;
+  await page.mouse.click(content.x + 1.5 * cell.w, content.y + 0.5 * cell.h);
+  await expect.poll(sentText).toContain('chose a\r\n');
+  await expect(temp).toHaveCount(0);
+
+  // And closed by the script from an alias: no onClose.
+  await command(page, 'tp');
+  await expect(temp).toBeVisible();
+  await command(page, 'tpc');
+  await expect(temp).toHaveCount(0);
+  expect(sentText().split('closed by cross').length - 1).toBe(1);
+  expect(await inSettings()).toBe(false);
   expect(errors).toEqual([]);
 });

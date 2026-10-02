@@ -41,6 +41,12 @@
 // - Script panes (ADR 0053) join with `addPane` while their script runs
 //   and leave with `removePane`; only added ones take part in allocation
 //   (`present`). Their place in the settings stays when they leave.
+// - Temporary script panes (`addPane(shell, temp)`, ADR 0053 feedback
+//   round 1) are never in the settings: the cockpit keeps their place and
+//   on/off in memory. They float above every other pane, centred over the
+//   game pane at their wanted size until the user moves or resizes them,
+//   never dock, and their close cross calls `temp.onClose` (the owner
+//   removes them).
 
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
@@ -90,6 +96,7 @@ import {
   type PaneId,
   type ScriptPaneId,
   isScriptPaneId,
+  isTempPaneId,
   paneScript,
 } from './types';
 
@@ -103,6 +110,34 @@ export interface ScriptPaneInfo {
 }
 
 export type { CellSource } from '../panes/context';
+
+/** A temporary script pane's place, kept by the cockpit (never in the settings). */
+export interface TempPaneOptions {
+  /** Wanted content size in cells (centred over the game pane). */
+  rows: number;
+  cols: number;
+  /** Outer rectangle once the user moved or resized it (null: centred). */
+  rect?: Rect | null;
+  /** Shown (default true). */
+  on?: boolean;
+  /** The user clicked its close cross. */
+  onClose(): void;
+  /** The user moved or resized it (`tempPane(id).rect` changed). */
+  onPlace?(): void;
+}
+
+/** What the cockpit keeps of a temporary pane. */
+export interface TempPaneState {
+  rows: number;
+  cols: number;
+  rect: Rect | null;
+  on: boolean;
+}
+
+interface TempPane extends TempPaneState {
+  onClose(): void;
+  onPlace(): void;
+}
 
 export interface CockpitOptions {
   /** Parent element; the cockpit fills it. */
@@ -172,6 +207,8 @@ type Drag =
       rect: Rect;
       min: { w: number; h: number };
       base: LayoutModel;
+      /** A temporary pane: the preview goes to `tempPreview`, not the layout. */
+      temp: boolean;
     }
   | { kind: 'dock'; dock: DockId; pointerId: number; base: LayoutModel }
   | {
@@ -205,6 +242,10 @@ export class Cockpit {
   private readonly closers = new Map<PaneId, HTMLDivElement>();
   /** Script panes added with `addPane` (ADR 0053). */
   private readonly present = new Set<PaneId>();
+  /** Temporary script panes, back to front (insertion order is the z-order). */
+  private readonly temps = new Map<PaneId, TempPane>();
+  /** A temporary pane's rectangle while it is dragged or resized. */
+  private tempPreview: { id: PaneId; rect: Rect } | null = null;
   private readonly paneListeners = new Set<() => void>();
   private readonly settings: SettingsStore;
   private readonly cells: CellSource;
@@ -299,8 +340,12 @@ export class Cockpit {
     const close = div('wc-pane-close');
     close.textContent = ' × ';
     close.setAttribute('role', 'button');
-    this.labelClose(close, shell.label);
-    close.addEventListener('click', () => this.settings.update(togglePatch(this.settings.get().panes, id, false)));
+    this.labelClose(close, id, shell.label);
+    close.addEventListener('click', () => {
+      const t = this.temps.get(id);
+      if (t) t.onClose();
+      else this.settings.update(togglePatch(this.settings.get().panes, id, false));
+    });
     shell.el.append(close);
     this.closers.set(id, close);
     for (const edge of FLOAT_EDGES) {
@@ -312,8 +357,8 @@ export class Cockpit {
     this.el.insertBefore(shell.el, before);
   }
 
-  private labelClose(close: HTMLElement, label: string): void {
-    const text = `Hide ${label}`;
+  private labelClose(close: HTMLElement, id: PaneId, label: string): void {
+    const text = `${this.temps.has(id) ? 'Close' : 'Hide'} ${label}`;
     if (close.title === text) return;
     close.title = text;
     close.setAttribute('aria-label', text);
@@ -324,17 +369,56 @@ export class Cockpit {
    * the next layout, where the settings place it. The caller owns the
    * shell and disposes it after `removePane`.
    */
-  addPane(shell: PaneShell): void {
-    if (!isScriptPaneId(shell.id) || this.disposed) throw new Error(`addPane: ${shell.id} is not a script pane`);
+  addPane(shell: PaneShell, temp?: TempPaneOptions): void {
+    const ok = temp ? isTempPaneId(shell.id) : isScriptPaneId(shell.id);
+    if (!ok || this.disposed) throw new Error(`addPane: ${shell.id} is not a ${temp ? 'temporary ' : ''}script pane`);
     if (this.shells.has(shell.id)) throw new Error(`addPane: ${shell.id} is already shown`);
+    if (temp) {
+      this.temps.set(shell.id, {
+        rows: temp.rows,
+        cols: temp.cols,
+        rect: temp.rect ?? null,
+        on: temp.on ?? true,
+        onClose: temp.onClose,
+        onPlace: temp.onPlace ?? (() => {}),
+      });
+    }
     this.attach(shell, this.inputEl);
-    this.present.add(shell.id);
-    this.paneChanged();
+    if (temp) this.scheduleRelayout();
+    else {
+      this.present.add(shell.id);
+      this.paneChanged();
+    }
+  }
+
+  /** A temporary pane's place and on/off, or null when `id` is not one. */
+  tempPane(id: PaneId): TempPaneState | null {
+    const t = this.temps.get(id);
+    return t ? { rows: t.rows, cols: t.cols, rect: t.rect && { ...t.rect }, on: t.on } : null;
+  }
+
+  /** Changes a temporary pane's on/off or rectangle (null: centred again). */
+  setTempPane(id: PaneId, patch: { on?: boolean; rect?: Rect | null }): void {
+    const t = this.temps.get(id);
+    if (!t) return;
+    if (patch.on !== undefined) t.on = patch.on;
+    if (patch.rect !== undefined) t.rect = patch.rect && { ...patch.rect };
+    this.scheduleRelayout();
+  }
+
+  /** Brings a temporary pane to the front of the temporary panes. */
+  private raiseTemp(id: PaneId): void {
+    const t = this.temps.get(id);
+    if (!t || [...this.temps.keys()].pop() === id) return;
+    this.temps.delete(id);
+    this.temps.set(id, t);
+    this.scheduleRelayout();
   }
 
   /** Takes script pane `id` off the cockpit; its place in the settings stays. */
   removePane(id: PaneId): void {
-    if (!this.present.delete(id)) return;
+    const temp = this.temps.delete(id);
+    if (!this.present.delete(id) && !temp) return;
     const shell = this.shells.get(id);
     this.shells.delete(id);
     this.closers.delete(id);
@@ -343,7 +427,8 @@ export class Cockpit {
       shell.el.remove();
     }
     if (this.drag && 'id' in this.drag && this.drag.id === id) this.cancelDrag();
-    this.paneChanged();
+    if (temp) this.scheduleRelayout();
+    else this.paneChanged();
   }
 
   /** The script panes on screen now, in the order they were added. */
@@ -366,7 +451,7 @@ export class Cockpit {
   paneRetitled(id: PaneId): void {
     const close = this.closers.get(id);
     const shell = this.shells.get(id);
-    if (close && shell) this.labelClose(close, shell.label);
+    if (close && shell) this.labelClose(close, id, shell.label);
     for (const fn of [...this.paneListeners]) fn();
   }
 
@@ -397,13 +482,15 @@ export class Cockpit {
     const H = this.el.clientHeight;
     if (!(W > 0 && H > 0 && cell.w > 0 && cell.h > 0)) return;
     const s = this.settings.get();
-    const r = allocate({
-      layout: this.preview ?? s.layout,
+    const layout = this.preview ?? s.layout;
+    const base = allocate({
+      layout,
       panes: s.panes,
       present: this.present,
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
     });
+    const r = base.tooSmall || this.temps.size === 0 ? base : { ...base, panes: [...base.panes, ...this.tempBoxes(base, layout)] };
     this.last = r;
     this.el.dataset.cells = `${r.cols}x${r.rows}`;
     if (this.el.dataset.cells !== this.lastSize) {
@@ -425,6 +512,29 @@ export class Cockpit {
       );
     }
     this.renderHandles(r, cell);
+  }
+
+  /**
+   * The temporary panes' boxes: above every floating pane, at their
+   * rectangle or centred over the game pane at their wanted size, framed,
+   * clamped to the window.
+   */
+  private tempBoxes(r: LayoutResult, layout: LayoutModel): PaneBox[] {
+    const out: PaneBox[] = [];
+    let index = layout.floating.length;
+    for (const [id, t] of this.temps) {
+      if (!t.on) continue;
+      const g = r.game;
+      const w = t.cols + 2;
+      const h = t.rows + 2;
+      const want =
+        this.tempPreview?.id === id ? this.tempPreview.rect
+        : (t.rect ?? { x: g.x + Math.floor((g.w - w) / 2), y: g.y + Math.floor((g.h - h) / 2), w, h });
+      const rect = clampFloat(want, floatMin(id, true), r.cols, r.rows);
+      const content = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
+      out.push({ id, dock: 'float', index: index++, rect, content, framed: true });
+    }
+    return out;
   }
 
   /** Stops listening and removes the cockpit. */
@@ -518,7 +628,11 @@ export class Cockpit {
     if (this.drag || !this.last || this.last.tooSmall) return;
     const t = e.target as HTMLElement;
     const floating = t.closest<HTMLElement>('.wc-pane[data-floating]');
-    if (floating) this.raise(floating.dataset.pane as PaneId);
+    if (floating) {
+      const fid = floating.dataset.pane as PaneId;
+      if (this.temps.has(fid)) this.raiseTemp(fid);
+      else this.raise(fid);
+    }
     if (e.button !== 0) return;
     const grip = t.closest<HTMLElement>('.wc-pane-grip');
     const edge = t.closest<HTMLElement>('.wc-float-handle');
@@ -540,6 +654,7 @@ export class Cockpit {
         rect: b.rect,
         min: floatMin(id, b.framed),
         base: this.settings.get().layout,
+        temp: this.temps.has(id),
       };
       this.showShield(edge.dataset.edge!);
     } else if (grip) {
@@ -630,6 +745,13 @@ export class Cockpit {
       const dx = Math.round((x - d.x0) / cell.w);
       const dy = Math.round((y - d.y0) / cell.h);
       const rect = resizeRect(d.rect, d.edges, dx, dy, d.min, r.cols, r.rows);
+      if (d.temp) {
+        const p = this.tempPreview;
+        if (p?.id === d.id && sameRect(p.rect, rect)) return;
+        this.tempPreview = { id: d.id, rect };
+        this.scheduleRelayout();
+        return;
+      }
       this.setPreview(setFloatRect(d.base, d.id, rect));
       return;
     }
@@ -665,7 +787,15 @@ export class Cockpit {
   private readonly onPointerUp = (e: PointerEvent): void => {
     const d = this.drag;
     if (!d || e.pointerId !== d.pointerId) return;
-    if (d.kind === 'move') {
+    const temp = 'id' in d ? this.temps.get(d.id) : undefined;
+    if (temp) {
+      // A temporary pane: its new rectangle stays in memory.
+      const rect = d.kind === 'move' ? (d.active && d.target?.kind === 'float' ? d.target.rect : null) : this.tempPreview?.rect;
+      if (rect) {
+        temp.rect = { ...rect };
+        temp.onPlace();
+      }
+    } else if (d.kind === 'move') {
       if (d.active && d.target) {
         const t = d.target;
         this.settings.update((draft) => {
@@ -703,6 +833,7 @@ export class Cockpit {
   private endDrag(): void {
     this.drag = null;
     this.preview = null;
+    this.tempPreview = null;
     this.barEl.hidden = true;
     this.ghostEl.hidden = true;
     this.shieldEl.hidden = true;
@@ -770,7 +901,9 @@ export class Cockpit {
     const T = Math.max(2, Math.round(cell.h / 4));
     const s = this.settings.get();
     const layout = s.layout;
-    const isFloating = findFloat(layout, id) >= 0;
+    // A temporary pane only floats: no dock takes it.
+    const isTemp = this.temps.has(id);
+    const isFloating = isTemp || findFloat(layout, id) >= 0;
     const W = r.cols * cell.w;
     const clampBar = (b: Rect): Rect => {
       const bx = Math.max(0, Math.min(W - b.w, b.x));
@@ -811,7 +944,7 @@ export class Cockpit {
     // Screen-edge zones: a shown dock takes the pane at the pointer, a hidden
     // one (not collapsed) opens at its default size.
     const E = EDGE_CELLS;
-    if (cy >= 0 && cy < H) {
+    if (!isTemp && cy >= 0 && cy < H) {
       const inGameCol = cx >= r.game.x && cx < r.game.x + r.game.w;
       const zone: DockId | null =
         cx < E ? 'left'
@@ -843,7 +976,7 @@ export class Cockpit {
     const gy = Math.min(grab.y, size.h - 1);
     const rect = clampFloat(
       { x: Math.floor(cx) - gx, y: Math.floor(cy) - gy, ...size },
-      floatMin(id, paneSettingsOf(s.panes, id).border),
+      floatMin(id, isTemp || paneSettingsOf(s.panes, id).border),
       r.cols,
       H,
     );

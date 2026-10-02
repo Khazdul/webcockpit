@@ -9,6 +9,10 @@
 // - While a pane is open and the layout loses it (Options → Reset layout,
 //   repaired settings), it is placed again the same way.
 // - `close` takes the pane off the cockpit; its place and toggles stay.
+// - A temporary pane (`spec.temporary`, feedback round 1) never touches the
+//   settings: the cockpit keeps its place and on/off in memory, its close
+//   cross reports `events.onClose` (the host then closes it), and moving
+//   it reports `events.onPlace`.
 //
 // - `RecordingPaneSurface` wraps a surface and reports the panes' content
 //   for the run capture (`view.pane`, ADR 0053 P1).
@@ -22,13 +26,15 @@ import type { ScriptPaneId } from '../layout/types';
 import type { SettingsStore } from '../settings';
 import { SCRIPT_PANE_DEFAULTS, paneSettingsOf } from '../settings/types';
 import type { PaneContext } from './context';
-import type { PaneContent, PaneSnapshot } from './script-content';
+import type { PaneContent, PaneSnapshot, PaneTemp } from './script-content';
 import { ScriptPane } from './script-pane';
 
 export interface ScriptPaneSpec {
   id: ScriptPaneId;
-  /** Where it goes the first time. */
+  /** Where it goes the first time (ignored for a temporary pane). */
   place: ScriptPanePlace;
+  /** A temporary pane (`<script>/~<id>`): floats centred at this content size, nothing in the settings. */
+  temporary?: { rows: number; cols: number };
 }
 
 export interface ScriptPaneEvents {
@@ -36,6 +42,10 @@ export interface ScriptPaneEvents {
   onLink(id: number): void;
   /** The pane's content size changed (0 × 0 while it is not shown). */
   onResize(cols: number, rows: number): void;
+  /** A temporary pane's close cross was clicked: the host closes the view. */
+  onClose?(): void;
+  /** A temporary pane was moved, resized, shown or hidden (`placement()` changed). */
+  onPlace?(): void;
 }
 
 /** One open script pane, as the host sees it. */
@@ -50,6 +60,8 @@ export interface ScriptPaneView {
   size(): { cols: number; rows: number };
   /** Takes the pane away; its place in the settings stays. */
   close(): void;
+  /** A temporary pane's size, place and on/off (for runs); undefined for an ordinary pane. */
+  placement?(): PaneTemp | undefined;
 }
 
 export interface ScriptPaneSurface {
@@ -76,6 +88,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       onTitle: () => this.cockpit.paneRetitled(id),
     });
     pane.onResize((c, r) => events.onResize(c, r));
+    if (spec.temporary) return this.openTemp(spec.id, spec.temporary, pane, events);
     this.open_.set(id, spec.place);
     this.ensurePlaced();
     this.unsub ??= this.settings.subscribe(() => this.ensurePlaced());
@@ -105,6 +118,34 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     };
   }
 
+  /** A temporary pane: on the cockpit only, nothing in the settings. */
+  private openTemp(id: ScriptPaneId, size: { rows: number; cols: number }, pane: ScriptPane, events: ScriptPaneEvents): ScriptPaneView {
+    let closed = false;
+    const view: ScriptPaneView = {
+      changed: () => pane.changed(),
+      setOn: (on) => {
+        if (closed || this.cockpit.tempPane(id)?.on === on) return;
+        this.cockpit.setTempPane(id, { on });
+        events.onPlace?.();
+      },
+      isOn: () => this.cockpit.tempPane(id)?.on ?? false,
+      size: () => ({ cols: pane.cols, rows: pane.rows }),
+      close: () => {
+        if (closed) return;
+        closed = true;
+        this.cockpit.removePane(id);
+        pane.dispose();
+      },
+      placement: () => tempPlacement(this.cockpit.tempPane(id) ?? { ...size, rect: null, on: false }),
+    };
+    this.cockpit.addPane(pane, {
+      ...size,
+      onClose: () => (events.onClose ? events.onClose() : view.close()),
+      onPlace: () => events.onPlace?.(),
+    });
+    return view;
+  }
+
   /** Places every open pane the settings do not place (first creation, a reset layout). */
   private ensurePlaced(): void {
     const s = this.settings.get();
@@ -121,6 +162,14 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
   }
 }
 
+/** A temporary pane's state as runs record it. */
+export function tempPlacement(t: { rows: number; cols: number; rect: { x: number; y: number; w: number; h: number } | null; on: boolean }): PaneTemp {
+  const out: PaneTemp = { rows: t.rows, cols: t.cols };
+  if (t.rect) out.rect = { x: t.rect.x, y: t.rect.y, w: t.rect.w, h: t.rect.h };
+  if (!t.on) out.off = true;
+  return out;
+}
+
 /** Coalescing interval of recorded pane content, ms (one frame). */
 export const PANE_RECORD_MS = 16;
 
@@ -131,7 +180,7 @@ export const PANE_RECORD_MS = 16;
  * animation frame: frames stop in a hidden tab while the run goes on.
  */
 export class RecordingPaneSurface implements ScriptPaneSurface {
-  private readonly dirty = new Map<string, PaneContent>();
+  private readonly dirty = new Map<string, { content: PaneContent; view: ScriptPaneView }>();
   private timer: unknown = null;
 
   constructor(
@@ -141,14 +190,24 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
   ) {}
 
   open(spec: ScriptPaneSpec, content: PaneContent, events: ScriptPaneEvents): ScriptPaneView {
-    const view = this.inner.open(spec, content, events);
     const { id } = spec;
     let closed = false;
-    this.mark(id, content);
-    return {
+    // A temporary pane's place is part of its record: a move marks it too.
+    const mark = (): void => {
+      if (!closed) this.mark(id, content, view);
+    };
+    const view = this.inner.open(spec, content, {
+      ...events,
+      onPlace: () => {
+        events.onPlace?.();
+        mark();
+      },
+    });
+    mark();
+    const out: ScriptPaneView = {
       changed: () => {
         view.changed();
-        if (!closed) this.mark(id, content);
+        mark();
       },
       setOn: (on) => view.setOn(on),
       isOn: () => view.isOn(),
@@ -161,10 +220,12 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
         this.emit(id, null);
       },
     };
+    if (view.placement) out.placement = () => view.placement!();
+    return out;
   }
 
-  private mark(id: string, content: PaneContent): void {
-    this.dirty.set(id, content);
+  private mark(id: string, content: PaneContent, view: ScriptPaneView): void {
+    this.dirty.set(id, { content, view });
     this.timer ??= this.after(this.flush, PANE_RECORD_MS);
   }
 
@@ -172,6 +233,11 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
     this.timer = null;
     const panes = [...this.dirty];
     this.dirty.clear();
-    for (const [id, content] of panes) this.emit(id as ScriptPaneId, content.snapshot());
+    for (const [id, { content, view }] of panes) {
+      const snap = content.snapshot();
+      const temp = view.placement?.();
+      if (temp) snap.temp = temp;
+      this.emit(id as ScriptPaneId, snap);
+    }
   };
 }

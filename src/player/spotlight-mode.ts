@@ -94,6 +94,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
     },
   );
   // Script panes too (ADR 0053 P1): their ids are known once the timeline is.
+  host.hideTempPanes();
   if (host.scriptPaneIds.length > 0) {
     for (const id of host.scriptPaneIds) panes[id] = false;
     host.setViewer({ ...noOverrides(), panes });

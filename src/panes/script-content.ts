@@ -71,6 +71,20 @@ export interface PaneSnapshot {
   title: string;
   lines: PaneLine[];
   links: { row: number; col: number; len: number; hint: string }[];
+  /** A temporary pane's size, place and on/off (the recorder adds it; `snapshot()` never does). */
+  temp?: PaneTemp;
+}
+
+/**
+ * A temporary pane in a run (feedback round 1): its wanted content size
+ * (centred over the game pane), its outer rectangle once the user moved
+ * or resized it, and `off` while the script hides it.
+ */
+export interface PaneTemp {
+  rows: number;
+  cols: number;
+  rect?: { x: number; y: number; w: number; h: number };
+  off?: true;
 }
 
 /** Text with style runs, as `parseCecho` (src/scripts/colors.ts) yields it. */

@@ -8,7 +8,7 @@ import { TRUECOLOR } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/layout/model';
-import { type LayoutModel, defaultLayout, isScriptPaneId, scriptPaneId } from '../../src/layout/types';
+import { type LayoutModel, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, plain } from '../../src/panes/script-content';
 import { ScriptPane, gaugeFill, paneInk, paneView, scriptPaneLines } from '../../src/panes/script-pane';
@@ -347,5 +347,106 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(close.title).toBe('Hide Q');
     close.click();
     expect(settings.get().panes[id]).toEqual({ on: false, color: 'black', border: true });
+  });
+
+  describe('temporary panes', () => {
+    const spec = (id = tempPaneId('s', 'pick')) => ({
+      id,
+      place: { dock: 'right' as const, rows: 4, cols: 20 },
+      temporary: { rows: 4, cols: 20 },
+    });
+
+    it('ids: <script>/~<pane>, never an ordinary script pane id', () => {
+      expect(tempPaneId('s', 'pick')).toBe('s/~pick');
+      expect(isTempPaneId('s/~pick')).toBe(true);
+      expect(isScriptPaneId('s/~pick')).toBe(false);
+      expect(isTempPaneId('s/pick')).toBe(false);
+      expect(isTempPaneId('s/~')).toBe(false);
+      // Migration drops one that somehow reached the settings.
+      const m = migrateSettings({
+        panes: { 's/~pick': { on: true, color: 'red', border: true } },
+        layout: { ...defaultLayout(), floating: [...defaultLayout().floating, { id: 's/~pick', x: 1, y: 1, w: 20, h: 6 }] },
+      });
+      expect(m.panes['s/~pick' as never]).toBeUndefined();
+      expect(m.layout.floating.some((f) => f.id === 's/~pick')).toBe(false);
+    });
+
+    it('floats centred over the game above the other floats, framed, with nothing in the settings', () => {
+      const { settings, cockpit, surface, flush } = rig();
+      const before = JSON.stringify(settings.get());
+      const sizes: string[] = [];
+      const view = surface.open(spec(), new PaneContent('Pick'), { onLink: () => {}, onResize: (c, r) => sizes.push(`${c}x${r}`) });
+      flush();
+      expect(JSON.stringify(settings.get())).toBe(before);
+      expect(cockpit.scriptPanes()).toEqual([]);
+      const r = cockpit.layout!;
+      const box = r.panes.find((p) => p.id === 's/~pick')!;
+      const g = r.game;
+      expect(box).toMatchObject({ dock: 'float', framed: true, rect: { w: 22, h: 6 } });
+      expect(box.rect.x).toBe(g.x + Math.floor((g.w - 22) / 2));
+      expect(box.rect.y).toBe(g.y + Math.floor((g.h - 6) / 2));
+      expect(sizes.at(-1)).toBe('20x4');
+      const el = cockpit.el.querySelector<HTMLElement>('.wc-pane[data-pane="s/~pick"]')!;
+      const z = Number(el.style.zIndex);
+      for (const other of cockpit.el.querySelectorAll<HTMLElement>('.wc-pane[data-floating]')) {
+        if (other !== el) expect(Number(other.style.zIndex)).toBeLessThan(z);
+      }
+      expect(view.placement!()).toEqual({ rows: 4, cols: 20 });
+      // show / hide in memory only.
+      view.setOn(false);
+      flush();
+      expect(view.isOn()).toBe(false);
+      expect(el.hidden).toBe(true);
+      expect(view.placement!()).toEqual({ rows: 4, cols: 20, off: true });
+      view.setOn(true);
+      flush();
+      expect(el.hidden).toBe(false);
+      expect(JSON.stringify(settings.get())).toBe(before);
+      view.close();
+      flush();
+      expect(cockpit.el.querySelector('.wc-pane[data-pane="s/~pick"]')).toBeNull();
+      expect(cockpit.layout!.panes.some((p) => p.id === 's/~pick')).toBe(false);
+    });
+
+    it('a size larger than the window is clamped to it; a moved rectangle is used and clamped', () => {
+      const { cockpit, surface, flush } = rig();
+      surface.open({ ...spec(), temporary: { rows: 200, cols: 300 } }, new PaneContent('Big'), { onLink: () => {}, onResize: () => {} });
+      flush();
+      const r = cockpit.layout!;
+      expect(r.panes.find((p) => p.id === 's/~pick')!.rect).toEqual({ x: 0, y: 0, w: r.cols, h: r.rows });
+      cockpit.setTempPane('s/~pick', { rect: { x: 150, y: 3, w: 30, h: 8 } });
+      flush();
+      expect(cockpit.layout!.panes.find((p) => p.id === 's/~pick')!.rect).toEqual({ x: r.cols - 30, y: 3, w: 30, h: 8 });
+    });
+
+    it('its close cross reports onClose (and closes it without a handler); not "Hide"', () => {
+      const { cockpit, surface, flush, settings } = rig();
+      const before = JSON.stringify(settings.get());
+      let closes = 0;
+      surface.open(spec(), new PaneContent('Pick'), { onLink: () => {}, onResize: () => {}, onClose: () => closes++ });
+      flush();
+      const close = cockpit.el.querySelector<HTMLElement>('.wc-pane[data-pane="s/~pick"] .wc-pane-close')!;
+      expect(close.title).toBe('Close Pick');
+      close.click();
+      expect(closes).toBe(1);
+      expect(JSON.stringify(settings.get())).toBe(before);
+      // No handler: the surface closes it itself.
+      const id2 = tempPaneId('s', 'other');
+      surface.open(spec(id2), new PaneContent('Other'), { onLink: () => {}, onResize: () => {} });
+      flush();
+      cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id2}"] .wc-pane-close`)!.click();
+      flush();
+      expect(cockpit.el.querySelector(`.wc-pane[data-pane="${id2}"]`)).toBeNull();
+    });
+
+    it('a temporary and an ordinary pane of the same name are apart', () => {
+      const { cockpit, surface, flush, settings } = rig();
+      surface.open({ id: scriptPaneId('s', 'pick'), place: { dock: 'left', rows: 3, cols: 20 } }, new PaneContent('A'), { onLink: () => {}, onResize: () => {} });
+      surface.open(spec(), new PaneContent('B'), { onLink: () => {}, onResize: () => {} });
+      flush();
+      expect(cockpit.scriptPanes().map((p) => p.id)).toEqual(['s/pick']);
+      expect(Object.keys(settings.get().panes).filter((k) => k.startsWith('s/'))).toEqual(['s/pick']);
+      expect(cockpit.layout!.panes.filter((p) => p.id.startsWith('s/')).map((p) => p.id)).toEqual(['s/pick', 's/~pick']);
+    });
   });
 });

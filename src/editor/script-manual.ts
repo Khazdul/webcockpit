@@ -381,12 +381,13 @@ const PANES: HelpSection = {
   group: "guide",
   heading: "Panes",
   syntax: [
-    "createPane{id, title, dock, rows, cols}",
+    "createPane{id, title, dock, rows, cols, temporary}",
     "pane:clear()  pane:echo(text)  pane:cecho(text)",
     "pane:setLine(row, text)  pane:gauge(row, {value, max, color, label})",
     "pane:cechoLink(text, fn, hint)  pane:setLink(row, col, len, fn, hint)",
     "pane:size()  pane:onResize(fn)  pane:setTitle(text)",
     "pane:show()  pane:hide()  pane:visible()",
+    "pane:close()  pane:onClose(fn)",
   ],
   text: [
     "A script can draw its own pane: text, colours, bars and clickable spans. It docks, floats, toggles and takes a colour like the Character or Group pane.",
@@ -404,6 +405,8 @@ const PANES: HelpSection = {
     "The pointer turns into a hand over a link, the link lights up and the hint shows under it. fn runs like any handler, with the instruction budget and the error rules of Sandbox and limits. In the log player and the HTML replay, links do nothing but keep their tooltips.",
     "Size. pane:size() returns rows, cols: the cells the pane has now (0, 0 while it is not shown). pane:onResize(fn) calls fn(rows, cols) when that changes, also when the pane is first shown; draw to fit there.",
     "pane:hide() and pane:show() switch the pane off and on, as its close cross and Options do; the choice is kept. pane:visible() tells whether it is on. pane:setTitle(text) changes the title.",
+    "pane:close() takes a pane away; its methods then do nothing, and createPane with the same id makes a new one. An ordinary pane keeps its place for then.",
+    "Temporary panes. createPane{id = \"pick\", temporary = true, rows = 3, cols = 30} makes a short-lived pane, for a choice or a notice: it floats centred over the game text at rows × cols, above the other panes, and is never listed in Options → Panes or remembered. The player can move it; its close cross closes it, and pane:onClose(fn) is called then. show, hide and visible work while it is open. It is in runs like any pane.",
     "Pane methods are cheap: they change the pane's content, and the pane is drawn once per screen frame. Updating a pane from a trigger on every line is fine.",
   ],
   examples: [
@@ -416,6 +419,11 @@ const PANES: HelpSection = {
       note: "A log pane and an alias that toggles it:",
       lang: "lua",
       code: 'local log = createPane{id = "tells", title = "Tells", dock = "float", rows = 6, cols = 40}\n\ntempRegexTrigger("^(\\\\w+) tells you \'(.*)\'$", function()\n  log:cecho("<cyan>" .. matches[2] .. "<reset>: " .. matches[3] .. "\\n")\nend)\n\ntempAlias("^tells$", function()\n  if log:visible() then log:hide() else log:show() end\nend)',
+    },
+    {
+      note: "A choice popup that closes itself after ten seconds:",
+      lang: "lua",
+      code: 'local function ask(question, choices)\n  local pick = createPane{id = "pick", title = question, temporary = true, rows = 1, cols = 30}\n  pick:clear()\n  local col = 2\n  for _, c in ipairs(choices) do\n    pick:cecho(" <yellow>[" .. c .. "]<reset>")\n    pick:setLink(1, col, #c + 2, function()\n      send(c)\n      pick:close()\n    end, "Send " .. c)\n    col = col + #c + 3\n  end\n  pick:onClose(function() echo("No choice made.") end)\n  tempTimer(10, function() pick:close() end)\nend\n\ntempAlias("^go$", function() ask("Which way?", {"north", "south", "flee"}) end)',
     },
   ],
 };
