@@ -51,6 +51,8 @@
 // host (src/scripts/host.ts, a lazy chunk, with the Lua runtime behind it)
 // is loaded once any script is enabled, or on the first `#script` / `#lua`
 // command. It follows the library from then on. Player Apps run no scripts.
+// A small GmcpCache (src/scripts/gmcp-cache.ts) follows the bus from the
+// start, so GMCP sent before the host loaded is in the scripts' `gmcp`.
 //
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
@@ -87,6 +89,7 @@ import type { MapPaneHost } from '../map/protocol';
 import { LiveRuns } from '../runs/live';
 import type { ScriptLibrary } from '../scripts';
 import type { ScriptHost } from '../scripts/host';
+import { GmcpCache } from '../scripts/gmcp-cache';
 
 /** UI pane warnings for capture states that mean runs are not recorded. */
 const CAPTURE_WARNINGS: Readonly<Record<string, string>> = {
@@ -235,6 +238,8 @@ export class App {
   private readonly scriptOpts: Pick<AppOptions, 'scriptStorage' | 'loadLua'>;
   private hostP: Promise<ScriptHost> | null = null;
   private hostRef: ScriptHost | null = null;
+  /** The last GMCP values for the scripts' `gmcp` table, kept from the start (no Lua). */
+  private readonly gmcpCache: GmcpCache | null;
 
   constructor(opts: AppOptions) {
     const doc = opts.root.ownerDocument;
@@ -401,6 +406,8 @@ export class App {
     if (this.profiles) void this.loadSelectedProfile(false);
     this.scriptLib = player ? null : (opts.scripts ?? null);
     this.scriptOpts = { scriptStorage: opts.scriptStorage, loadLua: opts.loadLua };
+    this.gmcpCache = this.scriptLib ? new GmcpCache() : null;
+    if (this.gmcpCache) this.unsubs.push(this.gmcpCache.attach(bus));
     if (this.scriptLib) void this.watchScripts(this.scriptLib);
 
     bus.on('gmcp', (m) => {
@@ -648,6 +655,7 @@ export class App {
         print: (rows) => this.output.pushStyled(rows),
         message: (text) => this.sys(text),
         cols: () => this.output.measureCells().cols,
+        ...(this.gmcpCache ? { gmcp: this.gmcpCache } : {}),
         ...(this.scriptOpts.scriptStorage !== undefined ? { storage: this.scriptOpts.scriptStorage } : {}),
         ...(this.scriptOpts.loadLua ? { loadRuntime: this.scriptOpts.loadLua } : {}),
       });

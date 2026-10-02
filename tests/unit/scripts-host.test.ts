@@ -13,6 +13,7 @@ import { FakeScheduler, ScriptEngine } from '../../src/script/engine';
 import { resetScriptKeys, scriptKeyOwner } from '../../src/script/script-keys';
 import { ScriptLibrary } from '../../src/scripts';
 import { HANG_KEY } from '../../src/scripts/guard';
+import { GmcpCache } from '../../src/scripts/gmcp-cache';
 import { ScriptHost } from '../../src/scripts/host';
 import type { StyledRow } from '../../src/ui/output-pane';
 
@@ -57,6 +58,8 @@ interface SetupOptions {
   storage?: MemStorage;
   disabled?: boolean;
   profile?: string;
+  /** Runs on the bus before the host exists (a GmcpCache is attached first). */
+  before?: (bus: Bus) => void;
 }
 
 async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = {}) {
@@ -89,7 +92,14 @@ async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = 
     if (!opts.disabled) await lib.setEnabled(name, true);
   }
   const storage = opts.storage ?? new MemStorage();
+  let cache: GmcpCache | undefined;
+  if (opts.before) {
+    cache = new GmcpCache();
+    cache.attach(bus);
+    opts.before(bus);
+  }
   host = new ScriptHost({
+    ...(cache ? { gmcp: cache } : {}),
     engine,
     bus,
     library: lib,
@@ -200,6 +210,24 @@ describe('display edits', () => {
     expect(t.texts()).toEqual(['loaded', 'second', 'green plain', 'p\t1\ttrue\tnil\ttable', 'hi there', 'after']);
     expect(t.shown[2]!.line.runs).toEqual([{ start: 0, end: 5, fg: TRUECOLOR | 0x00ff00 }]);
     expect(t.shown.every((d) => d.local || d.line.text === 'hi there')).toBe(true);
+  });
+
+  it('highlight takes #rrggbb and cecho tags; cecho <b>', async () => {
+    const t = await setup({
+      s: src(`
+        tempTrigger("hex", function() highlight("#ff8800", "hex") end)
+        tempTrigger("tag", function() highlight("<b><white:red>") end)
+        cecho("<b>bold</b> <i>it</i>")`),
+    });
+    t.recv('a hex b');
+    t.recv('tag');
+    expect(t.texts()).toEqual(['bold it', 'a hex b', 'tag']);
+    expect(t.shown[0]!.line.runs).toEqual([
+      { start: 0, end: 4, bold: true },
+      { start: 5, end: 7, italic: true },
+    ]);
+    expect(t.shown[1]!.line.runs).toEqual([{ start: 2, end: 5, fg: TRUECOLOR | 0xff8800 }]);
+    expect(t.shown[2]!.line.runs).toEqual([{ start: 0, end: 3, fg: TRUECOLOR | 0xffffff, bg: TRUECOLOR | 0xff0000, bold: true }]);
   });
 
   it('highlight with an unknown colour is an error', async () => {
@@ -323,6 +351,72 @@ describe('events, gmcp and state', () => {
       'gmcp.Char.Vitals gmcp.Char.Vitals hp=40 mana=10',
       'false',
     ]);
+  });
+
+  it('a GMCP message raises every parent level first, each with the full name', async () => {
+    const t = await setup({
+      s: src(`
+        registerAnonymousEventHandler("gmcp.Char", function(ev, full) send(ev .. " " .. full) end)
+        registerAnonymousEventHandler("gmcp.Comm.Channel", function(ev, full) send(ev .. " " .. full .. " " .. gmcp.Comm.Channel.Text.text) end)
+        registerAnonymousEventHandler("gmcp.Comm.Channel.Text", function(ev, full) send(ev .. " " .. full) end)
+        registerAnonymousEventHandler("gmcp", function(ev) send("bare " .. ev) end)`),
+    });
+    t.gmcp('Char.Vitals', { hp: 50 });
+    t.gmcp('Char.Name', { name: 'x' });
+    t.gmcp('Comm.Channel.Text', { channel: 'tells', text: 'hi' });
+    t.gmcp('Core.Ping', undefined);
+    expect(t.sent).toEqual([
+      'gmcp.Char gmcp.Char.Vitals',
+      'gmcp.Char gmcp.Char.Name',
+      'gmcp.Comm.Channel gmcp.Comm.Channel.Text hi',
+      'gmcp.Comm.Channel.Text gmcp.Comm.Channel.Text',
+    ]);
+  });
+
+  it('Char.Vitals and Char.StatusVars merge; other messages replace the last value', async () => {
+    const t = await setup({
+      s: src(`
+        export("show", function()
+          local u = gmcp.Group.Update
+          local r = gmcp.Room.Info
+          send(gmcp.Char.Vitals.hp .. "/" .. gmcp.Char.Vitals.maxhp .. " " .. tostring(gmcp.Char.Vitals.climb)
+            .. " " .. gmcp.Char.StatusVars.level .. gmcp.Char.StatusVars.race
+            .. " " .. u.id .. ":" .. tostring(u.hp) .. ":" .. tostring(u.mana)
+            .. " " .. tostring(r.id) .. ":" .. r.name .. ":" .. tostring(state.room.id)
+            .. " " .. tostring(gmcp.Char.Name.fullname))
+        end)`),
+    });
+    t.gmcp('Char.Vitals', { hp: 50, maxhp: 100, climb: 'c' });
+    t.gmcp('Char.Vitals', { hp: 40, climb: null });
+    t.gmcp('Char.StatusVars', { race: 'Elf', level: 3 });
+    t.gmcp('Char.StatusVars', { level: 4 });
+    t.gmcp('Char.Name', { name: 'x', fullname: 'X the Brave' });
+    t.gmcp('Char.Name', { name: 'y' });
+    t.gmcp('Group.Update', { id: 1, hp: 10 });
+    t.gmcp('Group.Update', { id: 2, mana: 5 });
+    t.gmcp('Room.Info', { id: 7, name: 'Bree' });
+    t.gmcp('Room.Info', { name: 'Dark room' });
+    t.engine.input('#lua s show');
+    expect(t.sent).toEqual(['40/100 nil 4Elf 2:nil:5 nil:Dark room:nil nil']);
+  });
+
+  it('GMCP that arrived before the host started is in gmcp (App cache)', async () => {
+    const t = await setup(
+      { s: src(`send(gmcp.Char.Vitals.hp .. " " .. gmcp.Room.Info.name .. " " .. state.room.name)`) },
+      {
+        before: (bus) => {
+          bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 9, maxhp: 20 } });
+          bus.emit('gmcp', { pkg: 'Char.Vitals', data: { hp: 8 } });
+          bus.emit('gmcp', { pkg: 'Room.Info', data: { name: 'Bree' } });
+        },
+      },
+    );
+    expect(t.sent).toEqual(['8 Bree Bree']);
+    t.bus.emit('conn.state', { state: 'connecting', prev: 'disconnected' });
+    await t.lib.create('late', src(`send(tostring(gmcp.Char))`));
+    await t.lib.setEnabled('late', true);
+    await t.settle();
+    expect(t.sent).toEqual(['8 Bree Bree', 'nil']);
   });
 
   it('gmcp received before a script loads is there when it loads', async () => {

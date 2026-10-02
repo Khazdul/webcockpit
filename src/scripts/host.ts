@@ -23,8 +23,10 @@
 //
 // API names are spec §2.10's. Decisions (ADR 0051 "Package notes — P1"):
 // `print` echoes its arguments tab-separated; event handlers get the event
-// name, then its arguments (GMCP: the event name again, as Mudlet); GMCP
-// objects merge into `gmcp` key by key, as MUME sends partial updates.
+// name, then its arguments. GMCP (Mudlet): a message `Char.Vitals` raises
+// `gmcp.Char` and then `gmcp.Char.Vitals`, each handler getting its own
+// event name and the full one. The `gmcp` values come from a GmcpCache
+// (gmcp-cache.ts: which messages merge and which replace).
 
 import type { Bus } from '../core/bus';
 import { gmcpKey } from '../core/types';
@@ -36,6 +38,7 @@ import { setLiveScriptKey } from '../script/script-keys';
 import type { StyledRow } from '../ui/output-pane';
 import { helpRows, listRows, settingText } from './command-rows';
 import { parseCecho, parseScriptColor } from './colors';
+import { type GmcpEntry, GmcpCache } from './gmcp-cache';
 import { HangGuard } from './guard';
 import { apiProblem } from './header';
 import type { ScriptInfo, ScriptLibrary, StoreValue } from './library';
@@ -74,6 +77,11 @@ export interface ScriptHostOptions {
   storage?: Storage | null;
   /** Monotonic ms (default `performance.now`). */
   clock?: () => number;
+  /**
+   * The GMCP cache App keeps from its start (default: the host attaches its
+   * own to the bus, so it sees only what arrives after `start`).
+   */
+  gmcp?: GmcpCache;
 }
 
 interface RuleReg {
@@ -141,9 +149,9 @@ export class ScriptHost {
   private started: Promise<void> | null = null;
   private disposed = false;
   private readonly unsubs: Array<() => void> = [];
-  /** GMCP values as merged so far, by lower-case package (with the package as sent). */
-  private readonly gmcp = new Map<string, { pkg: string; value: unknown }>();
-  private room: Record<string, unknown> | null = null;
+  /** The last GMCP values (shared with App, or the host's own). */
+  private readonly gmcp: GmcpCache;
+  private readonly ownGmcp: boolean;
 
   constructor(opts: ScriptHostOptions) {
     this.o = opts;
@@ -151,6 +159,8 @@ export class ScriptHost {
     this.lib = opts.library;
     this.guard = new HangGuard(opts.storage === undefined ? defaultStorage() : opts.storage);
     this.clock = opts.clock ?? (() => performance.now());
+    this.ownGmcp = !opts.gmcp;
+    this.gmcp = opts.gmcp ?? new GmcpCache();
   }
 
   /**
@@ -175,9 +185,10 @@ export class ScriptHost {
       );
     }
     const bus = this.o.bus;
+    if (this.ownGmcp) this.unsubs.push(this.gmcp.attach(bus));
     this.unsubs.push(
       this.lib.subscribe(() => this.sync()),
-      bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data)),
+      this.gmcp.subscribe((key, e) => this.onGmcp(key, e)),
       bus.on('conn.state', (s) => this.onConn(s.state, s.prev, s.reason ?? '')),
     );
     if (this.o.game) this.unsubs.push(this.o.game.subscribe((part) => this.onGame(part)));
@@ -419,32 +430,27 @@ export class ScriptHost {
     }
   }
 
-  private onGmcp(pkg: string, data: unknown): void {
+  private onGmcp(key: string, { pkg, value }: GmcpEntry): void {
     const rt = this.rt;
-    const key = pkg.toLowerCase();
-    let value = data;
-    if (isObject(data)) {
-      const prev = this.gmcp.get(key)?.value;
-      const merged: Record<string, unknown> = isObject(prev) ? { ...prev } : {};
-      for (const [k, v] of Object.entries(data)) {
-        if (v === null) delete merged[k];
-        else merged[k] = v;
-      }
-      value = merged;
-    }
-    this.gmcp.set(key, { pkg, value });
-    if (key === 'room.info' && isObject(value)) this.room = value;
-    // Before the runtime is up the values wait here (fillData).
+    // Before the runtime is up the values wait in the cache (fillData).
     if (!rt) return;
     this.setGmcp(rt, pkg, value);
-    if (key === 'room.info' && isObject(value)) this.setState(rt, 'room', value);
-    if (this.handlers.size > 0) this.fire(null, 'gmcp.' + key, ['gmcp.' + pkg, 'gmcp.' + pkg]);
+    if (key === 'room.info') this.setState(rt, 'room', isObject(value) ? value : null);
+    if (this.handlers.size === 0) return;
+    // Mudlet: `gmcp.Char`, then `gmcp.Char.Vitals`; each gets (its name, the full name).
+    const full = 'gmcp.' + pkg;
+    let at = pkg.indexOf('.');
+    while (at >= 0) {
+      const k = 'gmcp.' + pkg.slice(0, at).toLowerCase();
+      if (this.handlers.has(k)) this.fire(null, k, ['gmcp.' + pkg.slice(0, at), full]);
+      at = pkg.indexOf('.', at + 1);
+    }
+    this.fire(null, 'gmcp.' + key, [full, full]);
   }
 
   private onConn(state: string, prev: string, reason: string): void {
     if (state === 'connecting') {
-      this.gmcp.clear();
-      this.room = null;
+      // The cache clears itself (GmcpCache.attach).
       if (this.rt) {
         this.rt.setData(['gmcp'], {});
         this.setState(this.rt, 'room', null);
@@ -488,10 +494,11 @@ export class ScriptHost {
   }
 
   private fillData(rt: LuaRuntime): void {
-    for (const { pkg, value } of this.gmcp.values()) this.setGmcp(rt, pkg, value);
+    for (const { pkg, value } of this.gmcp.entries()) this.setGmcp(rt, pkg, value);
+    const room = this.gmcp.get('room.info')?.value;
     this.setState(rt, 'char', this.charState());
     this.setState(rt, 'group', this.groupState());
-    this.setState(rt, 'room', this.room);
+    this.setState(rt, 'room', isObject(room) ? room : null);
   }
 
   private onGame(part: string): void {
