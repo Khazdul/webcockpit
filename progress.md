@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 8 feedback built
+
+- **Owner:** `◻` stayed grey after its TV closed (bug: no redraw on
+  close); open TV in light green; no cyan: names gold, buttons grey;
+  mercenaries the same.
+- **Built:** every TV open/close path redraws Port keys; bundled-script
+  colour convention in ADR 0054 (gold names, grey buttons, colour only
+  for meaning) used by key manager and mercenaries.
+- **Verified:** typecheck, unit 1866, build; full e2e 376/382 under heavy
+  load (Firefox output/replay specs), those specs green when rerun.
+- **Next:** owner test round 9; release 0.1.28 when asked.
+- **Commits:** 41f0c66, b6acb77, f6c4975, plus this one.
+
 ### 2026-10-02 — Stage 12 round 7 feedback built
 
 - **Owner:** TVs open scattered; they should tile from the top left
