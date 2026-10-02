@@ -15,14 +15,24 @@ describe('API docs', () => {
     expect(defined.length).toBeGreaterThan(20);
     const documented = new Set(SCRIPT_API.map((d) => d.name));
     for (const n of defined) expect(documented, n).toContain(n);
-    const globals = SCRIPT_API.filter((d) => !d.name.includes('.') && d.kind !== 'variable').map((d) => d.name);
+    const globals = SCRIPT_API.filter((d) => !/[.:]/.test(d.name) && d.kind !== 'variable').map((d) => d.name);
     for (const n of globals) expect(defined, n).toContain(n);
+  });
+
+  it('documents every pane method the host defines (ADR 0053), and nothing else', () => {
+    const host = readFileSync(new URL('../../src/scripts/host.ts', import.meta.url), 'utf8');
+    const block = host.slice(host.indexOf("rt.defineClass('Pane', {"), host.indexOf("rt.defineFunction('createPane'"));
+    const methods = [...block.matchAll(/^ {6}(\w+): \(a\) =>/gm)].map((m) => `pane:${m[1]!}`);
+    expect(methods.length).toBeGreaterThan(10);
+    const documented = SCRIPT_API.filter((d) => d.name.startsWith('pane:')).map((d) => d.name);
+    expect(documented.sort()).toEqual(methods.sort());
+    for (const n of documented) expect(apiDoc(n)?.params?.[0]?.name, n).toBe('pane');
   });
 
   it('every API entry has a signature that starts with its name and a doc', () => {
     for (const d of [...SCRIPT_API, ...HEADER_TAGS]) {
       expect(d.doc.length, d.name).toBeGreaterThan(10);
-      if (d.kind === 'function') expect(d.sig.startsWith(`${d.name}(`), d.name).toBe(true);
+      if (d.kind === 'function') expect(d.sig.startsWith(`${d.name}(`) || d.sig.startsWith(`${d.name}{`), d.name).toBe(true);
     }
     const all = [...SCRIPT_API, ...LUA_REF, ...LUA_KEYWORDS, ...LUA_SYNTAX, ...HEADER_TAGS].map((d) => d.name);
     expect(new Set(all).size).toBe(all.length);

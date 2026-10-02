@@ -374,6 +374,49 @@ const OUTPUT: HelpSection = {
   ],
 };
 
+const PANES: HelpSection = {
+  group: "guide",
+  heading: "Panes",
+  syntax: [
+    "createPane{id, title, dock, rows, cols}",
+    "pane:clear()  pane:echo(text)  pane:cecho(text)",
+    "pane:setLine(row, text)  pane:gauge(row, {value, max, color, label})",
+    "pane:cechoLink(text, fn, hint)  pane:setLink(row, col, len, fn, hint)",
+    "pane:size()  pane:onResize(fn)  pane:setTitle(text)",
+    "pane:show()  pane:hide()  pane:visible()",
+  ],
+  text: [
+    "A script can draw its own pane: text, colours, bars and clickable spans. It docks, floats, toggles and takes a colour like the Character or Group pane.",
+    "createPane{id = \"main\", title = \"Status\", dock = \"right\", rows = 6} makes the pane and returns it. Call its methods with a colon: pane:echo(\"hi\"). dock is \"right\", \"left\", \"top\", \"bottom\" or \"float\"; rows (a side dock) and cols (the top or bottom dock) are the size you would like. They only place a new pane: from then on it stays where the player puts it, also after a reload or a restart.",
+    "The pane is there while the script runs. Turning the script off, or saving it, takes the pane away; when the script creates it again, it comes back in the same place, with the colour and border the player chose. Options → Panes lists it under the built-in panes, by its title and script. createPane with an id the script already has returns the same pane.",
+    "Writing text:",
+    "- pane:echo(text) and pane:cecho(text) append to the last line, as Mudlet's echo: a \\n starts a new line. cecho takes the colour tags of Output.",
+    "- pane:setLine(row, text) replaces one row (from 1), with colour tags. Rows past the end are added. This is the way to draw a status pane: one row per thing, redrawn when it changes.",
+    "- pane:gauge(row, {value = 30, max = 60, color = \"orange\", label = \"30 min\"}) draws a full-width bar on a row, like the Group pane's bars.",
+    "- pane:clear() empties the pane.",
+    "A pane keeps at most 500 lines. Text wider than the pane is cut at its edge. When there are more lines than rows, the pane shows the newest lines, with ↑ N more rows on top.",
+    "Links. Any span, down to one cell, can be clickable and have a tooltip:",
+    "- pane:cechoLink(text, fn, hint) appends text (colour tags allowed) that calls fn when clicked.",
+    "- pane:setLink(row, col, len, fn, hint) makes len cells of a row, from column col, a link. Draw the text first: setLine, gauge and clear remove the links on their rows.",
+    "The pointer turns into a hand over a link, the link lights up and the hint shows under it. fn runs like any handler, with the instruction budget and the error rules of Sandbox and limits. In the log player and the HTML replay, links do nothing but keep their tooltips.",
+    "Size. pane:size() returns rows, cols: the cells the pane has now (0, 0 while it is not shown). pane:onResize(fn) calls fn(rows, cols) when that changes, also when the pane is first shown; draw to fit there.",
+    "pane:hide() and pane:show() switch the pane off and on, as its close cross and Options do; the choice is kept. pane:visible() tells whether it is on. pane:setTitle(text) changes the title.",
+    "Pane methods are cheap: they change the pane's content, and the pane is drawn once per screen frame. Updating a pane from a trigger on every line is fine.",
+  ],
+  examples: [
+    {
+      note: "A status pane with a bar and a clickable order:",
+      lang: "lua",
+      code: 'local pane = createPane{id = "status", title = "Status", dock = "right", rows = 3}\n\nlocal function draw()\n  local v = gmcp.Char and gmcp.Char.Vitals\n  local hp, max = v and v.hp or 0, v and v.maxhp or 1\n  pane:gauge(1, {value = hp, max = max, color = "green", label = "HP " .. hp .. "/" .. max})\n  pane:setLine(2, "<yellow>[rest]<reset>  <yellow>[stand]")\n  pane:setLink(2, 1, 6, function() send("rest") end, "Rest to heal")\n  pane:setLink(2, 9, 7, function() send("stand") end, "Stand up")\nend\n\nregisterAnonymousEventHandler("gmcp.Char.Vitals", draw)\ndraw()',
+    },
+    {
+      note: "A log pane and an alias that toggles it:",
+      lang: "lua",
+      code: 'local log = createPane{id = "tells", title = "Tells", dock = "float", rows = 6, cols = 40}\n\ntempRegexTrigger("^(\\\\w+) tells you \'(.*)\'$", function()\n  log:cecho("<cyan>" .. matches[2] .. "<reset>: " .. matches[3] .. "\\n")\nend)\n\ntempAlias("^tells$", function()\n  if log:visible() then log:hide() else log:show() end\nend)',
+    },
+  ],
+};
+
 const SETTINGS: HelpSection = {
   group: "guide",
   heading: "Settings and store",
@@ -571,6 +614,7 @@ export const SCRIPT_GUIDE: readonly HelpSection[] = [
   TIMERS,
   EVENTS,
   OUTPUT,
+  PANES,
   SETTINGS,
   BRIDGE,
   COMMANDS,

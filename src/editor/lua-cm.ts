@@ -190,7 +190,7 @@ function toCompletions(d: ApiDoc, method: boolean): Completion[] {
     return [{ label: d.name, type: 'keyword', detail: '', boost: -1, ...(info ? { info } : {}) }];
   }
   const c: Completion = {
-    label: method ? d.name.slice(d.name.indexOf('.') + 1) : d.name,
+    label: method ? d.name.slice(Math.max(d.name.indexOf('.'), d.name.indexOf(':')) + 1) : d.name,
     type: TYPE[d.kind],
     detail: d.kind === 'function' ? paramsDetail(d, method) : d.lua && d.kind === 'table' ? 'library' : '',
     boost: d.lua ? -2 : 0,

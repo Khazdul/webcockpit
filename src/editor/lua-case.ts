@@ -19,7 +19,7 @@ import { LUA_REF } from './lua-ref';
 const CANONICAL: ReadonlyMap<string, string> = (() => {
   const m = new Map<string, string | null>();
   for (const d of [...SCRIPT_API, ...LUA_REF]) {
-    if (d.kind === 'tag' || d.kind === 'keyword' || d.removed) continue;
+    if (d.kind === 'tag' || d.kind === 'keyword' || d.removed || d.name.includes(':')) continue;
     const k = d.name.toLowerCase();
     const had = m.get(k);
     m.set(k, had === undefined || had === d.name ? d.name : null);

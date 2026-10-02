@@ -505,6 +505,188 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         'store.set("kills", 12)\nstore.set("friends", { "Rasta", "Ithilwen" })',
     },
   ),
+  // Panes (ADR 0053).
+  fn(
+    "createPane",
+    "createPane{id, title, dock, rows, cols} → pane",
+    "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
+    {
+      params: [
+        p("id", "string", "The pane's id within the script: 1 to 32 letters, digits, _ or -."),
+        p("title", "string?", "The frame title (default: the id). pane:setTitle changes it."),
+        p("dock", "string?", "Where it goes the first time: \"right\" (default), \"left\", \"top\", \"bottom\" or \"float\"."),
+        p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
+        p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
+      ],
+      returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
+      more: [
+        "dock, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes lists it with its title and script, to switch it off, colour it or drop its border.",
+        "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
+        "Rows and columns count from 1. Text wider than the pane is cut; more lines than fit show the newest, with ↑ N more rows on top. A pane keeps at most 500 lines.",
+      ],
+      example:
+        'local pane = createPane{id = "hp", title = "Health", dock = "right", rows = 3}\npane:gauge(1, {value = 80, max = 120, color = "green", label = "HP 80/120"})',
+    },
+  ),
+  fn(
+    "pane:clear",
+    "pane:clear()",
+    "Empties the pane: every line and link goes.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      example: 'pane:clear()\npane:echo("Nothing to show.")',
+    },
+  ),
+  fn(
+    "pane:echo",
+    "pane:echo(text)",
+    "Appends plain text to the pane. A \\n starts a new line.",
+    {
+      params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "The text, as is (angle brackets are text).")],
+      more: [
+        "Text goes on the end of the last line, as Mudlet's echo: pane:echo(\"a\") then pane:echo(\"b\\n\") gives one line ab, and the next echo starts a new line. Use pane:setLine to replace a row instead.",
+      ],
+      example: 'pane:echo("Kills: " .. kills .. "\\n")',
+    },
+  ),
+  fn(
+    "pane:cecho",
+    "pane:cecho(text)",
+    "Appends coloured text to the pane, with the colour tags of cecho. A \\n starts a new line.",
+    {
+      params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "Text with colour tags such as <red>, <b> or <reset>.")],
+      example: 'pane:cecho("<green>ready<reset>\\n")',
+    },
+  ),
+  fn(
+    "pane:setLine",
+    "pane:setLine(row, text)",
+    "Replaces one row with coloured text (the cecho tags). Rows past the end are added as empty lines.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1 (at most 500)."),
+        p("text", "string", "Text with colour tags; a \\n becomes a space."),
+      ],
+      more: ["The row's links go with its old text: add them again with pane:setLink after redrawing the row."],
+      example: 'pane:setLine(1, "<b>Mercenaries</b>")\npane:setLine(2, "Bob  <yellow>waiting")',
+    },
+  ),
+  fn(
+    "pane:gauge",
+    "pane:gauge(row, {value, max, color, label})",
+    "Draws a full-width bar on one row, like the bars of the Group pane: value of max filled, label centred over it.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1."),
+        p(
+          "gauge",
+          "table",
+          "value and max (numbers; max defaults to 100), color (a colour name such as \"red\", \"<#ff8800>\" or \"orange\"; default green) and label (text over the bar).",
+        ),
+      ],
+      more: ["The unfilled part takes the pane's track shade, so the bar follows the pane colour. Like setLine, it replaces the row and its links."],
+      example: 'pane:gauge(2, {value = 30, max = 60, color = "orange", label = "30 min left"})',
+    },
+  ),
+  fn(
+    "pane:cechoLink",
+    "pane:cechoLink(text, fn, hint)",
+    "Appends coloured text that calls fn when it is clicked, with hint as its tooltip.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("text", "string", "Text with colour tags; it goes on the end of the last line, as pane:cecho (a \\n becomes a space)."),
+        p("fn", "function", "Called with no arguments on a click."),
+        p("hint", "string?", "The tooltip shown while the pointer is over the link; \\n breaks it into lines."),
+      ],
+      more: [
+        "The pointer turns into a hand over a link and the link lights up. Links do nothing in the log player and the HTML replay, but keep their tooltips.",
+      ],
+      example: 'pane:cechoLink("<u>[pay]</u>", function()\n  send("pay mercenary")\nend, "Pay the mercenary")',
+    },
+  ),
+  fn(
+    "pane:setLink",
+    "pane:setLink(row, col, len, fn, hint)",
+    "Makes len cells of a row, from column col, call fn when clicked, with hint as their tooltip. Any span, down to one cell.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1."),
+        p("col", "number", "The first column, from 1."),
+        p("len", "number", "How many cells, at least 1."),
+        p("fn", "function", "Called with no arguments on a click."),
+        p("hint", "string?", "The tooltip."),
+      ],
+      more: [
+        "The cells need no text. A link replaces the links it overlaps on that row; pane:setLine, pane:gauge and pane:clear remove the row's links.",
+      ],
+      example: 'pane:setLine(3, "[x] Bob")\npane:setLink(3, 2, 1, function()\n  send("order bob leave")\nend, "Send Bob away")',
+    },
+  ),
+  fn(
+    "pane:size",
+    "pane:size() → rows, cols",
+    "The pane's content size in cells now: rows and columns. Both are 0 while the pane is not shown.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      returns: "rows, cols (two numbers).",
+      example: 'local rows, cols = pane:size()\npane:setLine(1, string.rep("-", cols))',
+    },
+  ),
+  fn(
+    "pane:onResize",
+    "pane:onResize(fn)",
+    "Calls fn(rows, cols) when the pane's size changes, also when it is first shown. nil removes the handler.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("fn", "function?", "Called with the new rows and cols; nil removes it."),
+      ],
+      more: ["It is not called while the pane is hidden; pane:size() then gives 0, 0."],
+      example: 'pane:onResize(function(rows, cols)\n  pane:setLine(1, string.rep("=", cols))\nend)',
+    },
+  ),
+  fn(
+    "pane:show",
+    "pane:show()",
+    "Switches the pane on, as its row in Options → Panes does.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      more: ["On and off are the player's setting, kept across sessions; the close cross switches a pane off too."],
+      example: 'tempAlias("^merc$", function()\n  if pane:visible() then pane:hide() else pane:show() end\nend)',
+    },
+  ),
+  fn(
+    "pane:hide",
+    "pane:hide()",
+    "Switches the pane off, as its close cross does. The script keeps writing to it.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      example: "pane:hide()",
+    },
+  ),
+  fn(
+    "pane:visible",
+    "pane:visible() → boolean",
+    "true when the pane is switched on (it may still lack room in a small window).",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      returns: "true or false.",
+      example: 'if not pane:visible() then echo("The pane is off; pane:show() brings it back.") end',
+    },
+  ),
+  fn(
+    "pane:setTitle",
+    "pane:setTitle(text)",
+    "Changes the title in the pane's frame and in Options → Panes.",
+    {
+      params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "The new title (at most 60 characters).")],
+      example: 'pane:setTitle("Mercenaries (" .. count .. ")")',
+    },
+  ),
   v(
     "settings",
     "settings.<name>",
@@ -713,10 +895,14 @@ export function apiDoc(name: string): ApiDoc | null {
   return BY_NAME.get(name) ?? TAG_BY_NAME.get(name) ?? null;
 }
 
-/** The doc of a string method name (`find` for `s:find`), or null. */
+/** The pane methods (`pane:echo` …), offered after `pane:` (ADR 0053). */
+const PANE_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("pane:"));
+
+/** The doc of a method name: a string method (`find` for `s:find`), else a pane method (`echo`), or null. */
 export function methodDoc(name: string): ApiDoc | null {
   const d = BY_NAME.get(`string.${name}`);
-  return d && d.kind === "function" && !NOT_METHODS.has(d.name) ? d : null;
+  if (d && d.kind === "function" && !NOT_METHODS.has(d.name)) return d;
+  return BY_NAME.get(`pane:${name}`) ?? null;
 }
 
 // ------------------------------------------------------------ completion
@@ -916,11 +1102,15 @@ export function completeLua(
   }
   if (lineContext(before) !== "code") return null;
   // A method call: `line:fi`, `("x"):up`, `t[1]:lo` (not `::label`).
+  // A receiver whose name says pane (`pane:`, `myPane:`) gets the pane
+  // methods, any other the string methods.
   const meth = /(?:[\w\])"']):([A-Za-z_]\w*)?$/.exec(before);
   if (meth && !before.endsWith("::")) {
     const word = meth[1] ?? "";
-    const options = METHODS.filter((d) =>
-      d.name.slice(7).startsWith(word),
+    const receiver = /([A-Za-z_]\w*):[A-Za-z_]?\w*$/.exec(before)?.[1] ?? "";
+    const pane = /pane/i.test(receiver);
+    const options = (pane ? PANE_METHODS : METHODS).filter((d) =>
+      d.name.slice(pane ? 5 : 7).startsWith(word),
     );
     return options.length
       ? { from: before.length - word.length, options, method: true }
@@ -946,6 +1136,7 @@ export function completeLua(
     options = ALL.filter(
       (d) =>
         !d.name.includes(".") &&
+        !d.name.includes(":") &&
         d.name.toLowerCase().startsWith(word.toLowerCase()),
     );
     // Keywords by prefix, but not once a whole keyword is typed: Enter
