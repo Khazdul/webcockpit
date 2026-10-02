@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **12 — Key manager** (waits for the owner's Mudlet reference script; stage 11 done, not released yet; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **12 — Key manager** (round 1 built, owner testing; stages 11–12 not released yet; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -17,13 +17,28 @@ Current stage: **12 — Key manager** (waits for the owner's Mudlet reference sc
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
-| 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
+| 12 | Key manager | Owner testing | `docs/stages/12-key-manager.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Stage 12 round 1 built: key manager and pane text fields
+
+- **Owner:** Mudlet Port Key Library is the reference
+  (`notes/research/mudlet-portkeys/`); keys per character (12 h);
+  Ctrl+S/Alt+S safe teleport; every locate is caught however it is cast;
+  the key name is typed in the pick window; TV (scry/watch) a later round.
+- **Built:** bundled `keymanager.lua` (Keys pane, pick window, safe key,
+  `$name`, casts; ADR 0054); `pane:setInput` text fields (ADR 0055).
+- **Verified:** typecheck, unit 1823, e2e 371/372 (one Chromium
+  screenshot error in underscores, passes alone), build green.
+- **Open:** failure lines, `cast q 'teleport'` and long names unverified
+  in MUME; field uses a thin caret, not the block cursor.
+- **Next:** owner test round 1 (stage file test guide); release on request.
+- **Commits:** 733ac09, e82ca40, bed9c07, 308b34d, 534b79e, 31e3f9e, plus this one.
 
 ### 2026-10-02 — Stage 11 done
 
