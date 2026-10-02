@@ -381,3 +381,84 @@ contract length is a setting.
   label <who>` (which assumes a full contract).
 - Whether `order <label> stand` and `flee` are accepted for a
   mercenary is not in the logs (they are for charmed followers).
+
+## Package notes — P1 (2026-10-02)
+
+**Record format.** `<ts> ESC SPANE <id> <json>` (src/capture/format.ts,
+`formatPaneRecord`; payload rules in `src/panes/script-record.ts`):
+
+- `null`: the pane went away (script stopped, pane closed);
+- `{"title","lines","links"}`: a full `PaneSnapshot`;
+- `{"n":N,"set":{"<row>":line|{"v"?,"l"?}},"title"?,"links"?}`: a delta
+  against the pane's previous record in the same run. `n` is the line
+  count; rows not in `set` are kept (new rows past the old end are
+  empty); `{"v","l"}` patches a gauge row's value and/or label (same max
+  and colour); `title` and `links` (the whole list) only when changed.
+
+**Recording.**
+
+- `RecordingPaneSurface` (script-surface.ts) wraps `CockpitPaneSurface`
+  in App and emits `view.pane {id, snap}` (bus) at most once per
+  `PANE_RECORD_MS` = 16 ms per changed pane (`snapshot()` taken then),
+  and `{id, null}` on close. A timer, not `requestAnimationFrame`: frames
+  stop in a hidden tab while the run goes on (a hidden tab's 1 s timer
+  clamp only delays a record).
+- The recorder keeps the latest snapshot of every present pane. At run
+  start it writes them in full after VIEW / SIZE (as for VIEW, the run's
+  start carries the state). During the run: the first record of a pane
+  is full, later ones a delta when shorter, a full one again when the
+  last full is `PANE_KEYFRAME_US` = 60 s old, nothing when unchanged; a
+  removal only for a pane written in the run. A pane's first record is
+  preceded by the pending VIEW, so the placement its creation stored is
+  in the log before it shows (VIEW is otherwise debounced 500 ms).
+- Each run starts with full records, so stitched sessions need nothing.
+
+**Cuts and exports.** Timeline cuts and spotlight windows keep every
+non-text entry, so SPANE records play in no time there. The HTML
+export's `editRunText` folds the records inside an excluded range: one
+full record (or `null`) per pane changed in it, at the range's last
+entry, so the file has the state at the cut's end but not what the pane
+showed inside (ADR 0019's privacy rule for removed text). Deltas after
+the range apply to that state. A spotlight's state prefix starts
+mid-run, so deltas there apply to an empty pane until the next full
+record (≤ 60 s); Spotlights hide script panes anyway.
+
+**Player.** `ENTRY_SPANE` in the timeline; the engine hands the body to
+`PlayerTarget.spane`. PlayerHost keeps a snapshot per pane, applies
+records (`applyPaneRecord`, defensive: malformed JSON keeps the pane,
+everything is capped by `sanitizeSnapshot`), creates a `ScriptPane` with
+no `onLink` (links inert, tooltips kept; `PaneContent.load` replaces
+content in place) and adds it with `cockpit.addPane`. A run's `connect`
+drops the previous run's panes. Seeking needs nothing new: forward
+delivers records, backward rebuilds the App and replays from the start.
+Placement and on/off come from the VIEW records. The viewer's gear lists
+the script panes of the whole log (`scriptPaneIdsOf`, no JSON parse) on
+rows of their own (`wide`), labelled `Title (script)`; `applyViewer`
+and the close-cross override now cover every pane id; the Spotlights
+reel switches script panes off too (`PlayerHost.scriptPaneIds`). Older
+logs and Cockpit logs have no SPANE records: unchanged.
+
+**Measured.**
+
+- A mercenaries-like pane (3 mercenaries: a text row with four 1-cell
+  links with ~35-character hints and a countdown gauge row each),
+  updated every second: full record 1 462 B, a delta 144 B (three gauge
+  patches); one hour 0.60 MB with the 60 s keyframes (5.26 MB if every
+  record were full). For scale, a 5.4 h Cockpit log is 4.7 MB
+  (0.87 MB/h). Snapshot + encode ≈ 3.6 µs per record (Node, i7-12700H).
+- Production build: cold-start JS 392.7 → 397.0 kB raw (the recorder's
+  encoder and the content caps it imports); the HTML replay bundle
+  1 016 214 → 1 022 352 B (+6.1 kB raw, +2.4 kB gzip): ScriptPane, the
+  content model and the record decoder. Lazy chunks: player-host 26.7 →
+  27.8 kB; `ScriptPane` and `PaneContent` are now shared chunks (4.2 kB
+  and 4.3 kB) used by the host and the player, so `script-surface`
+  5.3 → 1.9 kB and `host` 31.7 → 27.5 kB.
+- e2e: the live-mock run in the test writes a 263 B full record at run
+  start and an 83 B delta for one changed row.
+
+**Open.**
+
+- A busy pane can add as much to a run as its text; if that matters,
+  the next step is coarser coalescing (e.g. 250 ms) for gauges only.
+- A pane that only changes inside a spotlight's state prefix shows a
+  partial state until its next full record (hidden in Spotlights now).
