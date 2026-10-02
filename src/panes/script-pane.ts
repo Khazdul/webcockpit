@@ -203,7 +203,12 @@ export class ScriptPane extends PaneShell {
     this.setHover(link, at?.screenRow ?? 0);
   };
 
-  private readonly onLeave = (): void => {
+  private readonly onLeave = (e: PointerEvent): void => {
+    // Firefox sends pointerleave when the row under the pointer is redrawn
+    // (the hover band replaces its element): ignore it while the pointer is
+    // still over the content.
+    const r = this.content.getBoundingClientRect();
+    if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
     this.setHover(null);
   };
 
