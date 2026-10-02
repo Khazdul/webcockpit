@@ -692,3 +692,67 @@ Fixes the four content findings of round 1. Supersedes P1's *`gmcp` and
   text. `highlight(color)` first tries the profile colour, then — for an
   argument of tags only — any cecho tags (`<b><orange>`), then a colour
   without brackets (`orange`, `white:red`, `r,g,b`, `#rrggbb`).
+
+### Feedback round 3 — help for plain Lua (2026-10-02)
+
+The owner asked for the same pop-ups for plain Lua as for the API, for
+players who do not know Lua.
+
+- *One shape, two tables.* `src/editor/lua-ref.ts` holds `LUA_REF` in
+  `ApiDoc`'s shape (signature, description, parameters, return value,
+  example; `lua: true`): the base functions and every member of string,
+  table, math, utf8 and coroutine that the sandbox keeps (`print` stays
+  in `SCRIPT_API`). A unit test runs a live sandbox both ways: every
+  entry has the documented type, every library member and kept base
+  function is documented, and the removed names (`io`, `os`, `require`,
+  `load`, `debug`, `collectgarbage`, `string.dump`, `unpack` …) are
+  nil and not listed. Those hover as "Not available in scripts" with a
+  hint (`os` → timers); nothing completes them. Pattern functions
+  explain Lua patterns vs regular expressions in the `pattern`
+  parameter and mention the pattern guard.
+- *Keywords and syntax.* `LUA_KEYWORDS` (kind `keyword`) document each
+  keyword; `if` (2), `for` (numeric, ipairs, pairs), `while`, `repeat`,
+  `function` (2) and `local function` carry snippets
+  (`snippetCompletion`, `${n:default}` fields, `${0}` last stop).
+  `LUA_SYNTAX` documents `..`, `...`, `#`, `~=`, `--`, `--[[`, `[[` for
+  hover. A keyword completes only while partly typed: after a whole
+  keyword (`else`, `local`) Enter still breaks the line. Rank: API,
+  keywords, Lua library.
+- *Signature help* (`lua-sig.ts`, pure). `callContext` scans up to 4000
+  characters before the cursor with a light lexer (strings, long
+  strings, comments) and a stack of brackets and blocks (`function`,
+  `if`, `do`, `repeat` … `end`/`until`), so commas in strings, tables
+  and nested calls do not count and a `function() … end` argument's
+  body is not part of the outer call. Method calls (`line:find(`,
+  `("x"):rep(`, `t[1]:upper(`) resolve to the string library without
+  `s`. In `lua-cm.ts` a `StateField` provides the tooltip: it opens on
+  input inside a call (`(` and `,` included), follows the cursor, and
+  closes when the cursor leaves the call or on ESC; after ESC it stays
+  closed for that call until the next `(` or `,`. Ctrl+Shift+Space
+  opens it. Optional parameters show as `[init]`; past the last one
+  `...` stays marked.
+- *Keys.* The frame routes ESC to `dismissPopups` (signature help, then
+  a hover, then an active snippet) before search and before closing the
+  editor, and Tab/Shift+Tab to `snippetTab` while a snippet has fields;
+  otherwise Tab still cycles buttons ↔ buffer. Tab accepts a completion
+  even inside a snippet (our Tab binding is `Prec.highest` and comes
+  before the snippet keymap).
+- *Completion and hover.* After `x:` the string methods (not `char`,
+  `pack`, `packsize`, `unpack`), labels without `string.` and details
+  without `s`. The info panel and hover now show parameters and the
+  return value for all entries (API too). F1 opens the entry of an API
+  or Lua name, the index for a library table, *Lua basics* for a
+  keyword or operator, *Sandbox and limits* for a removed name.
+- *Manual* (lead's decision): no copy of the Lua manual. The guide got
+  *Lua basics* (values, local, strings, tables, if, loops, functions,
+  comments, common mistakes) and *Lua patterns* (a cheat sheet and the
+  differences from regular expressions) after *Getting started*. A new
+  group *Lua reference* is generated from `LUA_REF`: the *Lua library*
+  index (one line per name with its first sentence, by library; the
+  names are links to their entries) and one entry per function or value,
+  rendered like the API reference. All examples compile in the existing
+  manual test.
+
+**Measured** (production build): editor chunk 478.7 → 528.7 kB (156.2 →
+172.7 kB gzip); chrome 108.2 kB unchanged; cold-start preload unchanged
+(390.9 kB).

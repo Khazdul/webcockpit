@@ -96,6 +96,20 @@ packages, Mudlet API compatibility beyond the names in §2.10.
         wheel cursor (Inv §7.5);
   - [x] native pixel scrolling in the Comm, UI and Timers panes (owner
         decision 2026-10-02, ADR 0052; amends Inv §2.4, §2.6.1, §2.7.5).
+- [x] Feedback round 3 (2026-10-02, ADR 0051 "Feedback round 3"):
+  - [x] Lua reference table (`lua-ref.ts`) for every base function and
+        library member the sandbox keeps, checked against a live
+        sandbox both ways; removed names hover as "not available";
+  - [x] keyword completion with snippets (if, for ×3, while, repeat,
+        function, local function) and Tab between fields; hover for
+        keywords and `..`, `...`, `#`, `~=`, `--`, `--[[`, `[[`;
+  - [x] signature help (`lua-sig.ts`) for API and Lua calls, methods
+        included; ESC closes it before the editor;
+  - [x] completion after `string.` … and `x:` (string methods), info
+        panel with parameters and return value; F1 on Lua names;
+  - [x] MANUAL: *Lua basics* and *Lua patterns* in the guide, and a
+        generated *Lua reference* (linked index, one entry per name);
+  - [x] unit and e2e tests (Chromium, Firefox).
 
 ## Test guide
 
@@ -159,7 +173,20 @@ Chromium.
     About, History, Profiles, Statistics, the Scripts page and the export
     editor smoothly, by pixels, like the EDITOR. The side panes and the
     paused log player still step by rows (tell us if they should change).
-11. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
+11. **Help for plain Lua (round 3):** in the editor, type `string.`
+    and the list shows every string function with its parameters; the
+    panel beside it explains the selected one (parameters, return value,
+    example). Type `line:` for the string methods. Type
+    `string.format("%d", ` and a pop-up above the line shows the call
+    with the current parameter marked; it follows your commas, `)`
+    leaves it, ESC closes it (the next ESC leaves the editor).
+    Type `fo` and pick `for i = 1, n do … end`: the loop is inserted
+    with `i` selected; Tab goes to `1`, `10`, then into the body. Hover
+    `ipairs`, `for`, `..` or `os` (not available). F1 on a Lua name
+    opens its entry in the MANUAL's new *Lua reference*; the guide has
+    *Lua basics* and *Lua patterns*. Is it enough for someone who does
+    not know Lua? Too much in the pop-ups?
+12. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
    an editable `coinlooter-copy`. Export and import a script as `.lua`
    (import shows a warning first).
 
@@ -190,3 +217,12 @@ Round 1 (2026-10-02):
    everywhere (native pixels, no row steps); HELP was the example.
    Decision 2026-10-02: the Comm, UI messages and Timers panes too
    (ADR 0052); the log player's paused wheel cursor stays.
+
+Round 3 (2026-10-02):
+
+1. When writing Lua, the editor should explain plain Lua the way it
+   explains the script API: syntax and parameters in pop-ups while
+   typing, without assuming the user knows Lua (completion for Lua names
+   only said "Lua"). Lead's decision on the manual: no copy of the Lua
+   manual; a short *Lua basics* primer and a generated *Lua library*
+   index and reference.
