@@ -177,6 +177,28 @@ describe('SPANE records: temporary panes', () => {
   });
 });
 
+describe('SPANE records: anchor (ADR 0053 addendum)', () => {
+  it('a top-anchored pane says so in full records; deltas and the player keep it', () => {
+    const c = new PaneContent('Keys', { anchor: 'top' });
+    c.setLine(0, plain('a'));
+    const a = encodePaneRecord(null, c.snapshot())!;
+    expect(JSON.parse(a.payload).anchor).toBe('top');
+    c.setLine(1, plain('b'));
+    const b = encodePaneRecord(a.state, c.snapshot())!;
+    expect(b.full).toBe(false);
+    expect(JSON.parse(b.payload).anchor).toBeUndefined();
+    let s = applyPaneRecord(null, a.payload)!;
+    s = applyPaneRecord(s, b.payload)!;
+    expect(s.anchor).toBe('top');
+    expect(PaneContent.fromSnapshot(s).anchor).toBe('top');
+    // A console (the default) has none, and reads back as bottom.
+    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+    expect(o.payload).not.toContain('anchor');
+    expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).anchor).toBe('bottom');
+    expect(applyPaneRecord(null, '{"title":"x","lines":[],"links":[],"anchor":"sideways"}')!.anchor).toBeUndefined();
+  });
+});
+
 describe('RecordingPaneSurface', () => {
   function setup() {
     const timers: Array<() => void> = [];
@@ -547,7 +569,7 @@ describe('log player', () => {
     };
     const cockpit = () => host.app!.cockpit;
     seekLog(BASE_US + 1.5e6);
-    expect(cockpit().tempPane(TID)).toEqual({ rows: 2, cols: 20, rect: null, on: true });
+    expect(cockpit().tempPane(TID)).toEqual({ rows: 2, cols: 20, at: 'center', rect: null, on: true });
     expect(cockpit().scriptPanes()).toEqual([]);
     expect(host.scriptPaneIds).toEqual([]);
     const controls = (host.playerView as unknown as { o: { settings: ViewerControls } }).o.settings;

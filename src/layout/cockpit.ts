@@ -43,10 +43,11 @@
 //   (`present`). Their place in the settings stays when they leave.
 // - Temporary script panes (`addPane(shell, temp)`, ADR 0053 feedback
 //   round 1) are never in the settings: the cockpit keeps their place and
-//   on/off in memory. They float above every other pane, centred over the
-//   game pane at their wanted size until the user moves or resizes them,
-//   never dock, and their close cross calls `temp.onClose` (the owner
-//   removes them).
+//   on/off in memory. They float above every other pane, at their wanted
+//   size where `temp.at` says (centred over the game pane by default) until
+//   the user moves or resizes them, never dock, and their close cross
+//   calls `temp.onClose` (the owner removes them). The surface keeps the
+//   user's rectangle per device (src/layout/temp-places.ts).
 
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
@@ -111,8 +112,13 @@ export interface ScriptPaneInfo {
 
 export type { CellSource } from '../panes/context';
 
+/** Where a temporary pane opens until the user moves it (`createPane{at}`). */
+export type TempPaneAt = 'center' | 'top' | 'top-right' | 'bottom';
+
 /** A temporary script pane's place, kept by the cockpit (never in the settings). */
 export interface TempPaneOptions {
+  /** Where it opens (default centred over the game pane). */
+  at?: TempPaneAt;
   /** Wanted content size in cells (centred over the game pane). */
   rows: number;
   cols: number;
@@ -130,6 +136,7 @@ export interface TempPaneOptions {
 export interface TempPaneState {
   rows: number;
   cols: number;
+  at: TempPaneAt;
   rect: Rect | null;
   on: boolean;
 }
@@ -382,6 +389,7 @@ export class Cockpit {
       this.temps.set(shell.id, {
         rows: temp.rows,
         cols: temp.cols,
+        at: temp.at ?? 'center',
         rect: temp.rect ?? null,
         on: temp.on ?? true,
         onClose: temp.onClose,
@@ -399,10 +407,10 @@ export class Cockpit {
   /** A temporary pane's place and on/off, or null when `id` is not one. */
   tempPane(id: PaneId): TempPaneState | null {
     const t = this.temps.get(id);
-    return t ? { rows: t.rows, cols: t.cols, rect: t.rect && { ...t.rect }, on: t.on } : null;
+    return t ? { rows: t.rows, cols: t.cols, at: t.at, rect: t.rect && { ...t.rect }, on: t.on } : null;
   }
 
-  /** Changes a temporary pane's on/off or rectangle (null: centred again). */
+  /** Changes a temporary pane's on/off or rectangle (null: back to its default place). */
   setTempPane(id: PaneId, patch: { on?: boolean; rect?: Rect | null }): void {
     const t = this.temps.get(id);
     if (!t) return;
@@ -532,9 +540,7 @@ export class Cockpit {
       const g = r.game;
       const w = t.cols + 2;
       const h = t.rows + 2;
-      const want =
-        this.tempPreview?.id === id ? this.tempPreview.rect
-        : (t.rect ?? { x: g.x + Math.floor((g.w - w) / 2), y: g.y + Math.floor((g.h - h) / 2), w, h });
+      const want = this.tempPreview?.id === id ? this.tempPreview.rect : (t.rect ?? tempDefaultRect(g, w, h, t.at));
       const rect = clampFloat(want, floatMin(id, true), r.cols, r.rows);
       const content = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
       out.push({ id, dock: 'float', index: index++, rect, content, framed: true });
@@ -1007,4 +1013,24 @@ function placeEl(el: HTMLElement, r: Rect, cell: { w: number; h: number }): void
   st.top = `${r.y * cell.h}px`;
   st.width = `${r.w * cell.w}px`;
   st.height = `${r.h * cell.h}px`;
+}
+
+/**
+ * A temporary pane's outer rectangle (`w` × `h` cells) before the user
+ * moves it, over the game pane `g`: centred; at the top, centred
+ * sideways; at the top right; or at the bottom, just above the input
+ * line, centred sideways.
+ */
+export function tempDefaultRect(g: Rect, w: number, h: number, at: TempPaneAt): Rect {
+  const cx = g.x + Math.floor((g.w - w) / 2);
+  switch (at) {
+    case 'top':
+      return { x: cx, y: g.y, w, h };
+    case 'top-right':
+      return { x: g.x + g.w - w, y: g.y, w, h };
+    case 'bottom':
+      return { x: cx, y: g.y + g.h - h, w, h };
+    default:
+      return { x: cx, y: g.y + Math.floor((g.h - h) / 2), w, h };
+  }
 }

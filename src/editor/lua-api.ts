@@ -520,7 +520,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, dock, rows, cols, temporary} → pane",
+    "createPane{id, title, dock, rows, cols, anchor, temporary, at} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
@@ -529,14 +529,16 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("dock", "string?", "Where it goes the first time: \"right\" (default), \"left\", \"top\", \"bottom\" or \"float\"."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
-        p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats centred over the game text at rows × cols, above the other panes, is never listed in Options or remembered, and its close cross closes it (pane:close)."),
+        p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
+        p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
+        p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"top-right\" or \"bottom\" (just above the input line)."),
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
         "dock, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes lists it with its title and script, to switch it off, colour it or drop its border.",
         "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
-        "Rows and columns count from 1. Text wider than the pane is cut; more lines than fit show the newest, with ↑ N more rows on top. A pane keeps at most 500 lines.",
-        "A temporary pane ignores dock. The player can still move and resize it while it is open. It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
+        "Rows and columns count from 1. Text wider than the pane is cut. More lines than fit scroll (wheel, touchpad, touch), with one row telling how many are hidden: on top for anchor = \"bottom\", at the bottom for \"top\"; a click on it goes back. A pane keeps at most 500 lines.",
+        "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Options → Reset layout forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
       ],
       example:
         'local pane = createPane{id = "hp", title = "Health", dock = "right", rows = 3}\npane:gauge(1, {value = 80, max = 120, color = "green", label = "HP 80/120"})',

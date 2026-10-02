@@ -776,6 +776,29 @@ describe('hang guard', () => {
   });
 });
 
+describe('pane anchor (ADR 0053 addendum)', () => {
+  it('createPane takes anchor top or bottom (default) and at for a temporary pane, and refuses others', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        a: src(`
+          createPane{id = "list", anchor = "top"}
+          createPane{id = "con"}
+          send(select(2, pcall(createPane, {id = "x", anchor = "middle"})))
+          createPane{id = "t", temporary = true, at = "top-right"}
+          send(select(2, pcall(createPane, {id = "y", temporary = true, at = "left"})))
+        `),
+      },
+      { panes },
+    );
+    expect(panes.get('a/list')!.content.anchor).toBe('top');
+    expect(panes.get('a/con')!.content.anchor).toBe('bottom');
+    expect(t.sent[0]).toMatch(/anchor must be "top" or "bottom"/);
+    expect(panes.get('a/~t')!.spec.temporary).toEqual({ rows: 8, cols: 30, at: 'top-right' });
+    expect(t.sent[1]).toMatch(/at must be "center", "top", "top-right" or "bottom"/);
+  });
+});
+
 describe('pane text fields (ADR 0055)', () => {
   const FIELDS = src(`
     pane = createPane{id = "p", title = "P", rows = 3, cols = 30}

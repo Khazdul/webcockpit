@@ -11,9 +11,10 @@ import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/lay
 import { type LayoutModel, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
-import { type FieldEvent, ScriptPane, gaugeFill, paneInk, paneView, scriptPaneLines } from '../../src/panes/script-pane';
+import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows } from '../../src/panes/script-pane';
 import { contrast } from '../../src/theme/color';
 import { CockpitPaneSurface } from '../../src/panes/script-surface';
+import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../../src/layout/temp-places';
 import { parseCecho } from '../../src/scripts/colors';
 import { SettingsStore, migrateLayout, migrateSettings } from '../../src/settings';
 import { defaultSettings, paneSettingsOf } from '../../src/settings/types';
@@ -246,13 +247,17 @@ describe('drawing', () => {
   const ramp = { track: '#111', dim: '#222', mid: '#333', paneBg: '#000', vtext: '#eee', label: '#ddd', glow: '#fc0' };
   const ansi = defaultSettings().appearance.ansi;
 
-  it('shows the newest lines with an indicator when the content is taller', () => {
-    expect(paneView(3, 5)).toEqual({ first: 0, top: 0 });
-    expect(paneView(10, 4)).toEqual({ first: 7, top: 1 });
+  it('draws every line for the scroller; the indicator counts the rows away from the anchor', () => {
     const c = new PaneContent('t');
     c.append(plain('1\n2\n3\n4\n5'));
-    const rows = scriptPaneLines(c, 10, 3, ramp, false, ansi).map((l) => l.text());
-    expect(rows).toEqual(['↑ 3 more r', '4         ', '5         ']);
+    expect(scriptPaneRows(c, 3, ramp, false, ansi).map((l) => l.text())).toEqual(['1  ', '2  ', '3  ', '4  ', '5  ']);
+    // 10 lines in a 4-row pane: 3 rows of list and the indicator.
+    expect(paneIndicator(3, 5, 0, 'bottom')).toBeNull();
+    expect(paneIndicator(10, 4, 7, 'bottom')).toEqual({ text: '↑ 7 more rows', away: false });
+    expect(paneIndicator(10, 4, 2, 'bottom')).toEqual({ text: '↓ 5 rows below', away: true });
+    expect(paneIndicator(10, 4, 0, 'top')).toEqual({ text: '↓ 7 more rows', away: false });
+    expect(paneIndicator(10, 4, 1, 'top')).toEqual({ text: '↑ 1 row above', away: true });
+    expect(paneIndicator(10, 4, 99, 'top')).toEqual({ text: '↑ 7 rows above', away: true });
   });
 
   it('draws a gauge with its fill, track and centred label; the hovered link glows', () => {
@@ -262,7 +267,7 @@ describe('drawing', () => {
     c.setGauge(0, { value: 30, max: 60, label: 'half' });
     c.setLine(1, plain('[a]'));
     c.addLink(1, 0, 3, 1, '');
-    const [g, l] = scriptPaneLines(c, 10, 2, ramp, false, ansi, c.links[0]!);
+    const [g, l] = scriptPaneRows(c, 10, ramp, false, ansi, c.links[0]!);
     expect(g!.text()).toBe('   half   ');
     expect(g!.bg.slice(0, 5).every((b) => b === '#005a18')).toBe(true);
     expect(g!.bg.slice(5).every((b) => b === '#111')).toBe(true);
@@ -273,7 +278,7 @@ describe('drawing', () => {
   it('palette colours come from the user ANSI palette', () => {
     const c = new PaneContent('t');
     c.append(parseCecho('<ansi_red>x'));
-    const [l] = scriptPaneLines(c, 3, 1, ramp, false, ['#000', '#123456', ...ansi.slice(2)]);
+    const [l] = scriptPaneRows(c, 3, ramp, false, ['#000', '#123456', ...ansi.slice(2)]);
     expect(l!.fg[0]).toBe('#123456');
   });
 
@@ -282,12 +287,12 @@ describe('drawing', () => {
     c.append(parseCecho('a<yellow>b'));
     // A dark tint (blue fill) on the paper preset: the dark terminal fg turns light.
     const dark = paneInk('#202020', '#0e1621', false);
-    const [d] = scriptPaneLines(c, 2, 1, ramp, false, ansi, null, dark);
+    const [d] = scriptPaneRows(c, 2, ramp, false, ansi, null, dark);
     expect(contrast(d!.fg[0]!, '#0e1621')).toBeGreaterThanOrEqual(4.5);
     expect(d!.fg[1]).toBe(ansi[11]);
     // A light pane: yellow is shifted and darkened until it reads.
     const light = paneInk('#202020', '#f4ecd8', true);
-    const [l] = scriptPaneLines(c, 2, 1, ramp, true, ansi, null, light);
+    const [l] = scriptPaneRows(c, 2, ramp, true, ansi, null, light);
     expect(l!.fg[0]).toBe('#202020');
     expect(contrast(l!.fg[1]!, '#f4ecd8')).toBeGreaterThanOrEqual(4.5);
   });
@@ -411,8 +416,9 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(el.className).toBe('wc-spane-field');
     expect(el.value).toBe('home');
     expect(el.placeholder).toBe('a name');
-    // Beside the content: the content's offset (the frame) plus 6 cells.
-    expect(el.style.left).toBe(`${parseFloat(pane.content.style.left) + 6 * 10}px`);
+    // In the scroller, at its cells.
+    expect(el.style.left).toBe('60px');
+    expect(el.parentElement!.parentElement).toBe(pane.scrollEl);
     expect(el.style.width).toBe('80px');
     expect(document.activeElement).toBe(el);
     // The band is drawn in the cells under it.
@@ -457,6 +463,69 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(el.isConnected).toBe(false);
     expect(refocused).toBe(3);
     input.remove();
+  });
+
+  it('an overflowing pane scrolls: a console follows new lines at its end, a list stays at the top', () => {
+    const r = rig();
+    const open = (name: string, anchor: 'top' | 'bottom') => {
+      const id = scriptPaneId('s', name);
+      const content = new PaneContent(name, { anchor });
+      const view = r.surface.open({ id, place: { dock: 'float', rows: 4, cols: 20 } }, content, { onLink: () => {}, onResize: () => {} });
+      r.flush();
+      const pane = r.cockpit.pane(id) as ScriptPane;
+      return { content, view, pane, more: () => pane.content.querySelector<HTMLElement>('.wc-spane-more')! };
+    };
+    const con = open('con', 'bottom');
+    const list = open('list', 'top');
+    const fill = (p: typeof con, n: number) => {
+      for (let i = 1; i <= n; i++) p.content.setLine(i - 1, plain(`line ${i}`));
+      p.view.changed();
+      r.flush();
+    };
+    const rows = con.pane.rows;
+    expect(rows).toBeGreaterThan(2);
+    const n = rows + 6;
+    fill(con, n);
+    fill(list, n);
+    // Every line is in the scroller; one row is the indicator.
+    expect(con.pane.content.querySelectorAll('.wc-spane-rows > .wc-prow')).toHaveLength(n);
+    const listH = rows - 1;
+    // The console sits at its end, its indicator on top.
+    expect(con.pane.scrollEl.scrollTop).toBe((n - listH) * 20);
+    expect(con.more().textContent).toContain(`↑ ${n - listH} more rows`);
+    expect(con.more().style.top).toBe('0px');
+    // The list sits at the top, its indicator at the bottom.
+    expect(list.pane.scrollEl.scrollTop).toBe(0);
+    expect(list.more().textContent).toContain(`↓ ${n - listH} more rows`);
+    // A new line: the console follows it at its end.
+    fill(con, n + 1);
+    expect(con.pane.scrollEl.scrollTop).toBe((n + 1 - listH) * 20);
+    // Scrolled back, it stays put and says how much is below.
+    con.pane.scrollEl.scrollTop = 40;
+    con.pane.scrollEl.dispatchEvent(new Event('scroll'));
+    expect(con.more().textContent).toContain(`↓ ${n + 1 - listH - 2} rows below`);
+    fill(con, n + 2);
+    expect(con.pane.scrollEl.scrollTop).toBe(40);
+    // A click on the indicator goes back to the end.
+    con.more().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(con.pane.scrollEl.scrollTop).toBe((n + 2 - listH) * 20);
+    // The list: scrolled down, a click goes back to the top.
+    list.pane.scrollEl.scrollTop = 60;
+    list.pane.scrollEl.dispatchEvent(new Event('scroll'));
+    expect(list.more().textContent).toContain('↑ 3 rows above');
+    fill(list, n + 1);
+    expect(list.pane.scrollEl.scrollTop).toBe(60);
+    list.more().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(list.pane.scrollEl.scrollTop).toBe(0);
+    // A link in a scrolled list is found at its content row.
+    list.content.addLink(5, 0, 4, 9, 'six');
+    list.view.changed();
+    r.flush();
+    list.pane.scrollEl.scrollTop = 40;
+    expect(list.pane.cellAt(5, 20 * 1 + 5)!.row).toBe(3);
+    expect(list.pane.linkAt(5, 20 * 2 + 5)?.hint).toBeUndefined();
+    list.pane.scrollEl.scrollTop = 60;
+    expect(list.pane.linkAt(5, 20 * 2 + 5)!.hint).toBe('six');
   });
 
   it('the close cross switches a script pane off with a whole settings entry', () => {
@@ -558,6 +627,46 @@ describe('ScriptPane and the cockpit surface', () => {
       cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id2}"] .wc-pane-close`)!.click();
       flush();
       expect(cockpit.el.querySelector(`.wc-pane[data-pane="${id2}"]`)).toBeNull();
+    });
+
+    it('opens where `at` says; a rectangle the user gave it is kept per device and used next time', () => {
+      localStorage.clear();
+      const { cockpit, surface, flush } = rig();
+      const place = (id: string) => cockpit.layout!.panes.find((p) => p.id === id)!.rect;
+      const g = () => cockpit.layout!.game;
+      const open = (at?: 'top' | 'top-right' | 'bottom') =>
+        surface.open({ ...spec(), temporary: at ? { rows: 4, cols: 20, at } : { rows: 4, cols: 20 } }, new PaneContent('Pick'), { onLink: () => {}, onResize: () => {} });
+      for (const [at, want] of [
+        ['top', () => ({ x: g().x + Math.floor((g().w - 22) / 2), y: g().y })],
+        ['top-right', () => ({ x: g().x + g().w - 22, y: g().y })],
+        ['bottom', () => ({ x: g().x + Math.floor((g().w - 22) / 2), y: g().y + g().h - 6 })],
+      ] as const) {
+        const v = open(at);
+        flush();
+        expect(place('s/~pick'), at).toMatchObject(want());
+        expect(v.placement!()!.at).toBe(at);
+        v.close();
+      }
+      // The user moves it: the rectangle is saved (not in the settings) and used when it opens again.
+      const v = open('top');
+      flush();
+      cockpit.setTempPane('s/~pick', { rect: { x: 5, y: 6, w: 22, h: 6 } });
+      (cockpit as unknown as { temps: Map<string, { onPlace(): void }> }).temps.get('s/~pick')!.onPlace();
+      expect(tempPlace('s/~pick')).toEqual({ x: 5, y: 6, w: 22, h: 6 });
+      v.close();
+      open('top');
+      flush();
+      expect(place('s/~pick')).toEqual({ x: 5, y: 6, w: 22, h: 6 });
+      // Reset layout forgets it (Options calls forgetTempPlaces).
+      forgetTempPlaces();
+      expect(tempPlace('s/~pick')).toBeNull();
+      saveTempPlace('s/~x', { x: 1, y: 1, w: 3, h: 3 });
+      saveTempPlace('s/~x', null);
+      expect(localStorage.getItem(TEMP_PLACES_KEY)).toBeNull();
+      localStorage.setItem(TEMP_PLACES_KEY, '{"s/~bad":{"x":-1,"y":0,"w":2,"h":2},"s/~ok":{"x":1,"y":2,"w":3,"h":4}}');
+      expect(tempPlace('s/~bad')).toBeNull();
+      expect(tempPlace('s/~ok')).toEqual({ x: 1, y: 2, w: 3, h: 4 });
+      localStorage.clear();
     });
 
     it('a temporary and an ordinary pane of the same name are apart', () => {

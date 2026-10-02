@@ -17,6 +17,10 @@
 // A row in `set` is a whole line, or `{"v"?: value, "l"?: label}` for a
 // gauge that only changed its value or label (the common countdown).
 //
+// `anchor: "top"` (ADR 0053 addendum) marks a pane whose view sticks to
+// its first line; it never changes, so it is in full records only and a
+// delta keeps the pane's.
+//
 // `temp` marks a temporary pane (feedback round 1; its id is
 // `<script>/~<pane>`): `{"rows","cols","rect"?,"off"?}`, its wanted
 // content size, its outer rectangle once moved, and `off` while hidden.
@@ -55,13 +59,17 @@ export interface PaneRecordState {
   links: string;
   /** JSON of `temp` ('' for an ordinary pane). */
   temp: string;
+  /** `anchor: "top"`. */
+  top?: boolean;
 }
 
 const lineJson = (l: PaneLine): string => JSON.stringify(l);
 
 /** The state of a pane as recorded by `s`. */
 export function recordState(s: PaneSnapshot): PaneRecordState {
-  return { title: s.title, lines: s.lines.map(lineJson), links: JSON.stringify(s.links), temp: s.temp ? JSON.stringify(s.temp) : '' };
+  const st: PaneRecordState = { title: s.title, lines: s.lines.map(lineJson), links: JSON.stringify(s.links), temp: s.temp ? JSON.stringify(s.temp) : '' };
+  if (s.anchor === 'top') st.top = true;
+  return st;
 }
 
 /** A changed pane gets a full record at least this often, µs. */
@@ -79,7 +87,8 @@ export function encodePaneRecord(
 ): { payload: string; state: PaneRecordState; full: boolean } | null {
   const state = recordState(next);
   const tempPart = state.temp ? `,"temp":${state.temp}` : '';
-  const full = `{"title":${JSON.stringify(state.title)},"lines":[${state.lines.join(',')}],"links":${state.links}${tempPart}}`;
+  const anchorPart = state.top ? ',"anchor":"top"' : '';
+  const full = `{"title":${JSON.stringify(state.title)},"lines":[${state.lines.join(',')}],"links":${state.links}${tempPart}${anchorPart}}`;
   if (!prev) return { payload: full, state, full: true };
   const set: string[] = [];
   const n = state.lines.length;
@@ -165,6 +174,7 @@ export function applyPaneRecord(prev: PaneSnapshot | null, json: string): PaneSn
   };
   const temp = v.temp !== undefined ? sanitizeTemp(v.temp) : base.temp;
   if (temp) out.temp = temp;
+  if (base.anchor === 'top') out.anchor = 'top';
   return out;
 }
 
@@ -188,6 +198,7 @@ function sanitizeTemp(t: unknown): PaneTemp | undefined {
     if (x !== null && y !== null && w !== null && h !== null) out.rect = { x, y, w, h };
   }
   if (t.off === true) out.off = true;
+  if (t.at === 'top' || t.at === 'top-right' || t.at === 'bottom') out.at = t.at;
   return out;
 }
 
@@ -263,6 +274,7 @@ export function sanitizeSnapshot(v: Obj): PaneSnapshot {
   };
   const temp = sanitizeTemp(v.temp);
   if (temp) out.temp = temp;
+  if (v.anchor === 'top') out.anchor = 'top';
   return out;
 }
 

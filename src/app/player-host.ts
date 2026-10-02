@@ -377,6 +377,7 @@ export class PlayerHost {
         app.cockpit.addPane(pane, {
           rows: t.rows,
           cols: t.cols,
+          ...(t.at ? { at: t.at } : {}),
           rect: t.rect ?? null,
           on: !t.off,
           // The viewer's close cross hides it until it goes away.

@@ -20,6 +20,7 @@
 import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
+import { forgetTempPlaces } from '../../layout/temp-places';
 import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
 import { paneSettingsOf } from '../../settings/types';
 import {
@@ -176,6 +177,8 @@ export function PanesFrame(): VNode {
   };
   const resetLayout = (): void => {
     settings.update({ layout: defaultLayout() });
+    // Temporary script panes open at their default place again (ADR 0053 addendum).
+    forgetTempPlaces();
     nav.flash('Layout reset.');
   };
   const tail: MenuItem[] = [

@@ -39,6 +39,7 @@ import { gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
 import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
+import type { TempPaneAt } from '../layout/cockpit';
 import type { FieldEvent } from '../panes/script-pane';
 import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
@@ -1196,6 +1197,14 @@ export class ScriptHost {
       if (temporary !== undefined && typeof temporary !== 'boolean') {
         throw new Error(`bad argument #1 to 'createPane' (temporary must be true or false)`);
       }
+      const at = (t.at ?? 'center') as TempPaneAt;
+      if (at !== 'center' && at !== 'top' && at !== 'top-right' && at !== 'bottom') {
+        throw new Error(`bad argument #1 to 'createPane' (at must be "center", "top", "top-right" or "bottom")`);
+      }
+      const anchor = t.anchor ?? 'bottom';
+      if (anchor !== 'top' && anchor !== 'bottom') {
+        throw new Error(`bad argument #1 to 'createPane' (anchor must be "top" or "bottom")`);
+      }
       const old = o.panes.get(name);
       if (old) {
         // Reload-safe: the same pane again (a new title applies).
@@ -1233,6 +1242,7 @@ export class ScriptHost {
         fields: new Map(),
       } as unknown as PaneReg;
       reg.content = new PaneContent(title ?? name, {
+        anchor,
         onDrop: (n) => {
           const ref = reg.links.get(n);
           if (ref === undefined) return;
@@ -1251,7 +1261,7 @@ export class ScriptHost {
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
       const place = { dock: dock as DockId | 'float', rows, cols };
-      const spec = temp ? { id: pid, place, temporary: { rows, cols } } : { id: pid, place };
+      const spec = temp ? { id: pid, place, temporary: at === 'center' ? { rows, cols } : { rows, cols, at } } : { id: pid, place };
       reg.view = this.o.panes?.open(spec, reg.content, events) ?? headlessView();
       o.panes.set(name, reg);
       this.paneHandles.set(handle, reg);

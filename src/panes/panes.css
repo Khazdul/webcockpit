@@ -224,3 +224,39 @@
   color: var(--spane-sel-fg, inherit);
   background: var(--spane-sel-bg, highlight);
 }
+
+/* Script pane scrolling (ADR 0053 addendum, as ADR 0052): every line in a
+ * native scroller with the bar hidden; one indicator row above (a console)
+ * or below (a list) it when the lines overflow. */
+.wc-spane-scroll {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.wc-spane-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-spane-rows {
+  position: relative;
+}
+
+.wc-spane-more {
+  position: absolute;
+  left: 0;
+  width: 100%;
+}
+
+.wc-spane-more[hidden] {
+  display: none;
+}
+
+.wc-spane-more[data-away] {
+  cursor: pointer;
+}

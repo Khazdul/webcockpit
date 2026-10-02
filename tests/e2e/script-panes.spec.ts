@@ -246,13 +246,34 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect(temp).toHaveCount(0);
   await expect.poll(sentText).toContain('closed by cross\r\n');
 
-  // Again: back in the centre; a link that calls pane:close().
+  // Again: where the player moved it (kept per device, ADR 0053 addendum);
+  // a link that calls pane:close().
   await command(page, 'tp');
   await expect(temp).toBeVisible();
-  expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(0);
+  expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(-10);
+  expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toContain('temps/~pick');
+  expect(await inSettings()).toBe(false);
   const content = (await temp.locator('.wc-pane-content').boundingBox())!;
   await page.mouse.click(content.x + 1.5 * cell.w, content.y + 0.5 * cell.h);
   await expect.poll(sentText).toContain('chose a\r\n');
+  await expect(temp).toHaveCount(0);
+
+  // Options → Panes → Reset layout forgets the place: centred again.
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await expect(menuTitle(page)).toHaveText('─── Options ───');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await page.locator('.wc-overlay').getByText('Reset layout').click();
+  await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-overlay')).toBeHidden();
+  expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toBeNull();
+  await command(page, 'tp');
+  await expect(temp).toBeVisible();
+  expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(0);
+  await command(page, 'tpc');
   await expect(temp).toHaveCount(0);
 
   // And closed by the script from an alias: no onClose.
@@ -262,5 +283,80 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect(temp).toHaveCount(0);
   expect(sentText().split('closed by cross').length - 1).toBe(1);
   expect(await inSettings()).toBe(false);
+  expect(errors).toEqual([]);
+});
+
+const LONG = `-- @name longs
+-- @api 1
+local list = createPane{id = "list", title = "List", dock = "float", rows = 6, cols = 24, anchor = "top"}
+local con = createPane{id = "con", title = "Con", dock = "float", rows = 6, cols = 24}
+for i = 1, 30 do
+  list:setLine(i, "item " .. i)
+  con:cecho("line " .. i .. "\\n")
+end
+list:setLink(20, 1, 7, function() send("item twenty") end, "Twenty")
+tempAlias("^more$", function() con:cecho("line new\\n") end)
+echo("longs ready")
+`;
+
+test('an overflowing script pane scrolls by pixels; a list stays at the top, a console follows its end', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const received: Buffer[] = [];
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.onMessage((m) => received.push(typeof m === 'string' ? Buffer.from(m) : m));
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  const sentText = () => Buffer.concat(received).toString('latin1');
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(page, LONG, 'longs');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-output')).toContainText('longs ready');
+  const list = page.locator('.wc-pane[data-pane="longs/list"]');
+  const con = page.locator('.wc-pane[data-pane="longs/con"]');
+  await expect(list).toBeVisible();
+  const scrollTop = (l: typeof list) => l.locator('.wc-spane-scroll').evaluate((e) => e.scrollTop);
+  const more = (l: typeof list) => l.locator('.wc-spane-more');
+
+  // The list starts at the top; the console at its end.
+  await expect(list.locator('.wc-spane-rows .wc-prow').first()).toHaveText(/^item 1\s*$/);
+  expect(await scrollTop(list)).toBe(0);
+  await expect(more(list)).toHaveText(/↓ \d+ more rows/);
+  await expect.poll(() => scrollTop(con)).toBeGreaterThan(0);
+  await expect(more(con)).toHaveText(/↑ \d+ more rows/);
+
+  // A small wheel moves the list by pixels.
+  const box = (await list.locator('.wc-spane-scroll').boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 10);
+  await page.mouse.wheel(0, 30);
+  await expect.poll(() => scrollTop(list)).toBeGreaterThan(0);
+  await expect(more(list)).toHaveText(/↑ \d+ rows? above/);
+  // Further down, a link in a scrolled row works.
+  await list.locator('.wc-spane-scroll').evaluate((e) => {
+    e.scrollTop = 19 * parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h'));
+  });
+  await expect(more(list)).toHaveText(/↑ 19 rows above/);
+  const row20 = list.locator('.wc-spane-rows .wc-prow').nth(19);
+  const r = (await row20.boundingBox())!;
+  await page.mouse.click(r.x + 10, r.y + r.height / 2);
+  await expect.poll(sentText).toContain('item twenty\r\n');
+  // A click on the indicator goes back to the top.
+  await more(list).click();
+  await expect.poll(() => scrollTop(list)).toBe(0);
+
+  // The console follows a new line at its end; scrolled back, it stays.
+  const end = await scrollTop(con);
+  await command(page, 'more');
+  await expect.poll(() => scrollTop(con)).toBeGreaterThan(end);
+  // (The two auto floats overlap: scroll the console directly.)
+  await con.locator('.wc-spane-scroll').evaluate((e) => {
+    e.scrollTop -= 100;
+  });
+  await expect(more(con)).toHaveText(/↓ \d+ rows? below/);
+  const back = await scrollTop(con);
+  await command(page, 'more');
+  await expect(con.locator('.wc-spane-rows .wc-prow')).toHaveCount(32);
+  expect(await scrollTop(con)).toBe(back);
   expect(errors).toEqual([]);
 });

@@ -7,8 +7,15 @@
 //   ▌Bob   ████████   12m ▐    a gauge row, label centred
 //   ▌[tap] [pay] [leave]  ▐    links: pointer cursor, hover band, tooltip
 //
-// - Content taller than the pane shows its end (the newest lines, like a
-//   console) with `↑ N more rows` on the first row.
+// - Content taller than the pane scrolls (ADR 0053 addendum, as ADR 0052's
+//   panes): every line is in a native scroller with the bar hidden, moved
+//   by the wheel and the touchpad in pixels (also over the frame) and by
+//   touch. One pane row is an indicator: `anchor = "bottom"` (the
+//   default, a console) keeps it on top, `↑ N more rows`, and follows new
+//   lines while the view is at the end; `anchor = "top"` (a list) keeps it
+//   at the bottom, `↓ N more rows`, and the view stays where it is.
+//   Scrolled away from the anchor it reads `↑ N rows above` / `↓ N rows
+//   below`; a click on it goes back to the anchor.
 // - Colours: the cecho colours of the spans (palette 0–15 from the user's
 //   ANSI palette, the rest as is). Text without a colour takes the
 //   terminal fg held to 4.5:1 against the pane (a dark tint on a light
@@ -41,6 +48,7 @@ import { keyNameFromEvent } from '../script/keys';
 import type { PaneId } from '../layout/types';
 import { colorToCss } from '../ui/palette';
 import type { PaneContext } from './context';
+import { forwardWheel } from './anchored-list';
 import { CellLine, INDICATOR_FG, RowList, centre } from './grid';
 import { PaneShell } from './pane';
 import { type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
@@ -105,12 +113,6 @@ export function paneColor(c: Color, ansi: readonly string[]): string {
   return c < 16 ? (ansi[c] ?? colorToCss(c)) : colorToCss(c);
 }
 
-/** Which content lines a `h`-row pane shows: from `first`, below `top` indicator rows. */
-export function paneView(n: number, h: number): { first: number; top: number } {
-  if (n <= h || h <= 0) return { first: 0, top: 0 };
-  return { first: n - (h - 1), top: 1 };
-}
-
 /** Cells of a gauge `w` wide that are filled. */
 export function gaugeFill(value: number, max: number, w: number): number {
   if (!(max > 0) || w <= 0) return 0;
@@ -150,22 +152,19 @@ function fieldBands(line: CellLine, fields: readonly PaneField[], row: number, w
   }
 }
 
-/** The rows a `w` × `h` pane shows for `c`, the hovered link drawn in the glow band. */
-export function scriptPaneLines(
+/** Every content line as a row of `w` cells (the scroller's rows), the hovered link in the glow band. */
+export function scriptPaneRows(
   c: PaneContent,
   w: number,
-  h: number,
   ramp: Ramp,
   light: boolean,
   ansi: readonly string[],
   hover: PaneLink | null = null,
   ink: PaneInk = PLAIN_INK,
 ): CellLine[] {
-  if (w <= 0 || h <= 0) return [];
-  const { first, top } = paneView(c.lines.length, h);
+  if (w <= 0) return [];
   const out: CellLine[] = [];
-  if (top) out.push(new CellLine(w).put(0, `↑ ${first} more rows`, { fg: INDICATOR_FG, italic: true }));
-  for (let i = first; i < c.lines.length; i++) {
+  for (let i = 0; i < c.lines.length; i++) {
     const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
     if (c.fields.length > 0) fieldBands(line, c.fields, i, w, ramp);
     if (hover && hover.row === i) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
@@ -174,15 +173,37 @@ export function scriptPaneLines(
   return out;
 }
 
+/**
+ * The indicator of a `h`-row pane with `n` lines scrolled `above` lines
+ * down, or null when they fit: the rows hidden away from the anchor, or,
+ * scrolled away from it, the rows hidden on the anchor's side.
+ */
+export function paneIndicator(n: number, h: number, above: number, anchor: 'top' | 'bottom'): { text: string; away: boolean } | null {
+  if (h <= 0 || n <= h) return null;
+  const listH = h - 1;
+  const top = Math.max(0, Math.min(n - listH, above));
+  const below = n - listH - top;
+  const rows = (k: number): string => `${k} ${k === 1 ? 'row' : 'rows'}`;
+  if (anchor === 'top') return top > 0 ? { text: `↑ ${rows(top)} above`, away: true } : { text: `↓ ${below} more ${below === 1 ? 'row' : 'rows'}`, away: false };
+  return below > 0 ? { text: `↓ ${rows(below)} below`, away: true } : { text: `↑ ${top} more ${top === 1 ? 'row' : 'rows'}`, away: false };
+}
+
 export class ScriptPane extends PaneShell {
   readonly model: PaneContent;
-  private readonly list = new RowList(this.content);
+  /** The native scroller with every line, and the indicator row (ADR 0053 addendum). */
+  private readonly scroller: HTMLDivElement;
+  private readonly rowsEl: HTMLDivElement;
+  private readonly moreEl: HTMLDivElement;
+  private readonly list: RowList;
+  /** At the end of a bottom-anchored pane: new lines are followed. */
+  private live = true;
+  /** Lines and list height of the last render. */
+  private shown = { n: 0, listH: 0, over: false };
+  private moreKey = '';
   private readonly onLink: ((id: number) => void) | null;
   private readonly onTitle: () => void;
   /** What the rows on screen were drawn from. */
   private shownKey = '';
-  /** The view of the last render. */
-  private view = { first: 0, top: 0 };
   private hover: PaneLink | null = null;
   private tipEl: HTMLDivElement | null = null;
   private readonly onField: ((id: number, e: FieldEvent) => void) | null;
@@ -200,9 +221,21 @@ export class ScriptPane extends PaneShell {
     this.onTitle = opts.onTitle ?? (() => {});
     this.onField = opts.onField ?? null;
     this.onFocusInput = opts.onFocusInput ?? (() => {});
-    this.fieldsEl = ctx.doc.createElement('div');
-    this.fieldsEl.className = 'wc-spane-fields';
-    this.el.append(this.fieldsEl);
+    const doc = ctx.doc;
+    const div = (cls: string): HTMLDivElement => {
+      const d = doc.createElement('div');
+      d.className = cls;
+      return d;
+    };
+    this.scroller = div('wc-spane-scroll');
+    this.rowsEl = div('wc-spane-rows');
+    this.fieldsEl = div('wc-spane-fields');
+    this.moreEl = div('wc-spane-more');
+    this.scroller.append(this.rowsEl, this.fieldsEl);
+    this.list = new RowList(this.rowsEl);
+    this.content.append(this.scroller, this.moreEl);
+    this.scroller.addEventListener('scroll', this.onScroll, { passive: true });
+    this.own(forwardWheel(this.el, () => this.scroller, () => ctx.cells.get().h));
     this.el.classList.add('wc-pane-script');
     const c = this.content;
     c.addEventListener('pointermove', this.onMove);
@@ -236,10 +269,68 @@ export class ScriptPane extends PaneShell {
     const key = `${c.version}|${this.cols}x${this.rows}|${this.hover?.id ?? ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
     if (key === this.shownKey) return;
     this.shownKey = key;
-    this.view = paneView(c.lines.length, this.rows);
+    const n = c.lines.length;
+    const h = this.rows;
+    const over = n > h && h > 0;
+    const listH = over ? h - 1 : h;
+    const cellH = this.ctx.cells.get().h || 16;
+    const bottom = c.anchor === 'bottom';
+    const sst = this.scroller.style;
+    const top = over && bottom ? 'var(--cell-h)' : '0px';
+    if (sst.top !== top) sst.top = top;
+    const height = `calc(var(--cell-h) * ${listH})`;
+    if (sst.height !== height) sst.height = height;
+    this.moreEl.style.top = bottom ? '0px' : `calc(var(--cell-h) * ${listH})`;
+    this.moreEl.hidden = !over;
     const ink = paneInk(fg, bg, light);
-    this.list.update(this.ctx.doc, scriptPaneLines(c, this.cols, this.rows, ramp, light, ansi, this.hover, ink));
+    this.list.update(this.ctx.doc, scriptPaneRows(c, this.cols, ramp, light, ansi, this.hover, ink));
+    this.shown = { n, listH, over };
+    // A console follows new lines while it is at the end.
+    if (bottom && this.live) this.scroller.scrollTop = Math.max(0, n - listH) * cellH;
+    this.updateMore();
     this.syncFields(ramp, ink.base);
+  }
+
+  /** Lines scrolled off the top (partly scrolled ones count). */
+  private above(): number {
+    const cellH = this.ctx.cells.get().h || 16;
+    return Math.max(0, Math.ceil(this.scroller.scrollTop / cellH - 0.01));
+  }
+
+  private updateMore(): void {
+    const { n, listH, over } = this.shown;
+    const ind = over ? paneIndicator(n, listH + 1, this.above(), this.model.anchor) : null;
+    const key = ind ? `${ind.text}|${this.cols}` : '';
+    if (key === this.moreKey) return;
+    this.moreKey = key;
+    this.moreEl.toggleAttribute('data-away', ind?.away === true);
+    if (ind) this.moreEl.replaceChildren(new CellLine(this.cols).put(0, ind.text, { fg: INDICATOR_FG, italic: true }).toElement(this.ctx.doc));
+    else this.moreEl.replaceChildren();
+  }
+
+  private readonly onScroll = (): void => {
+    const s = this.scroller;
+    const { n, listH } = this.shown;
+    const cellH = this.ctx.cells.get().h || 16;
+    // Live: at the end within 2 px (a layout-free model when the browser has none).
+    const end = s.scrollHeight > 0 ? s.scrollHeight - s.clientHeight : Math.max(0, n - listH) * cellH;
+    this.live = s.scrollTop >= end - 2;
+    if (this.hover) this.setHover(null);
+    this.updateMore();
+  };
+
+  /** Scrolls back to the anchor: the top of a list, the end of a console. */
+  scrollToAnchor(): void {
+    const { n, listH } = this.shown;
+    const cellH = this.ctx.cells.get().h || 16;
+    this.live = true;
+    this.scroller.scrollTop = this.model.anchor === 'top' ? 0 : Math.max(0, n - listH) * cellH;
+    this.updateMore();
+  }
+
+  /** The scroller (tests). */
+  get scrollEl(): HTMLDivElement {
+    return this.scroller;
   }
 
   /** Puts an input over every field on screen and drops the others. */
@@ -253,14 +344,9 @@ export class ScriptPane extends PaneShell {
       color = paneInk(s.appearance.fg, sh.bg, sh.light).base;
     }
     const cell = this.ctx.cells.get();
-    const view = paneView(c.lines.length, this.rows);
-    const px = (v: string): number => parseFloat(v) || 0;
-    const left = px(this.content.style.left);
-    const top = px(this.content.style.top);
     const seen = new Set<number>();
     for (const f of c.fields) {
-      const screenRow = f.row - view.first + view.top;
-      if (!this.visible || screenRow < view.top || screenRow >= this.rows || f.col >= this.cols) continue;
+      if (!this.visible || f.row >= c.lines.length || f.col >= this.cols) continue;
       let el = this.inputs.get(f.id);
       if (!el) {
         el = this.makeInput(f.id);
@@ -269,8 +355,8 @@ export class ScriptPane extends PaneShell {
       }
       seen.add(f.id);
       const st = el.style;
-      st.left = `${left + f.col * cell.w}px`;
-      st.top = `${top + screenRow * cell.h}px`;
+      st.left = `${f.col * cell.w}px`;
+      st.top = `${f.row * cell.h}px`;
       st.width = `${Math.min(f.len, this.cols - f.col) * cell.w}px`;
       st.color = color;
       st.setProperty('--spane-ph', ramp.label);
@@ -365,23 +451,27 @@ export class ScriptPane extends PaneShell {
     this.setHover(null);
     this.tipEl?.remove();
     for (const [id, el] of [...this.inputs]) this.dropInput(id, el);
-    this.fieldsEl.remove();
     const c = this.content;
     c.removeEventListener('pointermove', this.onMove);
     c.removeEventListener('pointerleave', this.onLeave);
     c.removeEventListener('click', this.onClick);
+    this.scroller.removeEventListener('scroll', this.onScroll);
     super.dispose();
   }
 
   /** The content row and column under (`x`, `y`) client px, or null. */
-  cellAt(x: number, y: number): { row: number; col: number; screenRow: number } | null {
+  cellAt(x: number, y: number): { row: number; col: number; y: number } | null {
     const r = this.content.getBoundingClientRect();
     const cell = this.ctx.cells.get();
     if (cell.w <= 0 || cell.h <= 0) return null;
     const col = Math.floor((x - r.left) / cell.w);
-    const screenRow = Math.floor((y - r.top) / cell.h);
-    if (col < 0 || col >= this.cols || screenRow < this.view.top || screenRow >= this.rows) return null;
-    return { row: screenRow - this.view.top + this.view.first, col, screenRow };
+    const { over, listH } = this.shown;
+    const top = over && this.model.anchor === 'bottom' ? cell.h : 0;
+    const inList = y - r.top - top;
+    if (col < 0 || col >= this.cols || inList < 0 || inList >= listH * cell.h) return null;
+    const row = Math.floor((inList + this.scroller.scrollTop) / cell.h);
+    // The row's top, in px from the content's top (for the tooltip).
+    return { row, col, y: top + row * cell.h - this.scroller.scrollTop };
   }
 
   /** The link under (`x`, `y`) client px, or null. */
@@ -394,7 +484,7 @@ export class ScriptPane extends PaneShell {
     const at = this.cellAt(e.clientX, e.clientY);
     const link = at ? this.model.linkAt(at.row, at.col) : null;
     if (link?.id === this.hover?.id && link?.row === this.hover?.row) return;
-    this.setHover(link, at?.screenRow ?? 0);
+    this.setHover(link, at?.y ?? 0);
   };
 
   private readonly onLeave = (e: PointerEvent): void => {
@@ -407,21 +497,25 @@ export class ScriptPane extends PaneShell {
   };
 
   private readonly onClick = (e: MouseEvent): void => {
+    if (this.shown.over && this.moreEl.contains(e.target as Node)) {
+      this.scrollToAnchor();
+      return;
+    }
     if (!this.onLink) return;
     const link = this.linkAt(e.clientX, e.clientY);
     if (link) this.onLink(link.id);
   };
 
-  private setHover(link: PaneLink | null, screenRow = 0): void {
+  private setHover(link: PaneLink | null, rowY = 0): void {
     const was = this.hover;
     this.hover = link;
     this.content.style.cursor = link && this.onLink ? 'pointer' : '';
-    if (link?.hint) this.showTip(link, screenRow);
+    if (link?.hint) this.showTip(link, rowY);
     else this.hideTip();
     if (was !== link) this.markDirty();
   }
 
-  private showTip(link: PaneLink, screenRow: number): void {
+  private showTip(link: PaneLink, rowY: number): void {
     const host = this.el.parentElement;
     if (!host) return;
     const doc = this.ctx.doc;
@@ -441,9 +535,9 @@ export class ScriptPane extends PaneShell {
     const px = (v: string): number => parseFloat(v) || 0;
     const left = px(this.el.style.left) + px(this.content.style.left);
     const top = px(this.el.style.top) + px(this.content.style.top);
-    let y = top + (screenRow + 1) * cell.h;
+    let y = top + rowY + cell.h;
     const H = host.clientHeight;
-    if (H > 0 && y + lines.length * cell.h > H) y = Math.max(0, top + screenRow * cell.h - lines.length * cell.h);
+    if (H > 0 && y + lines.length * cell.h > H) y = Math.max(0, top + rowY - lines.length * cell.h);
     const x = left + link.col * cell.w;
     tip.style.top = `${y}px`;
     tip.style.left = `${x}px`;

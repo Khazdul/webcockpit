@@ -404,13 +404,18 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     - `store.get(key)` and `store.set(key, value)` persist strings,
       numbers, booleans and tables per script.
   - Panes:
-    - `createPane{id, title, dock = "right"|"left"|"top"|"bottom"|"float", rows, cols, temporary}`
+    - `createPane{id, title, dock = "right"|"left"|"top"|"bottom"|"float", rows, cols, anchor, temporary, at}`
       returns a pane. It docks, floats, toggles and is coloured like
       built-in panes, and the user's placement is remembered per script
       and id. Running script panes are listed in Options → Panes.
-    - `temporary = true` makes a short-lived pane: it floats centred
-      over the game pane, is never listed in menus, and nothing about
-      it is saved. Its close cross closes it.
+    - Content that does not fit scrolls like the built-in panes;
+      `anchor = "bottom"` (default) follows new lines like a console,
+      `"top"` stays at the first line like a list.
+    - `temporary = true` makes a short-lived pane: it floats over the
+      game pane (`at = "center"|"top"|"top-right"|"bottom"`), never
+      docks and is never listed in menus. Where the user moves it is
+      kept per device for the next time; Reset layout forgets it. Its
+      close cross closes it.
     - Pane methods:
       - `:clear()`, `:echo(text)` and `:cecho(text)`;
       - `:setLine(row, text)`;

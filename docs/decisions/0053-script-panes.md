@@ -658,3 +658,61 @@ alias.
   in any log.
 - A temporary pane cannot be docked; if a script wants a dockable
   short-lived pane it uses an ordinary one and `close()`.
+
+## Addendum — stage 12 feedback round 1 (2026-10-02)
+
+Owner feedback on the key manager (stage 12, round 1) found two gaps in
+script panes. Supersedes *Overflow* under "The pane" and the temporary
+pane *Placement* sentence that the rectangle stays in memory only.
+
+**Scrolling.** A pane whose lines do not fit scrolls like ADR 0052's
+panes, instead of showing only the newest lines.
+
+- Every line is in a native scroller (`.wc-spane-scroll`, browser bar
+  hidden, `overscroll-behavior: contain`, no scroll anchoring) inside the
+  content; the wheel and the touchpad move it in pixels, also over the
+  frame and title row (`forwardWheel`), and touch drags it. No keys, as
+  the built-in panes (they never take the focus).
+- `createPane{anchor}`: `"bottom"` (default, the old console behaviour)
+  or `"top"` (a list). On overflow one pane row is an indicator: on top
+  for `bottom` (`↑ N more rows`), at the bottom for `top` (`↓ N more
+  rows`). Scrolled away from the anchor it reads `↓ N rows below` /
+  `↑ N rows above` and a click returns to the anchor. A bottom-anchored
+  pane follows new lines while it is at the end (within 2 px, from
+  `scroll` events) and stays put when scrolled back; a top-anchored pane
+  keeps its position.
+- Links are looked up at the content row under the pointer
+  (`scrollTop` included); a scroll hides the tooltip. Text fields (ADR
+  0055) sit in the scroller and scroll with their rows.
+- Every content line is drawn (up to 500), not only the visible ones;
+  `RowList` still rebuilds only the rows whose key changed.
+- **Runs.** The snapshot carries `anchor: "top"` (absent: bottom); a
+  full record writes it, a delta keeps the pane's (it never changes).
+  The log player and the HTML replay draw the same scroller; the scroll
+  position is the viewer's own.
+
+**Temporary pane placement.**
+
+- `createPane{temporary = true, at}`: `"center"` (default), `"top"`
+  (centred sideways at the top of the game pane), `"top-right"`, or
+  `"bottom"` (centred, just above the input line). It is the place until
+  the user moves the pane.
+- A rectangle the user gives a temporary pane (move or resize) is saved
+  per device in `localStorage` (`webcockpit.tempPanes`, outer rectangle
+  in cells per pane id, at most 200, `src/layout/temp-places.ts`), and the
+  next `createPane{temporary = true}` with that id opens there, clamped to
+  the cockpit. Not in the settings: they are synced into runs (VIEW) and
+  exported, and a popup's place belongs to the screen it was set on
+  (ADR 0006 keeps data in IndexedDB; this is a small per-device
+  preference like the appearance mirror). Options → Panes → Reset
+  layout forgets every saved rectangle (open panes keep theirs until
+  they close).
+- Runs record `temp.at` when it is not `center`; a saved rectangle is in
+  `temp.rect` already.
+- **Still never docked.** A temporary pane appears and disappears with
+  the script's choice; docking it would reflow every other pane each
+  time it opened and closed. A script that wants a dockable pane uses an
+  ordinary one and `close()`.
+
+The key manager's Keys pane uses `anchor = "top"`; its pick window opens
+at `"top"`, clear of the text the locate just printed below it.

@@ -95,7 +95,12 @@ export interface PaneSnapshot {
   links: { row: number; col: number; len: number; hint: string }[];
   /** A temporary pane's size, place and on/off (the recorder adds it; `snapshot()` never does). */
   temp?: PaneTemp;
+  /** Where an overflowing pane's view sticks; absent: `bottom` (ADR 0053 addendum). */
+  anchor?: 'top';
 }
+
+/** Where an overflowing pane's view sticks: the newest lines (a console) or the first (a list). */
+export type PaneAnchor = 'top' | 'bottom';
 
 /**
  * A temporary pane in a run (feedback round 1): its wanted content size
@@ -105,6 +110,8 @@ export interface PaneSnapshot {
 export interface PaneTemp {
   rows: number;
   cols: number;
+  /** Where it opens before it is moved, when not centred (ADR 0053 addendum). */
+  at?: 'top' | 'top-right' | 'bottom';
   rect?: { x: number; y: number; w: number; h: number };
   off?: true;
 }
@@ -211,6 +218,8 @@ export interface PaneContentOptions {
   onDropField?: (id: number) => void;
   /** Most lines kept (default MAX_LINES; tests). */
   maxLines?: number;
+  /** Where the view sticks when the lines overflow (default `bottom`). */
+  anchor?: PaneAnchor;
 }
 
 export class PaneContent {
@@ -218,6 +227,8 @@ export class PaneContent {
   lines: PaneLine[] = [];
   links: PaneLink[] = [];
   fields: PaneField[] = [];
+  /** Where the view sticks when the lines overflow. */
+  anchor: PaneAnchor;
   /** Bumped by every change (renderers compare it). */
   version = 0;
   /** The last append ended with `\n`: the next one starts a new line. */
@@ -231,6 +242,7 @@ export class PaneContent {
     this.onDrop = opts.onDrop ?? (() => {});
     this.onDropField = opts.onDropField ?? (() => {});
     this.maxLines = opts.maxLines ?? MAX_LINES;
+    this.anchor = opts.anchor ?? 'bottom';
   }
 
   setTitle(title: string): void {
@@ -445,7 +457,9 @@ export class PaneContent {
       const text = f.value.length >= f.len ? f.value.slice(0, f.len) : f.value + ' '.repeat(f.len - f.value.length);
       l.spans = overlay(l.spans, f.col, { text, underline: true });
     }
-    return { title: this.title, lines, links: this.links.map(({ row, col, len, hint }) => ({ row, col, len, hint })) };
+    const out: PaneSnapshot = { title: this.title, lines, links: this.links.map(({ row, col, len, hint }) => ({ row, col, len, hint })) };
+    if (this.anchor === 'top') out.anchor = 'top';
+    return out;
   }
 
   /**
@@ -457,6 +471,7 @@ export class PaneContent {
     this.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
     this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
     this.fields = [];
+    this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.broken = false;
     this.version++;
   }

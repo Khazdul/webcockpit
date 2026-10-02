@@ -22,6 +22,8 @@
 
 import type { Cockpit } from '../layout/cockpit';
 import { type ScriptPanePlace, findFloat, findPane, placeScriptPane } from '../layout/model';
+import type { TempPaneAt } from '../layout/cockpit';
+import { saveTempPlace, tempPlace } from '../layout/temp-places';
 import type { ScriptPaneId } from '../layout/types';
 import type { SettingsStore } from '../settings';
 import { SCRIPT_PANE_DEFAULTS, paneSettingsOf } from '../settings/types';
@@ -33,8 +35,12 @@ export interface ScriptPaneSpec {
   id: ScriptPaneId;
   /** Where it goes the first time (ignored for a temporary pane). */
   place: ScriptPanePlace;
-  /** A temporary pane (`<script>/~<id>`): floats centred at this content size, nothing in the settings. */
-  temporary?: { rows: number; cols: number };
+  /**
+   * A temporary pane (`<script>/~<id>`): floats at this content size where
+   * `at` says (default centred), or where the user last put it on this
+   * device; nothing in the settings.
+   */
+  temporary?: { rows: number; cols: number; at?: TempPaneAt };
 }
 
 export interface ScriptPaneEvents {
@@ -125,8 +131,12 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     };
   }
 
-  /** A temporary pane: on the cockpit only, nothing in the settings. */
-  private openTemp(id: ScriptPaneId, size: { rows: number; cols: number }, pane: ScriptPane, events: ScriptPaneEvents): ScriptPaneView {
+  /**
+   * A temporary pane: on the cockpit only, nothing in the settings. A
+   * rectangle the user gave it is kept per device (temp-places.ts) and used
+   * the next time it opens.
+   */
+  private openTemp(id: ScriptPaneId, size: { rows: number; cols: number; at?: TempPaneAt }, pane: ScriptPane, events: ScriptPaneEvents): ScriptPaneView {
     let closed = false;
     const view: ScriptPaneView = {
       changed: () => pane.changed(),
@@ -148,8 +158,13 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     };
     this.cockpit.addPane(pane, {
       ...size,
+      rect: tempPlace(id),
       onClose: () => (events.onClose ? events.onClose() : view.close()),
-      onPlace: () => events.onPlace?.(),
+      onPlace: () => {
+        const rect = this.cockpit.tempPane(id)?.rect;
+        if (rect) saveTempPlace(id, rect);
+        events.onPlace?.();
+      },
     });
     return view;
   }
@@ -171,8 +186,9 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
 }
 
 /** A temporary pane's state as runs record it. */
-export function tempPlacement(t: { rows: number; cols: number; rect: { x: number; y: number; w: number; h: number } | null; on: boolean }): PaneTemp {
+export function tempPlacement(t: { rows: number; cols: number; at?: TempPaneAt; rect: { x: number; y: number; w: number; h: number } | null; on: boolean }): PaneTemp {
   const out: PaneTemp = { rows: t.rows, cols: t.cols };
+  if (t.at && t.at !== 'center') out.at = t.at;
   if (t.rect) out.rect = { x: t.rect.x, y: t.rect.y, w: t.rect.w, h: t.rect.h };
   if (!t.on) out.off = true;
   return out;
