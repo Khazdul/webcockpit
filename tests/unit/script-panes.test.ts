@@ -11,7 +11,8 @@ import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/lay
 import { type LayoutModel, defaultLayout, isScriptPaneId, scriptPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, plain } from '../../src/panes/script-content';
-import { ScriptPane, gaugeFill, paneView, scriptPaneLines } from '../../src/panes/script-pane';
+import { ScriptPane, gaugeFill, paneInk, paneView, scriptPaneLines } from '../../src/panes/script-pane';
+import { contrast } from '../../src/theme/color';
 import { CockpitPaneSurface } from '../../src/panes/script-surface';
 import { parseCecho } from '../../src/scripts/colors';
 import { SettingsStore, migrateLayout, migrateSettings } from '../../src/settings';
@@ -229,6 +230,21 @@ describe('drawing', () => {
     c.append(parseCecho('<ansi_red>x'));
     const [l] = scriptPaneLines(c, 3, 1, ramp, false, ['#000', '#123456', ...ansi.slice(2)]);
     expect(l!.fg[0]).toBe('#123456');
+  });
+
+  it('text meets the pane: light ink on a dark tint over a light terminal, 4.5:1 colours on a light pane', () => {
+    const c = new PaneContent('t');
+    c.append(parseCecho('a<yellow>b'));
+    // A dark tint (blue fill) on the paper preset: the dark terminal fg turns light.
+    const dark = paneInk('#202020', '#0e1621', false);
+    const [d] = scriptPaneLines(c, 2, 1, ramp, false, ansi, null, dark);
+    expect(contrast(d!.fg[0]!, '#0e1621')).toBeGreaterThanOrEqual(4.5);
+    expect(d!.fg[1]).toBe(ansi[11]);
+    // A light pane: yellow is shifted and darkened until it reads.
+    const light = paneInk('#202020', '#f4ecd8', true);
+    const [l] = scriptPaneLines(c, 2, 1, ramp, true, ansi, null, light);
+    expect(l!.fg[0]).toBe('#202020');
+    expect(contrast(l!.fg[1]!, '#f4ecd8')).toBeGreaterThanOrEqual(4.5);
   });
 });
 

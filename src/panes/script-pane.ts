@@ -10,7 +10,11 @@
 // - Content taller than the pane shows its end (the newest lines, like a
 //   console) with `↑ N more rows` on the first row.
 // - Colours: the cecho colours of the spans (palette 0–15 from the user's
-//   ANSI palette, the rest as is); gauges fill with their colour (washed to
+//   ANSI palette, the rest as is). Text without a colour takes the
+//   terminal fg held to 4.5:1 against the pane (a dark tint on a light
+//   terminal gets light text); on a light pane span colours go through
+//   `lightShift` and the same contrast floor, as the UI and Comm panes
+//   (ADR 0041). Gauges fill with their colour (washed to
 //   a pastel on a light pane, as the Group bars) over the pane's track
 //   shade, the label in the value shade.
 // - Links: the cell under the pointer is looked up in the content, never
@@ -30,7 +34,7 @@ import { CellLine, INDICATOR_FG, RowList, centre } from './grid';
 import { PaneShell } from './pane';
 import { type PaneContent, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
-import type { ShadeRole } from '../theme/color';
+import { type ShadeRole, fitContrast, lightShift } from '../theme/color';
 
 /** A gauge's fill when the script gives no colour (the Group pane's HP green). */
 export const DEFAULT_GAUGE_COLOR = '#005a18';
@@ -45,6 +49,24 @@ export interface ScriptPaneOptions {
 }
 
 type Ramp = Readonly<Record<ShadeRole, string>>;
+
+/** How text colours meet the pane: `base` for uncoloured text, `fg` maps a span colour. */
+export interface PaneInk {
+  base: string;
+  fg(css: string): string;
+}
+
+/** Colours as given; uncoloured text inherits (tests, the default). */
+export const PLAIN_INK: PaneInk = { base: '', fg: (c) => c };
+
+/** Text colours for a pane on `bg` (ADR 0041's 4.5:1 rule on a light pane). */
+export function paneInk(termFg: string, bg: string, light: boolean): PaneInk {
+  const toward = light ? '#000000' : '#ffffff';
+  return {
+    base: fitContrast(termFg, bg, 4.5, toward),
+    fg: light ? (c) => fitContrast(lightShift(c), bg, 4.5, toward) : (c) => c,
+  };
+}
 
 /** CSS colour of a line-model colour, palette 0–15 from `ansi`. */
 export function paneColor(c: Color, ansi: readonly string[]): string {
@@ -64,7 +86,7 @@ export function gaugeFill(value: number, max: number, w: number): number {
 }
 
 /** One content line as a row of `w` cells. */
-export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ansi: readonly string[]): CellLine {
+export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ansi: readonly string[], ink: PaneInk = PLAIN_INK): CellLine {
   const line = new CellLine(w);
   if ('gauge' in l) {
     const g = l.gauge;
@@ -78,7 +100,7 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
   for (const s of l.spans) {
     if (x >= w) break;
     line.put(x, s.text, {
-      fg: s.fg === undefined ? '' : paneColor(s.fg, ansi),
+      fg: s.fg === undefined ? ink.base : ink.fg(paneColor(s.fg, ansi)),
       bg: s.bg === undefined ? '' : paneColor(s.bg, ansi),
       bold: !!s.bold,
       italic: !!s.italic,
@@ -98,13 +120,14 @@ export function scriptPaneLines(
   light: boolean,
   ansi: readonly string[],
   hover: PaneLink | null = null,
+  ink: PaneInk = PLAIN_INK,
 ): CellLine[] {
   if (w <= 0 || h <= 0) return [];
   const { first, top } = paneView(c.lines.length, h);
   const out: CellLine[] = [];
   if (top) out.push(new CellLine(w).put(0, `↑ ${first} more rows`, { fg: INDICATOR_FG, italic: true }));
   for (let i = first; i < c.lines.length; i++) {
-    const line = paneLine(c.lines[i]!, w, ramp, light, ansi);
+    const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
     if (hover && hover.row === i) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
     out.push(line);
   }
@@ -152,16 +175,17 @@ export class ScriptPane extends PaneShell {
 
   protected override render(): void {
     const s = this.ctx.settings.get();
-    const { ramp, light } = paneShade(s, this.id);
+    const { ramp, light, bg } = paneShade(s, this.id);
     const ansi = s.appearance.ansi;
+    const fg = s.appearance.fg;
     const c = this.model;
     // The hovered link may have gone with the last change.
     if (this.hover && !c.links.some((l) => l.id === this.hover!.id && l.row === this.hover!.row)) this.setHover(null);
-    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover?.id ?? ''}|${JSON.stringify(ramp)}|${light}|${ansi.join(',')}`;
+    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover?.id ?? ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
     if (key === this.shownKey) return;
     this.shownKey = key;
     this.view = paneView(c.lines.length, this.rows);
-    this.list.update(this.ctx.doc, scriptPaneLines(c, this.cols, this.rows, ramp, light, ansi, this.hover));
+    this.list.update(this.ctx.doc, scriptPaneLines(c, this.cols, this.rows, ramp, light, ansi, this.hover, paneInk(fg, bg, light)));
   }
 
   override place(...args: Parameters<PaneShell['place']>): void {
