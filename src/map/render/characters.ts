@@ -9,6 +9,10 @@
 // per frame from the Scene (a handful of vertices). Ported from MMapper
 // 26.06.0 display/Characters.cpp and display/MapCanvasData.cpp (MapScreen
 // visibility and proxy location; GPL-2.0-or-later). Pure.
+//
+// Script marks (ADR 0057; WebCockpit's own) are drawn first: a fill and an
+// outline a little larger than the room, a screen dot when rooms are
+// small, an edge arrow when off view, the layer arrow on another layer.
 
 import type { MapData } from '../model';
 import type { Scene } from '../scene';
@@ -29,6 +33,14 @@ const LINE_ALPHA = 0.9;
 const MARGIN = 24;
 /** Zoom at or below which characters use the far (outline) style. */
 export const CHAR_FAR_ZOOM = 0.4;
+/** Most off-view arrows per mark (nearest rooms first). */
+export const MARK_ARROWS = 8;
+/** Below this many CSS px per room a mark also gets a screen dot. */
+export const MARK_DOT_BELOW = 12;
+/** The dot's size, CSS px. */
+const MARK_DOT = 16;
+/** How far a mark's box reaches past its room, in rooms. */
+const MARK_PAD = 0.12;
 /** 45/π degrees: rotation step of extra characters in one room. */
 const MAGIC_ANGLE = 45 / Math.PI;
 
@@ -193,6 +205,50 @@ class CharBatch {
     this.g.arrows.quad(pos[0], pos[1], pos[2], color, corners);
   }
 
+  /** A script mark on one room (ADR 0057); `arrow`: point to it when off view. */
+  drawMark(x: number, y: number, z: number, color: RGBA, alpha: number, arrow: boolean): void {
+    if (alpha <= 0.01) return;
+    const centre: Vec3 = [x + 0.5, y + 0.5, z];
+    const p = MARK_PAD;
+    const pts: Vec3[] = [
+      [x - p, y - p, z],
+      [x + 1 + p, y - p, z],
+      [x + 1 + p, y + 1 + p, z],
+      [x - p, y + 1 + p, z],
+    ];
+    const [a, b, c, d] = pts as [Vec3, Vec3, Vec3, Vec3];
+    const fc = withAlpha(color, 0.35 * alpha);
+    this.g.tris.tri(a, b, c, fc);
+    this.g.tris.tri(a, c, d, fc);
+    const lc = withAlpha(color, alpha);
+    for (const [u, v] of [[a, b], [b, c], [c, d], [d, a]] as const) {
+      const n = perpendicularNormal(vec.normalize(vec.sub(v, u)));
+      lineQuad(this.lines, u, v, CHAR_LINE_WIDTH * this.unitsPerPx(z), lc, n);
+    }
+    if (pxPerRoom(this.ctx.view.zoom, z) < MARK_DOT_BELOW) {
+      const h = MARK_DOT / 2;
+      this.g.points.quad(centre[0], centre[1], centre[2], lc, [
+        [-4, 0, -h, -h],
+        [-3, 0, h, -h],
+        [-3, 1, h, h],
+        [-4, 1, -h, h],
+      ]);
+    }
+    if (!arrow) return;
+    if (!this.screen.roomVisible(x, y, z, MARGIN / 2)) {
+      const cc = this.screen.centre();
+      const deg = (Math.atan2(centre[1] - cc[1], centre[0] - cc[0]) * 180) / Math.PI;
+      this.screenArrow(this.screen.proxy(centre, MARGIN), deg, lc, true);
+    }
+    const layerDiff = z - this.ctx.view.layer;
+    if (layerDiff !== 0) this.arrow([centre[0], centre[1], this.ctx.view.layer], layerDiff > 0 ? 90 : 270, lc, true);
+  }
+
+  /** A mark's label above its first room. */
+  drawMarkLabel(x: number, y: number, z: number, text: string, color: RGBA): void {
+    this.drawName(x, y, z, text, color);
+  }
+
   drawCharacter(x: number, y: number, z: number, color: RGBA, fill: boolean, far: boolean): void {
     const centre: Vec3 = [x + 0.5, y + 0.5, z];
     const layerDiff = z - this.ctx.view.layer;
@@ -296,6 +352,22 @@ export function buildScene(scene: Scene, ctx: SceneContext): SceneGeometry {
   const pos = (r: number): Vec3 => [map.x[r]!, map.y[r]!, map.z[r]!];
   const valid = (r: number | null): r is number => r !== null && r >= 0 && r < map.roomCount;
   const you = valid(scene.room) ? scene.room : null;
+
+  // Script marks first, under the group and the player (ADR 0057).
+  for (const mk of scene.marks ?? []) {
+    const color = withAlpha(colorOf(mk.color), 1);
+    let arrows = 0;
+    for (const r of mk.rooms) {
+      if (!valid(r)) continue;
+      const [x, y, z] = pos(r);
+      b.drawMark(x, y, z, color, mk.alpha, mk.arrows && arrows++ < MARK_ARROWS);
+    }
+    const first = mk.rooms.find(valid);
+    if (mk.label && first !== undefined && mk.alpha > 0.01) {
+      const [x, y, z] = pos(first);
+      b.drawMarkLabel(x, y, z, mk.label, withAlpha(color, mk.alpha));
+    }
+  }
 
   const drawGroup = () => {
     const drawn = new Set<number>();

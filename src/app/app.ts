@@ -77,6 +77,7 @@ import { InputPane } from '../ui/input-pane';
 import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
 import { SettingsStore, viewSnapshot } from '../settings';
+import { MapMarkHub } from '../map/marks';
 import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
@@ -238,6 +239,8 @@ export class App {
   private helpChain: Promise<void> = Promise.resolve();
   private readonly scriptLib: ScriptLibrary | null;
   private readonly scriptOpts: Pick<AppOptions, 'scriptStorage' | 'loadLua'>;
+  /** Script map marks (ADR 0057); the Map pane attaches to it. */
+  readonly mapMarks = new MapMarkHub();
   private hostP: Promise<ScriptHost> | null = null;
   private hostRef: ScriptHost | null = null;
   /** The last GMCP values for the scripts' `gmcp` table, kept from the start (no Lua). */
@@ -329,6 +332,7 @@ export class App {
       game: this.game,
       ...(player ? { localStorage: null, sessionStorage: null, player: true } : {}),
       ...(opts.map ? { map: opts.map } : {}),
+      ...(player ? {} : { mapMarks: this.mapMarks }),
     });
     this.cockpit = new Cockpit({
       root: this.el,
@@ -667,6 +671,7 @@ export class App {
         print: (rows) => this.output.pushStyled(rows),
         message: (text) => this.sys(text),
         cols: () => this.output.measureCells().cols,
+        map: this.mapMarks,
         ...(this.gmcpCache ? { gmcp: this.gmcpCache } : {}),
         ...(this.scriptOpts.scriptStorage !== undefined ? { storage: this.scriptOpts.scriptStorage } : {}),
         ...(this.scriptOpts.loadLua ? { loadRuntime: this.scriptOpts.loadLua } : {}),

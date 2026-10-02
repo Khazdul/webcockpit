@@ -25,6 +25,10 @@
 // - Learned server ids persist (worker-side IndexedDB) only for the app's
 //   own map; a pane with a `PaneContext.map` host (log player, HTML
 //   replay) keeps them in memory.
+// - Script map marks (ADR 0057): once its map is loaded the pane attaches a
+//   port to `PaneContext.mapMarks` (finds, marks and unmarks go to the
+//   worker; the answers back to the hub) and detaches on dispose.
+//   `mapMarks` (dataset) counts the live marks.
 
 import type { MapClient, MapEventForwarder } from '../map/client';
 import type { MapPaneHost, WorkerToMain } from '../map/protocol';
@@ -73,6 +77,9 @@ export class MapPane extends PaneShell {
   private acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0, dz: 0 };
   private flushScheduled = false;
   private dprQuery: MediaQueryList | null = null;
+  /** Detaches the mark port (ADR 0057). */
+  private unmarks: (() => void) | null = null;
+  private readonly liveMarks = new Set<number>();
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -110,6 +117,8 @@ export class MapPane extends PaneShell {
   }
 
   override dispose(): void {
+    this.unmarks?.();
+    this.unmarks = null;
     this.forward(false);
     super.dispose();
     this.client?.dispose();
@@ -239,6 +248,18 @@ export class MapPane extends PaneShell {
     }
   }
 
+  /** Attaches the mark port once (ADR 0057). */
+  private attachMarks(): void {
+    const hub = this.ctx.mapMarks;
+    if (!hub || this.unmarks) return;
+    this.unmarks = hub.attach({
+      find: (req, query) => this.client?.find(req, query),
+      mark: (id, target, style, ms, focus) => this.client?.mark(id, target, style, ms, focus),
+      unmark: (id) => this.client?.unmark(id),
+      shown: () => this.visible && this.loaded && this.client !== null && this.cols > 0,
+    });
+  }
+
   private fail(state: 'unsupported' | 'error', text: string): void {
     this.failed = state === 'unsupported' || this.failed;
     this.content.dataset.mapState = state;
@@ -259,6 +280,20 @@ export class MapPane extends PaneShell {
         this.notice.hidden = true;
         this.loaded = true;
         this.syncForward();
+        this.attachMarks();
+        return;
+      case 'found':
+        this.ctx.mapMarks?.found(m.req, m.rooms, m.total);
+        return;
+      case 'marked':
+        if (m.rooms.length > 0) this.liveMarks.add(m.id);
+        this.content.dataset.mapMarks = String(this.liveMarks.size);
+        this.ctx.mapMarks?.marked(m.id, m.rooms, m.total);
+        return;
+      case 'markEnded':
+        this.liveMarks.delete(m.id);
+        this.content.dataset.mapMarks = String(this.liveMarks.size);
+        this.ctx.mapMarks?.ended(m.id);
         return;
       case 'status': {
         const d = this.content.dataset;

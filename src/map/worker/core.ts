@@ -13,15 +13,38 @@
 // Rendering is on demand: every change calls `requestRender()`, which
 // draws once in the next animation frame (setTimeout fallback) and never
 // while the pane is hidden.
+//
+// Script marks (ADR 0057): `find` answers a room query (query.ts);
+// `mark` resolves its target, keeps the mark until its absolute end and
+// runs a frame loop while any mark lives and the pane is shown, putting
+// the marks into the scene at most every MARK_TICK_MS (blink and fade).
+// `focus` fits the view to the player and the marks; a pan, zoom or layer
+// change by the player ends the fitting, and when the mark ends an
+// untouched view gets its zoom back, centred on the player.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { buildIndexes, type MapData } from '../model';
 import { type Inflate, inflateZlib, mapHash, readMm2 } from '../mm2';
-import { MAP_PROTOCOL_VERSION, type MainToWorker, type MapEvent, type MapSource, type WorkerToMain } from '../protocol';
+import { MAP_PROTOCOL_VERSION, type MainToWorker, type MapEvent, type MapSource, type MarkStyle, type WorkerToMain } from '../protocol';
+import { QUERY_MAX, findRooms } from '../query';
+import type { Scene, SceneMark } from '../scene';
 import { type Renderer, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
 import type { LearnedIdStore } from './ids';
-import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, changeLayer, defaultView, pan, zoomAt } from '../view';
+import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, changeLayer, defaultView, fitRooms, pan, zoomAt } from '../view';
+
+/** Scene refresh while a mark lives, ms (15 Hz). */
+export const MARK_TICK_MS = 66;
+/** Blink period, ms. */
+const BLINK_MS = 1000;
+
+interface LiveMark {
+  id: number;
+  rooms: number[];
+  style: MarkStyle;
+  start: number;
+  end: number;
+}
 
 export interface WorkerHost {
   post(m: WorkerToMain): void;
@@ -54,10 +77,19 @@ export class MapWorkerCore {
   private lastStatus = '';
   /** The load whose first complete frame is still to be reported (`drawn`), and its start. */
   private drawnPending: { req: number; t0: number } | null = null;
+  /** Live script marks by id (ADR 0057). */
+  private readonly marks = new Map<number, LiveMark>();
+  private markLoop = false;
+  private lastMarkTick = -Infinity;
+  /** The view fitted to a mark: its id, the zoom before, and whether the player moved the view since. */
+  private focus: { id: number; savedZoom: number; touched: boolean } | null = null;
+  /** Mark scene refreshes (tests, the bench). */
+  markTicks = 0;
 
   constructor(private readonly host: WorkerHost) {}
 
   handle(m: MainToWorker): void {
+    if (this.marks.size > 0) this.expireMarks();
     switch (m.t) {
       case 'init':
         this.init(m);
@@ -69,17 +101,34 @@ export class MapWorkerCore {
         this.resize(m.width, m.height, m.dpr);
         return;
       case 'pan':
+        this.touch();
         this.setView(pan(this.view, m.dx, m.dy));
         return;
       case 'zoom':
+        this.touch();
         this.setView(zoomAt(this.view, m.steps, m.x, m.y, this.css.w, this.css.h));
         return;
       case 'layer':
+        this.touch();
         this.setView(changeLayer(this.view, m.dz));
         return;
       case 'visible':
         this.visible = m.visible;
-        if (m.visible) this.requestRender();
+        if (m.visible) {
+          this.requestRender();
+          this.startMarkLoop();
+        }
+        return;
+      case 'find': {
+        const r = this.map ? findRooms(this.map, m.query, this.tracker.current.room) : { rooms: [], total: 0 };
+        this.host.post({ t: 'found', req: m.req, rooms: r.rooms, total: r.total });
+        return;
+      }
+      case 'mark':
+        this.mark(m);
+        return;
+      case 'unmark':
+        this.endMark(m.id);
         return;
       case 'events':
         this.events(m.events);
@@ -135,7 +184,7 @@ export class MapWorkerCore {
       this.renderer?.dispose();
       this.renderer = build();
       this.renderer.setMap(this.map);
-      if (this.map) this.renderer.setScene(this.tracker.current);
+      if (this.map) this.renderer.setScene(this.scene());
       this.resize(this.css.w, this.css.h, this.css.dpr);
       this.host.post({ t: 'restored' });
     });
@@ -219,13 +268,15 @@ export class MapWorkerCore {
         stages.hash = now() - th;
       }
       if (req !== this.loadReq) return;
+      // Marks are room indices of the old map: gone.
+      for (const id of [...this.marks.keys()]) this.endMark(id, true);
       this.map = map;
       this.view = centreOn(this.view, map.selected.x, map.selected.y, map.selected.z);
       const tm = now();
       this.renderer?.setMap(map);
       stages.meshes = now() - tm;
       this.tracker.setMap(map, hash);
-      this.renderer?.setScene(this.tracker.current);
+      this.renderer?.setScene(this.scene());
       this.postStatus();
       this.loadIds();
       this.host.post({
@@ -262,18 +313,138 @@ export class MapWorkerCore {
     const room = this.tracker.current.room;
     let draw = r.changed;
     if (r.moved && map && room !== null) {
-      const v = centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!);
+      // While a mark holds the view, a move re-fits it instead.
+      const f = this.focus && !this.focus.touched ? this.marks.get(this.focus.id) : undefined;
+      const v = f ? this.fitted(f) : centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!);
       if (v.x !== this.view.x || v.y !== this.view.y || v.layer !== this.view.layer) {
         this.view = v;
         draw = true;
       }
     }
-    if (r.changed) this.renderer?.setScene(this.tracker.current);
+    if (r.changed) this.renderer?.setScene(this.scene());
     if (draw) this.requestRender();
     this.postStatus();
     if (r.learned.length > 0 && this.persistIds && this.host.ids && this.tracker.mapHash !== '') {
       this.host.ids.save(this.tracker.mapHash, r.learned).catch(() => {});
     }
+  }
+
+  // ------------------------------------------------------------ marks
+
+  /** The tracker's scene with the live marks (ADR 0057). */
+  private scene(): Scene {
+    const base = this.tracker.current;
+    if (this.marks.size === 0) return base;
+    const now = this.host.now();
+    const marks: SceneMark[] = [];
+    for (const k of this.marks.values()) {
+      const left = (k.end - now) / 1000;
+      const env = k.style.fade > 0 && left < k.style.fade ? Math.max(0, left / k.style.fade) : 1;
+      const wave = k.style.blink ? 0.55 + 0.45 * Math.cos((2 * Math.PI * (now - k.start)) / BLINK_MS) : 1;
+      const m: SceneMark = { rooms: k.rooms, color: k.style.color, alpha: env * wave, arrows: k.style.arrows };
+      if (k.style.label) m.label = k.style.label;
+      marks.push(m);
+    }
+    return { ...base, marks };
+  }
+
+  private mark(m: Extract<MainToWorker, { t: 'mark' }>): void {
+    const map = this.map;
+    let rooms: number[] = [];
+    let total = 0;
+    if (map) {
+      if ('rooms' in m.target) {
+        rooms = m.target.rooms.filter((r) => Number.isInteger(r) && r >= 0 && r < map.roomCount).slice(0, QUERY_MAX);
+        total = rooms.length;
+      } else {
+        const r = findRooms(map, m.target.query, this.tracker.current.room);
+        rooms = r.rooms;
+        total = r.total;
+      }
+    }
+    this.host.post({ t: 'marked', id: m.id, rooms, total });
+    if (rooms.length === 0) {
+      this.host.post({ t: 'markEnded', id: m.id });
+      return;
+    }
+    const now = this.host.now();
+    const live: LiveMark = { id: m.id, rooms, style: m.style, start: now, end: now + Math.max(0, m.ms) };
+    this.marks.set(m.id, live);
+    if (m.focus) {
+      // A later focus keeps the zoom saved by the first one.
+      this.focus = { id: m.id, savedZoom: this.focus ? this.focus.savedZoom : this.view.zoom, touched: false };
+      this.view = this.fitted(live);
+    }
+    this.renderer?.setScene(this.scene());
+    this.requestRender();
+    this.startMarkLoop();
+  }
+
+  /** The view fitted to the player and `k`'s rooms (all when ≤ 5, else the nearest 3). */
+  private fitted(k: LiveMark): View {
+    const map = this.map;
+    if (!map) return this.view;
+    const pos = (r: number) => ({ x: map.x[r]!, y: map.y[r]!, z: map.z[r]! });
+    const you = this.tracker.current.room;
+    const targets = (k.rooms.length <= 5 ? k.rooms : k.rooms.slice(0, 3)).map(pos);
+    return fitRooms(this.view, you !== null && you >= 0 && you < map.roomCount ? pos(you) : null, targets, this.css.w, this.css.h);
+  }
+
+  /** The player panned, zoomed or changed layer: a focus stops fitting and does not restore. */
+  private touch(): void {
+    if (this.focus) this.focus.touched = true;
+  }
+
+  /** Ends mark `id` (`silent`: a map load, the view is left alone). */
+  private endMark(id: number, silent = false): void {
+    if (!this.marks.delete(id)) return;
+    this.host.post({ t: 'markEnded', id });
+    const f = this.focus;
+    if (f && f.id === id) {
+      this.focus = null;
+      const map = this.map;
+      const you = this.tracker.current.room;
+      if (!silent && !f.touched) {
+        let v: View = { ...this.view, zoom: f.savedZoom };
+        if (map && you !== null && you >= 0 && you < map.roomCount) v = centreOn(v, map.x[you]!, map.y[you]!, map.z[you]!);
+        this.view = v;
+      }
+    }
+    if (!silent) {
+      this.renderer?.setScene(this.scene());
+      this.requestRender();
+    }
+  }
+
+  private expireMarks(): void {
+    const now = this.host.now();
+    for (const k of [...this.marks.values()]) if (now >= k.end) this.endMark(k.id);
+  }
+
+  private startMarkLoop(): void {
+    if (this.markLoop || this.marks.size === 0 || !this.visible) return;
+    this.markLoop = true;
+    this.host.requestFrame(this.onMarkFrame);
+  }
+
+  private readonly onMarkFrame = (): void => {
+    this.markLoop = false;
+    if (this.marks.size === 0 || !this.visible) return;
+    this.expireMarks();
+    if (this.marks.size === 0) return;
+    const now = this.host.now();
+    if (now - this.lastMarkTick >= MARK_TICK_MS) {
+      this.lastMarkTick = now;
+      this.markTicks++;
+      this.renderer?.setScene(this.scene());
+      this.requestRender();
+    }
+    this.startMarkLoop();
+  };
+
+  /** Live marks (tests). */
+  get liveMarks(): number {
+    return this.marks.size;
   }
 
   private postStatus(): void {
@@ -292,7 +463,7 @@ export class MapWorkerCore {
     store.load(hash).then(
       (ids) => {
         if (this.tracker.addLearned(hash, ids)) {
-          this.renderer?.setScene(this.tracker.current);
+          this.renderer?.setScene(this.scene());
           this.requestRender();
         }
       },

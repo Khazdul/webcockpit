@@ -20,6 +20,9 @@ import {
   type MapEvent,
   type MapGmcpPackage,
   type MapSource,
+  type MarkStyle,
+  type MarkTarget,
+  type RoomQuery,
   type WorkerToMain,
 } from './protocol';
 import { spawnMapWorker } from './spawn-worker';
@@ -92,6 +95,19 @@ export class MapClient {
   /** Forwards a batch of game events (see MapEventForwarder). */
   events(events: MapEvent[]): void {
     if (events.length > 0) this.post({ t: 'events', events });
+  }
+
+  /** Script marks (ADR 0057). */
+  find(req: number, query: RoomQuery): void {
+    this.post({ t: 'find', req, query });
+  }
+
+  mark(id: number, target: MarkTarget, style: MarkStyle, ms: number, focus: boolean): void {
+    this.post({ t: 'mark', id, target, style, ms, focus });
+  }
+
+  unmark(id: number): void {
+    this.post({ t: 'unmark', id });
   }
 
   /** Lets the worker keep learned server ids in IndexedDB (the app's own pane only). */

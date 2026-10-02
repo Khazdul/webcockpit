@@ -15,6 +15,7 @@ import { Bus } from '../core/bus';
 import { openWebcockpitDb } from '../core/db';
 import type { ConnState, Sender } from '../core/types';
 import { GameState } from '../gmcp/state';
+import type { MapMarkHub } from '../map/marks';
 import type { MapPaneHost } from '../map/protocol';
 import { SettingsStore } from '../settings';
 
@@ -56,6 +57,8 @@ export interface PaneContext {
    * (`defaultMapHost` in src/panes/map.ts).
    */
   readonly map?: MapPaneHost;
+  /** Script map marks (ADR 0057): the Map pane attaches to it once its map is loaded. */
+  readonly mapMarks?: MapMarkHub;
   /**
    * A log player's pane (ADR 0021): read-only, nothing that would change
    * game or profile state (the Timers corner `+` and charm `×` are gone).

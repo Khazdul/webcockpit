@@ -66,3 +66,36 @@ export function zoomAt(v: View, steps: number, px: number, py: number, w: number
 export function changeLayer(v: View, dz: number): View {
   return dz === 0 ? v : { ...v, layer: v.layer + Math.trunc(dz) };
 }
+
+/**
+ * A view that shows the player's room and `targets` (rooms as x, y, z)
+ * on the player's layer, with `margin` CSS px around them in a `w` × `h`
+ * canvas (ADR 0057): it never zooms in, and clamps at ZOOM_MIN. With no
+ * player position, the targets alone. Nothing to show: `v` itself.
+ */
+export function fitRooms(
+  v: View,
+  player: { x: number; y: number; z: number } | null,
+  targets: readonly { x: number; y: number; z: number }[],
+  w: number,
+  h: number,
+  margin = 48,
+): View {
+  const pts = player ? [player, ...targets] : [...targets];
+  if (pts.length === 0 || w <= 0 || h <= 0) return v;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const p of pts) {
+    minX = Math.min(minX, p.x);
+    maxX = Math.max(maxX, p.x + 1);
+    minY = Math.min(minY, p.y);
+    maxY = Math.max(maxY, p.y + 1);
+  }
+  const layer = player ? player.z : pts[0]!.z;
+  const s = Math.min(Math.max(1, w - 2 * margin) / (maxX - minX), Math.max(1, h - 2 * margin) / (maxY - minY));
+  const want = (s * (60 - 7 * layer)) / 2640;
+  const zoom = Math.max(ZOOM_MIN, Math.min(v.zoom, want));
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom, layer };
+}

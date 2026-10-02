@@ -15,6 +15,18 @@ export interface SceneMember {
   npc: boolean;
 }
 
+/** A script's map mark this frame (ADR 0057). */
+export interface SceneMark {
+  /** Room indices, nearest to the player first. */
+  rooms: readonly number[];
+  /** 0xRRGGBB. */
+  color: number;
+  /** 0…1 this frame (blink and fade). */
+  alpha: number;
+  arrows: boolean;
+  label?: string;
+}
+
 export interface Scene {
   /** The player's room, or null before the first match. */
   room: number | null;
@@ -26,6 +38,8 @@ export interface Scene {
   path: readonly number[];
   /** Group mates other than the player. */
   members: readonly SceneMember[];
+  /** Script marks (absent: none). */
+  marks?: readonly SceneMark[];
 }
 
 export const EMPTY_SCENE: Scene = { room: null, located: false, color: 0xffff00, path: [], members: [] };

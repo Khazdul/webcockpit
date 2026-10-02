@@ -13,7 +13,24 @@
 
 import type { ConnState } from '../core/types';
 import type { MapData } from './model';
+import type { RoomQuery } from './query';
 import type { Scene } from './scene';
+
+export type { RoomQuery } from './query';
+
+/** How a mark looks (ADR 0057). */
+export interface MarkStyle {
+  /** 0xRRGGBB. */
+  color: number;
+  blink: boolean;
+  /** Seconds of fade-out at the end. */
+  fade: number;
+  arrows: boolean;
+  label?: string;
+}
+
+/** What a mark marks: rooms by index, or the rooms a query finds. */
+export type MarkTarget = { rooms: number[] } | { query: RoomQuery };
 
 /** Bump when a change is not backwards compatible (checked in `init`). */
 export const MAP_PROTOCOL_VERSION = 1;
@@ -137,6 +154,11 @@ export type MainToWorker =
    * the tracking side), optionally centred on a room index or a
    * position (current layer = its z) and at a zoom.
    */
+  /** Rooms matching a query (ADR 0057); answered by `found`. */
+  | { t: 'find'; req: number; query: RoomQuery }
+  /** Marks rooms for `ms` ms; answered by `marked`, then `markEnded`. `focus`: fit the view. */
+  | { t: 'mark'; id: number; target: MarkTarget; style: MarkStyle; ms: number; focus?: boolean }
+  | { t: 'unmark'; id: number }
   | {
       t: 'debugScene';
       scene?: Scene;
@@ -159,6 +181,12 @@ export type WorkerToMain =
   | { t: 'restored' }
   /** Once per load (P4): the first frame drawn with the map, every tile and the font; ms since the load started. */
   | { t: 'drawn'; req: number; ms: number }
+  /** A `find` answered: the rooms (nearest first, at most `max`) and how many matched. */
+  | { t: 'found'; req: number; rooms: number[]; total: number }
+  /** A `mark` placed on these rooms (empty: nothing matched; then `markEnded` follows at once). */
+  | { t: 'marked'; id: number; rooms: number[]; total: number }
+  /** A mark ended (its time ran out, `unmark`, or a map load). */
+  | { t: 'markEnded'; id: number }
   /** Locator state (P2): the player's room index, or null when unknown. */
   | {
       t: 'status';
