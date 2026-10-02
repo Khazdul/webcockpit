@@ -386,3 +386,21 @@ area... and you see:` then the room and a blank line (a scry).
 - **Colours.** The `◻` is cyan while its TV is closed and light green
   while it is open (was white: green reads as "on"). During a watch it
   alternates with red, a second each.
+- **Colour convention for bundled scripts** (owner: no cyan). One small
+  table, used by the key manager and the mercenaries pane alike:
+
+  | Use | Colour |
+  |---|---|
+  | Names the player gave (`$name`), in panes, pick window, KEYS lines | gold `#d7af5f` |
+  | Buttons and links (`t p s w`, `l r f`, `◻`, `?`, `[ OK ]`) | light grey `#b8b8b8` (+ the hover band) |
+  | Notes, keys, hints | dim grey `ansi_light_black` |
+  | Plain text | the pane's text colour |
+  | Meaning only: delete / PAY DUE / a running watch's blink | red |
+  | Meaning only: safe key ★, here, an open TV's `◻`, autopay on | green |
+  | Meaning only: little time left | orange; the cost toggle stays yellow |
+
+  In panes the colours go through the pane's ink (ADR 0041): on a light
+  pane they are darkened to 4.5:1 (a unit test checks gold and grey on two
+  dark and two light backgrounds). In the game text (KEYS lines) there is
+  no such shift: the gold reads well on dark terminals and weaker on a
+  light one, like the existing KEYS tag.

@@ -9,7 +9,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import type { BusEvents, Line, UiMessage } from '../../src/core/types';
+import { TRUECOLOR, type BusEvents, type Line, type UiMessage } from '../../src/core/types';
 import { GameState } from '../../src/gmcp/state';
 import { loadLuaRuntime } from '../../src/lua';
 import type { PaneContent } from '../../src/panes/script-content';
@@ -19,6 +19,8 @@ import { resetScriptKeys } from '../../src/script/script-keys';
 import { ScriptLibrary } from '../../src/scripts';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { ScriptHost } from '../../src/scripts/host';
+import { paneInk } from '../../src/panes/script-pane';
+import { contrast } from '../../src/theme/color';
 import { MapMarkHub } from '../../src/map/marks';
 
 const EPOCH0 = 1_790_000_000;
@@ -1083,10 +1085,10 @@ describe('bundled keymanager', () => {
       expect(after.size).toBeLessThanOrEqual(1);
     });
 
-    it('the ◻ goes back to cyan however its TV closes (round 8 bug)', async () => {
+    it('the ◻ goes back to its grey however its TV closes (round 8 bug)', async () => {
       const t = await setup();
       const WHITE = 10; // ansi_light_green: the TV is open
-      const CYAN = 14;
+      const CYAN = TRUECOLOR | 0xb8b8b8; // the link grey (was cyan)
       const RED = 9;
       const box = (key: string) => {
         const rows = t.rows();
@@ -1150,6 +1152,24 @@ describe('bundled keymanager', () => {
       t.recv('You feel aware of this place.');
       t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing', reason: 'test' } as never);
       expect(box('cc')).toBe(CYAN);
+    });
+
+    it('colours: names gold, buttons light grey; readable on a dark and a light pane (round 8)', async () => {
+      const t = await setup();
+      t.input('nkey home uxevjobve');
+      // Fresh: gold behind black.
+      const l0 = t.panes.keys.content.lines[1]!;
+      expect('spans' in l0 && l0.spans.find((x) => x.text === '$home')!.bg).toBe(TRUECOLOR | 0xd7af5f);
+      t.clock.advance(5000);
+      const l = t.panes.keys.content.lines[1]!;
+      const spans = 'spans' in l ? l.spans : [];
+      expect(spans.find((x) => x.text === '$home')!.fg).toBe(TRUECOLOR | 0xd7af5f);
+      expect(spans.find((x) => x.text === 't')!.fg).toBe(TRUECOLOR | 0xb8b8b8);
+      expect(spans.find((x) => x.text === 'x')!.fg).toBe(9); // delete stays red
+      for (const [bg, light] of [['#000000', false], ['#101418', false], ['#f4f0e6', true], ['#d8d8d8', true]] as const) {
+        const ink = paneInk('#c0c0c0', bg, light);
+        for (const c of ['#d7af5f', '#b8b8b8']) expect(contrast(ink.fg(c), bg), `${c} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
     });
   });
 });

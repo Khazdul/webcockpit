@@ -73,6 +73,9 @@ local NAMES = {
 local GRACE = 60           -- seconds to pay after the tap
 local GONE_AFTER = 90      -- seconds past the end before a silent mercenary is dropped
 local NAME_W = 8           -- the longest name in NAMES
+-- Buttons and links in light grey (the bundled scripts' colours, ADR 0054
+-- round 8); green, red, yellow and the gauges keep their meaning.
+local LINK_C = "#b8b8b8"
 
 -- ------------------------------------------------------------ state
 
@@ -200,7 +203,7 @@ local function orders(m)
   local list = {}
   for _, o in ipairs(ORDERS) do
     local what = o[2]
-    list[#list + 1] = { o[1], "ansi_light_cyan", function() ask(m, what) end,
+    list[#list + 1] = { o[1], LINK_C, function() ask(m, what) end,
       o[3] .. "ask " .. m.name .. " " .. what }
   end
   return list

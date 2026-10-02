@@ -120,7 +120,13 @@ local FRESH = 4             -- seconds a freshly stored key is highlighted
 local CONFIRM = 4           -- seconds to click x a second time
 
 local TAG = "<ansi_light_yellow>KEYS<reset> "
-local NAME_C = "ansi_light_cyan"
+-- Colours (the bundled scripts' convention, ADR 0054 round 8): names in
+-- gold, buttons and links in a light grey, notes and keys in the dim grey;
+-- red, green and orange only where they mean something (delete, the safe
+-- key and an open TV, little time left). On a light pane the pane shifts
+-- them to keep 4.5:1 (ADR 0041).
+local NAME_C = "#d7af5f"
+local LINK_C = "#b8b8b8"
 local DIM = "ansi_light_black"
 
 -- ------------------------------------------------------------ helpers
@@ -633,7 +639,7 @@ local function header(n)
   row(1, {
     { text = left, color = DIM },
     { text = string.rep(" ", math.max(1, width - 2 - len(left))) },
-    { text = "?", color = "ansi_light_cyan", fn = function() showHelp() end, hint = "The key manager's help (keys help)" },
+    { text = "?", color = LINK_C, fn = function() showHelp() end, hint = "The key manager's help (keys help)" },
   })
 end
 
@@ -651,12 +657,12 @@ local timeAt = {}
 -- The ◻ cells: id -> { row, col } (they blink while a watch runs).
 local tvAt = {}
 
--- The ◻'s colour: cyan, light green while its TV shows; while a watch runs it
+-- The ◻'s colour: grey, light green while its TV shows; while a watch runs it
 -- alternates with red, a second each.
 local function tvButtonColor(id, t)
   local tv = tvs[id]
   if tv and tv.watching and math.floor(t) % 2 == 1 then return "ansi_light_red" end
-  return (tv and tv.pane and tv.pane:visible()) and "ansi_light_green" or "ansi_light_cyan"
+  return (tv and tv.pane and tv.pane:visible()) and "ansi_light_green" or LINK_C
 end
 
 -- The width of segments.
@@ -716,7 +722,7 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, tvW)
   end
   local acts = {}
   for _, l in ipairs(LETTERS) do
-    acts[#acts + 1] = { text = l[1], color = "ansi_light_cyan", fn = function()
+    acts[#acts + 1] = { text = l[1], color = LINK_C, fn = function()
       cancelRename()
       local key = find(k.name)
       if key then cast(l[2], key) end
@@ -1210,7 +1216,7 @@ drawPick = function(p)
       .. (sel and "<ansi_white>" or "") .. pad(cut(h.mob, w.mob), w.mob) .. (sel and "<reset>" or "") .. "  "
       .. pad(cut(h.room, w.room), w.room) .. "  " .. pad(cut(h.dist, w.dist), w.dist) .. "  "
       .. "<" .. DIM .. ">" .. h.key .. "<reset>"
-      .. (known and ("  <ansi_light_green>= $" .. known .. "<reset>") or ""))
+      .. (known and ("  <" .. NAME_C .. ">= $" .. known .. "<reset>") or ""))
     local hint = h.mob .. " - " .. h.room .. ", " .. h.dist .. "\nkey " .. h.key
       .. (known and ("\n(stored as $" .. known .. ")") or "") .. "\nClick: select · double-click: store"
     pn:setLink(r, 1, w.total, function()
@@ -1228,7 +1234,7 @@ drawPick = function(p)
   local foot = #p.hits + 5
   pn:setLine(foot - 1, "")
   local keys = " ↑↓ select · Enter store · Esc close   "
-  pn:setLine(foot, "<" .. DIM .. ">" .. keys .. "<reset><ansi_light_green>[ OK ]")
+  pn:setLine(foot, "<" .. DIM .. ">" .. keys .. "<reset><" .. LINK_C .. ">[ OK ]")
   pn:setLink(foot, len(keys) + 1, 6, function() pickStore(p) end, "Store the selected hit under the typed name")
 end
 

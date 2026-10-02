@@ -449,3 +449,10 @@ TV, disconnect, the close cross, `◻` or `tv`); it should go back to cyan.
 
 Also (owner): the `◻` of an open TV is light green, not white; closed it
 is cyan; during a watch it alternates between red and that colour.
+
+Also (owner, colours): no cyan. Key names (`$name`) are gold everywhere
+in the key manager; buttons and links (`t p s w`, `◻`, `?`, `[ OK ]`) a
+light grey, notes and keys the dim grey; `x` stays red, the safe ★
+green, the orange time under an hour. An open TV's `◻` is light green.
+The mercenaries pane takes the same greys for its orders (`l r f`) and
+keeps its green, red, yellow and gauge colours.
