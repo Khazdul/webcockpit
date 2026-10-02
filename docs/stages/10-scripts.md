@@ -132,6 +132,17 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - [x] the list is ten rows high and scrolls (wheel, ↑↓ PgUp PgDn);
         every option rendered; the info panel stays in the window;
   - [x] unit and e2e tests (Chromium, Firefox).
+- [x] Feedback round 6 (2026-10-02, ADR 0051 "Feedback round 6"):
+  - [x] a list is valid only while more word characters follow the word
+        it was computed for (`stillCompletes`), so Backspace asks again
+        and a list for `gmcp.Comm` never stands for `gmcp.`;
+  - [x] after any edit (Backspace, Delete, Ctrl+Backspace, undo, redo,
+        cut, paste) that leaves the cursor where a name completes, a
+        closed list reopens (`lua-reopen.ts`); not on cursor moves, not
+        in strings or comments, not after `1.` or `..`; ESC keeps it
+        closed until the next edit;
+  - [x] unit tests and a table-driven e2e that checks the list against
+        `completeLua` after every key (Chromium, Firefox).
 
 ## Test guide
 
@@ -232,6 +243,13 @@ Chromium.
     `settings.` (in a script with `@setting` lines) and `line:`. `1.`,
     `"a.` and `x..` open nothing. The pop-ups no longer say F1. Is ten
     rows right?
+15. **The list follows edits (round 6):** type `gmcp.comm.channel.li`,
+    then Backspace step by step back to `gmcp.` — the list stays open and
+    always matches the text (Channel's members, then `gmcp.Comm.Channel`,
+    then `gmcp.Comm`, then all five). Try Ctrl+Backspace after
+    `math.flo`, Ctrl+Z after deleting, Delete in the middle of a name.
+    ESC closes the list until you edit again; arrows alone never open
+    it. Any case where it still loses track?
 
 **Feedback wanted:** layout and look of the page and the editor; the
 help text of coin looter; whether coin looter behaves right in real
@@ -293,3 +311,11 @@ Round 5 (2026-10-02):
    but not in a number, a string or comment, or after `..`.
 3. A sensible max height for the list, scrolled natively; all members
    reachable; the info panel readable and inside the window.
+
+Round 6 (2026-10-02):
+
+1. Typing `gmcp.comm.channel.li` and backspacing to `gmcp.` does not
+   open the list again; completion "loses track" after edits and the
+   expression has to be retyped. It should follow every edit (typing,
+   Backspace, Delete, word delete, undo, cut, paste) and be up to date
+   for the new text.

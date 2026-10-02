@@ -863,3 +863,26 @@ Tab cycling, round 1's MANUAL button in the editor, and round 3's
 
 **Measured** (production build): editor chunk 536.7 → 540.1 kB (175.3
 → 176.8 kB gzip).
+
+### Feedback round 6 — the list follows edits (2026-10-02)
+
+- *Stale lists.* `completeLua` filters its options by the whole word, so
+  a result is only valid while more word characters follow the word it
+  was asked for (`stillCompletes`, replacing `completionBase`). Round
+  5's "same part up to the last dot" kept the one-item list for
+  `gmcp.Comm` open at `gmcp.`; now every Backspace asks again.
+- *Reopen after edits.* CodeMirror starts completion on typed input
+  only; Delete, Ctrl+Backspace, undo, redo, cut and paste close the list
+  and Backspace never opens a closed one. A view plugin (`lua-reopen.ts`
+  decides which transactions count) checks after such an edit, in a
+  microtask, whether the list is closed while `completeLua` (not
+  explicit) has candidates at the cursor, and then dispatches an empty
+  transaction with user event `input.type.reopen`: CodeMirror takes it
+  for typing and queries as if a character had been typed (not as
+  Ctrl+Space, which would list every name on an empty word). Not
+  counted: cursor moves (an ESC-closed list stays closed until the next
+  edit), accepting a completion or snippet, and the case correction
+  unless the list was open before it. The signature help ignores the
+  change-less transaction.
+- Tested by a table-driven e2e that compares the list with
+  `completeLua` after every Backspace and Delete.
