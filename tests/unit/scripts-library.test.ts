@@ -5,7 +5,16 @@ import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
 import { resetScriptKeys, scriptKeyOwner } from '../../src/script/script-keys';
-import { ScriptError, ScriptLibrary, scriptNameError, uniqueScriptName } from '../../src/scripts';
+import {
+  BadScriptBackupError,
+  ScriptError,
+  ScriptLibrary,
+  looksLikeScriptBackup,
+  parseScriptBackup,
+  scriptBackupFileName,
+  scriptNameError,
+  uniqueScriptName,
+} from '../../src/scripts';
 
 const BUNDLED = [{ name: 'looter', source: '-- @name looter\n-- @api 1\n-- @key F7 loot\n-- @setting delay number 0.5 "Delay"\nsend("loot")\n' }];
 
@@ -173,5 +182,89 @@ describe('library', () => {
     expect(db.version).toBe(DB_VERSION);
     expect([...db.objectStoreNames]).toEqual(expect.arrayContaining(['scripts', 'scriptData']));
     db.close();
+  });
+});
+
+describe('backup (ADR 0053 P3)', () => {
+  it('writes user scripts and every script\'s data, and reads them back into an empty library', async () => {
+    const { lib } = make();
+    await lib.create('mine', '-- @api 1\n-- @setting n number 1 "N"\nsend("x")');
+    await lib.setEnabled('mine', true);
+    await lib.setSetting('mine', 'n', '7');
+    await lib.setEnabled('looter', true);
+    await lib.setSetting('looter', 'delay', '2');
+    lib.storeSet('mine', 'k', { a: [1, 'b', true] });
+    const text = lib.backup();
+    expect(looksLikeScriptBackup(text)).toBe(true);
+    expect(looksLikeScriptBackup('-- @name x\n')).toBe(false);
+    const b = parseScriptBackup(text);
+    expect(b.scripts).toEqual([expect.objectContaining({ name: 'mine', enabled: true, source: lib.get('mine')!.source })]);
+    expect(b.data).toEqual(
+      expect.arrayContaining([
+        { name: 'mine', settings: { n: 7 }, store: { k: { a: [1, 'b', true] } } },
+        { name: 'looter', enabled: true, settings: { delay: 2 }, store: {} },
+      ]),
+    );
+    await lib.close();
+
+    // A fresh browser: everything comes back, turned off, and persists.
+    const { lib: fresh, factory } = make();
+    const r = await fresh.restore(b);
+    expect(r).toEqual({ added: ['mine'], renamed: [], skipped: [], data: 2 });
+    expect(fresh.get('mine')).toMatchObject({ enabled: false, settings: { n: 7 } });
+    expect(fresh.storeGet('mine', 'k')).toEqual({ a: [1, 'b', true] });
+    expect(fresh.get('looter')).toMatchObject({ enabled: false, settings: { delay: 2 } });
+    await fresh.close();
+    const again = new ScriptLibrary({ factory, bundled: BUNDLED });
+    await again.init();
+    expect(again.get('mine')).toMatchObject({ enabled: false, settings: { n: 7 } });
+    expect(again.get('looter')!.settings).toEqual({ delay: 2 });
+    await again.close();
+  });
+
+  it('adds only what is missing: identical scripts are skipped, taken names get _2, data follows its script', async () => {
+    const { lib } = make();
+    await lib.create('same', '-- @api 1\nsend("a")');
+    await lib.create('other', '-- @api 1\nsend("mine")');
+    await lib.setSetting('looter', 'delay', '3');
+    const r = await lib.restore({
+      exported: 0,
+      scripts: [
+        { name: 'same', source: lib.get('same')!.source, enabled: true, created: 1, updated: 1 },
+        { name: 'other', source: '-- @name other\n-- @api 1\nsend("theirs")', enabled: true, created: 1, updated: 1 },
+        { name: 'looter', source: '-- @api 1\nsend("fake looter")', enabled: false, created: 1, updated: 1 },
+      ],
+      data: [
+        { name: 'looter', enabled: true, settings: { delay: 9 }, store: {} },
+        { name: 'other', settings: {}, store: { x: 1 } },
+        { name: 'gone', settings: {}, store: { y: 2 } },
+      ],
+    });
+    expect(r).toEqual({
+      added: ['other_2', 'looter_2'],
+      renamed: [
+        ['other', 'other_2'],
+        ['looter', 'looter_2'],
+      ],
+      skipped: ['same'],
+      data: 2,
+    });
+    // `looter` data in a file whose user script is `looter` belongs to that script (now looter_2).
+    expect(lib.get('other_2')!.source).toBe('-- @name other_2\n-- @api 1\nsend("theirs")');
+    expect(lib.storeGet('other_2', 'x')).toBe(1);
+    expect(lib.storeGet('other', 'x')).toBeUndefined();
+    expect(lib.get('looter')).toMatchObject({ enabled: false, settings: { delay: 3 } });
+    expect(lib.get('same')!.enabled).toBe(false);
+    await lib.close();
+  });
+
+  it('refuses files that are not a backup, before anything is written', () => {
+    const bad = (t: string) => () => parseScriptBackup(t);
+    expect(bad('nope')).toThrow(new BadScriptBackupError('The file is not JSON.'));
+    expect(bad('{"type":"webcockpit-runs"}')).toThrow('Not a WebCockpit scripts backup.');
+    expect(bad('{"type":"webcockpit-scripts","schema":2}')).toThrow('Unknown backup version 2.');
+    expect(bad('{"type":"webcockpit-scripts","schema":1,"scripts":[{"name":"a"}],"data":[]}')).toThrow('Script 1: no source.');
+    expect(bad('{"type":"webcockpit-scripts","schema":1,"scripts":[],"data":[{"name":"a","store":{"f":null}}]}')).toThrow('Data 1: bad store data.');
+    expect(scriptBackupFileName(new Date(2026, 9, 2))).toBe('webcockpit-scripts-2026-10-02.json');
   });
 });

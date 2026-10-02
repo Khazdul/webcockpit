@@ -1,7 +1,7 @@
 // Scripts page (spec §2.10, ADR 0051 "P2"): the script library beside the
 // profile, under Profile on the start page and in the ESC menu.
 //
-//   [ NEW IMPORT EXPORT RENAME DELETE ]
+//   [ NEW IMPORT EXPORT RENAME DELETE MANUAL ]
 //   [ [X] name        🔒 ● EDIT ]  ░   [ help of the selected script ]
 //   [   name:3: error text        ]
 //
@@ -14,11 +14,26 @@
 // The cursor row's name has the grey band (the script whose help is
 // shown); the amber marks where the keys go (the toggle's brackets or
 // EDIT's fill), as in the profile editor. Feedback goes to the flash row.
+//
+// EXPORT asks: this script as `.lua`, or all scripts as one backup file
+// (src/scripts/backup.ts, ADR 0053 P3). IMPORT takes either: a `.lua`
+// file shows its code first, a backup shows what it holds and restores
+// on Y (everything turned off).
 
 import './scripts.css';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { SCRIPT_NAME_MAX, type ScriptInfo, type ScriptLibrary, scriptNameError } from '../../scripts';
+import {
+  BadScriptBackupError,
+  SCRIPT_NAME_MAX,
+  type ScriptBackup,
+  type ScriptInfo,
+  type ScriptLibrary,
+  looksLikeScriptBackup,
+  parseScriptBackup,
+  scriptBackupFileName,
+  scriptNameError,
+} from '../../scripts';
 import { knownSyntaxProblem, syntaxProblem } from '../../scripts/check';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
@@ -31,11 +46,15 @@ import {
   Centered,
   CheckCell,
   FlashRow,
+  type MenuItem,
+  MenuRows,
   Page,
   TextField,
   cellsWide,
   indent,
+  menuKey,
   useBodyRows,
+  useMenuCursor,
 } from '../kit/widgets';
 import {
   EDIT_LABEL,
@@ -230,14 +249,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const edit = (s: ScriptInfo): void => void editScript(nav, lib, s.name, select);
 
   const exportCur = (): void => {
-    if (!cur) return;
-    try {
-      const f = lib.exportFile(cur.name);
-      downloadBlob(new Blob([f.text], { type: 'text/x-lua;charset=utf-8' }), f.fileName);
-      nav.flash(`Exported ${f.fileName}.`);
-    } catch (e) {
-      nav.flash(`Export failed: ${errText(e)}`, 'fail');
-    }
+    if (cur) nav.push(<ExportFrame lib={lib} name={cur.name} />);
   };
 
   const onFile = async (): Promise<void> => {
@@ -247,9 +259,13 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     input.value = '';
     try {
       const text = await file.text();
-      nav.push(<ImportFrame lib={lib} fileName={file.name} text={text} done={select} />);
+      if (looksLikeScriptBackup(text)) {
+        nav.push(<RestoreFrame lib={lib} fileName={file.name} backup={parseScriptBackup(text)} done={select} />);
+      } else {
+        nav.push(<ImportFrame lib={lib} fileName={file.name} text={text} done={select} />);
+      }
     } catch (e) {
-      nav.flash(`Import failed: ${errText(e)}`, 'fail');
+      nav.flash(e instanceof BadScriptBackupError ? `Restore failed: ${e.message}` : `Import failed: ${errText(e)}`, 'fail');
     }
   };
 
@@ -476,7 +492,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
       <input
         ref={fileRef}
         type="file"
-        accept=".lua,text/x-lua,text/plain"
+        accept=".lua,.json,text/x-lua,text/plain,application/json"
         hidden
         class="wc-script-file"
         onChange={() => void onFile()}
@@ -607,6 +623,108 @@ function DeleteFrame(p: { lib: ScriptLibrary; name: string; done: (next: string 
     >
       <Centered text={`Delete script '${p.name}'?  (y/N)`} class="wc-c-active" />
       <Centered text="Its settings and saved data go too." class="wc-c-hint" />
+    </Page>
+  );
+}
+
+// ---------------------------------------------------------------- export
+
+/** EXPORT: the selected script as `.lua`, or every script as one backup file. */
+function ExportFrame(p: { lib: ScriptLibrary; name: string }): VNode {
+  const nav = useNav();
+  const one = (): void => {
+    try {
+      const f = p.lib.exportFile(p.name);
+      downloadBlob(new Blob([f.text], { type: 'text/x-lua;charset=utf-8' }), f.fileName);
+      nav.pop();
+      nav.flash(`Exported ${f.fileName}.`);
+    } catch (e) {
+      nav.pop();
+      nav.flash(`Export failed: ${errText(e)}`, 'fail');
+    }
+  };
+  const all = (): void => {
+    try {
+      const name = scriptBackupFileName(new Date());
+      downloadBlob(new Blob([p.lib.backup()], { type: 'application/json;charset=utf-8' }), name);
+      const n = p.lib.list().filter((s) => !s.bundled).length;
+      nav.pop();
+      nav.flash(`Exported ${n} script${n === 1 ? '' : 's'} and all settings to ${name}.`);
+    } catch (e) {
+      nav.pop();
+      nav.flash(`Export failed: ${errText(e)}`, 'fail');
+    }
+  };
+  const items: MenuItem[] = [
+    { key: 'one', label: `This script (${p.name}.lua)`, activate: one },
+    { key: 'all', label: 'All scripts and their data (backup)', activate: all },
+    { key: 'sp', spacer: true },
+    { key: 'back', label: 'Back', activate: () => nav.pop() },
+  ];
+  const [cursor, setCursor] = useMenuCursor(items);
+  useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
+  return (
+    <Page title="Export Scripts" footer={['↑↓ Navigate', 'Enter Select', 'ESC Back']}>
+      <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
+      <Blank />
+      <Centered text="A backup holds your own scripts, every script's settings and saved data." class="wc-c-hint" />
+      <Centered text="IMPORT reads it back." class="wc-c-hint" />
+    </Page>
+  );
+}
+
+/**
+ * IMPORT of a backup file: what it holds and a warning; Y restores
+ * (scripts added turned off), any other key cancels.
+ */
+function RestoreFrame(p: { lib: ScriptLibrary; fileName: string; backup: ScriptBackup; done: (name: string) => void }): VNode {
+  const nav = useNav();
+  const { cols } = useGrid();
+  const busy = useRef(false);
+  const b = p.backup;
+  const confirm = async (): Promise<void> => {
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      const r = await p.lib.restore(b);
+      if (r.added[0]) p.done(r.added[0]);
+      nav.pop();
+      const parts = [`Restored ${r.added.length} script${r.added.length === 1 ? '' : 's'}`];
+      if (r.skipped.length) parts.push(`${r.skipped.length} already present`);
+      if (r.renamed.length) parts.push(`renamed ${r.renamed.map(([a, c]) => `${a} → ${c}`).join(', ')}`);
+      parts.push(`settings and data of ${r.data}`);
+      nav.flash(`${parts.join(', ')}. Restored scripts are off.`);
+    } catch (e) {
+      nav.pop();
+      nav.flash(`Restore failed: ${errText(e)}`, 'fail');
+    }
+  };
+  useKeys((e) => {
+    if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock'].includes(e.key)) return true;
+    if (e.key === 'y' || e.key === 'Y') void confirm();
+    else nav.pop();
+    return true;
+  });
+  const names = b.scripts.map((s) => s.name).join(', ');
+  const w = Math.max(20, cols - 4);
+  return (
+    <Page
+      title="Restore Scripts"
+      footer={[
+        { text: 'Y Restore', onClick: () => void confirm() },
+        { text: 'any other key Cancel', onClick: () => nav.pop() },
+      ]}
+    >
+      <Centered text="These scripts can send commands to the game as you." class="wc-c-err" />
+      <Centered text={truncate(`Restore from ${p.fileName}?  (y/N)`, w)} class="wc-c-active" />
+      <Blank />
+      <Centered
+        text={truncate(`${b.scripts.length} script${b.scripts.length === 1 ? '' : 's'}${names ? `: ${names}` : ''}`, w)}
+        class="wc-c-item"
+      />
+      <Centered text={`Settings and saved data of ${b.data.length} script${b.data.length === 1 ? '' : 's'}.`} class="wc-c-item" />
+      <Blank />
+      <Centered text={truncate('Only what is missing is added; nothing here is replaced. Scripts are added turned off.', w)} class="wc-c-hint" />
     </Page>
   );
 }

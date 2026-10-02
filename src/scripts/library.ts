@@ -35,6 +35,7 @@
 import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
 import { normalizeKey } from '../script/keys';
 import { setDeclaredScriptKeys } from '../script/script-keys';
+import { type ScriptBackup, formatScriptBackup } from './backup';
 import { BUNDLED_SCRIPTS, type BundledScript } from './bundled';
 import { type ParsedHeader, type ScriptHeader, type SettingValue, apiProblem, convertSetting, parseHeader, withHeaderName } from './header';
 
@@ -88,6 +89,14 @@ export interface ScriptInfo {
   /** ms since the epoch; 0 for bundled scripts. */
   created: number;
   updated: number;
+}
+
+/** What `restore` did: names added (as stored), renamed `[file name, stored name]`, identical ones skipped, data records written. */
+export interface RestoreResult {
+  added: string[];
+  renamed: [string, string][];
+  skipped: string[];
+  data: number;
 }
 
 /** A rule violation (bad name, collision, read-only script). The message is user-facing. */
@@ -267,7 +276,76 @@ export class ScriptLibrary {
     return { fileName: `${e.name}.lua`, text: e.source };
   }
 
+  /**
+   * The backup file of every user script and the data of every script
+   * (`src/scripts/backup.ts`); pending `store` values included.
+   */
+  backup(): string {
+    const recs = [...this.entries.values()].filter((e) => !e.bundled).map((e) => e.rec!);
+    const data = [...this.data.values()].filter((d) => this.entries.has(d.name));
+    return formatScriptBackup(this.now(), recs, data);
+  }
+
   // ----------------------------------------------------------------- write
+
+  /**
+   * Adds what a backup holds and the library lacks, all turned off (the
+   * file's code is not shown first, as IMPORT does for one script):
+   * - each user script, under its name or a free one (`_2`) when the name
+   *   is taken by a different script; one identical to a stored script of
+   *   that name is skipped;
+   * - each data record (settings, `store`) of an added script, and of a
+   *   stored script that has no data yet. Data of unknown scripts is
+   *   dropped. A bundled script's enabled state is not restored.
+   * One transaction: a failed write changes nothing.
+   */
+  restore(b: ScriptBackup): Promise<RestoreResult> {
+    return this.serial(() => this.restoreNow(b));
+  }
+
+  private async restoreNow(b: ScriptBackup): Promise<RestoreResult> {
+    await this.init();
+    const res: RestoreResult = { added: [], renamed: [], skipped: [], data: 0 };
+    const target = new Map<string, { name: string; added: boolean }>();
+    const newEntries: Entry[] = [];
+    const ops: WriteOp[] = [];
+    const taken = new Set(this.entries.keys());
+    const t = this.now();
+    for (const s of b.scripts) {
+      if (target.has(s.name)) continue;
+      const have = this.entries.get(s.name);
+      if (have && !have.bundled && have.source === s.source) {
+        res.skipped.push(s.name);
+        target.set(s.name, { name: s.name, added: false });
+        continue;
+      }
+      const name = scriptNameError(s.name, taken) === null ? s.name : uniqueScriptName(s.name, taken);
+      taken.add(name);
+      const source = name === s.name ? s.source : withHeaderName(s.source, name);
+      const rec: ScriptRecord = { id: newId(), name, source, enabled: false, created: s.created || t, updated: s.updated || t };
+      ops.push({ store: STORE.scripts, put: rec });
+      newEntries.push(this.entry(name, source, false, rec));
+      target.set(s.name, { name, added: true });
+      res.added.push(name);
+      if (name !== s.name) res.renamed.push([s.name, name]);
+    }
+    const newData: ScriptDataRecord[] = [];
+    for (const d of b.data) {
+      const to = target.get(d.name) ?? (this.entries.has(d.name) ? { name: d.name, added: false } : null);
+      if (!to) continue;
+      if (!to.added && this.data.has(to.name)) continue;
+      if (newData.some((x) => x.name === to.name)) continue;
+      const rec: ScriptDataRecord = { name: to.name, settings: { ...d.settings }, store: structuredClone(d.store) };
+      newData.push(rec);
+      ops.push({ store: STORE.scriptData, put: rec });
+    }
+    await this.write(ops);
+    for (const e of newEntries) this.entries.set(e.name, e);
+    for (const d of newData) this.data.set(d.name, d);
+    res.data = newData.length;
+    if (ops.length > 0) this.changed();
+    return res;
+  }
 
   /**
    * Creates a user script, disabled. Without `source`: the template under

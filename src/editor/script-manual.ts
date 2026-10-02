@@ -22,6 +22,7 @@ const GETTING_STARTED: HelpSection = {
     "- [X] turns a script on or off. A dot after the name means it is running; ! means it is on but failed to load, with the problem in red under its row.",
     "- EDIT opens the script in the editor. The panel on the right shows the selected script's help: summary, aliases, keys, help text and settings.",
     "- Scripts with a lock are bundled with WebCockpit. They are read-only and are updated with each release. DUPLICATE in the editor makes your own copy, named <name>-copy, which you can change. The copy starts off, with the same settings and an empty store.",
+    "- EXPORT saves the selected script as a .lua file, or all scripts as one backup file: your own scripts and every script's settings and saved data. Scripts live only in this browser, so keep a backup. IMPORT reads a .lua file (it shows the code first) or a backup (it adds what is missing, turned off).",
     "Your first script, step by step:",
     "- Press NEW and give it a name: a letter, then letters, digits, _ or -, at most 32 characters.",
     "- The editor opens with a template: a header (the comment lines at the top) and one trigger. Change it, or write your own below the header.",

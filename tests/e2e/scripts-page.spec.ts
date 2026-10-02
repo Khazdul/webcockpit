@@ -270,9 +270,12 @@ test('import shows the code and a warning first; export downloads the .lua file'
   await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^pagetest\s*$/);
   await expect(row(f, 'pagetest').locator('.wc-check')).not.toHaveClass(/is-on/);
 
-  // EXPORT the selected script.
-  const download = page.waitForEvent('download');
+  // EXPORT asks: this script, or all of them. Enter takes this script.
   await f.locator('[data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Scripts ───');
+  await expect(f.locator('.wc-mrow.is-sel')).toHaveText('<< This script (pagetest.lua) >>');
+  const download = page.waitForEvent('download');
+  await page.keyboard.press('Enter');
   const d = await download;
   expect(d.suggestedFilename()).toBe('pagetest.lua');
   expect(await readFile(await d.path(), 'utf8')).toBe(SOURCE('imported'));
@@ -287,5 +290,54 @@ test('import shows the code and a warning first; export downloads the .lua file'
   await page.keyboard.press('y');
   await expect(f.locator('.wc-flash')).toHaveText('Deleted pagetest.');
   expect(await lib(page, 'get', 'pagetest')).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('export all writes one backup file; import restores it, turned off, with settings and data', async ({ page }) => {
+  const errors = watchErrors(page);
+  const f = await scriptsFromStart(page);
+  await lib(page, 'create', 'pagetest', SOURCE('backed up'));
+  await lib(page, 'setEnabled', 'pagetest', true);
+  await lib(page, 'setSetting', 'pagetest', 'loud', 'true');
+  await lib(page, 'setSetting', 'coinlooter', 'delay', '0.5');
+
+  await f.locator('[data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Scripts ───');
+  const download = page.waitForEvent('download');
+  await f.locator('.wc-mrow[data-key="all"] .wc-label').click();
+  const d = await download;
+  expect(d.suggestedFilename()).toMatch(/^webcockpit-scripts-\d{4}-\d\d-\d\d\.json$/);
+  const text = await readFile(await d.path(), 'utf8');
+  const file = JSON.parse(text) as { type: string; scripts: { name: string; source: string; enabled: boolean }[]; data: { name: string; settings: Record<string, unknown> }[] };
+  expect(file.type).toBe('webcockpit-scripts');
+  expect(file.scripts).toEqual([expect.objectContaining({ name: 'pagetest', source: SOURCE('backed up'), enabled: true })]);
+  expect(file.data).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ name: 'pagetest', settings: { loud: true } }),
+      expect.objectContaining({ name: 'coinlooter', settings: { delay: 0.5 } }),
+    ]),
+  );
+  await expect(f.locator('.wc-flash')).toHaveText(`Exported 1 script and all settings to ${d.suggestedFilename()}.`);
+
+  // Lose the script, then restore the backup through IMPORT.
+  await lib(page, 'remove', 'pagetest');
+  await expect(row(f, 'pagetest')).toHaveCount(0);
+  const chooser = page.waitForEvent('filechooser');
+  await f.locator('[data-btn="IMPORT"]').click();
+  await (await chooser).setFiles({ name: d.suggestedFilename(), mimeType: 'application/json', buffer: Buffer.from(text) });
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Restore Scripts ───');
+  await expect(f.locator('.wc-c-err').first()).toHaveText('These scripts can send commands to the game as you.');
+  await expect(f).toContainText('1 script: pagetest');
+  await page.keyboard.press('y');
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  await expect(f.locator('.wc-flash')).toHaveText('Restored 1 script, settings and data of 1. Restored scripts are off.');
+  await expect(row(f, 'pagetest').locator('.wc-check')).not.toHaveClass(/is-on/);
+  expect(await lib(page, 'get', 'pagetest')).toMatchObject({ source: SOURCE('backed up'), enabled: false, settings: { loud: true } });
+
+  // A file that is not a backup is refused with a reason.
+  const bad = page.waitForEvent('filechooser');
+  await f.locator('[data-btn="IMPORT"]').click();
+  await (await bad).setFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"type":"webcockpit-scripts","schema":9}') });
+  await expect(f.locator('.wc-flash')).toHaveText('Restore failed: Unknown backup version 9.');
   expect(errors).toEqual([]);
 });

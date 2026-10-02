@@ -462,3 +462,39 @@ logs and Cockpit logs have no SPANE records: unchanged.
   the next step is coarser coalescing (e.g. 250 ms) for gauges only.
 - A pane that only changes inside a spotlight's state prefix shows a
   partial state until its next full record (hidden in Spotlights now).
+
+## Package notes — P3 (2026-10-02)
+
+**Export all scripts** (carried over from stage 10: user scripts live
+only in IndexedDB).
+
+- *Where.* On the Scripts page, not in the runs backup. The runs backup
+  (History → BACKUP) is a gzip of runs that its restore adds by
+  `runId`; scripts there would be hard to find, would tie a small file
+  to a large one, and would restore code without the Scripts page's
+  warning. A new button would widen the button row by 9 cells and hide
+  the help panel on narrower windows, so EXPORT asks instead: *This
+  script (name.lua)* (the default row, one Enter more than before) or
+  *All scripts and their data (backup)*. IMPORT takes either file: a
+  backup is recognised by its content (`looksLikeScriptBackup`), not by
+  its extension.
+- *Format* (`src/scripts/backup.ts`): `webcockpit-scripts-YYYY-MM-DD.json`,
+  plain JSON (readable, diffable): `{type: "webcockpit-scripts", schema:
+  1, exported, scripts: [{name, source, enabled, created, updated}],
+  data: [{name, enabled?, settings, store}]}`. `scripts` is the user
+  scripts (bundled ones come with the release); `data` is every
+  `scriptData` record of a known script, bundled ones included, with
+  pending `store` writes (memory is current). `parseScriptBackup` checks
+  the whole file first (types, store values, at most 500 scripts, 1 MB
+  per source) and throws `BadScriptBackupError` with a user-facing
+  message; nothing is written for a bad file.
+- *Restore* (`ScriptLibrary.restore`, one transaction) adds what is
+  missing and replaces nothing: a user script identical to a stored one
+  of the same name is skipped; a taken name gets `_2` (the `@name` line
+  rewritten); data goes with its script when the script is added, and
+  to a stored script only when that has no data yet; data of unknown
+  scripts is dropped. Everything restored is **off**, bundled scripts'
+  enabled state included: the confirmation page cannot show all the
+  code, so the import rule (code reaches the game only after the player
+  turns it on) holds. The page shows the warning, the script names and
+  the data count; Y restores, any other key cancels.
