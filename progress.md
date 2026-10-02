@@ -25,6 +25,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 11 feedback round 1
+
+- **Owner:** overview tests OK. Mercenaries cost 10 silver or 1 gold
+  (setting `cost`, header toggle, learnt from a mercenary's speech);
+  orders are `ask <name> lead/ride/flee`; pay by clicking the PAY DUE
+  bar. Temporary panes: `createPane{temporary = true}`, `pane:close()`,
+  `pane:onClose(fn)`; not in menus, nothing persisted, recorded in runs.
+- **Verified:** unit 1800, e2e 368 (both browsers), build green.
+- **Open:** real price line and `ask` orders unverified in MUME.
+- **Next:** owner test of round 1; release when the owner says so.
+- **Commits:** 93a208a, 86f0b67, 0f46b4c, f22b289, plus this one.
+
 ### 2026-10-02 — Stage 11 built: script panes and mercenaries
 
 - **P0:** dynamic pane ids (`<script>/<pane>`), `ScriptPane` on the
