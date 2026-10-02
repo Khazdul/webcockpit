@@ -394,7 +394,7 @@ test('keymanager TVs tile from the top left in opening order, close gaps, and mo
   expect(errors).toEqual([]);
 });
 
-test('keymanager: the ◻ goes back to its normal colour when its TV closes', async ({ page }) => {
+test('keymanager: the ◻ is light green while its TV is open and goes back to grey when it closes', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   let server: WebSocketRoute | null = null;
@@ -442,9 +442,11 @@ test('keymanager: the ◻ goes back to its normal colour when its TV closes', as
   await expect(tv).toHaveCount(0);
   await expect.poll(colour).not.toBe(open);
   const closed = await colour();
+  // The light grey of buttons (no colour cast).
   const [r2, g2, b2] = rgb(closed);
-  expect(b2).toBeGreaterThan(r2! + 40);
-  expect(g2).toBeGreaterThan(r2! + 40);
+  expect(Math.abs(r2! - g2!)).toBeLessThan(12);
+  expect(Math.abs(g2! - b2!)).toBeLessThan(12);
+  expect(r2).toBeGreaterThan(120);
   // Open again with tv cave: the "open" colour; then by itself? A scry TV
   // the player opened stays; close it with ◻ and check again.
   await command(page, 'tv cave');
