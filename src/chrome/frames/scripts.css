@@ -41,3 +41,11 @@
   overflow: hidden;
   vertical-align: top;
 }
+
+/* Scripts → IMPORT: the code box's sides, one cell wide. */
+.wc-scr-import-side {
+  flex: 0 0 auto;
+  width: var(--cell-w);
+  white-space: pre;
+  line-height: var(--cell-h);
+}

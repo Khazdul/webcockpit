@@ -17,14 +17,14 @@
 
 import './scripts.css';
 import type { VNode } from 'preact';
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { SCRIPT_NAME_MAX, type ScriptInfo, type ScriptLibrary, scriptNameError } from '../../scripts';
 import { knownSyntaxProblem, syntaxProblem } from '../../scripts/check';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
-import { centreLeft, scrollToShow, scrollbar, truncate } from '../kit/nav';
+import { centreLeft, truncate } from '../kit/nav';
+import { TuiScrollbar, useScrollBox } from '../kit/scroll';
 import { type Nav, useIsTop, useKeys, useNav } from '../kit/stack';
-import { WHEEL_NOTCH_PX, wheelSteps } from '../kit/wheel';
 import {
   Blank,
   Button,
@@ -166,8 +166,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const [zone, setZone] = useState<'buttons' | 'list'>('list');
   const [btn, setBtn] = useState(0);
   const [col, setCol] = useState<0 | 1>(0);
-  const [listTop, setListTop] = useState(0);
-  const [helpTop, setHelpTop] = useState(0);
+  const listBox = useScrollBox();
+  const helpBox = useScrollBox();
   const [, setTick] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -195,17 +195,11 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const lines = listLines(list, syntax);
   const curLine = Math.max(0, lines.findIndex((l) => l.kind === 'script' && l.index === cursor));
   const curEnd = lines[curLine + 1]?.kind === 'error' ? curLine + 1 : curLine;
-  useEffect(() => {
-    setListTop((t) => scrollToShow(scrollToShow(t, curEnd, listVisible, lines.length), curLine, listVisible, lines.length));
-  }, [curLine, curEnd, listVisible, lines.length]);
-  const lTop = Math.max(0, Math.min(listTop, lines.length - listVisible));
-  const listBar = scrollbar(lines.length, listVisible, lTop);
+  // The cursor (and its error line) pulls the list along when it moves.
+  useLayoutEffect(() => listBox.show(curLine, curEnd), [curLine, curEnd, listVisible, lines.length]);
 
   const help: Row[] = cur && L.detailW > 0 ? helpRows(cur, running(cur.name), L.detailW - 1, syntax) : [];
-  const helpMax = Math.max(0, help.length - pkgH);
-  const hTop = Math.min(helpTop, helpMax);
-  const helpBar = scrollbar(help.length, pkgH, hTop);
-  useEffect(() => setHelpTop(0), [cur?.name]);
+  useLayoutEffect(() => helpBox.home(), [cur?.name]);
 
   // ------------------------------------------------------------ actions
 
@@ -278,15 +272,13 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     }
   };
 
-  const scrollHelp = (n: number): void => setHelpTop(Math.max(0, Math.min(helpMax, hTop + n)));
-
   useKeys((_e, nk) => {
     if (nk === 'tab' || nk === 'backtab') {
       setZone(zone === 'list' ? 'buttons' : 'list');
       return true;
     }
     if (nk === 'pgup' || nk === 'pgdn') {
-      scrollHelp((nk === 'pgup' ? -1 : 1) * Math.max(1, pkgH - 1));
+      helpBox.page(nk === 'pgup' ? -1 : 1);
       return true;
     }
     if (zone === 'buttons') {
@@ -367,26 +359,9 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     </div>
   );
 
-  const onListWheel = (e: WheelEvent): void => {
-    e.preventDefault();
-    const max = Math.max(0, lines.length - listVisible);
-    setListTop(Math.max(0, Math.min(max, lTop + wheelSteps(e, WHEEL_NOTCH_PX))));
-  };
-
-  const listRows = Array.from({ length: listVisible }, (_, vi) => {
-    const ln = lines[lTop + vi];
-    const barCell =
-      listBar.length > 0 ? (
-        <span
-          class={listBar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            if (!listBar[vi]) setListTop(Math.max(0, lTop + (vi < listBar.indexOf(true) ? -1 : 1) * listVisible));
-          }}
-        >
-          {listBar[vi] ? '█' : '░'}
-        </span>
-      ) : null;
+  // All lines in a native scroll box (pixels, as EDITOR); the TUI scrollbar beside it.
+  const listRows = Array.from({ length: Math.max(listVisible, lines.length) }, (_, vi) => {
+    const ln = lines[vi];
     if (!ln) {
       if (vi === 0 && ready && list.length === 0) {
         return (
@@ -404,7 +379,6 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           <span class="wc-c-err wc-scr-error" title={ln.text} style={cellsWide(L.listW)}>
             {truncate('    ' + ln.text, L.listW)}
           </span>
-          {barCell}
         </div>
       );
     }
@@ -454,44 +428,25 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
             edit(s);
           }}
         />
-        {barCell}
       </div>
     );
   });
 
   const helpPanel =
     L.detailW > 0 ? (
-      <div
-        class="wc-scr-help"
-        style={cellsWide(L.detailW)}
-        onWheel={(e) => {
-          e.preventDefault();
-          scrollHelp(wheelSteps(e));
-        }}
-      >
-        {Array.from({ length: pkgH }, (_, vi) => {
-          const r = help[hTop + vi];
-          return (
+      <div class="wc-scr-help wc-scrollrow" style={{ ...cellsWide(L.detailW), height: `calc(var(--cell-h) * ${pkgH})` }}>
+        <div class="wc-scrollbox wc-scr-help-rows" ref={helpBox.ref} style={cellsWide(L.detailW - 1)}>
+          {Array.from({ length: Math.max(pkgH, help.length) }, (_, vi) => (
             <div class="wc-line" key={vi}>
               <span class="wc-scr-help-text" style={cellsWide(L.detailW - 1)}>
-                {(r ?? []).map((s) => (
+                {(help[vi] ?? []).map((s) => (
                   <span class={s.cls}>{s.text}</span>
                 ))}
               </span>
-              {helpBar.length > 0 && (
-                <span
-                  class={helpBar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (!helpBar[vi]) scrollHelp((vi < helpBar.indexOf(true) ? -1 : 1) * Math.max(1, pkgH - 1));
-                  }}
-                >
-                  {helpBar[vi] ? '█' : '░'}
-                </span>
-              )}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        {help.length > pkgH && <TuiScrollbar target={helpBox.ref} rows={pkgH} />}
       </div>
     ) : null;
 
@@ -503,10 +458,15 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   return (
     <Page title="Scripts" footer={footer}>
       <div class="wc-scr" style={{ ...indent(L.at), display: 'flex', height: `calc(var(--cell-h) * ${pkgH})` }}>
-        <div class="wc-scr-left" style={cellsWide(L.listW + 1)} onWheel={onListWheel}>
+        <div class="wc-scr-left" style={cellsWide(L.listW + 1)}>
           {buttonRow}
           <div class="wc-line" />
-          {listRows}
+          <div class="wc-scrollrow" style={{ height: `calc(var(--cell-h) * ${listVisible})` }}>
+            <div class="wc-scrollbox wc-scr-list" ref={listBox.ref} style={cellsWide(L.listW)}>
+              {listRows}
+            </div>
+            {lines.length > listVisible && <TuiScrollbar target={listBox.ref} rows={listVisible} />}
+          </div>
         </div>
         {L.detailW > 0 && <div style={{ ...cellsWide(LIST_GAP), flex: '0 0 auto' }} />}
         {helpPanel}
@@ -661,7 +621,7 @@ function ImportFrame(p: { lib: ScriptLibrary; fileName: string; text: string; do
   const nav = useNav();
   const { cols } = useGrid();
   const bodyRows = useBodyRows();
-  const [top, setTop] = useState(0);
+  const box = useScrollBox();
   const busy = useRef(false);
   const code = p.text.replace(/\r\n?/g, '\n').replace(/\n$/, '').split('\n');
   const numW = String(code.length).length;
@@ -669,10 +629,6 @@ function ImportFrame(p: { lib: ScriptLibrary; fileName: string; text: string; do
   const at = centreLeft(cols, w);
   // warning (2) + blank + box top + code + box bottom + blank + flash
   const visible = Math.max(3, bodyRows - 7);
-  const max = Math.max(0, code.length - visible);
-  const t = Math.min(top, max);
-  const bar = scrollbar(code.length, visible, t);
-  const scroll = (n: number): void => setTop(Math.max(0, Math.min(max, t + n)));
 
   const confirm = async (): Promise<void> => {
     if (busy.current) return;
@@ -695,29 +651,47 @@ function ImportFrame(p: { lib: ScriptLibrary; fileName: string; text: string; do
     }
     switch (nk) {
       case 'up':
-        scroll(-1);
+        box.by(-1);
         return true;
       case 'down':
-        scroll(1);
+        box.by(1);
         return true;
       case 'pgup':
-        scroll(-(visible - 1));
+        box.page(-1);
         return true;
       case 'pgdn':
       case 'activate':
-        scroll(visible - 1);
+        box.page(1);
         return true;
       case 'home':
-        setTop(0);
+        box.home();
         return true;
       case 'end':
-        setTop(max);
+        box.end();
         return true;
     }
     return false;
   });
 
   const inner = w - 2;
+  const textW = inner - numW - 2;
+  // The code lines do not change while scrolling: built once.
+  const rows = useMemo(
+    () =>
+      Array.from({ length: Math.max(visible, code.length) }, (_, i) => {
+        const l = code[i];
+        const text = l === undefined ? '' : truncate(l.replace(/\t/g, '  '), textW);
+        return (
+          <div class="wc-line" key={i}>
+            <span class="wc-c-hint">{l === undefined ? ' '.repeat(numW) : String(i + 1).padStart(numW)}</span>
+            {'  '}
+            <span class="wc-c-item wc-scr-code">{text.padEnd(textW)}</span>
+          </div>
+        );
+      }),
+    [p.text, visible, textW],
+  );
+  const side = <div class="wc-c-hint wc-scr-import-side">{Array.from({ length: visible }, () => '│').join('\n')}</div>;
   return (
     <Page
       title="Import Script"
@@ -728,30 +702,13 @@ function ImportFrame(p: { lib: ScriptLibrary; fileName: string; text: string; do
       <Blank />
       <div class="wc-scr-import" style={indent(at)}>
         <div class="wc-line wc-c-hint">{'┌' + truncate(`─ ${p.fileName} `, inner).padEnd(inner, '─') + '┐'}</div>
-        <div
-          onWheel={(e) => {
-            e.preventDefault();
-            scroll(wheelSteps(e));
-          }}
-        >
-          {Array.from({ length: visible }, (_, vi) => {
-            const i = t + vi;
-            const l = code[i];
-            const text = l === undefined ? '' : truncate(l.replace(/\t/g, '  '), inner - numW - 2);
-            return (
-              <div class="wc-line" key={vi}>
-                <span class="wc-c-hint">│</span>
-                <span class="wc-c-hint">{l === undefined ? ' '.repeat(numW) : String(i + 1).padStart(numW)}</span>
-                {'  '}
-                <span class="wc-c-item wc-scr-code">{text.padEnd(inner - numW - 2)}</span>
-                {bar.length > 0 ? (
-                  <span class={bar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}>{bar[vi] ? '█' : '░'}</span>
-                ) : (
-                  <span class="wc-c-hint">│</span>
-                )}
-              </div>
-            );
-          })}
+        {/* The code scrolls natively (pixels, as EDITOR) between the box sides. */}
+        <div class="wc-scrollrow" style={{ height: `calc(var(--cell-h) * ${visible})` }}>
+          {side}
+          <div class="wc-scrollbox wc-scr-import-code" ref={box.ref} style={cellsWide(inner)}>
+            {rows}
+          </div>
+          {code.length > visible ? <TuiScrollbar target={box.ref} rows={visible} /> : side}
         </div>
         <div class="wc-line wc-c-hint">{'└' + '─'.repeat(inner) + '┘'}</div>
       </div>
