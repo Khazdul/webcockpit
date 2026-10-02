@@ -25,10 +25,10 @@ import type { EditorView } from '@codemirror/view';
 import type { JSX, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useGrid } from '../chrome/kit/hooks';
-import { centreLeft, scrollToShow, scrollbar, wrapText } from '../chrome/kit/nav';
+import { centreLeft, scrollbar, wrapText } from '../chrome/kit/nav';
+import { TuiScrollbar, useScrollBox } from '../chrome/kit/scroll';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
-import { wheelSteps } from '../chrome/kit/wheel';
 import {
   type EntryNode,
   FIELD_LABELS,
@@ -188,7 +188,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const [doc, setDoc] = useState<ProfileDoc>(() => parseProfile(host.text));
   const [kind, setKind] = useState<LiteKind>('action');
   const [cursorIds, setCursorIds] = useState<Partial<Record<LiteKind, number>>>({});
-  const [listTop, setListTop] = useState(0);
+  const listBox = useScrollBox();
   const [pinned, setPinned] = useState<number[]>([]);
   const [touched, setTouched] = useState<ReadonlySet<number>>(new Set());
   const [visited, setVisited] = useState<ReadonlySet<number>>(new Set());
@@ -258,10 +258,11 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const fieldIdx = Math.max(0, fields.indexOf(field));
   const count = list.length + 1; // + New entry
 
-  useEffect(() => {
-    setListTop((t) => scrollToShow(t, idx, listVisible, count));
-  }, [idx, listVisible, count]);
-  const top = Math.max(0, Math.min(listTop, Math.max(0, count - listVisible)));
+  // The cursor pulls the list along when it moves (and on a new kind or view).
+  const liteShown = mode === 'lite' && !help;
+  useLayoutEffect(() => {
+    if (liteShown) listBox.show(idx);
+  }, [idx, listVisible, count, kind, liteShown]);
 
   const moveTo = (i: number): void => {
     const j = Math.max(0, Math.min(list.length, i));
@@ -348,7 +349,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       const v = viewRef.current;
       setDoc(parseProfile(v ? v.state.doc.toString() : bufferInit.current));
       setCursorIds({});
-      setListTop(0);
     }
     setPinned([]);
     setTouched(new Set());
@@ -610,7 +610,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     setKind(k);
     setField(FIELDS[k][0]!);
     setBodyDraft(null);
-    setListTop(0);
   };
 
   const listKey = (e: KeyboardEvent, nk: string | null): boolean => {
@@ -880,71 +879,54 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   function renderList(): VNode {
     const labels = FIELD_LABELS[kind];
     const header = pad(labels.pattern, PATTERN_COL) + ' ' + labels.body;
-    const bar = scrollbar(count, listVisible, top);
     const listFocused = zone === 'list' && !capture;
-    const onWheel = (e: WheelEvent): void => {
-      e.preventDefault();
-      const max = Math.max(0, count - listVisible);
-      setListTop(Math.max(0, Math.min(max, top + wheelSteps(e))));
-    };
+    const bodyW = L - PATTERN_COL - 1;
+    // All rows in a native scroll box (pixels, as EDITOR); the TUI scrollbar beside it.
     return (
-      <div class="wc-ped-list" style={{ width: `calc(var(--cell-w) * ${L + 1})` }} onWheel={onWheel}>
+      <div class="wc-ped-list" style={{ width: `calc(var(--cell-w) * ${L + 1})` }}>
         <div class="wc-line wc-c-hint">{ellipsis(header, L)}</div>
-        {Array.from({ length: listVisible }, (_, vi) => {
-          const i = top + vi;
-          const isCur = i === idx;
-          const band = isCur ? (listFocused ? ' is-cur-focus' : ' is-cur') : '';
-          const barCell = bar.length > 0 && (
-            <span class={bar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}>{bar[vi] ? '█' : '░'}</span>
-          );
-          if (i > list.length) return <div class="wc-line" key={vi} />;
-          const onClick = (): void => {
-            moveTo(i);
-            if (i === list.length) newEntry();
-            else focusZone('list');
-          };
-          if (i === list.length) {
-            return (
-              <div class="wc-line" key={vi}>
-                <span
-                  class={'wc-tr wc-ped-new' + band}
-                  data-row="new"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={onClick}
-                >
-                  {pad('+ New entry', L)}
-                </span>
-                {barCell}
-              </div>
-            );
-          }
-          const e = list[i]!;
-          const t = rowText(e, L);
-          const hl = kind === 'highlight' && !isCur ? highlightStyle(e.body) : null;
-          const bodyW = L - PATTERN_COL - 1;
-          return (
-            <div class="wc-line" key={vi}>
-              <span
-                class={'wc-tr' + band}
-                data-row={i}
-                data-id={e.id}
-                onMouseDown={(ev) => ev.preventDefault()}
-                onClick={onClick}
-              >
-                {t.pattern + ' '}
-                {hl ? (
-                  <>
-                    <span style={hl}>{t.body}</span>
-                    {' '.repeat(Math.max(0, bodyW - cps(t.body)))}
-                  </>
-                ) : (
-                  pad(t.body, bodyW)
-                )}
-              </span>
-              {barCell}
-            </div>
-          );
-        })}
+        <div class="wc-scrollrow" style={{ height: `calc(var(--cell-h) * ${listVisible})` }}>
+          <div class="wc-scrollbox wc-ped-list-rows" key={kind} ref={listBox.ref} style={{ width: `calc(var(--cell-w) * ${L})` }}>
+            {Array.from({ length: Math.max(listVisible, count) }, (_, i) => {
+              const isCur = i === idx;
+              const band = isCur ? (listFocused ? ' is-cur-focus' : ' is-cur') : '';
+              if (i > list.length) return <div class="wc-line" key={i} />;
+              const onClick = (): void => {
+                moveTo(i);
+                if (i === list.length) newEntry();
+                else focusZone('list');
+              };
+              if (i === list.length) {
+                return (
+                  <div class="wc-line" key={i}>
+                    <span class={'wc-tr wc-ped-new' + band} data-row="new" onMouseDown={(e) => e.preventDefault()} onClick={onClick}>
+                      {pad('+ New entry', L)}
+                    </span>
+                  </div>
+                );
+              }
+              const e = list[i]!;
+              const t = rowText(e, L);
+              const hl = kind === 'highlight' && !isCur ? highlightStyle(e.body) : null;
+              return (
+                <div class="wc-line" key={i}>
+                  <span class={'wc-tr' + band} data-row={i} data-id={e.id} onMouseDown={(ev) => ev.preventDefault()} onClick={onClick}>
+                    {t.pattern + ' '}
+                    {hl ? (
+                      <>
+                        <span style={hl}>{t.body}</span>
+                        {' '.repeat(Math.max(0, bodyW - cps(t.body)))}
+                      </>
+                    ) : (
+                      pad(t.body, bodyW)
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {count > listVisible && <TuiScrollbar target={listBox.ref} rows={listVisible} />}
+        </div>
       </div>
     );
   }
