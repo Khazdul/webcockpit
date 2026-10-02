@@ -87,7 +87,7 @@ Main-session decisions (details in ADR 0053):
 - [x] P0. Script panes on the docking engine and the pane API
   (ADR 0053, package notes P0).
 - [ ] P1. Run capture, log player and HTML replay.
-- [ ] P2. Bundled mercenaries.
+- [x] P2. Bundled mercenaries (ADR 0053, package notes P2).
 - [ ] P3. Verify; export all scripts; test guide; owner test.
 
 ## Test guide

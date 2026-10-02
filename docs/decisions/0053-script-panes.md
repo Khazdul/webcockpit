@@ -275,3 +275,109 @@ exhaustive tables in the layout, the settings, Options and the player.
 - Touch devices see no tooltips (no hover); a tap still clicks.
 - With the border off, links on the first content row sit under the
   drag grip.
+
+## Package notes — P2 (2026-10-02)
+
+**What it does.** `src/scripts/bundled/mercenaries.lua` (bundled, off by
+default; the `bundled/*.lua` glob registers it). A hire (`A citizen
+mercenary starts following you.`, anchored, so a labelled mercenary that
+follows again does not match) gets a free random short name from a pool
+of 30 (at most 8 letters), `label mercenary <Name>`, and `group <Name>`
+once MUME answers the label with `Ok.`. A contract is wall-clock based:
+`ends = getEpoch() + minutes * 60`. A tap (`… (<Name>) taps you on the
+shoulder.`) makes pay due with a 60 s grace; the thanks (`… says 'Thank
+you. I am at your service.'`) renews to `now + minutes`. The leave line,
+the labelled death lines (`is dead! R.I.P.`, `has drawn his/her/its last
+breath! R.I.P.`) and, failing those, 90 s past the end remove a
+mercenary, each with a UI message (`▶ MERC: …`). Presence comes from
+`state.group` after any `gmcp.Group` message (a `type = npc` member with
+our label, case-insensitive); a disconnect marks all away. Records
+(`name, ends, state, paid, warned`) are in the store, so they survive a
+reload, a reconnect and a page restart; ended ones are dropped on load.
+
+**Pane.** `createPane{id = "main", title = "Mercenaries", dock = "right",
+rows = 9, cols = 36}`, redrawn whole (`clear` + rows) on every change,
+on resize and once a second while any mercenary is tracked.
+
+```
+▛▀ Mercenaries ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜
+▌ Autopay [off]          2 hired ▐   [off]/[on] toggles autopay
+▌ Bubba    ● here    $ a r p f s ▐   name, here/away, orders
+▌██████████ 21:40 left ░░░░░░░░░░▐   time gauge, green → orange → red
+▌ Zeke     ○ away    $ a r p f s ▐
+▌███ PAY DUE 0:42 ░░░░░░░░░░░░░░░▐   grace gauge (60 s), red
+▙▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▟
+```
+
+Orders, each a one-cell link with a two-line tooltip (what it does, the
+command): `$` `give 10 silver <Name>`, `a` `order <Name> assist`, `r`
+`order <Name> rescue <you>`, `p` `order <Name> protect <you>`, `f`
+`order <Name> flee`, `s` `order <Name> stand`. `r` and `p` need the
+character's name (`state.char.name`) and are left out until it is known.
+On a narrow pane the orders drop from the right (`$` stays longest);
+below 18 columns only name and presence are left. The gauge fills by the
+time left of a whole contract (by the grace while pay is due); its
+colour is the Group pane's HP green from half the contract down, then
+blends to the Group orange at 20 % and to red at 0. Empty state: the
+header, `No mercenaries hired.` and `Hire one: give 10 silver
+mercenary`.
+
+**Settings and alias.** `autopay` (false), `group` (true), `minutes`
+(25, what one payment buys), `warn` (5 minutes before the end; 0 never).
+`merc` shows or hides the pane (`pane:show()`/`hide()`); `merc autopay
+[on|off]`, `merc pay [name]` (all that ask, or one), `merc list` (text),
+`merc label <who>` (label, group and track by hand, e.g.
+`2.mercenary`), `merc forget <name>`.
+
+**What the logs taught.** No session log (Cockpit's runs, MMapper logs)
+has a hire, tap, payment or leave, so those lines are Cockpit's script's
+patterns and the tests use them as such; a real hire log should be
+checked when one exists. What the logs do show:
+
+- A mercenary waiting for work is `A citizen-mercenary is here, waiting
+  for a job.` (a hyphen) and attacks are `A citizen mercenary tries to
+  crush you …`; neither matches.
+- A labelled mob's lines carry the label in brackets, also its death:
+  `A hungry warg (MIN) is dead! R.I.P.`. Cockpit only caught deaths in
+  the room through its `mob_death` event; here the death line itself is
+  matched.
+- `label <target> <label>` answers `Ok.`, or `Ok. Replaced label "aa".`
+  (the old label in lower case) when the target already had one. Cockpit
+  labels `mercenary`, the first mercenary in the room: on a second hire
+  in the same room that relabels the first one and loses it. Here the
+  `Replaced label` answer to our own label command puts the old label
+  back and asks the player to `merc label 2.mercenary`.
+- Cockpit sent `group <Name>` right after `label`, before MUME had set
+  the label; here the group waits for the label's `Ok.`.
+- Orders in play are `order followers …` and `order <label> …`
+  (`assist`, `rescue <me>`, `protect <me>`, `f`(lee), `st`(and), `hit`).
+- GMCP: Group membership is room-scoped and ids change on each re-add
+  (Cockpit ADR 0096); the script does not keep ids at all, it reads
+  `state.group` by label.
+
+Other changes from Cockpit's script: the contract survives a reload
+(Cockpit kept it in memory only); autopay pays once per tap (a second
+tap within 30 s is not paid again); renewal counts from the payment
+(`now + minutes`), where Cockpit added the minutes to the grace end; the
+contract length is a setting.
+
+**API gaps found and fixed.**
+
+- *No wall-clock time.* The sandbox has no `os`, so a script could not
+  keep an end time across a reload. Added `getEpoch()` (Mudlet's name:
+  seconds since 1970 with a fraction; `ScriptHostOptions.epoch` for
+  tests), in `lua-api.ts` and the manual's Timers section.
+- *Script panes starved in a full side dock.* The built-in panes in the
+  default right dock want `EVEN_SHARE_DESIRED` (200) each, so a script
+  pane's `rows` scaled down to one row. `allocateAxis` now reserves a
+  script pane's desired size after Character, in stack order, when the
+  others still get their minimums; otherwise it scales as before.
+
+**Open.**
+
+- The hire, tap, thanks and leave lines and the 25 minutes per payment
+  are unverified against a real log.
+- A mercenary hired before the script was on is not tracked until `merc
+  label <who>` (which assumes a full contract).
+- Whether `order <label> stand` and `flee` are accepted for a
+  mercenary is not in the logs (they are for charmed followers).
