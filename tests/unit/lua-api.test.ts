@@ -42,6 +42,17 @@ describe('API docs', () => {
   });
 });
 
+describe('pane methods (ADR 0053)', () => {
+  it('complete after a pane receiver, never as globals; hover finds them after a colon', () => {
+    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setTitle']);
+    expect(completeLua('myPane:g')?.method).toBe(true);
+    expect(names(completeLua('line:up'))).toEqual(['string.upper']);
+    expect(names(completeLua('pane'))).toBeNull();
+    expect(nameAt('p:gauge(1, {})', 3)?.doc.name).toBe('pane:gauge');
+    expect(nameAt('s:find("x")', 3)?.doc.name).toBe('string.find');
+  });
+});
+
 describe('completion', () => {
   it('completes global names by prefix, API names first', () => {
     expect(names(completeLua('sen'))).toEqual(['send']);
