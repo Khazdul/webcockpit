@@ -40,10 +40,10 @@ import {
   DOS_PALETTE,
   INPUT_COLORS,
   INPUT_COLOR_IDS,
-  PAPER_PALETTE,
   type NamedColor,
   TERMINAL_BG_PRESETS,
   TERMINAL_FG_PRESETS,
+  backgroundTheme,
   presetName,
 } from '../../theme/presets';
 import { type ScriptPaneList, useGrid, useServices, useSettings } from '../kit/hooks';
@@ -314,17 +314,16 @@ export function colorChoices(presets: readonly NamedColor[], cur: string): strin
 }
 
 /**
- * The appearance change for a new background. Landing on `paper` also sets
- * ink as the font colour and PAPER_PALETTE, the only choices that read well
- * on it; leaving `paper` puts the default font colour and DOS palette back,
- * since ink is invisible on the dark backgrounds. Either can be changed after.
+ * The appearance change for a new background. Landing on a preset also sets
+ * its font colour and palette (BACKGROUND_THEMES, ADR 0058, 0061); leaving
+ * `paper` for an off-palette colour puts the default font colour and DOS
+ * palette back, since ink is invisible on a dark background. Either can be
+ * changed after.
  */
 export function backgroundPatch(from: string, to: string): Partial<AppearanceSettings> {
-  const isPaper = (hex: string): boolean => presetName(TERMINAL_BG_PRESETS, hex) === 'paper';
-  if (isPaper(to) && !isPaper(from)) {
-    return { bg: to, fg: TERMINAL_FG_PRESETS.find((c) => c.name === 'ink')!.hex, ansi: PAPER_PALETTE.slice() };
-  }
-  if (isPaper(from) && !isPaper(to)) return { bg: to, fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE.slice() };
+  const theme = backgroundTheme(to);
+  if (theme) return { bg: to, fg: theme.fg, ansi: theme.ansi.slice() };
+  if (presetName(TERMINAL_BG_PRESETS, from) === 'paper') return { bg: to, fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE.slice() };
   return { bg: to };
 }
 
@@ -431,7 +430,7 @@ export function AppearanceFrame(): VNode {
       key: 'resetpal',
       label: 'Reset palette',
       activate: () => {
-        set({ ansi: DOS_PALETTE.slice() });
+        set({ ansi: (backgroundTheme(a.bg)?.ansi ?? DOS_PALETTE).slice() });
         nav.flash('Palette reset.');
       },
     },

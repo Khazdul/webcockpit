@@ -66,6 +66,103 @@ export function presetName(list: readonly NamedColor[], hex: string): string | n
   return list.find((c) => c.hex === h)?.name ?? null;
 }
 
+/** The font colour and ANSI palette that go with a background (ADR 0061). */
+export interface BackgroundTheme {
+  fg: string;
+  ansi: readonly string[];
+}
+
+/**
+ * The theme Options → Appearance sets with each background preset (ADR
+ * 0058, 0061). `black` keeps the DOS palette and silver (the Cockpit look);
+ * `paper` has ink and PAPER_PALETTE; every dark preset has its own palette
+ * after an established terminal theme, lifted where needed so colours 1–15
+ * read at 4.5:1 or better. Colour 0 is the theme's black, a shade above
+ * the background; the font colour is colour 7, so bold brightens it to 15.
+ */
+export const BACKGROUND_THEMES: Readonly<Record<string, BackgroundTheme>> = {
+  black: { fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE },
+  paper: { fg: '#000000', ansi: PAPER_PALETTE },
+  red: {
+    // Kanagawa Dragon
+    fg: '#c8c093',
+    ansi: [
+      '#2a1d1d', '#c4746e', '#87a987', '#c4b28a', '#8ba4b0', '#a292a3', '#8ea4a2', '#c8c093',
+      '#a6a69c', '#e6717e', '#a3c79a', '#e6c384', '#7fb4ca', '#a69fb8', '#8cb4ac', '#e8e2c8',
+    ],
+  },
+  green: {
+    // Everforest
+    fg: '#d3c6aa',
+    ansi: [
+      '#1f2e1f', '#e67e80', '#a7c080', '#dbbc7f', '#7fbbb3', '#d699b6', '#83c092', '#d3c6aa',
+      '#859289', '#f4a0a2', '#bfd69a', '#ecd29a', '#9fd4cc', '#e8b4cc', '#a2d6ad', '#f2ead4',
+    ],
+  },
+  blue: {
+    // Tokyo Night
+    fg: '#a9b1d6',
+    ansi: [
+      '#1c2433', '#f7768e', '#9ece6a', '#e0af68', '#7aa2f7', '#bb9af7', '#7dcfff', '#a9b1d6',
+      '#7f87ad', '#ff9eae', '#b9f27c', '#ffc777', '#9dbcff', '#d2bcff', '#b4f9f8', '#d6dcf8',
+    ],
+  },
+  grey: {
+    // Tomorrow Night
+    fg: '#c5c8c6',
+    ansi: [
+      '#282a2e', '#cc6666', '#b5bd68', '#f0c674', '#81a2be', '#b294bb', '#8abeb7', '#c5c8c6',
+      '#969896', '#ff8080', '#d0d87e', '#ffd98a', '#a3c4e0', '#d0b0d8', '#a8dcd4', '#eaeaea',
+    ],
+  },
+  orange: {
+    // Ayu
+    fg: '#bfbdb6',
+    ansi: [
+      '#2c2216', '#f07178', '#aad94c', '#e6b450', '#59c2ff', '#d2a6ff', '#95e6cb', '#bfbdb6',
+      '#8a8986', '#ff9a9f', '#c4ee6e', '#ffcf6e', '#8ad4ff', '#e4c6ff', '#b8f4e0', '#ece9e0',
+    ],
+  },
+  purple: {
+    // Dracula
+    fg: '#d6d4e0',
+    ansi: [
+      '#282236', '#ff5555', '#50fa7b', '#f1fa8c', '#8a9cff', '#ff79c6', '#8be9fd', '#d6d4e0',
+      '#8a87a8', '#ff8a8a', '#86ffa4', '#fbffb0', '#b4c0ff', '#ffa6da', '#b6f3ff', '#f8f8f2',
+    ],
+  },
+  teal: {
+    // Solarized
+    fg: '#93a1a1',
+    ansi: [
+      '#073642', '#e56462', '#859900', '#b58900', '#3694d5', '#dd629e', '#2aa198', '#93a1a1',
+      '#839496', '#f2706b', '#a4bb1e', '#d9a81e', '#5aaef0', '#ec6ca7', '#4cc4b9', '#fdf6e3',
+    ],
+  },
+  sepia: {
+    // Gruvbox
+    fg: '#d5c4a1',
+    ansi: [
+      '#3c2a1e', '#da5e59', '#98971a', '#d79921', '#548f92', '#b86f90', '#689d6a', '#d5c4a1',
+      '#a89984', '#fb5946', '#b8bb26', '#fabd2f', '#83a598', '#d3869b', '#8ec07c', '#fbf1c7',
+    ],
+  },
+  slate: {
+    // Nord
+    fg: '#d8dee9',
+    ansi: [
+      '#2e3440', '#c46e76', '#a3be8c', '#ebcb8b', '#81a1c1', '#b48ead', '#88c0d0', '#d8dee9',
+      '#7b88a1', '#d98a92', '#bfd8a8', '#f5dca8', '#a3c0e0', '#ccaacb', '#a8dce8', '#eceff4',
+    ],
+  },
+};
+
+/** The theme for a background preset, or null for an off-palette colour. */
+export function backgroundTheme(bg: string): BackgroundTheme | null {
+  const name = presetName(TERMINAL_BG_PRESETS, bg);
+  return name ? (BACKGROUND_THEMES[name] ?? null) : null;
+}
+
 /** One pane tint (Inv §10.4 "Pane tints"). */
 export interface PaneTint {
   /** Fill colour, or null for `black` (None): the terminal background. */
