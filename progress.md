@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Themes for the dark backgrounds
+
+- **Owner request:** tune the palette for every non-black background as
+  for paper. Owner chose: a distinct theme per background, ≥ 4.5:1,
+  black stays DOS, matching font colour.
+- **Done:** `BACKGROUND_THEMES` (Kanagawa, Everforest, Tokyo Night,
+  Tomorrow Night, Ayu, Dracula, Solarized, Gruvbox, Nord), lifted to
+  4.5:1; `backgroundPatch` sets fg + palette on every preset; "Reset
+  palette" follows the background. ADR 0061.
+- **Verified:** typecheck clean, unit 1901 green, Appearance e2e green.
+- **Next:** owner tests the backgrounds; release when the owner says so.
+- **Commits:** d1904e8, a8f4484, plus this one.
+
 ### 2026-10-03 — Appearance option "Bold brightens colours", release 0.1.32
 
 - **User report (Discord):** bold mob names (MUME `change colour`, bold
