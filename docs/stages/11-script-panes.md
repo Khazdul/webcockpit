@@ -1,6 +1,6 @@
 # Stage 11 — Script panes
 
-> Status: Owner testing (built 2026-10-02).
+> Status: Done 2026-10-02 (owner tested round 1 and approved).
 > Source: intent Goal 10, spec §2.10 (panes, runs, mercenaries),
 > ADR 0051.
 
@@ -89,7 +89,7 @@ Main-session decisions (details in ADR 0053):
 - [x] P1. Run capture, log player and HTML replay (ADR 0053,
   package notes P1).
 - [x] P2. Bundled mercenaries (ADR 0053, package notes P2).
-- [ ] P3. Verify; export all scripts; test guide; owner test.
+- [x] P3. Verify; export all scripts; test guide; owner test.
   - [x] Export all scripts: EXPORT → *All scripts and their data
     (backup)*; IMPORT restores it (ADR 0053, package notes P3).
   - [x] Review across P0–P2: layout reset, reconnect, disable and
@@ -100,7 +100,7 @@ Main-session decisions (details in ADR 0053):
   - [x] Verify: typecheck, unit, e2e (Chromium and Firefox), bench,
     build, production e2e.
   - [x] Test guide (below).
-  - [ ] Owner test.
+  - [x] Owner test.
 
 ## Test guide
 
@@ -254,4 +254,4 @@ Round 1 built (2026-10-02, ADR 0053 "Feedback round 1"):
   PAY DUE bar pays.
 - [x] Temporary panes, `pane:close()`, `pane:onClose(fn)`; runs and the
   log player; Spotlights hide them; API docs and manual example.
-- [ ] Owner test of round 1 (test guide items 1–4 and 6 above).
+- [x] Owner test of round 1 (test guide items 1–4 and 6 above).

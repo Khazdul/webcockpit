@@ -320,6 +320,9 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     scripts.
   - Export and import work per file, like profiles. Import shows the
     code and a warning that the script can send commands to the game.
+  - *Export* also offers a backup of all user scripts with every
+    script's settings and saved data, as one file. *Import* restores it:
+    it adds what is missing, turned off, and replaces nothing (ADR 0053).
 - **Menu.** *Scripts* sits directly under *Profile*, on the start page
   and in the ESC menu.
 - **Scripts page:**
@@ -371,6 +374,7 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - Keys: `tempKey(name, fn)` and `killKey(id)`. Key names follow
     ADR 0005.
   - Timers: `tempTimer(seconds, fn[, repeat])` and `killTimer(id)`.
+    `getEpoch()` returns the wall-clock time in seconds.
   - Events: `registerAnonymousEventHandler(event, fn)` and
     `killAnonymousEventHandler(id)`. The events are:
     - `gmcp.<Package>.<Message>`;
@@ -400,10 +404,13 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     - `store.get(key)` and `store.set(key, value)` persist strings,
       numbers, booleans and tables per script.
   - Panes:
-    - `createPane{id, title, dock = "right"|"left"|"top"|"bottom"|"float", rows, cols}`
+    - `createPane{id, title, dock = "right"|"left"|"top"|"bottom"|"float", rows, cols, temporary}`
       returns a pane. It docks, floats, toggles and is coloured like
       built-in panes, and the user's placement is remembered per script
-      and id.
+      and id. Running script panes are listed in Options → Panes.
+    - `temporary = true` makes a short-lived pane: it floats centred
+      over the game pane, is never listed in menus, and nothing about
+      it is saved. Its close cross closes it.
     - Pane methods:
       - `:clear()`, `:echo(text)` and `:cecho(text)`;
       - `:setLine(row, text)`;
@@ -411,16 +418,20 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       - `:cechoLink(text, fn, hint)`, `:setLink(row, col, len, fn, hint)`.
         Any span, down to a single cell, can be clickable and have a
         tooltip.
-      - `:size()` returns rows and cols. A `resize` handler is called
-        when the user resizes the pane.
+      - `:size()` returns rows and cols. `:onResize(fn)` is called
+        when the pane's size changes.
+      - `:show()`, `:hide()`, `:visible()` and `:setTitle(text)`.
+      - `:close()` removes the pane until `createPane` is called again;
+        `:onClose(fn)` is called when the user closes a temporary pane.
 - **Limits** (ADR 0051): sandboxed environment, instruction budget per
   call, memory cap, auto-disable on repeated errors.
 - **Runs.** Script pane content is recorded and shows in the log player
   and the HTML replay like the built-in panes.
 - **Bundled scripts:**
   - **Coin looter:** loot coins from corpses after kills.
-  - **Mercenaries:** a pane with the mercenaries' state, with clickable
-    orders.
+  - **Mercenaries:** a pane with the mercenaries' contracts, a cost of
+    10 silver or 1 gold, autopay, pay on click, and the orders `ask
+    <name> lead`, `ride` and `flee`.
   - **Key manager:** a pane listing keys and doors. It draws on the
     owner's Mudlet reference script.
 

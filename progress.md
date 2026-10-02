@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **11 — Script panes** (owner testing; latest release 0.1.27, stage 11 not released yet). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **12 — Key manager** (waits for the owner's Mudlet reference script; stage 11 done, not released yet; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -16,7 +16,7 @@ Current stage: **11 — Script panes** (owner testing; latest release 0.1.27, st
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
-| 11 | Script panes | Owner testing | `docs/stages/11-script-panes.md` |
+| 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
@@ -24,6 +24,16 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Stage 11 done
+
+- **Owner:** round 1 tested and approved.
+- **Docs:** spec §2.10 brought up to date (pane methods, temporary
+  panes, `getEpoch`, scripts backup, mercenaries); API docs and the
+  script manual already covered everything.
+- **Next:** release 0.1.28 when the owner says so; stage 12 waits for
+  the key manager reference script; stage 8 part D still open.
+- **Commits:** this one.
 
 ### 2026-10-02 — Stage 11 feedback round 1
 
