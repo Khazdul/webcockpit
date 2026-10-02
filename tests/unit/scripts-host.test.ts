@@ -542,6 +542,18 @@ describe('profile bridge, settings and store', () => {
     expect(t.msgs).toEqual(['s: delay = 2', 's: on = false', '#script set: delay must be a number.', '#script set: s has no setting nope (settings: delay, mode, on).']);
   });
 
+  it('sysSettingChanged tells only that script which setting changed, with settings already new', async () => {
+    const header = '-- @setting delay number 0.5 "Seconds"\n-- @setting on boolean true\n';
+    const body = `registerAnonymousEventHandler("sysSettingChanged", function(ev, name, value) send(scriptName .. " " .. ev .. " " .. name .. "=" .. tostring(value) .. " " .. tostring(settings[name])) end)`;
+    const t = await setup({ s: src(body, header), o: src(body, header) });
+    t.engine.input('#script set s delay 2');
+    await t.settle();
+    t.engine.input('#script set s delay 2');
+    t.engine.input('#script set s on off');
+    await t.settle();
+    expect(t.sent).toEqual(['s sysSettingChanged delay=2 2', 's sysSettingChanged on=false false']);
+  });
+
   it('setSetting saves an own setting; scriptName is the script\'s name', async () => {
     const header = '-- @setting delay number 0.5 "Seconds"\n-- @setting on boolean true\n';
     const t = await setup({ s: src(`export("set", function() setSetting("delay", 2); setSetting("on", false) end)

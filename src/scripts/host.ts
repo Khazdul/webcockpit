@@ -416,12 +416,22 @@ export class ScriptHost {
     // Function references go with the script (LuaScript.unload).
   }
 
+  /**
+   * Gives the script its new settings, then raises `sysSettingChanged`
+   * (name, value) for each changed one, for this script only (ADR 0054
+   * feedback round 1), so a script can redraw at once.
+   */
   private pushSettings(o: Owner): void {
     const settings = this.lib.settingsOf(o.name);
     const json = JSON.stringify(settings);
     if (json === o.settingsJson) return;
+    const old = JSON.parse(o.settingsJson || '{}') as Record<string, unknown>;
     o.settingsJson = json;
     o.script?.setEnv('settings', settings, true);
+    for (const [k, v] of Object.entries(settings)) {
+      if (o.dead) return;
+      if (old[k] !== v) this.fire(o, 'syssettingchanged', ['sysSettingChanged', k, v]);
+    }
   }
 
   // ------------------------------------------------------------------ calls

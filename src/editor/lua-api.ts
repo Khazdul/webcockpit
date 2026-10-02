@@ -306,7 +306,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "registerAnonymousEventHandler",
     "registerAnonymousEventHandler(event, fn) → id",
-    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysConnectionEvent", "sysDisconnectionEvent" or a #event name such as "SESSION CONNECTED".',
+    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysSettingChanged", "sysConnectionEvent", "sysDisconnectionEvent" or a #event name such as "SESSION CONNECTED".',
     {
       params: [
         p(
@@ -322,6 +322,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: ID,
       more: [
+        'sysSettingChanged fires for this script only when one of its @setting values changed (#script set, the Scripts page, setSetting): fn(event, name, value). settings already holds the new value, so redraw from it.',
         'As in Mudlet, a GMCP message also raises every level above it, the outer one first: Char.Vitals raises "gmcp.Char", then "gmcp.Char.Vitals". A GMCP handler gets its own event name, then the full one; read the data from the gmcp table.',
       ],
       example:
@@ -808,7 +809,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "The values of the header's @setting lines (read-only). Change one with #script set <script> <name> <value>.",
     {
       more: [
-        "An unset setting has its default. When a setting changes, settings shows the new value at once, without a reload, so read settings.<name> when you need it instead of copying it once at load.",
+        "An unset setting has its default. When a setting changes, settings shows the new value at once, without a reload, so read settings.<name> when you need it instead of copying it once at load. The event sysSettingChanged (name, value) tells the script when one changed, for example to redraw a pane.",
       ],
       example:
         '-- @setting  auto  boolean true "Loot after kills"\nif settings.auto then send("get coins all.corpse") end',

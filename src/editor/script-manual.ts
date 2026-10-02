@@ -296,6 +296,7 @@ const EVENTS: HelpSection = {
     "The events:",
     "- gmcp.<Package>.<Message>, such as gmcp.Char.Vitals or gmcp.Room.Info: MUME sent that GMCP message; the data is in the gmcp table. As in Mudlet, every level above the message fires too, the outer one first: Char.Vitals raises gmcp.Char and then gmcp.Char.Vitals, so a handler for gmcp.Char runs for every Char message. fn gets the name of its own level, then the full name: a gmcp.Char handler is called with gmcp.Char and gmcp.Char.Vitals.",
     "- sysLoadEvent: once, for this script only, right after its code has run.",
+    "- sysSettingChanged: one of this script's own settings changed (#script set, the Scripts page, setSetting). The arguments are the setting's name and its new value; settings.<name> already has it. For this script only.",
     "- sysConnectionEvent: the connection to MUME is made and the login starts.",
     "- sysDisconnectionEvent: the connection was lost or closed. The second argument is the reason.",
     "- The profile's #event names: SESSION CONNECTED (argument mume), SESSION DISCONNECTED (mume and the reason), IAC SB GMCP <Package> (the package and its JSON text) and IAC SB GMCP for every GMCP message.",

@@ -513,9 +513,8 @@ end
 toggleAutopay = function(value)
   if value == nil then value = not settings.autopay end
   setSetting("autopay", value)
-  -- settings.autopay changes once it is saved; draw what it will be.
+  -- settings.autopay changes once it is saved (sysSettingChanged redraws).
   say("Autopay " .. (value and "on." or "off."))
-  tempTimer(0.1, draw)
 end
 
 setCost = function(value, learnt)
@@ -528,13 +527,15 @@ setCost = function(value, learnt)
   else
     say("Payments are now " .. what .. ".")
   end
+  -- settings.cost changes once it is saved: until then draw what it will be.
   draw()
-  -- settings.cost changes once it is saved.
-  tempTimer(0.5, function()
-    costWanted = nil
-    draw()
-  end)
 end
+
+-- A setting changed (here, #script set or the Scripts page): redraw now.
+registerAnonymousEventHandler("sysSettingChanged", function(_, name)
+  if name == "cost" then costWanted = nil end
+  draw()
+end)
 
 local function find(name)
   return name and mercs[name:lower()] or nil
