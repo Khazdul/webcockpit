@@ -206,7 +206,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "color",
           "string",
-          'A profile colour ("red", "light red", "bold yellow", "<F88ff00>"), a Mudlet name ("orange", "white:red") or "r,g,b".',
+          'A profile colour ("red", "light red", "bold yellow", "<F88ff00>"), cecho tags ("<b><orange>"), a Mudlet name ("orange", "white:red"), "r,g,b" or "#rrggbb".',
         ),
         p(
           "text",
@@ -301,7 +301,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: ID,
       more: [
-        'A GMCP handler gets the event name twice, as in Mudlet; read the data from the gmcp table. Only the exact message fires: a handler for "gmcp.Char" does not run for Char.Vitals.',
+        'As in Mudlet, a GMCP message also raises every level above it, the outer one first: Char.Vitals raises "gmcp.Char", then "gmcp.Char.Vitals". A GMCP handler gets its own event name, then the full one; read the data from the gmcp table.',
       ],
       example:
         'registerAnonymousEventHandler("gmcp.Char.Vitals", function(event)\n  local hp = gmcp.Char.Vitals.hp\n  if hp and hp < 50 then cecho("<red>Low HP!<reset>") end\nend)',
@@ -357,7 +357,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "cecho",
     "cecho(text)",
-    "Writes coloured text: <red>, <white:blue>, <reset> and tt++ <F88ff00> / <118> codes.",
+    "Writes coloured text: <red>, <white:blue>, <#ff8000>, <b>bold</b>, <reset> and tt++ <F88ff00> / <118> codes.",
     {
       params: [
         p(
@@ -546,7 +546,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "The last GMCP data from MUME, as in Mudlet: gmcp.Char.Vitals.hp, gmcp.Room.Info.name … (read-only).",
     {
       more: [
-        'Objects merge key by key into the last value of the same message, since MUME sends only what changed; a JSON null removes a key. The table is cleared when a new connection starts. Names with a dash need brackets: gmcp.Char.Vitals["hp-string"].',
+        'Char.Vitals and Char.StatusVars merge key by key into their last value, since MUME sends only what changed; a JSON null removes a key. Every other message replaces its last value (Group.Update is one member: read the group from state.group). GMCP from before the first script loaded is there; the table is cleared when a new connection starts. Names with a dash need brackets: gmcp.Char.Vitals["hp-string"].',
         "A package that has not arrived is nil: test gmcp.Char before you read gmcp.Char.Vitals outside a GMCP handler.",
       ],
       example:

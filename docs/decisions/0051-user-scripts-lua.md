@@ -654,3 +654,41 @@ longer repeats the aliases and settings the help view lists.
 **Measured** (production build): editor chunk 386.3 → 477.7 kB (127.2
 → 155.8 kB gzip; search, lint, manual); chrome 107.7 → 108.2 kB;
 cold-start preload unchanged (395.0 → 394.9 kB).
+
+### Feedback round 2 — API fixes (2026-10-02)
+
+Fixes the four content findings of round 1. Supersedes P1's *`gmcp` and
+`state`* sentences on merging and on messages before the runtime, and
+*Events* on GMCP handler arguments.
+
+- *Parent GMCP events* (Mudlet). A message `Char.Vitals` raises
+  `gmcp.Char`, then `gmcp.Char.Vitals` (outer level first; no bare
+  `gmcp`). Each handler gets its level's event name, then the full name:
+  `("gmcp.Char", "gmcp.Char.Vitals")`, and the leaf still gets the full
+  name twice. Cost: nothing without handlers; otherwise one map lookup per
+  level, strings built only for a level with a handler.
+- *Merge or replace* (`src/scripts/gmcp-cache.ts`, `MERGED_GMCP`). Only
+  `Char.Vitals` and `Char.StatusVars` merge key by key (MUME sends partial
+  updates of one object; JSON `null` removes a key). Every other message
+  replaces its last value: snapshots (`Char.Name`, `Room.Info` — a dark
+  room's Room.Info has no `id`, which a merge would have kept stale,
+  `Group.Set`, `Comm.Channel.List`) and per-entity or per-event messages
+  (`Group.Add/Update/Remove`, `Room.Chars.*`, `Comm.Channel.Text`,
+  `Event.*`, `Core.*`). `state.room` is the last Room.Info as sent. The
+  manual points scripts to `state.group` for the group.
+- *GMCP before the host.* No existing module keeps raw messages per
+  package (the trackers keep parsed models), so App attaches a
+  `GmcpCache` to the bus at construction when it has a script library
+  (not in player Apps): the last value per message, merged as above,
+  cleared on `connecting`. It is a few lines in the cold-start chunk and
+  loads no Lua. The host takes it as `gmcp` and follows it
+  (`subscribe`); without one (tests, bench) it attaches its own at
+  `start`. So GMCP sent before the first script was turned on is in
+  `gmcp` when it loads.
+- *Colours.* `mudletColor` takes `#rrggbb`, so cecho takes `<#rrggbb>`
+  and `<#rrggbb:#rrggbb>`. cecho takes Mudlet's `<b>`/`</b>`,
+  `<i>`/`</i>`, `<u>`/`</u>` (the line model and the output pane have
+  bold, italic and underline); `<s>` and `<o>` have no style and stay
+  text. `highlight(color)` first tries the profile colour, then — for an
+  argument of tags only — any cecho tags (`<b><orange>`), then a colour
+  without brackets (`orange`, `white:red`, `r,g,b`, `#rrggbb`).
