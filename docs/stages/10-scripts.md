@@ -90,7 +90,11 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - [x] MANUAL replaces CLOSE; script manual (guide and A–Z API
         reference) from the editor (MANUAL, F1) and the Scripts page;
   - [x] native pixel scrolling in the HELP view and the manual;
-  - [ ] native scrolling on the other chrome surfaces (in progress).
+  - [x] native scrolling on About, History/Profiles tables, Statistics,
+        the Scripts list, help and import view, the LITE list and the
+        export editor. Left (owner decision): the Comm/UI/Timers panes
+        (Inv §2.7.5 scroll by message/row) and the log player's paused
+        wheel cursor (Inv §7.5).
 
 ## Test guide
 
@@ -150,8 +154,10 @@ Chromium.
    version)"). It goes when you edit that line or save. `while true do
    end` in a trigger is stopped, and the script is turned off.
 9. **`#help script`** in game explains `#script` and `#lua`.
-10. **Scrolling:** the wheel and the touchpad scroll HELP and the MANUAL
-    smoothly, by pixels, like the EDITOR.
+10. **Scrolling:** the wheel and the touchpad scroll HELP, the MANUAL,
+    About, History, Profiles, Statistics, the Scripts page and the export
+    editor smoothly, by pixels, like the EDITOR. The side panes and the
+    paused log player still step by rows (tell us if they should change).
 11. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
    an editable `coinlooter-copy`. Export and import a script as `.lua`
    (import shows a warning first).

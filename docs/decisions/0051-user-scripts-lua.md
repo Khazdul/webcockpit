@@ -635,8 +635,15 @@ longer repeats the aliases and settings the help view lists.
 - *Native scrolling.* `src/chrome/kit/scroll.tsx`: a `.wc-scrollbox`
   (browser bar hidden) scrolled by the wheel and touchpad in pixels,
   the `░█` bar following its position, keys scrolling by rows. HELP and
-  the manual use it; the other chrome surfaces follow (see the stage
-  file).
+  the manual use it, and so do About, the kit `Table` (History,
+  Profiles), Statistics, the Scripts list, help panel and import view,
+  the LITE list and the export editor (which renders only the rows near
+  the view over a full-height spacer). `kit/wheel.ts` is gone. Left as
+  they are: the Comm/UI/Timers panes (Inv §2.7.5 scrolls by message or
+  row, with bottom anchoring and indicator rows; they render only the
+  visible items), the paused log player's wheel cursor (Inv §7.5), the
+  output pane (already pixels, `wheelScale` 0.5, auto-follow
+  unchanged) and the map (the wheel zooms).
 - *Content findings* (code unchanged): `gmcp` merges per message, so
   `gmcp.Group.Update` accumulates members (the manual points to
   `state.group`); a handler for `gmcp.Char` does not fire for
@@ -644,6 +651,6 @@ longer repeats the aliases and settings the help view lists.
   `highlight` takes colour names, `<F…>` and `r,g,b`, not `#rrggbb`, and
   `cecho` has no `<b>` (the API docs said so; fixed).
 
-**Measured** (production build, items 1–4): editor chunk 386.3 → 431.0
-kB (127.2 → 141.1 kB gzip); chrome +0.4 kB; cold-start preload
-unchanged (395.0 → 394.9 kB).
+**Measured** (production build): editor chunk 386.3 → 477.7 kB (127.2
+→ 155.8 kB gzip; search, lint, manual); chrome 107.7 → 108.2 kB;
+cold-start preload unchanged (395.0 → 394.9 kB).
