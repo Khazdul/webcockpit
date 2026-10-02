@@ -498,3 +498,40 @@ only in IndexedDB).
   code, so the import rule (code reaches the game only after the player
   turns it on) holds. The page shows the warning, the script names and
   the data count; Y restores, any other key cancels.
+- *Chunks.* `backup.ts` (format, checks) is imported only by the Scripts
+  page, so it rides in the lazy chrome chunk; the library keeps
+  `backupRecords()` and `restore()`.
+
+**Review across P0–P2.** Layout reset, `#script reload` and disable /
+enable during a recorded run (a `null` record, then a full one), a
+reconnect (the pane stays, the run restarts with a full record), the
+Mercenaries pane in the log player, the light theme, tints, a 600 px
+window, Chromium and Firefox. One bug: uncoloured text took the
+terminal fg, so on a dark tint over a light terminal it was dark on
+dark, and span colours on a light pane were not adjusted. Now
+`paneInk`: uncoloured text is the terminal fg held to 4.5:1 against the
+pane's background, and on a light pane span colours go through
+`lightShift` and the same floor (ADR 0041, as the UI and Comm panes).
+
+**Measured** (2026-10-02, i7-12700H).
+
+- `npm run bench`: within spec §1.3 in both browsers. Key → send median
+  0.04–0.05 ms (p99 ≤ 0.24); frame → paint median 10–11 ms, p95 ≤ 20.2,
+  no late frames except one 1.8 s stall in Chromium (map off, script
+  0.4 ms: a system pause, not the page); 1 MB burst max frame 18.7–23.7
+  ms, none > 50 ms; 500 rules 4.5–6.4 µs per line in the browser;
+  scrollback 0 → 20 000 rows +0.9 ms per frame. Node: 500 rules +
+  system 7.17 µs per line, a Lua trigger on every line 8.99 µs, with
+  three pane calls per line 14.94 µs (budget 200 µs).
+- Production build: cold-start JS 415.5 → 416.9 kB raw (restore in the
+  library); the 397.0 → 415.5 kB step before it is P2's bundled
+  `mercenaries.lua` source (18.4 kB), which is in the cold-start
+  chunk like every bundled script. Lazy chrome chunk 108.9 → 113.6 kB.
+  Stage 11 in all: cold-start JS 388.3 → 416.9 kB raw (+28.6 kB); HTML
+  replay bundle 1 016 214 → 1 022 662 B.
+
+**Open.**
+
+- Bundled script sources ship in the cold-start chunk; with more
+  bundled scripts they could be loaded with the host instead.
+- A one-row script pane shows only `↑ N more rows` (the built-in rule).
