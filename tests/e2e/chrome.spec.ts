@@ -272,11 +272,18 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--term-bg')))
     .toBe('#1a0e0e');
-  // Paper (back past black, wrapping) picks ink as the font colour too.
+  // Paper (back past black, wrapping) picks ink and the paper palette too;
+  // leaving it puts the defaults back.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
   await expect(menuSel(page)).toHaveText('<< Background: paper >>');
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#000000');
+  expect((await settings(page)).appearance.ansi[7]).toBe('#4a4538');
+  await page.keyboard.press('ArrowRight');
+  await expect(menuSel(page)).toHaveText('<< Background: black >>');
+  await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#c0c0c0');
+  expect((await settings(page)).appearance.ansi[7]).toBe('#c0c0c0');
+  await page.keyboard.press('ArrowRight');
   // ANSI palette (past Input color and Scrollback): edit colour 9.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');

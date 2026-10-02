@@ -14,6 +14,16 @@ export const DOS_PALETTE: readonly string[] = [
   '#808080', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff', '#ffffff',
 ];
 
+/**
+ * The palette Options → Appearance sets with the `paper` background: the
+ * same hues in dark ink, every colour at least 4.5:1 on #f4ecd8. White and
+ * bright white become dark grey and black; bright black stays a mid grey.
+ */
+export const PAPER_PALETTE: readonly string[] = [
+  '#000000', '#a01c1c', '#2a6e1a', '#7a5c00', '#1c3c9a', '#8a2a8a', '#106a72', '#4a4538',
+  '#6e6858', '#c42020', '#2f7a14', '#846400', '#2a56c8', '#a828a8', '#00737e', '#000000',
+];
+
 /** ANSI colour names, index 0–15, for the palette editor. */
 export const ANSI_NAMES: readonly string[] = [
   'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',

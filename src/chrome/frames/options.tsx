@@ -22,7 +22,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
 import { forgetTempPlaces } from '../../layout/temp-places';
 import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
-import { paneSettingsOf } from '../../settings/types';
+import { type AppearanceSettings, paneSettingsOf } from '../../settings/types';
 import {
   CURSOR_STYLES,
   FONT_SIZE_MAX,
@@ -36,9 +36,11 @@ import {
 import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
   ANSI_NAMES,
+  DEFAULT_TERM_FG,
   DOS_PALETTE,
   INPUT_COLORS,
   INPUT_COLOR_IDS,
+  PAPER_PALETTE,
   type NamedColor,
   TERMINAL_BG_PRESETS,
   TERMINAL_FG_PRESETS,
@@ -311,6 +313,21 @@ export function colorChoices(presets: readonly NamedColor[], cur: string): strin
   return hexes.includes(cur.toLowerCase()) ? hexes : [cur.toLowerCase(), ...hexes];
 }
 
+/**
+ * The appearance change for a new background. Landing on `paper` also sets
+ * ink as the font colour and PAPER_PALETTE, the only choices that read well
+ * on it; leaving `paper` puts the default font colour and DOS palette back,
+ * since ink is invisible on the dark backgrounds. Either can be changed after.
+ */
+export function backgroundPatch(from: string, to: string): Partial<AppearanceSettings> {
+  const isPaper = (hex: string): boolean => presetName(TERMINAL_BG_PRESETS, hex) === 'paper';
+  if (isPaper(to) && !isPaper(from)) {
+    return { bg: to, fg: TERMINAL_FG_PRESETS.find((c) => c.name === 'ink')!.hex, ansi: PAPER_PALETTE.slice() };
+  }
+  if (isPaper(from) && !isPaper(to)) return { bg: to, fg: DEFAULT_TERM_FG, ansi: DOS_PALETTE.slice() };
+  return { bg: to };
+}
+
 const colorName = (presets: readonly NamedColor[], hex: string): string => presetName(presets, hex) ?? hex;
 
 /** `20000` → `20 000`. */
@@ -389,10 +406,7 @@ export function AppearanceFrame(): VNode {
       label: `Background: ${colorName(TERMINAL_BG_PRESETS, a.bg)}`,
       adjust: (d) => {
         const bg = cycle(colorChoices(TERMINAL_BG_PRESETS, a.bg), a.bg.toLowerCase(), d);
-        // Ink is the only font preset that reads well on paper, so landing
-        // on paper picks it too; the font colour can still be changed after.
-        const ink = TERMINAL_FG_PRESETS.find((c) => c.name === 'ink')!.hex;
-        set(presetName(TERMINAL_BG_PRESETS, bg) === 'paper' ? { bg, fg: ink } : { bg });
+        set(backgroundPatch(a.bg, bg));
       },
     },
     {
