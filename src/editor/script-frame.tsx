@@ -4,11 +4,13 @@
 // the TUI scrollbar, a status row (state, load errors, warnings) and the
 // footer (hints or a flash, Ln/Col).
 //
-// Keys: Ctrl+S saves; F1 opens the script manual (at the API name under
-// the cursor); MANUAL opens it at the start; Ctrl+F finds and replaces (search.ts; ESC closes
+// Keys: Ctrl+S saves; F1 opens the script manual (at the API or Lua name
+// under the cursor); MANUAL opens it at the start; Ctrl+F finds and replaces (search.ts; ESC closes
 // the panel before it closes the editor); Tab cycles buttons ↔ buffer
-// (inside the completion list it accepts); ↑ on the first line leaves the
-// buffer; ESC closes and asks first when there are unsaved changes. A bundled script opens
+// (inside the completion list it accepts, inside an expanded snippet it
+// moves to the next field); ↑ on the first line leaves the buffer; ESC
+// closes the pop-ups first (completion, signature help, hover, snippet),
+// then the editor, and asks first when there are unsaved changes. A bundled script opens
 // read-only with DUPLICATE, which opens an editable copy in its place.
 
 import type { EditorView } from '@codemirror/view';
@@ -25,7 +27,7 @@ import { FULL_W } from './logic';
 import { checkScript } from '../scripts/check';
 import { nameAt } from './lua-api';
 import { openScriptManual } from './script-manual-frame';
-import { completing, createLuaBuffer } from './lua-cm';
+import { completing, createLuaBuffer, dismissPopups, snippetTab } from './lua-cm';
 import { type ScriptDiagnostic, diagnosticText } from './lua-diagnostics';
 import { markScriptSaved, setScriptLastError } from './lua-lint';
 import { searchFocused, searchFrameKey } from './search';
@@ -242,7 +244,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     } else setModal(null);
   };
 
-  /** The script manual, at the API name under the cursor when `atCursor` and there is one. */
+  /** The script manual, at the API or Lua name under the cursor when `atCursor` and there is one. */
   const manual = (atCursor: boolean): void => {
     const v = viewRef.current;
     let name: string | undefined;
@@ -250,7 +252,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       const head = v.state.selection.main.head;
       const line = v.state.doc.lineAt(head);
       const hit = nameAt(line.text, head - line.from);
-      if (hit && hit.doc.kind !== 'lua') name = hit.doc.name;
+      if (hit) name = hit.doc.name;
     }
     openScriptManual(nav, name);
   };
@@ -282,6 +284,11 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     }
     const v = viewRef.current;
     if (zone === 'buffer' && v && completing(v)) return handleKey(v, e);
+    // The buffer's pop-ups and snippet fields take ESC and Tab first.
+    if (zone === 'buffer' && v && !searchFocused(v)) {
+      if (nk === 'back' && dismissPopups(v)) return true;
+      if ((nk === 'tab' || nk === 'backtab') && snippetTab(v, nk === 'backtab')) return true;
+    }
     // Find and replace: Ctrl+F, the panel's keys, and ESC closes it first.
     const found = v ? searchFrameKey(v, e) : null;
     if (found !== null) {

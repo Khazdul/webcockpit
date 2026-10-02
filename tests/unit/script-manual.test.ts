@@ -2,7 +2,8 @@
 // function is documented with parameters and an example, and the guide's
 // examples only call functions that exist.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { HEADER_TAGS, LUA_STD, SCRIPT_API } from "../../src/editor/lua-api";
+import { HEADER_TAGS, SCRIPT_API } from "../../src/editor/lua-api";
+import { LUA_KEYWORDS, LUA_REF, LUA_SYNTAX } from "../../src/editor/lua-ref";
 import { SCRIPT_GUIDE } from "../../src/editor/script-manual";
 import { type LuaRuntime, loadLuaRuntime } from "../../src/lua";
 
@@ -29,7 +30,7 @@ const guideSamples = (): Sample[] =>
   );
 
 const apiSamples = (): Sample[] =>
-  [...SCRIPT_API, ...HEADER_TAGS]
+  [...SCRIPT_API, ...HEADER_TAGS, ...LUA_REF, ...LUA_KEYWORDS, ...LUA_SYNTAX]
     .filter((d) => d.example !== undefined)
     .map((d) => ({ where: d.name, code: d.example! }));
 
@@ -142,7 +143,7 @@ function globalCalls(code: string): string[] {
   return out;
 }
 
-const KNOWN = new Set([...SCRIPT_API, ...LUA_STD].map((d) => d.name));
+const KNOWN = new Set([...SCRIPT_API, ...LUA_REF].map((d) => d.name));
 
 describe("script manual examples", () => {
   it("has the guide sections with short headings and Lua examples", () => {
@@ -159,7 +160,7 @@ describe("script manual examples", () => {
     expect(guideSamples().length).toBeGreaterThan(20);
   });
 
-  it("compiles every Lua example in the guide and the API docs", () => {
+  it("compiles every Lua example in the guide, the API docs and the Lua docs", () => {
     const all = [...guideSamples(), ...apiSamples()];
     for (const s of all) {
       const r = rt.check("example", s.code);

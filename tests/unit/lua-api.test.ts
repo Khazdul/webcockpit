@@ -2,7 +2,8 @@
 // (stage 10 P2, ADR 0051).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { HEADER_TAGS, LUA_STD, SCRIPT_API, apiDoc, completeLua, lineContext, nameAt } from '../../src/editor/lua-api';
+import { HEADER_TAGS, SCRIPT_API, apiDoc, completeLua, lineContext, nameAt } from '../../src/editor/lua-api';
+import { LUA_KEYWORDS, LUA_REF, LUA_SYNTAX } from '../../src/editor/lua-ref';
 import { luaIndent, luaTokens, opensBlock, startsWithCloser } from '../../src/editor/lua-indent';
 
 const names = (r: ReturnType<typeof completeLua>) => r?.options.map((o) => o.name) ?? null;
@@ -23,7 +24,7 @@ describe('API docs', () => {
       expect(d.doc.length, d.name).toBeGreaterThan(10);
       if (d.kind === 'function') expect(d.sig.startsWith(`${d.name}(`), d.name).toBe(true);
     }
-    const all = [...SCRIPT_API, ...LUA_STD, ...HEADER_TAGS].map((d) => d.name);
+    const all = [...SCRIPT_API, ...LUA_REF, ...LUA_KEYWORDS, ...LUA_SYNTAX, ...HEADER_TAGS].map((d) => d.name);
     expect(new Set(all).size).toBe(all.length);
     expect(apiDoc('store.set')?.sig).toBe('store.set(key, value)');
     expect(apiDoc('@setting')?.kind).toBe('tag');

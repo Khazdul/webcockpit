@@ -1,6 +1,7 @@
 // CodeMirror 6 set-up for the script editor (spec §2.10): Lua 5.4 through
-// the legacy Lua stream mode, completion and hover help from one table of
-// API docs (lua-api.ts). Lives in the lazy editor chunk with cm.ts.
+// the legacy Lua stream mode, completion, hover and signature help from
+// the API docs (lua-api.ts) and the plain Lua docs (lua-ref.ts), keyword
+// snippets. Lives in the lazy editor chunk with cm.ts.
 //
 // Keys reach CodeMirror through `handleKey` (cm.ts), as in the profile
 // editor: the chrome's frame stack routes every key at window capture
@@ -13,10 +14,16 @@ import {
   type CompletionResult,
   acceptCompletion,
   autocompletion,
+  clearSnippet,
   closeBrackets,
   closeBracketsKeymap,
   completionKeymap,
   completionStatus,
+  hasNextSnippetField,
+  hasPrevSnippetField,
+  nextSnippetField,
+  prevSnippetField,
+  snippetCompletion,
 } from '@codemirror/autocomplete';
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import {
@@ -29,12 +36,23 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
-import { EditorSelection, EditorState, type Extension, Prec } from '@codemirror/state';
-import { EditorView, type Tooltip, highlightActiveLine, hoverTooltip, keymap, lineNumbers } from '@codemirror/view';
+import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField } from '@codemirror/state';
+import {
+  EditorView,
+  type Tooltip,
+  closeHoverTooltips,
+  hasHoverTooltips,
+  highlightActiveLine,
+  hoverTooltip,
+  keymap,
+  lineNumbers,
+  showTooltip,
+} from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
 import { type ApiDoc, apiDoc, completeLua, nameAt } from './lua-api';
+import { type Signature, callContext, paramLabel, signatureFor } from './lua-sig';
 import { luaHighlightLine } from './lua-highlight';
 import { luaIndent } from './lua-indent';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
@@ -64,7 +82,35 @@ const luaHighlight = HighlightStyle.define([
 
 // ------------------------------------------------------------- the docs
 
-/** The hover / completion info box of one API entry. */
+/** Lua source as coloured rows (lua-highlight.ts), as in the manual. */
+function codeDom(code: string, cls: string, doc: Document): HTMLElement {
+  const ex = doc.createElement('div');
+  ex.className = cls;
+  for (const line of code.split('\n')) {
+    const row = doc.createElement('div');
+    let at = 0;
+    for (const t of luaHighlightLine(line, (n) => apiDoc(n) !== null)) {
+      if (t.from > at) row.append(line.slice(at, t.from));
+      const span = doc.createElement('span');
+      span.className = `wc-syn-${t.cls}`;
+      span.textContent = line.slice(t.from, t.to);
+      row.append(span);
+      at = t.to;
+    }
+    if (at < line.length) row.append(line.slice(at));
+    if (line === '') row.textContent = ' ';
+    ex.appendChild(row);
+  }
+  return ex;
+}
+
+/** Whether F1 on this entry opens a manual section (script-reference.ts `manualSectionOf`). */
+const hasManual = (d: ApiDoc): boolean => !d.removed;
+
+/**
+ * The hover / completion info box of one entry: signature, description,
+ * parameters, return value, example, and the F1 hint.
+ */
 export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
   const el = doc.createElement('div');
   el.className = 'wc-lua-doc';
@@ -78,28 +124,30 @@ export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
     t.textContent = d.doc;
     el.appendChild(t);
   }
-  if (d.example) {
-    // The example, coloured as in the manual (lua-highlight.ts).
-    const ex = doc.createElement('div');
-    ex.className = 'wc-lua-doc-example';
-    for (const line of d.example.split('\n')) {
+  if (d.params && d.params.length > 0) {
+    const ps = doc.createElement('div');
+    ps.className = 'wc-lua-doc-params';
+    for (const p of d.params) {
       const row = doc.createElement('div');
-      let at = 0;
-      for (const t of luaHighlightLine(line, (n) => apiDoc(n) !== null)) {
-        if (t.from > at) row.append(line.slice(at, t.from));
-        const span = doc.createElement('span');
-        span.className = `wc-syn-${t.cls}`;
-        span.textContent = line.slice(t.from, t.to);
-        row.append(span);
-        at = t.to;
-      }
-      if (at < line.length) row.append(line.slice(at));
-      if (line === '') row.textContent = ' ';
-      ex.appendChild(row);
+      const name = doc.createElement('span');
+      name.className = 'wc-lua-doc-pname';
+      name.textContent = p.name;
+      row.append(name, ` (${p.type}) ${p.doc}`);
+      ps.appendChild(row);
     }
-    el.appendChild(ex);
+    el.appendChild(ps);
   }
-  if (d.kind !== 'lua') {
+  if (d.returns) {
+    const r = doc.createElement('div');
+    r.className = 'wc-lua-doc-returns';
+    const label = doc.createElement('span');
+    label.className = 'wc-lua-doc-pname';
+    label.textContent = 'Returns';
+    r.append(label, ` ${d.returns}`);
+    el.appendChild(r);
+  }
+  if (d.example) el.appendChild(codeDom(d.example, 'wc-lua-doc-example', doc));
+  if (hasManual(d)) {
     const f = doc.createElement('div');
     f.className = 'wc-lua-doc-more wc-c-hint';
     f.textContent = 'F1 Manual';
@@ -113,18 +161,34 @@ const TYPE: Readonly<Record<ApiDoc['kind'], string>> = {
   variable: 'variable',
   table: 'namespace',
   tag: 'keyword',
-  lua: 'text',
+  keyword: 'keyword',
 };
 
-function toCompletion(d: ApiDoc): Completion {
+/** `(a, b)` of a signature: the call's parameters (a method's without `s`). */
+function paramsDetail(d: ApiDoc, method: boolean): string {
+  if (d.params) return `(${(method ? d.params.slice(1) : d.params).map(paramLabel).join(', ')})`;
+  return d.sig.slice(d.name.length).replace(/ → .*/, '');
+}
+
+/** The completion options of one entry: a keyword gives one per snippet. */
+function toCompletions(d: ApiDoc, method: boolean): Completion[] {
+  const info = d.doc ? () => docDom(d) : undefined;
+  if (d.kind === 'keyword') {
+    if (d.snippets) {
+      return d.snippets.map((sn, i) =>
+        snippetCompletion(sn.template, { label: d.name, type: 'keyword', detail: sn.detail, boost: -1 - i * 0.01, info }),
+      );
+    }
+    return [{ label: d.name, type: 'keyword', detail: '', boost: -1, ...(info ? { info } : {}) }];
+  }
   const c: Completion = {
-    label: d.name,
+    label: method ? d.name.slice(d.name.indexOf('.') + 1) : d.name,
     type: TYPE[d.kind],
-    detail: d.kind === 'lua' ? 'Lua' : d.kind === 'function' ? d.sig.slice(d.name.length).replace(/ → .*/, '') : '',
-    boost: d.kind === 'lua' ? -1 : 0,
+    detail: d.kind === 'function' ? paramsDetail(d, method) : d.lua && d.kind === 'table' ? 'library' : '',
+    boost: d.lua ? -2 : 0,
   };
-  if (d.doc) c.info = () => docDom(d);
-  return c;
+  if (info) c.info = info;
+  return [c];
 }
 
 function luaCompletions(ctx: CompletionContext): CompletionResult | null {
@@ -133,7 +197,7 @@ function luaCompletions(ctx: CompletionContext): CompletionResult | null {
   if (!r) return null;
   return {
     from: line.from + r.from,
-    options: r.options.map(toCompletion),
+    options: r.options.flatMap((d) => toCompletions(d, r.method === true)),
     validFor: /^@?[\w.]*$/,
   };
 }
@@ -149,6 +213,128 @@ const luaHover = hoverTooltip((view, pos): Tooltip | null => {
     create: () => ({ dom: docDom(hit.doc, view.dom.ownerDocument) }),
   };
 });
+
+// ------------------------------------------------------ signature help
+
+/** How far back the call scan looks, in characters (lua-sig.ts). */
+const SIG_SCAN = 4000;
+
+interface SigState {
+  sig: Signature;
+  /** Document offset of the callee (the tooltip's anchor) and of the open parenthesis. */
+  pos: number;
+  open: number;
+}
+
+/** Closes the signature help (ESC) until the next `(` or `,` in that call. */
+const closeSig = StateEffect.define<null>();
+/** Opens it at the cursor (Ctrl+Shift+Space). */
+const openSig = StateEffect.define<null>();
+
+function sigAt(state: EditorState): SigState | null {
+  const sel = state.selection.main;
+  if (!sel.empty) return null;
+  const line = state.doc.lineAt(Math.max(0, sel.head - SIG_SCAN));
+  const base = line.from;
+  const ctx = callContext(state.sliceDoc(base, sel.head));
+  if (!ctx) return null;
+  const sig = signatureFor(ctx);
+  return sig ? { sig, pos: base + ctx.from, open: base + ctx.open } : null;
+}
+
+/**
+ * The signature help: shown when typing in a call's arguments (`(`, `,`
+ * or any input there), kept while the cursor stays in the call, closed
+ * by ESC (until the next `(` or `,` in that call) or by leaving it.
+ */
+const sigField = StateField.define<{ shown: SigState | null; dismissed: number }>({
+  create: () => ({ shown: null, dismissed: -1 }),
+  update(value, tr) {
+    let dismissed = value.dismissed >= 0 && tr.docChanged ? tr.changes.mapPos(value.dismissed, -1) : value.dismissed;
+    for (const e of tr.effects) {
+      if (e.is(closeSig)) return { shown: null, dismissed: value.shown?.open ?? dismissed };
+      if (e.is(openSig)) return { shown: sigAt(tr.state), dismissed: -1 };
+    }
+    if (!tr.docChanged && !tr.selection) return value;
+    let typed = false;
+    let trigger = false;
+    if (tr.isUserEvent('input') || tr.isUserEvent('delete')) {
+      typed = true;
+      tr.changes.iterChanges((_fa, _ta, _fb, _tb, ins) => {
+        if (/[(,]/.test(ins.toString())) trigger = true;
+      });
+    }
+    if (!value.shown && !typed) return { shown: null, dismissed };
+    const next = sigAt(tr.state);
+    if (!next) return { shown: null, dismissed };
+    if (trigger) dismissed = -1;
+    if (next.open === dismissed) return { shown: null, dismissed };
+    return { shown: next, dismissed };
+  },
+  provide: (f) =>
+    showTooltip.compute([f], (state) => {
+      const s = state.field(f).shown;
+      if (!s) return null;
+      return { pos: s.pos, above: true, strictSide: false, arrow: false, create: (view) => ({ dom: sigDom(s.sig, view.dom.ownerDocument) }) };
+    }),
+});
+
+/** The signature line with the current parameter marked, then that parameter's description. */
+export function sigDom(s: Signature, doc: Document = document): HTMLElement {
+  const el = doc.createElement('div');
+  el.className = 'wc-lua-sig';
+  const line = doc.createElement('div');
+  line.className = 'wc-lua-doc-sig';
+  line.append(`${s.name}(`);
+  s.params.forEach((p, i) => {
+    if (i > 0) line.append(', ');
+    const span = doc.createElement('span');
+    span.textContent = paramLabel(p);
+    if (i === s.active) span.className = 'wc-lua-sig-active';
+    line.append(span);
+  });
+  line.append(`)${s.returns}`);
+  el.appendChild(line);
+  const p = s.params[s.active];
+  const text = doc.createElement('div');
+  text.className = 'wc-lua-doc-text';
+  if (p) {
+    const name = doc.createElement('span');
+    name.className = 'wc-lua-doc-pname';
+    name.textContent = p.name;
+    text.append(name, ` (${p.type}) ${p.doc}`);
+  } else text.textContent = s.doc.doc;
+  el.appendChild(text);
+  return el;
+}
+
+/** True while the signature help is shown. */
+export function sigShown(view: EditorView): boolean {
+  return view.state.field(sigField, false)?.shown != null;
+}
+
+/**
+ * ESC for the editor's pop-ups, before the frame's own ESC: closes the
+ * signature help, a hover, or ends an active snippet. False when none
+ * was open.
+ */
+export function dismissPopups(view: EditorView): boolean {
+  if (sigShown(view)) {
+    view.dispatch({ effects: closeSig.of(null) });
+    return true;
+  }
+  if (hasHoverTooltips(view.state)) {
+    view.dispatch({ effects: closeHoverTooltips });
+    return true;
+  }
+  return clearSnippet(view);
+}
+
+/** Tab / Shift+Tab inside an expanded snippet: the next or previous field. False outside one. */
+export function snippetTab(view: EditorView, back: boolean): boolean {
+  if (back) return hasPrevSnippetField(view.state) && prevSnippetField(view);
+  return hasNextSnippetField(view.state) && nextSnippetField(view);
+}
 
 /** One level per line that opens a block (lua-indent.ts), ahead of the stream mode's own. */
 const luaIndentation = Prec.highest(
@@ -238,11 +424,21 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       indentOnInput(),
       ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false })]),
       luaHover,
+      sigField,
       searchExtension({ onFocus: opts.onFocus }),
+      // Tab accepts a completion even inside a snippet (whose own Tab
+      // keymap is Prec.highest and appended later, so this one wins).
+      Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])),
       keymap.of([
         ...closeBracketsKeymap,
         ...completionKeymap,
-        { key: 'Tab', run: acceptCompletion },
+        {
+          key: 'Mod-Shift-Space',
+          run: (v) => {
+            v.dispatch({ effects: openSig.of(null) });
+            return true;
+          },
+        },
         ...defaultKeymap,
         ...historyKeymap,
       ]),

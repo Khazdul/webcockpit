@@ -302,6 +302,34 @@
   white-space: pre;
 }
 
+.wc-lua-doc-params,
+.wc-lua-doc-returns {
+  margin-top: var(--cell-h);
+  color: var(--c-body);
+}
+
+.wc-lua-doc-returns {
+  margin-top: 0;
+}
+
+.wc-lua-doc-pname {
+  color: var(--c-item);
+  font-weight: bold;
+}
+
+/* Signature help (lua-cm.ts): the call, the current parameter marked,
+ * and its description. */
+.wc-lua-sig {
+  padding: 0 var(--cell-w);
+  max-width: calc(var(--cell-w) * 64);
+  white-space: normal;
+}
+
+.wc-lua-sig-active {
+  color: var(--c-sel-fg);
+  background-color: var(--c-focus-bg);
+}
+
 .wc-lua-doc-more {
   margin-top: var(--cell-h);
   text-align: right;

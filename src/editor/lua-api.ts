@@ -1,8 +1,11 @@
 // The script API, version 1 (spec §2.10, ADR 0051), as one table of docs.
 // The script editor's completion and hover help both read it. Pure; no
-// CodeMirror, unit tested.
+// CodeMirror, unit tested. Plain Lua (library, keywords, syntax) is in
+// lua-ref.ts, in the same shape.
 
-export type ApiKind = "function" | "variable" | "table" | "tag" | "lua";
+import { LUA_KEYWORDS, LUA_REF, LUA_REMOVED, LUA_SYNTAX, NOT_METHODS, type Snippet } from "./lua-ref";
+
+export type ApiKind = "function" | "variable" | "table" | "tag" | "keyword";
 
 export interface ApiDoc {
   /** The name as typed: `send`, `store.get`, `string.format`, `@setting`. */
@@ -10,8 +13,14 @@ export interface ApiDoc {
   kind: ApiKind;
   /** The call form shown in the list and the hover: `send(cmd)`. */
   sig: string;
-  /** One or two sentences. Empty for the plain Lua library names. */
+  /** One or two sentences. */
   doc: string;
+  /** Plain Lua (lua-ref.ts): the standard library, keywords and syntax, ranked after the API. */
+  lua?: boolean;
+  /** Keywords: snippets offered by completion (lua-ref.ts). */
+  snippets?: readonly Snippet[];
+  /** A name the sandbox removes: hover says so, nothing completes it. */
+  removed?: boolean;
   /** The parameters, in order (functions). */
   params?: readonly ApiParam[];
   /** What the function returns, when it returns something. */
@@ -662,97 +671,51 @@ export const HEADER_TAGS: readonly ApiDoc[] = [
   ),
 ];
 
-const LUA_BASE = [
-  "assert",
-  "error",
-  "getmetatable",
-  "ipairs",
-  "next",
-  "pairs",
-  "pcall",
-  "rawequal",
-  "rawget",
-  "rawlen",
-  "rawset",
-  "select",
-  "setmetatable",
-  "tonumber",
-  "tostring",
-  "type",
-  "xpcall",
-];
-const LUA_LIBS: Readonly<Record<string, readonly string[]>> = {
-  string: [
-    "byte",
-    "char",
-    "find",
-    "format",
-    "gmatch",
-    "gsub",
-    "len",
-    "lower",
-    "match",
-    "rep",
-    "reverse",
-    "sub",
-    "upper",
-  ],
-  table: ["concat", "insert", "move", "pack", "remove", "sort", "unpack"],
-  math: [
-    "abs",
-    "ceil",
-    "floor",
-    "fmod",
-    "huge",
-    "max",
-    "maxinteger",
-    "min",
-    "mininteger",
-    "pi",
-    "random",
-    "randomseed",
-    "sqrt",
-    "tointeger",
-    "type",
-  ],
-  utf8: ["char", "charpattern", "codepoint", "codes", "len", "offset"],
-  coroutine: [
-    "create",
-    "isyieldable",
-    "resume",
-    "running",
-    "status",
-    "wrap",
-    "yield",
-  ],
+/** Hints for removed names, after "Not available in scripts". */
+const REMOVED_HINT: Readonly<Record<string, string>> = {
+  os: "There is no os.time or os.clock: use tempTimer for time.",
+  io: "Scripts cannot read or write files; store.get and store.set keep data.",
+  require: "A script is one file; write the code you need in it.",
+  unpack: "Use table.unpack.",
+  load: "Scripts cannot compile code at run time.",
+  loadstring: "Scripts cannot compile code at run time.",
 };
 
-/** The Lua standard names a script can use (the sandbox's whitelist). */
-export const LUA_STD: readonly ApiDoc[] = [
-  ...LUA_BASE.map((n) => ({
-    name: n,
-    kind: "lua" as const,
-    sig: `${n}(…)`,
-    doc: "",
-  })),
-  ...Object.entries(LUA_LIBS).flatMap(([lib, names]) => [
-    { name: lib, kind: "lua" as const, sig: lib, doc: "" },
-    ...names.map((n) => ({
-      name: `${lib}.${n}`,
-      kind: "lua" as const,
-      sig: `${lib}.${n}`,
-      doc: "",
-    })),
-  ]),
-];
+/** The removed names (hover only). */
+const REMOVED: readonly ApiDoc[] = LUA_REMOVED.map((name) => ({
+  name,
+  kind: name.includes(".") ? "function" : "table",
+  lua: true,
+  removed: true,
+  sig: name,
+  doc: `Not available in scripts: the sandbox removes it. ${REMOVED_HINT[name] ?? ""}`.trim(),
+}));
 
-const ALL: readonly ApiDoc[] = [...SCRIPT_API, ...LUA_STD];
-const BY_NAME = new Map(ALL.map((d) => [d.name, d]));
+/** What completes as a name: the API and the Lua library. */
+const ALL: readonly ApiDoc[] = [...SCRIPT_API, ...LUA_REF];
+const BY_NAME = new Map(
+  [...ALL, ...LUA_KEYWORDS, ...LUA_SYNTAX].map((d) => [d.name, d]),
+);
+const REMOVED_BY_NAME = new Map(REMOVED.map((d) => [d.name, d]));
 const TAG_BY_NAME = new Map(HEADER_TAGS.map((d) => [d.name, d]));
+const KEYWORD_NAMES = new Set(LUA_KEYWORDS.map((d) => d.name));
+/** The string functions offered after `x:`. */
+const METHODS: readonly ApiDoc[] = LUA_REF.filter(
+  (d) =>
+    d.kind === "function" &&
+    d.name.startsWith("string.") &&
+    !NOT_METHODS.has(d.name),
+);
 
-/** The doc of an API or Lua name, or a header tag (`@setting`). */
+/** The doc of an API or Lua name, keyword, operator, or a header tag (`@setting`). */
 export function apiDoc(name: string): ApiDoc | null {
   return BY_NAME.get(name) ?? TAG_BY_NAME.get(name) ?? null;
+}
+
+/** The doc of a string method name (`find` for `s:find`), or null. */
+export function methodDoc(name: string): ApiDoc | null {
+  const d = BY_NAME.get(`string.${name}`);
+  return d && d.kind === "function" && !NOT_METHODS.has(d.name) ? d : null;
 }
 
 // ------------------------------------------------------------ completion
@@ -761,6 +724,8 @@ export interface Completion {
   /** Offset in the line where the replaced text starts. */
   from: number;
   options: readonly ApiDoc[];
+  /** Options are string methods after `x:` (labels without `string.`, no `s` parameter). */
+  method?: boolean;
 }
 
 /**
@@ -781,10 +746,15 @@ export function lineContext(before: string): "code" | "string" | "comment" {
   return quote ? "string" : "code";
 }
 
+/** Sort rank: API names, then keywords, then the Lua library. */
+const rank = (d: ApiDoc): number =>
+  d.kind === "keyword" ? 1 : d.lua ? 2 : 0;
+
 /**
  * The completions for the text before the cursor on its line: header tags
- * after `-- @`, members after `store.` / `string.` …, else global names.
- * Null where nothing completes (strings, comments, after a number).
+ * after `-- @`, members after `store.` / `string.` …, string methods after
+ * `x:`, else global names and keywords. Null where nothing completes
+ * (strings, comments, after a number).
  * `explicit`: asked for with Ctrl+Space (an empty word completes too).
  */
 export function completeLua(
@@ -800,6 +770,17 @@ export function completeLua(
       : null;
   }
   if (lineContext(before) !== "code") return null;
+  // A method call: `line:fi`, `("x"):up`, `t[1]:lo` (not `::label`).
+  const meth = /(?:[\w\])"']):([A-Za-z_]\w*)?$/.exec(before);
+  if (meth && !before.endsWith("::")) {
+    const word = meth[1] ?? "";
+    const options = METHODS.filter((d) =>
+      d.name.slice(7).startsWith(word),
+    );
+    return options.length
+      ? { from: before.length - word.length, options, method: true }
+      : null;
+  }
   const m = /(?:^|[^\w.])((?:[A-Za-z_]\w*\.)?[A-Za-z_]?\w*)$/.exec(before);
   if (!m) return null;
   const word = m[1]!;
@@ -818,20 +799,51 @@ export function completeLua(
         !d.name.includes(".") &&
         d.name.toLowerCase().startsWith(word.toLowerCase()),
     );
+    // Keywords by prefix, but not once a whole keyword is typed: Enter
+    // after `else` or `local` must still break the line.
+    if (!KEYWORD_NAMES.has(word)) {
+      options.push(
+        ...LUA_KEYWORDS.filter(
+          (d) => d.name.startsWith(word) && d.name !== word,
+        ),
+      );
+    }
   }
   if (options.length === 0) return null;
-  // API names first, then Lua's.
-  options.sort((a, b) => Number(a.kind === "lua") - Number(b.kind === "lua"));
+  options.sort((a, b) => rank(a) - rank(b));
   return { from: before.length - word.length, options };
 }
 
 // ----------------------------------------------------------------- hover
 
-/** The API name under `col` in `line` (a dotted name such as `store.set`, or a header tag), with its span. */
-export function nameAt(
-  line: string,
-  col: number,
-): { from: number; to: number; doc: ApiDoc } | null {
+export interface NameHit {
+  from: number;
+  to: number;
+  doc: ApiDoc;
+}
+
+/** Operators and syntax with a hover doc, longest first. */
+const SYMBOLS = ["--[[", "...", "--", "[[", "..", "~=", "#"];
+
+/** The operator under `col` (`..`, `#`, `~=`, `--` …) outside strings and comments. */
+function symbolAt(line: string, col: number): NameHit | null {
+  // The leftmost symbol covering `col`; at one start, the longest.
+  for (let from = Math.max(0, col - 3); from <= col; from++) {
+    const sym = SYMBOLS.find((s) => line.startsWith(s, from));
+    if (!sym || col >= from + sym.length) continue;
+    if (lineContext(line.slice(0, from)) !== "code") return null;
+    const doc = BY_NAME.get(sym);
+    return doc ? { from, to: from + sym.length, doc } : null;
+  }
+  return null;
+}
+
+/**
+ * The documented name under `col` in `line`: an API or Lua name (dotted,
+ * such as `store.set`), a string method after `:`, a keyword, an
+ * operator, a removed name, or a header tag; with its span.
+ */
+export function nameAt(line: string, col: number): NameHit | null {
   const re = /@?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*/g;
   for (let m = re.exec(line); m; m = re.exec(line)) {
     const from = m.index;
@@ -845,16 +857,22 @@ export function nameAt(
         : null;
     }
     if (lineContext(line.slice(0, from)) !== "code") return null;
+    if (line[from - 1] === ":" && line[from - 2] !== ":") {
+      const name = text.split(".")[0]!;
+      const d = methodDoc(name);
+      return d ? { from, to: from + name.length, doc: d } : null;
+    }
+    if (line[from - 1] === ".") return null;
     // `store.set` over `set`, `store` over `store`; `gmcp.Char.Vitals` → `gmcp`.
     const parts = text.split(".");
-    let best: { from: number; to: number; doc: ApiDoc } | null = null;
+    let best: NameHit | null = null;
     for (let k = 1; k <= parts.length; k++) {
       const name = parts.slice(0, k).join(".");
-      const d = BY_NAME.get(name);
+      const d = BY_NAME.get(name) ?? REMOVED_BY_NAME.get(name);
       if (d) best = { from, to: from + name.length, doc: d };
       if (col <= from + name.length) break;
     }
     return best;
   }
-  return null;
+  return symbolAt(line, col);
 }
