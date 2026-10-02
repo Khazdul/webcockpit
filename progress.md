@@ -25,6 +25,26 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 10 owner feedback round 1
+
+- **Done:**
+  - the `#script help` note is gone from the Scripts page;
+  - new `#help script` topic;
+  - Ctrl+F opens a TUI find/replace panel in both editors;
+  - live syntax and header errors with line marks, and runtime errors
+    marked on their line (code still applies on save only);
+  - CLOSE is replaced by MANUAL: a script manual with 14 sections and
+    an A–Z API reference from `lua-api.ts`, opened with F1 at the name
+    under the cursor;
+  - native pixel scrolling on chrome surfaces (`kit/scroll.tsx`).
+- **Verified:** typecheck; unit 1664 green; affected e2e in Chromium and
+  Firefox. Editor chunk is 156 KB gz (+29).
+- **Open:** owner decision on pixel scrolling in the Comm, UI and
+  Timers panes and in the log player's wheel cursor (Inv §2.7.5, §7.5).
+  GMCP API fixes are running: parent events, merge vs replace, seeding,
+  colour forms.
+- **Commits:** dcf331d..0fb7508, plus this one.
+
 ### 2026-10-02 — Stage 10 built: Scripts page, editor, coin looter
 
 - **Built:** P2 Scripts page (under Profile, start page and ESC menu)
