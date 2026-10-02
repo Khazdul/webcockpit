@@ -785,6 +785,35 @@ describe('panes', () => {
     expect(t.host.isRunning('m')).toBe(true);
   });
 
+  it('the stage 11 test guide example runs: a vitals gauge and two links', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        hp: src(`
+          local pane = createPane{id = "hp", title = "HP", dock = "float", rows = 3, cols = 24}
+          registerAnonymousEventHandler("gmcp.Char.Vitals", function()
+            local v = gmcp.Char.Vitals
+            pane:gauge(1, {value = v.hp or 0, max = v.maxhp or 1, label = "HP"})
+            pane:setLine(2, "<yellow>[rest]<reset>  <cyan>[look]<reset>")
+            pane:setLink(2, 1, 6, function() send("rest") end, "Sit down and rest")
+            pane:setLink(2, 9, 6, function() send("look") end, "Look around")
+          end)
+          tempAlias("^hpp$", function() if pane:visible() then pane:hide() else pane:show() end end)
+        `),
+      },
+      { panes },
+    );
+    t.gmcp('Char.Vitals', { hp: 40, maxhp: 80 });
+    await t.settle();
+    const p = panes.get('hp/hp')!;
+    expect(paneText(p.content)).toEqual(['[HP 40/80]', '[rest]  [look]']);
+    p.events.onLink(p.content.linkAt(1, 9)!.id);
+    p.events.onLink(p.content.linkAt(1, 0)!.id);
+    expect(t.sent).toEqual(['look', 'rest']);
+    t.engine.input('hpp');
+    expect(p.view.on).toBe(false);
+  });
+
   it('createPane validates its table; the same id returns the same pane', async () => {
     const panes = new FakeSurface();
     const t = await setup(
