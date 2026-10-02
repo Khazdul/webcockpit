@@ -1,6 +1,6 @@
 # Stage 11 — Script panes
 
-> Status: Next (after stage 10).
+> Status: In progress (started 2026-10-02).
 > Source: intent Goal 10, spec §2.10 (panes, runs, mercenaries),
 > ADR 0051.
 
@@ -47,15 +47,47 @@ Out: key manager (stage 12).
   single characters. TUI only.
 - 2026-10-01: script panes are part of runs and replays.
 
+## Plan
+
+Four packages. P0 first; P2 and P3 run in parallel after it. Technical
+decisions go into ADR 0053 (script panes), package notes per package.
+
+- **P0 — Script panes and the API.** The docking engine, settings and
+  Options learn dynamic pane ids; a `ScriptPane` draws a content model
+  (styled lines, gauges, link ranges, tooltips) with the existing frame
+  and cell-grid code; `createPane` and the pane methods in `host.ts`,
+  owned per script and released on disable/reload; `lua-api.ts` entries
+  and a manual section.
+- **P1 — Runs.** A client record for script pane content (snapshots,
+  coalesced per frame), the VIEW snapshot carrying script pane
+  placement, and drawing in the log player and the HTML replay without
+  Lua (links inert, tooltips kept).
+- **P2 — Mercenaries.** Bundled `mercenaries.lua`: hire, label, group,
+  contract timer, tap/pay/renew/leave, autopay, a pane with a row per
+  mercenary (time gauge, state) and clickable orders. Behaviour from
+  Cockpit's script and real logs, written fresh.
+- **P3 — Verify.** Typecheck, unit, e2e in both browsers, bench; the
+  carried-over "export all scripts"; test guide.
+
+Main-session decisions (details in ADR 0053):
+
+- A script pane's id is `<script>/<pane id>`. Its placement and on/off
+  stay in the settings when the script stops, so it returns where it
+  was; it is shown only while its script runs and has created it.
+- First creation places it per `dock` (end of that dock, or an
+  automatic float) with `rows`/`cols` as the wanted size.
+- Running script panes appear in Options → Panes under the built-in
+  panes (on/off, colour, border) and have the frame's close cross.
+- API additions beyond spec §2.10: `:show()`, `:hide()`, `:visible()`
+  (a script alias can toggle its pane), and `:setTitle(text)`.
+
 ## Tasks
 
-- [ ] Plan the packages once stage 10 is done; API changes from
-      stage 10 feedback.
-- [ ] Script panes on the docking engine (spans, gauges, links,
-      tooltips, resize).
-- [ ] Run capture, log player and HTML replay.
-- [ ] Bundled mercenaries.
-- [ ] Verify; test guide; owner test.
+- [x] Plan the packages (above).
+- [ ] P0. Script panes on the docking engine and the pane API.
+- [ ] P1. Run capture, log player and HTML replay.
+- [ ] P2. Bundled mercenaries.
+- [ ] P3. Verify; export all scripts; test guide; owner test.
 
 ## Test guide
 
