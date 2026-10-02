@@ -152,3 +152,33 @@ test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
   await expect(box.locator('.wc-line').last()).toContainText('line 60');
   await expect(box.locator('.wc-line').last()).toBeInViewport({ ratio: 0.9 });
 });
+
+test('Export editor log scrolls by pixels; the rows near the view are rendered', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await page.goto('/');
+  await restoreRuns(page);
+  await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
+  const f = startFrame(page);
+  await expect(f.locator('.wc-tr:not(.is-empty)')).toHaveCount(3);
+  await page.keyboard.press('ArrowDown');
+  await expect(f.locator('.wc-tr.is-cur-focus')).toContainText('Rasta');
+  await f.locator('[data-btn="EXPORT"]').click();
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Export Editor ───');
+  const log = f.locator('.wc-exp-log');
+  await expect(log.locator('.wc-exp-row').first()).toBeVisible();
+  await expectPixelWheel(page, log);
+  // A long swipe: the rows in view are rendered (no blanks).
+  for (let i = 0; i < 10; i++) await page.mouse.wheel(0, 300);
+  await expect.poll(() => log.evaluate((el) => el.scrollTop)).toBeGreaterThan(2000);
+  const rowAt = (y: number) =>
+    log.evaluate((el, y) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + 40, r.top + r.height * y)?.closest('.wc-exp-row');
+      return hit ? hit.getAttribute('data-kind') : null;
+    }, y);
+  for (const y of [0.02, 0.5, 0.98]) expect(await rowAt(y)).not.toBeNull();
+  // End: the cursor on the end row, in view.
+  await page.keyboard.press('End');
+  await expect(f.locator('.wc-exp-row.is-cur')).toHaveAttribute('data-kind', 'end');
+  await expect(f.locator('.wc-exp-row.is-cur')).toBeInViewport();
+});
