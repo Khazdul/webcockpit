@@ -18,8 +18,10 @@
 //   Scripts:      scripts.tsx (ADR 0051)
 
 import type { VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
+import type { ScriptPaneInfo } from '../../layout/cockpit';
 import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
+import { paneSettingsOf } from '../../settings/types';
 import {
   CURSOR_STYLES,
   FONT_SIZE_MAX,
@@ -41,7 +43,7 @@ import {
   TERMINAL_FG_PRESETS,
   presetName,
 } from '../../theme/presets';
-import { useGrid, useServices, useSettings } from '../kit/hooks';
+import { type ScriptPaneList, useGrid, useServices, useSettings } from '../kit/hooks';
 import { CommOptionsFrame } from './comm-options';
 import { GroupOptionsFrame } from './options-group';
 import { MapperOptionsFrame } from './options-mapper';
@@ -117,7 +119,10 @@ export function PanesHub(): VNode {
 /** Grid columns: the seven tints, then Border. */
 const GRID_COLS = PANE_COLORS.length + 1;
 const BORDER_COL = PANE_COLORS.length;
+/** The label column: at least this wide … */
 const LABEL_W = 12;
+/** … and at most this wide with script panes listed (longer labels are cut). */
+const LABEL_MAX = 28;
 /** `[X]███` plus one space. */
 const CELL_W = 7;
 
@@ -132,17 +137,41 @@ export function gridToggle(
   return { ...pane, on: true, color };
 }
 
+/** A script pane's row label: `Title (script)` (ADR 0053). */
+export function scriptPaneLabel(p: ScriptPaneInfo): string {
+  return `${p.title} (${p.script})`;
+}
+
+/** The script panes on screen, following changes (none without the service). */
+function useScriptPanes(list: ScriptPaneList | undefined): ScriptPaneInfo[] {
+  const [panes, set] = useState<ScriptPaneInfo[]>(() => list?.list() ?? []);
+  useEffect(() => {
+    if (!list) return;
+    set(list.list());
+    return list.subscribe(() => set(list.list()));
+  }, [list]);
+  return panes;
+}
+
 export function PanesFrame(): VNode {
-  const { settings } = useServices();
+  const { settings, scriptPanes } = useServices();
   const s = useSettings();
   const nav = useNav();
   const { cols } = useGrid();
   const [row, setRow] = useState(0);
   const [col, setCol] = useState(0);
+  const scripts = useScriptPanes(scriptPanes);
+  // The built-in panes, then the running script panes (ADR 0053).
+  const rows: { id: PaneId; label: string; tip: string }[] = [
+    ...PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id], tip: PANE_LABELS[id] })),
+    ...scripts.map((p) => ({ id: p.id, label: scriptPaneLabel(p), tip: `${p.title}, a pane of script ${p.script}` })),
+  ];
+  const labelW = Math.min(LABEL_MAX, Math.max(LABEL_W, ...rows.map((r) => r.label.length + 1)));
+  const N = rows.length;
 
   const toggle = (id: PaneId, c: number): void => {
     settings.update((d) => {
-      d.panes[id] = gridToggle(d.panes[id], c);
+      d.panes[id] = gridToggle(paneSettingsOf(d.panes, id), c);
     });
   };
   const resetLayout = (): void => {
@@ -153,9 +182,13 @@ export function PanesFrame(): VNode {
     { key: 'reset', label: 'Reset layout', activate: resetLayout },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
-  const tailIdx = row - PANE_IDS.length;
+  const tailIdx = row - N;
   // Rows: the panes, then the tail (Reset layout, Back).
-  const ROWS = PANE_IDS.length + tail.length;
+  const ROWS = N + tail.length;
+  // A script pane that went away while its row had the cursor.
+  useEffect(() => {
+    if (row >= ROWS) setRow(ROWS - 1);
+  }, [row, ROWS]);
 
   useKeys((_e, nk) => {
     switch (nk) {
@@ -174,22 +207,22 @@ export function PanesFrame(): VNode {
       case 'left':
       case 'right': {
         const d = nk === 'left' ? -1 : 1;
-        if (row < PANE_IDS.length) setCol(Math.max(0, Math.min(GRID_COLS - 1, col + d)));
+        if (row < N) setCol(Math.max(0, Math.min(GRID_COLS - 1, col + d)));
         else tail[tailIdx]?.adjust?.(d);
         return true;
       }
       case 'activate':
-        if (row < PANE_IDS.length) toggle(PANE_IDS[row]!, col);
+        if (row < N) toggle(rows[row]!.id, col);
         else menuKey(tail, tailIdx, () => {}, 'activate');
         return true;
     }
     return false;
   });
 
-  const gridW = LABEL_W + PANE_COLORS.length * CELL_W + 'Border'.length;
+  const gridW = labelW + PANE_COLORS.length * CELL_W + 'Border'.length;
   const at = centreLeft(cols, gridW);
   const header =
-    ' '.repeat(LABEL_W) +
+    ' '.repeat(labelW) +
     PANE_COLORS.map((c) => PANE_TINT_LABEL[c].padEnd(CELL_W)).join('') +
     'Border';
   return (
@@ -197,12 +230,15 @@ export function PanesFrame(): VNode {
       <Line at={at} class="wc-c-hint">
         {header}
       </Line>
-      {PANE_IDS.map((id, r) => {
-        const p = s.panes[id];
+      {rows.map(({ id, label, tip }, r) => {
+        const p = paneSettingsOf(s.panes, id);
         const off = !p.on;
+        const shown = label.length < labelW ? label.padEnd(labelW) : label.slice(0, labelW - 2) + '… ';
         return (
           <Line at={at} class="wc-grid-row">
-            <span class={off ? 'wc-c-off' : 'wc-c-item'}>{PANE_LABELS[id].padEnd(LABEL_W)}</span>
+            <span class={off ? 'wc-c-off' : 'wc-c-item'} title={tip} data-pane-row={id}>
+              {shown}
+            </span>
             {PANE_COLORS.map((c, ci) => (
               <>
                 <CheckCell
@@ -210,7 +246,7 @@ export function PanesFrame(): VNode {
                   cursor={row === r && col === ci}
                   swatch={c === 'black' ? '' : `var(--pane-bg-${c})`}
                   off={off}
-                  title={`${PANE_LABELS[id]}: ${PANE_TINT_LABEL[c]}`}
+                  title={`${tip}: ${PANE_TINT_LABEL[c]}`}
                   onHover={() => {
                     setRow(r);
                     setCol(ci);
@@ -227,7 +263,7 @@ export function PanesFrame(): VNode {
               checked={p.border}
               cursor={row === r && col === BORDER_COL}
               off={off}
-              title={`${PANE_LABELS[id]}: border`}
+              title={`${tip}: border`}
               onHover={() => {
                 setRow(r);
                 setCol(BORDER_COL);
@@ -245,7 +281,7 @@ export function PanesFrame(): VNode {
       <MenuRows
         items={tail}
         cursor={tailIdx}
-        setCursor={(i) => setRow(PANE_IDS.length + i)}
+        setCursor={(i) => setRow(N + i)}
         hoverMoves
       />
       <Blank />

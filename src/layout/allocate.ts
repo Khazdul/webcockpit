@@ -40,8 +40,20 @@
 //   Each is clamped into the window (shrunk if the window is smaller than
 //   it) on every layout; the model keeps the stored rectangle.
 // - Below MIN_VIEW_COLS × MIN_VIEW_ROWS the result is `tooSmall`.
+// - Script panes (ADR 0053) take part only while they are `present` (their
+//   script runs and has created them); otherwise they take no space and
+//   are not `hidden` either. Among the panes of a dock they get the
+//   leftover last and are dropped right after the map.
 
-import { DEFAULT_PANE_DESIRED, DEFAULT_SIDE_DOCK_SIZE, type DockId, type LayoutModel, PANE_IDS, type PaneId } from './types';
+import {
+  type BuiltinPaneId,
+  DEFAULT_SIDE_DOCK_SIZE,
+  type DockId,
+  type LayoutModel,
+  type PaneId,
+  defaultPaneRows,
+  isBuiltinPaneId,
+} from './types';
 
 /** Smallest game pane (Inv §2.1 MAIN_MIN; ADR 0010). */
 export const GAME_MIN_COLS = 30;
@@ -61,7 +73,7 @@ export const TOP_DOCK_MIN = 3;
 export const INPUT_ROWS = 1;
 
 /** Minimum content rows in a side dock (Inv §2.1 "Heights"). */
-export const MIN_ROWS: Readonly<Record<PaneId, number>> = {
+export const MIN_ROWS: Readonly<Record<BuiltinPaneId, number>> = {
   character: 3,
   timers: 1,
   group: 1,
@@ -69,28 +81,53 @@ export const MIN_ROWS: Readonly<Record<PaneId, number>> = {
   ui: 1,
   map: 3,
 };
+/** Minimum content rows of a script pane in a side dock (ADR 0053). */
+export const SCRIPT_MIN_ROWS = 1;
+
+/** Minimum content rows of `id` in a side dock. */
+export function minRows(id: PaneId): number {
+  return isBuiltinPaneId(id) ? MIN_ROWS[id] : SCRIPT_MIN_ROWS;
+}
+
 /** Minimum content columns in the top/bottom dock (ADR 0012). */
 export const MIN_COLS = 8;
 /** Desired content columns of a pane that enters the top/bottom dock (ADR 0012). */
 export const DEFAULT_BOTTOM_DESIRED = 30;
 
-/** Who gets the leftover cells first (Inv §2.1). */
-export const LEFTOVER_PRIORITY: readonly PaneId[] = ['map', 'ui', 'character', 'comm', 'timers', 'group'];
-/** Who is dropped first when even the minimums do not fit (Inv §2.1; the map first, ADR 0020). */
-export const DROP_ORDER: readonly PaneId[] = ['map', 'group', 'timers', 'comm', 'character', 'ui'];
+/** Who gets the leftover cells first (Inv §2.1); script panes after these, in stack order. */
+export const LEFTOVER_PRIORITY: readonly BuiltinPaneId[] = ['map', 'ui', 'character', 'comm', 'timers', 'group'];
+/**
+ * Who is dropped first when even the minimums do not fit (Inv §2.1; the map
+ * first, ADR 0020). Script panes go right after the map, the last in the
+ * stack first (ADR 0053).
+ */
+export const DROP_ORDER: readonly BuiltinPaneId[] = ['map', 'group', 'timers', 'comm', 'character', 'ui'];
+
+/** The ids of `live` by leftover priority: the built-in order, then script panes in stack order. */
+function leftoverOrder(live: readonly { id: PaneId }[]): PaneId[] {
+  const ids = live.map((i) => i.id);
+  return [...LEFTOVER_PRIORITY.filter((id) => ids.includes(id)), ...ids.filter((id) => !isBuiltinPaneId(id))];
+}
+
+/** The next pane of `live` to drop (DROP_ORDER). */
+function dropVictim(live: readonly { id: PaneId }[]): PaneId {
+  if (live.some((i) => i.id === 'map')) return 'map';
+  for (let k = live.length - 1; k >= 0; k--) if (!isBuiltinPaneId(live[k]!.id)) return live[k]!.id;
+  return DROP_ORDER.find((id) => live.some((i) => i.id === id))!;
+}
 
 /** True for the docks that stack panes vertically (left, right). */
 export const isSideDock = (d: DockId): boolean => d === 'left' || d === 'right';
 
 /** Minimum content size of `id` along the axis of `dock`. */
 export function minContent(id: PaneId, dock: DockId): number {
-  return isSideDock(dock) ? MIN_ROWS[id] : MIN_COLS;
+  return isSideDock(dock) ? minRows(id) : MIN_COLS;
 }
 
 /** Smallest floating pane (outer cells): the frame plus the pane's minimum content. */
 export function floatMin(id: PaneId, framed: boolean): { w: number; h: number } {
   const f = framed ? FRAME_CELLS : 0;
-  return { w: MIN_COLS + f, h: MIN_ROWS[id] + f };
+  return { w: MIN_COLS + f, h: minRows(id) + f };
 }
 
 /**
@@ -103,7 +140,7 @@ export const FLOAT_STANDARD_H = 14;
 
 /** Size of a pane that starts floating without a shown rectangle to copy (settings migration). */
 export function defaultFloatSize(id: PaneId): { w: number; h: number } {
-  return { w: DEFAULT_SIDE_DOCK_SIZE, h: DEFAULT_PANE_DESIRED[id] + FRAME_CELLS };
+  return { w: DEFAULT_SIDE_DOCK_SIZE, h: defaultPaneRows(id) + FRAME_CELLS };
 }
 
 /**
@@ -118,6 +155,17 @@ export function autoFloatRect(game: Rect, cols: number, rows: number): Rect {
   const w = Math.round(cols * AUTO_FLOAT.w);
   const h = Math.round(rows * AUTO_FLOAT.h);
   return { x: game.x + game.w - w, y: game.y, w, h };
+}
+
+/**
+ * The rectangle of a script pane's `auto` float (ADR 0053): its stored
+ * size, at the top-right corner of the game pane, or just left of the
+ * map's auto rectangle (`beside`) when that is shown, so the two do not
+ * cover each other.
+ */
+export function scriptAutoFloatRect(game: Rect, size: { w: number; h: number }, beside: Rect | null): Rect {
+  const right = beside ? beside.x : game.x + game.w;
+  return { x: Math.max(game.x, right - size.w), y: game.y, w: size.w, h: size.h };
 }
 
 /**
@@ -167,7 +215,7 @@ export function allocateAxis(items: readonly AxisItem[], length: number): AxisRe
   let live = norm;
   const dropped: PaneId[] = [];
   while (live.length > 0 && sum(live.map((i) => i.min + i.frame)) > length) {
-    const victim = DROP_ORDER.find((id) => live.some((i) => i.id === id))!;
+    const victim = dropVictim(live);
     dropped.push(victim);
     live = live.filter((i) => i.id !== victim);
   }
@@ -176,7 +224,7 @@ export function allocateAxis(items: readonly AxisItem[], length: number): AxisRe
   const size = new Map<PaneId, number>();
   const frames = sum(live.map((i) => i.frame));
   const wanted = sum(live.map((i) => i.desired)) + frames;
-  const byPriority = LEFTOVER_PRIORITY.filter((id) => live.some((i) => i.id === id));
+  const byPriority = leftoverOrder(live);
 
   if (wanted <= length) {
     for (const i of live) size.set(i.id, i.desired);
@@ -246,7 +294,13 @@ export interface PaneToggle {
 
 export interface AllocateInput {
   layout: LayoutModel;
-  panes: Readonly<Record<PaneId, PaneToggle>>;
+  /** Toggles by pane id; a script pane without an entry is on and framed. */
+  panes: Readonly<Partial<Record<PaneId, PaneToggle>>>;
+  /**
+   * Script panes whose script runs and has created them (ADR 0053). Other
+   * script panes in the layout take no space. Absent: none.
+   */
+  present?: ReadonlySet<PaneId>;
   /** Viewport in whole cells. */
   cols: number;
   rows: number;
@@ -295,16 +349,24 @@ export interface LayoutResult {
 }
 
 const EMPTY: Rect = { x: 0, y: 0, w: 0, h: 0 };
+const DEFAULT_TOGGLE: PaneToggle = { on: true, border: true };
+
+/** The toggles of `id`, or null when it takes no part (off, or a script pane not present). */
+function shownToggle(input: AllocateInput, id: PaneId): PaneToggle | null {
+  const builtin = isBuiltinPaneId(id);
+  if (!builtin && !input.present?.has(id)) return null;
+  const t = input.panes[id] ?? (builtin ? null : DEFAULT_TOGGLE);
+  return t?.on ? t : null;
+}
 
 function axisItems(input: AllocateInput, dock: DockId): AxisItem[] {
-  return input.layout.docks[dock].panes
-    .filter((p) => input.panes[p.id]?.on)
-    .map((p) => ({
-      id: p.id,
-      desired: p.desired,
-      min: minContent(p.id, dock),
-      frame: input.panes[p.id].border ? FRAME_CELLS : 0,
-    }));
+  const out: AxisItem[] = [];
+  for (const p of input.layout.docks[dock].panes) {
+    const t = shownToggle(input, p.id);
+    if (!t) continue;
+    out.push({ id: p.id, desired: p.desired, min: minContent(p.id, dock), frame: t.border ? FRAME_CELLS : 0 });
+  }
+  return out;
 }
 
 /** Lays out the whole screen (see the file header). */
@@ -325,7 +387,8 @@ export function allocate(input: AllocateInput): LayoutResult {
   if (cols < MIN_VIEW_COLS || rows < MIN_VIEW_ROWS) {
     res.tooSmall = true;
     res.game = { x: 0, y: 0, w: cols, h: Math.max(0, rows - INPUT_ROWS) };
-    res.hidden = PANE_IDS.filter((id) => input.panes[id]?.on);
+    const all = [...Object.values(input.layout.docks).flatMap((d) => d.panes), ...input.layout.floating];
+    res.hidden = all.map((p) => p.id).filter((id) => shownToggle(input, id) !== null);
     return res;
   }
 
@@ -400,7 +463,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     const model = input.layout.docks[dock].panes;
     let at = side ? rect.y : rect.x;
     for (const { id, size } of ax.sizes) {
-      const framed = input.panes[id].border;
+      const framed = shownToggle(input, id)!.border;
       const f = framed ? FRAME_CELLS : 0;
       const len = size + f;
       const r: Rect = side
@@ -418,11 +481,15 @@ export function allocate(input: AllocateInput): LayoutResult {
   if (topH > 0) place('top', { x: gx, y: 0, w: gw, h: topH });
   if (bottomH > 0) place('bottom', { x: gx, y: rows - bottomH, w: gw, h: bottomH });
 
+  const mapAuto = input.layout.floating.some((f) => f.id === 'map' && f.auto) && shownToggle(input, 'map')
+    ? clampFloat(autoFloatRect(res.game, cols, rows), floatMin('map', input.panes.map?.border ?? true), cols, rows)
+    : null;
   input.layout.floating.forEach((f, index) => {
-    const t = input.panes[f.id];
-    if (!t?.on) return;
+    const t = shownToggle(input, f.id);
+    if (!t) return;
     const framed = t.border;
-    const r = clampFloat(f.auto ? autoFloatRect(res.game, cols, rows) : f, floatMin(f.id, framed), cols, rows);
+    const want = !f.auto ? f : isBuiltinPaneId(f.id) ? autoFloatRect(res.game, cols, rows) : scriptAutoFloatRect(res.game, f, mapAuto);
+    const r = clampFloat(want, floatMin(f.id, framed), cols, rows);
     const c: Rect = framed ? { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 } : { ...r };
     res.panes.push({ id: f.id, dock: 'float', index, rect: r, content: c, framed });
   });

@@ -3,7 +3,7 @@
 // `DEFAULT_SETTINGS` and clamps every value, so stored data from any
 // older version loads.
 
-import { type LayoutModel, type PaneColor, type PaneId, defaultLayout } from '../layout/types';
+import { type BuiltinPaneId, type LayoutModel, type PaneColor, type PaneId, type ScriptPaneId, defaultLayout } from '../layout/types';
 import { DEFAULT_INPUT_COLOR, DEFAULT_TERM_BG, DEFAULT_TERM_FG, DOS_PALETTE, type InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 
@@ -87,6 +87,21 @@ export interface PaneSettings {
   color: PaneColor;
   /** Draw the half-block frame. */
   border: boolean;
+}
+
+/**
+ * Pane toggles: every built-in pane, and the script panes (ADR 0053) that
+ * were ever created. A script pane's entry stays while its script is not
+ * running, so it comes back as it was.
+ */
+export type PaneSettingsMap = Record<BuiltinPaneId, PaneSettings> & { [id: ScriptPaneId]: PaneSettings | undefined };
+
+/** A script pane's toggles before the user changes them: on, no tint, framed. */
+export const SCRIPT_PANE_DEFAULTS: Readonly<PaneSettings> = Object.freeze({ on: true, color: 'black', border: true });
+
+/** The toggles of pane `id` (a script pane without an entry: the defaults). */
+export function paneSettingsOf(panes: Readonly<PaneSettingsMap>, id: PaneId): PaneSettings {
+  return (panes as Readonly<Record<string, PaneSettings | undefined>>)[id] ?? SCRIPT_PANE_DEFAULTS;
 }
 
 /** Which unlabeled NPCs the Group pane shows (Inv §2.3, ADR 0016). */
@@ -200,7 +215,7 @@ export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
   appearance: AppearanceSettings;
-  panes: Record<PaneId, PaneSettings>;
+  panes: PaneSettingsMap;
   layout: LayoutModel;
   /** Selected profile name. */
   profile: string;

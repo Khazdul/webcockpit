@@ -2,16 +2,16 @@
 // returns a new LayoutModel (or settings patch) and never mutates its input,
 // so the result can go straight into `settings.update`.
 
-import type { PaneSettings } from '../settings/types';
-import { DEFAULT_BOTTOM_DESIRED, type Rect, isSideDock, minContent } from './allocate';
+import { type PaneSettings, type PaneSettingsMap, paneSettingsOf } from '../settings/types';
+import { DEFAULT_BOTTOM_DESIRED, FRAME_CELLS, type Rect, isSideDock, minContent } from './allocate';
 import {
-  DEFAULT_PANE_DESIRED,
   DOCK_IDS,
   type DockId,
   type DockPane,
   type FloatPane,
   type LayoutModel,
   type PaneId,
+  defaultPaneRows,
 } from './types';
 
 function copy(m: LayoutModel): LayoutModel {
@@ -36,7 +36,7 @@ export function findPane(m: LayoutModel, id: PaneId): { dock: DockId; index: num
 
 /** The desired size a pane gets when it enters `dock` from another axis. */
 export function defaultDesired(id: PaneId, dock: DockId): number {
-  return isSideDock(dock) ? DEFAULT_PANE_DESIRED[id] : DEFAULT_BOTTOM_DESIRED;
+  return isSideDock(dock) ? defaultPaneRows(id) : DEFAULT_BOTTOM_DESIRED;
 }
 
 /**
@@ -204,10 +204,46 @@ export function shiftBoundary(
   return { a: na, b: total - na };
 }
 
-/** The settings patch that toggles `id` on or off. */
+/**
+ * The settings patch that switches `id` on or off (`on` absent: toggles).
+ * The whole entry is written, so a script pane without one gets the defaults.
+ */
 export function togglePatch(
-  panes: Readonly<Record<PaneId, PaneSettings>>,
+  panes: Readonly<PaneSettingsMap>,
   id: PaneId,
-): { panes: Partial<Record<PaneId, Partial<PaneSettings>>> } {
-  return { panes: { [id]: { on: !panes[id].on } } };
+  on?: boolean,
+): { panes: Partial<Record<PaneId, PaneSettings>> } {
+  const cur = paneSettingsOf(panes, id);
+  return { panes: { [id]: { ...cur, on: on ?? !cur.on } } };
+}
+
+/** Where a script pane goes when it is created for the first time (ADR 0053). */
+export interface ScriptPanePlace {
+  /** A dock, or `float` for an automatic float. */
+  dock: DockId | 'float';
+  /** Wanted content rows (a side dock, a float). */
+  rows: number;
+  /** Wanted content columns (the top/bottom dock, a float). */
+  cols: number;
+}
+
+/**
+ * `m` with script pane `id` placed per `place` when it has no place yet
+ * (first creation): at the end of the dock with `rows` (left/right) or
+ * `cols` (top/bottom) as its desired size, or as an `auto` float of
+ * `rows` × `cols` content cells. Returns `m` when `id` is already placed.
+ */
+export function placeScriptPane(m: LayoutModel, id: PaneId, place: ScriptPanePlace): LayoutModel {
+  if (findPane(m, id) || findFloat(m, id) >= 0) return m;
+  const out = copy(m);
+  const rows = Math.max(1, Math.round(place.rows));
+  const cols = Math.max(1, Math.round(place.cols));
+  if (place.dock === 'float') {
+    // Behind panes the user floats, like the map's first float.
+    out.floating.unshift({ id, x: 0, y: 0, w: cols + FRAME_CELLS, h: rows + FRAME_CELLS, auto: true });
+    return out;
+  }
+  const desired = isSideDock(place.dock) ? rows : cols;
+  out.docks[place.dock].panes.push({ id, desired: Math.max(minContent(id, place.dock), desired) });
+  return out;
 }

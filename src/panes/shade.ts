@@ -10,7 +10,7 @@
 // "Re-resolve every frame"). It is a few HSL conversions, cheap enough.
 
 import type { PaneId } from '../layout/types';
-import type { Settings } from '../settings/types';
+import { type Settings, paneSettingsOf } from '../settings/types';
 import { type ShadeRole, paneEffectiveBg, paneHs, isLight, shadeRamp, washout } from '../theme/color';
 
 export interface PaneShade {
@@ -24,7 +24,7 @@ export interface PaneShade {
 
 /** The shade ramp of pane `id` under `s`, resolved now. */
 export function paneShade(s: Readonly<Settings>, id: PaneId): PaneShade {
-  const color = s.panes[id].color;
+  const color = paneSettingsOf(s.panes, id).color;
   const termBg = s.appearance.bg;
   const bg = paneEffectiveBg(color, termBg);
   const light = isLight(bg);

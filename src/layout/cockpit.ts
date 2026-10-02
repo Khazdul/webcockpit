@@ -38,6 +38,9 @@
 // - Every drag previews live and writes the settings once, on release.
 // - Grips and handles never take focus; after a drag or a click the focus
 //   goes back to the input (Inv §1.3).
+// - Script panes (ADR 0053) join with `addPane` while their script runs
+//   and leave with `removePane`; only added ones take part in allocation
+//   (`present`). Their place in the settings stays when they leave.
 
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
@@ -76,14 +79,28 @@ import {
   setDockSize,
   setFloatRect,
   shiftBoundary,
+  togglePatch,
 } from './model';
+import { paneSettingsOf } from '../settings/types';
 import {
   type DockId,
   defaultDockSize,
   type LayoutModel,
   PANE_IDS,
   type PaneId,
+  type ScriptPaneId,
+  isScriptPaneId,
+  paneScript,
 } from './types';
+
+/** A script pane on screen now (Options → Panes lists them, ADR 0053). */
+export interface ScriptPaneInfo {
+  id: ScriptPaneId;
+  /** The script that owns it. */
+  script: string;
+  /** Its title (the frame label). */
+  title: string;
+}
 
 export type { CellSource } from '../panes/context';
 
@@ -184,6 +201,11 @@ export class Cockpit {
    */
   private readonly shieldEl: HTMLDivElement;
   private readonly shells = new Map<PaneId, PaneShell>();
+  /** Close crosses by pane (their tooltip follows the label). */
+  private readonly closers = new Map<PaneId, HTMLDivElement>();
+  /** Script panes added with `addPane` (ADR 0053). */
+  private readonly present = new Set<PaneId>();
+  private readonly paneListeners = new Set<() => void>();
   private readonly settings: SettingsStore;
   private readonly cells: CellSource;
   private readonly onFocusInput: () => void;
@@ -234,26 +256,7 @@ export class Cockpit {
       opts.paneContext ??
       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
     this.el.append(this.gameEl);
-    for (const id of PANE_IDS) {
-      const shell = PANE_FACTORIES[id](this.paneContext);
-      const grip = div('wc-pane-grip');
-      grip.dataset.grip = id;
-      shell.el.append(grip);
-      const close = div('wc-pane-close');
-      close.textContent = ' × ';
-      close.title = `Hide ${shell.label}`;
-      close.setAttribute('role', 'button');
-      close.setAttribute('aria-label', `Hide ${shell.label}`);
-      close.addEventListener('click', () => this.settings.update({ panes: { [id]: { on: false } } }));
-      shell.el.append(close);
-      for (const edge of FLOAT_EDGES) {
-        const h = div('wc-float-handle');
-        h.dataset.edge = edge;
-        shell.el.append(h);
-      }
-      this.shells.set(id, shell);
-      this.el.append(shell.el);
-    }
+    for (const id of PANE_IDS) this.attach(PANE_FACTORIES[id](this.paneContext));
     this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
     opts.root.appendChild(this.el);
 
@@ -281,6 +284,97 @@ export class Cockpit {
     return this.shells.get(id)!;
   }
 
+  /** Adds the grip, close cross and float handles to `shell` and puts it on the cockpit. */
+  private attach(shell: PaneShell, before: Element | null = null): void {
+    const doc = this.el.ownerDocument;
+    const div = (cls: string): HTMLDivElement => {
+      const d = doc.createElement('div');
+      d.className = cls;
+      return d;
+    };
+    const id = shell.id;
+    const grip = div('wc-pane-grip');
+    grip.dataset.grip = id;
+    shell.el.append(grip);
+    const close = div('wc-pane-close');
+    close.textContent = ' × ';
+    close.setAttribute('role', 'button');
+    this.labelClose(close, shell.label);
+    close.addEventListener('click', () => this.settings.update(togglePatch(this.settings.get().panes, id, false)));
+    shell.el.append(close);
+    this.closers.set(id, close);
+    for (const edge of FLOAT_EDGES) {
+      const h = div('wc-float-handle');
+      h.dataset.edge = edge;
+      shell.el.append(h);
+    }
+    this.shells.set(id, shell);
+    this.el.insertBefore(shell.el, before);
+  }
+
+  private labelClose(close: HTMLElement, label: string): void {
+    const text = `Hide ${label}`;
+    if (close.title === text) return;
+    close.title = text;
+    close.setAttribute('aria-label', text);
+  }
+
+  /**
+   * Shows script pane `shell` (ADR 0053): it takes part in allocation from
+   * the next layout, where the settings place it. The caller owns the
+   * shell and disposes it after `removePane`.
+   */
+  addPane(shell: PaneShell): void {
+    if (!isScriptPaneId(shell.id) || this.disposed) throw new Error(`addPane: ${shell.id} is not a script pane`);
+    if (this.shells.has(shell.id)) throw new Error(`addPane: ${shell.id} is already shown`);
+    this.attach(shell, this.inputEl);
+    this.present.add(shell.id);
+    this.paneChanged();
+  }
+
+  /** Takes script pane `id` off the cockpit; its place in the settings stays. */
+  removePane(id: PaneId): void {
+    if (!this.present.delete(id)) return;
+    const shell = this.shells.get(id);
+    this.shells.delete(id);
+    this.closers.delete(id);
+    if (shell) {
+      shell.place(null, this.cells.get());
+      shell.el.remove();
+    }
+    if (this.drag && 'id' in this.drag && this.drag.id === id) this.cancelDrag();
+    this.paneChanged();
+  }
+
+  /** The script panes on screen now, in the order they were added. */
+  scriptPanes(): ScriptPaneInfo[] {
+    const out: ScriptPaneInfo[] = [];
+    for (const id of this.present) {
+      if (!isScriptPaneId(id)) continue;
+      out.push({ id, script: paneScript(id), title: this.shells.get(id)?.label ?? id });
+    }
+    return out;
+  }
+
+  /** Calls `fn` when a script pane is added, removed or retitled. Returns the unsubscribe. */
+  onScriptPanes(fn: () => void): () => void {
+    this.paneListeners.add(fn);
+    return () => this.paneListeners.delete(fn);
+  }
+
+  /** A script pane's title changed (ScriptPane.setTitle). */
+  paneRetitled(id: PaneId): void {
+    const close = this.closers.get(id);
+    const shell = this.shells.get(id);
+    if (close && shell) this.labelClose(close, shell.label);
+    for (const fn of [...this.paneListeners]) fn();
+  }
+
+  private paneChanged(): void {
+    this.scheduleRelayout();
+    for (const fn of [...this.paneListeners]) fn();
+  }
+
   /** The last layout (cells), or null before the cockpit has a size. */
   get layout(): LayoutResult | null {
     return this.last;
@@ -306,6 +400,7 @@ export class Cockpit {
     const r = allocate({
       layout: this.preview ?? s.layout,
       panes: s.panes,
+      present: this.present,
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
     });
@@ -336,6 +431,7 @@ export class Cockpit {
   dispose(): void {
     this.disposed = true;
     for (const u of this.unsubs) u();
+    this.paneListeners.clear();
     for (const s of this.shells.values()) s.dispose();
     this.ro?.disconnect();
     this.el.remove();
@@ -747,7 +843,7 @@ export class Cockpit {
     const gy = Math.min(grab.y, size.h - 1);
     const rect = clampFloat(
       { x: Math.floor(cx) - gx, y: Math.floor(cy) - gy, ...size },
-      floatMin(id, s.panes[id].border),
+      floatMin(id, paneSettingsOf(s.panes, id).border),
       r.cols,
       H,
     );

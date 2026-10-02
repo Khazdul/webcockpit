@@ -331,7 +331,7 @@ test('narrow window collapses the side dock and restores it when widened', async
   const { cols } = await metrics(page);
   expect((await box(page, '.wc-game')).width).toBe(cols * cw);
   // The side panes stay on (the map too: on by default).
-  expect(await page.evaluate(() => Object.values(window.__wc!.settings.get().panes).every((p) => p.on))).toBe(true);
+  expect(await page.evaluate(() => Object.values(window.__wc!.settings.get().panes).every((p) => p?.on))).toBe(true);
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-collapsed', '');
   for (const id of ORDER) await expect(page.locator(`.wc-pane-${id}`)).toBeVisible();

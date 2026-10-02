@@ -11,6 +11,14 @@ import type { CellMetrics, CellSize } from '../../theme/cells';
 import type { MapStore } from '../../map/store';
 import type { ScriptLibrary } from '../../scripts';
 import type { NoticeState, Notices } from '../../app/notices';
+import type { ScriptPaneInfo } from '../../layout/cockpit';
+
+/** The script panes on screen (ADR 0053), for Options → Panes. */
+export interface ScriptPaneList {
+  list(): ScriptPaneInfo[];
+  /** Calls `fn` when a pane is added, removed or retitled. */
+  subscribe(fn: () => void): () => void;
+}
 
 /** Everything the chrome needs from the rest of the app. */
 export interface ChromeServices {
@@ -54,6 +62,8 @@ export interface ChromeServices {
    * null: no host in this tab yet (nothing runs before Enter MUME).
    */
   scriptRunning?: (name: string) => boolean | null;
+  /** The running script panes (Options → Panes lists them under the built-ins). Absent: none. */
+  scriptPanes?: ScriptPaneList;
   /** Client notices (ADR 0025): the ESC header and the start page show them. */
   notices?: Notices;
 }

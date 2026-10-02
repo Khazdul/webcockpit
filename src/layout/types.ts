@@ -5,16 +5,55 @@
 // (src/settings/migrate.ts).
 
 /** The framed side panes, in Cockpit's order (Inv §2.1), then the map (ADR 0020). */
-export type PaneId = 'character' | 'timers' | 'group' | 'comm' | 'ui' | 'map';
+export type BuiltinPaneId = 'character' | 'timers' | 'group' | 'comm' | 'ui' | 'map';
 
-/** Every pane id in Cockpit's default stack order, then the map. */
-export const PANE_IDS: readonly PaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map'];
+/**
+ * A script pane (ADR 0053): `<script>/<pane id>`. Script names never
+ * contain `/`, so the id cannot clash with a built-in one.
+ */
+export type ScriptPaneId = `${string}/${string}`;
+
+/** Any pane: a built-in one or a script pane. */
+export type PaneId = BuiltinPaneId | ScriptPaneId;
+
+/** Every built-in pane id in Cockpit's default stack order, then the map. */
+export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map'];
 
 /** The panes of the default right dock (the map floats by default). */
-export const DOCKED_BY_DEFAULT: readonly PaneId[] = ['character', 'timers', 'group', 'comm', 'ui'];
+export const DOCKED_BY_DEFAULT: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui'];
+
+/** A script pane's own id (after the `/`): letters, digits, `_` and `-`, at most 32. */
+export const SCRIPT_PANE_NAME = /^[A-Za-z0-9_-]{1,32}$/;
+/** A whole script pane id: a script name (header.ts rules), `/`, a pane name. */
+const SCRIPT_PANE_ID = /^[A-Za-z][A-Za-z0-9_-]{0,31}\/[A-Za-z0-9_-]{1,32}$/;
+
+/** True for a built-in pane id. */
+export function isBuiltinPaneId(id: unknown): id is BuiltinPaneId {
+  return typeof id === 'string' && (PANE_IDS as readonly string[]).includes(id);
+}
+
+/** True for a well-formed script pane id (`<script>/<pane>`). */
+export function isScriptPaneId(id: unknown): id is ScriptPaneId {
+  return typeof id === 'string' && SCRIPT_PANE_ID.test(id);
+}
+
+/** True for any valid pane id. */
+export function isPaneId(id: unknown): id is PaneId {
+  return isBuiltinPaneId(id) || isScriptPaneId(id);
+}
+
+/** The id of `script`'s pane `pane`. */
+export function scriptPaneId(script: string, pane: string): ScriptPaneId {
+  return `${script}/${pane}`;
+}
+
+/** The script that owns a script pane. */
+export function paneScript(id: ScriptPaneId): string {
+  return id.slice(0, id.indexOf('/'));
+}
 
 /** Frame labels (Inv §2.1 "Pane frame"). */
-export const PANE_LABELS: Readonly<Record<PaneId, string>> = {
+export const PANE_LABELS: Readonly<Record<BuiltinPaneId, string>> = {
   character: 'Character',
   timers: 'Timers',
   group: 'Group',
@@ -78,10 +117,12 @@ export interface FloatPane {
 }
 
 /**
- * The whole pane layout. Every `PaneId` appears exactly once, either in
- * one dock or in `floating` (whether it is on or off: on/off is
+ * The whole pane layout. Every built-in `PaneId` appears exactly once,
+ * either in one dock or in `floating` (whether it is on or off: on/off is
  * `Settings.panes[id].on`), so a pane that is switched back on returns to
- * where it was.
+ * where it was. A script pane (ADR 0053) appears at most once, from its
+ * first creation on; it keeps its place while its script is not running
+ * and is shown only while the script runs and has created it.
  */
 export interface LayoutModel {
   docks: Record<DockId, DockState>;
@@ -90,7 +131,7 @@ export interface LayoutModel {
 }
 
 /** Default desired content rows per pane (Cockpit's default heights). */
-export const DEFAULT_PANE_DESIRED: Readonly<Record<PaneId, number>> = {
+export const DEFAULT_PANE_DESIRED: Readonly<Record<BuiltinPaneId, number>> = {
   character: 9,
   timers: 8,
   group: 6,
@@ -98,6 +139,14 @@ export const DEFAULT_PANE_DESIRED: Readonly<Record<PaneId, number>> = {
   ui: 5,
   map: 20,
 };
+
+/** Desired content rows of a script pane that enters a side dock without a size of its own. */
+export const SCRIPT_PANE_DESIRED = 8;
+
+/** Default desired content rows of `id` in a side dock. */
+export function defaultPaneRows(id: PaneId): number {
+  return isBuiltinPaneId(id) ? DEFAULT_PANE_DESIRED[id] : SCRIPT_PANE_DESIRED;
+}
 
 /** Default width of the right (and left) dock in cells. */
 export const DEFAULT_SIDE_DOCK_SIZE = 33;

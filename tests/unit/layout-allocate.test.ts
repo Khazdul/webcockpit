@@ -7,14 +7,15 @@ import {
   allocateAxis,
   clampFloat,
   floatMin,
+  minRows,
 } from '../../src/layout/allocate';
-import { DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
+import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
 import { floatPane, movePane, setDockSize, setFloatRect } from '../../src/layout/model';
 
-const MIN: Record<PaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
-const DES: Record<PaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20 };
+const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
+const DES: Record<BuiltinPaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20 };
 
-const items = (ids: PaneId[] = [...DOCKED_BY_DEFAULT], frame = 2): AxisItem[] =>
+const items = (ids: BuiltinPaneId[] = [...DOCKED_BY_DEFAULT], frame = 2): AxisItem[] =>
   ids.map((id) => ({ id, desired: DES[id], min: MIN[id], frame }));
 
 const sizes = (r: ReturnType<typeof allocateAxis>): Record<string, number> =>
@@ -104,7 +105,7 @@ describe('allocateAxis', () => {
     for (let len = 17; len <= 80; len++) {
       const r = allocateAxis(items(), len);
       expect(total(r)).toBe(len);
-      for (const s of r.sizes) expect(s.size).toBeGreaterThanOrEqual(MIN[s.id]);
+      for (const s of r.sizes) expect(s.size).toBeGreaterThanOrEqual(minRows(s.id));
     }
   });
 

@@ -35,16 +35,16 @@
 
 import type { ConnState } from '../core/types';
 import { applyPaneTheme } from '../theme/apply';
-import type { Settings } from '../settings/types';
+import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
-import { PANE_LABELS, type PaneId } from '../layout/types';
+import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
 import { frameText } from './frame';
 
 export type { PaneContext } from './context';
 
 /** Panes that blank their content while not `playing` (Inv §2.1): all but UI and the map. */
-export const BLANK_WHEN_INACTIVE: Readonly<Record<PaneId, boolean>> = {
+export const BLANK_WHEN_INACTIVE: Readonly<Record<BuiltinPaneId, boolean>> = {
   character: true,
   timers: true,
   group: true,
@@ -71,13 +71,14 @@ export interface PanePlacement {
 }
 
 export interface PaneShellOptions {
-  /** Override `BLANK_WHEN_INACTIVE[id]`. */
+  /** Override `BLANK_WHEN_INACTIVE[id]` (script panes: false). */
   blankWhenInactive?: boolean;
+  /** The frame label (default `PANE_LABELS[id]`; a script pane: its id). */
+  label?: string;
 }
 
 export class PaneShell {
   readonly id: PaneId;
-  readonly label: string;
   /** Outer element, positioned by the cockpit. */
   readonly el: HTMLDivElement;
   /** Content element: subclasses render into it. */
@@ -89,10 +90,14 @@ export class PaneShell {
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
   private frameKey = '';
+  private _label: string;
   private themeKey = '';
   private _cols = 0;
   private _rows = 0;
   private _visible = false;
+  /** The last placement (for a label change). */
+  private placed: PanePlacement | null = null;
+  private placedCell: { w: number; h: number } | null = null;
   private _active: boolean;
   /** A render is wanted (kept while hidden). */
   private dirty = true;
@@ -106,14 +111,15 @@ export class PaneShell {
     const doc = ctx.doc;
     this.ctx = ctx;
     this.id = id;
-    this.label = PANE_LABELS[id];
-    this.blankWhenInactive = opts.blankWhenInactive ?? BLANK_WHEN_INACTIVE[id];
+    const builtin = isBuiltinPaneId(id);
+    this._label = opts.label ?? (builtin ? PANE_LABELS[id] : id);
+    this.blankWhenInactive = opts.blankWhenInactive ?? (builtin ? BLANK_WHEN_INACTIVE[id] : false);
     this._active = isActiveState(ctx.connState());
     this.el = doc.createElement('div');
     this.el.className = `wc-pane wc-pane-${id}`;
     this.el.dataset.pane = id;
     this.el.setAttribute('role', 'region');
-    this.el.setAttribute('aria-label', this.label);
+    this.el.setAttribute('aria-label', this._label);
     this.el.hidden = true;
     this.frameEl = doc.createElement('div');
     this.frameEl.className = 'wc-pane-frame';
@@ -130,6 +136,20 @@ export class PaneShell {
         this.setActive(isActiveState(s.state));
       }),
     );
+  }
+
+  /** The frame label (the title of a script pane). */
+  get label(): string {
+    return this._label;
+  }
+
+  /** Changes the frame label; the frame is redrawn at once when shown. */
+  setLabel(label: string): void {
+    if (label === this._label) return;
+    this._label = label;
+    this.el.setAttribute('aria-label', label);
+    this.frameKey = '';
+    if (this.placed) this.place(this.placed, this.placedCell!);
   }
 
   /** True while the connection is `playing` (see the file header). */
@@ -228,7 +248,7 @@ export class PaneShell {
   applyTheme(s: Readonly<Settings>): void {
     applyPaneTheme(this.el, s, this.id);
     const a = s.appearance;
-    const key = `${s.panes[this.id].color}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
+    const key = `${paneSettingsOf(s.panes, this.id).color}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
     if (key !== this.themeKey) {
       this.themeKey = key;
       this.markDirty();
@@ -237,6 +257,8 @@ export class PaneShell {
 
   /** Cockpit only: shows the pane at `p` (cells × `cell` px) or hides it. */
   place(p: PanePlacement | null, cell: { w: number; h: number }): void {
+    this.placed = p;
+    this.placedCell = cell;
     if (!p) {
       this.el.hidden = true;
       this._visible = false;
@@ -254,10 +276,10 @@ export class PaneShell {
     cs.top = `${(content.y - rect.y) * cell.h}px`;
     cs.width = `${content.w * cell.w}px`;
     cs.height = `${content.h * cell.h}px`;
-    const key = p.framed ? `${rect.w}x${rect.h}` : '';
+    const key = p.framed ? `${rect.w}x${rect.h}|${this._label}` : '';
     if (key !== this.frameKey) {
       this.frameKey = key;
-      this.frameEl.textContent = p.framed ? frameText(rect.w, rect.h, this.label) : '';
+      this.frameEl.textContent = p.framed ? frameText(rect.w, rect.h, this._label) : '';
     }
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);

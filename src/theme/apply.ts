@@ -28,7 +28,7 @@
 // cached (Inv §10.5).
 
 import { PANE_COLORS, type PaneId } from '../layout/types';
-import type { AppearanceSettings, Settings } from '../settings/types';
+import { type AppearanceSettings, type Settings, paneSettingsOf } from '../settings/types';
 import {
   SHADE_ROLES,
   type ShadeRole,
@@ -189,7 +189,7 @@ export function appearanceChanged(a: Readonly<AppearanceSettings>, b: Readonly<A
 
 /** The per-pane custom properties for `paneId` under `s`. */
 export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string, string> {
-  const color = s.panes[paneId].color;
+  const color = paneSettingsOf(s.panes, paneId).color;
   const bg = s.appearance.bg;
   const t: Record<string, string> = {
     '--pane-bg': paneEffectiveBg(color, bg),
@@ -202,7 +202,7 @@ export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string
 
 /** Whether `paneId`'s effective background is light under `s`. */
 export function paneLight(s: Readonly<Settings>, paneId: PaneId): boolean {
-  return paneIsLight(s.panes[paneId].color, s.appearance.bg);
+  return paneIsLight(paneSettingsOf(s.panes, paneId).color, s.appearance.bg);
 }
 
 /** Sets the pane tokens and `data-light` on a pane element. */

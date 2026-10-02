@@ -209,6 +209,6 @@ describe('floating panes', () => {
 describe('togglePatch', () => {
   it('flips one pane', () => {
     const s = defaultSettings();
-    expect(togglePatch(s.panes, 'group')).toEqual({ panes: { group: { on: false } } });
+    expect(togglePatch(s.panes, 'group')).toEqual({ panes: { group: { color: 'black', border: true, on: false } } });
   });
 });

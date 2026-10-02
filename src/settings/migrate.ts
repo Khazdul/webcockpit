@@ -3,7 +3,9 @@
 // an old version, a partial object, garbage — and always returns a
 // complete, valid `Settings`: missing or invalid values take the
 // default, numbers are clamped, enums checked, colours normalised, and a
-// damaged layout is repaired so every pane appears exactly once. Keys
+// damaged layout is repaired so every pane appears exactly once. Script
+// panes (ADR 0053) keep their well-formed entries in `panes` and the
+// layout, so they return where they were when their script runs again. Keys
 // that are no longer part of `Settings` (e.g. `corners`, removed after the
 // stage 2 feedback) are dropped silently.
 
@@ -16,6 +18,9 @@ import {
   PANE_IDS,
   type PaneId,
   defaultMapFloat,
+  defaultPaneRows,
+  isPaneId,
+  isScriptPaneId,
 } from '../layout/types';
 import { defaultFloatSize } from '../layout/allocate';
 import { normalizeHex } from '../theme/color';
@@ -36,6 +41,8 @@ import {
   PADDING_STEP,
   type OutputSettings,
   type PaneSettings,
+  type PaneSettingsMap,
+  SCRIPT_PANE_DEFAULTS,
   SCROLLBACK_CHOICES,
   SETTINGS_VERSION,
   type Settings,
@@ -51,6 +58,8 @@ import { TIMER_GROUPS } from '../timers/entry';
 
 /** Largest dock size / desired value kept, in cells (a sanity bound only). */
 export const MAX_CELLS = 1000;
+/** Most script pane entries kept in `panes` and in the layout (a sanity bound only). */
+export const MAX_SCRIPT_PANES = 200;
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -92,17 +101,22 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
   };
 }
 
-function migratePanes(raw: unknown): Record<PaneId, PaneSettings> {
+function paneEntry(raw: unknown, d: Readonly<PaneSettings>): PaneSettings {
+  const x = isObj(raw) ? raw : {};
+  return { on: bool(x.on, d.on), color: oneOf(x.color, PANE_COLORS, d.color), border: bool(x.border, d.border) };
+}
+
+/** Every built-in pane, then the script panes with a well-formed id (at most MAX_SCRIPT_PANES). */
+function migratePanes(raw: unknown): PaneSettingsMap {
   const d = defaultSettings().panes;
   const p = isObj(raw) ? raw : {};
-  const out = {} as Record<PaneId, PaneSettings>;
-  for (const id of PANE_IDS) {
-    const x = isObj(p[id]) ? (p[id] as Obj) : {};
-    out[id] = {
-      on: bool(x.on, d[id].on),
-      color: oneOf(x.color, PANE_COLORS, d[id].color),
-      border: bool(x.border, d[id].border),
-    };
+  const out = {} as PaneSettingsMap;
+  for (const id of PANE_IDS) out[id] = paneEntry(p[id], d[id]);
+  let n = 0;
+  for (const [id, x] of Object.entries(p)) {
+    if (!isScriptPaneId(id) || !isObj(x)) continue;
+    if (++n > MAX_SCRIPT_PANES) break;
+    out[id] = paneEntry(x, SCRIPT_PANE_DEFAULTS);
   }
   return out;
 }
@@ -110,34 +124,43 @@ function migratePanes(raw: unknown): Record<PaneId, PaneSettings> {
 /**
  * A valid layout from anything: known dock ids only, sizes clamped, each
  * pane id at most once (docks first, then `floating`; first occurrence
- * wins), and any pane missing from every dock and from `floating` appended
- * to the right dock with its default height (the map instead floats at its
- * default spot, `defaultMapFloat`). A dock missing from an older
- * layout (the top dock) comes back empty at its default size.
+ * wins), and any built-in pane missing from every dock and from `floating`
+ * appended to the right dock with its default height (the map instead
+ * floats at its default spot, `defaultMapFloat`). A dock missing from an
+ * older layout (the top dock) comes back empty at its default size.
+ * Script panes with a well-formed id keep their place (at most
+ * MAX_SCRIPT_PANES); a missing one is placed again when its script creates
+ * it (ADR 0053).
  */
 export function migrateLayout(raw: unknown): LayoutModel {
   const d = defaultSettings().layout;
   const docksRaw = isObj(raw) && isObj(raw.docks) ? raw.docks : null;
   if (!docksRaw) return d;
   const seen = new Set<PaneId>();
+  let scripts = 0;
+  /** True when `id` is a pane id not seen yet (and within the script pane bound). */
+  const take = (id: unknown): id is PaneId => {
+    if (!isPaneId(id) || seen.has(id)) return false;
+    if (isScriptPaneId(id) && ++scripts > MAX_SCRIPT_PANES) return false;
+    seen.add(id);
+    return true;
+  };
   const out = { docks: {}, floating: [] } as unknown as LayoutModel;
   for (const dock of DOCK_IDS) {
     const x = isObj(docksRaw[dock]) ? (docksRaw[dock] as Obj) : {};
     const panes: DockPane[] = [];
     for (const p of Array.isArray(x.panes) ? x.panes : []) {
       if (!isObj(p)) continue;
-      const id = p.id as PaneId;
-      if (!PANE_IDS.includes(id) || seen.has(id)) continue;
-      seen.add(id);
-      panes.push({ id, desired: int(p.desired, 1, MAX_CELLS, DEFAULT_PANE_DESIRED[id]) });
+      const id = p.id;
+      if (!take(id)) continue;
+      panes.push({ id, desired: int(p.desired, 1, MAX_CELLS, defaultPaneRows(id)) });
     }
     out.docks[dock] = { size: int(x.size, 1, MAX_CELLS, d.docks[dock].size), panes };
   }
   for (const f of isObj(raw) && Array.isArray(raw.floating) ? raw.floating : []) {
     if (!isObj(f)) continue;
-    const id = f.id as PaneId;
-    if (!PANE_IDS.includes(id) || seen.has(id)) continue;
-    seen.add(id);
+    const id = f.id;
+    if (!take(id)) continue;
     const size = defaultFloatSize(id);
     out.floating.push({
       id,
