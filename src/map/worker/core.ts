@@ -18,9 +18,9 @@
 // `mark` resolves its target, keeps the mark until its absolute end and
 // runs a frame loop while any mark lives and the pane is shown, putting
 // the marks into the scene at most every MARK_TICK_MS (blink and fade).
-// `focus` fits the view to the player and the marks; a pan, zoom or layer
-// change by the player ends the fitting, and when the mark ends an
-// untouched view gets its zoom back, centred on the player.
+// `focus` fits the view to the player and the marks; a pan or zoom by the
+// player ends the fitting, and when the mark ends an untouched view gets
+// its zoom back, centred on the player.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { buildIndexes, type MapData } from '../model';
@@ -31,7 +31,7 @@ import type { Scene, SceneMark } from '../scene';
 import { type Renderer, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
 import type { LearnedIdStore } from './ids';
-import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, changeLayer, defaultView, fitRooms, pan, zoomAt } from '../view';
+import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, defaultView, fitRooms, pan, zoomAt } from '../view';
 
 /** Scene refresh while a mark lives, ms (15 Hz). */
 export const MARK_TICK_MS = 66;
@@ -119,10 +119,6 @@ export class MapWorkerCore {
       case 'zoom':
         this.touch();
         this.setView(zoomAt(this.view, m.steps, m.x, m.y, this.css.w, this.css.h));
-        return;
-      case 'layer':
-        this.touch();
-        this.setView(changeLayer(this.view, m.dz));
         return;
       case 'visible':
         this.visible = m.visible;
@@ -411,7 +407,7 @@ export class MapWorkerCore {
     return fitRooms(this.view, you !== null && you >= 0 && you < map.roomCount ? pos(you) : null, targets, this.css.w, this.css.h);
   }
 
-  /** The player panned, zoomed or changed layer: a focus stops fitting and does not restore. */
+  /** The player panned or zoomed: a focus stops fitting and does not restore. */
   private touch(): void {
     if (this.focus) this.focus.touched = true;
   }

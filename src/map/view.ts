@@ -6,7 +6,7 @@
 // THIRD_PARTY_NOTICES.md "MMapper-derived code".
 //
 // The map view (research §2): scroll centre, zoom and layer, and the
-// pan / zoom-at-cursor / layer operations. Pure; owned by the worker.
+// pan and zoom-at-cursor operations. Pure; owned by the worker.
 //
 // World: a room (x, y, z) covers [x, x+1] × [y, y+1]; +y is north (up on
 // screen). MMapper's 2D projection gives `s(z) = 2640·zoom / (60 − 7z)`
@@ -60,11 +60,6 @@ export function zoomAt(v: View, steps: number, px: number, py: number, w: number
   const wx = v.x + ox / s0;
   const wy = v.y - oy / s0;
   return { ...v, zoom, x: wx - ox / s1, y: wy + oy / s1 };
-}
-
-/** Changes the current layer by `dz`. */
-export function changeLayer(v: View, dz: number): View {
-  return dz === 0 ? v : { ...v, layer: v.layer + Math.trunc(dz) };
 }
 
 /**

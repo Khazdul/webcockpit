@@ -4,7 +4,7 @@ import { writeMm2 } from '../../src/map/mm2-write';
 import type { MapData } from '../../src/map/model';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
 import type { Renderer } from '../../src/map/render/renderer';
-import { centreOn, changeLayer, defaultView, pan, pxPerRoom, zoomAt, ZOOM_MAX } from '../../src/map/view';
+import { centreOn, defaultView, pan, pxPerRoom, zoomAt, ZOOM_MAX } from '../../src/map/view';
 import { MapWorkerCore } from '../../src/map/worker/core';
 import { readMm2 } from '../../src/map/mm2';
 import { migrateLayout } from '../../src/settings/migrate';
@@ -36,7 +36,6 @@ describe('map view', () => {
     expect(after.x).toBeCloseTo(before.x);
     expect(after.y).toBeCloseTo(before.y);
     expect(zoomAt(v0, 100, 0, 0, w, h).zoom).toBe(ZOOM_MAX);
-    expect(changeLayer(v0, -1).layer).toBe(-1);
   });
 });
 

@@ -49,6 +49,12 @@ test('map pane: on by default, floats top-right, worker loads arda.mm2', async (
   const shot1 = await content.screenshot();
   await page.mouse.wheel(0, -200);
   await expect.poll(async () => (await content.screenshot()).equals(shot1), { timeout: 5000 }).toBe(false);
+  // Ctrl+wheel (a trackpad pinch) zooms too, never changes layer (ADR 0059).
+  const shot2 = await content.screenshot();
+  await page.keyboard.down('Control');
+  await page.mouse.wheel(0, 200);
+  await page.keyboard.up('Control');
+  await expect.poll(async () => (await content.screenshot()).equals(shot2), { timeout: 5000 }).toBe(false);
   await expect(page.locator('.wc-input-field')).toBeFocused();
   // The pane did not move (the drag was inside the content, not on the title row).
   const after = await pane.boundingBox();

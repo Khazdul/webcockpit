@@ -4,11 +4,14 @@
 //
 // - The map client and worker are imported the first time the pane is
 //   shown (never at app start, never while the pane is off).
-// - Left-drag pans (pointer capture), the wheel zooms around the cursor,
-//   Ctrl+wheel changes the layer. Input is coalesced to one message per
-//   kind per frame. The title row grip still moves the pane (it lies over
-//   the frame row, above the content). The cockpit's mouseup handler
-//   returns the focus to the input line; the canvas never takes it.
+// - Left-drag pans (pointer capture); every wheel event, with or without
+//   Ctrl, zooms around the cursor (ADR 0059: a trackpad pinch arrives as
+//   Ctrl+wheel, and some touchpad drivers set ctrlKey on a two-finger
+//   swipe; there is no manual layer change, the view follows the player's
+//   layer). Input is coalesced to one message per kind per frame. The
+//   title row grip still moves the pane (it lies over the frame row, above
+//   the content). The cockpit's mouseup handler returns the focus to the
+//   input line; the canvas never takes it.
 // - Without OffscreenCanvas / module workers / WebGL2 the pane shows a
 //   notice instead.
 // - `content.dataset.mapState`: `idle` → `starting` → `ready` → `loaded`
@@ -74,7 +77,7 @@ export class MapPane extends PaneShell {
   private failed = false;
   private sizeKey = '';
   private drag: { id: number; x: number; y: number } | null = null;
-  private acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0, dz: 0 };
+  private acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0 };
   private flushScheduled = false;
   private dprQuery: MediaQueryList | null = null;
   /** Detaches the mark port (ADR 0057). */
@@ -365,16 +368,16 @@ export class MapPane extends PaneShell {
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
     if (!this.client || e.deltaY === 0) return;
-    if (e.ctrlKey) {
-      // MMapper: wheel away from the user (deltaY < 0) goes a layer down.
-      this.acc.dz += e.deltaY < 0 ? -1 : 1;
-    } else {
-      const unit = e.deltaMode === 1 ? 3 : e.deltaMode === 2 ? 1 / 3 : 100;
-      const { x, y } = this.local(e);
-      this.acc.steps += -e.deltaY / unit;
-      this.acc.zx = x;
-      this.acc.zy = y;
-    }
+    // A notch is 100 px, 3 lines or 1/3 page. A trackpad pinch (Ctrl, small
+    // pixel deltas, about -100·ln(scale) in total) uses 40 px so that
+    // spreading the fingers to 2× zooms about 1.33×; a Ctrl+mouse notch
+    // (≥ 50 px) keeps the plain unit.
+    const unit =
+      e.deltaMode === 1 ? 3 : e.deltaMode === 2 ? 1 / 3 : e.ctrlKey && Math.abs(e.deltaY) < 50 ? 40 : 100;
+    const { x, y } = this.local(e);
+    this.acc.steps += -e.deltaY / unit;
+    this.acc.zx = x;
+    this.acc.zy = y;
     this.scheduleFlush();
   };
 
@@ -388,9 +391,8 @@ export class MapPane extends PaneShell {
       if (c) {
         if (a.dx !== 0 || a.dy !== 0) c.pan(a.dx, a.dy);
         if (a.steps !== 0) c.zoom(a.steps, a.zx, a.zy);
-        if (a.dz !== 0) c.layer(a.dz);
       }
-      this.acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0, dz: 0 };
+      this.acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0 };
     });
   }
 }

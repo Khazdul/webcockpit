@@ -84,10 +84,6 @@ export class MapClient {
     this.post({ t: 'zoom', steps, x, y });
   }
 
-  layer(dz: number): void {
-    this.post({ t: 'layer', dz });
-  }
-
   visible(visible: boolean): void {
     this.post({ t: 'visible', visible });
   }
