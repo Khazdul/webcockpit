@@ -182,3 +182,151 @@ test('Export editor log scrolls by pixels; the rows near the view are rendered',
   await expect(f.locator('.wc-exp-row.is-cur')).toHaveAttribute('data-kind', 'end');
   await expect(f.locator('.wc-exp-row.is-cur')).toBeInViewport();
 });
+
+// ------------------------------------------------------------------ panes
+// The Comm, UI and Timers panes scroll natively too (ADR 0052, owner
+// decision 2026-10-02): no stepping by message or row.
+
+const DEMO = '/?fixture=gmcp-demo.log&speed=0';
+const pane = (page: Page, id: string) => page.locator(`.wc-pane[data-pane="${id}"]`);
+const twoFrames = (page: Page) => page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+const scrollTop = (box: Locator) => box.evaluate((el) => el.scrollTop);
+const atBottom = (box: Locator) => box.evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 2);
+
+/** Runs the demo to its end; the panes stay active. */
+async function demoDone(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await page.goto(DEMO);
+  await expect(pane(page, 'ui').locator('.wc-ui-row').filter({ hasText: 'Replay finished.' })).toHaveCount(1);
+  await expect(pane(page, 'comm')).toHaveAttribute('data-active', '');
+}
+
+async function addComm(page: Page, n: number, from = 0): Promise<void> {
+  await page.evaluate(
+    ({ n, from }) => {
+      for (let i = from; i < from + n; i++) {
+        window.__wc!.app.bus.emit('gmcp', {
+          pkg: 'Comm.Channel.Text',
+          data: { channel: 'says', talker: 'Dori', text: `Dori says 'line ${i}'` },
+        } as never);
+      }
+    },
+    { n, from },
+  );
+}
+
+async function addUi(page: Page, n: number, from = 0): Promise<void> {
+  await page.evaluate(
+    ({ n, from }) => {
+      for (let i = from; i < from + n; i++) window.__wc!.app.bus.emit('ui.message', { kind: 'system', parts: [`note ${i}.`] });
+    },
+    { n, from },
+  );
+}
+
+/**
+ * Two small wheel moves over `box`: the second (scrolled back already, at
+ * rest) moves it by a few pixels, more than 0 and less than a row.
+ */
+async function expectPaneWheel(page: Page, box: Locator, dy: number): Promise<void> {
+  const row = await box.evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--cell-h')) || 16);
+  await box.hover();
+  const t0 = await scrollTop(box);
+  await page.mouse.wheel(0, dy);
+  await expect.poll(() => scrollTop(box)).not.toBe(t0);
+  // Let the scroll come to rest (the Comm timestamps come in then, ADR 0052).
+  await page.waitForTimeout(400);
+  const t1 = await scrollTop(box);
+  await page.mouse.wheel(0, dy);
+  await expect.poll(() => scrollTop(box)).not.toBe(t1);
+  await twoFrames(page);
+  const moved = Math.abs((await scrollTop(box)) - t1);
+  expect(moved).toBeGreaterThan(0);
+  expect(moved).toBeLessThan(row);
+}
+
+test('Comm pane: the wheel scrolls by pixels; new messages follow only at the bottom', async ({ page }) => {
+  await demoDone(page);
+  await addComm(page, 40);
+  const list = pane(page, 'comm').locator('.wc-alist');
+  const rows = pane(page, 'comm').locator('.wc-comm-msg');
+  await expect(rows.last()).toHaveText("Dori says 'line 39'");
+  await expect.poll(() => atBottom(list)).toBe(true);
+  // At the bottom a burst follows.
+  await addComm(page, 5, 40);
+  await expect(rows.last()).toHaveText("Dori says 'line 44'");
+  await expect.poll(() => atBottom(list)).toBe(true);
+  await expect(rows.last()).toBeInViewport();
+  // A few pixels up: scrolled back, by pixels.
+  await expectPaneWheel(page, list, -5);
+  const more = pane(page, 'comm').locator('.wc-alist-more');
+  await expect(more).toBeVisible();
+  // Scrolled back: new messages land below, the view stays.
+  await page.mouse.wheel(0, -200);
+  await expect(pane(page, 'comm').locator('.wc-comm-time').first()).toBeAttached();
+  await page.waitForTimeout(400);
+  const top = await scrollTop(list);
+  const before = await more.textContent();
+  await addComm(page, 3, 45);
+  await expect(more).not.toHaveText(before!);
+  expect(await scrollTop(list)).toBe(top);
+  await expect(rows.last()).not.toBeInViewport();
+  // Back to the bottom with the wheel: live again, and it follows.
+  for (let i = 0; i < 5; i++) await page.mouse.wheel(0, 1000);
+  await expect(more).toBeHidden();
+  await expect(pane(page, 'comm').locator('.wc-comm-time')).toHaveCount(0);
+  await addComm(page, 2, 48);
+  await expect(rows.last()).toHaveText("Dori says 'line 49'");
+  await expect.poll(() => atBottom(list)).toBe(true);
+  await expect(rows.last()).toBeInViewport();
+});
+
+test('UI pane: the wheel scrolls by pixels; new lines follow only at the bottom', async ({ page }) => {
+  await demoDone(page);
+  await addUi(page, 40);
+  const list = pane(page, 'ui').locator('.wc-alist');
+  const rows = pane(page, 'ui').locator('.wc-ui-row');
+  await expect(rows.last()).toHaveText('● SYSTEM: note 39.');
+  await expect.poll(() => atBottom(list)).toBe(true);
+  await expectPaneWheel(page, list, -5);
+  const more = pane(page, 'ui').locator('.wc-alist-more');
+  await expect(more).toBeVisible();
+  const top = await scrollTop(list);
+  await addUi(page, 3, 40);
+  await expect(rows.last()).toHaveText('● SYSTEM: note 42.');
+  await twoFrames(page);
+  expect(await scrollTop(list)).toBe(top);
+  await expect(rows.last()).not.toBeInViewport();
+  // The indicator returns to live.
+  await more.dispatchEvent('mousedown', { button: 0 });
+  await expect(more).toBeHidden();
+  await expect.poll(() => atBottom(list)).toBe(true);
+  await addUi(page, 1, 43);
+  await expect(rows.last()).toHaveText('● SYSTEM: note 43.');
+  await expect.poll(() => atBottom(list)).toBe(true);
+  await expect(rows.last()).toBeInViewport();
+});
+
+test('Timers pane: the wheel scrolls by pixels; the indicator follows and returns to the top', async ({ page }) => {
+  await demoDone(page);
+  await page.evaluate(() => {
+    window.__wc!.settings.update((d) => void (d.timers.groups.spell.cols = 1));
+    const t = window.__wc!.app.game.timers;
+    const now = Date.now();
+    for (let i = 0; i < 30; i++) {
+      t.debugAdd({ id: `s${i}`, name: `spell${i}`, group: 'spell', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true } as never);
+    }
+  });
+  const box = pane(page, 'timers').locator('.wc-timers-scroll');
+  const more = pane(page, 'timers').locator('.wc-timers-more');
+  await expect(more).toHaveText(/^↓ \d+ more rows\s*$/);
+  await expectPaneWheel(page, box, 5);
+  await expect(more).toHaveText(/^↑ 1 row above\s*$/);
+  await page.mouse.wheel(0, 100);
+  await expect(more).toHaveText(/^↑ \d+ rows above\s*$/);
+  // A press on the indicator goes back to the top.
+  await more.dispatchEvent('mousedown', { button: 0 });
+  await expect.poll(() => scrollTop(box)).toBe(0);
+  await expect(more).toHaveText(/^↓ \d+ more rows\s*$/);
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
