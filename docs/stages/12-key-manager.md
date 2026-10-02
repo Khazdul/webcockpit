@@ -113,6 +113,31 @@ fields).
   deleted, renamed, expired, safe key) is in the UI messages; casts and
   errors are `KEYS` lines in the game text.
 
+## Plan (round 4): TV
+
+Scry and watch room output in temporary panes, after the owner approved
+round 3. Line formats come only from the Mudlet script (no MUME log has
+them) and are unverified: `You feel aware of this place.` starts a
+watch, its lines arrive as `[<name>] <text>`, `[<name>] Your awareness
+decreases.` ends it; a scry prints `You let your inner eye find the
+area... and you see:`, the room, and a blank line.
+
+- One TV pane per key (`TV $name`), in four slots placed in the game
+  pane's corners (new generic `at` values), the oldest ended one replaced
+  first. Status (watching with time left, scried N ago, ended) in the
+  title; the lines below, newest at the bottom, bright for 10 s then dim,
+  in the game's colours (new `copy2cecho()`).
+- Watch lines and the scry block are hidden from the game text (setting
+  `tvgag`); the start, end and scry header become short `KEYS` lines.
+- A TV closes by itself a while after its watch ends or its scry (setting
+  `tvclose`); the last 250 lines per key stay in memory for `tv <name>`.
+- The watch duration is learnt per character (average of the last five).
+- Port keys pane: a watched key shows a red ● and the watch's time left;
+  a key with TV history a dim ●; clicking it opens the TV, and `w` on a
+  watched key opens its TV instead of casting again.
+- Commands: `tv` (show or hide the TVs), `tv <name>`, `kecho <name>
+  [rows]`.
+
 ## Tasks
 
 - [x] Receive and study the Mudlet reference script
@@ -124,8 +149,9 @@ fields).
       typed in the pick window (owner).
 - [x] Unit and e2e tests; full verification.
 - [x] Test guide.
-- [ ] Owner test round 1.
-- [ ] Later round: TV for scry and watch room.
+- [x] Owner test rounds 1–3 (round 3 approved 2026-10-02).
+- [ ] Round 4: TV for scry and watch room (plan below, ADR 0054).
+- [ ] Owner test round 4.
 
 ## Test guide
 
@@ -238,3 +264,7 @@ layout forgets it); the pick window opens at the top.
 4. A safe key change in the UI messages names only the key, no keys to
    press: "Safe key: $home.", or after an expiry or a delete "Safe key
    is now $home ($old expired)."
+
+### Round 3 (2026-10-02)
+
+Approved ("ser bra ut"). Next: round 4, the TV.
