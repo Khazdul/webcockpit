@@ -20,8 +20,8 @@
 // line is shown after that line.
 //
 // Guards: alias nesting depth (ALIAS_DEPTH), an alias never re-enters
-// itself (its own name in its body is sent to the game), #showme → action
-// nesting (SHOW_DEPTH), and a per-entry command budget (BUDGET) against
+// itself (its own name in its body is sent to the game), an action never
+// fires on its own #showme output, #showme → action nesting (SHOW_DEPTH), and a per-entry command budget (BUDGET) against
 // runaway #N repeats.
 
 import type { Bus } from '../../core/bus';
@@ -213,6 +213,8 @@ export class ScriptEngine {
   private showDepth = 0;
   private showWarned = false;
   private readonly activeAliases = new Set<Rule>();
+  /** Actions running now: their own #showme lines skip them. */
+  private readonly activeActions = new Set<Rule>();
   /** Inert command hints already given since the last load. */
   private readonly hinted = new Set<string>();
 
@@ -1075,9 +1077,15 @@ export class ScriptEngine {
         r.fn({ args: wholeArgs(c, text), line });
         continue;
       }
+      if (this.activeActions.has(r)) continue;
       const m = this.matchRule(r, text);
       if (!m) continue;
-      this.fire(r, m.args, line);
+      this.activeActions.add(r);
+      try {
+        this.fire(r, m.args, line);
+      } finally {
+        this.activeActions.delete(r);
+      }
     }
   }
 

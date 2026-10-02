@@ -277,11 +277,28 @@ describe('actions', () => {
     expect(t.sent).toEqual(['armed now', 'bash %1', 'bash Orc']);
   });
 
-  it('#showme runs actions, with a guard against loops', () => {
+  it('an action does not fire on its own #showme line', () => {
     const t = setup();
-    t.e.input('#action {^ping$} {#showme ping}');
+    t.e.input('#action {^%1key: \'%2\'$} {#showme %0}');
+    t.recv("a bear - Indoors  Near  key: 'abc'");
+    expect(t.texts()).toEqual(["a bear - Indoors  Near  key: 'abc'", "a bear - Indoors  Near  key: 'abc'"]);
+    expect(t.msgs.some((m) => m.includes('action loop'))).toBe(false);
+  });
+
+  it('#showme loops between actions stop when they come back round', () => {
+    const t = setup();
+    t.e.input('#action {^ping$} {#showme pong}');
+    t.e.input('#action {^pong$} {#showme ping}');
     t.e.input('#showme ping');
-    expect(t.texts().filter((x) => x === 'ping').length).toBeGreaterThan(1);
+    expect(t.texts()).toEqual(['ping', 'pong', 'ping']);
+    expect(t.msgs.some((m) => m.includes('action loop'))).toBe(false);
+  });
+
+  it('#showme runs actions, with a depth guard on long chains', () => {
+    const t = setup();
+    for (let i = 0; i < 12; i++) t.e.input(`#action {^step ${i}$} {#showme step ${i + 1}}`);
+    t.e.input('#showme step 0');
+    expect(t.texts().length).toBeLessThan(12);
     expect(t.msgs.some((m) => m.includes('action loop'))).toBe(true);
   });
 
