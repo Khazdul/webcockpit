@@ -256,7 +256,7 @@ describe('bundled keymanager', () => {
     locateBlock(t, GITTAN);
     const shown = t.texts().slice(before);
     expect(shown).toEqual([CONCENTRATE, '', '', PROMPT]);
-    expect(t.lastUi()).toBe('KEYS: Stored $home (On a hill, Very near): uxevjobve. It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $home (On a hill, Very near): uxevjobve. Safe key: $home.');
     expect(t.store()).toMatchObject({ safe: 'home', keys: [{ name: 'home', key: 'uxevjobve', room: 'On a hill', dist: 'Very near' }] });
     const r = t.rows();
     expect(r[0]).toMatch(/^ 1 key +\?$/);
@@ -317,7 +317,7 @@ describe('bundled keymanager', () => {
     t.fieldKey('PageDown');
     t.enter();
     expect(t.panes.pick).toBeNull();
-    expect(t.lastUi()).toBe('KEYS: Stored $cave (In a forest, Near): qwertyuio. It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $cave (In a forest, Near): qwertyuio. Safe key: $cave.');
 
     // kpick opens it again; a stored hit is marked; a name that exists says
     // it will be replaced; a bad name is refused inline.
@@ -385,7 +385,7 @@ describe('bundled keymanager', () => {
     expect(t.texts()).toEqual([CONCENTRATE, '', '', PROMPT]);
     expect(t.field().value).toBe('hill');
     t.enter();
-    expect(t.lastUi()).toBe('KEYS: Stored $hill (On a hill, Very near): uxevjobve. It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $hill (On a hill, Very near): uxevjobve. Safe key: $hill.');
     // The same room again: its name in the library; Enter renews it.
     t.clock.advance(HOUR);
     t.recv(CONCENTRATE, '', GITTAN, '', PROMPT);
@@ -428,7 +428,7 @@ describe('bundled keymanager', () => {
   it('nkey, the star, x; the safe key moves and is re-elected; all in the UI messages', async () => {
     const t = await setup();
     t.input('nkey home aaaaaaa');
-    expect(t.lastUi()).toBe('KEYS: Stored $home: aaaaaaa. It is your safe key (Ctrl+S).');
+    expect(t.lastUi()).toBe('KEYS: Stored $home: aaaaaaa. Safe key: $home.');
     t.clock.advance(60_000);
     t.input('nkey cave bbbbbbb');
     t.clock.advance(60_000);
@@ -441,13 +441,13 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(['skey cave']);
     t.sent.length = 0;
     t.click(1, '☆');
-    expect(t.lastUi()).toBe('KEYS: Safe key: $cave (Ctrl+S teleports, Alt+S quickly).');
+    expect(t.lastUi()).toBe('KEYS: Safe key: $cave.');
     expect(t.rows()[1]).toMatch(/^ ★ \$cave /);
     expect(t.rows()[2]).toMatch(/^ ☆ \$home /);
     // Clicking a star makes that key safe.
     t.click(2, '☆');
     expect(t.store()!.safe).toBe('home');
-    expect(t.lastUi()).toBe('KEYS: Safe key: $home (Ctrl+S teleports, Alt+S quickly).');
+    expect(t.lastUi()).toBe('KEYS: Safe key: $home.');
     // dkey, rkey and krename are gone (the pane does it): they go to the game.
     for (const c of ['dkey home', 'rkey home x', 'krename home x']) t.input(c);
     // keys list shows the safe key.
@@ -458,12 +458,12 @@ describe('bundled keymanager', () => {
     // Deleting the safe key (x twice) re-elects the freshest live key.
     t.click(2, 'x');
     t.click(2, 'x');
-    expect(t.lastUi()).toBe('KEYS: Deleted $home. The safe key is now $lair.');
+    expect(t.uiText().slice(-2)).toEqual(['KEYS: Deleted $home.', 'KEYS: Safe key is now $lair ($home deleted).']);
     t.click(1, 'x');
     t.click(1, 'x');
     t.click(1, 'x');
     t.click(1, 'x');
-    expect(t.lastUi()).toBe('KEYS: Deleted $lair. No keys left: no safe key.');
+    expect(t.uiText().slice(-2)).toEqual(['KEYS: Deleted $lair.', 'KEYS: No safe key: no keys left.']);
     t.input('tsafe');
     expect(t.lastText()).toBe('KEYS No keys, so no safe key. locatel <name> stores one.');
     expect(t.sent).toEqual([]);
@@ -594,7 +594,7 @@ describe('bundled keymanager', () => {
     expect(t.linkAt(1, 'x')!.hint).toBe('Delete $home (click twice)');
     t.click(1, 'x');
     t.click(1, 'x');
-    expect(t.lastUi()).toBe('KEYS: Deleted $home. No keys left: no safe key.');
+    expect(t.uiText().slice(-2)).toEqual(['KEYS: Deleted $home.', 'KEYS: No safe key: no keys left.']);
     expect(t.rows()[2]).toBe(' No keys yet.');
   });
 
@@ -630,15 +630,15 @@ describe('bundled keymanager', () => {
     expect('spans' in span && span.spans.find((s) => s.text === '30m')!.fg).toBeDefined();
     const n0 = t.uiText().length;
     t.clock.advance(31 * 60_000);
-    expect(t.uiText().slice(n0)).toEqual(['KEYS: Key $home expired. The safe key is now $lair.']);
+    expect(t.uiText().slice(n0)).toEqual(['KEYS: Key $home expired.', 'KEYS: Safe key is now $lair ($home expired).']);
     expect(t.store()!.safe).toBe('lair');
     t.clock.advance(5 * 60_000);
-    expect(t.uiText().slice(n0)).toHaveLength(1);
+    expect(t.uiText().slice(n0)).toHaveLength(2);
     // On use: cave has expired by now (11 h + …).
     t.clock.advance(2 * HOUR);
     expect(t.uiText().at(-1)).toBe('KEYS: Key $cave expired.');
     t.clock.advance(HOUR);
-    expect(t.uiText().at(-1)).toBe('KEYS: Key $lair expired. No keys left: no safe key.');
+    expect(t.uiText().slice(-2)).toEqual(['KEYS: Key $lair expired.', 'KEYS: No safe key: no keys left.']);
   });
 
   it('an expired key is refused on use, never a substitute', async () => {
@@ -680,7 +680,7 @@ describe('bundled keymanager', () => {
     t.clock.advance(13 * HOUR);
     await t.host.reload('keymanager');
     t.clock.advance(1);
-    expect(t.uiText().at(-1)).toBe('KEYS: Key $home expired. No keys left: no safe key.');
+    expect(t.uiText().slice(-2)).toEqual(['KEYS: Key $home expired.', 'KEYS: No safe key: no keys left.']);
     expect(t.store()!.safe).toBeUndefined();
     expect(Object.keys(t.store()!.keys)).toEqual([]);
   });

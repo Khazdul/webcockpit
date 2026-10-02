@@ -210,3 +210,9 @@ Round 1"). Supersedes the sections above where they differ.
   keeping the field's row while `x` waited for its second click).
 - **`skey` is removed.** The safe key is set only with the star in the
   pane; `keys list` still marks it with ★. Typing `skey` goes to the game.
+- **Short safe key messages.** A safe key change names only the key:
+  `Safe key: $home.` (set with the star, or appended to the first key's
+  `Stored …`), and a re-election is its own message after the expiry or
+  delete message: `Safe key is now $home ($old expired).` /
+  `($old deleted)`, or `No safe key: no keys left.` No keys to press are
+  mentioned (the star's tooltip still says Ctrl+S and Alt+S).

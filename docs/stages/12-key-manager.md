@@ -133,7 +133,8 @@ fields).
 
 What changed: the rename field is opaque and readable; clicking outside
 it cancels the rename; `x`, the star and the letters work while a name
-is being edited; `skey` is gone (click the star).
+is being edited; `skey` is gone (click the star); safe key messages
+are short ("Safe key: $home.", "Safe key is now $home ($old expired).").
 
 Try: click a name, type, click in the game text (the row is whole
 again), then `x` twice. Click a name, then click another key's star or
@@ -234,3 +235,6 @@ layout forgets it); the pick window opens at the top.
    blur, and the row's other actions always work (cancelling a rename
    first).
 3. Remove `skey`: the safe key is set only with the star in the pane.
+4. A safe key change in the UI messages names only the key, no keys to
+   press: "Safe key: $home.", or after an expiry or a delete "Safe key
+   is now $home ($old expired)."

@@ -267,14 +267,12 @@ local function prune()
   for _, n in ipairs(gone) do names[#names + 1] = "$" .. n end
   local text = (#gone == 1 and "Key " or "Keys ") .. table.concat(names, ", ") .. " expired."
   local moved = ensureSafe()
-  if moved ~= false and safeName then
-    if lib.safe then
-      text = text .. " The safe key is now $" .. lib.keys[lib.safe].name .. "."
-    else
-      text = text .. " No keys left: no safe key."
-    end
-  end
   uiMessage("keys", text)
+  -- The safe key's change, in a short message of its own.
+  if moved ~= false and safeName then
+    uiMessage("keys", lib.safe and ("Safe key is now $" .. lib.keys[lib.safe].name .. " ($" .. safeName .. " expired).")
+      or "No safe key: no keys left.")
+  end
   save()
   return true
 end
@@ -354,7 +352,7 @@ local function addKey(name, key, room, dist)
   end
   note((old and (old.key == key and "Renewed $" or "Replaced $") or "Stored $") .. name .. info .. ": " .. key .. "."
     .. (other and (" Same key as $" .. other .. ".") or "")
-    .. (becameSafe and " It is your safe key (Ctrl+S)." or ""))
+    .. (becameSafe and (" Safe key: $" .. name .. ".") or ""))
   stopFresh()
   draw()
 end
@@ -366,17 +364,13 @@ local function deleteKey(id)
   lib.keys[id] = nil
   fresh[id] = nil
   if confirm and confirm.id == id then confirm = nil end
-  local text = "Deleted $" .. k.name .. "."
+  save()
+  note("Deleted $" .. k.name .. ".")
   if wasSafe then
     ensureSafe()
-    if lib.safe then
-      text = text .. " The safe key is now $" .. lib.keys[lib.safe].name .. "."
-    else
-      text = text .. " No keys left: no safe key."
-    end
+    note(lib.safe and ("Safe key is now $" .. lib.keys[lib.safe].name .. " ($" .. k.name .. " deleted).") or "No safe key: no keys left.")
+    save()
   end
-  save()
-  note(text)
   draw()
 end
 
@@ -409,7 +403,7 @@ local function setSafe(id)
   end
   lib.safe = id
   save()
-  note("Safe key: $" .. k.name .. " (Ctrl+S teleports, Alt+S quickly).")
+  note("Safe key: $" .. k.name .. ".")
   draw()
 end
 
