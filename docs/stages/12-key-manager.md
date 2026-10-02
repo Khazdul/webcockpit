@@ -208,3 +208,16 @@ time left; `sysSettingChanged` redraws at once (mercenaries too);
 `dkey`, `rkey` and `krename` are gone; no character name in the header;
 temporary panes open at `at` and remember their place per device (Reset
 layout forgets it); the pick window opens at the top.
+
+### Round 2 (2026-10-02)
+
+1. The rename field shows the old name through it (`$deerpopop` over
+   `$deer`), hard to read. Generic: a field must be opaque, the cells
+   under it not drawn, its text clearly readable with a visible caret,
+   in light and dark tints.
+2. Clicking outside a rename field leaves the row stuck (grey text on
+   another background, the key cannot be deleted). Generic: `onBlur` for
+   fields, never a half state; the key manager cancels the rename on
+   blur, and the row's other actions always work (cancelling a rename
+   first).
+3. Remove `skey`: the safe key is set only with the star in the pane.
