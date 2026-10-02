@@ -14,11 +14,45 @@ import { SettingsStore } from '../../src/settings';
 
 const CELL_H = 16;
 
+/**
+ * A layout model for happy-dom: items stack at the bottom of the list, each
+ * `height(el)` px; the list is `client(list)` px high and keeps a clamped
+ * scrollTop.
+ */
+function model(height: (el: HTMLElement) => number, client: (list: HTMLElement) => number): ListMetrics {
+  const tops = new WeakMap<HTMLElement, number>();
+  const content = (list: HTMLElement): number => {
+    let t = 0;
+    for (const el of list.querySelector('.wc-alist-stack')!.children) t += height(el as HTMLElement);
+    return t;
+  };
+  const scrollHeight = (list: HTMLElement): number => Math.max(client(list), content(list));
+  return {
+    scrollTop: (l) => Math.min(tops.get(l) ?? 0, scrollHeight(l) - client(l)),
+    setScrollTop: (l, px) => void tops.set(l, Math.max(0, Math.min(scrollHeight(l) - client(l), px))),
+    clientHeight: client,
+    scrollHeight,
+    itemTop: (el) => {
+      const list = el.closest<HTMLElement>('.wc-alist')!;
+      let t = Math.max(0, client(list) - content(list));
+      for (let e = el.previousElementSibling; e; e = e.previousElementSibling) t += height(e as HTMLElement);
+      return t;
+    },
+    itemHeight: height,
+  };
+}
+
+/** Scrolls the list by `px` as the browser would, then fires `scroll`. */
+function scrollBy(list: HTMLElement, m: ListMetrics, px: number): void {
+  m.setScrollTop(list, m.scrollTop(list) + px);
+  list.dispatchEvent(new Event('scroll'));
+}
+
 /** Monospace metrics: each item wraps at `cols()` characters, one row = 16 px. */
 function metrics(cols: () => number, paneRows: () => number): ListMetrics {
-  return {
-    itemHeight: (el) => Math.max(1, Math.ceil((el.textContent ?? '').length / cols())) * CELL_H,
-    listHeight: (list) => {
+  return model(
+    (el) => Math.max(1, Math.ceil((el.textContent ?? '').length / cols())) * CELL_H,
+    (list) => {
       const pane = list.parentElement!;
       let rows = paneRows();
       const header = pane.querySelector<HTMLElement>('.wc-comm-header');
@@ -26,7 +60,7 @@ function metrics(cols: () => number, paneRows: () => number): ListMetrics {
       if (!pane.querySelector<HTMLElement>('.wc-alist-more')!.hidden) rows--;
       return rows * CELL_H;
     },
-  };
+  );
 }
 
 function setup(opts: { state?: ConnState; cols?: number; rows?: number; db?: boolean; storage?: Storage | null; now?: () => number } = {}) {
@@ -78,99 +112,173 @@ describe('AnchoredList', () => {
     const heights = new Map<HTMLElement, number>();
     const doc = document;
     let changes = 0;
-    const m: ListMetrics = {
-      itemHeight: (el) => heights.get(el)! * CELL_H,
-      listHeight: (l) => (rows - (l.parentElement!.querySelector<HTMLElement>('.wc-alist-more')!.hidden ? 0 : 1)) * CELL_H,
-    };
-    const al = new AnchoredList(doc, () => changes++, { metrics: m, cellHeight: () => CELL_H });
+    const m = model(
+      (el) => heights.get(el)! * CELL_H,
+      (l) => (rows - (l.parentElement!.querySelector<HTMLElement>('.wc-alist-more')!.hidden ? 0 : 1)) * CELL_H,
+    );
+    const al = new AnchoredList<number>(doc, () => changes++, { metrics: m, settleMs: 0 });
     const box = doc.createElement('div');
     box.append(al.el, al.more);
-    let n = count;
+    let items = Array.from({ length: count }, (_, i) => i);
+    let built = 0;
+    let key = 'k';
     const render = () =>
-      al.render(n, rows, (i) => {
-        const el = doc.createElement('div');
-        el.textContent = `m${i}`;
-        heights.set(el, height(i));
-        return el;
-      }, (k) => `↓ ${k}`);
+      al.render(
+        items,
+        (i) => {
+          built++;
+          const el = doc.createElement('div');
+          el.textContent = `m${i}`;
+          heights.set(el, height(i));
+          return el;
+        },
+        key,
+        (k) => `↓ ${k}`,
+      );
     render();
+    /** The items wholly or partly in view. */
+    const inView = () => {
+      const top = m.scrollTop(al.el);
+      const bottom = top + m.clientHeight(al.el);
+      return al.elements
+        .filter((e) => m.itemTop(e) + m.itemHeight(e) > top && m.itemTop(e) < bottom)
+        .map((e) => e.textContent);
+    };
     return {
       al,
+      m,
       render,
-      shown: () => [...al.el.querySelectorAll('.wc-alist-stack > div')].map((e) => e.textContent),
+      inView,
+      top: () => m.scrollTop(al.el),
+      scroll: (px: number) => scrollBy(al.el, m, px),
       add: (k: number) => {
-        n += k;
-        al.added(k);
+        const n = items.length ? items[items.length - 1]! + 1 : 0;
+        items = items.concat(Array.from({ length: k }, (_, i) => n + i));
       },
+      trim: (k: number) => void (items = items.slice(k)),
+      setKey: (k: string) => void (key = k),
+      built: () => built,
       changes: () => changes,
     };
   }
 
-  it('shows the newest items at live and cannot scroll when everything fits', () => {
+  it('shows the newest items at live; a short list cannot scroll', () => {
     const l = list(3, 5);
-    expect(l.shown()).toEqual(['m0', 'm1', 'm2']);
-    expect(l.al.up()).toBe(false);
+    expect(l.inView()).toEqual(['m0', 'm1', 'm2']);
+    expect(l.al.live).toBe(true);
+    l.scroll(-10);
+    expect(l.al.live).toBe(true);
     expect(l.al.more.hidden).toBe(true);
   });
 
-  it('scrolls by item and stops with the oldest at the top', () => {
+  it('scrolls by pixels: a few pixels up leaves live and counts the items below', () => {
     const l = list(10, 5);
-    // 5 rows; scrolled the list has 4 rows. Max offset: items 0..3 fill 4 rows → offset 6.
-    let steps = 0;
-    while (l.al.up()) {
-      l.render();
-      steps++;
-    }
-    expect(steps).toBe(6);
-    expect(l.al.offset).toBe(6);
-    expect(l.shown().slice(-4)).toEqual(['m0', 'm1', 'm2', 'm3']);
+    expect(l.top()).toBe(5 * CELL_H);
+    expect(l.inView()).toEqual(['m5', 'm6', 'm7', 'm8', 'm9']);
+    l.scroll(-5);
+    expect(l.top()).toBe(5 * CELL_H - 5);
+    expect(l.al.live).toBe(false);
+    expect(l.changes()).toBe(1);
+    // The indicator takes a row: m8 is now partly hidden too.
     expect(l.al.more.hidden).toBe(false);
+    expect(l.al.more.textContent).toBe('↓ 2');
+    // Up to the top: the oldest item at the top edge.
+    l.scroll(-1000);
+    expect(l.top()).toBe(0);
+    expect(l.inView()).toEqual(['m0', 'm1', 'm2', 'm3']);
     expect(l.al.more.textContent).toBe('↓ 6');
-    // New items keep the view.
+    // Back down to the bottom: live again.
+    l.scroll(1000);
+    expect(l.al.live).toBe(true);
+    expect(l.al.more.hidden).toBe(true);
+  });
+
+  it('live: new items follow the bottom and only the new ones are built', () => {
+    const l = list(10, 5);
+    const b = l.built();
+    l.add(3);
+    l.render();
+    expect(l.built() - b).toBe(3);
+    expect(l.inView().at(-1)).toBe('m12');
+    expect(l.al.live).toBe(true);
+    // A render with nothing new builds nothing.
+    l.render();
+    expect(l.built() - b).toBe(3);
+  });
+
+  it('scrolled back: new items keep the view, trimmed items are made up for', () => {
+    const l = list(10, 5);
+    l.scroll(-3 * CELL_H);
+    const view = l.inView();
     l.add(2);
     l.render();
-    expect(l.al.offset).toBe(8);
-    expect(l.shown().slice(-1)).toEqual(['m3']);
-    l.al.toLive();
+    expect(l.inView()).toEqual(view);
+    expect(l.al.more.textContent).toBe('↓ 6');
+    // The ring drops the two oldest: the view stays on the same items.
+    l.trim(2);
     l.render();
-    expect(l.shown().slice(-1)).toEqual(['m11']);
+    expect(l.inView()).toEqual(view);
+    // The indicator returns to live.
+    l.al.more.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    expect(l.al.live).toBe(true);
+    expect(l.inView().at(-1)).toBe('m11');
     expect(l.al.more.hidden).toBe(true);
   });
 
-  it('counts wrapped rows: a tall item fills the view sooner', () => {
-    // Item 0 is 4 rows high: items 0 and 1 fill the 4-row scrolled list at offset 8.
-    const l = list(10, 5, (i) => (i === 0 ? 4 : 1));
-    while (l.al.up()) l.render();
-    expect(l.al.offset).toBe(9);
-    expect(l.shown()).toEqual(['m0']);
-  });
-
-  it('clamps back when the items above no longer fill the view', () => {
+  it('rebuilds on a new key or other items; the browser clamps the position', () => {
     const l = list(10, 5);
-    for (let i = 0; i < 6; i++) {
-      l.al.up();
-      l.render();
-    }
-    expect(l.al.offset).toBe(6);
-    // Force a larger offset (e.g. filters removed items): render steps back.
-    (l.al as unknown as { _offset: number })._offset = 9;
+    const b = l.built();
+    l.setKey('other');
     l.render();
-    expect(l.al.offset).toBe(6);
+    expect(l.built() - b).toBe(10);
+    l.scroll(-1000);
+    // Fewer items (a filter): rebuilt, still scrolled back, clamped.
+    l.trim(8);
+    l.render();
+    expect(l.al.elements.map((e) => e.textContent)).toEqual(['m8', 'm9']);
+    expect(l.top()).toBe(0);
   });
 
-  it('wheel: one step per notch, small deltas accumulate, mouse down on the indicator returns', () => {
-    const l = list(20, 5);
-    l.al.el.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
-    expect(l.al.offset).toBe(1);
-    l.render();
-    for (let i = 0; i < 3; i++) l.al.el.dispatchEvent(new WheelEvent('wheel', { deltaY: -15 }));
-    expect(l.al.offset).toBe(2);
-    l.render();
-    l.al.el.dispatchEvent(new WheelEvent('wheel', { deltaY: 3, deltaMode: 1 }));
-    expect(l.al.offset).toBe(1);
-    l.render();
-    l.al.more.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
-    expect(l.al.offset).toBe(0);
+  it('resting follows live once the scrolling is quiet; only then the owner hears', async () => {
+    let changes = 0;
+    const heights = new Map<HTMLElement, number>();
+    const m = model((el) => heights.get(el) ?? CELL_H, () => 5 * CELL_H);
+    const al = new AnchoredList<number>(document, () => changes++, { metrics: m, settleMs: 20 });
+    document.createElement('div').append(al.el, al.more);
+    al.render(Array.from({ length: 20 }, (_, i) => i), () => document.createElement('div'), 'k', (n) => `↓ ${n}`);
+    scrollBy(al.el, m, -40);
+    expect(al.live).toBe(false);
+    expect(al.resting).toBe(true);
+    expect(changes).toBe(0);
+    scrollBy(al.el, m, -10);
+    await new Promise((r) => setTimeout(r, 60));
+    expect(al.resting).toBe(false);
+    expect(changes).toBe(1);
+    al.toLive();
+    expect(al.resting).toBe(true);
+    expect(changes).toBe(2);
+    al.dispose();
+  });
+
+  it('keepView holds the top item while heights change', () => {
+    const tall = new Set<number>();
+    const l = list(10, 5, (i) => (tall.has(i) ? 2 : 1));
+    l.scroll(-3 * CELL_H - 4);
+    const first = l.inView()[0];
+    const at = () => {
+      const el = l.al.elements.find((e) => e.textContent === first)!;
+      return l.m.itemTop(el) - l.top();
+    };
+    const before = at();
+    // Items 0..3 get taller (their heights come from the map at measuring time).
+    l.al.keepView(() => {
+      for (const i of [0, 1, 2, 3]) tall.add(i);
+      for (const e of l.al.elements) {
+        const n = Number(e.textContent!.slice(1));
+        if (tall.has(n)) e.dataset.tall = '1';
+      }
+    });
+    expect(at()).toBe(before);
   });
 });
 
@@ -275,29 +383,41 @@ describe('CommPane', () => {
     expect(c.pane.content.querySelector<HTMLElement>('.wc-comm-header')!.hidden).toBe(true);
   });
 
-  it('timestamps only while scrolled back', () => {
+  it('timestamps only while scrolled back; the top row keeps its place', () => {
     const t0 = new Date(2026, 8, 27, 14, 5).getTime();
-    const c = comm({ cols: 40, rows: 4, now: () => t0 });
-    for (let i = 0; i < 10; i++) c.bus.emit('gmcp', text('says', 'Dori', `Dori says 'm${i}'`));
-    c.flush();
-    expect(c.rows().slice(-1)).toEqual(["Dori says 'm9'"]);
-    c.pane.content.querySelector('.wc-alist')!.dispatchEvent(new WheelEvent('wheel', { deltaY: -100 }));
-    c.flush();
-    expect(c.rows().slice(-1)).toEqual(["14:05 Dori says 'm8'"]);
-    expect(c.pane.content.querySelector<HTMLElement>('.wc-alist-more')!.textContent).toBe('↓ 1 newer message');
-    // New messages keep the view and count in the indicator.
-    c.bus.emit('gmcp', text('says', 'Dori', "Dori says 'm10'"));
-    c.flush();
-    expect(c.rows().slice(-1)).toEqual(["14:05 Dori says 'm8'"]);
-    expect(c.pane.content.querySelector<HTMLElement>('.wc-alist-more')!.textContent).toBe('↓ 2 newer messages');
-    // A message on a filtered channel does not move the view.
-    c.settings.update((d) => void (d.comm.filters.tells = false));
-    c.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'x'"));
-    c.flush();
-    expect(c.pane.content.querySelector<HTMLElement>('.wc-alist-more')!.textContent).toBe('↓ 2 newer messages');
-    c.pane.content.querySelector('.wc-alist-more')!.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
-    c.flush();
-    expect(c.rows().slice(-1)).toEqual(["Dori says 'm10'"]);
+    const env = setup({ cols: 40, rows: 4, now: () => t0 });
+    const m = metrics(() => env.size.cols, () => env.size.rows);
+    const pane = new CommPane(env.ctx, { metrics: m, settleMs: 0 });
+    document.body.append(pane.el);
+    place(pane, env.size.cols, env.size.rows);
+    env.flush();
+    const rows = () => [...pane.content.querySelectorAll<HTMLElement>('.wc-comm-msg')].map((e) => e.textContent);
+    const list = pane.content.querySelector<HTMLElement>('.wc-alist')!;
+    const more = pane.content.querySelector<HTMLElement>('.wc-alist-more')!;
+    for (let i = 0; i < 10; i++) env.bus.emit('gmcp', text('says', 'Dori', `Dori says 'm${i}'`));
+    env.flush();
+    expect(rows().slice(-1)).toEqual(["Dori says 'm9'"]);
+    // Three rows (header on): a pixel up leaves live; timestamps come in.
+    scrollBy(list, m, -CELL_H);
+    env.flush();
+    expect(rows().slice(-1)).toEqual(["14:05 Dori says 'm9'"]);
+    expect(more.hidden).toBe(false);
+    expect(more.textContent).toBe('↓ 2 newer messages');
+    // New messages land below and count in the indicator.
+    env.bus.emit('gmcp', text('says', 'Dori', "Dori says 'm10'"));
+    env.flush();
+    expect(rows().slice(-1)).toEqual(["14:05 Dori says 'm10'"]);
+    expect(more.textContent).toBe('↓ 3 newer messages');
+    // A message on a filtered channel is not shown (the filter change rebuilds).
+    env.settings.update((d) => void (d.comm.filters.tells = false));
+    env.bus.emit('gmcp', text('tells', 'Gibur', "Gibur tells you 'x'"));
+    env.flush();
+    expect(more.textContent).toBe('↓ 3 newer messages');
+    more.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    env.flush();
+    expect(rows().slice(-1)).toEqual(["Dori says 'm10'"]);
+    expect(pane.content.querySelectorAll('.wc-comm-time')).toHaveLength(0);
+    expect(more.hidden).toBe(true);
   });
 
   it('recolours content for a light pane', () => {

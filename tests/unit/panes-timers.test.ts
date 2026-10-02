@@ -15,6 +15,7 @@ import {
   charmName,
   clockContent,
   effectiveCols,
+  timersIndicator,
   timersLayout,
 } from '../../src/panes/timers';
 import { INDICATOR_FG } from '../../src/panes/grid';
@@ -39,7 +40,6 @@ function input(cells: TimerCell[], o: Partial<TimersLayoutInput> = {}): TimersLa
     w: 40,
     h: 10,
     mode: 'grid',
-    scroll: 0,
     light: false,
     bg: '#000000',
     dim: '#444444',
@@ -188,9 +188,6 @@ describe('timersLayout', () => {
       'SHIELD  12s SANCTUARY  ▌', // drained: no separator; indefinite: no clock
       'STRENGTH 2m', // 91 s → 2m
     ]);
-    // Scrolled one row: the corner reserve follows the top row.
-    const sh = timersLayout(input(cells, { settings: s, w: 24, h: 3, scroll: 1 }));
-    expect(sh.lines.map((x) => x.text().trimEnd())).toEqual(['SHIELD  12s SANCTUARY  +', 'STRENGTH 2m', '↑ 1 row above']);
   });
 
   it('keeps a rightmost-column clock at the edge below the top row', () => {
@@ -241,7 +238,7 @@ describe('timersLayout', () => {
     expect(timersLayout(input([troll], { settings: s, w: 24 })).corner).toBe('+');
   });
 
-  it('read-only (a log player): no corner + and no charm ×, the ↑ indicator still acts', () => {
+  it('read-only (a log player): no corner + and no charm ×', () => {
     const s = defaultTimersSettings();
     const spells = ['sanctuary', 'shield', 'armour', 'bless'].map((n) => cell(n, 'spell'));
     const ro = timersLayout(input(spells, { settings: s, readOnly: true }));
@@ -253,35 +250,33 @@ describe('timersLayout', () => {
     const ch = timersLayout(input([troll], { settings: s, w: 24, readOnly: true }));
     expect(ch.lines.map((x) => x.text())).toEqual(['Huge stone troll   21m  ']);
     expect(ch.zones).toEqual([]);
-    const many = Array.from({ length: 8 }, (_, i) => cell(`s${i}`, 'spell'));
-    s.groups.spell.cols = 1;
-    const up = timersLayout(input(many, { settings: s, w: 20, h: 4, scroll: 2, readOnly: true }));
-    expect(up.zones.map((z) => z.hit.kind)).toEqual(['top']);
   });
 
-  it('scrolls with an indicator row and clamps the offset', () => {
+  it('lays out every row; the indicator row follows the scroll position', () => {
     const s = defaultTimersSettings();
     s.groups.spell.cols = 1;
     const cells = Array.from({ length: 8 }, (_, i) => cell(`spell${i}`, 'spell'));
-    // 9 rows (header + 8) in 5: 4 shown, `↓ 5 more rows`.
-    const top = timersLayout(input(cells, { settings: s, w: 20, h: 5 }));
-    expect(top.lines.map((x) => x.text().trimEnd())).toEqual(['Spells:            +', 'SPELL0             ▌', 'SPELL1             ▌', 'SPELL2             ▌', '↓ 5 more rows']);
-    expect(top.lines[4]!.fg[0]).toBe(INDICATOR_FG);
-    expect(top.lines[4]!.flags[0]! & 2).toBe(2);
-    expect(top.zones.map((z) => z.hit.kind)).toEqual(['corner']);
-    const mid = timersLayout(input(cells, { settings: s, w: 20, h: 5, scroll: 2 }));
-    expect(mid.lines.map((x) => x.text().trimEnd())).toEqual(['SPELL1             +', 'SPELL2             ▌', 'SPELL3             ▌', 'SPELL4             ▌', '↑ 2 rows above']);
-    expect(mid.zones.at(-1)).toEqual({ row: 4, x0: 0, x1: 20, hit: { kind: 'top' } });
-    const end = timersLayout(input(cells, { settings: s, w: 20, h: 5, scroll: 99 }));
-    expect(end.scroll).toBe(5);
-    expect(end.lines[3]!.text().trimEnd()).toBe('SPELL7             ▌');
-    expect(end.lines[4]!.text().trimEnd()).toBe('↑ 5 rows above');
-    // Content that fits: no indicator, scroll back to 0.
-    const fit = timersLayout(input(cells.slice(0, 2), { settings: s, w: 20, h: 5, scroll: 3 }));
-    expect(fit.scroll).toBe(0);
+    // 9 rows (header + 8) in 5: all 9 laid out, the scroller takes 4 rows.
+    const l = timersLayout(input(cells, { settings: s, w: 20, h: 5 }));
+    expect(l.lines.map((x) => x.text().trimEnd())).toEqual([
+      'Spells:            +', ...cells.map((_, i) => `SPELL${i}             ▌`),
+    ]);
+    expect(l.total).toBe(9);
+    expect(l.listH).toBe(4);
+    expect(l.zones.map((z) => z.hit.kind)).toEqual(['corner']);
+    const top = timersIndicator(20, 5, 9, 0)!;
+    expect(top.up).toBe(false);
+    expect(top.line.text().trimEnd()).toBe('↓ 5 more rows');
+    expect(top.line.fg[0]).toBe(INDICATOR_FG);
+    expect(top.line.flags[0]! & 2).toBe(2);
+    expect(timersIndicator(20, 5, 9, 2)!.line.text().trimEnd()).toBe('↑ 2 rows above');
+    expect(timersIndicator(20, 5, 9, 1)!.up).toBe(true);
+    expect(timersIndicator(20, 4, 4, 0)).toBe(null);
+    expect(timersIndicator(20, 4, 5, 0)!.line.text().trimEnd()).toBe('↓ 2 more rows');
+    // Content that fits: no indicator, the scroller takes every row.
+    const fit = timersLayout(input(cells.slice(0, 2), { settings: s, w: 20, h: 5 }));
     expect(fit.lines).toHaveLength(3);
-    expect(timersLayout(input(cells.slice(0, 4), { settings: s, w: 20, h: 4 })).lines.at(-1)!.text().trimEnd()).toBe('↓ 2 more rows');
-    expect(timersLayout(input(cells.slice(0, 4), { settings: s, w: 20, h: 4, scroll: 1 })).lines.at(-1)!.text().trimEnd()).toBe('↑ 1 row above');
+    expect(fit.listH).toBe(5);
   });
 
   it('lays out the herblore add-view with the close ×', () => {

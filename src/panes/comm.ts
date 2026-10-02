@@ -4,7 +4,7 @@
 //   .wc-msgpane.wc-comm
 //     .wc-comm-header        one row; hidden by `comm.showHeader` = false
 //       .wc-comm-cell        per visible channel (data-channel), whole cell clickable
-//     .wc-alist              messages, bottom-anchored, scrolled by message
+//     .wc-alist              messages, bottom-anchored, scrolled by pixels (ADR 0052)
 //     .wc-alist-more         `↓ N newer messages` while scrolled back
 //
 // History: an in-memory ring of 1000 messages, not cleared on disconnect.
@@ -21,8 +21,9 @@
 // goes to the game. A filter change from elsewhere (the options menu)
 // cancels solo.
 //
-// Timestamps show only while scrolled back (one flag per render, Inv
-// §2.7.3). Colours are recoloured for a light pane (Inv §10.5): channel,
+// Timestamps show only while scrolled back (Inv §2.7.3): once a scroll
+// away from the bottom comes to rest they are added to the rows (the top
+// row keeps its place); back at the bottom they are removed. Colours are recoloured for a light pane (Inv §10.5): channel,
 // talker and message colours only.
 
 import './panes.css';
@@ -52,7 +53,7 @@ import { paneLight } from '../theme/apply';
 import { lightShift } from '../theme/color';
 import { colorToCss, effectiveFg } from '../ui/palette';
 import { type StyleRun, gmcpKey } from '../core/types';
-import { AnchoredList, type ListMetrics } from './anchored-list';
+import { AnchoredList, type ListMetrics, forwardWheel } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
 
@@ -62,12 +63,16 @@ export const COMM_HISTORY_MAX = 1000;
 export interface CommPaneOptions {
   /** List measuring (tests). */
   metrics?: ListMetrics;
+  /** Scroll rest time (tests; ms). */
+  settleMs?: number;
 }
 
 export class CommPane extends PaneShell {
   private readonly root: HTMLDivElement;
   private readonly header: HTMLDivElement;
-  private readonly list: AnchoredList;
+  private readonly list: AnchoredList<CommMessage>;
+  /** The rows carry timestamps (scrolled back). */
+  private timeShown = false;
   private history: CommMessage[] = [];
   private channels: ChannelInfo[] | null = null;
   private solo: FilterState['solo'] = null;
@@ -90,9 +95,9 @@ export class CommPane extends PaneShell {
     this.root.className = 'wc-msgpane wc-comm';
     this.header = doc.createElement('div');
     this.header.className = 'wc-comm-header';
-    this.list = new AnchoredList(doc, () => this.markDirty(), {
+    this.list = new AnchoredList<CommMessage>(doc, () => this.markDirty(), {
       ...(opts.metrics ? { metrics: opts.metrics } : {}),
-      cellHeight: () => ctx.cells.get().h,
+      ...(opts.settleMs !== undefined ? { settleMs: opts.settleMs } : {}),
     });
     this.root.append(this.header, this.list.el, this.list.more);
     this.header.addEventListener('mousedown', this.onHeaderDown);
@@ -122,6 +127,7 @@ export class CommPane extends PaneShell {
       }),
     );
     this.own(() => this.list.dispose());
+    this.own(forwardWheel(this.el, () => this.list.el, () => ctx.cells.get().h));
   }
 
   // ------------------------------------------------------------------ data
@@ -146,7 +152,6 @@ export class CommPane extends PaneShell {
   private addMessage(msg: CommMessage): void {
     this.history.push(msg);
     if (this.history.length > COMM_HISTORY_MAX) this.history.splice(0, this.history.length - COMM_HISTORY_MAX);
-    if (channelEnabled(this.ctx.settings.get().comm.filters, msg.channel)) this.list.added(1);
     if (!this.replay && this.character) {
       if (this.pendingWrites) this.pendingWrites.push(msg);
       else this.write(msg);
@@ -284,13 +289,38 @@ export class CommPane extends PaneShell {
     // List.
     const shown = this.history.filter((m) => channelEnabled(filters, m.channel));
     const now = this.ctx.now();
-    const rows = Math.max(1, this.rows);
+    // Timestamps follow the scroll once it is at rest (they change heights).
+    const withTime = !this.list.resting;
     this.list.render(
-      shown.length,
-      rows,
-      (i) => this.buildRow(shown[i]!, this.list.scrolled, now, col),
+      shown,
+      (m) => this.buildRow(m, withTime, now, col),
+      `${light}|${JSON.stringify(filters)}`,
       (n) => `↓ ${n} newer message${n === 1 ? '' : 's'}`,
     );
+    if (withTime !== this.timeShown) {
+      this.timeShown = withTime;
+      this.list.keepView(() => this.setTimes(withTime, now));
+    }
+  }
+
+  /** Adds or removes the timestamps of the rendered rows. */
+  private setTimes(on: boolean, now: number): void {
+    const els = this.list.elements;
+    for (let i = 0; i < els.length; i++) {
+      const row = els[i]!;
+      const t = row.firstElementChild;
+      const has = t !== null && t.classList.contains('wc-comm-time');
+      if (on && !has) row.prepend(this.timeSpan(this.list.itemAt(i)!, now));
+      else if (!on && has) t.remove();
+    }
+  }
+
+  private timeSpan(m: CommMessage, now: number): HTMLElement {
+    const t = this.ctx.doc.createElement('span');
+    t.className = 'wc-comm-time';
+    t.style.color = COMM_COLORS.time;
+    t.textContent = commTime(m.ts, now) + ' ';
+    return t;
   }
 
   private renderHeader(chans: HeaderChannel[], filters: Record<string, boolean>, col: (c: string) => string): void {
@@ -321,13 +351,7 @@ export class CommPane extends PaneShell {
     const row = doc.createElement('div');
     row.className = 'wc-comm-msg';
     row.dataset.channel = m.channel;
-    if (withTime) {
-      const t = doc.createElement('span');
-      t.className = 'wc-comm-time';
-      t.style.color = COMM_COLORS.time;
-      t.textContent = commTime(m.ts, now) + ' ';
-      row.append(t);
-    }
+    if (withTime) row.append(this.timeSpan(m, now));
     const verb = col(channelColor(m.channel));
     for (const seg of formatComm(m)) {
       const c = seg.role === 'verb' ? verb : col(ROLE_COLORS[seg.role]);

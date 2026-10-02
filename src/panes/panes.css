@@ -25,18 +25,30 @@
   white-space: pre;
 }
 
+/* Native pixel scrolling, the browser's bar hidden (ADR 0052). The stack's
+ * auto top margin keeps a short list at the bottom; scroll anchoring is
+ * off, the list keeps its view itself (anchored-list.ts). */
 .wc-alist {
   position: relative;
   flex: 1 1 0;
   min-height: 0;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.wc-alist::-webkit-scrollbar,
+.wc-timers-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 .wc-alist-stack {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
+  margin-top: auto;
 }
 
 /* One message: CSS wraps it inside the pane's whole-cell width. */
@@ -82,9 +94,28 @@
   font-weight: bold;
 }
 
-/* Timers pane (src/panes/timers.ts): transparent hit boxes over the
- * clickable cells (charm ×, herb labels, corner, ↑ indicator), raised
- * above the title-row grip like the comm header cells. */
+/* Timers pane (src/panes/timers.ts): the rows scroll natively by pixels
+ * (ADR 0052) above the fixed indicator row; transparent hit boxes over the
+ * clickable cells (charm ×, herb labels, corner), raised above the
+ * title-row grip like the comm header cells. */
+.wc-timers-scroll {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: none;
+}
+
+.wc-timers-rows {
+  position: relative;
+}
+
+.wc-timers-more[data-up] {
+  cursor: pointer;
+  user-select: none;
+}
+
 .wc-timers-hits {
   position: absolute;
   left: 0;

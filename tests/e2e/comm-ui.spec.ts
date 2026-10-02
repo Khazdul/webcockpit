@@ -64,7 +64,6 @@ test('the UI pane shows the demo lines and keeps them over a reload', async ({ p
 test('Comm formats the demo messages and never archives a replay', async ({ page }) => {
   const errors = watchErrors(page);
   await demo(page);
-  // Only the messages on screen are built: the newest ones.
   const rows = await commRows(page).allTextContents();
   expect(rows.slice(-6)).toEqual([
     "You narrate 'scout down at the ford'",
@@ -74,22 +73,8 @@ test('Comm formats the demo messages and never archives a replay', async ({ page
     "Gibur tells you 'more coming, 2 trolls'",
     "You say 'ready when you are'",
   ]);
-  // The older ones, scrolled back (timestamps shown then).
-  await comm(page).locator('.wc-alist').hover();
-  for (let i = 0; i < 20; i++) await page.mouse.wheel(0, -100);
-  // Walk down to live, collecting every message once.
-  const seen: string[] = [];
-  const more = comm(page).locator('.wc-alist-more');
-  for (let i = 0; i < 30; i++) {
-    for (const t of await commRows(page).allTextContents()) {
-      const plain = t.replace(/^\d\d:\d\d /, '');
-      if (!seen.includes(plain)) seen.push(plain);
-    }
-    if (!(await more.isVisible())) break;
-    await page.mouse.wheel(0, 100);
-    // Let the pane render the step before reading it (two frames).
-    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-  }
+  // Every message is in the list (it scrolls natively, ADR 0052).
+  const seen = rows;
   expect(seen).toHaveLength(14);
   expect(seen.slice(0, 7)).toEqual([
     "Gibur narrates 'orcs gathering at the ford'",
@@ -141,26 +126,26 @@ test('header: mouse down toggles, right click solos and restores', async ({ page
   await expect(tells).not.toHaveCount(0);
 });
 
-test('wheel scrolls by message with timestamps; the indicator returns to live', async ({ page }) => {
+test('the wheel scrolls back with timestamps; the indicator returns to live', async ({ page }) => {
   await demo(page);
   const last = "You say 'ready when you are'";
   await expect(commRows(page).last()).toHaveText(last);
   await comm(page).locator('.wc-alist').hover();
   await page.mouse.wheel(0, -100);
   const more = comm(page).locator('.wc-alist-more');
-  await expect(more).toHaveText('↓ 1 newer message');
-  await expect(commRows(page).last()).toHaveText(/^\d\d:\d\d Gibur tells you/);
-  await page.mouse.wheel(0, -100);
-  await expect(more).toHaveText('↓ 2 newer messages');
-  // Scroll all the way: the oldest message ends at the top, no blank above.
-  for (let i = 0; i < 30; i++) await page.mouse.wheel(0, -100);
+  await expect(more).toHaveText(/^↓ \d+ newer messages?$/);
+  await expect(commRows(page).last()).toHaveText(new RegExp(`^\\d\\d:\\d\\d ${last}`));
+  // Scroll all the way: the oldest message at the top, no blank above.
+  for (let i = 0; i < 10; i++) await page.mouse.wheel(0, -1000);
+  await expect.poll(() => comm(page).locator('.wc-alist').evaluate((el) => el.scrollTop)).toBe(0);
   const listBox = (await comm(page).locator('.wc-alist').boundingBox())!;
   const firstBox = (await commRows(page).first().boundingBox())!;
   await expect(commRows(page).first()).toHaveText(/^\d\d:\d\d Gibur narrates/);
-  expect(firstBox.y).toBeLessThanOrEqual(listBox.y + 1);
+  expect(Math.abs(firstBox.y - listBox.y)).toBeLessThanOrEqual(1);
   await more.dispatchEvent('mousedown', { button: 0 });
   await expect(more).toBeHidden();
   await expect(commRows(page).last()).toHaveText(last);
+  await expect(commRows(page).last()).toBeInViewport();
   await expect(comm(page).locator('.wc-comm-time')).toHaveCount(0);
 });
 

@@ -743,11 +743,12 @@ export class PlayerView {
 
   private readonly onWheel = (e: WheelEvent): void => {
     if (this.stripEl.contains(e.target as Node)) return;
+    // A side pane scrolls itself natively (Comm, UI, Timers; ADR 0052): the
+    // wheel keeps its default there. Only the game text moves the cursor.
+    if ((e.target as Element | null)?.closest?.('.wc-pane')) return void this.touch();
     e.preventDefault();
     this.touch();
     if (this.o.engine.playing || e.deltaY === 0) return;
-    // A side pane scrolls itself (Comm, Timers); only the game text moves the cursor.
-    if ((e.target as Element | null)?.closest?.('.wc-pane')) return;
     this.moveCursor(e.deltaY < 0 ? -1 : 1);
   };
 

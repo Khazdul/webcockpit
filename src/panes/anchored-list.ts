@@ -1,60 +1,82 @@
-// A bottom-anchored list scrolled by item (Inv §2.4 "Scroll", §2.7.5): the
-// Comm and UI panes' message lists. CSS wraps the items; the list decides
-// which items to build and measures what the browser laid out.
+// A bottom-anchored message list with native pixel scrolling (ADR 0052,
+// amending Inv §2.4 "Scroll" and §2.7.5): the Comm and UI panes' lists.
 //
-//   .wc-alist                 flex: 1, overflow hidden, position relative
-//     .wc-alist-stack         absolute, bottom 0: the items, newest last
+//   .wc-alist                 flex: 1, overflow-y auto (bar hidden), position relative
+//     .wc-alist-stack         margin-top auto: the items, newest last, at the bottom
 //   .wc-alist-more            the `↓ N newer messages` row (hidden when live)
 //
-// - `offset` counts items hidden below the view; 0 = live (the newest item
-//   sits on the bottom edge; an item taller than the view clips at the top).
-// - Wheel up +1, down −1. Up stops when the oldest item is at the top with
-//   no blank space above it (checked with the measured heights).
-// - `added(n)` while scrolled grows the offset by n, so the view stays put.
-// - The indicator row takes one row below the list; a mouse down on it
-//   returns to live.
-// - Only the items that can show are built: at most `rows + 1` (every item
-//   is at least one row high).
+// - The wheel and the touchpad scroll the list by pixels (the browser's own
+//   scrolling, as CodeMirror in EDITOR). Nothing steps by message.
+// - Live: the view is at the bottom (within 2 px). A render while live
+//   sticks to the bottom, so new messages follow; scrolled back, appended
+//   messages land below the view and it stays put. Items trimmed off the
+//   top while scrolled back are made up for in `scrollTop`.
+// - The indicator counts the items not wholly in view below it; a mouse
+//   down on it returns to live.
+// - `resting` follows `live` once the scrolling has come to rest
+//   (`SETTLE_MS` without a scroll event), and only then does the owner hear
+//   of it (`onChange`): what changes heights (Comm timestamps) waits for it.
+//   Firefox keeps animating a wheel scroll after a script writes
+//   `scrollTop`, so heights changed mid-gesture fought the animation.
+// - Every item is in the DOM (the panes cap their history at 1000). A render
+//   appends the new items and drops the trimmed ones; it rebuilds all only
+//   when `key` (what the builder depends on) changed or the items are not
+//   the previous ones plus new ones. One render per frame (the pane's), so a
+//   burst of messages costs one append and one scroll write.
 //
-// Measuring reads layout (once per render, the pane's frame). Tests inject
-// `ListMetrics`.
+// Layout is read through `ListMetrics`; tests inject a model.
 
-/** How the list reads heights (px). */
+/** How the list reads and writes layout (px). */
 export interface ListMetrics {
+  scrollTop(list: HTMLElement): number;
+  setScrollTop(list: HTMLElement, px: number): void;
+  clientHeight(list: HTMLElement): number;
+  scrollHeight(list: HTMLElement): number;
+  /** An item's top in the list's content (independent of scrolling). */
+  itemTop(el: HTMLElement): number;
   itemHeight(el: HTMLElement): number;
-  listHeight(list: HTMLElement): number;
 }
 
 const DOM_METRICS: ListMetrics = {
-  itemHeight: (el) => el.getBoundingClientRect().height,
-  listHeight: (list) => list.clientHeight,
+  scrollTop: (l) => l.scrollTop,
+  setScrollTop: (l, px) => void (l.scrollTop = px),
+  clientHeight: (l) => l.clientHeight,
+  scrollHeight: (l) => l.scrollHeight,
+  itemTop: (el) => el.offsetTop,
+  itemHeight: (el) => el.offsetHeight,
 };
 
-/** Wheel movement (px) that counts as one step; a notch is one step at most. */
-export const WHEEL_STEP_PX = 40;
+/** Distance from the bottom (px) that still counts as live. */
+export const LIVE_SLACK_PX = 2;
 
-export class AnchoredList {
-  /** The list area (flex item). */
+/** Quiet time (ms) after the last scroll event before `resting` follows. */
+export const SETTLE_MS = 150;
+
+const BOTTOM = Number.MAX_SAFE_INTEGER;
+
+export class AnchoredList<T = unknown> {
+  /** The scrolling list area (flex item). */
   readonly el: HTMLDivElement;
   /** The indicator row; the owner places it below `el`. */
   readonly more: HTMLDivElement;
   private readonly stack: HTMLDivElement;
   private readonly onChange: () => void;
   private readonly metrics: ListMetrics;
-  private readonly cellH: () => number;
-  private _offset = 0;
-  private canUp = false;
-  private wheelAcc = 0;
-  private count = 0;
+  private items: T[] = [];
+  private els: HTMLElement[] = [];
+  private key: string | null = null;
+  private _live = true;
+  private _resting = true;
+  private readonly settleMs: number;
+  private settleTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastTop = 0;
+  private hiddenBelow = 0;
+  private moreText: (n: number) => string = (n) => `↓ ${n}`;
 
-  constructor(
-    doc: Document,
-    onChange: () => void,
-    opts: { metrics?: ListMetrics; cellHeight?: () => number } = {},
-  ) {
+  constructor(doc: Document, onChange: () => void, opts: { metrics?: ListMetrics; settleMs?: number } = {}) {
     this.onChange = onChange;
     this.metrics = opts.metrics ?? DOM_METRICS;
-    this.cellH = opts.cellHeight ?? (() => 16);
+    this.settleMs = opts.settleMs ?? SETTLE_MS;
     this.el = doc.createElement('div');
     this.el.className = 'wc-alist';
     this.stack = doc.createElement('div');
@@ -63,58 +85,184 @@ export class AnchoredList {
     this.more = doc.createElement('div');
     this.more.className = 'wc-alist-more';
     this.more.hidden = true;
-    this.el.addEventListener('wheel', this.onWheel, { passive: true });
+    this.el.addEventListener('scroll', this.onScroll, { passive: true });
     this.more.addEventListener('mousedown', this.onMore);
   }
 
-  /** Items hidden below the view (0 = live). */
-  get offset(): number {
-    return this._offset;
+  /** True while the view is at the bottom (new items follow). */
+  get live(): boolean {
+    return this._live;
   }
 
   /** True while scrolled back. */
   get scrolled(): boolean {
-    return this._offset > 0;
+    return !this._live;
   }
 
-  /** `n` items were appended; while scrolled the view stays where it is. */
-  added(n: number): void {
-    if (this._offset > 0 && n > 0) this._offset += n;
+  /** `live` as of the last time the scrolling came to rest. */
+  get resting(): boolean {
+    return this._resting;
+  }
+
+  /** Items not wholly in view below it (0 while live). */
+  get below(): number {
+    return this.hiddenBelow;
+  }
+
+  /** The rendered items' elements, oldest first. */
+  get elements(): readonly HTMLElement[] {
+    return this.els;
+  }
+
+  /** The item rendered at index `i`. */
+  itemAt(i: number): T | undefined {
+    return this.items[i];
   }
 
   /** Back to the live bottom. */
   toLive(): void {
-    if (this._offset === 0) return;
-    this._offset = 0;
-    this.onChange();
+    this._live = true;
+    this.metrics.setScrollTop(this.el, BOTTOM);
+    this.lastTop = this.metrics.scrollTop(this.el);
+    this.setMore(0);
+    this.settle();
   }
 
-  /** One step up (older) when there is more above; returns whether it moved. */
-  up(): boolean {
-    if (!this.canUp) return false;
-    this._offset++;
-    this.onChange();
-    return true;
+  /**
+   * Runs `mutate` (a change of the items' heights, e.g. timestamps on or
+   * off) keeping the item at the top of the view where it is; live, the
+   * view sticks to the bottom instead.
+   */
+  keepView(mutate: () => void): void {
+    const m = this.metrics;
+    if (this._live || this.els.length === 0) {
+      mutate();
+      if (this._live) this.toBottom();
+      return;
+    }
+    const top = m.scrollTop(this.el);
+    const i = this.firstBelow(top);
+    const anchor = this.els[Math.min(i, this.els.length - 1)]!;
+    const off = m.itemTop(anchor) - top;
+    mutate();
+    m.setScrollTop(this.el, m.itemTop(anchor) - off);
+    this.lastTop = m.scrollTop(this.el);
+    this.updateMore();
   }
 
-  /** One step down (newer); returns whether it moved. */
-  down(): boolean {
-    if (this._offset === 0) return false;
-    this._offset--;
-    this.onChange();
-    return true;
+  /**
+   * Shows `items` (oldest first). `build(item)` makes an item's element;
+   * `key` names everything `build` depends on besides the item.
+   * `moreText(n)` is the indicator text for n items below the view.
+   */
+  render(items: readonly T[], build: (item: T) => HTMLElement, key: string, moreText: (n: number) => string): void {
+    const m = this.metrics;
+    this.moreText = moreText;
+    // Back on screen after being detached or hidden (scrollTop reset to 0).
+    if (!this._live && this.lastTop > 1 && m.scrollTop(this.el) === 0) m.setScrollTop(this.el, this.lastTop);
+    const old = this.items;
+    let trim = -1;
+    if (key === this.key && old.length > 0 && items.length > 0) {
+      const s = old.indexOf(items[0]!);
+      if (s >= 0 && items.length >= old.length - s) {
+        trim = s;
+        for (let j = 0; j < old.length - s; j++) {
+          if (items[j] !== old[s + j]) {
+            trim = -1;
+            break;
+          }
+        }
+      }
+    }
+    if (trim >= 0) {
+      const kept = old.length - trim;
+      if (trim === 0 && kept === items.length) {
+        // Nothing new (a resize or a theme render): follow the bottom, recount.
+        if (this._live) this.toBottom();
+        else this.updateMore();
+        return;
+      }
+      // Read before writing: the height of what goes off the top.
+      const trimH = trim > 0 && !this._live ? m.itemTop(this.els[trim]!) - m.itemTop(this.els[0]!) : 0;
+      for (let j = 0; j < trim; j++) this.els[j]!.remove();
+      const added: HTMLElement[] = [];
+      for (let j = kept; j < items.length; j++) added.push(build(items[j]!));
+      if (added.length) this.stack.append(...added);
+      this.els = this.els.slice(trim).concat(added);
+      if (trimH > 0) {
+        m.setScrollTop(this.el, this.lastTop - trimH);
+        this.lastTop = m.scrollTop(this.el);
+      }
+    } else {
+      this.key = key;
+      this.els = items.map(build);
+      this.stack.replaceChildren(...this.els);
+    }
+    this.items = items.slice();
+    if (this._live) this.toBottom();
+    else this.updateMore();
   }
 
-  private readonly onWheel = (e: WheelEvent): void => {
-    const px = e.deltaMode === 1 ? e.deltaY * this.cellH() : e.deltaMode === 2 ? e.deltaY * 10 * this.cellH() : e.deltaY;
-    if (px === 0) return;
-    if (Math.sign(px) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
-    this.wheelAcc += px;
-    if (Math.abs(this.wheelAcc) < WHEEL_STEP_PX) return;
-    const dir = Math.sign(this.wheelAcc);
-    this.wheelAcc = 0;
-    if (dir < 0) this.up();
-    else this.down();
+  private toBottom(): void {
+    this.metrics.setScrollTop(this.el, BOTTOM);
+    this.setMore(0);
+  }
+
+  /** Index of the first item whose bottom is below `y` (+ half a pixel). */
+  private firstBelow(y: number): number {
+    const m = this.metrics;
+    let lo = 0;
+    let hi = this.els.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const el = this.els[mid]!;
+      if (m.itemTop(el) + m.itemHeight(el) > y + 0.5) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo;
+  }
+
+  private countBelow(): number {
+    const m = this.metrics;
+    return this.els.length - this.firstBelow(m.scrollTop(this.el) + m.clientHeight(this.el));
+  }
+
+  private updateMore(): void {
+    if (this._live) return this.setMore(0);
+    const n = this.countBelow();
+    const toggled = this.more.hidden !== (n === 0);
+    this.setMore(n);
+    // The row took (or gave back) a row of the list: count again.
+    if (toggled) this.setMore(this.countBelow());
+  }
+
+  private setMore(n: number): void {
+    this.hiddenBelow = n;
+    this.more.hidden = n === 0;
+    if (n > 0) {
+      const t = this.moreText(n);
+      if (this.more.textContent !== t) this.more.textContent = t;
+    }
+  }
+
+  private readonly onScroll = (): void => {
+    const m = this.metrics;
+    const top = m.scrollTop(this.el);
+    const live = top + m.clientHeight(this.el) >= m.scrollHeight(this.el) - LIVE_SLACK_PX;
+    this.lastTop = top;
+    this._live = live;
+    this.updateMore();
+    if (this.settleMs <= 0) return this.settle();
+    const win = this.el.ownerDocument.defaultView;
+    if (this.settleTimer !== null) (win ? win.clearTimeout.bind(win) : clearTimeout)(this.settleTimer);
+    this.settleTimer = (win ? win.setTimeout.bind(win) : setTimeout)(this.settle, this.settleMs);
+  };
+
+  private readonly settle = (): void => {
+    this.settleTimer = null;
+    if (this._resting === this._live) return;
+    this._resting = this._live;
+    this.onChange();
   };
 
   private readonly onMore = (e: MouseEvent): void => {
@@ -123,54 +271,31 @@ export class AnchoredList {
     this.toLive();
   };
 
-  /**
-   * Builds the view of `count` items (index 0 = oldest). `build(i)` makes
-   * item i's element; `rows` is an upper bound of the rows the list can
-   * show. `moreText(n)` is the indicator text for n hidden items.
-   */
-  render(count: number, rows: number, build: (i: number) => HTMLElement, moreText: (n: number) => string): void {
-    this.count = count;
-    if (this._offset > count - 1) this._offset = Math.max(0, count - 1);
-    for (;;) {
-      const scrolled = this._offset > 0;
-      this.more.hidden = !scrolled;
-      if (scrolled) this.more.textContent = moreText(this._offset);
-      const anchor = count - 1 - this._offset;
-      const start = Math.max(0, anchor - Math.max(1, rows));
-      const els: HTMLElement[] = [];
-      for (let i = start; i <= anchor; i++) els.push(build(i));
-      this.stack.replaceChildren(...els);
-      if (count === 0) {
-        this.canUp = false;
-        return;
-      }
-      const listH = this.metrics.listHeight(this.el);
-      if (start > 0) {
-        this.canUp = true;
-        return;
-      }
-      let total = 0;
-      for (const el of els) total += this.metrics.itemHeight(el);
-      // Scrolled past the oldest: blank space above it. Step back down.
-      if (scrolled && total < listH - 0.5) {
-        this._offset--;
-        continue;
-      }
-      const above = total - this.metrics.itemHeight(els[els.length - 1]!);
-      // Going up shows the indicator row, so the list is one row shorter then.
-      const upH = scrolled ? listH : listH - this.cellH();
-      this.canUp = above >= upH - 0.5;
-      return;
-    }
-  }
-
   /** Number of items at the last render (tests). */
   get size(): number {
-    return this.count;
+    return this.items.length;
   }
 
   dispose(): void {
-    this.el.removeEventListener('wheel', this.onWheel);
+    if (this.settleTimer !== null) clearTimeout(this.settleTimer);
+    this.el.removeEventListener('scroll', this.onScroll);
     this.more.removeEventListener('mousedown', this.onMore);
   }
+}
+
+/**
+ * The wheel over a pane outside its scroller (the frame, the title-row grip,
+ * the Comm header) scrolls the scroller by the same pixels. Returns the
+ * unsubscribe function.
+ */
+export function forwardWheel(pane: HTMLElement, scroller: () => HTMLElement | null, cellH: () => number): () => void {
+  const on = (e: WheelEvent): void => {
+    const s = scroller();
+    if (!s || s.contains(e.target as Node)) return;
+    const h = cellH() || 16;
+    const px = e.deltaMode === 1 ? e.deltaY * h : e.deltaMode === 2 ? e.deltaY * s.clientHeight : e.deltaY;
+    if (px) s.scrollTop += px;
+  };
+  pane.addEventListener('wheel', on, { passive: true });
+  return () => pane.removeEventListener('wheel', on);
 }

@@ -181,7 +181,7 @@ describe('panes patch their rows', () => {
     t.flush();
     const after = rowEls(p);
     expect(after[0]).toBe(before[0]);
-    expect(p.content.lastElementChild!.className).toBe('wc-timers-hits');
+    expect(p.content.querySelector('.wc-timers-rows')!.lastElementChild!.className).toBe('wc-timers-hits');
     w.stop();
     p.dispose();
   });

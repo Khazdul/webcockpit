@@ -25,18 +25,22 @@
 //   where it becomes `×` (close). It yields when the top row is a charm row.
 // - In a log player (`ctx.player`, ADR 0021) the pane is read-only: no
 //   corner `+` (no herblore add-view) and no charm `×`.
-// - Wheel scrolls by rows; the last row is `↑ N rows above` (click → top)
-//   or `↓ N more rows`. Redraw at 1 Hz on wall-clock seconds while
-//   something counts; blank while inactive; a disconnect resets the view.
+// - The rows scroll natively by pixels (wheel, touchpad; ADR 0052). When
+//   they overflow, the last pane row is a fixed indicator: `↑ N rows above`
+//   (click → top) once scrolled, else `↓ N more rows`. The corner belongs
+//   to the first row and scrolls with it. Redraw at 1 Hz on wall-clock
+//   seconds while something counts; blank while inactive; a disconnect
+//   resets the view.
 //
-// `timersLayout` is pure (unit tested in Node); the pane does the DOM:
-// the rows, plus one transparent hit box per clickable zone (charm `×`,
-// herb label, corner, `↑` indicator) raised above the title-row grip.
+// `timersLayout` and `timersIndicator` are pure (unit tested in Node); the
+// pane does the DOM: a scroller with all rows plus one transparent hit box
+// per clickable zone (charm `×`, herb label, corner) raised above the
+// title-row grip, and the indicator row below it.
 
 import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerCell, type TimerGroup, type TimersView, barFill, barPct, cellCountdown, charmMinutes } from '../timers/entry';
 import { TIMER_COLOR_HEX, type TimersSettings } from '../settings/types';
 import { darkInk, lightShift } from '../theme/color';
-import { WHEEL_STEP_PX } from './anchored-list';
+import { forwardWheel } from './anchored-list';
 import { CellLine, INDICATOR_FG, RowList } from './grid';
 import type { PaneContext } from './context';
 import { PaneShell } from './pane';
@@ -91,13 +95,12 @@ export const charmName = (name: string): string => name.charAt(0).toUpperCase() 
 export type TimersHit =
   | { kind: 'charm'; id: string }
   | { kind: 'herb'; key: string; active: boolean }
-  | { kind: 'corner' }
-  | { kind: 'top' };
+  | { kind: 'corner' };
 
 export const hitKey = (h: TimersHit): string =>
   h.kind === 'charm' ? `charm:${h.id}` : h.kind === 'herb' ? `herb:${h.key}` : h.kind;
 
-/** A clickable span of row `row`, columns [x0, x1). */
+/** A clickable span of content row `row`, columns [x0, x1). */
 export interface HitZone {
   row: number;
   x0: number;
@@ -114,8 +117,6 @@ export interface TimersLayoutInput {
   w: number;
   h: number;
   mode: TimersMode;
-  /** First visible row (clamped here). */
-  scroll: number;
   /** The pane's background is light. */
   light: boolean;
   /** The pane's effective background (light-pane inks). */
@@ -129,13 +130,12 @@ export interface TimersLayoutInput {
 }
 
 export interface TimersLayout {
+  /** Every row of the current view (the pane scrolls them). */
   lines: CellLine[];
   zones: HitZone[];
-  /** The scroll offset after clamping. */
-  scroll: number;
   /** All rows of the current view. */
   total: number;
-  /** Rows the list shows (the indicator takes the last pane row). */
+  /** Pane rows the scroller takes (the indicator takes the last one on overflow). */
   listH: number;
   /** The corner glyph, or null (yielded to a charm row). */
   corner: '+' | '×' | null;
@@ -179,17 +179,11 @@ export function timersLayout(inp: TimersLayoutInput): TimersLayout {
     mode === 'grid' &&
     TIMER_GROUPS.some((g) => s.groups[g].enabled && view.cells[g].some((c) => c.expiresAt !== null && c.tracked));
 
-  // Scroll: the indicator row appears when scrolled or overflowing.
-  let scroll = Math.max(0, Math.floor(inp.scroll));
-  let listH = h;
-  for (let pass = 0; pass < 2; pass++) {
-    listH = Math.max(0, h - (scroll > 0 || total > h ? 1 : 0));
-    scroll = Math.max(0, Math.min(scroll, total - listH));
-  }
-  const visible = specs.slice(scroll, scroll + listH);
+  // The indicator row appears when the rows overflow.
+  const listH = Math.max(0, total > h ? h - 1 : h);
 
   const ro = inp.readOnly ?? false;
-  const corner: '+' | '×' | null = mode === 'add' ? '×' : ro || visible[0]?.kind === 'charms' ? null : '+';
+  const corner: '+' | '×' | null = mode === 'add' ? '×' : ro || specs[0]?.kind === 'charms' ? null : '+';
   const depleted = light ? darkInk(bg) : DEPLETED_FG;
   const untracked = light ? dim : UNTRACKED_FG;
   const fgOn = (hex: string): string => (light ? lightShift(hex) : hex);
@@ -197,7 +191,7 @@ export function timersLayout(inp: TimersLayoutInput): TimersLayout {
   const lines: CellLine[] = [];
   const zones: HitZone[] = [];
 
-  visible.forEach((spec, row) => {
+  specs.forEach((spec, row) => {
     const line = new CellLine(w);
     lines.push(line);
     switch (spec.kind) {
@@ -260,16 +254,20 @@ export function timersLayout(inp: TimersLayoutInput): TimersLayout {
     zones.push({ row: 0, x0: w - 1, x1: w, hit: { kind: 'corner' } });
   }
 
-  if (h > 0 && (scroll > 0 || total > h)) {
-    while (lines.length < listH) lines.push(new CellLine(w));
-    const up = scroll > 0;
-    const n = up ? scroll : total - (h - 1);
-    const text = up ? `↑ ${n} ${n === 1 ? 'row' : 'rows'} above` : `↓ ${n} more ${n === 1 ? 'row' : 'rows'}`;
-    lines.push(new CellLine(w).put(0, text, { fg: INDICATOR_FG, italic: true }));
-    if (up) zones.push({ row: lines.length - 1, x0: 0, x1: w, hit: { kind: 'top' } });
-  }
+  return { lines, zones, total, listH, corner, timed };
+}
 
-  return { lines, zones, scroll, total, listH, corner, timed };
+/**
+ * The indicator row of a `w` × `h` pane showing `total` rows with `above`
+ * rows (or parts of rows) scrolled off the top, or null when they fit:
+ * `↑ N rows above` once scrolled, else `↓ N more rows`.
+ */
+export function timersIndicator(w: number, h: number, total: number, above: number): { line: CellLine; up: boolean } | null {
+  if (h <= 0 || total <= h) return null;
+  const up = above > 0;
+  const n = up ? above : total - (h - 1);
+  const text = up ? `↑ ${n} ${n === 1 ? 'row' : 'rows'} above` : `↓ ${n} more ${n === 1 ? 'row' : 'rows'}`;
+  return { line: new CellLine(w).put(0, text, { fg: INDICATOR_FG, italic: true }), up };
 }
 
 interface CellOpts {
@@ -344,31 +342,47 @@ const TICK_LAG_MS = 5;
 
 export class TimersPane extends PaneShell {
   private mode: TimersMode = 'grid';
-  private scroll = 0;
   private hover: string | null = null;
   private last: TimersLayout | null = null;
-  private wheelAcc = 0;
   private tickTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The native scroller (all rows), above the indicator row. */
+  private readonly scroller: HTMLDivElement;
+  private readonly rowsEl: HTMLDivElement;
+  private readonly moreEl: HTMLDivElement;
   private readonly hits: HTMLDivElement;
-  private readonly list = new RowList(this.content);
+  private readonly list: RowList;
   /** The zones the hit boxes were built from. */
   private hitsKey = '';
+  private listHKey = -1;
+  private moreKey = '';
+  /** Scroll to the top at the next render (a mode switch, a reset). */
+  private toTop = false;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'timers');
-    this.hits = ctx.doc.createElement('div');
+    const doc = ctx.doc;
+    this.scroller = doc.createElement('div');
+    this.scroller.className = 'wc-timers-scroll';
+    this.rowsEl = doc.createElement('div');
+    this.rowsEl.className = 'wc-timers-rows';
+    this.scroller.append(this.rowsEl);
+    this.moreEl = doc.createElement('div');
+    this.moreEl.className = 'wc-timers-more';
+    this.list = new RowList(this.rowsEl);
+    this.hits = doc.createElement('div');
     this.hits.className = 'wc-timers-hits';
     this.own(ctx.game.subscribe((part) => part === 'timers' && this.markDirty()));
     this.own(ctx.settings.subscribe((next, prev) => next.timers !== prev.timers && this.markDirty()));
     this.content.addEventListener('mousedown', this.onDown);
     this.content.addEventListener('mousemove', this.onMove);
     this.content.addEventListener('mouseleave', this.onLeave);
-    this.el.addEventListener('wheel', this.onWheel, { passive: true });
+    this.scroller.addEventListener('scroll', this.onScroll, { passive: true });
+    this.own(forwardWheel(this.el, () => this.scroller, () => ctx.cells.get().h));
     this.own(() => {
       this.content.removeEventListener('mousedown', this.onDown);
       this.content.removeEventListener('mousemove', this.onMove);
       this.content.removeEventListener('mouseleave', this.onLeave);
-      this.el.removeEventListener('wheel', this.onWheel);
+      this.scroller.removeEventListener('scroll', this.onScroll);
       this.clearTick();
     });
   }
@@ -378,10 +392,15 @@ export class TimersPane extends PaneShell {
     return this.mode;
   }
 
+  /** The scroller (tests). */
+  get scrollEl(): HTMLDivElement {
+    return this.scroller;
+  }
+
   protected override onActiveChange(active: boolean): void {
     if (active) return;
     this.mode = 'grid';
-    this.scroll = 0;
+    this.toTop = true;
     this.hover = null;
     this.clearTick();
   }
@@ -389,10 +408,14 @@ export class TimersPane extends PaneShell {
   protected override blank(): void {
     this.last = null;
     this.list.reset();
+    this.listHKey = -1;
+    this.moreKey = '';
+    this.moreEl.replaceChildren();
     this.content.replaceChildren();
   }
 
   protected override render(): void {
+    if (this.scroller.parentNode !== this.content) this.content.replaceChildren(this.scroller, this.moreEl);
     const s = this.ctx.settings.get();
     const shade = paneShade(s, 'timers');
     const now = this.ctx.now();
@@ -403,7 +426,6 @@ export class TimersPane extends PaneShell {
       w: this.cols,
       h: this.rows,
       mode: this.mode,
-      scroll: this.scroll,
       light: shade.light,
       bg: shade.bg,
       dim: shade.ramp.dim,
@@ -411,8 +433,11 @@ export class TimersPane extends PaneShell {
       readOnly: this.ctx.player === true,
     });
     this.last = layout;
-    this.scroll = layout.scroll;
     if (this.hover && !layout.zones.some((z) => hitKey(z.hit) === this.hover)) this.hover = null;
+    if (layout.listH !== this.listHKey) {
+      this.listHKey = layout.listH;
+      this.scroller.style.height = `calc(var(--cell-h) * ${layout.listH})`;
+    }
     // The 1 Hz tick mostly redraws the same cells: only changed rows are
     // rebuilt, and the hit boxes only when the zones changed.
     const hitsKey = JSON.stringify(layout.zones);
@@ -421,9 +446,31 @@ export class TimersPane extends PaneShell {
       this.buildHits(layout.zones);
     }
     this.list.update(this.ctx.doc, layout.lines, this.hits);
+    if (this.toTop) {
+      this.toTop = false;
+      this.scroller.scrollTop = 0;
+    }
+    this.updateMore();
     if (this.content.dataset.mode !== this.mode) this.content.dataset.mode = this.mode;
     this.armTick(layout.timed, now);
   }
+
+  /** The indicator row from the scroll position (rows partly above count). */
+  private updateMore(): void {
+    const l = this.last;
+    if (!l) return;
+    const cellH = this.ctx.cells.get().h || 16;
+    const above = Math.max(0, Math.ceil(this.scroller.scrollTop / cellH - 0.01));
+    const ind = timersIndicator(this.cols, this.rows, l.total, above);
+    const key = ind ? ind.line.key() : '';
+    if (key === this.moreKey) return;
+    this.moreKey = key;
+    this.moreEl.toggleAttribute('data-up', ind?.up === true);
+    if (ind) this.moreEl.replaceChildren(ind.line.toElement(this.ctx.doc));
+    else this.moreEl.replaceChildren();
+  }
+
+  private readonly onScroll = (): void => this.updateMore();
 
   private buildHits(zones: TimersLayout['zones']): void {
     const doc = this.ctx.doc;
@@ -483,10 +530,17 @@ export class TimersPane extends PaneShell {
 
   private readonly onDown = (e: MouseEvent): void => {
     if (e.button !== 0 || !this.active) return;
+    // The `↑ N rows above` indicator scrolls to the top (also in a player).
+    if (this.moreEl.hasAttribute('data-up') && this.moreEl.contains(e.target as Node)) {
+      e.preventDefault();
+      e.stopPropagation();
+      this.scroller.scrollTop = 0;
+      this.updateMore();
+      return;
+    }
     const z = this.zoneOf(e);
-    // Read-only in a player: only the `↑` indicator (scroll to top) acts.
-    if (this.ctx.player && z?.dataset.hit !== 'top') return;
-    if (!z) return;
+    // Read-only in a player.
+    if (this.ctx.player || !z) return;
     e.preventDefault();
     e.stopPropagation();
     const timers = this.ctx.game.timers;
@@ -500,37 +554,10 @@ export class TimersPane extends PaneShell {
         break;
       case 'corner':
         this.mode = this.mode === 'grid' ? 'add' : 'grid';
-        this.scroll = 0;
+        this.toTop = true;
         this.hover = null;
-        break;
-      case 'top':
-        this.scroll = 0;
         break;
     }
     this.markDirty();
   };
-
-  private readonly onWheel = (e: WheelEvent): void => {
-    if (!this.active || !this.last) return;
-    const cellH = this.ctx.cells.get().h || 16;
-    const px = e.deltaMode === 1 ? e.deltaY * cellH : e.deltaMode === 2 ? e.deltaY * 10 * cellH : e.deltaY;
-    if (px === 0) return;
-    if (Math.sign(px) !== Math.sign(this.wheelAcc)) this.wheelAcc = 0;
-    this.wheelAcc += px;
-    if (Math.abs(this.wheelAcc) < WHEEL_STEP_PX) return;
-    const dir = Math.sign(this.wheelAcc);
-    this.wheelAcc = 0;
-    this.scrollBy(dir);
-  };
-
-  /** Scrolls `d` rows (positive = down), clamped as the layout will. */
-  scrollBy(d: number): void {
-    const l = this.last;
-    if (!l) return;
-    const max = Math.max(0, l.total - Math.max(0, this.rows - 1));
-    const next = Math.max(0, Math.min(max, this.scroll + d));
-    if (next === this.scroll) return;
-    this.scroll = next;
-    this.markDirty();
-  }
 }

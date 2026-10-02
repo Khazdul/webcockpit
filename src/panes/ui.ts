@@ -2,7 +2,7 @@
 // `ui.message` bus event, newest at the bottom, never blanked.
 //
 //   .wc-msgpane.wc-ui
-//     .wc-alist              lines, bottom-anchored, scrolled by line (wrap-aware)
+//     .wc-alist              lines, bottom-anchored, scrolled by pixels (ADR 0052)
 //       .wc-ui-row           prefix span, then the parts
 //     .wc-alist-more         `↓ N newer messages` while scrolled back
 //
@@ -19,7 +19,7 @@ import './panes.css';
 import type { UiMessage, UiMessageKind, UiMessagePart } from '../core/types';
 import { paneLight } from '../theme/apply';
 import { darkInk, fitContrast, lightShift, paneEffectiveBg } from '../theme/color';
-import { AnchoredList, type ListMetrics } from './anchored-list';
+import { AnchoredList, type ListMetrics, forwardWheel } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
 
@@ -120,7 +120,7 @@ export interface UiPaneOptions {
 
 export class UiPane extends PaneShell {
   private readonly root: HTMLDivElement;
-  private readonly list: AnchoredList;
+  private readonly list: AnchoredList<UiMessage>;
   private lines: UiMessage[] = [];
   private storeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -129,14 +129,12 @@ export class UiPane extends PaneShell {
     const doc = ctx.doc;
     this.root = doc.createElement('div');
     this.root.className = 'wc-msgpane wc-ui';
-    this.list = new AnchoredList(doc, () => this.markDirty(), {
-      ...(opts.metrics ? { metrics: opts.metrics } : {}),
-      cellHeight: () => ctx.cells.get().h,
-    });
+    this.list = new AnchoredList<UiMessage>(doc, () => this.markDirty(), opts.metrics ? { metrics: opts.metrics } : {});
     this.root.append(this.list.el, this.list.more);
     this.lines = this.load();
     this.own(ctx.bus.on('ui.message', (m) => this.add(m)));
     this.own(() => this.list.dispose());
+    this.own(forwardWheel(this.el, () => this.list.el, () => ctx.cells.get().h));
     const win = doc.defaultView;
     if (win) {
       win.addEventListener('pagehide', this.flushStorage);
@@ -155,7 +153,6 @@ export class UiPane extends PaneShell {
     if (!v) return;
     this.lines.push(v);
     if (this.lines.length > UI_HISTORY_MAX) this.lines.splice(0, this.lines.length - UI_HISTORY_MAX);
-    this.list.added(1);
     this.scheduleStore();
     this.markDirty();
   }
@@ -211,11 +208,10 @@ export class UiPane extends PaneShell {
     const col = (c: string): string => (light ? ink(lightShift(c)) : c);
     const base = light ? ink(darkInk(bg)) : UI_COLORS.base;
     const value = col(UI_COLORS.value);
-    const lines = this.lines;
     this.list.render(
-      lines.length,
-      Math.max(1, this.rows),
-      (i) => this.buildRow(lines[i]!, base, value, col),
+      this.lines,
+      (m) => this.buildRow(m, base, value, col),
+      `${light}|${bg}|${base}|${value}`,
       (n) => `↓ ${n} newer message${n === 1 ? '' : 's'}`,
     );
   }
