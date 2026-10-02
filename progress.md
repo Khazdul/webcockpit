@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 feedback round 1 built
+
+- **Owner:** UI messages for library changes; pane "Port keys" without
+  the character name; click a name to rename; no `dkey`/`rkey`; settings
+  apply at once; panes scroll; temporary panes remember their place.
+- **Built:** `sysSettingChanged` (mercenaries uses it too); script pane
+  scrolling with `createPane{anchor}`; temporary panes `at` + per-device
+  rectangles, forgotten by Reset layout (ADR 0053 addendum, ADR 0054).
+- **Verified:** typecheck, unit 1830, e2e 373/374 (underscores flake in
+  full runs, passes alone), build green.
+- **Next:** owner test round 2 (stage file test guide).
+- **Commits:** e0bb9c6, a6e88e2, 0cea8d4, dc6127c, ce8e646, plus this one.
+
 ### 2026-10-02 — Stage 12 round 1 built: key manager and pane text fields
 
 - **Owner:** Mudlet Port Key Library is the reference

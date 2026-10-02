@@ -151,8 +151,7 @@ Try:
 
 Feedback wanted: are the UI messages the right ones (too many, too
 few)? Does renaming in place feel right? Is the pick window's default
-place (top of the game text) good? Your unfinished thought about the
-pick window.
+place (top of the game text) good?
 
 ### Round 1
 
