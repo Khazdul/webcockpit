@@ -64,9 +64,11 @@ export function useScrollBox(): ScrollBox {
         const e = el();
         if (!e) return;
         const h = ch();
+        // The exact height: clientHeight is rounded, and a fractional cell height
+        // would leave the last row a part of a pixel short.
+        const view = e.getBoundingClientRect().height || e.clientHeight;
         const top = e.scrollTop;
-        const bottom = top + e.clientHeight;
-        if ((last + 1) * h > bottom) set((last + 1) * h - e.clientHeight);
+        if ((last + 1) * h > top + view + 0.01) set((last + 1) * h - view);
         if (first * h < (el()?.scrollTop ?? top)) set(first * h);
       },
       home: () => set(0),
@@ -115,6 +117,12 @@ export interface TuiScrollbarProps {
   /** Cells the bar is tall. */
   rows: number;
   class?: string;
+  /** Colour classes and track glyph (default the kit's `░█`). */
+  thumbClass?: string;
+  trackClass?: string;
+  trackChar?: string;
+  /** A press on the track jumps there (proportionally) instead of paging. */
+  jump?: boolean;
 }
 
 /**
@@ -141,17 +149,21 @@ export function TuiScrollbar(p: TuiScrollbarProps): VNode {
       {Array.from({ length: p.rows }, (_, i) =>
         bar.length > 0 && i < bar.length ? (
           <div
-            class={'wc-line ' + (bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track')}
+            class={'wc-line ' + (bar[i] ? (p.thumbClass ?? 'wc-scroll-thumb') : (p.trackClass ?? 'wc-scroll-track'))}
             key={i}
             onMouseDown={(e) => {
               e.preventDefault();
               const el = p.target.current;
               if (!el || bar[i]) return;
+              if (p.jump) {
+                el.scrollTop = Math.round((i / Math.max(1, bar.length - 1)) * ((el.scrollHeight - el.clientHeight) / m.cell)) * m.cell;
+                return;
+              }
               const step = Math.max(m.cell, el.clientHeight - m.cell);
               el.scrollTop += i < thumbAt ? -step : step;
             }}
           >
-            {bar[i] ? '█' : '░'}
+            {bar[i] ? '█' : (p.trackChar ?? '░')}
           </div>
         ) : (
           <div class="wc-line" key={i} />

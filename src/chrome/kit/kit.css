@@ -422,3 +422,8 @@
   flex: 0 0 auto;
   width: var(--cell-w);
 }
+
+.wc-stat-col {
+  display: flex;
+  flex: 0 0 auto;
+}

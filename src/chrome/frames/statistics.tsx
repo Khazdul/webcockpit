@@ -15,9 +15,9 @@
 //   ▌◄▬▬ 48.2k XP ▬▬►▐                                         XP ruler
 //
 // Focus: Tab / Shift+Tab over the four tables (the focused title is gold);
-// a click or the wheel on a table focuses it. ↑↓ scroll 1, PgUp/PgDn a
-// page, Home/End. Clicking a title label sorts (same label flips).
-// Scrollbars: click-to-jump. Layout helpers: stats-layout.ts.
+// a click or the wheel on a table focuses it. The tables scroll natively
+// (pixels, as EDITOR); ↑↓ scroll 1 row, PgUp/PgDn a page, Home/End.
+// Clicking a title label sorts (same label flips). Scrollbars: click-to-jump. Layout helpers: stats-layout.ts.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -27,10 +27,10 @@ import type { LiveRuns } from '../../runs/live';
 import { type StatsModel, buildStats, rateSeries } from '../../runs/stats';
 import type { Session } from '../../runs/stitch';
 import { useGrid, useServices } from '../kit/hooks';
-import { cellLen, centreLeft, scrollbar, truncate } from '../kit/nav';
+import { cellLen, centreLeft, truncate } from '../kit/nav';
 import { useIsTop, useKeys } from '../kit/stack';
 import { Footer, indent } from '../kit/widgets';
-import { WHEEL_NOTCH_PX, wheelSteps } from '../kit/wheel';
+import { TuiScrollbar, useScrollBox } from '../kit/scroll';
 import { fmtDate, fmtDur, fmtTime, stars } from './history-model';
 import {
   DEFAULT_KILL_SORT,
@@ -103,7 +103,7 @@ export interface StatsViewProps {
 export function StatsView(p: StatsViewProps): VNode {
   const { cols, rows, surface } = useGrid();
   const [focus, setFocus] = useState(KILLS);
-  const [tops, setTops] = useState([0, 0, 0, 0]);
+  const boxes = [useScrollBox(), useScrollBox(), useScrollBox(), useScrollBox()];
   const [ks, setKs] = useState<StatSort<'name' | 'n' | 'xpPer' | 'xpTotal'>>(DEFAULT_KILL_SORT);
   const [ps, setPs] = useState<StatSort<'name' | 'n' | 'xp'>>(DEFAULT_PVP_SORT);
   const m = p.model;
@@ -128,11 +128,6 @@ export function StatsView(p: StatsViewProps): VNode {
   const fitRows = 2 + Math.max(0, rest);
   const N = p.live ? fitRows : Math.min(fitRows, Math.max(1, kills.length, pvps.length));
 
-  const counts = [allies.length, miles.length, kills.length, pvps.length];
-  const vis = [SMALL_ROWS, SMALL_ROWS, N, N];
-  const top = tops.map((t, i) => Math.max(0, Math.min(t, counts[i]! - vis[i]!)));
-  const setTop = (i: number, t: number): void =>
-    setTops((cur) => cur.map((x, j) => (j === i ? Math.max(0, Math.min(t, counts[i]! - vis[i]!)) : x)));
 
   useKeys((e, nk) => {
     if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'r' || e.key === 'R') && p.onRefresh) {
@@ -147,17 +142,17 @@ export function StatsView(p: StatsViewProps): VNode {
         return true;
       case 'up':
       case 'down':
-        setTop(f, top[f]! + (nk === 'up' ? -1 : 1));
+        boxes[f]!.by(nk === 'up' ? -1 : 1);
         return true;
       case 'pgup':
       case 'pgdn':
-        setTop(f, top[f]! + (nk === 'pgup' ? -1 : 1) * vis[f]!);
+        boxes[f]!.page(nk === 'pgup' ? -1 : 1);
         return true;
       case 'home':
-        setTop(f, 0);
+        boxes[f]!.home();
         return true;
       case 'end':
-        setTop(f, counts[f]!);
+        boxes[f]!.end();
         return true;
     }
     return false;
@@ -166,28 +161,9 @@ export function StatsView(p: StatsViewProps): VNode {
   // ------------------------------------------------------------- pieces
 
   const titleCls = (id: number): string => (id === focus ? 'wc-c-accent' : 'wc-c-section');
-  const bars = counts.map((c, i) => scrollbar(c, vis[i]!, top[i]!));
 
-  /** One side of a table row: T cells of content, 2 blank, the scrollbar cell. */
-  const side = (id: number | null, segs: readonly Seg[], vi?: number): VNode => {
-    const bar = id !== null && vi !== undefined ? bars[id]! : [];
-    const cell =
-      bar.length > 0 ? (
-        <span
-          class={'wc-stat-bar ' + (bar[vi!] ? 'wc-st-thumb' : 'wc-st-track')}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => {
-            e.stopPropagation();
-            setFocus(id!);
-            const maxTop = counts[id!]! - vis[id!]!;
-            setTop(id!, Math.round((vi! / Math.max(1, vis[id!]! - 1)) * maxTop));
-          }}
-        >
-          █
-        </span>
-      ) : (
-        ' '
-      );
+  /** One side of a fixed row: T cells of content, then the 2 blank and the bar cell. */
+  const side = (id: number | null, segs: readonly Seg[]): VNode => {
     const w = segs.reduce((n, s) => n + cellLen(s.text), 0);
     return (
       <span
@@ -195,23 +171,45 @@ export function StatsView(p: StatsViewProps): VNode {
         data-table={id ?? undefined}
         onMouseDown={(e) => e.preventDefault()}
         onClick={id === null ? undefined : () => setFocus(id)}
-        onWheel={
-          id === null
-            ? undefined
-            : (e: WheelEvent) => {
-                e.preventDefault();
-                setFocus(id);
-                const n = wheelSteps(e, WHEEL_NOTCH_PX);
-                if (n !== 0) setTop(id, top[id]! + n);
-              }
-        }
       >
         <Segs segs={segs} />
-        {' '.repeat(Math.max(0, T - w)) + '  '}
-        {cell}
+        {' '.repeat(Math.max(0, T - w)) + '   '}
       </span>
     );
   };
+
+  /**
+   * One table's rows (`n` tall): a native scroll box (pixels, as EDITOR) of
+   * T + 2 cells and the scrollbar cell. A click or the wheel focuses it.
+   */
+  const table = (id: number, data: readonly Seg[][], n: number): VNode => (
+    <div
+      class="wc-stat-col"
+      data-table={id}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => setFocus(id)}
+      onWheel={() => setFocus(id)}
+    >
+      <div class="wc-scrollbox wc-stat-rows" ref={boxes[id]!.ref} style={{ width: `calc(var(--cell-w) * ${T + 2})` }}>
+        {Array.from({ length: Math.max(n, data.length) }, (_, i) => (
+          <div class="wc-line" key={i}>
+            <Segs segs={data[i] ?? []} />
+          </div>
+        ))}
+      </div>
+      <TuiScrollbar target={boxes[id]!.ref} rows={n} thumbClass="wc-stat-bar wc-st-thumb" trackClass="wc-stat-bar wc-st-track" trackChar="█" jump />
+    </div>
+  );
+
+  /** Two tables side by side, `n` rows tall. */
+  const tables = (l: VNode, r: VNode, n: number, key: string): VNode => (
+    <div class="wc-scrollrow wc-stat-tables" style={{ ...indent(left), height: `calc(var(--cell-h) * ${n})` }} key={key}>
+      {l}
+      <div class="wc-cell-gap" />
+      <div class="wc-cell-gap" />
+      {r}
+    </div>
+  );
 
   const line = (l: VNode, r: VNode, key?: string): VNode => (
     <div class="wc-line" style={indent(left)} key={key}>
@@ -242,7 +240,7 @@ export function StatsView(p: StatsViewProps): VNode {
                 e.stopPropagation();
                 setFocus(id);
                 set(nextStatSort(sort, key));
-                setTop(id, 0);
+                boxes[id]!.home();
               }}
             >
               {s.text}
@@ -283,36 +281,24 @@ export function StatsView(p: StatsViewProps): VNode {
           { text: '♦ ', cls: 'wc-st-ally' },
           { text: truncate(name, sub - 2).padEnd(sub - 2), cls: 'wc-st-value' },
         ];
-  for (let vi = 0; vi < SMALL_ROWS; vi++) {
-    const pair = allies[top[ALLIES]! + vi];
-    const ms = miles[top[ACHIEVEMENTS]! + vi];
-    const l: Seg[] = pair ? [...ally(pair[0]), pad(2), ...ally(pair[1])] : [];
-    const r: Seg[] = ms
-      ? [
-          { text: ms.text.slice(0, 1), cls: 'wc-st-star' },
-          { text: truncate(ms.text.slice(1), T - 1), cls: 'wc-st-value' },
-        ]
-      : [];
-    out.push(line(side(ALLIES, l, vi), side(ACHIEVEMENTS, r, vi), `a${vi}`));
-  }
+  const allyRows = allies.map((pair): Seg[] => [...ally(pair[0]), pad(2), ...ally(pair[1])]);
+  const mileRows = miles.map((ms): Seg[] => [
+    { text: ms.text.slice(0, 1), cls: 'wc-st-star' },
+    { text: truncate(ms.text.slice(1), T - 1), cls: 'wc-st-value' },
+  ]);
+  out.push(tables(table(ALLIES, allyRows, SMALL_ROWS), table(ACHIEVEMENTS, mileRows, SMALL_ROWS), SMALL_ROWS, 'a'));
   blank('b2');
 
   // KILLS + PvPs.
   out.push(line(renderTitle(KILLS, kc, ks, setKs), renderTitle(PVPS, pc, ps, setPs), 'kt'));
   const rule: Seg[] = [{ text: '─'.repeat(T), cls: 'wc-c-hint' }];
   out.push(line(side(null, rule), side(null, rule), 'kd'));
-  for (let vi = 0; vi < N; vi++) {
-    const k = kills[top[KILLS]! + vi];
-    const v = pvps[top[PVPS]! + vi];
-    const l: Seg[] = k ? [{ text: killCells(k, kc).join(''), cls: 'wc-st-label' }] : [];
-    const r: Seg[] = v
-      ? [
-          { text: '⚔ ', cls: 'wc-st-pvp' },
-          { text: pvpCells(v, pc).join(''), cls: 'wc-st-label' },
-        ]
-      : [];
-    out.push(line(side(KILLS, l, vi), side(PVPS, r, vi), `k${vi}`));
-  }
+  const killRows = kills.map((k): Seg[] => [{ text: killCells(k, kc).join(''), cls: 'wc-st-label' }]);
+  const pvpRows = pvps.map((v): Seg[] => [
+    { text: '⚔ ', cls: 'wc-st-pvp' },
+    { text: pvpCells(v, pc).join(''), cls: 'wc-st-label' },
+  ]);
+  out.push(tables(table(KILLS, killRows, N), table(PVPS, pvpRows, N), N, 'k'));
   const kt = m?.killTotal ?? { n: 0, xp: 0 };
   const pt = m?.pvpTotal ?? { n: 0, xp: 0 };
   const killTotal: Seg[] =
