@@ -50,9 +50,10 @@ describe('scripts model', () => {
     expect(wide.nameW).toBe(BUTTONS_W - ROW_FIXED);
     expect(wide.detailW).toBe(76);
     expect(wide.at).toBe(Math.floor((200 - (wide.listW + 1 + 3 + 76)) / 2));
+    // The button row (with MANUAL) is wider than the longest name column.
+    expect(BUTTONS_W).toBeGreaterThan(32 + ROW_FIXED);
     const long = scriptsLayout(200, ['x'.repeat(40)]);
-    expect(long.nameW).toBe(32);
-    expect(long.listW).toBe(32 + ROW_FIXED);
+    expect(long.listW).toBe(BUTTONS_W);
     expect(scriptsLayout(70, ['a']).detailW).toBe(0);
   });
 

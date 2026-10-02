@@ -127,6 +127,7 @@ body {
 .wc-syn-delim { color: var(--c-syn-delim); }
 .wc-syn-var { color: var(--c-syn-var); }
 .wc-syn-code { color: var(--c-syn-code); }
+.wc-syn-comment { color: var(--c-body); }
 
 /* `#help` rows: the HELP view's roles (HELP_CLS in src/editor/frame.tsx;
  * the wc-c-* classes of the chrome kit use the same tokens). */

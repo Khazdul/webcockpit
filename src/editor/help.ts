@@ -20,7 +20,8 @@
 
 import { COMMANDS, type CommandEntry } from '../script/commands';
 import { wrapText } from '../chrome/kit/nav';
-import { type TokenClass, tokenizeLine } from './syntax';
+import { type LuaTokenClass, luaHighlightLine } from './lua-highlight';
+import { tokenizeLine } from './syntax';
 
 // ---------------------------------------------------------------- content
 
@@ -59,10 +60,13 @@ export interface HelpExample {
   note?: string;
   /** `input`: typed on the input line instead of loaded as a profile. */
   via?: 'profile' | 'input';
+  /** The language of `code`: tt++ (default) or Lua (the script manual). */
+  lang?: 'tt' | 'lua';
   check?: HelpCheck;
 }
 
-export type HelpGroup = 'intro' | 'basics' | 'commands' | 'end';
+/** The profile manual's groups, and the script manual's (`guide`, `reference`). */
+export type HelpGroup = 'intro' | 'basics' | 'commands' | 'end' | 'guide' | 'reference';
 
 export interface HelpSection {
   group: HelpGroup;
@@ -284,11 +288,12 @@ const BASICS: readonly HelpSection[] = [
     ],
     text: [
       'Scripts are small Lua programs kept beside the profile, not in it. ESC → Scripts (or Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      'MANUAL on the Scripts page and in the script editor opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the function under the cursor.',
       '#script list shows every script, whether it is on and what it does.',
       '#script help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
       '#script set {name} {setting} {value} changes a setting and saves it, for example #script set coinlooter delay 0.5. The script sees the new value at once.',
       '#script enable {name} and #script disable {name} turn a script on and off, as the toggle on the Scripts page does.',
-      '#script reload {name} starts a script that is on again from its saved code, for example after an error stopped it.',
+      '#script reload {name} loads a script that is on again from its saved code, for example after it failed to load. A script that errors too often is turned off; #script enable turns it on again.',
       '#lua {script} {function} {args} calls a function that a script exported with export(name, fn), with the rest of the line as its argument. It works from aliases, actions and macros too.',
       'Other forms of #script and #lua, such as a pasted tt++ #script line, do nothing.',
     ],
@@ -756,7 +761,7 @@ export type HelpLineKind = 'blank' | 'group' | 'heading' | 'syntax' | 'text' | '
 export interface HelpSeg {
   text: string;
   /** A syntax class (`wc-syn-<cls>`), for code rows. */
-  cls?: TokenClass;
+  cls?: LuaTokenClass;
 }
 
 export interface HelpLine {
@@ -771,7 +776,10 @@ const GROUP_TITLES: Readonly<Record<HelpGroup, string | null>> = {
   basics: 'Basics',
   commands: 'Commands',
   end: null,
+  guide: 'Guide',
+  reference: 'API reference',
 };
+
 
 /** Indent of syntax rows and examples, in cells. */
 export const CODE_INDENT = 4;
@@ -783,11 +791,11 @@ const cps = (s: string): number => [...s].length;
  * tokens. A row breaks after a space when there is one in its second half,
  * else anywhere; continuation rows keep the line's own indent plus two.
  */
-function codeRows(src: string, width: number): HelpSeg[][] {
+function codeRows(src: string, width: number, lang: 'tt' | 'lua' = 'tt', luaKnown?: (name: string) => boolean): HelpSeg[][] {
   const chars = [...src];
   // A class per character, from the lexer (offsets are UTF-16 units).
-  const cls: (TokenClass | undefined)[] = [];
-  const toks = tokenizeLine(src);
+  const cls: (LuaTokenClass | undefined)[] = [];
+  const toks: readonly { from: number; to: number; cls: LuaTokenClass }[] = lang === 'lua' ? luaHighlightLine(src, luaKnown) : tokenizeLine(src);
   let unit = 0;
   let ti = 0;
   for (const ch of chars) {
@@ -853,7 +861,7 @@ export function helpParagraph(text: string, width: number): HelpLine[] {
 export function helpLayout(
   width: number,
   sections: readonly HelpSection[] = helpSections(),
-  opts: { groups?: boolean } = {},
+  opts: { groups?: boolean; luaNames?: (name: string) => boolean } = {},
 ): HelpLayout {
   const w = Math.max(24, width);
   const lines: HelpLine[] = [];
@@ -889,7 +897,7 @@ export function helpLayout(
       blank();
       if (ex.note) for (const l of wrapText(ex.note, w)) lines.push({ kind: 'note', indent: 0, segs: [{ text: l }] });
       for (const src of ex.code.split('\n')) {
-        for (const row of codeRows(src, w - CODE_INDENT)) lines.push({ kind: 'code', indent: CODE_INDENT, segs: row });
+        for (const row of codeRows(src, w - CODE_INDENT, ex.lang, opts.luaNames)) lines.push({ kind: 'code', indent: CODE_INDENT, segs: row });
       }
     }
   }

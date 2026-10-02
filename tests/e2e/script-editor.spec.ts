@@ -262,3 +262,75 @@ test('the Scripts page shows a syntax error of a script that is off', async ({ p
   expect(await lib<{ enabled: boolean }>(page, 'get', 'finder').then((s) => s.enabled)).toBe(false);
   expect(errors).toEqual([]);
 });
+
+// -------------------------------------------------------------- MANUAL
+
+const manual = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sman');
+/** The text of the manual's top row (it scrolls natively). */
+const manualTop = (page: Page) =>
+  manual(page)
+    .locator('.wc-ped-manual-rows')
+    .evaluate((el) => {
+      const t = el.scrollTop;
+      return ([...el.children] as HTMLElement[]).find((c) => c.offsetTop >= t - 1)?.textContent ?? '';
+    });
+
+test('MANUAL: from the editor (button and F1 at the name under the cursor) and from the Scripts page', async ({ page }, info) => {
+  const errors = watchErrors(page);
+  const f = await scriptsPage(page);
+  await openEditor(page, f);
+  // CLOSE is gone; MANUAL took its place and the footer names F1.
+  await expect(editor(page).locator('[data-btn="CLOSE"]')).toHaveCount(0);
+  await expect(editor(page).locator('.wc-ped-footer')).toContainText('F1 Manual');
+
+  // Search open, cursor inside tempTrigger on line 5: F1 opens its reference entry.
+  await page.keyboard.press('Control+f');
+  await page.keyboard.type('goblin');
+  await editor(page).locator('.cm-line', { hasText: 'tempTrigger' }).click({ position: { x: 30, y: 5 } });
+  await page.keyboard.press('F1');
+  await expect(manual(page)).toBeVisible();
+  // Near the end of A–Z the entry cannot reach the top row: it is in view and marked.
+  await expect(manual(page).locator('.wc-ped-menu .wc-tr.is-cur')).toHaveText(/^ tempTrigger\s*$/);
+  await expect(manual(page).locator('[data-kind="heading"]', { hasText: /^tempTrigger$/ })).toBeInViewport();
+  await expect(manual(page).locator('.wc-ped-manual')).toContainText('tempTrigger(substring, fn)');
+  await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/]);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-dark-${info.project.name}.png` });
+
+  // The wheel scrolls by pixels, not rows.
+  const rows = manual(page).locator('.wc-ped-manual-rows');
+  const before = await rows.evaluate((el) => el.scrollTop);
+  await rows.hover();
+  await page.mouse.wheel(0, -6);
+  await expect.poll(() => rows.evaluate((el) => el.scrollTop)).toBeLessThan(before);
+  const cell = await rows.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
+  expect(before - (await rows.evaluate((el) => el.scrollTop))).toBeLessThan(cell);
+  // n / p jump between headings; Tab goes to the menu.
+  await page.keyboard.press('p');
+  await expect.poll(() => manualTop(page)).toBe('tempTimer');
+  await page.keyboard.press('Tab');
+  await expect(manual(page)).toHaveAttribute('data-zone', 'menu');
+
+  // ESC: back in the editor with the search panel, its query and the cursor.
+  await page.keyboard.press('Escape');
+  await expect(manual(page)).toHaveCount(0);
+  await expect(editor(page)).toBeVisible();
+  await expect(panel(page).getByRole('textbox', { name: 'Find' })).toHaveValue('goblin');
+  await expect(editor(page).locator('.wc-ped-footer')).toContainText('Ln 5,');
+
+  // MANUAL button: the start of the guide.
+  await editor(page).locator('[data-btn="MANUAL"]').click();
+  await expect.poll(() => manualTop(page)).toBe('Getting started');
+  await paper(page);
+  if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-light-${info.project.name}.png` });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+
+  // The Scripts page has MANUAL in its button row.
+  await f.locator('[data-btn="MANUAL"]').click();
+  await expect(manual(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  expect(errors).toEqual([]);
+});

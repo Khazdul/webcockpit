@@ -88,6 +88,7 @@ describe('#help resolution', () => {
     for (const sub of SCRIPT_SUBCOMMANDS) expect(text, sub).toContain(`#script ${sub}`);
     expect(text).toContain('#lua {script} {function} {args}');
     expect(text).toContain('ESC → Scripts');
+    expect(text).toContain('MANUAL');
     expect(helpIndex().topics).toContain('script');
   });
 

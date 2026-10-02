@@ -34,7 +34,8 @@ import { EditorView, type Tooltip, highlightActiveLine, hoverTooltip, keymap, li
 import { tags } from '@lezer/highlight';
 import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
-import { type ApiDoc, completeLua, nameAt } from './lua-api';
+import { type ApiDoc, apiDoc, completeLua, nameAt } from './lua-api';
+import { luaHighlightLine } from './lua-highlight';
 import { luaIndent } from './lua-indent';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
 import { searchExtension } from './search';
@@ -76,6 +77,33 @@ export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
     t.className = 'wc-lua-doc-text';
     t.textContent = d.doc;
     el.appendChild(t);
+  }
+  if (d.example) {
+    // The example, coloured as in the manual (lua-highlight.ts).
+    const ex = doc.createElement('div');
+    ex.className = 'wc-lua-doc-example';
+    for (const line of d.example.split('\n')) {
+      const row = doc.createElement('div');
+      let at = 0;
+      for (const t of luaHighlightLine(line, (n) => apiDoc(n) !== null)) {
+        if (t.from > at) row.append(line.slice(at, t.from));
+        const span = doc.createElement('span');
+        span.className = `wc-syn-${t.cls}`;
+        span.textContent = line.slice(t.from, t.to);
+        row.append(span);
+        at = t.to;
+      }
+      if (at < line.length) row.append(line.slice(at));
+      if (line === '') row.textContent = ' ';
+      ex.appendChild(row);
+    }
+    el.appendChild(ex);
+  }
+  if (d.kind !== 'lua') {
+    const f = doc.createElement('div');
+    f.className = 'wc-lua-doc-more wc-c-hint';
+    f.textContent = 'F1 Manual';
+    el.appendChild(f);
   }
   return el;
 }

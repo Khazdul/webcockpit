@@ -11,3 +11,4 @@ import './editor.css';
 
 export { type ApplyResult, type EditorHost, ProfileEditor, openProfileEditor } from './frame';
 export { type ScriptEditorHost, ScriptEditor, openScriptEditor } from './script-frame';
+export { ScriptManual, openScriptManual } from './script-manual-frame';

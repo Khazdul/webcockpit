@@ -4,7 +4,8 @@
 // the TUI scrollbar, a status row (state, load errors, warnings) and the
 // footer (hints or a flash, Ln/Col).
 //
-// Keys: Ctrl+S saves; Ctrl+F finds and replaces (search.ts; ESC closes
+// Keys: Ctrl+S saves; F1 opens the script manual (at the API name under
+// the cursor); MANUAL opens it at the start; Ctrl+F finds and replaces (search.ts; ESC closes
 // the panel before it closes the editor); Tab cycles buttons ↔ buffer
 // (inside the completion list it accepts); ↑ on the first line leaves the
 // buffer; ESC closes and asks first when there are unsaved changes. A bundled script opens
@@ -22,6 +23,8 @@ import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { type BufferStatus, type ScrollStatus, handleKey, onFirstLine, pageScroll } from './cm';
 import { FULL_W } from './logic';
 import { checkScript } from '../scripts/check';
+import { nameAt } from './lua-api';
+import { openScriptManual } from './script-manual-frame';
 import { completing, createLuaBuffer } from './lua-cm';
 import { type ScriptDiagnostic, diagnosticText } from './lua-diagnostics';
 import { markScriptSaved, setScriptLastError } from './lua-lint';
@@ -42,17 +45,22 @@ interface LocalFlash {
 }
 
 type Zone = 'buttons' | 'buffer';
-type Btn = 'SAVE' | 'DUPLICATE' | 'CLOSE';
+type Btn = 'SAVE' | 'DUPLICATE' | 'MANUAL';
 
 const FLASH_MS = 3000;
 /** Footer hints, longest first; the first that fits beside Ln/Col is shown. */
 const HINTS = [
-  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · Tab Cycle · ESC Back',
-  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · ESC Back',
-  'Ctrl+S Save · Ctrl+F Find · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · Tab Cycle · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · F1 Manual · ESC Back',
+  'Ctrl+S Save · F1 Manual · ESC Back',
   'Ctrl+S Save · ESC Back',
 ];
-const RO_HINTS = ['Read-only: DUPLICATE makes your copy · Ctrl+F Find · ESC Back', 'Read-only · Ctrl+F Find · ESC Back', 'Read-only · ESC Back'];
+const RO_HINTS = [
+  'Read-only: DUPLICATE makes your copy · Ctrl+F Find · F1 Manual · ESC Back',
+  'Read-only · Ctrl+F Find · F1 Manual · ESC Back',
+  'Read-only · ESC Back',
+];
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
 
@@ -93,7 +101,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   const cellH = useRef(16);
 
   const readOnly = info?.readonly ?? true;
-  const buttons: Btn[] = readOnly ? ['DUPLICATE', 'CLOSE'] : ['SAVE', 'CLOSE'];
+  const buttons: Btn[] = readOnly ? ['DUPLICATE', 'MANUAL'] : ['SAVE', 'MANUAL'];
   const dirty = !readOnly && text !== saved;
 
   const showFlash = (t: string, kind: 'ok' | 'fail' = 'ok', ms = FLASH_MS): void => {
@@ -234,10 +242,23 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     } else setModal(null);
   };
 
+  /** The script manual, at the API name under the cursor when `atCursor` and there is one. */
+  const manual = (atCursor: boolean): void => {
+    const v = viewRef.current;
+    let name: string | undefined;
+    if (atCursor && v) {
+      const head = v.state.selection.main.head;
+      const line = v.state.doc.lineAt(head);
+      const hit = nameAt(line.text, head - line.from);
+      if (hit && hit.doc.kind !== 'lua') name = hit.doc.name;
+    }
+    openScriptManual(nav, name);
+  };
+
   const press = (b: Btn): void => {
     if (b === 'SAVE') void save();
     else if (b === 'DUPLICATE') void duplicate();
-    else close();
+    else manual(false);
   };
 
   // ---------------------------------------------------------------- keys
@@ -253,6 +274,10 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
       void save();
+      return true;
+    }
+    if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+      manual(zone === 'buffer');
       return true;
     }
     const v = viewRef.current;

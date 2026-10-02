@@ -73,7 +73,7 @@ export function problemText(s: ScriptInfo): string | null {
 // ----------------------------------------------------------------- layout
 
 /** The buttons above the list, in order. */
-export const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EXPORT', 'RENAME', 'DELETE'] as const;
+export const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EXPORT', 'RENAME', 'DELETE', 'MANUAL'] as const;
 export type ScriptButton = (typeof SCRIPT_BUTTONS)[number];
 
 /** A button is its label with one cell either side. */

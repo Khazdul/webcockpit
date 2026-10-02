@@ -111,6 +111,22 @@ function useSyntaxProblems(list: readonly ScriptInfo[], running: (name: string) 
 
 let editing = false;
 
+/** Loads the editor chunk and pushes the script manual. */
+async function openManual(nav: Nav): Promise<void> {
+  if (editing) return;
+  editing = true;
+  const depth = nav.depth();
+  try {
+    const mod = await import('../../editor');
+    if (nav.depth() !== depth) return;
+    mod.openScriptManual(nav);
+  } catch (e) {
+    nav.flash(`Could not open the manual: ${errText(e)}`, 'fail');
+  } finally {
+    editing = false;
+  }
+}
+
 /** Loads the editor chunk and pushes the script editor (no-op while loading). */
 export async function editScript(nav: Nav, lib: ScriptLibrary, name: string, onName: (n: string) => void): Promise<void> {
   if (editing) return;
@@ -200,7 +216,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   };
 
   const disabled = (b: ScriptButton): boolean => {
-    if (b === 'NEW' || b === 'IMPORT') return false;
+    if (b === 'NEW' || b === 'IMPORT' || b === 'MANUAL') return false;
     if (!cur) return true;
     return (b === 'RENAME' || b === 'DELETE') && cur.readonly;
   };
@@ -257,6 +273,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
         return nav.push(<NameFrame lib={lib} mode="rename" from={cur!.name} done={(n) => (select(n), setZone('list'))} />);
       case 'DELETE':
         return nav.push(<DeleteFrame lib={lib} name={cur!.name} done={(n) => (setCursorName(n), setZone('list'))} />);
+      case 'MANUAL':
+        return void openManual(nav);
     }
   };
 
