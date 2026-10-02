@@ -110,6 +110,19 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - [x] MANUAL: *Lua basics* and *Lua patterns* in the guide, and a
         generated *Lua reference* (linked index, one entry per name);
   - [x] unit and e2e tests (Chromium, Firefox).
+- [x] Feedback round 4 (2026-10-02, ADR 0051 "Feedback round 4"):
+  - [x] SAVE and MANUAL gone from the editor's title row (Ctrl+S, F1;
+        a bundled script keeps DUPLICATE);
+  - [x] Tab / Shift+Tab as in a code editor: completion, snippet field,
+        else indent / dedent (script editor only);
+  - [x] live errors held back while typing on their line or unfinished
+        code (`lua-holdback.ts`): shown on leaving the line, after 1.5 s
+        idle, or on save; others after 0.3 s as before;
+  - [x] Enter after a block header closes the block (`lua-blocks.ts`),
+        `end)` for a function argument; brackets and quotes auto-close;
+  - [x] case auto-correct of API and Lua names (`lua-case.ts`), undoable,
+        refused spellings remembered;
+  - [x] unit and e2e tests (Chromium, Firefox).
 
 ## Test guide
 
@@ -149,18 +162,18 @@ Chromium.
    Ctrl+S saves. Toggle it on from the list (or `#script enable
    <name>`). Completion: type `temp` and wait, or press Ctrl+Space.
    Hover over a function name for its help and an example. F1 opens
-   the MANUAL at the function under the cursor; the MANUAL button (in
-   the editor and on the Scripts page) opens it at the start. ESC goes
-   back to the editor as you left it.
+   the MANUAL at the function under the cursor, or at the start when
+   the cursor is on no name; the MANUAL button on the Scripts page opens
+   it too. ESC goes back to the editor as you left it.
 6. **Find:** Ctrl+F in the editor opens the find panel at the bottom:
    Enter/F3 next, Shift+Enter/Shift+F3 previous, Ctrl+H to the replace
    field (Enter replaces, ALL replaces all), Alt+C/W/R case, word,
    regex. ESC closes the panel; a second ESC leaves the editor. The
    profile editor's EDITOR view has the same panel.
-7. **Errors while typing:** delete a `)` or an `end`. About 0.3 s
-   later the line gets a red dot, a red band and an underline; hover
-   for the message; the status row shows it. Fix it and the mark goes,
-   without saving. Remove the `-- @api 1` line: a header error. A
+7. **Errors while typing:** delete a `)` or an `end`, then move to
+   another line (or wait 1.5 s). The line gets a red dot, a red band
+   and an underline; hover for the message; the status row shows it.
+   Fix it and the mark goes at once, without saving. Remove the `-- @api 1` line: a header error. A
    script that is off with a syntax error shows it in red under its row
    on the Scripts page.
 8. **Runtime errors:** put a typo in a call (`sendd("x")`), save, and
@@ -189,6 +202,21 @@ Chromium.
 12. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
    an editable `coinlooter-copy`. Export and import a script as `.lua`
    (import shows a warning first).
+13. **A code editor (round 4):** the title row has no buttons; Ctrl+S
+    saves and F1 opens the MANUAL (the footer says so). Tab indents
+    (Shift+Tab dedents, a selection moves as a block); with the
+    completion list open Tab takes the selected name; inside a snippet it
+    goes to the next field. Type `function test()` and Enter: the cursor
+    lands indented in the body and `end` appears below. Same for
+    `if … then`, `for … do`, `while … do`, `repeat` (`until`), and
+    `tempTrigger("x", function()` gets `end)`. Enter after a block that
+    already has its `end` just breaks the line. While you type valid code
+    nothing turns red; an unfinished line (`if x`) turns red once you
+    leave it or pause about 1.5 s; a mistake that breaks another line
+    (an extra `end` in the middle of a function) shows within about
+    0.3 s. Type `temptrigger(`: it becomes `tempTrigger(`. Ctrl+Z puts
+    your spelling back, and that spelling is then left alone. Does the
+    timing feel right? Should a correction happen less (or more) often?
 
 **Feedback wanted:** layout and look of the page and the editor; the
 help text of coin looter; whether coin looter behaves right in real
@@ -226,3 +254,17 @@ Round 3 (2026-10-02):
    only said "Lua"). Lead's decision on the manual: no copy of the Lua
    manual; a short *Lua basics* primer and a generated *Lua library*
    index and reference.
+
+Round 4 (2026-10-02, after testing release 0.1.24):
+
+1. Remove SAVE and MANUAL from the script editor's header; Ctrl+S saves
+   and F1 opens the manual.
+2. Tab should work as in a code editor: accept the completion, move
+   between snippet fields, else indent; Shift+Tab dedents.
+3. Errors should stay live but not flash while typing correct code
+   (after `function ` or Enter after `function test()`), as in VS Code.
+4. Enter after a line that opens a block adds the closing `end` (or
+   `until`), `end)` for a function passed as an argument; brackets and
+   quotes close too.
+5. Known names typed in the wrong case are corrected (`temptrigger(` →
+   `tempTrigger(`); undoing or retyping the user's spelling keeps it.

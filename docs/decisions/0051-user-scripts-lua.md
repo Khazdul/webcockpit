@@ -756,3 +756,83 @@ players who do not know Lua.
 **Measured** (production build): editor chunk 478.7 → 528.7 kB (156.2 →
 172.7 kB gzip); chrome 108.2 kB unchanged; cold-start preload unchanged
 (390.9 kB).
+
+### Feedback round 4 — a code editor (2026-10-02)
+
+After testing 0.1.24 the owner asked for the script editor to behave
+like a code editor. Supersedes P2's *Editor* sentences on SAVE and on
+Tab cycling, round 1's MANUAL button in the editor, and round 3's
+*Keys* sentence that Tab otherwise cycles to the buttons.
+
+- *No buttons.* The title row holds only the title (a bundled script
+  keeps DUPLICATE, reached with Tab or ↑ on the first line, since its
+  buffer cannot be edited). Ctrl+S saves; F1 opens the manual at the
+  name under the cursor, else at the start. The Scripts page keeps its
+  MANUAL button. The footer: `Ctrl+S Save · Ctrl+F Find · Ctrl+Space
+  Complete · F1 Manual · Tab Indent · ESC Back`.
+- *Tab.* In an editable buffer, in order: an open completion list
+  accepts (our `Prec.highest` binding), an active snippet moves to the
+  next/previous field, else Tab inserts spaces to the next 2-column stop
+  at each cursor (a selection: `indentMore` on its lines) and Shift+Tab
+  is `indentLess`. ESC is unchanged (pop-ups, search, then the editor).
+  The profile editor's EDITOR view keeps Tab cycling: a separate frame
+  and buffer (`frame.tsx`, `cm.ts`), no shared code path.
+- *Hold-back of live errors* (`lua-holdback.ts`, pure). The check still
+  runs 300 ms after the last edit; its result is filtered. Held while
+  the user types: (a) *unfinished* — a syntax error `near <eof>` (or
+  `near '<eof>'`: `'end' expected`, `<name> expected`, unfinished long
+  string or comment); (b) *cursor* — an error on the cursor's line, an
+  error whose opener (`… at line N)`) is on the cursor's line, or an
+  error on the next line of code after the cursor's line (only blank
+  and comment lines between), because Lua reads on until a token does
+  not fit (`if x` + Enter, or a lone `function` above
+  `tempAlias("x", …)`, reports inside the next line). Released when the
+  cursor moves to another line (cursor holds only; re-filtered without
+  a new check), after 1500 ms without an edit (`HOLD_IDLE_MS`, restarted
+  by each edit), or on save. Once shown, an error stays shown until a
+  check no longer reports it, even while typing on its line; identity
+  is source plus message with `line N` normalised, so a shown error
+  does not flicker when lines move. `<eof> expected near 'end'` (a
+  stray `end`) is not unfinished and shows by location. Header problems
+  follow the same rules; runtime errors are never held. A unit test
+  types sequences one key at a time against the real compiler (with and
+  without bracket closing, at the end and above other code) and asserts
+  every intermediate error is held. Numbers: 300 ms (unchanged) and
+  1500 ms; 1 s felt like it could fire mid-word for slow typists, 2 s
+  made a real mistake feel lost. The mark itself is unchanged (no
+  delayed band): with the hold-back, a mark appears only when it means
+  something.
+- *Block auto-close* (`lua-blocks.ts`, pure). A full-buffer lexer
+  (strings with escapes, long brackets, comments across lines) and a
+  block stack (`function`, `if`, `do`, `repeat`; `end`/`until` pop).
+  Enter at the end of a line (only closing brackets after the cursor)
+  whose last code token completes a header opened on that line — `then`
+  of an `if`, `do`, `repeat`, or the `)` that closes a `function`'s
+  parameters — inserts a body line one unit deeper and the closer at the
+  opener line's indentation. Brackets after the cursor (from
+  `closeBrackets`) move behind the closer (`end)`); without them the
+  line's brackets still open before the `function` are closed (`end)`,
+  `end}`). *Closed already*: scanning on, the closer that pops this
+  block closes it when it is the right word and indented at least as
+  deep as the opener; a block nothing pops, or one popped by a shallower
+  closer (the outer block's `end`), is not closed. Chosen over the
+  compile-with-and-without check, which is async (the runtime is a lazy
+  chunk) and cannot tell which block a lone `end` belongs to.
+  `else`/`elseif … then` only indent. `closeBrackets` was already on.
+- *Case auto-correct* (`lua-case.ts` pure, plugin in `lua-cm.ts`). The
+  names of `SCRIPT_API` and `LUA_REF` (not tags, keywords or removed
+  names; a lower-case clash drops both) by lower case. A word is
+  finished when `(`, `.`, `:`, space, `,`, `)` or Enter is typed right
+  after it, or the cursor leaves a word just typed. Not corrected: in a
+  string or comment, a field or method of something (`obj.Send`,
+  `s:Upper`; a whole dotted name such as `String.format` is), a spelling
+  the script defines (`local`, `local function`/`function` name,
+  parameters, `for` variables, `name =`), or a refused spelling. The
+  correction is its own transaction after the typing one
+  (`isolateHistory: 'full'`, user event `input.autocorrect`), so one
+  Ctrl+Z restores the typed spelling. A spelling is refused for the
+  editor session when the text at a corrected spot (mapped through
+  edits) reads the typed spelling again: undo, or retyping it there.
+
+**Measured** (production build): editor chunk 528.7 → 536.7 kB (172.7
+→ 175.3 kB gzip); other chunks unchanged.
