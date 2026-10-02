@@ -118,12 +118,10 @@ function codeDom(code: string, cls: string, doc: Document): HTMLElement {
   return ex;
 }
 
-/** Whether F1 on this entry opens a manual section (script-reference.ts `manualSectionOf`). */
-const hasManual = (d: ApiDoc): boolean => !d.removed;
-
 /**
  * The hover / completion info box of one entry: signature, description,
- * parameters, return value, example, and the F1 hint.
+ * parameters, return value and example. No F1 hint: the editor's footer
+ * says F1 (stage 10 feedback round 5).
  */
 export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
   const el = doc.createElement('div');
@@ -161,12 +159,6 @@ export function docDom(d: ApiDoc, doc: Document = document): HTMLElement {
     el.appendChild(r);
   }
   if (d.example) el.appendChild(codeDom(d.example, 'wc-lua-doc-example', doc));
-  if (hasManual(d)) {
-    const f = doc.createElement('div');
-    f.className = 'wc-lua-doc-more wc-c-hint';
-    f.textContent = 'F1 Manual';
-    el.appendChild(f);
-  }
   return el;
 }
 

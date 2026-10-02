@@ -330,11 +330,6 @@
   background-color: var(--c-focus-bg);
 }
 
-.wc-lua-doc-more {
-  margin-top: var(--cell-h);
-  text-align: right;
-}
-
 /* Find and replace (search.ts): a rule and one or two grid rows at the
  * bottom of the buffer, kit classes for fields, buttons and check boxes. */
 .wc-search {

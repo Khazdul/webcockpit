@@ -194,7 +194,8 @@ test('hover on ipairs shows the Lua docs; F1 opens its Lua reference entry', asy
   const hover = page.locator('.cm-tooltip-hover');
   await expect(hover).toContainText('ipairs(t) → iterator');
   await expect(hover).toContainText('Walks a list in order');
-  await expect(hover).toContainText('F1 Manual');
+  // No F1 hint in the pop-ups (round 5): the footer says F1.
+  await expect(hover).not.toContainText('F1');
 
   // F1 with the cursor on ipairs: its entry in the Lua reference.
   await page.mouse.click(cell!.x, cell!.y);
