@@ -644,9 +644,12 @@ export class App {
   scriptHost(): Promise<ScriptHost> {
     const lib = this.scriptLib;
     if (!lib) return Promise.reject(new Error('no script library'));
-    this.hostP ??= import('../scripts/host').then(async ({ ScriptHost }) => {
+    const chunks = (): Promise<[typeof import('../scripts/host'), typeof import('../panes/script-surface')]> =>
+      Promise.all([import('../scripts/host'), import('../panes/script-surface')]);
+    this.hostP ??= chunks().then(async ([{ ScriptHost }, { CockpitPaneSurface }]) => {
       if (this.disposed) throw new Error('disposed');
       const host = new ScriptHost({
+        panes: new CockpitPaneSurface(this.cockpit, this.settings, this.cockpit.paneContext),
         engine: this.script,
         bus: this.bus,
         library: lib,

@@ -16,6 +16,8 @@ import { HANG_KEY } from '../../src/scripts/guard';
 import { GmcpCache } from '../../src/scripts/gmcp-cache';
 import { ScriptHost } from '../../src/scripts/host';
 import type { StyledRow } from '../../src/ui/output-pane';
+import type { PaneContent } from '../../src/panes/script-content';
+import type { ScriptPaneEvents, ScriptPaneSpec, ScriptPaneSurface, ScriptPaneView } from '../../src/panes/script-surface';
 
 class MemStorage {
   readonly map = new Map<string, string>();
@@ -60,7 +62,48 @@ interface SetupOptions {
   profile?: string;
   /** Runs on the bus before the host exists (a GmcpCache is attached first). */
   before?: (bus: Bus) => void;
+  panes?: ScriptPaneSurface;
 }
+
+/** A fake pane surface: records what the host opens and lets a test click and resize. */
+class FakeSurface implements ScriptPaneSurface {
+  readonly opened: Array<{ spec: ScriptPaneSpec; content: PaneContent; events: ScriptPaneEvents; view: FakeView }> = [];
+  open(spec: ScriptPaneSpec, content: PaneContent, events: ScriptPaneEvents): ScriptPaneView {
+    const view = new FakeView();
+    this.opened.push({ spec, content, events, view });
+    return view;
+  }
+  /** The open pane `id`, or undefined. */
+  get(id: string) {
+    return this.opened.find((o) => o.spec.id === id && !o.view.closed);
+  }
+}
+class FakeView implements ScriptPaneView {
+  changes = 0;
+  on = true;
+  closed = false;
+  cols = 0;
+  rows = 0;
+  changed(): void {
+    this.changes++;
+  }
+  setOn(on: boolean): void {
+    this.on = on;
+  }
+  isOn(): boolean {
+    return this.on;
+  }
+  size() {
+    return { cols: this.cols, rows: this.rows };
+  }
+  close(): void {
+    this.closed = true;
+  }
+}
+
+/** The text of a pane's lines (gauges as `[label value/max]`). */
+const paneText = (c: PaneContent): string[] =>
+  c.lines.map((l) => ('spans' in l ? l.spans.map((s) => s.text).join('') : `[${l.gauge.label} ${l.gauge.value}/${l.gauge.max}]`));
 
 async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = {}) {
   const bus = new Bus();
@@ -110,6 +153,7 @@ async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = 
     loadRuntime: () => loadLuaRuntime(),
     storage: storage as unknown as Storage,
     clock: () => now.t,
+    ...(opts.panes ? { panes: opts.panes } : {}),
   });
   hosts.push(host);
   await host.start();
@@ -711,5 +755,158 @@ describe('hang guard', () => {
     expect(t.lib.get('s')!.enabled).toBe(false);
     expect(t.uiText()[0]).toMatch(/^Script s was turned off: the page closed while it was running/);
     expect(storage.getItem(HANG_KEY)).toBe(null);
+  });
+});
+
+describe('panes', () => {
+  const PANE = src(`
+    pane = createPane{id = "main", title = "Mercs", dock = "left", rows = 5, cols = 20}
+    pane:echo("a")
+    pane:echo("b\\n")
+    pane:cecho("<red>red<reset> text\\n")
+    pane:setLine(4, "<b>four")
+    pane:gauge(5, {value = 30, max = 60, color = "orange", label = "half"})
+  `);
+
+  it('createPane opens a pane per script and id; the methods edit its content', async () => {
+    const panes = new FakeSurface();
+    const t = await setup({ m: PANE }, { panes });
+    const p = panes.get('m/main')!;
+    expect(p.spec).toEqual({ id: 'm/main', place: { dock: 'left', rows: 5, cols: 20 } });
+    expect(p.content.title).toBe('Mercs');
+    expect(paneText(p.content)).toEqual(['ab', 'red text', '', 'four', '[half 30/60]']);
+    const red = p.content.lines[1]!;
+    expect('spans' in red && red.spans[0]).toEqual({ text: 'red', fg: TRUECOLOR | 0xff0000 });
+    const four = p.content.lines[3]!;
+    expect('spans' in four && four.spans[0]!.bold).toBe(true);
+    const g = p.content.lines[4]!;
+    expect('gauge' in g && g.gauge.color).toBe(TRUECOLOR | 0xffa500);
+    expect(p.view.changes).toBe(5);
+    expect(t.host.isRunning('m')).toBe(true);
+  });
+
+  it('createPane validates its table; the same id returns the same pane', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        v: src(`
+          local a = createPane{id = "x"}
+          local b = createPane{id = "x", title = "New"}
+          send(tostring(a == b))
+          for _, bad in ipairs({ {}, {id = "a/b"}, {id = "x y"}, {id = "ok", dock = "middle"}, {id = "ok", rows = "many"} }) do
+            local ok, err = pcall(createPane, bad)
+            send(err)
+          end
+          local ok, err = pcall(function() a.echo("x") end)
+          send(err)
+        `),
+      },
+      { panes },
+    );
+    expect(t.sent[0]).toBe('true');
+    expect(t.sent.slice(1, 6).every((m) => m.includes("bad argument #1 to 'createPane'"))).toBe(true);
+    expect(t.sent[6]).toContain("bad argument #1 to 'pane:echo' (pane expected, got string; call it as pane:echo(…))");
+    expect(panes.opened.length).toBe(1);
+    expect(panes.get('v/x')!.content.title).toBe('New');
+    expect(panes.get('v/x')!.spec.place).toEqual({ dock: 'right', rows: 8, cols: 30 });
+  });
+
+  it('links call their function; replaced and cleared links are released', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        l: src(`
+          pane = createPane{id = "p"}
+          pane:setLine(1, "[a] [b]")
+          pane:setLink(1, 1, 3, function() send("a") end, "Order A")
+          pane:setLink(1, 5, 3, function() send("b") end)
+          pane:cechoLink("<u>go</u>", function() send("go") end, "Go now")
+          tempAlias("^redraw$", function() pane:setLine(1, "gone") end)
+          tempAlias("^clear$", function() pane:clear() end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('l/p')!;
+    const at = (row: number, col: number) => p.content.linkAt(row, col);
+    expect(at(0, 0)!.hint).toBe('Order A');
+    expect(at(0, 4)!.hint).toBe('');
+    expect(at(0, 3)).toBeNull();
+    expect(paneText(p.content)).toEqual(['[a] [b]go']);
+    expect(at(0, 7)!.hint).toBe('Go now');
+    p.events.onLink(at(0, 5)!.id);
+    p.events.onLink(at(0, 8)!.id);
+    expect(t.sent).toEqual(['b', 'go']);
+    const script = (t.host as unknown as { owners: Map<string, { script: { refs: Set<number> } }> }).owners.get('l')!.script;
+    const refs = script.refs.size;
+    t.engine.run('redraw');
+    expect(p.content.links.length).toBe(0);
+    expect(script.refs.size).toBe(refs - 3);
+    t.engine.run('clear');
+    expect(p.content.lines).toEqual([]);
+  });
+
+  it('a link error follows the error policy; a click after the script stopped does nothing', async () => {
+    const panes = new FakeSurface();
+    const t = await setup({ e: src(`p = createPane{id = "p"}; p:cechoLink("x", function() error("boom") end)`) }, { panes });
+    const v = panes.get('e/p')!;
+    const id = v.content.links[0]!.id;
+    v.events.onLink(id);
+    expect(t.uiText().some((m) => m.includes('boom'))).toBe(true);
+    await t.lib.setEnabled('e', false);
+    await t.settle();
+    expect(v.view.closed).toBe(true);
+    v.events.onLink(id);
+    expect(t.uiText().filter((m) => m.includes('boom')).length).toBe(1);
+  });
+
+  it('size, onResize, show, hide, visible and setTitle', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        r: src(`
+          p = createPane{id = "p"}
+          p:onResize(function(rows, cols) send("resize " .. rows .. "x" .. cols) end)
+          tempAlias("^size$", function() local r, c = p:size(); send(r .. "," .. c) end)
+          tempAlias("^hide$", function() p:hide(); send(tostring(p:visible())) end)
+          tempAlias("^show$", function() p:show(); send(tostring(p:visible())) end)
+          tempAlias("^title$", function() p:setTitle("T") end)
+        `),
+      },
+      { panes },
+    );
+    const v = panes.get('r/p')!;
+    t.engine.run('size');
+    v.view.cols = 30;
+    v.view.rows = 7;
+    v.events.onResize(30, 7);
+    v.events.onResize(30, 7);
+    v.events.onResize(0, 0);
+    t.engine.run('size');
+    t.engine.run('hide');
+    t.engine.run('show');
+    t.engine.run('title');
+    expect(t.sent).toEqual(['0,0', 'resize 7x30', '7,30', 'false', 'true']);
+    expect(v.content.title).toBe('T');
+  });
+
+  it('disable and reload close the panes; the new load opens them again', async () => {
+    const panes = new FakeSurface();
+    const t = await setup({ m: PANE }, { panes });
+    const first = panes.get('m/main')!;
+    await t.host.reload('m');
+    expect(first.view.closed).toBe(true);
+    const second = panes.get('m/main')!;
+    expect(second).not.toBe(first);
+    expect(paneText(second.content)).toEqual(['ab', 'red text', '', 'four', '[half 30/60]']);
+    await t.lib.setEnabled('m', false);
+    await t.settle();
+    expect(second.view.closed).toBe(true);
+    expect(panes.get('m/main')).toBeUndefined();
+  });
+
+  it('a pane without a surface keeps its content and reports 0 x 0', async () => {
+    const t = await setup({ h: src(`p = createPane{id = "p"}; p:echo("x"); local r, c = p:size(); send(r .. "," .. c .. "," .. tostring(p:visible()))`) });
+    expect(t.sent).toEqual(['0,0,true']);
   });
 });

@@ -27,10 +27,19 @@
 // `gmcp.Char` and then `gmcp.Char.Vitals`, each handler getting its own
 // event name and the full one. The `gmcp` values come from a GmcpCache
 // (gmcp-cache.ts: which messages merge and which replace).
+//
+// Panes (ADR 0053): `createPane` returns a `Pane` object (userdata, methods
+// with `:`). The host edits the pane's PaneContent and the surface draws it
+// (src/panes/script-surface.ts); method calls never touch the DOM. Each
+// owner keeps its panes; unloading closes them (their place stays in the
+// settings) and the link and resize functions go with the script.
 
 import type { Bus } from '../core/bus';
 import { gmcpKey } from '../core/types';
-import type { CallResult, LuaArgs, LuaRef, LuaRuntime, LuaScript } from '../lua';
+import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
+import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId } from '../layout/types';
+import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
+import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
 import type { ScriptEngine, MatchContext } from '../script/engine';
 import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
@@ -82,6 +91,29 @@ export interface ScriptHostOptions {
    * own to the bus, so it sees only what arrives after `start`).
    */
   gmcp?: GmcpCache;
+  /** Where script panes appear (App: the cockpit). Absent: panes keep content but are not shown. */
+  panes?: ScriptPaneSurface;
+}
+
+/** Default and largest wanted pane size in cells (createPane rows/cols). */
+export const PANE_DEFAULT_ROWS = 8;
+export const PANE_DEFAULT_COLS = 30;
+export const PANE_MAX_ROWS = 200;
+export const PANE_MAX_COLS = 300;
+
+/** One pane a script created. */
+interface PaneReg {
+  owner: Owner;
+  /** The Lua object's handle. */
+  handle: number;
+  id: ScriptPaneId;
+  content: PaneContent;
+  view: ScriptPaneView;
+  /** Link id → the link's function. */
+  links: Map<number, LuaRef>;
+  resize: LuaRef | null;
+  /** The last size reported to the resize handler (`colsxrows`). */
+  lastSize: string;
 }
 
 interface RuleReg {
@@ -112,6 +144,8 @@ class Owner {
   readonly timers = new Map<number, TimerReg>();
   readonly handlers = new Map<number, string>();
   readonly exports = new Map<string, LuaRef>();
+  /** Panes by their own id (`createPane{id=…}`). */
+  readonly panes = new Map<string, PaneReg>();
   errors: number[] = [];
 
   constructor(name: string, source: string) {
@@ -143,6 +177,8 @@ export class ScriptHost {
   private readonly failed = new Map<string, string>();
   private readonly handlers = new Map<string, Binding[]>();
   private readonly keyBindings = new Map<string, Binding[]>();
+  /** Every open pane by its Lua handle. */
+  private readonly paneHandles = new Map<number, PaneReg>();
   private seq = 0;
   private syncP: Promise<void> = Promise.resolve();
   private syncQueued = false;
@@ -346,6 +382,12 @@ export class ScriptHost {
     for (const [id, ev] of o.handlers) this.dropHandler(ev, o, id);
     o.handlers.clear();
     o.exports.clear();
+    for (const p of o.panes.values()) {
+      this.paneHandles.delete(p.handle);
+      p.links.clear();
+      p.view.close();
+    }
+    o.panes.clear();
     // Function references go with the script (LuaScript.unload).
   }
 
@@ -867,6 +909,193 @@ export class ScriptHost {
 
     rt.defineView('gmcp');
     rt.defineView('state');
+    this.definePanes(rt);
+  }
+
+  // ------------------------------------------------------------------ panes
+
+  /** `createPane` and the `Pane` methods (spec §2.10 "Panes", ADR 0053). */
+  private definePanes(rt: LuaRuntime): void {
+    const id = (): number => ++this.seq;
+    /** The pane `self` (argument 1) of the running script. */
+    const self = (a: LuaArgs): PaneReg => {
+      const o = this.cur(rt);
+      const p = this.paneHandles.get(a.object(1, cls));
+      if (!p || p.owner !== o) throw new Error(`${a.name}: the pane is closed`);
+      return p;
+    };
+    const row = (a: LuaArgs, i: number): number => {
+      const n = a.number(i);
+      if (!Number.isInteger(n) || n < 1 || n > MAX_LINES) {
+        throw new Error(`bad argument #${i} to '${a.name}' (row must be a whole number from 1 to ${MAX_LINES})`);
+      }
+      return n - 1;
+    };
+    const color = (a: LuaArgs, name: string): number | undefined => {
+      const style = parseScriptColor(name);
+      const c = style?.fg ?? style?.bg;
+      if (c === undefined) throw new Error(`bad argument #3 to '${a.name}' (unknown colour '${name}')`);
+      return c;
+    };
+    const done = (p: PaneReg): void => p.view.changed();
+
+    const cls: LuaClass = rt.defineClass('Pane', {
+      clear: (a) => {
+        const p = self(a);
+        p.content.clear();
+        done(p);
+      },
+      echo: (a) => {
+        const p = self(a);
+        p.content.append(plain(a.string(2)));
+        done(p);
+      },
+      cecho: (a) => {
+        const p = self(a);
+        p.content.append(parseCecho(a.string(2)));
+        done(p);
+      },
+      setLine: (a) => {
+        const p = self(a);
+        p.content.setLine(row(a, 2), parseCecho(a.optString(3, '')));
+        done(p);
+      },
+      gauge: (a) => {
+        const p = self(a);
+        const r = row(a, 2);
+        const t = a.table(3);
+        if (Array.isArray(t)) throw new Error(`bad argument #3 to '${a.name}' (a table with value and max expected)`);
+        const num = (k: string, def: number): number => {
+          const v = t[k];
+          if (v === undefined) return def;
+          if (typeof v !== 'number') throw new Error(`bad argument #3 to '${a.name}' (${k} must be a number)`);
+          return v;
+        };
+        const label = t.label;
+        const c = t.color;
+        p.content.setGauge(r, {
+          value: num('value', 0),
+          max: num('max', 100),
+          label: typeof label === 'string' || typeof label === 'number' ? String(label) : '',
+          ...(typeof c === 'string' ? { color: color(a, c) } : {}),
+        });
+        done(p);
+      },
+      cechoLink: (a) => {
+        const p = self(a);
+        const text = parseCecho(a.string(2));
+        const ref = a.function(3);
+        const hint = a.optString(4, '');
+        const n = id();
+        p.links.set(n, ref);
+        p.content.appendLink(text, n, hint);
+        done(p);
+      },
+      setLink: (a) => {
+        const p = self(a);
+        const r = row(a, 2);
+        const col = a.number(3);
+        const len = a.number(4);
+        if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
+        if (!Number.isInteger(len) || len < 1) throw new Error(`bad argument #4 to '${a.name}' (length must be a whole number from 1)`);
+        const ref = a.function(5);
+        const hint = a.optString(6, '');
+        const n = id();
+        p.links.set(n, ref);
+        try {
+          p.content.addLink(r, col - 1, len, n, hint);
+        } catch (err) {
+          p.links.delete(n);
+          p.owner.script?.release(ref);
+          throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
+        }
+        done(p);
+      },
+      size: (a) => {
+        const { cols, rows } = self(a).view.size();
+        return rt.multi(rows, cols);
+      },
+      onResize: (a) => {
+        const p = self(a);
+        const ref = a.optFunction(2);
+        if (p.resize !== null) p.owner.script?.release(p.resize);
+        p.resize = ref;
+      },
+      show: (a) => self(a).view.setOn(true),
+      hide: (a) => self(a).view.setOn(false),
+      visible: (a) => self(a).view.isOn(),
+      setTitle: (a) => {
+        const p = self(a);
+        p.content.setTitle(a.string(2));
+        done(p);
+      },
+    });
+
+    rt.defineFunction('createPane', (a) => {
+      const o = this.cur(rt);
+      const t = a.table(1);
+      if (Array.isArray(t)) throw new Error(`bad argument #1 to 'createPane' (a table with id expected)`);
+      const name = t.id;
+      if (typeof name !== 'string' || !SCRIPT_PANE_NAME.test(name)) {
+        throw new Error(`bad argument #1 to 'createPane' (id must be 1 to 32 letters, digits, _ or -)`);
+      }
+      const title = t.title === undefined ? undefined : String(t.title);
+      const old = o.panes.get(name);
+      if (old) {
+        // Reload-safe: the same pane again (a new title applies).
+        if (title !== undefined) {
+          old.content.setTitle(title);
+          done(old);
+        }
+        return rt.object(cls, old.handle);
+      }
+      const dock = t.dock ?? 'right';
+      if (dock !== 'float' && !DOCK_IDS.includes(dock as DockId)) {
+        throw new Error(`bad argument #1 to 'createPane' (dock must be right, left, top, bottom or float)`);
+      }
+      const size = (k: 'rows' | 'cols', def: number, max: number): number => {
+        const v = t[k];
+        if (v === undefined) return def;
+        if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`bad argument #1 to 'createPane' (${k} must be a number)`);
+        return Math.max(1, Math.min(max, Math.round(v)));
+      };
+      const rows = size('rows', PANE_DEFAULT_ROWS, PANE_MAX_ROWS);
+      const cols = size('cols', PANE_DEFAULT_COLS, PANE_MAX_COLS);
+      const pid = scriptPaneId(o.name, name);
+      const handle = id();
+      const reg = { owner: o, handle, id: pid, links: new Map(), resize: null, lastSize: '' } as unknown as PaneReg;
+      reg.content = new PaneContent(title ?? name, {
+        onDrop: (n) => {
+          const ref = reg.links.get(n);
+          if (ref === undefined) return;
+          reg.links.delete(n);
+          o.script?.release(ref);
+        },
+      });
+      const events = {
+        onLink: (n: number) => this.onPaneLink(reg, n),
+        onResize: (c: number, r: number) => this.onPaneResize(reg, c, r),
+      };
+      const place = { dock: dock as DockId | 'float', rows, cols };
+      reg.view = this.o.panes?.open({ id: pid, place }, reg.content, events) ?? headlessView();
+      o.panes.set(name, reg);
+      this.paneHandles.set(handle, reg);
+      return rt.object(cls, handle);
+    });
+  }
+
+  private onPaneLink(p: PaneReg, n: number): void {
+    const ref = p.links.get(n);
+    if (ref === undefined || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    this.call(p.owner, ref);
+  }
+
+  private onPaneResize(p: PaneReg, cols: number, rows: number): void {
+    if (cols <= 0 || rows <= 0 || p.owner.dead) return;
+    const key = `${cols}x${rows}`;
+    if (key === p.lastSize) return;
+    p.lastSize = key;
+    if (p.resize !== null) this.call(p.owner, p.resize, rows, cols);
   }
 
   private onTrigger(o: Owner, ref: LuaRef, ctx: MatchContext): void {
@@ -927,6 +1156,18 @@ function isObject(v: unknown): v is Record<string, unknown> {
 
 function vital(v: { value: number | null; max: number | null; word: string | null }): Record<string, unknown> {
   return { value: v.value ?? undefined, max: v.max ?? undefined, word: v.word ?? undefined };
+}
+
+/** A pane without a surface (tests, the bench): content only, never shown. */
+function headlessView(): ScriptPaneView {
+  let on = true;
+  return {
+    changed: () => {},
+    setOn: (v) => (on = v),
+    isOn: () => on,
+    size: () => ({ cols: 0, rows: 0 }),
+    close: () => {},
+  };
 }
 
 function defaultStorage(): Storage | null {
