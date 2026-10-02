@@ -7,6 +7,14 @@
 // editor: the chrome's frame stack routes every key at window capture
 // phase. Completion's keys (↑↓ Enter Escape, Ctrl+Space) are ordinary
 // keymap bindings, so they work that way too.
+//
+// Code-editor keys (stage 10 feedback round 4): Tab accepts an open
+// completion, else moves to the next snippet field, else indents (spaces
+// to the next indent stop at the cursor; the lines of a selection);
+// Shift+Tab goes back a field or dedents. Enter after a block header
+// closes the block (lua-blocks.ts). A known name typed in the wrong case
+// is corrected when the word is finished (lua-case.ts), as its own undo
+// step.
 
 import {
   type Completion,
@@ -25,7 +33,7 @@ import {
   prevSnippetField,
   snippetCompletion,
 } from '@codemirror/autocomplete';
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentLess, indentMore, isolateHistory } from '@codemirror/commands';
 import {
   HighlightStyle,
   StreamLanguage,
@@ -36,9 +44,13 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
-import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField } from '@codemirror/state';
+import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField, Transaction } from '@codemirror/state';
 import {
+  type Command,
   EditorView,
+  type PluginValue,
+  ViewPlugin,
+  type ViewUpdate,
   type Tooltip,
   closeHoverTooltips,
   hasHoverTooltips,
@@ -53,6 +65,8 @@ import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
 import { type ApiDoc, apiDoc, completeLua, nameAt } from './lua-api';
 import { type Signature, callContext, paramLabel, signatureFor } from './lua-sig';
+import { autoCloseAt } from './lua-blocks';
+import { caseCorrection } from './lua-case';
 import { luaHighlightLine } from './lua-highlight';
 import { luaIndent } from './lua-indent';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
@@ -353,6 +367,111 @@ const luaIndentation = Prec.highest(
   }),
 );
 
+// ------------------------------------------------------ code-editor keys
+
+/** Tab: the lines of a selection one level deeper; at a cursor, spaces to the next indent stop. */
+const indentTab: Command = (view) => {
+  const st = view.state;
+  if (st.readOnly) return false;
+  if (st.selection.ranges.some((r) => !r.empty)) return indentMore(view);
+  const unit = st.facet(indentUnit).length || 2;
+  view.dispatch(
+    st.changeByRange((r) => {
+      const col = r.head - st.doc.lineAt(r.head).from;
+      const insert = ' '.repeat(unit - (col % unit));
+      return { changes: { from: r.head, insert }, range: EditorSelection.cursor(r.head + insert.length) };
+    }),
+    { scrollIntoView: true, userEvent: 'input.indent' },
+  );
+  return true;
+};
+
+/** Enter after a block header that is not closed yet: a body line and the closer (lua-blocks.ts). */
+const closeBlock: Command = (view) => {
+  const st = view.state;
+  const sel = st.selection;
+  if (st.readOnly || sel.ranges.length > 1 || !sel.main.empty) return false;
+  const r = autoCloseAt(st.doc.toString(), sel.main.head, st.facet(indentUnit));
+  if (!r) return false;
+  view.dispatch({
+    changes: { from: r.from, to: r.to, insert: r.insert },
+    selection: { anchor: r.cursor },
+    scrollIntoView: true,
+    userEvent: 'input',
+  });
+  return true;
+};
+
+/** Characters that finish a word for the case correction. */
+const WORD_END = /^[(.: \n,)]/;
+
+/**
+ * The case correction (lua-case.ts): when a word is finished — a `(`,
+ * `.`, `:`, space, comma, `)` or Enter typed right after it, or the cursor
+ * leaving a word just typed — a known name in the wrong case gets its
+ * canonical spelling in a transaction of its own (one Ctrl+Z undoes it).
+ * A spelling the user turns back (undo, or typing it again where it was
+ * corrected) is never corrected again in this editor.
+ */
+const caseFix = ViewPlugin.fromClass(
+  class implements PluginValue {
+    /** Spellings the user turned back. */
+    readonly refused = new Set<string>();
+    /** Corrections made: where (mapped through edits) and the spelling they replaced. */
+    private spots: { pos: number; typed: string }[] = [];
+    /** The end of the word being typed (for "the cursor left it"). */
+    private typing: number | null = null;
+
+    constructor(private readonly view: EditorView) {}
+
+    update(u: ViewUpdate): void {
+      if (u.state.readOnly) return;
+      let end: number | null = null;
+      if (u.docChanged) {
+        this.spots = this.spots.map((s) => ({ ...s, pos: u.changes.mapPos(s.pos, -1) }));
+        if (this.typing !== null) this.typing = u.changes.mapPos(this.typing, -1);
+        const doc = u.state.doc;
+        this.spots = this.spots.filter((s) => {
+          if (doc.sliceString(s.pos, s.pos + s.typed.length) !== s.typed) return true;
+          this.refused.add(s.typed);
+          return false;
+        });
+        for (const tr of u.transactions) {
+          if (!tr.docChanged || !tr.isUserEvent('input') || tr.isUserEvent('input.complete') || tr.isUserEvent('input.autocorrect')) continue;
+          tr.changes.iterChanges((_fa, _ta, fb, tb, ins) => {
+            const text = ins.toString();
+            if (WORD_END.test(text)) {
+              end = fb;
+              this.typing = null;
+            } else if (/^\w+$/.test(text)) this.typing = tb;
+          });
+        }
+      } else if (u.selectionSet && this.typing !== null) {
+        const head = u.state.selection.main.head;
+        if (head !== this.typing) {
+          end = this.typing;
+          this.typing = null;
+        }
+      }
+      if (end === null) return;
+      const doc = u.state.doc;
+      const at = end;
+      const fix = caseCorrection(doc.toString(), at, this.refused);
+      if (!fix) return;
+      // A transaction of its own, after this update.
+      queueMicrotask(() => {
+        const v = this.view;
+        if (v.state.doc !== doc) return;
+        this.spots.push({ pos: fix.from, typed: fix.typed });
+        v.dispatch({
+          changes: { from: fix.from, to: fix.to, insert: fix.canonical },
+          annotations: [isolateHistory.of('full'), Transaction.userEvent.of('input.autocorrect')],
+        });
+      });
+    }
+  },
+);
+
 // ---------------------------------------------------------------- state
 
 function luaTheme(): Extension {
@@ -422,7 +541,7 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       syntaxHighlighting(luaHighlight),
       bracketMatching(),
       indentOnInput(),
-      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false })]),
+      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false }), caseFix]),
       luaHover,
       sigField,
       searchExtension({ onFocus: opts.onFocus }),
@@ -432,6 +551,8 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       keymap.of([
         ...closeBracketsKeymap,
         ...completionKeymap,
+        { key: 'Tab', run: indentTab, shift: indentLess },
+        { key: 'Enter', run: closeBlock },
         {
           key: 'Mod-Shift-Space',
           run: (v) => {

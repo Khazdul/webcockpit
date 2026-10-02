@@ -5,13 +5,15 @@
 // footer (hints or a flash, Ln/Col).
 //
 // Keys: Ctrl+S saves; F1 opens the script manual (at the API or Lua name
-// under the cursor); MANUAL opens it at the start; Ctrl+F finds and replaces (search.ts; ESC closes
-// the panel before it closes the editor); Tab cycles buttons ↔ buffer
-// (inside the completion list it accepts, inside an expanded snippet it
-// moves to the next field); ↑ on the first line leaves the buffer; ESC
-// closes the pop-ups first (completion, signature help, hover, snippet),
-// then the editor, and asks first when there are unsaved changes. A bundled script opens
-// read-only with DUPLICATE, which opens an editable copy in its place.
+// under the cursor); Ctrl+F finds and replaces (search.ts; ESC closes the
+// panel before it closes the editor). Tab and Shift+Tab work as in a code
+// editor (lua-cm.ts): accept the completion, else the next or previous
+// snippet field, else indent or dedent. ESC closes the pop-ups first
+// (completion, signature help, hover, snippet), then the editor, and asks
+// first when there are unsaved changes. The title row has no buttons
+// (stage 10 feedback round 4), except for a bundled script: it opens
+// read-only with DUPLICATE (Tab or ↑ on the first line reaches it), which
+// opens an editable copy in its place.
 
 import type { EditorView } from '@codemirror/view';
 import type { VNode } from 'preact';
@@ -47,18 +49,19 @@ interface LocalFlash {
 }
 
 type Zone = 'buttons' | 'buffer';
-type Btn = 'SAVE' | 'DUPLICATE' | 'MANUAL';
+type Btn = 'DUPLICATE';
 
 const FLASH_MS = 3000;
 /** Footer hints, longest first; the first that fits beside Ln/Col is shown. */
 const HINTS = [
-  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · Tab Cycle · ESC Back',
+  'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · Tab Indent · ESC Back',
   'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · ESC Back',
   'Ctrl+S Save · Ctrl+F Find · F1 Manual · ESC Back',
   'Ctrl+S Save · F1 Manual · ESC Back',
   'Ctrl+S Save · ESC Back',
 ];
 const RO_HINTS = [
+  'Read-only: DUPLICATE makes your copy · Ctrl+F Find · F1 Manual · Tab Cycle · ESC Back',
   'Read-only: DUPLICATE makes your copy · Ctrl+F Find · F1 Manual · ESC Back',
   'Read-only · Ctrl+F Find · F1 Manual · ESC Back',
   'Read-only · ESC Back',
@@ -103,7 +106,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   const cellH = useRef(16);
 
   const readOnly = info?.readonly ?? true;
-  const buttons: Btn[] = readOnly ? ['DUPLICATE', 'MANUAL'] : ['SAVE', 'MANUAL'];
+  const buttons: Btn[] = readOnly ? ['DUPLICATE'] : [];
   const dirty = !readOnly && text !== saved;
 
   const showFlash = (t: string, kind: 'ok' | 'fail' = 'ok', ms = FLASH_MS): void => {
@@ -258,9 +261,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   };
 
   const press = (b: Btn): void => {
-    if (b === 'SAVE') void save();
-    else if (b === 'DUPLICATE') void duplicate();
-    else manual(false);
+    if (b === 'DUPLICATE') void duplicate();
   };
 
   // ---------------------------------------------------------------- keys
@@ -288,6 +289,11 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     if (zone === 'buffer' && v && !searchFocused(v)) {
       if (nk === 'back' && dismissPopups(v)) return true;
       if ((nk === 'tab' || nk === 'backtab') && snippetTab(v, nk === 'backtab')) return true;
+      // An editable buffer keeps Tab: indent and dedent (lua-cm.ts).
+      if ((nk === 'tab' || nk === 'backtab') && !readOnly) {
+        handleKey(v, e);
+        return true;
+      }
     }
     // Find and replace: Ctrl+F, the panel's keys, and ESC closes it first.
     const found = v ? searchFrameKey(v, e) : null;
@@ -300,7 +306,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       return true;
     }
     if (nk === 'tab' || nk === 'backtab') {
-      setZone(zone === 'buffer' ? 'buttons' : 'buffer');
+      if (buttons.length > 0) setZone(zone === 'buffer' ? 'buttons' : 'buffer');
       return true;
     }
     if (zone === 'buttons') {
@@ -314,7 +320,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
       return true;
     }
     if (!v) return false;
-    if (nk === 'up' && onFirstLine(v)) {
+    if (nk === 'up' && buttons.length > 0 && onFirstLine(v)) {
       setZone('buttons');
       return true;
     }
@@ -325,7 +331,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
 
   const titleFull = `─── Script Editor: ${name} ───`;
   const btnW = (b: string): number => cellLen(b) + 4;
-  const btnsW = buttons.reduce((n, b) => n + btnW(b), 0) + buttons.length - 1;
+  const btnsW = buttons.length > 0 ? buttons.reduce((n, b) => n + btnW(b), 0) + buttons.length - 1 : 0;
   const roText = readOnly ? ' read-only' : '';
   const title = truncate(titleFull, Math.max(10, W - btnsW - 1 - cellLen(roText)));
   const titleAt = Math.max(0, Math.min(centreLeft(cols, cellLen(title)), at + W - btnsW - 1 - cellLen(title) - cellLen(roText)));
