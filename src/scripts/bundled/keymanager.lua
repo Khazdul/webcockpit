@@ -127,9 +127,11 @@ local function cut(s, w)
   return s:sub(1, utf8.offset(s, w) - 1) .. "…"
 end
 
--- "11h" / "45m": the pane's time column.
+-- "12h" / "45m": the pane's time column. Hours round up (a key located
+-- a minute ago shows the full 12h, as in the Mudlet script); under an
+-- hour it counts minutes.
 local function short(secs)
-  if secs >= 3600 then return math.floor(secs / 3600) .. "h" end
+  if secs >= 3600 then return math.ceil(secs / 3600) .. "h" end
   return math.max(1, math.floor(secs / 60)) .. "m"
 end
 

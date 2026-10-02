@@ -467,7 +467,7 @@ describe('bundled keymanager', () => {
     t.click(1, 'x');
     expect(t.rows()[1]).toBe(' ★ $home uxevjobve            12h delete? x');
     t.clock.advance(5000);
-    expect(t.rows()[1]).toBe(' ★ $home uxevjobve            11h t p s w x');
+    expect(t.rows()[1]).toBe(r);
     t.click(1, 'x');
     t.click(1, 'x');
     expect(t.lastText()).toBe('KEYS Deleted $home. No keys left: no safe key.');
