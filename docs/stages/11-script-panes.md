@@ -24,6 +24,23 @@ In:
 
 Out: key manager (stage 12).
 
+## Starting points
+
+- Script API seam: add a `panes` entry to the host's per-script owner
+  registry and release it in `release()` (ADR 0051, P1 notes).
+- Behaviour reference for mercenaries (read only, never copy):
+  `/home/ole/MUME/lua/scripts/mercenaries.lua` and
+  `/home/ole/MUME/docs/scripts.md`.
+- Every new API name goes into `src/editor/lua-api.ts` (params, returns,
+  example). Completion, hover, signature help and the manual reference
+  are generated from it, and a test checks it against `host.ts`.
+- Carried over from stage 10:
+  - the Scripts help view hides below about 70 columns;
+  - the in-call hang marker is untested with a real hang in Firefox;
+  - user scripts live only in IndexedDB. There is per-file export but
+    no "export all" or backup; consider adding it to the runs backup
+    archive or as an "export all scripts" action.
+
 ## Owner decisions
 
 - 2026-10-01: panes have text, gauges, clickable rows and clickable

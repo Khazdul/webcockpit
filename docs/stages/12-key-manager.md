@@ -15,6 +15,15 @@ as it needs.
 
 In: the key manager script and any script API additions it needs.
 
+## Starting points
+
+- Behaviour reference (read only, never copy):
+  `/home/ole/MUME/lua/scripts/keymanager.lua` and
+  `/home/ole/MUME/docs/keymanager.md`.
+- The owner's Mudlet reference script goes into `notes/research/` when
+  it is shared.
+- Builds on the stage 11 pane API.
+
 ## Owner decisions
 
 - 2026-10-01: key manager uses a pane and takes inspiration from the
