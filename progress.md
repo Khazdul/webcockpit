@@ -31,8 +31,10 @@ Newest first.
   menus and becomes Options → Scripts in both (last in the Options hub,
   only with a script library). Help topic and script manual updated.
 - **Verified:** unit 1721 green; e2e 358 passed in both browsers.
-- **Next:** unchanged (stage 11 in a new session).
-- **Commits:** see git log (feat + docs), plus this one.
+- **Not released:** the owner holds it; it goes out with the next
+  release (0.1.28 or later).
+- **Next:** stage 11 (script panes) in a new session.
+- **Commits:** 29657b4, feb3c6d, plus this one.
 
 ### 2026-10-02 — Session close
 
