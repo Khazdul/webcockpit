@@ -38,8 +38,10 @@ Newest first.
 - **Preview:** room description one line shorter; three coloured lines
   added under the prompt (cyan, magenta, red); box 52 wide; the blanks
   around the flash row dropped so it fits at 800 px.
+- **Font colours:** named presets sage, silver, mist, wheat, lavender,
+  frost, ink (ash/stone/shadow removed); themes use them. ADR 0062.
 - **Next:** owner tests the backgrounds; release when the owner says so.
-- **Commits:** d1904e8, a8f4484, cbb45e7, plus this one.
+- **Commits:** d1904e8, a8f4484, cbb45e7, 9cec3d2, 7ed81a4, plus this one.
 
 ### 2026-10-03 — Appearance option "Bold brightens colours", release 0.1.32
 
