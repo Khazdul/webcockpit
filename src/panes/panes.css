@@ -164,3 +164,24 @@
   color: var(--term-fg);
   pointer-events: none;
 }
+
+/* Script panes (src/panes/script-pane.ts, ADR 0053): a link's hint, one
+ * cell row per line, under the link and over everything in the cockpit
+ * (as the log player's marker tips, ADR 0032). */
+.wc-spane-tip {
+  position: absolute;
+  z-index: 200;
+  white-space: pre;
+  line-height: var(--cell-h);
+  color: var(--c-body, var(--term-fg));
+  background: var(--c-line-hl, #303030);
+  pointer-events: none;
+}
+
+.wc-spane-tip[hidden] {
+  display: none;
+}
+
+.wc-spane-tip > div {
+  height: var(--cell-h);
+}

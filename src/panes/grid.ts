@@ -21,6 +21,7 @@ export interface CellStyle {
   bg?: string;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
 }
 
 export class CellLine {
@@ -61,6 +62,7 @@ export class CellLine {
     if (st.bg !== undefined) this.bg[c] = st.bg;
     if (st.bold !== undefined) this.flags[c] = st.bold ? this.flags[c]! | 1 : this.flags[c]! & ~1;
     if (st.italic !== undefined) this.flags[c] = st.italic ? this.flags[c]! | 2 : this.flags[c]! & ~2;
+    if (st.underline !== undefined) this.flags[c] = st.underline ? this.flags[c]! | 4 : this.flags[c]! & ~4;
   }
 
   /** The text (for tests). */
@@ -93,6 +95,7 @@ export class CellLine {
         if (bg) span.style.backgroundColor = bg;
         if (fl & 1) span.style.fontWeight = 'bold';
         if (fl & 2) span.style.fontStyle = 'italic';
+        if (fl & 4) span.style.textDecoration = 'underline';
         span.textContent = text;
         row.append(span);
       }
