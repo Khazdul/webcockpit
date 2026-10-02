@@ -39,6 +39,7 @@ import { gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
 import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
+import type { FieldEvent } from '../panes/script-pane';
 import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
 import type { ScriptEngine, MatchContext } from '../script/engine';
@@ -122,6 +123,18 @@ interface PaneReg {
   resize: LuaRef | null;
   /** The last size reported to the resize handler (`colsxrows`). */
   lastSize: string;
+  /** Text fields (`pane:setInput`) by their id, which is also their Lua handle. */
+  fields: Map<number, FieldReg>;
+}
+
+/** One text field of a pane (ADR 0055). */
+interface FieldReg {
+  pane: PaneReg;
+  id: number;
+  submit: LuaRef | null;
+  cancel: LuaRef | null;
+  change: LuaRef | null;
+  key: LuaRef | null;
 }
 
 interface RuleReg {
@@ -187,6 +200,8 @@ export class ScriptHost {
   private readonly keyBindings = new Map<string, Binding[]>();
   /** Every open pane by its Lua handle. */
   private readonly paneHandles = new Map<number, PaneReg>();
+  /** Every text field by its id (= its Lua handle). */
+  private readonly fieldHandles = new Map<number, FieldReg>();
   private seq = 0;
   private syncP: Promise<void> = Promise.resolve();
   private syncQueued = false;
@@ -392,6 +407,8 @@ export class ScriptHost {
     o.exports.clear();
     for (const p of o.panes.values()) {
       this.paneHandles.delete(p.handle);
+      for (const id of p.fields.keys()) this.fieldHandles.delete(id);
+      p.fields.clear();
       p.links.clear();
       p.view.close();
     }
@@ -956,6 +973,40 @@ export class ScriptHost {
     };
     const done = (p: PaneReg): void => p.view.changed();
 
+    /** The field `self` (argument 1) of the running script, or null once it is gone. */
+    const fieldSelf = (a: LuaArgs): FieldReg | null => {
+      const o = this.cur(rt);
+      const f = this.fieldHandles.get(a.object(1, fieldCls));
+      if (!f) return null;
+      if (f.pane.owner !== o) throw new Error(`${a.name}: the field belongs to another script`);
+      return f;
+    };
+    const fieldCls: LuaClass = rt.defineClass('PaneField', {
+      focus: (a) => {
+        const f = fieldSelf(a);
+        if (f) f.pane.view.focusField?.(f.id, false);
+      },
+      select: (a) => {
+        const f = fieldSelf(a);
+        if (f) f.pane.view.focusField?.(f.id, true);
+      },
+      value: (a) => {
+        const f = fieldSelf(a);
+        return f ? (f.pane.content.field(f.id)?.value ?? null) : null;
+      },
+      setValue: (a) => {
+        const f = fieldSelf(a);
+        if (!f) return;
+        if (f.pane.content.setFieldValue(f.id, a.string(2))) done(f.pane);
+      },
+      remove: (a) => {
+        const f = fieldSelf(a);
+        if (!f) return;
+        f.pane.content.removeField(f.id);
+        done(f.pane);
+      },
+    });
+
     const cls: LuaClass = rt.defineClass('Pane', {
       clear: (a) => {
         const p = self(a);
@@ -1034,6 +1085,54 @@ export class ScriptHost {
           throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
         }
         done(p);
+      },
+      setInput: (a) => {
+        const p = self(a);
+        if (!p) return null;
+        const r = row(a, 2);
+        const col = a.number(3);
+        const len = a.number(4);
+        if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
+        if (!Number.isInteger(len) || len < 1) throw new Error(`bad argument #4 to '${a.name}' (length must be a whole number from 1)`);
+        const opts: { value?: string; placeholder?: string; maxLength?: number } = {};
+        const has = a.count >= 5 && a.type(5) !== 'nil';
+        if (has) {
+          const t = a.table(5);
+          if (Array.isArray(t) && t.length > 0) throw new Error(`bad argument #5 to '${a.name}' (a table of options expected)`);
+          const o = Array.isArray(t) ? {} : t;
+          const text = (k: 'value' | 'placeholder'): void => {
+            const v = o[k];
+            if (v === undefined) return;
+            if (typeof v !== 'string' && typeof v !== 'number') throw new Error(`bad argument #5 to '${a.name}' (${k} must be a string)`);
+            opts[k] = String(v);
+          };
+          text('value');
+          text('placeholder');
+          if (o.maxLength !== undefined) {
+            if (typeof o.maxLength !== 'number' || !Number.isFinite(o.maxLength) || o.maxLength < 1) {
+              throw new Error(`bad argument #5 to '${a.name}' (maxLength must be a number from 1)`);
+            }
+            opts.maxLength = o.maxLength;
+          }
+        }
+        const n = id();
+        const f: FieldReg = { pane: p, id: n, submit: null, cancel: null, change: null, key: null };
+        try {
+          if (has) {
+            f.submit = a.fieldFunction(5, 'onSubmit');
+            f.cancel = a.fieldFunction(5, 'onCancel');
+            f.change = a.fieldFunction(5, 'onChange');
+            f.key = a.fieldFunction(5, 'onKey');
+          }
+          p.content.addField(r, col - 1, len, n, opts);
+        } catch (err) {
+          this.releaseField(f);
+          throw err instanceof RangeError ? new Error(`bad argument #3 to '${a.name}' (${err.message})`) : err;
+        }
+        p.fields.set(n, f);
+        this.fieldHandles.set(n, f);
+        done(p);
+        return rt.object(fieldCls, n);
       },
       size: (a) => {
         const { cols, rows } = self(a)?.view.size() ?? { cols: 0, rows: 0 };
@@ -1121,6 +1220,7 @@ export class ScriptHost {
         links: new Map(),
         resize: null,
         lastSize: '',
+        fields: new Map(),
       } as unknown as PaneReg;
       reg.content = new PaneContent(title ?? name, {
         onDrop: (n) => {
@@ -1129,11 +1229,16 @@ export class ScriptHost {
           reg.links.delete(n);
           o.script?.release(ref);
         },
+        onDropField: (n) => {
+          const f = reg.fields.get(n);
+          if (f) this.releaseField(f);
+        },
       });
       const events = {
         onLink: (n: number) => this.onPaneLink(reg, n),
         onResize: (c: number, r: number) => this.onPaneResize(reg, c, r),
         onClose: () => this.onPaneClosed(reg),
+        onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
       const place = { dock: dock as DockId | 'float', rows, cols };
       const spec = temp ? { id: pid, place, temporary: { rows, cols } } : { id: pid, place };
@@ -1161,7 +1266,31 @@ export class ScriptHost {
     p.resize = null;
     if (p.onClose !== null) s?.release(p.onClose);
     p.onClose = null;
+    for (const f of [...p.fields.values()]) this.releaseField(f);
     p.view.close();
+  }
+
+  /** Forgets field `f` and releases its functions. */
+  private releaseField(f: FieldReg): void {
+    if (f.pane.fields.get(f.id) === f) f.pane.fields.delete(f.id);
+    if (this.fieldHandles.get(f.id) === f) this.fieldHandles.delete(f.id);
+    const s = f.pane.owner.script;
+    for (const ref of [f.submit, f.cancel, f.change, f.key]) if (ref !== null) s?.release(ref);
+    f.submit = f.cancel = f.change = f.key = null;
+  }
+
+  /** A text field changed, was submitted or cancelled, or got a key (ADR 0055). */
+  private onPaneField(p: PaneReg, n: number, e: FieldEvent): void {
+    const f = p.fields.get(n);
+    if (!f || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    if (e.type === 'change' || e.type === 'submit') {
+      if (p.content.setFieldValue(n, e.text)) p.view.changed();
+    }
+    const ref = e.type === 'change' ? f.change : e.type === 'submit' ? f.submit : e.type === 'cancel' ? f.cancel : f.key;
+    if (ref === null) return;
+    if (e.type === 'key') this.call(p.owner, ref, e.key);
+    else if (e.type === 'cancel') this.call(p.owner, ref);
+    else this.call(p.owner, ref, p.content.field(n)?.value ?? e.text);
   }
 
   /** The user closed a temporary pane with its cross: close it, then call its `onClose` handler. */

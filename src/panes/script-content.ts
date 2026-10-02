@@ -22,6 +22,12 @@
 //   most MAX_LINE_CELLS cells.
 // - Tabs become one space; other control characters are dropped. One
 //   UTF-16 unit is one cell (pane text is BMP, as in grid.ts).
+// - A text field (ADR 0055) is an editable range of cells on one row with
+//   its value, placeholder and length cap. The live pane puts an input
+//   over it; `setLine`, `setGauge` and `clear` on its row drop it (and
+//   report it to `onDropField`), as for links. A snapshot bakes each
+//   field's value into its line as plain underlined text, so runs, the log
+//   player and the HTML replay draw it without editing.
 
 import type { Color, StyleRun } from '../core/types';
 
@@ -65,6 +71,22 @@ export interface PaneLink {
   /** The host's key for the link's function. */
   id: number;
 }
+
+/** An editable text field over `len` cells of `row` (ADR 0055). */
+export interface PaneField {
+  row: number;
+  col: number;
+  len: number;
+  /** The host's key for the field. */
+  id: number;
+  value: string;
+  placeholder: string;
+  /** Most characters of the value. */
+  maxLength: number;
+}
+
+/** Most characters of a field's value. */
+export const MAX_FIELD_VALUE = 500;
 
 /** Plain data for runs (P1): no functions, no ids. */
 export interface PaneSnapshot {
@@ -185,6 +207,8 @@ function clip(spans: PaneSpan[], max: number): PaneSpan[] {
 export interface PaneContentOptions {
   /** A link was dropped (replaced, cleared, scrolled out or its row redrawn). */
   onDrop?: (id: number) => void;
+  /** A text field was dropped (the same ways, or `removeField`). */
+  onDropField?: (id: number) => void;
   /** Most lines kept (default MAX_LINES; tests). */
   maxLines?: number;
 }
@@ -193,16 +217,19 @@ export class PaneContent {
   title: string;
   lines: PaneLine[] = [];
   links: PaneLink[] = [];
+  fields: PaneField[] = [];
   /** Bumped by every change (renderers compare it). */
   version = 0;
   /** The last append ended with `\n`: the next one starts a new line. */
   private broken = false;
   private readonly onDrop: (id: number) => void;
+  private readonly onDropField: (id: number) => void;
   private readonly maxLines: number;
 
   constructor(title: string, opts: PaneContentOptions = {}) {
     this.title = title.slice(0, MAX_TITLE);
     this.onDrop = opts.onDrop ?? (() => {});
+    this.onDropField = opts.onDropField ?? (() => {});
     this.maxLines = opts.maxLines ?? MAX_LINES;
   }
 
@@ -217,6 +244,9 @@ export class PaneContent {
   clear(): void {
     for (const l of this.links) this.onDrop(l.id);
     this.links = [];
+    const fields = this.fields;
+    this.fields = [];
+    for (const f of fields) this.onDropField(f.id);
     this.lines = [];
     this.broken = false;
     this.version++;
@@ -261,6 +291,16 @@ export class PaneContent {
       else kept.push({ ...l, row: l.row - over });
     }
     this.links = kept;
+    if (this.fields.length > 0) {
+      const keptFields: PaneField[] = [];
+      const gone: number[] = [];
+      for (const f of this.fields) {
+        if (f.row < over) gone.push(f.id);
+        else keptFields.push({ ...f, row: f.row - over });
+      }
+      this.fields = keptFields;
+      for (const id of gone) this.onDropField(id);
+    }
     return over;
   }
 
@@ -270,8 +310,13 @@ export class PaneContent {
     while (this.lines.length <= row) this.newLine();
   }
 
-  /** Drops the links on `row`. */
+  /** Drops the links and fields on `row`. */
   private dropRow(row: number): void {
+    if (this.fields.some((f) => f.row === row)) {
+      const gone = this.fields.filter((f) => f.row === row);
+      this.fields = this.fields.filter((f) => f.row !== row);
+      for (const f of gone) this.onDropField(f.id);
+    }
     if (!this.links.some((l) => l.row === row)) return;
     this.links = this.links.filter((l) => {
       if (l.row !== row) return true;
@@ -328,6 +373,60 @@ export class PaneContent {
     else this.onDrop(id);
   }
 
+  /**
+   * Makes `len` cells of `row` from `col` an editable text field (`id`);
+   * fields it overlaps on that row are dropped. The value is cut to
+   * `maxLength` (at most MAX_FIELD_VALUE) and made one line.
+   */
+  addField(row: number, col: number, len: number, id: number, opts: { value?: string; placeholder?: string; maxLength?: number } = {}): void {
+    this.ensure(row);
+    const c = Math.max(0, Math.floor(col));
+    if (c >= MAX_LINE_CELLS) throw new RangeError(`column ${c + 1} is past the last column (${MAX_LINE_CELLS})`);
+    const n = Math.max(1, Math.min(MAX_LINE_CELLS - c, Math.floor(len)));
+    const max = Math.max(1, Math.min(MAX_FIELD_VALUE, Math.floor(opts.maxLength ?? MAX_FIELD_VALUE)));
+    const gone: number[] = [];
+    this.fields = this.fields.filter((f) => {
+      const overlap = f.row === row && f.col < c + n && c < f.col + f.len;
+      if (overlap) gone.push(f.id);
+      return !overlap;
+    });
+    for (const g of gone) this.onDropField(g);
+    this.fields.push({
+      row,
+      col: c,
+      len: n,
+      id,
+      value: fieldText(opts.value ?? '', max),
+      placeholder: fieldText(opts.placeholder ?? '', MAX_HINT),
+      maxLength: max,
+    });
+    this.version++;
+  }
+
+  /** The field `id`, or null. */
+  field(id: number): PaneField | null {
+    return this.fields.find((f) => f.id === id) ?? null;
+  }
+
+  /** Sets field `id`'s value (one line, cut to its cap); returns true when it changed. */
+  setFieldValue(id: number, value: string): boolean {
+    const f = this.field(id);
+    if (!f) return false;
+    const v = fieldText(value, f.maxLength);
+    if (v === f.value) return false;
+    f.value = v;
+    this.version++;
+    return true;
+  }
+
+  /** Removes field `id` (reported to `onDropField`). */
+  removeField(id: number): void {
+    if (!this.field(id)) return;
+    this.fields = this.fields.filter((f) => f.id !== id);
+    this.onDropField(id);
+    this.version++;
+  }
+
   /** The link covering cell (`row`, `col`), or null. */
   linkAt(row: number, col: number): PaneLink | null {
     for (let i = this.links.length - 1; i >= 0; i--) {
@@ -337,13 +436,16 @@ export class PaneContent {
     return null;
   }
 
-  /** Plain data for runs: a deep copy without link ids. */
+  /** Plain data for runs: a deep copy without link ids; fields baked in as text. */
   snapshot(): PaneSnapshot {
-    return {
-      title: this.title,
-      lines: this.lines.map((l) => ('spans' in l ? { spans: l.spans.map((s) => ({ ...s })) } : { gauge: { ...l.gauge } })),
-      links: this.links.map(({ row, col, len, hint }) => ({ row, col, len, hint })),
-    };
+    const lines: PaneLine[] = this.lines.map((l) => ('spans' in l ? { spans: l.spans.map((s) => ({ ...s })) } : { gauge: { ...l.gauge } }));
+    for (const f of this.fields) {
+      const l = lines[f.row];
+      if (!l || !('spans' in l)) continue;
+      const text = f.value.length >= f.len ? f.value.slice(0, f.len) : f.value + ' '.repeat(f.len - f.value.length);
+      l.spans = overlay(l.spans, f.col, { text, underline: true });
+    }
+    return { title: this.title, lines, links: this.links.map(({ row, col, len, hint }) => ({ row, col, len, hint })) };
   }
 
   /**
@@ -354,6 +456,7 @@ export class PaneContent {
     this.title = s.title;
     this.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
     this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
+    this.fields = [];
     this.broken = false;
     this.version++;
   }
@@ -364,4 +467,38 @@ export class PaneContent {
     c.load(s);
     return c;
   }
+}
+
+/** A field value: one line, control characters out, at most `max` characters. */
+function fieldText(s: string, max: number): string {
+  return clean(s.replace(/\r?\n/g, ' ')).slice(0, max);
+}
+
+/** `spans` with `s` written over from cell `col` (padded with spaces when the line is shorter). */
+export function overlay(spans: readonly PaneSpan[], col: number, s: PaneSpan): PaneSpan[] {
+  const end = col + s.text.length;
+  const out: PaneSpan[] = [];
+  let x = 0;
+  for (const sp of spans) {
+    const a = x;
+    const b = x + sp.text.length;
+    x = b;
+    if (b <= col || a >= end) {
+      if (a >= end) continue;
+      pushSpan(out, { ...sp });
+      continue;
+    }
+    if (a < col) pushSpan(out, { ...sp, text: sp.text.slice(0, col - a) });
+  }
+  if (x < col) pushSpan(out, { text: ' '.repeat(col - x) });
+  pushSpan(out, { ...s });
+  x = 0;
+  for (const sp of spans) {
+    const a = x;
+    const b = x + sp.text.length;
+    x = b;
+    if (b <= end) continue;
+    pushSpan(out, { ...sp, text: sp.text.slice(Math.max(0, end - a)) });
+  }
+  return clip(out, MAX_LINE_CELLS);
 }

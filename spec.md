@@ -423,6 +423,14 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       - `:show()`, `:hide()`, `:visible()` and `:setTitle(text)`.
       - `:close()` removes the pane until `createPane` is called again;
         `:onClose(fn)` is called when the user closes a temporary pane.
+      - `:setInput(row, col, len, {value, placeholder, maxLength,
+        onSubmit, onCancel, onChange, onKey})` puts an editable
+        one-line text field on a span of cells and returns it, with
+        `:focus()`, `:select()`, `:value()`, `:setValue(text)` and
+        `:remove()` (ADR 0055). While a field has the keyboard, nothing
+        typed reaches the game or macros; Enter, Esc, a click elsewhere
+        or the pane closing give the keyboard back to the input line.
+        Runs show the field's text.
 - **Limits** (ADR 0051): sandboxed environment, instruction budget per
   call, memory cap, auto-disable on repeated errors.
 - **Runs.** Script pane content is recorded and shows in the log player

@@ -716,6 +716,8 @@ export class InputPane {
   };
 
   private readonly onWindowFocus = (): void => {
+    // A script pane's text field that had the focus keeps it (ADR 0055).
+    if (this.isOtherInteractive(this.doc.activeElement)) return;
     this.focus();
   };
 

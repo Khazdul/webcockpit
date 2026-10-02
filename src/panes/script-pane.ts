@@ -22,17 +22,28 @@
 //   hint as a tooltip (`.wc-spane-tip`, one cell row per hint line, under
 //   the link, over everything in the cockpit). A click calls `onLink(id)`;
 //   without `onLink` (the log player) links are inert but keep their tips.
+// - Text fields (ADR 0055): a native <input> per field, over its cells in
+//   a layer beside the content (the rows are rebuilt freely; the inputs
+//   are not, so a focused field keeps its focus). The band under it is
+//   drawn in the cells in the pane's `track` shade. Its keys never reach
+//   the game or macros: the input line and its macros ignore keys aimed at
+//   another text field, and the field itself consumes browser shortcuts
+//   (Ctrl+S …) other than editing keys. Enter and Esc give the focus back
+//   to the input line, then report submit / cancel; Up, Down, PgUp, PgDn,
+//   Tab and Shift+Tab are reported as keys. Without `onField` (the log
+//   player) there are no inputs: a snapshot has the value baked in.
 // - The content is kept while the connection is not `playing` (like UI).
 // - Render is coalesced: callers change the content and call `changed()`,
 //   which marks the pane dirty (one render per frame, none while hidden).
 
 import type { Color } from '../core/types';
+import { keyNameFromEvent } from '../script/keys';
 import type { PaneId } from '../layout/types';
 import { colorToCss } from '../ui/palette';
 import type { PaneContext } from './context';
 import { CellLine, INDICATOR_FG, RowList, centre } from './grid';
 import { PaneShell } from './pane';
-import { type PaneContent, type PaneLine, type PaneLink } from './script-content';
+import { type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
 import { type ShadeRole, fitContrast, lightShift } from '../theme/color';
 
@@ -46,7 +57,28 @@ export interface ScriptPaneOptions {
   onLink?: (id: number) => void;
   /** The title changed (the cockpit updates its close cross and Options). */
   onTitle?: () => void;
+  /** Something happened in a text field (absent: fields are not editable). */
+  onField?: (id: number, e: FieldEvent) => void;
+  /** Gives the focus back to the game's input line. */
+  onFocusInput?: () => void;
 }
+
+/** What a text field reports (ADR 0055). */
+export type FieldEvent =
+  | { type: 'change'; text: string }
+  | { type: 'submit'; text: string }
+  | { type: 'cancel' }
+  | { type: 'key'; key: string };
+
+/** Keys a focused field reports to the script instead of handling them. */
+export const FIELD_KEYS: ReadonlySet<string> = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Tab', 'Shift+Tab']);
+
+/** Modifier keys a field leaves to the browser: editing. Every other Ctrl/Alt/Meta key is consumed. */
+const FIELD_EDIT_KEYS: ReadonlySet<string> = new Set(
+  ['A', 'C', 'V', 'X', 'Z', 'Y', 'Shift+Z', 'ArrowLeft', 'ArrowRight', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Backspace', 'Delete', 'Home', 'End', 'Shift+Home', 'Shift+End']
+    .flatMap((k) => [`Ctrl+${k}`, `Meta+${k}`])
+    .concat(['Alt+Backspace']),
+);
 
 type Ramp = Readonly<Record<ShadeRole, string>>;
 
@@ -111,6 +143,13 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
   return line;
 }
 
+/** Draws the band of the fields on content row `row`. */
+function fieldBands(line: CellLine, fields: readonly PaneField[], row: number, w: number, ramp: Ramp): void {
+  for (const f of fields) {
+    if (f.row === row && f.col < w) line.fill(f.col, Math.min(w, f.col + f.len), { bg: ramp.track });
+  }
+}
+
 /** The rows a `w` × `h` pane shows for `c`, the hovered link drawn in the glow band. */
 export function scriptPaneLines(
   c: PaneContent,
@@ -128,6 +167,7 @@ export function scriptPaneLines(
   if (top) out.push(new CellLine(w).put(0, `↑ ${first} more rows`, { fg: INDICATOR_FG, italic: true }));
   for (let i = first; i < c.lines.length; i++) {
     const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
+    if (c.fields.length > 0) fieldBands(line, c.fields, i, w, ramp);
     if (hover && hover.row === i) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
     out.push(line);
   }
@@ -145,12 +185,24 @@ export class ScriptPane extends PaneShell {
   private view = { first: 0, top: 0 };
   private hover: PaneLink | null = null;
   private tipEl: HTMLDivElement | null = null;
+  private readonly onField: ((id: number, e: FieldEvent) => void) | null;
+  private readonly onFocusInput: () => void;
+  /** The text fields' inputs, in a layer beside the content (ADR 0055). */
+  private readonly fieldsEl: HTMLDivElement;
+  private readonly inputs = new Map<number, HTMLInputElement>();
+  /** A focus asked for before the field's input exists. */
+  private pendingFocus: { id: number; select: boolean } | null = null;
 
   constructor(ctx: PaneContext, id: PaneId, opts: ScriptPaneOptions) {
     super(ctx, id, { label: opts.content.title || id, blankWhenInactive: false });
     this.model = opts.content;
     this.onLink = opts.onLink ?? null;
     this.onTitle = opts.onTitle ?? (() => {});
+    this.onField = opts.onField ?? null;
+    this.onFocusInput = opts.onFocusInput ?? (() => {});
+    this.fieldsEl = ctx.doc.createElement('div');
+    this.fieldsEl.className = 'wc-spane-fields';
+    this.el.append(this.fieldsEl);
     this.el.classList.add('wc-pane-script');
     const c = this.content;
     c.addEventListener('pointermove', this.onMove);
@@ -185,7 +237,123 @@ export class ScriptPane extends PaneShell {
     if (key === this.shownKey) return;
     this.shownKey = key;
     this.view = paneView(c.lines.length, this.rows);
-    this.list.update(this.ctx.doc, scriptPaneLines(c, this.cols, this.rows, ramp, light, ansi, this.hover, paneInk(fg, bg, light)));
+    const ink = paneInk(fg, bg, light);
+    this.list.update(this.ctx.doc, scriptPaneLines(c, this.cols, this.rows, ramp, light, ansi, this.hover, ink));
+    this.syncFields(ramp, ink.base);
+  }
+
+  /** Puts an input over every field on screen and drops the others. */
+  private syncFields(ramp?: Ramp, color?: string): void {
+    const c = this.model;
+    if (!this.onField || (c.fields.length === 0 && this.inputs.size === 0)) return;
+    if (!ramp || color === undefined) {
+      const s = this.ctx.settings.get();
+      const sh = paneShade(s, this.id);
+      ramp = sh.ramp;
+      color = paneInk(s.appearance.fg, sh.bg, sh.light).base;
+    }
+    const cell = this.ctx.cells.get();
+    const view = paneView(c.lines.length, this.rows);
+    const px = (v: string): number => parseFloat(v) || 0;
+    const left = px(this.content.style.left);
+    const top = px(this.content.style.top);
+    const seen = new Set<number>();
+    for (const f of c.fields) {
+      const screenRow = f.row - view.first + view.top;
+      if (!this.visible || screenRow < view.top || screenRow >= this.rows || f.col >= this.cols) continue;
+      let el = this.inputs.get(f.id);
+      if (!el) {
+        el = this.makeInput(f.id);
+        this.inputs.set(f.id, el);
+        this.fieldsEl.append(el);
+      }
+      seen.add(f.id);
+      const st = el.style;
+      st.left = `${left + f.col * cell.w}px`;
+      st.top = `${top + screenRow * cell.h}px`;
+      st.width = `${Math.min(f.len, this.cols - f.col) * cell.w}px`;
+      st.color = color;
+      st.setProperty('--spane-ph', ramp.label);
+      st.setProperty('--spane-sel-fg', ramp.paneBg);
+      st.setProperty('--spane-sel-bg', ramp.glow);
+      if (el.value !== f.value) el.value = f.value;
+      if (el.placeholder !== f.placeholder) el.placeholder = f.placeholder;
+      if (el.maxLength !== f.maxLength) el.maxLength = f.maxLength;
+    }
+    for (const [id, el] of [...this.inputs]) if (!seen.has(id)) this.dropInput(id, el);
+    if (this.pendingFocus && this.inputs.has(this.pendingFocus.id)) this.applyFocus();
+  }
+
+  private makeInput(id: number): HTMLInputElement {
+    const el = this.ctx.doc.createElement('input');
+    el.type = 'text';
+    el.className = 'wc-spane-field';
+    el.spellcheck = false;
+    el.autocomplete = 'off';
+    el.setAttribute('autocapitalize', 'off');
+    el.dataset.field = String(id);
+    el.addEventListener('input', () => this.onField?.(id, { type: 'change', text: el.value }));
+    el.addEventListener('keydown', (e) => this.onFieldKey(id, el, e));
+    return el;
+  }
+
+  private dropInput(id: number, el: HTMLInputElement): void {
+    const focused = this.ctx.doc.activeElement === el;
+    this.inputs.delete(id);
+    el.remove();
+    if (focused) this.onFocusInput();
+  }
+
+  private onFieldKey(id: number, el: HTMLInputElement, e: KeyboardEvent): void {
+    if (e.isComposing || e.key === 'Dead') return;
+    const name = keyNameFromEvent(e);
+    if (!name) return;
+    if (name === 'Enter' || name === 'NumpadEnter') {
+      e.preventDefault();
+      const text = el.value;
+      this.onFocusInput();
+      this.onField?.(id, { type: 'submit', text });
+      return;
+    }
+    if (name === 'Escape') {
+      e.preventDefault();
+      this.onFocusInput();
+      this.onField?.(id, { type: 'cancel' });
+      return;
+    }
+    if (FIELD_KEYS.has(name)) {
+      e.preventDefault();
+      this.onField?.(id, { type: 'key', key: name });
+      return;
+    }
+    // AltGr (Ctrl+Alt on Windows) types characters.
+    if (e.getModifierState?.('AltGraph') || (e.ctrlKey && e.altKey && e.key.length === 1)) return;
+    if ((e.ctrlKey || e.altKey || e.metaKey) && !FIELD_EDIT_KEYS.has(name)) e.preventDefault();
+  }
+
+  /**
+   * Focuses field `id` (all of its text selected when `select`); a field
+   * not on screen yet is focused once it is drawn.
+   */
+  focusField(id: number, select: boolean): void {
+    this.pendingFocus = { id, select };
+    if (!this.inputs.has(id)) this.syncFields();
+    if (this.inputs.has(id)) this.applyFocus();
+  }
+
+  private applyFocus(): void {
+    const p = this.pendingFocus;
+    const el = p && this.inputs.get(p.id);
+    if (!p || !el) return;
+    this.pendingFocus = null;
+    el.focus({ preventScroll: true });
+    if (p.select) el.select();
+    else el.setSelectionRange(el.value.length, el.value.length);
+  }
+
+  /** The input of field `id` (tests). */
+  fieldInput(id: number): HTMLInputElement | null {
+    return this.inputs.get(id) ?? null;
   }
 
   override place(...args: Parameters<PaneShell['place']>): void {
@@ -196,6 +364,8 @@ export class ScriptPane extends PaneShell {
   override dispose(): void {
     this.setHover(null);
     this.tipEl?.remove();
+    for (const [id, el] of [...this.inputs]) this.dropInput(id, el);
+    this.fieldsEl.remove();
     const c = this.content;
     c.removeEventListener('pointermove', this.onMove);
     c.removeEventListener('pointerleave', this.onLeave);

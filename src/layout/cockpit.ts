@@ -320,6 +320,11 @@ export class Cockpit {
     this.relayoutNow();
   }
 
+  /** Gives the focus back to the game's input line (script pane text fields, ADR 0055). */
+  focusInput(): void {
+    this.onFocusInput();
+  }
+
   /** The shell of pane `id` (content element, size, onResize). */
   pane(id: PaneId): PaneShell {
     return this.shells.get(id)!;
@@ -718,7 +723,8 @@ export class Cockpit {
   private readonly onMouseUp = (e: MouseEvent): void => {
     if (this.drag) return;
     const t = e.target as HTMLElement;
-    if (t.closest('.wc-output, .wc-input-slot')) return; // they handle their own
+    // The output and input handle their own; a script pane's text field keeps its focus.
+    if (t.closest('.wc-output, .wc-input-slot, .wc-spane-field')) return;
     const sel = this.el.ownerDocument.getSelection();
     if (sel && !sel.isCollapsed && this.el.contains(sel.anchorNode)) return;
     this.onFocusInput();

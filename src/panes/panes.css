@@ -185,3 +185,42 @@
 .wc-spane-tip > div {
   height: var(--cell-h);
 }
+
+/* Script pane text fields (ADR 0055): a native input over whole cells, in
+ * the cockpit font and cell advance, without a browser look. The band
+ * under it is drawn in the cells (the pane's track shade), so it follows
+ * the tint; the text and placeholder colours come from the pane. */
+.wc-spane-fields {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+}
+
+.wc-spane-field {
+  position: absolute;
+  box-sizing: border-box;
+  height: var(--cell-h);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  border-radius: 0;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: var(--cell-h);
+  caret-color: currentColor;
+}
+
+.wc-spane-field::placeholder {
+  color: var(--spane-ph, currentColor);
+  opacity: 1;
+}
+
+.wc-spane-field::selection {
+  color: var(--spane-sel-fg, inherit);
+  background: var(--spane-sel-bg, highlight);
+}

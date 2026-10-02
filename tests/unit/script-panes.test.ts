@@ -10,8 +10,8 @@ import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/layout/model';
 import { type LayoutModel, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
-import { MAX_LINE_CELLS, PaneContent, plain } from '../../src/panes/script-content';
-import { ScriptPane, gaugeFill, paneInk, paneView, scriptPaneLines } from '../../src/panes/script-pane';
+import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
+import { type FieldEvent, ScriptPane, gaugeFill, paneInk, paneView, scriptPaneLines } from '../../src/panes/script-pane';
 import { contrast } from '../../src/theme/color';
 import { CockpitPaneSurface } from '../../src/panes/script-surface';
 import { parseCecho } from '../../src/scripts/colors';
@@ -117,6 +117,51 @@ describe('PaneContent', () => {
     const back = PaneContent.fromSnapshot(snap);
     expect(back.snapshot()).toEqual(snap);
     expect(back.linkAt(0, 1)!.hint).toBe('tip');
+  });
+});
+
+describe('PaneContent text fields (ADR 0055)', () => {
+  it('adds, edits and removes fields; overlapping and redrawn rows drop them', () => {
+    const dropped: number[] = [];
+    const c = new PaneContent('t', { onDropField: (id) => dropped.push(id) });
+    c.setLine(0, plain('Name: '));
+    c.addField(0, 6, 10, 1, { value: 'home\nx', placeholder: 'name', maxLength: 6 });
+    expect(c.fields).toEqual([{ row: 0, col: 6, len: 10, id: 1, value: 'home x', placeholder: 'name', maxLength: 6 }]);
+    expect(c.setFieldValue(1, 'abcdefgh')).toBe(true);
+    expect(c.field(1)!.value).toBe('abcdef');
+    expect(c.setFieldValue(1, 'abcdef')).toBe(false);
+    expect(c.setFieldValue(9, 'x')).toBe(false);
+    // An overlapping field replaces it.
+    c.addField(0, 10, 3, 2);
+    expect(dropped).toEqual([1]);
+    // Another row keeps its field; setLine, setGauge and clear drop theirs.
+    c.addField(2, 0, 4, 3);
+    c.setLine(0, plain('x'));
+    expect(dropped).toEqual([1, 2]);
+    c.setGauge(2, { value: 1, max: 2, label: '' });
+    expect(dropped).toEqual([1, 2, 3]);
+    c.addField(1, 0, 4, 4);
+    c.removeField(4);
+    c.addField(1, 0, 4, 5);
+    c.clear();
+    expect(dropped).toEqual([1, 2, 3, 4, 5]);
+    expect(c.fields).toEqual([]);
+  });
+
+  it('a snapshot bakes the value into its line as underlined text; load drops fields', () => {
+    const c = new PaneContent('t');
+    c.setLine(0, parseCecho('<red>Name:<reset> [          ] ok'));
+    c.addField(0, 7, 10, 1, { value: 'home' });
+    c.addField(3, 2, 3, 2, { value: 'abcdef' });
+    const s = c.snapshot();
+    expect(texts(PaneContent.fromSnapshot(s))).toEqual(['Name: [home      ] ok', '', '', '  abc']);
+    const l = s.lines[0]!;
+    expect('spans' in l && l.spans.find((x) => x.text === 'home      ')!.underline).toBe(true);
+    expect('spans' in l && l.spans[0]!.fg).toBeDefined();
+    expect(c.fields).toHaveLength(2);
+    const d = PaneContent.fromSnapshot(s);
+    expect(d.fields).toEqual([]);
+    expect(overlay([{ text: 'abcdef' }], 2, { text: 'XY' }).map((x) => x.text).join('')).toBe('abXYef');
   });
 });
 
@@ -336,6 +381,82 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(pane.hovered).toBeNull();
     expect(tip.hidden).toBe(true);
     void ctx;
+  });
+
+  it('a text field: an input over its cells; typing, keys, Enter and Esc report and give the focus back', () => {
+    const r = rig();
+    let refocused = 0;
+    const input = document.createElement('input');
+    document.body.append(input);
+    (r.cockpit as unknown as { onFocusInput: () => void }).onFocusInput = () => {
+      refocused++;
+      input.focus();
+    };
+    const id = scriptPaneId('s', 'f');
+    const content = new PaneContent('F');
+    content.setLine(0, plain('Name: '));
+    content.addField(0, 6, 8, 7, { value: 'home', placeholder: 'a name' });
+    const events: Array<[number, FieldEvent]> = [];
+    const view = r.surface.open({ id, place: { dock: 'right', rows: 3, cols: 20 } }, content, {
+      onLink: () => {},
+      onResize: () => {},
+      onField: (n, e) => events.push([n, e]),
+    });
+    // Asked before it is drawn: focused once it is.
+    view.focusField!(7, true);
+    r.flush();
+    const pane = r.cockpit.pane(id) as ScriptPane;
+    const el = pane.fieldInput(7)!;
+    expect(el).not.toBeNull();
+    expect(el.className).toBe('wc-spane-field');
+    expect(el.value).toBe('home');
+    expect(el.placeholder).toBe('a name');
+    // Beside the content: the content's offset (the frame) plus 6 cells.
+    expect(el.style.left).toBe(`${parseFloat(pane.content.style.left) + 6 * 10}px`);
+    expect(el.style.width).toBe('80px');
+    expect(document.activeElement).toBe(el);
+    // The band is drawn in the cells under it.
+    const row = pane.content.querySelector('.wc-prow')!;
+    expect(row.textContent).toContain('Name: ');
+    // Typing reports the text.
+    el.value = 'hom';
+    el.dispatchEvent(new Event('input'));
+    const key = (k: string, code: string, mods: Partial<KeyboardEventInit> = {}) => {
+      const e = new KeyboardEvent('keydown', { key: k, code, bubbles: true, cancelable: true, ...mods });
+      el.dispatchEvent(e);
+      return e.defaultPrevented;
+    };
+    expect(key('ArrowDown', 'ArrowDown')).toBe(true);
+    expect(key('Tab', 'Tab', { shiftKey: true })).toBe(true);
+    // Browser shortcuts are consumed, editing keys are not.
+    expect(key('s', 'KeyS', { ctrlKey: true })).toBe(true);
+    expect(key('a', 'KeyA', { ctrlKey: true })).toBe(false);
+    expect(key('x', 'KeyX')).toBe(false);
+    expect(key('Enter', 'Enter')).toBe(true);
+    expect(refocused).toBe(1);
+    el.focus();
+    expect(key('Escape', 'Escape')).toBe(true);
+    expect(refocused).toBe(2);
+    expect(events).toEqual([
+      [7, { type: 'change', text: 'hom' }],
+      [7, { type: 'key', key: 'ArrowDown' }],
+      [7, { type: 'key', key: 'Shift+Tab' }],
+      [7, { type: 'submit', text: 'hom' }],
+      [7, { type: 'cancel' }],
+    ]);
+    // A value set by the script reaches the input; setLine on the row drops it, giving the focus back.
+    content.setFieldValue(7, 'cave');
+    view.changed();
+    r.flush();
+    expect(el.value).toBe('cave');
+    el.focus();
+    content.setLine(0, plain('gone'));
+    view.changed();
+    r.flush();
+    expect(pane.fieldInput(7)).toBeNull();
+    expect(el.isConnected).toBe(false);
+    expect(refocused).toBe(3);
+    input.remove();
   });
 
   it('the close cross switches a script pane off with a whole settings entry', () => {

@@ -27,7 +27,7 @@ import type { SettingsStore } from '../settings';
 import { SCRIPT_PANE_DEFAULTS, paneSettingsOf } from '../settings/types';
 import type { PaneContext } from './context';
 import type { PaneContent, PaneSnapshot, PaneTemp } from './script-content';
-import { ScriptPane } from './script-pane';
+import { type FieldEvent, ScriptPane } from './script-pane';
 
 export interface ScriptPaneSpec {
   id: ScriptPaneId;
@@ -46,6 +46,8 @@ export interface ScriptPaneEvents {
   onClose?(): void;
   /** A temporary pane was moved, resized, shown or hidden (`placement()` changed). */
   onPlace?(): void;
+  /** A text field changed, was submitted or cancelled, or got a key (ADR 0055). */
+  onField?(id: number, e: FieldEvent): void;
 }
 
 /** One open script pane, as the host sees it. */
@@ -62,6 +64,8 @@ export interface ScriptPaneView {
   close(): void;
   /** A temporary pane's size, place and on/off (for runs); undefined for an ordinary pane. */
   placement?(): PaneTemp | undefined;
+  /** Focuses text field `id` (selecting its text when `select`), taking the focus from the input line. */
+  focusField?(id: number, select: boolean): void;
 }
 
 export interface ScriptPaneSurface {
@@ -86,6 +90,8 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       content,
       onLink: (n) => events.onLink(n),
       onTitle: () => this.cockpit.paneRetitled(id),
+      onField: (n, e) => events.onField?.(n, e),
+      onFocusInput: () => this.cockpit.focusInput(),
     });
     pane.onResize((c, r) => events.onResize(c, r));
     if (spec.temporary) return this.openTemp(spec.id, spec.temporary, pane, events);
@@ -104,6 +110,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       },
       isOn: () => paneSettingsOf(this.settings.get().panes, id).on,
       size: () => ({ cols: pane.cols, rows: pane.rows }),
+      focusField: (n, select) => pane.focusField(n, select),
       close: () => {
         if (closed) return;
         closed = true;
@@ -130,6 +137,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       },
       isOn: () => this.cockpit.tempPane(id)?.on ?? false,
       size: () => ({ cols: pane.cols, rows: pane.rows }),
+      focusField: (n, select) => pane.focusField(n, select),
       close: () => {
         if (closed) return;
         closed = true;
@@ -221,6 +229,7 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
       },
     };
     if (view.placement) out.placement = () => view.placement!();
+    if (view.focusField) out.focusField = (n, select) => view.focusField!(n, select);
     return out;
   }
 

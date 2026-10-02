@@ -42,9 +42,26 @@ describe('API docs', () => {
   });
 });
 
+describe('text field methods (ADR 0055)', () => {
+  it('documents every field method the host defines, and nothing else', () => {
+    const host = readFileSync(new URL('../../src/scripts/host.ts', import.meta.url), 'utf8');
+    const block = host.slice(host.indexOf("rt.defineClass('PaneField', {"), host.indexOf("rt.defineClass('Pane', {"));
+    const methods = [...block.matchAll(/^ {6}(\w+): \(a\) =>/gm)].map((m) => `field:${m[1]!}`);
+    expect(methods.sort()).toEqual(['field:focus', 'field:remove', 'field:select', 'field:setValue', 'field:value']);
+    const documented = SCRIPT_API.filter((d) => d.name.startsWith('field:')).map((d) => d.name);
+    expect(documented.sort()).toEqual(methods);
+  });
+
+  it('complete after a receiver named like a field', () => {
+    expect(names(completeLua('nameField:s'))).toEqual(['field:select', 'field:setValue']);
+    expect(names(completeLua('input:f'))).toEqual(['field:focus']);
+    expect(nameAt('f:setValue("")', 3)?.doc.name).toBe('field:setValue');
+  });
+});
+
 describe('pane methods (ADR 0053)', () => {
   it('complete after a pane receiver, never as globals; hover finds them after a colon', () => {
-    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setTitle']);
+    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setInput', 'pane:setTitle']);
     expect(completeLua('myPane:g')?.method).toBe(true);
     expect(names(completeLua('line:up'))).toEqual(['string.upper']);
     expect(names(completeLua('pane'))).toBeNull();

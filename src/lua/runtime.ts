@@ -283,6 +283,30 @@ export class LuaArgs {
     throw new Error(`bad argument #${i} to '${this.name}' (${cls.name.toLowerCase()} expected, got ${typeName(t)}${hint})`);
   }
 
+  /**
+   * Field `key` of table argument `i` as a new function reference (owned
+   * by the running script), or null when the field is nil. Any other value
+   * is a bad argument. `table(i)` cannot carry functions (they read as
+   * undefined), so options tables with callbacks use this.
+   */
+  fieldFunction(i: number, key: string): LuaRef | null {
+    const c = this.rt.c;
+    const L = this.L;
+    const t0 = c.lua_type(L, i);
+    if (t0 !== T_TABLE) throw this.bad(i, 'table', t0);
+    const abs = c.lua_absindex(L, i);
+    this.rt.pushString(L, key);
+    c.lua_rawget(L, abs);
+    try {
+      const t = c.lua_type(L, -1);
+      if (t <= T_NIL) return null;
+      if (t !== T_FUNCTION) throw new Error(`bad argument #${i} to '${this.name}' (${key} must be a function, got ${typeName(t)})`);
+      return this.rt.newRef(L, -1);
+    } finally {
+      c.lua_settop(L, -2);
+    }
+  }
+
   /** A table, converted to JS (see `LuaValue`). */
   table(i: number): LuaValue[] | { [key: string]: LuaValue } {
     const t = this.rt.c.lua_type(this.L, i);
@@ -1012,7 +1036,8 @@ export class LuaRuntime {
   }
 
   /** Pushes `s` as a Lua string through the shared UTF-8 buffer. */
-  private pushString(L: LuaState, s: string): void {
+  /** @internal */
+  pushString(L: LuaState, s: string): void {
     const n = this.encode(s);
     this.c.lua_pushlstring(L, this.buf, n);
   }

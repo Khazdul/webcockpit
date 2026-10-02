@@ -640,6 +640,78 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "pane:setInput",
+    "pane:setInput(row, col, len, opts) → field",
+    "Puts an editable one-line text field on len cells of a row, from column col, and returns it. Enter, Esc and typing call the functions in opts.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1."),
+        p("col", "number", "The first column, from 1."),
+        p("len", "number", "How many cells wide, at least 1. Longer text scrolls inside the field."),
+        p(
+          "opts",
+          "table?",
+          "value (the text to start with), placeholder (grey text while it is empty), maxLength (most characters), onSubmit(text) (Enter), onCancel() (Esc), onChange(text) (each edit) and onKey(key) (Up, Down, PgUp, PgDn, Tab, Shift+Tab: ArrowUp, ArrowDown, PageUp, PageDown, Tab, Shift+Tab).",
+        ),
+      ],
+      returns: "A field: field:focus(), field:select(), field:value(), field:setValue(text), field:remove().",
+      more: [
+        "The field is drawn on a band in the pane's own shades. A click on it, or field:focus(), takes the keyboard from the input line; Enter, Esc, a click elsewhere or the pane closing give it back. While the field has the keyboard, nothing typed reaches the game, macros or keys bound with tempKey.",
+        "pane:setLine, pane:gauge and pane:clear on its row remove the field, as they remove links: write the row's text first, then add the field, and redraw other rows around it. The log player and the HTML replay show the field's text, not editable.",
+      ],
+      example:
+        'pane:setLine(1, "Name: ")\nlocal name = pane:setInput(1, 7, 12, {\n  value = "home",\n  onSubmit = function(text) echo("You typed " .. text) end,\n  onCancel = function() pane:close() end,\n})\nname:select()',
+    },
+  ),
+  fn(
+    "field:focus",
+    "field:focus()",
+    "Gives the keyboard to the text field (from pane:setInput), with the cursor after its text.",
+    {
+      params: [p("field", "field", "A field from pane:setInput.")],
+      more: ["A field that is not on screen yet (a new pane) takes the keyboard once it is drawn."],
+      example: "name:focus()",
+    },
+  ),
+  fn(
+    "field:select",
+    "field:select()",
+    "Gives the keyboard to the text field with all its text selected, so typing replaces it.",
+    {
+      params: [p("field", "field", "A field from pane:setInput.")],
+      example: "name:select()",
+    },
+  ),
+  fn(
+    "field:value",
+    "field:value() → string",
+    "The field's text now; nil once the field is gone.",
+    {
+      params: [p("field", "field", "A field from pane:setInput.")],
+      returns: "The text, or nil.",
+      example: 'local text = name:value()',
+    },
+  ),
+  fn(
+    "field:setValue",
+    "field:setValue(text)",
+    "Replaces the field's text (one line, cut to its maxLength). onChange is not called.",
+    {
+      params: [p("field", "field", "A field from pane:setInput."), p("text", "string", "The new text.")],
+      example: 'name:setValue("")',
+    },
+  ),
+  fn(
+    "field:remove",
+    "field:remove()",
+    "Takes the field away; the keyboard goes back to the input line if the field had it. Its methods then do nothing.",
+    {
+      params: [p("field", "field", "A field from pane:setInput.")],
+      example: "name:remove()",
+    },
+  ),
+  fn(
     "pane:size",
     "pane:size() → rows, cols",
     "The pane's content size in cells now: rows and columns. Both are 0 while the pane is not shown.",
@@ -940,12 +1012,14 @@ export function apiDoc(name: string): ApiDoc | null {
 
 /** The pane methods (`pane:echo` …), offered after `pane:` (ADR 0053). */
 const PANE_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("pane:"));
+/** The text field methods (`field:focus` …), offered after a receiver named like a field (ADR 0055). */
+const FIELD_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("field:"));
 
-/** The doc of a method name: a string method (`find` for `s:find`), else a pane method (`echo`), or null. */
+/** The doc of a method name: a string method (`find` for `s:find`), else a pane or field method (`echo`, `select`), or null. */
 export function methodDoc(name: string): ApiDoc | null {
   const d = BY_NAME.get(`string.${name}`);
   if (d && d.kind === "function" && !NOT_METHODS.has(d.name)) return d;
-  return BY_NAME.get(`pane:${name}`) ?? null;
+  return BY_NAME.get(`pane:${name}`) ?? BY_NAME.get(`field:${name}`) ?? null;
 }
 
 // ------------------------------------------------------------ completion
@@ -1152,9 +1226,9 @@ export function completeLua(
     const word = meth[1] ?? "";
     const receiver = /([A-Za-z_]\w*):[A-Za-z_]?\w*$/.exec(before)?.[1] ?? "";
     const pane = /pane/i.test(receiver);
-    const options = (pane ? PANE_METHODS : METHODS).filter((d) =>
-      d.name.slice(pane ? 5 : 7).startsWith(word),
-    );
+    const field = !pane && /field|input/i.test(receiver);
+    const list = pane ? PANE_METHODS : field ? FIELD_METHODS : METHODS;
+    const options = list.filter((d) => d.name.slice(d.name.indexOf(pane || field ? ":" : ".") + 1).startsWith(word));
     return options.length
       ? { from: before.length - word.length, options, method: true }
       : null;

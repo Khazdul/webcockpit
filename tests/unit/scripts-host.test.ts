@@ -16,7 +16,9 @@ import { HANG_KEY } from '../../src/scripts/guard';
 import { GmcpCache } from '../../src/scripts/gmcp-cache';
 import { ScriptHost } from '../../src/scripts/host';
 import type { StyledRow } from '../../src/ui/output-pane';
-import type { PaneContent } from '../../src/panes/script-content';
+import { PaneContent } from '../../src/panes/script-content';
+
+const PaneContentFrom = PaneContent.fromSnapshot;
 import type { ScriptPaneEvents, ScriptPaneSpec, ScriptPaneSurface, ScriptPaneView } from '../../src/panes/script-surface';
 
 class MemStorage {
@@ -98,6 +100,10 @@ class FakeView implements ScriptPaneView {
   }
   close(): void {
     this.closed = true;
+  }
+  focused: Array<[number, boolean]> = [];
+  focusField(id: number, select: boolean): void {
+    this.focused.push([id, select]);
   }
 }
 
@@ -755,6 +761,96 @@ describe('hang guard', () => {
     expect(t.lib.get('s')!.enabled).toBe(false);
     expect(t.uiText()[0]).toMatch(/^Script s was turned off: the page closed while it was running/);
     expect(storage.getItem(HANG_KEY)).toBe(null);
+  });
+});
+
+describe('pane text fields (ADR 0055)', () => {
+  const FIELDS = src(`
+    pane = createPane{id = "p", title = "P", rows = 3, cols = 30}
+    pane:setLine(1, "Name: ")
+    field = pane:setInput(1, 7, 10, {
+      value = "home", placeholder = "a name", maxLength = 8,
+      onSubmit = function(text) send("submit " .. text .. " " .. field:value()) end,
+      onCancel = function() send("cancel") end,
+      onChange = function(text) send("change " .. text) end,
+      onKey = function(key) send("key " .. key) end,
+    })
+    tempAlias("^f (\\\\w+) ?(.*)$", function()
+      local what, arg = matches[2], matches[3]
+      if what == "focus" then field:focus()
+      elseif what == "select" then field:select()
+      elseif what == "set" then field:setValue(arg)
+      elseif what == "value" then send(tostring(field:value()))
+      elseif what == "remove" then field:remove()
+      elseif what == "line" then pane:setLine(1, "gone")
+      end
+    end)
+  `);
+
+  it('setInput adds a field to the content; events call its functions; methods work', async () => {
+    const panes = new FakeSurface();
+    const t = await setup({ f: FIELDS }, { panes });
+    const p = panes.get('f/p')!;
+    expect(p.content.fields).toEqual([
+      { row: 0, col: 6, len: 10, id: expect.any(Number), value: 'home', placeholder: 'a name', maxLength: 8 },
+    ]);
+    const id = p.content.fields[0]!.id;
+    t.engine.input('f focus');
+    t.engine.input('f select');
+    expect(p.view.focused).toEqual([
+      [id, false],
+      [id, true],
+    ]);
+    p.events.onField!(id, { type: 'change', text: 'hom' });
+    expect(p.content.fields[0]!.value).toBe('hom');
+    p.events.onField!(id, { type: 'key', key: 'ArrowDown' });
+    p.events.onField!(id, { type: 'submit', text: 'a very long name' });
+    p.events.onField!(id, { type: 'cancel' });
+    expect(t.sent).toEqual(['change hom', 'key ArrowDown', 'submit a very l a very l', 'cancel']);
+    t.sent.length = 0;
+    t.engine.input('f set new');
+    t.engine.input('f value');
+    expect(t.sent).toEqual(['new']);
+    // The snapshot (runs, the player) has the value as text.
+    expect(paneText(PaneContentFrom(p.content.snapshot()))).toEqual(['Name: new       ']);
+    // setLine on its row removes it; then its methods do nothing.
+    t.engine.input('f line');
+    expect(p.content.fields).toEqual([]);
+    t.engine.input('f value');
+    t.engine.input('f focus');
+    p.events.onField!(id, { type: 'submit', text: 'x' });
+    expect(t.sent).toEqual(['new', 'nil']);
+    expect(p.view.focused).toHaveLength(2);
+    expect(t.lib.get('f')!.lastError).toBeNull();
+  });
+
+  it('remove and close drop the field; setInput validates', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        v: src(`
+          local pane = createPane{id = "v"}
+          local f = pane:setInput(2, 1, 5)
+          send(tostring(f:value()))
+          f:remove()
+          send(tostring(f:value()))
+          for _, bad in ipairs({ {0, 1, 1}, {1, 0, 1}, {1, 1, 0}, {1, 1, 1, {maxLength = 0}}, {1, 1, 1, {onSubmit = 3}}, {1, 1, 1, {value = {}}} }) do
+            local ok, err = pcall(pane.setInput, pane, table.unpack(bad))
+            send(err)
+          end
+          local g = pane:setInput(1, 1, 3, {value = "x"})
+          pane:close()
+          send(tostring(g:value()))
+        `),
+      },
+      { panes },
+    );
+    expect(t.sent[0]).toBe('');
+    expect(t.sent[1]).toBe('nil');
+    expect(t.sent.slice(2, 8).every((m) => m.includes("bad argument") && m.includes("pane:setInput"))).toBe(true);
+    expect(t.sent[6]).toMatch(/onSubmit must be a function/);
+    expect(t.sent[8]).toBe('nil');
+    expect(t.lib.get('v')!.lastError).toBeNull();
   });
 });
 

@@ -388,6 +388,8 @@ const PANES: HelpSection = {
     "pane:size()  pane:onResize(fn)  pane:setTitle(text)",
     "pane:show()  pane:hide()  pane:visible()",
     "pane:close()  pane:onClose(fn)",
+    "pane:setInput(row, col, len, {value, placeholder, maxLength, onSubmit, onCancel, onChange, onKey})",
+    "field:focus()  field:select()  field:value()  field:setValue(text)  field:remove()",
   ],
   text: [
     "A script can draw its own pane: text, colours, bars and clickable spans. It docks, floats, toggles and takes a colour like the Character or Group pane.",
@@ -407,6 +409,8 @@ const PANES: HelpSection = {
     "pane:hide() and pane:show() switch the pane off and on, as its close cross and Options do; the choice is kept. pane:visible() tells whether it is on. pane:setTitle(text) changes the title.",
     "pane:close() takes a pane away; its methods then do nothing, and createPane with the same id makes a new one. An ordinary pane keeps its place for then.",
     "Temporary panes. createPane{id = \"pick\", temporary = true, rows = 3, cols = 30} makes a short-lived pane, for a choice or a notice: it floats centred over the game text at rows × cols, above the other panes, and is never listed in Options → Panes or remembered. The player can move it; its close cross closes it, and pane:onClose(fn) is called then. show, hide and visible work while it is open. It is in runs like any pane.",
+    "Text fields. pane:setInput(row, col, len, opts) puts an editable one-line field on len cells of a row and returns it. opts.value is its text to start with, opts.placeholder the grey text while it is empty, opts.maxLength the most characters. opts.onSubmit(text) runs on Enter, opts.onCancel() on Esc, opts.onChange(text) on every edit, and opts.onKey(key) for Up, Down, PgUp, PgDn, Tab and Shift+Tab (\"ArrowUp\", \"ArrowDown\", \"PageUp\", \"PageDown\", \"Tab\", \"Shift+Tab\"), so the arrows can move a selection while the player types.",
+    "A click on the field, or field:focus(), gives it the keyboard; field:select() does too and selects its text, so typing replaces it. Enter, Esc, a click elsewhere or the pane closing give the keyboard back to the input line (onSubmit can call field:focus() again to keep it). While the field has the keyboard, nothing typed reaches the game, your macros or the keys of tempKey. field:value() and field:setValue(text) read and write the text; field:remove() takes the field away. setLine, gauge and clear on its row remove it too, so write the row's text first and add the field after it. The log player and the HTML replay show its text, not editable.",
     "Pane methods are cheap: they change the pane's content, and the pane is drawn once per screen frame. Updating a pane from a trigger on every line is fine.",
   ],
   examples: [
@@ -419,6 +423,11 @@ const PANES: HelpSection = {
       note: "A log pane and an alias that toggles it:",
       lang: "lua",
       code: 'local log = createPane{id = "tells", title = "Tells", dock = "float", rows = 6, cols = 40}\n\ntempRegexTrigger("^(\\\\w+) tells you \'(.*)\'$", function()\n  log:cecho("<cyan>" .. matches[2] .. "<reset>: " .. matches[3] .. "\\n")\nend)\n\ntempAlias("^tells$", function()\n  if log:visible() then log:hide() else log:show() end\nend)',
+    },
+    {
+      note: "A popup that asks for a name:",
+      lang: "lua",
+      code: 'local function askName(fn)\n  local box = createPane{id = "name", title = "Name", temporary = true, rows = 2, cols = 24}\n  box:setLine(1, " Name: ")\n  box:setLine(2, " <ansi_light_black>Enter: ok, Esc: cancel")\n  local field = box:setInput(1, 8, 14, {\n    placeholder = "type a name",\n    maxLength = 10,\n    onSubmit = function(text)\n      box:close()\n      fn(text)\n    end,\n    onCancel = function() box:close() end,\n  })\n  field:focus()\nend\n\ntempAlias("^greet$", function()\n  askName(function(name) send("say Hello, " .. name .. "!") end)\nend)',
     },
     {
       note: "A choice popup that closes itself after ten seconds:",
