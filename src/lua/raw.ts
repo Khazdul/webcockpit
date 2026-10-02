@@ -58,6 +58,11 @@ export interface LuaApi {
   luaL_unref(L: LuaState, t: number, ref: number): void;
   luaL_loadbufferx(L: LuaState, buf: Ptr, size: number, name: Ptr, mode: Ptr): number;
   luaL_where(L: LuaState, level: number): void;
+  lua_newuserdatauv(L: LuaState, size: number, nuvalue: number): Ptr;
+  lua_touserdata(L: LuaState, idx: number): Ptr;
+  lua_getmetatable(L: LuaState, idx: number): number;
+  lua_rawequal(L: LuaState, a: number, b: number): number;
+  lua_copy(L: LuaState, from: number, to: number): void;
 }
 
 /** The names in `LuaApi`. */
@@ -93,6 +98,11 @@ export const API_NAMES = [
   'luaL_unref',
   'luaL_loadbufferx',
   'luaL_where',
+  'lua_newuserdatauv',
+  'lua_touserdata',
+  'lua_getmetatable',
+  'lua_rawequal',
+  'lua_copy',
 ] as const satisfies readonly (keyof LuaApi)[];
 
 /** `LuaApi` through the module's exported wrappers. */
@@ -122,6 +132,7 @@ export const T_NUMBER = 3;
 export const T_STRING = 4;
 export const T_TABLE = 5;
 export const T_FUNCTION = 6;
+export const T_USERDATA = 7;
 
 const TYPE_NAMES = ['nil', 'boolean', 'userdata', 'number', 'string', 'table', 'function', 'userdata', 'thread'];
 

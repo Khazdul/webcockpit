@@ -36,6 +36,7 @@ import {
   T_NUMBER,
   T_STRING,
   T_TABLE,
+  T_USERDATA,
   typeName,
   apiFromModule,
   type LuaApi,
@@ -87,6 +88,36 @@ export type CheckResult = { ok: true } | { ok: false; kind: 'syntax' | 'memory';
 
 /** The outcome of `loadScript`. `syntax` is a compile error. */
 export type LoadResult = { ok: true; script: LuaScript } | { ok: false; kind: FailKind | 'syntax'; message: string };
+
+/**
+ * A class of host objects (`defineClass`): userdata whose methods are host
+ * functions, called with `:` (`pane:echo("x")`).
+ */
+export interface LuaClass {
+  readonly name: string;
+  /** @internal The metatable's registry reference. */
+  readonly metaRef: number;
+}
+
+/**
+ * Returned by a host function (or passed as a call argument): the object
+ * of `cls` with handle `id`. The same `id` gives the same Lua value while
+ * a script holds it.
+ */
+export class LuaObject {
+  constructor(
+    readonly cls: LuaClass,
+    readonly id: number,
+  ) {}
+}
+
+/** Returned by a host function: several results (`return a, b` in Lua). */
+export class LuaMulti {
+  readonly values: readonly unknown[];
+  constructor(...values: unknown[]) {
+    this.values = values;
+  }
+}
 
 /**
  * A host function exposed to Lua. It reads its arguments from `args` and
@@ -232,6 +263,24 @@ export class LuaArgs {
     return this.rt.c.lua_type(this.L, i) <= T_NIL ? null : this.function(i);
   }
 
+  /**
+   * The handle of an object of `cls` (`LuaObject.id`); throws `bad
+   * argument` for anything else, with a hint to call methods with `:`.
+   */
+  object(i: number, cls: LuaClass): number {
+    const c = this.rt.c;
+    const L = this.L;
+    const t = c.lua_type(L, i);
+    if (t === T_USERDATA && c.lua_getmetatable(L, i) !== 0) {
+      c.lua_rawgeti(L, REGISTRY, BigInt(cls.metaRef));
+      const same = c.lua_rawequal(L, -1, -2) !== 0;
+      c.lua_settop(L, -3);
+      if (same) return this.rt.m.HEAPU32[c.lua_touserdata(L, i) >> 2]!;
+    }
+    const hint = i === 1 ? `; call it as ${cls.name.toLowerCase()}:${this.name.split(':')[1] ?? this.name}(…)` : '';
+    throw new Error(`bad argument #${i} to '${this.name}' (${cls.name.toLowerCase()} expected, got ${typeName(t)}${hint})`);
+  }
+
   /** A table, converted to JS (see `LuaValue`). */
   table(i: number): LuaValue[] | { [key: string]: LuaValue } {
     const t = this.rt.c.lua_type(this.L, i);
@@ -277,6 +326,8 @@ export class LuaRuntime {
   private dataRef: number;
   private viewRef: number;
   private freezeRef: number;
+  /** Weak-valued table: object id → its userdata (LuaObject identity). */
+  private objectsRef: number;
   /** The thread whose stack the host uses now (a coroutine inside a host function). */
   private activeL: LuaState;
   private depth = 0;
@@ -324,6 +375,13 @@ export class LuaRuntime {
     this.collectRef = c.luaL_ref(L, REGISTRY);
     this.envMetaRef = c.luaL_ref(L, REGISTRY);
     this.baseRef = c.luaL_ref(L, REGISTRY);
+    c.lua_createtable(L, 0, 0);
+    c.lua_createtable(L, 0, 1);
+    this.pushString(L, '__mode');
+    this.pushString(L, 'v');
+    c.lua_rawset(L, -3);
+    c.lua_setmetatable(L, -2);
+    this.objectsRef = c.luaL_ref(L, REGISTRY);
     c.lua_settop(L, top);
   }
 
@@ -457,6 +515,74 @@ export class LuaRuntime {
   }
 
   /**
+   * A class of host objects (`LuaObject`): userdata with the metatable
+   * `{ __index = methods, __name = name, __metatable = false }`, where
+   * `methods` is a read-only table of host functions that read the object
+   * with `args.object(1, cls)`. Nothing is put in the base; a host
+   * function hands out objects by returning `new LuaObject(cls, id)`.
+   * Define each class once.
+   */
+  defineClass(name: string, methods: Record<string, HostFunction>): LuaClass {
+    this.assertOpen();
+    const c = this.c;
+    const L = this.activeL;
+    const top = c.lua_gettop(L);
+    const low = name.toLowerCase();
+    const ptrs = Object.entries(methods).map(([k, impl]) => [k, this.closure(`${low}:${k}`, impl)] as const);
+    c.lua_createtable(L, 0, 3);
+    this.pushString(L, '__index');
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.freezeRef));
+    c.lua_createtable(L, 0, ptrs.length);
+    for (const [k, fp] of ptrs) {
+      this.pushString(L, k);
+      c.lua_pushcclosure(L, fp, 0);
+      c.lua_rawset(L, -3);
+    }
+    if (c.lua_pcallk(L, 1, 1, 0, 0, 0) !== LUA_OK) {
+      c.lua_settop(L, top);
+      throw new Error(`defineClass ${name} failed`);
+    }
+    c.lua_rawset(L, -3);
+    this.pushString(L, '__name');
+    this.pushString(L, name);
+    c.lua_rawset(L, -3);
+    this.pushString(L, '__metatable');
+    c.lua_pushboolean(L, 0);
+    c.lua_rawset(L, -3);
+    const metaRef = c.luaL_ref(L, REGISTRY);
+    c.lua_settop(L, top);
+    return { name, metaRef };
+  }
+
+  /** The object of `cls` with handle `id`, to return from a host function. */
+  object(cls: LuaClass, id: number): LuaObject {
+    return new LuaObject(cls, id);
+  }
+
+  /** Several results, to return from a host function. */
+  multi(...values: unknown[]): LuaMulti {
+    return new LuaMulti(...values);
+  }
+
+  /** Pushes the userdata of `o` (the cached one while Lua still holds it). */
+  private pushObject(L: LuaState, o: LuaObject): void {
+    const c = this.c;
+    c.lua_checkstack(L, 4);
+    c.lua_rawgeti(L, REGISTRY, BigInt(this.objectsRef));
+    if (c.lua_rawgeti(L, -1, BigInt(o.id)) !== T_USERDATA) {
+      c.lua_settop(L, -2);
+      const p = c.lua_newuserdatauv(L, 4, 0);
+      this.m.HEAPU32[p >> 2] = o.id >>> 0;
+      c.lua_rawgeti(L, REGISTRY, BigInt(o.cls.metaRef));
+      c.lua_setmetatable(L, -2);
+      c.lua_pushvalue(L, -1);
+      c.lua_rawseti(L, -3, BigInt(o.id));
+    }
+    c.lua_copy(L, -1, -2);
+    c.lua_settop(L, -2);
+  }
+
+  /**
    * Puts a deep read-only view of the hidden data table `name` in the
    * base (`gmcp`, `state`). The host fills it with `setData`; scripts can
    * read but never change it, so no script alters another's view.
@@ -503,6 +629,11 @@ export class LuaRuntime {
       try {
         const r = impl(args);
         if (r === undefined) return 0;
+        if (r instanceof LuaMulti) {
+          c.lua_checkstack(Lp, r.values.length + 1);
+          for (const v of r.values) this.push(Lp, v, 0);
+          return r.values.length;
+        }
         this.push(Lp, r, 0);
         return 1;
       } catch (e) {
@@ -762,6 +893,10 @@ export class LuaRuntime {
         c.lua_pushboolean(L, v ? 1 : 0);
         return;
       case 'object':
+        if (v instanceof LuaObject) {
+          this.pushObject(L, v);
+          return;
+        }
         if (v !== null) {
           this.pushTable(L, v, depth);
           return;
