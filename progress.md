@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **11 — Script panes** (owner testing; latest release 0.1.27, stage 11 not released yet). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -16,7 +16,7 @@ Current stage: **11 — Script panes** (next, in a new session; stage 10 done; l
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
-| 11 | Script panes | Next | `docs/stages/11-script-panes.md` |
+| 11 | Script panes | Owner testing | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
@@ -24,6 +24,23 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Stage 11 built: script panes and mercenaries
+
+- **P0:** dynamic pane ids (`<script>/<pane>`), `ScriptPane` on the
+  frame/grid code, `createPane` and pane methods (+ `show/hide/visible/
+  setTitle/onResize`), Options → Panes lists script panes. ADR 0053.
+- **P1:** `ESC SPANE` records (full + change records, 0.6 MB/h for a
+  busy pane); log player and HTML replay draw them without Lua.
+- **P2:** bundled `mercenaries.lua` with a pane, orders and autopay;
+  `getEpoch()` added; side docks reserve a script pane's rows.
+- **P3:** EXPORT → all scripts backup, restore via IMPORT; contrast fix
+  on tinted panes; test guide. Unit 1784, e2e 366, prod e2e 10, bench OK.
+- **Open:** mercenary lines and 25 min/10 silver unverified against real
+  MUME; bundled script sources in the cold-start chunk (+18 kB).
+- **Next:** owner test (stage file test guide); release when the owner
+  says so. Stage 12 waits for the key manager reference script.
+- **Commits:** 1d42806 … 1d9be46, plus this one.
 
 ### 2026-10-02 — Scripts moves under Options
 
