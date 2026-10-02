@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Appearance option "Bold brightens colours"
+
+- **User report (Discord):** bold mob names (MUME `change colour`, bold
+  in default colour) barely visible in DejaVu Sans Mono.
+- **Owner decision:** add an option, default off (Cockpit look).
+- **Done:** `boldBright` setting; bold colours via CSS tokens
+  (`--bold-0..7`, `--bold-fg`), live without redraw; default silver →
+  white; paper keeps black ink. Inverse runs not brightened. ADR 0060.
+- **Verified:** typecheck clean, unit 1879 green, e2e green (one
+  Firefox `scripts.spec` flake passed on rerun).
+- **Next:** release 0.1.32 when the owner says so.
+- **Commits:** a98afac, 19279be, plus this one.
+
 ### 2026-10-03 — Map wheel always zooms, release 0.1.31
 
 - **User report (Discord):** on a laptop trackpad, pinch / two-finger
