@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01; built, owner testing on `npm run dev`). Stage 8 stays open: owner test of part D, then release.
+Current stage: **11 — Script panes** (next, in a new session; stage 10 done and released in 0.1.24). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -15,7 +15,7 @@ Current stage: **10 — Scripts** (moved ahead of v1 by owner request 2026-10-01
 | 7 | Sharing | Done | `docs/stages/07-sharing.md` |
 | 8 | Hardening → v1 | In progress | `docs/stages/08-hardening.md` |
 | 9 | Map | Done | `docs/stages/09-map.md` |
-| 10 | Scripts | Owner testing | `docs/stages/10-scripts.md` |
+| 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Next | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Next | `docs/stages/12-key-manager.md` |
 
