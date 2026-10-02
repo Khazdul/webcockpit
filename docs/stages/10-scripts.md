@@ -123,6 +123,15 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - [x] case auto-correct of API and Lua names (`lua-case.ts`), undoable,
         refused spellings remembered;
   - [x] unit and e2e tests (Chromium, Firefox).
+- [x] Feedback round 5 (2026-10-02, ADR 0051 "Feedback round 5"):
+  - [x] no "F1 Manual" line in the hover and completion pop-ups;
+  - [x] completion opens right after `.` and `:` (libraries, `store.`,
+        `gmcp.` and its known levels, `state.`, the script's own
+        `settings.`, string methods); not after a number's dot, in
+        strings or comments, or after `..`;
+  - [x] the list is ten rows high and scrolls (wheel, ↑↓ PgUp PgDn);
+        every option rendered; the info panel stays in the window;
+  - [x] unit and e2e tests (Chromium, Firefox).
 
 ## Test guide
 
@@ -217,6 +226,12 @@ Chromium.
     0.3 s. Type `temptrigger(`: it becomes `tempTrigger(`. Ctrl+Z puts
     your spelling back, and that spelling is then left alone. Does the
     timing feel right? Should a correction happen less (or more) often?
+14. **Members at once (round 5):** type `math.` — the list opens without
+    a letter, ten rows high; scroll it with the wheel or PgDn to
+    `math.ult`. Try `string.`, `gmcp.` then `Char.`, `state.`,
+    `settings.` (in a script with `@setting` lines) and `line:`. `1.`,
+    `"a.` and `x..` open nothing. The pop-ups no longer say F1. Is ten
+    rows right?
 
 **Feedback wanted:** layout and look of the page and the editor; the
 help text of coin looter; whether coin looter behaves right in real
@@ -268,3 +283,13 @@ Round 4 (2026-10-02, after testing release 0.1.24):
    quotes close too.
 5. Known names typed in the wrong case are corrected (`temptrigger(` →
    `tempTrigger(`); undoing or retyping the user's spelling keeps it.
+
+Round 5 (2026-10-02):
+
+1. Remove the "F1 Manual" hint from inside the pop-ups; the footer
+   already says F1.
+2. Open completion right after `.` or `:` without a first letter
+   (`math.`, `string.`, `store.`, `gmcp.`, `state.`, `settings.`, `x:`),
+   but not in a number, a string or comment, or after `..`.
+3. A sensible max height for the list, scrolled natively; all members
+   reachable; the info panel readable and inside the window.

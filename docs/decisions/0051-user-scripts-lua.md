@@ -836,3 +836,30 @@ Tab cycling, round 1's MANUAL button in the editor, and round 3's
 
 **Measured** (production build): editor chunk 528.7 → 536.7 kB (172.7
 → 175.3 kB gzip); other chunks unchanged.
+
+### Feedback round 5 — completion lists (2026-10-02)
+
+- *No F1 hint in the pop-ups.* `docDom` no longer ends with "F1
+  Manual" (hover, completion info); the footer says F1.
+- *Members at once.* Any typed character already started completion;
+  the list after `math` stayed open on its stale global result because
+  `validFor` accepted dots. Now the result is valid only while the text
+  up to its last dot (`completionBase`) is unchanged, so `.` asks again
+  and `completeLua` lists the members. Dotted names may have several
+  levels and a name after `..` completes; the base matches in any case
+  (`Math.ab` → `math.abs`). New members, completion only (not hover, the
+  manual or the case correction): the GMCP messages MUME sends for the
+  subscribed modules under `gmcp.` (`Char`, `Comm.Channel`, `Event`,
+  `Group`, `Room`), `state.char/group/room` and `state.char`'s fields,
+  and the script's own `@setting` names after `settings.` (the header
+  parsed once per document). Unchanged: nothing in strings or comments,
+  after a number's dot (`1.`) or after `..` alone.
+- *Height.* The list shows ten rows and scrolls natively (wheel,
+  touchpad; ↑↓ PgUp PgDn keep the selection in view, CodeMirror's
+  own). `maxRenderedOptions` is 1000, so every option is in the DOM
+  (the longest list, Ctrl+Space on an empty word, has 77). The info
+  panel keeps CodeMirror's width cap and is at most 20 rows or half the
+  window high, scrolling natively.
+
+**Measured** (production build): editor chunk 536.7 → 540.1 kB (175.3
+→ 176.8 kB gzip).
