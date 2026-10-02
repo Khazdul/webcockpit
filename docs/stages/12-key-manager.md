@@ -155,6 +155,25 @@ area... and you see:`, the room, and a blank line.
 
 ## Test guide
 
+### Round 5
+
+What changed: the TV keeps MUME's colours (only plain text turns grey
+after 10 s); the blank line and prompt after each watched line are
+hidden; the watch estimate is the average of your last 3 watches; in
+Port keys the ● is gone, a ◻ before `x` opens and closes a key's TV
+(running watch or a scry in the last 12 h, also after a reload), and the
+countdown has a steady tooltip. Hovering anything in Port keys no longer
+flickers while a watch runs. MUME line formats other than those you saw
+are still from the Mudlet script.
+
+Try: watch a busy room (game text stays clean, TV in colour); watch to
+the end two or three times and see the estimate in the countdown's
+tooltip; scry a key, reload the page, click ◻; hover a letter or the
+countdown for a few seconds during a watch.
+
+Feedback wanted: anything still leaking into the game text; whether the
+white-then-grey look matches what you expect.
+
 ### Round 4: TV
 
 **The MUME lines are taken from the Mudlet script and are unverified**:

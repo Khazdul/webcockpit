@@ -899,3 +899,9 @@ manager's TV). It reads the original line (before substitutes and
 them). A literal `<…>` in game text that is also a valid tag would be
 read as one; no escape exists in cecho, and game text has none in
 practice.
+
+### Stage 12 round 5 — isPrompt (2026-10-02)
+
+`isPrompt()` (Mudlet's name) is true in a trigger when the line is a
+prompt as the line layer marks it: ended by IAC GA/EOR, or a `<prompt>`
+element in XML mode. Scripts gag a prompt by this, never by its text.

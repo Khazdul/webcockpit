@@ -282,3 +282,49 @@ area... and you see:` then the room and a blank line (a scry).
   running watches' TVs; `tv <name>` opens one; `kecho <name> [rows]`
   (Mudlet's) prints the last lines (default 20) in the game text.
 - **Runs.** TVs are temporary panes, recorded like any (ADR 0053).
+
+## Round 4 feedback (round 5, 2026-10-02, live MUME)
+
+- **Colours.** Cause: the TV dimmed a line after 10 s by replacing it
+  with its plain text in one grey, so every line older than 10 s lost its
+  colours (a full end-to-end check — ANSI `ESC[32m` from the WebSocket
+  through the line layer, the trigger, `copy2cecho` and the pane — keeps
+  the green). Now, as Mudlet does (it swapped only the default grey):
+  only the line's default-coloured text changes, white while fresh and
+  the dim grey after 10 s; the game's colours stay (`defaultIn`: a colour
+  tag at the start and after every `<reset>` of the `copy2cecho` text).
+  Unit and e2e tests check a green room name fresh and dimmed.
+- **Blank line and prompt.** MUME sends each watched line as its own
+  packet: the line, a blank line, a prompt with GA (the Mudlet script's
+  `afterIncomingLineWatch` / `promptAfterIncomingDel` triggers gag the
+  same two lines, which confirms it). With `tvgag`, after a gagged watch
+  line a temporary follower trigger gags the blank line right after it
+  and a prompt right after that (or right after the line); the prompt is
+  recognised by `isPrompt()` (GA/EOR, new API), never by its text. Any
+  other line ends the follower; it also ends after 2 s. A scry block's
+  closing blank line and the prompt right after it are gagged the same
+  way. With `tvgag` off nothing extra is gagged.
+- **Watch duration, as the spell timers.** The client's spell timers
+  (ADR 0017, `src/timers/affects.ts`) learn per character with
+  `floor(mean)` of the last 3 samples, saved in the timers store. That
+  tracker is app code a script cannot reach (no API, and watch room is
+  not one of its affects), so the key manager uses the same rule in its
+  own per-character store entry: the whole seconds of the mean of the
+  last 3 measured watches (activation to the `[name] Your awareness
+  decreases.` line; 10 s to 1 h; not a resumed one), 200 s until one is
+  learnt. Supersedes "last five" above. The countdown's tooltip names the
+  estimate (`estimate: 2:57, the average of the last 3 watches` or
+  `estimate: 200 s (default, none learnt yet)`).
+- **Port keys row.** The ● markers are gone. A `◻` left of `x` (a column
+  kept for every row while any row has one) when the key has a running
+  watch or was scried in the last 12 h: it opens or closes that key's
+  TV. The countdown is not red and not a button: a tooltip-only cell
+  (ADR 0056) saying the watch's time left and the estimate, or how long
+  the key works. `w` simply casts again. The tick rewrites only the
+  countdown cells with `pane:setText` and their tooltips with
+  `setLink(…, nil, hint)`, so a hover anywhere stays put.
+- **Saved scry.** A key's last scry (time and lines, at most 60) is in
+  its store record, so `◻` works after a reload and shows that block.
+  Renewing the same key keeps it. Watch lines stay in memory only.
+- A rename moves the key's TV; a running watch keeps answering to its old
+  label.
