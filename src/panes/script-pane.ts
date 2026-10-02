@@ -366,7 +366,7 @@ export class ScriptPane extends PaneShell {
       st.color = color;
       st.background = ramp.track;
       st.caretColor = color;
-      st.setProperty('--spane-ph', ramp.dim);
+      st.setProperty('--spane-ph', ramp.label);
       st.setProperty('--spane-sel-fg', ramp.paneBg);
       st.setProperty('--spane-sel-bg', ramp.glow);
       if (el.value !== f.value) el.value = f.value;

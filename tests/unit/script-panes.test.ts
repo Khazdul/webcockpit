@@ -8,11 +8,11 @@ import { TRUECOLOR } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/layout/model';
-import { type LayoutModel, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
+import { type LayoutModel, PANE_COLORS, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
 import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows } from '../../src/panes/script-pane';
-import { contrast } from '../../src/theme/color';
+import { contrast, paneShades } from '../../src/theme/color';
 import { CockpitPaneSurface } from '../../src/panes/script-surface';
 import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../../src/layout/temp-places';
 import { parseCecho } from '../../src/scripts/colors';
@@ -258,6 +258,15 @@ describe('drawing', () => {
     expect(paneIndicator(10, 4, 0, 'top')).toEqual({ text: '↓ 7 more rows', away: false });
     expect(paneIndicator(10, 4, 1, 'top')).toEqual({ text: '↑ 1 row above', away: true });
     expect(paneIndicator(10, 4, 99, 'top')).toEqual({ text: '↑ 7 rows above', away: true });
+  });
+
+  it("a field's text (vtext) is readable on its band (track) for every pane colour, dark and light", () => {
+    for (const bg of ['#000000', '#f4f0e6']) {
+      for (const color of PANE_COLORS) {
+        const r = paneShades(color, bg);
+        expect(contrast(r.vtext, r.track), `${color} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it('hides the text under a text field: its cells are blank on the band', () => {

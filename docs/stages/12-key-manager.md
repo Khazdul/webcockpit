@@ -93,7 +93,6 @@ fields).
   - `keys` shows or hides the Keys pane (`keys list`, `keys help`);
   - `kpick` opens the last pick window again;
   - `nkey <name> <key>` adds a key by hand;
-  - `skey <name>` sets the safe key (`skey` alone names it);
   - `teleport <name>`, `portal <name>`, `scry <name>`, `watchr <name>`;
   - `tsafe`, `qtsafe`, `psafe` cast teleport, quick teleport and portal
     to the safe key; Ctrl+S and Alt+S are `tsafe` and `qtsafe`.
@@ -129,6 +128,20 @@ fields).
 - [ ] Later round: TV for scry and watch room.
 
 ## Test guide
+
+### Round 3
+
+What changed: the rename field is opaque and readable; clicking outside
+it cancels the rename; `x`, the star and the letters work while a name
+is being edited; `skey` is gone (click the star).
+
+Try: click a name, type, click in the game text (the row is whole
+again), then `x` twice. Click a name, then click another key's star or
+`t`. Rename in a light and a dark pane colour. `keys list` shows ★ on the
+safe key.
+
+Feedback wanted: is the field easy to read, and does cancelling on a
+click elsewhere feel right?
 
 ### Round 2
 

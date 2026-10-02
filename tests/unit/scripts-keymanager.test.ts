@@ -224,7 +224,7 @@ describe('bundled keymanager', () => {
     const s = lib.get('keymanager')!;
     expect(s).toMatchObject({ bundled: true, readonly: true, problems: [], loadProblem: null, enabled: false });
     expect(s.header.api).toBe(1);
-    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'skey', 'teleport', 'tsafe']);
+    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'teleport', 'tsafe']);
     expect(s.header.keys.map((k) => k.key)).toEqual(['Ctrl+S', 'Alt+S']);
     expect(s.settings).toEqual({ hours: 12 });
     expect(s.header.help.join('\n')).toMatch(/safe key/);
@@ -425,7 +425,7 @@ describe('bundled keymanager', () => {
     expect(t.store()!.keys).toHaveLength(1);
   });
 
-  it('nkey, skey, the star, x; the safe key moves and is re-elected; all in the UI messages', async () => {
+  it('nkey, the star, x; the safe key moves and is re-elected; all in the UI messages', async () => {
     const t = await setup();
     t.input('nkey home aaaaaaa');
     expect(t.lastUi()).toBe('KEYS: Stored $home: aaaaaaa. It is your safe key (Ctrl+S).');
@@ -436,9 +436,11 @@ describe('bundled keymanager', () => {
     expect(t.store()!.safe).toBe('home');
     t.input('nkey toolongname1 x');
     expect(t.lastText()).toBe('KEYS A key name is 1 to 10 letters, digits or _.');
-    t.input('skey');
-    expect(t.lastText()).toMatch(/^KEYS The safe key is \$home \(aaaaaaa, 11h 5\dm left\)\.$/);
+    // The star sets the safe key (skey is gone: it goes to the game).
     t.input('skey cave');
+    expect(t.sent).toEqual(['skey cave']);
+    t.sent.length = 0;
+    t.click(1, '☆');
     expect(t.lastUi()).toBe('KEYS: Safe key: $cave (Ctrl+S teleports, Alt+S quickly).');
     expect(t.rows()[1]).toMatch(/^ ★ \$cave /);
     expect(t.rows()[2]).toMatch(/^ ☆ \$home /);
@@ -448,6 +450,9 @@ describe('bundled keymanager', () => {
     expect(t.lastUi()).toBe('KEYS: Safe key: $home (Ctrl+S teleports, Alt+S quickly).');
     // dkey, rkey and krename are gone (the pane does it): they go to the game.
     for (const c of ['dkey home', 'rkey home x', 'krename home x']) t.input(c);
+    // keys list shows the safe key.
+    t.input('keys list');
+    expect(t.texts().filter((x) => x.includes('★'))).toEqual([expect.stringMatching(/★ \$home/)]);
     expect(t.sent).toEqual(['dkey home', 'rkey home x', 'krename home x']);
     t.sent.length = 0;
     // Deleting the safe key (x twice) re-elects the freshest live key.
@@ -507,6 +512,25 @@ describe('bundled keymanager', () => {
     ev({ type: 'cancel' });
     expect(c().fields).toEqual([]);
     expect(t.rows()[2]).toMatch(/^ ☆ \$cave /);
+    // A click elsewhere (blur) cancels too, and the row is whole again.
+    t.panes.keys.events.onLink(t.panes.keys.content.linkAt(2, 4)!.id);
+    ev({ type: 'change', text: 'zzz' });
+    ev({ type: 'blur', text: 'zzz' });
+    expect(c().fields).toEqual([]);
+    expect(t.rows()[2]).toMatch(/^ ☆ \$cave .* t p s w x$/);
+    expect(t.rows()[0]).toMatch(/^ 2 keys +\?$/);
+    // Any other action on the row works while a rename is open: it is cancelled first.
+    t.panes.keys.events.onLink(t.panes.keys.content.linkAt(2, 4)!.id);
+    expect(c().fields).toHaveLength(1);
+    t.click(2, 'x');
+    expect(c().fields).toEqual([]);
+    expect(t.rows()[2]).toMatch(/delete\? x$/);
+    t.click(2, 'x');
+    expect(t.lastUi()).toBe('KEYS: Deleted $cave.');
+    t.panes.keys.events.onLink(t.panes.keys.content.linkAt(1, 4)!.id);
+    t.click(1, 't');
+    expect(c().fields).toEqual([]);
+    expect(t.sent.at(-1)).toBe("cast n 'teleport' aaaaaaa");
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 

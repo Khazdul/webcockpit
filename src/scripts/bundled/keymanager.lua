@@ -5,7 +5,6 @@
 -- @alias    locatel   locatel <name>: store your room's key; locatel <target> <name>: a target's
 -- @alias    kpick     Open the last pick window again
 -- @alias    nkey      nkey <name> <key>: add a key by hand
--- @alias    skey      skey <name>: make it the safe key; skey alone names the safe key
 -- @alias    teleport  teleport <name>: cast teleport to a key (also portal, scry, watchr)
 -- @alias    tsafe     Teleport to the safe key (qtsafe: quickly, psafe: portal)
 -- @key      Ctrl+S    Teleport to the safe key (tsafe)
@@ -34,8 +33,8 @@
 -- @help
 -- @help     The first key you store is the safe key (the star in the pane):
 -- @help     Ctrl+S teleports there, Alt+S teleports quickly. Click another
--- @help     key's star, or type skey <name>, to change it. When the safe
--- @help     key expires, your freshest key takes over.
+-- @help     key's star to change it. When the safe key expires, your
+-- @help     freshest key takes over.
 -- @help
 -- @help     In the Port keys pane, click a key's name to rename it (Enter
 -- @help     saves, Esc cancels). The letters are casts: t teleport,
@@ -483,6 +482,23 @@ local function startRename(id)
   draw()
 end
 
+-- Ends an open rename without renaming (Esc, a click elsewhere, or
+-- another action in the pane); true when there was one.
+local function cancelRename()
+  if not renaming then return false end
+  renaming = nil
+  draw()
+  return true
+end
+
+-- A pane action: an open rename is cancelled first, then `fn` runs.
+local function act(fn)
+  return function()
+    cancelRename()
+    fn()
+  end
+end
+
 -- The top row: the key count and the help link, or the rename's prompt.
 local function header(n)
   if renaming then
@@ -512,11 +528,11 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   -- The safe marker.
   if lib.safe == id then
     segs[#segs + 1] = { text = " " }
-    segs[#segs + 1] = { text = "★", color = "ansi_light_green", fn = function() setSafe(id) end,
+    segs[#segs + 1] = { text = "★", color = "ansi_light_green", fn = act(function() setSafe(id) end),
       hint = "$" .. k.name .. " is the safe key:\nCtrl+S teleports there, Alt+S quickly" }
   else
     segs[#segs + 1] = { text = " " }
-    segs[#segs + 1] = { text = "☆", color = DIM, fn = function() setSafe(id) end,
+    segs[#segs + 1] = { text = "☆", color = DIM, fn = act(function() setSafe(id) end),
       hint = "Make $" .. k.name .. " the safe key\n(Ctrl+S teleports to the safe key)" }
   end
   segs[#segs + 1] = { text = " " }
@@ -546,6 +562,7 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
     local word = before + 1 >= 9 and " delete? " or ""
     segs[#segs + 1] = { text = lpad(word, before + 1), color = "ansi_light_red" }
     segs[#segs + 1] = { text = "x", color = "ansi_light_red", fn = function()
+      cancelRename()
       deleteKey(id)
     end, hint = "Click again to delete $" .. k.name }
     return row(n, segs)
@@ -554,6 +571,7 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
     local l = LETTERS[i]
     segs[#segs + 1] = { text = " " }
     segs[#segs + 1] = { text = l[1], color = "ansi_light_cyan", fn = function()
+      cancelRename()
       local key = find(k.name)
       if key then cast(l[2], key) end
     end, hint = l[3] .. " $" .. k.name .. ":\n" .. castCommand(l[2], k) }
@@ -561,6 +579,7 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   if fit > #LETTERS then
     segs[#segs + 1] = { text = " " }
     segs[#segs + 1] = { text = "x", color = "ansi_light_red", fn = function()
+      cancelRename()
       confirm = { id = id, at = now() }
       draw()
       local mine = confirm
@@ -602,9 +621,11 @@ local function renameField(r, nameW)
       draw()
     end,
     onCancel = function()
-      if renaming ~= rn then return end
-      renaming = nil
-      draw()
+      if renaming == rn then cancelRename() end
+    end,
+    -- A click elsewhere: the same as Esc.
+    onBlur = function()
+      if renaming == rn then cancelRename() end
     end,
   })
   if rn.started then
@@ -994,19 +1015,6 @@ tempAlias("^nkey(?:\\s+(\\S+))?(?:\\s+(\\S+))?\\s*$", function()
   if not key:match("^%w+$") then return fail("A key is letters and digits (not " .. key .. ").") end
   if not lib then return notLoggedIn() end
   addKey(name, key, "", "")
-end)
-
-tempAlias("^skey(?:\\s+(\\S+))?\\s*$", function()
-  if not lib then return notLoggedIn() end
-  if matches[2] == "" then
-    if prune() then draw() end
-    if not lib.safe then return say("No keys, so no safe key.") end
-    local k = lib.keys[lib.safe]
-    return say("The safe key is " .. nm(k.name) .. " <" .. DIM .. ">(" .. k.key .. ", " .. long(expires(k) - now())
-      .. " left)<reset>.")
-  end
-  local k = find(matches[2])
-  if k then setSafe(k.name:lower()) end
 end)
 
 for what in pairs(SPELLS) do

@@ -199,3 +199,14 @@ Round 1"). Supersedes the sections above where they differ.
 - **Pick window** opens at the top of the game pane (`at = "top"`),
   clear of the locate text printed below it, and where the player last
   moved it on this device (ADR 0053 addendum).
+
+## Feedback round 2 (2026-10-02)
+
+- **Rename field.** Drawn opaque with readable text (ADR 0055 feedback
+  round 2). Losing the keyboard to a click elsewhere (`onBlur`) cancels
+  the rename like Esc and redraws the row whole. Every other action on a
+  key row (`x`, the star, `t p s w`) cancels an open rename first, so the
+  row never stays half edited (round 1's stuck row came from the redraw
+  keeping the field's row while `x` waited for its second click).
+- **`skey` is removed.** The safe key is set only with the star in the
+  pane; `keys list` still marks it with ★. Typing `skey` goes to the game.

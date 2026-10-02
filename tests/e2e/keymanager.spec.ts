@@ -151,6 +151,25 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await expect(page.locator('.wc-input-field')).toBeFocused();
   expect(sentText()).not.toContain('lair\r\n');
 
+  // The field is opaque: the name's cells under it are blank.
+  const lairText = (await prows(page).nth(3).textContent())!;
+  const at3 = await cellAt(page, 3, lairText.indexOf('$lair') + 1);
+  await page.mouse.click(at3.x, at3.y);
+  await expect(rename).toBeFocused();
+  await expect(prows(page).nth(3)).not.toContainText('lair');
+  expect(await rename.evaluate((e) => getComputedStyle(e).backgroundColor)).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  // A click elsewhere cancels the rename: the row is whole again, and x deletes.
+  const out = (await page.locator('.wc-output').boundingBox())!;
+  await page.mouse.click(out.x + 20, out.y + out.height - 20);
+  await expect(rename).toHaveCount(0);
+  await expect(prows(page).nth(3)).toHaveText(/^ ☆ \$lair\s.*t p s w x\s*$/);
+  const x = await cellAt(page, 3, lairText.lastIndexOf(' x') + 1);
+  await page.mouse.click(x.x, x.y);
+  await expect(prows(page).nth(3)).toHaveText(/delete\? x\s*$/);
+  await page.mouse.click(x.x, x.y);
+  await expect(page.locator('.wc-pane[data-pane="ui"]')).toContainText('Deleted $lair');
+  await expect(prows(page)).toHaveCount(3);
+
   // keys hides and shows the pane.
   await command(page, 'keys');
   await expect(pane(page)).toBeHidden();

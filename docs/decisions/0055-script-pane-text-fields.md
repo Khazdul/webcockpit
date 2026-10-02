@@ -118,7 +118,7 @@ The owner saw the old text through a rename field (`$deerpopop` over
   background is the band colour, so nothing shows through in any tint.
 - **Readable.** The text and the caret are in the pane's `vtext` shade
   (as a gauge label on its track), not the dimmer ink; the placeholder
-  is `dim`. Checked on dark and light tints.
+  is `label`. vtext on track is 7.2–7.7:1 for every pane colour on a dark and a light terminal (unit test).
 - **`onBlur(text)`.** A new option: called when the field loses the
   keyboard other than by Enter or Esc (a click elsewhere), with its
   value. Not called for Enter/Esc (they move the focus themselves and
