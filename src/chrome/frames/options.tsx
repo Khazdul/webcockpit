@@ -387,7 +387,13 @@ export function AppearanceFrame(): VNode {
     {
       key: 'bg',
       label: `Background: ${colorName(TERMINAL_BG_PRESETS, a.bg)}`,
-      adjust: (d) => set({ bg: cycle(colorChoices(TERMINAL_BG_PRESETS, a.bg), a.bg.toLowerCase(), d) }),
+      adjust: (d) => {
+        const bg = cycle(colorChoices(TERMINAL_BG_PRESETS, a.bg), a.bg.toLowerCase(), d);
+        // Ink is the only font preset that reads well on paper, so landing
+        // on paper picks it too; the font colour can still be changed after.
+        const ink = TERMINAL_FG_PRESETS.find((c) => c.name === 'ink')!.hex;
+        set(presetName(TERMINAL_BG_PRESETS, bg) === 'paper' ? { bg, fg: ink } : { bg });
+      },
     },
     {
       key: 'input',
