@@ -99,4 +99,3 @@ p:line(...); p:gauge(...); p:on_click(row, col, fn)
 
 - Spike: wasmoon size, startup and call cost against spec §1.3.
 - Keymanager waits for the owner's Mudlet reference script.
-- Mention script automation to the Valar when WebCockpit is shared.

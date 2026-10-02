@@ -25,6 +25,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Session close
+
+- **Owner:** coin looter tested in live play and approved; the note
+  about mentioning scripts to the Valar is dropped.
+- **Next (new session):** stage 11, script panes and mercenaries. Stage
+  12 waits for the owner's Mudlet key manager script. Stage 8 part D
+  (fonts) owner test and the v1 verdict are still open.
+- **Commits:** this one.
+
 ### 2026-10-02 — Completion follows deletes, release 0.1.27
 
 - **Owner feedback round 6:** the completion list lost track after

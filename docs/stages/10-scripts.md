@@ -1,6 +1,6 @@
 # Stage 10 — Scripts
 
-> Status: Done 2026-10-02 (moved ahead of v1 by owner request 2026-10-01). Live-play feedback on coin looter goes in as fixes.
+> Status: Done 2026-10-02 (moved ahead of v1 by owner request 2026-10-01). Coin looter tested in live play and approved by the owner 2026-10-02.
 > Source: intent Goal 10, spec §2.10, ADR 0051. Brainstorm:
 > `notes/research/scripting.md`. Spike: wasmoon 1.16.0 (numbers in
 > ADR 0051).
@@ -79,7 +79,7 @@ packages, Mudlet API compatibility beyond the names in §2.10.
 - [x] Verify: typecheck, unit, e2e (page, editor, `#script`), and
       bench within spec §1.3 with coin looter and a test script enabled.
 - [x] Test guide filled in.
-- [x] Owner test (overview, 2026-10-02; live play continues).
+- [x] Owner test (overview 2026-10-02; coin looter approved in live play 2026-10-02).
 - [x] Feedback round 1 (2026-10-02):
   - [x] drop the `#script help` note from the help view;
   - [x] `#help script` (also `scripts`, `lua`, `#script`, `#lua`);
