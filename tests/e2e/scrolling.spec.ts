@@ -109,3 +109,46 @@ test('Statistics tables scroll by pixels', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await expect.poll(() => kills.evaluate((el) => el.scrollTop)).toBeGreaterThan(0);
 });
+
+test('Scripts list and help scroll by pixels; the cursor stays in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 500 });
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.evaluate(async () => {
+    const w = window as unknown as { __wc: { shell: { scripts: { create(name: string): Promise<unknown> } } } };
+    for (let i = 0; i < 30; i++) await w.__wc.shell.scripts.create(`s${String(i).padStart(2, '0')}`);
+  });
+  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  const f = startFrame(page);
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  const list = f.locator('.wc-scr-list');
+  await expectPixelWheel(page, list);
+  // End moves the cursor to the last script and pulls the list along; Home back.
+  await page.keyboard.press('End');
+  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^s29\s*$/);
+  await expect(f.locator('.wc-scr-name.is-cur')).toBeInViewport({ ratio: 0.9 });
+  await page.keyboard.press('Home');
+  await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBe(0);
+  // The help of the bundled coin looter is longer than the panel at this height.
+  await f.locator('.wc-scr-row[data-script="coinlooter"] .wc-scr-name').click();
+  await expect(f.locator('.wc-scr-help')).toContainText('bundled · read-only');
+  await expectPixelWheel(page, f.locator('.wc-scr-help-rows'));
+});
+
+test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
+  await page.setViewportSize({ width: 1000, height: 500 });
+  await page.goto('/');
+  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  const f = startFrame(page);
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
+  const chooser = page.waitForEvent('filechooser');
+  await f.locator('[data-btn="IMPORT"]').click();
+  const code = Array.from({ length: 60 }, (_, i) => `echo("line ${i + 1}")`).join('\n');
+  await (await chooser).setFiles({ name: 'long.lua', mimeType: 'text/plain', buffer: Buffer.from(code) });
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Import Script ───');
+  const box = f.locator('.wc-scr-import-code');
+  await expectPixelWheel(page, box);
+  await page.keyboard.press('End');
+  await expect(box.locator('.wc-line').last()).toContainText('line 60');
+  await expect(box.locator('.wc-line').last()).toBeInViewport({ ratio: 0.9 });
+});
