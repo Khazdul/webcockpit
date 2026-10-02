@@ -134,7 +134,27 @@ describe('colours', () => {
       { start: 0, end: 1, bold: true, fg: 3 },
       { start: 1, end: 2, bold: true, fg: TRUECOLOR | 0xaa0000 },
     ]);
-    expect(parseCecho('a <b> <nocolour> c').text).toBe('a <b> <nocolour> c');
+    expect(parseCecho('a <s> <nocolour> c').text).toBe('a <s> <nocolour> c');
+    expect(parseCecho('<#ff8800>x<#000000:#0000ff>y').runs).toEqual([
+      { start: 0, end: 1, fg: TRUECOLOR | 0xff8800 },
+      { start: 1, end: 2, fg: TRUECOLOR | 0, bg: TRUECOLOR | 0x0000ff },
+    ]);
+    expect(parseCecho('<#ff88>x').text).toBe('<#ff88>x');
+  });
+
+  it('cecho <b>, <i> and <u> switch bold, italic and underline on and off', () => {
+    const red = TRUECOLOR | 0xff0000;
+    expect(parseCecho('<b>bold</b> <red><i>it<u>u</i>x</u>y<reset>z')).toEqual({
+      text: 'bold ituxyz',
+      runs: [
+        { start: 0, end: 4, bold: true },
+        { start: 5, end: 7, fg: red, italic: true },
+        { start: 7, end: 8, fg: red, italic: true, underline: true },
+        { start: 8, end: 9, fg: red, underline: true },
+        { start: 9, end: 10, fg: red },
+      ],
+    });
+    expect(parseCecho('<B>x</B>').runs).toEqual([{ start: 0, end: 1, bold: true }]);
   });
 
   it('highlight colours: profile names first, then Mudlet names', () => {
@@ -142,6 +162,15 @@ describe('colours', () => {
     expect(parseScriptColor('red')).toEqual({ fg: 1 });
     expect(parseScriptColor('dodger_blue')).toEqual({ fg: TRUECOLOR | 0x1e90ff });
     expect(parseScriptColor('nothing')).toBe(null);
+    expect(parseScriptColor('#ff8800')).toEqual({ fg: TRUECOLOR | 0xff8800 });
+    expect(parseScriptColor('#ffffff:#000080')).toEqual({ fg: TRUECOLOR | 0xffffff, bg: TRUECOLOR | 0x000080 });
+    expect(parseScriptColor('<b><orange>')).toEqual({ fg: TRUECOLOR | 0xffa500, bold: true });
+    expect(parseScriptColor('<#00ff00>')).toEqual({ fg: TRUECOLOR | 0x00ff00 });
+    expect(parseScriptColor('<F88ff00>')).toEqual({ fg: TRUECOLOR | 0x88ff00 });
+    expect(parseScriptColor('<u>')).toEqual({ underline: true });
+    expect(parseScriptColor('<nothing>')).toBe(null);
+    expect(parseScriptColor('<red> text')).toBe(null);
+    expect(parseScriptColor('#12345')).toBe(null);
     expect(mudletColor('Light Blue')).toBe(TRUECOLOR | 0xadd8e6);
     expect(mudletColor('300,0,0')).toBe(null);
   });

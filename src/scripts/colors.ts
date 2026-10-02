@@ -6,14 +6,19 @@
 //   src/script/engine/color.ts);
 // - Mudlet colour names: `<red>`, `<light_blue>`, `<ansi_light_red>`,
 //   `<ansi_123>`, a background after a colon (`<white:red>`, `<:blue>`),
-//   `<r,g,b>` and `<r,g,b:r,g,b>`;
+//   `<r,g,b>` and `<r,g,b:r,g,b>`, `<#rrggbb>` and `<#rrggbb:#rrggbb>`;
+// - Mudlet's `<b>` `</b>`, `<i>` `</i>`, `<u>` `</u>`: bold, italic and
+//   underline on and off (the line model's styles; Mudlet's `<s>` and `<o>`
+//   have no style here and stay text);
 // - `<reset>` and `<r>`: the default style.
 // Anything else in angle brackets is text.
 //
 // Mudlet names are its X11 colour table (a selection) as 24-bit colours;
 // the `ansi_*` names are the palette (the theme's colours 0–15, 16–255).
 // `highlight(colour)` takes a profile colour name (`light red`, `bold
-// yellow`, tt++ codes: parseHighlight), else a Mudlet name.
+// yellow`, tt++ codes: parseHighlight), any of the cecho tags above (`<b>
+// <red>`), or a Mudlet colour without brackets (`orange`, `white:red`,
+// `255,0,0`, `#ff8800`).
 
 import { type Color, type StyleRun, TRUECOLOR } from '../core/types';
 import { type Colored, type Style, parseHighlight } from '../script/engine';
@@ -123,10 +128,11 @@ const X11: Record<string, readonly [number, number, number]> = {
 
 const ANSI = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
 
-/** A Mudlet colour name (any case, spaces or `_`) or `r,g,b` as a colour, or null. */
+/** A Mudlet colour name (any case, spaces or `_`), `r,g,b` or `#rrggbb` as a colour, or null. */
 export function mudletColor(name: string): Color | null {
   const n = name.trim().toLowerCase().replace(/[\s-]+/g, '_');
   if (n === '') return null;
+  if (n.charCodeAt(0) === 35 /* # */) return /^#[0-9a-f]{6}$/.test(n) ? TRUECOLOR | parseInt(n.slice(1), 16) : null;
   const rgb = /^(\d{1,3}),(\d{1,3}),(\d{1,3})$/.exec(n.replace(/_/g, ''));
   if (rgb) {
     const [r, g, b] = [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
@@ -147,10 +153,22 @@ export function mudletColor(name: string): Color | null {
   return c ? TRUECOLOR | (c[0] << 16) | (c[1] << 8) | c[2] : null;
 }
 
+/** Mudlet's attribute tags: `<b>` sets bold, `</b>` clears it. */
+const ATTR: Record<string, 'bold' | 'italic' | 'underline'> = { b: 'bold', i: 'italic', u: 'underline' };
+
 /** The style after a Mudlet tag (without `<>`), or undefined when it is not one. */
 function applyMudlet(cur: Style, tag: string): Style | undefined {
   const t = tag.trim().toLowerCase();
   if (t === 'reset' || t === 'r') return {};
+  if (t.length <= 2) {
+    const attr = ATTR[t.length === 2 && t[0] === '/' ? t[1]! : t];
+    if (attr) {
+      const s: Style = { ...cur };
+      if (t[0] === '/') delete s[attr];
+      else s[attr] = true;
+      return s;
+    }
+  }
   const colon = tag.indexOf(':');
   const fgName = colon < 0 ? tag : tag.slice(0, colon);
   const bgName = colon < 0 ? '' : tag.slice(colon + 1);
@@ -206,11 +224,24 @@ export function parseCecho(input: string): Colored {
   return { text, runs };
 }
 
-/** A `highlight` colour: a profile colour name or code, else a Mudlet colour (`fg:bg` too). Null when unknown. */
+/**
+ * A `highlight` colour: a profile colour name or code, cecho tags (`<b><red>`,
+ * `<#ff8800>`), else a Mudlet colour without brackets (`fg:bg` too). Null
+ * when unknown.
+ */
 export function parseScriptColor(arg: string): Style | null {
   const h = parseHighlight(arg);
   if (h) return h;
-  const m = applyMudlet({}, arg);
+  const t = arg.trim();
+  if (t.startsWith('<')) {
+    // Only tags: the style of a one-character sample after them.
+    const c = parseCecho(t + '\u0000');
+    const r = c.text === '\u0000' ? c.runs[0] : undefined;
+    if (!r) return null;
+    const { start: _s, end: _e, ...style } = r;
+    return style;
+  }
+  const m = applyMudlet({}, t);
   return m && !isDefaultStyle(m) ? m : null;
 }
 
