@@ -76,9 +76,9 @@ class FakeSurface implements ScriptPaneSurface {
   get pick() {
     return this.byId('keymanager/~pick');
   }
-  /** The open TV panes, by slot. */
+  /** The n-th open TV pane (1-based), in opening order (the group's tiling order). */
   tv(n: number) {
-    return this.byId(`keymanager/~tv${n}`);
+    return this.opened.filter((o) => o.spec.id.startsWith('keymanager/~tv_') && !o.view.closed)[n - 1] ?? null;
   }
 }
 
@@ -232,7 +232,7 @@ describe('bundled keymanager', () => {
     expect(s.header.api).toBe(1);
     expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'teleport', 'tsafe', 'tv']);
     expect(s.header.keys.map((k) => k.key)).toEqual(['Ctrl+S', 'Alt+S']);
-    expect(s.settings).toEqual({ hours: 12, tvgag: true, tvclose: 60 });
+    expect(s.settings).toEqual({ hours: 12, tvgag: true, tvclose: 0 });
     expect(s.header.help.join('\n')).toMatch(/safe key/);
   });
 
@@ -759,7 +759,7 @@ describe('bundled keymanager', () => {
       const n0 = t.texts().length;
       t.recv(AWARE, '', PROMPT);
       const tv = t.panes.tv(1)!;
-      expect(tv.spec.temporary).toEqual({ rows: 10, cols: 60, at: 'top-left' });
+      expect(tv.spec.temporary).toEqual({ rows: 10, cols: 50, at: 'top-left', group: { key: 'keymanager/tv', cols: 2 } });
       expect(tv.content.title).toMatch(/^TV \$home [●○] 3:20$/);
       // MUME's packets: the line, a blank line, a fresh prompt (GA).
       t.bus.emit('text.line', gline('[home] The Dark Cave', [{ start: 7, end: 20, fg: 2 }]));
@@ -881,7 +881,7 @@ describe('bundled keymanager', () => {
       expect(t.panes.tv(2)!.content.title).toMatch(/^TV scry/);
     });
 
-    it('four slots: a fifth TV takes the slot of the one that ended first; tv hides and shows them', async () => {
+    it('TVs are a tiled group in opening order (at most four); a watch that ends closes its TV at once; tv hides and shows them', async () => {
       const t = await setup();
       for (const n of ['a1', 'b2', 'c3', 'd4', 'e5']) t.input(`nkey ${n} key${n}`);
       for (const n of ['a1', 'b2', 'c3', 'd4']) {
@@ -889,30 +889,57 @@ describe('bundled keymanager', () => {
         t.recv(AWARE);
         t.clock.advance(1000);
       }
-      expect([1, 2, 3, 4].map((i) => t.panes.tv(i)!.content.title.split(' ')[1])).toEqual(['$a1', '$b2', '$c3', '$d4']);
-      expect([1, 2, 3, 4].map((i) => (t.panes.tv(i)!.spec.temporary as { at: string }).at)).toEqual(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
-      t.recv(ENDS('c3'));
-      t.clock.advance(1000);
-      t.recv(ENDS('b2'));
+      const names = () => [1, 2, 3, 4, 5].map((i) => t.panes.tv(i)?.content.title.split(' ')[1] ?? null);
+      expect(names()).toEqual(['$a1', '$b2', '$c3', '$d4', null]);
+      // One group, two per row, from the top left, in opening order.
+      for (let i = 1; i <= 4; i++) {
+        expect(t.panes.tv(i)!.spec.temporary).toMatchObject({ at: 'top-left', group: { key: 'keymanager/tv', cols: 2 } });
+      }
+      // A fifth while four run: the one that started first makes room.
       t.input('watchr e5');
       t.recv(AWARE);
-      // c3 ended first: its slot (3) goes to e5.
-      expect(t.panes.tv(3)!.content.title).toMatch(/^TV \$e5 /);
-      expect(t.panes.tv(2)!.content.title).toBe('TV $b2 · ended');
+      expect(names()).toEqual(['$b2', '$c3', '$d4', '$e5', null]);
+      // A watch ends (its drop line): its TV closes at once (tvclose 0); its lines stay.
+      t.recv(ENDS('c3'));
+      expect(names()).toEqual(['$b2', '$d4', '$e5', null, null]);
+      t.input('tv c3');
+      expect(names()).toEqual(['$b2', '$d4', '$e5', '$c3', null]);
+      expect(tvText(t.panes.tv(4))!.at(-1)).toBe('· watch ended');
       // tv hides all, then shows them again.
       t.input('tv');
       expect([1, 2, 3, 4].every((i) => !t.panes.tv(i)!.view.on)).toBe(true);
+      // Shown again: also the running watch whose TV had to make room (a1);
+      // the finished one (c3) makes room for it.
       t.input('tv');
+      expect(names()).toEqual(['$b2', '$d4', '$e5', '$a1', null]);
       expect([1, 2, 3, 4].every((i) => t.panes.tv(i)!.view.on)).toBe(true);
       // The player closes a running watch's TV: it stays closed until tv opens it.
       t.panes.tv(1)!.events.onClose!();
-      t.recv('[a1] Wind.');
-      expect(t.panes.tv(1)).toBeNull();
-      t.input('tv a1');
-      expect(t.panes.tv(1)!.content.title).toMatch(/^TV \$a1 /);
+      t.recv('[b2] Wind.');
+      expect(names()[3]).toBeNull();
+      t.input('tv b2');
+      expect(names()).toEqual(['$d4', '$e5', '$a1', '$b2', null]);
       t.input('tv nope');
       expect(t.lastText()).toBe('KEYS No TV for $nope yet: watchr nope or scry nope.');
+      // A disconnect ends every watch: their TVs close; a TV the player opened too.
+      t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing', reason: 'test' } as never);
+      t.clock.advance(10);
+      expect(names()[0]).toBeNull();
     });
+
+    it('a watch end keeps the TV while a scry of that key is younger than 15 s; tvclose delays the close', async () => {
+      const t = await setup({ before: async (lib) => void (await lib.setSetting('keymanager', 'tvclose', '20')) });
+      t.input('nkey home uxevjobve');
+      t.input('watchr home');
+      t.recv(AWARE);
+      t.recv(ENDS('home'));
+      expect(t.panes.tv(1)).not.toBeNull();
+      t.clock.advance(19_000);
+      expect(t.panes.tv(1)).not.toBeNull();
+      t.clock.advance(2000);
+      expect(t.panes.tv(1)).toBeNull();
+    });
+
   });
 
   describe('scry on the map (round 6, ADR 0057)', () => {

@@ -12,7 +12,7 @@
 -- @key      Alt+S     Teleport quickly to the safe key (qtsafe)
 -- @setting  hours    number  12  "Hours a key works after it was located"
 -- @setting  tvgag    boolean true "Hide watch and scry lines from the game text while they go to a TV"
--- @setting  tvclose  number  60  "Seconds a TV stays open after its watch ends or its scry"
+-- @setting  tvclose  number  0   "Seconds a TV stays open after its watch ends (0: it closes at once)"
 -- @help     Locate life gives a key for a room: teleport, portal, scry and
 -- @help     watch room take it. This script stores the keys under short
 -- @help     names and casts with them. A key works only for the character
@@ -41,13 +41,15 @@
 -- @help
 -- @help     TV. What watch room and scry show goes to a small pane per key,
 -- @help     a TV, instead of the game text (setting tvgag). Up to four TVs
--- @help     open in the corners of the game text; move them where you like.
+-- @help     open side by side from the top left of the game text, two per
+-- @help     row in the order they opened; drag one to move them all.
 -- @help     The title says how long the watch has left (the average of
 -- @help     your last 3 watches), or how long ago the scry was. Lines keep
 -- @help     the game's colours; for 10 seconds their plain text is white,
--- @help     then grey. A TV closes by itself a minute after its watch ends
--- @help     (tvclose), a scry's TV when its map blink ends (15 s); one you
--- @help     open yourself (tv <name>, ◻) stays until you close it.
+-- @help     then grey. A TV closes when its watch ends (setting tvclose
+-- @help     gives it a delay), a scry's TV when its map blink ends (15 s);
+-- @help     one you open yourself (tv <name>, ◻) stays until you close it
+-- @help     or its watch ends. Its lines stay: ◻ or tv <name> shows them.
 -- @help     A scry also shows the room on the Map pane: it blinks magenta
 -- @help     for 15 seconds (an arrow points to it when it is off the view)
 -- @help     and the map zooms out to show it and you, then back, unless you
@@ -201,14 +203,12 @@ local draw -- the pane, below
 
 -- The TVs (round 4), by lower-case name: { id, name, lines = { { t, c, p, mark } },
 --   watching = epoch or nil, ended = epoch or nil, scried = epoch or nil,
---   slot = 1..4 or nil, pane, bright = first line still bright, shut = the
+--   pane, bright = first line still bright, shut = the
 --   player closed it during this watch }.
 local tvs = {}
--- slot -> TV id.
-local slots = {}
 -- A watch or scry cast waiting for its answer: { kind, id, name, timer }.
 local pendingCast = nil
-local openTv, drawTv, closeTv -- below
+local openTv, drawTv, closeTv, tvDue, watchOver -- below
 
 local function storeId(id) return "char." .. id end
 
@@ -893,10 +893,11 @@ end
 
 -- ------------------------------------------------------------ the TVs
 
--- TVs sit in the game pane's corners, one per slot; a slot's place is
--- remembered when the player moves it.
-local SLOT_AT = { "top-left", "top-right", "bottom-left", "bottom-right" }
-local TV_ROWS, TV_COLS = 10, 60
+-- TVs are a tiled group of temporary panes: the first at the game pane's
+-- top left, the second right of it, the third below the first, … (the
+-- player can move or resize the group; it is remembered).
+local TV_MAX = 4
+local TV_ROWS, TV_COLS = 10, 50
 
 local tvTicker = nil
 
@@ -952,9 +953,16 @@ closeTv = function(tv)
   if not tv.pane then return end
   local p = tv.pane
   tv.pane = nil
-  if tv.slot then slots[tv.slot] = nil end
-  tv.slot = nil
   p:close()
+end
+
+-- When a TV that is not watching closes by itself: its scry's map blink
+-- end (SCRY_SECS after the scry) or its watch's end plus tvclose,
+-- whichever is later.
+tvDue = function(tv)
+  local scry = tv.scried and (tv.scried + SCRY_SECS) or 0
+  local watch = tv.ended and (tv.ended + math.max(0, tonumber(settings.tvclose) or 0)) or 0
+  return math.max(scry, watch)
 end
 
 -- Once a second while a TV is open or a watch runs: titles, dimming, the
@@ -974,14 +982,9 @@ local function tvTick()
         p:setLine(tv.bright, tvLine(e, t))
         tv.bright = tv.bright + 1
       end
-      -- Only a TV an event opened closes by itself (a running watch: never;
-      -- a scry: when its map blink ends; an ended watch: tvclose later).
-      -- One the player opened stays until the player closes it.
-      if tv.auto and not tv.watching then
-        local scry = tv.scried and (not tv.ended or tv.scried > tv.ended)
-        local due = scry and (tv.scried + SCRY_SECS) or ((tv.ended or t) + math.max(5, tonumber(settings.tvclose) or 60))
-        if t >= due then closeTv(tv) end
-      end
+      -- Only a TV an event opened closes by itself (tvDue). One the
+      -- player opened stays until the player closes it or its watch ends.
+      if tv.auto and not tv.watching and t >= tvDue(tv) then closeTv(tv) end
     end
   end
   if watching then updateTimes() end
@@ -995,8 +998,7 @@ local function startTvTick()
   if not tvTicker then tvTicker = tempTimer(1, tvTick, true) end
 end
 
--- Shows the TV of `id` in a slot: its own, a free one, else the one whose
--- TV ended first (a running watch only when all four run).
+-- Shows the TV of `id` (its pane, or a new one in the group).
 openTv = function(id, force)
   local tv = tvs[id]
   -- A key scried before a reload: its TV from the saved block.
@@ -1018,33 +1020,28 @@ openTv = function(id, force)
     tv.pane:show()
     return true
   end
-  local slot = nil
-  for n = 1, #SLOT_AT do
-    if not slots[n] then
-      slot = n
-      break
-    end
+  -- At most four TVs: the one that finished first makes room (a running
+  -- watch only when all four run).
+  local open = {}
+  for _, o in pairs(tvs) do
+    if o.pane then open[#open + 1] = o end
   end
-  if not slot then
+  if #open >= TV_MAX then
     local best, bestAt = nil, nil
-    for n = 1, #SLOT_AT do
-      local o = tvs[slots[n]]
+    for _, o in ipairs(open) do
       local at = o.watching and (1e12 + o.watching) or math.max(o.ended or 0, o.scried or 0)
-      if not best or at < bestAt then best, bestAt = n, at end
+      if not best or at < bestAt then best, bestAt = o, at end
     end
-    slot = best
-    closeTv(tvs[slots[slot]])
+    closeTv(best)
   end
-  tv.slot = slot
-  slots[slot] = id
-  tv.pane = createPane{ id = "tv" .. slot, title = tvTitle(tv, now()), temporary = true, at = SLOT_AT[slot],
-    rows = TV_ROWS, cols = TV_COLS }
+  -- A tiled group (ADR 0053): from the game pane's top left, two per row,
+  -- in opening order; closing one closes the gap.
+  tv.pane = createPane{ id = "tv_" .. tv.id, title = tvTitle(tv, now()), temporary = true, group = "tv",
+    grid = { cols = 2 }, at = "top-left", rows = TV_ROWS, cols = TV_COLS }
   local p = tv.pane
   p:onClose(function()
     if tv.pane ~= p then return end
     tv.pane = nil
-    if tv.slot then slots[tv.slot] = nil end
-    tv.slot = nil
     -- Closed by the player: it stays closed for the rest of this watch.
     tv.shut = tv.watching ~= nil
   end)
@@ -1102,11 +1099,21 @@ local function watchEnded(tv)
       save()
     end
   end
+  watchOver(tv, t)
+end
+
+-- A watch is over (its drop line, a disconnect): the TV closes now, or
+-- when tvDue says (a young scry, a tvclose delay); also a TV the player
+-- opened. Its lines stay for ◻ and tv <name>.
+watchOver = function(tv, t)
   tv.watching = nil
   tv.resumed = nil
   tv.ended = t
+  tv.auto = true
   tvAdd(tv, nil, "· watch ended", true)
   if tv.pane then tv.pane:setTitle(tvTitle(tv, t)) end
+  if tv.pane and t >= tvDue(tv) then closeTv(tv) end
+  startTvTick()
   draw()
 end
 
@@ -1550,7 +1557,6 @@ local function follow()
   -- TVs belong to the character too.
   for _, tv in pairs(tvs) do closeTv(tv) end
   tvs = {}
-  slots = {}
   pendingCast = nil
   last = nil
   confirm = nil
@@ -1565,11 +1571,7 @@ end
 -- A lost connection ends every watch (no duration is learnt).
 registerAnonymousEventHandler("sysDisconnectionEvent", function()
   for _, tv in pairs(tvs) do
-    if tv.watching then
-      tv.watching = nil
-      tv.ended = now()
-      if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.ended)) end
-    end
+    if tv.watching then watchOver(tv, now()) end
   end
   draw()
 end)

@@ -352,3 +352,21 @@ area... and you see:` then the room and a blank line (a scry).
   cell with `pane:setText` (ADR 0056), so links and a hovered tooltip stay.
   While the ◻ itself is hovered the hover band covers its colour; the
   tooltip stays open (e2e).
+
+## Round 7 feedback (round 8, 2026-10-02)
+
+- **TVs are one tiled group** (ADR 0053 round 8 addendum): `group =
+  "tv"`, `grid = {cols = 2}`, `at = "top-left"`, 10 × 50 content cells
+  (52 × 12 with the frame, so two fit side by side in a normal game
+  pane). Order is opening order: the 4th goes under the 2nd. One pane id
+  per key (`tv_<key>`; `tv_scry` for an unknown scry) replaces the slots
+  `tv1`–`tv4` and their per-slot rectangles; the group's place is kept
+  per device instead. At most four are open: a fifth closes the one that
+  finished first (a running watch's only when all four run).
+- **A TV closes when its watch ends** — on the drop line, a disconnect or
+  a character switch; never when the estimate runs out (it can be too
+  short). `tvclose` now defaults to 0 (at once) and still gives a delay
+  when set. This also holds for a TV the player opened. A scry of that key
+  younger than 15 s keeps it until the scry's time is up (`tvDue`: the
+  later of the scry's end and the watch's end + tvclose). The lines stay:
+  `◻` and `tv <name>` show them again.

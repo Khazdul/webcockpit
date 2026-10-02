@@ -171,9 +171,25 @@ recording yet); with many matches the 20 nearest are marked.
 - [x] Round 6: scry marks on the map (ADR 0057).
 - [x] Owner test round 6.
 - [x] Round 7: round 6 feedback (TV lifetimes, ◻ blink, map linger).
-- [ ] Owner test round 7.
+- [x] Owner test round 7.
+- [x] Round 8: round 7 feedback (tiled TV group, TV closes when its watch ends).
+- [ ] Owner test round 8.
 
 ## Test guide
+
+### Round 8
+
+What changed: TVs open side by side from the top left of the game text,
+two per row in the order they opened (1, 2 / 3, 4); when one closes the
+others move up to close the gap. Drag one by its title and they all move;
+resize one and all take that size; both are remembered (Options → Panes →
+Reset layout forgets it). A TV closes as soon as its watch ends (the
+drop line), also one you opened yourself; `#script set keymanager tvclose
+10` gives it ten seconds. A scry of that key in the last 15 s keeps it
+until then.
+
+Try: watch four keys one after another; let the second end; drag and
+resize the group; reload and watch again.
 
 ### Round 7
 

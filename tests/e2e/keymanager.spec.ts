@@ -205,17 +205,17 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   await command(page, 'watchr home');
   await expect.poll(sentText).toContain("cast n 'watch room' uxevjobve home\r\n");
   server!.send(bytes('You feel aware of this place.\r\n'));
-  const tv = pane(page, 'keymanager/~tv1');
+  const tv = pane(page, 'keymanager/~tv_home');
   await expect(tv).toBeVisible();
   await expect(tv.locator('.wc-pane-frame')).toContainText('TV $home');
   // MUME's packet: the line (a green room name), a blank line, a prompt with GA.
   server!.send(bytes('[home] \x1b[32mThe Dark Cave\x1b[0m\r\n\r\n*+ W Mana:Hot>', [IAC, 249]));
   server!.send(bytes('[home] \x1b[31mA troll\x1b[0m arrives from the north.\r\n'));
-  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^The Dark Cave\s*$/);
-  await expect(prows(page, 'keymanager/~tv1').nth(2)).toHaveText(/^A troll arrives from the north\.\s*$/);
+  await expect(prows(page, 'keymanager/~tv_home').nth(1)).toHaveText(/^The Dark Cave\s*$/);
+  await expect(prows(page, 'keymanager/~tv_home').nth(2)).toHaveText(/^A troll arrives from the north\.\s*$/);
   // The room name is green in the TV.
   const green = () =>
-    prows(page, 'keymanager/~tv1')
+    prows(page, 'keymanager/~tv_home')
       .nth(1)
       .locator('span')
       .first()
@@ -261,7 +261,7 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   server!.send(bytes('[home] Wind blows.\r\n'));
   await command(page, 'scry cave');
   server!.send(bytes("You let your inner eye find the area... and you see:\r\nThe Dark Cave\r\n\r\nOk.\r\n"));
-  const tv2 = pane(page, 'keymanager/~tv2');
+  const tv2 = pane(page, 'keymanager/~tv_cave');
   await expect(tv2).toBeVisible();
   await command(page, 'tv cave');
   for (let i = 0; i < 6; i++) {
@@ -309,9 +309,87 @@ test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and
   await expect(tv).toHaveCount(0, { timeout: 10_000 });
   // tv home opens it again with its lines.
   await command(page, 'tv home');
-  await expect(prows(page, 'keymanager/~tv1').nth(2)).toHaveText(/^A troll arrives/);
+  await expect(prows(page, 'keymanager/~tv_home').nth(2)).toHaveText(/^A troll arrives/);
   // Dimmed now, the room name still green.
   const g2 = (await green()).match(/\d+/g)!.map(Number);
   expect(g2[1]).toBeGreaterThan(g2[0]! + 40);
+  expect(errors).toEqual([]);
+});
+
+test('keymanager TVs tile from the top left in opening order, close gaps, and move as a group (remembered)', async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1700, height: 950 });
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.onMessage(() => {});
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  const login = async () => {
+    await page.goto('/');
+    await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+    server = null;
+    await page.keyboard.press('Enter');
+    await expect.poll(() => server !== null).toBe(true);
+    // The map pane would cover the game text's top right: off for this test.
+    await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: false } } }));
+    server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
+    await command(page, '#script enable keymanager');
+    await expect(pane(page)).toBeVisible();
+  };
+  const watch = async (name: string) => {
+    await command(page, `watchr ${name}`);
+    server!.send(bytes('You feel aware of this place.\r\n'));
+    await expect(pane(page, `keymanager/~tv_${name}`)).toBeVisible();
+  };
+  const box = async (name: string) => (await pane(page, `keymanager/~tv_${name}`).boundingBox())!;
+  const near = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(2);
+
+  await login();
+  for (const n of ['aa', 'bb', 'cc', 'dd']) await command(page, `nkey ${n} key${n}`);
+  for (const n of ['aa', 'bb', 'cc', 'dd']) await watch(n);
+  const game = (await page.locator('.wc-game').boundingBox())!;
+  const [a, b, c, d] = [await box('aa'), await box('bb'), await box('cc'), await box('dd')];
+  // 1 at the top left; 2 right of it; 3 below 1; 4 below 2.
+  near(a.x, game.x);
+  near(a.y, game.y);
+  near(b.x, a.x + a.width);
+  near(b.y, a.y);
+  near(c.x, a.x);
+  near(c.y, a.y + a.height);
+  near(d.x, b.x);
+  near(d.y, c.y);
+
+  // The second's watch ends: its TV closes, the others close the gap in order.
+  server!.send(bytes('[bb] Your awareness decreases.\r\n'));
+  await expect(pane(page, 'keymanager/~tv_bb')).toHaveCount(0);
+  await expect.poll(async () => Math.round((await box('cc')).x)).toBe(Math.round(b.x));
+  near((await box('cc')).y, a.y);
+  near((await box('dd')).x, a.x);
+  near((await box('dd')).y, a.y + a.height);
+
+  // Drag the first by its title row: the whole group follows.
+  const grip = pane(page, 'keymanager/~tv_aa').locator('.wc-pane-grip');
+  const g = (await grip.boundingBox())!;
+  await page.mouse.move(g.x + 30, g.y + g.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(g.x + 130, g.y + g.height / 2 + 100, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => (await box('aa')).x - a.x).toBeGreaterThan(60);
+  const a2 = await box('aa');
+  near((await box('cc')).x, a2.x + a2.width);
+  near((await box('cc')).y, a2.y);
+  near((await box('dd')).y, a2.y + a2.height);
+  expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toContain('group:keymanager/tv');
+
+  // After a reload the group opens where it was put.
+  await login();
+  await command(page, 'nkey aa keyaa');
+  await watch('aa');
+  const a3 = await box('aa');
+  near(a3.x, a2.x);
+  near(a3.y, a2.y);
   expect(errors).toEqual([]);
 });
