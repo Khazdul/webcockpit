@@ -275,12 +275,12 @@ const manualTop = (page: Page) =>
       return ([...el.children] as HTMLElement[]).find((c) => c.offsetTop >= t - 1)?.textContent ?? '';
     });
 
-test('MANUAL: from the editor (button and F1 at the name under the cursor) and from the Scripts page', async ({ page }, info) => {
+test('MANUAL: from the editor (F1 at the name under the cursor, else at the start) and from the Scripts page', async ({ page }, info) => {
   const errors = watchErrors(page);
   const f = await scriptsPage(page);
   await openEditor(page, f);
-  // CLOSE is gone; MANUAL took its place and the footer names F1.
-  await expect(editor(page).locator('[data-btn="CLOSE"]')).toHaveCount(0);
+  // No buttons (round 4): F1 opens the manual, the footer says so.
+  await expect(editor(page).locator('[data-btn]')).toHaveCount(0);
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('F1 Manual');
 
   // Search open, cursor inside tempTrigger on line 5: F1 opens its reference entry.
@@ -317,8 +317,10 @@ test('MANUAL: from the editor (button and F1 at the name under the cursor) and f
   await expect(panel(page).getByRole('textbox', { name: 'Find' })).toHaveValue('goblin');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Ln 5,');
 
-  // MANUAL button: the start of the guide.
-  await editor(page).locator('[data-btn="MANUAL"]').click();
+  // F1 away from any name: the start of the guide.
+  await editor(page).locator('.cm-content').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.press('F1');
   await expect.poll(() => manualTop(page)).toBe('Getting started');
   await paper(page);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/manual-light-${info.project.name}.png` });

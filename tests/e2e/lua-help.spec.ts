@@ -140,7 +140,7 @@ test('signature help marks the current parameter and follows the commas; ESC clo
   expect(errors).toEqual([]);
 });
 
-test('the for snippet expands with tab stops; Tab leaves the snippet for the buttons only after it', async ({ page }) => {
+test('the for snippet expands with tab stops; after the last one Tab indents', async ({ page }) => {
   const errors = watchErrors(page);
   await openEditor(page);
   await page.keyboard.type('fo');
@@ -156,13 +156,15 @@ test('the for snippet expands with tab stops; Tab leaves the snippet for the but
   await expect.poll(() => selectionText(page)).toBe('10');
   await page.keyboard.type('5');
   await expect(editor(page)).toHaveAttribute('data-zone', 'buffer');
-  // The last Tab goes to the body; the snippet ends, so the next Tab cycles to the buttons.
+  // The last Tab goes to the body; the snippet ends, so the next Tab indents.
   await page.keyboard.press('Tab');
   await page.keyboard.type('send("kick")');
   expect(await bufferText(page)).toMatch(/for i = 2, 5 do\n  send\("kick"\)\nend$/);
   await expect(editor(page)).toHaveAttribute('data-zone', 'buffer');
+  await page.keyboard.press('Home');
   await page.keyboard.press('Tab');
-  await expect(editor(page)).toHaveAttribute('data-zone', 'buttons');
+  await expect(editor(page)).toHaveAttribute('data-zone', 'buffer');
+  expect(await bufferText(page)).toMatch(/for i = 2, 5 do\n    send\("kick"\)\nend$/);
   expect(errors).toEqual([]);
 });
 
@@ -206,7 +208,7 @@ test('hover on ipairs shows the Lua docs; F1 opens its Lua reference entry', asy
 test('MANUAL: Lua basics in the guide, the Lua reference with a linked index', async ({ page }, info) => {
   const errors = watchErrors(page);
   await openEditor(page);
-  await editor(page).locator('[data-btn="MANUAL"]').click();
+  await page.keyboard.press('F1');
   await expect(manual(page)).toBeVisible();
   await expect(manual(page).locator('.wc-ped-menu-label').filter({ hasText: /\S/ })).toHaveText([/Guide/, /API reference/, /Lua reference/]);
   await manual(page).locator('.wc-ped-menu [data-section="Lua basics"]').click();

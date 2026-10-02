@@ -204,7 +204,7 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await expect(editor(page)).toHaveAttribute('data-script', 'pagetest');
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again'));
-  await editor(page).locator('[data-btn="SAVE"]').click();
+  await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
