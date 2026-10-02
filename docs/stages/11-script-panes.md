@@ -1,6 +1,6 @@
 # Stage 11 — Script panes
 
-> Status: In progress (started 2026-10-02).
+> Status: Owner testing (built 2026-10-02).
 > Source: intent Goal 10, spec §2.10 (panes, runs, mercenaries),
 > ADR 0051.
 
@@ -90,10 +90,101 @@ Main-session decisions (details in ADR 0053):
   package notes P1).
 - [x] P2. Bundled mercenaries (ADR 0053, package notes P2).
 - [ ] P3. Verify; export all scripts; test guide; owner test.
+  - [x] Export all scripts: EXPORT → *All scripts and their data
+    (backup)*; IMPORT restores it (ADR 0053, package notes P3).
+  - [x] Review across P0–P2: layout reset, reconnect, disable and
+    reload during a run, mercenaries in the log player, light theme and
+    tints, narrow window, Firefox. Fixed: script pane text on a dark tint
+    over a light terminal was dark on dark; span colours on a light pane
+    now follow ADR 0041's contrast rule.
+  - [x] Verify: typecheck, unit, e2e (Chromium and Firefox), bench,
+    build, production e2e.
+  - [x] Test guide (below).
+  - [ ] Owner test.
 
 ## Test guide
 
-Filled in when the stage is built.
+**Start:** `cd ~/proj/webcockpit && npm run dev` (restart it if it was
+already running), then open http://localhost:5173/. Firefox and
+Chromium. Log in to MUME with a character that has some silver.
+
+1. **Turn mercenaries on:** Options → Scripts, select `mercenaries`
+   (lock mark), read its help on the right, toggle it `[X]` (or type
+   `#script enable mercenaries` in game). A *Mercenaries* pane appears at
+   the bottom of the right dock: `Autopay [off]`, `No mercenaries hired.`
+   and `Hire one: give 10 silver mercenary`. `merc` hides and shows it.
+2. **Hire one (the key thing to confirm):** find a citizen mercenary
+   and `give 10 silver mercenary`. The script expects MUME to answer
+   `A citizen mercenary starts following you.`; it then sends `label
+   mercenary <Name>` and, after `Ok.`, `group <Name>`. The pane gets a
+   row `<Name> ● here $ a r p f s` and a green gauge counting down from
+   `25:00 left`. **These lines and the 25 minutes per 10 silver are
+   written from Cockpit's script, not from a real log.** Please check:
+   - Does the hire line match exactly? Are label and group sent?
+   - Near the end, does the mercenary *tap you on the shoulder*? The row
+     should turn to a red `PAY DUE` gauge with a one-minute countdown.
+     Click `$` (or `merc pay`): `give 10 silver <Name>`; MUME's thanks
+     (`… says 'Thank you. I am at your service.'`) should reset the
+     gauge to 25:00.
+   - If you do not pay: does it leave, and does the row go away with a
+     `▶ MERC:` line in the UI pane?
+   - Is 25 minutes right? Compare the gauge with when it really taps.
+   - If anything does not match, a copy of the real lines (or the run's
+     log from History → RUN LOG) is the most useful feedback.
+3. **Orders:** point at each letter for its tooltip, then click it:
+   `a` assist, `r` rescue you, `p` protect you, `f` flee, `s` stand.
+   Do `order <Name> flee` and `order <Name> stand` work on a mercenary
+   (they do on charmed followers)? `merc autopay` turns autopay on
+   (`[on]` in the header, also clickable); `merc list` prints the
+   contracts; `merc label 2.mercenary` tracks one hired before the
+   script was on.
+4. **A pane of your own:** Options → Scripts → *NEW*, then for example:
+
+   ```lua
+   local pane = createPane{id = "hp", title = "HP", dock = "float", rows = 3, cols = 24}
+   registerAnonymousEventHandler("gmcp.Char.Vitals", function()
+     local v = gmcp.Char.Vitals
+     pane:gauge(1, {value = v.hp or 0, max = v.maxhp or 1, label = "HP"})
+     pane:setLine(2, "<yellow>[rest]<reset>  <cyan>[look]<reset>")
+     pane:setLink(2, 1, 6, function() send("rest") end, "Sit down and rest")
+     pane:setLink(2, 9, 6, function() send("look") end, "Look around")
+   end)
+   tempAlias("^hpp$", function() if pane:visible() then pane:hide() else pane:show() end end)
+   ```
+
+   Ctrl+S, turn it on. The pane floats at the top right of the game
+   window; drag it, dock it into a side, resize it, close it with its
+   cross, bring it back with `hpp` or Options → Panes → General (it is
+   listed as `HP (yourscript)`, with colour and border). Disable the
+   script and enable it again: it comes back where you left it, also
+   after a reload. Type `pane:` in the editor for the pane methods.
+5. **Runs:** play a few minutes with the Mercenaries pane (or your own)
+   shown, then History → RUN LOG: the pane is in the log player with
+   what it showed at each moment; tooltips work, clicks do nothing; the
+   gear lists it. EXPORT that session as an HTML replay and open the
+   file: the pane is there too.
+6. **Export all scripts:** Options → Scripts → *EXPORT* now asks: *This
+   script (name.lua)* or *All scripts and their data (backup)*. Take the
+   backup (`webcockpit-scripts-<date>.json`), delete a script of your
+   own, then *IMPORT* the backup: a page shows what it holds and a
+   warning; `y` restores the missing script, turned off, with its
+   settings. Scripts that are already there are left alone.
+
+**Known limitations:**
+
+- No tooltips on touch devices (no hover); a tap still clicks.
+- A tooltip sits under its link and may cover the row below.
+- In the editor, `x:` offers the pane methods only when the variable's
+  name contains `pane` (`pane:` does, `p:` does not).
+- Spotlights hide script panes.
+- A pane with one row shows only `↑ N more rows` (the same rule as the
+  built-in panes); give the Mercenaries pane a few rows.
+
+**Feedback wanted:** above all whether the mercenary lines (hire, tap,
+thanks, leave) and the contract time match real MUME, and whether
+`stand` and `flee` orders work. Then: the pane's look in your theme and
+colours, its default place, whether the orders are easy to hit, and
+anything in the pane API that felt odd while writing your own.
 
 ## Owner feedback
 
