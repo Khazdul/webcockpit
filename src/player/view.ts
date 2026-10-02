@@ -167,7 +167,8 @@ export interface PlayerViewOptions {
 
 /** The viewer settings the control box's gear shows (PlayerHost implements it). */
 export interface ViewerControls {
-  panes: () => ReadonlyArray<{ id: string; label: string; on: boolean }>;
+  /** `wide`: a row of its own, the label cut to fit (script panes). */
+  panes: () => ReadonlyArray<{ id: string; label: string; on: boolean; wide?: boolean }>;
   togglePane: (id: string) => void;
   /** Current font / theme choice, as shown. */
   font: () => string;
@@ -565,15 +566,23 @@ export class PlayerView {
     };
     row(label('Panes', 'wc-player-set-head'));
     const panes = vs.panes();
-    for (let i = 0; i < panes.length; i += 2) {
+    const toggle = (p: (typeof panes)[number], text: string): HTMLSpanElement =>
+      btn(text, `wc-player-toggle${p.on ? ' is-on' : ''}`, () => vs.togglePane(p.id), { pane: p.id });
+    const narrow = panes.filter((p) => !p.wide);
+    for (let i = 0; i < narrow.length; i += 2) {
       const parts: Array<string | HTMLElement> = [];
-      panes.slice(i, i + 2).forEach((p, j) => {
+      narrow.slice(i, i + 2).forEach((p, j) => {
         const text = `[${p.on ? 'X' : ' '}] ${p.label}`;
-        const b = btn(text, `wc-player-toggle${p.on ? ' is-on' : ''}`, () => vs.togglePane(p.id), { pane: p.id });
-        parts.push(b);
+        parts.push(toggle(p, text));
         if (j === 0) parts.push(' '.repeat(Math.max(1, TOGGLE_W - text.length)));
       });
       row(...parts);
+    }
+    for (const p of panes) {
+      if (!p.wide) continue;
+      const text = `[${p.on ? 'X' : ' '}] ${p.label}`;
+      const max = BOX_INNER - 1;
+      row(toggle(p, text.length > max ? text.slice(0, max - 1) + '…' : text));
     }
     const cycler = (name: string, key: string, value: string, step: (dir: 1 | -1) => void): void =>
       row(

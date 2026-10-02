@@ -9,7 +9,7 @@
 // replay clock (src/player/clock.ts) to each entry's log time, then hands
 // the entry to the target: inbound lines and GMCP as telnet bytes on the
 // run's PlayerSocket (lines less than 1 ms apart as one frame, like one
-// server write), commands as `sent`, VIEW / SIZE records to the target. A
+// server write), commands as `sent`, VIEW / SIZE / SPANE records to the target. A
 // run's first entry ends the previous run's socket and connects a new one,
 // so the session passes through `disconnected` between runs.
 //
@@ -44,6 +44,7 @@ import {
   ENTRY_IN,
   ENTRY_OUT,
   ENTRY_SIZE,
+  ENTRY_SPANE,
   ENTRY_VIEW,
   type Timeline,
   advancePlay,
@@ -76,6 +77,8 @@ export interface PlayerTarget {
   view(json: string): void;
   /** A SIZE record. */
   size(cols: number, rows: number): void;
+  /** A script pane record, `<id> <json>` (ADR 0053 P1). */
+  spane?(body: string): void;
   /** Painting on or off (off while fast-forwarding). */
   paint(on: boolean): void;
   /** A comment: shows its wrapped `## ` lines (stage 7). */
@@ -462,6 +465,11 @@ export class PlayerEngine {
       this.next = i + 1;
       const s = parseSize(entryText(tl, i));
       if (s) this.target.size(s.cols, s.rows);
+      return;
+    }
+    if (k === ENTRY_SPANE) {
+      this.next = i + 1;
+      this.target.spane?.(entryText(tl, i));
       return;
     }
     if (k === ENTRY_COMMENT) {

@@ -1,7 +1,7 @@
 // Viewer overrides (ADR 0021 "Viewer overrides"): what the person watching
 // a log (RUN LOG, the HTML replay, the Spotlights reel) changed on top of
-// the recorded screen — font size, colour theme, pane on/off and the pane
-// layout. The PlayerHost holds one `ViewerOverrides` per open (never a
+// the recorded screen — font size, colour theme, pane on/off (built-in
+// and script panes, ADR 0053 P1) and the pane layout. The PlayerHost holds one `ViewerOverrides` per open (never a
 // player App, so it survives the App rebuild of a backward seek) and
 // composes the player settings as
 //
@@ -11,8 +11,8 @@
 // later VIEW records included. Nothing here is saved (ADR 0021 "Not saved").
 // Pure.
 
-import { PANE_IDS, type LayoutModel, type PaneId } from '../layout/types';
-import type { Settings } from '../settings/types';
+import { type LayoutModel, type PaneId, isScriptPaneId } from '../layout/types';
+import { type Settings, paneSettingsOf } from '../settings/types';
 import { TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../theme/presets';
 
 export type ViewerFont = 'default' | 'small' | 'medium' | 'large';
@@ -98,12 +98,18 @@ export function applyViewer(draft: Settings, o: Readonly<ViewerOverrides>): void
   if (colors) {
     draft.appearance.bg = colors.bg;
     draft.appearance.fg = colors.fg;
-    for (const id of PANE_IDS) if (draft.panes[id]) draft.panes[id].color = 'black';
+    for (const id of Object.keys(draft.panes) as PaneId[]) {
+      const p = draft.panes[id];
+      if (p) p.color = 'black';
+    }
   }
   if (o.panes) {
-    for (const id of PANE_IDS) {
-      const on = o.panes[id];
-      if (on !== undefined && draft.panes[id]) draft.panes[id].on = on;
+    for (const [id, on] of Object.entries(o.panes) as Array<[PaneId, boolean | undefined]>) {
+      if (on === undefined) continue;
+      const p = draft.panes[id];
+      if (p) p.on = on;
+      // A script pane without an entry has the defaults (ADR 0053).
+      else if (isScriptPaneId(id)) draft.panes[id] = { ...paneSettingsOf(draft.panes, id), on };
     }
   }
   if (o.layout) draft.layout = clone(o.layout);

@@ -34,19 +34,31 @@
 // cockpit; it becomes the layout override. A pane hidden with its close
 // cross becomes a pane override, as the settings toggle. The control box's gear shows
 // the controls (`ViewerControls`, PlayerView).
+//
+// Stage 11 (ADR 0053 P1): SPANE records build the script panes as the
+// player saw them, without Lua: a `ScriptPane` per pane id on the
+// recorded content (`applyPaneRecord`), added to the player cockpit while
+// the run has it. Links are inert (no `onLink`); tooltips show. A run's
+// connect drops the previous run's panes (each run starts with the
+// present ones in full). Placement and on/off come from the VIEW records;
+// the viewer's pane toggles list the script panes of the whole log.
 
 import type { RunLibrary } from '../runs/library';
 import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
-import { PANE_IDS, PANE_LABELS, type PaneId } from '../layout/types';
+import { paneSettingsOf } from '../settings/types';
+import { PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, paneScript } from '../layout/types';
+import { PaneContent, type PaneSnapshot } from '../panes/script-content';
+import { ScriptPane } from '../panes/script-pane';
+import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
 import { applyTheme } from '../theme/apply';
 import { DEFAULT_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, STRIP_COLS, markersOf } from '../player/strip';
-import { type ChainRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs } from '../player/timeline';
+import { type ChainRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
 import { PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
 import {
   VIEWER_FONTS,
@@ -152,6 +164,8 @@ export class PlayerHost {
   private base: Settings | null = null;
   /** The host is writing the player store (not the viewer's drag). */
   private applying = false;
+  /** Script pane ids with records in the open log (the viewer's toggles). */
+  private scriptIds: ScriptPaneId[] = [];
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -188,6 +202,11 @@ export class PlayerHost {
     this.openChain(chain, events, { character: session.character, level: session.level });
   }
 
+  /** Script pane ids with records in the open log, in order of appearance. */
+  get scriptPaneIds(): readonly ScriptPaneId[] {
+    return this.scriptIds;
+  }
+
   /** The player view (stage 7 modes: refresh, cursor). */
   get playerView(): PlayerView | null {
     return this.view;
@@ -199,6 +218,7 @@ export class PlayerHost {
    */
   openChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo, opts: PlayerOpenOptions = {}): void {
     const tl = buildTimeline(chain, opts.edits);
+    this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
     const engine = new PlayerEngine({
       timeline: tl,
@@ -290,7 +310,7 @@ export class PlayerHost {
         // The viewer moved or resized a pane in the player cockpit.
         if (JSON.stringify(next.layout) !== JSON.stringify(prev.layout)) viewer = withLayout(viewer, next.layout);
         // The viewer hid a pane with its close cross: as the settings toggle.
-        for (const id of PANE_IDS) {
+        for (const id of Object.keys(next.panes) as PaneId[]) {
           const on = next.panes[id]?.on;
           if (on !== undefined && on !== prev.panes[id]?.on) viewer = withPane(viewer, id, on);
         }
@@ -302,11 +322,44 @@ export class PlayerHost {
       this.relayout();
     });
     this.relayout();
+    // Script panes (ADR 0053 P1): the recorded content, drawn without Lua.
+    const spanes = new Map<ScriptPaneId, { snap: PaneSnapshot; pane: ScriptPane }>();
+    const dropPane = (id: ScriptPaneId): void => {
+      const p = spanes.get(id);
+      if (!p) return;
+      spanes.delete(id);
+      app.cockpit.removePane(id);
+      p.pane.dispose();
+    };
+    const spane = (body: string): void => {
+      const rec = splitPaneRecord(body);
+      if (!rec || !isScriptPaneId(rec.id)) return;
+      const id = rec.id;
+      const cur = spanes.get(id);
+      const snap = applyPaneRecord(cur?.snap ?? null, rec.json);
+      if (!snap) return dropPane(id);
+      if (cur) {
+        cur.snap = snap;
+        cur.pane.model.load(snap);
+        cur.pane.changed();
+        return;
+      }
+      const pane = new ScriptPane(app.cockpit.paneContext, id, {
+        content: PaneContent.fromSnapshot(snap),
+        onTitle: () => app.cockpit.paneRetitled(id),
+      });
+      spanes.set(id, { snap, pane });
+      app.cockpit.addPane(pane);
+      this.view?.refresh();
+    };
     return {
       connect: (sock, run) => {
+        // Each run writes its present panes at its start.
+        for (const id of [...spanes.keys()]) dropPane(id);
         app.quietLogin = this.hiddenSys.has(run);
         app.replayOn(sock, `run ${run + 1}`);
       },
+      spane,
       view: (json) => {
         const v = parseView(json);
         if (!v) return;
@@ -369,9 +422,19 @@ export class PlayerHost {
 
   /** The control box's settings section (PlayerView), over this host. */
   private controls(): ViewerControls {
-    const on = (id: PaneId): boolean => this.store?.get().panes[id]?.on ?? false;
+    const on = (id: PaneId): boolean => {
+      const s = this.store?.get();
+      return s ? paneSettingsOf(s.panes, id).on : false;
+    };
+    const scriptLabel = (id: ScriptPaneId): string => {
+      const shown = this.appRef?.cockpit.scriptPanes().find((p) => p.id === id);
+      return `${shown?.title ?? id.slice(id.indexOf('/') + 1)} (${paneScript(id)})`;
+    };
     return {
-      panes: () => PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id], on: on(id) })),
+      panes: () => [
+        ...PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+        ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
+      ],
       togglePane: (id) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),
       font: () => viewerLabel(this.viewer.font),
       cycleFont: (dir) => this.setViewer({ ...this.viewer, font: cycle(VIEWER_FONTS, this.viewer.font, dir) }),

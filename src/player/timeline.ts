@@ -3,7 +3,7 @@
 // HTML replay can reuse it with the engine.
 //
 // Every capture line (src/capture/format.ts) is an entry: inbound text,
-// an outbound command, or a GMCP / VIEW / SIZE record (unknown records and
+// an outbound command, or a GMCP / VIEW / SIZE / SPANE record (unknown records and
 // malformed lines are dropped). Entries of all runs are in chain order and
 // stored column-wise in typed arrays (a 5 h run is ~100 000 entries):
 //
@@ -75,6 +75,8 @@ export const ENTRY_SIZE = 4;
 export const ENTRY_COMMENT = 5;
 /** Blank rows before a spotlight window (stage 7); no body, no time. */
 export const ENTRY_BLANK = 6;
+/** A script pane record (ADR 0053 P1): body = `<id> <json>`. */
+export const ENTRY_SPANE = 7;
 
 /** Optional edits of a timeline (ADR 0019); see the file header. */
 export interface TimelineEdits {
@@ -247,6 +249,7 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
           if (type === 'GMCP') k = ENTRY_GMCP;
           else if (type === 'VIEW') k = ENTRY_VIEW;
           else if (type === 'SIZE') k = ENTRY_SIZE;
+          else if (type === 'SPANE') k = ENTRY_SPANE;
           else continue;
           if (sp < 0 || sp >= e) continue; // every known record has a payload
           b = sp + 1;
@@ -453,4 +456,20 @@ function firstHoldEndingAfter(hs: ReadonlyArray<{ at: number; ms: number }>, p: 
 export function runAt(tl: Timeline, p: number): number {
   const k = countAt(tl, p);
   return k === 0 ? 0 : tl.run[k - 1]!;
+}
+
+/**
+ * The script pane ids that have records in `tl`, in order of first
+ * appearance (the viewer's pane toggles, ADR 0053 P1).
+ */
+export function scriptPaneIdsOf(tl: Timeline): string[] {
+  const seen = new Set<string>();
+  for (let i = 0; i < tl.n; i++) {
+    if (tl.kind[i] !== ENTRY_SPANE) continue;
+    const text = tl.runs[tl.run[i]!]!.text;
+    const s = tl.start[i]!;
+    const sp = text.indexOf(' ', s);
+    if (sp > s && sp < tl.end[i]!) seen.add(text.slice(s, sp));
+  }
+  return [...seen];
 }

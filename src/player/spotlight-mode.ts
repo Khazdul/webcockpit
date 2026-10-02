@@ -7,7 +7,8 @@
 // player (the shell shows the start page as it was).
 //
 // Stripped down (owner feedback 2026-09-29): a spotlight is a short
-// snapshot, so the reel shows the game text only — every pane is off
+// snapshot, so the reel shows the game text only — every pane is off,
+// script panes included
 // (a viewer override, so later VIEW records cannot switch one on) — and
 // the control box has no gear.
 
@@ -92,6 +93,11 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel): void {
       viewerSettings: false,
     },
   );
+  // Script panes too (ADR 0053 P1): their ids are known once the timeline is.
+  if (host.scriptPaneIds.length > 0) {
+    for (const id of host.scriptPaneIds) panes[id] = false;
+    host.setViewer({ ...noOverrides(), panes });
+  }
 
   // The box follows the engine (ticks at least every 250 ms while playing).
   let raf: number | null = null;
