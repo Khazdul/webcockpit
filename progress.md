@@ -25,6 +25,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 feedback round 2 built
+
+- **Owner:** the rename field showed the old name through it; a click
+  outside left the row stuck (and undeletable); `skey` goes (star only);
+  safe key messages name only the key.
+- **Built:** opaque, readable pane text fields and `onBlur` (ADR 0055);
+  key manager cancels a rename on blur or any row action.
+- **Verified:** typecheck, unit 1832, e2e 373/374 (a different spec
+  flakes in each full run, passes alone), build green.
+- **Next:** owner test round 3 (stage file test guide).
+- **Commits:** 01b775e, c98df8f, 4238fb3, 6f3e0ca, plus this one.
+
 ### 2026-10-02 — Stage 12 feedback round 1 built
 
 - **Owner:** UI messages for library changes; pane "Port keys" without
