@@ -198,11 +198,14 @@ function sanitizeTemp(t: unknown): PaneTemp | undefined {
     if (x !== null && y !== null && w !== null && h !== null) out.rect = { x, y, w, h };
   }
   if (t.off === true) out.off = true;
-  if (t.at === 'top' || t.at === 'top-right' || t.at === 'bottom') out.at = t.at;
+  if (typeof t.at === 'string' && TEMP_AT.has(t.at)) out.at = t.at as NonNullable<PaneTemp['at']>;
   return out;
 }
 
 type Obj = Record<string, unknown>;
+
+/** The `at` values a record may carry (not `center`, the default). */
+const TEMP_AT = new Set(['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right']);
 
 function isObject(v: unknown): v is Obj {
   return typeof v === 'object' && v !== null && !Array.isArray(v);

@@ -369,6 +369,8 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     - In a handler, `matches` and `line` are set as in Mudlet.
     - `deleteLine()` gags the current line.
     - `replaceLine(text)` substitutes the displayed copy.
+    - `copy2cecho()` returns the trigger's line with its colours as cecho
+      tags.
     - `highlight(color)` colours the displayed copy.
     - An alias consumes the input unless its handler returns `false`.
   - Keys: `tempKey(name, fn)` and `killKey(id)`. Key names follow
@@ -412,7 +414,7 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       `anchor = "bottom"` (default) follows new lines like a console,
       `"top"` stays at the first line like a list.
     - `temporary = true` makes a short-lived pane: it floats over the
-      game pane (`at = "center"|"top"|"top-right"|"bottom"`), never
+      game pane (`at`: centre, an edge or a corner), never
       docks and is never listed in menus. Where the user moves it is
       kept per device for the next time; Reset layout forgets it. Its
       close cross closes it.

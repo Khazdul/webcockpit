@@ -886,3 +886,16 @@ Tab cycling, round 1's MANUAL button in the editor, and round 3's
   change-less transaction.
 - Tested by a table-driven e2e that compares the list with
   `completeLua` after every Backspace and Delete.
+
+### Stage 12 round 4 — copy2cecho (2026-10-02)
+
+`copy2cecho()` returns the line the running trigger matched, with its
+colours as cecho tags (`<ansi_N>` for palette colours, `<#rrggbb>` for
+24-bit ones, `<fg:bg>`, `<b>`, `<i>`, `<u>`, `<reset>` after each run), or
+nil outside a trigger. It is Mudlet's `copy2decho` in our tag set, so a
+script can show a game line in a pane in the game's colours (the key
+manager's TV). It reads the original line (before substitutes and
+`replaceLine`). Inverse and blink are dropped (cecho has no tags for
+them). A literal `<…>` in game text that is also a valid tag would be
+read as one; no escape exists in cecho, and game text has none in
+practice.

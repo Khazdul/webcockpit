@@ -6,6 +6,32 @@
 
 import type { Rect } from './allocate';
 
+/** Where a temporary pane opens until the user moves it (`createPane{at}`). */
+export type TempPaneAt =
+  | 'center'
+  | 'top'
+  | 'bottom'
+  | 'left'
+  | 'right'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+/** Every `at` value (createPane checks against it). */
+export const TEMP_PANE_AT: readonly TempPaneAt[] = [
+  'center',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+];
+
+
 /** localStorage key of the saved rectangles. */
 export const TEMP_PLACES_KEY = 'webcockpit.tempPanes';
 /** Most rectangles kept (the oldest go first). */

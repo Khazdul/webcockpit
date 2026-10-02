@@ -188,6 +188,19 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "copy2cecho",
+    "copy2cecho() → string",
+    "In a trigger: the current line as the game sent it, with its colours as cecho tags, so it can be shown elsewhere (a pane) in the same colours.",
+    {
+      params: [],
+      returns: "The line with <ansi_N>, <#rrggbb>, <fg:bg>, <b>, <i>, <u> and <reset> tags, or nil outside a trigger.",
+      more: [
+        "Like Mudlet's copy2decho, with cecho tags. The line is the original, before substitutes and replaceLine.",
+      ],
+      example: 'tempRegexTrigger("^\\\\[home\\\\] ", function()\n  tv:cecho(copy2cecho() .. "\\n")\n  deleteLine()\nend)',
+    },
+  ),
+  fn(
     "replaceLine",
     "replaceLine(text)",
     "In a trigger: shows text instead of the current line. cecho colour tags work.",
@@ -531,7 +544,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
-        p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"top-right\" or \"bottom\" (just above the input line)."),
+        p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [

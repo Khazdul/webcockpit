@@ -35,11 +35,11 @@
 // settings) and the link and resize functions go with the script.
 
 import type { Bus } from '../core/bus';
-import { gmcpKey } from '../core/types';
+import { type Color, type StyleRun, TRUECOLOR, gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
 import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
-import type { TempPaneAt } from '../layout/cockpit';
+import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
 import type { FieldEvent } from '../panes/script-pane';
 import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
@@ -882,6 +882,13 @@ export class ScriptHost {
       }
       echoLines(parts.join('\t'), false);
     });
+    // The trigger's line with its colours, as cecho text (Mudlet's
+    // copy2decho, in cecho tags; ADR 0054 round 4).
+    rt.defineFunction('copy2cecho', () => {
+      this.cur(rt);
+      const l = this.triggerLine;
+      return l ? toCecho(l.text, l.runs) : null;
+    });
     rt.defineFunction('uiMessage', (a) => {
       this.cur(rt);
       const source = a.string(1).trim().toUpperCase().slice(0, 20) || 'SCRIPT';
@@ -1200,8 +1207,8 @@ export class ScriptHost {
         throw new Error(`bad argument #1 to 'createPane' (temporary must be true or false)`);
       }
       const at = (t.at ?? 'center') as TempPaneAt;
-      if (at !== 'center' && at !== 'top' && at !== 'top-right' && at !== 'bottom') {
-        throw new Error(`bad argument #1 to 'createPane' (at must be "center", "top", "top-right" or "bottom")`);
+      if (!TEMP_PANE_AT.includes(at)) {
+        throw new Error(`bad argument #1 to 'createPane' (at must be one of ${TEMP_PANE_AT.map((x) => `"${x}"`).join(', ')})`);
       }
       const anchor = t.anchor ?? 'bottom';
       if (anchor !== 'top' && anchor !== 'bottom') {
@@ -1347,8 +1354,17 @@ export class ScriptHost {
     if (!s || o.dead) return;
     s.setEnv('matches', ctx.args);
     s.setEnv('line', ctx.line?.text ?? ctx.args[0] ?? '');
-    this.call(o, ref);
+    const prev = this.triggerLine;
+    this.triggerLine = ctx.line ?? null;
+    try {
+      this.call(o, ref);
+    } finally {
+      this.triggerLine = prev;
+    }
   }
+
+  /** The game line the running trigger matched (`copy2cecho`). */
+  private triggerLine: { text: string; runs: readonly StyleRun[] } | null = null;
 
   /** False (the alias did not take the command) only when the handler returned false. */
   private onAlias(o: Owner, ref: LuaRef, ctx: MatchContext): boolean {
@@ -1425,4 +1441,37 @@ function defaultStorage(): Storage | null {
 async function defaultLoadRuntime(): Promise<LuaRuntime> {
   const { loadLuaRuntime } = await import('../lua');
   return loadLuaRuntime();
+}
+
+/** A line-model colour as a cecho colour name: `ansi_N` for the palette, `#rrggbb` else. */
+function cechoColor(c: Color): string {
+  if (c < TRUECOLOR) return `ansi_${c}`;
+  return '#' + (c & 0xffffff).toString(16).padStart(6, '0');
+}
+
+/**
+ * `text` with its style runs as cecho text (`copy2cecho`): colours as
+ * `<ansi_N>` / `<#rrggbb>` (background after a colon), `<b>`, `<i>`, `<u>`,
+ * `<reset>` between runs. A literal `<…>` in the text that is also a tag
+ * would be read as one; game text has none in practice.
+ */
+export function toCecho(text: string, runs: readonly StyleRun[]): string {
+  if (runs.length === 0) return text;
+  let out = '';
+  let pos = 0;
+  for (const r of runs) {
+    if (r.start > pos) out += text.slice(pos, r.start);
+    const s = Math.max(pos, r.start);
+    if (r.end <= s) continue;
+    let tag = '';
+    if (r.fg !== undefined || r.bg !== undefined) {
+      tag += `<${r.fg !== undefined ? cechoColor(r.fg) : ''}${r.bg !== undefined ? ':' + cechoColor(r.bg) : ''}>`;
+    }
+    if (r.bold) tag += '<b>';
+    if (r.italic) tag += '<i>';
+    if (r.underline) tag += '<u>';
+    out += tag + text.slice(s, r.end) + (tag ? '<reset>' : '');
+    pos = r.end;
+  }
+  return out + text.slice(pos);
 }

@@ -716,3 +716,15 @@ panes, instead of showing only the newest lines.
 
 The key manager's Keys pane uses `anchor = "top"`; its pick window opens
 at `"top"`, clear of the text the locate just printed below it.
+
+## Addendum — stage 12 round 4 (2026-10-02)
+
+- **More `at` places.** `createPane{temporary = true, at}` also takes
+  `"left"`, `"right"` (vertically centred against that edge) and the four
+  corners `"top-left"`, `"top-right"`, `"bottom-left"`, `"bottom-right"`
+  of the game pane, so several temporary panes (the key manager's TVs)
+  open side by side instead of on top of each other. A cascade was
+  considered: corners are predictable and match where a player would put
+  four views; a fifth pane is the script's choice. Records carry any
+  non-centre `at`; the list lives in `src/layout/temp-places.ts`
+  (`TEMP_PANE_AT`), so the host does not import the cockpit.

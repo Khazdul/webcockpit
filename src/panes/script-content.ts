@@ -111,7 +111,7 @@ export interface PaneTemp {
   rows: number;
   cols: number;
   /** Where it opens before it is moved, when not centred (ADR 0053 addendum). */
-  at?: 'top' | 'top-right' | 'bottom';
+  at?: 'top' | 'bottom' | 'left' | 'right' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
   rect?: { x: number; y: number; w: number; h: number };
   off?: true;
 }

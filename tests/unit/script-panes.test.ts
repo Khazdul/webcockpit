@@ -669,12 +669,15 @@ describe('ScriptPane and the cockpit surface', () => {
       const { cockpit, surface, flush } = rig();
       const place = (id: string) => cockpit.layout!.panes.find((p) => p.id === id)!.rect;
       const g = () => cockpit.layout!.game;
-      const open = (at?: 'top' | 'top-right' | 'bottom') =>
+      const open = (at?: 'top' | 'top-right' | 'bottom' | 'top-left' | 'bottom-right' | 'left') =>
         surface.open({ ...spec(), temporary: at ? { rows: 4, cols: 20, at } : { rows: 4, cols: 20 } }, new PaneContent('Pick'), { onLink: () => {}, onResize: () => {} });
       for (const [at, want] of [
         ['top', () => ({ x: g().x + Math.floor((g().w - 22) / 2), y: g().y })],
         ['top-right', () => ({ x: g().x + g().w - 22, y: g().y })],
         ['bottom', () => ({ x: g().x + Math.floor((g().w - 22) / 2), y: g().y + g().h - 6 })],
+        ['top-left', () => ({ x: g().x, y: g().y })],
+        ['bottom-right', () => ({ x: g().x + g().w - 22, y: g().y + g().h - 6 })],
+        ['left', () => ({ x: g().x, y: g().y + Math.floor((g().h - 6) / 2) })],
       ] as const) {
         const v = open(at);
         flush();

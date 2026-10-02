@@ -53,6 +53,7 @@ import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
 import { PANE_FACTORIES } from '../panes/factories';
 import type { PaneShell } from '../panes/pane';
+import type { TempPaneAt } from './temp-places';
 import type { SettingsStore } from '../settings';
 import {
   BOTTOM_DOCK_MIN,
@@ -113,7 +114,8 @@ export interface ScriptPaneInfo {
 export type { CellSource } from '../panes/context';
 
 /** Where a temporary pane opens until the user moves it (`createPane{at}`). */
-export type TempPaneAt = 'center' | 'top' | 'top-right' | 'bottom';
+export type { TempPaneAt } from './temp-places';
+export { TEMP_PANE_AT } from './temp-places';
 
 /** A temporary script pane's place, kept by the cockpit (never in the settings). */
 export interface TempPaneOptions {
@@ -1017,20 +1019,26 @@ function placeEl(el: HTMLElement, r: Rect, cell: { w: number; h: number }): void
 
 /**
  * A temporary pane's outer rectangle (`w` × `h` cells) before the user
- * moves it, over the game pane `g`: centred; at the top, centred
- * sideways; at the top right; or at the bottom, just above the input
- * line, centred sideways.
+ * moves it, over the game pane `g`: centred, or against the named edges
+ * (`top`, `bottom` just above the input line, `left`, `right`, and the
+ * four corners), centred along the other axis.
  */
 export function tempDefaultRect(g: Rect, w: number, h: number, at: TempPaneAt): Rect {
   const cx = g.x + Math.floor((g.w - w) / 2);
-  switch (at) {
-    case 'top':
-      return { x: cx, y: g.y, w, h };
-    case 'top-right':
-      return { x: g.x + g.w - w, y: g.y, w, h };
-    case 'bottom':
-      return { x: cx, y: g.y + g.h - h, w, h };
-    default:
-      return { x: cx, y: g.y + Math.floor((g.h - h) / 2), w, h };
-  }
+  const cy = g.y + Math.floor((g.h - h) / 2);
+  const left = g.x;
+  const right = g.x + g.w - w;
+  const top = g.y;
+  const bottom = g.y + g.h - h;
+  const [x, y] =
+    at === 'top' ? [cx, top]
+    : at === 'bottom' ? [cx, bottom]
+    : at === 'left' ? [left, cy]
+    : at === 'right' ? [right, cy]
+    : at === 'top-left' ? [left, top]
+    : at === 'top-right' ? [right, top]
+    : at === 'bottom-left' ? [left, bottom]
+    : at === 'bottom-right' ? [right, bottom]
+    : [cx, cy];
+  return { x, y, w, h };
 }

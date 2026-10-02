@@ -14,6 +14,7 @@ import { resetScriptKeys, scriptKeyOwner } from '../../src/script/script-keys';
 import { ScriptLibrary } from '../../src/scripts';
 import { HANG_KEY } from '../../src/scripts/guard';
 import { GmcpCache } from '../../src/scripts/gmcp-cache';
+import { parseCecho } from '../../src/scripts/colors';
 import { ScriptHost } from '../../src/scripts/host';
 import type { StyledRow } from '../../src/ui/output-pane';
 import { PaneContent } from '../../src/panes/script-content';
@@ -240,6 +241,27 @@ describe('display edits', () => {
     expect(t.shown[0]!.source.text).toBe('the ancient line');
     expect(t.shown[1]!.line.runs).toEqual([{ start: 2, end: 6, fg: 3 }]);
     expect(t.shown[2]!.line.runs).toEqual([{ start: 0, end: 10, fg: 9 }]);
+  });
+
+  it('copy2cecho gives the trigger line with its colours as cecho tags; nil outside a trigger', async () => {
+    const t = await setup({
+      s: src(`
+        tempTrigger("orc", function() send(copy2cecho()) end)
+        send(tostring(copy2cecho()))`),
+    });
+    t.recv('An orc is here.', [
+      { start: 0, end: 2, fg: 9 },
+      { start: 3, end: 6, fg: TRUECOLOR | 0x10a0ff, bg: 4, bold: true },
+    ]);
+    t.recv('plain orc');
+    expect(t.sent).toEqual(['nil', '<ansi_9>An<reset> <#10a0ff:ansi_4><b>orc<reset> is here.', 'plain orc']);
+    // It reads back as the same colours.
+    const c = parseCecho(t.sent[1]!);
+    expect(c.text).toBe('An orc is here.');
+    expect(c.runs).toEqual([
+      { start: 0, end: 2, fg: 9 },
+      { start: 3, end: 6, fg: TRUECOLOR | 0x10a0ff, bg: 4, bold: true },
+    ]);
   });
 
   it("the profile's substitutes work on the replaced text", async () => {
@@ -786,7 +808,8 @@ describe('pane anchor (ADR 0053 addendum)', () => {
           createPane{id = "con"}
           send(select(2, pcall(createPane, {id = "x", anchor = "middle"})))
           createPane{id = "t", temporary = true, at = "top-right"}
-          send(select(2, pcall(createPane, {id = "y", temporary = true, at = "left"})))
+          createPane{id = "u", temporary = true, at = "bottom-left"}
+          send(select(2, pcall(createPane, {id = "y", temporary = true, at = "nowhere"})))
         `),
       },
       { panes },
@@ -795,7 +818,8 @@ describe('pane anchor (ADR 0053 addendum)', () => {
     expect(panes.get('a/con')!.content.anchor).toBe('bottom');
     expect(t.sent[0]).toMatch(/anchor must be "top" or "bottom"/);
     expect(panes.get('a/~t')!.spec.temporary).toEqual({ rows: 8, cols: 30, at: 'top-right' });
-    expect(t.sent[1]).toMatch(/at must be "center", "top", "top-right" or "bottom"/);
+    expect(panes.get('a/~u')!.spec.temporary).toEqual({ rows: 8, cols: 30, at: 'bottom-left' });
+    expect(t.sent[1]).toMatch(/at must be one of "center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"/);
   });
 });
 
