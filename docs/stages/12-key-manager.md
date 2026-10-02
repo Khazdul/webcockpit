@@ -69,6 +69,9 @@ output, as temporary panes, once the rest is verified.
 - 2026-10-02: the key's name is typed in the pick window, which opens
   for every locate (except a `locatel` with a name and a single hit).
   Script panes get text fields for it (ADR 0055).
+- 2026-10-02 (feedback round 1): renaming is done in the pane, so
+  `dkey`, `rkey` and `krename` go; script panes scroll; temporary panes
+  remember their place per device.
 
 ## Design (round 1)
 
@@ -90,8 +93,7 @@ fields).
   - `keys` shows or hides the Keys pane (`keys list`, `keys help`);
   - `kpick` opens the last pick window again;
   - `nkey <name> <key>` adds a key by hand;
-  - `rkey <name> <new>` (also `krename`) renames, `dkey <name>` deletes,
-    `skey <name>` sets the safe key (`skey` alone names it);
+  - `skey <name>` sets the safe key (`skey` alone names it);
   - `teleport <name>`, `portal <name>`, `scry <name>`, `watchr <name>`;
   - `tsafe`, `qtsafe`, `psafe` cast teleport, quick teleport and portal
     to the safe key; Ctrl+S and Alt+S are `tsafe` and `qtsafe`.
@@ -102,10 +104,15 @@ fields).
   most 10 characters. The first key becomes the safe key; when the safe
   key expires or is deleted the freshest live key takes over, announced
   once.
-- **Keys pane:** a row per key with the safe star, name, room type, key,
-  time left, and clickable letters `t p s w` (teleport, portal, scry,
-  watch room) and `x` (delete, click twice). Clicking a star makes that
-  key the safe key. A new key is highlighted for a few seconds.
+- **Port keys pane:** the key count and `?` (help) on top, then a row
+  per key with the safe star, name, room type, key, time left, and
+  clickable letters `t p s w` (teleport, portal, scry, watch room) and
+  `x` (delete, click twice). Clicking a star makes that key the safe
+  key; clicking a name renames it in place. A new key is highlighted for
+  a few seconds. A long list scrolls.
+- **Messages:** what changes in the library (stored, renewed, replaced,
+  deleted, renamed, expired, safe key) is in the UI messages; casts and
+  errors are `KEYS` lines in the game text.
 
 ## Tasks
 
@@ -123,13 +130,39 @@ fields).
 
 ## Test guide
 
-Round 1. Open WebCockpit, connect to MUME, log in, and type
+### Round 2
+
+What changed: library changes show in the UI messages; the pane is
+"Port keys" without your name; click a key's name to rename it; `dkey`,
+`rkey`, `krename` are gone; `#script set keymanager hours 10` redraws at
+once; long panes scroll; the pick window opens at the top and remembers
+where you move it.
+
+Try:
+
+1. Store, renew, rename and delete keys; watch the UI messages pane.
+2. Click a name, type a new one, Enter; try a taken or bad name; Esc.
+3. `#script set keymanager hours 10`: the times change at once.
+4. Store enough keys that the pane overflows: scroll it with the wheel
+   or touchpad; click the `↓ N more rows` / `↑ N rows above` row.
+5. Move the pick window, close it, cast another locate: it opens where
+   you put it. Options → Panes → General → Reset layout puts it back.
+6. The mercenaries pane still follows `#script set mercenaries cost 20`.
+
+Feedback wanted: are the UI messages the right ones (too many, too
+few)? Does renaming in place feel right? Is the pick window's default
+place (top of the game text) good? Your unfinished thought about the
+pick window.
+
+### Round 1
+
+Open WebCockpit, connect to MUME, log in, and type
 `#script enable keymanager`. The Keys pane appears on the right.
 
 Try:
 
-1. `locatel home` where you stand. The key is stored at once (`KEYS
-   Stored $home …`), highlighted in the pane, and is your safe key (★).
+1. `locatel home` where you stand. The key is stored at once,
+   highlighted in the pane, and is your safe key (★).
 2. `cast n 'locate life'` by hand. The pick window opens with a
    suggested name selected: type a name, press Enter.
 3. `locatel <someone> <name>`, or a locate of a creature with several
@@ -139,12 +172,7 @@ Try:
    star. `teleport <name>`, `scry <name>`, `watchr <name>`.
 5. Ctrl+S and Alt+S (safe teleport, quickly). `cast 'teleport' $home`.
 6. Log in another character: its keys are separate.
-7. `keys help`, `skey`, `rkey`, `dkey`, `nkey`.
-
-Feedback wanted: does the capture catch all your locates (and nothing
-else)? Is typing the name in the window quick enough, and are the
-suggested names good? Is anything in the pane too cramped in your dock
-width? Do the failure messages and timings match what MUME does?
+7. `keys help`, `skey`, `nkey`.
 
 ## Owner feedback
 
@@ -167,5 +195,17 @@ width? Do the failure messages and timings match what MUME does?
    `nkey`.
 8. Remove the character name at the top left of the pane.
 
+9. (2026-10-02, approved) Temporary panes remember where the user puts
+   them, per device; a script can give a default place (`at`); they
+   stay floating.
+
 The owner started a thought about the pick window but did not finish
-it; the pick window is unchanged for now.
+it; the pick window is otherwise unchanged for now.
+
+Done in round 2 (ADR 0054 "Feedback round 1", ADR 0053 addendum):
+library changes are UI messages; the pane is "Port keys", lists from the
+top and scrolls; a click on a name renames it in place; no hint on the
+time left; `sysSettingChanged` redraws at once (mercenaries too);
+`dkey`, `rkey` and `krename` are gone; no character name in the header;
+temporary panes open at `at` and remember their place per device (Reset
+layout forgets it); the pick window opens at the top.

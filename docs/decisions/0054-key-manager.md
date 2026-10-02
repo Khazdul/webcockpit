@@ -162,3 +162,40 @@ default). No host change was needed for round 1 beyond ADR 0055.
   casting.
 - Later round (owner): TV, the scry and watch room output in temporary
   panes.
+
+## Feedback round 1 (2026-10-02)
+
+Owner feedback after the first test (stage file, "Owner feedback →
+Round 1"). Supersedes the sections above where they differ.
+
+- **Messages.** One rule: a change to the library is a UI message
+  (`uiMessage("keys", …)`, `▶ KEYS: …`, plain text): a key stored,
+  renewed or replaced (with room type, distance, key, `Same key as $x`,
+  and `It is your safe key` for the first), deleted, renamed or expired,
+  and the safe key moving (set, or re-elected after an expiry or a
+  delete). Everything else stays an in-game `KEYS` line: casts, the
+  locate in flight, its failures, errors and replies (`skey`, `keys
+  list`). The in-game `Stored …` lines are gone, so nothing is said
+  twice.
+- **Pane.** Title `Port keys`, `anchor = "top"` (a list that stays at
+  its first line when it overflows; ADR 0053 addendum). The header has
+  the key count and the `?` help link (no character name); while a name
+  is being edited it holds the edit's prompt or error. The time left has
+  no hint and no link. A `sysSettingChanged` handler prunes and redraws,
+  so `#script set keymanager hours 10` shows at once (new API event, ADR
+  0051's host: raised for the script whose own setting changed, with the
+  name and the new value, after `settings` is updated; the mercenaries
+  script now redraws on it too instead of a timer).
+- **Inline rename.** A click on a key's name (hint `Click to rename`)
+  puts a text field (ADR 0055) over the name cells after the `$`, the
+  name column's width, prefilled and selected. Enter renames (a leading
+  `$` allowed); an invalid or taken name shows in the header row in red
+  and the field keeps the text and the keyboard. Esc cancels. The minute
+  redraw leaves the row and its field alone while the rows stay where
+  they are; if they move (a key added or gone) the field is made again
+  with the text typed so far. The safe key follows a rename.
+- **Commands.** `dkey`, `rkey` and `krename` are removed (the pane's `x`
+  and the name do it); `nkey` stays. Typing them now goes to the game.
+- **Pick window** opens at the top of the game pane (`at = "top"`),
+  clear of the locate text printed below it, and where the player last
+  moved it on this device (ADR 0053 addendum).
