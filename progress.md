@@ -25,6 +25,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 4 feedback built
+
+- **Owner:** gag the blank line and prompt after watch lines; learn
+  watch length per character (last 3); steady hover while panes tick;
+  `◻` TV button, no red dot, countdown with a tooltip; TV lost colours.
+- **Built:** ADR 0056 (hover follows the pointer, `pane:setText`,
+  tooltip-only links), `isPrompt()`; key manager fixes (dimming kept
+  colours wrongly, now only default text dims).
+- **Verified:** typecheck, unit 1842, e2e 375/376 (layout flake, passes
+  rerun), build green.
+- **Next:** owner test round 5; scry map marks designed in parallel
+  (round 6).
+- **Commits:** 78711cc, f1f719e, be460fd, b8139bb, a676148, plus this one.
+
 ### 2026-10-02 — Stage 12 round 4 built: TV for watch room and scry
 
 - **Owner:** round 3 approved; `cast q 'teleport'` and long names
