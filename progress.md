@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 7 feedback built
+
+- **Owner:** TVs open scattered; they should tile from the top left
+  (1, right of 1, below 1, below 2) and close up without holes; a TV
+  closes when its watch ends.
+- **Built:** tiled groups of temporary panes (`group`, `grid`; group
+  drag/resize kept per device; ADR 0053 addendum); TVs one per key,
+  `tvclose` 0, closed only on the real drop.
+- **Verified:** typecheck, unit 1864, build; full e2e 377/380 under load,
+  each failure passes alone; keymanager and map e2e rerun green.
+- **Next:** owner test round 8; release 0.1.28 when asked.
+- **Commits:** a3855f1, 7259cd1, 74ea44f, 9478e27, plus this one.
+
 ### 2026-10-02 — Stage 12 round 6 feedback built
 
 - **Owner:** a scry TV lives as long as the map blink (15 s) unless the
