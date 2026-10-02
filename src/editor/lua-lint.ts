@@ -6,7 +6,10 @@
 // - Syntax and header: the buffer is checked 300 ms after the last change
 //   (and once when the editor opens): the header parser, then a
 //   compile-only `LuaRuntime.check` (nothing runs). A fix clears the mark
-//   on the next check.
+//   on the next check. An error that is most likely the code being typed
+//   (on the cursor's line, right after the cursor, `near <eof>`) is held
+//   back while typing (lua-holdback.ts): it shows when the cursor leaves
+//   its line, 1.5 s after the last edit, or on save.
 // - Runtime: the library's `lastError` of the saved script
 //   (`name:line: message`), marked on that line of the saved text mapped
 //   through the edits since the save, dashed and labelled "Runtime error
@@ -24,6 +27,7 @@ import {
   runtimeDiagnostic,
   syntaxDiagnostic,
 } from './lua-diagnostics';
+import { HoldBack } from './lua-holdback';
 
 /** Compiles `source` as `name` without running it: null when it compiles, else the message. */
 export type SyntaxChecker = (name: string, source: string) => Promise<string | null>;
@@ -47,6 +51,13 @@ class ScriptLint implements PluginValue {
   private lastError: string | null = null;
   /** The error that was showing at the last save: not shown again. */
   private dismissed: string | null = null;
+  private readonly hold: HoldBack;
+  /** The last check's diagnostics (all, before the hold-back), its version and lines. */
+  private all: { version: number; ds: ScriptDiagnostic[]; lines: string[] } | null = null;
+  private cursorLine = 1;
+  /** What was last published (to skip a dispatch that changes nothing). */
+  private published = { version: -1, key: '' };
+  private publishQueued = false;
 
   constructor(
     private readonly view: EditorView,
@@ -54,18 +65,34 @@ class ScriptLint implements PluginValue {
   ) {
     this.saved = view.state.doc;
     this.sinceSaved = ChangeSet.empty(view.state.doc.length);
+    this.hold = new HoldBack(() => this.publish());
     this.schedule(0);
   }
 
   update(u: ViewUpdate): void {
-    if (!u.docChanged) return;
-    this.sinceSaved = this.sinceSaved.compose(u.changes);
-    this.version++;
-    this.schedule(CHECK_DELAY_MS);
+    const line = u.state.doc.lineAt(u.state.selection.main.head).number;
+    const moved = line !== this.cursorLine;
+    this.cursorLine = line;
+    if (u.docChanged) {
+      this.sinceSaved = this.sinceSaved.compose(u.changes);
+      this.version++;
+      this.hold.edited();
+      this.schedule(CHECK_DELAY_MS);
+    } else if (moved && this.all) {
+      // The cursor left a line: what was held there may show. Not inside an update: queued.
+      if (!this.publishQueued) {
+        this.publishQueued = true;
+        queueMicrotask(() => {
+          this.publishQueued = false;
+          this.publish();
+        });
+      }
+    }
   }
 
   destroy(): void {
     this.destroyed = true;
+    this.hold.dispose();
     if (this.timer) clearTimeout(this.timer);
   }
 
@@ -81,6 +108,7 @@ class ScriptLint implements PluginValue {
       this.sinceSaved = ChangeSet.of([{ from: 0, to: source.length, insert: doc }], source.length);
     }
     this.dismissed = this.lastError;
+    this.hold.reveal();
     this.schedule(0);
   }
 
@@ -110,13 +138,27 @@ class ScriptLint implements PluginValue {
       error = null; // no runtime: no syntax marks, the rest still shows
     }
     if (this.destroyed || version !== this.version) return;
-    const state = this.view.state;
     const lines = source.split('\n');
     const ds: ScriptDiagnostic[] = headerDiagnostics(source);
     if (error) ds.push(syntaxDiagnostic(name, error, lines));
     const rt = this.runtime(name);
     if (rt && !ds.some((d) => d.line === rt.line && d.message === rt.message)) ds.push(rt);
     ds.sort((a, b) => a.line - b.line);
+    this.all = { version, ds, lines };
+    this.publish();
+  }
+
+  /** Shows the last check's diagnostics that are not held back (lua-holdback.ts). */
+  private publish(): void {
+    const all = this.all;
+    if (this.destroyed || !all || all.version !== this.version) return;
+    const state = this.view.state;
+    const head = state.selection.main.head;
+    const line = state.doc.lineAt(head);
+    const ds = this.hold.filter(all.ds, { line: line.number, col: head - line.from }, all.lines);
+    const key = ds.map((d) => `${d.source}:${d.line}:${d.from ?? ''}:${d.message}`).join('\n');
+    if (key === this.published.key && all.version === this.published.version) return;
+    this.published = { version: all.version, key };
     const doc = state.doc;
     const out: Diagnostic[] = ds.map((d) => toDiagnostic(doc, d));
     this.view.dispatch(setDiagnostics(state, out));
