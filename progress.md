@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.26). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.27). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,6 +24,18 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Completion follows deletes, release 0.1.27
+
+- **Owner feedback round 6:** the completion list lost track after
+  Backspace (e.g. `gmcp.comm.channel.li` back to `gmcp.`). Fixed: a list
+  stays valid only while the word grows, and a plugin reopens it after
+  delete, Ctrl+Backspace, undo, redo, cut and paste when there are
+  candidates. Cursor moves and ESC-closed lists don't reopen.
+- **Verified:** unit 1721 green; editor e2e 64 passed in both browsers.
+- **Released:** 0.1.27 (tag v0.1.27).
+- **Next:** unchanged (stage 11 in a new session).
+- **Commits:** aebe38f, 36d9dc2, 5fcb57c, plus this one.
 
 ### 2026-10-02 — Completion after a dot, release 0.1.26
 
