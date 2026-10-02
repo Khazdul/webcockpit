@@ -51,6 +51,24 @@ describe('allocateAxis', () => {
     expect(sizes(allocateAxis(items(['group', 'comm']), 30)).comm).toBe(10 + 30 - 20);
   });
 
+  it('reserves a script pane its rows after Character in a full dock, if the others keep their minimums', () => {
+    const even = (['character', 'timers', 'group', 'comm', 'ui'] as BuiltinPaneId[]).map((id) => ({
+      id: id as PaneId,
+      desired: id === 'character' ? 9 : 200,
+      min: MIN[id],
+      frame: 2,
+    }));
+    const merc = { id: 'mercenaries/main' as PaneId, desired: 9, min: 1, frame: 2 };
+    const r = allocateAxis([...even, merc], 40);
+    expect(r.mode).toBe('scaled');
+    expect(sizes(r)).toMatchObject({ character: 9, 'mercenaries/main': 9 });
+    expect(total(r)).toBe(40);
+    // No room for both: the script pane scales with the rest.
+    const tight = sizes(allocateAxis([...even, merc], 30));
+    expect(tight.character).toBe(9);
+    expect(tight['mercenaries/main']).toBeLessThan(9);
+  });
+
   it('keeps exact desired sizes when they sum to the length', () => {
     const r = allocateAxis(items(), 48);
     const { map: _map, ...docked } = DES;

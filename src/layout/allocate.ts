@@ -235,15 +235,20 @@ export function allocateAxis(items: readonly AxisItem[], length: number): AxisRe
 
   // Character reserved first (ADR 0137 in Cockpit), if that leaves the
   // others their minimums; the rest scale between minimum and desired.
-  const ch = live.find((i) => i.id === 'character');
+  // Script panes ask for a definite size (createPane rows/cols) and are
+  // reserved the same way after Character, in stack order (ADR 0053 P2):
+  // scaled against the built-ins' even share (EVEN_SHARE_DESIRED) they
+  // would get a row or two.
   let scaled = live;
   let avail = length - frames;
-  if (ch && live.length > 1) {
-    const othersMin = sum(live.filter((i) => i !== ch).map((i) => i.min));
-    if (ch.desired + othersMin <= avail) {
-      size.set(ch.id, ch.desired);
-      scaled = live.filter((i) => i !== ch);
-      avail -= ch.desired;
+  const reserve = [...live.filter((i) => i.id === 'character'), ...live.filter((i) => !isBuiltinPaneId(i.id))];
+  for (const r of reserve) {
+    if (scaled.length < 2) break;
+    const othersMin = sum(scaled.filter((i) => i !== r).map((i) => i.min));
+    if (r.desired + othersMin <= avail) {
+      size.set(r.id, r.desired);
+      scaled = scaled.filter((i) => i !== r);
+      avail -= r.desired;
     }
   }
   const mins = sum(scaled.map((i) => i.min));
