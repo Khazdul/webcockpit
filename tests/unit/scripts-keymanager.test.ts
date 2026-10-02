@@ -19,6 +19,7 @@ import { resetScriptKeys } from '../../src/script/script-keys';
 import { ScriptLibrary } from '../../src/scripts';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { ScriptHost } from '../../src/scripts/host';
+import { MapMarkHub } from '../../src/map/marks';
 
 const EPOCH0 = 1_790_000_000;
 const HOUR = 3_600_000;
@@ -91,7 +92,7 @@ function text(c: PaneContent, r: number): string {
   return 'spans' in l ? l.spans.map((s) => s.text).join('') : '';
 }
 
-async function setup(opts: { login?: string | null; before?: (lib: ScriptLibrary) => Promise<void> } = {}) {
+async function setup(opts: { login?: string | null; before?: (lib: ScriptLibrary) => Promise<void>; map?: MapMarkHub } = {}) {
   const bus = new Bus();
   const clock = new FakeScheduler();
   const sent: string[] = [];
@@ -131,6 +132,7 @@ async function setup(opts: { login?: string | null; before?: (lib: ScriptLibrary
     loadRuntime: () => loadLuaRuntime(),
     epoch: () => EPOCH0 + clock.now() / 1000,
     panes,
+    ...(opts.map ? { map: opts.map } : {}),
   });
   hosts.push(host);
   await host.start();
@@ -836,7 +838,7 @@ describe('bundled keymanager', () => {
       t.recv('It is dark here.', '');
       t.bus.emit('text.line', gline('*+ W Mana:Hot>', [], true));
       t.recv('You are hungry.');
-      expect(t.texts().slice(n0)).toEqual(['KEYS TV $cave: scried.', 'You are hungry.']);
+      expect(t.texts().slice(n0)).toEqual(['KEYS TV $cave: scried (map off).', 'You are hungry.']);
       const tv = t.panes.tv(1)!;
       expect(tvText(tv)).toEqual(['· scried', 'The Dark Cave', 'It is dark here.']);
       expect(span(tv, 1, 'Dark')!.fg).toBe(2);
@@ -910,6 +912,60 @@ describe('bundled keymanager', () => {
       expect(t.panes.tv(1)!.content.title).toMatch(/^TV \$a1 /);
       t.input('tv nope');
       expect(t.lastText()).toBe('KEYS No TV for $nope yet: watchr nope or scry nope.');
+    });
+  });
+
+  describe('scry on the map (round 6, ADR 0057)', () => {
+    const SCRY = 'You let your inner eye find the area... and you see:';
+    function mapRig() {
+      const hub = new MapMarkHub();
+      const marks: Array<{ id: number; target: unknown; style: unknown; ms: number; focus: boolean }> = [];
+      hub.attach({
+        find: () => {},
+        mark: (id, target, style, ms, focus) => void marks.push({ id, target, style, ms, focus }),
+        unmark: () => {},
+        shown: () => true,
+      });
+      return { hub, marks };
+    }
+
+    it('a scry block marks its room: name, description lines, exits; magenta 15 s with focus; the KEYS TV line says the result', async () => {
+      const m = mapRig();
+      const t = await setup({ map: m.hub });
+      t.input('nkey cave abcdefghi');
+      t.input('scry cave');
+      const n0 = t.texts().length;
+      t.recv(SCRY, 'A Tunnel', 'The tunnel runs deep into the mountain here, damp and cold.', 'A magenta aura glows.', 'Exits: north, [south].', '', PROMPT);
+      // (PROMPT here is not marked as a prompt, so it stays.)
+      expect(t.texts().slice(n0)).toEqual([PROMPT]);
+      expect(m.marks).toEqual([
+        {
+          id: expect.any(Number),
+          target: {
+            query: {
+              name: 'A Tunnel',
+              lines: ['The tunnel runs deep into the mountain here, damp and cold.', 'A magenta aura glows.'],
+              exits: 'Exits: north, [south].',
+            },
+          },
+          style: { color: 0xff40ff, blink: true, fade: 5, arrows: true, label: '$cave' },
+          ms: 15000,
+          focus: true,
+        },
+      ]);
+      m.hub.marked(m.marks[0]!.id, [5, 9, 12, 14], 4);
+      expect(t.lastText()).toBe('KEYS TV $cave: scried; 4 rooms named "A Tunnel" marked (nearest first).');
+      t.recv(SCRY, 'A Tunnel', '', PROMPT);
+      m.hub.marked(m.marks[1]!.id, new Array(20).fill(1), 230);
+      expect(t.lastText()).toBe('KEYS TV scry: scried; 20 of 230 rooms named "A Tunnel" marked (nearest first).');
+      t.recv(SCRY, 'Somewhere Odd', '', PROMPT);
+      m.hub.marked(m.marks[2]!.id, [], 0);
+      expect(t.lastText()).toBe('KEYS TV scry: scried; "Somewhere Odd" is not on the map.');
+      t.recv(SCRY, 'Bree Gate', '', PROMPT);
+      m.hub.marked(m.marks[3]!.id, [7], 1);
+      expect(t.lastText()).toBe('KEYS TV scry: scried; on the map.');
+      expect((m.marks[3]!.style as { label?: string }).label).toBeUndefined();
+      expect(t.lib.get('keymanager')!.lastError).toBeNull();
     });
   });
 });

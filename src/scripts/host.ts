@@ -986,8 +986,10 @@ export class ScriptHost {
       if (typeof name !== 'string' || name.trim() === '') throw new Error(`bad argument #${i} to '${a.name}' (name must be a string)`);
       const q: RoomQuery = { name };
       if (v.lines !== undefined) {
-        if (!Array.isArray(v.lines) || !v.lines.every((l) => typeof l === 'string')) throw new Error(`bad argument #${i} to '${a.name}' (lines must be a list of strings)`);
-        q.lines = (v.lines as string[]).slice(0, 100);
+        // An empty Lua table reads as an object.
+        const lines = isObject(v.lines) && Object.keys(v.lines).length === 0 ? [] : v.lines;
+        if (!Array.isArray(lines) || !lines.every((l) => typeof l === 'string')) throw new Error(`bad argument #${i} to '${a.name}' (lines must be a list of strings)`);
+        q.lines = (lines as string[]).slice(0, 100);
       }
       if (v.exits !== undefined) {
         if (typeof v.exits !== 'string') throw new Error(`bad argument #${i} to '${a.name}' (exits must be a string)`);

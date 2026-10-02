@@ -47,6 +47,12 @@
 -- @help     the game's colours; for 10 seconds their plain text is white,
 -- @help     then grey. A TV closes by itself a minute after its watch ends
 -- @help     (tvclose); tv <name> opens it again with its lines.
+-- @help     A scry also shows the room on the Map pane: it blinks magenta
+-- @help     for 15 seconds (an arrow points to it when it is off the view)
+-- @help     and the map zooms out to show it and you, then back, unless you
+-- @help     moved the map meanwhile. Rooms are found by their name (several
+-- @help     with that name: the 20 nearest); the KEYS line says what it
+-- @help     found, or that the map is off.
 -- @help     In the Port keys pane, a key with a watch running or a scry in
 -- @help     the last 12 hours has a ◻ before its x: it opens and closes the
 -- @help     TV. While a watch runs, the time column counts it down.
@@ -1382,12 +1388,49 @@ end)
 
 -- A scry: the room's lines follow, up to a blank line.
 local scrying = nil
+-- The scried room on the map (ADR 0057): its first line is the room's
+-- name, the rest narrow by the description and the Exits: line. The dim
+-- KEYS TV line says what happened.
+local MARK_COLOR = "#ff40ff"
+local MARK_SECS, MARK_FADE = 15, 5
+
+local function tvWho(tv) return tv.id == "scry" and "TV scry" or ("TV $" .. tv.name) end
+
+local function scryLine(tv, what)
+  cecho(TAG .. "<" .. DIM .. ">" .. tvWho(tv) .. ": " .. what .. ".")
+end
+
+local function markScry(tv, lines)
+  if #lines == 0 then return scryLine(tv, "scried") end
+  local name = lines[1].p
+  local rest, exits = {}, nil
+  for i = 2, #lines do
+    local p = lines[i].p
+    if p:match("^%s*Exits:") then exits = p else rest[#rest + 1] = p end
+  end
+  local opts = { color = MARK_COLOR, duration = MARK_SECS, fade = MARK_FADE, focus = true }
+  if tv.id ~= "scry" then opts.label = "$" .. tv.name end
+  local h, why = mapMark({ name = name, lines = rest, exits = exits }, opts, function(count, total)
+    if count == 0 then
+      scryLine(tv, 'scried; "' .. name .. '" is not on the map')
+    elseif total == 1 then
+      scryLine(tv, "scried; on the map")
+    elseif count < total then
+      scryLine(tv, "scried; " .. count .. " of " .. total .. ' rooms named "' .. name .. '" marked (nearest first)')
+    else
+      scryLine(tv, "scried; " .. count .. ' rooms named "' .. name .. '" marked (nearest first)')
+    end
+  end)
+  if not h then scryLine(tv, "scried (" .. (why or "map off") .. ")") end
+end
+
 local function scryDone()
   local sc = scrying
   if not sc then return end
   scrying = nil
   killTrigger(sc.trig)
   if sc.timer then killTimer(sc.timer) end
+  markScry(sc.tv, sc.lines)
   -- A key's last scry is kept (small), for its TV after a reload.
   local k = lib and lib.keys[sc.tv.id]
   if k and #sc.lines > 0 then
@@ -1404,7 +1447,8 @@ tempRegexTrigger("^You let your inner eye find the area\\.\\.\\. and you see:$",
   local tv = pc and tvOf(pc.name) or tvOf("scry")
   tv.scried = now()
   tvAdd(tv, nil, "· scried", true)
-  tvSay(tv, "scried")
+  -- The header line goes; the KEYS TV line with the map's answer follows the block.
+  if settings.tvgag then deleteLine() end
   local sc = { tv = tv, n = 0, lines = {} }
   scrying = sc
   sc.trig = tempRegexTrigger("^(.*)$", function()
