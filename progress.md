@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.25). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.26). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,6 +24,19 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Completion after a dot, release 0.1.26
+
+- **Owner feedback round 5:**
+  - no "F1 Manual" line in the pop-ups;
+  - the member list opens right after `.` or `:`, for the libraries,
+    `gmcp`, `state`, `settings`, `store` and string methods;
+  - the list shows 10 rows and scrolls; the info panel is capped.
+- **Verified:** unit 1716 green; editor e2e 44 passed in both browsers.
+- **Released:** 0.1.26 (tag v0.1.26), deploy OK, live `release.json`
+  reports 0.1.26 at 11d5d09, prod smoke 10/10.
+- **Next:** unchanged (stage 11 in a new session).
+- **Commits:** fbecb9e, d1f274c, 23ed424, 11d5d09, plus this one.
 
 ### 2026-10-02 — Script editor as a code editor, release 0.1.25
 
