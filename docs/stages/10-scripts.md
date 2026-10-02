@@ -92,9 +92,10 @@ packages, Mudlet API compatibility beyond the names in §2.10.
   - [x] native pixel scrolling in the HELP view and the manual;
   - [x] native scrolling on About, History/Profiles tables, Statistics,
         the Scripts list, help and import view, the LITE list and the
-        export editor. Left (owner decision): the Comm/UI/Timers panes
-        (Inv §2.7.5 scroll by message/row) and the log player's paused
-        wheel cursor (Inv §7.5).
+        export editor. Left (owner decision): the log player's paused
+        wheel cursor (Inv §7.5);
+  - [x] native pixel scrolling in the Comm, UI and Timers panes (owner
+        decision 2026-10-02, ADR 0052; amends Inv §2.4, §2.6.1, §2.7.5).
 
 ## Test guide
 
@@ -187,3 +188,5 @@ Round 1 (2026-10-02):
    it.
 7. Scrolling with the wheel or touchpad should feel like the EDITOR
    everywhere (native pixels, no row steps); HELP was the example.
+   Decision 2026-10-02: the Comm, UI messages and Timers panes too
+   (ADR 0052); the log player's paused wheel cursor stays.
