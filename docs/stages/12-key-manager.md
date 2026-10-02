@@ -148,4 +148,24 @@ width? Do the failure messages and timings match what MUME does?
 
 ## Owner feedback
 
-None yet.
+### Round 1 (2026-10-02)
+
+1. UI messages are missing: a key added (stored, renewed, replaced),
+   deleted, renamed or expired, and a safe key change, should show in
+   the UI messages.
+2. The pane title should be "Port keys".
+3. Clicking a key's name in the pane renames it inline: the name becomes
+   a text field, prefilled and selected; Enter validates and renames
+   (error inline, field kept), Esc cancels. Hint: "Click to rename".
+4. No hint on the time-left column.
+5. `#script set keymanager hours 10` does not update the pane until the
+   next locate: a setting change must redraw at once.
+6. Script panes cannot be scrolled when the content does not fit: make
+   them scroll like the built-in panes, with a `createPane` option for
+   where the view sticks (bottom like a console, or top like a list).
+7. Remove `dkey`, `rkey` and `krename`: the pane does this now. Keep
+   `nkey`.
+8. Remove the character name at the top left of the pane.
+
+The owner started a thought about the pick window but did not finish
+it; the pick window is unchanged for now.
