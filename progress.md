@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: **11 — Script panes** (next, in a new session; stage 10 done and released in 0.1.24). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: **11 — Script panes** (next, in a new session; stage 10 done; latest release 0.1.25). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,6 +24,23 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-02 — Script editor as a code editor, release 0.1.25
+
+- **Owner feedback round 4:**
+  - SAVE and MANUAL buttons removed (Ctrl+S, F1);
+  - Tab indents and accepts completions;
+  - live errors held back while typing on their line or on unfinished
+    code (released by leaving the line, 1.5 s idle, or save);
+  - Enter auto-closes blocks (`end`, `end)`, `until`);
+  - case auto-correct of API and Lua names (undo once and it stays).
+- **Verified:** unit 1712 green; editor e2e 38/38; full e2e flakes only
+  in the replay file:// test (fails on base too) and the Statistics
+  scroll test, both of which pass alone.
+- **Released:** 0.1.25 (tag v0.1.25), deploy OK, live `release.json`
+  reports 0.1.25 at ca48c68, prod smoke 10/10.
+- **Next:** unchanged (stage 11 in a new session).
+- **Commits:** 36d703e..cfb8653, ca48c68, plus this one.
 
 ### 2026-10-02 — Lua help, stage 10 done, release 0.1.24
 
