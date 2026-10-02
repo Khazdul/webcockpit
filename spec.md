@@ -440,8 +440,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - **Mercenaries:** a pane with the mercenaries' contracts, a cost of
     10 silver or 1 gold, autopay, pay on click, and the orders `ask
     <name> lead`, `ride` and `flee`.
-  - **Key manager:** a pane listing keys and doors. It draws on the
-    owner's Mudlet reference script.
+  - **Key manager:** port keys from `locate life`, per character, for
+    12 hours, in a Keys pane with casts (teleport, portal, scry, watch
+    room) and a safe key (Ctrl+S, Alt+S). Every locate opens a pick
+    window where the key's name is typed; `$name` in any command becomes
+    the key (ADR 0054). It follows the owner's Mudlet script.
 
   Bundled scripts are read-only and are updated with each release.
   *Duplicate* makes an editable copy that is never overwritten.
