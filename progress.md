@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Stage 12 round 6 feedback built
+
+- **Owner:** a scry TV lives as long as the map blink (15 s) unless the
+  key is watched; `◻` blinks cyan/red during a watch; a TV closed itself
+  every second during a watch (bug); marks linger 3 min after the blink.
+- **Built:** `mapMark{linger}` (steady, no ticker; ADR 0057); TVs know
+  whether an event or the player opened them (the bug's fix); `◻` blink
+  via `setText`.
+- **Verified:** typecheck, unit 1859, build; full e2e 377/378 rerun by the
+  main session (Firefox caret test flakes under load, 5/5 alone).
+- **Next:** owner test round 7; release 0.1.28 when asked.
+- **Commits:** 49ca986, 5173b67, 742ca65, 09f7079, plus this one.
+
 ### 2026-10-02 — Stage 12 round 6 built: scry marks on the map
 
 - **Owner:** a scried room blinks magenta on the map for 15 s, with
