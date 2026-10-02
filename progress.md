@@ -25,6 +25,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — About: Lua scripts, release 0.1.28
+
+- **Owner request:** a short LUA SCRIPTS section in About after SETTINGS:
+  Lua with its own API, and the editor that completes commands and shows
+  syntax and help. A first, bulleted version was too long; cut to one
+  paragraph.
+- **Verified:** unit 1866 green, typecheck clean.
+- **Released:** 0.1.28 (tag v0.1.28).
+- **Next:** unchanged (stage 11 in a new session).
+- **Commits:** 6aba300, c081e76, 4f1a27b, plus this one.
+
 ### 2026-10-02 — Stage 12 done
 
 - **Owner:** satisfied after round 8; close the stage, no release yet.
