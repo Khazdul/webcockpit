@@ -535,3 +535,126 @@ pane's background, and on a light pane span colours go through
 - Bundled script sources ship in the cold-start chunk; with more
   bundled scripts they could be loaded with the host instead.
 - A one-row script pane shows only `↑ N more rows` (the built-in rule).
+
+## Feedback round 1 (2026-10-02)
+
+The owner's first test round (stage file, "Owner feedback → Round 1"):
+a mercenary costs 1 gold (20 silver) at a higher level; the wanted orders
+are `ask <name> lead`, `ride` and `flee`; scripts want short-lived panes
+that stay out of the menus.
+
+**Mercenaries.**
+
+- *Cost.* A `cost` setting (number, default 10; anything above 15 counts
+  as 20). 10 is paid as `give 10 silver <Name>`, 20 as `give 1 gold
+  <Name>`; autopay, the PAY DUE bar, `merc pay`, the hints, the empty
+  state's `Hire one: give … mercenary`, `merc list` (which also prints the
+  cost) and the paid total (in silver) follow it. Renewal is unchanged:
+  the thanks line renews whatever was paid.
+- *Toggle.* `Cost [10s]` / `Cost [1g]` in the header after the autopay
+  toggle, a link with a tooltip that says what a payment is and what a
+  click switches to; `merc cost [10|20]` does the same. The pane draws
+  the new cost at once (a local value until `setSetting` has saved it,
+  as for autopay).
+- *Learning.* No log (Cockpit's runs, MMapper logs, the owner's session
+  files) has a mercenary naming its price; searched again for this
+  round. The trigger is therefore loose but scoped: only a line spoken by
+  a citizen mercenary (`A citizen mercenary`, `A citizen-mercenary`, with
+  or without a `(Label)`, `says|asks|exclaims|tells you|asks you|whispers
+  to you`, the text in single quotes), and only when the text names one
+  price: `10 silver`/`ten silver` → 10, `1 gold`/`one gold`/`20
+  silver`/`twenty silver` → 20 (word-start anchored, so `110 silver` does
+  not count). A line naming both is ignored. A change posts `▶ MERC: A
+  mercenary asks 1 gold (20 silver); payments are now 1 gold (20
+  silver).`; the same price again posts nothing.
+- *Orders.* Exactly three one-cell links: `l` `ask <Name> lead`, `r`
+  `ask <Name> ride`, `f` `ask <Name> flee`, tooltip `Lead: ask <Name>
+  lead` etc. They no longer need the character's name. Pay is not an
+  order: while pay is due the whole PAY DUE gauge row is one link (tooltip
+  `Pay <Name> 1 gold now:` and the command); otherwise the gauge has no
+  link.
+- *Width.* Name and presence take 16 cells; the orders need 1 + 2 per
+  letter and drop from the right (`f` first), so all three need 23
+  columns and none are left below 19. The header keeps `Autopay [x]`,
+  then `  Cost [..]` when 12 more cells fit, then the `N hired` count
+  right-aligned when it fits with a space before it. In the default right
+  dock (31 content columns) the count is dropped; the rows show the
+  mercenaries anyway.
+
+```
+▛▀ Mercenaries ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜
+▌ Autopay [off]  Cost [10s]       ▐   both toggle on a click
+▌ Bubba    ● here          l r f  ▐   lead, ride, flee
+▌██████████ 21:40 left ░░░░░░░░░░░▐
+▌ Zeke     ○ away          l r f  ▐
+▌███ PAY DUE 0:42 ░░░░░░░░░░░░░░░░▐   the whole bar pays
+▙▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▟
+```
+
+**Temporary panes.**
+
+- *Id.* `createPane{…, temporary = true}` opens `<script>/~<id>`. The
+  `~` keeps it apart from an ordinary pane of the same name (a script may
+  have both), and `isScriptPaneId` is false for it (`isTempPaneId`,
+  `tempPaneId` are separate), so settings migration drops one that
+  somehow got there and Options, the viewer's gear and the player's
+  viewer toggles never list it. `createPane` with an id the script
+  already has returns that pane, whatever `temporary` says; `temporary`
+  must be a boolean.
+- *Placement.* The cockpit keeps temporary panes outside `allocate`, in
+  memory (`addPane(shell, temp)`, `tempPane(id)`, `setTempPane(id,
+  {on, rect})`): a framed float above every other float (z-order after
+  `layout.floating`; a press brings one to the front of the temporary
+  ones), centred over the game pane at `rows × cols` content cells
+  (`cols + 2` × `rows + 2` outer), clamped to the window. `dock` is
+  ignored. The user can move it and resize it by its edges; it never
+  docks (no dock or edge zone takes it) and the rectangle stays in memory
+  for its lifetime. Colour and border are the defaults (black, framed):
+  there is no settings entry to change them.
+- *Close.* `pane:close()` works for any pane: the pane leaves the screen,
+  its link, resize and close functions are released, and method calls
+  on the object become no-ops (`size()` → 0, 0, `visible()` → false); a
+  new `createPane` with the id makes a new pane. For an ordinary pane
+  this is not hide: its place, colour and on/off stay in the settings,
+  untouched, for the next `createPane`. A temporary pane's close cross
+  (tooltip `Close <title>`, not `Hide`) closes it the same way and then
+  calls `pane:onClose(fn)`; the handler is called only for that, not by
+  `close()` and not when the script stops, and an ordinary pane's cross
+  still hides it without calling it. Calling a method of another
+  script's pane is still an error.
+- *Show, hide, visible* switch the cockpit's in-memory on/off; nothing
+  is written.
+- *Runs.* A temporary pane's SPANE records carry `"temp": {rows, cols,
+  rect?, off?}` (the wanted size, the user's rectangle once moved, `off`
+  while hidden): in every full record, and in a delta when it changed
+  (a move alone writes `{"n":N,"temp":…}`). `RecordingPaneSurface` adds
+  it from `ScriptPaneView.placement()` at flush time, and a move marks
+  the pane dirty through `ScriptPaneEvents.onPlace`. Read back it is
+  checked and capped (`sanitizeTemp`, cells ≤ 1000); the export's folded
+  records keep it. The log player adds the pane as a temporary pane of
+  its cockpit at the recorded place and follows moves and hides; the
+  viewer's close cross hides it until it goes away. Spotlights hide
+  temporary panes (`PlayerHost.hideTempPanes`).
+- *Release.* A disable or reload closes temporary panes like the others
+  (nothing of them remains anywhere).
+
+**Tests.** Unit: mercenaries (cost toggle, gold payment by bar, autopay
+and `merc pay`, learning and its false positives, orders, width), host
+(temporary spec, cross → close → onClose, no-ops after close, release,
+`close()` of an ordinary pane), cockpit surface (centred, above floats,
+clamped, nothing in the settings, show/hide, cross, same name apart,
+migration), records (temp in full and delta, defensive read, export
+fold), log player (placement, move, hide, viewer cross, Spotlights).
+e2e: the mercenaries flow with the new orders, cost toggle and PAY DUE
+click; a temporary pane centred, dragged, absent from Options and the
+settings, closed by its cross, by a link calling `close()` and from an
+alias.
+
+**Open.**
+
+- The price lines are a guess; a real one should replace the loose
+  trigger's test lines.
+- Whether `ask <name> lead/ride/flee` is accepted by a mercenary is not
+  in any log.
+- A temporary pane cannot be docked; if a script wants a dockable
+  short-lived pane it uses an ordinary one and `close()`.

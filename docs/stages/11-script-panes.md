@@ -111,34 +111,45 @@ Chromium. Log in to MUME with a character that has some silver.
 1. **Turn mercenaries on:** Options → Scripts, select `mercenaries`
    (lock mark), read its help on the right, toggle it `[X]` (or type
    `#script enable mercenaries` in game). A *Mercenaries* pane appears at
-   the bottom of the right dock: `Autopay [off]`, `No mercenaries hired.`
-   and `Hire one: give 10 silver mercenary`. `merc` hides and shows it.
-2. **Hire one (the key thing to confirm):** find a citizen mercenary
-   and `give 10 silver mercenary`. The script expects MUME to answer
-   `A citizen mercenary starts following you.`; it then sends `label
-   mercenary <Name>` and, after `Ok.`, `group <Name>`. The pane gets a
-   row `<Name> ● here $ a r p f s` and a green gauge counting down from
-   `25:00 left`. **These lines and the 25 minutes per 10 silver are
-   written from Cockpit's script, not from a real log.** Please check:
+   the bottom of the right dock: `Autopay [off]  Cost [10s]`, `No
+   mercenaries hired.` and `Hire one: give 10 silver mercenary`. `merc`
+   hides and shows it.
+2. **The cost (round 1):** click `[10s]` in the top row: it becomes
+   `[1g]` (tooltip: *A payment is 1 gold (20 silver)*) and the hint says
+   `Hire one: give 1 gold mercenary`; click again for 10 silver
+   (`merc cost`, `merc cost 20` too). It is kept as the script's `cost`
+   setting. The script also switches by itself when a citizen mercenary
+   says, tells or asks something that names *10 silver* or *1 gold* /
+   *20 silver*, with a `▶ MERC:` line in the UI pane. **We have no real
+   line where a mercenary names its price**: if you see one, please copy
+   it.
+3. **Hire one (the key thing to confirm):** find a citizen mercenary
+   and pay it (`give 10 silver mercenary`, or `give 1 gold mercenary`).
+   The script expects MUME to answer `A citizen mercenary starts
+   following you.`; it then sends `label mercenary <Name>` and, after
+   `Ok.`, `group <Name>`. The pane gets a row `<Name> ● here  l r f`
+   and a green gauge counting down from `25:00 left`. **These lines and
+   the 25 minutes per payment are written from Cockpit's script, not
+   from a real log.** Please check:
    - Does the hire line match exactly? Are label and group sent?
    - Near the end, does the mercenary *tap you on the shoulder*? The row
      should turn to a red `PAY DUE` gauge with a one-minute countdown.
-     Click `$` (or `merc pay`): `give 10 silver <Name>`; MUME's thanks
-     (`… says 'Thank you. I am at your service.'`) should reset the
-     gauge to 25:00.
+     Click anywhere on that bar (or `merc pay`): `give 10 silver
+     <Name>`, or `give 1 gold <Name>` at the 20 silver cost; MUME's
+     thanks (`… says 'Thank you. I am at your service.'`) should reset
+     the gauge to 25:00.
    - If you do not pay: does it leave, and does the row go away with a
      `▶ MERC:` line in the UI pane?
    - Is 25 minutes right? Compare the gauge with when it really taps.
    - If anything does not match, a copy of the real lines (or the run's
      log from History → RUN LOG) is the most useful feedback.
-3. **Orders:** point at each letter for its tooltip, then click it:
-   `a` assist, `r` rescue you, `p` protect you, `f` flee, `s` stand.
-   Do `order <Name> flee` and `order <Name> stand` work on a mercenary
-   (they do on charmed followers)? `merc autopay` turns autopay on
+4. **Orders:** point at each letter for its tooltip (it names the
+   command), then click it: `l` sends `ask <Name> lead`, `r` `ask <Name>
+   ride`, `f` `ask <Name> flee`. `merc autopay` turns autopay on
    (`[on]` in the header, also clickable); `merc list` prints the
-   contracts; `merc label 2.mercenary` tracks one hired before the
-   script was on.
-4. **A pane of your own:** Options → Scripts → *NEW*, then for example:
+   contracts and the cost; `merc label 2.mercenary` tracks one hired
+   before the script was on.
+5. **A pane of your own:** Options → Scripts → *NEW*, then for example:
 
    ```lua
    local pane = createPane{id = "hp", title = "HP", dock = "float", rows = 3, cols = 24}
@@ -158,12 +169,31 @@ Chromium. Log in to MUME with a character that has some silver.
    listed as `HP (yourscript)`, with colour and border). Disable the
    script and enable it again: it comes back where you left it, also
    after a reload. Type `pane:` in the editor for the pane methods.
-5. **Runs:** play a few minutes with the Mercenaries pane (or your own)
+6. **A temporary pane (round 1):** in your script, add for example
+
+   ```lua
+   tempAlias("^pick$", function()
+     local p = createPane{id = "pick", title = "Which way?", temporary = true, rows = 1, cols = 24}
+     p:setLine(1, " <yellow>[north]<reset>  <yellow>[south]")
+     p:setLink(1, 2, 7, function() send("north"); p:close() end, "Go north")
+     p:setLink(1, 11, 7, function() send("south"); p:close() end, "Go south")
+     p:onClose(function() echo("No choice made.") end)
+     tempTimer(10, function() p:close() end)
+   end)
+   ```
+
+   `pick` shows it centred over the game text, above the other panes. It
+   is not in Options → Panes; drag it somewhere, then close it with its
+   cross (*No choice made.*), with a choice, or wait 10 s. The next
+   `pick` shows it centred again. The Manual's *Panes* section has the
+   same kind of example.
+7. **Runs:** play a few minutes with the Mercenaries pane (or your own)
    shown, then History → RUN LOG: the pane is in the log player with
    what it showed at each moment; tooltips work, clicks do nothing; the
    gear lists it. EXPORT that session as an HTML replay and open the
-   file: the pane is there too.
-6. **Export all scripts:** Options → Scripts → *EXPORT* now asks: *This
+   file: the pane is there too. A temporary pane is in the log player
+   too, where you saw it, but not in the gear.
+8. **Export all scripts:** Options → Scripts → *EXPORT* now asks: *This
    script (name.lua)* or *All scripts and their data (backup)*. Take the
    backup (`webcockpit-scripts-<date>.json`), delete a script of your
    own, then *IMPORT* the backup: a page shows what it holds and a
@@ -181,8 +211,9 @@ Chromium. Log in to MUME with a character that has some silver.
   built-in panes); give the Mercenaries pane a few rows.
 
 **Feedback wanted:** above all whether the mercenary lines (hire, tap,
-thanks, leave) and the contract time match real MUME, and whether
-`stand` and `flee` orders work. Then: the pane's look in your theme and
+thanks, leave) and the contract time match real MUME, whether `ask
+<name> lead/ride/flee` work, and a real line where a mercenary names its
+price. Then: the pane's look in your theme and
 colours, its default place, whether the orders are easy to hit, and
 anything in the pane API that felt odd while writing your own.
 
@@ -215,3 +246,12 @@ Main-session decisions for round 1:
   viewer's gear, nothing persisted (placement, on/off, colour), floats
   centred over the game pane unless placed, `pane:close()` removes it,
   and its close cross closes it. Recorded in runs like other panes.
+
+Round 1 built (2026-10-02, ADR 0053 "Feedback round 1"):
+
+- [x] Mercenaries: `cost` setting, `Cost [10s]`/`[1g]` toggle and `merc
+  cost`, learnt from a mercenary's price lines; `l r f` orders (`ask`);
+  PAY DUE bar pays.
+- [x] Temporary panes, `pane:close()`, `pane:onClose(fn)`; runs and the
+  log player; Spotlights hide them; API docs and manual example.
+- [ ] Owner test of round 1 (test guide items 1–4 and 6 above).
