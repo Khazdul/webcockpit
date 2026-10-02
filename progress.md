@@ -25,6 +25,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Map wheel always zooms
+
+- **User report (Discord):** on a laptop trackpad, pinch / two-finger
+  swipe changed map layer instead of zooming (arrives as Ctrl+wheel).
+- **Owner decision:** drop manual layer change; every wheel zooms.
+- **Done:** Ctrl branch and the `layer` message path removed; pinch
+  (Ctrl, |deltaY| < 50 px) uses 40 px per notch. ADR 0059.
+- **Verified:** typecheck clean, unit 1872 green, map e2e 16 green.
+  Not tested on a real trackpad.
+- **Next:** release when the owner says so; ask the reporter to retest.
+- **Commits:** f0ee7b5, 9c8fef2, plus this one.
+
 ### 2026-10-03 — Paper background sets ink and a paper palette, release 0.1.30
 
 - **Owner request:** choosing paper sets ink as font colour and an ANSI
