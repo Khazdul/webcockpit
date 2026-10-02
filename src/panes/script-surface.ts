@@ -40,7 +40,7 @@ export interface ScriptPaneSpec {
    * `at` says (default centred), or where the user last put it on this
    * device; nothing in the settings.
    */
-  temporary?: { rows: number; cols: number; at?: TempPaneAt };
+  temporary?: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } };
 }
 
 export interface ScriptPaneEvents {
@@ -136,7 +136,14 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
    * rectangle the user gave it is kept per device (temp-places.ts) and used
    * the next time it opens.
    */
-  private openTemp(id: ScriptPaneId, size: { rows: number; cols: number; at?: TempPaneAt }, pane: ScriptPane, events: ScriptPaneEvents): ScriptPaneView {
+  private openTemp(
+    id: ScriptPaneId,
+    size: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } },
+    pane: ScriptPane,
+    events: ScriptPaneEvents,
+  ): ScriptPaneView {
+    // A grouped pane is tiled by the cockpit, which keeps the group's place.
+    const grouped = size.group !== undefined;
     let closed = false;
     const view: ScriptPaneView = {
       changed: () => pane.changed(),
@@ -158,11 +165,11 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     };
     this.cockpit.addPane(pane, {
       ...size,
-      rect: tempPlace(id),
+      rect: grouped ? null : tempPlace(id),
       onClose: () => (events.onClose ? events.onClose() : view.close()),
       onPlace: () => {
         const rect = this.cockpit.tempPane(id)?.rect;
-        if (rect) saveTempPlace(id, rect);
+        if (rect && !grouped) saveTempPlace(id, rect);
         events.onPlace?.();
       },
     });

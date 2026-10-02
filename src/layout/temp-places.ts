@@ -90,11 +90,20 @@ export function saveTempPlace(id: string, rect: Rect | null, s?: Storage | null)
   }
 }
 
-/** Forgets every saved rectangle (Reset layout). */
+const forgotten = new Set<() => void>();
+
+/** Calls `fn` after `forgetTempPlaces` (the cockpit resets its tiled groups). */
+export function onTempPlacesForgotten(fn: () => void): () => void {
+  forgotten.add(fn);
+  return () => forgotten.delete(fn);
+}
+
+/** Forgets every saved rectangle and group place (Reset layout). */
 export function forgetTempPlaces(s?: Storage | null): void {
   try {
     storage(s)?.removeItem(TEMP_PLACES_KEY);
   } catch {
     /* blocked */
   }
+  for (const fn of [...forgotten]) fn();
 }

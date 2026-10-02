@@ -728,3 +728,46 @@ at `"top"`, clear of the text the locate just printed below it.
   four views; a fifth pane is the script's choice. Records carry any
   non-centre `at`; the list lives in `src/layout/temp-places.ts`
   (`TEMP_PANE_AT`), so the host does not import the cockpit.
+
+## Addendum — stage 12 round 8: tiled groups (2026-10-02)
+
+Four key manager TVs opened one after another landed one per corner, at
+remembered per-slot rectangles: scattered. The owner wants them side by
+side in a logical order, the first at the game pane's top left, the
+second right of it, the third below the first, the fourth below the
+second, with no holes as they open and close. Supersedes the "one
+temporary pane, one remembered rectangle" rule for grouped panes;
+ungrouped temporary panes are unchanged.
+
+- **API.** `createPane{temporary = true, group = "tv", grid = {cols =
+  2}, at = "top-left", rows, cols}`. `group` (a pane-id-like name) is per
+  script (key `<script>/<group>`); `grid.cols` 1–8, default 2; `at` gives
+  the corner (an edge or the centre counts as top-left). `group` without
+  `temporary` is an error.
+- **Tiling** (`src/layout/tiles.ts`, pure). Members tile row-major in
+  opening order from the corner, growing away from it (`top-right` grows
+  left and down, the bottom corners grow up). Tiles abut: no gutter, the
+  frames make the seams and a gap of one cell looked like a mistake.
+  Fitting: fewer columns when a row does not fit the game pane (down to
+  one), then shorter tiles (down to 5 rows: frame and 3 lines) when the
+  rows do not fit; the cockpit clamps each tile to the window, so the
+  rest overlaps at the edge.
+- **Closing: reflow, not "last into the hole".** The members after the
+  closed one each move one place back. It moves more panes than moving
+  the last one into the gap, but the order on screen stays the opening
+  order, which is what the owner asked for ("logical order"); moving the
+  last one would put the newest TV first after one close.
+- **The player's placement.** Dropping a moved member moves the group's
+  origin so that the dropped member lands where it was dropped; every
+  member follows (on the drop, not during the drag). A resize sets the
+  group's tile size and the origin from the resized member. Both are kept
+  per device in `localStorage` (`webcockpit.tempPanes`, entry
+  `group:<script>/<group>`); Reset layout forgets them (`forgetTempPlaces`
+  tells the cockpit, which puts open groups back to their corner and first
+  size).
+- **Runs.** A grouped pane's recorded `temp.rect` is its tile, updated
+  when the tiling moves it (the cockpit tells the surface after each
+  layout that changed a tile), so the log player and the HTML replay draw
+  each pane where it was without knowing about groups.
+- The cockpit keeps the opening order apart from the z-order (a press
+  still brings a pane to the front without changing its tile).

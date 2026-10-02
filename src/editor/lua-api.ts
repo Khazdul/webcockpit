@@ -585,7 +585,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, dock, rows, cols, anchor, temporary, at} → pane",
+    "createPane{id, title, dock, rows, cols, anchor, temporary, at, group, grid} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
@@ -597,6 +597,8 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
+        p("group", "string?", "Temporary panes only: panes of the script with the same group are tiled together from at's corner (top-left by default), in the order they opened, with no gaps; a closed one's place is taken by the ones after it. Dragging one moves the whole group, resizing one sets the size of all; both are kept on this device (Reset layout forgets them)."),
+        p("grid", "table?", "A group's grid: {cols = 2} (default 2, at most 8). The panes go row by row; fewer columns when they do not fit the game text."),
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [

@@ -791,6 +791,64 @@ describe('ScriptPane and the cockpit surface', () => {
       localStorage.clear();
     });
 
+    it('a group tiles from its corner in opening order, closes gaps, moves and resizes as one, remembered per device', async () => {
+      localStorage.clear();
+      const make = () => {
+        const r = rig();
+        const views = new Map<string, ReturnType<typeof r.surface.open>>();
+        const open = (name: string) => {
+          const id = tempPaneId('s', name);
+          views.set(name, r.surface.open({ id, place: { dock: 'right', rows: 4, cols: 20 }, temporary: { rows: 4, cols: 20, at: 'top-left', group: { key: 's/tv', cols: 2 } } }, new PaneContent(name), { onLink: () => {}, onResize: () => {} }));
+        };
+        const rect = (name: string) => r.cockpit.layout!.panes.find((p) => p.id === tempPaneId('s', name))!.rect;
+        return { ...r, views, open, rect };
+      };
+      const a = make();
+      for (const n of ['a', 'b', 'c', 'd']) a.open(n);
+      a.flush();
+      const g = a.cockpit.layout!.game;
+      expect([a.rect('a'), a.rect('b'), a.rect('c'), a.rect('d')]).toEqual([
+        { x: g.x, y: g.y, w: 22, h: 6 },
+        { x: g.x + 22, y: g.y, w: 22, h: 6 },
+        { x: g.x, y: g.y + 6, w: 22, h: 6 },
+        { x: g.x + 22, y: g.y + 6, w: 22, h: 6 },
+      ]);
+      // The recorded place is the tile.
+      expect(a.views.get('d')!.placement!()!.rect).toEqual(a.rect('d'));
+      // Closing the second: the others close the gap in order.
+      a.views.get('b')!.close();
+      a.flush();
+      expect([a.rect('a'), a.rect('c'), a.rect('d')].map((r) => [r.x - g.x, r.y - g.y])).toEqual([
+        [0, 0],
+        [22, 0],
+        [0, 6],
+      ]);
+      // Dragging one moves the whole group (the drop of member d at +10, +4).
+      const drop = (id: string, rect: { x: number; y: number; w: number; h: number }, resize: boolean) => {
+        const c = a.cockpit as unknown as { temps: Map<string, unknown>; dropGrouped(id: string, t: unknown, r: unknown, resize: boolean): void };
+        c.dropGrouped(id, c.temps.get(id), rect, resize);
+      };
+      drop(tempPaneId('s', 'd'), { x: g.x + 10, y: g.y + 10, w: 22, h: 6 }, false);
+      a.flush();
+      expect(a.rect('a')).toEqual({ x: g.x + 10, y: g.y + 4, w: 22, h: 6 });
+      expect(a.rect('c')).toEqual({ x: g.x + 32, y: g.y + 4, w: 22, h: 6 });
+      // A resize sets the group's tile size.
+      drop(tempPaneId('s', 'a'), { x: g.x + 10, y: g.y + 4, w: 30, h: 8 }, true);
+      a.flush();
+      expect(a.rect('c')).toEqual({ x: g.x + 40, y: g.y + 4, w: 30, h: 8 });
+      // Remembered after a reload (a new cockpit on the same storage).
+      const b = make();
+      b.open('x');
+      b.open('y');
+      b.flush();
+      expect(b.rect('y')).toEqual({ x: g.x + 40, y: g.y + 4, w: 30, h: 8 });
+      // Reset layout forgets it.
+      forgetTempPlaces();
+      b.flush();
+      expect(b.rect('x')).toEqual({ x: g.x, y: g.y, w: 22, h: 6 });
+      localStorage.clear();
+    });
+
     it('a temporary and an ordinary pane of the same name are apart', () => {
       const { cockpit, surface, flush, settings } = rig();
       surface.open({ id: scriptPaneId('s', 'pick'), place: { dock: 'left', rows: 3, cols: 20 } }, new PaneContent('A'), { onLink: () => {}, onResize: () => {} });

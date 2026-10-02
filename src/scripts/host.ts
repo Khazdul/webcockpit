@@ -1354,6 +1354,22 @@ export class ScriptHost {
       if (!TEMP_PANE_AT.includes(at)) {
         throw new Error(`bad argument #1 to 'createPane' (at must be one of ${TEMP_PANE_AT.map((x) => `"${x}"`).join(', ')})`);
       }
+      // A tiled group of temporary panes (ADR 0053 round 8 addendum).
+      let group: { key: string; cols: number } | undefined;
+      if (t.group !== undefined) {
+        if (typeof t.group !== 'string' || !SCRIPT_PANE_NAME.test(t.group)) {
+          throw new Error(`bad argument #1 to 'createPane' (group must be 1 to 32 letters, digits, _ or -)`);
+        }
+        if (temporary !== true) throw new Error(`bad argument #1 to 'createPane' (group is for temporary panes)`);
+        const grid = t.grid;
+        let cols = 2;
+        if (grid !== undefined) {
+          const gc = typeof grid === 'object' && grid !== null && !Array.isArray(grid) ? (grid as { cols?: unknown }).cols : undefined;
+          if (typeof gc !== 'number' || !Number.isFinite(gc) || gc < 1) throw new Error(`bad argument #1 to 'createPane' (grid must be {cols = n})`);
+          cols = Math.min(8, Math.floor(gc));
+        }
+        group = { key: `${o.name}/${t.group}`, cols };
+      }
       const anchor = t.anchor ?? 'bottom';
       if (anchor !== 'top' && anchor !== 'bottom') {
         throw new Error(`bad argument #1 to 'createPane' (anchor must be "top" or "bottom")`);
@@ -1414,7 +1430,10 @@ export class ScriptHost {
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
       const place = { dock: dock as DockId | 'float', rows, cols };
-      const spec = temp ? { id: pid, place, temporary: at === 'center' ? { rows, cols } : { rows, cols, at } } : { id: pid, place };
+      const tmp: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } } = { rows, cols };
+      if (at !== 'center') tmp.at = at;
+      if (group) tmp.group = group;
+      const spec = temp ? { id: pid, place, temporary: tmp } : { id: pid, place };
       reg.view = this.o.panes?.open(spec, reg.content, events) ?? headlessView();
       o.panes.set(name, reg);
       this.paneHandles.set(handle, reg);

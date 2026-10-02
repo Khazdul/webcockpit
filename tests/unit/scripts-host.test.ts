@@ -928,6 +928,9 @@ describe('pane anchor (ADR 0053 addendum)', () => {
           send(select(2, pcall(createPane, {id = "x", anchor = "middle"})))
           createPane{id = "t", temporary = true, at = "top-right"}
           createPane{id = "u", temporary = true, at = "bottom-left"}
+          createPane{id = "g1", temporary = true, group = "tv", grid = {cols = 3}}
+          send(select(2, pcall(createPane, {id = "g2", group = "tv"})))
+          send(select(2, pcall(createPane, {id = "g3", temporary = true, group = "a b"})))
           send(select(2, pcall(createPane, {id = "y", temporary = true, at = "nowhere"})))
         `),
       },
@@ -938,7 +941,10 @@ describe('pane anchor (ADR 0053 addendum)', () => {
     expect(t.sent[0]).toMatch(/anchor must be "top" or "bottom"/);
     expect(panes.get('a/~t')!.spec.temporary).toEqual({ rows: 8, cols: 30, at: 'top-right' });
     expect(panes.get('a/~u')!.spec.temporary).toEqual({ rows: 8, cols: 30, at: 'bottom-left' });
-    expect(t.sent[1]).toMatch(/at must be one of "center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"/);
+    expect(panes.get('a/~g1')!.spec.temporary).toEqual({ rows: 8, cols: 30, group: { key: 'a/tv', cols: 3 } });
+    expect(t.sent[1]).toMatch(/group is for temporary panes/);
+    expect(t.sent[2]).toMatch(/group must be 1 to 32/);
+    expect(t.sent[3]).toMatch(/at must be one of "center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"/);
   });
 });
 

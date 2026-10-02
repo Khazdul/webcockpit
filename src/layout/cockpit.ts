@@ -53,7 +53,11 @@ import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
 import { PANE_FACTORIES } from '../panes/factories';
 import type { PaneShell } from '../panes/pane';
-import type { TempPaneAt } from './temp-places';
+import { onTempPlacesForgotten, saveTempPlace, tempPlace, type TempPaneAt } from './temp-places';
+import { type TileCorner, originFor, tileCorner, tileRects } from './tiles';
+
+/** Where a tiled group's place is kept (temp-places.ts). */
+const groupKey = (key: string): string => `group:${key}`;
 import type { SettingsStore } from '../settings';
 import {
   BOTTOM_DOCK_MIN,
@@ -132,6 +136,13 @@ export interface TempPaneOptions {
   onClose(): void;
   /** The user moved or resized it (`tempPane(id).rect` changed). */
   onPlace?(): void;
+  /**
+   * A tiled group (stage 12 round 8): the key `<script>/<group>`, and the
+   * grid's columns. Members tile from `at`'s corner in opening order; a
+   * drag moves the whole group and a resize sets its tile size, kept per
+   * device (temp-places.ts).
+   */
+  group?: { key: string; cols: number };
 }
 
 /** What the cockpit keeps of a temporary pane. */
@@ -146,6 +157,23 @@ export interface TempPaneState {
 interface TempPane extends TempPaneState {
   onClose(): void;
   onPlace(): void;
+  group: string | null;
+  /** Opening order (groups tile by it; the Map order is the z-order). */
+  seq: number;
+  /** A grouped pane's rectangle from the last layout. */
+  box: Rect | null;
+}
+
+/** A tiled group's state: its grid, and where the player put it. */
+interface TempGroup {
+  cols: number;
+  corner: TileCorner;
+  /** Tile size (outer cells): the player's, else the first member's. */
+  tile: { w: number; h: number };
+  /** The first tile's corner when the player moved the group. */
+  origin: { x: number; y: number } | null;
+  /** The last layout (for a drop). */
+  laid: { cols: number; h: number } | null;
 }
 
 export interface CockpitOptions {
@@ -253,6 +281,8 @@ export class Cockpit {
   private readonly present = new Set<PaneId>();
   /** Temporary script panes, back to front (insertion order is the z-order). */
   private readonly temps = new Map<PaneId, TempPane>();
+  private readonly groups = new Map<string, TempGroup>();
+  private tempSeq = 0;
   /** A temporary pane's rectangle while it is dragged or resized. */
   private tempPreview: { id: PaneId; rect: Rect } | null = null;
   private readonly paneListeners = new Set<() => void>();
@@ -320,6 +350,7 @@ export class Cockpit {
 
     this.unsubs.push(
       this.settings.subscribe(() => this.scheduleRelayout()),
+      onTempPlacesForgotten(this.onPlacesForgotten),
       this.cells.subscribe(() => this.scheduleRelayout()),
     );
     if (typeof ResizeObserver !== 'undefined') {
@@ -388,14 +419,29 @@ export class Cockpit {
     if (!ok || this.disposed) throw new Error(`addPane: ${shell.id} is not a ${temp ? 'temporary ' : ''}script pane`);
     if (this.shells.has(shell.id)) throw new Error(`addPane: ${shell.id} is already shown`);
     if (temp) {
+      const at = temp.at ?? 'center';
+      const g = temp.group ?? null;
+      if (g && !this.groups.has(g.key)) {
+        const saved = tempPlace(groupKey(g.key));
+        this.groups.set(g.key, {
+          cols: Math.max(1, Math.floor(g.cols)),
+          corner: tileCorner(at),
+          tile: saved ? { w: saved.w, h: saved.h } : { w: temp.cols + 2, h: temp.rows + 2 },
+          origin: saved ? { x: saved.x, y: saved.y } : null,
+          laid: null,
+        });
+      }
       this.temps.set(shell.id, {
         rows: temp.rows,
         cols: temp.cols,
-        at: temp.at ?? 'center',
-        rect: temp.rect ?? null,
+        at,
+        rect: g ? null : (temp.rect ?? null),
         on: temp.on ?? true,
         onClose: temp.onClose,
         onPlace: temp.onPlace ?? (() => {}),
+        group: g ? g.key : null,
+        seq: ++this.tempSeq,
+        box: null,
       });
     }
     this.attach(shell, this.inputEl);
@@ -409,7 +455,10 @@ export class Cockpit {
   /** A temporary pane's place and on/off, or null when `id` is not one. */
   tempPane(id: PaneId): TempPaneState | null {
     const t = this.temps.get(id);
-    return t ? { rows: t.rows, cols: t.cols, at: t.at, rect: t.rect && { ...t.rect }, on: t.on } : null;
+    if (!t) return null;
+    // A grouped pane's place is the tiling's (runs record it as its rectangle).
+    const rect = t.group ? t.box : t.rect;
+    return { rows: t.rows, cols: t.cols, at: t.at, rect: rect && { ...rect }, on: t.on };
   }
 
   /** Changes a temporary pane's on/off or rectangle (null: back to its default place). */
@@ -537,18 +586,81 @@ export class Cockpit {
   private tempBoxes(r: LayoutResult, layout: LayoutModel): PaneBox[] {
     const out: PaneBox[] = [];
     let index = layout.floating.length;
+    const tiled = this.tileGroups(r);
     for (const [id, t] of this.temps) {
       if (!t.on) continue;
       const g = r.game;
       const w = t.cols + 2;
       const h = t.rows + 2;
-      const want = this.tempPreview?.id === id ? this.tempPreview.rect : (t.rect ?? tempDefaultRect(g, w, h, t.at));
+      const want =
+        this.tempPreview?.id === id ? this.tempPreview.rect : (tiled.get(id) ?? t.rect ?? tempDefaultRect(g, w, h, t.at));
       const rect = clampFloat(want, floatMin(id, true), r.cols, r.rows);
       const content = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
       out.push({ id, dock: 'float', index: index++, rect, content, framed: true });
     }
     return out;
   }
+
+  /**
+   * The grouped panes' rectangles (tiles.ts), shown members only, in
+   * opening order. A member whose rectangle changed is told (`onPlace`:
+   * runs record the new place) after the layout.
+   */
+  private tileGroups(r: LayoutResult): Map<PaneId, Rect> {
+    const out = new Map<PaneId, Rect>();
+    if (this.groups.size === 0) return out;
+    const members = new Map<string, [PaneId, TempPane][]>();
+    for (const [id, t] of this.temps) {
+      if (!t.group || !t.on) continue;
+      const list = members.get(t.group) ?? [];
+      list.push([id, t]);
+      members.set(t.group, list);
+    }
+    const moved: TempPane[] = [];
+    for (const [key, list] of members) {
+      const g = this.groups.get(key)!;
+      list.sort((a, b) => a[1].seq - b[1].seq);
+      const lay = tileRects(r.game, list.length, { cols: g.cols, corner: g.corner, tile: g.tile, origin: g.origin });
+      g.laid = { cols: lay.cols, h: lay.h };
+      list.forEach(([id, t], i) => {
+        const rect = clampFloat(lay.rects[i]!, floatMin(id, true), r.cols, r.rows);
+        out.set(id, rect);
+        const b = t.box;
+        if (!b || b.x !== rect.x || b.y !== rect.y || b.w !== rect.w || b.h !== rect.h) {
+          t.box = rect;
+          moved.push(t);
+        }
+      });
+    }
+    if (moved.length > 0) queueMicrotask(() => moved.forEach((t) => t.onPlace()));
+    return out;
+  }
+
+  /** A grouped pane was dropped at `rect`: the group follows (a move) or takes its size (a resize); kept per device. */
+  private dropGrouped(id: PaneId, t: TempPane, rect: Rect, resize: boolean): void {
+    const g = this.groups.get(t.group!);
+    if (!g) return;
+    const order = [...this.temps.entries()]
+      .filter(([, x]) => x.group === t.group && x.on)
+      .sort((a, b) => a[1].seq - b[1].seq)
+      .map(([k]) => k);
+    const index = Math.max(0, order.indexOf(id));
+    if (resize) g.tile = { w: rect.w, h: rect.h };
+    const h = resize ? rect.h : (g.laid?.h ?? g.tile.h);
+    g.origin = originFor({ ...rect, h }, index, g.laid?.cols ?? g.cols, g.corner);
+    saveTempPlace(groupKey(t.group!), { x: Math.max(0, g.origin.x), y: Math.max(0, g.origin.y), w: g.tile.w, h: g.tile.h });
+    this.scheduleRelayout();
+  }
+
+  /** Reset layout forgot the saved places: groups go back to their corners and first sizes. */
+  private readonly onPlacesForgotten = (): void => {
+    for (const g of this.groups.values()) g.origin = null;
+    for (const t of this.temps.values()) {
+      const g = t.group ? this.groups.get(t.group) : undefined;
+      if (g) g.tile = { w: t.cols + 2, h: t.rows + 2 };
+    }
+    this.scheduleRelayout();
+  };
 
   /** Stops listening and removes the cockpit. */
   dispose(): void {
@@ -805,7 +917,8 @@ export class Cockpit {
     if (temp) {
       // A temporary pane: its new rectangle stays in memory.
       const rect = d.kind === 'move' ? (d.active && d.target?.kind === 'float' ? d.target.rect : null) : this.tempPreview?.rect;
-      if (rect) {
+      if (rect && temp.group) this.dropGrouped((d as { id: PaneId }).id, temp, rect, d.kind !== 'move');
+      else if (rect) {
         temp.rect = { ...rect };
         temp.onPlace();
       }

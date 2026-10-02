@@ -417,7 +417,9 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       game pane (`at`: centre, an edge or a corner), never
       docks and is never listed in menus. Where the user moves it is
       kept per device for the next time; Reset layout forgets it. Its
-      close cross closes it.
+      close cross closes it. `group` + `grid = {cols}` tile a script's
+      temporary panes from `at`'s corner in opening order without gaps;
+      a drag moves the group, a resize sizes it (kept per device).
     - Pane methods:
       - `:clear()`, `:echo(text)` and `:cecho(text)`;
       - `:setLine(row, text)`;
