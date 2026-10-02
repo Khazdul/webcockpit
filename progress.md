@@ -25,6 +25,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-02 — Script GMCP fixes, pixel scrolling in panes
+
+- **Script API:**
+  - parent GMCP events (`gmcp.Char` catches `Char.Vitals`);
+  - only `Char.Vitals` and `Char.StatusVars` merge, every other
+    message replaces;
+  - a GMCP cache from app start seeds `gmcp`;
+  - `cecho` accepts `<b>`, `<i>`, `<u>` and `#rrggbb`; `highlight`
+    accepts cecho tags.
+- **Owner decision:** the Comm, UI and Timers panes scroll by pixels;
+  the log player's wheel cursor is unchanged (ADR 0052).
+- **Verified:** unit 1671 green; full e2e 312 passed; text bench
+  unchanged.
+- **Next:** owner retest of stage 10, then stage 11.
+- **Commits:** 792c721, b946bba, 8a1df9a, 8f8b7a4, dda9d3c, fb702a1,
+  plus this one.
+
 ### 2026-10-02 — Stage 10 owner feedback round 1
 
 - **Done:**
