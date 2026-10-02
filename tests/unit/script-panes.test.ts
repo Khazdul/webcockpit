@@ -260,6 +260,20 @@ describe('drawing', () => {
     expect(paneIndicator(10, 4, 99, 'top')).toEqual({ text: '↑ 7 rows above', away: true });
   });
 
+  it('hides the text under a text field: its cells are blank on the band', () => {
+    const c = new PaneContent('t');
+    c.setLine(0, plain(' ★ $deer  12h t'));
+    c.addField(0, 4, 6, 1, { value: 'deerpopop' });
+    const [l] = scriptPaneRows(c, 16, ramp, false, ansi);
+    expect(l!.text()).toBe(' ★ $      12h t ');
+    expect(l!.bg.slice(4, 10).every((b) => b === '#111')).toBe(true);
+    expect(l!.bg[3]).toBe('');
+    // A field past the line's end still gets its band.
+    c.addField(0, 14, 4, 2);
+    const [m] = scriptPaneRows(c, 16, ramp, false, ansi);
+    expect(m!.text()).toBe(' ★ $      12h   ');
+  });
+
   it('draws a gauge with its fill, track and centred label; the hovered link glows', () => {
     expect(gaugeFill(30, 60, 10)).toBe(5);
     expect(gaugeFill(5, 0, 10)).toBe(0);
@@ -450,6 +464,18 @@ describe('ScriptPane and the cockpit surface', () => {
       [7, { type: 'submit', text: 'hom' }],
       [7, { type: 'cancel' }],
     ]);
+    // Opaque on the band, in the value shade (readable on any tint).
+    expect(el.style.background).not.toBe('');
+    expect(el.style.color).not.toBe('');
+    expect(el.style.caretColor).toBe(el.style.color);
+    // A blur by a click elsewhere is reported; Enter and Esc report no blur.
+    el.focus();
+    el.blur();
+    expect(events.at(-1)).toEqual([7, { type: 'blur', text: 'hom' }]);
+    const n = events.length;
+    el.focus();
+    key('Enter', 'Enter');
+    expect(events.slice(n).map((e) => e[1].type)).toEqual(['submit']);
     // A value set by the script reaches the input; setLine on the row drops it, giving the focus back.
     content.setFieldValue(7, 'cave');
     view.changed();
@@ -461,7 +487,7 @@ describe('ScriptPane and the cockpit surface', () => {
     r.flush();
     expect(pane.fieldInput(7)).toBeNull();
     expect(el.isConnected).toBe(false);
-    expect(refocused).toBe(3);
+    expect(refocused).toBe(4);
     input.remove();
   });
 

@@ -429,7 +429,7 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       - `:close()` removes the pane until `createPane` is called again;
         `:onClose(fn)` is called when the user closes a temporary pane.
       - `:setInput(row, col, len, {value, placeholder, maxLength,
-        onSubmit, onCancel, onChange, onKey})` puts an editable
+        onSubmit, onCancel, onChange, onBlur, onKey})` puts an editable
         one-line text field on a span of cells and returns it, with
         `:focus()`, `:select()`, `:value()`, `:setValue(text)` and
         `:remove()` (ADR 0055). While a field has the keyboard, nothing

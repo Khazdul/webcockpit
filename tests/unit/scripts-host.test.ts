@@ -809,6 +809,7 @@ describe('pane text fields (ADR 0055)', () => {
       onCancel = function() send("cancel") end,
       onChange = function(text) send("change " .. text) end,
       onKey = function(key) send("key " .. key) end,
+      onBlur = function(text) send("blur " .. text) end,
     })
     tempAlias("^f (\\\\w+) ?(.*)$", function()
       local what, arg = matches[2], matches[3]
@@ -841,7 +842,9 @@ describe('pane text fields (ADR 0055)', () => {
     p.events.onField!(id, { type: 'key', key: 'ArrowDown' });
     p.events.onField!(id, { type: 'submit', text: 'a very long name' });
     p.events.onField!(id, { type: 'cancel' });
-    expect(t.sent).toEqual(['change hom', 'key ArrowDown', 'submit a very l a very l', 'cancel']);
+    p.events.onField!(id, { type: 'blur', text: 'xy' });
+    expect(t.sent).toEqual(['change hom', 'key ArrowDown', 'submit a very l a very l', 'cancel', 'blur xy']);
+    expect(p.content.fields[0]!.value).toBe('xy');
     t.sent.length = 0;
     t.engine.input('f set new');
     t.engine.input('f value');

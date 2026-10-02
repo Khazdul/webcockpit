@@ -107,3 +107,23 @@ line take the focus back after clicks.
 - Open: the caret is the browser's thin caret, not the input line's
   block cursor; a later round can draw a cell caret if the owner wants
   the same cursor style.
+
+## Feedback round 2 (2026-10-02)
+
+The owner saw the old text through a rename field (`$deerpopop` over
+`$deer`) and a field that stayed after a click elsewhere, half in place.
+
+- **Opaque.** The cells under a field are blanked when the row is drawn
+  (`fieldBands` writes spaces on the `track` band), and the input's own
+  background is the band colour, so nothing shows through in any tint.
+- **Readable.** The text and the caret are in the pane's `vtext` shade
+  (as a gauge label on its track), not the dimmer ink; the placeholder
+  is `dim`. Checked on dark and light tints.
+- **`onBlur(text)`.** A new option: called when the field loses the
+  keyboard other than by Enter or Esc (a click elsewhere), with its
+  value. Not called for Enter/Esc (they move the focus themselves and
+  report submit/cancel), for a field that is being removed, or when the
+  whole window loses the focus (the field keeps it for when the window
+  comes back). The field itself stays until the script removes it, so a
+  blur never leaves a half state: it is either still a working field or
+  gone.

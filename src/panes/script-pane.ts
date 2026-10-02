@@ -76,6 +76,7 @@ export type FieldEvent =
   | { type: 'change'; text: string }
   | { type: 'submit'; text: string }
   | { type: 'cancel' }
+  | { type: 'blur'; text: string }
   | { type: 'key'; key: string };
 
 /** Keys a focused field reports to the script instead of handling them. */
@@ -145,10 +146,16 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
   return line;
 }
 
-/** Draws the band of the fields on content row `row`. */
-function fieldBands(line: CellLine, fields: readonly PaneField[], row: number, w: number, ramp: Ramp): void {
+/**
+ * Blanks the cells under the fields on content row `row` and fills them
+ * with the field band: the text there is never drawn while a field
+ * covers it (the input on top is opaque too).
+ */
+export function fieldBands(line: CellLine, fields: readonly PaneField[], row: number, w: number, ramp: Ramp): void {
   for (const f of fields) {
-    if (f.row === row && f.col < w) line.fill(f.col, Math.min(w, f.col + f.len), { bg: ramp.track });
+    if (f.row !== row || f.col >= w) continue;
+    const end = Math.min(w, f.col + f.len);
+    line.put(f.col, ' '.repeat(end - f.col), { bg: ramp.track });
   }
 }
 
@@ -288,7 +295,7 @@ export class ScriptPane extends PaneShell {
     // A console follows new lines while it is at the end.
     if (bottom && this.live) this.scroller.scrollTop = Math.max(0, n - listH) * cellH;
     this.updateMore();
-    this.syncFields(ramp, ink.base);
+    this.syncFields(ramp);
   }
 
   /** Lines scrolled off the top (partly scrolled ones count). */
@@ -334,15 +341,13 @@ export class ScriptPane extends PaneShell {
   }
 
   /** Puts an input over every field on screen and drops the others. */
-  private syncFields(ramp?: Ramp, color?: string): void {
+  private syncFields(ramp?: Ramp): void {
     const c = this.model;
     if (!this.onField || (c.fields.length === 0 && this.inputs.size === 0)) return;
-    if (!ramp || color === undefined) {
-      const s = this.ctx.settings.get();
-      const sh = paneShade(s, this.id);
-      ramp = sh.ramp;
-      color = paneInk(s.appearance.fg, sh.bg, sh.light).base;
-    }
+    if (!ramp) ramp = paneShade(this.ctx.settings.get(), this.id).ramp;
+    // The value shade on the band, as a gauge label on its track: readable
+    // in light and dark tints (ADR 0055 feedback).
+    const color = ramp.vtext;
     const cell = this.ctx.cells.get();
     const seen = new Set<number>();
     for (const f of c.fields) {
@@ -359,7 +364,9 @@ export class ScriptPane extends PaneShell {
       st.top = `${f.row * cell.h}px`;
       st.width = `${Math.min(f.len, this.cols - f.col) * cell.w}px`;
       st.color = color;
-      st.setProperty('--spane-ph', ramp.label);
+      st.background = ramp.track;
+      st.caretColor = color;
+      st.setProperty('--spane-ph', ramp.dim);
       st.setProperty('--spane-sel-fg', ramp.paneBg);
       st.setProperty('--spane-sel-bg', ramp.glow);
       if (el.value !== f.value) el.value = f.value;
@@ -380,14 +387,38 @@ export class ScriptPane extends PaneShell {
     el.dataset.field = String(id);
     el.addEventListener('input', () => this.onField?.(id, { type: 'change', text: el.value }));
     el.addEventListener('keydown', (e) => this.onFieldKey(id, el, e));
+    el.addEventListener('blur', () => {
+      // Not for Enter or Esc (they report themselves), a field going away,
+      // or the window losing the focus (the field keeps it for later).
+      if (this.leaving === el || !el.isConnected || !this.ctx.doc.hasFocus()) return;
+      this.onField?.(id, { type: 'blur', text: el.value });
+    });
     return el;
+  }
+
+  /** The input that Enter or Esc is moving the focus away from. */
+  private leaving: HTMLInputElement | null = null;
+
+  /** Gives the focus back to the input line without reporting a blur for `el`. */
+  private leave(el: HTMLInputElement): void {
+    this.leaving = el;
+    try {
+      this.onFocusInput();
+    } finally {
+      this.leaving = null;
+    }
   }
 
   private dropInput(id: number, el: HTMLInputElement): void {
     const focused = this.ctx.doc.activeElement === el;
     this.inputs.delete(id);
-    el.remove();
-    if (focused) this.onFocusInput();
+    this.leaving = el;
+    try {
+      el.remove();
+      if (focused) this.onFocusInput();
+    } finally {
+      this.leaving = null;
+    }
   }
 
   private onFieldKey(id: number, el: HTMLInputElement, e: KeyboardEvent): void {
@@ -397,13 +428,13 @@ export class ScriptPane extends PaneShell {
     if (name === 'Enter' || name === 'NumpadEnter') {
       e.preventDefault();
       const text = el.value;
-      this.onFocusInput();
+      this.leave(el);
       this.onField?.(id, { type: 'submit', text });
       return;
     }
     if (name === 'Escape') {
       e.preventDefault();
-      this.onFocusInput();
+      this.leave(el);
       this.onField?.(id, { type: 'cancel' });
       return;
     }

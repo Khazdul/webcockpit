@@ -136,6 +136,7 @@ interface FieldReg {
   cancel: LuaRef | null;
   change: LuaRef | null;
   key: LuaRef | null;
+  blur: LuaRef | null;
 }
 
 interface RuleReg {
@@ -1127,13 +1128,14 @@ export class ScriptHost {
           }
         }
         const n = id();
-        const f: FieldReg = { pane: p, id: n, submit: null, cancel: null, change: null, key: null };
+        const f: FieldReg = { pane: p, id: n, submit: null, cancel: null, change: null, key: null, blur: null };
         try {
           if (has) {
             f.submit = a.fieldFunction(5, 'onSubmit');
             f.cancel = a.fieldFunction(5, 'onCancel');
             f.change = a.fieldFunction(5, 'onChange');
             f.key = a.fieldFunction(5, 'onKey');
+            f.blur = a.fieldFunction(5, 'onBlur');
           }
           p.content.addField(r, col - 1, len, n, opts);
         } catch (err) {
@@ -1295,18 +1297,19 @@ export class ScriptHost {
     if (f.pane.fields.get(f.id) === f) f.pane.fields.delete(f.id);
     if (this.fieldHandles.get(f.id) === f) this.fieldHandles.delete(f.id);
     const s = f.pane.owner.script;
-    for (const ref of [f.submit, f.cancel, f.change, f.key]) if (ref !== null) s?.release(ref);
-    f.submit = f.cancel = f.change = f.key = null;
+    for (const ref of [f.submit, f.cancel, f.change, f.key, f.blur]) if (ref !== null) s?.release(ref);
+    f.submit = f.cancel = f.change = f.key = f.blur = null;
   }
 
   /** A text field changed, was submitted or cancelled, or got a key (ADR 0055). */
   private onPaneField(p: PaneReg, n: number, e: FieldEvent): void {
     const f = p.fields.get(n);
     if (!f || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
-    if (e.type === 'change' || e.type === 'submit') {
+    if (e.type === 'change' || e.type === 'submit' || e.type === 'blur') {
       if (p.content.setFieldValue(n, e.text)) p.view.changed();
     }
-    const ref = e.type === 'change' ? f.change : e.type === 'submit' ? f.submit : e.type === 'cancel' ? f.cancel : f.key;
+    const ref =
+      e.type === 'change' ? f.change : e.type === 'submit' ? f.submit : e.type === 'cancel' ? f.cancel : e.type === 'blur' ? f.blur : f.key;
     if (ref === null) return;
     if (e.type === 'key') this.call(p.owner, ref, e.key);
     else if (e.type === 'cancel') this.call(p.owner, ref);

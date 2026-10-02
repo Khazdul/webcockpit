@@ -655,12 +655,12 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "opts",
           "table?",
-          "value (the text to start with), placeholder (grey text while it is empty), maxLength (most characters), onSubmit(text) (Enter), onCancel() (Esc), onChange(text) (each edit) and onKey(key) (Up, Down, PgUp, PgDn, Tab, Shift+Tab: ArrowUp, ArrowDown, PageUp, PageDown, Tab, Shift+Tab).",
+          "value (the text to start with), placeholder (grey text while it is empty), maxLength (most characters), onSubmit(text) (Enter), onCancel() (Esc), onChange(text) (each edit), onBlur(text) (the field lost the keyboard to a click elsewhere, not by Enter or Esc) and onKey(key) (Up, Down, PgUp, PgDn, Tab, Shift+Tab: ArrowUp, ArrowDown, PageUp, PageDown, Tab, Shift+Tab).",
         ),
       ],
       returns: "A field: field:focus(), field:select(), field:value(), field:setValue(text), field:remove().",
       more: [
-        "The field is drawn on a band in the pane's own shades. A click on it, or field:focus(), takes the keyboard from the input line; Enter, Esc, a click elsewhere or the pane closing give it back. While the field has the keyboard, nothing typed reaches the game, macros or keys bound with tempKey.",
+        "The field is drawn opaque on a band in the pane's own shades; the row's text under it is hidden while it is there. A click on it, or field:focus(), takes the keyboard from the input line; Enter, Esc, a click elsewhere or the pane closing give it back. While the field has the keyboard, nothing typed reaches the game, macros or keys bound with tempKey.",
         "pane:setLine, pane:gauge and pane:clear on its row remove the field, as they remove links: write the row's text first, then add the field, and redraw other rows around it. The log player and the HTML replay show the field's text, not editable.",
       ],
       example:
