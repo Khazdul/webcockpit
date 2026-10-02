@@ -177,3 +177,50 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await expect(pane(page)).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test('keymanager TV: a watch opens a TV pane from MUME lines, fills it, ends and closes', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const received: Buffer[] = [];
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.onMessage((m) => received.push(typeof m === 'string' ? Buffer.from(m) : m));
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  const sentText = () => Buffer.concat(received).toString('latin1');
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => server !== null).toBe(true);
+  server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
+  await command(page, '#script enable keymanager');
+  await expect(pane(page)).toBeVisible();
+  await command(page, '#script set keymanager tvclose 5');
+  await command(page, 'nkey home uxevjobve');
+  await expect(prows(page).nth(1)).toHaveText(/\$home/);
+
+  // The watch: the cast, MUME's answer, then the room's lines.
+  await command(page, 'watchr home');
+  await expect.poll(sentText).toContain("cast n 'watch room' uxevjobve home\r\n");
+  server!.send(bytes('You feel aware of this place.\r\n'));
+  const tv = pane(page, 'keymanager/~tv1');
+  await expect(tv).toBeVisible();
+  await expect(tv.locator('.wc-pane-frame')).toContainText('TV $home');
+  server!.send(bytes('[home] \x1b[31mA troll\x1b[0m arrives from the north.\r\n'));
+  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^A troll arrives from the north\.\s*$/);
+  // Hidden from the game text; a short KEYS line instead of the activation.
+  await expect(page.locator('.wc-output')).toContainText('TV $home: watching.');
+  await expect(page.locator('.wc-output')).not.toContainText('[home] A troll');
+  // The Port keys pane shows the running watch.
+  await expect(prows(page).nth(1)).toHaveText(/●\d:\d\d t p s w x\s*$/);
+  // The end: noted, and the TV closes by itself (tvclose 5 s).
+  server!.send(bytes('[home] Your awareness decreases.\r\n'));
+  await expect(tv.locator('.wc-pane-frame')).toContainText('ended');
+  await expect(page.locator('.wc-output')).toContainText('TV $home: watch ended.');
+  await expect(tv).toHaveCount(0, { timeout: 10_000 });
+  // tv home opens it again with its lines.
+  await command(page, 'tv home');
+  await expect(prows(page, 'keymanager/~tv1').nth(1)).toHaveText(/^A troll arrives/);
+  expect(errors).toEqual([]);
+});

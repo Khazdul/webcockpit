@@ -75,6 +75,10 @@ class FakeSurface implements ScriptPaneSurface {
   get pick() {
     return this.byId('keymanager/~pick');
   }
+  /** The open TV panes, by slot. */
+  tv(n: number) {
+    return this.byId(`keymanager/~tv${n}`);
+  }
 }
 
 function line(text: string): Line {
@@ -224,9 +228,9 @@ describe('bundled keymanager', () => {
     const s = lib.get('keymanager')!;
     expect(s).toMatchObject({ bundled: true, readonly: true, problems: [], loadProblem: null, enabled: false });
     expect(s.header.api).toBe(1);
-    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'teleport', 'tsafe']);
+    expect(s.header.aliases.map((a) => a.name)).toEqual(['keys', 'locatel', 'kpick', 'nkey', 'teleport', 'tsafe', 'tv']);
     expect(s.header.keys.map((k) => k.key)).toEqual(['Ctrl+S', 'Alt+S']);
-    expect(s.settings).toEqual({ hours: 12 });
+    expect(s.settings).toEqual({ hours: 12, tvgag: true, tvclose: 60 });
     expect(s.header.help.join('\n')).toMatch(/safe key/);
   });
 
@@ -728,5 +732,137 @@ describe('bundled keymanager', () => {
     t.click(0, '?');
     await t.settle();
     expect(t.printed.join('\n')).toMatch(/safe key/);
+  });
+
+  describe('TV (round 4; line formats from the Mudlet script)', () => {
+    const AWARE = 'You feel aware of this place.';
+    const ENDS = (n: string) => `[${n}] Your awareness decreases.`;
+    const SCRY = 'You let your inner eye find the area... and you see:';
+    const tvText = (p: { content: PaneContent } | null) => (p ? p.content.lines.map((_, i) => text(p.content, i).trimEnd()) : null);
+
+    it('a watch: the activation opens a TV, its lines go there in colour (hidden from the game), the end is learnt', async () => {
+      const t = await setup();
+      t.input('nkey home uxevjobve');
+      t.input('watchr home');
+      expect(t.sent).toEqual(["cast n 'watch room' uxevjobve home"]);
+      const n0 = t.texts().length;
+      t.recv(AWARE);
+      const tv = t.panes.tv(1)!;
+      expect(tv.spec.temporary).toEqual({ rows: 10, cols: 60, at: 'top-left' });
+      expect(tv.content.title).toMatch(/^TV \$home [●○] 3:20$/);
+      t.bus.emit('text.line', { text: '[home] A troll arrives from the north.', runs: [{ start: 9, end: 14, fg: 1 }], tags: [], prompt: false, raw: '', ts: 0 });
+      t.recv('[home] It is raining.', '[other] Not ours.');
+      // Only the KEYS line for the start shows; the watch lines are hidden; an unknown name is left alone.
+      expect(t.texts().slice(n0)).toEqual(['KEYS TV $home: watching.', '[other] Not ours.']);
+      expect(tvText(tv)).toEqual(['· watching', 'A troll arrives from the north.', 'It is raining.']);
+      // In the game's colours while bright.
+      const l = tv.content.lines[1]!;
+      expect('spans' in l && l.spans.find((x) => x.text === 'troll')!.fg).toBe(1);
+      // The Port keys pane: a red ● and the watch's time left; w opens the TV, it does not cast again.
+      expect(t.rows()[1]).toMatch(/●3:20 t p s w x$/);
+      t.click(1, 'w');
+      expect(t.sent).toHaveLength(1);
+      // Older than 10 s: dim.
+      t.clock.advance(11_000);
+      const d = tv.content.lines[1]!;
+      expect('spans' in d && d.spans.every((x) => x.fg !== 1)).toBe(true);
+      expect(tv.content.title).toMatch(/3:09$/);
+      expect(t.rows()[1]).toMatch(/●3:09 t p s w x$/);
+      // The end: noted, learnt (120 s), the TV closes 60 s later.
+      t.clock.advance(109_000);
+      t.recv(ENDS('home'));
+      expect(t.lib.get('keymanager')!.lastError).toBeNull();
+      expect(t.lastText()).toBe('KEYS TV $home: watch ended.');
+      expect(tv.content.title).toBe('TV $home · ended');
+      expect(tvText(tv)!.at(-1)).toBe('· watch ended');
+      expect((t.store() as unknown as { watch: number[] }).watch).toEqual([120]);
+      expect(t.rows()[1]).toMatch(/ ●12h t p s w x$/);
+      t.clock.advance(62_000);
+      expect(t.panes.tv(1)).toBeNull();
+      // tv home opens it again with its lines.
+      t.input('tv home');
+      expect(tvText(t.panes.tv(1))!.slice(1, 3)).toEqual(['A troll arrives from the north.', 'It is raining.']);
+      // The next watch uses the learnt duration.
+      t.input('watchr home');
+      t.recv(AWARE);
+      expect(t.panes.tv(1)!.content.title).toMatch(/2:00$/);
+      expect(t.lib.get('keymanager')!.lastError).toBeNull();
+    });
+
+    it('a scry: the block goes to the TV of the key cast, a scry of an unknown key to TV scry', async () => {
+      const t = await setup();
+      t.input('nkey cave abcdefghi');
+      t.input('scry cave');
+      const n0 = t.texts().length;
+      t.recv(SCRY, 'The Dark Cave', 'It is dark here.', 'A troll is here.', '', PROMPT);
+      expect(t.texts().slice(n0)).toEqual(['KEYS TV $cave: scried.', '', PROMPT]);
+      const tv = t.panes.tv(1)!;
+      expect(tvText(tv)).toEqual(['· scried', 'The Dark Cave', 'It is dark here.', 'A troll is here.']);
+      expect(tv.content.title).toBe('TV $cave · scried 0:00 ago');
+      t.clock.advance(12_000);
+      expect(tv.content.title).toBe('TV $cave · scried 0:12 ago');
+      // $name in a typed cast also links the scry to the key.
+      t.input("cast n 'scry' $cave");
+      expect(t.sent.at(-1)).toBe("cast n 'scry' abcdefghi");
+      t.recv(SCRY, 'The Dark Cave', '');
+      expect(tvText(t.panes.tv(1))!.at(-1)).toBe('The Dark Cave');
+      // Unknown: TV scry, in the next slot.
+      t.recv(SCRY, 'Somewhere', '');
+      expect(t.panes.tv(2)!.content.title).toMatch(/^TV scry · scried/);
+      // kecho prints the lines.
+      t.input('kecho cave 2');
+      expect(t.texts().slice(-3)).toEqual(['KEYS TV $cave, the last 2 lines:', '  · scried', '  The Dark Cave']);
+      // Closed after tvclose seconds.
+      t.clock.advance(70_000);
+      expect(t.panes.tv(1)).toBeNull();
+      expect(t.panes.tv(2)).toBeNull();
+    });
+
+    it('tvgag off: the lines stay in the game text too; failures cancel a pending cast', async () => {
+      const t = await setup({ before: async (lib) => void (await lib.setSetting('keymanager', 'tvgag', 'off')) });
+      t.input('nkey home uxevjobve');
+      t.input('watchr home');
+      t.recv(AWARE, '[home] Rain.');
+      expect(t.texts().slice(-2)).toEqual([AWARE, '[home] Rain.']);
+      expect(tvText(t.panes.tv(1))!.at(-1)).toBe('Rain.');
+      t.input('scry home');
+      t.recv('Your spell backfired!');
+      expect(t.lastText()).toBe('KEYS The scry on $home failed.');
+      t.recv(SCRY, 'Room', '');
+      expect(t.panes.tv(2)!.content.title).toMatch(/^TV scry/);
+    });
+
+    it('four slots: a fifth TV takes the slot of the one that ended first; tv hides and shows them', async () => {
+      const t = await setup();
+      for (const n of ['a1', 'b2', 'c3', 'd4', 'e5']) t.input(`nkey ${n} key${n}`);
+      for (const n of ['a1', 'b2', 'c3', 'd4']) {
+        t.input(`watchr ${n}`);
+        t.recv(AWARE);
+        t.clock.advance(1000);
+      }
+      expect([1, 2, 3, 4].map((i) => t.panes.tv(i)!.content.title.split(' ')[1])).toEqual(['$a1', '$b2', '$c3', '$d4']);
+      expect([1, 2, 3, 4].map((i) => (t.panes.tv(i)!.spec.temporary as { at: string }).at)).toEqual(['top-left', 'top-right', 'bottom-left', 'bottom-right']);
+      t.recv(ENDS('c3'));
+      t.clock.advance(1000);
+      t.recv(ENDS('b2'));
+      t.input('watchr e5');
+      t.recv(AWARE);
+      // c3 ended first: its slot (3) goes to e5.
+      expect(t.panes.tv(3)!.content.title).toMatch(/^TV \$e5 /);
+      expect(t.panes.tv(2)!.content.title).toBe('TV $b2 · ended');
+      // tv hides all, then shows them again.
+      t.input('tv');
+      expect([1, 2, 3, 4].every((i) => !t.panes.tv(i)!.view.on)).toBe(true);
+      t.input('tv');
+      expect([1, 2, 3, 4].every((i) => t.panes.tv(i)!.view.on)).toBe(true);
+      // The player closes a running watch's TV: it stays closed until tv opens it.
+      t.panes.tv(1)!.events.onClose!();
+      t.recv('[a1] Wind.');
+      expect(t.panes.tv(1)).toBeNull();
+      t.input('tv a1');
+      expect(t.panes.tv(1)!.content.title).toMatch(/^TV \$a1 /);
+      t.input('tv nope');
+      expect(t.lastText()).toBe('KEYS No TV for $nope yet: watchr nope or scry nope.');
+    });
   });
 });

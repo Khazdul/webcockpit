@@ -7,9 +7,12 @@
 -- @alias    nkey      nkey <name> <key>: add a key by hand
 -- @alias    teleport  teleport <name>: cast teleport to a key (also portal, scry, watchr)
 -- @alias    tsafe     Teleport to the safe key (qtsafe: quickly, psafe: portal)
+-- @alias    tv        Show or hide the TVs; tv <name> opens one (also: kecho <name> [rows])
 -- @key      Ctrl+S    Teleport to the safe key (tsafe)
 -- @key      Alt+S     Teleport quickly to the safe key (qtsafe)
 -- @setting  hours    number  12  "Hours a key works after it was located"
+-- @setting  tvgag    boolean true "Hide watch and scry lines from the game text while they go to a TV"
+-- @setting  tvclose  number  60  "Seconds a TV stays open after its watch ends or its scry"
 -- @help     Locate life gives a key for a room: teleport, portal, scry and
 -- @help     watch room take it. This script stores the keys under short
 -- @help     names and casts with them. A key works only for the character
@@ -35,6 +38,16 @@
 -- @help     Ctrl+S teleports there, Alt+S teleports quickly. Click another
 -- @help     key's star to change it. When the safe key expires, your
 -- @help     freshest key takes over.
+-- @help
+-- @help     TV. What watch room and scry show goes to a small pane per key,
+-- @help     a TV, instead of the game text (setting tvgag). Up to four TVs
+-- @help     open in the corners of the game text; move them where you like.
+-- @help     The title says how long the watch has left (learnt from your
+-- @help     last watches), or how long ago the scry was. Lines from the last
+-- @help     10 seconds are bright. A TV closes by itself a minute after its
+-- @help     watch ends (tvclose); tv <name> opens it again with its lines.
+-- @help     In the pane, a red ● is a watch running (click it for the TV),
+-- @help     a grey ● a key with TV lines; w on a watched key opens its TV.
 -- @help
 -- @help     In the Port keys pane, click a key's name to rename it (Enter
 -- @help     saves, Esc cancels). The letters are casts: t teleport,
@@ -175,10 +188,21 @@ local pick = nil
 
 local draw -- the pane, below
 
+-- The TVs (round 4), by lower-case name: { id, name, lines = { { t, c, p, mark } },
+--   watching = epoch or nil, ended = epoch or nil, scried = epoch or nil,
+--   slot = 1..4 or nil, pane, bright = first line still bright, shut = the
+--   player closed it during this watch }.
+local tvs = {}
+-- slot -> TV id.
+local slots = {}
+-- A watch or scry cast waiting for its answer: { kind, id, name, timer }.
+local pendingCast = nil
+local openTv, drawTv -- below
+
 local function storeId(id) return "char." .. id end
 
 local function loadLib(id)
-  local l = { safe = nil, keys = {} }
+  local l = { safe = nil, keys = {}, watch = {} }
   local data = store.get(storeId(id))
   if type(data) ~= "table" then return l end
   for _, r in ipairs(data.keys or {}) do
@@ -191,6 +215,11 @@ local function loadLib(id)
     end
   end
   if type(data.safe) == "string" and l.keys[data.safe:lower()] then l.safe = data.safe:lower() end
+  -- The last watch durations, seconds (learnt; the TV's time left).
+  l.watch = {}
+  for _, d in ipairs(type(data.watch) == "table" and data.watch or {}) do
+    if type(d) == "number" and d > 0 then l.watch[#l.watch + 1] = d end
+  end
   return l
 end
 
@@ -201,7 +230,7 @@ local function save()
     list[#list + 1] = { name = k.name, key = k.key, room = k.room, dist = k.dist, at = k.at }
   end
   table.sort(list, function(a, b) return a.name:lower() < b.name:lower() end)
-  store.set(storeId(char.id), { name = char.name, safe = lib.safe, keys = list })
+  store.set(storeId(char.id), { name = char.name, safe = lib.safe, keys = list, watch = lib.watch })
 end
 
 local function sorted()
@@ -424,8 +453,19 @@ local function castCommand(what, k, quick)
   return cmd
 end
 
+-- A watch or scry on its way: its answer goes to the TV of `name`.
+local function expectCast(kind, name)
+  if pendingCast and pendingCast.timer then killTimer(pendingCast.timer) end
+  local pc = { kind = kind, id = name:lower(), name = name }
+  pc.timer = tempTimer(LOCATE_TIMEOUT, function()
+    if pendingCast == pc then pendingCast = nil end
+  end)
+  pendingCast = pc
+end
+
 local function cast(what, k, quick, safe)
   local s = SPELLS[what]
+  if what == "watchr" then expectCast("watch", k.name) elseif what == "scry" then expectCast("scry", k.name) end
   say(s.verb .. (quick and " quickly" or "") .. s.to .. (safe and " the safe key " or " ") .. nm(k.name)
     .. " <" .. DIM .. ">(" .. k.key .. ")<reset>")
   send(castCommand(what, k, quick))
@@ -439,6 +479,40 @@ local function castSafe(what, quick)
     return
   end
   cast(what, lib.keys[lib.safe], quick, true)
+end
+
+-- ------------------------------------------------------------ TV helpers
+
+local BRIGHT = 10        -- seconds a TV line stays bright
+local TV_LINES = 250     -- lines kept per TV
+local WATCH_DEFAULT = 200 -- seconds a watch lasts before any is learnt (Mudlet's start)
+local WATCH_LEARN = 5    -- watches the average is taken over
+
+-- "2:31".
+local function clock(secs)
+  secs = math.max(0, math.floor(secs + 0.5))
+  return string.format("%d:%02d", secs // 60, secs % 60)
+end
+
+-- How long a watch lasts: the average of the last few, else 200 s.
+local function avgWatch()
+  local w = lib and lib.watch or {}
+  if #w == 0 then return WATCH_DEFAULT end
+  local sum = 0
+  for _, d in ipairs(w) do sum = sum + d end
+  return sum / #w
+end
+
+-- A key's time cell: a marker (● watch running, ● TV lines) and the time
+-- left (of the watch while it runs, else of the key).
+local function timeCell(id, k, t)
+  local tv = tvs[id]
+  if tv and tv.watching then
+    local left = avgWatch() - (t - tv.watching)
+    return "●", "ansi_light_red", left >= 0 and clock(left) or ("+" .. clock(-left)), "ansi_light_red"
+  end
+  local left = expires(k) - t
+  return (tv and #tv.lines > 0) and "●" or " ", DIM, short(left), left < 3600 and "orange" or nil
 end
 
 -- ------------------------------------------------------------ the pane
@@ -517,7 +591,7 @@ local LETTERS = {
   { "w", "watchr", "Watch room" },
 }
 
-local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
+local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW, markW)
   local segs = {}
   -- The safe marker.
   if lib.safe == id then
@@ -546,11 +620,20 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   end
   -- The casts and delete: as many as fit, two cells each, ending one cell
   -- before the right edge; the time sits just before them.
-  local used = 3 + nameW + (roomW > 0 and roomW + 1 or 0) + (keyW > 0 and keyW + 1 or 0) + 1 + timeW
+  local used = 3 + nameW + (roomW > 0 and roomW + 1 or 0) + (keyW > 0 and keyW + 1 or 0) + 1 + markW + timeW
   local fit = math.max(0, math.min(#LETTERS + 1, (width - used - 1) // 2))
   local gap = math.max(0, width - used - fit * 2 - 1)
   segs[#segs + 1] = { text = string.rep(" ", 1 + gap) }
-  segs[#segs + 1] = { text = lpad(short(left), timeW), color = left < 3600 and "orange" or nil }
+  local mark, markC, time, timeC = timeCell(id, k, t)
+  local tv = tvs[id]
+  local open = tv and (tv.watching or #tv.lines > 0)
+  if markW > 0 then
+    segs[#segs + 1] = { text = mark, color = markC, fn = open and act(function() openTv(id, true) end) or nil,
+      hint = open and (tv.watching and ("Watching $" .. k.name .. ": " .. time .. " left\nClick: its TV") or ("Open the TV of $" .. k.name)) or nil }
+  end
+  segs[#segs + 1] = { text = lpad(time, timeW), color = timeC,
+    fn = (tv and tv.watching) and act(function() openTv(id, true) end) or nil,
+    hint = (tv and tv.watching) and ("Watching $" .. k.name .. ": " .. time .. " left\nClick: its TV") or nil }
   if confirm and confirm.id == id and fit >= 1 then
     local before = (fit - 1) * 2
     local word = before + 1 >= 9 and " delete? " or ""
@@ -564,11 +647,14 @@ local function drawKey(n, id, k, t, nameW, timeW, roomW, keyW)
   for i = 1, math.min(fit, #LETTERS) do
     local l = LETTERS[i]
     segs[#segs + 1] = { text = " " }
-    segs[#segs + 1] = { text = l[1], color = "ansi_light_cyan", fn = function()
+    local watched = l[2] == "watchr" and tv and tv.watching
+    segs[#segs + 1] = { text = l[1], color = watched and "ansi_light_red" or "ansi_light_cyan", fn = function()
       cancelRename()
+      -- A running watch: its TV, not a second cast.
+      if watched then return openTv(id, true) end
       local key = find(k.name)
       if key then cast(l[2], key) end
-    end, hint = l[3] .. " $" .. k.name .. ":\n" .. castCommand(l[2], k) }
+    end, hint = watched and ("Watching $" .. k.name .. ": open its TV") or (l[3] .. " $" .. k.name .. ":\n" .. castCommand(l[2], k)) }
   end
   if fit > #LETTERS then
     segs[#segs + 1] = { text = " " }
@@ -666,16 +752,18 @@ draw = function()
     return
   end
   local t = now()
-  local nameW, timeW, roomMax, keyMax = 5, 3, 0, 0
+  local nameW, timeW, roomMax, keyMax, markW = 5, 3, 0, 0, 0
   for _, e in ipairs(list) do
     nameW = math.max(nameW, len(e.k.name) + 1)
-    timeW = math.max(timeW, len(short(expires(e.k) - t)))
+    local mark, _, time = timeCell(e.id, e.k, t)
+    timeW = math.max(timeW, len(time))
+    if mark ~= " " then markW = 1 end
     roomMax = math.max(roomMax, len(e.k.room))
     keyMax = math.max(keyMax, len(e.k.key))
   end
   -- Marker, name and time always; then the casts and delete (11 cells);
   -- the room type and the key get what is left, the key first to go.
-  local fixed = 3 + nameW + 1 + timeW + (#LETTERS + 1) * 2 + 1
+  local fixed = 3 + nameW + 1 + markW + timeW + (#LETTERS + 1) * 2 + 1
   local avail = width - fixed
   local roomW, keyW = 0, 0
   if roomMax > 0 and keyMax > 0 and avail >= roomMax + keyMax + 2 then
@@ -686,7 +774,7 @@ draw = function()
     keyW = keyMax
   end
   for i, e in ipairs(list) do
-    if not (keep and i + 1 == rr) then drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW) end
+    if not (keep and i + 1 == rr) then drawKey(i + 1, e.id, e.k, t, nameW, timeW, roomW, keyW, markW) end
   end
   if renaming and not renaming.field then renameField(rr, nameW) end
 end
@@ -695,6 +783,201 @@ pane:onResize(function(rows, cols)
   width = cols
   draw()
 end)
+
+-- ------------------------------------------------------------ the TVs
+
+-- TVs sit in the game pane's corners, one per slot; a slot's place is
+-- remembered when the player moves it.
+local SLOT_AT = { "top-left", "top-right", "bottom-left", "bottom-right" }
+local TV_ROWS, TV_COLS = 10, 60
+
+local tvTicker = nil
+
+local function tvOf(name)
+  local id = name:lower()
+  local tv = tvs[id]
+  if not tv then
+    tv = { id = id, name = name, lines = {}, bright = 1 }
+    tvs[id] = tv
+  end
+  return tv
+end
+
+-- "TV $home ● 2:31", "TV $home · scried 0:12 ago", "TV $home · ended".
+local function tvTitle(tv, t)
+  local who = tv.id == "scry" and "TV scry" or ("TV $" .. tv.name)
+  if tv.watching then
+    local left = avgWatch() - (t - tv.watching)
+    local dot = math.floor(t) % 2 == 0 and "●" or "○"
+    return who .. " " .. dot .. " " .. (left >= 0 and clock(left) or ("+" .. clock(-left)))
+  end
+  if tv.scried and (not tv.ended or tv.scried > tv.ended) then return who .. " · scried " .. clock(t - tv.scried) .. " ago" end
+  return who .. " · ended"
+end
+
+-- A line as drawn: bright (the game's colours) for BRIGHT seconds, then dim.
+local function tvLine(e, t)
+  if e.mark then return "<" .. DIM .. ">" .. e.p end
+  if t - e.t < BRIGHT then return e.c end
+  return "<" .. DIM .. ">" .. e.p
+end
+
+drawTv = function(tv)
+  local p = tv.pane
+  if not p then return end
+  local t = now()
+  p:clear()
+  tv.bright = #tv.lines + 1
+  for i, e in ipairs(tv.lines) do
+    p:setLine(i, tvLine(e, t))
+    if not e.mark and t - e.t < BRIGHT and tv.bright > i then tv.bright = i end
+  end
+  p:setTitle(tvTitle(tv, t))
+end
+
+local function closeTv(tv)
+  if not tv.pane then return end
+  local p = tv.pane
+  tv.pane = nil
+  if tv.slot then slots[tv.slot] = nil end
+  tv.slot = nil
+  p:close()
+end
+
+-- Once a second while a TV is open or a watch runs: titles, dimming, the
+-- Port keys pane's watch times, and closing TVs that are done.
+local function tvTick()
+  local t = now()
+  local busy, watching = false, false
+  for _, tv in pairs(tvs) do
+    if tv.watching then watching = true end
+    local p = tv.pane
+    if p then
+      busy = true
+      p:setTitle(tvTitle(tv, t))
+      while tv.bright <= #tv.lines do
+        local e = tv.lines[tv.bright]
+        if not e.mark and t - e.t < BRIGHT then break end
+        p:setLine(tv.bright, tvLine(e, t))
+        tv.bright = tv.bright + 1
+      end
+      local done = not tv.watching and (tv.ended or tv.scried)
+      local since = math.max(tv.ended or 0, tv.scried or 0)
+      if done and t - since > math.max(5, tonumber(settings.tvclose) or 60) then closeTv(tv) end
+    end
+  end
+  if watching then draw() end
+  if not busy and not watching and tvTicker then
+    killTimer(tvTicker)
+    tvTicker = nil
+  end
+end
+
+local function startTvTick()
+  if not tvTicker then tvTicker = tempTimer(1, tvTick, true) end
+end
+
+-- Shows the TV of `id` in a slot: its own, a free one, else the one whose
+-- TV ended first (a running watch only when all four run).
+openTv = function(id, force)
+  local tv = tvs[id]
+  if not tv then return false end
+  if force then tv.shut = false end
+  if tv.shut then return false end
+  if tv.pane then
+    tv.pane:show()
+    return true
+  end
+  local slot = nil
+  for n = 1, #SLOT_AT do
+    if not slots[n] then
+      slot = n
+      break
+    end
+  end
+  if not slot then
+    local best, bestAt = nil, nil
+    for n = 1, #SLOT_AT do
+      local o = tvs[slots[n]]
+      local at = o.watching and (1e12 + o.watching) or math.max(o.ended or 0, o.scried or 0)
+      if not best or at < bestAt then best, bestAt = n, at end
+    end
+    slot = best
+    closeTv(tvs[slots[slot]])
+  end
+  tv.slot = slot
+  slots[slot] = id
+  tv.pane = createPane{ id = "tv" .. slot, title = tvTitle(tv, now()), temporary = true, at = SLOT_AT[slot],
+    rows = TV_ROWS, cols = TV_COLS }
+  local p = tv.pane
+  p:onClose(function()
+    if tv.pane ~= p then return end
+    tv.pane = nil
+    if tv.slot then slots[tv.slot] = nil end
+    tv.slot = nil
+    -- Closed by the player: it stays closed for the rest of this watch.
+    tv.shut = tv.watching ~= nil
+  end)
+  drawTv(tv)
+  startTvTick()
+  return true
+end
+
+-- Adds a line to a TV (`c` cecho, `p` plain); `mark`: a dim note of ours.
+local function tvAdd(tv, c, p, mark)
+  local t = now()
+  tv.lines[#tv.lines + 1] = { t = t, c = c, p = p, mark = mark or nil }
+  if #tv.lines > TV_LINES + 50 then
+    -- Trimmed in batches, so the pane is redrawn whole only now and then.
+    local keep = {}
+    for i = #tv.lines - TV_LINES + 1, #tv.lines do keep[#keep + 1] = tv.lines[i] end
+    tv.lines = keep
+    drawTv(tv)
+    return
+  end
+  if tv.pane then
+    local n = #tv.lines
+    tv.pane:setLine(n, tvLine(tv.lines[n], t))
+    if not mark and tv.bright > n then tv.bright = n end
+  end
+end
+
+-- A short line in the game text instead of MUME's (with tvgag on).
+local function tvSay(tv, what)
+  if settings.tvgag then
+    replaceLine(TAG .. "<" .. DIM .. ">" .. (tv.id == "scry" and "TV scry" or ("TV $" .. tv.name)) .. ": " .. what .. ".")
+  end
+end
+
+local function watchStarted(tv)
+  tv.watching = now()
+  tv.ended = nil
+  tv.shut = false
+  tvAdd(tv, nil, "· watching", true)
+  openTv(tv.id)
+  if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.watching)) end
+  startTvTick()
+  draw()
+end
+
+local function watchEnded(tv)
+  local t = now()
+  if tv.watching then
+    local d = t - tv.watching
+    -- A plausible watch only (not one resumed after a reload).
+    if lib and not tv.resumed and d >= 10 and d <= 3600 then
+      lib.watch[#lib.watch + 1] = d
+      while #lib.watch > WATCH_LEARN do table.remove(lib.watch, 1) end
+      save()
+    end
+  end
+  tv.watching = nil
+  tv.resumed = nil
+  tv.ended = t
+  tvAdd(tv, nil, "· watch ended", true)
+  if tv.pane then tv.pane:setTitle(tvTitle(tv, t)) end
+  draw()
+end
 
 -- ------------------------------------------------------------ the pick window
 
@@ -891,6 +1174,12 @@ end)
 
 -- Lines that end a locate before it finds anything (the Mudlet script's).
 tempRegexTrigger("^(?:Argh! You cannot concentrate any more\\.\\.\\.|Nah\\.\\.\\. You feel too relaxed to do that\\.|In your dreams, or what\\?|Alas, this location is out of range!|Alas, not enough mana flows through you\\.\\.\\.|Your spell backfired!|Your mind fails to locate any such creature\\.|You feel very confused and can't concentrate any more\\.)$", function()
+  local pc = pendingCast
+  if pc then
+    pendingCast = nil
+    if pc.timer then killTimer(pc.timer) end
+    fail("The " .. (pc.kind == "watch" and "watch room" or "scry") .. " on $" .. pc.name .. " failed.")
+  end
   if not armed then return end
   local a = disarm()
   if line:find("fails to locate", 1, true) then
@@ -898,6 +1187,96 @@ tempRegexTrigger("^(?:Argh! You cannot concentrate any more\\.\\.\\.|Nah\\.\\.\\
   else
     fail("The locate failed: no key stored for $" .. a.name .. ".")
   end
+end)
+
+-- ------------------------------------------------------------ TV capture
+-- (Line formats from the Mudlet script; no MUME log has them.)
+
+local function takePending(kind)
+  local pc = pendingCast
+  if not pc or pc.kind ~= kind then return nil end
+  pendingCast = nil
+  if pc.timer then killTimer(pc.timer) end
+  return pc
+end
+
+-- A watch starts: its lines will come as [name] ….
+tempRegexTrigger("^You feel aware of this place\\.$", function()
+  local pc = takePending("watch")
+  if not pc or not lib then return end
+  local tv = tvOf(pc.name)
+  tvSay(tv, "watching")
+  watchStarted(tv)
+end)
+
+-- A watched room's line, or the watch's end. Only for a name we watch or
+-- know (a key): other bracketed lines are left alone.
+tempRegexTrigger("^\\[(\\w+)\\] (.*)$", function()
+  if not lib then return end
+  local label, text = matches[2], matches[3]
+  local id = label:lower()
+  local tv = tvs[id]
+  if not tv then
+    if not lib.keys[id] then return end
+    tv = tvOf(lib.keys[id].name)
+  end
+  if text == "Your awareness decreases." then
+    tvSay(tv, "watch ended")
+    watchEnded(tv)
+    return
+  end
+  if not tv.watching then
+    -- A watch that started before (a reload): follow it from here.
+    tv.watching = now()
+    tv.resumed = true
+    tv.ended = nil
+    openTv(tv.id)
+    startTvTick()
+    draw()
+  end
+  -- The game's colours, without the [name] in front.
+  local c = copy2cecho() or text
+  local at = c:find("[" .. label .. "] ", 1, true)
+  if at then c = c:sub(1, at - 1) .. c:sub(at + #label + 3) end
+  tvAdd(tv, c, text)
+  if settings.tvgag then deleteLine() end
+end)
+
+-- A scry: the room's lines follow, up to a blank line.
+local scrying = nil
+local function scryDone()
+  local sc = scrying
+  if not sc then return end
+  scrying = nil
+  killTrigger(sc.trig)
+  if sc.timer then killTimer(sc.timer) end
+end
+
+tempRegexTrigger("^You let your inner eye find the area\\.\\.\\. and you see:$", function()
+  if not lib then return end
+  scryDone()
+  local pc = takePending("scry")
+  local tv = pc and tvOf(pc.name) or tvOf("scry")
+  tv.scried = now()
+  tvAdd(tv, nil, "· scried", true)
+  tvSay(tv, "scried")
+  local sc = { tv = tv, n = 0 }
+  scrying = sc
+  sc.trig = tempRegexTrigger("^(.*)$", function()
+    if scrying ~= sc then return end
+    if line == "" or sc.n >= 60 then return scryDone() end
+    sc.n = sc.n + 1
+    tvAdd(tv, copy2cecho() or line, line)
+    if settings.tvgag then deleteLine() end
+  end)
+  sc.timer = tempTimer(3, function()
+    if scrying == sc then scryDone() end
+  end)
+  tv.shut = false
+  openTv(tv.id)
+  if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.scried)) end
+  startTvTick()
+  draw()
 end)
 
 local function locate(target, name)
@@ -930,6 +1309,11 @@ local function follow()
   if char and char.id == id then return end
   closePick()
   disarm()
+  -- TVs belong to the character too.
+  for _, tv in pairs(tvs) do closeTv(tv) end
+  tvs = {}
+  slots = {}
+  pendingCast = nil
   last = nil
   confirm = nil
   fresh = {}
@@ -939,6 +1323,18 @@ local function follow()
   if ensureSafe() then save() end
   draw()
 end
+
+-- A lost connection ends every watch (no duration is learnt).
+registerAnonymousEventHandler("sysDisconnectionEvent", function()
+  for _, tv in pairs(tvs) do
+    if tv.watching then
+      tv.watching = nil
+      tv.ended = now()
+      if tv.pane then tv.pane:setTitle(tvTitle(tv, tv.ended)) end
+    end
+  end
+  draw()
+end)
 
 registerAnonymousEventHandler("gmcp.Char.Name", function()
   -- state.char is up to date once the message is handled.
@@ -1025,6 +1421,70 @@ tempAlias("^psafe\\s*$", function() castSafe("portal") end)
 tempKey("Ctrl+S", function() castSafe("teleport") end)
 tempKey("Alt+S", function() castSafe("teleport", true) end)
 
+-- TVs: tv shows or hides them all, tv <name> opens one.
+tempAlias("^tv(?:\\s+\\$?(\\w+))?\\s*$", function()
+  local name = matches[2]
+  if name ~= "" then
+    local id = name:lower()
+    if not tvs[id] then return fail("No TV for $" .. name .. " yet: watchr " .. name .. " or scry " .. name .. ".") end
+    openTv(id, true)
+    return
+  end
+  local shown = false
+  for _, tv in pairs(tvs) do
+    if tv.pane and tv.pane:visible() then shown = true end
+  end
+  if shown then
+    for _, tv in pairs(tvs) do
+      if tv.pane then tv.pane:hide() end
+    end
+    return
+  end
+  local any = false
+  for id, tv in pairs(tvs) do
+    if tv.pane then
+      tv.pane:show()
+      any = true
+    elseif tv.watching then
+      any = openTv(id, true) or any
+    end
+  end
+  if not any then say("No TV open: watchr <name> or scry <name>, or tv <name> for an old one.") end
+end)
+
+-- kecho <name> [rows]: a TV's last lines in the game text.
+tempAlias("^kecho\\s+\\$?(\\w+)(?:\\s+(\\d+))?\\s*$", function()
+  local tv = tvs[matches[2]:lower()]
+  if not tv or #tv.lines == 0 then return fail("No TV lines for $" .. matches[2] .. ".") end
+  local n = math.min(#tv.lines, tonumber(matches[3]) or 20)
+  say("TV $" .. tv.name .. ", the last " .. n .. " lines:")
+  for i = #tv.lines - n + 1, #tv.lines do
+    local e = tv.lines[i]
+    cecho("  " .. (e.mark and ("<" .. DIM .. ">" .. e.p) or e.c))
+  end
+end)
+
+-- A watch or scry cast some other way (typed, a profile alias, or after
+-- $name): its answer goes to the key's TV. It never takes the command.
+local function noteCast(cmd)
+  if not lib then return end
+  local spell, key, label = cmd:match("^c%w*%s+%a?%s*'([^']+)'%s+(%S+)%s*(%S*)")
+  if not spell then return end
+  spell = spell:lower()
+  local name = nameOfKey(key)
+  if #spell >= 2 and ("scry"):sub(1, #spell) == spell then
+    if name then expectCast("scry", name) end
+  elseif #spell >= 3 and ("watch room"):sub(1, #spell) == spell then
+    local n = label ~= "" and label or name
+    if n and n:match("^[%w_]+$") then expectCast("watch", n) end
+  end
+end
+
+tempAlias("^c\\w*\\s+(?:\\w\\s+)?'[^']+'\\s+\\S+", function()
+  noteCast(command)
+  return false
+end)
+
 -- $name in any command: the key. Defined last, so the aliases above take
 -- their own commands (teleport $home) first.
 tempAlias("^.*\\$[A-Za-z0-9_]", function()
@@ -1040,6 +1500,7 @@ tempAlias("^.*\\$[A-Za-z0-9_]", function()
     return nil
   end)
   if not hit then return false end
+  noteCast(out)
   expandAlias(out)
 end)
 
