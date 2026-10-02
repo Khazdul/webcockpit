@@ -64,12 +64,13 @@ import { tags } from '@lezer/highlight';
 import { type SettingDecl, parseHeader } from '../scripts/header';
 import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
-import { type ApiDoc, apiDoc, completeLua, completionBase, nameAt } from './lua-api';
+import { type ApiDoc, apiDoc, completeLua, nameAt, stillCompletes } from './lua-api';
 import { type Signature, callContext, paramLabel, signatureFor } from './lua-sig';
 import { autoCloseAt } from './lua-blocks';
 import { caseCorrection } from './lua-case';
 import { luaHighlightLine } from './lua-highlight';
 import { luaIndent } from './lua-indent';
+import { REOPEN_EVENT, reopensAfter } from './lua-reopen';
 import { type ScriptLintOptions, scriptLint } from './lua-lint';
 import { searchExtension } from './search';
 
@@ -210,21 +211,62 @@ const settingsOf = (() => {
 /**
  * Completion (lua-api.ts `completeLua`). A `.` or `:` typed opens the
  * members at once (any typed character starts completion; the list stays
- * valid only while the part up to its last dot is unchanged, so `math`
- * then `.` asks again).
+ * valid only while more word characters are typed after the word it was
+ * asked for, so `math` then `.` asks again, and so does Backspace).
  */
 function luaCompletions(ctx: CompletionContext): CompletionResult | null {
   const line = ctx.state.doc.lineAt(ctx.pos);
   const before = line.text.slice(0, ctx.pos - line.from);
   const r = completeLua(before, ctx.explicit, settingsOf(ctx.state.doc));
   if (!r) return null;
-  const base = completionBase(before.slice(r.from));
+  const word = before.slice(r.from);
   return {
     from: line.from + r.from,
     options: r.options.flatMap((d) => toCompletions(d, r.method === true)),
-    validFor: (text) => text.startsWith(base) && /^\w*$/.test(text.slice(base.length)),
+    validFor: (text) => stillCompletes(word, text),
   };
 }
+
+/** True where a name completes at the cursor without Ctrl+Space (a single cursor). */
+function completesAt(state: EditorState): boolean {
+  const sel = state.selection;
+  if (sel.ranges.length !== 1 || !sel.main.empty) return false;
+  const line = state.doc.lineAt(sel.main.head);
+  return completeLua(line.text.slice(0, sel.main.head - line.from), false, settingsOf(state.doc)) !== null;
+}
+
+/**
+ * The list reopens after an edit that leaves the cursor where a name
+ * completes and finds it closed (lua-reopen.ts): Backspace back to
+ * `gmcp.`, Delete, Ctrl+Backspace, undo, redo, cut, paste. After the
+ * update, in a transaction of its own; an open or pending list is
+ * CodeMirror's (its `validFor` asks again for another word).
+ */
+const reopenCompletion = ViewPlugin.fromClass(
+  class implements PluginValue {
+    private queued = false;
+    private gone = false;
+
+    constructor(private readonly view: EditorView) {}
+
+    destroy(): void {
+      this.gone = true;
+    }
+
+    update(u: ViewUpdate): void {
+      if (!u.docChanged || u.state.readOnly || this.queued) return;
+      const edit = u.transactions.some((tr) => reopensAfter(tr, completionStatus(tr.startState) !== null));
+      if (!edit) return;
+      this.queued = true;
+      queueMicrotask(() => {
+        this.queued = false;
+        const v = this.view;
+        if (this.gone || completionStatus(v.state) !== null || !completesAt(v.state)) return;
+        v.dispatch({ userEvent: REOPEN_EVENT, annotations: Transaction.addToHistory.of(false) });
+      });
+    }
+  },
+);
 
 const luaHover = hoverTooltip((view, pos): Tooltip | null => {
   const line = view.state.doc.lineAt(pos);
@@ -282,7 +324,7 @@ const sigField = StateField.define<{ shown: SigState | null; dismissed: number }
     if (!tr.docChanged && !tr.selection) return value;
     let typed = false;
     let trigger = false;
-    if (tr.isUserEvent('input') || tr.isUserEvent('delete')) {
+    if (tr.docChanged && (tr.isUserEvent('input') || tr.isUserEvent('delete'))) {
       typed = true;
       tr.changes.iterChanges((_fa, _ta, _fb, _tb, ins) => {
         if (/[(,]/.test(ins.toString())) trigger = true;
@@ -568,7 +610,7 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       indentOnInput(),
       // Every option in the DOM (the longest list, Ctrl+Space on an empty
       // word, is under 100), so the wheel reaches all of them.
-      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false, maxRenderedOptions: 1000 }), caseFix]),
+      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false, maxRenderedOptions: 1000 }), reopenCompletion, caseFix]),
       luaHover,
       sigField,
       searchExtension({ onFocus: opts.onFocus }),

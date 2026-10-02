@@ -3,6 +3,7 @@
 // blocks, live errors are held back while typing valid code, and known
 // names are corrected to their case. Nothing reaches the real server.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { completeLua } from '../../src/editor/lua-api';
 
 const IAC = 255;
 const WILL = 251;
@@ -331,3 +332,169 @@ test('no list after a dot in a number, in a string, or after ..', async ({ page 
   }
   expect(errors).toEqual([]);
 });
+
+// Round 6: the list follows every edit, not only typing. After Backspace,
+// Delete, Ctrl+Backspace, undo, redo, cut or paste that leaves the cursor
+// where a name completes, the list is open and lists what completeLua
+// gives for the text before the cursor; elsewhere it is closed. Cursor
+// moves never open it, and ESC keeps it closed until the next edit.
+
+/** The text of the cursor's line before the cursor (the DOM selection CodeMirror keeps in sync). */
+const beforeCursor = (page: Page) =>
+  page.evaluate(() => {
+    const sel = document.getSelection()!;
+    let line: Node | null = sel.focusNode;
+    while (line && !(line instanceof HTMLElement && line.classList.contains('cm-line'))) line = line.parentNode;
+    const r = document.createRange();
+    r.setStart(line!, 0);
+    r.setEnd(sel.focusNode!, sel.focusOffset);
+    return r.toString();
+  });
+
+/** The labels in the open list, sorted and without repeats (a keyword lists one per snippet); null when closed. */
+const shown = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.querySelector('.cm-tooltip-autocomplete');
+    if (!el) return null;
+    return [...new Set([...el.querySelectorAll('.cm-completionLabel')].map((l) => l.textContent ?? ''))].sort();
+  });
+
+/** What the list should hold for `before`: completeLua's names as labels, or null (closed). */
+function expected(before: string): string[] | null {
+  const r = completeLua(before);
+  if (!r) return null;
+  return [...new Set(r.options.map((d) => (r.method ? d.name.slice(d.name.indexOf('.') + 1) : d.name)))].sort();
+}
+
+type Step =
+  | { type: string }
+  | { press: string; times?: number }
+  /** Expect the list closed now, whatever completeLua says (ESC, cursor moves). */
+  | { closed: true }
+  /** Expect exactly these labels (sorted), besides the completeLua check after every step. */
+  | { list: string[] }
+  /** A pause, so the next edit is an undo step of its own (CodeMirror joins edits within 500 ms). */
+  | { pause: number };
+
+interface Case {
+  name: string;
+  steps: Step[];
+}
+
+const press = (key: string, times = 1): Step => ({ press: key, times });
+
+const CASES: Case[] = [
+  {
+    name: 'gmcp.comm.channel.li backspaced to gmcp.',
+    steps: [{ type: 'v = gmcp.comm.channel.li' }, press('Backspace', 15), { list: ['gmcp.Char', 'gmcp.Comm', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room'] }],
+  },
+  {
+    name: 'string.form backspaced to string. and str',
+    steps: [{ type: 's = string.form' }, press('Backspace', 4), { list: expected('string.')! }, press('Backspace', 4), { list: ['string'] }],
+  },
+  {
+    name: 'math.flo: Ctrl+Backspace, undo, redo',
+    steps: [
+      { type: 'x = math.flo' },
+      { list: ['math.floor'] },
+      { pause: 600 },
+      press('ControlOrMeta+Backspace'),
+      { list: expected('math.')! },
+      press('ControlOrMeta+z'),
+      { list: ['math.floor'] },
+      press('ControlOrMeta+y'),
+      { list: expected('math.')! },
+    ],
+  },
+  {
+    name: 'a deleted member brought back by undo',
+    steps: [{ type: 'n = state.char.vi' }, { pause: 600 }, press('Backspace', 2), press('ControlOrMeta+z'), { list: ['state.char.vitals'] }],
+  },
+  {
+    name: 'a member path in the middle of a line, Backspace and Delete',
+    steps: [
+      { type: 'y = math.floor + 1' },
+      press('ArrowLeft', 6),
+      { closed: true },
+      press('Backspace'),
+      { list: ['math.floor'] },
+      press('Backspace', 2),
+      press('Delete'),
+      { list: expected('math.')! },
+    ],
+  },
+  {
+    name: 'x:up backspaced to x:',
+    steps: [{ type: 'u = x:up' }, { list: ['upper'] }, press('Backspace', 2), press('Backspace')],
+  },
+  {
+    name: 'state.char. backspaced',
+    steps: [{ type: 'c = state.char.' }, press('Backspace'), { list: ['state.char'] }, press('Backspace', 4), { list: expected('state.')! }],
+  },
+  {
+    name: 'cut and paste a member name',
+    steps: [{ type: 'w = string.upper' }, press('Escape'), press('Shift+ArrowLeft', 5), press('ControlOrMeta+x'), { list: expected('string.')! }, press('ControlOrMeta+v'), { list: ['string.upper'] }],
+  },
+  {
+    name: 'no list after a number dot, in a string or after ..',
+    steps: [{ type: 'z = 1.' }, press('Backspace'), { type: '.5' }, { type: ' .. "math.fl' }, press('Backspace'), { type: '" ..' }, press('Backspace')],
+  },
+  {
+    name: 'ESC closes until the next edit',
+    steps: [
+      { type: 'e = math.' },
+      press('Escape'),
+      { closed: true },
+      press('ArrowLeft'),
+      press('ArrowRight'),
+      { closed: true },
+      { type: 'a' },
+      { list: ['math.abs', 'math.acos', 'math.asin', 'math.atan'] },
+      press('Escape'),
+      { closed: true },
+      press('Backspace'),
+      { list: expected('math.')! },
+    ],
+  },
+];
+
+for (const c of CASES) {
+  test(`completion follows edits: ${c.name}`, async ({ page }) => {
+    const errors = watchErrors(page);
+    await openEditor(page);
+    await page.keyboard.press('Enter');
+    let i = 0;
+    for (const step of c.steps) {
+      i++;
+      const at = `${c.name}, step ${i}`;
+      if ('type' in step) {
+        for (const ch of step.type) await page.keyboard.type(ch);
+      } else if ('press' in step) {
+        for (let n = 0; n < (step.times ?? 1); n++) {
+          await page.keyboard.press(step.press);
+          // Every Backspace or Delete on the way: the list follows the text before the cursor.
+          if (/^(Backspace|Delete)$/.test(step.press)) {
+            const before = await beforeCursor(page);
+            await expect.poll(() => shown(page), `${at}: ${JSON.stringify(before)}`).toEqual(expected(before));
+          }
+        }
+      } else if ('pause' in step) {
+        await page.waitForTimeout(step.pause);
+        continue;
+      } else if ('closed' in step) {
+        await page.waitForTimeout(250);
+        expect(await shown(page), at).toBeNull();
+        continue;
+      } else {
+        await expect.poll(() => shown(page), at).toEqual([...step.list].sort());
+        continue;
+      }
+      if ('press' in step && step.press === 'Escape') continue;
+      if ('press' in step && /Arrow/.test(step.press)) continue;
+      const before = await beforeCursor(page);
+      if (expected(before) === null) await page.waitForTimeout(250);
+      await expect.poll(() => shown(page), `${at}: ${JSON.stringify(before)}`).toEqual(expected(before));
+    }
+    expect(errors).toEqual([]);
+  });
+}

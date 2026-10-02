@@ -964,12 +964,16 @@ export function completeLua(
 }
 
 /**
- * The part of a completed word that must not change for the open list to
- * stay valid: up to its last dot (`math.`), or the `@` of a tag. Typing
- * another dot asks again, so `math` then `.` lists math's members.
+ * Whether a list computed for `word` (the text from the completion's
+ * start to the cursor when it was asked) still holds for `text`, the
+ * same span now: only while `text` is `word` with more word characters
+ * typed after it. A dot or colon asks again (`math` then `.` lists the
+ * members), and so does any shorter text (Backspace): the options were
+ * filtered by `word`, so a list for `gmcp.Comm` must not stand for
+ * `gmcp.` (stage 10 feedback round 6).
  */
-export function completionBase(word: string): string {
-  return /^@?(?:[\w]*\.)*/.exec(word)![0];
+export function stillCompletes(word: string, text: string): boolean {
+  return text.startsWith(word) && /^\w*$/.test(text.slice(word.length));
 }
 
 // ----------------------------------------------------------------- hover

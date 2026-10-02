@@ -2,7 +2,7 @@
 // (stage 10 P2, ADR 0051).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { HEADER_TAGS, SCRIPT_API, apiDoc, completeLua, completionBase, lineContext, nameAt } from '../../src/editor/lua-api';
+import { HEADER_TAGS, SCRIPT_API, apiDoc, completeLua, lineContext, stillCompletes, nameAt } from '../../src/editor/lua-api';
 import { LUA_KEYWORDS, LUA_REF, LUA_SYNTAX } from '../../src/editor/lua-ref';
 import { luaIndent, luaTokens, opensBlock, startsWithCloser } from '../../src/editor/lua-indent';
 
@@ -96,12 +96,30 @@ describe('completion', () => {
     expect(completeLua('::')).toBeNull();
   });
 
-  it('keeps the list only while the part up to the last dot is unchanged', () => {
-    expect(completionBase('ma')).toBe('');
-    expect(completionBase('math.')).toBe('math.');
-    expect(completionBase('math.ab')).toBe('math.');
-    expect(completionBase('gmcp.Char.Vi')).toBe('gmcp.Char.');
-    expect(completionBase('@se')).toBe('@');
+  it('keeps a list only while more word characters follow the word it was asked for (round 6)', () => {
+    expect(stillCompletes('ma', 'mat')).toBe(true);
+    expect(stillCompletes('math.', 'math.ab')).toBe(true);
+    expect(stillCompletes('gmcp.Char.Vi', 'gmcp.Char.Vit')).toBe(true);
+    expect(stillCompletes('@se', '@set')).toBe(true);
+    expect(stillCompletes('', 'x')).toBe(true);
+    // A dot asks again.
+    expect(stillCompletes('math', 'math.')).toBe(false);
+    expect(stillCompletes('math.', 'math.a.')).toBe(false);
+    // Backspace asks again: a list for a longer word must not stand for a shorter one.
+    expect(stillCompletes('gmcp.Comm', 'gmcp.Com')).toBe(false);
+    expect(stillCompletes('gmcp.Comm', 'gmcp.')).toBe(false);
+    expect(stillCompletes('gmcp.Comm.Channel.', 'gmcp.')).toBe(false);
+    expect(stillCompletes('string.form', 'string.')).toBe(false);
+    expect(stillCompletes('math.fl', 'math.f')).toBe(false);
+  });
+
+  it('has candidates at every step of the paths the e2e backspaces through (round 6)', () => {
+    for (const path of ['gmcp.comm.channel.li', 'string.form', 'x = math.flo', 'state.char.', 'gmcp.Comm.Channel.', 'x:up']) {
+      const start = path.indexOf('=') >= 0 ? 5 : 1;
+      for (let i = path.length; i >= start; i--) expect(completeLua(path.slice(0, i)), path.slice(0, i)).not.toBeNull();
+    }
+    expect(names(completeLua('gmcp.'))).toHaveLength(5);
+    expect(names(completeLua('x:'))!.length).toBeGreaterThan(10);
   });
 
   it('completes header tags in a header comment', () => {
