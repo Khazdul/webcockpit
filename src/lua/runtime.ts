@@ -105,10 +105,12 @@ export interface LuaClass {
  * a script holds it.
  */
 export class LuaObject {
-  constructor(
-    readonly cls: LuaClass,
-    readonly id: number,
-  ) {}
+  readonly cls: LuaClass;
+  readonly id: number;
+  constructor(cls: LuaClass, id: number) {
+    this.cls = cls;
+    this.id = id;
+  }
 }
 
 /** Returned by a host function: several results (`return a, b` in Lua). */

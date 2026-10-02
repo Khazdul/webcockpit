@@ -14,6 +14,11 @@
 // the script host running BENCH_SCRIPT (triggers on common text, two
 // regexes, a highlight, a gag that never matches and an alias). Lua runs
 // only on a match; the count of Lua calls per pass is printed.
+//
+// Script panes (ADR 0053): a trigger on every line, once bare and once
+// updating a pane (setLine, gauge, cecho: three pane calls per line), with
+// the host's headless pane (no DOM; the coalesced per-frame render is not
+// on the line path).
 
 import { readFileSync } from 'node:fs';
 import { registerHooks } from 'node:module';
@@ -75,13 +80,29 @@ tempTrigger("ZZZ never matches ZZZ", function() deleteLine() end)
 tempAlias("^lootall$", function() send("get all.coins all.corpse") end)
 `;
 
+/** A Lua call on every line, without and with pane updates. */
+const EVERY_LINE = `-- @api 1
+n = 0
+tempRegexTrigger("^", function() n = n + 1 end)
+`;
+const PANE_SCRIPT = `-- @api 1
+local p = createPane{id = "bench", rows = 20, cols = 40}
+n = 0
+tempRegexTrigger("^", function()
+  n = n + 1
+  p:setLine(1, "<yellow>lines<reset> " .. n)
+  p:gauge(2, {value = n % 100, max = 100, label = "load"})
+  p:cecho(line .. "\\n")
+end)
+`;
+
 type Engine = InstanceType<typeof ScriptEngine>;
 
 /**
  * Starts a script host on `e` running BENCH_SCRIPT (a fake library, no
  * storage). Returns a counter of Lua calls and a stop function.
  */
-async function startScripts(e: Engine, bus: InstanceType<typeof Bus>): Promise<{ calls: () => number; stop: () => void }> {
+async function startScripts(e: Engine, bus: InstanceType<typeof Bus>, source = BENCH_SCRIPT): Promise<{ calls: () => number; stop: () => void }> {
   const { ScriptHost } = await import('../src/scripts/host');
   const { parseHeader } = await import('../src/scripts/header');
   const { loadLuaRuntime } = await import('../src/lua');
@@ -89,8 +110,8 @@ async function startScripts(e: Engine, bus: InstanceType<typeof Bus>): Promise<{
     name: 'bench',
     bundled: false,
     readonly: false,
-    source: BENCH_SCRIPT,
-    header: parseHeader(BENCH_SCRIPT).header,
+    source,
+    header: parseHeader(source).header,
     problems: [],
     loadProblem: null,
     enabled: true,
@@ -135,7 +156,11 @@ async function startScripts(e: Engine, bus: InstanceType<typeof Bus>): Promise<{
   return { calls: () => calls, stop: () => host.dispose() };
 }
 
-async function perLine(profile: string | null, system = false, scripts = false): Promise<{ us: number; shown: number; sent: number; calls: number }> {
+async function perLine(
+  profile: string | null,
+  system = false,
+  scripts: string | false = false,
+): Promise<{ us: number; shown: number; sent: number; calls: number }> {
   const bus = new Bus();
   let shown = 0;
   let sent = 0;
@@ -160,7 +185,7 @@ async function perLine(profile: string | null, system = false, scripts = false):
     const r = e.loadProfile(profile);
     if (!r.ok) throw new Error(r.reason);
   }
-  const lua = scripts ? await startScripts(e, bus) : null;
+  const lua = scripts ? await startScripts(e, bus, scripts) : null;
   const once = (): number => {
     const t0 = performance.now();
     for (let i = 0; i < lines.length; i++) e.processLine(lines[i]!);
@@ -211,8 +236,15 @@ console.log(
 );
 const key = keyPath(profile);
 console.log(`  key path:  macro → alias → send ${key.macroUs.toFixed(2)} µs, typed alias ${key.aliasUs.toFixed(2)} µs (budget 1000 µs)`);
-const lua = await perLine(profile, true, true);
+const lua = await perLine(profile, true, BENCH_SCRIPT);
 console.log(
   `  ${RULE_COUNT} rules + system + Lua script: ${lua.us.toFixed(2)} µs per line (+${(lua.us - both.us).toFixed(2)}; ` +
     `${lua.calls} Lua calls per pass, ${((lua.calls / lines.length) * 100).toFixed(1)} % of lines) (budget 200 µs) ${lua.us < 200 ? 'PASS' : 'FAIL'}`,
+);
+const bare = await perLine(profile, true, EVERY_LINE);
+const panes = await perLine(profile, true, PANE_SCRIPT);
+console.log(
+  `  ${RULE_COUNT} rules + system + a Lua trigger on every line: ${bare.us.toFixed(2)} µs per line (+${(bare.us - both.us).toFixed(2)}); ` +
+    `updating a pane (3 calls): ${panes.us.toFixed(2)} µs per line (+${(panes.us - bare.us).toFixed(2)} for the pane calls) ` +
+    `(budget 200 µs) ${panes.us < 200 ? 'PASS' : 'FAIL'}`,
 );
