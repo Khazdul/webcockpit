@@ -442,6 +442,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
         typed reaches the game or macros; Enter, Esc, a click elsewhere
         or the pane closing give the keyboard back to the input line.
         Runs show the field's text.
+  - Map marks (ADR 0057): `mapMark(target, opts, fn)` marks rooms (ids,
+    or a query by name, description lines and exits; nearest 20 first)
+    on the Map pane for a while, blinking, with arrows when off view and
+    an optional `focus` that zooms out to show them; `mapUnmark(handle)`;
+    `mapFind(query, fn)`. Map off: `nil, "map off"`. Live only.
 - **Limits** (ADR 0051): sandboxed environment, instruction budget per
   call, memory cap, auto-disable on repeated errors.
 - **Runs.** Script pane content is recorded and shows in the log player

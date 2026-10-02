@@ -439,6 +439,25 @@ const PANES: HelpSection = {
   ],
 };
 
+const MAP_MARKS: HelpSection = {
+  group: "guide",
+  heading: "Map marks",
+  syntax: ["mapMark(target, opts, fn)  mapUnmark(handle)  mapFind(query, fn)"],
+  text: [
+    "A script can show rooms on the Map pane: they blink in a colour for a while, and an arrow at the edge points to a room off the view.",
+    "mapMark({name = \"A Tunnel\", lines = {…}, exits = \"Exits: north, south.\"}, {color = \"magenta\", duration = 15, focus = true}, fn) finds the rooms with that name (the lines after the name narrow by the description, the Exits: line by the exits; the nearest 20 to you first) and marks them. focus = true zooms out so you and the rooms are in view; when the mark ends the zoom comes back, unless you moved the map yourself meanwhile. fn(count, total, ids) says what was found.",
+    "mapFind(query, fn) only finds: fn(ids, total). mapMark({ids…}) marks rooms by id; mapUnmark(handle) ends a mark early.",
+    "With the Map pane off (or no map loaded) mapMark and mapFind return nil, \"map off\" at once. Marks are live only: runs and replays do not show them.",
+  ],
+  examples: [
+    {
+      note: "Mark a room by name for 15 seconds:",
+      lang: "lua",
+      code: 'tempAlias("^where (.+)$", function()\n  local h, why = mapMark({name = matches[2]}, {duration = 15, focus = true}, function(count, total)\n    echo(count == 0 and "Not on the map." or (count .. " of " .. total .. " rooms marked."))\n  end)\n  if not h then echo("No mark: " .. why) end\nend)',
+    },
+  ],
+};
+
 const SETTINGS: HelpSection = {
   group: "guide",
   heading: "Settings and store",
@@ -637,6 +656,7 @@ export const SCRIPT_GUIDE: readonly HelpSection[] = [
   EVENTS,
   OUTPUT,
   PANES,
+  MAP_MARKS,
   SETTINGS,
   BRIDGE,
   COMMANDS,

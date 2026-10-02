@@ -540,6 +540,48 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         'store.set("kills", 12)\nstore.set("friends", { "Rasta", "Ithilwen" })',
     },
   ),
+  // Map marks (ADR 0057).
+  fn(
+    "mapMark",
+    "mapMark(target, opts, fn) → handle",
+    "Marks rooms on the Map pane for a while: they blink in a colour, with arrows when they are off the view. target is a list of room ids or a query by a room's text, {name = …, lines = {…}, exits = \"Exits: …\", max = 20}.",
+    {
+      params: [
+        p("target", "table", "Room ids (from mapFind), or {name, lines, exits, max}: the room's name as shown, the lines after it (they narrow by the description), its Exits: line, and the most rooms (default 20, at most 50; nearest to you first)."),
+        p("opts", "table?", "color (a colour name, #rrggbb or r,g,b; default magenta), duration (seconds, default 30, at most 600), fade (seconds of fading at the end, default 10), blink and arrows (default true), label (a short text at the first room), focus (true: zoom out to show you and the rooms; the view comes back when the mark ends, unless you moved it)."),
+        p("fn", "function?", "Called once with (count, total, ids): how many rooms were marked, how many matched, and their ids. count is 0 when nothing matched."),
+      ],
+      returns: "A handle for mapUnmark, or nil and why (\"map off\" when the Map pane is off or has no map).",
+      more: [
+        "Room ids are map room numbers, valid for the map that is loaded now. A script has at most 8 marks at a time; its marks go when it stops. Marks are not in runs or replays.",
+      ],
+      example:
+        'local h, why = mapMark({name = "The Prancing Pony"}, {color = "orange", duration = 15, focus = true},\n  function(count, total) echo(count .. " of " .. total .. " marked") end)\nif not h then echo("No mark: " .. why) end',
+    },
+  ),
+  fn(
+    "mapUnmark",
+    "mapUnmark(handle) → boolean",
+    "Takes a mark from mapMark away before its time is up.",
+    {
+      params: [p("handle", "number", "What mapMark returned.")],
+      returns: "true when the mark was still there.",
+      example: "mapUnmark(h)",
+    },
+  ),
+  fn(
+    "mapFind",
+    "mapFind(query, fn)",
+    "Finds map rooms by a room's text, nearest to you first, and calls fn(ids, total).",
+    {
+      params: [
+        p("query", "table", "{name, lines, exits, max}, as mapMark's query."),
+        p("fn", "function", "Called once with the room ids (a list) and how many matched."),
+      ],
+      returns: "true, or nil and why (\"map off\").",
+      example: 'mapFind({name = "Bree Market Square"}, function(ids, total)\n  echo(total .. " rooms; marking the nearest")\n  if ids[1] then mapMark({ids[1]}, {duration = 10}) end\nend)',
+    },
+  ),
   // Panes (ADR 0053).
   fn(
     "createPane",

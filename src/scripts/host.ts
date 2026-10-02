@@ -40,6 +40,8 @@ import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } fro
 import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
 import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
+import type { ScriptMapSurface } from '../map/marks';
+import type { MarkStyle, MarkTarget, RoomQuery } from '../map/protocol';
 import type { FieldEvent } from '../panes/script-pane';
 import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
@@ -48,7 +50,7 @@ import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
 import { setLiveScriptKey } from '../script/script-keys';
 import type { StyledRow } from '../ui/output-pane';
 import { helpRows, listRows, settingText } from './command-rows';
-import { parseCecho, parseScriptColor } from './colors';
+import { mudletColor, parseCecho, parseScriptColor } from './colors';
 import { type GmcpEntry, GmcpCache } from './gmcp-cache';
 import { HangGuard } from './guard';
 import { apiProblem } from './header';
@@ -97,6 +99,8 @@ export interface ScriptHostOptions {
   gmcp?: GmcpCache;
   /** Where script panes appear (App: the cockpit). Absent: panes keep content but are not shown. */
   panes?: ScriptPaneSurface;
+  /** Script map marks (App: its MapMarkHub; ADR 0057). Absent: `mapMark` answers "map off". */
+  map?: ScriptMapSurface;
 }
 
 /** Default and largest wanted pane size in cells (createPane rows/cols). */
@@ -169,6 +173,8 @@ class Owner {
   readonly exports = new Map<string, LuaRef>();
   /** Panes by their own id (`createPane{id=…}`). */
   readonly panes = new Map<string, PaneReg>();
+  /** Live map marks (ADR 0057): hub id → the callback's reference. */
+  readonly marks = new Map<number, LuaRef | null>();
   errors: number[] = [];
 
   constructor(name: string, source: string) {
@@ -415,6 +421,8 @@ export class ScriptHost {
       p.view.close();
     }
     o.panes.clear();
+    for (const id of [...o.marks.keys()]) this.o.map?.unmark(id);
+    o.marks.clear();
     // Function references go with the script (LuaScript.unload).
   }
 
@@ -961,9 +969,121 @@ export class ScriptHost {
       },
     });
 
+    this.defineMapMarks(rt);
     rt.defineView('gmcp');
     rt.defineView('state');
     this.definePanes(rt);
+  }
+
+  // -------------------------------------------------------------- map marks
+
+  /** `mapMark`, `mapUnmark`, `mapFind` (ADR 0057). */
+  private defineMapMarks(rt: LuaRuntime): void {
+    const MAX_MARKS = 8;
+    const MAX_ROOMS = 50;
+    const query = (a: LuaArgs, i: number, v: { [key: string]: unknown }): RoomQuery => {
+      const name = v.name;
+      if (typeof name !== 'string' || name.trim() === '') throw new Error(`bad argument #${i} to '${a.name}' (name must be a string)`);
+      const q: RoomQuery = { name };
+      if (v.lines !== undefined) {
+        if (!Array.isArray(v.lines) || !v.lines.every((l) => typeof l === 'string')) throw new Error(`bad argument #${i} to '${a.name}' (lines must be a list of strings)`);
+        q.lines = (v.lines as string[]).slice(0, 100);
+      }
+      if (v.exits !== undefined) {
+        if (typeof v.exits !== 'string') throw new Error(`bad argument #${i} to '${a.name}' (exits must be a string)`);
+        q.exits = v.exits;
+      }
+      if (v.max !== undefined) {
+        if (typeof v.max !== 'number' || !(v.max >= 1)) throw new Error(`bad argument #${i} to '${a.name}' (max must be a number from 1)`);
+        q.max = Math.min(MAX_ROOMS, Math.floor(v.max));
+      }
+      return q;
+    };
+
+    rt.defineFunction('mapMark', (a) => {
+      const o = this.cur(rt);
+      const raw = a.table(1);
+      let target: MarkTarget;
+      if (Array.isArray(raw)) {
+        if (!raw.every((r) => typeof r === 'number' && Number.isInteger(r) && r >= 0)) {
+          throw new Error(`bad argument #1 to 'mapMark' (a list of room ids or a {name = …} query expected)`);
+        }
+        target = { rooms: (raw as number[]).slice(0, MAX_ROOMS) };
+      } else target = { query: query(a, 1, raw) };
+      const opts = a.count >= 2 && a.type(2) !== 'nil' ? a.table(2) : {};
+      if (Array.isArray(opts) && opts.length > 0) throw new Error(`bad argument #2 to 'mapMark' (a table of options expected)`);
+      const op = (Array.isArray(opts) ? {} : opts) as { [key: string]: unknown };
+      const num = (k: string, def: number, min: number, max: number): number => {
+        const v = op[k];
+        if (v === undefined) return def;
+        if (typeof v !== 'number' || !Number.isFinite(v)) throw new Error(`bad argument #2 to 'mapMark' (${k} must be a number)`);
+        return Math.max(min, Math.min(max, v));
+      };
+      const bool = (k: string, def: boolean): boolean => (op[k] === undefined ? def : op[k] === true);
+      let color = 0xff40ff;
+      if (op.color !== undefined) {
+        const c = typeof op.color === 'string' ? mudletColor(op.color) : null;
+        if (c === null || c < TRUECOLOR) throw new Error(`bad argument #2 to 'mapMark' (color must be a colour name, #rrggbb or r,g,b)`);
+        color = c & 0xffffff;
+      }
+      const duration = num('duration', 30, 1, 600);
+      const style: MarkStyle = {
+        color,
+        blink: bool('blink', true),
+        fade: num('fade', 10, 0, duration),
+        arrows: bool('arrows', true),
+      };
+      if (op.label !== undefined) style.label = String(op.label).slice(0, 40);
+      const focus = bool('focus', false);
+      const ref = a.optFunction(3);
+      const surf = this.o.map;
+      const why = surf ? surf.unavailable() : 'map off';
+      const refuse = (reason: string) => {
+        if (ref !== null) o.script?.release(ref);
+        return rt.multi(null, reason);
+      };
+      if (why || !surf) return refuse(why ?? 'map off');
+      if (o.marks.size >= MAX_MARKS) return refuse(`at most ${MAX_MARKS} marks at a time`);
+      let id: number | null = null;
+      id = surf.mark(target, style, duration * 1000, focus, {
+        marked: (r) => {
+          if (ref !== null && !o.dead && id !== null && o.marks.has(id)) this.call(o, ref, r.rooms.length, r.total, r.rooms);
+        },
+        ended: () => {
+          if (id === null || !o.marks.has(id)) return;
+          o.marks.delete(id);
+          if (ref !== null && !o.dead) o.script?.release(ref);
+        },
+      });
+      if (id === null) return refuse('map off');
+      o.marks.set(id, ref);
+      return id;
+    });
+
+    rt.defineFunction('mapUnmark', (a) => {
+      const o = this.cur(rt);
+      const id = a.number(1);
+      if (!o.marks.has(id)) return false;
+      return this.o.map?.unmark(id) ?? false;
+    });
+
+    rt.defineFunction('mapFind', (a) => {
+      const o = this.cur(rt);
+      const raw = a.table(1);
+      if (Array.isArray(raw)) throw new Error(`bad argument #1 to 'mapFind' (a {name = …} query expected)`);
+      const q = query(a, 1, raw);
+      const ref = a.function(2);
+      const surf = this.o.map;
+      const why = surf ? surf.unavailable() : 'map off';
+      if (why || !surf || !surf.find(q, (r) => {
+        if (!o.dead) this.call(o, ref, r.rooms, r.total);
+        if (!o.dead) o.script?.release(ref);
+      })) {
+        o.script?.release(ref);
+        return rt.multi(null, why ?? 'map off');
+      }
+      return true;
+    });
   }
 
   // ------------------------------------------------------------------ panes

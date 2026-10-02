@@ -15,6 +15,7 @@ import { ScriptLibrary } from '../../src/scripts';
 import { HANG_KEY } from '../../src/scripts/guard';
 import { GmcpCache } from '../../src/scripts/gmcp-cache';
 import { parseCecho } from '../../src/scripts/colors';
+import { MapMarkHub, type ScriptMapSurface } from '../../src/map/marks';
 import { ScriptHost } from '../../src/scripts/host';
 import type { StyledRow } from '../../src/ui/output-pane';
 import { PaneContent } from '../../src/panes/script-content';
@@ -66,6 +67,7 @@ interface SetupOptions {
   /** Runs on the bus before the host exists (a GmcpCache is attached first). */
   before?: (bus: Bus) => void;
   panes?: ScriptPaneSurface;
+  map?: ScriptMapSurface;
 }
 
 /** A fake pane surface: records what the host opens and lets a test click and resize. */
@@ -161,6 +163,7 @@ async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = 
     storage: storage as unknown as Storage,
     clock: () => now.t,
     ...(opts.panes ? { panes: opts.panes } : {}),
+    ...(opts.map ? { map: opts.map } : {}),
   });
   hosts.push(host);
   await host.start();
@@ -795,6 +798,89 @@ describe('hang guard', () => {
     expect(t.lib.get('s')!.enabled).toBe(false);
     expect(t.uiText()[0]).toMatch(/^Script s was turned off: the page closed while it was running/);
     expect(storage.getItem(HANG_KEY)).toBe(null);
+  });
+});
+
+describe('map marks (ADR 0057)', () => {
+  function mapRig() {
+    const hub = new MapMarkHub();
+    const sent: Array<{ op: string; id: number; arg?: unknown }> = [];
+    let shown = true;
+    hub.attach({
+      find: (req, query) => void sent.push({ op: 'find', id: req, arg: query }),
+      mark: (id, target, style, ms, focus) => void sent.push({ op: 'mark', id, arg: { target, style, ms, focus } }),
+      unmark: (id) => void sent.push({ op: 'unmark', id }),
+      shown: () => shown,
+    });
+    return { hub, sent, setShown: (v: boolean) => (shown = v) };
+  }
+
+  it('mapMark sends a query with its style; fn gets (count, total, ids) later; nil "map off" without a map', async () => {
+    const m = mapRig();
+    const t = await setup(
+      {
+        mm: src(`
+          export("mark", function(name)
+            local h, why = mapMark({name = name, lines = {"a line"}, exits = "Exits: north.", max = 5},
+              {color = "orange", duration = 15, fade = 5, focus = true, label = "$home"},
+              function(count, total, ids) send("marked " .. count .. "/" .. total .. " " .. table.concat(ids, ",")) end)
+            send(tostring(h) .. " " .. tostring(why))
+          end)
+          export("ids", function() send(tostring((mapMark({4, 5}, nil)))) end)
+          export("unmark", function(h) send(tostring(mapUnmark(tonumber(h)))) end)
+          export("find", function() send(tostring((mapFind({name = "x"}, function(ids, total) send("found " .. total .. " " .. #ids) end)))) end)
+          export("bad", function()
+            send(select(2, pcall(mapMark, {name = ""})))
+            send(select(2, pcall(mapMark, {1}, {color = "ansi_red"})))
+          end)
+        `),
+      },
+      { map: m.hub },
+    );
+    t.engine.input('#lua mm mark A Tunnel');
+    const mk = m.sent[0]!;
+    expect(mk).toMatchObject({
+      op: 'mark',
+      arg: {
+        target: { query: { name: 'A Tunnel', lines: ['a line'], exits: 'Exits: north.', max: 5 } },
+        style: { color: 0xffa500, blink: true, fade: 5, arrows: true, label: '$home' },
+        ms: 15000,
+        focus: true,
+      },
+    });
+    expect(t.sent).toEqual([`${mk.id} nil`]);
+    m.hub.marked(mk.id, [3, 1], 7);
+    expect(t.sent.at(-1)).toBe('marked 2/7 3,1');
+    t.engine.input(`#lua mm unmark ${mk.id}`);
+    expect(m.sent.at(-1)).toEqual({ op: 'unmark', id: mk.id });
+    m.hub.ended(mk.id);
+    t.engine.input('#lua mm ids');
+    expect(m.sent.at(-1)).toMatchObject({ op: 'mark', arg: { target: { rooms: [4, 5] }, style: { color: 0xff40ff }, ms: 30000, focus: false } });
+    t.engine.input('#lua mm find');
+    m.hub.found(m.sent.at(-1)!.id, [9], 1);
+    expect(t.sent.slice(-2)).toEqual(['true', 'found 1 1']);
+    t.engine.input('#lua mm bad');
+    expect(t.sent.slice(-2)).toEqual([expect.stringMatching(/name must be a string/), expect.stringMatching(/color must be a colour name/)]);
+    // Off: nil, "map off" at once.
+    m.setShown(false);
+    t.engine.input('#lua mm mark A Tunnel');
+    expect(t.sent.at(-1)).toBe('nil map off');
+    expect(t.lib.get('mm')!.lastError).toBeNull();
+  });
+
+  it('caps marks per script; a script\'s marks go when it stops; no surface: map off', async () => {
+    const m = mapRig();
+    const t = await setup(
+      { cap: src(`export("go", function() for i = 1, 9 do local h, why = mapMark({i}); send(tostring(h ~= nil) .. " " .. tostring(why)) end end)`) },
+      { map: m.hub },
+    );
+    t.engine.input('#lua cap go');
+    expect(t.sent.filter((x) => x === 'true nil')).toHaveLength(8);
+    expect(t.sent.at(-1)).toBe('false at most 8 marks at a time');
+    await t.host.reload('cap');
+    expect(m.sent.filter((x) => x.op === 'unmark')).toHaveLength(8);
+    const t2 = await setup({ off: src(`send(tostring(select(2, mapMark({1}))))`) });
+    expect(t2.sent).toEqual(['map off']);
   });
 });
 
