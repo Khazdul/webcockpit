@@ -40,17 +40,7 @@ SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua 5.4, for what a profile cannot do. A script that is on works with every profile. Open them with Options → Scripts; the editor marks errors as you type, completes names and shows help on hover, and HELP opens a full manual with examples. A script can:
-  Triggers        React to game lines by text or regular expression, and hide, rewrite or colour them.
-  Aliases, keys   Add its own commands and key bindings.
-  Timers          Run code after a delay or on a repeat.
-  GMCP            Follow your vitals, room, group and other game data as it changes.
-  Panes           Draw its own panes, with colours, bars, clickable links and text fields.
-  Map             Mark rooms on the map and point the way to them.
-  Settings        Offer settings the player changes, and keep its own data between sessions.
-  Profile         Read and set profile variables, and be called from the profile with #lua.
-
-Scripts run in a sandbox: no files, no network and nothing outside their own data. A few come bundled, such as coinlooter, keymanager and mercenaries. Export your own scripts as .lua files, or all of them as one backup, to keep or share them.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts. The editor helps you write them: it completes commands, shows their syntax and help as you type, and marks errors at once. HELP opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
