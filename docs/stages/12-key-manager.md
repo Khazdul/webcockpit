@@ -268,3 +268,7 @@ layout forgets it); the pick window opens at the top.
 ### Round 3 (2026-10-02)
 
 Approved ("ser bra ut"). Next: round 4, the TV.
+
+Verified by the owner in live MUME (2026-10-02): `cast q 'teleport'` is
+accepted, and long creature and room names cause no problems. The
+failure lines that cancel a cast are still unverified.

@@ -157,9 +157,9 @@ default). No host change was needed for round 1 beyond ADR 0055.
 - Keys of a character who never logs in again stay in the store (a few
   hundred bytes each).
 - Open, unverified against MUME: the failure lines are the Mudlet
-  script's; long creature or room names may be padded differently
-  (the pattern trims); whether `cast q 'teleport'` is accepted as quick
-  casting.
+  script's. (Verified by the owner in live MUME, 2026-10-02: `cast q
+  'teleport'` is accepted, and long creature and room names cause no
+  problems.)
 - Later round (owner): TV, the scry and watch room output in temporary
   panes.
 
