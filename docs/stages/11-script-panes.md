@@ -84,7 +84,8 @@ Main-session decisions (details in ADR 0053):
 ## Tasks
 
 - [x] Plan the packages (above).
-- [ ] P0. Script panes on the docking engine and the pane API.
+- [x] P0. Script panes on the docking engine and the pane API
+  (ADR 0053, package notes P0).
 - [ ] P1. Run capture, log player and HTML replay.
 - [ ] P2. Bundled mercenaries.
 - [ ] P3. Verify; export all scripts; test guide; owner test.
