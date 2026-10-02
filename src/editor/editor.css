@@ -229,8 +229,15 @@
 
 .wc-ped-menu,
 .wc-ped-manual {
+  display: flex;
   flex: 0 0 auto;
   overflow: hidden;
+}
+
+.wc-ped-menu-rows,
+.wc-ped-manual-rows {
+  flex: 0 0 auto;
+  height: 100%;
 }
 
 .wc-ped-help-text {
@@ -287,6 +294,17 @@
 
 .wc-lua-doc-text {
   color: var(--c-body);
+}
+
+.wc-lua-doc-example {
+  margin-top: var(--cell-h);
+  color: var(--c-item);
+  white-space: pre;
+}
+
+.wc-lua-doc-more {
+  margin-top: var(--cell-h);
+  text-align: right;
 }
 
 /* Find and replace (search.ts): a rule and one or two grid rows at the
@@ -426,4 +444,9 @@
 
 .wc-diag-text {
   color: var(--c-item);
+}
+
+.wc-lua-doc-example > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

@@ -382,3 +382,27 @@
 .wc-start-notice-btn:hover {
   text-decoration: underline;
 }
+
+/* Native scrolling with the TUI scrollbar (scroll.tsx): the browser's bar
+ * is hidden, the wheel and the touchpad scroll by pixels. */
+.wc-scrollbox {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-behavior: auto;
+  scrollbar-width: none;
+}
+
+.wc-scrollbox::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-tui-bar {
+  flex: 0 0 auto;
+  width: var(--cell-w);
+}
+
+.wc-tui-bar .wc-scroll-track {
+  cursor: pointer;
+}

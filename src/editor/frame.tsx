@@ -44,19 +44,9 @@ import {
 } from '../script/doc';
 import { bindability, displayKey, learnKeyLabel } from '../script/keys';
 import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstLine, pageScroll } from './cm';
+import { type ManualControl, ManualView } from './manual-view';
 import { searchFocused, searchFrameKey } from './search';
-import {
-  type HelpLine,
-  MANUAL_URL,
-  helpCurrent,
-  helpFrame,
-  helpStep,
-  helpLayout,
-  helpMenu,
-  helpMenuRow,
-  helpMenuWidth,
-  HELP_MENU_GAP,
-} from './help';
+import { MANUAL_URL, helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
 import {
   type EditorViewName,
   FULL_W,
@@ -149,17 +139,6 @@ const HELP_BODY_HINTS = [
   ...HELP_HINTS.slice(1),
 ];
 
-/** Colour class of a manual row (kit.css roles). */
-const HELP_CLS: Readonly<Record<HelpLine['kind'], string>> = {
-  blank: '',
-  group: 'wc-c-section',
-  heading: 'wc-c-title',
-  syntax: 'wc-c-active',
-  text: 'wc-c-body',
-  note: 'wc-c-hint',
-  code: 'wc-c-item',
-};
-
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
 const cps = (s: string): number => [...s].length;
@@ -201,11 +180,9 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   const [mode, setMode] = useState<Mode>('lite');
   const [help, setHelp] = useState(false);
-  const [helpTop, setHelpTop] = useState(0);
-  // The section jumped to from the menu, until the manual is scrolled by
-  // hand: the last sections cannot reach the top row, and are still marked.
-  const [helpSel, setHelpSel] = useState<number | null>(null);
-  const [menuTop, setMenuTop] = useState(0);
+  // The section HELP shows, kept while another view is up (manual-view.tsx scrolls).
+  const [helpSection, setHelpSection] = useState(0);
+  const manualCtl = useRef<ManualControl | null>(null);
   const [zone, setZone] = useState<Zone>('kind');
   const [field, setField] = useState<Field>('pattern');
   const [doc, setDoc] = useState<ProfileDoc>(() => parseProfile(host.text));
@@ -265,32 +242,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // EDITOR and HELP span the whole grid, cell 0 to the last cell (ADR 0037).
   const hf = helpFrame(cols, menuW);
   const manual = useMemo(() => helpLayout(hf.width - 2), [hf.width]);
-  const helpMax = Math.max(0, manual.lines.length - bufferH);
-  const hTop = Math.min(helpTop, helpMax);
-  const helpScroll = (to: number): void => {
-    setHelpSel(null);
-    setHelpTop(Math.max(0, Math.min(helpMax, to)));
-  };
-  const section = helpSel ?? helpCurrent(manual.headings, hTop);
-  /** Puts section `i`'s heading on the top row (as far as the manual scrolls). */
-  const helpGoto = (i: number): void => {
-    const j = Math.max(0, Math.min(manual.headings.length - 1, i));
-    setHelpSel(j);
-    setHelpTop(Math.min(helpMax, manual.headings[j]!));
-  };
-  // A new width lays the manual out again: stay on the section jumped to.
-  useEffect(() => {
-    if (helpSel !== null) setHelpTop(manual.headings[helpSel] ?? 0);
-  }, [manual]);
-  // The menu keeps the current section in view.
-  const menuRow = helpMenuRow(menu, section);
-  const menuMax = Math.max(0, menu.length - bufferH);
-  useEffect(() => {
-    // The first entry of a group brings its label along.
-    const first = menu[menuRow - 1]?.kind === 'group' ? menuRow - 1 : menuRow;
-    setMenuTop((t) => scrollToShow(scrollToShow(t, first, bufferH, menu.length), menuRow, bufferH, menu.length));
-  }, [menuRow, bufferH]);
-  const mTop = Math.min(menuTop, menuMax);
   // The menu is gone (narrow frame): its focus goes to the manual.
   useEffect(() => {
     if (zone === 'menu' && !hf.menu) setZone('help');
@@ -605,7 +556,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         else if (nk === 'right') select(stepView(view, 1));
         else if (help) {
           if (nk === 'activate' || nk === 'down') focusZone('help');
-          else return helpKey(e, nk, false);
+          else return helpKey(e, nk, 'outside');
         } else if (nk === 'activate' || nk === 'down') {
           // ↓ / Enter enter the buffer at offset 0 (Inv §5.8); Tab keeps the cursor.
           if (mode === 'editor') viewRef.current?.dispatch({ selection: { anchor: 0 }, scrollIntoView: true });
@@ -614,26 +565,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         else return false;
         return true;
       case 'menu':
-        switch (nk) {
-          case 'up':
-            if (section === 0) focusZone('toggle');
-            else helpGoto(section - 1);
-            return true;
-          case 'down':
-            helpGoto(section + 1);
-            return true;
-          case 'right':
-          case 'activate':
-            focusZone('help');
-            return true;
-        }
-        return helpKey(e, nk, false);
       case 'help':
-        if (nk === 'left' && hf.menu) {
-          focusZone('menu');
-          return true;
-        }
-        return helpKey(e, nk, true);
+        return helpKey(e, nk, zone);
       case 'buffer': {
         const v = viewRef.current;
         if (!v) return false;
@@ -663,44 +596,14 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     return false;
   });
 
-  /** Scroll keys of the manual. `inBody`: the help zone (↑ at the top leaves it, ↓ and Enter scroll). */
-  const helpKey = (e: KeyboardEvent, nk: string | null, inBody: boolean): boolean => {
-    const page = Math.max(1, bufferH - 1);
-    if (plain(e) && !e.shiftKey && (e.key === 'n' || e.key === 'p')) {
-      // The last section stays where it is on `n`.
-      if (e.key === 'p' || section < manual.headings.length - 1) {
-        helpGoto(helpStep(manual.headings, hTop, section, e.key === 'n' ? 1 : -1));
-      }
+  /** Keys of the manual (manual-view.tsx); ↑ out of it goes to the toggle. */
+  const helpKey = (e: KeyboardEvent, nk: string | null, z: 'menu' | 'help' | 'outside'): boolean => {
+    const r = manualCtl.current?.key(e, nk, z) ?? false;
+    if (r === 'up-out') {
+      focusZone('toggle');
       return true;
     }
-    switch (nk) {
-      case 'pgup':
-        helpScroll(hTop - page);
-        return true;
-      case 'pgdn':
-        helpScroll(hTop + page);
-        return true;
-      case 'home':
-        helpScroll(0);
-        return true;
-      case 'end':
-        helpScroll(helpMax);
-        return true;
-    }
-    if (!inBody) return false;
-    switch (nk) {
-      case 'up':
-        if (hTop === 0) focusZone('toggle');
-        else helpScroll(hTop - 1);
-        return true;
-      case 'down':
-        helpScroll(hTop + 1);
-        return true;
-      case 'activate':
-        helpScroll(hTop + page);
-        return true;
-    }
-    return false;
+    return r;
   };
 
   const selectKind = (k: LiteKind): void => {
@@ -1325,104 +1228,21 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // ---------------------------------------------------------------- help
 
   function renderHelp(): VNode {
-    const bar = scrollbar(manual.lines.length, bufferH, hTop);
-    const thumbAt = bar.indexOf(true);
-    const focused = zone === 'help' && !modal;
-    const height = `calc(var(--cell-h) * ${bufferH})`;
+    const focus = modal ? null : zone === 'menu' ? 'menu' : zone === 'help' ? 'help' : null;
     return (
-      <div class="wc-ped-help" style={{ height }}>
-        {hf.menu && renderHelpMenu()}
-        <div
-          class={'wc-ped-manual' + (focused ? ' is-focus' : '')}
-          onWheel={(e) => {
-            e.preventDefault();
-            const n = wheelSteps(e);
-            if (n !== 0) helpScroll(hTop + n);
-          }}
-          onMouseDown={(e) => {
-            if (!(e.target as Element).closest('a')) e.preventDefault();
-            focusZone('help');
-          }}
-        >
-          {manual.lines.slice(hTop, hTop + bufferH).map((l, i) => (
-            <div class="wc-line" key={i} data-kind={l.kind}>
-              <span
-                class={'wc-ped-help-text ' + HELP_CLS[l.kind]}
-                style={{ width: `calc(var(--cell-w) * ${hf.width - 1})`, ...indent(l.indent) }}
-              >
-                {l.segs.map((s) => (s.cls ? <span class={`wc-syn-${s.cls}`}>{s.text}</span> : helpText(s.text)))}
-              </span>
-              {bar.length > 0 && (
-                <span
-                  class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    if (!bar[i]) helpScroll(hTop + (i < thumbAt ? -1 : 1) * Math.max(1, bufferH - 1));
-                  }}
-                >
-                  {bar[i] ? '█' : '░'}
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  /** The navigation menu: the sections, the current one marked (grey, amber with focus). */
-  function renderHelpMenu(): VNode {
-    const bar = scrollbar(menu.length, bufferH, mTop);
-    const thumbAt = bar.indexOf(true);
-    const focused = zone === 'menu' && !modal;
-    const page = (dir: 1 | -1): void => setMenuTop(Math.max(0, Math.min(menuMax, mTop + dir * Math.max(1, bufferH - 1))));
-    return (
-      <>
-        <div
-          class="wc-ped-menu"
-          style={{ width: `calc(var(--cell-w) * ${menuW + 1})` }}
-          onWheel={(e) => {
-            e.preventDefault();
-            setMenuTop(Math.max(0, Math.min(menuMax, mTop + wheelSteps(e))));
-          }}
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {Array.from({ length: bufferH }, (_, vi) => {
-            const r = menu[mTop + vi];
-            const text = r ? pad(' ' + ellipsis(r.label, menuW - 2), menuW) : '';
-            const isCur = r?.kind === 'entry' && r.section === section;
-            return (
-              <div class="wc-line" key={vi}>
-                {r?.kind === 'entry' ? (
-                  <span
-                    class={'wc-tr' + (isCur ? (focused ? ' is-cur-focus' : ' is-cur') : '')}
-                    data-section={r.label}
-                    onClick={() => {
-                      helpGoto(r.section);
-                      focusZone('menu');
-                    }}
-                  >
-                    {text}
-                  </span>
-                ) : (
-                  <span class="wc-ped-menu-label wc-c-hint">{pad(text, menuW)}</span>
-                )}
-                {bar.length > 0 && (
-                  <span
-                    class={bar[vi] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
-                    onMouseDown={() => {
-                      if (!bar[vi]) page(vi < thumbAt ? -1 : 1);
-                    }}
-                  >
-                    {bar[vi] ? '█' : '░'}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ width: `calc(var(--cell-w) * ${HELP_MENU_GAP})`, flex: '0 0 auto' }} />
-      </>
+      <ManualView
+        layout={manual}
+        menu={hf.menu ? menu : null}
+        menuW={menuW}
+        width={hf.width}
+        height={bufferH}
+        focus={focus}
+        onZone={(z) => focusZone(z)}
+        ctl={manualCtl}
+        initial={helpSection}
+        onSection={setHelpSection}
+        text={helpText}
+      />
     );
   }
 

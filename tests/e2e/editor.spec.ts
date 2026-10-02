@@ -385,8 +385,21 @@ test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async
 
 // ---------------------------------------------------------------- HELP view
 
-const helpRows = (page: Page) => ped(page).locator('.wc-ped-help .wc-ped-help-text');
-const helpTopRow = (page: Page) => helpRows(page).first();
+const helpRows = (page: Page) => ped(page).locator('.wc-ped-help .wc-ped-manual .wc-ped-help-text');
+/** The manual scrolls natively: the text of its `k`-th row from the top of the view. */
+const helpRow = (page: Page, k = 0) =>
+  ped(page)
+    .locator('.wc-ped-manual-rows')
+    .evaluate((el, k) => {
+      const t = el.scrollTop;
+      const all = [...el.children] as HTMLElement[];
+      const i = all.findIndex((c) => c.offsetTop >= t - 1);
+      return all[i + k]?.textContent ?? '';
+    }, k);
+/** Expects the manual's top row (`k`: rows below it) to read `text`. */
+const expectTop = (page: Page, text: string | RegExp, k = 0) =>
+  typeof text === 'string' ? expect.poll(() => helpRow(page, k)).toBe(text) : expect.poll(() => helpRow(page, k)).toMatch(text);
+const manualScroll = (page: Page) => ped(page).locator('.wc-ped-manual-rows').evaluate((el) => el.scrollTop);
 const helpMenu = (page: Page) => ped(page).locator('.wc-ped-menu');
 const menuEntries = (page: Page) => helpMenu(page).locator('.wc-tr');
 const menuEntry = (page: Page, heading: string) => helpMenu(page).locator(`.wc-tr[data-section="${heading}"]`);
@@ -395,18 +408,18 @@ const menuCurrent = (page: Page) => helpMenu(page).locator('.wc-tr.is-cur, .wc-t
 async function toHelp(page: Page): Promise<void> {
   await ped(page).locator('[data-btn="HELP"]').click();
   await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expect(helpTopRow(page)).toHaveText('Writing a profile');
+  await expectTop(page, 'Writing a profile');
 }
 
 /** Presses `n` until the manual's top row is `heading`. */
 async function jumpToHeading(page: Page, heading: string): Promise<void> {
   for (let i = 0; i < 40; i++) {
-    const top = (await helpTopRow(page).textContent())!;
+    const top = await helpRow(page);
     if (top === heading) break;
     await page.keyboard.press('n');
-    await expect(helpTopRow(page)).not.toHaveText(top);
+    await expect.poll(() => helpRow(page)).not.toBe(top);
   }
-  await expect(helpTopRow(page)).toHaveText(heading);
+  await expectTop(page, heading);
 }
 
 test('HELP from the start page: manual, scrolling, and back to LITE with edits intact', async ({ page }) => {
@@ -433,32 +446,35 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
   await jumpToHeading(page, '#action');
   await expect(ped(page).locator('.wc-ped-help [data-kind="heading"]').first()).toHaveClass(/wc-line/);
-  await expect(helpRows(page).nth(1)).toHaveText('#action {pattern} {commands} {priority}');
-  await expect(ped(page).locator('.wc-ped-help [data-kind="code"] .wc-syn-cmd').first()).toHaveText('#action');
+  await expectTop(page, '#action {pattern} {commands} {priority}', 1);
+  await expect(ped(page).locator('.wc-ped-help [data-kind="code"] .wc-syn-cmd').filter({ hasText: '#action' }).first()).toHaveText('#action');
   await page.keyboard.press('n');
-  await expect(helpTopRow(page)).toHaveText('#alias');
+  await expectTop(page, '#alias');
   await page.keyboard.press('p');
-  await expect(helpTopRow(page)).toHaveText('#action');
+  await expectTop(page, '#action');
 
-  // ↓ ↑ one row, PgDn / PgUp a page, a wheel notch (120 px) three rows, End / Home the ends.
-  const second = await helpRows(page).nth(1).textContent();
+  // ↓ ↑ one row, PgDn / PgUp a page, the wheel by pixels (native, as EDITOR), End / Home the ends.
+  const second = await helpRow(page, 1);
   await page.keyboard.press('ArrowDown');
-  await expect(helpTopRow(page)).toHaveText(second!);
+  await expectTop(page, second);
   await page.keyboard.press('ArrowUp');
-  await expect(helpTopRow(page)).toHaveText('#action');
+  await expectTop(page, '#action');
   await page.keyboard.press('PageDown');
-  await expect(helpTopRow(page)).not.toHaveText('#action');
+  await expect.poll(() => helpRow(page)).not.toBe('#action');
   await page.keyboard.press('PageUp');
-  await expect(helpTopRow(page)).toHaveText('#action');
-  const fourth = await helpRows(page).nth(3).textContent();
-  await ped(page).locator('.wc-ped-help').hover();
-  await page.mouse.wheel(0, 120);
-  await expect(helpTopRow(page)).toHaveText(fourth!);
+  await expectTop(page, '#action');
+  const px = await manualScroll(page);
+  await ped(page).locator('.wc-ped-manual').hover();
+  await page.mouse.wheel(0, 5);
+  // Not a whole row: a few pixels.
+  await expect.poll(() => manualScroll(page)).toBeGreaterThan(px);
+  const cell = await ped(page).locator('.wc-ped-manual-rows .wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
+  expect((await manualScroll(page)) - px).toBeLessThan(cell);
   await page.keyboard.press('End');
   await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line
   await expect(ped(page).locator('.wc-ped-help')).toContainText('#foreach');
   await page.keyboard.press('Home');
-  await expect(helpTopRow(page)).toHaveText('Writing a profile');
+  await expectTop(page, 'Writing a profile');
   // The manual never names the deprecated helper (ADR 0036).
   await expect(ped(page).locator('.wc-ped-help')).not.toContainText('_send');
   // ↑ at the top leaves the manual for the toggle; Tab cycles back.
@@ -559,7 +575,7 @@ test('ESC menu → Profile → HELP while connected: ESC asks to apply', async (
   await page.keyboard.press('Escape'); // keep editing: still in HELP, where it was
   await expect(modal()).toHaveCount(0);
   await expect(ped(page)).toHaveAttribute('data-view', 'help');
-  await expect(helpTopRow(page)).toHaveText('#action');
+  await expectTop(page, '#action');
   await page.keyboard.press('Escape');
   await page.keyboard.press('y');
   await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-flash')).toHaveText('Profile updated.');
@@ -579,8 +595,8 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
 
   // A click puts the heading on the manual's top row and focuses the menu.
   await menuEntry(page, '#highlight').click();
-  await expect(helpTopRow(page)).toHaveText('#highlight');
-  await expect(helpRows(page).nth(1)).toHaveText('#highlight {pattern} {color} {priority}');
+  await expectTop(page, '#highlight');
+  await expectTop(page, '#highlight {pattern} {color} {priority}', 1);
   await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
   await expect(menuCurrent(page)).toHaveText(/^ #highlight\s*$/);
   await expect(menuCurrent(page)).toHaveClass(/is-cur-focus/);
@@ -588,11 +604,11 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
 
   // ↑ ↓ move the cursor and the manual with it.
   await page.keyboard.press('ArrowDown');
-  await expect(helpTopRow(page)).toHaveText('#if');
+  await expectTop(page, '#if');
   await expect(menuCurrent(page)).toHaveText(/^ #if\s*$/);
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  await expect(helpTopRow(page)).toHaveText('#help');
+  await expectTop(page, '#help');
   // → (or Enter) goes to the manual; the mark stays, grey, and follows scrolling.
   await page.keyboard.press('ArrowRight');
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
@@ -602,7 +618,7 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
   await page.keyboard.press('ArrowUp');
   await expect(menuCurrent(page)).toHaveText(/^ #gag\s*$/);
   await page.keyboard.press('n');
-  await expect(helpTopRow(page)).toHaveText('#help');
+  await expectTop(page, '#help');
   await page.keyboard.press('n');
   await expect(menuCurrent(page)).toHaveText(/^ #highlight\s*$/);
   await page.keyboard.press('Home');
@@ -634,18 +650,18 @@ test('HELP menu scrolls to keep the current section in view', async ({ page }) =
   await page.setViewportSize({ width: 1280, height: 420 });
   await openFromStart(page, '#alias {a} {b}\n');
   await toHelp(page);
-  await expect(menuEntry(page, '#variable')).toHaveCount(0);
+  await expect(menuEntry(page, '#variable')).not.toBeInViewport();
   await expect(helpMenu(page).locator('.wc-scroll-thumb').first()).toBeVisible();
   await page.keyboard.press('End');
   await expect(menuCurrent(page)).toBeVisible();
-  await expect(menuEntry(page, 'Writing a profile')).toHaveCount(0);
+  await expect(menuEntry(page, 'Writing a profile')).not.toBeInViewport();
   // The wheel scrolls the menu alone; a click then jumps.
   await helpMenu(page).hover();
   for (let i = 0; i < 15; i++) await page.mouse.wheel(0, -100);
   await expect(menuEntry(page, 'Writing a profile')).toBeVisible();
   await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line
   await menuEntry(page, 'Patterns').click();
-  await expect(helpTopRow(page)).toHaveText('Patterns');
+  await expectTop(page, 'Patterns');
   // Walking down the menu brings the entries in, one by one, to the end.
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowDown');
   await expect(menuCurrent(page)).toHaveText(/^ Not supported\s*$/);
@@ -664,7 +680,7 @@ test('HELP in a narrow window: no menu, the manual and its keys as before', asyn
   await page.keyboard.press('ArrowLeft');
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
   await page.keyboard.press('p');
-  await expect(helpTopRow(page)).toHaveText('#help');
+  await expectTop(page, '#help');
   const view = page.viewportSize()!;
   const bar = (await ped(page).locator('.wc-ped-manual .wc-scroll-track').first().boundingBox())!;
   expect(bar.x + bar.width).toBeLessThanOrEqual(view.width);
@@ -672,13 +688,13 @@ test('HELP in a narrow window: no menu, the manual and its keys as before', asyn
   // Widening brings the menu in, on the same section; narrowing with the menu focused moves focus to the manual.
   await page.setViewportSize({ width: 1280, height: 600 });
   await expect(menuCurrent(page)).toHaveText(/^ #help\s*$/);
-  await expect(helpTopRow(page)).toHaveText('#help');
+  await expectTop(page, '#help');
   await page.keyboard.press('ArrowLeft');
   await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
   await page.setViewportSize({ width: 620, height: 600 });
   await expect(helpMenu(page)).toHaveCount(0);
   await expect(ped(page)).toHaveAttribute('data-zone', 'help');
-  await expect(helpTopRow(page)).toHaveText('#help');
+  await expectTop(page, '#help');
   expect(errors).toEqual([]);
 });
 
@@ -714,7 +730,7 @@ async function expectFullWidth(page: Page): Promise<void> {
 
   await toHelp(page);
   const menu = await edges(helpMenu(page));
-  const text = await edges(helpTopRow(page));
+  const text = await edges(helpRows(page).first());
   const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
   expect(track.right).toBeCloseTo(frame.right, 0);
   expect(menu.left).toBeCloseTo(frame.left, 0);
@@ -723,9 +739,9 @@ async function expectFullWidth(page: Page): Promise<void> {
   expect(text.right).toBeCloseTo(track.left, 0);
   expect(text.width).toBeGreaterThan(toggle.right - lite.left);
   await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().dispatchEvent('mousedown');
-  await expect(helpTopRow(page)).not.toHaveText('Writing a profile');
+  await expect.poll(() => helpRow(page)).not.toBe('Writing a profile');
   await menuEntry(page, '#alias').click();
-  await expect(helpTopRow(page)).toHaveText('#alias');
+  await expectTop(page, '#alias');
 }
 
 test('EDITOR and HELP fill the frame to its last cell from the start page; LITE keeps its column', async ({ page }) => {
