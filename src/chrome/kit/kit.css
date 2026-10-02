@@ -406,3 +406,19 @@
 .wc-tui-bar .wc-scroll-track {
   cursor: pointer;
 }
+
+/* A scroll box and its TUI scrollbar side by side (About, tables, lists). */
+.wc-scrollrow {
+  display: flex;
+  overflow: hidden;
+}
+
+.wc-scrollrow > .wc-scrollbox {
+  flex: 0 0 auto;
+}
+
+/* One blank cell between a scroll box and its scrollbar. */
+.wc-cell-gap {
+  flex: 0 0 auto;
+  width: var(--cell-w);
+}

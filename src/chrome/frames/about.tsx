@@ -6,12 +6,12 @@
 // copy of the GPL text, vite.config.ts) and fonts/README.md (the font credits) are links.
 
 import type { VNode } from 'preact';
-import { useState } from 'preact/hooks';
+import { useMemo } from 'preact/hooks';
 import { useGrid, useServices } from '../kit/hooks';
-import { centreLeft, scrollbar, wrapText } from '../kit/nav';
+import { centreLeft, wrapText } from '../kit/nav';
+import { TuiScrollbar, useScrollBox } from '../kit/scroll';
 import { useKeys } from '../kit/stack';
-import { Line, Page, useBodyRows } from '../kit/widgets';
-import { wheelSteps } from '../kit/wheel';
+import { Page, cellsWide, indent, useBodyRows } from '../kit/widgets';
 
 export const ABOUT_TEXT = `WebCockpit is a MUD client for MUME, built for fast PvP. It runs in your browser from a link: nothing to install, no server in between, and nothing kept anywhere but this browser. It is modelled on Cockpit, a terminal client for MUME, and aims to look and feel the same.
 
@@ -104,54 +104,53 @@ export function AboutFrame(): VNode {
   const { cols } = useGrid();
   const visible = useBodyRows();
   const width = Math.max(20, Math.min(cols - 4, 76));
-  const lines = aboutLines(width);
-  const [top, setTop] = useState(0);
-  const max = Math.max(0, lines.length - visible);
-  const t = Math.min(top, max);
-  const scroll = (d: number): void => setTop(Math.max(0, Math.min(max, t + d)));
+  const box = useScrollBox();
   useKeys((_e, nk) => {
     switch (nk) {
       case 'up':
-        scroll(-1);
+        box.by(-1);
         return true;
       case 'down':
-        scroll(1);
+        box.by(1);
         return true;
       case 'pgup':
-        scroll(-(visible - 1));
+        box.page(-1);
         return true;
       case 'pgdn':
       case 'activate':
-        scroll(visible - 1);
+        box.page(1);
         return true;
       case 'home':
-        setTop(0);
+        box.home();
         return true;
       case 'end':
-        setTop(max);
+        box.end();
         return true;
     }
     return false;
   });
-  const bar = scrollbar(lines.length, visible, t);
+  // The rows do not change while scrolling: built once per width.
+  const rows = useMemo(
+    () =>
+      aboutLines(width).map((l, i) => (
+        <div class="wc-line" key={i}>
+          {l.key !== undefined && <span class="wc-c-accent">{l.key}</span>}
+          <span class={l.cls}>{linked(l.text.padEnd(width - (l.key?.length ?? 0)))}</span>
+        </div>
+      )),
+    [width],
+  );
   const at = centreLeft(cols, width + 2);
+  const height = `calc(var(--cell-h) * ${visible})`;
+  // The text scrolls natively (pixels, as EDITOR); the TUI scrollbar one cell after it.
   return (
     <Page title="About" titleRight={commit ? `${version} (${commit})` : version} footer={['↑↓ Scroll', 'PgUp/PgDn Page', 'ESC Back']}>
-      <div
-        class="wc-about"
-        onWheel={(e) => {
-          e.preventDefault();
-          const n = wheelSteps(e);
-          if (n !== 0) scroll(n);
-        }}
-      >
-        {lines.slice(t, t + visible).map((l, i) => (
-          <Line at={at}>
-            {l.key !== undefined && <span class="wc-c-accent">{l.key}</span>}
-            <span class={l.cls}>{linked(l.text.padEnd(width - (l.key?.length ?? 0)))}</span>
-            {bar.length > 0 && <span class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}>{' ' + (bar[i] ? '█' : '░')}</span>}
-          </Line>
-        ))}
+      <div class="wc-about wc-scrollrow" style={{ ...indent(at), height }}>
+        <div class="wc-scrollbox wc-about-text" ref={box.ref} style={{ ...cellsWide(width), height }}>
+          {rows}
+        </div>
+        <div class="wc-cell-gap" />
+        <TuiScrollbar target={box.ref} rows={visible} />
       </div>
     </Page>
   );
