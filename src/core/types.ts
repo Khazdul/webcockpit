@@ -17,8 +17,8 @@ import type { PaneSnapshot } from '../panes/script-content';
  *
  * "Default colour" is expressed by leaving the field `undefined`.
  * Bold does not change the colour index: the parser emits the colour as
- * sent (SGR 1;31 gives fg 1 + bold). Whether bold brightens is a renderer
- * decision.
+ * sent (SGR 1;31 gives fg 1 + bold). Whether bold brightens is a display
+ * setting, applied in CSS (ADR 0060).
  */
 export type Color = number;
 

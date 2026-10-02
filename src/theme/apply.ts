@@ -9,6 +9,7 @@
 //   --c-line-hl                             editor current-line band
 //   --term-echo                             input colour: command echo and
 //                                           input line (ADR 0034, 0035)
+//   --bold-0..7 --bold-fg --bold-fg-def     bold colours (ADR 0060)
 //   --banner-* --star-* --ui-*              banner and UI-message colours
 //   --st-*                                  Statistics / History data colours
 //                                           (all three light-aware as --c-*)
@@ -32,6 +33,7 @@ import { type AppearanceSettings, type Settings, paneSettingsOf } from '../setti
 import {
   SHADE_ROLES,
   type ShadeRole,
+  contrast,
   fitContrast,
   isLight,
   lightShift,
@@ -80,6 +82,44 @@ export function inputColor(id: InputColor, termBg: string): string {
   if (!mix) return 'var(--term-fg)';
   const tint = isLight(termBg) ? mix.light : mix.dark;
   return `color-mix(in oklab, var(--term-fg) ${mix.pct}%, ${tint})`;
+}
+
+/**
+ * The stronger default foreground that bold shows when bold brightens
+ * (ADR 0060). A font colour that is one of the palette's colours 0–7 takes
+ * its bright twin (silver → bright white); any other is mixed halfway
+ * toward the ink the background takes (white on dark, black on light). The
+ * result never has less contrast with the background than the font colour
+ * itself: on `paper`, where ink is already black, it stays black.
+ */
+export function boldFg(a: Readonly<AppearanceSettings>): string {
+  const fg = normalizeHex(a.fg) ?? '#c0c0c0';
+  const bg = normalizeHex(a.bg) ?? '#000000';
+  const i = a.ansi.slice(0, 8).findIndex((c) => normalizeHex(c) === fg);
+  const twin = i >= 0 ? normalizeHex(a.ansi[i + 8]) : null;
+  const bright = twin ?? mix(fg, takesDarkInk(bg) ? '#000000' : '#ffffff', 0.5);
+  return contrast(bright, bg) > contrast(fg, bg) ? bright : fg;
+}
+
+/**
+ * The bold colour tokens (ADR 0060). The renderers mark bold runs with
+ * classes only; these decide what the classes show, so a change applies
+ * to the rows already drawn, and each themed root (the app, an in-app
+ * player) has its own.
+ *
+ * - `--bold-<i>`, i 0–7: bold palette colour i (`ansi[i + 8]` when on).
+ * - `--bold-fg`: bold text in the default foreground (`currentcolor`, i.e.
+ *   unchanged, when off).
+ * - `--bold-fg-def`: the same inside a background row whose own colour is
+ *   another (the font colour when off).
+ */
+export function boldTokens(a: Readonly<AppearanceSettings>): Record<string, string> {
+  const t: Record<string, string> = {};
+  for (let i = 0; i < 8; i++) t[`--bold-${i}`] = a.ansi[a.boldBright ? i + 8 : i]!;
+  const fg = a.boldBright ? boldFg(a) : null;
+  t['--bold-fg'] = fg ?? 'currentcolor';
+  t['--bold-fg-def'] = fg ?? a.fg;
+  return t;
 }
 
 /** The colour families of the chrome and the client's own rows. */
@@ -159,6 +199,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
     '--term-echo': inputColor(a.inputColor, a.bg),
   };
   for (let i = 0; i < 16; i++) t[`--ansi-${i}`] = a.ansi[i]!;
+  Object.assign(t, boldTokens(a));
   const c = themeColors(a.bg);
   for (const [k, v] of Object.entries(c.ui)) t[`--c-${k}`] = v;
   for (const [k, v] of Object.entries(c.banner)) t[`--${k}`] = v;

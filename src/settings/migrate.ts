@@ -98,6 +98,7 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
     cursorStyle: oneOf(a.cursorStyle, CURSOR_STYLES, d.cursorStyle),
     cursorBlink: bool(a.cursorBlink, d.cursorBlink),
     inputColor: oneOf(a.inputColor, INPUT_COLOR_IDS, d.inputColor),
+    boldBright: bool(a.boldBright, d.boldBright),
   };
 }
 

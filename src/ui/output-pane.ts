@@ -41,7 +41,7 @@
 import type { Bus } from '../core/bus';
 import type { BusEvents, Color, Line, StyleRun } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
-import { colorToCss, effectiveFg } from './palette';
+import { colorToCss } from './palette';
 
 /**
  * At most this many rows are built per animation frame (owner decision
@@ -967,7 +967,7 @@ function fillBackgroundRow(doc: Document, row: HTMLElement, line: Line, cols: nu
     }
     const bg = r.bg === undefined ? 'transparent' : bgCss(r.bg);
     stops += `,${bg} ${stopAt(r.start, n)} ${stopAt(r.end, n)}`;
-    seg(r.start, r.end, effectiveFg(r.fg, r.bold));
+    seg(r.start, r.end, r.fg);
     pos = r.end;
   }
   if (pos < n) {
@@ -982,7 +982,7 @@ function fillBackgroundRow(doc: Document, row: HTMLElement, line: Line, cols: nu
   if (fg !== undefined) {
     if (fg < 16) cls += ' wc-f' + fg;
     else css = `color:${colorToCss(fg)};`;
-  }
+  } else if (r0.bold) cls += ' wc-fbd';
   if (r0.bold) cls += ' wc-bold';
   if (r0.italic) cls += ' wc-ital';
   if (r0.underline) cls += ' wc-ul';
@@ -1032,16 +1032,17 @@ function fillRow(doc: Document, row: HTMLElement, line: Line): void {
 }
 
 function styleSpan(span: HTMLElement, r: StyleRun): void {
-  let fg = effectiveFg(r.fg, r.bold);
+  let fg = r.fg;
   let bg = r.bg;
   let cls = '';
   if (r.inverse) {
     const t = fg;
     fg = bg;
     bg = t;
+    cls += ' wc-inv';
     if (fg === undefined) cls += ' wc-fd';
     if (bg === undefined) cls += ' wc-bd';
-  }
+  } else if (r.bold && fg === undefined) cls += ' wc-fbd';
   if (fg !== undefined) {
     if (fg < 16) cls += ' wc-f' + fg;
     else span.style.color = colorToCss(fg);

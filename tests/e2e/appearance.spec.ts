@@ -147,3 +147,90 @@ test('appearance applies live and persists; ?safe starts with defaults', async (
     await window.__wc!.settings.flush();
   });
 });
+
+test('Bold brightens colours: off keeps the Cockpit look, on brightens live (ADR 0060)', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => {
+    const text = 'Mob Red Inv Hi';
+    window.__wc!.app.bus.emit('text.line', {
+      text,
+      runs: [
+        { start: 0, end: 3, bold: true },
+        { start: 4, end: 7, fg: 1, bold: true },
+        { start: 8, end: 11, fg: 1, bold: true, inverse: true },
+        { start: 12, end: 14, fg: 9, bold: true },
+      ],
+      tags: [],
+      prompt: false,
+      raw: text,
+      ts: 0,
+    });
+  });
+  const row = page.locator('.wc-rows .wc-row').filter({ hasText: 'Mob Red Inv Hi' });
+  await expect(row).toHaveCount(1);
+  const colours = () =>
+    row.evaluate((el) =>
+      [...el.querySelectorAll('span')].map((s) => [getComputedStyle(s).color, getComputedStyle(s).fontWeight]),
+    );
+  const W = 'rgb(255, 255, 255)';
+  const SILVER = 'rgb(192, 192, 192)';
+  // Off (default): bold is weight only.
+  expect(await colours()).toEqual([
+    [SILVER, '700'],
+    ['rgb(128, 0, 0)', '700'],
+    ['rgb(0, 0, 0)', '700'],
+    ['rgb(255, 0, 0)', '700'],
+  ]);
+
+  // On, from Options → Appearance: the drawn rows change at once.
+  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
+  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowDown');
+  await expect(menuSel).toHaveText('<< Bold brightens colours: Off >>');
+  await page.keyboard.press('Enter');
+  await expect(menuSel).toHaveText('<< Bold brightens colours: On >>');
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.boldBright)).toBe(true);
+  // Default fg (silver) → bright white; red → bright red; inverse untouched.
+  await expect.poll(colours).toEqual([
+    [W, '700'],
+    ['rgb(255, 0, 0)', '700'],
+    ['rgb(0, 0, 0)', '700'],
+    ['rgb(255, 0, 0)', '700'],
+  ]);
+
+  // Paper: ink is already black, so the default fg stays black; red
+  // takes the paper palette's bright red.
+  await page.evaluate(() =>
+    window.__wc!.settings.update({
+      appearance: {
+        bg: '#f4ecd8',
+        fg: '#000000',
+        ansi: ['#000000', '#a01c1c', '#2a6e1a', '#7a5c00', '#1c3c9a', '#8a2a8a', '#106a72', '#4a4538',
+          '#6e6858', '#c42020', '#2f7a14', '#846400', '#2a56c8', '#a828a8', '#00737e', '#000000'],
+      },
+    }),
+  );
+  await expect.poll(async () => (await colours()).slice(0, 2)).toEqual([
+    ['rgb(0, 0, 0)', '700'],
+    ['rgb(196, 32, 32)', '700'],
+  ]);
+
+  // Off again; persisted across a reload while on.
+  await page.keyboard.press('Enter');
+  await expect(menuSel).toHaveText('<< Bold brightens colours: Off >>');
+  await expect.poll(async () => (await colours())[1]).toEqual(['rgb(160, 28, 28)', '700']);
+  await page.evaluate(async () => {
+    window.__wc!.settings.update({ appearance: { boldBright: true } });
+    await window.__wc!.settings.flush();
+  });
+  await page.reload();
+  await expect(page.locator('.wc-app')).toBeVisible();
+  expect(await page.evaluate(() => window.__wc!.settings.get().appearance.boldBright)).toBe(true);
+  expect(await rootVar(page, '--bold-1')).toBe('#c42020');
+  await page.evaluate(async () => {
+    window.__wc!.settings.reset();
+    await window.__wc!.settings.flush();
+  });
+});

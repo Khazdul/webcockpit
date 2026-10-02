@@ -128,6 +128,15 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('steel');
   });
 
+  it('bold brightens: off by default and for older data, kept when a boolean (ADR 0060)', () => {
+    expect(DEFAULT_SETTINGS.appearance.boldBright).toBe(false);
+    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.boldBright).toBe(false);
+    expect(migrateSettings({ appearance: { boldBright: true } }).appearance.boldBright).toBe(true);
+    expect(migrateSettings({ appearance: { boldBright: 'yes' } }).appearance.boldBright).toBe(false);
+    const on = migrateSettings({ appearance: { boldBright: true } });
+    expect(migrateSettings(JSON.parse(JSON.stringify(on))).appearance).toEqual(on.appearance);
+  });
+
   it('adds the group and comm options with defaults (older stored data)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);

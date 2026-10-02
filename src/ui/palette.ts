@@ -8,16 +8,13 @@
 // - 16–255: the standard xterm 6×6×6 cube and 24-step grey ramp. Rendered
 //   as inline style (rare in MUME output).
 // - Truecolor (`TRUECOLOR | 0xRRGGBB`): inline style.
+// - Bold (`wc-bold`) keeps the colour index; whether it brightens is the
+//   "Bold brightens colours" setting, applied in CSS through the --bold-*
+//   tokens (ADR 0060). A bold run in the default foreground gets `wc-fbd`,
+//   an inverse run `wc-inv`.
 
 import { type Color, isTrueColor } from '../core/types';
 import { DOS_PALETTE } from '../theme/presets';
-
-/**
- * Whether SGR bold turns colours 0–7 into their bright variant (8–15).
- * Cockpit's terminal does not brighten: bold is rendered as a bold font
- * weight only. Flip this single constant to change that.
- */
-export const BOLD_BRIGHTENS = false;
 
 const CUBE_STEPS = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff];
 
@@ -48,10 +45,4 @@ export const PALETTE_256: readonly string[] = buildXterm256();
 export function colorToCss(c: Color): string {
   if (isTrueColor(c)) return '#' + (c & 0xffffff).toString(16).padStart(6, '0');
   return PALETTE_256[c & 0xff]!;
-}
-
-/** Applies BOLD_BRIGHTENS to a foreground colour. */
-export function effectiveFg(fg: Color | undefined, bold: boolean | undefined): Color | undefined {
-  if (BOLD_BRIGHTENS && bold && fg !== undefined && fg < 8) return fg + 8;
-  return fg;
 }

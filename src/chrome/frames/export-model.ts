@@ -17,7 +17,7 @@ import type { RunEvent } from '../../runs/events';
 import { stripAnsi } from '../../share/capture';
 import { SYS_PREFIX, playerEntries } from '../../share/system-lines';
 import { COMMENT_COLS, type ExportComment, type ExportDoc, commentLines, rangeAt } from '../../share/edits';
-import { colorToCss, effectiveFg } from '../../ui/palette';
+import { colorToCss } from '../../ui/palette';
 
 // ------------------------------------------------------------------- log
 
@@ -433,7 +433,7 @@ export interface Seg {
 
 /** The classes and inline colours of a style run (as the output pane renders it). */
 export function runStyle(r: StyleRun): Omit<Seg, 'text'> {
-  let fg = effectiveFg(r.fg, r.bold);
+  let fg = r.fg;
   let bg = r.bg;
   const cls: string[] = [];
   const out: Omit<Seg, 'text'> = { cls: '' };
@@ -441,9 +441,10 @@ export function runStyle(r: StyleRun): Omit<Seg, 'text'> {
     const t = fg;
     fg = bg;
     bg = t;
+    cls.push('wc-inv');
     if (fg === undefined) cls.push('wc-fd');
     if (bg === undefined) cls.push('wc-bd');
-  }
+  } else if (r.bold && fg === undefined) cls.push('wc-fbd');
   if (fg !== undefined) {
     if (fg < 16) cls.push('wc-f' + fg);
     else out.color = colorToCss(fg);

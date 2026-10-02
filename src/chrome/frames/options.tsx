@@ -415,6 +415,11 @@ export function AppearanceFrame(): VNode {
       adjust: (d) => set({ inputColor: cycle(INPUT_COLOR_IDS, a.inputColor, d) }),
     },
     {
+      key: 'boldbright',
+      label: `Bold brightens colours: ${a.boldBright ? 'On' : 'Off'}`,
+      adjust: () => set({ boldBright: !a.boldBright }),
+    },
+    {
       key: 'scrollback',
       label: `Scrollback: ${groupDigits(s.output.scrollback)} lines`,
       adjust: (d) => settings.update({ output: { scrollback: cycle(SCROLLBACK_CHOICES, s.output.scrollback, d) } }),

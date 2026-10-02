@@ -51,7 +51,7 @@ import {
 } from '../gmcp/comm';
 import { paneLight } from '../theme/apply';
 import { lightShift } from '../theme/color';
-import { colorToCss, effectiveFg } from '../ui/palette';
+import { colorToCss } from '../ui/palette';
 import { type StyleRun, gmcpKey } from '../core/types';
 import { AnchoredList, type ListMetrics, forwardWheel } from './anchored-list';
 import { PaneShell } from './pane';
@@ -393,12 +393,12 @@ function appendStyled(doc: Document, row: HTMLElement, text: string, color: stri
 }
 
 function styleRun(span: HTMLElement, r: StyleRun): void {
-  const fg = effectiveFg(r.fg, r.bold);
+  const fg = r.fg;
   let cls = '';
   if (fg !== undefined) {
     if (fg < 16) cls += ' wc-f' + fg;
     else span.style.color = colorToCss(fg);
-  }
+  } else if (r.bold) cls += ' wc-fbd';
   if (r.bg !== undefined) {
     if (r.bg < 16) cls += ' wc-b' + r.bg;
     else span.style.backgroundColor = colorToCss(r.bg);

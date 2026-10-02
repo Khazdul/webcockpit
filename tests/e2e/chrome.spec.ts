@@ -284,7 +284,8 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#c0c0c0');
   expect((await settings(page)).appearance.ansi[7]).toBe('#c0c0c0');
   await page.keyboard.press('ArrowRight');
-  // ANSI palette (past Input color and Scrollback): edit colour 9.
+  // ANSI palette (past Input color, Bold brightens and Scrollback): edit colour 9.
+  await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');

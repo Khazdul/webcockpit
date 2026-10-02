@@ -5,6 +5,8 @@ import { defaultSettings, migrateSettings } from '../../src/settings';
 import {
   applyPaneTheme,
   applyTheme,
+  boldFg,
+  boldTokens,
   inputColor,
   paneTokens,
   rootTokens,
@@ -13,7 +15,7 @@ import {
 import { CellMetrics, cellHeight, nominalCell } from '../../src/theme/cells';
 import { hslToHex, paneShades } from '../../src/theme/color';
 import { FONTS, fontPx } from '../../src/theme/fonts';
-import { INPUT_COLOR_IDS, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
+import { INPUT_COLOR_IDS, PAPER_PALETTE, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
 describe('root tokens', () => {
   it('covers the Inv §10.9 names', () => {
@@ -51,6 +53,56 @@ describe('root tokens', () => {
     applyTheme(defaultSettings(), root);
     expect(root.hasAttribute('data-light')).toBe(false);
     expect(root.dataset.cursor).toBe('beam');
+  });
+});
+
+describe('bold colours (ADR 0060)', () => {
+  const on = (appearance: Record<string, unknown> = {}) =>
+    migrateSettings({ appearance: { boldBright: true, ...appearance } }).appearance;
+
+  it('off: bold keeps every colour, the default foreground inherits', () => {
+    const a = defaultSettings().appearance;
+    const t = boldTokens(a);
+    for (let i = 0; i < 8; i++) expect(t[`--bold-${i}`]).toBe(a.ansi[i]);
+    expect(t['--bold-fg']).toBe('currentcolor');
+    expect(t['--bold-fg-def']).toBe('#c0c0c0');
+    expect(rootTokens(defaultSettings())['--bold-1']).toBe('#800000');
+  });
+
+  it('on: colours 0–7 take their bright twin, silver default fg turns bright white', () => {
+    const a = on();
+    const t = boldTokens(a);
+    for (let i = 0; i < 8; i++) expect(t[`--bold-${i}`]).toBe(a.ansi[i + 8]);
+    expect(t['--bold-1']).toBe('#ff0000');
+    expect(t['--bold-fg']).toBe('#ffffff');
+    expect(t['--bold-fg-def']).toBe('#ffffff');
+    expect(rootTokens(migrateSettings({ appearance: { boldBright: true } }))['--bold-fg']).toBe('#ffffff');
+  });
+
+  it('a font colour outside the palette is mixed toward the ink the background takes', () => {
+    // sage on black: halfway to white.
+    expect(boldFg(on({ fg: '#778a8d' }))).toBe('#bbc5c6');
+    // A mid grey on a light background: halfway to black.
+    expect(boldFg(on({ fg: '#606060', bg: '#ffffff' }))).toBe('#303030');
+  });
+
+  it('paper: ink is already black, so bold is weight only; never less contrast', () => {
+    const paper = on({ fg: '#000000', bg: '#f4ecd8', ansi: [...PAPER_PALETTE] });
+    // ink matches palette 0, whose twin (a mid grey) would be weaker.
+    expect(boldFg(paper)).toBe('#000000');
+    expect(boldTokens(paper)['--bold-7']).toBe('#000000'); // white → bright white = black ink
+    // Paper with a lighter ink gets darker.
+    expect(boldFg(on({ fg: '#4a4538', bg: '#f4ecd8', ansi: [...PAPER_PALETTE] }))).toBe('#000000');
+  });
+
+  it('is applied with the theme', () => {
+    const root = document.createElement('div');
+    applyTheme(migrateSettings({ appearance: { boldBright: true } }), root);
+    expect(root.style.getPropertyValue('--bold-0')).toBe('#808080');
+    expect(root.style.getPropertyValue('--bold-fg')).toBe('#ffffff');
+    applyTheme(defaultSettings(), root);
+    expect(root.style.getPropertyValue('--bold-0')).toBe('#000000');
+    expect(root.style.getPropertyValue('--bold-fg')).toBe('currentcolor');
   });
 });
 

@@ -160,7 +160,25 @@ describe('OutputPane styling', () => {
     const t = setup();
     t.bus.emit('text.line', line('ab', false, [{ start: 0, end: 2, inverse: true }]));
     t.runFrames();
-    expect(t.pane.el.querySelector('.wc-rows span')!.className).toBe('wc-fd wc-bd');
+    expect(t.pane.el.querySelector('.wc-rows span')!.className).toBe('wc-inv wc-fd wc-bd');
+  });
+
+  it('marks bold default-foreground runs and inverse runs for the bold tokens (ADR 0060)', () => {
+    const t = setup();
+    t.bus.emit(
+      'text.line',
+      line('abcdef', false, [
+        { start: 0, end: 2, bold: true },
+        { start: 2, end: 4, bold: true, inverse: true, fg: 1 },
+        { start: 4, end: 6, bold: true, fg: 3 },
+      ]),
+    );
+    t.runFrames();
+    const spans = t.pane.el.querySelectorAll('.wc-rows span');
+    expect(spans[0]!.className).toBe('wc-fbd wc-bold');
+    expect(spans[1]!.className).toBe('wc-inv wc-fd wc-b1 wc-bold');
+    // The colour index is kept: brightening is CSS (--bold-3).
+    expect(spans[2]!.className).toBe('wc-f3 wc-bold');
   });
 
   it('builds the xterm palette', () => {
@@ -237,6 +255,8 @@ describe('Background rows', () => {
     const row = renderLine(document, line('abcdefghij', false, runs), 80);
     const b = box(row);
     expect(b.className).toBe('wc-bgrow wc-f7 wc-bold');
+    const plain = renderLine(document, line('abcdefghij', false, runs.map(({ fg: _f, ...r }) => r)), 80);
+    expect(box(plain).className).toBe('wc-bgrow wc-fbd wc-bold');
     expect(stops(b).map((s) => s[0])).toEqual(['var(--ansi-1)', 'var(--ansi-2)', 'var(--ansi-3)', 'var(--ansi-4)', 'var(--ansi-5)']);
   });
 

@@ -79,6 +79,11 @@ export interface AppearanceSettings {
    * with the appearance in VIEW records, so logs replay with it.
    */
   inputColor: InputColor;
+  /**
+   * SGR bold also brightens: colours 0–7 show as 8–15 and the default
+   * foreground as a stronger one (ADR 0060). Off: bold is weight only.
+   */
+  boldBright: boolean;
 }
 
 export interface PaneSettings {
@@ -264,6 +269,7 @@ export function defaultSettings(): Settings {
       cursorStyle: 'beam',
       cursorBlink: true,
       inputColor: DEFAULT_INPUT_COLOR,
+      boldBright: false,
     },
     panes: {
       character: { on: true, color: 'black', border: true },

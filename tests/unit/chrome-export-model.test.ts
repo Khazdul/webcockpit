@@ -69,7 +69,9 @@ describe('export editor log', () => {
     expect(p.runs[2]!.bg).toBeGreaterThan(0xffffff);
     expect(runStyle({ start: 0, end: 1, fg: 1, bold: true }).cls).toBe('wc-f1 wc-bold');
     expect(runStyle({ start: 0, end: 1, fg: 196 }).color).toBe('#ff0000');
-    expect(runStyle({ start: 0, end: 1, inverse: true }).cls).toBe('wc-fd wc-bd');
+    expect(runStyle({ start: 0, end: 1, inverse: true }).cls).toBe('wc-inv wc-fd wc-bd');
+    expect(runStyle({ start: 0, end: 1, bold: true }).cls).toBe('wc-fbd wc-bold');
+    expect(runStyle({ start: 0, end: 1, bold: true, inverse: true }).cls).toBe('wc-inv wc-fd wc-bd wc-bold');
   });
 
   it('wraps entries hard at the width, splitting style runs', () => {

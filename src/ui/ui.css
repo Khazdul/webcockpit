@@ -226,6 +226,29 @@ body {
 .wc-bgrow { background-repeat: no-repeat; }
 .wc-fdef { color: var(--term-fg); }
 .wc-bold { font-weight: bold; }
+/* Bold colours (ADR 0060): --bold-* (src/theme/apply.ts boldTokens) are the
+ * plain colours unless "Bold brightens colours" is on. .wc-fbd is a bold,
+ * non-inverse run in the default foreground; .wc-inv an inverse run (its fg
+ * class is the swapped background, which bold never brightens). Inside a
+ * background row (.wc-bgrow) the bold is the box's, the colours nested. */
+.wc-bold:not(.wc-inv).wc-f0,
+.wc-bgrow.wc-bold > .wc-f0 { color: var(--bold-0, var(--ansi-0)); }
+.wc-bold:not(.wc-inv).wc-f1,
+.wc-bgrow.wc-bold > .wc-f1 { color: var(--bold-1, var(--ansi-1)); }
+.wc-bold:not(.wc-inv).wc-f2,
+.wc-bgrow.wc-bold > .wc-f2 { color: var(--bold-2, var(--ansi-2)); }
+.wc-bold:not(.wc-inv).wc-f3,
+.wc-bgrow.wc-bold > .wc-f3 { color: var(--bold-3, var(--ansi-3)); }
+.wc-bold:not(.wc-inv).wc-f4,
+.wc-bgrow.wc-bold > .wc-f4 { color: var(--bold-4, var(--ansi-4)); }
+.wc-bold:not(.wc-inv).wc-f5,
+.wc-bgrow.wc-bold > .wc-f5 { color: var(--bold-5, var(--ansi-5)); }
+.wc-bold:not(.wc-inv).wc-f6,
+.wc-bgrow.wc-bold > .wc-f6 { color: var(--bold-6, var(--ansi-6)); }
+.wc-bold:not(.wc-inv).wc-f7,
+.wc-bgrow.wc-bold > .wc-f7 { color: var(--bold-7, var(--ansi-7)); }
+.wc-fbd { color: var(--bold-fg, currentcolor); }
+.wc-bgrow.wc-bold > .wc-fdef { color: var(--bold-fg-def, var(--term-fg)); }
 .wc-ital { font-style: italic; }
 .wc-ul { text-decoration: underline; }
 /* Blink is rendered static (no animation, intent Goal 1). */
