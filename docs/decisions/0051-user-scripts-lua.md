@@ -578,3 +578,72 @@ library like `#script set`; `settings` updates once saved. The coin
 looter's `cl on` and `cl off` now persist in `auto`, and its `@help` no
 longer repeats the aliases and settings the help view lists.
 
+
+### Feedback round 1 (2026-10-02)
+
+- *Help view.* The `#script help <name> shows this in the game` note is
+  gone. `#help` has a *Scripts* topic (`script`, `scripts`, `lua`; the
+  command words `#script`/`#lua` resolve to it, since both stay inert in
+  the command table) with the subcommands, `#lua` and a pointer to the
+  MANUAL.
+- *Find and replace* (`src/editor/search.ts`, `@codemirror/search`
+  6.7.2): our own TUI panel through `search({ createPanel })`, in both
+  the script editor and the profile EDITOR view. The frame stack stops
+  every key at window capture (ADR 0013), so the panel's own listeners
+  never fire; `searchFrameKey` routes Ctrl+F (open/focus), Ctrl+H
+  (replace field; the replace row is always shown in editable buffers),
+  Enter/F3 next, Shift+Enter/Shift+F3 previous, Ctrl+Enter replace all,
+  Alt+C/W/R toggles, Tab/↑↓ between fields, and ESC (closes the panel
+  first; the next ESC is the frame's). Ctrl+F is prevented in Chromium
+  and Firefox (checked in Playwright: `defaultPrevented`).
+- *Live errors* (`lua-diagnostics.ts` pure, `lua-lint.ts` on
+  `@codemirror/lint` 6.9.7). `LuaRuntime.check(name, source)` compiles
+  with `luaL_loadbufferx` and pops the chunk (also the `<close>` scan);
+  nothing runs. `src/scripts/check.ts` keeps one small runtime (8 MB
+  cap) for the editor and the Scripts page, loaded on first use (the
+  `src/lua` chunk). The editor checks 300 ms after the last change:
+  header problems (on their line; a missing `@api` on line 1) and the
+  compile error (`near '<tok>'` underlines the last occurrence of the
+  token in the line). Marks: a `●` in a one-cell gutter, a red band, a
+  wavy underline, the message on hover; the status row shows the first.
+  With unsaved changes the saved script's problems are not shown on the
+  status row (they may be fixed already). Code still applies only on
+  Ctrl+S.
+- *Runtime errors in the editor.* The library's `lastError` (`name:line:
+  msg`, live through `subscribe`) is marked on that line of the saved
+  text, mapped through the edits since the save (a composed
+  `ChangeSet`), dashed and labelled "Runtime error (saved version)".
+  Rule: it disappears when its line is edited, at the next save (until
+  the script reports an error again), or when the library clears it (a
+  successful reload). An identical compile error on the same line is
+  shown once.
+- *Scripts page.* Scripts the host has not loaded (off, or no host yet)
+  and without another problem get the compile-only check, cached per
+  name and source; a failure is a red `Syntax error: …` line under the
+  row and in the help panel.
+- *MANUAL.* CLOSE is gone from the script editor (ESC closes); MANUAL
+  sits in its place and in the Scripts page button row. F1 in the
+  editor opens it at the API name under the cursor (a header tag opens
+  *The header*). The frame (`script-manual-frame.tsx`) uses the HELP
+  view's layout and keys through the shared `manual-view.tsx`. Content:
+  the guide (`script-manual.ts`, 14 sections, every Lua example
+  compiles in a unit test) and the A–Z reference generated from
+  `SCRIPT_API` (`script-reference.ts`), whose entries gained `params`,
+  `returns`, `more` and `example`; hover and completion show the example
+  too, coloured by `lua-highlight.ts`. One table still feeds completion,
+  hover and the manual.
+- *Native scrolling.* `src/chrome/kit/scroll.tsx`: a `.wc-scrollbox`
+  (browser bar hidden) scrolled by the wheel and touchpad in pixels,
+  the `░█` bar following its position, keys scrolling by rows. HELP and
+  the manual use it; the other chrome surfaces follow (see the stage
+  file).
+- *Content findings* (code unchanged): `gmcp` merges per message, so
+  `gmcp.Group.Update` accumulates members (the manual points to
+  `state.group`); a handler for `gmcp.Char` does not fire for
+  `Char.Vitals`; GMCP received before the host starts is not in `gmcp`;
+  `highlight` takes colour names, `<F…>` and `r,g,b`, not `#rrggbb`, and
+  `cecho` has no `<b>` (the API docs said so; fixed).
+
+**Measured** (production build, items 1–4): editor chunk 386.3 → 431.0
+kB (127.2 → 141.1 kB gzip); chrome +0.4 kB; cold-start preload
+unchanged (395.0 → 394.9 kB).

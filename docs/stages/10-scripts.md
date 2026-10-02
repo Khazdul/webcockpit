@@ -80,6 +80,17 @@ packages, Mudlet API compatibility beyond the names in §2.10.
       bench within spec §1.3 with coin looter and a test script enabled.
 - [x] Test guide filled in.
 - [ ] Owner test.
+- [x] Feedback round 1 (2026-10-02):
+  - [x] drop the `#script help` note from the help view;
+  - [x] `#help script` (also `scripts`, `lua`, `#script`, `#lua`);
+  - [x] Ctrl+F find and replace (script editor and EDITOR view);
+  - [x] live errors: header and compile-only syntax checks while
+        typing, runtime errors on their line, syntax check of scripts
+        that are off on the Scripts page;
+  - [x] MANUAL replaces CLOSE; script manual (guide and A–Z API
+        reference) from the editor (MANUAL, F1) and the Scripts page;
+  - [x] native pixel scrolling in the HELP view and the manual;
+  - [ ] native scrolling on the other chrome surfaces (in progress).
 
 ## Test guide
 
@@ -118,12 +129,30 @@ Chromium.
 
    Ctrl+S saves. Toggle it on from the list (or `#script enable
    <name>`). Completion: type `temp` and wait, or press Ctrl+Space.
-   Hover over a function name for its help.
-6. **Errors:** put a typo in a call (`sendd("x")`), save, and trigger
-   it. The error shows on the script's row, in the editor status line and
-   in UI messages, with the line number. `while true do end` in a
-   trigger is stopped, and the script is turned off.
-7. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
+   Hover over a function name for its help and an example. F1 opens
+   the MANUAL at the function under the cursor; the MANUAL button (in
+   the editor and on the Scripts page) opens it at the start. ESC goes
+   back to the editor as you left it.
+6. **Find:** Ctrl+F in the editor opens the find panel at the bottom:
+   Enter/F3 next, Shift+Enter/Shift+F3 previous, Ctrl+H to the replace
+   field (Enter replaces, ALL replaces all), Alt+C/W/R case, word,
+   regex. ESC closes the panel; a second ESC leaves the editor. The
+   profile editor's EDITOR view has the same panel.
+7. **Errors while typing:** delete a `)` or an `end`. About 0.3 s
+   later the line gets a red dot, a red band and an underline; hover
+   for the message; the status row shows it. Fix it and the mark goes,
+   without saving. Remove the `-- @api 1` line: a header error. A
+   script that is off with a syntax error shows it in red under its row
+   on the Scripts page.
+8. **Runtime errors:** put a typo in a call (`sendd("x")`), save, and
+   trigger it. The error shows on the script's row, in UI messages and,
+   in the editor, on its line (dashed, "Runtime error (saved
+   version)"). It goes when you edit that line or save. `while true do
+   end` in a trigger is stopped, and the script is turned off.
+9. **`#help script`** in game explains `#script` and `#lua`.
+10. **Scrolling:** the wheel and the touchpad scroll HELP and the MANUAL
+    smoothly, by pixels, like the EDITOR.
+11. **Duplicate:** EDIT on `coinlooter` opens read-only; DUPLICATE gives
    an editable `coinlooter-copy`. Export and import a script as `.lua`
    (import shows a warning first).
 
@@ -134,4 +163,21 @@ script.
 
 ## Owner feedback
 
-None yet.
+Round 1 (2026-10-02):
+
+1. The help view's "#script help <name> shows this in the game" note is
+   not needed.
+2. `#help script` is missing.
+3. Ctrl+F in the script editor should open our own find (and replace),
+   not the browser's, which cannot search the editor.
+4. Errors should show live in the editor while typing (syntax and
+   header), for scripts that are on and off; runtime errors of the
+   running script on their line; code still applies only on Ctrl+S.
+5. Remove CLOSE from the script editor (ESC closes); a MANUAL button in
+   its place.
+6. A full script manual in the spirit of Mudlet's, in the HELP view's
+   layout, from the editor and the Scripts page; richer hover and
+   completion; F1 at the name under the cursor; `#help script` points to
+   it.
+7. Scrolling with the wheel or touchpad should feel like the EDITOR
+   everywhere (native pixels, no row steps); HELP was the example.
