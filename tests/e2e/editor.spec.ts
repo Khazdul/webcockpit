@@ -967,3 +967,27 @@ test('EDITOR shows the whole stored text of the bundled khazdul profile', async 
   await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Profile ───');
   expect(await stored(page)).toBe(text);
 });
+
+test('LITE list scrolls by pixels; the cursor stays in view', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 500 });
+  const text = Array.from({ length: 40 }, (_, i) => `#action {goblin ${i}} {say hi ${i}}`).join('\n') + '\n';
+  await openFromStart(page, text);
+  await kind(page, 'action');
+  const box = ped(page).locator('.wc-ped-list-rows');
+  const m = await box.evaluate((el) => ({ top: el.scrollTop, over: el.scrollHeight - el.clientHeight }));
+  expect(m.over).toBeGreaterThan(0);
+  const cell = await box.locator('.wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
+  await box.hover();
+  await page.mouse.wheel(0, 5);
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBeGreaterThan(m.top);
+  expect((await box.evaluate((el) => el.scrollTop)) - m.top).toBeLessThan(cell);
+  // End: the cursor on `+ New entry`, pulled into view; Home back to the top.
+  await page.keyboard.press('End');
+  await expect(cursorRow(page)).toHaveAttribute('data-row', 'new');
+  await expect(cursorRow(page)).toBeInViewport({ ratio: 0.9 });
+  await page.keyboard.press('Home');
+  await expect.poll(() => box.evaluate((el) => el.scrollTop)).toBe(0);
+  // A click still selects a row.
+  await listRows(page).nth(3).click();
+  await expect(cursorRow(page)).toHaveAttribute('data-row', '3');
+});
