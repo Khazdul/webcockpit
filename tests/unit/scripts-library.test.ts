@@ -5,16 +5,14 @@ import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
 import { resetScriptKeys, scriptKeyOwner } from '../../src/script/script-keys';
+import { ScriptError, ScriptLibrary, scriptNameError, uniqueScriptName } from '../../src/scripts';
 import {
   BadScriptBackupError,
-  ScriptError,
-  ScriptLibrary,
+  formatScriptBackup,
   looksLikeScriptBackup,
   parseScriptBackup,
   scriptBackupFileName,
-  scriptNameError,
-  uniqueScriptName,
-} from '../../src/scripts';
+} from '../../src/scripts/backup';
 
 const BUNDLED = [{ name: 'looter', source: '-- @name looter\n-- @api 1\n-- @key F7 loot\n-- @setting delay number 0.5 "Delay"\nsend("loot")\n' }];
 
@@ -194,7 +192,7 @@ describe('backup (ADR 0053 P3)', () => {
     await lib.setEnabled('looter', true);
     await lib.setSetting('looter', 'delay', '2');
     lib.storeSet('mine', 'k', { a: [1, 'b', true] });
-    const text = lib.backup();
+    const text = formatScriptBackup(lib.backupRecords());
     expect(looksLikeScriptBackup(text)).toBe(true);
     expect(looksLikeScriptBackup('-- @name x\n')).toBe(false);
     const b = parseScriptBackup(text);

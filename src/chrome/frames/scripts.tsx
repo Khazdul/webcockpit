@@ -23,17 +23,15 @@
 import './scripts.css';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { SCRIPT_NAME_MAX, type ScriptInfo, type ScriptLibrary, scriptNameError } from '../../scripts';
 import {
   BadScriptBackupError,
-  SCRIPT_NAME_MAX,
   type ScriptBackup,
-  type ScriptInfo,
-  type ScriptLibrary,
+  formatScriptBackup,
   looksLikeScriptBackup,
   parseScriptBackup,
   scriptBackupFileName,
-  scriptNameError,
-} from '../../scripts';
+} from '../../scripts/backup';
 import { knownSyntaxProblem, syntaxProblem } from '../../scripts/check';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
@@ -646,7 +644,7 @@ function ExportFrame(p: { lib: ScriptLibrary; name: string }): VNode {
   const all = (): void => {
     try {
       const name = scriptBackupFileName(new Date());
-      downloadBlob(new Blob([p.lib.backup()], { type: 'application/json;charset=utf-8' }), name);
+      downloadBlob(new Blob([formatScriptBackup(p.lib.backupRecords())], { type: 'application/json;charset=utf-8' }), name);
       const n = p.lib.list().filter((s) => !s.bundled).length;
       nav.pop();
       nav.flash(`Exported ${n} script${n === 1 ? '' : 's'} and all settings to ${name}.`);

@@ -35,7 +35,7 @@
 import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
 import { normalizeKey } from '../script/keys';
 import { setDeclaredScriptKeys } from '../script/script-keys';
-import { type ScriptBackup, formatScriptBackup } from './backup';
+import type { ScriptBackup } from './backup';
 import { BUNDLED_SCRIPTS, type BundledScript } from './bundled';
 import { type ParsedHeader, type ScriptHeader, type SettingValue, apiProblem, convertSetting, parseHeader, withHeaderName } from './header';
 
@@ -277,13 +277,16 @@ export class ScriptLibrary {
   }
 
   /**
-   * The backup file of every user script and the data of every script
-   * (`src/scripts/backup.ts`); pending `store` values included.
+   * What a backup file holds (`formatScriptBackup` in src/scripts/backup.ts,
+   * kept out of the cold-start chunk): every user script and the data of
+   * every known script, pending `store` values included.
    */
-  backup(): string {
-    const recs = [...this.entries.values()].filter((e) => !e.bundled).map((e) => e.rec!);
-    const data = [...this.data.values()].filter((d) => this.entries.has(d.name));
-    return formatScriptBackup(this.now(), recs, data);
+  backupRecords(): { exported: number; scripts: ScriptRecord[]; data: ScriptDataRecord[] } {
+    return {
+      exported: this.now(),
+      scripts: [...this.entries.values()].filter((e) => !e.bundled).map((e) => e.rec!),
+      data: [...this.data.values()].filter((d) => this.entries.has(d.name)),
+    };
   }
 
   // ----------------------------------------------------------------- write

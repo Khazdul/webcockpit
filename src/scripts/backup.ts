@@ -1,7 +1,8 @@
 // The scripts backup file (ADR 0053, P3): every user script and the data
 // of every script (bundled ones too) in one JSON file, written by EXPORT →
 // "All scripts" on the Scripts page and read back by IMPORT. Pure: no DOM,
-// no IndexedDB (ScriptLibrary.backup / restore do the I/O).
+// no IndexedDB (ScriptLibrary.backupRecords / restore do the I/O). Only
+// the Scripts page imports it, so it stays out of the cold-start chunk.
 //
 //   webcockpit-scripts-YYYY-MM-DD.json
 //   {
@@ -51,8 +52,8 @@ export function scriptBackupFileName(d: Date): string {
   return `webcockpit-scripts-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
 }
 
-/** The file text for user script records and data records. */
-export function formatScriptBackup(exported: number, scripts: readonly ScriptRecord[], data: readonly ScriptDataRecord[]): string {
+/** The file text for user script records and data records (`ScriptLibrary.backupRecords()`). */
+export function formatScriptBackup({ exported, scripts, data }: { exported: number; scripts: readonly ScriptRecord[]; data: readonly ScriptDataRecord[] }): string {
   const out = {
     type: SCRIPT_BACKUP_TYPE,
     schema: SCRIPT_BACKUP_SCHEMA,
