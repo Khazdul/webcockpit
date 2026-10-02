@@ -2,7 +2,7 @@
 // (stage 10 P2, ADR 0051).
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { HEADER_TAGS, SCRIPT_API, apiDoc, completeLua, lineContext, nameAt } from '../../src/editor/lua-api';
+import { HEADER_TAGS, SCRIPT_API, apiDoc, completeLua, completionBase, lineContext, nameAt } from '../../src/editor/lua-api';
 import { LUA_KEYWORDS, LUA_REF, LUA_SYNTAX } from '../../src/editor/lua-ref';
 import { luaIndent, luaTokens, opensBlock, startsWithCloser } from '../../src/editor/lua-indent';
 
@@ -48,6 +48,60 @@ describe('completion', () => {
     expect(completeLua('store.')?.from).toBe(0);
     expect(names(completeLua('local s = string.fo'))).toEqual(['string.format']);
     expect(completeLua('foo.')).toBeNull();
+  });
+
+  it('opens the members right after a dot or colon (round 5)', () => {
+    for (const lib of ['math', 'string', 'table', 'utf8', 'coroutine', 'store']) {
+      const r = names(completeLua(`x = ${lib}.`))!;
+      expect(r.length).toBeGreaterThan(1);
+      expect(r.every((n) => n.startsWith(`${lib}.`))).toBe(true);
+    }
+    expect(names(completeLua('math.'))).toHaveLength(27);
+    expect(names(completeLua('math.'))).toContain('math.ult');
+    expect(names(completeLua('gmcp.'))).toEqual(['gmcp.Char', 'gmcp.Comm', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room']);
+    expect(names(completeLua('local v = gmcp.Char.'))).toEqual(['gmcp.Char.Name', 'gmcp.Char.Vitals', 'gmcp.Char.StatusVars']);
+    expect(names(completeLua('gmcp.Comm.Channel.T'))).toEqual(['gmcp.Comm.Channel.Text']);
+    expect(names(completeLua('gmcp.char.v'))).toEqual(['gmcp.Char.Vitals']);
+    expect(completeLua('gmcp.Char.Vitals.')).toBeNull();
+    expect(names(completeLua('state.'))).toEqual(['state.char', 'state.group', 'state.room']);
+    expect(names(completeLua('state.char.'))).toContain('state.char.vitals');
+    expect(names(completeLua('Math.ab'))).toEqual(['math.abs']);
+    // After `..` a name completes again.
+    expect(names(completeLua('echo(x..math.fl'))).toEqual(['math.floor']);
+    // String methods after `x:`.
+    expect(names(completeLua('line:'))).toContain('string.upper');
+    expect(completeLua('line:')?.method).toBe(true);
+  });
+
+  it('lists the script\'s own settings after settings.', () => {
+    const settings = [
+      { name: 'delay', type: 'number' as const, default: 0.5, label: 'Seconds before looting' },
+      { name: 'auto', type: 'boolean' as const, default: true, label: '' },
+    ];
+    const r = completeLua('if settings.', false, settings)!;
+    expect(names(r)).toEqual(['settings.delay', 'settings.auto']);
+    expect(r.options[0]!.doc).toBe('Seconds before looting');
+    expect(names(completeLua('settings.a', false, settings))).toEqual(['settings.auto']);
+    expect(completeLua('settings.')).toBeNull();
+  });
+
+  it('does not open after a dot in a number, a string, a comment or after ..', () => {
+    expect(completeLua('x = 1.')).toBeNull();
+    expect(completeLua('x = 1.5')).toBeNull();
+    expect(completeLua('send("a.')).toBeNull();
+    expect(completeLua("send('math.")).toBeNull();
+    expect(completeLua('-- see math.')).toBeNull();
+    expect(completeLua('x = y..')).toBeNull();
+    expect(completeLua('x = "a" ..')).toBeNull();
+    expect(completeLua('::')).toBeNull();
+  });
+
+  it('keeps the list only while the part up to the last dot is unchanged', () => {
+    expect(completionBase('ma')).toBe('');
+    expect(completionBase('math.')).toBe('math.');
+    expect(completionBase('math.ab')).toBe('math.');
+    expect(completionBase('gmcp.Char.Vi')).toBe('gmcp.Char.');
+    expect(completionBase('@se')).toBe('@');
   });
 
   it('completes header tags in a header comment', () => {

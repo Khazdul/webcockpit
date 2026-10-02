@@ -3,6 +3,7 @@
 // CodeMirror, unit tested. Plain Lua (library, keywords, syntax) is in
 // lua-ref.ts, in the same shape.
 
+import type { SettingDecl } from "../scripts/header";
 import { LUA_KEYWORDS, LUA_REF, LUA_REMOVED, LUA_SYNTAX, NOT_METHODS, type Snippet } from "./lua-ref";
 
 export type ApiKind = "function" | "variable" | "table" | "tag" | "keyword";
@@ -720,6 +721,146 @@ export function methodDoc(name: string): ApiDoc | null {
 
 // ------------------------------------------------------------ completion
 
+// ------------------------------------------------- fields of the views
+
+/** A field of `gmcp` or `state`: its doc and its own fields. */
+interface Field {
+  doc: string;
+  kids?: Readonly<Record<string, Field>>;
+}
+
+const msg = (name: string, what: string): Field => ({
+  doc: `The last ${name} message from MUME: ${what}.`,
+});
+
+/**
+ * The known levels under `gmcp` and `state`, for completion after a dot
+ * (not hover, the manual or the case correction). GMCP: the messages
+ * MUME sends for the modules the client subscribes to (net/gmcp.ts,
+ * /home/ole/MUME/docs/gmcp.md).
+ */
+const FIELDS: Readonly<Record<string, Field>> = {
+  gmcp: {
+    doc: "",
+    kids: {
+      Char: {
+        doc: "GMCP package Char: Name, Vitals, StatusVars.",
+        kids: {
+          Name: msg("Char.Name", "name, fullname"),
+          Vitals: msg("Char.Vitals", "hp, maxhp, mana, mp … merged key by key"),
+          StatusVars: msg("Char.StatusVars", "the status variables, merged key by key"),
+        },
+      },
+      Comm: {
+        doc: "GMCP package Comm: Channel.",
+        kids: {
+          Channel: {
+            doc: "GMCP package Comm.Channel: List, Text.",
+            kids: {
+              List: msg("Comm.Channel.List", "the channels"),
+              Text: msg("Comm.Channel.Text", "channel, talker, text"),
+            },
+          },
+        },
+      },
+      Event: {
+        doc: "GMCP package Event: world events.",
+        kids: {
+          Achieved: msg("Event.Achieved", "an achievement"),
+          Darkness: msg("Event.Darkness", "darkness"),
+          Moon: msg("Event.Moon", "the moon"),
+          Moved: msg("Event.Moved", "you moved"),
+          Sun: msg("Event.Sun", "the sun"),
+        },
+      },
+      Group: {
+        doc: "GMCP package Group. Read the whole group from state.group.",
+        kids: {
+          Set: msg("Group.Set", "the whole group"),
+          Add: msg("Group.Add", "one member who joined"),
+          Update: msg("Group.Update", "one member who changed"),
+          Remove: msg("Group.Remove", "one member who left"),
+        },
+      },
+      Room: {
+        doc: "GMCP package Room: Info, Chars.",
+        kids: {
+          Info: msg("Room.Info", "the room's id, name, exits …"),
+          Chars: { doc: "GMCP package Room.Chars: the characters in the room." },
+        },
+      },
+    },
+  },
+  state: {
+    doc: "",
+    kids: {
+      char: {
+        doc: "The character: name, fullname, vitals (the Char.Vitals fields), status (the Char.StatusVars fields).",
+        kids: {
+          name: { doc: "The character's name." },
+          fullname: { doc: "The character's full name." },
+          vitals: { doc: "The Char.Vitals fields." },
+          status: { doc: "The Char.StatusVars fields." },
+        },
+      },
+      group: {
+        doc: "The group members in your room: id, type, name, label, and hp, mana, mp as { value, max, word }.",
+      },
+      room: { doc: "The last Room.Info." },
+    },
+  },
+};
+
+/** The field at a dotted path (`gmcp.Char`), ignoring case. */
+function fieldAt(path: string): Field | null {
+  let kids: Readonly<Record<string, Field>> | undefined = FIELDS;
+  let f: Field | null = null;
+  for (const part of path.split(".")) {
+    const key: string | undefined = kids && Object.keys(kids).find((k) => k.toLowerCase() === part.toLowerCase());
+    if (!kids || key === undefined) return null;
+    f = kids[key]!;
+    kids = f.kids;
+  }
+  return f;
+}
+
+/** The canonical spelling of a dotted path in FIELDS (`gmcp.char` → `gmcp.Char`). */
+function fieldPath(path: string): string {
+  let kids: Readonly<Record<string, Field>> | undefined = FIELDS;
+  return path
+    .split(".")
+    .map((part) => {
+      const key = kids && Object.keys(kids).find((k) => k.toLowerCase() === part.toLowerCase());
+      kids = key !== undefined ? kids![key]!.kids : undefined;
+      return key ?? part;
+    })
+    .join(".");
+}
+
+/**
+ * The members after `base.`: the known fields of `gmcp` and `state`, the
+ * script's own @setting names after `settings.`, else null.
+ */
+function membersOf(base: string, settings: readonly SettingDecl[]): ApiDoc[] | null {
+  if (base.toLowerCase() === "settings") {
+    return settings.map((st) => ({
+      name: `settings.${st.name}`,
+      kind: "variable",
+      sig: `settings.${st.name} (${st.type}, default ${JSON.stringify(st.default)})`,
+      doc: st.label || `The @setting ${st.name}.`,
+    }));
+  }
+  const f = fieldAt(base);
+  if (!f?.kids) return null;
+  const path = fieldPath(base);
+  return Object.entries(f.kids).map(([k, kid]) => ({
+    name: `${path}.${k}`,
+    kind: kid.kids ? "table" : "variable",
+    sig: `${path}.${k}`,
+    doc: kid.doc,
+  }));
+}
+
 export interface Completion {
   /** Offset in the line where the replaced text starts. */
   from: number;
@@ -752,14 +893,18 @@ const rank = (d: ApiDoc): number =>
 
 /**
  * The completions for the text before the cursor on its line: header tags
- * after `-- @`, members after `store.` / `string.` …, string methods after
- * `x:`, else global names and keywords. Null where nothing completes
- * (strings, comments, after a number).
+ * after `-- @`, members after `store.` / `string.` / `gmcp.Char.` …,
+ * the script's settings after `settings.`, string methods after `x:`,
+ * else global names and keywords. A dot or colon opens the members at
+ * once, without a letter after it. Null where nothing completes
+ * (strings, comments, after a number, after `..`).
  * `explicit`: asked for with Ctrl+Space (an empty word completes too).
+ * `settings`: the script's @setting lines (header.ts).
  */
 export function completeLua(
   before: string,
   explicit = false,
+  settings: readonly SettingDecl[] = [],
 ): Completion | null {
   const tagM = /^\s*--\s*(@\w*)$/.exec(before);
   if (tagM) {
@@ -781,18 +926,22 @@ export function completeLua(
       ? { from: before.length - word.length, options, method: true }
       : null;
   }
-  const m = /(?:^|[^\w.])((?:[A-Za-z_]\w*\.)?[A-Za-z_]?\w*)$/.exec(before);
+  // A name, dotted or not; after `..` too (`x..math.`), but not after
+  // another dot alone (`1.5`, `a..`).
+  const m = /(?:^|[^\w.]|\.\.)((?:[A-Za-z_]\w*\.)*[A-Za-z_]?\w*)$/.exec(before);
   if (!m) return null;
   const word = m[1]!;
   if (/^\d/.test(word)) return null;
   if (word === "" && !explicit) return null;
-  const dot = word.indexOf(".");
+  const dot = word.lastIndexOf(".");
   let options: ApiDoc[];
   if (dot >= 0) {
-    const prefix = word.slice(0, dot + 1);
-    options = ALL.filter(
-      (d) => d.name.startsWith(prefix) && d.name.startsWith(word),
-    );
+    const base = word.slice(0, dot);
+    const lower = word.toLowerCase();
+    options = (
+      membersOf(base, settings) ??
+      ALL.filter((d) => d.name.toLowerCase().startsWith(`${base.toLowerCase()}.`))
+    ).filter((d) => d.name.toLowerCase().startsWith(lower));
   } else {
     options = ALL.filter(
       (d) =>
@@ -812,6 +961,15 @@ export function completeLua(
   if (options.length === 0) return null;
   options.sort((a, b) => rank(a) - rank(b));
   return { from: before.length - word.length, options };
+}
+
+/**
+ * The part of a completed word that must not change for the open list to
+ * stay valid: up to its last dot (`math.`), or the `@` of a tag. Typing
+ * another dot asks again, so `math` then `.` lists math's members.
+ */
+export function completionBase(word: string): string {
+  return /^@?(?:[\w]*\.)*/.exec(word)![0];
 }
 
 // ----------------------------------------------------------------- hover

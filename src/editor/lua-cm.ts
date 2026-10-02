@@ -44,7 +44,7 @@ import {
   syntaxHighlighting,
 } from '@codemirror/language';
 import { lua } from '@codemirror/legacy-modes/mode/lua';
-import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField, Transaction } from '@codemirror/state';
+import { EditorSelection, EditorState, type Extension, Prec, StateEffect, StateField, type Text, Transaction } from '@codemirror/state';
 import {
   type Command,
   EditorView,
@@ -61,9 +61,10 @@ import {
   showTooltip,
 } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
+import { type SettingDecl, parseHeader } from '../scripts/header';
 import type { BufferStatus, ScrollStatus } from './cm';
 import { theme } from './cm';
-import { type ApiDoc, apiDoc, completeLua, nameAt } from './lua-api';
+import { type ApiDoc, apiDoc, completeLua, completionBase, nameAt } from './lua-api';
 import { type Signature, callContext, paramLabel, signatureFor } from './lua-sig';
 import { autoCloseAt } from './lua-blocks';
 import { caseCorrection } from './lua-case';
@@ -197,14 +198,31 @@ function toCompletions(d: ApiDoc, method: boolean): Completion[] {
   return [c];
 }
 
+/** The @setting lines of a document, parsed once per document. */
+const settingsOf = (() => {
+  let last: { doc: Text; settings: readonly SettingDecl[] } | null = null;
+  return (doc: Text): readonly SettingDecl[] => {
+    if (last?.doc !== doc) last = { doc, settings: parseHeader(doc.toString()).header.settings };
+    return last.settings;
+  };
+})();
+
+/**
+ * Completion (lua-api.ts `completeLua`). A `.` or `:` typed opens the
+ * members at once (any typed character starts completion; the list stays
+ * valid only while the part up to its last dot is unchanged, so `math`
+ * then `.` asks again).
+ */
 function luaCompletions(ctx: CompletionContext): CompletionResult | null {
   const line = ctx.state.doc.lineAt(ctx.pos);
-  const r = completeLua(line.text.slice(0, ctx.pos - line.from), ctx.explicit);
+  const before = line.text.slice(0, ctx.pos - line.from);
+  const r = completeLua(before, ctx.explicit, settingsOf(ctx.state.doc));
   if (!r) return null;
+  const base = completionBase(before.slice(r.from));
   return {
     from: line.from + r.from,
     options: r.options.flatMap((d) => toCompletions(d, r.method === true)),
-    validFor: /^@?[\w.]*$/,
+    validFor: (text) => text.startsWith(base) && /^\w*$/.test(text.slice(base.length)),
   };
 }
 
@@ -466,6 +484,9 @@ const caseFix = ViewPlugin.fromClass(
 
 // ---------------------------------------------------------------- state
 
+/** Visible rows of the completion list. */
+const COMPLETION_ROWS = 10;
+
 function luaTheme(): Extension {
   return EditorView.theme({
     '.cm-tooltip': {
@@ -477,9 +498,13 @@ function luaTheme(): Extension {
       lineHeight: 'var(--cell-h)',
       whiteSpace: 'normal',
     },
+    // Ten rows, the rest scrolled natively (wheel, touchpad, and the
+    // selection kept in view by ↑↓ PgUp PgDn).
     '.cm-tooltip.cm-tooltip-autocomplete > ul': {
       fontFamily: 'var(--font-mono)',
-      maxHeight: 'calc(var(--cell-h) * 10)',
+      maxHeight: `calc(var(--cell-h) * ${COMPLETION_ROWS})`,
+      overflowY: 'auto',
+      overscrollBehavior: 'contain',
     },
     '.cm-tooltip.cm-tooltip-autocomplete > ul > li': {
       padding: '0 var(--cell-w)',
@@ -493,7 +518,15 @@ function luaTheme(): Extension {
     '.cm-completionDetail': { color: 'var(--c-hint)', fontStyle: 'normal', marginLeft: 'var(--cell-w)' },
     '.cm-tooltip-autocomplete > ul > li[aria-selected] .cm-completionDetail': { color: 'inherit' },
     '.cm-completionMatchedText': { textDecoration: 'none', fontWeight: 'bold' },
-    '.cm-completionInfo': { padding: '0 var(--cell-w)', maxWidth: 'calc(var(--cell-w) * 48)' },
+    // CodeMirror caps the width (inline, 400px or the room beside the
+    // list); the height stays inside the window and scrolls natively.
+    '.cm-completionInfo': {
+      padding: '0 var(--cell-w)',
+      maxWidth: 'calc(var(--cell-w) * 48)',
+      maxHeight: 'min(calc(var(--cell-h) * 20), 50vh)',
+      overflowY: 'auto',
+      overscrollBehavior: 'contain',
+    },
     '.cm-tooltip-hover': { padding: '0 var(--cell-w)', maxWidth: 'calc(var(--cell-w) * 60)' },
     '.cm-tooltip.cm-tooltip-lint': { padding: '0', maxWidth: 'calc(var(--cell-w) * 60)' },
     '.cm-tooltip-lint .cm-diagnostic': { padding: '0 var(--cell-w)', margin: '0', borderLeft: 'none' },
@@ -533,7 +566,9 @@ export function createLuaState(opts: LuaBufferOptions): EditorState {
       syntaxHighlighting(luaHighlight),
       bracketMatching(),
       indentOnInput(),
-      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false }), caseFix]),
+      // Every option in the DOM (the longest list, Ctrl+Space on an empty
+      // word, is under 100), so the wheel reaches all of them.
+      ...(opts.readOnly ? [] : [closeBrackets(), autocompletion({ override: [luaCompletions], icons: false, maxRenderedOptions: 1000 }), caseFix]),
       luaHover,
       sigField,
       searchExtension({ onFocus: opts.onFocus }),

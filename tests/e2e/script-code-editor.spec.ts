@@ -232,3 +232,102 @@ test('a name in the wrong case is corrected; Ctrl+Z or typing it back keeps the 
   expect(text).toContain('"temptimer(');
   expect(errors).toEqual([]);
 });
+
+// Round 5: a dot or colon opens the members at once; the list is ten rows
+// high and scrolls; no F1 hint in the pop-ups.
+
+test('math. lists every member at once, ten rows high, scrolled by wheel and keys', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openEditor(page);
+  await page.keyboard.type('x = math.');
+  const ul = list(page).locator('ul');
+  await expect(ul.locator('li')).toHaveCount(27);
+  await expect(list(page).locator('li[aria-selected]')).toContainText('math.abs');
+  // Height-limited: about ten rows, the rest below the fold.
+  const m = await ul.evaluate((el) => {
+    const li = el.querySelector('li')!;
+    return { client: el.clientHeight, scroll: el.scrollHeight, row: li.getBoundingClientRect().height };
+  });
+  expect(m.client).toBeLessThanOrEqual(m.row * 10 + 4);
+  expect(m.client).toBeGreaterThanOrEqual(m.row * 8);
+  expect(m.scroll).toBeGreaterThan(m.client + m.row * 10);
+  // The info panel beside it: no F1 hint, inside the window.
+  const info = page.locator('.cm-completionInfo');
+  await expect(info).toContainText('math.abs');
+  await expect(info).not.toContainText('F1');
+  const vp = page.viewportSize()!;
+  const ib = (await info.boundingBox())!;
+  expect(ib.x).toBeGreaterThanOrEqual(0);
+  expect(ib.y).toBeGreaterThanOrEqual(0);
+  expect(ib.x + ib.width).toBeLessThanOrEqual(vp.width);
+  expect(ib.y + ib.height).toBeLessThanOrEqual(vp.height);
+  // The wheel scrolls the list in pixels, down to the last member.
+  const lb = (await ul.boundingBox())!;
+  await page.mouse.move(lb.x + lb.width / 2, lb.y + lb.height / 2);
+  // (Firefox scrolls at most a few rows per wheel event: wheel until the end.)
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, 400);
+      return ul.evaluate((el) => el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+    })
+    .toBe(true);
+  const inView = (name: string) =>
+    ul.evaluate((el, name) => {
+      const li = [...el.querySelectorAll('li')].find((l) => l.textContent?.startsWith(name))!;
+      const a = li.getBoundingClientRect();
+      const b = el.getBoundingClientRect();
+      return a.top >= b.top - 1 && a.bottom <= b.bottom + 1;
+    }, name);
+  expect(await inView('math.ult')).toBe(true);
+  // Keys: PgDn moves the selection to the last member and keeps it in view.
+  for (let i = 0; i < 4; i++) await page.keyboard.press('PageDown');
+  await expect(list(page).locator('li[aria-selected]')).toContainText('math.ult');
+  await expect.poll(() => inView('math.ult')).toBe(true);
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('PageUp');
+  await page.keyboard.press('PageUp');
+  await expect(list(page).locator('li[aria-selected]')).toContainText('math.abs');
+  await expect.poll(() => inView('math.abs')).toBe(true);
+  // Typing filters as before; Tab accepts.
+  await page.keyboard.type('fl');
+  await expect(ul.locator('li')).toHaveCount(1);
+  await page.keyboard.press('Tab');
+  expect(await bufferText(page)).toMatch(/\nx = math\.floor$/);
+  // The signature help has no F1 hint either.
+  await page.keyboard.type('(');
+  await expect(page.locator('.wc-lua-sig')).toBeVisible();
+  await expect(page.locator('.wc-lua-sig')).not.toContainText('F1');
+  expect(errors).toEqual([]);
+});
+
+test('a colon opens the string methods; gmcp. and state. list their levels', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openEditor(page);
+  await page.keyboard.type('s = line:');
+  await expect(list(page).locator('li', { hasText: /^upper/ })).toHaveCount(1);
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('v = gmcp.');
+  await expect(list(page).locator('li')).toHaveText([/^gmcp\.Char/, /^gmcp\.Comm/, /^gmcp\.Event/, /^gmcp\.Group/, /^gmcp\.Room/]);
+  await page.keyboard.type('Char.');
+  await expect(list(page).locator('li')).toHaveText([/^gmcp\.Char\.Name/, /^gmcp\.Char\.StatusVars/, /^gmcp\.Char\.Vitals/]);
+  await page.keyboard.press('End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('g = state.');
+  await expect(list(page).locator('li')).toHaveText([/^state\.char/, /^state\.group/, /^state\.room/]);
+  expect(errors).toEqual([]);
+});
+
+test('no list after a dot in a number, in a string, or after ..', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openEditor(page);
+  for (const text of ['x = 1.', 'send("a.', 'y = x..', '-- see math.']) {
+    await page.keyboard.press('End');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type(text);
+    await page.waitForTimeout(300);
+    await expect(list(page), text).toHaveCount(0);
+  }
+  expect(errors).toEqual([]);
+});
