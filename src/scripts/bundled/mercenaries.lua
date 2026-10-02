@@ -1,25 +1,32 @@
 -- @name     mercenaries
 -- @summary  Keeps track of your hired citizen mercenaries, in a pane
 -- @api      1
--- @alias    merc  Show or hide the Mercenaries pane (also: merc autopay, merc pay, merc list, merc label, merc forget)
+-- @alias    merc  Show or hide the Mercenaries pane (also: merc autopay, merc cost, merc pay, merc list, merc label, merc forget)
 -- @setting  autopay boolean false "Pay a mercenary by itself when it asks for pay"
+-- @setting  cost    number  10    "Silver per payment: 10, or 20 (paid as 1 gold)"
 -- @setting  group   boolean true  "Group a new mercenary"
--- @setting  minutes number  25    "Minutes one payment of 10 silver buys"
+-- @setting  minutes number  25    "Minutes one payment buys"
 -- @setting  warn    number  5     "Warn this many minutes before a contract ends (0: never)"
--- @help     Hire a citizen mercenary by giving it 10 silver (give 10 silver
--- @help     mercenary). The script gives it a short name with "label" and groups
--- @help     it, and the Mercenaries pane shows how long its contract has left.
+-- @help     Hire a citizen mercenary by paying it (give 10 silver mercenary,
+-- @help     or give 1 gold mercenary at a higher level). The script gives it
+-- @help     a short name with "label" and groups it, and the Mercenaries pane
+-- @help     shows how long its contract has left.
 -- @help
--- @help     Near the end the mercenary taps you on the shoulder: pay it 10
--- @help     silver within a minute or it leaves. The pane then says PAY DUE.
--- @help     Click $ in the pane to pay, or turn autopay on.
+-- @help     The price is 10 or 20 silver (paid as 1 gold): click Cost in the
+-- @help     pane's top row to switch, or let the script learn it when a
+-- @help     mercenary names its price.
 -- @help
--- @help     The other letters in a mercenary's row are orders: a assist,
--- @help     r rescue you, p protect you, f flee, s stand. Point at one to
--- @help     see what it does.
+-- @help     Near the end the mercenary taps you on the shoulder: pay it
+-- @help     within a minute or it leaves. Its row then says PAY DUE: click
+-- @help     that bar to pay, or turn autopay on.
+-- @help
+-- @help     The letters in a mercenary's row are orders: l lead, r ride,
+-- @help     f flee (ask <name> lead, ride or flee). Point at one to see the
+-- @help     command.
 -- @help
 -- @help       merc               show or hide the pane
 -- @help       merc autopay       turn autopay on or off (also: on, off)
+-- @help       merc cost [10|20]  switch the price, or set it
 -- @help       merc pay [name]    pay one mercenary, or all that ask for pay
 -- @help       merc list          the mercenaries and their time, as text
 -- @help       merc label <who>   label and track a mercenary by hand, for
@@ -41,6 +48,11 @@ its label):
   A citizen mercenary (Bubba) leaves and goes to seek another employer.
   A citizen mercenary (Bubba) is dead! R.I.P.
 
+The price of one payment is 10 silver, or 1 gold (20 silver) at a higher
+level. No log has a mercenary naming its price, so any line a citizen
+mercenary says, tells or asks that names 10 silver, or 1 gold / 20 silver,
+sets the cost setting.
+
 GMCP's Group messages only list the group members in your room, so a
 mercenary that is not in the room is "away", not gone. It is gone after
 the leave or death line, or a while after its contract ended.
@@ -58,7 +70,6 @@ local NAMES = {
   "Travis", "Waylon", "Zeke", "Clovis", "Festus", "Hoss", "Jethro", "Lonnie",
   "Newt", "Vern", "Wade", "Darryl", "Skeeter", "Pruitt",
 }
-local PRICE = "10 silver"  -- one payment
 local GRACE = 60           -- seconds to pay after the tap
 local GONE_AFTER = 90      -- seconds past the end before a silent mercenary is dropped
 local NAME_W = 8           -- the longest name in NAMES
@@ -70,6 +81,10 @@ local NAME_W = 8           -- the longest name in NAMES
 local mercs = {}
 -- The label we just asked MUME to set, for the "Replaced label" check.
 local labelling = nil
+
+-- The cost of one payment in silver (10 or 20) while a change is being
+-- saved: settings.cost changes once setSetting is done.
+local costWanted = nil
 
 local pane = createPane{id = "main", title = "Mercenaries", dock = "right", rows = 9, cols = 36}
 local width = 36
@@ -103,24 +118,34 @@ local function clock(secs)
   return string.format("%d:%02d", secs // 60, secs % 60)
 end
 
-local function myName()
-  local c = state.char
-  return c and c.name or nil
-end
-
 local function contractSecs()
   return math.max(1, settings.minutes) * 60
+end
+
+-- One payment in silver: 10 or 20 (anything above 15 counts as 20).
+local function cost()
+  local c = costWanted or tonumber(settings.cost) or 10
+  return c > 15 and 20 or 10
+end
+
+-- What one payment is given as: "10 silver" or "1 gold".
+local function price()
+  return cost() == 20 and "1 gold" or "10 silver"
+end
+
+local function payCommand(who)
+  return "give " .. price() .. " " .. who
 end
 
 -- ------------------------------------------------------------ commands to MUME
 
 local function pay(m)
-  send("give " .. PRICE .. " " .. m.name)
+  send(payCommand(m.name))
   m.paying = now()
 end
 
-local function order(m, what)
-  send("order " .. m.name .. " " .. what)
+local function ask(m, what)
+  send("ask " .. m.name .. " " .. what)
 end
 
 -- ------------------------------------------------------------ the pane
@@ -163,28 +188,21 @@ local function pad(s, w)
   return s .. string.rep(" ", w - n)
 end
 
-local toggleAutopay -- defined with the alias below
+local toggleAutopay, setCost -- defined with the alias below
 
--- The orders, in the order they are dropped from the right on a narrow pane
--- (pay goes last).
+-- The orders, in the order they are dropped from the right on a narrow pane.
+local ORDERS = {
+  { "l", "lead", "Lead: " },
+  { "r", "ride", "Ride: " },
+  { "f", "flee", "Flee: " },
+}
 local function orders(m)
-  local me = myName()
-  local list = {
-    { "$", "ansi_light_yellow", function() pay(m); uiMessage("merc", "Paying " .. m.name .. " " .. PRICE .. ".") end,
-      "Pay " .. m.name .. " " .. PRICE .. " now:\ngive " .. PRICE .. " " .. m.name },
-    { "a", "ansi_light_cyan", function() order(m, "assist") end,
-      "Assist: " .. m.name .. " joins your fight\norder " .. m.name .. " assist" },
-  }
-  if me then
-    list[#list + 1] = { "r", "ansi_light_cyan", function() order(m, "rescue " .. me) end,
-      "Rescue: " .. m.name .. " takes the blows meant for you\norder " .. m.name .. " rescue " .. me }
-    list[#list + 1] = { "p", "ansi_light_cyan", function() order(m, "protect " .. me) end,
-      "Protect: " .. m.name .. " guards you from now on\norder " .. m.name .. " protect " .. me }
+  local list = {}
+  for _, o in ipairs(ORDERS) do
+    local what = o[2]
+    list[#list + 1] = { o[1], "ansi_light_cyan", function() ask(m, what) end,
+      o[3] .. "ask " .. m.name .. " " .. what }
   end
-  list[#list + 1] = { "f", "ansi_light_cyan", function() order(m, "flee") end,
-    "Flee: " .. m.name .. " runs from the fight\norder " .. m.name .. " flee" }
-  list[#list + 1] = { "s", "ansi_light_cyan", function() order(m, "stand") end,
-    "Stand: " .. m.name .. " gets up\norder " .. m.name .. " stand" }
   return list
 end
 
@@ -198,11 +216,9 @@ local function drawMerc(n, m, t)
   local list = orders(m)
   local fit = math.max(0, math.min(#list, (width - leftW - 1) // 2))
   local segs = left
-  local used = leftW
   local gap = width - leftW - fit * 2
   if fit > 0 then
     segs[#segs + 1] = { text = string.rep(" ", gap) }
-    used = used + gap
     for i = 1, fit do
       local o = list[i]
       segs[#segs + 1] = { text = o[1], color = o[2], fn = o[3], hint = o[4] }
@@ -225,6 +241,13 @@ local function drawMerc(n, m, t)
     value, max, color = 0, 1, "224,32,32"
   end
   pane:gauge(n + 1, { value = value, max = max, color = color, label = label })
+  if m.state == "due" then
+    -- The whole PAY DUE bar pays.
+    pane:setLink(n + 1, 1, math.max(1, width), function()
+      pay(m)
+      uiMessage("merc", "Paying " .. m.name .. " " .. price() .. ".")
+    end, "Pay " .. m.name .. " " .. price() .. " now:\n" .. payCommand(m.name))
+  end
 end
 
 local function draw()
@@ -233,22 +256,32 @@ local function draw()
   local on = settings.autopay
   local n = count()
   local hired = n == 0 and "" or (n == 1 and "1 hired " or n .. " hired ")
+  local c = cost()
+  local costText = c == 20 and "[1g]" or "[10s]"
   local head = {
     { text = " Autopay " },
     { text = on and "[on]" or "[off]", color = on and "ansi_light_green" or "ansi_light_black",
       fn = function() toggleAutopay() end,
-      hint = on and "Autopay is on: a mercenary that asks for pay gets " .. PRICE .. ".\nClick to turn it off."
-        or "Autopay is off: pay with $ when a mercenary asks.\nClick to turn it on." },
+      hint = on and "Autopay is on: a mercenary that asks for pay gets " .. price() .. ".\nClick to turn it off."
+        or "Autopay is off: click the PAY DUE bar when a mercenary asks.\nClick to turn it on." },
   }
   local headW = 9 + (on and 4 or 5)
-  if width - headW >= #hired then
+  local costW = 7 + #costText
+  if width - headW >= costW then
+    head[#head + 1] = { text = "  Cost " }
+    head[#head + 1] = { text = costText, color = "ansi_light_yellow", fn = function() setCost(c == 20 and 10 or 20) end,
+      hint = "A payment is " .. (c == 20 and "1 gold (20 silver)" or "10 silver") .. ".\nClick to switch to "
+        .. (c == 20 and "10 silver." or "1 gold (20 silver).") }
+    headW = headW + costW
+  end
+  if hired ~= "" and width - headW > #hired then
     head[#head + 1] = { text = string.rep(" ", width - headW - #hired) .. hired, color = "ansi_light_black" }
   end
   row(1, head)
 
   if n == 0 then
     pane:setLine(3, " No mercenaries hired.")
-    pane:setLine(4, " <ansi_light_black>Hire one: give 10 silver mercenary")
+    pane:setLine(4, " <ansi_light_black>Hire one: give " .. price() .. " mercenary")
     return
   end
   local r = 2
@@ -330,7 +363,7 @@ local function updatePresence()
 end
 
 local function add(name, t)
-  local m = { name = name, ends = t + contractSecs(), state = "active", paid = 10, present = false, warned = false }
+  local m = { name = name, ends = t + contractSecs(), state = "active", paid = cost(), present = false, warned = false }
   mercs[name:lower()] = m
   save()
   startTicking()
@@ -395,10 +428,10 @@ tempRegexTrigger("^A citizen mercenary \\((\\w+)\\) taps you on the shoulder\\.$
     -- Once per tap: a second tap within half a minute is not paid again.
     if not m.paying or t - m.paying > 30 then
       pay(m)
-      uiMessage("merc", m.name .. " asks for pay; paying " .. PRICE .. ".")
+      uiMessage("merc", m.name .. " asks for pay; paying " .. price() .. ".")
     end
   else
-    uiMessage("merc", m.name .. " asks for pay: " .. PRICE .. " within a minute (click $ or merc pay).")
+    uiMessage("merc", m.name .. " asks for pay: " .. price() .. " within a minute (click PAY DUE or merc pay).")
   end
   draw()
 end)
@@ -408,7 +441,7 @@ tempRegexTrigger("^A citizen mercenary \\((\\w+)\\) says 'Thank you\\. I am at y
   if not m then return end
   m.state = "active"
   m.ends = now() + contractSecs()
-  m.paid = m.paid + 10
+  m.paid = m.paid + cost()
   m.warned = false
   m.paying = nil
   save()
@@ -429,6 +462,27 @@ tempRegexTrigger("^A citizen mercenary \\((\\w+)\\) (?:is dead|has drawn (?:his|
   if m then
     remove(m, "is dead")
     draw()
+  end
+end)
+
+-- What a citizen mercenary says about its price (said, told, asked or
+-- whispered; also "citizen-mercenary", the form waiting for a job). No log
+-- has such a line yet, so this is loose: any line of a mercenary that names
+-- 10 silver, or 1 gold / 20 silver, sets the cost.
+local function priceIn(text)
+  local t = " " .. text:lower() .. " "
+  local ten = t:find("%f[%w]10 silver") or t:find("%f[%w]ten silver")
+  local twenty = t:find("%f[%w]1 gold") or t:find("%f[%w]one gold")
+    or t:find("%f[%w]20 silver") or t:find("%f[%w]twenty silver")
+  if ten and not twenty then return 10 end
+  if twenty and not ten then return 20 end
+  return nil
+end
+
+tempRegexTrigger("^(?:An? |The )?[Cc]itizen[ -]mercenary(?: \\(\\w+\\))? (?:says|asks|exclaims|tells you|asks you|whispers to you)(?: to you)?,? '(.+)'$", function()
+  local c = priceIn(matches[2])
+  if c and c ~= cost() then
+    setCost(c, true)
   end
 end)
 
@@ -464,6 +518,24 @@ toggleAutopay = function(value)
   tempTimer(0.1, draw)
 end
 
+setCost = function(value, learnt)
+  value = value == 20 and 20 or 10
+  costWanted = value
+  setSetting("cost", value)
+  local what = value == 20 and "1 gold (20 silver)" or "10 silver"
+  if learnt then
+    uiMessage("merc", "A mercenary asks " .. what .. "; payments are now " .. what .. ".")
+  else
+    say("Payments are now " .. what .. ".")
+  end
+  draw()
+  -- settings.cost changes once it is saved.
+  tempTimer(0.5, function()
+    costWanted = nil
+    draw()
+  end)
+end
+
 local function find(name)
   return name and mercs[name:lower()] or nil
 end
@@ -479,6 +551,7 @@ local function list()
     local what = m.state == "due" and ("PAY DUE, " .. clock(left) .. " to pay") or (clock(left) .. " left")
     say(pad(m.name, NAME_W) .. "  " .. (m.present and "here" or "away") .. "  " .. what .. "  paid " .. m.paid .. " silver")
   end
+  say("A payment is " .. price() .. ".")
 end
 
 tempAlias("^mercs?(?: +(\\S+)(?: +(\\S+))?)?$", function()
@@ -489,6 +562,10 @@ tempAlias("^mercs?(?: +(\\S+)(?: +(\\S+))?)?$", function()
     if arg == "on" then toggleAutopay(true)
     elseif arg == "off" then toggleAutopay(false)
     else toggleAutopay() end
+  elseif sub == "cost" then
+    if arg == "10" or arg == "20" then setCost(tonumber(arg))
+    elseif arg == "" then setCost(cost() == 20 and 10 or 20)
+    else say("Usage: merc cost [10|20]") end
   elseif sub == "pay" then
     if arg ~= "" then
       local m = find(arg)
@@ -520,7 +597,7 @@ tempAlias("^mercs?(?: +(\\S+)(?: +(\\S+))?)?$", function()
     remove(m, "is no longer tracked")
     draw()
   else
-    say("merc, merc autopay [on|off], merc pay [name], merc list, merc label <who>, merc forget <name>")
+    say("merc, merc autopay [on|off], merc cost [10|20], merc pay [name], merc list, merc label <who>, merc forget <name>")
   end
 end)
 

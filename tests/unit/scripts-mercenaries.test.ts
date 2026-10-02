@@ -159,7 +159,7 @@ describe('bundled mercenaries', () => {
     expect(s).toMatchObject({ bundled: true, readonly: true, problems: [], loadProblem: null, enabled: false });
     expect(s.header.api).toBe(1);
     expect(s.header.aliases.map((a) => a.name)).toEqual(['merc']);
-    expect(s.settings).toEqual({ autopay: false, group: true, minutes: 25, warn: 5 });
+    expect(s.settings).toEqual({ autopay: false, cost: 10, group: true, minutes: 25, warn: 5 });
     expect(s.header.help.join('\n')).toMatch(/taps you on the shoulder/);
   });
 
@@ -168,13 +168,13 @@ describe('bundled mercenaries', () => {
     expect(t.host.isRunning('mercenaries')).toBe(true);
     expect(t.panes.pane.spec).toEqual({ id: 'mercenaries/main', place: { dock: 'right', rows: 9, cols: 36 } });
     expect(t.panes.pane.content.title).toBe('Mercenaries');
-    expect(t.rows()).toEqual([' Autopay [off]', '', ' No mercenaries hired.', ' Hire one: give 10 silver mercenary']);
+    expect(t.rows()).toEqual([' Autopay [off]  Cost [10s]', '', ' No mercenaries hired.', ' Hire one: give 10 silver mercenary']);
     const link = t.click(0, '[off]');
     expect(link.hint).toMatch(/Autopay is off/);
     await t.settle();
     t.clock.advance(200);
     expect(t.lib.settingsOf('mercenaries').autopay).toBe(true);
-    expect(t.rows()[0]).toBe(' Autopay [on]');
+    expect(t.rows()[0]).toBe(' Autopay [on]  Cost [10s]');
     expect(t.lib.get('mercenaries')!.lastError).toBeNull();
   });
 
@@ -194,16 +194,15 @@ describe('bundled mercenaries', () => {
     expect(t.uiText()).toContain(`MERC: ${name} hired for 25 min.`);
 
     const rows = t.rows();
-    expect(rows[0]).toMatch(/^ Autopay \[off\] +1 hired$/);
-    expect(rows[1]).toMatch(new RegExp(`^ ${name} +○ away +\\$ a f s$`));
+    expect(rows[0]).toBe(' Autopay [off]  Cost [10s]  1 hired');
+    expect(rows[1]).toMatch(new RegExp(`^ ${name} +○ away +l r f$`));
     expect(rows[1]).toHaveLength(35);
     expect(rows[2]).toBe('[25:00 left 1500/1500]');
 
-    // GMCP: it is in the room, under its label; with Char.Name the orders to protect you appear.
-    t.gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Orc' });
+    // GMCP: it is in the room, under its label.
     t.gmcp('Group.Add', { id: 7, type: 'npc', name: 'a citizen mercenary', label: name, hp: 140, maxhp: 140 });
     t.clock.advance(1);
-    expect(t.rows()[1]).toMatch(new RegExp(`^ ${name} +● here +\\$ a r p f s$`));
+    expect(t.rows()[1]).toMatch(new RegExp(`^ ${name} +● here +l r f$`));
     t.gmcp('Group.Remove', 7);
     t.clock.advance(1);
     expect(t.rows()[1]).toMatch(/○ away/);
@@ -234,25 +233,33 @@ describe('bundled mercenaries', () => {
     expect(t.rows()[2]).toBe('[0:09 left 9/1500]');
   });
 
-  it('a tap makes pay due; $ pays; the thanks renews the contract', async () => {
+  it('a tap makes pay due; a click on the PAY DUE bar pays; the thanks renews the contract', async () => {
     const t = await setup();
     const name = t.hire();
+    // Nothing to click on the gauge while no pay is due.
+    expect(t.panes.pane.content.linkAt(2, 5)).toBeNull();
     t.clock.advance(24 * 60_000);
     t.recv(tap(name));
-    expect(t.uiText().at(-1)).toBe(`MERC: ${name} asks for pay: 10 silver within a minute (click $ or merc pay).`);
+    expect(t.uiText().at(-1)).toBe(`MERC: ${name} asks for pay: 10 silver within a minute (click PAY DUE or merc pay).`);
     expect(t.rows()[2]).toBe('[PAY DUE 1:00 60/60]');
     t.clock.advance(20_000);
     expect(t.rows()[2]).toBe('[PAY DUE 0:40 40/60]');
 
     const before = t.sent.length;
-    const link = t.click(1, '$');
+    const c = t.panes.pane.content;
+    // The whole bar is the link.
+    const link = c.linkAt(2, 0)!;
+    expect(link).toMatchObject({ col: 0, len: 36 });
+    expect(c.linkAt(2, 35)).toBe(link);
     expect(link.hint).toBe(`Pay ${name} 10 silver now:\ngive 10 silver ${name}`);
+    t.panes.pane.events.onLink(link.id);
     expect(t.sent.slice(before)).toEqual([`give 10 silver ${name}`]);
+    expect(t.uiText().at(-1)).toBe(`MERC: Paying ${name} 10 silver.`);
     t.recv(thanks(name));
     expect(t.uiText().at(-1)).toBe(`MERC: ${name} is paid for 25 more min.`);
     expect(t.rows()[2]).toBe('[25:00 left 1500/1500]');
     t.engine.input('merc list');
-    expect(t.texts().at(-1)).toMatch(new RegExp(`^MERC ${name} +away  25:00 left  paid 20 silver$`));
+    expect(t.texts().at(-2)).toMatch(new RegExp(`^MERC ${name} +away  25:00 left  paid 20 silver$`));
   });
 
   it('autopay pays on the tap, once per tap', async () => {
@@ -271,36 +278,33 @@ describe('bundled mercenaries', () => {
     expect(t.sent.slice(before)).toEqual([`give 10 silver ${name}`, `give 10 silver ${name}`]);
   });
 
-  it('the orders send order <label> …; tooltips explain them', async () => {
+  it('the orders send ask <label> lead, ride, flee; tooltips name the command', async () => {
     const t = await setup();
-    t.gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Orc' });
     const name = t.hire();
     const before = t.sent.length;
-    const hints = ['a', 'r', 'p', 'f', 's'].map((ch) => t.click(1, ch).hint);
-    expect(t.sent.slice(before)).toEqual([
-      `order ${name} assist`,
-      `order ${name} rescue Rasta`,
-      `order ${name} protect Rasta`,
-      `order ${name} flee`,
-      `order ${name} stand`,
-    ]);
-    expect(hints[0]).toBe(`Assist: ${name} joins your fight\norder ${name} assist`);
-    expect(hints[1]).toMatch(/^Rescue: /);
+    const hints = ['l', 'r', 'f'].map((ch) => t.click(1, ch).hint);
+    expect(t.sent.slice(before)).toEqual([`ask ${name} lead`, `ask ${name} ride`, `ask ${name} flee`]);
+    expect(hints).toEqual([`Lead: ask ${name} lead`, `Ride: ask ${name} ride`, `Flee: ask ${name} flee`]);
+    // Exactly three one-cell links on the row.
+    expect(t.panes.pane.content.links.filter((l) => l.row === 1).map((l) => l.len)).toEqual([1, 1, 1]);
   });
 
   it('fits the width: fewer orders on a narrow pane, more room on a wide one', async () => {
     const t = await setup();
-    t.gmcp('Char.Name', { name: 'Rasta', fullname: 'Rasta the Orc' });
     const name = t.hire();
     t.resize(22, 9);
-    expect(t.rows()[1]).toMatch(new RegExp(`^ ${name} +○ away +\\$ a$`));
+    expect(t.rows()[1]).toMatch(new RegExp(`^ ${name} +○ away +l r$`));
     expect(t.rows()[1]!.length).toBeLessThanOrEqual(22);
+    // The cost goes before the count when the top row is short.
+    expect(t.rows()[0]).toBe(' Autopay [off]');
+    t.resize(24, 9);
+    expect(t.rows()[0]).toBe(' Autopay [off]  1 hired');
     t.resize(16, 9);
     expect(t.rows()[1]).toBe(` ${name.padEnd(8)} ○ away`);
     t.resize(50, 9);
-    expect(t.rows()[1]).toMatch(/\$ a r p f s$/);
+    expect(t.rows()[1]).toMatch(/ l r f$/);
     expect(t.rows()[1]).toHaveLength(49);
-    expect(t.rows()[0]).toMatch(/^ Autopay \[off\] {28}1 hired$/);
+    expect(t.rows()[0]).toMatch(/^ Autopay \[off\]  Cost \[10s\] {16}1 hired$/);
   });
 
   it('two mercenaries: two rows each, sorted by name; leave and death remove them', async () => {
@@ -401,5 +405,93 @@ describe('bundled mercenaries', () => {
     const name = t.hire();
     expect(t.sent).toEqual([`label mercenary ${name}`]);
     expect(t.rows()[2]).toBe('[30:00 left 1800/1800]');
+  });
+});
+
+describe('bundled mercenaries: the cost', () => {
+  it('a click on Cost switches between 10 silver and 1 gold, saved as a setting', async () => {
+    const t = await setup();
+    const link = t.click(0, '[10s]');
+    expect(link.hint).toBe('A payment is 10 silver.\nClick to switch to 1 gold (20 silver).');
+    // Drawn at once, before the setting is saved.
+    expect(t.rows()[0]).toBe(' Autopay [off]  Cost [1g]');
+    expect(t.rows()[3]).toBe(' Hire one: give 1 gold mercenary');
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(20);
+    expect(t.rows()[0]).toBe(' Autopay [off]  Cost [1g]');
+    expect(t.texts().at(-1)).toBe('MERC Payments are now 1 gold (20 silver).');
+    expect(t.click(0, '[1g]').hint).toBe('A payment is 1 gold (20 silver).\nClick to switch to 10 silver.');
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(10);
+    t.engine.input('merc cost 20');
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(20);
+    expect(t.lib.get('mercenaries')!.lastError).toBeNull();
+  });
+
+  it('pays 1 gold at 20 silver: the bar, autopay, merc pay; renewal and the paid total follow', async () => {
+    const t = await setup();
+    expect(await t.lib.setSetting('mercenaries', 'cost', '20')).toMatchObject({ ok: true });
+    await t.host.sync();
+    const name = t.hire();
+    t.clock.advance(24 * 60_000);
+    t.recv(tap(name));
+    expect(t.uiText().at(-1)).toBe(`MERC: ${name} asks for pay: 1 gold within a minute (click PAY DUE or merc pay).`);
+    const link = t.panes.pane.content.linkAt(2, 3)!;
+    expect(link.hint).toBe(`Pay ${name} 1 gold now:\ngive 1 gold ${name}`);
+    const before = t.sent.length;
+    t.panes.pane.events.onLink(link.id);
+    t.engine.input('merc pay');
+    expect(t.sent.slice(before)).toEqual([`give 1 gold ${name}`, `give 1 gold ${name}`]);
+    t.recv(thanks(name));
+    expect(t.rows()[2]).toBe('[25:00 left 1500/1500]');
+    t.engine.input('merc list');
+    expect(t.texts().at(-2)).toMatch(/paid 40 silver$/);
+    expect(t.texts().at(-1)).toBe('MERC A payment is 1 gold.');
+
+    t.engine.input('merc autopay on');
+    await t.settle();
+    t.clock.advance(25 * 60_000);
+    const b2 = t.sent.length;
+    t.recv(tap(name));
+    expect(t.sent.slice(b2)).toEqual([`give 1 gold ${name}`]);
+    expect(t.uiText().at(-1)).toBe(`MERC: ${name} asks for pay; paying 1 gold.`);
+  });
+
+  it('learns the cost from what a mercenary says about its price', async () => {
+    const t = await setup();
+    t.recv("A citizen mercenary says 'Thank you. I am at your service.'");
+    // Not a mercenary, or no price: nothing changes.
+    t.recv(
+      "Rasta says 'mercenaries cost 1 gold now'",
+      "A citizen mercenary says 'Hello there.'",
+      "A citizen mercenary says 'I want 10 silver, or was it 1 gold?'",
+    );
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(10);
+    expect(t.uiText().filter((x) => x.includes('payments are now'))).toEqual([]);
+
+    t.recv("A citizen-mercenary says 'I will fight for you for one gold coin.'");
+    expect(t.uiText().at(-1)).toBe('MERC: A mercenary asks 1 gold (20 silver); payments are now 1 gold (20 silver).');
+    expect(t.rows()[3]).toBe(' Hire one: give 1 gold mercenary');
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(20);
+    // The same price again: no message.
+    const n = t.ui.length;
+    t.recv("A citizen mercenary tells you 'Twenty silver, friend.'");
+    expect(t.ui.length).toBe(n);
+
+    t.recv("A citizen mercenary (Bubba) asks you 'Pay me 10 silver?'");
+    expect(t.uiText().at(-1)).toBe('MERC: A mercenary asks 10 silver; payments are now 10 silver.');
+    await t.settle();
+    t.clock.advance(600);
+    expect(t.lib.settingsOf('mercenaries').cost).toBe(10);
+    t.recv("A citizen mercenary whispers to you 'ten silver is too little, I want twenty silver'");
+    expect(t.lib.get('mercenaries')!.lastError).toBeNull();
   });
 });
