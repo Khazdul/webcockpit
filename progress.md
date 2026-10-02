@@ -25,6 +25,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — #showme self-loop fix, release 0.1.29
+
+- **Owner report:** locate life printed "#showme → action loop deeper
+  than 8" per row. Cause: the owner's stored khazdul profile still has
+  `#action {^%1key: '%2'$} {#showme %0}` (dropped from the bundled
+  profile in db28171); the owner removes it by hand.
+- **Fix:** an action never fires on its own #showme line (like aliases);
+  the depth guard stays for long chains of distinct actions.
+- **Verified:** unit 1868 green, typecheck clean, build:pages smoke green.
+- **Released:** 0.1.29 (tag v0.1.29).
+- **Commits:** a8d4b4d, 5d8dc3e, plus this one.
+
 ### 2026-10-02 — About: Lua scripts, release 0.1.28
 
 - **Owner request:** a short LUA SCRIPTS section in About after SETTINGS:
