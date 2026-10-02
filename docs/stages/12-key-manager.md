@@ -380,3 +380,16 @@ failure lines that cancel a cast are still unverified.
 5. Colours in the TV are lost (everything grey; room names should be
    green). Find the cause end to end; dimming after 10 s should only dim
    the default text colour and keep the real colours (as Mudlet).
+
+### Round 6 (2026-10-02)
+
+1. A TV opened by a scry closes itself when the map blink ends (the same
+   duration, from one shared value), unless that key has a watch
+   running; `tvclose` stays for watches.
+2. `◻` blinks (cyan / red, 1 s each) while the key has a watch running,
+   without disturbing hover or tooltips.
+3. Bug: with a watch running, another TV (a scry's, or one opened with
+   `◻` / `tv <name>`) closes itself every second.
+4. The map mark lingers for 3 minutes after the blink: steady, a little
+   dimmer, with its arrows and label; no 15 Hz ticker meanwhile; the
+   zoom comes back at the end of the blink. Generic `linger` option.
