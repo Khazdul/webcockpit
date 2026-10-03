@@ -61,6 +61,30 @@ export function braceSafe(text: string): string {
   return t;
 }
 
+/**
+ * tt++'s brace rule (src/files.c `read_file`, src/parse.c
+ * `get_arg_in_braces`): every `{` and `}` counts, a backslash never
+ * escapes one. True when the braces balance that way.
+ */
+export function ttBraceBalanced(text: string): boolean {
+  let depth = 0;
+  for (const c of text) {
+    if (c === '{') depth++;
+    else if (c === '}' && --depth < 0) return false;
+  }
+  return depth === 0;
+}
+
+/**
+ * Rewrites tt++ text so it means the same under our brace rule, where `\`
+ * escapes the next character: an odd run of backslashes before a brace
+ * gets one more backslash (`\}` → `\\}`: a literal backslash, then the
+ * brace that closes, as in tt++).
+ */
+export function ttBracesToOurs(text: string): string {
+  return text.replace(/(?<!\\)((?:\\\\)*\\)(?=[{}])/g, '$1\\');
+}
+
 /** `#nop {text}` with the text made brace-safe. */
 export function nopLine(text: string): string {
   return `#nop {${braceSafe(text)}}`;
@@ -319,10 +343,19 @@ export class Out {
     this.items.push(it);
   }
 
-  /** Translated item: its output lines go in place. */
+  /**
+   * Translated item: its output lines go in place. A line our engine would
+   * reject (unbalanced braces) turns the item into a kept one: an import
+   * never produces a profile `loadProfile` refuses.
+   */
   translated(st: Statement, lines: string | string[], note: ItemNote = {}, group: string | null = null): void {
+    const all = Array.isArray(lines) ? lines : [lines];
+    if (!all.every((l) => checkBraces(l).ok)) {
+      this.keep(st, 'Unbalanced braces after translation');
+      return;
+    }
     this.setClass(group);
-    for (const l of Array.isArray(lines) ? lines : [lines]) this.lines.push(l);
+    for (const l of all) this.lines.push(l);
     this.item(st, 'translated', note);
   }
 
@@ -336,7 +369,7 @@ export class Out {
   /** Kept in place (tt++): the given text replaces the statement. */
   keepInPlace(st: Statement, reason: string, text = st.text): void {
     this.setClass(null);
-    this.lines.push(text);
+    this.lines.push(checkBraces(text).ok ? text : nopLine(`${reason}: ${text}`));
     this.item(st, 'kept', { reason });
     if (text !== st.text) this.changed = true;
   }
@@ -346,9 +379,13 @@ export class Out {
     this.changed = true;
   }
 
-  /** A line that is not an item (comment, blank, class markers). */
+  /** A line that is not an item (comment, blank, class markers); made safe if unbalanced. */
   raw(line: string): void {
-    this.lines.push(line);
+    if (checkBraces(line).ok) this.lines.push(line);
+    else {
+      this.lines.push(nopLine(line));
+      this.changed = true;
+    }
   }
 
   /** Opens `#class {name}` around the following lines (null closes). */

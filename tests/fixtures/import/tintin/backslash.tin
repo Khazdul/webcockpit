@@ -1,0 +1,8 @@
+#nop tt++ never escapes a brace with a backslash, the ones below close.
+#event {SESSION CONNECTED}
+{
+    #send {$IAC$DO$GMCP\};
+    #showme {GMCP on}
+}
+#alias {dir} {#showme {C:\games\}}
+#alias {ok} {say fine}

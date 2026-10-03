@@ -145,4 +145,9 @@ describe('JMC import', () => {
     expect(r.items.map((i) => i.outcome)).toEqual(['translated', 'kept', 'skipped', 'kept', 'kept', 'translated']);
     expect(countsMatch(r)).toBe(true);
   });
+
+  it('among unread files a .set is the entry', () => {
+    const r = run(file('notes.txt', '#alias {n} {n}\n'), file('char.set', '#alias {c} {c}\n'));
+    expect(r.entry).toBe('char.set');
+  });
 });

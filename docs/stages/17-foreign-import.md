@@ -103,6 +103,28 @@ Refinements of ADR 0073 (the ADR text is updated):
   (decoded), without the import header (`unchanged`).
 - Decoding also accepts a UTF-16 BOM; a non-UTF-8 file gets a file
   warning naming the encoding used.
+- An import never produces a profile `loadProfile` refuses: a statement
+  whose braces do not balance (by the engine's rule) is kept as
+  `#nop {Unbalanced braces: …}` and reported; the collector guards every
+  output line and `importFiles` checks the whole text.
+- Entry file (main session's change, kept): among files nothing reads,
+  the one that `#read`s other chosen files wins, then a JMC `.set`.
+  `#read` targets with `$`, `%`, `@` or quotes are ignored for this.
+
+### Engine difference: backslash before a brace
+
+tt++ never lets a backslash escape a brace: `read_file` (src/files.c)
+and `get_arg_in_braces` (src/parse.c) count every `{` and `}`; a
+backslash only protects `;`. So in tt++ `#send {$IAC$DO$GMCP\}` closes
+the brace (the trailing `\` is #send's no-newline marker). Our engine
+(ADR 0015, Inv §5.6) treats `\{` / `\}` as escaped, literal braces, so the
+same text is unbalanced and `loadProfile` refuses the whole profile.
+The engine is not changed. The tt++ importer splits a file by tt++'s
+rule when it balances only that way, and rewrites such a statement by
+doubling an odd run of backslashes before a brace (`\}` → `\\}`: a
+literal backslash, then the closing brace, which is what tt++ meant),
+with a warning. A WebCockpit export that balances by our rule is left
+alone.
 
 ### B/C. UI, e2e, help (2026-10-04)
 

@@ -119,6 +119,11 @@ deciding signals.
   `#nop {--- Not translated ---}` as `#nop {<reason>: <line>}`; braces in
   the line that would unbalance are written `\{`/`\}`. tt++ inert
   commands stay in place, verbatim.
+- An import never produces a profile `loadProfile` refuses: a statement
+  that does not balance by the engine's brace rule is kept as `#nop`.
+  tt++ counts every brace (a backslash never escapes one); a tt++
+  statement that balances only that way has an odd backslash run before
+  a brace doubled, which means the same in our engine.
 - The profile is saved via the existing `ProfileStore.importFile`, so
   naming, collisions and `stripSend` are unchanged. A file the detector
   calls a native tt++/WebCockpit profile with no fix-ups gives a short

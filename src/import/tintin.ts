@@ -13,7 +13,8 @@
 import { type CommandEntry, resolveCommand, scriptCommandArgs } from '../script/commands';
 import { parseHighlight } from '../script/engine/color';
 import { normalizeKey } from '../script/keys';
-import { Args, type Out, type Resolver, type SourceFile, type Statement, braceSafe, br, nopLine, normaliseCmdChar, splitCommand, splitList } from './common';
+import { checkBraces } from '../script/doc';
+import { Args, type ItemNote, type Out, type Resolver, type SourceFile, type Statement, braceSafe, br, nopLine, normaliseCmdChar, splitCommand, splitList, ttBraceBalanced, ttBracesToOurs } from './common';
 import { sequenceKey } from './keys';
 
 type StKind = 'blank' | 'comment' | 'command' | 'text';
@@ -23,7 +24,7 @@ interface TtStatement extends Statement {
 }
 
 /** Splits tt++ text into statements, keeping blank lines and block comments. */
-export function scanTintin(file: SourceFile, cmdChar = '#'): TtStatement[] {
+export function scanTintin(file: SourceFile, cmdChar = '#', ttBraces = false): TtStatement[] {
   const text = file.text;
   const n = text.length;
   const out: TtStatement[] = [];
@@ -77,7 +78,7 @@ export function scanTintin(file: SourceFile, cmdChar = '#'): TtStatement[] {
     let i = pos;
     for (; i < n; i++) {
       const c = text[i];
-      if (c === '\\' && text[i + 1] !== '\n') i++;
+      if (c === '\\' && text[i + 1] !== '\n' && !(ttBraces && (text[i + 1] === '{' || text[i + 1] === '}'))) i++;
       else if (c === '{') depth++;
       else if (c === '}') {
         if (depth > 0) depth--;
@@ -253,7 +254,10 @@ export function translateTintin(entry: SourceFile, res: Resolver, out: Out): voi
 
 function translateFile(file: SourceFile, res: Resolver, out: Out, cmdChar: string): void {
   res.within(file, () => {
-    for (const st of scanTintin(file, cmdChar)) statement(st, res, out, cmdChar);
+    // A file that balances only by tt++'s rule (a backslash never escapes a
+    // brace) is split by that rule; ours otherwise (WebCockpit's `\{`).
+    const ttBraces = !checkBraces(file.text).ok && ttBraceBalanced(file.text);
+    for (const st of scanTintin(file, cmdChar, ttBraces)) statement(st, res, out, cmdChar);
   });
 }
 
@@ -278,37 +282,49 @@ function statement(st0: TtStatement, res: Resolver, out: Out, cmdChar: string): 
     st = { ...st0, text: normaliseCmdChar(st0.text, cmdChar) };
     out.changed = true;
   }
-  const fixed = fixElse(st.text);
-  const elseFixed = fixed !== st.text;
-  const text = fixed;
+  let text = fixElse(st.text);
+  let fix: ItemNote | null = text !== st.text ? { reason: 'TinTin 1.x else rewritten', warning: 'Check the #if: the 1.x else keyword was removed.' } : null;
+  if (!checkBraces(text).ok) {
+    // tt++ counts every brace; ours lets a backslash escape one.
+    const ours = ttBraceBalanced(text) ? ttBracesToOurs(text) : null;
+    if (ours === null || !checkBraces(ours).ok) {
+      const reason = 'Unbalanced braces';
+      out.keepInPlace(st, reason, nopLine(`${reason}: ${st.text.trim()}`));
+      return;
+    }
+    text = ours;
+    fix = {
+      reason: fix ? `${fix.reason}; backslash before a brace doubled` : 'Backslash before a brace doubled (tt++ never escapes braces)',
+      warning: `${fix ? fix.warning + ' ' : ''}A \\ before a brace is literal in tt++ but escapes the brace here; it was doubled.`,
+    };
+  }
   const parts = splitList(text.trim());
   if (parts.length <= 1) {
-    emit(st, text, command(text, '#'), res, out, cmdChar, elseFixed, true);
+    emit(st, text, command(text, '#'), res, out, cmdChar, fix, true);
     return;
   }
   const results = parts.map((p) => command(p, '#'));
   if (results.every((r) => r.type === 'as-is' || r.type === 'comment')) {
     out.raw(text);
     results.forEach((r) => {
-      if (r.type === 'as-is') out.item(st, 'translated', elseFixed ? { reason: 'TinTin 1.x else rewritten', warning: 'Check the #if.' } : {});
+      if (r.type === 'as-is') out.item(st, 'translated', fix ?? {});
     });
-    if (elseFixed) out.changed = true;
+    if (fix) out.changed = true;
     return;
   }
   out.changed = true;
-  parts.forEach((p, i) => emit({ ...st, text: p }, p, results[i]!, res, out, cmdChar, elseFixed, false));
+  parts.forEach((p, i) => emit({ ...st, text: p }, p, results[i]!, res, out, cmdChar, fix, false));
 }
 
-function emit(st: Statement, text: string, r: Result, res: Resolver, out: Out, cmdChar: string, elseFixed: boolean, whole: boolean): void {
-  const elseNote = { reason: 'TinTin 1.x else rewritten', warning: 'Check the #if: the 1.x else keyword was removed.' };
+function emit(st: Statement, text: string, r: Result, res: Resolver, out: Out, cmdChar: string, fix: ItemNote | null, whole: boolean): void {
   switch (r.type) {
     case 'comment':
       out.raw(text);
       return;
     case 'as-is':
       out.raw(text);
-      out.item(st, 'translated', elseFixed ? elseNote : {});
-      if (elseFixed || !whole) out.changed = true;
+      out.item(st, 'translated', fix ?? {});
+      if (fix || !whole) out.changed = true;
       return;
     case 'translated': {
       out.raw(r.text);

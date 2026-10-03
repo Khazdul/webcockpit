@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { body, countsMatch, file, load, one, run } from './helpers';
+import { ttBraceBalanced, ttBracesToOurs } from '../../../src/import/common';
+import { body, countsMatch, file, fixture, load, one, run } from './helpers';
 
 describe('tt++ import', () => {
   it('a native profile imports unchanged, without a header', () => {
@@ -127,5 +128,47 @@ describe('tt++ import', () => {
     expect(r.unchanged).toBe(false);
     expect(body(r)).toEqual(['#alias {a} {a}', '#nop {--- b.tin ---}', '#alias {b} {b}']);
     expect(r.fileWarnings).toEqual(['b.tin was not read by a.tin; it was added at the end.']);
+  });
+
+  it('a backslash before a brace closes it in tt++: doubled so it means the same here', () => {
+    const r = run(fixture('tintin', 'backslash.tin'));
+    expect(load(r.profileText)).toMatchObject({ ok: true });
+    expect(body(r)).toEqual([
+      '#nop tt++ never escapes a brace with a backslash, the ones below close.',
+      '#event {SESSION CONNECTED}',
+      '{',
+      '    #send {$IAC$DO$GMCP\\\\};',
+      '    #showme {GMCP on}',
+      '}',
+      '#alias {dir} {#showme {C:\\games\\\\}}',
+      '#alias {ok} {say fine}',
+    ]);
+    expect(r.items.map((i) => [i.line, i.outcome, i.reason])).toEqual([
+      [2, 'translated', 'Backslash before a brace doubled (tt++ never escapes braces)'],
+      [7, 'translated', 'Backslash before a brace doubled (tt++ never escapes braces)'],
+      [8, 'translated', undefined],
+    ]);
+    expect(r.items[0]!.warning).toMatch(/doubled/);
+  });
+
+  it('a statement unbalanced by both rules is kept as #nop; the profile still loads', () => {
+    const r = one('a.tin', '#alias {a} {b\n#alias {c} {d}\n');
+    expect(r.items).toHaveLength(1);
+    expect(r.items[0]).toMatchObject({ outcome: 'kept', reason: 'Unbalanced braces' });
+    expect(load(r.profileText)).toEqual({ ok: true, warnings: [] });
+  });
+
+  it('ttBraceBalanced / ttBracesToOurs follow tt++: every brace counts', () => {
+    expect(ttBraceBalanced('{a\\}')).toBe(true);
+    expect(ttBraceBalanced('{a\\{}')).toBe(false);
+    expect(ttBracesToOurs('{a\\}')).toBe('{a\\\\}');
+    expect(ttBracesToOurs('{a\\\\}')).toBe('{a\\\\}');
+    expect(ttBracesToOurs('{a\\\\\\}')).toBe('{a\\\\\\\\}');
+  });
+
+  it('the entry is the unread file that reads others', () => {
+    const r = run(file('loose.tin', '#alias {l} {l}\n'), file('main.tin', '#read sub.tin\n'), file('sub.tin', '#alias {s} {s}\n'));
+    expect(r.entry).toBe('main.tin');
+    expect(r.fileWarnings).toEqual(['loose.tin was not read by main.tin; it was added at the end.']);
   });
 });
