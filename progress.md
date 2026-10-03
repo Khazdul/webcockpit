@@ -19,6 +19,7 @@ Current stage: none in progress. Stage 13 done (latest release 0.1.35). Stage 8 
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
+| 14 | Pane bar | In progress | `docs/stages/14-panebar.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
