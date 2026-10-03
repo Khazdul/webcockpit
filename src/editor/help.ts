@@ -97,6 +97,7 @@ const INTRO: readonly HelpSection[] = [
       '- Every command sent to the game is echoed in the game window. Write game commands as they are; no echo helper is needed.',
       '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',
       '- Some scripting commands are not supported yet. They are listed at the end.',
+      'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
       `The TinTin++ manual describes the language in full: ${MANUAL_URL}`,
     ],
   },
