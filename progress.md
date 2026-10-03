@@ -29,6 +29,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Fix: map loses the player in the Grey Havens (not released)
+
+- **Owner report:** the map stops tracking in the Grey Havens; Cockpit
+  (MMapper) keeps it on the same map file.
+- **Found:** MUME sends UTF-8 (`Lhûn Street`), arda.mm2 is all ASCII
+  (`Lhun Street`), and the Grey Havens rooms have no server id in the
+  map, so the direction and text matches failed. Found from Cockpit's
+  Forlond log; the browser run was not read.
+- **Done:** ASCII folding in `normalizeText`/`hashNormalized`, ADR 0069,
+  unit test (fails without the fix). Unit 2056 green, typecheck clean.
+- **Open:** after a failed match the next move is tried from the stale
+  room (the miss cascades). Left as is; it matters less now.
+- **Next:** release, then the owner runs the Grey Havens again.
+- **Commits:** 4a0846e, plus this one.
+
 ### 2026-10-03 — Release 0.1.38: stage 16 readability
 
 - **Released:** 0.1.38 (tag v0.1.38): readability script and adaptive
