@@ -32,6 +32,7 @@ import {
 } from '@codemirror/search';
 import { EditorSelection, type Extension } from '@codemirror/state';
 import { EditorView, type Panel, type ViewUpdate } from '@codemirror/view';
+import { FIND_HINT, RULE, TOGGLES, type Toggle, formatCount } from './manual-search';
 
 export interface SearchOptions {
   /** Something in the panel got focus (the frame's zone follows). */
@@ -40,15 +41,6 @@ export interface SearchOptions {
 
 /** Matches counted for "n of m"; more shows as "1000+". */
 const COUNT_MAX = 1000;
-const RULE = '─'.repeat(400);
-
-type Toggle = 'caseSensitive' | 'wholeWord' | 'regexp';
-
-const TOGGLES: ReadonlyArray<{ key: Toggle; label: string; hotkey: string; title: string }> = [
-  { key: 'caseSensitive', label: 'Case', hotkey: 'c', title: 'Match case (Alt+C)' },
-  { key: 'wholeWord', label: 'Word', hotkey: 'w', title: 'Whole words (Alt+W)' },
-  { key: 'regexp', label: 'Regex', hotkey: 'r', title: 'Regular expression (Alt+R)' },
-];
 
 function el<K extends keyof HTMLElementTagNameMap>(doc: Document, tag: K, cls: string, text?: string): HTMLElementTagNameMap[K] {
   const e = doc.createElement(tag);
@@ -70,8 +62,7 @@ export function countText(query: SearchQuery, view: EditorView): { text: string;
     if (r.value.from === sel.from && r.value.to === sel.to) at = n;
     if (n >= COUNT_MAX) return { text: `${COUNT_MAX}+ matches`, cls: 'wc-c-body' };
   }
-  if (n === 0) return { text: 'No matches', cls: 'wc-c-err' };
-  return at ? { text: `${at} of ${n}`, cls: 'wc-c-body' } : { text: `${n} match${n === 1 ? '' : 'es'}`, cls: 'wc-c-body' };
+  return formatCount(n, at);
 }
 
 class TuiSearchPanel implements Panel {
@@ -148,7 +139,7 @@ class TuiSearchPanel implements Panel {
       row.appendChild(btn('PREV', () => this.go(-1)));
       row.appendChild(doc.createTextNode(' '));
       row.appendChild(btn('NEXT', () => this.go(1)));
-      row.appendChild(el(doc, 'span', 'wc-search-hint wc-c-hint', 'Enter Next · Shift+Enter Prev · ESC Close'));
+      row.appendChild(el(doc, 'span', 'wc-search-hint wc-c-hint', FIND_HINT));
       this.dom.appendChild(row);
     } else {
       const [replRow, replace] = field('Replace', 'Replace');
@@ -159,7 +150,7 @@ class TuiSearchPanel implements Panel {
       replRow.appendChild(btn('REPLACE', () => this.replaceOne()));
       replRow.appendChild(doc.createTextNode(' '));
       replRow.appendChild(btn('ALL', () => this.replaceEvery()));
-      replRow.appendChild(el(doc, 'span', 'wc-search-hint wc-c-hint', 'Enter Next · Shift+Enter Prev · ESC Close'));
+      replRow.appendChild(el(doc, 'span', 'wc-search-hint wc-c-hint', FIND_HINT));
     }
     this.sync();
   }
