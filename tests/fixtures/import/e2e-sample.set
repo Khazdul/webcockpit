@@ -1,0 +1,12 @@
+#message action OFF
+#multiaction OFF
+#presub on
+#togglesubs off
+#verbat off
+#codepage {iso-8859-1}
+#alias {k} {kill %1} {default}
+#action TEXT {^You are hungry.} {eat bread} {5} {default}
+#highlight {light red} {%0 tells you} {default}
+#hot {Ctrl+F1} {flee} {default}
+#scriptlet {jmc.ShowMe("hi")}
+#ticksize 61
