@@ -19,7 +19,7 @@ Current stage: 16 (readability script, adaptive colours; built, awaiting release
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
-| 14 | Pane bar | Done | `docs/stages/14-panebar.md` |
+| 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 
@@ -28,6 +28,20 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Stage 14 round 3: pane bar shrinks and scrolls (not released)
+
+- **Owner asks:** the bar should fit narrow widths like the Char pane:
+  buttons shrink to 2 cells, full names when there is room, symmetric;
+  past that, two-finger sideways scroll and arrows at both ends.
+- **Done:** one row always (no wrap); full / shrunk (mirror-even spare
+  cells, names cut CHAR → CHA → CH) / scrolled (`←` `→` arrows, page per
+  click, dim at the end). New `pane:onWheel(fn)` for all scripts (ADR
+  0072; ADR 0065 round 3). Unit 2084 green, typecheck clean, panebar +
+  script-panes e2e green (Chromium, Firefox).
+- **Next:** release on the owner's word, then owner test (round 3 guide
+  in the stage file): narrow names, arrows, swipe speed.
+- **Commits:** d58c516, 5f962ba, a325f80, 790eb41, plus this one.
 
 ### 2026-10-03 — Stage 9 map fix: lookalike rooms west of Mirkwood, release 0.1.40
 
