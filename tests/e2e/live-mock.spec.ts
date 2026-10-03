@@ -114,7 +114,7 @@ test('reaches playing on Char.Name and sends the width commands', async ({ page 
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown'); // past Mapper
   await page.keyboard.press('Enter'); // Appearance
-  for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
   await expect(menuSel).toHaveText('<< Input color: Steel >>');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');

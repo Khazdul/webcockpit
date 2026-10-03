@@ -3,9 +3,8 @@
 // applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
-//   Options hub:  Panes · Mapper · Appearance · Spotlights · Scripts,
-//                 [X] Auto-clear input, [X] Input autosuggest, Back
-//                 (Scripts only with a script library; ADR 0063)
+//   Options hub:  Panes · Mapper · Appearance · Text input · Spotlights ·
+//                 Scripts, Back (Scripts only with a script library)
 //   Panes hub:    General · Timers · Communication · Group · Back
 //                 (Cockpit's order)
 //   General:      pane × colour grid with a Border column, reset layout
@@ -13,8 +12,9 @@
 //   Communication: comm-options.tsx
 //   Group:        options-group.tsx
 //   Mapper:       options-mapper.tsx (ADR 0020)
-//   Appearance:   font, size, padding, cursor, colours, scrollback, ANSI palette,
+//   Appearance:   font, size, padding, colours, scrollback, ANSI palette,
 //                 live preview box
+//   Text input:   options-input.tsx (auto-clear, autosuggest, cursor; ADR 0066)
 //   Spotlights:   options-spotlights.tsx
 //   Scripts:      scripts.tsx (ADR 0051)
 
@@ -25,7 +25,6 @@ import { forgetTempPlaces } from '../../layout/temp-places';
 import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
 import { type AppearanceSettings, paneSettingsOf } from '../../settings/types';
 import {
-  CURSOR_STYLES,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   PADDING_MAX,
@@ -51,6 +50,7 @@ import { type ScriptPaneList, useGrid, useServices, useSettings } from '../kit/h
 import { CommOptionsFrame } from './comm-options';
 import { GroupOptionsFrame } from './options-group';
 import { MapperOptionsFrame } from './options-mapper';
+import { TextInputOptionsFrame } from './options-input';
 import { ScriptsFrame } from './scripts';
 import { SpotlightsOptionsFrame } from './options-spotlights';
 import { TimersOptionsFrame } from './options-timers';
@@ -77,32 +77,14 @@ const MENU_FOOTER = ['↑↓ Navigate', 'Enter Select', 'ESC Back'];
 
 export function OptionsHub(): VNode {
   const nav = useNav();
-  const { scripts, settings } = useServices();
-  const input = useSettings().input;
-  const toggleClear = (): void => settings.update({ input: { autoClear: !input.autoClear } });
-  const toggleSuggest = (): void => settings.update({ input: { autosuggest: !input.autosuggest } });
+  const { scripts } = useServices();
   const items: MenuItem[] = [
     { key: 'panes', label: 'Panes', activate: () => nav.push(<PanesHub />) },
     { key: 'mapper', label: 'Mapper', activate: () => nav.push(<MapperOptionsFrame />) },
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
+    { key: 'textinput', label: 'Text input', activate: () => nav.push(<TextInputOptionsFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
     ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
-    { key: 'sp-input', spacer: true },
-    // The input line's behaviour (ADR 0063), toggled in place.
-    {
-      key: 'autoclear',
-      glyph: input.autoClear ? '[X]' : '[ ]',
-      label: 'Auto-clear input',
-      activate: toggleClear,
-      adjust: toggleClear,
-    },
-    {
-      key: 'autosuggest',
-      glyph: input.autosuggest ? '[X]' : '[ ]',
-      label: 'Input autosuggest',
-      activate: toggleSuggest,
-      adjust: toggleSuggest,
-    },
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
@@ -378,6 +360,7 @@ const PREVIEW_AFTER: readonly PreviewLine[] = [
   ['A grey-haired elf shrugs indifferently.', 6],
   ['The gate magically opens for you.', 5],
   ['A mother wolf hits your right hand and tickles it.', 1],
+  ["Elrond narrates 'The road goes ever on and on.'", 3],
 ];
 const PREVIEW_W = 52;
 
@@ -416,12 +399,6 @@ export function AppearanceFrame(): VNode {
       stepper: true,
       adjust: (d) => set({ padding: stepValue(a.padding, d, PADDING_MIN, PADDING_MAX, PADDING_STEP) }),
     },
-    {
-      key: 'cursor',
-      label: `Cursor style: ${a.cursorStyle}`,
-      adjust: (d) => set({ cursorStyle: cycle(CURSOR_STYLES, a.cursorStyle, d) }),
-    },
-    { key: 'blink', label: `Cursor blink: ${a.cursorBlink ? 'On' : 'Off'}`, adjust: () => set({ cursorBlink: !a.cursorBlink }) },
     {
       key: 'fg',
       label: `Font color: ${colorName(TERMINAL_FG_PRESETS, a.fg)}`,

@@ -184,7 +184,7 @@ async function openScripts(lib: ScriptLibrary): Promise<HTMLElement> {
   await act(() => (host.querySelector('.wc-mrow[data-key="options"] .wc-label') as HTMLElement).click());
   await flush();
   const hub = [...frame(host).querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
-  expect(hub).toEqual(['panes', 'mapper', 'appearance', 'spotlights', 'scripts', 'autoclear', 'autosuggest', 'back']);
+  expect(hub).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'spotlights', 'scripts', 'back']);
   await act(() => (frame(host).querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
   await flush();
   return host;

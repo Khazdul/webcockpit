@@ -265,8 +265,8 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await expect(menuSel(page)).toHaveText('<< Size: 20 >>');
   await expect.poll(fontSize).not.toBe(before);
   expect((await settings(page)).appearance.size).toBe(20);
-  // Background cycler, live.
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
+  // Background cycler, live (past Padding and Font color).
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
   await expect(menuSel(page)).toHaveText('<< Background: black >>');
   await page.keyboard.press('Enter');
   await expect(menuSel(page)).toHaveText('<< Background: red >>');
@@ -305,7 +305,7 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options hub: auto-clear and autosuggest toggle in place and apply live (ADR 0063)', async ({ page }) => {
+test('Options → Text input: auto-clear and autosuggest apply live (ADR 0063, 0066)', async ({ page }) => {
   await enterMume(page);
   const field = page.locator('.wc-input-field');
   const ghost = page.locator('.wc-input-ghost');
@@ -317,12 +317,14 @@ test('Options hub: auto-clear and autosuggest toggle in place and apply live (AD
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   const row = (k: string) => page.locator(`.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="${k}"] .wc-label`);
+  await row('textinput').click();
   await expect(row('autoclear')).toHaveText('[ ] Auto-clear input');
   await row('autoclear').click();
   await expect(row('autoclear')).toHaveText('[X] Auto-clear input');
   await row('autosuggest').click();
   await expect(row('autosuggest')).toHaveText('[X] Input autosuggest');
   expect((await settings(page)).input).toEqual({ autoClear: true, autosuggest: true });
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await expect(overlay(page)).toBeHidden();
@@ -355,6 +357,113 @@ test('Options hub: auto-clear and autosuggest toggle in place and apply live (AD
   await expect(field).toHaveValue('');
   await page.keyboard.press('ArrowUp');
   await expect(field).toHaveValue('kill orc the great');
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0066)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openStart(page);
+  const sel = startSel(page);
+  const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow .wc-label');
+  const row = (k: string) => page.locator(`.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="${k}"] .wc-label`);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await expect(sel).toHaveText('<< Options >>');
+  await page.keyboard.press('Enter');
+  // The hub: Text input right after Appearance; the toggles are gone from it.
+  await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Scripts', 'Back']);
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
+  await expect(sel).toHaveText('<< Text input >>');
+  await page.keyboard.press('Enter');
+  await expect(startTitle(page)).toHaveText('─── Text input ───');
+  await expect(rows).toHaveText(['[ ] Auto-clear input', '[ ] Input autosuggest', 'Cursor style: beam', 'Cursor blink: On', 'Back']);
+
+  // Keyboard: Enter and Space flip the toggles, ←→ cycle the cursor rows.
+  await expect(sel).toHaveText('<< [ ] Auto-clear input >>');
+  await page.keyboard.press('Enter');
+  await expect(sel).toHaveText('<< [X] Auto-clear input >>');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press(' ');
+  await expect(sel).toHaveText('<< [X] Input autosuggest >>');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  await expect(sel).toHaveText('<< Cursor style: underline >>');
+  await page.keyboard.press('ArrowRight');
+  await expect(sel).toHaveText('<< Cursor style: block >>');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(sel).toHaveText('<< Cursor blink: Off >>');
+  let s = await settings(page);
+  expect(s.input).toEqual({ autoClear: true, autosuggest: true });
+  expect([s.appearance.cursorStyle, s.appearance.cursorBlink]).toEqual(['block', false]);
+
+  // Mouse: a click on a toggle moves the cursor there and flips it.
+  await row('autoclear').click();
+  await expect(sel).toHaveText('<< [ ] Auto-clear input >>');
+
+  // Persisted across a reload.
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  s = await settings(page);
+  expect(s.input).toEqual({ autoClear: false, autosuggest: true });
+  expect([s.appearance.cursorStyle, s.appearance.cursorBlink]).toEqual(['block', false]);
+
+  // Back row and ESC both return to the hub with Text input selected.
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await row('textinput').click();
+  await row('back').click();
+  await expect(sel).toHaveText('<< Text input >>');
+  await page.keyboard.press('Enter');
+  await expect(startTitle(page)).toHaveText('─── Text input ───');
+  await page.keyboard.press('Escape');
+  await expect(sel).toHaveText('<< Text input >>');
+
+  // Appearance no longer lists the cursor rows.
+  await row('appearance').click();
+  await expect(startTitle(page)).toHaveText('─── Appearance ───');
+  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
+  await expect(frame.locator('.wc-mrow[data-key="font"]')).toBeVisible();
+  for (const k of ['cursor', 'blink', 'autoclear', 'autosuggest']) await expect(frame.locator(`.wc-mrow[data-key="${k}"]`)).toHaveCount(0);
+  await expect(frame).not.toContainText('Cursor');
+  await page.evaluate(async () => {
+    window.__wc!.settings.reset();
+    await window.__wc!.settings.flush();
+  });
+  expect(errors).toEqual([]);
+});
+
+test('Options → Appearance: the preview ends with Elrond in palette yellow and fits at 800 px', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openStart(page);
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="appearance"] .wc-label').click();
+  const lines = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-preview-text');
+  const elrond = lines.last();
+  await expect(elrond).toHaveText(/^ Elrond narrates 'The road goes ever on and on\.' *$/);
+  const colourOf = () => elrond.evaluate((el) => getComputedStyle(el).color);
+  const ansi3 = () =>
+    page.evaluate(() => {
+      const probe = document.createElement('span');
+      probe.style.color = 'var(--ansi-3)';
+      document.body.append(probe);
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    });
+  expect(await colourOf()).toBe(await ansi3());
+  expect(await colourOf()).toBe('rgb(128, 128, 0)');
+  // It follows the palette (themes set it too).
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.appearance.ansi[3] = '#aabb00';
+    }),
+  );
+  await expect.poll(colourOf).toBe('rgb(170, 187, 0)');
+  // The box keeps its width and the whole box is on screen.
+  const box = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-line');
+  await expect(box.first()).toHaveText('┌' + '─'.repeat(52) + '┐');
+  await expect(box.last()).toBeInViewport({ ratio: 1 });
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
