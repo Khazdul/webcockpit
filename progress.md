@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.39). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -29,7 +29,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Fix: map loses the player in the Grey Havens (not released)
+### 2026-10-03 — Fix: map loses the player in the Grey Havens, release 0.1.39
 
 - **Owner report:** the map stops tracking in the Grey Havens; Cockpit
   (MMapper) keeps it on the same map file.
@@ -43,8 +43,9 @@ Newest first.
   room (the miss cascades). Left as is; it matters less now.
 - **Verified:** owner ran the Grey Havens on the dev server; the map
   keeps tracking.
-- **Next:** release.
-- **Commits:** 4a0846e, plus this one.
+- **Released:** 0.1.39 (tag v0.1.39). Pages deploy green, live
+  release.json shows 0.1.39, test:prod against mumecockpit.com 10/10.
+- **Commits:** 4a0846e, c8a0905, 32bcc95, 1d9a047, plus this one.
 
 ### 2026-10-03 — Release 0.1.38: stage 16 readability
 
