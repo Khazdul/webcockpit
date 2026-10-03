@@ -530,3 +530,10 @@ and learned ids (P2), as for the 84 % of arda.mm2 rooms without one.
   file carries no licence, that WebCockpit's GPL does not cover it, and
   that WebCockpit grants no rights in it. The earlier wording "on the
   same terms as MMapper" could be read as the GPL applying.
+
+## Amendment 2026-10-03: locator exit check (ADR 0071)
+
+Step 2 also needs the exit set or the description to agree (both from
+an unlocated origin), a lost tracker advances tentatively along a
+single-target exit, matches from such an origin teach no ids, and a
+learned id needs name and exit set to agree. See ADR 0071.
