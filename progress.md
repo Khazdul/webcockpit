@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 16 (readability script, adaptive colours). Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -28,6 +28,22 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Stage 16: readability script, adaptive colours (not released)
+
+- **Done:** adaptive colours (`~` in cecho/replaceLine/pane tags and
+  highlight; `ADAPTIVE_COLOR | rgb`; 4.5:1 on the current bg, hue kept,
+  unchanged when it passes; live per-root custom properties, so the
+  scrollback recolours; script panes resolve on their own bg). ADR 0068.
+  `lineTags()` API. Bundled `readability.lua`: Lamia's 446 mobs (converted
+  by script), generic fallbacks, flags, movement, exits per word, six
+  settings, help with credit.
+- **Verified:** typecheck clean, unit 2055 green (+50), e2e 410/410
+  (readability spec in both browsers); bench unchanged within noise.
+  Script cost over 147k run-log lines: +2.1 µs/line, no prose rewritten.
+- **Next:** release (owner; permission-gated), owner test per the stage
+  file's test guide.
+- **Commits:** ba5f2aa, e6adb8c, 069316c, 6b236e1, plus this one.
 
 ### 2026-10-03 — Bold orc in the Appearance preview, release 0.1.37
 
