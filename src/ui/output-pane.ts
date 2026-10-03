@@ -900,7 +900,7 @@ function oneCellText(text: string): boolean {
 
 /** A background colour as CSS (palette 0–15 through the theme's custom properties). */
 function bgCss(c: Color): string {
-  return c < 16 ? `var(--ansi-${c})` : colorToCss(c);
+  return c < 16 ? `var(--ansi-${c})` : colorToCss(c, 'b');
 }
 
 /** A colour stop position: `k` of `n` cells, as a percentage. */
@@ -1049,7 +1049,7 @@ function styleSpan(span: HTMLElement, r: StyleRun): void {
   }
   if (bg !== undefined) {
     if (bg < 16) cls += ' wc-b' + bg;
-    else span.style.backgroundColor = colorToCss(bg);
+    else span.style.backgroundColor = colorToCss(bg, 'b');
   }
   if (r.bold) cls += ' wc-bold';
   if (r.italic) cls += ' wc-ital';

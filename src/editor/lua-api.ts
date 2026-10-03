@@ -198,6 +198,20 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "lineTags",
+    "lineTags() → table",
+    "In a trigger: the MUME XML elements the line is in, such as room, description, exits, say or tell, each name once.",
+    {
+      params: [],
+      returns: "A list of element names, outermost first; empty without XML or outside a trigger.",
+      more: [
+        "WebCockpit plays MUME in XML mode, which marks room names, descriptions, exits and what players say, tell and narrate. A trigger that should only act on room contents or movement can skip lines in a description or a say.",
+      ],
+      example:
+        'tempRegexTrigger(" leaves north\\\\.$", function()\n  for _, t in ipairs(lineTags()) do\n    if t == "description" or t == "say" then return end\n  end\n  highlight("~gold")\nend)',
+    },
+  ),
+  fn(
     "copy2cecho",
     "copy2cecho() → string",
     "In a trigger: the current line as the game sent it, with its colours as cecho tags, so it can be shown elsewhere (a pane) in the same colours.",
@@ -239,7 +253,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "color",
           "string",
-          'A profile colour ("red", "light red", "bold yellow", "<F88ff00>"), cecho tags ("<b><orange>"), a Mudlet name ("orange", "white:red"), "r,g,b" or "#rrggbb".',
+          'A profile colour ("red", "light red", "bold yellow", "<F88ff00>"), cecho tags ("<b><orange>"), a Mudlet name ("orange", "white:red"), "r,g,b" or "#rrggbb". A ~ before a name, "#rrggbb" or "r,g,b" makes it adaptive ("~gold"): it keeps its hue and is made lighter or darker to read on the current background.',
         ),
         p(
           "text",
@@ -402,7 +416,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "cecho",
     "cecho(text)",
-    "Writes coloured text: <red>, <white:blue>, <#ff8000>, <b>bold</b>, <reset> and tt++ <F88ff00> / <118> codes.",
+    "Writes coloured text: <red>, <white:blue>, <#ff8000>, <~gold> (adaptive), <b>bold</b>, <reset> and tt++ <F88ff00> / <118> codes.",
     {
       params: [
         p(

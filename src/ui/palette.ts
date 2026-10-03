@@ -8,12 +8,16 @@
 // - 16–255: the standard xterm 6×6×6 cube and 24-step grey ramp. Rendered
 //   as inline style (rare in MUME output).
 // - Truecolor (`TRUECOLOR | 0xRRGGBB`): inline style.
+// - Adaptive (`ADAPTIVE_COLOR | 0xRRGGBB`, ADR 0068): inline style that
+//   reads the themed root's custom property for the colour
+//   (src/theme/adaptive.ts), so a background change recolours it.
 // - Bold (`wc-bold`) keeps the colour index; whether it brightens is the
 //   "Bold brightens colours" setting, applied in CSS through the --bold-*
 //   tokens (ADR 0060). A bold run in the default foreground gets `wc-fbd`,
 //   an inverse run `wc-inv`.
 
-import { type Color, isTrueColor } from '../core/types';
+import { type Color, isAdaptive, isTrueColor } from '../core/types';
+import { type AdaptiveRole, adaptiveCss } from '../theme/adaptive';
 import { DOS_PALETTE } from '../theme/presets';
 
 const CUBE_STEPS = [0x00, 0x5f, 0x87, 0xaf, 0xd7, 0xff];
@@ -41,8 +45,13 @@ function buildXterm256(): string[] {
 /** Hex colour for every palette index 0–255. */
 export const PALETTE_256: readonly string[] = buildXterm256();
 
-/** CSS colour string for any `Color` (palette index or truecolor). */
-export function colorToCss(c: Color): string {
+/**
+ * CSS colour string for any `Color` (palette index, truecolor or adaptive).
+ * `role` says whether it is text (`f`) or a fill (`b`); only an adaptive
+ * colour resolves differently.
+ */
+export function colorToCss(c: Color, role: AdaptiveRole = 'f'): string {
   if (isTrueColor(c)) return '#' + (c & 0xffffff).toString(16).padStart(6, '0');
+  if (isAdaptive(c)) return adaptiveCss(c, role);
   return PALETTE_256[c & 0xff]!;
 }

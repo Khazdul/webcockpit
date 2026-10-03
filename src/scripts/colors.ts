@@ -11,6 +11,11 @@
 //   underline on and off (the line model's styles; Mudlet's `<s>` and `<o>`
 //   have no style here and stay text);
 // - `<reset>` and `<r>`: the default style;
+// - adaptive colours (ADR 0068): a `~` before a Mudlet colour name,
+//   `#rrggbb` or `r,g,b` (`<~gold>`, `<~#f0c850>`, `<~240,200,80>`,
+//   `<~gold:~navy>`, `<:~gold>`): the colour keeps its hue and each renderer
+//   adjusts its lightness to the background so it keeps 4.5:1 contrast.
+//   `~ansi_*` is the palette colour as is (the theme already fits it);
 // - in a script pane's text only (`parseCecho(text, { shades: true })`,
 //   ADR 0065): the pane's shade roles `@track @dim @mid @bg @text @label
 //   @glow` as a colour name (`<@text:@dim>`, `<:@track>`), resolved by the
@@ -22,9 +27,9 @@
 // `highlight(colour)` takes a profile colour name (`light red`, `bold
 // yellow`, tt++ codes: parseHighlight), any of the cecho tags above (`<b>
 // <red>`), or a Mudlet colour without brackets (`orange`, `white:red`,
-// `255,0,0`, `#ff8800`).
+// `255,0,0`, `#ff8800`), each also with a `~` (`~gold`, `~gold:~navy`).
 
-import { type Color, type ShadeRoleName, type StyleRun, TRUECOLOR, shadeColor } from '../core/types';
+import { type Color, type ShadeRoleName, type StyleRun, TRUECOLOR, adaptiveColor, shadeColor } from '../core/types';
 import { type Colored, type Style, parseHighlight } from '../script/engine';
 import { applyCode, isDefaultStyle, pushRun } from '../script/engine/color';
 
@@ -174,9 +179,23 @@ export interface CechoOptions {
   shades?: boolean;
 }
 
-/** A colour name in a tag: a Mudlet colour, or with `shades` a shade role (`@dim`). */
+/**
+ * An adaptive colour (ADR 0068): `~` and a Mudlet colour, `#rrggbb` or
+ * `r,g,b`; `~ansi_*` is the palette colour itself. Null when the rest is
+ * not a colour.
+ */
+export function adaptiveTag(name: string): Color | null {
+  const n = name.trim();
+  if (n.charCodeAt(0) !== 126 /* ~ */) return null;
+  const c = mudletColor(n.slice(1));
+  if (c === null) return null;
+  return c >= TRUECOLOR ? adaptiveColor(c & 0xffffff) : c;
+}
+
+/** A colour name in a tag: a Mudlet colour, `~` adaptive, or with `shades` a shade role (`@dim`). */
 function tagColor(name: string, shades: boolean): Color | null {
   const n = name.trim();
+  if (n.charCodeAt(0) === 126 /* ~ */) return adaptiveTag(n);
   if (n.charCodeAt(0) === 64 /* @ */) {
     const role = shades ? SHADE_TAGS[n.slice(1).toLowerCase()] : undefined;
     return role ? shadeColor(role) : null;

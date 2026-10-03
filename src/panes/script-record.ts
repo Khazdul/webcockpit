@@ -41,7 +41,7 @@
 // Everything read back is checked and capped (`sanitizeSnapshot`): a
 // shared HTML replay is someone else's file.
 
-import { shadeRoleOf } from '../core/types';
+import { isAdaptive, shadeRoleOf } from '../core/types';
 import {
   MAX_HINT,
   MAX_LINE_CELLS,
@@ -215,9 +215,9 @@ function isObject(v: unknown): v is Obj {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-/** A palette index, a truecolor or a shade-role colour (ADR 0065). */
+/** A palette index, a truecolor, a shade-role colour (ADR 0065) or an adaptive colour (ADR 0068). */
 const isColor = (c: unknown): c is number =>
-  typeof c === 'number' && Number.isInteger(c) && c >= 0 && (c <= 0x1ffffff || shadeRoleOf(c) !== null);
+  typeof c === 'number' && Number.isInteger(c) && c >= 0 && (c <= 0x1ffffff || shadeRoleOf(c) !== null || isAdaptive(c));
 const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
 function sanitizeLine(l: unknown): PaneLine | null {

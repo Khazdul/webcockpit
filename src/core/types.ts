@@ -17,6 +17,10 @@ import type { PaneSnapshot } from '../panes/script-content';
  * - `>= SHADE_COLOR` (0x2000000): a script pane's shade role (ADR 0065),
  *   `SHADE_COLOR + index in SHADE_ROLE_ORDER`; only script pane text
  *   carries these, and the pane resolves them from its shade ramp.
+ * - `>= ADAPTIVE_COLOR` (0x4000000): an adaptive colour (ADR 0068),
+ *   `ADAPTIVE_COLOR | 0xRRGGBB`: a base colour whose lightness each
+ *   renderer adjusts to its background (src/theme/adaptive.ts), so it keeps
+ *   4.5:1 contrast. Scripts name it with a `~` prefix (`<~gold>`).
  *
  * "Default colour" is expressed by leaving the field `undefined`.
  * Bold does not change the colour index: the parser emits the colour as
@@ -41,6 +45,19 @@ export function isTrueColor(c: Color): boolean {
 /** Base of the shade-role colours (ADR 0065): `SHADE_COLOR + role index`. */
 export const SHADE_COLOR = 0x2000000;
 
+/** Flag bit of an adaptive colour (ADR 0068): `ADAPTIVE_COLOR | 0xRRGGBB`. */
+export const ADAPTIVE_COLOR = 0x4000000;
+
+/** The adaptive colour with base colour `rgb24` (0xRRGGBB). */
+export function adaptiveColor(rgb24: number): Color {
+  return ADAPTIVE_COLOR | (rgb24 & 0xffffff);
+}
+
+/** True when `c` is an adaptive colour (ADR 0068). */
+export function isAdaptive(c: Color): boolean {
+  return c >= ADAPTIVE_COLOR && c <= (ADAPTIVE_COLOR | 0xffffff);
+}
+
 /** The shade roles in ramp order (theme/color.ts SHADE_ROLES, Inv §10.4). */
 export const SHADE_ROLE_ORDER = ['track', 'dim', 'mid', 'paneBg', 'vtext', 'label', 'glow'] as const;
 
@@ -54,7 +71,7 @@ export function shadeColor(role: ShadeRoleName): Color {
 
 /** The shade role a `Color` stands for, or null when it is a real colour. */
 export function shadeRoleOf(c: Color): ShadeRoleName | null {
-  return c >= SHADE_COLOR ? (SHADE_ROLE_ORDER[c - SHADE_COLOR] ?? null) : null;
+  return c >= SHADE_COLOR && c < ADAPTIVE_COLOR ? (SHADE_ROLE_ORDER[c - SHADE_COLOR] ?? null) : null;
 }
 
 // ---------------------------------------------------------------------------

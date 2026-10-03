@@ -66,7 +66,8 @@
 // - Render is coalesced: callers change the content and call `changed()`,
 //   which marks the pane dirty (one render per frame, none while hidden).
 
-import { type Color, shadeRoleOf } from '../core/types';
+import { type Color, isAdaptive, shadeRoleOf } from '../core/types';
+import { adaptBg, adaptFg, adaptiveHex } from '../theme/adaptive';
 import { keyNameFromEvent } from '../script/keys';
 import type { PaneId } from '../layout/types';
 import { colorToCss } from '../ui/palette';
@@ -118,6 +119,9 @@ type Ramp = Readonly<Record<ShadeRole, string>>;
 export interface PaneInk {
   base: string;
   fg(css: string): string;
+  /** The pane's background and font colour, for adaptive colours (ADR 0068). */
+  bg?: string;
+  text?: string;
 }
 
 /** Colours as given; uncoloured text inherits (tests, the default). */
@@ -126,9 +130,12 @@ export const PLAIN_INK: PaneInk = { base: '', fg: (c) => c };
 /** Text colours for a pane on `bg` (ADR 0041's 4.5:1 rule on a light pane). */
 export function paneInk(termFg: string, bg: string, light: boolean): PaneInk {
   const toward = light ? '#000000' : '#ffffff';
+  const base = fitContrast(termFg, bg, 4.5, toward);
   return {
-    base: fitContrast(termFg, bg, 4.5, toward),
+    base,
     fg: light ? (c) => fitContrast(lightShift(c), bg, 4.5, toward) : (c) => c,
+    bg,
+    text: base,
   };
 }
 
@@ -139,6 +146,7 @@ export function paneInk(termFg: string, bg: string, light: boolean): PaneInk {
 export function paneColor(c: Color, ansi: readonly string[], ramp?: Ramp): string {
   const role = shadeRoleOf(c);
   if (role) return ramp?.[role] ?? '';
+  if (isAdaptive(c)) return adaptiveHex(c);
   return c < 16 ? (ansi[c] ?? colorToCss(c)) : colorToCss(c);
 }
 
@@ -164,9 +172,23 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
     if (x >= w) break;
     // A shade role is the pane's own shade as is: the ramp is already
     // made for the pane's light or dark background (no light shift).
+    // An adaptive colour (ADR 0068) resolves against the pane's own
+    // background, as is (it is already made to read there).
     line.put(x, s.text, {
-      fg: s.fg === undefined ? ink.base : shadeRoleOf(s.fg) ? paneColor(s.fg, ansi, ramp) : ink.fg(paneColor(s.fg, ansi)),
-      bg: s.bg === undefined ? '' : paneColor(s.bg, ansi, ramp),
+      fg:
+        s.fg === undefined
+          ? ink.base
+          : isAdaptive(s.fg)
+            ? adaptFg(adaptiveHex(s.fg), ink.bg ?? ramp.paneBg)
+            : shadeRoleOf(s.fg)
+              ? paneColor(s.fg, ansi, ramp)
+              : ink.fg(paneColor(s.fg, ansi)),
+      bg:
+        s.bg === undefined
+          ? ''
+          : isAdaptive(s.bg)
+            ? adaptBg(adaptiveHex(s.bg), ink.text || ramp.vtext, ink.bg ?? ramp.paneBg)
+            : paneColor(s.bg, ansi, ramp),
       bold: !!s.bold,
       italic: !!s.italic,
       underline: !!s.underline,

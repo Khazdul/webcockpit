@@ -451,7 +451,7 @@ export function runStyle(r: StyleRun): Omit<Seg, 'text'> {
   }
   if (bg !== undefined) {
     if (bg < 16) cls.push('wc-b' + bg);
-    else out.bg = colorToCss(bg);
+    else out.bg = colorToCss(bg, 'b');
   }
   if (r.bold) cls.push('wc-bold');
   if (r.italic) cls.push('wc-ital');

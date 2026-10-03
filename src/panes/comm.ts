@@ -401,7 +401,7 @@ function styleRun(span: HTMLElement, r: StyleRun): void {
   } else if (r.bold) cls += ' wc-fbd';
   if (r.bg !== undefined) {
     if (r.bg < 16) cls += ' wc-b' + r.bg;
-    else span.style.backgroundColor = colorToCss(r.bg);
+    else span.style.backgroundColor = colorToCss(r.bg, 'b');
   }
   if (r.bold) cls += ' wc-bold';
   if (r.italic) cls += ' wc-ital';

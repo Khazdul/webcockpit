@@ -16,6 +16,9 @@
 //   --pane-bg-<tint> --pane-border-<tint>   every tint for swatches
 //   data-cursor="block|beam|underline", data-cursor-blink="on|off",
 //   data-light (present when the terminal bg is light)
+//   --wc-af-<rrggbb> --wc-ab-<rrggbb>       adaptive colours in use, resolved
+//                                           for this bg (ADR 0068,
+//                                           src/theme/adaptive.ts)
 // --font-size, --cell-w and --cell-h are published by src/theme/cells.ts
 // (the font size is calibrated to whole-pixel cells there).
 //
@@ -46,6 +49,7 @@ import {
   paneShades,
   takesDarkInk,
 } from './color';
+import { applyAdaptive } from './adaptive';
 import { fontInfo } from './fonts';
 import {
   BANNER_COLORS,
@@ -221,6 +225,7 @@ export function applyTheme(s: Readonly<Settings>, root: HTMLElement = document.d
   root.dataset.cursor = a.cursorStyle;
   root.dataset.cursorBlink = a.cursorBlink ? 'on' : 'off';
   root.toggleAttribute('data-light', isLight(a.bg));
+  applyAdaptive(root, a.fg, a.bg);
 }
 
 /** True when the parts of `a` and `b` that `applyTheme` uses differ. */

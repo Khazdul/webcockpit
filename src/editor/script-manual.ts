@@ -176,7 +176,7 @@ const TRIGGERS: HelpSection = {
     "Inside the function:",
     "- line is the whole line, as text without colours.",
     "- matches[1] is the matched text, matches[2], matches[3] … the groups of a regex. A group that did not take part is an empty string.",
-    "- deleteLine() hides the line (a gag). replaceLine(text) shows text instead; cecho colour tags work in it. highlight(color) colours the whole line, highlight(color, text) each occurrence of text. copy2cecho() returns the line with its colours as cecho tags, to show it in a pane as the game coloured it. isPrompt() tells whether the line is a prompt.",
+    "- deleteLine() hides the line (a gag). replaceLine(text) shows text instead; cecho colour tags work in it. highlight(color) colours the whole line, highlight(color, text) each occurrence of text. copy2cecho() returns the line with its colours as cecho tags, to show it in a pane as the game coloured it. isPrompt() tells whether the line is a prompt. lineTags() lists the MUME XML elements the line is in (room, description, exits, say, tell …), so a trigger can skip room descriptions and what players say.",
     "Only the shown copy changes. Other triggers still see the line as the game sent it, and the profile's substitutes, gags and highlights apply to the replaced text. Script highlights are applied last.",
     "Every trigger that matches a line runs: the profile's actions and the script triggers of every script. Rules of the same priority run in this order: the client's own and the profile's first, then script triggers in the order they were made. Script triggers have priority 5, the default for profile actions too.",
     "Text written by echo, cecho and print is not a game line: triggers never see it.",
@@ -366,15 +366,16 @@ const OUTPUT: HelpSection = {
     "- RGB: <255,128,0>, and <255,128,0:0,0,64> with a background.",
     "- tt++ codes as in #showme: <F88ff00> and <Fa0f> (24-bit), <B204060> (background), <118> (attribute, foreground, background digits; 1 is bold), <abc> to <fff> (256 colours), <g00> to <g23> (greys).",
     "- Hex, as in Mudlet's hecho: <#ff8000>, and <#ffffff:#000080> with a background.",
+    "- Adaptive colours: a ~ before a colour name, hex or RGB colour (<~gold>, <~#f0c850>, <~240,200,80>, <:~navy> as a background). The colour keeps its hue, and WebCockpit makes it lighter or darker as far as needed to read well on the current background (4.5:1 contrast). On a background where it already reads well it stays as written. When you change the background in Options → Appearance, text already on screen follows. Use them when a script picks its own colours: they work on black and on paper alike.",
     "- Styles: <b> bold, <i> italic, <u> underline; </b>, </i> and </u> turn them off again.",
     "- <reset> or <r> goes back to the default colours and style.",
     "Anything else in angle brackets is shown as text, also Mudlet's <s> (strikethrough) and <o> (overline), which WebCockpit cannot show.",
-    "highlight(color) takes a profile colour name (red, light red, bold yellow, bg blue, or a tt++ code such as <F88ff00>), any of the tags above (<b><orange>, <#ff8000>), or a colour without brackets (orange, white:red, 255,128,0, #ff8000).",
+    "highlight(color) takes a profile colour name (red, light red, bold yellow, bg blue, or a tt++ code such as <F88ff00>), any of the tags above (<b><orange>, <#ff8000>), or a colour without brackets (orange, white:red, 255,128,0, #ff8000, ~gold for an adaptive colour).",
   ],
   examples: [
     {
       lang: "lua",
-      code: 'send("kill orc")\nexpandAlias("stand;flee")\necho("Plain text.")\ncecho("<green>Ready<reset> to loot. <white:red> DANGER <reset>")\ncecho("<F88ff00>tt++ colours<reset> and <b><#ff8000>hex<reset> work too.")\nprint("hp", 120, true, nil)\nuiMessage("loot", "Picked up 12 coins.")',
+      code: 'send("kill orc")\nexpandAlias("stand;flee")\necho("Plain text.")\ncecho("<green>Ready<reset> to loot. <white:red> DANGER <reset>")\ncecho("<F88ff00>tt++ colours<reset> and <b><#ff8000>hex<reset> work too.")\ncecho("<~gold>Gold<reset> that reads on every background.")\nprint("hp", 120, true, nil)\nuiMessage("loot", "Picked up 12 coins.")',
     },
   ],
 };

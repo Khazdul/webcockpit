@@ -42,7 +42,7 @@
 // PANES_EVENT_MAX times a second (then it waits, with one warning).
 
 import type { Bus } from '../core/bus';
-import { type Color, type StyleRun, TRUECOLOR, gmcpKey } from '../core/types';
+import { type Color, type StyleRun, TRUECOLOR, type XmlSpan, gmcpKey, isAdaptive } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
 import {
   DOCK_IDS,
@@ -1018,6 +1018,16 @@ export class ScriptHost {
       this.cur(rt);
       return this.triggerLine?.prompt === true;
     });
+    // The MUME XML elements the trigger's line is in (`room`, `description`,
+    // `say`, …), each name once, outermost first; empty without XML.
+    rt.defineFunction('lineTags', () => {
+      this.cur(rt);
+      const tags = this.triggerLine?.tags;
+      if (!tags || tags.length === 0) return [];
+      const out: string[] = [];
+      for (const t of tags) if (!out.includes(t.tag)) out.push(t.tag);
+      return out;
+    });
     rt.defineFunction('uiMessage', (a) => {
       this.cur(rt);
       const source = a.string(1).trim().toUpperCase().slice(0, 20) || 'SCRIPT';
@@ -1757,7 +1767,7 @@ export class ScriptHost {
   }
 
   /** The game line the running trigger matched (`copy2cecho`). */
-  private triggerLine: { text: string; runs: readonly StyleRun[]; prompt?: boolean } | null = null;
+  private triggerLine: { text: string; runs: readonly StyleRun[]; prompt?: boolean; tags?: readonly XmlSpan[] } | null = null;
 
   /** False (the alias did not take the command) only when the handler returned false. */
   private onAlias(o: Owner, ref: LuaRef, ctx: MatchContext): boolean {
@@ -1836,10 +1846,10 @@ async function defaultLoadRuntime(): Promise<LuaRuntime> {
   return loadLuaRuntime();
 }
 
-/** A line-model colour as a cecho colour name: `ansi_N` for the palette, `#rrggbb` else. */
+/** A line-model colour as a cecho colour name: `ansi_N` for the palette, `~#rrggbb` adaptive, `#rrggbb` else. */
 function cechoColor(c: Color): string {
   if (c < TRUECOLOR) return `ansi_${c}`;
-  return '#' + (c & 0xffffff).toString(16).padStart(6, '0');
+  return (isAdaptive(c) ? '~#' : '#') + (c & 0xffffff).toString(16).padStart(6, '0');
 }
 
 /**
