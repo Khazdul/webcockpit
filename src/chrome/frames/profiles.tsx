@@ -6,7 +6,8 @@
 // the buttons. Tab/Shift+Tab toggle, ← focuses the buttons, → the table.
 // Buttons: SELECT (disabled on the selected row), NEW, EDIT (the profile
 // editor, src/editor, loaded on demand),
-// RENAME and DELETE (disabled on `default`), IMPORT, EXPORT, BACK.
+// RENAME and DELETE (disabled on `default`), IMPORT (one or more files,
+// native or foreign, then the import report), EXPORT, BACK.
 // Feedback goes to the flash row under the package (~3 s).
 
 import type { VNode } from 'preact';
@@ -22,6 +23,8 @@ import {
 } from '../../profiles';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { editProfile } from './profile-edit';
+import { loadImportFiles } from './import-load';
+import { ImportReportFrame } from './import-report';
 import { cellLen, centreLeft, step } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
@@ -123,16 +126,27 @@ export function ProfileFrame(): VNode {
     }
   };
 
+  // IMPORT: one or more files (a foreign entry file and the files it
+  // `#read`s) through the lazy import chunk (ADR 0073), then the report.
   const onFile = async (): Promise<void> => {
     const input = fileRef.current;
-    const file = input?.files?.[0];
-    if (!input || !file) return;
+    const chosen = [...(input?.files ?? [])];
+    if (!input || chosen.length === 0) return;
     input.value = '';
     try {
-      const name = await profiles.importFile(file.name, await file.text());
+      const [importFiles, files] = await Promise.all([
+        loadImportFiles(),
+        Promise.all(chosen.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))),
+      ]);
+      const result = importFiles(files);
+      const name = await profiles.importFile(result.entry, result.profileText);
       settings.update({ profile: name });
       await reload();
-      done(name, `Imported "${name}" from ${file.name}.`);
+      setCursorName(name);
+      setZone('table');
+      nav.push(
+        <ImportReportFrame result={result} name={name} onClose={() => nav.flash(`Imported "${name}" from ${result.entry}.`)} />,
+      );
     } catch (e) {
       nav.flash(`Import failed: ${errText(e)}`, 'fail');
     }
@@ -265,7 +279,7 @@ export function ProfileFrame(): VNode {
       <input
         ref={fileRef}
         type="file"
-        accept=".tin,.txt,text/plain"
+        multiple
         hidden
         class="wc-profile-file"
         onChange={() => void onFile()}

@@ -558,7 +558,8 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
   await expect(table).not.toContainText('hunter');
 
-  // IMPORT: name from the file, _2 on a collision, becomes selected.
+  // IMPORT: name from the file, _2 on a collision, becomes selected; the
+  // report frame (stage 17) comes first.
   for (const expected of ['My_Warrior', 'My_Warrior_2']) {
     const chooser = page.waitForEvent('filechooser');
     await page.locator('.wc-start [data-btn="IMPORT"]').click();
@@ -567,6 +568,10 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
       mimeType: 'text/plain',
       buffer: Buffer.from('#alias {k} {kill %1}\n'),
     });
+    // A native profile: the short import report, then OK (ESC) back to the picker.
+    await expect(startTitle(page)).toHaveText('─── IMPORT REPORT ───');
+    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-import-head')).toContainText('nothing changed');
+    await page.keyboard.press('Escape');
     await expect(startFlash(page)).toHaveText(`Imported "${expected}" from My Warrior.tin.`);
     await expect.poll(async () => (await settings(page)).profile).toBe(expected);
   }
