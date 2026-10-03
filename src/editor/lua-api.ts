@@ -217,7 +217,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "In a trigger: the current line as the game sent it, with its colours as cecho tags, so it can be shown elsewhere (a pane) in the same colours.",
     {
       params: [],
-      returns: "The line with <ansi_N>, <#rrggbb>, <fg:bg>, <b>, <i>, <u> and <reset> tags, or nil outside a trigger.",
+      returns: "The line with <ansi_N>, <#rrggbb>, <fg:bg>, <b>, <i>, <u> and <reset> tags (an adaptive colour as <~#rrggbb>), or nil outside a trigger.",
       more: [
         "Like Mudlet's copy2decho, with cecho tags. The line is the original, before substitutes and replaceLine.",
       ],
@@ -654,7 +654,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "pane:cecho(text)",
     "Appends coloured text to the pane, with the colour tags of cecho. A \\n starts a new line.",
     {
-      params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "Text with colour tags such as <red>, <b> or <reset>.")],
+      params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "Text with colour tags such as <red>, <~gold>, <b> or <reset>, and the pane's shades such as <@dim> (see the Panes chapter).")],
       example: 'pane:cecho("<green>ready<reset>\\n")',
     },
   ),
@@ -666,7 +666,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       params: [
         p("pane", "pane", "A pane from createPane."),
         p("row", "number", "The row, from 1 (at most 500)."),
-        p("text", "string", "Text with colour tags; a \\n becomes a space."),
+        p("text", "string", "Text with colour tags, the pane's shades (<@dim>) too; a \\n becomes a space."),
       ],
       more: ["The row's links go with its old text: add them again with pane:setLink after redrawing the row."],
       example: 'pane:setLine(1, "<b>Mercenaries</b>")\npane:setLine(2, "Bob  <yellow>waiting")',
@@ -683,7 +683,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "gauge",
           "table",
-          "value and max (numbers; max defaults to 100), color (a colour name such as \"red\", \"<#ff8800>\" or \"orange\"; default green) and label (text over the bar).",
+          "value and max (numbers; max defaults to 100), color (a colour name such as \"red\", \"<#ff8800>\" or \"orange\"; default green; not the pane's shades) and label (text over the bar).",
         ),
       ],
       more: ["The unfilled part takes the pane's track shade, so the bar follows the pane colour. Like setLine, it replaces the row and its links."],
@@ -697,7 +697,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [
         p("pane", "pane", "A pane from createPane."),
-        p("text", "string", "Text with colour tags; it goes on the end of the last line, as pane:cecho (a \\n becomes a space)."),
+        p("text", "string", "Text with colour tags and the pane's shades; it goes on the end of the last line, as pane:cecho (a \\n becomes a space)."),
         p("fn", "function", "Called with no arguments on a click."),
         p("hint", "string?", "The tooltip shown while the pointer is over the link; \\n breaks it into lines."),
         p("opts", "table?", "{hover = \"band\" | \"lighten\" | \"none\"}: how this link looks under the pointer (default: the pane's, see pane:setHover)."),
@@ -751,7 +751,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("pane", "pane", "A pane from createPane."),
         p("row", "number", "The row, from 1 (a text row, not a gauge)."),
         p("col", "number", "The first column, from 1; a shorter row is padded with spaces."),
-        p("text", "string", "Text with colour tags."),
+        p("text", "string", "Text with colour tags and the pane's shades (<@dim>)."),
       ],
       more: ["Writing what is already there changes nothing, so it costs no redraw."],
       example: 'pane:setLine(1, " HP:      [rest]")\npane:setLink(1, 11, 6, function() send("rest") end, "Rest")\npane:setText(1, 6, "<green>120")',

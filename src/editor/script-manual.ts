@@ -359,7 +359,7 @@ const OUTPUT: HelpSection = {
     "- print(...) writes its arguments separated by tabs: strings and numbers as they are, booleans as true or false, nil and tables by their type name.",
     "- uiMessage(source, text) writes a line to the UI messages pane: ▶ SOURCE: text. The source is shown in capitals, at most 20 characters.",
     "What echo, cecho and print write is not a game line: triggers do not see it and runs do not record it. Inside a trigger it shows after the game line; elsewhere at once.",
-    "Colour tags for cecho and replaceLine, in angle brackets:",
+    "Colour tags for cecho, replaceLine and the text of a script pane, in angle brackets:",
     "- Colour names: <red>, <green>, <orange>, <gold>, <light_blue>, <dark_green>, <hot_pink> and many more (Mudlet's names; case, spaces and _ do not matter).",
     "- The theme's palette: <ansi_red>, <ansi_light_red> … and <ansi_0> to <ansi_255>.",
     "- A background after a colon: <white:red>, or <:blue> for the background alone.",
@@ -614,7 +614,12 @@ const EXAMPLES: HelpSection = {
   group: "guide",
   heading: "Examples",
   text: [
-    "Complete small scripts. Make a new script, paste one over the template, save and turn it on. The bundled coinlooter is a larger example: open it and press DUPLICATE to change your own copy.",
+    "Complete small scripts. Make a new script, paste one over the template, save and turn it on. The bundled scripts are larger examples: open one and press DUPLICATE to change your own copy.",
+    "- coinlooter: triggers, an alias and a setting it saves itself.",
+    "- mercenaries: a status pane with gauges, links and tooltips, redrawn from triggers and GMCP.",
+    "- keymanager: temporary panes in a group, a pick list with a text field, copy2cecho, the store and map marks.",
+    "- panebar: a borderless one-row pane of buttons built on getPanes, setPaneOn and sysPanesChanged, with pane:setGrip, pane:setHover and the pane's shades.",
+    "- readability: replaceLine and copy2cecho with adaptive colours, and lineTags to leave room descriptions and what players say alone.",
   ],
   examples: [
     {
