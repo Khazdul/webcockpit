@@ -107,12 +107,41 @@ export interface DockPane {
   desired: number;
 }
 
-/** One dock. */
-export interface DockState {
+/**
+ * One lane of a dock (ADR 0064): a column of a left/right dock (`size` is
+ * its width, panes stacked top to bottom) or a row of the top/bottom dock
+ * (`size` is its height, panes left to right).
+ */
+export interface DockLane {
   /** Width in cells (left/right) or height in cells (top/bottom). */
   size: number;
-  /** Panes in stack order (top→bottom, or left→right for the top/bottom dock). */
+  /** Panes in stack order (top→bottom, or left→right for the top/bottom dock). Never empty. */
   panes: DockPane[];
+}
+
+/**
+ * One dock (ADR 0064): its lanes from the screen edge inward (lane 0
+ * touches the screen edge). No lane is empty; a dock without panes has
+ * `lanes: []`.
+ */
+export interface DockState {
+  lanes: DockLane[];
+}
+
+/** Every pane of a dock, lane by lane, in stack order. */
+export function dockPanes(d: Readonly<DockState>): DockPane[] {
+  return d.lanes.flatMap((l) => l.panes);
+}
+
+/**
+ * Appends `pane` to lane 0 of `dock` in `docks` (mutates), creating the
+ * lane at the dock's default size when the dock is empty (ADR 0064:
+ * migration of missing built-ins, script-pane placement).
+ */
+export function appendToDock(docks: LayoutModel['docks'], dock: DockId, pane: DockPane): void {
+  const lanes = docks[dock].lanes;
+  if (lanes.length === 0) lanes.push({ size: defaultDockSize(dock), panes: [] });
+  lanes[0]!.panes.push(pane);
 }
 
 /**
@@ -173,7 +202,7 @@ export const DEFAULT_BOTTOM_DOCK_SIZE = 10;
 /** Default height of the top dock in cells. */
 export const DEFAULT_TOP_DOCK_SIZE = 10;
 
-/** The size a dock opens at when a pane is dropped on its screen edge. */
+/** The size a dock (its first lane) opens at, and the default size of a new lane (ADR 0064). */
 export function defaultDockSize(dock: DockId): number {
   if (dock === 'top') return DEFAULT_TOP_DOCK_SIZE;
   if (dock === 'bottom') return DEFAULT_BOTTOM_DOCK_SIZE;
@@ -192,16 +221,20 @@ export const EVEN_SHARE_DESIRED = 200;
 export function defaultLayout(): LayoutModel {
   return {
     docks: {
-      left: { size: DEFAULT_SIDE_DOCK_SIZE, panes: [] },
+      left: { lanes: [] },
       right: {
-        size: DEFAULT_SIDE_DOCK_SIZE,
-        panes: DOCKED_BY_DEFAULT.map((id) => ({
-          id,
-          desired: id === 'character' ? DEFAULT_PANE_DESIRED.character : EVEN_SHARE_DESIRED,
-        })),
+        lanes: [
+          {
+            size: DEFAULT_SIDE_DOCK_SIZE,
+            panes: DOCKED_BY_DEFAULT.map((id) => ({
+              id,
+              desired: id === 'character' ? DEFAULT_PANE_DESIRED.character : EVEN_SHARE_DESIRED,
+            })),
+          },
+        ],
       },
-      top: { size: DEFAULT_TOP_DOCK_SIZE, panes: [] },
-      bottom: { size: DEFAULT_BOTTOM_DOCK_SIZE, panes: [] },
+      top: { lanes: [] },
+      bottom: { lanes: [] },
     },
     floating: [defaultMapFloat()],
   };

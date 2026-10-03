@@ -6,7 +6,7 @@
 //     .wc-game          the output pane (src/ui/output-pane.ts) goes in here
 //     .wc-pane × 6      pane shells (src/panes/pane.ts; the map included)
 //     .wc-input-slot    the input line (src/ui/input-pane.ts), under the game pane
-//     .wc-handles       invisible resize handles over the gaps and frames
+//     .wc-handles       invisible resize handles over the gaps, lane and pane boundaries
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
@@ -24,6 +24,13 @@
 //   the top content row) to a dock or a position in a dock. The insertion
 //   bar shows where it lands. Dropping on the screen edge of a dock that is
 //   not shown opens that dock at its default size.
+// - Lanes (ADR 0064): a dock is a list of lanes from the screen edge
+//   inward, columns of a side dock, rows of the top/bottom dock. Over the
+//   middle of a lane the pane goes into that lane; over a lane's
+//   cross-axis edge band (clamp(floor(cross / 5), 1, 3) cells: the left
+//   and right bands of a column, the upper and lower bands of a row) it
+//   goes into a new lane beside it, and the bar runs along the whole lane
+//   boundary. A lane the last pane leaves is removed.
 // - Floating panes (ADR 0014): drop a docked pane over the game area and it
 //   floats there at the standard size, 36 × 14 cells (an outline shows
 //   where). Drag a floating pane
@@ -32,9 +39,12 @@
 // - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
 //   title row, one cell in from the right edge; clicking it switches the
 //   pane off (`panes[id].on = false`, the same as Settings).
-// - Drag the gap between the game pane and a dock to resize the dock, or
-//   the boundary between two panes (the lower part of the upper pane's last
-//   row, or the right part of the left pane's last column) to resize them.
+// - Drag the gap between the game pane and a dock to resize the dock (its
+//   innermost lane), the boundary between two lanes (the right part of the
+//   left lane's last column, or the lower part of the upper lane's last
+//   row) to move cells between them, or the boundary between two panes of
+//   a lane (the lower part of the upper pane's last row, or the right part
+//   of the left pane's last column) to resize them.
 // - Every drag previews live and writes the settings once, on release.
 // - Grips and handles never take focus; after a drag or a click the focus
 //   goes back to the input (Inv §1.3).
@@ -60,7 +70,6 @@ import { type TileCorner, originFor, tileCorner, tileRects } from './tiles';
 const groupKey = (key: string): string => `group:${key}`;
 import type { SettingsStore } from '../settings';
 import {
-  BOTTOM_DOCK_MIN,
   DOCK_GAP,
   GAME_MIN_COLS,
   GAME_MIN_ROWS,
@@ -72,25 +81,28 @@ import {
   MIN_VIEW_ROWS,
   type PaneBox,
   type Rect,
-  SIDE_DOCK_MIN,
-  TOP_DOCK_MIN,
   type DockBox,
+  type LaneBox,
   allocate,
   clampFloat,
   floatMin,
   isSideDock,
+  laneMin,
 } from './allocate';
 import {
   findFloat,
   floatPane,
   isNoopMove,
+  isNoopNewLane,
   movePane,
+  moveToNewLane,
   raisePane,
   resizeRect,
   setDesired,
-  setDockSize,
   setFloatRect,
+  setLaneSize,
   shiftBoundary,
+  shiftLanes,
   togglePatch,
 } from './model';
 import { paneSettingsOf } from '../settings/types';
@@ -194,17 +206,29 @@ export interface CockpitOptions {
 }
 
 /**
- * Where a dragged pane would land: a place in a dock (`bar` is the
- * insertion bar in px relative to the cockpit) or a floating rectangle
- * (`rect`, outer cells).
+ * Where a dragged pane would land: a place in a dock lane, a new lane of a
+ * dock (ADR 0064; `bar` is the insertion bar in px relative to the
+ * cockpit) or a floating rectangle (`rect`, outer cells).
  */
 export type DropTarget =
   | {
       kind: 'dock';
       dock: DockId;
+      /** The model lane (`movePane`); 0 when the dock has no lanes yet. */
+      lane: number;
+      /** Index in that lane (`movePane`). */
       index: number;
-      /** The dock is not shown now; the drop opens it at its default size. */
+      /** The dock is not shown now; the drop opens it (lane 0) at its default size. */
       open: boolean;
+      bar: Rect;
+    }
+  | {
+      kind: 'lane';
+      dock: DockId;
+      /** Lane position of the new lane (`moveToNewLane`): 0 at the screen edge. */
+      at: number;
+      /** Its size in cells across the dock. */
+      size: number;
       bar: Rect;
     }
   | { kind: 'float'; rect: Rect };
@@ -247,7 +271,25 @@ type Drag =
       /** A temporary pane: the preview goes to `tempPreview`, not the layout. */
       temp: boolean;
     }
-  | { kind: 'dock'; dock: DockId; pointerId: number; base: LayoutModel }
+  | {
+      /** The gap handle: resizes the innermost shown lane `lane`; `rest` is the other shown lanes' cells. */
+      kind: 'dock';
+      dock: DockId;
+      lane: number;
+      rest: number;
+      pointerId: number;
+      base: LayoutModel;
+    }
+  | {
+      /** A lane boundary: cells move between `outer` and `inner` (shown sizes at the press). */
+      kind: 'lanes';
+      dock: DockId;
+      pointerId: number;
+      outer: { lane: number; size: number };
+      inner: { lane: number; size: number };
+      cell0: number;
+      base: LayoutModel;
+    }
   | {
       kind: 'panes';
       dock: DockId;
@@ -596,7 +638,7 @@ export class Cockpit {
         this.tempPreview?.id === id ? this.tempPreview.rect : (tiled.get(id) ?? t.rect ?? tempDefaultRect(g, w, h, t.at));
       const rect = clampFloat(want, floatMin(id, true), r.cols, r.rows);
       const content = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
-      out.push({ id, dock: 'float', index: index++, rect, content, framed: true });
+      out.push({ id, dock: 'float', lane: 0, index: index++, rect, content, framed: true });
     }
     return out;
   }
@@ -725,15 +767,32 @@ export class Cockpit {
             dock: 'bottom',
           });
         }
-        const boxes = r.panes.filter((p) => p.dock === dock.id);
-        for (let i = 0; i + 1 < boxes.length; i++) {
-          const a = boxes[i]!;
-          const b = boxes[i + 1]!;
-          const data = { dock: dock.id, a: a.id, b: b.id };
-          if (isSideDock(dock.id)) {
-            add({ x: d.x * cell.w, y: b.rect.y * cell.h - hz, w: d.w * cell.w, h: hz }, 'y', data);
+        const side = isSideDock(dock.id);
+        for (const lane of dock.lanes) {
+          const l = lane.rect;
+          const boxes = r.panes.filter((p) => p.dock === dock.id && p.lane === lane.index);
+          for (let i = 0; i + 1 < boxes.length; i++) {
+            const a = boxes[i]!;
+            const b = boxes[i + 1]!;
+            const data = { dock: dock.id, a: a.id, b: b.id };
+            if (side) {
+              add({ x: l.x * cell.w, y: b.rect.y * cell.h - hz, w: l.w * cell.w, h: hz }, 'y', data);
+            } else {
+              add({ x: b.rect.x * cell.w - wz, y: l.y * cell.h, w: wz, h: l.h * cell.h }, 'x', data);
+            }
+          }
+        }
+        // Lane boundaries (ADR 0064), like pane boundaries: the right
+        // (lower) part of the left (upper) lane's last column (row).
+        for (let k = 0; k + 1 < dock.lanes.length; k++) {
+          const outer = dock.lanes[k]!;
+          const inner = dock.lanes[k + 1]!;
+          const first = dock.id === 'left' || dock.id === 'top' ? outer.rect : inner.rect;
+          const data = { dock: dock.id, outer: String(outer.index), inner: String(inner.index) };
+          if (side) {
+            add({ x: (first.x + first.w) * cell.w - wz, y: first.y * cell.h, w: wz, h: first.h * cell.h }, 'x', data);
           } else {
-            add({ x: b.rect.x * cell.w - wz, y: d.y * cell.h, w: wz, h: d.h * cell.h }, 'x', data);
+            add({ x: first.x * cell.w, y: (first.y + first.h) * cell.h - hz, w: first.w * cell.w, h: hz }, 'y', data);
           }
         }
       }
@@ -797,12 +856,12 @@ export class Cockpit {
         if (!a || !b) return;
         const side = isSideDock(dock);
         const size = (p: PaneBox): number => (side ? p.content.h : p.content.w);
-        // A dock that is short of space is frozen at what it shows now, so
+        // A lane that is short of space is frozen at what it shows now, so
         // the boundary follows the pointer exactly (ADR 0012).
         let frozen = base;
-        if (this.last.docks[dock]?.mode === 'scaled') {
+        if (this.last.docks[dock]?.lanes.find((l) => l.index === a.lane)?.mode === 'scaled') {
           const all: Partial<Record<PaneId, number>> = {};
-          for (const p of this.last.panes) if (p.dock === dock) all[p.id] = size(p);
+          for (const p of this.last.panes) if (p.dock === dock && p.lane === a.lane) all[p.id] = size(p);
           frozen = setDesired(base, all);
         }
         this.drag = {
@@ -814,8 +873,30 @@ export class Cockpit {
           cell0: side ? Math.floor(y / cell.h) : Math.floor(x / cell.w),
           base: frozen,
         };
+      } else if (handle.dataset.outer && handle.dataset.inner) {
+        const lanes = this.last.docks[dock]?.lanes ?? [];
+        const side = isSideDock(dock);
+        const lb = (i: string): LaneBox | undefined => lanes.find((l) => l.index === Number(i));
+        const outer = lb(handle.dataset.outer);
+        const inner = lb(handle.dataset.inner);
+        if (!outer || !inner) return;
+        const cross = (l: LaneBox): number => (side ? l.rect.w : l.rect.h);
+        this.drag = {
+          kind: 'lanes',
+          dock,
+          pointerId: e.pointerId,
+          outer: { lane: outer.index, size: cross(outer) },
+          inner: { lane: inner.index, size: cross(inner) },
+          cell0: side ? Math.floor(x / cell.w) : Math.floor(y / cell.h),
+          base,
+        };
       } else {
-        this.drag = { kind: 'dock', dock, pointerId: e.pointerId, base };
+        const lanes = this.last.docks[dock]?.lanes ?? [];
+        const innermost = lanes[lanes.length - 1];
+        if (!innermost) return;
+        const cross = (l: LaneBox): number => (isSideDock(dock) ? l.rect.w : l.rect.h);
+        const rest = lanes.slice(0, -1).reduce((n, l) => n + cross(l), 0);
+        this.drag = { kind: 'dock', dock, lane: innermost.index, rest, pointerId: e.pointerId, base };
       }
       this.showShield(handle.dataset.axis!);
     } else {
@@ -882,26 +963,35 @@ export class Cockpit {
       return;
     }
     if (d.kind === 'dock') {
+      // The dock's new outer size from the pointer, then the innermost lane
+      // takes the change; the other lanes keep their cells (ADR 0064).
       const H = r.rows;
       let size: number;
-      let min: number;
       let max: number;
       if (d.dock === 'bottom' || d.dock === 'top') {
         // The other of the two keeps what it shows now.
         const other = r.docks[d.dock === 'bottom' ? 'top' : 'bottom'];
         const row = Math.floor(y / cell.h);
         size = d.dock === 'bottom' ? H - DOCK_GAP - row : row;
-        min = d.dock === 'bottom' ? BOTTOM_DOCK_MIN : TOP_DOCK_MIN;
         max = H - INPUT_ROWS - DOCK_GAP - GAME_MIN_ROWS - (other ? other.rect.h + DOCK_GAP : 0);
       } else {
         const col = Math.floor(x / cell.w);
         size = d.dock === 'right' ? r.cols - DOCK_GAP - col : col;
         const other = r.docks[d.dock === 'right' ? 'left' : 'right'];
-        min = SIDE_DOCK_MIN;
         max = r.cols - GAME_MIN_COLS - DOCK_GAP - (other ? other.rect.w + DOCK_GAP : 0);
       }
+      const min = laneMin(d.dock);
+      max -= d.rest;
       if (max < min) return;
-      this.setPreview(setDockSize(d.base, d.dock, Math.max(min, Math.min(max, size))));
+      this.setPreview(setLaneSize(d.base, d.dock, d.lane, Math.max(min, Math.min(max, size - d.rest))));
+      return;
+    }
+    if (d.kind === 'lanes') {
+      const side = isSideDock(d.dock);
+      const moved = (side ? Math.floor(x / cell.w) : Math.floor(y / cell.h)) - d.cell0;
+      // The outer lane grows when the boundary moves away from the screen edge.
+      const sign = d.dock === 'left' || d.dock === 'top' ? 1 : -1;
+      this.setPreview(shiftLanes(d.base, d.dock, d.outer, d.inner, sign * moved));
       return;
     }
     const side = isSideDock(d.dock);
@@ -930,8 +1020,12 @@ export class Cockpit {
             draft.layout = floatPane(draft.layout, d.id, t.rect);
             return;
           }
-          let m = movePane(draft.layout, d.id, t.dock, t.index);
-          if (t.open) m = setDockSize(m, t.dock, defaultDockSize(t.dock));
+          if (t.kind === 'lane') {
+            draft.layout = moveToNewLane(draft.layout, d.id, t.dock, t.at, t.size);
+            return;
+          }
+          let m = movePane(draft.layout, d.id, t.dock, t.lane, t.index);
+          if (t.open) m = setLaneSize(m, t.dock, 0, defaultDockSize(t.dock));
           draft.layout = m;
         });
       }
@@ -997,9 +1091,9 @@ export class Cockpit {
   }
 
   private showTarget(t: DropTarget | null): void {
-    this.barEl.hidden = t?.kind !== 'dock';
+    this.barEl.hidden = t?.kind !== 'dock' && t?.kind !== 'lane';
     this.ghostEl.hidden = t?.kind !== 'float';
-    if (t?.kind === 'dock') {
+    if (t?.kind === 'dock' || t?.kind === 'lane') {
       placePx(this.barEl, t.bar);
       this.barEl.dataset.dock = t.dock;
     } else if (t?.kind === 'float') {
@@ -1012,8 +1106,9 @@ export class Cockpit {
    * changes nothing). `grab` is the pressed cell relative to the pane's
    * top-left cell, so a floating pane keeps its offset under the pointer.
    *
-   * A docked pane docks anywhere over a shown dock and on the screen edge of
-   * a hidden dock; a floating pane docks only from the screen-edge zones
+   * A docked pane docks anywhere over a shown dock (into a lane, or into a
+   * new lane from a lane's cross-axis edge band, ADR 0064) and on the screen
+   * edge of a hidden dock; a floating pane docks only from the screen-edge zones
    * (2 cells; the top one half a row) — it may lie over a dock, and moving
    * it there must not dock it.
    * Anywhere else the pane floats.
@@ -1038,11 +1133,11 @@ export class Cockpit {
       return { ...b, x: bx, y: by };
     };
 
-    // Before the first pane whose middle is past the pointer.
-    const insert = (dock: DockBox): DropTarget | null => {
-      const d = dock.rect;
-      const side = isSideDock(dock.id);
-      const boxes = r.panes.filter((p) => p.dock === dock.id);
+    // Into a lane: before the first pane whose middle is past the pointer.
+    const insert = (dock: DockId, lane: LaneBox): DropTarget | null => {
+      const d = lane.rect;
+      const side = isSideDock(dock);
+      const boxes = r.panes.filter((p) => p.dock === dock && p.lane === lane.index);
       const lastBox = boxes[boxes.length - 1]!;
       let index = lastBox.index + 1;
       let at = side ? lastBox.rect.y + lastBox.rect.h : lastBox.rect.x + lastBox.rect.w;
@@ -1054,22 +1149,53 @@ export class Cockpit {
           break;
         }
       }
-      if (isNoopMove(layout, id, dock.id, index)) return null;
+      if (isNoopMove(layout, id, dock, lane.index, index)) return null;
       const bar = side
         ? { x: d.x * cell.w, y: at * cell.h - T / 2, w: d.w * cell.w, h: T }
         : { x: at * cell.w - T / 2, y: d.y * cell.h, w: T, h: d.h * cell.h };
-      return { kind: 'dock', dock: dock.id, index, open: false, bar: clampBar(bar) };
+      return { kind: 'dock', dock, lane: lane.index, index, open: false, bar: clampBar(bar) };
+    };
+
+    // A new lane (ADR 0064) from a lane's cross-axis edge band: the left
+    // and right bands of a column, the upper and lower bands of a row.
+    // `undefined` when the pointer is not in a band or the game pane leaves
+    // no room for a new lane (the in-lane insert applies then).
+    const newLane = (dock: DockId, lane: LaneBox): DropTarget | null | undefined => {
+      const l = lane.rect;
+      const side = isSideDock(dock);
+      const cross = side ? l.w : l.h;
+      const depth = Math.max(1, Math.min(3, Math.floor(cross / 5)));
+      const pos = side ? cx - l.x : cy - l.y;
+      const low = pos < depth;
+      if (!low && pos < cross - depth) return undefined;
+      const room = side ? r.game.w - GAME_MIN_COLS : r.game.h - GAME_MIN_ROWS;
+      const size = Math.min(defaultDockSize(dock), room);
+      if (size < laneMin(dock)) return undefined;
+      // The low (left/upper) band faces the screen edge in the left/top dock.
+      const towardEdge = low === (dock === 'left' || dock === 'top');
+      const at = towardEdge ? lane.index : lane.index + 1;
+      if (isNoopNewLane(layout, id, dock, at)) return null;
+      const edge = side ? (low ? l.x : l.x + l.w) : low ? l.y : l.y + l.h;
+      const bar = side
+        ? { x: edge * cell.w - T / 2, y: l.y * cell.h, w: T, h: l.h * cell.h }
+        : { x: l.x * cell.w, y: edge * cell.h - T / 2, w: l.w * cell.w, h: T };
+      return { kind: 'lane', dock, at, size, bar: clampBar(bar) };
     };
 
     if (!isFloating) {
       for (const dock of Object.values(r.docks)) {
-        const d = dock.rect;
-        if (cx >= d.x && cx < d.x + d.w && cy >= d.y && cy < d.y + d.h) return insert(dock);
+        for (const lane of dock.lanes) {
+          const d = lane.rect;
+          if (!(cx >= d.x && cx < d.x + d.w && cy >= d.y && cy < d.y + d.h)) continue;
+          const t = newLane(dock.id, lane);
+          return t !== undefined ? t : insert(dock.id, lane);
+        }
       }
     }
 
-    // Screen-edge zones: a shown dock takes the pane at the pointer, a hidden
-    // one (not collapsed) opens at its default size.
+    // Screen-edge zones: a shown dock takes the pane into the lane at the
+    // screen edge, at the pointer; a hidden one (not collapsed) opens with
+    // one lane at its default size.
     const E = EDGE_CELLS;
     if (!isTemp && cy >= 0 && cy < H) {
       const inGameCol = cx >= r.game.x && cx < r.game.x + r.game.w;
@@ -1080,7 +1206,7 @@ export class Cockpit {
         : cy >= H - E && inGameCol ? 'bottom'
         : null;
       const shown = zone ? r.docks[zone] : undefined;
-      if (shown) return insert(shown);
+      if (shown) return insert(shown.id, shown.lanes[0]!);
       if (zone && !r.collapsed.includes(zone)) {
         const g = r.game;
         const bar: Record<DockId, Rect> = {
@@ -1089,7 +1215,8 @@ export class Cockpit {
           top: { x: g.x * cell.w, y: 0, w: g.w * cell.w, h: 2 * T },
           bottom: { x: g.x * cell.w, y: H * cell.h - 2 * T, w: g.w * cell.w, h: 2 * T },
         };
-        return { kind: 'dock', dock: zone, index: layout.docks[zone].panes.length, open: true, bar: bar[zone] };
+        const index = layout.docks[zone].lanes[0]?.panes.length ?? 0;
+        return { kind: 'dock', dock: zone, lane: 0, index, open: true, bar: bar[zone] };
       }
     }
 

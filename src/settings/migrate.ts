@@ -12,11 +12,14 @@
 import {
   DEFAULT_PANE_DESIRED,
   DOCK_IDS,
+  type DockLane,
   type DockPane,
   type LayoutModel,
   PANE_COLORS,
   PANE_IDS,
   type PaneId,
+  appendToDock,
+  defaultDockSize,
   defaultMapFloat,
   defaultPaneRows,
   isPaneId,
@@ -125,11 +128,13 @@ function migratePanes(raw: unknown): PaneSettingsMap {
 
 /**
  * A valid layout from anything: known dock ids only, sizes clamped, each
- * pane id at most once (docks first, then `floating`; first occurrence
- * wins), and any built-in pane missing from every dock and from `floating`
- * appended to the right dock with its default height (the map instead
+ * pane id at most once (docks first, lane by lane, then `floating`; first
+ * occurrence wins), empty lanes removed, and any built-in pane missing from
+ * every dock and from `floating` appended to lane 0 of the right dock (made
+ * at its default size if the dock is empty) with its default height (the map instead
  * floats at its default spot, `defaultMapFloat`). A dock missing from an
- * older layout (the top dock) comes back empty at its default size.
+ * older layout (the top dock) comes back empty. A dock of the shape before
+ * ADR 0064 (`{ size, panes }`) becomes one lane.
  * Script panes with a well-formed id keep their place (at most
  * MAX_SCRIPT_PANES); a missing one is placed again when its script creates
  * it (ADR 0053).
@@ -150,14 +155,21 @@ export function migrateLayout(raw: unknown): LayoutModel {
   const out = { docks: {}, floating: [] } as unknown as LayoutModel;
   for (const dock of DOCK_IDS) {
     const x = isObj(docksRaw[dock]) ? (docksRaw[dock] as Obj) : {};
-    const panes: DockPane[] = [];
-    for (const p of Array.isArray(x.panes) ? x.panes : []) {
-      if (!isObj(p)) continue;
-      const id = p.id;
-      if (!take(id)) continue;
-      panes.push({ id, desired: int(p.desired, 1, MAX_CELLS, defaultPaneRows(id)) });
+    // Before ADR 0064 a dock was one strip `{ size, panes }`: lane 0 now.
+    const lanesRaw: unknown[] = Array.isArray(x.lanes) ? x.lanes : [{ size: x.size, panes: x.panes }];
+    const lanes: DockLane[] = [];
+    for (const l of lanesRaw) {
+      if (!isObj(l)) continue;
+      const panes: DockPane[] = [];
+      for (const p of Array.isArray(l.panes) ? l.panes : []) {
+        if (!isObj(p)) continue;
+        const id = p.id;
+        if (!take(id)) continue;
+        panes.push({ id, desired: int(p.desired, 1, MAX_CELLS, defaultPaneRows(id)) });
+      }
+      if (panes.length > 0) lanes.push({ size: int(l.size, 1, MAX_CELLS, defaultDockSize(dock)), panes });
     }
-    out.docks[dock] = { size: int(x.size, 1, MAX_CELLS, d.docks[dock].size), panes };
+    out.docks[dock] = { lanes };
   }
   for (const f of isObj(raw) && Array.isArray(raw.floating) ? raw.floating : []) {
     if (!isObj(f)) continue;
@@ -178,7 +190,7 @@ export function migrateLayout(raw: unknown): LayoutModel {
   // user already floats.
   if (!seen.has('map')) out.floating.unshift(defaultMapFloat());
   for (const id of PANE_IDS) {
-    if (!seen.has(id) && id !== 'map') out.docks.right.panes.push({ id, desired: DEFAULT_PANE_DESIRED[id] });
+    if (!seen.has(id) && id !== 'map') appendToDock(out.docks, 'right', { id, desired: DEFAULT_PANE_DESIRED[id] });
   }
   return out;
 }

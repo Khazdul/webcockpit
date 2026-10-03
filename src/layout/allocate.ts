@@ -27,14 +27,29 @@
 //   line from the bottom dock. The input line sits directly under the game
 //   pane. Panes inside a dock touch (their frames separate them, as in
 //   Cockpit).
-// - Along a dock, panes get their `desired` content size if everything
+// - Each dock is a list of lanes (ADR 0064), from the screen edge inward:
+//   columns of a side dock, rows of the top/bottom dock. A side dock with
+//   two lanes (lane 0 at the screen edge):
+//
+//     +----------------+--+--------+--------+
+//     |      game      |g | lane 1 | lane 0 |
+//     |                |a | (inner)| (outer)|
+//
+//   Lanes in a dock touch (no gap). A lane takes part only if one of its
+//   panes is shown; a side dock is as wide as the sum of its shown lanes
+//   (each at least SIDE_DOCK_MIN), the top/bottom dock as high as the sum
+//   of its lanes (each at least its dock minimum).
+// - Along a lane (as along a whole dock before lanes), panes get their `desired` content size if everything
 //   fits, the leftover going to the highest-priority pane; otherwise
 //   Character is reserved first and the rest scale between minimum and
 //   desired; if even the minimums do not fit, panes are dropped in order
 //   (`allocateAxis`). A framed pane adds two cells on each axis.
-// - Narrow collapse: a side dock is hidden when the game pane would get
-//   fewer than GAME_MIN_COLS columns. The model is untouched, so the dock
-//   comes back as soon as the window is wide enough again.
+// - Narrow collapse: a side dock (all its lanes) is hidden when the game
+//   pane would get fewer than GAME_MIN_COLS columns. The model is
+//   untouched, so the dock comes back as soon as the window is wide enough
+//   again. A top/bottom dock that must shrink takes rows from its inner
+//   lanes first, each down to its minimum, and collapses when its lanes
+//   cannot all get their minimum.
 // - Floating panes (ADR 0014) lie over everything else (the game pane, the
 //   input line and the docks) and do not change the docked allocation.
 //   Each is clamped into the window (shrunk if the window is smaller than
@@ -52,6 +67,7 @@ import {
   type LayoutModel,
   type PaneId,
   defaultPaneRows,
+  dockPanes,
   isBuiltinPaneId,
 } from './types';
 
@@ -69,6 +85,11 @@ export const DOCK_GAP = 1;
 export const SIDE_DOCK_MIN = 10;
 export const BOTTOM_DOCK_MIN = 3;
 export const TOP_DOCK_MIN = 3;
+
+/** Smallest lane of `dock` (ADR 0064): SIDE_DOCK_MIN, TOP_DOCK_MIN or BOTTOM_DOCK_MIN. */
+export function laneMin(dock: DockId): number {
+  return dock === 'top' ? TOP_DOCK_MIN : dock === 'bottom' ? BOTTOM_DOCK_MIN : SIDE_DOCK_MIN;
+}
 /** Rows of the input line. */
 export const INPUT_ROWS = 1;
 
@@ -315,7 +336,9 @@ export interface PaneBox {
   id: PaneId;
   /** The dock, or `float` for a floating pane. */
   dock: DockId | 'float';
-  /** Index of the pane in the dock's model list (or in `floating`: its z-order). */
+  /** Index of the lane in the dock's model `lanes` (0 for a floating pane). */
+  lane: number;
+  /** Index of the pane in the lane's model list (or in `floating`: its z-order). */
   index: number;
   /** Outer rectangle (frame included). */
   rect: Rect;
@@ -324,13 +347,27 @@ export interface PaneBox {
   framed: boolean;
 }
 
-export interface DockBox {
-  id: DockId;
+/** A shown lane of a dock (ADR 0064). */
+export interface LaneBox {
+  /** Index of the lane in the dock's model `lanes`. */
+  index: number;
   rect: Rect;
   /** Shown panes in order. */
   panes: PaneId[];
   /** `fit` or `scaled` (see AxisResult). */
   mode: 'fit' | 'scaled';
+}
+
+export interface DockBox {
+  id: DockId;
+  /** The whole dock: its shown lanes side by side. */
+  rect: Rect;
+  /** Shown panes in order, lane by lane. */
+  panes: PaneId[];
+  /** `scaled` if any lane is (see AxisResult). */
+  mode: 'fit' | 'scaled';
+  /** Shown lanes in model order (from the screen edge inward). */
+  lanes: LaneBox[];
 }
 
 export interface LayoutResult {
@@ -345,8 +382,9 @@ export interface LayoutResult {
   /** Docks with panes switched on that are hidden for lack of space. */
   collapsed: DockId[];
   /**
-   * Shown panes, dock by dock (left, right, top, bottom), in stack order,
-   * then the floating panes bottom to top.
+   * Shown panes, dock by dock (left, right, top, bottom), lane by lane from
+   * the screen edge inward, in stack order, then the floating panes bottom
+   * to top.
    */
   panes: PaneBox[];
   /** Panes switched on but not shown: dropped by allocation or in a collapsed dock. */
@@ -364,12 +402,40 @@ function shownToggle(input: AllocateInput, id: PaneId): PaneToggle | null {
   return t?.on ? t : null;
 }
 
-function axisItems(input: AllocateInput, dock: DockId): AxisItem[] {
-  const out: AxisItem[] = [];
-  for (const p of input.layout.docks[dock].panes) {
-    const t = shownToggle(input, p.id);
-    if (!t) continue;
-    out.push({ id: p.id, desired: p.desired, min: minContent(p.id, dock), frame: t.border ? FRAME_CELLS : 0 });
+/** A lane that takes part in allocation: at least one pane shown (ADR 0064). */
+interface LaneItems {
+  /** Index in the dock's model `lanes`. */
+  index: number;
+  /** Wanted size across the dock's axis (at least the lane minimum). */
+  size: number;
+  items: AxisItem[];
+}
+
+function laneItems(input: AllocateInput, dock: DockId): LaneItems[] {
+  const out: LaneItems[] = [];
+  input.layout.docks[dock].lanes.forEach((lane, index) => {
+    const items: AxisItem[] = [];
+    for (const p of lane.panes) {
+      const t = shownToggle(input, p.id);
+      if (!t) continue;
+      items.push({ id: p.id, desired: p.desired, min: minContent(p.id, dock), frame: t.border ? FRAME_CELLS : 0 });
+    }
+    if (items.length > 0) out.push({ index, size: Math.max(laneMin(dock), lane.size), items });
+  });
+  return out;
+}
+
+/**
+ * Shrinks `sizes` (lane sizes from the screen edge inward) to `total`
+ * cells: the inner lanes give up cells first, each down to `min`.
+ */
+function shrinkLanes(sizes: number[], total: number, min: number): number[] {
+  const out = [...sizes];
+  let excess = sum(out) - total;
+  for (let k = out.length - 1; k >= 0 && excess > 0; k--) {
+    const give = Math.min(excess, out[k]! - min);
+    out[k] = out[k]! - give;
+    excess -= give;
   }
   return out;
 }
@@ -392,23 +458,24 @@ export function allocate(input: AllocateInput): LayoutResult {
   if (cols < MIN_VIEW_COLS || rows < MIN_VIEW_ROWS) {
     res.tooSmall = true;
     res.game = { x: 0, y: 0, w: cols, h: Math.max(0, rows - INPUT_ROWS) };
-    const all = [...Object.values(input.layout.docks).flatMap((d) => d.panes), ...input.layout.floating];
+    const all = [...Object.values(input.layout.docks).flatMap(dockPanes), ...input.layout.floating];
     res.hidden = all.map((p) => p.id).filter((id) => shownToggle(input, id) !== null);
     return res;
   }
 
-  const items: Record<DockId, AxisItem[]> = {
-    left: axisItems(input, 'left'),
-    right: axisItems(input, 'right'),
-    top: axisItems(input, 'top'),
-    bottom: axisItems(input, 'bottom'),
+  const lanes: Record<DockId, LaneItems[]> = {
+    left: laneItems(input, 'left'),
+    right: laneItems(input, 'right'),
+    top: laneItems(input, 'top'),
+    bottom: laneItems(input, 'bottom'),
   };
-  const sideW = (d: DockId): number => Math.max(SIDE_DOCK_MIN, input.layout.docks[d].size);
-  const need = (d: DockId, on: boolean): number => (on && items[d].length > 0 ? sideW(d) + DOCK_GAP : 0);
+  const ids = (d: DockId): PaneId[] => lanes[d].flatMap((l) => l.items.map((i) => i.id));
+  const want = (d: DockId): number => sum(lanes[d].map((l) => l.size));
+  const need = (d: DockId, on: boolean): number => (on && lanes[d].length > 0 ? want(d) + DOCK_GAP : 0);
 
   // Narrow collapse: keep both, else the right, else the left, else none.
-  let showL = items.left.length > 0;
-  let showR = items.right.length > 0;
+  let showL = lanes.left.length > 0;
+  let showR = lanes.right.length > 0;
   const fits = (l: boolean, r: boolean): boolean => cols - need('left', l) - need('right', r) >= GAME_MIN_COLS;
   if (!fits(showL, showR)) {
     if (showR && fits(false, true)) showL = false;
@@ -416,42 +483,43 @@ export function allocate(input: AllocateInput): LayoutResult {
     else showL = showR = false;
   }
   for (const [d, shown] of [['left', showL], ['right', showR]] as const) {
-    if (!shown && items[d].length > 0) {
+    if (!shown && lanes[d].length > 0) {
       res.collapsed.push(d);
-      res.hidden.push(...items[d].map((i) => i.id));
+      res.hidden.push(...ids(d));
     }
   }
 
-  const leftW = showL ? sideW('left') : 0;
-  const rightW = showR ? sideW('right') : 0;
+  const leftW = showL ? want('left') : 0;
+  const rightW = showR ? want('right') : 0;
   const gx = showL ? leftW + DOCK_GAP : 0;
   const gw = cols - gx - (showR ? rightW + DOCK_GAP : 0);
 
   // Top and bottom docks: they shrink to keep the game pane GAME_MIN_ROWS
   // high above the input row, which is never dropped. The bottom dock is
   // sized first; if that leaves the top dock less than its minimum, the
-  // bottom dock gives up rows down to its own minimum. A dock that still
-  // gets less than its minimum is collapsed.
+  // bottom dock gives up rows down to its own minimum. A dock's minimum is
+  // its lane minimum times its shown lanes; a dock that still gets less is
+  // collapsed. A shrunk dock takes the rows from its inner lanes first.
   const avail = rows - INPUT_ROWS - GAME_MIN_ROWS;
-  const size = (d: DockId): number => input.layout.docks[d].size;
-  let bottomH = items.bottom.length > 0 ? Math.min(size('bottom'), avail - DOCK_GAP) : 0;
-  if (bottomH < BOTTOM_DOCK_MIN) bottomH = 0;
+  const minOf = (d: DockId): number => lanes[d].length * laneMin(d);
+  let bottomH = lanes.bottom.length > 0 ? Math.min(want('bottom'), avail - DOCK_GAP) : 0;
+  if (bottomH < minOf('bottom')) bottomH = 0;
   let topH = 0;
-  if (items.top.length > 0) {
-    topH = Math.min(size('top'), avail - DOCK_GAP - (bottomH > 0 ? bottomH + DOCK_GAP : 0));
-    if (topH < TOP_DOCK_MIN && bottomH > 0) {
-      const b = avail - 2 * DOCK_GAP - TOP_DOCK_MIN;
-      if (b >= BOTTOM_DOCK_MIN && size('top') >= TOP_DOCK_MIN) {
+  if (lanes.top.length > 0) {
+    topH = Math.min(want('top'), avail - DOCK_GAP - (bottomH > 0 ? bottomH + DOCK_GAP : 0));
+    if (topH < minOf('top') && bottomH > 0) {
+      const b = avail - 2 * DOCK_GAP - minOf('top');
+      if (b >= minOf('bottom')) {
         bottomH = Math.min(bottomH, b);
-        topH = Math.min(size('top'), avail - 2 * DOCK_GAP - bottomH);
+        topH = Math.min(want('top'), avail - 2 * DOCK_GAP - bottomH);
       }
     }
-    if (topH < TOP_DOCK_MIN) topH = 0;
+    if (topH < minOf('top')) topH = 0;
   }
   for (const [d, h] of [['top', topH], ['bottom', bottomH]] as const) {
-    if (h === 0 && items[d].length > 0) {
+    if (h === 0 && lanes[d].length > 0) {
       res.collapsed.push(d);
-      res.hidden.push(...items[d].map((i) => i.id));
+      res.hidden.push(...ids(d));
     }
   }
   const gy = topH > 0 ? topH + DOCK_GAP : 0;
@@ -459,27 +527,45 @@ export function allocate(input: AllocateInput): LayoutResult {
   res.game = { x: gx, y: gy, w: gw, h: rows - gy - INPUT_ROWS - below };
   res.input = { x: gx, y: rows - below - INPUT_ROWS, w: gw, h: INPUT_ROWS };
 
+  // A dock's lanes from its screen edge inward; each lane is split along
+  // its length like a whole dock was before (allocateAxis).
   const place = (dock: DockId, rect: Rect): void => {
     const side = isSideDock(dock);
-    const ax = allocateAxis(items[dock], side ? rect.h : rect.w);
-    res.hidden.push(...ax.dropped);
-    if (ax.mode === 'empty') return;
-    res.docks[dock] = { id: dock, rect, panes: ax.sizes.map((s) => s.id), mode: ax.mode };
-    const model = input.layout.docks[dock].panes;
-    let at = side ? rect.y : rect.x;
-    for (const { id, size } of ax.sizes) {
-      const framed = shownToggle(input, id)!.border;
-      const f = framed ? FRAME_CELLS : 0;
-      const len = size + f;
-      const r: Rect = side
-        ? { x: rect.x, y: at, w: rect.w, h: len }
-        : { x: at, y: rect.y, w: len, h: rect.h };
-      const c: Rect = framed
-        ? { x: r.x + 1, y: r.y + 1, w: Math.max(0, r.w - 2), h: Math.max(0, r.h - 2) }
-        : { ...r };
-      res.panes.push({ id, dock, index: model.findIndex((p) => p.id === id), rect: r, content: c, framed });
-      at += len;
-    }
+    const cross = side ? rect.w : rect.h;
+    const sizes = shrinkLanes(lanes[dock].map((l) => l.size), cross, laneMin(dock));
+    const box: DockBox = { id: dock, rect, panes: [], mode: 'fit', lanes: [] };
+    let off = 0;
+    lanes[dock].forEach((lane, k) => {
+      const w = sizes[k]!;
+      const lr: Rect =
+        dock === 'left' ? { x: rect.x + off, y: rect.y, w, h: rect.h }
+        : dock === 'right' ? { x: rect.x + rect.w - off - w, y: rect.y, w, h: rect.h }
+        : dock === 'top' ? { x: rect.x, y: rect.y + off, w: rect.w, h: w }
+        : { x: rect.x, y: rect.y + rect.h - off - w, w: rect.w, h: w };
+      off += w;
+      const ax = allocateAxis(lane.items, side ? lr.h : lr.w);
+      res.hidden.push(...ax.dropped);
+      if (ax.mode === 'empty') return;
+      const shown = ax.sizes.map((s) => s.id);
+      box.lanes.push({ index: lane.index, rect: lr, panes: shown, mode: ax.mode });
+      box.panes.push(...shown);
+      if (ax.mode === 'scaled') box.mode = 'scaled';
+      const model = input.layout.docks[dock].lanes[lane.index]!.panes;
+      let at = side ? lr.y : lr.x;
+      for (const { id, size } of ax.sizes) {
+        const framed = shownToggle(input, id)!.border;
+        const f = framed ? FRAME_CELLS : 0;
+        const len = size + f;
+        const r: Rect = side ? { x: lr.x, y: at, w: lr.w, h: len } : { x: at, y: lr.y, w: len, h: lr.h };
+        const c: Rect = framed
+          ? { x: r.x + 1, y: r.y + 1, w: Math.max(0, r.w - 2), h: Math.max(0, r.h - 2) }
+          : { ...r };
+        const index = model.findIndex((p) => p.id === id);
+        res.panes.push({ id, dock, lane: lane.index, index, rect: r, content: c, framed });
+        at += len;
+      }
+    });
+    if (box.lanes.length > 0) res.docks[dock] = box;
   };
   if (showL) place('left', { x: 0, y: 0, w: leftW, h: rows });
   if (showR) place('right', { x: cols - rightW, y: 0, w: rightW, h: rows });
@@ -496,7 +582,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     const want = !f.auto ? f : isBuiltinPaneId(f.id) ? autoFloatRect(res.game, cols, rows) : scriptAutoFloatRect(res.game, f, mapAuto);
     const r = clampFloat(want, floatMin(f.id, framed), cols, rows);
     const c: Rect = framed ? { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 } : { ...r };
-    res.panes.push({ id: f.id, dock: 'float', index, rect: r, content: c, framed });
+    res.panes.push({ id: f.id, dock: 'float', lane: 0, index, rect: r, content: c, framed });
   });
   return res;
 }

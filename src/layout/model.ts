@@ -3,21 +3,32 @@
 // so the result can go straight into `settings.update`.
 
 import { type PaneSettings, type PaneSettingsMap, paneSettingsOf } from '../settings/types';
-import { DEFAULT_BOTTOM_DESIRED, FRAME_CELLS, type Rect, isSideDock, minContent } from './allocate';
+import { DEFAULT_BOTTOM_DESIRED, FRAME_CELLS, type Rect, isSideDock, laneMin, minContent } from './allocate';
 import {
   DOCK_IDS,
   type DockId,
+  type DockLane,
   type DockPane,
   type FloatPane,
   type LayoutModel,
   type PaneId,
+  appendToDock,
+  defaultDockSize,
   defaultPaneRows,
 } from './types';
 
 function copy(m: LayoutModel): LayoutModel {
   const docks = {} as LayoutModel['docks'];
-  for (const d of DOCK_IDS) docks[d] = { size: m.docks[d].size, panes: m.docks[d].panes.map((p) => ({ ...p })) };
+  for (const d of DOCK_IDS) {
+    docks[d] = { lanes: m.docks[d].lanes.map((l) => ({ size: l.size, panes: l.panes.map((p) => ({ ...p })) })) };
+  }
   return { docks, floating: m.floating.map((f) => ({ ...f })) };
+}
+
+/** Removes the empty lanes of every dock (mutates a copy; ADR 0064 invariant). */
+function prune(m: LayoutModel): LayoutModel {
+  for (const d of DOCK_IDS) m.docks[d].lanes = m.docks[d].lanes.filter((l) => l.panes.length > 0);
+  return m;
 }
 
 /** Index of `id` in `floating` (its z-order), or -1 when it is docked. */
@@ -25,11 +36,14 @@ export function findFloat(m: LayoutModel, id: PaneId): number {
   return m.floating.findIndex((f) => f.id === id);
 }
 
-/** The dock that holds `id` and its index there, or null (also when it floats). */
-export function findPane(m: LayoutModel, id: PaneId): { dock: DockId; index: number } | null {
+/** The dock, lane and index in the lane that hold `id`, or null (also when it floats). */
+export function findPane(m: LayoutModel, id: PaneId): { dock: DockId; lane: number; index: number } | null {
   for (const dock of DOCK_IDS) {
-    const index = m.docks[dock].panes.findIndex((p) => p.id === id);
-    if (index >= 0) return { dock, index };
+    const lanes = m.docks[dock].lanes;
+    for (let lane = 0; lane < lanes.length; lane++) {
+      const index = lanes[lane]!.panes.findIndex((p) => p.id === id);
+      if (index >= 0) return { dock, lane, index };
+    }
   }
   return null;
 }
@@ -40,39 +54,84 @@ export function defaultDesired(id: PaneId, dock: DockId): number {
 }
 
 /**
- * Moves `id` to `dock` before the pane now at `index` (an index into the
- * target dock's list *including* the moving pane when it is the same dock;
- * `index` = list length appends). Reordering is a move within a dock.
- * `desired` is kept when the axis stays the same (left ↔ right, top ↔
- * bottom) and reset to the default for the new axis otherwise. A floating
- * pane is docked with the default for the dock's axis.
+ * Takes `id` out of the copy `out` (a dock lane or `floating`) and returns
+ * its dock entry: the old one when it was docked (`desired` reset when the
+ * axis changes for `dock`), a fresh one for a floating pane. The lane it
+ * leaves may be empty now; the caller prunes.
  */
-export function movePane(m: LayoutModel, id: PaneId, dock: DockId, index: number): LayoutModel {
-  const from = findPane(m, id);
-  if (!from) {
-    const fi = findFloat(m, id);
-    if (fi < 0) return m;
-    const out = copy(m);
-    out.floating.splice(fi, 1);
-    const list = out.docks[dock].panes;
-    list.splice(Math.max(0, Math.min(index, list.length)), 0, { id, desired: defaultDesired(id, dock) });
-    return out;
+function take(out: LayoutModel, id: PaneId, dock: DockId): DockPane | null {
+  const from = findPane(out, id);
+  if (from) {
+    const [entry] = out.docks[from.dock].lanes[from.lane]!.panes.splice(from.index, 1) as [DockPane];
+    if (isSideDock(from.dock) !== isSideDock(dock)) entry.desired = defaultDesired(id, dock);
+    return entry;
   }
-  const out = copy(m);
-  const src = out.docks[from.dock].panes;
-  const [entry] = src.splice(from.index, 1) as [DockPane];
-  let at = Math.max(0, Math.min(index, out.docks[dock].panes.length + (from.dock === dock ? 1 : 0)));
-  if (from.dock === dock && at > from.index) at--;
-  if (isSideDock(from.dock) !== isSideDock(dock)) entry.desired = defaultDesired(id, dock);
-  out.docks[dock].panes.splice(at, 0, entry);
-  return out;
+  const fi = findFloat(out, id);
+  if (fi < 0) return null;
+  out.floating.splice(fi, 1);
+  return { id, desired: defaultDesired(id, dock) };
 }
 
-/** True when `movePane(m, id, dock, index)` would change nothing. */
-export function isNoopMove(m: LayoutModel, id: PaneId, dock: DockId, index: number): boolean {
+/**
+ * Moves `id` to lane `lane` of `dock` before the pane now at `index` (an
+ * index into the target lane's list *including* the moving pane when it is
+ * the same lane; `index` = list length appends). Reordering is a move
+ * within a lane. `lane` is clamped to the dock's lanes; a dock without
+ * lanes gets one at its default size. `desired` is kept when the axis
+ * stays the same (any lane of left/right, any lane of top/bottom) and reset
+ * to the default for the new axis otherwise; a floating pane is docked with
+ * the default for the dock's axis. A lane the pane leaves empty is removed.
+ */
+export function movePane(m: LayoutModel, id: PaneId, dock: DockId, lane: number, index: number): LayoutModel {
+  const from = findPane(m, id);
+  if (!from && findFloat(m, id) < 0) return m;
+  if (isNoopMove(m, id, dock, lane, index)) return m;
+  const out = copy(m);
+  const lanes = out.docks[dock].lanes;
+  if (lanes.length === 0) lanes.push({ size: defaultDockSize(dock), panes: [] });
+  const li = Math.max(0, Math.min(lanes.length - 1, lane));
+  const target = lanes[li]!;
+  const same = from !== null && from.dock === dock && from.lane === li;
+  let at = Math.max(0, Math.min(index, target.panes.length));
+  if (same && at > from.index) at--;
+  const entry = take(out, id, dock)!;
+  target.panes.splice(at, 0, entry);
+  return prune(out);
+}
+
+/** True when `movePane(m, id, dock, lane, index)` would change nothing. */
+export function isNoopMove(m: LayoutModel, id: PaneId, dock: DockId, lane: number, index: number): boolean {
   const from = findPane(m, id);
   if (!from) return findFloat(m, id) < 0;
-  return from.dock === dock && (index === from.index || index === from.index + 1);
+  const n = m.docks[dock].lanes.length;
+  const li = Math.max(0, Math.min(n - 1, lane));
+  return from.dock === dock && from.lane === li && (index === from.index || index === from.index + 1);
+}
+
+/**
+ * Moves `id` into a new lane of `dock` inserted at lane position `at`
+ * (0 = at the screen edge, the dock's lane count = innermost), `size`
+ * cells wide (left/right) or high (top/bottom), at least 1. `desired`
+ * follows the axis rule of `movePane`. A lane the pane leaves empty is
+ * removed. A no-op (`m` returned) when the pane is alone in its lane and
+ * the new lane would sit right beside it.
+ */
+export function moveToNewLane(m: LayoutModel, id: PaneId, dock: DockId, at: number, size: number): LayoutModel {
+  if (isNoopNewLane(m, id, dock, at)) return m;
+  const out = copy(m);
+  const lanes = out.docks[dock].lanes;
+  const lane: DockLane = { size: Math.max(1, Math.round(size)), panes: [] };
+  lanes.splice(Math.max(0, Math.min(lanes.length, at)), 0, lane);
+  lane.panes.push(take(out, id, dock)!);
+  return prune(out);
+}
+
+/** True when `moveToNewLane(m, id, dock, at, size)` would change nothing. */
+export function isNoopNewLane(m: LayoutModel, id: PaneId, dock: DockId, at: number): boolean {
+  const from = findPane(m, id);
+  if (!from) return findFloat(m, id) < 0;
+  const alone = m.docks[from.dock].lanes[from.lane]!.panes.length === 1;
+  return alone && from.dock === dock && (at === from.lane || at === from.lane + 1);
 }
 
 /** A whole-cell rectangle with a size of at least 1 × 1 and no negative origin. */
@@ -94,10 +153,10 @@ export function floatPane(m: LayoutModel, id: PaneId, rect: Rect): LayoutModel {
   const fi = findFloat(m, id);
   if (!from && fi < 0) return m;
   const out = copy(m);
-  if (from) out.docks[from.dock].panes.splice(from.index, 1);
+  if (from) out.docks[from.dock].lanes[from.lane]!.panes.splice(from.index, 1);
   else out.floating.splice(fi, 1);
   out.floating.push({ id, ...cells(rect) });
-  return out;
+  return prune(out);
 }
 
 /** Sets a floating pane's rectangle, keeping its z-order (no-op when docked or unchanged). */
@@ -156,12 +215,41 @@ export function resizeRect(
   return { x, y, w, h };
 }
 
-/** Sets a dock's width (left/right) or height (top/bottom) in cells (≥ 1). */
-export function setDockSize(m: LayoutModel, dock: DockId, size: number): LayoutModel {
+/** Sets the width (left/right) or height (top/bottom) of lane `lane` of `dock` in cells (≥ 1). */
+export function setLaneSize(m: LayoutModel, dock: DockId, lane: number, size: number): LayoutModel {
+  const l = m.docks[dock].lanes[lane];
   const s = Math.max(1, Math.round(size));
-  if (m.docks[dock].size === s) return m;
+  if (!l || l.size === s) return m;
   const out = copy(m);
-  out.docks[dock].size = s;
+  out.docks[dock].lanes[lane]!.size = s;
+  return out;
+}
+
+/**
+ * Moves the boundary between two shown lanes of `dock` by `delta` cells
+ * (positive: lane `a` grows, `b` shrinks; ADR 0064). `a.size` and
+ * `b.size` are their current shown sizes; both stay at or above the lane
+ * minimum and their sum stays constant, so the game pane keeps its size.
+ * Both lanes are written with the result.
+ */
+export function shiftLanes(
+  m: LayoutModel,
+  dock: DockId,
+  a: { lane: number; size: number },
+  b: { lane: number; size: number },
+  delta: number,
+): LayoutModel {
+  const lanes = m.docks[dock].lanes;
+  if (!lanes[a.lane] || !lanes[b.lane] || a.lane === b.lane) return m;
+  const min = laneMin(dock);
+  const total = a.size + b.size;
+  const na = Math.max(min, Math.min(total - min, a.size + Math.round(delta)));
+  const nb = total - na;
+  if (na < min || nb < min) return m;
+  if (lanes[a.lane]!.size === na && lanes[b.lane]!.size === nb) return m;
+  const out = copy(m);
+  out.docks[dock].lanes[a.lane]!.size = na;
+  out.docks[dock].lanes[b.lane]!.size = nb;
   return out;
 }
 
@@ -175,7 +263,7 @@ export function setDesired(m: LayoutModel, sizes: Partial<Record<PaneId, number>
   for (const [id, v] of Object.entries(sizes) as [PaneId, number][]) {
     const at = findPane(out, id);
     if (!at) continue;
-    const p = out.docks[at.dock].panes[at.index]!;
+    const p = out.docks[at.dock].lanes[at.lane]!.panes[at.index]!;
     const d = Math.max(minContent(id, at.dock), Math.round(v));
     if (p.desired !== d) {
       p.desired = d;
@@ -229,7 +317,8 @@ export interface ScriptPanePlace {
 
 /**
  * `m` with script pane `id` placed per `place` when it has no place yet
- * (first creation): at the end of the dock with `rows` (left/right) or
+ * (first creation): at the end of lane 0 of the dock (created at the
+ * dock's default size when the dock is empty, ADR 0064) with `rows` (left/right) or
  * `cols` (top/bottom) as its desired size, or as an `auto` float of
  * `rows` × `cols` content cells. Returns `m` when `id` is already placed.
  */
@@ -244,6 +333,6 @@ export function placeScriptPane(m: LayoutModel, id: PaneId, place: ScriptPanePla
     return out;
   }
   const desired = isSideDock(place.dock) ? rows : cols;
-  out.docks[place.dock].panes.push({ id, desired: Math.max(minContent(id, place.dock), desired) });
+  appendToDock(out.docks, place.dock, { id, desired: Math.max(minContent(id, place.dock), desired) });
   return out;
 }
