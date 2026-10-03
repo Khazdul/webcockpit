@@ -18,12 +18,12 @@ rows top/bottom). Design: ADR 0064.
 
 ## Tasks
 
-- [ ] Model and migration
-- [ ] Allocation
-- [ ] View: drop targets and handles
-- [ ] Consumers updated
-- [ ] Unit tests
-- [ ] E2E tests (Chromium + Firefox)
+- [x] Model and migration
+- [x] Allocation
+- [x] View: drop targets and handles
+- [x] Consumers updated
+- [x] Unit tests
+- [x] E2E tests (Chromium + Firefox)
 - [ ] Release
 
 ## Test guide

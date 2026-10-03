@@ -98,3 +98,37 @@ rows in the top and bottom docks. Until now a dock was one strip of panes
   docked column; dragging the last pane out of a lane removes the lane and
   gives its space back to the game pane.
 - "Reset layout" still returns to the default: one lane in the right dock.
+
+## Implementation notes (2026-10-03)
+
+- **Model API** (`src/layout/model.ts`): `movePane(m, id, dock, lane,
+  index)` (lane clamped to the dock's lanes; an empty dock gets lane 0 at
+  its default size), `moveToNewLane(m, id, dock, at, size)` (a new lane
+  inserted at lane position `at`), `isNoopMove` / `isNoopNewLane`,
+  `setLaneSize(m, dock, lane, size)` (replaces `setDockSize`) and
+  `shiftLanes(m, dock, a, b, delta)` (both lanes written with their new
+  shown sizes, sum constant). All return the input unchanged when nothing
+  changes. `dockPanes` and `appendToDock` live in `src/layout/types.ts`.
+- **View types**: `DockBox.lanes` entries are `LaneBox { index, rect,
+  panes, mode }`; `index` is the model lane index (needed because lanes
+  with only hidden panes are not shown). `DropTarget` gains a kind
+  `lane` (`{ dock, at, size, bar }`) next to `dock` (which now carries
+  `lane`).
+- **Lane boundary handle — deviation**: the handle sits on the left
+  (upper) lane's last column (row), right (lower) 40 %, exactly like the
+  pane boundaries, instead of always on the outer lane. For the left and
+  top docks that is the outer lane, as decided; for the right and bottom
+  docks it is the inner lane. In the bottom dock the outer lane's inner
+  row is its panes' title row, which is the drag grip, so a handle there
+  would steal the grip.
+- **No-op band**: over the band beside a one-pane lane's own position the
+  target is "none" (no bar), not a fallback to the in-lane insert.
+- **New-lane room** is measured on the current game pane; the space the
+  moving pane's own lane would free is not counted.
+- **Hidden dock with lanes**: a dock whose lanes hold only hidden panes is
+  "not shown"; its screen-edge zone appends to lane 0 and sets lane 0 to
+  the default size (the old "open" behaviour).
+- **Sizes below the minimum** count as the lane minimum in allocation, so
+  a top/bottom lane stored below 3 rows is shown at 3 instead of
+  collapsing the dock. An old empty dock `{ size, panes: [] }` migrates to
+  `{ lanes: [] }`, so its stored size is not kept.
