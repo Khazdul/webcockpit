@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 11–12 done, not released yet (latest release 0.1.27; 0.1.28 when the owner says so). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 11–12 done, not released yet (latest release 0.1.33). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -25,7 +25,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Themes for the dark backgrounds
+### 2026-10-03 — Themes for the dark backgrounds, release 0.1.33
 
 - **Owner request:** tune the palette for every non-black background as
   for paper. Owner chose: a distinct theme per background, ≥ 4.5:1,
@@ -40,8 +40,11 @@ Newest first.
   around the flash row dropped so it fits at 800 px.
 - **Font colours:** named presets sage, silver, mist, wheat, lavender,
   frost, ink (ash/stone/shadow removed); themes use them. ADR 0062.
-- **Next:** owner tests the backgrounds; release when the owner says so.
-- **Commits:** d1904e8, a8f4484, cbb45e7, 9cec3d2, 7ed81a4, plus this one.
+- **Released:** 0.1.33 (tag v0.1.33), build:pages smoke green, Pages
+  deploy green, live release.json shows 0.1.33.
+- **Next:** owner feedback on the themes.
+- **Commits:** d1904e8, a8f4484, cbb45e7, 9cec3d2, 7ed81a4, 6fa713c,
+  0a4f8fb, plus this one.
 
 ### 2026-10-03 — Appearance option "Bold brightens colours", release 0.1.32
 
