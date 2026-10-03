@@ -121,6 +121,21 @@ export function lighten(hex: string, amount = BORDER_LIFT): string {
   return rgbToHex({ r: r + amount, g: g + amount, b: b + amount });
 }
 
+/** HSL lightness a `lighten` hover adds to a link's colours (ADR 0065 round 2). */
+export const HOVER_LIFT = 8;
+
+/**
+ * `hex` a step lighter for a hovered link (ADR 0065 round 2): HSL L +
+ * `amount` (capped at 100), hue and saturation kept, so dark and light
+ * colours both lift by the same visible step. Not a hex colour: as is.
+ */
+export function hoverLift(hex: string, amount = HOVER_LIFT): string {
+  const n = normalizeHex(hex);
+  if (!n) return hex;
+  const { h, s, l } = hexToHsl(n);
+  return hslToHex(h, s, Math.min(100, l + amount));
+}
+
 // ------------------------------------------------------------------ panes
 
 /** The pane's own effective background: its fill, or the terminal bg for None. */

@@ -960,6 +960,42 @@ describe('pane:setGrip (ADR 0065 round 1)', () => {
   });
 });
 
+describe('link hover styles (ADR 0065 round 2)', () => {
+  it('pane:setHover sets the pane default, setLink and cechoLink take {hover = …}, bad styles are errors', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        h: src(`
+          local pane = createPane{id = "p"}
+          pane:setLine(1, "[a] [b] [c]")
+          pane:setLink(1, 1, 3, function() end, "a")
+          pane:setLink(1, 5, 3, function() end, "b", {hover = "none"})
+          pane:setLink(1, 9, 3, nil, "c", {})
+          pane:cechoLink("[d]", function() end, "d", {hover = "band"})
+          pane:setHover("lighten")
+          send(select(2, pcall(pane.setHover, pane, "glow")))
+          send(select(2, pcall(pane.setLink, pane, 2, 1, 1, function() end, "x", {hover = "bright"})))
+          send(select(2, pcall(pane.cechoLink, pane, "x", function() end, "x", {hover = 1})))
+          send(select(2, pcall(pane.setLink, pane, 2, 1, 1, function() end, "x", {1})))
+          tempAlias("^band$", function() pane:setHover(nil) end)
+        `),
+      },
+      { panes },
+    );
+    const c = panes.get('h/p')!.content;
+    expect(c.hover).toBe('lighten');
+    expect(c.links.map((l) => c.hoverOf(l))).toEqual(['lighten', 'none', 'lighten', 'band']);
+    expect(t.sent[0]).toMatch(/bad argument #2 to 'pane:setHover' \(hover must be one of "band", "lighten", "none"\)/);
+    expect(t.sent[1]).toMatch(/bad argument #7 to 'pane:setLink' \(hover must be one of/);
+    expect(t.sent[2]).toMatch(/bad argument #5 to 'pane:cechoLink' \(hover must be one of/);
+    expect(t.sent[3]).toMatch(/bad argument #7 to 'pane:setLink' \(a table of options expected\)/);
+    // The failed calls added no link.
+    expect(c.links).toHaveLength(4);
+    t.engine.input('band');
+    expect(c.hover).toBe('band');
+  });
+});
+
 describe('pane anchor (ADR 0053 addendum)', () => {
   it('createPane takes anchor top or bottom (default) and at for a temporary pane, and refuses others', async () => {
     const panes = new FakeSurface();

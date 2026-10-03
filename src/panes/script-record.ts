@@ -17,6 +17,9 @@
 // A row in `set` is a whole line, or `{"v"?: value, "l"?: label}` for a
 // gauge that only changed its value or label (the common countdown).
 //
+// A link may carry `hover: "lighten" | "none"` (ADR 0065 round 2), its
+// effective hover style; absent is the band.
+//
 // `anchor: "top"` (ADR 0053 addendum) marks a pane whose view sticks to
 // its first line; it never changes, so it is in full records only and a
 // delta keeps the pane's.
@@ -265,6 +268,7 @@ function sanitizeLinks(links: unknown[], rows: number): PaneSnapshot['links'] {
       len: Math.min(MAX_LINE_CELLS - col, Math.floor(len)),
       hint: typeof l.hint === 'string' ? l.hint.slice(0, MAX_HINT) : '',
       ...(l.tip === true ? { tip: true } : {}),
+      ...(l.hover === 'lighten' || l.hover === 'none' ? { hover: l.hover } : {}),
     });
   }
   return out;

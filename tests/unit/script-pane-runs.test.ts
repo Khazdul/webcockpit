@@ -133,6 +133,17 @@ describe('SPANE records', () => {
     // Shade-role colours (ADR 0065) survive; past them is junk.
     const t = sanitizeSnapshot({ title: 't', lines: [{ spans: [{ text: 'a', fg: shadeColor('vtext'), bg: shadeColor('dim') }, { text: 'b', fg: 0x2000100 }] }], links: [] });
     expect(t.lines).toEqual([{ spans: [{ text: 'a', fg: shadeColor('vtext'), bg: shadeColor('dim') }, { text: 'b' }] }]);
+    // Hover styles (ADR 0065 round 2): lighten and none survive, others go.
+    const h = sanitizeSnapshot({ title: 't', lines: [{ spans: [] }], links: [{ row: 0, col: 0, len: 1, hover: 'lighten' }, { row: 0, col: 1, len: 1, hover: 'none' }, { row: 0, col: 2, len: 1, hover: 'glow' }] });
+    expect(h.links.map((l) => l.hover)).toEqual(['lighten', 'none', undefined]);
+    // A pane-level change re-records the links (a delta with the new list).
+    const c = new PaneContent('t');
+    c.setLine(0, { text: 'ab', runs: [] });
+    c.addLink(0, 0, 1, 1, '');
+    const r1 = encodePaneRecord(null, c.snapshot())!;
+    c.setHover('lighten');
+    const r2 = encodePaneRecord(r1.state, c.snapshot())!;
+    expect(JSON.parse(r2.payload).links).toEqual([{ row: 0, col: 0, len: 1, hint: '', hover: 'lighten' }]);
   });
 });
 

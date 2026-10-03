@@ -32,6 +32,12 @@
 //   the pane. It belongs to the pane, not to a row's text: `setLine`,
 //   `clear` and the line cap leave it where it is; `setGrip(null)` removes
 //   it. It is not in a snapshot (a grip in the log player would be inert).
+// - Hover style (ADR 0065 round 2): how a hovered link looks, `band` (the
+//   glow band, the default), `lighten` (its own colours a step lighter) or
+//   `none`. The pane has one (`setHover`) for every link without its own;
+//   a link may carry its own (`addLink`, `appendLink`). A snapshot records
+//   each link's effective style when it is not `band`, so the log player
+//   hovers the same.
 
 import type { Color, StyleRun } from '../core/types';
 
@@ -65,6 +71,17 @@ export interface PaneGauge {
 /** One row: styled text or a gauge. */
 export type PaneLine = { spans: PaneSpan[] } | { gauge: PaneGauge };
 
+/** How a hovered link is drawn (ADR 0065 round 2). */
+export type HoverStyle = 'band' | 'lighten' | 'none';
+
+/** The hover styles, the default first. */
+export const HOVER_STYLES: readonly HoverStyle[] = ['band', 'lighten', 'none'];
+
+/** True when `v` is a hover style. */
+export function isHoverStyle(v: unknown): v is HoverStyle {
+  return typeof v === 'string' && (HOVER_STYLES as readonly string[]).includes(v);
+}
+
 /** A clickable range of cells. */
 export interface PaneLink {
   row: number;
@@ -76,6 +93,8 @@ export interface PaneLink {
   id: number;
   /** A tooltip only: not clickable (ADR 0056). */
   tip?: boolean;
+  /** Its own hover style; absent: the pane's (ADR 0065 round 2). */
+  hover?: HoverStyle;
 }
 
 /** An editable text field over `len` cells of `row` (ADR 0055). */
@@ -105,7 +124,8 @@ export const MAX_FIELD_VALUE = 500;
 export interface PaneSnapshot {
   title: string;
   lines: PaneLine[];
-  links: { row: number; col: number; len: number; hint: string; tip?: boolean }[];
+  /** `hover`: the link's effective hover style when it is not `band` (ADR 0065 round 2). */
+  links: { row: number; col: number; len: number; hint: string; tip?: boolean; hover?: 'lighten' | 'none' }[];
   /** A temporary pane's size, place and on/off (the recorder adds it; `snapshot()` never does). */
   temp?: PaneTemp;
   /** Where an overflowing pane's view sticks; absent: `bottom` (ADR 0053 addendum). */
@@ -244,6 +264,8 @@ export class PaneContent {
   grip: PaneGrip | null = null;
   /** Where the view sticks when the lines overflow. */
   anchor: PaneAnchor;
+  /** The hover style of links without their own (ADR 0065 round 2). */
+  hover: HoverStyle = 'band';
   /** Bumped by every change (renderers compare it). */
   version = 0;
   /** The last append ended with `\n`: the next one starts a new line. */
@@ -408,7 +430,7 @@ export class PaneContent {
    * Makes `len` cells of `row` from `col` a link (`id`, `hint`); the row
    * need not have text there. Links it overlaps on that row are dropped.
    */
-  addLink(row: number, col: number, len: number, id: number, hint: string, tip = false): void {
+  addLink(row: number, col: number, len: number, id: number, hint: string, tip = false, hover?: HoverStyle): void {
     this.ensure(row);
     const c = Math.max(0, Math.floor(col));
     const n = Math.max(1, Math.min(MAX_LINE_CELLS - c, Math.floor(len)));
@@ -420,17 +442,30 @@ export class PaneContent {
     });
     const link: PaneLink = { row, col: c, len: n, hint: clean(hint).slice(0, MAX_HINT), id };
     if (tip) link.tip = true;
+    if (hover) link.hover = hover;
     this.links.push(link);
     this.version++;
   }
 
-  /** Appends `t` as a link (`id`, `hint`) to the last line (as `append`). */
-  appendLink(t: StyledText, id: number, hint: string): void {
+  /** Appends `t` as a link (`id`, `hint`, its own `hover` style) to the last line (as `append`). */
+  appendLink(t: StyledText, id: number, hint: string, hover?: HoverStyle): void {
     const one = t.text.indexOf('\n') < 0 ? t : { text: t.text.replace(/\n/g, ' '), runs: t.runs };
     const at = this.append(one);
     const len = Math.min(toSpans(one).reduce((n, s) => n + s.text.length, 0), MAX_LINE_CELLS - at.col);
-    if (len > 0) this.addLink(at.row, at.col, len, id, hint);
+    if (len > 0) this.addLink(at.row, at.col, len, id, hint, false, hover);
     else this.onDrop(id);
+  }
+
+  /** Sets the hover style of the links without their own (ADR 0065 round 2). */
+  setHover(style: HoverStyle): void {
+    if (style === this.hover) return;
+    this.hover = style;
+    this.version++;
+  }
+
+  /** How link `l` is drawn under the pointer: its own style, else the pane's. */
+  hoverOf(l: PaneLink): HoverStyle {
+    return l.hover ?? this.hover;
   }
 
   /**
@@ -532,7 +567,13 @@ export class PaneContent {
     const out: PaneSnapshot = {
       title: this.title,
       lines,
-      links: this.links.map(({ row, col, len, hint, tip }) => (tip ? { row, col, len, hint, tip } : { row, col, len, hint })),
+      links: this.links.map((l) => {
+        const { row, col, len, hint, tip } = l;
+        const out: PaneSnapshot['links'][number] = tip ? { row, col, len, hint, tip } : { row, col, len, hint };
+        const hover = this.hoverOf(l);
+        if (hover !== 'band') out.hover = hover;
+        return out;
+      }),
     };
     if (this.anchor === 'top') out.anchor = 'top';
     return out;
@@ -548,6 +589,7 @@ export class PaneContent {
     this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
     this.fields = [];
     this.grip = null;
+    this.hover = 'band';
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.broken = false;
     this.version++;

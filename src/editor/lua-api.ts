@@ -596,7 +596,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("lane", "string?", "\"own\": the first time, the pane gets a lane of its own at the screen edge of its dock (a row of the top or bottom dock, a column at the side), as high (or wide) as rows (cols) plus the frame. Not for a float or a temporary pane."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
-        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own)."),
+        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). It has no close cross, which would cover its text: Options → Panes or pane:hide() turn it off."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
@@ -678,7 +678,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   ),
   fn(
     "pane:cechoLink",
-    "pane:cechoLink(text, fn, hint)",
+    "pane:cechoLink(text, fn, hint, opts)",
     "Appends coloured text that calls fn when it is clicked, with hint as its tooltip.",
     {
       params: [
@@ -686,16 +686,17 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("text", "string", "Text with colour tags; it goes on the end of the last line, as pane:cecho (a \\n becomes a space)."),
         p("fn", "function", "Called with no arguments on a click."),
         p("hint", "string?", "The tooltip shown while the pointer is over the link; \\n breaks it into lines."),
+        p("opts", "table?", "{hover = \"band\" | \"lighten\" | \"none\"}: how this link looks under the pointer (default: the pane's, see pane:setHover)."),
       ],
       more: [
-        "The pointer turns into a hand over a link and the link lights up. Links do nothing in the log player and the HTML replay, but keep their tooltips.",
+        "The pointer turns into a hand over a link and the link lights up (pane:setHover chooses how). Links do nothing in the log player and the HTML replay, but keep their tooltips and their hover look.",
       ],
       example: 'pane:cechoLink("<u>[pay]</u>", function()\n  send("pay mercenary")\nend, "Pay the mercenary")',
     },
   ),
   fn(
     "pane:setLink",
-    "pane:setLink(row, col, len, fn, hint)",
+    "pane:setLink(row, col, len, fn, hint, opts)",
     "Makes len cells of a row, from column col, call fn when clicked, with hint as their tooltip. Any span, down to one cell.",
     {
       params: [
@@ -703,14 +704,28 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("row", "number", "The row, from 1."),
         p("col", "number", "The first column, from 1."),
         p("len", "number", "How many cells, at least 1."),
-        p("fn", "function?", "Called with no arguments on a click; nil for a tooltip only (not clickable, no band)."),
+        p("fn", "function?", "Called with no arguments on a click; nil for a tooltip only (not clickable, no hover look)."),
         p("hint", "string?", "The tooltip."),
+        p("opts", "table?", "{hover = \"band\" | \"lighten\" | \"none\"}: how this link looks under the pointer (default: the pane's, see pane:setHover)."),
       ],
       more: [
         "The cells need no text. A link replaces the links it overlaps on that row; pane:setLine, pane:gauge and pane:clear remove the row's links.",
         "Hovering is steady: when the pane is redrawn, a link at the same row, column and length keeps its band and its open tooltip, whose text updates when the hint changed. So a countdown's hint can be set again every second.",
       ],
       example: 'pane:setLine(3, "[x] Bob")\npane:setLink(3, 2, 1, function()\n  send("order bob leave")\nend, "Send Bob away")',
+    },
+  ),
+  fn(
+    "pane:setHover",
+    "pane:setHover(style)",
+    "Chooses how the pane's links look under the pointer: \"band\" (the default) draws them in the pane's glow band, \"lighten\" makes their own text and background a step lighter, \"none\" leaves them as they are (the pointer and the tooltip still show).",
+    {
+      params: [p("pane", "pane", "A pane from createPane."), p("style", "string?", "\"band\", \"lighten\" or \"none\"; nil is \"band\".")],
+      more: [
+        "It applies to every link of the pane that has no hover of its own, also the ones already there. A link chooses its own with the opts of pane:setLink or pane:cechoLink: {hover = \"none\"}.",
+        "\"lighten\" suits buttons drawn with their own background, such as <@bg:@glow> and <@mid:@track>: the band would hide their colours. The log player and the HTML replay show the same look.",
+      ],
+      example: 'pane:setHover("lighten")\npane:setLine(1, "<@bg:@glow> ON <reset> <@mid:@track> OFF ")\npane:setLink(1, 1, 4, function() send("on") end, "On")\npane:setLink(1, 6, 5, function() send("off") end, "Off", {hover = "none"})',
     },
   ),
   fn(

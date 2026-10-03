@@ -12,7 +12,7 @@ import { type LayoutModel, PANE_COLORS, defaultLayout, isScriptPaneId, isTempPan
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
 import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows } from '../../src/panes/script-pane';
-import { contrast, paneShades } from '../../src/theme/color';
+import { contrast, hoverLift, lightness, paneShades } from '../../src/theme/color';
 import { CockpitPaneSurface } from '../../src/panes/script-surface';
 import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../../src/layout/temp-places';
 import { parseCecho } from '../../src/scripts/colors';
@@ -345,17 +345,70 @@ describe('drawing', () => {
     expect(l!.fg[0]).toBe('#000');
   });
 
-  it('a hovered link on a glow background is drawn inverted, so the hover shows (ADR 0065 round 1)', () => {
+  it('hover styles: band (the default), lighten (text and background a step lighter), none; per link or per pane (ADR 0065 round 2)', () => {
     const c = new PaneContent('t');
-    c.setLine(0, { text: 'ON OFF', runs: [{ start: 0, end: 2, bg: shadeColor('glow'), fg: shadeColor('paneBg') }, { start: 3, end: 6, bg: shadeColor('track'), fg: shadeColor('paneBg') }] });
+    c.setLine(0, { text: 'ON OFF x', runs: [{ start: 0, end: 2, bg: shadeColor('glow'), fg: shadeColor('paneBg') }, { start: 3, end: 6, bg: shadeColor('track'), fg: shadeColor('mid') }] });
     c.addLink(0, 0, 2, 1, '');
-    c.addLink(0, 3, 3, 2, '');
-    const [lit] = scriptPaneRows(c, 6, ramp, false, ansi, c.links[0]!);
-    expect(lit!.bg.slice(0, 2)).toEqual([ramp.paneBg, ramp.paneBg]);
-    expect(lit!.fg.slice(0, 2)).toEqual([ramp.glow, ramp.glow]);
-    const [dark] = scriptPaneRows(c, 6, ramp, false, ansi, c.links[1]!);
-    expect(dark!.bg.slice(3, 6)).toEqual([ramp.glow, ramp.glow, ramp.glow]);
-    expect(dark!.fg[3]).toBe(ramp.paneBg);
+    c.addLink(0, 3, 3, 2, '', false, 'lighten');
+    c.addLink(0, 7, 1, 3, '', false, 'none');
+    // The pane default is the band, also on a lit (glow) cell: no inverted rule any more.
+    const [band] = scriptPaneRows(c, 8, ramp, false, ansi, c.links[0]!);
+    expect(band!.bg.slice(0, 2)).toEqual([ramp.glow, ramp.glow]);
+    expect(band!.fg[0]).toBe(ramp.paneBg);
+    // Lighten: each colour a step lighter (HSL L + HOVER_LIFT), both text and background.
+    const [lit] = scriptPaneRows(c, 8, ramp, false, ansi, c.links[1]!);
+    expect(lit!.bg.slice(3, 6)).toEqual(Array(3).fill(hoverLift(ramp.track)));
+    expect(lit!.fg.slice(3, 6)).toEqual(Array(3).fill(hoverLift(ramp.mid)));
+    expect(lightness(lit!.bg[3]!)).toBeGreaterThan(lightness(ramp.track));
+    expect(lightness(lit!.fg[3]!)).toBeGreaterThan(lightness(ramp.mid));
+    // Cells in the pane's own colours lift the ink and the pane background.
+    const ink = paneInk('#c0c0c0', '#000000', false);
+    c.addLink(0, 7, 1, 4, '', false, 'lighten');
+    const [own] = scriptPaneRows(c, 8, ramp, false, ansi, c.links[2]!, ink, '#000000');
+    expect(own!.fg[7]).toBe(hoverLift('#c0c0c0'));
+    expect(own!.bg[7]).toBe(hoverLift('#000000'));
+    // None: as at rest.
+    c.addLink(0, 7, 1, 5, '', false, 'none');
+    const [rest] = scriptPaneRows(c, 8, ramp, false, ansi);
+    const [none] = scriptPaneRows(c, 8, ramp, false, ansi, c.links[2]!);
+    expect(none!.key()).toBe(rest!.key());
+    // The pane's style applies to links without their own, including existing ones.
+    c.setHover('lighten');
+    const [paneLit] = scriptPaneRows(c, 8, ramp, false, ansi, c.links[0]!);
+    expect(paneLit!.bg[0]).toBe(hoverLift(ramp.glow));
+    expect(paneLit!.fg[0]).toBe(hoverLift(ramp.paneBg));
+    expect(c.hoverOf(c.links[2]!)).toBe('none');
+    // A snapshot records each link's effective style when not the band; load restores it.
+    c.addLink(0, 3, 3, 6, '', false, 'band');
+    const snap = c.snapshot();
+    expect(snap.links.map((l) => l.hover)).toEqual(['lighten', 'none', undefined]);
+    const back = PaneContent.fromSnapshot(snap);
+    expect(back.links.map((l) => back.hoverOf(l))).toEqual(['lighten', 'none', 'band']);
+  });
+
+  it("the pane bar's off text (@mid on @track) reads at about 3:1 on dark and paper, far lighter than @bg on dark (ADR 0065 round 2)", () => {
+    for (const bg of ['#000000', '#f4ecd8']) {
+      const r = paneShades('black', bg);
+      const c = contrast(r.mid, r.track);
+      expect(c, bg).toBeGreaterThanOrEqual(2.6);
+      expect(c, bg).toBeLessThanOrEqual(3.5);
+    }
+    const dark = paneShades('black', '#000000');
+    expect(contrast(dark.paneBg, dark.track)).toBeLessThan(1.5);
+  });
+
+  it('lighten lifts both colours on the real ramps, dark and paper, for on and off buttons (ADR 0065 round 2)', () => {
+    for (const bg of ['#000000', '#f4ecd8']) {
+      const r = paneShades('black', bg);
+      for (const [fg, fill] of [[r.paneBg, r.glow], [r.mid, r.track]] as const) {
+        const f2 = hoverLift(fg);
+        const b2 = hoverLift(fill);
+        expect(lightness(f2), `${bg} fg`).toBeGreaterThan(lightness(fg) + 5);
+        expect(lightness(b2), `${bg} bg`).toBeGreaterThan(lightness(fill) + 5);
+        // Subtle: the hovered button keeps its contrast within a third.
+        expect(contrast(f2, b2) / contrast(fg, fill), bg).toBeGreaterThan(0.66);
+      }
+    }
   });
 
   it('palette colours come from the user ANSI palette', () => {
@@ -486,6 +539,54 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(pane.hovered).toBeNull();
     expect(tip.hidden).toBe(true);
     void ctx;
+  });
+
+  it('the hover ends when the pointer leaves over an element on top of the content (sticky hover, ADR 0065 round 2)', () => {
+    const { cockpit, surface, flush } = rig();
+    const id = scriptPaneId('s', 'p');
+    const content = new PaneContent('P');
+    content.setLine(0, plain('[a] [b]'));
+    content.addLink(0, 4, 3, 42, 'B');
+    surface.open({ id, place: { dock: 'right', rows: 3, cols: 20 } }, content, { onLink: () => {}, onResize: () => {} });
+    flush();
+    const pane = cockpit.pane(id) as ScriptPane;
+    // happy-dom has no layout: the content is 20 × 3 cells at 0, 0.
+    pane.content.getBoundingClientRect = () => ({ left: 0, top: 0, right: 200, bottom: 60, width: 200, height: 60, x: 0, y: 0, toJSON: () => ({}) });
+    const at = (col: number, row: number) => ({ clientX: col * 10 + 5, clientY: row * 20 + 5, bubbles: true });
+    const glowing = (): boolean => [...pane.content.querySelectorAll<HTMLElement>('.wc-prow span')].some((s) => s.style.backgroundColor !== '');
+    const hoverB = (): void => {
+      pane.content.dispatchEvent(new PointerEvent('pointermove', at(5, 0)));
+      expect(pane.hovered?.id).toBe(42);
+    };
+    // Onto the close cross: the leave's point is still inside the content.
+    hoverB();
+    const cross = pane.el.parentElement!.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"] > .wc-pane-close`)!;
+    pane.content.dispatchEvent(new PointerEvent('pointerleave', at(17, 0)));
+    cross.dispatchEvent(new PointerEvent('pointermove', at(17, 0)));
+    expect(pane.hovered).toBeNull();
+    flush();
+    expect(glowing()).toBe(false);
+    expect(cockpit.el.querySelector<HTMLElement>('.wc-spane-tip')!.hidden).toBe(true);
+    // A redraw with the pointer gone does not bring it back.
+    content.setLine(0, plain('[a] [b] '));
+    content.addLink(0, 4, 3, 42, 'B');
+    pane.changed();
+    flush();
+    expect(pane.hovered).toBeNull();
+    // The pointer leaves the window, the window loses the focus, the tab is hidden.
+    for (const leave of [
+      () => document.documentElement.dispatchEvent(new PointerEvent('pointerleave', { clientX: -1, clientY: -1 })),
+      () => window.dispatchEvent(new Event('blur')),
+      () => pane.content.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true })),
+    ]) {
+      hoverB();
+      leave();
+      expect(pane.hovered).toBeNull();
+    }
+    // A pointermove inside the content (a redrawn row) keeps it.
+    hoverB();
+    pane.content.querySelector('.wc-prow')!.dispatchEvent(new PointerEvent('pointermove', at(6, 0)));
+    expect(pane.hovered?.id).toBe(42);
   });
 
   it('a text field: an input over its cells; typing, keys, Enter and Esc report and give the focus back', () => {

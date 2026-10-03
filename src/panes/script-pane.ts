@@ -26,14 +26,26 @@
 //   a pastel on a light pane, as the Group bars) over the pane's track
 //   shade, the label in the value shade.
 // - Links: the cell under the pointer is looked up in the content, never
-//   in the DOM. A hovered link is drawn in the glow band and shows its
-//   hint as a tooltip (`.wc-spane-tip`, one cell row per hint line, under
-//   the link, over everything in the cockpit). A click calls `onLink(id)`;
-//   without `onLink` (the log player) links are inert but keep their tips.
-//   A tooltip-only link (`tip`) shows its hint without band or cursor.
-//   A link whose first cell already has the glow background (a lit
-//   button) is hovered inverted instead, glow text on the `paneBg` shade,
-//   so the hover shows on it too (ADR 0065 round 1).
+//   in the DOM. A hovered link is drawn in its hover style (ADR 0065
+//   round 2): `band` (the default) the glow band, text in the `paneBg`
+//   shade; `lighten` its own text and background a step lighter
+//   (`hoverLift`); `none` as at rest. It shows its hint as a tooltip
+//   (`.wc-spane-tip`, one cell row per hint line, under the link, over
+//   everything in the cockpit). A click calls `onLink(id)`; without
+//   `onLink` (the log player) links are inert but keep their tips. A
+//   tooltip-only link (`tip`) shows its hint without band or cursor.
+// - Hover tracking (ADR 0065 round 2): the hover is the pointer's position,
+//   never an element. A pointermove over the content sets it; while it is
+//   set a document listener ends it on a pointermove whose target is not
+//   in the content (the close cross, a float handle, another pane: the
+//   content's own pointerleave may not come or may be ignored), and on the
+//   pointer leaving the window (a root pointerleave whose point is outside
+//   the window or off the content: Firefox sends the root one while the
+//   pointer is still in the page), pointercancel, window blur and the tab
+//   going hidden. A pointerleave whose point is still over the content's
+//   own element (Firefox, when the row under the pointer is redrawn) is
+//   ignored; one over anything else ends it. Every render and relayout
+//   checks the position again, also against what is on top there.
 // - Grip (ADR 0065 round 1): the cells of `pane:setGrip` show the grab
 //   cursor; the cockpit asks `gripAt` on a press and starts a move there.
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
@@ -62,9 +74,9 @@ import type { PaneContext } from './context';
 import { forwardWheel } from './anchored-list';
 import { CellLine, INDICATOR_FG, RowList, centre } from './grid';
 import { PaneShell } from './pane';
-import { type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
+import { type HoverStyle, type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
-import { type ShadeRole, fitContrast, lightShift } from '../theme/color';
+import { type ShadeRole, fitContrast, hoverLift, lightShift } from '../theme/color';
 
 /** A gauge's fill when the script gives no colour (the Group pane's HP green). */
 export const DEFAULT_GAUGE_COLOR = '#005a18';
@@ -177,7 +189,27 @@ export function fieldBands(line: CellLine, fields: readonly PaneField[], row: nu
   }
 }
 
-/** Every content line as a row of `w` cells (the scroller's rows), the hovered link in the glow band. */
+/**
+ * Draws the hover of cells [`x0`, `x1`) of `line` in `style` (ADR 0065
+ * round 2). `lighten` lifts each cell's text and background; a cell in
+ * the pane's own colours lifts `fg` (its text) and `bg` (the pane).
+ */
+export function hoverCells(line: CellLine, x0: number, x1: number, style: HoverStyle, ramp: Ramp, fg: string, bg: string): void {
+  if (style === 'none') return;
+  if (style === 'band') {
+    line.fill(x0, x1, { fg: ramp.paneBg, bg: ramp.glow });
+    return;
+  }
+  for (let c = Math.max(0, x0); c < Math.min(line.w, x1); c++) {
+    line.fill(c, c + 1, { fg: hoverLift(line.fg[c] || fg), bg: hoverLift(line.bg[c] || bg) });
+  }
+}
+
+/**
+ * Every content line as a row of `w` cells (the scroller's rows), the
+ * hovered link in its hover style. `bg` is the pane's background (for a
+ * `lighten` hover over cells without their own; default the `paneBg` shade).
+ */
 export function scriptPaneRows(
   c: PaneContent,
   w: number,
@@ -186,6 +218,7 @@ export function scriptPaneRows(
   ansi: readonly string[],
   hover: PaneLink | null = null,
   ink: PaneInk = PLAIN_INK,
+  bg = '',
 ): CellLine[] {
   if (w <= 0) return [];
   const out: CellLine[] = [];
@@ -193,9 +226,7 @@ export function scriptPaneRows(
     const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
     if (c.fields.length > 0) fieldBands(line, c.fields, i, w, ramp);
     if (hover && hover.row === i && !hover.tip) {
-      // On a lit (glow) background the usual band would not show: invert.
-      const lit = line.bg[hover.col] === ramp.glow;
-      line.fill(hover.col, hover.col + hover.len, lit ? { fg: ramp.glow, bg: ramp.paneBg } : { fg: ramp.paneBg, bg: ramp.glow });
+      hoverCells(line, hover.col, hover.col + hover.len, c.hoverOf(hover), ramp, ink.base || ramp.vtext, bg || ramp.paneBg);
     }
     out.push(line);
   }
@@ -271,6 +302,7 @@ export class ScriptPane extends PaneShell {
     const c = this.content;
     c.addEventListener('pointermove', this.onMove);
     c.addEventListener('pointerleave', this.onLeave);
+    c.addEventListener('pointercancel', this.onCancel);
     c.addEventListener('click', this.onClick);
   }
 
@@ -295,7 +327,7 @@ export class ScriptPane extends PaneShell {
     const ansi = s.appearance.ansi;
     const fg = s.appearance.fg;
     const c = this.model;
-    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover ? `${this.hover.row},${this.hover.col},${this.hover.len}` : ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
+    const key = `${c.version}|${this.cols}x${this.rows}|${this.hover ? `${this.hover.row},${this.hover.col},${this.hover.len},${c.hoverOf(this.hover)}` : ''}|${JSON.stringify(ramp)}|${light}|${bg}|${fg}|${ansi.join(',')}`;
     if (key === this.shownKey) return;
     this.shownKey = key;
     const n = c.lines.length;
@@ -312,7 +344,7 @@ export class ScriptPane extends PaneShell {
     this.moreEl.style.top = bottom ? '0px' : `calc(var(--cell-h) * ${listH})`;
     this.moreEl.hidden = !over;
     const ink = paneInk(fg, bg, light);
-    this.list.update(this.ctx.doc, scriptPaneRows(c, this.cols, ramp, light, ansi, this.hover, ink));
+    this.list.update(this.ctx.doc, scriptPaneRows(c, this.cols, ramp, light, ansi, this.hover, ink, bg));
     this.shown = { n, listH, over };
     // A console follows new lines while it is at the end.
     if (bottom && this.live) this.scroller.scrollTop = Math.max(0, n - listH) * cellH;
@@ -330,6 +362,12 @@ export class ScriptPane extends PaneShell {
     const p = this.pointer;
     if (!p) {
       if (this.hover) this.setHover(null);
+      return;
+    }
+    // Something else is on top there now (the close cross, a float), or
+    // the pane moved away from under the pointer: the hover ends.
+    if (!this.over(p.x, p.y)) {
+      this.clearPointer();
       return;
     }
     const at = this.cellAt(p.x, p.y);
@@ -524,16 +562,19 @@ export class ScriptPane extends PaneShell {
 
   override place(...args: Parameters<PaneShell['place']>): void {
     super.place(...args);
-    if (!args[0]) this.setHover(null);
+    // Hidden: no hover. Moved or resized: whatever is under the pointer now.
+    if (!args[0]) this.clearPointer();
+    else if (this.pointer) this.resolveHover();
   }
 
   override dispose(): void {
-    this.setHover(null);
+    this.clearPointer();
     this.tipEl?.remove();
     for (const [id, el] of [...this.inputs]) this.dropInput(id, el);
     const c = this.content;
     c.removeEventListener('pointermove', this.onMove);
     c.removeEventListener('pointerleave', this.onLeave);
+    c.removeEventListener('pointercancel', this.onCancel);
     c.removeEventListener('click', this.onClick);
     this.scroller.removeEventListener('scroll', this.onScroll);
     super.dispose();
@@ -568,6 +609,7 @@ export class ScriptPane extends PaneShell {
 
   private readonly onMove = (e: PointerEvent): void => {
     this.pointer = { x: e.clientX, y: e.clientY };
+    this.watch(true);
     const at = this.cellAt(e.clientX, e.clientY);
     const link = at ? this.model.linkAt(at.row, at.col) : null;
     const was = this.hover;
@@ -592,12 +634,73 @@ export class ScriptPane extends PaneShell {
   private readonly onLeave = (e: PointerEvent): void => {
     // Firefox sends pointerleave when the row under the pointer is redrawn
     // (the hover band replaces its element): ignore it while the pointer is
-    // still over the content.
+    // still over the content itself. Over the close cross, a float handle
+    // or another pane (inside the content's box, on top of it) it ends.
     const r = this.content.getBoundingClientRect();
-    if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
+    const inBox = e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom;
+    if (inBox && this.over(e.clientX, e.clientY)) return;
+    this.clearPointer();
+  };
+
+  private readonly onCancel = (): void => this.clearPointer();
+
+  /**
+   * True when (`x`, `y`) client px is inside the content's box and nothing
+   * else is on top there (where the browser can tell: `elementFromPoint`).
+   */
+  private over(x: number, y: number): boolean {
+    const r = this.content.getBoundingClientRect();
+    // A box without a size: no layout to tell by (a test DOM).
+    if ((r.width > 0 || r.height > 0) && !(x >= r.left && x < r.right && y >= r.top && y < r.bottom)) return false;
+    const top = typeof this.ctx.doc.elementFromPoint === 'function' ? this.ctx.doc.elementFromPoint(x, y) : null;
+    return !top || this.content.contains(top);
+  }
+
+  /** The pointer is gone from the content: no hover, no grab cursor, no watching. */
+  private clearPointer(): void {
     this.pointer = null;
     this.grabbing = false;
-    this.setHover(null);
+    this.watch(false);
+    if (this.hover) this.setHover(null);
+    else this.setCursor();
+  }
+
+  /** The document listeners that end the hover (see the file header) are on. */
+  private watching = false;
+
+  private watch(on: boolean): void {
+    if (on === this.watching) return;
+    this.watching = on;
+    const doc = this.ctx.doc;
+    const win = doc.defaultView;
+    const add = on ? 'addEventListener' : 'removeEventListener';
+    doc[add]('pointermove', this.onDocMove, true);
+    doc[add]('pointercancel', this.onDocGone, true);
+    doc[add]('visibilitychange', this.onDocGone);
+    doc.documentElement[add]('pointerleave', this.onDocGone);
+    win?.[add]('blur', this.onDocGone);
+  }
+
+  /** A pointermove anywhere: one outside the content ends the hover. */
+  private readonly onDocMove = (e: Event): void => {
+    const t = e.target;
+    // A row the redraw just replaced is no longer in the document.
+    if (t instanceof Node && (!t.isConnected || this.content.contains(t))) return;
+    this.clearPointer();
+  };
+
+  /** The pointer left the window, was cancelled, or the window lost the focus or went hidden. */
+  private readonly onDocGone = (e: Event): void => {
+    if (e.type === 'visibilitychange' && this.ctx.doc.visibilityState === 'visible') return;
+    // Firefox also sends the root a pointerleave while the pointer is in
+    // the page: it counts only with a point outside the window or off the
+    // content.
+    if (e.type === 'pointerleave' && e instanceof MouseEvent) {
+      const win = this.ctx.doc.defaultView;
+      const inWindow = !!win && e.clientX >= 0 && e.clientY >= 0 && e.clientX < win.innerWidth && e.clientY < win.innerHeight;
+      if (inWindow && this.over(e.clientX, e.clientY)) return;
+    }
+    this.clearPointer();
   };
 
   private readonly onClick = (e: MouseEvent): void => {

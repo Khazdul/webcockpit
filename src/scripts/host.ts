@@ -57,7 +57,7 @@ import {
   scriptPaneId,
   tempPaneId,
 } from '../layout/types';
-import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
+import { HOVER_STYLES, type HoverStyle, MAX_LINES, PaneContent, isHoverStyle, plain } from '../panes/script-content';
 import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
 import type { ScriptPanePlace } from '../layout/model';
 import type { ScriptMapSurface } from '../map/marks';
@@ -1236,6 +1236,20 @@ export class ScriptHost {
       return c;
     };
     const done = (p: PaneReg): void => p.view.changed();
+    const styles = HOVER_STYLES.map((h) => `"${h}"`).join(', ');
+    /** A hover style at argument `i` (ADR 0065 round 2). */
+    const hoverStyle = (a: LuaArgs, i: number, v: unknown): HoverStyle => {
+      if (!isHoverStyle(v)) throw new Error(`bad argument #${i} to '${a.name}' (hover must be one of ${styles})`);
+      return v;
+    };
+    /** The link options table `{hover = …}` at argument `i`, if any. */
+    const linkOpts = (a: LuaArgs, i: number): HoverStyle | undefined => {
+      if (a.count < i || a.type(i) === 'nil') return undefined;
+      const t = a.table(i);
+      if (Array.isArray(t) && t.length > 0) throw new Error(`bad argument #${i} to '${a.name}' (a table of options expected)`);
+      const o = Array.isArray(t) ? {} : t;
+      return o.hover === undefined ? undefined : hoverStyle(a, i, o.hover);
+    };
 
     /** The field `self` (argument 1) of the running script, or null once it is gone. */
     const fieldSelf = (a: LuaArgs): FieldReg | null => {
@@ -1324,9 +1338,16 @@ export class ScriptHost {
         const text = parseCecho(a.string(2), SHADES);
         const ref = a.function(3);
         const hint = a.optString(4, '');
+        let hover: HoverStyle | undefined;
+        try {
+          hover = linkOpts(a, 5);
+        } catch (err) {
+          p.owner.script?.release(ref);
+          throw err;
+        }
         const n = id();
         p.links.set(n, ref);
-        p.content.appendLink(text, n, hint);
+        p.content.appendLink(text, n, hint, hover);
         done(p);
       },
       setLink: (a) => {
@@ -1340,10 +1361,17 @@ export class ScriptHost {
         // No function: a tooltip only (ADR 0056).
         const ref = a.optFunction(5);
         const hint = a.optString(6, '');
+        let hover: HoverStyle | undefined;
+        try {
+          hover = linkOpts(a, 7);
+        } catch (err) {
+          if (ref !== null) p.owner.script?.release(ref);
+          throw err;
+        }
         const n = id();
         if (ref !== null) p.links.set(n, ref);
         try {
-          p.content.addLink(r, col - 1, len, n, hint, ref === null);
+          p.content.addLink(r, col - 1, len, n, hint, ref === null, hover);
         } catch (err) {
           p.links.delete(n);
           if (ref !== null) p.owner.script?.release(ref);
@@ -1371,6 +1399,14 @@ export class ScriptHost {
         } catch (err) {
           throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
         }
+        done(p);
+      },
+      setHover: (a) => {
+        const p = self(a);
+        // nil: back to the default band.
+        const style = a.count < 2 || a.type(2) === 'nil' ? 'band' : hoverStyle(a, 2, a.string(2));
+        if (!p) return;
+        p.content.setHover(style);
         done(p);
       },
       setText: (a) => {
