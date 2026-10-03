@@ -619,7 +619,7 @@ const EXAMPLES: HelpSection = {
     "- coinlooter: triggers, an alias and a setting it saves itself.",
     "- mercenaries: a status pane with gauges, links and tooltips, redrawn from triggers and GMCP.",
     "- keymanager: temporary panes in a group, a pick list with a text field, copy2cecho, the store and map marks.",
-    "- panebar: a borderless one-row pane of buttons built on getPanes, setPaneOn and sysPanesChanged, with pane:setGrip, pane:setHover and the pane's shades.",
+    "- panebar: a borderless one-row pane of buttons built on getPanes, setPaneOn and sysPanesChanged, with pane:setGrip, pane:setHover, pane:onWheel and the pane's shades. Narrow, its buttons shrink down to two letters, then it scrolls sideways with arrows at both ends.",
     "- readability: replaceLine and copy2cecho with adaptive colours, and lineTags to leave room descriptions and what players say alone.",
   ],
   examples: [

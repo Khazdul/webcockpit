@@ -1,7 +1,8 @@
-// The bundled pane bar (stage 14, ADR 0065 and its round 1): enabled from
-// the input line it is a borderless pane at the bottom of the right dock
-// with a grip and one equally wide button per pane, flowing left to right
-// and wrapping; a click toggles that pane; the title is the tooltip;
+// The bundled pane bar (stage 14, ADR 0065 and its rounds): enabled from
+// the input line it is a borderless one-row pane at the bottom of the right
+// dock with a grip and one button per pane, as wide as the room allows
+// (full, shrunk down to two cells, then scrolled with arrows and the
+// wheel); a click toggles that pane; the title is the tooltip;
 // dragged by its grip it moves between docks and floats; a user script's
 // pane gets a button while the script runs; reload and Reset layout put it
 // back at the bottom of the right dock. Uses the dev-only `window.__wc`.
@@ -196,6 +197,23 @@ async function expectEqualWidths(page: Page, names: string[]): Promise<void> {
   );
 }
 
+/**
+ * The buttons fill one row (round 3): `names` in order, each cut to its
+ * button when it does not fit, at least two cells, widths at most one
+ * apart and mirror-even. Returns the widths.
+ */
+async function expectShared(page: Page, names: string[]): Promise<number[]> {
+  await expect(prows(page)).toHaveCount(1);
+  // A button shows its name centred, or the name's first cells.
+  const read = async () => (await buttons(page)).map((t, i) => (names[i] !== undefined && t.trim() === names[i].slice(0, t.length) ? names[i] : t));
+  await expect.poll(read).toEqual(names);
+  const w = (await buttons(page)).map((t) => t.length);
+  expect(Math.min(...w)).toBeGreaterThanOrEqual(2);
+  expect(Math.max(...w) - Math.min(...w)).toBeLessThanOrEqual(1);
+  expect(w).toEqual([...w].reverse());
+  return w;
+}
+
 /** Drags the bar by its grip (row 1, column 1) to (x, y). */
 async function dragByGrip(page: Page, x: number, y: number): Promise<void> {
   const g = await cellAt(page, 0, 0);
@@ -216,9 +234,10 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   await enter(page);
   await command(page, '#script enable panebar');
   await expectRightBottom(page);
-  await expectEqualWidths(page, ALL);
+  // The default right dock is narrower than six full buttons: they share it.
+  await expectShared(page, ALL);
   // The grip leads row 1; its cell shows the grab cursor.
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR /);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 +CHAR /);
   const g = await cellAt(page, 0, 0);
   await page.mouse.move(g.x, g.y);
   await expect(bar(page).locator('.wc-pane-content')).toHaveCSS('cursor', 'grab');
@@ -318,7 +337,7 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   expect(errors).toEqual([]);
 });
 
-test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and to a float; wraps in a narrow side dock', async ({ page }) => {
+test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and to a float; one row in a narrow side dock', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -340,13 +359,11 @@ test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and
   expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].map((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toEqual([
     true, true, true, true, true, true,
   ]);
-  // Buttons flow left to right and wrap; the height follows the rows.
-  await expect.poll(() => prows(page).count()).toBeGreaterThan(1);
-  const rows = await prows(page).count();
-  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(rows);
-  await expectEqualWidths(page, ALL);
-  // Every row's first button starts in the column after the grip and its blank.
-  expect(new Set(await firstColumns(page))).toEqual(new Set([2]));
+  // One row (round 3: no wrap), the buttons sharing it; one row high.
+  await expectShared(page, ALL);
+  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(1);
+  // The first button starts in the column after the grip and its blank.
+  expect(await firstColumns(page)).toEqual([2]);
 
   // Back to the bottom edge, then by the grip over the game: it floats.
   await toBottomLane(page);
@@ -356,7 +373,7 @@ test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and
   await expect(bar(page)).toHaveAttribute('data-floating', '');
   expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].every((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toBe(true);
 
-  // A narrow left dock (above Comm): one button per row, the rows asked for.
+  // A narrow left dock (above Comm): still one row, scrolled with arrows.
   await page.evaluate((id) => {
     window.__wc!.settings.update((d) => {
       d.layout.floating = d.layout.floating.filter((f) => f.id !== id);
@@ -368,11 +385,9 @@ test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and
     });
   }, BAR);
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('left');
-  await expect(prows(page)).toHaveCount(6);
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR\s*$/);
-  await expect(prows(page).nth(5)).toHaveText(/^   MAP\s*$/);
-  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(6);
-  await expectEqualWidths(page, ALL);
+  await expect(prows(page)).toHaveCount(1);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 \u2190 CH( TI)? +\u2192$/);
+  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(1);
   expect(errors).toEqual([]);
 });
 
@@ -422,7 +437,7 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   await enter(page);
   await command(page, '#script enable panebar');
   await expectRightBottom(page);
-  await expectEqualWidths(page, [...ALL, 'LOOT']);
+  await expectShared(page, [...ALL, 'LOOT']);
   // Its button hides it like the others.
   const loot = await find(page, 'LOOT');
   const at = await cellAt(page, loot.row, loot.col + 1);
@@ -431,7 +446,7 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   await page.mouse.click(at.x, at.y);
   await expect(page.locator('.wc-pane[data-pane="loot/main"]')).toBeHidden();
   await command(page, '#script disable loot');
-  await expectEqualWidths(page, ALL);
+  await expectShared(page, ALL);
   expect(errors).toEqual([]);
 });
 
@@ -443,7 +458,7 @@ test('panebar: a button in the last column is clickable, no close cross; the hov
   await enter(page);
   await command(page, '#script enable panebar');
   await expectRightBottom(page);
-  // A float exactly 29 cells wide: buttons at 3-8, 10-15, 17-22, 24-29, so COMM ends in the last column.
+  // A float exactly 29 cells wide: the buttons share it (4, 4, 3, 3, 4, 4 cells), so MAP ends in the last column.
   await page.evaluate((id) => {
     window.__wc!.settings.update((d) => {
       for (const dock of Object.values(d.layout.docks)) {
@@ -455,24 +470,112 @@ test('panebar: a button in the last column is clickable, no close cross; the hov
   }, BAR);
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('float');
   await steady(page);
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR {3}TIME {3}GRP {4}COMM $/);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 CHAR TIME GRP COM {2}UI {2}MAP $/);
   expect((await prows(page).nth(0).textContent())!.length).toBe(29);
   await page.mouse.move(10, 10);
-  const rest = await colours(page, 'COMM');
+  const rest = await colours(page, 'MAP');
   // Hovered at its last cell: lighter, the tooltip, no close cross over it.
   const end = await cellAt(page, 0, 28);
   await page.mouse.move(end.x, end.y);
-  await expect.poll(() => colours(page, 'COMM')).not.toEqual(rest);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/Comm: on/);
+  await expect.poll(() => colours(page, 'MAP')).not.toEqual(rest);
+  await expect(page.locator('.wc-spane-tip')).toHaveText(/Map: on/);
   await expect(bar(page).locator('.wc-pane-close')).toBeHidden();
   // Out through the right edge handle (on top of the content): the hover ends.
   const cell = await cellSize(page);
   await page.mouse.move(end.x + 0.45 * cell.w, end.y, { steps: 2 });
   await page.mouse.move(end.x + 3 * cell.w, end.y, { steps: 4 });
-  await expect.poll(() => colours(page, 'COMM')).toEqual(rest);
+  await expect.poll(() => colours(page, 'MAP')).toEqual(rest);
   await expect(page.locator('.wc-spane-tip')).toBeHidden();
   // The last cell clicks.
   await page.mouse.click(end.x, end.y);
-  await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeHidden();
+  await expect(page.locator('.wc-pane[data-pane="map"]')).toBeHidden();
+  expect(errors).toEqual([]);
+});
+
+/** Sets the content width of the right dock's outer lane (where the bar is). */
+async function rightLane(page: Page, size: number): Promise<void> {
+  await page.evaluate((size) => {
+    window.__wc!.settings.update((d) => {
+      d.layout.docks.right.lanes[0]!.size = size;
+    });
+  }, size);
+  await steady(page);
+}
+
+/** The bar's width in cells. */
+async function barCols(page: Page): Promise<number> {
+  const cell = await cellSize(page);
+  return Math.round((await bar(page).locator('.wc-pane-content').boundingBox())!.width / cell.w);
+}
+
+/** Makes the bar exactly `cols` cells wide (the lane's size less what the dock takes). */
+async function toCols(page: Page, cols: number): Promise<void> {
+  await rightLane(page, cols);
+  const got = await barCols(page);
+  if (got !== cols) await rightLane(page, cols + cols - got);
+  await expect.poll(() => barCols(page)).toBe(cols);
+}
+
+test('panebar: a narrower dock shrinks the buttons to two cells, then arrows and the wheel scroll it; never wraps (round 3)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await start(page);
+  await enter(page);
+  await command(page, '#script enable panebar');
+  await expectRightBottom(page);
+  const url = page.url();
+  const row = () => prows(page).nth(0).textContent().then((t) => t ?? '');
+
+  // Wide: full buttons, all equally wide.
+  await rightLane(page, 50);
+  expect(await barCols(page)).toBeGreaterThanOrEqual(43);
+  await expectEqualWidths(page, ALL);
+
+  // Narrower and narrower: one row, the buttons sharing it, down to two cells.
+  let last = 99;
+  for (const size of [40, 34, 28, 24, 21]) {
+    await rightLane(page, size);
+    const w = await expectShared(page, ALL);
+    expect(Math.max(...w)).toBeLessThanOrEqual(last);
+    last = Math.max(...w);
+    expect(await row()).not.toMatch(/[←→]/);
+    // The last button ends at most at the last column.
+    expect((await row()).length).toBeLessThanOrEqual(await barCols(page));
+  }
+  // At 19 cells: six two-cell buttons.
+  await toCols(page, 19);
+  await expect.poll(row).toBe('∷ CH TI GR CO UI MA');
+
+  // Two cells too narrow: arrows; four buttons fit in 18 cells.
+  await toCols(page, 18);
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
+  await expect(prows(page)).toHaveCount(1);
+  // The right arrow: a tooltip, a click shows the rest.
+  const right = await cellAt(page, 0, 17);
+  await page.mouse.move(right.x, right.y);
+  await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the right/);
+  await page.mouse.click(right.x, right.y);
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
+  // The left arrow goes back.
+  const left = await cellAt(page, 0, 2);
+  await page.mouse.move(left.x, left.y);
+  await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the left/);
+  await page.mouse.click(left.x, left.y);
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
+  // No pane was toggled by the arrows.
+  expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].every((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toBe(true);
+
+  // The wheel: sideways (a two-finger swipe), and up and down.
+  const mid = await cellAt(page, 0, 8);
+  await page.mouse.move(mid.x, mid.y);
+  await page.mouse.wheel(200, 0);
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
+  await page.mouse.wheel(-200, 0);
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
+  await page.mouse.wheel(0, 200);
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
+  // The swipe went nowhere else (no history navigation).
+  expect(page.url()).toBe(url);
   expect(errors).toEqual([]);
 });

@@ -26,7 +26,7 @@ interface Opened {
   spec: ScriptPaneSpec;
   content: PaneContent;
   events: ScriptPaneEvents;
-  view: ScriptPaneView & { on: boolean; closed: boolean };
+  view: ScriptPaneView & { on: boolean; closed: boolean; wheels: boolean[] };
 }
 
 /** A surface with the pane list; docks per pane, wantSize requests recorded. */
@@ -41,6 +41,8 @@ class Surface implements ScriptPaneSurface {
     const view = {
       on: true,
       closed: false,
+      wheels: [] as boolean[],
+      wheel: (on: boolean) => view.wheels.push(on),
       changed: () => {},
       setOn: (on: boolean) => {
         view.on = on;
@@ -235,43 +237,149 @@ describe('bundled panebar', () => {
     expect(t.colours(b.row, b.col)).toEqual(ON);
   });
 
-  for (const dock of ['right', 'left', 'bottom', 'top'] as const) {
-    it(`flows left to right and wraps under the first button in the ${dock} dock, asking for the rows`, async () => {
+  for (const dock of ['right', 'left', 'bottom', 'top', 'float'] as const) {
+    it(`is one row in the ${dock} dock at every width${dock === 'float' ? ', no size request' : ', asking for one row'}`, async () => {
       const t = await setup();
       t.panes.docks.set('panebar/bar', dock);
       t.panes.notify();
-      // Buttons at columns 3-8, 10-15, 17-22, 24-29: four fit in 29 columns
-      // (the last ends in the last column; no gap after it, no margin).
-      await t.resize(29, 4);
-      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP', 'COMM'], true), bar(['UI', 'MAP'], false)]);
-      expect(t.panes.bar.content.links.filter((l) => l.row === 0).map((l) => l.col + l.len)).toEqual([8, 15, 22, 29]);
-      expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
-      // One cell short: the fourth wraps.
-      await t.resize(28, 4);
-      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP'], true), bar(['COMM', 'UI', 'MAP'], false)]);
-      expect(t.panes.bar.content.links.filter((l) => l.row === 1).map((l) => l.col)).toEqual([2, 9, 16]);
-      expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
-      // All six in exactly 43 columns, not in 42.
-      await t.resize(43, 4);
-      expect(t.rows()).toEqual([bar(ALL, true)]);
-      await t.resize(42, 4);
-      expect(t.rows()).toEqual([bar(ALL.slice(0, 5), true), bar(['MAP'], false)]);
-      await t.resize(12, 6);
-      expect(t.rows()).toEqual([bar(['CHAR'], true), ...ALL.slice(1).map((n) => bar([n], false))]);
-      expect(t.panes.wants.at(-1)).toEqual([6, undefined]);
+      const before = t.panes.wants.length;
+      for (const cols of [80, 43, 42, 30, 19, 18, 12, 6]) {
+        await t.resize(cols, 4);
+        expect(t.rows().length).toBe(1);
+        expect(t.rows()[0]!.length).toBeLessThanOrEqual(cols);
+      }
+      if (dock === 'float') expect(t.panes.wants.length).toBe(before);
+      else expect(t.panes.wants.slice(before).every((w) => w[0] === 1 && w[1] === undefined)).toBe(true);
     });
   }
 
-  it('floats: the same flow up to the last column, no size request', async () => {
+  /** [col, len] of the buttons on row 1 (0-based columns). */
+  const spans = (t: Awaited<ReturnType<typeof setup>>) =>
+    t.panes.bar.content.links.filter((l) => l.row === 0).map((l) => [l.col, l.len]);
+
+  it('full width while all fit, never stretched', async () => {
     const t = await setup();
-    t.panes.docks.set('panebar/bar', 'float');
-    t.panes.notify();
-    const before = t.panes.wants.length;
-    await t.resize(22, 3);
-    expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP'], true), bar(['COMM', 'UI', 'MAP'], false)]);
-    await t.resize(21, 3);
-    expect(t.rows()).toEqual([bar(['CHAR', 'TIME'], true), bar(['GRP', 'COMM'], false), bar(['UI', 'MAP'], false)]);
-    expect(t.panes.wants.length).toBe(before);
+    // All six in exactly 43 columns.
+    await t.resize(43);
+    expect(t.rows()).toEqual([bar(ALL, true)]);
+    await t.resize(120);
+    expect(t.rows()).toEqual([bar(ALL, true)]);
+  });
+
+  it('shrinks to fill the row, the spare cells mirror-even, names centred or cut', async () => {
+    const t = await setup();
+    // One cell short of full: 35 button cells for six, 5 each and 5 spare:
+    // the first and last two get one each, the odd one stays empty at the end.
+    await t.resize(42);
+    expect(spans(t)).toEqual([
+      [2, 6],
+      [9, 6],
+      [16, 5],
+      [22, 5],
+      [28, 6],
+      [35, 6],
+    ]);
+    expect(t.rows()).toEqual([G + ' CHAR   TIME   GRP  COMM    UI    MAP  ']);
+    // 4 each, no spare.
+    await t.resize(31);
+    expect(t.rows()).toEqual([G + 'CHAR TIME GRP  COMM  UI  MAP ']);
+    expect(spans(t).at(-1)).toEqual([27, 4]);
+    // 3 each and 2 spare: the first and the last.
+    await t.resize(27);
+    expect(spans(t).map((s) => s[1])).toEqual([4, 3, 3, 3, 3, 4]);
+    expect(t.rows()).toEqual([G + 'CHAR TIM GRP COM UI  MAP ']);
+    // Two each: the narrowest.
+    await t.resize(19);
+    expect(t.rows()).toEqual([G + 'CH TI GR CO UI MA']);
+    expect(spans(t).at(-1)).toEqual([17, 2]);
+    // Colours and tooltips stay whole.
+    expect(t.colours(0, 2)).toEqual(ON);
+    expect(t.button('CO').link.hint).toBe('Comm: on (click to hide)');
+  });
+
+  it('an odd spare cell goes to the middle button when there is one', async () => {
+    const t = await setup(['mercenaries']);
+    // Seven buttons in 37 room cells: 31 button cells, 4 each and 3 spare.
+    await t.resize(39);
+    expect(spans(t).map((s) => s[1])).toEqual([5, 4, 4, 5, 4, 4, 5]);
+    expect(spans(t).at(-1)).toEqual([34, 5]);
+    expect(t.rows()[0]!.length).toBe(39);
+  });
+
+  it('scrolls when two cells each do not fit: arrows at both ends, a click moves a page', async () => {
+    const t = await setup();
+    await t.resize(18);
+    // Four two-cell buttons between ← (column 3) and → (the last column).
+    expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
+    const c = t.panes.bar.content;
+    expect(c.linkAt(0, 2)).toBeNull();
+    expect(t.colours(0, 2)).toEqual({ fg: shadeColor('dim'), bg: undefined });
+    expect(t.colours(0, 17)).toEqual({ fg: shadeColor('vtext'), bg: undefined });
+    expect(c.linkAt(0, 17)!.hint).toBe('2 more panes to the right');
+    expect(spans(t).filter((s) => s[1] === 2).map((s) => s[0])).toEqual([4, 7, 10, 13]);
+    // A page right: as far as it goes (two more).
+    t.panes.bar.events.onLink(c.linkAt(0, 17)!.id);
+    await t.settle();
+    expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
+    expect(t.panes.bar.content.linkAt(0, 17)).toBeNull();
+    expect(t.colours(0, 17)).toEqual({ fg: shadeColor('dim'), bg: undefined });
+    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
+    // A click on a button still toggles its pane; the offset stays.
+    t.panes.bar.events.onLink(t.button('MA').link.id);
+    await t.settle();
+    expect(t.panes.builtinOn.get('map')).toBe(false);
+    expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
+    // Wider: shrunk, the offset gone (17 cells for six: 2 each, 5 spare).
+    await t.resize(24);
+    expect(t.rows()).toEqual([G + 'CHA TIM GR CO UI  MAP']);
+    // Narrow again: from the first; a page right and back.
+    await t.resize(18);
+    expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 17)!.id);
+    await t.settle();
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 2)!.id);
+    await t.settle();
+    expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
+    // Wide enough to shrink: no arrows, no offset.
+    await t.resize(19);
+    expect(t.rows()).toEqual([G + 'CH TI GR CO UI MA']);
+  });
+
+  it('the list shrinking clamps the offset', async () => {
+    const t = await setup(['mercenaries']);
+    await t.resize(18);
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 17)!.id);
+    await t.settle();
+    // Seven panes, four shown: the last page starts at the fourth.
+    expect(t.rows()).toEqual([G + '← CO UI MA ME  →']);
+    await t.lib.setEnabled('mercenaries', false);
+    await t.settle();
+    expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
+    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
+  });
+
+  it('the wheel scrolls a button per three cells, only when scrolled', async () => {
+    const t = await setup();
+    const wheel = (dx: number, dy: number) => t.panes.bar.events.onWheel!(dx, dy);
+    expect(t.panes.bar.view.wheels).toEqual([true]);
+    await t.resize(43);
+    expect(wheel(3, 0)).toBe(false);
+    expect(t.rows()).toEqual([bar(ALL, true)]);
+    await t.resize(18);
+    expect(wheel(2, 0)).toBe(true);
+    expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
+    expect(wheel(1, 0)).toBe(true);
+    expect(t.rows()).toEqual([G + '← TI GR CO UI  →']);
+    // Up and down too (a mouse wheel), past the end clamped.
+    expect(wheel(0, 9)).toBe(true);
+    expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
+    // Turning back drops the part of a step not used.
+    wheel(0, 2);
+    expect(wheel(-3, 0)).toBe(true);
+    expect(t.rows()).toEqual([G + '← TI GR CO UI  →']);
+    wheel(-6, 0);
+    expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
+    expect(t.lib.get('panebar')!.lastError).toBeNull();
   });
 
   it('lists other scripts\' panes by their short names, and drops them when the script stops', async () => {
