@@ -46,6 +46,15 @@
 //   own element (Firefox, when the row under the pointer is redrawn) is
 //   ignored; one over anything else ends it. Every render and relayout
 //   checks the position again, also against what is on top there.
+// - Wheel for the script (`pane:onWheel`, ADR 0072): while the host has a
+//   handler, a non-passive wheel listener on the whole pane turns every
+//   event into whole-cell steps (`wheelSteps`: pixels by the cell width or
+//   height, lines as cells, pages as the pane's cols or rows; Shift with a
+//   vertical-only wheel is horizontal; the fraction is kept) and hands
+//   them over. Only when the handler says it took them is the event
+//   prevented (no native scroll, no forwarded scroll); an event too small
+//   for a whole step follows the handler's last answer. Ctrl+wheel (zoom,
+//   pinch) is never handed over.
 // - Grip (ADR 0065 round 1): the cells of `pane:setGrip` show the grab
 //   cursor; the cockpit asks `gripAt` on a press and starts a move there.
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
@@ -148,6 +157,44 @@ export function paneColor(c: Color, ansi: readonly string[], ramp?: Ramp): strin
   if (role) return ramp?.[role] ?? '';
   if (isAdaptive(c)) return adaptiveHex(c);
   return c < 16 ? (ansi[c] ?? colorToCss(c)) : colorToCss(c);
+}
+
+/** The part of a wheel scroll not yet given out as whole cells, per axis (ADR 0072). */
+export interface WheelRest {
+  x: number;
+  y: number;
+}
+
+/**
+ * Wheel event `e` as whole-cell steps (positive = right / down; ADR 0072):
+ * pixels divided by the cell width (x) or height (y), lines taken as cells,
+ * pages as the pane's `cols` / `rows`. A vertical-only wheel with Shift is
+ * horizontal. The fraction stays in `rest` for the next event and is
+ * dropped when the direction turns.
+ */
+export function wheelSteps(
+  e: { deltaX: number; deltaY: number; deltaMode: number; shiftKey: boolean },
+  cell: { w: number; h: number },
+  size: { cols: number; rows: number },
+  rest: WheelRest,
+): { dx: number; dy: number } {
+  let x = e.deltaX;
+  let y = e.deltaY;
+  if (e.shiftKey && x === 0) {
+    x = y;
+    y = 0;
+  }
+  const ux = e.deltaMode === 1 ? 1 : e.deltaMode === 2 ? Math.max(1, size.cols) : 1 / (cell.w || 8);
+  const uy = e.deltaMode === 1 ? 1 : e.deltaMode === 2 ? Math.max(1, size.rows) : 1 / (cell.h || 16);
+  const step = (d: number, k: 'x' | 'y'): number => {
+    if (d === 0) return 0;
+    if (Math.sign(d) !== Math.sign(rest[k])) rest[k] = 0;
+    rest[k] += d;
+    const n = Math.trunc(rest[k] + Math.sign(d) * 1e-9) || 0;
+    rest[k] -= n;
+    return n;
+  };
+  return { dx: step(x * ux, 'x'), dy: step(y * uy, 'y') };
 }
 
 /** Cells of a gauge `w` wide that are filled. */
@@ -297,6 +344,11 @@ export class ScriptPane extends PaneShell {
   private readonly inputs = new Map<number, HTMLInputElement>();
   /** A focus asked for before the field's input exists. */
   private pendingFocus: { id: number; select: boolean } | null = null;
+  /** The script's wheel handler (ADR 0072), or null: the wheel is left alone. */
+  private wheelFn: ((dx: number, dy: number) => boolean) | null = null;
+  private wheelRest: WheelRest = { x: 0, y: 0 };
+  /** The handler's last answer, for events too small for a whole step. */
+  private wheelTaken = false;
 
   constructor(ctx: PaneContext, id: PaneId, opts: ScriptPaneOptions) {
     super(ctx, id, { label: opts.content.title || id, blankWhenInactive: false });
@@ -337,6 +389,28 @@ export class ScriptPane extends PaneShell {
     }
     this.markDirty();
   }
+
+  /**
+   * Hands the wheel over the pane to `fn` in whole cells (`pane:onWheel`,
+   * ADR 0072); null stops it. True from `fn` consumes the event.
+   */
+  setWheel(fn: ((dx: number, dy: number) => boolean) | null): void {
+    // Capture: before the frame's forwarded scroll (forwardWheel) on the same element.
+    if (fn && !this.wheelFn) this.el.addEventListener('wheel', this.onWheel, { passive: false, capture: true });
+    if (!fn && this.wheelFn) this.el.removeEventListener('wheel', this.onWheel, { capture: true });
+    this.wheelFn = fn;
+    this.wheelRest = { x: 0, y: 0 };
+    this.wheelTaken = false;
+  }
+
+  private readonly onWheel = (e: WheelEvent): void => {
+    const fn = this.wheelFn;
+    // Ctrl+wheel (and a touchpad pinch) zooms: never the script's.
+    if (!fn || e.ctrlKey) return;
+    const { dx, dy } = wheelSteps(e, this.ctx.cells.get(), { cols: this.cols, rows: this.rows }, this.wheelRest);
+    if (dx !== 0 || dy !== 0) this.wheelTaken = fn(dx, dy);
+    if (this.wheelTaken) e.preventDefault();
+  };
 
   /** The link under the pointer now (tests). */
   get hovered(): PaneLink | null {
@@ -590,6 +664,7 @@ export class ScriptPane extends PaneShell {
   }
 
   override dispose(): void {
+    this.setWheel(null);
     this.clearPointer();
     this.tipEl?.remove();
     for (const [id, el] of [...this.inputs]) this.dropInput(id, el);

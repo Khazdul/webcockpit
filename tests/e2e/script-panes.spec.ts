@@ -4,6 +4,7 @@
 // disabling the script removes it and enabling it again restores its place.
 // A temporary pane (feedback round 1) floats centred over the game, is not
 // in Options or the settings, and closes with its cross and pane:close().
+// pane:onWheel (ADR 0072) hears the wheel in cells and takes it only on true.
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -358,5 +359,59 @@ test('an overflowing script pane scrolls by pixels; a list stays at the top, a c
   await command(page, 'more');
   await expect(con.locator('.wc-spane-rows .wc-prow')).toHaveCount(32);
   expect(await scrollTop(con)).toBe(back);
+  expect(errors).toEqual([]);
+});
+
+const WHEEL = `-- @name wheels
+-- @api 1
+local list = createPane{id = "list", title = "List", dock = "float", rows = 6, cols = 24, anchor = "top"}
+for i = 1, 30 do list:setLine(i, "item " .. i) end
+local take = false
+list:onWheel(function(dx, dy)
+  send("wheel " .. dx .. " " .. dy)
+  return take
+end)
+tempAlias("^take$", function() take = true end)
+echo("wheels ready")
+`;
+
+test('pane:onWheel gets whole cells; true takes the scroll, otherwise the pane scrolls as before (ADR 0072)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const received: Buffer[] = [];
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.onMessage((m) => received.push(typeof m === 'string' ? Buffer.from(m) : m));
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  const sentText = () => Buffer.concat(received).toString('latin1');
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(page, WHEEL, 'wheels');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-output')).toContainText('wheels ready');
+  const list = page.locator('.wc-pane[data-pane="wheels/list"]');
+  await expect(list).toBeVisible();
+  const scrollTop = () => list.locator('.wc-spane-scroll').evaluate((e) => e.scrollTop);
+  const cellH = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')));
+  const box = (await list.locator('.wc-spane-scroll').boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 10);
+
+  // Not taken: the script hears it in rows, the list scrolls natively.
+  await page.mouse.wheel(0, 4 * cellH);
+  await expect.poll(sentText).toMatch(/wheel 0 [1-9]\d*\r\n/);
+  await expect.poll(scrollTop).toBeGreaterThan(0);
+  const at = await scrollTop();
+
+  // Taken: the script hears it, the list stays.
+  await command(page, 'take');
+  const before = (sentText().match(/wheel /g) ?? []).length;
+  await page.mouse.move(box.x + 20, box.y + 10);
+  await page.mouse.wheel(0, 4 * cellH);
+  await expect.poll(() => (sentText().match(/wheel /g) ?? []).length).toBeGreaterThan(before);
+  await page.waitForTimeout(200);
+  expect(await scrollTop()).toBe(at);
+  // Sideways: dx.
+  await page.mouse.wheel(60, 0);
+  await expect.poll(sentText).toMatch(/wheel [1-9]\d* 0\r\n/);
   expect(errors).toEqual([]);
 });

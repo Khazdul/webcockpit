@@ -20,6 +20,8 @@
 //   `onStates` is called after every layout (not while a drag runs) and
 //   when script panes come or go. A view's `dock()` and `want()` read and
 //   ask for its own place and size.
+// - `view.wheel(on)` (ADR 0072) turns on reporting the wheel over the pane
+//   in whole cells to `events.onWheel` (`pane:onWheel`).
 // - `RecordingPaneSurface` wraps a surface and reports the panes' content
 //   for the run capture (`view.pane`, ADR 0053 P1); it forwards the rest.
 //
@@ -60,6 +62,11 @@ export interface ScriptPaneEvents {
   onPlace?(): void;
   /** A text field changed, was submitted or cancelled, or got a key (ADR 0055). */
   onField?(id: number, e: FieldEvent): void;
+  /**
+   * The wheel over the pane in whole cells (positive = right / down) while
+   * `view.wheel(true)` is on (ADR 0072). True consumes the event.
+   */
+  onWheel?(dx: number, dy: number): boolean;
 }
 
 /** One open script pane, as the host sees it. */
@@ -88,6 +95,8 @@ export interface ScriptPaneView {
    * top/bottom lane, or `cols` given); false for a float.
    */
   want?(rows: number, cols?: number): boolean;
+  /** Starts (true) or stops reporting the wheel to `events.onWheel` (`pane:onWheel`, ADR 0072). */
+  wheel?(on: boolean): void;
 }
 
 /** One pane in the pane list (ADR 0065). */
@@ -168,6 +177,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       isOn: () => paneSettingsOf(this.settings.get().panes, id).on,
       size: () => ({ cols: pane.cols, rows: pane.rows }),
       focusField: (n, select) => pane.focusField(n, select),
+      wheel: (on) => pane.setWheel(on ? (dx, dy) => events.onWheel?.(dx, dy) ?? false : null),
       close: () => {
         if (closed) return;
         closed = true;
@@ -215,6 +225,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       placement: () => tempPlacement(this.cockpit.tempPane(id) ?? { ...size, rect: null, on: false }),
       dock: () => 'float',
       want: () => false,
+      wheel: (on) => pane.setWheel(on ? (dx, dy) => events.onWheel?.(dx, dy) ?? false : null),
     };
     this.cockpit.addPane(pane, {
       ...size,
@@ -348,6 +359,7 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
     if (view.focusField) out.focusField = (n, select) => view.focusField!(n, select);
     if (view.dock) out.dock = () => view.dock!();
     if (view.want) out.want = (rows, cols) => view.want!(rows, cols);
+    if (view.wheel) out.wheel = (on) => view.wheel!(on);
     return out;
   }
 

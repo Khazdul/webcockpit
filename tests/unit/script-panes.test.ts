@@ -11,9 +11,9 @@ import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPan
 import { type LayoutModel, PANE_COLORS, defaultLayout, dockPanes, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
-import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows } from '../../src/panes/script-pane';
+import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows, wheelSteps } from '../../src/panes/script-pane';
 import { contrast, hoverLift, lightness, paneShades } from '../../src/theme/color';
-import { CockpitPaneSurface } from '../../src/panes/script-surface';
+import { CockpitPaneSurface, RecordingPaneSurface } from '../../src/panes/script-surface';
 import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../../src/layout/temp-places';
 import { parseCecho } from '../../src/scripts/colors';
 import { SettingsStore, migrateLayout, migrateSettings } from '../../src/settings';
@@ -1238,6 +1238,113 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(view.dock!()).toBe('bottom');
       expect(view.want!(1)).toBe(true);
     });
+  });
+
+  describe('the wheel for the script (ADR 0072)', () => {
+    const ID = scriptPaneId('w', 'p');
+    const wheel = (el: Element, init: WheelEventInit): WheelEvent => {
+      const e = new WheelEvent('wheel', { bubbles: true, cancelable: true, ...init });
+      // happy-dom drops the modifier keys of a WheelEvent init.
+      for (const k of ['shiftKey', 'ctrlKey'] as const) if (init[k]) Object.defineProperty(e, k, { value: true });
+      el.dispatchEvent(e);
+      return e;
+    };
+
+    function open(rec = false) {
+      const r = rig();
+      const calls: Array<[number, number]> = [];
+      let take = true;
+      const surface = rec ? new RecordingPaneSurface(r.surface, () => {}, () => 0) : r.surface;
+      const view = surface.open({ id: ID, place: { dock: 'right', rows: 3, cols: 20 } }, new PaneContent('P'), {
+        onLink: () => {},
+        onResize: () => {},
+        onWheel: (dx, dy) => {
+          calls.push([dx, dy]);
+          return take;
+        },
+      });
+      r.flush();
+      const el = r.cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${ID}"] .wc-pane-content`)!;
+      return { ...r, view, calls, el, setTake: (v: boolean) => (take = v) };
+    }
+
+    it('reports nothing and prevents nothing until the script asks', () => {
+      const t = open();
+      const e = wheel(t.el, { deltaX: 50 });
+      expect(t.calls).toEqual([]);
+      expect(e.defaultPrevented).toBe(false);
+    });
+
+    it('reports whole cells with the rest kept, consumes only on true, stops on wheel(false)', () => {
+      const t = open();
+      t.view.wheel!(true);
+      // Cells are 10 × 20 px: 25 px across is 2 cells, the half kept.
+      expect(wheel(t.el, { deltaX: 25 }).defaultPrevented).toBe(true);
+      expect(t.calls).toEqual([[2, 0]]);
+      wheel(t.el, { deltaX: 5 });
+      expect(t.calls.at(-1)).toEqual([1, 0]);
+      // Down 30 px is 1 row and a half; Shift turns a vertical wheel sideways.
+      wheel(t.el, { deltaY: 30 });
+      expect(t.calls.at(-1)).toEqual([0, 1]);
+      wheel(t.el, { deltaY: 20, shiftKey: true });
+      expect(t.calls.at(-1)).toEqual([2, 0]);
+      // Lines are cells.
+      wheel(t.el, { deltaY: -3, deltaMode: 1 });
+      expect(t.calls.at(-1)).toEqual([0, -3]);
+      // Ctrl+wheel (zoom) is never the script's.
+      const n = t.calls.length;
+      expect(wheel(t.el, { deltaY: 100, ctrlKey: true }).defaultPrevented).toBe(false);
+      expect(t.calls.length).toBe(n);
+      // false: the event goes on (native scroll); an event under a cell follows that answer.
+      t.setTake(false);
+      expect(wheel(t.el, { deltaX: 10 }).defaultPrevented).toBe(false);
+      expect(wheel(t.el, { deltaX: 3 }).defaultPrevented).toBe(false);
+      t.setTake(true);
+      expect(wheel(t.el, { deltaX: 10 }).defaultPrevented).toBe(true);
+      expect(wheel(t.el, { deltaX: 3 }).defaultPrevented).toBe(true);
+      t.view.wheel!(false);
+      const m = t.calls.length;
+      expect(wheel(t.el, { deltaX: 50 }).defaultPrevented).toBe(false);
+      expect(t.calls.length).toBe(m);
+    });
+
+    it('the recording surface forwards wheel and onWheel', () => {
+      const t = open(true);
+      t.view.wheel!(true);
+      wheel(t.el, { deltaX: 10 });
+      expect(t.calls).toEqual([[1, 0]]);
+    });
+  });
+});
+
+describe('wheelSteps (ADR 0072)', () => {
+  const cell = { w: 10, h: 20 };
+  const size = { cols: 30, rows: 4 };
+  const ev = (deltaX: number, deltaY: number, deltaMode = 0, shiftKey = false) => ({ deltaX, deltaY, deltaMode, shiftKey });
+
+  it('pixels by the cell size, lines as cells, pages as the pane', () => {
+    expect(wheelSteps(ev(30, 40), cell, size, { x: 0, y: 0 })).toEqual({ dx: 3, dy: 2 });
+    expect(wheelSteps(ev(2, -1, 1), cell, size, { x: 0, y: 0 })).toEqual({ dx: 2, dy: -1 });
+    expect(wheelSteps(ev(1, 1, 2), cell, size, { x: 0, y: 0 })).toEqual({ dx: 30, dy: 4 });
+  });
+
+  it('keeps the fraction, drops it when the direction turns', () => {
+    const rest = { x: 0, y: 0 };
+    expect(wheelSteps(ev(4, 0), cell, size, rest)).toEqual({ dx: 0, dy: 0 });
+    expect(wheelSteps(ev(4, 0), cell, size, rest)).toEqual({ dx: 0, dy: 0 });
+    expect(wheelSteps(ev(4, 0), cell, size, rest)).toEqual({ dx: 1, dy: 0 });
+    expect(rest.x).toBeCloseTo(0.2);
+    expect(wheelSteps(ev(-9, 0), cell, size, rest)).toEqual({ dx: 0, dy: 0 });
+    expect(rest.x).toBeCloseTo(-0.9);
+    // 0.1 + 0.2 + 0.7 is a whole cell, not 0.9999…
+    const r2 = { x: 0, y: 0 };
+    for (const d of [1, 2, 7]) wheelSteps(ev(d, 0), cell, size, r2);
+    expect(r2.x).toBeCloseTo(0);
+  });
+
+  it('Shift turns a vertical-only wheel sideways', () => {
+    expect(wheelSteps(ev(0, 20, 0, true), cell, size, { x: 0, y: 0 })).toEqual({ dx: 2, dy: 0 });
+    expect(wheelSteps(ev(10, 20, 0, true), cell, size, { x: 0, y: 0 })).toEqual({ dx: 1, dy: 1 });
   });
 });
 

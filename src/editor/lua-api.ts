@@ -853,6 +853,23 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "pane:onWheel",
+    "pane:onWheel(fn)",
+    "Calls fn(dx, dy) when the wheel or the touchpad scrolls over the pane, in whole cells: dx sideways (positive = right), dy up and down (positive = down). Return true to take the scroll; nil removes the handler.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("fn", "function?", "Called with the steps in cells; true from it takes the scroll. nil removes it."),
+      ],
+      returns: "Nothing. fn returns true to take the scroll, anything else leaves it to the pane.",
+      more: [
+        "Small touchpad moves add up: fn is called once they make a whole cell. Shift with the mouse wheel scrolls sideways. Ctrl with the wheel (zoom) never reaches fn.",
+        "When fn returns true the pane does not scroll its own lines and the browser does nothing with the scroll (no going back a page on a sideways swipe). Return false or nothing to leave it to them.",
+      ],
+      example: 'local first = 1\npane:onWheel(function(dx, dy)\n  first = math.max(1, first + dx)\n  pane:setLine(1, "from column " .. first)\n  return true\nend)',
+    },
+  ),
+  fn(
     "pane:show",
     "pane:show()",
     "Switches the pane on, as its row in Options → Panes does.",

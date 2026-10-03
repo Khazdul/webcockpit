@@ -285,13 +285,14 @@ export class AnchoredList<T = unknown> {
 
 /**
  * The wheel over a pane outside its scroller (the frame, the title-row grip,
- * the Comm header) scrolls the scroller by the same pixels. Returns the
- * unsubscribe function.
+ * the Comm header) scrolls the scroller by the same pixels, unless a
+ * listener before it took the event (a script pane's `onWheel`, ADR 0072).
+ * Returns the unsubscribe function.
  */
 export function forwardWheel(pane: HTMLElement, scroller: () => HTMLElement | null, cellH: () => number): () => void {
   const on = (e: WheelEvent): void => {
     const s = scroller();
-    if (!s || s.contains(e.target as Node)) return;
+    if (!s || e.defaultPrevented || s.contains(e.target as Node)) return;
     const h = cellH() || 16;
     const px = e.deltaMode === 1 ? e.deltaY * h : e.deltaMode === 2 ? e.deltaY * s.clientHeight : e.deltaY;
     if (px) s.scrollTop += px;

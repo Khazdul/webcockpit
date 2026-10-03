@@ -109,6 +109,11 @@ class FakeView implements ScriptPaneView {
   focusField(id: number, select: boolean): void {
     this.focused.push([id, select]);
   }
+  /** `wheel(on)` calls (ADR 0072). */
+  wheels: boolean[] = [];
+  wheel(on: boolean): void {
+    this.wheels.push(on);
+  }
 }
 
 /** The text of a pane's lines (gauges as `[label value/max]`). */
@@ -957,6 +962,67 @@ describe('pane:setGrip (ADR 0065 round 1)', () => {
     const panes = new FakeSurface();
     await setup({ g: src(`local pane = createPane{id = "p"}\npane:setGrip(2, 3, 4)\npane:setLine(2, "text")\npane:clear()`) }, { panes });
     expect(panes.get('g/p')!.content.grip).toEqual({ row: 1, col: 2, len: 4 });
+  });
+});
+
+describe('pane:onWheel (ADR 0072)', () => {
+  it('turns the surface wheel on and off, calls fn(dx, dy), true consumes, a replaced handler is released', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        w: src(`
+          pane = createPane{id = "p"}
+          pane:onWheel(function(dx, dy)
+            send(dx .. "," .. dy)
+            return dx > 0
+          end)
+          tempAlias("^other$", function() pane:onWheel(function() return "yes" end) end)
+          tempAlias("^off$", function() pane:onWheel(nil) end)
+          tempAlias("^bad$", function() send(select(2, pcall(pane.onWheel, pane, 3))) end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('w/p')!;
+    expect(p.view.wheels).toEqual([true]);
+    expect(p.events.onWheel!(2, 0)).toBe(true);
+    expect(p.events.onWheel!(-1, 3)).toBe(false);
+    expect(t.sent).toEqual(['2,0', '-1,3']);
+    const script = (t.host as unknown as { owners: Map<string, { script: { refs: Set<number> } }> }).owners.get('w')!.script;
+    const refs = script.refs.size;
+    t.engine.run('other');
+    // The old handler is released; only a true return consumes.
+    expect(script.refs.size).toBe(refs);
+    expect(p.events.onWheel!(1, 0)).toBe(false);
+    t.engine.run('off');
+    expect(script.refs.size).toBe(refs - 1);
+    expect(p.view.wheels).toEqual([true, true, false]);
+    expect(p.events.onWheel!(1, 0)).toBe(false);
+    t.engine.run('bad');
+    expect(t.sent.at(-1)).toMatch(/bad argument #2 to 'pane:onWheel'/);
+  });
+
+  it('a handler error follows the error policy and does not consume; close and disable release it', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        e: src(`
+          pane = createPane{id = "p"}
+          pane:onWheel(function() error("boom") end)
+          tempAlias("^close$", function() pane:close() end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('e/p')!;
+    expect(p.events.onWheel!(0, 1)).toBe(false);
+    expect(t.uiText().some((m) => m.includes('boom'))).toBe(true);
+    const script = (t.host as unknown as { owners: Map<string, { script: { refs: Set<number> } }> }).owners.get('e')!.script;
+    const refs = script.refs.size;
+    t.engine.run('close');
+    expect(script.refs.size).toBe(refs - 1);
+    expect(p.events.onWheel!(0, 1)).toBe(false);
+    expect(t.uiText().filter((m) => m.includes('boom')).length).toBe(1);
   });
 });
 

@@ -32,7 +32,7 @@
 // with `:`). The host edits the pane's PaneContent and the surface draws it
 // (src/panes/script-surface.ts); method calls never touch the DOM. Each
 // owner keeps its panes; unloading closes them (their place stays in the
-// settings) and the link and resize functions go with the script.
+// settings) and the link, resize and wheel functions go with the script.
 //
 // The pane list (ADR 0065): `getPanes()` lists every pane in Options →
 // Panes order and `setPaneOn` switches one, for any script. The event
@@ -171,6 +171,8 @@ interface PaneReg {
   /** Link id → the link's function. */
   links: Map<number, LuaRef>;
   resize: LuaRef | null;
+  /** `pane:onWheel(fn)` (ADR 0072): wheel steps in cells; true from it consumes the event. */
+  wheel: LuaRef | null;
   /** The last size reported to the resize handler (`colsxrows`). */
   lastSize: string;
   /** Text fields (`pane:setInput`) by their id, which is also their Lua handle. */
@@ -1495,6 +1497,18 @@ export class ScriptHost {
         if (p.resize !== null) p.owner.script?.release(p.resize);
         p.resize = ref;
       },
+      onWheel: (a) => {
+        const p = self(a);
+        const ref = a.optFunction(2);
+        if (!p) {
+          if (ref !== null) this.cur(rt).script?.release(ref);
+          return;
+        }
+        if (p.wheel !== null) p.owner.script?.release(p.wheel);
+        p.wheel = ref;
+        // The surface listens (non-passive) only while there is a handler.
+        p.view.wheel?.(ref !== null);
+      },
       onClose: (a) => {
         const p = self(a);
         const ref = a.optFunction(2);
@@ -1626,6 +1640,7 @@ export class ScriptHost {
         onClose: null,
         links: new Map(),
         resize: null,
+        wheel: null,
         lastSize: '',
         fields: new Map(),
       } as unknown as PaneReg;
@@ -1645,6 +1660,7 @@ export class ScriptHost {
       const events = {
         onLink: (n: number) => this.onPaneLink(reg, n),
         onResize: (c: number, r: number) => this.onPaneResize(reg, c, r),
+        onWheel: (dx: number, dy: number) => this.onPaneWheel(reg, dx, dy),
         onClose: () => this.onPaneClosed(reg),
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
@@ -1696,6 +1712,8 @@ export class ScriptHost {
     p.links.clear();
     if (p.resize !== null) s?.release(p.resize);
     p.resize = null;
+    if (p.wheel !== null) s?.release(p.wheel);
+    p.wheel = null;
     if (p.onClose !== null) s?.release(p.onClose);
     p.onClose = null;
     for (const f of [...p.fields.values()]) this.releaseField(f);
@@ -1750,6 +1768,14 @@ export class ScriptHost {
     if (key === p.lastSize) return;
     p.lastSize = key;
     if (p.resize !== null) this.call(p.owner, p.resize, rows, cols);
+  }
+
+  /** The wheel over pane `p`, in whole cells: true when its handler consumed it (returned true). */
+  private onPaneWheel(p: PaneReg, dx: number, dy: number): boolean {
+    const ref = p.wheel;
+    if (ref === null || p.owner.dead || this.paneHandles.get(p.handle) !== p) return false;
+    const r = this.call(p.owner, ref, dx, dy);
+    return r?.ok === true && r.value === true;
   }
 
   private onTrigger(o: Owner, ref: LuaRef, ctx: MatchContext): void {
