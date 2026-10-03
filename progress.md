@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.40). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.41). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -29,7 +29,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Stage 14 round 3: pane bar shrinks and scrolls (not released)
+### 2026-10-03 — Stage 14 round 3: pane bar shrinks and scrolls, release 0.1.41
 
 - **Owner asks:** the bar should fit narrow widths like the Char pane:
   buttons shrink to 2 cells, full names when there is room, symmetric;
@@ -39,8 +39,10 @@ Newest first.
   click, dim at the end). New `pane:onWheel(fn)` for all scripts (ADR
   0072; ADR 0065 round 3). Unit 2084 green, typecheck clean, panebar +
   script-panes e2e green (Chromium, Firefox).
-- **Next:** release on the owner's word, then owner test (round 3 guide
-  in the stage file): narrow names, arrows, swipe speed.
+- **Released:** 0.1.41 (tag v0.1.41). build:pages smoke green (run by
+  the owner), Pages deploy green, live release.json 0.1.41, test:prod 10/10.
+- **Next:** owner test (round 3 guide in the stage file): narrow names,
+  arrows, swipe speed.
 - **Commits:** d58c516, 5f962ba, a325f80, 790eb41, plus this one.
 
 ### 2026-10-03 — Stage 9 map fix: lookalike rooms west of Mirkwood, release 0.1.40
