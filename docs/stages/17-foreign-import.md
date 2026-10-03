@@ -139,6 +139,26 @@ alone.
   Items with a reason and a warning show both (`reason; warning`).
 - Help: one line in the profile manual's intro on the import formats.
 
+### JMC follow-up fixes (2026-10-04, owner's test files)
+
+- `&x` text colour codes in `#showme`, `#output` and substitute
+  replacements become `<abc>` codes as JMC emits them (lowercase
+  `ESC[0;3Nm` → `<0N9>`, uppercase `ESC[1;3Nm` → `<1N8>`, so bright
+  follows the "Bold brightens" setting like MUME's own colours); `&&` →
+  `&`. `#showme {colour} {text}` and `#output {colour} {text}` keep the
+  colour as a code prefix; an unbraced `#showme` text runs to the end.
+- `#if`: JMC compares integers only, so `$target == orc` never worked
+  there. Our engine compares barewords as strings, but a value with
+  spaces breaks it; `==`/`!=` with a literal text side are quoted
+  (`"$target" == "orc"`) with a warning. Numeric comparisons stay.
+- `#N cmd` → `#N {cmd}` (the engine repeats it, tested). `#N:D cmd`
+  (D deciseconds, JMC `do_cycle`) is unrolled into `cmd;#delay {D/10}
+  {cmd};…` with a warning, kept as written above 20 repeats.
+- `#beep` (unknown to JMC too) and `#bell` in a body → `#bell` (inert in
+  the engine) with a "no sound" warning.
+- `##` comments and `#nop` close the open `#class` group first, so
+  section comments never sit inside a group's open/close.
+
 ## Test guide
 
 Open the start page → Profiles → IMPORT.
