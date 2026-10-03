@@ -16,8 +16,10 @@ import {
   shiftBoundary,
   shiftLanes,
   togglePatch,
+  placeScriptPane,
+  wantPaneSize,
 } from '../../src/layout/model';
-import { type DockId, type LayoutModel, PANE_IDS, defaultLayout, defaultMapFloat, dockPanes } from '../../src/layout/types';
+import { type DockId, type LayoutModel, PANE_IDS, type PaneId, defaultLayout, defaultMapFloat, dockPanes } from '../../src/layout/types';
 import { defaultSettings } from '../../src/settings/types';
 
 const order = (m: LayoutModel, d: DockId) => dockPanes(m.docks[d]).map((p) => p.id);
@@ -327,3 +329,53 @@ describe('togglePatch', () => {
     expect(togglePatch(s.panes, 'group')).toEqual({ panes: { group: { color: 'black', border: true, on: false } } });
   });
 });
+
+describe('pane bar placement and sizes (ADR 0065)', () => {
+  const BAR = 'panebar/bar' as PaneId;
+  const own = { rows: 1, cols: 80, lane: 'own' as const };
+
+  it("lane 'own' opens a new lane 0 at the screen edge of every dock, sized to the pane and frame", () => {
+    const b = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    expect(b.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
+    const t = placeScriptPane(moveToNewLane(defaultLayout(), 'comm', 'top', 0, 6), BAR, { dock: 'top', ...own, border: true });
+    expect(t.docks.top.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])).toEqual([[3, [BAR]], [6, ['comm']]]);
+    const r = placeScriptPane(defaultLayout(), BAR, { dock: 'right', rows: 6, cols: 8, lane: 'own', border: false });
+    expect(r.docks.right.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])).toEqual([[10, [BAR]], [33, ['character', 'timers', 'group', 'comm', 'ui']]]);
+    expect(r.docks.right.lanes[0]!.panes[0]!.desired).toBe(6);
+    const l = placeScriptPane(defaultLayout(), BAR, { dock: 'left', rows: 6, cols: 20, lane: 'own' });
+    expect(l.docks.left.lanes).toEqual([{ size: 22, panes: [{ id: BAR, desired: 6 }] }]);
+    // Placed already: nothing changes. A float ignores the lane.
+    expect(placeScriptPane(b, BAR, { dock: 'top', ...own })).toBe(b);
+    const f = placeScriptPane(defaultLayout(), BAR, { dock: 'float', ...own });
+    expect(f.floating[0]).toMatchObject({ id: BAR, auto: true, w: 82, h: 3 });
+  });
+
+  it('shiftLanes keeps each lane at its own minimum', () => {
+    let m = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    m = moveToNewLane(m, 'comm', 'bottom', 1, 6);
+    const r = shiftLanes(m, 'bottom', { lane: 0, size: 3, min: 1 }, { lane: 1, size: 6, min: 3 }, -5);
+    expect(r.docks.bottom.lanes.map((l) => l.size)).toEqual([1, 8]);
+    const g = shiftLanes(m, 'bottom', { lane: 0, size: 1, min: 1 }, { lane: 1, size: 6, min: 3 }, 9);
+    expect(g.docks.bottom.lanes.map((l) => l.size)).toEqual([4, 3]);
+  });
+
+  it('wantPaneSize: side dock rows, a lane alone in top/bottom, cols along the lane; no-ops', () => {
+    const b = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    const two = wantPaneSize(b, BAR, 2, undefined, false);
+    expect(two.docks.bottom.lanes[0]!.size).toBe(2);
+    expect(wantPaneSize(two, BAR, 2, undefined, false)).toBe(two);
+    expect(wantPaneSize(b, BAR, 2, undefined, true).docks.bottom.lanes[0]!.size).toBe(4);
+    expect(wantPaneSize(b, BAR, 1, 50, false).docks.bottom.lanes[0]).toEqual({ size: 1, panes: [{ id: BAR, desired: 50 }] });
+    // Shared lane: the rows are the lane's, not the pane's.
+    const shared = movePane(b, 'comm', 'bottom', 0, 1);
+    expect(wantPaneSize(shared, BAR, 4, undefined, false)).toBe(shared);
+    // Side dock: desired rows.
+    const side = movePane(b, BAR, 'right', 0, 0);
+    expect(wantPaneSize(side, BAR, 7, undefined, false).docks.right.lanes[0]!.panes[0]).toEqual({ id: BAR, desired: 7 });
+    // A float or an unknown pane: unchanged.
+    const fl = floatPane(b, BAR, { x: 1, y: 1, w: 20, h: 2 });
+    expect(wantPaneSize(fl, BAR, 3, 5, false)).toBe(fl);
+    expect(wantPaneSize(b, 'x/y' as PaneId, 3, 5, false)).toBe(b);
+  });
+});
+

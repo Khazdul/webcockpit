@@ -21,7 +21,10 @@
 //
 // Pointer interaction (no animation):
 // - Drag a pane by its title row (the frame's top row; with the border off,
-//   the top content row) to a dock or a position in a dock. The insertion
+//   the top content row) to a dock or a position in a dock. A borderless
+//   script pane's top row is a soft grip (ADR 0065): its links and text
+//   get the press, and it becomes a move only once the pointer travels
+//   DRAG_THRESHOLD px (the click at its end is eaten then). The insertion
 //   bar shows where it lands. Dropping on the screen edge of a dock that is
 //   not shown opens that dock at its default size.
 // - Lanes (ADR 0064): a dock is a list of lanes from the screen edge
@@ -87,7 +90,7 @@ import {
   clampFloat,
   floatMin,
   isSideDock,
-  laneMin,
+  paneCrossMin,
 } from './allocate';
 import {
   findFloat,
@@ -257,6 +260,12 @@ type Drag =
       grab: { x: number; y: number };
       active: boolean;
       target: DropTarget | null;
+      /**
+       * A soft grip (ADR 0065): pressed on a borderless script pane's top
+       * content row. Nothing is captured until the pointer moves past
+       * DRAG_THRESHOLD, so a press without a move is an ordinary click.
+       */
+      soft?: boolean;
     }
   | {
       kind: 'float';
@@ -277,6 +286,8 @@ type Drag =
       dock: DockId;
       lane: number;
       rest: number;
+      /** The innermost lane's minimum (`LaneBox.min`). */
+      min: number;
       pointerId: number;
       base: LayoutModel;
     }
@@ -285,8 +296,8 @@ type Drag =
       kind: 'lanes';
       dock: DockId;
       pointerId: number;
-      outer: { lane: number; size: number };
-      inner: { lane: number; size: number };
+      outer: { lane: number; size: number; min: number };
+      inner: { lane: number; size: number; min: number };
       cell0: number;
       base: LayoutModel;
     }
@@ -328,6 +339,9 @@ export class Cockpit {
   /** A temporary pane's rectangle while it is dragged or resized. */
   private tempPreview: { id: PaneId; rect: Rect } | null = null;
   private readonly paneListeners = new Set<() => void>();
+  private readonly layoutListeners = new Set<() => void>();
+  /** A soft-grip drag ended: the click that follows must not reach a link. */
+  private swallowClick = false;
   private readonly settings: SettingsStore;
   private readonly cells: CellSource;
   private readonly onFocusInput: () => void;
@@ -388,6 +402,7 @@ export class Cockpit {
     this.el.addEventListener('pointercancel', this.onPointerCancel);
     this.el.addEventListener('lostpointercapture', this.onPointerCancel);
     this.el.addEventListener('mousedown', this.onMouseDown);
+    this.el.addEventListener('click', this.onClickCapture, true);
     this.el.addEventListener('mouseup', this.onMouseUp);
 
     this.unsubs.push(
@@ -571,6 +586,18 @@ export class Cockpit {
     return this.last;
   }
 
+  /** True while a pane is being dragged or a resize runs (a press not yet past the threshold is not one). */
+  get dragging(): boolean {
+    const d = this.drag;
+    return d !== null && (d.kind !== 'move' || d.active);
+  }
+
+  /** Calls `fn` after every layout (ADR 0065: the script pane list follows it). Returns the unsubscribe. */
+  onLayout(fn: () => void): () => void {
+    this.layoutListeners.add(fn);
+    return () => this.layoutListeners.delete(fn);
+  }
+
   /** Relayouts in the next animation frame (coalesced). */
   scheduleRelayout(): void {
     if (this.scheduled || this.disposed) return;
@@ -618,6 +645,7 @@ export class Cockpit {
       );
     }
     this.renderHandles(r, cell);
+    for (const fn of [...this.layoutListeners]) fn();
   }
 
   /**
@@ -709,6 +737,7 @@ export class Cockpit {
     this.disposed = true;
     for (const u of this.unsubs) u();
     this.paneListeners.clear();
+    this.layoutListeners.clear();
     for (const s of this.shells.values()) s.dispose();
     this.ro?.disconnect();
     this.el.remove();
@@ -783,16 +812,23 @@ export class Cockpit {
           }
         }
         // Lane boundaries (ADR 0064), like pane boundaries: the right
-        // (lower) part of the left (upper) lane's last column (row).
+        // (lower) part of the left (upper) lane's last column (row). A
+        // 1-row lane (a borderless script pane, ADR 0065) keeps its row:
+        // the handle goes on the upper part of the lower lane's first row
+        // then, and two 1-row lanes get none.
         for (let k = 0; k + 1 < dock.lanes.length; k++) {
           const outer = dock.lanes[k]!;
           const inner = dock.lanes[k + 1]!;
-          const first = dock.id === 'left' || dock.id === 'top' ? outer.rect : inner.rect;
+          const towardEdge = dock.id === 'left' || dock.id === 'top';
+          const first = towardEdge ? outer.rect : inner.rect;
+          const second = towardEdge ? inner.rect : outer.rect;
           const data = { dock: dock.id, outer: String(outer.index), inner: String(inner.index) };
           if (side) {
             add({ x: (first.x + first.w) * cell.w - wz, y: first.y * cell.h, w: wz, h: first.h * cell.h }, 'x', data);
-          } else {
+          } else if (first.h > 1) {
             add({ x: first.x * cell.w, y: (first.y + first.h) * cell.h - hz, w: first.w * cell.w, h: hz }, 'y', data);
+          } else if (second.h > 1) {
+            add({ x: second.x * cell.w, y: second.y * cell.h, w: second.w * cell.w, h: hz }, 'y', data);
           }
         }
       }
@@ -809,6 +845,9 @@ export class Cockpit {
 
   private readonly onPointerDown = (e: PointerEvent): void => {
     this.swallowMouseDown = false;
+    this.swallowClick = false;
+    // A soft-grip press that never moved (released outside the cockpit) is forgotten.
+    if (this.drag?.kind === 'move' && this.drag.soft && !this.drag.active) this.drag = null;
     if (this.drag || !this.last || this.last.tooSmall) return;
     const t = e.target as HTMLElement;
     const floating = t.closest<HTMLElement>('.wc-pane[data-floating]');
@@ -846,6 +885,16 @@ export class Cockpit {
       const b = boxOf(id);
       const grab = b ? { x: Math.floor(x / cell.w) - b.rect.x, y: Math.floor(y / cell.h) - b.rect.y } : { x: 0, y: 0 };
       this.drag = { kind: 'move', id, pointerId: e.pointerId, x0: x, y0: y, grab, active: false, target: null };
+    } else if (!handle && this.softGrip(t, y / cell.h)) {
+      // A borderless script pane's top content row (ADR 0065): a move
+      // only once the pointer travels; until then the press is the
+      // pane's own (a link click, a text selection).
+      const pane = t.closest<HTMLElement>('.wc-pane')!;
+      const id = pane.dataset.pane as PaneId;
+      const b = boxOf(id)!;
+      const grab = { x: Math.floor(x / cell.w) - b.rect.x, y: Math.floor(y / cell.h) - b.rect.y };
+      this.drag = { kind: 'move', id, pointerId: e.pointerId, x0: x, y0: y, grab, active: false, target: null, soft: true };
+      return;
     } else if (handle) {
       const dock = handle.dataset.dock as DockId;
       const base = this.settings.get().layout;
@@ -885,8 +934,8 @@ export class Cockpit {
           kind: 'lanes',
           dock,
           pointerId: e.pointerId,
-          outer: { lane: outer.index, size: cross(outer) },
-          inner: { lane: inner.index, size: cross(inner) },
+          outer: { lane: outer.index, size: cross(outer), min: outer.min },
+          inner: { lane: inner.index, size: cross(inner), min: inner.min },
           cell0: side ? Math.floor(x / cell.w) : Math.floor(y / cell.h),
           base,
         };
@@ -896,7 +945,7 @@ export class Cockpit {
         if (!innermost) return;
         const cross = (l: LaneBox): number => (isSideDock(dock) ? l.rect.w : l.rect.h);
         const rest = lanes.slice(0, -1).reduce((n, l) => n + cross(l), 0);
-        this.drag = { kind: 'dock', dock, lane: innermost.index, rest, pointerId: e.pointerId, base };
+        this.drag = { kind: 'dock', dock, lane: innermost.index, rest, min: innermost.min, pointerId: e.pointerId, base };
       }
       this.showShield(handle.dataset.axis!);
     } else {
@@ -910,6 +959,29 @@ export class Cockpit {
     } catch {
       /* synthetic events have no active pointer */
     }
+  };
+
+  /**
+   * True when `t` (pressed at cockpit row `row`) is the top content row of
+   * a borderless, ordinary script pane, and not one of its text fields or
+   * its scroll indicator: a soft grip (ADR 0065).
+   */
+  private softGrip(t: HTMLElement, row: number): boolean {
+    const pane = t.closest<HTMLElement>('.wc-pane-script');
+    if (!pane || pane.hasAttribute('data-framed') || !this.el.contains(pane)) return false;
+    const id = pane.dataset.pane as PaneId;
+    if (this.temps.has(id) || !this.present.has(id)) return false;
+    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-float-handle')) return false;
+    const b = this.last?.panes.find((p) => p.id === id);
+    return !!b && Math.floor(row) === b.content.y;
+  }
+
+  /** Eats the click that ends a soft-grip drag, so no link under it fires. */
+  private readonly onClickCapture = (e: MouseEvent): void => {
+    if (!this.swallowClick) return;
+    this.swallowClick = false;
+    e.stopPropagation();
+    e.preventDefault();
   };
 
   private readonly onMouseDown = (e: MouseEvent): void => {
@@ -941,6 +1013,17 @@ export class Cockpit {
       if (!d.active) {
         if (Math.hypot(x - d.x0, y - d.y0) < DRAG_THRESHOLD) return;
         d.active = true;
+        if (d.soft) {
+          // The press becomes a move: take the pointer, drop any text
+          // selection it started, and eat the click at its end.
+          this.swallowClick = true;
+          this.el.ownerDocument.getSelection()?.removeAllRanges();
+          try {
+            this.el.setPointerCapture(e.pointerId);
+          } catch {
+            /* synthetic events have no active pointer */
+          }
+        }
         this.showShield('move');
         this.shells.get(d.id)!.el.toggleAttribute('data-dragging', true);
       }
@@ -980,7 +1063,7 @@ export class Cockpit {
         const other = r.docks[d.dock === 'right' ? 'left' : 'right'];
         max = r.cols - GAME_MIN_COLS - DOCK_GAP - (other ? other.rect.w + DOCK_GAP : 0);
       }
-      const min = laneMin(d.dock);
+      const min = d.min;
       max -= d.rest;
       if (max < min) return;
       this.setPreview(setLaneSize(d.base, d.dock, d.lane, Math.max(min, Math.min(max, size - d.rest))));
@@ -1003,6 +1086,11 @@ export class Cockpit {
   private readonly onPointerUp = (e: PointerEvent): void => {
     const d = this.drag;
     if (!d || e.pointerId !== d.pointerId) return;
+    if (d.kind === 'move' && d.soft && !d.active) {
+      // A plain click on a soft grip: the pane's own (a link).
+      this.drag = null;
+      return;
+    }
     const temp = 'id' in d ? this.temps.get(d.id) : undefined;
     if (temp) {
       // A temporary pane: its new rectangle stays in memory.
@@ -1170,7 +1258,7 @@ export class Cockpit {
       if (!low && pos < cross - depth) return undefined;
       const room = side ? r.game.w - GAME_MIN_COLS : r.game.h - GAME_MIN_ROWS;
       const size = Math.min(defaultDockSize(dock), room);
-      if (size < laneMin(dock)) return undefined;
+      if (size < paneCrossMin(id, dock, isTemp || paneSettingsOf(s.panes, id).border)) return undefined;
       // The low (left/upper) band faces the screen edge in the left/top dock.
       const towardEdge = low === (dock === 'left' || dock === 'top');
       const at = towardEdge ? lane.index : lane.index + 1;
@@ -1206,7 +1294,26 @@ export class Cockpit {
         : cy >= H - E && inGameCol ? 'bottom'
         : null;
       const shown = zone ? r.docks[zone] : undefined;
-      if (shown) return insert(shown.id, shown.lanes[0]!);
+      if (shown) {
+        // A bar lane at the screen edge (only borderless script panes,
+        // ADR 0065) stays the bar's: the pane joins the next lane in, or
+        // opens a new lane just inside the bar.
+        const edgeLane = shown.lanes[0]!;
+        if (!isBarLane(edgeLane, r)) return insert(shown.id, edgeLane);
+        const next = shown.lanes[1];
+        if (next) return insert(shown.id, next);
+        const side = isSideDock(shown.id);
+        const room = side ? r.game.w - GAME_MIN_COLS : r.game.h - GAME_MIN_ROWS;
+        const size = Math.min(defaultDockSize(shown.id), room);
+        const at = edgeLane.index + 1;
+        if (size < paneCrossMin(id, shown.id, paneSettingsOf(s.panes, id).border) || isNoopNewLane(layout, id, shown.id, at)) return null;
+        const l = edgeLane.rect;
+        const edge = shown.id === 'left' ? l.x + l.w : shown.id === 'right' ? l.x : shown.id === 'top' ? l.y + l.h : l.y;
+        const bar = side
+          ? { x: edge * cell.w - T / 2, y: l.y * cell.h, w: T, h: l.h * cell.h }
+          : { x: l.x * cell.w, y: edge * cell.h - T / 2, w: l.w * cell.w, h: T };
+        return { kind: 'lane', dock: shown.id, at, size, bar: clampBar(bar) };
+      }
       if (zone && !r.collapsed.includes(zone)) {
         const g = r.game;
         const bar: Record<DockId, Rect> = {
@@ -1237,6 +1344,11 @@ export class Cockpit {
     if (box?.dock === 'float' && sameRect(box.rect, rect)) return null;
     return { kind: 'float', rect };
   }
+}
+
+/** A shown lane of only borderless script panes: a bar (ADR 0065). */
+function isBarLane(lane: LaneBox, r: LayoutResult): boolean {
+  return lane.panes.every((id) => isScriptPaneId(id) && r.panes.some((p) => p.id === id && !p.framed));
 }
 
 const sameRect = (a: Rect, b: Rect): boolean => a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;

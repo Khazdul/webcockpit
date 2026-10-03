@@ -8,9 +8,12 @@ import {
   clampFloat,
   floatMin,
   minRows,
+  paneCrossMin,
+  shrinkLanes,
+  SIDE_DOCK_MIN,
 } from '../../src/layout/allocate';
 import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
-import { floatPane, movePane, moveToNewLane, setFloatRect, setLaneSize } from '../../src/layout/model';
+import { floatPane, movePane, moveToNewLane, placeScriptPane, setFloatRect, setLaneSize } from '../../src/layout/model';
 
 const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
 const DES: Record<BuiltinPaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20 };
@@ -518,3 +521,63 @@ describe('allocate: dock lanes (ADR 0064)', () => {
     expect(t.game.h).toBe(5);
   });
 });
+
+describe('allocate: per-lane minimum (ADR 0065)', () => {
+  const BAR = 'panebar/bar' as PaneId;
+  /** Built-in toggles plus the bar, present, borderless unless `framed`. */
+  const withBar = (framed = false): Pick<AllocateInput, 'panes' | 'present'> => ({
+    panes: { ...toggles(), [BAR]: { on: true, border: framed } },
+    present: new Set<PaneId>([BAR]),
+  });
+  const barLayout = (size = 1): LayoutModel =>
+    placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', rows: size, cols: 80, border: false, lane: 'own' });
+
+  it('a borderless script pane alone in a bottom lane is one row, the input line right above the gap', () => {
+    const r = allocate({ ...input(120, 40, barLayout()), ...withBar() });
+    expect(r.docks.bottom!.lanes.map((l) => [l.index, l.rect.h, l.min])).toEqual([[0, 1, 1]]);
+    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 39, w: 86, h: 1 });
+    expect(r.panes.find((p) => p.id === BAR)).toMatchObject({ rect: { x: 0, y: 39, w: 86, h: 1 }, content: { h: 1 }, framed: false });
+    expect(r.input.y).toBe(37);
+  });
+
+  it('a framed script pane lane is at least 3; a lane with a built-in keeps the dock minimum', () => {
+    expect(allocate({ ...input(120, 40, barLayout()), ...withBar(true) }).docks.bottom!.lanes[0]!.rect.h).toBe(3);
+    // Comm joins the bar's lane: the lane is at least 3 rows again.
+    const m = movePane(barLayout(), 'comm', 'bottom', 0, 1);
+    const r = allocate({ ...input(120, 40, m), ...withBar() });
+    expect(r.docks.bottom!.lanes[0]!.min).toBe(3);
+    expect(r.docks.bottom!.lanes[0]!.rect.h).toBe(3);
+  });
+
+  it('a dock with a bar lane collapses only below the sum of the lane minimums', () => {
+    // Bar (1) + a 3-row lane of Comm: 18 rows leave 11 for the docks.
+    let m = moveToNewLane(barLayout(), 'comm', 'bottom', 1, 10);
+    const r = allocate({ ...input(120, 18, m), ...withBar() });
+    expect(r.docks.bottom!.lanes.map((l) => [l.index, l.rect.h])).toEqual([[0, 1], [1, 10]]);
+    m = setLaneSize(m, 'bottom', 1, 20);
+    const t = allocate({ ...input(120, 18, m), ...withBar() });
+    expect(t.docks.bottom!.lanes.map((l) => [l.index, l.rect.h])).toEqual([[0, 1], [1, 10]]);
+    expect(t.collapsed).toEqual([]);
+  });
+
+  it('shrinkLanes takes each lane down to its own minimum, inner lanes first', () => {
+    expect(shrinkLanes([1, 10, 6], 9, [1, 3, 3])).toEqual([1, 5, 3]);
+    expect(shrinkLanes([1, 10], 4, [1, 3])).toEqual([1, 3]);
+  });
+
+  it('paneCrossMin: side docks SIDE_DOCK_MIN; built-ins 3; script panes 1 + frame', () => {
+    expect(paneCrossMin(BAR, 'right', false)).toBe(SIDE_DOCK_MIN);
+    expect(paneCrossMin('comm', 'bottom', false)).toBe(3);
+    expect(paneCrossMin('comm', 'top', true)).toBe(3);
+    expect(paneCrossMin(BAR, 'top', false)).toBe(1);
+    expect(paneCrossMin(BAR, 'bottom', true)).toBe(3);
+  });
+
+  it('built-in layouts allocate as before', () => {
+    const r = allocate(input(120, 40));
+    expect(r.docks.right!.lanes.map((l) => l.min)).toEqual([SIDE_DOCK_MIN]);
+    const m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 2);
+    expect(allocate(input(120, 40, m)).docks.bottom!.lanes[0]!.rect.h).toBe(3);
+  });
+});
+

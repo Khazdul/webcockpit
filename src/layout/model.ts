@@ -3,7 +3,7 @@
 // so the result can go straight into `settings.update`.
 
 import { type PaneSettings, type PaneSettingsMap, paneSettingsOf } from '../settings/types';
-import { DEFAULT_BOTTOM_DESIRED, FRAME_CELLS, type Rect, isSideDock, laneMin, minContent } from './allocate';
+import { DEFAULT_BOTTOM_DESIRED, FRAME_CELLS, type Rect, isSideDock, laneMin, minContent, paneCrossMin } from './allocate';
 import {
   DOCK_IDS,
   type DockId,
@@ -228,24 +228,26 @@ export function setLaneSize(m: LayoutModel, dock: DockId, lane: number, size: nu
 /**
  * Moves the boundary between two shown lanes of `dock` by `delta` cells
  * (positive: lane `a` grows, `b` shrinks; ADR 0064). `a.size` and
- * `b.size` are their current shown sizes; both stay at or above the lane
- * minimum and their sum stays constant, so the game pane keeps its size.
- * Both lanes are written with the result.
+ * `b.size` are their current shown sizes; both stay at or above their
+ * minimum (`min`, the shown lane's `LaneBox.min`, ADR 0065; default the
+ * dock's lane minimum) and their sum stays constant, so the game pane
+ * keeps its size. Both lanes are written with the result.
  */
 export function shiftLanes(
   m: LayoutModel,
   dock: DockId,
-  a: { lane: number; size: number },
-  b: { lane: number; size: number },
+  a: { lane: number; size: number; min?: number },
+  b: { lane: number; size: number; min?: number },
   delta: number,
 ): LayoutModel {
   const lanes = m.docks[dock].lanes;
   if (!lanes[a.lane] || !lanes[b.lane] || a.lane === b.lane) return m;
-  const min = laneMin(dock);
+  const minA = a.min ?? laneMin(dock);
+  const minB = b.min ?? laneMin(dock);
   const total = a.size + b.size;
-  const na = Math.max(min, Math.min(total - min, a.size + Math.round(delta)));
+  const na = Math.max(minA, Math.min(total - minB, a.size + Math.round(delta)));
   const nb = total - na;
-  if (na < min || nb < min) return m;
+  if (na < minA || nb < minB) return m;
   if (lanes[a.lane]!.size === na && lanes[b.lane]!.size === nb) return m;
   const out = copy(m);
   out.docks[dock].lanes[a.lane]!.size = na;
@@ -313,6 +315,14 @@ export interface ScriptPanePlace {
   rows: number;
   /** Wanted content columns (the top/bottom dock, a float). */
   cols: number;
+  /** Framed (default true); written to the pane's settings entry at first placement (ADR 0065). */
+  border?: boolean;
+  /**
+   * `own`: a new lane of its own at the dock's screen edge (lane 0), as
+   * wide (left/right: `cols`) or high (top/bottom: `rows`) as the pane plus
+   * its frame (ADR 0065). Ignored for a float.
+   */
+  lane?: 'own';
 }
 
 /**
@@ -320,7 +330,9 @@ export interface ScriptPanePlace {
  * (first creation): at the end of lane 0 of the dock (created at the
  * dock's default size when the dock is empty, ADR 0064) with `rows` (left/right) or
  * `cols` (top/bottom) as its desired size, or as an `auto` float of
- * `rows` × `cols` content cells. Returns `m` when `id` is already placed.
+ * `rows` × `cols` content cells. With `lane: 'own'` it gets a new lane 0
+ * of its own instead, sized to the pane (ADR 0065). Returns `m` when `id`
+ * is already placed.
  */
 export function placeScriptPane(m: LayoutModel, id: PaneId, place: ScriptPanePlace): LayoutModel {
   if (findPane(m, id) || findFloat(m, id) >= 0) return m;
@@ -332,7 +344,35 @@ export function placeScriptPane(m: LayoutModel, id: PaneId, place: ScriptPanePla
     out.floating.unshift({ id, x: 0, y: 0, w: cols + FRAME_CELLS, h: rows + FRAME_CELLS, auto: true });
     return out;
   }
-  const desired = isSideDock(place.dock) ? rows : cols;
-  appendToDock(out.docks, place.dock, { id, desired: Math.max(minContent(id, place.dock), desired) });
+  const side = isSideDock(place.dock);
+  const entry = { id, desired: Math.max(minContent(id, place.dock), side ? rows : cols) };
+  if (place.lane === 'own') {
+    const framed = place.border ?? true;
+    const size = (side ? cols : rows) + (framed ? FRAME_CELLS : 0);
+    out.docks[place.dock].lanes.unshift({ size: Math.max(paneCrossMin(id, place.dock, framed), size), panes: [entry] });
+    return out;
+  }
+  appendToDock(out.docks, place.dock, entry);
+  return out;
+}
+
+/**
+ * `m` with the size docked pane `id` asks for (`pane:wantSize`, ADR 0065):
+ * in a side dock `rows` becomes its desired rows; in the top/bottom dock
+ * `rows` sets its lane's height (plus the frame) only when it is alone in
+ * the lane, and `cols`, when given, its desired columns. A floating pane,
+ * an unknown one or a request that changes nothing returns `m`.
+ */
+export function wantPaneSize(m: LayoutModel, id: PaneId, rows: number, cols: number | undefined, framed: boolean): LayoutModel {
+  const at = findPane(m, id);
+  if (!at) return m;
+  if (isSideDock(at.dock)) return setDesired(m, { [id]: rows });
+  let out = m;
+  const lane = m.docks[at.dock].lanes[at.lane]!;
+  if (lane.panes.length === 1) {
+    const size = Math.max(paneCrossMin(id, at.dock, framed), Math.round(rows) + (framed ? FRAME_CELLS : 0));
+    out = setLaneSize(out, at.dock, at.lane, size);
+  }
+  if (cols !== undefined) out = setDesired(out, { [id]: cols });
   return out;
 }

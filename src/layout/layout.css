@@ -63,6 +63,13 @@
   z-index: 1;
 }
 
+/* A borderless script pane's top row is a soft grip (ADR 0065): the
+ * cockpit starts a move from the content itself once the pointer
+ * travels, so its links stay clickable. */
+.wc-pane-script:not([data-framed]) > .wc-pane-grip {
+  pointer-events: none;
+}
+
 /* Close cross (" × ") in the title row, one cell in from the right so the
  * corner keeps its resize handle; shown while the pointer is over the
  * pane. Above the grip and the float handles. */
@@ -119,6 +126,17 @@
 .wc-float-handle[data-edge="ne"] { right: 0; top: 0; width: var(--cell-w); height: var(--cell-h); cursor: nesw-resize; }
 .wc-float-handle[data-edge="sw"] { left: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nesw-resize; }
 .wc-float-handle[data-edge="se"] { right: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nwse-resize; }
+
+/* A borderless float (a 1-row bar, ADR 0065): thin edge bands and small
+ * corners, so its cells stay clickable. */
+.wc-pane[data-floating]:not([data-framed]) > .wc-float-handle[data-edge="n"],
+.wc-pane[data-floating]:not([data-framed]) > .wc-float-handle[data-edge="s"] { height: 3px; }
+.wc-pane[data-floating]:not([data-framed]) > .wc-float-handle[data-edge="e"],
+.wc-pane[data-floating]:not([data-framed]) > .wc-float-handle[data-edge="w"] { width: 3px; }
+.wc-pane[data-floating]:not([data-framed]) > .wc-float-handle:is([data-edge="nw"], [data-edge="ne"], [data-edge="sw"], [data-edge="se"]) {
+  width: 6px;
+  height: 6px;
+}
 
 .wc-handles {
   position: absolute;
