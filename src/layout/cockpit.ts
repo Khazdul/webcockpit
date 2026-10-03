@@ -402,6 +402,8 @@ export class Cockpit {
   private drag: Drag | null = null;
   /** Span drop outlines of the running drag by target (ADR 0067), so a move over the same target allocates once. */
   private readonly ghosts = new Map<string, Rect | null>();
+  /** The layout the cached outlines were computed for. */
+  private ghostsOf: LayoutModel | null = null;
   private scheduled = false;
   private disposed = false;
   private wasTooSmall = false;
@@ -1418,7 +1420,11 @@ export class Cockpit {
     const span = (dock: DockBox, side: 'head' | 'tail', index: number, at: number): DropTarget | undefined => {
       const moved = movePane(layout, id, dock.id, side, index);
       if (moved === layout || findPane(moved, id)?.lane !== side) return undefined;
-      const key = `${dock.id}|${side}|${index}`;
+      if (this.ghostsOf !== layout) {
+        this.ghosts.clear();
+        this.ghostsOf = layout;
+      }
+      const key = `${id}|${dock.id}|${side}|${index}|${r.cols}x${r.rows}`;
       if (!this.ghosts.has(key)) {
         const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows });
         this.ghosts.set(key, res.panes.find((p) => p.id === id)?.rect ?? null);

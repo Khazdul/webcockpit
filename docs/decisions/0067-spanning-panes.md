@@ -187,8 +187,9 @@ Owner decisions:
   follows the pointer exactly.
 - **Strip vs. span stack order:** the span stack check runs before the
   strip (they never overlap: the strips lie inside the region).
-- **Ghost cache** is keyed by dock, side and index and cleared when the
-  drag ends; the layout does not change during a drag.
+- **Ghost cache** is keyed by pane, dock, side, index and window size,
+  and cleared when the stored layout changes or the drag ends
+  (`dropTarget` is also called outside a drag, e.g. by unit tests).
 - **Region pseudo id** is `~region` (never a valid pane id) and never
   appears in results.
 - A lane whose panes are all dropped while spans are shown leaves the
