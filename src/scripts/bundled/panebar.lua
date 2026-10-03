@@ -23,15 +23,18 @@ How it works
 getPanes() lists every pane in Options -> Panes order with its short
 name, title and on/off; the bar leaves out its own pane. Each button is
 the short name centred in a box one cell wider than the longest name on
-each side, all boxes equally wide, one empty cell apart. The colours are
-the Character pane's toggle boxes: the pane background shade on the glow
-shade when on, on the track shade when off (<@bg:@glow>, <@bg:@track>),
-so they follow the pane tint and the light (paper) backgrounds. A click
-calls setPaneOn.
+each side, all boxes equally wide, one empty cell apart. On is the
+Character pane's lit toggle box, the pane background shade on the glow
+shade (<@bg:@glow>); off is the mid shade on the track shade
+(<@mid:@track>), faded but readable. Both follow the pane tint and the
+light (paper) backgrounds. Under the pointer a button turns a step
+lighter, text and fill (pane:setHover("lighten")). A click calls
+setPaneOn.
 
 Row 1 starts with a grip, a dotted cell (pane:setGrip) that drags the
-bar. The buttons start after it and wrap back to that column. The first
-row keeps its last four cells free for the close cross.
+bar. The buttons start after it and wrap back to that column, only when
+a button does not fit; the last one on a row may end in the last column
+(a pane without a frame has no close cross over its cells).
 
 The bar redraws when the list changes (sysPanesChanged), when it is
 resized and when it moves to another dock. Docked, it asks for as many
@@ -40,7 +43,7 @@ stays until the bar needs another one.
 ]]
 
 local ON = "<@bg:@glow>"
-local OFF = "<@bg:@track>"
+local OFF = "<@mid:@track>"
 local GRIP = "<@mid>\u{2237}<reset>"
 -- The first button column: the grip, then one blank cell.
 local FIRST = 3
@@ -49,6 +52,8 @@ local pane = createPane{
   id = "bar", title = "Pane bar", short = "BAR",
   dock = "right", rows = 1, cols = 30, border = false,
 }
+-- A hovered button lightens (text and fill) instead of the glow band.
+pane:setHover("lighten")
 local width = 30
 -- The panes the bar has buttons for: every pane but its own.
 local function others()
@@ -78,18 +83,14 @@ local function buttonWidth(list)
   return w + 2
 end
 
--- Rows of buttons { col, entry } for the bar's dock and width: left to
--- right from FIRST, one empty cell apart, wrapping back to FIRST. The
--- first row keeps its last four cells free for the close cross.
-local function layout(list, dock, bw)
-  local last = width
-  if dock == "float" then last = width - 1 end
+-- Rows of buttons { col, entry } for the bar's width: left to right from
+-- FIRST, one empty cell apart, wrapping back to FIRST only when a button
+-- does not fit (its last cell past the last column).
+local function layout(list, bw)
   local rows = { {} }
   local r, col = 1, FIRST
   for _, e in ipairs(list) do
-    local stop = last
-    if r == 1 and width >= 12 then stop = math.min(last, width - 4) end
-    if col > FIRST and col + bw - 1 > stop then
+    if col > FIRST and col + bw - 1 > width then
       r = r + 1
       rows[r] = {}
       col = FIRST
@@ -106,7 +107,7 @@ local function draw()
   local dock = pane:dock()
   if not dock then return end
   local bw = buttonWidth(list)
-  local rows = layout(list, dock, bw)
+  local rows = layout(list, bw)
   pane:clear()
   for r, buttons in ipairs(rows) do
     local parts, at = {}, 1

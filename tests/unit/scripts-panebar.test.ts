@@ -146,7 +146,8 @@ async function setup(also: string[] = []) {
 }
 
 const ON = { fg: shadeColor('paneBg'), bg: shadeColor('glow') };
-const OFF = { fg: shadeColor('paneBg'), bg: shadeColor('track') };
+/** Off: the mid shade on the track, faded but readable (ADR 0065 round 2). */
+const OFF = { fg: shadeColor('mid'), bg: shadeColor('track') };
 /** The grip glyph and the blank after it. */
 const G = '\u2237 ';
 /** A row of buttons `w` wide (names centred), as the bar draws it; `grip` for row 1. */
@@ -185,6 +186,9 @@ describe('bundled panebar', () => {
     expect(t.panes.wants.at(-1)).toEqual([1, undefined]);
     expect(t.button('COMM').link.hint).toBe('Comm: on (click to hide)');
     expect(t.colours(0, 2)).toEqual(ON);
+    // A hovered button lightens (ADR 0065 round 2): the pane's style, no link of its own.
+    expect(t.panes.bar.content.hover).toBe('lighten');
+    expect(t.panes.bar.content.links.every((l) => l.hover === undefined)).toBe(true);
     // The grip is dim, the gap between buttons is plain.
     expect(t.colours(0, 0)).toEqual({ fg: shadeColor('mid'), bg: undefined });
     expect(t.colours(0, 8)).toEqual({ fg: undefined, bg: undefined });
@@ -236,25 +240,37 @@ describe('bundled panebar', () => {
       const t = await setup();
       t.panes.docks.set('panebar/bar', dock);
       t.panes.notify();
-      // Row 1 ends at column 26 (30 - 4): three buttons (3-8, 10-15, 17-22).
-      await t.resize(30, 4);
+      // Buttons at columns 3-8, 10-15, 17-22, 24-29: four fit in 29 columns
+      // (the last ends in the last column; no gap after it, no margin).
+      await t.resize(29, 4);
+      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP', 'COMM'], true), bar(['UI', 'MAP'], false)]);
+      expect(t.panes.bar.content.links.filter((l) => l.row === 0).map((l) => l.col + l.len)).toEqual([8, 15, 22, 29]);
+      expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
+      // One cell short: the fourth wraps.
+      await t.resize(28, 4);
       expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP'], true), bar(['COMM', 'UI', 'MAP'], false)]);
       expect(t.panes.bar.content.links.filter((l) => l.row === 1).map((l) => l.col)).toEqual([2, 9, 16]);
       expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
+      // All six in exactly 43 columns, not in 42.
+      await t.resize(43, 4);
+      expect(t.rows()).toEqual([bar(ALL, true)]);
+      await t.resize(42, 4);
+      expect(t.rows()).toEqual([bar(ALL.slice(0, 5), true), bar(['MAP'], false)]);
       await t.resize(12, 6);
       expect(t.rows()).toEqual([bar(['CHAR'], true), ...ALL.slice(1).map((n) => bar([n], false))]);
       expect(t.panes.wants.at(-1)).toEqual([6, undefined]);
     });
   }
 
-  it('floats: the same flow up to one before the edge, no size request', async () => {
+  it('floats: the same flow up to the last column, no size request', async () => {
     const t = await setup();
     t.panes.docks.set('panebar/bar', 'float');
     t.panes.notify();
     const before = t.panes.wants.length;
-    await t.resize(24, 3);
-    // Row 1 stops at column 20, later rows at 23.
-    expect(t.rows()).toEqual([bar(['CHAR', 'TIME'], true), bar(['GRP', 'COMM', 'UI'], false), bar(['MAP'], false)]);
+    await t.resize(22, 3);
+    expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP'], true), bar(['COMM', 'UI', 'MAP'], false)]);
+    await t.resize(21, 3);
+    expect(t.rows()).toEqual([bar(['CHAR', 'TIME'], true), bar(['GRP', 'COMM'], false), bar(['UI', 'MAP'], false)]);
     expect(t.panes.wants.length).toBe(before);
   });
 

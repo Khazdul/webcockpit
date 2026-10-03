@@ -84,6 +84,24 @@ function contrast(a: string, b: string): number {
   return (x + 0.05) / (y + 0.05);
 }
 
+/** Relative luminance of an `rgb(…)` colour. */
+function lum(c: string): number {
+  const [r, g, b] = c.match(/\d+(\.\d+)?/g)!.slice(0, 3).map(Number).map((v) => {
+    const x = v / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  }) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** `hovered` is lighter than `rest` in both text and fill, and only a little (ADR 0065 round 2). */
+function expectLighter(hovered: { fg: string; bg: string }, rest: { fg: string; bg: string }): void {
+  expect(lum(hovered.fg)).toBeGreaterThan(lum(rest.fg));
+  expect(lum(hovered.bg)).toBeGreaterThan(lum(rest.bg));
+  // Subtle: neither colour moves far (contrast between rest and hover under 1.6:1).
+  expect(contrast(hovered.fg, rest.fg)).toBeLessThan(1.6);
+  expect(contrast(hovered.bg, rest.bg)).toBeLessThan(1.6);
+}
+
 const dockOf = (page: Page) =>
   page.evaluate((id) => {
     const l = window.__wc!.settings.get().layout;
@@ -212,13 +230,13 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   const tip = page.locator('.wc-spane-tip');
   await expect(tip).toBeVisible();
   await expect(tip).toHaveText(/Comm: on \(click to hide\)/);
-  // Hovered, a lit button looks different from a lit one at rest.
+  // Hovered, a lit button is a step lighter, text and fill (round 2).
   const hovered = await colours(page, 'COMM');
 
   // A click hides Comm and darkens its button; again shows it.
   await page.mouse.move(10, 10);
   const on = await colours(page, 'COMM');
-  expect(hovered).not.toEqual(on);
+  expectLighter(hovered, on);
   await page.mouse.click(at.x, at.y);
   await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeHidden();
   await page.mouse.move(10, 10);
@@ -230,33 +248,50 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   const at2 = await cellAt(page, back.row, back.col + 1);
   await page.mouse.click(at2.x, at2.y);
   await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeVisible();
-  // The Character pane's toggle boxes: the pane background shade as text,
-  // on the glow shade (on) or the track shade (off).
-  expect(off.fg).toBe(on.fg);
+  // On: the Character pane's lit box, the pane background shade on glow.
+  // Off: the mid shade on track, faded but readable at about 3:1 (round 2).
   const L = (c: string) => c.match(/\d+/g)!.slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
   expect(L(on.bg)).toBeGreaterThan(L(off.bg));
   expect(contrast(on.fg, on.bg)).toBeGreaterThanOrEqual(4.5);
-  // Off is faded on purpose (as the Character pane's off boxes); its fill
-  // still stands apart from the lit one.
+  expect(contrast(off.fg, off.bg)).toBeGreaterThanOrEqual(2.6);
+  expect(contrast(off.fg, off.bg)).toBeLessThanOrEqual(3.5);
+  expect(L(off.fg)).toBeGreaterThan(L(off.bg));
   expect(contrast(on.bg, off.bg)).toBeGreaterThanOrEqual(3);
+  // A hovered off button is a step lighter too.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { ui: { on: false } } }));
+  await steady(page);
+  await expect.poll(() => colours(page, 'UI')).toEqual(off);
+  const ui = await find(page, 'UI');
+  const atu = await cellAt(page, ui.row, ui.col + 1);
+  await page.mouse.move(atu.x, atu.y);
+  await expect.poll(() => colours(page, 'UI')).not.toEqual(off);
+  expectLighter(await colours(page, 'UI'), off);
+  await page.mouse.move(10, 10);
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { ui: { on: true } } }));
 
   // Paper: on and off still read and differ.
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
   await page.evaluate(() => window.__wc!.settings.update({ panes: { ui: { on: false } } }));
+  // Wait for the paper colours (the lit fill changes) and the off button.
+  await expect.poll(async () => (await colours(page, 'CHAR')).bg).not.toBe(on.bg);
   await expect.poll(async () => (await colours(page, 'UI')).bg).not.toBe((await colours(page, 'CHAR')).bg);
   const pOn = await colours(page, 'CHAR');
   const pOff = await colours(page, 'UI');
-  expect(pOff.fg).toBe(pOn.fg);
   expect(contrast(pOn.fg, pOn.bg)).toBeGreaterThanOrEqual(2);
-  expect(contrast(pOff.fg, pOff.bg)).toBeGreaterThanOrEqual(3);
+  expect(contrast(pOff.fg, pOff.bg)).toBeGreaterThanOrEqual(2.6);
+  expect(contrast(pOff.fg, pOff.bg)).toBeLessThanOrEqual(3.5);
   // As the Character pane's boxes on paper: the fills are close, the text tells them apart.
   expect(contrast(pOn.bg, pOff.bg)).toBeGreaterThanOrEqual(1.3);
-  // Hover on a lit button on paper: different too.
-  const ch = await find(page, 'CHAR');
-  const atc = await cellAt(page, ch.row, ch.col + 1);
-  await page.mouse.move(atc.x, atc.y);
-  await expect.poll(() => colours(page, 'CHAR')).not.toEqual(pOn);
-  await page.mouse.move(10, 10);
+  // Hover on paper, on and off: a step lighter, text and fill.
+  for (const [name, rest] of [['CHAR', pOn], ['UI', pOff]] as const) {
+    const b = await find(page, name);
+    const p = await cellAt(page, b.row, b.col + 1);
+    await page.mouse.move(p.x, p.y);
+    await expect.poll(() => colours(page, name)).not.toEqual(rest);
+    expectLighter(await colours(page, name), rest);
+    await page.mouse.move(10, 10);
+    await expect.poll(() => colours(page, name)).toEqual(rest);
+  }
   await page.evaluate(() => window.__wc!.settings.update({ panes: { ui: { on: true } } }));
 
   // Reload: still enabled, still at the bottom of the right dock.
@@ -397,5 +432,47 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   await expect(page.locator('.wc-pane[data-pane="loot/main"]')).toBeHidden();
   await command(page, '#script disable loot');
   await expectEqualWidths(page, ALL);
+  expect(errors).toEqual([]);
+});
+
+test('panebar: a button in the last column is clickable, no close cross; the hover ends when the pointer leaves over a float handle (round 2)', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await start(page);
+  await enter(page);
+  await command(page, '#script enable panebar');
+  await expectRightBottom(page);
+  // A float exactly 29 cells wide: buttons at 3-8, 10-15, 17-22, 24-29, so COMM ends in the last column.
+  await page.evaluate((id) => {
+    window.__wc!.settings.update((d) => {
+      for (const dock of Object.values(d.layout.docks)) {
+        for (const l of dock.lanes) l.panes = l.panes.filter((p) => p.id !== id);
+        dock.lanes = dock.lanes.filter((l) => l.panes.length > 0);
+      }
+      d.layout.floating = [...d.layout.floating.filter((f) => f.id !== id), { id: id as 'comm', x: 20, y: 10, w: 29, h: 2 }];
+    });
+  }, BAR);
+  await expect.poll(async () => (await dockOf(page))?.dock).toBe('float');
+  await steady(page);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR {3}TIME {3}GRP {4}COMM $/);
+  expect((await prows(page).nth(0).textContent())!.length).toBe(29);
+  await page.mouse.move(10, 10);
+  const rest = await colours(page, 'COMM');
+  // Hovered at its last cell: lighter, the tooltip, no close cross over it.
+  const end = await cellAt(page, 0, 28);
+  await page.mouse.move(end.x, end.y);
+  await expect.poll(() => colours(page, 'COMM')).not.toEqual(rest);
+  await expect(page.locator('.wc-spane-tip')).toHaveText(/Comm: on/);
+  await expect(bar(page).locator('.wc-pane-close')).toBeHidden();
+  // Out through the right edge handle (on top of the content): the hover ends.
+  const cell = await cellSize(page);
+  await page.mouse.move(end.x + 0.45 * cell.w, end.y, { steps: 2 });
+  await page.mouse.move(end.x + 3 * cell.w, end.y, { steps: 4 });
+  await expect.poll(() => colours(page, 'COMM')).toEqual(rest);
+  await expect(page.locator('.wc-spane-tip')).toBeHidden();
+  // The last cell clicks.
+  await page.mouse.click(end.x, end.y);
+  await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeHidden();
   expect(errors).toEqual([]);
 });

@@ -99,6 +99,14 @@
   display: none;
 }
 
+/* A borderless script pane has no title row: a cross would cover its
+ * content (the pane bar's last button). It has none; Options → Panes,
+ * pane:hide() or the script's own command turn it off (ADR 0065 round 2).
+ * Temporary panes are always framed. */
+.wc-pane.wc-pane-script:not([data-framed]) > .wc-pane-close {
+  display: none;
+}
+
 .wc-pane[data-dragging] {
   opacity: 0.5;
 }
