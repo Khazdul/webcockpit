@@ -25,6 +25,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Input options: auto-clear and autosuggest
+
+- **Owner request:** two `[X]`/`[ ]` toggles directly in the Options hub,
+  both default off: "Auto-clear input" (empty line after Enter) and
+  "Input autosuggest" (Cockpit's inline history suggestion).
+- **Done:** `Settings.input { autoClear, autosuggest }` (not in the VIEW
+  snapshot); grey ghost text after a space, Right/End take all, Tab takes
+  a word, macros still win; no suggestion while browsing history. ADR 0063.
+- **Verified:** typecheck clean, unit 1913 green, chrome e2e green
+  (Chromium + Firefox).
+- **Next:** owner test; release when approved.
+- **Commits:** fe26104, 1de3111, 537ee5b, cbc3b7f, f04589a, plus this one.
+
 ### 2026-10-03 — Themes for the dark backgrounds, release 0.1.33
 
 - **Owner request:** tune the palette for every non-black background as
