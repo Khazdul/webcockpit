@@ -89,6 +89,59 @@ ADR 0065.
 - [x] Unit and e2e (Chromium + Firefox)
 - [x] ADR 0065 amendment "Owner feedback round 2"
 
+### Owner feedback round 3
+
+Owner request: the bar adapts to narrow widths like the Character pane:
+buttons get narrower (at least two characters), the whole name when
+there is room, buttons as even as possible; when even two characters do
+not fit, a two-finger sideways scroll and arrows at both ends.
+
+- [x] Host: `pane:onWheel(fn)` / `pane:onWheel(nil)`, whole-cell steps
+      (pixels by cell size, lines, pages; rest kept; Shift = sideways;
+      Ctrl never), true consumes; ref released (ADR 0072)
+- [x] Surface / pane: `view.wheel(on)`, `events.onWheel`, non-passive
+      listener only while a handler is set; `forwardWheel` skips a
+      consumed event; Recording forwards
+- [x] panebar: always one row (`wantSize(1)`), no wrap; full → shrunk
+      (mirror-even spare cells, names cut to CHA / CH) → scrolled
+      (`←` / `→` arrows that page, dim at the end, tooltips; wheel a
+      button per 3 cells)
+- [x] `←` / `→` checked in the bundled fonts (`font-glyphs.test.ts`)
+- [x] Editor reference and manual (`pane:onWheel`, panebar help text)
+- [x] Unit tests (layouts at many widths, arrows, offset clamping, wheel;
+      host `onWheel`; `wheelSteps`; pane listener) and e2e (Chromium +
+      Firefox: shrink, arrows, click, sideways and vertical wheel, no
+      wrap; `pane:onWheel` consume vs native scroll)
+- [x] ADR 0072 (`pane:onWheel`), ADR 0065 amendment "Owner feedback
+      round 3"
+
+## Test guide (round 3)
+
+Open https://mumecockpit.com/ (hard reload so the new version loads).
+Turn on **panebar** (Esc → Scripts) if it is not on.
+
+1. The bar is one row at the bottom of the right dock. The right dock is
+   a little too narrow for six full buttons, so they share the row: all
+   names whole, the buttons nearly equal, the row even from both ends.
+2. Drag the right dock's edge to make it narrower, step by step: the
+   buttons get narrower and the names are cut (CHAR → CHA → CH). The bar
+   never gets a second row. Make it wider again: full names come back,
+   and once there is room for all at full width they stop growing.
+3. Narrower still (or drag the bar into a narrow left dock): arrows
+   appear at both ends, `←` after the grip and `→` at the right edge.
+   Point at an arrow: "N more panes to the right". Click it: the other
+   buttons show. At the end the arrow is dim and does nothing.
+4. With the pointer over the bar, swipe sideways with two fingers on the
+   touchpad (or turn the mouse wheel): the buttons scroll. The page
+   behind does not scroll and the browser does not go back.
+5. Click a button while scrolled: its pane toggles and the bar stays
+   where it was scrolled to.
+
+Feedback wanted: are the narrow names (CHA, CH) readable enough, do the
+arrows look right (glyph, brightness, dim at the end), and does the
+swipe scroll at a good speed (one button per about three cells of
+movement)?
+
 ## Test guide (round 2)
 
 Open https://mumecockpit.com/ (hard reload so the new version loads).
