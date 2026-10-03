@@ -210,7 +210,7 @@ Mapped to Inv §2.1 and §10.
   - font size 6–32;
   - padding;
   - terminal palette;
-  - cursor style and blink.
+  - cursor style and blink (in Options → Text input, ADR 0066).
 - **Bundled fonts.** DejaVu Sans Mono (Cockpit's default) and JetBrains
   Mono are bundled. Both are checked for the box, block and quadrant
   glyphs the UI uses. (ADR 0049 adds thirteen more bundled families, fill

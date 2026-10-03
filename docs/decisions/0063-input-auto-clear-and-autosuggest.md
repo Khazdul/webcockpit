@@ -1,6 +1,7 @@
 # 0063 — Input line options: auto-clear and autosuggest
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0066 (the toggles moved to Options →
+  Text input)
 - Date: 2026-10-03
 - Amends: ADR 0010 (settings), ADR 0015 (macro keys)
 
@@ -32,6 +33,9 @@ Panes / Mapper / Appearance / Spotlights / Scripts
 (blank)
 Back
 ```
+
+*Amended by 0066 (2026-10-03):* the two rows moved to a new hub entry,
+Options → Text input, together with the cursor style and blink rows.
 
 Glyph rows in the kit's left-aligned glyph block. Enter, Space, click and
 ←/→ all flip the row (the kit idiom for `[X]` rows, as on Group and
