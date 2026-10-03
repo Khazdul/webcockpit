@@ -73,7 +73,44 @@ ADR 0065.
 - [x] E2E (Chromium + Firefox): grip drags, wrap, equal widths, placement
 - [x] ADR 0065 amendment "Owner feedback round 1"
 
-## Test guide
+### Owner feedback round 2
+
+- [x] Hover style API: `pane:setHover(style)`, `{hover = …}` on
+      `setLink` / `cechoLink` ("band" default, "lighten", "none"); in
+      snapshots; round 1 inverted rule removed
+- [x] Lighten: text and fill a step lighter (HSL L + 8), dark and paper
+- [x] panebar: `setHover("lighten")`, off text `<@mid:@track>` (~2.8:1)
+- [x] Sticky hover fixed (pointer-position tracking, document listeners,
+      `elementFromPoint` on leave and render); regression unit + e2e
+- [x] panebar wraps only when a button does not fit; no close-cross
+      reservation, no float margin
+- [x] No close cross on a borderless script pane
+- [x] Editor reference and manual (setHover, link opts, no cross)
+- [x] Unit and e2e (Chromium + Firefox)
+- [x] ADR 0065 amendment "Owner feedback round 2"
+
+## Test guide (round 2)
+
+Open https://mumecockpit.com/ (hard reload so the new version loads).
+Turn on **panebar** (Esc → Scripts) if it is not on.
+
+1. Point at a lit button, then at a dark one: each turns a little
+   lighter, text and fill, and goes back when the pointer leaves.
+2. Dark buttons: the name is now readable (grey on dark grey), still
+   clearly off next to the lit ones.
+3. Move the pointer quickly off a button in every direction (up into the
+   Map, out of the window at the screen edge, over a floating pane): no
+   button stays lit.
+4. Make the right dock narrower and wider: a button moves to the next
+   row only when it really does not fit; the last one may touch the
+   right edge. The bar has no × of its own (`bar` or Options → Panes
+   hide it).
+5. Esc → Options → Appearance: paper. Repeat 1 and 2.
+
+Feedback wanted: is the hover lift right (more, less), and are the off
+buttons readable enough on dark and paper?
+
+## Test guide (round 1)
 
 Open https://mumecockpit.com/ (hard reload so the new version loads).
 

@@ -239,3 +239,99 @@ differ.
   where the default panes are; no new rule). Reset layout places it there
   again. Its height follows the flow via `wantSize`. `lane = "own"` stays
   in the API for other scripts.
+
+## Owner feedback round 2 (2026-10-03)
+
+The owner asked for a lighter hover, readable off buttons, a fix for a
+hover that sometimes stayed after the pointer left, hover as part of the
+API, and buttons that wrap only when they do not fit. All implemented;
+they amend the sections above (and round 1) where they differ.
+
+- **Hover styles in the API.** A link's hover look is now a choice:
+  `"band"` (the glow band, `paneBg` text on `glow`: the look so far and
+  the default), `"lighten"` (the link's own text and background each a
+  step lighter) or `"none"` (as at rest; the pointer cursor and the
+  tooltip still show). `pane:setHover(style)` sets the pane's style for
+  every link without its own, also links already there (nil = `"band"`).
+  A link chooses its own with a trailing options table:
+  `pane:setLink(row, col, len, fn, hint, {hover = …})` and
+  `pane:cechoLink(text, fn, hint, {hover = …})`. A bad style or a list
+  instead of a table is a bad-argument error. Pane-level default plus a
+  per-link override was chosen over either alone: a button bar sets one
+  style once, a mixed pane can still differ per link. Tooltip-only links
+  (`fn = nil`) keep no hover look, as before.
+  - Existing scripts (keymanager, mercenaries, user scripts) keep the
+    band: it is the default, and none of them draws links on a glow
+    background.
+  - The round 1 rule "a hovered link whose first cell is on `glow` is
+    inverted" is removed: the API supersedes it, and the pane bar was its
+    only user. A band link on a lit cell now shows the band (text changes
+    to `paneBg`), which a script that wants more picks `"lighten"` for.
+  - **Lighten** (`hoverLift`, theme/color.ts): HSL lightness + 8
+    (`HOVER_LIFT`, capped at 100), hue and saturation kept, per cell, for
+    both the text and the background; a cell without its own colour lifts
+    the pane's ink (text) and the pane's background. HSL L was chosen over
+    an RGB mix toward white: a mix of ~15 % lifts dark colours far more
+    than light ones (the dark track jumped about 30 RGB levels, the paper
+    fill a few), while an L step reads the same on dark and paper.
+    Tuned on screenshots (dark and paper, on and off buttons): visible,
+    subtle, contrast within the button kept.
+  - **Runs.** The log player and the HTML replay draw the hover too (the
+    player's `ScriptPane` hovers links without click handlers), so a
+    snapshot link carries `hover: "lighten" | "none"` when its effective
+    style is not the band (the pane style resolved per link; no
+    pane-level field). `sanitizeLinks` accepts it; old records have none
+    and hover with the band.
+- **Off buttons readable.** Off is `<@mid:@track>` (was `<@bg:@track>`);
+  on stays `<@bg:@glow>`. `@mid` on `@track` (None pane colour) is 2.84:1
+  on black and 2.71:1 on paper (was 1.22:1 on black; 5.48:1 on paper,
+  where `@bg` is dark ink). The other dark terminal presets land at
+  2.3–3.4:1 (teal 4.5:1); the dark pane tints at 2.25 (purple) – 3.8
+  (green). An existing role lands near the 3:1 target, so no new role.
+  The Character pane is unchanged.
+- **Sticky hover: root cause.** The content's `pointerleave` was ignored
+  whenever its point was still inside the content's box (the Firefox
+  rule of ADR 0053: a redraw of the row under the pointer sends a leave).
+  But elements of the pane's own shell lie on top of the content inside
+  that box: the close cross (over a borderless pane's top row, next to
+  the last button of row 1), the float edge handles and other panes
+  floating over it. Moving from a button onto one of them sent a leave
+  with an inside point, which was ignored; every later move went to that
+  element, never to the content, so nothing ended the hover. Leaving the
+  window from a pane at the screen edge could do the same. Reproduced in
+  Chromium and Firefox (e2e) before the fix.
+- **Hover tracking (fix).** The hover is the pointer's position, never a
+  DOM element (amends ADR 0053's leave rule):
+  - A pointermove over the content sets the position and the hover.
+  - While it is set, document listeners end it: a pointermove whose
+    target is not in the content (targets no longer connected, a row the
+    redraw just replaced, are skipped), the pointer leaving the window
+    (`pointerleave` on the root element, counted only when its point is
+    outside the window or not over the content: Firefox also sends it
+    while the pointer moves within the page), `pointercancel`, window
+    `blur`, and the tab going hidden. They are removed when the hover ends.
+  - The content's own `pointerleave` ends it unless its point is inside
+    the content's box **and** `elementFromPoint` there is inside the
+    content (the Firefox redraw case); over the cross, a handle or
+    another pane it ends.
+  - Every render and every relayout (`place`) resolves the hover again
+    from the position, with the same `elementFromPoint` check, so a pane
+    moving away under a still pointer or something opening on top ends
+    it.
+- **Wrap only when it does not fit.** A button moves to the next row
+  only when its last cell would be past the pane's last column; the gap
+  after the last button of a row and any margin do not count. The round 1
+  reservation of row 1's last four cells for the close cross, and the
+  float's one-cell right margin, are gone.
+- **No close cross on a borderless script pane.** Without a title row the
+  cross sat over the content's top row and would now cover the last
+  button. Rule: an ordinary script pane without a frame has no close
+  cross (CSS: `.wc-pane-script:not([data-framed]) > .wc-pane-close` is
+  not shown). It is turned off in Options → Panes, by `pane:hide()`, or
+  by the script's own command (panebar: `bar`). Considered: showing the
+  cross only while the pane is hovered (it is already; it would still
+  cover a button exactly when the player points there), moving it
+  outside the pane (it would cover the neighbour) and an opt-out per
+  pane (more API for a case with no other use). Built-in panes without a
+  frame keep the cross (their top content row is not interactive), and
+  temporary panes are always framed.
