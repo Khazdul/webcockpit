@@ -577,7 +577,7 @@ end
 
 -- ------------------------------------------------------------ the pane
 
-local pane = createPane{ id = "keys", title = "Port keys", dock = "right", rows = 8, cols = 44, anchor = "top" }
+local pane = createPane{ id = "keys", title = "Port keys", short = "KEYS", dock = "right", rows = 8, cols = 44, anchor = "top" }
 local width = 44
 
 -- Writes a row from segments { text, color, fn, hint }, with links.

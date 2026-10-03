@@ -1341,7 +1341,7 @@ class ListSurface extends FakeSurface {
     const open = this.opened.filter((o) => !o.view.closed && !o.spec.temporary);
     return [
       ...PANE_IDS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: this.shown.has(id), dock: (this.docks.get(id) ?? 'right') as DockId | 'float' })),
-      ...open.map((o) => ({ id: o.spec.id, on: o.view.on, shown: this.shown.has(o.spec.id), dock: o.view.dock!() })),
+      ...open.map((o) => ({ id: o.spec.id, on: o.view.on, shown: this.shown.has(o.spec.id), dock: (o.view as ScriptPaneView).dock!() })),
     ];
   }
   setOn(id: string, on: boolean): boolean {
