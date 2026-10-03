@@ -27,6 +27,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Stage 14: owner feedback round 2 (not released)
+
+- **Owner feedback:** hover = slightly lighter text and fill, readable off
+  buttons, sticky hover, hover in the API, wrap only when a button truly
+  does not fit.
+- **Done:** `pane:setHover` and `{hover=}` on links (band default,
+  lighten, none); position-based hover tracking (root cause: leaves onto
+  the close cross / float handles were ignored); off = `@mid` on
+  `@track` (~2.8:1); no close cross on borderless script panes; exact
+  wrap. ADR 0065 round 2.
+- **Verified:** unit 1976 green; e2e 401/402, the failure
+  (replay.spec.ts:100 Chromium) passed 32/32 alone, a load flake.
+- **In parallel:** stage 15 (spanning panes) is being built in a
+  worktree; owner chose strip-only, full-width spans.
+- **Commits:** 9f2c64b, 0fa9094, 913fdbe, plus this one.
+
 ### 2026-10-03 — Stage 14: owner feedback round 1 (not released)
 
 - **Owner feedback:** grip to drag a one-row bar, padded equal-width
