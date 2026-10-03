@@ -145,8 +145,20 @@ async function setup(also: string[] = []) {
   return { bus, engine, sent, shown, lib, host, panes, settle, rows, resize, button, colours };
 }
 
-const ON = { fg: shadeColor('vtext'), bg: shadeColor('dim') };
-const OFF = { fg: shadeColor('mid'), bg: shadeColor('track') };
+const ON = { fg: shadeColor('paneBg'), bg: shadeColor('glow') };
+const OFF = { fg: shadeColor('paneBg'), bg: shadeColor('track') };
+/** The grip glyph and the blank after it. */
+const G = '\u2237 ';
+/** A row of buttons `w` wide (names centred), as the bar draws it; `grip` for row 1. */
+const bar = (names: string[], grip: boolean, w = 6): string =>
+  (grip ? G : '  ') +
+  names
+    .map((n) => {
+      const left = Math.floor((w - n.length) / 2);
+      return ' '.repeat(left) + n + ' '.repeat(w - n.length - left);
+    })
+    .join(' ');
+const ALL = ['CHAR', 'TIME', 'GRP', 'COMM', 'UI', 'MAP'];
 
 describe('bundled panebar', () => {
   it('is listed with its header and is off by default', async () => {
@@ -160,22 +172,48 @@ describe('bundled panebar', () => {
     expect(s.settings).toEqual({});
   });
 
-  it('opens a borderless one-row bar in its own bottom lane, one button per pane, never itself', async () => {
+  it('opens a borderless bar at the bottom of the right dock, one button per pane, never itself', async () => {
     const t = await setup();
     expect(t.panes.bar.spec).toEqual({
       id: 'panebar/bar',
-      place: { dock: 'bottom', rows: 1, cols: 80, border: false, lane: 'own' },
+      place: { dock: 'right', rows: 1, cols: 30, border: false },
     });
     expect(t.panes.bar.content.title).toBe('Pane bar');
     await t.resize(80);
-    expect(t.rows()).toEqual(['CHAR TIME GRP COMM UI MAP']);
+    expect(t.rows()).toEqual([bar(ALL, true)]);
     expect(t.rows().join(' ')).not.toContain('BAR');
     expect(t.panes.wants.at(-1)).toEqual([1, undefined]);
     expect(t.button('COMM').link.hint).toBe('Comm: on (click to hide)');
-    expect(t.colours(0, 0)).toEqual(ON);
-    // The gap between buttons is plain.
-    expect(t.colours(0, 4)).toEqual({ fg: undefined, bg: undefined });
+    expect(t.colours(0, 2)).toEqual(ON);
+    // The grip is dim, the gap between buttons is plain.
+    expect(t.colours(0, 0)).toEqual({ fg: shadeColor('mid'), bg: undefined });
+    expect(t.colours(0, 8)).toEqual({ fg: undefined, bg: undefined });
     expect(t.lib.get('panebar')!.lastError).toBeNull();
+  });
+
+  it('pads every button by one cell and makes them all as wide as the longest name', async () => {
+    const t = await setup();
+    await t.resize(80);
+    const links = t.panes.bar.content.links.filter((l) => l.row === 0);
+    expect(links.map((l) => [l.col, l.len])).toEqual([
+      [2, 6],
+      [9, 6],
+      [16, 6],
+      [23, 6],
+      [30, 6],
+      [37, 6],
+    ]);
+    // GRP is centred: one blank before, two after (the odd cell goes right).
+    expect(t.rows()[0]!.slice(16, 22)).toBe(' GRP  ');
+    for (const l of links) for (let c = l.col; c < l.col + l.len; c++) expect(t.colours(0, c)).toEqual(ON);
+  });
+
+  it('puts the grip on the first two cells of row 1', async () => {
+    const t = await setup();
+    await t.resize(80);
+    expect(t.panes.bar.content.grip).toEqual({ row: 0, col: 0, len: 2 });
+    expect(t.panes.bar.content.linkAt(0, 0)).toBeNull();
+    expect(t.panes.bar.content.linkAt(0, 1)).toBeNull();
   });
 
   it('a click toggles the pane; the button turns dark and back', async () => {
@@ -193,43 +231,41 @@ describe('bundled panebar', () => {
     expect(t.colours(b.row, b.col)).toEqual(ON);
   });
 
-  it('wraps in a narrow bottom dock, keeping the close cross cells free on the first row, and asks for the rows', async () => {
-    const t = await setup();
-    await t.resize(16);
-    // Row 1 ends at column 12 (16 - 4): CHAR TIME is 9 cells, GRP would end at 13.
-    expect(t.rows()).toEqual(['CHAR TIME', 'GRP COMM UI MAP']);
-    expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
-    await t.resize(10);
-    expect(t.rows()).toEqual(['CHAR TIME', 'GRP COMM', 'UI MAP']);
-    expect(t.panes.wants.at(-1)).toEqual([3, undefined]);
-  });
+  for (const dock of ['right', 'left', 'bottom', 'top'] as const) {
+    it(`flows left to right and wraps under the first button in the ${dock} dock, asking for the rows`, async () => {
+      const t = await setup();
+      t.panes.docks.set('panebar/bar', dock);
+      t.panes.notify();
+      // Row 1 ends at column 26 (30 - 4): three buttons (3-8, 10-15, 17-22).
+      await t.resize(30, 4);
+      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP'], true), bar(['COMM', 'UI', 'MAP'], false)]);
+      expect(t.panes.bar.content.links.filter((l) => l.row === 1).map((l) => l.col)).toEqual([2, 9, 16]);
+      expect(t.panes.wants.at(-1)).toEqual([2, undefined]);
+      await t.resize(12, 6);
+      expect(t.rows()).toEqual([bar(['CHAR'], true), ...ALL.slice(1).map((n) => bar([n], false))]);
+      expect(t.panes.wants.at(-1)).toEqual([6, undefined]);
+    });
+  }
 
-  it('stacks one button per row from column 2 in a side dock and asks for one row each', async () => {
-    const t = await setup();
-    t.panes.docks.set('panebar/bar', 'right');
-    t.panes.notify();
-    await t.resize(10, 6);
-    expect(t.rows()).toEqual([' CHAR', ' TIME', ' GRP', ' COMM', ' UI', ' MAP']);
-    expect(t.panes.wants.at(-1)).toEqual([6, undefined]);
-  });
-
-  it('floats: flows from column 2 to one before the edge, no size request', async () => {
+  it('floats: the same flow up to one before the edge, no size request', async () => {
     const t = await setup();
     t.panes.docks.set('panebar/bar', 'float');
+    t.panes.notify();
     const before = t.panes.wants.length;
-    await t.resize(20, 3);
-    expect(t.rows()).toEqual([' CHAR TIME GRP', ' COMM UI MAP']);
+    await t.resize(24, 3);
+    // Row 1 stops at column 20, later rows at 23.
+    expect(t.rows()).toEqual([bar(['CHAR', 'TIME'], true), bar(['GRP', 'COMM', 'UI'], false), bar(['MAP'], false)]);
     expect(t.panes.wants.length).toBe(before);
   });
 
   it('lists other scripts\' panes by their short names, and drops them when the script stops', async () => {
     const t = await setup(['mercenaries']);
     await t.resize(80);
-    expect(t.rows()).toEqual(['CHAR TIME GRP COMM UI MAP MERC']);
+    expect(t.rows()).toEqual([bar([...ALL, 'MERC'], true)]);
     expect(t.button('MERC').link.hint).toBe('Mercenaries: on (click to hide)');
     await t.lib.setEnabled('mercenaries', false);
     await t.settle();
-    expect(t.rows()).toEqual(['CHAR TIME GRP COMM UI MAP']);
+    expect(t.rows()).toEqual([bar(ALL, true)]);
   });
 
   it('bar toggles the pane; bar list prints the panes', async () => {

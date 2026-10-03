@@ -1,9 +1,10 @@
-// The bundled pane bar (stage 14, ADR 0065): enabled from the input line it
-// is a borderless one-row lane at the very bottom with one button per pane;
-// a click toggles that pane; the title is the tooltip; dragged by a button
-// it stacks in a side dock and wraps as a float; a user script's pane gets
-// a button while the script runs; reload and Reset layout keep it in its
-// own bottom lane. Uses the dev-only `window.__wc`.
+// The bundled pane bar (stage 14, ADR 0065 and its round 1): enabled from
+// the input line it is a borderless pane at the bottom of the right dock
+// with a grip and one equally wide button per pane, flowing left to right
+// and wrapping; a click toggles that pane; the title is the tooltip;
+// dragged by its grip it moves between docks and floats; a user script's
+// pane gets a button while the script runs; reload and Reset layout put it
+// back at the bottom of the right dock. Uses the dev-only `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -34,6 +35,19 @@ async function cellAt(page: Page, row: number, col: number): Promise<{ x: number
   return { x: box.x + (col + 0.5) * cell.w, y: box.y + (row + 0.5) * cell.h };
 }
 
+/** Waits until the bar's box is the same over a few frames (a relayout has settled). */
+async function steady(page: Page): Promise<void> {
+  const box = () =>
+    page.evaluate(
+      (id) =>
+        new Promise<string>((r) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => r(JSON.stringify(document.querySelector(`.wc-pane[data-pane="${id}"]`)!.getBoundingClientRect())))),
+        ),
+      BAR,
+    );
+  await expect.poll(async () => (await box()) === (await box())).toBe(true);
+}
+
 /** Row and column of the button `label` in the bar. */
 async function find(page: Page, label: string): Promise<{ row: number; col: number }> {
   const rows = await prows(page).allTextContents();
@@ -49,7 +63,7 @@ async function colours(page: Page, label: string): Promise<{ fg: string; bg: str
   return page.evaluate(
     ({ id, label }) => {
       const spans = document.querySelectorAll<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-prow span`);
-      const el = [...spans].find((s) => s.textContent === label)!;
+      const el = [...spans].find((s) => s.textContent!.trim() === label)!;
       const st = getComputedStyle(el);
       return { fg: st.color, bg: st.backgroundColor };
     },
@@ -93,29 +107,103 @@ async function enter(page: Page): Promise<void> {
   await expect(page.locator('.wc-cockpit')).toBeVisible();
 }
 
-/** The bar is one borderless row at the very bottom of the cockpit, under the input line. */
-async function expectBottomRow(page: Page): Promise<void> {
-  const cell = await cellSize(page);
+/** The bar is borderless, the last pane of the right dock's outer lane, nothing under it. */
+async function expectRightBottom(page: Page): Promise<void> {
   await expect(bar(page)).toBeVisible();
   await expect(bar(page)).not.toHaveAttribute('data-framed', '');
-  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height)).toBe(Math.round(cell.h));
-  const cockpit = (await page.locator('.wc-cockpit').boundingBox())!;
+  await expect.poll(async () => (await dockOf(page))?.dock).toBe('right');
+  const d = (await dockOf(page))!;
+  expect(d.lane).toBe(0);
+  expect((d.lanes[0]![1] as string[]).at(-1)).toBe(BAR);
   const b = (await bar(page).boundingBox())!;
-  const rows = Math.floor(cockpit.height / cell.h + 1e-6);
-  expect(Math.round(b.y - cockpit.y)).toBe(Math.round((rows - 1) * cell.h));
-  const input = (await page.locator('.wc-input-slot').boundingBox())!;
-  expect(input.y).toBeLessThan(b.y);
-  expect(await dockOf(page)).toMatchObject({ dock: 'bottom', lane: 0 });
+  const below = await page.evaluate((y) => {
+    return [...document.querySelectorAll<HTMLElement>('.wc-pane:not([data-floating])')].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return el.offsetParent !== null && r.width > 0 && r.left > window.innerWidth / 2 && r.top > y + 1;
+    }).length;
+  }, b.y);
+  expect(below).toBe(0);
 }
 
-test('panebar: a one-row bottom lane, clicks toggle panes, tooltips, paper, reload and Reset layout', async ({ page }) => {
+/** Moves the bar into a 1-row lane of its own at the bottom edge (the stage 14 place). */
+async function toBottomLane(page: Page): Promise<void> {
+  await page.evaluate((id) => {
+    window.__wc!.settings.update((d) => {
+      for (const dock of Object.values(d.layout.docks)) {
+        for (const l of dock.lanes) l.panes = l.panes.filter((p) => p.id !== id);
+        dock.lanes = dock.lanes.filter((l) => l.panes.length > 0);
+      }
+      d.layout.floating = d.layout.floating.filter((f) => f.id !== id);
+      d.layout.docks.bottom.lanes.unshift({ size: 1, panes: [{ id: id as 'comm', desired: 80 }] });
+    });
+  }, BAR);
+  await expect.poll(async () => (await dockOf(page))?.dock).toBe('bottom');
+  const cell = await cellSize(page);
+  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height)).toBe(Math.round(cell.h));
+}
+
+/** The buttons (filled spans) of every bar row: their text. */
+const buttons = (page: Page) =>
+  page.evaluate((id) => {
+    const out: string[] = [];
+    for (const s of document.querySelectorAll<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-prow span`)) {
+      const bg = getComputedStyle(s).backgroundColor;
+      if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' && s.textContent!.trim() !== '') out.push(s.textContent!);
+    }
+    return out;
+  }, BAR);
+
+/** The column of each bar row's first button (its first filled span). */
+const firstColumns = (page: Page) =>
+  page.evaluate((id) =>
+    [...document.querySelectorAll<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-prow`)].map((row) => {
+      let col = 0;
+      for (const s of row.querySelectorAll<HTMLElement>('span')) {
+        const bg = getComputedStyle(s).backgroundColor;
+        if (bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return col;
+        col += s.textContent!.length;
+      }
+      return -1;
+    }),
+  BAR);
+
+/** Every button is as wide as the longest name plus a cell on each side, the name centred. */
+async function expectEqualWidths(page: Page, names: string[]): Promise<void> {
+  const w = Math.max(...names.map((n) => n.length)) + 2;
+  await expect.poll(() => buttons(page)).toEqual(
+    names.map((n) => {
+      const left = Math.floor((w - n.length) / 2);
+      return ' '.repeat(left) + n + ' '.repeat(w - n.length - left);
+    }),
+  );
+}
+
+/** Drags the bar by its grip (row 1, column 1) to (x, y). */
+async function dragByGrip(page: Page, x: number, y: number): Promise<void> {
+  const g = await cellAt(page, 0, 0);
+  await page.mouse.move(g.x, g.y);
+  await page.mouse.down();
+  await page.mouse.move(g.x + 10, g.y - 10, { steps: 3 });
+  await page.mouse.move(x, y, { steps: 10 });
+  await page.mouse.up();
+}
+
+const ALL = ['CHAR', 'TIME', 'GRP', 'COMM', 'UI', 'MAP'];
+
+test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colours, paper, reload and Reset layout', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1280, height: 900 });
   await start(page);
   await enter(page);
   await command(page, '#script enable panebar');
-  await expectBottomRow(page);
-  await expect(prows(page).nth(0)).toHaveText(/^CHAR TIME GRP COMM UI MAP\s*$/);
+  await expectRightBottom(page);
+  await expectEqualWidths(page, ALL);
+  // The grip leads row 1; its cell shows the grab cursor.
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR /);
+  const g = await cellAt(page, 0, 0);
+  await page.mouse.move(g.x, g.y);
+  await expect(bar(page).locator('.wc-pane-content')).toHaveCSS('cursor', 'grab');
 
   // Tooltip: the full title and what a click does.
   const comm = await find(page, 'COMM');
@@ -124,22 +212,33 @@ test('panebar: a one-row bottom lane, clicks toggle panes, tooltips, paper, relo
   const tip = page.locator('.wc-spane-tip');
   await expect(tip).toBeVisible();
   await expect(tip).toHaveText(/Comm: on \(click to hide\)/);
+  // Hovered, a lit button looks different from a lit one at rest.
+  const hovered = await colours(page, 'COMM');
 
   // A click hides Comm and darkens its button; again shows it.
-  await page.mouse.move(at.x, at.y - 200);
+  await page.mouse.move(10, 10);
   const on = await colours(page, 'COMM');
+  expect(hovered).not.toEqual(on);
   await page.mouse.click(at.x, at.y);
   await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeHidden();
+  await page.mouse.move(10, 10);
   await expect.poll(() => colours(page, 'COMM')).not.toEqual(on);
-  await page.mouse.move(at.x, at.y - 200);
   const off = await colours(page, 'COMM');
-  expect(contrast(on.fg, on.bg)).toBeGreaterThanOrEqual(3);
-  await page.mouse.click(at.x, at.y);
+  // The dock relaid out without Comm: wait until the bar holds still.
+  await steady(page);
+  const back = await find(page, 'COMM');
+  const at2 = await cellAt(page, back.row, back.col + 1);
+  await page.mouse.click(at2.x, at2.y);
   await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeVisible();
-  // On is the lighter of the two on the dark theme.
+  // The Character pane's toggle boxes: the pane background shade as text,
+  // on the glow shade (on) or the track shade (off).
+  expect(off.fg).toBe(on.fg);
   const L = (c: string) => c.match(/\d+/g)!.slice(0, 3).map(Number).reduce((a, b) => a + b, 0);
   expect(L(on.bg)).toBeGreaterThan(L(off.bg));
-  expect(L(on.fg)).toBeGreaterThan(L(off.fg));
+  expect(contrast(on.fg, on.bg)).toBeGreaterThanOrEqual(4.5);
+  // Off is faded on purpose (as the Character pane's off boxes); its fill
+  // still stands apart from the lit one.
+  expect(contrast(on.bg, off.bg)).toBeGreaterThanOrEqual(3);
 
   // Paper: on and off still read and differ.
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
@@ -147,26 +246,28 @@ test('panebar: a one-row bottom lane, clicks toggle panes, tooltips, paper, relo
   await expect.poll(async () => (await colours(page, 'UI')).bg).not.toBe((await colours(page, 'CHAR')).bg);
   const pOn = await colours(page, 'CHAR');
   const pOff = await colours(page, 'UI');
-  expect(contrast(pOn.fg, pOn.bg)).toBeGreaterThanOrEqual(3);
-  // Off is meant to look faded; it still reads.
-  expect(contrast(pOff.fg, pOff.bg)).toBeGreaterThanOrEqual(2.5);
+  expect(pOff.fg).toBe(pOn.fg);
+  expect(contrast(pOn.fg, pOn.bg)).toBeGreaterThanOrEqual(2);
+  expect(contrast(pOff.fg, pOff.bg)).toBeGreaterThanOrEqual(3);
+  // As the Character pane's boxes on paper: the fills are close, the text tells them apart.
+  expect(contrast(pOn.bg, pOff.bg)).toBeGreaterThanOrEqual(1.3);
+  // Hover on a lit button on paper: different too.
+  const ch = await find(page, 'CHAR');
+  const atc = await cellAt(page, ch.row, ch.col + 1);
+  await page.mouse.move(atc.x, atc.y);
+  await expect.poll(() => colours(page, 'CHAR')).not.toEqual(pOn);
+  await page.mouse.move(10, 10);
   await page.evaluate(() => window.__wc!.settings.update({ panes: { ui: { on: true } } }));
 
-  // Reload: still enabled, still in its own bottom lane.
+  // Reload: still enabled, still at the bottom of the right dock.
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await enter(page);
-  await expectBottomRow(page);
+  await expectRightBottom(page);
 
-  // Reset layout after a move: back in its own bottom lane.
-  await page.evaluate((id) => {
-    window.__wc!.settings.update((d) => {
-      d.layout.docks.bottom.lanes = [];
-      d.layout.docks.left.lanes = [{ size: 20, panes: [{ id: id as 'comm', desired: 6 }] }];
-    });
-  }, BAR);
-  await expect.poll(async () => (await dockOf(page))?.dock).toBe('left');
+  // Reset layout after a move: back at the bottom of the right dock.
+  await toBottomLane(page);
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   await expect(menuTitle(page)).toHaveText('─── Options ───');
@@ -178,57 +279,65 @@ test('panebar: a one-row bottom lane, clicks toggle panes, tooltips, paper, relo
   await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-overlay')).toBeHidden();
-  await expectBottomRow(page);
+  await expectRightBottom(page);
   expect(errors).toEqual([]);
 });
 
-test('panebar: dragged by a button it stacks in the right dock, floats over the game and rewraps on resize', async ({ page }) => {
+test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and to a float; wraps in a narrow side dock', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1280, height: 900 });
   await start(page);
   await enter(page);
   await command(page, '#script enable panebar');
-  await expectBottomRow(page);
+  await expectRightBottom(page);
   const cell = await cellSize(page);
 
-  // Press on CHAR and move into the middle of the right dock.
-  const from = await cellAt(page, 0, 1);
-  const right = (await page.locator('.wc-pane[data-pane="timers"]').boundingBox())!;
-  await page.mouse.move(from.x, from.y);
-  await page.mouse.down();
-  await page.mouse.move(from.x + 10, from.y - 10, { steps: 3 });
-  await page.mouse.move(right.x + right.width / 2, right.y + right.height / 2, { steps: 10 });
-  await page.mouse.up();
-  await expect.poll(async () => (await dockOf(page))?.dock).toBe('right');
-  // No link fired on the drop: every pane is still on.
-  expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui'].map((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toEqual([true, true, true, true, true]);
-  await expect(prows(page)).toHaveCount(6);
-  await expect(prows(page).nth(0)).toHaveText(/^ CHAR\s*$/);
-  await expect(prows(page).nth(5)).toHaveText(/^ MAP\s*$/);
-  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(6);
+  // A 1-row bar at the bottom edge: all buttons on one row after the grip.
+  await toBottomLane(page);
+  await expect(prows(page)).toHaveCount(1);
+  await expectEqualWidths(page, ALL);
 
-  // Drag it by a button over the game: it floats, buttons in one row.
+  // By the grip into the middle of the right dock: no link fires.
+  const timers = (await page.locator('.wc-pane[data-pane="timers"]').boundingBox())!;
+  await dragByGrip(page, timers.x + timers.width / 2, timers.y + timers.height / 2);
+  await expect.poll(async () => (await dockOf(page))?.dock).toBe('right');
+  expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].map((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toEqual([
+    true, true, true, true, true, true,
+  ]);
+  // Buttons flow left to right and wrap; the height follows the rows.
+  await expect.poll(() => prows(page).count()).toBeGreaterThan(1);
+  const rows = await prows(page).count();
+  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(rows);
+  await expectEqualWidths(page, ALL);
+  // Every row's first button starts in the column after the grip and its blank.
+  expect(new Set(await firstColumns(page))).toEqual(new Set([2]));
+
+  // Back to the bottom edge, then by the grip over the game: it floats.
+  await toBottomLane(page);
   const game = (await page.locator('.wc-game').boundingBox())!;
-  const grip = await cellAt(page, 0, 2);
-  await page.mouse.move(grip.x, grip.y);
-  await page.mouse.down();
-  await page.mouse.move(grip.x - 10, grip.y + 10, { steps: 3 });
-  await page.mouse.move(game.x + game.width / 3, game.y + game.height / 3, { steps: 10 });
-  await page.mouse.up();
+  await dragByGrip(page, game.x + game.width / 3, game.y + game.height / 3);
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('float');
   await expect(bar(page)).toHaveAttribute('data-floating', '');
-  await expect(prows(page).nth(0)).toHaveText(/^ CHAR TIME GRP COMM UI MAP\s*$/);
+  expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].every((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toBe(true);
 
-  // Narrow it from the right edge: the buttons wrap.
-  const b = (await bar(page).boundingBox())!;
-  await page.mouse.move(b.x + b.width - 1, b.y + b.height / 2);
-  await page.mouse.down();
-  await page.mouse.move(b.x + b.width - 1 - 20 * cell.w, b.y + b.height / 2, { steps: 8 });
-  await page.mouse.up();
-  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.width / cell.w)).toBe(Math.round(b.width / cell.w) - 20);
-  await expect(prows(page).nth(0)).toHaveText(/^ CHAR TIME\s*$/);
-  await expect(prows(page).nth(1)).toHaveText(/^ GRP COMM UI\s*$/);
+  // A narrow left dock (above Comm): one button per row, the rows asked for.
+  await page.evaluate((id) => {
+    window.__wc!.settings.update((d) => {
+      d.layout.floating = d.layout.floating.filter((f) => f.id !== id);
+      for (const dock of Object.values(d.layout.docks)) {
+        for (const l of dock.lanes) l.panes = l.panes.filter((p) => p.id !== 'comm');
+        dock.lanes = dock.lanes.filter((l) => l.panes.length > 0);
+      }
+      d.layout.docks.left.lanes = [{ size: 12, panes: [{ id: id as 'comm', desired: 1 }, { id: 'comm', desired: 6 }] }];
+    });
+  }, BAR);
+  await expect.poll(async () => (await dockOf(page))?.dock).toBe('left');
+  await expect(prows(page)).toHaveCount(6);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237  CHAR\s*$/);
+  await expect(prows(page).nth(5)).toHaveText(/^   MAP\s*$/);
+  await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(6);
+  await expectEqualWidths(page, ALL);
   expect(errors).toEqual([]);
 });
 
@@ -277,8 +386,8 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   await putScript(page, 'loot', '-- @name loot\n-- @api 1\nlocal p = createPane{id = "main", title = "Loot log", short = "LOOT", dock = "left", rows = 4, cols = 20}\np:setLine(1, "nothing yet")\n');
   await enter(page);
   await command(page, '#script enable panebar');
-  await expectBottomRow(page);
-  await expect(prows(page).nth(0)).toHaveText(/^CHAR TIME GRP COMM UI MAP LOOT\s*$/);
+  await expectRightBottom(page);
+  await expectEqualWidths(page, [...ALL, 'LOOT']);
   // Its button hides it like the others.
   const loot = await find(page, 'LOOT');
   const at = await cellAt(page, loot.row, loot.col + 1);
@@ -287,6 +396,6 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   await page.mouse.click(at.x, at.y);
   await expect(page.locator('.wc-pane[data-pane="loot/main"]')).toBeHidden();
   await command(page, '#script disable loot');
-  await expect(prows(page).nth(0)).toHaveText(/^CHAR TIME GRP COMM UI MAP\s*$/);
+  await expectEqualWidths(page, ALL);
   expect(errors).toEqual([]);
 });

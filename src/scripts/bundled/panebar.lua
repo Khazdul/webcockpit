@@ -8,10 +8,11 @@
 -- @help     click again to show it. A bright button is on, a dark one is
 -- @help     off. Point at a button to see the pane's full name.
 -- @help
--- @help     The bar starts as one row at the bottom of the screen. Drag it
--- @help     by a button (press and move) to another side: at the left or
--- @help     right the buttons stack one per row; floating, they wrap to
--- @help     the bar's size.
+-- @help     The bar starts at the bottom of the right dock, under the
+-- @help     other panes. Drag it by the dots at its left end (or press a
+-- @help     button and move) to another dock or over the game to float it.
+-- @help     Wherever it is, the buttons run left to right and wrap onto
+-- @help     the next row when the bar is too narrow.
 -- @help
 -- @help       bar        show or hide the bar
 -- @help       bar list   the panes and whether they are on, as text
@@ -21,26 +22,34 @@ How it works
 
 getPanes() lists every pane in Options -> Panes order with its short
 name, title and on/off; the bar leaves out its own pane. Each button is
-the short name on a shade of the pane's colour (<@text:@dim> on,
-<@mid:@track> off), so it follows the pane tint and the light (paper)
-backgrounds. A click calls setPaneOn.
+the short name centred in a box one cell wider than the longest name on
+each side, all boxes equally wide, one empty cell apart. The colours are
+the Character pane's toggle boxes: the pane background shade on the glow
+shade when on, on the track shade when off (<@bg:@glow>, <@bg:@track>),
+so they follow the pane tint and the light (paper) backgrounds. A click
+calls setPaneOn.
+
+Row 1 starts with a grip, a dotted cell (pane:setGrip) that drags the
+bar. The buttons start after it and wrap back to that column. The first
+row keeps its last four cells free for the close cross.
 
 The bar redraws when the list changes (sysPanesChanged), when it is
-resized and when it moves to another dock. It asks for its height with
-pane:wantSize: one row per button at the side, one row per line of
-buttons at the top or bottom. A height the player drags stays until the
-bar needs another one.
+resized and when it moves to another dock. Docked, it asks for as many
+rows as the buttons need with pane:wantSize. A height the player drags
+stays until the bar needs another one.
 ]]
 
-local ON = "<@text:@dim>"
-local OFF = "<@mid:@track>"
+local ON = "<@bg:@glow>"
+local OFF = "<@bg:@track>"
+local GRIP = "<@mid>\u{2237}<reset>"
+-- The first button column: the grip, then one blank cell.
+local FIRST = 3
 
 local pane = createPane{
   id = "bar", title = "Pane bar", short = "BAR",
-  dock = "bottom", lane = "own", rows = 1, cols = 80, border = false,
+  dock = "right", rows = 1, cols = 30, border = false,
 }
-local width = 80
-
+local width = 30
 -- The panes the bar has buttons for: every pane but its own.
 local function others()
   local out = {}
@@ -56,31 +65,38 @@ local function hint(e)
   return e.title .. ": on (click to hide)"
 end
 
--- Rows of buttons { col, entry } for the bar's dock and width.
-local function layout(list, dock)
-  local rows = {}
-  if dock == "left" or dock == "right" then
-    for i, e in ipairs(list) do rows[i] = { { col = 2, e = e } } end
-    return rows
-  end
-  -- Flow with one empty cell between buttons. The first row keeps its
-  -- last four cells free for the close cross.
-  local first, last = 1, width
-  if dock == "float" then first, last = 2, width - 1 end
-  local r, col = 1, first
-  rows[1] = {}
+-- `text` centred in `w` cells.
+local function centre(text, w)
+  local left = math.floor((w - utf8.len(text)) / 2)
+  return string.rep(" ", left) .. text .. string.rep(" ", w - utf8.len(text) - left)
+end
+
+-- The button width: the longest short name plus one cell on each side.
+local function buttonWidth(list)
+  local w = 0
+  for _, e in ipairs(list) do w = math.max(w, utf8.len(e.short)) end
+  return w + 2
+end
+
+-- Rows of buttons { col, entry } for the bar's dock and width: left to
+-- right from FIRST, one empty cell apart, wrapping back to FIRST. The
+-- first row keeps its last four cells free for the close cross.
+local function layout(list, dock, bw)
+  local last = width
+  if dock == "float" then last = width - 1 end
+  local rows = { {} }
+  local r, col = 1, FIRST
   for _, e in ipairs(list) do
-    local w = utf8.len(e.short)
     local stop = last
     if r == 1 and width >= 12 then stop = math.min(last, width - 4) end
-    if col > first and col + w - 1 > stop then
+    if col > FIRST and col + bw - 1 > stop then
       r = r + 1
       rows[r] = {}
-      col = first
+      col = FIRST
     end
     local row = rows[r]
     row[#row + 1] = { col = col, e = e }
-    col = col + w + 1
+    col = col + bw + 1
   end
   return rows
 end
@@ -89,26 +105,30 @@ local function draw()
   local list = others()
   local dock = pane:dock()
   if not dock then return end
-  local rows = layout(list, dock)
+  local bw = buttonWidth(list)
+  local rows = layout(list, dock, bw)
   pane:clear()
   for r, buttons in ipairs(rows) do
     local parts, at = {}, 1
+    if r == 1 then parts[1], at = GRIP, 2 end
     for _, b in ipairs(buttons) do
-      parts[#parts + 1] = string.rep(" ", b.col - at) .. (b.e.on and ON or OFF) .. b.e.short .. "<reset>"
-      at = b.col + utf8.len(b.e.short)
+      parts[#parts + 1] = string.rep(" ", b.col - at) .. (b.e.on and ON or OFF) .. centre(b.e.short, bw) .. "<reset>"
+      at = b.col + bw
     end
     pane:setLine(r, table.concat(parts))
     for _, b in ipairs(buttons) do
       local id, on = b.e.id, b.e.on
-      pane:setLink(r, b.col, utf8.len(b.e.short), function() setPaneOn(id, not on) end, hint(b.e))
+      pane:setLink(r, b.col, bw, function() setPaneOn(id, not on) end, hint(b.e))
     end
   end
-  -- The height the buttons need (the surface ignores a repeated request,
-  -- so a height the player dragged stays).
-  if dock ~= "float" then pane:wantSize(math.max(1, #rows)) end
+  pane:setGrip(1, 1, FIRST - 1)
+  -- The rows the buttons need (the surface ignores a repeated request, so
+  -- a height the player dragged stays).
+  if dock ~= "float" then pane:wantSize(#rows) end
 end
 
 pane:onResize(function(rows, cols)
+  if cols < 1 then return end
   width = cols
   draw()
 end)
