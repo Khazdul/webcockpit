@@ -1,6 +1,7 @@
 # 0064 — Dock lanes: several columns or rows per dock
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0065 (per-lane minimum, edge zones) and
+  ADR 0067 (spanning panes: `head`/`tail` spans across all lanes)
 - Date: 2026-10-03
 - Amends: ADR 0012 (model, geometry, interaction), ADR 0014 (top dock,
   docking from the edge zones)

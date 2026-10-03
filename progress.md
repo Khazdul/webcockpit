@@ -20,6 +20,7 @@ Current stage: 14 Pane bar, built, awaiting release and owner test (latest relea
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
 | 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
+| 15 | Spanning panes | In progress | `docs/stages/15-spanning-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
