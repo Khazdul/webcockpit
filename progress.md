@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stage 13 done (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 14 Pane bar, built, awaiting release and owner test (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -19,13 +19,33 @@ Current stage: none in progress. Stage 13 done (latest release 0.1.35). Stage 8 
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
-| 14 | Pane bar | In progress | `docs/stages/14-panebar.md` |
+| 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Stage 14: pane bar; Options → Text input (not released)
+
+- **Owner request:** a bundled menu bar script with short-name toggle
+  buttons for every pane; mockup approved in a simplified form (no
+  per-pane colours, light = on, dark = off). Owner: no frame, off by
+  default, bottom dock. Options: new Text input menu, Elrond narrate
+  line (palette 3) in the Appearance preview.
+- **Done:** pane list Lua API (`getPanes`, `setPaneOn`, `pane:dock`,
+  `pane:wantSize`, `sysPanesChanged`, `createPane{short,border,lane}`),
+  shade tags in pane text, per-lane minimum (1-row bar lane), soft grip
+  for borderless script panes, `panebar.lua`. ADR 0065. Text input menu
+  and preview line, ADR 0066 (built in a worktree, merged).
+- **Verified:** typecheck clean, unit 1963 green, e2e 400 green
+  (Chromium + Firefox) on the merged main.
+- **Not released:** the version bump and tag push were blocked by the
+  session's permission check; the owner releases per ADR 0028.
+- **Next:** release 0.1.36, owner test per `docs/stages/14-panebar.md`.
+- **Commits:** 356bd14, f6f5010, 68810aa, df84aa4, 231baf5, 128eefb,
+  8595aed, 18d6620, 70acc51, dd7368b, c2b43f2, 083c32f, plus this one.
 
 ### 2026-10-03 — Stage 13: dock lanes, release 0.1.35
 
