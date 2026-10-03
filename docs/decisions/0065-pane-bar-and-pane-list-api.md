@@ -173,3 +173,69 @@ is `short = "KEYS"`.
   and going. Built-in panes stay unaffected unless a script switches them.
 - A borderless script pane in the top/bottom dock is a single row; its
   top row is clickable and still drags the pane.
+
+## Owner feedback round 1 (2026-10-03)
+
+The owner tested the bar and asked for five changes and a new default
+place. All are implemented; they amend the sections above where they
+differ.
+
+- **Grip (`pane:setGrip`).** New pane method `pane:setGrip(row, col,
+  len)` (1-based like `setLink`; `len` defaults to 1). One grip per pane:
+  a new call replaces it, `pane:setGrip(nil)` (or no row) removes it;
+  there is no `clearGrip`. The grip belongs to the pane, not to a row's
+  text: `setLine`, `clear` and the line cap leave it alone
+  (`PaneContent.grip`, `setGrip`, `gripAt`). The live `ScriptPane` shows
+  the `grab` cursor over its cells (a link wins where both lie), and
+  `PaneShell.gripAt(x, y)` (false in the base class) lets the cockpit ask.
+  A press there (on any row, framed or not, docked, floating or
+  temporary; not on a text field, the scroll indicator, the close cross or
+  a float handle, which keep their own) starts a `move` drag like the
+  frame grip: `preventDefault`, pointer capture, the drag shield with the
+  `grabbing` cursor at once, and the click that follows is eaten (also
+  for a press without movement). The rest is the usual move / dock /
+  float machinery. The soft grip of a borderless pane's top row stays.
+  The grip is **not** in the content snapshot: in the log player and the
+  HTML replay there is no pane to drag, so it would be inert.
+- **Grip glyph.** `∷` (U+2237) in `<@mid>`, one cell, then one blank
+  cell; the grip region is both cells. `⠿` (U+28FF) was the first choice
+  but is only in Agave and Cascadia Mono, not in DejaVu Sans Mono, the
+  fallback in every stack, so most fonts would draw it from a system font
+  at another advance. `∷` is in DejaVu (regular and bold) and most
+  families; `font-glyphs.test.ts` now lists it among the symbols DejaVu
+  must cover.
+- **Buttons.** All equally wide: the longest short name + 2 (one blank
+  cell of padding each side inside the fill), the name centred (the odd
+  cell goes right, as `centre` in grid.ts), one empty cell between
+  buttons.
+- **Always horizontal flow.** The stacked side-dock layout is gone. In
+  every placement buttons flow left to right from column 3 (after the
+  grip and its blank) and wrap back to column 3. Row 1 keeps its last
+  four cells free for the close cross when the pane is at least 12 wide
+  (all placements now; before, the side dock did not reserve them). A
+  float flows up to one cell before its right edge. `wantSize(#rows)` in
+  every dock (rows in a side dock, the lane's thickness in top/bottom);
+  none in a float.
+- **Colours like the Character pane's toggle boxes** (SNEAK / RIDE /
+  CLIMB / SWIM): on `<@bg:@glow>`, off `<@bg:@track>` (text in the
+  `paneBg` shade). The e2e check asserts the Character-pane levels for
+  the default tint rather than a uniform 3:1: dark, on ≥ 4.5:1 and the
+  two fills ≥ 3:1 apart (off is faded on purpose, as the Character
+  boxes); paper, on ≥ 2:1, off ≥ 3:1 (measured about 3.8:1) and the fills
+  ≥ 1.3:1 apart (measured about 1.43:1). On and off share the text
+  shade; the fill tells them apart.
+- **Hover on a lit cell.** The link hover band is `paneBg` on `glow`,
+  which a lit button already is. General rule for script panes: when the
+  hovered link's first cell already has the `glow` background, the band
+  is inverted, `glow` text on the `paneBg` shade (dark band on paper, the
+  pane's own near-background on dark). Other links keep the usual band.
+- **Default place: the bottom of the right dock** (owner change after
+  testing; replaces "a lane of its own at the bottom screen edge"):
+  `createPane{dock = "right", rows = 1, cols = 30, border = false}`
+  without `lane`. `placeScriptPane` appends to lane 0 of the dock, the
+  outermost lane where the built-in panes sit, so the bar is the last
+  pane of that stack (under the Map in the default layout). With several
+  right lanes it still goes to lane 0 (decided: the screen-edge lane is
+  where the default panes are; no new rule). Reset layout places it there
+  again. Its height follows the flow via `wantSize`. `lane = "own"` stays
+  in the API for other scripts.

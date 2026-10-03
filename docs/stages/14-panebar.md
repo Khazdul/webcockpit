@@ -60,6 +60,60 @@ ADR 0065.
 - [x] E2E tests (Chromium + Firefox)
 - [x] ADR 0065
 
+### Owner feedback round 1
+
+- [x] Host: `pane:setGrip(row, col, len)` / `pane:setGrip(nil)`; content
+      grip, grab cursor, cockpit press-to-move on grip cells
+- [x] Hover on a lit (glow) link cell is inverted
+- [x] panebar: grip `∷` at row 1, equal-width padded buttons, horizontal
+      flow with wrap everywhere, Character-pane colours, default place
+      at the bottom of the right dock
+- [x] Editor reference and manual for setGrip
+- [x] Unit tests (layouts, grip, setGrip, cockpit grip drag, hover)
+- [x] E2E (Chromium + Firefox): grip drags, wrap, equal widths, placement
+- [x] ADR 0065 amendment "Owner feedback round 1"
+
+## Test guide
+
+Open https://mumecockpit.com/ (hard reload so the new version loads).
+
+1. Esc → Scripts: turn on **panebar**. The bar appears at the bottom of
+   the right dock, under the Map, with a dotted grip `∷` at its left end
+   and one button per pane (CHAR, TIME, GRP, COMM, UI, MAP, and script
+   panes such as KEYS or MERC when those scripts run). All buttons are
+   equally wide, with a blank cell on each side of the name; they wrap
+   onto the next row when the dock is narrow, and the pane is as high as
+   its rows.
+2. Click a button: that pane hides and the button turns dark. Click again:
+   it comes back. Point at a button to see the pane's full name; a lit
+   button changes look under the pointer too.
+3. Point at the grip: the pointer is a hand. Drag the bar by the grip to
+   the bottom edge of the screen, to the left dock and over the game
+   (floats). Wherever it is, the buttons run left to right and wrap.
+   Resize a float or a dock: the buttons rewrap.
+4. Esc → Options → Appearance: pick a paper background and check that
+   on and off buttons are still easy to tell apart (they use the same
+   colours as the SNEAK/RIDE/CLIMB/SWIM boxes in the Character pane).
+5. Esc → Options → Reset layout: the bar goes back to the bottom of the
+   right dock.
+6. Type `bar` to hide or show the bar, `bar list` for the list as text.
+
+Feedback wanted: the grip (glyph and size), the button colours and hover
+(dark and paper), and the default place.
+
+## Owner feedback round 1
+
+- [x] Host: `pane:setGrip(row, col, len)` / `pane:setGrip(nil)`; content
+      grip, grab cursor, cockpit press-to-move on grip cells
+- [x] Hover on a lit (glow) link cell is inverted
+- [x] panebar: grip `∷` at row 1, equal-width padded buttons, horizontal
+      flow with wrap everywhere, Character-pane colours, default place
+      at the bottom of the right dock
+- [x] Editor reference and manual for setGrip
+- [x] Unit tests (layouts, grip, setGrip, cockpit grip drag, hover)
+- [x] E2E (Chromium + Firefox): grip drags, wrap, equal widths, placement
+- [x] ADR 0065 amendment "Owner feedback round 1"
+
 ## Test guide
 
 Open https://mumecockpit.com/ (hard reload so the new version loads).
