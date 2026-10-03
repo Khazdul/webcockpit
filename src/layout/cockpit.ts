@@ -8,7 +8,7 @@
 //     .wc-input-slot    the input line (src/ui/input-pane.ts), under the game pane
 //     .wc-handles       invisible resize handles over the gaps, lane and pane boundaries
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
-//     .wc-drop-ghost    outline where a pane dragged over the game will float
+//     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
 //     .wc-drag-shield   transparent cover with the drag cursor while a drag runs
 //
@@ -36,6 +36,15 @@
 //   and right bands of a column, the upper and lower bands of a row) it
 //   goes into a new lane beside it, and the bar runs along the whole lane
 //   boundary. A lane the last pane leaves is removed.
+// - Spanning panes (ADR 0067): in a dock with two or more shown lanes (or
+//   with spans already) the region's first row (side dock; the first
+//   clamp(floor(len / 10), 1, 3) columns in the top/bottom dock) is a
+//   strip that appends the pane to the spans before the lanes, and its
+//   last row (columns) a strip that puts it first in the spans after
+//   them. Over a span stack the pane goes into the stack like into a
+//   lane. Both show a dock-wide bar (`.wc-drop-bar[data-span]`) and a
+//   dashed outline (`.wc-drop-ghost[data-span]`) of the box the pane
+//   gets. A dock that goes down to one lane folds its spans into it.
 // - Floating panes (ADR 0014): drop a docked pane over the game area and it
 //   floats there at the standard size, 36 × 14 cells (an outline shows
 //   where). Drag a floating pane
@@ -49,8 +58,11 @@
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
 //   row) to move cells between them, or the boundary between two panes of
-//   a lane (the lower part of the upper pane's last row, or the right part
-//   of the left pane's last column) to resize them.
+//   a lane or span stack (the lower part of the upper pane's last row, or
+//   the right part of the left pane's last column) to resize them. The
+//   boundary between a span stack and the lanes (ADR 0067) moves cells
+//   between the span pane next to it and, in every lane, the pane next to
+//   it.
 // - Every drag previews live and writes the settings once, on release.
 // - Grips and handles never take focus; after a drag or a click the focus
 //   goes back to the input (Inv §1.3).
@@ -89,6 +101,7 @@ import {
   type Rect,
   type DockBox,
   type LaneBox,
+  type SpanBox,
   allocate,
   clampFloat,
   floatMin,
@@ -97,6 +110,7 @@ import {
 } from './allocate';
 import {
   findFloat,
+  findPane,
   floatPane,
   isNoopMove,
   isNoopNewLane,
@@ -109,6 +123,7 @@ import {
   setLaneSize,
   shiftBoundary,
   shiftLanes,
+  shiftSpanBoundary,
   togglePatch,
 } from './model';
 import { paneSettingsOf } from '../settings/types';
@@ -237,6 +252,18 @@ export type DropTarget =
       size: number;
       bar: Rect;
     }
+  | {
+      /** Into the spans before (`head`) or after (`tail`) the lanes (ADR 0067). */
+      kind: 'span';
+      dock: DockId;
+      side: 'head' | 'tail';
+      /** Index in that span list (`movePane`). */
+      index: number;
+      /** The dock-wide insertion bar (px). */
+      bar: Rect;
+      /** The box the pane would get (cells), or null when the drop would not show it. */
+      ghost: Rect | null;
+    }
   | { kind: 'float'; rect: Rect };
 
 /** Resize handles of a floating pane, by the edges they move. */
@@ -312,6 +339,22 @@ type Drag =
       b: { id: PaneId; size: number };
       cell0: number;
       base: LayoutModel;
+    }
+  | {
+      /**
+       * The boundary between a span stack and the lanes (ADR 0067): `span`
+       * is the span pane next to it, `edge` the pane next to it in every
+       * shown lane (content sizes at the press). `sign` is +1 for the head
+       * (the span grows as the boundary moves away from it), -1 for the tail.
+       */
+      kind: 'span';
+      dock: DockId;
+      pointerId: number;
+      span: { id: PaneId; size: number };
+      edge: { id: PaneId; size: number }[];
+      sign: number;
+      cell0: number;
+      base: LayoutModel;
     };
 
 export class Cockpit {
@@ -357,6 +400,8 @@ export class Cockpit {
   private last: LayoutResult | null = null;
   private preview: LayoutModel | null = null;
   private drag: Drag | null = null;
+  /** Span drop outlines of the running drag by target (ADR 0067), so a move over the same target allocates once. */
+  private readonly ghosts = new Map<string, Rect | null>();
   private scheduled = false;
   private disposed = false;
   private wasTooSmall = false;
@@ -800,9 +845,14 @@ export class Cockpit {
           });
         }
         const side = isSideDock(dock.id);
-        for (const lane of dock.lanes) {
+        // Pane boundaries in each lane and in each span stack (ADR 0067).
+        const stacks: { rect: Rect; lane: LaneBox['index'] | SpanBox['side'] }[] = [
+          ...dock.lanes.map((l) => ({ rect: l.rect, lane: l.index })),
+          ...dock.spans.map((sp) => ({ rect: sp.rect, lane: sp.side })),
+        ];
+        for (const lane of stacks) {
           const l = lane.rect;
-          const boxes = r.panes.filter((p) => p.dock === dock.id && p.lane === lane.index);
+          const boxes = r.panes.filter((p) => p.dock === dock.id && p.lane === lane.lane);
           for (let i = 0; i + 1 < boxes.length; i++) {
             const a = boxes[i]!;
             const b = boxes[i + 1]!;
@@ -833,6 +883,16 @@ export class Cockpit {
           } else if (second.h > 1) {
             add({ x: second.x * cell.w, y: second.y * cell.h, w: second.w * cell.w, h: hz }, 'y', data);
           }
+        }
+        // Span stack ↔ lanes (ADR 0067), like a pane boundary: the lower
+        // (right) part of the last row (column) before the boundary, across
+        // the whole dock.
+        const g = dock.region;
+        for (const sp of g ? dock.spans : []) {
+          const data = { dock: dock.id, span: sp.side };
+          const at = sp.side === 'head' ? (side ? g!.y : g!.x) : side ? g!.y + g!.h : g!.x + g!.w;
+          if (side) add({ x: d.x * cell.w, y: at * cell.h - hz, w: d.w * cell.w, h: hz }, 'y', data);
+          else add({ x: at * cell.w - wz, y: d.y * cell.h, w: wz, h: d.h * cell.h }, 'x', data);
         }
       }
     }
@@ -919,9 +979,14 @@ export class Cockpit {
         const side = isSideDock(dock);
         const size = (p: PaneBox): number => (side ? p.content.h : p.content.w);
         // A lane that is short of space is frozen at what it shows now, so
-        // the boundary follows the pointer exactly (ADR 0012).
+        // the boundary follows the pointer exactly (ADR 0012). A dock with
+        // spans (ADR 0067) is frozen whole: its lanes and spans share the
+        // dock's length.
         let frozen = base;
-        if (this.last.docks[dock]?.lanes.find((l) => l.index === a.lane)?.mode === 'scaled') {
+        const db = this.last.docks[dock];
+        if (db && db.spans.length > 0) {
+          frozen = this.freezeDock(base, dock);
+        } else if (db?.lanes.find((l) => l.index === a.lane)?.mode === 'scaled') {
           const all: Partial<Record<PaneId, number>> = {};
           for (const p of this.last.panes) if (p.dock === dock && p.lane === a.lane) all[p.id] = size(p);
           frozen = setDesired(base, all);
@@ -934,6 +999,28 @@ export class Cockpit {
           b: { id: b.id, size: size(b) },
           cell0: side ? Math.floor(y / cell.h) : Math.floor(x / cell.w),
           base: frozen,
+        };
+      } else if (handle.dataset.span) {
+        const db = this.last.docks[dock];
+        const which = handle.dataset.span === 'tail' ? 'tail' : 'head';
+        const sp = db?.spans.find((x) => x.side === which);
+        if (!db || !sp || db.lanes.length === 0) return;
+        const side = isSideDock(dock);
+        const size = (p: PaneBox): { id: PaneId; size: number } => ({ id: p.id, size: side ? p.content.h : p.content.w });
+        const boxes = (lane: PaneBox['lane']): PaneBox[] => this.last!.panes.filter((p) => p.dock === dock && p.lane === lane);
+        const own = boxes(which);
+        const spanBox = which === 'head' ? own[own.length - 1] : own[0];
+        const edge = db.lanes.map((l) => boxes(l.index)).map((bs) => (which === 'head' ? bs[0] : bs[bs.length - 1]));
+        if (!spanBox || edge.some((e) => !e)) return;
+        this.drag = {
+          kind: 'span',
+          dock,
+          pointerId: e.pointerId,
+          span: size(spanBox),
+          edge: edge.map((b) => size(b!)),
+          sign: which === 'head' ? 1 : -1,
+          cell0: side ? Math.floor(y / cell.h) : Math.floor(x / cell.w),
+          base: this.freezeDock(base, dock),
         };
       } else if (handle.dataset.outer && handle.dataset.inner) {
         const lanes = this.last.docks[dock]?.lanes ?? [];
@@ -973,6 +1060,18 @@ export class Cockpit {
       /* synthetic events have no active pointer */
     }
   };
+
+  /**
+   * `m` with every shown pane of `dock` frozen at the content size it
+   * shows now (its `desired` along the dock), so a resize in a dock with
+   * spans (ADR 0067) moves only the cells it should.
+   */
+  private freezeDock(m: LayoutModel, dock: DockId): LayoutModel {
+    const side = isSideDock(dock);
+    const all: Partial<Record<PaneId, number>> = {};
+    for (const p of this.last?.panes ?? []) if (p.dock === dock) all[p.id] = side ? p.content.h : p.content.w;
+    return setDesired(m, all);
+  }
 
   /**
    * True when `t` (pressed at cockpit row `row`) is the top content row of
@@ -1096,6 +1195,12 @@ export class Cockpit {
       this.setPreview(setLaneSize(d.base, d.dock, d.lane, Math.max(min, Math.min(max, size - d.rest))));
       return;
     }
+    if (d.kind === 'span') {
+      const side = isSideDock(d.dock);
+      const moved = (side ? Math.floor(y / cell.h) : Math.floor(x / cell.w)) - d.cell0;
+      this.setPreview(setDesired(d.base, shiftSpanBoundary(d.span, d.edge, d.dock, d.sign * moved)));
+      return;
+    }
     if (d.kind === 'lanes') {
       const side = isSideDock(d.dock);
       const moved = (side ? Math.floor(x / cell.w) : Math.floor(y / cell.h)) - d.cell0;
@@ -1139,6 +1244,10 @@ export class Cockpit {
             draft.layout = moveToNewLane(draft.layout, d.id, t.dock, t.at, t.size);
             return;
           }
+          if (t.kind === 'span') {
+            draft.layout = movePane(draft.layout, d.id, t.dock, t.side, t.index);
+            return;
+          }
           let m = movePane(draft.layout, d.id, t.dock, t.lane, t.index);
           if (t.open) m = setLaneSize(m, t.dock, 0, defaultDockSize(t.dock));
           draft.layout = m;
@@ -1170,6 +1279,7 @@ export class Cockpit {
     this.drag = null;
     this.preview = null;
     this.tempPreview = null;
+    this.ghosts.clear();
     this.barEl.hidden = true;
     this.ghostEl.hidden = true;
     this.shieldEl.hidden = true;
@@ -1206,14 +1316,17 @@ export class Cockpit {
   }
 
   private showTarget(t: DropTarget | null): void {
-    this.barEl.hidden = t?.kind !== 'dock' && t?.kind !== 'lane';
-    this.ghostEl.hidden = t?.kind !== 'float';
-    if (t?.kind === 'dock' || t?.kind === 'lane') {
+    const ghost = t?.kind === 'float' ? t.rect : t?.kind === 'span' ? t.ghost : null;
+    const span = t?.kind === 'span';
+    this.barEl.hidden = t?.kind !== 'dock' && t?.kind !== 'lane' && !span;
+    this.ghostEl.hidden = !ghost;
+    this.barEl.toggleAttribute('data-span', span);
+    this.ghostEl.toggleAttribute('data-span', span);
+    if (t?.kind === 'dock' || t?.kind === 'lane' || t?.kind === 'span') {
       placePx(this.barEl, t.bar);
       this.barEl.dataset.dock = t.dock;
-    } else if (t?.kind === 'float') {
-      placeEl(this.ghostEl, t.rect, this.cells.get());
     }
+    if (ghost) placeEl(this.ghostEl, ghost, this.cells.get());
   }
 
   /**
@@ -1222,7 +1335,8 @@ export class Cockpit {
    * top-left cell, so a floating pane keeps its offset under the pointer.
    *
    * A docked pane docks anywhere over a shown dock (into a lane, or into a
-   * new lane from a lane's cross-axis edge band, ADR 0064) and on the screen
+   * new lane from a lane's cross-axis edge band, ADR 0064, or into the
+   * spans from a span stack or the region's strips, ADR 0067) and on the screen
    * edge of a hidden dock; a floating pane docks only from the screen-edge zones
    * (2 cells; the top one half a row) — it may lie over a dock, and moving
    * it there must not dock it.
@@ -1297,8 +1411,68 @@ export class Cockpit {
       return { kind: 'lane', dock, at, size, bar: clampBar(bar) };
     };
 
+    // Into a span list (ADR 0067) at `index`, with a dock-wide bar at `at`
+    // (cells along the dock) and an outline of the box the pane gets.
+    // `undefined` when the result would not keep the pane in the span (a
+    // dock left with one lane folds its spans) or the move changes nothing.
+    const span = (dock: DockBox, side: 'head' | 'tail', index: number, at: number): DropTarget | undefined => {
+      const moved = movePane(layout, id, dock.id, side, index);
+      if (moved === layout || findPane(moved, id)?.lane !== side) return undefined;
+      const key = `${dock.id}|${side}|${index}`;
+      if (!this.ghosts.has(key)) {
+        const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows });
+        this.ghosts.set(key, res.panes.find((p) => p.id === id)?.rect ?? null);
+      }
+      const d = dock.rect;
+      const bar = isSideDock(dock.id)
+        ? { x: d.x * cell.w, y: at * cell.h - T / 2, w: d.w * cell.w, h: T }
+        : { x: at * cell.w - T / 2, y: d.y * cell.h, w: T, h: d.h * cell.h };
+      return { kind: 'span', dock: dock.id, side, index, bar: clampBar(bar), ghost: this.ghosts.get(key)! };
+    };
+
+    // Into a span stack: before the first pane whose middle is past the pointer.
+    const intoStack = (dock: DockBox, sp: SpanBox): DropTarget | null => {
+      const side = isSideDock(dock.id);
+      const boxes = r.panes.filter((p) => p.dock === dock.id && p.lane === sp.side);
+      const lastBox = boxes[boxes.length - 1]!;
+      let index = lastBox.index + 1;
+      let at = side ? lastBox.rect.y + lastBox.rect.h : lastBox.rect.x + lastBox.rect.w;
+      for (const b of boxes) {
+        const mid = side ? b.rect.y + b.rect.h / 2 : b.rect.x + b.rect.w / 2;
+        if ((side ? cy : cx) < mid) {
+          index = b.index;
+          at = side ? b.rect.y : b.rect.x;
+          break;
+        }
+      }
+      return span(dock, sp.side, index, at) ?? null;
+    };
+
+    // The region's strips (ADR 0067): its first row (columns) appends to
+    // the head spans, its last row (columns) puts the pane first in the
+    // tail spans. Only in a dock with two shown lanes or with spans.
+    const strip = (dock: DockBox): DropTarget | undefined => {
+      const g = dock.region;
+      if (!g || (dock.lanes.length < 2 && dock.spans.length === 0)) return undefined;
+      if (!(cx >= g.x && cx < g.x + g.w && cy >= g.y && cy < g.y + g.h)) return undefined;
+      const side = isSideDock(dock.id);
+      const depth = side ? 1 : Math.max(1, Math.min(3, Math.floor(g.w / 10)));
+      const pos = side ? cy - g.y : cx - g.x;
+      const len = side ? g.h : g.w;
+      const start = side ? g.y : g.x;
+      if (pos < depth) return span(dock, 'head', layout.docks[dock.id].head.length, start);
+      if (pos >= len - depth) return span(dock, 'tail', 0, start + len);
+      return undefined;
+    };
+
     if (!isFloating) {
       for (const dock of Object.values(r.docks)) {
+        for (const sp of dock.spans) {
+          const d = sp.rect;
+          if (cx >= d.x && cx < d.x + d.w && cy >= d.y && cy < d.y + d.h) return intoStack(dock, sp);
+        }
+        const st = strip(dock);
+        if (st) return st;
         for (const lane of dock.lanes) {
           const d = lane.rect;
           if (!(cx >= d.x && cx < d.x + d.w && cy >= d.y && cy < d.y + d.h)) continue;
@@ -1321,6 +1495,12 @@ export class Cockpit {
         : cy >= H - E && inGameCol ? 'bottom'
         : null;
       const shown = zone ? r.docks[zone] : undefined;
+      // Over a span stack along the dock (ADR 0067): into that stack.
+      const sideZone = zone === 'left' || zone === 'right';
+      const stack = shown?.spans.find((sp) =>
+        sideZone ? cy >= sp.rect.y && cy < sp.rect.y + sp.rect.h : cx >= sp.rect.x && cx < sp.rect.x + sp.rect.w,
+      );
+      if (shown && stack) return intoStack(shown, stack);
       if (shown) {
         // A bar lane at the screen edge (only borderless script panes,
         // ADR 0065) stays the bar's: the pane joins the next lane in, or

@@ -8,7 +8,7 @@ import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPane, setLaneSize, togglePatch } from '../../src/layout/model';
-import { type LayoutModel, PANE_COLORS, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
+import { type LayoutModel, PANE_COLORS, defaultLayout, dockPanes, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
 import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows } from '../../src/panes/script-pane';
@@ -21,7 +21,7 @@ import { defaultSettings, paneSettingsOf } from '../../src/settings/types';
 
 /** The dock entry of `id` in `m`. */
 const findPaneEntry = (m: LayoutModel, id: string) =>
-  Object.values(m.docks).flatMap((d) => d.lanes.flatMap((l) => l.panes)).find((p) => p.id === id);
+  Object.values(m.docks).flatMap(dockPanes).find((p) => p.id === id);
 
 const texts = (c: PaneContent): string[] =>
   c.lines.map((l) => ('spans' in l ? l.spans.map((s) => s.text).join('') : `#${l.gauge.label}`));
@@ -1202,6 +1202,25 @@ describe('ScriptPane and the cockpit surface', () => {
       });
       expect(view.dock!()).toBe('float');
       expect(view.want!(3)).toBe(false);
+    });
+
+    it('want(): a spanning pane is never alone in a lane; only cols apply in the bottom dock (ADR 0067)', () => {
+      const r = rig();
+      const { view } = openBar(r);
+      r.settings.update((d) => {
+        let m = moveToNewLane(d.layout, 'comm', 'bottom', 1, 6);
+        m = moveToNewLane(m, 'ui', 'bottom', 2, 6);
+        d.layout = movePane(m, BAR, 'bottom', 'head', 0);
+      });
+      const lanes = () => r.settings.get().layout.docks.bottom.lanes.map((l) => l.size);
+      const before = lanes();
+      expect(r.settings.get().layout.docks.bottom.head.map((p) => p.id)).toEqual([BAR]);
+      expect(view.dock!()).toBe('bottom');
+      expect(view.want!(3)).toBe(false);
+      expect(lanes()).toEqual(before);
+      expect(view.want!(3, 44)).toBe(true);
+      expect(lanes()).toEqual(before);
+      expect(findPaneEntry(r.settings.get().layout, BAR)!.desired).toBe(44);
     });
 
     it('RecordingPaneSurface forwards the pane list and the view hooks', async () => {

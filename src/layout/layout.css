@@ -182,6 +182,11 @@
   border: 2px solid var(--c-accent);
 }
 
+/* The box a pane dropped into a dock's spans gets (ADR 0067). */
+.wc-drop-ghost[data-span] {
+  border-style: dashed;
+}
+
 .wc-drop-bar[hidden],
 .wc-drop-ghost[hidden] {
   display: none;

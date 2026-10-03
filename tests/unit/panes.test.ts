@@ -7,7 +7,7 @@ import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
 import { PaneShell } from '../../src/panes/pane';
 import { SettingsStore } from '../../src/settings';
-import { moveToNewLane, setLaneSize } from '../../src/layout/model';
+import { movePane, moveToNewLane, setLaneSize } from '../../src/layout/model';
 
 describe('frame', () => {
   it('draws the top row with the label after ▀▀ and fills to the width', () => {
@@ -308,6 +308,60 @@ describe('Cockpit', () => {
     });
     flush(); // game 36 wide: room for 6 < 10, so the band is no target
     expect(c.dropTarget(380, 400, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 1 });
+  });
+
+  it('finds span targets on the region strips and over span stacks (ADR 0067)', () => {
+    const { c, settings, flush } = make(1200, 1000); // 120 × 50, 10 × 20 px cells
+    // One lane: no strips, the first row is the in-lane insert.
+    expect(c.dropTarget(900, 10, 'comm')).toMatchObject({ kind: 'dock', lane: 0, index: 0 });
+    settings.update((d) => {
+      d.layout = moveToNewLane(d.layout, 'group', 'right', 1, 20);
+    });
+    flush(); // dock x 67..119: lane 1 x 67..86, lane 0 x 87..119
+    // The region's first row: append to the head spans, a dock-wide bar and the box comm would get.
+    const head = c.dropTarget(900, 10, 'comm');
+    expect(head).toMatchObject({ kind: 'span', dock: 'right', side: 'head', index: 0 });
+    expect(head).toMatchObject({ bar: { x: 670, w: 530 }, ghost: { x: 67, y: 0, w: 53 } });
+    // Its last row: first in the tail spans.
+    expect(c.dropTarget(760, 990, 'comm')).toMatchObject({ kind: 'span', side: 'tail', index: 0, ghost: { x: 67, w: 53 } });
+    // The second row: the in-lane insert as before.
+    expect(c.dropTarget(900, 30, 'comm')).toMatchObject({ kind: 'dock', lane: 0, index: 0 });
+    // group is alone in lane 1: a span would fold the dock, so no span target.
+    expect(c.dropTarget(760, 10, 'group')).toBeNull();
+    settings.update((d) => {
+      d.layout = movePane(d.layout, 'comm', 'right', 'head', 0);
+    });
+    flush();
+    const r = c.layout!.docks.right!;
+    expect(r.spans.map((s) => [s.side, s.panes])).toEqual([['head', ['comm']]]);
+    expect(c.pane('comm').el.style.width).toBe('530px');
+    // Over the span stack: before comm (upper half) or after it (lower half).
+    const comm = r.spans[0]!.rect;
+    expect(c.dropTarget(700, comm.y * 20 + 10, 'ui')).toMatchObject({ kind: 'span', side: 'head', index: 0 });
+    expect(c.dropTarget(700, (comm.y + comm.h) * 20 - 10, 'ui')).toMatchObject({ kind: 'span', side: 'head', index: 1 });
+    expect(c.dropTarget(700, comm.y * 20 + 10, 'comm')).toBeNull();
+    // The span ↔ lanes handle, across the dock.
+    const handle = c.el.querySelector<HTMLElement>('.wc-handle[data-span="head"]')!;
+    expect(handle.dataset.dock).toBe('right');
+    expect(handle.style.left).toBe('670px');
+    expect(handle.style.width).toBe('530px');
+  });
+
+  it('finds span strips at the ends of the bottom dock rows (ADR 0067)', () => {
+    const { c, settings, flush } = make(1200, 1000);
+    settings.update((d) => {
+      let m = moveToNewLane(d.layout, 'comm', 'bottom', 0, 10);
+      m = moveToNewLane(m, 'ui', 'bottom', 1, 10);
+      d.layout = m;
+    });
+    flush(); // bottom dock x 0..85 (86 wide: strips 3 columns), rows 30..49
+    const b = c.layout!.docks.bottom!;
+    expect(b.rect).toMatchObject({ x: 0, w: 86, y: 30, h: 20 });
+    expect(c.dropTarget(15, 900, 'group')).toMatchObject({ kind: 'span', dock: 'bottom', side: 'head', index: 0 });
+    expect(c.dropTarget(15, 900, 'group')).toMatchObject({ ghost: { x: 0, y: 30, h: 20 } });
+    expect(c.dropTarget(835, 650, 'group')).toMatchObject({ kind: 'span', side: 'tail', index: 0 });
+    // Inside the strips: the rows as before.
+    expect(c.dropTarget(400, 900, 'group')).toMatchObject({ kind: 'dock', dock: 'bottom' });
   });
 
   it('places floating panes over the rest and docks them only from the screen edges', () => {

@@ -16,8 +16,8 @@ import {
   withLayout,
   withPane,
 } from '../../src/player/viewer';
-import { defaultSettings } from '../../src/settings';
-import { movePane } from '../../src/layout/model';
+import { defaultSettings, migrateSettings } from '../../src/settings';
+import { movePane, moveToNewLane } from '../../src/layout/model';
 
 describe('viewer overrides', () => {
   it('no overrides leave the settings as recorded', () => {
@@ -90,6 +90,25 @@ describe('viewer overrides', () => {
     const r = resetLayout(withPane(o, 'ui', false));
     expect(r).toEqual({ font: 'large', theme: 'paper' });
     expect(hasLayoutOverride(r)).toBe(false);
+  });
+
+  it('spans survive the viewer layout and a replay migration (ADR 0067)', () => {
+    let layout = moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+    layout = movePane(layout, 'ui', 'right', 'head', 0);
+    const o = withLayout(noOverrides(), layout);
+    layout.docks.right.head.length = 0;
+    expect(o.layout!.docks.right.head.map((p) => p.id)).toEqual(['ui']);
+    const s = defaultSettings();
+    applyViewer(s, o);
+    expect(s.layout.docks.right.head.map((p) => p.id)).toEqual(['ui']);
+    // A recorded settings payload (replay page, VIEW) goes through migrateSettings.
+    const replay = migrateSettings(JSON.parse(JSON.stringify(s)));
+    expect(replay.layout).toEqual(s.layout);
+    // An old recording without spans gets empty ones.
+    const old = JSON.parse(JSON.stringify(defaultSettings()));
+    delete old.layout.docks.right.head;
+    delete old.layout.docks.right.tail;
+    expect(migrateSettings(old).layout.docks.right).toMatchObject({ head: [], tail: [] });
   });
 
   it('cycles wrap both ways; labels', () => {
