@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 11–12 done (latest release 0.1.34). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 13 (dock lanes), owner testing. Latest release 0.1.35. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -18,13 +18,31 @@ Current stage: none in progress. Stages 11–12 done (latest release 0.1.34). St
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
-| 13 | Dock lanes | In progress | `docs/stages/13-dock-lanes.md` |
+| 13 | Dock lanes | Owner testing | `docs/stages/13-dock-lanes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Stage 13: dock lanes, release 0.1.35
+
+- **Player request (via owner):** several columns in a side dock, several
+  rows in the top/bottom dock.
+- **Done:** `DockState = { lanes }`, lane 0 at the screen edge, empty
+  lanes removed; old layouts migrate. A lane's cross-axis edge band
+  (1–3 cells) makes a new lane; lane boundaries resize; the gap resizes
+  the innermost lane. ADR 0064 (with implementation notes).
+- **Verified:** typecheck clean, unit 1930 green, e2e 390 green
+  (Chromium + Firefox). The Firefox float-corner cursor check in
+  `layout.spec.ts:246` is flaky, also before this change.
+- **Released:** 0.1.35 (tag v0.1.35), build:pages smoke green, Pages
+  deploy green, live release.json shows 0.1.35.
+- **Next:** owner test per the stage 13 test guide (band hit area, new
+  lane width, the screen-edge band now making an outer column).
+- **Commits:** 6f1e22e, 36b3767, 4f5aa18, 0c8dc25, d692b2a, 98a38dd,
+  plus this one.
 
 ### 2026-10-03 — Input options: auto-clear and autosuggest, release 0.1.34
 

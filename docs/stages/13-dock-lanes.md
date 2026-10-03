@@ -24,7 +24,7 @@ rows top/bottom). Design: ADR 0064.
 - [x] Consumers updated
 - [x] Unit tests
 - [x] E2E tests (Chromium + Firefox)
-- [ ] Release
+- [x] Release (0.1.35)
 
 ## Test guide
 
