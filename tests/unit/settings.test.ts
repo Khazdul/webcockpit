@@ -12,6 +12,7 @@ import {
   migrateTimers,
   migrateSpotlights,
   migrateOutput,
+  migrateInput,
   SCROLLBACK_CHOICES,
   defaultTimersSettings,
   TIMER_COLOR_HEX,
@@ -230,6 +231,18 @@ describe('migrateSettings', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ output: { scrollback: 10000 } });
     expect(store.get().output.scrollback).toBe(10000);
+  });
+
+  it('adds the input line options, both off, and keeps only booleans (ADR 0063)', () => {
+    expect(defaultSettings().input).toEqual({ autoClear: false, autosuggest: false });
+    expect(migrateSettings({ profile: 'x' }).input).toEqual({ autoClear: false, autosuggest: false });
+    expect(migrateInput({ autoClear: true, autosuggest: true })).toEqual({ autoClear: true, autosuggest: true });
+    expect(migrateInput({ autoClear: 1, autosuggest: 'yes' })).toEqual({ autoClear: false, autosuggest: false });
+    expect(migrateInput(null)).toEqual({ autoClear: false, autosuggest: false });
+    expect(viewSnapshot(defaultSettings())).not.toHaveProperty('input');
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ input: { autosuggest: true } });
+    expect(store.get().input).toEqual({ autoClear: false, autosuggest: true });
   });
 
   it('viewSnapshot picks the screen settings', () => {

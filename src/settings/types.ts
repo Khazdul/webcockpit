@@ -216,6 +216,17 @@ export interface OutputSettings {
   scrollback: number;
 }
 
+/**
+ * The input line's behaviour (Options hub, ADR 0063). Not in
+ * `ViewSnapshot`: a log player has no command line of the recorder's.
+ */
+export interface InputSettings {
+  /** Enter leaves the line empty instead of the sent text, selected (tt++ style). */
+  autoClear: boolean;
+  /** Grey inline suggestion from history after a space (fish style). */
+  autosuggest: boolean;
+}
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -229,6 +240,7 @@ export interface Settings {
   timers: TimersSettings;
   spotlights: SpotlightSettings;
   output: OutputSettings;
+  input: InputSettings;
 }
 
 /**
@@ -286,6 +298,7 @@ export function defaultSettings(): Settings {
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
+    input: { autoClear: false, autosuggest: false },
   };
 }
 

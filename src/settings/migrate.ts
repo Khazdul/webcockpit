@@ -36,6 +36,7 @@ import {
   FONT_IDS,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  type InputSettings,
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
@@ -249,6 +250,13 @@ export function migrateOutput(raw: unknown): OutputSettings {
   return { scrollback: oneOf(x.scrollback, SCROLLBACK_CHOICES, d.scrollback) };
 }
 
+/** Input line options from anything (both default off, ADR 0063). */
+export function migrateInput(raw: unknown): InputSettings {
+  const d = defaultSettings().input;
+  const x = isObj(raw) ? raw : {};
+  return { autoClear: bool(x.autoClear, d.autoClear), autosuggest: bool(x.autosuggest, d.autosuggest) };
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
 export function migrateSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -265,5 +273,6 @@ export function migrateSettings(raw: unknown): Settings {
     timers: migrateTimers(s.timers),
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
+    input: migrateInput(s.input),
   };
 }
