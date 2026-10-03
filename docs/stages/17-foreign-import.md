@@ -61,7 +61,7 @@ Intent Goal 11, spec §2.11, ADR 0073. Research:
 - [x] B2 report frame
 - [x] C1 e2e
 - [x] C2 help text
-- [ ] Release
+- [x] Release (0.1.42)
 
 ## Build notes
 

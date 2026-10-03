@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 17 (foreign import; built, awaiting release and owner test). Stage 16 (readability script) also built, awaiting release and owner test. Stages 14 and 15 done (latest release 0.1.41). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 17 (foreign import; released 0.1.42, owner testing). Stage 16 (readability script) also released in 0.1.42, owner testing. Stages 14 and 15 done (latest release 0.1.42). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -30,7 +30,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-04 — Stage 17: foreign import (tt++, JMC, Powwow), built
+### 2026-10-04 — Stage 17: foreign import (tt++, JMC, Powwow), release 0.1.42
 
 - **Owner decision:** import TinTin++, JMC and Powwow (Mudlet out), with
   feedback: detected format, translated / kept / skipped counts, why.
@@ -43,7 +43,9 @@ Newest first.
   green, typecheck clean, import + chrome e2e green.
 - **Found:** engine reads `\}` as an escaped brace, tt++ does not (stage
   file, Build notes); the importer rewrites it. Engine unchanged.
-- **Next:** release, then owner test (stage file test guide).
+- **Released:** 0.1.42 (tag v0.1.42, also carries stage 16). build:pages
+  smoke green, Pages deploy green, live release.json 0.1.42, test:prod 10/10.
+- **Next:** owner test (stage file test guide).
 - **Commits:** 6123901, cee672c, 092ca7e, 8dfe539, 977cbc3, 2b132ed,
   2e95e5a, a858ede, 150d27a, 48b00c8, 66d5456, 14a8779, plus this one.
 
