@@ -417,6 +417,222 @@ test('dock lanes: a second row in the bottom dock from the upper edge band', asy
   expect(await box(page, '.wc-input-slot')).toMatchObject({ y: (rows - 22) * ch });
 });
 
+/** The right dock's spans and lanes as pane ids (ADR 0067). */
+const rightShape = (page: Page) =>
+  page.evaluate(() => {
+    const d = window.__wc!.settings.get().layout.docks.right;
+    const ids = (l: { id: string }[]) => l.map((p) => p.id);
+    return { head: ids(d.head), lanes: d.lanes.map((l) => ids(l.panes)), tail: ids(d.tail) };
+  });
+
+/** Presses at (x, y) cockpit px, moves to (x2, y2) in steps (the drop is the caller's). */
+async function dragTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+  const o = await origin(page);
+  await page.mouse.move(o.x + from.x, o.y + from.y);
+  await page.mouse.down();
+  await page.mouse.move(o.x + to.x, o.y + to.y, { steps: 8 });
+}
+
+test('spanning panes: the map across two right columns, a pane under it, resize, dissolve, fold, reload', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const { cw, ch, cols } = await open(page);
+  // Two right columns of 33: lane 0 (outer) = Character, Timers, Group, UI; lane 1 = Comm, Map.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const lane = d.layout.docks.right.lanes[0]!;
+      const take = (ids: string[]) => lane.panes.filter((p) => ids.includes(p.id));
+      d.layout.docks.right.lanes = [
+        { size: 33, panes: take(['character', 'timers', 'group', 'ui']) },
+        { size: 33, panes: [...take(['comm']), { id: 'map', desired: 20 }] },
+      ];
+      d.layout.floating = d.layout.floating.filter((f) => f.id !== 'map');
+      d.panes.map.on = true;
+    }),
+  );
+  const dockX = (cols - 66) * cw;
+  await expect.poll(() => box(page, '.wc-pane-map')).toMatchObject({ x: dockX, width: 33 * cw });
+
+  // Map by its title row to the region's first row over the outer column:
+  // a dock-wide bar and a dashed outline of the box it gets.
+  let map = await box(page, '.wc-pane-map');
+  await dragTo(page, { x: map.x + 6 * cw, y: map.y + ch / 2 }, { x: (cols - 20) * cw, y: ch / 2 });
+  await expect(page.locator('.wc-drop-bar')).toBeVisible();
+  await expect(page.locator('.wc-drop-bar')).toHaveAttribute('data-span', '');
+  expect(await box(page, '.wc-drop-bar')).toMatchObject({ x: dockX, width: 66 * cw });
+  await expect(page.locator('.wc-drop-ghost')).toBeVisible();
+  await expect(page.locator('.wc-drop-ghost')).toHaveAttribute('data-span', '');
+  const ghost = await box(page, '.wc-drop-ghost');
+  expect(ghost).toMatchObject({ x: dockX, y: 0, width: 66 * cw });
+  await page.mouse.up();
+  await expect(page.locator('.wc-drop-ghost')).toBeHidden();
+  await expect.poll(() => rightShape(page)).toEqual({
+    head: ['map'],
+    lanes: [['character', 'timers', 'group', 'ui'], ['comm']],
+    tail: [],
+  });
+  await expect.poll(() => box(page, '.wc-pane-map')).toEqual(ghost);
+  map = await box(page, '.wc-pane-map');
+  // The columns below it.
+  expect(await box(page, '.wc-pane-character')).toMatchObject({ x: (cols - 33) * cw, y: map.height, width: 33 * cw });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: dockX, y: map.height, width: 33 * cw });
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+
+  // UI into the span stack, under the map (the lower half of the map).
+  let ui = await box(page, '.wc-pane-ui');
+  await dragTo(page, { x: ui.x + 6 * cw, y: ui.y + ch / 2 }, { x: dockX + 40 * cw, y: map.y + map.height - 1.5 * ch });
+  await expect(page.locator('.wc-drop-bar')).toHaveAttribute('data-span', '');
+  await expect(page.locator('.wc-drop-ghost')).toBeVisible();
+  await page.mouse.up();
+  await expect.poll(() => rightShape(page)).toEqual({
+    head: ['map', 'ui'],
+    lanes: [['character', 'timers', 'group'], ['comm']],
+    tail: [],
+  });
+  await expect.poll(() => box(page, '.wc-pane-ui')).toMatchObject({ x: dockX, y: map.height, width: 66 * cw });
+
+  // The boundary between the spans and the columns (the lower part of
+  // UI's last row): UI grows, the first pane of each column shrinks.
+  ui = await box(page, '.wc-pane-ui');
+  const char0 = await box(page, '.wc-pane-character');
+  const comm0 = await box(page, '.wc-pane-comm');
+  const hy = ui.y + ui.height - 2;
+  const hx = (await origin(page)).x + dockX + 20 * cw;
+  const oy = (await origin(page)).y;
+  expect(await page.evaluate(([x, y]) => getComputedStyle(document.elementFromPoint(x!, y!)!).cursor, [hx, oy + hy])).toBe('row-resize');
+  await page.mouse.move(hx, oy + hy);
+  await page.mouse.down();
+  await page.mouse.move(hx, oy + hy + 3 * ch, { steps: 4 });
+  await page.mouse.up();
+  await expect.poll(() => box(page, '.wc-pane-ui')).toMatchObject({ y: ui.y, height: ui.height + 3 * ch });
+  expect(await box(page, '.wc-pane-character')).toMatchObject({ y: char0.y + 3 * ch, height: char0.height - 3 * ch });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ y: comm0.y + 3 * ch, height: comm0.height - 3 * ch });
+  expect(await box(page, '.wc-pane-map')).toEqual(map);
+
+  // A reload keeps it.
+  ui = await box(page, '.wc-pane-ui');
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await metrics(page);
+  await expect.poll(() => box(page, '.wc-pane-ui')).toEqual(ui);
+  expect(await box(page, '.wc-pane-map')).toEqual(map);
+
+  // The upper half of the outer column's first pane, below its title row:
+  // into that column, no span.
+  const char1 = await box(page, '.wc-pane-character');
+  await dragTo(page, { x: ui.x + 6 * cw, y: ui.y + ch / 2 }, { x: char1.x + 10 * cw, y: char1.y + 1.5 * ch });
+  await expect(page.locator('.wc-drop-bar')).toBeVisible();
+  await expect(page.locator('.wc-drop-bar')).not.toHaveAttribute('data-span');
+  await expect(page.locator('.wc-drop-ghost')).toBeHidden();
+  await page.mouse.up();
+  await expect.poll(() => rightShape(page)).toEqual({
+    head: ['map'],
+    lanes: [['ui', 'character', 'timers', 'group'], ['comm']],
+    tail: [],
+  });
+
+  // The map back into the inner column: the span is gone.
+  map = await box(page, '.wc-pane-map');
+  const comm = await box(page, '.wc-pane-comm');
+  await dragTo(page, { x: map.x + 6 * cw, y: map.y + ch / 2 }, { x: comm.x + 10 * cw, y: comm.y + comm.height - 2 * ch });
+  await page.mouse.up();
+  await expect.poll(() => rightShape(page)).toEqual({
+    head: [],
+    lanes: [['ui', 'character', 'timers', 'group'], ['comm', 'map']],
+    tail: [],
+  });
+  await expect.poll(() => box(page, '.wc-pane-map')).toMatchObject({ x: dockX, width: 33 * cw });
+
+  // With the map spanning again, emptying the inner column folds the span
+  // into the one column left.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const r = d.layout.docks.right;
+      r.head = r.lanes[1]!.panes.filter((p) => p.id === 'map');
+      r.lanes[1]!.panes = r.lanes[1]!.panes.filter((p) => p.id !== 'map');
+    }),
+  );
+  await expect.poll(() => rightShape(page)).toMatchObject({ head: ['map'] });
+  await expect.poll(() => box(page, '.wc-pane-map')).toMatchObject({ x: dockX, y: 0, width: 66 * cw });
+  const comm2 = await box(page, '.wc-pane-comm');
+  const group = await box(page, '.wc-pane-group');
+  await dragTo(page, { x: comm2.x + 6 * cw, y: comm2.y + ch / 2 }, { x: group.x + 10 * cw, y: group.y + group.height - 2 * ch });
+  await page.mouse.up();
+  await expect.poll(() => rightShape(page)).toEqual({
+    head: [],
+    lanes: [['map', 'ui', 'character', 'timers', 'group', 'comm']],
+    tail: [],
+  });
+  await expect.poll(() => box(page, '.wc-pane-map')).toMatchObject({ x: (cols - 33) * cw, y: 0, width: 33 * cw });
+  expect(errors).toEqual([]);
+});
+
+test('spanning panes: a bottom-dock span covers both rows; a float joins a span from the edge zone', async ({ page }) => {
+  const { cw, ch, cols, rows } = await open(page);
+  // Bottom dock: two rows, Comm (outer) and UI.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const lane = d.layout.docks.right.lanes[0]!;
+      const take = (id: 'comm' | 'ui') => ({ id, desired: 30 });
+      d.layout.docks.bottom.lanes = [
+        { size: 10, panes: [take('comm')] },
+        { size: 10, panes: [take('ui')] },
+      ];
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
+    }),
+  );
+  const gameW = cols - 34;
+  await expect.poll(() => box(page, '.wc-pane-ui')).toMatchObject({ y: (rows - 20) * ch, height: 10 * ch });
+  // Group to the left end of the rows (the region's first columns): a
+  // vertical bar the whole dock high, an outline of the box.
+  const group = await box(page, '.wc-pane-group');
+  await dragTo(page, { x: group.x + 6 * cw, y: group.y + ch / 2 }, { x: 1.5 * cw, y: (rows - 5) * ch });
+  await expect(page.locator('.wc-drop-bar')).toHaveAttribute('data-span', '');
+  expect(await box(page, '.wc-drop-bar')).toMatchObject({ height: 20 * ch });
+  await expect(page.locator('.wc-drop-ghost')).toBeVisible();
+  const ghost = await box(page, '.wc-drop-ghost');
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.bottom.head.map((p) => p.id)))
+    .toEqual(['group']);
+  // The span covers both rows at the left end; the rows are to its right.
+  await expect.poll(() => box(page, '.wc-pane-group')).toEqual(ghost);
+  const g = await box(page, '.wc-pane-group');
+  expect(g).toMatchObject({ x: 0, y: (rows - 20) * ch, height: 20 * ch });
+  expect(await box(page, '.wc-pane-ui')).toMatchObject({ x: g.width, y: (rows - 20) * ch, width: gameW * cw - g.width });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: g.width, y: (rows - 10) * ch });
+
+  // Right dock: two columns with UI spanning at the top; Comm floats.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.layout.docks.bottom = { lanes: [], head: [], tail: [] };
+      d.layout.docks.right = {
+        head: [{ id: 'ui', desired: 6 }],
+        lanes: [
+          { size: 33, panes: [{ id: 'character', desired: 9 }, { id: 'timers', desired: 8 }] },
+          { size: 30, panes: [{ id: 'group', desired: 6 }] },
+        ],
+        tail: [],
+      };
+      d.layout.floating = [...d.layout.floating, { id: 'comm', x: 5, y: 5, w: 30, h: 10 }];
+    }),
+  );
+  await expect.poll(() => box(page, '.wc-pane-ui')).toMatchObject({ x: (cols - 63) * cw, y: 0, width: 63 * cw });
+  const ui = await box(page, '.wc-pane-ui');
+  // Over the span stack the float stays a float; at the right screen edge
+  // at the span's height it joins the span (upper half: before UI).
+  const comm = await box(page, '.wc-pane-comm');
+  await dragTo(page, { x: comm.x + 4 * cw, y: comm.y + ch / 2 }, { x: (cols - 30) * cw, y: ui.y + ch * 1.5 });
+  await expect(page.locator('.wc-drop-bar')).toBeHidden();
+  const o = await origin(page);
+  await page.mouse.move(o.x + cols * cw - cw / 2, o.y + ui.y + ch * 1.5, { steps: 4 });
+  await expect(page.locator('.wc-drop-bar')).toHaveAttribute('data-span', '');
+  await page.mouse.up();
+  await expect.poll(() => rightShape(page)).toEqual({ head: ['comm', 'ui'], lanes: [['character', 'timers'], ['group']], tail: [] });
+  await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ x: (cols - 63) * cw, y: 0, width: 63 * cw });
+});
+
 test('too-small window shows a notice and recovers', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 400, height: 250 });

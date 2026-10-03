@@ -231,15 +231,22 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
     window.__wc!.settings.update((d) => {
       const lane = d.layout.docks.right.lanes[0]!;
       lane.size = 40;
-      lane.panes = lane.panes.filter((p) => p.id !== 'comm');
+      // A second column and a spanning pane (ADR 0067) go too.
+      const ui = lane.panes.filter((p) => p.id === 'ui');
+      const group = lane.panes.filter((p) => p.id === 'group');
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui' && p.id !== 'group');
+      d.layout.docks.right.lanes.push({ size: 20, panes: ui });
+      d.layout.docks.right.head = group;
       d.layout.floating = [{ id: 'comm', x: 5, y: 5, w: 30, h: 10 }];
     }),
   );
+  await expect.poll(async () => (await settings(page)).layout.docks.right.head.map((p) => p.id)).toEqual(['group']);
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
   await expect(startSel(page)).toHaveText('<< Reset layout >>');
   await page.keyboard.press('Enter');
   await expect(startFlash(page)).toHaveText('Layout reset.');
   await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([33]);
+  expect((await settings(page)).layout.docks.right.head).toEqual([]);
   // Every side pane docked in the right column again; the map floats (off).
   expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['map']);
   expect((await settings(page)).layout.docks.right.lanes[0]!.panes.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui']);
