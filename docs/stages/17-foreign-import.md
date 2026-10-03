@@ -57,10 +57,10 @@ Intent Goal 11, spec §2.11, ADR 0073. Research:
 - [x] A6 keys
 - [x] A7 importFiles + multi-file
 - [x] A8 corpus + engine-load test
-- [ ] B1 picker multi-file + bytes
-- [ ] B2 report frame
-- [ ] C1 e2e
-- [ ] C2 help text
+- [x] B1 picker multi-file + bytes
+- [x] B2 report frame
+- [x] C1 e2e
+- [x] C2 help text
 - [ ] Release
 
 ## Build notes
@@ -103,6 +103,19 @@ Refinements of ADR 0073 (the ADR text is updated):
   (decoded), without the import header (`unchanged`).
 - Decoding also accepts a UTF-16 BOM; a non-UTF-8 file gets a file
   warning naming the encoding used.
+
+### B/C. UI, e2e, help (2026-10-04)
+
+- IMPORT: the file input takes several files and has no `accept` filter
+  (Powwow files often have no extension). Bytes go to `importFiles` via
+  the lazy chunk (`src/chrome/frames/import-load.ts`); the profile is
+  saved under `result.entry`'s name, selected, and the report pushed.
+  Closing the report (OK/ESC) flashes `Imported "x" from file.` on the
+  picker, as before.
+- Report frame `src/chrome/frames/import-report.tsx`: buttons start
+  focused on OK, so Enter or ESC closes it at once; Tab reaches the list.
+  Items with a reason and a warning show both (`reason; warning`).
+- Help: one line in the profile manual's intro on the import formats.
 
 ## Test guide
 
