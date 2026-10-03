@@ -185,9 +185,24 @@ export interface MapData {
   layers: Map<number, Bounds>;
 }
 
-/** Collapses whitespace runs to one space and trims (ADR 0020 locator). */
+/** Letters NFD does not split into a base letter and a mark. */
+const FOLD_EXTRA: Record<string, string> = {
+  'Æ': 'AE', 'æ': 'ae', 'Ø': 'O', 'ø': 'o', 'Œ': 'OE', 'œ': 'oe', 'ß': 'ss', 'Ð': 'D', 'ð': 'd', 'Þ': 'Th', 'þ': 'th',
+};
+
+/**
+ * Folds letters with diacritics to ASCII (`Lhûn` → `Lhun`). MMapper saves
+ * room text as ASCII while MUME sends UTF-8 (GMCP and text alike), so the
+ * locator compares folded text (ADR 0069). ASCII input is returned as is.
+ */
+export function foldAscii(s: string): string {
+  if (!/[^\x00-\x7f]/.test(s)) return s;
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ÆæØøŒœßÐðÞþ]/g, (c) => FOLD_EXTRA[c]!);
+}
+
+/** Folds to ASCII, collapses whitespace runs to one space and trims (ADR 0020 locator, ADR 0069). */
 export function normalizeText(s: string): string {
-  return s.replace(/\s+/g, ' ').trim();
+  return foldAscii(s).replace(/\s+/g, ' ').trim();
 }
 
 /** True for the characters `\s` matches in `normalizeText` (ASCII and the common Unicode spaces). */
@@ -198,6 +213,7 @@ function isSpace(c: number): boolean {
 
 /** FNV-1a over `s` as `normalizeText(s)` would read, continuing from `h`. */
 function hashNormalized(s: string, h: number): number {
+  s = foldAscii(s);
   let pending = false;
   let started = false;
   for (let i = 0; i < s.length; i++) {

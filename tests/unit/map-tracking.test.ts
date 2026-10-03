@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { MOVE_FAILURE_RE, MapEventForwarder, moveFailure } from '../../src/map/client';
 import { ColorGenerator, GroupTable, hslColor, hueOf } from '../../src/map/group';
 import { type RoomInfo, learnIds, locate, parseRoomInfo, visibleExits } from '../../src/map/locate';
-import { DIR, type MapData } from '../../src/map/model';
+import { DIR, type MapData, exitTargets, foldAscii, normalizeText } from '../../src/map/model';
 import { LOOK, MOVE_NONE, PrespamQueue, parseMoveCommand, parseMovedDir, walkPath } from '../../src/map/path';
 import type { MapEvent, WorkerToMain } from '../../src/map/protocol';
 import type { Renderer } from '../../src/map/render/renderer';
@@ -230,6 +230,33 @@ describe.skipIf(!HAS_ARDA)('locator and path on arda.mm2', () => {
     expect(locate(map, learned, info(a!), null, LOOK)).toEqual({ room: a, how: 'text' });
     expect(locate(map, learned, info(b!), null, LOOK)).toEqual({ room: b, how: 'text' });
     expect(locate(map, learned, info(a!, { exits: null }), null, LOOK)).toEqual({ room: null, how: 'none' });
+  });
+
+  it('matches MUME UTF-8 text against the map ASCII text (ADR 0069)', () => {
+    expect(foldAscii('Lhûn Street, Círdan, Æglos, Nimrodël')).toBe('Lhun Street, Cirdan, AEglos, Nimrodel');
+    expect(normalizeText('  Lhûn  Street ')).toBe('Lhun Street');
+    // Lhun Street in Forlond has no server id; MUME calls it Lhûn Street.
+    const lhun = 20430;
+    expect(map.names[lhun]).toBe('Lhun Street');
+    expect(map.serverId[lhun]).toBe(0);
+    const utf8 = (o: Partial<RoomInfo> = {}) =>
+      info(lhun, { name: 'Lhûn Street', desc: map.descs[lhun]!.replaceAll('Lhun', 'Lhûn'), ...o });
+    const learned = new Map<number, number>();
+    expect(locate(map, learned, utf8(), null, LOOK)).toEqual({ room: lhun, how: 'text' });
+    let from = -1;
+    let dir = -1;
+    for (let r = 0; r < map.roomCount && from < 0; r++) {
+      for (let d = 0; d < 6; d++) {
+        const t = exitTargets(map, r, d as 0);
+        if (r !== lhun && t.length === 1 && t[0] === lhun) {
+          from = r;
+          dir = d;
+          break;
+        }
+      }
+    }
+    expect(from).toBeGreaterThanOrEqual(0);
+    expect(locate(map, learned, utf8({ desc: '?' }), from, dir as 0)).toEqual({ room: lhun, how: 'dir' });
   });
 
   it('walks the path like MMapper walk_path', () => {
