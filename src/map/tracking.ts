@@ -11,6 +11,13 @@
 // the pending event there) steps blindly: the last room's exit is followed
 // when it has exactly one target.
 //
+// Lost (ADR 0071): when a Room.Info after a real move is not located, the
+// position still advances along the last room's exit when it has exactly
+// one target (a tentative origin, drawn as not located), so the next
+// Room.Info is located from where the player is rather than from a stale
+// room. A match from a tentative origin by direction or text teaches no
+// server ids.
+//
 // Troll exit mapping (Char.StatusVars race) only changes which sunlight
 // flags MMapper records while mapping; a read-only map has no use for it,
 // so Char.StatusVars is read for the player's name only.
@@ -18,7 +25,7 @@
 import { EMPTY_SCENE, type Scene } from './scene';
 import { GroupTable, PLAYER_COLOR } from './group';
 import { type LearnedIds, type LocateHow, learnIds, locate, parseRoomInfo } from './locate';
-import { DIR_COUNT, EXIT_FLAG, type MapData, exitTargets } from './model';
+import { DIR_COUNT, type Dir, EXIT_FLAG, type MapData, exitTargets } from './model';
 import { LOOK, type Move, PrespamQueue, isDirection, parseMoveCommand, parseMovedDir, walkPath } from './path';
 import type { MapEvent } from './protocol';
 
@@ -143,17 +150,29 @@ export class Tracker {
         const map = this.map;
         const info = parseRoomInfo(data);
         if (!map || !info) return;
-        const r = locate(map, this.learned, info, this.room, move);
+        const wasLocated = this.located;
+        const tentative = !wasLocated && this.room !== null;
+        const r = locate(map, this.learned, info, this.room, move, wasLocated);
         this.stats.roomInfos++;
         this.stats.byHow[r.how]++;
         this.how = r.how;
         if (r.room === null) {
           this.located = false;
+          // Follow the move tentatively so the next Room.Info starts from the right room.
+          if (this.room !== null && isDirection(move)) {
+            const t = singleExit(map, this.room, move);
+            if (t !== null) {
+              this.room = t;
+              res.moved = true;
+            }
+          }
           return;
         }
         this.room = r.room;
         this.located = true;
         res.moved = true;
+        // A direction or text match from a tentative origin may be a lookalike: learn nothing from it.
+        if (tentative && (r.how === 'dir' || r.how === 'text')) return;
         for (const p of learnIds(map, this.learned, info, r.room, r.how)) res.learned.push(p);
         return;
       }
@@ -174,12 +193,12 @@ export class Tracker {
     const map = this.map;
     if (!map || this.room === null || !isDirection(move)) return;
     if ((map.exitFlags[this.room * DIR_COUNT + move]! & EXIT_FLAG.EXIT) === 0) return;
-    const t = exitTargets(map, this.room, move);
-    if (t.length !== 1) {
+    const t = singleExit(map, this.room, move);
+    if (t === null) {
       this.located = false;
       return;
     }
-    this.room = t[0]!;
+    this.room = t;
     res.moved = true;
   }
 
@@ -201,6 +220,13 @@ export class Tracker {
     if (!map) return null;
     return map.byServerId.get(serverId) ?? this.learned.get(serverId) ?? null;
   }
+}
+
+/** The one target of `room`'s exit `dir` (EXIT flag set), else null. */
+function singleExit(map: MapData, room: number, dir: Dir): number | null {
+  if ((map.exitFlags[room * DIR_COUNT + dir]! & EXIT_FLAG.EXIT) === 0) return null;
+  const t = exitTargets(map, room, dir);
+  return t.length === 1 ? t[0]! : null;
 }
 
 function sameScene(a: Scene, b: Scene): boolean {

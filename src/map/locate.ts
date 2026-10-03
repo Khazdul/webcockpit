@@ -1,12 +1,16 @@
-// Locator (ADR 0020 "Locating the player"): which map room a GMCP
-// `Room.Info` is, given the last known room and the direction of the
-// `Event.Moved` that came before it. Pure; runs in the map worker.
+// Locator (ADR 0020 "Locating the player", amended by ADR 0071): which map
+// room a GMCP `Room.Info` is, given the last known room and the direction
+// of the `Event.Moved` that came before it. Pure; runs in the map worker.
 //
 // Order:
-//   1. `Room.Info.id` is a room's server id (the map's own, or one learned
-//      earlier whose room still has that name) → that room.
+//   1. `Room.Info.id` is a room's server id → that room. Else a server id
+//      learned earlier, while its room still has Room.Info's name and exit
+//      set (else the learned id is forgotten).
 //   2. From the last known room, the moved direction's exit has exactly one
-//      target and its name equals `Room.Info.name` → that room.
+//      target, its name equals `Room.Info.name` and the room agrees (ADR
+//      0071): the exit sets are equal, or the descriptions are. From a last
+//      room that was itself not located (a tentative origin) both must
+//      agree where Room.Info gives them (an empty description is unknown).
 //   3. Rooms whose name and description equal Room.Info's (normalised
 //      whitespace, `roomsByNameDesc`). Several: prefer the one reached from
 //      the last room by the moved direction, then the one whose exit set
@@ -17,7 +21,8 @@
 // matched by 2 or 3. A match by 2 or 3 teaches `id → room` (`learnIds`),
 // and so does each exit id Room.Info lists for a neighbour the map reaches
 // by exactly one exit and that has no server id of its own (MMapper's path
-// machine learns neighbour ids the same way).
+// machine learns neighbour ids the same way). The tracker does not learn
+// from a 2 or 3 match whose last room was not located.
 
 import { DIR_COUNT, DOOR_FLAG, EXIT_FLAG, type MapData, exitTargets, normalizeText, roomsByNameDesc } from './model';
 import { isDirection, type Move } from './path';
@@ -89,17 +94,45 @@ export function visibleExits(map: MapData, room: number): number {
 const idCompatible = (map: MapData, room: number, id: number | null): boolean =>
   id === null || map.serverId[room] === 0 || map.serverId[room] === id;
 
-/** Locates `info`; `last` is the last known room, `move` the Event.Moved direction (LOOK etc. when none). */
-export function locate(map: MapData, learned: LearnedIds, info: RoomInfo, last: number | null, move: Move): LocateResult {
-  const name = normalizeText(info.name);
+/** False when Room.Info lists exits and `room`'s visible exit set differs. */
+const exitsAgree = (map: MapData, room: number, info: RoomInfo): boolean =>
+  info.exits === null || visibleExits(map, room) === info.exits;
 
-  // 1. Server id: the map's, then a learned one (checked by name).
+/** Equal after `normalizeText` (identical strings skip the normalising). */
+const sameText = (a: string, b: string): boolean => a === b || normalizeText(a) === normalizeText(b);
+
+/** 1 when both descriptions are given and equal (normalised), -1 when both are given and differ, 0 when one is empty. */
+function descAgree(map: MapData, room: number, info: RoomInfo): -1 | 0 | 1 {
+  const m = map.descs[room]!;
+  if (info.desc === m) return m.trim() === '' ? 0 : 1;
+  const a = normalizeText(info.desc);
+  if (a === '') return 0;
+  const b = normalizeText(m);
+  if (b === '') return 0;
+  return a === b ? 1 : -1;
+}
+
+/**
+ * Locates `info`; `last` is the last known room, `move` the Event.Moved
+ * direction (LOOK etc. when none). `lastLocated` false: `last` is a
+ * tentative origin (not itself located), so a direction match needs
+ * stronger evidence (ADR 0071).
+ */
+export function locate(
+  map: MapData,
+  learned: LearnedIds,
+  info: RoomInfo,
+  last: number | null,
+  move: Move,
+  lastLocated = true,
+): LocateResult {
+  // 1. Server id: the map's, then a learned one (checked by name and exits).
   if (info.id !== null) {
     const r = map.byServerId.get(info.id);
     if (r !== undefined) return { room: r, how: 'id' };
     const l = learned.get(info.id);
     if (l !== undefined) {
-      if (l < map.roomCount && normalizeText(map.names[l]!) === name) return { room: l, how: 'learned' };
+      if (l < map.roomCount && exitsAgree(map, l, info) && sameText(map.names[l]!, info.name)) return { room: l, how: 'learned' };
       learned.delete(info.id);
     }
   }
@@ -107,9 +140,13 @@ export function locate(map: MapData, learned: LearnedIds, info: RoomInfo, last: 
   const hasLast = last !== null && last >= 0 && last < map.roomCount;
   const dirTarget = hasLast && isDirection(move) ? singleTarget(map, last, move) : null;
 
-  // 2. The moved direction from the last room, by name.
-  if (dirTarget !== null && normalizeText(map.names[dirTarget]!) === name && idCompatible(map, dirTarget, info.id)) {
-    return { room: dirTarget, how: 'dir' };
+  // 2. The moved direction from the last room, by name, and the room agrees:
+  //    exits or description from a located origin, both from a tentative one.
+  if (dirTarget !== null && idCompatible(map, dirTarget, info.id) && sameText(map.names[dirTarget]!, info.name)) {
+    const ex = exitsAgree(map, dirTarget, info);
+    if (lastLocated ? ex || descAgree(map, dirTarget, info) === 1 : ex && descAgree(map, dirTarget, info) !== -1) {
+      return { room: dirTarget, how: 'dir' };
+    }
   }
 
   // 3. Name and description.
