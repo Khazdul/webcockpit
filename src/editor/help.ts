@@ -218,6 +218,7 @@ const BASICS: readonly HelpSection[] = [
       'In #showme and in New text: <Frrggbb> sets the text colour and <Brrggbb> the background, in hex (<Fff8800> is orange; <Frgb> is the short form). <099> goes back to the default colours.',
       'The three-digit tt++ codes work too, <abc>: a is 0 reset, 1 bold, 3 italic, 4 underline, 5 blink, 7 reverse, 8 keep; b is the text colour and c the background: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, 8 keep, 9 default.',
       '#highlight takes colour names: black red green yellow blue magenta cyan white. A capital letter or the word light makes it bright (Red, light red). b red sets the background. Styles: underscore, blink, reverse, bold, italic. A colour code works as well.',
+      'Bold is drawn in a heavier weight. With Options → Appearance → Bold brightens colours on, bold text in one of the eight basic colours, or in the default colour, is also shown bright, as in xterm.',
     ],
     examples: [
       {
@@ -288,7 +289,7 @@ const BASICS: readonly HelpSection[] = [
     ],
     text: [
       'Scripts are small Lua programs kept beside the profile, not in it. ESC → Options → Scripts (or Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
-      'MANUAL on the Scripts page and in the script editor opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the function under the cursor.',
+      'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script list shows every script, whether it is on and what it does.',
       '#script help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
       '#script set {name} {setting} {value} changes a setting and saves it, for example #script set coinlooter delay 0.5. The script sees the new value at once.',
@@ -307,7 +308,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['action', 'unaction'],
     syntax: ['#action {pattern} {commands} {priority}', '#unaction {pattern}'],
     text: [
-      'Runs Commands when a line from the game matches Pattern. Every matching action runs. Actions see the line as the game sent it, before substitutes and gags, and they also see #showme lines. They run on complete lines, not on the prompt.',
+      'Runs Commands when a line from the game matches Pattern. Every matching action runs. Actions see the line as the game sent it, before substitutes and gags, and they also see #showme lines, except the ones their own Commands print: #action {key: %1} {#showme {%0}} does not loop. They run on complete lines, not on the prompt.',
       '#unaction removes one by its Pattern; a * matches any text.',
     ],
     examples: [
@@ -657,7 +658,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     syntax: ['#showme {text}'],
     text: [
       'Prints text in the game window, for you only; nothing is sent to the game. Colour codes and $variables work.',
-      'The line is treated like a line from the game: actions, substitutes, gags and highlights apply to it.',
+      'The line is treated like a line from the game: actions, substitutes, gags and highlights apply to it. The action whose Commands print the line is the one exception: it does not run on its own #showme.',
     ],
     examples: [
       {
