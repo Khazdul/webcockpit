@@ -174,4 +174,4 @@ order, and whether the short names should be shorter or longer.
 
 ## Owner feedback
 
-(none yet)
+2026-10-03: overview test OK, approved.

@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 14 Pane bar and 15 Spanning panes, built, awaiting release 0.1.36 and owner test (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 14 and 15 done (latest release 0.1.36). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -19,8 +19,8 @@ Current stage: 14 Pane bar and 15 Spanning panes, built, awaiting release 0.1.36
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
-| 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
-| 15 | Spanning panes | Owner testing | `docs/stages/15-spanning-panes.md` |
+| 14 | Pane bar | Done | `docs/stages/14-panebar.md` |
+| 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

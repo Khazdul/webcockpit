@@ -72,4 +72,4 @@ to hit? Is the dashed outline clear about where the pane will land?
 
 ## Owner feedback
 
-(none yet)
+2026-10-03: overview test OK, approved.
