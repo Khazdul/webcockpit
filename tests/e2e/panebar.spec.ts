@@ -159,6 +159,10 @@ async function toBottomLane(page: Page): Promise<void> {
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('bottom');
   const cell = await cellSize(page);
   await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height)).toBe(Math.round(cell.h));
+  // Docked on the right the bar is one row high too (round 3): wait for the
+  // bottom edge's width, then for the relayout to settle.
+  await expect.poll(async () => (await bar(page).boundingBox())!.width).toBeGreaterThan(page.viewportSize()!.width / 2);
+  await steady(page);
 }
 
 /** The buttons (filled spans) of every bar row: their text. */
