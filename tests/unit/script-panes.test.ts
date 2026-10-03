@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { TRUECOLOR } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
-import { findFloat, findPane, moveToNewLane, placeScriptPane, togglePatch } from '../../src/layout/model';
+import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPane, setLaneSize, togglePatch } from '../../src/layout/model';
 import { type LayoutModel, PANE_COLORS, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
@@ -18,6 +18,10 @@ import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../
 import { parseCecho } from '../../src/scripts/colors';
 import { SettingsStore, migrateLayout, migrateSettings } from '../../src/settings';
 import { defaultSettings, paneSettingsOf } from '../../src/settings/types';
+
+/** The dock entry of `id` in `m`. */
+const findPaneEntry = (m: LayoutModel, id: string) =>
+  Object.values(m.docks).flatMap((d) => d.lanes.flatMap((l) => l.panes)).find((p) => p.id === id);
 
 const texts = (c: PaneContent): string[] =>
   c.lines.map((l) => ('spans' in l ? l.spans.map((s) => s.text).join('') : `#${l.gauge.label}`));
@@ -882,4 +886,156 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(cockpit.layout!.panes.filter((p) => p.id.startsWith('s/')).map((p) => p.id)).toEqual(['s/pick', 's/~pick']);
     });
   });
+
+  describe('pane bar support (ADR 0065)', () => {
+    const BAR = scriptPaneId('panebar', 'bar');
+    const barPlace = { dock: 'bottom' as const, rows: 1, cols: 80, border: false, lane: 'own' as const };
+
+    function openBar(r: ReturnType<typeof rig>, place: Parameters<CockpitPaneSurface['open']>[0]['place'] = barPlace) {
+      const content = new PaneContent('Pane bar');
+      content.setLine(0, plain('CHAR TIME'));
+      content.addLink(0, 0, 4, 7, 'Character');
+      const clicks: number[] = [];
+      const view = r.surface.open({ id: BAR, place }, content, { onLink: (n) => clicks.push(n), onResize: () => {} });
+      r.flush();
+      return { content, clicks, view, pane: r.cockpit.pane(BAR) as ScriptPane };
+    }
+
+    it('places a borderless bar in its own 1-row lane at the bottom edge', () => {
+      const r = rig();
+      openBar(r);
+      expect(r.settings.get().panes[BAR]).toEqual({ on: true, color: 'black', border: false });
+      expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
+      const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
+      expect(box).toMatchObject({ dock: 'bottom', framed: false, rect: { y: 49, h: 1 } });
+      // Reset layout: placed again the same way.
+      r.settings.update({ layout: defaultLayout() });
+      expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
+    });
+
+    it('soft grip: a click on the top row reaches the link; a drag past the threshold moves the pane and eats the click', () => {
+      const r = rig();
+      const { clicks, pane } = openBar(r);
+      const at = { clientX: 15, clientY: 49 * 20 + 5, bubbles: true, button: 0 };
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
+      expect(r.cockpit.dragging).toBe(false);
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', at));
+      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientY: 5 }));
+      expect(clicks).toEqual([7]);
+      // Press, move over the game, release: it floats; the click is eaten.
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 400, clientY: 400 }));
+      expect(r.cockpit.dragging).toBe(true);
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 400, clientY: 400 }));
+      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientY: 5 }));
+      expect(clicks).toEqual([7]);
+      expect(findFloat(r.settings.get().layout, BAR)).toBeGreaterThanOrEqual(0);
+      expect(r.cockpit.dragging).toBe(false);
+      // A framed pane's top content row is not a grip.
+      r.settings.update((d) => {
+        d.panes[BAR] = { ...d.panes[BAR]!, border: true };
+      });
+      r.flush();
+      const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientX: (box.content.x + 1) * 10, clientY: box.content.y * 20 + 5 }));
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 900, clientY: 300 }));
+      expect(r.cockpit.dragging).toBe(false);
+    });
+
+    it('a 1-row lane keeps its row: the lane handle goes on the neighbour, none between two 1-row lanes', () => {
+      const r = rig();
+      openBar(r, { ...barPlace, dock: 'top' });
+      r.settings.update((d) => {
+        d.layout = moveToNewLane(d.layout, 'comm', 'top', 1, 6);
+      });
+      r.flush();
+      const handle = r.cockpit.el.querySelector<HTMLElement>('.wc-handle[data-outer]')!;
+      // Lane 0 is row 0 (the bar), lane 1 starts at row 1: the handle is on row 1's upper part.
+      expect(handle.style.top).toBe('20px');
+      const second = scriptPaneId('other', 'bar');
+      r.surface.open({ id: second, place: { ...barPlace, dock: 'top' } }, new PaneContent('x'), { onLink: () => {}, onResize: () => {} });
+      r.settings.update((d) => {
+        d.layout = movePane(d.layout, 'comm', 'right', 0, 0);
+      });
+      r.flush();
+      expect(r.settings.get().layout.docks.top.lanes.map((l) => l.size)).toEqual([1, 1]);
+      expect(r.cockpit.el.querySelector('.wc-handle[data-outer]')).toBeNull();
+    });
+
+    it('an edge-zone drop does not join a bar lane: the next lane in, else a new lane inside the bar', () => {
+      const r = rig();
+      openBar(r);
+      expect(r.cockpit.dropTarget(400, 995, 'map')).toMatchObject({ kind: 'lane', dock: 'bottom', at: 1 });
+      r.settings.update((d) => {
+        d.layout = moveToNewLane(d.layout, 'comm', 'bottom', 1, 6);
+      });
+      r.flush();
+      expect(r.cockpit.dropTarget(400, 995, 'map')).toMatchObject({ kind: 'dock', dock: 'bottom', lane: 1 });
+    });
+
+    it('states() lists the panes in Options order; setOn switches them; onLayout and onStates follow', () => {
+      const r = rig();
+      const { view } = openBar(r);
+      let layouts = 0;
+      const off = r.cockpit.onLayout(() => layouts++);
+      let changes = 0;
+      const unsub = r.surface.onStates(() => changes++);
+      r.cockpit.relayoutNow();
+      expect(layouts).toBe(1);
+      expect(changes).toBe(1);
+      off();
+      const st = r.surface.states();
+      expect(st.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map', BAR]);
+      expect(st.find((p) => p.id === 'comm')).toEqual({ id: 'comm', on: true, shown: true, dock: 'right' });
+      expect(st.find((p) => p.id === 'map')).toMatchObject({ dock: 'float' });
+      expect(st.find((p) => p.id === BAR)).toEqual({ id: BAR, on: true, shown: true, dock: 'bottom' });
+      expect(r.surface.setOn('comm', false)).toBe(true);
+      expect(r.settings.get().panes.comm.on).toBe(false);
+      expect(r.surface.setOn('nope/x' as never, false)).toBe(false);
+      expect(view.dock!()).toBe('bottom');
+      unsub();
+    });
+
+    it('want(): the lane follows a lone pane, a repeated request leaves a dragged size alone', () => {
+      const r = rig();
+      const { view } = openBar(r);
+      expect(view.want!(2)).toBe(true);
+      expect(r.settings.get().layout.docks.bottom.lanes[0]!.size).toBe(2);
+      r.settings.update((d) => {
+        d.layout = setLaneSize(d.layout, 'bottom', 0, 4);
+      });
+      expect(view.want!(2)).toBe(true);
+      expect(r.settings.get().layout.docks.bottom.lanes[0]!.size).toBe(4);
+      expect(view.want!(1)).toBe(true);
+      expect(r.settings.get().layout.docks.bottom.lanes[0]!.size).toBe(1);
+      r.settings.update((d) => {
+        d.layout = movePane(d.layout, BAR, 'right', 0, 0);
+      });
+      expect(view.dock!()).toBe('right');
+      expect(view.want!(7)).toBe(true);
+      expect(findPaneEntry(r.settings.get().layout, BAR)!.desired).toBe(7);
+      r.settings.update((d) => {
+        d.layout = floatPane(d.layout, BAR, { x: 2, y: 2, w: 30, h: 3 });
+      });
+      expect(view.dock!()).toBe('float');
+      expect(view.want!(3)).toBe(false);
+    });
+
+    it('RecordingPaneSurface forwards the pane list and the view hooks', async () => {
+      const r = rig();
+      const { RecordingPaneSurface } = await import('../../src/panes/script-surface');
+      const rec = new RecordingPaneSurface(r.surface, () => {}, () => 0);
+      expect(rec.states!().map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map']);
+      expect(rec.setOn!('ui', false)).toBe(true);
+      let n = 0;
+      const unsub = rec.onStates!(() => n++);
+      r.cockpit.relayoutNow();
+      expect(n).toBe(1);
+      unsub();
+      const view = rec.open({ id: BAR, place: barPlace }, new PaneContent('b'), { onLink: () => {}, onResize: () => {} });
+      expect(view.dock!()).toBe('bottom');
+      expect(view.want!(1)).toBe(true);
+    });
+  });
 });
+

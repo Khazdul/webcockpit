@@ -50,9 +50,9 @@ ADR 0065.
 
 - [x] Stage file and status table
 - [x] Shade colours in pane text
-- [ ] Layout: per-lane minimum, own lane, wantPaneSize
-- [ ] Cockpit: 1-row lane handles, soft grip, float handles, edge-zone rule, hooks
-- [ ] Surface: pane states, setOn, onStates, dock, want (Recording forwards)
+- [x] Layout: per-lane minimum, own lane, wantPaneSize
+- [x] Cockpit: 1-row lane handles, soft grip, float handles, edge-zone rule, hooks
+- [x] Surface: pane states, setOn, onStates, dock, want (Recording forwards)
 - [ ] Host: createPane short/border/lane, getPanes, setPaneOn, pane:dock, pane:wantSize, sysPanesChanged
 - [ ] panebar.lua, keymanager short name
 - [ ] Editor reference and manual
