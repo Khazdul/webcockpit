@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 16 (readability script, adaptive colours). Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -21,6 +21,7 @@ Current stage: none in progress. Stages 14 and 15 done (latest release 0.1.37). 
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
 | 14 | Pane bar | Done | `docs/stages/14-panebar.md` |
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
+| 16 | Readability script | In progress | `docs/stages/16-readability.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
