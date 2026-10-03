@@ -28,6 +28,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Release 0.1.36: stages 14 and 15 approved
+
+- **Owner test:** overview test of the pane bar and spanning panes OK;
+  both stages approved and closed.
+- **Released:** 0.1.36 (tag v0.1.36), build:pages smoke green, Pages
+  deploy green, live release.json on mumecockpit.com shows 0.1.36,
+  test:prod 10/10. Includes Options → Text input (ADR 0066).
+- **Note:** test:prod must target https://mumecockpit.com (the
+  github.io URL redirects; ADR 0029).
+- **Commits:** 40b3412, 067b595, plus this one.
+
 ### 2026-10-03 — Stage 15: spanning panes (not released)
 
 - **Owner request:** a pane spanning all lanes of a dock (e.g. Map
