@@ -130,17 +130,51 @@ export interface DockLane {
 }
 
 /**
- * One dock (ADR 0064): its lanes from the screen edge inward (lane 0
- * touches the screen edge). No lane is empty; a dock without panes has
+ * One dock (ADR 0064, ADR 0067): its lanes from the screen edge inward
+ * (lane 0 touches the screen edge), and the spanning panes before and
+ * after the lanes. No lane is empty; a dock without panes has
  * `lanes: []`.
+ *
+ * A spanning pane covers the whole dock across all its lanes: `head`
+ * panes are stacked above the lanes in a left/right dock (left of them in
+ * the top/bottom dock), `tail` panes below (right of) them, in stack
+ * order. `desired` keeps its meaning along the lane axis. Invariant: the
+ * spans are empty unless the dock has at least two lanes (a dock that
+ * goes down to one lane folds them into it, `normalizeDock`).
  */
 export interface DockState {
   lanes: DockLane[];
+  head: DockPane[];
+  tail: DockPane[];
 }
 
-/** Every pane of a dock, lane by lane, in stack order. */
+/** A place in a dock (ADR 0067): a lane index, or the spans before (`head`) or after (`tail`) the lanes. */
+export type LaneRef = number | 'head' | 'tail';
+
+/** The pane list of `d` that `lane` names, or undefined for a lane index out of range. */
+export function laneList(d: Readonly<DockState>, lane: LaneRef): DockPane[] | undefined {
+  return lane === 'head' ? d.head : lane === 'tail' ? d.tail : d.lanes[lane]?.panes;
+}
+
+/** Every pane of a dock in stack order: the head spans, lane by lane, the tail spans. */
 export function dockPanes(d: Readonly<DockState>): DockPane[] {
-  return d.lanes.flatMap((l) => l.panes);
+  return [...d.head, ...d.lanes.flatMap((l) => l.panes), ...d.tail];
+}
+
+/**
+ * Restores the dock invariants of `d` (mutates): empty lanes removed
+ * (ADR 0064), and with fewer than two lanes the spans fold into lane 0,
+ * the head at its front and the tail at its end (ADR 0067); lane 0 is
+ * made at `dock`'s default size when only spans are left.
+ */
+export function normalizeDock(d: DockState, dock: DockId): void {
+  d.lanes = d.lanes.filter((l) => l.panes.length > 0);
+  if (d.lanes.length >= 2 || (d.head.length === 0 && d.tail.length === 0)) return;
+  if (d.lanes.length === 0) d.lanes.push({ size: defaultDockSize(dock), panes: [] });
+  const lane = d.lanes[0]!;
+  lane.panes = [...d.head, ...lane.panes, ...d.tail];
+  d.head = [];
+  d.tail = [];
 }
 
 /**
@@ -231,7 +265,7 @@ export const EVEN_SHARE_DESIRED = 200;
 export function defaultLayout(): LayoutModel {
   return {
     docks: {
-      left: { lanes: [] },
+      left: { lanes: [], head: [], tail: [] },
       right: {
         lanes: [
           {
@@ -242,9 +276,11 @@ export function defaultLayout(): LayoutModel {
             })),
           },
         ],
+        head: [],
+        tail: [],
       },
-      top: { lanes: [] },
-      bottom: { lanes: [] },
+      top: { lanes: [], head: [], tail: [] },
+      bottom: { lanes: [], head: [], tail: [] },
     },
     floating: [defaultMapFloat()],
   };

@@ -46,6 +46,26 @@
 //   Character is reserved first and the rest scale between minimum and
 //   desired; if even the minimums do not fit, panes are dropped in order
 //   (`allocateAxis`). A framed pane adds two cells on each axis.
+// - Spanning panes (ADR 0067): a dock with two or more lanes can hold
+//   panes that span all its lanes, stacked before (`head`) and after
+//   (`tail`) the lanes block, which is then the dock's *region*. In a
+//   side dock the spans sit above and below the columns at the dock's
+//   full width; in the top/bottom dock left and right of the rows at its
+//   full height:
+//
+//     +-----------------+        +------+-----------------+------+
+//     |   head span     |        | head |     lane 1      | tail |
+//     +--------+--------+        | span +-----------------+ span |
+//     | lane 1 | lane 0 |        |      |     lane 0      |      |
+//     +--------+--------+        +------+-----------------+------+
+//     |   tail span     |
+//     +-----------------+
+//
+//   Along the dock the spans and the region are split with `allocateAxis`
+//   as one stack; the region is a pseudo item whose minimum and desired
+//   size are the largest of its lanes' sums, and each lane is then split
+//   along the region's length. Without a shown spanning pane a dock is
+//   laid out exactly as before.
 // - Narrow collapse: a side dock (all its lanes) is hidden when the game
 //   pane would get fewer than GAME_MIN_COLS columns. The model is
 //   untouched, so the dock comes back as soon as the window is wide enough
@@ -66,6 +86,7 @@ import {
   type BuiltinPaneId,
   DEFAULT_SIDE_DOCK_SIZE,
   type DockId,
+  type LaneRef,
   type LayoutModel,
   type PaneId,
   defaultPaneRows,
@@ -126,17 +147,29 @@ export const LEFTOVER_PRIORITY: readonly BuiltinPaneId[] = ['map', 'ui', 'charac
  */
 export const DROP_ORDER: readonly BuiltinPaneId[] = ['map', 'group', 'timers', 'comm', 'character', 'ui'];
 
-/** The ids of `live` by leftover priority: the built-in order, then script panes in stack order. */
-function leftoverOrder(live: readonly { id: PaneId }[]): PaneId[] {
-  const ids = live.map((i) => i.id);
-  return [...LEFTOVER_PRIORITY.filter((id) => ids.includes(id)), ...ids.filter((id) => !isBuiltinPaneId(id))];
+/**
+ * The ids of `live` by leftover priority: the built-in order, then script
+ * panes in stack order. An item with `rankAs` (a dock's region, ADR 0067)
+ * ranks as that pane.
+ */
+function leftoverOrder(live: readonly { id: PaneId; rankAs?: PaneId }[]): PaneId[] {
+  const n = LEFTOVER_PRIORITY.length;
+  const rank = (i: { id: PaneId; rankAs?: PaneId }, k: number): number => {
+    const r = i.rankAs ?? i.id;
+    return isBuiltinPaneId(r) ? LEFTOVER_PRIORITY.indexOf(r) : n + k;
+  };
+  return live
+    .map((i, k) => ({ id: i.id, r: rank(i, k) }))
+    .sort((a, b) => a.r - b.r)
+    .map((x) => x.id);
 }
 
-/** The next pane of `live` to drop (DROP_ORDER). */
-function dropVictim(live: readonly { id: PaneId }[]): PaneId {
-  if (live.some((i) => i.id === 'map')) return 'map';
-  for (let k = live.length - 1; k >= 0; k--) if (!isBuiltinPaneId(live[k]!.id)) return live[k]!.id;
-  return DROP_ORDER.find((id) => live.some((i) => i.id === id))!;
+/** The next pane of `live` to drop (DROP_ORDER); a region item is never one. */
+function dropVictim(live: readonly { id: PaneId; region?: boolean }[]): PaneId {
+  const panes = live.filter((i) => !i.region);
+  if (panes.some((i) => i.id === 'map')) return 'map';
+  for (let k = panes.length - 1; k >= 0; k--) if (!isBuiltinPaneId(panes[k]!.id)) return panes[k]!.id;
+  return DROP_ORDER.find((id) => panes.some((i) => i.id === id))!;
 }
 
 /** True for the docks that stack panes vertically (left, right). */
@@ -225,6 +258,10 @@ export interface AxisItem {
   min: number;
   /** Cells the frame adds (0 or FRAME_CELLS). */
   frame: number;
+  /** A dock's region (ADR 0067): never reserved, never dropped. */
+  region?: boolean;
+  /** Ranks for the leftover as this pane (a region: its highest-priority member). */
+  rankAs?: PaneId;
 }
 
 export interface AxisResult {
@@ -276,7 +313,10 @@ export function allocateAxis(items: readonly AxisItem[], length: number): AxisRe
   // would get a row or two.
   let scaled = live;
   let avail = length - frames;
-  const reserve = [...live.filter((i) => i.id === 'character'), ...live.filter((i) => !isBuiltinPaneId(i.id))];
+  const reserve = [
+    ...live.filter((i) => i.id === 'character'),
+    ...live.filter((i) => !isBuiltinPaneId(i.id) && !i.region),
+  ];
   for (const r of reserve) {
     if (scaled.length < 2) break;
     const othersMin = sum(scaled.filter((i) => i !== r).map((i) => i.min));
@@ -350,9 +390,12 @@ export interface PaneBox {
   id: PaneId;
   /** The dock, or `float` for a floating pane. */
   dock: DockId | 'float';
-  /** Index of the lane in the dock's model `lanes` (0 for a floating pane). */
-  lane: number;
-  /** Index of the pane in the lane's model list (or in `floating`: its z-order). */
+  /**
+   * Index of the lane in the dock's model `lanes`, or the span (`head`,
+   * `tail`, ADR 0067) that holds the pane (0 for a floating pane).
+   */
+  lane: LaneRef;
+  /** Index of the pane in its model list (lane, span or `floating`: its z-order). */
   index: number;
   /** Outer rectangle (frame included). */
   rect: Rect;
@@ -374,16 +417,31 @@ export interface LaneBox {
   min: number;
 }
 
+/** A shown stack of spanning panes (ADR 0067): before (`head`) or after (`tail`) the lanes. */
+export interface SpanBox {
+  side: 'head' | 'tail';
+  /** The whole stack, across the dock's full width (side dock) or height (top/bottom). */
+  rect: Rect;
+  /** Shown panes in order. */
+  panes: PaneId[];
+  /** `fit` or `scaled`: the split along the dock (spans and region together). */
+  mode: 'fit' | 'scaled';
+}
+
 export interface DockBox {
   id: DockId;
-  /** The whole dock: its shown lanes side by side. */
+  /** The whole dock: its spans and its shown lanes. */
   rect: Rect;
-  /** Shown panes in order, lane by lane. */
+  /** Shown panes in order: head spans, lane by lane, tail spans. */
   panes: PaneId[];
-  /** `scaled` if any lane is (see AxisResult). */
+  /** `scaled` if any lane or span stack is (see AxisResult). */
   mode: 'fit' | 'scaled';
-  /** Shown lanes in model order (from the screen edge inward). */
+  /** Shown lanes in model order (from the screen edge inward); their rects cover the region only. */
   lanes: LaneBox[];
+  /** Shown span stacks (ADR 0067), head before tail; empty without spanning panes. */
+  spans: SpanBox[];
+  /** The lanes block (the whole dock without spans), or null when no lane is shown. */
+  region: Rect | null;
 }
 
 export interface LayoutResult {
@@ -445,6 +503,46 @@ function laneItems(input: AllocateInput, dock: DockId): LaneItems[] {
   return out;
 }
 
+/** Shown spanning panes of a dock (ADR 0067) and the lanes; the dock's wanted and smallest size across. */
+interface DockItems {
+  lanes: LaneItems[];
+  head: AxisItem[];
+  tail: AxisItem[];
+  /** Wanted size across the dock (frame included). */
+  size: number;
+  /** Smallest size across the dock. */
+  min: number;
+}
+
+/** The pseudo id of a dock's region in the split along the dock (ADR 0067). */
+const REGION_ID = '~region' as PaneId;
+
+function dockItems(input: AllocateInput, dock: DockId): DockItems {
+  const lanes = laneItems(input, dock);
+  let spanMin = 0;
+  const spanItems = (list: readonly { id: PaneId; desired: number }[]): AxisItem[] => {
+    const items: AxisItem[] = [];
+    for (const p of list) {
+      const t = shownToggle(input, p.id);
+      if (!t) continue;
+      items.push({ id: p.id, desired: p.desired, min: minContent(p.id, dock), frame: t.border ? FRAME_CELLS : 0 });
+      spanMin = Math.max(spanMin, paneCrossMin(p.id, dock, t.border));
+    }
+    return items;
+  };
+  const d = input.layout.docks[dock];
+  const head = spanItems(d.head);
+  const tail = spanItems(d.tail);
+  const laneSum = sum(lanes.map((l) => l.size));
+  const laneMins = sum(lanes.map((l) => l.min));
+  if (head.length + tail.length === 0) return { lanes, head, tail, size: laneSum, min: laneMins };
+  // A span is as wide (high) as the dock: the sum of the shown lanes, or,
+  // when no lane is shown, of the stored lane sizes; never below the
+  // spans' own cross minimum.
+  const base = lanes.length > 0 ? laneSum : sum(d.lanes.map((l) => Math.max(1, l.size)));
+  return { lanes, head, tail, size: Math.max(spanMin, base), min: Math.max(spanMin, laneMins) };
+}
+
 /**
  * Shrinks `sizes` (lane sizes from the screen edge inward) to `total`
  * cells: the inner lanes give up cells first, each down to its own
@@ -484,19 +582,25 @@ export function allocate(input: AllocateInput): LayoutResult {
     return res;
   }
 
-  const lanes: Record<DockId, LaneItems[]> = {
-    left: laneItems(input, 'left'),
-    right: laneItems(input, 'right'),
-    top: laneItems(input, 'top'),
-    bottom: laneItems(input, 'bottom'),
+  const dk: Record<DockId, DockItems> = {
+    left: dockItems(input, 'left'),
+    right: dockItems(input, 'right'),
+    top: dockItems(input, 'top'),
+    bottom: dockItems(input, 'bottom'),
   };
-  const ids = (d: DockId): PaneId[] => lanes[d].flatMap((l) => l.items.map((i) => i.id));
-  const want = (d: DockId): number => sum(lanes[d].map((l) => l.size));
-  const need = (d: DockId, on: boolean): number => (on && lanes[d].length > 0 ? want(d) + DOCK_GAP : 0);
+  const ids = (d: DockId): PaneId[] => [
+    ...dk[d].head.map((i) => i.id),
+    ...dk[d].lanes.flatMap((l) => l.items.map((i) => i.id)),
+    ...dk[d].tail.map((i) => i.id),
+  ];
+  /** The dock has a shown pane (in a lane or a span). */
+  const has = (d: DockId): boolean => dk[d].lanes.length + dk[d].head.length + dk[d].tail.length > 0;
+  const want = (d: DockId): number => dk[d].size;
+  const need = (d: DockId, on: boolean): number => (on && has(d) ? want(d) + DOCK_GAP : 0);
 
   // Narrow collapse: keep both, else the right, else the left, else none.
-  let showL = lanes.left.length > 0;
-  let showR = lanes.right.length > 0;
+  let showL = has('left');
+  let showR = has('right');
   const fits = (l: boolean, r: boolean): boolean => cols - need('left', l) - need('right', r) >= GAME_MIN_COLS;
   if (!fits(showL, showR)) {
     if (showR && fits(false, true)) showL = false;
@@ -504,7 +608,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     else showL = showR = false;
   }
   for (const [d, shown] of [['left', showL], ['right', showR]] as const) {
-    if (!shown && lanes[d].length > 0) {
+    if (!shown && has(d)) {
       res.collapsed.push(d);
       res.hidden.push(...ids(d));
     }
@@ -522,11 +626,11 @@ export function allocate(input: AllocateInput): LayoutResult {
   // its lane minimum times its shown lanes; a dock that still gets less is
   // collapsed. A shrunk dock takes the rows from its inner lanes first.
   const avail = rows - INPUT_ROWS - GAME_MIN_ROWS;
-  const minOf = (d: DockId): number => sum(lanes[d].map((l) => l.min));
-  let bottomH = lanes.bottom.length > 0 ? Math.min(want('bottom'), avail - DOCK_GAP) : 0;
+  const minOf = (d: DockId): number => dk[d].min;
+  let bottomH = has('bottom') ? Math.min(want('bottom'), avail - DOCK_GAP) : 0;
   if (bottomH < minOf('bottom')) bottomH = 0;
   let topH = 0;
-  if (lanes.top.length > 0) {
+  if (has('top')) {
     topH = Math.min(want('top'), avail - DOCK_GAP - (bottomH > 0 ? bottomH + DOCK_GAP : 0));
     if (topH < minOf('top') && bottomH > 0) {
       const b = avail - 2 * DOCK_GAP - minOf('top');
@@ -538,7 +642,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     if (topH < minOf('top')) topH = 0;
   }
   for (const [d, h] of [['top', topH], ['bottom', bottomH]] as const) {
-    if (h === 0 && lanes[d].length > 0) {
+    if (h === 0 && has(d)) {
       res.collapsed.push(d);
       res.hidden.push(...ids(d));
     }
@@ -548,15 +652,38 @@ export function allocate(input: AllocateInput): LayoutResult {
   res.game = { x: gx, y: gy, w: gw, h: rows - gy - INPUT_ROWS - below };
   res.input = { x: gx, y: rows - below - INPUT_ROWS, w: gw, h: INPUT_ROWS };
 
-  // A dock's lanes from its screen edge inward; each lane is split along
-  // its length like a whole dock was before (allocateAxis).
-  const place = (dock: DockId, rect: Rect): void => {
+  // One pane's box at `at` along `area` (the stack's rectangle).
+  const paneBox = (
+    dock: DockId,
+    lane: LaneRef,
+    model: readonly { id: PaneId }[],
+    area: Rect,
+    at: number,
+    id: PaneId,
+    size: number,
+  ): number => {
+    const side = isSideDock(dock);
+    const framed = shownToggle(input, id)!.border;
+    const len = size + (framed ? FRAME_CELLS : 0);
+    const r: Rect = side ? { x: area.x, y: at, w: area.w, h: len } : { x: at, y: area.y, w: len, h: area.h };
+    const c: Rect = framed ? { x: r.x + 1, y: r.y + 1, w: Math.max(0, r.w - 2), h: Math.max(0, r.h - 2) } : { ...r };
+    const index = model.findIndex((p) => p.id === id);
+    res.panes.push({ id, dock, lane, index, rect: r, content: c, framed });
+    return at + len;
+  };
+
+  // A dock's lanes from its screen edge inward inside `rect` (the whole
+  // dock, or its region when it has spans); each lane is split along its
+  // length like a whole dock was before (allocateAxis).
+  const placeLanes = (dock: DockId, rect: Rect, lanes: readonly LaneItems[], box: DockBox): void => {
     const side = isSideDock(dock);
     const cross = side ? rect.w : rect.h;
-    const sizes = shrinkLanes(lanes[dock].map((l) => l.size), cross, lanes[dock].map((l) => l.min));
-    const box: DockBox = { id: dock, rect, panes: [], mode: 'fit', lanes: [] };
+    const sizes = shrinkLanes(lanes.map((l) => l.size), cross, lanes.map((l) => l.min));
+    // Spans wider than the lanes (ADR 0067): the innermost lane takes the rest.
+    const short = cross - sum(sizes);
+    if (short > 0 && sizes.length > 0) sizes[sizes.length - 1]! += short;
     let off = 0;
-    lanes[dock].forEach((lane, k) => {
+    lanes.forEach((lane, k) => {
       const w = sizes[k]!;
       const lr: Rect =
         dock === 'left' ? { x: rect.x + off, y: rect.y, w, h: rect.h }
@@ -573,20 +700,87 @@ export function allocate(input: AllocateInput): LayoutResult {
       if (ax.mode === 'scaled') box.mode = 'scaled';
       const model = input.layout.docks[dock].lanes[lane.index]!.panes;
       let at = side ? lr.y : lr.x;
-      for (const { id, size } of ax.sizes) {
-        const framed = shownToggle(input, id)!.border;
-        const f = framed ? FRAME_CELLS : 0;
-        const len = size + f;
-        const r: Rect = side ? { x: lr.x, y: at, w: lr.w, h: len } : { x: at, y: lr.y, w: len, h: lr.h };
-        const c: Rect = framed
-          ? { x: r.x + 1, y: r.y + 1, w: Math.max(0, r.w - 2), h: Math.max(0, r.h - 2) }
-          : { ...r };
-        const index = model.findIndex((p) => p.id === id);
-        res.panes.push({ id, dock, lane: lane.index, index, rect: r, content: c, framed });
-        at += len;
-      }
+      for (const { id, size } of ax.sizes) at = paneBox(dock, lane.index, model, lr, at, id, size);
     });
-    if (box.lanes.length > 0) res.docks[dock] = box;
+  };
+
+  const place = (dock: DockId, rect: Rect): void => {
+    const k = dk[dock];
+    const box: DockBox = { id: dock, rect, panes: [], mode: 'fit', lanes: [], spans: [], region: null };
+    if (k.head.length + k.tail.length === 0) {
+      box.region = rect;
+      placeLanes(dock, rect, k.lanes, box);
+    } else {
+      placeSpans(dock, rect, k, box);
+    }
+    if (box.lanes.length + box.spans.length > 0) res.docks[dock] = box;
+  };
+
+  // A dock with spanning panes (ADR 0067): spans and region split along
+  // the dock as one stack, then the lanes inside the region.
+  const placeSpans = (dock: DockId, rect: Rect, k: DockItems, box: DockBox): void => {
+    const side = isSideDock(dock);
+    const len = side ? rect.h : rect.w;
+    const outer = (items: readonly AxisItem[]): number => sum(items.map((i) => i.min + i.frame));
+    let head = [...k.head];
+    let tail = [...k.tail];
+    let lanes = k.lanes.map((l) => ({ ...l, items: [...l.items] }));
+    const regionMin = (): number => Math.max(0, ...lanes.map((l) => outer(l.items)));
+    // Too short for every minimum: drop from the spans and the lanes that
+    // set the region's minimum (the others would free nothing).
+    while (outer(head) + outer(tail) + regionMin() > len) {
+      const rm = regionMin();
+      const binding = rm > 0 ? lanes.filter((l) => outer(l.items) === rm).flatMap((l) => l.items) : [];
+      const pool = [...head, ...binding, ...tail];
+      if (pool.length === 0) break;
+      const victim = dropVictim(pool);
+      res.hidden.push(victim);
+      head = head.filter((i) => i.id !== victim);
+      tail = tail.filter((i) => i.id !== victim);
+      for (const l of lanes) l.items = l.items.filter((i) => i.id !== victim);
+    }
+    lanes = lanes.filter((l) => l.items.length > 0);
+    const members = lanes.flatMap((l) => l.items);
+    const region: AxisItem[] =
+      lanes.length === 0
+        ? []
+        : [
+            {
+              id: REGION_ID,
+              min: regionMin(),
+              desired: Math.max(...lanes.map((l) => sum(l.items.map((i) => Math.max(i.min, Math.round(i.desired)) + i.frame)))),
+              frame: 0,
+              region: true,
+              rankAs: leftoverOrder(members)[0]!,
+            },
+          ];
+    const ax = allocateAxis([...head, ...region, ...tail], len);
+    res.hidden.push(...ax.dropped);
+    if (ax.mode === 'empty') return;
+    if (ax.mode === 'scaled') box.mode = 'scaled';
+    const d = input.layout.docks[dock];
+    let at = side ? rect.y : rect.x;
+    const stack = (s: 'head' | 'tail', items: readonly { id: PaneId; size: number }[]): void => {
+      if (items.length === 0) return;
+      const start = at;
+      for (const { id, size } of items) at = paneBox(dock, s, d[s], rect, at, id, size);
+      const r: Rect = side ? { x: rect.x, y: start, w: rect.w, h: at - start } : { x: start, y: rect.y, w: at - start, h: rect.h };
+      box.spans.push({ side: s, rect: r, panes: items.map((i) => i.id), mode: ax.mode === 'scaled' ? 'scaled' : 'fit' });
+    };
+    const ri = ax.sizes.findIndex((s) => s.id === REGION_ID);
+    const before = ri < 0 ? ax.sizes.filter((s) => head.some((h) => h.id === s.id)) : ax.sizes.slice(0, ri);
+    const after = ri < 0 ? ax.sizes.filter((s) => tail.some((t) => t.id === s.id)) : ax.sizes.slice(ri + 1);
+    stack('head', before);
+    box.panes.push(...before.map((s) => s.id));
+    if (ri >= 0) {
+      const size = ax.sizes[ri]!.size;
+      const r: Rect = side ? { x: rect.x, y: at, w: rect.w, h: size } : { x: at, y: rect.y, w: size, h: rect.h };
+      box.region = r;
+      placeLanes(dock, r, lanes, box);
+      at += size;
+    }
+    stack('tail', after);
+    box.panes.push(...after.map((s) => s.id));
   };
   if (showL) place('left', { x: 0, y: 0, w: leftW, h: rows });
   if (showR) place('right', { x: cols - rightW, y: 0, w: rightW, h: rows });

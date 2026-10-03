@@ -147,7 +147,8 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
         const s = this.settings.get();
         const at = findPane(s.layout, id);
         if (!at) return false;
-        const alone = s.layout.docks[at.dock].lanes[at.lane]!.panes.length === 1;
+        // A spanning pane (ADR 0067) is never alone in a lane: only `cols` applies in the top/bottom dock.
+        const alone = typeof at.lane === 'number' && s.layout.docks[at.dock].lanes[at.lane]!.panes.length === 1;
         const side = at.dock === 'left' || at.dock === 'right';
         const key = `${at.dock}|${at.lane}|${alone}|${rows}|${cols ?? ''}`;
         if (key === lastWant) return lastApplies;

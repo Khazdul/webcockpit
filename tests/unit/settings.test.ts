@@ -262,14 +262,14 @@ describe('migrateSettings', () => {
       },
     });
     // The shape before ADR 0064 (one strip) becomes one lane.
-    expect(s.layout.docks.left).toEqual({ lanes: [{ size: 20, panes: [{ id: 'comm', desired: 12 }] }] });
+    expect(s.layout.docks.left).toEqual({ lanes: [{ size: 20, panes: [{ id: 'comm', desired: 12 }] }], head: [], tail: [] });
     expect(s.layout.docks.right.lanes).toHaveLength(1);
     expect(s.layout.docks.right.lanes[0]!.size).toBe(1);
     expect(s.layout.docks.right.lanes[0]!.panes.map((p) => p.id)).toEqual(['ui', 'character', 'timers', 'group']);
     expect(s.layout.docks.right.lanes[0]!.panes[0]).toEqual({ id: 'ui', desired: 5 });
-    expect(s.layout.docks.bottom).toEqual({ lanes: [] });
+    expect(s.layout.docks.bottom).toEqual({ lanes: [], head: [], tail: [] });
     // Layouts stored before the top dock existed get an empty one.
-    expect(s.layout.docks.top).toEqual({ lanes: [] });
+    expect(s.layout.docks.top).toEqual({ lanes: [], head: [], tail: [] });
     const all = Object.values(s.layout.docks).flatMap((d) => dockPanes(d).map((p) => p.id));
     // The map floats at its default spot (ADR 0020).
     expect(s.layout.floating).toEqual([defaultMapFloat()]);
@@ -298,7 +298,7 @@ describe('migrateLayout: floating panes', () => {
       { id: 'group', x: 0, y: 0, w: 1, h: 8 },
     ]);
     expect(dockPanes(s.layout.docks.right).map((p) => p.id)).toEqual(['character', 'timers', 'ui']);
-    expect(s.layout.docks.top).toEqual({ lanes: [] });
+    expect(s.layout.docks.top).toEqual({ lanes: [], head: [], tail: [] });
   });
 
   it('gives an older layout a floating list with only the map and a top dock', () => {
@@ -338,8 +338,8 @@ describe('migrateLayout: dock lanes (ADR 0064)', () => {
     expect(r[0]!.size).toBe(30);
     expect(r[1]!.size).toBe(33);
     expect(r[2]!.size).toBeLessThan(99999);
-    expect(s.layout.docks.bottom).toEqual({ lanes: [{ size: 4, panes: [{ id: 'ui', desired: 30 }] }] });
-    expect(s.layout.docks.top).toEqual({ lanes: [] });
+    expect(s.layout.docks.bottom).toEqual({ lanes: [{ size: 4, panes: [{ id: 'ui', desired: 30 }] }], head: [], tail: [] });
+    expect(s.layout.docks.top).toEqual({ lanes: [], head: [], tail: [] });
     // The new shape survives a second migration unchanged.
     expect(migrateSettings(s).layout).toEqual(s.layout);
   });
@@ -352,6 +352,101 @@ describe('migrateLayout: dock lanes (ADR 0064)', () => {
       ['ui', 'character', 'timers', 'group'],
       ['comm'],
     ]);
+  });
+});
+
+describe('migrateLayout: spanning panes (ADR 0067)', () => {
+  const ids = (l: readonly { id: string }[]) => l.map((p) => p.id);
+  const lane = (size: number, ...panes: string[]) => ({ size, panes: panes.map((id) => ({ id, desired: 4 })) });
+
+  it('gives an old layout empty spans in every dock', () => {
+    const s = migrateSettings({ layout: { docks: { right: { lanes: [lane(33, 'ui')] } } } });
+    for (const d of ['left', 'right', 'top', 'bottom'] as const) {
+      expect(s.layout.docks[d].head).toEqual([]);
+      expect(s.layout.docks[d].tail).toEqual([]);
+    }
+  });
+
+  it('keeps spans of a dock with two lanes', () => {
+    const s = migrateSettings({
+      layout: {
+        docks: {
+          right: { head: [{ id: 'map', desired: 12 }], lanes: [lane(33, 'character', 'timers', 'comm'), lane(20, 'group')], tail: [{ id: 'ui', desired: 5 }] },
+        },
+      },
+    });
+    const r = s.layout.docks.right;
+    expect(r.head).toEqual([{ id: 'map', desired: 12 }]);
+    expect(r.tail).toEqual([{ id: 'ui', desired: 5 }]);
+    expect(r.lanes.map((l) => ids(l.panes))).toEqual([['character', 'timers', 'comm'], ['group']]);
+    expect(s.layout.floating.some((f) => f.id === 'map')).toBe(false);
+    expect(migrateSettings(s).layout).toEqual(s.layout);
+  });
+
+  it('folds spans into lane 0 when a dock has fewer than two lanes', () => {
+    const s = migrateSettings({
+      layout: {
+        docks: {
+          right: { head: [{ id: 'map', desired: 12 }], lanes: [lane(33, 'character', 'timers'), { size: 20, panes: [] }], tail: [{ id: 'ui', desired: 5 }] },
+          left: { head: [{ id: 'group', desired: 6 }], lanes: [] },
+        },
+      },
+    });
+    expect(s.layout.docks.right.head).toEqual([]);
+    expect(s.layout.docks.right.tail).toEqual([]);
+    expect(ids(s.layout.docks.right.lanes[0]!.panes)).toEqual(['map', 'character', 'timers', 'ui', 'comm']);
+    // Spans alone: lane 0 at the default size.
+    expect(s.layout.docks.left).toEqual({ lanes: [{ size: 33, panes: [{ id: 'group', desired: 6 }] }], head: [], tail: [] });
+    expect(migrateSettings(s).layout).toEqual(s.layout);
+  });
+
+  it('keeps every pane once across head, lanes and tail (head first), and drops garbage', () => {
+    const s = migrateSettings({
+      layout: {
+        docks: {
+          right: {
+            head: [{ id: 'ui', desired: 5 }, 'junk', { id: 'nope', desired: 3 }, { id: 'ui', desired: 9 }, { desired: 2 }],
+            lanes: [lane(33, 'ui', 'character', 'timers'), lane(20, 'group', 'comm')],
+            tail: [{ id: 'group', desired: 1 }, { id: 'comm', desired: 'x' }, { id: 'map', desired: 4 }],
+          },
+          bottom: { head: 'garbage', tail: 7, lanes: [lane(10, 'map')] },
+        },
+      },
+    });
+    const r = s.layout.docks.right;
+    expect(r.head).toEqual([{ id: 'ui', desired: 5 }]);
+    expect(r.lanes.map((l) => ids(l.panes))).toEqual([['character', 'timers'], ['group', 'comm']]);
+    expect(r.tail).toEqual([{ id: 'map', desired: 4 }]);
+    // The map in the right tail came first; the bottom dock's lane is gone.
+    expect(s.layout.docks.bottom).toEqual({ lanes: [], head: [], tail: [] });
+    const all = [...Object.values(s.layout.docks).flatMap(dockPanes), ...s.layout.floating].map((p) => p.id);
+    expect(all.sort()).toEqual([...PANE_IDS].sort());
+    expect(migrateSettings(s).layout).toEqual(s.layout);
+  });
+
+  it('a layout patch leaves no stale span: a model always writes its spans', () => {
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({
+      layout: {
+        docks: {
+          right: { head: [{ id: 'map', desired: 12 }], lanes: [lane(33, 'character', 'timers', 'comm', 'ui'), lane(20, 'group')], tail: [] },
+        },
+      } as never,
+    });
+    expect(ids(store.get().layout.docks.right.head)).toEqual(['map']);
+    // A whole model (as model operations return) without the span replaces it.
+    const m = structuredClone(store.get().layout);
+    m.docks.right.lanes[1]!.panes.unshift(m.docks.right.head.shift()!);
+    store.update({ layout: m });
+    expect(store.get().layout.docks.right.head).toEqual([]);
+    expect(ids(store.get().layout.docks.right.lanes[1]!.panes)).toEqual(['map', 'group']);
+    // A patch that names only the lanes keeps the stored spans; the head wins over a duplicate.
+    store.update({ layout: { docks: { right: { head: [{ id: 'ui', desired: 5 }] } } } as never });
+    store.update({ layout: { docks: { right: { lanes: [lane(33, 'character', 'ui'), lane(20, 'group', 'timers')] } } } as never });
+    const r = store.get().layout.docks.right;
+    expect(ids(r.head)).toEqual(['ui']);
+    // comm, missing now, joins lane 0 as a missing built-in.
+    expect(r.lanes.map((l) => ids(l.panes))).toEqual([['character', 'comm'], ['group', 'timers']]);
   });
 });
 

@@ -173,7 +173,7 @@ test('drag a pane to the top screen edge opens the top dock', async ({ page }) =
   expect(await box(page, '.wc-game')).toEqual({ x: 0, y: 11 * ch, width: (cols - 34) * cw, height: (rows - 12) * ch });
   expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 1) * ch, width: (cols - 34) * cw, height: ch });
   const top = await page.evaluate(() => window.__wc!.settings.get().layout.docks.top);
-  expect(top).toEqual({ lanes: [{ size: 10, panes: [{ id: 'comm', desired: 30 }] }] });
+  expect(top).toEqual({ lanes: [{ size: 10, panes: [{ id: 'comm', desired: 30 }] }], head: [], tail: [] });
 
   // The gap row under the top dock resizes it.
   const gapY = o.y + 10 * ch + ch / 2;

@@ -15,6 +15,7 @@ import {
   setLaneSize,
   shiftBoundary,
   shiftLanes,
+  shiftSpanBoundary,
   togglePatch,
   placeScriptPane,
   wantPaneSize,
@@ -376,6 +377,147 @@ describe('pane bar placement and sizes (ADR 0065)', () => {
     const fl = floatPane(b, BAR, { x: 1, y: 1, w: 20, h: 2 });
     expect(wantPaneSize(fl, BAR, 3, 5, false)).toBe(fl);
     expect(wantPaneSize(b, 'x/y' as PaneId, 3, 5, false)).toBe(b);
+  });
+});
+
+describe('spanning panes (ADR 0067)', () => {
+  const ids = (l: readonly { id: PaneId }[]) => l.map((p) => p.id);
+  const shape = (m: LayoutModel, d: DockId) => ({
+    head: ids(m.docks[d].head),
+    lanes: m.docks[d].lanes.map((l) => ids(l.panes)),
+    tail: ids(m.docks[d].tail),
+  });
+  /** Right dock: lane 0 = character, timers, comm, ui; lane 1 = group; the map floats. */
+  const twoLanes = () => moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+
+  it('moves a pane into the head and tail spans, and within them', () => {
+    let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    expect(shape(m, 'right')).toEqual({ head: ['map'], lanes: [['character', 'timers', 'comm', 'ui'], ['group']], tail: [] });
+    // A floating pane gets the side axis default.
+    expect(m.docks.right.head[0]).toEqual({ id: 'map', desired: 20 });
+    expect(findPane(m, 'map')).toEqual({ dock: 'right', lane: 'head', index: 0 });
+    m = movePane(m, 'ui', 'right', 'head', 1);
+    m = movePane(m, 'timers', 'right', 'tail', 0);
+    expect(shape(m, 'right')).toEqual({ head: ['map', 'ui'], lanes: [['character', 'comm'], ['group']], tail: ['timers'] });
+    // Reordering within a span: the index counts the moving pane.
+    m = movePane(m, 'map', 'right', 'head', 2);
+    expect(m.docks.right.head.map((p) => p.id)).toEqual(['ui', 'map']);
+    expect(findPane(m, 'timers')).toEqual({ dock: 'right', lane: 'tail', index: 0 });
+    everyPaneOnce(m);
+  });
+
+  it('moves a pane out of a span into a lane or another dock, keeping desired along the axis', () => {
+    let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    m = setDesired(m, { map: 17 });
+    const back = movePane(m, 'map', 'right', 1, 0);
+    expect(shape(back, 'right')).toEqual({ head: [], lanes: [['character', 'timers', 'comm', 'ui'], ['map', 'group']], tail: [] });
+    expect(back.docks.right.lanes[1]!.panes[0]).toEqual({ id: 'map', desired: 17 });
+    const left = movePane(m, 'map', 'left', 0, 0);
+    expect(left.docks.left.lanes[0]!.panes[0]).toEqual({ id: 'map', desired: 17 });
+    const bottom = movePane(m, 'map', 'bottom', 0, 0);
+    expect(bottom.docks.bottom.lanes[0]!.panes[0]).toEqual({ id: 'map', desired: DEFAULT_BOTTOM_DESIRED });
+    everyPaneOnce(bottom);
+  });
+
+  it('floats a span pane', () => {
+    const m = movePane(twoLanes(), 'ui', 'right', 'tail', 0);
+    const f = floatPane(m, 'ui', { x: 2, y: 3, w: 20, h: 8 });
+    expect(shape(f, 'right').tail).toEqual([]);
+    expect(f.floating.at(-1)).toEqual({ id: 'ui', x: 2, y: 3, w: 20, h: 8 });
+    everyPaneOnce(f);
+  });
+
+  it('folds the spans into lane 0 when the dock goes down to one lane, and does not restore them', () => {
+    let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    m = movePane(m, 'ui', 'right', 'tail', 0);
+    const folded = { head: [], lanes: [['map', 'character', 'timers', 'comm', 'ui']], tail: [] };
+    // The only pane of lane 1 leaves: one lane is left, the spans fold into it.
+    const one = movePane(m, 'group', 'left', 0, 0);
+    expect(shape(one, 'right')).toEqual(folded);
+    expect(shape(floatPane(m, 'group', { x: 0, y: 0, w: 20, h: 8 }), 'right')).toEqual(folded);
+    // A second lane coming back does not restore them.
+    const again = moveToNewLane(one, 'comm', 'right', 1, 20);
+    expect(shape(again, 'right').head).toEqual([]);
+    everyPaneOnce(again);
+  });
+
+  it('a span target that empties the second lane folds at once', () => {
+    // group is alone in lane 1: moving it to the head leaves one lane.
+    const m = movePane(twoLanes(), 'group', 'right', 'head', 0);
+    expect(shape(m, 'right')).toEqual({ head: [], lanes: [['group', 'character', 'timers', 'comm', 'ui']], tail: [] });
+  });
+
+  it('keeps the spans when a new lane is made; new lanes go into the region only', () => {
+    let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    m = moveToNewLane(m, 'ui', 'right', 0, 25);
+    expect(shape(m, 'right')).toEqual({ head: ['map'], lanes: [['ui'], ['character', 'timers', 'comm'], ['group']], tail: [] });
+    // A span pane into a new lane.
+    const out = moveToNewLane(m, 'map', 'right', 3, 20);
+    expect(shape(out, 'right')).toEqual({ head: [], lanes: [['ui'], ['character', 'timers', 'comm'], ['group'], ['map']], tail: [] });
+    // A span pane is never "alone in its lane": a new lane is always a real move.
+    expect(isNoopNewLane(m, 'map', 'right', 0)).toBe(false);
+    everyPaneOnce(out);
+  });
+
+  it('knows no-op moves within a span', () => {
+    let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    m = movePane(m, 'ui', 'right', 'head', 1);
+    expect(isNoopMove(m, 'map', 'right', 'head', 0)).toBe(true);
+    expect(isNoopMove(m, 'map', 'right', 'head', 1)).toBe(true);
+    expect(isNoopMove(m, 'map', 'right', 'head', 2)).toBe(false);
+    expect(isNoopMove(m, 'map', 'right', 'tail', 0)).toBe(false);
+    expect(isNoopMove(m, 'map', 'right', 0, 0)).toBe(false);
+    expect(movePane(m, 'ui', 'right', 'head', 2)).toBe(m);
+  });
+
+  it('sets desired sizes of span panes', () => {
+    const m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    expect(setDesired(m, { map: 12 }).docks.right.head[0]).toEqual({ id: 'map', desired: 12 });
+    // Clamped to the side-dock minimum (3 rows for the map).
+    expect(setDesired(m, { map: 1 }).docks.right.head[0]!.desired).toBe(3);
+  });
+
+  it('shifts the span boundary, clamped to every minimum', () => {
+    const span = { id: 'map' as PaneId, size: 10 };
+    const edge = [
+      { id: 'character' as PaneId, size: 9 },
+      { id: 'group' as PaneId, size: 4 },
+    ];
+    expect(shiftSpanBoundary(span, edge, 'right', 2)).toEqual({ map: 12, character: 7, group: 2 });
+    // group keeps 1 row: the shift stops at 3.
+    expect(shiftSpanBoundary(span, edge, 'right', 9)).toEqual({ map: 13, character: 6, group: 1 });
+    // The map keeps 3 rows.
+    expect(shiftSpanBoundary(span, edge, 'right', -20)).toEqual({ map: 3, character: 16, group: 11 });
+    // The top/bottom dock: 8 columns each.
+    expect(shiftSpanBoundary({ id: 'map', size: 30 }, [{ id: 'comm', size: 10 }], 'bottom', 5)).toEqual({ map: 32, comm: 8 });
+  });
+
+  it('wantPaneSize: a span pane is never alone in its lane', () => {
+    const BAR = 'bar/bar' as PaneId;
+    let m = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', rows: 1, cols: 40, border: false });
+    m = moveToNewLane(m, 'comm', 'bottom', 1, 6);
+    m = moveToNewLane(m, 'ui', 'bottom', 2, 6);
+    m = movePane(m, BAR, 'bottom', 'head', 0);
+    expect(shape(m, 'bottom').head).toEqual([BAR]);
+    const sizes = m.docks.bottom.lanes.map((l) => l.size);
+    // Rows do not change any lane; cols set its desired columns.
+    expect(wantPaneSize(m, BAR, 4, undefined, false)).toBe(m);
+    const w = wantPaneSize(m, BAR, 4, 50, false);
+    expect(w.docks.bottom.lanes.map((l) => l.size)).toEqual(sizes);
+    expect(w.docks.bottom.head[0]).toEqual({ id: BAR, desired: 50 });
+    // In a side dock rows still become its desired rows.
+    let s = movePane(twoLanes(), 'map', 'right', 'tail', 0);
+    s = wantPaneSize(s, 'map', 11, undefined, true);
+    expect(s.docks.right.tail[0]).toEqual({ id: 'map', desired: 11 });
+  });
+
+  it('places script panes in lane 0, and "own" lanes in the region', () => {
+    const id = 's/p' as PaneId;
+    const m = movePane(twoLanes(), 'map', 'right', 'head', 0);
+    const a = placeScriptPane(m, id, { dock: 'right', rows: 4, cols: 9 });
+    expect(shape(a, 'right')).toEqual({ head: ['map'], lanes: [['character', 'timers', 'comm', 'ui', id], ['group']], tail: [] });
+    const o = placeScriptPane(m, id, { dock: 'right', rows: 4, cols: 20, lane: 'own' });
+    expect(shape(o, 'right')).toEqual({ head: ['map'], lanes: [[id], ['character', 'timers', 'comm', 'ui'], ['group']], tail: [] });
   });
 });
 

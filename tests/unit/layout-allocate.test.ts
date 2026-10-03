@@ -13,7 +13,7 @@ import {
   SIDE_DOCK_MIN,
 } from '../../src/layout/allocate';
 import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
-import { floatPane, movePane, moveToNewLane, placeScriptPane, setFloatRect, setLaneSize } from '../../src/layout/model';
+import { floatPane, movePane, moveToNewLane, placeScriptPane, setDesired, setFloatRect, setLaneSize } from '../../src/layout/model';
 
 const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
 const DES: Record<BuiltinPaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20 };
@@ -578,6 +578,190 @@ describe('allocate: per-lane minimum (ADR 0065)', () => {
     expect(r.docks.right!.lanes.map((l) => l.min)).toEqual([SIDE_DOCK_MIN]);
     const m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 2);
     expect(allocate(input(120, 40, m)).docks.bottom!.lanes[0]!.rect.h).toBe(3);
+  });
+});
+
+describe('allocate: spanning panes (ADR 0067)', () => {
+  const box = (r: ReturnType<typeof allocate>, id: PaneId) => r.panes.find((p) => p.id === id);
+  const rect = (r: ReturnType<typeof allocate>, id: PaneId) => box(r, id)?.rect;
+  /** Right dock: lane 0 (33) = character 9, timers 8, comm 10, ui 5; lane 1 (20) = group 6. */
+  const twoRight = (): LayoutModel => {
+    let m = setDesired(defaultLayout(), { character: 9, timers: 8, comm: 10, ui: 5, group: 6 });
+    m = moveToNewLane(m, 'group', 'right', 1, 20);
+    return m;
+  };
+  /** The same as allocate's result, without what tells spans apart (for equivalence checks). */
+  const plain = (r: ReturnType<typeof allocate>) => ({
+    game: r.game,
+    input: r.input,
+    panes: r.panes.map((p) => [p.id, p.rect]),
+    lanes: Object.values(r.docks).map((d) => d.lanes.map((l) => l.rect)),
+  });
+
+  it('a layout without a shown span pane allocates exactly as without spans', () => {
+    const base = twoRight();
+    const withSpan = movePane(base, 'map', 'right', 'head', 0);
+    // The map is off: the span takes no part.
+    for (const [c, rw] of [[200, 70], [120, 40], [60, 18]] as const) {
+      const a = allocate(input(c, rw, base));
+      const b = allocate(input(c, rw, withSpan));
+      expect(plain(b)).toEqual(plain(a));
+      expect(b.docks.right?.spans ?? []).toEqual([]);
+    }
+    // Default layout: the region is the whole dock.
+    const d = allocate(input(120, 40));
+    expect(d.docks.right!.region).toEqual(d.docks.right!.rect);
+    expect(d.docks.right!.spans).toEqual([]);
+  });
+
+  it('right dock: a head span across both columns, the columns below it', () => {
+    const m = movePane(twoRight(), 'map', 'right', 'head', 0);
+    const r = allocate(input(200, 70, m, toggles([], [], true)));
+    const dock = r.docks.right!;
+    expect(dock.rect).toEqual({ x: 147, y: 0, w: 53, h: 70 });
+    // Region desired 40 (lane 0), map 22: the 8 left over go to the map (it ranks above the region's best, UI).
+    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 53, h: 30 });
+    expect(dock.spans).toEqual([{ side: 'head', rect: { x: 147, y: 0, w: 53, h: 30 }, panes: ['map'], mode: 'fit' }]);
+    expect(dock.region).toEqual({ x: 147, y: 30, w: 53, h: 40 });
+    expect(dock.lanes.map((l) => l.rect)).toEqual([
+      { x: 167, y: 30, w: 33, h: 40 },
+      { x: 147, y: 30, w: 20, h: 40 },
+    ]);
+    expect(rect(r, 'character')).toEqual({ x: 167, y: 30, w: 33, h: 11 });
+    expect(rect(r, 'group')!.y).toBe(30);
+    expect(box(r, 'map')).toMatchObject({ dock: 'right', lane: 'head', index: 0, framed: true });
+    expect(dock.panes).toEqual(['map', 'character', 'timers', 'comm', 'ui', 'group']);
+    expect(r.panes.slice(0, 2).map((p) => p.id)).toEqual(['map', 'character']);
+  });
+
+  it('a tail span below the columns, and the region gets the leftover when it holds the map', () => {
+    let m = movePane(twoRight(), 'map', 'right', 1, 0);
+    m = movePane(m, 'ui', 'right', 'tail', 0);
+    const r = allocate(input(200, 70, m, toggles([], [], true)));
+    const dock = r.docks.right!;
+    // ui: 5 + 2 at the bottom; the region (map in lane 1) takes the rest.
+    expect(rect(r, 'ui')).toEqual({ x: 147, y: 63, w: 53, h: 7 });
+    expect(dock.region).toEqual({ x: 147, y: 0, w: 53, h: 63 });
+    expect(dock.spans.map((s) => s.side)).toEqual(['tail']);
+    // In lane 1 the map takes the region's leftover.
+    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 20, h: 63 - 8 });
+    expect(box(r, 'ui')).toMatchObject({ lane: 'tail', index: 0 });
+  });
+
+  it('left dock: spans above and below the columns; top dock: left and right of the rows', () => {
+    let m = movePane(twoRight(), 'group', 'left', 0, 0);
+    m = movePane(m, 'timers', 'left', 0, 0);
+    m = moveToNewLane(m, 'comm', 'left', 1, 15);
+    m = movePane(m, 'timers', 'left', 'head', 0);
+    m = movePane(m, 'ui', 'left', 'tail', 0);
+    const r = allocate(input(200, 60, m));
+    const left = r.docks.left!;
+    expect(left.rect).toEqual({ x: 0, y: 0, w: 48, h: 60 });
+    expect(rect(r, 'timers')).toMatchObject({ x: 0, y: 0, w: 48 });
+    expect(rect(r, 'ui')).toMatchObject({ x: 0, w: 48 });
+    expect(rect(r, 'ui')!.y + rect(r, 'ui')!.h).toBe(60);
+    expect(left.lanes.map((l) => [l.rect.x, l.rect.w])).toEqual([[0, 33], [33, 15]]);
+    expect(left.region!.y).toBe(rect(r, 'timers')!.h);
+
+    let t = moveToNewLane(defaultLayout(), 'comm', 'top', 0, 10);
+    t = moveToNewLane(t, 'ui', 'top', 1, 6);
+    t = movePane(t, 'group', 'top', 'tail', 0);
+    const rt = allocate(input(200, 60, t));
+    const top = rt.docks.top!;
+    expect(top.rect.h).toBe(16);
+    // The tail span is at the right end, the full dock height.
+    expect(rect(rt, 'group')).toMatchObject({ y: 0, h: 16 });
+    expect(rect(rt, 'group')!.x + rect(rt, 'group')!.w).toBe(top.rect.x + top.rect.w);
+    expect(top.lanes.map((l) => [l.rect.y, l.rect.h])).toEqual([[0, 10], [10, 6]]);
+    expect(top.region).toMatchObject({ x: top.rect.x, y: 0, h: 16 });
+  });
+
+  it('bottom dock: a head span at the left end covers both rows', () => {
+    let m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 10);
+    m = moveToNewLane(m, 'ui', 'bottom', 1, 10);
+    m = movePane(m, 'group', 'bottom', 'head', 0);
+    const r = allocate(input(200, 60, m));
+    const b = r.docks.bottom!;
+    expect(b.rect).toEqual({ x: 0, y: 40, w: 166, h: 20 });
+    const g = rect(r, 'group')!;
+    expect(g).toMatchObject({ x: 0, y: 40, h: 20 });
+    // The region's best pane (UI) ranks above Group: the region takes the leftover.
+    expect(g.w).toBe(32);
+    expect(b.region).toEqual({ x: 32, y: 40, w: 134, h: 20 });
+    expect(b.lanes.map((l) => l.rect)).toEqual([
+      { x: 32, y: 50, w: 134, h: 10 },
+      { x: 32, y: 40, w: 134, h: 10 },
+    ]);
+  });
+
+  it('drops from the spans and the binding lane only when the minimums do not fit', () => {
+    const S = 's/p' as PaneId;
+    const A = 'a/x' as PaneId;
+    // Head: timers, ui (6); lane 0: character, comm, group, a/x (14, binding); lane 1: s/p (3).
+    let m = defaultLayout();
+    m = placeScriptPane(m, A, { dock: 'right', rows: 1, cols: 10 });
+    m = placeScriptPane(m, S, { dock: 'right', rows: 1, cols: 10 });
+    m = moveToNewLane(m, S, 'right', 1, 15);
+    m = movePane(m, 'timers', 'right', 'head', 0);
+    m = movePane(m, 'ui', 'right', 'head', 1);
+    m = setDesired(m, { character: 3, comm: 1, group: 1, timers: 1, ui: 1, [A]: 1, [S]: 1 });
+    const r = allocate({ ...input(100, 18, m), present: new Set([S, A]) });
+    // Plain DROP_ORDER would drop s/p (the last script pane); it is in a lane that frees nothing.
+    expect(r.hidden).toEqual([A]);
+    expect(box(r, S)).toBeDefined();
+    // The map in a span is dropped first.
+    const mm = movePane(twoRight(), 'map', 'right', 'head', 0);
+    const rm = allocate(input(100, 18, mm, toggles([], [], true)));
+    expect(rm.hidden).toEqual(['map']);
+    expect(rm.docks.right!.spans).toEqual([]);
+    expect(rm.docks.right!.region).toEqual({ x: 47, y: 0, w: 53, h: 18 });
+  });
+
+  it('a span pane that is off or absent takes no part; spans without a shown lane fill the dock', () => {
+    const S = 's/p' as PaneId;
+    let m = placeScriptPane(twoRight(), S, { dock: 'right', rows: 4, cols: 10 });
+    m = movePane(m, S, 'right', 'tail', 0);
+    // Not present: no span.
+    expect(allocate(input(200, 70, m)).docks.right!.spans).toEqual([]);
+    const shown = allocate({ ...input(200, 70, m), present: new Set([S]) });
+    expect(shown.docks.right!.spans.map((s) => s.panes)).toEqual([[S]]);
+    // Every lane pane off: the span alone, as wide as the stored lanes.
+    const off = toggles(['character', 'timers', 'group', 'comm', 'ui']);
+    const alone = allocate({ ...input(200, 70, m, off), present: new Set([S]) });
+    expect(alone.docks.right!.rect).toEqual({ x: 147, y: 0, w: 53, h: 70 });
+    expect(alone.docks.right!.region).toBeNull();
+    expect(alone.docks.right!.lanes).toEqual([]);
+    expect(rect(alone, S)).toEqual({ x: 147, y: 0, w: 53, h: 70 });
+  });
+
+  it('collapses and shrinks a dock with spans as a whole', () => {
+    // Narrow: the right dock with its span collapses, the span pane is hidden.
+    const m = movePane(twoRight(), 'map', 'right', 'head', 0);
+    const narrow = allocate(input(80, 40, m, toggles([], [], true)));
+    expect(narrow.collapsed).toEqual(['right']);
+    expect(narrow.hidden).toContain('map');
+    // Bottom dock with a span: the inner lane gives up rows first; the span covers the dock.
+    let b = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 10);
+    b = moveToNewLane(b, 'ui', 'bottom', 1, 10);
+    b = movePane(b, 'group', 'bottom', 'head', 0);
+    const r = allocate(input(200, 25, b));
+    expect(r.docks.bottom!.rect.h).toBe(18);
+    expect(r.docks.bottom!.lanes.map((l) => l.rect.h)).toEqual([10, 8]);
+    expect(rect(r, 'group')!.h).toBe(18);
+  });
+
+  it('a span wider than the lanes widens the innermost lane', () => {
+    const B1 = 'bar/a' as PaneId;
+    const B2 = 'bar/b' as PaneId;
+    let m = placeScriptPane(defaultLayout(), B1, { dock: 'bottom', rows: 1, cols: 20, border: false, lane: 'own' });
+    m = placeScriptPane(m, B2, { dock: 'bottom', rows: 1, cols: 20, border: false, lane: 'own' });
+    m = movePane(m, 'comm', 'bottom', 'head', 0);
+    const panes = { ...toggles(), [B1]: { on: true, border: false }, [B2]: { on: true, border: false } };
+    const r = allocate({ ...input(200, 60, m, panes), present: new Set([B1, B2]) });
+    const d = r.docks.bottom!;
+    expect(d.rect.h).toBe(3);
+    expect(d.lanes.map((l) => l.rect.h)).toEqual([1, 2]);
+    expect(rect(r, 'comm')!.h).toBe(3);
   });
 });
 

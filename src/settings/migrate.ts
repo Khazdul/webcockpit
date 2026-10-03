@@ -24,6 +24,7 @@ import {
   defaultPaneRows,
   isPaneId,
   isScriptPaneId,
+  normalizeDock,
 } from '../layout/types';
 import { defaultFloatSize } from '../layout/allocate';
 import { normalizeHex } from '../theme/color';
@@ -128,8 +129,10 @@ function migratePanes(raw: unknown): PaneSettingsMap {
 
 /**
  * A valid layout from anything: known dock ids only, sizes clamped, each
- * pane id at most once (docks first, lane by lane, then `floating`; first
- * occurrence wins), empty lanes removed, and any built-in pane missing from
+ * pane id at most once (docks first, each dock's head spans, lane by lane,
+ * its tail spans, then `floating`; first occurrence wins), empty lanes
+ * removed, spans folded into lane 0 of a dock with fewer than two lanes
+ * (ADR 0067; a layout without spans gets empty ones), and any built-in pane missing from
  * every dock and from `floating` appended to lane 0 of the right dock (made
  * at its default size if the dock is empty) with its default height (the map instead
  * floats at its default spot, `defaultMapFloat`). A dock missing from an
@@ -157,19 +160,27 @@ export function migrateLayout(raw: unknown): LayoutModel {
     const x = isObj(docksRaw[dock]) ? (docksRaw[dock] as Obj) : {};
     // Before ADR 0064 a dock was one strip `{ size, panes }`: lane 0 now.
     const lanesRaw: unknown[] = Array.isArray(x.lanes) ? x.lanes : [{ size: x.size, panes: x.panes }];
-    const lanes: DockLane[] = [];
-    for (const l of lanesRaw) {
-      if (!isObj(l)) continue;
+    const list = (raw: unknown): DockPane[] => {
       const panes: DockPane[] = [];
-      for (const p of Array.isArray(l.panes) ? l.panes : []) {
+      for (const p of Array.isArray(raw) ? raw : []) {
         if (!isObj(p)) continue;
         const id = p.id;
         if (!take(id)) continue;
         panes.push({ id, desired: int(p.desired, 1, MAX_CELLS, defaultPaneRows(id)) });
       }
+      return panes;
+    };
+    // Spanning panes (ADR 0067): the head wins over the lanes, the lanes over the tail.
+    const head = list(x.head);
+    const lanes: DockLane[] = [];
+    for (const l of lanesRaw) {
+      if (!isObj(l)) continue;
+      const panes = list(l.panes);
       if (panes.length > 0) lanes.push({ size: int(l.size, 1, MAX_CELLS, defaultDockSize(dock)), panes });
     }
-    out.docks[dock] = { lanes };
+    const tail = list(x.tail);
+    out.docks[dock] = { lanes, head, tail };
+    normalizeDock(out.docks[dock], dock);
   }
   for (const f of isObj(raw) && Array.isArray(raw.floating) ? raw.floating : []) {
     if (!isObj(f)) continue;
