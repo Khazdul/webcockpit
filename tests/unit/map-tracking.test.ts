@@ -345,6 +345,111 @@ describe.skipIf(!HAS_ARDA)('tracking the map-demo fixture', () => {
   });
 });
 
+describe.skipIf(!HAS_ARDA)('lost on a row of lookalike rooms (ADR 0071)', () => {
+  // West of The Entrance to Mirkwood the map has four "Old Forest Road"
+  // rooms (no server ids); MUME calls the first one "Field Covered with
+  // Beets" (the map is outdated there), so it is not located.
+  const ENTRANCE = 21165;
+  const [R1, R2, R3, R4] = [20637, 20624, 20623, 20611];
+  let map: MapData;
+  beforeAll(async () => {
+    map = await loadArda();
+  });
+  const data = (r: number, o: Record<string, unknown> = {}): Record<string, unknown> => {
+    const exits: Record<string, object> = {};
+    const ex = visibleExits(map, r);
+    'nsewud'.split('').forEach((k, d) => {
+      if (ex & (1 << d)) exits[k] = {};
+    });
+    return { name: map.names[r], desc: map.descs[r], exits, ...o };
+  };
+  const moved = (dir: string): MapEvent => ({ k: 'gmcp', pkg: 'Event.Moved', data: { dir } });
+  const room = (d: Record<string, unknown>): MapEvent => ({ k: 'gmcp', pkg: 'Room.Info', data: d });
+  const beets = (): Record<string, unknown> => data(R1, { name: 'Field Covered with Beets', desc: 'Beets grow here in long rows.' });
+
+  it('has the map as the bug report saw it', () => {
+    expect([ENTRANCE, R1, R2, R3, R4].map((r) => map.names[r])).toEqual([
+      'The Entrance to Mirkwood', 'Old Forest Road', 'Old Forest Road', 'Old Forest Road', 'Old Forest Road',
+    ]);
+    expect([R1, R2, R3, R4].map((r) => map.serverId[r])).toEqual([0, 0, 0, 0]);
+    const west = (r: number) => [...exitTargets(map, r, DIR.W)];
+    expect([west(ENTRANCE), west(R1), west(R2), west(R3)]).toEqual([[R1], [R2], [R3], [R4]]);
+  });
+
+  it('follows the real room west after an unlocated one, not one room behind', () => {
+    const tr = new Tracker();
+    tr.setMap(map, 'h');
+    tr.apply([room(data(ENTRANCE))]);
+    expect(tr.status).toEqual({ located: true, room: ENTRANCE, how: 'text' });
+    const seen: [boolean, number | null, string][] = [];
+    for (const d of [beets(), data(R2), data(R3), data(R4)]) {
+      tr.apply([moved('west'), room(d)]);
+      seen.push([tr.status.located, tr.status.room, tr.status.how]);
+    }
+    expect(seen).toEqual([
+      [false, R1, 'none'], // not located; the position follows the exit tentatively
+      [true, R2, 'dir'],
+      [true, R3, 'dir'],
+      [true, R4, 'dir'],
+    ]);
+  });
+
+  it('rejects a lookalike reached from a stale room (exits and description differ)', () => {
+    const learned = new Map<number, number>();
+    const at = (r: number) => parseRoomInfo(data(r))!;
+    // Before ADR 0071 this was {room: R1, how: 'dir'}: west of the entrance by name only.
+    expect(locate(map, learned, at(R2), ENTRANCE, DIR.W)).toEqual({ room: R2, how: 'text' });
+    expect(locate(map, learned, at(R3), R1, DIR.W)).toEqual({ room: R3, how: 'text' });
+    // Same name and exit set, other description: tolerated from a located room only.
+    const changed = parseRoomInfo(data(R2, { desc: 'Rewritten.' }))!;
+    expect(locate(map, learned, changed, R1, DIR.W)).toEqual({ room: R2, how: 'dir' });
+    expect(locate(map, learned, changed, R1, DIR.W, false)).toEqual({ room: null, how: 'none' });
+    // Other exit set (a found hidden door, say), same description: tolerated from a located room only.
+    const door = parseRoomInfo(data(R3, { exits: { n: {}, s: {}, e: {}, w: {} } }))!;
+    expect(locate(map, learned, door, R2, DIR.W)).toEqual({ room: R3, how: 'dir' });
+    expect(locate(map, learned, door, R2, DIR.W, false).how).not.toBe('dir');
+    // No exits in Room.Info, no description: name only, as before.
+    const bare = parseRoomInfo({ name: 'Old Forest Road', desc: '' })!;
+    expect(locate(map, learned, bare, R2, DIR.W, false)).toEqual({ room: R3, how: 'dir' });
+  });
+
+  it('learns no ids from a match whose origin was tentative', () => {
+    const tr = new Tracker();
+    tr.setMap(map, 'h');
+    tr.apply([room(data(ENTRANCE))]);
+    const learnedBy: [number, number][][] = [];
+    const ids = { id: 900_001, exits: { e: { id: 900_000 }, s: {}, w: { id: 900_002 } } };
+    for (const d of [
+      { ...beets(), ...ids },
+      data(R2, { id: 900_002, exits: { n: {}, s: {}, e: { id: 900_001 }, w: { id: 900_003 } } }),
+      data(R3, { id: 900_003, exits: { s: {}, e: { id: 900_002 }, w: { id: 900_004 } } }),
+    ]) {
+      learnedBy.push(tr.apply([moved('west'), room(d)]).learned);
+    }
+    expect(learnedBy).toEqual([
+      [], // not located
+      [], // located by direction from the tentative room: nothing learned
+      [
+        [900_003, R3],
+        [900_002, R2], // east, the room before
+        [900_004, R4],
+      ],
+    ]);
+  });
+
+  it('uses a learned id only while its room has Room.Info\'s name and exit set', () => {
+    const learned = new Map<number, number>([[900_100, R2], [900_101, R3]]);
+    // R3's text and exits under an id learned (wrongly) for R2: dropped, found by text.
+    const wrong = parseRoomInfo(data(R3, { id: 900_100 }))!;
+    expect(locate(map, learned, wrong, null, LOOK)).toEqual({ room: R3, how: 'text' });
+    expect(learned.has(900_100)).toBe(false);
+    // The right room keeps it, whatever the description says.
+    const right = parseRoomInfo(data(R3, { id: 900_101, desc: '?' }))!;
+    expect(locate(map, learned, right, null, LOOK)).toEqual({ room: R3, how: 'learned' });
+    expect(learned.get(900_101)).toBe(R3);
+  });
+});
+
 describe.skipIf(!HAS_ARDA)('map worker core tracking', () => {
   it('sets the scene, re-centres, posts status and persists learned ids', async () => {
     const map = await loadArda();
