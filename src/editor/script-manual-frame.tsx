@@ -4,7 +4,7 @@
 // profile editor's HELP layout (manual-view.tsx). Opened from the script
 // editor (MANUAL, F1 at the name under the cursor) and from the Scripts
 // page; ESC goes back, and the editor below keeps its buffer, cursor and
-// search.
+// search. Ctrl+F finds in the manual (ADR 0070; ESC closes the panel first).
 
 import type { VNode } from 'preact';
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
@@ -18,16 +18,25 @@ import { indexLinkOf, manualSectionOf, scriptManualLayout, scriptManualSections 
 
 /** Footer hints, longest first; the first that fits is shown. */
 const BODY_HINTS = [
+  '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Back',
   '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Back',
+  '↑↓ Scroll · ← Menu · n/p Heading · Ctrl+F Find · ESC Back',
   '↑↓ Scroll · ← Menu · n/p Heading · ESC Back',
   '↑↓ Scroll · ESC Back',
 ];
 const MENU_HINTS = [
+  '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Back',
   '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Back',
+  '↑↓ Section · → Manual · Ctrl+F Find · ESC Back',
   '↑↓ Section · → Manual · ESC Back',
   '↑↓ Section · ESC Back',
 ];
-const NARROW_HINTS = ['↑↓ Scroll · PgUp/PgDn Page · n/p Heading · ESC Back', '↑↓ Scroll · ESC Back'];
+const NARROW_HINTS = [
+  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · ESC Back',
+  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · ESC Back',
+  '↑↓ Scroll · Ctrl+F Find · ESC Back',
+  '↑↓ Scroll · ESC Back',
+];
 
 /** Pushes the manual, at the reference entry or section of `name` when there is one. */
 export function openScriptManual(nav: Nav, name?: string): void {
@@ -51,12 +60,18 @@ export function ScriptManual({ section: initial = 0 }: { section?: number }): VN
   const height = Math.max(3, rows - gap - 4);
   const z: ManualZone = hf.menu ? zone : 'help';
 
+  // The root holds the keyboard, unless the find field has it.
   useLayoutEffect(() => {
     const root = rootRef.current;
-    if (root && root.ownerDocument.activeElement !== root) root.focus({ preventScroll: true });
+    const active = root?.ownerDocument.activeElement;
+    if (!root || active === root || (active && root.contains(active) && active.closest('.wc-search'))) return;
+    root.focus({ preventScroll: true });
   });
 
   useKeys((e, nk) => {
+    // Find in the manual: Ctrl+F, the panel's keys; ESC closes it first.
+    const found = ctl.current?.findKey(e) ?? null;
+    if (found !== null) return found;
     if ((nk === 'tab' || nk === 'backtab') && hf.menu) {
       setZone(z === 'menu' ? 'help' : 'menu');
       return true;

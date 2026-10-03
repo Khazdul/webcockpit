@@ -416,6 +416,23 @@
   border-top: none;
 }
 
+/* Find in the manuals (manual-find.tsx, ADR 0070): the same panel under
+ * the manual, and the matches marked like the buffer's. */
+.wc-msearch {
+  flex: 0 0 auto;
+}
+
+.wc-msearch-hit {
+  background: var(--c-brace-match-bg);
+  outline: 1px solid var(--c-hint);
+}
+
+.wc-msearch-cur,
+.wc-msearch-cur * {
+  color: var(--c-sel-fg);
+  background: var(--c-focus-bg);
+}
+
 /* Live errors (lua-lint.ts): a one-cell gutter with a red dot, a red band
  * on the line, an underline where the message names a token; runtime
  * errors of the saved script dashed. The selectors outrank the lint
