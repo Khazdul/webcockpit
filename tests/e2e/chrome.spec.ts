@@ -229,8 +229,9 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   // Reset layout (the click moved the cursor to Comm; UI, Map, then Reset).
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
-      d.layout.docks.right.size = 40;
-      d.layout.docks.right.panes = d.layout.docks.right.panes.filter((p) => p.id !== 'comm');
+      const lane = d.layout.docks.right.lanes[0]!;
+      lane.size = 40;
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm');
       d.layout.floating = [{ id: 'comm', x: 5, y: 5, w: 30, h: 10 }];
     }),
   );
@@ -238,10 +239,10 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await expect(startSel(page)).toHaveText('<< Reset layout >>');
   await page.keyboard.press('Enter');
   await expect(startFlash(page)).toHaveText('Layout reset.');
-  await expect.poll(async () => (await settings(page)).layout.docks.right.size).toBe(33);
+  await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([33]);
   // Every side pane docked in the right column again; the map floats (off).
   expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['map']);
-  expect((await settings(page)).layout.docks.right.panes.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui']);
+  expect((await settings(page)).layout.docks.right.lanes[0]!.panes.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui']);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 

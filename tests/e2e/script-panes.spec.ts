@@ -136,7 +136,7 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await page.evaluate((id) =>
     window.__wc!.settings.update((d) => {
       d.layout.floating = d.layout.floating.filter((f) => f.id !== id);
-      d.layout.docks.left.panes.push({ id: id as 'a/b', desired: 6 });
+      d.layout.docks.left.lanes = [{ size: 33, panes: [{ id: id as 'a/b', desired: 6 }] }];
     }),
   ID);
   await expect(pane(page)).not.toHaveAttribute('data-floating', '');
@@ -151,7 +151,7 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await expect(pane(page)).toHaveCount(0);
   const kept = await page.evaluate((id) => {
     const s = window.__wc!.settings.get();
-    return { left: s.layout.docks.left.panes.map((p) => p.id), color: s.panes[id as 'a/b']?.color };
+    return { left: s.layout.docks.left.lanes.flatMap((l) => l.panes).map((p) => p.id), color: s.panes[id as 'a/b']?.color };
   }, ID);
   expect(kept).toEqual({ left: [ID], color: 'red' });
 

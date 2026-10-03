@@ -22,7 +22,7 @@ async function cockpitHeights(page: Page): Promise<void> {
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
       const want: Record<string, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5 };
-      for (const p of d.layout.docks.right.panes) p.desired = want[p.id] ?? p.desired;
+      for (const p of d.layout.docks.right.lanes[0]!.panes) p.desired = want[p.id] ?? p.desired;
     }),
   );
 }
@@ -137,7 +137,7 @@ test('drag a pane by its title row to the left dock', async ({ page }) => {
   // The left dock runs the full height, beside the input line.
   expect(await box(page, '.wc-pane-comm')).toMatchObject({ height: rows * ch });
   expect(await box(page, '.wc-input-slot')).toEqual({ x: 34 * cw, y: (rows - 1) * ch, width: (cols - 68) * cw, height: ch });
-  const left = await page.evaluate(() => window.__wc!.settings.get().layout.docks.left.panes.map((p) => p.id));
+  const left = await page.evaluate(() => window.__wc!.settings.get().layout.docks.left.lanes.flatMap((l) => l.panes).map((p) => p.id));
   expect(left).toEqual(['comm']);
   await expect(page.locator('.wc-input-field')).toBeFocused();
 
@@ -148,7 +148,7 @@ test('drag a pane by its title row to the left dock', async ({ page }) => {
   await page.mouse.move(o.x + ui.x + 6 * cw, o.y + 2 * ch, { steps: 8 });
   await page.mouse.up();
   await expect
-    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.right.panes.map((p) => p.id)))
+    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.right.lanes.flatMap((l) => l.panes).map((p) => p.id)))
     .toEqual(['ui', 'character', 'timers', 'group']);
 });
 
@@ -173,7 +173,7 @@ test('drag a pane to the top screen edge opens the top dock', async ({ page }) =
   expect(await box(page, '.wc-game')).toEqual({ x: 0, y: 11 * ch, width: (cols - 34) * cw, height: (rows - 12) * ch });
   expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 1) * ch, width: (cols - 34) * cw, height: ch });
   const top = await page.evaluate(() => window.__wc!.settings.get().layout.docks.top);
-  expect(top).toEqual({ size: 10, panes: [{ id: 'comm', desired: 30 }] });
+  expect(top).toEqual({ lanes: [{ size: 10, panes: [{ id: 'comm', desired: 30 }] }] });
 
   // The gap row under the top dock resizes it.
   const gapY = o.y + 10 * ch + ch / 2;
@@ -311,6 +311,112 @@ test('a drag shows its cursor on a shield over the cockpit, gone after the drop'
   }
 });
 
+test('dock lanes: a second column by drag, lane boundary resize, reload, empty lane removed', async ({ page }) => {
+  const { cw, ch, cols, rows } = await open(page);
+  const o = await origin(page);
+  const lanes = () =>
+    page.evaluate(() =>
+      window.__wc!.settings.get().layout.docks.right.lanes.map((l) => [l.size, l.panes.map((p) => p.id)] as const),
+    );
+
+  // Drag Comm to the inner (left) edge band of the right column: a full-height
+  // vertical bar along the column edge, and a new column inside it.
+  const comm = await box(page, '.wc-pane-comm');
+  await page.mouse.move(o.x + comm.x + 6 * cw, o.y + comm.y + ch / 2);
+  await page.mouse.down();
+  await page.mouse.move(o.x + (cols - 33) * cw + cw / 2, o.y + 300, { steps: 8 });
+  await expect(page.locator('.wc-drop-bar')).toBeVisible();
+  const bar = await box(page, '.wc-drop-bar');
+  expect(bar.height).toBe(rows * ch);
+  expect(Math.abs(bar.x + bar.width / 2 - (cols - 33) * cw)).toBeLessThanOrEqual(1);
+  await page.mouse.up();
+  await expect.poll(lanes).toEqual([
+    [33, ['character', 'timers', 'group', 'ui']],
+    [33, ['comm']],
+  ]);
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 66) * cw, y: 0, width: 33 * cw, height: rows * ch });
+  const gameW = (cols - 67) * cw;
+  expect(await box(page, '.wc-game')).toMatchObject({ x: 0, width: gameW });
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+
+  // The boundary between the columns (the right part of the inner column's
+  // last column) moves cells between them; the game pane keeps its width.
+  const bx = o.x + (cols - 33) * cw - 2;
+  await page.mouse.move(bx, o.y + 300);
+  expect(await page.evaluate(([x, y]) => getComputedStyle(document.elementFromPoint(x!, y!)!).cursor, [bx, o.y + 300])).toBe('col-resize');
+  await page.mouse.down();
+  await page.mouse.move(bx - 5 * cw, o.y + 300, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(lanes).toEqual([
+    [38, ['character', 'timers', 'group', 'ui']],
+    [28, ['comm']],
+  ]);
+  await expect.poll(() => box(page, '.wc-pane-character')).toMatchObject({ x: (cols - 38) * cw, width: 38 * cw });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: (cols - 66) * cw, width: 28 * cw });
+  expect(await box(page, '.wc-game')).toMatchObject({ width: gameW });
+
+  // The gap next to the game pane resizes the inner column only.
+  const gapX = o.x + (cols - 67) * cw + cw / 2;
+  await page.mouse.move(gapX, o.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(gapX + 3 * cw, o.y + 300, { steps: 3 });
+  await page.mouse.up();
+  await expect.poll(lanes).toEqual([
+    [38, ['character', 'timers', 'group', 'ui']],
+    [25, ['comm']],
+  ]);
+  await expect.poll(() => box(page, '.wc-game')).toMatchObject({ width: (cols - 64) * cw });
+
+  // A reload keeps both columns.
+  await page.evaluate(() => window.__wc!.settings.flush());
+  await page.reload();
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await metrics(page);
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 63) * cw, y: 0, width: 25 * cw, height: rows * ch });
+  expect(await box(page, '.wc-pane-character')).toMatchObject({ x: (cols - 38) * cw, width: 38 * cw });
+
+  // Moving the last pane out of the inner column removes it; the game pane
+  // gets the space back.
+  const c2 = await box(page, '.wc-pane-comm');
+  await page.mouse.move(o.x + c2.x + 6 * cw, o.y + c2.y + ch / 2);
+  await page.mouse.down();
+  await page.mouse.move(o.x + (cols - 20) * cw, o.y + 2 * ch, { steps: 8 });
+  await expect(page.locator('.wc-drop-bar')).toBeVisible();
+  await page.mouse.up();
+  await expect.poll(lanes).toEqual([[38, ['comm', 'character', 'timers', 'group', 'ui']]]);
+  await expect.poll(() => box(page, '.wc-game')).toMatchObject({ width: (cols - 39) * cw });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: (cols - 38) * cw, y: 0, width: 38 * cw });
+});
+
+test('dock lanes: a second row in the bottom dock from the upper edge band', async ({ page }) => {
+  const { cw, ch, cols, rows } = await open(page);
+  const o = await origin(page);
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const lane = d.layout.docks.right.lanes[0]!;
+      d.layout.docks.bottom.lanes = [{ size: 10, panes: lane.panes.filter((p) => p.id === 'comm') }];
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm');
+    }),
+  );
+  await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ y: (rows - 10) * ch, height: 10 * ch });
+  // UI to the upper band of the bottom row: a horizontal bar, a new row above it.
+  const ui = await box(page, '.wc-pane-ui');
+  await page.mouse.move(o.x + ui.x + 6 * cw, o.y + ui.y + ch / 2);
+  await page.mouse.down();
+  await page.mouse.move(o.x + 300, o.y + (rows - 10) * ch + ch / 2, { steps: 8 });
+  await expect(page.locator('.wc-drop-bar')).toBeVisible();
+  expect((await box(page, '.wc-drop-bar')).width).toBe((cols - 34) * cw);
+  await page.mouse.up();
+  await expect
+    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.bottom.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])))
+    .toEqual([
+      [10, ['comm']],
+      [10, ['ui']],
+    ]);
+  await expect.poll(() => box(page, '.wc-pane-ui')).toEqual({ x: 0, y: (rows - 20) * ch, width: (cols - 34) * cw, height: 10 * ch });
+  expect(await box(page, '.wc-input-slot')).toMatchObject({ y: (rows - 22) * ch });
+});
+
 test('too-small window shows a notice and recovers', async ({ page }) => {
   await open(page);
   await page.setViewportSize({ width: 400, height: 250 });
@@ -429,7 +535,7 @@ test('floating pane: drop over the game, move, resize, reload, dock again', asyn
   await page.mouse.up();
   await expect.poll(() => floating(page)).toEqual([]);
   await expect
-    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.right.panes.map((p) => p.id)))
+    .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.right.lanes.flatMap((l) => l.panes).map((p) => p.id)))
     .toEqual(['comm', 'character', 'timers', 'group', 'ui']);
   await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-floating');
   expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: (cols - 33) * cw, y: 0, width: 33 * cw });
@@ -440,7 +546,8 @@ test('floating panes come to front on a press and stay inside a smaller window',
   const o = await origin(page);
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
-      d.layout.docks.right.panes = d.layout.docks.right.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
+      const lane = d.layout.docks.right.lanes[0]!;
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
       d.layout.floating = [
         { id: 'comm', x: 60, y: 30, w: 30, h: 12 },
         { id: 'ui', x: 70, y: 35, w: 30, h: 12 },
@@ -486,8 +593,9 @@ test('a tall docked pane dragged out floats at the standard 36 × 14 size', asyn
   // Comm alone in the right column: it is the full window height.
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
-      d.layout.docks.left.panes = d.layout.docks.right.panes.filter((p) => p.id !== 'comm');
-      d.layout.docks.right.panes = d.layout.docks.right.panes.filter((p) => p.id === 'comm');
+      const lane = d.layout.docks.right.lanes[0]!;
+      d.layout.docks.left.lanes = [{ size: 33, panes: lane.panes.filter((p) => p.id !== 'comm') }];
+      lane.panes = lane.panes.filter((p) => p.id === 'comm');
     }),
   );
   await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ y: 0, height: rows * ch });
