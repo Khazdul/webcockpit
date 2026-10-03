@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CaptureStore } from '../../src/capture/store';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
-import { EVEN_SHARE_DESIRED, PANE_IDS, defaultMapFloat } from '../../src/layout/types';
+import { EVEN_SHARE_DESIRED, PANE_IDS, defaultMapFloat, dockPanes } from '../../src/layout/types';
 import {
   DEFAULT_SETTINGS,
   MIRROR_KEY,
@@ -80,15 +80,16 @@ describe('migrateSettings', () => {
   });
 
   it('default layout: right dock 33 wide, Cockpit order, Character 9 and even shares (ADR 0023)', () => {
-    const r = DEFAULT_SETTINGS.layout.docks.right;
-    expect(r.size).toBe(33);
-    expect(r.panes).toEqual(
+    const [r, ...more] = DEFAULT_SETTINGS.layout.docks.right.lanes;
+    expect(more).toEqual([]);
+    expect(r!.size).toBe(33);
+    expect(r!.panes).toEqual(
       ['character', 'timers', 'group', 'comm', 'ui'].map((id) => ({
         id,
         desired: id === 'character' ? 9 : EVEN_SHARE_DESIRED,
       })),
     );
-    expect(DEFAULT_SETTINGS.layout.docks.left.panes).toEqual([]);
+    expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
     expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true });
     expect(Object.isFrozen(DEFAULT_SETTINGS.appearance.ansi)).toBe(true);
   });
@@ -260,14 +261,16 @@ describe('migrateSettings', () => {
         },
       },
     });
-    expect(s.layout.docks.left).toEqual({ size: 20, panes: [{ id: 'comm', desired: 12 }] });
-    expect(s.layout.docks.right.size).toBe(1);
-    expect(s.layout.docks.right.panes.map((p) => p.id)).toEqual(['ui', 'character', 'timers', 'group']);
-    expect(s.layout.docks.right.panes[0]).toEqual({ id: 'ui', desired: 5 });
-    expect(s.layout.docks.bottom).toEqual({ size: 10, panes: [] });
+    // The shape before ADR 0064 (one strip) becomes one lane.
+    expect(s.layout.docks.left).toEqual({ lanes: [{ size: 20, panes: [{ id: 'comm', desired: 12 }] }] });
+    expect(s.layout.docks.right.lanes).toHaveLength(1);
+    expect(s.layout.docks.right.lanes[0]!.size).toBe(1);
+    expect(s.layout.docks.right.lanes[0]!.panes.map((p) => p.id)).toEqual(['ui', 'character', 'timers', 'group']);
+    expect(s.layout.docks.right.lanes[0]!.panes[0]).toEqual({ id: 'ui', desired: 5 });
+    expect(s.layout.docks.bottom).toEqual({ lanes: [] });
     // Layouts stored before the top dock existed get an empty one.
-    expect(s.layout.docks.top).toEqual({ size: 10, panes: [] });
-    const all = Object.values(s.layout.docks).flatMap((d) => d.panes.map((p) => p.id));
+    expect(s.layout.docks.top).toEqual({ lanes: [] });
+    const all = Object.values(s.layout.docks).flatMap((d) => dockPanes(d).map((p) => p.id));
     // The map floats at its default spot (ADR 0020).
     expect(s.layout.floating).toEqual([defaultMapFloat()]);
     expect([...all, 'map'].sort()).toEqual([...PANE_IDS].sort());
@@ -294,15 +297,61 @@ describe('migrateLayout: floating panes', () => {
       { id: 'comm', x: 4, y: 2, w: 30, h: 12 },
       { id: 'group', x: 0, y: 0, w: 1, h: 8 },
     ]);
-    expect(s.layout.docks.right.panes.map((p) => p.id)).toEqual(['character', 'timers', 'ui']);
-    expect(s.layout.docks.top).toEqual({ size: 10, panes: [] });
+    expect(dockPanes(s.layout.docks.right).map((p) => p.id)).toEqual(['character', 'timers', 'ui']);
+    expect(s.layout.docks.top).toEqual({ lanes: [] });
   });
 
   it('gives an older layout a floating list with only the map and a top dock', () => {
     const s = migrateSettings({ layout: { docks: { right: { size: 40, panes: [] } } } });
     expect(s.layout.floating).toEqual([defaultMapFloat()]);
-    expect(s.layout.docks.top.panes).toEqual([]);
-    expect(s.layout.docks.right.size).toBe(40);
+    expect(s.layout.docks.top.lanes).toEqual([]);
+    // An empty old dock has no lanes; the missing panes make lane 0 at the default size.
+    expect(s.layout.docks.right.lanes.map((l) => l.size)).toEqual([33]);
+    expect(dockPanes(s.layout.docks.right)).toHaveLength(5);
+    const kept = migrateSettings({ layout: { docks: { right: { size: 40, panes: [{ id: 'ui', desired: 5 }] } } } });
+    expect(kept.layout.docks.right.lanes.map((l) => l.size)).toEqual([40]);
+  });
+});
+
+describe('migrateLayout: dock lanes (ADR 0064)', () => {
+  it('keeps lanes, repairs each, removes empty ones and keeps every pane once', () => {
+    const s = migrateSettings({
+      layout: {
+        docks: {
+          right: {
+            lanes: [
+              { size: 30, panes: [{ id: 'character', desired: 9 }, { id: 'timers', desired: 8 }] },
+              { size: 20, panes: [] },
+              { size: 'x', panes: [{ id: 'group', desired: 6 }, { id: 'character', desired: 3 }] },
+              { size: 15, panes: [{ id: 'bogus', desired: 1 }] },
+              'garbage',
+              { size: 99999, panes: [{ id: 'comm', desired: 10 }] },
+            ],
+          },
+          bottom: { lanes: [{ size: 4, panes: [{ id: 'ui', desired: 30 }] }, { size: 5 }] },
+          top: { lanes: 'nope' },
+        },
+      },
+    });
+    const r = s.layout.docks.right.lanes;
+    expect(r.map((l) => l.panes.map((p) => p.id))).toEqual([['character', 'timers'], ['group'], ['comm']]);
+    expect(r[0]!.size).toBe(30);
+    expect(r[1]!.size).toBe(33);
+    expect(r[2]!.size).toBeLessThan(99999);
+    expect(s.layout.docks.bottom).toEqual({ lanes: [{ size: 4, panes: [{ id: 'ui', desired: 30 }] }] });
+    expect(s.layout.docks.top).toEqual({ lanes: [] });
+    // The new shape survives a second migration unchanged.
+    expect(migrateSettings(s).layout).toEqual(s.layout);
+  });
+
+  it('appends missing built-ins to lane 0 of the right dock', () => {
+    const s = migrateSettings({
+      layout: { docks: { right: { lanes: [{ size: 25, panes: [{ id: 'ui', desired: 5 }] }, { size: 20, panes: [{ id: 'comm', desired: 4 }] }] } } },
+    });
+    expect(s.layout.docks.right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([
+      ['ui', 'character', 'timers', 'group'],
+      ['comm'],
+    ]);
   });
 });
 
@@ -368,12 +417,13 @@ describe('SettingsStore', () => {
   it('arrays in a patch replace the whole array', async () => {
     const s = make({ factory: new IDBFactory() });
     await s.load();
-    s.update({ layout: { docks: { right: { panes: [{ id: 'ui', desired: 7 }] } } } });
+    s.update({ layout: { docks: { right: { lanes: [{ size: 30, panes: [{ id: 'ui', desired: 7 }] }] } } } });
     const right = s.get().layout.docks.right;
-    expect(right.size).toBe(33);
+    expect(right.lanes).toHaveLength(1);
+    expect(right.lanes[0]!.size).toBe(30);
     // The migration re-adds the panes the patch left out.
-    expect(right.panes[0]).toEqual({ id: 'ui', desired: 7 });
-    expect(right.panes).toHaveLength(5);
+    expect(right.lanes[0]!.panes[0]).toEqual({ id: 'ui', desired: 7 });
+    expect(right.lanes[0]!.panes).toHaveLength(5);
   });
 
   it('persists debounced, reloads, and mirrors appearance', async () => {

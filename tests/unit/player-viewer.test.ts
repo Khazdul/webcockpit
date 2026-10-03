@@ -65,7 +65,7 @@ describe('viewer overrides', () => {
   });
 
   it('pane toggles and the layout win over a later VIEW record', () => {
-    const layout = movePane(defaultLayout(), 'group', 'left', 0);
+    const layout = movePane(defaultLayout(), 'group', 'left', 0, 0);
     let o = withPane(noOverrides(), 'comm', false);
     o = withPane(o, 'map', true);
     o = withLayout(o, layout);
@@ -85,8 +85,8 @@ describe('viewer overrides', () => {
   it('withLayout copies; reset drops panes and layout, keeps font and theme', () => {
     const layout = defaultLayout();
     const o = withLayout({ ...noOverrides(), font: 'large', theme: 'paper' }, layout);
-    layout.docks.right.size = 99;
-    expect(o.layout!.docks.right.size).not.toBe(99);
+    layout.docks.right.lanes[0]!.size = 99;
+    expect(o.layout!.docks.right.lanes[0]!.size).not.toBe(99);
     const r = resetLayout(withPane(o, 'ui', false));
     expect(r).toEqual({ font: 'large', theme: 'paper' });
     expect(hasLayoutOverride(r)).toBe(false);

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { TRUECOLOR } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
-import { findFloat, findPane, placeScriptPane, togglePatch } from '../../src/layout/model';
+import { findFloat, findPane, moveToNewLane, placeScriptPane, togglePatch } from '../../src/layout/model';
 import { type LayoutModel, PANE_COLORS, defaultLayout, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
 import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
@@ -214,10 +214,16 @@ describe('script pane ids in the layout and the settings', () => {
 
   it('places a new pane at the end of its dock or as an auto float, once', () => {
     let m = placeScriptPane(defaultLayout(), id, { dock: 'left', rows: 6, cols: 20 });
-    expect(m.docks.left.panes).toEqual([{ id, desired: 6 }]);
+    expect(m.docks.left.lanes).toEqual([{ size: 33, panes: [{ id, desired: 6 }] }]);
     expect(placeScriptPane(m, id, { dock: 'top', rows: 1, cols: 1 })).toBe(m);
     m = placeScriptPane(defaultLayout(), id, { dock: 'bottom', rows: 6, cols: 40 });
-    expect(m.docks.bottom.panes).toEqual([{ id, desired: 40 }]);
+    expect(m.docks.bottom.lanes).toEqual([{ size: 10, panes: [{ id, desired: 40 }] }]);
+    // A dock with lanes: the end of lane 0.
+    const two = moveToNewLane(defaultLayout(), 'ui', 'right', 1, 20);
+    expect(placeScriptPane(two, id, { dock: 'right', rows: 4, cols: 9 }).docks.right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([
+      ['character', 'timers', 'group', 'comm', id],
+      ['ui'],
+    ]);
     m = placeScriptPane(defaultLayout(), id, { dock: 'float', rows: 6, cols: 20 });
     expect(m.floating[0]).toEqual({ id, x: 0, y: 0, w: 22, h: 8, auto: true });
   });
@@ -258,13 +264,13 @@ describe('script pane ids in the layout and the settings', () => {
     raw.panes[id] = { on: false, color: 'red', border: 'yes' };
     raw.panes['bad id'] = { on: true };
     raw.panes['x/y'] = 'garbage';
-    raw.layout.docks.left.panes.push({ id, desired: 3 }, { id: 'nope/', desired: 2 }, { id: 'a/b', desired: 'x' });
+    raw.layout.docks.left.lanes[0].panes.push({ id, desired: 3 }, { id: 'nope/', desired: 2 }, { id: 'a/b', desired: 'x' });
     raw.layout.floating.push({ id: 'c/d', x: 1, y: 2, w: 30, h: 9, auto: true });
     const s = migrateSettings(raw);
     expect(s.panes[id]).toEqual({ on: false, color: 'red', border: true });
     expect('bad id' in s.panes).toBe(false);
     expect('x/y' in s.panes).toBe(false);
-    expect(s.layout.docks.left.panes).toEqual([
+    expect(s.layout.docks.left.lanes[0]!.panes).toEqual([
       { id, desired: 6 },
       { id: 'a/b', desired: 8 },
     ]);
@@ -388,7 +394,7 @@ describe('ScriptPane and the cockpit surface', () => {
       onLink: () => {},
       onResize: (c, r) => sizes.push(`${c}x${r}`),
     });
-    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', index: 0 });
+    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', lane: 0, index: 0 });
     expect(settings.get().panes[id]).toEqual({ on: true, color: 'black', border: true });
     flush();
     const el = cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"]`)!;
@@ -402,8 +408,8 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(el.querySelector('.wc-pane-content')!.textContent).toContain('hello');
     // The user moves it; close; open again: it is where the user put it.
     settings.update((d) => {
-      d.layout.docks.left.panes = [];
-      d.layout.docks.bottom.panes.push({ id, desired: 40 });
+      d.layout.docks.left.lanes = [];
+      d.layout.docks.bottom.lanes = [{ size: 10, panes: [{ id, desired: 40 }] }];
     });
     view.setOn(false);
     expect(view.isOn()).toBe(false);
@@ -411,13 +417,13 @@ describe('ScriptPane and the cockpit surface', () => {
     flush();
     expect(cockpit.el.querySelector(`.wc-pane[data-pane="${id}"]`)).toBeNull();
     expect(cockpit.scriptPanes()).toEqual([]);
-    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'bottom', index: 0 });
+    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'bottom', lane: 0, index: 0 });
     expect(settings.get().panes[id]!.on).toBe(false);
     surface.open({ id, place: { dock: 'left', rows: 5, cols: 20 } }, new PaneContent('Mercs'), { onLink: () => {}, onResize: () => {} });
-    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'bottom', index: 0 });
+    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'bottom', lane: 0, index: 0 });
     // A reset layout places an open pane again.
     settings.update({ layout: defaultLayout() });
-    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', index: 0 });
+    expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', lane: 0, index: 0 });
   });
 
   it('a click on a link calls onLink; hovering shows the hint and a pointer', () => {

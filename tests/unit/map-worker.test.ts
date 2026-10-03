@@ -216,7 +216,7 @@ describe('map pane layout migration', () => {
     });
     // Docked by the user: stays docked.
     const docked = migrateLayout({ docks: { left: { size: 40, panes: [{ id: 'map', desired: 20 }] } } });
-    expect(docked.docks.left.panes).toEqual([{ id: 'map', desired: 20 }]);
+    expect(docked.docks.left.lanes).toEqual([{ size: 40, panes: [{ id: 'map', desired: 20 }] }]);
     expect(docked.floating).toEqual([]);
   });
 });

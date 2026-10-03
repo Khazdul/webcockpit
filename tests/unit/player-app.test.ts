@@ -199,9 +199,9 @@ describe('PlayerHost', () => {
     const store = () => (host.app as unknown as { settings: SettingsStore }).settings;
     // The viewer drags a pane: the cockpit writes the layout to the App's store.
     store().update((d) => {
-      d.layout = movePane(d.layout, 'group', 'left', 0);
+      d.layout = movePane(d.layout, 'group', 'left', 0, 0);
     });
-    expect(host.viewerOverrides.layout?.docks.left.panes.map((p) => p.id)).toEqual(['group']);
+    expect(host.viewerOverrides.layout?.docks.left.lanes[0]?.panes.map((p) => p.id)).toEqual(['group']);
     host.setViewer({ ...host.viewerOverrides, font: 'large', theme: 'paper', panes: { comm: false } });
     const check = () => {
       const s = store().get();
@@ -209,7 +209,7 @@ describe('PlayerHost', () => {
       expect(s.appearance.bg).toBe('#f4ecd8');
       expect(s.panes.timers.color).toBe('black');
       expect(s.panes.comm.on).toBe(false);
-      expect(s.layout.docks.left.panes.map((p) => p.id)).toEqual(['group']);
+      expect(s.layout.docks.left.lanes[0]?.panes.map((p) => p.id)).toEqual(['group']);
     };
     check();
     eng.seek(3500); // past the second VIEW
@@ -223,7 +223,7 @@ describe('PlayerHost', () => {
     // Reset: the recorded layout and panes; font and theme stay.
     host.setViewer(resetLayout(host.viewerOverrides));
     expect(store().get().panes.comm.on).toBe(true);
-    expect(store().get().layout.docks.left.panes).toEqual([]);
+    expect(store().get().layout.docks.left.lanes).toEqual([]);
     expect(store().get().appearance.size).toBe(18);
     // Default theme: the recorded colours again.
     host.setViewer({ ...host.viewerOverrides, theme: 'default', font: 'default' });

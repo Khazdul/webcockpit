@@ -7,6 +7,7 @@ import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
 import { PaneShell } from '../../src/panes/pane';
 import { SettingsStore } from '../../src/settings';
+import { moveToNewLane, setLaneSize } from '../../src/layout/model';
 
 describe('frame', () => {
   it('draws the top row with the label after ▀▀ and fills to the width', () => {
@@ -155,7 +156,7 @@ describe('PaneShell render and active state', () => {
     t.show();
     t.flush();
     const n = t.p.renders;
-    s.update({ layout: { docks: { right: { size: 40 } } } });
+    s.update({ layout: { docks: { right: { lanes: [{ size: 40, panes: [{ id: 'group', desired: 6 }] }] } } } });
     t.p.applyTheme(s.get());
     t.flush();
     expect(t.p.renders).toBe(n);
@@ -281,10 +282,39 @@ describe('Cockpit', () => {
     expect(c.dropTarget(850, 900, 'comm')).toEqual({ kind: 'float', rect: { x: 84, y: 36, w: 36, h: 14 } });
   });
 
+  it('finds new-lane targets on the edge bands of a lane (ADR 0064)', () => {
+    const { c, settings, flush } = make(1200, 1000); // 120 × 50, right dock x 87..119: bands 3 cells
+    // The inner (left) band: a new lane inside lane 0; the outer band: at the screen edge.
+    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 1, size: 33 });
+    expect(c.dropTarget(1195, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 0, size: 33 });
+    // The bar runs along the whole lane boundary.
+    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ bar: { y: 0, h: 1000 } });
+    // Just inside the band: into the lane as before.
+    expect(c.dropTarget(900, 30, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 0, index: 0 });
+    settings.update((d) => {
+      d.layout = moveToNewLane(d.layout, 'group', 'right', 1, 20);
+    });
+    flush();
+    // Lane 1 is x 67..86 (bands 3 cells): alone there, a new lane beside it is no move.
+    expect(c.dropTarget(680, 400, 'group')).toBeNull();
+    expect(c.dropTarget(860, 400, 'group')).toBeNull();
+    // Its middle: into lane 1; a pane of lane 0 there joins lane 1.
+    expect(c.dropTarget(760, 400, 'group')).toBeNull();
+    expect(c.dropTarget(760, 900, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 1, index: 1 });
+    // The game pane is 66 wide: a new lane gets 33, then less when room runs out.
+    expect(c.dropTarget(680, 400, 'comm')).toMatchObject({ kind: 'lane', at: 2, size: 33 });
+    settings.update((d) => {
+      d.layout = setLaneSize(d.layout, 'right', 1, 50);
+    });
+    flush(); // game 36 wide: room for 6 < 10, so the band is no target
+    expect(c.dropTarget(380, 400, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 1 });
+  });
+
   it('places floating panes over the rest and docks them only from the screen edges', () => {
     const { c, settings, size, flush } = make(1200, 1000);
     settings.update((d) => {
-      d.layout.docks.right.panes = d.layout.docks.right.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
+      const lane = d.layout.docks.right.lanes[0]!;
+      lane.panes = lane.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
       d.layout.floating = [
         { id: 'comm', x: 80, y: 10, w: 30, h: 12 },
         { id: 'ui', x: 5, y: 5, w: 20, h: 6 },
