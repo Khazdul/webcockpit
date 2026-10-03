@@ -27,6 +27,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Stage 14: owner feedback round 1 (not released)
+
+- **Owner feedback:** grip to drag a one-row bar, padded equal-width
+  buttons, always horizontal flow with wrap, Character-pane toggle
+  colours, default place bottom of the right dock.
+- **Done:** `pane:setGrip(row, col, len)` (grab cursor, immediate move),
+  inverted hover on glow cells, panebar rework (`∷` grip, ` NAME `
+  buttons, flow layout, right dock lane 0 last). ADR 0065 amended.
+- **Verified:** typecheck clean, unit 1972 green, e2e 399/400 on the
+  full run; the one failure (keymanager focus, Chromium) passed 40/40
+  on its own, so it flakes under load.
+- **Next:** release 0.1.36 (owner; permission-gated), owner test.
+- **Commits:** a7ebdb0, 799671d, 796ccd3, plus this one.
+
 ### 2026-10-03 — Stage 14: pane bar; Options → Text input (not released)
 
 - **Owner request:** a bundled menu bar script with short-name toggle
