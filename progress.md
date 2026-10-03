@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.39). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 16 (readability script, adaptive colours; built, awaiting release and owner test). Stages 14 and 15 done (latest release 0.1.40). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -29,7 +29,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Stage 9 map fix: lookalike rooms west of Mirkwood (not released)
+### 2026-10-03 — Stage 9 map fix: lookalike rooms west of Mirkwood, release 0.1.40
 
 - **Owner report:** running west from The Entrance to Mirkwood the map
   stayed one room behind along the "Old Forest Road" rooms.
@@ -39,7 +39,10 @@ Newest first.
   ids need name and exit set. ADR 0071. New `bench/map-locate-bench.ts`:
   Tracker 0.75–0.91 → 0.47–0.53 µs, locate() 0.30–0.41 → 0.07–0.12 µs
   per Room.Info. Unit 2070 green, typecheck clean, map e2e 8 green.
-- **Next:** owner retests the Mirkwood walk; release when the owner says so.
+- **Released:** 0.1.40 (tag v0.1.40), also carries the manual find
+  work. build:pages smoke green, Pages deploy green, live release.json
+  shows 0.1.40, test:prod 10/10.
+- **Next:** owner retests the Mirkwood walk.
 - **Commits:** b682ffb, c00a066, 24f8ff0, plus this one.
 
 ### 2026-10-03 — Manual audit; Ctrl+F in the manuals and from LITE (not released)
