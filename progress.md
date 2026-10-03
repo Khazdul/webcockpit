@@ -29,6 +29,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Manual audit; Ctrl+F in the manuals and from LITE (not released)
+
+- **Owner asks:** is the API manual current with the last days' work;
+  Ctrl+F in the script and profile manuals; find/replace when editing a
+  profile.
+- **Done:** manual audit: script manual on pane shade tags, adaptive
+  copy2cecho, gauge colours, all five bundled scripts; profile manual on
+  #showme self-matches, bold brightening, the MANUAL button. Find panel
+  in ManualView (both manuals); Ctrl+F/Ctrl+H in LITE open EDITOR search
+  from the selected entry. ADR 0070. Unit 2065 green, typecheck clean,
+  related e2e 122 green (Chromium, Firefox).
+- **Next:** owner test (guide in ADR 0070 session report), then release.
+- **Commits:** e7b2804, 06457f8, af5b57a, e8a4331, b62ffc3, a9e5e7c,
+  da845f8, plus this one.
+
 ### 2026-10-03 — Fix: map loses the player in the Grey Havens, release 0.1.39
 
 - **Owner report:** the map stops tracking in the Grey Havens; Cockpit
