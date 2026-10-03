@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 11–12 done, not released yet (latest release 0.1.33). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 11–12 done (latest release 0.1.33). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
