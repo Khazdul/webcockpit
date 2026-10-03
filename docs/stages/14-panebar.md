@@ -56,9 +56,9 @@ ADR 0065.
 - [x] Host: createPane short/border/lane, getPanes, setPaneOn, pane:dock, pane:wantSize, sysPanesChanged
 - [x] panebar.lua, keymanager short name
 - [x] Editor reference and manual
-- [ ] Unit tests
-- [ ] E2E tests (Chromium + Firefox)
-- [ ] ADR 0065
+- [x] Unit tests
+- [x] E2E tests (Chromium + Firefox)
+- [x] ADR 0065
 
 ## Test guide
 
