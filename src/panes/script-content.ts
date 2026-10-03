@@ -28,6 +28,10 @@
 //   report it to `onDropField`), as for links. A snapshot bakes each
 //   field's value into its line as plain underlined text, so runs, the log
 //   player and the HTML replay draw it without editing.
+// - A grip (ADR 0065 round 1) is one range of cells on one row that drags
+//   the pane. It belongs to the pane, not to a row's text: `setLine`,
+//   `clear` and the line cap leave it where it is; `setGrip(null)` removes
+//   it. It is not in a snapshot (a grip in the log player would be inert).
 
 import type { Color, StyleRun } from '../core/types';
 
@@ -85,6 +89,13 @@ export interface PaneField {
   placeholder: string;
   /** Most characters of the value. */
   maxLength: number;
+}
+
+/** A range of cells that drags the pane (ADR 0065 round 1). */
+export interface PaneGrip {
+  row: number;
+  col: number;
+  len: number;
 }
 
 /** Most characters of a field's value. */
@@ -229,6 +240,8 @@ export class PaneContent {
   lines: PaneLine[] = [];
   links: PaneLink[] = [];
   fields: PaneField[] = [];
+  /** The cells that drag the pane, or null. */
+  grip: PaneGrip | null = null;
   /** Where the view sticks when the lines overflow. */
   anchor: PaneAnchor;
   /** Bumped by every change (renderers compare it). */
@@ -474,6 +487,30 @@ export class PaneContent {
     this.version++;
   }
 
+  /**
+   * Makes `len` cells of `row` from `col` (0-based) the pane's grip, or
+   * removes it (`null`). Replaces the previous grip.
+   */
+  setGrip(g: PaneGrip | null): void {
+    let next: PaneGrip | null = null;
+    if (g) {
+      const c = Math.max(0, Math.floor(g.col));
+      if (g.row < 0 || g.row >= this.maxLines) throw new RangeError(`row ${g.row + 1} is past the last row (${this.maxLines})`);
+      if (c >= MAX_LINE_CELLS) throw new RangeError(`column ${c + 1} is past the last column (${MAX_LINE_CELLS})`);
+      next = { row: Math.floor(g.row), col: c, len: Math.max(1, Math.min(MAX_LINE_CELLS - c, Math.floor(g.len))) };
+    }
+    const was = this.grip;
+    if (was === next || (was && next && was.row === next.row && was.col === next.col && was.len === next.len)) return;
+    this.grip = next;
+    this.version++;
+  }
+
+  /** True when cell (`row`, `col`) is in the grip. */
+  gripAt(row: number, col: number): boolean {
+    const g = this.grip;
+    return !!g && g.row === row && col >= g.col && col < g.col + g.len;
+  }
+
   /** The link covering cell (`row`, `col`), or null. */
   linkAt(row: number, col: number): PaneLink | null {
     for (let i = this.links.length - 1; i >= 0; i--) {
@@ -510,6 +547,7 @@ export class PaneContent {
     this.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
     this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
     this.fields = [];
+    this.grip = null;
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.broken = false;
     this.version++;

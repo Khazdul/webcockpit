@@ -24,7 +24,9 @@
 //   the top content row) to a dock or a position in a dock. A borderless
 //   script pane's top row is a soft grip (ADR 0065): its links and text
 //   get the press, and it becomes a move only once the pointer travels
-//   DRAG_THRESHOLD px (the click at its end is eaten then). The insertion
+//   DRAG_THRESHOLD px (the click at its end is eaten then). A script
+//   pane's grip cells (`pane:setGrip`, ADR 0065 round 1) on any row work
+//   as the title row: the press is a move at once, never a click. The insertion
 //   bar shows where it lands. Dropping on the screen edge of a dock that is
 //   not shown opens that dock at its default size.
 // - Lanes (ADR 0064): a dock is a list of lanes from the screen edge
@@ -885,6 +887,16 @@ export class Cockpit {
       const b = boxOf(id);
       const grab = b ? { x: Math.floor(x / cell.w) - b.rect.x, y: Math.floor(y / cell.h) - b.rect.y } : { x: 0, y: 0 };
       this.drag = { kind: 'move', id, pointerId: e.pointerId, x0: x, y0: y, grab, active: false, target: null };
+    } else if (!handle && this.contentGrip(t, e)) {
+      // A script pane's own grip cells (`pane:setGrip`, ADR 0065 round
+      // 1): a move as from the title row, the grabbing cursor at once,
+      // and the click at its end never reaches the pane.
+      const id = t.closest<HTMLElement>('.wc-pane')!.dataset.pane as PaneId;
+      const b = boxOf(id);
+      const grab = b ? { x: Math.floor(x / cell.w) - b.rect.x, y: Math.floor(y / cell.h) - b.rect.y } : { x: 0, y: 0 };
+      this.drag = { kind: 'move', id, pointerId: e.pointerId, x0: x, y0: y, grab, active: false, target: null };
+      this.swallowClick = true;
+      this.showShield('move');
     } else if (!handle && this.softGrip(t, y / cell.h)) {
       // A borderless script pane's top content row (ADR 0065): a move
       // only once the pointer travels; until then the press is the
@@ -974,6 +986,20 @@ export class Cockpit {
     if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-float-handle')) return false;
     const b = this.last?.panes.find((p) => p.id === id);
     return !!b && Math.floor(row) === b.content.y;
+  }
+
+  /**
+   * True when `t` lies in a script pane's content and the press `e` is on
+   * its grip cells (`pane:setGrip`, ADR 0065 round 1); not on a text
+   * field, the scroll indicator, the close cross or a float handle.
+   */
+  private contentGrip(t: HTMLElement, e: PointerEvent): boolean {
+    const pane = t.closest<HTMLElement>('.wc-pane-script');
+    if (!pane || !this.el.contains(pane) || !t.closest('.wc-pane-content')) return false;
+    const id = pane.dataset.pane as PaneId;
+    if (!this.present.has(id) && !this.temps.has(id)) return false;
+    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-float-handle')) return false;
+    return this.shells.get(id)?.gripAt(e.clientX, e.clientY) ?? false;
   }
 
   /** Eats the click that ends a soft-grip drag, so no link under it fires. */

@@ -31,6 +31,11 @@
 //   the link, over everything in the cockpit). A click calls `onLink(id)`;
 //   without `onLink` (the log player) links are inert but keep their tips.
 //   A tooltip-only link (`tip`) shows its hint without band or cursor.
+//   A link whose first cell already has the glow background (a lit
+//   button) is hovered inverted instead, glow text on the `paneBg` shade,
+//   so the hover shows on it too (ADR 0065 round 1).
+// - Grip (ADR 0065 round 1): the cells of `pane:setGrip` show the grab
+//   cursor; the cockpit asks `gripAt` on a press and starts a move there.
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
 //   After every render the link under the pointer is looked up again; one
 //   at the same row, column and length is the same link, so the band and
@@ -187,7 +192,11 @@ export function scriptPaneRows(
   for (let i = 0; i < c.lines.length; i++) {
     const line = paneLine(c.lines[i]!, w, ramp, light, ansi, ink);
     if (c.fields.length > 0) fieldBands(line, c.fields, i, w, ramp);
-    if (hover && hover.row === i && !hover.tip) line.fill(hover.col, hover.col + hover.len, { fg: ramp.paneBg, bg: ramp.glow });
+    if (hover && hover.row === i && !hover.tip) {
+      // On a lit (glow) background the usual band would not show: invert.
+      const lit = line.bg[hover.col] === ramp.glow;
+      line.fill(hover.col, hover.col + hover.len, lit ? { fg: ramp.glow, bg: ramp.paneBg } : { fg: ramp.paneBg, bg: ramp.glow });
+    }
     out.push(line);
   }
   return out;
@@ -545,6 +554,12 @@ export class ScriptPane extends PaneShell {
     return { row, col, y: top + row * cell.h - this.scroller.scrollTop };
   }
 
+  override gripAt(x: number, y: number): boolean {
+    if (!this.model.grip) return false;
+    const at = this.cellAt(x, y);
+    return !!at && this.model.gripAt(at.row, at.col);
+  }
+
   /** The link under (`x`, `y`) client px, or null. */
   linkAt(x: number, y: number): PaneLink | null {
     const at = this.cellAt(x, y);
@@ -556,10 +571,23 @@ export class ScriptPane extends PaneShell {
     const at = this.cellAt(e.clientX, e.clientY);
     const link = at ? this.model.linkAt(at.row, at.col) : null;
     const was = this.hover;
+    this.grabbing = !link && !!at && this.model.gripAt(at.row, at.col);
     if (link && was && link.row === was.row && link.col === was.col && link.len === was.len) return;
-    if (!link && !was) return;
+    if (!link && !was) {
+      this.setCursor();
+      return;
+    }
     this.setHover(link, at?.y ?? 0);
   };
+
+  /** The pointer is on the grip (not on a link). */
+  private grabbing = false;
+
+  private setCursor(): void {
+    const link = this.hover;
+    const c = link && !link.tip && this.onLink ? 'pointer' : this.grabbing ? 'grab' : '';
+    if (this.content.style.cursor !== c) this.content.style.cursor = c;
+  }
 
   private readonly onLeave = (e: PointerEvent): void => {
     // Firefox sends pointerleave when the row under the pointer is redrawn
@@ -568,6 +596,7 @@ export class ScriptPane extends PaneShell {
     const r = this.content.getBoundingClientRect();
     if (e.clientX >= r.left && e.clientX < r.right && e.clientY >= r.top && e.clientY < r.bottom) return;
     this.pointer = null;
+    this.grabbing = false;
     this.setHover(null);
   };
 
@@ -584,7 +613,7 @@ export class ScriptPane extends PaneShell {
   private setHover(link: PaneLink | null, rowY = 0): void {
     const was = this.hover;
     this.hover = link;
-    this.content.style.cursor = link && !link.tip && this.onLink ? 'pointer' : '';
+    this.setCursor();
     if (link?.hint) this.showTip(link, rowY);
     else this.hideTip();
     if (was !== link) this.markDirty();

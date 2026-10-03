@@ -4,7 +4,7 @@
 // the cockpit surface that places and remembers them.
 
 import { describe, expect, it } from 'vitest';
-import { TRUECOLOR } from '../../src/core/types';
+import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
 import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPane, setLaneSize, togglePatch } from '../../src/layout/model';
@@ -343,6 +343,19 @@ describe('drawing', () => {
     expect(g!.bg.slice(5).every((b) => b === '#111')).toBe(true);
     expect(l!.bg.slice(0, 3)).toEqual(['#fc0', '#fc0', '#fc0']);
     expect(l!.fg[0]).toBe('#000');
+  });
+
+  it('a hovered link on a glow background is drawn inverted, so the hover shows (ADR 0065 round 1)', () => {
+    const c = new PaneContent('t');
+    c.setLine(0, { text: 'ON OFF', runs: [{ start: 0, end: 2, bg: shadeColor('glow'), fg: shadeColor('paneBg') }, { start: 3, end: 6, bg: shadeColor('track'), fg: shadeColor('paneBg') }] });
+    c.addLink(0, 0, 2, 1, '');
+    c.addLink(0, 3, 3, 2, '');
+    const [lit] = scriptPaneRows(c, 6, ramp, false, ansi, c.links[0]!);
+    expect(lit!.bg.slice(0, 2)).toEqual([ramp.paneBg, ramp.paneBg]);
+    expect(lit!.fg.slice(0, 2)).toEqual([ramp.glow, ramp.glow]);
+    const [dark] = scriptPaneRows(c, 6, ramp, false, ansi, c.links[1]!);
+    expect(dark!.bg.slice(3, 6)).toEqual([ramp.glow, ramp.glow, ramp.glow]);
+    expect(dark!.fg[3]).toBe(ramp.paneBg);
   });
 
   it('palette colours come from the user ANSI palette', () => {
@@ -913,6 +926,19 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
     });
 
+    it("panebar's default place: the bottom of the right dock (lane 0, the last pane), again after Reset layout", () => {
+      const r = rig();
+      openBar(r, { dock: 'right', rows: 1, cols: 30, border: false });
+      const ids = (): string[] => r.settings.get().layout.docks.right.lanes[0]!.panes.map((p) => p.id);
+      expect(ids().at(-1)).toBe(BAR);
+      expect(ids().length).toBeGreaterThan(1);
+      const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
+      const below = r.cockpit.layout!.panes.filter((p) => p.dock === 'right' && p.rect.y > box.rect.y);
+      expect(below).toEqual([]);
+      r.settings.update({ layout: defaultLayout() });
+      expect(ids().at(-1)).toBe(BAR);
+    });
+
     it('soft grip: a click on the top row reaches the link; a drag past the threshold moves the pane and eats the click', () => {
       const r = rig();
       const { clicks, pane } = openBar(r);
@@ -940,6 +966,62 @@ describe('ScriptPane and the cockpit surface', () => {
       pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientX: (box.content.x + 1) * 10, clientY: box.content.y * 20 + 5 }));
       r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 900, clientY: 300 }));
       expect(r.cockpit.dragging).toBe(false);
+    });
+
+    it('grip cells (pane:setGrip): a grab cursor, a press moves the pane at once, no click; any row, framed too', () => {
+      const r = rig();
+      const { content, clicks, pane } = openBar(r);
+      content.setLine(0, plain('\u2237 CHAR TIME'));
+      content.addLink(0, 2, 4, 7, 'Character');
+      content.setGrip({ row: 0, col: 0, len: 2 });
+      r.flush();
+      const shield = r.cockpit.el.querySelector<HTMLElement>('.wc-drag-shield')!;
+      // happy-dom has no layout: the content's rect is at 0, 0.
+      const at = { clientX: 5, clientY: 5, bubbles: true, button: 0, pointerId: 1 };
+      pane.content.dispatchEvent(new PointerEvent('pointermove', at));
+      expect(pane.content.style.cursor).toBe('grab');
+      pane.content.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 25 }));
+      expect(pane.content.style.cursor).toBe('pointer');
+      // A press on the grip shows the grabbing cursor at once; a release
+      // without a move delivers no click.
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
+      expect(shield.hidden).toBe(false);
+      expect(shield.dataset.drag).toBe('move');
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', at));
+      expect(shield.hidden).toBe(true);
+      const click = new MouseEvent('click', { ...at, clientX: 25, cancelable: true });
+      pane.content.dispatchEvent(click);
+      expect(clicks).toEqual([]);
+      // A press and a move over the game: it floats.
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 400, clientY: 400 }));
+      expect(r.cockpit.dragging).toBe(true);
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 400, clientY: 400 }));
+      expect(findFloat(r.settings.get().layout, BAR)).toBeGreaterThanOrEqual(0);
+      // Framed, a grip on row 2: still a move.
+      r.settings.update((d) => {
+        d.panes[BAR] = { ...d.panes[BAR]!, border: true };
+      });
+      content.setLine(1, plain('\u2237'));
+      content.setGrip({ row: 1, col: 0, len: 1 });
+      r.flush();
+      const before = JSON.stringify(r.settings.get().layout);
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientY: 25 }));
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 800, clientY: 300 }));
+      expect(r.cockpit.dragging).toBe(true);
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 800, clientY: 300 }));
+      expect(JSON.stringify(r.settings.get().layout)).not.toBe(before);
+      // Not on the grip: the link still clicks.
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientX: 25 }));
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 25 }));
+      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientX: 25 }));
+      expect(clicks).toEqual([7]);
+      // No grip: an ordinary press.
+      content.setGrip(null);
+      r.flush();
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientY: 25 }));
+      expect(shield.hidden).toBe(true);
+      r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientY: 25 }));
     });
 
     it('a 1-row lane keeps its row: the lane handle goes on the neighbour, none between two 1-row lanes', () => {

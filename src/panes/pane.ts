@@ -216,6 +216,14 @@ export class PaneShell {
     this.listeners.clear();
   }
 
+  /**
+   * True when (`x`, `y`) client px is on a content grip: cells that drag
+   * the pane (a script pane's `pane:setGrip`, ADR 0065 round 1).
+   */
+  gripAt(_x: number, _y: number): boolean {
+    return false;
+  }
+
   /** Inner width in cells (0 while hidden). */
   get cols(): number {
     return this._cols;

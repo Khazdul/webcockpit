@@ -918,6 +918,48 @@ describe('pane partial updates (ADR 0056)', () => {
   });
 });
 
+describe('pane:setGrip (ADR 0065 round 1)', () => {
+  it('sets one grip range, survives setLine and clear, nil removes it, bad arguments are errors', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        g: src(`
+          local pane = createPane{id = "p"}
+          pane:setGrip(2, 3, 4)
+          pane:setLine(2, "text")
+          pane:clear()
+          send("a")
+          pane:setGrip(1, 1)
+          send("b")
+          send(select(2, pcall(pane.setGrip, pane, 1, 0, 1)))
+          send(select(2, pcall(pane.setGrip, pane, 1, 1, 0)))
+          send(select(2, pcall(pane.setGrip, pane, 0, 1, 1)))
+          tempAlias("^nogrip$", function() pane:setGrip(nil) end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('g/p')!;
+    expect(t.sent.slice(0, 2)).toEqual(['a', 'b']);
+    expect(p.content.grip).toEqual({ row: 0, col: 0, len: 1 });
+    expect(p.content.gripAt(0, 0)).toBe(true);
+    expect(p.content.gripAt(0, 1)).toBe(false);
+    expect(t.sent[2]).toMatch(/bad argument #3 to 'pane:setGrip'/);
+    expect(t.sent[3]).toMatch(/bad argument #4 to 'pane:setGrip'/);
+    expect(t.sent[4]).toMatch(/bad argument #2 to 'pane:setGrip'/);
+    // Not in a snapshot: a grip in the log player would do nothing.
+    expect(p.content.snapshot()).not.toHaveProperty('grip');
+    t.engine.input('nogrip');
+    expect(p.content.grip).toBeNull();
+  });
+
+  it('keeps a grip through setLine and clear', async () => {
+    const panes = new FakeSurface();
+    await setup({ g: src(`local pane = createPane{id = "p"}\npane:setGrip(2, 3, 4)\npane:setLine(2, "text")\npane:clear()`) }, { panes });
+    expect(panes.get('g/p')!.content.grip).toEqual({ row: 1, col: 2, len: 4 });
+  });
+});
+
 describe('pane anchor (ADR 0053 addendum)', () => {
   it('createPane takes anchor top or bottom (default) and at for a temporary pane, and refuses others', async () => {
     const panes = new FakeSurface();

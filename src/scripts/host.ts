@@ -1351,6 +1351,28 @@ export class ScriptHost {
         }
         done(p);
       },
+      setGrip: (a) => {
+        const p = self(a);
+        // No row (nil): the grip goes (ADR 0065 round 1).
+        if (a.count < 2 || a.type(2) === 'nil') {
+          if (!p) return;
+          p.content.setGrip(null);
+          done(p);
+          return;
+        }
+        const r = row(a, 2);
+        const col = a.number(3);
+        const len = a.count >= 4 && a.type(4) !== 'nil' ? a.number(4) : 1;
+        if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
+        if (!Number.isInteger(len) || len < 1) throw new Error(`bad argument #4 to '${a.name}' (length must be a whole number from 1)`);
+        if (!p) return;
+        try {
+          p.content.setGrip({ row: r, col: col - 1, len });
+        } catch (err) {
+          throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
+        }
+        done(p);
+      },
       setText: (a) => {
         const p = self(a);
         if (!p) return;

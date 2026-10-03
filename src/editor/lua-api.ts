@@ -920,6 +920,24 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "pane:setGrip",
+    "pane:setGrip(row, col, len)",
+    "Makes len cells of a row, from column col, a grip that drags the pane: the pointer turns into a grabbing hand there, and a press starts a move at once, as on the title row. For a pane without a frame, or any row of one.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number?", "The row, from 1; nil removes the grip."),
+        p("col", "number", "The first column, from 1."),
+        p("len", "number?", "How many cells, at least 1 (default 1)."),
+      ],
+      more: [
+        "One grip per pane: a new one replaces the old. It belongs to the pane, not to the row's text, so pane:setLine and pane:clear keep it; pane:setGrip(nil) removes it.",
+        "A press on the grip is never a click: put no link there. Draw something that says \"drag here\", such as a dim <@mid>∷. In the log player and the HTML replay the grip does nothing.",
+      ],
+      example: 'pane:setLine(1, "<@mid>∷<reset> [a] [b]")\npane:setGrip(1, 1, 2)',
+    },
+  ),
+  fn(
     "getPanes",
     "getPanes() → list",
     "Every pane in Options → Panes order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",

@@ -24,7 +24,8 @@ const DIR = new URL('../../public/fonts/', import.meta.url);
 /** Box drawing, half blocks, quadrants and blocks: must be in the font itself. */
 const STRUCTURAL = '─│┌┐└┘┬═║▀▄▌▐▛▜▙▟█░▁▂▃▅▆▇';
 /** Symbols: a fallback font in the CSS stack is acceptable. */
-const SYMBOLS = '·◦✦✧◄►▲▼⚔♦★☆✓●◆▶⚠✖•…▬↑‹›';
+/** (∷ is the pane bar's grip, ADR 0065 round 1: ⠿ is in neither DejaVu nor most families.) */
+const SYMBOLS = '·◦✦✧◄►▲▼⚔♦★☆✓●◆▶⚠✖•…▬↑‹›∷';
 
 const KNOWN_TAGS = [
   'cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca',
