@@ -103,6 +103,9 @@ export interface ScriptHostOptions {
   map?: ScriptMapSurface;
 }
 
+/** Pane text takes the shade-role colours (`<@dim>`, ADR 0065). */
+const SHADES = { shades: true } as const;
+
 /** Default and largest wanted pane size in cells (createPane rows/cols). */
 export const PANE_DEFAULT_ROWS = 8;
 export const PANE_DEFAULT_COLS = 30;
@@ -1172,13 +1175,13 @@ export class ScriptHost {
       cecho: (a) => {
         const p = self(a);
         if (!p) return;
-        p.content.append(parseCecho(a.string(2)));
+        p.content.append(parseCecho(a.string(2), SHADES));
         done(p);
       },
       setLine: (a) => {
         const p = self(a);
         if (!p) return;
-        p.content.setLine(row(a, 2), parseCecho(a.optString(3, '')));
+        p.content.setLine(row(a, 2), parseCecho(a.optString(3, ''), SHADES));
         done(p);
       },
       gauge: (a) => {
@@ -1206,7 +1209,7 @@ export class ScriptHost {
       cechoLink: (a) => {
         const p = self(a);
         if (!p) return;
-        const text = parseCecho(a.string(2));
+        const text = parseCecho(a.string(2), SHADES);
         const ref = a.function(3);
         const hint = a.optString(4, '');
         const n = id();
@@ -1243,7 +1246,7 @@ export class ScriptHost {
         const col = a.number(3);
         if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
         try {
-          p.content.setText(r, col - 1, parseCecho(a.string(4)));
+          p.content.setText(r, col - 1, parseCecho(a.string(4), SHADES));
         } catch (err) {
           throw new Error(`bad argument #2 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
         }

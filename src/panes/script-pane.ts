@@ -17,7 +17,8 @@
 //   Scrolled away from the anchor it reads `↑ N rows above` / `↓ N rows
 //   below`; a click on it goes back to the anchor.
 // - Colours: the cecho colours of the spans (palette 0–15 from the user's
-//   ANSI palette, the rest as is). Text without a colour takes the
+//   ANSI palette, the rest as is; a shade role `<@dim>` … from the pane's
+//   shade ramp, resolved every render, ADR 0065). Text without a colour takes the
 //   terminal fg held to 4.5:1 against the pane (a dark tint on a light
 //   terminal gets light text); on a light pane span colours go through
 //   `lightShift` and the same contrast floor, as the UI and Comm panes
@@ -48,7 +49,7 @@
 // - Render is coalesced: callers change the content and call `changed()`,
 //   which marks the pane dirty (one render per frame, none while hidden).
 
-import type { Color } from '../core/types';
+import { type Color, shadeRoleOf } from '../core/types';
 import { keyNameFromEvent } from '../script/keys';
 import type { PaneId } from '../layout/types';
 import { colorToCss } from '../ui/palette';
@@ -114,8 +115,13 @@ export function paneInk(termFg: string, bg: string, light: boolean): PaneInk {
   };
 }
 
-/** CSS colour of a line-model colour, palette 0–15 from `ansi`. */
-export function paneColor(c: Color, ansi: readonly string[]): string {
+/**
+ * CSS colour of a line-model colour, palette 0–15 from `ansi`; a shade-role
+ * colour (ADR 0065) from `ramp` (empty without one: the default colour).
+ */
+export function paneColor(c: Color, ansi: readonly string[], ramp?: Ramp): string {
+  const role = shadeRoleOf(c);
+  if (role) return ramp?.[role] ?? '';
   return c < 16 ? (ansi[c] ?? colorToCss(c)) : colorToCss(c);
 }
 
@@ -139,9 +145,11 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
   let x = 0;
   for (const s of l.spans) {
     if (x >= w) break;
+    // A shade role is the pane's own shade as is: the ramp is already
+    // made for the pane's light or dark background (no light shift).
     line.put(x, s.text, {
-      fg: s.fg === undefined ? ink.base : ink.fg(paneColor(s.fg, ansi)),
-      bg: s.bg === undefined ? '' : paneColor(s.bg, ansi),
+      fg: s.fg === undefined ? ink.base : shadeRoleOf(s.fg) ? paneColor(s.fg, ansi, ramp) : ink.fg(paneColor(s.fg, ansi)),
+      bg: s.bg === undefined ? '' : paneColor(s.bg, ansi, ramp),
       bold: !!s.bold,
       italic: !!s.italic,
       underline: !!s.underline,

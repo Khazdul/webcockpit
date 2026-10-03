@@ -5,6 +5,7 @@
 // Nothing here reads settings or the DOM, and nothing is cached: callers
 // re-resolve on every change (Inv §10.5 "Re-resolve every frame").
 
+import { SHADE_ROLE_ORDER, type ShadeRoleName } from '../core/types';
 import type { PaneColor } from '../layout/types';
 import { PANE_TINTS } from './presets';
 
@@ -162,11 +163,10 @@ export function paneBorder(color: PaneColor, termBg: string): string {
 }
 
 /** Shade roles (Inv §10.4 "Shade ramp"). */
-export type ShadeRole = 'track' | 'dim' | 'mid' | 'paneBg' | 'vtext' | 'label' | 'glow';
+export type ShadeRole = ShadeRoleName;
 
-export const SHADE_ROLES: readonly ShadeRole[] = [
-  'track', 'dim', 'mid', 'paneBg', 'vtext', 'label', 'glow',
-];
+/** In ramp order; a role's index is also its shade-role colour's (core/types.ts, ADR 0065). */
+export const SHADE_ROLES: readonly ShadeRole[] = SHADE_ROLE_ORDER;
 
 /** (L, Δs) per role on a dark effective background. */
 export const RAMP_DARK: Readonly<Record<ShadeRole, readonly [number, number]>> = {

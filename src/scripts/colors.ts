@@ -10,7 +10,11 @@
 // - Mudlet's `<b>` `</b>`, `<i>` `</i>`, `<u>` `</u>`: bold, italic and
 //   underline on and off (the line model's styles; Mudlet's `<s>` and `<o>`
 //   have no style here and stay text);
-// - `<reset>` and `<r>`: the default style.
+// - `<reset>` and `<r>`: the default style;
+// - in a script pane's text only (`parseCecho(text, { shades: true })`,
+//   ADR 0065): the pane's shade roles `@track @dim @mid @bg @text @label
+//   @glow` as a colour name (`<@text:@dim>`, `<:@track>`), resolved by the
+//   pane every frame so they follow its tint and the theme.
 // Anything else in angle brackets is text.
 //
 // Mudlet names are its X11 colour table (a selection) as 24-bit colours;
@@ -20,7 +24,7 @@
 // <red>`), or a Mudlet colour without brackets (`orange`, `white:red`,
 // `255,0,0`, `#ff8800`).
 
-import { type Color, type StyleRun, TRUECOLOR } from '../core/types';
+import { type Color, type ShadeRoleName, type StyleRun, TRUECOLOR, shadeColor } from '../core/types';
 import { type Colored, type Style, parseHighlight } from '../script/engine';
 import { applyCode, isDefaultStyle, pushRun } from '../script/engine/color';
 
@@ -153,11 +157,38 @@ export function mudletColor(name: string): Color | null {
   return c ? TRUECOLOR | (c[0] << 16) | (c[1] << 8) | c[2] : null;
 }
 
+/** Shade-role names in pane text (ADR 0065) → the ramp role. */
+export const SHADE_TAGS: Readonly<Record<string, ShadeRoleName>> = {
+  track: 'track',
+  dim: 'dim',
+  mid: 'mid',
+  bg: 'paneBg',
+  text: 'vtext',
+  label: 'label',
+  glow: 'glow',
+};
+
+/** Options of `parseCecho`. */
+export interface CechoOptions {
+  /** Accept the shade-role names `@track` … `@glow` (script pane text, ADR 0065). */
+  shades?: boolean;
+}
+
+/** A colour name in a tag: a Mudlet colour, or with `shades` a shade role (`@dim`). */
+function tagColor(name: string, shades: boolean): Color | null {
+  const n = name.trim();
+  if (n.charCodeAt(0) === 64 /* @ */) {
+    const role = shades ? SHADE_TAGS[n.slice(1).toLowerCase()] : undefined;
+    return role ? shadeColor(role) : null;
+  }
+  return mudletColor(n);
+}
+
 /** Mudlet's attribute tags: `<b>` sets bold, `</b>` clears it. */
 const ATTR: Record<string, 'bold' | 'italic' | 'underline'> = { b: 'bold', i: 'italic', u: 'underline' };
 
 /** The style after a Mudlet tag (without `<>`), or undefined when it is not one. */
-function applyMudlet(cur: Style, tag: string): Style | undefined {
+function applyMudlet(cur: Style, tag: string, shades = false): Style | undefined {
   const t = tag.trim().toLowerCase();
   if (t === 'reset' || t === 'r') return {};
   if (t.length <= 2) {
@@ -172,8 +203,8 @@ function applyMudlet(cur: Style, tag: string): Style | undefined {
   const colon = tag.indexOf(':');
   const fgName = colon < 0 ? tag : tag.slice(0, colon);
   const bgName = colon < 0 ? '' : tag.slice(colon + 1);
-  const fg = fgName.trim() === '' ? undefined : mudletColor(fgName);
-  const bg = bgName.trim() === '' ? undefined : mudletColor(bgName);
+  const fg = fgName.trim() === '' ? undefined : tagColor(fgName, shades);
+  const bg = bgName.trim() === '' ? undefined : tagColor(bgName, shades);
   if (fg === null || bg === null || (fg === undefined && bg === undefined)) return undefined;
   const s: Style = { ...cur };
   if (fg !== undefined) s.fg = fg;
@@ -182,7 +213,8 @@ function applyMudlet(cur: Style, tag: string): Style | undefined {
 }
 
 /** Parses `cecho` text (see the file header) into text and style runs. */
-export function parseCecho(input: string): Colored {
+export function parseCecho(input: string, opts: CechoOptions = {}): Colored {
+  const shades = opts.shades === true;
   if (input.indexOf('<') < 0) return { text: input, runs: [] };
   let text = '';
   const runs: StyleRun[] = [];
@@ -208,7 +240,7 @@ export function parseCecho(input: string): Colored {
     }
     const tag = input.slice(lt + 1, gt);
     let next: Style | null | undefined = tag.length <= 7 ? applyCode(cur, tag) : undefined;
-    if (next === undefined) next = applyMudlet(cur, tag);
+    if (next === undefined) next = applyMudlet(cur, tag, shades);
     if (next === undefined) {
       text += '<';
       i = lt + 1;

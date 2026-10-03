@@ -14,6 +14,9 @@ import type { PaneSnapshot } from '../panes/script-content';
  * - `0..255`: palette index. 0–7 normal, 8–15 bright (the DOS palette,
  *   Inv §1.1), 16–255 the xterm 256-colour cube and grey ramp.
  * - `>= TRUECOLOR` (0x1000000): 24-bit colour, `TRUECOLOR | 0xRRGGBB`.
+ * - `>= SHADE_COLOR` (0x2000000): a script pane's shade role (ADR 0065),
+ *   `SHADE_COLOR + index in SHADE_ROLE_ORDER`; only script pane text
+ *   carries these, and the pane resolves them from its shade ramp.
  *
  * "Default colour" is expressed by leaving the field `undefined`.
  * Bold does not change the colour index: the parser emits the colour as
@@ -32,7 +35,26 @@ export function rgb(r: number, g: number, b: number): Color {
 
 /** True when `c` is a truecolor value rather than a palette index. */
 export function isTrueColor(c: Color): boolean {
-  return c >= TRUECOLOR;
+  return c >= TRUECOLOR && c < SHADE_COLOR;
+}
+
+/** Base of the shade-role colours (ADR 0065): `SHADE_COLOR + role index`. */
+export const SHADE_COLOR = 0x2000000;
+
+/** The shade roles in ramp order (theme/color.ts SHADE_ROLES, Inv §10.4). */
+export const SHADE_ROLE_ORDER = ['track', 'dim', 'mid', 'paneBg', 'vtext', 'label', 'glow'] as const;
+
+/** A shade role (Inv §10.4 "Shade ramp"). */
+export type ShadeRoleName = (typeof SHADE_ROLE_ORDER)[number];
+
+/** The `Color` that stands for shade role `role` (ADR 0065). */
+export function shadeColor(role: ShadeRoleName): Color {
+  return SHADE_COLOR + SHADE_ROLE_ORDER.indexOf(role);
+}
+
+/** The shade role a `Color` stands for, or null when it is a real colour. */
+export function shadeRoleOf(c: Color): ShadeRoleName | null {
+  return c >= SHADE_COLOR ? (SHADE_ROLE_ORDER[c - SHADE_COLOR] ?? null) : null;
 }
 
 // ---------------------------------------------------------------------------

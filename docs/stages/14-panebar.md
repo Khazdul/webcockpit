@@ -49,7 +49,7 @@ ADR 0065.
 ## Tasks
 
 - [x] Stage file and status table
-- [ ] Shade colours in pane text
+- [x] Shade colours in pane text
 - [ ] Layout: per-lane minimum, own lane, wantPaneSize
 - [ ] Cockpit: 1-row lane handles, soft grip, float handles, edge-zone rule, hooks
 - [ ] Surface: pane states, setOn, onStates, dock, want (Recording forwards)

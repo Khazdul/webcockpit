@@ -9,7 +9,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
-import { TRUECOLOR } from '../../src/core/types';
+import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { formatInbound, formatPaneRecord, formatRecord, parseRecord } from '../../src/capture/format';
 import { buildRunBlob } from '../../src/capture/download';
 import { type LockManagerLike, Recorder } from '../../src/capture/recorder';
@@ -130,6 +130,9 @@ describe('SPANE records', () => {
     expect(s.title.length).toBe(60);
     expect(s.lines).toEqual([{ spans: [{ text: 'a' }] }, { spans: [] }, { gauge: { value: 1, max: 1, label: '' } }]);
     expect(s.links).toEqual([{ row: 0, col: 0, len: 2, hint: 'h' }]);
+    // Shade-role colours (ADR 0065) survive; past them is junk.
+    const t = sanitizeSnapshot({ title: 't', lines: [{ spans: [{ text: 'a', fg: shadeColor('vtext'), bg: shadeColor('dim') }, { text: 'b', fg: 0x2000100 }] }], links: [] });
+    expect(t.lines).toEqual([{ spans: [{ text: 'a', fg: shadeColor('vtext'), bg: shadeColor('dim') }, { text: 'b' }] }]);
   });
 });
 

@@ -3,7 +3,7 @@
 // guard's marker.
 
 import { describe, expect, it } from 'vitest';
-import { TRUECOLOR } from '../../src/core/types';
+import { TRUECOLOR, isTrueColor, shadeColor, shadeRoleOf } from '../../src/core/types';
 import { tokenizeLine } from '../../src/editor/syntax';
 import { scriptCommandArgs } from '../../src/script/commands';
 import { matchPattern } from '../../src/script/engine';
@@ -155,6 +155,22 @@ describe('colours', () => {
       ],
     });
     expect(parseCecho('<B>x</B>').runs).toEqual([{ start: 0, end: 1, bold: true }]);
+  });
+
+  it('shade roles (<@dim>) only in pane text; unknown @names stay text (ADR 0065)', () => {
+    const S = { shades: true };
+    expect(parseCecho('<@text:@dim>ab<reset>c', S).runs).toEqual([{ start: 0, end: 2, fg: shadeColor('vtext'), bg: shadeColor('dim') }]);
+    expect(parseCecho('<:@track>x', S).runs).toEqual([{ start: 0, end: 1, bg: shadeColor('track') }]);
+    expect(parseCecho('<@bg>x<@glow:red>y', S).runs).toEqual([
+      { start: 0, end: 1, fg: shadeColor('paneBg') },
+      { start: 1, end: 2, fg: shadeColor('glow'), bg: TRUECOLOR | 0xff0000 },
+    ]);
+    expect(parseCecho('<@foo>x', S)).toEqual({ text: '<@foo>x', runs: [] });
+    expect(parseCecho('<@dim>x')).toEqual({ text: '<@dim>x', runs: [] });
+    expect(parseScriptColor('@dim')).toBe(null);
+    expect(shadeRoleOf(shadeColor('label'))).toBe('label');
+    expect(shadeRoleOf(TRUECOLOR | 0xffffff)).toBe(null);
+    expect(isTrueColor(shadeColor('mid'))).toBe(false);
   });
 
   it('highlight colours: profile names first, then Mudlet names', () => {

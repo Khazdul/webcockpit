@@ -348,6 +348,23 @@ describe('drawing', () => {
     expect(l!.fg[0]).toBe('#123456');
   });
 
+  it('shade-role colours come from the pane ramp, as is, on dark and light panes (ADR 0065)', () => {
+    const c = new PaneContent('t');
+    c.append(parseCecho('<@text:@dim>a<@mid:@track>b<:@glow>c<@bg>d', { shades: true }));
+    for (const light of [false, true]) {
+      const ink = paneInk('#202020', light ? '#f4ecd8' : '#000000', light);
+      const [l] = scriptPaneRows(c, 4, ramp, light, ansi, null, ink);
+      expect(l!.fg.slice(0, 2)).toEqual(['#eee', '#333']);
+      expect(l!.bg.slice(0, 3)).toEqual(['#222', '#111', '#fc0']);
+      expect(l!.fg[3]).toBe('#000');
+    }
+    // The real ramps: on (@text on @dim) reads, and is lighter than off (@mid on @track) on dark.
+    for (const bg of ['#000000', '#f4f0e6']) {
+      const r = paneShades('black', bg);
+      expect(contrast(r.vtext, r.dim), bg).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it('text meets the pane: light ink on a dark tint over a light terminal, 4.5:1 colours on a light pane', () => {
     const c = new PaneContent('t');
     c.append(parseCecho('a<yellow>b'));
