@@ -61,7 +61,7 @@ async function scriptsFromStart(page: Page): Promise<Locator> {
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
   await page.keyboard.press('Enter');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   const f = startFrame(page);

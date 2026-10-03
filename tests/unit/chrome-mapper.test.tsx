@@ -106,8 +106,17 @@ describe('Options → Mapper', () => {
     expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
     await key('Escape');
     await key('Escape');
-    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Spotlights', '[ ] Auto-clear input', '[ ] Input autosuggest', 'Back']);
-    // The input line toggles flip in place and write the store at once (ADR 0063).
+    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Back']);
+    // Text input: the input line toggles and the cursor rows write the store at once (ADR 0063, 0066).
+    await click(host, 'textinput');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Text input ───');
+    expect(labels(host)).toEqual([
+      '[ ] Auto-clear input',
+      '[ ] Input autosuggest',
+      'Cursor style: beam',
+      'Cursor blink: On',
+      'Back',
+    ]);
     await click(host, 'autoclear');
     expect(svc.settings.get().input).toEqual({ autoClear: true, autosuggest: false });
     await key('ArrowDown');
@@ -118,6 +127,17 @@ describe('Options → Mapper', () => {
     expect(svc.settings.get().input.autosuggest).toBe(false);
     await click(host, 'autoclear');
     expect(svc.settings.get().input.autoClear).toBe(false);
+    await key('ArrowDown');
+    await key('ArrowDown');
+    await key('ArrowLeft');
+    expect(svc.settings.get().appearance.cursorStyle).toBe('block');
+    await key('ArrowDown');
+    await key('Enter');
+    expect(svc.settings.get().appearance.cursorBlink).toBe(false);
+    expect(labels(host)).toContain('Cursor style: block');
+    expect(labels(host)).toContain('Cursor blink: Off');
+    await key('Escape');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Options ───');
 
     await click(host, 'mapper');
     await settle();

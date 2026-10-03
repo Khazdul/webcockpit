@@ -187,7 +187,7 @@ test('Bold brightens colours: off keeps the Cockpit look, on brightens live (ADR
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
-  for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
   await expect(menuSel).toHaveText('<< Bold brightens colours: Off >>');
   await page.keyboard.press('Enter');
   await expect(menuSel).toHaveText('<< Bold brightens colours: On >>');

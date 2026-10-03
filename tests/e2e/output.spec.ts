@@ -398,7 +398,7 @@ test('Options → Appearance → Scrollback changes the depth live', async ({ pa
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
   await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Appearance ───');
-  for (let i = 0; i < 9; i++) await page.keyboard.press('ArrowDown'); // past Bold brightens colours
+  for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowDown'); // past Bold brightens colours
   await expect(menuSel).toHaveText('<< Scrollback: 20 000 lines >>');
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
