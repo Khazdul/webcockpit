@@ -33,17 +33,37 @@
 // (src/panes/script-surface.ts); method calls never touch the DOM. Each
 // owner keeps its panes; unloading closes them (their place stays in the
 // settings) and the link and resize functions go with the script.
+//
+// The pane list (ADR 0065): `getPanes()` lists every pane in Options →
+// Panes order and `setPaneOn` switches one, for any script. The event
+// `sysPanesChanged` goes to every script when that list changes: at most
+// once per microtask, only when the list (without `own`) differs from the
+// one last fired, never during a drag (the surface holds it), and at most
+// PANES_EVENT_MAX times a second (then it waits, with one warning).
 
 import type { Bus } from '../core/bus';
 import { type Color, type StyleRun, TRUECOLOR, gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
-import { DOCK_IDS, type DockId, SCRIPT_PANE_NAME, type ScriptPaneId, scriptPaneId, tempPaneId } from '../layout/types';
+import {
+  DOCK_IDS,
+  type DockId,
+  PANE_LABELS,
+  PANE_SHORT,
+  type PaneId,
+  SCRIPT_PANE_NAME,
+  type ScriptPaneId,
+  isBuiltinPaneId,
+  isScriptPaneId,
+  scriptPaneId,
+  tempPaneId,
+} from '../layout/types';
 import { MAX_LINES, PaneContent, plain } from '../panes/script-content';
 import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
+import type { ScriptPanePlace } from '../layout/model';
 import type { ScriptMapSurface } from '../map/marks';
 import type { MarkStyle, MarkTarget, RoomQuery } from '../map/protocol';
 import type { FieldEvent } from '../panes/script-pane';
-import type { ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
+import type { PaneState, ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
 import type { ScriptEngine, MatchContext } from '../script/engine';
 import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
@@ -106,6 +126,26 @@ export interface ScriptHostOptions {
 /** Pane text takes the shade-role colours (`<@dim>`, ADR 0065). */
 const SHADES = { shades: true } as const;
 
+/** At most this many `sysPanesChanged` per second (ADR 0065). */
+export const PANES_EVENT_MAX = 20;
+
+/** One entry of `getPanes()` (ADR 0065). */
+interface PaneEntry {
+  id: PaneId;
+  title: string;
+  short: string;
+  on: boolean;
+  shown: boolean;
+  dock: DockId | 'float';
+  script?: string;
+  own: boolean;
+}
+
+/** A short name from `text`: its letters and digits, the first four, upper case (ADR 0065). */
+export function deriveShort(text: string): string {
+  return text.replace(/[^\p{L}\p{N}]/gu, '').slice(0, 4).toUpperCase();
+}
+
 /** Default and largest wanted pane size in cells (createPane rows/cols). */
 export const PANE_DEFAULT_ROWS = 8;
 export const PANE_DEFAULT_COLS = 30;
@@ -122,6 +162,8 @@ interface PaneReg {
   id: ScriptPaneId;
   /** `createPane{temporary = true}`: never in the settings. */
   temporary: boolean;
+  /** `createPane{short = …}` (ADR 0065), or null: derived from the title. */
+  short: string | null;
   /** `pane:onClose(fn)`: called when the user closes a temporary pane. */
   onClose: LuaRef | null;
   content: PaneContent;
@@ -222,6 +264,12 @@ export class ScriptHost {
   /** The last GMCP values (shared with App, or the host's own). */
   private readonly gmcp: GmcpCache;
   private readonly ownGmcp: boolean;
+  /** `sysPanesChanged` (ADR 0065): queued, the list last fired, recent fire times. */
+  private panesQueued = false;
+  private panesSig = '';
+  private panesFired: number[] = [];
+  private panesTimer: ReturnType<typeof setTimeout> | null = null;
+  private panesWarned = false;
 
   constructor(opts: ScriptHostOptions) {
     this.o = opts;
@@ -262,6 +310,8 @@ export class ScriptHost {
       bus.on('conn.state', (s) => this.onConn(s.state, s.prev, s.reason ?? '')),
     );
     if (this.o.game) this.unsubs.push(this.o.game.subscribe((part) => this.onGame(part)));
+    const states = this.o.panes?.onStates?.(() => this.schedulePanes());
+    if (states) this.unsubs.push(states);
     await this.sync();
   }
 
@@ -270,6 +320,7 @@ export class ScriptHost {
     if (this.disposed) return;
     this.disposed = true;
     for (const u of this.unsubs.splice(0)) u();
+    if (this.panesTimer !== null) clearTimeout(this.panesTimer);
     for (const o of [...this.owners.values()]) this.unload(o);
     this.engine.setEventTap(null);
     this.rt?.close();
@@ -423,6 +474,7 @@ export class ScriptHost {
       p.links.clear();
       p.view.close();
     }
+    if (o.panes.size > 0) this.schedulePanes();
     o.panes.clear();
     for (const id of [...o.marks.keys()]) this.o.map?.unmark(id);
     o.marks.clear();
@@ -518,6 +570,66 @@ export class ScriptHost {
       if (o && b.owner !== o) continue;
       if (!b.owner.dead && b.owner.handlers.has(b.id)) this.call(b.owner, b.ref, ...args);
     }
+  }
+
+  /** Queues `sysPanesChanged` for the end of this task (ADR 0065); nothing while no script listens. */
+  private schedulePanes(): void {
+    if (this.panesQueued || this.disposed || !this.handlers.has('syspaneschanged')) return;
+    this.panesQueued = true;
+    queueMicrotask(() => {
+      this.panesQueued = false;
+      this.firePanes();
+    });
+  }
+
+  private firePanes(): void {
+    if (this.disposed || this.panesTimer !== null || !this.handlers.has('syspaneschanged')) return;
+    const sig = JSON.stringify(this.paneList(null).map(({ own: _own, ...e }) => e));
+    if (sig === this.panesSig) return;
+    const now = this.clock();
+    this.panesFired = this.panesFired.filter((t) => now - t < 1000);
+    if (this.panesFired.length >= PANES_EVENT_MAX) {
+      if (!this.panesWarned) {
+        this.panesWarned = true;
+        this.ui('warn', `sysPanesChanged fired more than ${PANES_EVENT_MAX} times a second; it waits now. A handler that changes the panes every time loops.`);
+      }
+      this.panesTimer = setTimeout(() => {
+        this.panesTimer = null;
+        this.firePanes();
+      }, Math.max(1, 1000 - (now - this.panesFired[0]!)));
+      return;
+    }
+    this.panesFired.push(now);
+    this.panesSig = sig;
+    this.fire(null, 'syspaneschanged', ['sysPanesChanged']);
+  }
+
+  /** The open, ordinary panes of every script, by pane id. */
+  private scriptPaneRegs(): Map<PaneId, PaneReg> {
+    const out = new Map<PaneId, PaneReg>();
+    for (const o of this.owners.values()) for (const p of o.panes.values()) if (!p.temporary) out.set(p.id, p);
+    return out;
+  }
+
+  /** `getPanes()` for `o` (null: nothing is `own`), in Options → Panes order (ADR 0065). */
+  private paneList(o: Owner | null): PaneEntry[] {
+    const regs = this.scriptPaneRegs();
+    const states: PaneState[] =
+      this.o.panes?.states?.() ??
+      [...regs.values()].map((p) => ({ id: p.id, on: p.view.isOn(), shown: p.view.size().cols > 0, dock: p.view.dock?.() ?? 'float' }));
+    const out: PaneEntry[] = [];
+    for (const st of states) {
+      if (isBuiltinPaneId(st.id)) {
+        out.push({ id: st.id, title: PANE_LABELS[st.id], short: PANE_SHORT[st.id], on: st.on, shown: st.shown, dock: st.dock, own: false });
+        continue;
+      }
+      const p = regs.get(st.id);
+      if (!p) continue;
+      const title = p.content.title || p.name;
+      const short = p.short ?? (deriveShort(title) || deriveShort(p.name));
+      out.push({ id: st.id, title, short, on: st.on, shown: st.shown, dock: st.dock, script: p.owner.name, own: p.owner === o });
+    }
+    return out;
   }
 
   private onGmcp(key: string, { pkg, value }: GmcpEntry): void {
@@ -1333,6 +1445,24 @@ export class ScriptHost {
         if (!p) return;
         p.content.setTitle(a.string(2));
         done(p);
+        this.schedulePanes();
+      },
+      dock: (a) => {
+        const p = self(a);
+        if (!p) return null;
+        return p.temporary ? 'float' : (p.view.dock?.() ?? null);
+      },
+      wantSize: (a) => {
+        const p = self(a);
+        const whole = (i: number, max: number): number => {
+          const n = a.number(i);
+          if (!Number.isFinite(n) || n < 1) throw new Error(`bad argument #${i} to '${a.name}' (a size from 1 expected)`);
+          return Math.min(max, Math.round(n));
+        };
+        const rows = whole(2, PANE_MAX_ROWS);
+        const cols = a.count >= 3 && a.type(3) !== 'nil' ? whole(3, PANE_MAX_COLS) : undefined;
+        if (!p || p.temporary) return false;
+        return p.view.want?.(rows, cols) ?? false;
       },
       close: (a) => {
         const p = self(a);
@@ -1377,18 +1507,35 @@ export class ScriptHost {
       if (anchor !== 'top' && anchor !== 'bottom') {
         throw new Error(`bad argument #1 to 'createPane' (anchor must be "top" or "bottom")`);
       }
+      // The pane bar's fields (ADR 0065).
+      let short: string | undefined;
+      if (t.short !== undefined) {
+        short = typeof t.short === 'string' || typeof t.short === 'number' ? String(t.short).trim() : '';
+        if (short.length < 1 || short.length > 8) throw new Error(`bad argument #1 to 'createPane' (short must be 1 to 8 characters)`);
+      }
+      const border = t.border;
+      if (border !== undefined && typeof border !== 'boolean') {
+        throw new Error(`bad argument #1 to 'createPane' (border must be true or false)`);
+      }
+      const lane = t.lane;
+      if (lane !== undefined && lane !== 'own') throw new Error(`bad argument #1 to 'createPane' (lane must be "own")`);
+      const dock = t.dock ?? 'right';
+      if (dock !== 'float' && !DOCK_IDS.includes(dock as DockId)) {
+        throw new Error(`bad argument #1 to 'createPane' (dock must be right, left, top, bottom or float)`);
+      }
+      if (lane !== undefined && (dock === 'float' || temporary === true)) {
+        throw new Error(`bad argument #1 to 'createPane' (lane is for a pane in a dock)`);
+      }
       const old = o.panes.get(name);
       if (old) {
-        // Reload-safe: the same pane again (a new title applies).
+        // Reload-safe: the same pane again (a new title and short name apply).
         if (title !== undefined) {
           old.content.setTitle(title);
           done(old);
         }
+        if (short !== undefined) old.short = short;
+        this.schedulePanes();
         return rt.object(cls, old.handle);
-      }
-      const dock = t.dock ?? 'right';
-      if (dock !== 'float' && !DOCK_IDS.includes(dock as DockId)) {
-        throw new Error(`bad argument #1 to 'createPane' (dock must be right, left, top, bottom or float)`);
       }
       const size = (k: 'rows' | 'cols', def: number, max: number): number => {
         const v = t[k];
@@ -1407,6 +1554,7 @@ export class ScriptHost {
         name,
         id: pid,
         temporary: temp,
+        short: short ?? null,
         onClose: null,
         links: new Map(),
         resize: null,
@@ -1432,7 +1580,9 @@ export class ScriptHost {
         onClose: () => this.onPaneClosed(reg),
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
-      const place = { dock: dock as DockId | 'float', rows, cols };
+      const place: ScriptPanePlace = { dock: dock as DockId | 'float', rows, cols };
+      if (border !== undefined) place.border = border;
+      if (lane === 'own') place.lane = 'own';
       const tmp: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } } = { rows, cols };
       if (at !== 'center') tmp.at = at;
       if (group) tmp.group = group;
@@ -1440,7 +1590,25 @@ export class ScriptHost {
       reg.view = this.o.panes?.open(spec, reg.content, events) ?? headlessView();
       o.panes.set(name, reg);
       this.paneHandles.set(handle, reg);
+      this.schedulePanes();
       return rt.object(cls, handle);
+    });
+
+    rt.defineFunction('getPanes', () => this.paneList(this.cur(rt)));
+
+    rt.defineFunction('setPaneOn', (a) => {
+      this.cur(rt);
+      const id = a.string(1);
+      if (a.type(2) !== 'boolean') throw new Error(`bad argument #2 to 'setPaneOn' (boolean expected, got ${a.type(2)})`);
+      const on = a.boolean(2);
+      const known = isBuiltinPaneId(id) || (isScriptPaneId(id) && this.scriptPaneRegs().has(id));
+      if (!known) return false;
+      const surf = this.o.panes;
+      if (surf?.setOn) return surf.setOn(id, on);
+      const p = this.scriptPaneRegs().get(id as PaneId);
+      if (!p) return false;
+      p.view.setOn(on);
+      return true;
     });
   }
 
@@ -1453,6 +1621,7 @@ export class ScriptHost {
   private closePane(p: PaneReg): void {
     if (this.paneHandles.get(p.handle) !== p) return;
     this.paneHandles.delete(p.handle);
+    if (!p.temporary) this.schedulePanes();
     if (p.owner.panes.get(p.name) === p) p.owner.panes.delete(p.name);
     const s = p.owner.script;
     for (const ref of p.links.values()) s?.release(ref);

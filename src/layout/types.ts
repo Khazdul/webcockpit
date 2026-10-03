@@ -80,6 +80,16 @@ export const PANE_LABELS: Readonly<Record<BuiltinPaneId, string>> = {
   map: 'Map',
 };
 
+/** Short names of the built-in panes (the pane bar's buttons, ADR 0065). */
+export const PANE_SHORT: Readonly<Record<BuiltinPaneId, string>> = {
+  character: 'CHAR',
+  timers: 'TIME',
+  group: 'GRP',
+  comm: 'COMM',
+  ui: 'UI',
+  map: 'MAP',
+};
+
 /**
  * Pane tint names (Inv §10.4). `black` is stored but shown as "None": the
  * pane has no fill of its own and sits on the terminal background.

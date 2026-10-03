@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import type { BusEvents, Line, StyleRun, UiMessage } from '../../src/core/types';
-import { TRUECOLOR } from '../../src/core/types';
+import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { entryWarning } from '../../src/editor/logic';
 import { GameState } from '../../src/gmcp/state';
 import { loadLuaRuntime } from '../../src/lua';
@@ -16,12 +16,13 @@ import { HANG_KEY } from '../../src/scripts/guard';
 import { GmcpCache } from '../../src/scripts/gmcp-cache';
 import { parseCecho } from '../../src/scripts/colors';
 import { MapMarkHub, type ScriptMapSurface } from '../../src/map/marks';
-import { ScriptHost } from '../../src/scripts/host';
+import { PANES_EVENT_MAX, ScriptHost, deriveShort } from '../../src/scripts/host';
+import { type DockId, PANE_IDS } from '../../src/layout/types';
 import type { StyledRow } from '../../src/ui/output-pane';
 import { PaneContent } from '../../src/panes/script-content';
 
 const PaneContentFrom = PaneContent.fromSnapshot;
-import type { ScriptPaneEvents, ScriptPaneSpec, ScriptPaneSurface, ScriptPaneView } from '../../src/panes/script-surface';
+import type { PaneState, ScriptPaneEvents, ScriptPaneSpec, ScriptPaneSurface, ScriptPaneView } from '../../src/panes/script-surface';
 
 class MemStorage {
   readonly map = new Map<string, string>();
@@ -1318,3 +1319,250 @@ describe('panes', () => {
     expect(t.sent).toEqual(['0,0,true']);
   });
 });
+
+/** A surface with the pane list (ADR 0065): built-ins first, then the open ordinary panes. */
+class ListSurface extends FakeSurface {
+  readonly builtinOn = new Map<string, boolean>();
+  readonly docks = new Map<string, DockId | 'float'>();
+  readonly shown = new Set<string>();
+  readonly wants: Array<[string, number, number | undefined]> = [];
+  private readonly fns = new Set<() => void>();
+  override open(spec: ScriptPaneSpec, content: PaneContent, events: ScriptPaneEvents): ScriptPaneView {
+    const v = super.open(spec, content, events) as FakeView & ScriptPaneView;
+    v.dock = () => (spec.temporary ? 'float' : (this.docks.get(spec.id) ?? spec.place.dock));
+    v.want = (rows, cols) => {
+      this.wants.push([spec.id, rows, cols]);
+      return v.dock!() !== 'float';
+    };
+    this.notify();
+    return v;
+  }
+  states(): PaneState[] {
+    const open = this.opened.filter((o) => !o.view.closed && !o.spec.temporary);
+    return [
+      ...PANE_IDS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: this.shown.has(id), dock: (this.docks.get(id) ?? 'right') as DockId | 'float' })),
+      ...open.map((o) => ({ id: o.spec.id, on: o.view.on, shown: this.shown.has(o.spec.id), dock: o.view.dock!() })),
+    ];
+  }
+  setOn(id: string, on: boolean): boolean {
+    if (!this.states().some((s) => s.id === id)) return false;
+    if (PANE_IDS.includes(id as never)) this.builtinOn.set(id, on);
+    else this.opened.find((o) => o.spec.id === id && !o.view.closed)!.view.on = on;
+    this.notify();
+    return true;
+  }
+  onStates(fn: () => void): () => void {
+    this.fns.add(fn);
+    return () => this.fns.delete(fn);
+  }
+  notify(): void {
+    for (const f of [...this.fns]) f();
+  }
+}
+
+describe('pane list (ADR 0065)', () => {
+  const DUMP = `
+    tempAlias("^dump$", function()
+      for _, e in ipairs(getPanes()) do
+        send(table.concat({e.id, e.short, tostring(e.on), tostring(e.shown), e.dock, e.script or "-", tostring(e.own), e.title}, "|"))
+      end
+    end)`;
+  const flushMicro = () => new Promise((r) => setTimeout(r, 0));
+
+  it('getPanes lists built-ins, then script panes in surface order; temporary panes never; own marks the caller', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        a: src(`
+          createPane{id = "main", title = "Mercenaries", dock = "left"}
+          createPane{id = "pick", temporary = true}
+          createPane{id = "k", title = "Port keys", short = " KEYS ", dock = "top"}
+          createPane{id = "z9", title = "!!"}
+          ${DUMP}`),
+        b: src(`createPane{id = "bar", title = "Pane bar", dock = "bottom", lane = "own", border = false}`),
+      },
+      { panes },
+    );
+    panes.shown.add('comm');
+    panes.builtinOn.set('map', false);
+    t.engine.input('dump');
+    expect(t.sent).toEqual([
+      'character|CHAR|true|false|right|-|false|Character',
+      'timers|TIME|true|false|right|-|false|Timers',
+      'group|GRP|true|false|right|-|false|Group',
+      'comm|COMM|true|true|right|-|false|Comm',
+      'ui|UI|true|false|right|-|false|UI',
+      'map|MAP|false|false|right|-|false|Map',
+      'a/main|MERC|true|false|left|a|true|Mercenaries',
+      'a/k|KEYS|true|false|top|a|true|Port keys',
+      'a/z9|Z9|true|false|right|a|true|!!',
+      'b/bar|PANE|true|false|bottom|b|false|Pane bar',
+    ]);
+    expect(panes.get('b/bar')!.spec.place).toEqual({ dock: 'bottom', rows: 8, cols: 30, border: false, lane: 'own' });
+    expect(deriveShort('Port keys')).toBe('PORT');
+  });
+
+  it('createPane checks short, border and lane; a repeated createPane takes a new short name', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        s: src(`
+          local function try(t) local ok, e = pcall(createPane, t); send(ok and "ok" or e) end
+          try{id = "a", short = ""}
+          try{id = "a", short = "123456789"}
+          try{id = "a", border = "no"}
+          try{id = "a", lane = "inner"}
+          try{id = "a", lane = "own", dock = "float"}
+          try{id = "a", lane = "own", temporary = true}
+          createPane{id = "a", title = "Alpha"}
+          createPane{id = "a", short = "AL"}
+          ${DUMP}`),
+      },
+      { panes },
+    );
+    expect(t.sent.slice(0, 6).map((m) => m.replace(/^.*\(/, '').replace(/\)$/, ''))).toEqual([
+      'short must be 1 to 8 characters',
+      'short must be 1 to 8 characters',
+      'border must be true or false',
+      'lane must be "own"',
+      'lane is for a pane in a dock',
+      'lane is for a pane in a dock',
+    ]);
+    t.sent.length = 0;
+    t.engine.input('dump');
+    expect(t.sent.at(-1)).toBe('s/a|AL|true|false|right|s|true|Alpha');
+  });
+
+  it('setPaneOn switches any pane; false for unknown, temporary and stopped scripts; type errors', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        s: src(`
+          createPane{id = "pick", temporary = true}
+          tempAlias("^on ([^ ]+) ([^ ]+)$", function()
+            send(tostring(setPaneOn(matches[2], matches[3] == "true")))
+          end)
+          tempAlias("^bad$", function()
+            local ok, e = pcall(setPaneOn, "comm", "yes")
+            send(e)
+          end)`),
+        o: src(`createPane{id = "main"}`),
+      },
+      { panes },
+    );
+    t.engine.input('on comm false');
+    t.engine.input('on o/main false');
+    t.engine.input('on nope/x true');
+    t.engine.input('on s/~pick false');
+    t.engine.input('on zz true');
+    t.engine.input('bad');
+    expect(t.sent.slice(0, 5)).toEqual(['true', 'true', 'false', 'false', 'false']);
+    expect(t.sent[5]).toMatch(/bad argument #2 to 'setPaneOn' \(boolean expected, got string\)/);
+    expect(panes.builtinOn.get('comm')).toBe(false);
+    expect(panes.get('o/main')!.view.on).toBe(false);
+    await t.lib.setEnabled('o', false);
+    await t.settle();
+    t.sent.length = 0;
+    t.engine.input('on o/main true');
+    expect(t.sent).toEqual(['false']);
+  });
+
+  it('sysPanesChanged: one per microtask, only when the list changed, never in a loop from wantSize', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        w: src(`
+          local pane = createPane{id = "bar", title = "Bar", dock = "bottom"}
+          n = 0
+          registerAnonymousEventHandler("sysPanesChanged", function(ev)
+            n = n + 1
+            pane:wantSize(1)
+            send(ev .. " " .. n)
+          end)`),
+      },
+      { panes },
+    );
+    await flushMicro();
+    expect(t.sent).toEqual([]);
+    // Two changes in one task: one event.
+    panes.setOn('group', false);
+    await flushMicro();
+    expect(t.sent).toEqual(['sysPanesChanged 1']);
+    panes.setOn('comm', false);
+    panes.setOn('ui', false);
+    await flushMicro();
+    expect(t.sent).toEqual(['sysPanesChanged 1', 'sysPanesChanged 2']);
+    // A layout that changes nothing in the list: no event.
+    panes.notify();
+    panes.notify();
+    await flushMicro();
+    expect(t.sent).toHaveLength(2);
+    // A dock change is a change.
+    panes.docks.set('comm', 'left');
+    panes.notify();
+    await flushMicro();
+    expect(t.sent.at(-1)).toBe('sysPanesChanged 3');
+    expect(panes.wants.every(([id, r]) => id === 'w/bar' && r === 1)).toBe(true);
+  });
+
+  it('a handler that changes the list every time is capped with one warning', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        loop: src(`
+          n = 0
+          registerAnonymousEventHandler("sysPanesChanged", function()
+            n = n + 1
+            local on = true
+            for _, e in ipairs(getPanes()) do if e.id == "comm" then on = e.on end end
+            setPaneOn("comm", not on)
+            send("ev")
+          end)`),
+      },
+      { panes },
+    );
+    panes.setOn('ui', false);
+    for (let i = 0; i < 40; i++) await flushMicro();
+    expect(t.sent.length).toBe(PANES_EVENT_MAX);
+    expect(t.uiText().filter((m) => m.includes('sysPanesChanged fired more than'))).toHaveLength(1);
+  });
+
+  it('pane:dock and pane:wantSize: where it is, the request goes to the surface; floats and temporary panes say false', async () => {
+    const panes = new ListSurface();
+    const t = await setup(
+      {
+        s: src(`
+          local p = createPane{id = "p", dock = "left"}
+          local f = createPane{id = "f", dock = "float"}
+          local tp = createPane{id = "t", temporary = true}
+          send(p:dock() .. " " .. f:dock() .. " " .. tp:dock())
+          send(tostring(p:wantSize(3)) .. " " .. tostring(p:wantSize(2, 40)) .. " " .. tostring(f:wantSize(3)) .. " " .. tostring(tp:wantSize(3)))
+          local ok, e = pcall(p.wantSize, p, 0)
+          send(e)
+          p:close()
+          send(tostring(p:dock()))`),
+      },
+      { panes },
+    );
+    expect(t.sent[0]).toBe('left float float');
+    expect(t.sent[1]).toBe('true true false false');
+    expect(t.sent[2]).toMatch(/a size from 1 expected/);
+    expect(t.sent[3]).toBe('nil');
+    expect(panes.wants).toEqual([
+      ['s/p', 3, undefined],
+      ['s/p', 2, 40],
+      ['s/f', 3, undefined],
+    ]);
+  });
+
+  it('shade tags work in pane text only', async () => {
+    const panes = new FakeSurface();
+    await setup({ s: src(`local p = createPane{id = "p"}\np:setLine(1, "<@text:@dim>on<reset> <@foo>x")\ncecho("<@dim>plain")`) }, { panes });
+    const l = panes.get('s/p')!.content.lines[0]!;
+    expect('spans' in l && l.spans.map((s) => [s.text, s.fg, s.bg])).toEqual([
+      ['on', shadeColor('vtext'), shadeColor('dim')],
+      [' <@foo>x', undefined, undefined],
+    ]);
+  });
+});
+
