@@ -91,7 +91,7 @@ owner asked for it.
 - [x] `readability.lua`: directions, exits, mobs table, flags, settings, help
 - [x] Unit tests
 - [x] E2E tests (Chromium + Firefox)
-- [ ] Release
+- [x] Release (0.1.38, 2026-10-03)
 - [ ] Owner test
 
 ## Build notes

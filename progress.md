@@ -21,13 +21,21 @@ Current stage: 16 (readability script, adaptive colours; built, awaiting release
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
 | 14 | Pane bar | Done | `docs/stages/14-panebar.md` |
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
-| 16 | Readability script | In progress | `docs/stages/16-readability.md` |
+| 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Release 0.1.38: stage 16 readability
+
+- **Released:** 0.1.38 (tag v0.1.38): readability script and adaptive
+  colours. build:pages smoke green, Pages deploy green, live
+  release.json shows 0.1.38, test:prod against mumecockpit.com 10/10.
+- **Next:** owner test of stage 16 (test guide in the stage file).
+- **Commits:** 2346db4, plus this one.
 
 ### 2026-10-03 — Stage 16: readability script, adaptive colours (not released)
 
