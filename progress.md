@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 11–12 done (latest release 0.1.33). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 11–12 done (latest release 0.1.34). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -25,7 +25,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-03 — Input options: auto-clear and autosuggest
+### 2026-10-03 — Input options: auto-clear and autosuggest, release 0.1.34
 
 - **Owner request:** two `[X]`/`[ ]` toggles directly in the Options hub,
   both default off: "Auto-clear input" (empty line after Enter) and
@@ -35,8 +35,11 @@ Newest first.
   a word, macros still win; no suggestion while browsing history. ADR 0063.
 - **Verified:** typecheck clean, unit 1913 green, chrome e2e green
   (Chromium + Firefox).
-- **Next:** owner test; release when approved.
-- **Commits:** fe26104, 1de3111, 537ee5b, cbc3b7f, f04589a, plus this one.
+- **Released:** 0.1.34 (tag v0.1.34), build:pages smoke green, Pages
+  deploy green, live release.json shows 0.1.34.
+- **Next:** owner feedback on the two input options.
+- **Commits:** fe26104, 1de3111, 537ee5b, cbc3b7f, f04589a, bce0c50,
+  5e8c162, plus this one.
 
 ### 2026-10-03 — Themes for the dark backgrounds, release 0.1.33
 
