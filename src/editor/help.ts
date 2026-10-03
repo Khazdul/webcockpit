@@ -92,7 +92,7 @@ const INTRO: readonly HelpSection[] = [
     text: [
       'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
       'LITE is a simplified view where you can edit your settings.',
-      'EDITOR lets you edit the whole settings file directly (experienced users).',
+      'EDITOR lets you edit the whole settings file directly (experienced users). Ctrl+F finds and Ctrl+H replaces there; in LITE they switch to EDITOR first. In this manual Ctrl+F finds too.',
       'What is different from tt++ here:',
       '- Every command sent to the game is echoed in the game window. Write game commands as they are; no echo helper is needed.',
       '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',

@@ -34,7 +34,7 @@ const GETTING_STARTED: HelpSection = {
     "- A known name typed in the wrong case is corrected when you finish the word: temptrigger( becomes tempTrigger(. Ctrl+Z undoes the correction, and that spelling is then left alone.",
     "- An error the saved script hit while running is marked on its line too, dashed, until you edit that line or save.",
     "- Ctrl+Space completes API and Lua names and keywords; for, if, while and function expand to a whole block, and Tab moves between its fields. The mouse over a name shows its help. Inside a call's parentheses a pop-up shows its parameters, the current one marked (ESC closes it). F1 opens this manual at the name under the cursor.",
-    "- Ctrl+F finds and replaces. ESC leaves the editor and asks first when there are unsaved changes.",
+    "- Ctrl+F finds and replaces. ESC leaves the editor and asks first when there are unsaved changes. In this manual Ctrl+F finds too; Enter goes to the next match, ESC closes the find row.",
   ],
   examples: [
     {
