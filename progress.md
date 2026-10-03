@@ -30,6 +30,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-04 — Stage 17: JMC import fixes (not released)
+
+- **Done:** owner test files `~/jmc-test` (MUME.set, MUME-extra.set,
+  global.set). Fixes from running them: JMC `&x` colour codes → `<xyz>`,
+  text `#if` comparisons quoted, `#N cmd` repeats, `#beep` → `#bell`,
+  comments no longer inside `#class` blocks. Unit 2192 green.
+- **Open:** a nested `#action` inside a JMC alias loses its priority and
+  group without a report note.
+- **Next:** release on the owner's word; owner test.
+- **Commits:** 58a13cd, 15892ab, plus this one.
+
 ### 2026-10-04 — Stage 17: foreign import (tt++, JMC, Powwow), release 0.1.42
 
 - **Owner decision:** import TinTin++, JMC and Powwow (Mudlet out), with
