@@ -40,7 +40,8 @@ Newest first.
   in ManualView (both manuals); Ctrl+F/Ctrl+H in LITE open EDITOR search
   from the selected entry. ADR 0070. Unit 2065 green, typecheck clean,
   related e2e 122 green (Chromium, Firefox).
-- **Next:** owner test (guide in ADR 0070 session report), then release.
+- **Owner test:** looks good; not released yet (owner's call).
+- **Next:** release together with stage 16 when the owner says so.
 - **Commits:** e7b2804, 06457f8, af5b57a, e8a4331, b62ffc3, a9e5e7c,
   da845f8, plus this one.
 
