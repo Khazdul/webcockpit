@@ -3,8 +3,9 @@
 // applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
-//   Options hub:  Panes · Mapper · Appearance · Spotlights · Scripts · Back
-//                 (Scripts only with a script library)
+//   Options hub:  Panes · Mapper · Appearance · Spotlights · Scripts,
+//                 [X] Auto-clear input, [X] Input autosuggest, Back
+//                 (Scripts only with a script library; ADR 0063)
 //   Panes hub:    General · Timers · Communication · Group · Back
 //                 (Cockpit's order)
 //   General:      pane × colour grid with a Border column, reset layout
@@ -76,13 +77,32 @@ const MENU_FOOTER = ['↑↓ Navigate', 'Enter Select', 'ESC Back'];
 
 export function OptionsHub(): VNode {
   const nav = useNav();
-  const { scripts } = useServices();
+  const { scripts, settings } = useServices();
+  const input = useSettings().input;
+  const toggleClear = (): void => settings.update({ input: { autoClear: !input.autoClear } });
+  const toggleSuggest = (): void => settings.update({ input: { autosuggest: !input.autosuggest } });
   const items: MenuItem[] = [
     { key: 'panes', label: 'Panes', activate: () => nav.push(<PanesHub />) },
     { key: 'mapper', label: 'Mapper', activate: () => nav.push(<MapperOptionsFrame />) },
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
     ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
+    { key: 'sp-input', spacer: true },
+    // The input line's behaviour (ADR 0063), toggled in place.
+    {
+      key: 'autoclear',
+      glyph: input.autoClear ? '[X]' : '[ ]',
+      label: 'Auto-clear input',
+      activate: toggleClear,
+      adjust: toggleClear,
+    },
+    {
+      key: 'autosuggest',
+      glyph: input.autosuggest ? '[X]' : '[ ]',
+      label: 'Input autosuggest',
+      activate: toggleSuggest,
+      adjust: toggleSuggest,
+    },
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];

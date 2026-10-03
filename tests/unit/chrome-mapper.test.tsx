@@ -106,7 +106,18 @@ describe('Options → Mapper', () => {
     expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
     await key('Escape');
     await key('Escape');
-    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Spotlights', 'Back']);
+    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Spotlights', '[ ] Auto-clear input', '[ ] Input autosuggest', 'Back']);
+    // The input line toggles flip in place and write the store at once (ADR 0063).
+    await click(host, 'autoclear');
+    expect(svc.settings.get().input).toEqual({ autoClear: true, autosuggest: false });
+    await key('ArrowDown');
+    await key('ArrowRight');
+    expect(svc.settings.get().input).toEqual({ autoClear: true, autosuggest: true });
+    expect(labels(host)).toContain('[X] Input autosuggest');
+    await key(' ');
+    expect(svc.settings.get().input.autosuggest).toBe(false);
+    await click(host, 'autoclear');
+    expect(svc.settings.get().input.autoClear).toBe(false);
 
     await click(host, 'mapper');
     await settle();
