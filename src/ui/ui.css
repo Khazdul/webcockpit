@@ -316,6 +316,25 @@ body {
   display: none;
 }
 
+/* Autosuggestion (ADR 0063): the rest of a history entry, greyed after the
+ * line. Spans the field and is clipped there; JS sets text-indent to the
+ * end of the line (column × cell width − scrollLeft). Colour 8 is a muted
+ * grey readable on every background theme (ADR 0061). */
+.wc-input-ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  overflow: hidden;
+  white-space: pre;
+  pointer-events: none;
+  color: var(--ansi-8);
+}
+
+.wc-input-ghost[hidden] {
+  display: none;
+}
+
 /* Notice indicator (src/ui/notice-indicator.ts, ADR 0025): left of the clock. */
 .wc-input-notice {
   flex: 0 0 auto;

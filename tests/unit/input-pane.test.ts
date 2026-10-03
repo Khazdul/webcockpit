@@ -7,8 +7,10 @@ import {
   InputPane,
   MAX_HISTORY,
   type ScrollTarget,
+  nextSuggestedWord,
   normalizePaste,
   spaceWordStartBefore,
+  suggestFrom,
   wordEndAfter,
   wordStartBefore,
 } from '../../src/ui/input-pane';
@@ -379,6 +381,173 @@ describe('InputPane keys', () => {
   });
 });
 
+describe('InputPane auto-clear (ADR 0063)', () => {
+  it('off by default: the sent text stays, selected', () => {
+    const t = setup();
+    t.type('look');
+    t.key('Enter');
+    expect(t.i.value).toBe('look');
+    expect(t.selected()).toEqual([0, 4]);
+  });
+
+  it('on: Enter empties the line; history and Up/Down are unchanged', () => {
+    const t = setup();
+    t.pane.setAutoClear(true);
+    for (const c of ['look', 'north', 'north']) {
+      t.type(c);
+      t.key('Enter');
+    }
+    expect(t.sent.map((x) => x.text)).toEqual(['look', 'north', 'north']);
+    expect(t.i.value).toBe('');
+    expect(t.pane.getHistory()).toEqual(['look', 'north']);
+    t.key('ArrowUp');
+    expect(t.i.value).toBe('north');
+    expect(t.selected()).toEqual([0, 5]);
+    t.key('ArrowUp');
+    expect(t.i.value).toBe('look');
+    t.key('ArrowDown');
+    expect(t.i.value).toBe('north');
+    t.key('ArrowDown');
+    expect(t.i.value).toBe('');
+    // Enter on a recalled entry sends it and clears again.
+    t.key('ArrowUp');
+    t.key('Enter');
+    expect(t.sent.at(-1)!.text).toBe('north');
+    expect(t.i.value).toBe('');
+    t.pane.setAutoClear(false);
+    t.type('west');
+    t.key('Enter');
+    expect(t.i.value).toBe('west');
+  });
+
+  it('password mode still clears and keeps nothing', () => {
+    const t = setup();
+    t.pane.setAutoClear(true);
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    t.type('secret');
+    t.key('Enter');
+    expect(t.i.value).toBe('');
+    expect(t.pane.getHistory()).toEqual([]);
+  });
+});
+
+describe('InputPane autosuggest (ADR 0063)', () => {
+  function suggestSetup(history: string[]) {
+    const t = setup();
+    for (const c of history) {
+      t.type(c);
+      t.key('Enter');
+    }
+    t.type('');
+    t.pane.setAutosuggest(true);
+    return t;
+  }
+
+  it('suggestFrom: space gate, newest wins, equal entry skipped, prefix incl. the space', () => {
+    const h = ['kill orc', 'killer', 'kill troll', 'kill '];
+    expect(suggestFrom(h, 'kill')).toBe('');
+    expect(suggestFrom(h, 'kill ')).toBe('troll');
+    expect(suggestFrom(h, 'kill o')).toBe('rc');
+    expect(suggestFrom(h, 'kill orc')).toBe('');
+    expect(suggestFrom(h, 'cast ')).toBe('');
+    expect(suggestFrom([], 'kill ')).toBe('');
+    expect(nextSuggestedWord('orc the great')).toBe('orc');
+    expect(nextSuggestedWord(' the great')).toBe(' the');
+    expect(nextSuggestedWord('  ')).toBe('  ');
+  });
+
+  it('shows nothing while off, without a space, with a selection, or browsing', () => {
+    const t = suggestSetup(['kill orc the great']);
+    t.pane.setAutosuggest(false);
+    t.type('kill ');
+    expect(t.pane.suggestion()).toBe('');
+    t.pane.setAutosuggest(true);
+    expect(t.pane.suggestion()).toBe('orc the great');
+    t.type('kill');
+    expect(t.pane.suggestion()).toBe('');
+    t.type('kill ');
+    t.i.setSelectionRange(0, 2);
+    expect(t.pane.suggestion()).toBe('');
+    t.i.setSelectionRange(2, 2);
+    expect(t.pane.suggestion()).toBe('');
+    t.key('ArrowUp');
+    t.i.setSelectionRange(t.i.value.length, t.i.value.length);
+    expect(t.pane.suggestion()).toBe('');
+  });
+
+  it('Right and End accept the whole suggestion; it is never sent', () => {
+    const t = suggestSetup(['kill orc the great']);
+    t.type('kill ');
+    expect(t.key('ArrowRight').defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('kill orc the great');
+    t.type('kill ');
+    expect(t.key('End').defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('kill orc the great');
+    // Shift+End and an End away from the end keep their native meaning.
+    t.type('kill ');
+    expect(t.key('End', { shiftKey: true }).defaultPrevented).toBe(false);
+    t.type('kill ');
+    t.i.setSelectionRange(1, 1);
+    expect(t.key('End').defaultPrevented).toBe(false);
+    expect(t.i.value).toBe('kill ');
+    // Enter sends only the buffer.
+    t.type('kill ');
+    t.key('Enter');
+    expect(t.sent.at(-1)!.text).toBe('kill ');
+  });
+
+  it('Tab accepts word by word, then stays put; without a suggestion it is not taken', () => {
+    const t = suggestSetup(['kill orc the great']);
+    t.type('kill ');
+    expect(t.key('Tab').defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('kill orc');
+    t.key('Tab');
+    expect(t.i.value).toBe('kill orc the');
+    t.key('Tab');
+    expect(t.i.value).toBe('kill orc the great');
+    // Filled: a further Tab does nothing (and does not move the focus).
+    expect(t.key('Tab').defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('kill orc the great');
+    // A fresh line with no suggestion: Tab keeps the browser's meaning.
+    t.type('look');
+    expect(t.key('Tab').defaultPrevented).toBe(false);
+    t.pane.setAutosuggest(false);
+    t.type('kill ');
+    expect(t.key('Tab').defaultPrevented).toBe(false);
+    expect(t.i.value).toBe('kill ');
+  });
+
+  it('a bound macro wins over the accept keys', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const fired: string[] = [];
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: (k) => (k === 'Tab' ? (fired.push(k), true) : false),
+    });
+    pane.focus();
+    pane.input.value = 'kill orc';
+    pane.input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    pane.setAutosuggest(true);
+    pane.input.value = 'kill ';
+    pane.input.setSelectionRange(5, 5);
+    pane.input.dispatchEvent(new Event('input'));
+    pane.input.dispatchEvent(new KeyboardEvent('keydown', { code: 'Tab', key: 'Tab', bubbles: true, cancelable: true }));
+    expect(fired).toEqual(['Tab']);
+    expect(pane.input.value).toBe('kill ');
+    pane.dispose();
+  });
+
+  it('none in password mode', () => {
+    const t = suggestSetup(['kill orc']);
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    t.type('kill ');
+    expect(t.pane.suggestion()).toBe('');
+    expect(t.key('ArrowRight').defaultPrevented).toBe(false);
+  });
+});
+
 describe('AppStatus', () => {
   it('tracks state, name, link, xml and capture', () => {
     const bus = new Bus();
@@ -591,6 +760,37 @@ describe('InputPane custom caret', () => {
       t.pane.dispose();
       expect(vi.getTimerCount()).toBe(0);
     });
+  });
+
+  it('draws the autosuggestion after the line, only when on (ADR 0063)', () => {
+    const t = caretSetup();
+    const g = t.pane.ghostEl;
+    t.type('kill orc');
+    t.i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    t.type('kill ');
+    t.run();
+    expect(g.hidden).toBe(true);
+    t.pane.setAutosuggest(true);
+    t.run();
+    expect(g.hidden).toBe(false);
+    expect(g.textContent).toBe('orc');
+    expect(g.style.textIndent).toBe('50px');
+    // The block caret shows the suggestion's first character.
+    expect(t.c.textContent).toBe('o');
+    Object.defineProperty(t.i, 'scrollLeft', { configurable: true, get: () => 20 });
+    t.type('kill o');
+    t.run();
+    expect(g.textContent).toBe('rc');
+    expect(g.style.textIndent).toBe('40px');
+    t.type('kill orc');
+    t.run();
+    expect(g.hidden).toBe(true);
+    t.type('kill ');
+    t.run();
+    t.pane.setAutosuggest(false);
+    t.run();
+    expect(g.hidden).toBe(true);
+    expect(t.c.textContent).toBe(' ');
   });
 
   it('does no caret work on the Enter → send path', () => {

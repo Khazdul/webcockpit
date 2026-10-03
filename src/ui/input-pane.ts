@@ -46,6 +46,20 @@
 //   follows ends the composition (blur + refocus) and restores the
 //   snapshot. The guard ends at the next plain keydown outside a
 //   composition, or at a compositionend once the key is released.
+// - Auto-clear (ADR 0063, off by default): Enter leaves the line empty
+//   instead of refilling it with the sent text, selected. History is
+//   recorded the same way either way.
+// - Autosuggest (ADR 0063, off by default): the newest history entry that
+//   starts with the line (and is longer) is shown greyed after it, once
+//   the line holds a space, while the caret is at the end with nothing
+//   selected and history is not being browsed. Not in password mode.
+//   The ghost (`.wc-input-ghost`) is drawn in the caret's animation frame,
+//   never in a key handler. Right at the end, or End with the caret
+//   already there, accepts it all; Tab accepts the next word (whitespace
+//   run + word). Tab only does so while a suggestion is showing (or right
+//   after it filled the line, so a repeated Tab does not move the focus);
+//   otherwise it keeps the browser's focus move. Macros win first, as for
+//   every key. The ghost is never sent.
 
 import type { Bus } from '../core/bus';
 import type { Sender } from '../core/types';
@@ -81,6 +95,25 @@ export interface InputPaneOptions {
 }
 
 const BULLET = '•';
+
+/**
+ * The autosuggestion for `text` (ADR 0063): the rest of the newest entry
+ * in `history` (oldest first) that starts with `text` and is longer, or
+ * '' when there is none or `text` holds no space yet.
+ */
+export function suggestFrom(history: readonly string[], text: string): string {
+  if (!text.includes(' ')) return '';
+  for (let k = history.length - 1; k >= 0; k--) {
+    const h = history[k]!;
+    if (h.length > text.length && h.startsWith(text)) return h.slice(text.length);
+  }
+  return '';
+}
+
+/** The next word of a suggestion: its leading whitespace run and the word after it. */
+export function nextSuggestedWord(rest: string): string {
+  return /^\s*\S*/.exec(rest)![0];
+}
 
 /** Input history depth (tt++'s default); the oldest entry is dropped. */
 export const MAX_HISTORY = 1000;
@@ -134,6 +167,10 @@ export class InputPane {
   readonly el: HTMLDivElement;
   readonly input: HTMLInputElement;
   private readonly mask: HTMLSpanElement;
+  /** The greyed autosuggestion after the line (ADR 0063). */
+  readonly ghostEl: HTMLSpanElement;
+  private ghostText = '';
+  private ghostX = NaN;
   /** The custom caret element. */
   readonly caretEl: HTMLSpanElement;
   /** The clock strip at the right end (8 cells; src/ui/clock-strip.ts draws it). */
@@ -160,6 +197,12 @@ export class InputPane {
   private draftRestored = false;
 
   private password = false;
+  /** Options → Auto-clear input (ADR 0063). */
+  private autoClear = false;
+  /** Options → Input autosuggest (ADR 0063). */
+  private autosuggest = false;
+  /** Tab just took a word of the suggestion: a further Tab stays in the line. */
+  private tabCompleting = false;
   private leaveGuard = false;
   /** Line before the dead key a macro consumed; its composition is undone. */
   private deadSnap: { value: string; start: number; end: number; dir: 'forward' | 'backward' | 'none' } | null =
@@ -202,11 +245,15 @@ export class InputPane {
     this.mask = doc.createElement('span');
     this.mask.className = 'wc-input-mask';
     this.mask.hidden = true;
+    this.ghostEl = doc.createElement('span');
+    this.ghostEl.className = 'wc-input-ghost';
+    this.ghostEl.setAttribute('aria-hidden', 'true');
+    this.ghostEl.hidden = true;
     this.caretEl = doc.createElement('span');
     this.caretEl.className = 'wc-caret';
     this.caretEl.setAttribute('aria-hidden', 'true');
     this.caretEl.hidden = true;
-    wrap.append(this.input, this.mask, this.caretEl);
+    wrap.append(this.input, this.mask, this.ghostEl, this.caretEl);
     const clock = doc.createElement('span');
     clock.className = 'wc-input-clock';
     this.clockEl = clock;
@@ -275,6 +322,31 @@ export class InputPane {
     this.scheduleCaret();
   }
 
+  /** Enter empties the line instead of leaving the sent text selected. */
+  setAutoClear(on: boolean): void {
+    this.autoClear = on;
+  }
+
+  /** Shows the greyed history suggestion (applies at the next frame). */
+  setAutosuggest(on: boolean): void {
+    if (on === this.autosuggest) return;
+    this.autosuggest = on;
+    this.tabCompleting = false;
+    this.scheduleCaret();
+  }
+
+  /**
+   * The suggestion's rest as it stands now ('' when none shows): option
+   * on, not masked, not browsing, caret at the end with nothing selected.
+   */
+  suggestion(): string {
+    if (!this.autosuggest || this.password || this.browseIndex >= 0) return '';
+    const i = this.input;
+    const n = i.value.length;
+    if (i.selectionStart !== n || i.selectionEnd !== n) return '';
+    return suggestFrom(this.history, i.value);
+  }
+
   isPasswordMode(): boolean {
     return this.password;
   }
@@ -328,8 +400,12 @@ export class InputPane {
         // index needs to shift with the dropped entries.
         if (h.length > MAX_HISTORY) h.splice(0, h.length - MAX_HISTORY);
       }
-      this.input.value = text;
-      this.input.setSelectionRange(0, text.length);
+      if (this.autoClear) {
+        this.input.value = '';
+      } else {
+        this.input.value = text;
+        this.input.setSelectionRange(0, text.length);
+      }
     }
     this.endBrowsing();
   }
@@ -346,12 +422,14 @@ export class InputPane {
   // ---------------------------------------------------------------- history
 
   private endBrowsing(): void {
+    this.tabCompleting = false;
     this.browseIndex = -1;
     this.draft = '';
     this.draftRestored = false;
   }
 
   private show(text: string): void {
+    this.tabCompleting = false;
     this.input.value = text;
     this.input.setSelectionRange(0, text.length);
     this.scheduleCaret();
@@ -588,6 +666,29 @@ export class InputPane {
         if (e.shiftKey) this.selectToEnd();
         else this.historyDown();
         return true;
+      case 'ArrowRight':
+      case 'End':
+        // At the end of the line: take the whole suggestion (not sent).
+        if (plain && !e.shiftKey && this.autosuggest) {
+          const rest = this.suggestion();
+          if (rest === '') return false;
+          const n = this.input.value.length;
+          this.edit(n, n, rest);
+          return true;
+        }
+        return false;
+      case 'Tab':
+        // One word of the suggestion; without one, the browser moves the
+        // focus as before (but not right after Tab filled the line).
+        if (plain && !e.shiftKey && this.autosuggest) {
+          const rest = this.suggestion();
+          if (rest === '') return this.tabCompleting && this.suggestionPossible();
+          const n = this.input.value.length;
+          this.edit(n, n, nextSuggestedWord(rest));
+          this.tabCompleting = true;
+          return true;
+        }
+        return false;
       case 'Backspace':
         if (alt) {
           this.deleteBack(wordStartBefore);
@@ -637,6 +738,13 @@ export class InputPane {
       }
     }
     return false;
+  }
+
+  /** True while the caret sits at the end of an unselected, unmasked line. */
+  private suggestionPossible(): boolean {
+    const i = this.input;
+    const n = i.value.length;
+    return !this.password && i.selectionStart === n && i.selectionEnd === n;
   }
 
   private caret(): number {
@@ -761,6 +869,8 @@ export class InputPane {
     const end = i.selectionEnd ?? 0;
     const scroll = i.scrollLeft;
     if (this.password) this.mask.style.transform = scroll ? `translateX(${-scroll}px)` : '';
+    // Nothing to do with the option off and no ghost left on screen.
+    const ghost = this.autosuggest || this.ghostText !== '' ? this.updateGhost(scroll) : '';
     if (start !== end) {
       c.hidden = true;
       this.stopBlink();
@@ -775,7 +885,8 @@ export class InputPane {
       if (cc >= 0xd800 && cc <= 0xdbff) col--;
     }
     const x = col * this.cellWidth() - scroll;
-    const cp = v.codePointAt(start);
+    // At the end the caret covers the suggestion's first character.
+    const cp = v.codePointAt(start) ?? ghost.codePointAt(0);
     const ch = cp === undefined ? ' ' : this.password ? BULLET : String.fromCodePoint(cp);
     c.classList.toggle('wc-blurred', this.doc.activeElement !== i);
     if (x !== this.caretX) {
@@ -789,6 +900,30 @@ export class InputPane {
     c.hidden = false;
     // Visible right after every move or edit, then blinking again.
     this.restartBlink();
+  }
+
+  /** Draws (or hides) the suggestion after the line; returns its text. */
+  private updateGhost(scroll: number): string {
+    const g = this.ghostEl;
+    const rest = this.suggestion();
+    if (rest !== this.ghostText) {
+      this.ghostText = rest;
+      g.textContent = rest;
+      g.hidden = rest === '';
+    }
+    if (rest === '') return '';
+    const v = this.input.value;
+    let col = v.length;
+    for (let k = 0; k < v.length; k++) {
+      const cc = v.charCodeAt(k);
+      if (cc >= 0xd800 && cc <= 0xdbff) col--;
+    }
+    const x = col * this.cellWidth() - scroll;
+    if (x !== this.ghostX) {
+      this.ghostX = x;
+      g.style.textIndent = `${x}px`;
+    }
+    return rest;
   }
 
   /** True while the caret should blink (see the header). */

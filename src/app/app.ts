@@ -76,7 +76,7 @@ import { LineAssembler } from '../text/assembler';
 import { InputPane } from '../ui/input-pane';
 import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
-import { SettingsStore, viewSnapshot } from '../settings';
+import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
 import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
@@ -363,8 +363,18 @@ export class App {
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
     });
     this.clockStrip = new ClockStrip(this.input.clockEl, { game: this.game, settings: this.settings, now });
-    // The scrollback depth applies live (ADR 0046).
-    this.unsubs.push(this.settings.subscribe((s) => this.output.setScrollback(s.output.scrollback)));
+    // The scrollback depth and the input line options apply live (ADR 0046, 0063).
+    const applyInput = (s: Readonly<Settings>): void => {
+      this.input.setAutoClear(s.input.autoClear);
+      this.input.setAutosuggest(s.input.autosuggest);
+    };
+    applyInput(this.settings.get());
+    this.unsubs.push(
+      this.settings.subscribe((s) => {
+        this.output.setScrollback(s.output.scrollback);
+        applyInput(s);
+      }),
+    );
     if (cells) {
       this.unsubs.push(
         cells.subscribe(() => {
