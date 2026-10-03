@@ -53,9 +53,9 @@ ADR 0065.
 - [x] Layout: per-lane minimum, own lane, wantPaneSize
 - [x] Cockpit: 1-row lane handles, soft grip, float handles, edge-zone rule, hooks
 - [x] Surface: pane states, setOn, onStates, dock, want (Recording forwards)
-- [ ] Host: createPane short/border/lane, getPanes, setPaneOn, pane:dock, pane:wantSize, sysPanesChanged
+- [x] Host: createPane short/border/lane, getPanes, setPaneOn, pane:dock, pane:wantSize, sysPanesChanged
 - [ ] panebar.lua, keymanager short name
-- [ ] Editor reference and manual
+- [x] Editor reference and manual
 - [ ] Unit tests
 - [ ] E2E tests (Chromium + Firefox)
 - [ ] ADR 0065

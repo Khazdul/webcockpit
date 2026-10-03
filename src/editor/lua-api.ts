@@ -329,7 +329,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "registerAnonymousEventHandler",
     "registerAnonymousEventHandler(event, fn) → id",
-    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysSettingChanged", "sysConnectionEvent", "sysDisconnectionEvent" or a #event name such as "SESSION CONNECTED".',
+    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysSettingChanged", "sysConnectionEvent", "sysDisconnectionEvent", "sysPanesChanged" or a #event name such as "SESSION CONNECTED".',
     {
       params: [
         p(
@@ -585,15 +585,18 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, dock, rows, cols, anchor, temporary, at, group, grid} → pane",
+    "createPane{id, title, short, dock, lane, rows, cols, border, anchor, temporary, at, group, grid} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
         p("id", "string", "The pane's id within the script: 1 to 32 letters, digits, _ or -."),
         p("title", "string?", "The frame title (default: the id). pane:setTitle changes it."),
+        p("short", "string?", "A short name of 1 to 8 characters for lists such as the pane bar (getPanes). Default: the first four letters and digits of the title, in capitals."),
         p("dock", "string?", "Where it goes the first time: \"right\" (default), \"left\", \"top\", \"bottom\" or \"float\"."),
+        p("lane", "string?", "\"own\": the first time, the pane gets a lane of its own at the screen edge of its dock (a row of the top or bottom dock, a column at the side), as high (or wide) as rows (cols) plus the frame. Not for a float or a temporary pane."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
+        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own)."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
@@ -602,7 +605,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
-        "dock, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes lists it with its title and script, to switch it off, colour it or drop its border.",
+        "dock, lane, border, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes lists it with its title and script, to switch it off, colour it or drop its border.",
         "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
         "Rows and columns count from 1. Text wider than the pane is cut. More lines than fit scroll (wheel, touchpad, touch), with one row telling how many are hidden: on top for anchor = \"bottom\", at the bottom for \"top\"; a click on it goes back. A pane keeps at most 500 lines.",
         "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Options → Reset layout forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
@@ -886,6 +889,61 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         "Only for a temporary pane: an ordinary pane's close cross hides it (as pane:hide()). Not called by pane:close() or when the script stops.",
       ],
       example: 'pick:onClose(function()\n  echo("No choice made.")\nend)',
+    },
+  ),
+  fn(
+    "pane:dock",
+    "pane:dock() → string",
+    'Where the pane is now: "left", "right", "top", "bottom" or "float" (a temporary pane is always "float").',
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      returns: "The dock name or \"float\"; nil after pane:close().",
+      more: ["The player can move the pane at any time; redraw from sysPanesChanged or pane:onResize to follow it."],
+      example: 'local side = pane:dock() == "left" or pane:dock() == "right"',
+    },
+  ),
+  fn(
+    "pane:wantSize",
+    "pane:wantSize(rows, cols) → boolean",
+    "Asks for a content size for the pane where it is docked now: rows in a side dock; in the top or bottom dock rows set its lane's height when it is alone in the lane, and cols its width along the lane.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("rows", "number", "Wanted rows, from 1."),
+        p("cols", "number?", "Wanted columns (the top and bottom docks)."),
+      ],
+      returns: "true when the request applies where the pane is, false for a float or a temporary pane.",
+      more: [
+        "Asking again for the same size at the same place changes nothing, so a size the player dragged stays until the script asks for another. A float keeps the size the player gave it.",
+      ],
+      example: "pane:wantSize(#lines)",
+    },
+  ),
+  fn(
+    "getPanes",
+    "getPanes() → list",
+    "Every pane in Options → Panes order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",
+    {
+      params: [],
+      returns:
+        "A list of tables {id, title, short, on, shown, dock, script, own}: on is the player's on/off, shown is true when it is on the screen now (on and room for it), dock is \"left\", \"right\", \"top\", \"bottom\" or \"float\", script names the script that owns it (nil for a built-in pane) and own is true for this script's own panes.",
+      more: [
+        "The built-in panes' ids are character, timers, group, comm, ui and map, with the short names CHAR, TIME, GRP, COMM, UI and MAP; a script pane's id is script/id. The event sysPanesChanged tells when the list changes.",
+      ],
+      example: 'for _, p in ipairs(getPanes()) do\n  if not p.own then echo(p.short .. (p.on and " on" or " off") .. "\\n") end\nend',
+    },
+  ),
+  fn(
+    "setPaneOn",
+    "setPaneOn(id, on) → boolean",
+    "Switches any pane on or off, as its close cross and Options → Panes do.",
+    {
+      params: [
+        p("id", "string", "A pane id from getPanes (\"comm\", \"merc/main\")."),
+        p("on", "boolean", "true to show it, false to hide it."),
+      ],
+      returns: "true, or false when there is no such pane now (an unknown id, a temporary pane, or a pane of a script that is not running).",
+      example: 'setPaneOn("map", false)',
     },
   ),
   v(
