@@ -234,6 +234,7 @@ Mapped to Inv §2.1 and §10.
 Mapped to Inv §3.
 
 - **Profile picker:** create, copy, delete, **import and export** (new).
+  Import also takes foreign settings files (§2.11).
 - **Options:** panes, appearance and spotlights.
 - **History, Statistics, Spotlights, Credits, About.**
 - **Removed:** connection modes and the update flow. Updating means
@@ -479,6 +480,34 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   packages with several files, and Mudlet API compatibility beyond the
   names above.
 
+### 2.11 Foreign profile import (intent Goal 11)
+
+Research: `notes/research/import/`. Design: ADR 0073.
+
+- **Formats:** TinTin++ (1.x and 2.x), JMC (3.x `.set`) and Powwow
+  (saved definition files). Mudlet and other clients are out of scope.
+- **Input:** IMPORT in the profile picker accepts one or more files at
+  once. Files referenced by `#read` (tt++, JMC) are resolved by name
+  among the chosen files and inlined; references not found are listed in
+  the report.
+- **Decoding:** strict UTF-8, else windows-1252 (windows-1251 when the
+  text scores as Cyrillic); a BOM is stripped; CRLF becomes LF.
+- **Detection:** signature scoring per format (ADR 0073). Plain WebCockpit
+  exports and native tt++ go the tt++ path. The detected format and the
+  deciding signals are shown in the report.
+- **Translation:** each source item is *translated* (to the profile
+  language), *kept* (preserved as text: inert tt++ commands verbatim,
+  untranslatable foreign lines in a marked `#nop` block with a reason),
+  or *skipped* (client state with no meaning here, e.g. JMC's `#presub`,
+  Powwow's `#option`; still listed in the report). Nothing is dropped
+  without a report line.
+- **Report:** after import a report frame shows the format, counts for
+  translated / kept / skipped / warnings, and a list of every item that
+  was not translated as-is, with its source line and reason. The profile
+  itself starts with a short `#nop` header naming the source and date.
+- **Pure core:** detection, decoding and translation are pure functions
+  in `src/import/` with no DOM, unit-tested with corpus files.
+
 ## 3. Profile language
 
 tt++ syntax. The supported set comes from real use (Inv §6.5).
@@ -511,8 +540,8 @@ tt++ syntax. The supported set comes from real use (Inv §6.5).
 
 - **Unit tests** (Vitest) cover telnet, the line/XML parser, the script
   engine and round-trip.
-- **Round-trip test corpus:** the owner's profile shapes. This is test
-  data only; profile import is a non-goal.
+- **Round-trip test corpus:** the owner's profile shapes (test data).
+- **Import corpus:** small sample files per foreign format (§2.11).
 - **Replay fixtures.** Raw session logs from Cockpit are read, never
   copied into the product, and replayed through a local fake socket.
   They drive:
@@ -542,6 +571,7 @@ what feedback is wanted.
 | 10 | **Scripts** (before v1, by owner request). Lua runtime and sandbox, script API without panes, Scripts page and editor, `#script`, bundled coin looter. | Enable coin looter and play; write a small script of your own. |
 | 11 | **Script panes.** `createPane`, gauges, clickable rows and cells, run capture and replay of script panes, bundled mercenaries. | Use the mercenaries pane in play; watch it in a replay. |
 | 12 | **Key manager.** The bundled key manager, from the owner's Mudlet reference script, over several polish rounds. | Your usual key and door routine. |
+| 17 | **Foreign import.** Detect and translate TinTin++, JMC and Powwow settings into a new profile, with an import report (§2.11). | Import your old tt++/JMC/powwow files and read the report. |
 
 ## 6. Open questions for the owner
 

@@ -22,6 +22,7 @@ Current stage: 16 (readability script, adaptive colours; built, awaiting release
 | 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
+| 17 | Foreign import | In progress | `docs/stages/17-foreign-import.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

@@ -1,7 +1,7 @@
 # WebCockpit — Intent
 
 > Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
-> 2026-10-01.
+> 2026-10-01. Goal 11 (foreign profile import) approved 2026-10-04.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -79,11 +79,20 @@ reference only.
     - Bundled scripts: key manager, coin looter and mercenaries.
     - Scripts are exported and imported as files, like profiles.
 
+11. **Import of foreign client settings** (owner request 2026-10-04).
+    A settings file from TinTin++, JMC or Powwow can be imported as a new
+    profile. The format is detected automatically, everything that can
+    be translated to the profile language is translated, and the rest is
+    kept visibly in the profile, never silently lost. The user gets a
+    report: the detected format, how many settings were translated, and
+    how many were left untranslated and why.
+
 ## Non-goals
 
 - Generic MUD client: MUME only.
 - Mobile and tablet: desktop Firefox and Chrome only.
-- Import of existing tt++ or Cockpit profiles.
+- Import from Mudlet, zMUD/CMUD or other clients than those in Goal 11,
+  and of Cockpit's Lua modules.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor
   view, but the exact supported command set is defined in `spec.md`.
 - Porting Cockpit's scripts or readability modules. WebCockpit's
