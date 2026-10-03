@@ -17,6 +17,11 @@
 // the detail field. Wherever keyboard focus is, it paints amber; grey marks
 // a persistent selection (current kind, entry being edited).
 //
+// Find (ADR 0070): Ctrl+F in EDITOR opens the buffer search (search.ts),
+// in HELP the manual's (manual-view.tsx). In LITE, Ctrl+F and Ctrl+H flip
+// to EDITOR with the search panel open (Replace focused for Ctrl+H), the
+// cursor at the selected entry.
+//
 // Keys come from the frame stack's capture-phase listener (`useKeys`).
 // Text fields get the key's default action when the handler returns false;
 // the CodeMirror buffer gets its bindings through `handleKey`.
@@ -45,7 +50,8 @@ import {
 import { bindability, displayKey, learnKeyLabel } from '../script/keys';
 import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstLine, pageScroll } from './cm';
 import { type ManualControl, ManualView } from './manual-view';
-import { searchFocused, searchFrameKey } from './search';
+import { type FindQuery, EMPTY_QUERY } from './manual-search';
+import { openSearch, searchFocused, searchFrameKey } from './search';
 import { MANUAL_URL, helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
 import {
   type EditorViewName,
@@ -122,22 +128,46 @@ const SENTINEL = -1;
 
 /** Footer hints of the HELP view, longest first; the first that fits is shown. */
 const HELP_HINTS = [
+  '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Save & back',
   '↑↓ Scroll · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Scroll · n/p Heading · Ctrl+F Find · ESC Save & back',
   '↑↓ Scroll · n/p Heading · Tab Cycle · ESC Save & back',
   '↑↓ Scroll · ESC Save & back',
 ];
 /** In the navigation menu. */
 const HELP_MENU_HINTS = [
+  '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Save & back',
   '↑↓ Section · → Manual · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Section · → Manual · Ctrl+F Find · ESC Save & back',
   '↑↓ Section · → Manual · Tab Cycle · ESC Save & back',
   '↑↓ Section · ESC Save & back',
 ];
 /** In the manual, with the menu beside it. */
 const HELP_BODY_HINTS = [
+  '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Ctrl+F Find · Tab Cycle · ESC Save & back',
   '↑↓ Scroll · ← Menu · PgUp/PgDn Page · n/p Heading · Tab Cycle · ESC Save & back',
+  '↑↓ Scroll · ← Menu · n/p Heading · Ctrl+F Find · ESC Save & back',
   '↑↓ Scroll · ← Menu · n/p Heading · Tab Cycle · ESC Save & back',
-  ...HELP_HINTS.slice(1),
+  ...HELP_HINTS.slice(2),
 ];
+
+/** Footer hints of LITE, longest first. */
+const LITE_HINTS = ['Ctrl+F Find · Ctrl+H Replace · Tab Cycle · ESC Save & back', 'Tab Cycle · ESC Save & back'];
+/** In the entry list. */
+const LIST_HINTS = [
+  'n New · Del Delete · Ctrl+F Find · Ctrl+H Replace · Tab Cycle · ESC Save & back',
+  'n New · Del Delete · Tab Cycle · ESC Save & back',
+];
+
+/** Where entry `id` starts in the serialised `doc` (0 when it is not there). */
+function entryOffset(doc: ProfileDoc, id: number | undefined): number {
+  let at = 0;
+  for (const n of doc.nodes) {
+    if (n.id === id) return at + (n.type === 'entry' ? n.lead.length : 0);
+    at += n.text.length;
+  }
+  return 0;
+}
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
@@ -183,6 +213,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // The section HELP shows, kept while another view is up (manual-view.tsx scrolls).
   const [helpSection, setHelpSection] = useState(0);
   const manualCtl = useRef<ManualControl | null>(null);
+  // The manual's last find query, kept while HELP is closed.
+  const helpFind = useRef<FindQuery>(EMPTY_QUERY);
+  // Ctrl+F / Ctrl+H in LITE: the search to open once the buffer is mounted.
+  const pendingSearch = useRef<{ replace: boolean; at: number } | null>(null);
   const [zone, setZone] = useState<Zone>('kind');
   const [field, setField] = useState<Field>('pattern');
   const [doc, setDoc] = useState<ProfileDoc>(() => parseProfile(host.text));
@@ -345,6 +379,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       const d = dropEmpty(doc, touched);
       bufferInit.current = serialize(d);
       setDoc(d);
+      if (pendingSearch.current) pendingSearch.current.at = entryOffset(d, cur?.id);
     } else {
       const v = viewRef.current;
       setDoc(parseProfile(v ? v.state.doc.toString() : bufferInit.current));
@@ -392,6 +427,12 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       onFocus: () => setZone('buffer'),
     });
     viewRef.current = view;
+    const ps = pendingSearch.current;
+    if (ps) {
+      pendingSearch.current = null;
+      view.dispatch({ selection: { anchor: Math.min(ps.at, view.state.doc.length) }, scrollIntoView: true });
+      openSearch(view, ps.replace);
+    }
     return () => {
       bufferInit.current = view.state.doc.toString();
       view.destroy();
@@ -406,6 +447,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const lh = parseFloat(getComputedStyle(root).lineHeight);
     if (lh > 0) cellH.current = lh;
     const active = root.ownerDocument.activeElement;
+    // The manual's find field keeps the keyboard.
+    if (help && !modal && active && root.contains(active) && active.closest('.wc-search')) return;
     let target: HTMLElement | null = root;
     if (!modal && !capture) {
       if (zone === 'detail' && field === 'pattern') target = patternRef.current;
@@ -535,6 +578,22 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       return true;
     }
     if (capture) return onCaptureKey(e);
+    // Find in HELP: Ctrl+F, the panel's keys; ESC closes it first.
+    const inManual = help ? (manualCtl.current?.findKey(e) ?? null) : null;
+    if (inManual !== null) {
+      if (inManual && zone !== 'help' && zone !== 'menu') focusZone('help');
+      return inManual;
+    }
+    // Ctrl+F / Ctrl+H in LITE: to EDITOR, with the search panel open there.
+    if (mode === 'lite' && !help && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'f' || k === 'h') {
+        pendingSearch.current = { replace: k === 'h', at: 0 };
+        flip('editor');
+        focusZone('buffer');
+        return true;
+      }
+    }
     // Find and replace in EDITOR: Ctrl+F, the panel's keys; ESC closes it first.
     const buf = mode === 'editor' && !help ? viewRef.current : null;
     const found = buf ? searchFrameKey(buf, e) : null;
@@ -804,8 +863,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       : help
         ? (helpHints.find((h) => cps(h) <= cols) ?? helpHints.at(-1)!)
         : zone === 'list'
-          ? 'n New · Del Delete · Tab Cycle · ESC Save & back'
-          : 'Tab Cycle · ESC Save & back';
+          ? (LIST_HINTS.find((h) => cps(h) <= cols) ?? LIST_HINTS.at(-1)!)
+          : (LITE_HINTS.find((h) => cps(h) <= cols) ?? LITE_HINTS.at(-1)!);
     const t = ellipsis(text, cols);
     footer = (
       <div
@@ -1223,6 +1282,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         ctl={manualCtl}
         initial={helpSection}
         onSection={setHelpSection}
+        findMemory={helpFind}
         text={helpText}
       />
     );
