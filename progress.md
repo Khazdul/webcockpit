@@ -41,7 +41,9 @@ Newest first.
   unit test (fails without the fix). Unit 2056 green, typecheck clean.
 - **Open:** after a failed match the next move is tried from the stale
   room (the miss cascades). Left as is; it matters less now.
-- **Next:** release, then the owner runs the Grey Havens again.
+- **Verified:** owner ran the Grey Havens on the dev server; the map
+  keeps tracking.
+- **Next:** release.
 - **Commits:** 4a0846e, plus this one.
 
 ### 2026-10-03 — Release 0.1.38: stage 16 readability
