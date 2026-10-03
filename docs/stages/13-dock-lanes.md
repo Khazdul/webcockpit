@@ -51,4 +51,4 @@ new column's default width (33, shrunk to fit) right?
 
 ## Owner feedback
 
-(none yet)
+- 2026-10-03: looks good after an overview test; approved for publishing.

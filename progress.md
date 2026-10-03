@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 13 (dock lanes), owner testing. Latest release 0.1.35. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stage 13 done (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -18,7 +18,7 @@ Current stage: 13 (dock lanes), owner testing. Latest release 0.1.35. Stage 8 st
 | 10 | Scripts | Done | `docs/stages/10-scripts.md` |
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
-| 13 | Dock lanes | Owner testing | `docs/stages/13-dock-lanes.md` |
+| 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
@@ -39,8 +39,7 @@ Newest first.
   `layout.spec.ts:246` is flaky, also before this change.
 - **Released:** 0.1.35 (tag v0.1.35), build:pages smoke green, Pages
   deploy green, live release.json shows 0.1.35.
-- **Next:** owner test per the stage 13 test guide (band hit area, new
-  lane width, the screen-edge band now making an outer column).
+- **Owner test:** overview test OK, approved; stage 13 closed.
 - **Commits:** 6f1e22e, 36b3767, 4f5aa18, 0c8dc25, d692b2a, 98a38dd,
   plus this one.
 
