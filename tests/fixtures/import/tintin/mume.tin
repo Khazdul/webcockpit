@@ -1,0 +1,27 @@
+/* MUME setup for TinTin++
+   Started with: tt++ mume.tin */
+#config {COMMAND ECHO} {ON}
+#config {REPEAT ENTER} {ON}
+#split 2 1
+
+#session {mume} {mume.org} {4242}
+
+#read aliases.tin
+#class {gmcp} {read} {gmcp.tin}
+#read missing.tin
+
+#action {^%1 tells you '%2'} {#showme {<118>%1: %2}} {4}
+#action {^You are hungry.} {eat bread}
+#highlight {light red} {^%* hits you}
+#if {1} {#nop} else {#nop}
+#macro {^[[15~} {flee}
+#macro {\eOq} {sw}
+#macro {\e[99~} {nothing}
+#ticker {tick} {#showme TICK} {60}
+#killall
+#map flag nofollow
+#event {PROGRAM START} {#showme hi}
+#nop {A comment that stays.}
+#alias {k} {kill %1} /* trailing comment */
+this line is not a command
+#var {target} {orc}; #var {spell} {armour}

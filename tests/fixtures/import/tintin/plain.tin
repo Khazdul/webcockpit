@@ -1,0 +1,10 @@
+#nop {A WebCockpit profile.}
+#alias {k} {kill %1}
+#action {^%1 tells you '%2'} {#showme {<118>%1: %2}} {4}
+
+#highlight {^You are hungry} {light yellow}
+#macro {F1} {flee}
+#variable {target} {orc}
+#class {pvp} {open}
+#action {^%1 arrives from the %2.} {#showme {%1 came from %2}}
+#class {pvp} {close}

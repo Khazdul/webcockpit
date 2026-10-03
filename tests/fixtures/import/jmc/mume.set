@@ -1,0 +1,49 @@
+#message action OFF
+#multiaction OFF
+#multihighlight ON
+#presub on
+#echo off
+#speedwalk on
+#togglesubs off
+#verbat off
+#colon leave
+#comment #
+#race format %0
+#codepage {iso-8859-1}
+#oob {GMCP} {disable}
+#promptend {disable}
+#group local default
+## Aliases
+#alias {k} {kill %1} {default}
+#alias {setv} {#var %1 {%%2}} {default}
+#alias {bs} {backstab %1;#wait 15;flee} {default}
+#al tt {tell $leader %0}
+#alias {/^re(.*)$/i} {reply %0} {default}
+## Actions
+#action TEXT {^You are hungry.} {eat bread} {5} {default}
+#action TEXT {^%0 tells you '%1'} {#showme {%%0 said %%1}} {3} {pk}
+#action TEXT {/^(\w+) arrives from the (\w+)\.$/} {#showme {%%0 from %%1}} {5} {pk}
+#action RAW {^&RYou are bleeding} {cure} {5} {default}
+#act {^You feel hungry} {#if {$autoeat == 1} {eat bread} {say hungry}}
+#action {^Trap at 100%} {flee}
+## Highlights
+#highlight {light red, b blue} {^%0 hits you} {default}
+#highlight {brown} {^You feel weak} {default}
+#highlight {light magenta, b gray} {%0 has recovered from a bash!} {default}
+#highlight {mauve} {^Nothing} {default}
+## Substitutions
+#substitute {^The sun rises.} {.}
+#substitute {^The orc} {An ORC}
+#antisubstitute {^You say}
+## Hotkeys
+#hot {Ctrl+F1} {flee} {default}
+#hotkey {NUM8} {north} {default}
+#hot {Alt+A} {assist $leader} {pk}
+#hot {Weird+Q} {quit} {default}
+#variable {leader} {Gandalf}
+#variable {autoeat} {1} {global}
+#ticksize 61
+#use commonlib.js
+#status {1} {HP: $hp} {light green}
+#read jmc_actions.txt
+#group disable pk

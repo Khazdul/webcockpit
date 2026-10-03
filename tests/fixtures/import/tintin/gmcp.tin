@@ -1,0 +1,6 @@
+#event {IAC SB GMCP Char.Vitals IAC SE}
+{
+    #var hp %0
+}
+#var {stats} {{hp}{50}{mana}{30}}
+#send {\xFF\xFD\xC9}

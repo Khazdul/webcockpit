@@ -1,0 +1,2 @@
+#action {^%0 flees %1.} {#showme {%0 fled %1}}
+#gag {^You hear a scream}

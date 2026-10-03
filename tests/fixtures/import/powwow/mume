@@ -1,0 +1,31 @@
+#savefile-version 6
+#host mume.org 4242
+#delim normal
+#groupdelim @
+#init ={#identify;#request prompt}
+#setvar mem=1048576
+#alias summ=cast 'summon' $0
+#alias pi={remove sword;draw}
+#alias \==score
+#alias kk@pk={kill $1;#print}
+#action >+reply ^$1 tells you '&2'={#print;#alias re=t $1 \$0}
+#action >-BackFire Your spell backfired!={#print;emote starts swearing loudly}
+#action >+auto-ride@non-pk ZBLAM! A &1 doesn't want you={#print;stand;ride}
+#action >+clip ^Clip-clop...the riding horse=
+#action %+count ^([[:alpha:]]+) has ([[:digit:]]+) coins=#print $2 has $3
+#action >+hunger You are hungry.=eat bread
+#action >+exp ^You gain &1 experience={#print;#(@xp = @xp + 1)}
+#mark  YOU=bold red
+#mark *an Orc*=bold yellow on red
+#mark ^You=Yellow
+#mark ^Odd=sparkly
+#(@xp = 0, @tick = 61500)
+#($target = "orc", $-3 = "text")
+#("Connect to MUME")
+#bind F01 ^[OP=flee
+#bind KP8 ^[Ox=n
+#bind F06 ^[[17~=#option compact
+#bind up ^[OA=&prev-line
+#bind odd ^[[99~=nothing
+#option +autoclear -autoprint +compact
+#prompt %+default ^[o\\*][^>]*>=#print

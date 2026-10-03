@@ -1,0 +1,8 @@
+#alias {k} {kill %1}
+#alias {ga}
+{
+    get all %1;
+    #showme {Got all from %1}
+}
+#substitute {^The orc} {<faa>The orc}
+#gag {^You feel hungry}
