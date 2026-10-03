@@ -13,7 +13,10 @@
 // - `%%n` de-nested by brace depth, `$n` → `%n`; `#wait` (deciseconds)
 //   wraps the rest of its command list in `#delay`; the tick timer
 //   (`#ticksize` + `#tickon`) becomes a `#ticker`;
-// - `##` comments → `#nop`; state commands of the header are skipped;
+// - `&x` colour codes in #showme/#output/substitute text → `<abc>`;
+//   `#if` text comparisons quoted; `#N cmd` → `#N {cmd}`, `#N:D cmd`
+//   unrolled into `#delay`s; `#beep` → `#bell`;
+// - `##` comments → `#nop` (closing an open group first); state commands of the header are skipped;
 //   JScript (`#use`, `#scriptlet`) and `#status` are kept.
 
 import { checkBraces } from '../script/doc';
@@ -238,6 +241,53 @@ export function jmcColours(list: string): { colours: string; dropped: string[] }
   return { colours: out.join(', '), dropped };
 }
 
+// JMC's `&x` text codes (`convert_colored_to_ansi`): lowercase is
+// ESC[0;3Nm, uppercase ESC[1;3Nm, `&&` a literal `&`.
+const AMP_CODES = 'drgybpcw';
+
+/**
+ * JMC `&x` colour codes in text as our `<abc>` codes: `&r` → `<019>`
+ * (reset, red), `&R` → `<118>` (bold red, as JMC's SGR 1;31), `&&` → `&`.
+ * Other `&` sequences stay as written.
+ */
+export function jmcColourCodes(text: string): string {
+  return text.replace(/&([&a-zA-Z])/g, (m, c: string) => {
+    if (c === '&') return '&';
+    const n = AMP_CODES.indexOf(c.toLowerCase());
+    if (n < 0) return m;
+    return c === c.toLowerCase() ? `<0${n}9>` : `<1${n}8>`;
+  });
+}
+
+const CODE_NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+const ATTR_DIGIT: Record<string, string> = { bold: '1', italic: '3', blink: '5', reverse: '7' };
+
+/** A JMC colour list (`light red, b blue`) as `<abc>` codes for text, or null. */
+export function jmcColourPrefix(list: string): string | null {
+  const c = jmcColours(list);
+  if (!c) return null;
+  let fg = 9;
+  let bg = 9;
+  const attrs: string[] = [];
+  for (const item of c.colours.split(', ')) {
+    if (ATTR_DIGIT[item]) {
+      attrs.push(ATTR_DIGIT[item]);
+      continue;
+    }
+    const isBg = item.startsWith('b ');
+    const name = isBg ? item.slice(2) : item;
+    const light = name.startsWith('light ');
+    const idx = CODE_NAMES.indexOf(light ? name.slice(6) : name);
+    if (idx < 0) continue;
+    if (isBg) bg = idx;
+    else {
+      fg = idx;
+      if (light) attrs.push('1');
+    }
+  }
+  return `<0${fg}${bg}>` + [...new Set(attrs)].map((a) => `<${a}88>`).join('');
+}
+
 // ---------------------------------------------------------------------------
 // Bodies: `%%n` de-nesting, `$n`, nested commands
 // ---------------------------------------------------------------------------
@@ -392,12 +442,25 @@ function trimNum(n: number): string {
 function convCommand(cmd: string, word: string, name: string | null, depth: number, ctx: Ctx): string {
   const rest = cmd.slice(word.length);
   const inner = depth + 1;
-  if (/^\d+$/.test(word)) return '#' + word + convText(rest, depth, ctx);
-  if (/^\d+:\d+$/.test(word)) {
-    ctx.warnings.add(`#${word} (repeat with delay) is not supported.`);
-    return '#' + cmd;
-  }
+  const rep = /^(\d+)(?::(\d+))?$/.exec(word);
+  if (rep) return repeat(cmd, Number(rep[1]), rep[2] === undefined ? 0 : Number(rep[2]), rest, depth, ctx);
+  if (name === null && /^beep$/i.test(word)) name = 'bell';
   switch (name) {
+    case 'bell':
+      ctx.warnings.add('#bell (JMC: #beep) makes no sound in WebCockpit.');
+      return '#bell';
+    case 'showme': {
+      // JMC: #showme {text} or #showme {colour} {text}; an unbraced first
+      // argument runs to the end (WITH_SPACES).
+      const a = new Args(rest);
+      if (!a.nextBraced) return `#showme {${jmcColourCodes(convText(rest.trim(), depth, ctx))}}`;
+      const first = a.next();
+      if (a.done) return `#showme {${jmcColourCodes(convText(first, inner, ctx))}}`;
+      const text = a.next();
+      const prefix = /colorcodes/i.test(first) ? '' : jmcColourPrefix(first);
+      if (prefix === null) ctx.warnings.add(`#showme colour ${first} not understood and dropped.`);
+      return `#showme {${prefix ?? ''}${jmcColourCodes(convText(text, a.lastBraced ? inner : depth, ctx))}}`;
+    }
     case 'action':
     case 'alias':
     case 'hotkey':
@@ -416,7 +479,9 @@ function convCommand(cmd: string, word: string, name: string | null, depth: numb
       const a = new Args(rest);
       const at = () => (a.lastBraced ? inner : depth);
       const c0 = a.next();
-      const cond = convText(c0, at(), ctx);
+      const q = quoteComparisons(convText(c0, at(), ctx));
+      if (q.changed) ctx.warnings.add('JMC\'s #if compares numbers only; text comparisons were quoted ("$a" == "b") so they compare text here.');
+      const cond = q.text;
       const t0 = a.next();
       const then = convBody(t0, at(), ctx);
       let other: string | null = null;
@@ -433,10 +498,13 @@ function convCommand(cmd: string, word: string, name: string | null, depth: numb
     case 'tickoff':
       return '#unticker {tick}';
     case 'output': {
+      // JMC: #output [colour] {text}.
       const a = new Args(rest);
       const args = a.all();
-      ctx.warnings.add('#output colour was dropped (#showme).');
-      return `#showme {${convText(args[args.length - 1] ?? '', inner, ctx)}}`;
+      const colour = args.length > 1 ? args[0]! : '';
+      const prefix = colour === '' || /colorcodes/i.test(colour) ? '' : jmcColourPrefix(colour);
+      if (prefix === null) ctx.warnings.add(`#output colour ${colour} not understood and dropped.`);
+      return `#showme {${prefix ?? ''}${jmcColourCodes(convText(args[args.length - 1] ?? '', inner, ctx))}}`;
     }
     case 'nop':
       return '#nop' + rest;
@@ -456,6 +524,53 @@ function convCommand(cmd: string, word: string, name: string | null, depth: numb
   if (RENAME[name]) return '#' + RENAME[name] + convText(rest, depth, ctx);
   ctx.warnings.add(`#${name} has no equivalent; kept as written.`);
   return '#' + cmd;
+}
+
+/** Most repeats `#N:delay` is unrolled into. */
+const UNROLL_MAX = 20;
+
+/**
+ * JMC `#N cmd` / `#N:delay cmd` (`do_cycle`): runs cmd N times; with a
+ * delay (deciseconds), one run per delay on a timer. Our engine runs
+ * `#N {cmd}`; a delayed repeat is unrolled into `#delay`s.
+ */
+function repeat(cmd: string, n: number, ds: number, rest: string, depth: number, ctx: Ctx): string {
+  const a = new Args(rest);
+  const braced = a.nextBraced;
+  const raw = braced ? a.next() : rest.trim();
+  const body = convBody(raw, braced ? depth + 1 : depth, ctx);
+  if (ds === 0) return `#${n} {${body}}`;
+  if (n > UNROLL_MAX) {
+    ctx.warnings.add(`#${n}:${ds} (repeat every ${trimNum(ds / 10)} s) is too long to unroll; kept as written.`);
+    return '#' + cmd;
+  }
+  ctx.warnings.add(`#${n}:${ds} (repeat every ${trimNum(ds / 10)} s) became ${n} delayed commands.`);
+  const out: string[] = [];
+  for (let k = 0; k < n; k++) out.push(k === 0 ? body : `#delay {${trimNum((k * ds) / 10)}} {${body}}`);
+  return out.join(';');
+}
+
+/**
+ * Quotes both sides of `==` / `!=` comparisons where one side is literal
+ * text (`$target == orc` → `"$target" == "orc"`). Our engine compares
+ * barewords as strings too, but a value with spaces or operators breaks
+ * a bare comparison. Numeric comparisons (`%1 == 1`) stay as they are.
+ */
+export function quoteComparisons(cond: string): { text: string; changed: boolean } {
+  let changed = false;
+  const parts = cond.split(/(&&|\|\|)/);
+  for (let i = 0; i < parts.length; i += 2) {
+    const m = /^(\s*)(.*?)\s*(==|!=)\s*(.*?)(\s*)$/s.exec(parts[i]!);
+    if (!m) continue;
+    const [, pre, l, op, r, post] = m as unknown as [string, string, string, string, string, string];
+    const plain = (x: string) => x !== '' && !/["(){}!<>=]/.test(x);
+    const literal = (x: string) => /[^\s\d.+-]/.test(x.replace(/\$[A-Za-z_][\w]*|%+\d/g, ''));
+    if (plain(l) && plain(r) && (literal(l) || literal(r))) {
+      parts[i] = `${pre}"${l}" ${op} "${r}"${post}`;
+      changed = true;
+    }
+  }
+  return { text: parts.join(''), changed };
 }
 
 function tickerLine(state: JmcState): string {
@@ -549,7 +664,7 @@ function translateRule(name: string, rest: string, depth: number, ctx: Ctx): Rul
       const repl = a.next();
       const pattern = withLevel(ctx, { base: depth, shift: 0 }, () => convPattern(pat, depth, ctx));
       if (repl.trim() === '.') return done(`#gag {${pattern}}`, null, ['Substitute with . is a gag']);
-      const r = withLevel(ctx, { base: depth, shift: 0 }, () => convText(repl, depth, ctx));
+      const r = jmcColourCodes(withLevel(ctx, { base: depth, shift: 0 }, () => convText(repl, depth, ctx)));
       return done(`#substitute {${pattern}} {${r}}`, null, notes);
     }
     case 'gag': {
@@ -603,6 +718,8 @@ function statement(st: Statement, res: Resolver, out: Out, state: JmcState): voi
   const cc = state.cmdChar;
   const t = st.text.trim();
   if (t.startsWith(cc + cc)) {
+    // A section comment closes the open group, so it never sits inside one.
+    out.setClass(null);
     out.raw(nopLine(t.slice(2).trim()));
     return;
   }
@@ -643,6 +760,7 @@ function statement(st: Statement, res: Resolver, out: Out, state: JmcState): voi
       return;
     }
     case 'nop':
+      out.setClass(null);
       out.raw(nopLine(rest.trim()));
       return;
     case 'read': {

@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { jmcColours, jmcCommand } from '../../../src/import/jmc';
+import { Bus } from '../../../src/core/bus';
+import type { Line } from '../../../src/core/types';
+import { jmcColourCodes, jmcColourPrefix, jmcColours, jmcCommand, quoteComparisons } from '../../../src/import/jmc';
+import { FakeScheduler, ScriptEngine } from '../../../src/script/engine';
 import { body, countsMatch, file, load, one, run } from './helpers';
+
+/** An engine with a translated profile loaded; records what it sends and shows. */
+function engineWith(profile: string) {
+  const bus = new Bus();
+  const sent: string[] = [];
+  const shown: Line[] = [];
+  const clock = new FakeScheduler();
+  const e = new ScriptEngine({ send: (t) => sent.push(t), message: () => {}, scheduler: clock, now: () => 0 });
+  e.attach(bus);
+  bus.on('text.display', (d) => shown.push(d.line));
+  const loaded = e.loadProfile(profile);
+  expect(loaded).toEqual({ ok: true, warnings: [] });
+  const recv = (text: string) => bus.emit('text.line', { text, runs: [], tags: [], prompt: false, raw: text, ts: 0 });
+  return { e, sent, shown, clock, recv };
+}
 
 /** Imports JMC lines (a .set file, so the format is JMC). */
 const jmc = (text: string) => one('test.set', text);
@@ -30,6 +48,87 @@ describe('jmcColours', () => {
     expect(jmcColours('4, 18')?.colours).toBe('yellow, b red');
     expect(jmcColours('light magenta, b gray')).toEqual({ colours: 'light magenta', dropped: ['b gray'] });
     expect(jmcColours('mauve')).toBe(null);
+  });
+});
+
+describe('JMC text colours', () => {
+  it('&x codes become <abc> codes; uppercase is bold like JMC, && is &', () => {
+    expect(jmcColourCodes('&RARMOUR DOWN!&w')).toBe('<118>ARMOUR DOWN!<079>');
+    expect(jmcColourCodes('&d&D&p&C fish && chips &x')).toBe('<009><108><059><168> fish & chips &x');
+    expect(jmcColourPrefix('light red')).toBe('<019><188>');
+    expect(jmcColourPrefix('cyan, b blue, bold')).toBe('<064><188>');
+    expect(jmcColourPrefix('mauve')).toBe(null);
+  });
+
+  it('translates colour codes in #showme, #output and substitute replacements', () => {
+    const r = jmc(
+      '#action {^You feel less protected.} {#showme {&RARMOUR DOWN!&w}} {3} {spells}\n' +
+        '#action {^a} {#showme {light red} {Hi}}\n' +
+        '#action {^b} {#output {light green} {Yo &&}}\n' +
+        '#substitute {You are hungry.} {&YHUNGRY&w}\n',
+    );
+    expect(body(r)).toEqual([
+      '#class {spells} {open}',
+      '#action {^You feel less protected.} {#showme {<118>ARMOUR DOWN!<079>}} {3}',
+      '#class {spells} {close}',
+      '#action {^a} {#showme {<019><188>Hi}}',
+      '#action {^b} {#showme {<029><188>Yo &}}',
+      '#substitute {You are hungry.} {<138>HUNGRY<079>}',
+    ]);
+    const t = engineWith(r.profileText);
+    t.recv('You feel less protected.');
+    const shown = t.shown.find((l) => l.text === 'ARMOUR DOWN!');
+    expect(shown?.runs[0]).toMatchObject({ start: 0, end: 12, fg: 1, bold: true });
+  });
+
+  it('#showme with unbraced text takes the whole rest', () => {
+    expect(body(jmc('#alias {a} {#showme Target set}\n'))).toEqual(['#alias {a} {#showme {Target set}}']);
+  });
+});
+
+describe('JMC #if, repeats, #beep', () => {
+  it('quotes text comparisons in #if; numeric ones stay', () => {
+    expect(quoteComparisons('$target == orc')).toEqual({ text: '"$target" == "orc"', changed: true });
+    expect(quoteComparisons('$a != x && $hp > 10 || %1 == 1')).toEqual({ text: '"$a" != "x" && $hp > 10 || %1 == 1', changed: true });
+    expect(quoteComparisons('%1 == 1').changed).toBe(false);
+    expect(quoteComparisons('$hp == 100').changed).toBe(false);
+    const r = jmc('#alias {chk} {#if {$target == orc} {say yes} {say no}}\n');
+    expect(body(r)).toEqual(['#alias {chk} {#if {"$target" == "orc"} {say yes} {say no}}']);
+    expect(r.items[0]!.warning).toMatch(/compares numbers only/);
+    const t = engineWith(r.profileText);
+    t.e.input('#variable {target} {orc}');
+    t.e.input('chk');
+    t.e.input('#variable {target} {big orc}');
+    t.e.input('chk');
+    expect(t.sent).toEqual(['say yes', 'say no']);
+  });
+
+  it('#N cmd becomes #N {cmd}, which the engine repeats', () => {
+    const r = jmc('#alias {ws} {#3 wield sword}\n#2 {say hi}\n');
+    expect(body(r)).toEqual(['#alias {ws} {#3 {wield sword}}', '#2 {say hi}']);
+    expect(r.items.every((i) => i.outcome === 'translated' && !i.warning)).toBe(true);
+    const t = engineWith('#alias {ws} {#3 {wield sword}}');
+    t.e.input('ws');
+    expect(t.sent).toEqual(['wield sword', 'wield sword', 'wield sword']);
+  });
+
+  it('#N:delay cmd (deciseconds) is unrolled into #delay', () => {
+    const r = jmc('#alias {kk} {#3:15 kick}\n#alias {big} {#50:10 kick}\n');
+    expect(body(r)).toEqual(['#alias {kk} {kick;#delay {1.5} {kick};#delay {3} {kick}}', '#alias {big} {#50:10 kick}']);
+    expect(r.items[0]!.warning).toMatch(/3 delayed commands/);
+    expect(r.items[1]!.warning).toMatch(/too long to unroll/);
+    const t = engineWith('#alias {kk} {kick;#delay {1.5} {kick};#delay {3} {kick}}');
+    t.e.input('kk');
+    expect(t.sent).toEqual(['kick']);
+    t.clock.advance(3000);
+    expect(t.sent).toEqual(['kick', 'kick', 'kick']);
+  });
+
+  it('#beep in a body becomes #bell with a warning', () => {
+    const r = jmc('#action TEXT {^You have been KILLED!} {#beep} {1} {default}\n');
+    expect(body(r)).toEqual(['#action {^You have been KILLED!} {#bell} {1}']);
+    expect(r.items[0]!.warning).toMatch(/no sound/);
+    expect(load(r.profileText)).toEqual({ ok: true, warnings: [] });
   });
 });
 
@@ -127,7 +226,7 @@ describe('JMC import', () => {
 
   it('a non-# command character is normalised', () => {
     const r = one('x.set', '/alias {k} {kill %1;/showme hi}\n/action {a} {b}\n');
-    expect(body(r)).toEqual(['#alias {k} {kill %1;#showme hi}', '#action {a} {b}']);
+    expect(body(r)).toEqual(['#alias {k} {kill %1;#showme {hi}}', '#action {a} {b}']);
     expect(r.fileWarnings[0]).toMatch(/command character/);
   });
 
@@ -144,6 +243,23 @@ describe('JMC import', () => {
     expect(r.items).toHaveLength(6);
     expect(r.items.map((i) => i.outcome)).toEqual(['translated', 'kept', 'skipped', 'kept', 'kept', 'translated']);
     expect(countsMatch(r)).toBe(true);
+  });
+
+  it('comments close an open group instead of sitting inside it', () => {
+    const r = jmc('#action {a} {b} {5} {spells}\n## ---- Highlights ----\n#highlight {red} {x} {spells}\n#nop note\n#alias {y} {z} {spells}\n');
+    expect(body(r)).toEqual([
+      '#class {spells} {open}',
+      '#action {a} {b}',
+      '#class {spells} {close}',
+      '#nop {---- Highlights ----}',
+      '#class {spells} {open}',
+      '#highlight {x} {red}',
+      '#class {spells} {close}',
+      '#nop {note}',
+      '#class {spells} {open}',
+      '#alias {y} {z}',
+      '#class {spells} {close}',
+    ]);
   });
 
   it('among unread files a .set is the entry', () => {
