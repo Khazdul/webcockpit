@@ -440,6 +440,34 @@ test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0
   expect(errors).toEqual([]);
 });
 
+test('Options → Appearance: the bold orc in the preview follows "Bold brightens colours"', async ({ page }) => {
+  await openStart(page);
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="appearance"] .wc-label').click();
+  const orc = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-preview-text.wc-bold');
+  await expect(orc).toHaveText('*an Orc*');
+  await expect(orc.locator('xpath=..')).toHaveText(/│ \*an Orc\*, wielding a scimitar, is standing here\. *│/);
+  const colourOf = () => orc.evaluate((el) => getComputedStyle(el).color);
+  const ansi = (i: number) =>
+    page.evaluate((n) => {
+      const probe = document.createElement('span');
+      probe.style.color = `var(--ansi-${n})`;
+      document.body.append(probe);
+      const c = getComputedStyle(probe).color;
+      probe.remove();
+      return c;
+    }, i);
+  expect(await orc.evaluate((el) => getComputedStyle(el).fontWeight)).toBe('700');
+  expect(await colourOf()).toBe(await ansi(1));
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.appearance.boldBright = true;
+    }),
+  );
+  await expect.poll(colourOf).toBe(await ansi(9));
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
 test('Options → Appearance: the preview ends with Elrond in palette yellow and fits at 800 px', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await openStart(page);

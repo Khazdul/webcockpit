@@ -344,8 +344,12 @@ export function parseHex(s: string): string | null {
   return null;
 }
 
-/** Preview lines and their colour (a palette index, or null for the font colour). */
-type PreviewLine = readonly [text: string, ansi: number | null];
+/**
+ * Preview lines and their colour (a palette index, or null for the font
+ * colour). `bold` makes the first that many characters bold, drawn with the
+ * renderer's classes so "Bold brightens colours" (ADR 0060) shows on them.
+ */
+type PreviewLine = readonly [text: string, ansi: number | null, bold?: number];
 const PREVIEW: readonly PreviewLine[] = [
   ['A Quiet Glade', 2],
   ['Tall beeches ring a mossy clearing. A thin', null],
@@ -360,6 +364,8 @@ const PREVIEW_AFTER: readonly PreviewLine[] = [
   ['A grey-haired elf shrugs indifferently.', 6],
   ['The gate magically opens for you.', 5],
   ['A mother wolf hits your right hand and tickles it.', 1],
+  // An enemy as MUME shows one in the room, the name bold red.
+  ['*an Orc*, wielding a scimitar, is standing here.', null, 8],
   ["Elrond narrates 'The road goes ever on and on.'", 3],
 ];
 const PREVIEW_W = 52;
@@ -463,11 +469,17 @@ export function AppearanceFrame(): VNode {
     ? ['↑↓←→ Move', 'Enter Edit', 'ESC Back']
     : ['↑↓ Navigate', '←→ Adjust', 'Enter Select', 'ESC Back'];
 
-  const previewLine = ([text, ansi]: PreviewLine) => (
+  const previewLine = ([text, ansi, bold = 0]: PreviewLine) => (
     <Line at={boxAt}>
       <span class="wc-box">│</span>
+      {bold > 0 && (
+        <>
+          <span class="wc-preview-text"> </span>
+          <span class="wc-preview-text wc-bold wc-f1">{text.slice(0, bold)}</span>
+        </>
+      )}
       <span class="wc-preview-text" style={{ color: ansi === null ? 'var(--term-fg)' : `var(--ansi-${ansi})` }}>
-        {(' ' + text).padEnd(PREVIEW_W)}
+        {(bold > 0 ? text.slice(bold) : ' ' + text).padEnd(PREVIEW_W - (bold > 0 ? bold + 1 : 0))}
       </span>
       <span class="wc-box">│</span>
     </Line>
