@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 14 Pane bar, built, awaiting release and owner test (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 14 Pane bar and 15 Spanning panes, built, awaiting release 0.1.36 and owner test (latest release 0.1.35). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -20,13 +20,29 @@ Current stage: 14 Pane bar, built, awaiting release and owner test (latest relea
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
 | 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
-| 15 | Spanning panes | In progress | `docs/stages/15-spanning-panes.md` |
+| 15 | Spanning panes | Owner testing | `docs/stages/15-spanning-panes.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Stage 15: spanning panes (not released)
+
+- **Owner request:** a pane spanning all lanes of a dock (e.g. Map
+  across two right columns). Mockup approved: strip drop target only,
+  full-width spans before/after the lanes, fold into one lane, new panes
+  stay in lane 0.
+- **Done:** `DockState { lanes, head, tail }`, `LaneRef`, fold
+  invariant, span-aware allocation (unchanged without spans), migration,
+  strips + dock-wide bar + exact ghost, span↔lanes handle. ADR 0067.
+  Built in a worktree, fast-forwarded onto main.
+- **Verified:** typecheck clean, unit 2005 green, e2e 405/406; the
+  failure (appearance.spec.ts:34 Firefox caret) passed 5/5 alone.
+- **Next:** release 0.1.36 (owner; permission-gated), owner tests of
+  stages 14 and 15.
+- **Commits:** 9d29068, 6f8cee7, db6f920, f374c4c, ea66db5, plus this one.
 
 ### 2026-10-03 — Stage 14: owner feedback round 2 (not released)
 
