@@ -465,6 +465,13 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     any command becomes the key. Scry and watch room output goes to TV
     panes tiled from the top left, and a scried room is marked on the
     map (ADR 0054, 0057). It follows the owner's Mudlet script.
+  - **Readability:** Cockpit's readability modules as a script (stage
+    16): short mob names from Lamia's list with tier colours, movement
+    and Exits in teal, flags tinted, each part a setting (ADR 0068).
+
+  Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
+  the hue is kept and the lightness moved to 4.5:1 against the current
+  background, live in scrollback (ADR 0068).
 
   Bundled scripts are read-only and are updated with each release.
   *Duplicate* makes an editable copy that is never overwritten.
