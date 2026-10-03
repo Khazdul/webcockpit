@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none in progress. Stages 14 and 15 done (latest release 0.1.36). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none in progress. Stages 14 and 15 done (latest release 0.1.37). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -27,6 +27,19 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-03 — Bold orc in the Appearance preview, release 0.1.37
+
+- **Owner request:** a bold example line in the Appearance preview to
+  show what "Bold brightens colours" does, from a real enemy line.
+- **Found:** Cockpit run logs show enemies as `ESC[31m*a Dwarf*ESC[0m,
+  wielding ..., is standing here.` (red, not bold); no bold mob lines.
+- **Done:** `*an Orc*, wielding a scimitar, is standing here.` with the
+  name bold red via `wc-bold wc-f1`, so the option switches it to bright
+  red. e2e for text, weight and the colour switch.
+- **Released:** 0.1.37 (tag v0.1.37), build:pages smoke green, Pages
+  deploy green, live release.json shows 0.1.37, test:prod 10/10.
+- **Commits:** 40b8fec, 8033c2e, plus this one.
 
 ### 2026-10-03 — Release 0.1.36: stages 14 and 15 approved
 
