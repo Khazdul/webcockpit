@@ -29,6 +29,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-03 — Research: importing foreign client settings
+
+- **Owner asks:** import settings from JMC, Mudlet, Powwow and tt++,
+  with automatic format detection and translation into a new profile.
+- **Done:** research only, from each client's source and real files.
+  Notes in `notes/research/import/` (README overview plus one file per
+  client). Conflicts with the intent non-goal "Import of existing tt++
+  or Cockpit profiles": needs an owner decision before a stage is planned.
+- **Found on the way:** our engine does not strip tt++ `/* */` comments,
+  and tt++ GMCP event names/arguments differ from ours.
+- **Next:** owner decision on scope; then intent/spec change and a stage.
+- **Commits:** 54eb174, plus this one.
+
 ### 2026-10-03 — Stage 14 round 3: pane bar shrinks and scrolls, release 0.1.41
 
 - **Owner asks:** the bar should fit narrow widths like the Char pane:
