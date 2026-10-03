@@ -304,6 +304,59 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
+test('Options hub: auto-clear and autosuggest toggle in place and apply live (ADR 0063)', async ({ page }) => {
+  await enterMume(page);
+  const field = page.locator('.wc-input-field');
+  const ghost = page.locator('.wc-input-ghost');
+  await field.focus();
+  await page.keyboard.type('kill orc the great');
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveValue('kill orc the great');
+
+  await page.keyboard.press('Escape');
+  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  const row = (k: string) => page.locator(`.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="${k}"] .wc-label`);
+  await expect(row('autoclear')).toHaveText('[ ] Auto-clear input');
+  await row('autoclear').click();
+  await expect(row('autoclear')).toHaveText('[X] Auto-clear input');
+  await row('autosuggest').click();
+  await expect(row('autosuggest')).toHaveText('[X] Input autosuggest');
+  expect((await settings(page)).input).toEqual({ autoClear: true, autosuggest: true });
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(overlay(page)).toBeHidden();
+  await expect(field).toBeFocused();
+
+  // Autosuggest: greyed after a space, Tab takes a word, Right the rest.
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('kill');
+  await expect(ghost).toBeHidden();
+  await page.keyboard.type(' ');
+  await expect(ghost).toBeVisible();
+  await expect(ghost).toHaveText('orc the great');
+  // The ghost starts where the caret stands, right after the line.
+  const xs = await page.evaluate(() => {
+    const g = document.querySelector('.wc-input-ghost')!;
+    const r = document.createRange();
+    r.selectNodeContents(g);
+    return [r.getClientRects()[0]!.left, document.querySelector('.wc-caret')!.getBoundingClientRect().left];
+  });
+  expect(Math.abs(xs[0]! - xs[1]!)).toBeLessThan(1);
+  await page.keyboard.press('Tab');
+  await expect(field).toHaveValue('kill orc');
+  await expect(field).toBeFocused();
+  await expect(ghost).toHaveText(' the great');
+  await page.keyboard.press('ArrowRight');
+  await expect(field).toHaveValue('kill orc the great');
+  await expect(ghost).toBeHidden();
+  // Auto-clear: Enter leaves the line empty; Up still recalls.
+  await page.keyboard.press('Enter');
+  await expect(field).toHaveValue('');
+  await page.keyboard.press('ArrowUp');
+  await expect(field).toHaveValue('kill orc the great');
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
 test('profiles: create, rename, delete, export and import', async ({ page }) => {
   await openStart(page);
   await page.keyboard.press('ArrowDown');
