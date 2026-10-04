@@ -532,9 +532,27 @@ describe('ScriptPane and the cockpit surface', () => {
     const tip = cockpit.el.querySelector<HTMLElement>('.wc-spane-tip')!;
     expect(tip.hidden).toBe(false);
     expect([...tip.children].map((c) => c.textContent)).toEqual([' Order B ', ' second line ']);
-    pane.content.dispatchEvent(new MouseEvent('click', at(5, 0)));
-    pane.content.dispatchEvent(new MouseEvent('click', at(1, 0)));
+    // A click is a press and a release on the same link (pointer events, not
+    // the DOM click, which a redraw between them would lose).
+    const press = (a: ReturnType<typeof at>, b = a) => {
+      pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...a, button: 0, isPrimary: true }));
+      pane.content.dispatchEvent(new PointerEvent('pointerup', { ...b, button: 0, isPrimary: true }));
+    };
+    press(at(5, 0));
+    press(at(1, 0));
     expect(clicks).toEqual([42]);
+    // The DOM click alone does nothing; a release off the link neither.
+    pane.content.dispatchEvent(new MouseEvent('click', at(5, 0)));
+    press(at(5, 0), at(1, 0));
+    expect(clicks).toEqual([42]);
+    // The row redrawn (a new link id) between press and release: still a click, with the new id.
+    pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at(5, 0), button: 0, isPrimary: true }));
+    content.setLine(0, plain('[a] [b]'));
+    content.addLink(0, 4, 3, 43, 'Order B');
+    pane.changed();
+    flush();
+    pane.content.dispatchEvent(new PointerEvent('pointerup', { ...at(5, 0), button: 0, isPrimary: true }));
+    expect(clicks).toEqual([42, 43]);
     pane.content.dispatchEvent(new PointerEvent('pointermove', at(1, 0)));
     expect(pane.hovered).toBeNull();
     expect(tip.hidden).toBe(true);
@@ -784,7 +802,8 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(tip.hidden).toBe(false);
     expect(tip.textContent).toContain('tip only');
     expect(pane.content.style.cursor).toBe('');
-    pane.content.dispatchEvent(new MouseEvent('click', at(8)));
+    pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at(8), button: 0, isPrimary: true }));
+    pane.content.dispatchEvent(new PointerEvent('pointerup', { ...at(8), button: 0, isPrimary: true }));
     expect(clicks).toEqual([]);
   });
 
@@ -1043,18 +1062,18 @@ describe('ScriptPane and the cockpit surface', () => {
     it('soft grip: a click on the top row reaches the link; a drag past the threshold moves the pane and eats the click', () => {
       const r = rig();
       const { clicks, pane } = openBar(r);
-      const at = { clientX: 15, clientY: 49 * 20 + 5, bubbles: true, button: 0 };
+      const at = { clientX: 15, clientY: 49 * 20 + 5, bubbles: true, button: 0, isPrimary: true };
+      // happy-dom has no layout: put the content's rect where the cockpit has the bar (row 49).
+      pane.content.getBoundingClientRect = () => ({ left: 0, top: 980, right: 800, bottom: 1000, width: 800, height: 20, x: 0, y: 980 }) as DOMRect;
       pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
       expect(r.cockpit.dragging).toBe(false);
       r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', at));
-      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientY: 5 }));
       expect(clicks).toEqual([7]);
       // Press, move over the game, release: it floats; the click is eaten.
       pane.content.dispatchEvent(new PointerEvent('pointerdown', at));
       r.cockpit.el.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 400, clientY: 400 }));
       expect(r.cockpit.dragging).toBe(true);
       r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 400, clientY: 400 }));
-      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientY: 5 }));
       expect(clicks).toEqual([7]);
       expect(findFloat(r.settings.get().layout, BAR)).toBeGreaterThanOrEqual(0);
       expect(r.cockpit.dragging).toBe(false);
@@ -1078,7 +1097,7 @@ describe('ScriptPane and the cockpit surface', () => {
       r.flush();
       const shield = r.cockpit.el.querySelector<HTMLElement>('.wc-drag-shield')!;
       // happy-dom has no layout: the content's rect is at 0, 0.
-      const at = { clientX: 5, clientY: 5, bubbles: true, button: 0, pointerId: 1 };
+      const at = { clientX: 5, clientY: 5, bubbles: true, button: 0, pointerId: 1, isPrimary: true };
       pane.content.dispatchEvent(new PointerEvent('pointermove', at));
       expect(pane.content.style.cursor).toBe('grab');
       pane.content.dispatchEvent(new PointerEvent('pointermove', { ...at, clientX: 25 }));
@@ -1115,7 +1134,6 @@ describe('ScriptPane and the cockpit surface', () => {
       // Not on the grip: the link still clicks.
       pane.content.dispatchEvent(new PointerEvent('pointerdown', { ...at, clientX: 25 }));
       r.cockpit.el.dispatchEvent(new PointerEvent('pointerup', { ...at, clientX: 25 }));
-      pane.content.dispatchEvent(new MouseEvent('click', { ...at, clientX: 25 }));
       expect(clicks).toEqual([7]);
       // No grip: an ordinary press.
       content.setGrip(null);

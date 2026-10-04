@@ -959,6 +959,7 @@ export class Cockpit {
       const grab = b ? { x: Math.floor(x / cell.w) - b.rect.x, y: Math.floor(y / cell.h) - b.rect.y } : { x: 0, y: 0 };
       this.drag = { kind: 'move', id, pointerId: e.pointerId, x0: x, y0: y, grab, active: false, target: null };
       this.swallowClick = true;
+      this.shells.get(id)?.cancelPress();
       this.showShield('move');
     } else if (!handle && this.softGrip(t, y / cell.h)) {
       // A borderless script pane's top content row (ADR 0065): a move
@@ -1124,8 +1125,10 @@ export class Cockpit {
   private readonly onMouseUp = (e: MouseEvent): void => {
     if (this.drag) return;
     const t = e.target as HTMLElement;
-    // The output and input handle their own; a script pane's text field keeps its focus.
+    // The output and input handle their own; a script pane's text field keeps its focus,
+    // also one a link just focused (links fire on pointerup, before this mouseup).
     if (t.closest('.wc-output, .wc-input-slot, .wc-spane-field')) return;
+    if ((this.el.ownerDocument.activeElement as HTMLElement | null)?.closest?.('.wc-spane-field')) return;
     const sel = this.el.ownerDocument.getSelection();
     if (sel && !sel.isCollapsed && this.el.contains(sel.anchorNode)) return;
     this.onFocusInput();
@@ -1145,6 +1148,7 @@ export class Cockpit {
           // The press becomes a move: take the pointer, drop any text
           // selection it started, and eat the click at its end.
           this.swallowClick = true;
+          this.shells.get(d.id)?.cancelPress();
           this.el.ownerDocument.getSelection()?.removeAllRanges();
           try {
             this.el.setPointerCapture(e.pointerId);

@@ -224,6 +224,9 @@ export class PaneShell {
     return false;
   }
 
+  /** The press on the content became a pane move: it must not end as a click (script panes' links). */
+  cancelPress(): void {}
+
   /** Inner width in cells (0 while hidden). */
   get cols(): number {
     return this._cols;

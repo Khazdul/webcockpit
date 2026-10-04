@@ -154,6 +154,13 @@ the API; the mock's epoch is not used.
   pool, glowing stone, cold-proof shoes). Spirit Knight is `hours 0-3
   not winter` (mock; Faine says midnight); West Gate and Hrivesur are
   `moon up night`; Sundeath is `dawn|day`.
+- Lost clicks: script pane links fired on the DOM `click`, which the
+  browser drops when the row under the press is rebuilt before the
+  release (the almanac's per-second redraw: about one click a minute).
+  Links now fire on a primary pointerdown + pointerup on the same link
+  (row, column, length); a pane move cancels the press; the input line
+  and the cockpit no longer take the focus back on that mouseup from a
+  script field the link just focused.
 
 ## Test guide
 

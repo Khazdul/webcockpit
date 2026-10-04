@@ -816,6 +816,8 @@ export class InputPane {
 
   private readonly onDocMouseUp = (e: MouseEvent): void => {
     if (this.isOtherInteractive(e.target)) return;
+    // A script pane's text field a link just focused (links fire on pointerup, before this) keeps it.
+    if ((this.doc.activeElement as HTMLElement | null)?.classList?.contains('wc-spane-field')) return;
     const sel = this.doc.getSelection();
     // A selection elsewhere is being copied; leave it until the pane that
     // owns it hands focus back.

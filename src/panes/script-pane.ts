@@ -31,7 +31,11 @@
 //   shade; `lighten` its own text and background a step lighter
 //   (`hoverLift`); `none` as at rest. It shows its hint as a tooltip
 //   (`.wc-spane-tip`, one cell row per hint line, under the link, over
-//   everything in the cockpit). A click calls `onLink(id)`; without
+//   everything in the cockpit). A click calls `onLink(id)`: a primary
+//   press and release on the same link (row, column and length), from
+//   pointerdown and pointerup, not the DOM `click`, which the browser
+//   drops when the row under the press is rebuilt before the release (a
+//   pane redrawn every second lost about one click a minute); without
 //   `onLink` (the log player) links are inert but keep their tips. A
 //   tooltip-only link (`tip`) shows its hint without band or cursor.
 // - Hover tracking (ADR 0065 round 2): the hover is the pointer's position,
@@ -377,6 +381,7 @@ export class ScriptPane extends PaneShell {
     c.addEventListener('pointermove', this.onMove);
     c.addEventListener('pointerleave', this.onLeave);
     c.addEventListener('pointercancel', this.onCancel);
+    c.addEventListener('pointerdown', this.onDown);
     c.addEventListener('click', this.onClick);
   }
 
@@ -672,7 +677,9 @@ export class ScriptPane extends PaneShell {
     c.removeEventListener('pointermove', this.onMove);
     c.removeEventListener('pointerleave', this.onLeave);
     c.removeEventListener('pointercancel', this.onCancel);
+    c.removeEventListener('pointerdown', this.onDown);
     c.removeEventListener('click', this.onClick);
+    this.endPress();
     this.scroller.removeEventListener('scroll', this.onScroll);
     super.dispose();
   }
@@ -800,15 +807,47 @@ export class ScriptPane extends PaneShell {
     this.clearPointer();
   };
 
+  /** The indicator row (`↑ N more rows`) goes back to the anchor. Links are pressed, not clicked (onDown). */
   private readonly onClick = (e: MouseEvent): void => {
-    if (this.shown.over && this.moreEl.contains(e.target as Node)) {
-      this.scrollToAnchor();
-      return;
-    }
-    if (!this.onLink) return;
-    const link = this.linkAt(e.clientX, e.clientY);
-    if (link && !link.tip) this.onLink(link.id);
+    if (this.shown.over && this.moreEl.contains(e.target as Node)) this.scrollToAnchor();
   };
+
+  /** A primary press on a link, until its release (document listeners: a rebuilt row or a pointer capture elsewhere still releases). */
+  private press: PaneLink | null = null;
+
+  private readonly onDown = (e: PointerEvent): void => {
+    this.endPress();
+    if (e.button !== 0 || !e.isPrimary || !this.onLink || this.moreEl.contains(e.target as Node)) return;
+    const link = this.linkAt(e.clientX, e.clientY);
+    if (!link || link.tip) return;
+    this.press = link;
+    const doc = this.ctx.doc;
+    doc.addEventListener('pointerup', this.onUp, true);
+    doc.addEventListener('pointercancel', this.onPressCancel, true);
+  };
+
+  private readonly onUp = (e: PointerEvent): void => {
+    const was = this.press;
+    this.endPress();
+    if (!was || e.button !== 0 || !this.onLink) return;
+    // The same link where it was pressed (its id may be new after a redraw).
+    const link = this.linkAt(e.clientX, e.clientY);
+    if (link && !link.tip && link.row === was.row && link.col === was.col && link.len === was.len) this.onLink(link.id);
+  };
+
+  private readonly onPressCancel = (): void => this.endPress();
+
+  override cancelPress(): void {
+    this.endPress();
+  }
+
+  private endPress(): void {
+    if (!this.press) return;
+    this.press = null;
+    const doc = this.ctx.doc;
+    doc.removeEventListener('pointerup', this.onUp, true);
+    doc.removeEventListener('pointercancel', this.onPressCancel, true);
+  }
 
   private setHover(link: PaneLink | null, rowY = 0): void {
     const was = this.hover;
