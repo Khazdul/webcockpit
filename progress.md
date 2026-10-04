@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 19 (phone access; round 1 released 0.1.46, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 19 (phone access; round 2 released 0.1.47, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -53,10 +53,16 @@ Newest first.
   cols (DPR 3.5, no width check), Chrome autofill bar over the keyboard
   (phone command line is now a one-row textarea; password prompt swaps in
   a real password input). Released 0.1.46: deploy green, test:prod 10/10.
-- **Next:** owner retest; check the autofill bar is gone on the phone.
+- **Owner round 2:** map did not follow (hidden MAP tab stopped
+  forwarding; phone now forwards while hidden), pinch zoom added, locate
+  rows split by MUME at phone width (phone NAWS is now at least 80 cols),
+  link check on resume with Reconnect selected (5 s ping). Released
+  0.1.47: deploy green, test:prod 10/10. Disconnect on app switch is
+  accepted (no keep-alive possible).
+- **Next:** owner retest on the phone; autofill bar, pinch, resume.
   Left: profile editor lite cuts long rows at ~40 cols; script pane and
   editor fields are still `<input>`.
-- **Commits:** 5a84db2 … 24085f3, plus this one.
+- **Commits:** 5a84db2 … 9d42a2b, plus this one.
 
 ### 2026-10-04 — Stage 18: almanac (game time API and showcase script)
 
