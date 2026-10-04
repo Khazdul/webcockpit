@@ -48,7 +48,7 @@ export const REASON_USER_RECONNECT = 'reconnect by user';
 export const REASON_BACKGROUND_LOST = 'connection lost while in the background';
 
 /** How long the resume check waits for its Core.Ping reply. */
-export const RESUME_PING_TIMEOUT_MS = 3_000;
+export const RESUME_PING_TIMEOUT_MS = 5_000;
 
 /** The `[SYSTEM]` line for a command the socket could not take. */
 export const NOT_SENT = 'Not connected: command not sent.';

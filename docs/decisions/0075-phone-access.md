@@ -225,7 +225,8 @@ return, not on the next command. Desktop installs nothing.
   its close event not delivered yet) is dropped at once. An open one may
   be half-open after the freeze: `KeepAlive.probe` sends a Core.Ping now
   (it becomes the outstanding ping, so the RTT stays right) and, with no
-  reply within 3 s (`RESUME_PING_TIMEOUT_MS`), the session disconnects.
+  reply within 5 s (`RESUME_PING_TIMEOUT_MS`; a mobile radio can take a
+  few seconds to wake), the session disconnects.
 - Both drops use the reason `connection lost while in the background`,
   so the normal path runs: `Connection closed: …`, `Press Enter to
   reconnect.`, and the ESC menu opens with Reconnect selected. No
