@@ -490,6 +490,7 @@ end
 -- The player's own events: { name, when (text), where, note, icon, color }
 -- in the store (icon and color came in round 1; older records lack them).
 local own = {}
+local ownVersion = 0   -- counts changes to `own`, for the PLAN caches
 local reminders = {}   -- event name -> true
 local fired = {}       -- event name -> start of the window already reminded
 
@@ -529,6 +530,7 @@ local function ownEvent(r)
 end
 
 local function saveOwn()
+  ownVersion = ownVersion + 1
   local list = {}
   for _, e in ipairs(own) do
     list[#list + 1] = { name = e.name, when = e.whenText, where = e.where, note = e.note, icon = e.icon, color = e.color }
@@ -1229,18 +1231,12 @@ end
 
 local planCache = {}
 
-local function eventCond(name)
-  local e = findEvent(name)
-  return e and e.when or nil
-end
-
--- What a real day holds: its cells' colours, the winter full moon and the
--- season start. Kept per month until the clock is set again.
+-- What a real day holds: its cells' colours and the season start. Kept
+-- per month until the clock is set again.
 local function monthDays(y, m)
   local key = y * 100 + m
   if planCache[key] then return planCache[key] end
   local n = daysFromCivil(m == 12 and y + 1 or y, m == 12 and 1 or m + 1, 1) - daysFromCivil(y, m, 1)
-  local ingrove = eventCond("Ingrove warg pack")
   local days = { n = n, lead = (daysFromCivil(y, m, 1) + 3) % 7 }
   local s0 = localMidnight(y, m, 1)
   for d = 1, n do
@@ -1251,7 +1247,6 @@ local function monthDays(y, m)
       s0 = s0, s1 = s1, ym = yearMinute(g0),
       from = g0.season, to = g1.season,
       seasonStart = ss and ss < s1 and ss or nil,
-      ingrove = ingrove and gameTimeFind(ingrove, s0, s1 - s0) ~= nil or false,
     }
     s0 = s1
   end
@@ -1273,15 +1268,103 @@ local function planShift(n)
   plan.y, plan.m = y, m
   local today = localTime(getEpoch())
   plan.sel = (today.year == y and today.month == m) and today.day or 1
+  plan.page = 0
+end
+
+-- ---- The day's timeline (round 3): one row per event, 00–24 local time.
+
+local TL_NAME = 13          -- the name column: icon, space, 11 cells of name
+local TL_X = 2 + TL_NAME + 1 -- the bar's first column
+
+-- The windows of `cond` that touch [s0, s1): { start, end } each (a window
+-- open at s0 starts at s0). At most 150, which a day never needs.
+local function windowsIn(cond, s0, s1)
+  local out, from = {}, s0
+  for _ = 1, 150 do
+    if from >= s1 then break end
+    local s, e = gameTimeFind(cond, from, s1 - from)
+    if not s or s >= s1 then break end
+    out[#out + 1] = { s, e }
+    from = e > s and e or s + 1
+  end
+  return out
+end
+
+-- The cells of a bar of `n` cells over [s0, s1) that the windows touch,
+-- each with the times of its windows for the tooltip.
+local function cellsOf(wins, s0, s1, n)
+  local span = s1 - s0
+  local cells, count = {}, 0
+  for _, w in ipairs(wins) do
+    local k0 = clamp(math.floor((w[1] - s0) * n / span), 0, n - 1)
+    local k1 = w[2] > w[1] and clamp(math.ceil((math.min(w[2], s1) - s0) * n / span) - 1, k0, n - 1) or k0
+    local text = w[2] > w[1] and (hm(w[1]) .. "–" .. hm(w[2])) or hm(w[1])
+    for k = k0, k1 do
+      local c = cells[k]
+      if not c then
+        c = {}
+        cells[k] = c
+        count = count + 1
+      end
+      if #c < 4 then c[#c + 1] = text elseif #c == 4 then c[5] = "…" end
+    end
+  end
+  return cells, count
+end
+
+-- The rows of a day for a bar of `n` cells: { ev, cells, count, at } per
+-- event with a condition, the full moon and the season along the day.
+-- Kept per day and width until the clock is set again.
+local function dayRows(day, n)
+  local key = "day:" .. day.s0 .. ":" .. n .. ":" .. ownVersion
+  if planCache[key] then return planCache[key] end
+  local span = day.s1 - day.s0
+  local out = { moon = nil, rows = {}, allDay = {}, never = {}, season = {} }
+  -- A game minute is a real second: the season along the day from one gameTime.
+  for k = 0, n - 1 do
+    local ym = (day.ym + math.floor((k + 0.5) * span / n)) % 518400
+    out.season[k] = { SEASONS[ym // 129600 + 1], ym, hm(day.s0 + math.floor(k * span / n)) }
+  end
+  local fm = windowsIn({ moon = "full" }, day.s0, day.s1)
+  out.moon = { cells = (cellsOf(fm, day.s0, day.s1, n)) }
+  for _, e in ipairs(allEvents()) do
+    if e.when then
+      local cells, count = cellsOf(windowsIn(e.when, day.s0, day.s1), day.s0, day.s1, n)
+      if count == n then
+        out.allDay[#out.allDay + 1] = e.name
+      elseif count == 0 then
+        out.never[#out.never + 1] = e.name
+      else
+        out.rows[#out.rows + 1] = { ev = e, cells = cells, at = e.when.at ~= nil }
+      end
+    end
+  end
+  planCache[key] = out
+  return out
+end
+
+-- The days of a month on which the marked event has a window.
+local function markedDays(y, m, days, e)
+  local key = "mark:" .. (y * 100 + m) .. ":" .. e.name .. ":" .. (e.whenText or "")
+  if planCache[key] then return planCache[key] end
+  local out = {}
+  for d = 1, days.n do
+    out[d] = gameTimeFind(e.when, days[d].s0, days[d].s1 - days[d].s0) ~= nil
+  end
+  planCache[key] = out
+  return out
 end
 
 local function drawPlan(g, t)
   drawTabs(seasonHex(g.season))
   rightAfter(1, TABS_END, "wheel = month", { fg = C.dim })
   local today = localTime(t)
-  if not plan then plan = { y = today.year, m = today.month, sel = today.day } end
+  if not plan then plan = { y = today.year, m = today.month, sel = today.day, page = 0, mark = store.get("planMark") } end
   local days = monthDays(plan.y, plan.m)
   if plan.sel > days.n then plan.sel = days.n end
+  local marked = plan.mark and findEvent(plan.mark)
+  if marked and not marked.when then marked = nil end
+  local onDays = marked and markedDays(plan.y, plan.m, days, marked) or nil
 
   put(2, 3, " ◂ ", { fg = C.glow, act = "month:-1", tip = "Previous month" })
   local title = REAL_MONTHS[plan.m] .. " " .. plan.y
@@ -1298,95 +1381,117 @@ local function drawPlan(g, t)
     local isToday = today.year == plan.y and today.month == plan.m and today.day == d
     local f = sel and 0.45 or 0.9
     local ink = sel and "#ffffff" or C.ink
+    local on = onDays and onDays[d]
     local tip = WEEKDAYS[idx % 7 + 1]:sub(1, 3) .. " " .. d .. " " .. REAL_MONTHS[plan.m]:sub(1, 3) .. " · " .. seasonLine(day)
-      .. (isToday and " · today" or "") .. (day.ingrove and " · Ingrove pack" or "")
-      .. (day.seasonStart and " · season changes" or "")
+      .. (isToday and " · today" or "") .. (day.seasonStart and " · season changes" or "")
+      .. (on and (" · " .. marked.name) or "")
     local span = day.s1 - day.s0
     local num = string.format("%2d", d)
     local numAt = (cw - 2) // 2
+    -- The marked event's icon in the last cell; the season start before it.
+    local markAt, seasonAt = cw - 1, cw >= 6 and cw - 2 or cw - 1
     for j = 0, cw - 1 do
       local ch = " "
       if j == numAt then ch = num:sub(1, 1) elseif j == numAt + 1 then ch = num:sub(2, 2) end
       if j == 0 and isToday then ch = "•" end
-      if j == (cw >= 6 and cw - 2 or cw - 1) then
-        if day.ingrove then ch = "❄" elseif day.seasonStart then ch = "◆" end
-      end
+      if j == seasonAt and day.seasonStart then ch = "◆" end
+      if j == markAt and on then ch = marked.icon end
       local bg = hex(shade(seasonColour(day.ym + math.floor((j + 0.5) / cw * span)), f))
-      put(x + j, y, ch, { bg = bg, fg = ink, b = sel or isToday, act = "day:" .. d, tip = tip })
+      put(x + j, y, ch, { bg = bg, fg = ink, b = sel or isToday or (j == markAt and on), act = "day:" .. d, tip = tip })
     end
   end
-  put(2, 11, W >= 43 and "❄ Ingrove pack  ◆ season starts  • today" or "❄ Ingrove  ◆ season  • today", { fg = C.dim })
+  local legend = "◆ season starts  • today"
+  if marked then legend = legend .. "  " .. marked.icon .. " " .. marked.name end
+  put(2, 11, cut(legend, W - 3), { fg = C.dim })
   put(2, 12, string.rep("─", W - 2), { fg = C.rule })
 
-  -- The selected day.
+  -- The selected day as a timeline, 00–24 local time.
   local day = days[plan.sel]
   local wd = WEEKDAYS[(days.lead + plan.sel - 1) % 7 + 1]
-  put(2, 13, wd .. " " .. plan.sel .. " " .. REAL_MONTHS[plan.m], { fg = C.text, b = true })
-  local mid = gameTime(day.s0 + (day.s1 - day.s0) // 2)
-  put(2, 14, seasonLine(day), { fg = "~" .. seasonHex(mid.season) })
-  local light, last = {}, nil
-  for k = 0, 24 do
-    local gk = gameTime(math.min(day.s1 - 1, day.s0 + k * 3600))
-    local v = gk.dusk - gk.dawn
-    if v ~= last then
-      light[#light + 1] = v
-      last = v
+  local dx = put(2, 13, wd .. " " .. plan.sel .. " " .. REAL_MONTHS[plan.m], { fg = C.text, b = true })
+  local seasonText = day.seasonStart and (cap(day.from) .. " → " .. cap(day.to) .. " " .. hm(day.seasonStart))
+    or (cap(day.from) .. " all day")
+  rightAfter(13, dx, seasonText, { fg = "~" .. seasonHex(day.seasonStart and day.to or day.from) })
+
+  local n = math.max(12, W - TL_X)
+  local span = day.s1 - day.s0
+  local rows = dayRows(day, n)
+  local nowK = (t >= day.s0 and t < day.s1) and math.floor((t - day.s0) * n / span) or nil
+  -- The hour axis, and ▼ for now.
+  for _, h in ipairs({ 0, 6, 12, 18, 24 }) do
+    local c = TL_X + math.floor(h * n / 24 + 0.5) - (h == 24 and 2 or 0)
+    if not nowK or math.abs(c - (TL_X + nowK)) > 1 and math.abs(c + 1 - (TL_X + nowK)) > 1 then
+      put(c, 14, pad2(h), { fg = C.dim })
     end
   end
-  local lt, nt = {}, {}
-  for _, v in ipairs(light) do
-    lt[#lt + 1] = v .. "h"
-    nt[#nt + 1] = (24 - v) .. "h"
+  if nowK then put(TL_X + nowK, 14, "▼", { fg = C.glow, b = true, tip = "Now, " .. hm(t) }) end
+  local NOWBG = "@dim"
+  local function bar(y, cells, glyph, color, name)
+    for k = 0, n - 1 do
+      local c = cells[k]
+      local st
+      if c then
+        st = { fg = color, bg = k == nowK and NOWBG or nil, tip = name .. ": " .. table.concat(c, ", ") }
+      elseif k == nowK then
+        st = { bg = NOWBG }
+      end
+      if c or k == nowK then put(TL_X + k, y, c and glyph(k) or " ", st) end
+    end
   end
-  put(2, 15, "Daylight " .. table.concat(lt, " → ") .. " · night " .. table.concat(nt, " → "), { fg = C.label,
-    tip = "Game hours of daylight in the game months this day passes through" })
+  -- The season along the day.
+  put(2, 15, "Season", { fg = C.label })
+  for k = 0, n - 1 do
+    local sk = rows.season[k]
+    put(TL_X + k, 15, k == nowK and "▒" or " ", { bg = hex(shade(seasonColour(sk[2]), 0.9)), fg = C.ink,
+      tip = cap(sk[1]) .. " from " .. sk[3] })
+  end
+  put(2, 16, "Full moon", { fg = C.label })
+  bar(16, rows.moon.cells, function() return "●" end, C.moon, "Full moon")
 
-  local y = 17
-  local function line(icon, color, text, tip)
-    put(2, y, icon, { fg = color })
-    put(4, y, cut(text, W - 5), { fg = C.text, tip = tip })
+  -- The events that vary over the day, a page of them when they do not fit.
+  local y0 = 17
+  local room = math.max(3, (main.H or 27) - y0 - 2)
+  local list = rows.rows
+  local pages = math.max(1, math.ceil(#list / room))
+  plan.page = clamp(plan.page or 0, 0, pages - 1)
+  local first = plan.page * room + 1
+  local y = y0
+  for i = first, math.min(#list, first + room - 1) do
+    local r = list[i]
+    local e = r.ev
+    local isMarked = marked and marked.name == e.name
+    local col = "~" .. e.color
+    put(2, y, e.icon, { fg = col, act = "mark:" .. e.name })
+    put(4, y, cut(e.name, TL_NAME - 2) .. string.rep(" ", math.max(0, TL_NAME - 2 - utf8.len(e.name))),
+      isMarked and { fg = "@bg", bg = "@glow", b = true, act = "mark:" .. e.name, tip = e.name .. ": marked in the month. Click to clear." }
+        or { fg = C.text, act = "mark:" .. e.name, tip = e.name .. ": click to mark its days in the month" })
+    -- Moments and short, lone windows as marks; spans as solid bars.
+    local cells = r.cells
+    bar(y, cells, function(k)
+      if r.at then return "▮" end
+      return (cells[k - 1] or cells[k + 1]) and "█" or "▮"
+    end, col, e.name)
     y = y + 1
   end
-  -- Full moons.
-  local from = day.s0
-  for _ = 1, 4 do
-    local s, e = gameTimeFind({ moon = "full" }, from, day.s1 - from)
-    if not s then break end
-    local winter = gameTime(s).season == "winter" or gameTime(math.min(e, day.s1) - 1).season == "winter"
-    local text = s <= day.s0 and ("Full moon until " .. hm(e)) or ("Full moon " .. hm(s) .. "–" .. hm(e))
-    line("●", C.moon, text .. (winter and "  → Ingrove warg pack" or ""),
-      "Full moon from " .. whenText(s, t) .. " to " .. whenText(e, t) .. " local")
-    from = e
-    if from >= day.s1 then break end
+  if #list == 0 then
+    put(2, y, "Nothing changes over this day.", { fg = C.dim })
+    y = y + 1
   end
-  -- Dead Knight windows: the moonrises while the moon is waxing gibbous or
-  -- full, one line per run of them (a moonrise every game day, 24 real min).
-  local dk = eventCond("Dead Knight slab")
-  if dk then
-    local groups = {}
-    from = day.s0
-    for _ = 1, 24 do
-      if from >= day.s1 then break end
-      local s = gameTimeFind(dk, from, day.s1 - from)
-      if not s or s >= day.s1 then break end
-      local last = groups[#groups]
-      if last and s - last[2] < 3600 then
-        last[2], last[3] = s, last[3] + 1
-      else
-        groups[#groups + 1] = { s, s, 1 }
-      end
-      from = s + 1
-    end
-    for _, gr in ipairs(groups) do
-      local text = gr[3] == 1 and hm(gr[1]) or (hm(gr[1]) .. "–" .. hm(gr[2]) .. " (" .. gr[3] .. "×)")
-      line("☾", "~#d8d2ff", "Dead Knight slab, moonrise " .. text,
-        "The slab opens at moonrise while the moon is waxing gibbous or full: a moonrise every game day (24 real minutes)")
-    end
+  if pages > 1 then
+    local x = put(2, y, "◂", { fg = C.glow, act = "page:-1", tip = "Previous rows" })
+    x = put(x + 1, y, (first) .. "–" .. math.min(#list, first + room - 1) .. " of " .. #list, { fg = C.dim })
+    put(x + 1, y, "▸", { fg = C.glow, act = "page:1", tip = "More rows" })
+    y = y + 1
   end
-  if day.seasonStart then
-    line("◆", "~" .. seasonHex(day.to), cap(day.to) .. " starts " .. hm(day.seasonStart))
+  if #rows.allDay > 0 then
+    local text = "all day: " .. table.concat(rows.allDay, ", ")
+    put(2, y, cut(text, W - 3), { fg = C.dim, tip = text })
+    y = y + 1
   end
-  if y == 17 then put(2, y, "No full moon, Dead Knight window or new season.", { fg = C.dim }) end
+  if #rows.never > 0 then
+    local text = "not this day: " .. table.concat(rows.never, ", ")
+    put(2, y, cut(text, W - 3), { fg = C.dim, tip = text })
+  end
 end
 
 -- ------------------------------------------------------------ drawing: LORE
@@ -1475,6 +1580,7 @@ end
 
 pane:onResize(function(rows, cols)
   main.W = math.max(20, cols)
+  main.H = rows
   use(main)
   resetShown()
   draw()
@@ -1895,6 +2001,12 @@ doAction = function(act)
     planShift(tonumber(arg))
   elseif kind == "day" then
     plan.sel = tonumber(arg)
+    plan.page = 0
+  elseif kind == "page" then
+    plan.page = (plan.page or 0) + tonumber(arg)
+  elseif kind == "mark" then
+    plan.mark = plan.mark ~= arg and arg or nil
+    store.set("planMark", plan.mark)
   elseif kind == "edit" then
     local e = arg ~= "" and findEvent(arg) or nil
     return openEditor(e and e.own and e or nil)

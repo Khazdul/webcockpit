@@ -293,7 +293,7 @@ describe('bundled almanac', () => {
     expect(t.lastText()).toBe('ALMANAC No reminder for Overseer slab.');
   });
 
-  it('PLAN: a month grid, Monday first; ◂ ▸ and the wheel change the month; a click shows a day', async () => {
+  it('PLAN: a month grid, Monday first; ◂ ▸ and the wheel change the month; nothing marked by default', async () => {
     const t = await setup();
     t.click(0, 'PLAN');
     const rows = t.rows();
@@ -302,29 +302,98 @@ describe('bundled almanac', () => {
     expect(rows[2]).toContain(title);
     expect(rows[2]).toMatch(/^ {2}◂ /);
     expect(rows[3]).toBe('   Mo     Tu     We     Th     Fr     Sa     Su');
-    expect(rows[10]).toBe(' ❄ Ingrove pack  ◆ season starts  • today');
-    expect(rows.slice(4, 10).join('\n')).toContain('•');
-    expect(rows[12]).toMatch(new RegExp(`^ \\w+day ${d.getDate()} `));
-    expect(rows[13]).toMatch(/^ (Winter|Spring|Summer|Autumn) (all day|→ \w+ at \d\d:\d\d)$/);
-    expect(rows[14]).toMatch(/^ Daylight \d+h( → \d+h)* · night \d+h( → \d+h)*$/);
-    const r1 = rows.findIndex((x, i) => i >= 4 && / 1 /.test(x));
-    t.click(r1, ' 1 ');
-    expect(t.rows()[12]).toMatch(/^ \w+day 1 /);
+    expect(rows[10]).toBe(' ◆ season starts  • today');
+    const grid = rows.slice(4, 10).join('\n');
+    expect(grid).toContain('•');
+    expect(grid).not.toContain('❄');
     t.click(2, '▸');
     expect(t.rows()[2]).not.toContain(title);
     expect(t.panes.pane.events.onWheel!(0, -1)).toBe(true);
     expect(t.rows()[2]).toContain(title);
-    let ingrove = 0;
     let starts = 0;
     for (let i = 0; i < 12; i++) {
       t.panes.pane.events.onWheel!(0, 1);
-      const grid = t.rows().slice(4, 10).join('');
-      ingrove += [...grid].filter((ch) => ch === '❄').length;
-      starts += [...grid].filter((ch) => ch === '◆').length;
+      starts += [...t.rows().slice(4, 10).join('')].filter((ch) => ch === '◆').length;
     }
     expect(starts).toBeGreaterThan(50);
-    expect(ingrove).toBeGreaterThan(20);
     expect(t.errors()).toEqual([]);
+  });
+
+  it('PLAN timeline: the selected day 00–24 local, a row per event that varies, the rest summed up', async () => {
+    const t = await setup();
+    t.click(0, 'PLAN');
+    const rows = t.rows();
+    const d = new Date(NOW * 1000);
+    expect(rows[11]).toMatch(/^ ─+$/);
+    expect(rows[12]).toMatch(new RegExp(`^ \\w+day ${d.getDate()} \\w+ +(Winter|Spring|Summer|Autumn) (all day|→ \\w+ \\d\\d:\\d\\d)$`));
+    // The hour axis with ▼ for now (today is selected).
+    expect(rows[13]).toMatch(/^ {15}\S/);
+    expect(rows[13]).toContain('▼');
+    expect(rows[13]).toMatch(/24$/);
+    const tl = 15; // the bar's first column (0-based)
+    const now = rows[13]!.indexOf('▼');
+    const nowLink = t.panes.pane.content.linkAt(13, now)!;
+    expect(nowLink.hint).toMatch(/^Now, \d\d:\d\d$/);
+    expect(rows[14]).toMatch(/^ Season +▒$/);
+    expect(rows[14]!.indexOf('▒')).toBe(now);
+    expect(rows[15]).toMatch(/^ Full moon +●/);
+    // Dead Knight: moonrises as marks; its tooltip has the local times.
+    const dk = t.find('☾ Dead Knigh');
+    expect(dk).toBeGreaterThan(15);
+    const dkRow = rows[dk]!;
+    expect(dkRow).toMatch(/▮/);
+    expect(dkRow).not.toMatch(/█/);
+    const mark = t.panes.pane.content.linkAt(dk, dkRow.indexOf('▮'))!;
+    expect(mark.hint).toMatch(/^Dead Knight slab: \d\d:\d\d(, \d\d:\d\d)*/);
+    // A span is a solid bar, cut where it does not hold.
+    const moria = rows[t.find('⌂ Moria')]!;
+    expect(moria.slice(tl)).toMatch(/█+ +█+/);
+    // Possible all day: no row, one dim line; not possible: another.
+    expect(t.find('⚔ Spirit Kni')).toBe(-1);
+    const all = rows.find((r) => r.startsWith(' all day: '))!;
+    expect(t.panes.pane.content.linkAt(rows.indexOf(all), 2)!.hint).toMatch(/Spirit Knight door/);
+    expect(rows.find((r) => r.startsWith(' not this day: '))).toContain('Ingrove warg pack');
+    // Another day: no ▼.
+    const r1 = rows.findIndex((x, i) => i >= 4 && i < 10 && / 1 /.test(x));
+    t.click(r1, ' 1 ');
+    expect(t.rows()[12]).toMatch(/^ \w+day 1 /);
+    expect(t.rows()[13]).not.toContain('▼');
+    expect(t.errors()).toEqual([]);
+  });
+
+  it('PLAN timeline: rows that do not fit the pane are paged with ◂ ▸', async () => {
+    const t = await setup();
+    t.click(0, 'PLAN');
+    t.panes.pane.events.onResize(50, 22);
+    const pager = () => t.rows().findIndex((r) => /^ ◂ \d+–\d+ of \d+ ▸$/.test(r));
+    const p = pager();
+    expect(p).toBeGreaterThan(16);
+    expect(t.rows()[p]).toMatch(/^ ◂ 1–3 of \d+ ▸$/);
+    const firstRow = t.rows()[16];
+    t.click(p, '▸');
+    expect(t.rows()[pager()]).toMatch(/^ ◂ 4–\d+ of \d+ ▸$/);
+    expect(t.rows()[16]).not.toBe(firstRow);
+    t.click(pager(), '◂');
+    expect(t.rows()[16]).toBe(firstRow);
+  });
+
+  it('PLAN: a click on an event row marks its days in the month; again clears it; the choice is kept', async () => {
+    const t = await setup();
+    t.click(0, 'PLAN');
+    const dk = t.find('☾ Dead Knigh');
+    const link = t.click(dk, 'Dead Knigh');
+    expect(link.hint).toBe('Dead Knight slab: click to mark its days in the month');
+    let rows = t.rows();
+    expect(rows[10]).toBe(' ◆ season starts  • today  ☾ Dead Knight slab');
+    const grid = rows.slice(4, 10).join('\n');
+    expect([...grid].filter((ch) => ch === '☾').length).toBeGreaterThan(20);
+    expect(t.panes.pane.content.linkAt(dk, 4)!.hint).toMatch(/marked in the month\. Click to clear\./);
+    expect(t.lib.storeGet('almanac', 'planMark')).toBe('Dead Knight slab');
+    t.click(dk, 'Dead Knigh');
+    rows = t.rows();
+    expect(rows[10]).toBe(' ◆ season starts  • today');
+    expect(rows.slice(4, 10).join('')).not.toContain('☾');
+    expect(t.lib.storeGet('almanac', 'planMark')).toBeUndefined();
   });
 
   it('LORE: every event with its condition and place', async () => {
