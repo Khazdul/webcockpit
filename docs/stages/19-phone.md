@@ -155,3 +155,23 @@ Known limits: in the profile editor lite view at about 40 columns the
 category tabs and the list are truncated (`HIGHLI…`, `^You a`) but every
 control is tappable; a wide table swipes sideways as a whole (the History
 button column scrolls out with it).
+
+### Round 2 (2026-10-04, Samsung Android Chrome, the phone layout)
+
+1. The map does not lock on and follow the player when running around.
+2. A two-finger pinch does not zoom the map.
+
+### Round 2 tasks
+
+- [x] Cause of 1: a hidden Map pane does not forward game events (ADR
+  0020), and on a phone the MAP tab is hidden whenever another tab is
+  selected; a map first opened mid-session also had no room until the
+  next move. Reproduced in `tests/e2e/phone-map.spec.ts` (room empty).
+- [x] Phone: forwarding stays on while the MAP tab is hidden; the last
+  `Room.Info` / `Char.StatusVars` are replayed when the map first starts
+  (ADR 0075 §3.3). Desktop keeps "shown and loaded".
+- [x] Touch: two-finger pinch zooms around the midpoint, two-finger drag
+  pans (`src/map/pinch.ts`, unit tests in `tests/unit/map-pinch.test.ts`).
+- [x] e2e (phone project): moves on GAME then MAP shows the room centred;
+  MAP opened first after the moves; moves on MAP follow; pinch, two- and
+  one-finger drag by CDP touch events.

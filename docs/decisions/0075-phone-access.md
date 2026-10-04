@@ -186,6 +186,31 @@ All of it is phone- or touch-gated; desktop is unchanged.
   text fields (`TextField`: profile and script names) are one-row
   textareas on a phone too. Desktop keeps the one `<input type=text>`.
 
+#### 3.3 The map on a phone, after owner feedback round 2 (2026-10-04)
+
+All of it is phone- or touch-gated in `src/panes/map.ts`; desktop is
+unchanged (it keeps ADR 0020's "forward only while shown and loaded").
+
+- **Tracking while the MAP tab is hidden.** A phone shows one view at a
+  time, so the Map pane is hidden whenever another tab is selected, and
+  ADR 0020 stops forwarding game events then: moves made on GAME never
+  reached the worker, and the locator, which learns ids along the way,
+  lost the thread. On a phone forwarding stays on while hidden once the
+  map is loaded (the worker tracks and re-centres but draws nothing until
+  shown). The worker is still started only when MAP is first tapped; the
+  pane keeps the last `Room.Info` and `Char.StatusVars` from its
+  construction and replays them after the first `resync`, so a map first
+  opened mid-session finds the room at once (located as a LOOK).
+- **Follow.** Nothing detaches follow on either device: every located
+  move re-centres the view; a pan or zoom holds only until the next move.
+  A tap sends no pan.
+- **Pinch.** On touch every pointer on the canvas is tracked. One finger
+  pans; with two, each move pans by the midpoint's move and zooms around
+  the new midpoint by `log(d1/d0) / log(ZOOM_STEP)` wheel steps
+  (`pinchStep`, `src/map/pinch.ts`), so the map scales with the fingers.
+  Same `pan`/`zoom` messages and limits as the mouse and the wheel; a
+  near-zero sum (a parallel two-finger drag) is no zoom.
+
 ### 4. Tests
 
 - A Playwright project `phone` (Chromium, `isMobile`, `hasTouch`, a
@@ -199,7 +224,7 @@ All of it is phone- or touch-gated; desktop is unchanged.
 - Desktop behaviour and look do not change. A few shared modules gain a
   flag check; the desktop branch is the existing code.
 - Out of scope (research §3 C and D): direction pad and macro buttons,
-  history buttons, map pinch zoom, PWA manifest, Wake Lock, reconnect on
+  history buttons, PWA manifest, Wake Lock, reconnect on
   resume, a smaller phone scrollback default.
 - Known limits on a phone: switching app or locking the screen ends the
   session (linkdeath); on iOS Safari, profiles may be deleted after 7
