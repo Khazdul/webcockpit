@@ -100,7 +100,10 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   const looter = row(f, 'coinlooter');
   await expect(looter).toBeVisible();
   await expect(looter.locator('.wc-scr-lock')).toHaveCount(1);
-  // The cursor starts on the first script; its help is on the right.
+  // The cursor starts on the first script (almanac); Down moves it to the
+  // coin looter, whose help is on the right.
+  await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^almanac\s*$/);
+  await page.keyboard.press('ArrowDown');
   await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^coinlooter\s*$/);
   const help = f.locator('.wc-scr-help');
   await expect(help).toContainText('bundled · read-only');
