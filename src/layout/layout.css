@@ -243,3 +243,50 @@
 .wc-touch .wc-float-handle {
   touch-action: none;
 }
+
+/* Phone only (ADR 0075 §3): the tab strip on the top row. One text row
+ * of ` LABEL ` tokens split by `│` in the pane frame colour; the selected
+ * tab in reverse video. Swipes sideways when the tabs do not fit. */
+.wc-phone-tabs {
+  position: absolute;
+  z-index: 3;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: pre;
+  line-height: var(--cell-h);
+  color: var(--c-hint);
+  background: var(--term-bg);
+  scrollbar-width: none;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.wc-phone-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.wc-phone-tabs[hidden] {
+  display: none;
+}
+
+.wc-phone-sep {
+  color: var(--pane-border-none, var(--c-hint));
+}
+
+.wc-phone-tab {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.wc-phone-tab.is-active {
+  color: var(--term-bg);
+  background: var(--c-accent);
+  font-weight: bold;
+}
+
+/* A pane tab covers the game view: the game pane stays laid out at its
+ * size (scroll position and NAWS unchanged), just not shown. */
+.wc-cockpit[data-phone-tab="pane"] > .wc-game {
+  visibility: hidden;
+}

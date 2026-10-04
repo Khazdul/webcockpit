@@ -11,6 +11,7 @@
 //     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
 //     .wc-too-small     "Window too small" (below 60 × 18 cells)
 //     .wc-drag-shield   transparent cover with the drag cursor while a drag runs
+//     .wc-phone-tabs    phone only: the tab strip (ADR 0075 §3)
 //
 // Relayout is one atomic pass per animation frame after a size change of
 // the cockpit element (window resize, padding), a cell size change or a
@@ -76,6 +77,16 @@
 //   the user moves or resizes them, never dock, and their close cross
 //   calls `temp.onClose` (the owner removes them). The surface keeps the
 //   user's rectangle per device (src/layout/temp-places.ts).
+//
+// Phone (ADR 0075 §3, `device().phone`, decided once at construction):
+// `allocatePhone` (src/layout/phone.ts) instead of `allocate`, a tab strip
+// on the top row (GAME, then the shown panes), one view at a time, and no
+// arranging: no grips, close crosses, float handles or resize handles, and
+// pointer presses never start a drag, so nothing is written to the layout.
+// The selected tab lives in memory only. The game pane keeps its size
+// under a pane tab (hidden, not resized), so its scroll position and NAWS
+// stay. Temporary script panes show over the GAME view only. While the
+// on-screen keyboard is up the too-small guard is off.
 
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
@@ -127,13 +138,18 @@ import {
   togglePatch,
 } from './model';
 import { paneSettingsOf } from '../settings/types';
+import { device } from '../core/device';
+import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
+import { keyboardUp } from './phone-viewport';
 import {
   type DockId,
   defaultDockSize,
   type LayoutModel,
   PANE_IDS,
+  PANE_SHORT,
   type PaneId,
   type ScriptPaneId,
+  isBuiltinPaneId,
   isScriptPaneId,
   isTempPaneId,
   paneScript,
@@ -409,6 +425,14 @@ export class Cockpit {
   private wasTooSmall = false;
   /** Set by a handled pointerdown so the following mousedown keeps the focus. */
   private swallowMouseDown = false;
+  /** The phone layout (ADR 0075 §3), fixed at construction. */
+  private readonly phone: boolean;
+  /** Phone only: the tab strip. */
+  private readonly stripEl: HTMLDivElement | null = null;
+  /** Phone only: the selected tab (memory only, never stored). */
+  private tab: PhoneTab = GAME_TAB;
+  /** Phone only: what the strip shows now (redrawn when it changes). */
+  private stripKey = '';
 
   constructor(opts: CockpitOptions) {
     const doc = opts.root.ownerDocument;
@@ -438,12 +462,20 @@ export class Cockpit {
     this.tooSmallEl.hidden = true;
     this.shieldEl = div('wc-drag-shield');
     this.shieldEl.hidden = true;
+    this.phone = device().phone;
+    if (this.phone) {
+      this.stripEl = div('wc-phone-tabs');
+      this.stripEl.setAttribute('role', 'tablist');
+      this.stripEl.addEventListener('mousedown', (e) => e.preventDefault());
+      this.stripEl.addEventListener('click', this.onTabClick);
+    }
     this.paneContext =
       opts.paneContext ??
       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
     this.el.append(this.gameEl);
     for (const id of PANE_IDS) this.attach(PANE_FACTORIES[id](this.paneContext));
     this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
+    if (this.stripEl) this.el.append(this.stripEl);
     opts.root.appendChild(this.el);
 
     this.el.addEventListener('pointerdown', this.onPointerDown);
@@ -486,6 +518,12 @@ export class Cockpit {
       return d;
     };
     const id = shell.id;
+    if (this.phone) {
+      // No arranging on a phone (ADR 0075 §3): no grip, close cross or float handles.
+      this.shells.set(id, shell);
+      this.el.insertBefore(shell.el, before);
+      return;
+    }
     const grip = div('wc-pane-grip');
     grip.dataset.grip = id;
     shell.el.append(grip);
@@ -623,6 +661,7 @@ export class Cockpit {
     const close = this.closers.get(id);
     const shell = this.shells.get(id);
     if (close && shell) this.labelClose(close, id, shell.label);
+    if (this.phone) this.scheduleRelayout(); // the tab label follows
     for (const fn of [...this.paneListeners]) fn();
   }
 
@@ -665,6 +704,10 @@ export class Cockpit {
     const H = this.el.clientHeight;
     if (!(W > 0 && H > 0 && cell.w > 0 && cell.h > 0)) return;
     const s = this.settings.get();
+    if (this.phone) {
+      this.relayoutPhone(cell, W, H);
+      return;
+    }
     const layout = this.preview ?? s.layout;
     const base = allocate({
       layout,
@@ -696,6 +739,119 @@ export class Cockpit {
     }
     this.renderHandles(r, cell);
     for (const fn of [...this.layoutListeners]) fn();
+  }
+
+  /** Phone only: the selected tab (GAME or a pane id). */
+  get phoneTab(): PhoneTab {
+    return this.tab;
+  }
+
+  /** Phone only: selects a tab (memory only; an unknown one shows GAME). */
+  selectTab(tab: PhoneTab): void {
+    if (!this.phone || tab === this.tab) return;
+    this.tab = tab;
+    this.relayoutNow();
+  }
+
+  private readonly onTabClick = (e: MouseEvent): void => {
+    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
+    if (!t) return;
+    e.stopPropagation();
+    this.selectTab(t.dataset.tab as PhoneTab);
+  };
+
+  /** Phone only: the relayout (allocatePhone, ADR 0075 §3); see the file header. */
+  private relayoutPhone(cell: { w: number; h: number }, W: number, H: number): void {
+    const s = this.settings.get();
+    const r: PhoneLayoutResult = allocatePhone({
+      layout: s.layout,
+      panes: s.panes,
+      present: this.present,
+      cols: Math.floor(W / cell.w + 1e-6),
+      rows: Math.floor(H / cell.h + 1e-6),
+      tab: this.tab,
+      guard: !keyboardUp(),
+    });
+    this.tab = r.tab;
+    let res: LayoutResult = r;
+    if (!r.tooSmall && r.tab === GAME_TAB && this.temps.size > 0) {
+      // Temporary panes over the GAME view, kept inside it (not over the strip or the input).
+      const v = r.view;
+      const temps = this.tempBoxes(r, s.layout).map((b): PaneBox => {
+        const c = clampFloat({ ...b.rect, x: b.rect.x - v.x, y: b.rect.y - v.y }, floatMin(b.id, true), v.w, v.h);
+        const rect = { ...c, x: c.x + v.x, y: c.y + v.y };
+        return { ...b, rect, content: { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 } };
+      });
+      res = { ...r, panes: [...r.panes, ...temps] };
+    }
+    this.last = res;
+    this.el.dataset.cells = `${r.cols}x${r.rows}`;
+    if (this.el.dataset.cells !== this.lastSize) {
+      this.lastSize = this.el.dataset.cells;
+      this.paneContext.bus.emit('view.size', { cols: r.cols, rows: r.rows });
+    }
+    this.el.dataset.collapsed = '';
+    this.el.dataset.phoneTab = r.tab === GAME_TAB ? 'game' : 'pane';
+    this.setTooSmall(res);
+    placeEl(this.gameEl, r.game, cell);
+    placeEl(this.inputEl, r.input, cell);
+    const boxes = new Map(res.panes.map((p) => [p.id, p]));
+    for (const [id, shell] of this.shells) {
+      shell.applyTheme(s);
+      const b = boxes.get(id);
+      // Only temporary panes float on a phone; a pane tab is a plain full-width box.
+      const floating = b && this.temps.has(id) ? b.index : undefined;
+      shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating } : null, cell);
+    }
+    this.renderStrip(r, cell);
+    for (const fn of [...this.layoutListeners]) fn();
+  }
+
+  /** Phone only: the tab strip's label for `tab`. */
+  private tabLabel(tab: PhoneTab): string {
+    if (tab === GAME_TAB) return 'GAME';
+    if (isBuiltinPaneId(tab)) return PANE_SHORT[tab];
+    const label = (this.shells.get(tab)?.label ?? tab).toUpperCase();
+    return label.length > 12 ? label.slice(0, 12) : label;
+  }
+
+  /** Phone only: draws the tab strip (one row of ` LABEL ` tokens, the selected one lit). */
+  private renderStrip(r: PhoneLayoutResult, cell: { w: number; h: number }): void {
+    const strip = this.stripEl!;
+    placeEl(strip, r.strip, cell);
+    strip.hidden = r.strip.h === 0;
+    const labels = r.tabs.map((t) => this.tabLabel(t));
+    const key = `${r.tabs.join('|')}#${labels.join('|')}#${r.tab}`;
+    if (key === this.stripKey) return;
+    this.stripKey = key;
+    const doc = this.el.ownerDocument;
+    const frag = doc.createDocumentFragment();
+    r.tabs.forEach((tab, i) => {
+      if (i > 0) {
+        const sep = doc.createElement('span');
+        sep.className = 'wc-phone-sep';
+        sep.textContent = '│';
+        frag.append(sep);
+      }
+      const t = doc.createElement('span');
+      t.className = 'wc-phone-tab';
+      t.dataset.tab = tab;
+      t.setAttribute('role', 'tab');
+      const active = tab === r.tab;
+      t.setAttribute('aria-selected', String(active));
+      t.classList.toggle('is-active', active);
+      t.textContent = ` ${labels[i]} `;
+      frag.append(t);
+    });
+    strip.replaceChildren(frag);
+    // Keep the selected tab in view when the strip scrolls sideways.
+    const on = strip.querySelector<HTMLElement>('.is-active');
+    if (on) {
+      const left = on.offsetLeft;
+      const right = left + on.offsetWidth;
+      if (left < strip.scrollLeft) strip.scrollLeft = left;
+      else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+    }
   }
 
   /**
@@ -800,7 +956,7 @@ export class Cockpit {
     if (small) {
       this.tooSmallEl.textContent =
         `Window too small\n\n` +
-        `${r.cols} × ${r.rows} cells, needs ${MIN_VIEW_COLS} × ${MIN_VIEW_ROWS}.\n` +
+        `${r.cols} × ${r.rows} cells, needs ${this.phone ? PHONE_MIN_COLS : MIN_VIEW_COLS} × ${this.phone ? PHONE_MIN_ROWS : MIN_VIEW_ROWS}.\n` +
         `Enlarge the window or make the font smaller.`;
     }
     if (small === this.wasTooSmall) return;
@@ -913,7 +1069,8 @@ export class Cockpit {
     this.swallowClick = false;
     // A soft-grip press that never moved (released outside the cockpit) is forgotten.
     if (this.drag?.kind === 'move' && this.drag.soft && !this.drag.active) this.drag = null;
-    if (this.drag || !this.last || this.last.tooSmall) return;
+    // A phone never arranges panes (ADR 0075 §3).
+    if (this.phone || this.drag || !this.last || this.last.tooSmall) return;
     const t = e.target as HTMLElement;
     const floating = t.closest<HTMLElement>('.wc-pane[data-floating]');
     if (floating) {
