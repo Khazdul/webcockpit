@@ -11,6 +11,8 @@ import {
   condHolds,
   findWindow,
   gameTimeAt,
+  gameTimeEventsAt,
+  nextGameTimeEvents,
   moonAt,
   moonZenith,
   nextAt,
@@ -271,5 +273,39 @@ describe('findWindow', () => {
     findWindow({ at: 'moonrise', month: [0], hours: { from: 3, to: 4 } }, from);
     expect(performance.now() - t0).toBeLessThan(200);
     expect(MONTH_S).toBe(43_200);
+  });
+});
+
+describe('game time events', () => {
+  it('lists what happens at a minute', () => {
+    // Wedmath (7): dawn 4, dusk 22.
+    expect(gameTimeEventsAt(momentSeconds(2855, 7, 19, 4, 0))).toEqual(['hour', 'dawn']);
+    expect(gameTimeEventsAt(momentSeconds(2855, 7, 19, 22, 0))).toEqual(['hour', 'dusk']);
+    expect(gameTimeEventsAt(momentSeconds(2855, 7, 19, 13, 0))).toEqual(['hour']);
+    expect(gameTimeEventsAt(momentSeconds(2855, 9, 1, 0, 0))).toContain('season');
+    expect(gameTimeEventsAt(momentSeconds(2855, 8, 1, 0, 0))).not.toContain('season');
+    const set = 1_791_056_163 - COCKPIT_EPOCH;
+    expect(gameTimeEventsAt(set)).toEqual(['moonset']);
+    expect(gameTimeEventsAt(set + 1)).toEqual([]);
+  });
+
+  it('finds every event by stepping from one to the next', () => {
+    let g = G0;
+    const counts: Record<string, number> = {};
+    for (;;) {
+      const n = nextGameTimeEvents(g);
+      if (n.at >= G0 + MOON_CYCLE) break;
+      expect(n.at).toBeGreaterThan(g);
+      expect(n.at - g).toBeLessThanOrEqual(HOUR_S);
+      expect(n.kinds.length).toBeGreaterThan(0);
+      for (const k of n.kinds) counts[k] = (counts[k] ?? 0) + 1;
+      g = n.at;
+    }
+    // About 29.5 days: one dawn and dusk a day, a rise and set a lunar day, 8 phases.
+    expect(counts.dawn).toBeGreaterThanOrEqual(29);
+    expect(counts.moonrise).toBeGreaterThanOrEqual(28);
+    expect(counts.moonset).toBeGreaterThanOrEqual(28);
+    expect(counts.phase).toBe(8);
+    expect(counts.hour).toBe(Math.floor(MOON_CYCLE / HOUR_S));
   });
 });

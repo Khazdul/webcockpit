@@ -40,6 +40,12 @@
 // once per microtask, only when the list (without `own`) differs from the
 // one last fired, never during a drag (the surface holds it), and at most
 // PANES_EVENT_MAX times a second (then it waits, with one warning).
+//
+// Game time (ADR 0074): `gameTime`, `gameTimeFind` and `localTime` read the
+// clock (src/gmcp/gametime.ts) on demand. `sysGameTimeEvent` runs on one
+// timer to the next event (each game hour, a moonrise, moonset or phase
+// change: at most an hour of game time apart), kept only while a script
+// listens and the clock knows the hour; `sync` fires when the clock syncs.
 
 import type { Bus } from '../core/bus';
 import { type Color, type StyleRun, TRUECOLOR, type XmlSpan, gmcpKey, isAdaptive } from '../core/types';
@@ -65,6 +71,7 @@ import type { MarkStyle, MarkTarget, RoomQuery } from '../map/protocol';
 import type { FieldEvent } from '../panes/script-pane';
 import type { PaneState, ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
+import { CondError, DEFAULT_HORIZON, type GameTimeEventKind, findWindow, gameTimeAt, nextGameTimeEvents, parseCond } from '../gmcp/gametime';
 import type { ScriptEngine, MatchContext } from '../script/engine';
 import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
 import { setLiveScriptKey } from '../script/script-keys';
@@ -121,10 +128,16 @@ export interface ScriptHostOptions {
   panes?: ScriptPaneSurface;
   /** Script map marks (App: its MapMarkHub; ADR 0057). Absent: `mapMark` answers "map off". */
   map?: ScriptMapSurface;
+  /** The `sysGameTimeEvent` timer (tests; default setTimeout). */
+  setTimer?: (fn: () => void, ms: number) => unknown;
+  clearTimer?: (h: unknown) => void;
 }
 
 /** Pane text takes the shade-role colours (`<@dim>`, ADR 0065). */
 const SHADES = { shades: true } as const;
+
+/** Largest `gameTimeFind` horizon: five game years (30 real days). */
+export const GAME_TIME_HORIZON_MAX = 5 * DEFAULT_HORIZON;
 
 /** At most this many `sysPanesChanged` per second (ADR 0065). */
 export const PANES_EVENT_MAX = 20;
@@ -237,6 +250,8 @@ function eventKey(name: string): string {
 
 /** #event names (engine.ts EVENT_NAMES) start with these. */
 const ENGINE_EVENT = /^(session (dis)?connected|iac sb gmcp)/;
+/** The key of `sysGameTimeEvent` (ADR 0074). */
+const GAME_TIME_EVENT = 'sysgametimeevent';
 
 export class ScriptHost {
   private readonly o: ScriptHostOptions;
@@ -272,6 +287,12 @@ export class ScriptHost {
   private panesFired: number[] = [];
   private panesTimer: ReturnType<typeof setTimeout> | null = null;
   private panesWarned = false;
+  /** `sysGameTimeEvent` (ADR 0074): the timer to the next event and its game minute. */
+  private gtTimer: unknown = null;
+  private gtAt = 0;
+  private gtKinds: GameTimeEventKind[] = [];
+  private readonly setTimer: (fn: () => void, ms: number) => unknown;
+  private readonly clearTimer: (h: unknown) => void;
 
   constructor(opts: ScriptHostOptions) {
     this.o = opts;
@@ -281,6 +302,8 @@ export class ScriptHost {
     this.clock = opts.clock ?? (() => performance.now());
     this.ownGmcp = !opts.gmcp;
     this.gmcp = opts.gmcp ?? new GmcpCache();
+    this.setTimer = opts.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+    this.clearTimer = opts.clearTimer ?? ((h) => clearTimeout(h as ReturnType<typeof setTimeout>));
   }
 
   /**
@@ -323,6 +346,7 @@ export class ScriptHost {
     this.disposed = true;
     for (const u of this.unsubs.splice(0)) u();
     if (this.panesTimer !== null) clearTimeout(this.panesTimer);
+    this.stopGameTime();
     for (const o of [...this.owners.values()]) this.unload(o);
     this.engine.setEventTap(null);
     this.rt?.close();
@@ -685,6 +709,51 @@ export class ScriptHost {
     if (next.length > 0) this.handlers.set(key, next);
     else this.handlers.delete(key);
     if (ENGINE_EVENT.test(key)) this.updateEventTap();
+    if (key === GAME_TIME_EVENT) this.planGameTime();
+  }
+
+  // -------------------------------------------------------------- game time
+
+  /** Wall-clock seconds (the `epoch` option). */
+  private nowS(): number {
+    return this.o.epoch?.() ?? Date.now() / 1000;
+  }
+
+  /** The clock's anchor, or null while it does not know the day. */
+  private clockEpoch(): number | null {
+    const c = this.o.game?.clock;
+    return c && c.precision !== 'unset' ? c.state.epoch : null;
+  }
+
+  private stopGameTime(): void {
+    if (this.gtTimer !== null) this.clearTimer(this.gtTimer);
+    this.gtTimer = null;
+  }
+
+  /** (Re)starts the timer to the next `sysGameTimeEvent`: only while a script listens and the clock knows the hour. */
+  private planGameTime(): void {
+    this.stopGameTime();
+    const clock = this.o.game?.clock;
+    if (this.disposed || !clock || !this.handlers.has(GAME_TIME_EVENT)) return;
+    if (clock.precision !== 'hour' && clock.precision !== 'minute') return;
+    const epoch = clock.state.epoch;
+    const now = this.nowS();
+    const next = nextGameTimeEvents(Math.floor(now) - epoch);
+    this.gtAt = next.at;
+    this.gtKinds = next.kinds;
+    // Game minutes are real seconds; wake just after the second starts.
+    const ms = Math.max(0, (epoch + next.at - now) * 1000) + 5;
+    this.gtTimer = this.setTimer(() => this.onGameTimeTimer(), ms);
+  }
+
+  private onGameTimeTimer(): void {
+    this.gtTimer = null;
+    const epoch = this.clockEpoch();
+    if (epoch !== null && Math.floor(this.nowS()) - epoch >= this.gtAt) {
+      for (const k of this.gtKinds) this.fire(null, GAME_TIME_EVENT, ['sysGameTimeEvent', k]);
+    }
+    // A handler may have planned already (it registered or killed a handler).
+    if (this.gtTimer === null) this.planGameTime();
   }
 
   // ------------------------------------------------------------ game state
@@ -706,6 +775,10 @@ export class ScriptHost {
   }
 
   private onGame(part: string): void {
+    if (part === 'clock' && this.handlers.has(GAME_TIME_EVENT)) {
+      this.fire(null, GAME_TIME_EVENT, ['sysGameTimeEvent', 'sync']);
+      this.planGameTime();
+    }
     const rt = this.rt;
     if (!rt) return;
     if (part === 'char') this.setState(rt, 'char', this.charState());
@@ -965,6 +1038,7 @@ export class ScriptHost {
       this.handlers.set(key, list);
       o.handlers.set(n, key);
       if (ENGINE_EVENT.test(key)) this.updateEventTap();
+      if (key === GAME_TIME_EVENT && list.length === 1) this.planGameTime();
       return n;
     });
     rt.defineFunction('killAnonymousEventHandler', (a) => {
@@ -1039,6 +1113,60 @@ export class ScriptHost {
     // Wall-clock time (Mudlet's getEpoch): the sandbox has no `os`, and a
     // script that keeps times across reloads (the store) needs real time.
     rt.defineFunction('getEpoch', () => this.o.epoch?.() ?? Date.now() / 1000);
+
+    // Game time (ADR 0074): the clock's view of any real time, or nil
+    // while the clock does not know the day.
+    const optEpoch = (a: LuaArgs, i: number, fn: string): number => {
+      const t = a.type(i);
+      if (t === 'nil' || t === 'no value') return this.nowS();
+      const v = a.number(i);
+      if (!Number.isFinite(v)) throw new Error(`bad argument #${i} to '${fn}' (a time in seconds expected)`);
+      return v;
+    };
+    rt.defineFunction('gameTime', (a) => {
+      const at = optEpoch(a, 1, 'gameTime');
+      const epoch = this.clockEpoch();
+      if (epoch === null) return null;
+      return { ...gameTimeAt(Math.floor(at) - epoch), precision: this.o.game!.clock.precision, epoch: at };
+    });
+    rt.defineFunction('gameTimeFind', (a) => {
+      if (a.type(1) !== 'table') throw new Error(`bad argument #1 to 'gameTimeFind' (table expected, got ${a.type(1)})`);
+      let cond;
+      try {
+        cond = parseCond(a.value(1));
+      } catch (e) {
+        if (e instanceof CondError) throw new Error(`bad argument #1 to 'gameTimeFind' (${e.message})`);
+        throw e;
+      }
+      const from = optEpoch(a, 2, 'gameTimeFind');
+      let horizon = DEFAULT_HORIZON;
+      if (a.type(3) !== 'nil' && a.type(3) !== 'no value') {
+        horizon = a.number(3);
+        if (!(horizon > 0 && horizon <= GAME_TIME_HORIZON_MAX)) {
+          throw new Error(`bad argument #3 to 'gameTimeFind' (horizon must be 1 to ${GAME_TIME_HORIZON_MAX} seconds)`);
+        }
+      }
+      const epoch = this.clockEpoch();
+      if (epoch === null) return null;
+      const w = findWindow(cond, Math.floor(from) - epoch, Math.ceil(horizon));
+      return w ? rt.multi(w.start + epoch, w.end + epoch) : null;
+    });
+    // The sandbox has no os.date: the browser's local time of a real time.
+    rt.defineFunction('localTime', (a) => {
+      const at = optEpoch(a, 1, 'localTime');
+      const d = new Date(at * 1000);
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      return {
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        day: d.getDate(),
+        hour: d.getHours(),
+        min: d.getMinutes(),
+        sec: d.getSeconds(),
+        wday: d.getDay() + 1,
+        yday: Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - jan1.getTime()) / 86_400_000) + 1,
+      };
+    });
 
     rt.defineFunction('getVariable', (a) => engine.getVariable(a.string(1)) ?? null);
     rt.defineFunction('setVariable', (a) => {

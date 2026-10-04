@@ -425,3 +425,36 @@ export function gameTimeAt(g: number): GameTimeInfo {
     moon: moonAt(g),
   };
 }
+
+// ---------------------------------------------------------------- events
+
+/** The kinds of `sysGameTimeEvent` (ADR 0074 §2); `sync` comes from the clock, not from here. */
+export type GameTimeEventKind = 'sync' | 'hour' | 'dawn' | 'dusk' | 'moonrise' | 'moonset' | 'phase' | 'season';
+
+/** What happens at game minute `g`, in this order: hour, dawn, dusk, season, moonrise, moonset, phase. */
+export function gameTimeEventsAt(g: number): GameTimeEventKind[] {
+  const out: GameTimeEventKind[] = [];
+  if (mod(g, HOUR_S) === 0) {
+    out.push('hour');
+    const month = monthOf(g);
+    const hour = hourOf(g);
+    if (hour === DAWN[month]) out.push('dawn');
+    if (hour === DUSK[month]) out.push('dusk');
+    if (mod(g, MONTH_S) === 0 && month % 3 === 0) out.push('season');
+  }
+  if (nextMoonEvent(g, 'rise') === g) out.push('moonrise');
+  if (nextMoonEvent(g, 'set') === g) out.push('moonset');
+  if (moonAt(g - 1).phase !== moonAt(g).phase) out.push('phase');
+  return out;
+}
+
+/** The first minute > `g` with a `sysGameTimeEvent`, and its kinds. At most an hour away. */
+export function nextGameTimeEvents(g: number): { at: number; kinds: GameTimeEventKind[] } {
+  const at = Math.min(
+    (Math.floor(g / HOUR_S) + 1) * HOUR_S,
+    nextMoonEvent(g + 1, 'rise'),
+    nextMoonEvent(g + 1, 'set'),
+    nextPhaseChange(g),
+  );
+  return { at, kinds: gameTimeEventsAt(at) };
+}
