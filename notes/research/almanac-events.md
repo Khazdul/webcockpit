@@ -70,3 +70,41 @@ Moria Deeps repop every 7 s, tower repop rules, artifacts decay after
 - Moonrise/moonset model (needed for Dead Knight, West Gate, Hrivesur).
 - Juniper's season.
 - Exact Ingrove pack spawn time within the full moon.
+
+## Round 2 sources (2026-10-04)
+
+`~/mumeinfo.txt` (owner's MUME info dump, all 3775 lines read) and all
+43 quest pages on mume.yllemo.com (adventure:quests).
+
+New candidates:
+
+| Thing | Condition | Where | Source | Confidence |
+|---|---|---|---|---|
+| Eblees moan (way out) | every sunrise and sunset, lasts one game hour | Eblees maze, N Mirkwood (6e 2s from Vale forest gate) | mumeinfo L2433, L3193 | clear |
+| Dol Guldur bat swarm | night: attacks players in outdoor rooms; by day sleeps in caves | eastern DG zones | mumeinfo L2612, L966 | clear |
+| Ebon Wraith fall | only at night (rumoured, unconfirmed) | Mirkwood | mumeinfo L3191 | vague |
+| Elderberries | load in winter, not in autumn (one observation) | Fangorn | mumeinfo L240 | vague |
+| Dense Forest `exits` trick | daytime only | E of Dwarf Homes, Blue Mountains (Vig's quest) | mumeinfo L1064, yllemo vig_s_quest | clear, minor |
+| Visored helmet levers | set to today's game date (from `time`) | N of Forlond | mumeinfo L3044 | clear (date helper, not a window) |
+
+Detail for existing rows:
+
+- Hrivesur's tomb: moon visible, at least half moon, not cloudy or foggy;
+  also needed to loot (L1073, L1091).
+- Dagnir's ghost: seen around 3–4 am, not at midnight (L1553).
+- Dead Knight trigger: "As the full moon rises, a faint silver tracery
+  appears on a mound." (L2277–2279).
+- Overseer: trigger "The rising sun illuminates the rolling landscape.",
+  success "A creaking sound is suddenly heard from the rock wall to the
+  north." Still valid after 2022 (L2835–2857).
+- Shire wolfpack: can also pop in the Old Forest (L1186).
+- Faintly glowing stone loads on the Dunlending animist, Broghha's
+  village (L2230).
+- Ingrove full-moon dates per calendar epoch (L1774–1784, yllemo) and the
+  old moon model (L3412–3445) predate the moon change (MMapper PR 313,
+  "invalid since the moon was changed by Dain"). Not used.
+
+Real-time bound (outside the game-time model): Tethel weekly, Oakscar
+3 RL days after restart, Rahku inactive for days, Dunadan Ranger wipe
+~1 month, Ost-in-Edhil forge knowledge 2 days–1 week, Lonely Giant
+40–48 game hours deadline.
