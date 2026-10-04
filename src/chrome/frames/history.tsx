@@ -28,6 +28,7 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { device } from '../../core/device';
 import { nowUs } from '../../core/types';
 import { BadBackupError, backupFileName } from '../../runs/library';
 import type { Session } from '../../runs/stitch';
@@ -247,6 +248,8 @@ export function HistoryFrame(): VNode {
         void save();
         return;
       case 'EXPORT':
+        // The export editor needs a big screen and a keyboard (ADR 0075 §3).
+        if (cur && device().phone) return nav.flash('Export: desktop only.', 'fail');
         return cur && nav.push(<ExportEditorFrame session={cur} />);
       case 'DELETE':
         return cur && nav.push(<DeleteFrame session={cur} done={reload} />);

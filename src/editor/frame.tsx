@@ -29,6 +29,7 @@
 import type { EditorView } from '@codemirror/view';
 import type { JSX, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { device } from '../core/device';
 import { useGrid } from '../chrome/kit/hooks';
 import { escHints } from '../chrome/kit/esc';
 import { centreLeft, scrollbar, wrapText } from '../chrome/kit/nav';
@@ -256,6 +257,13 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   };
   useEffect(() => () => void (flashTimer.current && clearTimeout(flashTimer.current)), []);
 
+  /** Key capture needs a physical keyboard: a phone gets a note instead (ADR 0075 §3). */
+  const PHONE_CAPTURE = 'Key capture: desktop only.';
+  const startCapture = (id: number): void => {
+    if (device().phone) showFlash(PHONE_CAPTURE, 'fail');
+    else setCapture({ id, auto: false, error: '' });
+  };
+
   // ------------------------------------------------------------- geometry
 
   const gap = surface === 'start' ? 2 : 1;
@@ -330,6 +338,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   };
 
   const newEntry = (): void => {
+    if (kind === 'macro' && device().phone) return showFlash(PHONE_CAPTURE, 'fail');
     const r = addEntry(doc, { kind, pattern: '', body: NEW_BODY[kind] });
     setDoc(r.doc);
     setPinned((p) => [...p, r.id]);
@@ -755,7 +764,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         }
         return false;
       case 'key':
-        if (nk === 'activate') setCapture({ id: cur.id, auto: false, error: '' });
+        if (nk === 'activate') startCapture(cur.id);
         else if (nk === 'left') focusZone('list');
         else if (nk === 'up') focusZone('kind');
         else if (nk === 'down') focusZone('detail', 'body');
@@ -1043,7 +1052,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               focusZone('detail', 'key');
-              setCapture({ id: cur.id, auto: false, error: '' });
+              startCapture(cur.id);
             }}
           >
             <span class="wc-ped-br">{'['}</span>
