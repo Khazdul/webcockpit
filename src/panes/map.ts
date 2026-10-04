@@ -32,8 +32,21 @@
 //   port to `PaneContext.mapMarks` (finds, marks and unmarks go to the
 //   worker; the answers back to the hub) and detaches on dispose.
 //   `mapMarks` (dataset) counts the live marks.
+// - Phone (ADR 0075 §3.3, `device().phone`): the MAP tab is hidden while
+//   another tab is selected, so forwarding stays on while hidden (once the
+//   map is loaded; the worker tracks but draws nothing), and the last
+//   Room.Info and Char.StatusVars are kept from construction and replayed
+//   after the first `resync`, so a map first opened mid-session finds the
+//   player at once. Desktop keeps "shown and loaded".
+// - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
+//   finger pans, two fingers pan by their midpoint and zoom around it by
+//   the change in their distance (pinchStep, src/map/pinch.ts), through
+//   the same `pan`/`zoom` messages and limits as the mouse and the wheel.
 
+import { device } from '../core/device';
+import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
+import { type PinchPoint, pinchStep } from '../map/pinch';
 import type { MapPaneHost, WorkerToMain } from '../map/protocol';
 import { PaneShell, type PaneContext } from './pane';
 
@@ -77,6 +90,12 @@ export class MapPane extends PaneShell {
   private failed = false;
   private sizeKey = '';
   private drag: { id: number; x: number; y: number } | null = null;
+  /** Touch only: the pointers down on the canvas (client px), in down order. */
+  private readonly touches = new Map<number, PinchPoint>();
+  /** Phone only: keep forwarding while hidden (ADR 0075 §3.3). */
+  private readonly forwardHidden: boolean;
+  /** Phone only: the last map-relevant state messages, replayed when forwarding starts. */
+  private readonly lastState = new Map<string, BusEvents['gmcp']>();
   private acc = { dx: 0, dy: 0, steps: 0, zx: 0, zy: 0 };
   private flushScheduled = false;
   private dprQuery: MediaQueryList | null = null;
@@ -98,6 +117,17 @@ export class MapPane extends PaneShell {
     this.notice.hidden = true;
     this.content.append(this.canvas, this.notice);
 
+    const flags = device();
+    this.forwardHidden = flags.phone;
+    if (flags.phone) {
+      this.own(
+        ctx.bus.on('gmcp', (m) => {
+          const k = gmcpKey(m);
+          if (k === 'room.info' || k === 'char.statusvars') this.lastState.set(k, m);
+        }),
+      );
+    }
+
     this.onResize(() => this.sync());
     this.own(ctx.cells.subscribe(() => this.sync()));
     // The current map changed (Options → Mapper): load the new one.
@@ -105,11 +135,19 @@ export class MapPane extends PaneShell {
     if (unsubMap) this.own(unsubMap);
 
     const c = this.canvas;
-    c.addEventListener('pointerdown', this.onPointerDown);
-    c.addEventListener('pointermove', this.onPointerMove);
-    c.addEventListener('pointerup', this.onPointerEnd);
-    c.addEventListener('pointercancel', this.onPointerEnd);
-    c.addEventListener('lostpointercapture', this.onPointerEnd);
+    if (flags.touch) {
+      c.addEventListener('pointerdown', this.onTouchDown);
+      c.addEventListener('pointermove', this.onTouchMove);
+      c.addEventListener('pointerup', this.onTouchEnd);
+      c.addEventListener('pointercancel', this.onTouchEnd);
+      c.addEventListener('lostpointercapture', this.onTouchEnd);
+    } else {
+      c.addEventListener('pointerdown', this.onPointerDown);
+      c.addEventListener('pointermove', this.onPointerMove);
+      c.addEventListener('pointerup', this.onPointerEnd);
+      c.addEventListener('pointercancel', this.onPointerEnd);
+      c.addEventListener('lostpointercapture', this.onPointerEnd);
+    }
     // The canvas never takes the focus from the input line.
     c.addEventListener('mousedown', (e) => e.preventDefault());
     c.addEventListener('wheel', this.onWheel, { passive: false });
@@ -145,11 +183,17 @@ export class MapPane extends PaneShell {
       for (const off of offs) off();
     };
     f.resync();
+    // Phone: what happened before the map ran (Char.StatusVars first, then
+    // the room, located as a LOOK).
+    for (const k of ['char.statusvars', 'room.info']) {
+      const m = this.lastState.get(k);
+      if (m) f.onGmcp(m);
+    }
   }
 
-  /** Forwarding follows "shown and loaded". */
+  /** Forwarding follows "shown and loaded" (phone: "loaded"). */
   private syncForward(): void {
-    this.forward(this.visible && this.loaded && this.client !== null);
+    this.forward((this.visible || this.forwardHidden) && this.loaded && this.client !== null);
   }
 
   private win(): (Window & typeof globalThis) | null {
@@ -176,7 +220,7 @@ export class MapPane extends PaneShell {
         this.sizeKey = 'hidden';
         this.client?.visible(false);
         this.watchDpr(false);
-        this.forward(false);
+        if (!this.forwardHidden) this.forward(false);
       }
       return;
     }
@@ -363,6 +407,56 @@ export class MapPane extends PaneShell {
     if (!this.drag || e.pointerId !== this.drag.id) return;
     this.drag = null;
     delete this.canvas.dataset.dragging;
+  };
+
+  // Touch (ADR 0075 §3.3): one finger pans, two pan and pinch-zoom.
+
+  private readonly onTouchDown = (e: PointerEvent): void => {
+    if (!this.client) return;
+    this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.canvas.dataset.dragging = '';
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* synthetic events have no active pointer */
+    }
+  };
+
+  private readonly onTouchMove = (e: PointerEvent): void => {
+    const prev = this.touches.get(e.pointerId);
+    if (!prev) return;
+    const next = { x: e.clientX, y: e.clientY };
+    const [a, b] = [...this.touches.keys()];
+    const other = a === e.pointerId ? b : b === e.pointerId ? a : undefined;
+    this.touches.set(e.pointerId, next);
+    if (other === undefined) {
+      // One finger (or a third one): a plain pan, as the mouse.
+      if (this.touches.size === 1) {
+        this.acc.dx += next.x - prev.x;
+        this.acc.dy += next.y - prev.y;
+        this.scheduleFlush();
+      }
+      return;
+    }
+    const o = this.touches.get(other)!;
+    const s = pinchStep(prev, o, next, o);
+    this.acc.dx += s.dx;
+    this.acc.dy += s.dy;
+    if (s.steps !== 0) {
+      const r = this.canvas.getBoundingClientRect();
+      this.acc.steps += s.steps;
+      // Each finger's move arrives on its own: a parallel drag zooms in and
+      // out by the same amount; what is left is rounding, not a zoom.
+      if (Math.abs(this.acc.steps) < 1e-6) this.acc.steps = 0;
+      this.acc.zx = s.mx - r.left;
+      this.acc.zy = s.my - r.top;
+    }
+    this.scheduleFlush();
+  };
+
+  private readonly onTouchEnd = (e: PointerEvent): void => {
+    if (!this.touches.delete(e.pointerId)) return;
+    if (this.touches.size === 0) delete this.canvas.dataset.dragging;
   };
 
   private readonly onWheel = (e: WheelEvent): void => {
