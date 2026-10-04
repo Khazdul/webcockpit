@@ -24,6 +24,9 @@
 //   just waits for the next one.
 // - Runs only between `start()` and `stop()`; Session calls those on the
 //   login/playing edges.
+// - `probe(timeoutMs, onDead)` (phone resume check, ADR 0075 §3.4) sends a
+//   ping now, as the outstanding one, and calls `onDead` if no reply comes
+//   within `timeoutMs`. Only called on a phone; desktop never probes.
 
 import type { Bus } from '../core/bus';
 
@@ -66,6 +69,7 @@ export class KeepAlive {
   private running = false;
   private tickTimer: unknown = null;
   private suspectTimer: unknown = null;
+  private probeTimer: unknown = null;
   /** Send time of the outstanding ping, or null. */
   private outstanding: number | null = null;
   private lastRtt: number | null = null;
@@ -126,12 +130,35 @@ export class KeepAlive {
     this.running = false;
     this.clearTick();
     this.clearSuspect();
+    this.clearProbe();
     this.outstanding = null;
+  }
+
+  /**
+   * Sends a ping now (it becomes the outstanding one) and calls `onDead`
+   * if no reply arrives within `timeoutMs`. Returns false when nothing was
+   * started: stopped, or the ping could not be sent. A probe already
+   * pending is left to run (returns true).
+   */
+  probe(timeoutMs: number, onDead: () => void): boolean {
+    if (!this.running) return false;
+    if (this.probeTimer !== null) return true;
+    if (!this.o.sendPing()) return false;
+    this.outstanding = this.t.now();
+    if (!this.isSuspect && this.suspectTimer === null) {
+      this.suspectTimer = this.t.setTimeout(this.onSuspect, this.timeoutMs);
+    }
+    this.probeTimer = this.t.setTimeout(() => {
+      this.probeTimer = null;
+      if (this.running) onDead();
+    }, timeoutMs);
+    return true;
   }
 
   /** Call when the server's `Core.Ping` arrives. */
   notePong(): void {
     if (!this.running) return;
+    this.clearProbe();
     const sent = this.outstanding;
     if (sent === null) return; // unsolicited
     this.outstanding = null;
@@ -179,6 +206,11 @@ export class KeepAlive {
   private clearSuspect(): void {
     if (this.suspectTimer !== null) this.t.clearTimeout(this.suspectTimer);
     this.suspectTimer = null;
+  }
+
+  private clearProbe(): void {
+    if (this.probeTimer !== null) this.t.clearTimeout(this.probeTimer);
+    this.probeTimer = null;
   }
 
   private readonly onTick = (): void => {

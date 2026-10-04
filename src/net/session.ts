@@ -41,6 +41,15 @@ export const REASON_USER_DISCONNECT = 'disconnected by user';
 /** Reason given for the close half of a user reconnect. */
 export const REASON_USER_RECONNECT = 'reconnect by user';
 
+/**
+ * Reason given when the phone resume check (ADR 0075 §3.4) finds the link
+ * dead after the page was in the background.
+ */
+export const REASON_BACKGROUND_LOST = 'connection lost while in the background';
+
+/** How long the resume check waits for its Core.Ping reply. */
+export const RESUME_PING_TIMEOUT_MS = 3_000;
+
 /** The `[SYSTEM]` line for a command the socket could not take. */
 export const NOT_SENT = 'Not connected: command not sent.';
 
@@ -266,6 +275,27 @@ export class Session implements Sender {
     if (had || this.st === 'connecting' || this.st === 'login' || this.st === 'playing') {
       this.dropped(reason);
     }
+  }
+
+  /**
+   * Phone resume check (ADR 0075 §3.4): the page is visible again after
+   * being in the background. On a live connection (login or playing, not a
+   * replay), a socket that can no longer write is dropped at once; an open
+   * one gets a Core.Ping and is dropped if no reply comes within
+   * `timeoutMs`. Both drops use `REASON_BACKGROUND_LOST`, so the normal
+   * disconnect path (message, ESC menu with Reconnect) runs. Never
+   * reconnects. Called only on a phone.
+   */
+  checkAlive(timeoutMs: number = RESUME_PING_TIMEOUT_MS): void {
+    if (this.replayConn || (this.st !== 'login' && this.st !== 'playing')) return;
+    const sock = this.socket;
+    if (!sock || !this.open || sock.isOpen === false) {
+      this.disconnect(REASON_BACKGROUND_LOST);
+      return;
+    }
+    this.keepalive.probe(timeoutMs, () => {
+      if (this.socket === sock) this.disconnect(REASON_BACKGROUND_LOST);
+    });
   }
 
   /**

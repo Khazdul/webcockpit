@@ -71,6 +71,7 @@ import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { device } from '../core/device';
+import { watchResume } from './resume-watch';
 
 type ChromeModule = typeof import('../chrome');
 
@@ -337,6 +338,13 @@ export class Shell {
     // Touch only (ADR 0075): a `☰` at the end of the input row opens the
     // ESC menu, as Esc does. Desktop has no such control.
     if (device().touch) app.input.clockEl.after(this.menuButton(root.ownerDocument));
+    // Phone only (ADR 0075 §3.4): back from the background, check the link
+    // at once; a dead one drops with a reason, and onConn opens the menu
+    // with Reconnect selected. Desktop installs nothing.
+    if (device().phone) {
+      const doc = root.ownerDocument;
+      watchResume(doc, doc.defaultView ?? window, () => app.session.checkAlive());
+    }
     app.bus.on('conn.state', (s) => this.onConn(s.state, s.reason ?? ''));
     this.appRef = app;
     return app;
