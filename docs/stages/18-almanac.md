@@ -189,3 +189,22 @@ list itself: it is a **first draft** (see Build notes for the guesses),
 so say what is missing, wrong or not worth listing.
 
 ## Owner feedback
+
+### Round 1 (2026-10-04)
+
+- Show time as MUME time, not real seconds and minutes. The ticking
+  seconds are distracting. Updating once per real minute (one game hour)
+  is enough.
+- Asked where `add` saves data. Answer: in the script's `store` (browser
+  storage for the script), not in the code. It survives releases and is
+  part of the scripts backup; `almanac export`/`import` moves it.
+- Adding an event must not need any syntax. Wanted: a pop-up with
+  choices for seasons, times of day, moon and so on, easy to understand,
+  plus a choice of icons.
+- Sundeath does not need to be in the list.
+
+Tasks from round 1:
+
+- [ ] R1.1 game-time countdowns, redraw once per game hour (no 1 s timer)
+- [ ] R1.2 pop-up event editor with choices and an icon picker (no syntax)
+- [ ] R1.3 remove Sundeath
