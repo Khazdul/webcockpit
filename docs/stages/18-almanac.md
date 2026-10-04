@@ -69,14 +69,14 @@ https://claude.ai/artifact/QNeJcxY9hUzGoKkAQtrKkY
 ## Tasks
 
 - [x] ADR 0074, spec §2.10 addition, §5 row, stage file.
-- [ ] A1 clock audit against logs
-- [ ] A2 season and time-of-day model
-- [ ] A3 moon model and tests
-- [ ] A4 `Event.Moon` check
-- [ ] B1 `gameTime`, `localTime`
-- [ ] B2 `gameTimeFind` solver and tests
-- [ ] B3 `sysGameTimeEvent`
-- [ ] B4 manual, completion, hover
+- [x] A1 clock audit against logs
+- [x] A2 season and time-of-day model
+- [x] A3 moon model and tests
+- [x] A4 `Event.Moon` check
+- [x] B1 `gameTime`, `localTime`
+- [x] B2 `gameTimeFind` solver and tests
+- [x] B3 `sysGameTimeEvent`
+- [x] B4 manual, completion, hover
 - [ ] C1 almanac NOW tab
 - [ ] C2 PLAN tab
 - [ ] C3 LORE tab and the add form
@@ -89,6 +89,36 @@ https://claude.ai/artifact/QNeJcxY9hUzGoKkAQtrKkY
 - Juniper's season is unknown (Herbs.txt only says "certain yeartime").
 
 ## Build notes
+
+**A1 audit** (Cockpit run logs 2026-09-25…29, WebCockpit replays
+2026-09-28…10-03; no MSSP or room clocks logged). Cockpit's anchor
+(`clock.state`, same year-0 origin as ours) fits every event:
+- Weekdays were off by one. The three `time` lines (year 2854) fit Shire
+  Reckoning: every year starts on Sterday, weekday = day of year mod 7.
+  Fixed (`weekdayOf`).
+- `Event.Sun light` comes an hour after dawn and `dark` an hour after
+  dusk, on the hour (16 Wedmath: light 05:00, set 22:00, dark 23:00;
+  Astron: dark 20:00). They are far more common than rise/set and now
+  sync the minute. Inv §2.5 says light/dark are ignored; that row is out
+  of date.
+- Sun events arrive ~0.6 s into the second: the minute model holds.
+
+**A3/A4 moon.** `src/gmcp/gametime.ts`, MMapper's model counted from
+year 2850 (MMapper's origin; month and day 0-based, as our
+`momentSeconds`). The one logged `Event.Moon set` (19 Wedmath 2855,
+22:58) is predicted to the minute. One event is too few to sync from,
+so `Event.Moon` only records `moonCheck` (`set +0`) in the clock state.
+Rise, set and phase changes are closed forms, checked against
+minute-stepping in the tests.
+
+**B API** as ADR 0074 §2, plus `dawn`/`dusk` hours in `gameTime()`.
+`weekday` is a name. `localTime` was needed (no `os`). `gameTimeFind`
+returns `start, end`; with `at`, start = end; if cond holds at `from`,
+start = from; a window is cut a game year after it starts; horizon at
+most 5 game years. Hours are `{from, to}` or `{h1, h2}`, `to` not
+included. `sysGameTimeEvent(kind)` runs on one timer while a handler
+exists and the clock is at hour or minute precision. Bench (`lua-bench`):
+a game year without a match ≈ 0.5 ms.
 
 ## Test guide
 
