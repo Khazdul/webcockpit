@@ -1,8 +1,9 @@
-// The bundled almanac script (stage 18 part C): enabled from the input line
-// with the clock synced by a `time` line over the mocked MUME WebSocket,
-// its pane shows the game date and COMING UP on NOW; the tabs switch to the
-// PLAN calendar and the LORE list; the LORE form adds an event, which then
-// shows in LORE and on NOW.
+// The bundled almanac script (stage 18 part C, owner round 1): enabled from
+// the input line with the clock synced by a `time` line over the mocked
+// MUME WebSocket, its pane shows the game date, the game hour and COMING UP
+// on NOW; the tabs switch to the PLAN calendar and the LORE list; [+ add]
+// opens the event editor, where clicks choose a season, a moon phase and an
+// icon; Save adds the event to LORE and NOW.
 import { type Page, expect, test } from '@playwright/test';
 import type { WebSocketRoute } from '@playwright/test';
 
@@ -11,8 +12,9 @@ const WILL = 251;
 const GMCP = 201;
 const ID = 'almanac/main';
 
-const pane = (page: Page) => page.locator(`.wc-pane[data-pane="${ID}"]`);
-const prows = (page: Page) => pane(page).locator('.wc-pane-content .wc-prow');
+const pane = (page: Page, id = ID) => page.locator(`.wc-pane[data-pane="${id}"]`);
+const prows = (page: Page, id = ID) => pane(page, id).locator('.wc-pane-content .wc-prow');
+const EDIT = 'almanac/~edit';
 
 async function command(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
@@ -20,25 +22,25 @@ async function command(page: Page, text: string): Promise<void> {
 }
 
 /** The centre of cell (row, col) of the pane's content, 0-based. */
-async function cellAt(page: Page, row: number, col: number): Promise<{ x: number; y: number }> {
+async function cellAt(page: Page, row: number, col: number, id = ID): Promise<{ x: number; y: number }> {
   const cell = await page.evaluate(() => {
     const s = getComputedStyle(document.documentElement);
     return { w: parseFloat(s.getPropertyValue('--cell-w')), h: parseFloat(s.getPropertyValue('--cell-h')) };
   });
-  const box = (await pane(page).locator('.wc-pane-content').boundingBox())!;
+  const box = (await pane(page, id).locator('.wc-pane-content').boundingBox())!;
   return { x: box.x + (col + 0.5) * cell.w, y: box.y + (row + 0.5) * cell.h };
 }
 
 /** Clicks the first cell of `text` on pane row `row`. */
-async function clickText(page: Page, row: number, text: string): Promise<void> {
-  const s = (await prows(page).nth(row).textContent())!;
+async function clickText(page: Page, row: number, text: string, id = ID): Promise<void> {
+  const s = (await prows(page, id).nth(row).textContent())!;
   const col = s.indexOf(text);
   expect(col, `"${text}" in "${s}"`).toBeGreaterThanOrEqual(0);
-  const at = await cellAt(page, row, col);
+  const at = await cellAt(page, row, col, id);
   await page.mouse.click(at.x, at.y);
 }
 
-test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the form', async ({ page }) => {
+test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -60,6 +62,7 @@ test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the fo
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Almanac');
   await expect(prows(page).nth(0)).toHaveText(/^ {2}NOW {3}PLAN {3}LORE/);
   await expect(prows(page).nth(2)).toHaveText(/19 Wedmath 2855\s*$/);
+  await expect(prows(page).nth(5)).toHaveText(/ 12 pm ☼ day\s*$/);
   await expect(prows(page).nth(10)).toHaveText(/DAYLIGHT\s+dawn 04 · dusk 22 · 18h light/);
   await expect(prows(page).nth(19)).toHaveText(/COMING UP/);
   await expect(pane(page).locator('.wc-pane-content')).toContainText('Dead Knight slab');
@@ -76,25 +79,30 @@ test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the fo
   await clickText(page, 0, 'LORE');
   await expect(pane(page).locator('.wc-pane-content')).toContainText('moonrise waxing gibbous|full');
   await clickText(page, 0, '[+ add]');
-  const fields = pane(page).locator('input.wc-spane-field');
-  await expect(fields).toHaveCount(4);
+  const editor = pane(page, EDIT);
+  await expect(editor).toBeVisible();
+  const fields = editor.locator('input.wc-spane-field');
+  await expect(fields).toHaveCount(3);
   await expect(fields.nth(0)).toBeFocused();
-  await page.keyboard.type('Troll bridge');
+  await page.keyboard.type('Troll pack');
   await page.keyboard.press('Tab');
   await expect(fields.nth(1)).toBeFocused();
-  await page.keyboard.type('night not winter');
-  await expect(prows(page).nth(6)).toHaveText(/→ not winter night/);
-  await page.keyboard.press('Tab');
-  await page.keyboard.type('Bree, west gate');
-  await page.keyboard.press('Enter');
-  await expect(fields).toHaveCount(0);
-  await expect(page.locator('.wc-output')).toContainText('ALMANAC Added Troll bridge: not winter night.');
-  await expect(pane(page).locator('.wc-pane-content')).toContainText('Troll bridge');
-  await expect(pane(page).locator('.wc-pane-content')).toContainText('Bree, west gate');
+  await page.keyboard.type('Wolf Glade');
+  await expect(prows(page, EDIT).nth(4)).toHaveText(/^ Season\s+any\s+winter\s+spring\s+summer\s+autumn\s*$/);
+  await clickText(page, 4, 'winter', EDIT);
+  await clickText(page, 11, '● full', EDIT);
+  await clickText(page, 17, '❄', EDIT);
+  await expect(prows(page, EDIT).nth(19)).toHaveText(/^ Colour\s+\[❄\]/);
+  await expect(prows(page, EDIT).nth(21)).toHaveText(/^ Winter, full moon\. Next: in \d+d( \d+h)?\.\s*$/);
+  await clickText(page, 24, 'Save', EDIT);
+  await expect(editor).toHaveCount(0);
+  await expect(page.locator('.wc-output')).toContainText('ALMANAC Added Troll pack: Winter, full moon.');
+  await expect(pane(page).locator('.wc-pane-content')).toContainText('❄ Troll pack');
+  await expect(pane(page).locator('.wc-pane-content')).toContainText('Wolf Glade');
 
   // Back on NOW, the new event is in COMING UP.
   await clickText(page, 0, 'NOW');
-  await expect(pane(page).locator('.wc-pane-content')).toContainText('Troll bridge');
+  await expect(pane(page).locator('.wc-pane-content')).toContainText('Troll pack');
 
   // almanac hides and shows the pane.
   await command(page, 'almanac');
