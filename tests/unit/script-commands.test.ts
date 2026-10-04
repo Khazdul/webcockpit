@@ -49,6 +49,15 @@ describe('resolveCommand', () => {
     expect(name('runlog')).toBe('runlog');
   });
 
+  it('#menu needs its full name and takes no tt++ abbreviation', () => {
+    expect(name('#menu')).toBe('menu');
+    expect(name('#MENU')).toBe('menu');
+    expect(name('#me')).toBe('message');
+    expect(name('#men')).toBe(null);
+    expect(commandByName('menu')).toMatchObject({ kind: 'client', minAbbrev: 4 });
+    expect(commandByName('message')?.minAbbrev).toBe(2);
+  });
+
   it('resolves the short forms real profiles use', () => {
     const cases: Record<string, string> = {
       var: 'variable',

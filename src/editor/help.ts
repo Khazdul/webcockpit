@@ -612,6 +612,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#menu',
+    covers: ['menu'],
+    syntax: ['#menu'],
+    text: [
+      'Typed on the input line. Opens the menu, as ESC does. The full name is needed: #me is #message.',
+    ],
+    examples: [{ via: 'input', code: '#menu' }],
+  },
+  {
+    group: 'commands',
     heading: '#message',
     covers: ['message'],
     syntax: ['#message', '#message {kind}', '#message {kind} {on|off}'],

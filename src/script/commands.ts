@@ -15,6 +15,7 @@
 // - One exception: a one-letter word that starts several names is
 //   'ambiguous' (tt++ would silently pick the first, e.g. `#s` → #scan).
 // - A word longer than a name never matches it: `#macros` is unknown.
+// - WebCockpit-only commands in `EXACT_ONLY` (`#menu`) need the full name.
 //
 // `#script` and `#lua` are inert except in the forms that act on the
 // script library (spec §3, §2.10, ADR 0051): see `scriptCommandArgs`.
@@ -130,6 +131,7 @@ const SPECS: readonly Spec[] = [
   ['macro', 'define', 'must', 'macro'],
   ['map', 'inert', 'inert'],
   ['math', 'command', 'should'],
+  ['menu', 'client', 'client'],
   ['message', 'command', 'should'],
   ['nop', 'command', 'must'],
   ['parse', 'inert', 'unsupported'],
@@ -201,9 +203,19 @@ function hintFor(name: string, tier: CommandTier): string | undefined {
   return HINT_SCREEN;
 }
 
+/**
+ * WebCockpit's own commands that are not tt++ commands and resolve only by
+ * their full name, so they never take over a tt++ abbreviation (`#me`
+ * stays #message, not #menu).
+ */
+const EXACT_ONLY: ReadonlySet<string> = new Set(['menu']);
+
 /** Shortest prefix of `names[i]` that the resolution rule maps to it. */
-function minAbbrevOf(names: readonly string[], i: number): number {
-  const name = names[i]!;
+function minAbbrevOf(all: readonly string[], i: number): number {
+  const name = all[i]!;
+  if (EXACT_ONLY.has(name)) return name.length;
+  const names = all.filter((m) => !EXACT_ONLY.has(m));
+  i = names.indexOf(name);
   for (let n = 1; n <= name.length; n++) {
     const w = name.slice(0, n);
     const first = names.findIndex((m) => m.startsWith(w));
@@ -250,7 +262,7 @@ export function resolveCommand(word: string): CommandEntry | null | 'ambiguous' 
   let first: CommandEntry | null = null;
   let count = 0;
   for (const c of COMMANDS) {
-    if (!c.name.startsWith(w)) continue;
+    if (!c.name.startsWith(w) || EXACT_ONLY.has(c.name)) continue;
     if (!first) first = c;
     count++;
     if (w.length > 1) break;

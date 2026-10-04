@@ -222,6 +222,8 @@ export class App {
   private replaying = false;
   /** Enter on a closed connection does not connect live. */
   private offline: boolean;
+  /** Opens the ESC menu (`#menu`; the shell's `onEscape`). */
+  private readonly onEscape: (() => void) | undefined;
   private replayLabel = '';
   private charName = '';
   private fileInput: HTMLInputElement | null = null;
@@ -250,6 +252,7 @@ export class App {
     const doc = opts.root.ownerDocument;
     const bus = this.bus;
     this.offline = opts.offline ?? false;
+    this.onEscape = opts.onEscape;
     const player = (this.player = opts.player ?? false);
 
     this.el = doc.createElement('div');
@@ -817,6 +820,10 @@ export class App {
       }
       case 'help':
         this.help(argText);
+        return;
+      case 'menu':
+        // Opens the ESC menu (all devices; the phone's main way in, ADR 0075).
+        this.onEscape?.();
         return;
       case 'perf':
         this.perfCommand(argText);

@@ -139,7 +139,7 @@ describe('manual coverage (no drift from the command table)', () => {
   const covered = new Set(sections.flatMap((s) => s.covers ?? []));
 
   it('has a section for every command the engine runs, except the ones the menus cover', () => {
-    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'perf'];
+    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'menu', 'perf'];
     expect(runs.filter((n) => !covered.has(n))).toEqual([]);
     // … and documents nothing beyond those.
     expect([...covered].filter((n) => !runs.includes(n))).toEqual([]);
@@ -148,7 +148,7 @@ describe('manual coverage (no drift from the command table)', () => {
   it('leaves out the client commands that the menus cover, everywhere', () => {
     const hidden = ['connect', 'reconnect', 'replay', 'runlog', 'disconnect'];
     // They are still commands: only the manual is silent about them.
-    expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help', 'perf'].sort());
+    expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help', 'menu', 'perf'].sort());
     const all = JSON.stringify(sections);
     for (const h of hidden) {
       expect(covered.has(h), h).toBe(false);
