@@ -312,7 +312,8 @@ function nextEdge(c: GameTimeCond, g: number): number {
 
 /**
  * Where to look next while `c` does not hold at `g`: past the month when a
- * month key fails, past the phase when the phase fails, else the next edge.
+ * month key fails, to the next `hours.from` when the hours fail, past the
+ * phase when the phase fails, else the next edge.
  * Each skip is safe because the failing key cannot change before it.
  */
 function skipFalse(c: GameTimeCond, g: number): number {
@@ -321,6 +322,13 @@ function skipFalse(c: GameTimeCond, g: number): number {
   const season = seasonOf(month);
   if ((c.season && !c.season.includes(season)) || c.notSeason?.includes(season) || (c.month && !c.month.includes(month))) {
     t = (Math.floor(g / MONTH_S) + 1) * MONTH_S;
+  }
+  if (c.hours) {
+    const { from, to } = c.hours;
+    const hour = hourOf(g);
+    if (from < to ? hour < from || hour >= to : hour < from && hour >= to) {
+      t = Math.max(t, Math.floor(g / DAY_S) * DAY_S + from * HOUR_S + (hour >= from ? DAY_S : 0));
+    }
   }
   if (c.moon && !c.moon.includes(moonAt(g).phase)) t = Math.max(t, nextPhaseChange(g));
   return t > g + 1 ? t : nextEdge(c, g);

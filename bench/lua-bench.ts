@@ -11,6 +11,10 @@
 //   - a runaway `while true do end` until the budget aborts it.
 // ADR 0051 expects about 1–2 µs for the first two and well under 1 µs
 // for the third.
+//
+// Game time (ADR 0074): gameTimeFind's solver over its whole default
+// horizon (a game year) for conditions that never hold, the worst case;
+// it must stay well under a frame.
 
 import { registerHooks } from 'node:module';
 
@@ -32,6 +36,7 @@ registerHooks({
 });
 
 const { loadLuaRuntime } = await import('../src/lua');
+const { findWindow, parseCond } = await import('../src/gmcp/gametime');
 type LuaRef = import('../src/lua').LuaRef;
 
 const t0 = performance.now();
@@ -95,6 +100,15 @@ const ts = performance.now();
 const abort = script.call(spin);
 const abortMs = performance.now() - ts;
 
+// Conditions that never hold: every step of the year is taken.
+const never = [
+  parseCond({ moonVisible: true, moon: 'new', season: 'winter' }),
+  parseCond({ hours: { from: 3, to: 4 }, period: 'day', moonVisible: false }),
+  parseCond({ at: 'dawn', hours: { from: 23, to: 0 } }),
+];
+const g0 = 2856 * 518_400 + 12_345;
+const solveMs = Math.max(...never.map((c) => time(20, () => findWindow(c, g0)) / 1000));
+
 const top = rt.stats().top;
 console.log('lua-bench: wasmoon 1.16.0, raw C API bridge, count hook armed');
 console.log(`  engine start (factory + engine + sandbox): ${startMs.toFixed(1)} ms`);
@@ -102,5 +116,6 @@ console.log(`  trigger call, 80-char line + 2 captures: ${lineUs.toFixed(2)} µs
 console.log(`  GMCP call, 10-field table: ${vitalsUs.toFixed(2)} µs`);
 console.log(`  Lua → JS send(str): ${sendUs.toFixed(3)} µs per send`);
 console.log(`  runaway loop aborted after ${abortMs.toFixed(1)} ms (${abort.ok ? 'not aborted!' : abort.kind})`);
+console.log(`  gameTimeFind, a full game year without a match (worst of 3): ${solveMs.toFixed(2)} ms`);
 console.log(`  heap ${(rt.stats().memoryUsed / 1024).toFixed(0)} KB, stack top ${top}, ${sent} sends`);
 rt.close();
