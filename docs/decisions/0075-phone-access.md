@@ -98,6 +98,57 @@ no swipe scroll, and every tap pops the keyboard. Research:
 - **Desktop-only screens.** On a phone the export editor and macro key
   capture show a short "desktop only" note instead.
 
+#### 3.1 As built (part B, 2026-10-04)
+
+Refines §3; where they differ, this wins.
+
+- **Guard.** 30×8 cells on a phone (`PHONE_MIN_*` in
+  `src/layout/phone.ts` and `src/chrome/kit/nav.ts` `minView()`); the
+  "Window too small" text names the phone minimum. The ESC menu covers the
+  whole screen on a phone (desktop keeps 80 %), with an opaque background.
+  Every chrome frame was checked at 43×40 and 93×20 (start page, menu,
+  options pages, profiles, profile editor, scripts, history, statistics,
+  spotlights, credits, about): all open without errors and stay usable;
+  wide tables are cut at the right edge, no further changes.
+- **Allocator.** `allocatePhone()` in `src/layout/phone.ts` (pure,
+  unit-tested in `tests/unit/layout-phone.test.ts`). Tabs: `GAME`, then
+  every shown pane in layout order (docks left, right, top, bottom in
+  stack order, then floating panes; script panes only while present).
+  The selected pane gets the view rectangle with its own border setting.
+  The game pane keeps the view rectangle under a pane tab and is only
+  hidden (`visibility`), so its scroll position, the cell grid and NAWS
+  do not change on a switch. A tab that disappears falls back to GAME.
+- **Tab strip.** One text row: ` LABEL ` tokens (built-ins by their short
+  names, script panes by their title in capitals, at most 12) split by
+  `│` in the pane frame colour; the selected one in reverse video
+  (accent background). Tapping selects; the strip swipes sideways when
+  the tabs do not fit and keeps the selected tab in view. The selected tab
+  lives in memory only. The `☰` stays in the input row (part A), not in
+  the strip.
+- **Temporary script panes** show over the GAME view only, kept inside
+  it; they cannot be moved or closed by hand on a phone.
+- **No arranging.** On a phone the cockpit attaches no grip, close cross
+  or float handles, renders no resize handles and ignores pointer
+  presses for drags, so the phone never writes the layout.
+- **Keyboard.** `src/layout/phone-viewport.ts` follows `visualViewport`
+  (resize/scroll, plus window resize) and, 150 ms after the last event,
+  publishes `--wc-vv-h` / `--wc-vv-top`; under `html.wc-phone` `#app` is
+  `position: fixed` at that top and height, so the cockpit and the chrome
+  fit above the keyboard and the input line sits just over it. The
+  relayout and NAWS follow from the one resize. The keyboard counts as
+  up (`html.wc-kbd`, `keyboardUp()`) while the visible height is below
+  80 % of the tallest seen at this width; the cockpit skips the guard
+  then, and with under 3 rows the strip gives way to the view.
+- **Viewport meta and safe areas.** At startup on a phone the meta becomes
+  `width=device-width, initial-scale=1, maximum-scale=1,
+  viewport-fit=cover`. `#app` is padded by `--pad` plus
+  `env(safe-area-inset-*)` (no bottom inset while the keyboard is up);
+  the start page and the menu overlay are inset by the same amounts, so
+  every cell grid measures the safe area.
+- **Desktop-only notes.** History `EXPORT` flashes "Export: desktop
+  only."; in the profile editor a new macro and the key field flash "Key
+  capture: desktop only." instead of capturing.
+
 ### 4. Tests
 
 - A Playwright project `phone` (Chromium, `isMobile`, `hasTouch`, a

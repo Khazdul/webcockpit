@@ -55,18 +55,21 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
 - [x] A3 tappable Esc footers
 - [x] A4 no refocus on touch
 - [x] A5 hit targets, swipe scroll, touch-action, text-size-adjust
-- [ ] B1 phone guard
-- [ ] B2 phone allocator and tab strip
-- [ ] B3 no arranging on phone
-- [ ] B4 keyboard-aware input
-- [ ] B5 viewport meta, safe areas
-- [ ] B6 desktop-only notes
-- [ ] C1 phone e2e project (partly: `phone` project in playwright.config.ts
-  runs `tests/e2e/phone*.spec.ts`; `phone-touch.spec.ts` covers menu by
-  tap, ESC Back by tap, whole-row tap, no input focus on an output tap,
-  on a 1000×700 viewport with `?touch=1`. Tabs and the keyboard-aware
-  input wait for part B. Desktop: `esc-click.spec.ts` for `#menu` and a
-  clicked `ESC Back`.)
+- [x] B1 phone guard
+- [x] B2 phone allocator and tab strip
+- [x] B3 no arranging on phone
+- [x] B4 keyboard-aware input
+- [x] B5 viewport meta, safe areas
+- [x] B6 desktop-only notes
+- [x] C1 phone e2e project: `phone` project in playwright.config.ts runs
+  `tests/e2e/phone*.spec.ts`. `phone-touch.spec.ts` covers menu by tap,
+  ESC Back by tap, whole-row tap, no input focus on an output tap
+  (`?touch=1`, 1000×700). `phone-layout.spec.ts` (`?phone=1`, Pixel 7
+  and 844×390) covers the tab strip, COMM/GAME switching with the scroll
+  position kept, no arranging controls, the menu by `☰`, a shorter
+  visible area (keyboard) without "too small", landscape, the start page.
+  Desktop: `esc-click.spec.ts` for `#menu` and a clicked `ESC Back`.
+  Part B as built: ADR 0075 §3.1.
 - [ ] C2 full check, release
 
 ## Test guide
