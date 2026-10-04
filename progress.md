@@ -31,6 +31,25 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-04 — Stage 18: almanac (game time API and showcase script)
+
+- **Owner decisions:** tabbed almanac (NOW/PLAN/LORE) as a bundled
+  showcase script; clock first, then API; events are data players can
+  add; the event list is a first draft to review later.
+- **Done:** ADR 0074, spec §2.10, research `notes/research/almanac-events.md`
+  (Faine files). Clock: weekday fix, Event.Sun light/dark sync, moon and
+  season model (`src/gmcp/gametime.ts`), Event.Moon check. Lua
+  `gameTime`, `gameTimeFind`, `localTime`, `sysGameTimeEvent`. Bundled
+  `almanac.lua` with condition text parser, add/export/import. Pane links
+  now fire on press+release (a redraw could swallow the DOM click).
+- **Checked:** typecheck, unit 2239, full e2e, almanac + script-pane e2e
+  100/100 repeated.
+- **Not released:** the version bump was blocked by the permission
+  classifier; the owner releases or allows it. Main is 16 commits ahead.
+- **Open:** owner decisions on placement (own 50-col lane), reminders
+  without sound, event list review.
+- **Commits:** 5d29fdb … 75e74b4, plus this one.
+
 ### 2026-10-04 — Stage 17: JMC import fixes, release 0.1.43
 
 - **Done:** owner test files `~/jmc-test` (MUME.set, MUME-extra.set,
