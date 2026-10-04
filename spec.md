@@ -528,6 +528,27 @@ Research: `notes/research/import/`. Design: ADR 0073.
 - **Pure core:** detection, decoding and translation are pure functions
   in `src/import/` with no DOM, unit-tested with corpus files.
 
+### 2.12 Phone access (intent Goal 12)
+
+Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
+
+- **Gating.** Two flags, decided once at startup: *touch*
+  (`(pointer: coarse) and (hover: none)`) and *phone* (touch and the
+  short screen side under 600 CSS px). `?touch=1` / `?phone=1` force them
+  for development and tests. With both off, no phone code runs and no
+  phone CSS matches: desktop is unchanged.
+- **Touch (part A):** an on-screen menu button replaces Esc; every Back /
+  Esc footer becomes tappable; taps do not pull focus to the input (no
+  keyboard pop-up); whole menu rows are tap targets; menu bodies scroll
+  by swipe; no double-tap zoom on controls.
+- **Phone layout (part B):** the 60×18 guard is lowered for phones; the
+  cockpit is the game output and input at full width, with a tab strip
+  that shows one pane at a time instead of docks; no dragging or
+  resizing; the input stays above the on-screen keyboard; safe-area
+  insets in landscape and on notched screens.
+- **Desktop-only on a phone:** the export editor, arranging panes and
+  macro key capture.
+
 ## 3. Profile language
 
 tt++ syntax. The supported set comes from real use (Inv §6.5).
@@ -568,7 +589,8 @@ tt++ syntax. The supported set comes from real use (Inv §6.5).
   - parser and trigger tests;
   - the performance benchmark;
   - an offline **replay mode** the owner can use without logging in.
-- **Browser tests** (Playwright) run in Firefox and Chrome.
+- **Browser tests** (Playwright) run in Firefox and Chrome, plus a
+  phone-emulation project (Chromium, touch) for §2.12.
 - **Live checks.** Each stage lists what must be checked on a real MUME
   login. The owner performs these checks.
 
@@ -593,6 +615,7 @@ what feedback is wanted.
 | 12 | **Key manager.** The bundled key manager, from the owner's Mudlet reference script, over several polish rounds. | Your usual key and door routine. |
 | 17 | **Foreign import.** Detect and translate TinTin++, JMC and Powwow settings into a new profile, with an import report (§2.11). | Import your old tt++/JMC/powwow files and read the report. |
 | 18 | **Almanac.** Clock moon and season model, the game time API for scripts, and the bundled almanac script with data-driven events (ADR 0074). | Open the almanac; plan a session; add an event of your own. |
+| 19 | **Phone access.** Touch fixes for menus and a phone layout, gated so desktop is unchanged (§2.12, ADR 0075). | Open WebCockpit on your phone, log in, chat, browse the menus. |
 
 ## 6. Open questions for the owner
 

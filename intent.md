@@ -2,6 +2,7 @@
 
 > Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
 > 2026-10-01. Goal 11 (foreign profile import) approved 2026-10-04.
+> Goal 12 (phone access) approved 2026-10-04.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -87,10 +88,22 @@ reference only.
     report: the detected format, how many settings were translated, and
     how many were left untranslated and why.
 
+12. **Phone access** (owner decision 2026-10-04). WebCockpit can be
+    opened on a phone to log in, read and chat. Real play on a phone is
+    not a goal. Menus work by touch, and a phone gets a simple layout
+    that fits its screen.
+    - **Desktop is not affected.** Everything for phones is switched on
+      only when a phone (or touch screen) is detected. Desktop is 99 % of
+      the use; any change that would also reach desktop is put to the
+      owner first.
+    - A session dies when the phone locks or switches app (the browser
+      suspends it). This is accepted.
+
 ## Non-goals
 
 - Generic MUD client: MUME only.
-- Mobile and tablet: desktop Firefox and Chrome only.
+- Play on mobile and tablet. Desktop Firefox and Chrome are the target;
+  phones get the limited access of Goal 12, tablets only its touch fixes.
 - Import from Mudlet, zMUD/CMUD or other clients than those in Goal 11,
   and of Cockpit's Lua modules.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor
