@@ -27,7 +27,8 @@ import type { LiveRuns } from '../../runs/live';
 import { type StatsModel, buildStats, rateSeries } from '../../runs/stats';
 import type { Session } from '../../runs/stitch';
 import { useGrid, useServices } from '../kit/hooks';
-import { cellLen, centreLeft, truncate } from '../kit/nav';
+import { cellLen, centreLeft, truncate, wrapText } from '../kit/nav';
+import { device } from '../../core/device';
 import { useIsTop, useKeys } from '../kit/stack';
 import { Footer, indent } from '../kit/widgets';
 import { TuiScrollbar, useScrollBox } from '../kit/scroll';
@@ -67,6 +68,8 @@ const KILLS = 2;
 const PVPS = 3;
 /** Rows of ALLIES / ACHIEVEMENTS. */
 const SMALL_ROWS = 3;
+/** On a phone narrower than this (cells) the two sides stack (ADR 0075 §3.2). */
+const STACK_BELOW = 64;
 
 function Segs(p: { segs: readonly Seg[] }): VNode {
   return <>{p.segs.map((s) => (s.cls ? <span class={s.cls}>{s.text}</span> : s.text))}</>;
@@ -107,7 +110,10 @@ export function StatsView(p: StatsViewProps): VNode {
   const [ks, setKs] = useState<StatSort<'name' | 'n' | 'xpPer' | 'xpTotal'>>(DEFAULT_KILL_SORT);
   const [ps, setPs] = useState<StatSort<'name' | 'n' | 'xp'>>(DEFAULT_PVP_SORT);
   const m = p.model;
-  const { T, total } = statsWidths(cols);
+  // Phone, narrow (ADR 0075 §3.2): the two sides stack, each the grid's
+  // width, instead of squeezing two tables side by side.
+  const stacked = device().phone && cols < STACK_BELOW;
+  const { T, total } = stacked ? { T: Math.min(cols - 4, 40), total: Math.min(cols - 4, 40) + 3 } : statsWidths(cols);
   const left = centreLeft(cols, total);
   const allies = allyPairs(m?.allies ?? []);
   const miles = m?.milestones ?? [];
@@ -126,7 +132,11 @@ export function StatsView(p: StatsViewProps): VNode {
   const showRuler = rest >= 4;
   if (showRuler) rest -= 4;
   const fitRows = 2 + Math.max(0, rest);
-  const N = p.live ? fitRows : Math.min(fitRows, Math.max(1, kills.length, pvps.length));
+  const N = stacked
+    ? Math.min(Math.max(3, fitRows), Math.max(p.live ? 3 : 1, kills.length, pvps.length))
+    : p.live
+      ? fitRows
+      : Math.min(fitRows, Math.max(1, kills.length, pvps.length));
 
 
   useKeys((e, nk) => {
@@ -219,6 +229,32 @@ export function StatsView(p: StatsViewProps): VNode {
     </div>
   );
 
+  // Stacked: each pair's left part queues above its right part until the
+  // block ends (`flush`).
+  const lq: VNode[] = [];
+  const rq: VNode[] = [];
+  const pushLine = (l: VNode, r: VNode, key: string): void => {
+    if (!stacked) return void out.push(line(l, r, key));
+    lq.push(<div class="wc-line" style={indent(left)} key={key + 'L'}>{l}</div>);
+    rq.push(<div class="wc-line" style={indent(left)} key={key + 'R'}>{r}</div>);
+  };
+  const pushTables = (l: VNode, r: VNode, n: number, key: string): void => {
+    if (!stacked) return void out.push(tables(l, r, n, key));
+    const box = (c: VNode, k: string): VNode => (
+      <div class="wc-scrollrow wc-stat-tables" style={{ ...indent(left), height: `calc(var(--cell-h) * ${n})` }} key={k}>
+        {c}
+      </div>
+    );
+    lq.push(box(l, key + 'L'));
+    rq.push(box(r, key + 'R'));
+  };
+  const flush = (key: string): void => {
+    if (!stacked) return;
+    out.push(...lq, <div class="wc-line" key={key} />, ...rq);
+    lq.length = 0;
+    rq.length = 0;
+  };
+
   /** A sortable title row: the section name and the column labels are sort triggers. */
   const renderTitle = <K extends string>(
     id: number,
@@ -257,21 +293,21 @@ export function StatsView(p: StatsViewProps): VNode {
   const out: VNode[] = [];
   const blank = (k: string): void => void out.push(<div class="wc-line" key={k} />);
   if (topBlank) blank('top');
-  const header = truncate(p.header, cols);
-  out.push(
-    <div class="wc-line wc-stats-header" style={indent(centreLeft(cols, cellLen(header)))} key="hdr">
-      <span class="wc-st-hint">{header}</span>
-    </div>,
+  const headers = device().phone && cellLen(p.header) > cols ? wrapText(p.header, cols) : [truncate(p.header, cols)];
+  headers.forEach((header, i) =>
+    out.push(
+      <div class="wc-line wc-stats-header" style={indent(centreLeft(cols, cellLen(header)))} key={'hdr' + i}>
+        <span class="wc-st-hint">{header}</span>
+      </div>,
+    ),
   );
   blank('b1');
 
   // ALLIES + ACHIEVEMENTS.
-  out.push(
-    line(
-      side(ALLIES, [{ text: 'ALLIES', cls: titleCls(ALLIES) }]),
-      side(ACHIEVEMENTS, [{ text: 'ACHIEVEMENTS', cls: titleCls(ACHIEVEMENTS) }]),
-      'at',
-    ),
+  pushLine(
+    side(ALLIES, [{ text: 'ALLIES', cls: titleCls(ALLIES) }]),
+    side(ACHIEVEMENTS, [{ text: 'ACHIEVEMENTS', cls: titleCls(ACHIEVEMENTS) }]),
+    'at',
   );
   const sub = Math.floor((T - 2) / 2);
   const ally = (name: string | undefined): Seg[] =>
@@ -286,19 +322,20 @@ export function StatsView(p: StatsViewProps): VNode {
     { text: ms.text.slice(0, 1), cls: 'wc-st-star' },
     { text: truncate(ms.text.slice(1), T - 1), cls: 'wc-st-value' },
   ]);
-  out.push(tables(table(ALLIES, allyRows, SMALL_ROWS), table(ACHIEVEMENTS, mileRows, SMALL_ROWS), SMALL_ROWS, 'a'));
+  pushTables(table(ALLIES, allyRows, SMALL_ROWS), table(ACHIEVEMENTS, mileRows, SMALL_ROWS), SMALL_ROWS, 'a');
+  flush('fa');
   blank('b2');
 
   // KILLS + PvPs.
-  out.push(line(renderTitle(KILLS, kc, ks, setKs), renderTitle(PVPS, pc, ps, setPs), 'kt'));
+  pushLine(renderTitle(KILLS, kc, ks, setKs), renderTitle(PVPS, pc, ps, setPs), 'kt');
   const rule: Seg[] = [{ text: '─'.repeat(T), cls: 'wc-c-hint' }];
-  out.push(line(side(null, rule), side(null, rule), 'kd'));
+  pushLine(side(null, rule), side(null, rule), 'kd');
   const killRows = kills.map((k): Seg[] => [{ text: killCells(k, kc).join(''), cls: 'wc-st-label' }]);
   const pvpRows = pvps.map((v): Seg[] => [
     { text: '⚔ ', cls: 'wc-st-pvp' },
     { text: pvpCells(v, pc).join(''), cls: 'wc-st-label' },
   ]);
-  out.push(tables(table(KILLS, killRows, N), table(PVPS, pvpRows, N), N, 'k'));
+  pushTables(table(KILLS, killRows, N), table(PVPS, pvpRows, N), N, 'k');
   const kt = m?.killTotal ?? { n: 0, xp: 0 };
   const pt = m?.pvpTotal ?? { n: 0, xp: 0 };
   const killTotal: Seg[] =
@@ -319,7 +356,8 @@ export function StatsView(p: StatsViewProps): VNode {
           },
         ]
       : [];
-  out.push(line(side(null, killTotal), side(null, pvpTotal), 'kT'));
+  pushLine(side(null, killTotal), side(null, pvpTotal), 'kT');
+  flush('fk');
 
   // Sparklines.
   if (showSpark) {
@@ -352,7 +390,8 @@ export function StatsView(p: StatsViewProps): VNode {
     };
     const xp = chart('XP/h', m?.xpGains ?? [], 'wc-st-gained');
     const tp = chart('TP/h', m?.tpGains ?? [], 'wc-st-tp');
-    xp.forEach((l, i) => out.push(line(side(null, l), side(null, tp[i]!), `s${i}`)));
+    xp.forEach((l, i) => pushLine(side(null, l), side(null, tp[i]!), `s${i}`));
+    flush('fs');
   }
 
   // XP ruler.
