@@ -61,7 +61,7 @@
 //   otherwise it keeps the browser's focus move. Macros win first, as for
 //   every key. The ghost is never sent.
 
-import { touchInteraction } from '../core/device';
+import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
 import type { Sender } from '../core/types';
 import { keyNameFromEvent, learnKeyLabel } from '../script/keys';
@@ -93,7 +93,12 @@ export interface InputPaneOptions {
   cellWidth?: () => number;
   /** Frame scheduler for caret updates (default requestAnimationFrame). */
   requestFrame?: (cb: () => void) => void;
+  /** Phone command line (a one-row <textarea>); default: the device flag. */
+  phone?: boolean;
 }
+
+/** The command line element: an <input>, or a <textarea> on a phone. */
+export type CommandField = HTMLInputElement | HTMLTextAreaElement;
 
 const BULLET = '•';
 
@@ -166,7 +171,20 @@ export function normalizePaste(text: string): string {
 
 export class InputPane {
   readonly el: HTMLDivElement;
-  readonly input: HTMLInputElement;
+  /**
+   * The field in use. Desktop: always the one <input type="text">. Phone
+   * (ADR 0075 §3.2): a one-row <textarea>, because Chrome on Android shows
+   * its autofill bar over the keyboard for every <input>; while masked an
+   * <input type="password"> takes its place, so the on-screen keyboard
+   * treats the text as a password (no suggestions, no learning).
+   */
+  private field: CommandField;
+  /** Phone: the textarea and the lazily made password field. */
+  private readonly phone: boolean;
+  private textField: CommandField | null = null;
+  private passField: HTMLInputElement | null = null;
+  /** Phone: a keydown Enter was seen, so its line break must not send again. */
+  private enterDown = false;
   private readonly mask: HTMLSpanElement;
   /** The greyed autosuggestion after the line (ADR 0063). */
   readonly ghostEl: HTMLSpanElement;
@@ -233,16 +251,9 @@ export class InputPane {
     prompt.textContent = '> ';
     const wrap = doc.createElement('span');
     wrap.className = 'wc-input-wrap';
-    this.input = doc.createElement('input');
-    this.input.type = 'text';
-    this.input.className = 'wc-input-field';
-    this.input.autocomplete = 'off';
-    this.input.spellcheck = false;
-    this.input.setAttribute('autocapitalize', 'off');
-    this.input.setAttribute('autocorrect', 'off');
-    this.input.setAttribute('aria-label', 'Command');
-    // A random name keeps form-history/autofill heuristics from matching.
-    this.input.name = 'wc-cmd-' + Math.random().toString(36).slice(2);
+    this.phone = opts.phone ?? device().phone;
+    this.field = this.makeField(this.phone ? 'textarea' : 'text');
+    this.textField = this.field;
     this.mask = doc.createElement('span');
     this.mask.className = 'wc-input-mask';
     this.mask.hidden = true;
@@ -261,17 +272,6 @@ export class InputPane {
     this.el.append(prompt, wrap, clock);
     root.appendChild(this.el);
 
-    this.input.addEventListener('input', this.onInput);
-    this.input.addEventListener('compositionstart', this.onComposition);
-    this.input.addEventListener('compositionupdate', this.onComposition);
-    this.input.addEventListener('compositionend', this.onCompositionEnd);
-    this.input.addEventListener('paste', this.onPaste);
-    this.input.addEventListener('copy', this.onCopyCut);
-    this.input.addEventListener('cut', this.onCopyCut);
-    this.input.addEventListener('focus', this.scheduleCaret);
-    this.input.addEventListener('blur', this.scheduleCaret);
-    this.input.addEventListener('scroll', this.scheduleCaret);
-    this.input.addEventListener('select', this.scheduleCaret);
     doc.addEventListener('selectionchange', this.onSelectionChange);
     doc.addEventListener('keydown', this.onKeyDown, true);
     doc.addEventListener('keyup', this.onKeyUp, true);
@@ -285,7 +285,64 @@ export class InputPane {
     this.blinkObserver?.observe(doc.documentElement, { attributes: true, attributeFilter: ['data-cursor-blink'] });
   }
 
+  /** Makes a command field and wires its events. */
+  private makeField(kind: 'text' | 'textarea' | 'password'): CommandField {
+    const doc = this.doc;
+    let f: CommandField;
+    if (kind === 'textarea') {
+      const ta = doc.createElement('textarea');
+      ta.setAttribute('rows', '1');
+      ta.setAttribute('wrap', 'off');
+      ta.setAttribute('enterkeyhint', 'send');
+      ta.addEventListener('beforeinput', this.onBeforeInput);
+      f = ta;
+    } else {
+      const inp = doc.createElement('input');
+      inp.type = kind;
+      if (this.phone) inp.setAttribute('enterkeyhint', 'send');
+      f = inp;
+    }
+    f.className = 'wc-input-field';
+    f.autocomplete = 'off';
+    f.spellcheck = false;
+    f.setAttribute('autocapitalize', 'off');
+    f.setAttribute('autocorrect', 'off');
+    f.setAttribute('aria-label', kind === 'password' ? 'Password' : 'Command');
+    // A random name keeps form-history/autofill heuristics from matching.
+    f.name = 'wc-cmd-' + Math.random().toString(36).slice(2);
+    const ev: HTMLElement = f;
+    ev.addEventListener('input', this.onInput);
+    ev.addEventListener('compositionstart', this.onComposition);
+    ev.addEventListener('compositionupdate', this.onComposition);
+    ev.addEventListener('compositionend', this.onCompositionEnd);
+    ev.addEventListener('paste', this.onPaste);
+    ev.addEventListener('copy', this.onCopyCut);
+    ev.addEventListener('cut', this.onCopyCut);
+    ev.addEventListener('focus', this.scheduleCaret);
+    ev.addEventListener('blur', this.scheduleCaret);
+    ev.addEventListener('scroll', this.scheduleCaret);
+    ev.addEventListener('select', this.scheduleCaret);
+    return f;
+  }
+
+  /** Phone: puts `next` in the current field's place, keeping the focus. */
+  private swapField(next: CommandField): void {
+    const cur = this.field;
+    if (next === cur) return;
+    const focused = this.doc.activeElement === cur;
+    next.value = '';
+    cur.replaceWith(next);
+    cur.value = '';
+    this.field = next;
+    if (focused) next.focus({ preventScroll: true });
+  }
+
   // ----------------------------------------------------------------- public
+
+  /** The command line element (see `field`). */
+  get input(): CommandField {
+    return this.field;
+  }
 
   /**
    * Focuses the input (call after overlays close). Not after a tap on a
@@ -318,6 +375,10 @@ export class InputPane {
   setPasswordMode(on: boolean): void {
     if (on === this.password) return;
     this.password = on;
+    if (this.phone) {
+      if (on) this.passField ??= this.makeField('password') as HTMLInputElement;
+      this.swapField(on ? this.passField! : this.textField!);
+    }
     this.input.classList.toggle('wc-masked', on);
     this.mask.hidden = !on;
     if (on) {
@@ -501,6 +562,7 @@ export class InputPane {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
+    if (e.key === 'Enter') this.enterDown = true;
     if (e.defaultPrevented) return;
     const dead = e.key === 'Dead';
     if (!dead) {
@@ -577,7 +639,26 @@ export class InputPane {
   }
 
   private readonly onKeyUp = (e: KeyboardEvent): void => {
+    if (e.key === 'Enter') this.enterDown = false;
     if (e.code === this.deadEcho) this.deadEcho = null;
+  };
+
+  /**
+   * Phone textarea: a line break never lands in the line. One that no
+   * Enter keydown handled (an on-screen keyboard's Enter can come as a
+   * bare `insertLineBreak`) sends, as Enter does; after a keydown Enter
+   * (Shift+Enter on a hardware keyboard) it is just dropped, as an <input>
+   * drops it.
+   */
+  private readonly onBeforeInput = (e: InputEvent): void => {
+    if (e.inputType !== 'insertLineBreak' && e.inputType !== 'insertParagraph') return;
+    e.preventDefault();
+    if (this.enterDown) {
+      this.enterDown = false;
+      return;
+    }
+    this.submit();
+    this.scheduleCaret();
   };
 
   /** compositionstart/update: a consumed dead key's accent must not land. */
@@ -798,6 +879,16 @@ export class InputPane {
       if ((e as InputEvent).isComposing) this.cancelComposition();
       else this.restoreSnapshot();
       return;
+    }
+    // Phone textarea: whatever brought a newline in (an IME commit,
+    // autofill) is made one line, as a paste is.
+    const f = this.input;
+    if (f.tagName === 'TEXTAREA' && /[\r\n]/.test(f.value)) {
+      const pos = f.selectionStart ?? f.value.length;
+      const head = normalizePaste(f.value.slice(0, pos));
+      f.value = normalizePaste(f.value);
+      const at = Math.min(head.length, f.value.length);
+      f.setSelectionRange(at, at);
     }
     this.afterEdit();
   };

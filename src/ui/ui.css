@@ -296,6 +296,17 @@ body {
   line-height: var(--cell-h);
 }
 
+/* Phone (ADR 0075 §3.2): the command line is a one-row <textarea>; it
+ * behaves as the <input>: one line, scrolled sideways, no grip. */
+textarea.wc-input-field {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  overflow-wrap: normal;
+  scrollbar-width: none;
+}
+
 /* Password mode: the real text is transparent, bullets are drawn over it. */
 .wc-input-field.wc-masked {
   color: transparent;

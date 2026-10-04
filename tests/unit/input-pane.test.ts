@@ -1050,3 +1050,91 @@ describe('InputPane dead keys (ADR 0026 "Dead keys")', () => {
     expect(t.fired).toEqual(['Equal', 'Equal']);
   });
 });
+
+describe('InputPane on a phone (ADR 0075 §3.2)', () => {
+  function phone() {
+    document.body.innerHTML = '';
+    const bus = new Bus();
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const sent: Array<{ text: string; opts?: { secret?: boolean } }> = [];
+    const sender: Sender = {
+      sendCommand: (text, opts) => sent.push(opts ? { text, opts } : { text }),
+      sendGmcp: () => {},
+    };
+    const pane = new InputPane(bus, root, { sender, phone: true });
+    pane.input.focus();
+    return { bus, pane, sent, root };
+  }
+
+  it('is a one-row textarea with send as the Enter key and no autofill helpers', () => {
+    const { pane } = phone();
+    const ta = pane.input as HTMLTextAreaElement;
+    expect(ta.tagName).toBe('TEXTAREA');
+    expect(ta.getAttribute('rows')).toBe('1');
+    expect(ta.getAttribute('wrap')).toBe('off');
+    expect(ta.getAttribute('enterkeyhint')).toBe('send');
+    expect(ta.getAttribute('autocomplete')).toBe('off');
+    expect(ta.getAttribute('autocorrect')).toBe('off');
+    expect(ta.getAttribute('autocapitalize')).toBe('off');
+    expect(ta.spellcheck).toBe(false);
+  });
+
+  it('Enter sends and never leaves a newline; a bare line break sends too', () => {
+    const { pane, sent } = phone();
+    const i = pane.input;
+    i.value = 'say hi';
+    const e = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    i.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(sent.map((s) => s.text)).toEqual(['say hi']);
+    i.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', bubbles: true }));
+    // An on-screen keyboard's Enter as a bare line break (no keydown Enter).
+    i.value = 'look';
+    const bi = new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true });
+    i.dispatchEvent(bi);
+    expect(bi.defaultPrevented).toBe(true);
+    expect(sent.map((s) => s.text)).toEqual(['say hi', 'look']);
+    expect(i.value).not.toContain('\n');
+  });
+
+  it('a newline that got in anyway becomes a space, as a paste', () => {
+    const { pane } = phone();
+    const i = pane.input;
+    i.value = 'say a\nb\n';
+    i.setSelectionRange(i.value.length, i.value.length);
+    i.dispatchEvent(new Event('input'));
+    expect(i.value).toBe('say a b');
+  });
+
+  it('a password prompt swaps in a masked <input type=password>, and back', () => {
+    const { bus, pane, sent, root } = phone();
+    bus.emit('telnet.echo', { serverEchoes: true });
+    const pw = pane.input as HTMLInputElement;
+    expect(pw.tagName).toBe('INPUT');
+    expect(pw.type).toBe('password');
+    expect(pw.classList.contains('wc-masked')).toBe(true);
+    expect(root.querySelectorAll('.wc-input-field')).toHaveLength(1);
+    expect(document.activeElement).toBe(pw);
+    pw.value = 'secret';
+    pw.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    expect(sent.at(-1)).toEqual({ text: 'secret', opts: { secret: true } });
+    bus.emit('telnet.echo', { serverEchoes: false });
+    expect(pane.input.tagName).toBe('TEXTAREA');
+    expect(pane.input.value).toBe('');
+    expect(pw.value).toBe('');
+    expect(root.querySelectorAll('.wc-input-field')).toHaveLength(1);
+  });
+
+  it('desktop keeps the <input type=text>, also while masked', () => {
+    document.body.innerHTML = '';
+    const bus = new Bus();
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const pane = new InputPane(bus, root, { sender: { sendCommand: () => {}, sendGmcp: () => {} } });
+    expect(pane.input.tagName).toBe('INPUT');
+    expect((pane.input as HTMLInputElement).type).toBe('text');
+    bus.emit('telnet.echo', { serverEchoes: true });
+    expect((pane.input as HTMLInputElement).type).toBe('text');
+  });
+});
