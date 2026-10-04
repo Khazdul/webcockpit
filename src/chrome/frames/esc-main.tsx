@@ -17,7 +17,8 @@ import { Banner } from '../banner';
 import { BANNER_H, bannerFits } from '../banner-data';
 import { useGrid, useNotices, useServices, useSettings, useStatus } from '../kit/hooks';
 import { type NoticeState, noticeIndicators } from '../../app/notices';
-import { cellLen, centreLeft } from '../kit/nav';
+import { device } from '../../core/device';
+import { cellLen, centreLeft, packRows } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
@@ -126,24 +127,31 @@ export function EscMain(p: EscMainProps): VNode {
 
   const parts = headerParts(settings.profile, st, notices, version);
   const sep = '  ·  ';
-  const headerW = cellLen(parts.map((x) => x.text).join(sep));
+  // On a phone the header wraps between its parts (ADR 0075 §3.2).
+  const headerRows =
+    device().phone && cellLen(parts.map((x) => x.text).join(sep)) > cols
+      ? packRows(parts.map((x) => cellLen(x.text)), cols, cellLen(sep)).map((r) => r.map((i) => parts[i]!))
+      : [parts];
+  const extra = headerRows.length - 1;
   // header, blank, menu, flash, footer.
-  const reserved = 2 + items.length + 1 + 1;
-  const showBanner = bannerFits(rows, reserved);
-  const used = 1 + (showBanner ? BANNER_H + 2 : 1) + items.length + 1;
+  const reserved = 2 + extra + items.length + 1 + 1;
+  const showBanner = bannerFits(rows, reserved, cols);
+  const used = 1 + extra + (showBanner ? BANNER_H + 2 : 1) + items.length + 1;
 
   return (
     <div class="wc-page wc-esc-main">
-      <div class="wc-line wc-esc-header" style={indent(centreLeft(cols, headerW))}>
-        {parts.map((x, i) => (
-          <>
-            {i > 0 && <span class="wc-c-hint">{sep}</span>}
-            <span class={x.cls} title={x.title}>
-              {x.text}
-            </span>
-          </>
-        ))}
-      </div>
+      {headerRows.map((row) => (
+        <div class="wc-line wc-esc-header" style={indent(centreLeft(cols, cellLen(row.map((x) => x.text).join(sep))))}>
+          {row.map((x, i) => (
+            <>
+              {i > 0 && <span class="wc-c-hint">{sep}</span>}
+              <span class={x.cls} title={x.title}>
+                {x.text}
+              </span>
+            </>
+          ))}
+        </div>
+      ))}
       {showBanner ? (
         <>
           <Blank />

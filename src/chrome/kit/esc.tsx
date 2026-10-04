@@ -41,15 +41,37 @@ export function EscToken(p: { text: string; children?: ComponentChildren }): VNo
 
 /**
  * A hint line (`↑↓ Scroll · … · ESC Save & back`) with its `ESC …` tokens
- * clickable. Text without such a token comes back unchanged.
+ * clickable. Text without such a token comes back unchanged. `actions`
+ * makes more tokens clickable by their exact text (touch devices: a tap
+ * path for key-only actions such as `Ctrl+S Save`, ADR 0075 §3.2).
  */
-export function escHints(text: string): ComponentChildren {
+export function escHints(text: string, actions?: Readonly<Record<string, () => void>>): ComponentChildren {
   const parts = text.split(' · ');
-  if (!parts.some(isEscToken)) return text;
-  return parts.map((t, i) => (
-    <>
-      {i > 0 && ' · '}
-      {isEscToken(t) ? <EscToken text={t} /> : t}
-    </>
-  ));
+  const act = (t: string): (() => void) | undefined => (actions && Object.hasOwn(actions, t) ? actions[t] : undefined);
+  if (!parts.some((t) => isEscToken(t) || act(t))) return text;
+  return parts.map((t, i) => {
+    const fn = act(t);
+    return (
+      <>
+        {i > 0 && ' · '}
+        {fn ? (
+          <span
+            class="wc-footer-btn wc-act-btn"
+            data-act={t}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.stopPropagation();
+              fn();
+            }}
+          >
+            {t}
+          </span>
+        ) : isEscToken(t) ? (
+          <EscToken text={t} />
+        ) : (
+          t
+        )}
+      </>
+    );
+  });
 }

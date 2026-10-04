@@ -21,7 +21,7 @@
 
 import type { ComponentChildren, JSX, VNode } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
-import { type NavKey, cellLen, centreLeft, footerText, scrollbar, step, truncate } from './nav';
+import { type NavKey, cellLen, centreLeft, footerRows, footerText, scrollbar, step, truncate, wrapText } from './nav';
 import { useGrid } from './hooks';
 import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
@@ -57,6 +57,19 @@ export function Line(p: LineProps): VNode {
 export function Centered(p: { text: string; class?: string; width?: number; children?: ComponentChildren }): VNode {
   const { cols } = useGrid();
   const w = p.width ?? cellLen(p.text);
+  // Phone only (ADR 0075 §3.2): a plain text wider than the grid wraps
+  // onto more rows instead of being cut at the right edge.
+  if (device().phone && !p.children && w > cols) {
+    return (
+      <>
+        {wrapText(p.text, cols).map((l) => (
+          <Line at={centreLeft(cols, cellLen(l))}>
+            <span class={p.class}>{l}</span>
+          </Line>
+        ))}
+      </>
+    );
+  }
   return (
     <Line at={centreLeft(cols, w)}>
       <span class={p.class}>{p.children ?? p.text}</span>
@@ -98,10 +111,22 @@ export interface PageProps {
   children?: ComponentChildren;
 }
 
-/** Rows left for the body of a titled Page on this grid. */
-export function useBodyRows(): number {
-  const { rows, surface } = useGrid();
-  return Math.max(1, rows - (surface === 'start' ? 2 : 1) - 2 - 1);
+/**
+ * Rows left for the body of a titled Page on this grid. On a phone the
+ * footer can wrap onto more rows (ADR 0075 §3.2); pass the footer tokens
+ * to have those rows taken off too.
+ */
+export function useBodyRows(footer?: readonly FooterToken[]): number {
+  const { rows, cols, surface } = useGrid();
+  return Math.max(1, rows - (surface === 'start' ? 2 : 1) - 2 - footerHeight(footer ?? [], cols));
+}
+
+const tokenText = (t: FooterToken): string => (typeof t === 'string' ? t : t.text);
+
+/** Rows the footer takes: 1, or on a phone as many as its tokens wrap onto. */
+export function footerHeight(tokens: readonly FooterToken[], cols: number): number {
+  if (!device().phone) return 1;
+  return Math.max(1, footerRows(tokens.map(tokenText), cols).length);
 }
 
 /** A full frame: title block, scrollable body, footer on the last row. */
@@ -133,33 +158,59 @@ export function Page(p: PageProps): VNode {
 /**
  * The footer row: centred C_HINT tokens joined by ` · `. Tokens may be
  * clickable; an `ESC …` string token always is (it sends Escape, kit/esc.tsx).
+ * On a phone a footer that does not fit wraps onto more rows at the token
+ * joints instead of being cut with `…` (ADR 0075 §3.2).
  */
 export function Footer(p: { tokens: readonly FooterToken[] }): VNode {
   const { cols } = useGrid();
-  const texts = p.tokens.map((t) => (typeof t === 'string' ? t : t.text));
+  const texts = p.tokens.map(tokenText);
   const full = truncate(footerText(texts), cols);
   const fits = full === footerText(texts);
+  if (!fits && device().phone) {
+    const rows = footerRows(texts, cols);
+    let at = 0;
+    return (
+      <div class="wc-footer wc-footer-wrap">
+        {rows.map((r) => {
+          const toks = p.tokens.slice(at, at + r.length);
+          at += r.length;
+          const w = cellLen(footerText(r));
+          return (
+            <div class="wc-line wc-c-hint" style={indent(centreLeft(cols, w))}>
+              <FooterTokens tokens={toks} />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div class="wc-line wc-footer wc-c-hint" style={indent(centreLeft(cols, cellLen(full)))}>
-      {fits
-        ? p.tokens.map((t, i) => (
-            <>
-              {i > 0 && ' · '}
-              {typeof t === 'string' ? (
-                isEscToken(t) ? (
-                  <EscToken text={t} />
-                ) : (
-                  t
-                )
-              ) : (
-                <span class="wc-footer-btn" onClick={t.onClick}>
-                  {t.text}
-                </span>
-              )}
-            </>
-          ))
-        : escHints(full)}
+      {fits ? <FooterTokens tokens={p.tokens} /> : escHints(full)}
     </div>
+  );
+}
+
+function FooterTokens(p: { tokens: readonly FooterToken[] }): VNode {
+  return (
+    <>
+      {p.tokens.map((t, i) => (
+        <>
+          {i > 0 && ' · '}
+          {typeof t === 'string' ? (
+            isEscToken(t) ? (
+              <EscToken text={t} />
+            ) : (
+              t
+            )
+          ) : (
+            <span class="wc-footer-btn" onClick={t.onClick}>
+              {t.text}
+            </span>
+          )}
+        </>
+      ))}
+    </>
   );
 }
 
@@ -566,9 +617,16 @@ export interface TextFieldProps {
   label: string;
 }
 
-/** A one-line text input `> text_` on the grid; focused when mounted. */
+/**
+ * A one-line text input `> text_` on the grid; focused when mounted. On a
+ * phone it is a one-row <textarea> (ADR 0075 §3.2): Chrome on Android
+ * shows its autofill bar over the keyboard for every <input>. It still
+ * holds one line: Enter never adds a newline, and a newline that gets in
+ * (paste, an IME commit) becomes a space.
+ */
 export function TextField(p: TextFieldProps): VNode {
-  const ref = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const enterDown = useRef(false);
   // A layout effect: typing right after the frame opens lands in the field.
   useLayoutEffect(() => {
     const el = ref.current;
@@ -576,20 +634,60 @@ export function TextField(p: TextFieldProps): VNode {
     el.focus({ preventScroll: true });
     el.setSelectionRange(el.value.length, el.value.length);
   }, []);
+  const common = {
+    ref,
+    class: 'wc-field',
+    style: cellsWide(Math.max(1, p.width - 2)),
+    value: p.value,
+    maxLength: p.maxLength,
+    'aria-label': p.label,
+    spellcheck: false,
+    autocomplete: 'off',
+  };
+  if (device().phone) {
+    return (
+      <div class="wc-line" style={indent(p.at)}>
+        <span class="wc-c-accent">{'> '}</span>
+        <textarea
+          {...common}
+          rows={1}
+          wrap="off"
+          autocapitalize="off"
+          autocorrect="off"
+          enterkeyhint="done"
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter') return;
+            // The frame's own key handler (window capture) has seen it.
+            enterDown.current = true;
+            e.preventDefault();
+          }}
+          onKeyUp={(e) => {
+            if (e.key === 'Enter') enterDown.current = false;
+          }}
+          onBeforeInput={(e) => {
+            const t = (e as InputEvent).inputType;
+            if (t !== 'insertLineBreak' && t !== 'insertParagraph') return;
+            e.preventDefault();
+            if (enterDown.current) return void (enterDown.current = false);
+            // An on-screen keyboard's Enter without a keydown: as Enter.
+            const el = e.currentTarget as HTMLElement;
+            const init: KeyboardEventInit = { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true };
+            el.dispatchEvent(new KeyboardEvent('keydown', init));
+            el.dispatchEvent(new KeyboardEvent('keyup', init));
+          }}
+          onInput={(e) => {
+            const el = e.currentTarget as HTMLTextAreaElement;
+            if (/[\r\n]/.test(el.value)) el.value = el.value.replace(/\r\n?|\n/g, ' ').replace(/ +$/, '');
+            p.onInput(el.value);
+          }}
+        />
+      </div>
+    );
+  }
   return (
     <div class="wc-line" style={indent(p.at)}>
       <span class="wc-c-accent">{'> '}</span>
-      <input
-        ref={ref}
-        class="wc-field"
-        style={cellsWide(Math.max(1, p.width - 2))}
-        value={p.value}
-        maxLength={p.maxLength}
-        aria-label={p.label}
-        spellcheck={false}
-        autocomplete="off"
-        onInput={(e) => p.onInput((e.currentTarget as HTMLInputElement).value)}
-      />
+      <input {...common} onInput={(e) => p.onInput((e.currentTarget as HTMLInputElement).value)} />
     </div>
   );
 }

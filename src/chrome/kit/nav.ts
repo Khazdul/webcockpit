@@ -211,3 +211,32 @@ export function tooSmall(cols: number, rows: number): boolean {
   const m = minView();
   return cols < m.cols || rows < m.rows;
 }
+
+/**
+ * Packs items of the given widths (cells) into rows of at most `width`
+ * cells, `gap` cells between neighbours, in order. Returns the item indices
+ * per row. An item wider than `width` gets a row of its own. Used on a
+ * phone to wrap button bars and footers instead of cutting them (ADR 0075
+ * §3.2).
+ */
+export function packRows(widths: readonly number[], width: number, gap: number): number[][] {
+  const out: number[][] = [];
+  let row: number[] = [];
+  let used = 0;
+  widths.forEach((w, i) => {
+    if (row.length > 0 && used + gap + w > width) {
+      out.push(row);
+      row = [];
+      used = 0;
+    }
+    used += (row.length > 0 ? gap : 0) + w;
+    row.push(i);
+  });
+  if (row.length > 0) out.push(row);
+  return out;
+}
+
+/** Footer tokens packed into rows of at most `width` cells (joined by ` · `). */
+export function footerRows(tokens: readonly string[], width: number): string[][] {
+  return packRows(tokens.map(cellLen), width, 3).map((r) => r.map((i) => tokens[i]!));
+}

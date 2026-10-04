@@ -3,8 +3,10 @@ import {
   centreLeft,
   cycle,
   firstEnabled,
+  footerRows,
   footerText,
   navKey,
+  packRows,
   scrollToShow,
   scrollbar,
   step,
@@ -134,5 +136,23 @@ describe('layout helpers', () => {
     expect(tooSmall(60, 18)).toBe(false);
     expect(tooSmall(59, 40)).toBe(true);
     expect(tooSmall(100, 17)).toBe(true);
+  });
+});
+
+describe('packRows / footerRows (phone wrapping, ADR 0075 §3.2)', () => {
+  it('packs in order and starts a new row when the next item does not fit', () => {
+    expect(packRows([5, 8, 8, 8, 8, 8], 30, 1)).toEqual([[0, 1, 2], [3, 4, 5]]);
+    expect(packRows([5, 8], 14, 1)).toEqual([[0, 1]]);
+    expect(packRows([5, 8], 13, 1)).toEqual([[0], [1]]);
+  });
+  it('gives an over-wide item a row of its own', () => {
+    expect(packRows([3, 20, 3], 10, 1)).toEqual([[0], [1], [2]]);
+    expect(packRows([], 10, 1)).toEqual([]);
+  });
+  it('wraps footer tokens at the ` · ` joints', () => {
+    const t = ['↑↓ Navigate', '←→ Toggle/Edit', 'Enter Select', 'ESC Back'];
+    const rows = footerRows(t, 30);
+    expect(rows).toEqual([['↑↓ Navigate', '←→ Toggle/Edit'], ['Enter Select', 'ESC Back']]);
+    expect(rows.flat()).toEqual(t);
   });
 });

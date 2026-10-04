@@ -318,6 +318,15 @@
   vertical-align: top;
 }
 
+/* Phone (ADR 0075 §3.2): the field is a one-row <textarea>. */
+textarea.wc-field {
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  overflow-wrap: normal;
+  scrollbar-width: none;
+}
+
 /* Thin box (preview, Inv §10.6 "Boxes"). */
 .wc-box {
   color: var(--c-hint);
@@ -437,5 +446,33 @@
 
 .wc-stat-col {
   display: flex;
+  flex: 0 0 auto;
+}
+
+/* Phone only (ADR 0075 §3.2): nothing in a page body is cut at the right
+ * edge. Content wider than the grid (a colour grid, a wide table, the
+ * appearance preview) makes the body swipe sideways; the rows and the
+ * scroll rows inside it do not clip sideways themselves. */
+.wc-phone .wc-body {
+  overflow-x: auto;
+}
+
+.wc-phone .wc-body .wc-line,
+.wc-phone .wc-body .wc-scrollrow {
+  overflow-x: visible;
+}
+
+@supports (overflow: clip) {
+  .wc-phone .wc-body .wc-line {
+    overflow-x: visible;
+  }
+}
+
+/* A scroll box (vertical) hands a sideways swipe on to the body. */
+.wc-phone .wc-scrollbox {
+  overscroll-behavior-x: auto;
+}
+
+.wc-phone .wc-footer-wrap {
   flex: 0 0 auto;
 }
