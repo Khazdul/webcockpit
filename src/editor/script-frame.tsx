@@ -506,7 +506,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
             <span class="wc-c-section">│</span>
             {l.text === MODAL_HINT ? (
               <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(hint)))}>
-                {escHints(truncate(hint, w - 2), tap)}
+                {tap ? escHints(truncate(hint, w - 2), tap) : truncate(hint, w - 2)}
               </span>
             ) : (
               <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(l.text)))}>

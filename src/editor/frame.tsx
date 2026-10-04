@@ -1335,18 +1335,17 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   // ------------------------------------------------------------ overlays
 
-  // Touch (ADR 0075 §3.2): the confirm's Y and N are tappable.
-  const modalTaps =
-    device().touch && modal === 'confirm'
-      ? {
-          'Y to apply': () => void applyNow(),
-          'N to discard': () => nav.pop(),
-          'Y Apply': () => void applyNow(),
-          'N Discard': () => nav.pop(),
-        }
-      : undefined;
-
   function overlayBox(lines: { text: string; cls: string }[], width: number): VNode {
+    // Touch (ADR 0075 §3.2): the confirm's Y and N are tappable.
+    const modalTaps =
+      device().touch && modal === 'confirm'
+        ? {
+            'Y to apply': () => void applyNow(),
+            'N to discard': () => nav.pop(),
+            'Y Apply': () => void applyNow(),
+            'N Discard': () => nav.pop(),
+          }
+        : undefined;
     const w = Math.min(cols - 2, width);
     const h = lines.length + 2;
     const left = centreLeft(cols, w);
