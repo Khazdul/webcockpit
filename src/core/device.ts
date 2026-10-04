@@ -64,10 +64,32 @@ export function initDevice(win: Window = window): DeviceFlags {
   const root = win.document.documentElement;
   if (flags.touch) root.classList.add('wc-touch');
   if (flags.phone) root.classList.add('wc-phone');
+  if (flags.touch) trackPointer(win);
   return flags;
 }
 
 /** Test hook: sets the flags directly (unit tests of touch branches). */
 export function setDeviceForTest(next: DeviceFlags): void {
   flags = next;
+}
+
+let lastPointerType = '';
+
+/**
+ * Touch only: remembers the type of the last pointerdown, because the
+ * compatibility mouse events after a tap carry no pointer type. Not
+ * installed on desktop.
+ */
+function trackPointer(win: Window): void {
+  win.addEventListener('pointerdown', (e) => (lastPointerType = e.pointerType), { capture: true, passive: true });
+}
+
+/**
+ * True when the current interaction came from a finger: the touch flag is
+ * on and the last pointerdown was not a mouse or pen. Always false on
+ * desktop. Used to keep taps from focusing the game input (the keyboard
+ * opens only when the input itself is tapped).
+ */
+export function touchInteraction(): boolean {
+  return flags.touch && lastPointerType !== 'mouse' && lastPointerType !== 'pen';
 }

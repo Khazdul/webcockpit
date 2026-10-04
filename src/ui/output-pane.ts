@@ -38,6 +38,7 @@
 // The pane shows the script engine's display copies (`text.display`,
 // `text.displayPartial`; ADR 0015), not the raw `text.line` stream.
 
+import { touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
 import type { BusEvents, Color, Line, StyleRun } from '../core/types';
 import { PLAYING_COMMANDS } from '../net/session';
@@ -727,6 +728,8 @@ export class OutputPane {
   };
 
   private readonly onMouseUp = (): void => {
+    // A tap on a touch device neither copies nor refocuses (ADR 0075).
+    if (touchInteraction()) return;
     const sel = this.el.ownerDocument.getSelection();
     const text = sel && !sel.isCollapsed ? sel.toString() : '';
     if (text && sel && this.el.contains(sel.anchorNode)) {

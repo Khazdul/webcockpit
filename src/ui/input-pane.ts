@@ -61,6 +61,7 @@
 //   otherwise it keeps the browser's focus move. Macros win first, as for
 //   every key. The ghost is never sent.
 
+import { touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
 import type { Sender } from '../core/types';
 import { keyNameFromEvent, learnKeyLabel } from '../script/keys';
@@ -286,8 +287,14 @@ export class InputPane {
 
   // ----------------------------------------------------------------- public
 
-  /** Focuses the input (call after overlays close). */
+  /**
+   * Focuses the input (call after overlays close). Not after a tap on a
+   * touch device (ADR 0075): focus would open the on-screen keyboard; the
+   * input gets it there only when it is tapped itself. Typed keys still
+   * move the focus here (onKeyDown).
+   */
   focus(): void {
+    if (touchInteraction()) return;
     if (this.doc.activeElement !== this.input) this.input.focus({ preventScroll: true });
   }
 
