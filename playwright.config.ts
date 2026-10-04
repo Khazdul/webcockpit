@@ -14,7 +14,9 @@ export default defineConfig({
     reuseExistingServer: true,
   },
   projects: [
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    { name: 'firefox', use: { ...devices['Desktop Firefox'] }, testIgnore: /phone.*\.spec\.ts$/ },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /phone.*\.spec\.ts$/ },
+    // Stage 19 (ADR 0075): a phone (touch, mobile viewport) runs only the phone specs.
+    { name: 'phone', use: { ...devices['Pixel 7'] }, testMatch: /phone.*\.spec\.ts$/ },
   ],
 });
