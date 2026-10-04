@@ -30,6 +30,7 @@ import type { EditorView } from '@codemirror/view';
 import type { JSX, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useGrid } from '../chrome/kit/hooks';
+import { escHints } from '../chrome/kit/esc';
 import { centreLeft, scrollbar, wrapText } from '../chrome/kit/nav';
 import { TuiScrollbar, useScrollBox } from '../chrome/kit/scroll';
 import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
@@ -849,7 +850,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     footer = (
       <div class="wc-line wc-footer wc-ped-footer">
         <span style={indent(cAt)} class={centreCls}>
-          {c}
+          {flash ? c : escHints(c)}
         </span>
         <span style={indent(Math.max(2, rightAt - cAt - cps(c)))} />
         {bal && <span class="wc-c-danger">{bal}</span>}
@@ -872,7 +873,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         style={indent(centreLeft(cols, cps(t)))}
         role={flash ? 'status' : undefined}
       >
-        {t}
+        {flash ? t : escHints(t)}
       </div>
     );
   }
@@ -1325,7 +1326,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
           <div class="wc-line">
             <span class="wc-c-section">│</span>
             <span class={l.cls} style={indent(centreLeft(w - 2, cps(l.text)))}>
-              {ellipsis(l.text, w - 2)}
+              {l.cls === 'wc-c-hint' ? escHints(ellipsis(l.text, w - 2)) : ellipsis(l.text, w - 2)}
             </span>
             <span class="wc-ped-overlay-r wc-c-section">│</span>
           </div>

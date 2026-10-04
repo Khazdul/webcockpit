@@ -9,6 +9,7 @@
 import type { VNode } from 'preact';
 import { useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { useGrid } from '../chrome/kit/hooks';
+import { escHints } from '../chrome/kit/esc';
 import { cellLen, centreLeft, truncate } from '../chrome/kit/nav';
 import { type Nav, useKeys } from '../chrome/kit/stack';
 import { indent } from '../chrome/kit/widgets';
@@ -128,7 +129,7 @@ export function ScriptManual({ section: initial = 0 }: { section?: number }): VN
       <div class="wc-ped-spacer" />
       <div class="wc-line" />
       <div class="wc-line wc-footer wc-ped-footer wc-c-hint" style={indent(centreLeft(cols, cellLen(hint)))}>
-        {hint}
+        {escHints(hint)}
       </div>
     </div>
   );

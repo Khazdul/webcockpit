@@ -25,6 +25,7 @@ import { type NavKey, cellLen, centreLeft, footerText, scrollbar, step, truncate
 import { useGrid } from './hooks';
 import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
+import { EscToken, escHints, isEscToken } from './esc';
 
 // ------------------------------------------------------------------- lines
 
@@ -128,7 +129,10 @@ export function Page(p: PageProps): VNode {
   );
 }
 
-/** The footer row: centred C_HINT tokens joined by ` · `. Tokens may be clickable. */
+/**
+ * The footer row: centred C_HINT tokens joined by ` · `. Tokens may be
+ * clickable; an `ESC …` string token always is (it sends Escape, kit/esc.tsx).
+ */
 export function Footer(p: { tokens: readonly FooterToken[] }): VNode {
   const { cols } = useGrid();
   const texts = p.tokens.map((t) => (typeof t === 'string' ? t : t.text));
@@ -141,7 +145,11 @@ export function Footer(p: { tokens: readonly FooterToken[] }): VNode {
             <>
               {i > 0 && ' · '}
               {typeof t === 'string' ? (
-                t
+                isEscToken(t) ? (
+                  <EscToken text={t} />
+                ) : (
+                  t
+                )
               ) : (
                 <span class="wc-footer-btn" onClick={t.onClick}>
                   {t.text}
@@ -149,7 +157,7 @@ export function Footer(p: { tokens: readonly FooterToken[] }): VNode {
               )}
             </>
           ))
-        : full}
+        : escHints(full)}
     </div>
   );
 }

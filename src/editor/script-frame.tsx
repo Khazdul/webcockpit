@@ -20,6 +20,7 @@ import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { problemText, scriptState } from '../chrome/frames/scripts-model';
 import { useGrid, useServices } from '../chrome/kit/hooks';
+import { escHints } from '../chrome/kit/esc';
 import { cellLen, centreLeft, scrollbar, truncate } from '../chrome/kit/nav';
 import { type Nav, useIsTop, useKeys, useNav } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
@@ -402,7 +403,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
         class={flash ? (flash.kind === 'ok' ? 'wc-c-accent' : 'wc-c-err') : 'wc-c-hint'}
         role={flash ? 'status' : undefined}
       >
-        {centre}
+        {flash ? centre : escHints(centre)}
       </span>
       <span style={indent(Math.max(2, rightAt - cAt - cellLen(centre)))} />
       <span class={dirty ? 'wc-ped-note' : 'wc-c-hint'}>{right}</span>
