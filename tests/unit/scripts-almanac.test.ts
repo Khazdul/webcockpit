@@ -1,7 +1,8 @@
 // The bundled almanac script (src/scripts/bundled/almanac.lua, stage 18
-// part C), run in the real script host with the real game time API, a fake
-// pane surface and fake time: the condition text parser, add / export /
-// import, the three tabs, the LORE form and reminders.
+// part C and owner round 1), run in the real script host with the real
+// game time API, a fake pane surface and fake time: the three tabs in MUME
+// time, the event editor, reminders, the condition text (the advanced
+// path), add / export / import.
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
@@ -76,7 +77,7 @@ function rowText(c: PaneContent, r: number): string {
   return 'spans' in l ? l.spans.map((s) => s.text).join('') : '';
 }
 
-async function setup(opts: { clock?: 'unset' | 'minute' } = {}) {
+async function setup(opts: { clock?: 'unset' | 'minute'; store?: Record<string, unknown> } = {}) {
   const bus = new Bus();
   const sched = new FakeScheduler();
   const now = () => NOW + sched.now() / 1000;
@@ -101,8 +102,11 @@ async function setup(opts: { clock?: 'unset' | 'minute' } = {}) {
   bus.on('ui.message', (m) => ui.push(m));
   const lib = new ScriptLibrary({ factory: null, bundled: BUNDLED_SCRIPTS });
   await lib.init();
+  for (const [k, v] of Object.entries(opts.store ?? {})) lib.storeSet('almanac', k, v as never);
   await lib.setEnabled('almanac', true);
   const panes = new FakeSurface();
+  // The host's own timer (sysGameTimeEvent), run by advance() on fake time.
+  const timers: Array<{ fn: () => void; at: number; live: boolean }> = [];
   host = new ScriptHost({
     engine,
     bus,
@@ -115,12 +119,29 @@ async function setup(opts: { clock?: 'unset' | 'minute' } = {}) {
     storage: null,
     epoch: now,
     panes,
-    setTimer: () => ({}),
-    clearTimer: () => {},
+    setTimer: (fn, ms) => {
+      const h = { fn, at: sched.now() + ms, live: true };
+      timers.push(h);
+      return h;
+    },
+    clearTimer: (h) => {
+      (h as { live: boolean }).live = false;
+    },
   });
   hosts.push(host);
   await host.start();
   const c = () => panes.pane.content;
+  const editor = () => panes.opened.find((o) => o.spec.id === 'almanac/~edit' && !o.view.closed) ?? null;
+  const ed = () => editor()!.content;
+  const fieldAt = (con: PaneContent, row: number) => con.fields.find((x) => x.row === row)!;
+  const linkClick = (o: { content: PaneContent; events: ScriptPaneEvents }, r: number, text: string) => {
+    const s = rowText(o.content, r);
+    const col = s.indexOf(text);
+    const link = col < 0 ? null : o.content.linkAt(r, col);
+    if (!link) throw new Error(`no link at "${text}" in row ${r}: "${s}"`);
+    o.events.onLink(link.id);
+    return link;
+  };
   const t = {
     bus,
     engine,
@@ -132,41 +153,48 @@ async function setup(opts: { clock?: 'unset' | 'minute' } = {}) {
     sent,
     ui,
     input: (cmd: string) => engine.input(cmd),
+    /** Moves fake time on by `ms`, running the host's and the scripts' timers in order. */
+    advance: (ms: number) => {
+      const end = sched.now() + ms;
+      for (;;) {
+        const due = timers.filter((x) => x.live && x.at <= end).sort((a, b) => a.at - b.at)[0];
+        if (!due) break;
+        if (due.at > sched.now()) sched.advance(due.at - sched.now());
+        due.live = false;
+        due.fn();
+      }
+      if (end > sched.now()) sched.advance(end - sched.now());
+    },
     texts: () => shown.map((d) => d.line.text),
     lastText: () => shown.at(-1)?.line.text ?? '',
     uiText: () => ui.map((m) => `${m.kind === 'event' ? m.name : ''}: ${m.parts.map((p) => (typeof p === 'string' ? p : p.value)).join('')}`),
     errors: () => ui.filter((m) => m.kind === 'error').map((m) => m.parts.map((p) => (typeof p === 'string' ? p : p.value)).join('')),
     rows: () => c().lines.map((_, i) => rowText(c(), i).trimEnd()),
-    /** Clicks the link on row `r` (0-based) at the first cell of `text`. */
-    click: (r: number, text: string) => {
-      const s = rowText(c(), r);
-      const col = s.indexOf(text);
-      const link = col < 0 ? null : c().linkAt(r, col);
-      if (!link) throw new Error(`no link at "${text}" in row ${r}: "${s}"`);
-      panes.pane.events.onLink(link.id);
-      return link;
-    },
+    /** Clicks the main pane's link on row `r` (0-based) at the first cell of `text`. */
+    click: (r: number, text: string) => linkClick(panes.pane, r, text),
     /** The row (0-based) whose text contains `text`, or -1. */
     find: (text: string) => c().lines.findIndex((_, i) => rowText(c(), i).includes(text)),
-    fields: () => c().fields,
-    field: (row: number) => c().fields.find((f) => f.row === row)!,
-    type: (row: number, text: string) => {
-      const f = c().fields.find((x) => x.row === row)!;
-      panes.pane.events.onField!(f.id, { type: 'change', text });
-    },
-    enter: (row: number) => {
-      const f = c().fields.find((x) => x.row === row)!;
-      panes.pane.events.onField!(f.id, { type: 'submit', text: f.value });
-    },
+    editor,
+    edRows: () => ed().lines.map((_, i) => rowText(ed(), i).trimEnd()),
+    edClick: (r: number, text: string) => linkClick(editor()!, r, text),
+    edType: (row: number, text: string) => editor()!.events.onField!(fieldAt(ed(), row).id, { type: 'change', text }),
+    edEnter: (row: number) => editor()!.events.onField!(fieldAt(ed(), row).id, { type: 'submit', text: fieldAt(ed(), row).value }),
+    edEsc: (row: number) => editor()!.events.onField!(fieldAt(ed(), row).id, { type: 'cancel' }),
   };
   return t;
 }
 
+type T = Awaited<ReturnType<typeof setup>>;
+
 /** What `almanac find <cond>` says, without the ALMANAC tag. */
-async function find(t: Awaited<ReturnType<typeof setup>>, cond: string): Promise<string> {
+async function find(t: T, cond: string): Promise<string> {
   t.input(`almanac find ${cond}`);
   return t.lastText().replace(/^ALMANAC /, '');
 }
+
+// The editor's rows (0-based).
+const ED = { name: 0, place: 1, note: 2, season: 4, month: 5, time: 9, hours: 10, moon: 11, waxing: 12, waning: 13, sky: 14,
+  moment: 15, icon: 17, colour: 19, said: 21, buttons: 24 };
 
 describe('bundled almanac', () => {
   it('is listed with its header, alias, setting and help', async () => {
@@ -176,8 +204,9 @@ describe('bundled almanac', () => {
     expect(s).toMatchObject({ bundled: true, readonly: true, problems: [], loadProblem: null, enabled: false });
     expect(s.header.aliases.map((a) => a.name)).toEqual(['almanac']);
     expect(s.settings).toEqual({ remind: 2 });
+    expect(s.header.settings[0]!.label).toMatch(/Game hours before an event/);
     expect(s.header.help.join('\n')).toMatch(/first draft/);
-    expect(s.header.help.join('\n')).toMatch(/almanac export/);
+    expect(s.header.help.join('\n')).toMatch(/event editor/);
   });
 
   it('only uses glyphs of one UTF-16 unit (BMP)', () => {
@@ -198,67 +227,64 @@ describe('bundled almanac', () => {
     expect(t.errors()).toEqual([]);
   });
 
-  it('NOW: date, time, moon, daylight and year bands, and COMING UP with countdowns', async () => {
+  it('NOW: date, game hour, moon, bands and COMING UP, all in MUME time', async () => {
     const t = await setup();
     const rows = t.rows();
+    expect(rows[0]).toBe('  NOW   PLAN   LORE');
     expect(rows[2]).toMatch(/19 Wedmath 2855$/);
     expect(rows[3]).toMatch(/Urui · Summer · \w+day$/);
-    expect(rows[5]).toMatch(/12:00 ☼ day$/);
-    expect(rows[7]).toMatch(/(○|☽|◐|◕|●|◑|☾) [A-Z][a-z]+/);
-    expect(rows[7]).toMatch(/\d+% lit$/);
+    expect(rows[5]).toMatch(/ {3}12 pm ☼ day$/);
+    expect(rows[7]).toMatch(/☽ Waxing crescent +37% lit$/);
+    expect(rows[8]).toMatch(/full in 8d 12h +(rises|sets) in \d+(d \d+)?h$/);
     expect(rows[10]).toMatch(/^ DAYLIGHT +dawn 04 · dusk 22 · 18h light$/);
-    // 12:00: the marker under hour 12 (2 cells an hour from column 2).
     expect(rows[12]!.indexOf('▲')).toBe(1 + 12 * 2);
-    expect(rows[13]).toMatch(/^ ☾ Sunset 22:00 {2}in 10m 00s +real \d\d:\d\d$/);
-    expect(rows[15]).toBe(" YEAR                           Autumn in 16h 36m");
-    expect(rows[16]).toMatch(/^ Aft Sol Ret Ast Thr For Aft Wed Hal Win Blo For$/);
+    expect(rows[13]).toBe(' ☾ Sunset 10 pm  in 10h');
+    expect(rows[15]).toBe(' YEAR                           Autumn in 41d 12h');
+    expect(rows[16]).toBe(' Aft Sol Ret Ast Thr For Aft Wed Hal Win Blo For');
     expect(rows[19]).toMatch(/^ COMING UP +click = remind$/);
-    // Every event with a condition, "now" ones first.
     const list = rows.slice(20);
-    expect(list).toHaveLength(16);
-    expect(list.find((r) => r.includes('Sundeath'))).toMatch(/now$/);
+    expect(list).toHaveLength(15);
+    expect(t.find('Sundeath')).toBe(-1);
     expect(list.find((r) => r.includes('Black Ice open'))).toMatch(/now$/);
-    expect(list.find((r) => r.includes('Spirit Knight door'))).toMatch(/no winter 00–03 +12m 00s$/);
-    expect(list.find((r) => r.includes('Dead Knight slab'))).toMatch(/moonrise ◕\|●/);
-    const firstLater = list.findIndex((r) => !r.endsWith('now'));
-    expect(list.slice(firstLater).every((r) => !r.endsWith('now'))).toBe(true);
-    // The countdowns tick.
-    const before = list.find((r) => r.includes('Spirit Knight door'));
-    // A game minute is a real second.
-    t.sched.advance(61_000);
-    expect(t.rows().find((r) => r.includes('Spirit Knight door'))).not.toBe(before);
-    expect(t.rows()[5]).toMatch(/13:01 ☼ day$/);
+    expect(list.find((r) => r.includes('Spirit Knight door'))).toMatch(/no winter 00–… +in 12h$/);
+    expect(list.find((r) => r.includes('Ingrove warg pack'))).toMatch(/in 156d 4h$/);
+    // No seconds anywhere, and nothing ticks within a game hour.
+    expect(rows.join('\n')).not.toMatch(/\d+s\b|\d+m \d/);
+    t.advance(30_000);
+    expect(t.rows()).toEqual(rows);
+    // The next game hour (a real minute) redraws.
+    t.advance(31_000);
+    expect(t.rows()[5]).toMatch(/ {3}1 pm ☼ day$/);
+    expect(t.rows().find((r) => r.includes('Spirit Knight door'))).toMatch(/in 11h$/);
     expect(t.errors()).toEqual([]);
   });
 
-  it('no work while the pane is off: the ticker stops, and the rows stay', async () => {
+  it('no work while the pane is off; shown again it is up to date', async () => {
     const t = await setup();
     t.input('almanac');
     expect(t.panes.pane.view.on).toBe(false);
     const rows = t.rows();
-    t.sched.advance(30_000);
+    t.advance(90_000);
     expect(t.rows()).toEqual(rows);
     t.input('almanac');
     expect(t.panes.pane.view.on).toBe(true);
-    expect(t.rows()[5]).toMatch(/12:30 ☼ day$/);
+    expect(t.rows()[5]).toMatch(/ {3}1 pm ☼ day$/);
   });
 
-  it('a click on an event turns its reminder on; it comes N minutes before', async () => {
+  it('a click on an event turns its reminder on; it comes N game hours before', async () => {
     const t = await setup();
     const r = t.find('Overseer slab');
     const link = t.click(r, 'Overseer slab');
-    expect(link.hint).toMatch(/Click: remind me 2 min before/);
-    expect(t.lastText()).toBe('ALMANAC Reminder 2 min before Overseer slab.');
+    expect(link.hint).toMatch(/Click: remind me 2 game hours before/);
+    expect(t.lastText()).toBe('ALMANAC Reminder 2 game hours before Overseer slab.');
     expect(t.rows()[r]).toMatch(/^ ♪ Overseer slab/);
-    // Sunrise is at 04:00 the next game day: 16 game hours (960 real seconds)
-    // away; the reminder comes 2 real minutes before.
-    t.sched.advance((960 - 120 - 1) * 1000);
+    // Sunrise is at 4 am the next game day: 16 game hours away; the reminder 2 game hours before.
+    t.advance((16 - 2) * 60_000 - 1000);
     expect(t.uiText().filter((x) => x.startsWith('ALMANAC:'))).toEqual([]);
-    t.sched.advance(2000);
+    t.advance(2000);
     expect(t.uiText().filter((x) => x.startsWith('ALMANAC:'))).toEqual([
-      expect.stringMatching(/^ALMANAC: Overseer slab in 1m 5\ds \(\d\d:\d\d local\), Wyrdda ford/),
+      expect.stringMatching(/^ALMANAC: Overseer slab in 2h \(\d\d:\d\d local time\), Wyrdda ford/),
     ]);
-    // Off again.
     t.click(t.find('Overseer slab'), 'Overseer slab');
     expect(t.lastText()).toBe('ALMANAC No reminder for Overseer slab.');
   });
@@ -273,21 +299,17 @@ describe('bundled almanac', () => {
     expect(rows[2]).toMatch(/^ {2}◂ /);
     expect(rows[3]).toBe('   Mo     Tu     We     Th     Fr     Sa     Su');
     expect(rows[10]).toBe(' ❄ Ingrove pack  ◆ season starts  • today');
-    // Today's cell has the dot; the selected day is today.
     expect(rows.slice(4, 10).join('\n')).toContain('•');
     expect(rows[12]).toMatch(new RegExp(`^ \\w+day ${d.getDate()} `));
     expect(rows[13]).toMatch(/^ (Winter|Spring|Summer|Autumn) (all day|→ \w+ at \d\d:\d\d)$/);
     expect(rows[14]).toMatch(/^ Daylight \d+h( → \d+h)* · night \d+h( → \d+h)*$/);
-    // A day: its details.
     const r1 = rows.findIndex((x, i) => i >= 4 && / 1 /.test(x));
     t.click(r1, ' 1 ');
     expect(t.rows()[12]).toMatch(/^ \w+day 1 /);
-    // Next month by ▸, back by the wheel.
     t.click(2, '▸');
     expect(t.rows()[2]).not.toContain(title);
     expect(t.panes.pane.events.onWheel!(0, -1)).toBe(true);
     expect(t.rows()[2]).toContain(title);
-    // Every day of a year: Ingrove marks and season starts come from the API.
     let ingrove = 0;
     let starts = 0;
     for (let i = 0; i < 12; i++) {
@@ -296,74 +318,141 @@ describe('bundled almanac', () => {
       ingrove += [...grid].filter((ch) => ch === '❄').length;
       starts += [...grid].filter((ch) => ch === '◆').length;
     }
-    // A game year is six real days: about 60 seasons a real year, a quarter of them winter.
     expect(starts).toBeGreaterThan(50);
     expect(ingrove).toBeGreaterThan(20);
     expect(t.errors()).toEqual([]);
   });
 
-  it('LORE: every event with its condition and place; the form adds one', async () => {
+  it('LORE: every event with its condition and place', async () => {
     const t = await setup();
     t.click(0, 'LORE');
-    let rows = t.rows();
+    const rows = t.rows();
     expect(rows[0]).toMatch(/\[\+ add\]$/);
     const dk = t.find('Dead Knight slab');
     expect(rows[dk]).toMatch(/Dead Knight slab +moonrise waxing gibbous\|full$/);
     expect(rows[dk + 1]).toBe('   Barrow by Nen-i-Sul');
     expect(t.panes.pane.content.linkAt(dk, 4)!.hint).toMatch(/Source: Faine, strategy\.txt \(Dead Knight\)/);
     expect(rows[t.find('Juniper')]).toMatch(/season unknown$/);
-    expect(rows.at(-1)).toMatch(/20 bundled, 0 your own/);
-
-    // The form.
-    t.click(0, '[+ add]');
-    rows = t.rows();
-    expect(rows.slice(2, 6).map((r) => r.trim())).toEqual(['Name', 'When', 'Place', 'Note']);
-    expect(t.fields().map((f) => f.row)).toEqual([2, 3, 4, 5]);
-    expect(t.panes.pane.view.focused.at(-1)).toEqual([t.field(2).id, false]);
-    t.type(2, 'Troll bridge');
-    t.type(3, 'night not wintr');
-    expect(t.rows()[6]).toMatch(/^ unknown word "wintr"/);
-    t.type(3, 'night not winter');
-    expect(t.rows()[6]).toBe(' → not winter night');
-    t.type(4, 'Bree, west gate');
-    // The fields stay while the status line changes.
-    expect(t.fields()).toHaveLength(4);
-    t.enter(4);
-    expect(t.lastText()).toBe('ALMANAC Added Troll bridge: not winter night.');
-    rows = t.rows();
-    expect(rows[0]).toMatch(/\[\+ add\]$/);
-    const tb = t.find('Troll bridge');
-    expect(rows[tb]).toMatch(/✧ Troll bridge +not winter night$/);
-    expect(rows[tb + 1]).toMatch(/^ {3}Bree, west gate +✖$/);
-    expect(rows.at(-1)).toMatch(/20 bundled, 1 your own/);
-    // On NOW too.
-    t.click(0, 'NOW');
-    expect(t.find('Troll bridge')).toBeGreaterThan(20);
-    // Delete from LORE.
-    t.click(0, 'LORE');
-    t.click(t.find('Troll bridge') + 1, '✖');
-    expect(t.find('Troll bridge')).toBe(-1);
-    expect(t.errors()).toEqual([]);
-  });
-
-  it('the form says what is wrong: no name, a taken name, a bad condition', async () => {
-    const t = await setup();
-    t.input('almanac lore');
-    t.click(0, '[+ add]');
-    t.type(3, 'winter');
-    t.enter(3);
-    expect(t.rows()[6]).toBe(' give the event a name');
-    t.type(2, 'Sundeath');
-    t.enter(2);
-    expect(t.rows()[6]).toBe(' "Sundeath" is already in the list');
-    t.type(2, 'Mine');
-    t.type(3, 'sunrise or moonrise');
-    t.enter(3);
-    expect(t.rows()[6]).toBe(' "or" does not work with moments: give one');
+    expect(t.find('Sundeath')).toBe(-1);
+    expect(rows.at(-1)).toMatch(/19 bundled, 0 your own/);
   });
 });
 
-describe('almanac condition text', () => {
+describe('the event editor', () => {
+  it('opens from LORE; clicks choose; it says what was chosen and when it comes; Save adds the event', async () => {
+    const t = await setup();
+    t.click(0, 'LORE');
+    t.click(0, '[+ add]');
+    const e = t.editor()!;
+    expect(e.spec).toMatchObject({ id: 'almanac/~edit', temporary: { rows: 25, cols: 56 } });
+    expect(e.content.title).toBe('New event');
+    const rows = t.edRows();
+    expect(rows.slice(0, 3).map((r) => r.trim())).toEqual(['Name', 'Place', 'Note']);
+    expect(e.content.fields.map((f) => [f.row, f.col])).toEqual([[0, 9], [1, 9], [2, 9]]);
+    expect(e.view.focused.at(-1)).toEqual([e.content.fields[0]!.id, false]);
+    expect(rows[ED.season]).toBe(' Season   any   winter   spring   summer   autumn');
+    expect(rows[ED.month]).toMatch(/^ Month    Afteryule   Solmath   Rethe +any$/);
+    expect(rows[ED.month + 3]).toBe('          Winterfilth   Blotmath   Foreyule');
+    expect(rows[ED.time]).toBe(' Time     any   dawn   day   dusk   night');
+    expect(rows[ED.hours]).toBe(' Hours    any   from ◂ 00 ▸  to ◂ 03 ▸');
+    expect(rows[ED.moon]).toBe(' Moon     any   ○ new   ● full');
+    expect(rows[ED.waxing]).toBe('  waxing  ☽ crescent   ◐ quarter   ◕ gibbous');
+    expect(rows[ED.waning]).toBe('  waning  ◕ gibbous   ◑ quarter   ☾ crescent');
+    expect(rows[ED.sky]).toBe(' Sky      any   moon up   moon down');
+    expect(rows[ED.moment]).toBe(' Moment   none   sunrise   sunset   midnight');
+    expect(rows[ED.moment + 1]).toBe('          moonrise   moonset   season start');
+    expect(rows[ED.icon]).toBe(' Icon     ✧  ★  ◆  ◊  ♦  ☾  ☽  ☼  ☉  ❄  ✿  ☘');
+    expect(rows[ED.colour]).toBe(' Colour  [✧]  ✧   ✧   ✧   ✧   ✧   ✧   ✧');
+    expect(rows[ED.said]).toBe(' Choose a season, a time of day, the moon or a moment.');
+    expect(rows[ED.buttons]).toBe('  Save    Cancel');
+    // A chosen chip is lit (the glow shade behind it).
+    const winterLink = e.content.linkAt(ED.season, rows[ED.season]!.indexOf('winter'))!;
+    expect(winterLink.hint).toBe('Toggle winter');
+
+    t.edType(ED.name, 'Troll pack');
+    t.edType(ED.place, 'Wolf Glade');
+    t.edClick(ED.season, 'winter');
+    t.edClick(ED.moon, '● full');
+    expect(t.edRows()[ED.said]).toBe(' Winter, full moon. Next: in 156d 4h.');
+    t.edClick(ED.icon, '❄');
+    expect(t.edRows()[ED.colour]).toBe(' Colour  [❄]  ❄   ❄   ❄   ❄   ❄   ❄   ❄');
+    t.edClick(ED.colour, ' ❄   ❄   ❄   ❄   ❄   ❄'); // the second colour (gold)
+    expect(t.edRows()[ED.colour]).toBe(' Colour   ❄  [❄]  ❄   ❄   ❄   ❄   ❄   ❄');
+    // Toggling a chip twice takes it back; "any" clears the kind.
+    t.edClick(ED.season, 'spring');
+    expect(t.edRows()[ED.said]).toMatch(/^ Winter or spring, full moon\./);
+    t.edClick(ED.season, 'spring');
+    t.edClick(ED.time, 'night');
+    expect(t.edRows()[ED.said]).toMatch(/^ Winter, at night, full moon\. Next: /);
+    t.edClick(ED.time, 'any');
+    t.edClick(ED.buttons, 'Save');
+    expect(t.editor()).toBeNull();
+    expect(t.lastText()).toBe('ALMANAC Added Troll pack: Winter, full moon.');
+    const r = t.find('Troll pack');
+    expect(t.rows()[r]).toMatch(/^ ❄ Troll pack +full winter$/);
+    expect(t.rows()[r + 1]).toMatch(/^ {3}Wolf Glade +edit ✖$/);
+    expect(t.rows().at(-1)).toMatch(/19 bundled, 1 your own/);
+    // On NOW too.
+    t.click(0, 'NOW');
+    expect(t.find('Troll pack')).toBeGreaterThan(19);
+    expect(t.errors()).toEqual([]);
+  });
+
+  it('edits an event of yours: the choices come back; Save replaces it, its reminder kept', async () => {
+    const t = await setup();
+    t.input('almanac add Bridge = night not winter @ Bree');
+    t.input('almanac remind Bridge');
+    t.input('almanac lore');
+    const r = t.find('Bridge');
+    t.click(r + 1, 'edit');
+    expect(t.editor()!.content.title).toBe('Edit: Bridge');
+    expect(t.editor()!.content.fields.map((f) => f.value)).toEqual(['Bridge', 'Bree', '']);
+    // not winter is the other three seasons.
+    expect(t.edRows()[ED.said]).toMatch(/^ Spring, summer or autumn, at night\. Next: /);
+    t.edType(ED.name, 'Troll bridge');
+    t.edClick(ED.hours, '▸');
+    expect(t.edRows()[ED.hours]).toBe(' Hours    any   from ◂ 01 ▸  to ◂ 03 ▸');
+    t.edEnter(ED.name);
+    expect(t.lastText()).toBe('ALMANAC Saved Troll bridge: Spring, summer or autumn, at night, from 01:00 to 03:00.');
+    expect(t.find('Bridge')).toBe(-1);
+    expect(t.rows()[t.find('Troll bridge')]).toContain('spring|summer|autumn hours 1-');
+    t.click(0, 'NOW');
+    expect(t.rows()[t.find('Troll bridge')]).toMatch(/^ ♪ Troll bridge/);
+    // almanac edit opens it too; Esc closes without saving.
+    t.input('almanac edit troll bridge');
+    t.edType(ED.name, 'Nothing');
+    t.edEsc(ED.name);
+    expect(t.editor()).toBeNull();
+    expect(t.find('Troll bridge')).toBeGreaterThan(0);
+    t.input('almanac edit Black Ice open');
+    expect(t.lastText()).toBe('ALMANAC Black Ice open is bundled: only your own events can be changed.');
+    // Delete from LORE.
+    t.input('almanac lore');
+    t.click(t.find('Troll bridge') + 1, '✖');
+    expect(t.find('Troll bridge')).toBe(-1);
+  });
+
+  it('says what is missing: a name, a choice, a free name, two different hours', async () => {
+    const t = await setup();
+    t.input('almanac add');
+    t.edClick(ED.buttons, 'Save');
+    expect(t.edRows()[ED.buttons - 1]).toBe(' Give the event a name.');
+    t.edType(ED.name, 'Black Ice open');
+    t.edClick(ED.buttons, 'Save');
+    expect(t.edRows()[ED.buttons - 1]).toBe(' Choose when: a season, a time, the moon or a moment.');
+    t.edClick(ED.moment, 'sunrise');
+    t.edClick(ED.buttons, 'Save');
+    expect(t.edRows()[ED.buttons - 1]).toBe(' "Black Ice open" is already in the list.');
+    t.edType(ED.name, 'Dawn walk');
+    t.edClick(ED.hours, '◂ 03'.slice(0, 1)); // from ◂: 00 → 23
+    expect(t.edRows()[ED.hours]).toBe(' Hours    any   from ◂ 23 ▸  to ◂ 03 ▸');
+    t.edClick(ED.buttons, 'Cancel');
+    expect(t.editor()).toBeNull();
+    expect(t.find('Dawn walk')).toBe(-1);
+  });
+});
+
+describe('almanac condition text (the advanced path)', () => {
   it('reads the short syntax into a gameTimeFind condition (shown in its canonical form)', async () => {
     const t = await setup();
     const cases: Array<[string, string]> = [
@@ -420,52 +509,59 @@ describe('almanac condition text', () => {
     expect(t.errors()).toEqual([]);
   });
 
-  it('find tells when a condition comes next', async () => {
+  it('find tells when a condition comes next, in game time', async () => {
     const t = await setup();
-    expect(await find(t, 'day')).toMatch(/^day: now, until \d\d:\d\d \(10m 00s\)\.$/);
-    expect(await find(t, 'sunset')).toMatch(/^sunset: in 10m 00s, at \d\d:\d\d local \(19 Wedmath 22:00\)\.$/);
-    expect(await find(t, 'winter')).toMatch(/^winter: in 2d 04h, at .* local \(1 Afteryule 00:00\) for 1d 12h\.$/);
+    expect(await find(t, 'day')).toBe('day: now, for 10h.');
+    expect(await find(t, 'sunset')).toBe('sunset: in 10h (19 Wedmath, 10 pm).');
+    expect(await find(t, 'winter')).toBe('winter: in 131d 12h (1 Afteryule, 12 am), for 90d.');
   });
 });
 
 describe('almanac add, export and import', () => {
-  it('almanac add takes a name, a condition, a place and a note', async () => {
+  it('almanac add with text takes a name, a condition, a place and a note; without, it opens the editor', async () => {
     const t = await setup();
     t.input('almanac add Bree market = day not winter @ Bree // buy rope');
-    expect(t.lastText()).toBe('ALMANAC Added Bree market: not winter day @ Bree.');
+    expect(t.lastText()).toBe('ALMANAC Added Bree market: Not in winter, by day. @ Bree');
     t.input('almanac add Bree market = night');
     expect(t.lastText()).toBe('ALMANAC "Bree market" is already in the list');
     t.input('almanac add Nothing = blue moon');
     expect(t.lastText()).toMatch(/^ALMANAC unknown word "blue"/);
-    t.input('almanac add no equals sign');
-    expect(t.lastText()).toMatch(/^ALMANAC Usage: almanac add/);
-    t.input('almanac remove Sundeath');
-    expect(t.lastText()).toBe('ALMANAC Sundeath is bundled: only your own events can be removed.');
+    expect(t.editor()).toBeNull();
+    t.input('almanac add');
+    expect(t.editor()).not.toBeNull();
+    t.input('almanac remove Black Ice open');
+    expect(t.lastText()).toBe('ALMANAC Black Ice open is bundled: only your own events can be removed.');
     t.input('almanac remove bree market');
     expect(t.lastText()).toBe('ALMANAC Removed Bree market.');
   });
 
-  it('export and import round-trip, with escapes, and import adds only what is missing', async () => {
+  it('keeps events stored before round 1 (no icon) and gives them the default icon', async () => {
+    const t = await setup({ store: { events: [{ name: 'Old one', when: 'night', where: 'Bree', note: '' }] } });
+    t.input('almanac lore');
+    expect(t.rows()[t.find('Old one')]).toMatch(/^ ✧ Old one +night$/);
+  });
+
+  it('export and import round-trip, with escapes, icon and colour; import adds only what is missing', async () => {
     const t = await setup();
     t.input('almanac export');
     expect(t.lastText()).toMatch(/no events of your own/);
-    // The form takes any text; the alias line would split at ; (the input line's separator).
-    t.input('almanac lore');
-    t.click(0, '[+ add]');
-    t.type(2, 'Troll bridge');
-    t.type(3, 'night not winter');
-    t.type(4, 'Bree; west gate');
-    t.type(5, 'say {open} $now & 100% ~ ^ = \\ #x');
-    t.enter(5);
+    // The editor takes any text; the alias line would split at ; (the input line's separator).
+    t.input('almanac add');
+    t.edType(ED.name, 'Troll bridge');
+    t.edType(ED.place, 'Bree; west gate');
+    t.edType(ED.note, 'say {open} $now & 100% ~ ^ = \\ #x');
+    t.edClick(ED.time, 'night');
+    t.edClick(ED.season, 'spring');
+    t.edClick(ED.icon + 1, '⚓');
+    t.edClick(ED.colour, ' ⚓   ⚓   ⚓   ⚓   ⚓   ⚓');
+    t.edClick(ED.buttons, 'Save');
     t.input('almanac add Spring dawn = sunrise spring');
     t.input('almanac add Full = moonrise waxing gibbous|full @ Barrow');
     t.input('almanac export');
     const line = t.lastText();
     expect(line).toMatch(/^ALM1:/);
-    // Nothing the input line would take: no ; $ & { } \ or %.
     expect(line).not.toMatch(/[;$&{}\\%]/);
     expect(line.split('~')).toHaveLength(3);
-    // Import into a fresh almanac.
     hosts.splice(0).forEach((h) => h.dispose());
     const u = await setup();
     u.input(`almanac import ${line}`);
@@ -474,13 +570,13 @@ describe('almanac add, export and import', () => {
     expect(u.lastText()).toBe(line);
     u.input('almanac lore');
     const r = u.find('Troll bridge');
+    expect(u.rows()[r]).toMatch(/^ ⚓ Troll bridge +spring night$/);
     expect(u.rows()[r + 1]).toMatch(/^ {3}Bree; west gate/);
     expect(u.panes.pane.content.linkAt(r, 4)!.hint).toMatch(/^say \{open\} \$now & 100% ~ \^ = \\ #x\n/);
-    // Again: all there.
     u.input(`almanac import ${line}`);
     expect(u.lastText()).toBe('ALMANAC Imported 0 events, 3 already there.');
-    // Bad rows are reported, good ones added.
-    u.input('almanac import ALM1:A^winter~B^blue~Sundeath^day');
+    // A line from before round 1 (four fields) still imports.
+    u.input('almanac import ALM1:A^winter~B^blue~Black Ice open^day');
     expect(u.texts().slice(-2)).toEqual(['ALMANAC Imported 1 event, 1 already there, 1 skipped.', 'ALMANAC Skipped B: unknown word "blue": use seasons (winter …), months, dawn, day, dusk, night, hours 0-3, moon phases (new … full), moon up, moon down, or one moment: sunrise, sunset, midnight, moonrise, moonset, season start']);
     u.input('almanac import ALM2:X^day');
     expect(u.lastText()).toMatch(/newer almanac \(ALM2\)/);

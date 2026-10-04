@@ -1,56 +1,51 @@
 -- @name     almanac
 -- @summary  MUME's seasons, moon and time-bound events in a pane, with a planner
 -- @api      1
--- @alias    almanac  Show or hide the Almanac pane (also: almanac now, plan, lore, list, find, add, remove, remind, export, import)
--- @setting  remind  number  2  "Real minutes before an event that a reminder comes"
--- @help     The Almanac pane follows MUME's clock: the game date and time,
+-- @alias    almanac  Show or hide the Almanac pane (also: almanac now, plan, lore, add, edit, remove, remind, list, export, import)
+-- @setting  remind  number  2  "Game hours before an event that a reminder comes (a game hour is a real minute)"
+-- @help     The Almanac pane follows MUME's clock: the game date and hour,
 -- @help     the moon, day and night, the seasons, and the things in Arda
 -- @help     that only happen at certain times (the Dead Knight's slab at
 -- @help     moonrise, the Ingrove wargs at a winter full moon, the Spirit
--- @help     Knight's door after midnight …). Three tabs:
+-- @help     Knight's door after midnight …). Times are MUME time: "in 5h"
+-- @help     is five game hours (five real minutes). Three tabs:
 -- @help
--- @help       NOW   the moon, the time, the daylight band, the year band
+-- @help       NOW   the moon, the hour, the daylight band, the year band
 -- @help             and COMING UP: each event with a countdown, or "now".
 -- @help             Click an event to get a reminder (a line in the game
--- @help             window and a UI message) a few minutes before.
+-- @help             window and a UI message) a few game hours before.
 -- @help       PLAN  a calendar of real days: each day shows the seasons it
 -- @help             passes through. Click a day for its full moons, Dead
 -- @help             Knight windows and season start. The wheel or ◂ ▸
 -- @help             change the month.
 -- @help       LORE  every event with its condition and place; point at a
--- @help             name for the note and the source. [+ add] adds your own.
+-- @help             name for the note and the source.
+-- @help
+-- @help     Your own events: [+ add] on LORE (or almanac add) opens the
+-- @help     event editor. Type a name, a place and a note, then click what
+-- @help     must hold: seasons, months, the time of day, hours, the moon's
+-- @help     phase, the moon up or down, or one moment such as moonrise.
+-- @help     Pick an icon and a colour. The editor says in words what you
+-- @help     chose and when it comes next; Save keeps it. "edit" on LORE
+-- @help     (or almanac edit <name>) changes one of yours.
 -- @help
 -- @help     The clock must know the hour: type time in the game, or wait
 -- @help     for the next sunrise or sunset.
 -- @help
--- @help     A condition is a few words, all of which must hold:
--- @help       seasons      winter spring summer autumn, not winter
--- @help       months       Afteryule … Foreyule (or the Sindarin names)
--- @help       day parts    dawn day dusk night, daylight (dawn or day),
--- @help                    dark (dusk or night)
--- @help       hours        hours 0-3 (to 3:00), hours 22-2, hour 5
--- @help       moon         new, waxing crescent, first quarter, waxing
--- @help                    gibbous, full, waning gibbous, third quarter,
--- @help                    waning crescent; waxing, waning, crescent,
--- @help                    gibbous and quarter for both kinds; moon up,
--- @help                    moon down
--- @help       one moment   sunrise, sunset, midnight, moonrise, moonset,
--- @help                    season start
--- @help     Join choices of one kind with | or "or": autumn|winter,
--- @help     moonrise waxing gibbous or full. Words such as in, at, during,
--- @help     and, moon are skipped: "full moon in winter" works.
--- @help
 -- @help       almanac             show or hide the pane
 -- @help       almanac now|plan|lore   show the pane on that tab
--- @help       almanac list        the events and when they come, as text
--- @help       almanac find <when> test a condition: when it comes next
--- @help       almanac add <name> = <when> [@ <place>] [// <note>]
--- @help                           for example: almanac add Bree market =
--- @help                           day not winter @ Bree // buy rope
+-- @help       almanac add         the event editor
+-- @help       almanac edit <name>     change one of your events
 -- @help       almanac remove <name>   remove one of your events
 -- @help       almanac remind <name>   turn its reminder on or off
+-- @help       almanac list        the events and when they come, as text
 -- @help       almanac export      one line with your events, to share
 -- @help       almanac import <line>   add the events of such a line
+-- @help
+-- @help     For typing instead of clicking: almanac add <name> = <when>
+-- @help     [@ <place>] [// <note>] and almanac find <when> take a short
+-- @help     text such as "winter full", "moonrise waxing gibbous|full" or
+-- @help     "hours 0-3 not winter".
 -- @help
 -- @help     The bundled list is a first draft. Your own events and
 -- @help     reminders are kept over a reload.
@@ -65,14 +60,16 @@ says when the hour, the moon or the season changes and when the clock was
 set from the game.
 
 An event's condition is a gameTimeFind table. The bundled events are the
-EVENTS table below; the player's own are kept in the store as text
-("winter full", "hours 0-3 not winter") and turned into a table by
-parseWhen, which also gives the error messages the LORE form shows.
+EVENTS table below. The player builds their own in the event editor with
+clicks; they are kept in the store with the condition as short text
+("full winter", "not winter hours 0-3"), which parseWhen turns back into
+a table. The same text is the export format and an advanced alias path.
 
 The pane is a grid of cells, as the mock-up: put() writes text with a
 style (colour, background, bold, a click action, a tooltip), flush() turns
 each row into a pane line with colour tags and links, and writes only the
-rows that changed. The NOW tab ticks once a second while the pane is on;
+rows that changed. The pane redraws once a game hour (a real minute, on
+sysGameTimeEvent "hour") and on clicks; nothing ticks in between, and
 nothing runs while it is off, except the timer of a reminder you set.
 gameTimeFind answers are kept until the next sysGameTimeEvent or until
 their window has passed.
@@ -104,10 +101,6 @@ local EVENTS = {
     when = { period = { "night" }, moonVisible = true },
     note = "Ancient Dwarven Home: needs a cloudless night and moonlight.",
     source = "Faine, strategy.txt" },
-  { name = "Sundeath", icon = "☼", color = "#ffb000", where = "Anywhere outdoors",
-    when = { period = { "dawn", "day" } },
-    note = "Trolls in a sunlit room die. Get indoors before dawn.",
-    source = "mume.org wiki" },
   { name = "Spirit Knight door", icon = "⚔", color = "#c0c8d4", where = "Morthan s 2w 4s e 2s w",
     when = { hours = { from = 0, to = 3 }, notSeason = { "winter" } },
     note = "Say 'open durin' after midnight (dwarves any time). Impossible in winter: the water is frozen.",
@@ -232,14 +225,22 @@ end
 local function shade(rgb, f) return { rgb[1] * f, rgb[2] * f, rgb[3] * f } end
 local function mix(a, b, f) return { a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f, a[3] + (b[3] - a[3]) * f } end
 
--- A countdown: "2d 05h", "3h 07m", "4m 09s", "12s".
+-- A span of real seconds in MUME time: game days and hours ("2d 14h",
+-- "5h", "3d"), rounded up to the hour (a game minute is a real second,
+-- and the pane redraws once a game hour).
 local function dur(secs)
-  local s = math.max(0, math.floor(secs))
-  local d, h, m = s // 86400, s % 86400 // 3600, s % 3600 // 60
-  if d > 0 then return d .. "d " .. pad2(h) .. "h" end
-  if h > 0 then return h .. "h " .. pad2(m) .. "m" end
-  if m > 0 then return m .. "m " .. pad2(s % 60) .. "s" end
-  return (s % 60) .. "s"
+  local h = math.max(1, math.ceil(secs / 60))
+  local d = h // 24
+  h = h % 24
+  if d == 0 then return h .. "h" end
+  if h == 0 then return d .. "d" end
+  return d .. "d " .. h .. "h"
+end
+
+-- A game hour as MUME says it: "8 am", "12 pm" (noon), "12 am" (midnight).
+local function ampm(hour)
+  local h12 = hour % 12 == 0 and 12 or hour % 12
+  return h12 .. (hour < 12 and " am" or " pm")
 end
 
 -- Real local time "14:05", with the weekday when it is more than 20 hours away.
@@ -468,7 +469,8 @@ end
 
 -- ------------------------------------------------------------ the event list
 
--- The player's own events: { name, when (text), where, note } in the store.
+-- The player's own events: { name, when (text), where, note, icon, color }
+-- in the store (icon and color came in round 1; older records lack them).
 local own = {}
 local reminders = {}   -- event name -> true
 local fired = {}       -- event name -> start of the window already reminded
@@ -488,16 +490,31 @@ local function findEvent(name)
   return nil
 end
 
+-- The icons and colours an own event can have (all in DejaVu Sans Mono,
+-- the glyph fallback of every bundled font).
+local ICONS = { "✧", "★", "◆", "◊", "♦", "☾", "☽", "☼", "☉", "❄", "✿", "☘",
+  "⚑", "⚔", "⚒", "⚓", "⚱", "⌂", "◈", "✝", "☠", "♠", "♣", "≈" }
+local COLOURS = {
+  { "#c0c8d4", "grey" }, { "#ffb000", "gold" }, { "#ff6b6b", "red" }, { "#e88a42", "orange" },
+  { "#9fd18a", "green" }, { "#9cc8ff", "blue" }, { "#d8d2ff", "lilac" }, { "#d58bd8", "pink" },
+}
+local function known(list, v, key)
+  for _, x in ipairs(list) do if (key and x[key] or x) == v then return v end end
+  return nil
+end
+
 -- An own event from its stored record (its condition parsed).
 local function ownEvent(r)
   local cond, err = parseWhen(r.when)
   return { name = r.name, when = cond, whenText = r.when, bad = err, where = r.where or "", note = r.note or "",
-    icon = "✧", color = C.own, own = true, source = "Your own event" }
+    icon = known(ICONS, r.icon) or "✧", color = known(COLOURS, r.color, 1) or C.own, own = true, source = "Your own event" }
 end
 
 local function saveOwn()
   local list = {}
-  for _, e in ipairs(own) do list[#list + 1] = { name = e.name, when = e.whenText, where = e.where, note = e.note } end
+  for _, e in ipairs(own) do
+    list[#list + 1] = { name = e.name, when = e.whenText, where = e.where, note = e.note, icon = e.icon, color = e.color }
+  end
   store.set("events", list)
 end
 
@@ -508,16 +525,34 @@ local function saveReminders()
   store.set("remind", list)
 end
 
--- Adds an own event; returns it, or nil and a message.
-local function addEvent(name, when, where, note)
+-- Adds an own event (or replaces `replaces`, an own event's name); returns
+-- it, or nil and a message.
+local function addEvent(name, when, where, note, icon, color, replaces)
   name, when, where, note = clean(name), trim(when or ""), clean(where), clean(note)
   if name == "" then return nil, "give the event a name" end
   if utf8.len(name) > 40 then return nil, "the name is longer than 40 characters" end
-  if findEvent(name) then return nil, '"' .. name .. '" is already in the list' end
+  local other = findEvent(name)
+  if other and not (replaces and other.name:lower() == replaces:lower()) then
+    return nil, '"' .. name .. '" is already in the list'
+  end
   local cond, err = parseWhen(when)
   if not cond then return nil, err end
-  local e = ownEvent({ name = name, when = condText(cond), where = where, note = note })
-  own[#own + 1] = e
+  local e = ownEvent({ name = name, when = condText(cond), where = where, note = note, icon = icon, color = color })
+  local at = nil
+  if replaces then
+    for i, x in ipairs(own) do if x.name:lower() == replaces:lower() then at = i end end
+  end
+  if at then
+    local old = own[at].name
+    own[at] = e
+    if reminders[old] then
+      reminders[old] = nil
+      reminders[e.name] = true
+      saveReminders()
+    end
+  else
+    own[#own + 1] = e
+  end
   saveOwn()
   return e
 end
@@ -562,7 +597,9 @@ end
 local function exportLine()
   local parts = {}
   for _, e in ipairs(own) do
-    local f = { esc(e.name), esc(e.whenText), esc(e.where or ""), esc(e.note or "") }
+    -- Fields 5 and 6 (icon, colour) are new in round 1; an older almanac
+    -- reads the first four and ignores them.
+    local f = { esc(e.name), esc(e.whenText), esc(e.where or ""), esc(e.note or ""), esc(e.icon or ""), esc(e.color or "") }
     while #f > 2 and f[#f] == "" do f[#f] = nil end
     parts[#parts + 1] = table.concat(f, FSEP)
   end
@@ -584,7 +621,7 @@ local function importLine(line)
       if findEvent(name) then
         there = there + 1
       else
-        local e, err = addEvent(name, when, unesc(f[3] or ""), unesc(f[4] or ""))
+        local e, err = addEvent(name, when, unesc(f[3] or ""), unesc(f[4] or ""), unesc(f[5] or ""), unesc(f[6] or ""))
         if e then added = added + 1 else bad[#bad + 1] = (name ~= "" and name or "?") .. ": " .. err end
       end
     end
@@ -625,24 +662,37 @@ end
 -- ------------------------------------------------------------ the pane
 
 local pane = createPane{ id = "main", title = "Almanac", short = "ALMA", dock = "right", lane = "own", rows = 27, cols = 50, anchor = "top" }
-local W, H = 50, 27
 local tab = "now"
-local loreForm = false
-local status = { text = "", err = false }
-local form = { name = "", when = "", place = "", note = "" }
 local plan = nil   -- { y, m, sel }
+
+-- A surface: a pane and what was last written to it. The main pane and the
+-- event editor each have one; use(s) makes it the one put() and flush()
+-- work on, and W its width.
+local function surface(p, width)
+  return { pane = p, W = width, grid = { n = 0 }, shown = {}, shownN = 0, fields = {}, wantFields = {}, touched = {} }
+end
+local main = surface(pane, 50)
+local S = main
+local W = 50
+local function use(s)
+  S = s
+  W = s.W
+end
 
 -- The grid: rows of cells, each a character and a style table
 -- { fg, bg, b, act, tip }. Cells of one put() share a style.
 local NONE = {}
-local grid = { n = 0 }
 
-local function newGrid() grid = { n = 0 } end
+local function newGrid()
+  S.grid = { n = 0 }
+  S.wantFields = {}
+end
 
 -- Writes text from column x of row y; returns the column after it. A row
 -- keeps the list of its writes; flush() lays them into cells only when
 -- the list differs from the last one.
 local function put(x, y, text, st)
+  local grid = S.grid
   local r = grid[y]
   if not r then
     r = {}
@@ -740,16 +790,6 @@ local function actFn(act)
   return f
 end
 
-local shown = {}      -- row -> what it holds now (text and links)
-local shownN = 0
-local fields = {}     -- form key -> { field, row }
-local wantFields = {} -- this draw's fields: { key, row, col, len, placeholder }
-local touched = {}    -- rows written by the last flush
-
-local function dropFields()
-  for _, f in pairs(fields) do pcall(function() f.field:remove() end) end
-  fields = {}
-end
 
 local function renderRow(r)
   local out, links = {}, {}
@@ -820,56 +860,56 @@ local function renderPuts(r)
   return (table.concat(out):gsub("%s+$", "")), links
 end
 
--- Writes the grid to the pane: only the rows that changed.
+-- Writes the grid to the surface's pane: only the rows that changed.
+-- S.wantFields lists this draw's text fields { key, row, col, len,
+-- placeholder, max, value, onChange, onSubmit, onCancel, onKey }; a field
+-- stays while its row does, so it keeps the keyboard.
 local function flush()
-  touched = {}
-  if grid.n < shownN then
-    pane:clear()
-    shown = {}
-    fields = {}
+  local p, grid = S.pane, S.grid
+  local touched = {}
+  if grid.n < S.shownN then
+    p:clear()
+    S.shown = {}
+    S.fields = {}
   end
+  local shown = S.shown
   for y = 1, grid.n do
     local sig = grid[y] and rowKey(grid[y]) or ""
     if shown[y] ~= sig then
       local line, links = "", {}
       if grid[y] then line, links = renderPuts(grid[y]) end
-      pane:setLine(y, line)
+      p:setLine(y, line)
       for _, l in ipairs(links) do
-        pane:setLink(y, l[1], l[2], l[3] and actFn(l[3]) or nil, l[4])
+        p:setLink(y, l[1], l[2], l[3] and actFn(l[3]) or nil, l[4])
       end
       shown[y] = sig
       touched[y] = true
     end
   end
-  shownN = grid.n
-  -- The form's fields: kept while their row stays, else made again.
+  S.shownN = grid.n
   local want = {}
-  for _, w in ipairs(wantFields) do want[w.key] = w end
-  for key, f in pairs(fields) do
+  for _, w in ipairs(S.wantFields) do want[w.key] = w end
+  for key, f in pairs(S.fields) do
     local w = want[key]
     if not w or w.row ~= f.row or touched[f.row] then
       if not touched[f.row] then pcall(function() f.field:remove() end) end
-      fields[key] = nil
+      S.fields[key] = nil
     end
   end
-  for _, w in ipairs(wantFields) do
-    if not fields[w.key] then
-      local key = w.key
-      local f = pane:setInput(w.row, w.col, w.len, {
-        value = form[key], placeholder = w.placeholder, maxLength = w.max,
-        onChange = function(text) form[key] = text; if key == "when" then doAction("check") end end,
-        onSubmit = function(text) form[key] = text; doAction("submit") end,
-        onCancel = function() doAction("form") end,
-        onKey = function(k) doAction((k == "Shift+Tab" or k == "ArrowUp") and "prev:" .. key or "next:" .. key) end,
+  for _, w in ipairs(S.wantFields) do
+    if not S.fields[w.key] then
+      local f = p:setInput(w.row, w.col, w.len, {
+        value = w.value, placeholder = w.placeholder, maxLength = w.max,
+        onChange = w.onChange, onSubmit = w.onSubmit, onCancel = w.onCancel, onKey = w.onKey,
       })
-      fields[key] = { field = f, row = w.row }
+      S.fields[w.key] = { field = f, row = w.row }
     end
   end
 end
 
 local function resetShown()
-  pane:clear()
-  shown, shownN, fields = {}, 0, {}
+  S.pane:clear()
+  S.shown, S.shownN, S.fields = {}, 0, {}
 end
 
 -- ------------------------------------------------------------ drawing: shared
@@ -1000,7 +1040,6 @@ end
 local function drawNow(g, t)
   local sc = seasonHex(g.season)
   drawTabs(sc)
-  rightAfter(1, TABS_END, hm(t) .. " local", { fg = C.dim })
 
   -- The moon (14 cells, 10 in a narrow pane) and the date.
   local N = W >= 46 and 14 or 10
@@ -1011,10 +1050,8 @@ local function drawNow(g, t)
   local sub = g.sindarin .. " · " .. cap(g.season) .. " · " .. g.weekday
   if X + utf8.len(sub) > W then sub = g.sindarin .. " · " .. cap(g.season) end
   put(X, 4, sub, { fg = C.dim })
-  local x2 = put(X, 6, pad2(g.hour) .. ":" .. pad2(g.minute), { fg = C.glow, b = true })
-  if g.precision == "hour" then
-    x2 = put(x2, 6, "≈", { fg = C.dim, tip = "The minute is not synced yet: it comes with the next sunrise or sunset" })
-  end
+  local x2 = put(X, 6, ampm(g.hour), { fg = C.glow, b = true,
+    tip = "Game time " .. pad2(g.hour) .. ":00–" .. pad2(g.hour) .. ":59; a game hour is a real minute" })
   local sun = g.period == "dawn" or g.period == "day"
   put(x2 + 1, 6, (sun and "☼ " or "☾ ") .. g.period, { fg = sun and C.gold or C.night })
 
@@ -1036,7 +1073,7 @@ local function drawNow(g, t)
   if mr and ms then
     local up = m.position ~= "below"
     local at = up and ms or mr
-    rightAfter(9, fx, (up and "↓ " or "↑ ") .. dur(at - t), { fg = C.dim,
+    rightAfter(9, fx, (up and "sets in " or "rises in ") .. dur(at - t), { fg = C.dim,
       tip = (up and "Moonset" or "Moonrise") .. " at " .. whenText(at, t) .. " local" })
   end
 
@@ -1056,7 +1093,7 @@ local function drawNow(g, t)
     return list
   end)
   for _, p in ipairs(band) do put(p[1], 12, p[2], p[3]) end
-  local mk = 2 + g.hour * cph + ((cph == 2 and g.minute >= 30) and 1 or 0)
+  local mk = 2 + g.hour * cph
   for _, l in ipairs({ { "00", 0 }, { "06", 6 }, { "12", 12 }, { "18", 18 }, { "24", 24 } }) do
     local c = 2 + l[2] * cph - (l[2] == 24 and 2 or 0)
     if math.abs(c - mk) > 1 and math.abs(c + 1 - mk) > 1 then put(c, 13, l[1], { fg = C.dim }) end
@@ -1068,13 +1105,12 @@ local function drawNow(g, t)
     local rise = dawnAt < duskAt
     local at = rise and dawnAt or duskAt
     local hh = gameTime(at).hour
-    local xx = put(2, 14, rise and ("☼ Sunrise " .. pad2(hh) .. ":00") or ("☾ Sunset " .. pad2(hh) .. ":00"),
+    local xx = put(2, 14, rise and ("☼ Sunrise " .. ampm(hh)) or ("☾ Sunset " .. ampm(hh)),
       { fg = rise and C.gold or C.night, b = true })
     local left = at - t
-    local hot = rise and left < 300
-    local ex = put(xx + 2, 14, "in " .. dur(left), { fg = hot and C.red or C.text, b = hot,
-      tip = (hot and "Trolls: get indoors, the sun is coming.\n" or "") .. "At " .. hm(at) .. " local" })
-    rightAfter(14, ex, "real " .. hm(at), { fg = C.dim })
+    local hot = rise and left <= 60
+    put(xx + 2, 14, "in " .. dur(left), { fg = hot and C.red or C.text, b = hot,
+      tip = (hot and "Trolls: get indoors, the sun is coming.\n" or "") .. "At " .. hm(at) .. " local time" })
   end
 
   -- The year: 12 months.
@@ -1103,18 +1139,19 @@ local function drawNow(g, t)
   -- Coming up.
   put(2, 20, "COMING UP", { fg = C.dim, b = true })
   right(20, "click = remind", { fg = C.dim })
-  local labelW = 8
-  local condW = W >= 46 and 16 or 0
+  local labelW = 11
+  local condW = W >= 46 and 14 or 0
   local nameW = W - 4 - labelW - (condW > 0 and condW + 1 or 0) - 1
   local lead = math.max(0, tonumber(settings.remind) or 2)
+  local leadText = lead == 1 and "1 game hour" or (lead .. " game hours")
   for i, it in ipairs(comingUp(t)) do
     local y = 20 + i
     local e = it.ev
     local on = reminders[e.name] == true
     local part = memoized("ev:" .. e.name .. ":" .. tostring(on) .. ":" .. tostring(it.now) .. ":" .. lead .. ":" .. W, function()
       local tip = (e.note ~= "" and e.note .. "\n" or "") .. (e.where ~= "" and "Where: " .. e.where .. "\n" or "")
-        .. (on and "Reminder on, " .. lead .. " min before. Click to turn it off."
-          or "Click: remind me " .. lead .. " min before")
+        .. (on and "Reminder on, " .. leadText .. " before. Click to turn it off."
+          or "Click: remind me " .. leadText .. " before")
       return {
         { 2, on and "♪" or e.icon, { fg = on and C.gold or "~" .. e.color, tip = on and "Reminder on" or nil } },
         { 4, cut(e.name, nameW), { fg = C.text, b = it.now, act = "remind:" .. e.name, tip = tip } },
@@ -1122,10 +1159,11 @@ local function drawNow(g, t)
       }
     end)
     for _, p in ipairs(part) do put(p[1], y, p[2], p[3]) end
-    local soon = not it.now and it.s - t < 600
-    local label = it.now and "now" or dur(it.s - t)
+    local soon = not it.now and it.s - t <= 60
+    local label = it.now and "now" or ("in " .. dur(it.s - t))
     right(y, label, { fg = it.now and C.green or (soon and C.gold or C.label), b = it.now or soon,
-      tip = it.now and ("Until " .. whenText(it.e, t) .. " local") or ("At " .. whenText(it.s, t) .. " local") })
+      tip = it.now and ("Until " .. whenText(it.e, t) .. " local time, in " .. dur(it.e - t))
+        or ("At " .. whenText(it.s, t) .. " local time") })
   end
 end
 
@@ -1332,45 +1370,12 @@ end
 
 -- ------------------------------------------------------------ drawing: LORE
 
-local FORM_ROWS = {
-  { "name", "Name", "Troll bridge", 40 },
-  { "when", "When", "winter full · hours 0-3 not winter", 80 },
-  { "place", "Place", "where it happens", 80 },
-  { "note", "Note", "what to do (optional)", 200 },
-}
-
 local function drawLore()
   local g = gameTime()
   drawTabs(g and seasonHex(g.season) or "#9aa7b8")
-  if loreForm then
-    rightAfter(1, TABS_END, "[× close]", { fg = C.label, act = "form", tip = "Close the form" })
-  else
-    rightAfter(1, TABS_END, "[+ add]", { fg = C.glow, act = "form", tip = "Add an event of your own" })
-  end
-  wantFields = {}
+  rightAfter(1, TABS_END, "[+ add]", { fg = C.glow, b = true, act = "edit:",
+    tip = "Add an event of your own: pick the season, the time and the moon" })
   local y = 3
-  if loreForm then
-    for _, f in ipairs(FORM_ROWS) do
-      put(2, y, f[2], { fg = C.label })
-      wantFields[#wantFields + 1] = { key = f[1], row = y, col = 8, len = W - 9, placeholder = f[3], max = f[4] }
-      y = y + 1
-    end
-    -- Two rows for what the form says, always: the fields above must not
-    -- move while the player types.
-    local lines = wrapLines(status.text, W - 3)
-    local st = { fg = status.err and C.red or C.green, tip = #lines > 2 and status.text or nil }
-    if #lines > 2 then lines[2] = cut(lines[2] .. " " .. lines[3], W - 3) end
-    if lines[1] then put(2, y, lines[1], st) end
-    if lines[2] then put(2, y + 1, lines[2], st) end
-    y = y + 2
-    local x = put(2, y, "[add]", { fg = C.glow, b = true, act = "submit", tip = "Add the event (Enter in a field)" })
-    put(x + 2, y, "e.g. winter full, moonrise waxing|full", { fg = C.dim,
-      tip = "Seasons, months, dawn/day/dusk/night, hours 0-3, moon phases,\nmoon up/down, not <season>, or one moment:\n"
-        .. "sunrise, sunset, midnight, moonrise, moonset, season start.\n| or \"or\" joins choices of one kind." })
-    y = y + 1
-    put(2, y, string.rep("─", W - 2), { fg = C.rule })
-    y = y + 2
-  end
   for _, e in ipairs(allEvents()) do
     local cond = e.bad and ("? " .. e.whenText) or (e.when and condText(e.when) or (e.about or ""))
     local col = "~" .. e.color
@@ -1378,7 +1383,7 @@ local function drawLore()
     local tip = (e.note ~= "" and e.note .. "\n" or "") .. "Source: " .. e.source
     if e.bad then tip = "This condition does not work: " .. e.bad end
     local name = cut(e.name, W - 5)
-    put(4, y, name, { fg = C.text, b = true, tip = tip })
+    put(4, y, name, { fg = C.text, b = true, tip = tip, act = e.own and ("edit:" .. e.name) or nil })
     local room = W - 5 - utf8.len(name)
     if room >= 4 then
       local shownCond = cut(cond, room)
@@ -1386,9 +1391,13 @@ local function drawLore()
       if shownCond ~= cond then ctip = cond elseif not e.when and not e.bad then ctip = "Not on a clock: lore only" end
       right(y, shownCond, { fg = e.bad and C.red or (e.when and col or C.dim), tip = ctip })
     end
-    put(4, y + 1, cut(e.where ~= "" and e.where or "—", W - 7), { fg = C.dim, tip = e.where ~= "" and e.where or nil })
+    local where = e.where ~= "" and e.where or "—"
     if e.own then
-      right(y + 1, "✖", { fg = C.red, act = "delete:" .. e.name, tip = "Delete " .. e.name })
+      put(4, y + 1, cut(where, W - 13), { fg = C.dim, tip = e.where ~= "" and e.where or nil })
+      local x = put(W - 7, y + 1, "edit", { fg = C.glow, act = "edit:" .. e.name, tip = "Change " .. e.name })
+      put(x + 1, y + 1, "✖", { fg = C.red, act = "delete:" .. e.name, tip = "Delete " .. e.name })
+    else
+      put(4, y + 1, cut(where, W - 5), { fg = C.dim, tip = e.where ~= "" and e.where or nil })
     end
     y = y + 2
   end
@@ -1396,35 +1405,15 @@ local function drawLore()
     tip = "almanac export gives one line with your events to share;\nalmanac import <line> adds the events of such a line" })
 end
 
--- ------------------------------------------------------------ draw, ticking
+-- ------------------------------------------------------------ draw
 
-local ticker = nil
 local draw -- forward
 
-local function syncTicker()
-  local want = pane:visible() and tab == "now" and ready()
-  if want and not ticker then
-    ticker = tempTimer(1, function()
-      if not pane:visible() then
-        killTimer(ticker)
-        ticker = nil
-        return
-      end
-      draw()
-    end, true)
-  elseif not want and ticker then
-    killTimer(ticker)
-    ticker = nil
-  end
-end
-
+-- Redraws the main pane: on a game hour, a sync and what the player does.
 draw = function()
-  if not pane:visible() then
-    syncTicker()
-    return
-  end
+  use(main)
+  if not pane:visible() then return end
   newGrid()
-  wantFields = {}
   local ok, g = ready()
   local t = getEpoch()
   if tab == "lore" then
@@ -1437,11 +1426,11 @@ draw = function()
     drawPlan(g, t)
   end
   flush()
-  syncTicker()
 end
 
 pane:onResize(function(rows, cols)
-  W, H = math.max(20, cols), rows
+  main.W = math.max(20, cols)
+  use(main)
   resetShown()
   draw()
 end)
@@ -1457,16 +1446,21 @@ end)
 
 local remindTimer = nil
 
+local function leadText()
+  local n = math.max(0, tonumber(settings.remind) or 2)
+  return n == 1 and "1 game hour" or (n .. " game hours")
+end
+
 local function remind(e, s)
   fired[e.name] = s
   local t = getEpoch()
-  local text = e.name .. " in " .. dur(s - t) .. " (" .. hm(s) .. " local)" .. (e.where ~= "" and (", " .. e.where) or "")
-  cecho(TAG .. "<~#ffb000>♪ " .. e.name .. "<reset> in " .. dur(s - t) .. " (" .. hm(s) .. " local)"
-    .. (e.where ~= "" and (", " .. e.where) or ""))
-  uiMessage("almanac", text)
+  local tail = " in " .. dur(s - t) .. " (" .. hm(s) .. " local time)" .. (e.where ~= "" and (", " .. e.where) or "")
+  cecho(TAG .. "<~#ffb000>♪ " .. e.name .. "<reset>" .. tail)
+  uiMessage("almanac", e.name .. tail)
 end
 
--- One timer for the soonest reminder; planned again after it and on a sync.
+-- One timer for the soonest reminder; planned again after it and on a
+-- sync. The lead is in game hours (a game hour is a real minute).
 local function planReminders()
   if remindTimer then
     killTimer(remindTimer)
@@ -1498,48 +1492,356 @@ local function toggleReminder(e)
   else
     if not e.when then return say(e.name .. " is not on a clock: no reminder.") end
     reminders[e.name] = true
-    say("Reminder " .. settings.remind .. " min before " .. e.name .. ".")
+    say("Reminder " .. leadText() .. " before " .. e.name .. ".")
   end
   saveReminders()
   planReminders()
 end
 
--- ------------------------------------------------------------ actions
+-- ------------------------------------------------------------ the event editor
 
-local FORM_ORDER = { "name", "when", "place", "note" }
+-- A floating pane where the player builds an event with clicks: chips for
+-- seasons, months, the time of day, hours, the moon and one moment, an
+-- icon and a colour, a sentence that says what was chosen and when it
+-- comes next. No syntax: the choices become a gameTimeFind table.
 
-local function checkForm()
-  if trim(form.when) == "" then
-    status = { text = "", err = false }
-    return
-  end
-  local cond, err = parseWhen(form.when)
-  if cond then
-    status = { text = "→ " .. condText(cond), err = false }
-  else
-    status = { text = err, err = true }
-  end
+local ED_W, ED_H = 56, 25
+local PERIODS = { "dawn", "day", "dusk", "night" }
+local MOMENTS = { "dawn", "dusk", "midnight", "moonrise", "moonset", "seasonStart" }
+local PERIOD_TEXT = { dawn = "at dawn", day = "by day", dusk = "at dusk", night = "at night" }
+local MOMENT_TEXT = { dawn = "At sunrise", dusk = "At sunset", midnight = "At midnight", moonrise = "At moonrise",
+  moonset = "At moonset", seasonStart = "When a season starts" }
+local FIELD_ORDER = { "name", "where", "note" }
+
+local ed = nil    -- the editor's choices, nil while it is closed
+local edS = nil   -- its surface
+local edPane = nil
+
+local function asSet(list)
+  local t = {}
+  for _, v in ipairs(list or {}) do t[v] = true end
+  return t
 end
 
-local function submitForm()
-  local e, err = addEvent(form.name, form.when, form.place, form.note)
-  if not e then
-    status = { text = err, err = true }
-    draw()
-    if fields.name and trim(form.name) == "" then fields.name.field:focus() end
-    return
+local function ordered(set, order)
+  local out = {}
+  for _, v in ipairs(order) do if set[v] then out[#out + 1] = v end end
+  return out
+end
+
+local MONTH_NAMES = {}
+for _, m in ipairs(MONTHS) do MONTH_NAMES[#MONTH_NAMES + 1] = m[1] end
+
+-- The choices of an event (nil: a new one).
+local function edFrom(e)
+  local c = e and e.when or {}
+  local season = asSet(c.season)
+  if c.notSeason then
+    for _, x in ipairs(SEASONS) do season[x] = true end
+    for _, x in ipairs(c.notSeason) do season[x] = nil end
   end
-  form = { name = "", when = "", place = "", note = "" }
-  status = { text = "", err = false }
-  loreForm = false
-  say("Added " .. e.name .. ": " .. e.whenText .. ".")
+  return {
+    orig = e and e.name or nil, name = e and e.name or "", where = e and e.where or "", note = e and e.note or "",
+    icon = e and e.icon or ICONS[1], color = e and e.color or COLOURS[1][1],
+    season = season, month = asSet(c.month), period = asSet(c.period), moon = asSet(c.moon),
+    hours = c.hours and { from = c.hours.from, to = c.hours.to } or nil,
+    moonVisible = c.moonVisible, at = c.at, msg = nil,
+  }
+end
+
+-- The choices as a gameTimeFind table. All of a kind chosen is the same as none.
+local function edCond()
+  local c = {}
+  local function pick(set, order)
+    local list = ordered(set, order)
+    if #list > 0 and #list < #order then return list end
+    return nil
+  end
+  c.season = pick(ed.season, SEASONS)
+  c.month = pick(ed.month, MONTH_NAMES)
+  c.period = pick(ed.period, PERIODS)
+  c.moon = pick(ed.moon, PHASES)
+  if ed.hours then c.hours = { from = ed.hours.from, to = ed.hours.to } end
+  if ed.moonVisible ~= nil then c.moonVisible = ed.moonVisible end
+  c.at = ed.at
+  return c
+end
+
+local function orList(words)
+  if #words <= 1 then return words[1] or "" end
+  return table.concat(words, ", ", 1, #words - 1) .. " or " .. words[#words]
+end
+
+-- A condition in plain English: "Winter, full moon."
+local function describe(c)
+  local parts = {}
+  if c.at then parts[#parts + 1] = MOMENT_TEXT[c.at] end
+  if c.season then parts[#parts + 1] = orList(c.season) end
+  if c.notSeason then parts[#parts + 1] = "not in " .. orList(c.notSeason) end
+  if c.month then parts[#parts + 1] = "in " .. orList(c.month) end
+  if c.period then
+    local words = {}
+    for _, p in ipairs(c.period) do words[#words + 1] = PERIOD_TEXT[p] end
+    parts[#parts + 1] = orList(words)
+  end
+  if c.hours then parts[#parts + 1] = "from " .. pad2(c.hours.from) .. ":00 to " .. pad2(c.hours.to) .. ":00" end
+  if c.moon then parts[#parts + 1] = orList(c.moon) .. " moon" end
+  if c.moonVisible ~= nil then parts[#parts + 1] = c.moonVisible and "the moon up" or "the moon down" end
+  if #parts == 0 then return "" end
+  return cap(table.concat(parts, ", ")) .. "."
+end
+
+-- When the choices come next, in game time.
+local function nextText(c)
+  if not ready() then return "Next: the clock does not know the hour yet." end
+  local t = getEpoch()
+  local s, e = gameTimeFind(c)
+  if not s then return "Not within a game year: maybe the choices exclude each other." end
+  if s <= t and t < e then return "Next: now, for " .. dur(e - t) .. "." end
+  return "Next: in " .. dur(s - t) .. "."
+end
+
+local CHIP_ON = { fg = "@bg", bg = "@glow", b = true }
+local CHIP_OFF = { fg = "@label", bg = "@track" }
+
+-- A chip: " label " on its own band; returns the column after it and a gap.
+local function chip(x, y, label, on, act, tip)
+  local base = on and CHIP_ON or CHIP_OFF
+  return put(x, y, " " .. label .. " ", { fg = base.fg, bg = base.bg, b = base.b, act = act, tip = tip }) + 1
+end
+
+local LABEL_X, CHIP_X = 2, 10
+
+local function drawEditor()
+  if not ed or not edS then return end
+  use(edS)
+  newGrid()
+  -- Name, place and note.
+  for i, f in ipairs({ { "name", "Name", "a name, such as Troll bridge", 40 }, { "where", "Place", "where it happens", 80 },
+    { "note", "Note", "what to do there (optional)", 200 } }) do
+    put(LABEL_X, i, f[2], { fg = C.label })
+    local key = f[1]
+    S.wantFields[#S.wantFields + 1] = { key = key, row = i, col = CHIP_X, len = W - CHIP_X - 1, placeholder = f[3], max = f[4],
+      value = ed[key],
+      onChange = function(text) if ed then ed[key] = text end end,
+      onSubmit = function(text)
+        if ed then ed[key] = text end
+        doAction("ed:save")
+      end,
+      onCancel = function() doAction("ed:cancel") end,
+      onKey = function(k) doAction("ed:" .. ((k == "Shift+Tab" or k == "ArrowUp") and "prev" or "next") .. ":" .. key) end,
+    }
+  end
+
+  -- Season.
+  local y = 5
+  put(LABEL_X, y, "Season", { fg = C.label })
+  local x = chip(CHIP_X, y, "any", next(ed.season) == nil, "ed:season:", "Any season")
+  for _, sname in ipairs(SEASONS) do x = chip(x, y, sname, ed.season[sname], "ed:season:" .. sname, "Toggle " .. sname) end
+  -- Months, a season a row.
+  y = y + 1
+  put(LABEL_X, y, "Month", { fg = C.label })
+  for r = 0, 3 do
+    x = CHIP_X
+    for k = 1, 3 do
+      local m = MONTHS[r * 3 + k]
+      x = chip(x, y + r, m[1], ed.month[m[1]], "ed:month:" .. m[1], m[1] .. " (" .. m[2] .. "), " .. SEASONS[r + 1])
+    end
+  end
+  chip(CHIP_X + 37, y, "any", next(ed.month) == nil, "ed:month:", "Any month")
+  -- Time of day and hours.
+  y = y + 4
+  put(LABEL_X, y, "Time", { fg = C.label })
+  x = chip(CHIP_X, y, "any", next(ed.period) == nil, "ed:period:", "Any time of day")
+  for _, p in ipairs(PERIODS) do
+    x = chip(x, y, p, ed.period[p], "ed:period:" .. p,
+      p == "dawn" and "The dawn hour (the sun rises)" or p == "dusk" and "The dusk hour (the sun sets)" or ("Toggle " .. p))
+  end
+  y = y + 1
+  put(LABEL_X, y, "Hours", { fg = C.label })
+  x = chip(CHIP_X, y, "any", ed.hours == nil, "ed:hours:", "Any hour")
+  local h = ed.hours or { from = 0, to = 3 }
+  local hst = ed.hours and { fg = C.text, b = true } or { fg = C.dim }
+  x = put(x + 1, y, "from ", { fg = C.label })
+  x = put(x, y, "◂", { fg = C.glow, act = "ed:hfrom:-1", tip = "An hour earlier" }) + 1
+  x = put(x, y, pad2(h.from), hst) + 1
+  x = put(x, y, "▸", { fg = C.glow, act = "ed:hfrom:1", tip = "An hour later" })
+  x = put(x + 2, y, "to ", { fg = C.label })
+  x = put(x, y, "◂", { fg = C.glow, act = "ed:hto:-1", tip = "An hour earlier" }) + 1
+  x = put(x, y, pad2(h.to), hst) + 1
+  put(x, y, "▸", { fg = C.glow, act = "ed:hto:1", tip = "An hour later (to is not included: 0 to 3 ends at 3:00)" })
+  -- The moon.
+  y = y + 1
+  put(LABEL_X, y, "Moon", { fg = C.label })
+  x = chip(CHIP_X, y, "any", next(ed.moon) == nil, "ed:moon:", "Any phase")
+  x = chip(x, y, "○ new", ed.moon["new"], "ed:moon:new", "New moon")
+  chip(x, y, "● full", ed.moon["full"], "ed:moon:full", "Full moon")
+  for r, row in ipairs({ { "waxing", { "waxing crescent", "first quarter", "waxing gibbous" } },
+    { "waning", { "waning gibbous", "third quarter", "waning crescent" } } }) do
+    put(LABEL_X + 1, y + r, row[1], { fg = C.dim })
+    x = CHIP_X
+    for _, ph in ipairs(row[2]) do
+      local short = ph:match("(%S+)$")
+      x = chip(x, y + r, PHASE_ICON[ph] .. " " .. short, ed.moon[ph], "ed:moon:" .. ph, cap(ph))
+    end
+  end
+  y = y + 3
+  put(LABEL_X, y, "Sky", { fg = C.label })
+  x = chip(CHIP_X, y, "any", ed.moonVisible == nil, "ed:sky:", "The moon up or down")
+  x = chip(x, y, "moon up", ed.moonVisible == true, "ed:sky:up", "The moon is up and can be seen")
+  chip(x, y, "moon down", ed.moonVisible == false, "ed:sky:down", "The moon is down (or cannot be seen)")
+  -- One moment.
+  y = y + 1
+  put(LABEL_X, y, "Moment", { fg = C.label })
+  x = chip(CHIP_X, y, "none", ed.at == nil, "ed:at:", "A window of time, not one moment")
+  for i, m in ipairs(MOMENTS) do
+    if i == 4 then
+      y = y + 1
+      x = CHIP_X
+    end
+    x = chip(x, y, AT_TEXT[m], ed.at == m, "ed:at:" .. m, MOMENT_TEXT[m])
+  end
+  -- Icon and colour.
+  y = y + 1
+  put(LABEL_X, y, "Icon", { fg = C.label })
+  for i, ic in ipairs(ICONS) do
+    local row, colN = (i - 1) // 12, (i - 1) % 12
+    local on = ed.icon == ic
+    put(CHIP_X + colN * 3, y + row, " " .. ic .. " ", on and { fg = "@bg", bg = "@glow", act = "ed:icon:" .. i }
+      or { fg = "~" .. ed.color, act = "ed:icon:" .. i, tip = "Use " .. ic })
+  end
+  y = y + 2
+  put(LABEL_X, y, "Colour", { fg = C.label })
+  for i, cdef in ipairs(COLOURS) do
+    local on = ed.color == cdef[1]
+    put(CHIP_X + (i - 1) * 4, y, on and "[" .. ed.icon .. "]" or " " .. ed.icon .. " ",
+      { fg = "~" .. cdef[1], b = on, act = "ed:color:" .. i, tip = cap(cdef[2]) })
+  end
+  -- What it says, and when it comes.
+  y = y + 1
+  put(LABEL_X, y, string.rep("─", W - 3), { fg = C.rule })
+  local c = edCond()
+  local text = describe(c)
+  local lines = {}
+  if text == "" then
+    lines = { "Choose a season, a time of day, the moon or a moment." }
+  else
+    lines = wrapLines(text .. " " .. nextText(c), W - 3)
+  end
+  for i = 1, 2 do
+    if lines[i] then
+      put(LABEL_X, y + i, cut(lines[i], W - 3), { fg = i == 1 and "~" .. ed.color or C.label,
+        tip = #lines > 2 and table.concat(lines, " ") or nil })
+    end
+  end
+  y = y + 4
+  x = put(LABEL_X, y, " Save ", { fg = "@bg", bg = "@glow", b = true, act = "ed:save", tip = "Save the event (Enter in a field)" })
+  x = put(x + 2, y, " Cancel ", { fg = "@label", bg = "@track", act = "ed:cancel", tip = "Close without saving (Esc)" })
+  if ed.msg then put(LABEL_X, y - 1, cut(ed.msg, W - 3), { fg = C.red, b = true, tip = ed.msg }) end
+  flush()
+end
+
+local function closeEditor()
+  local p = edPane
+  ed, edS, edPane = nil, nil, nil
+  if p then p:close() end
+end
+
+local function openEditor(e)
+  if edPane then closeEditor() end
+  ed = edFrom(e)
+  edPane = createPane{ id = "edit", title = e and ("Edit: " .. e.name) or "New event", temporary = true,
+    rows = ED_H, cols = ED_W, at = "center" }
+  edPane:setHover("lighten")
+  edPane:onClose(function()
+    ed, edS, edPane = nil, nil, nil
+  end)
+  edS = surface(edPane, ED_W)
+  local p = edPane
+  edPane:onResize(function(_, cols)
+    -- The first show reports the size it was made with: keep the fields
+    -- (a new field would lose the focus asked for).
+    if not edS or edPane ~= p or math.max(40, cols) == edS.W then return end
+    edS.W = math.max(40, cols)
+    use(edS)
+    resetShown()
+    drawEditor()
+  end)
+  drawEditor()
+  if edS and edS.fields.name then edS.fields.name.field:focus() end
+end
+
+local function saveEditor()
+  ed.msg = nil
+  local c = edCond()
+  local name = clean(ed.name)
+  if name == "" then
+    ed.msg = "Give the event a name."
+  elseif next(c) == nil then
+    ed.msg = "Choose when: a season, a time, the moon or a moment."
+  elseif c.hours and c.hours.from == c.hours.to then
+    ed.msg = "From and to must be different hours."
+  end
+  if ed.msg then return drawEditor() end
+  local e, err = addEvent(name, condText(c), ed.where, ed.note, ed.icon, ed.color, ed.orig)
+  if not e then
+    ed.msg = cap(err) .. "."
+    return drawEditor()
+  end
+  say((ed.orig and "Saved " or "Added ") .. e.name .. ": " .. describe(c))
+  closeEditor()
+  planReminders()
   draw()
 end
 
+-- What the editor's chips do.
+local function editorAction(what, arg)
+  if what == "season" or what == "month" or what == "period" or what == "moon" then
+    if arg == "" then ed[what] = {} else ed[what][arg] = not ed[what][arg] or nil end
+  elseif what == "hours" then
+    ed.hours = nil
+  elseif what == "hfrom" or what == "hto" then
+    ed.hours = ed.hours or { from = 0, to = 3 }
+    local k = what == "hfrom" and "from" or "to"
+    ed.hours[k] = (ed.hours[k] + tonumber(arg)) % 24
+  elseif what == "sky" then
+    ed.moonVisible = (arg == "up" and true) or (arg == "down" and false) or nil
+  elseif what == "at" then
+    ed.at = arg ~= "" and arg or nil
+  elseif what == "icon" then
+    ed.icon = ICONS[tonumber(arg)] or ed.icon
+  elseif what == "color" then
+    ed.color = (COLOURS[tonumber(arg)] or {})[1] or ed.color
+  elseif what == "save" then
+    return saveEditor()
+  elseif what == "cancel" then
+    return closeEditor()
+  elseif what == "next" or what == "prev" then
+    for i, k in ipairs(FIELD_ORDER) do
+      if k == arg then
+        local j = (i + (what == "next" and 1 or -1) - 1) % #FIELD_ORDER + 1
+        local f = edS and edS.fields[FIELD_ORDER[j]]
+        if f then f.field:focus() end
+      end
+    end
+    return
+  end
+  ed.msg = nil
+  drawEditor()
+end
+
+-- ------------------------------------------------------------ actions
+
 doAction = function(act)
   local kind, arg = act:match("^(%w+):?(.*)$")
+  if kind == "ed" then
+    if not ed then return end
+    local what, rest = arg:match("^(%w+):?(.*)$")
+    return editorAction(what, rest)
+  end
   if kind == "tab" then
     tab = arg
+    use(main)
     resetShown()
   elseif kind == "remind" then
     local e = findEvent(arg)
@@ -1548,27 +1850,9 @@ doAction = function(act)
     planShift(tonumber(arg))
   elseif kind == "day" then
     plan.sel = tonumber(arg)
-  elseif kind == "form" then
-    loreForm = not loreForm
-    status = { text = "", err = false }
-    if loreForm then checkForm() end
-    resetShown()
-    draw()
-    if loreForm and fields.name then fields.name.field:focus() end
-    return
-  elseif kind == "check" then
-    checkForm()
-  elseif kind == "submit" then
-    return submitForm()
-  elseif kind == "next" or kind == "prev" then
-    for i, k in ipairs(FORM_ORDER) do
-      if k == arg then
-        local j = (i + (kind == "next" and 1 or -1) - 1) % #FORM_ORDER + 1
-        local f = fields[FORM_ORDER[j]]
-        if f then f.field:focus() end
-      end
-    end
-    return
+  elseif kind == "edit" then
+    local e = arg ~= "" and findEvent(arg) or nil
+    return openEditor(e and e.own and e or nil)
   elseif kind == "delete" then
     local e = removeEvent(arg)
     if e then say("Removed " .. e.name .. ".") end
@@ -1579,21 +1863,21 @@ end
 
 -- ------------------------------------------------------------ events
 
+-- Once a game hour (a real minute) and when the clock is set: nothing
+-- ticks in between.
 registerAnonymousEventHandler("sysGameTimeEvent", function(_, kind)
+  if kind ~= "hour" and kind ~= "sync" then return end
   cache = {}
   if kind == "sync" then
     planCache = {}
     planReminders()
   end
-  if tab ~= "lore" then draw() else syncTicker() end
+  if tab ~= "lore" then draw() end
+  if ed then drawEditor() end
 end)
 
 registerAnonymousEventHandler("sysPanesChanged", function()
-  if pane:visible() then
-    if not ticker then draw() end
-  else
-    syncTicker()
-  end
+  draw()
 end)
 
 registerAnonymousEventHandler("sysSettingChanged", function()
@@ -1615,8 +1899,8 @@ local function listEvents()
     else
       local s, en = findNow("ev:" .. e.name, e.when, t)
       if not s then what = condText(e.when) .. ", not within a game year"
-      elseif s <= t and t < en then what = condText(e.when) .. ", <~#7ee0a1>now<reset> until " .. whenText(en, t)
-      else what = condText(e.when) .. ", in " .. dur(s - t) .. " (" .. whenText(s, t) .. ")" end
+      elseif s <= t and t < en then what = condText(e.when) .. ", <~#7ee0a1>now<reset> for " .. dur(en - t)
+      else what = condText(e.when) .. ", in " .. dur(s - t) end
     end
     say((reminders[e.name] and "♪ " or "") .. e.name .. (e.own and " (yours)" or "") .. ": " .. what)
   end
@@ -1631,42 +1915,41 @@ local function findCommand(text)
   local t = getEpoch()
   local s, e = gameTimeFind(cond)
   if not s then return say(c .. ": not within a game year.") end
-  if s <= t and t < e then return say(c .. ": now, until " .. whenText(e, t) .. " (" .. dur(e - t) .. ").") end
+  if s <= t and t < e then return say(c .. ": now, for " .. dur(e - t) .. ".") end
   local g = gameTime(s)
-  say(c .. ": in " .. dur(s - t) .. ", at " .. whenText(s, t) .. " local (" .. g.day .. " " .. g.monthName .. " "
-    .. pad2(g.hour) .. ":" .. pad2(g.minute) .. ")" .. (e > s and (" for " .. dur(e - s)) or "") .. ".")
+  say(c .. ": in " .. dur(s - t) .. " (" .. g.day .. " " .. g.monthName .. ", " .. ampm(g.hour) .. ")"
+    .. (e > s and (", for " .. dur(e - s)) or "") .. ".")
 end
 
 local function show(which)
   if which then tab = which end
   pane:show()
+  use(main)
   resetShown()
   draw()
 end
 
-local USAGE = "almanac [now|plan|lore], list, find <when>, add <name> = <when> [@ <place>] [// <note>], "
-  .. "remove <name>, remind <name>, export, import <line>"
+local USAGE = "almanac [now|plan|lore], list, add, edit <name>, remove <name>, remind <name>, find <when>, "
+  .. "export, import <line>"
 
 tempAlias("^almanac(?:\\s+(.*))?$", function()
   local rest = trim(matches[2] or "")
   local sub, arg = rest:match("^(%S+)%s*(.*)$")
   sub = sub and sub:lower() or ""
   if sub == "" then
-    if pane:visible() then
-      pane:hide()
-      syncTicker()
-    else
-      show()
-    end
+    if pane:visible() then pane:hide() else show() end
   elseif sub == "now" or sub == "plan" or sub == "lore" then
     show(sub)
   elseif sub == "list" then
     listEvents()
   elseif sub == "find" or sub == "when" then
     findCommand(arg)
+  elseif sub == "add" and trim(arg) == "" then
+    openEditor(nil)
   elseif sub == "add" then
+    -- The text form, for those who like it: almanac add <name> = <when> [@ <place>] [// <note>].
     local name, def = arg:match("^(.-)%s*=%s*(.*)$")
-    if not name then return say("Usage: almanac add <name> = <when> [@ <place>] [// <note>]") end
+    if not name then return openEditor(nil) end
     local note
     local d, n = def:match("^(.-)%s*//%s*(.*)$")
     if d then def, note = d, n end
@@ -1675,8 +1958,13 @@ tempAlias("^almanac(?:\\s+(.*))?$", function()
     if w then def, place = w, p end
     local e, err = addEvent(name, def, place, note)
     if not e then return say("<~#ff6b6b>" .. err .. "<reset>") end
-    say("Added " .. e.name .. ": " .. e.whenText .. (e.where ~= "" and (" @ " .. e.where) or "") .. ".")
+    say("Added " .. e.name .. ": " .. describe(e.when) .. (e.where ~= "" and (" @ " .. e.where) or ""))
     draw()
+  elseif sub == "edit" then
+    local e = findEvent(arg)
+    if not e then return say("No event called " .. arg .. ".") end
+    if not e.own then return say(e.name .. " is bundled: only your own events can be changed.") end
+    openEditor(e)
   elseif sub == "remove" or sub == "delete" then
     local e = removeEvent(arg)
     if not e then
@@ -1691,7 +1979,7 @@ tempAlias("^almanac(?:\\s+(.*))?$", function()
     toggleReminder(e)
     draw()
   elseif sub == "export" then
-    if #own == 0 then return say("You have no events of your own to export. Add one: almanac add <name> = <when>") end
+    if #own == 0 then return say("You have no events of your own to export. Add one: almanac add") end
     say("Your " .. #own .. " event" .. (#own == 1 and "" or "s") .. " as one line; copy it and share it:")
     echo(exportLine())
   elseif sub == "import" then
