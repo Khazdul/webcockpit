@@ -284,6 +284,42 @@ const TIMERS: HelpSection = {
   ],
 };
 
+const GAME_TIME: HelpSection = {
+  group: "guide",
+  heading: "Game time",
+  syntax: [
+    "gameTime([epoch]) → table",
+    "gameTimeFind(cond[, from[, horizon]]) → start, end",
+    "localTime([epoch]) → table",
+    'registerAnonymousEventHandler("sysGameTimeEvent", fn)',
+  ],
+  text: [
+    "WebCockpit keeps MUME's clock from what the game tells: the time command, sunrise and sunset, room clocks and MSSP. One game minute is one real second, a game hour a real minute, a day 24 real minutes, a month 12 real hours and a year 6 real days.",
+    "gameTime() gives the game time now: year, month (1–12), monthName, sindarin, day, hour, minute, weekday, season, period (dawn, day, dusk or night), the month's dawn and dusk hours, precision and moon. gameTime(epoch) gives it at any real time, past or future, such as Saturday 20:00. Both are nil until the clock knows the day.",
+    "moon has phase (new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, third quarter, waning crescent), level (0 new to 12 full), waxing, position (east, southeast, south, southwest, west or below), visible and bright. A dim moon cannot be seen by day.",
+    "gameTimeFind(cond) gives the next window of real time where every key of cond holds: season, notSeason, month, hours = {from = h, to = h}, period, moon, moonVisible, or a moment with at (dawn, dusk, midnight, moonrise, moonset, seasonStart). It returns start and end in seconds since 1970, or nil when nothing starts within the horizon (one game year unless you give one). A condition is plain data, so a list of events can live in a table.",
+    "localTime(epoch) turns a real time into the browser's local year, month, day, hour, min, sec and wday, for showing real dates.",
+    "The event sysGameTimeEvent comes with a kind: hour every game hour, dawn and dusk, moonrise and moonset, phase when the moon's phase changes, season on the first day of a season, and sync when the clock was set from the game. Redraw from it instead of polling. It waits while the clock does not know the hour.",
+  ],
+  examples: [
+    {
+      note: "Count down to the next full moon at night:",
+      lang: "lua",
+      code: 'local s = gameTimeFind({moon = "full", period = "night"})\nif s then\n  echo("Full moon night in " .. math.floor((s - getEpoch()) / 60) .. " real minutes")\nend',
+    },
+    {
+      note: "A line at dusk, and when the season turns:",
+      lang: "lua",
+      code: 'registerAnonymousEventHandler("sysGameTimeEvent", function(event, kind)\n  if kind == "dusk" then\n    cecho("<cyan>Night falls.<reset>")\n  elseif kind == "season" then\n    echo("It is " .. gameTime().season .. " now.")\n  end\nend)',
+    },
+    {
+      note: "Events as data, with real dates:",
+      lang: "lua",
+      code: 'local EVENTS = {\n  {name = "Ingrove wargs", when = {moon = "full", season = "winter"}},\n  {name = "Spirit Knight", when = {at = "midnight", notSeason = "winter"}},\n}\n\nfor _, ev in ipairs(EVENTS) do\n  local s = gameTimeFind(ev.when)\n  if s then\n    local t = localTime(s)\n    echo(string.format("%s: %02d-%02d %02d:%02d", ev.name, t.month, t.day, t.hour, t.min))\n  end\nend',
+    },
+  ],
+};
+
 const EVENTS: HelpSection = {
   group: "guide",
   heading: "Events and GMCP",
@@ -298,6 +334,7 @@ const EVENTS: HelpSection = {
     "- sysLoadEvent: once, for this script only, right after its code has run.",
     "- sysSettingChanged: one of this script's own settings changed (#script set, the Scripts page, setSetting). The arguments are the setting's name and its new value; settings.<name> already has it. For this script only.",
     "- sysPanesChanged: what getPanes() returns changed: a pane was switched on or off, got or lost its room, moved to another dock or was renamed, or a script pane came or went. No arguments; read getPanes(). It fires at most once per change (none while the player is still dragging) and is slowed down if a handler keeps changing the panes.",
+    "- sysGameTimeEvent: the game time moved on (see Game time). The second argument is the kind: sync, hour, dawn, dusk, moonrise, moonset, phase or season.",
     "- sysConnectionEvent: the connection to MUME is made and the login starts.",
     "- sysDisconnectionEvent: the connection was lost or closed. The second argument is the reason.",
     "- The profile's #event names: SESSION CONNECTED (argument mume), SESSION DISCONNECTED (mume and the reason), IAC SB GMCP <Package> (the package and its JSON text) and IAC SB GMCP for every GMCP message.",
@@ -666,6 +703,7 @@ export const SCRIPT_GUIDE: readonly HelpSection[] = [
   ALIASES,
   KEYS,
   TIMERS,
+  GAME_TIME,
   EVENTS,
   OUTPUT,
   PANES,

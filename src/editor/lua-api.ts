@@ -339,11 +339,63 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         'local ends = getEpoch() + 25 * 60\nstore.set("ends", ends)\nlocal left = math.floor(ends - getEpoch())',
     },
   ),
+  // Game time (ADR 0074).
+  fn(
+    "gameTime",
+    "gameTime([epoch]) → table",
+    "The game date, time, season, period of the day and moon now, or at any real time (seconds since 1970, past or future). nil while the clock does not know the day.",
+    {
+      params: [p("epoch", "number?", "A real time, as getEpoch() gives; default now.")],
+      returns:
+        "A table: year, month (1–12), monthName, sindarin, day (1–30), hour, minute, weekday, season (winter, spring, summer, autumn), period (dawn, day, dusk, night), dawn and dusk (the month's hours), precision (day, hour, minute), epoch, and moon = {phase, level (0 new … 12 full), waxing, visible, bright, position (east, southeast, south, southwest, west, below)}. nil while the clock is unset.",
+      more: [
+        "The clock syncs from what MUME tells (time, the sun, a room clock, MSSP). At day precision the hour is a guess; at hour precision the minute is.",
+        "Moon phases: new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, third quarter, waning crescent.",
+      ],
+      example:
+        'local g = gameTime()\nif g then\n  echo(g.hour .. ":" .. string.format("%02d", g.minute) .. " " .. g.monthName .. ", " .. g.season .. ", " .. g.moon.phase .. " moon")\nend',
+    },
+  ),
+  fn(
+    "gameTimeFind",
+    "gameTimeFind(cond[, from[, horizon]]) → start, end",
+    "The next window of real time (seconds since 1970) in which every key of cond holds, or nil when none starts within the horizon or the clock is unset.",
+    {
+      params: [
+        p(
+          "cond",
+          "table",
+          'Any of: season or notSeason ("winter" or a list), month (1–12, a name or a list), hours = {from = 22, to = 2} (to not included), period ("dawn", "day", "dusk", "night" or a list), moon (a phase name or a list), moonVisible (true or false), at ("dawn", "dusk", "midnight", "moonrise", "moonset", "seasonStart").',
+        ),
+        p("from", "number?", "Where to start looking, as getEpoch(); default now."),
+        p("horizon", "number?", "How far to look, in real seconds; default one game year (6 real days), at most 30 days."),
+      ],
+      returns:
+        "start and end in seconds since 1970. When cond already holds at from, start is from. With at, the window is that moment (start equals end): the first such moment at which the other keys hold. nil when there is none.",
+      more: [
+        "An unknown key or value is an error that names the allowed ones.",
+        "One game minute is one real second, a game hour a real minute, a game year six real days.",
+      ],
+      example:
+        'local s = gameTimeFind({at = "moonrise", moon = {"waxing gibbous", "full"}})\nif s then\n  echo("Dead Knight moonrise in " .. math.floor((s - getEpoch()) / 60) .. " min")\nend',
+    },
+  ),
+  fn(
+    "localTime",
+    "localTime([epoch]) → table",
+    'The browser\'s local date and time of a real time, like Lua\'s os.date("*t"), which the sandbox does not have.',
+    {
+      params: [p("epoch", "number?", "Seconds since 1970; default now.")],
+      returns: "A table: year, month (1–12), day, hour, min, sec, wday (1 = Sunday), yday (1 = 1 January).",
+      example:
+        'local s = gameTimeFind({season = "winter"})\nif s then\n  local t = localTime(s)\n  echo(string.format("Winter starts %d-%02d-%02d %02d:%02d", t.year, t.month, t.day, t.hour, t.min))\nend',
+    },
+  ),
   // Events.
   fn(
     "registerAnonymousEventHandler",
     "registerAnonymousEventHandler(event, fn) → id",
-    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysSettingChanged", "sysConnectionEvent", "sysDisconnectionEvent", "sysPanesChanged" or a #event name such as "SESSION CONNECTED".',
+    'Calls fn(event, …) for an event: "gmcp.Char.Vitals", "sysLoadEvent", "sysSettingChanged", "sysConnectionEvent", "sysDisconnectionEvent", "sysPanesChanged", "sysGameTimeEvent" or a #event name such as "SESSION CONNECTED".',
     {
       params: [
         p(
@@ -1458,6 +1510,9 @@ export function completeLua(
       ALL.filter((d) => d.name.toLowerCase().startsWith(`${base.toLowerCase()}.`))
     ).filter((d) => d.name.toLowerCase().startsWith(lower));
   } else {
+    // A whole keyword typed lists nothing unless asked (Ctrl+Space): Enter
+    // after `local` must break the line, not take `localTime`.
+    if (KEYWORD_NAMES.has(word) && !explicit) return null;
     options = ALL.filter(
       (d) =>
         !d.name.includes(".") &&

@@ -197,7 +197,9 @@ describe('completion and hover of plain Lua', () => {
     expect(names(completeLua('  wh'))).toEqual(['while']);
     expect(completeLua('else')).toBeNull();
     expect(completeLua('local')).toBeNull();
-    expect(names(completeLua('loc'))).toEqual(['local']);
+    expect(names(completeLua('loc'))).toEqual(['localTime', 'local']);
+    // A whole keyword lists API names only when asked (Ctrl+Space).
+    expect(names(completeLua('local', true))).toEqual(['localTime']);
     const t = names(completeLua('t'))!;
     expect(t.indexOf('then')).toBeGreaterThan(t.indexOf('tempTimer'));
     expect(t.indexOf('then')).toBeLessThan(t.indexOf('tostring'));
