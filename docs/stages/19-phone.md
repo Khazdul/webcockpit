@@ -100,4 +100,58 @@ anything missing for logging in and chatting?
 
 ## Owner feedback
 
-(None yet.)
+### Round 1 (2026-10-04, Samsung Android Chrome, ~412 px portrait, light theme)
+
+1. Menus have content you cannot reach: the Scripts action bar is cut at
+   the right edge (RENAME, DELETE, MANUAL unreachable), footers end in `…`.
+   Wide tables (Statistics, History) cut at the right edge are not
+   acceptable either: on a phone nothing in a frame may be out of reach.
+2. Chrome shows its autofill bar (key, card, location) above the keyboard
+   when the command line has the focus; it does not for a `<textarea>`.
+3. (Via the coordinator) the start banner is not centred: it starts ~7 %
+   in and the last `T` of COCKPIT is cut off.
+
+### Round 1 tasks
+
+- [x] Survey script (scratchpad `survey.mjs`): every chrome frame at
+  412×800, 360×740 and 915×400 with `?phone=1`, dark and paper themes;
+  flags text clipped sideways and lines ending in `…`; screenshots.
+- [x] Footers wrap at the ` · ` joints on a phone (`Footer`,
+  `footerRows`/`packRows` in kit/nav.ts); `useBodyRows(footer)` takes the
+  extra rows off.
+- [x] `Centered` text wider than the grid wraps on a phone (name hints,
+  delete and exit warnings, export note).
+- [x] Safety net: on a phone `.wc-body` swipes sideways and its rows and
+  scroll rows do not clip, so wide content (History table, Options Panes
+  and Timers colour grids, the Appearance preview) is reachable.
+- [x] Scripts: the list fits the grid, the buttons wrap onto two rows,
+  no help panel when narrow; a tap on `[ ]` toggles, a tap on the
+  selected name opens the editor (EDIT stays).
+- [x] Statistics: under 64 columns on a phone the two sides stack (each
+  the grid's width); the header wraps.
+- [x] ESC menu status header wraps between its parts.
+- [x] Editors: no 40-cell floor on a phone; the editor footer moves
+  `Ln, Col` to the row above when it does not fit; `Ctrl+S Save`,
+  `F1 Manual`, the confirm's `Y`/`N` are tappable on touch. Credits:
+  column fits the grid, `Escape to exit` tappable on touch.
+- [x] Banner: under 45 columns it crops its starfield (wordmark whole,
+  centred), under 39 it is dropped. Cause: a 412 px phone at DPR 3.5 has
+  10 px cells, so 41 columns; the banner had no width check. Desktop
+  (≥ 60 columns) is not affected.
+- [x] Command line on a phone: one-row `<textarea>` (`enterkeyhint=send`),
+  Enter sends, no newline ever lands; password prompts swap in an
+  `<input type=password>`. Chrome text fields (`TextField`) on a phone:
+  one-row textarea too.
+- [x] Tests: `tests/e2e/phone-frames.spec.ts`; unit tests for
+  `packRows`, `bannerCrop`, the phone input pane; desktop `live-mock`
+  asserts the `<input type=text>`.
+
+Left as `<input>` on a phone (the autofill bar can still show there):
+script pane text fields (`src/panes/script-pane.ts`), the profile
+editor's lite fields (`src/editor/frame.tsx`), the manual's find field
+(`src/editor/manual-find.tsx`).
+
+Known limits: in the profile editor lite view at about 40 columns the
+category tabs and the list are truncated (`HIGHLI…`, `^You a`) but every
+control is tappable; a wide table swipes sideways as a whole (the History
+button column scrolls out with it).

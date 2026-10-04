@@ -149,6 +149,43 @@ Refines §3; where they differ, this wins.
   only."; in the profile editor a new macro and the key field flash "Key
   capture: desktop only." instead of capturing.
 
+#### 3.2 Refinement after owner feedback round 1 (2026-10-04)
+
+Refines §3.1 ("wide tables are cut at the right edge" no longer holds).
+All of it is phone- or touch-gated; desktop is unchanged.
+
+- **Nothing out of reach.** On a phone a footer that does not fit wraps
+  at its ` · ` joints (no `…`); `Centered` text wider than the grid
+  wraps; the ESC status header wraps between its parts. As a safety net
+  `.wc-body` scrolls sideways and its rows and scroll rows do not clip,
+  so anything wider than the grid can be swiped to.
+- **Reflow where it matters.** Scripts: the list fits the grid and the
+  six buttons wrap onto more rows (`packRows`); Statistics under 64
+  columns stacks its two sides; editors drop their 40-cell floor;
+  credits fit the grid. History and the colour grids keep their layout
+  and swipe sideways.
+- **Tap paths.** A tap on a selected script's name opens the editor;
+  `Ctrl+S Save`, `F1 Manual` and the editor confirms' `Y`/`N` are
+  tappable on touch (`escHints(text, actions)`), as is credits'
+  `Escape to exit`.
+- **Banner.** Under 45 columns (a 412 px phone at DPR 3.5 has 10 px
+  cells: 41 columns) it shows the middle `cols` columns, starfield
+  cropped and the wordmark whole and centred; under 39 it is dropped.
+- **Command line.** On a phone the command line is a one-row
+  `<textarea>` (`rows=1`, `wrap=off`, `enterkeyhint=send`,
+  autocomplete/autocorrect/autocapitalize/spellcheck off), because
+  Chrome on Android shows its autofill bar over the keyboard for every
+  `<input>`. Enter sends; a line break never lands (a bare
+  `insertLineBreak` from an on-screen keyboard sends as Enter; any
+  newline that gets in becomes a space, as a paste does on desktop).
+  While the server masks (password prompt) an `<input type=password>`
+  takes its place, still transparent with the bullet overlay: the
+  keyboard then treats it as a password (no suggestion strip, no
+  learning), which a textarea cannot promise. The caret, history and
+  the dead-key guard work on whichever field is in place. Chrome's own
+  text fields (`TextField`: profile and script names) are one-row
+  textareas on a phone too. Desktop keeps the one `<input type=text>`.
+
 ### 4. Tests
 
 - A Playwright project `phone` (Chromium, `isMobile`, `hasTouch`, a
