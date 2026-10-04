@@ -186,3 +186,11 @@ button column scrolls out with it).
   one after a Core.Ping unanswered for 3 s; the ESC menu opens with
   Reconnect selected (ADR 0075 §3.4). Unit tests
   `tests/unit/net-resume.test.ts`, e2e `tests/e2e/phone-resume.spec.ts`.
+
+### Round 2 verified (2026-10-04)
+
+Owner on the real phone, 0.1.47: Chrome's autofill bar is gone, pinch
+zoom works, `locatel` stores keys, the menu opens with Reconnect on
+return. Stage done. Left for later if wanted: profile editor lite cuts
+long rows at ~40 cols; script pane, editor and manual find fields are
+still `<input>`.

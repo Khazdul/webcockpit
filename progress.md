@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 19 (phone access; round 2 released 0.1.47, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: none open. Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,7 +24,7 @@ Current stage: 19 (phone access; round 2 released 0.1.47, owner testing). Stage 
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
-| 19 | Phone access | Owner testing | `docs/stages/19-phone.md` |
+| 19 | Phone access | Done | `docs/stages/19-phone.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
@@ -59,7 +59,7 @@ Newest first.
   link check on resume with Reconnect selected (5 s ping). Released
   0.1.47: deploy green, test:prod 10/10. Disconnect on app switch is
   accepted (no keep-alive possible).
-- **Next:** owner retest on the phone; autofill bar, pinch, resume.
+- **Verified by owner:** autofill bar gone, pinch, locatel, resume menu. Stage done.
   Left: profile editor lite cuts long rows at ~40 cols; script pane and
   editor fields are still `<input>`.
 - **Commits:** 5a84db2 … 9d42a2b, plus this one.
