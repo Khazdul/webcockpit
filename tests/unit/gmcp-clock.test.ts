@@ -14,6 +14,8 @@ import {
   monthIndex,
   periodIcon,
   unsetClock,
+  WEEKDAYS,
+  weekdayOf,
 } from '../../src/gmcp/clock';
 
 const T = 1_790_449_200_000; // ms, a whole second
@@ -31,6 +33,17 @@ describe('calendar', () => {
     const m = momentAt(e, e + momentSeconds(2973, 3, 12, 8, 5));
     expect(m).toMatchObject({ year: 2973, month: 3, day: 12, hour: 8, minute: 5 });
     expect(SEED_EPOCH + 2850 * YEAR_S).toBe(1_696_118_400);
+  });
+
+  it('weekdays repeat every year (Shire Reckoning), as the time lines show', () => {
+    // Cockpit logs, 2026-09-25/26 (year 2854).
+    expect(WEEKDAYS[weekdayOf(3, 21)]).toBe('Mersday');
+    expect(WEEKDAYS[weekdayOf(5, 20)]).toBe('Sunday');
+    expect(WEEKDAYS[weekdayOf(5, 24)]).toBe('Mersday');
+    expect(weekdayOf(0, 1)).toBe(0);
+    const e = 1000;
+    expect(momentAt(e, e + momentSeconds(2854, 3, 21, 17, 0)).weekday).toBe(5);
+    expect(momentAt(e, e + momentSeconds(2973, 3, 21, 17, 0)).weekday).toBe(5);
   });
 
   it('knows months in both languages, hours in 12-hour form, day and night', () => {
@@ -97,16 +110,28 @@ describe('sync sources', () => {
     expect(c.syncRoomClock('The current time is late.', T)).toBe(false);
   });
 
-  it('Event.Sun rise/set needs at least day; light/dark are ignored', () => {
+  it('Event.Sun rise/set/light/dark need at least day', () => {
     const c = new ClockModel();
     expect(c.syncSun('rise', T)).toBe(false);
     c.syncTimeLine('Sterday, the 12th of Astron, year 2973 of the Third Age.', T);
-    expect(c.syncSun('light', T)).toBe(false);
+    expect(c.syncSun('noon', T)).toBe(false);
     expect(c.syncSun('rise', T)).toBe(true);
     expect(c.now(T)).toMatchObject({ month: 3, hour: DAWN[3], minute: 0 });
     expect(c.precision).toBe('minute');
     c.syncSun('set', T);
     expect(c.now(T)).toMatchObject({ hour: DUSK[3], minute: 0 });
+  });
+
+  it('Event.Sun light is an hour after dawn, dark an hour after dusk (logs)', () => {
+    // Gittan 2026-10-03, 16 Wedmath (dawn 4, dusk 22): light 05:00, set
+    // 22:00 and dark 23:00, 1020 s and 60 s apart.
+    const c = clockAt(2855, 7, 16, 4, 40, 'day');
+    expect(c.syncSun('light', T)).toBe(true);
+    expect(c.now(T)).toMatchObject({ hour: 5, minute: 0 });
+    expect(c.state.reason).toBe('sun_light');
+    expect(c.now(T + 1_020_000)).toMatchObject({ hour: 22, minute: 0 });
+    c.syncSun('dark', T);
+    expect(c.now(T)).toMatchObject({ hour: DUSK[7]! + 1, minute: 0 });
   });
 
   it('MSSP sets hour precision only while at most day', () => {

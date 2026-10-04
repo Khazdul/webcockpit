@@ -10,11 +10,16 @@
 //
 // Sync sources (all passive, nothing is sent):
 //   GMCP Event.Sun {what: rise|set}    hour = dawn/dusk of the month, :00 → minute (needs ≥ day)
+//   GMCP Event.Sun {what: light|dark}  hour = dawn+1 / dusk+1, :00 → minute (needs ≥ day)
 //   `8 am on Mersday, the 26th of Solmath, year 2973 of the Third Age.`  → hour
 //   `Mersday, the 26th of Solmath, year 2973 of the Third Age.`         → day (keeps known hour/minute)
 //   `The current time is 8:00am.`      hour + minute → minute (needs ≥ day)
 //   MSSP GAME YEAR/MONTH/DAY/HOUR      → hour, only while precision ≤ day
 //     (MUME's MSSP table; the day is 0-based there, as MMapper reads it)
+//
+// Weekdays follow Shire Reckoning: every year starts on Sterday, so a
+// date has the same weekday every year (checked against `time` lines in
+// Cockpit's 2026 logs).
 //
 // The input-line strip shows the time to the next day/night change
 // (`nextTransition`, `stripText`); the Character pane no longer shows it.
@@ -94,8 +99,13 @@ export function momentAt(epoch: number, nowS: number): Moment {
     day: (Math.floor(e / DAY_S) % 30) + 1,
     hour: Math.floor(e / HOUR_S) % 24,
     minute: e % 60,
-    weekday: Math.floor(e / DAY_S) % 7,
+    weekday: weekdayOf(Math.floor(e / MONTH_S) % 12, (Math.floor(e / DAY_S) % 30) + 1),
   };
+}
+
+/** Weekday (0 = Sterday) of a date: the day of the year modulo 7, the same every year. */
+export function weekdayOf(month: number, day: number): number {
+  return (month * 30 + day - 1) % 7;
 }
 
 /** Day: dawn ≤ hour < dusk of the month; everything else is night. */
@@ -188,12 +198,16 @@ export class ClockModel {
     this.version++;
   }
 
-  /** GMCP `Event.Sun`: `rise` / `set` (needs ≥ day); `light` / `dark` are ignored. */
+  /**
+   * GMCP `Event.Sun` (needs ≥ day): `rise` at dawn, `light` an hour later,
+   * `set` at dusk, `dark` an hour later, each on the hour. The logs show
+   * `light`/`dark` far more often than `rise`/`set`.
+   */
   syncSun(what: unknown, nowMs: number): boolean {
-    if (what !== 'rise' && what !== 'set') return false;
+    if (what !== 'rise' && what !== 'set' && what !== 'light' && what !== 'dark') return false;
     const m = this.now(nowMs);
     if (!m) return false;
-    const hour = what === 'rise' ? DAWN[m.month]! : DUSK[m.month]!;
+    const hour = what === 'rise' ? DAWN[m.month]! : what === 'light' ? DAWN[m.month]! + 1 : what === 'set' ? DUSK[m.month]! : DUSK[m.month]! + 1;
     this.anchor({ ...m, hour, minute: 0 }, nowMs, 'minute', `sun_${what}`);
     return true;
   }
