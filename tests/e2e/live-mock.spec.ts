@@ -69,6 +69,8 @@ test('connects, logs in, and masks the password', async ({ page }) => {
 
   // WILL ECHO arrived: the input is masked, the secret is sent but not shown.
   await expect(page.locator('.wc-input-field')).toHaveClass(/wc-masked/);
+  // Desktop keeps the one <input type="text">, masked by the overlay (ADR 0075 §3.2 is phone only).
+  expect(await page.locator('.wc-input-field').evaluate((e) => `${e.tagName}:${(e as HTMLInputElement).type}`)).toBe('INPUT:text');
   await page.keyboard.type('hunter2');
   await expect(page.locator('.wc-input-mask')).toHaveText('•••••••');
   await page.keyboard.press('Enter');
