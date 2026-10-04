@@ -243,7 +243,7 @@ describe('bundled almanac', () => {
     expect(rows[16]).toBe(' Aft Sol Ret Ast Thr For Aft Wed Hal Win Blo For');
     expect(rows[19]).toMatch(/^ COMING UP +click = remind$/);
     const list = rows.slice(20);
-    expect(list).toHaveLength(15);
+    expect(list).toHaveLength(17);
     expect(t.find('Sundeath')).toBe(-1);
     expect(list.find((r) => r.includes('Black Ice open'))).toMatch(/now$/);
     expect(list.find((r) => r.includes('Spirit Knight door'))).toMatch(/no winter 00–… +in 12h$/);
@@ -334,7 +334,7 @@ describe('bundled almanac', () => {
     expect(t.panes.pane.content.linkAt(dk, 4)!.hint).toMatch(/Source: Faine, strategy\.txt \(Dead Knight\)/);
     expect(rows[t.find('Juniper')]).toMatch(/season unknown$/);
     expect(t.find('Sundeath')).toBe(-1);
-    expect(rows.at(-1)).toMatch(/19 bundled, 0 your own/);
+    expect(rows.at(-1)).toMatch(/21 bundled, 0 your own/);
   });
 });
 
@@ -391,7 +391,7 @@ describe('the event editor', () => {
     const r = t.find('Troll pack');
     expect(t.rows()[r]).toMatch(/^ ❄ Troll pack +full winter$/);
     expect(t.rows()[r + 1]).toMatch(/^ {3}Wolf Glade +edit ✖$/);
-    expect(t.rows().at(-1)).toMatch(/19 bundled, 1 your own/);
+    expect(t.rows().at(-1)).toMatch(/21 bundled, 1 your own/);
     // On NOW too.
     t.click(0, 'NOW');
     expect(t.find('Troll pack')).toBeGreaterThan(19);
