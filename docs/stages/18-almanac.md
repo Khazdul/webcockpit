@@ -161,6 +161,13 @@ the API; the mock's epoch is not used.
   (row, column, length); a pane move cancels the press; the input line
   and the cockpit no longer take the focus back on that mouseup from a
   script field the link just focused.
+- Round 1: countdowns in game hours and days (`in 2d 14h`), the hour as
+  MUME says it (`2 pm`); redraw on `sysGameTimeEvent` `hour`/`sync` and
+  clicks only (no 1 s timer); `remind` is in game hours (same seconds as
+  before); a temporary editor pane builds events with chips (choices
+  become the stored condition text, so the store and ALM1 stay
+  compatible; icon and colour are new optional record and export fields
+  5–6); Sundeath removed.
 
 ## Test guide
 
@@ -169,24 +176,25 @@ Enable the script: Options → Scripts → almanac `[X]`, or type
 next sunrise or sunset) so the clock knows the hour. The Almanac pane
 opens in its own column at the right edge; `almanac` hides and shows it.
 
-1. **NOW:** check the moon picture, date, time and day/night against
-   the game, the hour marker on the daylight band, and the countdowns in
-   COMING UP. Click an event to set a reminder (♪); with
-   `#script set almanac remind 1` it comes one minute before.
+1. **NOW:** the date, the hour (`2 pm`), the moon picture and the
+   daylight band against the game. Countdowns are in game time
+   (`in 5h`, `in 2d 14h`) and change once a game hour (a real minute),
+   with no ticking seconds. Click an event to set a reminder (♪); it
+   comes `remind` game hours before (`#script set almanac remind 1`).
 2. **PLAN:** browse months with ◂ ▸ or the wheel, click a day: do the
-   season line, full moons and Dead Knight times look useful for
-   planning a session?
-3. **LORE:** point at names for notes and sources. `[+ add]` an event
-   of your own, e.g. *When* `winter full` or `moonrise waxing|full`; try
-   a wrong word and read the message. Then `almanac export`, copy the
-   line, `almanac remove <name>` and `almanac import <line>`.
-4. Drag the pane into the normal right column: is the narrow version
-   acceptable, or should the default be different?
+   season line, full moons and Dead Knight times help you plan?
+3. **LORE → [+ add]:** the event editor. Type a name and a place, click
+   a season, a moon phase or a time of day, pick an icon and a colour.
+   Read the sentence under the choices ("Winter, full moon. Next: in
+   …"), then Save. Try `edit` and `✖` on your event's row, and Esc or
+   Cancel to leave without saving. `almanac add` opens the same editor.
+4. `almanac export`, copy the line, `almanac remove <name>`, then
+   `almanac import <line>`.
 
-Feedback wanted: the look against the mock-up; whether the default place
-(own 50-column lane) is right; reminders without sound; and the event
-list itself: it is a **first draft** (see Build notes for the guesses),
-so say what is missing, wrong or not worth listing.
+Feedback wanted: is the editor clear without help, and are the choices
+the right ones? Are the icons and colours enough? Is "once a game hour"
+the right update rate? Sundeath is gone; the rest of the event list is
+still a **first draft** (see Build notes for the guesses).
 
 ## Owner feedback
 
@@ -205,6 +213,6 @@ so say what is missing, wrong or not worth listing.
 
 Tasks from round 1:
 
-- [ ] R1.1 game-time countdowns, redraw once per game hour (no 1 s timer)
-- [ ] R1.2 pop-up event editor with choices and an icon picker (no syntax)
-- [ ] R1.3 remove Sundeath
+- [x] R1.1 game-time countdowns, redraw once per game hour (no 1 s timer)
+- [x] R1.2 pop-up event editor with choices and an icon picker (no syntax)
+- [x] R1.3 remove Sundeath
