@@ -51,6 +51,18 @@
   overflow: hidden;
 }
 
+/* Touch only (ADR 0075): pages scroll by swipe as well as by the cursor
+ * (ensureVisible). No scrollbar of the browser's: it would take cells. */
+.wc-touch .wc-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.wc-touch .wc-body::-webkit-scrollbar {
+  display: none;
+}
+
 .wc-line {
   height: var(--cell-h);
   white-space: pre;

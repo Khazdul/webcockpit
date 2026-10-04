@@ -347,6 +347,15 @@ body {
   display: none;
 }
 
+/* Touch only (ADR 0075): no double-tap zoom on the page (pinch zoom
+ * stays), and no text inflation (iOS landscape) that would break the
+ * measured cell grid. */
+html.wc-touch {
+  touch-action: manipulation;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 /* Touch only (ADR 0075): the menu button `☰` at the end of the input row. */
 .wc-touch .wc-menu-btn {
   flex: 0 0 calc(2 * var(--cell-w));

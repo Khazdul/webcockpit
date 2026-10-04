@@ -26,6 +26,7 @@ import { useGrid } from './hooks';
 import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
 import { EscToken, escHints, isEscToken } from './esc';
+import { device } from '../../core/device';
 
 // ------------------------------------------------------------------- lines
 
@@ -290,6 +291,7 @@ const rowText = (it: MenuItem): string => (it.glyph ? `${it.glyph} ${it.label ??
 function MenuRow(p: { item: MenuItem; at: number; selected: boolean; onSelect: () => void; hoverMoves: boolean }): VNode {
   const ref = useRef<HTMLDivElement>(null);
   const it = p.item;
+  const touch = device().touch;
   useLayoutEffect(() => {
     if (p.selected) ensureVisible(ref.current);
   }, [p.selected]);
@@ -298,8 +300,9 @@ function MenuRow(p: { item: MenuItem; at: number; selected: boolean; onSelect: (
     if (it.disabled) return;
     const wasSelected = p.selected;
     p.onSelect();
-    // On a cycler/stepper the arrows adjust: << = back, >> = forward.
-    if (it.adjust && wasSelected && part !== 'label') return it.adjust(part === 'pre' ? -1 : 1);
+    // On a cycler/stepper the arrows adjust: << = back, >> = forward. On a
+    // touch device they act at once, without selecting the row first (ADR 0075).
+    if (it.adjust && (wasSelected || touch) && part !== 'label') return it.adjust(part === 'pre' ? -1 : 1);
     if (it.stepper) return;
     if (it.activate) it.activate();
     else it.adjust?.(1);
@@ -307,7 +310,14 @@ function MenuRow(p: { item: MenuItem; at: number; selected: boolean; onSelect: (
   const cls =
     'wc-mrow' + (p.selected ? ' is-sel' : '') + (it.dim ? ' is-dim' : '') + (it.disabled ? ' is-disabled' : '');
   return (
-    <div class="wc-line" style={indent(p.at)} ref={ref}>
+    <div
+      class="wc-line"
+      style={indent(p.at)}
+      ref={ref}
+      // Touch only: the whole row is the tap target, as a click on its label.
+      onMouseDown={touch ? (e) => e.preventDefault() : undefined}
+      onClick={touch ? (e) => click(e, 'label') : undefined}
+    >
       <span
         class={cls}
         data-key={it.key}

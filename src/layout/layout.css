@@ -236,3 +236,10 @@
 .wc-cockpit[data-too-small] > :not(.wc-too-small) {
   visibility: hidden;
 }
+
+/* Touch only (ADR 0075): a drag on a grip or a resize handle moves the
+ * pane instead of scrolling the page. */
+.wc-touch .wc-pane-grip,
+.wc-touch .wc-float-handle {
+  touch-action: none;
+}
