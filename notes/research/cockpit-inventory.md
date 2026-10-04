@@ -795,7 +795,7 @@ reserved).
 
 | Source | Trigger | Effect |
 |---|---|---|
-| GMCP `Event.Sun` `{what:"rise"}` / `"set"` | sunrise/sunset | hour = dawn/dusk of current month, minute 0 → MINUTE (needs ≥ DAY). `light`/`dark` (shielding) ignored |
+| GMCP `Event.Sun` `{what:"rise"}` / `"set"` | sunrise/sunset | hour = dawn/dusk of current month, minute 0 → MINUTE (needs ≥ DAY). WebCockpit (stage 18): `light` = dawn + 1 h and `dark` = dusk + 1 h, on the hour, also sync MINUTE |
 | `time` output, full | `^%1 of the Third Age.$` e.g. `8 am on Mersday, the 26th of Solmath, year 2973 of the Third Age.` | date + hour → HOUR |
 | `time` output, date only | `Mersday, the 26th of Solmath, year 2973 of the Third Age.` | date → DAY (keeps known hour/minute) |
 | Room clock | `^The current time is %1.$` e.g. `The current time is 8:00am.` | hour+minute → MINUTE (needs ≥ DAY) |
