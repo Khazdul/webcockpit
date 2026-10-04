@@ -17,6 +17,9 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
 - 2026-10-04: two items **apply on desktop too**: `ESC …` footer tokens
   are clickable everywhere (mouse as well as tap), and a new `#menu`
   client command opens the ESC menu on every device.
+- 2026-10-04: **link check on resume, phone only.** Back from the
+  background, a dead link shows the ESC menu with Reconnect at once; no
+  automatic reconnect (ADR 0075 §3.4).
 
 ## Plan
 
@@ -175,3 +178,11 @@ button column scrolls out with it).
 - [x] e2e (phone project): moves on GAME then MAP shows the room centred;
   MAP opened first after the moves; moves on MAP follow; pinch, two- and
   one-finger drag by CDP touch events.
+
+### Resume tasks (2026-10-04)
+
+- [x] Phone: on `visibilitychange` to visible / bfcache `pageshow`,
+  `Session.checkAlive()` drops a closed socket at once and a half-open
+  one after a Core.Ping unanswered for 3 s; the ESC menu opens with
+  Reconnect selected (ADR 0075 §3.4). Unit tests
+  `tests/unit/net-resume.test.ts`, e2e `tests/e2e/phone-resume.spec.ts`.

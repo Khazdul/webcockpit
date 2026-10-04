@@ -211,6 +211,26 @@ unchanged (it keeps ADR 0020's "forward only while shown and loaded").
   Same `pan`/`zoom` messages and limits as the mouse and the wheel; a
   near-zero sum (a parallel two-finger drag) is no zoom.
 
+#### 3.4 Link check on resume (owner request, 2026-10-04)
+
+Android suspends a background tab and the MUME link dies meanwhile
+(accepted; no keep-alive fix). On a phone the player now learns it on
+return, not on the next command. Desktop installs nothing.
+
+- `src/app/resume-watch.ts`: `visibilitychange` to visible, or `pageshow`
+  with `persisted` (back/forward cache), calls `Session.checkAlive()`.
+  Installed by the shell only when `device().phone`.
+- `checkAlive` acts only in login/playing on a live (not replay)
+  connection. A socket that can no longer write (`readyState` not OPEN,
+  its close event not delivered yet) is dropped at once. An open one may
+  be half-open after the freeze: `KeepAlive.probe` sends a Core.Ping now
+  (it becomes the outstanding ping, so the RTT stays right) and, with no
+  reply within 3 s (`RESUME_PING_TIMEOUT_MS`), the session disconnects.
+- Both drops use the reason `connection lost while in the background`,
+  so the normal path runs: `Connection closed: …`, `Press Enter to
+  reconnect.`, and the ESC menu opens with Reconnect selected. No
+  automatic reconnect.
+
 ### 4. Tests
 
 - A Playwright project `phone` (Chromium, `isMobile`, `hasTouch`, a
@@ -224,8 +244,9 @@ unchanged (it keeps ADR 0020's "forward only while shown and loaded").
 - Desktop behaviour and look do not change. A few shared modules gain a
   flag check; the desktop branch is the existing code.
 - Out of scope (research §3 C and D): direction pad and macro buttons,
-  history buttons, PWA manifest, Wake Lock, reconnect on
-  resume, a smaller phone scrollback default.
+  history buttons, PWA manifest, Wake Lock, automatic reconnect on
+  resume (§3.4 only surfaces Reconnect), a smaller phone scrollback
+  default.
 - Known limits on a phone: switching app or locking the screen ends the
   session (linkdeath); on iOS Safari, profiles may be deleted after 7
   days without a visit unless the site is on the home screen.
