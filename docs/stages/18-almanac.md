@@ -225,3 +225,17 @@ Tasks from round 1:
 - With a minute-synced clock, NOW's clock should tick game minutes
   every second, like the clock elsewhere. Done: only the clock cells are
   rewritten (`pane:setText`), the rest still redraws per game hour.
+
+### Round 3 (2026-10-04)
+
+- PLAN feels odd: Ingrove alone marked in the month grid is illogical,
+  and day details only show Dead Knight. Agreed redesign: the selected
+  day as a real-time timeline (00–24 local) with one row per event that
+  varies over the day (marks for rare moments, bars for open spans),
+  rows that are open all day hidden, hover for exact times, click a row
+  to mark its days in the grid, nothing marked by default. Plus a marker
+  for the current time on the timeline.
+
+- [ ] R3.1 PLAN timeline for the selected day, generic over all events
+- [ ] R3.2 now marker on the timeline
+- [ ] R3.3 click a row to mark its days in the grid; default none
