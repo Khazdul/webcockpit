@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 17 (foreign import; released 0.1.42, owner testing). Stage 16 (readability script) also released in 0.1.42, owner testing. Stages 14 and 15 done (latest release 0.1.43). Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -23,7 +23,7 @@ Current stage: 17 (foreign import; released 0.1.42, owner testing). Stage 16 (re
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
-| 18 | Almanac | In progress | `docs/stages/18-almanac.md` |
+| 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
@@ -44,11 +44,17 @@ Newest first.
   now fire on press+release (a redraw could swallow the DOM click).
 - **Checked:** typecheck, unit 2239, full e2e, almanac + script-pane e2e
   100/100 repeated.
-- **Not released:** the version bump was blocked by the permission
-  classifier; the owner releases or allows it. Main is 16 commits ahead.
-- **Open:** owner decisions on placement (own 50-col lane), reminders
-  without sound, event list review.
-- **Commits:** 5d29fdb … 75e74b4, plus this one.
+- **Owner rounds 1–3:** MUME-time countdowns, click event editor with
+  icons, Sundeath out; events from mumeinfo.txt and yllemo (unconfirmed
+  left out); NOW clock ticks game minutes; PLAN as a day timeline with a
+  now marker and click-to-mark days.
+- **Released:** 0.1.44 (tag v0.1.44, owner's go). build:pages smoke
+  green, Pages deploy green, live release.json 0.1.44, test:prod 10/10
+  against mumecockpit.com (ADR 0028's khazdul.github.io URL now
+  redirects; use ADR 0029's).
+- **Open:** event list review; placement (own 50-col lane); reminders
+  without sound.
+- **Commits:** 5d29fdb … 0878804, plus this one.
 
 ### 2026-10-04 — Stage 17: JMC import fixes, release 0.1.43
 
