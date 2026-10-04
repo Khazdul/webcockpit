@@ -70,6 +70,7 @@ import { ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
+import { device } from '../core/device';
 
 type ChromeModule = typeof import('../chrome');
 
@@ -196,6 +197,22 @@ export class Shell {
     menu.open(preselect ? { preselect } : {});
   }
 
+  /** The touch menu button (`☰`); a tap opens the ESC menu without focusing the input. */
+  private menuButton(doc: Document): HTMLSpanElement {
+    const b = doc.createElement('span');
+    b.className = 'wc-menu-btn';
+    b.textContent = '☰';
+    b.title = 'Menu';
+    b.setAttribute('role', 'button');
+    b.setAttribute('aria-label', 'Menu');
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      void this.openMenu();
+    });
+    return b;
+  }
+
   /** Closes the ESC menu and gives the input its focus back. */
   closeMenu(): void {
     this.menu?.close();
@@ -317,6 +334,9 @@ export class Shell {
       app.input.clockEl.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
       notices.attach(app.bus);
     }
+    // Touch only (ADR 0075): a `☰` at the end of the input row opens the
+    // ESC menu, as Esc does. Desktop has no such control.
+    if (device().touch) app.input.clockEl.after(this.menuButton(root.ownerDocument));
     app.bus.on('conn.state', (s) => this.onConn(s.state, s.reason ?? ''));
     this.appRef = app;
     return app;
