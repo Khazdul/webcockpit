@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AllocateInput } from '../../src/layout/allocate';
-import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, allocatePhone, type PhoneTab } from '../../src/layout/phone';
+import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_NAWS_COLS, PHONE_MIN_ROWS, allocatePhone, phoneNawsCols, type PhoneTab } from '../../src/layout/phone';
 import { placeScriptPane } from '../../src/layout/model';
 import { PANE_IDS, type LayoutModel, type PaneId, defaultLayout } from '../../src/layout/types';
 
@@ -111,5 +111,13 @@ describe('allocatePhone', () => {
     const before = JSON.stringify(layout);
     run(43, 40, 'comm', { layout });
     expect(JSON.stringify(layout)).toBe(before);
+  });
+});
+
+describe('phoneNawsCols', () => {
+  it('reports at least 80 columns so MUME tables keep their rows whole', () => {
+    expect(PHONE_MIN_NAWS_COLS).toBe(80);
+    expect(phoneNawsCols(41)).toBe(80);
+    expect(phoneNawsCols(93)).toBe(93);
   });
 });

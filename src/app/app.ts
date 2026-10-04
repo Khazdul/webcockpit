@@ -93,6 +93,8 @@ import { LiveRuns } from '../runs/live';
 import type { ScriptLibrary } from '../scripts';
 import type { ScriptHost } from '../scripts/host';
 import { GmcpCache } from '../scripts/gmcp-cache';
+import { device } from '../core/device';
+import { phoneNawsCols } from '../layout/phone';
 
 /** UI pane warnings for capture states that mean runs are not recorded. */
 const CAPTURE_WARNINGS: Readonly<Record<string, string>> = {
@@ -346,7 +348,7 @@ export class App {
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,
-      onResize: (cols, rows) => this.session.setWindowSize(cols, rows),
+      onResize: (cols, rows) => this.session.setWindowSize(device().phone ? phoneNawsCols(cols) : cols, rows),
       onFocusInput: () => this.input.focus(),
       ...(perf
         ? { requestFrame: perf.frames(opts.requestFrame ?? ((cb) => void requestAnimationFrame(() => cb()))) }

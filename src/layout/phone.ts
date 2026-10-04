@@ -35,6 +35,19 @@ export const PHONE_MIN_ROWS = 8;
 /** Rows of the tab strip. */
 export const STRIP_ROWS = 1;
 
+/**
+ * Narrowest width a phone reports to MUME (NAWS). MUME formats tables
+ * (`change width table terminal`), e.g. locate life rows, to this width;
+ * a phone's ~40 columns would split rows that triggers expect on one line.
+ * The output pane wraps the wider lines itself.
+ */
+export const PHONE_MIN_NAWS_COLS = 80;
+
+/** The width sent to MUME for a game pane `cols` wide (phone only). */
+export function phoneNawsCols(cols: number): number {
+  return Math.max(cols, PHONE_MIN_NAWS_COLS);
+}
+
 /** The game tab's id. Pane ids never equal it (built-ins are named, script panes hold a `/`). */
 export const GAME_TAB = 'game';
 
