@@ -216,3 +216,12 @@ Tasks from round 1:
 - [x] R1.1 game-time countdowns, redraw once per game hour (no 1 s timer)
 - [x] R1.2 pop-up event editor with choices and an icon picker (no syntax)
 - [x] R1.3 remove Sundeath
+
+### Round 2 (2026-10-04)
+
+- Added from `~/mumeinfo.txt` and the yllemo quest pages: Eblees moan,
+  Dol Guldur bats; refined Hrivesur, Dagnir, notes. Unconfirmed items
+  left out (owner).
+- With a minute-synced clock, NOW's clock should tick game minutes
+  every second, like the clock elsewhere. Done: only the clock cells are
+  rewritten (`pane:setText`), the rest still redraws per game hour.

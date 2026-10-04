@@ -69,8 +69,10 @@ The pane is a grid of cells, as the mock-up: put() writes text with a
 style (colour, background, bold, a click action, a tooltip), flush() turns
 each row into a pane line with colour tags and links, and writes only the
 rows that changed. The pane redraws once a game hour (a real minute, on
-sysGameTimeEvent "hour") and on clicks; nothing ticks in between, and
-nothing runs while it is off, except the timer of a reminder you set.
+sysGameTimeEvent "hour") and on clicks. In between, only NOW's clock
+ticks, a game minute a real second, and only while the clock is synced to
+the minute. Nothing runs while the pane is off, except the timer of a
+reminder you set.
 gameTimeFind answers are kept until the next sysGameTimeEvent or until
 their window has passed.
 
@@ -250,6 +252,13 @@ end
 local function ampm(hour)
   local h12 = hour % 12 == 0 and 12 or hour % 12
   return h12 .. (hour < 12 and " am" or " pm")
+end
+
+-- The clock on NOW: "2:37 pm" when the clock knows the minute, else "2 pm".
+local function clockText(g)
+  if g.precision ~= "minute" then return ampm(g.hour) end
+  local h12 = g.hour % 12 == 0 and 12 or g.hour % 12
+  return h12 .. ":" .. string.format("%02d", g.minute) .. (g.hour < 12 and " am" or " pm")
 end
 
 -- Real local time "14:05", with the weekday when it is more than 20 hours away.
@@ -672,6 +681,8 @@ end
 
 local pane = createPane{ id = "main", title = "Almanac", short = "ALMA", dock = "right", lane = "own", rows = 27, cols = 50, anchor = "top" }
 local tab = "now"
+-- Where NOW's clock sits while it shows minutes: { row, col, hour }.
+local clockSpot = nil
 local plan = nil   -- { y, m, sel }
 
 -- A surface: a pane and what was last written to it. The main pane and the
@@ -1059,7 +1070,8 @@ local function drawNow(g, t)
   local sub = g.sindarin .. " · " .. cap(g.season) .. " · " .. g.weekday
   if X + utf8.len(sub) > W then sub = g.sindarin .. " · " .. cap(g.season) end
   put(X, 4, sub, { fg = C.dim })
-  local x2 = put(X, 6, ampm(g.hour), { fg = C.glow, b = true,
+  clockSpot = g.precision == "minute" and { row = 6, col = X, hour = g.hour } or nil
+  local x2 = put(X, 6, clockText(g), { fg = C.glow, b = true,
     tip = "Game time " .. pad2(g.hour) .. ":00–" .. pad2(g.hour) .. ":59; a game hour is a real minute" })
   local sun = g.period == "dawn" or g.period == "day"
   put(x2 + 1, 6, (sun and "☼ " or "☾ ") .. g.period, { fg = sun and C.gold or C.night })
@@ -1418,6 +1430,29 @@ end
 
 local draw -- forward
 
+-- The minute ticker: with a minute-synced clock, NOW's clock shows game
+-- minutes, one a real second. Only the clock's cells are written; the rest
+-- of the pane waits for the game hour. It stops when the clock is not on
+-- show or the hour turns (the hour's redraw starts it again).
+local ticker = nil
+local function stopTicker()
+  if ticker then killTimer(ticker) end
+  ticker = nil
+end
+local function tick()
+  local g = clockSpot and tab == "now" and pane:visible() and gameTime()
+  if not g or g.precision ~= "minute" or g.hour ~= clockSpot.hour then return stopTicker() end
+  pane:setText(clockSpot.row, clockSpot.col, "<b><" .. C.glow .. ">" .. clockText(g) .. "<reset>")
+end
+local function startTicker()
+  if ticker or not clockSpot then return end
+  -- Start just after a second turns, so the minute changes with the game's.
+  ticker = tempTimer(1 - getEpoch() % 1 + 0.02, function()
+    ticker = tempTimer(1, tick, true)
+    tick()
+  end)
+end
+
 -- Redraws the main pane: on a game hour, a sync and what the player does.
 draw = function()
   use(main)
@@ -1435,6 +1470,7 @@ draw = function()
     drawPlan(g, t)
   end
   flush()
+  if tab == "now" and ok and clockSpot then startTicker() else stopTicker() end
 end
 
 pane:onResize(function(rows, cols)

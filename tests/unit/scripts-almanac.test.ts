@@ -233,7 +233,7 @@ describe('bundled almanac', () => {
     expect(rows[0]).toBe('  NOW   PLAN   LORE');
     expect(rows[2]).toMatch(/19 Wedmath 2855$/);
     expect(rows[3]).toMatch(/Urui · Summer · \w+day$/);
-    expect(rows[5]).toMatch(/ {3}12 pm ☼ day$/);
+    expect(rows[5]).toMatch(/ {3}12:00 pm ☼ day$/);
     expect(rows[7]).toMatch(/☽ Waxing crescent +37% lit$/);
     expect(rows[8]).toMatch(/full in 8d 12h +(rises|sets) in \d+(d \d+)?h$/);
     expect(rows[10]).toMatch(/^ DAYLIGHT +dawn 04 · dusk 22 · 18h light$/);
@@ -248,13 +248,17 @@ describe('bundled almanac', () => {
     expect(list.find((r) => r.includes('Black Ice open'))).toMatch(/now$/);
     expect(list.find((r) => r.includes('Spirit Knight door'))).toMatch(/no winter 00–… +in 12h$/);
     expect(list.find((r) => r.includes('Ingrove warg pack'))).toMatch(/in 156d 4h$/);
-    // No seconds anywhere, and nothing ticks within a game hour.
+    // No real seconds anywhere. With a minute-synced clock only the clock
+    // ticks within a game hour: a game minute a real second.
     expect(rows.join('\n')).not.toMatch(/\d+s\b|\d+m \d/);
-    t.advance(30_000);
-    expect(t.rows()).toEqual(rows);
+    // The ticker runs just after each second turns (+20 ms).
+    t.advance(30_100);
+    const later = t.rows();
+    expect(later[5]).toMatch(/ {3}12:30 pm ☼ day$/);
+    expect(later.filter((_, i) => i !== 5)).toEqual(rows.filter((_, i) => i !== 5));
     // The next game hour (a real minute) redraws.
     t.advance(31_000);
-    expect(t.rows()[5]).toMatch(/ {3}1 pm ☼ day$/);
+    expect(t.rows()[5]).toMatch(/ {3}1:01 pm ☼ day$/);
     expect(t.rows().find((r) => r.includes('Spirit Knight door'))).toMatch(/in 11h$/);
     expect(t.errors()).toEqual([]);
   });
@@ -268,7 +272,7 @@ describe('bundled almanac', () => {
     expect(t.rows()).toEqual(rows);
     t.input('almanac');
     expect(t.panes.pane.view.on).toBe(true);
-    expect(t.rows()[5]).toMatch(/ {3}1 pm ☼ day$/);
+    expect(t.rows()[5]).toMatch(/ {3}1:30 pm ☼ day$/);
   });
 
   it('a click on an event turns its reminder on; it comes N game hours before', async () => {
