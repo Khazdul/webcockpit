@@ -23,6 +23,7 @@ Current stage: 17 (foreign import; released 0.1.42, owner testing). Stage 16 (re
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
+| 18 | Almanac | In progress | `docs/stages/18-almanac.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

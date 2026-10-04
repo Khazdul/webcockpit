@@ -450,6 +450,13 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     on the Map pane for a while, blinking, with arrows when off view and
     an optional `focus` that zooms out to show them; `mapUnmark(handle)`;
     `mapFind(query, fn)`. Map off: `nil, "map off"`. Live only.
+  - Game time (ADR 0074): `gameTime([epoch])` gives the game date,
+    time, season, period of day and moon (phase, level, waxing,
+    visibility, position) for now or any real time, or nil while the
+    clock is unset. `gameTimeFind(cond, [from], [horizon])` gives the
+    next window where a condition holds (season, month, hours, period,
+    moon phase or visibility, or a moment such as dawn, moonrise or a
+    season start). `sysGameTimeEvent` fires on sync and on changes.
 - **Limits** (ADR 0051): sandboxed environment, instruction budget per
   call, memory cap, auto-disable on repeated errors.
 - **Runs.** Script pane content is recorded and shows in the log player
@@ -469,6 +476,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - **Readability:** Cockpit's readability modules as a script (stage
     16): short mob names from Lamia's list with tier colours, movement
     and Exits in teal, flags tinted, each part a setting (ADR 0068).
+  - **Almanac:** a pane with the tabs NOW (moon, game time, daylight
+    and year bands, upcoming events with reminders), PLAN (real-date
+    calendar with seasons and moon events) and LORE (time-bound things
+    in Arda). Events are data rows; players add their own in the pane
+    and share them as text (ADR 0074, stage 18).
 
   Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
   the hue is kept and the lightness moved to 4.5:1 against the current
@@ -572,6 +584,7 @@ what feedback is wanted.
 | 11 | **Script panes.** `createPane`, gauges, clickable rows and cells, run capture and replay of script panes, bundled mercenaries. | Use the mercenaries pane in play; watch it in a replay. |
 | 12 | **Key manager.** The bundled key manager, from the owner's Mudlet reference script, over several polish rounds. | Your usual key and door routine. |
 | 17 | **Foreign import.** Detect and translate TinTin++, JMC and Powwow settings into a new profile, with an import report (§2.11). | Import your old tt++/JMC/powwow files and read the report. |
+| 18 | **Almanac.** Clock moon and season model, the game time API for scripts, and the bundled almanac script with data-driven events (ADR 0074). | Open the almanac; plan a session; add an event of your own. |
 
 ## 6. Open questions for the owner
 
