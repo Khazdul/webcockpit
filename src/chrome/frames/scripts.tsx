@@ -33,6 +33,7 @@ import {
   scriptBackupFileName,
 } from '../../scripts/backup';
 import { knownSyntaxProblem, syntaxProblem } from '../../scripts/check';
+import { device, touchInteraction } from '../../core/device';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
 import { centreLeft, truncate } from '../kit/nav';
@@ -61,6 +62,7 @@ import {
   SCRIPT_BUTTONS,
   type ScriptButton,
   type SyntaxLookup,
+  buttonRows,
   buttonW,
   helpRows,
   listLines,
@@ -177,10 +179,14 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const nav = useNav();
   const isTop = useIsTop();
   const { cols } = useGrid();
-  const bodyRows = useBodyRows();
   const { list, ready } = useScriptList(lib);
   const [cursorName, setCursorName] = useState<string | null>(null);
   const [zone, setZone] = useState<'buttons' | 'list'>('list');
+  const footer =
+    zone === 'buttons'
+      ? ['←→ Navigate', 'Enter Select', '↓ List', 'Tab Cycle', 'ESC Back']
+      : ['↑↓ Navigate', '←→ Toggle/Edit', 'Enter Select', 'PgUp/PgDn Help', 'Tab Cycle', 'ESC Back'];
+  const bodyRows = useBodyRows(footer);
   const [btn, setBtn] = useState(0);
   const [col, setCol] = useState<0 | 1>(0);
   const listBox = useScrollBox();
@@ -202,12 +208,15 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
 
   // ------------------------------------------------------------- layout
 
+  const phone = device().phone;
   const L = scriptsLayout(
     cols,
     list.map((s) => s.name),
+    phone,
   );
+  const btnRows = buttonRows(L.listW, phone);
   const pkgH = Math.max(4, bodyRows - 2);
-  const listVisible = Math.max(1, pkgH - 2);
+  const listVisible = Math.max(1, pkgH - 1 - btnRows.length);
   const syntax = useSyntaxProblems(list, running);
   const lines = listLines(list, syntax);
   const curLine = Math.max(0, lines.findIndex((l) => l.kind === 'script' && l.index === cursor));
@@ -352,25 +361,32 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
 
   const listFocused = zone === 'list';
   const buttonRow = (
-    <div class="wc-line wc-scr-buttons">
-      {SCRIPT_BUTTONS.map((b, i) => (
-        <>
-          {i > 0 && ' '}
-          <Button
-            label={b}
-            width={buttonW(b)}
-            selected={i === bIdx}
-            focused={zone === 'buttons'}
-            disabled={disabled(b)}
-            onClick={() => {
-              setBtn(i);
-              setZone('buttons');
-              press(b);
-            }}
-          />
-        </>
+    <>
+      {btnRows.map((r) => (
+        <div class="wc-line wc-scr-buttons">
+          {r.map((b, j) => {
+            const i = SCRIPT_BUTTONS.indexOf(b);
+            return (
+              <>
+                {j > 0 && ' '}
+                <Button
+                  label={b}
+                  width={buttonW(b)}
+                  selected={i === bIdx}
+                  focused={zone === 'buttons'}
+                  disabled={disabled(b)}
+                  onClick={() => {
+                    setBtn(i);
+                    setZone('buttons');
+                    press(b);
+                  }}
+                />
+              </>
+            );
+          })}
+        </div>
       ))}
-    </div>
+    </>
   );
 
   // All lines in a native scroll box (pixels, as EDITOR); the TUI scrollbar beside it.
@@ -417,8 +433,15 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           class={nameCls}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => {
+            // Touch (ADR 0075 §3.2): a tap on the selected script's name
+            // opens it, as Enter on EDIT; the first tap selects it.
+            const again = touchInteraction() && isCur;
             select(s.name);
             setZone('list');
+            if (again) {
+              setCol(1);
+              edit(s);
+            }
           }}
         >
           {truncate(s.name, L.nameW).padEnd(L.nameW)}
@@ -463,11 +486,6 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
         {help.length > pkgH && <TuiScrollbar target={helpBox.ref} rows={pkgH} />}
       </div>
     ) : null;
-
-  const footer =
-    zone === 'buttons'
-      ? ['←→ Navigate', 'Enter Select', '↓ List', 'Tab Cycle', 'ESC Back']
-      : ['↑↓ Navigate', '←→ Toggle/Edit', 'Enter Select', 'PgUp/PgDn Help', 'Tab Cycle', 'ESC Back'];
 
   return (
     <Page title="Scripts" footer={footer}>

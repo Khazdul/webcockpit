@@ -6,7 +6,7 @@
 import { tokenizeLine } from '../../editor/syntax';
 import { settingText } from '../../scripts/command-rows';
 import type { ScriptInfo } from '../../scripts';
-import { cellLen, centreLeft, truncate, wrapText } from '../kit/nav';
+import { cellLen, centreLeft, packRows, truncate, wrapText } from '../kit/nav';
 
 /** One coloured run of a row. */
 export interface Seg {
@@ -81,6 +81,15 @@ export const buttonW = (label: string): number => cellLen(label) + 2;
 /** The button row: buttons with one cell between them. */
 export const BUTTONS_W = SCRIPT_BUTTONS.reduce((n, b) => n + buttonW(b), 0) + SCRIPT_BUTTONS.length - 1;
 
+/**
+ * The buttons per row: one row, or on a phone as many rows as it takes to
+ * fit `width` cells (ADR 0075 §3.2).
+ */
+export function buttonRows(width: number, phone = false): ScriptButton[][] {
+  if (!phone || BUTTONS_W <= width) return [[...SCRIPT_BUTTONS]];
+  return packRows(SCRIPT_BUTTONS.map(buttonW), width, 1).map((r) => r.map((i) => SCRIPT_BUTTONS[i]!));
+}
+
 export const EDIT_LABEL = 'EDIT';
 /** `[X]` sp name sp lock sp mark sp ` EDIT `: everything but the name. */
 export const ROW_FIXED = 3 + 1 + 1 + 1 + 1 + 1 + 1 + buttonW(EDIT_LABEL);
@@ -106,9 +115,16 @@ export interface ScriptsLayout {
  * grid as one block (the Profile frame's rule). The name column grows with
  * the longest name (12–32 cells) and fills the column under the buttons.
  */
-export function scriptsLayout(cols: number, names: readonly string[]): ScriptsLayout {
+export function scriptsLayout(cols: number, names: readonly string[], phone = false): ScriptsLayout {
   const longest = Math.max(0, ...names.map(cellLen));
-  const listW = Math.max(BUTTONS_W, Math.min(NAME_MAX, Math.max(NAME_MIN, longest)) + ROW_FIXED);
+  const rowW = Math.min(NAME_MAX, Math.max(NAME_MIN, longest)) + ROW_FIXED;
+  if (phone && Math.max(BUTTONS_W, rowW) > cols - 2) {
+    // Phone (ADR 0075 §3.2): the list fits the grid (the buttons wrap
+    // above it, scripts-model `buttonRows`); no help panel.
+    const listW = Math.max(NAME_MIN + ROW_FIXED, Math.min(rowW, cols - 2));
+    return { at: centreLeft(cols, listW + 1), listW, nameW: listW - ROW_FIXED, detailW: 0 };
+  }
+  const listW = Math.max(BUTTONS_W, rowW);
   const nameW = listW - ROW_FIXED;
   const room = cols - 2 - listW - 1 - LIST_GAP;
   const detailW = room >= DETAIL_MIN ? Math.min(DETAIL_MAX, room) : 0;
