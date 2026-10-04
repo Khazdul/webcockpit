@@ -6,7 +6,7 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
-import { BANNER_W, STARS, bannerRows, makeAnims, starLook } from './banner-data';
+import { BANNER_W, STARS, bannerCrop, bannerRows, makeAnims, starLook } from './banner-data';
 import { centreLeft } from './kit/nav';
 import { useGrid } from './kit/hooks';
 import { indent } from './kit/widgets';
@@ -22,7 +22,9 @@ const CLS = { word: 'wc-banner-word', 'word-dim': 'wc-banner-word-dim', space: '
 
 export function Banner(p: BannerProps): VNode {
   const { cols } = useGrid();
-  const rows = useMemo(() => bannerRows(), []);
+  // A grid under 45 columns (only a phone) crops the starfield (ADR 0075 §3.2).
+  const crop = bannerCrop(cols) ?? { c0: 0, width: BANNER_W };
+  const rows = useMemo(() => bannerRows(STARS, crop.c0, crop.width), [crop.c0, crop.width]);
   const anims = useMemo(() => makeAnims(), []);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -48,9 +50,9 @@ export function Banner(p: BannerProps): VNode {
     tick();
     const id = win.setInterval(tick, Math.round(1000 / p.hz));
     return () => win.clearInterval(id);
-  }, [p.run, p.hz, anims]);
+  }, [p.run, p.hz, anims, crop.c0, crop.width]);
 
-  const at = centreLeft(cols, BANNER_W);
+  const at = centreLeft(cols, crop.width);
   return (
     <div class="wc-banner" ref={ref} aria-label="MUME Cockpit" role="img">
       {rows.map((segs, r) => (

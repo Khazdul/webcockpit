@@ -9,6 +9,7 @@ import {
   PERIOD_MIN,
   STARS,
   SPARKLE_SLOWDOWN,
+  bannerCrop,
   bannerFits,
   bannerRows,
   inWordmarkSpan,
@@ -111,5 +112,29 @@ describe('quotes', () => {
     }
     expect(randomQuote(() => 0)).toBe(QUOTES[0]);
     expect(randomQuote(() => 0.9999999)).toBe(QUOTES[QUOTES.length - 1]);
+  });
+});
+
+describe('banner on a narrow grid (phone, ADR 0075 §3.2)', () => {
+  const text = (rows: ReturnType<typeof bannerRows>) => rows.map((r) => r.map((s) => s.text).join(''));
+  it('keeps all 45 columns at 45 and more', () => {
+    expect(bannerCrop(45)).toEqual({ c0: 0, width: 45 });
+    expect(bannerCrop(120)).toEqual({ c0: 0, width: 45 });
+  });
+  it('crops the starfield and keeps the wordmark whole down to 39 columns', () => {
+    const full = text(bannerRows());
+    for (let cols = 39; cols < 45; cols++) {
+      const c = bannerCrop(cols)!;
+      expect(c.width).toBe(cols);
+      const rows = text(bannerRows(STARS, c.c0, c.width));
+      expect(rows.every((r) => [...r].length === cols)).toBe(true);
+      // COCKPIT and MUME rows lose only blank cells.
+      for (let r = 5; r < 11; r++) expect(rows[r]!.trim()).toBe(full[r]!.trim());
+    }
+  });
+  it('is dropped under 39 columns', () => {
+    expect(bannerCrop(38)).toBeNull();
+    expect(bannerFits(40, 10, 38)).toBe(false);
+    expect(bannerFits(40, 10, 41)).toBe(true);
   });
 });

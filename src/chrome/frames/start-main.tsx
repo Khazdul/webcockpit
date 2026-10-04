@@ -59,7 +59,7 @@ export function StartMain(p: StartMainProps): VNode {
   const withQuote = 1 + items.length + 1 + quoteLines.length + 1 + 1;
   const showQuote = rows >= withQuote;
   const reserved = showQuote ? withQuote - 1 : items.length + 2;
-  const showBanner = bannerFits(rows, reserved);
+  const showBanner = bannerFits(rows, reserved, cols);
   const used = (showBanner ? BANNER_H + 2 : 1) + items.length + 1 + (showQuote ? quoteLines.length + 1 : 0);
 
   return (

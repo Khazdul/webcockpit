@@ -116,8 +116,24 @@ export interface Segment {
   star?: number;
 }
 
-/** The 11 rows as styled segments (stars as their own one-cell segments). */
-export function bannerRows(stars: readonly Star[] = STARS): Segment[][] {
+/** The narrowest banner: COCKPIT's 39 cells, the starfield cropped to them. */
+export const BANNER_MIN_W = 39;
+
+/**
+ * The banner's columns for a grid `cols` wide: all 45, or on a narrower
+ * grid (a phone, ADR 0075 §3.2) `cols` of them with the starfield cropped
+ * evenly and the wordmark kept whole; null under BANNER_MIN_W (no banner).
+ */
+export function bannerCrop(cols: number): { c0: number; width: number } | null {
+  if (cols >= BANNER_W) return { c0: 0, width: BANNER_W };
+  if (cols < BANNER_MIN_W) return null;
+  const end = COCKPIT_COL0 + BANNER_MIN_W; // the wordmark's right edge
+  const c0 = Math.min(COCKPIT_COL0, Math.max(end - cols, Math.floor((BANNER_W - cols) / 2)));
+  return { c0, width: cols };
+}
+
+/** The 11 rows as styled segments (stars as their own one-cell segments), columns [c0, c0 + width). */
+export function bannerRows(stars: readonly Star[] = STARS, c0 = 0, width = BANNER_W): Segment[][] {
   const grid: { ch: string; cls: Segment['cls']; star?: number }[][] = Array.from({ length: BANNER_H }, () =>
     Array.from({ length: BANNER_W }, () => ({ ch: ' ', cls: 'space' as const })),
   );
@@ -134,9 +150,9 @@ export function bannerRows(stars: readonly Star[] = STARS): Segment[][] {
     const cell = grid[s.row]?.[s.col];
     if (cell && cell.cls === 'space') grid[s.row]![s.col] = { ch: s.glyph, cls: 'star', star: i };
   });
-  return grid.map((cells) => {
+  return grid.map((row) => {
     const segs: Segment[] = [];
-    for (const c of cells) {
+    for (const c of row.slice(c0, c0 + width)) {
       const last = segs[segs.length - 1];
       if (c.cls !== 'star' && last && last.cls === c.cls) last.text += c.ch;
       else segs.push(c.star === undefined ? { text: c.ch, cls: c.cls } : { text: c.ch, cls: 'star', star: c.star });
@@ -148,8 +164,9 @@ export function bannerRows(stars: readonly Star[] = STARS): Segment[][] {
 /**
  * Whether the banner fits: `available` rows must hold the banner plus a
  * blank row above and below it and `reserved` rows of other content (the
- * menu always wins, Inv §10.7).
+ * menu always wins, Inv §10.7), and the grid must be at least
+ * BANNER_MIN_W columns wide (`cols`; narrower only on a phone).
  */
-export function bannerFits(available: number, reserved: number): boolean {
-  return available >= reserved + BANNER_H + 2;
+export function bannerFits(available: number, reserved: number, cols: number = BANNER_W): boolean {
+  return available >= reserved + BANNER_H + 2 && bannerCrop(cols) !== null;
 }
