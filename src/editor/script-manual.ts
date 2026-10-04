@@ -658,6 +658,7 @@ const EXAMPLES: HelpSection = {
     "- keymanager: temporary panes in a group, a pick list with a text field, copy2cecho, the store and map marks.",
     "- panebar: a borderless one-row pane of buttons built on getPanes, setPaneOn and sysPanesChanged, with pane:setGrip, pane:setHover, pane:onWheel and the pane's shades. Narrow, its buttons shrink down to two letters, then it scrolls sideways with arrows at both ends.",
     "- readability: replaceLine and copy2cecho with adaptive colours, and lineTags to leave room descriptions and what players say alone.",
+    "- almanac: the game time API (gameTime, gameTimeFind, localTime, sysGameTimeEvent) behind a tabbed pane drawn as a grid of cells, with half-block pictures, pane:onWheel, text fields for a form, events as data and a small parser for conditions written as text.",
   ],
   examples: [
     {

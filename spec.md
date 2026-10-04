@@ -480,7 +480,13 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     and year bands, upcoming events with reminders), PLAN (real-date
     calendar with seasons and moon events) and LORE (time-bound things
     in Arda). Events are data rows; players add their own in the pane
-    and share them as text (ADR 0074, stage 18).
+    and share them as text (ADR 0074, stage 18). It opens in a 50-column
+    lane of its own at the right edge and narrows gracefully when moved.
+    Conditions are short text (`winter full`, `moonrise waxing
+    gibbous|full`, `hours 0-3 not winter`) read into a `gameTimeFind`
+    table; `almanac export` / `import` move the player's events as one
+    `ALM1:` line. A reminder is a line in the game window and a UI
+    message (there is no sound API).
 
   Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
   the hue is kept and the lightness moved to 4.5:1 against the current

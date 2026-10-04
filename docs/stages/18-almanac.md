@@ -77,11 +77,12 @@ https://claude.ai/artifact/QNeJcxY9hUzGoKkAQtrKkY
 - [x] B2 `gameTimeFind` solver and tests
 - [x] B3 `sysGameTimeEvent`
 - [x] B4 manual, completion, hover
-- [ ] C1 almanac NOW tab
-- [ ] C2 PLAN tab
-- [ ] C3 LORE tab and the add form
-- [ ] C4 store, add, export and import
-- [ ] D1 verify, release
+- [x] C1 almanac NOW tab
+- [x] C2 PLAN tab
+- [x] C3 LORE tab and the add form
+- [x] C4 store, add, export and import
+- [x] D1 verify: typecheck, unit, e2e, bench
+- [ ] D1 release
 
 ## Open
 
@@ -120,6 +121,64 @@ included. `sysGameTimeEvent(kind)` runs on one timer while a handler
 exists and the clock is at hour or minute precision. Bench (`lua-bench`):
 a game year without a match ≈ 0.5 ms.
 
+**C almanac** (`src/scripts/bundled/almanac.lua`). Every time comes from
+the API; the mock's epoch is not used.
+- Pane: own 50-column lane at the right edge (`lane = "own"`), so the
+  mock's layout fits; dragged into a narrower dock it drops parts (moon
+  10 cells, short daylight label, one cell an hour, no condition column,
+  cut text gets …). Rows are put()s into a grid, flushed only when a
+  row's writes changed; fixed parts are memoized. NOW redraws once a
+  second while the pane is on (≈1.6 ms in Node), on `sysGameTimeEvent`
+  and on clicks; nothing runs while it is off but a set reminder's one
+  timer. `gameTimeFind` answers are kept until the next event or until
+  their window passed; PLAN months until the next `sync`.
+- Conditions as text (`parseWhen`): all words must hold; `|` or `or`
+  joins choices of one kind; `not`/`no`/`except` before seasons; filler
+  words skipped (`full moon in winter`). Kinds: seasons, months (both
+  names), dawn/day/dusk/night, `daylight`, `dark`, `hours a-b` (`to` not
+  included, across midnight), `hour 5`, phases and `waxing`/`waning`/
+  `crescent`/`gibbous`/`quarter`, `moon up`/`moon down`, one moment
+  (`sunrise`, `sunset`, `midnight`, `moonrise`, `moonset`, `season
+  start`). Stored in canonical form; errors name the bad word.
+- Export `ALM1:` + events joined by `~`, fields (name, when, place,
+  note) by `^`; `= ^ ~ ; \ { } $ & % #` and control characters as `=XX`
+  (the input line splits at `;` and expands `$`/`&`). Import adds names
+  not in the list, reports added / already there / skipped.
+- Reminders: a line in the game window and a UI message, `remind` real
+  minutes before (no sound: the client has no sound API). Marker ♪ (⏰
+  and ⛏ are not in DejaVu Sans Mono, our glyph fallback).
+- PLAN Dead Knight: the real moonrises in the window, grouped per run
+  (4–5 a window in this moon model), not the mock's phase window.
+  Full moon (level 12) lasts ≈30 real minutes in MMapper's model.
+- Data: 16 events with a condition, 4 lore-only rows (Juniper, Moon
+  pool, glowing stone, cold-proof shoes). Spirit Knight is `hours 0-3
+  not winter` (mock; Faine says midnight); West Gate and Hrivesur are
+  `moon up night`; Sundeath is `dawn|day`.
+
 ## Test guide
+
+Enable the script: Options → Scripts → almanac `[X]`, or type
+`#script enable almanac`. Enter MUME and type `time` (or wait for the
+next sunrise or sunset) so the clock knows the hour. The Almanac pane
+opens in its own column at the right edge; `almanac` hides and shows it.
+
+1. **NOW:** check the moon picture, date, time and day/night against
+   the game, the hour marker on the daylight band, and the countdowns in
+   COMING UP. Click an event to set a reminder (♪); with
+   `#script set almanac remind 1` it comes one minute before.
+2. **PLAN:** browse months with ◂ ▸ or the wheel, click a day: do the
+   season line, full moons and Dead Knight times look useful for
+   planning a session?
+3. **LORE:** point at names for notes and sources. `[+ add]` an event
+   of your own, e.g. *When* `winter full` or `moonrise waxing|full`; try
+   a wrong word and read the message. Then `almanac export`, copy the
+   line, `almanac remove <name>` and `almanac import <line>`.
+4. Drag the pane into the normal right column: is the narrow version
+   acceptable, or should the default be different?
+
+Feedback wanted: the look against the mock-up; whether the default place
+(own 50-column lane) is right; reminders without sound; and the event
+list itself: it is a **first draft** (see Build notes for the guesses),
+so say what is missing, wrong or not worth listing.
 
 ## Owner feedback
