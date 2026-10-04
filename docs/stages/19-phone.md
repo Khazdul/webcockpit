@@ -14,6 +14,9 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
   not for real play.
 - 2026-10-04: **desktop must not be affected.** Changes that would also
   reach desktop are asked about first.
+- 2026-10-04: two items **apply on desktop too**: `ESC …` footer tokens
+  are clickable everywhere (mouse as well as tap), and a new `#menu`
+  client command opens the ESC menu on every device.
 
 ## Plan
 
@@ -47,18 +50,23 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
 ## Tasks
 
 - [x] Research note, intent Goal 12, spec §2.12, ADR 0075, stage file.
-- [ ] A1 device flags
-- [ ] A2 menu button
-- [ ] A3 tappable Esc footers
-- [ ] A4 no refocus on touch
-- [ ] A5 hit targets, swipe scroll, touch-action, text-size-adjust
+- [x] A1 device flags
+- [x] A2 menu button
+- [x] A3 tappable Esc footers
+- [x] A4 no refocus on touch
+- [x] A5 hit targets, swipe scroll, touch-action, text-size-adjust
 - [ ] B1 phone guard
 - [ ] B2 phone allocator and tab strip
 - [ ] B3 no arranging on phone
 - [ ] B4 keyboard-aware input
 - [ ] B5 viewport meta, safe areas
 - [ ] B6 desktop-only notes
-- [ ] C1 phone e2e project
+- [ ] C1 phone e2e project (partly: `phone` project in playwright.config.ts
+  runs `tests/e2e/phone*.spec.ts`; `phone-touch.spec.ts` covers menu by
+  tap, ESC Back by tap, whole-row tap, no input focus on an output tap,
+  on a 1000×700 viewport with `?touch=1`. Tabs and the keyboard-aware
+  input wait for part B. Desktop: `esc-click.spec.ts` for `#menu` and a
+  clicked `ESC Back`.)
 - [ ] C2 full check, release
 
 ## Test guide

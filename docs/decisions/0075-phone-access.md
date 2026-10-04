@@ -30,21 +30,36 @@ no swipe scroll, and every tap pops the keyboard. Research:
 - The flags are set as classes on `<html>`: `wc-touch`, `wc-phone`. All
   phone CSS is scoped under them. All phone JS branches read the flags.
 - With both flags off, no phone code path runs and no phone rule matches.
-  Desktop e2e must stay green unchanged.
+  Desktop e2e must stay green unchanged. The two exceptions the owner
+  approved for desktop too are in §2: clickable `ESC …` footer tokens and
+  `#menu`.
 - The flags do not change at runtime (rotating the phone keeps *phone*).
 
 ### 2. Touch fixes (part A; on with *touch*)
 
-- **Menu button.** A small fixed `☰` control in the cockpit opens the ESC
-  menu (the same call as Esc in the input).
-- **Tappable back.** Footer tokens that name Esc (`ESC Back`, `ESC Save &
-  back`, …) become tappable and dispatch a synthetic Escape keydown on the
-  window, so the frame's own Esc path runs (unsaved-change prompts
-  included). No per-frame back logic is added.
-- **No focus on tap.** The mouseup/focus handlers that return focus to the
-  input skip touch input (`pointerType === 'touch'`, or the touch flag for
-  plain mouse compatibility events). The input gets focus only when it is
-  tapped. The keyboard opens only then.
+- **Menu button.** A small `☰` control at the right end of the input row
+  opens the ESC menu (the same call as Esc in the input). It sits in the
+  input row, not over a pane, so it covers no text and stays reachable
+  above the on-screen keyboard.
+- **`#menu`** (owner-approved for desktop too, 2026-10-04): a client
+  command that opens the ESC menu, on every device. It resolves only by
+  its full name, so it takes no tt++ abbreviation (`#me` stays #message).
+- **Tappable back** (owner-approved for desktop too, 2026-10-04). Footer
+  tokens that name Esc (`ESC Back`, `ESC Save & back`, …) are clickable
+  on every device and dispatch a synthetic Escape keydown at the focused
+  element (`src/chrome/kit/esc.tsx`), so the frame stack's window capture
+  listener and the frame's own Esc path run as for a real key
+  (unsaved-change prompts included). No per-frame back logic is added.
+  The press keeps the focus where it is. Look: the existing clickable
+  footer-token style (pointer, hover colour).
+- **No focus on tap.** On a touch device the last pointerdown's
+  `pointerType` is tracked (the compatibility mouse events after a tap
+  carry none). `InputPane.focus()`, which every refocus path uses (the
+  mouseup handlers, window focus, closing the menu), does nothing after a
+  touch or before any pointer; a mouse on the touch device refocuses as on
+  desktop. A tap on the output neither copies a selection nor refocuses.
+  Typed keys still move the focus to the input. The input gets focus only
+  when it is tapped, and the keyboard opens only then.
 - **Hit targets.** In menus the whole row is the tap target; a tap on a
   row selects it as a desktop click on its label does. Stepper/cycler
   arrows act without the row being selected first.
