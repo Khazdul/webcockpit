@@ -33,6 +33,7 @@
 
 import './ui/ui.css';
 import { initDevice } from './core/device';
+import { installPhoneViewport, phoneViewportMeta } from './layout/phone-viewport';
 import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
 import { Notices } from './app/notices';
@@ -45,7 +46,12 @@ import { CellMetrics } from './theme/cells';
 import { FONTS, detectLocalFonts, installFontFaces, preloadFont } from './theme/fonts';
 
 // Touch / phone flags and the `wc-touch` / `wc-phone` classes, before anything renders.
-initDevice();
+const device = initDevice();
+// Phone only (ADR 0075 §3): no input zoom, safe areas, the keyboard-aware visible area.
+if (device.phone) {
+  phoneViewportMeta();
+  installPhoneViewport();
+}
 const params = new URLSearchParams(location.search);
 // Macro key labels follow the keyboard layout where the browser says (ADR 0026).
 void initKeyLabels();

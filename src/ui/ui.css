@@ -447,3 +447,57 @@ html.wc-touch {
 .wc-caret.wc-caret-off {
   visibility: hidden;
 }
+
+/* ------------------------------------------------------------------ phone */
+
+/* Phone only (ADR 0075 §3). The app follows the visible area
+ * (src/layout/phone-viewport.ts: --wc-vv-h / --wc-vv-top), so the input
+ * line sits just above the on-screen keyboard, and keeps out of the
+ * notch and the home indicator (viewport-fit=cover, safe-area insets).
+ * The cockpit and the chrome measure their cell grid inside this area. */
+html.wc-phone,
+html.wc-phone body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html.wc-phone #app {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: var(--wc-vv-top, 0px);
+  height: var(--wc-vv-h, 100%);
+  box-sizing: border-box;
+  padding:
+    calc(var(--pad) + env(safe-area-inset-top, 0px))
+    calc(var(--pad) + env(safe-area-inset-right, 0px))
+    calc(var(--pad) + env(safe-area-inset-bottom, 0px))
+    calc(var(--pad) + env(safe-area-inset-left, 0px));
+}
+
+/* The keyboard covers the home indicator. */
+html.wc-phone.wc-kbd #app {
+  padding-bottom: var(--pad);
+}
+
+/* The start page and the ESC menu fill the same safe area (they are
+ * absolutely placed in #app, which is their containing block here). */
+html.wc-phone .wc-chrome,
+html.wc-phone .wc-overlay {
+  position: absolute;
+  inset:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
+}
+
+/* The menu covers the whole screen on a phone (src/chrome/index.tsx). */
+html.wc-phone .wc-overlay {
+  background: var(--term-bg);
+}
+
+html.wc-phone.wc-kbd .wc-chrome,
+html.wc-phone.wc-kbd .wc-overlay {
+  bottom: 0;
+}
