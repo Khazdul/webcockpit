@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 19 (phone access; built, awaiting release go). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,12 +24,30 @@ Current stage: 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign i
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
+| 19 | Phone access | In progress | `docs/stages/19-phone.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)
+
+- **Research:** `notes/research/mobile.md` (layout, input, menus, platform).
+- **Owner decisions:** build A (touch fixes) and B (phone layout); a phone
+  is for logging in and chatting; desktop must not change, desktop
+  changes asked first. Approved for desktop too: clickable `ESC …` footer
+  tokens and a `#menu` command.
+- **Done:** intent Goal 12, spec §2.12, ADR 0075. Device flags
+  (`?touch=1`/`?phone=1`), ☰ menu button, no input refocus on taps,
+  whole-row taps, swipe scroll; `allocatePhone` with a tab strip,
+  lowered phone guard, keyboard-aware visible area, safe areas,
+  desktop-only notes.
+- **Checked:** typecheck, unit 2266, desktop e2e 426/426 (rerun clean),
+  phone e2e 9/9 (Pixel 7 emulation). Not yet on a real phone.
+- **Next:** release on the owner's go, then owner test on a phone.
+- **Commits:** 5a84db2 … d81269c, plus this one.
 
 ### 2026-10-04 — Stage 18: almanac (game time API and showcase script)
 

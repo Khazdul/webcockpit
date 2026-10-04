@@ -74,7 +74,29 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
 
 ## Test guide
 
-(Written when the stage is built.)
+Open mumecockpit.com on your phone in the normal browser (not desktop
+mode). Built and tested only in emulation so far; real phones are the
+real test.
+
+1. **Start page.** It should show the menu, not "Window too small". Tap
+   Profile, Options, History, About; go back by tapping `ESC Back` at the
+   bottom. Swipe a long Options page.
+2. **Log in.** Enter MUME. A tab strip at the top: `GAME`, then your panes
+   (`CHAR`, `COMM`, …). Tap `COMM`, then `GAME`; the game text keeps its
+   place.
+3. **Chat.** Tap the input line at the bottom. The keyboard opens and the
+   input stays just above it. Send a `say` or a `tell`. Tapping the game
+   text should *not* open the keyboard.
+4. **Menu.** Tap `☰` at the right end of the input line; the ESC menu
+   fills the screen. Disconnect / back from there.
+5. **Turn the phone** to landscape and back.
+6. **Desktop (also changed, approved):** on the computer, click
+   `ESC Back` in a menu footer, and type `#menu` in the input. Everything
+   else on desktop should be exactly as before.
+
+Feedback wanted: does it open and fit on your phone (which phone and
+browser)? Does the keyboard hide the input? Are the tabs useful, and is
+anything missing for logging in and chatting?
 
 ## Owner feedback
 
