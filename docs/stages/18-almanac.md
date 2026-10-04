@@ -168,6 +168,16 @@ the API; the mock's epoch is not used.
   become the stored condition text, so the store and ALM1 stay
   compatible; icon and colour are new optional record and export fields
   5–6); Sundeath removed.
+- Round 3: PLAN's day is a timeline, 00–24 local, the bar W−16 cells
+  (34 at 50 columns, ≈42 real min a cell); a cell is marked when a
+  `gameTimeFind` window touches it (▮ for moments and lone cells, █ for
+  runs, ● full moon), tooltips list the local times; rows open all day
+  or not at all fold into two dim lines; rows past the pane height page
+  with ◂ ▸ (the wheel keeps changing the month); ▼ and a dim column mark
+  now on today; a row click marks its days in the grid with its icon
+  (`planMark` in store). Day rows and month marks are cached per day,
+  width and own-events version until a sync: a new day ≈9 ms, a cached
+  redraw ≈2.5 ms (Node).
 
 ## Test guide
 
@@ -181,8 +191,12 @@ opens in its own column at the right edge; `almanac` hides and shows it.
    (`in 5h`, `in 2d 14h`) and change once a game hour (a real minute),
    with no ticking seconds. Click an event to set a reminder (♪); it
    comes `remind` game hours before (`#script set almanac remind 1`).
-2. **PLAN:** browse months with ◂ ▸ or the wheel, click a day: do the
-   season line, full moons and Dead Knight times help you plan?
+2. **PLAN:** browse months with ◂ ▸ or the wheel and click the day you
+   will play. Its timeline (00–24 your time) shows the season, full
+   moons and one row per event that changes over the day; ▼ is now when
+   the day is today. Point at a mark for exact times. Click an event's
+   name to mark its days in the month; click again to clear. Does it
+   answer "I play Saturday 20–23, what is possible then?"
 3. **LORE → [+ add]:** the event editor. Type a name and a place, click
    a season, a moon phase or a time of day, pick an icon and a colour.
    Read the sentence under the choices ("Winter, full moon. Next: in
@@ -236,6 +250,6 @@ Tasks from round 1:
   to mark its days in the grid, nothing marked by default. Plus a marker
   for the current time on the timeline.
 
-- [ ] R3.1 PLAN timeline for the selected day, generic over all events
-- [ ] R3.2 now marker on the timeline
-- [ ] R3.3 click a row to mark its days in the grid; default none
+- [x] R3.1 PLAN timeline for the selected day, generic over all events
+- [x] R3.2 now marker on the timeline
+- [x] R3.3 click a row to mark its days in the grid; default none

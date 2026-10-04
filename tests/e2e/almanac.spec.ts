@@ -67,10 +67,20 @@ test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the ed
   await expect(prows(page).nth(19)).toHaveText(/COMING UP/);
   await expect(pane(page).locator('.wc-pane-content')).toContainText('Dead Knight slab');
 
-  // PLAN: the month grid, Monday first.
+  // PLAN: the month grid, Monday first, and the selected day's timeline.
   await clickText(page, 0, 'PLAN');
   await expect(prows(page).nth(3)).toHaveText(/^\s+Mo\s+Tu\s+We\s+Th\s+Fr\s+Sa\s+Su\s*$/);
-  await expect(prows(page).nth(10)).toHaveText(/❄ Ingrove pack {2}◆ season starts {2}• today/);
+  await expect(prows(page).nth(10)).toHaveText(/^ ◆ season starts {2}• today\s*$/);
+  await expect(prows(page).nth(13)).toHaveText(/00.*▼|▼.*24/);
+  await expect(prows(page).nth(14)).toHaveText(/^ Season/);
+  await expect(prows(page).nth(15)).toHaveText(/^ Full moon/);
+  // A click on an event row marks its days in the grid; again clears it.
+  const row = (await prows(page).nth(16).textContent())!;
+  const name = row.slice(3, 15).replace(/….*$/, '').trim();
+  await clickText(page, 16, name);
+  await expect(prows(page).nth(10)).toHaveText(new RegExp(`today {2}. ${name}`));
+  await clickText(page, 16, name);
+  await expect(prows(page).nth(10)).toHaveText(/^ ◆ season starts {2}• today\s*$/);
   const title = (await prows(page).nth(2).textContent())!;
   await clickText(page, 2, '▸');
   await expect(prows(page).nth(2)).not.toHaveText(title);
