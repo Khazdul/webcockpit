@@ -93,6 +93,26 @@ describe('GameState', () => {
     expect(t.game.clock.precision).toBe('minute');
   });
 
+  it('Event.Moon is checked against the moon model, never synced (stage 18)', () => {
+    // Gittan 2026-10-03: Event.Moon set at unix 1791056163 under Cockpit's anchor.
+    const nowMs = 1_791_056_163_580;
+    const storage = new MemStorage();
+    storage.setItem(CLOCK_KEY, JSON.stringify({ epoch: 310_694_465, precision: 'minute', lastSync: 1_791_050_765, reason: 'sun_light' }));
+    const t = setup(storage, () => nowMs);
+    t.parts.length = 0;
+    t.bus.emit('gmcp', { pkg: 'Event.Moon', data: { what: 'set' } });
+    expect(t.game.clock.state).toMatchObject({ epoch: 310_694_465, reason: 'sun_light', moonCheck: 'set +0' });
+    expect(JSON.parse(storage.getItem(CLOCK_KEY)!).moonCheck).toBe('set +0');
+    expect(t.parts).toEqual([]);
+    // Two minutes later: +2. Unset clocks record nothing.
+    const late = setup(storage, () => nowMs + 2000);
+    late.bus.emit('gmcp', { pkg: 'Event.Moon', data: { what: 'set' } });
+    expect(late.game.clock.state.moonCheck).toBe('set +2');
+    const unset = setup(new MemStorage());
+    unset.bus.emit('gmcp', { pkg: 'Event.Moon', data: { what: 'rise' } });
+    expect(unset.game.clock.state.moonCheck).toBeUndefined();
+  });
+
   it('MSSP time syncs the clock', () => {
     const t = setup();
     t.game.mssp(new Map([

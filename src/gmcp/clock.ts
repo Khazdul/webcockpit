@@ -83,6 +83,12 @@ export interface ClockState {
   precision: Precision;
   lastSync: number | null;
   reason: string | null;
+  /**
+   * Diagnostics: the last GMCP `Event.Moon` against the moon model
+   * (gametime.ts), as `set +0` (game minutes late). Never syncs: one
+   * logged event matched to the minute, too few to trust (stage 18).
+   */
+  moonCheck?: string;
 }
 
 /** Game seconds since the anchor for a moment (day is 1-based). */
@@ -161,7 +167,9 @@ export function loadClockState(json: string | null, nowMs: number): ClockState {
   const reason = typeof r.reason === 'string' ? r.reason : null;
   let p = precision as Precision;
   if (age > TRUST_FULL_S && RANK[p] > RANK.day) p = 'day';
-  return { epoch: Math.round(epoch), precision: p, lastSync, reason };
+  const out: ClockState = { epoch: Math.round(epoch), precision: p, lastSync, reason };
+  if (typeof r.moonCheck === 'string') out.moonCheck = r.moonCheck;
+  return out;
 }
 
 const TIME_FULL_RE = /^(\d+)(?::\d{2})?\s*(am|pm) on (\w+), the (\d+)\w* of (\w+), year (\d+) of the Third Age\.$/i;
@@ -190,12 +198,26 @@ export class ClockModel {
   private anchor(m: Omit<Moment, 'weekday'>, nowMs: number, precision: Precision, reason: string): void {
     const nowS = Math.floor(nowMs / 1000);
     this.state = {
+      ...this.state,
       epoch: nowS - momentSeconds(m.year, m.month, m.day, m.hour, m.minute),
       precision: RANK[precision] > RANK[this.state.precision] ? precision : this.state.precision,
       lastSync: nowS,
       reason,
     };
     this.version++;
+  }
+
+  /**
+   * GMCP `Event.Moon` (`rise` / `set`): records `delta` (game minutes the
+   * event came after the predicted one, from `moonEventDelta`) in
+   * `state.moonCheck`. Diagnostics only; the anchor does not move. Needs
+   * ≥ hour. Returns true when it recorded.
+   */
+  noteMoon(what: unknown, delta: number): boolean {
+    if (what !== 'rise' && what !== 'set') return false;
+    if (RANK[this.state.precision] < RANK.hour) return false;
+    this.state = { ...this.state, moonCheck: `${what} ${delta >= 0 ? '+' : ''}${delta}` };
+    return true;
   }
 
   /**

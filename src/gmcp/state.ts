@@ -4,7 +4,8 @@
 // PaneContext (`ctx.game`).
 //
 //   bus gmcp        → char.apply, group.apply (Char.Vitals fight fields too),
-//                     clock.syncSun (Event.Sun)
+//                     clock.syncSun (Event.Sun), clock.noteMoon (Event.Moon
+//                     against the moon model; diagnostics only)
 //   system rules    → wimpy (`Wimpy set to: N`, `Wimpy removed.`) and the
 //                     clock lines (`… of the Third Age.`, `The current time
 //                     is …`), installed into the script engine's system
@@ -29,6 +30,7 @@ import type { Bus } from '../core/bus';
 import { gmcpKey } from '../core/types';
 import { CharModel } from './char';
 import { ClockModel, loadClockState } from './clock';
+import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
@@ -119,6 +121,11 @@ export class GameState {
     } else if (p === 'event.sun') {
       const what = (data as { what?: unknown } | undefined)?.what;
       if (this.clock.syncSun(what, this.now())) this.clockSynced();
+    } else if (p === 'event.moon') {
+      const what = (data as { what?: unknown } | undefined)?.what;
+      if (what !== 'rise' && what !== 'set') return;
+      const g = Math.floor(this.now() / 1000) - this.clock.state.epoch;
+      if (this.clock.noteMoon(what, moonEventDelta(g, what))) this.saveClock();
     }
   }
 
@@ -151,12 +158,16 @@ export class GameState {
   }
 
   private clockSynced(): void {
+    this.saveClock();
+    this.emit('clock');
+  }
+
+  private saveClock(): void {
     try {
       this.storage?.setItem(CLOCK_KEY, JSON.stringify(this.clock.state));
     } catch {
       // Storage full or blocked: the clock still works for this page.
     }
-    this.emit('clock');
   }
 
   /**
