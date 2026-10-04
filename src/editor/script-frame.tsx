@@ -21,6 +21,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { problemText, scriptState } from '../chrome/frames/scripts-model';
 import { useGrid, useServices } from '../chrome/kit/hooks';
 import { escHints } from '../chrome/kit/esc';
+import { device } from '../core/device';
 import { cellLen, centreLeft, scrollbar, truncate } from '../chrome/kit/nav';
 import { type Nav, useIsTop, useKeys, useNav } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
@@ -53,6 +54,9 @@ type Zone = 'buttons' | 'buffer';
 type Btn = 'DUPLICATE';
 
 const FLASH_MS = 3000;
+const MODAL_HINT = 'Y to save · N to discard · ESC to keep editing';
+/** The confirm hint on a narrow phone (ADR 0075 §3.2). */
+const MODAL_HINT_SHORT = 'Y Save · N Discard · ESC Keep editing';
 /** Footer hints, longest first; the first that fits beside Ln/Col is shown. */
 const HINTS = [
   'Ctrl+S Save · Ctrl+F Find · Ctrl+Space Complete · F1 Manual · Tab Indent · ESC Back',
@@ -132,7 +136,8 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
   // ------------------------------------------------------------ geometry
 
   const gap = surface === 'start' ? 2 : 1;
-  const W = Math.max(40, Math.min(FULL_W, cols - 2));
+  // A phone may be narrower than 42 columns (ADR 0075 §3.2): no 40-cell floor there.
+  const W = Math.max(device().phone ? Math.min(40, cols - 2) : 40, Math.min(FULL_W, cols - 2));
   const at = centreLeft(cols, W);
   // gap + title + blank + buffer + status + footer
   const bufferH = Math.max(3, rows - gap - 4);
@@ -390,6 +395,10 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     </div>
   );
 
+  // Touch (ADR 0075 §3.2): the key-only hints are tappable.
+  const tapActions = device().touch
+    ? { 'Ctrl+S Save': () => void save(), 'F1 Manual': () => manual(false) }
+    : undefined;
   const right = `${dirty ? 'Modified  ·  ' : ''}Ln ${status.line}, Col ${status.col}`;
   const rightAt = at + W - cellLen(right);
   const roomC = Math.max(0, rightAt - at - 2);
@@ -403,7 +412,7 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
         class={flash ? (flash.kind === 'ok' ? 'wc-c-accent' : 'wc-c-err') : 'wc-c-hint'}
         role={flash ? 'status' : undefined}
       >
-        {flash ? centre : escHints(centre)}
+        {flash ? centre : escHints(centre, tapActions)}
       </span>
       <span style={indent(Math.max(2, rightAt - cAt - cellLen(centre)))} />
       <span class={dirty ? 'wc-ped-note' : 'wc-c-hint'}>{right}</span>
@@ -464,11 +473,19 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
             { text: '', cls: '' },
             { text: `Save changes to ${name}?`, cls: 'wc-c-active' },
             { text: '', cls: '' },
-            { text: 'Y to save · N to discard · ESC to keep editing', cls: 'wc-c-hint' },
+            { text: MODAL_HINT, cls: 'wc-c-hint' },
             { text: '', cls: '' },
           ];
     const w = Math.min(cols - 2, 54);
     const h = lines.length + 2;
+    // Touch: Y and N are tappable; a narrow phone gets the short wording.
+    const hint = device().phone && cellLen(MODAL_HINT) > w - 2 ? MODAL_HINT_SHORT : MODAL_HINT;
+    const tap = device().touch
+      ? {
+          [hint === MODAL_HINT ? 'Y to save' : 'Y Save']: () => void saveAndClose(),
+          [hint === MODAL_HINT ? 'N to discard' : 'N Discard']: () => nav.pop(),
+        }
+      : undefined;
     const left = centreLeft(cols, w);
     const top = Math.max(0, Math.floor((rows - h) / 2));
     return (
@@ -487,9 +504,15 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
         {lines.map((l) => (
           <div class="wc-line">
             <span class="wc-c-section">│</span>
-            <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(l.text)))}>
-              {truncate(l.text, w - 2)}
-            </span>
+            {l.text === MODAL_HINT ? (
+              <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(hint)))}>
+                {escHints(truncate(hint, w - 2), tap)}
+              </span>
+            ) : (
+              <span class={l.cls} style={indent(centreLeft(w - 2, cellLen(l.text)))}>
+                {truncate(l.text, w - 2)}
+              </span>
+            )}
             <span class="wc-ped-overlay-r wc-c-section">│</span>
           </div>
         ))}

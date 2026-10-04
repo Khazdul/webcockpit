@@ -154,6 +154,9 @@ const HELP_BODY_HINTS = [
 ];
 
 /** Footer hints of LITE, longest first. */
+const APPLY_HINT = 'Y to apply · N to discard · ESC to keep editing';
+/** The confirm hint on a narrow phone (ADR 0075 §3.2). */
+const APPLY_HINT_SHORT = 'Y Apply · N Discard · ESC Keep editing';
 const LITE_HINTS = ['Ctrl+F Find · Ctrl+H Replace · Tab Cycle · ESC Save & back', 'Tab Cycle · ESC Save & back'];
 /** In the entry list. */
 const LIST_HINTS = [
@@ -267,7 +270,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // ------------------------------------------------------------- geometry
 
   const gap = surface === 'start' ? 2 : 1;
-  const W = Math.max(40, Math.min(FULL_W, cols - 2));
+  // A phone may be narrower than 42 columns (ADR 0075 §3.2): no 40-cell floor there.
+  const W = Math.max(device().phone ? Math.min(40, cols - 2) : 40, Math.min(FULL_W, cols - 2));
   const at = centreLeft(cols, W);
   const D = W >= FULL_W ? DETAIL_W : Math.max(24, Math.floor(W * 0.45));
   const L = W - D - 1 - LIST_GAP;
@@ -845,14 +849,28 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   const helpHints = zone === 'menu' ? HELP_MENU_HINTS : zone === 'help' && hf.menu ? HELP_BODY_HINTS : HELP_HINTS;
   let footer: VNode;
+  // Phone (ADR 0075 §3.2): when the hints and the cursor position do not
+  // share the footer row, the position moves to the blank row above it.
+  let above: VNode = <div class="wc-line" />;
   if (mode === 'editor' && !help) {
     const right = `Ln ${status.line}, Col ${status.col}`;
     const bal = flash ? '' : balanceText(status);
     const rightFull = bal ? `${bal}  ·  ${right}` : right;
-    const hints = 'Ctrl+F Find · Tab Cycle · ESC Save & back';
+    const longHints = 'Ctrl+F Find · Tab Cycle · ESC Save & back';
+    const hints = device().phone && cps(longHints) > cols - at ? 'Tab Cycle · ESC Save & back' : longHints;
     const centre = flash ? flash.text : (status.hint ?? hints);
     const centreCls = flash ? (flash.kind === 'ok' ? 'wc-c-accent' : 'wc-c-hint') : status.hint ? 'wc-ped-note' : 'wc-c-hint';
-    const rightAt = at + W - cps(rightFull);
+    const split = device().phone && cps(centre) + 2 + cps(rightFull) > W;
+    if (split) {
+      above = (
+        <div class="wc-line wc-ped-pos" style={indent(Math.max(0, at + W - cps(rightFull)))}>
+          {bal && <span class="wc-c-danger">{bal}</span>}
+          {bal && <span class="wc-c-hint">{'  ·  '}</span>}
+          <span class="wc-c-hint">{right}</span>
+        </div>
+      );
+    }
+    const rightAt = split ? cols + 2 : at + W - cps(rightFull);
     const room = Math.max(0, rightAt - at - 2);
     const c = ellipsis(centre, room);
     const cAt = Math.max(at, Math.min(centreLeft(cols, cps(c)), rightAt - 2 - cps(c)));
@@ -861,10 +879,14 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         <span style={indent(cAt)} class={centreCls}>
           {flash ? c : escHints(c)}
         </span>
-        <span style={indent(Math.max(2, rightAt - cAt - cps(c)))} />
-        {bal && <span class="wc-c-danger">{bal}</span>}
-        {bal && <span class="wc-c-hint">{'  ·  '}</span>}
-        <span class="wc-c-hint">{right}</span>
+        {!split && (
+          <>
+            <span style={indent(Math.max(2, rightAt - cAt - cps(c)))} />
+            {bal && <span class="wc-c-danger">{bal}</span>}
+            {bal && <span class="wc-c-hint">{'  ·  '}</span>}
+            <span class="wc-c-hint">{right}</span>
+          </>
+        )}
       </div>
     );
   } else {
@@ -895,7 +917,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       {mode === 'lite' ? (help ? null : renderLite()) : renderEditor()}
       {help && renderHelp()}
       <div class="wc-ped-spacer" />
-      <div class="wc-line" />
+      {above}
       {footer}
       {capture && renderCapture()}
       {modal && renderModal()}
@@ -1313,6 +1335,17 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   // ------------------------------------------------------------ overlays
 
+  // Touch (ADR 0075 §3.2): the confirm's Y and N are tappable.
+  const modalTaps =
+    device().touch && modal === 'confirm'
+      ? {
+          'Y to apply': () => void applyNow(),
+          'N to discard': () => nav.pop(),
+          'Y Apply': () => void applyNow(),
+          'N Discard': () => nav.pop(),
+        }
+      : undefined;
+
   function overlayBox(lines: { text: string; cls: string }[], width: number): VNode {
     const w = Math.min(cols - 2, width);
     const h = lines.length + 2;
@@ -1335,7 +1368,7 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
           <div class="wc-line">
             <span class="wc-c-section">│</span>
             <span class={l.cls} style={indent(centreLeft(w - 2, cps(l.text)))}>
-              {l.cls === 'wc-c-hint' ? escHints(ellipsis(l.text, w - 2)) : ellipsis(l.text, w - 2)}
+              {l.cls === 'wc-c-hint' ? escHints(ellipsis(l.text, w - 2), modalTaps) : ellipsis(l.text, w - 2)}
             </span>
             <span class="wc-ped-overlay-r wc-c-section">│</span>
           </div>
@@ -1368,7 +1401,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         { text: '', cls: '' },
         { text: 'Apply changes to your profile?', cls: 'wc-c-active' },
         { text: '', cls: '' },
-        { text: 'Y to apply · N to discard · ESC to keep editing', cls: 'wc-c-hint' },
+        {
+          text: device().phone && cps(APPLY_HINT) > Math.min(cols - 2, 54) - 2 ? APPLY_HINT_SHORT : APPLY_HINT,
+          cls: 'wc-c-hint',
+        },
         { text: '', cls: '' },
       ],
       54,

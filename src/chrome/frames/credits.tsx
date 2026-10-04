@@ -16,6 +16,7 @@
 // that blend. `Escape to exit` sits top-right in #555555. Only ESC is bound.
 
 import './credits.css';
+import { device } from '../../core/device';
 import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { RunLibrary } from '../../runs/library';
@@ -25,6 +26,7 @@ import { useCells, useGrid, useServices, useSettings } from '../kit/hooks';
 import { cellLen, centreLeft } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { indent } from '../kit/widgets';
+import { EscToken } from '../kit/esc';
 import { CREDITS_EMPTY, EmptyStateFrame } from './spotlights';
 import type { SpotlightSettings } from '../../settings';
 
@@ -36,6 +38,8 @@ export const CREDITS_HINT = 'Escape to exit';
 
 /** The column width for a grid `cols` wide. */
 export function creditsWidth(cols: number): number {
+  // A phone narrower than 48 columns: the column fits the grid (ADR 0075 §3.2).
+  if (device().phone && cols - 8 < 40) return Math.max(20, Math.min(40, cols - 2));
   return Math.min(60, Math.max(40, cols - 8));
 }
 
@@ -152,7 +156,7 @@ function Roll(p: { lines: string[]; cols: number; rows: number; cellH: number; w
         </div>
       </div>
       <div class="wc-line wc-credits-hint" style={indent(Math.max(0, p.cols - 2 - CREDITS_HINT.length))}>
-        {CREDITS_HINT}
+        {device().touch ? <EscToken text={CREDITS_HINT} /> : CREDITS_HINT}
       </div>
     </div>
   );
