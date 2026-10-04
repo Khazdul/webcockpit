@@ -18,7 +18,8 @@ import { CLIENT_VERSION } from '../core/build-info';
 import { EscMain, type EscActions } from './frames/esc-main';
 import { StartMain } from './frames/start-main';
 import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
-import { MIN_COLS, MIN_ROWS, centreLeft, tooSmall, truncate } from './kit/nav';
+import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
+import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
 import { type Quote, randomQuote } from './quotes';
 
@@ -138,9 +139,10 @@ export function startNoticeTokens(s: Parameters<typeof noticeIndicators>[0]): St
 
 /** The minimum-size notice (Inv §3.1). */
 export function TooSmall(p: { cols: number; rows: number }): VNode {
+  const m = minView();
   const lines = [
     { text: 'Window too small', cls: 'wc-c-yellow' },
-    { text: `Needs ${MIN_COLS}×${MIN_ROWS} cells, has ${p.cols}×${p.rows}.`, cls: 'wc-c-body' },
+    { text: `Needs ${m.cols}×${m.rows} cells, has ${p.cols}×${p.rows}.`, cls: 'wc-c-body' },
     { text: 'Enlarge the window, zoom out, or open with ?safe.', cls: 'wc-c-hint' },
   ];
   const top = Math.max(0, Math.floor((p.rows - lines.length) / 2));
@@ -207,14 +209,16 @@ interface MenuSurfaceProps extends EscActions {
   preselect: 'continue' | 'reconnect';
 }
 
-/** Share of the window the menu covers (Inv §4.1). */
+/** Share of the window the menu covers (Inv §4.1); the whole screen on a phone (ADR 0075 §3). */
 const MENU_SHARE = 0.8;
+const menuShare = (): number => (device().phone ? 1 : MENU_SHARE);
 
 function MenuSurface(p: MenuSurfaceProps): VNode {
   const ref = useRef<HTMLDivElement>(null);
   const g = useHostGrid(ref);
-  const W = Math.max(3, Math.floor(g.cols * MENU_SHARE));
-  const H = Math.max(3, Math.floor(g.rows * MENU_SHARE));
+  const share = menuShare();
+  const W = Math.max(3, Math.floor(g.cols * share));
+  const H = Math.max(3, Math.floor(g.rows * share));
   const left = g.left + Math.floor((g.cols - W) / 2) * g.cellW;
   const top = g.top + Math.floor((g.rows - H) / 2) * g.cellH;
   const cw = g.cellW;

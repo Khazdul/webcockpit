@@ -1,6 +1,8 @@
 // TUI kit: pure navigation and layout helpers (Inv §3.3, §10.6). No DOM,
 // no Preact; unit tested.
 
+import { device } from '../../core/device';
+
 /** What a key means to a chrome frame (Inv §3.3 navigation grammar). */
 export type NavKey =
   | 'up'
@@ -196,6 +198,16 @@ export function scrollbar(count: number, visible: number, top: number): boolean[
 export const MIN_COLS = 60;
 export const MIN_ROWS = 18;
 
+/** The phone's minimum (ADR 0075 §3), as the cockpit's (src/layout/phone.ts). */
+export const PHONE_MIN_COLS = 30;
+export const PHONE_MIN_ROWS = 8;
+
+/** The minimum window for this device: 60 × 18, or 30 × 8 on a phone. */
+export function minView(): { cols: number; rows: number } {
+  return device().phone ? { cols: PHONE_MIN_COLS, rows: PHONE_MIN_ROWS } : { cols: MIN_COLS, rows: MIN_ROWS };
+}
+
 export function tooSmall(cols: number, rows: number): boolean {
-  return cols < MIN_COLS || rows < MIN_ROWS;
+  const m = minView();
+  return cols < m.cols || rows < m.rows;
 }
