@@ -17,6 +17,8 @@
 //                           (src/replay/dev.ts)
 //   ?safe                   default appearance, not saved until changed
 //                           (a way back from a setting that breaks the page)
+//   ?touch=1, ?phone=1      force the touch / phone flags on (ADR 0075,
+//                           src/core/device.ts)
 //
 // Start-up order: @font-face rules → settings from the localStorage mirror
 // → theme and font preload → settings from IndexedDB and the look-up of
@@ -30,6 +32,7 @@
 // points and have none.
 
 import './ui/ui.css';
+import { initDevice } from './core/device';
 import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
 import { Notices } from './app/notices';
@@ -41,6 +44,8 @@ import { appearanceChanged, applyTheme } from './theme/apply';
 import { CellMetrics } from './theme/cells';
 import { FONTS, detectLocalFonts, installFontFaces, preloadFont } from './theme/fonts';
 
+// Touch / phone flags and the `wc-touch` / `wc-phone` classes, before anything renders.
+initDevice();
 const params = new URLSearchParams(location.search);
 // Macro key labels follow the keyboard layout where the browser says (ADR 0026).
 void initKeyLabels();
