@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 19 (phone access; released 0.1.45, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 19 (phone access; round 1 released 0.1.46, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -48,9 +48,15 @@ Newest first.
   phone e2e 9/9 (Pixel 7 emulation). Not yet on a real phone.
 - **Released:** 0.1.45 (tag v0.1.45, owner's go). build:pages smoke
   green, Pages deploy green, live release.json 0.1.45, test:prod 10/10.
-- **Next:** owner test on a real phone; keyboard handling on iOS is the
-  likeliest thing to tune.
-- **Commits:** 5a84db2 … af535fa, plus this one.
+- **Owner round 1** (real Samsung phone): unreachable frame content
+  (Scripts buttons, footers, Statistics, History), banner clipped at ~41
+  cols (DPR 3.5, no width check), Chrome autofill bar over the keyboard
+  (phone command line is now a one-row textarea; password prompt swaps in
+  a real password input). Released 0.1.46: deploy green, test:prod 10/10.
+- **Next:** owner retest; check the autofill bar is gone on the phone.
+  Left: profile editor lite cuts long rows at ~40 cols; script pane and
+  editor fields are still `<input>`.
+- **Commits:** 5a84db2 … 24085f3, plus this one.
 
 ### 2026-10-04 — Stage 18: almanac (game time API and showcase script)
 
