@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 19 (phone access; built, awaiting release go). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 19 (phone access; released 0.1.45, owner testing). Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -24,7 +24,7 @@ Current stage: 19 (phone access; built, awaiting release go). Stage 18 (almanac;
 | 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
-| 19 | Phone access | In progress | `docs/stages/19-phone.md` |
+| 19 | Phone access | Owner testing | `docs/stages/19-phone.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
@@ -46,8 +46,11 @@ Newest first.
   desktop-only notes.
 - **Checked:** typecheck, unit 2266, desktop e2e 426/426 (rerun clean),
   phone e2e 9/9 (Pixel 7 emulation). Not yet on a real phone.
-- **Next:** release on the owner's go, then owner test on a phone.
-- **Commits:** 5a84db2 … d81269c, plus this one.
+- **Released:** 0.1.45 (tag v0.1.45, owner's go). build:pages smoke
+  green, Pages deploy green, live release.json 0.1.45, test:prod 10/10.
+- **Next:** owner test on a real phone; keyboard handling on iOS is the
+  likeliest thing to tune.
+- **Commits:** 5a84db2 … af535fa, plus this one.
 
 ### 2026-10-04 — Stage 18: almanac (game time API and showcase script)
 

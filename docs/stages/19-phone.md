@@ -70,7 +70,7 @@ Intent Goal 12, spec §2.12, ADR 0075. Research: `notes/research/mobile.md`.
   visible area (keyboard) without "too small", landscape, the start page.
   Desktop: `esc-click.spec.ts` for `#menu` and a clicked `ESC Back`.
   Part B as built: ADR 0075 §3.1.
-- [ ] C2 full check, release
+- [x] C2 full check, release (0.1.45)
 
 ## Test guide
 
