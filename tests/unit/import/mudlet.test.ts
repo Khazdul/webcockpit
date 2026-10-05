@@ -37,7 +37,7 @@ describe('Mudlet: detection and report', () => {
     expect(r.signals).toEqual(['MudletPackage version 1.001', 'profile save']);
     expect(r.profileText.split('\n')[0]).toBe('#nop {Imported from Mudlet file profile.xml on 2026-10-04. See the import report.}');
     expect(countsMatch(r)).toBe(true);
-    expect(r.counts).toMatchObject({ translated: 37, kept: 15, skipped: 2 });
+    expect(r.counts).toMatchObject({ translated: 36, kept: 16, skipped: 2 });
   });
 
   it('report items carry the XML start line and `<kind> <name>  <pattern>`', () => {
@@ -82,23 +82,20 @@ describe('Mudlet: detection and report', () => {
 });
 
 describe('Mudlet: translation', () => {
-  it('rules, folders as classes, start values first', () => {
-    const b = body(profile());
-    expect(b.slice(0, 11)).toEqual([
+  it('rules flat in source order (no #class), start values first', () => {
+    const r = profile();
+    const b = body(r);
+    expect(b.slice(0, 8)).toEqual([
       '#variable {sd} {exit}',
       '#variable {kills} {0}',
       '#variable {afk} {0}',
       '#variable {mudlet_on_autoloot} {0}',
-      '#variable {mudlet_on_hideScore} {0}',
-      '#variable {mudlet_gate_hideScore} {%!{(?!)}}',
       '#variable {abody} {}',
       '#variable {mees} {*orc*}',
       '#variable {sd2} {}',
       '#variable {class} {}',
-      '#action {%*} {#if {$mudlet_on_hideScore} {#variable {mudlet_gate_hideScore} {}} #else {#variable {mudlet_gate_hideScore} {%!{(?!)}}}} {1}',
     ]);
-    expect(b).toContain('#class {Combat} {open}');
-    expect(b).toContain('#class {Keys} {open}');
+    expect(r.profileText).not.toMatch(/#class/);
     for (const l of [
       '#action {You are hungry.} {eat bread}',
       "#action {^{\\w+} tells you '{.*}'$} {#showme {<Fffff00>[tell] <Fffffff>%1: %2}}",
@@ -129,30 +126,52 @@ describe('Mudlet: translation', () => {
     }
   });
 
-  it('gates: enable/disable set mudlet_on_, gated bodies test it, gated gags use the pattern gate', () => {
-    const b = body(profile());
+  it('gates: enable/disable set mudlet_on_, gated bodies test it', () => {
+    const r = profile();
+    const b = body(r);
     expect(b).toContain('#alias {^loot on$} {#variable {mudlet_on_autoloot} {1};#showme {<F00ff00>Autoloot on}}');
     expect(b).toContain('#action {^{.+} is dead! R.I.P.$} {#if {$mudlet_on_autoloot} {get all corpse}}');
-    expect(b).toContain('#action {^HIDE {\\d+}$} {#if {$mudlet_on_hideScore} {#variable {mudlet_on_hideScore} {0}}}');
-    expect(b).toContain('#gag {^${mudlet_gate_hideScore}HIDE {\\d+}$}');
     // A commented-out enableTrigger does not make a gate.
     expect(b.join('\n')).not.toContain('neverMentioned');
   });
 
-  it('keeps what it cannot translate, with the reason and the source', () => {
-    const k = keptBlock(profile()).join('\n');
-    expect(k).toContain('#nop {Multiline (AND) trigger (Trigger two lines): You are bleeding | 1 | You feel weak\nsend("flee")}');
-    expect(k).toContain('#nop {Lua function pattern (Trigger prompt check): return isPrompt()');
-    expect(k).toContain('#nop {Uses tempRegexTrigger (Trigger autochant): ^You start chanting\\.$');
-    expect(k).toContain('#nop {Trigger chain (children run only after it fires) (Trigger chain head): ^You begin to search}');
-    expect(k).toContain('#nop {Part of the trigger chain chain head (Trigger chain child): You find a door');
-    expect(k).toContain('#nop {Disabled in Mudlet (Trigger old trigger): #action {^Hello there$} {say hi}}');
-    expect(k).toContain('#nop {Offset timer (runs once after its parent) (Timer once later): 00:00:02.500');
-    expect(k).toContain('#nop {For loop (Alias repeat .a): ^(.*?)([0-9]+)a\\.(.*)$\nlocal num = tonumber(matches[3])');
-    expect(k).toContain('#nop {Toolbar button (Action Flee): flee}');
-    expect(k).toContain('#nop {Event handler script (gmcp.Char.Vitals) (Script vitals): function onVitals()');
-    expect(k).toContain("#nop {Key 'Å' (code 197) depends on the keyboard layout (Key aring): keyCode 197 keyModifier 33554432\ncommand: draw sword}");
-    expect(k).toContain('#nop {Table variable (Variable blindList): blindList}');
+  it('a switched item with a gag is not translated; enabling it is dropped with a warning', () => {
+    const r = profile();
+    expect(r.items.find((i) => i.source.startsWith('Trigger hideScore'))).toMatchObject({
+      outcome: 'kept',
+      reason: 'Turned on and off by other rules (gag/highlight/substitute cannot be switched)',
+    });
+    expect(r.items.find((i) => i.source.startsWith('Alias hs '))).toMatchObject({
+      outcome: 'translated',
+      warning: 'enableTrigger("hideScore") dropped: hideScore was not translated.',
+    });
+    expect(body(r)).toContain('#alias {^hs$} {score}');
+    expect(r.profileText).not.toMatch(/mudlet_on_hideScore|mudlet_gate|#action \{%\*\}/);
+  });
+
+  it('untranslated items are left out; the report lists them; one #nop at the end counts them', () => {
+    const r = profile();
+    expect(keptBlock(r)).toEqual([]);
+    expect(r.profileText).not.toContain('Not translated');
+    expect(r.profileText).not.toContain('Hello there');
+    expect(r.profileText.trimEnd().split('\n').pop()).toBe(
+      '#nop {Mudlet import: 16 items not translated (3 disabled in Mudlet, 13 not translatable), 2 packages skipped. See the import report.}',
+    );
+    const reasons = Object.fromEntries(r.items.filter((i) => i.outcome === 'kept').map((i) => [i.source.split('  ')[0], i.reason]));
+    expect(reasons).toMatchObject({
+      'Trigger two lines': 'Multiline (AND) trigger',
+      'Trigger prompt check': 'Lua function pattern',
+      'Trigger autochant': 'Uses tempRegexTrigger',
+      'Trigger chain head': 'Trigger chain (children run only after it fires)',
+      'Trigger chain child': 'Part of the trigger chain chain head',
+      'Trigger old trigger': 'Disabled in Mudlet',
+      'Timer once later': 'Offset timer (runs once after its parent)',
+      'Alias repeat .a': 'For loop',
+      'Action Flee': 'Toolbar button',
+      'Script vitals': 'Event handler script (gmcp.Char.Vitals)',
+      'Key aring': "Key 'Å' (code 197) depends on the keyboard layout",
+      'Variable blindList': 'Table variable',
+    });
   });
 
   it('own Scripts are consumed when every function is in the subset', () => {
@@ -165,15 +184,14 @@ describe('Mudlet: translation', () => {
     const r = run(fixture('mudlet', 'package.xml'));
     expect(r.counts).toMatchObject({ translated: 4, kept: 0, skipped: 0 });
     expect(body(r)).toEqual([
-      '#class {MyHighlights} {open}',
       '#highlight {%!{(?<=^.*)\\(MIN\\)(?=.*$)}} {<F00ffff><B000000>}',
       '#highlight {^A pair of tiny eyes gleam at you from the shadows%!{.}} {<F00ffff><B000000>}',
       '#highlight {^- shield} {<B000080>}',
       '#highlight {- stored spell%!{.*}} {<B000080>}',
       "#action {%!{[^\\(\\)]*} ({\\w*}) says 'If you still need my help, you must pay me again%!{.}'} {give 10 silver %1}",
       '#alias {^hl$} {#showme {<F00ffff>Highlights loaded.}}',
-      '#class {MyHighlights} {close}',
     ]);
+    expect(r.profileText).not.toMatch(/#nop \{Mudlet import/);
   });
 
   it('a package WebCockpit replaces is skipped even when exported alone', () => {
@@ -225,16 +243,6 @@ describe('Mudlet: behaviour in the engine', () => {
     t.e.input('loot off');
     t.recv('An orc is dead! R.I.P.');
     expect(t.sent).toEqual(['get all corpse']);
-  });
-
-  it('a gated gag that disables itself gags its own line, then stops', () => {
-    const t = engine(profile().profileText);
-    t.recv('HIDE 1');
-    t.e.input('hs');
-    t.recv('HIDE 2');
-    t.recv('HIDE 3');
-    expect(t.sent).toEqual(['score']);
-    expect(t.texts().filter((x) => x.startsWith('HIDE'))).toEqual(['HIDE 1', 'HIDE 3']);
   });
 
   it('keys, delays and line edits work', () => {
