@@ -1,11 +1,13 @@
-// The Map pane's hover box (ADR 0077 §A): a small box beside the pointer
-// with the room under it, after the pointer has rested on the map for
+// The Map pane's hover box (ADR 0077 §A, feedback round 1): a box with the
+// room under the pointer, after the pointer has rested on the map for
 // HOVER_REST_MS (mouse) or after a long press (touch).
 //
 // - Mouse: every move further than HOVER_SLOP_PX from the rest point
 //   restarts one timeout; a move with a button down, a wheel, a drag, the
-//   pointer leaving, a map change or the pane hiding cancels it. Nothing
-//   runs while the pointer is still or away: no polling, no frame loop.
+//   pointer leaving, a map change or the pane hiding or moving cancels it.
+//   A button released over the map (a click or the end of a drag) starts a
+//   new rest where the pointer is. Nothing runs while the pointer is still
+//   or away: no polling, no frame loop.
 // - When the timeout fires the pane asks the worker (`roomAt`); the answer
 //   gives the room, its square on the canvas and the content. The box
 //   shows when the answer still belongs to the current rest and hides when
@@ -14,8 +16,14 @@
 //   PRESS_SLOP_PX asks the same way; the next press or pan hides the box.
 // - Off (Options → Mapper "Room info on hover: Off"): every input returns
 //   at once; no timer is armed.
-// - The box lives in the pane's content, beside the pointer and kept
-//   inside the pane; its width is capped (CSS), long lines wrap.
+// - The box is `position: fixed` in the cockpit (`host`), not in the pane,
+//   so it may extend outside the Map pane and a long room shows whole in a
+//   small map. With `outside` (desktop) it goes beside the pane on the side
+//   with the most room, at the pointer's row, so it covers no map; when it
+//   fits on neither side, above or below the pane; else beside the pointer.
+//   Always inside the viewport; width capped (CSS, by text size); a box
+//   taller than the viewport drops description and contents lines from the
+//   end and shows `…`.
 
 import type { RoomHoverInfo } from '../map/hover';
 
@@ -27,11 +35,28 @@ export const HOVER_SLOP_PX = 4;
 export const PRESS_SLOP_PX = 8;
 /** Gap between the pointer and the box, CSS px. */
 const GAP = 12;
+/** Gap between the pane's edge and a box outside it, CSS px. */
+const GAP_OUT = 2;
+/** The box keeps this far from the viewport's edges, CSS px. */
+const MARGIN = 4;
+
+/** Options → Mapper "Hover text size". */
+export type HoverTextSize = 'small' | 'medium' | 'large';
+
+type Box = { left: number; top: number; right: number; bottom: number };
 
 export interface MapHoverOptions {
   doc: Document;
-  /** Where the box goes (the pane's content; canvas coordinates). */
-  host: HTMLElement;
+  /** Where the box element lives (the cockpit); it is `position: fixed`. Null: not placed. */
+  host: () => HTMLElement | null;
+  /** The canvas's client rect: pointer points are relative to its top left. */
+  frame: () => Box | null;
+  /** The pane's client rect: the box goes outside it when there is room (with `outside`). */
+  pane?: () => Box | null;
+  /** Place the box outside the pane when it fits (desktop; default true). */
+  outside?: boolean;
+  /** Options → Mapper "Hover text size" (default medium). */
+  size?: () => HoverTextSize;
   /** Asks the worker for the room at (x, y); returns the request id, or null when the map cannot answer. */
   ask: (x: number, y: number) => number | null;
   /** False: no box and no timers at all (Options → Mapper "Room info on hover: Off"). Default on. */
@@ -42,21 +67,80 @@ export interface MapHoverOptions {
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-/** The box's lines: [text, class]. Minimal: name and note; Full: also description, exits and flags. */
-export function hoverLines(info: RoomHoverInfo): Array<[string, string]> {
-  const out: Array<[string, string]> = [];
+/** One line of the box: text, class, and a bold label before the text. */
+export type HoverLine = [text: string, cls: string, label?: string];
+
+/**
+ * The box's lines. Minimal: name and note. Full (MMapper's room preview):
+ * name, description (one paragraph, wrapped by the box), contents, exits,
+ * then the note after a bold `Note:` (on its row for one line, else each
+ * line under it indented two spaces, as MMapper's `displayRoom`).
+ */
+export function hoverLines(info: RoomHoverInfo): HoverLine[] {
+  const out: HoverLine[] = [];
+  const lines = (text: string | undefined): string[] =>
+    (text ?? '')
+      .replace(/\r/g, '')
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim() !== '');
   const add = (text: string | undefined, cls: string): void => {
-    for (const l of (text ?? '').replace(/\r/g, '').split('\n')) {
-      const t = l.trimEnd();
-      if (t !== '') out.push([t, cls]);
-    }
+    for (const l of lines(text)) out.push([l, cls]);
   };
+  const full = info.desc !== undefined;
   add(info.name || '(unnamed room)', 'wc-map-hover-name');
-  add(info.desc, 'wc-map-hover-desc');
+  const desc = lines(info.desc).map((l) => l.trim()).join(' ');
+  if (desc !== '') out.push([desc, 'wc-map-hover-desc']);
+  add(info.contents, 'wc-map-hover-contents');
   add(info.exits, 'wc-map-hover-exits');
-  add(info.flags, 'wc-map-hover-flags');
-  add(info.note, 'wc-map-hover-note');
+  const note = lines(info.note);
+  if (!full) for (const l of note) out.push([l, 'wc-map-hover-note']);
+  else if (note.length === 1) out.push([note[0]!, 'wc-map-hover-note', 'Note: ']);
+  else if (note.length > 1) {
+    out.push(['', 'wc-map-hover-note', 'Note:']);
+    for (const l of note) out.push([`  ${l}`, 'wc-map-hover-note']);
+  }
   return out;
+}
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(v, hi));
+
+/**
+ * Where a `bw` × `bh` box goes (client px) for the pointer at (px, py) over
+ * `pane` in a `vw` × `vh` viewport (see the file header). `pane` null: beside
+ * the pointer.
+ */
+export function placeHoverBox(
+  bw: number,
+  bh: number,
+  px: number,
+  py: number,
+  pane: Box | null,
+  vw: number,
+  vh: number,
+  lineH = 0,
+): { x: number; y: number; where: 'left' | 'right' | 'above' | 'below' | 'pointer' } {
+  const maxX = Math.max(MARGIN, vw - MARGIN - bw);
+  const maxY = Math.max(MARGIN, vh - MARGIN - bh);
+  if (pane) {
+    const rowY = clamp(py - lineH / 2, MARGIN, maxY);
+    const sides = [
+      { where: 'left' as const, room: pane.left - GAP_OUT - MARGIN, x: pane.left - GAP_OUT - bw },
+      { where: 'right' as const, room: vw - pane.right - GAP_OUT - MARGIN, x: pane.right + GAP_OUT },
+    ].sort((a, b) => b.room - a.room);
+    for (const s of sides) if (s.room >= bw) return { x: s.x, y: rowY, where: s.where };
+    const colX = clamp(px - bw / 2, MARGIN, maxX);
+    const ends = [
+      { where: 'above' as const, room: pane.top - GAP_OUT - MARGIN, y: pane.top - GAP_OUT - bh },
+      { where: 'below' as const, room: vh - pane.bottom - GAP_OUT - MARGIN, y: pane.bottom + GAP_OUT },
+    ].sort((a, b) => b.room - a.room);
+    for (const e of ends) if (e.room >= bh) return { x: colX, y: e.y, where: e.where };
+  }
+  let x = px + GAP;
+  if (x + bw > vw - MARGIN) x = px - GAP - bw;
+  let y = py + GAP;
+  if (y + bh > vh - MARGIN) y = py - GAP - bh;
+  return { x: clamp(x, MARGIN, maxX), y: clamp(y, MARGIN, maxY), where: 'pointer' };
 }
 
 export class MapHover {
@@ -88,6 +172,15 @@ export class MapHover {
     if (p && Math.abs(x - p.x) <= HOVER_SLOP_PX && Math.abs(y - p.y) <= HOVER_SLOP_PX) return;
     if (this.shown) return; // still on the shown room
     this.arm(x, y, HOVER_REST_MS);
+  }
+
+  /**
+   * Mouse button released over the map (canvas px): a click or the end of a
+   * drag. The pointer rests from here: a new rest starts at once.
+   */
+  up(x: number, y: number): void {
+    this.cancel();
+    if (this.on()) this.arm(x, y, HOVER_REST_MS);
   }
 
   /** Touch press (canvas px): hides a shown box and starts a long press when it is the only finger. */
@@ -165,32 +258,77 @@ export class MapHover {
 
   private show(x: number, y: number, info: RoomHoverInfo): void {
     const doc = this.o.doc;
+    const host = this.o.host();
+    const frame = this.o.frame();
+    if (!host || !frame) return;
     const box = (this.box ??= doc.createElement('div'));
     box.className = info.desc !== undefined ? 'wc-map-hover is-full' : 'wc-map-hover';
+    box.dataset.size = this.o.size?.() ?? 'medium';
     box.setAttribute('role', 'tooltip');
     box.replaceChildren(
-      ...hoverLines(info).map(([text, cls]) => {
+      ...hoverLines(info).map(([text, cls, label]) => {
         const d = doc.createElement('div');
         d.className = cls;
-        d.textContent = text;
+        if (label) {
+          const b = doc.createElement('span');
+          b.className = 'wc-map-hover-label';
+          b.textContent = label;
+          d.append(b);
+        }
+        if (text !== '') d.append(text);
         return d;
       }),
     );
-    if (box.parentElement !== this.o.host) this.o.host.append(box);
+    if (box.parentElement !== host) host.append(box);
     box.style.left = '0px';
     box.style.top = '0px';
     box.hidden = false;
-    const W = this.o.host.clientWidth;
-    const H = this.o.host.clientHeight;
+    const root = doc.documentElement;
+    const win = doc.defaultView;
+    const vw = root.clientWidth || win?.innerWidth || 0;
+    const vh = root.clientHeight || win?.innerHeight || 0;
+    // A containing block other than the viewport (none today) shifts a
+    // fixed box: measure where (0, 0) lands and correct for it.
+    const origin = box.getBoundingClientRect();
+    if (vh > 0) this.fit(box, vh - 2 * MARGIN);
     const bw = box.offsetWidth;
     const bh = box.offsetHeight;
-    let left = x + GAP;
-    if (W > 0 && left + bw > W) left = x - GAP - bw;
-    let top = y + GAP;
-    if (H > 0 && top + bh > H) top = y - GAP - bh;
-    left = Math.max(0, W > 0 ? Math.min(left, W - bw) : left);
-    top = Math.max(0, H > 0 ? Math.min(top, H - bh) : top);
-    box.style.left = `${Math.round(left)}px`;
-    box.style.top = `${Math.round(top)}px`;
+    const name = box.firstElementChild as HTMLElement | null;
+    const p = placeHoverBox(
+      bw,
+      bh,
+      frame.left + x,
+      frame.top + y,
+      this.o.outside === false ? null : (this.o.pane?.() ?? null),
+      vw,
+      vh,
+      name?.offsetHeight ?? 0,
+    );
+    box.dataset.where = p.where;
+    box.style.left = `${Math.round(p.x - origin.left)}px`;
+    box.style.top = `${Math.round(p.y - origin.top)}px`;
+  }
+
+  /** Drops description and contents lines from the end until the box is at most `maxH` tall; `…` marks the cut. */
+  private fit(box: HTMLDivElement, maxH: number): void {
+    if (box.offsetHeight <= maxH) return;
+    const cut = [...box.querySelectorAll<HTMLElement>('.wc-map-hover-desc, .wc-map-hover-contents')];
+    if (cut.length === 0) return;
+    const more = this.o.doc.createElement('div');
+    more.className = 'wc-map-hover-more';
+    more.textContent = '…';
+    cut.at(-1)!.after(more);
+    while (box.offsetHeight > maxH && cut.length > 0) {
+      const el = cut.pop()!;
+      if (el.classList.contains('wc-map-hover-desc')) {
+        // One paragraph: drop words from its end.
+        const words = (el.textContent ?? '').split(' ');
+        while (words.length > 1 && box.offsetHeight > maxH) {
+          words.splice(Math.max(1, words.length - 8));
+          el.textContent = words.join(' ');
+        }
+        if (box.offsetHeight > maxH) el.remove();
+      } else el.remove();
+    }
   }
 }

@@ -6,12 +6,13 @@
 //   (view.ts `pxPerRoom`: every layer is centred on the view, scaled by its
 //   own px per room). A room index by position is built lazily, once per
 //   map, on the first hover (a WeakMap, so MapData is unchanged).
-// - Minimal: the room name and the note. Full: also the description, the
-//   exits (`Exits: n e [s] u`, a door in brackets as MUME shows it) and the
-//   mob and load flags in words. Never the area or the terrain (owner
-//   decision 2026-10-05).
+// - Minimal: the room name and the note. Full: MMapper's room preview
+//   (`map/Map.cpp` `previewRoom`): name, description, contents, the exits
+//   line as `displayExits` builds it (without "(emulated)" and without the
+//   `enhanceExits` tail, which names flags), then the note. Never the area,
+//   the terrain or mob/load flag words (owner decisions 2026-10-05).
 
-import { DIR_COUNT, DIR_NAMES, EXIT_FLAG, LOAD_FLAGS, MOB_FLAGS, type MapData } from './model';
+import { DIR_NAMES, DIR_COUNT, EXIT_FLAG, SUNDEATH, TERRAIN, TERRAIN_ROAD, type MapData } from './model';
 import { type View, pxPerRoom } from './view';
 
 /** What the hover box shows. */
@@ -19,10 +20,10 @@ export interface RoomHoverInfo {
   name: string;
   /** The map note ('' for none). */
   note: string;
-  /** Full only. */
+  /** Full only: the description, the contents (what lay in the room) and the exits line. */
   desc?: string;
+  contents?: string;
   exits?: string;
-  flags?: string;
 }
 
 /** A room under a point and its square on the canvas (CSS px). */
@@ -58,32 +59,62 @@ export function roomAt(map: MapData, view: View, w: number, h: number, px: numbe
   return { room, rect: { x: w / 2 + (x - view.x) * s, y: h / 2 - (y + 1 - view.y) * s, w: s, h: s } };
 }
 
-const SHORT = ['n', 's', 'e', 'w', 'u', 'd'];
+const WATER = new Set<number>([TERRAIN.indexOf('rapids'), TERRAIN.indexOf('underwater'), TERRAIN.indexOf('water')]);
+/** MMapper's sun character in a preview (`previewRoom` passes `*`). */
+const SUN = '*';
 
-/** `Exits: n e [s] u` (doors in brackets), or '' when the room has none. */
+/**
+ * The exits line as MMapper's `displayExits` writes it, without
+ * "(emulated)": `Exits: {north}, =east=, -south-, |up|, ~west~, *down*.`
+ * (`{}` a door, `||` a climb, `==` a road between roads, `--` a trail, `~~`
+ * into water, `*` into sundeath), or `Exits: none.`. North, south, east,
+ * west, up, down; an exit's first target decides water, road and sun.
+ */
 export function exitsText(map: MapData, room: number): string {
   const out: string[] = [];
+  const src = map.terrain[room]!;
   for (let d = 0; d < DIR_COUNT - 1; d++) {
-    const f = map.exitFlags[room * DIR_COUNT + d]!;
+    const slot = room * DIR_COUNT + d;
+    const f = map.exitFlags[slot]!;
     if ((f & EXIT_FLAG.EXIT) === 0) continue;
-    const n = SHORT[d] ?? DIR_NAMES[d]!;
-    out.push((f & EXIT_FLAG.DOOR) !== 0 ? `[${n}]` : n);
+    let pre = '';
+    let post = '';
+    let road = false;
+    let swim = false;
+    let sun = false;
+    const a = map.outStart[slot]!;
+    if (map.outStart[slot + 1]! > a) {
+      const t = map.outTo[a]!;
+      if (map.sundeath[t] === SUNDEATH.SUNDEATH) {
+        sun = true;
+        pre += SUN;
+      }
+      if (WATER.has(map.terrain[t]!)) {
+        swim = true;
+        pre += '~';
+      } else if (map.terrain[t] === TERRAIN_ROAD && src === TERRAIN_ROAD) {
+        road = true;
+        pre += '=';
+      }
+    }
+    let trail = false;
+    if (!road && (f & EXIT_FLAG.ROAD) !== 0) {
+      if (src === TERRAIN_ROAD) road = true;
+      else trail = true;
+      pre += road ? '=' : '-';
+    }
+    if ((f & EXIT_FLAG.DOOR) !== 0) {
+      pre += '{';
+      post += '}';
+    } else if ((f & EXIT_FLAG.CLIMB) !== 0) {
+      pre += '|';
+      post += '|';
+    }
+    post += swim ? '~' : road ? '=' : trail ? '-' : '';
+    if (sun) post += SUN;
+    out.push(`${pre}${DIR_NAMES[d]}${post}`);
   }
-  return out.length > 0 ? `Exits: ${out.join(' ')}` : '';
-}
-
-/** Mob and load flags in words (`aggressive mob, herb, water`), or ''. */
-export function flagsText(map: MapData, room: number): string {
-  const words: string[] = [];
-  const mob = map.mobFlags[room]!;
-  const load = map.loadFlags[room]!;
-  MOB_FLAGS.forEach((f, i) => {
-    if (mob & (1 << i)) words.push(f.replace(/_/g, ' '));
-  });
-  LOAD_FLAGS.forEach((f, i) => {
-    if (load & (1 << i)) words.push(f.replace(/_/g, ' '));
-  });
-  return words.join(', ');
+  return out.length > 0 ? `Exits: ${out.join(', ')}.` : 'Exits: none.';
 }
 
 /** The hover box's content for `room`. */
@@ -91,7 +122,7 @@ export function hoverInfo(map: MapData, room: number, full: boolean): RoomHoverI
   const info: RoomHoverInfo = { name: map.names[room] ?? '', note: map.notes[room] ?? '' };
   if (!full) return info;
   info.desc = map.descs[room] ?? '';
+  info.contents = map.contents[room] ?? '';
   info.exits = exitsText(map, room);
-  info.flags = flagsText(map, room);
   return info;
 }

@@ -1,11 +1,12 @@
 // @vitest-environment happy-dom
-// Map pane hover box (ADR 0077 §A): hit test, content (Minimal / Full),
-// and the rest / long-press timing of MapHover.
+// Map pane hover box (ADR 0077 §A and round 1): hit test, content
+// (Minimal / Full as MMapper's room preview), placement, and the rest /
+// long-press timing of MapHover.
 import { describe, expect, it } from 'vitest';
-import { DIR, DIR_COUNT, EXIT_FLAG, LOAD_FLAGS, MOB_FLAGS } from '../../src/map/model';
-import { exitsText, flagsText, hoverInfo, roomAt } from '../../src/map/hover';
+import { DIR, DIR_COUNT, EXIT_FLAG, LOAD_FLAGS, MOB_FLAGS, SUNDEATH, TERRAIN, TERRAIN_ROAD } from '../../src/map/model';
+import { exitsText, hoverInfo, roomAt } from '../../src/map/hover';
 import { defaultView, pxPerRoom } from '../../src/map/view';
-import { HOVER_REST_MS, LONG_PRESS_MS, MapHover, hoverLines } from '../../src/panes/map-hover';
+import { HOVER_REST_MS, LONG_PRESS_MS, MapHover, hoverLines, placeHoverBox } from '../../src/panes/map-hover';
 import { gridMap } from './map-grid';
 
 describe('hover hit test and content', () => {
@@ -25,9 +26,11 @@ describe('hover hit test and content', () => {
     expect(roomAt(map, { ...v, layer: 1 }, 200, 100, 100, 50)).toBeNull();
   });
 
-  it('Minimal: name and note; Full: description, exits with doors, flags in words; never area or terrain', () => {
+  it('Minimal: name and note; Full: MMapper preview (desc, contents, exits, note); no flags, area or terrain', () => {
     const m = gridMap(3, 3, { note: (i) => (i === 4 ? 'Herb: thyme\n' : '') });
     m.areas[4] = 'Bree';
+    m.contents[4] = 'A small dog is here.\nA lantern lies here.\n';
+    m.descs[4] = 'The plain room\nnumber 4.\n';
     const door = 4 * DIR_COUNT + DIR.S;
     m.exitFlags[door] = m.exitFlags[door]! | EXIT_FLAG.DOOR;
     m.mobFlags[4] = 1 << MOB_FLAGS.indexOf('aggressive_mob');
@@ -37,21 +40,78 @@ describe('hover hit test and content', () => {
     expect(full).toEqual({
       name: 'Room 4',
       note: 'Herb: thyme\n',
-      desc: 'The plain room number 4.\n',
-      exits: 'Exits: n [s] e w',
-      flags: 'aggressive mob, water, herb',
+      desc: 'The plain room\nnumber 4.\n',
+      contents: 'A small dog is here.\nA lantern lies here.\n',
+      exits: 'Exits: north, {south}, east, west.',
     });
-    expect(JSON.stringify(full)).not.toMatch(/Bree|field/);
-    expect(exitsText(m, 0)).toBe('Exits: n e');
-    expect(flagsText(m, 0)).toBe('');
+    expect(JSON.stringify(full)).not.toMatch(/Bree|field|aggressive|herb,|emulated/);
+    expect(exitsText(m, 0)).toBe('Exits: north, east.');
     expect(hoverLines(full)).toEqual([
       ['Room 4', 'wc-map-hover-name'],
       ['The plain room number 4.', 'wc-map-hover-desc'],
-      ['Exits: n [s] e w', 'wc-map-hover-exits'],
-      ['aggressive mob, water, herb', 'wc-map-hover-flags'],
-      ['Herb: thyme', 'wc-map-hover-note'],
+      ['A small dog is here.', 'wc-map-hover-contents'],
+      ['A lantern lies here.', 'wc-map-hover-contents'],
+      ['Exits: north, {south}, east, west.', 'wc-map-hover-exits'],
+      ['Herb: thyme', 'wc-map-hover-note', 'Note: '],
     ]);
-    expect(hoverLines(hoverInfo(map, 4, false)).map((l) => l[0])).toEqual(['Room 4', 'Herb: thyme', 'Herb: rosemary']);
+    // A note of several lines: "Note:" on its row, each line under it.
+    expect(hoverLines({ ...full, note: 'Herb: a\nHerb: b\n' }).slice(-3)).toEqual([
+      ['', 'wc-map-hover-note', 'Note:'],
+      ['  Herb: a', 'wc-map-hover-note'],
+      ['  Herb: b', 'wc-map-hover-note'],
+    ]);
+    // Minimal: no label, the note lines as they are.
+    expect(hoverLines(hoverInfo(map, 4, false))).toEqual([
+      ['Room 4', 'wc-map-hover-name'],
+      ['Herb: thyme', 'wc-map-hover-note'],
+      ['Herb: rosemary', 'wc-map-hover-note'],
+    ]);
+  });
+
+  it("writes the exits line as MMapper's displayExits: doors, climbs, roads, trails, water, sun", () => {
+    // Room 4 in a 3 × 3 grid: north 7, south 1, east 5, west 3; up and down added.
+    const m = gridMap(3, 3, { terrain: (i) => (i === 4 || i === 5 ? TERRAIN_ROAD : i === 3 ? TERRAIN.indexOf('water') : 3) });
+    const slot = (d: number) => 4 * DIR_COUNT + d;
+    m.exitFlags[slot(DIR.N)]! |= EXIT_FLAG.DOOR;
+    m.exitFlags[slot(DIR.S)]! |= EXIT_FLAG.CLIMB;
+    m.sundeath[1] = SUNDEATH.SUNDEATH;
+    // East 5 is a road between roads (the grid sets the ROAD flag too); west into water.
+    expect(exitsText(m, 4)).toBe('Exits: {north}, *|south|*, =east=, ~west~.');
+    // A road exit from a non-road room is a trail.
+    expect(exitsText(m, 1)).toBe('Exits: north, east, west.');
+    m.exitFlags[1 * DIR_COUNT + DIR.E]! |= EXIT_FLAG.ROAD;
+    expect(exitsText(m, 1)).toBe('Exits: north, -east-, west.');
+    // No exits at all.
+    const lone = gridMap(1, 1);
+    expect(exitsText(lone, 0)).toBe('Exits: none.');
+  });
+});
+
+describe('placeHoverBox', () => {
+  // A 1000 × 600 viewport; the map docked right (700…1000 × 0…300).
+  const pane = { left: 700, top: 0, right: 1000, bottom: 300 };
+
+  it('goes outside the pane on the side with the most room, at the pointer row', () => {
+    const p = placeHoverBox(300, 100, 800, 150, pane, 1000, 600, 16);
+    expect(p).toEqual({ x: 700 - 2 - 300, y: 142, where: 'left' });
+    // A map docked left: right of it.
+    const left = { left: 0, top: 0, right: 300, bottom: 300 };
+    expect(placeHoverBox(300, 100, 100, 150, left, 1000, 600, 16)).toMatchObject({ x: 302, where: 'right' });
+    // Near the bottom: kept inside the viewport.
+    expect(placeHoverBox(300, 100, 800, 590, pane, 1000, 600, 16).y).toBe(600 - 4 - 100);
+  });
+
+  it('above or below the pane when neither side fits, else beside the pointer; always inside the viewport', () => {
+    const wide = { left: 100, top: 0, right: 900, bottom: 300 };
+    expect(placeHoverBox(300, 100, 500, 150, wide, 1000, 600, 16)).toEqual({ x: 350, y: 302, where: 'below' });
+    // The whole viewport: beside the pointer (right and below, or flipped).
+    const all = { left: 0, top: 0, right: 1000, bottom: 600 };
+    expect(placeHoverBox(300, 100, 100, 100, all, 1000, 600)).toEqual({ x: 112, y: 112, where: 'pointer' });
+    expect(placeHoverBox(300, 100, 900, 550, all, 1000, 600)).toEqual({ x: 588, y: 438, where: 'pointer' });
+    // No pane (phone): beside the pointer.
+    expect(placeHoverBox(300, 100, 100, 100, null, 1000, 600).where).toBe('pointer');
+    // Larger than the viewport: pinned to the margin.
+    expect(placeHoverBox(1200, 900, 500, 300, null, 1000, 600)).toMatchObject({ x: 4, y: 4 });
   });
 });
 
@@ -62,7 +122,10 @@ function harness(enabled = true) {
   const asks: Array<[number, number]> = [];
   const h = new MapHover({
     doc: document,
-    host,
+    host: () => host,
+    frame: () => ({ left: 0, top: 0, right: 300, bottom: 200 }),
+    pane: () => ({ left: 0, top: 0, right: 300, bottom: 200 }),
+    size: () => 'large',
     enabled: () => enabled,
     ask: (x, y) => {
       asks.push([x, y]);
@@ -98,6 +161,7 @@ describe('MapHover', () => {
     expect(t.h.shown).toBe(true);
     expect([...t.box()!.children].map((c) => c.textContent)).toEqual(['Old East Road', 'Herb: thyme']);
     expect(t.box()!.getAttribute('role')).toBe('tooltip');
+    expect(t.box()!.dataset.size).toBe('large');
     t.h.move(30, 30, 0); // still on the room
     expect(t.h.shown).toBe(true);
     expect(t.live()).toHaveLength(0);
@@ -151,11 +215,31 @@ describe('MapHover', () => {
     expect(t.h.shown).toBe(true);
   });
 
+  it('a button released on the map starts a rest there (a click, then the pointer still)', () => {
+    const t = harness();
+    t.h.move(10, 10, 0);
+    t.h.cancel(); // pointer down
+    expect(t.live()).toHaveLength(0);
+    t.h.move(10, 10, 1); // a press without moving
+    t.h.up(10, 10);
+    expect(t.live().map((x) => x.ms)).toEqual([HOVER_REST_MS]);
+    t.fire();
+    expect(t.asks).toEqual([[10, 10]]);
+    t.h.answer(1, 3, t.rect, t.info);
+    expect(t.h.shown).toBe(true);
+    // A drag that ends somewhere else rests there.
+    t.h.cancel();
+    t.h.up(120, 60);
+    t.fire();
+    expect(t.asks.at(-1)).toEqual([120, 60]);
+  });
+
   it('Off: no timer is armed and no box shows, by mouse or by touch', () => {
     const t = harness(false);
     t.h.move(10, 10, 0);
     t.h.move(40, 40, 0);
     t.h.press(20, 20, true);
+    t.h.up(20, 20);
     expect(t.live()).toHaveLength(0);
     t.fire();
     expect(t.asks).toEqual([]);

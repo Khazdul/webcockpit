@@ -162,7 +162,8 @@ test('a long press shows the hover box with the room name; the next tap hides it
   const cdp = await page.context().newCDPSession(page);
   const touch = (type: 'touchStart' | 'touchEnd', pts: { x: number; y: number }[]) =>
     cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p.x, y: p.y, id: i })) });
-  const hover = page.locator('.wc-pane-map .wc-map-hover');
+  // The box lives in the cockpit (fixed), beside the finger and inside the viewport.
+  const hover = page.locator('.wc-map-hover');
   // A short tap shows nothing.
   await touch('touchStart', [{ x: cx, y: cy }]);
   await touch('touchEnd', []);
@@ -174,6 +175,13 @@ test('a long press shows the hover box with the room name; the next tap hides it
   await touch('touchEnd', []);
   await expect(hover).toBeVisible();
   await expect(hover.locator('.wc-map-hover-name')).toHaveText('Hill Road');
+  const hb = (await hover.boundingBox())!;
+  const vp = page.viewportSize()!;
+  expect(hb.x).toBeGreaterThanOrEqual(0);
+  expect(hb.y).toBeGreaterThanOrEqual(0);
+  expect(hb.x + hb.width).toBeLessThanOrEqual(vp.width);
+  expect(hb.y + hb.height).toBeLessThanOrEqual(vp.height);
+  await expect(hover).toHaveAttribute('data-where', 'pointer');
   await touch('touchStart', [{ x: cx + 30, y: cy + 30 }]);
   await touch('touchEnd', []);
   await expect(hover).toBeHidden();

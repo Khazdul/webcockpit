@@ -165,43 +165,78 @@
   pointer-events: none;
 }
 
-/* Map hover box (src/panes/map-hover.ts, ADR 0077): the room under a
- * resting pointer, in the tooltip look of the script panes. Width capped,
- * long lines wrap; kept inside the pane by the script. */
+/* Map hover box (src/panes/map-hover.ts, ADR 0077 and its round 1): the
+ * room under a resting pointer, in the tooltip look of the script panes.
+ * Fixed in the cockpit, so it may extend outside the Map pane; the script
+ * keeps it inside the viewport. Width capped in `ch` of its own text size,
+ * long lines wrap. Text size: Options → Mapper "Hover text size". */
 .wc-map-hover {
-  position: absolute;
-  z-index: 5;
-  max-width: min(36ch, calc(100% - 8px));
+  position: fixed;
+  z-index: 250;
+  box-sizing: border-box;
+  max-width: min(36ch, calc(100vw - 8px));
+  max-height: calc(100vh - 8px);
+  overflow: hidden;
   padding: 0 1ch;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
   line-height: var(--cell-h);
+  letter-spacing: normal;
   color: var(--c-body, var(--term-fg));
   background: var(--c-line-hl, #303030);
   pointer-events: none;
 }
 
+.wc-map-hover[data-size="small"] {
+  font-size: calc(var(--font-size) * 0.85);
+  line-height: calc(var(--cell-h) * 0.85);
+}
+
+.wc-map-hover[data-size="large"] {
+  font-size: calc(var(--font-size) * 1.2);
+  line-height: calc(var(--cell-h) * 1.2);
+}
+
 .wc-map-hover.is-full {
-  max-width: min(56ch, calc(100% - 8px));
+  max-width: min(56ch, calc(100vw - 8px));
 }
 
 .wc-map-hover[hidden] {
   display: none;
 }
 
+/* The room name in green, as the game shows it (Cockpit: ANSI green);
+ * `--c-ok` is the theme's green, kept readable on dark and light
+ * backgrounds (ADR 0041). */
 .wc-map-hover-name {
-  color: var(--c-title, var(--term-fg));
+  color: var(--c-ok, var(--term-fg));
   font-weight: bold;
 }
 
-.wc-map-hover-exits,
-.wc-map-hover-flags {
+/* Contents: italic, as MMapper's room preview. */
+.wc-map-hover-contents {
+  font-style: italic;
+}
+
+.wc-map-hover-exits {
   color: var(--c-item, var(--term-fg));
 }
 
 .wc-map-hover-note {
   color: var(--c-hint, var(--term-fg));
   font-style: italic;
+}
+
+.wc-map-hover-label {
+  color: var(--c-body, var(--term-fg));
+  font-style: normal;
+  font-weight: bold;
+}
+
+.wc-map-hover-more {
+  color: var(--c-hint, var(--term-fg));
 }
 
 /* Script panes (src/panes/script-pane.ts, ADR 0053): a link's hint, one

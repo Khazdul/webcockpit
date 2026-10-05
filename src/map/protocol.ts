@@ -199,7 +199,8 @@ export type MainToWorker =
   | { t: 'ask'; req: number; ask: MapAsk }
   /**
    * The hover box (ADR 0077): the room under (x, y) CSS px on the current
-   * layer; `full` adds description, exits and flags. Answered by `roomAt`.
+   * layer; `full` adds description, contents and exits (MMapper's room
+   * preview). Answered by `roomAt`.
    */
   | { t: 'roomAt'; req: number; x: number; y: number; full: boolean }
   | {

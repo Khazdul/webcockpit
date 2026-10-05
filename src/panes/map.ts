@@ -43,10 +43,14 @@
 //   Room.Info goes to the worker with a sequence number; the worker's
 //   `roomNotes` answer is handed back with that Room.Info's bus payload.
 // - Hover box (ADR 0077, src/panes/map-hover.ts): the mouse resting 3 s
-//   on a room, or a long press, asks the worker (`roomAt`) and shows the
-//   room's name and note (Options → Mapper "Room info on hover: Full" adds
-//   description, exits and flags) beside the pointer. A drag, wheel,
-//   leave, player move, map load or hiding the pane hides it.
+//   on a room (also after a click), or a long press, asks the worker
+//   (`roomAt`) and shows the room's name and note (Options → Mapper "Room
+//   info on hover: Full": MMapper's room preview) in a fixed box in the
+//   cockpit, outside the pane when there is room (desktop). The mouse is
+//   followed on the whole pane, not only the canvas: a borderless pane's
+//   title grip lies over the canvas's top row (feedback round 1). A drag,
+//   wheel, leave, player move, map load, or the pane hiding or moving
+//   hides it.
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -116,6 +120,7 @@ export class MapPane extends PaneShell {
   private readonly hover: MapHover;
   private hoverReq = 0;
   private hoverScale = { x: 1, y: 1 };
+  private placeKey = '';
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -132,7 +137,11 @@ export class MapPane extends PaneShell {
     this.content.append(this.canvas, this.notice);
     this.hover = new MapHover({
       doc,
-      host: this.content,
+      host: () => this.el.parentElement,
+      frame: () => this.canvas.getBoundingClientRect(),
+      pane: () => this.el.getBoundingClientRect(),
+      outside: !device().phone,
+      size: () => this.ctx.settings.get().mapper.hoverSize,
       enabled: () => this.ctx.settings.get().mapper.hover !== 'off',
       ask: (x, y) => {
         const c = this.client;
@@ -180,7 +189,18 @@ export class MapPane extends PaneShell {
       c.addEventListener('pointerup', this.onPointerEnd);
       c.addEventListener('pointercancel', this.onPointerEnd);
       c.addEventListener('lostpointercapture', this.onPointerEnd);
-      c.addEventListener('pointerleave', () => this.hover.cancel());
+      // The hover follows the mouse over the whole pane: a borderless pane's
+      // title grip covers the canvas's top row (the grip is the pane's child,
+      // so its moves bubble here; a point off the canvas cancels).
+      const el = this.el;
+      el.addEventListener('pointermove', this.onHoverMove);
+      el.addEventListener('pointerdown', this.onHoverDown);
+      el.addEventListener('pointerleave', this.onHoverLeave);
+      this.own(() => {
+        el.removeEventListener('pointermove', this.onHoverMove);
+        el.removeEventListener('pointerdown', this.onHoverDown);
+        el.removeEventListener('pointerleave', this.onHoverLeave);
+      });
     }
     // The canvas never takes the focus from the input line.
     c.addEventListener('mousedown', (e) => e.preventDefault());
@@ -189,6 +209,17 @@ export class MapPane extends PaneShell {
       c.removeEventListener('wheel', this.onWheel);
       this.watchDpr(false);
     });
+  }
+
+  /** A pane moved, resized or hidden by the layout takes the hover box with it. */
+  override place(p: Parameters<PaneShell['place']>[0], cell: { w: number; h: number }): void {
+    const r = p?.rect;
+    const key = r ? `${r.x},${r.y},${r.w},${r.h}|${cell.w}x${cell.h}` : '';
+    if (key !== this.placeKey) {
+      this.placeKey = key;
+      this.hover.cancel();
+    }
+    super.place(p, cell);
   }
 
   override dispose(): void {
@@ -452,14 +483,26 @@ export class MapPane extends PaneShell {
     }
   };
 
+  /** Mouse over the pane (canvas, or the grip over its top row): the hover rest. */
+  private readonly onHoverMove = (e: PointerEvent): void => {
+    if (e.pointerType === 'touch' || this.drag) return;
+    const p = this.local(e);
+    const { width, height } = this.canvas.getBoundingClientRect();
+    if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) this.hover.cancel();
+    else this.hover.move(p.x, p.y, e.buttons);
+  };
+
+  private readonly onHoverDown = (e: PointerEvent): void => {
+    if (e.pointerType !== 'touch') this.hover.cancel();
+  };
+
+  private readonly onHoverLeave = (e: PointerEvent): void => {
+    if (e.pointerType !== 'touch') this.hover.cancel();
+  };
+
   private readonly onPointerMove = (e: PointerEvent): void => {
     const d = this.drag;
-    if (!d) {
-      const p = this.local(e);
-      this.hover.move(p.x, p.y, e.buttons);
-      return;
-    }
-    if (e.pointerId !== d.id) return;
+    if (!d || e.pointerId !== d.id) return;
     this.acc.dx += e.clientX - d.x;
     this.acc.dy += e.clientY - d.y;
     d.x = e.clientX;
@@ -471,6 +514,12 @@ export class MapPane extends PaneShell {
     if (!this.drag || e.pointerId !== this.drag.id) return;
     this.drag = null;
     delete this.canvas.dataset.dragging;
+    // A click (or a drag) ended with the pointer on the map: it rests here.
+    if (e.type === 'pointerup') {
+      const p = this.local(e);
+      const { width, height } = this.canvas.getBoundingClientRect();
+      if (p.x >= 0 && p.y >= 0 && p.x < width && p.y < height) this.hover.up(p.x, p.y);
+    }
   };
 
   // Touch (ADR 0075 §3.3): one finger pans, two pan and pinch-zoom.

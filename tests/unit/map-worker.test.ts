@@ -227,7 +227,8 @@ describe('map worker core', () => {
     expect(h.out.at(-1)).toMatchObject({ t: 'roomAt', req: 1, room: 0, info: { name: 'A', note: 'Herb: thyme\n' } });
     expect((h.out.at(-1) as { info: object }).info).not.toHaveProperty('desc');
     h.core.handle({ t: 'roomAt', req: 2, x: 100, y: 50, full: true });
-    expect(h.out.at(-1)).toMatchObject({ t: 'roomAt', req: 2, room: 0, info: { name: 'A', desc: 'B', exits: '', flags: '' } });
+    expect(h.out.at(-1)).toMatchObject({ t: 'roomAt', req: 2, room: 0, info: { name: 'A', desc: 'B', contents: '', exits: 'Exits: none.' } });
+    expect((h.out.at(-1) as { info: object }).info).not.toHaveProperty('flags');
     h.core.handle({ t: 'roomAt', req: 3, x: 0, y: 0, full: false });
     expect(h.out.at(-1)).toEqual({ t: 'roomAt', req: 3, room: null });
   });
