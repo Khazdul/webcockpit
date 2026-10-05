@@ -98,6 +98,7 @@ const INTRO: readonly HelpSection[] = [
       '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',
       '- Some scripting commands are not supported yet. They are listed at the end.',
       'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
+      'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
       `The TinTin++ manual describes the language in full: ${MANUAL_URL}`,
     ],
   },
