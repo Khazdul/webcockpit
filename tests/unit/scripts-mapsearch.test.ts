@@ -148,7 +148,7 @@ describe('bundled mapsearch', () => {
     expect(s.header.help.join('\n')).toMatch(/Find\s+Rooms/);
   });
 
-  it('draws the dialog: query, Find / Close, the Search radios in two columns and the Options', async () => {
+  it('draws the dialog: query, Find / Close and the Search radios in two columns (no Options, round 1)', async () => {
     const t = await setup();
     expect(t.panes.pane.spec).toEqual({ id: 'mapsearch/main', place: { dock: 'right', rows: 24, cols: 60, lane: 'own' } });
     expect(t.content().title).toBe('Map search');
@@ -157,20 +157,21 @@ describe('bundled mapsearch', () => {
     expect(r[0]).toMatch(/^ Query: +\[Find\] \[Close\]$/);
     expect(r[0]).toHaveLength(59);
     expect(r.slice(1, 7)).toEqual([
-      ' Search                       Options',
-      ' (•) Name         ( ) Exits   [ ] Case sensitive',
-      ' ( ) Description  ( ) Notes   [ ] Regular expression',
+      ' Search',
+      ' (•) Name         ( ) Exits',
+      ' ( ) Description  ( ) Notes',
       ' ( ) Contents     ( ) Flags',
       ' ( ) Area         ( ) All',
       ' Type a query and press Enter.',
     ]);
     expect(r[7]).toBe('─'.repeat(60));
-    // No room in the list has an area: no Area column.
-    expect(r[8]).toMatch(/^ {3}Steps  Room name {17}Way$/);
+    // No room in the list has an area: no Area column; never a Way column.
+    expect(r[8]).toBe('   Steps  Room name');
+    expect(r.join('\n')).not.toMatch(/Case sensitive|Regular expression|Way/);
     expect(t.field()).toMatchObject({ row: 0, col: 8, value: '' });
-    // Narrow: the Options go under the radio buttons.
+    // Narrow: the same rows.
     t.resize(40);
-    expect(t.rows().slice(6, 10)).toEqual([' Options', ' [ ] Case sensitive', ' [ ] Regular expression', ' Type a query and press Enter.']);
+    expect(t.rows().slice(1, 7)).toEqual(r.slice(1, 7));
     expect(t.host.isRunning('mapsearch')).toBe(true);
   });
 
@@ -179,18 +180,22 @@ describe('bundled mapsearch', () => {
     t.resize(60);
     t.type('  hill ');
     t.enter();
-    expect(t.lastAsk().arg).toEqual({ k: 'search', query: { text: 'hill', field: 'name', case: false, regex: false, max: 200 } });
+    // Neither case nor regex: the search is case- and accent-blind (round 1).
+    expect(t.lastAsk().arg).toEqual({ k: 'search', query: { text: 'hill', field: 'name', max: 200 } });
     expect(t.rows()[6]).toBe(' Searching …');
     t.answer(RESULTS, 3);
     const r = t.rows();
     expect(r[6]).toMatch(/^ 3 rooms +\[Mark all\]$/);
-    expect(r[8]).toMatch(/^ {3}Steps  Room name +Area +Way$/);
-    expect(r[9]).toMatch(/^ {7}0  Hill Road +Bree +here$/);
-    expect(r[10]).toMatch(/^ {7}4  A Glade +Chetwood +2e n u$/);
-    expect(r[11]).toMatch(/^ {7}—  Far Away Place Wi… +no path$/);
-    // The hint: the whole way and the note.
+    expect(r[8]).toMatch(/^ {3}Steps  Room name +Area$/);
+    expect(r[9]).toMatch(/^ {7}0  Hill Road +Bree$/);
+    expect(r[10]).toMatch(/^ {7}4  A Glade +Chetwood$/);
+    expect(r[11]).toMatch(/^ {7}—  Far Away Place With A Very…$/);
+    expect(r.join('\n')).not.toMatch(/2e n u|no path|here/);
+    // The hint: steps and the note, no way (round 1).
     const link = t.content().linkAt(10, 3)!;
-    expect(link.hint).toBe('A Glade (Chetwood)\n4 steps:\n2e n u\nNote: Herb: athelas\nClick to mark it on the map.');
+    expect(link.hint).toBe('A Glade (Chetwood)\n4 steps away.\nNote: Herb: athelas\nClick to mark it on the map.');
+    expect(t.content().linkAt(9, 3)!.hint).toBe('Hill Road (Bree)\nYou are here.\nClick to mark it on the map.');
+    expect(t.content().linkAt(11, 3)!.hint).toMatch(/^Far Away Place With A Very Long Name\nNo path from here\./);
 
     t.clickText(10, 'A Glade');
     expect(t.marks()).toEqual([{ op: 'mark', id: expect.any(Number), arg: expect.objectContaining({ target: { rooms: [7] }, ms: Infinity, focus: 'move' }) }]);
@@ -225,33 +230,33 @@ describe('bundled mapsearch', () => {
     expect(t.lib.get('mapsearch')!.lastError).toBeNull();
   });
 
-  it('a radio or a checkbox searches again when there is a query; the choice is kept in the store', async () => {
+  it('a radio searches again when there is a query; the choice is kept in the store; stored case/regex are ignored', async () => {
     const t = await setup();
     t.resize(60);
     t.clickText(3, 'Notes');
     expect(t.ops.filter((o) => o.op === 'ask')).toEqual([]);
     t.type('Herb');
     t.enter();
-    expect(t.lastAsk().arg).toMatchObject({ query: { text: 'Herb', field: 'note', case: false } });
-    t.clickText(2, 'Case sensitive');
-    expect(t.lastAsk().arg).toMatchObject({ query: { text: 'Herb', field: 'note', case: true, regex: false } });
+    expect(t.lastAsk().arg).toEqual({ k: 'search', query: { text: 'Herb', field: 'note', max: 200 } });
     t.clickText(4, 'Flags');
-    expect(t.lastAsk().arg).toMatchObject({ query: { field: 'flags', case: true } });
+    expect(t.lastAsk().arg).toEqual({ k: 'search', query: { text: 'Herb', field: 'flags', max: 200 } });
     // An old answer after a newer search is dropped.
     const asks = t.ops.filter((o) => o.op === 'ask');
     t.hub.answered(asks[0]!.id, { k: 'search', results: [RESULTS[0]!], total: 1, here: 1 });
     expect(t.rows()[6]).toBe(' Searching …');
     await t.settle();
-    expect(t.lib.storeGet('mapsearch', 'query')).toEqual({ text: 'Herb', field: 'flags', case: true, regex: false });
+    expect(t.lib.storeGet('mapsearch', 'query')).toEqual({ text: 'Herb', field: 'flags' });
 
-    const t2 = await setup({ store: { query: { text: 'rent', field: 'flags', case: false, regex: true } } });
+    // A store from before round 1 with case and regex: both ignored.
+    const t2 = await setup({ store: { query: { text: 'rent', field: 'flags', case: true, regex: true } } });
     t2.resize(60);
     expect(t2.field().value).toBe('rent');
-    expect(t2.rows()[3]).toMatch(/\[x\] Regular expression$/);
     expect(t2.rows()[4]).toBe(' ( ) Contents     (•) Flags');
+    t2.enter();
+    expect(t2.lastAsk().arg).toEqual({ k: 'search', query: { text: 'rent', field: 'flags', max: 200 } });
   });
 
-  it('says why: empty query, no rooms, bad regex, map off', async () => {
+  it('says why: empty query, no rooms, room unknown, map off', async () => {
     const t = await setup();
     t.resize(60);
     t.enter();
@@ -265,10 +270,11 @@ describe('bundled mapsearch', () => {
     t.enter();
     t.answer([RESULTS[2]!], 1, null);
     expect(t.rows()[6]).toMatch(/^ 1 room · your room is unknown +\[Mark all\]$/);
-    t.clickText(3, 'Regular expression');
+    // No regex any more: a "(" is plain text, asked as such.
     t.type('(');
     t.enter();
-    expect(t.rows()[6]).toMatch(/^ Bad regex: /);
+    expect(t.lastAsk().arg).toMatchObject({ query: { text: '(' } });
+    expect(t.rows()[6]).toMatch(/^ Searching …/);
 
     const off = await setup({ map: false });
     off.resize(60);
@@ -278,23 +284,23 @@ describe('bundled mapsearch', () => {
     expect(off.lib.get('mapsearch')!.lastError).toBeNull();
   });
 
-  it('narrow panes drop the Area column, then the Way; long ways are cut with …', async () => {
+  it('narrow panes drop the Area column; long names are cut with …', async () => {
     const t = await setup();
     t.resize(60);
     t.type('x');
     t.enter();
-    const long = Array.from({ length: 300 }, (_, i) => ['n', '2e', 's', 'w'][i % 4]).join(' ');
-    t.answer([room(3, 'Somewhere', 700, long)], 1);
-    expect(t.rows()[9]).toMatch(/^ {5}700  Somewhere +Bree +n 2e s w n 2e s w…$/);
+    t.answer([room(3, 'Somewhere With A Name Much Longer Than The Column', 700, 'n 2e s w'), room(4, 'Elsewhere', 2, 'n n', '')], 2);
+    expect(t.rows()[9]).toMatch(/^ {5}700  Somewhere With A Name Much… +Bree$/);
     expect(t.rows()[9]!.length).toBeLessThanOrEqual(59);
-    const hint = t.content().linkAt(9, 3)!.hint!;
-    expect(hint.split('\n').length).toBeLessThan(20);
-    expect(hint).toMatch(/700 steps:\nn 2e s w/);
+    expect(t.rows()[10]).toBe('       2  Elsewhere');
+    expect(t.content().linkAt(9, 3)!.hint).toBe(
+      'Somewhere With A Name Much Longer Than The Column (Bree)\n700 steps away.\nClick to mark it on the map.',
+    );
     t.resize(44);
-    expect(t.rows()[11]).toMatch(/^ {3}Steps  Room name +Way$/);
-    expect(t.rows()[12]).toMatch(/^ {5}700  Somewhere +n 2e/);
+    expect(t.rows()[8]).toMatch(/^ {3}Steps  Room name +Area$/);
     t.resize(34);
-    expect(t.rows()[t.rows().length - 1]).toBe('     700  Somewhere');
+    expect(t.rows()[8]).toBe('   Steps  Room name');
+    expect(t.rows()[9]).toMatch(/^ {5}700  Somewhere With A Name ?\S*…$/);
   });
 
   it('the alias searches with the pane\'s options, toggles the pane, and closing clears the marks', async () => {

@@ -1,8 +1,9 @@
 // The bundled Map search script (ADR 0077 §C): enabled with the bundled map
 // loaded and the player located by the map-demo walk, its pane searches
 // the notes for herbs (Enter in the query field), lists the rooms nearest
-// first with the way there, marks a clicked row until Clear, keeps the
-// marks over a new search, and the pane's close cross clears them.
+// first with their steps (no way text, round 1), marks a clicked row until
+// Clear, keeps the marks over a new search, ignores diacritics, and the
+// pane's close cross clears them.
 import { type Page, expect, test } from '@playwright/test';
 
 const ID = 'mapsearch/main';
@@ -23,7 +24,7 @@ async function clickText(page: Page, row: number, text: string): Promise<void> {
   await page.mouse.click(box.x + (col + 0.5) * cell.w, box.y + (row + 0.5) * cell.h);
 }
 
-test('map search pane: Notes search, results with the way, marks until Clear, close cross clears (ADR 0077 §C)', async ({ page }) => {
+test('map search pane: Notes search, results with steps, marks until Clear, diacritics, close cross clears (ADR 0077 §C)', async ({ page }) => {
   test.setTimeout(60_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -43,8 +44,10 @@ test('map search pane: Notes search, results with the way, marks until Clear, cl
   await expect(pane(page)).toBeVisible();
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Map search');
   await expect(prows(page).nth(0)).toHaveText(/^ Query: +\[Find\] \[Close\]\s*$/);
-  await expect(prows(page).nth(1)).toHaveText(/^ Search +Options\s*$/);
-  await expect(prows(page).nth(2)).toHaveText(/^ \(•\) Name +\( \) Exits +\[ \] Case sensitive\s*$/);
+  await expect(prows(page).nth(1)).toHaveText(/^ Search\s*$/);
+  await expect(prows(page).nth(2)).toHaveText(/^ \(•\) Name +\( \) Exits\s*$/);
+  await expect(pane(page)).not.toContainText('Case sensitive');
+  await expect(pane(page)).not.toContainText('Regular expression');
   await expect(prows(page).nth(5)).toHaveText(/^ \( \) Area +\( \) All\s*$/);
   await expect(prows(page).nth(6)).toHaveText(/Type a query and press Enter\./);
 
@@ -56,9 +59,15 @@ test('map search pane: Notes search, results with the way, marks until Clear, cl
   await page.keyboard.type('Herb');
   await page.keyboard.press('Enter');
   await expect(prows(page).nth(6)).toHaveText(/^ (\d+ of )?\d+ rooms +\[Mark all\]\s*$/);
-  await expect(prows(page).nth(8)).toHaveText(/^ {3}Steps {2}Room name( +Area)? +Way\s*$/);
-  // Nearest first, with steps and the way as text.
-  await expect(prows(page).nth(9)).toHaveText(/^ {3} *\d+ {2}\S.* \d*[nsewud]( \d*[nsewud])*…?\s*$/);
+  await expect(prows(page).nth(8)).toHaveText(/^ {3}Steps {2}Room name( +Area)?\s*$/);
+  // Nearest first, with steps; no way text, in the row or its tooltip.
+  await expect(prows(page).nth(9)).toHaveText(/^ {3} *\d+ {2}\S/);
+  await expect(prows(page).nth(9)).not.toHaveText(/ \d*[nsewud]( \d*[nsewud])+\s*$/);
+  await prows(page).nth(9).hover();
+  const tip = page.locator('.wc-spane-tip');
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText(/\d+ steps? away\.|You are here\./);
+  await expect(tip).not.toContainText(/steps:/);
   const snapshot = await prows(page).allTextContents();
   console.log(`Map search pane:\n${snapshot.slice(0, 16).map((r) => `|${r.trimEnd()}`).join('\n')}`);
 
@@ -94,6 +103,24 @@ test('map search pane: Notes search, results with the way, marks until Clear, cl
   await pane(page).locator('.wc-pane-close').click();
   await expect(pane(page)).toBeHidden();
   await expect(map).toHaveAttribute('data-map-marks', '0');
+
+  // Diacritics do not count: "Círdan" finds the map's "Cirdan's …" rooms
+  // (the map's text is ASCII), as "cirdan" does.
+  await page.locator('.wc-input-field').focus();
+  await page.keyboard.type('mapsearch Círdan');
+  await page.keyboard.press('Enter');
+  await expect(pane(page)).toBeVisible();
+  await clickText(page, 2, 'Name'); // searches again (it was Flags)
+  await expect(prows(page).nth(2)).toHaveText(/\(•\) Name/);
+  await expect(prows(page).nth(6)).toHaveText(/^ \d+ rooms? /);
+  const accented = await prows(page).nth(6).textContent();
+  await expect(prows(page).nth(9)).toContainText('Cirdan');
+  await page.locator('.wc-input-field').focus();
+  await page.keyboard.type('mapsearch cirdan');
+  await page.keyboard.press('Enter');
+  await expect(prows(page).nth(6)).toHaveText(accented!);
+  await clickText(page, 0, '[Close]');
+  await expect(pane(page)).toBeHidden();
 
   // The alias brings it back with the field focused.
   await page.locator('.wc-input-field').focus();

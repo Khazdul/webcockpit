@@ -1,5 +1,5 @@
 -- @name     mapsearch
--- @summary  Finds rooms on the map like MMapper's Find Rooms, marks them and shows the way
+-- @summary  Finds rooms on the map like MMapper's Find Rooms and marks them
 -- @api      1
 -- @alias    mapsearch  Show or hide the Map search pane (mapsearch <text>: search for it)
 -- @help     The Map search pane finds rooms on the map, as MMapper's Find
@@ -16,13 +16,11 @@
 -- @help                    aggmob, guild, door, climb …)
 -- @help       All          any of them
 -- @help
--- @help     Case sensitive makes case count; Regular expression takes the
--- @help     query as one (JavaScript syntax). Changing them searches again.
+-- @help     Case and accents do not count: "o" finds "ó". Choosing another
+-- @help     Search field searches again.
 -- @help
--- @help     The results come nearest first: the steps to walk, the room,
--- @help     its area and the way there as text (3e n 2u: three east, north,
--- @help     two up). Nothing is sent to the game. Point at a row for the
--- @help     whole way and the room's note.
+-- @help     The results come nearest first: the steps to walk, the room and
+-- @help     its area. Point at a row for the room's note.
 -- @help
 -- @help     Click a row to mark the room: it pulses on the map until you
 -- @help     clear it, and the map zooms out to show you and the marked
@@ -45,10 +43,10 @@ map's worker; this script is the dialog around it. It asks for at most
 
 The pane has three parts, drawn apart so a redraw does not take the
 keyboard from the query field:
-  controls  the query field, Find / Close, the Search radio buttons and
-            the Options checkboxes. Drawn only when the width changes.
-  status    the counts and Mark all / Clear, or a message (map off, bad
-            regex, no rooms).
+  controls  the query field, Find / Close and the Search radio buttons.
+            Drawn only when the width changes.
+  status    the counts and Mark all / Clear, or a message (map off, no
+            rooms).
   list      a rule, the column header and the results.
 The list scrolls with the pane's own scrolling (the wheel, the touchpad or
 a finger); the controls scroll with it, which keeps touch working (a
@@ -68,7 +66,6 @@ local LINK_C = "#b8b8b8"   -- buttons, as the other bundled scripts
 local MARK_C = "~#ff40ff"  -- mapMark's default colour
 local ERR_C = "~#ff6b6b"
 local MIN_W = 30
-local WIDE_W = 53          -- Options beside the Search buttons from here
 local TIP_W = 56           -- tooltip line width
 
 local FIELDS = {
@@ -91,15 +88,15 @@ local field = "name"
 for _, f in ipairs(FIELDS) do
   if f[1] == saved.field then field = f[1] end
 end
-local caseOn = saved.case == true
-local regexOn = saved.regex == true
+-- Case sensitive and Regular expression are gone for now (stage 21 round
+-- 1): a stored choice is ignored; the search is case- and accent-blind.
 
 local results = nil        -- the last answer's rooms, or nil
 local total = 0
 local searched = false     -- a search was made (option changes search again)
 local message = nil        -- { text, error } instead of the counts
 local seq = 0              -- the newest search; older answers are dropped
-local lost = false         -- the player's room was unknown: no ways
+local lost = false         -- the player's room was unknown: no steps
 
 local marked = {}          -- id -> true
 local markN = 0
@@ -167,7 +164,7 @@ local function wrap(text, w, maxLines)
 end
 
 local function save()
-  store.set("query", { text = query, field = field, case = caseOn, regex = regexOn })
+  store.set("query", { text = query, field = field })
 end
 
 -- Writes a row from segments { text, color, fn, hint } and their links.
@@ -221,19 +218,15 @@ local function anyArea()
   return false
 end
 
--- The list's columns for the width: name, area and way (0 = not shown).
--- Area goes first when the pane is narrow, or when no room has one.
+-- The list's columns for the width: name and area (0 = not shown). Area
+-- only when some room in the list has one and the pane is wide enough.
 local function columns()
   local avail = W - 10 - 1   -- " ● " + steps (5) + 2 spaces, and the last cell
-  if avail >= 44 and anyArea() then
-    local area = math.max(8, math.min(14, math.floor(avail * 0.18)))
-    local name = math.max(12, math.min(28, math.floor(avail * 0.38)))
-    return name, area, avail - 4 - name - area
-  elseif avail >= 26 then
-    local name = math.max(12, math.min(28, math.floor(avail * 0.5)))
-    return name, 0, avail - 2 - name
+  if avail >= 30 and anyArea() then
+    local area = math.max(10, math.min(24, math.floor(avail * 0.4)))
+    return avail - 2 - area, area
   end
-  return math.max(4, avail), 0, 0
+  return math.max(4, avail), 0
 end
 
 local function drawControls()
@@ -267,10 +260,8 @@ local function drawControls()
     onBlur = function() focusWanted = false end,
   })
 
-  -- The Search radio buttons in two columns, Options beside them when wide.
-  local wide = W >= WIDE_W
-  local optX = 31
-  pane:setLine(2, "<@label> Search" .. (wide and (string.rep(" ", optX - 8) .. "Options") or ""))
+  -- The Search radio buttons in two columns.
+  pane:setLine(2, "<@label> Search")
   for i, f in ipairs(FIELDS) do
     local r = 3 + (i - 1) % 4
     local c = i <= 4 and 2 or 19
@@ -285,29 +276,8 @@ local function drawControls()
       end,
     })
   end
-  local function option(r, c, label, on, hint, set)
-    pane:setCheckbox(r, c, {
-      label = label, checked = on, hint = hint,
-      onChange = function(v)
-        set(v)
-        save()
-        if searched and trim(query) ~= "" then find() end
-      end,
-    })
-  end
-  local r = 7
-  if not wide then
-    pane:setLine(7, "<@label> Options")
-    pane:setLine(8, "")
-    pane:setLine(9, "")
-    r = 10
-  end
-  local oy, ox = wide and 3 or 8, wide and optX or 2
-  option(oy, ox, "Case sensitive", caseOn, "Upper and lower case must match", function(v) caseOn = v end)
-  option(oy + 1, ox, "Regular expression", regexOn,
-    "Take the query as a regular expression\n(JavaScript syntax: ^Herb: (athelas|mint))", function(v) regexOn = v end)
-  statusRow = r
-  listRow = r + 1
+  statusRow = 7
+  listRow = 8
   if focusWanted and input then input:focus() end
 end
 
@@ -368,8 +338,7 @@ local function hintOf(r)
   elseif r.steps == 0 then
     lines[#lines + 1] = "You are here."
   else
-    lines[#lines + 1] = r.steps .. (r.steps == 1 and " step:" or " steps:")
-    lines[#lines + 1] = wrap(r.dirs or "", TIP_W, 14)
+    lines[#lines + 1] = r.steps .. (r.steps == 1 and " step away." or " steps away.")
   end
   if r.note and r.note ~= "" then
     lines[#lines + 1] = "Note: " .. wrap(r.note, TIP_W - 6, 6):gsub("\n", "\n      ")
@@ -379,14 +348,10 @@ local function hintOf(r)
 end
 
 local function drawResult(n, r)
-  local nameW, areaW, wayW = columns()
+  local nameW, areaW = columns()
   local on = marked[r.id]
   local bg = on and ":@dim" or ""
   local steps = r.steps == nil and "—" or tostring(r.steps)
-  local way
-  if r.steps == nil then way = "no path"
-  elseif r.steps == 0 then way = "here"
-  else way = r.dirs or "" end
   local segs = {
     { text = " ", color = bg ~= "" and bg or nil },
     { text = on and "●" or " ", color = MARK_C .. bg },
@@ -395,9 +360,6 @@ local function drawResult(n, r)
   }
   if areaW > 0 then
     segs[#segs + 1] = { text = "  " .. pad(r.area, areaW), color = "@label" .. bg }
-  end
-  if wayW > 0 then
-    segs[#segs + 1] = { text = "  " .. pad(way, wayW), color = (r.steps == nil and "@mid" or "@text") .. bg }
   end
   segs[#segs + 1] = { text = " ", color = bg ~= "" and bg or nil }
   -- The whole row is one link.
@@ -429,15 +391,14 @@ drawStatus = function()
 end
 
 local function drawList()
-  local nameW, areaW, wayW = columns()
+  local nameW, areaW = columns()
   local n = listRow
   pane:setLine(n, "<@mid>" .. string.rep("─", W))
   n = n + 1
   local head = " " .. " " .. " " .. lpad("Steps", 5) .. "  " .. pad("Room name", nameW)
   if areaW > 0 then head = head .. "  " .. pad("Area", areaW) end
-  if wayW > 0 then head = head .. "  " .. pad("Way", wayW) end
   pane:setLine(n, "<@label>" .. head)
-  pane:setLink(n, 1, W, nil, "Nearest first: the shortest way by MMapper's walking cost\n(terrain, doors, climbs), from where you stood when you\nsearched. Find again after walking.")
+  pane:setLink(n, 1, W, nil, "Nearest first: the steps of the shortest way by MMapper's\nwalking cost (terrain, doors, climbs), from where you stood\nwhen you searched. Find again after walking. No path: —.")
   for _, r in ipairs(results or {}) do
     n = n + 1
     drawResult(n, r)
@@ -481,7 +442,7 @@ find = function(text)
   searched = true
   save()
   local answered = false
-  local ok, why = mapSearch({ text = q, field = field, case = caseOn, regex = regexOn, max = MAX }, function(list, all, here)
+  local ok, why = mapSearch({ text = q, field = field, max = MAX }, function(list, all, here)
     if mine ~= seq then return end
     answered = true
     results, total, lost = list, all, here == nil
@@ -493,7 +454,7 @@ find = function(text)
     if why == "map off" then
       message = { "Map off: turn the Map pane on (with a map) to search.", true }
     else
-      message = { (tostring(why):gsub("^bad regex", "Bad regex")), true }
+      message = { tostring(why), true }
     end
     drawAll()
   elseif not answered then
