@@ -162,3 +162,75 @@ Keys:
 - Real MUME Mudlet content: https://github.com/mikkpr/mudlet-MUME, https://github.com/MUME/Mudlet-GUI, https://mume.org/download/clients/mudlet/
 
 Corpus copies and the analysis scripts (`an.py`, `an2.py`, `corpus/`) are in the scratchpad directory.
+
+## 8. A real profile (owner's sample, 2026-10-05)
+
+The owner exported a MUME profile with Mudlet's *Save Profile As*. The file
+is named `*.trigger`, but it is a plain `MudletPackage version="1.001"`
+XML with no `HostPackage`, so detection has to use the content, not the
+extension. It holds 400 items. Analysis scripts are in that session's
+scratchpad (`tree.py`, `api.py`, `cls.py`). The numbers are **[V, measured]**.
+
+**Packages vs own items.** Most of the code belongs to installed
+packages, found through `packageName` on the top folder:
+
+| Package | Lines of Lua | WebCockpit counterpart |
+|---|---|---|
+| Port Key Library v1_1_1 | 1773 | bundled Key manager (a port of the same script) |
+| MumeSpellTimers | 2251 | Timers pane (affects, blinds, stored spells) |
+| comLibrary v1_2_5 | 903 | Comm pane (uses `db.*`, `sendGMCP`, Geyser) |
+| XPCounter | 356 | Character pane XP/TP, Statistics |
+| QC v1_0_2 | 2036 | none needed: a tt++-style `#alias`/`#action` emulator for Mudlet |
+| run-lua-code | 12 | Mudlet default package, skip |
+| twiddleSameRow5 | 25 | disabled in the profile |
+
+Geyser (Label 33, Container 17, MiniConsole 9, Gauge 4) appears only in
+packages. Packages are not worth translating; the import should name
+the built-in replacement and skip them.
+
+**Own items** (outside packages; `target_aliases`, `spamdoor-aliases`
+and `test` are package names the owner gave to own folders, so a
+package name alone does not mean "third party"):
+
+| Kind | Literal `send` only | `send`/echo with variables or `matches` | Real Lua (if, loops, temp triggers) | Other |
+|---|---|---|---|---|
+| Aliases (188) | 40 | 79 | 69 | |
+| Keys (8) | 1 | 4 | 3 | |
+| Triggers (16) | 1 | 4 | 2 | 9 colorizers (no script) |
+| Scripts | | | 4 small (`spells`, `targets`, `coinLooter`, `spamDoorPicker`) + `darkTheme` (style sheets, skip) | |
+| Variables | 6 strings, 1 table | | | |
+
+Alias patterns are almost all `^word$` or `^word(?: (.+))?$`.
+
+**Shared Lua state is the deciding fact.** Own aliases read Lua globals
+set by Scripts and other aliases (`sd`, `mees`, `SS`, `abody`, `class`,
+`acontainer`), and call functions defined in Scripts (`setTarget`,
+`setSpell`, `castSpell`, `setSpamdoor`). Translating them to tt++ rules
+would split that state between tt++ variables and Lua. Only items that
+touch no state (literal sends, colorizers) can go to the profile safely;
+the rest must stay Lua, in one script so the globals are shared.
+
+**API gap for the own items** (call counts): our API already covers
+`send` (231), `tempRegexTrigger`, `killTrigger`, `tempAlias`,
+`tempTimer`, `cecho`, `deleteLine`. Missing: `decho` (25),
+`utf8.sub/upper/len` (luautf8-style, not Lua 5.4's `utf8`),
+`enable/disableTrigger` and `enable/disableAlias` by item name,
+`moveCursor(0, getLineCount())` (only as the gag idiom before
+`deleteLine`), `speedwalk`, `reconnect`, and style calls
+(`setProfileStyleSheet`, `setCmdLineStyleSheet`, `setConsoleBufferSize`,
+`enableScrollBar`; skip). Two own items call into a package
+(`MumeSpellTimers.attemptBlind`) and need a nil-safe stub.
+
+**Keys:** keyCode 197 (`Å` on a Swedish layout) shows that printable
+non-ASCII keys exist; Qt gives the character, not the physical key, so
+these need a layout guess or a report line.
+
+**Conclusion.** For this profile, a Mudlet import that (1) skips known
+packages and names the built-in replacement, (2) writes stateless items
+to the profile (`#alias`, `#macro`, `#action`, `#highlight`,
+`#variable`), and (3) writes every other own item into one generated
+user script, with `tempAlias`/`tempRegexTrigger`/`tempKey` registrations
+and a small Mudlet compatibility shim (`decho`, luautf8 functions,
+`spairs`, named enable/disable, the gag idiom), would carry over about
+95 % of the owner's own items in working form. Intent §Non-goals and
+spec §2.11 currently exclude Mudlet; this needs the owner's decision.
