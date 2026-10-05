@@ -192,3 +192,9 @@ Details: ADR 0077 "Feedback round 2".
   Small), Large 1 (the old Medium). Stored keys unchanged.
 - 4. Pane bar gear: reverted (commit 3544b6d).
 - 5. Notes in the game window: no change needed.
+
+### Round 3 (2026-10-06)
+
+- [x] 1. A searched room too far from the player to show both even at
+  the minimum zoom: the view goes to the searched room instead of
+  halfway between (ADR 0079).

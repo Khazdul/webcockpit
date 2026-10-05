@@ -65,8 +65,10 @@ export function zoomAt(v: View, steps: number, px: number, py: number, w: number
 /**
  * A view that shows the player's room and `targets` (rooms as x, y, z)
  * on the player's layer, with `margin` CSS px around them in a `w` × `h`
- * canvas (ADR 0057): it never zooms in, and clamps at ZOOM_MIN. With no
- * player position, the targets alone. Nothing to show: `v` itself.
+ * canvas (ADR 0057): it never zooms in. When they cannot all fit even at
+ * ZOOM_MIN, the targets win (ADR 0079): the targets alone on their layer,
+ * else centred on the first (nearest) target at ZOOM_MIN. With no player
+ * position, the targets alone. Nothing to show: `v` itself.
  */
 export function fitRooms(
   v: View,
@@ -91,6 +93,12 @@ export function fitRooms(
   const layer = player ? player.z : pts[0]!.z;
   const s = Math.min(Math.max(1, w - 2 * margin) / (maxX - minX), Math.max(1, h - 2 * margin) / (maxY - minY));
   const want = (s * (60 - 7 * layer)) / 2640;
+  if (want < ZOOM_MIN && targets.length > 0) {
+    // Too far apart: never a view halfway between that shows neither.
+    if (player) return fitRooms(v, null, targets, w, h, margin);
+    if (targets.length > 1) return fitRooms(v, null, targets.slice(0, 1), w, h, margin);
+    return { ...centreOn(v, targets[0]!.x, targets[0]!.y, targets[0]!.z), zoom: ZOOM_MIN };
+  }
   const zoom = Math.max(ZOOM_MIN, Math.min(v.zoom, want));
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom, layer };
 }

@@ -115,8 +115,16 @@ describe('fitRooms', () => {
     const far = fitRooms(v, { x: 0, y: 0, z: 0 }, [{ x: 40, y: 10, z: 0 }], 400, 300);
     expect(far.zoom).toBeLessThan(1);
     expect(41 * pxPerRoom(far.zoom, 0)).toBeLessThanOrEqual(400 - 96 + 1e-6);
-    // Very far: clamped.
-    expect(fitRooms(v, { x: 0, y: 0, z: 0 }, [{ x: 50000, y: 0, z: 0 }], 400, 300).zoom).toBe(ZOOM_MIN);
+    // Too far for both even at ZOOM_MIN: the target wins, not the midpoint (ADR 0079).
+    const vfar = fitRooms(v, { x: 0, y: 0, z: 0 }, [{ x: 50000, y: 0, z: 2 }], 400, 300);
+    expect(vfar).toMatchObject({ x: 50000.5, y: 0.5, layer: 2 });
+    expect(vfar.zoom).toBeLessThanOrEqual(1);
+    // Targets too far apart from each other as well: the first (nearest) one.
+    const spread = fitRooms(v, { x: 0, y: 0, z: 0 }, [{ x: 30000, y: 0, z: 0 }, { x: 90000, y: 0, z: 0 }], 400, 300);
+    expect(spread).toMatchObject({ x: 30000.5, y: 0.5, layer: 0 });
+    // Two targets that fit together (but not with the player): framed together.
+    const pair = fitRooms(v, { x: 0, y: 0, z: 0 }, [{ x: 30000, y: 0, z: 0 }, { x: 30004, y: 0, z: 0 }], 400, 300);
+    expect(pair.x).toBeCloseTo(30002.5);
     // No player: the targets alone, on their layer.
     const alone = fitRooms(v, null, [{ x: 10, y: 10, z: 1 }], 400, 300);
     expect(alone).toMatchObject({ x: 10.5, y: 10.5, layer: 1 });
