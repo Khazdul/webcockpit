@@ -59,6 +59,10 @@ translated 203 of 212 own items (research §9).
   "third-party package, not imported".
 - Package functions are never inlined. A call into one makes the item
   kept.
+- *Amended 2026-10-05 (build):* a file that holds nothing but packages
+  and is no profile save (an exported `.mpackage`/`.xml`) is what the
+  user chose to import: its packages are translated as own items, except
+  those with a built-in replacement, which are skipped as above.
 
 ### Folders and enabled state
 
@@ -72,7 +76,13 @@ translated 203 of 212 own items (research §9).
   from an item with that name (or inside a folder with that name) is
   wrapped in `#if {$mudlet_on_<name>}`. Its start value is the item's
   `isActive`. A gated alias sends the typed input in its `#else`
-  (`%0`), a gated gag or highlight is written ungated with a warning.
+  (`%0`). *Amended 2026-10-05 (build):* a gated gag, highlight or
+  substitute is not written ungated (a gated `.*` gag would hide every
+  line); its pattern starts with `${mudlet_gate_<name>}`, which is empty
+  when on and the never-matching `%!{(?!)}` when off. One
+  `#action {%*} {…} {1}` copies these from `mudlet_on_<name>` at the
+  start of every line, so a trigger that gags its line and then
+  disables itself still gags that line (our actions run before gags).
 
 ### Patterns
 
@@ -89,7 +99,9 @@ translated 203 of 212 own items (research §9).
   patterns (OR) → one rule per pattern with the same body.
 - **Colorizer** triggers → `#highlight {pattern} {<Frrggbb>[<Brrggbb>]}`
   from `mFgColor`/`mBgColor` (`transparent` omitted), plus an
-  `#action` when the item also has a body.
+  `#action` when the item also has a body. A regex with capture groups
+  colours only the groups, as Mudlet does: each top-level group becomes
+  `%!{(?<=before)group(?=after)}`.
 - **Keys:** Qt `keyCode` + `keyModifier` → ADR 0005 names (`F1`,
   `Ctrl+S`, `Alt+Down`, `Numpad8` for the keypad bit, `KeyA`/`Digit1`
   for printable ASCII). A non-ASCII printable key (e.g. 197 `Å`) depends
