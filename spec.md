@@ -425,6 +425,10 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
       close cross closes it. `group` + `grid = {cols}` tile a script's
       temporary panes from `at`'s corner in opening order without gaps;
       a drag moves the group, a resize sizes it (kept per device).
+      `near = "<own pane id>"` opens it next to that pane (above, else
+      below; never kept per device) and `popup = true` closes it on a
+      click outside it and that pane or on Esc, as its cross does (ADR
+      0065 round 4).
     - Pane methods:
       - `:clear()`, `:echo(text)` and `:cecho(text)`;
       - `:setLine(row, text)`;
@@ -438,6 +442,10 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
         other cells and links.
       - `:size()` returns rows and cols. `:onResize(fn)` is called
         when the pane's size changes.
+      - `:onHover(fn)` calls `fn(true)` / `fn(false)` when the pointer
+        comes over the pane and leaves it; a touch press on it or
+        elsewhere counts as such; a device that cannot hover reports
+        `true` once (ADR 0065 round 4).
       - `:show()`, `:hide()`, `:visible()` and `:setTitle(text)`.
       - `:close()` removes the pane until `createPane` is called again;
         `:onClose(fn)` is called when the user closes a temporary pane.

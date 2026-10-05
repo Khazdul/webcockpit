@@ -50,3 +50,71 @@ sections where they differ (wrapping is gone).
 - The default right dock (lane size 33) is narrower than six full
   buttons need (43 columns), so the bar starts *shrunk* there, with
   4–5-cell buttons and every built-in name whole.
+
+## Owner feedback round 4 (2026-10-05)
+
+Stage 21 feedback round 1, item 8: the owner asked for a gear next to the
+grip, shown while the pointer is over the bar, opening a small menu where
+the player chooses which panes the bar has buttons for. Implemented.
+
+- **Row.** Grip (column 1), gear cell (column 2), blank, buttons from
+  column 4 (scrolled: `←` in 4, buttons from 6). The gear cell is always
+  reserved, so the tiers (full / shrunk / scrolled) and every button stay
+  put when the gear comes and goes; full width for the six built-ins is
+  now 44 columns. The grip is column 1 only.
+- **Gear.** `⚙` (U+2699): in DejaVu Sans Mono (regular and bold) at the
+  cell advance, the fallback of every other family, like `∷`
+  (`font-glyphs.test.ts` requires it there). `<@mid>`, `<@text>` while the
+  menu is open; a link ("Choose the panes on the bar" / "Close the
+  menu"). Drawn while the pointer is over the bar or the menu is open.
+- **Menu.** A temporary pane "Bar buttons", `near = "bar"`, `popup =
+  true`: one `pane:setCheckbox` row per pane in `getPanes()` order
+  (` [x] SHORT  Title`, the bar itself left out). Unticked panes lose
+  their button only; their on/off is untouched. A press outside the menu
+  and the bar, Esc (aimed at the cockpit) or its cross closes it; the
+  gear and `bar menu` toggle it; `bar` hiding the bar closes it. A list
+  change while it is open redraws it, or reopens it when the number of
+  panes changed (a temporary pane keeps its size).
+- **Kept.** `store.set("hidden", {[id] = true})`: the set of panes taken
+  off, so a pane that appears later gets a button. The store is per
+  script (the same scope as the layout and toggles, which are not per
+  profile either). `bar list` marks them ", no button".
+- **Touch.** A device whose main pointer cannot hover (`(hover: none)`:
+  phones, tablets) shows the gear all the time: `pane:onHover` reports
+  inside once there. On a hybrid device a touch press on the bar counts
+  as over it and one elsewhere as gone.
+
+API (API 1, additions only; editor reference, script manual, spec §2.10):
+
+- `pane:onHover(fn)` / `pane:onHover(nil)`: `fn(true)` when the pointer
+  comes over the pane's box (frame included), `fn(false)` when it leaves.
+  Mouse and pen by `pointerenter` / `pointerleave` on the pane element; a
+  leave whose point is still over the pane (and `elementFromPoint` there
+  is in it) is ignored (the Firefox redraw case); while inside, a
+  document `pointermove` / `pointerdown` outside the pane, window blur or
+  the tab going hidden also end it, and so does the pane being hidden.
+  Touch: `pointerdown` on the pane is inside, one elsewhere is outside.
+  `(hover: none)`: `fn(true)` once, in a microtask after the call, never
+  `false`. Surface: `view.hover(on)`, `events.onHover(inside)`; the
+  function is released on replace, `nil`, close and script stop. Not in
+  runs.
+- `createPane{temporary = true, near = "<own pane id>", popup = true}`:
+  `near` must name an open pane of the same script (else an error) and
+  places the pane with `tempNearRect`: above that pane's box when it
+  fits, else below when it fits, else on the side with more room; left
+  edge on the pane's, moved left to stay on screen; again on every layout
+  until the player moves it; `at` while the near pane has no box. Never
+  saved per device; runs record where it went. `popup`: while one is
+  open the cockpit listens to `pointerdown` (capture) on the document —
+  a press outside the pop-up and its near pane calls its `onClose`, as
+  the cross — and to `keydown` (capture) on the window: a plain Esc not
+  already handled and aimed at the cockpit (or nothing) closes the newest
+  pop-up and goes no further (so the input line does not open the ESC
+  menu); one aimed at an overlay is left alone. Both keys are errors on
+  a pane that is not temporary.
+
+Considered: drawing the menu inside the bar (it is one row; growing it
+would move the panes around it), a centred temporary pane (`at` from the
+bar's dock; far from the gear on a wide screen), and the script binding
+Esc with `tempKey` (no click-outside; it would take Esc from the whole
+client).
