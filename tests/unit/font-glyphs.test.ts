@@ -24,8 +24,8 @@ const DIR = new URL('../../public/fonts/', import.meta.url);
 /** Box drawing, half blocks, quadrants and blocks: must be in the font itself. */
 const STRUCTURAL = '─│┌┐└┘┬═║▀▄▌▐▛▜▙▟█░▁▂▃▅▆▇';
 /** Symbols: a fallback font in the CSS stack is acceptable. */
-/** (∷ is the pane bar's grip, ADR 0065 round 1: ⠿ is in neither DejaVu nor most families; ←→ its scroll arrows, round 3.) */
-const SYMBOLS = '·◦✦✧◄►▲▼⚔♦★☆✓●◆▶⚠✖•…▬↑‹›∷←→';
+/** (∷ is the pane bar's grip, ADR 0065 round 1: ⠿ is in neither DejaVu nor most families; ←→ its scroll arrows, round 3; ⚙ its gear, round 4.) */
+const SYMBOLS = '·◦✦✧◄►▲▼⚔♦★☆✓●◆▶⚠✖•…▬↑‹›∷←→⚙';
 
 const KNOWN_TAGS = [
   'cmap', 'head', 'hhea', 'hmtx', 'maxp', 'name', 'OS/2', 'post', 'cvt ', 'fpgm', 'glyf', 'loca',
@@ -208,14 +208,14 @@ describe('bundled fonts', () => {
     }
   }
 
-  it('symbols: DejaVu has all; JetBrains Mono lacks only ✦✧⚔♦★☆✖▬ (DejaVu is its fallback)', () => {
+  it('symbols: DejaVu has all; JetBrains Mono lacks only ✦✧⚔♦★☆✖▬⚙ (DejaVu is its fallback)', () => {
     const dv = woff2CodePoints(read(FONTS.dejavu.regular!));
     expect(missing(dv, SYMBOLS)).toEqual([]);
     const dvb = woff2CodePoints(read(FONTS.dejavu.bold!));
     expect(missing(dvb, SYMBOLS)).toEqual([]);
     for (const f of [FONTS.jetbrains.regular!, FONTS.jetbrains.bold!]) {
       const jb = woff2CodePoints(read(f));
-      expect(missing(jb, SYMBOLS).sort()).toEqual([...'✦✧⚔♦★☆✖▬'].sort());
+      expect(missing(jb, SYMBOLS).sort()).toEqual([...'✦✧⚔♦★☆✖▬⚙'].sort());
     }
     for (const id of FONT_IDS) if (id !== 'dejavu') expect(FONTS[id].stack).toContain('"DejaVu Sans Mono", monospace');
   });
