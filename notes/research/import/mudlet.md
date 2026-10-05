@@ -234,3 +234,57 @@ and a small Mudlet compatibility shim (`decho`, luautf8 functions,
 `spairs`, named enable/disable, the gag idiom), would carry over about
 95 % of the owner's own items in working form. Intent §Non-goals and
 spec §2.11 currently exclude Mudlet; this needs the owner's decision.
+
+## 9. Profile-only import: Lua idioms to tt++ (2026-10-05)
+
+Owner direction: a Mudlet import must not create scripts. What can be
+translated becomes tt++ rules in the profile; the rest is kept as `#nop`
+like the other import formats. A typical user has mostly aliases,
+triggers, keys, substitutes, highlights and some variables.
+
+In Mudlet even simple items are Lua (`send("...")`), so the importer
+needs a small Lua-subset translator. Prototype:
+`mudlet-lua-subset-proto.py` (Python, research only). It parses the
+statements `send/expandAlias`, `x = expr`, `local`, `if/elseif/else`,
+`cecho/decho/echo`, `deleteLine`, `enable/disableTrigger`, and
+expressions with `..`, `matches[n]`, globals, `or` defaults,
+`tonumber`, `utf8.upper` (dropped). It **inlines** simple functions
+defined in Scripts (`setSpell`, `setTarget`, `setSS`, `setSpamdoor`,
+`showTarget` …) at the call site with the arguments substituted.
+
+Result on the owner's own items (packages excluded): **203 of 212**
+translate (aliases 180/188, triggers 16/16, keys 7/8). Samples:
+
+```
+rook   => get rock pack;#if {"%1" != ""} {use rock $sd %1} #else {use rock $sd}
+silvery=> #if {"$abody" != "fur-cloak"} {rem $abody;get fur-cloak pack;wear fur-cloak;put $abody pack;#variable {abody} {fur-cloak}}
+Target => #if {"%1" == ""} {#showme {<F9aa8b7>## TARGET: <Fffffff>$mees}} #else {#variable {mees} {%1};#showme {…}}
+F4     => #if {"$class" == "warrior"} {kick} #elseif {"$class" == "caster"} {shoot $mees} …
+```
+
+Not translated (9): `for` loops (`repeat .a`), `tempRegexTrigger` /
+`killTrigger` state machines (`autochanton`, `as(.)`), calls into
+packages (`MumeSpellTimers.attemptBlind`), `speedwalk()`, `reconnect()`.
+
+Things the real importer must handle that the prototype does not:
+
+- Initialise every global the rules read with `#variable` (from the
+  VariablePackage and from Script top-level defaults such as
+  `mees = mees or "*orc*"`); tt++ prints an unset `$x` literally.
+- `deleteLine()` in a trigger → a separate `#gag {pattern}`.
+- `enableTrigger("x")`/`disableTrigger` → a gate variable; the gated
+  rule's body is wrapped in `#if {$on_x}`. Disabled items start at 0.
+- `send(cmd, false)`: drop the echo flag (prototype bug: `;1`).
+- Mudlet `send` does not expand aliases; tt++ bodies do. A body command
+  that equals one of the profile's alias names needs a non-expanding
+  send or a warning.
+- Idioms for substitutes and highlights in triggers:
+  `selectString(x,1) fg() bg() resetFormat()` → `#highlight`;
+  `selectString`+`replace` / `creplaceLine` → `#substitute`;
+  colorizer triggers → `#highlight` with `mFgColor`/`mBgColor`.
+- The plain `mCommand`/`command` fields are copied as is.
+- Patterns: Mudlet regex → `{regex}` form, or a tt++ pattern when it
+  is simple (`^word$`, `^word (.+)$`). Several patterns on one trigger
+  → one rule per pattern.
+- Third-party packages are skipped and listed in the report with the
+  built-in replacement (§8).
