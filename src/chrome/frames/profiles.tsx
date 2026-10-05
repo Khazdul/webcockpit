@@ -127,7 +127,8 @@ export function ProfileFrame(): VNode {
   };
 
   // IMPORT: one or more files (a foreign entry file and the files it
-  // `#read`s) through the lazy import chunk (ADR 0073), then the report.
+  // `#read`s, or Mudlet archives) through the lazy import chunk (ADR 0073,
+  // ADR 0076), then the report.
   const onFile = async (): Promise<void> => {
     const input = fileRef.current;
     const chosen = [...(input?.files ?? [])];
@@ -138,7 +139,7 @@ export function ProfileFrame(): VNode {
         loadImportFiles(),
         Promise.all(chosen.map(async (f) => ({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }))),
       ]);
-      const result = importFiles(files);
+      const result = await importFiles(files);
       const name = await profiles.importFile(result.entry, result.profileText);
       settings.update({ profile: name });
       await reload();
