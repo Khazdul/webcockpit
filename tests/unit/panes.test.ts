@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
 import { frameBottom, frameEdge, frameText, frameTop } from '../../src/panes/frame';
@@ -185,6 +186,10 @@ describe('Cockpit', () => {
     const root = document.createElement('div');
     document.body.append(root);
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    // The layout these tests were written for (before ADR 0078).
+    settings.update((d) => {
+      Object.assign(d, legacySettings());
+    });
     const frames: (() => void)[] = [];
     const size = { width, height };
     const c = new Cockpit({

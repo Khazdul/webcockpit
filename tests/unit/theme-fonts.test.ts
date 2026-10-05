@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 // Terminal font choice (ADR 0049): local-only Lucida Console, the
 // fallback to DejaVu Sans Mono, the generated @font-face rules, preloads.
+import { legacySettings } from './legacy-defaults';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FONT_IDS, defaultSettings, migrateSettings } from '../../src/settings';
+import { FONT_IDS, migrateSettings } from '../../src/settings';
 import { rootTokens } from '../../src/theme/apply';
 import { cellHeight, nominalCell } from '../../src/theme/cells';
 import {
@@ -27,7 +28,7 @@ afterEach(() => {
 });
 
 function withFont(font: (typeof FONT_IDS)[number]) {
-  const s = defaultSettings();
+  const s = legacySettings();
   s.appearance.font = font;
   return s;
 }
@@ -56,8 +57,8 @@ describe('Lucida Console where it is not installed', () => {
     expect(effectiveFont('lucida')).toBe('dejavu');
     const s = withFont('lucida');
     expect(rootTokens(s)['--font-mono']).toBe(FONTS.dejavu.stack);
-    expect(nominalCell(s.appearance)).toEqual(nominalCell(defaultSettings().appearance));
-    expect(cellHeight(s.appearance)).toBe(cellHeight(defaultSettings().appearance));
+    expect(nominalCell(s.appearance)).toEqual(nominalCell(legacySettings().appearance));
+    expect(cellHeight(s.appearance)).toBe(cellHeight(legacySettings().appearance));
     expect(fontPx('lucida', 15)).toBe(fontPx('dejavu', 15));
     expect(fontFiles('lucida')).toEqual(fontFiles('dejavu'));
     expect(s.appearance.font).toBe('lucida');
@@ -175,7 +176,7 @@ describe('grid settings (ADR 0049)', () => {
   });
 
   it('JetBrains Mono: a size under half a px over a whole px goes to the half px; cell widths unchanged', () => {
-    const a = (size: number) => ({ ...defaultSettings().appearance, font: 'jetbrains' as const, size });
+    const a = (size: number) => ({ ...legacySettings().appearance, font: 'jetbrains' as const, size });
     expect(fontPx('jetbrains', 13)).toBe(13.5);
     expect(fontPx('jetbrains', 15)).toBe(15);
     expect(fontPx('jetbrains', 16)).toBe(16.6667);
@@ -192,7 +193,7 @@ describe('grid settings (ADR 0049)', () => {
   });
 
   it('the cell is rounded down from the block height less the family margin', () => {
-    const a = { ...defaultSettings().appearance, font: 'cascadia' as const, size: 15 };
+    const a = { ...legacySettings().appearance, font: 'cascadia' as const, size: 15 };
     const px = fontPx('cascadia', 15);
     expect(cellHeight(a)).toBe(Math.floor(px * FONTS.cascadia.blockEm - 0.5));
     expect(FONTS.mononoki.cellMargin).toBe(1);

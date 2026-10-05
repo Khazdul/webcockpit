@@ -3,7 +3,16 @@
 // `DEFAULT_SETTINGS` and clamps every value, so stored data from any
 // older version loads.
 
-import { type BuiltinPaneId, type LayoutModel, type PaneColor, type PaneId, type ScriptPaneId, defaultLayout } from '../layout/types';
+import {
+  type BuiltinPaneId,
+  type LayoutModel,
+  MAPSEARCH_PANE,
+  PANEBAR_PANE,
+  type PaneColor,
+  type PaneId,
+  type ScriptPaneId,
+  defaultLayout,
+} from '../layout/types';
 import { DEFAULT_INPUT_COLOR, DEFAULT_TERM_BG, DEFAULT_TERM_FG, DOS_PALETTE, type InputColor } from '../theme/presets';
 import type { TimerGroup } from '../timers/entry';
 
@@ -294,8 +303,8 @@ export function defaultSettings(): Settings {
   return {
     version: SETTINGS_VERSION,
     appearance: {
-      font: 'dejavu',
-      size: 15,
+      font: 'hack',
+      size: 17,
       padding: 0,
       fg: DEFAULT_TERM_FG,
       bg: DEFAULT_TERM_BG,
@@ -303,15 +312,19 @@ export function defaultSettings(): Settings {
       cursorStyle: 'beam',
       cursorBlink: true,
       inputColor: DEFAULT_INPUT_COLOR,
-      boldBright: false,
+      boldBright: true,
     },
     panes: {
       character: { on: true, color: 'black', border: true },
       timers: { on: true, color: 'black', border: true },
       group: { on: true, color: 'black', border: true },
       comm: { on: true, color: 'black', border: true },
-      ui: { on: true, color: 'black', border: true },
+      ui: { on: true, color: 'black', border: false },
       map: { on: true, color: 'black', border: true },
+      // Pre-placed bundled script panes (ADR 0078): the pane bar is
+      // borderless; Map search starts off (its script runs, the pane waits).
+      [PANEBAR_PANE]: { on: true, color: 'black', border: false },
+      [MAPSEARCH_PANE]: { on: false, color: 'black', border: true },
     },
     layout: defaultLayout(),
     profile: 'default',

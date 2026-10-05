@@ -2,7 +2,8 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CaptureStore } from '../../src/capture/store';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
-import { EVEN_SHARE_DESIRED, PANE_IDS, defaultMapFloat, dockPanes } from '../../src/layout/types';
+import { DEFAULT_SHARE, PANE_IDS, defaultMapFloat, dockPanes } from '../../src/layout/types';
+import { legacyLayout } from './legacy-defaults';
 import {
   DEFAULT_SETTINGS,
   MIRROR_KEY,
@@ -80,19 +81,56 @@ describe('migrateSettings', () => {
     }
   });
 
-  it('default layout: right dock 33 wide, Cockpit order, Character 9 and even shares (ADR 0023)', () => {
-    const [r, ...more] = DEFAULT_SETTINGS.layout.docks.right.lanes;
-    expect(more).toEqual([]);
-    expect(r!.size).toBe(33);
-    expect(r!.panes).toEqual(
-      ['character', 'timers', 'group', 'comm', 'ui'].map((id) => ({
-        id,
-        desired: id === 'character' ? 9 : EVEN_SHARE_DESIRED,
-      })),
-    );
+  it('default layout (ADR 0078): Character over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {
+    const right = DEFAULT_SETTINGS.layout.docks.right;
+    expect(right.head).toEqual([{ id: 'character', desired: 9 }]);
+    expect(right.lanes).toEqual([
+      { size: 20, panes: [{ id: 'group', desired: DEFAULT_SHARE.lanes }] },
+      { size: 20, panes: [{ id: 'timers', desired: DEFAULT_SHARE.lanes }] },
+    ]);
+    expect(right.tail).toEqual([
+      { id: 'comm', desired: DEFAULT_SHARE.comm },
+      { id: 'ui', desired: DEFAULT_SHARE.ui },
+      { id: 'panebar/bar', desired: 1 },
+    ]);
+    expect(DEFAULT_SETTINGS.layout.floating).toEqual([
+      { id: 'map', x: 0, y: 0, w: 60, h: 20, auto: true },
+      { id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' },
+    ]);
     expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
     expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true });
+    // UI without a frame; the pane bar borderless and on; Map search off.
+    expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: true, color: 'black', border: false });
+    expect(DEFAULT_SETTINGS.panes['panebar/bar']).toEqual({ on: true, color: 'black', border: false });
+    expect(DEFAULT_SETTINGS.panes['mapsearch/main']).toEqual({ on: false, color: 'black', border: true });
     expect(Object.isFrozen(DEFAULT_SETTINGS.appearance.ansi)).toBe(true);
+  });
+
+  it('the defaults are stable under migration, key order included (no spurious change on the first update)', () => {
+    expect(JSON.stringify(migrateSettings(JSON.parse(JSON.stringify(defaultSettings()))))).toBe(JSON.stringify(defaultSettings()));
+  });
+
+  it('appearance defaults (ADR 0078): Hack 17, bold brightens; padding, colours, input colour and scrollback as before', () => {
+    const a = DEFAULT_SETTINGS.appearance;
+    expect(a).toMatchObject({ font: 'hack', size: 17, boldBright: true, padding: 0, fg: '#c0c0c0', bg: '#000000', inputColor: 'steel' });
+    expect(DEFAULT_SETTINGS.output.scrollback).toBe(20000);
+  });
+
+  it('an existing user keeps the old look: a stored appearance without font, size or boldBright takes DejaVu 15, no bright bold (ADR 0078)', () => {
+    expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance).toMatchObject({ font: 'dejavu', size: 15, boldBright: false });
+    expect(migrateSettings({ appearance: { font: 'nope', size: 'x', boldBright: 1 } }).appearance).toMatchObject({ font: 'dejavu', size: 15, boldBright: false });
+    // Stored values are kept.
+    expect(migrateSettings({ appearance: { font: 'jetbrains', size: 20, boldBright: true } }).appearance).toMatchObject({ font: 'jetbrains', size: 20, boldBright: true });
+    // A stored pane map keeps its own UI frame; a damaged UI entry keeps the old framed default.
+    expect(migrateSettings({ panes: { ui: { on: true } } }).panes.ui.border).toBe(true);
+    expect(migrateSettings({ panes: { ui: { on: true, border: false } } }).panes.ui.border).toBe(false);
+    // Stored toggles never gain the new-user script pane entries.
+    const old = migrateSettings({ panes: { comm: { on: true, color: 'black', border: true } } });
+    expect('panebar/bar' in old.panes).toBe(false);
+    expect('mapsearch/main' in old.panes).toBe(false);
+    // A stored layout is kept: no pane bar or Map search placed into it.
+    const kept = migrateSettings({ layout: legacyLayout() }).layout;
+    expect(kept).toEqual(legacyLayout());
   });
 
   it('fills missing keys and clamps values', () => {
@@ -131,8 +169,8 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ appearance: { inputColor: 3 } }).appearance.inputColor).toBe('steel');
   });
 
-  it('bold brightens: off by default and for older data, kept when a boolean (ADR 0060)', () => {
-    expect(DEFAULT_SETTINGS.appearance.boldBright).toBe(false);
+  it('bold brightens: on by default, off for older data, kept when a boolean (ADR 0060, ADR 0078)', () => {
+    expect(DEFAULT_SETTINGS.appearance.boldBright).toBe(true);
     expect(migrateSettings({ appearance: { fg: '#808080' } }).appearance.boldBright).toBe(false);
     expect(migrateSettings({ appearance: { boldBright: true } }).appearance.boldBright).toBe(true);
     expect(migrateSettings({ appearance: { boldBright: 'yes' } }).appearance.boldBright).toBe(false);
@@ -495,7 +533,7 @@ describe('SettingsStore', () => {
     expect(s.get().panes.ui.on).toBe(false);
     expect(s.get().appearance.fg).toBe('#c0c0c0');
     expect(seen).toEqual([
-      [18, 15],
+      [18, 17],
       [18, 18],
       [19, 18],
     ]);
@@ -513,6 +551,7 @@ describe('SettingsStore', () => {
   it('arrays in a patch replace the whole array', async () => {
     const s = make({ factory: new IDBFactory() });
     await s.load();
+    s.update({ layout: legacyLayout() });
     s.update({ layout: { docks: { right: { lanes: [{ size: 30, panes: [{ id: 'ui', desired: 7 }] }] } } } });
     const right = s.get().layout.docks.right;
     expect(right.lanes).toHaveLength(1);
@@ -578,10 +617,10 @@ describe('SettingsStore', () => {
     const safeStorage = new MemStorage();
     safeStorage.setItem(MIRROR_KEY, JSON.stringify({ size: 32 }));
     const b = make({ factory, storage: safeStorage, safe: true });
-    expect(b.get().appearance.size).toBe(15);
+    expect(b.get().appearance.size).toBe(17);
     await b.load();
     expect(b.isSafe).toBe(true);
-    expect(b.get().appearance.size).toBe(15);
+    expect(b.get().appearance.size).toBe(17);
     expect(b.get().panes.comm.color).toBe('grey');
     await b.flush();
     expect(await stored(factory)).toMatchObject({ appearance: { size: 32 } });
@@ -589,8 +628,8 @@ describe('SettingsStore', () => {
 
     b.update({ appearance: { padding: 4 } });
     await b.flush();
-    expect(await stored(factory)).toMatchObject({ appearance: { size: 15, padding: 4 } });
-    expect(readAppearanceMirror(safeStorage)).toMatchObject({ size: 15, padding: 4 });
+    expect(await stored(factory)).toMatchObject({ appearance: { size: 17, padding: 4 } });
+    expect(readAppearanceMirror(safeStorage)).toMatchObject({ size: 17, padding: 4 });
   });
 
   it('replays changes made while loading on top of the stored data', async () => {

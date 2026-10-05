@@ -1,3 +1,4 @@
+import { legacyLayout } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_BOTTOM_DESIRED } from '../../src/layout/allocate';
 import {
@@ -40,7 +41,7 @@ function everyPaneOnce(m: LayoutModel): void {
 
 describe('movePane', () => {
   it('reorders within a dock (index = insertion point in the current list)', () => {
-    const m = defaultLayout();
+    const m = legacyLayout();
     expect(order(movePane(m, 'ui', 'right', 0, 0), 'right')).toEqual(['ui', 'character', 'timers', 'group', 'comm']);
     expect(order(movePane(m, 'character', 'right', 0, 5), 'right')).toEqual(['timers', 'group', 'comm', 'ui', 'character']);
     expect(order(movePane(m, 'character', 'right', 0, 2), 'right')).toEqual(['timers', 'character', 'group', 'comm', 'ui']);
@@ -48,7 +49,7 @@ describe('movePane', () => {
   });
 
   it('moves between docks and keeps every pane exactly once', () => {
-    const m = movePane(defaultLayout(), 'group', 'left', 0, 0);
+    const m = movePane(legacyLayout(), 'group', 'left', 0, 0);
     expect(order(m, 'left')).toEqual(['group']);
     expect(order(m, 'right')).toEqual(['character', 'timers', 'comm', 'ui']);
     everyPaneOnce(m);
@@ -58,7 +59,7 @@ describe('movePane', () => {
   });
 
   it('keeps desired between side docks and resets it across axes', () => {
-    let m = setDesired(defaultLayout(), { comm: 14 });
+    let m = setDesired(legacyLayout(), { comm: 14 });
     m = movePane(m, 'comm', 'left', 0, 0);
     expect(dockPanes(m.docks.left)[0]).toEqual({ id: 'comm', desired: 14 });
     m = movePane(m, 'comm', 'bottom', 0, 0);
@@ -74,7 +75,7 @@ describe('movePane', () => {
   });
 
   it('does not mutate its input', () => {
-    const m = defaultLayout();
+    const m = legacyLayout();
     const before = JSON.stringify(m);
     movePane(m, 'ui', 'bottom', 0, 0);
     setLaneSize(m, 'right', 0, 40);
@@ -83,7 +84,7 @@ describe('movePane', () => {
   });
 
   it('knows a no-op move', () => {
-    const m = defaultLayout();
+    const m = legacyLayout();
     expect(isNoopMove(m, 'timers', 'right', 0, 1)).toBe(true);
     expect(isNoopMove(m, 'timers', 'right', 0, 2)).toBe(true);
     expect(isNoopMove(m, 'timers', 'right', 0, 3)).toBe(false);
@@ -91,14 +92,14 @@ describe('movePane', () => {
   });
 
   it('finds a pane', () => {
-    expect(findPane(defaultLayout(), 'comm')).toEqual({ dock: 'right', lane: 0, index: 3 });
+    expect(findPane(legacyLayout(), 'comm')).toEqual({ dock: 'right', lane: 0, index: 3 });
   });
 });
 
 describe('lanes (ADR 0064)', () => {
   const lanes = (m: LayoutModel, d: DockId) => m.docks[d].lanes.map((l) => [l.size, l.panes.map((p) => p.id)]);
   /** Right dock: lane 0 = character, timers, comm, ui; lane 1 (inner, 20 wide) = group. */
-  const twoLanes = () => moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+  const twoLanes = () => moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
 
   it('moves a pane into a new lane at a lane position, with its size', () => {
     const m = twoLanes();
@@ -135,7 +136,7 @@ describe('lanes (ADR 0064)', () => {
     const floated = floatPane(m, 'group', { x: 1, y: 1, w: 20, h: 8 });
     expect(lanes(floated, 'right')).toHaveLength(1);
     // Out of lane 0 into a new lane: lane 0 goes, the old lane 1 is lane 0 now.
-    let only = moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+    let only = moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
     for (const id of ['character', 'timers', 'comm', 'ui'] as const) only = movePane(only, id, 'left', 0, 99);
     expect(lanes(only, 'right')).toEqual([[20, ['group']]]);
     expect(lanes(only, 'left')).toEqual([[33, ['character', 'timers', 'comm', 'ui']]]);
@@ -143,7 +144,7 @@ describe('lanes (ADR 0064)', () => {
   });
 
   it('creates lane 0 at the default size when a pane enters an empty dock', () => {
-    const m = movePane(defaultLayout(), 'comm', 'bottom', 0, 0);
+    const m = movePane(legacyLayout(), 'comm', 'bottom', 0, 0);
     expect(m.docks.bottom.lanes).toEqual([{ size: 10, panes: [{ id: 'comm', desired: DEFAULT_BOTTOM_DESIRED }] }]);
     // Lane indices past the end go into the last lane.
     const t = movePane(twoLanes(), 'ui', 'right', 7, 99);
@@ -167,7 +168,7 @@ describe('lanes (ADR 0064)', () => {
   });
 
   it('keeps desired along the same axis across lanes and resets it across axes', () => {
-    let m = setDesired(defaultLayout(), { comm: 14 });
+    let m = setDesired(legacyLayout(), { comm: 14 });
     m = moveToNewLane(m, 'comm', 'left', 0, 30);
     expect(dockPanes(m.docks.left)[0]).toEqual({ id: 'comm', desired: 14 });
     m = moveToNewLane(m, 'comm', 'right', 1, 30);
@@ -194,7 +195,7 @@ describe('lanes (ADR 0064)', () => {
     expect(shiftLanes(m, 'right', a, b, 0)).toBe(m);
     expect(shiftLanes(m, 'right', a, { lane: 5, size: 3 }, 1)).toBe(m);
     // Top/bottom lanes: minimum 3 rows.
-    let t = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 10);
+    let t = moveToNewLane(legacyLayout(), 'comm', 'bottom', 0, 10);
     t = moveToNewLane(t, 'ui', 'bottom', 1, 6);
     expect(lanes(shiftLanes(t, 'bottom', { lane: 0, size: 10 }, { lane: 1, size: 6 }, 99), 'bottom').map((l) => l[0])).toEqual([13, 3]);
     const before = JSON.stringify(m);
@@ -206,9 +207,9 @@ describe('lanes (ADR 0064)', () => {
 
 describe('sizes', () => {
   it('sets a lane size (whole cells, at least 1)', () => {
-    expect(setLaneSize(defaultLayout(), 'right', 0, 40.4).docks.right.lanes[0]!.size).toBe(40);
-    expect(setLaneSize(defaultLayout(), 'right', 0, -3).docks.right.lanes[0]!.size).toBe(1);
-    const m = defaultLayout();
+    expect(setLaneSize(legacyLayout(), 'right', 0, 40.4).docks.right.lanes[0]!.size).toBe(40);
+    expect(setLaneSize(legacyLayout(), 'right', 0, -3).docks.right.lanes[0]!.size).toBe(1);
+    const m = legacyLayout();
     expect(setLaneSize(m, 'right', 0, 33)).toBe(m);
     // No such lane: unchanged.
     expect(setLaneSize(m, 'bottom', 0, 5)).toBe(m);
@@ -216,7 +217,7 @@ describe('sizes', () => {
   });
 
   it('sets desired sizes clamped to the minimum', () => {
-    const m = setDesired(defaultLayout(), { character: 1, ui: 12 });
+    const m = setDesired(legacyLayout(), { character: 1, ui: 12 });
     expect(dockPanes(m.docks.right).find((p) => p.id === 'character')!.desired).toBe(3);
     expect(dockPanes(m.docks.right).find((p) => p.id === 'ui')!.desired).toBe(12);
   });
@@ -237,7 +238,7 @@ describe('floating panes', () => {
   const zOrder = (m: LayoutModel) => m.floating.map((f) => f.id);
 
   it('floats a docked pane in front, in whole cells, and keeps every pane once', () => {
-    const m0 = defaultLayout();
+    const m0 = legacyLayout();
     const m = floatPane(m0, 'comm', { x: 10.4, y: 3, w: 33, h: 12 });
     expect(order(m, 'right')).toEqual(['character', 'timers', 'group', 'ui']);
     // The map's default entry stays backmost (ADR 0020).
@@ -249,11 +250,11 @@ describe('floating panes', () => {
     expect(m2.floating.at(-1)).toEqual({ id: 'ui', x: 0, y: 0, w: 1, h: 5 });
     expect(zOrder(m2)).toEqual(['map', 'comm', 'ui']);
     everyPaneOnce(m2);
-    expect(JSON.stringify(m0)).toBe(JSON.stringify(defaultLayout()));
+    expect(JSON.stringify(m0)).toBe(JSON.stringify(legacyLayout()));
   });
 
   it('moves a floating pane (floatPane again) to the front', () => {
-    let m = floatPane(defaultLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
+    let m = floatPane(legacyLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
     m = floatPane(m, 'ui', { x: 5, y: 5, w: 20, h: 8 });
     m = floatPane(m, 'comm', { x: 7, y: 2, w: 20, h: 8 });
     expect(m.floating).toEqual([
@@ -265,7 +266,7 @@ describe('floating panes', () => {
   });
 
   it('sets a floating rectangle in place and knows no-ops', () => {
-    let m = floatPane(defaultLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
+    let m = floatPane(legacyLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
     m = floatPane(m, 'ui', { x: 5, y: 5, w: 20, h: 8 });
     const r = setFloatRect(m, 'comm', { x: 2, y: 3, w: 25, h: 9 });
     expect(r.floating).toEqual([
@@ -278,7 +279,7 @@ describe('floating panes', () => {
   });
 
   it('raises a floating pane to the front and persists the z-order', () => {
-    let m = floatPane(defaultLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
+    let m = floatPane(legacyLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
     m = floatPane(m, 'ui', { x: 5, y: 5, w: 20, h: 8 });
     m = floatPane(m, 'group', { x: 9, y: 9, w: 20, h: 8 });
     const r = raisePane(m, 'comm');
@@ -288,7 +289,7 @@ describe('floating panes', () => {
   });
 
   it('docks a floating pane with the default size for the axis', () => {
-    let m = floatPane(defaultLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
+    let m = floatPane(legacyLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
     expect(isNoopMove(m, 'comm', 'right', 0, 0)).toBe(false);
     const right = movePane(m, 'comm', 'right', 0, 1);
     expect(order(right, 'right')).toEqual(['character', 'comm', 'timers', 'group', 'ui']);
@@ -301,7 +302,7 @@ describe('floating panes', () => {
   });
 
   it('keeps floating panes when desired sizes are set', () => {
-    const m = floatPane(defaultLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
+    const m = floatPane(legacyLayout(), 'comm', { x: 1, y: 1, w: 20, h: 8 });
     expect(setDesired(m, { comm: 3 })).toBe(m);
   });
 
@@ -336,23 +337,23 @@ describe('pane bar placement and sizes (ADR 0065)', () => {
   const own = { rows: 1, cols: 80, lane: 'own' as const };
 
   it("lane 'own' opens a new lane 0 at the screen edge of every dock, sized to the pane and frame", () => {
-    const b = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    const b = placeScriptPane(legacyLayout(), BAR, { dock: 'bottom', ...own, border: false });
     expect(b.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
-    const t = placeScriptPane(moveToNewLane(defaultLayout(), 'comm', 'top', 0, 6), BAR, { dock: 'top', ...own, border: true });
+    const t = placeScriptPane(moveToNewLane(legacyLayout(), 'comm', 'top', 0, 6), BAR, { dock: 'top', ...own, border: true });
     expect(t.docks.top.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])).toEqual([[3, [BAR]], [6, ['comm']]]);
-    const r = placeScriptPane(defaultLayout(), BAR, { dock: 'right', rows: 6, cols: 8, lane: 'own', border: false });
+    const r = placeScriptPane(legacyLayout(), BAR, { dock: 'right', rows: 6, cols: 8, lane: 'own', border: false });
     expect(r.docks.right.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])).toEqual([[10, [BAR]], [33, ['character', 'timers', 'group', 'comm', 'ui']]]);
     expect(r.docks.right.lanes[0]!.panes[0]!.desired).toBe(6);
-    const l = placeScriptPane(defaultLayout(), BAR, { dock: 'left', rows: 6, cols: 20, lane: 'own' });
+    const l = placeScriptPane(legacyLayout(), BAR, { dock: 'left', rows: 6, cols: 20, lane: 'own' });
     expect(l.docks.left.lanes).toEqual([{ size: 22, panes: [{ id: BAR, desired: 6 }] }]);
     // Placed already: nothing changes. A float ignores the lane.
     expect(placeScriptPane(b, BAR, { dock: 'top', ...own })).toBe(b);
-    const f = placeScriptPane(defaultLayout(), BAR, { dock: 'float', ...own });
+    const f = placeScriptPane(legacyLayout(), BAR, { dock: 'float', ...own });
     expect(f.floating[0]).toMatchObject({ id: BAR, auto: true, w: 82, h: 3 });
   });
 
   it('shiftLanes keeps each lane at its own minimum', () => {
-    let m = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    let m = placeScriptPane(legacyLayout(), BAR, { dock: 'bottom', ...own, border: false });
     m = moveToNewLane(m, 'comm', 'bottom', 1, 6);
     const r = shiftLanes(m, 'bottom', { lane: 0, size: 3, min: 1 }, { lane: 1, size: 6, min: 3 }, -5);
     expect(r.docks.bottom.lanes.map((l) => l.size)).toEqual([1, 8]);
@@ -361,7 +362,7 @@ describe('pane bar placement and sizes (ADR 0065)', () => {
   });
 
   it('wantPaneSize: side dock rows, a lane alone in top/bottom, cols along the lane; no-ops', () => {
-    const b = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', ...own, border: false });
+    const b = placeScriptPane(legacyLayout(), BAR, { dock: 'bottom', ...own, border: false });
     const two = wantPaneSize(b, BAR, 2, undefined, false);
     expect(two.docks.bottom.lanes[0]!.size).toBe(2);
     expect(wantPaneSize(two, BAR, 2, undefined, false)).toBe(two);
@@ -388,7 +389,7 @@ describe('spanning panes (ADR 0067)', () => {
     tail: ids(m.docks[d].tail),
   });
   /** Right dock: lane 0 = character, timers, comm, ui; lane 1 = group; the map floats. */
-  const twoLanes = () => moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+  const twoLanes = () => moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
 
   it('moves a pane into the head and tail spans, and within them', () => {
     let m = movePane(twoLanes(), 'map', 'right', 'head', 0);
@@ -494,7 +495,7 @@ describe('spanning panes (ADR 0067)', () => {
 
   it('wantPaneSize: a span pane is never alone in its lane', () => {
     const BAR = 'bar/bar' as PaneId;
-    let m = placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', rows: 1, cols: 40, border: false });
+    let m = placeScriptPane(legacyLayout(), BAR, { dock: 'bottom', rows: 1, cols: 40, border: false });
     m = moveToNewLane(m, 'comm', 'bottom', 1, 6);
     m = moveToNewLane(m, 'ui', 'bottom', 2, 6);
     m = movePane(m, BAR, 'bottom', 'head', 0);

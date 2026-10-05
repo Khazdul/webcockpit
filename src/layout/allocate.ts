@@ -214,9 +214,10 @@ export function defaultFloatSize(id: PaneId): { w: number; h: number } {
 /**
  * Default spot of a floating pane whose placement is not chosen yet
  * (`FloatPane.auto`, ADR 0020): the top-right corner of the game pane,
- * `w` × `h` of the window (the owner's MMapper position; size ADR 0023).
+ * `w` × `h` of the window (the owner's MMapper position; size ADR 0023,
+ * width 25 % → 21 % in ADR 0078).
  */
-export const AUTO_FLOAT = { w: 0.25, h: 0.27 } as const;
+export const AUTO_FLOAT = { w: 0.21, h: 0.27 } as const;
 
 /** The rectangle of an `auto` floating pane over `game` in a `cols` × `rows` window (before clamping). */
 export function autoFloatRect(game: Rect, cols: number, rows: number): Rect {
@@ -234,6 +235,15 @@ export function autoFloatRect(game: Rect, cols: number, rows: number): Rect {
 export function scriptAutoFloatRect(game: Rect, size: { w: number; h: number }, beside: Rect | null): Rect {
   const right = beside ? beside.x : game.x + game.w;
   return { x: Math.max(game.x, right - size.w), y: game.y, w: size.w, h: size.h };
+}
+
+/**
+ * The rectangle of an `auto` float placed under the float `above` (ADR
+ * 0078, `FloatPane.below`): as wide as it, left-aligned, its top frame
+ * touching `above`'s bottom frame, `h` rows high.
+ */
+export function floatBelow(above: Rect, h: number): Rect {
+  return { x: above.x, y: above.y + above.h, w: above.w, h };
 }
 
 /**
@@ -790,11 +800,26 @@ export function allocate(input: AllocateInput): LayoutResult {
   const mapAuto = input.layout.floating.some((f) => f.id === 'map' && f.auto) && shownToggle(input, 'map')
     ? clampFloat(autoFloatRect(res.game, cols, rows), floatMin('map', input.panes.map?.border ?? true), cols, rows)
     : null;
+  /** The shown rectangle of a float that is not itself placed under another (ADR 0078: `below`). */
+  const shownFloat = (id: PaneId): Rect | null => {
+    const g = input.layout.floating.find((f) => f.id === id);
+    const t = g && !g.below ? shownToggle(input, id) : null;
+    if (!g || !t) return null;
+    const want = !g.auto ? g : isBuiltinPaneId(id) ? autoFloatRect(res.game, cols, rows) : scriptAutoFloatRect(res.game, g, mapAuto);
+    return clampFloat(want, floatMin(id, t.border), cols, rows);
+  };
   input.layout.floating.forEach((f, index) => {
     const t = shownToggle(input, f.id);
     if (!t) return;
     const framed = t.border;
-    const want = !f.auto ? f : isBuiltinPaneId(f.id) ? autoFloatRect(res.game, cols, rows) : scriptAutoFloatRect(res.game, f, mapAuto);
+    const under = f.auto && f.below ? shownFloat(f.below) : null;
+    const want = !f.auto
+      ? f
+      : under
+        ? floatBelow(under, f.h)
+        : isBuiltinPaneId(f.id)
+          ? autoFloatRect(res.game, cols, rows)
+          : scriptAutoFloatRect(res.game, f, mapAuto);
     const r = clampFloat(want, floatMin(f.id, framed), cols, rows);
     const c: Rect = framed ? { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 } : { ...r };
     res.panes.push({ id: f.id, dock: 'float', lane: 0, index, rect: r, content: c, framed });

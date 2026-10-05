@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
+import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { PANE_IDS } from '../../src/layout/types';
-import { defaultSettings, migrateSettings } from '../../src/settings';
+import { migrateSettings } from '../../src/settings';
 import {
   applyPaneTheme,
   applyTheme,
@@ -19,7 +20,7 @@ import { INPUT_COLOR_IDS, PAPER_PALETTE, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESET
 
 describe('root tokens', () => {
   it('covers the Inv §10.9 names', () => {
-    const t = rootTokens(defaultSettings());
+    const t = rootTokens(legacySettings());
     expect(t['--term-fg']).toBe('#c0c0c0');
     expect(t['--term-bg']).toBe('#000000');
     for (let i = 0; i < 16; i++) expect(t[`--ansi-${i}`]).toMatch(/^#[0-9a-f]{6}$/);
@@ -50,7 +51,7 @@ describe('root tokens', () => {
     expect(root.dataset.cursor).toBe('underline');
     expect(root.dataset.cursorBlink).toBe('off');
     expect(root.hasAttribute('data-light')).toBe(true);
-    applyTheme(defaultSettings(), root);
+    applyTheme(legacySettings(), root);
     expect(root.hasAttribute('data-light')).toBe(false);
     expect(root.dataset.cursor).toBe('beam');
   });
@@ -61,12 +62,12 @@ describe('bold colours (ADR 0060)', () => {
     migrateSettings({ appearance: { boldBright: true, ...appearance } }).appearance;
 
   it('off: bold keeps every colour, the default foreground inherits', () => {
-    const a = defaultSettings().appearance;
+    const a = legacySettings().appearance;
     const t = boldTokens(a);
     for (let i = 0; i < 8; i++) expect(t[`--bold-${i}`]).toBe(a.ansi[i]);
     expect(t['--bold-fg']).toBe('currentcolor');
     expect(t['--bold-fg-def']).toBe('#c0c0c0');
-    expect(rootTokens(defaultSettings())['--bold-1']).toBe('#800000');
+    expect(rootTokens(legacySettings())['--bold-1']).toBe('#800000');
   });
 
   it('on: colours 0–7 take their bright twin, silver default fg turns bright white', () => {
@@ -100,7 +101,7 @@ describe('bold colours (ADR 0060)', () => {
     applyTheme(migrateSettings({ appearance: { boldBright: true } }), root);
     expect(root.style.getPropertyValue('--bold-0')).toBe('#808080');
     expect(root.style.getPropertyValue('--bold-fg')).toBe('#ffffff');
-    applyTheme(defaultSettings(), root);
+    applyTheme(legacySettings(), root);
     expect(root.style.getPropertyValue('--bold-0')).toBe('#000000');
     expect(root.style.getPropertyValue('--bold-fg')).toBe('currentcolor');
   });
@@ -111,7 +112,7 @@ describe('input colour (ADR 0034, 0035)', () => {
   const LIGHT = 'color-mix(in oklab, var(--term-fg) 55%, #1f5f9e)';
 
   it('is steel: the fg mixed with a light blue on dark, a dark blue on light', () => {
-    expect(rootTokens(defaultSettings())['--term-echo']).toBe(DARK);
+    expect(rootTokens(legacySettings())['--term-echo']).toBe(DARK);
     expect(inputColor('steel', '#000000')).toBe(DARK);
     expect(inputColor('steel', '#f4ecd8')).toBe(LIGHT);
   });
@@ -155,7 +156,7 @@ describe('input colour (ADR 0034, 0035)', () => {
 
 describe('pane tokens', () => {
   it('sets bg, border, seven shades and data-light, recomputed every call', () => {
-    const s = defaultSettings();
+    const s = legacySettings();
     s.panes.timers.color = 'red';
     const t = paneTokens(s, 'timers');
     expect(t['--pane-bg']).toBe('#1a0e0e');
@@ -196,7 +197,7 @@ describe('cell metrics', () => {
   });
 
   it('cell height is the block ink height rounded down', () => {
-    const a = defaultSettings().appearance;
+    const a = legacySettings().appearance;
     expect(cellHeight(a)).toBe(17); // 14.9489 px × 2433/2048 = 17.76
     expect(cellHeight({ ...a, font: 'jetbrains' })).toBe(19); // 15 × 1.32 = 19.8
     expect(nominalCell({ ...a, size: 16 })).toEqual({ w: 10, h: 19, px: 16.6099, ls: 0 });
@@ -219,7 +220,7 @@ describe('cell metrics', () => {
     });
     const seen: number[] = [];
     m.subscribe((c) => seen.push(c.w));
-    const a = defaultSettings().appearance;
+    const a = legacySettings().appearance;
     const p = m.update(a);
     expect(root.style.getPropertyValue('--cell-w')).toBe('7.5px');
     expect(root.style.getPropertyValue('--cell-h')).toBe('17px');
@@ -239,7 +240,7 @@ describe('cell metrics', () => {
       measure: nominalCell,
       loadFont: () => new Promise<void>((r) => waits.push(r)),
     });
-    const a = defaultSettings().appearance;
+    const a = legacySettings().appearance;
     const p1 = m.update({ ...a, size: 20 });
     const p2 = m.update({ ...a, size: 10 });
     waits[1]!();

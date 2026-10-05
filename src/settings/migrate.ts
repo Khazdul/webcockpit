@@ -89,9 +89,22 @@ function hex(v: unknown, dflt: string): string {
   return normalizeHex(v) ?? dflt;
 }
 
-/** A complete, valid appearance from anything. */
+/**
+ * The appearance values that were the defaults before ADR 0078 (DejaVu
+ * Sans Mono 15, bold is weight only). A stored appearance that lacks one
+ * of these keys (or holds an invalid value) takes the old value, so an
+ * existing user's look never changes with the new-user defaults. Only a
+ * missing appearance (a new user, garbage) takes `defaultSettings()`.
+ */
+export const LEGACY_APPEARANCE: Readonly<Pick<AppearanceSettings, 'font' | 'size' | 'boldBright'>> = Object.freeze({
+  font: 'dejavu',
+  size: 15,
+  boldBright: false,
+});
+
+/** A complete, valid appearance from anything (see `LEGACY_APPEARANCE`). */
 export function migrateAppearance(raw: unknown): AppearanceSettings {
-  const d = defaultSettings().appearance;
+  const d = isObj(raw) ? { ...defaultSettings().appearance, ...LEGACY_APPEARANCE } : defaultSettings().appearance;
   const a = isObj(raw) ? raw : {};
   const ansiRaw = Array.isArray(a.ansi) ? a.ansi : [];
   let padding = int(a.padding, PADDING_MIN, PADDING_MAX, d.padding);
@@ -115,10 +128,18 @@ function paneEntry(raw: unknown, d: Readonly<PaneSettings>): PaneSettings {
   return { on: bool(x.on, d.on), color: oneOf(x.color, PANE_COLORS, d.color), border: bool(x.border, d.border) };
 }
 
-/** Every built-in pane, then the script panes with a well-formed id (at most MAX_SCRIPT_PANES). */
+/**
+ * Every built-in pane, then the script panes with a well-formed id (at
+ * most MAX_SCRIPT_PANES). Stored toggles never take the new-user script
+ * pane entries of `defaultSettings()` (ADR 0078), and a stored map whose
+ * UI entry is damaged keeps the UI frame on (the default before ADR 0078).
+ * A missing map (a new user, garbage) is the defaults.
+ */
 function migratePanes(raw: unknown): PaneSettingsMap {
+  if (!isObj(raw)) return defaultSettings().panes;
   const d = defaultSettings().panes;
-  const p = isObj(raw) ? raw : {};
+  d.ui = { ...d.ui, border: true };
+  const p = raw;
   const out = {} as PaneSettingsMap;
   for (const id of PANE_IDS) out[id] = paneEntry(p[id], d[id]);
   let n = 0;
@@ -197,6 +218,7 @@ export function migrateLayout(raw: unknown): LayoutModel {
       w: int(f.w, 1, MAX_CELLS, size.w),
       h: int(f.h, 1, MAX_CELLS, size.h),
       ...(f.auto === true ? { auto: true } : {}),
+      ...(f.auto === true && isPaneId(f.below) && f.below !== id ? { below: f.below } : {}),
     });
   }
   // The map floats at its default spot (ADR 0020); a missing side pane

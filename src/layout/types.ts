@@ -19,7 +19,7 @@ export type PaneId = BuiltinPaneId | ScriptPaneId;
 /** Every built-in pane id in Cockpit's default stack order, then the map. */
 export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map'];
 
-/** The panes of the default right dock (the map floats by default). */
+/** The built-in panes of the default right dock (the map floats by default). */
 export const DOCKED_BY_DEFAULT: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui'];
 
 /** A script pane's own id (after the `/`): letters, digits, `_` and `-`, at most 32. */
@@ -205,6 +205,13 @@ export interface FloatPane {
    * ignored. Moving or resizing it stores a real rectangle and drops this.
    */
   auto?: boolean;
+  /**
+   * With `auto` (ADR 0078): the pane shows right under this floating pane,
+   * as wide as it and left-aligned with it, `h` rows high; when that pane
+   * is not a shown float, at the game pane's top-right corner as any other
+   * script float. Moving or resizing the pane drops this with `auto`.
+   */
+  below?: PaneId;
 }
 
 /**
@@ -257,33 +264,72 @@ export function defaultDockSize(dock: DockId): number {
  * Desired rows of the default right dock's panes after Character (ADR 0023).
  * Larger than any window, so the dock always runs in `scaled` mode:
  * Character keeps its 9 rows and the others split the rest about evenly.
- * The first drag of a boundary freezes real sizes.
+ * The first drag of a boundary freezes real sizes. Kept for tests and
+ * layouts that want an even split; the default layout uses `DEFAULT_SHARE`
+ * since ADR 0078.
  */
 export const EVEN_SHARE_DESIRED = 200;
 
-/** A fresh copy of the default layout (ADR 0010, ADR 0023). */
+/**
+ * Desired rows of the default right dock's shared panes (ADR 0078). Like
+ * `EVEN_SHARE_DESIRED` they are larger than any window, so the dock always
+ * runs in `scaled` mode: Character (head) and the pane bar are reserved,
+ * and the rest is split in proportion to `desired − min`: the two lanes
+ * (Group and Timers, side by side) 8 parts, Comm 21, UI 3. In a 51-row
+ * window that is Character 9, the lanes 9, Comm 22 and UI 4 content rows.
+ */
+export const DEFAULT_SHARE = {
+  /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 80. */
+  lanes: 81,
+  comm: 211,
+  ui: 31,
+} as const;
+
+/** Width of each of the default right dock's two lanes (ADR 0078): 40 cells in all. */
+export const DEFAULT_LANE_SIZE = 20;
+
+/** The pane bar's id (bundled `panebar`, ADR 0065), placed by the default layout (ADR 0078). */
+export const PANEBAR_PANE: ScriptPaneId = 'panebar/bar';
+/** The Map search pane's id (bundled `mapsearch`, ADR 0077), placed by the default layout (ADR 0078). */
+export const MAPSEARCH_PANE: ScriptPaneId = 'mapsearch/main';
+/** Outer height of the Map search pane's default float under the map (ADR 0078). */
+export const MAPSEARCH_FLOAT_H = 15;
+
+/**
+ * A fresh copy of the default layout (ADR 0010, ADR 0023, ADR 0078). The
+ * right dock: Character spanning the top, then two lanes side by side
+ * (Group at the screen edge, Timers inside), then Comm, UI and the pane
+ * bar spanning the bottom. The map floats at the game pane's top-right
+ * corner and the Map search pane right under it (both `auto`). The two
+ * script panes take these places once their scripts create them.
+ */
 export function defaultLayout(): LayoutModel {
   return {
     docks: {
       left: { lanes: [], head: [], tail: [] },
       right: {
+        // Key order as `migrateLayout` writes it, so the default is stable under migration.
         lanes: [
-          {
-            size: DEFAULT_SIDE_DOCK_SIZE,
-            panes: DOCKED_BY_DEFAULT.map((id) => ({
-              id,
-              desired: id === 'character' ? DEFAULT_PANE_DESIRED.character : EVEN_SHARE_DESIRED,
-            })),
-          },
+          { size: DEFAULT_LANE_SIZE, panes: [{ id: 'group', desired: DEFAULT_SHARE.lanes }] },
+          { size: DEFAULT_LANE_SIZE, panes: [{ id: 'timers', desired: DEFAULT_SHARE.lanes }] },
         ],
-        head: [],
-        tail: [],
+        head: [{ id: 'character', desired: DEFAULT_PANE_DESIRED.character }],
+        tail: [
+          { id: 'comm', desired: DEFAULT_SHARE.comm },
+          { id: 'ui', desired: DEFAULT_SHARE.ui },
+          { id: PANEBAR_PANE, desired: 1 },
+        ],
       },
       top: { lanes: [], head: [], tail: [] },
       bottom: { lanes: [], head: [], tail: [] },
     },
-    floating: [defaultMapFloat()],
+    floating: [defaultMapFloat(), defaultMapSearchFloat()],
   };
+}
+
+/** The Map search pane's default float: under the map, as wide as it (ADR 0078). */
+export function defaultMapSearchFloat(): FloatPane {
+  return { id: MAPSEARCH_PANE, x: 0, y: 0, w: 36, h: MAPSEARCH_FLOAT_H, auto: true, below: 'map' };
 }
 
 /** The map's first floating entry: placed by `allocate` until the user moves it (ADR 0020). */

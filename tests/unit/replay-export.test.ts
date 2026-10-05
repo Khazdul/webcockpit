@@ -1,6 +1,7 @@
 // HTML replay: payload codec, file assembly and escaping (ADR 0019, P2).
+import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
-import { type FontId, defaultSettings } from '../../src/settings';
+import { type FontId } from '../../src/settings';
 import { setFontInstalled } from '../../src/theme/fonts';
 import { defaultExportDoc } from '../../src/share/edits';
 import { type ReplayPayload, buildReplayPayload } from '../../src/share/payload';
@@ -21,7 +22,7 @@ import { BASE_US, makeLog, meta } from './player-helpers';
 
 function payload(over: Partial<ReplayPayload> = {}, font?: FontId): ReplayPayload {
   const text = makeLog(BASE_US, [
-    { at: 0, view: { appearance: { ...defaultSettings().appearance, ...(font ? { font } : {}) } } },
+    { at: 0, view: { appearance: { ...legacySettings().appearance, ...(font ? { font } : {}) } } },
     { at: 1, in: 'A room with </script> and <!-- in it.' },
     { at: 2, out: 'look' },
   ]);
@@ -29,7 +30,7 @@ function payload(over: Partial<ReplayPayload> = {}, font?: FontId): ReplayPayloa
     [{ meta: meta('Rasta/a', BASE_US, { summary: { startUs: BASE_US, lastEventUs: BASE_US, level: 42, kills: 0, pkills: 0, deaths: 0 } }), text }],
     [],
     { ...defaultExportDoc('Rasta/a'), title: 'A fight' },
-    defaultSettings(),
+    legacySettings(),
   );
   return { ...p, ...over };
 }

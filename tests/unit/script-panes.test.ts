@@ -3,6 +3,7 @@
 // layout and the settings, the drawn pane with links and tooltips, and
 // the cockpit surface that places and remembers them.
 
+import { legacyLayout, legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
@@ -17,7 +18,7 @@ import { CockpitPaneSurface, RecordingPaneSurface } from '../../src/panes/script
 import { TEMP_PLACES_KEY, forgetTempPlaces, saveTempPlace, tempPlace } from '../../src/layout/temp-places';
 import { parseCecho } from '../../src/scripts/colors';
 import { SettingsStore, migrateLayout, migrateSettings } from '../../src/settings';
-import { defaultSettings, paneSettingsOf } from '../../src/settings/types';
+import { paneSettingsOf } from '../../src/settings/types';
 
 /** The dock entry of `id` in `m`. */
 const findPaneEntry = (m: LayoutModel, id: string) =>
@@ -217,24 +218,24 @@ describe('script pane ids in the layout and the settings', () => {
   });
 
   it('places a new pane at the end of its dock or as an auto float, once', () => {
-    let m = placeScriptPane(defaultLayout(), id, { dock: 'left', rows: 6, cols: 20 });
+    let m = placeScriptPane(legacyLayout(), id, { dock: 'left', rows: 6, cols: 20 });
     expect(m.docks.left.lanes).toEqual([{ size: 33, panes: [{ id, desired: 6 }] }]);
     expect(placeScriptPane(m, id, { dock: 'top', rows: 1, cols: 1 })).toBe(m);
-    m = placeScriptPane(defaultLayout(), id, { dock: 'bottom', rows: 6, cols: 40 });
+    m = placeScriptPane(legacyLayout(), id, { dock: 'bottom', rows: 6, cols: 40 });
     expect(m.docks.bottom.lanes).toEqual([{ size: 10, panes: [{ id, desired: 40 }] }]);
     // A dock with lanes: the end of lane 0.
-    const two = moveToNewLane(defaultLayout(), 'ui', 'right', 1, 20);
+    const two = moveToNewLane(legacyLayout(), 'ui', 'right', 1, 20);
     expect(placeScriptPane(two, id, { dock: 'right', rows: 4, cols: 9 }).docks.right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([
       ['character', 'timers', 'group', 'comm', id],
       ['ui'],
     ]);
-    m = placeScriptPane(defaultLayout(), id, { dock: 'float', rows: 6, cols: 20 });
+    m = placeScriptPane(legacyLayout(), id, { dock: 'float', rows: 6, cols: 20 });
     expect(m.floating[0]).toEqual({ id, x: 0, y: 0, w: 22, h: 8, auto: true });
   });
 
   it('allocates a script pane only while it is present', () => {
-    const layout = placeScriptPane(defaultLayout(), id, { dock: 'right', rows: 6, cols: 20 });
-    const s = defaultSettings();
+    const layout = placeScriptPane(legacyLayout(), id, { dock: 'right', rows: 6, cols: 20 });
+    const s = legacySettings();
     const panes = { ...s.panes };
     const base = { layout, panes, cols: 160, rows: 50 };
     expect(allocate(base).panes.some((p) => p.id === id)).toBe(false);
@@ -249,22 +250,22 @@ describe('script pane ids in the layout and the settings', () => {
   });
 
   it('drops a script pane right after the map when the dock is too short', () => {
-    const layout = placeScriptPane(defaultLayout(), id, { dock: 'right', rows: 6, cols: 20 });
-    const r = allocate({ layout, panes: defaultSettings().panes, present, cols: 160, rows: 18 });
+    const layout = placeScriptPane(legacyLayout(), id, { dock: 'right', rows: 6, cols: 20 });
+    const r = allocate({ layout, panes: legacySettings().panes, present, cols: 160, rows: 18 });
     expect(r.hidden[0]).toBe(id);
   });
 
   it('an auto float sits at the top right of the game, left of the map', () => {
-    const layout = placeScriptPane(defaultLayout(), id, { dock: 'float', rows: 6, cols: 20 });
-    const r = allocate({ layout, panes: defaultSettings().panes, present, cols: 160, rows: 50 });
+    const layout = placeScriptPane(legacyLayout(), id, { dock: 'float', rows: 6, cols: 20 });
+    const r = allocate({ layout, panes: legacySettings().panes, present, cols: 160, rows: 50 });
     const map = r.panes.find((p) => p.id === 'map')!;
     const me = r.panes.find((p) => p.id === id)!;
     expect(me.rect).toEqual({ x: map.rect.x - 22, y: r.game.y, w: 22, h: 8 });
   });
 
   it('migrate keeps well-formed script pane entries and repairs the rest', () => {
-    const layout: LayoutModel = placeScriptPane(defaultLayout(), id, { dock: 'left', rows: 6, cols: 20 });
-    const raw = JSON.parse(JSON.stringify({ ...defaultSettings(), layout }));
+    const layout: LayoutModel = placeScriptPane(legacyLayout(), id, { dock: 'left', rows: 6, cols: 20 });
+    const raw = JSON.parse(JSON.stringify({ ...legacySettings(), layout }));
     raw.panes[id] = { on: false, color: 'red', border: 'yes' };
     raw.panes['bad id'] = { on: true };
     raw.panes['x/y'] = 'garbage';
@@ -285,14 +286,14 @@ describe('script pane ids in the layout and the settings', () => {
   });
 
   it('togglePatch writes a whole entry for a script pane without one', () => {
-    expect(togglePatch(defaultSettings().panes, id)).toEqual({ panes: { [id]: { on: false, color: 'black', border: true } } });
-    expect(paneSettingsOf(defaultSettings().panes, id)).toEqual({ on: true, color: 'black', border: true });
+    expect(togglePatch(legacySettings().panes, id)).toEqual({ panes: { [id]: { on: false, color: 'black', border: true } } });
+    expect(paneSettingsOf(legacySettings().panes, id)).toEqual({ on: true, color: 'black', border: true });
   });
 });
 
 describe('drawing', () => {
   const ramp = { track: '#111', dim: '#222', mid: '#333', paneBg: '#000', vtext: '#eee', label: '#ddd', glow: '#fc0' };
-  const ansi = defaultSettings().appearance.ansi;
+  const ansi = legacySettings().appearance.ansi;
 
   it('draws every line for the scroller; the indicator counts the rows away from the anchor', () => {
     const c = new PaneContent('t');
@@ -461,6 +462,10 @@ describe('ScriptPane and the cockpit surface', () => {
     document.body.append(root);
     Object.defineProperty(root, 'clientWidth', { value: 1600 });
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    // The layout these tests were written for (before ADR 0078).
+    settings.update((d) => {
+      Object.assign(d, legacySettings());
+    });
     const cells = { get: () => ({ w: 10, h: 20 }), subscribe: () => () => {} };
     const ctx = createPaneContext({ doc: document, settings, cells, requestFrame: (cb) => frames.push(cb) });
     const cockpit = new Cockpit({ root, settings, cells, requestFrame: (cb) => frames.push(cb), paneContext: ctx });
@@ -509,7 +514,7 @@ describe('ScriptPane and the cockpit surface', () => {
     surface.open({ id, place: { dock: 'left', rows: 5, cols: 20 } }, new PaneContent('Mercs'), { onLink: () => {}, onResize: () => {} });
     expect(findPane(settings.get().layout, id)).toEqual({ dock: 'bottom', lane: 0, index: 0 });
     // A reset layout places an open pane again.
-    settings.update({ layout: defaultLayout() });
+    settings.update({ layout: legacyLayout() });
     expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', lane: 0, index: 0 });
   });
 
@@ -834,7 +839,7 @@ describe('ScriptPane and the cockpit surface', () => {
       // Migration drops one that somehow reached the settings.
       const m = migrateSettings({
         panes: { 's/~pick': { on: true, color: 'red', border: true } },
-        layout: { ...defaultLayout(), floating: [...defaultLayout().floating, { id: 's/~pick', x: 1, y: 1, w: 20, h: 6 }] },
+        layout: { ...legacyLayout(), floating: [...legacyLayout().floating, { id: 's/~pick', x: 1, y: 1, w: 20, h: 6 }] },
       });
       expect(m.panes['s/~pick' as never]).toBeUndefined();
       expect(m.layout.floating.some((f) => f.id === 's/~pick')).toBe(false);
@@ -1042,7 +1047,7 @@ describe('ScriptPane and the cockpit surface', () => {
       const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
       expect(box).toMatchObject({ dock: 'bottom', framed: false, rect: { y: 49, h: 1 } });
       // Reset layout: placed again the same way.
-      r.settings.update({ layout: defaultLayout() });
+      r.settings.update({ layout: legacyLayout() });
       expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
     });
 
@@ -1055,7 +1060,7 @@ describe('ScriptPane and the cockpit surface', () => {
       const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
       const below = r.cockpit.layout!.panes.filter((p) => p.dock === 'right' && p.rect.y > box.rect.y);
       expect(below).toEqual([]);
-      r.settings.update({ layout: defaultLayout() });
+      r.settings.update({ layout: legacyLayout() });
       expect(ids().at(-1)).toBe(BAR);
     });
 

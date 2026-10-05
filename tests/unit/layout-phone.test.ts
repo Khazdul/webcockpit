@@ -1,3 +1,4 @@
+import { legacyLayout } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import type { AllocateInput } from '../../src/layout/allocate';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_NAWS_COLS, PHONE_MIN_ROWS, allocatePhone, phoneNawsCols, type PhoneTab } from '../../src/layout/phone';
@@ -17,7 +18,7 @@ const run = (
   o: { layout?: LayoutModel; panes?: AllocateInput['panes']; present?: Set<PaneId>; guard?: boolean } = {},
 ) =>
   allocatePhone({
-    layout: o.layout ?? defaultLayout(),
+    layout: o.layout ?? legacyLayout(),
     panes: o.panes ?? toggles(),
     present: o.present,
     cols,
@@ -47,7 +48,7 @@ describe('allocatePhone', () => {
   });
 
   it('includes a present script pane and leaves out an absent one', () => {
-    const layout = placeScriptPane(defaultLayout(), 'demo/bar', { dock: 'right', rows: 4, cols: 20 });
+    const layout = placeScriptPane(legacyLayout(), 'demo/bar', { dock: 'right', rows: 4, cols: 20 });
     expect(run(43, 40, GAME_TAB, { layout }).tabs).not.toContain('demo/bar');
     const r = run(43, 40, 'demo/bar', { layout, present: new Set<PaneId>(['demo/bar']) });
     expect(r.tabs).toContain('demo/bar');
@@ -107,7 +108,7 @@ describe('allocatePhone', () => {
   });
 
   it('does not touch the layout model', () => {
-    const layout = defaultLayout();
+    const layout = legacyLayout();
     const before = JSON.stringify(layout);
     run(43, 40, 'comm', { layout });
     expect(JSON.stringify(layout)).toBe(before);

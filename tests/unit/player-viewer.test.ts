@@ -1,7 +1,8 @@
 // Viewer overrides (ADR 0021): font, theme, pane toggles and layout over
 // the recorded settings; cycles; reset.
+import { legacyLayout } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
-import { PANE_IDS, defaultLayout } from '../../src/layout/types';
+import { PANE_IDS } from '../../src/layout/types';
 import { overlayView } from '../../src/player/fit';
 import {
   VIEWER_FONTS,
@@ -65,14 +66,14 @@ describe('viewer overrides', () => {
   });
 
   it('pane toggles and the layout win over a later VIEW record', () => {
-    const layout = movePane(defaultLayout(), 'group', 'left', 0, 0);
+    const layout = movePane(legacyLayout(), 'group', 'left', 0, 0);
     let o = withPane(noOverrides(), 'comm', false);
     o = withPane(o, 'map', true);
     o = withLayout(o, layout);
     const s = defaultSettings();
     s.panes.map.on = false;
     // A VIEW record passes: recorded layout and panes, then the viewer's.
-    overlayView(s, { panes: defaultSettings().panes, layout: defaultLayout() });
+    overlayView(s, { panes: defaultSettings().panes, layout: legacyLayout() });
     applyViewer(s, o);
     expect(s.panes.comm.on).toBe(false);
     expect(s.panes.map.on).toBe(true);
@@ -83,7 +84,7 @@ describe('viewer overrides', () => {
   });
 
   it('withLayout copies; reset drops panes and layout, keeps font and theme', () => {
-    const layout = defaultLayout();
+    const layout = legacyLayout();
     const o = withLayout({ ...noOverrides(), font: 'large', theme: 'paper' }, layout);
     layout.docks.right.lanes[0]!.size = 99;
     expect(o.layout!.docks.right.lanes[0]!.size).not.toBe(99);
@@ -93,7 +94,7 @@ describe('viewer overrides', () => {
   });
 
   it('spans survive the viewer layout and a replay migration (ADR 0067)', () => {
-    let layout = moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+    let layout = moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
     layout = movePane(layout, 'ui', 'right', 'head', 0);
     const o = withLayout(noOverrides(), layout);
     layout.docks.right.head.length = 0;

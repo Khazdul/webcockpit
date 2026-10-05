@@ -1,3 +1,4 @@
+import { legacyLayout } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import {
   type AllocateInput,
@@ -34,7 +35,7 @@ function toggles(off: PaneId[] = [], noBorder: PaneId[] = [], mapOn = false): Al
   ) as AllocateInput['panes'];
 }
 
-const input = (cols: number, rows: number, layout: LayoutModel = defaultLayout(), panes = toggles()): AllocateInput => ({
+const input = (cols: number, rows: number, layout: LayoutModel = legacyLayout(), panes = toggles()): AllocateInput => ({
   layout,
   panes,
   cols,
@@ -158,16 +159,16 @@ describe('allocate', () => {
   });
 
   it('gives an unframed pane its full rectangle as content', () => {
-    const r = allocate(input(120, 50, defaultLayout(), toggles([], ['timers'])));
+    const r = allocate(input(120, 50, legacyLayout(), toggles([], ['timers'])));
     const t = r.panes.find((p) => p.id === 'timers')!;
     expect(t.framed).toBe(false);
     expect(t.content).toEqual(t.rect);
   });
 
   it('leaves out panes that are off and hides a dock with no pane on', () => {
-    const r = allocate(input(120, 50, defaultLayout(), toggles(['group', 'comm'])));
+    const r = allocate(input(120, 50, legacyLayout(), toggles(['group', 'comm'])));
     expect(r.panes.map((p) => p.id)).toEqual(['character', 'timers', 'ui']);
-    const all = allocate(input(120, 50, defaultLayout(), toggles([...PANE_IDS])));
+    const all = allocate(input(120, 50, legacyLayout(), toggles([...PANE_IDS])));
     expect(all.docks).toEqual({});
     expect(all.game).toEqual({ x: 0, y: 0, w: 120, h: 49 });
     expect(all.collapsed).toEqual([]);
@@ -202,7 +203,7 @@ describe('allocate', () => {
   });
 
   it('keeps the right dock and collapses the left one first', () => {
-    let m = movePane(defaultLayout(), 'comm', 'left', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
     m = setLaneSize(m, 'left', 0, 20);
     const both = allocate(input(120, 40, m));
     expect(both.docks.left!.rect).toEqual({ x: 0, y: 0, w: 20, h: 40 });
@@ -217,7 +218,7 @@ describe('allocate', () => {
   });
 
   it('keeps the left dock when only it fits', () => {
-    let m = setLaneSize(defaultLayout(), 'right', 0, 50);
+    let m = setLaneSize(legacyLayout(), 'right', 0, 50);
     m = movePane(m, 'ui', 'left', 0, 0);
     m = setLaneSize(m, 'left', 0, 12);
     const r = allocate(input(70, 30, m));
@@ -226,7 +227,7 @@ describe('allocate', () => {
   });
 
   it('lays out the bottom dock under the input line, side by side', () => {
-    let m = movePane(defaultLayout(), 'comm', 'bottom', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'bottom', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 1);
     const r = allocate(input(120, 50, m));
     const b = r.docks.bottom!;
@@ -243,7 +244,7 @@ describe('allocate', () => {
   });
 
   it('shrinks the bottom dock to keep the game pane 5 rows high, then hides it', () => {
-    const m = movePane(defaultLayout(), 'comm', 'bottom', 0, 0);
+    const m = movePane(legacyLayout(), 'comm', 'bottom', 0, 0);
     const r = allocate(input(120, 18, setLaneSize(m, 'bottom', 0, 20)));
     // 18 rows: game 5 + input 1 + gap 1 leave 11 for the bottom dock.
     expect(r.game.h).toBe(5);
@@ -263,7 +264,7 @@ describe('allocate', () => {
   });
 
   it('lays out the top dock above the game pane, side by side, between the side docks', () => {
-    let m = movePane(defaultLayout(), 'comm', 'top', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'group', 'left', 0, 0);
     m = setLaneSize(m, 'left', 0, 20);
     const r = allocate(input(120, 50, m));
@@ -278,7 +279,7 @@ describe('allocate', () => {
   });
 
   it('fits top and bottom docks together and keeps the game pane 5 rows high', () => {
-    let m = movePane(defaultLayout(), 'comm', 'top', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     const r = allocate(input(120, 50, m));
     expect(r.docks.top!.rect).toEqual({ x: 0, y: 0, w: 86, h: 10 });
@@ -310,7 +311,7 @@ describe('allocate', () => {
   });
 
   it('stacks the centre column: top dock, game, input, bottom dock; input as wide as the game', () => {
-    let m = movePane(defaultLayout(), 'comm', 'top', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     m = movePane(m, 'group', 'left', 0, 0);
     for (const [cols, rows] of [[120, 50], [100, 30], [70, 18], [200, 80]] as const) {
@@ -338,7 +339,7 @@ describe('allocate', () => {
   });
 
   it('never drops the input row, even when every dock is crowded', () => {
-    let m = movePane(defaultLayout(), 'comm', 'top', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     m = setLaneSize(setLaneSize(m, 'top', 0, 40), 'bottom', 0, 40);
     const r = allocate(input(60, 18, m));
@@ -347,17 +348,17 @@ describe('allocate', () => {
   });
 
   it('never makes a side dock narrower than 10 cells', () => {
-    const r = allocate(input(120, 30, setLaneSize(defaultLayout(), 'right', 0, 3)));
+    const r = allocate(input(120, 30, setLaneSize(legacyLayout(), 'right', 0, 3)));
     expect(r.docks.right!.rect.w).toBe(10);
   });
 
   it('reports the model index of every shown pane', () => {
-    const r = allocate(input(120, 50, defaultLayout(), toggles(['timers'])));
+    const r = allocate(input(120, 50, legacyLayout(), toggles(['timers'])));
     expect(r.panes.map((p) => p.index)).toEqual([0, 2, 3, 4]);
   });
 
   it('lays floating panes over the game, in z-order, without changing the docks', () => {
-    let m = floatPane(defaultLayout(), 'comm', { x: 10, y: 5, w: 30, h: 12 });
+    let m = floatPane(legacyLayout(), 'comm', { x: 10, y: 5, w: 30, h: 12 });
     m = floatPane(m, 'group', { x: 20, y: 8, w: 20, h: 6 });
     const r = allocate(input(120, 50, m));
     // The right dock holds the other three; the game pane is unchanged.
@@ -380,13 +381,13 @@ describe('allocate', () => {
   });
 
   it('clamps floating panes into the whole window, shrinking them if needed', () => {
-    const m = floatPane(defaultLayout(), 'comm', { x: 100, y: 45, w: 40, h: 30 });
+    const m = floatPane(legacyLayout(), 'comm', { x: 100, y: 45, w: 40, h: 30 });
     const r = allocate(input(120, 50, m));
     expect(r.panes.find((p) => p.id === 'comm')!.rect).toEqual({ x: 80, y: 20, w: 40, h: 30 });
     const small = allocate(input(60, 18, m));
     expect(small.panes.find((p) => p.id === 'comm')!.rect).toEqual({ x: 20, y: 0, w: 40, h: 18 });
     // It may lie over the input row.
-    const low = allocate(input(120, 50, floatPane(defaultLayout(), 'comm', { x: 0, y: 45, w: 36, h: 14 })));
+    const low = allocate(input(120, 50, floatPane(legacyLayout(), 'comm', { x: 0, y: 45, w: 36, h: 14 })));
     expect(low.panes.find((p) => p.id === 'comm')!.rect).toEqual({ x: 0, y: 36, w: 36, h: 14 });
     // The model is untouched.
     expect(m.floating.find((f) => f.id === 'comm')).toEqual({ id: 'comm', x: 100, y: 45, w: 40, h: 30 });
@@ -395,19 +396,19 @@ describe('allocate', () => {
   });
 
   it('places the map at its default spot until it is moved (ADR 0020)', () => {
-    const r = allocate(input(200, 60, defaultLayout(), toggles([], [], true)));
+    const r = allocate(input(200, 60, legacyLayout(), toggles([], [], true)));
     const map = r.panes.find((p) => p.id === 'map')!;
     expect(map.dock).toBe('float');
-    // Top-right corner of the game pane, 25 % × 27 % of the window.
+    // Top-right corner of the game pane, 21 % × 27 % of the window (ADR 0078).
     expect(r.game).toEqual({ x: 0, y: 0, w: 166, h: 59 });
-    expect(map.rect).toEqual({ x: 116, y: 0, w: 50, h: 16 });
+    expect(map.rect).toEqual({ x: 124, y: 0, w: 42, h: 16 });
     // A narrow window: shifted inside, never off screen.
-    const narrow = allocate(input(70, 20, defaultLayout(), toggles([], [], true)));
+    const narrow = allocate(input(70, 20, legacyLayout(), toggles([], [], true)));
     const n = narrow.panes.find((p) => p.id === 'map')!.rect;
     expect(n.x).toBeGreaterThanOrEqual(0);
     expect(n.x + n.w).toBeLessThanOrEqual(70);
     // Moved or resized: a stored rectangle without `auto`.
-    const moved = setFloatRect(defaultLayout(), 'map', { x: 3, y: 4, w: 50, h: 20 });
+    const moved = setFloatRect(legacyLayout(), 'map', { x: 3, y: 4, w: 50, h: 20 });
     expect(moved.floating[0]).toEqual({ id: 'map', x: 3, y: 4, w: 50, h: 20 });
     const again = allocate(input(200, 60, moved, toggles([], [], true)));
     expect(again.panes.find((p) => p.id === 'map')!.rect).toEqual({ x: 3, y: 4, w: 50, h: 20 });
@@ -422,7 +423,7 @@ describe('allocate', () => {
 
 describe('allocate: dock lanes (ADR 0064)', () => {
   /** Right dock: lane 0 (outer) = character, timers, comm, ui; lane 1 (inner, 20 wide) = group. */
-  const rightTwo = (): LayoutModel => moveToNewLane(defaultLayout(), 'group', 'right', 1, 20);
+  const rightTwo = (): LayoutModel => moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
 
   it('puts two lanes of the right dock side by side, lane 0 at the screen edge', () => {
     const r = allocate(input(120, 50, rightTwo()));
@@ -443,7 +444,7 @@ describe('allocate: dock lanes (ADR 0064)', () => {
   });
 
   it('puts two lanes of the left dock side by side, lane 0 at the left edge', () => {
-    let m = movePane(defaultLayout(), 'comm', 'left', 0, 0);
+    let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
     m = moveToNewLane(m, 'ui', 'left', 1, 15);
     const r = allocate(input(140, 50, m));
     const d = r.docks.left!;
@@ -457,7 +458,7 @@ describe('allocate: dock lanes (ADR 0064)', () => {
   });
 
   it('stacks lanes of the top and bottom docks as rows, lane 0 at the screen edge', () => {
-    let m = moveToNewLane(defaultLayout(), 'comm', 'top', 0, 6);
+    let m = moveToNewLane(legacyLayout(), 'comm', 'top', 0, 6);
     m = moveToNewLane(m, 'ui', 'top', 1, 4);
     m = moveToNewLane(m, 'group', 'bottom', 0, 5);
     m = moveToNewLane(m, 'timers', 'bottom', 1, 3);
@@ -505,7 +506,7 @@ describe('allocate: dock lanes (ADR 0064)', () => {
   });
 
   it('shrinks the inner lanes of the top/bottom dock first, down to their minimum', () => {
-    let m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 6);
+    let m = moveToNewLane(legacyLayout(), 'comm', 'bottom', 0, 6);
     m = moveToNewLane(m, 'ui', 'bottom', 1, 6);
     // 20 rows: game 5 + input 1 + gap 1 leave 13 of the wanted 12: fits.
     expect(allocate(input(120, 20, m)).docks.bottom!.lanes.map((l) => l.rect.h)).toEqual([6, 6]);
@@ -530,7 +531,7 @@ describe('allocate: per-lane minimum (ADR 0065)', () => {
     present: new Set<PaneId>([BAR]),
   });
   const barLayout = (size = 1): LayoutModel =>
-    placeScriptPane(defaultLayout(), BAR, { dock: 'bottom', rows: size, cols: 80, border: false, lane: 'own' });
+    placeScriptPane(legacyLayout(), BAR, { dock: 'bottom', rows: size, cols: 80, border: false, lane: 'own' });
 
   it('a borderless script pane alone in a bottom lane is one row, the input line right above the gap', () => {
     const r = allocate({ ...input(120, 40, barLayout()), ...withBar() });
@@ -576,7 +577,7 @@ describe('allocate: per-lane minimum (ADR 0065)', () => {
   it('built-in layouts allocate as before', () => {
     const r = allocate(input(120, 40));
     expect(r.docks.right!.lanes.map((l) => l.min)).toEqual([SIDE_DOCK_MIN]);
-    const m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 2);
+    const m = moveToNewLane(legacyLayout(), 'comm', 'bottom', 0, 2);
     expect(allocate(input(120, 40, m)).docks.bottom!.lanes[0]!.rect.h).toBe(3);
   });
 });
@@ -586,7 +587,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
   const rect = (r: ReturnType<typeof allocate>, id: PaneId) => box(r, id)?.rect;
   /** Right dock: lane 0 (33) = character 9, timers 8, comm 10, ui 5; lane 1 (20) = group 6. */
   const twoRight = (): LayoutModel => {
-    let m = setDesired(defaultLayout(), { character: 9, timers: 8, comm: 10, ui: 5, group: 6 });
+    let m = setDesired(legacyLayout(), { character: 9, timers: 8, comm: 10, ui: 5, group: 6 });
     m = moveToNewLane(m, 'group', 'right', 1, 20);
     return m;
   };
@@ -663,7 +664,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     expect(left.lanes.map((l) => [l.rect.x, l.rect.w])).toEqual([[0, 33], [33, 15]]);
     expect(left.region!.y).toBe(rect(r, 'timers')!.h);
 
-    let t = moveToNewLane(defaultLayout(), 'comm', 'top', 0, 10);
+    let t = moveToNewLane(legacyLayout(), 'comm', 'top', 0, 10);
     t = moveToNewLane(t, 'ui', 'top', 1, 6);
     t = movePane(t, 'group', 'top', 'tail', 0);
     const rt = allocate(input(200, 60, t));
@@ -677,7 +678,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
   });
 
   it('bottom dock: a head span at the left end covers both rows', () => {
-    let m = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 10);
+    let m = moveToNewLane(legacyLayout(), 'comm', 'bottom', 0, 10);
     m = moveToNewLane(m, 'ui', 'bottom', 1, 10);
     m = movePane(m, 'group', 'bottom', 'head', 0);
     const r = allocate(input(200, 60, m));
@@ -698,7 +699,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     const S = 's/p' as PaneId;
     const A = 'a/x' as PaneId;
     // Head: timers, ui (6); lane 0: character, comm, group, a/x (14, binding); lane 1: s/p (3).
-    let m = defaultLayout();
+    let m = legacyLayout();
     m = placeScriptPane(m, A, { dock: 'right', rows: 1, cols: 10 });
     m = placeScriptPane(m, S, { dock: 'right', rows: 1, cols: 10 });
     m = moveToNewLane(m, S, 'right', 1, 15);
@@ -741,7 +742,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     expect(narrow.collapsed).toEqual(['right']);
     expect(narrow.hidden).toContain('map');
     // Bottom dock with a span: the inner lane gives up rows first; the span covers the dock.
-    let b = moveToNewLane(defaultLayout(), 'comm', 'bottom', 0, 10);
+    let b = moveToNewLane(legacyLayout(), 'comm', 'bottom', 0, 10);
     b = moveToNewLane(b, 'ui', 'bottom', 1, 10);
     b = movePane(b, 'group', 'bottom', 'head', 0);
     const r = allocate(input(200, 25, b));
@@ -753,7 +754,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
   it('a span wider than the lanes widens the innermost lane', () => {
     const B1 = 'bar/a' as PaneId;
     const B2 = 'bar/b' as PaneId;
-    let m = placeScriptPane(defaultLayout(), B1, { dock: 'bottom', rows: 1, cols: 20, border: false, lane: 'own' });
+    let m = placeScriptPane(legacyLayout(), B1, { dock: 'bottom', rows: 1, cols: 20, border: false, lane: 'own' });
     m = placeScriptPane(m, B2, { dock: 'bottom', rows: 1, cols: 20, border: false, lane: 'own' });
     m = movePane(m, 'comm', 'bottom', 'head', 0);
     const panes = { ...toggles(), [B1]: { on: true, border: false }, [B2]: { on: true, border: false } };
