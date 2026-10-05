@@ -160,8 +160,20 @@ Details: ADR 0077 "Feedback round 1".
 - [x] 6. The box sits outside the Map pane (side with the most room,
   inside the viewport, width capped by text size).
 - [x] 7. No way in Map search (column and tooltip).
-- [x] 8. Pane bar gear menu: ⚙ beside the grip on hover, a "Bar buttons"
-  pop-up with a checkbox per pane (ADR 0065 round 4; `bar menu`).
+- [x] 8. Pane bar gear menu: built (⚙ beside the grip, a "Bar buttons"
+  pop-up), then removed in round 2 at the owner's request (revert of
+  merge 9332b3f; ADR 0065 unchanged).
 - [x] 9. No Case sensitive / Regular expression; search ignores accents
   (the bundled map's text is ASCII, so it already did; the fold now
   covers every combining mark).
+
+### Round 2 (2026-10-05)
+
+1. The hover box should stay near the pointer (as with a full-window
+   map), not outside the Map pane.
+2. No tooltips in the Map search pane: not on result rows, the radio
+   buttons or the Find button.
+3. Hover sizes: today's Small becomes the new Medium (default); Small
+   smaller still; Large = today's Medium.
+4. Pane bar gear: not liked; removed.
+5. Notes in the game window look fine.

@@ -52,7 +52,7 @@ Newest first.
   Map pane running; pre-existing layout.spec drag-cursor failure.
 - **Owner round 1:** hover fixes (top edge, after click), green name,
   text size, MMapper-style Full preview outside the pane; no way, case
-  or regex in Map search; pane bar gear menu (ADR 0065 round 4). Unit
+  or regex in Map search; pane bar gear menu (removed again in round 2). Unit
   2419, e2e 462/465 (same pre-existing failures).
 
 ### 2026-10-05 — Stage 20: Mudlet import
