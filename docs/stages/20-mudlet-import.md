@@ -49,10 +49,10 @@ Intent Goal 11 (Mudlet), spec §2.11, ADR 0076. Research:
 - [x] A4 Mudlet translator
 - [x] A5 detect/index/types
 - [x] A6 fixtures, unit tests, corpus load test, owner-sample smoke
-- [ ] B1 unpack archives in import-load
-- [ ] B2 report frame check
-- [ ] C1 e2e
-- [ ] C2 help text
+- [x] B1 unpack archives in import-load
+- [x] B2 report frame check
+- [x] C1 e2e
+- [x] C2 help text
 - [ ] Release
 
 ## Build notes
@@ -132,6 +132,44 @@ Decisions and refinements (ADR 0076 amended where a decision changed):
   <rules>}` with the rules on separate lines.
 - `src/chrome/frames/import-report.tsx` got `mudlet: 'Mudlet'` in its
   format-name map (needed for the type check; part B checks the frame).
+
+### B. UI (2026-10-05)
+
+- `src/chrome/frames/import-load.ts`: `loadImportFiles()` now returns an
+  async `importFiles` that first runs `unpackArchives` (zips by content,
+  `isZip`, not by extension). The `*.xml` entries go on as files
+  (`__MACOSX/` and `._` forks ignored): one XML takes the archive's name
+  (`MyHighlights.mpackage` → `MyHighlights.xml`, so the profile is
+  `MyHighlights`), several are `<archive>_<entry>.xml`. A zip without
+  XML or one `readZip` rejects is a file warning in the report (counted
+  in Warnings); when nothing is left the import fails with that message
+  in the picker's flash row (`Import failed: x.mpackage holds no XML
+  file; …`). `isZip`/`readZip` come from the dynamically imported core,
+  so the zip reader stays in the lazy `import` chunk (checked in a
+  build: `deflate-raw` only in `assets/import-*.js`). The profile picker
+  awaits the result.
+- B2: the report frame needed no change. On `profile.xml`: `Format
+  Mudlet (MudletPackage version 1.001, profile save)`, kept items with
+  reasons (`Multiline (AND) trigger`, `Uses tempRegexTrigger`, `Key 'Å'
+  (code 197) depends on the keyboard layout`, …), one skipped line per
+  package with the replacement (`WebCockpit has a built-in Key manager
+  (1 item)` / `Package Port Key Library v1_1_1`).
+
+### C. Tests and docs (2026-10-05)
+
+- Unit: `tests/unit/import/archive.test.ts` (naming, forks, no-XML and
+  broken archives, warnings merged into the result, the all-failed
+  error). `buildZip` moved to `tests/unit/import/helpers.ts`.
+- e2e (`tests/e2e/import.spec.ts`, shared `openProfilePicker`/
+  `importFile` helpers): a Mudlet profile save (format, counts, kept
+  and package lines, `#alias {^qd$}` in the editor) and
+  `tests/fixtures/import/mudlet/MyHighlights.mpackage` (a real zip:
+  `config.lua` + `MyHighlights.xml` = `package.xml`; profile
+  `MyHighlights`, `#alias {^hl$}` in the editor).
+- Profile manual (`src/editor/help.ts`, "Writing a profile"): a line on
+  Mudlet profile saves and exported packages (`.xml`/`.mpackage`),
+  translated to profile rules, no scripts, untranslatable Lua kept as
+  `#nop`.
 
 ## Test guide
 
