@@ -192,7 +192,9 @@ export interface MapData {
 /** Letters NFD does not split into a base letter and a mark. */
 const FOLD_EXTRA: Record<string, string> = {
   'Æ': 'AE', 'æ': 'ae', 'Ø': 'O', 'ø': 'o', 'Œ': 'OE', 'œ': 'oe', 'ß': 'ss', 'Ð': 'D', 'ð': 'd', 'Þ': 'Th', 'þ': 'th',
+  'Ł': 'L', 'ł': 'l', 'Đ': 'D', 'đ': 'd', 'Ħ': 'H', 'ħ': 'h', 'ı': 'i', 'Ŧ': 'T', 'ŧ': 't',
 };
+const FOLD_EXTRA_RE = new RegExp(`[${Object.keys(FOLD_EXTRA).join('')}]`, 'g');
 
 /**
  * Folds letters with diacritics to ASCII (`Lhûn` → `Lhun`). MMapper saves
@@ -201,7 +203,9 @@ const FOLD_EXTRA: Record<string, string> = {
  */
 export function foldAscii(s: string): string {
   if (!/[^\x00-\x7f]/.test(s)) return s;
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ÆæØøŒœßÐðÞþ]/g, (c) => FOLD_EXTRA[c]!);
+  // Every combining mark (not only U+0300–036F: also the extended and
+  // supplement blocks), then the letters NFD keeps whole.
+  return s.normalize('NFD').replace(/\p{M}/gu, '').replace(FOLD_EXTRA_RE, (c) => FOLD_EXTRA[c]!);
 }
 
 /** Folds to ASCII, collapses whitespace runs to one space and trims (ADR 0020 locator, ADR 0069). */

@@ -179,6 +179,31 @@ describe('searchRooms on a small map', () => {
     expect(() => searchRooms(map, { text: '[', regex: true }, null)).toThrow();
   });
 
+  it('ignores diacritics both ways in every text field, case-insensitive (round 1)', () => {
+    const m = makeMap(
+      [
+        { pos: [0, 0, 0], name: 'Annúminas Gate', desc: 'Bâr of Fëanor.\n', area: 'Ósgiliath', contents: 'Círdan stands here.\n', note: 'Herb: Æglos\n' },
+        { pos: [1, 0, 0], name: 'Annuminas Road', desc: 'Bar of Feanor.\n', area: 'Osgiliath', contents: 'Cirdan stands here.\n', note: 'Herb: aeglos\n' },
+        { pos: [2, 0, 0], name: 'Łódź Ħall', desc: 'x\n' },
+      ],
+      [],
+    );
+    const found = (text: string, field: 'name' | 'desc' | 'contents' | 'note' | 'area' | 'all') =>
+      ids(searchRooms(m, { text, field }, null));
+    expect(found('annuminas', 'name')).toEqual([0, 1]);
+    expect(found('ANNÚMINAS', 'name')).toEqual([0, 1]);
+    expect(found('o', 'area')).toEqual([0, 1]);
+    expect(found('feanor', 'desc')).toEqual([0, 1]);
+    expect(found('fëänor', 'desc')).toEqual([0, 1]);
+    expect(found('bar of', 'desc')).toEqual([0, 1]);
+    expect(found('cirdan', 'contents')).toEqual([0, 1]);
+    expect(found('aeglos', 'note')).toEqual([0, 1]);
+    expect(found('osgiliath', 'all')).toEqual([0, 1]);
+    expect(found('lodz hall', 'name')).toEqual([2]);
+    // Decomposed input (a combining acute) folds too.
+    expect(found('Annu\u0301minas', 'name')).toEqual([0, 1]);
+  });
+
   it('orders by path cost from the player, then by straight-line distance; max cuts, total counts all', () => {
     const r = searchRooms(map, { text: 'a', field: 'name' }, 0);
     expect(r.here).toBe(0);
@@ -260,6 +285,14 @@ describe.skipIf(!HAS_ARDA)('map search on arda.mm2', () => {
     const steps = r.results.map((h) => h.steps ?? Infinity);
     expect(steps[0]).toBeLessThanOrEqual(steps[50]!);
     expect(r.results[0]!.dirs).toMatch(/^(\d*[nsewud?] ?)+$/);
+    // The map's text is ASCII (MMapper saves it so): a query with
+    // diacritics, as MUME writes the names, finds the same rooms.
+    expect(searchRooms(map, { text: 'Círdan' }, from).results.map((h) => h.name)).toEqual(
+      expect.arrayContaining(["Cirdan's Home", "Cirdan's Private Spring"]),
+    );
+    expect(searchRooms(map, { text: 'Círdan' }, from).total).toBe(searchRooms(map, { text: 'cirdan' }, from).total);
+    expect(searchRooms(map, { text: 'Lhûn', field: 'all' }, from).total).toBe(searchRooms(map, { text: 'lhun', field: 'all' }, from).total);
+    expect(searchRooms(map, { text: 'Númenor' }, from).total).toBeGreaterThan(0);
     // Herb notes (about 1 300 notes in the map).
     expect(searchRooms(map, { text: 'herb', field: 'note' }, from).total).toBeGreaterThan(100);
   });

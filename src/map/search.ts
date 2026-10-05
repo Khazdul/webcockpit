@@ -23,8 +23,10 @@
 // room (cached), so every match gets its steps; the direction runs are
 // separated by spaces (`3e n 2u`; MMapper writes `3en2u (total: …)`); the
 // flags field skips the `exit` flag (every exit has it) and also matches
-// the mob and load flags in words (`aggressive mob`); the query text is
-// folded to ASCII like the map's text (ADR 0069).
+// the mob and load flags in words (`aggressive mob`); the query and the
+// room text are folded to ASCII (ADR 0069, `foldAscii`: every combining
+// mark and a few whole letters), so a search ignores diacritics both ways
+// (`o` finds `ó`, `Lhûn` finds `Lhun`; the bundled map's text is ASCII).
 
 import {
   DIR_COUNT,
