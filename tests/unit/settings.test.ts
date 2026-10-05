@@ -662,15 +662,24 @@ describe('SettingsStore', () => {
 });
 
 describe('mapper settings (ADR 0077)', () => {
-  it('defaults to notes on and a minimal hover, and clamps stored values', () => {
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
+  it('defaults to notes on and a full hover, and clamps stored values', () => {
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
     expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
     expect(migrateMapper({ hover: 'off', hoverSize: 'large' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large' });
     expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
     expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
     expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium' });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
+    expect(migrateMapper({ hover: 'minimal' }).hover).toBe('minimal');
+  });
+
+  it('moves a stored v1 minimal hover to full once (ADR 0080)', () => {
+    expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }).mapper.hover).toBe('full');
+    expect(migrateSettings({ mapper: { hover: 'minimal' } }).mapper.hover).toBe('full');
+    expect(migrateSettings({ version: 1, mapper: { hover: 'off' } }).mapper.hover).toBe('off');
+    expect(migrateSettings({ version: 2, mapper: { hover: 'minimal' } }).mapper.hover).toBe('minimal');
+    expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }).version).toBe(2);
   });
 });

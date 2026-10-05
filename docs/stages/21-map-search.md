@@ -88,7 +88,7 @@ by itself). Walk a little so the map knows where you are.
 **2. Room info on hover (part A).**
 
 - Rest the mouse over a room on the map for about 3 seconds: a box with
-  the room's name (green) and note (*Minimal*, the default). It sits
+  the room's name (green) and note (*Minimal*; the default is *Full* since ADR 0080). It sits
   just right of and below the pointer (left / above near the window's
   edges), and may reach past the Map pane's edges. Also on the map's top
   row, and after a click with the mouse kept still.
@@ -198,3 +198,5 @@ Details: ADR 0077 "Feedback round 2".
 - [x] 1. A searched room too far from the player to show both even at
   the minimum zoom: the view goes to the searched room instead of
   halfway between (ADR 0079).
+- [x] 2. Room info on hover defaults to Full; a stored Minimal from
+  0.1.49 moves to Full once (ADR 0080).

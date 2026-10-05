@@ -305,13 +305,18 @@ export function migrateInput(raw: unknown): InputSettings {
   return { autoClear: bool(x.autoClear, d.autoClear), autosuggest: bool(x.autosuggest, d.autosuggest) };
 }
 
-/** Mapper options from anything (notes on, minimal hover, medium hover text; ADR 0077). */
-export function migrateMapper(raw: unknown): MapperSettings {
+/**
+ * Mapper options from anything (notes on, full hover, medium hover text;
+ * ADR 0077). Stored before version 2, 'minimal' was the default and moves
+ * to the new default 'full' once (ADR 0080).
+ */
+export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): MapperSettings {
   const d = defaultSettings().mapper;
   const x = isObj(raw) ? raw : {};
+  const hover = fromVersion < 2 && x.hover === 'minimal' ? 'full' : x.hover;
   return {
     notes: bool(x.notes, d.notes),
-    hover: oneOf(x.hover, MAP_HOVER_MODES, d.hover),
+    hover: oneOf(hover, MAP_HOVER_MODES, d.hover),
     hoverSize: oneOf(x.hoverSize, MAP_HOVER_SIZES, d.hoverSize),
   };
 }
@@ -333,6 +338,6 @@ export function migrateSettings(raw: unknown): Settings {
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
-    mapper: migrateMapper(s.mapper),
+    mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
   };
 }

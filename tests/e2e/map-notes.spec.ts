@@ -44,7 +44,9 @@ test('room notes after the exits line, and the hover box', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 820 });
   await page.goto('/?replay');
   await expect(page.locator('.wc-cockpit')).toBeVisible();
-  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } } }));
+  // Full is the default (ADR 0080); this test starts with Minimal.
+  expect(await page.evaluate(() => window.__wc!.settings.get().mapper.hover)).toBe('full');
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { hover: 'minimal' } }));
   const content = page.locator('.wc-pane-map .wc-pane-content');
   await expect(content).toHaveAttribute('data-map-state', 'loaded', { timeout: 20_000 });
 

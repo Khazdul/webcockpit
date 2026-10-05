@@ -7,7 +7,7 @@
 //
 //      << [X] Show map pane >>
 //      << Room notes: On >>
-//      << Room info on hover: Minimal >>
+//      << Room info on hover: Full >>
 //      << Hover text size: Medium >>
 //      << Import map file… >>
 //      << Use bundled map >>
@@ -24,7 +24,7 @@
 //
 // Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
 // for the located room after its exits line in the game window. Room info
-// on hover (`mapper.hover`: Off / Minimal / Full, default Minimal): no
+// on hover (`mapper.hover`: Off / Minimal / Full, default Full, ADR 0080): no
 // hover box, the room name and note, or MMapper's room preview (name,
 // description, contents, exits, note). Hover text size (`mapper.hoverSize`:
 // Small / Medium / Large = 0.72 / 0.85 / 1 of the cockpit's font size,

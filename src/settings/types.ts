@@ -293,7 +293,8 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
   };
 }
 
-export const SETTINGS_VERSION = 1;
+// 2: the hover default became Full (ADR 0080); a stored v1 'minimal' moves to 'full'.
+export const SETTINGS_VERSION = 2;
 
 /** The single default. Treat as read-only; `defaultSettings()` returns a fresh copy. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = deepFreeze(defaultSettings());
@@ -334,7 +335,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'minimal', hoverSize: 'medium' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium' },
   };
 }
 

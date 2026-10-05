@@ -146,7 +146,7 @@ describe('Options → Mapper', () => {
     expect(labels(host)).toEqual([
       '[X] Show map pane',
       'Room notes: On',
-      'Room info on hover: Minimal',
+      'Room info on hover: Full',
       'Hover text size: Medium',
       'Import map file…',
       'Use bundled map',
@@ -162,17 +162,18 @@ describe('Options → Mapper', () => {
     // Room notes and hover mode (ADR 0077): cyclers, written at once.
     await key('ArrowDown');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'minimal', hoverSize: 'medium' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
     expect(labels(host)[1]).toBe('Room notes: Off');
     await key('ArrowDown');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
     expect(labels(host)[2]).toBe('Room info on hover: Full');
-    await key('Enter');
-    expect(svc.settings.get().mapper.hover).toBe('off');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium' });
     expect(labels(host)[2]).toBe('Room info on hover: Off');
     await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
+    expect(labels(host)[2]).toBe('Room info on hover: Minimal');
+    await key('Enter');
+    expect(svc.settings.get().mapper.hover).toBe('full');
     // Hover text size (round 1): Small / Medium / Large.
     await key('ArrowDown');
     await key('ArrowRight');
