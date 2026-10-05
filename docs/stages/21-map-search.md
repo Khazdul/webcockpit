@@ -14,6 +14,11 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 - 2026-10-05: API search on notes, room names and descriptions (the
   other MMapper fields come along).
 - 2026-10-05: hover box after ~3 s, discreet, **name and note only**.
+- 2026-10-05 (later): the hover box content is a setting, Options →
+  Mapper "Room info on hover: Minimal / Full" (default Minimal).
+  Minimal = name + note. Full = name, description, exits (doors in
+  brackets as MUME), mob/load flags in words, and the note. Never area/
+  zone or terrain in either mode; Full has a capped, wrapping width.
 - 2026-10-05: Map search shows shortest-path directions as text.
 - 2026-10-05: marks live until cleared; zoom shows player + marks, and
   goes back to following the player when the player moves; marks keep
@@ -25,9 +30,11 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 ### A. Map data, notes in the game window, hover
 
 - Parse notes and contents from `.mm2` into `MapData`.
-- Options → Mapper: Room notes On/Off (default On).
+- Options → Mapper: Room notes On/Off (default On); Room info on hover
+  Minimal/Full (default Minimal).
 - Note line(s) after the located room's exits line in the game window.
-- Map pane hover box (3 s rest; long press on touch): name + note.
+- Map pane hover box (3 s rest; long press on touch): name + note
+  (Minimal) or the full room (Full).
 
 ### B. Script API
 
@@ -53,7 +60,7 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 
 - [x] ADR 0077, stage file, spec
 - [x] A1 notes and contents in MapData
-- [ ] A2 Options → Mapper toggle
+- [x] A2 Options → Mapper toggle (Room notes, Room info on hover)
 - [ ] A3 note lines in the game window
 - [ ] A4 hover box
 - [ ] B1 mapSearch with path directions

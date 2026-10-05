@@ -41,6 +41,8 @@ import {
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
   type InputSettings,
+  MAP_HOVER_MODES,
+  type MapperSettings,
   PADDING_MAX,
   PADDING_MIN,
   PADDING_STEP,
@@ -280,6 +282,13 @@ export function migrateInput(raw: unknown): InputSettings {
   return { autoClear: bool(x.autoClear, d.autoClear), autosuggest: bool(x.autosuggest, d.autosuggest) };
 }
 
+/** Mapper options from anything (notes on, minimal hover; ADR 0077). */
+export function migrateMapper(raw: unknown): MapperSettings {
+  const d = defaultSettings().mapper;
+  const x = isObj(raw) ? raw : {};
+  return { notes: bool(x.notes, d.notes), hover: oneOf(x.hover, MAP_HOVER_MODES, d.hover) };
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
 export function migrateSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -297,5 +306,6 @@ export function migrateSettings(raw: unknown): Settings {
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
+    mapper: migrateMapper(s.mapper),
   };
 }

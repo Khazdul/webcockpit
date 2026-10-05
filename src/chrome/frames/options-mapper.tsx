@@ -6,11 +6,13 @@
 //                                              Size 5.8 MB · Imported <date>
 //
 //      << [X] Show map pane >>
+//      << Room notes: On >>
+//      << Room info on hover: Minimal >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
 //      << Back >>
-//          ↑↓ Move · Enter Select · ESC Back
+//          ↑↓ Move · ←→ Adjust · Enter Select · ESC Back
 //
 // Import reads a `.mm2` (a hidden file input), checks it in the map tools
 // worker (MapStore.importFile; the page never parses a map on the main
@@ -18,12 +20,19 @@
 // file flashes the reason and the old map stays. "Use bundled map"
 // deletes the import. The Map pane's on/off is the same setting as its
 // row in Options → Panes → General.
+//
+// Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
+// for the located room after its exits line in the game window. Room info
+// on hover (`mapper.hover`, default Minimal): the map pane's hover box
+// shows the room name and note, or (Full) also the description, exits and
+// mob/load flags.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CurrentMap } from '../../map/store';
+import { MAP_HOVER_MODES } from '../../settings';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
-import { centreLeft } from '../kit/nav';
+import { centreLeft, cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { Blank, FlashRow, Line, type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
 
@@ -86,6 +95,9 @@ export function MapperOptionsFrame(): VNode {
 
   const on = s.panes.map.on;
   const toggle = (): void => settings.update({ panes: { map: { on: !on } } });
+  const mapper = s.mapper;
+  const toggleNotes = (): void => settings.update({ mapper: { notes: !mapper.notes } });
+  const hoverLabel = mapper.hover === 'full' ? 'Full' : 'Minimal';
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;
@@ -122,6 +134,12 @@ export function MapperOptionsFrame(): VNode {
 
   const items: MenuItem[] = [
     { key: 'on', glyph: on ? '[X]' : '[ ]', label: 'Show map pane', activate: toggle, adjust: toggle },
+    { key: 'notes', label: `Room notes: ${mapper.notes ? 'On' : 'Off'}`, adjust: toggleNotes },
+    {
+      key: 'hover',
+      label: `Room info on hover: ${hoverLabel}`,
+      adjust: (d) => settings.update({ mapper: { hover: cycle(MAP_HOVER_MODES, mapper.hover, d) } }),
+    },
     {
       key: 'import',
       label: 'Import map file…',
@@ -141,7 +159,7 @@ export function MapperOptionsFrame(): VNode {
   const w = LABEL_W + Math.max(...rows.map(([, v]) => v.length));
   const at = centreLeft(cols, w);
   return (
-    <Page title="Mapper" footer={['↑↓ Move', 'Enter Select', 'ESC Back']}>
+    <Page title="Mapper" footer={['↑↓ Move', '←→ Adjust', 'Enter Select', 'ESC Back']}>
       {rows.map(([k, v]) => (
         <Line at={at} class="wc-mapper-info">
           <span class="wc-c-hint">{k.padEnd(LABEL_W)}</span>

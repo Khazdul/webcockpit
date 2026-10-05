@@ -143,13 +143,35 @@ describe('Options → Mapper', () => {
     await settle();
     expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
     expect(info(host)).toEqual(['Map arda.mm2 (bundled)']);
-    expect(labels(host)).toEqual(['[X] Show map pane', 'Import map file…', 'Use bundled map', 'Back']);
+    expect(labels(host)).toEqual([
+      '[X] Show map pane',
+      'Room notes: On',
+      'Room info on hover: Minimal',
+      'Import map file…',
+      'Use bundled map',
+      'Back',
+    ]);
     expect(frame(host).querySelector('.wc-mrow[data-key="bundled"]')!.classList.contains('is-disabled')).toBe(true);
 
     // Enter on the first row turns the map pane off (the General grid's setting).
     await key('Enter');
     expect(svc.settings.get().panes.map.on).toBe(false);
     expect(labels(host)[0]).toBe('[ ] Show map pane');
+
+    // Room notes and hover mode (ADR 0077): cyclers, written at once.
+    await key('ArrowDown');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'minimal' });
+    expect(labels(host)[1]).toBe('Room notes: Off');
+    await key('ArrowDown');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full' });
+    expect(labels(host)[2]).toBe('Room info on hover: Full');
+    await key('Enter');
+    expect(svc.settings.get().mapper.hover).toBe('minimal');
+    await key('ArrowUp');
+    await key('Enter');
+    expect(svc.settings.get().mapper.notes).toBe(true);
 
     // A bad file: flash, nothing stored.
     await pickFile(host, 'junk.mm2', new Uint8Array([1, 2, 3]));

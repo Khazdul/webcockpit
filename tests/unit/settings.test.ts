@@ -13,6 +13,7 @@ import {
   migrateSpotlights,
   migrateOutput,
   migrateInput,
+  migrateMapper,
   SCROLLBACK_CHOICES,
   defaultTimersSettings,
   TIMER_COLOR_HEX,
@@ -618,5 +619,15 @@ describe('SettingsStore', () => {
     await s.flush();
     expect(s.get().appearance.size).toBe(20);
     warn.mockRestore();
+  });
+});
+
+describe('mapper settings (ADR 0077)', () => {
+  it('defaults to notes on and a minimal hover, and clamps stored values', () => {
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'minimal' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'minimal' });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'minimal' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'minimal' });
   });
 });

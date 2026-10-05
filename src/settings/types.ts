@@ -227,6 +227,21 @@ export interface InputSettings {
   autosuggest: boolean;
 }
 
+/** What the map pane's hover box shows (ADR 0077): name + note, or more. */
+export type MapHoverMode = 'minimal' | 'full';
+export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['minimal', 'full'];
+
+/**
+ * Options → Mapper (ADR 0077). Not in `ViewSnapshot`: a log plays with the
+ * viewer's own.
+ */
+export interface MapperSettings {
+  /** Show the map file's room notes in the game window (MMapper `showNotes`). */
+  notes: boolean;
+  /** The map pane's hover box: room name and note, or the full room. */
+  hover: MapHoverMode;
+}
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -241,6 +256,7 @@ export interface Settings {
   spotlights: SpotlightSettings;
   output: OutputSettings;
   input: InputSettings;
+  mapper: MapperSettings;
 }
 
 /**
@@ -299,6 +315,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
+    mapper: { notes: true, hover: 'minimal' },
   };
 }
 
