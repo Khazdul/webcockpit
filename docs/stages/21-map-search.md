@@ -118,3 +118,24 @@ does the zoom-out on every mark click feel right or too jumpy? Anything in
 the hover box or the note rows that reads wrong.
 
 ## Owner feedback
+
+### Round 1 (2026-10-05)
+
+1. Hover does not work when the pointer is near the map's top edge.
+2. Hover box: room names in green.
+3. Hover text size selectable: Small / Medium / Large (Medium = today).
+4. Click on the map and keep the mouse still: no hover box. It should
+   come.
+5. Hover content like MMapper's room preview: no "aggressive mob" flag
+   words; show the room's contents (the mobs/objects as seen in play).
+   Skip MMapper's first line ("### Room …") and the "(emulated)" after
+   Exits.
+6. The hover box may extend outside the Map pane, so long rooms show in
+   a small map window; place it so it covers as little of the map as
+   possible.
+7. Remove the "way" (direction text) completely from Map search: no
+   column, not in the row tooltip.
+8. Pane bar: hovering the bar shows a gear next to the drag grip;
+   clicking it opens a small menu to choose which panes the bar shows.
+9. Map search: remove Case sensitive and Regular expression for now.
+   Search ignores diacritics ("o" finds "ó").
