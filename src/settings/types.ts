@@ -231,7 +231,7 @@ export interface InputSettings {
 export type MapHoverMode = 'off' | 'minimal' | 'full';
 export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['off', 'minimal', 'full'];
 
-/** The hover box's text size (ADR 0077 round 1); medium is the cockpit's font size. */
+/** The hover box's text size (ADR 0077 rounds 1–2): 0.72 / 0.85 / 1 of the cockpit's font size. */
 export type MapHoverSize = 'small' | 'medium' | 'large';
 export const MAP_HOVER_SIZES: readonly MapHoverSize[] = ['small', 'medium', 'large'];
 

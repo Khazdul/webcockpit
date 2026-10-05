@@ -27,7 +27,8 @@
 // on hover (`mapper.hover`: Off / Minimal / Full, default Minimal): no
 // hover box, the room name and note, or MMapper's room preview (name,
 // description, contents, exits, note). Hover text size (`mapper.hoverSize`:
-// Small / Medium / Large, default Medium = the cockpit's font size).
+// Small / Medium / Large = 0.72 / 0.85 / 1 of the cockpit's font size,
+// default Medium).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
