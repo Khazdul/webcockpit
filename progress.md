@@ -54,7 +54,9 @@ Newest first.
   packages skipped.
 - **Released:** 0.1.48 (tag v0.1.48, owner's go). build:pages smoke
   green, Pages deploy green, live release.json 0.1.48, test:prod 10/10.
-- **Open:** owner to confirm the colorizers show nothing in Mudlet too.
+- **Parked (owner):** whether the colorizers show colour in Mudlet;
+  revisit if a user reports missing highlights.
+- **Next:** owner keeps using 0.1.48; feedback goes in the stage file.
 
 ### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)
 
