@@ -150,3 +150,31 @@ test('pinch zooms around the midpoint, a two-finger drag pans, a one-finger drag
   expect(m.filter((x) => x.t === 'zoom')).toHaveLength(0);
   expect(m.filter((x) => x.t === 'pan').reduce((s, x) => s + x.dx!, 0)).toBeCloseTo(40, 0);
 });
+
+test('a long press shows the hover box with the room name; the next tap hides it (ADR 0077)', async ({ page }) => {
+  await openCockpit(page);
+  await walk(page);
+  await tab(page, 'map').tap();
+  await expect(content(page)).toHaveAttribute('data-map-room', LAST_ROOM, { timeout: 15_000 });
+  const box = (await page.locator('.wc-pane-map canvas').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchEnd', pts: { x: number; y: number }[]) =>
+    cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((p, i) => ({ x: p.x, y: p.y, id: i })) });
+  const hover = page.locator('.wc-pane-map .wc-map-hover');
+  // A short tap shows nothing.
+  await touch('touchStart', [{ x: cx, y: cy }]);
+  await touch('touchEnd', []);
+  await page.waitForTimeout(800);
+  await expect(hover).toHaveCount(0);
+  // A long press does.
+  await touch('touchStart', [{ x: cx, y: cy }]);
+  await page.waitForTimeout(900);
+  await touch('touchEnd', []);
+  await expect(hover).toBeVisible();
+  await expect(hover.locator('.wc-map-hover-name')).toHaveText('Hill Road');
+  await touch('touchStart', [{ x: cx + 30, y: cy + 30 }]);
+  await touch('touchEnd', []);
+  await expect(hover).toBeHidden();
+});

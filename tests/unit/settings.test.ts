@@ -627,6 +627,7 @@ describe('mapper settings (ADR 0077)', () => {
     expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'minimal' });
     expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'minimal' });
     expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full' });
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off' });
     expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'minimal' });
     expect(migrateMapper(null)).toEqual({ notes: true, hover: 'minimal' });
   });

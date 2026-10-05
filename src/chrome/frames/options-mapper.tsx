@@ -23,8 +23,8 @@
 //
 // Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
 // for the located room after its exits line in the game window. Room info
-// on hover (`mapper.hover`, default Minimal): the map pane's hover box
-// shows the room name and note, or (Full) also the description, exits and
+// on hover (`mapper.hover`: Off / Minimal / Full, default Minimal): no
+// hover box, the room name and note, or also the description, exits and
 // mob/load flags.
 
 import type { VNode } from 'preact';
@@ -97,7 +97,7 @@ export function MapperOptionsFrame(): VNode {
   const toggle = (): void => settings.update({ panes: { map: { on: !on } } });
   const mapper = s.mapper;
   const toggleNotes = (): void => settings.update({ mapper: { notes: !mapper.notes } });
-  const hoverLabel = mapper.hover === 'full' ? 'Full' : 'Minimal';
+  const hoverLabel = mapper.hover === 'full' ? 'Full' : mapper.hover === 'off' ? 'Off' : 'Minimal';
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;

@@ -12,6 +12,8 @@
 //   the pointer leaves that square.
 // - Touch: a press held LONG_PRESS_MS without moving more than
 //   PRESS_SLOP_PX asks the same way; the next press or pan hides the box.
+// - Off (Options → Mapper "Room info on hover: Off"): every input returns
+//   at once; no timer is armed.
 // - The box lives in the pane's content, beside the pointer and kept
 //   inside the pane; its width is capped (CSS), long lines wrap.
 
@@ -32,6 +34,8 @@ export interface MapHoverOptions {
   host: HTMLElement;
   /** Asks the worker for the room at (x, y); returns the request id, or null when the map cannot answer. */
   ask: (x: number, y: number) => number | null;
+  /** False: no box and no timers at all (Options → Mapper "Room info on hover: Off"). Default on. */
+  enabled?: () => boolean;
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (t: unknown) => void;
 }
@@ -77,7 +81,7 @@ export class MapHover {
 
   /** Mouse move over the canvas (canvas px); `buttons` as the event's. */
   move(x: number, y: number, buttons: number): void {
-    if (buttons !== 0) return this.cancel();
+    if (buttons !== 0 || !this.on()) return this.cancel();
     const r = this.rect;
     if (this.shown && r && (x < r.x || x >= r.x + r.w || y < r.y || y >= r.y + r.h)) this.hide();
     const p = this.rest;
@@ -89,7 +93,7 @@ export class MapHover {
   /** Touch press (canvas px): hides a shown box and starts a long press when it is the only finger. */
   press(x: number, y: number, single: boolean): void {
     this.cancel();
-    if (single) this.arm(x, y, LONG_PRESS_MS);
+    if (single && this.on()) this.arm(x, y, LONG_PRESS_MS);
   }
 
   /** Touch move: a move beyond the slop cancels the long press and hides the box. */
@@ -99,13 +103,16 @@ export class MapHover {
     this.cancel();
   }
 
-  /** Touch release: the long press stops waiting (a shown box stays until the next press). */
+  /**
+   * Touch release: a press shorter than the long press asks nothing; after
+   * it, the asked box still comes (the answer may arrive after the finger
+   * lifts), and a shown box stays until the next press.
+   */
   release(): void {
+    if (this.timer === null) return;
     this.stopTimer();
-    if (!this.shown) {
-      this.rest = null;
-      this.req = null;
-    }
+    this.rest = null;
+    this.req = null;
   }
 
   /** Cancels a pending rest and hides the box (leave, wheel, drag, pan, zoom, map change, hidden). */
@@ -120,7 +127,7 @@ export class MapHover {
   answer(req: number, room: number | null, rect: Rect | undefined, info: RoomHoverInfo | undefined): void {
     if (req !== this.req || !this.rest) return;
     this.req = null;
-    if (room === null || !info || !rect) return;
+    if (room === null || !info || !rect || !this.on()) return;
     this.rect = rect;
     this.show(this.rest.x, this.rest.y, info);
   }
@@ -129,6 +136,10 @@ export class MapHover {
     this.cancel();
     this.box?.remove();
     this.box = null;
+  }
+
+  private on(): boolean {
+    return this.o.enabled?.() ?? true;
   }
 
   private arm(x: number, y: number, ms: number): void {

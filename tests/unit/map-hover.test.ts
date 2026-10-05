@@ -55,7 +55,7 @@ describe('hover hit test and content', () => {
   });
 });
 
-function harness() {
+function harness(enabled = true) {
   const host = document.createElement('div');
   document.body.append(host);
   const timers: Array<{ fn: () => void; ms: number; live: boolean }> = [];
@@ -63,6 +63,7 @@ function harness() {
   const h = new MapHover({
     doc: document,
     host,
+    enabled: () => enabled,
     ask: (x, y) => {
       asks.push([x, y]);
       return asks.length;
@@ -142,5 +143,24 @@ describe('MapHover', () => {
     expect(t.h.shown).toBe(true);
     t.h.press(100, 100, false); // a second finger / next tap
     expect(t.h.shown).toBe(false);
+    // The answer may come after the finger lifted.
+    t.h.press(20, 20, true);
+    t.fire();
+    t.h.release();
+    t.h.answer(2, 3, t.rect, t.info);
+    expect(t.h.shown).toBe(true);
+  });
+
+  it('Off: no timer is armed and no box shows, by mouse or by touch', () => {
+    const t = harness(false);
+    t.h.move(10, 10, 0);
+    t.h.move(40, 40, 0);
+    t.h.press(20, 20, true);
+    expect(t.live()).toHaveLength(0);
+    t.fire();
+    expect(t.asks).toEqual([]);
+    t.h.answer(1, 3, t.rect, t.info);
+    expect(t.h.shown).toBe(false);
+    expect(t.box()).toBeNull();
   });
 });

@@ -168,6 +168,9 @@ describe('Options → Mapper', () => {
     expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full' });
     expect(labels(host)[2]).toBe('Room info on hover: Full');
     await key('Enter');
+    expect(svc.settings.get().mapper.hover).toBe('off');
+    expect(labels(host)[2]).toBe('Room info on hover: Off');
+    await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
     await key('ArrowUp');
     await key('Enter');

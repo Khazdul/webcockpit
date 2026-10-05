@@ -114,6 +114,7 @@ export class MapPane extends PaneShell {
   /** The hover box (ADR 0077). */
   private readonly hover: MapHover;
   private hoverReq = 0;
+  private hoverScale = { x: 1, y: 1 };
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -131,11 +132,17 @@ export class MapPane extends PaneShell {
     this.hover = new MapHover({
       doc,
       host: this.content,
+      enabled: () => this.ctx.settings.get().mapper.hover !== 'off',
       ask: (x, y) => {
         const c = this.client;
         if (!c || !this.loaded || !this.visible || this.drag || this.touches.size > 1) return null;
+        // The worker's canvas size is the cell grid's; the element may be
+        // stretched a little (phone): scale the point to the worker's px.
+        const r = this.canvas.getBoundingClientRect();
+        const { w, h } = this.cssSize();
+        this.hoverScale = { x: r.width > 0 ? w / r.width : 1, y: r.height > 0 ? h / r.height : 1 };
         const req = ++this.hoverReq;
-        c.roomAt(req, x, y, this.ctx.settings.get().mapper.hover === 'full');
+        c.roomAt(req, x * this.hoverScale.x, y * this.hoverScale.y, this.ctx.settings.get().mapper.hover === 'full');
         return req;
       },
     });
@@ -364,7 +371,11 @@ export class MapPane extends PaneShell {
         this.ctx.mapMarks?.found(m.req, m.rooms, m.total);
         return;
       case 'roomAt':
-        this.hover.answer(m.req, m.room, m.rect, m.info);
+        {
+          const s = this.hoverScale;
+          const r = m.rect && { x: m.rect.x / s.x, y: m.rect.y / s.y, w: m.rect.w / s.x, h: m.rect.h / s.y };
+          this.hover.answer(m.req, m.room, r, m.info);
+        }
         return;
       case 'roomNotes':
         for (const n of m.notes) {

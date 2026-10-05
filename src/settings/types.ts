@@ -227,9 +227,9 @@ export interface InputSettings {
   autosuggest: boolean;
 }
 
-/** What the map pane's hover box shows (ADR 0077): name + note, or more. */
-export type MapHoverMode = 'minimal' | 'full';
-export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['minimal', 'full'];
+/** The map pane's hover box (ADR 0077): none, name + note, or the full room. */
+export type MapHoverMode = 'off' | 'minimal' | 'full';
+export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['off', 'minimal', 'full'];
 
 /**
  * Options → Mapper (ADR 0077). Not in `ViewSnapshot`: a log plays with the
@@ -238,7 +238,7 @@ export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['minimal', 'full'];
 export interface MapperSettings {
   /** Show the map file's room notes in the game window (MMapper `showNotes`). */
   notes: boolean;
-  /** The map pane's hover box: room name and note, or the full room. */
+  /** The map pane's hover box: off, room name and note, or the full room. */
   hover: MapHoverMode;
 }
 
