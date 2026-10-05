@@ -182,16 +182,25 @@ describe('Mudlet: translation', () => {
 
   it('an exported package (no profile save, only packages) is imported, not skipped', () => {
     const r = run(fixture('mudlet', 'package.xml'));
-    expect(r.counts).toMatchObject({ translated: 4, kept: 0, skipped: 0 });
+    expect(r.counts).toMatchObject({ translated: 5, kept: 1, skipped: 0 });
     expect(body(r)).toEqual([
-      '#highlight {%!{(?<=^.*)\\(MIN\\)(?=.*$)}} {<F00ffff><B000000>}',
-      '#highlight {^A pair of tiny eyes gleam at you from the shadows%!{.}} {<F00ffff><B000000>}',
+      '#highlight {%!{(?<=^.*)\\(MIN\\)(?=.*$)}} {<F00ffff>}',
+      '#highlight {^A pair of tiny eyes gleam at you from the shadows%!{.}} {<F00ffff>}',
       '#highlight {^- shield} {<B000080>}',
       '#highlight {- stored spell%!{.*}} {<B000080>}',
+      '#action {^%!{.*}{\\(B\\)}%!{.*}$} {order followers assist}',
       "#action {%!{[^\\(\\)]*} ({\\w*}) says 'If you still need my help, you must pay me again%!{.}'} {give 10 silver %1}",
       '#alias {^hl$} {#showme {<F00ffff>Highlights loaded.}}',
+      '#nop {Mudlet import: 1 item not translated (1 not translatable). See the import report.}',
     ]);
-    expect(r.profileText).not.toMatch(/#nop \{Mudlet import/);
+  });
+
+  it('a colorizer with no foreground and a black or no background gives no #highlight', () => {
+    const r = run(fixture('mudlet', 'package.xml'));
+    const reason = 'Colorizer has no visible colour (keeps the text colour, black background)';
+    expect(r.items.find((i) => i.source.startsWith('Trigger sanc '))).toMatchObject({ outcome: 'kept', reason });
+    expect(r.items.find((i) => i.source.startsWith('Trigger charmie '))).toMatchObject({ outcome: 'translated', warning: `${reason}.` });
+    expect(r.profileText).not.toMatch(/sanctuary|<B000000>/);
   });
 
   it('a package WebCockpit replaces is skipped even when exported alone', () => {

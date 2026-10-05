@@ -9,7 +9,9 @@
 // - folders give no output (owner 2026-10-05): rules are written flat,
 //   in source order; folder names only matter for enable/disable;
 // - aliases → `#alias`, triggers → `#action` (one per pattern), plus
-//   `#gag`/`#highlight`/`#substitute` from colorizers and line idioms,
+//   `#gag`/`#highlight`/`#substitute` from colorizers and line idioms (a
+//   colorizer with no foreground and a black or no background shows
+//   nothing and gives no `#highlight`),
 //   keys → `#macro`, timers → `#ticker`, variables → `#variable`;
 // - bodies go through the Lua subset (mudlet-lua.ts); functions of the
 //   user's own Scripts are inlined, Scripts themselves are not imported;
@@ -107,6 +109,8 @@ function gateCalls(code: string): Array<{ kind: Kind; name: string }> {
 }
 
 /** Placeholder for the commands of `enable…/disable…("name")`, resolved at the end. */
+const INVISIBLE = 'Colorizer has no visible colour (keeps the text colour, black background)';
+
 const GATE_MARK = '\u0000GATE';
 
 
@@ -578,12 +582,16 @@ class MudletTranslator {
     if (!r) return;
     const body = r.commands.join(';');
     const lines: string[] = [];
+    let invisible = false;
     if (colorizer) {
       const fg = childText(el, 'mFgColor');
       const bg = childText(el, 'mBgColor');
       const f = fg && fg !== 'transparent' ? mudletColour(fg) : null;
-      const b = bg && bg !== 'transparent' ? mudletColour(bg) : null;
+      // A black background is the default (Mudlet's and ours): it adds nothing visible.
+      const b0 = bg && bg !== 'transparent' ? mudletColour(bg) : null;
+      const b = b0 && b0.some((c) => c !== 0) ? b0 : null;
       const colour = (f ? rgbCode(true, ...f) : '') + (b ? rgbCode(false, ...b) : '');
+      if (!colour) invisible = true;
       if (colour) {
         pats.forEach((src, i) => {
           const hp = types[i] === 1 ? colorizerPatterns(src, ttPats[i]!) : [ttPats[i]!];
@@ -599,6 +607,13 @@ class MudletTranslator {
     for (const s of r.substitutes) lines.push(`#substitute {${s.pattern}} {${s.text}}`);
     if (r.highlights.length > 0 && r.highlights.some((h) => !ttPats.some((p) => p.includes(h.pattern)))) {
       notes.push('The selected text is highlighted on every line, not only where the trigger fires.');
+    }
+    if (invisible) {
+      if (lines.length === 0) {
+        this.keep(n, shown, INVISIBLE);
+        return;
+      }
+      notes.push(`${INVISIBLE}.`);
     }
     if (this.gatesOf(n).length > 0 && lines.some((l) => /^#(?:gag|highlight|substitute) /.test(l))) {
       this.keep(n, shown, 'Turned on and off by other rules (gag/highlight/substitute cannot be switched)');
