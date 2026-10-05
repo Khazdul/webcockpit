@@ -1,11 +1,12 @@
 // The import corpus (tests/fixtures/import, hand-written in the style of
 // the public files cited in notes/research/import): every translated
-// profile must load in the script engine, and every source command must
-// have a report item.
+// profile must load in the script engine, and every source command (for
+// Mudlet: every item element outside a package) must have a report item.
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { ImportFile, ImportResult } from '../../../src/import/types';
+import { type XmlElement, childText, parseXml } from '../../../src/import/xml';
 import { countsMatch, fixture, load, run } from './helpers';
 
 const CORPUS: Array<{ format: ImportResult['format']; files: ImportFile[]; entry: string }> = [
@@ -36,6 +37,68 @@ function commandLines(f: ImportFile, format: string): number[] {
   });
   return out;
 }
+
+const MUDLET = ['profile.xml', 'package.xml'];
+
+const ITEM = /^(?:Trigger|Alias|Key|Timer|Script|Action)$/;
+
+/** Start lines of the Mudlet item elements outside packages (and of variables). */
+function mudletItemLines(f: ImportFile): number[] {
+  const root = parseXml(new TextDecoder().decode(f.bytes));
+  const host = root.children.find((c) => c.name === 'HostPackage');
+  const installed = new Set<string>();
+  const walkAll = (e: XmlElement, fn: (x: XmlElement) => void): void => {
+    fn(e);
+    e.children.forEach((c) => walkAll(c, fn));
+  };
+  if (host) walkAll(host, (x) => x.name === 'string' && installed.add(x.text));
+  const tops = root.children.flatMap((s) => (s.name.endsWith('Package') ? s.children : []));
+  const isPkg = (e: XmlElement) => {
+    const p = childText(e, 'packageName');
+    return p !== '' && ((e.name.endsWith('Group') && p === childText(e, 'name')) || installed.has(p));
+  };
+  const exported = !host && tops.filter((t) => /Group$|^(?:Trigger|Alias|Key|Timer|Script|Action)$/.test(t.name)).every(isPkg);
+  const out: number[] = [];
+  for (const t of tops) {
+    if (!exported && isPkg(t)) continue;
+    walkAll(t, (x) => {
+      if (ITEM.test(x.name) || x.name === 'Variable' || (x.name === 'VariableGroup' && x !== t)) out.push(x.line);
+    });
+    if (t.name === 'Variable' || t.name === 'VariableGroup') out.push(t.line);
+  }
+  return out;
+}
+
+describe('import corpus: Mudlet', () => {
+  for (const name of MUDLET) {
+    describe(name, () => {
+      const f = fixture('mudlet', name);
+      const r = run(f);
+
+      it('detects Mudlet', () => {
+        expect(r.format).toBe('mudlet');
+        expect(r.entry).toBe(name);
+        expect(r.signals[0]).toMatch(/^MudletPackage version /);
+      });
+
+      it('the profile loads in the script engine without errors or warnings', () => {
+        expect(load(r.profileText)).toEqual({ ok: true, warnings: [] });
+        expect(r.profileText.split('\n')[0]).toMatch(/^#nop \{Imported from Mudlet file \S+ on 2026-10-04\. See the import report\.\}$/);
+      });
+
+      it('every item outside a package has a report item; counts match', () => {
+        const lines = new Set(r.items.map((i) => i.line));
+        const missing = mudletItemLines(f).filter((n) => !lines.has(n));
+        expect(missing).toEqual([]);
+        expect(countsMatch(r)).toBe(true);
+        for (const it of r.items) {
+          expect(it.source.length).toBeGreaterThan(0);
+          if (it.outcome !== 'translated') expect(it.reason).toBeTruthy();
+        }
+      });
+    });
+  }
+});
 
 describe('import corpus', () => {
   for (const c of CORPUS) {
