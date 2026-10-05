@@ -30,7 +30,7 @@ export interface ReportSeg {
 
 export type ReportRow = ReportSeg[];
 
-const FORMAT_NAMES: Record<ImportFormat, string> = { tintin: 'TinTin++', jmc: 'JMC', powwow: 'Powwow' };
+const FORMAT_NAMES: Record<ImportFormat, string> = { tintin: 'TinTin++', jmc: 'JMC', powwow: 'Powwow', mudlet: 'Mudlet' };
 
 export const formatName = (f: ImportFormat): string => FORMAT_NAMES[f];
 

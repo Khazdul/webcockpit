@@ -1,4 +1,9 @@
-// Format detection for foreign profile import (ADR 0073 "Detection").
+// Format detection for foreign profile import (ADR 0073 "Detection",
+// ADR 0076 "Input").
+//
+// A Mudlet package (`<!DOCTYPE MudletPackage>` or a `MudletPackage` root in
+// the first 1 KB) is decisive: if any chosen file is one, the import is
+// Mudlet. Otherwise:
 //
 // Each format scores the signals it finds (each signal counts once).
 // Decisive signals weigh 3, others 1. The best foreign format wins when it
@@ -74,6 +79,23 @@ const TINTIN: Signal[] = [
   { label: '#config / #session / #split', decisive: false, test: line(/^\s*#(?:config|session|split)\b/im) },
 ];
 
+/** True when the text is a Mudlet package (XML with a MudletPackage root). */
+export function isMudlet(text: string): boolean {
+  const head = text.slice(0, 1024);
+  return /<!DOCTYPE\s+MudletPackage\b/.test(head) || /^\s*(?:<\?xml[^>]*\?>\s*)?(?:<!--[\s\S]*?-->\s*)*<MudletPackage\b/.test(head);
+}
+
+function mudletSignals(files: DetectInput[]): string[] {
+  const out: string[] = [];
+  const m = files.find((f) => isMudlet(f.text));
+  if (!m) return out;
+  const v = /<MudletPackage[^>]*\bversion="([^"]*)"/.exec(m.text.slice(0, 2048));
+  out.push(v ? `MudletPackage version ${v[1]}` : 'MudletPackage');
+  if (files.some((f) => isMudlet(f.text) && /<HostPackage\b/.test(f.text))) out.push('profile save');
+  if (files.some((f) => isMudlet(f.text) && /\.(?:mpackage|zip)\b/i.test(f.name))) out.push('package archive');
+  return out;
+}
+
 function score(signals: Signal[], files: DetectInput[]): { score: number; hits: Signal[] } {
   const hits = signals.filter((s) => files.some((f) => s.test(f.text, f.name)));
   return { score: hits.reduce((n, s) => n + (s.decisive ? 3 : 1), 0), hits };
@@ -84,7 +106,9 @@ export function detectFormat(files: DetectInput[]): Detection {
   const pw = score(POWWOW, files);
   const jmc = score(JMC, files);
   const tt = score(TINTIN, files);
-  const scores = { powwow: pw.score, jmc: jmc.score, tintin: tt.score };
+  const mud = mudletSignals(files);
+  const scores = { powwow: pw.score, jmc: jmc.score, tintin: tt.score, mudlet: mud.length > 0 ? 3 * mud.length : 0 };
+  if (mud.length > 0) return { format: 'mudlet', signals: mud, scores };
   const best = pw.score >= jmc.score ? { format: 'powwow' as const, ...pw } : { format: 'jmc' as const, ...jmc };
   const decisive = best.hits.some((s) => s.decisive);
   if (best.score > 0 && (decisive || best.score >= tt.score + 2)) {

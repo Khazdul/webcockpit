@@ -1,7 +1,7 @@
-// Foreign profile import: shared types (ADR 0073, spec §2.11).
+// Foreign profile import: shared types (ADR 0073, ADR 0076, spec §2.11).
 // Pure data; the UI and the translators both depend on this file only.
 
-export type ImportFormat = 'tintin' | 'jmc' | 'powwow';
+export type ImportFormat = 'tintin' | 'jmc' | 'powwow' | 'mudlet';
 
 /** What happened to one source item (a command, rule or line). */
 export type ImportOutcome = 'translated' | 'kept' | 'skipped';

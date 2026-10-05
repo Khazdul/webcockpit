@@ -6,12 +6,18 @@
 // first chosen; JMC's global.set comes last), translates it with `#read`
 // targets inlined from the chosen files, and appends chosen files nothing
 // read (with a file warning), so nothing is dropped.
+//
+// Mudlet (ADR 0076): the Mudlet files are translated in the order chosen
+// into one profile, separated by `--- name ---`; other files chosen with
+// them are reported as skipped. Archives are unpacked by the caller
+// (`readZip`), which passes their XML entries on as files.
 
 import { checkBraces } from '../script/doc';
 import { Out, Resolver, type SourceFile, baseName, isoDate, nopLine } from './common';
 import { decodeBytes } from './decode';
-import { detectFormat } from './detect';
+import { detectFormat, isMudlet } from './detect';
 import { translateJmc } from './jmc';
+import { translateMudlet } from './mudlet';
 import { translatePowwow } from './powwow';
 import { translateTintin } from './tintin';
 import type { ImportFile, ImportFiles, ImportFormat, ImportResult } from './types';
@@ -19,8 +25,9 @@ import type { ImportFile, ImportFiles, ImportFormat, ImportResult } from './type
 export type * from './types';
 export { decodeBytes } from './decode';
 export { detectFormat } from './detect';
+export { isZip, readZip } from './zip';
 
-export const FORMAT_NAMES: Readonly<Record<ImportFormat, string>> = { tintin: 'TinTin++', jmc: 'JMC', powwow: 'Powwow' };
+export const FORMAT_NAMES: Readonly<Record<ImportFormat, string>> = { tintin: 'TinTin++', jmc: 'JMC', powwow: 'Powwow', mudlet: 'Mudlet' };
 
 const READ_REFS = [/#rea?d?\s*\{([^}]*)\}/gi, /#rea?d?\s+([^\s;{}]+)/gi, /#cla\w*\s*\{[^}]*\}\s*\{\s*read\s*\}\s*\{([^}]*)\}/gi];
 
@@ -32,6 +39,7 @@ export function readTargets(text: string): Set<string> {
 }
 
 function pickEntry(files: SourceFile[], format: ImportFormat): SourceFile {
+  if (format === 'mudlet') return files.find((f) => isMudlet(f.text)) ?? files[0]!;
   const candidates = format === 'jmc' && files.length > 1 ? files.filter((f) => f.name.toLowerCase() !== 'global.set') : files;
   const refs = files.map((f) => ({ f, targets: readTargets(f.text) }));
   const roots = candidates.filter((c) => !refs.some((r) => r.f !== c && r.targets.has(c.name.toLowerCase())));
@@ -76,6 +84,20 @@ export const importFiles: ImportFiles = (files: ImportFile[], now: Date = new Da
       for (const f of [entry, ...rest]) {
         if (f !== entry) before(f);
         res.within(f, () => translatePowwow(f, out));
+      }
+      break;
+    case 'mudlet':
+      for (const f of sources) {
+        if (!isMudlet(f.text)) {
+          out.skip({ file: f.name, line: 1, text: f.name }, 'Not a Mudlet file (a Mudlet import does not mix formats)');
+          continue;
+        }
+        if (f !== entry) {
+          out.setClass(null);
+          out.raw('');
+          out.raw(nopLine(`--- ${f.name} ---`));
+        }
+        translateMudlet(f, out);
       }
       break;
   }
