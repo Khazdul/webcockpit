@@ -54,6 +54,10 @@ Newest first.
   text size, MMapper-style Full preview outside the pane; no way, case
   or regex in Map search; pane bar gear menu (removed again in round 2). Unit
   2419, e2e 462/465 (same pre-existing failures).
+- **Owner round 2:** pane bar gear reverted; hover box beside the
+  pointer; no tooltips in Map search; hover sizes one step smaller.
+  Notes in the game window confirmed fine. Unit 2404.
+- **Next:** owner's go for release 0.1.49.
 
 ### 2026-10-05 — Stage 20: Mudlet import
 
