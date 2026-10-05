@@ -65,10 +65,10 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 - [x] A2 Options → Mapper toggle (Room notes, Room info on hover)
 - [x] A3 note lines in the game window
 - [x] A4 hover box (Off / Minimal / Full; touch long press)
-- [ ] B1 mapSearch with path directions
-- [ ] B2 mapRoom, mapPath
-- [ ] B3 mapMark until cleared, follow-on-move focus
-- [ ] B4 checkbox / radio
+- [x] B1 mapSearch with path directions
+- [x] B2 mapRoom, mapPath
+- [x] B3 mapMark until cleared, follow-on-move focus
+- [x] B4 checkbox / radio
 - [ ] C1 Map search script
 - [ ] D1 full check, release
 

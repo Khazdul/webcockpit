@@ -449,16 +449,29 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
         typed reaches the game or macros; Enter, Esc, a click elsewhere
         or the pane closing give the keyboard back to the input line.
         Runs show the field's text.
+      - `:setCheckbox(row, col, {label, checked, hint, onChange})` and
+        `:setRadio(row, col, {group, value, label, checked, hint,
+        onChange})` draw `[ ] Label` / `( ) Label` (`[x]`, `(•)` when
+        checked) as text under a link and return a toggle with
+        `:checked()`, `:set(on)` and `:remove()` (ADR 0077). A click
+        flips a checkbox (`onChange(checked)`) or chooses a radio button,
+        one per group in the pane (`onChange(value)`). They go with their
+        row like links; runs show them as text.
   - Map marks (ADR 0057): `mapMark(target, opts, fn)` marks rooms (ids,
     or a query by name, description lines and exits; nearest 20 first)
     on the Map pane for a while, blinking, with arrows when off view and
     an optional `focus` that zooms out to show them; `mapUnmark(handle)`;
     `mapFind(query, fn)`. Map off: `nil, "map off"`. Live only.
-  - Map search (ADR 0077): `mapSearch(query, fn)` by name, description,
-    contents, note, area, exits, flags or all, with case and regex
-    options; results nearest first by path, with direction text.
-    `mapRoom(id, fn)` and `mapPath(id, fn)`. `mapMark` can last until
-    unmarked and can focus until the player moves.
+  - Map search (ADR 0077): `mapSearch({text, field, case, regex, max},
+    fn)` by name, description, contents, note, area, exits (door
+    names), flags or all, as MMapper's Find Rooms; `fn(results, total,
+    here)` with `{id, name, area, note, steps, dirs}` nearest first by
+    the shortest path from the player's room (MMapper's costs), `dirs`
+    as `3e n 2u`. `mapPath(id, fn)` → `fn(dirs, steps)` or `fn(nil)`;
+    `mapRoom(id, fn)` → the room's text, terrain, exits and flags. A bad
+    regex: `nil, "bad regex: …"`. `mapMark` takes up to 200 ids, lasts
+    until unmarked with `duration = 0`, and `focus = "move"` zooms out
+    once and follows the player again at the first move.
   - Game time (ADR 0074): `gameTime([epoch])` gives the game date,
     time, season, period of day and moon (phase, level, waxing,
     visibility, position) for now or any real time, or nil while the
