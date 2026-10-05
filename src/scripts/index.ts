@@ -1,7 +1,7 @@
 // User scripts (spec §2.10, ADR 0051): the library service, the header
 // parser and the bundled scripts. The script host (`./host`) and the Lua
 // runtime are separate lazy chunks: import them dynamically.
-export { BUNDLED_SCRIPTS, type BundledScript } from './bundled';
+export { BUNDLED_SCRIPTS, type BundledScript, NEW_USER_SCRIPTS } from './bundled';
 export {
   API_VERSION,
   type ParsedHeader,

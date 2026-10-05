@@ -491,6 +491,27 @@ export class ScriptLibrary {
     return this.serial(() => this.setEnabledNow(name, on));
   }
 
+  /**
+   * Enables the bundled scripts `names` for a new user (ADR 0078): only
+   * when the library holds nothing of the user's yet (no `scriptData`
+   * record and no user script), so an existing user, or one who already
+   * turned a script on or off, is never changed. The records are written
+   * at once (`enabled: true`), so this happens at most once per install.
+   * Returns true when it enabled them.
+   */
+  enableForNewUser(names: readonly string[]): Promise<boolean> {
+    return this.serial(async () => {
+      await this.init();
+      if (this.data.size > 0 || [...this.entries.values()].some((e) => !e.bundled)) return false;
+      const recs = names.filter((n) => this.entries.get(n)?.bundled).map((n) => ({ ...this.dataOf(n), enabled: true }));
+      if (recs.length === 0) return false;
+      await this.write(recs.map((d) => ({ store: STORE.scriptData, put: d })));
+      for (const d of recs) this.data.set(d.name, d);
+      this.changed();
+      return true;
+    });
+  }
+
   private async setEnabledNow(name: string, on: boolean): Promise<void> {
     await this.init();
     const e = this.need(name);

@@ -113,6 +113,7 @@ export class SettingsStore {
   private db: IDBDatabase | null = null;
   private loadPromise: Promise<void> | null = null;
   private loaded = false;
+  private freshInstall = false;
   /** Updates made before `load()` finished; replayed on top of the loaded data. */
   private early: SettingsUpdate[] = [];
   /** Nothing is written until the first change (safe mode). */
@@ -156,6 +157,15 @@ export class SettingsStore {
     return this.db !== null;
   }
 
+  /**
+   * True once loaded when IndexedDB works and holds no settings record
+   * (and not in safe mode): this browser has never saved a setting, a new
+   * user as far as the settings know (ADR 0078). Stays true for the page.
+   */
+  get fresh(): boolean {
+    return this.freshInstall;
+  }
+
   /** True in `?safe` mode. */
   get isSafe(): boolean {
     return this.safe;
@@ -191,6 +201,7 @@ export class SettingsStore {
         this.warn('settings are not saved (IndexedDB unavailable)', err);
       }
     }
+    this.freshInstall = this.db !== null && stored === undefined && !this.safe;
     const prev = this.current;
     let next: Settings;
     if (stored !== undefined) {

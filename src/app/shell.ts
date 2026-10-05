@@ -66,7 +66,7 @@ import { nowUs } from '../core/types';
 import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
 import { MapStore } from '../map/store';
-import { ScriptLibrary } from '../scripts';
+import { NEW_USER_SCRIPTS, ScriptLibrary } from '../scripts';
 import { lazyDb } from '../panes/context';
 import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
@@ -154,6 +154,7 @@ export class Shell {
   /** Shows the first view: the start page, or the cockpit in the offline modes. */
   async boot(): Promise<void> {
     void this.initProfiles();
+    void this.newUserScripts();
     if (this.opts.offline) {
       this.showCockpit(this.ensureApp());
       if (!this.opts.probe) this.prefetchChrome();
@@ -419,6 +420,22 @@ export class Shell {
       runs: app.runs,
     });
     return this.menu;
+  }
+
+  /**
+   * A new user (no stored settings, ADR 0078) starts with the bundled
+   * scripts of `NEW_USER_SCRIPTS` enabled; the library makes sure an
+   * install that already has script data is never changed. Not in the
+   * bench (`probe`), which measures the cockpit without scripts.
+   */
+  private async newUserScripts(): Promise<void> {
+    if (this.opts.probe) return;
+    try {
+      await this.opts.settings.load();
+      if (this.opts.settings.fresh) await this.scripts.enableForNewUser(NEW_USER_SCRIPTS);
+    } catch {
+      /* the Scripts page reports storage errors */
+    }
   }
 
   /** Seeds `default` and makes sure the selected profile exists. */

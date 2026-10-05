@@ -16,3 +16,10 @@ export const BUNDLED_SCRIPTS: readonly BundledScript[] = Object.entries(FILES).m
   name: parseHeader(source).header.name ?? path.replace(/^.*\//, '').replace(/\.lua$/, ''),
   source,
 }));
+
+/**
+ * Bundled scripts a new user starts with enabled (ADR 0078): the pane bar
+ * and Map search (whose pane starts off). Applied once per install by
+ * `ScriptLibrary.enableForNewUser`.
+ */
+export const NEW_USER_SCRIPTS: readonly string[] = ['panebar', 'mapsearch'];
