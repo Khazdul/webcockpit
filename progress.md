@@ -45,8 +45,10 @@ Newest first.
   packages skipped; loads without errors.
 - **Checked:** typecheck, unit 2356, e2e 454/454.
 - **Next:** owner test (guide in the stage file), then release on go.
-- **Open:** colorizers come out as black background (as in the file);
-  `hidescore2` may disable itself on the line that enables it.
+- **Owner round 1:** no `#class`, no `#nop` per untranslated item (one
+  summary line; the report lists them), gate-prefix mechanism removed.
+  Sample now: 203 translated, 24 not translated, 7 packages skipped.
+- **Open:** colorizers come out as black background (as in the file).
 
 ### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)
 
