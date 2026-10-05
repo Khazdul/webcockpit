@@ -92,7 +92,7 @@ function tinyFile(): Promise<Uint8Array> {
     descs: ['B'],
     areas: [''],
     contents: [''],
-    notes: [''],
+    notes: ['Herb: thyme\n'],
     exitFlags: new Uint16Array(7),
     doorFlags: new Uint16Array(7),
     doorNames: new Map(),
@@ -191,6 +191,32 @@ describe('map worker core', () => {
     const map = await readMm2(await tinyFile());
     await h.core.load(4, { kind: 'data', map: structuredClone(map), name: 'subset' });
     expect(h.out.at(-1)).toMatchObject({ t: 'loaded', info: { rooms: 1, serverIds: 1, hash: '' } });
+  });
+
+  it('answers stamped Room.Infos with the located room\'s note (ADR 0077)', async () => {
+    const h = harness();
+    await h.core.load(1, { kind: 'data', map: await readMm2(await tinyFile()), name: 't' });
+    h.core.handle({
+      t: 'events',
+      events: [
+        { k: 'gmcp', pkg: 'Room.Info', data: { id: 77, name: 'A' }, seq: 1 },
+        { k: 'gmcp', pkg: 'Room.Info', data: { id: 5, name: 'Elsewhere' }, seq: 2 },
+        { k: 'gmcp', pkg: 'Room.Info', data: { id: 77, name: 'A' } },
+      ],
+    });
+    expect(h.out.filter((m) => m.t === 'roomNotes')).toEqual([
+      {
+        t: 'roomNotes',
+        notes: [
+          { seq: 1, note: 'Herb: thyme\n' },
+          { seq: 2, note: '' },
+        ],
+      },
+    ]);
+    // Nothing stamped: nothing posted.
+    const n = h.out.length;
+    h.core.handle({ t: 'events', events: [{ k: 'gmcp', pkg: 'Room.Info', data: { id: 77, name: 'A' } }] });
+    expect(h.out.slice(n).some((m) => m.t === 'roomNotes')).toBe(false);
   });
 
   it('reports a missing WebGL2 at init', () => {

@@ -37,6 +37,8 @@ export interface TrackResult {
   moved: boolean;
   /** Server ids learned in this batch: [serverId, room]. */
   learned: [number, number][];
+  /** Room.Infos with a `seq` (ADR 0077): the located room, or null. */
+  infos: { seq: number; room: number | null }[];
 }
 
 /** Locator statistics (tests, debugging). */
@@ -58,6 +60,8 @@ export class Tracker {
   private readonly queue = new PrespamQueue();
   private readonly group = new GroupTable(PLAYER_COLOR);
   private selfName = '';
+  /** The room the last Room.Info was located in, else null (ADR 0077 notes). */
+  private infoRoom: number | null = null;
   private scene: Scene = EMPTY_SCENE;
   readonly stats: TrackStats = { roomInfos: 0, byHow: { id: 0, learned: 0, dir: 0, text: 0, none: 0 } };
 
@@ -98,7 +102,7 @@ export class Tracker {
 
   /** Applies a batch in order. */
   apply(events: readonly MapEvent[]): TrackResult {
-    const res: TrackResult = { changed: false, moved: false, learned: [] };
+    const res: TrackResult = { changed: false, moved: false, learned: [], infos: [] };
     for (const ev of events) this.one(ev, res);
     res.changed = this.rebuild();
     return res;
@@ -128,9 +132,11 @@ export class Tracker {
         this.queue.clear();
         this.pending = null;
         return;
-      case 'gmcp':
+      case 'gmcp': {
         this.gmcp(ev.pkg, ev.data, res);
+        if (ev.seq !== undefined) res.infos.push({ seq: ev.seq, room: this.infoRoom });
         return;
+      }
       default:
         return;
     }
@@ -144,6 +150,7 @@ export class Tracker {
         return;
       }
       case 'room.info': {
+        this.infoRoom = null;
         const move: Move = this.pending ?? LOOK;
         this.pending = null;
         this.queue.arrive(move);
@@ -170,6 +177,7 @@ export class Tracker {
         }
         this.room = r.room;
         this.located = true;
+        this.infoRoom = r.room;
         res.moved = true;
         // A direction or text match from a tentative origin may be a lookalike: learn nothing from it.
         if (tentative && (r.how === 'dir' || r.how === 'text')) return;

@@ -38,6 +38,9 @@
 //   Room.Info and Char.StatusVars are kept from construction and replayed
 //   after the first `resync`, so a map first opened mid-session finds the
 //   player at once. Desktop keeps "shown and loaded".
+// - Room notes (ADR 0077): with a `PaneContext.mapNotes` that wants them,
+//   Room.Info goes to the worker with a sequence number; the worker's
+//   `roomNotes` answer is handed back with that Room.Info's bus payload.
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -272,6 +275,8 @@ export class MapPane extends PaneShell {
         onMessage: this.onWorker,
       });
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
+      const notes = this.ctx.mapNotes;
+      if (notes) this.forwarder.stampRooms = () => notes.wanted();
       if (!this.visible) this.client.visible(false);
       this.sync();
       if (this.persistIds) this.client.persistIds(true);
@@ -331,6 +336,12 @@ export class MapPane extends PaneShell {
         return;
       case 'found':
         this.ctx.mapMarks?.found(m.req, m.rooms, m.total);
+        return;
+      case 'roomNotes':
+        for (const n of m.notes) {
+          const info = this.forwarder?.takeInfo(n.seq);
+          if (info) this.ctx.mapNotes?.note(info, n.note);
+        }
         return;
       case 'marked':
         if (m.rooms.length > 0) this.liveMarks.add(m.id);

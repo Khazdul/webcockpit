@@ -161,6 +161,13 @@ const MAP_PKG = new Map<string, MapGmcpPackage>(MAP_GMCP_PACKAGES.map((p) => [p.
 export class MapEventForwarder {
   private buf: MapEvent[] = [];
   private scheduled = false;
+  /**
+   * Room notes (ADR 0077): when this returns true, a Room.Info is sent
+   * with a `seq` and its bus payload is kept until `takeInfo(seq)`.
+   */
+  stampRooms: () => boolean = () => false;
+  private seq = 0;
+  private readonly infos = new Map<number, BusEvents['gmcp']>();
 
   constructor(
     private readonly sink: (events: MapEvent[]) => void,
@@ -191,6 +198,17 @@ export class MapEventForwarder {
   /** Drops what has not been sent yet. */
   stop(): void {
     this.buf = [];
+    this.infos.clear();
+  }
+
+  /** The Room.Info sent with `seq` (and forgets it and every older one). */
+  takeInfo(seq: number): BusEvents['gmcp'] | undefined {
+    const m = this.infos.get(seq);
+    for (const k of this.infos.keys()) {
+      if (k > seq) break;
+      this.infos.delete(k);
+    }
+    return m;
   }
 
   readonly onCmd = (c: BusEvents['cmd.sent']): void => {
@@ -199,7 +217,16 @@ export class MapEventForwarder {
 
   readonly onGmcp = (m: BusEvents['gmcp']): void => {
     const pkg = MAP_PKG.get(gmcpKey(m));
-    if (pkg !== undefined) this.push({ k: 'gmcp', pkg, data: m.data });
+    if (pkg === undefined) return;
+    if (pkg === 'Room.Info' && this.stampRooms()) {
+      const seq = ++this.seq;
+      this.infos.set(seq, m);
+      // Answers come back in order; a few stay unanswered at most (a map load).
+      if (this.infos.size > 32) this.infos.delete(this.infos.keys().next().value!);
+      this.push({ k: 'gmcp', pkg, data: m.data, seq });
+      return;
+    }
+    this.push({ k: 'gmcp', pkg, data: m.data });
   };
 
   readonly onLine = (l: BusEvents['text.line']): void => {

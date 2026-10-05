@@ -157,6 +157,10 @@ export class OutputPane {
   /** Sub-pixel wheel scroll not yet applied (scrollTop takes whole px). */
   private wheelRest = 0;
 
+  /** Rows of watched anchor lines (ADR 0077 room notes): null until flushed. */
+  private readonly anchorRows = new WeakMap<Line, HTMLElement | null>();
+  private watching = false;
+
   private queue: Op[] = [];
   private head = 0;
   private frameScheduled = false;
@@ -328,6 +332,47 @@ export class OutputPane {
     for (const styled of rows) this.push(OP_STYLED, null, '', styled);
   }
 
+  /**
+   * Watches `line` (a display copy given to the pane) so that rows can be
+   * inserted after it later (`insertAfter`). One WeakMap entry; lines that
+   * are not watched cost one boolean test per flushed row.
+   */
+  watchAnchor(line: Line): void {
+    if (!this.anchorRows.has(line)) this.anchorRows.set(line, null);
+    this.watching = true;
+  }
+
+  /**
+   * Client rows after the row of `anchor` (a watched line, ADR 0077): into
+   * the queue when it is not flushed yet, else into the DOM after its row.
+   * Like `pushStyled` the rows are not on the bus. False when the anchor's
+   * row is gone (trimmed) or was never shown.
+   */
+  insertAfter(anchor: Line, rows: readonly StyledRow[]): boolean {
+    if (rows.length === 0) return true;
+    for (let i = this.queue.length - 1; i >= this.head; i--) {
+      const op = this.queue[i]!;
+      if (op.kind !== OP_LINE || op.line !== anchor) continue;
+      let at = i + 1;
+      while (at < this.queue.length && this.queue[at]!.kind === OP_ECHO_ATTACH) at++;
+      this.queue.splice(at, 0, ...rows.map((styled): Op => ({ kind: OP_STYLED, line: null, text: '', styled })));
+      this.schedule();
+      return true;
+    }
+    const el = this.anchorRows.get(anchor);
+    if (!el || !el.isConnected) return false;
+    const doc = this.el.ownerDocument;
+    const built = rows.map((r) => renderStyled(doc, r));
+    el.after(...built);
+    const chunk = el.parentElement;
+    if (chunk) this.addChunkLines(chunk, built, 0, built.length, this.lastCols);
+    this.rowCount += built.length;
+    if (el === this.lastRow) this.lastRow = built[built.length - 1]!;
+    this.trimTop();
+    if (!this.scrolled) this.scroller.scrollTop = this.scroller.scrollHeight;
+    return true;
+  }
+
   private push(kind: number, line: Line | null, text: string, styled?: StyledRow): void {
     this.queue.push(styled ? { kind, line, text, styled } : { kind, line, text });
     const pending = this.queue.length - this.head;
@@ -381,6 +426,7 @@ export class OutputPane {
         stats.runs += op.line!.runs.length;
         if (stats.receivedUs === 0) stats.receivedUs = op.line!.ts;
         if (this.stampRows) row.dataset.ts = String(op.line!.ts);
+        if (this.watching && this.anchorRows.has(op.line!)) this.anchorRows.set(op.line!, row);
       } else if (op.kind === OP_SYS) {
         row = doc.createElement('div');
         row.className = 'wc-row wc-sys';

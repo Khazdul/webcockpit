@@ -138,6 +138,11 @@ body {
 .wc-help-note { color: var(--c-hint); }
 .wc-help-code { color: var(--c-item); }
 
+/* Map room notes after the exits line (ADR 0077, MMapper's bold "Note:"
+ * and italic text). */
+.wc-note-label { font-weight: bold; }
+.wc-note-text { font-style: italic; color: var(--c-hint); }
+
 /* Confirmations and listings of typed commands (src/app/messages.ts,
  * ADR 0039): a profile line in the editor's colours, the state word dimmer, and
  * amber when nothing was done or something is off (not found, not open, off).

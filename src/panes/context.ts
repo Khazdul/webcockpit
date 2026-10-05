@@ -16,6 +16,7 @@ import { openWebcockpitDb } from '../core/db';
 import type { ConnState, Sender } from '../core/types';
 import { GameState } from '../gmcp/state';
 import type { MapMarkHub } from '../map/marks';
+import type { MapNotesPort } from '../map/notes';
 import type { MapPaneHost } from '../map/protocol';
 import { SettingsStore } from '../settings';
 
@@ -59,6 +60,8 @@ export interface PaneContext {
   readonly map?: MapPaneHost;
   /** Script map marks (ADR 0057): the Map pane attaches to it once its map is loaded. */
   readonly mapMarks?: MapMarkHub;
+  /** Room notes in the game window (ADR 0077): the Map pane hands the worker's notes to it. */
+  readonly mapNotes?: MapNotesPort;
   /**
    * A log player's pane (ADR 0021): read-only, nothing that would change
    * game or profile state (the Timers corner `+` and charm `×` are gone).
@@ -144,6 +147,7 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     game: p.game ?? new GameState({ now }),
     ...(p.map ? { map: p.map } : {}),
     ...(p.mapMarks ? { mapMarks: p.mapMarks } : {}),
+    ...(p.mapNotes ? { mapNotes: p.mapNotes } : {}),
     ...(p.player ? { player: true } : {}),
   };
 }

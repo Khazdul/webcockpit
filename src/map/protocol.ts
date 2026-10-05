@@ -108,7 +108,11 @@ export type MoveFailureKind = 'fail' | 'dead';
 
 /** One forwarded game event. */
 export type MapEvent =
-  | { k: 'gmcp'; pkg: MapGmcpPackage; data: unknown }
+  /**
+   * `seq` (Room.Info only, ADR 0077): set when the main thread wants the
+   * room's note; the worker answers with `roomNotes` for it.
+   */
+  | { k: 'gmcp'; pkg: MapGmcpPackage; data: unknown; seq?: number }
   | { k: 'cmd'; text: string }
   | { k: 'fail'; kind: MoveFailureKind }
   | { k: 'conn'; state: ConnState; replay?: boolean }
@@ -185,6 +189,12 @@ export type WorkerToMain =
   | { t: 'found'; req: number; rooms: number[]; total: number }
   /** A `mark` placed on these rooms (empty: nothing matched; then `markEnded` follows at once). */
   | { t: 'marked'; id: number; rooms: number[]; total: number }
+  /**
+   * Room notes (ADR 0077): one entry per Room.Info forwarded with a `seq`,
+   * in order; `note` is the located room's map note, '' when the room was
+   * not located or has none.
+   */
+  | { t: 'roomNotes'; notes: { seq: number; note: string }[] }
   /** A mark ended (its time ran out, `unmark`, or a map load). */
   | { t: 'markEnded'; id: number }
   /** Locator state (P2): the player's room index, or null when unknown. */

@@ -332,6 +332,10 @@ export class MapWorkerCore {
     if (r.changed) this.renderer?.setScene(this.scene());
     if (draw) this.requestRender();
     this.postStatus();
+    if (r.infos.length > 0) {
+      const notes = r.infos.map((i) => ({ seq: i.seq, note: map && i.room !== null ? (map.notes[i.room] ?? '') : '' }));
+      this.host.post({ t: 'roomNotes', notes });
+    }
     if (r.learned.length > 0 && this.persistIds && this.host.ids && this.tracker.mapHash !== '') {
       this.host.ids.save(this.tracker.mapHash, r.learned).catch(() => {});
     }

@@ -78,6 +78,7 @@ import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
+import { RoomNotes } from '../map/notes';
 import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
@@ -245,6 +246,8 @@ export class App {
   private readonly scriptOpts: Pick<AppOptions, 'scriptStorage' | 'loadLua'>;
   /** Script map marks (ADR 0057); the Map pane attaches to it. */
   readonly mapMarks = new MapMarkHub();
+  /** Map room notes after the exits line (ADR 0077); the log player's App too. */
+  readonly mapNotes = new RoomNotes({ enabled: () => this.settings.get().mapper.notes });
   private hostP: Promise<ScriptHost> | null = null;
   private hostRef: ScriptHost | null = null;
   /** The last GMCP values for the scripts' `gmcp` table, kept from the start (no Lua). */
@@ -338,6 +341,7 @@ export class App {
       ...(player ? { localStorage: null, sessionStorage: null, player: true } : {}),
       ...(opts.map ? { map: opts.map } : {}),
       ...(player ? {} : { mapMarks: this.mapMarks }),
+      mapNotes: this.mapNotes,
     });
     this.cockpit = new Cockpit({
       root: this.el,
@@ -359,6 +363,7 @@ export class App {
       ...(player ? { stampRows: true, wheelScale: 1 } : {}),
     });
     if (perf) perf.output = this.output;
+    this.unsubs.push(this.mapNotes.attach(bus, this.output));
     this.input = new InputPane(bus, this.cockpit.inputEl, {
       sender: this.session,
       output: this.output,
