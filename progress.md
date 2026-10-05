@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 21 (room notes and map search; in progress). Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -26,6 +26,7 @@ Current stage: 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stag
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
 | 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
+| 21 | Room notes and map search | In progress | `docs/stages/21-map-search.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

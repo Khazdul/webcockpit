@@ -308,6 +308,10 @@ ADR 0003.
 
 - **Own map pane.** Imports MMapper map files (arda.xml or MMapper's web
   JSON) and tracks the player with `Room.Info` and `Event.Moved`.
+- **Room notes and hover** (ADR 0077). The map file's room notes show
+  in the game window after the room's exits (Options → Mapper, on by
+  default). Resting the pointer on a room for about 3 s shows a small
+  box with its name and note (long press on touch).
 - **Kept open:** the MMapper iframe route.
 - **Nothing bundled.** Map data is never shipped with the client.
 
@@ -450,6 +454,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     on the Map pane for a while, blinking, with arrows when off view and
     an optional `focus` that zooms out to show them; `mapUnmark(handle)`;
     `mapFind(query, fn)`. Map off: `nil, "map off"`. Live only.
+  - Map search (ADR 0077): `mapSearch(query, fn)` by name, description,
+    contents, note, area, exits, flags or all, with case and regex
+    options; results nearest first by path, with direction text.
+    `mapRoom(id, fn)` and `mapPath(id, fn)`. `mapMark` can last until
+    unmarked and can focus until the player moves.
   - Game time (ADR 0074): `gameTime([epoch])` gives the game date,
     time, season, period of day and moon (phase, level, waxing,
     visibility, position) for now or any real time, or nil while the
@@ -489,6 +498,11 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     is also an advanced alias path. `almanac export` / `import` move the
     player's events as one `ALM1:` line. A reminder is a line in the game
     window and a UI message (there is no sound API).
+  - **Map search:** a pane like MMapper's Find Rooms dialog: a query,
+    the field to search, case and regex options, and results nearest
+    first with the way there as text. Clicked results pulse on the map
+    until cleared, zoomed to show the player and the marks (ADR 0077,
+    stage 21).
 
   Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
   the hue is kept and the lightness moved to 4.5:1 against the current
@@ -628,6 +642,7 @@ what feedback is wanted.
 | 18 | **Almanac.** Clock moon and season model, the game time API for scripts, and the bundled almanac script with data-driven events (ADR 0074). | Open the almanac; plan a session; add an event of your own. |
 | 19 | **Phone access.** Touch fixes for menus and a phone layout, gated so desktop is unchanged (§2.12, ADR 0075). | Open WebCockpit on your phone, log in, chat, browse the menus. |
 | 20 | **Mudlet import.** Mudlet profiles and packages to a plain tt++ profile through a Lua-subset translator, with the import report (§2.11, ADR 0076). | Import your Mudlet profile and read the report; play with the aliases and keys. |
+| 21 | **Room notes and map search.** Notes in the game window, map hover box, search/room/path API, the bundled Map search pane (ADR 0077). | Walk past herb rooms; hover the map; search for a herb and follow the marks. |
 
 ## 6. Open questions for the owner
 
