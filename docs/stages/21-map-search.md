@@ -89,13 +89,14 @@ by itself). Walk a little so the map knows where you are.
 
 - Rest the mouse over a room on the map for about 3 seconds: a box with
   the room's name (green) and note (*Minimal*, the default). It sits
-  beside the Map pane, on the side with the most room, at the pointer's
-  row. Also on the map's top row, and after a click with the mouse kept
-  still.
+  just right of and below the pointer (left / above near the window's
+  edges), and may reach past the Map pane's edges. Also on the map's top
+  row, and after a click with the mouse kept still.
 - Options → Mapper → *Room info on hover*: *Full* shows MMapper's room
   preview (name, description, contents in italics, `Exits: {north},
   =east=, …`, the note); *Off* shows nothing. *Hover text size*: Small,
-  Medium, Large.
+  Medium (the default, a little smaller than the game text), Large (the
+  game text's size).
 - On the phone: a long press on a room shows the same box.
 
 **3. Map search pane (part C).**
@@ -104,8 +105,8 @@ by itself). Walk a little so the map knows where you are.
   Map search pane opens at the right edge. `mapsearch` shows or hides it;
   `mapsearch <text>` searches straight away.
 - Choose *Notes*, type `herb`, press Enter. The list shows the nearest
-  rooms first: steps, name and area. Point at a row: the steps and the
-  note.
+  rooms first: steps, name and area. Nothing in the pane shows a
+  tooltip.
 - Click a row or two: they get a `●`, pulse on the map, and the map zooms
   out to show you and them. Walk one step: the map follows you again and
   the marks keep pulsing.
@@ -177,3 +178,17 @@ Details: ADR 0077 "Feedback round 1".
    smaller still; Large = today's Medium.
 4. Pane bar gear: not liked; removed.
 5. Notes in the game window look fine.
+
+### Round 2 status
+
+Details: ADR 0077 "Feedback round 2".
+
+- [x] 1. The hover box sits beside the pointer (12 px right and below,
+  flipped left / up at the viewport's edges), may extend past the pane,
+  always inside the viewport; the "side with the most room" rule is gone.
+- [x] 2. Map search: no tooltips (rows, column header, radios, Find,
+  Close, Mark all, Clear); clicks unchanged.
+- [x] 3. Hover text sizes: Small 0.72, Medium 0.85 (default, the old
+  Small), Large 1 (the old Medium). Stored keys unchanged.
+- 4. Pane bar gear: reverted (commit 3544b6d).
+- 5. Notes in the game window: no change needed.

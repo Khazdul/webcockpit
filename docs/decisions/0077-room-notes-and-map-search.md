@@ -370,3 +370,31 @@ These notes replace the parts of A and C they name.
   green name, text sizes, click then still, the top row of a borderless
   map under the grip), `mapsearch-pane.spec.ts` (no Way / Options,
   tooltip, `Círdan`), `phone-map.spec.ts` (inside the viewport).
+
+### Feedback round 2 (2026-10-05)
+
+Owner feedback (stage file, "Round 2"). These notes replace the parts of
+round 1 they name.
+
+- **Beside the pointer (1).** The box outside the pane usually landed far
+  from the pointer; the owner wants it near the pointer always, as with a
+  full-window map. `placeHoverBox(bw, bh, px, py, vw, vh)`: 12 px right
+  of and below the pointer, flipped left / up where it would leave the
+  viewport, then clamped inside it (4 px margin). The pane rule (side
+  with the most room, above / below) and `data-where` are gone; the box
+  stays `position: fixed` in the cockpit, so it may extend past the pane
+  and a long Full room is not clipped. Desktop and phone use the same rule.
+- **No tooltips in Map search (2).** `mapsearch.lua` passes no hint to
+  any link: result rows, the column header (its tooltip-only link is
+  gone), the Search radios, Find, Close, Mark all, Clear. Clicks are
+  unchanged. The help text no longer says to point at a row.
+- **Text sizes (3).** Small / Medium / Large = 0.72 / 0.85 / 1 of the
+  cockpit font (was 0.85 / 1 / 1.2): the old Small is the new Medium (the
+  default), Large is the old Medium. The keys and the default `medium`
+  are unchanged, so a user on the default gets the new Medium (intended).
+  The `ch` width caps scale with the font as before.
+- **Tests.** Unit: `map-hover.test.ts` (`placeHoverBox`: beside, flipped,
+  clamped), `scripts-mapsearch.test.ts` (no link has a hint). E2E:
+  `map-notes.spec.ts` (box beside the pointer, inside the viewport),
+  `mapsearch-pane.spec.ts` (no tooltip on a row, the header, a radio,
+  Find), `phone-map.spec.ts` (inside the viewport).

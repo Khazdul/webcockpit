@@ -315,9 +315,10 @@ ADR 0003.
   touch); Options → Mapper *Room info on hover: Full* shows MMapper's
   room preview instead (name, description, contents, the exits line as
   MMapper writes it, note; no flags, area or terrain), and *Hover text
-  size* is Small / Medium / Large. The box may extend outside the Map
-  pane: beside the pane on the side with the most room, inside the
-  viewport (feedback round 1).
+  size* is Small / Medium / Large (0.72 / 0.85 / 1 of the cockpit font,
+  default Medium; round 2). The box sits beside the pointer (right and
+  below, flipped left / up at the viewport's edges), may extend past the
+  Map pane's edges and stays inside the viewport (round 2).
 - **Kept open:** the MMapper iframe route.
 - **Nothing bundled.** Map data is never shipped with the client.
 
@@ -523,8 +524,8 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     Close; Search radios in two columns (Name, Description, Contents,
     Area | Exits, Notes, Flags, All); case- and accent-blind (no Case
     sensitive or Regular expression for now, round 1); results nearest
-    first (up to 200) with steps, room name and area, the steps and the
-    note in the row's tooltip (no way text, round 1). Nothing is sent to
+    first (up to 200) with steps, room name and area (no way text, round
+    1); no tooltips anywhere in the pane (round 2). Nothing is sent to
     the game. A click marks or unmarks a room; marked rooms pulse on the
     map until Clear or Close, and each change zooms to show the player
     and the marks until the player moves. Mark all, Clear; a new search
