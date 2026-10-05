@@ -17,9 +17,11 @@ import {
   MAP_GMCP_PACKAGES,
   MAP_PROTOCOL_VERSION,
   type MainToWorker,
+  type MapAsk,
   type MapEvent,
   type MapGmcpPackage,
   type MapSource,
+  type MarkFocus,
   type MarkStyle,
   type MarkTarget,
   type RoomQuery,
@@ -98,8 +100,13 @@ export class MapClient {
     this.post({ t: 'find', req, query });
   }
 
-  mark(id: number, target: MarkTarget, style: MarkStyle, ms: number, focus: boolean): void {
+  mark(id: number, target: MarkTarget, style: MarkStyle, ms: number, focus: MarkFocus): void {
     this.post({ t: 'mark', id, target, style, ms, focus });
+  }
+
+  /** Map search, paths and room details (ADR 0077 §B); answered by `answer`. */
+  ask(req: number, ask: MapAsk): void {
+    this.post({ t: 'ask', req, ask });
   }
 
   unmark(id: number): void {

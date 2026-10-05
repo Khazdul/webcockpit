@@ -29,7 +29,8 @@
 //   own map; a pane with a `PaneContext.map` host (log player, HTML
 //   replay) keeps them in memory.
 // - Script map marks (ADR 0057): once its map is loaded the pane attaches a
-//   port to `PaneContext.mapMarks` (finds, marks and unmarks go to the
+//   port to `PaneContext.mapMarks` (finds, marks, unmarks and asks (map
+//   search, ADR 0077 §B) go to the
 //   worker; the answers back to the hub) and detaches on dispose.
 //   `mapMarks` (dataset) counts the live marks.
 // - Phone (ADR 0075 §3.3, `device().phone`): the MAP tab is hidden while
@@ -340,6 +341,7 @@ export class MapPane extends PaneShell {
       find: (req, query) => this.client?.find(req, query),
       mark: (id, target, style, ms, focus) => this.client?.mark(id, target, style, ms, focus),
       unmark: (id) => this.client?.unmark(id),
+      ask: (req, q) => this.client?.ask(req, q),
       shown: () => this.visible && this.loaded && this.client !== null && this.cols > 0,
     });
   }
@@ -369,6 +371,9 @@ export class MapPane extends PaneShell {
         return;
       case 'found':
         this.ctx.mapMarks?.found(m.req, m.rooms, m.total);
+        return;
+      case 'answer':
+        this.ctx.mapMarks?.answered(m.req, m.answer);
         return;
       case 'roomAt':
         {

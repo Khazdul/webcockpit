@@ -15,10 +15,37 @@ import type { ConnState } from '../core/types';
 import type { MapData } from './model';
 import type { RoomHoverInfo } from './hover';
 import type { RoomQuery } from './query';
+import type { RoomDetails, SearchHit, SearchQuery } from './search';
 import type { Scene } from './scene';
 
 export type { RoomQuery } from './query';
 export type { RoomHoverInfo } from './hover';
+export type { RoomDetails, SearchHit, SearchQuery } from './search';
+
+/** Most rooms one mark takes by id (ADR 0077 §B; a query mark keeps QUERY_MAX). */
+export const MARK_ROOMS_MAX = 200;
+
+/**
+ * A mark's focus (ADR 0057, ADR 0077 §B): `true` fits the view to the
+ * player and the marks while the mark blinks; `'move'` fits it once and
+ * lets go at the player's first move to another room (the zoom comes back,
+ * the view follows the player; the marks stay).
+ */
+export type MarkFocus = boolean | 'move';
+
+/** A question for the map's data (ADR 0077 §B), answered by `answer`. */
+export type MapAsk =
+  | { k: 'search'; query: SearchQuery }
+  | { k: 'path'; room: number }
+  | { k: 'room'; room: number };
+
+/** The answer to a `MapAsk` of the same `k`. */
+export type MapAnswer =
+  /** `error`: the query failed (a bad regular expression); `results` is then empty. */
+  | { k: 'search'; results: SearchHit[]; total: number; here: number | null; error?: string }
+  /** null: unknown position, no such room or no path. */
+  | { k: 'path'; dirs: string | null; steps: number | null }
+  | { k: 'room'; room: RoomDetails | null };
 
 /** How a mark looks (ADR 0057). */
 export interface MarkStyle {
@@ -162,9 +189,14 @@ export type MainToWorker =
    */
   /** Rooms matching a query (ADR 0057); answered by `found`. */
   | { t: 'find'; req: number; query: RoomQuery }
-  /** Marks rooms for `ms` ms; answered by `marked`, then `markEnded`. `focus`: fit the view. */
-  | { t: 'mark'; id: number; target: MarkTarget; style: MarkStyle; ms: number; focus?: boolean }
+  /**
+   * Marks rooms for `ms` ms (Infinity: until `unmark`); answered by
+   * `marked`, then `markEnded`. `focus`: fit the view (MarkFocus).
+   */
+  | { t: 'mark'; id: number; target: MarkTarget; style: MarkStyle; ms: number; focus?: MarkFocus }
   | { t: 'unmark'; id: number }
+  /** Map search, paths and room details for scripts (ADR 0077 §B); answered by `answer`. */
+  | { t: 'ask'; req: number; ask: MapAsk }
   /**
    * The hover box (ADR 0077): the room under (x, y) CSS px on the current
    * layer; `full` adds description, exits and flags. Answered by `roomAt`.
@@ -213,6 +245,8 @@ export type WorkerToMain =
       rect?: { x: number; y: number; w: number; h: number };
       info?: RoomHoverInfo;
     }
+  /** An `ask` answered. */
+  | { t: 'answer'; req: number; answer: MapAnswer }
   /** A mark ended (its time ran out, `unmark`, or a map load). */
   | { t: 'markEnded'; id: number }
   /** Locator state (P2): the player's room index, or null when unknown. */

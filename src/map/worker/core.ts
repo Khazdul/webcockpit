@@ -23,14 +23,31 @@
 // the marks into the scene at most every MARK_TICK_MS (blink and fade).
 // `focus` fits the view to the player and the marks; a pan or zoom by the
 // player ends the fitting, and when the mark ends an untouched view gets
-// its zoom back, centred on the player.
+// its zoom back, centred on the player. A mark of `ms` Infinity lasts
+// until `unmark` and blinks all the while; focus `'move'` fits once and
+// lets go at the player's first move to another room (ADR 0077 §B).
+//
+// Map search (ADR 0077 §B): `ask` answers searches, paths and room
+// details (search.ts); the shortest-path tree from the player's room is
+// cached per map until the player's room changes.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { hoverInfo, roomAt } from '../hover';
 import { buildIndexes, type MapData } from '../model';
 import { type Inflate, inflateZlib, mapHash, readMm2 } from '../mm2';
-import { MAP_PROTOCOL_VERSION, type MainToWorker, type MapEvent, type MapSource, type MarkStyle, type WorkerToMain } from '../protocol';
-import { QUERY_MAX, findRooms } from '../query';
+import {
+  MAP_PROTOCOL_VERSION,
+  MARK_ROOMS_MAX,
+  type MainToWorker,
+  type MapAnswer,
+  type MapAsk,
+  type MapEvent,
+  type MapSource,
+  type MarkStyle,
+  type WorkerToMain,
+} from '../protocol';
+import { findRooms } from '../query';
+import { roomDetails, roomPath, searchRooms } from '../search';
 import type { Scene, SceneMark } from '../scene';
 import { type Renderer, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
@@ -97,8 +114,11 @@ export class MapWorkerCore {
   private readonly marks = new Map<number, LiveMark>();
   private markLoop = false;
   private lastMarkTick = -Infinity;
-  /** The view fitted to a mark: its id, the zoom before, and whether the player moved the view since. */
-  private focus: { id: number; savedZoom: number; touched: boolean } | null = null;
+  /**
+   * The view fitted to a mark: its id, the zoom before, whether the player
+   * moved the view since, and `move`: let go at the player's next move.
+   */
+  private focus: { id: number; savedZoom: number; touched: boolean; move: boolean } | null = null;
   /** Mark scene refreshes (tests, the bench). */
   markTicks = 0;
 
@@ -136,6 +156,9 @@ export class MapWorkerCore {
         this.host.post({ t: 'found', req: m.req, rooms: r.rooms, total: r.total });
         return;
       }
+      case 'ask':
+        this.host.post({ t: 'answer', req: m.req, answer: this.answer(m.ask) });
+        return;
       case 'roomAt': {
         const hit = this.map ? roomAt(this.map, this.view, this.css.w, this.css.h, m.x, m.y) : null;
         if (!hit || !this.map) this.host.post({ t: 'roomAt', req: m.req, room: null });
@@ -324,17 +347,50 @@ export class MapWorkerCore {
     }
   }
 
+  /** Answers a script's map question (ADR 0077 §B). */
+  private answer(q: MapAsk): MapAnswer {
+    const map = this.map;
+    const here = this.tracker.current.room;
+    switch (q.k) {
+      case 'search':
+        if (!map) return { k: 'search', results: [], total: 0, here: null };
+        try {
+          return { k: 'search', ...searchRooms(map, q.query, here) };
+        } catch (err) {
+          return { k: 'search', results: [], total: 0, here: null, error: err instanceof Error ? err.message : String(err) };
+        }
+      case 'path': {
+        const p = map ? roomPath(map, here, q.room) : null;
+        return { k: 'path', dirs: p ? p.dirs : null, steps: p ? p.steps : null };
+      }
+      case 'room':
+        return { k: 'room', room: map ? roomDetails(map, q.room) : null };
+      default:
+        return { k: 'room', room: null };
+    }
+  }
+
   /** Applies a batch of game events (tracking.ts). */
   private events(events: readonly MapEvent[]): void {
+    const before = this.tracker.current.room;
     const r = this.tracker.apply(events);
     const map = this.map;
     const room = this.tracker.current.room;
     let draw = r.changed;
     if (r.moved && map && room !== null) {
-      // While a mark holds the view, a move re-fits it instead.
-      const f = this.focus && !this.focus.touched ? this.marks.get(this.focus.id) : undefined;
-      const v = f ? this.fitted(f) : centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!);
-      if (v.x !== this.view.x || v.y !== this.view.y || v.layer !== this.view.layer) {
+      // While a mark holds the view, a move re-fits it instead; a `move`
+      // focus lets go at a move to another room (a look keeps it).
+      const fo = this.focus;
+      const f = fo && !fo.touched ? this.marks.get(fo.id) : undefined;
+      let v: View;
+      if (f && fo!.move) {
+        if (room === before) v = this.view;
+        else {
+          this.focus = null;
+          v = centreOn({ ...this.view, zoom: fo!.savedZoom }, map.x[room]!, map.y[room]!, map.z[room]!);
+        }
+      } else v = f ? this.fitted(f) : centreOn(this.view, map.x[room]!, map.y[room]!, map.z[room]!);
+      if (v.x !== this.view.x || v.y !== this.view.y || v.layer !== this.view.layer || v.zoom !== this.view.zoom) {
         this.view = v;
         draw = true;
       }
@@ -383,7 +439,7 @@ export class MapWorkerCore {
     let total = 0;
     if (map) {
       if ('rooms' in m.target) {
-        rooms = m.target.rooms.filter((r) => Number.isInteger(r) && r >= 0 && r < map.roomCount).slice(0, QUERY_MAX);
+        rooms = m.target.rooms.filter((r) => Number.isInteger(r) && r >= 0 && r < map.roomCount).slice(0, MARK_ROOMS_MAX);
         total = rooms.length;
       } else {
         const r = findRooms(map, m.target.query, this.tracker.current.room);
@@ -397,13 +453,14 @@ export class MapWorkerCore {
       return;
     }
     const now = this.host.now();
+    // Infinity: until unmarked (ADR 0077 §B).
     const blinkEnd = now + Math.max(0, m.ms);
     const linger = Math.max(0, Math.min(LINGER_MAX_MS, (m.style.linger ?? 0) * 1000));
     const live: LiveMark = { id: m.id, rooms, style: m.style, start: now, blinkEnd, end: blinkEnd + linger, lingering: false };
     this.marks.set(m.id, live);
     if (m.focus) {
       // A later focus keeps the zoom saved by the first one.
-      this.focus = { id: m.id, savedZoom: this.focus ? this.focus.savedZoom : this.view.zoom, touched: false };
+      this.focus = { id: m.id, savedZoom: this.focus ? this.focus.savedZoom : this.view.zoom, touched: false, move: m.focus === 'move' };
       this.view = this.fitted(live);
     }
     this.renderer?.setScene(this.scene());
@@ -421,9 +478,10 @@ export class MapWorkerCore {
     return fitRooms(this.view, you !== null && you >= 0 && you < map.roomCount ? pos(you) : null, targets, this.css.w, this.css.h);
   }
 
-  /** The player panned or zoomed: a focus stops fitting and does not restore. */
+  /** The player panned or zoomed: a focus stops fitting and does not restore (a `move` focus simply ends). */
   private touch(): void {
-    if (this.focus) this.focus.touched = true;
+    if (this.focus?.move) this.focus = null;
+    else if (this.focus) this.focus.touched = true;
   }
 
   /** Ends mark `id` (`silent`: a map load, the view is left alone). */

@@ -352,6 +352,7 @@ describe('MapMarkHub', () => {
       find: (req) => void sent.push(`find ${req}`),
       mark: (id) => void sent.push(`mark ${id}`),
       unmark: (id) => void sent.push(`unmark ${id}`),
+      ask: (req, q) => void sent.push(`ask ${req} ${q.k}`),
       shown: () => shown,
     };
     const detach = hub.attach(port);
@@ -365,12 +366,17 @@ describe('MapMarkHub', () => {
     hub.find({ name: 'x' }, (r) => void got.push(`found ${r.total}`));
     expect(sent).toEqual([`mark ${id}`, `find ${id + 1}`]);
     hub.found(id + 1, [], 0);
+    // Asks (ADR 0077 §B): answered by req; a detach answers null.
+    expect(hub.ask({ k: 'room', room: 3 }, (a) => void got.push(`room ${a?.k === 'room' && a.room === null ? 'none' : '?'}`))).toBe(true);
+    expect(sent.at(-1)).toBe(`ask ${id + 2} room`);
+    hub.answered(id + 2, { k: 'room', room: null });
+    hub.ask({ k: 'path', room: 3 }, (a) => void got.push(`path ${a === null ? 'null' : a.k}`));
     expect(hub.unmark(id)).toBe(true);
     expect(sent.at(-1)).toBe(`unmark ${id}`);
     shown = false;
     expect(hub.unavailable()).toBe('map off');
     detach();
-    expect(got).toEqual([`marked 1`, 'found 0', 'ended']);
+    expect(got).toEqual([`marked 1`, 'found 0', 'room none', 'path null', 'ended']);
     expect(hub.live).toBe(0);
   });
 });

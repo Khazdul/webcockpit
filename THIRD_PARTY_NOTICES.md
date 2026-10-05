@@ -23,6 +23,7 @@ map editing); no Qt types; data kept in typed arrays.
 | `src/map/mm2.ts` | `mapstorage/mapstorage.cpp`, `map/WorldBuilder.cpp` (sanitize) | Reader for schema 17–42 only; skips room contents and notes; typed-array output |
 | `src/map/mm2-write.ts` | inverse of the `.mm2` format above | Writer for tests and replay subsets |
 | `src/map/view.ts` | `display/ProjectionUtils.cpp`, `display/MapCanvasData.cpp` (2D camera) | Pan, zoom and layer only |
+| `src/map/search.ts` | `mapdata/roomfilter.cpp`, `mapdata/shortestpath.cpp`, `parser/abstractparser.cpp` (`compressDirections`), `parser/AbstractParser-Commands.cpp` (flag names) | Script map search, paths and room details; one Dijkstra over the whole map (2026-10-05) |
 | `src/map/path.ts` | `parser/AbstractParser-Commands.cpp`, `parser/Abbrev.cpp`, `parser/abstractparser.cpp`, `parser/mumexmlparser.cpp`, `parser/AbstractParser-Actions.cpp` | Prespam queue and path walk only |
 | `src/map/group.ts` | `group/mmapper2group.cpp`, `group/CGroupChar.cpp`, `group/ColorGenerator.cpp` | GMCP group table and colours only |
 | `src/map/render/rooms.ts` | `display/MapCanvasRoomDrawer.cpp` | Instanced quads per layer |
