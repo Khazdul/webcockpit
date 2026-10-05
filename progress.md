@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 21 (room notes and map search; in progress). Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 21 (room notes and map search; in progress). New-user defaults (ADR 0078) done, unreleased, ships with 0.1.49. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -48,7 +48,9 @@ Newest first.
   (`tests/e2e/legacy-state.ts`); `new-user.spec.ts` covers a fresh one.
 - **Open:** an install with no settings record but old use counts as new;
   an unmoved map is 4 % narrower for existing users too.
-- **Next:** owner looks at a fresh profile; release with 0.1.49.
+- **Next:** owner looks at a fresh profile (private window); release
+  with 0.1.49 on the owner's go (not yet).
+- **Commits:** 7e59808…646a320, plus this one.
 
 ### 2026-10-05 — Stage 21: Room notes and map search
 

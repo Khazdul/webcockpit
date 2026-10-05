@@ -228,3 +228,8 @@ order, and whether the short names should be shorter or longer.
 ## Owner feedback
 
 2026-10-03: overview test OK, approved.
+
+2026-10-05: no tooltips on the bar's buttons or arrows (removed in
+7e59808). The bar is now on by default for a new install, at the bottom
+of the right dock (ADR 0078). Test step 2's "point at a button" no longer
+applies.
