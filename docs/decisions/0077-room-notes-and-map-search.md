@@ -292,3 +292,81 @@ Package notes (C, built 2026-10-05):
   `tests/e2e/mapsearch-pane.spec.ts` (bundled map, located player: Notes
   "Herb", click marks, Flags "rent" keeps them, Clear, close cross clears,
   the alias focuses the field).
+
+### Feedback round 1 (2026-10-05)
+
+Owner feedback after testing (stage file, "Round 1"): items 1–7 and 9
+here; item 8 (the pane bar's gear menu) belongs to the pane bar (ADR 0065).
+These notes replace the parts of A and C they name.
+
+- **Top edge (1).** Cause: on a pane with *Border off* the title grip
+  (`.wc-pane-grip`, one cell row, z-index 1) lies over the canvas's top
+  row (ADR 0012), so the canvas got `pointerleave` and no moves there. A
+  framed pane (the default float) was fine. Fix: the mouse hover listens
+  on the pane element (the grip's moves bubble there), maps the point to
+  the canvas and cancels outside it; `pointerdown` / `pointerleave` on the
+  pane cancel. The pane drag itself is unchanged (the grip still takes the
+  press). Touch keeps its canvas listeners (a phone has no grip).
+- **Green name (2).** `--c-ok`, the theme's green, fitted to 4.5:1 on dark
+  and light backgrounds (ADR 0041); Cockpit shows room names in ANSI green
+  as the game does, but the ANSI green is not contrast-fitted.
+- **Text size (3).** `settings.mapper.hoverSize`: `small` / `medium` /
+  `large` (default medium = the cockpit font), `migrateMapper` clamps;
+  Options → Mapper *Hover text size*. CSS scales `font-size` and
+  `line-height` by 0.85 / 1 / 1.2 on `[data-size]`; the width caps are in
+  `ch`, so they scale with it.
+- **Click then still (4).** A primary button released over the canvas (a
+  click or the end of a drag; `pointerup` only, not a lost capture) starts
+  a new 3 s rest at that point (`MapHover.up`). Button down and drag still
+  hide.
+- **Full = MMapper's room preview (5).** `previewRoom` = `displayRoom`
+  (name, desc, contents) + `displayExits` + the note. Ours: name; the
+  description as one paragraph (MUME's hard line breaks at 80 columns are
+  joined so the capped box wraps it); the contents lines in italic; the
+  exits line as `displayExits` builds it without "(emulated)" (`Exits:
+  {north}, =east=, -south-, |up|, ~west~, *down*.`, `Exits: none.`:
+  door braces, climb bars, road `=` between roads, trail `-`, water `~`,
+  sundeath `*` from the first target, MMapper's order N S E W U D); then a
+  bold `Note:` and the note (one line on its row, else each line under it
+  indented two spaces, as `displayRoom`). Skipped: the `### Room …`
+  header, `enhanceExits` (its tail names flags: `smob`, `deathtrap`,
+  `attention`, hidden door names), mob/load flag words, area, terrain.
+  Minimal is unchanged (name + note lines, no label). The sun markers are
+  MMapper's and cheap (half of arda.mm2's rooms have one, a `*` around an
+  exit into a sunlit room).
+- **Outside the pane (6).** The box is `position: fixed` (z-index 250,
+  over floats, under the drag shield) in the cockpit element (the pane's
+  parent), so it inherits the theme of the app or an in-app log player /
+  HTML replay. Placement (`placeHoverBox`, pure): beside the pane on the
+  side with more room that fits the box (left of a right-docked map), its
+  top at the pointer's row; else above or below the pane, centred on the
+  pointer; else beside the pointer (the old rule); always inside the
+  viewport with a 4 px margin. Phone (`device().phone`): beside the
+  finger, inside the viewport (one view at a time). Width caps 36ch /
+  56ch (Minimal / Full) and `100vw − 8px`; a box taller than the viewport
+  drops description words, then contents lines, from the end and shows
+  `…`. It hides as before and also when the layout moves, resizes or hides
+  the pane (`MapPane.place`). A containing block other than the viewport
+  (none today) is corrected by measuring where (0, 0) lands.
+- **No way (7).** The Map search pane has no Way column and no way in the
+  row tooltip (`N steps away.`, `You are here.`, `No path from here.`).
+  The Steps column and the order stay. The API keeps `dirs` and `mapPath`.
+- **No Case / Regex, diacritics (9).** The pane drops both checkboxes;
+  the query asks `{text, field, max}` and a stored `case` / `regex` is
+  ignored (the store now keeps text and field). The API keeps `case` and
+  `regex`. Diacritics: §B's fold already applied to both sides, and
+  arda.mm2's text is all ASCII (no character above U+007F in names,
+  descriptions, contents, notes or areas: MMapper saves ASCII), so `Círdan`
+  already found `Cirdan's Home`. What it did not cover: combining marks
+  outside U+0300–036F and letters NFD keeps whole besides the Nordic ones.
+  `foldAscii` now strips every `\p{M}` and folds `Ł ł Đ đ Ħ ħ ı Ŧ ŧ` too
+  (the locator uses the same fold on both sides, so its matching is
+  unchanged for real text). Plain mode is case- and accent-insensitive.
+- **Tests.** Unit: `map-hover.test.ts` (Full content and lines, exits
+  markers, `placeHoverBox`, `up`), `map-search.test.ts` (diacritics per
+  field; arda `Círdan`, `Lhûn`), `scripts-mapsearch.test.ts` (no Options,
+  no Way, hints, stored case/regex ignored), settings and Options →
+  Mapper. E2E: `map-notes.spec.ts` (outside the pane, Full as MMapper,
+  green name, text sizes, click then still, the top row of a borderless
+  map under the grip), `mapsearch-pane.spec.ts` (no Way / Options,
+  tooltip, `Círdan`), `phone-map.spec.ts` (inside the viewport).

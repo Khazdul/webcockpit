@@ -87,10 +87,15 @@ by itself). Walk a little so the map knows where you are.
 
 **2. Room info on hover (part A).**
 
-- Rest the mouse over a room on the map for about 3 seconds: a small box
-  with the room's name and note (*Minimal*, the default).
-- Options → Mapper → *Room info on hover*: *Full* adds the description,
-  exits (doors in brackets) and mob/load flags; *Off* shows nothing.
+- Rest the mouse over a room on the map for about 3 seconds: a box with
+  the room's name (green) and note (*Minimal*, the default). It sits
+  beside the Map pane, on the side with the most room, at the pointer's
+  row. Also on the map's top row, and after a click with the mouse kept
+  still.
+- Options → Mapper → *Room info on hover*: *Full* shows MMapper's room
+  preview (name, description, contents in italics, `Exits: {north},
+  =east=, …`, the note); *Off* shows nothing. *Hover text size*: Small,
+  Medium, Large.
 - On the phone: a long press on a room shows the same box.
 
 **3. Map search pane (part C).**
@@ -99,20 +104,19 @@ by itself). Walk a little so the map knows where you are.
   Map search pane opens at the right edge. `mapsearch` shows or hides it;
   `mapsearch <text>` searches straight away.
 - Choose *Notes*, type `herb`, press Enter. The list shows the nearest
-  rooms first: steps, name, area and the way as text (nothing is sent to
-  the game). Point at a row: the whole way and the note.
+  rooms first: steps, name and area. Point at a row: the steps and the
+  note.
 - Click a row or two: they get a `●`, pulse on the map, and the map zooms
   out to show you and them. Walk one step: the map follows you again and
   the marks keep pulsing.
 - Choose *Flags* and search `rent` (inns), then *Name* and a room name.
   The marks from before stay; *Mark all* marks the list; *Clear* removes
   every mark. *Close* (or the pane's ×) hides the pane and clears too.
-- Try *Regular expression* with `^Herb: (athelas|mint)` on Notes, and a
-  broken one such as `(` (a red "Bad regex" line). Turn the Map pane off
-  and search: "Map off".
+- Accents do not count: *Name* `Círdan` finds *Cirdan's Home* (as
+  `cirdan` does). Turn the Map pane off and search: "Map off".
 
 **Feedback wanted:** is the pane's size and place right (right edge, 60
-columns), are the columns readable (name, area, way), is "a new search
+columns), are the columns readable (steps, name, area), is "a new search
 keeps the marks" the right call (or should a new search clear them), and
 does the zoom-out on every mark click feel right or too jumpy? Anything in
 the hover box or the note rows that reads wrong.
@@ -139,3 +143,24 @@ the hover box or the note rows that reads wrong.
    clicking it opens a small menu to choose which panes the bar shows.
 9. Map search: remove Case sensitive and Regular expression for now.
    Search ignores diacritics ("o" finds "ó").
+
+### Round 1 status
+
+Details: ADR 0077 "Feedback round 1".
+
+- [x] 1. Top edge: a borderless map's title grip lay over the canvas's
+  top row; the hover now follows the mouse over the whole pane.
+- [x] 2. Room name in green (`--c-ok`, readable on dark and light).
+- [x] 3. Options → Mapper *Hover text size: Small / Medium / Large*.
+- [x] 4. A click (button up) with the mouse kept still starts the 3 s
+  rest again.
+- [x] 5. Full = MMapper's room preview: name, description, contents,
+  MMapper's exits line (no "(emulated)"), note; no flag words, area or
+  terrain, no "### Room" line.
+- [x] 6. The box sits outside the Map pane (side with the most room,
+  inside the viewport, width capped by text size).
+- [x] 7. No way in Map search (column and tooltip).
+- [ ] 8. Pane bar gear menu (separate work).
+- [x] 9. No Case sensitive / Regular expression; search ignores accents
+  (the bundled map's text is ASCII, so it already did; the fold now
+  covers every combining mark).

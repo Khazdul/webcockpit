@@ -310,8 +310,14 @@ ADR 0003.
   JSON) and tracks the player with `Room.Info` and `Event.Moved`.
 - **Room notes and hover** (ADR 0077). The map file's room notes show
   in the game window after the room's exits (Options → Mapper, on by
-  default). Resting the pointer on a room for about 3 s shows a small
-  box with its name and note (long press on touch).
+  default). Resting the pointer on a room for about 3 s (also after a
+  click) shows a box with its name in green and its note (long press on
+  touch); Options → Mapper *Room info on hover: Full* shows MMapper's
+  room preview instead (name, description, contents, the exits line as
+  MMapper writes it, note; no flags, area or terrain), and *Hover text
+  size* is Small / Medium / Large. The box may extend outside the Map
+  pane: beside the pane on the side with the most room, inside the
+  viewport (feedback round 1).
 - **Kept open:** the MMapper iframe route.
 - **Nothing bundled.** Map data is never shipped with the client.
 
@@ -464,7 +470,8 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     `mapFind(query, fn)`. Map off: `nil, "map off"`. Live only.
   - Map search (ADR 0077): `mapSearch({text, field, case, regex, max},
     fn)` by name, description, contents, note, area, exits (door
-    names), flags or all, as MMapper's Find Rooms; `fn(results, total,
+    names), flags or all, as MMapper's Find Rooms, ignoring diacritics
+    (`o` finds `ó`); `fn(results, total,
     here)` with `{id, name, area, note, steps, dirs}` nearest first by
     the shortest path from the player's room (MMapper's costs), `dirs`
     as `3e n 2u`. `mapPath(id, fn)` → `fn(dirs, steps)` or `fn(nil)`;
@@ -514,16 +521,16 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - **Map search:** a pane like MMapper's Find Rooms dialog (`mapsearch`
     shows or hides it; `mapsearch <text>` searches). Query with Find and
     Close; Search radios in two columns (Name, Description, Contents,
-    Area | Exits, Notes, Flags, All); Case sensitive and Regular
-    expression; results nearest first (up to 200) with steps, room name,
-    area and the way as text, the whole way and the note in the row's
-    tooltip. Nothing is sent to the game. A click marks or unmarks a
-    room; marked rooms pulse on the map until Clear or Close, and each
-    change zooms to show the player and the marks until the player moves.
-    Mark all, Clear; a new search keeps the marks; changing an option
-    searches again. It opens in a 60-column lane of its own at the right
-    edge, drops the Area column (then the Way) when narrow (ADR 0077 §C,
-    stage 21).
+    Area | Exits, Notes, Flags, All); case- and accent-blind (no Case
+    sensitive or Regular expression for now, round 1); results nearest
+    first (up to 200) with steps, room name and area, the steps and the
+    note in the row's tooltip (no way text, round 1). Nothing is sent to
+    the game. A click marks or unmarks a room; marked rooms pulse on the
+    map until Clear or Close, and each change zooms to show the player
+    and the marks until the player moves. Mark all, Clear; a new search
+    keeps the marks; choosing another Search field searches again. It
+    opens in a 60-column lane of its own at the right edge, drops the
+    Area column when narrow (ADR 0077 §C, stage 21).
 
   Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
   the hue is kept and the lightness moved to 4.5:1 against the current
