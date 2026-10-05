@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 20 (Mudlet import), owner testing. Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -52,6 +52,8 @@ Newest first.
   black background; verified against Mudlet's source) give no
   `#highlight`. Sample now: 195 translated, 32 not translated, 7
   packages skipped.
+- **Released:** 0.1.48 (tag v0.1.48, owner's go). build:pages smoke
+  green, Pages deploy green, live release.json 0.1.48, test:prod 10/10.
 - **Open:** owner to confirm the colorizers show nothing in Mudlet too.
 
 ### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)

@@ -53,7 +53,7 @@ Intent Goal 11 (Mudlet), spec §2.11, ADR 0076. Research:
 - [x] B2 report frame check
 - [x] C1 e2e
 - [x] C2 help text
-- [ ] Release
+- [x] Release (0.1.48)
 
 Round 1 (owner feedback 2026-10-05):
 
