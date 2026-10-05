@@ -13,10 +13,12 @@
 
 import type { ConnState } from '../core/types';
 import type { MapData } from './model';
+import type { RoomHoverInfo } from './hover';
 import type { RoomQuery } from './query';
 import type { Scene } from './scene';
 
 export type { RoomQuery } from './query';
+export type { RoomHoverInfo } from './hover';
 
 /** How a mark looks (ADR 0057). */
 export interface MarkStyle {
@@ -163,6 +165,11 @@ export type MainToWorker =
   /** Marks rooms for `ms` ms; answered by `marked`, then `markEnded`. `focus`: fit the view. */
   | { t: 'mark'; id: number; target: MarkTarget; style: MarkStyle; ms: number; focus?: boolean }
   | { t: 'unmark'; id: number }
+  /**
+   * The hover box (ADR 0077): the room under (x, y) CSS px on the current
+   * layer; `full` adds description, exits and flags. Answered by `roomAt`.
+   */
+  | { t: 'roomAt'; req: number; x: number; y: number; full: boolean }
   | {
       t: 'debugScene';
       scene?: Scene;
@@ -195,6 +202,17 @@ export type WorkerToMain =
    * not located or has none.
    */
   | { t: 'roomNotes'; notes: { seq: number; note: string }[] }
+  /**
+   * A `roomAt` answered: the room (null: none there) with its square on the
+   * canvas (CSS px) and the hover box content.
+   */
+  | {
+      t: 'roomAt';
+      req: number;
+      room: number | null;
+      rect?: { x: number; y: number; w: number; h: number };
+      info?: RoomHoverInfo;
+    }
   /** A mark ended (its time ran out, `unmark`, or a map load). */
   | { t: 'markEnded'; id: number }
   /** Locator state (P2): the player's room index, or null when unknown. */

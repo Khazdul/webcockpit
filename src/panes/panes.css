@@ -165,6 +165,45 @@
   pointer-events: none;
 }
 
+/* Map hover box (src/panes/map-hover.ts, ADR 0077): the room under a
+ * resting pointer, in the tooltip look of the script panes. Width capped,
+ * long lines wrap; kept inside the pane by the script. */
+.wc-map-hover {
+  position: absolute;
+  z-index: 5;
+  max-width: min(36ch, calc(100% - 8px));
+  padding: 0 1ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: var(--cell-h);
+  color: var(--c-body, var(--term-fg));
+  background: var(--c-line-hl, #303030);
+  pointer-events: none;
+}
+
+.wc-map-hover.is-full {
+  max-width: min(56ch, calc(100% - 8px));
+}
+
+.wc-map-hover[hidden] {
+  display: none;
+}
+
+.wc-map-hover-name {
+  color: var(--c-title, var(--term-fg));
+  font-weight: bold;
+}
+
+.wc-map-hover-exits,
+.wc-map-hover-flags {
+  color: var(--c-item, var(--term-fg));
+}
+
+.wc-map-hover-note {
+  color: var(--c-hint, var(--term-fg));
+  font-style: italic;
+}
+
 /* Script panes (src/panes/script-pane.ts, ADR 0053): a link's hint, one
  * cell row per line, under the link and over everything in the cockpit
  * (as the log player's marker tips, ADR 0032). */

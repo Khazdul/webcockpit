@@ -41,6 +41,11 @@
 // - Room notes (ADR 0077): with a `PaneContext.mapNotes` that wants them,
 //   Room.Info goes to the worker with a sequence number; the worker's
 //   `roomNotes` answer is handed back with that Room.Info's bus payload.
+// - Hover box (ADR 0077, src/panes/map-hover.ts): the mouse resting 3 s
+//   on a room, or a long press, asks the worker (`roomAt`) and shows the
+//   room's name and note (Options → Mapper "Room info on hover: Full" adds
+//   description, exits and flags) beside the pointer. A drag, wheel,
+//   leave, player move, map load or hiding the pane hides it.
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -51,6 +56,7 @@ import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
 import { type PinchPoint, pinchStep } from '../map/pinch';
 import type { MapPaneHost, WorkerToMain } from '../map/protocol';
+import { MapHover } from './map-hover';
 import { PaneShell, type PaneContext } from './pane';
 
 /** Set to `true` by the HTML replay build (vite.config.ts `bundleReplay`). */
@@ -105,6 +111,9 @@ export class MapPane extends PaneShell {
   /** Detaches the mark port (ADR 0057). */
   private unmarks: (() => void) | null = null;
   private readonly liveMarks = new Set<number>();
+  /** The hover box (ADR 0077). */
+  private readonly hover: MapHover;
+  private hoverReq = 0;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -119,6 +128,17 @@ export class MapPane extends PaneShell {
     this.notice.className = 'wc-map-notice';
     this.notice.hidden = true;
     this.content.append(this.canvas, this.notice);
+    this.hover = new MapHover({
+      doc,
+      host: this.content,
+      ask: (x, y) => {
+        const c = this.client;
+        if (!c || !this.loaded || !this.visible || this.drag || this.touches.size > 1) return null;
+        const req = ++this.hoverReq;
+        c.roomAt(req, x, y, this.ctx.settings.get().mapper.hover === 'full');
+        return req;
+      },
+    });
 
     const flags = device();
     this.forwardHidden = flags.phone;
@@ -144,12 +164,15 @@ export class MapPane extends PaneShell {
       c.addEventListener('pointerup', this.onTouchEnd);
       c.addEventListener('pointercancel', this.onTouchEnd);
       c.addEventListener('lostpointercapture', this.onTouchEnd);
+      // A long press shows the hover box, not the browser's menu.
+      c.addEventListener('contextmenu', (e) => e.preventDefault());
     } else {
       c.addEventListener('pointerdown', this.onPointerDown);
       c.addEventListener('pointermove', this.onPointerMove);
       c.addEventListener('pointerup', this.onPointerEnd);
       c.addEventListener('pointercancel', this.onPointerEnd);
       c.addEventListener('lostpointercapture', this.onPointerEnd);
+      c.addEventListener('pointerleave', () => this.hover.cancel());
     }
     // The canvas never takes the focus from the input line.
     c.addEventListener('mousedown', (e) => e.preventDefault());
@@ -161,6 +184,7 @@ export class MapPane extends PaneShell {
   }
 
   override dispose(): void {
+    this.hover.dispose();
     this.unmarks?.();
     this.unmarks = null;
     this.forward(false);
@@ -221,6 +245,7 @@ export class MapPane extends PaneShell {
     if (!shown) {
       if (this.sizeKey !== 'hidden') {
         this.sizeKey = 'hidden';
+        this.hover.cancel();
         this.client?.visible(false);
         this.watchDpr(false);
         if (!this.forwardHidden) this.forward(false);
@@ -326,6 +351,7 @@ export class MapPane extends PaneShell {
         if (this.content.dataset.mapState === 'starting') this.content.dataset.mapState = 'ready';
         return;
       case 'loaded':
+        this.hover.cancel();
         this.content.dataset.mapState = 'loaded';
         this.content.dataset.mapRooms = String(m.info.rooms);
         this.content.dataset.mapLoad = JSON.stringify({ ms: m.info.ms, ...m.info.stages });
@@ -336,6 +362,9 @@ export class MapPane extends PaneShell {
         return;
       case 'found':
         this.ctx.mapMarks?.found(m.req, m.rooms, m.total);
+        return;
+      case 'roomAt':
+        this.hover.answer(m.req, m.room, m.rect, m.info);
         return;
       case 'roomNotes':
         for (const n of m.notes) {
@@ -354,6 +383,8 @@ export class MapPane extends PaneShell {
         this.ctx.mapMarks?.ended(m.id);
         return;
       case 'status': {
+        // The player moved: the view follows, the room under the pointer changes.
+        this.hover.cancel();
         const d = this.content.dataset;
         d.mapLocated = m.located ? '1' : '0';
         d.mapRoom = m.room === null ? '' : String(m.room);
@@ -394,6 +425,7 @@ export class MapPane extends PaneShell {
   }
 
   private readonly onPointerDown = (e: PointerEvent): void => {
+    this.hover.cancel();
     if (e.button !== 0 || !this.client) return;
     this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
     this.canvas.dataset.dragging = '';
@@ -406,7 +438,12 @@ export class MapPane extends PaneShell {
 
   private readonly onPointerMove = (e: PointerEvent): void => {
     const d = this.drag;
-    if (!d || e.pointerId !== d.id) return;
+    if (!d) {
+      const p = this.local(e);
+      this.hover.move(p.x, p.y, e.buttons);
+      return;
+    }
+    if (e.pointerId !== d.id) return;
     this.acc.dx += e.clientX - d.x;
     this.acc.dy += e.clientY - d.y;
     d.x = e.clientX;
@@ -425,6 +462,8 @@ export class MapPane extends PaneShell {
   private readonly onTouchDown = (e: PointerEvent): void => {
     if (!this.client) return;
     this.touches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = this.local(e);
+    this.hover.press(p.x, p.y, this.touches.size === 1);
     this.canvas.dataset.dragging = '';
     try {
       this.canvas.setPointerCapture(e.pointerId);
@@ -437,6 +476,8 @@ export class MapPane extends PaneShell {
     const prev = this.touches.get(e.pointerId);
     if (!prev) return;
     const next = { x: e.clientX, y: e.clientY };
+    const lp = this.local(e);
+    this.hover.pressMove(lp.x, lp.y);
     const [a, b] = [...this.touches.keys()];
     const other = a === e.pointerId ? b : b === e.pointerId ? a : undefined;
     this.touches.set(e.pointerId, next);
@@ -467,11 +508,13 @@ export class MapPane extends PaneShell {
 
   private readonly onTouchEnd = (e: PointerEvent): void => {
     if (!this.touches.delete(e.pointerId)) return;
+    this.hover.release();
     if (this.touches.size === 0) delete this.canvas.dataset.dragging;
   };
 
   private readonly onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    this.hover.cancel();
     if (!this.client || e.deltaY === 0) return;
     // A notch is 100 px, 3 lines or 1/3 page. A trackpad pinch (Ctrl, small
     // pixel deltas, about -100·ln(scale) in total) uses 40 px so that

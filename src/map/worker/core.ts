@@ -14,6 +14,9 @@
 // draws once in the next animation frame (setTimeout fallback) and never
 // while the pane is hidden.
 //
+// Hover (ADR 0077): `roomAt` hit-tests the current view (hover.ts) and
+// answers once; nothing runs between requests.
+//
 // Script marks (ADR 0057): `find` answers a room query (query.ts);
 // `mark` resolves its target, keeps the mark until its absolute end and
 // runs a frame loop while any mark lives and the pane is shown, putting
@@ -23,6 +26,7 @@
 // its zoom back, centred on the player.
 
 import { type AssetResolver, assetResolver } from '../assets';
+import { hoverInfo, roomAt } from '../hover';
 import { buildIndexes, type MapData } from '../model';
 import { type Inflate, inflateZlib, mapHash, readMm2 } from '../mm2';
 import { MAP_PROTOCOL_VERSION, type MainToWorker, type MapEvent, type MapSource, type MarkStyle, type WorkerToMain } from '../protocol';
@@ -130,6 +134,12 @@ export class MapWorkerCore {
       case 'find': {
         const r = this.map ? findRooms(this.map, m.query, this.tracker.current.room) : { rooms: [], total: 0 };
         this.host.post({ t: 'found', req: m.req, rooms: r.rooms, total: r.total });
+        return;
+      }
+      case 'roomAt': {
+        const hit = this.map ? roomAt(this.map, this.view, this.css.w, this.css.h, m.x, m.y) : null;
+        if (!hit || !this.map) this.host.post({ t: 'roomAt', req: m.req, room: null });
+        else this.host.post({ t: 'roomAt', req: m.req, room: hit.room, rect: hit.rect, info: hoverInfo(this.map, hit.room, m.full) });
         return;
       }
       case 'mark':

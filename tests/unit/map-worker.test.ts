@@ -219,6 +219,19 @@ describe('map worker core', () => {
     expect(h.out.slice(n).some((m) => m.t === 'roomNotes')).toBe(false);
   });
 
+  it('answers roomAt with the room under the point and its hover content (ADR 0077)', async () => {
+    const h = harness();
+    await h.core.load(1, { kind: 'data', map: await readMm2(await tinyFile()), name: 't' });
+    // The view is centred on the selected position (5, 6): the canvas centre is room 0.
+    h.core.handle({ t: 'roomAt', req: 1, x: 100, y: 50, full: false });
+    expect(h.out.at(-1)).toMatchObject({ t: 'roomAt', req: 1, room: 0, info: { name: 'A', note: 'Herb: thyme\n' } });
+    expect((h.out.at(-1) as { info: object }).info).not.toHaveProperty('desc');
+    h.core.handle({ t: 'roomAt', req: 2, x: 100, y: 50, full: true });
+    expect(h.out.at(-1)).toMatchObject({ t: 'roomAt', req: 2, room: 0, info: { name: 'A', desc: 'B', exits: '', flags: '' } });
+    h.core.handle({ t: 'roomAt', req: 3, x: 0, y: 0, full: false });
+    expect(h.out.at(-1)).toEqual({ t: 'roomAt', req: 3, room: null });
+  });
+
   it('reports a missing WebGL2 at init', () => {
     const out: WorkerToMain[] = [];
     const core = new MapWorkerCore({ post: (m) => void out.push(m), requestFrame: () => {}, fetch, now: () => 0 });

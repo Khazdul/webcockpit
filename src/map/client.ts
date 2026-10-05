@@ -106,6 +106,11 @@ export class MapClient {
     this.post({ t: 'unmark', id });
   }
 
+  /** The room under (x, y) CSS px for the hover box (ADR 0077); answered by `roomAt`. */
+  roomAt(req: number, x: number, y: number, full: boolean): void {
+    this.post({ t: 'roomAt', req, x, y, full });
+  }
+
   /** Lets the worker keep learned server ids in IndexedDB (the app's own pane only). */
   persistIds(on: boolean): void {
     this.post({ t: 'persistIds', on });
