@@ -504,8 +504,10 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
 
 Research: `notes/research/import/`. Design: ADR 0073.
 
-- **Formats:** TinTin++ (1.x and 2.x), JMC (3.x `.set`) and Powwow
-  (saved definition files). Mudlet and other clients are out of scope.
+- **Formats:** TinTin++ (1.x and 2.x), JMC (3.x `.set`), Powwow
+  (saved definition files) and Mudlet (profile saves and exported
+  package XML, `.mpackage`/`.zip`; ADR 0076). Other clients are out of
+  scope.
 - **Input:** IMPORT in the profile picker accepts one or more files at
   once. Files referenced by `#read` (tt++, JMC) are resolved by name
   among the chosen files and inlined; references not found are listed in
@@ -525,6 +527,15 @@ Research: `notes/research/import/`. Design: ADR 0073.
   translated / kept / skipped / warnings, and a list of every item that
   was not translated as-is, with its source line and reason. The profile
   itself starts with a short `#nop` header naming the source and date.
+- **Mudlet (ADR 0076):** profile only, never scripts. Item bodies are
+  Lua; a Lua-subset translator turns the common forms (`send`,
+  variables, `matches[n]`, `if/elseif/else`, `cecho`/`decho`/`echo`,
+  `deleteLine`, enable/disable by name, `selectString` with
+  `fg`/`bg`/`replace`) into tt++, and inlines simple functions defined in
+  the profile's Scripts. Colorizer triggers become `#highlight`, key
+  codes become macro key names, saved variables become `#variable`.
+  Items of third-party packages are skipped and the report names the
+  built-in replacement where there is one.
 - **Pure core:** detection, decoding and translation are pure functions
   in `src/import/` with no DOM, unit-tested with corpus files.
 
@@ -616,6 +627,7 @@ what feedback is wanted.
 | 17 | **Foreign import.** Detect and translate TinTin++, JMC and Powwow settings into a new profile, with an import report (§2.11). | Import your old tt++/JMC/powwow files and read the report. |
 | 18 | **Almanac.** Clock moon and season model, the game time API for scripts, and the bundled almanac script with data-driven events (ADR 0074). | Open the almanac; plan a session; add an event of your own. |
 | 19 | **Phone access.** Touch fixes for menus and a phone layout, gated so desktop is unchanged (§2.12, ADR 0075). | Open WebCockpit on your phone, log in, chat, browse the menus. |
+| 20 | **Mudlet import.** Mudlet profiles and packages to a plain tt++ profile through a Lua-subset translator, with the import report (§2.11, ADR 0076). | Import your Mudlet profile and read the report; play with the aliases and keys. |
 
 ## 6. Open questions for the owner
 

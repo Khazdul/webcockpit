@@ -2,7 +2,8 @@
 
 > Status: APPROVED by owner 2026-09-27. Goal 10 (user scripts) approved
 > 2026-10-01. Goal 11 (foreign profile import) approved 2026-10-04.
-> Goal 12 (phone access) approved 2026-10-04.
+> Goal 12 (phone access) approved 2026-10-04. Mudlet added to Goal 11
+> 2026-10-05.
 > Source: `notes/grilling.md`, rounds 1–3 (2026-09-27).
 
 ## Vision
@@ -87,6 +88,14 @@ reference only.
     kept visibly in the profile, never silently lost. The user gets a
     report: the detected format, how many settings were translated, and
     how many were left untranslated and why.
+    - **Mudlet** (added 2026-10-05): a Mudlet profile or package file
+      becomes a plain profile too. Aliases, triggers, keys, highlights,
+      substitutes and variables are translated to tt++ rules, including
+      the common Lua forms in their bodies. A Mudlet import never
+      creates scripts (Goal 10); what cannot become tt++ is kept in the
+      profile as text. Installed third-party packages are not imported;
+      the report names WebCockpit's built-in replacement where there is
+      one.
 
 12. **Phone access** (owner decision 2026-10-04). WebCockpit can be
     opened on a phone to log in, read and chat. Real play on a phone is
@@ -104,7 +113,7 @@ reference only.
 - Generic MUD client: MUME only.
 - Play on mobile and tablet. Desktop Firefox and Chrome are the target;
   phones get the limited access of Goal 12, tablets only its touch fixes.
-- Import from Mudlet, zMUD/CMUD or other clients than those in Goal 11,
+- Import from zMUD/CMUD or other clients than those in Goal 11,
   and of Cockpit's Lua modules.
 - Byte-for-byte tt++ compatibility. tt++ syntax is used in the editor
   view, but the exact supported command set is defined in `spec.md`.
