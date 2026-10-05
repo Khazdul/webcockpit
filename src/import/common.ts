@@ -452,13 +452,75 @@ export function patternLiteral(text: string): string {
 export type RegexPattern = { ok: true; pattern: string; groups: number } | { ok: false; reason: string };
 
 /**
+ * A regex fragment (no groups) as literal runs and not-stored `%!{…}`
+ * atoms, so `day.` reads `day%!{.}`; null when it has a group or `|`.
+ */
+function fragmentPattern(frag: string, atStart: boolean): string | null {
+  const atoms: Array<{ lit: string } | { re: string }> = [];
+  for (let i = 0; i < frag.length; ) {
+    const c = frag[i]!;
+    if (c === '(' || c === ')' || c === '|') return null;
+    if (c === '\\') {
+      const d = frag[i + 1];
+      if (d === undefined) return null;
+      if (!/[A-Za-z0-9]/.test(d)) {
+        atoms.push({ lit: d });
+        i += 2;
+        continue;
+      }
+      const m = /^\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|c[A-Za-z]|[pP]\{[^}]*\}|.)/.exec(frag.slice(i))!;
+      atoms.push({ re: m[0] });
+      i += m[0].length;
+      continue;
+    }
+    if (c === '[') {
+      let j = i + 1;
+      if (frag[j] === '^') j++;
+      if (frag[j] === ']') j++;
+      for (; j < frag.length && frag[j] !== ']'; j++) if (frag[j] === '\\') j++;
+      atoms.push({ re: frag.slice(i, j + 1) });
+      i = j + 1;
+      continue;
+    }
+    const q = /^(?:[*+?]|\{\d+(?:,\d*)?\})\??/.exec(frag.slice(i));
+    if (q) {
+      const prev = atoms.pop();
+      if (!prev) return null;
+      const base = 'lit' in prev ? prev.lit.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') : prev.re;
+      atoms.push({ re: base + q[0] });
+      i += q[0].length;
+      continue;
+    }
+    atoms.push(c === '.' || c === '^' || c === '$' ? { re: c } : { lit: c });
+    i++;
+  }
+  let out = '';
+  for (let k = 0; k < atoms.length; ) {
+    const a = atoms[k]!;
+    if ('lit' in a) {
+      let run = '';
+      while (k < atoms.length && 'lit' in atoms[k]!) run += (atoms[k++] as { lit: string }).lit;
+      let p = patternLiteral(run);
+      if (atStart && out === '' && p.startsWith('^')) p = '\\' + p;
+      out += p;
+    } else {
+      let run = '';
+      while (k < atoms.length && 're' in atoms[k]!) run += (atoms[k++] as { re: string }).re;
+      out += `%!{${run}}`;
+    }
+  }
+  return out;
+}
+
+/**
  * A regular expression as a tt++ pattern: each top-level capture group
  * becomes a stored `{…}` (arguments %1, %2 … in order), the text between
- * them a literal or a not-stored `%!{…}`; `^`/`$` at the ends become the
- * pattern's anchors; the `i` flag becomes `%i`. Fails on nested capture
- * groups, top-level alternation and backreferences.
+ * them a literal or a not-stored `%!{…}` (with `split`, only the regex
+ * parts of it: `day%!{.}`); `^`/`$` at the ends become the pattern's
+ * anchors; the `i` flag becomes `%i`. Fails on nested capture groups,
+ * top-level alternation and backreferences.
  */
-export function regexToPattern(source: string, flags = ''): RegexPattern {
+export function regexToPattern(source: string, flags = '', split = false): RegexPattern {
   let re = posixClasses(source);
   try {
     new RegExp(re);
@@ -536,7 +598,10 @@ export function regexToPattern(source: string, flags = ''): RegexPattern {
       continue;
     }
     const lit = p.group ? null : regexLiteral(p.text);
-    out += lit !== null ? patternLiteral(lit) : `%!{${p.text}}`;
+    const parts = lit === null && split && !p.group ? fragmentPattern(p.text, out === '' || out === '%i') : null;
+    // An unanchored pattern must not start with a literal `^` (it would anchor).
+    if (lit !== null) out += (out === '' || out === '%i') && lit.startsWith('^') ? '\\' + patternLiteral(lit) : patternLiteral(lit);
+    else out += parts ?? `%!{${p.text}}`;
   }
   if (endAnchor) out += '$';
   else if (out.endsWith('$') && !out.endsWith('\\$')) out = out.slice(0, -1) + '\\$';

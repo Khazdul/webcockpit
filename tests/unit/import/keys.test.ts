@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jmcKey, sequenceKey, unescapeSequence } from '../../../src/import/keys';
+import { jmcKey, qtKey, sequenceKey, unescapeSequence } from '../../../src/import/keys';
 
 const key = (r: ReturnType<typeof jmcKey>) => (r.ok ? r.key : null);
 
@@ -64,5 +64,40 @@ describe('sequenceKey', () => {
   it('unescapeSequence handles ^X, ^?, octal and backslash', () => {
     expect(unescapeSequence('^[O\\120')).toBe('\x1bOP');
     expect(unescapeSequence('\\=x')).toBe('=x');
+  });
+});
+
+describe('qtKey', () => {
+  const SHIFT = 0x02000000;
+  const CTRL = 0x04000000;
+  const ALT = 0x08000000;
+  const KEYPAD = 0x20000000;
+
+  it('maps F-keys, navigation keys, letters, digits and modifiers', () => {
+    expect(key(qtKey(16777264, 0))).toBe('F1');
+    expect(key(qtKey(16777272, 0))).toBe('F9');
+    expect(key(qtKey(0x01000013, ALT))).toBe('Alt+ArrowUp');
+    expect(key(qtKey(0x01000016, CTRL | SHIFT))).toBe('Ctrl+Shift+PageUp');
+    expect(key(qtKey(49, ALT))).toBe('Alt+1');
+    expect(key(qtKey(83, CTRL))).toBe('Ctrl+S');
+    expect(key(qtKey(79, SHIFT))).toBe('Shift+O');
+    expect(key(qtKey(45, CTRL))).toBe('Ctrl+Minus');
+  });
+
+  it('maps keypad keys, also with NumLock off', () => {
+    expect(key(qtKey(56, KEYPAD))).toBe('Numpad8');
+    expect(key(qtKey(43, KEYPAD))).toBe('NumpadAdd');
+    expect(key(qtKey(0x01000005, KEYPAD))).toBe('NumpadEnter');
+    expect(key(qtKey(0x01000013, KEYPAD))).toBe('Numpad8');
+    expect(key(qtKey(0x0100000b, KEYPAD))).toBe('Numpad5');
+  });
+
+  it('refuses layout-dependent and unbindable keys', () => {
+    const a = qtKey(197, SHIFT);
+    expect(a.ok).toBe(false);
+    if (!a.ok) expect(a.reason).toBe("Key 'Å' (code 197) depends on the keyboard layout");
+    expect(qtKey(43, 0).ok).toBe(false);
+    expect(qtKey(0x01000000, 0).ok).toBe(false);
+    expect(qtKey(0x010000ff, 0).ok).toBe(false);
   });
 });
