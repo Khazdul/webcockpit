@@ -20,7 +20,7 @@
 -- @help     Search field searches again.
 -- @help
 -- @help     The results come nearest first: the steps to walk, the room and
--- @help     its area. Point at a row for the room's note.
+-- @help     its area.
 -- @help
 -- @help     Click a row to mark the room: it pulses on the map until you
 -- @help     clear it, and the map zooms out to show you and the marked
@@ -66,18 +66,18 @@ local LINK_C = "#b8b8b8"   -- buttons, as the other bundled scripts
 local MARK_C = "~#ff40ff"  -- mapMark's default colour
 local ERR_C = "~#ff6b6b"
 local MIN_W = 30
-local TIP_W = 56           -- tooltip line width
 
 local FIELDS = {
-  -- { value, label, hint }; two columns, as MMapper's dialog.
-  { "name", "Name", "Search the room names" },
-  { "desc", "Description", "Search the room descriptions" },
-  { "contents", "Contents", "Search what lies in the rooms (as MMapper saw it)" },
-  { "area", "Area", "Search the area names" },
-  { "exits", "Exits", "Search the door names" },
-  { "note", "Notes", "Search the map's notes (Herb: …, Quest: …)" },
-  { "flags", "Flags", "Search the flags: rent, shop, herb, aggmob, guild,\ndoor, climb … or in words (aggressive mob)" },
-  { "all", "All", "Search every field" },
+  -- { value, label }; two columns, as MMapper's dialog. No hints: the
+  -- pane has no tooltips at all (stage 21 round 2).
+  { "name", "Name" },
+  { "desc", "Description" },
+  { "contents", "Contents" },
+  { "area", "Area" },
+  { "exits", "Exits" },
+  { "note", "Notes" },
+  { "flags", "Flags" },
+  { "all", "All" },
 }
 
 -- ------------------------------------------------------------ state
@@ -135,49 +135,21 @@ local function lpad(s, n)
   return string.rep(" ", n - len(s)) .. s
 end
 
--- Wraps text at spaces to lines of at most w cells (a long word is cut).
-local function wrap(text, w, maxLines)
-  local out = {}
-  for para in (text .. "\n"):gmatch("(.-)\n") do
-    local line = ""
-    for word in para:gmatch("%S+") do
-      if line == "" then line = word
-      elseif len(line) + 1 + len(word) <= w then line = line .. " " .. word
-      else
-        out[#out + 1] = line
-        line = word
-      end
-      while len(line) > w do
-        out[#out + 1] = line:sub(1, utf8.offset(line, w + 1) - 1)
-        line = line:sub(utf8.offset(line, w + 1))
-      end
-    end
-    out[#out + 1] = line
-  end
-  if maxLines and #out > maxLines then
-    local n = #out
-    while #out > maxLines do table.remove(out) end
-    out[#out] = cut(out[#out], w - 1) .. "…"
-    out[#out + 1] = "(" .. n .. " lines in all)"
-  end
-  return table.concat(out, "\n")
-end
-
 local function save()
   store.set("query", { text = query, field = field })
 end
 
--- Writes a row from segments { text, color, fn, hint } and their links.
+-- Writes a row from segments { text, color, fn } and their links (no hints).
 local function row(n, segs)
   local out, links, col = {}, {}, 1
   for _, s in ipairs(segs) do
     local w = len(s.text)
     out[#out + 1] = (s.color and ("<" .. s.color .. ">") or "<reset>") .. s.text
-    if s.fn and w > 0 then links[#links + 1] = { col, w, s.fn, s.hint } end
+    if s.fn and w > 0 then links[#links + 1] = { col, w, s.fn } end
     col = col + w
   end
   pane:setLine(n, table.concat(out))
-  for _, l in ipairs(links) do pane:setLink(n, l[1], l[2], l[3], l[4]) end
+  for _, l in ipairs(links) do pane:setLink(n, l[1], l[2], l[3]) end
   return col - 1
 end
 
@@ -239,11 +211,11 @@ local function drawControls()
     { text = " Query: ", color = "@label" },
     { text = string.rep(" ", fieldLen) },
     { text = " " },
-    { text = "[Find]", color = LINK_C, fn = function() find() end, hint = "Search (Enter in the field does too)" },
+    { text = "[Find]", color = LINK_C, fn = function() find() end },
   }
   if closeB then
     segs[#segs + 1] = { text = " " }
-    segs[#segs + 1] = { text = "[Close]", color = LINK_C, fn = function() close() end, hint = "Hide the pane and clear the marks" }
+    segs[#segs + 1] = { text = "[Close]", color = LINK_C, fn = function() close() end }
   end
   row(1, segs)
   input = pane:setInput(1, 9, fieldLen, {
@@ -268,7 +240,7 @@ local function drawControls()
     if c == 2 then pane:setLine(r, "") end
     local value = f[1]
     pane:setRadio(r, c, {
-      group = "field", value = value, label = f[2], checked = field == value, hint = f[3],
+      group = "field", value = value, label = f[2], checked = field == value,
       onChange = function(v)
         field = v
         save()
@@ -309,14 +281,14 @@ local function statusSegs()
       message = nil
       if added > 0 then applyMarks() end
       drawAll()
-    end, hint = "Mark every room in the list (" .. MAX .. " at most)" }
+    end }
   end
   if markN > 0 then
     buttons[#buttons + 1] = { text = "[Clear]", color = LINK_C, fn = function()
       clearMarks()
       message = nil
       drawAll()
-    end, hint = "Remove the marks from the map" }
+    end }
   end
   local bw = 0
   for _, b in ipairs(buttons) do bw = bw + 1 + len(b.text) end
@@ -329,22 +301,6 @@ local function statusSegs()
     segs[#segs + 1] = b
   end
   return segs
-end
-
-local function hintOf(r)
-  local lines = { r.name .. (r.area ~= "" and (" (" .. r.area .. ")") or "") }
-  if r.steps == nil then
-    lines[#lines + 1] = "No path from here."
-  elseif r.steps == 0 then
-    lines[#lines + 1] = "You are here."
-  else
-    lines[#lines + 1] = r.steps .. (r.steps == 1 and " step away." or " steps away.")
-  end
-  if r.note and r.note ~= "" then
-    lines[#lines + 1] = "Note: " .. wrap(r.note, TIP_W - 6, 6):gsub("\n", "\n      ")
-  end
-  lines[#lines + 1] = marked[r.id] and "Click to unmark." or "Click to mark it on the map."
-  return table.concat(lines, "\n")
 end
 
 local function drawResult(n, r)
@@ -382,7 +338,7 @@ local function drawResult(n, r)
     applyMarks()
     drawResult(n, r)
     drawStatus()
-  end, hintOf(r))
+  end)
 end
 
 drawStatus = function()
@@ -398,7 +354,6 @@ local function drawList()
   local head = " " .. " " .. " " .. lpad("Steps", 5) .. "  " .. pad("Room name", nameW)
   if areaW > 0 then head = head .. "  " .. pad("Area", areaW) end
   pane:setLine(n, "<@label>" .. head)
-  pane:setLink(n, 1, W, nil, "Nearest first: the steps of the shortest way by MMapper's\nwalking cost (terrain, doors, climbs), from where you stood\nwhen you searched. Find again after walking. No path: —.")
   for _, r in ipairs(results or {}) do
     n = n + 1
     drawResult(n, r)

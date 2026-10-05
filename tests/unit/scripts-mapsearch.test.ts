@@ -191,13 +191,14 @@ describe('bundled mapsearch', () => {
     expect(r[10]).toMatch(/^ {7}4  A Glade +Chetwood$/);
     expect(r[11]).toMatch(/^ {7}—  Far Away Place With A Very…$/);
     expect(r.join('\n')).not.toMatch(/2e n u|no path|here/);
-    // The hint: steps and the note, no way (round 1).
-    const link = t.content().linkAt(10, 3)!;
-    expect(link.hint).toBe('A Glade (Chetwood)\n4 steps away.\nNote: Herb: athelas\nClick to mark it on the map.');
-    expect(t.content().linkAt(9, 3)!.hint).toBe('Hill Road (Bree)\nYou are here.\nClick to mark it on the map.');
-    expect(t.content().linkAt(11, 3)!.hint).toMatch(/^Far Away Place With A Very Long Name\nNo path from here\./);
+    // No tooltips anywhere (round 2): rows, header, radios and buttons are
+    // links without a hint; the rows stay clickable.
+    expect(t.content().linkAt(10, 3)).not.toBeNull();
+    expect(t.content().links.length).toBeGreaterThan(0);
+    expect(t.content().links.filter((l) => l.hint !== '')).toEqual([]);
 
     t.clickText(10, 'A Glade');
+    expect(t.content().links.filter((l) => l.hint !== '')).toEqual([]); // [Clear] too
     expect(t.marks()).toEqual([{ op: 'mark', id: expect.any(Number), arg: expect.objectContaining({ target: { rooms: [7] }, ms: Infinity, focus: 'move' }) }]);
     expect(t.rows()[10]).toMatch(/^ ● {5}4  A Glade/);
     expect(t.rows()[6]).toMatch(/^ 3 rooms · 1 marked +\[Mark all\] \[Clear\]$/);
@@ -293,9 +294,7 @@ describe('bundled mapsearch', () => {
     expect(t.rows()[9]).toMatch(/^ {5}700  Somewhere With A Name Much… +Bree$/);
     expect(t.rows()[9]!.length).toBeLessThanOrEqual(59);
     expect(t.rows()[10]).toBe('       2  Elsewhere');
-    expect(t.content().linkAt(9, 3)!.hint).toBe(
-      'Somewhere With A Name Much Longer Than The Column (Bree)\n700 steps away.\nClick to mark it on the map.',
-    );
+    expect(t.content().linkAt(9, 3)!.hint).toBe('');
     t.resize(44);
     expect(t.rows()[8]).toMatch(/^ {3}Steps  Room name +Area$/);
     t.resize(34);

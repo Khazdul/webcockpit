@@ -1,7 +1,7 @@
 // The bundled Map search script (ADR 0077 §C): enabled with the bundled map
 // loaded and the player located by the map-demo walk, its pane searches
 // the notes for herbs (Enter in the query field), lists the rooms nearest
-// first with their steps (no way text, round 1), marks a clicked row until
+// first with their steps (no way text, round 1; no tooltips, round 2), marks a clicked row until
 // Clear, keeps the marks over a new search, ignores diacritics, and the
 // pane's close cross clears them.
 import { type Page, expect, test } from '@playwright/test';
@@ -11,8 +11,8 @@ const ID = 'mapsearch/main';
 const pane = (page: Page) => page.locator(`.wc-pane[data-pane="${ID}"]`);
 const prows = (page: Page) => pane(page).locator('.wc-pane-content .wc-prow');
 
-/** Clicks the first cell of `text` on pane row `row` (0-based). */
-async function clickText(page: Page, row: number, text: string): Promise<void> {
+/** The centre of the first cell of `text` on pane row `row` (0-based). */
+async function textPoint(page: Page, row: number, text: string): Promise<{ x: number; y: number }> {
   const s = (await prows(page).nth(row).textContent())!;
   const col = s.indexOf(text);
   expect(col, `"${text}" in "${s}"`).toBeGreaterThanOrEqual(0);
@@ -21,7 +21,13 @@ async function clickText(page: Page, row: number, text: string): Promise<void> {
     return { w: parseFloat(st.getPropertyValue('--cell-w')), h: parseFloat(st.getPropertyValue('--cell-h')) };
   });
   const box = (await pane(page).locator('.wc-pane-content').boundingBox())!;
-  await page.mouse.click(box.x + (col + 0.5) * cell.w, box.y + (row + 0.5) * cell.h);
+  return { x: box.x + (col + 0.5) * cell.w, y: box.y + (row + 0.5) * cell.h };
+}
+
+/** Clicks the first cell of `text` on pane row `row` (0-based). */
+async function clickText(page: Page, row: number, text: string): Promise<void> {
+  const p = await textPoint(page, row, text);
+  await page.mouse.click(p.x, p.y);
 }
 
 test('map search pane: Notes search, results with steps, marks until Clear, diacritics, close cross clears (ADR 0077 §C)', async ({ page }) => {
@@ -60,14 +66,18 @@ test('map search pane: Notes search, results with steps, marks until Clear, diac
   await page.keyboard.press('Enter');
   await expect(prows(page).nth(6)).toHaveText(/^ (\d+ of )?\d+ rooms +\[Mark all\]\s*$/);
   await expect(prows(page).nth(8)).toHaveText(/^ {3}Steps {2}Room name( +Area)?\s*$/);
-  // Nearest first, with steps; no way text, in the row or its tooltip.
+  // Nearest first, with steps; no way text. No tooltips (round 2): not on
+  // a row, the header, a radio or the Find button.
   await expect(prows(page).nth(9)).toHaveText(/^ {3} *\d+ {2}\S/);
   await expect(prows(page).nth(9)).not.toHaveText(/ \d*[nsewud]( \d*[nsewud])+\s*$/);
-  await prows(page).nth(9).hover();
   const tip = page.locator('.wc-spane-tip');
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText(/\d+ steps? away\.|You are here\./);
-  await expect(tip).not.toContainText(/steps:/);
+  const row9 = (await prows(page).nth(9).textContent())!.trim().slice(0, 3);
+  for (const [r, text] of [[9, row9], [8, 'Steps'], [3, 'Notes'], [0, '[Find]']] as const) {
+    const p = await textPoint(page, r, text);
+    await page.mouse.move(p.x, p.y);
+    await page.waitForTimeout(300);
+    await expect(tip).toHaveCount(0);
+  }
   const snapshot = await prows(page).allTextContents();
   console.log(`Map search pane:\n${snapshot.slice(0, 16).map((r) => `|${r.trimEnd()}`).join('\n')}`);
 
