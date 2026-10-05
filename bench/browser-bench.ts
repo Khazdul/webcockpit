@@ -207,7 +207,8 @@ const MAP_CONTENT = '.wc-pane-map .wc-pane-content';
  * Opens the page with the Map pane explicitly off or on (then waits for
  * its first complete frame). With the map on, three script map marks
  * blink for the whole run (ADR 0057 gate: marks stay within the map
- * budgets).
+ * budgets), and a fourth of 200 rooms that lasts until unmarked (ADR 0077
+ * §B).
  */
 async function open(t: Target, map: boolean): Promise<Page> {
   const page = await openBench(t, base, { settings: mapSetting(map) });
@@ -219,6 +220,9 @@ async function open(t: Target, map: boolean): Promise<Page> {
       for (const name of ['Old East Road', 'Grassy Plains', 'Dark Forest']) {
         hub.mark({ query: { name, max: 20 } }, style, 3_600_000, false, { marked: () => {}, ended: () => {} });
       }
+      // ADR 0077 §B: a mark until unmarked with the most rooms (200), as a Map search "Mark all".
+      const rooms = Array.from({ length: 200 }, (_, i) => i * 150);
+      hub.mark({ rooms }, style, Infinity, false, { marked: () => {}, ended: () => {} });
     });
   }
   return page;
