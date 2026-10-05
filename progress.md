@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: none open. Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 20 (Mudlet import), owner testing. Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -25,12 +25,28 @@ Current stage: none open. Stage 19 (phone access) done, 0.1.47 verified on the o
 | 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
+| 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-05 — Stage 20: Mudlet import
+
+- **Research:** owner's Mudlet profile analysed (`mudlet.md` §8–§9); a
+  Lua-subset prototype translated 203/212 own items to tt++.
+- **Owner decisions:** Mudlet into intent Goal 11; profile only, never
+  scripts; third-party packages skipped with the built-in replacement.
+- **Done:** intent, spec §2.11, ADR 0076, stage file. `src/import/`
+  xml, zip, mudlet-lua (subset + inlining), mudlet; archive unpacking
+  in the UI; help line. Owner sample: 204 translated, 23 kept, 7
+  packages skipped; loads without errors.
+- **Checked:** typecheck, unit 2356, e2e 454/454.
+- **Next:** owner test (guide in the stage file), then release on go.
+- **Open:** colorizers come out as black background (as in the file);
+  `hidescore2` may disable itself on the line that enables it.
 
 ### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)
 

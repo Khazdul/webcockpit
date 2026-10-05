@@ -173,4 +173,27 @@ Decisions and refinements (ADR 0076 amended where a decision changed):
 
 ## Test guide
 
+Run `npm run dev` and open the local address it prints (the release
+waits for your go). Start page → Profiles → IMPORT.
+
+1. **Your profile:** choose `export (from save profile as).trigger`
+   from Downloads. Check: the report says *Mudlet*, about 204
+   translated, 23 kept, 7 skipped packages, each package line naming
+   what replaces it (Key manager, Timers, Comm …).
+2. Press **EDIT** and read the profile: the folders are `#class`
+   blocks, aliases are `#alias {^name$} {…}`, keys are `#macro`. At
+   the end, the `#nop` block holds what was not translated, with the
+   reason.
+3. **Play with it:** `sd east`, then `c`, `cc`, `o`; `z orc`, then
+   F1/F4; `burn` and `normal`; `ga`; `silvery`. Do the commands and the
+   `## …` echoes look right?
+4. **Colour triggers:** your colorizers (High Spellbuff, Charmies,
+   Sanc highl …) have no foreground and a black background in the file,
+   so they come out as `<B000000>`, invisible on black. Do they show
+   colour in Mudlet?
+5. If you have a `.mpackage` from someone, import it too.
+
+Feedback wanted: anything translated wrongly, anything kept that you
+think is simple enough to translate, and whether the report is useful.
+
 ## Owner feedback
