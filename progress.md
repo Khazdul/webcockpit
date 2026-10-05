@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 21 (room notes and map search; owner testing). Released 0.1.49 (stage 21 and new-user defaults, ADR 0078), owner testing. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -33,6 +33,18 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-06 — Hover default Full, release 0.1.50
+
+- **Owner:** 0.1.49 checked (stage 21 guide and a fresh profile) fine.
+- **Done:** ADR 0080. Room info on hover defaults to Full;
+  SETTINGS_VERSION 2 moves a stored Minimal (old default) to Full once.
+- **Checked:** typecheck, unit 2423, e2e 465/465 (map-notes now starts
+  from Minimal explicitly), build:pages smoke 10/10 in both browsers.
+- **Released:** 0.1.50 (tag v0.1.50, owner's go). Pages deploy green, live
+  release.json 0.1.50, test:prod against the live site 10/10.
+- **Also:** Discord post for 0.1.47 → 0.1.49 drafted with the owner.
+- **Commits:** 11b66d5, e2fc514, plus this one.
 
 ### 2026-10-06 — Release 0.1.49
 
