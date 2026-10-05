@@ -48,7 +48,11 @@ Newest first.
 - **Owner round 1:** no `#class`, no `#nop` per untranslated item (one
   summary line; the report lists them), gate-prefix mechanism removed.
   Sample now: 203 translated, 24 not translated, 7 packages skipped.
-- **Open:** colorizers come out as black background (as in the file).
+- **Owner round 2:** colorizers with no visible colour (keep text,
+  black background; verified against Mudlet's source) give no
+  `#highlight`. Sample now: 195 translated, 32 not translated, 7
+  packages skipped.
+- **Open:** owner to confirm the colorizers show nothing in Mudlet too.
 
 ### 2026-10-04 — Stage 19: phone access (touch fixes and phone layout)
 

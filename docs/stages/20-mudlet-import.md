@@ -215,8 +215,8 @@ Run `npm run dev` and open the local address it prints (the release
 waits for your go). Start page → Profiles → IMPORT.
 
 1. **Your profile:** choose `export (from save profile as).trigger`
-   from Downloads. Check: the report says *Mudlet*, about 204
-   translated (203 after round 1), 24 not translated, 7 skipped packages, each package line naming
+   from Downloads. Check: the report says *Mudlet*, about 195
+   translated, 32 not translated, 7 skipped packages, each package line naming
    what replaces it (Key manager, Timers, Comm …).
 2. Press **EDIT** and read the profile: rules are flat in source
    order, aliases are `#alias {^name$} {…}`, keys are `#macro`. The
