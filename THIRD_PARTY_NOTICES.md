@@ -20,7 +20,7 @@ map editing); no Qt types; data kept in typed arrays.
 
 | WebCockpit file | Derived from (MMapper `src/`) | Changes |
 |---|---|---|
-| `src/map/mm2.ts` | `mapstorage/mapstorage.cpp`, `map/WorldBuilder.cpp` (sanitize) | Reader for schema 17–42 only; skips room contents and notes; typed-array output |
+| `src/map/mm2.ts` | `mapstorage/mapstorage.cpp`, `map/WorldBuilder.cpp` (sanitize) | Reader for schema 17–42 only; keeps notes and contents as strings; typed-array output |
 | `src/map/mm2-write.ts` | inverse of the `.mm2` format above | Writer for tests and replay subsets |
 | `src/map/view.ts` | `display/ProjectionUtils.cpp`, `display/MapCanvasData.cpp` (2D camera) | Pan, zoom and layer only |
 | `src/map/search.ts` | `mapdata/roomfilter.cpp`, `mapdata/shortestpath.cpp`, `parser/abstractparser.cpp` (`compressDirections`), `parser/AbstractParser-Commands.cpp` (flag names) | Script map search, paths and room details; one Dijkstra over the whole map (2026-10-05) |
