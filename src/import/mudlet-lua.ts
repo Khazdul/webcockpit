@@ -850,8 +850,8 @@ export interface LuaEnv {
   functions: ReadonlyMap<string, LuaFunction>;
   /** Names defined by any Script (own or package): calls to them read "calls X". */
   defined: ReadonlySet<string>;
-  /** Commands that switch an item on or off by name (`enableTrigger("x")`). */
-  gate(name: string, on: boolean): string[];
+  /** Commands that switch an item on or off by name; `fn` is the call (`enableTrigger`). */
+  gate(name: string, on: boolean, fn: string): string[];
 }
 
 /** The trigger an item body belongs to (null for aliases, keys, timers). */
@@ -1494,7 +1494,7 @@ class Emitter {
       case 'disableTimer': {
         const c = this.constOf(arg(0));
         if (c?.c !== 'str') throw new Unsupported(`${n} with a computed name`);
-        return this.env.gate(c.v, n.startsWith('enable'));
+        return this.env.gate(c.v, n.startsWith('enable'), n);
       }
       case 'tempTimer':
         return this.tempTimer(args);

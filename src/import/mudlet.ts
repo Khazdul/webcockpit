@@ -6,23 +6,21 @@
 // - installed packages (a top-level folder whose name is its packageName,
 //   or a packageName listed in HostPackage) are skipped, one report item
 //   each, naming the built-in replacement;
-// - own folders become `#class {a/b} {open}` … `{close}`;
+// - folders give no output (owner 2026-10-05): rules are written flat,
+//   in source order; folder names only matter for enable/disable;
 // - aliases → `#alias`, triggers → `#action` (one per pattern), plus
 //   `#gag`/`#highlight`/`#substitute` from colorizers and line idioms,
 //   keys → `#macro`, timers → `#ticker`, variables → `#variable`;
 // - bodies go through the Lua subset (mudlet-lua.ts); functions of the
 //   user's own Scripts are inlined, Scripts themselves are not imported;
 // - `enable…/disable…("name")` → gate variables `mudlet_on_<name>` (1/0)
-//   wrapping the named items' bodies; gags, highlights and substitutes of
-//   a gated item get `${mudlet_gate_<name>}` in their pattern, which is
-//   empty when on and a never-matching `%!{(?!)}` when off. One
-//   priority-1 `#action {%*}` copies each such gate from `mudlet_on_` at
-//   the start of every line, so a trigger that gags its line and then
-//   disables itself still gags that line, as in Mudlet (our actions run
-//   before gags);
+//   wrapping the named items' bodies in `#if`. An item switched by name
+//   that would give a gag, highlight or substitute is not translated
+//   (those cannot be switched); an enable/disable of an item that was
+//   not translated is dropped with a warning (owner 2026-10-05);
 // - every global the rules read gets a start value;
-// - what cannot be translated (or is disabled) is kept in the
-//   not-translated block as `#nop {<reason> (<kind> <name>): <source>}`.
+// - what cannot be translated (or is disabled) is left out of the profile
+//   and listed in the import report; one `#nop` at the end counts it.
 
 import { checkBraces } from '../script/doc';
 import { compilePattern } from '../script/engine/pattern';
@@ -82,11 +80,8 @@ interface Rec {
   kind: Kind | 'Variable';
   outcome: 'translated' | 'kept' | 'skipped';
   lines: string[];
-  group: string | null;
   reason?: string;
   warnings: string[];
-  /** For kept items: the text after `(<kind> <name>): `. */
-  keptText?: string;
   sends?: string[];
   reads?: Set<string>;
 }
@@ -114,7 +109,6 @@ function gateCalls(code: string): Array<{ kind: Kind; name: string }> {
 /** Placeholder for the commands of `enable…/disable…("name")`, resolved at the end. */
 const GATE_MARK = '\u0000GATE';
 
-const NEVER = '%!{(?!)}';
 
 export interface MudletInfo {
   version: string;
@@ -132,14 +126,6 @@ function replacement(pkg: string): string | null {
 
 function varName(name: string): string {
   return name.replace(/[^A-Za-z0-9_]/g, '_');
-}
-
-/** A folder path as a class name (no braces or `;`). */
-function className(folders: Node[]): string | null {
-  if (folders.length === 0) return null;
-  return folders
-    .map((f) => f.name.replace(/[{]/g, '(').replace(/[}]/g, ')').replace(/;/g, ',').trim() || '_')
-    .join('/');
 }
 
 /** Typed text (`command`/`mCommand`): `;;` separates commands; everything else is literal. */
@@ -271,8 +257,6 @@ class MudletTranslator {
   private readonly defined = new Set<string>();
   /** Gated names → the kinds the enable/disable calls name. */
   private readonly gateKinds = new Map<string, Set<Kind>>();
-  /** Gated names whose items have gags, highlights or substitutes. */
-  private readonly patternGates = new Set<string>();
   /** Start values of gates (first item with the name). */
   private readonly gateStart = new Map<string, boolean>();
   private readonly defaults = new Map<string, { value: string; conditional: boolean }>();
@@ -292,7 +276,7 @@ class MudletTranslator {
     this.env = {
       functions: this.functions,
       defined: this.defined,
-      gate: (name, on) => [`${GATE_MARK}:${on ? 1 : 0}:${name}\u0000`],
+      gate: (name, on, fn) => [`${GATE_MARK}:${on ? 1 : 0}:${fn}:${name}\u0000`],
     };
   }
 
@@ -437,7 +421,6 @@ class MudletTranslator {
         kind: 'Script',
         outcome: 'skipped',
         lines: [],
-        group: null,
         reason: `${repl} (${p.items} item${p.items === 1 ? '' : 's'})`,
         warnings: [],
       });
@@ -468,7 +451,7 @@ class MudletTranslator {
         this.scriptItem(n);
         break;
       case 'Action':
-        this.keep(n, '', 'Toolbar button', [childText(n.el, 'commandButtonUp'), childText(n.el, 'commandButtonDown'), this.script(n.el)].filter(Boolean).join('\n'));
+        this.keep(n, '', 'Toolbar button');
         break;
     }
     for (const c of n.children) this.item(c);
@@ -478,20 +461,9 @@ class MudletTranslator {
     return `${n.kind} ${n.name}${pattern ? `  ${pattern}` : ''}`;
   }
 
-  private keep(n: Node, pattern: string, reason: string, code?: string): void {
-    const body = [pattern, this.command(n.el) ? `command: ${this.command(n.el)}` : '', code ?? this.script(n.el)]
-      .filter((s, i, a) => s.trim() !== '' && a.indexOf(s) === i)
-      .join('\n');
-    this.recs.push({
-      st: this.st(n.el.line, this.source(n, pattern)),
-      kind: n.kind,
-      outcome: 'kept',
-      lines: [],
-      group: null,
-      reason,
-      warnings: [],
-      keptText: body,
-    });
+  /** An item left out of the profile; the report lists it with the reason. */
+  private keep(n: Node, pattern: string, reason: string): void {
+    this.recs.push({ st: this.st(n.el.line, this.source(n, pattern)), kind: n.kind, outcome: 'kept', lines: [], reason, warnings: [] });
   }
 
   /** The body (command + script) of an item; null and a kept record when it is not translatable. */
@@ -511,27 +483,14 @@ class MudletTranslator {
   private gated(n: Node, body: string, orelse?: string): string {
     const gates = this.gatesOf(n);
     if (gates.length === 0) return body;
-    for (const g of gates) this.usedGates.add(g);
     const cond = gates.map((g) => `$mudlet_on_${varName(g)}`).join(' && ');
     return `#if {${cond}} {${body}}${orelse !== undefined ? ` #else {${orelse}}` : ''}`;
-  }
-
-  /** A gag/highlight/substitute pattern with the item's pattern gates. */
-  private gatedPattern(n: Node, pattern: string): string {
-    const gates = this.gatesOf(n);
-    if (gates.length === 0) return pattern;
-    for (const g of gates) {
-      this.patternGates.add(g);
-      this.usedGates.add(g);
-    }
-    const prefix = gates.map((g) => `\${mudlet_gate_${varName(g)}}`).join('');
-    return pattern.startsWith('^') ? `^${prefix}${pattern.slice(1)}` : prefix + pattern;
   }
 
   private finish(n: Node, pattern: string, lines: string[], r: BodyOk | null, notes: string[] = []): void {
     const warnings = [...notes, ...(r?.warnings ?? [])];
     if (lines.length === 0) {
-      this.recs.push({ st: this.st(n.el.line, this.source(n, pattern)), kind: n.kind, outcome: 'skipped', lines: [], group: null, reason: 'Does nothing', warnings: [] });
+      this.recs.push({ st: this.st(n.el.line, this.source(n, pattern)), kind: n.kind, outcome: 'skipped', lines: [], reason: 'Does nothing', warnings: [] });
       return;
     }
     const bad = lines.find((l) => !checkBraces(l).ok);
@@ -540,19 +499,11 @@ class MudletTranslator {
       return;
     }
     if (this.disabled(n)) {
-      this.recs.push({
-        st: this.st(n.el.line, this.source(n, pattern)),
-        kind: n.kind,
-        outcome: 'kept',
-        lines: [],
-        group: null,
-        reason: 'Disabled in Mudlet',
-        warnings: [],
-        keptText: lines.join('\n'),
-      });
+      this.keep(n, pattern, 'Disabled in Mudlet');
       return;
     }
-    const rec: Rec = { st: this.st(n.el.line, this.source(n, pattern)), kind: n.kind, outcome: 'translated', lines, group: className(n.folders), warnings };
+    for (const g of this.gatesOf(n)) this.usedGates.add(g);
+    const rec: Rec = { st: this.st(n.el.line, this.source(n, pattern)), kind: n.kind, outcome: 'translated', lines, warnings };
     if (r) {
       rec.sends = r.sends;
       rec.reads = r.reads;
@@ -636,18 +587,22 @@ class MudletTranslator {
       if (colour) {
         pats.forEach((src, i) => {
           const hp = types[i] === 1 ? colorizerPatterns(src, ttPats[i]!) : [ttPats[i]!];
-          for (const p of hp) lines.push(`#highlight {${this.gatedPattern(n, p)}} {${colour}}`);
+          for (const p of hp) lines.push(`#highlight {${p}} {${colour}}`);
         });
       }
     }
     for (const p of ttPats) {
       if (body !== '') lines.push(`#action {${p}} {${this.gated(n, body)}}`);
-      if (r.gag) lines.push(`#gag {${this.gatedPattern(n, p)}}`);
+      if (r.gag) lines.push(`#gag {${p}}`);
     }
-    for (const h of r.highlights) lines.push(`#highlight {${this.gatedPattern(n, h.pattern)}} {${h.colour}}`);
-    for (const s of r.substitutes) lines.push(`#substitute {${this.gatedPattern(n, s.pattern)}} {${s.text}}`);
+    for (const h of r.highlights) lines.push(`#highlight {${h.pattern}} {${h.colour}}`);
+    for (const s of r.substitutes) lines.push(`#substitute {${s.pattern}} {${s.text}}`);
     if (r.highlights.length > 0 && r.highlights.some((h) => !ttPats.some((p) => p.includes(h.pattern)))) {
       notes.push('The selected text is highlighted on every line, not only where the trigger fires.');
+    }
+    if (this.gatesOf(n).length > 0 && lines.some((l) => /^#(?:gag|highlight|substitute) /.test(l))) {
+      this.keep(n, shown, 'Turned on and off by other rules (gag/highlight/substitute cannot be switched)');
+      return;
     }
     this.finish(n, shown, [...new Set(lines)], r, notes);
   }
@@ -683,7 +638,7 @@ class MudletTranslator {
     const code = this.script(n.el);
     const st = this.st(n.el.line, this.source(n, ''));
     if (code.trim() === '') {
-      this.recs.push({ st, kind: 'Script', outcome: 'skipped', lines: [], group: null, reason: 'Empty script', warnings: [] });
+      this.recs.push({ st, kind: 'Script', outcome: 'skipped', lines: [], reason: 'Empty script', warnings: [] });
       return;
     }
     const handlers = (n.el.children.find((c) => c.name === 'eventHandlerList')?.children ?? []).map((c) => c.text).filter(Boolean);
@@ -698,7 +653,7 @@ class MudletTranslator {
       const why = checkFunction(f, this.env);
       if (why) return this.keep(n, '', `Function ${f.name}: ${why}`);
     }
-    this.recs.push({ st, kind: 'Script', outcome: 'translated', lines: [], group: null, reason: 'Inlined where its functions are called; defaults become start values', warnings: [] });
+    this.recs.push({ st, kind: 'Script', outcome: 'translated', lines: [], reason: 'Inlined where its functions are called; defaults become start values', warnings: [] });
   }
 
   private variablePackage(): void {
@@ -712,18 +667,18 @@ class MudletTranslator {
         const type = childText(v, 'valueType');
         const st = this.st(v.line, `Variable ${prefix}${name}  ${value}`);
         if (v.name === 'VariableGroup' || type === '5') {
-          this.recs.push({ st, kind: 'Variable', outcome: 'kept', lines: [], group: null, reason: 'Table variable', warnings: [], keptText: `${prefix}${name}` });
+          this.recs.push({ st, kind: 'Variable', outcome: 'kept', lines: [], reason: 'Table variable', warnings: [] });
           continue;
         }
         if (prefix !== '' || !/^[A-Za-z_]\w*$/.test(name)) {
-          this.recs.push({ st, kind: 'Variable', outcome: 'kept', lines: [], group: null, reason: 'Variable name tt++ cannot use', warnings: [], keptText: `${prefix}${name} = ${value}` });
+          this.recs.push({ st, kind: 'Variable', outcome: 'kept', lines: [], reason: 'Variable name tt++ cannot use', warnings: [] });
           continue;
         }
         let text = value;
         if (type === '1') text = value === 'true' ? '1' : '0';
         else text = escapeText(value);
         this.variables.set(name, text);
-        this.recs.push({ st, kind: 'Variable', outcome: 'translated', lines: [`#variable {${name}} {${text}}`], group: null, warnings: [] });
+        this.recs.push({ st, kind: 'Variable', outcome: 'translated', lines: [`#variable {${name}} {${text}}`], warnings: [] });
       }
     };
     walk(pkg, '');
@@ -732,10 +687,21 @@ class MudletTranslator {
   // --------------------------------------------------------------- output
 
   /** Resolves gate placeholders in a line. */
-  private gateCommands(line: string): string {
-    return line.replace(/\u0000GATE:([01]):([^\u0000]*)\u0000/g, (_m, on: string, name: string) => {
-      return `#variable {mudlet_on_${varName(name)}} {${on}}`;
+  /**
+   * Resolves gate placeholders: `#variable {mudlet_on_x} {1|0}` when an
+   * item switched by that name was translated, else the command is
+   * dropped with a warning in `warnings`.
+   */
+  private gateCommands(line: string, warnings: string[]): string {
+    const re = /\u0000GATE:([01]):(\w+):([^\u0000]*)\u0000/g;
+    let out = line.replace(re, (_m, on: string, fn: string, name: string) => {
+      if (this.usedGates.has(name)) return `#variable {mudlet_on_${varName(name)}} {${on}}`;
+      warnings.push(`${fn}("${name}") dropped: ${name} was not translated.`);
+      return '\u0000';
     });
+    // Remove the dropped commands with one separator each.
+    out = out.replace(/;\u0000|\u0000;|\u0000/g, '');
+    return out;
   }
 
   write(out: Out): void {
@@ -748,7 +714,6 @@ class MudletTranslator {
       if (!this.usedGates.has(name)) continue;
       const v = varName(name);
       startLines.push(`#variable {mudlet_on_${v}} {${on ? 1 : 0}}`);
-      if (this.patternGates.has(name)) startLines.push(`#variable {mudlet_gate_${v}} {${on ? '' : NEVER}}`);
     }
     for (const r of this.recs) if (r.kind === 'Variable' && r.outcome === 'translated') saved.push(r);
     const empty: string[] = [];
@@ -762,14 +727,6 @@ class MudletTranslator {
       }
     }
     if (empty.length > 0) out.warnFile(`No start value in Mudlet for ${empty.join(', ')}; they start empty.`);
-    const synced = [...this.gateStart.keys()].filter((g) => this.patternGates.has(g) && this.usedGates.has(g));
-    if (synced.length > 0) {
-      const sync = synced.map((g) => {
-        const v = varName(g);
-        return `#if {$mudlet_on_${v}} {#variable {mudlet_gate_${v}} {}} #else {#variable {mudlet_gate_${v}} {${NEVER}}}`;
-      });
-      startLines.push(`#action {%*} {${sync.join(';')}} {1}`);
-    }
     for (const r of saved) out.translated(r.st, r.lines, {});
     for (const l of startLines) out.raw(l);
 
@@ -789,13 +746,12 @@ class MudletTranslator {
         continue;
       }
       if (r.outcome === 'kept') {
-        const label = r.st.text.split('  ')[0]!;
-        out.kept.push(nopLine(`${r.reason} (${label}): ${this.gateCommands(r.keptText ?? '')}`));
         out.item(r.st, 'kept', { reason: r.reason! });
         out.changed = true;
         continue;
       }
       const warnings = [...r.warnings];
+      const lines = r.lines.map((l) => this.gateCommands(l, warnings));
       for (const s of r.sends ?? []) {
         const text = s.replace(/\$\{?\w+\}?|%\d+/g, 'x').replace(/\\(.)/g, '$1');
         if (aliasRes.some((re) => re?.test(text))) {
@@ -806,14 +762,18 @@ class MudletTranslator {
       const note: { reason?: string; warning?: string } = {};
       if (r.reason) note.reason = r.reason;
       if (warnings.length > 0) note.warning = [...new Set(warnings)].join(' ');
-      out.translated(
-        r.st,
-        r.lines.map((l) => this.gateCommands(l)),
-        note,
-        r.group,
-      );
+      out.translated(r.st, lines, note);
     }
-    out.setClass(null);
+    // One line at the end counts what was left out; the report lists each item.
+    const kept = this.recs.filter((r) => r.outcome === 'kept');
+    const disabled = kept.filter((r) => /disabled in Mudlet$/i.test(r.reason ?? '')).length;
+    const parts: string[] = [];
+    if (kept.length > 0) {
+      const detail = [disabled > 0 ? `${disabled} disabled in Mudlet` : '', kept.length > disabled ? `${kept.length - disabled} not translatable` : ''].filter(Boolean).join(', ');
+      parts.push(`${kept.length} item${kept.length === 1 ? '' : 's'} not translated (${detail})`);
+    }
+    if (this.packages.size > 0) parts.push(`${this.packages.size} package${this.packages.size === 1 ? '' : 's'} skipped`);
+    if (parts.length > 0) out.raw(nopLine(`Mudlet import: ${parts.join(', ')}. See the import report.`));
   }
 }
 
