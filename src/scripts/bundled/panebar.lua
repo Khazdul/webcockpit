@@ -1,21 +1,12 @@
 -- @name     panebar
 -- @summary  A bar of buttons that turn the panes on and off
 -- @api      1
--- @alias    bar  Show or hide the pane bar (also: bar list, bar menu)
+-- @alias    bar  Show or hide the pane bar (also: bar list)
 -- @help     One button per pane: the built-in panes (CHAR, TIME, GRP,
 -- @help     COMM, UI, MAP) and the panes of the scripts that run, in the
 -- @help     order of Options -> Panes. Click a button to hide its pane,
 -- @help     click again to show it. A bright button is on, a dark one is
 -- @help     off. Point at a button to see the pane's full name.
--- @help
--- @help     Point at the bar and a gear appears at its left end, after the
--- @help     dots. Click it to choose which panes the bar has buttons for:
--- @help     a small menu over the bar with a box per pane. A pane left out
--- @help     only loses its button; it is shown and hidden as before from
--- @help     Options -> Panes or its close cross. The choice is kept, and a
--- @help     new pane gets a button until you take it away. A click outside
--- @help     the menu, Esc or its cross closes it. On a phone or a tablet
--- @help     the gear is always there.
 -- @help
 -- @help     The bar starts at the bottom of the right dock, under the
 -- @help     other panes. Drag it by the dots at its left end (or press a
@@ -28,7 +19,6 @@
 -- @help
 -- @help       bar        show or hide the bar
 -- @help       bar list   the panes and whether they are on, as text
--- @help       bar menu   open or close the gear's menu
 
 --[[
 How it works
@@ -43,9 +33,8 @@ lighter, text and fill (pane:setHover("lighten")). A click calls
 setPaneOn.
 
 The bar is one row: a grip, a dotted cell (pane:setGrip) that drags the
-bar, the gear cell, a blank cell, then the buttons, one empty cell apart.
-How wide the buttons are depends on the room after the blank (ADR 0065
-round 3):
+bar, a blank cell, then the buttons, one empty cell apart. How wide the
+buttons are depends on the room after the grip (ADR 0065 round 3):
 
 - Full: every button is the longest short name plus one cell on each
   side, the name centred. Used whenever all of them fit; spare room stays
@@ -65,18 +54,6 @@ round 3):
   and does nothing. The wheel (pane:onWheel) scrolls too: sideways or
   up/down, a button per three cells (a button and its gap).
 
-The gear (round 4): pane:onHover tells when the pointer is over the bar;
-the gear cell is always kept, and the gear is drawn in it (a link) only
-while the pointer is over the bar or the menu is open, so nothing moves.
-On a device that cannot hover, onHover says "over" once and for good, so
-the gear stays. The menu is a temporary pane `near` the bar (the cockpit
-puts it above the bar, else below) and a `popup` (a press outside it and
-the bar, or Esc, closes it): a checkbox (pane:setCheckbox) per pane in
-getPanes() order. The panes taken off the bar are kept as a set of ids,
-`hidden`, in the script's store; every other pane, a new one too, has a
-button. A list change while the menu is open redraws it, reopening it
-when the number of panes changed (a temporary pane keeps its size).
-
 The bar redraws when the list changes (sysPanesChanged), when it is
 resized and when it moves to another dock. Docked, it asks for one row
 with pane:wantSize (a height the player drags stays until the bar moves).
@@ -85,12 +62,9 @@ with pane:wantSize (a height the player drags stays until the bar moves).
 local ON = "<@bg:@glow>"
 local OFF = "<@mid:@track>"
 local GRIP = "<@mid>\u{2237}<reset>"
-local GEAR = "\u{2699}"
 local LEFT, RIGHT = "\u{2190}", "\u{2192}"
--- The gear's column, after the grip.
-local GEAR_COL = 2
--- The first button column: the grip, the gear, then one blank cell.
-local FIRST = 4
+-- The first button column: the grip, then one blank cell.
+local FIRST = 3
 -- Scrolled: the left arrow and a blank before the buttons.
 local SCROLL_FIRST = FIRST + 2
 -- The narrowest button.
@@ -109,28 +83,11 @@ local wheelRest = 0
 -- Set by the last draw: scrolled or not, buttons in the list and shown.
 local scrolled, count, shown = false, 0, 0
 
--- The pointer is over the bar (or the device cannot hover).
-local hovered = false
--- The gear's menu while it is open.
-local menu = nil
--- The panes taken off the bar: { [id] = true } (kept in the store).
-local hidden = store.get("hidden")
-if type(hidden) ~= "table" then hidden = {} end
-
--- Every pane but the bar's own (and its menu, which is temporary).
-local function all()
+-- The panes the bar has buttons for: every pane but its own.
+local function others()
   local out = {}
   for _, e in ipairs(getPanes()) do
     if not e.own then out[#out + 1] = e end
-  end
-  return out
-end
-
--- The panes the bar has buttons for: all but the ones taken off.
-local function others()
-  local out = {}
-  for _, e in ipairs(all()) do
-    if not hidden[e.id] then out[#out + 1] = e end
   end
   return out
 end
@@ -200,7 +157,7 @@ local function layout(list)
   return out, true
 end
 
-local draw, toggleMenu
+local draw
 
 -- Scrolls by `by` buttons (scrolled only) and redraws.
 local function scroll(by)
@@ -228,11 +185,6 @@ draw = function()
   local function put(col, text)
     parts[#parts + 1] = string.rep(" ", col - at) .. text
   end
-  local gear = (hovered or menu ~= nil) and width >= GEAR_COL
-  if gear then
-    put(GEAR_COL, (menu and "<@text>" or "<@mid>") .. GEAR .. "<reset>")
-    at = GEAR_COL + 1
-  end
   local left, right = offset, count - offset - shown
   if scrolled and width > FIRST then
     put(FIRST, (left > 0 and "<@text>" or "<@dim>") .. LEFT .. "<reset>")
@@ -246,10 +198,6 @@ draw = function()
     put(width, (right > 0 and "<@text>" or "<@dim>") .. RIGHT .. "<reset>")
   end
   pane:setLine(1, table.concat(parts))
-  if gear then
-    pane:setLink(1, GEAR_COL, 1, function() toggleMenu() end,
-      menu and "Close the menu" or "Choose the panes on the bar")
-  end
   for _, b in ipairs(buttons) do
     local id, on = b.e.id, b.e.on
     pane:setLink(1, b.col, b.w, function() setPaneOn(id, not on) end, hint(b.e))
@@ -260,93 +208,11 @@ draw = function()
     if left > 0 then pane:setLink(1, FIRST, 1, function() scroll(-page) end, more(left, "left")) end
     if right > 0 then pane:setLink(1, width, 1, function() scroll(page) end, more(right, "right")) end
   end
-  pane:setGrip(1, 1, 1)
+  pane:setGrip(1, 1, FIRST - 1)
   -- One row (the surface ignores a repeated request, so a height the
   -- player dragged stays).
   if dock ~= "float" then pane:wantSize(1) end
 end
-
--- ------------------------------------------------------------ the menu
-
-local menuCount = 0
-
-local function drawMenu()
-  if not menu then return end
-  local list = all()
-  local w = 0
-  for _, e in ipairs(list) do w = math.max(w, utf8.len(e.short)) end
-  menu:clear()
-  for i, e in ipairs(list) do
-    local id = e.id
-    menu:setCheckbox(i, 2, {
-      label = e.short .. string.rep(" ", w - utf8.len(e.short) + 2) .. e.title,
-      checked = not hidden[id],
-      hint = e.title .. ": a button on the bar or not",
-      -- The box flips itself; only the bar is drawn again.
-      onChange = function(on)
-        hidden[id] = (not on) or nil
-        store.set("hidden", hidden)
-        draw()
-      end,
-    })
-  end
-end
-
-local function closeMenu()
-  local m = menu
-  if not m then return end
-  menu = nil
-  m:close()
-  draw()
-end
-
-local function openMenu()
-  if menu then return end
-  local list = all()
-  local w, t = 0, 0
-  for _, e in ipairs(list) do
-    w = math.max(w, utf8.len(e.short))
-    t = math.max(t, utf8.len(e.title))
-  end
-  -- " [x] SHORT  Title " per row.
-  menuCount = #list
-  menu = createPane{
-    id = "menu", title = "Bar buttons", temporary = true, near = "bar", popup = true,
-    rows = math.max(1, #list), cols = math.max(16, 1 + 4 + w + 2 + t + 1),
-  }
-  menu:onClose(function()
-    menu = nil
-    draw()
-  end)
-  drawMenu()
-  draw()
-end
-
-toggleMenu = function()
-  if menu then closeMenu() else openMenu() end
-end
-
--- The list changed: the menu follows (a new size needs a new pane).
-local function panesChanged()
-  draw()
-  if not menu then return end
-  if not pane:visible() then
-    closeMenu()
-    return
-  end
-  if #all() ~= menuCount then
-    closeMenu()
-    openMenu()
-  else
-    drawMenu()
-  end
-end
-
-pane:onHover(function(inside)
-  if inside == hovered then return end
-  hovered = inside
-  draw()
-end)
 
 -- The wheel scrolls a scrolled bar, sideways or up and down (a mouse
 -- wheel), a button per three cells; otherwise it is left alone.
@@ -367,7 +233,7 @@ pane:onResize(function(rows, cols)
   draw()
 end)
 
-registerAnonymousEventHandler("sysPanesChanged", panesChanged)
+registerAnonymousEventHandler("sysPanesChanged", draw)
 registerAnonymousEventHandler("sysLoadEvent", draw)
 
 local function say(text)
@@ -377,23 +243,14 @@ end
 tempAlias("^bar(?: +(\\S+))?$", function()
   local sub = matches[2]
   if sub == "" then
-    if pane:visible() then
-      closeMenu()
-      pane:hide()
-    else
-      pane:show()
-    end
+    if pane:visible() then pane:hide() else pane:show() end
   elseif sub == "list" then
-    for _, e in ipairs(all()) do
+    for _, e in ipairs(others()) do
       local state = e.on and "on " or "off"
       local owner = e.script and (" (" .. e.script .. ")") or ""
-      local off = hidden[e.id] and ", no button" or ""
-      say(string.format("%-8s %s  %s%s%s", e.short, state, e.title, owner, off))
+      say(string.format("%-8s %s  %s%s", e.short, state, e.title, owner))
     end
-  elseif sub == "menu" then
-    if not pane:visible() then pane:show() end
-    toggleMenu()
   else
-    say("bar, bar list, bar menu")
+    say("bar, bar list")
   end
 end)

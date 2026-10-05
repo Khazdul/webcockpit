@@ -77,13 +77,6 @@
 //   the user moves or resizes them, never dock, and their close cross
 //   calls `temp.onClose` (the owner removes them). The surface keeps the
 //   user's rectangle per device (src/layout/temp-places.ts).
-// - A temporary pane with `near` (ADR 0065 round 4) opens next to that
-//   pane while it has a box (`tempNearRect`: above it, its left edges
-//   lined up, else below), placed again on every layout until the user
-//   moves it. A `popup` one is closed (its `onClose`) by a press anywhere
-//   outside it and its `near` pane, and by Esc aimed at the cockpit (the
-//   newest pop-up first; the key goes no further, so the ESC menu does not
-//   open).
 //
 // Phone (ADR 0075 §3, `device().phone`, decided once at construction):
 // `allocatePhone` (src/layout/phone.ts) instead of `allocate`, a tab strip
@@ -199,10 +192,6 @@ export interface TempPaneOptions {
    * device (temp-places.ts).
    */
   group?: { key: string; cols: number };
-  /** Opens next to this pane while it has a box (ADR 0065 round 4). */
-  near?: PaneId;
-  /** A press outside it and `near`, or Esc, calls `onClose`. */
-  popup?: boolean;
 }
 
 /** What the cockpit keeps of a temporary pane. */
@@ -220,10 +209,8 @@ interface TempPane extends TempPaneState {
   group: string | null;
   /** Opening order (groups tile by it; the Map order is the z-order). */
   seq: number;
-  /** A grouped (or `near`) pane's rectangle from the last layout. */
+  /** A grouped pane's rectangle from the last layout. */
   box: Rect | null;
-  near: PaneId | null;
-  popup: boolean;
 }
 
 /** A tiled group's state: its grid, and where the player put it. */
@@ -600,10 +587,7 @@ export class Cockpit {
         group: g ? g.key : null,
         seq: ++this.tempSeq,
         box: null,
-        near: temp.near ?? null,
-        popup: temp.popup === true,
       });
-      if (temp.popup) this.watchPopups();
     }
     this.attach(shell, this.inputEl);
     if (temp) this.scheduleRelayout();
@@ -617,9 +601,8 @@ export class Cockpit {
   tempPane(id: PaneId): TempPaneState | null {
     const t = this.temps.get(id);
     if (!t) return null;
-    // A grouped pane's place is the tiling's, a `near` one's where it went
-    // (runs record it as its rectangle).
-    const rect = t.group || (t.near && !t.rect) ? t.box : t.rect;
+    // A grouped pane's place is the tiling's (runs record it as its rectangle).
+    const rect = t.group ? t.box : t.rect;
     return { rows: t.rows, cols: t.cols, at: t.at, rect: rect && { ...rect }, on: t.on };
   }
 
@@ -653,53 +636,9 @@ export class Cockpit {
       shell.el.remove();
     }
     if (this.drag && 'id' in this.drag && this.drag.id === id) this.cancelDrag();
-    if (temp) {
-      this.watchPopups();
-      this.scheduleRelayout();
-    } else this.paneChanged();
+    if (temp) this.scheduleRelayout();
+    else this.paneChanged();
   }
-
-  /** The document listeners that close pop-ups are on (while there is one). */
-  private watchingPopups = false;
-
-  private watchPopups(): void {
-    const on = !this.disposed && [...this.temps.values()].some((t) => t.popup);
-    if (on === this.watchingPopups) return;
-    this.watchingPopups = on;
-    const doc = this.el.ownerDocument;
-    const add = on ? 'addEventListener' : 'removeEventListener';
-    doc[add]('pointerdown', this.onPopupPress, true);
-    // The window, capturing: before the input line's Esc (the ESC menu).
-    doc.defaultView?.[add]('keydown', this.onPopupKey, true);
-  }
-
-  /** A press outside a pop-up and its `near` pane closes it. */
-  private readonly onPopupPress = (e: Event): void => {
-    const target = e.target instanceof Node ? e.target : null;
-    const inside = (id: PaneId | null): boolean => {
-      const el = id ? this.shells.get(id)?.el : undefined;
-      return !!el && !!target && el.contains(target);
-    };
-    for (const [id, t] of [...this.temps]) {
-      if (!t.popup || !t.on || inside(id) || inside(t.near)) continue;
-      t.onClose();
-    }
-  };
-
-  /** Esc closes the newest pop-up that is shown, and goes no further. */
-  private readonly onPopupKey = (ev: Event): void => {
-    const e = ev as KeyboardEvent;
-    if (e.key !== 'Escape' || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || e.isComposing || e.defaultPrevented) return;
-    // Only a key aimed at the cockpit (the input line, a pane) or nothing; an overlay keeps its own.
-    const doc = this.el.ownerDocument;
-    const target = e.target;
-    if (target instanceof Node && target !== doc.body && target !== doc.documentElement && target !== doc && !this.el.contains(target)) return;
-    const top = [...this.temps.values()].filter((t) => t.popup && t.on).sort((a, b) => b.seq - a.seq)[0];
-    if (!top) return;
-    e.preventDefault();
-    e.stopPropagation();
-    top.onClose();
-  };
 
   /** The script panes on screen now, in the order they were added. */
   scriptPanes(): ScriptPaneInfo[] {
@@ -924,29 +863,17 @@ export class Cockpit {
     const out: PaneBox[] = [];
     let index = layout.floating.length;
     const tiled = this.tileGroups(r);
-    const moved: TempPane[] = [];
     for (const [id, t] of this.temps) {
       if (!t.on) continue;
       const g = r.game;
       const w = t.cols + 2;
       const h = t.rows + 2;
-      const anchor = t.near && !t.rect ? r.panes.find((b) => b.id === t.near)?.rect : undefined;
       const want =
-        this.tempPreview?.id === id
-          ? this.tempPreview.rect
-          : (tiled.get(id) ?? t.rect ?? (anchor ? tempNearRect(anchor, w, h, r.cols, r.rows) : tempDefaultRect(g, w, h, t.at)));
+        this.tempPreview?.id === id ? this.tempPreview.rect : (tiled.get(id) ?? t.rect ?? tempDefaultRect(g, w, h, t.at));
       const rect = clampFloat(want, floatMin(id, true), r.cols, r.rows);
       const content = { x: rect.x + 1, y: rect.y + 1, w: rect.w - 2, h: rect.h - 2 };
       out.push({ id, dock: 'float', lane: 0, index: index++, rect, content, framed: true });
-      if (t.near && !t.group) {
-        const b = t.box;
-        if (!b || b.x !== rect.x || b.y !== rect.y || b.w !== rect.w || b.h !== rect.h) {
-          t.box = rect;
-          moved.push(t);
-        }
-      }
     }
-    if (moved.length > 0) queueMicrotask(() => moved.forEach((t) => t.onPlace()));
     return out;
   }
 
@@ -1014,7 +941,6 @@ export class Cockpit {
   /** Stops listening and removes the cockpit. */
   dispose(): void {
     this.disposed = true;
-    this.watchPopups();
     for (const u of this.unsubs) u();
     this.paneListeners.clear();
     this.layoutListeners.clear();
@@ -1823,20 +1749,6 @@ function placeEl(el: HTMLElement, r: Rect, cell: { w: number; h: number }): void
  * (`top`, `bottom` just above the input line, `left`, `right`, and the
  * four corners), centred along the other axis.
  */
-/**
- * A temporary pane's outer rectangle (`w` × `h` cells) next to the pane
- * at `a` (ADR 0065 round 4): above it when it fits there, else below it
- * when it fits there, else on the side with more room; its left edge on
- * `a`'s, moved left to stay on the screen (`cols` × `rows`).
- */
-export function tempNearRect(a: Rect, w: number, h: number, cols: number, rows: number): Rect {
-  const above = a.y - h;
-  const below = a.y + a.h;
-  const y = above >= 0 ? above : below + h <= rows ? below : a.y >= rows - below ? 0 : rows - h;
-  const x = Math.max(0, Math.min(a.x, cols - w));
-  return { x, y: Math.max(0, y), w, h };
-}
-
 export function tempDefaultRect(g: Rect, w: number, h: number, at: TempPaneAt): Rect {
   const cx = g.x + Math.floor((g.w - w) / 2);
   const cy = g.y + Math.floor((g.h - h) / 2);

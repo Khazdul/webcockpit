@@ -26,7 +26,7 @@ interface Opened {
   spec: ScriptPaneSpec;
   content: PaneContent;
   events: ScriptPaneEvents;
-  view: ScriptPaneView & { on: boolean; closed: boolean; wheels: boolean[]; hovers: boolean[] };
+  view: ScriptPaneView & { on: boolean; closed: boolean; wheels: boolean[] };
 }
 
 /** A surface with the pane list; docks per pane, wantSize requests recorded. */
@@ -43,8 +43,6 @@ class Surface implements ScriptPaneSurface {
       closed: false,
       wheels: [] as boolean[],
       wheel: (on: boolean) => view.wheels.push(on),
-      hovers: [] as boolean[],
-      hover: (on: boolean) => view.hovers.push(on),
       changed: () => {},
       setOn: (on: boolean) => {
         view.on = on;
@@ -96,14 +94,9 @@ class Surface implements ScriptPaneSurface {
   get bar(): Opened {
     return this.opened.find((o) => o.spec.id === 'panebar/bar' && !o.view.closed)!;
   }
-
-  /** The gear's menu while it is open. */
-  get menu(): Opened | undefined {
-    return this.opened.find((o) => o.spec.id === 'panebar/~menu' && !o.view.closed);
-  }
 }
 
-async function setup(also: string[] = [], before?: (lib: ScriptLibrary) => void) {
+async function setup(also: string[] = []) {
   const bus = new Bus();
   const clock = new FakeScheduler();
   const sent: string[] = [];
@@ -116,7 +109,6 @@ async function setup(also: string[] = [], before?: (lib: ScriptLibrary) => void)
   bus.on('text.display', (d) => shown.push(d.line.text));
   const lib = new ScriptLibrary({ factory: null, bundled: BUNDLED_SCRIPTS });
   await lib.init();
-  before?.(lib);
   for (const name of ['panebar', ...also]) await lib.setEnabled(name, true);
   const panes = new Surface();
   host = new ScriptHost({ engine, bus, library: lib, game, send: (t) => sent.push(t), print: () => {}, message: () => {}, loadRuntime: () => loadLuaRuntime(), panes });
@@ -158,11 +150,11 @@ async function setup(also: string[] = [], before?: (lib: ScriptLibrary) => void)
 const ON = { fg: shadeColor('paneBg'), bg: shadeColor('glow') };
 /** Off: the mid shade on the track, faded but readable (ADR 0065 round 2). */
 const OFF = { fg: shadeColor('mid'), bg: shadeColor('track') };
-/** The grip glyph, the gear's cell (blank without the pointer) and the blank after it. */
-const G = '\u2237  ';
+/** The grip glyph and the blank after it. */
+const G = '\u2237 ';
 /** A row of buttons `w` wide (names centred), as the bar draws it; `grip` for row 1. */
 const bar = (names: string[], grip: boolean, w = 6): string =>
-  (grip ? G : '   ') +
+  (grip ? G : '  ') +
   names
     .map((n) => {
       const left = Math.floor((w - n.length) / 2);
@@ -195,13 +187,13 @@ describe('bundled panebar', () => {
     expect(t.rows().join(' ')).not.toContain('BAR');
     expect(t.panes.wants.at(-1)).toEqual([1, undefined]);
     expect(t.button('COMM').link.hint).toBe('Comm: on (click to hide)');
-    expect(t.colours(0, 3)).toEqual(ON);
+    expect(t.colours(0, 2)).toEqual(ON);
     // A hovered button lightens (ADR 0065 round 2): the pane's style, no link of its own.
     expect(t.panes.bar.content.hover).toBe('lighten');
     expect(t.panes.bar.content.links.every((l) => l.hover === undefined)).toBe(true);
     // The grip is dim, the gap between buttons is plain.
     expect(t.colours(0, 0)).toEqual({ fg: shadeColor('mid'), bg: undefined });
-    expect(t.colours(0, 9)).toEqual({ fg: undefined, bg: undefined });
+    expect(t.colours(0, 8)).toEqual({ fg: undefined, bg: undefined });
     expect(t.lib.get('panebar')!.lastError).toBeNull();
   });
 
@@ -210,22 +202,22 @@ describe('bundled panebar', () => {
     await t.resize(80);
     const links = t.panes.bar.content.links.filter((l) => l.row === 0);
     expect(links.map((l) => [l.col, l.len])).toEqual([
-      [3, 6],
-      [10, 6],
-      [17, 6],
-      [24, 6],
-      [31, 6],
-      [38, 6],
+      [2, 6],
+      [9, 6],
+      [16, 6],
+      [23, 6],
+      [30, 6],
+      [37, 6],
     ]);
     // GRP is centred: one blank before, two after (the odd cell goes right).
-    expect(t.rows()[0]!.slice(17, 23)).toBe(' GRP  ');
+    expect(t.rows()[0]!.slice(16, 22)).toBe(' GRP  ');
     for (const l of links) for (let c = l.col; c < l.col + l.len; c++) expect(t.colours(0, c)).toEqual(ON);
   });
 
-  it('puts the grip on the first cell of row 1, the gear cell blank without the pointer', async () => {
+  it('puts the grip on the first two cells of row 1', async () => {
     const t = await setup();
     await t.resize(80);
-    expect(t.panes.bar.content.grip).toEqual({ row: 0, col: 0, len: 1 });
+    expect(t.panes.bar.content.grip).toEqual({ row: 0, col: 0, len: 2 });
     expect(t.panes.bar.content.linkAt(0, 0)).toBeNull();
     expect(t.panes.bar.content.linkAt(0, 1)).toBeNull();
   });
@@ -267,8 +259,8 @@ describe('bundled panebar', () => {
 
   it('full width while all fit, never stretched', async () => {
     const t = await setup();
-    // All six in exactly 44 columns.
-    await t.resize(44);
+    // All six in exactly 43 columns.
+    await t.resize(43);
     expect(t.rows()).toEqual([bar(ALL, true)]);
     await t.resize(120);
     expect(t.rows()).toEqual([bar(ALL, true)]);
@@ -278,102 +270,102 @@ describe('bundled panebar', () => {
     const t = await setup();
     // One cell short of full: 35 button cells for six, 5 each and 5 spare:
     // the first and last two get one each, the odd one stays empty at the end.
-    await t.resize(43);
+    await t.resize(42);
     expect(spans(t)).toEqual([
-      [3, 6],
-      [10, 6],
-      [17, 5],
-      [23, 5],
-      [29, 6],
-      [36, 6],
+      [2, 6],
+      [9, 6],
+      [16, 5],
+      [22, 5],
+      [28, 6],
+      [35, 6],
     ]);
     expect(t.rows()).toEqual([G + ' CHAR   TIME   GRP  COMM    UI    MAP  ']);
     // 4 each, no spare.
-    await t.resize(32);
+    await t.resize(31);
     expect(t.rows()).toEqual([G + 'CHAR TIME GRP  COMM  UI  MAP ']);
-    expect(spans(t).at(-1)).toEqual([28, 4]);
+    expect(spans(t).at(-1)).toEqual([27, 4]);
     // 3 each and 2 spare: the first and the last.
-    await t.resize(28);
+    await t.resize(27);
     expect(spans(t).map((s) => s[1])).toEqual([4, 3, 3, 3, 3, 4]);
     expect(t.rows()).toEqual([G + 'CHAR TIM GRP COM UI  MAP ']);
     // Two each: the narrowest.
-    await t.resize(20);
+    await t.resize(19);
     expect(t.rows()).toEqual([G + 'CH TI GR CO UI MA']);
-    expect(spans(t).at(-1)).toEqual([18, 2]);
+    expect(spans(t).at(-1)).toEqual([17, 2]);
     // Colours and tooltips stay whole.
-    expect(t.colours(0, 3)).toEqual(ON);
+    expect(t.colours(0, 2)).toEqual(ON);
     expect(t.button('CO').link.hint).toBe('Comm: on (click to hide)');
   });
 
   it('an odd spare cell goes to the middle button when there is one', async () => {
     const t = await setup(['mercenaries']);
     // Seven buttons in 37 room cells: 31 button cells, 4 each and 3 spare.
-    await t.resize(40);
+    await t.resize(39);
     expect(spans(t).map((s) => s[1])).toEqual([5, 4, 4, 5, 4, 4, 5]);
-    expect(spans(t).at(-1)).toEqual([35, 5]);
-    expect(t.rows()[0]!.length).toBe(40);
+    expect(spans(t).at(-1)).toEqual([34, 5]);
+    expect(t.rows()[0]!.length).toBe(39);
   });
 
   it('scrolls when two cells each do not fit: arrows at both ends, a click moves a page', async () => {
     const t = await setup();
-    await t.resize(19);
-    // Four two-cell buttons between ← (column 4) and → (the last column).
+    await t.resize(18);
+    // Four two-cell buttons between ← (column 3) and → (the last column).
     expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
     const c = t.panes.bar.content;
-    expect(c.linkAt(0, 3)).toBeNull();
-    expect(t.colours(0, 3)).toEqual({ fg: shadeColor('dim'), bg: undefined });
-    expect(t.colours(0, 18)).toEqual({ fg: shadeColor('vtext'), bg: undefined });
-    expect(c.linkAt(0, 18)!.hint).toBe('2 more panes to the right');
-    expect(spans(t).filter((s) => s[1] === 2).map((s) => s[0])).toEqual([5, 8, 11, 14]);
+    expect(c.linkAt(0, 2)).toBeNull();
+    expect(t.colours(0, 2)).toEqual({ fg: shadeColor('dim'), bg: undefined });
+    expect(t.colours(0, 17)).toEqual({ fg: shadeColor('vtext'), bg: undefined });
+    expect(c.linkAt(0, 17)!.hint).toBe('2 more panes to the right');
+    expect(spans(t).filter((s) => s[1] === 2).map((s) => s[0])).toEqual([4, 7, 10, 13]);
     // A page right: as far as it goes (two more).
-    t.panes.bar.events.onLink(c.linkAt(0, 18)!.id);
+    t.panes.bar.events.onLink(c.linkAt(0, 17)!.id);
     await t.settle();
     expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
-    expect(t.panes.bar.content.linkAt(0, 18)).toBeNull();
-    expect(t.colours(0, 18)).toEqual({ fg: shadeColor('dim'), bg: undefined });
-    expect(t.panes.bar.content.linkAt(0, 3)!.hint).toBe('2 more panes to the left');
+    expect(t.panes.bar.content.linkAt(0, 17)).toBeNull();
+    expect(t.colours(0, 17)).toEqual({ fg: shadeColor('dim'), bg: undefined });
+    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
     // A click on a button still toggles its pane; the offset stays.
     t.panes.bar.events.onLink(t.button('MA').link.id);
     await t.settle();
     expect(t.panes.builtinOn.get('map')).toBe(false);
     expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
     // Wider: shrunk, the offset gone (17 cells for six: 2 each, 5 spare).
-    await t.resize(25);
+    await t.resize(24);
     expect(t.rows()).toEqual([G + 'CHA TIM GR CO UI  MAP']);
     // Narrow again: from the first; a page right and back.
-    await t.resize(19);
+    await t.resize(18);
     expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
-    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 18)!.id);
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 17)!.id);
     await t.settle();
-    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 3)!.id);
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 2)!.id);
     await t.settle();
     expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
     // Wide enough to shrink: no arrows, no offset.
-    await t.resize(20);
+    await t.resize(19);
     expect(t.rows()).toEqual([G + 'CH TI GR CO UI MA']);
   });
 
   it('the list shrinking clamps the offset', async () => {
     const t = await setup(['mercenaries']);
-    await t.resize(19);
-    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 18)!.id);
+    await t.resize(18);
+    t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 17)!.id);
     await t.settle();
     // Seven panes, four shown: the last page starts at the fourth.
     expect(t.rows()).toEqual([G + '← CO UI MA ME  →']);
     await t.lib.setEnabled('mercenaries', false);
     await t.settle();
     expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
-    expect(t.panes.bar.content.linkAt(0, 3)!.hint).toBe('2 more panes to the left');
+    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
   });
 
   it('the wheel scrolls a button per three cells, only when scrolled', async () => {
     const t = await setup();
     const wheel = (dx: number, dy: number) => t.panes.bar.events.onWheel!(dx, dy);
     expect(t.panes.bar.view.wheels).toEqual([true]);
-    await t.resize(44);
+    await t.resize(43);
     expect(wheel(3, 0)).toBe(false);
     expect(t.rows()).toEqual([bar(ALL, true)]);
-    await t.resize(19);
+    await t.resize(18);
     expect(wheel(2, 0)).toBe(true);
     expect(t.rows()).toEqual([G + '← CH TI GR CO  →']);
     expect(wheel(1, 0)).toBe(true);
@@ -411,128 +403,5 @@ describe('bundled panebar', () => {
     expect(t.shown).toContain('BAR COMM     on   Comm');
     expect(t.shown).toContain('BAR MAP      off  Map');
     expect(t.sent).toEqual([]);
-  });
-
-  describe('the gear and its menu (ADR 0065 round 4)', () => {
-    /** The text of the menu's rows. */
-    const menuRows = (t: Awaited<ReturnType<typeof setup>>) =>
-      t.panes.menu!.content.lines.map((l) => ('spans' in l ? l.spans.map((x) => x.text).join('') : ''));
-    const hover = async (t: Awaited<ReturnType<typeof setup>>, inside: boolean) => {
-      t.panes.bar.events.onHover!(inside);
-      await t.settle();
-    };
-    const gear = async (t: Awaited<ReturnType<typeof setup>>) => {
-      t.panes.bar.events.onLink(t.panes.bar.content.linkAt(0, 1)!.id);
-      await t.settle();
-    };
-
-    it('asks for the pointer; the gear shows in its own cell while the pointer is over the bar, nothing moves', async () => {
-      const t = await setup();
-      expect(t.panes.bar.view.hovers).toEqual([true]);
-      for (const cols of [80, 32, 19]) {
-        await t.resize(cols);
-        const before = t.rows()[0]!;
-        const links = spans(t);
-        await hover(t, true);
-        expect(t.rows()[0]).toBe(before.slice(0, 1) + '\u2699' + before.slice(2));
-        expect(t.panes.bar.content.linkAt(0, 1)!.hint).toBe('Choose the panes on the bar');
-        expect(t.colours(0, 1)).toEqual({ fg: shadeColor('mid'), bg: undefined });
-        // The buttons stay where they were (the scrolled tier's ← too).
-        expect(spans(t).filter((x) => x[0] !== 1)).toEqual(links);
-        expect(t.panes.bar.content.grip).toEqual({ row: 0, col: 0, len: 1 });
-        await hover(t, false);
-        expect(t.rows()[0]).toBe(before);
-        expect(t.panes.bar.content.linkAt(0, 1)).toBeNull();
-      }
-    });
-
-    it('the gear opens a pop-up near the bar with a box per pane in Options order; unticking one drops its button', async () => {
-      const t = await setup(['mercenaries']);
-      await t.resize(80);
-      await hover(t, true);
-      await gear(t);
-      const m = t.panes.menu!;
-      expect(m.spec.temporary).toMatchObject({ near: 'panebar/bar', popup: true, rows: 7 });
-      expect(m.content.title).toBe('Bar buttons');
-      expect(menuRows(t)).toEqual([
-        ' [x] CHAR  Character',
-        ' [x] TIME  Timers',
-        ' [x] GRP   Group',
-        ' [x] COMM  Comm',
-        ' [x] UI    UI',
-        ' [x] MAP   Map',
-        ' [x] MERC  Mercenaries',
-      ]);
-      expect(m.spec.temporary!.cols).toBeGreaterThanOrEqual(Math.max(...menuRows(t).map((r) => r.length)));
-      // Open: the gear stays (brighter) after the pointer leaves the bar.
-      await hover(t, false);
-      expect(t.rows()[0]![1]).toBe('\u2699');
-      expect(t.colours(0, 1)).toEqual({ fg: shadeColor('vtext'), bg: undefined });
-      expect(t.panes.bar.content.linkAt(0, 1)!.hint).toBe('Close the menu');
-      // Untick COMM: no COMM button; the pane itself stays on.
-      m.events.onLink(m.content.linkAt(3, 1)!.id);
-      await t.settle();
-      expect(menuRows(t)[3]).toBe(' [ ] COMM  Comm');
-      expect(t.rows()[0]).not.toContain('COMM');
-      expect(t.rows()[0]).toContain('MERC');
-      expect(t.panes.builtinOn.get('comm')).toBeUndefined();
-      expect(t.lib.storeGet('panebar', 'hidden')).toEqual({ comm: true });
-      // Tick it again: back.
-      m.events.onLink(m.content.linkAt(3, 1)!.id);
-      await t.settle();
-      expect(t.rows()[0]).toContain('COMM');
-      expect(t.lib.storeGet('panebar', 'hidden')).toEqual({});
-      // The gear again closes it; the gear goes with the pointer.
-      await gear(t);
-      expect(t.panes.menu).toBeUndefined();
-      expect(t.rows()[0]![1]).toBe(' ');
-      expect(t.lib.get('panebar')!.lastError).toBeNull();
-    });
-
-    it('closed by the user (a click outside, Esc, its cross): the gear goes with the pointer', async () => {
-      const t = await setup();
-      await t.resize(80);
-      await hover(t, true);
-      await gear(t);
-      await hover(t, false);
-      t.panes.menu!.events.onClose!();
-      await t.settle();
-      expect(t.panes.menu).toBeUndefined();
-      expect(t.rows()[0]![1]).toBe(' ');
-    });
-
-    it('the choice is kept (store); a pane that comes later gets a button', async () => {
-      const t = await setup([], (lib) => lib.storeSet('panebar', 'hidden', { comm: true, map: true }));
-      await t.resize(80);
-      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP', 'UI'], true)]);
-      await t.lib.setEnabled('mercenaries', true);
-      await t.settle();
-      expect(t.rows()).toEqual([bar(['CHAR', 'TIME', 'GRP', 'UI', 'MERC'], true)]);
-      t.engine.input('bar list');
-      expect(t.shown).toContain('BAR COMM     on   Comm, no button');
-      expect(t.shown).toContain('BAR CHAR     on   Character');
-    });
-
-    it('a pane that comes while the menu is open reopens it a row longer; bar menu toggles it; bar closes it', async () => {
-      const t = await setup();
-      await t.resize(80);
-      t.engine.input('bar menu');
-      await t.settle();
-      expect(menuRows(t)).toHaveLength(6);
-      await t.lib.setEnabled('mercenaries', true);
-      await t.settle();
-      expect(t.panes.menu!.spec.temporary!.rows).toBe(7);
-      expect(menuRows(t).at(-1)).toBe(' [x] MERC  Mercenaries');
-      t.engine.input('bar menu');
-      await t.settle();
-      expect(t.panes.menu).toBeUndefined();
-      t.engine.input('bar menu');
-      await t.settle();
-      t.engine.input('bar');
-      await t.settle();
-      expect(t.panes.menu).toBeUndefined();
-      expect(t.panes.bar.view.on).toBe(false);
-      expect(t.lib.get('panebar')!.lastError).toBeNull();
-    });
   });
 });

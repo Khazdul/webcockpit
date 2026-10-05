@@ -70,7 +70,7 @@ import type { ScriptMapSurface } from '../map/marks';
 import { MARK_ROOMS_MAX, type MapAnswer, type MarkFocus, type MarkStyle, type MarkTarget, type RoomQuery, type SearchQuery } from '../map/protocol';
 import { SEARCH_FIELDS, SEARCH_MAX, type SearchField, searchPattern } from '../map/search';
 import type { FieldEvent } from '../panes/script-pane';
-import type { PaneState, ScriptPaneSurface, ScriptPaneView, TempPaneSpec } from '../panes/script-surface';
+import type { PaneState, ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
 import { CondError, DEFAULT_HORIZON, type GameTimeEventKind, findWindow, gameTimeAt, nextGameTimeEvents, parseCond } from '../gmcp/gametime';
 import type { ScriptEngine, MatchContext } from '../script/engine';
@@ -187,8 +187,6 @@ interface PaneReg {
   resize: LuaRef | null;
   /** `pane:onWheel(fn)` (ADR 0072): wheel steps in cells; true from it consumes the event. */
   wheel: LuaRef | null;
-  /** `pane:onHover(fn)` (ADR 0065 round 4): fn(inside) when the pointer comes over the pane or leaves it. */
-  hover: LuaRef | null;
   /** The last size reported to the resize handler (`colsxrows`). */
   lastSize: string;
   /** Text fields (`pane:setInput`) by their id, which is also their Lua handle. */
@@ -1825,17 +1823,6 @@ export class ScriptHost {
         // The surface listens (non-passive) only while there is a handler.
         p.view.wheel?.(ref !== null);
       },
-      onHover: (a) => {
-        const p = self(a);
-        const ref = a.optFunction(2);
-        if (!p) {
-          if (ref !== null) this.cur(rt).script?.release(ref);
-          return;
-        }
-        if (p.hover !== null) p.owner.script?.release(p.hover);
-        p.hover = ref;
-        p.view.hover?.(ref !== null);
-      },
       onClose: (a) => {
         const p = self(a);
         const ref = a.optFunction(2);
@@ -1912,17 +1899,6 @@ export class ScriptHost {
         }
         group = { key: `${o.name}/${t.group}`, cols };
       }
-      // A pop-up next to one of the script's own panes (ADR 0065 round 4).
-      let near: PaneId | undefined;
-      if (t.near !== undefined) {
-        if (temporary !== true) throw new Error(`bad argument #1 to 'createPane' (near is for temporary panes)`);
-        const of = typeof t.near === 'string' ? o.panes.get(t.near) : undefined;
-        if (!of) throw new Error(`bad argument #1 to 'createPane' (near must be the id of an open pane of this script)`);
-        near = of.id;
-      }
-      const popup = t.popup;
-      if (popup !== undefined && typeof popup !== 'boolean') throw new Error(`bad argument #1 to 'createPane' (popup must be true or false)`);
-      if (popup === true && temporary !== true) throw new Error(`bad argument #1 to 'createPane' (popup is for temporary panes)`);
       const anchor = t.anchor ?? 'bottom';
       if (anchor !== 'top' && anchor !== 'bottom') {
         throw new Error(`bad argument #1 to 'createPane' (anchor must be "top" or "bottom")`);
@@ -1979,7 +1955,6 @@ export class ScriptHost {
         links: new Map(),
         resize: null,
         wheel: null,
-        hover: null,
         lastSize: '',
         fields: new Map(),
         toggles: new Map(),
@@ -2003,18 +1978,15 @@ export class ScriptHost {
         onLink: (n: number) => this.onPaneLink(reg, n),
         onResize: (c: number, r: number) => this.onPaneResize(reg, c, r),
         onWheel: (dx: number, dy: number) => this.onPaneWheel(reg, dx, dy),
-        onHover: (inside: boolean) => this.onPaneHover(reg, inside),
         onClose: () => this.onPaneClosed(reg),
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
       };
       const place: ScriptPanePlace = { dock: dock as DockId | 'float', rows, cols };
       if (border !== undefined) place.border = border;
       if (lane === 'own') place.lane = 'own';
-      const tmp: TempPaneSpec = { rows, cols };
+      const tmp: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } } = { rows, cols };
       if (at !== 'center') tmp.at = at;
       if (group) tmp.group = group;
-      if (near) tmp.near = near;
-      if (popup === true) tmp.popup = true;
       const spec = temp ? { id: pid, place, temporary: tmp } : { id: pid, place };
       reg.view = this.o.panes?.open(spec, reg.content, events) ?? headlessView();
       o.panes.set(name, reg);
@@ -2059,8 +2031,6 @@ export class ScriptHost {
     p.resize = null;
     if (p.wheel !== null) s?.release(p.wheel);
     p.wheel = null;
-    if (p.hover !== null) s?.release(p.hover);
-    p.hover = null;
     if (p.onClose !== null) s?.release(p.onClose);
     p.onClose = null;
     for (const f of [...p.fields.values()]) this.releaseField(f);
@@ -2168,13 +2138,6 @@ export class ScriptHost {
     if (key === p.lastSize) return;
     p.lastSize = key;
     if (p.resize !== null) this.call(p.owner, p.resize, rows, cols);
-  }
-
-  /** The pointer came over pane `p` (true) or left it (false). */
-  private onPaneHover(p: PaneReg, inside: boolean): void {
-    const ref = p.hover;
-    if (ref === null || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
-    this.call(p.owner, ref, inside);
   }
 
   /** The wheel over pane `p`, in whole cells: true when its handler consumed it (returned true). */

@@ -335,8 +335,3 @@ they amend the sections above (and round 1) where they differ.
   pane (more API for a case with no other use). Built-in panes without a
   frame keep the cross (their top content row is not interactive), and
   temporary panes are always framed.
-
-## Addendum (2026-10-05)
-
-`pane:onHover(fn)` and `createPane{near, popup}` were added for the pane
-bar's gear menu; see "Owner feedback round 4" in `0065-pane-bar.md`.

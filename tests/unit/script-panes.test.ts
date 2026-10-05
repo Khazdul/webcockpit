@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { TRUECOLOR, shadeColor } from '../../src/core/types';
 import { allocate } from '../../src/layout/allocate';
-import { Cockpit, tempNearRect } from '../../src/layout/cockpit';
+import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPane, setLaneSize, togglePatch } from '../../src/layout/model';
 import { type LayoutModel, PANE_COLORS, defaultLayout, dockPanes, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
@@ -1333,159 +1333,6 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(t.calls).toEqual([[1, 0]]);
     });
   });
-
-  describe('the pointer over the pane for the script (pane:onHover, ADR 0065 round 4)', () => {
-    const ID = scriptPaneId('h', 'p');
-    const ptr = (el: EventTarget, type: string, pointerType = 'mouse'): void => {
-      const e = new PointerEvent(type, { bubbles: type !== 'pointerenter' && type !== 'pointerleave', pointerType, clientX: -5, clientY: -5 });
-      Object.defineProperty(e, 'pointerType', { value: pointerType });
-      el.dispatchEvent(e);
-    };
-
-    function open(rec = false) {
-      const r = rig();
-      const calls: boolean[] = [];
-      const surface = rec ? new RecordingPaneSurface(r.surface, () => {}, () => 0) : r.surface;
-      const view = surface.open({ id: ID, place: { dock: 'right', rows: 3, cols: 20 } }, new PaneContent('P'), {
-        onLink: () => {},
-        onResize: () => {},
-        onHover: (inside) => calls.push(inside),
-      });
-      r.flush();
-      const el = r.cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${ID}"]`)!;
-      return { ...r, view, calls, el };
-    }
-
-    it('reports nothing until the script asks; then entering and leaving, once each', () => {
-      const t = open();
-      ptr(t.el, 'pointerenter');
-      expect(t.calls).toEqual([]);
-      t.view.hover!(true);
-      ptr(t.el, 'pointerenter');
-      ptr(t.el, 'pointerenter');
-      expect(t.calls).toEqual([true]);
-      ptr(t.el, 'pointerleave');
-      expect(t.calls).toEqual([true, false]);
-      // A missed leave: a move over something else ends it.
-      ptr(t.el, 'pointerenter');
-      ptr(document.body, 'pointermove');
-      expect(t.calls).toEqual([true, false, true, false]);
-      // A move inside does not.
-      ptr(t.el, 'pointerenter');
-      ptr(t.el.querySelector('.wc-pane-content')!, 'pointermove');
-      expect(t.calls.at(-1)).toBe(true);
-      t.view.hover!(false);
-      ptr(t.el, 'pointerleave');
-      ptr(t.el, 'pointerenter');
-      expect(t.calls).toEqual([true, false, true, false, true]);
-    });
-
-    it('a touch: a press on the pane is inside, a press elsewhere is outside; enter and leave are ignored', () => {
-      const t = open();
-      t.view.hover!(true);
-      ptr(t.el, 'pointerenter', 'touch');
-      expect(t.calls).toEqual([]);
-      ptr(t.el.querySelector('.wc-pane-content')!, 'pointerdown', 'touch');
-      expect(t.calls).toEqual([true]);
-      ptr(t.el, 'pointerleave', 'touch');
-      ptr(document.body, 'pointermove', 'touch');
-      expect(t.calls).toEqual([true]);
-      ptr(document.body, 'pointerdown', 'touch');
-      expect(t.calls).toEqual([true, false]);
-    });
-
-    it('a device that cannot hover reports inside once, for good', async () => {
-      const win = window as unknown as { matchMedia: (q: string) => { matches: boolean } };
-      const was = win.matchMedia;
-      win.matchMedia = (q: string) => (q === '(hover: none)' ? { matches: true } : was.call(window, q));
-      try {
-        const t = open();
-        t.view.hover!(true);
-        expect(t.calls).toEqual([]);
-        await Promise.resolve();
-        expect(t.calls).toEqual([true]);
-        ptr(t.el, 'pointerleave');
-        ptr(document.body, 'pointerdown');
-        expect(t.calls).toEqual([true]);
-      } finally {
-        win.matchMedia = was;
-      }
-    });
-
-    it('the recording surface forwards hover and onHover', () => {
-      const t = open(true);
-      t.view.hover!(true);
-      ptr(t.el, 'pointerenter');
-      expect(t.calls).toEqual([true]);
-    });
-  });
-
-  describe('temporary panes near another pane, pop-ups (ADR 0065 round 4)', () => {
-    const BAR = scriptPaneId('s', 'bar');
-    const MENU = tempPaneId('s', 'menu');
-
-    function open(popup = true) {
-      localStorage.clear();
-      const r = rig();
-      r.surface.open({ id: BAR, place: { dock: 'right', rows: 1, cols: 30, border: false } }, new PaneContent('Bar'), { onLink: () => {}, onResize: () => {} });
-      r.flush();
-      let closes = 0;
-      const view = r.surface.open(
-        { id: MENU, place: { dock: 'right', rows: 4, cols: 20 }, temporary: { rows: 4, cols: 20, near: BAR, popup } },
-        new PaneContent('Menu'),
-        { onLink: () => {}, onResize: () => {}, onClose: () => closes++ },
-      );
-      r.flush();
-      const box = (id: string) => r.cockpit.layout!.panes.find((p) => p.id === id)!.rect;
-      const el = (id: string) => r.cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"]`)!;
-      return { ...r, view, box, el, closes: () => closes };
-    }
-
-    it('opens above its pane, left edges lined up, and is never kept per device', async () => {
-      const t = open();
-      const bar = t.box(BAR);
-      expect(t.box(MENU)).toEqual({ x: Math.min(bar.x, t.cockpit.layout!.cols - 22), y: bar.y - 6, w: 22, h: 6 });
-      await Promise.resolve();
-      expect(t.view.placement!()!.rect).toEqual(t.box(MENU));
-      (t.cockpit as unknown as { temps: Map<string, { onPlace(): void }> }).temps.get(MENU)!.onPlace();
-      expect(tempPlace(MENU)).toBeNull();
-    });
-
-    it('a press outside it and its pane, or Esc, closes it; a press in either does not', () => {
-      const t = open();
-      const down = (target: EventTarget) => target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      down(t.el(MENU).querySelector('.wc-pane-content')!);
-      down(t.el(BAR).querySelector('.wc-pane-content')!);
-      expect(t.closes()).toBe(0);
-      down(t.cockpit.el.querySelector('.wc-game')!);
-      expect(t.closes()).toBe(1);
-      // Esc aimed at the cockpit (the input line) goes no further.
-      const esc = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
-      t.cockpit.inputEl.dispatchEvent(esc);
-      expect(t.closes()).toBe(2);
-      expect(esc.defaultPrevented).toBe(true);
-      // Aimed at something outside the cockpit (an overlay): left alone.
-      const outside = document.createElement('div');
-      document.body.append(outside);
-      const esc2 = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
-      outside.dispatchEvent(esc2);
-      expect(t.closes()).toBe(2);
-      expect(esc2.defaultPrevented).toBe(false);
-      outside.remove();
-      // Closed: nothing listens any more.
-      t.view.close();
-      down(t.cockpit.el.querySelector('.wc-game')!);
-      t.cockpit.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      expect(t.closes()).toBe(2);
-    });
-
-    it('without popup a press outside or Esc leaves it open', () => {
-      const t = open(false);
-      t.cockpit.el.querySelector('.wc-game')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      t.cockpit.inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      expect(t.closes()).toBe(0);
-    });
-  });
 });
 
 describe('wheelSteps (ADR 0072)', () => {
@@ -1519,16 +1366,3 @@ describe('wheelSteps (ADR 0072)', () => {
   });
 });
 
-
-describe('tempNearRect (ADR 0065 round 4)', () => {
-  const a = { x: 50, y: 30, w: 30, h: 1 };
-  it('above the pane, left edges lined up; moved left to stay on the screen', () => {
-    expect(tempNearRect(a, 20, 6, 100, 40)).toEqual({ x: 50, y: 24, w: 20, h: 6 });
-    expect(tempNearRect(a, 60, 6, 100, 40)).toEqual({ x: 40, y: 24, w: 60, h: 6 });
-  });
-  it('below when it does not fit above; else the side with more room', () => {
-    expect(tempNearRect({ ...a, y: 2 }, 20, 6, 100, 40)).toEqual({ x: 50, y: 3, w: 20, h: 6 });
-    expect(tempNearRect({ ...a, y: 10 }, 20, 30, 100, 40)).toEqual({ x: 50, y: 10, w: 20, h: 30 });
-    expect(tempNearRect({ ...a, y: 25 }, 20, 30, 100, 40)).toEqual({ x: 50, y: 0, w: 20, h: 30 });
-  });
-});

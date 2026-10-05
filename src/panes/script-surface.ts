@@ -22,13 +22,6 @@
 //   ask for its own place and size.
 // - `view.wheel(on)` (ADR 0072) turns on reporting the wheel over the pane
 //   in whole cells to `events.onWheel` (`pane:onWheel`).
-// - `view.hover(on)` (ADR 0065 round 4) turns on reporting the pointer
-//   coming over the pane and leaving it to `events.onHover`
-//   (`pane:onHover`).
-// - A temporary pane can open next to another pane (`temporary.near`) and
-//   be a pop-up (`temporary.popup`): a press outside it and that pane, or
-//   Esc, closes it as its close cross does (ADR 0065 round 4). Its place
-//   is never kept per device.
 // - `RecordingPaneSurface` wraps a surface and reports the panes' content
 //   for the run capture (`view.pane`, ADR 0053 P1); it forwards the rest.
 //
@@ -55,19 +48,7 @@ export interface ScriptPaneSpec {
    * `at` says (default centred), or where the user last put it on this
    * device; nothing in the settings.
    */
-  temporary?: TempPaneSpec;
-}
-
-/** A temporary pane's size and place (`createPane{temporary = true, …}`). */
-export interface TempPaneSpec {
-  rows: number;
-  cols: number;
-  at?: TempPaneAt;
-  group?: { key: string; cols: number };
-  /** Opens next to this pane while it has a box (ADR 0065 round 4). */
-  near?: PaneId;
-  /** A press outside it (and `near`) or Esc closes it as its close cross does. */
-  popup?: boolean;
+  temporary?: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } };
 }
 
 export interface ScriptPaneEvents {
@@ -86,8 +67,6 @@ export interface ScriptPaneEvents {
    * `view.wheel(true)` is on (ADR 0072). True consumes the event.
    */
   onWheel?(dx: number, dy: number): boolean;
-  /** The pointer came over the pane (true) or left it (false) while `view.hover(true)` is on (ADR 0065 round 4). */
-  onHover?(inside: boolean): void;
 }
 
 /** One open script pane, as the host sees it. */
@@ -118,8 +97,6 @@ export interface ScriptPaneView {
   want?(rows: number, cols?: number): boolean;
   /** Starts (true) or stops reporting the wheel to `events.onWheel` (`pane:onWheel`, ADR 0072). */
   wheel?(on: boolean): void;
-  /** Starts (true) or stops reporting the pointer over the pane to `events.onHover` (`pane:onHover`). */
-  hover?(on: boolean): void;
 }
 
 /** One pane in the pane list (ADR 0065). */
@@ -201,7 +178,6 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       size: () => ({ cols: pane.cols, rows: pane.rows }),
       focusField: (n, select) => pane.focusField(n, select),
       wheel: (on) => pane.setWheel(on ? (dx, dy) => events.onWheel?.(dx, dy) ?? false : null),
-      hover: (on) => pane.setInsideWatch(on ? (inside) => events.onHover?.(inside) : null),
       close: () => {
         if (closed) return;
         closed = true;
@@ -223,14 +199,12 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
    */
   private openTemp(
     id: ScriptPaneId,
-    size: TempPaneSpec,
+    size: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } },
     pane: ScriptPane,
     events: ScriptPaneEvents,
   ): ScriptPaneView {
     // A grouped pane is tiled by the cockpit, which keeps the group's place.
     const grouped = size.group !== undefined;
-    // A pane next to another one is placed by the cockpit each time.
-    const kept = !grouped && size.near === undefined;
     let closed = false;
     const view: ScriptPaneView = {
       changed: () => pane.changed(),
@@ -252,15 +226,14 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       dock: () => 'float',
       want: () => false,
       wheel: (on) => pane.setWheel(on ? (dx, dy) => events.onWheel?.(dx, dy) ?? false : null),
-      hover: (on) => pane.setInsideWatch(on ? (inside) => events.onHover?.(inside) : null),
     };
     this.cockpit.addPane(pane, {
       ...size,
-      rect: kept ? tempPlace(id) : null,
+      rect: grouped ? null : tempPlace(id),
       onClose: () => (events.onClose ? events.onClose() : view.close()),
       onPlace: () => {
         const rect = this.cockpit.tempPane(id)?.rect;
-        if (rect && kept) saveTempPlace(id, rect);
+        if (rect && !grouped) saveTempPlace(id, rect);
         events.onPlace?.();
       },
     });
@@ -387,7 +360,6 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
     if (view.dock) out.dock = () => view.dock!();
     if (view.want) out.want = (rows, cols) => view.want!(rows, cols);
     if (view.wheel) out.wheel = (on) => view.wheel!(on);
-    if (view.hover) out.hover = (on) => view.hover!(on);
     return out;
   }
 

@@ -115,37 +115,6 @@ not fit, a two-finger sideways scroll and arrows at both ends.
 - [x] ADR 0072 (`pane:onWheel`), ADR 0065 amendment "Owner feedback
       round 3"
 
-### Owner feedback round 4 (stage 21 feedback round 1, item 8, 2026-10-05)
-
-Owner request: a gear next to the grip while the pointer is over the
-bar; it opens a small menu to choose which panes get a button; kept.
-
-- [x] Host: `pane:onHover(fn)` (touch: press on / elsewhere; `(hover:
-      none)` reports inside once), `createPane{near, popup}` (opens next
-      to an own pane; a press outside or Esc closes it)
-- [x] panebar: gear cell reserved (buttons from column 4), `⚙` while
-      hovered or the menu is open; "Bar buttons" pop-up with a checkbox
-      per pane; `hidden` set in the store; `bar menu`; `bar list` marks
-      ", no button"; gear always shown on touch-only devices
-- [x] Editor reference, script manual, spec §2.10
-- [x] Unit (host, pane, cockpit, `tempNearRect`, panebar) and e2e
-      (Chromium + Firefox)
-- [x] ADR 0065 amendment "Owner feedback round 4"
-
-## Test guide (round 4)
-
-1. Point at the pane bar: a gear `⚙` appears after the dots at its left
-   end; nothing else moves. Move away: it goes.
-2. Click the gear: a small "Bar buttons" menu opens just above the bar
-   with a box per pane. Untick COMM: its button leaves the bar, the Comm
-   pane stays. Tick it again: it is back.
-3. Click outside the menu, press Esc, or use its cross: it closes.
-4. Untick a pane, reload: the button is still gone. Turn on a script with
-   a pane (for example mercenaries): it gets a button.
-5. On a phone or tablet the gear is always shown.
-
-Feedback wanted: the gear's look and place, the menu's place and size.
-
 ## Test guide (round 3)
 
 Open https://mumecockpit.com/ (hard reload so the new version loads).

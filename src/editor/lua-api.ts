@@ -690,7 +690,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, short, dock, lane, rows, cols, border, anchor, temporary, at, group, grid, near, popup} → pane",
+    "createPane{id, title, short, dock, lane, rows, cols, border, anchor, temporary, at, group, grid} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
@@ -707,8 +707,6 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
         p("group", "string?", "Temporary panes only: panes of the script with the same group are tiled together from at's corner (top-left by default), in the order they opened, with no gaps; a closed one's place is taken by the ones after it. Dragging one moves the whole group, resizing one sets the size of all; both are kept on this device (Reset layout forgets them)."),
         p("grid", "table?", "A group's grid: {cols = 2} (default 2, at most 8). The panes go row by row; fewer columns when they do not fit the game text."),
-        p("near", "string?", "Temporary panes only: the id of one of the script's open panes. The pane opens next to it, above it when there is room (else below), its left edge on that pane's, and follows it until the player moves it; at is used while that pane is not shown. Its place is never kept."),
-        p("popup", "boolean?", "Temporary panes only: true makes it a pop-up, such as a small menu: a click anywhere outside it (and outside its near pane) or Esc closes it, as its close cross does (pane:onClose is called)."),
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
@@ -1019,23 +1017,6 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         "When fn returns true the pane does not scroll its own lines and the browser does nothing with the scroll (no going back a page on a sideways swipe). Return false or nothing to leave it to them.",
       ],
       example: 'local first = 1\npane:onWheel(function(dx, dy)\n  first = math.max(1, first + dx)\n  pane:setLine(1, "from column " .. first)\n  return true\nend)',
-    },
-  ),
-  fn(
-    "pane:onHover",
-    "pane:onHover(fn)",
-    "Calls fn(true) when the pointer comes over the pane (its frame too) and fn(false) when it leaves. nil removes the handler.",
-    {
-      params: [
-        p("pane", "pane", "A pane from createPane."),
-        p("fn", "function?", "Called with true (the pointer is over the pane) or false (it left). nil removes it."),
-      ],
-      more: [
-        "Use it to show something only while the player points at the pane, such as a button that would be in the way otherwise. Keep a cell for it so that nothing moves when it comes and goes.",
-        "A touch has no pointer that hovers: a press on the pane calls fn(true) and a press elsewhere fn(false). On a device that cannot hover at all (a phone, most tablets) fn(true) comes once, right after pane:onHover, and fn(false) never: show it all the time there.",
-        "Not called in the log player or the HTML replay.",
-      ],
-      example: 'local over = false\npane:onHover(function(inside)\n  over = inside\n  pane:setText(1, 2, over and "⚙" or " ")\nend)',
     },
   ),
   fn(

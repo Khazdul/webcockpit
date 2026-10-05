@@ -240,8 +240,8 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   await expectRightBottom(page);
   // The default right dock is narrower than six full buttons: they share it.
   await expectShared(page, ALL);
-  // The grip leads row 1 (then the gear's cell); its cell shows the grab cursor.
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237[ \u2699] +CHAR /);
+  // The grip leads row 1; its cell shows the grab cursor.
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 +CHAR /);
   const g = await cellAt(page, 0, 0);
   await page.mouse.move(g.x, g.y);
   await expect(bar(page).locator('.wc-pane-content')).toHaveCSS('cursor', 'grab');
@@ -366,8 +366,8 @@ test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and
   // One row (round 3: no wrap), the buttons sharing it; one row high.
   await expectShared(page, ALL);
   await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(1);
-  // The first button starts in the column after the grip, the gear's cell and a blank.
-  expect(await firstColumns(page)).toEqual([3]);
+  // The first button starts in the column after the grip and its blank.
+  expect(await firstColumns(page)).toEqual([2]);
 
   // Back to the bottom edge, then by the grip over the game: it floats.
   await toBottomLane(page);
@@ -390,7 +390,7 @@ test('panebar: dragged by its grip from a 1-row bottom bar to the right dock and
   }, BAR);
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('left');
   await expect(prows(page)).toHaveCount(1);
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237[ \u2699] \u2190 CH( TI)? +\u2192$/);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 \u2190 CH( TI)? +\u2192$/);
   await expect.poll(async () => Math.round((await bar(page).boundingBox())!.height / cell.h)).toBe(1);
   expect(errors).toEqual([]);
 });
@@ -462,24 +462,24 @@ test('panebar: a button in the last column is clickable, no close cross; the hov
   await enter(page);
   await command(page, '#script enable panebar');
   await expectRightBottom(page);
-  // A float exactly 30 cells wide: the buttons share it (4, 4, 3, 3, 4, 4 cells), so MAP ends in the last column.
+  // A float exactly 29 cells wide: the buttons share it (4, 4, 3, 3, 4, 4 cells), so MAP ends in the last column.
   await page.evaluate((id) => {
     window.__wc!.settings.update((d) => {
       for (const dock of Object.values(d.layout.docks)) {
         for (const l of dock.lanes) l.panes = l.panes.filter((p) => p.id !== id);
         dock.lanes = dock.lanes.filter((l) => l.panes.length > 0);
       }
-      d.layout.floating = [...d.layout.floating.filter((f) => f.id !== id), { id: id as 'comm', x: 20, y: 10, w: 30, h: 2 }];
+      d.layout.floating = [...d.layout.floating.filter((f) => f.id !== id), { id: id as 'comm', x: 20, y: 10, w: 29, h: 2 }];
     });
   }, BAR);
   await expect.poll(async () => (await dockOf(page))?.dock).toBe('float');
   await steady(page);
-  await expect(prows(page).nth(0)).toHaveText(/^\u2237[ \u2699] CHAR TIME GRP COM {2}UI {2}MAP $/);
-  expect((await prows(page).nth(0).textContent())!.length).toBe(30);
+  await expect(prows(page).nth(0)).toHaveText(/^\u2237 CHAR TIME GRP COM {2}UI {2}MAP $/);
+  expect((await prows(page).nth(0).textContent())!.length).toBe(29);
   await page.mouse.move(10, 10);
   const rest = await colours(page, 'MAP');
   // Hovered at its last cell: lighter, the tooltip, no close cross over it.
-  const end = await cellAt(page, 0, 29);
+  const end = await cellAt(page, 0, 28);
   await page.mouse.move(end.x, end.y);
   await expect.poll(() => colours(page, 'MAP')).not.toEqual(rest);
   await expect(page.locator('.wc-spane-tip')).toHaveText(/Map: on/);
@@ -529,12 +529,11 @@ test('panebar: a narrower dock shrinks the buttons to two cells, then arrows and
   await command(page, '#script enable panebar');
   await expectRightBottom(page);
   const url = page.url();
-  // The gear (round 4) comes and goes with the pointer in its own cell: read it as blank.
-  const row = () => prows(page).nth(0).textContent().then((t) => (t ?? '').replace('\u2699', ' '));
+  const row = () => prows(page).nth(0).textContent().then((t) => t ?? '');
 
   // Wide: full buttons, all equally wide.
   await rightLane(page, 50);
-  expect(await barCols(page)).toBeGreaterThanOrEqual(44);
+  expect(await barCols(page)).toBeGreaterThanOrEqual(43);
   await expectEqualWidths(page, ALL);
 
   // Narrower and narrower: one row, the buttons sharing it, down to two cells.
@@ -548,137 +547,39 @@ test('panebar: a narrower dock shrinks the buttons to two cells, then arrows and
     // The last button ends at most at the last column.
     expect((await row()).length).toBeLessThanOrEqual(await barCols(page));
   }
-  // At 20 cells: six two-cell buttons.
-  await toCols(page, 20);
-  await expect.poll(row).toBe('∷  CH TI GR CO UI MA');
-
-  // Two cells too narrow: arrows; four buttons fit in 19 cells.
+  // At 19 cells: six two-cell buttons.
   await toCols(page, 19);
-  await expect.poll(row).toBe('∷  ← CH TI GR CO  →');
+  await expect.poll(row).toBe('∷ CH TI GR CO UI MA');
+
+  // Two cells too narrow: arrows; four buttons fit in 18 cells.
+  await toCols(page, 18);
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
   await expect(prows(page)).toHaveCount(1);
   // The right arrow: a tooltip, a click shows the rest.
-  const right = await cellAt(page, 0, 18);
+  const right = await cellAt(page, 0, 17);
   await page.mouse.move(right.x, right.y);
   await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the right/);
   await page.mouse.click(right.x, right.y);
-  await expect.poll(row).toBe('∷  ← GR CO UI MA  →');
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
   // The left arrow goes back.
-  const left = await cellAt(page, 0, 3);
+  const left = await cellAt(page, 0, 2);
   await page.mouse.move(left.x, left.y);
   await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the left/);
   await page.mouse.click(left.x, left.y);
-  await expect.poll(row).toBe('∷  ← CH TI GR CO  →');
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
   // No pane was toggled by the arrows.
   expect(await page.evaluate(() => ['character', 'timers', 'group', 'comm', 'ui', 'map'].every((id) => window.__wc!.settings.get().panes[id as 'comm'].on))).toBe(true);
 
   // The wheel: sideways (a two-finger swipe), and up and down.
-  const mid = await cellAt(page, 0, 9);
+  const mid = await cellAt(page, 0, 8);
   await page.mouse.move(mid.x, mid.y);
   await page.mouse.wheel(200, 0);
-  await expect.poll(row).toBe('∷  ← GR CO UI MA  →');
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
   await page.mouse.wheel(-200, 0);
-  await expect.poll(row).toBe('∷  ← CH TI GR CO  →');
+  await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
   await page.mouse.wheel(0, 200);
-  await expect.poll(row).toBe('∷  ← GR CO UI MA  →');
+  await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
   // The swipe went nowhere else (no history navigation).
   expect(page.url()).toBe(url);
-  expect(errors).toEqual([]);
-});
-
-const MENU = 'panebar/~menu';
-const menu = (page: Page) => page.locator(`.wc-pane[data-pane="${MENU}"]`);
-
-/** The menu's row whose text contains `short` (as ` [x] SHORT  Title`). */
-const menuRow = (page: Page, short: string) => menu(page).locator('.wc-prow', { hasText: new RegExp(`\\] ${short} `) });
-
-/** Writes the script store now (it is otherwise written a moment later). */
-const flushStore = (page: Page) =>
-  page.evaluate(() => (window.__wc!.app as unknown as { scriptLib: { flush(): Promise<void> } }).scriptLib.flush());
-
-test('panebar: the gear under the pointer opens a menu that takes panes off the bar, kept after a reload (round 4)', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.setViewportSize({ width: 1280, height: 900 });
-  await start(page);
-  await enter(page);
-  await command(page, '#script enable panebar');
-  await expectRightBottom(page);
-  const row = () => prows(page).nth(0).textContent().then((t) => t ?? '');
-
-  // Away from the bar: no gear, its cell blank. Over the bar: the gear, nothing moves.
-  await page.mouse.move(10, 10);
-  await expect.poll(row).toMatch(/^∷  \S/);
-  const before = await row();
-  const firsts = await firstColumns(page);
-  const comm = await find(page, 'COMM');
-  const over = await cellAt(page, comm.row, comm.col + 1);
-  await page.mouse.move(over.x, over.y);
-  await expect.poll(row).toBe(`∷⚙${before.slice(2)}`);
-  expect(await firstColumns(page)).toEqual(firsts);
-  await page.mouse.move(10, 10);
-  await expect.poll(row).toBe(before);
-
-  // Pointing at the gear: a tooltip; a click opens the menu above the bar.
-  const g = await cellAt(page, 0, 1);
-  await page.mouse.move(g.x, g.y);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/Choose the panes on the bar/);
-  await page.mouse.click(g.x, g.y);
-  await expect(menu(page)).toBeVisible();
-  await expect(menu(page).locator('.wc-pane-frame')).toContainText('Bar buttons');
-  await expect(menu(page).locator('.wc-prow')).toHaveText([
-    ' [x] CHAR  Character',
-    ' [x] TIME  Timers',
-    ' [x] GRP   Group',
-    ' [x] COMM  Comm',
-    ' [x] UI    UI',
-    ' [x] MAP   Map',
-  ]);
-  const mb = (await menu(page).boundingBox())!;
-  const bb = (await bar(page).boundingBox())!;
-  expect(Math.abs(mb.y + mb.height - bb.y)).toBeLessThan(2);
-  expect(mb.x).toBeLessThanOrEqual(bb.x + 1);
-  // The gear stays while the menu is open, also with the pointer away.
-  await page.mouse.move(10, 10);
-  await expect.poll(row).toMatch(/^∷⚙/);
-
-  // Untick COMM: its button goes, the Comm pane stays.
-  await menuRow(page, 'COMM').locator('span', { hasText: '[x]' }).click();
-  await expect(menuRow(page, 'COMM')).toHaveText(' [ ] COMM  Comm');
-  await expect.poll(() => buttons(page).then((b) => b.map((t) => t.trim()))).toEqual(['CHAR', 'TIME', 'GRP', 'UI', 'MAP']);
-  await expect(page.locator('.wc-pane[data-pane="comm"]')).toBeVisible();
-
-  // A click outside closes it (and does nothing else there); the gear goes with the pointer.
-  const game = (await page.locator('.wc-game').boundingBox())!;
-  await page.mouse.click(game.x + game.width / 2, game.y + game.height / 2);
-  await expect(menu(page)).toHaveCount(0);
-  await expect.poll(row).toMatch(/^∷  \S/);
-  // Esc closes it too, and does not open the ESC menu.
-  await page.mouse.move(g.x, g.y);
-  await page.mouse.click(g.x, g.y);
-  await expect(menu(page)).toBeVisible();
-  await page.locator('.wc-input-field').focus();
-  await page.keyboard.press('Escape');
-  await expect(menu(page)).toHaveCount(0);
-  await expect(page.locator('.wc-overlay')).toBeHidden();
-  // Its close cross too.
-  await page.mouse.move(g.x, g.y);
-  await page.mouse.click(g.x, g.y);
-  await expect(menu(page)).toBeVisible();
-  // (The cross shows while the pointer is over the pane.)
-  await menu(page).hover();
-  await menu(page).locator('.wc-pane-close').click();
-  await expect(menu(page)).toHaveCount(0);
-
-  // Reload: COMM is still off the bar.
-  await flushStore(page);
-  await page.evaluate(() => window.__wc!.settings.flush());
-  await page.reload();
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await enter(page);
-  await expectRightBottom(page);
-  await page.mouse.move(10, 10);
-  await expect.poll(() => buttons(page).then((b) => b.map((t) => t.trim()))).toEqual(['CHAR', 'TIME', 'GRP', 'UI', 'MAP']);
-  await command(page, 'bar list');
-  await expect(page.locator('.wc-game')).toContainText('COMM     on   Comm, no button');
   expect(errors).toEqual([]);
 });
