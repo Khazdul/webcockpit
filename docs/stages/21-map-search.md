@@ -160,7 +160,8 @@ Details: ADR 0077 "Feedback round 1".
 - [x] 6. The box sits outside the Map pane (side with the most room,
   inside the viewport, width capped by text size).
 - [x] 7. No way in Map search (column and tooltip).
-- [ ] 8. Pane bar gear menu (separate work).
+- [x] 8. Pane bar gear menu: ⚙ beside the grip on hover, a "Bar buttons"
+  pop-up with a checkbox per pane (ADR 0065 round 4; `bar menu`).
 - [x] 9. No Case sensitive / Regular expression; search ignores accents
   (the bundled map's text is ASCII, so it already did; the fold now
   covers every combining mark).
