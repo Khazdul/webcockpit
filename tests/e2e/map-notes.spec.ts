@@ -2,15 +2,20 @@
 // follow the located room's exits line in the game window (bold "Note:",
 // italic text; not on the bus), Options → Mapper turns them off, and the
 // mouse resting 3 s on a room shows the hover box (Minimal, then Full).
-// Round 1: Full is MMapper's room preview, the box sits outside the pane,
-// the text size is a setting, a click then a still pointer shows it, and
+// Round 1: Full is MMapper's room preview, the text size is a setting, a click then a still pointer shows it, and
 // the top row of a borderless map (under the title grip) hovers too.
+// Round 2: the box sits beside the pointer (right of it, or flipped left),
+// inside the viewport; it may extend past the pane.
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
 import { formatGmcpRecord, formatInbound } from '../../src/capture/format';
 import { exitsText } from '../../src/map/hover';
 import { readMm2 } from '../../src/map/mm2';
+
+/** The hover box's left edge 12 px right of the pointer, or its right edge 12 px left of it (round 2). */
+const besidePointer = (hb: { x: number; width: number }, px: number): boolean =>
+  Math.abs(hb.x - (px + 12)) <= 2 || Math.abs(hb.x + hb.width - (px - 12)) <= 2;
 
 const ARDA = new URL('../../public/map/arda.mm2', import.meta.url);
 
@@ -89,12 +94,11 @@ test('room notes after the exits line, and the hover box', async ({ page }) => {
   await expect(hover.locator('.wc-map-hover-name')).toHaveText(map.names[multi]!);
   await expect(hover.locator('.wc-map-hover-note')).toHaveText(multiLines);
   await expect(hover.locator('.wc-map-hover-desc')).toHaveCount(0);
-  // Outside the map pane (round 1): the default float has more room on its left.
-  const pb = (await page.locator('.wc-pane-map').boundingBox())!;
+  // Beside the pointer (round 2), inside the viewport.
   const hb = (await hover.boundingBox())!;
-  expect(hb.x + hb.width).toBeLessThanOrEqual(pb.x + 1);
+  expect(besidePointer(hb, cx)).toBe(true);
   expect(hb.x).toBeGreaterThanOrEqual(0);
-  await expect(hover).toHaveAttribute('data-where', 'left');
+  expect(hb.y).toBeGreaterThanOrEqual(0);
   // Leaving the room hides it.
   await page.mouse.move(cx + 200, cy + 150);
   await expect(hover).toBeHidden();
@@ -127,7 +131,7 @@ test('room notes after the exits line, and the hover box', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('hover round 1: Full as MMapper preview outside the pane, text size, click then still, top row of a borderless map', async ({ page }) => {
+test('hover rounds 1–2: Full as MMapper preview beside the pointer, text size, click then still, top row of a borderless map', async ({ page }) => {
   const { map, rich, info } = await rooms();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -182,14 +186,16 @@ test('hover round 1: Full as MMapper preview outside the pane, text size, click 
     return v;
   }, ok);
   await expect(hover.locator('.wc-map-hover-name')).toHaveCSS('color', green);
-  // Outside the pane, inside the viewport, at most about 56ch wide.
-  const pb = (await page.locator('.wc-pane-map').boundingBox())!;
+  // Beside the pointer, inside the viewport, at most about 56ch wide.
   let hb = (await hover.boundingBox())!;
-  expect(hb.x + hb.width).toBeLessThanOrEqual(pb.x + 1);
+  expect(besidePointer(hb, cx)).toBe(true);
+  expect(hb.x).toBeGreaterThanOrEqual(0);
+  expect(hb.x + hb.width).toBeLessThanOrEqual(1400);
   expect(hb.y).toBeGreaterThanOrEqual(0);
   expect(hb.y + hb.height).toBeLessThanOrEqual(820);
   const cellW = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-w')));
-  expect(hb.width).toBeLessThanOrEqual(57 * cellW + 2);
+  // Medium: 0.85 of the cockpit font (its ch rounds a little per browser).
+  expect(hb.width).toBeLessThanOrEqual(57 * 0.9 * cellW + 2);
   const medium = parseFloat(await hover.evaluate((e) => getComputedStyle(e).fontSize));
 
   // Text size: Large is bigger, Small smaller.

@@ -46,7 +46,7 @@
 //   on a room (also after a click), or a long press, asks the worker
 //   (`roomAt`) and shows the room's name and note (Options → Mapper "Room
 //   info on hover: Full": MMapper's room preview) in a fixed box in the
-//   cockpit, outside the pane when there is room (desktop). The mouse is
+//   cockpit, near the pointer (it may extend past the pane). The mouse is
 //   followed on the whole pane, not only the canvas: a borderless pane's
 //   title grip lies over the canvas's top row (feedback round 1). A drag,
 //   wheel, leave, player move, map load, or the pane hiding or moving
@@ -139,8 +139,6 @@ export class MapPane extends PaneShell {
       doc,
       host: () => this.el.parentElement,
       frame: () => this.canvas.getBoundingClientRect(),
-      pane: () => this.el.getBoundingClientRect(),
-      outside: !device().phone,
       size: () => this.ctx.settings.get().mapper.hoverSize,
       enabled: () => this.ctx.settings.get().mapper.hover !== 'off',
       ask: (x, y) => {

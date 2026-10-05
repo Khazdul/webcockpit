@@ -88,30 +88,22 @@ describe('hover hit test and content', () => {
 });
 
 describe('placeHoverBox', () => {
-  // A 1000 × 600 viewport; the map docked right (700…1000 × 0…300).
-  const pane = { left: 700, top: 0, right: 1000, bottom: 300 };
-
-  it('goes outside the pane on the side with the most room, at the pointer row', () => {
-    const p = placeHoverBox(300, 100, 800, 150, pane, 1000, 600, 16);
-    expect(p).toEqual({ x: 700 - 2 - 300, y: 142, where: 'left' });
-    // A map docked left: right of it.
-    const left = { left: 0, top: 0, right: 300, bottom: 300 };
-    expect(placeHoverBox(300, 100, 100, 150, left, 1000, 600, 16)).toMatchObject({ x: 302, where: 'right' });
-    // Near the bottom: kept inside the viewport.
-    expect(placeHoverBox(300, 100, 800, 590, pane, 1000, 600, 16).y).toBe(600 - 4 - 100);
+  // A 1000 × 600 viewport; a 300 × 100 box.
+  it('goes right of and below the pointer', () => {
+    expect(placeHoverBox(300, 100, 100, 100, 1000, 600)).toEqual({ x: 112, y: 112 });
   });
 
-  it('above or below the pane when neither side fits, else beside the pointer; always inside the viewport', () => {
-    const wide = { left: 100, top: 0, right: 900, bottom: 300 };
-    expect(placeHoverBox(300, 100, 500, 150, wide, 1000, 600, 16)).toEqual({ x: 350, y: 302, where: 'below' });
-    // The whole viewport: beside the pointer (right and below, or flipped).
-    const all = { left: 0, top: 0, right: 1000, bottom: 600 };
-    expect(placeHoverBox(300, 100, 100, 100, all, 1000, 600)).toEqual({ x: 112, y: 112, where: 'pointer' });
-    expect(placeHoverBox(300, 100, 900, 550, all, 1000, 600)).toEqual({ x: 588, y: 438, where: 'pointer' });
-    // No pane (phone): beside the pointer.
-    expect(placeHoverBox(300, 100, 100, 100, null, 1000, 600).where).toBe('pointer');
+  it('flips left / up where it would leave the viewport', () => {
+    expect(placeHoverBox(300, 100, 900, 100, 1000, 600)).toEqual({ x: 588, y: 112 });
+    expect(placeHoverBox(300, 100, 100, 550, 1000, 600)).toEqual({ x: 112, y: 438 });
+    expect(placeHoverBox(300, 100, 900, 550, 1000, 600)).toEqual({ x: 588, y: 438 });
+  });
+
+  it('stays inside the viewport', () => {
+    // Fits on neither side of the pointer: held at the left margin.
+    expect(placeHoverBox(300, 100, 200, 60, 400, 600)).toEqual({ x: 4, y: 72 });
     // Larger than the viewport: pinned to the margin.
-    expect(placeHoverBox(1200, 900, 500, 300, null, 1000, 600)).toMatchObject({ x: 4, y: 4 });
+    expect(placeHoverBox(1200, 900, 500, 300, 1000, 600)).toEqual({ x: 4, y: 4 });
   });
 });
 
@@ -124,7 +116,6 @@ function harness(enabled = true) {
     doc: document,
     host: () => host,
     frame: () => ({ left: 0, top: 0, right: 300, bottom: 200 }),
-    pane: () => ({ left: 0, top: 0, right: 300, bottom: 200 }),
     size: () => 'large',
     enabled: () => enabled,
     ask: (x, y) => {

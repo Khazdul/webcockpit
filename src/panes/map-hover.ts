@@ -17,13 +17,12 @@
 // - Off (Options → Mapper "Room info on hover: Off"): every input returns
 //   at once; no timer is armed.
 // - The box is `position: fixed` in the cockpit (`host`), not in the pane,
-//   so it may extend outside the Map pane and a long room shows whole in a
-//   small map. With `outside` (desktop) it goes beside the pane on the side
-//   with the most room, at the pointer's row, so it covers no map; when it
-//   fits on neither side, above or below the pane; else beside the pointer.
-//   Always inside the viewport; width capped (CSS, by text size); a box
-//   taller than the viewport drops description and contents lines from the
-//   end and shows `…`.
+//   so it may extend beyond the Map pane's edges and a long room shows
+//   whole in a small map. It goes right of and below the pointer, flipped
+//   left / up where it would leave the viewport (feedback round 2: always
+//   near the pointer). Always inside the viewport; width capped (CSS, by
+//   text size); a box taller than the viewport drops description and
+//   contents lines from the end and shows `…`.
 
 import type { RoomHoverInfo } from '../map/hover';
 
@@ -35,8 +34,6 @@ export const HOVER_SLOP_PX = 4;
 export const PRESS_SLOP_PX = 8;
 /** Gap between the pointer and the box, CSS px. */
 const GAP = 12;
-/** Gap between the pane's edge and a box outside it, CSS px. */
-const GAP_OUT = 2;
 /** The box keeps this far from the viewport's edges, CSS px. */
 const MARGIN = 4;
 
@@ -51,10 +48,6 @@ export interface MapHoverOptions {
   host: () => HTMLElement | null;
   /** The canvas's client rect: pointer points are relative to its top left. */
   frame: () => Box | null;
-  /** The pane's client rect: the box goes outside it when there is room (with `outside`). */
-  pane?: () => Box | null;
-  /** Place the box outside the pane when it fits (desktop; default true). */
-  outside?: boolean;
   /** Options → Mapper "Hover text size" (default medium). */
   size?: () => HoverTextSize;
   /** Asks the worker for the room at (x, y); returns the request id, or null when the map cannot answer. */
@@ -106,41 +99,25 @@ export function hoverLines(info: RoomHoverInfo): HoverLine[] {
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(v, hi));
 
 /**
- * Where a `bw` × `bh` box goes (client px) for the pointer at (px, py) over
- * `pane` in a `vw` × `vh` viewport (see the file header). `pane` null: beside
- * the pointer.
+ * Where a `bw` × `bh` box goes (client px) for the pointer at (px, py) in a
+ * `vw` × `vh` viewport: right of and below the pointer, flipped left / up
+ * where it would leave the viewport, then kept inside it.
  */
 export function placeHoverBox(
   bw: number,
   bh: number,
   px: number,
   py: number,
-  pane: Box | null,
   vw: number,
   vh: number,
-  lineH = 0,
-): { x: number; y: number; where: 'left' | 'right' | 'above' | 'below' | 'pointer' } {
+): { x: number; y: number } {
   const maxX = Math.max(MARGIN, vw - MARGIN - bw);
   const maxY = Math.max(MARGIN, vh - MARGIN - bh);
-  if (pane) {
-    const rowY = clamp(py - lineH / 2, MARGIN, maxY);
-    const sides = [
-      { where: 'left' as const, room: pane.left - GAP_OUT - MARGIN, x: pane.left - GAP_OUT - bw },
-      { where: 'right' as const, room: vw - pane.right - GAP_OUT - MARGIN, x: pane.right + GAP_OUT },
-    ].sort((a, b) => b.room - a.room);
-    for (const s of sides) if (s.room >= bw) return { x: s.x, y: rowY, where: s.where };
-    const colX = clamp(px - bw / 2, MARGIN, maxX);
-    const ends = [
-      { where: 'above' as const, room: pane.top - GAP_OUT - MARGIN, y: pane.top - GAP_OUT - bh },
-      { where: 'below' as const, room: vh - pane.bottom - GAP_OUT - MARGIN, y: pane.bottom + GAP_OUT },
-    ].sort((a, b) => b.room - a.room);
-    for (const e of ends) if (e.room >= bh) return { x: colX, y: e.y, where: e.where };
-  }
   let x = px + GAP;
   if (x + bw > vw - MARGIN) x = px - GAP - bw;
   let y = py + GAP;
   if (y + bh > vh - MARGIN) y = py - GAP - bh;
-  return { x: clamp(x, MARGIN, maxX), y: clamp(y, MARGIN, maxY), where: 'pointer' };
+  return { x: clamp(x, MARGIN, maxX), y: clamp(y, MARGIN, maxY) };
 }
 
 export class MapHover {
@@ -293,18 +270,7 @@ export class MapHover {
     if (vh > 0) this.fit(box, vh - 2 * MARGIN);
     const bw = box.offsetWidth;
     const bh = box.offsetHeight;
-    const name = box.firstElementChild as HTMLElement | null;
-    const p = placeHoverBox(
-      bw,
-      bh,
-      frame.left + x,
-      frame.top + y,
-      this.o.outside === false ? null : (this.o.pane?.() ?? null),
-      vw,
-      vh,
-      name?.offsetHeight ?? 0,
-    );
-    box.dataset.where = p.where;
+    const p = placeHoverBox(bw, bh, frame.left + x, frame.top + y, vw, vh);
     box.style.left = `${Math.round(p.x - origin.left)}px`;
     box.style.top = `${Math.round(p.y - origin.top)}px`;
   }

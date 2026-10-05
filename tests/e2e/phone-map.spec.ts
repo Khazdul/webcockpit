@@ -181,7 +181,6 @@ test('a long press shows the hover box with the room name; the next tap hides it
   expect(hb.y).toBeGreaterThanOrEqual(0);
   expect(hb.x + hb.width).toBeLessThanOrEqual(vp.width);
   expect(hb.y + hb.height).toBeLessThanOrEqual(vp.height);
-  await expect(hover).toHaveAttribute('data-where', 'pointer');
   await touch('touchStart', [{ x: cx + 30, y: cy + 30 }]);
   await touch('touchEnd', []);
   await expect(hover).toBeHidden();
