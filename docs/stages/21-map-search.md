@@ -69,11 +69,52 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 - [x] B2 mapRoom, mapPath
 - [x] B3 mapMark until cleared, follow-on-move focus
 - [x] B4 checkbox / radio
-- [ ] C1 Map search script
+- [x] C1 Map search script
 - [ ] D1 full check, release
 
 ## Test guide
 
-(Written when the stage is ready.)
+Open WebCockpit, log in, and have the Map pane on (the bundled map loads
+by itself). Walk a little so the map knows where you are.
+
+**1. Notes in the game window (part A).**
+
+- Walk into or past a room with a herb or quest note (the Bree area has
+  several; Map search below finds them). After the room's `Exits:` line a
+  `Note:` row shows the note in dim italics.
+- Try `brief` mode too: the note still comes after the exits line.
+- Options → Mapper → *Room notes: Off*: no note rows. Turn it back on.
+
+**2. Room info on hover (part A).**
+
+- Rest the mouse over a room on the map for about 3 seconds: a small box
+  with the room's name and note (*Minimal*, the default).
+- Options → Mapper → *Room info on hover*: *Full* adds the description,
+  exits (doors in brackets) and mob/load flags; *Off* shows nothing.
+- On the phone: a long press on a room shows the same box.
+
+**3. Map search pane (part C).**
+
+- Scripts page (or `#script enable mapsearch`): turn on *mapsearch*. The
+  Map search pane opens at the right edge. `mapsearch` shows or hides it;
+  `mapsearch <text>` searches straight away.
+- Choose *Notes*, type `herb`, press Enter. The list shows the nearest
+  rooms first: steps, name, area and the way as text (nothing is sent to
+  the game). Point at a row: the whole way and the note.
+- Click a row or two: they get a `●`, pulse on the map, and the map zooms
+  out to show you and them. Walk one step: the map follows you again and
+  the marks keep pulsing.
+- Choose *Flags* and search `rent` (inns), then *Name* and a room name.
+  The marks from before stay; *Mark all* marks the list; *Clear* removes
+  every mark. *Close* (or the pane's ×) hides the pane and clears too.
+- Try *Regular expression* with `^Herb: (athelas|mint)` on Notes, and a
+  broken one such as `(` (a red "Bad regex" line). Turn the Map pane off
+  and search: "Map off".
+
+**Feedback wanted:** is the pane's size and place right (right edge, 60
+columns), are the columns readable (name, area, way), is "a new search
+keeps the marks" the right call (or should a new search clear them), and
+does the zoom-out on every mark click feel right or too jumpy? Anything in
+the hover box or the note rows that reads wrong.
 
 ## Owner feedback

@@ -211,3 +211,84 @@ Package notes (B, built 2026-10-05):
 ### C. Bundled Map search
 
 - A pane modelled on MMapper's Find Rooms dialog.
+
+Package notes (C, built 2026-10-05):
+
+- **Script.** `src/scripts/bundled/mapsearch.lua` (`@name mapsearch`),
+  off until the player turns it on, like the other bundled scripts. Pane
+  `mapsearch/main`, title *Map search*, short `FIND`, `dock = "right"`,
+  `lane = "own"`, 60 × 24 (the almanac's pattern; a float would cover the
+  game text, and a list of 200 rows wants height). Alias `mapsearch` shows
+  or hides it (shown: the query field takes the keyboard); `mapsearch
+  <text>` shows it and searches with the pane's options. The pane is also
+  in Options → Panes as every script pane.
+- **Layout (60 columns; a real render, Notes "Herb" from Hill Road, two
+  rows marked; the field holds the query).**
+
+  ```
+   Query: [Herb                               ] [Find] [Close]
+   Search                       Options
+   ( ) Name         ( ) Exits   [ ] Case sensitive
+   ( ) Description  (•) Notes   [ ] Regular expression
+   ( ) Contents     ( ) Flags
+   ( ) Area         ( ) All
+   200 of 916 rooms · 2 marked             [Mark all] [Clear]
+  ────────────────────────────────────────────────────────────
+     Steps  Room name           Area      Way
+   ●    20  Young Forest                  4s 7w 4s 2e s 2e
+   ●    20  Dusty Meadowland              4s 7w 3n 4w n w
+        20  Barren Grasslands             4s 7w 3n 4w 2n
+        25  Currant and Goose…            4s 7w 8n e 2n 2w s
+        27  Narrow Valley in…   the Old…  3s 3e 4s 4e 2n e n…
+        21  Windy Plains                  4s 7w 3n 4w n 2w
+  ```
+
+  Under 53 columns the Options go under the radio buttons; [Close] needs
+  40. The list's columns: Area only when some room in the list has one
+  (most rooms of arda.mm2 have none) and the width allows (≥ 44 cells for
+  the text columns), then Way (≥ 26), else the name alone. A long way is
+  cut with `…`; the row's tooltip has the name and area, the steps and the
+  whole way wrapped to 56 cells (14 lines at most, then a count), the note,
+  and "Click to mark/unmark". Rooms without a path show `—` and *no path*
+  (dim); the player's own room *here*. Marked rows: `●` in the mark colour
+  on the pane's `@dim` band.
+- **Order.** As `mapSearch` gives it: by MMapper's walking cost, so the
+  Steps column is not strictly rising (a road is cheaper than a forest);
+  the header's tooltip says so. The ways are from where the player stood
+  when searching: no re-search on every move (the list would reorder under
+  the pointer); Find again refreshes.
+- **Searching.** Enter in the field or [Find]. An empty query says *Type
+  something to find.* A radio or checkbox change searches again when a
+  search was made and the field is not empty (MMapper needs Find; here the
+  options are one click, so the answer follows). Answers to an older
+  search are dropped. Status row: `N rooms` / `200 of N rooms`, `· N
+  marked`, `· your room is unknown` (no ways), or a message instead:
+  *Searching …*, *No rooms found.*, *Bad regex: …* (red), *Map off: turn
+  the Map pane on (with a map) to search.* (red).
+- **Marks.** One live `mapMark(ids, {duration = 0, focus = "move"})` with
+  every marked room: each change unmarks it and marks the new set, so the
+  map zooms again to the player and the marks and gives the view back at
+  the next move. **A new search keeps the marks** (they belong to rooms,
+  not to the list: search a herb, mark it, search the next, mark it, see
+  both); [Clear] removes them; [Mark all] adds the rows in the list; 200
+  marked rooms at most (the mark's cap). [Close], the alias hiding the
+  pane, the close cross and Options → Panes (seen through
+  `sysPanesChanged`) all clear the marks, as the script stopping does.
+- **Redraws.** Three parts: the controls (field, radios, checkboxes;
+  drawn only when the width changes, so typing and the keyboard survive
+  every other redraw), the status row, and the list. A list shorter than
+  the last one clears the pane and draws all (a pane cannot drop rows).
+  The list scrolls with the pane's own scrolling, the controls with it:
+  that works with a finger (a script's `onWheel` paging has no touch).
+- **Focus after show.** A pane shown again at the same size gets no
+  `onResize`, and a field cannot take focus while hidden, so the script
+  focuses the field on the `sysPanesChanged` that reports its pane shown
+  (and on `onResize`), for a second after the alias.
+- **Kept** (`store.query`): the last query text, field, case and regex.
+- **Tests.** `tests/unit/scripts-mapsearch.test.ts` (the real host, a
+  fake pane surface and a recording map port: layout wide and narrow,
+  Enter, rows, hints, marks, Mark all, Clear, kept marks, re-search on
+  option change, stale answers, store, messages, columns, alias, Close);
+  `tests/e2e/mapsearch-pane.spec.ts` (bundled map, located player: Notes
+  "Herb", click marks, Flags "rent" keeps them, Clear, close cross clears,
+  the alias focuses the field).

@@ -511,10 +511,18 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
     is also an advanced alias path. `almanac export` / `import` move the
     player's events as one `ALM1:` line. A reminder is a line in the game
     window and a UI message (there is no sound API).
-  - **Map search:** a pane like MMapper's Find Rooms dialog: a query,
-    the field to search, case and regex options, and results nearest
-    first with the way there as text. Clicked results pulse on the map
-    until cleared, zoomed to show the player and the marks (ADR 0077,
+  - **Map search:** a pane like MMapper's Find Rooms dialog (`mapsearch`
+    shows or hides it; `mapsearch <text>` searches). Query with Find and
+    Close; Search radios in two columns (Name, Description, Contents,
+    Area | Exits, Notes, Flags, All); Case sensitive and Regular
+    expression; results nearest first (up to 200) with steps, room name,
+    area and the way as text, the whole way and the note in the row's
+    tooltip. Nothing is sent to the game. A click marks or unmarks a
+    room; marked rooms pulse on the map until Clear or Close, and each
+    change zooms to show the player and the marks until the player moves.
+    Mark all, Clear; a new search keeps the marks; changing an option
+    searches again. It opens in a 60-column lane of its own at the right
+    edge, drops the Area column (then the Way) when narrow (ADR 0077 §C,
     stage 21).
 
   Scripts can name **adaptive colours** (`<~gold>`, `highlight("~gold")`):
