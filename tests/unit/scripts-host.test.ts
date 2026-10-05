@@ -114,6 +114,11 @@ class FakeView implements ScriptPaneView {
   wheel(on: boolean): void {
     this.wheels.push(on);
   }
+  /** `hover(on)` calls (ADR 0065 round 4). */
+  hovers: boolean[] = [];
+  hover(on: boolean): void {
+    this.hovers.push(on);
+  }
 }
 
 /** The text of a pane's lines (gauges as `[label value/max]`). */
@@ -1205,6 +1210,79 @@ describe('pane:onWheel (ADR 0072)', () => {
     expect(script.refs.size).toBe(refs - 1);
     expect(p.events.onWheel!(0, 1)).toBe(false);
     expect(t.uiText().filter((m) => m.includes('boom')).length).toBe(1);
+  });
+});
+
+describe('pane:onHover (ADR 0065 round 4)', () => {
+  it('turns the surface watch on and off, calls fn(inside), releases a replaced handler and on close', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        h: src(`
+          pane = createPane{id = "p"}
+          pane:onHover(function(inside) send(tostring(inside)) end)
+          tempAlias("^other$", function() pane:onHover(function() send("other") end) end)
+          tempAlias("^off$", function() pane:onHover(nil) end)
+          tempAlias("^bad$", function() send(select(2, pcall(pane.onHover, pane, 3))) end)
+          tempAlias("^close$", function() pane:close() end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('h/p')!;
+    expect(p.view.hovers).toEqual([true]);
+    p.events.onHover!(true);
+    p.events.onHover!(false);
+    expect(t.sent).toEqual(['true', 'false']);
+    const script = (t.host as unknown as { owners: Map<string, { script: { refs: Set<number> } }> }).owners.get('h')!.script;
+    const refs = script.refs.size;
+    t.engine.run('other');
+    expect(script.refs.size).toBe(refs);
+    p.events.onHover!(true);
+    expect(t.sent.at(-1)).toBe('other');
+    t.engine.run('bad');
+    expect(t.sent.at(-1)).toMatch(/bad argument #2 to 'pane:onHover'/);
+    t.engine.run('off');
+    expect(script.refs.size).toBe(refs - 1);
+    expect(p.view.hovers).toEqual([true, true, false]);
+    p.events.onHover!(true);
+    expect(t.sent.at(-1)).toMatch(/bad argument/);
+    t.engine.run('other');
+    t.engine.run('close');
+    expect(script.refs.size).toBe(refs - 1);
+    p.events.onHover!(false);
+    expect(t.sent.at(-1)).toMatch(/bad argument/);
+  });
+});
+
+describe('createPane{near, popup} (ADR 0065 round 4)', () => {
+  it('passes near as the pane id and popup to the surface; checks them', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        m: src(`
+          local bar = createPane{id = "bar"}
+          local menu = createPane{id = "menu", temporary = true, near = "bar", popup = true, rows = 3, cols = 12}
+          createPane{id = "plain", temporary = true, rows = 2, cols = 5}
+          local function try(t) send(select(2, pcall(createPane, t))) end
+          try{id = "a", near = "bar"}
+          try{id = "b", temporary = true, near = "nope"}
+          try{id = "c", temporary = true, near = 3}
+          try{id = "d", popup = true}
+          try{id = "e", temporary = true, popup = "yes"}
+        `),
+      },
+      { panes },
+    );
+    expect(panes.get('m/~menu')!.spec.temporary).toEqual({ rows: 3, cols: 12, near: 'm/bar', popup: true });
+    expect(panes.get('m/~plain')!.spec.temporary).toEqual({ rows: 2, cols: 5 });
+    expect(t.sent).toEqual([
+      expect.stringMatching(/near is for temporary panes/),
+      expect.stringMatching(/near must be the id of an open pane of this script/),
+      expect.stringMatching(/near must be the id of an open pane of this script/),
+      expect.stringMatching(/popup is for temporary panes/),
+      expect.stringMatching(/popup must be true or false/),
+    ]);
   });
 });
 

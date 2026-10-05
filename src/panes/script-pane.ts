@@ -59,6 +59,14 @@
 //   prevented (no native scroll, no forwarded scroll); an event too small
 //   for a whole step follows the handler's last answer. Ctrl+wheel (zoom,
 //   pinch) is never handed over.
+// - Pointer over the pane for the script (`pane:onHover`, ADR 0065 round
+//   4): pointerenter / pointerleave on the whole pane (frame included),
+//   mouse and pen only; a leave whose point is still over the pane is
+//   ignored (Firefox, a rebuilt row). While inside, a document pointermove
+//   or pointerdown outside the pane, the window blurring or the tab going
+//   hidden also end it. A touch press on the pane starts it and a press
+//   elsewhere ends it. A device whose main pointer cannot hover (`(hover:
+//   none)`) reports inside once and never leaves.
 // - Grip (ADR 0065 round 1): the cells of `pane:setGrip` show the grab
 //   cursor; the cockpit asks `gripAt` on a press and starts a move there.
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
@@ -408,6 +416,110 @@ export class ScriptPane extends PaneShell {
     this.wheelTaken = false;
   }
 
+  /** The script's pointer-over handler (`pane:onHover`, ADR 0065 round 4), or null. */
+  private insideFn: ((inside: boolean) => void) | null = null;
+  /** What was last reported to `insideFn`. */
+  private inside = false;
+  /** The device cannot hover (`(hover: none)`): the pane counts as pointed at for good. */
+  private insideAlways = false;
+
+  /**
+   * Reports the pointer coming over the pane's box (frame included) and
+   * leaving it to `fn` (`pane:onHover`); null stops it. A mouse or a pen
+   * reports on entering and leaving; a touch reports true when it presses
+   * the pane and false when one presses elsewhere. On a device whose main
+   * pointer cannot hover (a phone, a tablet), `fn(true)` comes once, right
+   * after this call, and nothing after it.
+   */
+  setInsideWatch(fn: ((inside: boolean) => void) | null): void {
+    const el = this.el;
+    if (fn && !this.insideFn) {
+      el.addEventListener('pointerenter', this.onInEnter);
+      el.addEventListener('pointerleave', this.onInLeave);
+      el.addEventListener('pointerdown', this.onInDown);
+    }
+    if (!fn && this.insideFn) {
+      el.removeEventListener('pointerenter', this.onInEnter);
+      el.removeEventListener('pointerleave', this.onInLeave);
+      el.removeEventListener('pointerdown', this.onInDown);
+      this.watchInside(false);
+    }
+    this.insideFn = fn;
+    this.inside = false;
+    this.insideAlways = false;
+    if (!fn) return;
+    const win = this.ctx.doc.defaultView;
+    const noHover = typeof win?.matchMedia === 'function' && win.matchMedia('(hover: none)').matches;
+    if (noHover) {
+      this.insideAlways = true;
+      // Not from inside the script's own call.
+      queueMicrotask(() => {
+        if (this.insideFn === fn && this.insideAlways) this.reportInside(true);
+      });
+    }
+  }
+
+  private reportInside(on: boolean): void {
+    if (on === this.inside || !this.insideFn) return;
+    this.inside = on;
+    this.watchInside(on && !this.insideAlways);
+    this.insideFn(on);
+  }
+
+  private readonly onInEnter = (e: PointerEvent): void => {
+    if (this.insideAlways || e.pointerType === 'touch') return;
+    this.reportInside(true);
+  };
+
+  private readonly onInDown = (): void => {
+    if (!this.insideAlways) this.reportInside(true);
+  };
+
+  private readonly onInLeave = (e: PointerEvent): void => {
+    if (this.insideAlways || e.pointerType === 'touch') return;
+    // Firefox sends a leave when the element under the pointer is rebuilt:
+    // a point still over the pane (and nothing else on top) is not one.
+    if (this.overEl(e.clientX, e.clientY)) return;
+    this.reportInside(false);
+  };
+
+  /** True when (`x`, `y`) client px is over the pane's box and nothing else is on top there. */
+  private overEl(x: number, y: number): boolean {
+    const r = this.el.getBoundingClientRect();
+    if (r.width <= 0 && r.height <= 0) return false;
+    if (!(x >= r.left && x < r.right && y >= r.top && y < r.bottom)) return false;
+    const top = typeof this.ctx.doc.elementFromPoint === 'function' ? this.ctx.doc.elementFromPoint(x, y) : null;
+    return !!top && this.el.contains(top);
+  }
+
+  /** While inside: the document listeners that catch a missed leave. */
+  private watchingInside = false;
+
+  private watchInside(on: boolean): void {
+    if (on === this.watchingInside) return;
+    this.watchingInside = on;
+    const doc = this.ctx.doc;
+    const win = doc.defaultView;
+    const add = on ? 'addEventListener' : 'removeEventListener';
+    doc[add]('pointermove', this.onInDocMove, true);
+    doc[add]('pointerdown', this.onInDocMove, true);
+    doc[add]('visibilitychange', this.onInDocGone);
+    win?.[add]('blur', this.onInDocGone);
+  }
+
+  /** A move or a press elsewhere (a touch has no leave): the pointer is not over the pane. */
+  private readonly onInDocMove = (e: Event): void => {
+    const t = e.target;
+    if (t instanceof Node && (!t.isConnected || this.el.contains(t))) return;
+    if (e.type === 'pointermove' && (e as PointerEvent).pointerType === 'touch') return;
+    this.reportInside(false);
+  };
+
+  private readonly onInDocGone = (e: Event): void => {
+    if (e.type === 'visibilitychange' && this.ctx.doc.visibilityState === 'visible') return;
+    this.reportInside(false);
+  };
+
   private readonly onWheel = (e: WheelEvent): void => {
     const fn = this.wheelFn;
     // Ctrl+wheel (and a touchpad pinch) zooms: never the script's.
@@ -664,12 +776,15 @@ export class ScriptPane extends PaneShell {
   override place(...args: Parameters<PaneShell['place']>): void {
     super.place(...args);
     // Hidden: no hover. Moved or resized: whatever is under the pointer now.
-    if (!args[0]) this.clearPointer();
-    else if (this.pointer) this.resolveHover();
+    if (!args[0]) {
+      this.clearPointer();
+      if (!this.insideAlways) this.reportInside(false);
+    } else if (this.pointer) this.resolveHover();
   }
 
   override dispose(): void {
     this.setWheel(null);
+    this.setInsideWatch(null);
     this.clearPointer();
     this.tipEl?.remove();
     for (const [id, el] of [...this.inputs]) this.dropInput(id, el);
