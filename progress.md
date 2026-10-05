@@ -34,6 +34,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-06 — Far search fit
+
+- **Done:** stage 21 round 3 item 1, ADR 0079. When the player's room and
+  a searched/marked room cannot both fit even at ZOOM_MIN, `fitRooms`
+  fits the targets alone (else the nearest target) instead of centring
+  halfway. Unit test added; 2422 unit tests pass.
+- **Next:** owner check in 0.1.49; D1 full check and release.
+- **Open issues:** none new.
+- **Commits:** 26c49cc, plus this one.
+
 ### 2026-10-05 — New-user defaults
 
 - **Done:** ADR 0078. New installs get Hack 17 with bright bold; a 40-cell
