@@ -28,6 +28,8 @@ interface RoomSpec {
   desc?: string;
   serverId?: number;
   terrain?: number;
+  contents?: string;
+  note?: string;
   /** dir → [exit flags, door flags, door name, target ext ids]. */
   exits?: Partial<Record<number, [number, number, string, number[]]>>;
 }
@@ -76,6 +78,8 @@ function makeMap(specs: RoomSpec[], marks: MapData['infomarks'] | null = null): 
     names: specs.map((s) => s.name ?? `Room ${s.id}`),
     descs: specs.map((s) => s.desc ?? `A plain room number ${s.id}.\n`),
     areas: specs.map(() => ''),
+    contents: specs.map((s) => s.contents ?? ''),
+    notes: specs.map((s) => s.note ?? ''),
     exitFlags,
     doorFlags,
     doorNames,
@@ -130,6 +134,8 @@ function tiny(): MapData {
         name: 'Market  Square',
         desc: 'A busy\n  square.',
         serverId: 1234,
+        contents: 'A fountain is here.\n',
+        note: 'Herb: athelas\n',
         exits: {
           [DIR.E]: [E | EXIT_FLAG.ROAD, 0, '', [20]],
           [DIR.N]: [E | EXIT_FLAG.DOOR, DOOR_FLAG.HIDDEN, 'gate', []],
@@ -168,6 +174,9 @@ describe('mm2 reader (synthetic v42)', () => {
     expect(m.infomarks.count).toBe(2);
     expect(m.infomarks.text).toEqual(['Herbs here', '']); // LINE loses its text
     expect(m.infomarks.x2[1]).toBe(200);
+    // Notes and contents are kept (ADR 0077).
+    expect(m.notes).toEqual(['Herb: athelas\n', '', '']);
+    expect(m.contents).toEqual(['A fountain is here.\n', '', '']);
   });
 
   it('applies MMapper exit invariants', async () => {
@@ -234,6 +243,9 @@ describe('mm2 reader (synthetic v42)', () => {
     expect([...exitTargets(s, 0, DIR.E)]).toEqual([1]);
     expect(exitTargets(s, 1, DIR.U).length).toBe(0);
     expect(s.infomarks.count).toBe(2);
+    // A replay subset keeps notes, not contents (ADR 0077).
+    expect(s.notes).toEqual(['Herb: athelas\n', '']);
+    expect(s.contents).toEqual(['', '']);
     expect([...neighbourhood(m, [0], 1)].sort()).toEqual([0, 1]);
     expect([...neighbourhood(m, [0], 2)].sort()).toEqual([0, 1, 2]);
   });
@@ -274,6 +286,8 @@ describe('mm2 reader (older schema versions, synthetic)', () => {
     expect(m.names).toEqual(src.names);
     expect(m.descs).toEqual(src.descs);
     expect(m.areas[0]).toBe(v >= V.area ? 'Bree' : '');
+    expect(m.notes).toEqual(src.notes);
+    expect(m.contents).toEqual(src.contents);
     expect(m.byServerId.get(1234)).toBe(v >= V.serverId ? 0 : undefined);
     expect(m.terrain[2]).toBe(13);
     expect(m.ridable[0]).toBe(v >= V.ridable ? 2 : 0);
@@ -423,6 +437,9 @@ describe.skipIf(!existsSync(ARDA))('mm2 reader (public/map/arda.mm2)', () => {
     const types = [0, 0, 0];
     for (let i = 0; i < m.infomarks.count; i++) types[m.infomarks.type[i]!]!++;
     expect(types).toEqual([614, 17, 43]);
+    // Notes and contents (ADR 0077).
+    expect(m.notes.filter((t) => t !== '').length).toBe(1283);
+    expect(m.contents.filter((t) => t !== '').length).toBe(13855);
     // 176 exits with more than one target; +y is north (targets at Δ(0,+1), any z).
     let multi = 0;
     let northUp = 0;
@@ -451,6 +468,7 @@ describe.skipIf(!existsSync(ARDA))('mm2 reader (public/map/arda.mm2)', () => {
     const back = await readMm2(await writeMm2(s));
     expect(back.roomCount).toBe(rooms.size);
     expect(back.names).toEqual(s.names);
+    expect(back.notes).toEqual(s.notes);
     expect([...back.outTo]).toEqual([...s.outTo]);
   });
 });

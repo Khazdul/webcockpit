@@ -70,6 +70,8 @@ function makeMap(specs: RoomSpec[]): MapData {
     names: specs.map((_, i) => `Room ${i}`),
     descs: specs.map(() => ''),
     areas: specs.map(() => ''),
+    contents: specs.map(() => ''),
+    notes: specs.map(() => ''),
     exitFlags,
     doorFlags,
     doorNames,

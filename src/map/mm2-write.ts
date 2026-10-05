@@ -8,8 +8,9 @@
 // MMapper `.mm2` writer (the inverse of src/map/mm2.ts). Pure; the
 // deflate step is injectable. Used by the tests (synthetic maps) and by
 // the HTML replay export, which embeds a map subset as `.mm2` bytes
-// (ADR 0020 "Package notes"). Room contents and notes are written empty
-// (the reader does not keep them); exits refer to targets by `extId`.
+// (ADR 0020 "Package notes"). Contents and notes are written as the map
+// holds them (a replay subset keeps notes and empties contents, ADR 0077);
+// exits refer to targets by `extId`.
 //
 // It writes v42 by default. Older schema versions (17 … 41) exist for the
 // reader's tests: fields a version lacks are dropped, flags are cut to the
@@ -97,10 +98,10 @@ export function encodeMm2Payload(map: MapData, version = MM2_VERSION): Uint8Arra
     if (version >= V.area) w.str(map.areas[r] ?? '');
     w.str(map.names[r] ?? '');
     w.str(map.descs[r] ?? '');
-    w.str(''); // contents
+    w.str(map.contents[r] ?? '');
     w.u32(map.extId[r]!);
     if (version >= V.serverId) w.u32(map.serverId[r]!);
-    w.str(''); // note
+    w.str(map.notes[r] ?? '');
     const death = version < V.deathFlag && map.terrain[r] === INDOORS && (map.loadFlags[r]! & LOAD_DEATHTRAP) !== 0;
     w.u8(death ? DEATH_TERRAIN : map.terrain[r]!);
     w.u8(map.light[r]!);

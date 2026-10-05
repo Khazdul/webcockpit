@@ -155,6 +155,10 @@ export interface MapData {
   descs: string[];
   /** Area name ("" for most rooms). */
   areas: string[];
+  /** Room contents as the map file stores them ("" for none; ADR 0077). */
+  contents: string[];
+  /** The map file's room note ("" for none; ADR 0077). Lines end with "\n". */
+  notes: string[];
 
   // ---- per exit slot (length roomCount * DIR_COUNT)
   /** EXIT_FLAG bits, after MMapper's load invariants (EXIT, UNMAPPED, DOOR). */

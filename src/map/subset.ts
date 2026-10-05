@@ -62,6 +62,9 @@ export function subsetMap(map: MapData, rooms: Iterable<number>, markMargin = 2)
     names: keep.map((r) => map.names[r]!),
     descs: keep.map((r) => map.descs[r]!),
     areas: keep.map((r) => map.areas[r]!),
+    // Contents only feed search (ADR 0077), which a replay does not offer.
+    contents: keep.map(() => ''),
+    notes: keep.map((r) => map.notes[r]!),
     exitFlags,
     doorFlags,
     doorNames,

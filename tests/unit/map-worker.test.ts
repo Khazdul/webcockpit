@@ -91,6 +91,8 @@ function tinyFile(): Promise<Uint8Array> {
     names: ['A'],
     descs: ['B'],
     areas: [''],
+    contents: [''],
+    notes: [''],
     exitFlags: new Uint16Array(7),
     doorFlags: new Uint16Array(7),
     doorNames: new Map(),

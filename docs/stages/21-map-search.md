@@ -52,7 +52,7 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 ## Tasks
 
 - [x] ADR 0077, stage file, spec
-- [ ] A1 notes and contents in MapData
+- [x] A1 notes and contents in MapData
 - [ ] A2 Options → Mapper toggle
 - [ ] A3 note lines in the game window
 - [ ] A4 hover box

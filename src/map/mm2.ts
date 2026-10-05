@@ -18,7 +18,7 @@
 //
 // Payload: u32 rooms, u32 marks, Coordinate selected, rooms × Room,
 // marks × Infomark. Strings are QString: u32 byte length (0xFFFFFFFF =
-// null) then UTF-16BE. Contents and notes are skipped by length.
+// null) then UTF-16BE. Contents and notes are kept (ADR 0077).
 //
 // Older schemas are converted to the current MapData exactly as MMapper
 // 26.06.0 does on load (ported from src/mapstorage/mapstorage.cpp
@@ -232,6 +232,8 @@ export function parseMm2Payload(u: Uint8Array, version = MM2_VERSION): MapData {
   const names: string[] = new Array<string>(rooms);
   const descs: string[] = new Array<string>(rooms);
   const areas: string[] = new Array<string>(rooms);
+  const contents: string[] = new Array<string>(rooms);
+  const notes: string[] = new Array<string>(rooms);
   const exitFlags = new Uint16Array(slots);
   const doorFlags = new Uint16Array(slots);
   const doorNames = new Map<number, string>();
@@ -247,10 +249,10 @@ export function parseMm2Payload(u: Uint8Array, version = MM2_VERSION): MapData {
     areas[r] = hasArea ? str() : '';
     names[r] = str();
     descs[r] = str();
-    skipStr(); // contents
+    contents[r] = str();
     extId[r] = u32();
     serverId[r] = hasServerId ? u32() : 0;
-    skipStr(); // note
+    notes[r] = str();
     const t = u8();
     let death = false;
     if (deathTerrain && t === DEATH_TERRAIN) {
@@ -441,6 +443,8 @@ export function parseMm2Payload(u: Uint8Array, version = MM2_VERSION): MapData {
     names,
     descs,
     areas,
+    contents,
+    notes,
     exitFlags,
     doorFlags,
     doorNames,

@@ -14,6 +14,8 @@ export interface GridOptions {
   /** Name / desc of room i. */
   name?: (i: number) => string;
   desc?: (i: number) => string;
+  /** Map note of room i (default none). */
+  note?: (i: number) => string;
 }
 
 export function gridMap(w: number, h: number, o: GridOptions = {}): MapData {
@@ -64,6 +66,8 @@ export function gridMap(w: number, h: number, o: GridOptions = {}): MapData {
     names: Array.from({ length: n }, (_, i) => o.name?.(i) ?? `Room ${i}`),
     descs: Array.from({ length: n }, (_, i) => o.desc?.(i) ?? `The plain room number ${i}.\n`),
     areas: Array.from({ length: n }, () => ''),
+    contents: Array.from({ length: n }, () => ''),
+    notes: Array.from({ length: n }, (_, i) => o.note?.(i) ?? ''),
     exitFlags,
     doorFlags: new Uint16Array(slots),
     doorNames: new Map(),

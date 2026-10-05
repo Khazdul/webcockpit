@@ -39,6 +39,8 @@ function makeMap(rooms: Array<{ pos: [number, number, number]; name?: string; de
     names: rooms.map((r, i) => r.name ?? `Room ${i}`),
     descs: rooms.map((r) => r.desc ?? ''),
     areas: rooms.map(() => ''),
+    contents: rooms.map(() => ''),
+    notes: rooms.map(() => ''),
     exitFlags: new Uint16Array(slots),
     doorFlags: new Uint16Array(slots),
     doorNames: new Map(),
