@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 21 (room notes and map search; in progress). New-user defaults (ADR 0078) done, unreleased, ships with 0.1.49. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 21 (room notes and map search; owner testing). Released 0.1.49 (stage 21 and new-user defaults, ADR 0078), owner testing. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -26,13 +26,24 @@ Current stage: 21 (room notes and map search; in progress). New-user defaults (A
 | 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
 | 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
-| 21 | Room notes and map search | In progress | `docs/stages/21-map-search.md` |
+| 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-06 — Release 0.1.49
+
+- **Checked:** typecheck, unit 2422, e2e 465/465 (the known flaky tests
+  all passed), build:pages smoke 10/10 in Chromium and Firefox.
+- **Released:** 0.1.49 (tag v0.1.49, owner's go): stage 21 (room notes,
+  map search, far fit ADR 0079) and new-user defaults (ADR 0078). Pages
+  deploy green, live release.json 0.1.49, test:prod against the live site 10/10.
+- **Next:** owner tests stage 21 per the guide and a fresh profile.
+- **Open:** flaky e2e (replay file://, layout drag-cursor, scrolling
+  stats, underscores profile list) worth stabilising.
 
 ### 2026-10-06 — Far search fit
 

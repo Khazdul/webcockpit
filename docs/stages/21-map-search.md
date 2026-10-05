@@ -70,7 +70,7 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 - [x] B3 mapMark until cleared, follow-on-move focus
 - [x] B4 checkbox / radio
 - [x] C1 Map search script
-- [ ] D1 full check, release
+- [x] D1 full check, release (0.1.49, 2026-10-06)
 
 ## Test guide
 
