@@ -112,7 +112,8 @@ test('custom caret follows the text column and restyles live', async ({ page }) 
 test('appearance applies live and persists; ?safe starts with defaults', async ({ page }) => {
   await open(page);
   const h15 = parseFloat(await rootVar(page, '--cell-h'));
-  const fs15 = await rootVar(page, '--font-size');
+  // The stored look of an existing install (legacy-state.ts): DejaVu 15 (snapped to whole-pixel cells).
+  expect(parseFloat(await rootVar(page, '--font-size'))).toBeCloseTo(15, 0);
   await page.evaluate(async () => {
     const s = window.__wc!.settings;
     s.update({ appearance: { size: 20, bg: '#0e141c', padding: 4, font: 'jetbrains' } });
@@ -135,8 +136,10 @@ test('appearance applies live and persists; ?safe starts with defaults', async (
   expect(await page.locator('link[rel=preload][href*="JetBrainsMono"]').count()).toBe(2);
   expect(await page.locator('link[rel=preload][href*="DejaVu"]').count()).toBe(0);
 
+  // Safe mode: the defaults of a new install (Hack 17, ADR 0078), not the stored look.
   await open(page, '?replay&safe');
-  expect(await rootVar(page, '--font-size')).toBe(fs15);
+  expect(parseFloat(await rootVar(page, '--font-size'))).toBeCloseTo(17, 0);
+  expect(await rootVar(page, '--font-mono')).toContain('Hack');
   expect(await rootVar(page, '--term-bg')).toBe('#000000');
 
   // Safe mode did not overwrite the stored settings.

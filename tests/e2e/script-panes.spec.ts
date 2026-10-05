@@ -273,7 +273,10 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toBeNull();
   await command(page, 'tp');
   await expect(temp).toBeVisible();
-  expect(Math.round(((await temp.boundingBox())!.x - box.x) / cell.w)).toBe(0);
+  // Centred over the game pane of the default layout (ADR 0078: a wider dock than the stored one).
+  const game2 = (await page.locator('.wc-game').boundingBox())!;
+  const again = (await temp.boundingBox())!;
+  expect(Math.abs(again.x + again.width / 2 - (game2.x + game2.width / 2))).toBeLessThanOrEqual(cell.w);
   await command(page, 'tpc');
   await expect(temp).toHaveCount(0);
 

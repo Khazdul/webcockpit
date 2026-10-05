@@ -3,6 +3,7 @@
 // and in the exported HTML replay with the pane as the player saw it,
 // without Lua: the content is there, the link's tooltip shows, a click
 // does nothing.
+import { NO_STATE } from './legacy-state';
 import { writeFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
 
@@ -179,7 +180,7 @@ test('a run with a script pane plays back with the pane, in the log player and t
   });
   const path = info.outputPath('pane-replay.html');
   writeFileSync(path, html);
-  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true, storageState: NO_STATE });
   await context.route(/^(https?|wss?):/, (r) => r.abort());
   const p = await context.newPage();
   const fileErrors: string[] = [];

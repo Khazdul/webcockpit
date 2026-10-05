@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import { LEGACY_STATE } from './tests/e2e/legacy-state';
 
 // WC_E2E_PORT: another dev server port (parallel worktrees each run their own).
 const port = Number(process.env.WC_E2E_PORT ?? 5173);
@@ -7,7 +8,9 @@ export default defineConfig({
   testDir: 'tests/e2e',
   fullyParallel: true,
   reporter: 'list',
-  use: { baseURL: `http://localhost:${port}` },
+  // Every spec starts as an existing install with the pre-ADR 0078 defaults (legacy-state.ts).
+  globalSetup: './tests/e2e/legacy-state.ts',
+  use: { baseURL: `http://localhost:${port}`, storageState: LEGACY_STATE },
   webServer: {
     command: `npm run dev -- --port ${port} --strictPort`,
     url: `http://localhost:${port}`,

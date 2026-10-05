@@ -3,6 +3,7 @@
 // test writes it to disk and opens it from file:// in a fresh context with
 // no network, and with IndexedDB, localStorage, sessionStorage, fetch,
 // XMLHttpRequest and WebSocket throwing (and counted) on any touch.
+import { NO_STATE } from './legacy-state';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { type Browser, type BrowserContext, type Page, expect, test } from '@playwright/test';
@@ -80,7 +81,7 @@ async function buildHtml(page: Page, withEdits: boolean): Promise<{ html: string
 /** Opens `html` from a temp file in a context with no network and no storage. */
 async function openFile(browser: Browser, html: string, path: string): Promise<{ page: Page; errors: string[] }> {
   writeFileSync(path, html);
-  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true, storageState: NO_STATE });
   await context.route(/^(https?|wss?):/, (r) => r.abort());
   await context.addInitScript(NO_STORAGE_NO_NETWORK);
   const page = await context.newPage();

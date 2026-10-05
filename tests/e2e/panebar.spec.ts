@@ -337,7 +337,14 @@ test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, c
   await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-overlay')).toBeHidden();
-  await expectRightBottom(page);
+  // The default layout since ADR 0078: the last pane of the right dock's tail span.
+  await expect.poll(() => page.evaluate((id) => window.__wc!.settings.get().layout.docks.right.tail.at(-1)?.id, BAR)).toBe(BAR);
+  await expect(bar(page)).toBeVisible();
+  const b = (await bar(page).boundingBox())!;
+  const app = (await page.locator('.wc-cockpit').boundingBox())!;
+  // The last whole cell row (the cockpit's height need not be a whole number of cells).
+  expect(app.y + app.height - (b.y + b.height)).toBeLessThan(b.height);
+  expect(app.y + app.height - (b.y + b.height)).toBeGreaterThanOrEqual(0);
   expect(errors).toEqual([]);
 });
 

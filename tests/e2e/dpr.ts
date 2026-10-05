@@ -6,6 +6,7 @@
 // browser launched with the `layout.css.devPixelsPerPx` pref. Tests call
 // `expectDpr` to be sure.
 import { type Page, expect, test } from '@playwright/test';
+import { LEGACY_STATE } from './legacy-state';
 
 /** `dprPage`: a page at pixel ratio `dpr` (an option: `dprTest.use({ dpr })`). */
 export const dprTest = test.extend<{ dpr: number; dprPage: Page }>({
@@ -15,7 +16,7 @@ export const dprTest = test.extend<{ dpr: number; dprPage: Page }>({
       browserName === 'firefox' && dpr !== 1
         ? await browser.browserType().launch({ firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(dpr) } })
         : null;
-    const ctx = await (own ?? browser).newContext({ deviceScaleFactor: dpr, ...(baseURL ? { baseURL } : {}) });
+    const ctx = await (own ?? browser).newContext({ deviceScaleFactor: dpr, storageState: LEGACY_STATE, ...(baseURL ? { baseURL } : {}) });
     await use(await ctx.newPage());
     await ctx.close();
     await own?.close();

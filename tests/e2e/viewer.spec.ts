@@ -3,6 +3,7 @@
 // opened from file://. Pane toggles, colour themes (every pane None), font
 // size, a dragged pane that survives a backward seek, Reset, no timers `+`,
 // and the chrome staying while the section is open.
+import { NO_STATE } from './legacy-state';
 import { writeFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
 
@@ -193,7 +194,7 @@ test('the HTML replay has the gear and the same settings (file://, no storage)',
   });
   const path = info.outputPath('viewer-replay.html');
   writeFileSync(path, html);
-  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true, storageState: NO_STATE });
   await context.route(/^(https?|wss?):/, (r) => r.abort());
   await context.addInitScript(() => {
     const w = window as unknown as { __touched: string[] };

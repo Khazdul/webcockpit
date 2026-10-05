@@ -245,11 +245,14 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await expect(startSel(page)).toHaveText('<< Reset layout >>');
   await page.keyboard.press('Enter');
   await expect(startFlash(page)).toHaveText('Layout reset.');
-  await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([33]);
-  expect((await settings(page)).layout.docks.right.head).toEqual([]);
-  // Every side pane docked in the right column again; the map floats (off).
-  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['map']);
-  expect((await settings(page)).layout.docks.right.lanes[0]!.panes.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui']);
+  // The default layout (ADR 0078): Character over Group | Timers, then Comm,
+  // UI and the pane bar; the map and Map search float.
+  await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([20, 20]);
+  const right = (await settings(page)).layout.docks.right;
+  expect(right.head.map((p) => p.id)).toEqual(['character']);
+  expect(right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([['group'], ['timers']]);
+  expect(right.tail.map((p) => p.id)).toEqual(['comm', 'ui', 'panebar/bar']);
+  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['map', 'mapsearch/main']);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -305,10 +308,11 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await page.keyboard.type('#abc');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).appearance.ansi[9]).toBe('#aabbcc');
-  // Reset appearance.
+  // Reset appearance: the defaults of a new install (Hack 17, ADR 0078).
   await page.locator('.wc-overlay .wc-mrow[data-key="reset"] .wc-label').click();
-  await expect.poll(async () => (await settings(page)).appearance.size).toBe(15);
-  await expect.poll(fontSize).toBe(before);
+  await expect.poll(async () => (await settings(page)).appearance.size).toBe(17);
+  expect((await settings(page)).appearance.font).toBe('hack');
+  await expect.poll(fontSize).not.toBe(before);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 

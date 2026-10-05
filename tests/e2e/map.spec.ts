@@ -1,6 +1,7 @@
 // Stage 9 P0 (ADR 0020): the Map pane is on by default, floats at its
 // default spot, loads the bundled arda.mm2 in the worker
 // and takes pointer input without stealing the input line's focus.
+import { NO_STATE } from './legacy-state';
 import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
@@ -79,7 +80,7 @@ test('the HTML replay starts the inline map worker from file://', async ({ page,
   });
   const path = info.outputPath('replay.html');
   writeFileSync(path, html);
-  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true, storageState: NO_STATE });
   await context.route(/^(https?|wss?):/, (r) => r.abort());
   const p = await context.newPage();
   const errors: string[] = [];

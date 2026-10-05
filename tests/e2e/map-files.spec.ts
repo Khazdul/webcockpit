@@ -2,6 +2,7 @@
 // Mapper imports a .mm2 and the running Map pane reloads it; the
 // log player uses the same map; an HTML replay embeds the map subset
 // around the rooms its chain visited and loads it from file://.
+import { NO_STATE } from './legacy-state';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { expect, test } from '@playwright/test';
@@ -133,7 +134,7 @@ test('an HTML replay embeds the map subset and loads it from file://', async ({ 
   const file = info.outputPath('replay-map.html');
   writeFileSync(file, html);
 
-  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true });
+  const context = await browser.newContext({ viewport: { width: 1400, height: 820 }, offline: true, storageState: NO_STATE });
   await context.route(/^(https?|wss?):/, (r) => r.abort());
   const p = await context.newPage();
   const errors: string[] = [];
