@@ -66,23 +66,30 @@ translated 203 of 212 own items (research §9).
 
 ### Folders and enabled state
 
-- Folders become `#class {path} {open}` … `{close}` with the folder
-  path joined by `/` (brace- and `;`-safe), as JMC groups do.
+- ~~Folders become `#class {path} {open}` … `{close}`.~~ *Amended,
+  owner 2026-10-05:* folders produce no output; rules are written flat
+  in source order. Folder names only matter for enable/disable by name.
 - A disabled item (or one in a disabled folder) that no body enables by
-  name is written in the kept block as `#nop {Disabled in Mudlet: …}`
-  with its translated text (the Powwow precedent).
+  name is left out of the profile and listed in the report as
+  *Disabled in Mudlet* (*amended, owner 2026-10-05*; it was a `#nop`).
 - `enableTrigger/Alias/Key/Timer("name")` and the `disable…` forms
   become a **gate variable** `mudlet_on_<name>` (1/0). Every rule made
   from an item with that name (or inside a folder with that name) is
   wrapped in `#if {$mudlet_on_<name>}`. Its start value is the item's
   `isActive`. A gated alias sends the typed input in its `#else`
-  (`%0`). *Amended 2026-10-05 (build):* a gated gag, highlight or
-  substitute is not written ungated (a gated `.*` gag would hide every
-  line); its pattern starts with `${mudlet_gate_<name>}`, which is empty
-  when on and the never-matching `%!{(?!)}` when off. One
-  `#action {%*} {…} {1}` copies these from `mudlet_on_<name>` at the
-  start of every line, so a trigger that gags its line and then
-  disables itself still gags that line (our actions run before gags).
+  (`%0`). *Amended, owner 2026-10-05* (replaces the build-time pattern
+  gates with `${mudlet_gate_<name>}` and a catch-all `#action {%*}`):
+  - only items whose output is plain commands (`#action` body,
+    `#alias`, `#macro`, `#ticker` body) are gated;
+  - a switched item that would give a `#gag`, `#highlight` or
+    `#substitute` is not translated (reason *Turned on and off by other
+    rules (gag/highlight/substitute cannot be switched)*), its action
+    body included;
+  - an enable/disable of a name no translated rule is switched by
+    (excluded, unknown, or not switchable) is dropped from the body
+    with a warning on that item (`enableTrigger("x") dropped: x was not
+    translated.`); only `mudlet_on_*` variables some rule reads are
+    written.
 
 ### Patterns
 
@@ -165,18 +172,22 @@ MumeSpellTimers.attemptBlind`).
 
 ### Output and report
 
-As ADR 0073: header `#nop`, translated rules in source order, then the
-`#nop {--- Not translated ---}` block with kept items. A kept item is
-one `#nop {<reason> (<kind> <name>): <source>}` with braces made safe;
-the Lua code keeps its newlines when the engine's `#nop` accepts them,
-else they become `\n` text. The report source text is
+Header `#nop` as ADR 0073, then translated rules in source order.
+*Amended, owner 2026-10-05:* items that are not translated (also the
+disabled ones) are not written into the profile at all; there is no
+`--- Not translated ---` block. One line at the end counts them, e.g.
+`#nop {Mudlet import: 24 items not translated (6 disabled in Mudlet, 18
+not translatable), 7 packages skipped. See the import report.}`
+(omitted when there is nothing to count). The import report lists every
+left-out item with its reason, so nothing is lost silently. The report
+source text is
 `<kind> <name>  <pattern>`, the line is the element's start line in the
 XML. The format name is `Mudlet`; signals: `MudletPackage version …`,
 `profile save` (HostPackage present), `package archive`.
 
 ## Consequences
 
-- Most simple Mudlet setups import fully; real Lua programs stay as
-  readable `#nop` text that the user can port by hand or ask about.
+- Most simple Mudlet setups import fully; real Lua programs are listed
+  in the import report (and stay in the Mudlet file) for porting by hand.
 - The Lua subset is deliberately small and grows only from real files.
 - `ImportFormat` gains `mudlet`; nothing else in ADR 0073 changes.

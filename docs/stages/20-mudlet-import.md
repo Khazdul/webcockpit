@@ -23,8 +23,8 @@ Intent Goal 11 (Mudlet), spec §2.11, ADR 0076. Research:
 - `zip.ts`: async zip reader (central directory, deflate-raw).
 - `mudlet-lua.ts`: Lua-subset lexer, parser and tt++ emitter, function
   inlining, colour conversion.
-- `mudlet.ts`: tree walk, packages, folders → `#class`, gates, patterns,
-  keys, timers, variables, colorizers, kept block.
+- `mudlet.ts`: tree walk, packages, folders (no output since round 1),
+  gates, patterns, keys, timers, variables, colorizers, report.
 - `detect.ts`, `types.ts`, `index.ts`: format `mudlet`.
 - Fixtures `tests/fixtures/import/mudlet/` (hand-written in the style of
   real files) and unit tests; every output loads in the engine (corpus
@@ -54,6 +54,12 @@ Intent Goal 11 (Mudlet), spec §2.11, ADR 0076. Research:
 - [x] C1 e2e
 - [x] C2 help text
 - [ ] Release
+
+Round 1 (owner feedback 2026-10-05):
+
+- [x] R1 no `#class` from Mudlet folders
+- [x] R2 no `#nop` per untranslated or disabled item; one summary `#nop` at the end
+- [x] R3 pattern gates removed; switched gag/highlight/substitute items excluded; orphan enable/disable dropped with a warning
 
 ## Build notes
 
@@ -94,7 +100,7 @@ Engine facts the translation relies on (checked in `src/script/`):
 
 Decisions and refinements (ADR 0076 amended where a decision changed):
 
-- **Pattern gates** (ADR amended): see the ADR. The sync action is one
+- **Pattern gates** (ADR amended; removed in round 1, see below): see the ADR. The sync action is one
   `#action {%*} {…} {1}` for all pattern-gated names. Gate start values
   are written only for gates some translated rule reads. Gates are found
   from Lua tokens, so a commented-out `--disableTrigger("x")` does not
@@ -132,6 +138,22 @@ Decisions and refinements (ADR 0076 amended where a decision changed):
   <rules>}` with the rules on separate lines.
 - `src/chrome/frames/import-report.tsx` got `mudlet: 'Mudlet'` in its
   format-name map (needed for the type check; part B checks the frame).
+
+### Round 1 (2026-10-05)
+
+Owner feedback applied in `mudlet.ts` (ADR 0076 amended): no `#class`,
+no kept block, one summary `#nop` at the end, pattern gates removed.
+Gate placeholders now carry the call name; in `write()` a placeholder
+becomes `#variable {mudlet_on_x} {1|0}` only when a translated rule is
+switched by `x`, otherwise it is removed (with one `;`) and the item
+gets the warning. `usedGates` is filled in `finish()` for translated
+items only. Owner's sample: 203 translated, 24 not translated (6
+disabled, 18 not translatable), 7 packages; `hidescore1` →
+`#action {^(HIDEME)…} {#variable {hiddenAutoScoreSentBalance} {0}}` +
+`#gag {^(HIDEME)…}` with a warning that `enableTrigger("hidescore2")`
+was dropped; `hidescore2` is excluded. The `^speedwalk$` and
+`^bsleep$`/`^bwake$` aliases lose their enable/disable of untranslated
+or unknown items, with a warning.
 
 ### B. UI (2026-10-05)
 
@@ -178,12 +200,11 @@ waits for your go). Start page → Profiles → IMPORT.
 
 1. **Your profile:** choose `export (from save profile as).trigger`
    from Downloads. Check: the report says *Mudlet*, about 204
-   translated, 23 kept, 7 skipped packages, each package line naming
+   translated (203 after round 1), 24 not translated, 7 skipped packages, each package line naming
    what replaces it (Key manager, Timers, Comm …).
-2. Press **EDIT** and read the profile: the folders are `#class`
-   blocks, aliases are `#alias {^name$} {…}`, keys are `#macro`. At
-   the end, the `#nop` block holds what was not translated, with the
-   reason.
+2. Press **EDIT** and read the profile: rules are flat in source
+   order, aliases are `#alias {^name$} {…}`, keys are `#macro`. The
+   last line counts what was not translated; the report lists each.
 3. **Play with it:** `sd east`, then `c`, `cc`, `o`; `z orc`, then
    F1/F4; `burn` and `normal`; `ga`; `silvery`. Do the commands and the
    `## …` echoes look right?
@@ -197,3 +218,18 @@ Feedback wanted: anything translated wrongly, anything kept that you
 think is simple enough to translate, and whether the report is useful.
 
 ## Owner feedback
+
+### Round 1 (2026-10-05)
+
+1. **No `#class` at all.** Mudlet folders give no `#class` lines; rules
+   are flat in source order.
+2. **No `#nop` per untranslated item.** Untranslated and disabled items
+   are left out of the profile; one short `#nop` at the end counts them
+   and the packages. The report keeps listing every item with its
+   reason.
+3. **No pattern-gate mechanism.** Items switched by name get a readable
+   `#if {$mudlet_on_<name>} {…}` only when their output is plain
+   commands. A switched item that would give a gag, highlight or
+   substitute is not translated. Enable/disable of an item that was not
+   translated is dropped with a warning; no orphan `mudlet_on_*`
+   variables.
