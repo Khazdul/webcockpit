@@ -8,6 +8,7 @@
 //      << [X] Show map pane >>
 //      << Room notes: On >>
 //      << Room info on hover: Minimal >>
+//      << Hover text size: Medium >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
@@ -24,13 +25,14 @@
 // Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
 // for the located room after its exits line in the game window. Room info
 // on hover (`mapper.hover`: Off / Minimal / Full, default Minimal): no
-// hover box, the room name and note, or also the description, exits and
-// mob/load flags.
+// hover box, the room name and note, or MMapper's room preview (name,
+// description, contents, exits, note). Hover text size (`mapper.hoverSize`:
+// Small / Medium / Large, default Medium = the cockpit's font size).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import type { CurrentMap } from '../../map/store';
-import { MAP_HOVER_MODES } from '../../settings';
+import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft, cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
@@ -98,6 +100,7 @@ export function MapperOptionsFrame(): VNode {
   const mapper = s.mapper;
   const toggleNotes = (): void => settings.update({ mapper: { notes: !mapper.notes } });
   const hoverLabel = mapper.hover === 'full' ? 'Full' : mapper.hover === 'off' ? 'Off' : 'Minimal';
+  const sizeLabel = mapper.hoverSize === 'small' ? 'Small' : mapper.hoverSize === 'large' ? 'Large' : 'Medium';
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;
@@ -139,6 +142,11 @@ export function MapperOptionsFrame(): VNode {
       key: 'hover',
       label: `Room info on hover: ${hoverLabel}`,
       adjust: (d) => settings.update({ mapper: { hover: cycle(MAP_HOVER_MODES, mapper.hover, d) } }),
+    },
+    {
+      key: 'hoverSize',
+      label: `Hover text size: ${sizeLabel}`,
+      adjust: (d) => settings.update({ mapper: { hoverSize: cycle(MAP_HOVER_SIZES, mapper.hoverSize, d) } }),
     },
     {
       key: 'import',

@@ -231,6 +231,10 @@ export interface InputSettings {
 export type MapHoverMode = 'off' | 'minimal' | 'full';
 export const MAP_HOVER_MODES: readonly MapHoverMode[] = ['off', 'minimal', 'full'];
 
+/** The hover box's text size (ADR 0077 round 1); medium is the cockpit's font size. */
+export type MapHoverSize = 'small' | 'medium' | 'large';
+export const MAP_HOVER_SIZES: readonly MapHoverSize[] = ['small', 'medium', 'large'];
+
 /**
  * Options → Mapper (ADR 0077). Not in `ViewSnapshot`: a log plays with the
  * viewer's own.
@@ -240,6 +244,8 @@ export interface MapperSettings {
   notes: boolean;
   /** The map pane's hover box: off, room name and note, or the full room. */
   hover: MapHoverMode;
+  /** The hover box's text size. */
+  hoverSize: MapHoverSize;
 }
 
 export interface Settings {
@@ -315,7 +321,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'minimal' },
+    mapper: { notes: true, hover: 'minimal', hoverSize: 'medium' },
   };
 }
 

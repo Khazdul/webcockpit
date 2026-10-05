@@ -624,11 +624,14 @@ describe('SettingsStore', () => {
 
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a minimal hover, and clamps stored values', () => {
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'minimal' });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'minimal' });
-    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full' });
-    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off' });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'minimal' });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'minimal' });
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
+    expect(migrateMapper({ hover: 'off', hoverSize: 'large' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large' });
+    expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
+    expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'minimal', hoverSize: 'medium' });
   });
 });
