@@ -186,7 +186,8 @@ describe('bundled panebar', () => {
     expect(t.rows()).toEqual([bar(ALL, true)]);
     expect(t.rows().join(' ')).not.toContain('BAR');
     expect(t.panes.wants.at(-1)).toEqual([1, undefined]);
-    expect(t.button('COMM').link.hint).toBe('Comm: on (click to hide)');
+    // No tooltips (stage 21): a button's link has no hint.
+    expect(t.button('COMM').link.hint).toBe('');
     expect(t.colours(0, 2)).toEqual(ON);
     // A hovered button lightens (ADR 0065 round 2): the pane's style, no link of its own.
     expect(t.panes.bar.content.hover).toBe('lighten');
@@ -230,7 +231,7 @@ describe('bundled panebar', () => {
     expect(t.panes.builtinOn.get('comm')).toBe(false);
     const b = t.button('COMM');
     expect(t.colours(b.row, b.col)).toEqual(OFF);
-    expect(b.link.hint).toBe('Comm: off (click to show)');
+    expect(b.link.hint).toBe('');
     t.panes.bar.events.onLink(b.link.id);
     await t.settle();
     expect(t.panes.builtinOn.get('comm')).toBe(true);
@@ -292,9 +293,8 @@ describe('bundled panebar', () => {
     await t.resize(19);
     expect(t.rows()).toEqual([G + 'CH TI GR CO UI MA']);
     expect(spans(t).at(-1)).toEqual([17, 2]);
-    // Colours and tooltips stay whole.
+    // Colours stay whole.
     expect(t.colours(0, 2)).toEqual(ON);
-    expect(t.button('CO').link.hint).toBe('Comm: on (click to hide)');
   });
 
   it('an odd spare cell goes to the middle button when there is one', async () => {
@@ -315,7 +315,7 @@ describe('bundled panebar', () => {
     expect(c.linkAt(0, 2)).toBeNull();
     expect(t.colours(0, 2)).toEqual({ fg: shadeColor('dim'), bg: undefined });
     expect(t.colours(0, 17)).toEqual({ fg: shadeColor('vtext'), bg: undefined });
-    expect(c.linkAt(0, 17)!.hint).toBe('2 more panes to the right');
+    expect(c.linkAt(0, 17)!.hint).toBe('');
     expect(spans(t).filter((s) => s[1] === 2).map((s) => s[0])).toEqual([4, 7, 10, 13]);
     // A page right: as far as it goes (two more).
     t.panes.bar.events.onLink(c.linkAt(0, 17)!.id);
@@ -323,7 +323,7 @@ describe('bundled panebar', () => {
     expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
     expect(t.panes.bar.content.linkAt(0, 17)).toBeNull();
     expect(t.colours(0, 17)).toEqual({ fg: shadeColor('dim'), bg: undefined });
-    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
+    expect(t.panes.bar.content.linkAt(0, 2)).not.toBeNull();
     // A click on a button still toggles its pane; the offset stays.
     t.panes.bar.events.onLink(t.button('MA').link.id);
     await t.settle();
@@ -355,7 +355,7 @@ describe('bundled panebar', () => {
     await t.lib.setEnabled('mercenaries', false);
     await t.settle();
     expect(t.rows()).toEqual([G + '← GR CO UI MA  →']);
-    expect(t.panes.bar.content.linkAt(0, 2)!.hint).toBe('2 more panes to the left');
+    expect(t.panes.bar.content.linkAt(0, 2)).not.toBeNull();
   });
 
   it('the wheel scrolls a button per three cells, only when scrolled', async () => {
@@ -386,7 +386,7 @@ describe('bundled panebar', () => {
     const t = await setup(['mercenaries']);
     await t.resize(80);
     expect(t.rows()).toEqual([bar([...ALL, 'MERC'], true)]);
-    expect(t.button('MERC').link.hint).toBe('Mercenaries: on (click to hide)');
+    expect(t.button('MERC').link).toBeDefined();
     await t.lib.setEnabled('mercenaries', false);
     await t.settle();
     expect(t.rows()).toEqual([bar(ALL, true)]);

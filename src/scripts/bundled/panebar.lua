@@ -6,7 +6,7 @@
 -- @help     COMM, UI, MAP) and the panes of the scripts that run, in the
 -- @help     order of Options -> Panes. Click a button to hide its pane,
 -- @help     click again to show it. A bright button is on, a dark one is
--- @help     off. Point at a button to see the pane's full name.
+-- @help     off.
 -- @help
 -- @help     The bar starts at the bottom of the right dock, under the
 -- @help     other panes. Drag it by the dots at its left end (or press a
@@ -30,7 +30,7 @@ shade (<@bg:@glow>); off is the mid shade on the track shade
 (<@mid:@track>), faded but readable. Both follow the pane tint and the
 light (paper) backgrounds. Under the pointer a button turns a step
 lighter, text and fill (pane:setHover("lighten")). A click calls
-setPaneOn.
+setPaneOn. No tooltips: the buttons and arrows have no hint text.
 
 The bar is one row: a grip, a dotted cell (pane:setGrip) that drags the
 bar, a blank cell, then the buttons, one empty cell apart. How wide the
@@ -90,12 +90,6 @@ local function others()
     if not e.own then out[#out + 1] = e end
   end
   return out
-end
-
-local function hint(e)
-  if not e.on then return e.title .. ": off (click to show)" end
-  if not e.shown then return e.title .. ": on, no room now" end
-  return e.title .. ": on (click to hide)"
 end
 
 -- `text` in `w` cells: centred when it fits (the odd cell goes right),
@@ -167,10 +161,6 @@ local function scroll(by)
   draw()
 end
 
-local function more(k, side)
-  return k .. " more " .. (k == 1 and "pane" or "panes") .. " to the " .. side
-end
-
 draw = function()
   local list = others()
   local dock = pane:dock()
@@ -200,13 +190,13 @@ draw = function()
   pane:setLine(1, table.concat(parts))
   for _, b in ipairs(buttons) do
     local id, on = b.e.id, b.e.on
-    pane:setLink(1, b.col, b.w, function() setPaneOn(id, not on) end, hint(b.e))
+    pane:setLink(1, b.col, b.w, function() setPaneOn(id, not on) end)
   end
   if scrolled and width > FIRST then
     local page = math.max(1, shown)
     -- At an end the arrow is dim and has no link.
-    if left > 0 then pane:setLink(1, FIRST, 1, function() scroll(-page) end, more(left, "left")) end
-    if right > 0 then pane:setLink(1, width, 1, function() scroll(page) end, more(right, "right")) end
+    if left > 0 then pane:setLink(1, FIRST, 1, function() scroll(-page) end) end
+    if right > 0 then pane:setLink(1, width, 1, function() scroll(page) end) end
   end
   pane:setGrip(1, 1, FIRST - 1)
   -- One row (the surface ignores a repeated request, so a height the

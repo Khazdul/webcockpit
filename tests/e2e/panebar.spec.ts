@@ -2,7 +2,7 @@
 // the input line it is a borderless one-row pane at the bottom of the right
 // dock with a grip and one button per pane, as wide as the room allows
 // (full, shrunk down to two cells, then scrolled with arrows and the
-// wheel); a click toggles that pane; the title is the tooltip;
+// wheel); a click toggles that pane; no tooltips (stage 21);
 // dragged by its grip it moves between docks and floats; a user script's
 // pane gets a button while the script runs; reload and Reset layout put it
 // back at the bottom of the right dock. Uses the dev-only `window.__wc`.
@@ -230,7 +230,7 @@ async function dragByGrip(page: Page, x: number, y: number): Promise<void> {
 
 const ALL = ['CHAR', 'TIME', 'GRP', 'COMM', 'UI', 'MAP'];
 
-test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colours, paper, reload and Reset layout', async ({ page }) => {
+test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, colours, paper, reload and Reset layout', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -246,13 +246,13 @@ test('panebar: the bottom of the right dock, clicks toggle panes, tooltips, colo
   await page.mouse.move(g.x, g.y);
   await expect(bar(page).locator('.wc-pane-content')).toHaveCSS('cursor', 'grab');
 
-  // Tooltip: the full title and what a click does.
+  // No tooltip on a hovered button (stage 21).
   const comm = await find(page, 'COMM');
   const at = await cellAt(page, comm.row, comm.col + 1);
   await page.mouse.move(at.x, at.y);
   const tip = page.locator('.wc-spane-tip');
-  await expect(tip).toBeVisible();
-  await expect(tip).toHaveText(/Comm: on \(click to hide\)/);
+  await page.waitForTimeout(300);
+  await expect(tip).toBeHidden();
   // Hovered, a lit button is a step lighter, text and fill (round 2).
   const hovered = await colours(page, 'COMM');
 
@@ -446,7 +446,7 @@ test('panebar: a user script pane gets a button while the script runs', async ({
   const loot = await find(page, 'LOOT');
   const at = await cellAt(page, loot.row, loot.col + 1);
   await page.mouse.move(at.x, at.y);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/Loot log: on \(click to hide\)/);
+  await expect(page.locator('.wc-spane-tip')).toBeHidden();
   await page.mouse.click(at.x, at.y);
   await expect(page.locator('.wc-pane[data-pane="loot/main"]')).toBeHidden();
   await command(page, '#script disable loot');
@@ -478,11 +478,11 @@ test('panebar: a button in the last column is clickable, no close cross; the hov
   expect((await prows(page).nth(0).textContent())!.length).toBe(29);
   await page.mouse.move(10, 10);
   const rest = await colours(page, 'MAP');
-  // Hovered at its last cell: lighter, the tooltip, no close cross over it.
+  // Hovered at its last cell: lighter, no tooltip, no close cross over it.
   const end = await cellAt(page, 0, 28);
   await page.mouse.move(end.x, end.y);
   await expect.poll(() => colours(page, 'MAP')).not.toEqual(rest);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/Map: on/);
+  await expect(page.locator('.wc-spane-tip')).toBeHidden();
   await expect(bar(page).locator('.wc-pane-close')).toBeHidden();
   // Out through the right edge handle (on top of the content): the hover ends.
   const cell = await cellSize(page);
@@ -555,16 +555,16 @@ test('panebar: a narrower dock shrinks the buttons to two cells, then arrows and
   await toCols(page, 18);
   await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
   await expect(prows(page)).toHaveCount(1);
-  // The right arrow: a tooltip, a click shows the rest.
+  // The right arrow: no tooltip, a click shows the rest.
   const right = await cellAt(page, 0, 17);
   await page.mouse.move(right.x, right.y);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the right/);
+  await expect(page.locator('.wc-spane-tip')).toBeHidden();
   await page.mouse.click(right.x, right.y);
   await expect.poll(row).toBe('∷ ← GR CO UI MA  →');
   // The left arrow goes back.
   const left = await cellAt(page, 0, 2);
   await page.mouse.move(left.x, left.y);
-  await expect(page.locator('.wc-spane-tip')).toHaveText(/2 more panes to the left/);
+  await expect(page.locator('.wc-spane-tip')).toBeHidden();
   await page.mouse.click(left.x, left.y);
   await expect.poll(row).toBe('∷ ← CH TI GR CO  →');
   // No pane was toggled by the arrows.
