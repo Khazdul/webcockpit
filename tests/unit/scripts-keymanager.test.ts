@@ -22,6 +22,7 @@ import { ScriptHost } from '../../src/scripts/host';
 import { paneInk } from '../../src/panes/script-pane';
 import { contrast } from '../../src/theme/color';
 import { MapMarkHub } from '../../src/map/marks';
+import type { MarkFocus } from '../../src/map/protocol';
 
 const EPOCH0 = 1_790_000_000;
 const HOUR = 3_600_000;
@@ -948,11 +949,12 @@ describe('bundled keymanager', () => {
     const SCRY = 'You let your inner eye find the area... and you see:';
     function mapRig() {
       const hub = new MapMarkHub();
-      const marks: Array<{ id: number; target: unknown; style: unknown; ms: number; focus: boolean }> = [];
+      const marks: Array<{ id: number; target: unknown; style: unknown; ms: number; focus: MarkFocus }> = [];
       hub.attach({
         find: () => {},
         mark: (id, target, style, ms, focus) => void marks.push({ id, target, style, ms, focus }),
         unmark: () => {},
+        ask: () => {},
         shown: () => true,
       });
       return { hub, marks };

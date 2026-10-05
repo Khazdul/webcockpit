@@ -447,6 +447,15 @@ export class PaneContent {
     this.version++;
   }
 
+  /** Removes link `id` (reported to `onDrop`). */
+  removeLink(id: number): void {
+    const i = this.links.findIndex((l) => l.id === id);
+    if (i < 0) return;
+    this.links.splice(i, 1);
+    this.onDrop(id);
+    this.version++;
+  }
+
   /** Appends `t` as a link (`id`, `hint`, its own `hover` style) to the last line (as `append`). */
   appendLink(t: StyledText, id: number, hint: string, hover?: HoverStyle): void {
     const one = t.text.indexOf('\n') < 0 ? t : { text: t.text.replace(/\n/g, ' '), runs: t.runs };

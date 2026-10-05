@@ -431,6 +431,8 @@ const PANES: HelpSection = {
     "getPanes()  setPaneOn(id, on)",
     "pane:setInput(row, col, len, {value, placeholder, maxLength, onSubmit, onCancel, onChange, onBlur, onKey})",
     "field:focus()  field:select()  field:value()  field:setValue(text)  field:remove()",
+    "pane:setCheckbox(row, col, {label, checked, hint, onChange})  pane:setRadio(row, col, {group, value, label, checked, hint, onChange})",
+    "toggle:checked()  toggle:set(on)  toggle:remove()",
   ],
   text: [
     "A script can draw its own pane: text, colours, bars and clickable spans. It docks, floats, toggles and takes a colour like the Character or Group pane.",
@@ -458,6 +460,7 @@ const PANES: HelpSection = {
     "Temporary panes. createPane{id = \"pick\", temporary = true, rows = 3, cols = 30} makes a short-lived pane, for a choice or a notice: it floats over the game text at rows × cols, above the other panes, and is never listed in Options → Panes. at = \"center\" (the default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\" or a corner (\"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\") says where it opens; corners keep several panes apart. The player can move and resize it, and that place is kept on this device: the next pane of the same script and id opens there (Options → Reset layout forgets it). It never docks, since it comes and goes. Several short-lived panes that belong together (one per room watched, say) take group = \"tv\" and grid = {cols = 2}: they tile from at's corner, row by row in the order they opened, the first at the corner, the second beside it, the third below the first; when one closes the ones after it move up to close the gap. Dragging one moves them all and resizing one sets the size of all, kept on this device. Its close cross closes it, and pane:onClose(fn) is called then. show, hide and visible work while it is open. It is in runs like any pane.",
     "Text fields. pane:setInput(row, col, len, opts) puts an editable one-line field on len cells of a row and returns it. opts.value is its text to start with, opts.placeholder the grey text while it is empty, opts.maxLength the most characters. opts.onSubmit(text) runs on Enter, opts.onCancel() on Esc, opts.onChange(text) on every edit, opts.onBlur(text) when the player clicks elsewhere (not on Enter or Esc; the field stays until you remove it), and opts.onKey(key) for Up, Down, PgUp, PgDn, Tab and Shift+Tab (\"ArrowUp\", \"ArrowDown\", \"PageUp\", \"PageDown\", \"Tab\", \"Shift+Tab\"), so the arrows can move a selection while the player types.",
     "A click on the field, or field:focus(), gives it the keyboard; field:select() does too and selects its text, so typing replaces it. Enter, Esc, a click elsewhere or the pane closing give the keyboard back to the input line (onSubmit can call field:focus() again to keep it). While the field has the keyboard, nothing typed reaches the game, your macros or the keys of tempKey. field:value() and field:setValue(text) read and write the text; field:remove() takes the field away. setLine, gauge and clear on its row remove it too, so write the row's text first and add the field after it. The log player and the HTML replay show its text, not editable.",
+    "Checkboxes and radio buttons. pane:setCheckbox(row, col, {label = \"Case sensitive\", checked = false, onChange = fn}) draws [ ] Case sensitive from column col and returns it; a click (or a tap) anywhere on it flips it to [x] and calls onChange(checked). pane:setRadio(row, col, {group = \"field\", value = \"name\", label = \"Name\", checked = true, onChange = fn}) draws ( ) Name, or (•) Name when chosen: of the radio buttons of one group in the pane, one is chosen at a time; a click chooses it, unchooses the others and calls its onChange(value) (value defaults to the label). label takes colour tags; hint is a tooltip. toggle:checked() reads it, toggle:set(on) sets it without calling onChange (a radio set on unchooses the rest of its group), toggle:remove() blanks it. They are text and a link: setLine, gauge and clear on the row remove them (toggle:checked() is then nil), and the log player and the HTML replay show them as text.",
     "Pane methods are cheap: they change the pane's content, and the pane is drawn once per screen frame. Updating a pane from a trigger on every line is fine.",
   ],
   examples: [
@@ -487,18 +490,29 @@ const PANES: HelpSection = {
 const MAP_MARKS: HelpSection = {
   group: "guide",
   heading: "Map marks",
-  syntax: ["mapMark(target, opts, fn)  mapUnmark(handle)  mapFind(query, fn)"],
+  syntax: [
+    "mapMark(target, opts, fn)  mapUnmark(handle)  mapFind(query, fn)",
+    "mapSearch({text, field, case, regex, max}, fn)  mapPath(id, fn)  mapRoom(id, fn)",
+  ],
   text: [
     "A script can show rooms on the Map pane: they blink in a colour for a while, and an arrow at the edge points to a room off the view.",
     "mapMark({name = \"A Tunnel\", lines = {…}, exits = \"Exits: north, south.\"}, {color = \"magenta\", duration = 15, focus = true}, fn) finds the rooms with that name (the lines after the name narrow by the description, the Exits: line by the exits; the nearest 20 to you first) and marks them. focus = true zooms out so you and the rooms are in view; when the duration is over the zoom comes back, unless you moved the map yourself meanwhile. linger = 180 then keeps the mark three more minutes, steady and a little dimmer, with its arrows and label. fn(count, total, ids) says what was found.",
     "mapFind(query, fn) only finds: fn(ids, total). mapMark({ids…}) marks rooms by id; mapUnmark(handle) ends a mark early.",
-    "With the Map pane off (or no map loaded) mapMark and mapFind return nil, \"map off\" at once. Marks are live only: runs and replays do not show them.",
+    "duration = 0 keeps a mark, blinking, until mapUnmark or the script stops. focus = \"move\" zooms out to show you and the rooms once, and at your first move to another room the zoom comes back and the map follows you again; the mark stays. Panning or zooming the map yourself first ends it too, and the view stays where you put it. A mark takes up to 200 room ids.",
+    "Search. mapSearch({text = \"herb\", field = \"note\"}, fn) searches the map like MMapper's Find Rooms and calls fn(results, total, here). field is \"name\" (the default), \"desc\", \"contents\", \"note\", \"area\", \"exits\" (door names), \"flags\" (mob, load, exit and door flags, as MMapper names them, such as aggmob, herb, door, climb, or in words, aggressive mob) or \"all\". The text matches anywhere in the field, whatever the case; case = true makes case count; regex = true takes it as a regular expression (JavaScript syntax). results is a list of at most max (default 200, at most 500) rooms {id, name, area, note, steps, dirs}, nearest first by the shortest path from your room; dirs is the way as text, such as 3e n 2u (empty in your own room). Rooms without a path come last, nearest first, with steps and dirs nil; so do all when your room is unknown (here is then nil). total counts every match. A bad regular expression gives nil and \"bad regex: …\" at once.",
+    "mapPath(id, fn) calls fn(dirs, steps) with the way from your room to room id, or fn(nil) when there is none. mapRoom(id, fn) calls fn(room): {id, name, area, desc, contents, note, terrain, x, y, z, exits, flags}; exits is a list of {dir, to, door, flags} (door is the door's name, \"\" for a door without one, nil for no door), flags the room's mob and load flags in words. Paths cost as in MMapper: by terrain, with doors, climbs, random, damage and fall exits, rooms you cannot ride in and death traps costing more.",
+    "With the Map pane off (or no map loaded) mapMark, mapFind, mapSearch, mapPath and mapRoom return nil, \"map off\" at once. Marks are live only: runs and replays do not show them.",
   ],
   examples: [
     {
       note: "Mark a room by name for 15 seconds:",
       lang: "lua",
       code: 'tempAlias("^where (.+)$", function()\n  local h, why = mapMark({name = matches[2]}, {duration = 15, focus = true}, function(count, total)\n    echo(count == 0 and "Not on the map." or (count .. " of " .. total .. " rooms marked."))\n  end)\n  if not h then echo("No mark: " .. why) end\nend)',
+    },
+    {
+      note: "Find the nearest herbs from the map's notes and mark them until the next search:",
+      lang: "lua",
+      code: 'local mark\ntempAlias("^herbs$", function()\n  local ok, why = mapSearch({text = "herb", field = "note", max = 5}, function(results, total)\n    if mark then mapUnmark(mark) end\n    local ids = {}\n    for i, r in ipairs(results) do\n      echo(r.name .. ": " .. (r.dirs or "no path") .. "\\n")\n      ids[i] = r.id\n    end\n    if #ids > 0 then mark = mapMark(ids, {duration = 0, focus = "move"}) end\n  end)\n  if not ok then echo("No search: " .. why) end\nend)',
     },
   ],
 };

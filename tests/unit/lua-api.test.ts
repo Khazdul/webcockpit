@@ -45,7 +45,7 @@ describe('API docs', () => {
 describe('text field methods (ADR 0055)', () => {
   it('documents every field method the host defines, and nothing else', () => {
     const host = readFileSync(new URL('../../src/scripts/host.ts', import.meta.url), 'utf8');
-    const block = host.slice(host.indexOf("rt.defineClass('PaneField', {"), host.indexOf("rt.defineClass('Pane', {"));
+    const block = host.slice(host.indexOf("rt.defineClass('PaneField', {"), host.indexOf("rt.defineClass('PaneToggle', {"));
     const methods = [...block.matchAll(/^ {6}(\w+): \(a\) =>/gm)].map((m) => `field:${m[1]!}`);
     expect(methods.sort()).toEqual(['field:focus', 'field:remove', 'field:select', 'field:setValue', 'field:value']);
     const documented = SCRIPT_API.filter((d) => d.name.startsWith('field:')).map((d) => d.name);
@@ -59,9 +59,23 @@ describe('text field methods (ADR 0055)', () => {
   });
 });
 
+describe('checkbox and radio methods (ADR 0077 §B)', () => {
+  it('documents every toggle method the host defines, and nothing else; completes after a receiver named like one', () => {
+    const host = readFileSync(new URL('../../src/scripts/host.ts', import.meta.url), 'utf8');
+    const block = host.slice(host.indexOf("rt.defineClass('PaneToggle', {"), host.indexOf("rt.defineClass('Pane', {"));
+    const methods = [...block.matchAll(/^ {6}(\w+): \(a\) =>/gm)].map((m) => `toggle:${m[1]!}`);
+    expect(methods.sort()).toEqual(['toggle:checked', 'toggle:remove', 'toggle:set']);
+    const documented = SCRIPT_API.filter((d) => d.name.startsWith('toggle:')).map((d) => d.name);
+    expect(documented.sort()).toEqual(methods);
+    expect(names(completeLua('caseBox:c'))).toEqual(['toggle:checked']);
+    expect(names(completeLua('radio:s'))).toEqual(['toggle:set']);
+    expect(nameAt('cs:checked()', 4)?.doc.name).toBe('toggle:checked');
+  });
+});
+
 describe('pane methods (ADR 0053)', () => {
   it('complete after a pane receiver, never as globals; hover finds them after a colon', () => {
-    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setHover', 'pane:setText', 'pane:setInput', 'pane:setTitle', 'pane:setGrip']);
+    expect(names(completeLua('pane:se'))).toEqual(['pane:setLine', 'pane:setLink', 'pane:setHover', 'pane:setText', 'pane:setInput', 'pane:setCheckbox', 'pane:setRadio', 'pane:setTitle', 'pane:setGrip']);
     expect(completeLua('myPane:g')?.method).toBe(true);
     expect(names(completeLua('line:up'))).toEqual(['string.upper']);
     expect(names(completeLua('pane'))).toBeNull();

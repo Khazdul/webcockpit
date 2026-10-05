@@ -816,6 +816,7 @@ describe('map marks (ADR 0057)', () => {
       find: (req, query) => void sent.push({ op: 'find', id: req, arg: query }),
       mark: (id, target, style, ms, focus) => void sent.push({ op: 'mark', id, arg: { target, style, ms, focus } }),
       unmark: (id) => void sent.push({ op: 'unmark', id }),
+      ask: (req, q) => void sent.push({ op: 'ask', id: req, arg: q }),
       shown: () => shown,
     });
     return { hub, sent, setShown: (v: boolean) => (shown = v) };
@@ -887,6 +888,187 @@ describe('map marks (ADR 0057)', () => {
     expect(m.sent.filter((x) => x.op === 'unmark')).toHaveLength(8);
     const t2 = await setup({ off: src(`send(tostring(select(2, mapMark({1}))))`) });
     expect(t2.sent).toEqual(['map off']);
+  });
+});
+
+describe('map search (ADR 0077 §B)', () => {
+  function mapRig() {
+    const hub = new MapMarkHub();
+    const sent: Array<{ op: string; id: number; arg?: unknown }> = [];
+    let shown = true;
+    const detach = hub.attach({
+      find: () => {},
+      mark: (id, target, style, ms, focus) => void sent.push({ op: 'mark', id, arg: { target, style, ms, focus } }),
+      unmark: (id) => void sent.push({ op: 'unmark', id }),
+      ask: (req, q) => void sent.push({ op: 'ask', id: req, arg: q }),
+      shown: () => shown,
+    });
+    return { hub, sent, detach, setShown: (v: boolean) => (shown = v) };
+  }
+
+  it('mapSearch sends the query and calls fn(results, total, here); bad queries are errors, a bad regex nil and why', async () => {
+    const m = mapRig();
+    const t = await setup(
+      {
+        ms: src(`
+          export("go", function(text)
+            send(tostring(mapSearch({text = text, field = "note", case = true, regex = false, max = 900}, function(results, total, here)
+              local r = results[1]
+              send(#results .. "/" .. total .. " here " .. tostring(here) .. " " .. r.name .. " " .. tostring(r.steps) .. " [" .. tostring(r.dirs) .. "] " .. tostring(results[2].steps))
+            end)))
+          end)
+          export("re", function() send(table.concat({tostring(mapSearch({text = "(", regex = true}, function() end))}, " ")) send(select(2, mapSearch({text = "(", regex = true}, function() end))) end)
+          export("bad", function()
+            send(select(2, pcall(mapSearch, {text = "  "}, function() end)))
+            send(select(2, pcall(mapSearch, {text = "x", field = "nope"}, function() end)))
+            send(select(2, pcall(mapSearch, {text = "x", case = "yes"}, function() end)))
+            send(select(2, pcall(mapSearch, {text = "x"})))
+          end)
+          export("path", function(id) send(tostring(mapPath(tonumber(id), function(dirs, steps) send("path " .. tostring(dirs) .. " " .. tostring(steps)) end))) end)
+          export("room", function(id) mapRoom(tonumber(id), function(r)
+            if not r then send("no room") return end
+            send(r.name .. " " .. r.terrain .. " " .. r.exits[1].dir .. " " .. tostring(r.exits[1].door) .. " " .. table.concat(r.flags, ","))
+          end) end)
+        `),
+      },
+      { map: m.hub },
+    );
+    t.engine.input('#lua ms go Herb');
+    const ask = m.sent.at(-1)!;
+    expect(ask).toMatchObject({ op: 'ask', arg: { k: 'search', query: { text: 'Herb', field: 'note', case: true, regex: false, max: 500 } } });
+    expect(t.sent.at(-1)).toBe('true');
+    m.hub.answered(ask.id, {
+      k: 'search',
+      results: [
+        { id: 4, name: 'A Glade', area: '', note: 'Herb: x', steps: 3, dirs: '2e n' },
+        { id: 9, name: 'Far', area: '', note: 'Herb: y', steps: null, dirs: null },
+      ],
+      total: 7,
+      here: 1,
+    });
+    expect(t.sent.at(-1)).toBe('2/7 here 1 A Glade 3 [2e n] nil');
+    t.engine.input('#lua ms re');
+    expect(t.sent.slice(-2)).toEqual(['nil', expect.stringMatching(/^bad regex: /)]);
+    t.engine.input('#lua ms bad');
+    expect(t.sent.slice(-4)).toEqual([
+      expect.stringMatching(/text is empty/),
+      expect.stringMatching(/field must be one of "name", "desc"/),
+      expect.stringMatching(/case must be true or false/),
+      expect.stringMatching(/bad argument #2 to 'mapSearch'/),
+    ]);
+    t.engine.input('#lua ms path 12');
+    const pa = m.sent.at(-1)!;
+    expect(pa.arg).toEqual({ k: 'path', room: 12 });
+    m.hub.answered(pa.id, { k: 'path', dirs: '3e n 2u', steps: 6 });
+    expect(t.sent.slice(-2)).toEqual(['true', 'path 3e n 2u 6']);
+    t.engine.input('#lua ms path 13');
+    m.hub.answered(m.sent.at(-1)!.id, { k: 'path', dirs: null, steps: null });
+    expect(t.sent.at(-1)).toBe('path nil nil');
+    t.engine.input('#lua ms room 5');
+    m.hub.answered(m.sent.at(-1)!.id, {
+      k: 'room',
+      room: {
+        id: 5, name: 'Gate', area: 'Bree', desc: 'd', contents: '', note: '', terrain: 'city', x: 1, y: 2, z: 0,
+        exits: [{ dir: 'north', to: 6, door: 'gate', flags: ['needkey'] }],
+        flags: ['aggressive mob', 'herb'],
+      },
+    });
+    expect(t.sent.at(-1)).toBe('Gate city north gate aggressive mob,herb');
+    // The map goes away before the answer: fn(nil).
+    t.engine.input('#lua ms room 5');
+    m.detach();
+    expect(t.sent.at(-1)).toBe('no room');
+    // Off: nil, "map off" at once.
+    t.engine.input('#lua ms path 1');
+    expect(t.sent.at(-1)).toBe('nil');
+    expect(t.lib.get('ms')!.lastError).toBeNull();
+  });
+
+  it('mapMark: duration 0 lasts until unmarked (no fade); focus "move"; up to 200 ids; a bad focus is an error', async () => {
+    const m = mapRig();
+    const t = await setup(
+      {
+        mk: src(`
+          export("go", function()
+            local ids = {}
+            for i = 1, 300 do ids[i] = i end
+            send(tostring(mapMark(ids, {duration = 0, fade = 5, focus = "move"})))
+            send(select(2, pcall(mapMark, {1}, {focus = "yes"})))
+          end)
+        `),
+      },
+      { map: m.hub },
+    );
+    t.engine.input('#lua mk go');
+    const mk = m.sent.at(-1)!;
+    const arg = mk.arg as { target: { rooms: number[] }; style: { fade: number }; ms: number; focus: unknown };
+    expect(arg.target.rooms).toHaveLength(200);
+    expect(arg.ms).toBe(Infinity);
+    expect(arg.style.fade).toBe(0);
+    expect(arg.focus).toBe('move');
+    expect(t.sent.at(-1)).toMatch(/focus must be true, false or "move"/);
+  });
+});
+
+describe('pane checkboxes and radio buttons (ADR 0077 §B)', () => {
+  it('draw as text under a link, toggle on click, keep radio groups exclusive, set and remove; setLine drops them', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        w: src(`
+          local pane = createPane{id = "p"}
+          pane:setLine(1, "Search:")
+          local cs = pane:setCheckbox(2, 2, {label = "Case sensitive", onChange = function(on) send("case " .. tostring(on)) end})
+          local n = pane:setRadio(3, 1, {group = "f", value = "name", label = "Name", checked = true, onChange = function(v) send("field " .. v) end})
+          local d = pane:setRadio(3, 10, {group = "f", value = "desc", label = "<red>Desc", onChange = function(v) send("field " .. v) end})
+          export("state", function() send(tostring(cs:checked()) .. " " .. tostring(n:checked()) .. " " .. tostring(d:checked())) end)
+          export("set", function() d:set(true) cs:set(true) end)
+          export("rm", function() cs:remove() send(tostring(cs:checked())) end)
+          export("line", function() pane:setLine(3, "gone") send(tostring(n:checked())) end)
+          export("bad", function()
+            send(select(2, pcall(pane.setRadio, pane, 4, 1, {label = "x"})))
+            send(select(2, pcall(pane.setCheckbox, pane, 4, 0, {})))
+          end)
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('w/p')!;
+    expect(paneText(p.content)).toEqual(['Search:', ' [ ] Case sensitive', '(\u2022) Name ( ) Desc']);
+    expect(p.content.links.map((l) => [l.row, l.col, l.len])).toEqual([
+      [1, 1, 18],
+      [2, 0, 8],
+      [2, 9, 8],
+    ]);
+    p.events.onLink(p.content.linkAt(1, 5)!.id);
+    expect(paneText(p.content)[1]).toBe(' [x] Case sensitive');
+    p.events.onLink(p.content.linkAt(2, 12)!.id);
+    expect(paneText(p.content)[2]).toBe('( ) Name (\u2022) Desc');
+    // A click on the chosen radio does nothing.
+    p.events.onLink(p.content.linkAt(2, 12)!.id);
+    expect(t.sent).toEqual(['case true', 'field desc']);
+    t.engine.input('#lua w state');
+    expect(t.sent.at(-1)).toBe('true false true');
+    p.events.onLink(p.content.linkAt(2, 1)!.id);
+    t.engine.input('#lua w state');
+    expect(t.sent.slice(-2)).toEqual(['field name', 'true true false']);
+    // set() redraws without onChange.
+    t.engine.input('#lua w set');
+    expect(paneText(p.content)[2]).toBe('( ) Name (\u2022) Desc');
+    t.engine.input('#lua w state');
+    expect(t.sent.slice(-2)).toEqual(['true true false', 'true false true']);
+    // remove(): blank cells, no link, checked() nil.
+    t.engine.input('#lua w rm');
+    expect(paneText(p.content)[1]).toBe(' '.repeat(19));
+    expect(p.content.linkAt(1, 5)).toBeNull();
+    expect(t.sent.at(-1)).toBe('nil');
+    t.engine.input('#lua w line');
+    expect(t.sent.at(-1)).toBe('nil');
+    expect(p.content.links).toHaveLength(0);
+    t.engine.input('#lua w bad');
+    expect(t.sent.slice(-2)).toEqual([expect.stringMatching(/group must be a string/), expect.stringMatching(/column must be a whole number/)]);
+    // Runs see plain text and links.
+    expect(p.content.snapshot().lines[0]).toEqual({ spans: [{ text: 'Search:' }] });
   });
 });
 

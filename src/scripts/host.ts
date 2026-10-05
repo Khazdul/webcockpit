@@ -67,7 +67,8 @@ import { HOVER_STYLES, type HoverStyle, MAX_LINES, PaneContent, isHoverStyle, pl
 import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
 import type { ScriptPanePlace } from '../layout/model';
 import type { ScriptMapSurface } from '../map/marks';
-import type { MarkStyle, MarkTarget, RoomQuery } from '../map/protocol';
+import { MARK_ROOMS_MAX, type MapAnswer, type MarkFocus, type MarkStyle, type MarkTarget, type RoomQuery, type SearchQuery } from '../map/protocol';
+import { SEARCH_FIELDS, SEARCH_MAX, type SearchField, searchPattern } from '../map/search';
 import type { FieldEvent } from '../panes/script-pane';
 import type { PaneState, ScriptPaneSurface, ScriptPaneView } from '../panes/script-surface';
 import type { GameState } from '../gmcp/state';
@@ -190,7 +191,33 @@ interface PaneReg {
   lastSize: string;
   /** Text fields (`pane:setInput`) by their id, which is also their Lua handle. */
   fields: Map<number, FieldReg>;
+  /** Checkboxes and radio buttons (`pane:setCheckbox`, `pane:setRadio`) by their link id, also their Lua handle. */
+  toggles: Map<number, ToggleReg>;
 }
+
+/**
+ * A checkbox or a radio button (ADR 0077 §B): its marker and label are
+ * text cells (`[x] Label`, `(•) Label`) under a link the host handles
+ * itself, so runs show it as text and it goes with its row like a link.
+ */
+interface ToggleReg {
+  pane: PaneReg;
+  id: number;
+  kind: 'checkbox' | 'radio';
+  row: number;
+  col: number;
+  /** Cells it covers: marker, space, label. */
+  len: number;
+  checked: boolean;
+  /** Radio only: its group in the pane and the value onChange gets. */
+  group: string;
+  value: unknown;
+  change: LuaRef | null;
+}
+
+/** A toggle's marker (3 cells). */
+const toggleMarker = (kind: ToggleReg['kind'], on: boolean): string =>
+  kind === 'checkbox' ? (on ? '[x]' : '[ ]') : on ? '(\u2022)' : '( )';
 
 /** One text field of a pane (ADR 0055). */
 interface FieldReg {
@@ -272,6 +299,7 @@ export class ScriptHost {
   private readonly paneHandles = new Map<number, PaneReg>();
   /** Every text field by its id (= its Lua handle). */
   private readonly fieldHandles = new Map<number, FieldReg>();
+  private readonly toggleHandles = new Map<number, ToggleReg>();
   private seq = 0;
   private syncP: Promise<void> = Promise.resolve();
   private syncQueued = false;
@@ -497,6 +525,8 @@ export class ScriptHost {
       this.paneHandles.delete(p.handle);
       for (const id of p.fields.keys()) this.fieldHandles.delete(id);
       p.fields.clear();
+      for (const id of p.toggles.keys()) this.toggleHandles.delete(id);
+      p.toggles.clear();
       p.links.clear();
       p.view.close();
     }
@@ -1232,9 +1262,10 @@ export class ScriptHost {
 
   // -------------------------------------------------------------- map marks
 
-  /** `mapMark`, `mapUnmark`, `mapFind` (ADR 0057). */
+  /** `mapMark`, `mapUnmark`, `mapFind` (ADR 0057); `mapSearch`, `mapPath`, `mapRoom` (ADR 0077 §B). */
   private defineMapMarks(rt: LuaRuntime): void {
     const MAX_MARKS = 8;
+    /** A query's `max` (ADR 0057). */
     const MAX_ROOMS = 50;
     const query = (a: LuaArgs, i: number, v: { [key: string]: unknown }): RoomQuery => {
       const name = v.name;
@@ -1265,7 +1296,7 @@ export class ScriptHost {
         if (!raw.every((r) => typeof r === 'number' && Number.isInteger(r) && r >= 0)) {
           throw new Error(`bad argument #1 to 'mapMark' (a list of room ids or a {name = …} query expected)`);
         }
-        target = { rooms: (raw as number[]).slice(0, MAX_ROOMS) };
+        target = { rooms: (raw as number[]).slice(0, MARK_ROOMS_MAX) };
       } else target = { query: query(a, 1, raw) };
       const opts = a.count >= 2 && a.type(2) !== 'nil' ? a.table(2) : {};
       if (Array.isArray(opts) && opts.length > 0) throw new Error(`bad argument #2 to 'mapMark' (a table of options expected)`);
@@ -1283,17 +1314,22 @@ export class ScriptHost {
         if (c === null || c < TRUECOLOR) throw new Error(`bad argument #2 to 'mapMark' (color must be a colour name, #rrggbb or r,g,b)`);
         color = c & 0xffffff;
       }
-      const duration = num('duration', 30, 1, 600);
+      // 0: until mapUnmark or the script stops (ADR 0077 §B); no fade then.
+      const forever = op.duration === 0;
+      const duration = forever ? 0 : num('duration', 30, 1, 600);
       const style: MarkStyle = {
         color,
         blink: bool('blink', true),
-        fade: num('fade', 10, 0, duration),
+        fade: forever ? 0 : num('fade', 10, 0, duration),
         arrows: bool('arrows', true),
       };
       if (op.label !== undefined) style.label = String(op.label).slice(0, 40);
       const linger = num('linger', 0, 0, 600);
       if (linger > 0) style.linger = linger;
-      const focus = bool('focus', false);
+      if (op.focus !== undefined && typeof op.focus !== 'boolean' && op.focus !== 'move') {
+        throw new Error(`bad argument #2 to 'mapMark' (focus must be true, false or "move")`);
+      }
+      const focus: MarkFocus = op.focus === 'move' ? 'move' : op.focus === true;
       const ref = a.optFunction(3);
       const surf = this.o.map;
       const why = surf ? surf.unavailable() : 'map off';
@@ -1304,7 +1340,7 @@ export class ScriptHost {
       if (why || !surf) return refuse(why ?? 'map off');
       if (o.marks.size >= MAX_MARKS) return refuse(`at most ${MAX_MARKS} marks at a time`);
       let id: number | null = null;
-      id = surf.mark(target, style, duration * 1000, focus, {
+      id = surf.mark(target, style, forever ? Infinity : duration * 1000, focus, {
         marked: (r) => {
           if (ref !== null && !o.dead && id !== null && o.marks.has(id)) this.call(o, ref, r.rooms.length, r.total, r.rooms);
         },
@@ -1342,6 +1378,82 @@ export class ScriptHost {
         return rt.multi(null, why ?? 'map off');
       }
       return true;
+    });
+
+    /**
+     * Sends `q` to the map; `fn` gets the answer (null: the map went
+     * away). Returns true, or nil and why ("map off") at once.
+     */
+    const ask = (o: Owner, ref: LuaRef, q: Parameters<ScriptMapSurface['ask']>[0], fn: (a: MapAnswer | null) => unknown[]) => {
+      const surf = this.o.map;
+      const why = surf ? surf.unavailable() : 'map off';
+      if (why || !surf || !surf.ask(q, (ans) => {
+        if (!o.dead) this.call(o, ref, ...fn(ans));
+        if (!o.dead) o.script?.release(ref);
+      })) {
+        o.script?.release(ref);
+        return rt.multi(null, why ?? 'map off');
+      }
+      return true;
+    };
+    const roomId = (a: LuaArgs): number => {
+      const n = a.number(1);
+      if (!Number.isInteger(n) || n < 0) throw new Error(`bad argument #1 to '${a.name}' (a room id expected)`);
+      return n;
+    };
+
+    rt.defineFunction('mapSearch', (a) => {
+      const o = this.cur(rt);
+      const raw = a.table(1);
+      if (Array.isArray(raw)) throw new Error(`bad argument #1 to 'mapSearch' (a {text = …} query expected)`);
+      const bad = (why: string) => new Error(`bad argument #1 to 'mapSearch' (${why})`);
+      const text = typeof raw.text === 'number' ? String(raw.text) : raw.text;
+      if (typeof text !== 'string') throw bad('text must be a string');
+      const q: SearchQuery = { text };
+      if (raw.field !== undefined) {
+        if (typeof raw.field !== 'string' || !(SEARCH_FIELDS as readonly string[]).includes(raw.field)) {
+          throw bad(`field must be one of ${SEARCH_FIELDS.map((f) => `"${f}"`).join(', ')}`);
+        }
+        q.field = raw.field as SearchField;
+      }
+      for (const k of ['case', 'regex'] as const) {
+        const v = raw[k];
+        if (v === undefined) continue;
+        if (typeof v !== 'boolean') throw bad(`${k} must be true or false`);
+        q[k] = v;
+      }
+      if (raw.max !== undefined) {
+        if (typeof raw.max !== 'number' || !(raw.max >= 1)) throw bad('max must be a number from 1');
+        q.max = Math.min(SEARCH_MAX, Math.floor(raw.max));
+      }
+      if ((q.regex ? text : text.trim()) === '') throw bad('text is empty');
+      const ref = a.function(2);
+      // A bad pattern is the player's typing, not a script bug: nil and why.
+      try {
+        searchPattern(q);
+      } catch (err) {
+        o.script?.release(ref);
+        return rt.multi(null, `bad regex: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return ask(o, ref, { k: 'search', query: q }, (ans) =>
+        ans && ans.k === 'search' ? [ans.results, ans.total, ans.here] : [[], 0, null],
+      );
+    });
+
+    rt.defineFunction('mapPath', (a) => {
+      const o = this.cur(rt);
+      const room = roomId(a);
+      const ref = a.function(2);
+      return ask(o, ref, { k: 'path', room }, (ans) =>
+        ans && ans.k === 'path' && ans.dirs !== null ? [ans.dirs, ans.steps] : [null],
+      );
+    });
+
+    rt.defineFunction('mapRoom', (a) => {
+      const o = this.cur(rt);
+      const room = roomId(a);
+      const ref = a.function(2);
+      return ask(o, ref, { k: 'room', room }, (ans) => [ans && ans.k === 'room' ? ans.room : null]);
     });
   }
 
@@ -1424,6 +1536,78 @@ export class ScriptHost {
         done(f.pane);
       },
     });
+
+    /** The toggle `self` (argument 1) of the running script, or null once it is gone. */
+    const toggleSelf = (a: LuaArgs): ToggleReg | null => {
+      const o = this.cur(rt);
+      const t = this.toggleHandles.get(a.object(1, toggleCls));
+      if (!t) return null;
+      if (t.pane.owner !== o) throw new Error(`${a.name}: the toggle belongs to another script`);
+      return t;
+    };
+    const toggleCls: LuaClass = rt.defineClass('PaneToggle', {
+      checked: (a) => toggleSelf(a)?.checked ?? null,
+      set: (a) => {
+        const t = toggleSelf(a);
+        if (a.type(2) !== 'boolean') throw new Error(`bad argument #2 to '${a.name}' (boolean expected, got ${a.type(2)})`);
+        if (t) this.setToggle(t, a.boolean(2));
+      },
+      remove: (a) => {
+        const t = toggleSelf(a);
+        if (!t) return;
+        // Dropping its link releases it (onDrop); the cells are blanked.
+        const p = t.pane;
+        p.content.removeLink(t.id);
+        p.content.setText(t.row, t.col, plain(' '.repeat(t.len)));
+        done(p);
+      },
+    });
+    /** `pane:setCheckbox` / `pane:setRadio` (ADR 0077 §B). */
+    const toggle = (kind: ToggleReg['kind']) => (a: LuaArgs) => {
+      const p = self(a);
+      if (!p) return null;
+      const r = row(a, 2);
+      const col = a.number(3);
+      if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
+      const t = a.count >= 4 && a.type(4) !== 'nil' ? a.table(4) : {};
+      if (Array.isArray(t) && t.length > 0) throw new Error(`bad argument #4 to '${a.name}' (a table of options expected)`);
+      const o = (Array.isArray(t) ? {} : t) as { [key: string]: unknown };
+      const str = (k: string): string | undefined => {
+        const v = o[k];
+        if (v === undefined) return undefined;
+        if (typeof v !== 'string' && typeof v !== 'number') throw new Error(`bad argument #4 to '${a.name}' (${k} must be a string)`);
+        return String(v);
+      };
+      const label = str('label') ?? '';
+      const hint = str('hint') ?? '';
+      if (o.checked !== undefined && typeof o.checked !== 'boolean') throw new Error(`bad argument #4 to '${a.name}' (checked must be true or false)`);
+      let group = '';
+      let value: unknown = null;
+      if (kind === 'radio') {
+        group = str('group') ?? '';
+        if (group === '') throw new Error(`bad argument #4 to '${a.name}' (group must be a string)`);
+        value = o.value === undefined ? label : o.value;
+        if (typeof value === 'object' && value !== null) throw new Error(`bad argument #4 to '${a.name}' (value must be a string, number or boolean)`);
+      }
+      const checked = o.checked === true;
+      const text = parseCecho(`${toggleMarker(kind, checked)}${label === '' ? '' : ` ${label}`}`, SHADES);
+      const len = Math.max(3, text.text.indexOf('\n') < 0 ? text.text.length : text.text.indexOf('\n'));
+      const n = id();
+      const reg: ToggleReg = { pane: p, id: n, kind, row: r, col: col - 1, len, checked, group, value, change: null };
+      reg.change = a.count >= 4 && a.type(4) === 'table' ? a.fieldFunction(4, 'onChange') : null;
+      try {
+        p.content.setText(r, col - 1, text);
+        p.toggles.set(n, reg);
+        this.toggleHandles.set(n, reg);
+        p.content.addLink(r, col - 1, len, n, hint);
+      } catch (err) {
+        this.releaseToggle(reg);
+        throw new Error(`bad argument #3 to '${a.name}' (${err instanceof Error ? err.message : String(err)})`);
+      }
+      if (kind === 'radio' && checked) this.setToggle(reg, true);
+      done(p);
+      return rt.object(toggleCls, n);
+    };
 
     const cls: LuaClass = rt.defineClass('Pane', {
       clear: (a) => {
@@ -1611,6 +1795,8 @@ export class ScriptHost {
         done(p);
         return rt.object(fieldCls, n);
       },
+      setCheckbox: (a) => toggle('checkbox')(a),
+      setRadio: (a) => toggle('radio')(a),
       size: (a) => {
         const { cols, rows } = self(a)?.view.size() ?? { cols: 0, rows: 0 };
         return rt.multi(rows, cols);
@@ -1771,10 +1957,13 @@ export class ScriptHost {
         wheel: null,
         lastSize: '',
         fields: new Map(),
+        toggles: new Map(),
       } as unknown as PaneReg;
       reg.content = new PaneContent(title ?? name, {
         anchor,
         onDrop: (n) => {
+          const tg = reg.toggles.get(n);
+          if (tg) this.releaseToggle(tg);
           const ref = reg.links.get(n);
           if (ref === undefined) return;
           reg.links.delete(n);
@@ -1845,6 +2034,7 @@ export class ScriptHost {
     if (p.onClose !== null) s?.release(p.onClose);
     p.onClose = null;
     for (const f of [...p.fields.values()]) this.releaseField(f);
+    for (const t of [...p.toggles.values()]) this.releaseToggle(t);
     p.view.close();
   }
 
@@ -1855,6 +2045,52 @@ export class ScriptHost {
     const s = f.pane.owner.script;
     for (const ref of [f.submit, f.cancel, f.change, f.key, f.blur]) if (ref !== null) s?.release(ref);
     f.submit = f.cancel = f.change = f.key = f.blur = null;
+  }
+
+  /** Forgets toggle `t` and releases its function. */
+  private releaseToggle(t: ToggleReg): void {
+    if (t.pane.toggles.get(t.id) === t) t.pane.toggles.delete(t.id);
+    if (this.toggleHandles.get(t.id) === t) this.toggleHandles.delete(t.id);
+    if (t.change !== null) t.pane.owner.script?.release(t.change);
+    t.change = null;
+  }
+
+  /**
+   * Sets toggle `t` and redraws its marker; a radio set on unsets the
+   * others of its group in the pane. True when it changed.
+   */
+  private setToggle(t: ToggleReg, on: boolean): boolean {
+    const p = t.pane;
+    if (p.toggles.get(t.id) !== t) return false;
+    let changed = false;
+    if (t.kind === 'radio' && on) {
+      for (const o of p.toggles.values()) {
+        if (o === t || o.kind !== 'radio' || o.group !== t.group || !o.checked) continue;
+        o.checked = false;
+        p.content.setText(o.row, o.col, plain(toggleMarker(o.kind, false)));
+        changed = true;
+      }
+    }
+    if (t.checked !== on) {
+      t.checked = on;
+      p.content.setText(t.row, t.col, plain(toggleMarker(t.kind, on)));
+      changed = true;
+    }
+    if (changed) p.view.changed();
+    return changed;
+  }
+
+  /** A click on a toggle: a checkbox flips, a radio is chosen; onChange(checked) / onChange(value). */
+  private onToggle(t: ToggleReg): void {
+    const p = t.pane;
+    if (t.kind === 'radio') {
+      if (t.checked) return;
+      this.setToggle(t, true);
+      if (t.change !== null) this.call(p.owner, t.change, t.value);
+      return;
+    }
+    this.setToggle(t, !t.checked);
+    if (t.change !== null) this.call(p.owner, t.change, t.checked);
   }
 
   /** A text field changed, was submitted or cancelled, or got a key (ADR 0055). */
@@ -1885,8 +2121,14 @@ export class ScriptHost {
   }
 
   private onPaneLink(p: PaneReg, n: number): void {
+    if (p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    const t = p.toggles.get(n);
+    if (t) {
+      this.onToggle(t);
+      return;
+    }
     const ref = p.links.get(n);
-    if (ref === undefined || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    if (ref === undefined) return;
     this.call(p.owner, ref);
   }
 

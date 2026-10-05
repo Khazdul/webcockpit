@@ -613,8 +613,8 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "Marks rooms on the Map pane for a while: they blink in a colour, with arrows when they are off the view. target is a list of room ids or a query by a room's text, {name = …, lines = {…}, exits = \"Exits: …\", max = 20}.",
     {
       params: [
-        p("target", "table", "Room ids (from mapFind), or {name, lines, exits, max}: the room's name as shown, the lines after it (they narrow by the description), its Exits: line, and the most rooms (default 20, at most 50; nearest to you first)."),
-        p("opts", "table?", "color (a colour name, #rrggbb or r,g,b; default magenta), duration (seconds, default 30, at most 600), fade (seconds of fading at the end, default 10), blink and arrows (default true), label (a short text at the first room), linger (seconds the mark then stays, steady and a little dimmer, with its arrows and label; default 0, at most 600), focus (true: zoom out to show you and the rooms; the view comes back when the duration is over (before any linger), unless you moved it)."),
+        p("target", "table", "Room ids (from mapFind or mapSearch; at most 200), or {name, lines, exits, max}: the room's name as shown, the lines after it (they narrow by the description), its Exits: line, and the most rooms (default 20, at most 50; nearest to you first)."),
+        p("opts", "table?", "color (a colour name, #rrggbb or r,g,b; default magenta), duration (seconds, default 30, at most 600; 0: until mapUnmark or the script stops, blinking all the while), fade (seconds of fading at the end, default 10), blink and arrows (default true), label (a short text at the first room), linger (seconds the mark then stays, steady and a little dimmer, with its arrows and label; default 0, at most 600), focus (true: zoom out to show you and the rooms; the view comes back when the duration is over (before any linger), unless you moved it. \"move\": zoom out once; at your first move to another room the zoom comes back and the map follows you, the mark stays)."),
         p("fn", "function?", "Called once with (count, total, ids): how many rooms were marked, how many matched, and their ids. count is 0 when nothing matched."),
       ],
       returns: "A handle for mapUnmark, or nil and why (\"map off\" when the Map pane is off or has no map).",
@@ -646,6 +646,45 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: "true, or nil and why (\"map off\").",
       example: 'mapFind({name = "Bree Market Square"}, function(ids, total)\n  echo(total .. " rooms; marking the nearest")\n  if ids[1] then mapMark({ids[1]}, {duration = 10}) end\nend)',
+    },
+  ),
+  fn(
+    "mapSearch",
+    "mapSearch(query, fn)",
+    "Searches the map like MMapper's Find Rooms and calls fn(results, total, here): the matching rooms, nearest first by the shortest path from your room, with the way there as text.",
+    {
+      params: [
+        p("query", "table", "{text, field, case, regex, max}: text to find anywhere in the field; field \"name\" (default), \"desc\", \"contents\", \"note\", \"area\", \"exits\" (door names), \"flags\" (aggmob, herb, door, climb … or in words, aggressive mob) or \"all\"; case = true makes case count; regex = true takes text as a regular expression; max, the most results (default 200, at most 500)."),
+        p("fn", "function", "Called once with results (a list of {id, name, area, note, steps, dirs}; steps and dirs nil without a path or when your room is unknown), total (every match) and here (your room's id, or nil)."),
+      ],
+      returns: "true, or nil and why (\"map off\", or \"bad regex: …\" for a regular expression that does not compile).",
+      more: [
+        "dirs is the way in runs, such as 3e n 2u, and \"\" in your own room. Paths cost as in MMapper (terrain, doors, climbs, random exits, rooms you cannot ride in, death traps). Rooms without a path come after the others, nearest first.",
+      ],
+      example: 'mapSearch({text = "herb", field = "note", max = 5}, function(results, total)\n  for _, r in ipairs(results) do echo(r.name .. ": " .. (r.dirs or "no path") .. "\\n") end\nend)',
+    },
+  ),
+  fn(
+    "mapPath",
+    "mapPath(id, fn)",
+    "The shortest way from your room to a room: fn(dirs, steps), or fn(nil) when there is none (or your room is unknown).",
+    {
+      params: [p("id", "number", "A room id (from mapSearch or mapFind)."), p("fn", "function", "Called once with the direction text (3e n 2u) and the number of moves.")],
+      returns: "true, or nil and why (\"map off\").",
+      example: 'mapPath(id, function(dirs, steps) echo(dirs and (steps .. " moves: " .. dirs) or "No way there.") end)',
+    },
+  ),
+  fn(
+    "mapRoom",
+    "mapRoom(id, fn)",
+    "A map room's details: fn(room), or fn(nil) for no such room.",
+    {
+      params: [
+        p("id", "number", "A room id (from mapSearch or mapFind)."),
+        p("fn", "function", "Called once with {id, name, area, desc, contents, note, terrain, x, y, z, exits, flags}: exits a list of {dir, to, door, flags} (door: the door's name, \"\" without one, nil for no door), flags the mob and load flags in words."),
+      ],
+      returns: "true, or nil and why (\"map off\").",
+      example: 'mapRoom(id, function(r) if r then echo(r.name .. " (" .. r.terrain .. ")") end end)',
     },
   ),
   // Panes (ADR 0053).
@@ -879,6 +918,65 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [p("field", "field", "A field from pane:setInput.")],
       example: "name:remove()",
+    },
+  ),
+  fn(
+    "pane:setCheckbox",
+    "pane:setCheckbox(row, col, opts) → toggle",
+    "Draws a checkbox, [ ] Label, from column col of a row and returns it. A click or a tap on it flips it ([x]) and calls opts.onChange(checked).",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1."),
+        p("col", "number", "The first column, from 1."),
+        p("opts", "table?", "label (colour tags allowed), checked (default false), hint (a tooltip) and onChange(checked)."),
+      ],
+      returns: "A toggle: toggle:checked(), toggle:set(on), toggle:remove().",
+      more: ["It is text under a link: setLine, gauge and clear on its row remove it, as they remove links. Runs show it as text."],
+      example: 'local cs = pane:setCheckbox(2, 1, {label = "Case sensitive", onChange = function(on) caseSensitive = on end})',
+    },
+  ),
+  fn(
+    "pane:setRadio",
+    "pane:setRadio(row, col, opts) → toggle",
+    "Draws a radio button, ( ) Label, or (•) Label when chosen. Of the radio buttons of one group in the pane one is chosen at a time: a click chooses this one and calls opts.onChange(value).",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("row", "number", "The row, from 1."),
+        p("col", "number", "The first column, from 1."),
+        p("opts", "table", "group (a name, required), value (what onChange gets; default the label), label (colour tags allowed), checked, hint (a tooltip) and onChange(value)."),
+      ],
+      returns: "A toggle: toggle:checked(), toggle:set(on), toggle:remove().",
+      example: 'for i, f in ipairs({"name", "desc", "note"}) do\n  pane:setRadio(1, i * 8 - 7, {group = "field", value = f, label = f, checked = f == field,\n    onChange = function(v) field = v end})\nend',
+    },
+  ),
+  fn(
+    "toggle:checked",
+    "toggle:checked() → boolean",
+    "Whether the checkbox or radio button is checked; nil once it is gone.",
+    {
+      params: [p("toggle", "toggle", "A toggle from pane:setCheckbox or pane:setRadio.")],
+      returns: "true, false, or nil.",
+      example: "if cs:checked() then echo(\"case counts\") end",
+    },
+  ),
+  fn(
+    "toggle:set",
+    "toggle:set(on)",
+    "Checks or unchecks it and redraws it; onChange is not called. A radio button set on unchooses the others of its group.",
+    {
+      params: [p("toggle", "toggle", "A toggle from pane:setCheckbox or pane:setRadio."), p("on", "boolean", "Checked or not.")],
+      example: "cs:set(false)",
+    },
+  ),
+  fn(
+    "toggle:remove",
+    "toggle:remove()",
+    "Takes the checkbox or radio button away and blanks its cells. Its methods then do nothing.",
+    {
+      params: [p("toggle", "toggle", "A toggle from pane:setCheckbox or pane:setRadio.")],
+      example: "cs:remove()",
     },
   ),
   fn(
@@ -1274,12 +1372,14 @@ export function apiDoc(name: string): ApiDoc | null {
 const PANE_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("pane:"));
 /** The text field methods (`field:focus` …), offered after a receiver named like a field (ADR 0055). */
 const FIELD_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("field:"));
+/** The checkbox and radio methods (`toggle:checked` …), offered after a receiver named like one (ADR 0077 §B). */
+const TOGGLE_METHODS: readonly ApiDoc[] = SCRIPT_API.filter((d) => d.name.startsWith("toggle:"));
 
 /** The doc of a method name: a string method (`find` for `s:find`), else a pane or field method (`echo`, `select`), or null. */
 export function methodDoc(name: string): ApiDoc | null {
   const d = BY_NAME.get(`string.${name}`);
   if (d && d.kind === "function" && !NOT_METHODS.has(d.name)) return d;
-  return BY_NAME.get(`pane:${name}`) ?? BY_NAME.get(`field:${name}`) ?? null;
+  return BY_NAME.get(`pane:${name}`) ?? BY_NAME.get(`field:${name}`) ?? BY_NAME.get(`toggle:${name}`) ?? null;
 }
 
 // ------------------------------------------------------------ completion
@@ -1487,8 +1587,9 @@ export function completeLua(
     const receiver = /([A-Za-z_]\w*):[A-Za-z_]?\w*$/.exec(before)?.[1] ?? "";
     const pane = /pane/i.test(receiver);
     const field = !pane && /field|input/i.test(receiver);
-    const list = pane ? PANE_METHODS : field ? FIELD_METHODS : METHODS;
-    const options = list.filter((d) => d.name.slice(d.name.indexOf(pane || field ? ":" : ".") + 1).startsWith(word));
+    const toggle = !pane && !field && /toggle|check|radio|box|opt/i.test(receiver);
+    const list = pane ? PANE_METHODS : field ? FIELD_METHODS : toggle ? TOGGLE_METHODS : METHODS;
+    const options = list.filter((d) => d.name.slice(d.name.indexOf(pane || field || toggle ? ":" : ".") + 1).startsWith(word));
     return options.length
       ? { from: before.length - word.length, options, method: true }
       : null;
