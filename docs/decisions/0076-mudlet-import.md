@@ -109,6 +109,12 @@ translated 203 of 212 own items (research §9).
   `#action` when the item also has a body. A regex with capture groups
   colours only the groups, as Mudlet does: each top-level group becomes
   `%!{(?<=before)group(?=after)}`.
+  *Amended, owner 2026-10-05:* a colorizer whose foreground is
+  `transparent` and whose background is `transparent` or `#000000` gives
+  no `#highlight` (a black background is the default and shows nothing);
+  with no other output the item is not translated (*Colorizer has no
+  visible colour*), else the note is a warning. A black background next
+  to a real foreground is dropped (`<F…>` only).
 - **Keys:** Qt `keyCode` + `keyModifier` → ADR 0005 names (`F1`,
   `Ctrl+S`, `Alt+Down`, `Numpad8` for the keypad bit, `KeyA`/`Digit1`
   for printable ASCII). A non-ASCII printable key (e.g. 197 `Å`) depends

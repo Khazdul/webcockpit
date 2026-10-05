@@ -61,6 +61,10 @@ Round 1 (owner feedback 2026-10-05):
 - [x] R2 no `#nop` per untranslated or disabled item; one summary `#nop` at the end
 - [x] R3 pattern gates removed; switched gag/highlight/substitute items excluded; orphan enable/disable dropped with a warning
 
+Round 2:
+
+- [x] R4 colorizers with no foreground and a black/no background give no `#highlight`
+
 ## Build notes
 
 ### A. Pure core (2026-10-05)
@@ -155,6 +159,18 @@ was dropped; `hidescore2` is excluded. The `^speedwalk$` and
 `^bsleep$`/`^bwake$` aliases lose their enable/disable of untranslated
 or unknown items, with a warning.
 
+### Round 2 (2026-10-05)
+
+Mudlet writes `mFgColor` as `transparent` when unset and applies fg/bg
+only when not transparent (XMLexport.cpp, TTrigger.cpp, checked by the
+main session). In `trigger()` a black background is dropped and a
+colorizer left with no colour is excluded (no other output) or gets the
+note as a warning. Fixture `package.xml` gains `sanc` (excluded) and
+`charmie` (action kept, warning). Owner's sample: 195 translated, 32 not
+translated (6 disabled, 26 not translatable), 7 packages; 8 of 9
+colorizers are excluded, two `#highlight` lines remain (`mobHighlights`,
+cyan text).
+
 ### B. UI (2026-10-05)
 
 - `src/chrome/frames/import-load.ts`: `loadImportFiles()` now returns an
@@ -233,3 +249,11 @@ think is simple enough to translate, and whether the report is useful.
    substitute is not translated. Enable/disable of an item that was not
    translated is dropped with a warning; no orphan `mudlet_on_*`
    variables.
+
+### Round 2 (2026-10-05)
+
+4. **Invisible colorizers.** The colorizers that keep the text colour on
+   a black background showed nothing but filled the profile with
+   `#highlight {…} {<B000000>}`. Such a colorizer gives no `#highlight`;
+   without other output it is not translated and the report says why. A
+   black background beside a real foreground is dropped.
