@@ -34,6 +34,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-05 — Stage 21: Room notes and map search
+
+- **Research:** MMapper notes/flags; arda.mm2 has 1 283 notes, 13 855
+  contents, 6 241 flagged rooms. Notes were skipped by our reader.
+- **Owner decisions:** notes toggle (on), hover Off/Minimal/Full (never
+  area/terrain), search API, path text, marks until cleared with
+  follow-on-move zoom, no own notes (ADR 0077, stage file).
+- **Done:** A notes in the game window + hover box; B `mapSearch`,
+  `mapPath`, `mapRoom`, `mapMark` duration 0 / focus "move", pane
+  checkbox/radio; C bundled `mapsearch` pane; test guide.
+- **Checked:** typecheck, unit 2398, e2e 458/461 (layout drag-cursor
+  test fails on eb9eb6c too; scrolling stats flaky, passes alone); map
+  bench within budgets with a 200-room endless mark.
+- **Next:** owner's go for release, then owner test per the guide.
+- **Open:** note/Room.Info arrival order unverified live; notes need the
+  Map pane running; pre-existing layout.spec drag-cursor failure.
+
 ### 2026-10-05 — Stage 20: Mudlet import
 
 - **Research:** owner's Mudlet profile analysed (`mudlet.md` §8–§9); a
