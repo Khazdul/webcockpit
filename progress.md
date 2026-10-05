@@ -34,6 +34,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-05 — New-user defaults
+
+- **Done:** ADR 0078. New installs get Hack 17 with bright bold; a 40-cell
+  right dock (Character over Group | Timers, then Comm, frameless UI, the
+  pane bar); map 21 % wide; Map search pre-placed under the map (off,
+  FIND dim); `panebar` and `mapsearch` enabled once per fresh install
+  (no settings record + empty script library). Stored settings keep their
+  look (legacy pins in the migration). Pane bar tooltips removed.
+- **Checked:** typecheck, unit 2422, e2e 463/465 (replay file:// comment
+  timing flaky, fails on the old code too; underscores profile list
+  flaky, passes alone). The e2e suite now starts as an existing install
+  (`tests/e2e/legacy-state.ts`); `new-user.spec.ts` covers a fresh one.
+- **Open:** an install with no settings record but old use counts as new;
+  an unmoved map is 4 % narrower for existing users too.
+- **Next:** owner looks at a fresh profile; release with 0.1.49.
+
 ### 2026-10-05 — Stage 21: Room notes and map search
 
 - **Research:** MMapper notes/flags; arda.mm2 has 1 283 notes, 13 855
