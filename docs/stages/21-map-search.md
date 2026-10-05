@@ -19,6 +19,8 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
   Minimal = name + note. Full = name, description, exits (doors in
   brackets as MUME), mob/load flags in words, and the note. Never area/
   zone or terrain in either mode; Full has a capped, wrapping width.
+- 2026-10-05 (later): a third value, **Off** (Off / Minimal / Full,
+  default still Minimal): no hover box, no long-press box, no timers.
 - 2026-10-05: Map search shows shortest-path directions as text.
 - 2026-10-05: marks live until cleared; zoom shows player + marks, and
   goes back to following the player when the player moves; marks keep
@@ -31,7 +33,7 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 
 - Parse notes and contents from `.mm2` into `MapData`.
 - Options → Mapper: Room notes On/Off (default On); Room info on hover
-  Minimal/Full (default Minimal).
+  Off/Minimal/Full (default Minimal).
 - Note line(s) after the located room's exits line in the game window.
 - Map pane hover box (3 s rest; long press on touch): name + note
   (Minimal) or the full room (Full).
@@ -61,8 +63,8 @@ Spec §2.9, §2.10, ADR 0077. Research: MMapper 26.06.0 source
 - [x] ADR 0077, stage file, spec
 - [x] A1 notes and contents in MapData
 - [x] A2 Options → Mapper toggle (Room notes, Room info on hover)
-- [ ] A3 note lines in the game window
-- [ ] A4 hover box
+- [x] A3 note lines in the game window
+- [x] A4 hover box (Off / Minimal / Full; touch long press)
 - [ ] B1 mapSearch with path directions
 - [ ] B2 mapRoom, mapPath
 - [ ] B3 mapMark until cleared, follow-on-move focus
