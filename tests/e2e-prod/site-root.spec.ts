@@ -52,6 +52,9 @@ test('files the export and the map fetch have the right types and headers', asyn
   await check('./', /^text\/html/);
   await check('replay/replay.js', JS);
   await check('map/arda.mm2', /^application\/octet-stream/);
+  // A bundled tileset (ADR 0082) is deployed with the default pixmaps.
+  await check('map/pixmaps/terrain-field.png', /^image\/png/);
+  await check('map/tilesets/shimrod-winter/terrain-field.png', /^image\/png/);
   await check('fonts/DejaVuSansMono.woff2', /^font\/woff2/);
   await check('fonts/JetBrainsMonoNL-Regular.woff2', /^font\/woff2/);
   // The GPL text About links to (ADR 0027).

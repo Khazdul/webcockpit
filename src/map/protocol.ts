@@ -73,15 +73,26 @@ export const MAP_PROTOCOL_VERSION = 1;
  * relative to the asset root: `pixmaps/terrain-field.png`,
  * `fonts/Cantarell18.fnt` …
  *
- * - `base`: fetched from `url + path` (the app: `${BASE_URL}map/`).
+ * - `base`: fetched from `url + path` (the app: `${BASE_URL}map/`); with
+ *   `tileset`, the pixmaps that set has come from its folder (ADR 0082).
  * - `inline`: looked up in `files` (the HTML replay embeds the files it
  *   needs as data URIs or Blobs); a missing path is an error, unless
  *   `fallback` is set: a data URI answered for a missing `pixmaps/` path
  *   (the replay embeds only the tiles its map subset uses; P3).
  */
 export type AssetSource =
-  | { kind: 'base'; url: string }
+  | { kind: 'base'; url: string; tileset?: TilesetOverlay }
   | { kind: 'inline'; files: Record<string, string | Blob>; fallback?: string };
+
+/**
+ * A map tileset over the default pixmaps (ADR 0082): `pixmaps/<f>` is
+ * read from `<dir><f>` (relative to the asset root, e.g.
+ * `tilesets/desert/`) when `<f>` is in `files`, else from `pixmaps/`.
+ */
+export interface TilesetOverlay {
+  dir: string;
+  files: readonly string[];
+}
 
 // --------------------------------------------------------------- maps
 
@@ -167,6 +178,8 @@ export type MainToWorker =
       assets: AssetSource;
     }
   | { t: 'load'; req: number; source: MapSource }
+  /** New asset source (a tileset change, ADR 0082): the tiles are reloaded and swapped in; the map, view and marks stay. */
+  | { t: 'assets'; assets: AssetSource }
   | { t: 'resize'; width: number; height: number; dpr: number }
   /** Drag: the grabbed point moved by (dx, dy) CSS px. */
   | { t: 'pan'; dx: number; dy: number }

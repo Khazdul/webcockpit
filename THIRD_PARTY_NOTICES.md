@@ -2,8 +2,9 @@
 
 WebCockpit is GPL-2.0-or-later (ADR 0027). It ships the following
 third-party material, each under its own GPL-compatible licence, except
-the bundled map data (`public/map/arda.mm2`), which has no licence (see
-"Map assets").
+the bundled map data (`public/map/arda.mm2`), which has no licence, and
+the alternative map tilesets (`public/map/tilesets/`), which come with
+their author's own terms (see "Map assets").
 
 ## MMapper-derived code
 
@@ -150,5 +151,21 @@ lookup. Lucida is a trademark of its owner.
 - **arda.mm2**, a MUME map. Its room texts and other game data belong
   to MUME and its zone builders and carry no licence. WebCockpit's GPL
   does not cover the file and grants no rights in it.
+- **Shimrod's tileset for MUME MMapper**, version 0.92, by Shimrod
+  (contact in the set's README: cmdrhalvance@gmail.com): the four
+  seasonal sets in `tilesets/shimrod-{spring,summer,autumn,winter}/`,
+  copied unmodified. Terms (the set's README): "You may copy, use or
+  edit the tiles in any other mod, just give credit." and "Tiles may not
+  be used in datasets for, in the development of, or as inputs to
+  generative AI programs. They have been Glazed." The tiles were made
+  with third-party 3D models, some under Creative Commons licences
+  (BY, BY-NC, BY-ND, BY-NC-SA, BY-NC-ND); the full credit list is in
+  `public/map/README`.
+- **Desert** tileset (`tilesets/desert/`), by Ole von Gertten, made by
+  modifying Shimrod's tiles with Shimrod's agreement; Shimrod's terms
+  above apply to it too.
+
+WebCockpit's GPL does not cover the tilesets. They are separate works
+that the map draws; each keeps its author's terms.
 
 Details and licence texts: `public/map/README`.

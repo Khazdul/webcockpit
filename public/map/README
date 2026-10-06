@@ -35,6 +35,105 @@ src/resources/pixmaps/ of the release source tree.
   later version (GPL-2.0-or-later). WebCockpit is distributed under
   the same licence (ADR 0027).
 
+tilesets/
+---------
+Alternative tilesets for the map (ADR 0082), chosen in Options -> Mapper.
+Each folder holds files under MMapper's pixmap names and overrides
+pixmaps/ file by file; a file a set lacks is taken from pixmaps/. Only
+the files the renderer draws were copied, unmodified (no re-encoding:
+the files carry content-credential metadata, and a lossless re-encode
+saved under 2 %). Only the chosen set is fetched, and only while the Map
+pane is on.
+
+WebCockpit's licence does NOT cover these tilesets. They keep their
+author's terms, below.
+
+tilesets/shimrod-{spring,summer,autumn,winter}/
+  Shimrod's tileset for MUME mmapper, version 0.92, by Shimrod.
+  Contact (from the set's README): cmdrhalvance@gmail.com
+
+  Terms, from the set's README:
+    "You may copy, use or edit the tiles in any other mod, just give
+    credit."
+    "Tiles may not be used in datasets for, in the development of, or as
+    inputs to generative AI programs. They have been Glazed."
+
+tilesets/desert/
+  Desert, by Ole von Gertten: Shimrod's tiles, modified, with Shimrod's
+  agreement. Shimrod's terms above apply.
+
+Credits for the 3D assets Shimrod used in creating the tilesets (from
+the set's README; "Not all of the assets from the list were used, but
+giving the credit since they were considered at some point during the
+process."):
+
+  - https://sketchfab.com/lantra
+  - https://www.cgtrader.com/lisa7
+  - https://www.cgtrader.com/darkstudio
+  - https://www.cgtrader.com/nenad1989
+  - https://www.turbosquid.com/3d-models/3d-furniture-october-carpet-1337720
+  - https://www.cgtrader.com/earthless188
+  - https://www.cgtrader.com/free-3d-models/sports/equipment/cc0-wooden-arrow
+  - https://sketchfab.com/Gnossiennes
+  - "Arena" by filthycent, CC BY 4.0: https://skfb.ly/66psY
+  - "Tavern" by Eduardo Oliveira, CC BY 4.0: https://skfb.ly/oIVFL
+  - "Horse Drawn Carriage 2" by gogiart, CC BY 4.0: https://skfb.ly/oJEBY
+  - "Medieval Props/Assets" by neos_nelia, CC BY 4.0: https://skfb.ly/oJoIC
+  - "Rusty Horseshoe" by Jakob Waldhäusl, CC BY 4.0: https://skfb.ly/o9VZq
+  - "Horse stable" by ta.holovan, CC BY 4.0: https://skfb.ly/6TOKM
+  - "Horse free download" by pgonarg, CC BY 4.0: https://skfb.ly/oyuws
+  - "Shop" by Vadim Rychkov, CC BY 4.0: https://skfb.ly/6XnSq
+  - "Little Tavern" by Francis Thibault, CC BY-NC 4.0: https://skfb.ly/6osuP
+  - "Medieval Steps - Dinan" by noxfcna, CC BY 4.0: https://skfb.ly/67YFp
+  - "Mannequin armor dummy medieval game prop" by Yenikholic, CC BY 4.0: https://skfb.ly/6TFXv
+  - "St Piran's Oratory" by Tom Goskar, CC BY 4.0: https://skfb.ly/D9yJ
+  - "Prowler Dragon Variant Rig" by DM-913, CC BY 4.0: https://skfb.ly/o8IRS
+  - "Bread in Basket" by Francesco Coldesina, CC BY 4.0: https://skfb.ly/W69u
+  - "Baked goods" by Rigsters, CC BY 4.0: https://skfb.ly/6yCVQ
+  - "An Animated Cat" by Evil_Katz, CC BY 4.0: https://skfb.ly/6YPwH
+  - "Broad-winged Hawk" by Innovation Studio, CC BY 4.0: https://skfb.ly/MJxT
+  - Pony: https://www.cgtrader.com/items/879267/download-page
+  - "Low Poly Traditional Market Stall" by Nisa Nurul Azizah, CC BY 4.0: https://skfb.ly/oIwqF
+  - "Barque en bois" by lantra, CC BY 4.0: https://skfb.ly/HPSH
+  - "Emerald Ceremonial dagger" by Chao Kurosaki, CC BY 4.0: https://skfb.ly/oCNWC
+  - "Commission Example Daggers" by Billyro, CC BY 4.0: https://skfb.ly/opp7D
+  - "Assassin Sneaking" by theheheo, CC BY 4.0: https://skfb.ly/6Z79n
+  - "Combination padlock" by Virtual Museums of Małopolska, CC BY 4.0: https://skfb.ly/ovICC
+  - "Key" by eucocker, CC BY-NC-SA 4.0: https://skfb.ly/6QWKT
+  - "Dead-nettle, Lamium album" by ffish.asia / floraZia.com, CC BY 4.0: https://skfb.ly/o9RF7
+  - "Gerbera with daisies" by Lassi Kaukonen, CC BY 4.0: https://skfb.ly/6UGnY
+  - "Violets" by lenivez, CC BY 4.0: https://skfb.ly/o8wv9
+  - "Rural cellar entrance" by yaro.pro, CC BY 4.0: https://skfb.ly/oAoDz
+  - "Plastic cow - statue" by 3dhdscan, CC BY 4.0: https://skfb.ly/68YoO
+  - "Mantle Clock" by JesusFong-kee, CC BY 4.0: https://skfb.ly/6RBwH
+  - "Boat" by DJMaesen, CC BY 4.0: https://skfb.ly/6RvrU
+  - "Water Drop" by gurami.mamaladze, CC BY 4.0: https://skfb.ly/owszz
+  - "Skull downloadable" by martinjario, CC BY 4.0: https://skfb.ly/JrST
+  - "Old Damaged Books set - Sample" by Svardz, CC BY-NC 4.0: https://skfb.ly/oCRy8
+  - "Chained (medieval) library book" by Andy Woodhead, CC BY 4.0: https://skfb.ly/oxvG7
+  - "Old books" by Arkikon, CC BY 4.0: https://skfb.ly/ow8sC
+  - "Stone_Stair_Case" by GetDeadEntertainment, CC BY 4.0: https://skfb.ly/oo87n
+  - "Medieval Notice Board" by avelium, CC BY 4.0: https://skfb.ly/6SJyT
+  - "Medieval Notice Board" by hannah1205, CC BY 4.0: https://skfb.ly/ouuCF
+  - "The Druid's Temple | Yorkshire UK" by Arqueomodel3D, CC BY 4.0: https://skfb.ly/oDVC6
+  - "Horse Study" by Jorrie Bolton, CC BY 4.0: https://skfb.ly/TTrH
+  - "Seated Lion" by Rigsters, CC BY 4.0: https://skfb.ly/69Ksx
+  - "Book Open" by FlukierJupiter, CC BY 4.0: https://skfb.ly/6pMGN
+  - "dragon head_3" by SDragonXF, CC BY-NC-ND 4.0: https://skfb.ly/6WyOC
+  - "elder dragon (ready for 3D print) free download" by eon, CC BY 4.0: https://skfb.ly/6xIpx
+  - "Four arms" by C-List, CC BY 4.0: https://skfb.ly/oytv7
+  - "The Dark Wraith" by davidkong, CC BY 4.0: https://skfb.ly/ZPTM
+  - "Il Commendatore" by matousekfoto, CC BY 4.0: https://skfb.ly/6YDAp
+  - "Snake sculpture" by JimmyGun, CC BY 4.0: https://skfb.ly/6DoE8
+  - "medieval sword" by LowSeb, CC BY 4.0: https://skfb.ly/6snUE
+  - "pickaxe" by diana_ver, CC BY 4.0: https://skfb.ly/6TNqQ
+  - "Pan" by Mark.Arthur, CC BY-ND 4.0: https://skfb.ly/6G799
+  - "Spike Trap" by Helyx Silveira, CC BY 4.0: https://skfb.ly/68YG7
+  - "Hole In Ground" by earthstar, CC BY 4.0: https://skfb.ly/KrFU
+  - "Old Anchor" by marvelmaster, CC BY 4.0: https://skfb.ly/6XUGK
+  - "Donkey" by heileh, CC BY 4.0: https://skfb.ly/6RnxL
+  - "Toon Mutant Wolf" by Fubbi, CC BY 4.0: https://skfb.ly/oGMQy
+
 fonts/Cantarell{18,27,36}.fnt, fonts/Cantarell{18,27,36}_0.png
 --------------------------------------------------------------
 Bitmap (BMFont) renderings of the Cantarell typeface at 18, 27 and 36 px,

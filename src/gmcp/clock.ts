@@ -24,6 +24,9 @@
 // The input-line strip shows the time to the next day/night change
 // (`nextTransition`, `stripText`); the Character pane no longer shows it.
 
+/** localStorage key of the clock state (saved by src/gmcp/state.ts). */
+export const CLOCK_KEY = 'wc.clock';
+
 /** Clock precision, lowest first. */
 export type Precision = 'unset' | 'day' | 'hour' | 'minute';
 const RANK: Readonly<Record<Precision, number>> = { unset: 0, day: 1, hour: 2, minute: 3 };

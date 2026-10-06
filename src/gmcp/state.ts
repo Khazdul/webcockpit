@@ -29,13 +29,12 @@
 import type { Bus } from '../core/bus';
 import { gmcpKey } from '../core/types';
 import { CharModel } from './char';
-import { ClockModel, loadClockState } from './clock';
+import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
 import { GroupModel } from './group';
 import { TimersHub, type TimersHubOptions } from '../timers/hub';
 
-/** localStorage key of the clock state. */
-export const CLOCK_KEY = 'wc.clock';
+export { CLOCK_KEY };
 
 export type GamePart = 'char' | 'group' | 'clock' | 'timers';
 
