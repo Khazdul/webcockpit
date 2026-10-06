@@ -1,6 +1,6 @@
 # Progress
 
-Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done, released 0.1.51. Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -35,6 +35,17 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-07 — Release 0.1.52
+
+- **Done:** released 0.1.52 (tag v0.1.52, owner's go): the manual and
+  GMCP documentation fixes of this session.
+- **Checked:** typecheck, unit 2445, e2e 468/470 (map-notes hover flaky,
+  fails on 0.1.51 too; caret test passed on rerun), build:pages smoke
+  10/10; Pages deploy green, live release.json 0.1.52, test:prod against
+  the live site 10/10 (one failure right after deploy, then 10/10 twice).
+- **Open:** the flaky `map-notes.spec.ts:40` hover-delay test.
+- **Commits:** dfa255f, plus this one.
 
 ### 2026-10-07 — Manual audit, GMCP audit, stage 23 planned
 
