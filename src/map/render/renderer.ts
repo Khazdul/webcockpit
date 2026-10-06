@@ -22,6 +22,8 @@ export interface Renderer {
   /** Draws one frame of `view`. */
   render(view: View): void;
   dispose(): void;
+  /** New tile assets (a tileset change, ADR 0082); absent: the renderer has no tiles. */
+  setAssets?(assets: AssetResolver): void;
   /** False while tiles or the font are still loading (absent: nothing to load). */
   readonly complete?: boolean;
 }

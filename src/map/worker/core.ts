@@ -36,6 +36,7 @@ import { hoverInfo, roomAt } from '../hover';
 import { buildIndexes, type MapData } from '../model';
 import { type Inflate, inflateZlib, mapHash, readMm2 } from '../mm2';
 import {
+  type AssetSource,
   MAP_PROTOCOL_VERSION,
   MARK_ROOMS_MAX,
   type MainToWorker,
@@ -99,6 +100,8 @@ export class MapWorkerCore {
   private css = { w: 0, h: 0, dpr: 1 };
   private canvas: OffscreenCanvas | null = null;
   private renderer: Renderer | null = null;
+  /** The asset source in use (null before init). */
+  private assets: AssetResolver | null = null;
   private visible = true;
   private scheduled = false;
   /** The newest load request; older results are dropped. */
@@ -132,6 +135,9 @@ export class MapWorkerCore {
         return;
       case 'load':
         void this.load(m.req, m.source);
+        return;
+      case 'assets':
+        this.setAssets(m.assets);
         return;
       case 'resize':
         this.resize(m.width, m.height, m.dpr);
@@ -211,9 +217,9 @@ export class MapWorkerCore {
       return;
     }
     const make = this.host.createRenderer ?? createRenderer;
-    const assets = assetResolver(m.assets, this.host.fetch);
+    this.assets = assetResolver(m.assets, this.host.fetch);
     const glc = gl;
-    const build = () => make(glc, assets, () => this.requestRender());
+    const build = () => make(glc, this.assets!, () => this.requestRender());
     this.renderer = build();
     m.canvas.addEventListener?.('webglcontextlost', (e) => {
       e.preventDefault();
@@ -231,6 +237,13 @@ export class MapWorkerCore {
     });
     this.resize(m.width, m.height, m.dpr);
     this.host.post({ t: 'ready' });
+  }
+
+  /** A tileset change (ADR 0082): later renderers (context restore) use it too. */
+  private setAssets(src: AssetSource): void {
+    if (!this.assets) return; // before init
+    this.assets = assetResolver(src, this.host.fetch);
+    this.renderer?.setAssets?.(this.assets);
   }
 
   private resize(w: number, h: number, dpr: number): void {

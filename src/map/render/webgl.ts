@@ -31,7 +31,7 @@ import { buildInfomarks, type InfomarkLayer } from './infomarks';
 import { BACKGROUND, BLACK, GRAY70, NAMED_COLORS, type RGBA, WATER, WHITE, withAlpha } from './palette';
 import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLayerMesh } from './rooms';
 import * as S from './shaders';
-import { ARRAY_FILES, CHAR_ARROWS_FILE, dottedWallImages, TEX } from './textures';
+import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
 import type { Renderer } from './renderer';
 
 /** Zoom cutoffs (configuration.h). */
@@ -105,12 +105,49 @@ interface LayerGL {
   markTextMesh: FloatMesh | null;
 }
 
+const DECODE: ImageBitmapOptions = { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
+
 async function bitmap(assets: AssetResolver, path: string): Promise<ImageBitmap | null> {
+  return (await tile(assets, path))?.bmp ?? null;
+}
+
+/** A decoded tile and its file (kept for a rescale). */
+interface Tile {
+  blob: Blob;
+  bmp: ImageBitmap;
+}
+
+async function tile(assets: AssetResolver, path: string): Promise<Tile | null> {
   try {
     const blob = await assets(path);
-    return await createImageBitmap(blob, { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' });
+    return { blob, bmp: await createImageBitmap(blob, DECODE) };
   } catch {
     return null; // missing in an HTML-replay subset, or not decodable: the layer stays transparent
+  }
+}
+
+/**
+ * `t` as a `size`² image (ADR 0082: a tileset file of another size than
+ * its array). Decoded again with the browser's high-quality resize; where
+ * that is not honoured, drawn scaled on a 2D canvas. Null when neither works.
+ */
+async function rescaled(t: Tile, size: number): Promise<ImageBitmap | ImageData | null> {
+  try {
+    const b = await createImageBitmap(t.blob, { ...DECODE, resizeWidth: size, resizeHeight: size, resizeQuality: 'high' });
+    if (b.width === size && b.height === size) return b;
+    b.close();
+  } catch {
+    // fall through to the canvas
+  }
+  try {
+    const c = new OffscreenCanvas(size, size);
+    const g = c.getContext('2d');
+    if (!g) return null;
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(t.bmp, 0, 0, size, size);
+    return g.getImageData(0, 0, size, size);
+  } catch {
+    return null;
   }
 }
 
@@ -139,6 +176,8 @@ export class WebGLMapRenderer implements Renderer {
   /** Milliseconds of the last setMap mesh build (tests, reports). */
   buildMs = 0;
   private texturesLoaded = false;
+  /** The newest tile load (a tileset change starts another; older ones are dropped). */
+  private tileGen = 0;
   /** Every tile array and the current font are loaded. */
   get complete(): boolean {
     return this.texturesLoaded && this.fontTex !== null;
@@ -146,7 +185,7 @@ export class WebGLMapRenderer implements Renderer {
 
   constructor(
     private readonly gl: GL,
-    private readonly assets: AssetResolver,
+    private assets: AssetResolver,
     private readonly onChange: () => void = () => {},
   ) {
     this.room = compile(gl, S.ROOM_VS, S.ROOM_FS, ['uView', 'uNamed', 'uTex', 'uColor', 'uWhite']);
@@ -170,38 +209,70 @@ export class WebGLMapRenderer implements Renderer {
 
   // ------------------------------------------------------------ assets
 
+  /**
+   * New tiles (a tileset change, ADR 0082): the arrays are loaded again and
+   * swapped in when complete; the old ones draw until then.
+   */
+  setAssets(assets: AssetResolver): void {
+    this.assets = assets;
+    void this.loadTextures();
+  }
+
   private async loadTextures(): Promise<void> {
     const gl = this.gl;
+    const gen = ++this.tileGen;
     const groups = [
       [TEX.A128, ARRAY_FILES.A128],
       [TEX.A64, ARRAY_FILES.A64],
       [TEX.A256, ARRAY_FILES.A256],
     ] as const;
-    const loads = groups.map(async ([id, g]) => ({ id, g, bitmaps: await Promise.all(g.files.map((f) => bitmap(this.assets, `pixmaps/${f}`))) }));
-    const arrows = bitmap(this.assets, `pixmaps/${CHAR_ARROWS_FILE}`);
-    for (const { id, g, bitmaps } of await Promise.all(loads)) {
-      if (this.disposed) return;
+    const assets = this.assets;
+    // Decode every file, size each array by its largest file, and scale the
+    // others to it (a tileset's mixed sizes; the default set needs none).
+    const loads = groups.map(async ([id, g]) => {
+      const tiles = await Promise.all(g.files.map((f) => tile(assets, `pixmaps/${f}`)));
+      const size = arraySize(g.size, tiles.map((t) => t?.bmp ?? null));
+      const images = await Promise.all(
+        tiles.map(async (t) => {
+          if (!t) return null;
+          if (t.bmp.width === size && t.bmp.height === size) return t.bmp;
+          const r = await rescaled(t, size);
+          t.bmp.close();
+          return r;
+        }),
+      );
+      return { id, size, images };
+    });
+    const arrowsLoad = bitmap(assets, `pixmaps/${CHAR_ARROWS_FILE}`);
+    const loaded = await Promise.all(loads);
+    const a = await arrowsLoad;
+    if (this.disposed || gen !== this.tileGen) {
+      for (const l of loaded) for (const im of l.images) if (im && 'close' in im) im.close();
+      a?.close();
+      return;
+    }
+    for (const { id, size, images } of loaded) {
       const t = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
-      gl.texStorage3D(gl.TEXTURE_2D_ARRAY, Math.log2(g.size) + 1, gl.RGBA8, g.size, g.size, g.files.length);
-      bitmaps.forEach((b, layer) => {
-        if (!b) return;
-        if (b.width === g.size && b.height === g.size) {
-          gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, g.size, g.size, 1, gl.RGBA, gl.UNSIGNED_BYTE, b);
-        }
-        b.close();
+      gl.texStorage3D(gl.TEXTURE_2D_ARRAY, mipLevels(size), gl.RGBA8, size, size, images.length);
+      images.forEach((im, layer) => {
+        if (!im) return;
+        gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, size, size, 1, gl.RGBA, gl.UNSIGNED_BYTE, im);
+        if ('close' in im) im.close();
       });
       gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
       this.setSampling(gl.TEXTURE_2D_ARRAY, true);
+      const old = this.arrays[id];
       this.arrays[id] = t;
+      if (old) gl.deleteTexture(old);
     }
-    const a = await arrows;
-    if (a && !this.disposed) {
+    if (a) {
       const t = gl.createTexture()!;
       gl.bindTexture(gl.TEXTURE_2D, t);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, a);
       gl.generateMipmap(gl.TEXTURE_2D);
       this.setSampling(gl.TEXTURE_2D, true);
+      if (this.charArrows) gl.deleteTexture(this.charArrows);
       this.charArrows = t;
       a.close();
     }

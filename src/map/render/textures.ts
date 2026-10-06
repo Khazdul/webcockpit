@@ -12,7 +12,9 @@
 // MMapper groups its files into 2D texture arrays by size
 // (display/Textures.cpp). The grouping does not change the output, so
 // here every 128² file shares one array, trails (64²) have their own,
-// and doors plus the character square (256²) share a third.
+// and doors plus the character square (256²) share a third. Those are
+// the default set's sizes; a tileset's (ADR 0082) may differ, and each
+// array then takes the size of its largest file (`arraySize`).
 
 /** Texture arrays. */
 export const TEX = { A128: 0, A64: 1, A256: 2, DOTTED: 3 } as const;
@@ -86,6 +88,29 @@ export const ARRAY_FILES: Readonly<Record<'A128' | 'A64' | 'A256', { size: numbe
   A64: { size: 64, files: Array.from({ length: 16 }, (_, m) => `trail-${roadSuffix(m)}.png`) },
   A256: { size: 256, files: [...DIR_FILES.map((d) => `door-${d}.png`), 'char-room-sel.png'] },
 };
+
+/**
+ * Largest texture-array layer edge (ADR 0082). A tileset's bigger files
+ * are scaled down to it on decode; it bounds GPU memory (the 128² array
+ * at 256² is ~34 MB with mipmaps).
+ */
+export const MAX_TILE_SIZE = 256;
+
+/**
+ * The layer edge of a file-backed array (ADR 0082): the largest decoded
+ * file (width or height) in the group, capped at MAX_TILE_SIZE; the
+ * nominal size when nothing decoded. Files of another size are scaled to
+ * it, so the default set (every file at its nominal size) is uploaded
+ * unchanged.
+ */
+export function arraySize(nominal: number, sizes: ReadonlyArray<{ width: number; height: number } | null>): number {
+  let max = 0;
+  for (const s of sizes) if (s) max = Math.max(max, s.width, s.height);
+  return max === 0 ? nominal : Math.min(max, MAX_TILE_SIZE);
+}
+
+/** Mip levels of a square texture of edge `size` (down to 1 px). */
+export const mipLevels = (size: number): number => Math.floor(Math.log2(size)) + 1;
 
 /** The off-screen arrow atlas (a plain 2D texture). */
 export const CHAR_ARROWS_FILE = 'char-arrows.png';

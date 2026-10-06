@@ -74,6 +74,11 @@ export class MapClient {
     return req;
   }
 
+  /** A new asset source (a tileset change, ADR 0082): the tiles are swapped live. */
+  assets(assets: AssetSource): void {
+    this.post({ t: 'assets', assets });
+  }
+
   resize(width: number, height: number, dpr: number): void {
     this.post({ t: 'resize', width, height, dpr });
   }
