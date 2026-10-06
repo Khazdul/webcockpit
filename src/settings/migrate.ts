@@ -27,6 +27,7 @@ import {
   normalizeDock,
 } from '../layout/types';
 import { defaultFloatSize } from '../layout/allocate';
+import { TILESET_IDS } from '../map/tilesets';
 import { normalizeHex } from '../theme/color';
 import { INPUT_COLOR_IDS } from '../theme/presets';
 import {
@@ -307,8 +308,9 @@ export function migrateInput(raw: unknown): InputSettings {
 
 /**
  * Mapper options from anything (notes on, full hover, medium hover text;
- * ADR 0077). Stored before version 2, 'minimal' was the default and moves
- * to the new default 'full' once (ADR 0080).
+ * ADR 0077; the default tileset, also for an unknown id, ADR 0082).
+ * Stored before version 2, 'minimal' was the default and moves to the
+ * new default 'full' once (ADR 0080).
  */
 export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): MapperSettings {
   const d = defaultSettings().mapper;
@@ -318,6 +320,7 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
     notes: bool(x.notes, d.notes),
     hover: oneOf(hover, MAP_HOVER_MODES, d.hover),
     hoverSize: oneOf(x.hoverSize, MAP_HOVER_SIZES, d.hoverSize),
+    tileset: oneOf(x.tileset, TILESET_IDS, d.tileset),
   };
 }
 

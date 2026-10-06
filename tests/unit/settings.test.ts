@@ -687,15 +687,15 @@ describe('SettingsStore', () => {
 
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a full hover, and clamps stored values', () => {
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
-    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
-    expect(migrateMapper({ hover: 'off', hoverSize: 'large' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large' });
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default' });
+    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default' });
     expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
     expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
-    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium' });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium' });
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' });
     expect(migrateMapper({ hover: 'minimal' }).hover).toBe('minimal');
   });
 

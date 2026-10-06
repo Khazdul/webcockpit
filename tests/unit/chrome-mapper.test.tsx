@@ -148,6 +148,7 @@ describe('Options → Mapper', () => {
       'Room notes: On',
       'Room info on hover: Full',
       'Hover text size: Medium',
+      'Tileset: Default (MMapper)',
       'Import map file…',
       'Use bundled map',
       'Back',
@@ -162,12 +163,12 @@ describe('Options → Mapper', () => {
     // Room notes and hover mode (ADR 0077): cyclers, written at once.
     await key('ArrowDown');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default' });
     expect(labels(host)[1]).toBe('Room notes: Off');
     await key('ArrowDown');
     expect(labels(host)[2]).toBe('Room info on hover: Full');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default' });
     expect(labels(host)[2]).toBe('Room info on hover: Off');
     await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
@@ -183,6 +184,27 @@ describe('Options → Mapper', () => {
     await key('ArrowLeft');
     expect(svc.settings.get().mapper.hoverSize).toBe('small');
     expect(labels(host)[3]).toBe('Hover text size: Small');
+    // Tileset (ADR 0082): ←→ cycles the catalogue, the credit line follows.
+    const credit = (): string | null | undefined => frame(host).querySelector('.wc-mapper-credit')?.textContent;
+    expect(credit()).toBe("MMapper's default tiles");
+    await key('ArrowDown');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper.tileset).toBe('desert');
+    expect(labels(host)[4]).toBe('Tileset: Desert');
+    expect(credit()).toBe("By Ole von Gertten, from Shimrod's tiles");
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper.tileset).toBe('shimrod');
+    expect(labels(host)[4]).toBe('Tileset: Shimrod (alternating)');
+    expect(credit()).toMatch(/^Tiles by Shimrod \(v0\.92\) · now (Spring|Summer|Autumn|Winter)$/);
+    await key('ArrowLeft');
+    await key('ArrowLeft');
+    await key('ArrowLeft');
+    expect(svc.settings.get().mapper.tileset).toBe('shimrod-winter');
+    expect(labels(host)[4]).toBe('Tileset: Shimrod Winter');
+    expect(credit()).toBe('Tiles by Shimrod (v0.92)');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper.tileset).toBe('default');
+    await key('ArrowUp');
     await key('ArrowUp');
     await key('ArrowUp');
     await key('Enter');

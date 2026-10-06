@@ -20,7 +20,8 @@
 //   follow the worker's `status` (browser tests, debugging); `mapLoad`
 //   (JSON: ms and the worker's load stages) on `loaded` and `mapDrawnMs`
 //   (load start → first frame with every tile and the font) on `drawn`
-//   (bench/browser-bench.ts).
+//   (bench/browser-bench.ts); `mapTileset` is the tileset drawn
+//   (`default` or a set id, ADR 0082).
 // - Game events (gmcp, cmd.sent, text.line, conn.state) are forwarded only
 //   while the pane is shown and its map is loaded (MapEventForwarder:
 //   one array push per event, one postMessage per microtask). Turned on
@@ -51,6 +52,9 @@
 //   title grip lies over the canvas's top row (feedback round 1). A drag,
 //   wheel, leave, player move, map load, or the pane hiding or moving
 //   hides it.
+// - Tileset (ADR 0082, Options → Mapper): resolved here from the setting
+//   and the game clock (an alternating set follows MUME's season) and
+//   sent with the asset source; a change swaps the worker's tiles live.
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -60,7 +64,8 @@ import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
 import { type PinchPoint, pinchStep } from '../map/pinch';
-import type { MapPaneHost, WorkerToMain } from '../map/protocol';
+import type { AssetSource, MapPaneHost, WorkerToMain } from '../map/protocol';
+import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
 import { MapHover } from './map-hover';
 import { PaneShell, type PaneContext } from './pane';
 
@@ -87,6 +92,9 @@ export function mapUnsupported(win: (Window & typeof globalThis) | null): string
   }
   return null;
 }
+
+/** How often the pane checks whether MUME's season (and so an alternating tileset) changed. */
+const TILESET_CHECK_MS = 60_000;
 
 const NOTICE_SUFFIX = '\nThe map needs WebGL2, OffscreenCanvas and module workers\n(current Chrome, Firefox or Safari 17+).';
 
@@ -168,6 +176,16 @@ export class MapPane extends PaneShell {
 
     this.onResize(() => this.sync());
     this.own(ctx.cells.subscribe(() => this.sync()));
+    // Tileset (ADR 0082): a settings change, a clock sync or the season
+    // turning (checked each minute) swaps the tiles live. Only the app's
+    // own assets have sets; the HTML replay embeds what it draws.
+    if (this.host.assets.kind === 'base') {
+      this.content.dataset.mapTileset = this.tileset()?.id ?? 'default';
+      this.own(ctx.settings.subscribe((next, prev) => next.mapper.tileset !== prev.mapper.tileset && this.syncTileset()));
+      this.own(ctx.game.subscribe((part) => part === 'clock' && this.syncTileset()));
+      const timer = setInterval(() => this.syncTileset(), TILESET_CHECK_MS);
+      this.own(() => clearInterval(timer));
+    }
     // The current map changed (Options → Mapper): load the new one.
     const unsubMap = this.host.subscribe?.(() => void this.reload());
     if (unsubMap) this.own(unsubMap);
@@ -333,7 +351,7 @@ export class MapPane extends PaneShell {
         width: w,
         height: h,
         dpr: this.dpr(),
-        assets: this.host.assets,
+        assets: this.assets(),
         onMessage: this.onWorker,
       });
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
@@ -349,6 +367,28 @@ export class MapPane extends PaneShell {
     } finally {
       this.starting = false;
     }
+  }
+
+  /** The set the Mapper option draws now (null: the default pixmaps). */
+  private tileset(): Tileset | null {
+    const month = mumeMonth(this.ctx.game.clock.state.epoch, this.ctx.now());
+    return resolveTileset(this.ctx.settings.get().mapper.tileset, month);
+  }
+
+  /** The asset source with the current tileset (ADR 0082). */
+  private assets(): AssetSource {
+    const a = this.host.assets;
+    if (a.kind !== 'base') return a;
+    const overlay = tilesetOverlay(this.tileset());
+    return overlay ? { ...a, tileset: overlay } : a;
+  }
+
+  /** Sends the tileset to a running worker when it changed. */
+  private syncTileset(): void {
+    const id = this.tileset()?.id ?? 'default';
+    if (id === this.content.dataset.mapTileset) return;
+    this.content.dataset.mapTileset = id;
+    this.client?.assets(this.assets());
   }
 
   /** Loads the host's current map again (no-op before the worker runs). */

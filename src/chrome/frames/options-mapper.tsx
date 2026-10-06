@@ -9,10 +9,13 @@
 //      << Room notes: On >>
 //      << Room info on hover: Full >>
 //      << Hover text size: Medium >>
+//      << Tileset: Default (MMapper) >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
 //      << Back >>
+//
+//               MMapper's default tiles                (credit of the set)
 //          ↑↓ Move · ←→ Adjust · Enter Select · ESC Back
 //
 // Import reads a `.mm2` (a hidden file input), checks it in the map tools
@@ -28,16 +31,21 @@
 // hover box, the room name and note, or MMapper's room preview (name,
 // description, contents, exits, note). Hover text size (`mapper.hoverSize`:
 // Small / Medium / Large = 0.72 / 0.85 / 1 of the cockpit's font size,
-// default Medium).
+// default Medium). Tileset (`mapper.tileset`, ADR 0082): ←→ cycles the
+// catalogue (src/map/tilesets.ts); the line under the menu credits the
+// set, and an alternating set names the season it draws now (the saved
+// game clock, as the Map pane resolves it).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { seasonOf } from '../../gmcp/gametime';
 import type { CurrentMap } from '../../map/store';
+import { localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft, cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
-import { Blank, FlashRow, Line, type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
+import { Blank, Centered, FlashRow, Line, type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -74,6 +82,14 @@ export function mapInfoRows(m: CurrentMap | null): Array<[string, string]> {
 
 const LABEL_W = 10;
 
+/** The credit line under the menu; an alternating set adds the season it draws now (game month `month`). */
+export function tilesetCredit(id: string, month: number): string {
+  const c = tilesetChoice(id);
+  if (!c.family) return c.credit;
+  const season = seasonOf(month);
+  return `${c.credit} · now ${season[0]!.toUpperCase()}${season.slice(1)}`;
+}
+
 export function MapperOptionsFrame(): VNode {
   const { settings, maps } = useServices();
   const s = useSettings();
@@ -101,6 +117,8 @@ export function MapperOptionsFrame(): VNode {
   const mapper = s.mapper;
   const toggleNotes = (): void => settings.update({ mapper: { notes: !mapper.notes } });
   const hoverLabel = mapper.hover === 'full' ? 'Full' : mapper.hover === 'off' ? 'Off' : 'Minimal';
+  const tileset = tilesetChoice(mapper.tileset);
+  const credit = tilesetCredit(mapper.tileset, mumeMonth(storedClockEpoch(localStorageOrNull(), Date.now()), Date.now()));
   const sizeLabel = mapper.hoverSize === 'small' ? 'Small' : mapper.hoverSize === 'large' ? 'Large' : 'Medium';
 
   const run = async (f: () => Promise<void>): Promise<void> => {
@@ -150,6 +168,11 @@ export function MapperOptionsFrame(): VNode {
       adjust: (d) => settings.update({ mapper: { hoverSize: cycle(MAP_HOVER_SIZES, mapper.hoverSize, d) } }),
     },
     {
+      key: 'tileset',
+      label: `Tileset: ${tileset.name}`,
+      adjust: (d) => settings.update({ mapper: { tileset: cycle(TILESET_IDS, tileset.id, d) } }),
+    },
+    {
       key: 'import',
       label: 'Import map file…',
       activate: () => {
@@ -178,6 +201,7 @@ export function MapperOptionsFrame(): VNode {
       <Blank />
       <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
       <Blank />
+      <Centered text={credit} class="wc-c-hint wc-mapper-credit" />
       <FlashRow />
       <input ref={fileRef} type="file" accept=".mm2" hidden class="wc-mapper-file" onChange={() => void onFile()} />
     </Page>

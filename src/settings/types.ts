@@ -255,6 +255,11 @@ export interface MapperSettings {
   hover: MapHoverMode;
   /** The hover box's text size. */
   hoverSize: MapHoverSize;
+  /**
+   * The map's tileset (ADR 0082): a `TILESET_CHOICES` id from
+   * src/map/tilesets.ts (`default`, a set, or a seasonal family).
+   */
+  tileset: string;
 }
 
 export interface Settings {
@@ -335,7 +340,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' },
   };
 }
 
