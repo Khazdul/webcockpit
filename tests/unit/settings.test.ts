@@ -8,7 +8,9 @@ import {
   DEFAULT_SETTINGS,
   MIRROR_KEY,
   SettingsStore,
+  PHONE_FONT_SIZE,
   defaultSettings,
+  phoneDefaultSettings,
   migrateComm,
   migrateTimers,
   migrateSpotlights,
@@ -49,12 +51,13 @@ class MemStorage implements Storage {
 class FakeWin extends EventTarget {}
 
 const stores: SettingsStore[] = [];
-function make(opts: { factory: IDBFactory; storage?: Storage; safe?: boolean; win?: FakeWin }) {
+function make(opts: { factory: IDBFactory; storage?: Storage; safe?: boolean; phone?: boolean; win?: FakeWin }) {
   const s = new SettingsStore({
     factory: opts.factory,
     storage: opts.storage ?? new MemStorage(),
     win: (opts.win ?? null) as unknown as Window | null,
     safe: opts.safe ?? false,
+    phone: opts.phone ?? false,
     debounceMs: 20,
   });
   stores.push(s);
@@ -546,6 +549,27 @@ describe('SettingsStore', () => {
     s.update({ appearance: { size: 10 } });
     expect(seen).toHaveLength(4);
     expect(Object.isFrozen(s.get().panes.ui)).toBe(true);
+  });
+
+  it('on a phone a new store starts from the phone defaults; stored settings win (ADR 0081)', async () => {
+    const factory = new IDBFactory();
+    const s = make({ factory, phone: true });
+    await s.load();
+    expect(s.get()).toEqual(phoneDefaultSettings());
+    expect(s.get().appearance.size).toBe(PHONE_FONT_SIZE);
+    expect(s.get().panes.ui.on).toBe(false);
+    expect(s.get().panes.character.on).toBe(true);
+    s.update({ appearance: { size: 20 } });
+    s.reset();
+    expect(s.get()).toEqual(phoneDefaultSettings());
+    s.update({ appearance: { size: 16 }, panes: { ui: { on: true } } });
+    await s.dispose();
+    const again = make({ factory, phone: true });
+    await again.load();
+    expect(again.get().appearance.size).toBe(16);
+    expect(again.get().panes.ui.on).toBe(true);
+    // Desktop defaults are unchanged.
+    expect(make({ factory: new IDBFactory() }).defaults()).toEqual(defaultSettings());
   });
 
   it('arrays in a patch replace the whole array', async () => {

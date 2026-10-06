@@ -34,6 +34,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-06 — Phone new-user defaults
+
+- **Owner:** the banner shows on his phone only at Hack 15 or smaller;
+  a new phone user should start smaller, without UI, pane bar or Map search.
+- **Done:** ADR 0081. On a phone the store's defaults are Hack 14 and the
+  UI pane off; the shell enables no bundled scripts. Stored settings and
+  desktop unchanged.
+- **Checked:** typecheck, unit 2424, phone e2e 26/26 (new
+  `phone-new-user.spec.ts`), chromium e2e 219/220 (the known flaky replay
+  file:// test; passes on rerun).
+- **Next:** owner tries a fresh phone profile; release when he says go.
+- **Commits:** this one.
+
 ### 2026-10-06 — Hover default Full, release 0.1.50
 
 - **Owner:** 0.1.49 checked (stage 21 guide and a fresh profile) fine.

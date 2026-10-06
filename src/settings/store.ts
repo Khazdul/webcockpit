@@ -27,7 +27,7 @@
 
 import { STORE, openWebcockpitDb } from '../core/db';
 import { migrateAppearance, migrateSettings } from './migrate';
-import { type AppearanceSettings, type Settings, type SettingsPatch, defaultSettings } from './types';
+import { type AppearanceSettings, type Settings, type SettingsPatch, defaultSettings, phoneDefaultSettings } from './types';
 
 /** localStorage key of the appearance mirror. */
 export const MIRROR_KEY = 'webcockpit.appearance';
@@ -52,6 +52,8 @@ export interface SettingsStoreOptions {
   win?: Window | null;
   /** `?safe`: default appearance, nothing saved until a change. */
   safe?: boolean;
+  /** A phone (ADR 0081): the defaults are `phoneDefaultSettings()`. */
+  phone?: boolean;
   /** Longest delay from a change to the IndexedDB write, ms (default 200). */
   debounceMs?: number;
 }
@@ -109,6 +111,7 @@ export class SettingsStore {
   private readonly win: Window | null;
   private readonly debounceMs: number;
   private readonly safe: boolean;
+  private readonly phone: boolean;
 
   private db: IDBDatabase | null = null;
   private loadPromise: Promise<void> | null = null;
@@ -129,9 +132,10 @@ export class SettingsStore {
     this.win = opts.win === undefined ? (globalThis.window ?? null) : opts.win;
     this.debounceMs = Math.min(250, Math.max(0, opts.debounceMs ?? 200));
     this.safe = opts.safe ?? false;
+    this.phone = opts.phone ?? false;
     this.holdWrites = this.safe;
 
-    const s = defaultSettings();
+    const s = this.defaults();
     if (!this.safe) {
       const mirror = readAppearanceMirror(this.storage);
       if (mirror) s.appearance = mirror;
@@ -164,6 +168,11 @@ export class SettingsStore {
    */
   get fresh(): boolean {
     return this.freshInstall;
+  }
+
+  /** A fresh copy of this device's defaults (the phone's on a phone, ADR 0081). */
+  defaults(): Settings {
+    return this.phone ? phoneDefaultSettings() : defaultSettings();
   }
 
   /** True in `?safe` mode. */
@@ -206,7 +215,7 @@ export class SettingsStore {
     let next: Settings;
     if (stored !== undefined) {
       next = migrateSettings(stored);
-      if (this.safe) next.appearance = defaultSettings().appearance;
+      if (this.safe) next.appearance = this.defaults().appearance;
     } else {
       next = clone(prev) as Settings;
     }
@@ -269,7 +278,7 @@ export class SettingsStore {
 
   /** Resets everything to the defaults (Options could offer this). */
   reset(): void {
-    this.update(() => defaultSettings());
+    this.update(() => this.defaults());
   }
 
   // ---------------------------------------------------------------- saving

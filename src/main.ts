@@ -62,7 +62,7 @@ const localFonts = detectLocalFonts().then((found) => {
   localFontsKnown = true;
   return found;
 });
-const settings = new SettingsStore({ safe: params.has('safe') });
+const settings = new SettingsStore({ safe: params.has('safe'), phone: device.phone });
 // A stored local-only font (Lucida Console) is preloaded and measured once
 // it is known whether it is installed: measuring now would fetch DejaVu.
 const earlyFont = !FONTS[settings.get().appearance.font].local;

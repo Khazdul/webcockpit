@@ -424,15 +424,16 @@ export class Shell {
 
   /**
    * A new user (no stored settings, ADR 0078) starts with the bundled
-   * scripts of `NEW_USER_SCRIPTS` enabled; the library makes sure an
-   * install that already has script data is never changed. Not in the
-   * bench (`probe`), which measures the cockpit without scripts.
+   * scripts of `NEW_USER_SCRIPTS` enabled (none on a phone, ADR 0081);
+   * the library makes sure an install that already has script data is
+   * never changed. Not in the bench (`probe`), which measures the
+   * cockpit without scripts.
    */
   private async newUserScripts(): Promise<void> {
     if (this.opts.probe) return;
     try {
       await this.opts.settings.load();
-      if (this.opts.settings.fresh) await this.scripts.enableForNewUser(NEW_USER_SCRIPTS);
+      if (this.opts.settings.fresh && !device().phone) await this.scripts.enableForNewUser(NEW_USER_SCRIPTS);
     } catch {
       /* the Scripts page reports storage errors */
     }

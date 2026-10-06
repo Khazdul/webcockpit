@@ -339,6 +339,21 @@ export function defaultSettings(): Settings {
   };
 }
 
+/** Font size a new phone starts with (ADR 0081): the banner fits with a margin. */
+export const PHONE_FONT_SIZE = 14;
+
+/**
+ * The defaults on a phone (ADR 0081): `defaultSettings()` with a smaller
+ * font and the UI pane off. Used only where the store starts from the
+ * defaults (a new user, reset); stored settings never take it.
+ */
+export function phoneDefaultSettings(): Settings {
+  const s = defaultSettings();
+  s.appearance.size = PHONE_FONT_SIZE;
+  s.panes.ui.on = false;
+  return s;
+}
+
 /** Timers defaults (Inv §2.6.3): all on, cols 4/4/4/4/2/1, no clock, bars on. */
 export function defaultTimersSettings(): TimersSettings {
   const g = (color: TimerColor, cols: number): TimerGroupSettings => ({

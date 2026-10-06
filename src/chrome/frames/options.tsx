@@ -31,7 +31,6 @@ import {
   PADDING_MIN,
   PADDING_STEP,
   SCROLLBACK_CHOICES,
-  defaultSettings,
 } from '../../settings';
 import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
@@ -448,7 +447,7 @@ export function AppearanceFrame(): VNode {
       key: 'reset',
       label: 'Reset appearance',
       activate: () => {
-        settings.update({ appearance: defaultSettings().appearance });
+        settings.update({ appearance: settings.defaults().appearance });
         nav.flash('Appearance reset.');
       },
     },
