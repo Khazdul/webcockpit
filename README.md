@@ -43,11 +43,12 @@ directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
 
 **Panes.** Character, Timers, Group, Communication, UI messages and
-Map. They can be docked left, right or at the bottom, resized, reordered
-and toggled, each with its own background colour. The default layout is
+Map. They can be docked left, right, at the bottom or at the top, or
+float over the game, and resized, reordered and toggled, each with its
+own background colour. The default layout is
 Cockpit's.
 
-**Appearance.** Bundled DejaVu Sans Mono and JetBrains Mono, font size,
+**Appearance.** Fifteen bundled monospace fonts, font size,
 padding, the ANSI palette, cursor style and blink. Changes apply
 immediately, from the start page or the ESC menu.
 
@@ -60,7 +61,13 @@ immediately, from the start page or the ESC menu.
 variables and tickers in tt++ syntax. The profile editor has a form
 view and a full text view with syntax highlighting, and both edit the
 same profile. Round-trips are lossless. Macros bind any key the browser
-lets through. Profiles can be exported and imported as `.tin` files.
+lets through. Profiles can be exported and imported as `.tin` files,
+and import also reads TinTin++, JMC, Powwow and Mudlet profiles.
+
+**Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
+sandbox, with an API for triggers, aliases, keys, timers, GMCP, panes
+and the map. The script editor completes names, shows help as you type
+and marks errors, and a manual with examples is built in.
 
 **Map.** A map pane that reads MMapper `.mm2` files, draws MMapper's
 tiles and follows you as you move. A default map is bundled, and you

@@ -34,13 +34,13 @@ MUME is free to play. No subscription, just connect.
 GETTING STARTED
 Choose Enter MUME on the start page. Press ESC at any time to open the menu. Options sets up the panes and the look; every change applies at once.
 
-Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples.
+Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → IMPORT reads profiles from TinTin++, JMC, Powwow and Mudlet.
 
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts. The editor helps you write them: it completes commands, shows their syntax and help as you type, and marks errors at once. HELP opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts. The editor helps you write them: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
