@@ -81,7 +81,8 @@ streams, no-ride and several terrains 256² (default 128²).
   of RAM). The cap bounds a future set with larger files. If a phone
   runs short, a phone-only cap of 128 is a one-line change
   (`MAX_TILE_SIZE` per device); not done now (ADR 0075's phones show the
-  map one tab at a time).
+  map one tab at a time). Owner check on 0.1.51 (2026-10-06): a
+  Shimrod set on his phone runs without lag, so the cap stays 256².
 - **Live swap.** `Renderer.setAssets(resolver)` (optional in the
   interface) loads all arrays again in the background and swaps them in
   when complete (the old textures draw until then and are deleted
