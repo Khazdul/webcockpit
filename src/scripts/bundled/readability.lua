@@ -8,7 +8,7 @@
 -- @setting  arrows     boolean true "An arrow with each direction (north ▲)"
 -- @setting  shortnames boolean true "Short mob names (off: MUME's own text)"
 -- @help     Makes the busy lines of MUME quicker to read. Colours adapt to
--- @help     your background (Options -> Appearance), so they read on black,
+-- @help     your background (Options → Appearance), so they read on black,
 -- @help     on the dark themes and on paper.
 -- @help
 -- @help     Mobs: about 450 known mobs get a short name, and the rest of
