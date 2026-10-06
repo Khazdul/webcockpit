@@ -1163,7 +1163,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   v(
     "settings",
     "settings.<name>",
-    "The values of the header's @setting lines (read-only). Change one with #script set <script> <name> <value>.",
+    "The values of the header's @setting lines (read-only). Change one with #script set {script} {setting} {value}.",
     {
       more: [
         "An unset setting has its default. When a setting changes, settings shows the new value at once, without a reload, so read settings.<name> when you need it instead of copying it once at load. The event sysSettingChanged (name, value) tells the script when one changed, for example to redraw a pane.",

@@ -41,8 +41,8 @@ function helpWord(arg: string): string {
  * - Nothing: the list.
  * - A topic word written in full (`patterns`), unless the word has a `#`.
  * - A command word, resolved as commands are (`al`, `#alias`, `unalias`
- *   → the `#alias` section), or a topic named like the command (`#script`
- *   → Scripts).
+ *   → the `#alias` section; `script`, `#lua` → their sections), or a topic
+ *   named like the command.
  * - The start of a topic word, two letters or more (`col` → Colours).
  * - A tt++ command WebCockpit does not run, or a client command without a
  *   section: a one-line message. Anything else: a pointer to `#help`.
@@ -62,7 +62,7 @@ export function resolveHelp(arg: string, sections: readonly HelpSection[] = help
   const cmd = resolveCommand(w);
   const entry = cmd && cmd !== 'ambiguous' ? cmd : null;
   if (entry) {
-    // A command documented by a topic of its own (#script → Scripts).
+    // The command's section, or a topic named like it.
     const section = sections.find((s) => s.covers?.includes(entry.name)) ?? sections.find((s) => s.topics?.includes(entry.name));
     if (section) return { kind: 'section', section };
   }

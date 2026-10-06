@@ -38,18 +38,21 @@ function setup() {
   const clients: string[] = [];
   /** Confirmation and listing rows (ADR 0039), as the game window shows them. */
   const said: string[] = [];
+  /** #script and #lua commands handed to the script host: name, then arguments. */
+  const scripts: string[][] = [];
   const clock = new FakeScheduler();
   const e = new ScriptEngine({
     send: (t) => sent.push(t),
     message: (m) => msgs.push(m),
     client: (n) => clients.push(n),
     report: (r) => said.push(...messageRows(r, 200).map(messageText)),
+    scriptCommand: (name, args) => scripts.push([name, ...args]),
     scheduler: clock,
     now: () => 0,
   });
   e.attach(bus);
   bus.on('text.display', (d) => shown.push(d.line.text));
-  return { bus, e, sent, msgs, shown, clients, said, clock };
+  return { bus, e, sent, msgs, shown, clients, said, scripts, clock };
 }
 
 /** Runs an example the way the manual says it is used. */
@@ -96,6 +99,8 @@ describe('manual examples', () => {
     const c = ex.check;
     // Nothing is confirmed or listed unless the example says so.
     expect(r.said).toEqual(c?.says ?? []);
+    // … and nothing reaches the script host unless it says so.
+    expect(r.scripts).toEqual(c?.scripts ?? []);
     if (!c) return;
     if (c.sends || c.type || c.lines || c.keys || c.steps) expect(r.sent).toEqual(c.sends ?? []);
     if (c.shows) expect(r.shown).toEqual(c.shows);
@@ -139,7 +144,8 @@ describe('manual coverage (no drift from the command table)', () => {
   const covered = new Set(sections.flatMap((s) => s.covers ?? []));
 
   it('has a section for every command the engine runs, except the ones the menus cover', () => {
-    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'menu', 'perf'];
+    // #script and #lua are inert in the table but run in the forms their sections document.
+    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'menu', 'perf', 'script', 'lua'];
     expect(runs.filter((n) => !covered.has(n))).toEqual([]);
     // … and documents nothing beyond those.
     expect([...covered].filter((n) => !runs.includes(n))).toEqual([]);
@@ -165,12 +171,14 @@ describe('manual coverage (no drift from the command table)', () => {
     for (const s of sections.filter((x) => x.group === 'commands')) expect(s.covers).toContain(s.heading.slice(1));
   });
 
-  it('lists every unsupported and inert command at the end, from the table', () => {
+  it('lists every unsupported and inert command at the end, from the table, except the ones with a section', () => {
     const end = sections.filter((s) => s.group === 'end').flatMap((s) => s.text).join('\n');
     const words = new Set(end.match(/#[a-z]+/g));
     for (const c of COMMANDS) {
-      expect(words.has('#' + c.name), c.name).toBe(c.tier === 'unsupported' || c.tier === 'inert');
+      expect(words.has('#' + c.name), c.name).toBe(c.tier === 'unsupported' || (c.tier === 'inert' && !covered.has(c.name)));
     }
+    expect(words.has('#script')).toBe(false);
+    expect(words.has('#lua')).toBe(false);
   });
 
   it('names every event the engine fires', () => {

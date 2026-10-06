@@ -73,7 +73,7 @@ describe('#help resolution', () => {
     expect(message('foreach')).toBe('#foreach: Not supported yet; kept in the profile as written.');
     expect(message('#split')).toBe('#split is not supported. Screen and terminal commands do nothing in the browser.');
     expect(message('#read')).toBe('#read is not supported. File commands are not available in the browser.');
-    // #script and #lua run in their documented forms and have a topic (below).
+    // #script and #lua run in their documented forms and have a section (below).
     for (const c of COMMANDS.filter((x) => x.inert && x.name !== 'script' && x.name !== 'lua')) {
       const m = message('#' + c.name);
       expect(m, c.name).toContain(c.hint!);
@@ -81,15 +81,21 @@ describe('#help resolution', () => {
     }
   });
 
-  it('shows Scripts for script, scripts, lua, #script and #lua', () => {
-    for (const w of ['script', 'scripts', 'lua', 'LUA', '#script', '#lua', 'scr', '{script}']) expect(heading(w), w).toBe('Scripts');
-    const s = helpSections().find((x) => x.heading === 'Scripts')!;
-    const text = [...s.syntax!, ...s.text].join('\n');
-    for (const sub of SCRIPT_SUBCOMMANDS) expect(text, sub).toContain(`#script ${sub}`);
-    expect(text).toContain('#lua {script} {function} {args}');
-    expect(text).toContain('ESC → Options → Scripts');
-    expect(text).toContain('MANUAL');
-    expect(helpIndex().topics).toContain('script');
+  it('shows Scripts for scripts, and the #script and #lua sections for the commands', () => {
+    for (const w of ['scripts', 'SCRIPTS', 'scr']) expect(heading(w), w).toBe('Scripts');
+    for (const w of ['script', '#script', 'scri', '{script}']) expect(heading(w), w).toBe('#script');
+    for (const w of ['lua', 'LUA', '#lua']) expect(heading(w), w).toBe('#lua');
+    const intro = helpSections().find((x) => x.heading === 'Scripts')!.text.join('\n');
+    expect(intro).toContain('ESC → Options → Scripts');
+    expect(intro).toContain('MANUAL');
+    expect(intro).toContain('#script');
+    expect(intro).toContain('#lua');
+    const script = helpSections().find((x) => x.heading === '#script')!.syntax!.join('\n');
+    for (const sub of SCRIPT_SUBCOMMANDS) expect(script, sub).toContain(`#script ${sub}`);
+    expect(helpSections().find((x) => x.heading === '#lua')!.syntax).toEqual(['#lua {script} {function} {args}']);
+    expect(helpIndex().topics).toContain('scripts');
+    expect(helpIndex().topics).not.toContain('script');
+    expect(helpIndex().commands).toEqual(expect.arrayContaining(['#script', '#lua']));
   });
 
   it('has one line for the commands the menus cover', () => {

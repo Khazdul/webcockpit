@@ -51,6 +51,8 @@ export interface HelpCheck {
   says?: readonly string[];
   /** Variables afterwards. */
   vars?: Readonly<Record<string, string>>;
+  /** Exactly the #script and #lua commands handed to the script host: the name, then the arguments. */
+  scripts?: ReadonlyArray<readonly string[]>;
 }
 
 export interface HelpExample {
@@ -237,9 +239,10 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Keys',
     topics: ['keys'],
     text: [
-      'A macro is bound to a key name: F1 … F12, Numpad0 … Numpad9, NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadEnter, ArrowUp, PageUp, letters and digits (A, 1), with Ctrl+, Alt+ and Shift+ in that order in front: Ctrl+A, Alt+1, Ctrl+Shift+F1.',
-      'Names are physical keys, the same on every keyboard layout. The easy way is LITE → MACROS: press Enter on the Key cell and then the key.',
-      'Not bindable: ESC, Enter, and keys the browser keeps (Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+Tab). A bound key no longer does what it did on the input line: a macro on A means a is not typed.',
+      'A macro is bound to a key name: F1 … F24, Numpad0 … Numpad9, NumpadDecimal, NumpadAdd, NumpadSubtract, NumpadMultiply, NumpadDivide, NumpadEnter, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Home, End, PageUp, PageDown, Insert, Delete, Tab, Backspace, letters and digits (A, 1), with Ctrl+, Alt+ and Shift+ in that order in front: Ctrl+A, Alt+1, Ctrl+Shift+F1.',
+      'Names are physical keys, the same on every keyboard layout. The tt++ escape forms work too: \\eOp is Numpad0, \\e[15~ is F5, ^G is Ctrl+G. The easy way is LITE → MACROS: press Enter on the Key cell and then the key.',
+      'Not bindable: ESC, Enter, and keys the browser keeps (Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+Tab, and the same with Shift). A bound key no longer does what it did on the input line: a macro on A means a is not typed.',
+      'A script can bind a key too. A macro on the same key wins over the script, and the editor warns about it.',
     ],
     examples: [
       {
@@ -272,33 +275,18 @@ const BASICS: readonly HelpSection[] = [
     text: [
       'The profile text is what is saved, and it is what runs: the entries you see in the editor are the ones in the game.',
       'Typed on the input line: a definition is saved at once. It is added to the profile, or it replaces the entry with the same Pattern, name or Key. An #un… command removes the entry. A variable is saved with the value it got. Nothing else in the profile changes.',
-      'Made by a script (the Commands of an alias, action, macro, ticker or event): lasts for the session, so an alias that arms a temporary action does not fill the profile. One exception: when a script changes a variable that has its own #variable line at the top level of the profile, the new value is written to that line.',
+      'Made by Commands (of an alias, action, macro, ticker or event): lasts for the session, so an alias that arms a temporary action does not fill the profile. One exception: when Commands change a variable that has its own #variable line at the top level of the profile, the new value is written to that line. setVariable in a Lua script follows the same rule.',
       '#delay is never saved. #class open and close are not saved: an entry typed while a class is open is saved as an ordinary entry. Nothing is saved in offline replay mode. When a typed line cannot be saved, a [SYSTEM] line says so.',
     ],
   },
   {
     group: 'basics',
     heading: 'Scripts',
-    topics: ['script', 'scripts', 'lua'],
-    syntax: [
-      '#script list',
-      '#script help {name}',
-      '#script set {name} {setting} {value}',
-      '#script enable {name}',
-      '#script disable {name}',
-      '#script reload {name}',
-      '#lua {script} {function} {args}',
-    ],
+    topics: ['scripts'],
     text: [
       'Scripts are small Lua programs kept beside the profile, not in it. ESC → Options → Scripts (or Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
       'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
-      '#script list shows every script, whether it is on and what it does.',
-      '#script help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
-      '#script set {name} {setting} {value} changes a setting and saves it, for example #script set coinlooter delay 0.5. The script sees the new value at once.',
-      '#script enable {name} and #script disable {name} turn a script on and off, as the toggle on the Scripts page does.',
-      '#script reload {name} loads a script that is on again from its saved code, for example after it failed to load. A script that errors too often is turned off; #script enable turns it on again.',
-      '#lua {script} {function} {args} calls a function that a script exported with export(name, fn), with the rest of the line as its argument. It works from aliases, actions and macros too.',
-      'Other forms of #script and #lua, such as a pasted tt++ #script line, do nothing.',
+      '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],
   },
 ];
@@ -574,6 +562,30 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#lua',
+    covers: ['lua'],
+    syntax: ['#lua {script} {function} {args}'],
+    text: [
+      'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil.',
+      'Works on the input line and in aliases, actions and macros. It is not run while a profile loads. When the script is not running, or has not exported the function, a line in the game window says so.',
+      'How a script exports a function: Profile bridge in the script manual (MANUAL on the Scripts page).',
+      'With only a script name, or nothing at all, #lua does nothing.',
+    ],
+    examples: [
+      {
+        note: 'h Gimli gives heal the text Gimli; h alone gives it nil:',
+        code: '#alias {h} {#lua {healer} {heal} %0}',
+        check: { type: ['h Gimli', 'h'], scripts: [['lua', 'healer', 'heal', 'Gimli'], ['lua', 'healer', 'heal']] },
+      },
+      {
+        via: 'input',
+        code: '#lua {target} {set} {orc}',
+        check: { scripts: [['lua', 'target', 'set', 'orc']] },
+      },
+    ],
+  },
+  {
+    group: 'commands',
     heading: '#macro',
     covers: ['macro', 'unmacro'],
     syntax: ['#macro {key} {commands}', '#unmacro {key}'],
@@ -665,6 +677,43 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#script',
+    covers: ['script'],
+    syntax: [
+      '#script list',
+      '#script help {name}',
+      '#script set {name} {setting} {value}',
+      '#script enable {name}',
+      '#script disable {name}',
+      '#script reload {name}',
+    ],
+    text: [
+      'Controls the scripts beside the profile, see Scripts:',
+      '- list shows every script, whether it is on and what it does.',
+      '- help {name} shows the help of a script in the game window: its aliases, keys and settings, the same text as on the Scripts page.',
+      '- set {name} {setting} {value} changes a setting and saves it. The rest of the line is the value. The script sees the new value at once.',
+      '- enable {name} and disable {name} turn a script on and off, as the toggle on the Scripts page does. On and off are the same for every profile.',
+      '- reload {name} stops a script that is on and runs it again from its saved code. A script that failed to load is tried again. A script that is off needs #script enable instead.',
+      'A script that errors too often is turned off; #script enable turns it on again.',
+      'Every form works on the input line and in aliases, actions and macros. None is run while a profile loads.',
+      'Other forms, such as a tt++ #script {variable} {shell command} pasted from another client, do nothing.',
+    ],
+    examples: [
+      { via: 'input', code: '#script list', check: { scripts: [['script', 'list']] } },
+      {
+        via: 'input',
+        code: '#script set autoeat food dried meat',
+        check: { scripts: [['script', 'set', 'autoeat', 'food', 'dried', 'meat']] },
+      },
+      {
+        note: 'A key that turns a script off:',
+        code: '#macro {F9} {#script disable autoeat}',
+        check: { keys: ['F9'], scripts: [['script', 'disable', 'autoeat']] },
+      },
+    ],
+  },
+  {
+    group: 'commands',
     heading: '#showme',
     covers: ['showme'],
     syntax: ['#showme {text}'],
@@ -744,7 +793,10 @@ function names(list: readonly CommandEntry[]): string {
 /** The closing section, derived from the command table so it cannot drift. */
 function endSections(): HelpSection[] {
   const unsupported = COMMANDS.filter((c) => c.tier === 'unsupported');
-  const inert = COMMANDS.filter((c) => c.tier === 'inert');
+  // An inert command with a section of its own (#script, #lua) runs in the
+  // forms it documents, so it is not listed as doing nothing.
+  const documented = new Set(COMMAND_SECTIONS.flatMap((s) => s.covers ?? []));
+  const inert = COMMANDS.filter((c) => c.tier === 'inert' && !documented.has(c.name));
   const byHint = new Map<string, CommandEntry[]>();
   for (const c of inert) {
     const h = c.hint ?? '';

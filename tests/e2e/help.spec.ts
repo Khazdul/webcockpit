@@ -96,12 +96,16 @@ test('#help lists the commands and topics; #help al shows the section in the HEL
 
   await type(page, '#help colours');
   await expect(rows(page).filter({ hasText: /^Colours$/ })).toHaveCount(1);
-  // Scripts (stage 10): listed as a topic, reached by script, lua and #script.
-  await expect(rows(page).filter({ hasText: /^ {4}.*\bscript\b/ }).first()).toHaveClass(/wc-help-code/);
-  await type(page, '#help #lua');
+  // Scripts (stage 10): a topic for the introduction, a section each for #script and #lua.
+  await expect(rows(page).filter({ hasText: /^ {4}.*\bscripts\b/ }).first()).toHaveClass(/wc-help-code/);
+  await type(page, '#help scripts');
   await expect(rows(page).filter({ hasText: /^Scripts$/ })).toHaveCount(1);
+  await type(page, '#help #lua');
+  await expect(rows(page).filter({ hasText: /^#lua$/ })).toHaveCount(1);
+  await expect(rows(page).filter({ hasText: /^ {4}#lua \{script\} \{function\} \{args\}$/ })).toHaveClass(/wc-help-syntax/);
+  await type(page, '#help script');
+  await expect(rows(page).filter({ hasText: /^#script$/ })).toHaveCount(1);
   await expect(rows(page).filter({ hasText: /^ {4}#script set \{name\} \{setting\} \{value\}$/ })).toHaveClass(/wc-help-syntax/);
-  await expect(rows(page).filter({ hasText: /^ {4}#lua \{script\} \{function\} \{args\}$/ })).toHaveCount(1);
   await type(page, '#help blah');
   await expect(rows(page).last()).toHaveText('[SYSTEM] No help for "blah". Type #help for the list.');
   expect(errors).toEqual([]);
