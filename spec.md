@@ -679,7 +679,7 @@ what feedback is wanted.
 | 19 | **Phone access.** Touch fixes for menus and a phone layout, gated so desktop is unchanged (§2.12, ADR 0075). | Open WebCockpit on your phone, log in, chat, browse the menus. |
 | 20 | **Mudlet import.** Mudlet profiles and packages to a plain tt++ profile through a Lua-subset translator, with the import report (§2.11, ADR 0076). | Import your Mudlet profile and read the report; play with the aliases and keys. |
 | 21 | **Room notes and map search.** Notes in the game window, map hover box, search/room/path API, the bundled Map search pane (ADR 0077). | Walk past herb rooms; hover the map; search for a herb and follow the marks. |
-| 23 | **Remote editing.** MUME.Client Edit/View over GMCP: a floating edit pane and read-only view panes, Latin-1 and size checks, disconnect handling, and Edit/View text kept out of recordings and exports. | Write a mail and a board post in the edit pane; view a board post. |
+| 23 | **Remote editing** (parked 2026-10-07). MUME.Client Edit/View over GMCP: a floating edit pane and read-only view panes, Latin-1 and size checks, disconnect handling, and Edit/View text kept out of recordings and exports. | Write a mail and a board post in the edit pane; view a board post. |
 
 ## 6. Open questions for the owner
 

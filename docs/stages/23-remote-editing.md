@@ -1,5 +1,23 @@
 # Stage 23 — Remote editing
 
+**Status: parked (owner, 2026-10-07).** Remote editing needs careful
+investigation and the owner has no time for it now. This file keeps the
+research, the owner's design choices and the plan so the work can be
+picked up again later. Nothing has been built.
+
+Known state while parked:
+
+- WebCockpit still subscribes to `MUME.Client 1` and ignores
+  `MUME.Client.Edit`/`View`. A player who has typed `change editor mume`
+  or `change viewer external` (for example from MMapper) gets edits
+  that never open and viewed texts that are not shown. `change editor
+  line` and `change viewer off` restore the in-game behaviour.
+- The recorder stores these GMCP messages, so for such a player mail and
+  board text can end up in runs and shared replays (part A below).
+
+To resume: start with the live probe (Part 0), then decide whether part
+A ships on its own first.
+
 Owner request 2026-10-07: built-in support for MUME's remote editing.
 When MUME asks the client to edit a text (mail, notes, board posts,
 descriptions), a pane opens as a small text editor. Texts MUME sends to
@@ -146,6 +164,7 @@ part A ships first (privacy) and a hidden debug path to send `Write`/
 
 - [x] Research protocol and MMapper behaviour (2026-10-07)
 - [x] Owner decisions (2026-10-07)
+- [x] Parked by the owner (2026-10-07)
 - [ ] Part 0 live probe (owner) and analysis
 - [ ] ADR for remote editing (design + privacy)
 - [ ] A. Privacy
