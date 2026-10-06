@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. On main, not released (owner: wait): phone new-user defaults (ADR 0081, stage 19 file). Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -44,8 +44,9 @@ Newest first.
 - **Checked:** typecheck, unit 2424, phone e2e 26/26 (new
   `phone-new-user.spec.ts`), chromium e2e 219/220 (the known flaky replay
   file:// test; passes on rerun).
-- **Next:** owner tries a fresh phone profile; release when he says go.
-- **Commits:** this one.
+- **Next:** not released (owner: wait). Owner tries a fresh phone
+  profile per the stage 19 file; ships with the next release.
+- **Commits:** a5eb61f, plus this one.
 
 ### 2026-10-06 — Hover default Full, release 0.1.50
 

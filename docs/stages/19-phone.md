@@ -194,3 +194,20 @@ zoom works, `locatel` stores keys, the menu opens with Reconnect on
 return. Stage done. Left for later if wanted: profile editor lite cuts
 long rows at ~40 cols; script pane, editor and manual find fields are
 still `<input>`.
+
+### Phone new-user defaults (2026-10-06, after the stage)
+
+Owner: the banner shows on his phone only at Hack 15 or smaller. ADR 0081.
+
+- [x] On a phone the settings store's defaults are Hack 14 and the UI pane
+  off (`phoneDefaultSettings()`, `SettingsStore({ phone })`); used for a
+  new install, reset, safe mode and Reset appearance. Stored settings win.
+- [x] On a phone the shell does not enable the pane bar and Map search.
+- [x] Unit test in `tests/unit/settings.test.ts`, e2e
+  `tests/e2e/phone-new-user.spec.ts`.
+
+Test guide: on the phone open the site in a private tab (or clear the
+site's data). Expect Hack 14, the banner on the start page, the tabs
+GAME, CHAR, TIME, GRP, COMM, MAP (no UI, no pane bar, no FIND), and no
+enabled scripts under ESC → Scripts. Your normal phone profile keeps its
+settings.
