@@ -163,15 +163,16 @@ test('Options → Mapper: a tileset is fetched (only its files), drawn and swapp
   const before = await settled(page);
   if (SHOT_DIR) await page.locator('.wc-pane-map canvas').screenshot({ path: `${SHOT_DIR}/tileset-default-${info.project.name}.png` });
 
-  // Options → Mapper → Tileset: Desert (→ once).
+  // Options → Mapper → Tileset: Desert (← once, wrapping).
   const frame = await openOptionsMapper(page);
   await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText('Tileset: Default (MMapper)');
   await expect(frame.locator('.wc-mapper-credit')).toHaveText("MMapper's default tiles");
   tiles.length = 0;
-  // A click on a cycler row steps it forward (as →).
-  await frame.locator('.wc-mrow[data-key="tileset"] .wc-label').click();
+  // Desert is the last choice: ← from Default wraps to it.
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowLeft');
   await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText('Tileset: Desert');
-  await expect(frame.locator('.wc-mapper-credit')).toHaveText("By Ole von Gertten, from Shimrod's tiles");
+  await expect(frame.locator('.wc-mapper-credit')).toHaveText("By Khazdul, from Shimrod's tiles");
   await expect(content).toHaveAttribute('data-map-tileset', 'desert');
   // Exactly the renderer's files: Desert's own, the default pixmaps for what it lacks.
   await expect.poll(() => [...new Set(tiles)].sort(), { timeout: 20_000 }).toEqual(expectedPaths('desert'));

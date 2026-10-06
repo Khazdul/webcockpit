@@ -87,8 +87,8 @@ offline demo, and turn the Map pane on.
 
 1. **Pick a set.** ESC → Options → Mapper. The new row
    *Tileset: Default (MMapper)* sits under *Hover text size*; ←→ (or a
-   click) cycles: Default (MMapper), Desert, Shimrod (alternating),
-   Shimrod Spring, Summer, Autumn, Winter. The line under the menu
+   click) cycles: Default (MMapper), Shimrod (alternating),
+   Shimrod Spring, Summer, Autumn, Winter, Desert. The line under the menu
    credits the chosen set. Leave the menu: the map shows the new tiles
    within a second or two, at the same place and zoom, without
    reloading.
@@ -117,4 +117,13 @@ some area?
 
 ## Owner feedback
 
-(None yet.)
+
+
+### Round 1 (2026-10-06)
+
+- Desert credit: "Khazdul" instead of the owner's name.
+- Order: Default (MMapper), Shimrod (alternating), Shimrod Spring,
+  Summer, Autumn, Winter, Desert (last).
+- Otherwise approved. Step 5 (phone) after release.
+
+Status: both done.

@@ -41,8 +41,9 @@ streams, no-ride and several terrains 256² (default 128²).
 - `src/map/tilesets.ts` is the catalogue, as data: `TILESETS` (id,
   name, one-line credit, folder, `lacks`: renderer files the set does
   not have), `TILESET_FAMILIES` (a seasonal family: its four member set
-  ids) and `TILESET_CHOICES` (Options order: Default (MMapper), Desert,
-  Shimrod (alternating), Shimrod Spring, Summer, Autumn, Winter). A unit
+  ids) and `TILESET_CHOICES` (Options order: Default (MMapper),
+  Shimrod (alternating), Shimrod Spring, Summer, Autumn, Winter,
+  Desert; owner, 2026-10-06 round 1). A unit
   test checks each folder against `RENDERER_PIXMAPS − lacks` and that
   no folder lacks an entry, so adding a set is its folder, one entry
   and one choice row; the test names any file list mismatch.

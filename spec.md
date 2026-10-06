@@ -320,8 +320,8 @@ ADR 0003.
   below, flipped left / up at the viewport's edges), may extend past the
   Map pane's edges and stays inside the viewport (round 2).
 - **Tilesets** (ADR 0082). Options → Mapper *Tileset*: Default
-  (MMapper), Desert, Shimrod (alternating), Shimrod Spring / Summer /
-  Autumn / Winter, with a one-line credit. Alternating draws the
+  (MMapper), Shimrod (alternating), Shimrod Spring / Summer / Autumn /
+  Winter, Desert, with a one-line credit. Alternating draws the
   Shimrod set of MUME's current season (game clock) and switches when
   the season turns. A set overrides the default tiles file by file;
   only the chosen set is fetched, and the HTML replay embeds the set

@@ -161,7 +161,7 @@ lookup. Lucida is a trademark of its owner.
   with third-party 3D models, some under Creative Commons licences
   (BY, BY-NC, BY-ND, BY-NC-SA, BY-NC-ND); the full credit list is in
   `public/map/README`.
-- **Desert** tileset (`tilesets/desert/`), by Ole von Gertten, made by
+- **Desert** tileset (`tilesets/desert/`), by Khazdul, made by
   modifying Shimrod's tiles with Shimrod's agreement; Shimrod's terms
   above apply to it too.
 

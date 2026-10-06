@@ -39,12 +39,12 @@ describe('tileset catalogue', () => {
   it('lists the choices in Options → Mapper order', () => {
     expect(TILESET_CHOICES.map((c) => [c.id, c.name])).toEqual([
       ['default', 'Default (MMapper)'],
-      ['desert', 'Desert'],
       ['shimrod', 'Shimrod (alternating)'],
       ['shimrod-spring', 'Shimrod Spring'],
       ['shimrod-summer', 'Shimrod Summer'],
       ['shimrod-autumn', 'Shimrod Autumn'],
       ['shimrod-winter', 'Shimrod Winter'],
+      ['desert', 'Desert'],
     ]);
     expect(TILESET_IDS[0]).toBe(DEFAULT_TILESET);
     for (const c of TILESET_CHOICES) expect(c.credit.length).toBeLessThanOrEqual(48);
@@ -147,7 +147,7 @@ describe('tileset clock', () => {
   it('the credit line names the season an alternating set draws', () => {
     expect(tilesetCredit('shimrod', 0)).toBe('Tiles by Shimrod (v0.92) · now Winter');
     expect(tilesetCredit('shimrod', 7)).toBe('Tiles by Shimrod (v0.92) · now Summer');
-    expect(tilesetCredit('desert', 7)).toBe("By Ole von Gertten, from Shimrod's tiles");
+    expect(tilesetCredit('desert', 7)).toBe("By Khazdul, from Shimrod's tiles");
     expect(tilesetCredit('bogus', 7)).toBe("MMapper's default tiles");
   });
 });

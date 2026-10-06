@@ -69,7 +69,7 @@ export const TILESETS: readonly Tileset[] = [
   {
     id: 'desert',
     name: 'Desert',
-    credit: "By Ole von Gertten, from Shimrod's tiles",
+    credit: "By Khazdul, from Shimrod's tiles",
     dir: 'desert',
     lacks: [...SHIMROD_LACKS, 'terrain-underwater.png'].sort(),
   },
@@ -118,12 +118,12 @@ function choice(id: string): TilesetChoice {
 /** Options → Mapper order. */
 export const TILESET_CHOICES: readonly TilesetChoice[] = [
   DEFAULT_TILESET,
-  'desert',
   'shimrod',
   'shimrod-spring',
   'shimrod-summer',
   'shimrod-autumn',
   'shimrod-winter',
+  'desert',
 ].map(choice);
 
 export const TILESET_IDS: readonly string[] = TILESET_CHOICES.map((c) => c.id);

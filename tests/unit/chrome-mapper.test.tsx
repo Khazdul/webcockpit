@@ -188,20 +188,24 @@ describe('Options → Mapper', () => {
     const credit = (): string | null | undefined => frame(host).querySelector('.wc-mapper-credit')?.textContent;
     expect(credit()).toBe("MMapper's default tiles");
     await key('ArrowDown');
-    await key('ArrowRight');
+    await key('ArrowLeft');
     expect(svc.settings.get().mapper.tileset).toBe('desert');
     expect(labels(host)[4]).toBe('Tileset: Desert');
-    expect(credit()).toBe("By Ole von Gertten, from Shimrod's tiles");
+    expect(credit()).toBe("By Khazdul, from Shimrod's tiles");
+    await key('ArrowRight');
     await key('ArrowRight');
     expect(svc.settings.get().mapper.tileset).toBe('shimrod');
     expect(labels(host)[4]).toBe('Tileset: Shimrod (alternating)');
     expect(credit()).toMatch(/^Tiles by Shimrod \(v0\.92\) · now (Spring|Summer|Autumn|Winter)$/);
+    // ← from Shimrod (alternating) passes Default and Desert (last) to Winter.
     await key('ArrowLeft');
     await key('ArrowLeft');
     await key('ArrowLeft');
     expect(svc.settings.get().mapper.tileset).toBe('shimrod-winter');
     expect(labels(host)[4]).toBe('Tileset: Shimrod Winter');
     expect(credit()).toBe('Tiles by Shimrod (v0.92)');
+    await key('ArrowRight');
+    expect(svc.settings.get().mapper.tileset).toBe('desert');
     await key('ArrowRight');
     expect(svc.settings.get().mapper.tileset).toBe('default');
     await key('ArrowUp');
