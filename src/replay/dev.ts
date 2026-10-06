@@ -14,6 +14,7 @@
 //       embedded when the chain has Room.Info (ADR 0020).
 
 import type { Shell } from '../app/shell';
+import { currentOverlay } from '../map/tilesets';
 import type { ChainRun } from '../player/timeline';
 import type { RunEvent } from '../runs/events';
 import type { SettingsStore } from '../settings';
@@ -64,7 +65,10 @@ export async function devReplayBlob(shell: Shell, settings: SettingsStore, o: De
     [chain, events, doc] = await Promise.all([lib.chainLog(ids), lib.events(ids), lib.exportDoc(s.id)]);
   }
   if (o.doc) doc = normalizeExportDoc({ ...doc, ...o.doc }) ?? doc;
-  return buildReplayHtml(buildReplayPayload(chain, events, doc, settings.get()), { map: await shell.maps.source() });
+  return buildReplayHtml(buildReplayPayload(chain, events, doc, settings.get()), {
+    map: await shell.maps.source(),
+    tileset: currentOverlay(settings.get().mapper.tileset),
+  });
 }
 
 /** The HTML replay's text (`__wc.replayHtml`). */

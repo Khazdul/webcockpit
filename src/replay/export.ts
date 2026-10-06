@@ -26,7 +26,7 @@ import { captureEntries } from '../share/capture';
 import type { ReplayPayload } from '../share/payload';
 import { PAYLOAD_ELEMENT_ID, encodePayload, toBase64 } from './codec';
 import { replayTitle } from './title';
-import type { MapSource } from '../map/protocol';
+import type { MapSource, TilesetOverlay } from '../map/protocol';
 import type { EmbedMapOptions } from './map-embed';
 
 declare const __WC_VERSION__: string | undefined;
@@ -195,6 +195,8 @@ export interface BuildReplayOptions {
   map?: MapSource | null;
   /** Runs the map tool (tests; default the map tools worker). */
   runMapTool?: EmbedMapOptions['runTool'];
+  /** The map tileset to embed the tiles from (ADR 0082); absent: the default pixmaps. */
+  tileset?: TilesetOverlay;
 }
 
 async function get(f: (url: string) => Promise<Response>, url: string): Promise<Response> {
@@ -214,6 +216,7 @@ export async function buildReplayHtml(payload: ReplayPayload, opts: BuildReplayO
       assetBase: url('map/'),
       fetch: f,
       ...(opts.runMapTool ? { runTool: opts.runMapTool } : {}),
+      ...(opts.tileset ? { tileset: opts.tileset } : {}),
     });
   }
   const ids = replayFonts(payload);

@@ -6,6 +6,7 @@ import { deflateSync, inflateSync } from 'node:zlib';
 import { describe, expect, it, vi } from 'vitest';
 import { EMPTY_PNG } from '../../src/map/assets';
 import { readMm2 } from '../../src/map/mm2';
+import { overlayFor } from '../../src/map/tilesets';
 import { type MapToolRequest, runMapToolRequest } from '../../src/map/tools';
 import { overlayView, parseView } from '../../src/player/fit';
 import { decodePayload } from '../../src/replay/codec';
@@ -79,6 +80,28 @@ describe('HTML replay map export', () => {
     expect(m.files['pixmaps/terrain-city.png']).toBeUndefined();
     expect(m.files['pixmaps/mellon.png']).toBeUndefined();
     expect(urls.filter((u) => u.includes('/map/')).every((u) => u.startsWith('https://example.org/app/map/'))).toBe(true);
+  });
+
+  it("embeds the client's tileset, with the default pixmaps for files the set lacks (ADR 0082)", async () => {
+    const map = gridMap(40, 40, { noServerId: (i) => i === 206 });
+    const urls: string[] = [];
+    const blob = await buildReplayHtml(chain(true), {
+      fetch: fetcher(urls),
+      base: 'https://example.org/app/',
+      map: { kind: 'data', map, name: 'grid.mm2' },
+      runMapTool: runTool,
+      tileset: overlayFor('shimrod-winter', 0),
+    });
+    const p = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(await blob.text())![1]!);
+    const files = p.map!.files;
+    const b64 = (rel: string): string => `data:image/png;base64,${readFileSync(new URL(`map/${rel}`, PUBLIC)).toString('base64')}`;
+    // Same keys as without a set (the page needs no tileset logic), the set's bytes.
+    expect(files['pixmaps/terrain-field.png']).toBe(b64('tilesets/shimrod-winter/terrain-field.png'));
+    expect(files['pixmaps/char-room-sel.png']).toBe(b64('pixmaps/char-room-sel.png'));
+    expect(Object.keys(files).some((k) => k.startsWith('tilesets/'))).toBe(false);
+    expect(urls).toContain('https://example.org/app/map/tilesets/shimrod-winter/terrain-field.png');
+    expect(urls).toContain('https://example.org/app/map/pixmaps/char-room-sel.png');
+    expect(urls).not.toContain('https://example.org/app/map/pixmaps/terrain-field.png');
   });
 
   it('embeds nothing for a chain without Room.Info, or when the map cannot be read', async () => {

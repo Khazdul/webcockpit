@@ -53,6 +53,7 @@ import { buildReplayPayload } from '../../share/payload';
 import { buildTextExport } from '../../share/text';
 import { buildReplayHtml } from '../../replay/export';
 import { bundledMapSource } from '../../map/store';
+import { currentOverlay } from '../../map/tilesets';
 import { downloadBlob } from '../kit/download';
 import { useGrid, useServices } from '../kit/hooks';
 import { cellLen, centreLeft, step, truncate } from '../kit/nav';
@@ -286,6 +287,7 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
         nav.flash('Building the replay…');
         blob = await buildReplayHtml(buildReplayPayload(data.chain, data.events, d, settings.get()), {
           map: maps ? await maps.source() : bundledMapSource(),
+          tileset: currentOverlay(settings.get().mapper.tileset),
         });
       }
       downloadBlob(blob, name);
