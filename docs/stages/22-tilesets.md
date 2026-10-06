@@ -70,15 +70,50 @@ Source files (read-only, outside the repo):
 
 ## Tasks
 
-- [ ] A. Catalogue, assets, credits
-- [ ] B. Renderer: mixed tile sizes, live swap
-- [ ] C. Setting, Options → Mapper row, alternating
-- [ ] D. HTML replay embeds the resolved set
-- [ ] E. Tests, ADR 0082, test guide
+- [x] A. Catalogue, assets, credits (`src/map/tilesets.ts`,
+  `public/map/tilesets/`, README, notices; files unmodified, see ADR 0082)
+- [x] B. Renderer: mixed tile sizes (array = largest file, ≤ 256²),
+  live swap (`{t:'assets'}`)
+- [x] C. Setting `mapper.tileset`, Options → Mapper row + credit line,
+  alternating via the game clock (re-checked on sync and every minute)
+- [x] D. HTML replay embeds the resolved set
+- [x] E. Tests (unit, e2e `map-tilesets.spec.ts`), ADR 0082, test guide;
+  `WC_BENCH_TILESET=<id>` for the map bench
 
 ## Test guide
 
-(Written when the build is done.)
+Open the client (local dev or the release build), enter MUME or the
+offline demo, and turn the Map pane on.
+
+1. **Pick a set.** ESC → Options → Mapper. The new row
+   *Tileset: Default (MMapper)* sits under *Hover text size*; ←→ (or a
+   click) cycles: Default (MMapper), Desert, Shimrod (alternating),
+   Shimrod Spring, Summer, Autumn, Winter. The line under the menu
+   credits the chosen set. Leave the menu: the map shows the new tiles
+   within a second or two, at the same place and zoom, without
+   reloading.
+2. **Look at it.** Zoom in close (wheel) on a town and a few outdoor
+   areas. Icons (mobs, loads, exits, no-ride) and terrain should look
+   sharp and upright; walls, doors, the yellow player square and the
+   off-screen arrows still come from MMapper's default set (Shimrod's
+   set does not have them).
+3. **Alternating.** Pick *Shimrod (alternating)*. The credit line says
+   which season it draws now (`… · now Autumn`). The season follows
+   MUME's month: Afteryule–Rethe winter, Astron–Forelithe spring,
+   Afterlithe–Halimath summer, Winterfilth–Foreyule autumn. To check,
+   type `time` in MUME (or look at the almanac pane's NOW tab) and compare
+   the month. Before the client has synced the clock it uses its best
+   estimate; after a sync it switches by itself if the estimate was off.
+4. **Replay.** Export an HTML replay of a run with movement (History →
+   a session → Export, format HTML). Open it: the map uses the set you had at
+   export time.
+5. **Phone** (optional): pick a Shimrod set on the phone and zoom in;
+   tell me if the map gets slow or the tab reloads.
+
+Feedback wanted: do the sets look right (scale, sharpness, nothing
+upside down or missing)? Is the row and its name list fine (labels,
+order)? Is the credit line OK? Any set or season that looks wrong in
+some area?
 
 ## Owner feedback
 

@@ -367,6 +367,9 @@ research §7. The existing `GroupModel` is not changed.
   `generateMipmap` + LINEAR_MIPMAP_LINEAR / LINEAR, mirrored repeat. The
   dotted walls are generated like MMapper (manual mips, NEAREST). A file
   that is missing (an HTML-replay subset) leaves its layer transparent.
+  *Amended by 0082 (2026-10-06):* Options → Mapper picks a tileset that
+  overrides `pixmaps/` file by file; each array takes the size of its
+  largest file (≤ 256²) and the tiles swap live.
 - **Draw order** per frame: clear; per layer ascending (fade quad before
   the current layer; `LayerMeshes::render`: terrain, multiply tints,
   streams, trails, overlays, up/down, doors, walls, dotted, other-layer
