@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. On main, not released (owner: wait): phone new-user defaults (ADR 0081, stage 19 file). Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 22 (map tilesets; owner testing, not released). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. On main, not released (owner: wait): phone new-user defaults (ADR 0081, stage 19 file). Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -27,12 +27,28 @@ Current stage: 21 (room notes and map search; owner testing). Released 0.1.50 (s
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
 | 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
 | 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
+| 22 | Map tilesets | Owner testing | `docs/stages/22-tilesets.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-06 — Stage 22 map tilesets
+
+- **Owner:** selectable map tilesets in Options → Mapper: Desert (owner's
+  edit of Shimrod's, OK'd by Shimrod), Shimrod's four seasons, and
+  Shimrod alternating by MUME season. Replay uses the client's set.
+- **Done:** ADR 0082. Catalogue `src/map/tilesets.ts` (folder + entry per
+  set, per-file fallback to default pixmaps); mixed tile sizes (arrays
+  ≤ 256²); live swap; `mapper.tileset`; replay embeds the resolved set.
+- **Checked:** typecheck, unit 2439, e2e 468/470 (2 Firefox flakes pass
+  on rerun), map bench, build:pages smoke 10/10.
+- **Open:** owner to judge licensing of tiles derived from CC BY-NC/ND 3D
+  models (noted in THIRD_PARTY_NOTICES); ~38 MB GPU per non-default set
+  (watch phones). Not released.
+- **Commits:** 1848b6e, cc3d25d…61f7d1a, plus this one.
 
 ### 2026-10-06 — Phone new-user defaults
 
