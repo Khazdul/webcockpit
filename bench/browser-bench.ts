@@ -58,7 +58,8 @@
 //   --out file         WC_BENCH_OUT       report path (default
 //                                         bench/results/latest.md)
 //   WC_BENCH_GPU=0 runs Chromium without the GPU flags; WC_BENCH_GPU_ARGS
-//   overrides them.
+//   overrides them. WC_BENCH_TILESET=<id> draws the map with that tileset
+//   (ADR 0082; e.g. shimrod-autumn, the largest).
 //
 // Default runtime ≈ 15 min on a quiet machine (two browsers); --quick ≈ 5.
 // Fixtures: the owner's Cockpit logs under $WEBCOCKPIT_FIXTURES (default
@@ -118,7 +119,7 @@ const ONLY = new Set(opt('only', 'WC_BENCH_ONLY', '').split(',').filter(Boolean)
 const want = (s: string) => ONLY.size === 0 || ONLY.has(s);
 const SCALE = QUICK ? 0.25 : 1;
 const scaled = (n: number, min = 20) => Math.max(min, Math.round(n * SCALE));
-const flagsText = argv.length ? argv.join(' ') : '(none)';
+const flagsText = (argv.length ? argv.join(' ') : '(none)') + (process.env.WC_BENCH_TILESET ? `; tileset ${process.env.WC_BENCH_TILESET}` : '');
 
 const FRAME_BUDGET_MS = 50;
 /**

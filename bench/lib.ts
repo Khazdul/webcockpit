@@ -100,8 +100,14 @@ export interface OpenOptions {
   counters?: boolean;
 }
 
-/** `panes.map.on` as a settings patch: every run sets it explicitly. */
-export const mapSetting = (on: boolean) => ({ panes: { map: { on } } });
+/**
+ * `panes.map.on` as a settings patch: every run sets it explicitly.
+ * WC_BENCH_TILESET=<id> also picks a map tileset (ADR 0082).
+ */
+export const mapSetting = (on: boolean) => ({
+  panes: { map: { on } },
+  ...(process.env.WC_BENCH_TILESET ? { mapper: { tileset: process.env.WC_BENCH_TILESET } } : {}),
+});
 
 /** Opens the `?bench` page in a fresh context at the target's geometry. Close with `page.context().close()`. */
 export async function openBench(t: Target, base: string, o: OpenOptions = {}): Promise<Page> {
