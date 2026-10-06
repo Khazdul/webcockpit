@@ -1,6 +1,6 @@
 # Progress
 
-Current stage: 22 (map tilesets; released 0.1.51, owner testing; phone step after release). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Current stage: 22 (map tilesets) done, released 0.1.51. Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -27,13 +27,19 @@ Current stage: 22 (map tilesets; released 0.1.51, owner testing; phone step afte
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
 | 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
 | 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
-| 22 | Map tilesets | Owner testing | `docs/stages/22-tilesets.md` |
+| 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-06 — Stage 22 closed
+
+- **Owner:** Shimrod set on the phone works well, no lag. Stage 22 done.
+- **Also:** Discord post for 0.1.49 → 0.1.51 drafted with the owner.
+- **Commits:** this one.
 
 ### 2026-10-06 — Stage 22 round 1, release 0.1.51
 

@@ -127,3 +127,10 @@ some area?
 - Otherwise approved. Step 5 (phone) after release.
 
 Status: both done.
+
+### Round 2 (2026-10-06)
+
+- Phone (step 5) on 0.1.51: a Shimrod set works well, no lag or change
+  in performance. The 256² cap stays on phones too.
+
+Status: stage 22 done.
