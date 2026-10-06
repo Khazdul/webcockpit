@@ -94,11 +94,11 @@ const INTRO: readonly HelpSection[] = [
     text: [
       'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
       'LITE is a simplified view where you can edit your settings.',
-      'EDITOR lets you edit the whole settings file directly (experienced users). Ctrl+F finds and Ctrl+H replaces there; in LITE they switch to EDITOR first. In this manual Ctrl+F finds too.',
+      'EDITOR lets you edit the whole settings file directly (experienced users). Ctrl+F finds and Ctrl+H replaces there; in LITE they switch to EDITOR first. ESC saves your changes and goes back. In this manual Ctrl+F finds too.',
       'What is different from tt++ here:',
       '- Every command sent to the game is echoed in the game window. Write game commands as they are; no echo helper is needed.',
       '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',
-      '- Some scripting commands are not supported yet. They are listed at the end.',
+      '- Some tt++ commands (#foreach, #while, #function …) are not supported yet. They are listed at the end.',
       'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
       'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
       `The TinTin++ manual describes the language in full: ${MANUAL_URL}`,
@@ -173,8 +173,8 @@ const BASICS: readonly HelpSection[] = [
     topics: ['patterns'],
     text: [
       'A Pattern is text to look for anywhere in a line, with upper and lower case as written. ^ first ties it to the start of the line, $ last ties it to the end.',
-      'Wildcards: %1 … %99 match any text and keep it as that argument. %* any text, %+ at least one character, %? at most one, %. exactly one. %d digits, %w letters and digits, %s spaces, %S anything but spaces. %+1..d is one digit or more, %+2..4d two to four, %+3d exactly three.',
-      '{orc|troll} is a regular expression: either word. Wildcards other than %N fill the next free argument. %i at the end makes the whole Pattern ignore case. \\ before a character matches that character itself.',
+      'Wildcards: %1 … %99 match any text and keep it as that argument. %* any text, %+ at least one character, %? at most one, %. exactly one. %d digits, %D anything but digits, %w letters and digits, %W anything but letters and digits, %s spaces, %S anything but spaces, %a any text (as %*). %+1..d is one digit or more, %+2..4d two to four, %+3d exactly three.',
+      '{orc|troll} is a regular expression: either word. Wildcards other than %N fill the next free argument; with ! after the % (%!d, %!*) they match without keeping the text. %i at the end makes the whole Pattern ignore case. \\ before a character matches that character itself.',
       'A $variable in a Pattern is read each time a line is checked.',
     ],
     examples: [
@@ -219,15 +219,20 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Colours',
     topics: ['colours', 'colors'],
     text: [
-      'In #showme and in New text: <Frrggbb> sets the text colour and <Brrggbb> the background, in hex (<Fff8800> is orange; <Frgb> is the short form). <099> goes back to the default colours.',
-      'The three-digit tt++ codes work too, <abc>: a is 0 reset, 1 bold, 3 italic, 4 underline, 5 blink, 7 reverse, 8 keep; b is the text colour and c the background: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, 8 keep, 9 default.',
-      '#highlight takes colour names: black red green yellow blue magenta cyan white. A capital letter or the word light makes it bright (Red, light red). b red sets the background. Styles: underscore, blink, reverse, bold, italic. A colour code works as well.',
+      'In #showme, in New text and in #highlight: <Frrggbb> sets the text colour and <Brrggbb> the background, in hex (<Fff8800> is orange; <Frgb> is the short form). <099> goes back to the default colours.',
+      'The three-digit tt++ codes work too, such as <148>: the first digit is 0 reset, 1 bold, 3 italic, 4 underline, 5 blink, 7 reverse, 8 keep; the second is the text colour and the third the background: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, 8 keep, 9 default.',
+      'Three letters a to f pick one of the 256 colours: <aaa> to <fff> for the text, <AAA> to <FFF> for the background (<faa> is red). <g00> to <g23> are greys from dark to light, <G00> to <G23> as background.',
+      '#highlight takes colour names: black red green yellow blue magenta cyan white. A capital letter or the word light (or bright) makes it bright (Red, light red); dark keeps it normal (dark Red). b, bg or background before a colour sets the background (b red). Styles: underscore (or underline), blink, reverse, bold, italic. reset means the default colours. A colour code works as well.',
       'Bold is drawn in a heavier weight. With Options → Appearance → Bold brightens colours on, bold text in one of the eight basic colours, or in the default colour, is also shown bright, as in xterm.',
     ],
     examples: [
       {
         code: '#alias {ready} {#showme {<Fffcc00>## READY <148>now<099> go}}',
         check: { type: ['ready'], shows: ['## READY now go'] },
+      },
+      {
+        code: '#alias {warn} {#showme {<faa>## WARNING<g12> look behind you<099>}}',
+        check: { type: ['warn'], shows: ['## WARNING look behind you'] },
       },
       {
         code: '#highlight {You are hungry.} {light yellow}\n#highlight {*BASH*} {bold Red b blue}\n#highlight {sanctuary} {<Fff8800>}',
@@ -256,7 +261,7 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Typing commands',
     topics: ['typing'],
     text: [
-      'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. ESC → Profile shows the same entries, see What is saved.',
+      'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. So is a typed #message setting. ESC → Profile shows the same entries, see What is saved.',
       'A typed command is confirmed with one row in the game window: the entry as it stands in the profile, or what happened to it (removed, not found). Commands run by an alias, action, macro or timer are not confirmed, and neither is a profile while it loads. #message switches the confirmations off, one kind at a time.',
       'Typed without Commands, a command lists what exists, in the same form: #alias shows all aliases, #alias {k*} those starting with k, #variable all variables, #ticker and #delay the running timers.',
       '#3 north repeats a command (at most 100 times). When typing, braces may be left out around single words (#var target orc); the profile gets the line with all its braces.',
@@ -274,7 +279,7 @@ const BASICS: readonly HelpSection[] = [
     topics: ['saved'],
     text: [
       'The profile text is what is saved, and it is what runs: the entries you see in the editor are the ones in the game.',
-      'Typed on the input line: a definition is saved at once. It is added to the profile, or it replaces the entry with the same Pattern, name or Key. An #un… command removes the entry. A variable is saved with the value it got. Nothing else in the profile changes.',
+      'Typed on the input line: a definition is saved at once. It is added to the profile, or it replaces the entry with the same Pattern, name or Key. An #un… command removes the entry. A variable is saved with the value it got, and #message with what it switched off. Nothing else in the profile changes.',
       'Made by Commands (of an alias, action, macro, ticker or event): lasts for the session, so an alias that arms a temporary action does not fill the profile. One exception: when Commands change a variable that has its own #variable line at the top level of the profile, the new value is written to that line. setVariable in a Lua script follows the same rule.',
       '#delay is never saved. #class open and close are not saved: an entry typed while a class is open is saved as an ordinary entry. Nothing is saved in offline replay mode. When a typed line cannot be saved, a [SYSTEM] line says so.',
     ],
@@ -298,7 +303,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['action', 'unaction'],
     syntax: ['#action {pattern} {commands} {priority}', '#unaction {pattern}'],
     text: [
-      'Runs Commands when a line from the game matches Pattern. Every matching action runs. Actions see the line as the game sent it, before substitutes and gags, and they also see #showme lines, except the ones their own Commands print: #action {key: %1} {#showme {%0}} does not loop. They run on complete lines, not on the prompt.',
+      'Runs Commands when a line from the game matches Pattern. Every matching action runs. Actions see the line as the game sent it, before substitutes and gags, and they also see #showme lines, except the ones their own Commands print: #action {key: %1} {#showme {%0}} does not loop. They run on every complete line, the prompt included, but not on a line that is still arriving.',
       '#unaction removes one by its Pattern; a * matches any text.',
     ],
     examples: [
@@ -476,7 +481,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['format'],
     syntax: ['#format {variable} {format} {argument} {argument} …'],
     text: [
-      'Builds a text and stores it in a variable. Each code in the format takes the next argument: %s text, %d whole number, %f number with decimals (%.1f), %u upper case, %l lower case, %n first letter capital, %L length. %t is the time now (HH:MM:SS).',
+      'Builds a text and stores it in a variable. Each code in the format takes the next argument: %s text, %d whole number, %f number with decimals (%.1f), %x hexadecimal (%X in capitals), %c the character with that code, %u upper case, %l lower case, %n first letter capital, %r reversed, %L length. %t is the time now (HH:MM:SS), %T the seconds since 1970 and %U the microseconds; these take no argument.',
       'A number sets the width: %-8s pads on the right, %8s on the left. Inside Commands a code that starts with a digit needs %% (%%8s, %%03d), because %8 alone is an argument.',
     ],
     examples: [
@@ -524,10 +529,10 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     group: 'commands',
     heading: '#highlight',
     covers: ['highlight', 'unhighlight'],
-    syntax: ['#highlight {pattern} {color} {priority}', '#unhighlight {pattern}'],
+    syntax: ['#highlight {pattern} {colour} {priority}', '#unhighlight {pattern}'],
     text: [
       'Colours the text that matches Pattern in the game window, every time it occurs in a line. Only the matched text is coloured: a Pattern that covers the line (^%1 tells you %2) colours the whole line.',
-      'Color is colour names or a colour code, see Colours. Highlights are applied after substitutes, in priority order; where two overlap, the later one wins.',
+      'Colour is colour names or a colour code, see Colours. Highlights are applied after substitutes, in priority order; where two overlap, the later one wins.',
     ],
     examples: [
       {

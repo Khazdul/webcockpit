@@ -596,7 +596,7 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
   // A click puts the heading on the manual's top row and focuses the menu.
   await menuEntry(page, '#highlight').click();
   await expectTop(page, '#highlight');
-  await expectTop(page, '#highlight {pattern} {color} {priority}', 1);
+  await expectTop(page, '#highlight {pattern} {colour} {priority}', 1);
   await expect(ped(page)).toHaveAttribute('data-zone', 'menu');
   await expect(menuCurrent(page)).toHaveText(/^ #highlight\s*$/);
   await expect(menuCurrent(page)).toHaveClass(/is-cur-focus/);
