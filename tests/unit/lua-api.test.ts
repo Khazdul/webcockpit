@@ -110,7 +110,7 @@ describe('completion', () => {
     }
     expect(names(completeLua('math.'))).toHaveLength(27);
     expect(names(completeLua('math.'))).toContain('math.ult');
-    expect(names(completeLua('gmcp.'))).toEqual(['gmcp.Char', 'gmcp.Comm', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room']);
+    expect(names(completeLua('gmcp.'))).toEqual(['gmcp.Char', 'gmcp.Client', 'gmcp.Comm', 'gmcp.Core', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room']);
     expect(names(completeLua('local v = gmcp.Char.'))).toEqual(['gmcp.Char.Name', 'gmcp.Char.Vitals', 'gmcp.Char.StatusVars']);
     expect(names(completeLua('gmcp.Comm.Channel.T'))).toEqual(['gmcp.Comm.Channel.Text']);
     expect(names(completeLua('gmcp.char.v'))).toEqual(['gmcp.Char.Vitals']);
@@ -170,7 +170,7 @@ describe('completion', () => {
       const start = path.indexOf('=') >= 0 ? 5 : 1;
       for (let i = path.length; i >= start; i--) expect(completeLua(path.slice(0, i)), path.slice(0, i)).not.toBeNull();
     }
-    expect(names(completeLua('gmcp.'))).toHaveLength(5);
+    expect(names(completeLua('gmcp.'))).toHaveLength(7);
     expect(names(completeLua('x:'))!.length).toBeGreaterThan(10);
   });
 

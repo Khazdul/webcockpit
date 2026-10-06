@@ -1211,7 +1211,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     "The last GMCP data from MUME, as in Mudlet: gmcp.Char.Vitals.hp, gmcp.Room.Info.name … (read-only).",
     {
       more: [
-        'Char.Vitals and Char.StatusVars merge key by key into their last value, since MUME sends only what changed; a JSON null removes a key. Every other message replaces its last value (Group.Update is one member: read the group from state.group). GMCP from before the first script loaded is there; the table is cleared when a new connection starts. Names with a dash need brackets: gmcp.Char.Vitals["hp-string"].',
+        'Char.Vitals and Char.StatusVars merge key by key into their last value, since MUME sends only what changed; a JSON null removes a key. Every other message replaces its last value (Group.Update is one member: read the group from state.group). A JSON null field is left out (nil); false is kept. Group.Remove and Room.Chars.Remove are bare numbers, an id. GMCP from before the first script loaded is there; the table is cleared when a new connection starts. Names with a dash need brackets: gmcp.Char.Vitals["hp-string"].',
         "A package that has not arrived is nil: test gmcp.Char before you read gmcp.Char.Vitals outside a GMCP handler.",
       ],
       example:
@@ -1414,26 +1414,40 @@ const FIELDS: Readonly<Record<string, Field>> = {
           StatusVars: msg("Char.StatusVars", "the status variables, merged key by key"),
         },
       },
+      Client: {
+        doc: "GMCP package Client: GUI, Map. Sent before the login without a subscription.",
+        kids: {
+          GUI: msg("Client.GUI", "version, url"),
+          Map: msg("Client.Map", "url"),
+        },
+      },
       Comm: {
         doc: "GMCP package Comm: Channel.",
         kids: {
           Channel: {
             doc: "GMCP package Comm.Channel: List, Text.",
             kids: {
-              List: msg("Comm.Channel.List", "the channels"),
+              List: msg("Comm.Channel.List", "a list of channels, each with name, caption, command"),
               Text: msg("Comm.Channel.Text", "channel, talker, text"),
             },
           },
+        },
+      },
+      Core: {
+        doc: "GMCP package Core: Ping, Goodbye.",
+        kids: {
+          Ping: msg("Core.Ping", "no body; about every 10 s, as WebCockpit pings to keep the link up"),
+          Goodbye: msg("Core.Goodbye", "MUME closes the link, sometimes with a text"),
         },
       },
       Event: {
         doc: "GMCP package Event: world events.",
         kids: {
           Achieved: msg("Event.Achieved", "an achievement"),
-          Darkness: msg("Event.Darkness", "darkness"),
-          Moon: msg("Event.Moon", "the moon"),
-          Moved: msg("Event.Moved", "you moved"),
-          Sun: msg("Event.Sun", "the sun"),
+          Darkness: msg("Event.Darkness", "what is start, grow, shrink, end-soon or end"),
+          Moon: msg("Event.Moon", "what is rise or set"),
+          Moved: msg("Event.Moved", "you moved, dir"),
+          Sun: msg("Event.Sun", "what is light, rise, set or dark"),
         },
       },
       Group: {
@@ -1442,20 +1456,21 @@ const FIELDS: Readonly<Record<string, Field>> = {
           Set: msg("Group.Set", "the whole group"),
           Add: msg("Group.Add", "one member who joined"),
           Update: msg("Group.Update", "one member who changed"),
-          Remove: msg("Group.Remove", "one member who left"),
+          Remove: msg("Group.Remove", "the id of one member who left, a number"),
         },
       },
       Room: {
-        doc: "GMCP package Room: Info, Chars.",
+        doc: "GMCP package Room: Info, UpdateExits, Chars.",
         kids: {
-          Info: msg("Room.Info", "the room's id, name, exits …"),
+          Info: msg("Room.Info", "id, area, name, desc, environment, exits (id, name, flags)"),
+          UpdateExits: msg("Room.UpdateExits", "the changed exits, by direction (id, name, flags)"),
           Chars: {
             doc: "GMCP package Room.Chars: the characters in the room.",
             kids: {
               Set: msg("Room.Chars.Set", "the list of the characters in the room"),
               Add: msg("Room.Chars.Add", "one character who came"),
               Update: msg("Room.Chars.Update", "the changed fields of one character"),
-              Remove: msg("Room.Chars.Remove", "the id of one character who left"),
+              Remove: msg("Room.Chars.Remove", "the id of one character who left, a number"),
             },
           },
         },

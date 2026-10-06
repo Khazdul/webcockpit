@@ -313,7 +313,7 @@ test('a colon opens the string methods; gmcp. and state. list their levels', asy
   await page.keyboard.press('End');
   await page.keyboard.press('Enter');
   await page.keyboard.type('v = gmcp.');
-  await expect(list(page).locator('li')).toHaveText([/^gmcp\.Char/, /^gmcp\.Comm/, /^gmcp\.Event/, /^gmcp\.Group/, /^gmcp\.Room/]);
+  await expect(list(page).locator('li')).toHaveText([/^gmcp\.Char/, /^gmcp\.Client/, /^gmcp\.Comm/, /^gmcp\.Core/, /^gmcp\.Event/, /^gmcp\.Group/, /^gmcp\.Room/]);
   await page.keyboard.type('Char.');
   await expect(list(page).locator('li')).toHaveText([/^gmcp\.Char\.Name/, /^gmcp\.Char\.StatusVars/, /^gmcp\.Char\.Vitals/]);
   await page.keyboard.press('End');
@@ -389,7 +389,7 @@ const press = (key: string, times = 1): Step => ({ press: key, times });
 const CASES: Case[] = [
   {
     name: 'gmcp.comm.channel.li backspaced to gmcp.',
-    steps: [{ type: 'v = gmcp.comm.channel.li' }, press('Backspace', 15), { list: ['gmcp.Char', 'gmcp.Comm', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room'] }],
+    steps: [{ type: 'v = gmcp.comm.channel.li' }, press('Backspace', 15), { list: ['gmcp.Char', 'gmcp.Client', 'gmcp.Comm', 'gmcp.Core', 'gmcp.Event', 'gmcp.Group', 'gmcp.Room'] }],
   },
   {
     name: 'string.form backspaced to string. and str',

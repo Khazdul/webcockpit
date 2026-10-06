@@ -12,8 +12,9 @@
 //   `Char.StatusVars`, which MUME sends as partial updates of one object
 //   (a Char.Vitals with just `hp`). A JSON `null` removes the key.
 // - Replaced: everything else. These are complete snapshots (`Char.Name`,
-//   `Room.Info`, `Group.Set`, `Comm.Channel.List`) or one entity or event
-//   per message (`Group.Add/Update/Remove`, `Room.Chars.*`,
+//   `Room.Info`, `Group.Set`, `Room.Chars.Set`, `Comm.Channel.List`) or one
+//   entity, change or event per message (`Group.Add/Update/Remove`,
+//   `Room.Chars.Add/Update/Remove`, `Room.UpdateExits`,
 //   `Comm.Channel.Text`, `Event.*`, `Core.*`), so merging would mix
 //   different members, rooms or messages.
 // - The cache is cleared when a new connection starts (`connecting`).
