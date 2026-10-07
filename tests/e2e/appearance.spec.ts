@@ -51,6 +51,8 @@ test('custom caret follows the text column and restyles live', async ({ page }) 
 
   // The blink is a timer toggling a class (ADR 0044 rule 1): no animation
   // runs anywhere on the page, on the caret or elsewhere.
+  // The map loading overlay's transitions (ADR 0083) are transient; let it finish.
+  await expect(page.locator('.wc-map-loading')).toBeHidden({ timeout: 20_000 });
   const off = /wc-caret-off/;
   await expect(caret).toHaveClass(off);
   await expect(caret).not.toHaveClass(off);
