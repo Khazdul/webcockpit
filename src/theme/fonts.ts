@@ -473,6 +473,24 @@ function wholePx(adv: number, size: number): number {
   return Math.max(1, Math.round(size));
 }
 
+/**
+ * The regular face of the stack's fallback family (`FALLBACK`), which
+ * draws what the selected family lacks (the banner's `✧`, the footer's
+ * arrows in most families). Its file loads only when such a glyph is
+ * first laid out, and with `font-display: block` a face that is loading
+ * hides all text of the same style, not only the glyphs it draws: on a
+ * slow link the start page's regular rows stayed blank while the bold
+ * `<< Enter MUME >>` showed (ADR 0083). So it is preloaded and waited
+ * for with the selected family.
+ */
+const FALLBACK_FACE: FontFaceFile = { family: 'DejaVu Sans Mono', weight: 'normal', file: FONTS.dejavu.regular!, text: '✧' };
+
+/** `fontFiles(id)` and the fallback family's regular face: what a first render of `id` loads. */
+export function renderFaces(id: FontId): FontFaceFile[] {
+  const faces = fontFiles(id);
+  return faces.some((f) => f.file === FALLBACK_FACE.file) ? faces : [...faces, FALLBACK_FACE];
+}
+
 /** URL of a font file (respects Vite's `base`). */
 export function fontUrl(file: string): string {
   const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/';
@@ -481,12 +499,13 @@ export function fontUrl(file: string): string {
 
 /**
  * Adds `<link rel=preload>` for the files that render `id` (its regular
- * and bold and its glyph faces), once per file. Call before the first
+ * and bold, its glyph faces and the fallback face, `renderFaces`), once
+ * per file. Call before the first
  * render; only the selected family. A local-only family has nothing to
  * preload but its fill face.
  */
 export function preloadFont(id: FontId, doc: Document = document): void {
-  for (const { file } of fontFiles(id)) {
+  for (const { file } of renderFaces(id)) {
     if (!file) continue;
     const href = fontUrl(file);
     if (doc.head.querySelector(`link[rel="preload"][href="${href}"]`)) continue;
@@ -501,15 +520,15 @@ export function preloadFont(id: FontId, doc: Document = document): void {
 }
 
 /**
- * Resolves when the faces that render `id` are loaded (or failed to load;
- * never rejects). Resolves at once where the Font Loading API is missing.
+ * Resolves when the faces that render `id` (`renderFaces`) are loaded (or
+ * failed to load; never rejects). Resolves at once where the Font Loading API is missing.
  */
 export async function loadFont(id: FontId, sizePx: number, doc: Document = document): Promise<void> {
   const fonts = (doc as Document & { fonts?: FontFaceSet }).fonts;
   if (!fonts?.load) return;
   try {
     await Promise.all(
-      fontFiles(id).map((f) => fonts.load(`${f.weight === 'bold' ? 'bold ' : ''}${sizePx}px "${f.family}"`, f.text)),
+      renderFaces(id).map((f) => fonts.load(`${f.weight === 'bold' ? 'bold ' : ''}${sizePx}px "${f.family}"`, f.text)),
     );
   } catch {
     /* fall back to whatever the browser has */

@@ -1,7 +1,9 @@
-// Boot loader helpers (ADR 0083): the font gate, the reveal stagger and the
+// Boot loader helpers (ADR 0083): the font gate, the faces the start waits for and the
 // no-op loader calls where index.html's loader is absent.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { REVEAL_SPAN_MS, bootDone, bootQuote, bootStep, gate, revealDelay, takeBootBanner } from '../../src/app/boot-progress';
+import { bootDone, bootQuote, bootStep, gate, takeBootBanner } from '../../src/app/boot-progress';
+import type { FontId } from '../../src/settings/types';
+import { FONTS, fontFiles, renderFaces } from '../../src/theme/fonts';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -31,17 +33,12 @@ describe('gate', () => {
   });
 });
 
-describe('revealDelay', () => {
-  it('runs from 0 at the top to the span at the bottom', () => {
-    expect(revealDelay(0, 600)).toBe(0);
-    expect(revealDelay(300, 600)).toBe(Math.round(REVEAL_SPAN_MS / 2));
-    expect(revealDelay(600, 600)).toBe(REVEAL_SPAN_MS);
-  });
-
-  it('clamps rows outside the page and an empty page', () => {
-    expect(revealDelay(-20, 600)).toBe(0);
-    expect(revealDelay(900, 600)).toBe(REVEAL_SPAN_MS);
-    expect(revealDelay(10, 0)).toBe(0);
+describe('renderFaces', () => {
+  it('adds the fallback family\'s regular face to the selected family\'s', () => {
+    const files = (id: FontId): (string | undefined)[] => renderFaces(id).map((f) => f.file);
+    expect(files('hack')).toEqual([FONTS.hack.regular, FONTS.hack.bold, FONTS.dejavu.regular]);
+    // DejaVu itself: no duplicate.
+    expect(files('dejavu')).toEqual(fontFiles('dejavu').map((f) => f.file));
   });
 });
 

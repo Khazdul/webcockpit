@@ -3,6 +3,7 @@
 // `/` never connects until Enter MUME.
 import { type Page, type Route, expect, test } from '@playwright/test';
 import { holdChrome, wordmarkClips } from './first-paint';
+import { NO_STATE } from './legacy-state';
 
 const rows = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow');
 
@@ -85,7 +86,7 @@ test('the banner is painted before the app loads, and the app banner takes its p
   for (let i = 0; i < clips.length; i++) expect(after[i]!.equals(before[i]!), `wordmark part ${i}`).toBe(true);
 });
 
-test('the menu fades in over about 2 s, the banner does not', async ({ page }) => {
+test('the menu fades in as one block over about 1.35 s, the banner does not', async ({ page }) => {
   const release = await holdChrome(page);
   await page.goto('/', { waitUntil: 'commit' });
   await expect(page.locator('#wc-first .wcf-banner')).toHaveCount(1);
@@ -95,14 +96,15 @@ test('the menu fades in over about 2 s, the banner does not', async ({ page }) =
     document.getAnimations().map((a) => {
       const t = (a.effect as KeyframeEffect).getComputedTiming();
       const el = (a.effect as KeyframeEffect).target as HTMLElement;
-      return { end: Number(t.endTime), duration: Number(t.duration), banner: el.classList.contains('wc-banner'), loader: el.id === 'wc-boot' };
+      return { end: Number(t.endTime), delay: Number(t.delay), banner: el.classList.contains('wc-banner'), loader: el.id === 'wc-boot' };
     }).filter((f) => !f.loader),
   );
   expect(fades.length).toBeGreaterThan(5);
   expect(fades.some((f) => f.banner)).toBe(false);
-  expect(Math.max(...fades.map((f) => f.end))).toBeGreaterThanOrEqual(1800);
-  expect(Math.max(...fades.map((f) => f.end))).toBeLessThanOrEqual(2200);
-  expect(Math.min(...fades.map((f) => f.duration))).toBeGreaterThanOrEqual(1000);
+  // All together: no row starts after another (a stagger made the top row lead).
+  for (const f of fades) expect(f).toMatchObject({ delay: 0, end: fades[0]!.end });
+  expect(fades[0]!.end).toBeGreaterThanOrEqual(1250);
+  expect(fades[0]!.end).toBeLessThanOrEqual(1450);
 });
 
 test('after the reveal every menu row is shown in full', async ({ page }) => {
@@ -128,6 +130,71 @@ test('slow fonts: the menu waits for both the regular and the bold face, then sh
   expect(r).toMatchObject({ early: false, regular: true, bold: true, loaderSeen: true });
   expect(log.map((l) => l.file).sort()).toEqual(['/fonts/DejaVuSansMono-Bold.woff2', '/fonts/DejaVuSansMono.woff2']);
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+});
+
+/**
+ * Records per frame, in the page, every menu row's effective opacity (its
+ * own and its ancestors'), and the font faces still loading.
+ */
+async function sampleRows(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    type S = { ready: boolean; rows: number[]; sel: number; loading: string[] };
+    const log: S[] = [];
+    (window as unknown as { __rows: S[] }).__rows = log;
+    const eff = (el: Element): number => {
+      let o = 1;
+      for (let e: Element | null = el; e && e !== document.documentElement; e = e.parentElement) o *= Number(getComputedStyle(e).opacity);
+      return o;
+    };
+    let readyAt = 0;
+    const tick = (): void => {
+      const rows = [...document.querySelectorAll('.wc-start-main .wc-mrow')];
+      const ready = document.documentElement.dataset.wcBoot === 'ready';
+      if (rows.length) {
+        log.push({
+          ready,
+          rows: rows.map(eff),
+          sel: rows.findIndex((r) => r.classList.contains('is-sel')),
+          loading: [...document.fonts].filter((f) => f.status === 'loading').map((f) => `${f.family} ${f.weight}`),
+        });
+      }
+      if (ready && !readyAt) readyAt = performance.now();
+      if (!readyAt || performance.now() - readyAt < 2500) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+test.describe('a new install (Hack, with the DejaVu fallback face)', () => {
+  test.use({ storageState: NO_STATE });
+
+  // Owner, stage 24 rounds 1 and 2: on Regular 3G `<< Enter MUME >>` showed
+  // first and the other rows came later. The fallback face (DejaVu Sans
+  // Mono, for glyphs Hack lacks) began loading only when the start page
+  // was laid out, after the gate; while it loaded, font-display: block hid
+  // every regular-weight text, so only the bold selected row (and the
+  // italic quote) faded in.
+  test('slow fallback face: no row shows before the others, at any moment', async ({ page }) => {
+    const log: { file: string; at: number }[] = [];
+    await sampleRows(page);
+    await delayFont(page, /\/fonts\/DejaVuSansMono\.woff2$/, 2500, log);
+    await page.goto('/', { waitUntil: 'commit' });
+    // Not a pixel check: Playwright's screenshots wait for the fonts, so they never show the hidden rows.
+    await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready', { timeout: 15_000 });
+    await revealed(page);
+    const samples = await page.evaluate(() => (window as unknown as { __rows: { ready: boolean; rows: number[]; sel: number; loading: string[] }[] }).__rows);
+    expect(log.map((l) => l.file)).toContain('/fonts/DejaVuSansMono.woff2');
+    expect(samples.length).toBeGreaterThan(20);
+    for (const s of samples) {
+      const top = Math.max(...s.rows);
+      if (!s.ready) expect(top, 'a menu row before the reveal').toBe(0);
+      // The selected row (or any row) never leads the others.
+      expect(top - Math.min(...s.rows), `rows ${s.rows.join(' ')}, selected ${s.sel}`).toBeLessThanOrEqual(0.02);
+      // A face still loading hides all text of its style: none while the rows are on screen.
+      if (top > 0) expect(s.loading, 'a font face loading while the menu shows').toEqual([]);
+    }
+    expect(samples.some((s) => s.ready && Math.max(...s.rows) > 0 && Math.max(...s.rows) < 1)).toBe(true);
+  });
 });
 
 test.describe('reduced motion', () => {

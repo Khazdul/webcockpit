@@ -136,7 +136,8 @@ test('appearance applies live and persists; ?safe starts with defaults', async (
   expect(await rootVar(page, '--font-size')).toBe('20px');
   expect(await rootVar(page, '--font-mono')).toContain('JetBrains Mono');
   expect(await page.locator('link[rel=preload][href*="JetBrainsMono"]').count()).toBe(2);
-  expect(await page.locator('link[rel=preload][href*="DejaVu"]').count()).toBe(0);
+  // DejaVu only as the stack's fallback face (its regular, ADR 0083), not as the font.
+  expect(await page.locator('link[rel=preload][href*="DejaVu"]').evaluateAll((ls) => ls.map((l) => new URL((l as HTMLLinkElement).href).pathname))).toEqual(['/fonts/DejaVuSansMono.woff2']);
 
   // Safe mode: the defaults of a new install (Hack 17, ADR 0078), not the stored look.
   await open(page, '?replay&safe');

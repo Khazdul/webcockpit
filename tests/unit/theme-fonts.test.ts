@@ -82,11 +82,11 @@ describe('Lucida Console where it is installed', () => {
     expect(bundledFont('lucida')).toBe('dejavu');
   });
 
-  it('preloads only the bundled fill face, never a URL for Lucida itself', () => {
+  it('preloads only the bundled fill face and the DejaVu fallback, never a URL for Lucida itself', () => {
     setFontInstalled('lucida', true);
     preloadFont('lucida');
     const hrefs = [...document.head.querySelectorAll('link[rel="preload"]')].map((l) => l.getAttribute('href'));
-    expect(hrefs).toEqual(['/fonts/WebCockpitFill-LC.woff2']);
+    expect(hrefs).toEqual(['/fonts/WebCockpitFill-LC.woff2', '/fonts/DejaVuSansMono.woff2']);
   });
 });
 
