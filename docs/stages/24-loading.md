@@ -165,3 +165,10 @@ pops in piece by piece.
 Diagnosis: the font gate's 4 s safety timeout (`FONT_GATE_MS`) fires
 before the font files arrive on 3G, so the reveal ran unguarded; the
 reveal's 160 ms per row is too short to notice.
+
+### Round 2 (2026-10-07)
+
+1. Regular 3G: `<< Enter MUME >>` still shows first, then the other
+   rows fade in.
+2. Regular 4G and unthrottled: looks good.
+3. Shorten the fade by about a third.
