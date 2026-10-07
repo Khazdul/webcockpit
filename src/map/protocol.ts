@@ -99,7 +99,9 @@ export interface TilesetOverlay {
 
 /**
  * A map to load.
- * - `url`: a `.mm2` file to fetch (the bundled `arda.mm2`).
+ * - `url`: a `.mm2` file to fetch (the bundled `arda.mm2`). `size`: its
+ *   decoded size if known, the progress total when the response has no
+ *   usable Content-Length (content-encoded; ADR 0083).
  * - `bytes`: a `.mm2` file in memory (an import, or the subset an HTML
  *   replay embeds; transfer the buffer). `name` is shown in status text.
  * - `data`: an already parsed map (structured clone of `MapData`; e.g. a
@@ -107,7 +109,7 @@ export interface TilesetOverlay {
  *   rebuilt by the worker, so they may be left empty.
  */
 export type MapSource =
-  | { kind: 'url'; url: string; name?: string }
+  | { kind: 'url'; url: string; name?: string; size?: number }
   | { kind: 'bytes'; bytes: ArrayBuffer; name: string }
   | { kind: 'data'; map: MapData; name: string };
 

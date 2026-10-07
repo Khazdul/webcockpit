@@ -365,7 +365,7 @@ export class MapWorkerCore {
             m.bytes = n;
             m.total = total;
             this.postProgress();
-          });
+          }, source.size);
           name = source.name ?? decodeURIComponent(source.url.split('/').pop() ?? source.url);
         } else {
           bytes = new Uint8Array(source.bytes);

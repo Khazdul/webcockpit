@@ -134,9 +134,25 @@ function gitCommit(): string {
 /** Set by the config function: the commit `vite build` embeds (`dev` when serving). */
 let buildCommit = 'dev';
 
+/**
+ * Size of the bundled map (src/map/store.ts BUNDLED_MAP_BYTES): the byte
+ * progress total when the host serves it content-encoded (ADR 0083).
+ */
+function bundledMapBytes(): number {
+  try {
+    return statSync(fileURLToPath(new URL('./public/map/arda.mm2', import.meta.url))).size;
+  } catch {
+    return 0;
+  }
+}
+
 /** `define` of the app and the replay bundle (src/core/build-info.ts). */
 function defines(): Record<string, string> {
-  return { __WC_VERSION__: JSON.stringify(pkg.version), __WC_COMMIT__: JSON.stringify(buildCommit) };
+  return {
+    __WC_VERSION__: JSON.stringify(pkg.version),
+    __WC_COMMIT__: JSON.stringify(buildCommit),
+    __WC_MAP_BYTES__: JSON.stringify(bundledMapBytes()),
+  };
 }
 // Preact JSX for the chrome (src/chrome, ADR 0013).
 const oxc = { jsx: { runtime: 'automatic', importSource: 'preact' } } as const;

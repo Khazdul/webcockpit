@@ -18,6 +18,7 @@
 // Other tabs are not told about an import; they pick it up on reload.
 
 import { STORE, type StoredMap, idbDone, idbRequest } from '../core/db';
+import { BUNDLED_MAP_BYTES } from './progress';
 import type { MapPaneHost, MapSource } from './protocol';
 import type { MapValidated } from './tools';
 
@@ -31,7 +32,7 @@ export function mapAssetBase(): string {
 
 /** The bundled map as a source. */
 export function bundledMapSource(base = mapAssetBase()): MapSource {
-  return { kind: 'url', url: `${base}${BUNDLED_MAP_FILE}`, name: BUNDLED_MAP_FILE };
+  return { kind: 'url', url: `${base}${BUNDLED_MAP_FILE}`, name: BUNDLED_MAP_FILE, ...(BUNDLED_MAP_BYTES > 0 ? { size: BUNDLED_MAP_BYTES } : {}) };
 }
 
 /** What Options → Mapper shows. */

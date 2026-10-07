@@ -69,6 +69,7 @@ import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
 import { type PinchPoint, pinchStep } from '../map/pinch';
+import { BUNDLED_MAP_BYTES } from '../map/progress';
 import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
 import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
 import { MapHover } from './map-hover';
@@ -86,7 +87,8 @@ export function defaultMapHost(): MapPaneHost {
     return { source: () => null, assets: { kind: 'inline', files: {} } };
   }
   const base = `${import.meta.env.BASE_URL}map/`;
-  return { source: () => ({ kind: 'url', url: `${base}arda.mm2`, name: 'arda.mm2' }), assets: { kind: 'base', url: base } };
+  const size = BUNDLED_MAP_BYTES > 0 ? { size: BUNDLED_MAP_BYTES } : {};
+  return { source: () => ({ kind: 'url', url: `${base}arda.mm2`, name: 'arda.mm2', ...size }), assets: { kind: 'base', url: base } };
 }
 
 /** Why the map cannot run here, or null. */
