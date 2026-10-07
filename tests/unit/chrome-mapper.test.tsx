@@ -99,10 +99,10 @@ describe('Options → Mapper', () => {
     await act(() => page.show());
     await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
     await click(host, 'panes');
-    expect(labels(host)).toEqual(['General', 'Timers', 'Communication', 'Group', 'Back']);
+    expect(labels(host)).toEqual(['Appearance', 'Timers', 'Communication', 'Group', 'Back']);
 
-    // General lists the map pane like the others.
-    await click(host, 'general');
+    // Appearance lists the map pane like the others.
+    await click(host, 'appearance');
     expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
     await key('Escape');
     await key('Escape');
@@ -155,7 +155,7 @@ describe('Options → Mapper', () => {
     ]);
     expect(frame(host).querySelector('.wc-mrow[data-key="bundled"]')!.classList.contains('is-disabled')).toBe(true);
 
-    // Enter on the first row turns the map pane off (the General grid's setting).
+    // Enter on the first row turns the map pane off (the Panes → Appearance grid's setting).
     await key('Enter');
     expect(svc.settings.get().panes.map.on).toBe(false);
     expect(labels(host)[0]).toBe('[ ] Show map pane');

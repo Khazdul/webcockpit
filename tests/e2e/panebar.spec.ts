@@ -331,7 +331,7 @@ test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, c
   await expect(menuTitle(page)).toHaveText('─── Options ───');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
   await expect(page.locator(`.wc-overlay [data-pane-row="${BAR}"]`)).toContainText('Pane bar (panebar)');
   await page.locator('.wc-overlay').getByText('Reset layout').click();
   await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');

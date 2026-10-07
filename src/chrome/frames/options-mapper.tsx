@@ -23,7 +23,7 @@
 // thread) and stores it in IndexedDB; a running Map pane reloads. A bad
 // file flashes the reason and the old map stays. "Use bundled map"
 // deletes the import. The Map pane's on/off is the same setting as its
-// row in Options → Panes → General.
+// row in Options → Panes → Appearance.
 //
 // Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
 // for the located room after its exits line in the game window. Room info
