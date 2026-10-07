@@ -71,8 +71,9 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
 
 ## Tasks
 
-- [ ] A. Static loader in `index.html`, boot progress steps, font gate,
-  fade-in reveal
+- [x] A. Static loader in `index.html`, boot progress steps, font gate,
+  fade-in reveal (ADR 0083; `src/app/boot-progress.ts`,
+  `tests/e2e/loading.spec.ts`)
 - [ ] B. Worker progress messages, map overlay bar, tileset-switch overlay
 - [ ] C. Tests, ADR 0083, test guide
 
