@@ -21,7 +21,8 @@ import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } fr
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
-import { type Quote, randomQuote } from './quotes';
+import { QUOTES, type Quote, randomQuote } from './quotes';
+import { bootQuote } from '../app/boot-progress';
 
 export type { ChromeServices } from './kit/hooks';
 
@@ -162,7 +163,9 @@ export function TooSmall(p: { cols: number; rows: number }): VNode {
 
 /** Mounts the start page into `host` (hidden until `show()`). */
 export function mountStartPage(host: HTMLElement, services: ChromeServices, opts: StartPageOptions): StartPageHandle {
-  const quote = randomQuote(); // once per page load (Inv §3.2)
+  // Once per page load (Inv §3.2); the one the first paint laid out for (ADR 0083).
+  const q = bootQuote();
+  const quote = (q !== null ? QUOTES[q] : undefined) ?? randomQuote();
   let visible = false;
   let epoch = 0;
   const draw = (): void =>

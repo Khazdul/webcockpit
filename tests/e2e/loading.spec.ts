@@ -1,6 +1,8 @@
-// Stage 24 A (ADR 0083): the boot loader in index.html and the start page
-// font gate and reveal. `/` never connects until Enter MUME.
+// Stage 24 A (ADR 0083): the first paint in index.html (the banner and the
+// loading bar), the start page font gate, the hand-over and the reveal.
+// `/` never connects until Enter MUME.
 import { type Page, type Route, expect, test } from '@playwright/test';
+import { holdChrome, wordmarkClips } from './first-paint';
 
 const rows = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow');
 
@@ -24,8 +26,9 @@ async function watchReveal(page: Page): Promise<void> {
     const tick = (): void => {
       const ready = document.documentElement.dataset.wcBoot === 'ready';
       if (document.getElementById('wc-boot')) w.__reveal.loaderSeen = true;
-      const host = document.querySelector<HTMLElement>('.wc-start-host');
-      if (!ready && host && document.querySelector('.wc-mrow') && getComputedStyle(host).opacity !== '0') {
+      // The start page's mount (beside the first paint) is held at opacity 0 until the reveal.
+      const mount = document.querySelector('.wc-mrow')?.closest<HTMLElement>('.wc-start-host > div');
+      if (!ready && mount && getComputedStyle(mount).opacity !== '0') {
         w.__reveal.early = true;
       }
       if (ready && w.__reveal.regular === undefined) {
@@ -56,6 +59,50 @@ test('the loader shows the boot steps and is removed once the start page is up',
   await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(40);
   await revealed(page);
   await expect(rows(page)).toHaveCount(7);
+});
+
+test('the banner is painted before the app loads, and the app banner takes its place pixel for pixel', async ({ page }) => {
+  const release = await holdChrome(page);
+  await page.goto('/', { waitUntil: 'commit' });
+  const first = page.locator('#wc-first .wcf-banner .wcf-line');
+  await expect(first).toHaveCount(11);
+  await expect(page.locator('#wc-boot')).toHaveCSS('opacity', '1');
+  // No menu row yet; the bar sits below the banner.
+  await expect(page.locator('.wc-mrow')).toHaveCount(0);
+  const bannerBottom = await first.last().evaluate((e) => e.getBoundingClientRect().bottom);
+  const barTop = await page.locator('#wc-boot .bar').evaluate((e) => e.getBoundingClientRect().top);
+  expect(barTop).toBeGreaterThan(bannerBottom);
+  await page.evaluate(() => document.fonts.ready);
+  const rects = await first.evaluateAll((els) => els.map((e) => JSON.stringify(e.getBoundingClientRect())));
+  const clips = await wordmarkClips(page);
+  const before = await Promise.all(clips.map((clip) => page.screenshot({ clip })));
+  release();
+  await revealed(page);
+  await expect(page.locator('#wc-first')).toHaveCount(0);
+  const app = page.locator('.wc-start .wc-banner .wc-line');
+  expect(await app.evaluateAll((els) => els.map((e) => JSON.stringify(e.getBoundingClientRect())))).toEqual(rects);
+  const after = await Promise.all(clips.map((clip) => page.screenshot({ clip })));
+  for (let i = 0; i < clips.length; i++) expect(after[i]!.equals(before[i]!), `wordmark part ${i}`).toBe(true);
+});
+
+test('the menu fades in over about 2 s, the banner does not', async ({ page }) => {
+  const release = await holdChrome(page);
+  await page.goto('/', { waitUntil: 'commit' });
+  await expect(page.locator('#wc-first .wcf-banner')).toHaveCount(1);
+  release();
+  await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
+  const fades = await page.evaluate(() =>
+    document.getAnimations().map((a) => {
+      const t = (a.effect as KeyframeEffect).getComputedTiming();
+      const el = (a.effect as KeyframeEffect).target as HTMLElement;
+      return { end: Number(t.endTime), duration: Number(t.duration), banner: el.classList.contains('wc-banner'), loader: el.id === 'wc-boot' };
+    }).filter((f) => !f.loader),
+  );
+  expect(fades.length).toBeGreaterThan(5);
+  expect(fades.some((f) => f.banner)).toBe(false);
+  expect(Math.max(...fades.map((f) => f.end))).toBeGreaterThanOrEqual(1800);
+  expect(Math.max(...fades.map((f) => f.end))).toBeLessThanOrEqual(2200);
+  expect(Math.min(...fades.map((f) => f.duration))).toBeGreaterThanOrEqual(1000);
 });
 
 test('after the reveal every menu row is shown in full', async ({ page }) => {

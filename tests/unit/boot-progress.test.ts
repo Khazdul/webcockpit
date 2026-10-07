@@ -1,7 +1,7 @@
 // Boot loader helpers (ADR 0083): the font gate, the reveal stagger and the
 // no-op loader calls where index.html's loader is absent.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { REVEAL_SPAN_MS, bootDone, bootStep, gate, revealDelay } from '../../src/app/boot-progress';
+import { REVEAL_SPAN_MS, bootDone, bootQuote, bootStep, gate, revealDelay, takeBootBanner } from '../../src/app/boot-progress';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -63,5 +63,20 @@ describe('loader calls', () => {
     expect(step).toHaveBeenCalledWith(40, 'Loading interface');
     expect(() => bootDone()).not.toThrow();
     expect(done).toHaveBeenCalled();
+  });
+});
+
+describe('hand-over from the first paint', () => {
+  it('gives the banner clock once, then null', () => {
+    const banner = { anims: [{ period: 12, phase: 0.5 }], t0: 42 };
+    (globalThis as { __wcBoot?: unknown }).__wcBoot = { step() {}, done() {}, banner, quote: 3 };
+    expect(takeBootBanner()).toBe(banner);
+    expect(takeBootBanner()).toBeNull();
+    expect(bootQuote()).toBe(3);
+  });
+
+  it('is empty without a first paint', () => {
+    expect(takeBootBanner()).toBeNull();
+    expect(bootQuote()).toBeNull();
   });
 });

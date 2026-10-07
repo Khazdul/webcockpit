@@ -1,20 +1,36 @@
 // Boot progress and the start page reveal (ADR 0083).
 //
-// index.html draws a static loader (a block-glyph bar, system monospace)
-// and defines `window.__wcBoot`; the boot calls `bootStep` at its real
-// steps and `bootDone` when the first view is up. Every other entry point
-// (the exported HTML replay, unit tests) has no loader, so both are
-// no-ops there.
+// index.html paints first (src/boot/first-paint.ts, inlined at build): the
+// start page banner where the app will draw it, a block-glyph bar below
+// it, and `window.__wcBoot`. The boot calls `bootStep` at its real steps
+// and `bootDone` when the first view is up. Every other entry point (the
+// exported HTML replay, unit tests) has no first paint, so both are no-ops
+// there.
 //
 // The start page is held until the selected font's faces are loaded
-// (`gate`, with a timeout so a broken font never blocks), then its rows
-// fade in, lightly staggered top to bottom (`revealStart`). Only on the
-// first boot; returning to the start page later is instant.
+// (`gate`, with a long safety timeout for a stalled download), then the
+// app's banner takes the first paint's place in the same frame and the
+// rest of the page fades in, lightly staggered top to bottom
+// (`revealStart`). Only on the first boot; returning to the start page
+// later is instant.
+
+import type { StarAnim } from '../chrome/banner-data';
+
+/** The first paint's banner clock: the app's banner twinkles on from it. */
+export interface BootBanner {
+  anims: StarAnim[];
+  /** `performance.now()` when the first paint's twinkle started. */
+  t0: number;
+}
 
 /** The loader API defined by index.html. */
 export interface BootLoader {
   step(percent: number, label?: string): void;
   done(): void;
+  /** The banner the first paint drew (null once the app's banner has taken it). */
+  banner?: BootBanner | null;
+  /** Index into QUOTES of the quote the first paint laid the page out for. */
+  quote?: number;
 }
 
 declare global {
@@ -24,14 +40,18 @@ declare global {
   }
 }
 
-/** How long the start page waits for its fonts at most. */
-export const FONT_GATE_MS = 4000;
+/**
+ * How long the start page waits for its fonts at most: a safety net for a
+ * download that stalls, not a budget. The fonts are preloaded by the first
+ * paint, before the scripts, and `loadFont` settles on a load error too,
+ * so on a slow link (Regular 3G: about 30 s for everything) the gate opens
+ * when the files land, never before.
+ */
+export const FONT_GATE_MS = 45_000;
 /** Fade-in of one row, ms. */
-export const REVEAL_FADE_MS = 160;
-/** Delay of the last row's fade-in after the first's, ms. */
-export const REVEAL_SPAN_MS = 160;
-/** Delay of the first row while the shown loader fades out (150 ms in index.html), ms. */
-export const REVEAL_AFTER_LOADER_MS = 80;
+export const REVEAL_FADE_MS = 1400;
+/** Delay of the last row's fade-in after the first's, ms (the whole reveal: REVEAL_FADE_MS + this). */
+export const REVEAL_SPAN_MS = 600;
 
 function loader(): BootLoader | undefined {
   return (globalThis as { __wcBoot?: BootLoader }).__wcBoot;
@@ -93,29 +113,51 @@ function waitFor(win: Window, find: () => HTMLElement | null, frames: number): P
   });
 }
 
+/** The first paint's banner clock, once (the start page's banner takes it; later banners start their own). */
+export function takeBootBanner(): BootBanner | null {
+  try {
+    const l = loader();
+    const b = l?.banner ?? null;
+    if (l) l.banner = null;
+    return b;
+  } catch {
+    return null;
+  }
+}
+
+/** Index of the quote the first paint laid the start page out for, or null. */
+export function bootQuote(): number | null {
+  const q = loader()?.quote;
+  return typeof q === 'number' && Number.isInteger(q) && q >= 0 ? q : null;
+}
+
 /**
- * Reveals the start page in `host`, which the caller hid with
+ * Reveals the start page mounted in `mount`, which the caller hid with
  * `opacity: 0` before showing it: waits for the main frame to render,
- * fades its rows (and the notices row) in top to bottom, unhides the
- * host and removes the loader. Resolves when the rows have started
- * (the fades run on). `prefers-reduced-motion`: at once, no fades.
+ * then in one task unhides it and hands over from the first paint (its
+ * banner goes, the app's identical one is there), and fades every other
+ * row of the main frame (and the notices row) in, top to bottom. A banner
+ * the first paint did not draw fades in with the rest. Resolves when the
+ * rows have started (the fades run on). `prefers-reduced-motion`: at once,
+ * no fades.
  */
-export async function revealStart(host: HTMLElement): Promise<void> {
-  const doc = host.ownerDocument;
+export async function revealStart(mount: HTMLElement): Promise<void> {
+  const doc = mount.ownerDocument;
   const win = doc.defaultView;
-  const main = win ? await waitFor(win, () => host.querySelector<HTMLElement>('.wc-start-main'), 60) : null;
+  const main = win ? await waitFor(win, () => mount.querySelector<HTMLElement>('.wc-start-main'), 60) : null;
   if (main && !reducedMotion(win)) {
     const base = main.getBoundingClientRect();
-    const after = doc.querySelector('#wc-boot.on') ? REVEAL_AFTER_LOADER_MS : 0;
-    const rows = [...host.querySelectorAll<HTMLElement>('.wc-start-notices'), ...main.children].filter(
-      (el): el is HTMLElement => typeof (el as HTMLElement).animate === 'function',
+    const drawn = doc.querySelector('#wc-first .wcf-banner') !== null;
+    const rows = [...mount.querySelectorAll<HTMLElement>('.wc-start-notices'), ...main.children].filter(
+      (el): el is HTMLElement =>
+        typeof (el as HTMLElement).animate === 'function' && !(drawn && el.classList.contains('wc-banner')),
     );
     for (const el of rows) {
-      const delay = after + revealDelay(el.getBoundingClientRect().top - base.top, base.height);
-      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, delay, easing: 'ease-out', fill: 'backwards' });
+      const delay = revealDelay(el.getBoundingClientRect().top - base.top, base.height);
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: REVEAL_FADE_MS, delay, easing: 'ease-in-out', fill: 'backwards' });
     }
   }
-  host.style.opacity = '';
+  mount.style.opacity = '';
   bootDone();
   doc.documentElement.dataset.wcBoot = 'ready';
 }

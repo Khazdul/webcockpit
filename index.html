@@ -7,83 +7,44 @@
     <style>
       html, body { margin: 0; height: 100%; background: var(--term-bg, #000000); color: var(--term-fg, #c0c0c0); }
       #app { height: 100%; }
-      /* Boot loader (ADR 0083): shown after 150 ms (.on), before any web font
-       * (system monospace only: the app's @font-face names would block). */
-      #wc-boot {
-        position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        font: 15px/18px ui-monospace, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
-        white-space: pre; opacity: 0;
+      /* First paint (ADR 0083, src/boot/first-paint.ts): the start page banner
+       * and the loading bar, in the box the start page will fill (as
+       * .wc-chrome in src/chrome/kit/kit.css and src/ui/ui.css), above it. */
+      #wc-first {
+        position: absolute; inset: 0; z-index: 1; overflow: hidden; pointer-events: none;
+        white-space: pre; font-variant-ligatures: none; letter-spacing: 0; user-select: none;
       }
-      #wc-boot .bar { display: flex; }
-      #wc-boot .f, #wc-boot .t { display: inline-block; height: 18px; overflow: hidden; }
-      #wc-boot .f { background: var(--wcb-fill, #ffaf00); }
-      #wc-boot .t { color: var(--wcb-dim, #585858); }
-      #wc-boot .p { color: var(--wcb-text, #8a8a8a); }
-      #wc-boot .l { color: var(--wcb-text, #8a8a8a); margin-top: 18px; }
-      #wc-boot.on { opacity: 1; }
+      html.wc-phone #wc-first {
+        inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+          env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+      }
+      #wc-first.wcf-overlay { position: fixed; inset: 0; z-index: 2147483647; }
+      .wcf-screen { position: absolute; overflow: hidden; }
+      .wcf-banner { position: absolute; left: 0; right: 0; }
+      .wcf-line { height: var(--wcf-h); white-space: pre; overflow: hidden; }
+      @supports (overflow: clip) { .wcf-line { overflow-x: clip; overflow-y: visible; } }
+      .wcf-word { color: var(--banner-word); }
+      .wcf-word-dim { color: var(--banner-word-dim); }
+      .wcf-s0 { color: var(--star-dim); }
+      .wcf-s1 { color: var(--star-mid); }
+      .wcf-s2 { color: var(--star-bright); }
+      .wcf-loader { opacity: 0; }
+      .wcf-loader.on { opacity: 1; }
+      .wcf-loader .bar { position: absolute; display: flex; }
+      .wcf-loader .f, .wcf-loader .t { display: inline-block; height: var(--wcf-h); overflow: hidden; }
+      .wcf-loader .f { background: var(--wcf-fill, #ffaf00); }
+      .wcf-loader .t { color: var(--wcf-track, #585858); }
+      .wcf-loader .p, .wcf-loader .l { color: var(--wcf-text, #8a8a8a); }
+      .wcf-loader .l { position: absolute; left: 0; right: 0; text-align: center; }
     </style>
-    <script>
-      // First paint in the saved colours (src/settings/store.ts MIRROR_KEY);
-      // src/main.ts applies the full theme.
-      try {
-        if (!/[?&]safe(=|&|$)/.test(location.search)) {
-          var a = JSON.parse(localStorage.getItem('webcockpit.appearance') || '{}');
-          var hex = /^#[0-9a-f]{6}$/i, st = document.documentElement.style;
-          if (hex.test(a.bg)) {
-            st.setProperty('--term-bg', a.bg);
-            // A light background: the light UI roles (src/theme/presets.ts UI_COLORS_LIGHT).
-            var n = parseInt(a.bg.slice(1), 16);
-            if (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 140) {
-              st.setProperty('--wcb-fill', '#9a5400');
-              st.setProperty('--wcb-dim', '#a49a84');
-              st.setProperty('--wcb-text', '#5c564a');
-            }
-          }
-          if (hex.test(a.fg)) st.setProperty('--term-fg', a.fg);
-        }
-      } catch (e) {}
-    </script>
+    <!-- wc:first-paint: src/boot/first-paint.ts, inlined by vite.config.ts (ADR 0083) -->
   </head>
   <body>
-    <div id="wc-boot" role="progressbar" aria-label="Loading WebCockpit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar"></div><div class="l">Loading client</div></div>
+    <div id="app"><div id="wc-start-host" class="wc-start-host" style="position: relative; height: 100%"><div id="wc-first"></div></div></div>
     <script>
-      // The boot loader's API (ADR 0083, src/app/boot-progress.ts):
-      // __wcBoot.step(percent, label) moves the bar; __wcBoot.done() fades
-      // it out and removes it. Other entry points have no loader.
-      (function () {
-        var W = 28, el = document.getElementById('wc-boot');
-        var bar = el.firstChild, label = el.lastChild, pct = -1, gone = false;
-        function draw(p) {
-          // The fill is one box (no seams between cells at any pixel ratio);
-          // the track is ░ cells, clipped to their width whatever font draws them.
-          var on = Math.round((p / 100) * W), s = String(p);
-          bar.innerHTML = '<i class="f" style="width:' + on + 'ch"></i><i class="t" style="width:' + (W - on) + 'ch">' +
-            new Array(W - on + 1).join('░') + '</i><span class="p">' + '     '.slice(s.length) + s + '%</span>';
-        }
-        window.__wcBoot = {
-          step: function (p, text) {
-            if (gone) return;
-            p = Math.max(pct, Math.min(100, Math.round(p)));
-            if (p !== pct) { pct = p; draw(p); el.setAttribute('aria-valuenow', String(p)); }
-            if (text) label.textContent = text;
-          },
-          done: function () {
-            if (gone) return;
-            gone = true;
-            var o = parseFloat(getComputedStyle(el).opacity) || 0;
-            if (o > 0 && el.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-              el.animate([{ opacity: o }, { opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' })
-                .finished.then(function () { el.remove(); }, function () { el.remove(); });
-            } else el.remove();
-          },
-        };
-        window.__wcBoot.step(0);
-        // Shown after 150 ms only: a fast (cached) start never flashes it.
-        setTimeout(function () { if (!gone) el.className = 'on'; }, 150);
-      })();
+      // Draws the banner and the bar into the box above (src/boot/first-paint.ts).
+      try { window.__wcPaint && window.__wcPaint(); } catch (e) {}
     </script>
-    <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

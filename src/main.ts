@@ -25,8 +25,9 @@
 // installed local-only fonts (Lucida Console, ADR 0049; ≤ 1 s together) →
 // theme again → Shell (start page, or the cockpit in the offline modes).
 // The cell metrics are re-measured once the web font has loaded. The
-// start page is held until the font's faces are loaded (≤ 4 s) and fades
-// in; index.html's loader shows the steps meanwhile (ADR 0083).
+// start page is held until the font's faces are loaded and fades in;
+// index.html's first paint shows the banner and the loading bar
+// meanwhile (ADR 0083, src/boot/first-paint.ts).
 //
 // Notices (ADR 0025): a newer version on the site (production builds only),
 // a lazy chunk that is gone, a database upgraded by a newer tab. Not in
@@ -109,8 +110,9 @@ const notices = benchMode ? undefined : new Notices();
 if (notices) installNotices(window, notices, { checkUpdates: !import.meta.env.DEV });
 
 const root = document.getElementById('app') ?? document.body;
-root.textContent = '';
-// The start page waits for the selected font's faces, never longer than FONT_GATE_MS (ADR 0083).
+// Everything but the first paint's start page host, which the Shell adopts (ADR 0083).
+for (const child of [...root.childNodes]) if ((child as Element).id !== 'wc-start-host') child.remove();
+// The start page waits for the selected font's faces (FONT_GATE_MS is only a safety net, ADR 0083).
 const bootFont = settings.get().appearance;
 const fontsReady = offline ? undefined : gate(loadFont(bootFont.font, fontPx(bootFont.font, bootFont.size)), FONT_GATE_MS);
 const shell = new Shell({

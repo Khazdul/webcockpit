@@ -3,6 +3,8 @@ import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gzipSync } from 'node:zlib';
+import type { OutputBundle } from 'rolldown';
 import { type Plugin, defineConfig } from 'vite';
 
 // Cross-origin isolation (spec §1.5) stays possible from day one: `vite`
@@ -277,6 +279,118 @@ function replayBundlePlugin(): Plugin {
   };
 }
 
+/** The first paint script's entry (ADR 0083) and its place in index.html. */
+const FIRST_PAINT_ENTRY = 'src/boot/first-paint.ts';
+const FIRST_PAINT_MARK = /<!--\s*wc:first-paint[\s\S]*?-->/;
+
+/**
+ * Bundles the first paint (src/boot/first-paint.ts) into one minified IIFE
+ * for `base`: the text inlined into index.html.
+ */
+async function bundleFirstPaint(base: string): Promise<string> {
+  const { build } = await import('vite');
+  const out = await build({
+    configFile: false,
+    root: ROOT,
+    base,
+    mode: 'production',
+    logLevel: 'warn',
+    publicDir: false,
+    define: defines(),
+    oxc,
+    build: {
+      write: false,
+      target: 'es2022',
+      copyPublicDir: false,
+      emptyOutDir: false,
+      lib: {
+        entry: resolve(ROOT, FIRST_PAINT_ENTRY),
+        formats: ['iife'],
+        name: '__wcFirstPaint',
+        fileName: () => 'first-paint.js',
+      },
+    },
+  });
+  const outputs = (Array.isArray(out) ? out : [out]) as Array<{ output?: Array<{ type: string; isEntry?: boolean; code?: string }> }>;
+  for (const o of outputs) {
+    const chunk = o.output?.find((f) => f.type === 'chunk' && f.isEntry);
+    if (chunk?.code) return chunk.code.trim();
+  }
+  throw new Error('first paint: no entry chunk');
+}
+
+/**
+ * The download sizes the first paint's bar follows (src/boot/first-paint.ts
+ * `SIZES`): every script and stylesheet index.html loads, the start page's
+ * chrome chunk with its imports and styles (gzip sizes, as a host sends
+ * them), and every font file (the bar counts the ones it preloads).
+ */
+function bootSizes(html: string, bundle: OutputBundle, base: string): { files: Record<string, number>; fonts: Record<string, number> } {
+  const files: Record<string, number> = {};
+  const add = (name: string): void => {
+    const f = bundle[name];
+    if (!f || `${base}${name}` in files) return;
+    const src = f.type === 'chunk' ? f.code : f.source;
+    files[`${base}${name}`] = gzipSync(typeof src === 'string' ? src : Buffer.from(src)).length;
+  };
+  for (const m of html.matchAll(/<(?:script|link)\b[^>]*?(?:src|href)="([^"]+)"/g)) {
+    const path = m[1]!;
+    if (path.startsWith(base)) add(path.slice(base.length));
+  }
+  const chrome = Object.values(bundle).find(
+    (f) => f.type === 'chunk' && f.facadeModuleId?.endsWith('/src/chrome/index.tsx'),
+  );
+  if (chrome?.type === 'chunk') {
+    for (const name of [chrome.fileName, ...chrome.imports, ...(chrome.viteMetadata?.importedCss ?? [])]) add(name);
+  }
+  const fonts: Record<string, number> = {};
+  const dir = resolve(ROOT, 'public/fonts');
+  for (const name of readdirSync(dir)) {
+    if (name.endsWith('.woff2')) fonts[`${base}fonts/${name}`] = statSync(join(dir, name)).size;
+  }
+  return { files, fonts };
+}
+
+/**
+ * Inlines the first paint into index.html (ADR 0083): the start page
+ * banner and the loading bar before any stylesheet, font or module has
+ * loaded. `vite` (dev) rebuilds it when a file under src/ changes.
+ */
+function firstPaintPlugin(): Plugin {
+  let base = '/';
+  let cached: Promise<string> | null = null;
+  return {
+    name: 'webcockpit-first-paint',
+    configResolved(config) {
+      base = config.base;
+    },
+    configureServer(server) {
+      const src = resolve(ROOT, 'src') + sep;
+      const drop = (file: string): void => {
+        if (resolve(file).startsWith(src)) cached = null;
+      };
+      server.watcher.on('change', drop);
+      server.watcher.on('add', drop);
+      server.watcher.on('unlink', drop);
+    },
+    transformIndexHtml: {
+      // After Vite has added its tags, so the bundle and the tags are known.
+      order: 'post',
+      async handler(html, ctx) {
+        if (!FIRST_PAINT_MARK.test(html)) return html;
+        const p = (cached ??= bundleFirstPaint(base));
+        p.catch(() => {
+          if (cached === p) cached = null;
+        });
+        let code = await p;
+        if (ctx.bundle) code = `var __wcBootSizes=${JSON.stringify(bootSizes(html, ctx.bundle, base))};\n${code}`;
+        code = code.replace(/<\/(script)/gi, '<\\/$1');
+        return html.replace(FIRST_PAINT_MARK, () => `<script>${code}</script>`);
+      },
+    },
+  };
+}
+
 /**
  * `release.json` at the site root (ADR 0025): `{ version, commit }` of the
  * build, what the running app's update check compares itself with.
@@ -337,7 +451,7 @@ export default defineConfig(({ command }) => {
     base: siteBase(),
     define: defines(),
     oxc,
-    plugins: [fixturesPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
+    plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
     server: { headers: isolationHeaders },

@@ -113,6 +113,7 @@ export class Shell {
   private appRef: App | null = null;
   private chromeP: Promise<ChromeModule> | null = null;
   private startHost: HTMLDivElement;
+  private startMount: HTMLDivElement;
   private menuHost: HTMLDivElement;
   private start: StartPageHandle | null = null;
   private menu: EscMenuHandle | null = null;
@@ -138,12 +139,24 @@ export class Shell {
     this.maps = opts.maps ?? new MapStore({ openDb: lazyDb() });
     this.scripts = opts.scripts ?? new ScriptLibrary();
     const doc = opts.root.ownerDocument;
-    this.startHost = doc.createElement('div');
-    this.startHost.className = 'wc-start-host';
-    this.startHost.style.cssText = 'position:relative;height:100%;display:none';
+    // index.html's first paint draws the banner in a start page host of its
+    // own (ADR 0083): the start page is mounted beside it, in the same box.
+    const first = doc.getElementById('wc-start-host');
+    if (first && (opts.offline || first.parentNode !== opts.root)) first.remove();
+    if (first && !opts.offline && first.parentNode === opts.root) {
+      this.startHost = first as HTMLDivElement;
+    } else {
+      this.startHost = doc.createElement('div');
+      this.startHost.className = 'wc-start-host';
+      this.startHost.style.cssText = 'position:relative;height:100%;display:none';
+    }
+    // The start page renders here; its surface is placed in the host.
+    this.startMount = doc.createElement('div');
+    this.startHost.append(this.startMount);
     this.menuHost = doc.createElement('div');
     this.menuHost.className = 'wc-menu-host';
-    opts.root.append(this.startHost, this.menuHost);
+    if (this.startHost.parentNode !== opts.root) opts.root.append(this.startHost);
+    opts.root.append(this.menuHost);
   }
 
   /** The run library (History, backups, the sweep); opened on first use. */
@@ -170,7 +183,7 @@ export class Shell {
     const fonts = this.opts.fontsReady;
     if (!fonts) {
       const chrome = await this.loadChrome();
-      this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
+      this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
       this.showStart();
     } else {
       // The chrome chunk and the fonts load side by side (ADR 0083).
@@ -192,13 +205,13 @@ export class Shell {
             progress();
           }),
         ]);
-        this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
-        this.startHost.style.opacity = '0';
+        this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
+        this.startMount.style.opacity = '0';
         this.showStart();
         bootStep(100, 'Ready');
-        await revealStart(this.startHost);
+        await revealStart(this.startMount);
       } finally {
-        this.startHost.style.opacity = '';
+        this.startMount.style.opacity = '';
         bootDone();
       }
     }
@@ -224,7 +237,7 @@ export class Shell {
     await app?.flushWriteBack();
     if (!this.start) {
       const chrome = await this.loadChrome();
-      this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
+      this.start = chrome.mountStartPage(this.startMount, this.services(), { onEnter: () => this.enter() });
     }
     this.menu?.close();
     this.showStart();
