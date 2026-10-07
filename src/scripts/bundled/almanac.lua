@@ -769,9 +769,10 @@ local function right(y, text, st, margin)
 end
 
 -- As right(), but only when it leaves a cell free after column `after`
--- (the end of the row's left part); false when it does not fit.
-local function rightAfter(y, after, text, st)
-  local x = W - utf8.len(text)
+-- (the end of the row's left part); false when it does not fit. `margin`
+-- more cells stay free on the right (a link clear of the close cross).
+local function rightAfter(y, after, text, st, margin)
+  local x = W - (margin or 0) - utf8.len(text)
   if x <= after then return false end
   put(x, y, text, st)
   return true
@@ -945,6 +946,9 @@ local TABS = {
 local function seasonHex(season) return hex(SEASON_RGB[season] or { 160, 160, 160 }) end
 
 local TABS_END = 21 -- the column after the tabs
+-- Cells a link on the top row keeps free on the right: the close cross
+-- covers the row's last cells while the pane is hovered.
+local CROSS = 3
 local function drawTabs(sc)
   local x = 2
   for _, t in ipairs(TABS) do
@@ -1500,7 +1504,7 @@ local function drawLore()
   local g = gameTime()
   drawTabs(g and seasonHex(g.season) or "#9aa7b8")
   rightAfter(1, TABS_END, "[+ add]", { fg = C.glow, b = true, act = "edit:",
-    tip = "Add an event of your own: pick the season, the time and the moon" })
+    tip = "Add an event of your own: pick the season, the time and the moon" }, CROSS)
   local y = 3
   for _, e in ipairs(allEvents()) do
     local cond = e.bad and ("? " .. e.whenText) or (e.when and condText(e.when) or (e.about or ""))

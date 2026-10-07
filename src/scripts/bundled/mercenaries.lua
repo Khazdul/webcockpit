@@ -270,7 +270,9 @@ local function draw()
   }
   local headW = 9 + (on and 4 or 5)
   local costW = 7 + #costText
-  if width - headW >= costW then
+  -- The cost link only where it stays clear of the close cross (the
+  -- row's last four cells while the pane is hovered).
+  if width - headW >= costW + 4 then
     head[#head + 1] = { text = "  Cost " }
     head[#head + 1] = { text = costText, color = "ansi_light_yellow", fn = function() setCost(c == 20 and 10 or 20) end,
       hint = "A payment is " .. (c == 20 and "1 gold (20 silver)" or "10 silver") .. ".\nClick to switch to "

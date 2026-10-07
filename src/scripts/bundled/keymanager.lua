@@ -635,10 +635,10 @@ local function header(n)
     return
   end
   local left = " " .. (n == 1 and "1 key" or n .. " keys")
-  -- The ? sits where the last letter of a key row does (one cell in).
+  -- The ? follows the count, clear of the close cross that covers the
+  -- row's last cells while the pane is hovered.
   row(1, {
-    { text = left, color = DIM },
-    { text = string.rep(" ", math.max(1, width - 2 - len(left))) },
+    { text = left .. "  ", color = DIM },
     { text = "?", color = LINK_C, fn = function() showHelp() end, hint = "The key manager's help (keys help)" },
   })
 end

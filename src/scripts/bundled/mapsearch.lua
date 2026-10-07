@@ -206,7 +206,9 @@ local function drawControls()
   -- Row 1: the query field and the buttons.
   local closeB = W >= 40
   local btnW = 7 + (closeB and 8 or 0)   -- " [Find]" " [Close]"
-  local fieldLen = math.max(6, W - 8 - btnW - 1)
+  -- The last cell and three before it stay free: the close cross covers
+  -- them while the pane is hovered.
+  local fieldLen = math.max(6, W - 8 - btnW - 4)
   local segs = {
     { text = " Query: ", color = "@label" },
     { text = string.rep(" ", fieldLen) },

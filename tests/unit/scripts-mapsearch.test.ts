@@ -155,7 +155,8 @@ describe('bundled mapsearch', () => {
     t.resize(60);
     const r = t.rows();
     expect(r[0]).toMatch(/^ Query: +\[Find\] \[Close\]$/);
-    expect(r[0]).toHaveLength(59);
+    // The last four cells stay free: the close cross covers them on hover.
+    expect(r[0]).toHaveLength(56);
     expect(r.slice(1, 7)).toEqual([
       ' Search',
       ' (•) Name         ( ) Exits',

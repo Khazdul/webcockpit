@@ -252,7 +252,7 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(['cast $home']);
     t.gmcp('Char.Name', { name: 'Gittan', fullname: 'Gittan the Tester' });
     t.clock.advance(1);
-    expect(t.rows()).toEqual([' 0 keys                                   ?', '', ' No keys yet.', " locatel <name> stores your room's key."]);
+    expect(t.rows()).toEqual([' 0 keys  ?', '', ' No keys yet.', " locatel <name> stores your room's key."]);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
@@ -268,8 +268,8 @@ describe('bundled keymanager', () => {
     expect(t.lastUi()).toBe('KEYS: Stored $home (On a hill, Very near): uxevjobve. Safe key: $home.');
     expect(t.store()).toMatchObject({ safe: 'home', keys: [{ name: 'home', key: 'uxevjobve', room: 'On a hill', dist: 'Very near' }] });
     const r = t.rows();
-    expect(r[0]).toMatch(/^ 1 key +\?$/);
-    expect(r[0]).toHaveLength(43);
+    // The ? follows the count, clear of the close cross (ADR 0084 addendum).
+    expect(r[0]).toBe(' 1 key  ?');
     expect(r[1]).toBe(' ★ $home On a hill uxevjobve  12h t p s w x');
     expect(r[1]).toHaveLength(43);
     // Highlighted for a few seconds.
@@ -619,7 +619,7 @@ describe('bundled keymanager', () => {
     expect(t.rows()[1]).toBe(' ★ $home  12h t p s w x');
     t.resize(16);
     expect(t.rows()[1]).toBe(' ★ $home  12h t');
-    expect(t.rows()[0]).toBe(' 1 key        ?');
+    expect(t.rows()[0]).toBe(' 1 key  ?');
     // The time left is a tooltip only, not a button.
     const l = t.panes.keys.content;
     expect(l.linkAt(1, t.rows()[1]!.indexOf('12h'))).toMatchObject({ tip: true, hint: expect.stringMatching(/^\$home works 1[12]h \d+m more$/) });
