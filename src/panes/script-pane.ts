@@ -61,6 +61,12 @@
 //   pinch) is never handed over.
 // - Grip (ADR 0065 round 1): the cells of `pane:setGrip` show the grab
 //   cursor; the cockpit asks `gripAt` on a press and starts a move there.
+//   A borderless pane's top screen row (the cockpit's soft grip, ADR 0065)
+//   shows it too where no link is (ADR 0084), as a built-in pane's title
+//   row does. The close cross sits over that row's last cells (one in from
+//   the right edge); while a link or a text field lies under it there the
+//   pane is marked `data-no-cross` and shows none (layout.css), so it never
+//   covers a button (the pane bar's last one, ADR 0065 round 2).
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
 //   After every render the link under the pointer is looked up again; one
 //   at the same row, column and length is the same link, so the band and
@@ -91,6 +97,9 @@ import { PaneShell } from './pane';
 import { type HoverStyle, type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
 import { type ShadeRole, fitContrast, hoverLift, lightShift } from '../theme/color';
+
+/** Cells of the close cross (" × ", layout.css), one cell in from the right edge. */
+const CROSS_CELLS = 3;
 
 /** A gauge's fill when the script gives no colour (the Group pane's HP green). */
 export const DEFAULT_GAUGE_COLOR = '#005a18';
@@ -451,7 +460,27 @@ export class ScriptPane extends PaneShell {
     if (bottom && this.live) this.scroller.scrollTop = Math.max(0, n - listH) * cellH;
     this.updateMore();
     this.syncFields(ramp);
+    this.updateCross();
     this.resolveHover();
+  }
+
+  /**
+   * Marks a borderless pane `data-no-cross` while a link or a text field
+   * lies under its close cross: the top screen row's cells from four in
+   * from the right edge up to the last one (ADR 0084).
+   */
+  private updateCross(): void {
+    let covered = false;
+    const cols = this.cols;
+    const c = this.model;
+    if (this.soft && cols > 0 && !(this.shown.over && c.anchor === 'bottom')) {
+      const cellH = this.ctx.cells.get().h || 16;
+      const row = Math.floor(this.scroller.scrollTop / cellH + 0.01);
+      const from = Math.max(0, cols - 1 - CROSS_CELLS);
+      const hits = (x: { row: number; col: number; len: number }): boolean => x.row === row && x.col < cols - 1 && x.col + x.len > from;
+      covered = c.links.some(hits) || c.fields.some(hits);
+    }
+    if (this.el.hasAttribute('data-no-cross') !== covered) this.el.toggleAttribute('data-no-cross', covered);
   }
 
   /**
@@ -509,6 +538,7 @@ export class ScriptPane extends PaneShell {
     // Live: at the end within 2 px (a layout-free model when the browser has none).
     const end = s.scrollHeight > 0 ? s.scrollHeight - s.clientHeight : Math.max(0, n - listH) * cellH;
     this.live = s.scrollTop >= end - 2;
+    this.updateCross();
     // The content moved under the pointer: whatever is there now.
     this.resolveHover();
     this.updateMore();
@@ -663,6 +693,9 @@ export class ScriptPane extends PaneShell {
 
   override place(...args: Parameters<PaneShell['place']>): void {
     super.place(...args);
+    const p = args[0];
+    this.soft = !!p && !p.framed;
+    this.updateCross();
     // Hidden: no hover. Moved or resized: whatever is under the pointer now.
     if (!args[0]) this.clearPointer();
     else if (this.pointer) this.resolveHover();
@@ -717,7 +750,7 @@ export class ScriptPane extends PaneShell {
     const at = this.cellAt(e.clientX, e.clientY);
     const link = at ? this.model.linkAt(at.row, at.col) : null;
     const was = this.hover;
-    this.grabbing = !link && !!at && this.model.gripAt(at.row, at.col);
+    this.grabbing = !link && !!at && (this.model.gripAt(at.row, at.col) || this.softRow(e.clientY));
     if (link && was && link.row === was.row && link.col === was.col && link.len === was.len) return;
     if (!link && !was) {
       this.setCursor();
@@ -726,8 +759,18 @@ export class ScriptPane extends PaneShell {
     this.setHover(link, at?.y ?? 0);
   };
 
-  /** The pointer is on the grip (not on a link). */
+  /** The pointer is on the grip or the soft grip row (not on a link). */
   private grabbing = false;
+
+  /** Placed without a frame: the top screen row is a soft grip (ADR 0065, 0084). */
+  private soft = false;
+
+  /** `y` client px lies in the top screen row of a borderless pane. */
+  private softRow(y: number): boolean {
+    if (!this.soft) return false;
+    const dy = y - this.content.getBoundingClientRect().top;
+    return dy >= 0 && dy < this.ctx.cells.get().h;
+  }
 
   private setCursor(): void {
     const link = this.hover;

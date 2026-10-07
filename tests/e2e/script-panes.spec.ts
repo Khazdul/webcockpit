@@ -418,3 +418,86 @@ test('pane:onWheel gets whole cells; true takes the scroll, otherwise the pane s
   await expect.poll(sentText).toMatch(/wheel [1-9]\d* 0\r\n/);
   expect(errors).toEqual([]);
 });
+
+// Stage 25 A (ADR 0084): a script pane shows the grab cursor on its top
+// row and the close cross on hover like a built-in pane, framed or not;
+// hovering a borderless pane outlines it (an inset shadow in the cross's
+// colour, no layout shift); a framed pane gets no outline.
+const HOVER = `-- @name hovers
+-- @api 1
+local p = createPane{id = "main", title = "Hover Pane", dock = "right", lane = "own", rows = 4, cols = 30, anchor = "top", border = false}
+for i = 1, 4 do p:setLine(i, "line " .. i) end
+p:setLine(1, "[go] top")
+p:setLink(1, 1, 4, function() send("go") end, "Go")
+`;
+
+test('a script pane has a grab cursor on its top row and a close cross on hover; a borderless one an outline', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(page, HOVER, 'hovers');
+  await page.keyboard.press('Enter');
+  const id = 'hovers/main';
+  const sp = page.locator(`.wc-pane[data-pane="${id}"]`);
+  await expect(sp).toBeVisible();
+  await expect(sp).not.toHaveAttribute('data-framed', '');
+  const cell = await page.evaluate(() => {
+    const s = getComputedStyle(document.documentElement);
+    return { w: parseFloat(s.getPropertyValue('--cell-w')), h: parseFloat(s.getPropertyValue('--cell-h')) };
+  });
+  const outline = () => sp.evaluate((e) => getComputedStyle(e, '::after').boxShadow);
+  const close = sp.locator('.wc-pane-close');
+  const content = sp.locator('.wc-pane-content');
+  const before = (await sp.boundingBox())!;
+
+  // Not hovered: no cross, no outline.
+  await page.mouse.move(5, 5);
+  await expect(close).toBeHidden();
+  expect(await outline()).toBe('none');
+
+  // Borderless: the top row (off the link) is a grab hand, the link a pointer,
+  // the next row plain; the cross shows; the pane is outlined, not moved.
+  const c = (await content.boundingBox())!;
+  await page.mouse.move(c.x + 12.5 * cell.w, c.y + 0.5 * cell.h);
+  await expect(content).toHaveCSS('cursor', 'grab');
+  await expect(close).toBeVisible();
+  await expect.poll(outline).toContain('inset');
+  const border = await sp.evaluate((e) => getComputedStyle(e).getPropertyValue('--pane-border').trim());
+  const rgb = await page.evaluate((c) => {
+    const d = document.createElement('div');
+    d.style.color = c;
+    document.body.append(d);
+    const v = getComputedStyle(d).color;
+    d.remove();
+    return v;
+  }, border);
+  expect(await outline()).toContain(rgb);
+  expect(await sp.boundingBox()).toEqual(before);
+  await page.mouse.move(c.x + 1.5 * cell.w, c.y + 0.5 * cell.h);
+  await expect(content).toHaveCSS('cursor', 'pointer');
+  await page.mouse.move(c.x + 12.5 * cell.w, c.y + 1.5 * cell.h);
+  await expect(content).toHaveCSS('cursor', 'auto');
+
+  // Framed: the title row is the grip (grab), the cross shows, no outline.
+  await page.evaluate((id) => window.__wc!.settings.update((d) => {
+    d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, border: true };
+  }), id);
+  await expect(sp).toHaveAttribute('data-framed', '');
+  const f = (await sp.boundingBox())!;
+  await page.mouse.move(f.x + f.width / 2, f.y + 0.3 * cell.h);
+  await expect(close).toBeVisible();
+  const top = await page.evaluate(({ x, y }) => {
+    const t = document.elementFromPoint(x, y)!;
+    return { cls: t.className, cursor: getComputedStyle(t).cursor };
+  }, { x: f.x + f.width / 2, y: f.y + 0.3 * cell.h });
+  expect(top).toEqual({ cls: 'wc-pane-grip', cursor: 'grab' });
+  expect(await outline()).toBe('none');
+
+  // The cross hides the pane, as on a built-in pane.
+  await close.click();
+  await expect(sp).toBeHidden();
+  expect(await page.evaluate((id) => window.__wc!.settings.get().panes[id as 'a/b']!.on, id)).toBe(false);
+  expect(errors).toEqual([]);
+});

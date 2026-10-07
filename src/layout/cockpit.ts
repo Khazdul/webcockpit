@@ -54,7 +54,9 @@
 // - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
 //   title row, one cell in from the right edge; clicking it switches the
 //   pane off (`panes[id].on = false`, the same as Settings). A borderless
-//   script pane has none (it would cover content; ADR 0065 round 2, CSS).
+//   script pane has none while a link or text field lies under it (it
+//   would cover a button; ADR 0065 round 2, 0084, CSS). Hovering a
+//   borderless pane outlines it (ADR 0084, CSS).
 // - Drag the gap between the game pane and a dock to resize the dock (its
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
