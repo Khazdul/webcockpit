@@ -4,6 +4,9 @@
 //
 // Two focus zones: the table (default, cursor on the selected profile) and
 // the buttons. Tab/Shift+Tab toggle, ← focuses the buttons, → the table.
+// In the table, Enter or a click on a row selects that profile; on the
+// profile that is already selected it opens the editor, as EDIT does
+// (stage 25: first click selects, the second edits).
 // Buttons: SELECT (disabled on the selected row), NEW, EDIT (the profile
 // editor, src/editor, loaded on demand),
 // RENAME and DELETE (disabled on `default`), IMPORT (one or more files,
@@ -115,6 +118,17 @@ export function ProfileFrame(): VNode {
     settings.update({ profile: cur.name });
   };
 
+  const edit = (name: string): void => {
+    void editProfile(nav, profiles, name, { isLive: () => false, onSaved: onProfileSaved });
+  };
+
+  /** Enter or a click on row `r`: select it, or edit it when it is the selected profile. */
+  const pick = (r: ProfileRecord | undefined): void => {
+    if (!r) return;
+    if (r.name === s.profile) edit(r.name);
+    else settings.update({ profile: r.name });
+  };
+
   const exportCur = async (): Promise<void> => {
     if (!cur) return;
     try {
@@ -161,7 +175,7 @@ export function ProfileFrame(): VNode {
       case 'NEW':
         return nav.push(<NameFrame mode="create" done={done} />);
       case 'EDIT':
-        if (cur) void editProfile(nav, profiles, cur.name, { isLive: () => false, onSaved: onProfileSaved });
+        if (cur) edit(cur.name);
         return;
       case 'RENAME':
         return nav.push(<NameFrame mode="rename" from={curName} done={done} />);
@@ -222,7 +236,7 @@ export function ProfileFrame(): VNode {
         moveTo(rows.length - 1);
         return true;
       case 'activate':
-        select();
+        pick(cur);
         return true;
     }
     return false;
@@ -240,7 +254,10 @@ export function ProfileFrame(): VNode {
   ];
 
   return (
-    <Page title="Profile" footer={['↑↓ Navigate', 'Tab/←→ Cycle', 'Enter Select', 'ESC Back']}>
+    <Page
+      title="Profile"
+      footer={['↑↓ Navigate', 'Tab/←→ Cycle', zone === 'table' && cur?.name === s.profile ? 'Enter Edit' : 'Enter Select', 'ESC Back']}
+    >
       <div class="wc-pkg" style={{ ...indent(at), display: 'flex' }}>
         <div class="wc-btncol">
           {BUTTONS.map((b, i) => (
@@ -272,6 +289,7 @@ export function ProfileFrame(): VNode {
           onRowClick={(i) => {
             moveTo(i);
             setZone('table');
+            pick(rows[i]);
           }}
         />
       </div>

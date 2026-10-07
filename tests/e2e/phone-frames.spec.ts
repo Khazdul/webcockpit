@@ -84,6 +84,27 @@ test('Scripts: a tap on [ ] toggles, a tap on the selected name opens the editor
   await expect(page.locator('.wc-sed .wc-act-btn[data-act="Ctrl+S Save"]')).toBeVisible();
 });
 
+test('Profile: a tap on a profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {
+  await page.goto('/?phone=1');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('phoneprof', '');
+  });
+  await tapRow(page, 'profile');
+  const f = startFrame(page);
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
+  const row = f.locator('.wc-table .wc-tr', { hasText: 'phoneprof' });
+  const profile = () => page.evaluate(() => window.__wc!.settings.get().profile);
+  await row.tap();
+  await expect.poll(profile).toBe('phoneprof');
+  await expect(f.locator('.wc-title-row')).toHaveText('─── Profile ───');
+  await expect(page.locator('.wc-ped')).toHaveCount(0);
+  await row.tap();
+  // The editor opens (its title is cut to the phone's width).
+  await expect(page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section')).toHaveText(/^─── Profile Editor/);
+});
+
 test('the command line is a textarea: Enter sends, no newline; the password prompt is masked', async ({ page }) => {
   const received: Buffer[] = [];
   let server: { send(b: Buffer): void } | null = null;
