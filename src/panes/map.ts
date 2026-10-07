@@ -61,7 +61,7 @@
 //   the same `pan`/`zoom` messages and limits as the mouse and the wheel.
 // - Loading overlay (stage 24, ADR 0083, src/panes/map-loading.ts): from
 //   the start (and every map change) to the first complete frame, and
-//   from a tileset change to `tilesDrawn`, a centred glyph bar fed by the
+//   from a tileset change to `tilesDrawn`, a small centred progress bar fed by the
 //   worker's `progress`; shown only after 200 ms, faded out at the end;
 //   an error hides it and shows the notice.
 
@@ -308,7 +308,6 @@ export class MapPane extends PaneShell {
   private sync(): void {
     const { w, h } = this.cssSize();
     const shown = this.visible && w > 0 && h > 0;
-    this.loading.resize(this.cols);
     if (!shown) {
       if (this.sizeKey !== 'hidden') {
         this.sizeKey = 'hidden';

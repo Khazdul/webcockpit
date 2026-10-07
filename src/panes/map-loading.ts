@@ -1,25 +1,22 @@
-// Map pane loading overlay (stage 24, ADR 0083 "Map pane"): a centred box
-// over the map's grey with a label and a TUI glyph bar, fed by the
+// Map pane loading overlay (stage 24, ADR 0083 "Map pane", round 1): a
+// small, modern progress indicator centred over the map's grey, fed by the
 // worker's `progress` messages (src/map/progress.ts folds them into one
-// weighted fraction and a label):
+// weighted fraction and a label). Deliberately not the TUI look of the
+// rest of the client: the mapper is the modern contrast (owner, round 1).
 //
-//      Loading map  2.1 / 5.8 MB
-//   ███████████░░░░░░░░░░░░░░░░░
-//
-// - The bar is drawn like the start page loader (index.html, ADR 0083):
-//   the fill is one solid box `n ch` wide (no seams between `█` glyphs at
-//   fractional pixel ratios), the track is `░` text clipped to its width.
+// - A small system UI label over a thin rounded bar. The fill is a full
+//   width rounded strip slid in from the left (`translateX(pct - 100%)`),
+//   so it eases to each new value on the compositor, with a round end.
 // - A session starts with `begin` ('load': the pane starts or the map
 //   changes; 'tiles': a tileset change) and ends with `end` (the worker's
 //   `drawn` / `tilesDrawn`) or `abort` (an error, nothing to load).
 // - Shown only once a session has lasted SHOW_DELAY_MS, so a cached or
 //   fast load never flashes it. It fades out on the end
 //   (prefers-reduced-motion: hidden at once).
-// - Colours are the pane's tokens (panes.css `.wc-map-loading`); the box
-//   has the pane's background so it reads on the map's fixed dark grey in
-//   a light theme too.
+// - Colours are fixed neutral tones (panes.css `.wc-map-loading`): the
+//   map's grey is fixed in every theme, so terminal tokens would not.
 
-import { type LoadState, barCells, barFill, loadFraction, loadLabel, type MapProgress } from '../map/progress';
+import { type LoadState, loadFraction, loadLabel, type MapProgress } from '../map/progress';
 
 /** A session shorter than this shows nothing, ms. */
 export const SHOW_DELAY_MS = 200;
@@ -29,15 +26,13 @@ export const FADE_MS = 250;
 export class MapLoading {
   readonly el: HTMLDivElement;
   private readonly label: HTMLDivElement;
-  private readonly fill: HTMLSpanElement;
-  private readonly track: HTMLSpanElement;
+  private readonly fill: HTMLDivElement;
   private state: LoadState | null = null;
   private shown = false;
   private showTimer: ReturnType<typeof setTimeout> | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   /** Highest fraction shown in this load session (the bar never goes back). */
   private frac = 0;
-  private cols = 0;
 
   constructor(private readonly doc: Document) {
     const el = doc.createElement('div');
@@ -49,11 +44,12 @@ export class MapLoading {
     this.label.className = 'wc-map-loading-label';
     const bar = doc.createElement('div');
     bar.className = 'wc-map-loading-bar';
-    this.fill = doc.createElement('span');
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', '100');
+    this.fill = doc.createElement('div');
     this.fill.className = 'wc-map-loading-fill';
-    this.track = doc.createElement('span');
-    this.track.className = 'wc-map-loading-track';
-    bar.append(this.fill, this.track);
+    bar.append(this.fill);
     box.append(this.label, bar);
     el.append(box);
     this.el = el;
@@ -72,6 +68,8 @@ export class MapLoading {
     if (kind === 'tiles' && this.state?.kind === 'load') return;
     this.state = { kind, withFetch, map: null, mapDone: false, tiles: null };
     this.frac = 0;
+    // A new session starts empty at once, not easing back from the last one.
+    this.el.dataset.reset = '';
     this.cancelHide();
     if (this.shown) this.render();
     else if (this.showTimer === null) this.showTimer = setTimeout(this.show, SHOW_DELAY_MS);
@@ -110,13 +108,6 @@ export class MapLoading {
   abort(): void {
     this.state = null;
     this.finish(false);
-  }
-
-  /** The pane's width in cells (the bar narrows in a narrow pane). */
-  resize(cols: number): void {
-    if (cols === this.cols) return;
-    this.cols = cols;
-    this.render();
   }
 
   dispose(): void {
@@ -181,20 +172,19 @@ export class MapLoading {
     if (!this.shown || !s) return;
     const f = loadFraction(s);
     this.frac = s.kind === 'load' ? Math.max(this.frac, f) : f;
-    const cells = barCells(this.cols > 0 ? this.cols : 32);
-    const on = barFill(this.frac, cells);
     const label = loadLabel(s);
     if (this.label.textContent !== label) this.label.textContent = label;
-    if (this.fill.dataset.cells !== String(on)) {
-      this.fill.dataset.cells = String(on);
-      this.fill.style.width = `${on}ch`;
+    const shift = `translateX(${Math.round(this.frac * 1000) / 10 - 100}%)`;
+    if ('reset' in this.el.dataset) {
+      // Jump (no transition) to the new session's start, then ease again.
+      this.fill.style.transform = shift;
+      void this.fill.offsetWidth;
+      delete this.el.dataset.reset;
+    } else if (this.fill.style.transform !== shift) {
+      this.fill.style.transform = shift;
     }
-    const track = '░'.repeat(cells - on);
-    if (this.track.textContent !== track) {
-      this.track.textContent = track;
-      this.track.style.width = `${cells - on}ch`;
-    }
-    this.el.dataset.pct = String(Math.round(this.frac * 100));
-    this.el.style.setProperty('--wc-bar-cells', String(cells));
+    const rounded = String(Math.round(this.frac * 100));
+    this.el.dataset.pct = rounded;
+    this.fill.parentElement?.setAttribute('aria-valuenow', rounded);
   }
 }

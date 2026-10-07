@@ -165,9 +165,13 @@
   pointer-events: none;
 }
 
-/* Map loading overlay (src/panes/map-loading.ts, stage 24): a centred box
- * in the pane's own colours over the map's fixed grey, a label over a
- * glyph bar (`█` fill on a `░` track, whole cells). Fades out at the end. */
+/* Map loading overlay (src/panes/map-loading.ts, stage 24 round 1): a
+ * small, modern indicator centred over the map, a contrast to the TUI
+ * look of the rest of the client (the mapper is the modern window). A
+ * system UI label over a thin rounded bar on a soft translucent pill.
+ * Colours are fixed neutral tones, not terminal tokens: the map's grey
+ * (#2e3436, `.wc-map`) is the same in every theme, so the overlay is too.
+ * Fades out at the end. */
 .wc-map-loading {
   position: absolute;
   inset: 0;
@@ -189,47 +193,53 @@
 
 .wc-map-loading-box {
   box-sizing: content-box;
-  width: calc(var(--wc-bar-cells, 28) * 1ch);
-  padding: calc(var(--cell-h) * 0.5) 1ch;
-  background: var(--pane-bg);
-  color: var(--term-fg);
-  font-family: var(--font-mono);
-  font-size: var(--font-size);
-  line-height: var(--cell-h);
-  white-space: pre;
+  width: min(180px, 60%);
+  padding: 8px 12px 10px;
+  border-radius: 10px;
+  background: rgba(36, 40, 42, 0.9);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: rgba(238, 238, 236, 0.72);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
 }
 
 .wc-map-loading-label {
   overflow: hidden;
+  white-space: pre;
   text-overflow: ellipsis;
   text-align: center;
-  color: var(--pane-shade-label, var(--term-fg));
+  margin-bottom: 6px;
 }
 
 .wc-map-loading-bar {
-  display: flex;
-}
-
-/* Like the start page loader (index.html): the fill is one box, the
- * track `░` text clipped to its cells (no glyph seams, no fallback width). */
-.wc-map-loading-fill,
-.wc-map-loading-track {
-  display: inline-block;
-  flex: none;
-  height: var(--cell-h);
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(238, 238, 236, 0.16);
   overflow: hidden;
 }
 
+/* A full-width strip slid in from the left (map-loading.ts): the
+ * transition runs on the compositor and the leading end stays round. */
 .wc-map-loading-fill {
-  background: var(--pane-shade-glow, var(--term-fg));
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(238, 238, 236, 0.85);
+  transform: translateX(-100%);
+  transition: transform 220ms ease-out;
 }
 
-.wc-map-loading-track {
-  color: var(--pane-shade-mid, var(--term-fg));
+.wc-map-loading[data-reset] .wc-map-loading-fill {
+  transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wc-map-loading {
+  .wc-map-loading,
+  .wc-map-loading-fill {
     transition: none;
   }
 }

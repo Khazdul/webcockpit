@@ -6,8 +6,7 @@
 //   files requested and settled for the current tile source (tiles,
 //   character arrows and the map font).
 // - The pane folds a snapshot into one weighted fraction and a label
-//   (`loadFraction`, `loadLabel`) and draws the bar in whole cells
-//   (`barFill`). Pure; no DOM.
+//   (`loadFraction`, `loadLabel`). Pure; no DOM.
 //
 // Weights (fractions of the whole bar): from the stage 22 bench
 // (bench/results/latest.md, Firefox, localhost: fetch 238, inflate 76,
@@ -120,20 +119,6 @@ export function loadLabel(s: LoadState): string {
     }
   }
   return tilesLeft ? tilesLabel(t) : 'Drawing map…';
-}
-
-/** Bar width in cells for a pane `cols` wide: 28, narrower in a narrow pane (one cell margin each side), at least 4. */
-export function barCells(cols: number, max = 28): number {
-  return Math.max(4, Math.min(max, Math.floor(cols) - 4));
-}
-
-/**
- * The filled whole cells of a bar `cells` wide at `frac` (0…cells). The
- * overlay draws them as one solid box and the rest as a `░` track, like
- * the start page loader (no seams between `█` glyphs).
- */
-export function barFill(frac: number, cells: number): number {
-  return Math.max(0, Math.min(cells, Math.floor((Number.isFinite(frac) ? frac : 0) * cells + 1e-9)));
 }
 
 /**
