@@ -66,13 +66,19 @@ void main() {
   gl_Position = proj(aPos);
 }`;
 
+// uInk (0 = off) takes that share of a colour's white part away: white
+// lines turn dark grey, red stays red (connections and infomark lines on
+// a light map background, ADR 0085 addendum).
 export const COLOR_FS = /* glsl */ `#version 300 es
 precision highp float;
 uniform vec4 uColor;
+uniform float uInk;
 in vec4 vColor;
 out vec4 oColor;
 void main() {
-  oColor = vColor * uColor;
+  vec4 c = vColor * uColor;
+  c.rgb -= min(min(c.r, c.g), c.b) * uInk;
+  oColor = c;
 }`;
 
 /** Coloured, textured world-space triangles (tex/acolor; the character square). */

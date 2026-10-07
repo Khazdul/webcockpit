@@ -1,13 +1,19 @@
 // Map background colour (ADR 0085): the named list, the typed code, the
 // renderer colour and the worker's `background` message.
 import { describe, expect, it } from 'vitest';
-import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, mapBgChoices, mapBgName, parseMapBg } from '../../src/map/backgrounds';
+import { MAP_BACKGROUNDS, MAP_BG_DARK_PAPER, MAP_BG_DEFAULT, isNamedMapBg, mapBgIsLight, mapBgName, parseMapBg } from '../../src/map/backgrounds';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
-import { BACKGROUND, type RGBA, hexRgba } from '../../src/map/render/palette';
+import { BACKGROUND, LIGHT_BG_INK, type RGBA, hexRgba, isLightBackground } from '../../src/map/render/palette';
 import type { Renderer } from '../../src/map/render/renderer';
 import { MapWorkerCore } from '../../src/map/worker/core';
 import { defaultSettings } from '../../src/settings/types';
-import { contrast } from '../../src/theme/color';
+import { contrast, luminance } from '../../src/theme/color';
+
+/** White with LIGHT_BG_INK of it taken away: the lines on a light background. */
+const LIGHT_INK = (() => {
+  const v = Math.round(255 * (1 - LIGHT_BG_INK)).toString(16).padStart(2, '0');
+  return `#${v}${v}${v}`;
+})();
 
 describe('map background choices', () => {
   it('starts with the default, MMapper\'s #2e3436, which is the setting\'s default', () => {
@@ -24,8 +30,27 @@ describe('map background choices', () => {
     expect(new Set(MAP_BACKGROUNDS.map((c) => c.name)).size).toBe(hexes.length);
   });
 
-  it('keeps the white connection lines legible on every named colour', () => {
-    for (const c of MAP_BACKGROUNDS) expect(contrast('#ffffff', c.hex), c.name).toBeGreaterThanOrEqual(7);
+  it('keeps the lines legible on every named colour: white on the dark ones, dark on Dark paper', () => {
+    for (const c of MAP_BACKGROUNDS) {
+      if (mapBgIsLight(c.hex)) {
+        expect(contrast(LIGHT_INK, c.hex), c.name).toBeGreaterThanOrEqual(7);
+        expect(isLightBackground(hexRgba(c.hex)), c.name).toBe(true);
+      } else {
+        expect(contrast('#ffffff', c.hex), c.name).toBeGreaterThanOrEqual(7);
+        expect(isLightBackground(hexRgba(c.hex)), c.name).toBe(false);
+      }
+    }
+    // Only Dark paper is light, a shade darker than the paper background.
+    expect(MAP_BACKGROUNDS.filter((c) => mapBgIsLight(c.hex)).map((c) => c.name)).toEqual(['Dark paper']);
+    expect(MAP_BG_DARK_PAPER).toBe('#e8dfc8');
+    expect(luminance(MAP_BG_DARK_PAPER)).toBeLessThan(luminance('#f4ecd8'));
+    expect(luminance(MAP_BG_DARK_PAPER)).toBeGreaterThan(luminance('#f4ecd8') * 0.8);
+  });
+
+  it('the renderer and the options agree on light (the same threshold), also for typed codes', () => {
+    for (const h of ['#ffffff', '#808080', '#767676', '#777777', '#2e3436', '#e8dfc8', '#ffff00', '#0000ff']) {
+      expect(isLightBackground(hexRgba(h)), h).toBe(mapBgIsLight(h));
+    }
   });
 
   it('names a listed colour and shows a typed one as its code', () => {
@@ -34,9 +59,10 @@ describe('map background choices', () => {
     expect(mapBgName('#123456')).toBe('#123456');
   });
 
-  it('cycles the list, a typed colour first', () => {
-    expect(mapBgChoices('#000000')).toEqual(MAP_BACKGROUNDS.map((c) => c.hex));
-    expect(mapBgChoices('#ABCDEF')).toEqual(['#abcdef', ...MAP_BACKGROUNDS.map((c) => c.hex)]);
+  it('tells a named colour from a typed one', () => {
+    expect(isNamedMapBg('#2E3436')).toBe(true);
+    expect(isNamedMapBg('#e8dfc8')).toBe(true);
+    expect(isNamedMapBg('#abcdef')).toBe(false);
   });
 
   it('takes #rrggbb, #rgb and a code without #; refuses anything else', () => {

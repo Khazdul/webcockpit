@@ -28,7 +28,7 @@ import { buildConnections, type ConnectionLayer, type MapText } from './connecti
 import { type FontMetrics, FontVerts, FONT_STRIDE, fontFntPath, fontPagePath, fontSizeForDpr, layoutText, parseFnt } from './font';
 import { COLOR_STRIDE } from './geometry';
 import { buildInfomarks, type InfomarkLayer } from './infomarks';
-import { BACKGROUND, BLACK, GRAY70, NAMED_COLORS, type RGBA, WATER, WHITE, withAlpha } from './palette';
+import { BACKGROUND, BLACK, GRAY70, LIGHT_BG_INK, NAMED_COLORS, type RGBA, WATER, WHITE, isLightBackground, withAlpha } from './palette';
 import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLayerMesh } from './rooms';
 import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
@@ -195,7 +195,7 @@ export class WebGLMapRenderer implements Renderer {
     private readonly onChange: () => void = () => {},
   ) {
     this.room = compile(gl, S.ROOM_VS, S.ROOM_FS, ['uView', 'uNamed', 'uTex', 'uColor', 'uWhite']);
-    this.color = compile(gl, S.COLOR_VS, S.COLOR_FS, ['uView', 'uColor']);
+    this.color = compile(gl, S.COLOR_VS, S.COLOR_FS, ['uView', 'uColor', 'uInk']);
     this.texColor = compile(gl, S.TEXCOLOR_VS, S.TEXCOLOR_FS, ['uView', 'uTex']);
     this.font = compile(gl, S.FONT_VS, S.FONT_FS, ['uView', 'uPhys', 'uScreen', 'uTex']);
     this.full = compile(gl, S.FULL_VS, S.FULL_FS, ['uColor']);
@@ -503,17 +503,19 @@ export class WebGLMapRenderer implements Renderer {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     const cur = view.layer;
+    // A light background (ADR 0085 addendum): the white lines turn dark.
+    const ink = isLightBackground(this.bg) ? LIGHT_BG_INK : 0;
     for (const l of this.layers) {
       if (l.z === cur && l.rooms) this.fullScreen(withAlpha(this.bg, 0.5));
       if (l.rooms) this.drawLayer(l, cur);
       if (view.zoom >= CONNECTION_ZOOM) {
-        if (l.conn) this.drawColor(l.conn, l.z === cur ? WHITE : withAlpha(GRAY70, 0.1));
+        if (l.conn) this.drawColor(l.conn, l.z === cur ? WHITE : withAlpha(GRAY70, 0.1), l.z === cur ? ink : 0);
         if (l.z === cur && view.zoom >= DOOR_NAME_ZOOM && l.doorNameMesh) this.drawFont(l.doorNameMesh, this.fontTex, false);
       }
     }
     if (view.zoom >= INFOMARK_ZOOM) {
       const l = this.layers.find((x) => x.z === cur);
-      if (l?.marks) this.drawColor(l.marks, WHITE);
+      if (l?.marks) this.drawColor(l.marks, WHITE, ink);
       if (l?.markTextMesh) this.drawFont(l.markTextMesh, this.fontTex, false);
     }
     this.drawScene(view, cssW, cssH);
@@ -573,11 +575,13 @@ export class WebGLMapRenderer implements Renderer {
     gl.bindVertexArray(null);
   }
 
-  private drawColor(m: FloatMesh, c: RGBA): void {
+  /** `ink`: the colour shader's uInk (0: as is; LIGHT_BG_INK on a light background). */
+  private drawColor(m: FloatMesh, c: RGBA, ink = 0): void {
     if (!m.count) return;
     const gl = this.gl;
     gl.useProgram(this.color.p);
     gl.uniform4fv(this.color.u.uColor!, c);
+    gl.uniform1f(this.color.u.uInk!, ink);
     gl.bindVertexArray(m.vao);
     gl.drawArrays(gl.TRIANGLES, 0, m.count);
   }

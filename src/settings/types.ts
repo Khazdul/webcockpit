@@ -266,6 +266,12 @@ export interface MapperSettings {
    * any typed colour.
    */
   background: string;
+  /**
+   * The last colour code typed in Options → Mapper (`#rrggbb`, '' for
+   * none; ADR 0085 addendum), kept while a named colour is chosen so the
+   * code row can be checked again.
+   */
+  backgroundCode: string;
 }
 
 export interface Settings {
@@ -359,7 +365,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' },
   };
 }
 

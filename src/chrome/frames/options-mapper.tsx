@@ -10,7 +10,8 @@
 //      << Room info on hover: Full >>
 //      << Hover text size: Medium >>
 //      << Tileset: Default (MMapper) >>
-//      << Background: Default >>
+//      << [X] Background colour: Default >>
+//      << [ ] Background colour code: none >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
@@ -36,15 +37,18 @@
 // catalogue (src/map/tilesets.ts); the line under the menu credits the
 // set, and an alternating set names the season it draws now (the saved
 // game clock, as the Map pane resolves it). Background (`mapper.background`,
-// ADR 0085): ←→ cycles the named colours of src/map/backgrounds.ts (a
-// typed colour first); Enter opens the Map background page, the same list
-// as radio rows with a swatch of the colour under the cursor, and
-// "Colour code…", a `#rrggbb` prompt. The Map pane draws it at once.
+// ADR 0085 and its addendum): two check-box rows, exactly one checked.
+// "Background colour": ←→ cycles the named colours of
+// src/map/backgrounds.ts (Default first), Enter or a click checks it.
+// "Background colour code": Enter or a click opens the `#rrggbb` prompt;
+// a valid code checks the row and is remembered (`mapper.backgroundCode`),
+// so ←→ there checks it again. A typed code that is a named colour shows
+// as that name. The Map pane draws the colour at once.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { seasonOf } from '../../gmcp/gametime';
-import { MAP_BACKGROUNDS, mapBgChoices, mapBgName, parseMapBg } from '../../map/backgrounds';
+import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg, mapBgName, parseMapBg } from '../../map/backgrounds';
 import type { CurrentMap } from '../../map/store';
 import { localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
@@ -99,6 +103,9 @@ export function mapInfoRows(m: CurrentMap | null): Array<[string, string]> {
 
 const LABEL_W = 10;
 
+/** What ←→ cycles on the named background row: the list, Default first. */
+const MAP_BG_HEXES = MAP_BACKGROUNDS.map((c) => c.hex);
+
 /** The credit line under the menu; an alternating set adds the season it draws now (game month `month`). */
 export function tilesetCredit(id: string, month: number): string {
   const c = tilesetChoice(id);
@@ -137,6 +144,10 @@ export function MapperOptionsFrame(): VNode {
   const tileset = tilesetChoice(mapper.tileset);
   const credit = tilesetCredit(mapper.tileset, mumeMonth(storedClockEpoch(localStorageOrNull(), Date.now()), Date.now()));
   const sizeLabel = mapper.hoverSize === 'small' ? 'Small' : mapper.hoverSize === 'large' ? 'Large' : 'Medium';
+  // Background (ADR 0085 addendum): the code row is checked while the
+  // colour is not a named one; the named row then offers Default.
+  const byCode = !isNamedMapBg(mapper.background);
+  const named = byCode ? MAP_BG_DEFAULT : mapper.background.toLowerCase();
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;
@@ -191,10 +202,21 @@ export function MapperOptionsFrame(): VNode {
     },
     {
       key: 'background',
-      label: `Background: ${mapBgName(mapper.background)}`,
-      activate: () => nav.push(<MapBackgroundFrame />),
-      adjust: (d) =>
-        settings.update({ mapper: { background: cycle(mapBgChoices(mapper.background), mapper.background.toLowerCase(), d) } }),
+      glyph: byCode ? '[ ]' : '[X]',
+      label: `Background colour: ${mapBgName(named)}`,
+      activate: () => settings.update({ mapper: { background: named } }),
+      adjust: (d) => settings.update({ mapper: { background: cycle(MAP_BG_HEXES, named, d) } }),
+    },
+    {
+      key: 'backgroundCode',
+      glyph: byCode ? '[X]' : '[ ]',
+      label: `Background colour code: ${mapper.backgroundCode || 'none'}`,
+      activate: () => nav.push(<MapBackgroundCodeFrame />),
+      // ←→ check the row again with the remembered code (a typed one: Enter).
+      adjust: () => {
+        if (mapper.backgroundCode) settings.update({ mapper: { background: mapper.backgroundCode } });
+        else nav.push(<MapBackgroundCodeFrame />);
+      },
     },
     {
       key: 'import',
@@ -234,7 +256,7 @@ export function MapperOptionsFrame(): VNode {
 
 // ------------------------------------------------------- map background
 
-/** A swatch of `hex` and its code, centred (the Map background pages). */
+/** A swatch of `hex` and its code, centred (the colour code prompt). */
 function Swatch(p: { hex: string; prefix?: string }): VNode {
   const head = `${p.prefix ?? ''}${p.hex}  `;
   return (
@@ -247,54 +269,19 @@ function Swatch(p: { hex: string; prefix?: string }): VNode {
   );
 }
 
-/** Options → Mapper → Background: the named colours, a typed one first, and "Colour code…" (ADR 0085). */
-export function MapBackgroundFrame(): VNode {
-  const { settings } = useServices();
-  const s = useSettings();
-  const nav = useNav();
-  const current = s.mapper.background.toLowerCase();
-  const items: MenuItem[] = [
-    ...mapBgChoices(current).map((hex) => ({
-      key: hex,
-      glyph: current === hex ? '(•)' : '( )',
-      label: mapBgName(hex),
-      activate: () => {
-        settings.update({ mapper: { background: hex } });
-        nav.pop();
-      },
-    })),
-    { key: 'sp', spacer: true },
-    { key: 'code', label: 'Colour code…', activate: () => nav.push(<MapBackgroundCodeFrame />) },
-    { key: 'back', label: 'Back', activate: () => nav.pop() },
-  ];
-  const [cursor, setCursor] = useMenuCursor(items, current);
-  useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
-  const under = items[cursor]?.key ?? '';
-  const shown = under === current || MAP_BACKGROUNDS.some((c) => c.hex === under) ? under : current;
-  return (
-    <Page title="Map background" footer={['↑↓ Navigate', 'Enter Select', 'ESC Back']}>
-      <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
-      <Blank />
-      <Swatch hex={shown} />
-      <FlashRow />
-    </Page>
-  );
-}
-
 /** The `#rrggbb` prompt for the map background. */
 function MapBackgroundCodeFrame(): VNode {
   const { settings } = useServices();
   const nav = useNav();
   const { cols } = useGrid();
   const cur = settings.get().mapper.background;
-  const [value, setValue] = useState(cur);
+  const [value, setValue] = useState(settings.get().mapper.backgroundCode || cur);
   const [error, setError] = useState('');
   const confirm = (): void => {
     const hex = parseMapBg(value);
     if (!hex) return setError('Use #rrggbb, e.g. #1c1c1c.');
-    settings.update({ mapper: { background: hex } });
-    // Back to Options → Mapper, past the list.
-    nav.pop(2);
+    settings.update({ mapper: { background: hex, backgroundCode: hex } });
+    nav.pop();
     nav.flash(`Map background set to ${hex}.`);
   };
   useKeys((e, nk) => {

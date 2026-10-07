@@ -687,15 +687,15 @@ describe('SettingsStore', () => {
 
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a full hover, and clamps stored values', () => {
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
-    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
-    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
-    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436' });
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundCode: '' });
     expect(migrateMapper({ hoverSize: 'small' }).hoverSize).toBe('small');
     expect(migrateMapper({ hoverSize: 'tiny' }).hoverSize).toBe('medium');
-    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
-    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
-    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
+    expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
     expect(migrateMapper({ hover: 'minimal' }).hover).toBe('minimal');
   });
 
@@ -706,6 +706,14 @@ describe('mapper settings (ADR 0077)', () => {
     expect(migrateMapper({ background: 'navy' }).background).toBe('#2e3436');
     expect(migrateMapper({ background: 42 }).background).toBe('#2e3436');
     expect(migrateSettings({ mapper: { background: '#101c3c' } }).mapper.background).toBe('#101c3c');
+  });
+
+  it('remembers the typed map colour code; a round-1 typed background becomes it (ADR 0085 addendum)', () => {
+    expect(migrateMapper({ background: '#123456' }).backgroundCode).toBe('#123456');
+    expect(migrateMapper({ background: '#101c3c' }).backgroundCode).toBe('');
+    expect(migrateMapper({ background: '#101c3c', backgroundCode: '#ABC' }).backgroundCode).toBe('#aabbcc');
+    expect(migrateMapper({ background: '#2e3436', backgroundCode: 'nope' }).backgroundCode).toBe('');
+    expect(migrateMapper({}).backgroundCode).toBe('');
   });
 
   it('moves a stored v1 minimal hover to full once (ADR 0080)', () => {
