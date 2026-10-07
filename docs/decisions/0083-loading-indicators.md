@@ -89,7 +89,58 @@ box for seconds before the map appears (part B below).
 
 ## Decision — map pane
 
-(Placeholder: part B of stage 24, written by that part.)
+7. **Worker progress.** The map worker reports loading progress with two
+   new protocol messages (additive, protocol version unchanged).
+   `progress` carries the map load in flight (`req`, phase
+   `fetch|unpack|parse|build`, bytes read and the expected total) and the
+   file count of the current tile source (`done/total`, counted by
+   wrapping the asset resolver, so it includes the character arrows and
+   the map font). `tilesDrawn` follows the first complete frame after an
+   `assets` change. `arda.mm2` is read from a streaming body
+   (`readBody`). The total is Content-Length only when the body is not
+   content-encoded; otherwise it is the source's known size (`size` on a
+   `url` source, below), and it falls to 0 (unknown) when neither is
+   available or the bytes exceed it. With an unknown length the label
+   shows MB received and the download share of the bar stays empty until
+   the fetch ends. Phase changes are posted at once (the worker blocks
+   during parse and mesh building); byte and file counts are throttled to
+   one message per 50 ms, and nothing is posted after `loaded`/`error`.
+   Imported maps begin at unpack, replay subsets at build. The renderer's
+   `complete` is false while a tileset swap is pending, and a failed map
+   font counts as complete (otherwise the overlay would wait forever).
+
+8. **Known size of the bundled map.** GitHub Pages serves `arda.mm2`
+   gzip-encoded when the browser accepts it (checked 2026-10-07 on
+   mumecockpit.com: `content-encoding: gzip`, `content-length: 5815932`
+   encoded against 5814236 plain; the file is already deflated, so gzip
+   gains nothing). The browser's reader yields decoded bytes, so the
+   encoded length cannot be the total, and the download would always show
+   as unknown on the live site. The build therefore embeds the file's size
+   (`__WC_MAP_BYTES__`, `statSync` of `public/map/arda.mm2` in
+   `vite.config.ts`; `BUNDLED_MAP_BYTES` in `src/map/progress.ts`), and the
+   bundled map's `url` source carries it as `size`. It is the same file the
+   build copies, so it matches; if it ever did not, an overflow drops to
+   unknown and a short body only stops the bar early.
+
+9. **The overlay.** The pane folds the reports into one weighted bar:
+   download 0.55, unpack 0.07, parse 0.14, build 0.06, tiles 0.18
+   (without a download the rest is scaled to 1; a tileset change uses
+   tiles alone), from the bench scaled to a remote load. The bar never
+   moves backwards within a load. The overlay is a centred box in the
+   pane's own background, a label over a 28-cell bar (cols − 4 in a
+   narrow pane, min 4). The bar is drawn like the start page loader: the
+   filled whole cells as one solid box `n ch` wide (no seams between `█`
+   glyphs, seen on a phone and in Firefox) and the track as `░` text
+   clipped to its cells. Colours: label `--pane-shade-label`, fill
+   `--pane-shade-glow`, track `--pane-shade-mid`. It appears after
+   200 ms, fades out over 250 ms on `drawn` / `tilesDrawn`, instant with
+   prefers-reduced-motion. Errors hide it and use the existing notice.
+   The HTML replay runs the same code.
+
+   ```
+        Loading map  2.1 / 5.8 MB
+   ██████████░░░░░░░░░░░░░░░░░░
+   ```
 
 ## Consequences
 
@@ -100,3 +151,8 @@ box for seconds before the map appears (part B below).
   4 s cap bounds that.
 - `index.html` carries about 3 KB of inline loader code; other entry
   points need nothing.
+- A cold map load shows where the time goes (download, unpack, build,
+  tiles) instead of a grey box; a tileset switch that takes longer than
+  200 ms shows the tile count.
+- Both bars share one look (28 cells, solid fill, `░` track), with
+  colours from their context (boot UI roles; pane shades).

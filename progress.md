@@ -29,13 +29,28 @@ Stage 23 (remote editing) parked by the owner: research and plan kept for later.
 | 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
 | 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
-| 24 | Loading indicators | In progress | `docs/stages/24-loading.md` |
+| 24 | Loading indicators | Owner testing | `docs/stages/24-loading.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-07 — Stage 24 finished (loading indicators)
+
+- **Done:** parts A (start page loader, font gate, fade-in) and B (map
+  overlay bar, worker progress) merged; the map bar now draws like the
+  start loader (solid fill box, clipped `░` track, no seams). GitHub
+  Pages gzips `arda.mm2`, so the build embeds its size as the byte total.
+  ADR 0083 complete, test guide in the stage file.
+- **Checked:** typecheck, unit 2469, e2e 483/484 (live-mock Firefox
+  teardown timeout, passes 12/12 on rerun), build:pages smoke 10/10
+  (`--skip-live`, 0.1.52 is live).
+- **Next:** owner tests (stage file test guide); release on the owner's go
+  (bump the version first).
+- **Open:** the flaky `map-notes.spec.ts:40` hover-delay test.
+- **Commits:** 9e4c877, 70548dd, plus this one.
 
 ### 2026-10-07 — Release 0.1.52
 

@@ -74,12 +74,42 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
 - [x] A. Static loader in `index.html`, boot progress steps, font gate,
   fade-in reveal (ADR 0083; `src/app/boot-progress.ts`,
   `tests/e2e/loading.spec.ts`)
-- [ ] B. Worker progress messages, map overlay bar, tileset-switch overlay
-- [ ] C. Tests, ADR 0083, test guide
+- [x] B. Worker progress messages, map overlay bar, tileset-switch overlay
+  (`src/map/progress.ts`, `src/panes/map-loading.ts`,
+  `tests/e2e/map-loading.spec.ts`)
+- [x] C. Map bar drawn like the start loader (solid fill box, clipped `░`
+  track), known size of the bundled map as the progress total when the
+  host gzips it (GitHub Pages does), ADR 0083 map pane, test guide
 
 ## Test guide
 
-(Written when A–C are done.)
+**Desktop.** Open the client in Chrome or Firefox, open DevTools →
+Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
+*3G*). Reload.
+
+1. Start page: after a moment a bar with a percentage and a short label
+   appears in the middle (`Loading client` → … → `Ready`). Then the whole
+   start page fades in at once, in its real font. No row (such as
+   `<< Enter MUME >>`) should appear on its own before the others.
+2. Enter the cockpit (or `?replay`) so the Map pane opens. Instead of a
+   grey box, a small box in the middle shows a label over a bar:
+   `Loading map  2.1 / 5.8 MB`, then `Unpacking map…`, `Building map…`,
+   `Loading tiles  40 / 126`, `Drawing map…`. The bar only moves forward
+   and fades out when the map is drawn.
+3. Options → Mapper → `Tileset`: switch to another set (←→). With the
+   throttling still on, the same box shows `Loading tiles  n / m` until
+   the new tiles are drawn.
+4. Turn throttling off and reload: on a fast load there should be no
+   flash of either bar, only the short fade-in.
+
+**Phone.** Open the link on mobile data (or after clearing the site's
+data). Check the same: the start bar, the start page appearing all at
+once, and the map bar when the map opens. Check that both bars are solid,
+without thin lines between the cells.
+
+**Feedback wanted:** the look of the bars and labels (size, colours,
+wording), the fade speed (too slow / too fast), and anything that still
+pops in piece by piece.
 
 ## Owner feedback
 
