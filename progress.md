@@ -30,6 +30,7 @@ Stage 24 (loading indicators) done, approved by the owner, not released yet. Sta
 | 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
+| 25 | Polish round | In progress | `docs/stages/25-polish.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
