@@ -30,13 +30,25 @@ Stage 24 (loading indicators) done, approved by the owner, not released yet. Sta
 | 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
-| 25 | Polish round | In progress | `docs/stages/25-polish.md` |
+| 25 | Polish round | Owner testing | `docs/stages/25-polish.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-08 — Stage 25 polish round
+
+- **Owner:** feedback batch (script pane x/grab, hover outline, profile
+  Enter = edit, Panes General → Appearance, map background, manual trims).
+- **Done:** all items, three parallel agents; ADR 0084 (script pane x,
+  outline), 0085 (map background), 0051 addendum (empty #lua arg = nil).
+- **Checked:** typecheck, unit 2488, e2e 495/498 (3 editor.spec
+  start-page timeouts under load, 48/48 on rerun).
+- **Next:** owner tests stage 25; release on the owner's go (0.1.53
+  would carry stages 24 and 25).
+- **Commits:** e7233b6..HEAD.
 
 ### 2026-10-07 — Stage 24 closed
 

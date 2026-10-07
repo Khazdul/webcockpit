@@ -39,15 +39,49 @@ Owner feedback 2026-10-07, a batch of small fixes and changes.
 
 ## Tasks
 
-- [ ] A1 script panes get grab cursor and close `x`
-- [ ] A2 hover outline on borderless panes
-- [ ] B3 Enter/click on selected profile = edit
-- [ ] B4 General → Appearance
-- [ ] B5 map background colour option
-- [ ] C6–C10 manual edits
+- [x] A1 script panes get grab cursor and close `x`
+- [x] A2 hover outline on borderless panes
+- [x] B3 Enter/click on selected profile = edit
+- [x] B4 General → Appearance
+- [x] B5 map background colour option
+- [x] C6–C10 manual edits
+
+## Result
+
+- A: root cause was deliberate (ADR 0065 round 2): borderless script
+  panes had no grab cursor on the soft-grip top row and the x was hidden
+  so it would not cover the pane bar's buttons. Now: grab cursor on the
+  top row (pointer over links), x on hover unless a link or text field
+  lies under it (then hidden, e.g. pane bar). Hover outline: 1 px inset
+  in `--pane-border` on every borderless pane, hover devices only.
+  ADR 0084.
+- B3: Enter/click on the selected profile = EDIT. A click on another
+  profile now makes it active (before it only moved the cursor).
+- B4: the Panes hub entry is "Appearance"; its page title is "Pane
+  appearance", since Options already has an "Appearance" page.
+- B5: `mapper.background`, default `#2e3436`, 12 dark named colours or a
+  `#rrggbb` code; live, also the pane bg before the first frame. No
+  auto-contrast: a light colour hides white lines. ADR 0085.
+- C: manual trimmed. `{%0}` example: an empty `#lua` argument now gives
+  nil (was ""), ADR 0051 addendum.
 
 ## Test guide
 
-(written when the stage is built)
+Open the dev build (or the next release) and try:
+
+1. Almanac and key manager panes without border: hover the top row
+   (hand cursor, drag), hover the pane (x top right, thin grey outline).
+   Pane bar: x should not cover its last button.
+2. Map pane / other borderless panes: outline on hover visible enough?
+3. Start page → Profile: click another profile (it becomes active),
+   click it again or press Enter (editor opens).
+4. Options → Panes → Appearance (page titled "Pane appearance").
+5. Options → Mapper → Background: cycle with ←→, Enter for the list,
+   "Colour code…" for e.g. `#1c1c1c`. Reload: kept.
+6. Profile → EDITOR → HELP: intro without the tt++ differences, no Not
+   supported section, `#lua` example with `{%0}`.
+
+Feedback wanted: outline colour/strength, the "Pane appearance" title,
+the colour list.
 
 ## Owner feedback
