@@ -24,7 +24,9 @@
 // → theme and font preload → settings from IndexedDB and the look-up of
 // installed local-only fonts (Lucida Console, ADR 0049; ≤ 1 s together) →
 // theme again → Shell (start page, or the cockpit in the offline modes).
-// The cell metrics are re-measured once the web font has loaded.
+// The cell metrics are re-measured once the web font has loaded. The
+// start page is held until the font's faces are loaded (≤ 4 s) and fades
+// in; index.html's loader shows the steps meanwhile (ADR 0083).
 //
 // Notices (ADR 0025): a newer version on the site (production builds only),
 // a lazy chunk that is gone, a database upgraded by a newer tab. Not in
@@ -43,8 +45,11 @@ import { initKeyLabels } from './script/keys';
 import { SettingsStore } from './settings';
 import { appearanceChanged, applyTheme } from './theme/apply';
 import { CellMetrics } from './theme/cells';
-import { FONTS, detectLocalFonts, installFontFaces, preloadFont } from './theme/fonts';
+import { FONTS, detectLocalFonts, fontPx, installFontFaces, loadFont, preloadFont } from './theme/fonts';
+import { FONT_GATE_MS, bootDone, bootStep, gate } from './app/boot-progress';
 
+// The boot loader in index.html (ADR 0083): the entry script is running.
+bootStep(20, 'Reading settings');
 // Touch / phone flags and the `wc-touch` / `wc-phone` classes, before anything renders.
 const device = initDevice();
 // Phone only (ADR 0075 §3): no input zoom, safe areas, the keyboard-aware visible area.
@@ -88,6 +93,7 @@ settings.subscribe((next, prev) => {
 applyTheme(settings.get());
 preloadFont(settings.get().appearance.font);
 void cells.update(settings.get().appearance);
+bootStep(40, 'Loading interface');
 
 const fixture = import.meta.env.DEV ? params.get('fixture') : null;
 const benchMode = params.has('bench');
@@ -104,7 +110,18 @@ if (notices) installNotices(window, notices, { checkUpdates: !import.meta.env.DE
 
 const root = document.getElementById('app') ?? document.body;
 root.textContent = '';
-const shell = new Shell({ root, settings, cells, offline, probe, ...(notices ? { notices } : {}) });
+// The start page waits for the selected font's faces, never longer than FONT_GATE_MS (ADR 0083).
+const bootFont = settings.get().appearance;
+const fontsReady = offline ? undefined : gate(loadFont(bootFont.font, fontPx(bootFont.font, bootFont.size)), FONT_GATE_MS);
+const shell = new Shell({
+  root,
+  settings,
+  cells,
+  offline,
+  probe,
+  ...(notices ? { notices } : {}),
+  ...(fontsReady ? { fontsReady } : {}),
+});
 if (import.meta.env.DEV) {
   window.__wc = {
     // The cockpit is built on Enter MUME (at once in the offline modes).
@@ -120,7 +137,11 @@ if (import.meta.env.DEV) {
     replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
   };
 }
-await shell.boot();
+try {
+  await shell.boot();
+} finally {
+  bootDone();
+}
 const playerFixture = import.meta.env.DEV ? params.get('player') : null;
 if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));
 const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;

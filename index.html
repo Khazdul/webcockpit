@@ -7,6 +7,21 @@
     <style>
       html, body { margin: 0; height: 100%; background: var(--term-bg, #000000); color: var(--term-fg, #c0c0c0); }
       #app { height: 100%; }
+      /* Boot loader (ADR 0083): shown after 150 ms (.on), before any web font
+       * (system monospace only: the app's @font-face names would block). */
+      #wc-boot {
+        position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        font: 15px/18px ui-monospace, Menlo, Consolas, "Liberation Mono", "Courier New", monospace;
+        white-space: pre; opacity: 0;
+      }
+      #wc-boot .bar { display: flex; }
+      #wc-boot .f, #wc-boot .t { display: inline-block; height: 18px; overflow: hidden; }
+      #wc-boot .f { background: var(--wcb-fill, #ffaf00); }
+      #wc-boot .t { color: var(--wcb-dim, #585858); }
+      #wc-boot .p { color: var(--wcb-text, #8a8a8a); }
+      #wc-boot .l { color: var(--wcb-text, #8a8a8a); margin-top: 18px; }
+      #wc-boot.on { opacity: 1; }
     </style>
     <script>
       // First paint in the saved colours (src/settings/store.ts MIRROR_KEY);
@@ -15,13 +30,59 @@
         if (!/[?&]safe(=|&|$)/.test(location.search)) {
           var a = JSON.parse(localStorage.getItem('webcockpit.appearance') || '{}');
           var hex = /^#[0-9a-f]{6}$/i, st = document.documentElement.style;
-          if (hex.test(a.bg)) st.setProperty('--term-bg', a.bg);
+          if (hex.test(a.bg)) {
+            st.setProperty('--term-bg', a.bg);
+            // A light background: the light UI roles (src/theme/presets.ts UI_COLORS_LIGHT).
+            var n = parseInt(a.bg.slice(1), 16);
+            if (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 140) {
+              st.setProperty('--wcb-fill', '#9a5400');
+              st.setProperty('--wcb-dim', '#a49a84');
+              st.setProperty('--wcb-text', '#5c564a');
+            }
+          }
           if (hex.test(a.fg)) st.setProperty('--term-fg', a.fg);
         }
       } catch (e) {}
     </script>
   </head>
   <body>
+    <div id="wc-boot" role="progressbar" aria-label="Loading WebCockpit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="bar"></div><div class="l">Loading client</div></div>
+    <script>
+      // The boot loader's API (ADR 0083, src/app/boot-progress.ts):
+      // __wcBoot.step(percent, label) moves the bar; __wcBoot.done() fades
+      // it out and removes it. Other entry points have no loader.
+      (function () {
+        var W = 28, el = document.getElementById('wc-boot');
+        var bar = el.firstChild, label = el.lastChild, pct = -1, gone = false;
+        function draw(p) {
+          // The fill is one box (no seams between cells at any pixel ratio);
+          // the track is ░ cells, clipped to their width whatever font draws them.
+          var on = Math.round((p / 100) * W), s = String(p);
+          bar.innerHTML = '<i class="f" style="width:' + on + 'ch"></i><i class="t" style="width:' + (W - on) + 'ch">' +
+            new Array(W - on + 1).join('░') + '</i><span class="p">' + '     '.slice(s.length) + s + '%</span>';
+        }
+        window.__wcBoot = {
+          step: function (p, text) {
+            if (gone) return;
+            p = Math.max(pct, Math.min(100, Math.round(p)));
+            if (p !== pct) { pct = p; draw(p); el.setAttribute('aria-valuenow', String(p)); }
+            if (text) label.textContent = text;
+          },
+          done: function () {
+            if (gone) return;
+            gone = true;
+            var o = parseFloat(getComputedStyle(el).opacity) || 0;
+            if (o > 0 && el.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+              el.animate([{ opacity: o }, { opacity: 0 }], { duration: 150, easing: 'ease-in', fill: 'forwards' })
+                .finished.then(function () { el.remove(); }, function () { el.remove(); });
+            } else el.remove();
+          },
+        };
+        window.__wcBoot.step(0);
+        // Shown after 150 ms only: a fast (cached) start never flashes it.
+        setTimeout(function () { if (!gone) el.className = 'on'; }, 150);
+      })();
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

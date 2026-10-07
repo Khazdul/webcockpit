@@ -72,6 +72,7 @@ import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
+import { bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
 
@@ -98,6 +99,12 @@ export interface ShellOptions {
   scripts?: ScriptLibrary;
   /** Client notices (ADR 0025). Absent: none are shown. */
   notices?: Notices;
+  /**
+   * The first boot's font gate (ADR 0083): the start page is held until it
+   * resolves, then fades in, and the boot loader advances on the way.
+   * Absent (tests): the start page shows at once.
+   */
+  fontsReady?: Promise<void>;
 }
 
 export class Shell {
@@ -160,9 +167,41 @@ export class Shell {
       if (!this.opts.probe) this.prefetchChrome();
       return;
     }
-    const chrome = await this.loadChrome();
-    this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
-    this.showStart();
+    const fonts = this.opts.fontsReady;
+    if (!fonts) {
+      const chrome = await this.loadChrome();
+      this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
+      this.showStart();
+    } else {
+      // The chrome chunk and the fonts load side by side (ADR 0083).
+      let chromeDone = false;
+      let fontsDone = false;
+      const progress = (): void => {
+        if (chromeDone && fontsDone) bootStep(90, 'Starting');
+        else bootStep(70, chromeDone ? 'Loading fonts' : 'Loading interface');
+      };
+      try {
+        const [chrome] = await Promise.all([
+          this.loadChrome().then((c) => {
+            chromeDone = true;
+            progress();
+            return c;
+          }),
+          fonts.then(() => {
+            fontsDone = true;
+            progress();
+          }),
+        ]);
+        this.start = chrome.mountStartPage(this.startHost, this.services(), { onEnter: () => this.enter() });
+        this.startHost.style.opacity = '0';
+        this.showStart();
+        bootStep(100, 'Ready');
+        await revealStart(this.startHost);
+      } finally {
+        this.startHost.style.opacity = '';
+        bootDone();
+      }
+    }
     // Well after the first paint and the web font, so it never competes
     // with the cold start (spec §1.3).
     setTimeout(() => this.idle(() => void import('../editor').catch(() => undefined)), EDITOR_PREFETCH_MS);
