@@ -149,6 +149,7 @@ describe('Options → Mapper', () => {
       'Room info on hover: Full',
       'Hover text size: Medium',
       'Tileset: Default (MMapper)',
+      'Background: Default',
       'Import map file…',
       'Use bundled map',
       'Back',
@@ -163,12 +164,12 @@ describe('Options → Mapper', () => {
     // Room notes and hover mode (ADR 0077): cyclers, written at once.
     await key('ArrowDown');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
     expect(labels(host)[1]).toBe('Room notes: Off');
     await key('ArrowDown');
     expect(labels(host)[2]).toBe('Room info on hover: Full');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
     expect(labels(host)[2]).toBe('Room info on hover: Off');
     await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
@@ -236,5 +237,93 @@ describe('Options → Mapper', () => {
     expect(info(host)).toEqual(['Map arda.mm2 (bundled)']);
     expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Using the bundled map.');
     expect((await maps.current()).kind).toBe('bundled');
+  });
+});
+
+describe('Options → Mapper → Background (ADR 0085)', () => {
+  it('cycles the named colours, picks one from the list and takes a typed colour code', async () => {
+    const maps = new MapStore({
+      openDb: lazyDb(new IDBFactory()),
+      validate: async () => {
+        throw new Error('unused');
+      },
+    });
+    const svc = services(maps);
+    const host = document.createElement('div');
+    document.body.append(host);
+    const page = mountStartPage(host, svc, { onEnter: () => {} });
+    cleanup.push(() => page.dispose());
+    await act(() => page.show());
+    await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
+    await click(host, 'mapper');
+    await settle();
+    const bg = () => svc.settings.get().mapper.background;
+    const row = () => frame(host).querySelector('.wc-mrow[data-key="background"] .wc-label')?.textContent;
+    expect(row()).toBe('Background: Default');
+
+    // ←→ cycle the list (Default first, Black next, wrapping).
+    await click(host, 'notes'); // the cursor to a row above (notes toggles; put it back)
+    await key('Enter');
+    for (let i = 0; i < 4; i++) await key('ArrowDown');
+    expect(frame(host).querySelector('.wc-mrow.is-sel')?.getAttribute('data-key')).toBe('background');
+    await key('ArrowRight');
+    expect(bg()).toBe('#000000');
+    expect(row()).toBe('Background: Black');
+    await key('ArrowLeft');
+    await key('ArrowLeft');
+    expect(bg()).toBe('#22162e');
+    expect(row()).toBe('Background: Dark purple');
+
+    // Enter opens the list: radio rows, the current one marked, a swatch.
+    await key('Enter');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Map background ───');
+    expect(labels(host)).toEqual([
+      '( ) Default',
+      '( ) Black',
+      '( ) Dark grey',
+      '( ) Grey',
+      '( ) Navy',
+      '( ) Dark blue',
+      '( ) Dark teal',
+      '( ) Dark green',
+      '( ) Olive',
+      '( ) Dark brown',
+      '( ) Maroon',
+      '(•) Dark purple',
+      'Colour code…',
+      'Back',
+    ]);
+    expect(frame(host).querySelector('.wc-mapbg-swatch')?.getAttribute('style')).toContain('#22162e');
+    await key('Home');
+    expect(frame(host).querySelector('.wc-mapbg-swatch')?.getAttribute('style')).toContain('#2e3436');
+    await click(host, '#101c3c');
+    expect(bg()).toBe('#101c3c');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
+    expect(row()).toBe('Background: Navy');
+
+    // Colour code…: a bad code is refused, a good one is set and shown as typed.
+    await click(host, 'background');
+    await click(host, 'code');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Map background colour ───');
+    const field = frame(host).querySelector<HTMLInputElement>('input.wc-field, textarea.wc-field')!;
+    expect(field.value).toBe('#101c3c');
+    const type = (v: string) =>
+      act(() => {
+        field.value = v;
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    await type('#12345');
+    await key('Enter');
+    expect(frame(host).querySelector('.wc-c-danger')?.textContent).toBe('Use #rrggbb, e.g. #1c1c1c.');
+    expect(bg()).toBe('#101c3c');
+    await type('#1A2B3C');
+    await key('Enter');
+    expect(bg()).toBe('#1a2b3c');
+    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
+    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Map background set to #1a2b3c.');
+    expect(row()).toBe('Background: #1a2b3c');
+    // A typed colour leads the cycle; → goes on to Default.
+    await key('ArrowRight');
+    expect(bg()).toBe('#2e3436');
   });
 });

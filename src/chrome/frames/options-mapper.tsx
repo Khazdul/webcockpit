@@ -10,6 +10,7 @@
 //      << Room info on hover: Full >>
 //      << Hover text size: Medium >>
 //      << Tileset: Default (MMapper) >>
+//      << Background: Default >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
@@ -34,18 +35,34 @@
 // default Medium). Tileset (`mapper.tileset`, ADR 0082): ←→ cycles the
 // catalogue (src/map/tilesets.ts); the line under the menu credits the
 // set, and an alternating set names the season it draws now (the saved
-// game clock, as the Map pane resolves it).
+// game clock, as the Map pane resolves it). Background (`mapper.background`,
+// ADR 0085): ←→ cycles the named colours of src/map/backgrounds.ts (a
+// typed colour first); Enter opens the Map background page, the same list
+// as radio rows with a swatch of the colour under the cursor, and
+// "Colour code…", a `#rrggbb` prompt. The Map pane draws it at once.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { seasonOf } from '../../gmcp/gametime';
+import { MAP_BACKGROUNDS, mapBgChoices, mapBgName, parseMapBg } from '../../map/backgrounds';
 import type { CurrentMap } from '../../map/store';
 import { localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft, cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
-import { Blank, Centered, FlashRow, Line, type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
+import {
+  Blank,
+  Centered,
+  FlashRow,
+  Line,
+  type MenuItem,
+  MenuRows,
+  Page,
+  TextField,
+  menuKey,
+  useMenuCursor,
+} from '../kit/widgets';
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 
@@ -173,6 +190,13 @@ export function MapperOptionsFrame(): VNode {
       adjust: (d) => settings.update({ mapper: { tileset: cycle(TILESET_IDS, tileset.id, d) } }),
     },
     {
+      key: 'background',
+      label: `Background: ${mapBgName(mapper.background)}`,
+      activate: () => nav.push(<MapBackgroundFrame />),
+      adjust: (d) =>
+        settings.update({ mapper: { background: cycle(mapBgChoices(mapper.background), mapper.background.toLowerCase(), d) } }),
+    },
+    {
       key: 'import',
       label: 'Import map file…',
       activate: () => {
@@ -204,6 +228,106 @@ export function MapperOptionsFrame(): VNode {
       <Centered text={credit} class="wc-c-hint wc-mapper-credit" />
       <FlashRow />
       <input ref={fileRef} type="file" accept=".mm2" hidden class="wc-mapper-file" onChange={() => void onFile()} />
+    </Page>
+  );
+}
+
+// ------------------------------------------------------- map background
+
+/** A swatch of `hex` and its code, centred (the Map background pages). */
+function Swatch(p: { hex: string; prefix?: string }): VNode {
+  const head = `${p.prefix ?? ''}${p.hex}  `;
+  return (
+    <Centered text={head + '███'}>
+      <span class="wc-c-body">{head}</span>
+      <span class="wc-mapbg-swatch" style={{ color: p.hex }}>
+        ███
+      </span>
+    </Centered>
+  );
+}
+
+/** Options → Mapper → Background: the named colours, a typed one first, and "Colour code…" (ADR 0085). */
+export function MapBackgroundFrame(): VNode {
+  const { settings } = useServices();
+  const s = useSettings();
+  const nav = useNav();
+  const current = s.mapper.background.toLowerCase();
+  const items: MenuItem[] = [
+    ...mapBgChoices(current).map((hex) => ({
+      key: hex,
+      glyph: current === hex ? '(•)' : '( )',
+      label: mapBgName(hex),
+      activate: () => {
+        settings.update({ mapper: { background: hex } });
+        nav.pop();
+      },
+    })),
+    { key: 'sp', spacer: true },
+    { key: 'code', label: 'Colour code…', activate: () => nav.push(<MapBackgroundCodeFrame />) },
+    { key: 'back', label: 'Back', activate: () => nav.pop() },
+  ];
+  const [cursor, setCursor] = useMenuCursor(items, current);
+  useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
+  const under = items[cursor]?.key ?? '';
+  const shown = under === current || MAP_BACKGROUNDS.some((c) => c.hex === under) ? under : current;
+  return (
+    <Page title="Map background" footer={['↑↓ Navigate', 'Enter Select', 'ESC Back']}>
+      <MenuRows items={items} cursor={cursor} setCursor={setCursor} />
+      <Blank />
+      <Swatch hex={shown} />
+      <FlashRow />
+    </Page>
+  );
+}
+
+/** The `#rrggbb` prompt for the map background. */
+function MapBackgroundCodeFrame(): VNode {
+  const { settings } = useServices();
+  const nav = useNav();
+  const { cols } = useGrid();
+  const cur = settings.get().mapper.background;
+  const [value, setValue] = useState(cur);
+  const [error, setError] = useState('');
+  const confirm = (): void => {
+    const hex = parseMapBg(value);
+    if (!hex) return setError('Use #rrggbb, e.g. #1c1c1c.');
+    settings.update({ mapper: { background: hex } });
+    // Back to Options → Mapper, past the list.
+    nav.pop(2);
+    nav.flash(`Map background set to ${hex}.`);
+  };
+  useKeys((e, nk) => {
+    if (nk === 'activate' && e.key === 'Enter') {
+      confirm();
+      return true;
+    }
+    return false;
+  });
+  const w = 14;
+  return (
+    <Page
+      title="Map background colour"
+      footer={[
+        { text: 'Enter Confirm', onClick: confirm },
+        { text: 'ESC Cancel', onClick: () => nav.pop() },
+      ]}
+    >
+      <Swatch hex={cur} prefix="Now " />
+      <Blank />
+      <TextField
+        value={value}
+        onInput={(v) => {
+          setValue(v);
+          setError('');
+        }}
+        width={w}
+        at={centreLeft(cols, w)}
+        maxLength={7}
+        label="Map background colour"
+      />
+      <Centered text="#rrggbb" class="wc-c-hint" />
+      {error ? <Centered text={error} class="wc-c-danger" /> : <Blank />}
     </Page>
   );
 }

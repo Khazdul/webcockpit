@@ -55,6 +55,9 @@
 // - Tileset (ADR 0082, Options → Mapper): resolved here from the setting
 //   and the game clock (an alternating set follows MUME's season) and
 //   sent with the asset source; a change swaps the worker's tiles live.
+// - Background (ADR 0085, Options → Mapper): the setting is the content's
+//   `--map-bg` (the CSS background under the canvas until the first frame)
+//   and goes to the worker at start and on every change; drawn live.
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -183,6 +186,9 @@ export class MapPane extends PaneShell {
         }),
       );
     }
+
+    this.applyBackground();
+    this.own(ctx.settings.subscribe((next, prev) => next.mapper.background !== prev.mapper.background && this.applyBackground(true)));
 
     this.onResize(() => this.sync());
     this.own(ctx.cells.subscribe(() => this.sync()));
@@ -364,6 +370,7 @@ export class MapPane extends PaneShell {
         height: h,
         dpr: this.dpr(),
         assets: this.assets(),
+        background: this.ctx.settings.get().mapper.background,
         onMessage: this.onWorker,
       });
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
@@ -378,6 +385,14 @@ export class MapPane extends PaneShell {
     } finally {
       this.starting = false;
     }
+  }
+
+  /** The background setting on the pane (CSS) and, with `send`, to a running worker (ADR 0085). */
+  private applyBackground(send = false): void {
+    const bg = this.ctx.settings.get().mapper.background;
+    this.content.style.setProperty('--map-bg', bg);
+    this.content.dataset.mapBg = bg;
+    if (send) this.client?.background(bg);
   }
 
   /** The set the Mapper option draws now (null: the default pixmaps). */
