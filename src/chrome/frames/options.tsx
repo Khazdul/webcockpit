@@ -285,6 +285,7 @@ export function PanesFrame(): VNode {
           </Line>
         );
       })}
+      <Blank />
       <Centered text={PLAIN_HINT} class="wc-c-hint wc-panes-hint" />
       <Blank />
       <MenuRows
@@ -315,7 +316,7 @@ const PANE_TINT_LABEL: Readonly<Record<PaneColor, string>> = {
 };
 
 /** The line under the pane grid: what "Plain" means. */
-export const PLAIN_HINT = 'Plain: the main window background (Options → Appearance).';
+export const PLAIN_HINT = 'Plain: the main window background.';
 
 // ----------------------------------------------------------- appearance
 
