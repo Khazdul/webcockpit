@@ -59,14 +59,20 @@
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
 //   the same `pan`/`zoom` messages and limits as the mouse and the wheel.
+// - Loading overlay (stage 24, ADR 0083, src/panes/map-loading.ts): from
+//   the start (and every map change) to the first complete frame, and
+//   from a tileset change to `tilesDrawn`, a centred glyph bar fed by the
+//   worker's `progress`; shown only after 200 ms, faded out at the end;
+//   an error hides it and shows the notice.
 
 import { device } from '../core/device';
 import { type BusEvents, gmcpKey } from '../core/types';
 import type { MapClient, MapEventForwarder } from '../map/client';
 import { type PinchPoint, pinchStep } from '../map/pinch';
-import type { AssetSource, MapPaneHost, WorkerToMain } from '../map/protocol';
+import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
 import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
 import { MapHover } from './map-hover';
+import { MapLoading } from './map-loading';
 import { PaneShell, type PaneContext } from './pane';
 
 /** Set to `true` by the HTML replay build (vite.config.ts `bundleReplay`). */
@@ -101,6 +107,7 @@ const NOTICE_SUFFIX = '\nThe map needs WebGL2, OffscreenCanvas and module worker
 export class MapPane extends PaneShell {
   private readonly canvas: HTMLCanvasElement;
   private readonly notice: HTMLDivElement;
+  private readonly loading: MapLoading;
   private readonly host: MapPaneHost;
   private client: MapClient | null = null;
   private forwarder: MapEventForwarder | null = null;
@@ -142,7 +149,8 @@ export class MapPane extends PaneShell {
     this.notice = doc.createElement('div');
     this.notice.className = 'wc-map-notice';
     this.notice.hidden = true;
-    this.content.append(this.canvas, this.notice);
+    this.loading = new MapLoading(doc);
+    this.content.append(this.canvas, this.loading.el, this.notice);
     this.hover = new MapHover({
       doc,
       host: () => this.el.parentElement,
@@ -240,6 +248,7 @@ export class MapPane extends PaneShell {
 
   override dispose(): void {
     this.hover.dispose();
+    this.loading.dispose();
     this.unmarks?.();
     this.unmarks = null;
     this.forward(false);
@@ -297,6 +306,7 @@ export class MapPane extends PaneShell {
   private sync(): void {
     const { w, h } = this.cssSize();
     const shown = this.visible && w > 0 && h > 0;
+    this.loading.resize(this.cols);
     if (!shown) {
       if (this.sizeKey !== 'hidden') {
         this.sizeKey = 'hidden';
@@ -343,6 +353,7 @@ export class MapPane extends PaneShell {
     }
     this.starting = true;
     this.content.dataset.mapState = 'starting';
+    this.loading.begin('load');
     try {
       const { MapClient, MapEventForwarder } = await import('../map/client');
       const { w, h } = this.cssSize();
@@ -360,8 +371,7 @@ export class MapPane extends PaneShell {
       if (!this.visible) this.client.visible(false);
       this.sync();
       if (this.persistIds) this.client.persistIds(true);
-      const source = await this.host.source();
-      if (source) this.client?.load(source);
+      this.loadSource(await this.host.source());
     } catch (err) {
       this.fail('error', `The map could not start: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -388,18 +398,30 @@ export class MapPane extends PaneShell {
     const id = this.tileset()?.id ?? 'default';
     if (id === this.content.dataset.mapTileset) return;
     this.content.dataset.mapTileset = id;
-    this.client?.assets(this.assets());
+    if (!this.client) return;
+    this.loading.begin('tiles');
+    this.client.assets(this.assets());
   }
 
   /** Loads the host's current map again (no-op before the worker runs). */
   private async reload(): Promise<void> {
     if (!this.client) return;
+    this.loading.begin('load');
     try {
-      const source = await this.host.source();
-      if (source) this.client?.load(source);
+      this.loadSource(await this.host.source());
     } catch (err) {
       this.fail('error', `Map not loaded: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /** Sends `source` to the worker; none: nothing to wait for. */
+  private loadSource(source: MapSource | null): void {
+    if (!source || !this.client) {
+      this.loading.abort();
+      return;
+    }
+    this.loading.source(source.kind === 'url');
+    this.client.load(source);
   }
 
   /** Attaches the mark port once (ADR 0057). */
@@ -417,6 +439,7 @@ export class MapPane extends PaneShell {
 
   private fail(state: 'unsupported' | 'error', text: string): void {
     this.failed = state === 'unsupported' || this.failed;
+    this.loading.abort();
     this.content.dataset.mapState = state;
     this.notice.textContent = text;
     this.notice.hidden = false;
@@ -434,6 +457,7 @@ export class MapPane extends PaneShell {
         this.content.dataset.mapRooms = String(m.info.rooms);
         this.content.dataset.mapLoad = JSON.stringify({ ms: m.info.ms, ...m.info.stages });
         this.notice.hidden = true;
+        this.loading.loaded();
         this.loaded = true;
         this.syncForward();
         this.attachMarks();
@@ -478,6 +502,13 @@ export class MapPane extends PaneShell {
       }
       case 'drawn':
         this.content.dataset.mapDrawnMs = String(m.ms);
+        this.loading.end('load');
+        return;
+      case 'tilesDrawn':
+        this.loading.end('tiles');
+        return;
+      case 'progress':
+        this.loading.progress(m);
         return;
       case 'restored':
         // The context came back: drop the "context lost" notice.
