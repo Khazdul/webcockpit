@@ -121,3 +121,13 @@ Test guide (round 2):
 2. Options → Mapper: tick between the two Background rows; ←→ on the
    colour row, Enter on the code row. Try Dark paper on the map.
 3. Options → Panes → Appearance: "Plain" column and its hint.
+
+### Round 2 (2026-10-08)
+
+- Remove the colour code row again (did not look good); named colours
+  only. Add Black and White if missing.
+
+Done (round 3): one `Background colour: <name>` row, ←→ cycles; code row,
+prompt and `mapper.backgroundCode` removed (a typed colour falls back to
+Default). White `#ffffff` added after Dark paper, drawn with dark lines.
+ADR 0085 addendum.

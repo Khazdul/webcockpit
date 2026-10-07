@@ -38,6 +38,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 25 round 3
+
+- **Owner (round 2):** drop the map colour code row; named colours only,
+  with Black and White.
+- **Done:** single cycler row, `backgroundCode` removed, White added
+  (dark lines); ADR 0085 addendum.
+- **Checked:** typecheck, unit 2491, e2e map-background/chrome/
+  phone-frames 50/50.
+- **Next:** owner tests; release 0.1.53 on the owner's go.
+- **Commits:** f60edfd, 5b4d558, this one.
+
 ### 2026-10-08 — Stage 25 round 2
 
 - **Owner (round 1):** key manager has no x (its `?` under it); outline
