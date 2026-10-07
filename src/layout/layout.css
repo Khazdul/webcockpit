@@ -135,7 +135,7 @@
 
 /* Floating panes (ADR 0014): stacked by inline z-index from 10 up, over
  * the game pane, the docks and their resize handles. The pane fill is
- * opaque (the "None" tint is the terminal background), so nothing behind
+ * opaque (the "Plain" tint is the terminal background), so nothing behind
  * shows through. Resize handles along the edges and corners, above the
  * title-row grip; hidden while the pane is docked. */
 .wc-float-handle {

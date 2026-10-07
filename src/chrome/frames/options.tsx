@@ -285,6 +285,7 @@ export function PanesFrame(): VNode {
           </Line>
         );
       })}
+      <Centered text={PLAIN_HINT} class="wc-c-hint wc-panes-hint" />
       <Blank />
       <MenuRows
         items={tail}
@@ -298,8 +299,13 @@ export function PanesFrame(): VNode {
   );
 }
 
+/**
+ * Column heads. The untinted column is "Plain": the pane takes the main
+ * window's background (Options → Appearance); the hint under the grid
+ * says so (stage 25 round 2; it was "None").
+ */
 const PANE_TINT_LABEL: Readonly<Record<PaneColor, string>> = {
-  black: 'None',
+  black: 'Plain',
   red: 'Red',
   green: 'Green',
   blue: 'Blue',
@@ -307,6 +313,9 @@ const PANE_TINT_LABEL: Readonly<Record<PaneColor, string>> = {
   orange: 'Orange',
   purple: 'Purple',
 };
+
+/** The line under the pane grid: what "Plain" means. */
+export const PLAIN_HINT = 'Plain: the main window background (Options → Appearance).';
 
 // ----------------------------------------------------------- appearance
 

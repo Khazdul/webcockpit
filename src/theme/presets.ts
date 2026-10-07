@@ -170,7 +170,7 @@ export function backgroundTheme(bg: string): BackgroundTheme | null {
 
 /** One pane tint (Inv §10.4 "Pane tints"). */
 export interface PaneTint {
-  /** Fill colour, or null for `black` (None): the terminal background. */
+  /** Fill colour, or null for `black` (Plain): the terminal background. */
   fill: string | null;
   /** Border on a dark effective background (fill + 0x14/channel), or null for None. */
   border: string | null;
@@ -181,7 +181,7 @@ export interface PaneTint {
 }
 
 export const PANE_TINTS: Readonly<Record<PaneColor, PaneTint>> = {
-  black: { fill: null, border: null, hs: null, label: 'None' },
+  black: { fill: null, border: null, hs: null, label: 'Plain' },
   red: { fill: '#1a0e0e', border: '#2e2222', hs: [2, 60], label: 'Red' },
   green: { fill: '#0e1a0e', border: '#222e22', hs: [130, 42], label: 'Green' },
   blue: { fill: '#0e141c', border: '#222830', hs: [210, 58], label: 'Blue' },

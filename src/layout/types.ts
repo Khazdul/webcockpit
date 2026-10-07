@@ -91,7 +91,7 @@ export const PANE_SHORT: Readonly<Record<BuiltinPaneId, string>> = {
 };
 
 /**
- * Pane tint names (Inv §10.4). `black` is stored but shown as "None": the
+ * Pane tint names (Inv §10.4). `black` is stored but shown as "Plain": the
  * pane has no fill of its own and sits on the terminal background.
  */
 export type PaneColor = 'black' | 'red' | 'green' | 'blue' | 'grey' | 'orange' | 'purple';

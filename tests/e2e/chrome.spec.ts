@@ -213,7 +213,11 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await expect(startTitle(page)).toHaveText('─── Panes ───');
   await page.keyboard.press('Enter'); // Appearance
   await expect(startTitle(page)).toHaveText('─── Pane appearance ───');
-  // Character is on with None: Enter on its checked cell turns it off.
+  // The untinted column is "Plain", explained under the grid (stage 25 round 2).
+  await expect(page.locator('.wc-start')).toContainText('Plain  Red');
+  await expect(page.locator('.wc-start .wc-panes-hint')).toHaveText('Plain: the main window background (Options → Appearance).');
+  await expect(page.locator('.wc-start .wc-check[title="Character: Plain"]')).toHaveCount(1);
+  // Character is on with Plain: Enter on its checked cell turns it off.
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).panes.character.on).toBe(false);
   // Timers → Blue.

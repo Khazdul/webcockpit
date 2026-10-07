@@ -472,7 +472,7 @@ export function ratingKey(e: { key: string; ctrlKey?: boolean; altKey?: boolean;
 export interface CheckCellProps {
   checked: boolean;
   cursor: boolean;
-  /** Swatch colour (a CSS value); omitted = no swatch. `''` = a blank swatch (None). */
+  /** Swatch colour (a CSS value); omitted = no swatch. `''` = a blank swatch (Plain). */
   swatch?: string;
   /** Row off: everything in C_PANE_OFF. */
   off?: boolean;
