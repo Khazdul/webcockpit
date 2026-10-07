@@ -81,16 +81,38 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
   track), known size of the bundled map as the progress total when the
   host gzips it (GitHub Pages does), ADR 0083 map pane, test guide
 
+### Round 1 — start page
+
+- [x] First paint: the banner in index.html before the app loads, at its
+  final place (shared start layout, cell grid, crop), in subsets of the
+  selected family's faces (`scripts/build-banner-faces.py`,
+  `src/boot/first-paint.ts`, inlined by `firstPaintPlugin`); stars
+  twinkle and hand their clock to the app's banner
+- [x] The bar below the banner, where the menu appears; real byte
+  progress in production builds (`__wcBootSizes`)
+- [x] Font gate on the real font load: fonts preloaded by the first paint,
+  `FONT_GATE_MS` 4 s → 45 s (safety net only)
+- [x] Reveal: the app's banner replaces the first paint's in one frame;
+  menu, quote, footer fade in over about 2 s (1400 ms per row, 600 ms
+  stagger); reduced motion instant
+- [x] Verify under Chromium network emulation (`scripts/throttled-start.ts`,
+  Regular 3G / 4G / none); e2e `loading.spec.ts`, `phone-loading.spec.ts`;
+  ADR 0083 start page items
+- [ ] Owner test
+
 ## Test guide
 
 **Desktop.** Open the client in Chrome or Firefox, open DevTools →
 Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
 *3G*). Reload.
 
-1. Start page: after a moment a bar with a percentage and a short label
-   appears in the middle (`Loading client` → … → `Ready`). Then the whole
-   start page fades in at once, in its real font. No row (such as
-   `<< Enter MUME >>`) should appear on its own before the others.
+1. Start page: the MUME / COCKPIT banner with its stars is there from
+   the first moment, in its real place. Under it, where the menu will
+   be, a bar with a percentage and a label (`Loading client` → … →
+   `Ready`) fills as the files arrive. When everything is in, the bar
+   fades and the menu, quote and footer fade in slowly (about 2 s). The
+   banner does not move or flicker when the app takes over, and the stars
+   keep twinkling. No row (such as `<< Enter MUME >>`) appears on its own.
 2. Enter the cockpit (or `?replay`) so the Map pane opens. Instead of a
    grey box, a small box in the middle shows a label over a bar:
    `Loading map  2.1 / 5.8 MB`, then `Unpacking map…`, `Building map…`,
@@ -99,12 +121,16 @@ Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
 3. Options → Mapper → `Tileset`: switch to another set (←→). With the
    throttling still on, the same box shows `Loading tiles  n / m` until
    the new tiles are drawn.
-4. Turn throttling off and reload: on a fast load there should be no
-   flash of either bar, only the short fade-in.
+4. Turn throttling off and reload: the banner at once, no bar flash, and
+   the same slow fade of the menu (about 2 s).
+5. With a non-default font or a light theme (Options → Appearance),
+   reload: the early banner uses that font and those colours too.
 
 **Phone.** Open the link on mobile data (or after clearing the site's
-data). Check the same: the start bar, the start page appearing all at
-once, and the map bar when the map opens. Check that both bars are solid,
+data). Check the same: the banner at once, the bar under it, the menu
+fading in all at once, and the map bar when the map opens. A larger
+font that makes the screen narrower than 45 columns crops the starfield;
+the early banner should be cropped the same way. Check that both bars are solid,
 without thin lines between the cells.
 
 **Feedback wanted:** the look of the bars and labels (size, colours,
