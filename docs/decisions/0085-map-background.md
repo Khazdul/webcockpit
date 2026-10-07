@@ -103,3 +103,24 @@ menu, a check box before each, choosing one unchecks the other.
    7:1 for `#262626` on every light one (Dark paper ≈ 11:1). This also
    makes a light typed code legible, which ADR 0085's consequences
    called the user's problem.
+
+## Addendum — stage 25 round 3 (2026-10-08)
+
+Owner feedback round 2: the typed colour code "didn't look good"; remove
+it. Also: the named list must include Black and White.
+
+1. **Named list only.** Typed colour codes are removed at the owner's
+   request. Options → Mapper has one cycler row, `Background colour:
+   <name>` (no check box): ←→ cycles the named list, Default first;
+   Enter or a click steps forward like the menu's other cyclers. The
+   code row, its `#rrggbb` prompt and swatch are gone.
+2. **Settings.** `mapper.backgroundCode` is removed (a stored one is
+   dropped on load). Migration keeps `mapper.background` only when it is
+   one of the named colours (normalised); anything else, including a
+   code typed in rounds 1–2, falls back to the default. No version bump.
+   The worker, the pane and the replay are unchanged.
+3. **White** `#ffffff`, last in the list after Dark paper (the light
+   end). Black was already there. White is light by the same luminance
+   threshold, so it takes the dark-lines path of round 2 (`#262626`
+   lines, ≈ 15:1 on white; unit test asks 7:1 for every light choice).
+4. Dark paper and the dark lines on light backgrounds stay.
