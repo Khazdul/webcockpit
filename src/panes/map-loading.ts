@@ -6,6 +6,9 @@
 //      Loading map  2.1 / 5.8 MB
 //   ███████████░░░░░░░░░░░░░░░░░
 //
+// - The bar is drawn like the start page loader (index.html, ADR 0083):
+//   the fill is one solid box `n ch` wide (no seams between `█` glyphs at
+//   fractional pixel ratios), the track is `░` text clipped to its width.
 // - A session starts with `begin` ('load': the pane starts or the map
 //   changes; 'tiles': a tileset change) and ends with `end` (the worker's
 //   `drawn` / `tilesDrawn`) or `abort` (an error, nothing to load).
@@ -16,7 +19,7 @@
 //   has the pane's background so it reads on the map's fixed dark grey in
 //   a light theme too.
 
-import { type LoadState, barCells, glyphBar, loadFraction, loadLabel, type MapProgress } from '../map/progress';
+import { type LoadState, barCells, barFill, loadFraction, loadLabel, type MapProgress } from '../map/progress';
 
 /** A session shorter than this shows nothing, ms. */
 export const SHOW_DELAY_MS = 200;
@@ -179,11 +182,18 @@ export class MapLoading {
     const f = loadFraction(s);
     this.frac = s.kind === 'load' ? Math.max(this.frac, f) : f;
     const cells = barCells(this.cols > 0 ? this.cols : 32);
-    const bar = glyphBar(this.frac, cells);
+    const on = barFill(this.frac, cells);
     const label = loadLabel(s);
     if (this.label.textContent !== label) this.label.textContent = label;
-    if (this.fill.textContent !== bar.fill) this.fill.textContent = bar.fill;
-    if (this.track.textContent !== bar.track) this.track.textContent = bar.track;
+    if (this.fill.dataset.cells !== String(on)) {
+      this.fill.dataset.cells = String(on);
+      this.fill.style.width = `${on}ch`;
+    }
+    const track = '░'.repeat(cells - on);
+    if (this.track.textContent !== track) {
+      this.track.textContent = track;
+      this.track.style.width = `${cells - on}ch`;
+    }
     this.el.dataset.pct = String(Math.round(this.frac * 100));
     this.el.style.setProperty('--wc-bar-cells', String(cells));
   }

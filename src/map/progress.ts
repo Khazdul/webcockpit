@@ -6,8 +6,8 @@
 //   files requested and settled for the current tile source (tiles,
 //   character arrows and the map font).
 // - The pane folds a snapshot into one weighted fraction and a label
-//   (`loadFraction`, `loadLabel`) and draws the bar in whole glyph cells
-//   (`glyphBar`). Pure; no DOM.
+//   (`loadFraction`, `loadLabel`) and draws the bar in whole cells
+//   (`barFill`). Pure; no DOM.
 //
 // Weights (fractions of the whole bar): from the stage 22 bench
 // (bench/results/latest.md, Firefox, localhost: fetch 238, inflate 76,
@@ -17,6 +17,14 @@
 // dominates, so it gets about half the bar.
 
 import type { AssetResolver } from './assets';
+
+/** Size of public/map/arda.mm2 at build time (vite.config.ts); absent outside Vite. */
+declare const __WC_MAP_BYTES__: number | undefined;
+/**
+ * The bundled map's size in bytes, 0 when unknown: the progress total when
+ * the host serves it content-encoded (GitHub Pages gzips it; ADR 0083).
+ */
+export const BUNDLED_MAP_BYTES: number = typeof __WC_MAP_BYTES__ === 'number' ? __WC_MAP_BYTES__ : 0;
 
 /** Map load phases the worker reports, in order. */
 export type MapLoadPhase = 'fetch' | 'unpack' | 'parse' | 'build';
@@ -119,10 +127,13 @@ export function barCells(cols: number, max = 28): number {
   return Math.max(4, Math.min(max, Math.floor(cols) - 4));
 }
 
-/** `cells` glyphs: `█` for the filled whole cells, `░` for the rest. */
-export function glyphBar(frac: number, cells: number): { fill: string; track: string } {
-  const f = Math.max(0, Math.min(cells, Math.floor((Number.isFinite(frac) ? frac : 0) * cells + 1e-9)));
-  return { fill: '█'.repeat(f), track: '░'.repeat(cells - f) };
+/**
+ * The filled whole cells of a bar `cells` wide at `frac` (0…cells). The
+ * overlay draws them as one solid box and the rest as a `░` track, like
+ * the start page loader (no seams between `█` glyphs).
+ */
+export function barFill(frac: number, cells: number): number {
+  return Math.max(0, Math.min(cells, Math.floor((Number.isFinite(frac) ? frac : 0) * cells + 1e-9)));
 }
 
 /**
@@ -146,13 +157,19 @@ export function countingResolver(inner: AssetResolver, count: FileCount, changed
 /**
  * Reads a response body, reporting `(bytes, total)` as chunks arrive. The
  * total is Content-Length when present and the body is not content-encoded
- * (an encoded length counts other bytes); 0 otherwise, and 0 from the
- * moment more bytes arrive than announced.
+ * (an encoded length counts other bytes); otherwise `expected` (the known
+ * decoded size, e.g. the bundled map's size from the build), else 0; and
+ * 0 from the moment more bytes arrive than that.
  */
-export async function readBody(res: Response, onBytes: (bytes: number, total: number) => void): Promise<Uint8Array> {
+export async function readBody(
+  res: Response,
+  onBytes: (bytes: number, total: number) => void,
+  expected = 0,
+): Promise<Uint8Array> {
   const enc = (res.headers.get('content-encoding') ?? '').trim().toLowerCase();
   const len = Number(res.headers.get('content-length') ?? '');
-  let total = (enc === '' || enc === 'identity') && Number.isSafeInteger(len) && len > 0 ? len : 0;
+  const fallback = Number.isSafeInteger(expected) && expected > 0 ? expected : 0;
+  let total = (enc === '' || enc === 'identity') && Number.isSafeInteger(len) && len > 0 ? len : fallback;
   const body = res.body;
   if (!body) {
     const b = new Uint8Array(await res.arrayBuffer());

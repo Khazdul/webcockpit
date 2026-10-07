@@ -40,11 +40,11 @@ test('map overlay: progress while arda.mm2 and the tiles load, gone after the fi
   await expect(label).toHaveText('Loading map…');
   await expect.poll(() => map.seen()).toBeGreaterThan(0);
   const cells = async () => {
-    const [f, t] = await Promise.all([overlay.locator('.wc-map-loading-fill').textContent(), overlay.locator('.wc-map-loading-track').textContent()]);
-    return { fill: f ?? '', track: t ?? '' };
+    const [f, t] = await Promise.all([overlay.locator('.wc-map-loading-fill').getAttribute('data-cells'), overlay.locator('.wc-map-loading-track').textContent()]);
+    return { fill: Number(f ?? 0), track: t ?? '' };
   };
   const c0 = await cells();
-  expect(c0.fill).toBe('');
+  expect(c0.fill).toBe(0);
   expect(c0.track).toMatch(/^░{4,28}$/);
   await expect(overlay).toHaveAttribute('data-pct', '0');
 
@@ -56,8 +56,14 @@ test('map overlay: progress while arda.mm2 and the tiles load, gone after the fi
   expect(pct).toBeGreaterThan(50);
   expect(pct).toBeLessThan(100);
   const c1 = await cells();
-  expect(c1.fill).toMatch(/^█+$/);
-  expect(c1.fill.length + c1.track.length).toBe(c0.track.length);
+  expect(c1.fill).toBeGreaterThan(0);
+  expect(c1.fill + c1.track.length).toBe(c0.track.length);
+  // The fill is one solid box exactly its cells wide (no glyph seams), the track clipped to its cells.
+  const widths = await overlay.evaluate((el) => {
+    const w = (sel: string) => el.querySelector<HTMLElement>(sel)!.getBoundingClientRect().width;
+    return { fill: w('.wc-map-loading-fill'), track: w('.wc-map-loading-track') };
+  });
+  expect(Math.abs(widths.fill / c1.fill - widths.track / c1.track.length)).toBeLessThan(0.5);
   if (SHOT_DIR) await content.screenshot({ path: `${SHOT_DIR}/map-loading-${info.project.name}.png` });
   // The overlay sits in the middle of the pane.
   const box = (await overlay.locator('.wc-map-loading-box').boundingBox())!;

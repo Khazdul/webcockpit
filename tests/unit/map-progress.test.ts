@@ -8,7 +8,7 @@ import {
   type LoadState,
   barCells,
   countingResolver,
-  glyphBar,
+  barFill,
   loadFraction,
   loadLabel,
   readBody,
@@ -61,14 +61,14 @@ describe('load fraction and label', () => {
   });
 });
 
-describe('glyph bar', () => {
+describe('bar', () => {
   it('fills whole cells, never past the end', () => {
-    expect(glyphBar(0, 4)).toEqual({ fill: '', track: '░░░░' });
-    expect(glyphBar(0.49, 4)).toEqual({ fill: '█', track: '░░░' });
-    expect(glyphBar(0.5, 4)).toEqual({ fill: '██', track: '░░' });
-    expect(glyphBar(1, 4)).toEqual({ fill: '████', track: '' });
-    expect(glyphBar(1.5, 4)).toEqual({ fill: '████', track: '' });
-    expect(glyphBar(Number.NaN, 4)).toEqual({ fill: '', track: '░░░░' });
+    expect(barFill(0, 4)).toBe(0);
+    expect(barFill(0.49, 4)).toBe(1);
+    expect(barFill(0.5, 4)).toBe(2);
+    expect(barFill(1, 4)).toBe(4);
+    expect(barFill(1.5, 4)).toBe(4);
+    expect(barFill(Number.NaN, 4)).toBe(0);
   });
 
   it('is 28 cells, narrower in a narrow pane, at least 4', () => {
@@ -104,6 +104,18 @@ describe('progress helpers', () => {
     expect(await run({})).toEqual({ bytes: [1, 2, 3, 4], seen: [[0, 0], [2, 0], [4, 0]] });
     expect((await run({ 'content-length': '2', 'content-encoding': 'gzip' })).seen.at(-1)).toEqual([4, 0]);
     expect(await run({ 'content-length': '3' })).toEqual({ bytes: [1, 2, 3, 4], seen: [[0, 3], [2, 3], [4, 0]] });
+  });
+
+  it('falls back to the expected size when the length is missing or encoded', async () => {
+    const run = async (headers: Record<string, string>, expected: number) => {
+      const seen: [number, number][] = [];
+      await readBody(new Response(stream([[1, 2], [3, 4]]), { headers }), (n, t) => void seen.push([n, t]), expected);
+      return seen;
+    };
+    expect(await run({ 'content-length': '2', 'content-encoding': 'gzip' }, 4)).toEqual([[0, 4], [2, 4], [4, 4]]);
+    expect(await run({}, 4)).toEqual([[0, 4], [2, 4], [4, 4]]);
+    expect(await run({ 'content-length': '4' }, 9)).toEqual([[0, 4], [2, 4], [4, 4]]); // a plain length wins
+    expect((await run({ 'content-encoding': 'br' }, 3)).at(-1)).toEqual([4, 0]); // more than expected: unknown
   });
 
   it('counts requests and settled files, failures too', async () => {
@@ -159,7 +171,9 @@ describe('map loading overlay', () => {
     vi.advanceTimersByTime(SHOW_DELAY_MS);
     expect(l.el.hidden).toBe(false);
     expect(text(l)).toContain('Loading map  2.1 / 5.8 MB');
-    expect(l.el.querySelector('.wc-map-loading-fill')!.textContent!.length + l.el.querySelector('.wc-map-loading-track')!.textContent!.length).toBe(28);
+    const fill = l.el.querySelector<HTMLElement>('.wc-map-loading-fill')!;
+    expect(fill.textContent).toBe('');
+    expect(Number(fill.dataset.cells) + l.el.querySelector('.wc-map-loading-track')!.textContent!.length).toBe(28);
     const pct1 = Number(l.el.dataset.pct);
     l.progress({ map: { req: 1, phase: 'build', bytes: 0, total: 0 }, tiles: { done: 10, total: 104 } });
     expect(text(l)).toContain('Building map…');
@@ -182,8 +196,12 @@ describe('map loading overlay', () => {
     l.begin('tiles');
     vi.advanceTimersByTime(SHOW_DELAY_MS);
     l.progress({ map: null, tiles: { done: 1, total: 4 } });
-    expect(l.el.querySelector('.wc-map-loading-fill')!.textContent).toBe('██');
-    expect(l.el.querySelector('.wc-map-loading-track')!.textContent).toBe('░░░░░░');
+    const fill = l.el.querySelector<HTMLElement>('.wc-map-loading-fill')!;
+    expect(fill.dataset.cells).toBe('2');
+    expect(fill.style.width).toBe('2ch');
+    const track = l.el.querySelector<HTMLElement>('.wc-map-loading-track')!;
+    expect(track.textContent).toBe('░░░░░░');
+    expect(track.style.width).toBe('6ch');
     l.abort();
     expect(l.el.hidden).toBe(true);
   });

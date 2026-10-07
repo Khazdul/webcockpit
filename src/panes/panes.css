@@ -206,8 +206,22 @@
   color: var(--pane-shade-label, var(--term-fg));
 }
 
+.wc-map-loading-bar {
+  display: flex;
+}
+
+/* Like the start page loader (index.html): the fill is one box, the
+ * track `░` text clipped to its cells (no glyph seams, no fallback width). */
+.wc-map-loading-fill,
+.wc-map-loading-track {
+  display: inline-block;
+  flex: none;
+  height: var(--cell-h);
+  overflow: hidden;
+}
+
 .wc-map-loading-fill {
-  color: var(--pane-shade-glow, var(--term-fg));
+  background: var(--pane-shade-glow, var(--term-fg));
 }
 
 .wc-map-loading-track {
