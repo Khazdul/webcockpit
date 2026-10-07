@@ -65,3 +65,41 @@ loading overlay (ADR 0083).
   into it the way they do into the default.
 - Protocol: an older worker ignores `background` (unknown messages are
   ignored), so `MAP_PROTOCOL_VERSION` stays 1.
+
+## Addendum — stage 25 round 2 (2026-10-08)
+
+Owner feedback round 1: "Background" → "Background colour", add "Dark
+paper", and pick the named colour or the code directly in the Mapper
+menu, a check box before each, choosing one unchecks the other.
+
+1. **Rows.** The Map background page and its radio list are gone.
+   Options → Mapper has two check-box rows (the menu's glyph block):
+   `[X] Background colour: <name>` (←→ cycles the named list, Default
+   first; Enter or a click checks it) and `[ ] Background colour code:
+   #rrggbb` (Enter or a click opens the existing validated `#rrggbb`
+   prompt, prefilled with the remembered code; a valid code checks the
+   row; ←→ checks it again with the remembered code). Exactly one is
+   checked: the code row while `mapper.background` is not a named colour.
+   While the code row is checked the named row offers Default. A typed
+   code that equals a named colour shows as that name (the same colour).
+2. **`mapper.backgroundCode`**: the last typed code, `''` for none.
+   Additive, no version bump. Migration keeps a hex code (normalised);
+   without one, a round-1 typed background (not a named colour) becomes
+   the remembered code. `mapper.background` keeps its meaning (the
+   colour drawn), so the worker, the pane and the replay are unchanged.
+3. **Dark paper** `#e8dfc8`, last in the list: a shade darker than the
+   Appearance paper background (`#f4ecd8`), the only light choice.
+4. **Legibility on a light background.** The renderer treats a
+   background as light by WCAG luminance ≥ 0.1791 (the ink flip point of
+   `takesDarkInk`; `isLightBackground`, palette.ts; `mapBgIsLight` in
+   backgrounds.ts agrees). On a light one the colour shader's new `uInk`
+   (0.85) takes that share of each colour's white part away for the
+   current layer's connections and the infomark lines: white becomes
+   `#262626`, red stays red, cyan darkens. Tiles, walls (already black),
+   door names and infomark text (on their own dark or tinted boxes) are
+   unchanged; the lower-layer fade blends into the paper as it does into
+   the default. Dark backgrounds pass `uInk = 0` and draw exactly as
+   before. The unit test now asks 7:1 for white on every dark choice and
+   7:1 for `#262626` on every light one (Dark paper ≈ 11:1). This also
+   makes a light typed code legible, which ADR 0085's consequences
+   called the user's problem.

@@ -56,3 +56,42 @@ both; the owner's panes were borderless.
 - On the default black tint the outline is the frame grey (#292929),
   discreet as asked; on the map pane's own grey background it is barely
   visible, but that pane is already set off by its colour.
+
+## Addendum — stage 25 round 2 (2026-10-08)
+
+Owner feedback round 1: the key manager pane showed no cross (its `?`
+link lay under it), and the outline should follow the main window
+background.
+
+- **The cross always shows** on a script pane that is not temporary,
+  framed or borderless, on top of whatever its top row holds there,
+  exactly like a built-in pane. Script authors do not reserve cells for
+  it. The `data-no-cross` link/field check is removed; it hid the cross
+  on any pane whose top row ended in a link, which surprised the owner.
+- **`createPane{cross = false}`** turns the cross off for a pane that
+  must not have one, such as a one-row bar whose last cells are
+  buttons. The bundled pane bar uses it. `ScriptPane` marks such a pane
+  `data-no-cross` (framed or not) and the CSS hides the cross. It is
+  part of the pane content (`PaneContent.cross`), so runs record it
+  (`"cross": false` in full SPANE records, like `anchor`) and the log
+  player and HTML replay honour it. A temporary pane always has its
+  cross (it is how the player closes it): `cross = false` with
+  `temporary = true` is an error. The player still hides such a pane in
+  Options → Panes → Appearance.
+- **Bundled scripts keep their top-row links clear** of the cross's
+  cells, since a link under it cannot be clicked while the pane is
+  hovered: the key manager's `?` follows the key count (`" 3 keys  ?"`),
+  the almanac's `[+ add]` ends left of the cross, the map search's query
+  field is three cells shorter so `[Find] [Close]` end left of it, and
+  the mercenaries' cost link shows only where it stays clear. This is
+  tidiness in our own scripts; the script manual says the cross covers
+  the last cells of the top row while hovered.
+- **Outline colour.** The outline no longer uses `--pane-border` (the
+  pane's tint) but `--pane-outline`, set on the theme root
+  (`rootTokens`, src/theme/apply.ts) from the Appearance background:
+  `paneOutline(bg)` mixes it 16.1 % toward white on a dark background
+  (black → `#292929`, today's grey) and 12 % toward black on a light one
+  (paper `#f4ecd8` → `#d7d0be`). On the blue preset it is a lighter blue
+  (`#353a41`). The close cross keeps `--pane-border`: on the Plain tint
+  that is already the background lifted a step, so the two match on
+  black and stay close elsewhere.
