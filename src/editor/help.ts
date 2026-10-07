@@ -563,16 +563,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['lua'],
     syntax: ['#lua {script} {function} {args}'],
     text: [
-      'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil, and with an empty {} it gets an empty text ("").',
+      'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil; an empty {} counts as nothing.',
       'Works on the input line and in aliases, actions and macros. It is not run while a profile loads. When the script is not running, or has not exported the function, a line in the game window says so.',
       'How a script exports a function: Profile bridge in the script manual (MANUAL on the Scripts page).',
       'With only a script name, or nothing at all, #lua does nothing.',
     ],
     examples: [
       {
-        note: 'h Gimli gives heal the text Gimli; h alone gives it an empty text (""), not nil:',
+        note: 'h Gimli gives heal the text Gimli; h alone gives it nil:',
         code: '#alias {h} {#lua {healer} {heal} {%0}}',
-        check: { type: ['h Gimli', 'h'], scripts: [['lua', 'healer', 'heal', 'Gimli'], ['lua', 'healer', 'heal', '']] },
+        check: { type: ['h Gimli', 'h'], scripts: [['lua', 'healer', 'heal', 'Gimli'], ['lua', 'healer', 'heal']] },
       },
       {
         via: 'input',

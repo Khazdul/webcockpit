@@ -539,6 +539,15 @@ describe('events, gmcp and state', () => {
 });
 
 describe('profile bridge, settings and store', () => {
+  it('#lua with an empty {} argument gives the function nil, not ""', async () => {
+    const t = await setup({ s: src(`export("go", function(arg) send(type(arg)) end)`) });
+    t.engine.input('#alias {h} {#lua {s} {go} {%0}}');
+    t.engine.input('h orc');
+    t.engine.input('h');
+    t.engine.input('#lua {s} {go} {}');
+    expect(t.sent).toEqual(['string', 'nil', 'nil']);
+  });
+
   it('getVariable and setVariable use the profile variables and its write-back', async () => {
     const t = await setup({ s: src(`export("go", function(arg) setVariable("target", arg); setVariable("n", 3); send(getVariable("target") .. tostring(getVariable("none"))) end)`) });
     t.engine.input('#var target nobody');

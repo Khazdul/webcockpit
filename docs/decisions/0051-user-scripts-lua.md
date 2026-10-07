@@ -905,3 +905,12 @@ practice.
 `isPrompt()` (Mudlet's name) is true in a trigger when the line is a
 prompt as the line layer marks it: ended by IAC GA/EOR, or a `<prompt>`
 element in XML mode. Scripts gag a prompt by this, never by its text.
+
+### Stage 25 — empty #lua argument is nil (2026-10-08)
+
+`#lua {script} {function} {}`, and `{%0}` when nothing was typed, gives
+the function nil, not `""`. `scriptCommandArgs` drops empty arguments
+after the script and function names. `""` is truthy in Lua and would
+break the common `who or last` pattern; no script needs to tell `""`
+from no argument here. The profile manual's `#lua` example uses the
+braced form `{%0}`.

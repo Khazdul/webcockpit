@@ -282,7 +282,9 @@ export const SCRIPT_SUBCOMMANDS: readonly string[] = ['list', 'help', 'set', 'en
  *
  * - `#script <sub> …` with a subcommand from `SCRIPT_SUBCOMMANDS` (any
  *   case); the first argument comes back lower-cased.
- * - `#lua {script} {function} [args…]`: at least two arguments.
+ * - `#lua {script} {function} [args…]`: at least two arguments. Empty
+ *   arguments after those (`{}`, `{%0}` with nothing typed) are dropped, so
+ *   the function gets nil rather than "" (stage 25, ADR 0051).
  *
  * Arguments are words or `{…}` groups (braces removed). So a pasted tt++
  * `#script {var} {shell command}` stays inert.
@@ -290,7 +292,7 @@ export const SCRIPT_SUBCOMMANDS: readonly string[] = ['list', 'help', 'set', 'en
 export function scriptCommandArgs(name: string, rest: string): string[] | null {
   if (name !== 'script' && name !== 'lua') return null;
   const args = commandWords(rest);
-  if (name === 'lua') return args.length >= 2 ? args : null;
+  if (name === 'lua') return args.length >= 2 ? [args[0]!, args[1]!, ...args.slice(2).filter((a) => a !== '')] : null;
   const sub = args[0]?.toLowerCase();
   if (sub === undefined || !SCRIPT_SUBCOMMANDS.includes(sub)) return null;
   args[0] = sub;

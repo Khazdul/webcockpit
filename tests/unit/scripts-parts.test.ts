@@ -200,6 +200,9 @@ describe('#script and #lua forms', () => {
     expect(scriptCommandArgs('script', '')).toBe(null);
     expect(scriptCommandArgs('lua', '{looter} {toggle} {on fast}')).toEqual(['looter', 'toggle', 'on fast']);
     expect(scriptCommandArgs('lua', '{print("x")}')).toBe(null);
+    // An empty argument is no argument: the function gets nil, not "".
+    expect(scriptCommandArgs('lua', '{s} {f} {}')).toEqual(['s', 'f']);
+    expect(scriptCommandArgs('lua', '{s} {f} {} {x}')).toEqual(['s', 'f', 'x']);
     expect(scriptCommandArgs('system', 'list')).toBe(null);
   });
 
