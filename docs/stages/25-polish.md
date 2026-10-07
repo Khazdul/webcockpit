@@ -99,3 +99,25 @@ the colour list.
 5. Manual: assumed fine.
 - Pane appearance title is fine. The "None" column in Pane appearance is
   not clear to a new user: it means "same colour as the background".
+- Follow-up (owner): the x should sit on top, so script authors need not
+  reserve cells for it.
+
+Done (round 2): the x shows on every non-temporary script pane on hover,
+over its content; `createPane{cross = false}` opts out (pane bar).
+Bundled scripts keep their links clear of it (key manager `?` follows
+the count). Outline colour `--pane-outline` derived from the main
+background (black → #292929, lighter on blue, darker on paper). Mapper:
+`[X] Background colour: <name>` / `[ ] Background colour code: <code>`
+check-box rows, remembered code (`mapper.backgroundCode`), Dark paper
+`#e8dfc8` with dark map lines on light backgrounds. Pane appearance:
+"None" → "Plain" with the hint "Plain: the main window background."
+ADR 0084 and 0085 addenda.
+
+Test guide (round 2):
+
+1. Key manager without border: hover → x top right; `?` next to the
+   key count still clickable. Change the main background (Options →
+   Appearance) and hover a borderless pane: outline follows it.
+2. Options → Mapper: tick between the two Background rows; ←→ on the
+   colour row, Enter on the code row. Try Dark paper on the map.
+3. Options → Panes → Appearance: "Plain" column and its hint.

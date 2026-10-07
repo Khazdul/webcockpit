@@ -38,6 +38,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 25 round 2
+
+- **Owner (round 1):** key manager has no x (its `?` under it); outline
+  should follow the main background; Mapper background as check-box rows,
+  "Background colour", add Dark paper; "None" tint column unclear. Then:
+  the x should sit on top, authors should not reserve cells.
+- **Done:** x always on script panes, `createPane{cross=false}` opt-out
+  (pane bar); `--pane-outline` from the bg; mapper check-box rows +
+  `backgroundCode`, Dark paper with dark map lines; None → Plain + hint.
+  ADR 0084/0085 addenda.
+- **Checked:** typecheck, unit 2492, e2e 498/502 (appearance:34 ff,
+  script-code-editor:122 ff, loading:52, map-notes:40 flaky; all pass
+  alone).
+- **Next:** owner tests round 2; release 0.1.53 on the owner's go.
+- **Commits:** 06527f0..HEAD.
+
 ### 2026-10-08 — Stage 25 polish round
 
 - **Owner:** feedback batch (script pane x/grab, hover outline, profile
