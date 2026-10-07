@@ -680,6 +680,7 @@ what feedback is wanted.
 | 20 | **Mudlet import.** Mudlet profiles and packages to a plain tt++ profile through a Lua-subset translator, with the import report (§2.11, ADR 0076). | Import your Mudlet profile and read the report; play with the aliases and keys. |
 | 21 | **Room notes and map search.** Notes in the game window, map hover box, search/room/path API, the bundled Map search pane (ADR 0077). | Walk past herb rooms; hover the map; search for a herb and follow the marks. |
 | 23 | **Remote editing** (parked 2026-10-07). MUME.Client Edit/View over GMCP: a floating edit pane and read-only view panes, Latin-1 and size checks, disconnect handling, and Edit/View text kept out of recordings and exports. | Write a mail and a board post in the edit pane; view a board post. |
+| 24 | **Loading indicators.** A TUI loading bar and fade-in for the start page (no piecemeal font reveal), and a progress bar over the map pane while map data and tiles load. | Load the page and turn the map on over a slow connection (phone). |
 
 ## 6. Open questions for the owner
 

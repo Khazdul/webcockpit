@@ -29,6 +29,7 @@ Stage 23 (remote editing) parked by the owner: research and plan kept for later.
 | 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
 | 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
+| 24 | Loading indicators | In progress | `docs/stages/24-loading.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
