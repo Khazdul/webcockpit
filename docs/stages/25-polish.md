@@ -85,3 +85,17 @@ Feedback wanted: outline colour/strength, the "Pane appearance" title,
 the colour list.
 
 ## Owner feedback
+
+### Round 1 (2026-10-08)
+
+1. Key manager pane shows no x; probably its `?` link sits under it.
+   The hover outline should follow the main window background: grey on
+   black as now, bluish on blue, and so on.
+4. Mapper: "Background" → "Background colour". Add "Dark paper", a
+   shade just darker than the paper background. Choosing via Enter is
+   not intuitive: pick the named colour or the colour code directly in
+   the Mapper menu, a check box before each of the two rows; choosing
+   one unchecks the other.
+5. Manual: assumed fine.
+- Pane appearance title is fine. The "None" column in Pane appearance is
+  not clear to a new user: it means "same colour as the background".
