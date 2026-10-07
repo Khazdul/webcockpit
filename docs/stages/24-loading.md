@@ -98,7 +98,7 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
 - [x] Verify under Chromium network emulation (`scripts/throttled-start.ts`,
   Regular 3G / 4G / none); e2e `loading.spec.ts`, `phone-loading.spec.ts`;
   ADR 0083 start page items
-- [ ] Owner test
+- [x] Owner test
 
 ### Round 2 — start page
 
@@ -116,13 +116,13 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
 - [x] Regression e2e (`loading.spec.ts`, new install with DejaVu held:
   rows sampled per frame, no face loading while the menu shows; fails on
   the round 1 code)
-- [ ] Owner test
+- [x] Owner test
 
 ### Round 1 — map pane
 
 - [x] Modern, discreet overlay: small `system-ui` label, thin rounded
   bar, soft translucent pill, fixed neutral colours (ADR 0083 item 9)
-- [ ] Owner test
+- [x] Owner test
 
 ## Test guide
 
@@ -191,3 +191,8 @@ reveal's 160 ms per row is too short to notice.
    rows fade in.
 2. Regular 4G and unthrottled: looks good.
 3. Shorten the fade by about a third.
+
+### Round 3 (2026-10-07)
+
+Owner: "Nu ser det bra ut." Start page and map bar approved. Stage
+done; not released yet (release on the owner's go).
