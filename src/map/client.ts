@@ -36,6 +36,8 @@ export interface MapClientOptions {
   height: number;
   dpr: number;
   assets: AssetSource;
+  /** The map background, `#rrggbb` (ADR 0085); absent: the default. */
+  background?: string;
   onMessage: (m: WorkerToMain) => void;
 }
 
@@ -57,7 +59,16 @@ export class MapClient {
     });
     const canvas = o.canvas.transferControlToOffscreen();
     client.post(
-      { t: 'init', protocol: MAP_PROTOCOL_VERSION, canvas, width: o.width, height: o.height, dpr: o.dpr, assets: o.assets },
+      {
+        t: 'init',
+        protocol: MAP_PROTOCOL_VERSION,
+        canvas,
+        width: o.width,
+        height: o.height,
+        dpr: o.dpr,
+        assets: o.assets,
+        ...(o.background ? { background: o.background } : {}),
+      },
       [canvas],
     );
     return client;
@@ -77,6 +88,11 @@ export class MapClient {
   /** A new asset source (a tileset change, ADR 0082): the tiles are swapped live. */
   assets(assets: AssetSource): void {
     this.post({ t: 'assets', assets });
+  }
+
+  /** A new map background, `#rrggbb` (ADR 0085). */
+  background(color: string): void {
+    this.post({ t: 'background', color });
   }
 
   resize(width: number, height: number, dpr: number): void {

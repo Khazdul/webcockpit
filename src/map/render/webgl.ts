@@ -182,6 +182,8 @@ export class WebGLMapRenderer implements Renderer {
   private tileGenLoaded = 0;
   /** The newest font load failed (the map draws without text; nothing more will arrive). */
   private fontFailed = false;
+  /** The background (Options → Mapper, ADR 0085): the clear colour and the fade over lower layers. */
+  private bg: RGBA = BACKGROUND;
   /** Every tile array of the newest tile source and the current font are loaded (or the font failed). */
   get complete(): boolean {
     return this.texturesLoaded && this.tileGenLoaded === this.tileGen && (this.fontTex !== null || this.fontFailed);
@@ -212,6 +214,11 @@ export class WebGLMapRenderer implements Renderer {
   }
 
   // ------------------------------------------------------------ assets
+
+  /** The background (Options → Mapper, ADR 0085), from the next render. */
+  setBackground(color: RGBA): void {
+    this.bg = color;
+  }
 
   /**
    * New tiles (a tileset change, ADR 0082): the arrays are loaded again and
@@ -478,7 +485,7 @@ export class WebGLMapRenderer implements Renderer {
     gl.viewport(0, 0, this.pw, this.ph);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
-    gl.clearColor(BACKGROUND[0], BACKGROUND[1], BACKGROUND[2], 1);
+    gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (!this.map) return;
 
@@ -497,7 +504,7 @@ export class WebGLMapRenderer implements Renderer {
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     const cur = view.layer;
     for (const l of this.layers) {
-      if (l.z === cur && l.rooms) this.fullScreen(withAlpha(BACKGROUND, 0.5));
+      if (l.z === cur && l.rooms) this.fullScreen(withAlpha(this.bg, 0.5));
       if (l.rooms) this.drawLayer(l, cur);
       if (view.zoom >= CONNECTION_ZOOM) {
         if (l.conn) this.drawColor(l.conn, l.z === cur ? WHITE : withAlpha(GRAY70, 0.1));

@@ -701,7 +701,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("lane", "string?", "\"own\": the first time, the pane gets a lane of its own at the screen edge of its dock (a row of the top or bottom dock, a column at the side), as high (or wide) as rows (cols) plus the frame. Not for a float or a temporary pane."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
-        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes → General). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). It has no close cross, which would cover its text: Options → Panes → General or pane:hide() turn it off."),
+        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes → Appearance). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). It has no close cross, which would cover its text: Options → Panes → Appearance or pane:hide() turn it off."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),
@@ -710,10 +710,10 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
-        "dock, lane, border, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes → General lists it with its title and script, to switch it off, colour it or drop its border.",
+        "dock, lane, border, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes → Appearance lists it with its title and script, to switch it off, colour it or drop its border.",
         "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
         "Rows and columns count from 1. Text wider than the pane is cut. More lines than fit scroll (wheel, touchpad, touch), with one row telling how many are hidden: on top for anchor = \"bottom\", at the bottom for \"top\"; a click on it goes back. A pane keeps at most 500 lines.",
-        "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Options → Panes → General → Reset layout forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
+        "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Options → Panes → Appearance → Reset layout forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
       ],
       example:
         'local pane = createPane{id = "hp", title = "Health", dock = "right", rows = 3}\npane:gauge(1, {value = 80, max = 120, color = "green", label = "HP 80/120"})',
@@ -1022,7 +1022,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "pane:show",
     "pane:show()",
-    "Switches the pane on, as its row in Options → Panes → General does.",
+    "Switches the pane on, as its row in Options → Panes → Appearance does.",
     {
       params: [p("pane", "pane", "A pane from createPane.")],
       more: [
@@ -1053,7 +1053,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "pane:setTitle",
     "pane:setTitle(text)",
-    "Changes the title in the pane's frame and in Options → Panes → General.",
+    "Changes the title in the pane's frame and in Options → Panes → Appearance.",
     {
       params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "The new title (at most 60 characters).")],
       example: 'pane:setTitle("Mercenaries (" .. count .. ")")',
@@ -1136,7 +1136,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "getPanes",
     "getPanes() → list",
-    "Every pane in Options → Panes → General order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",
+    "Every pane in Options → Panes → Appearance order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",
     {
       params: [],
       returns:
@@ -1150,7 +1150,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "setPaneOn",
     "setPaneOn(id, on) → boolean",
-    "Switches any pane on or off, as its close cross and Options → Panes → General do.",
+    "Switches any pane on or off, as its close cross and Options → Panes → Appearance do.",
     {
       params: [
         p("id", "string", "A pane id from getPanes (\"comm\", \"merc/main\")."),

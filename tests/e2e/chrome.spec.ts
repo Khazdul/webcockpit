@@ -211,8 +211,8 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter'); // Panes
   await expect(startTitle(page)).toHaveText('─── Panes ───');
-  await page.keyboard.press('Enter'); // General
-  await expect(startTitle(page)).toHaveText('─── General ───');
+  await page.keyboard.press('Enter'); // Appearance
+  await expect(startTitle(page)).toHaveText('─── Pane appearance ───');
   // Character is on with None: Enter on its checked cell turns it off.
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).panes.character.on).toBe(false);
@@ -587,6 +587,49 @@ test('profiles: create, rename, delete, export and import', async ({ page }) => 
   await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('default');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).profile).toBe('default');
+});
+
+test('profiles: Enter or a click on the selected profile edits it, on another selects it', async ({ page }) => {
+  await openStart(page);
+  await page.evaluate(async () => {
+    await window.__wc!.shell.profiles.init();
+    await window.__wc!.shell.profiles.create('scout', '');
+  });
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
+  const table = frame.locator('.wc-table');
+  const editorTitle = page.locator('.wc-frame:not([hidden]) > .wc-ped .wc-ped-title .wc-c-section');
+  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('default');
+  await expect(frame.locator('.wc-footer')).toContainText('Enter Edit');
+
+  // Keyboard: Enter on the selected profile opens the editor, like EDIT.
+  await page.keyboard.press('Enter');
+  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await page.keyboard.press('Escape');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
+
+  // Enter on another profile selects it; a second Enter edits it.
+  await page.keyboard.press('End');
+  await expect(table.locator('.wc-tr.is-cur-focus')).toContainText('scout');
+  await expect(frame.locator('.wc-footer')).toContainText('Enter Select');
+  await page.keyboard.press('Enter');
+  await expect.poll(async () => (await settings(page)).profile).toBe('scout');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await page.keyboard.press('Enter');
+  await expect(editorTitle).toHaveText('─── Profile Editor: scout ───');
+  await page.keyboard.press('Escape');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
+
+  // Mouse: the first click on a row selects it, the second edits it.
+  await table.locator('.wc-tr', { hasText: 'default' }).click();
+  await expect.poll(async () => (await settings(page)).profile).toBe('default');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
+  await table.locator('.wc-tr', { hasText: 'default' }).click();
+  await expect(editorTitle).toHaveText('─── Profile Editor: default ───');
+  await page.keyboard.press('Escape');
+  await expect(startTitle(page)).toHaveText('─── Profile ───');
 });
 
 test('the selected profile shows in the ESC menu header', async ({ page }) => {

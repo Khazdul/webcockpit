@@ -22,8 +22,14 @@ export const BLACK = rgb(0x000000);
 export const RED = rgb(0xff0000);
 /** Colors::gray70. */
 export const GRAY70 = rgb(0xb3b3b3);
-/** Background (owner config `#2e3436`). */
+/** Background (owner config `#2e3436`), the default of Options → Mapper "Background" (ADR 0085). */
 export const BACKGROUND = rgb(0x2e3436);
+
+/** A `#rrggbb` colour as RGBA (the map background setting, ADR 0085); anything else: `fallback`. */
+export function hexRgba(hex: string, fallback: RGBA = BACKGROUND): RGBA {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  return m ? rgb(parseInt(m[1]!, 16)) : fallback;
+}
 /** STREAM and INFOMARK_RIVER ("Malibu"). */
 export const WATER = rgb(0x4cd8ff);
 

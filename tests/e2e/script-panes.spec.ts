@@ -109,14 +109,14 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await page.mouse.move(content!.x + 15.5 * cell.w, at.y);
   await expect(tip).toBeHidden();
 
-  // Options → Panes → General lists it under the built-ins; its None box switches it off and on.
+  // Options → Panes → Appearance lists it under the built-ins; its None box switches it off and on.
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   await expect(menuTitle(page)).toHaveText('─── Options ───');
   await page.keyboard.press('Enter'); // Panes
   await expect(menuTitle(page)).toHaveText('─── Panes ───');
-  await page.keyboard.press('Enter'); // General
-  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await page.keyboard.press('Enter'); // Appearance
+  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
   const row = page.locator(`.wc-grid-row:has([data-pane-row="${ID}"])`);
   await expect(row).toContainText('Merc Pane (panes)');
   await row.locator('.wc-check').first().click();
@@ -228,13 +228,13 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect(temp).toHaveAttribute('data-floating', '');
   expect(await inSettings()).toBe(false);
 
-  // Options → Panes → General does not list it.
+  // Options → Panes → Appearance does not list it.
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
   await expect(menuTitle(page)).toHaveText('─── Options ───');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
   await expect(page.locator('.wc-overlay')).not.toContainText('Pick (temps)');
   await expect(page.locator(`[data-pane-row="${TID}"]`)).toHaveCount(0);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
@@ -265,7 +265,7 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect(menuTitle(page)).toHaveText('─── Options ───');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── General ───');
+  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
   await page.locator('.wc-overlay').getByText('Reset layout').click();
   await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');

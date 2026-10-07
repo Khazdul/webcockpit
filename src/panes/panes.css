@@ -133,9 +133,10 @@
 }
 
 /* Map pane (src/panes/map.ts, ADR 0020): the worker draws into the
- * canvas; MMapper's background shows until the first frame. */
+ * canvas; the map background shows until the first frame. `--map-bg` is
+ * the Options → Mapper setting (ADR 0085), MMapper's #2e3436 by default. */
 .wc-map {
-  background: #2e3436;
+  background: var(--map-bg, #2e3436);
 }
 
 .wc-map-canvas {
@@ -169,8 +170,10 @@
  * small, modern indicator centred over the map, a contrast to the TUI
  * look of the rest of the client (the mapper is the modern window). A
  * system UI label over a thin rounded bar on a soft translucent pill.
- * Colours are fixed neutral tones, not terminal tokens: the map's grey
- * (#2e3436, `.wc-map`) is the same in every theme, so the overlay is too.
+ * Colours are fixed neutral tones, not terminal tokens: the map's
+ * background (`.wc-map`, #2e3436 unless set in Options → Mapper, ADR 0085)
+ * does not follow the theme, so the overlay does not either; its dark pill
+ * reads on every background in the Mapper list.
  * Fades out at the end. */
 .wc-map-loading {
   position: absolute;

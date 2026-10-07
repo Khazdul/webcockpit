@@ -260,6 +260,12 @@ export interface MapperSettings {
    * src/map/tilesets.ts (`default`, a set, or a seasonal family).
    */
   tileset: string;
+  /**
+   * The map's background colour, `#rrggbb` (ADR 0085): MMapper's
+   * `#2e3436` by default, a named choice from src/map/backgrounds.ts or
+   * any typed colour.
+   */
+  background: string;
 }
 
 export interface Settings {
@@ -353,7 +359,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' },
   };
 }
 

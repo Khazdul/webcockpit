@@ -37,6 +37,10 @@
 // snapshots go out at most every PROGRESS_MS (a phase change at once).
 // After an `assets` change, `tilesDrawn` follows the first frame drawn
 // with the new tiles.
+//
+// Background (ADR 0085): `init.background` and later `background`
+// messages set the renderer's clear colour (kept for a rebuilt renderer
+// after a context restore) and ask for a redraw.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { hoverInfo, roomAt } from '../hover';
@@ -58,6 +62,7 @@ import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from 
 import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
 import type { Scene, SceneMark } from '../scene';
+import { BACKGROUND, type RGBA, hexRgba } from '../render/palette';
 import { type Renderer, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
 import type { LearnedIdStore } from './ids';
@@ -141,6 +146,8 @@ export class MapWorkerCore {
   private progressTimer = false;
   /** An `assets` change waits for its first complete frame (`tilesDrawn`). */
   private assetsPending = false;
+  /** The map background (ADR 0085). */
+  private background: RGBA = BACKGROUND;
 
   constructor(private readonly host: WorkerHost) {}
 
@@ -155,6 +162,11 @@ export class MapWorkerCore {
         return;
       case 'assets':
         this.setAssets(m.assets);
+        return;
+      case 'background':
+        this.background = hexRgba(m.color);
+        this.renderer?.setBackground?.(this.background);
+        this.requestRender();
         return;
       case 'resize':
         this.resize(m.width, m.height, m.dpr);
@@ -236,7 +248,12 @@ export class MapWorkerCore {
     const make = this.host.createRenderer ?? createRenderer;
     this.assets = this.counted(assetResolver(m.assets, this.host.fetch));
     const glc = gl;
-    const build = () => make(glc, this.assets!, () => this.requestRender());
+    if (m.background) this.background = hexRgba(m.background);
+    const build = (): Renderer => {
+      const r = make(glc, this.assets!, () => this.requestRender());
+      r.setBackground?.(this.background);
+      return r;
+    };
     this.renderer = build();
     m.canvas.addEventListener?.('webglcontextlost', (e) => {
       e.preventDefault();

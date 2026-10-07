@@ -299,7 +299,8 @@ export function migrateInput(raw: unknown): InputSettings {
 
 /**
  * Mapper options from anything (notes on, full hover, medium hover text;
- * ADR 0077; the default tileset, also for an unknown id, ADR 0082).
+ * ADR 0077; the default tileset, also for an unknown id, ADR 0082; the
+ * default background for anything but a hex colour, ADR 0085).
  * Stored before version 2, 'minimal' was the default and moves to the
  * new default 'full' once (ADR 0080).
  */
@@ -312,6 +313,7 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
     hover: oneOf(hover, MAP_HOVER_MODES, d.hover),
     hoverSize: oneOf(x.hoverSize, MAP_HOVER_SIZES, d.hoverSize),
     tileset: oneOf(x.tileset, TILESET_IDS, d.tileset),
+    background: hex(x.background, d.background),
   };
 }
 

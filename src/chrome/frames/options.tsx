@@ -5,9 +5,11 @@
 //
 //   Options hub:  Panes · Mapper · Appearance · Text input · Spotlights ·
 //                 Scripts, Back (Scripts only with a script library)
-//   Panes hub:    General · Timers · Communication · Group · Back
-//                 (Cockpit's order)
-//   General:      pane × colour grid with a Border column, reset layout
+//   Panes hub:    Appearance · Timers · Communication · Group · Back
+//                 (Cockpit's order; Appearance was "General" before stage 25)
+//   Panes → Appearance: pane × colour grid with a Border column, reset
+//                 layout; its page is titled "Pane appearance", apart from
+//                 the hub's own Appearance page below
 //   Timers:       options-timers.tsx
 //   Communication: comm-options.tsx
 //   Group:        options-group.tsx
@@ -102,7 +104,7 @@ export function OptionsHub(): VNode {
 export function PanesHub(): VNode {
   const nav = useNav();
   const items: MenuItem[] = [
-    { key: 'general', label: 'General', activate: () => nav.push(<PanesFrame />) },
+    { key: 'appearance', label: 'Appearance', activate: () => nav.push(<PanesFrame />) },
     { key: 'timers', label: 'Timers', activate: () => nav.push(<TimersOptionsFrame />) },
     { key: 'comm', label: 'Communication', activate: () => nav.push(<CommOptionsFrame />) },
     { key: 'group', label: 'Group', activate: () => nav.push(<GroupOptionsFrame />) },
@@ -118,7 +120,7 @@ export function PanesHub(): VNode {
   );
 }
 
-// -------------------------------------------------------- panes: general
+// ----------------------------------------------------- panes: appearance
 
 /** Grid columns: the seven tints, then Border. */
 const GRID_COLS = PANE_COLORS.length + 1;
@@ -232,7 +234,7 @@ export function PanesFrame(): VNode {
     PANE_COLORS.map((c) => PANE_TINT_LABEL[c].padEnd(CELL_W)).join('') +
     'Border';
   return (
-    <Page title="General" footer={['↑↓←→ Move', 'Enter Toggle', 'ESC Back']}>
+    <Page title="Pane appearance" footer={['↑↓←→ Move', 'Enter Toggle', 'ESC Back']}>
       <Line at={at} class="wc-c-hint">
         {header}
       </Line>

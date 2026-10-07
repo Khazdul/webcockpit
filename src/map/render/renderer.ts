@@ -1,16 +1,17 @@
 // Renderer seam (ADR 0020 "Modules"): the worker owns one Renderer and
 // calls it on demand. `createRenderer` builds the WebGL2 tile renderer
 // (webgl.ts: atlases, per-layer meshes, connections, text …);
-// `ClearRenderer` only clears to the MMapper background (tests).
+// `ClearRenderer` only clears to the background (tests).
 
 import type { AssetResolver } from '../assets';
 import type { MapData } from '../model';
 import type { Scene } from '../scene';
 import type { View } from '../view';
+import { BACKGROUND, type RGBA } from './palette';
 import { WebGLMapRenderer } from './webgl';
 
-/** MMapper background (owner config `#2e3436`), 0…1 RGB. */
-export const MAP_BG: readonly [number, number, number] = [0x2e / 255, 0x34 / 255, 0x36 / 255];
+/** MMapper background (owner config `#2e3436`), 0…1 RGB: the default (ADR 0085). */
+export const MAP_BG: readonly [number, number, number] = [BACKGROUND[0], BACKGROUND[1], BACKGROUND[2]];
 
 export interface Renderer {
   /** A new map (null: none); meshes are rebuilt here, not per frame. */
@@ -24,14 +25,17 @@ export interface Renderer {
   dispose(): void;
   /** New tile assets (a tileset change, ADR 0082); absent: the renderer has no tiles. */
   setAssets?(assets: AssetResolver): void;
+  /** The background colour (Options → Mapper, ADR 0085); drawn from the next render. */
+  setBackground?(color: RGBA): void;
   /** False while tiles or the font are still loading (absent: nothing to load). */
   readonly complete?: boolean;
 }
 
-/** P0 renderer: clears to MAP_BG. */
+/** P0 renderer: clears to the background (MAP_BG unless set). */
 export class ClearRenderer implements Renderer {
   private w = 1;
   private h = 1;
+  private bg: RGBA = BACKGROUND;
   constructor(private readonly gl: WebGL2RenderingContext) {}
   setMap(_map: MapData | null): void {}
   setScene(_scene: Scene): void {}
@@ -42,8 +46,11 @@ export class ClearRenderer implements Renderer {
   render(_view: View): void {
     const gl = this.gl;
     gl.viewport(0, 0, this.w, this.h);
-    gl.clearColor(MAP_BG[0], MAP_BG[1], MAP_BG[2], 1);
+    gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1);
     gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  setBackground(color: RGBA): void {
+    this.bg = color;
   }
   dispose(): void {}
 }
