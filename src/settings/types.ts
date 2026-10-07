@@ -262,16 +262,10 @@ export interface MapperSettings {
   tileset: string;
   /**
    * The map's background colour, `#rrggbb` (ADR 0085): MMapper's
-   * `#2e3436` by default, a named choice from src/map/backgrounds.ts or
-   * any typed colour.
+   * `#2e3436` by default, one of the named choices of
+   * src/map/backgrounds.ts.
    */
   background: string;
-  /**
-   * The last colour code typed in Options → Mapper (`#rrggbb`, '' for
-   * none; ADR 0085 addendum), kept while a named colour is chosen so the
-   * code row can be checked again.
-   */
-  backgroundCode: string;
 }
 
 export interface Settings {
@@ -365,7 +359,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' },
   };
 }
 

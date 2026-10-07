@@ -1,9 +1,8 @@
-// The map's background colour (ADR 0085, Options → Mapper "Background
-// colour" and "Background colour code").
+// The map's background colour (ADR 0085 and its addenda, Options → Mapper
+// "Background colour").
 //
-// `mapper.background` is a `#rrggbb` string. The list below is what ←→
-// cycles on the named row; any other valid hex can be typed on the code
-// row (remembered in `mapper.backgroundCode`). The
+// `mapper.background` is a `#rrggbb` string, one of the list below, which
+// is what ←→ cycles (typed codes were removed in stage 25 round 3). The
 // default is MMapper's (the owner's config), first in the list. The
 // worker clears to it and fades the layers below the player's into it;
 // the pane's CSS background (shown before the first frame) follows too.
@@ -16,15 +15,16 @@ export const MAP_BG_DEFAULT = '#2e3436';
 
 /**
  * "Dark paper": a shade darker than the Appearance `paper` background
- * (#f4ecd8), the one light choice (ADR 0085 addendum).
+ * (#f4ecd8), a light choice like White (ADR 0085 addenda).
  */
 export const MAP_BG_DARK_PAPER = '#e8dfc8';
 
 /**
  * Named choices after the default. The dark ones keep the white
  * connection lines, the infomark text and the tiles' edges reading
- * (ADR 0085); on Dark paper, a light colour, the renderer draws the
- * connection and infomark lines dark instead (ADR 0085 addendum).
+ * (ADR 0085); on the light ones at the end (Dark paper, White) the
+ * renderer draws the connection and infomark lines dark instead (ADR 0085
+ * addenda).
  */
 export const MAP_BACKGROUNDS: readonly NamedColor[] = [
   { name: 'Default', hex: MAP_BG_DEFAULT },
@@ -40,6 +40,7 @@ export const MAP_BACKGROUNDS: readonly NamedColor[] = [
   { name: 'Maroon', hex: '#2e1214' },
   { name: 'Dark purple', hex: '#22162e' },
   { name: 'Dark paper', hex: MAP_BG_DARK_PAPER },
+  { name: 'White', hex: '#ffffff' },
 ];
 
 /** Whether `hex` is one of the named choices. */
@@ -53,14 +54,8 @@ export function mapBgIsLight(hex: string): boolean {
   return takesDarkInk(normalizeHex(hex) ?? MAP_BG_DEFAULT);
 }
 
-/** The list name for `hex`, or the hex itself for a typed colour. */
+/** The list name for `hex`, or the hex itself for one not in the list. */
 export function mapBgName(hex: string): string {
   const h = hex.toLowerCase();
   return MAP_BACKGROUNDS.find((c) => c.hex === h)?.name ?? h;
 }
-
-/** A typed colour code as `#rrggbb` (`#rgb` and a missing `#` are fine), or null. */
-export function parseMapBg(s: string): string | null {
-  return normalizeHex(s.trim());
-}
-

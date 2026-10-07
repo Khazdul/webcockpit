@@ -33,7 +33,7 @@ export function hexRgba(hex: string, fallback: RGBA = BACKGROUND): RGBA {
 /**
  * WCAG luminance above which dark ink reads better than white (as
  * src/theme/color.ts `takesDarkInk`). A map background this light (Dark
- * paper, a light typed code) gets dark connection and infomark lines
+ * paper, White) gets dark connection and infomark lines
  * (ADR 0085 addendum); every dark background draws as MMapper does.
  */
 export const LIGHT_BG_LUMINANCE = 0.1791;

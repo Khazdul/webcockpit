@@ -10,8 +10,7 @@
 //      << Room info on hover: Full >>
 //      << Hover text size: Medium >>
 //      << Tileset: Default (MMapper) >>
-//      << [X] Background colour: Default >>
-//      << [ ] Background colour code: none >>
+//      << Background colour: Default >>
 //      << Import map file… >>
 //      << Use bundled map >>
 //
@@ -36,19 +35,15 @@
 // default Medium). Tileset (`mapper.tileset`, ADR 0082): ←→ cycles the
 // catalogue (src/map/tilesets.ts); the line under the menu credits the
 // set, and an alternating set names the season it draws now (the saved
-// game clock, as the Map pane resolves it). Background (`mapper.background`,
-// ADR 0085 and its addendum): two check-box rows, exactly one checked.
-// "Background colour": ←→ cycles the named colours of
-// src/map/backgrounds.ts (Default first), Enter or a click checks it.
-// "Background colour code": Enter or a click opens the `#rrggbb` prompt;
-// a valid code checks the row and is remembered (`mapper.backgroundCode`),
-// so ←→ there checks it again. A typed code that is a named colour shows
-// as that name. The Map pane draws the colour at once.
+// game clock, as the Map pane resolves it). Background colour
+// (`mapper.background`, ADR 0085 and its addenda): ←→ cycles the named
+// colours of src/map/backgrounds.ts (Default first), Enter steps forward
+// like the other cyclers. The Map pane draws the colour at once.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { seasonOf } from '../../gmcp/gametime';
-import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg, mapBgName, parseMapBg } from '../../map/backgrounds';
+import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg, mapBgName } from '../../map/backgrounds';
 import type { CurrentMap } from '../../map/store';
 import { localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
@@ -63,7 +58,6 @@ import {
   type MenuItem,
   MenuRows,
   Page,
-  TextField,
   menuKey,
   useMenuCursor,
 } from '../kit/widgets';
@@ -103,7 +97,7 @@ export function mapInfoRows(m: CurrentMap | null): Array<[string, string]> {
 
 const LABEL_W = 10;
 
-/** What ←→ cycles on the named background row: the list, Default first. */
+/** What ←→ cycles on the background row: the list, Default first. */
 const MAP_BG_HEXES = MAP_BACKGROUNDS.map((c) => c.hex);
 
 /** The credit line under the menu; an alternating set adds the season it draws now (game month `month`). */
@@ -144,10 +138,8 @@ export function MapperOptionsFrame(): VNode {
   const tileset = tilesetChoice(mapper.tileset);
   const credit = tilesetCredit(mapper.tileset, mumeMonth(storedClockEpoch(localStorageOrNull(), Date.now()), Date.now()));
   const sizeLabel = mapper.hoverSize === 'small' ? 'Small' : mapper.hoverSize === 'large' ? 'Large' : 'Medium';
-  // Background (ADR 0085 addendum): the code row is checked while the
-  // colour is not a named one; the named row then offers Default.
-  const byCode = !isNamedMapBg(mapper.background);
-  const named = byCode ? MAP_BG_DEFAULT : mapper.background.toLowerCase();
+  // Background (ADR 0085): migration keeps only named colours; anything else reads as Default.
+  const bg = isNamedMapBg(mapper.background) ? mapper.background.toLowerCase() : MAP_BG_DEFAULT;
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;
@@ -202,21 +194,8 @@ export function MapperOptionsFrame(): VNode {
     },
     {
       key: 'background',
-      glyph: byCode ? '[ ]' : '[X]',
-      label: `Background colour: ${mapBgName(named)}`,
-      activate: () => settings.update({ mapper: { background: named } }),
-      adjust: (d) => settings.update({ mapper: { background: cycle(MAP_BG_HEXES, named, d) } }),
-    },
-    {
-      key: 'backgroundCode',
-      glyph: byCode ? '[X]' : '[ ]',
-      label: `Background colour code: ${mapper.backgroundCode || 'none'}`,
-      activate: () => nav.push(<MapBackgroundCodeFrame />),
-      // ←→ check the row again with the remembered code (a typed one: Enter).
-      adjust: () => {
-        if (mapper.backgroundCode) settings.update({ mapper: { background: mapper.backgroundCode } });
-        else nav.push(<MapBackgroundCodeFrame />);
-      },
+      label: `Background colour: ${mapBgName(bg)}`,
+      adjust: (d) => settings.update({ mapper: { background: cycle(MAP_BG_HEXES, bg, d) } }),
     },
     {
       key: 'import',
@@ -250,71 +229,6 @@ export function MapperOptionsFrame(): VNode {
       <Centered text={credit} class="wc-c-hint wc-mapper-credit" />
       <FlashRow />
       <input ref={fileRef} type="file" accept=".mm2" hidden class="wc-mapper-file" onChange={() => void onFile()} />
-    </Page>
-  );
-}
-
-// ------------------------------------------------------- map background
-
-/** A swatch of `hex` and its code, centred (the colour code prompt). */
-function Swatch(p: { hex: string; prefix?: string }): VNode {
-  const head = `${p.prefix ?? ''}${p.hex}  `;
-  return (
-    <Centered text={head + '███'}>
-      <span class="wc-c-body">{head}</span>
-      <span class="wc-mapbg-swatch" style={{ color: p.hex }}>
-        ███
-      </span>
-    </Centered>
-  );
-}
-
-/** The `#rrggbb` prompt for the map background. */
-function MapBackgroundCodeFrame(): VNode {
-  const { settings } = useServices();
-  const nav = useNav();
-  const { cols } = useGrid();
-  const cur = settings.get().mapper.background;
-  const [value, setValue] = useState(settings.get().mapper.backgroundCode || cur);
-  const [error, setError] = useState('');
-  const confirm = (): void => {
-    const hex = parseMapBg(value);
-    if (!hex) return setError('Use #rrggbb, e.g. #1c1c1c.');
-    settings.update({ mapper: { background: hex, backgroundCode: hex } });
-    nav.pop();
-    nav.flash(`Map background set to ${hex}.`);
-  };
-  useKeys((e, nk) => {
-    if (nk === 'activate' && e.key === 'Enter') {
-      confirm();
-      return true;
-    }
-    return false;
-  });
-  const w = 14;
-  return (
-    <Page
-      title="Map background colour"
-      footer={[
-        { text: 'Enter Confirm', onClick: confirm },
-        { text: 'ESC Cancel', onClick: () => nav.pop() },
-      ]}
-    >
-      <Swatch hex={cur} prefix="Now " />
-      <Blank />
-      <TextField
-        value={value}
-        onInput={(v) => {
-          setValue(v);
-          setError('');
-        }}
-        width={w}
-        at={centreLeft(cols, w)}
-        maxLength={7}
-        label="Map background colour"
-      />
-      <Centered text="#rrggbb" class="wc-c-hint" />
-      {error ? <Centered text={error} class="wc-c-danger" /> : <Blank />}
     </Page>
   );
 }

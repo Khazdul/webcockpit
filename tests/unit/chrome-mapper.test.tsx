@@ -149,8 +149,7 @@ describe('Options → Mapper', () => {
       'Room info on hover: Full',
       'Hover text size: Medium',
       'Tileset: Default (MMapper)',
-      '[X] Background colour: Default',
-      '[ ] Background colour code: none',
+      'Background colour: Default',
       'Import map file…',
       'Use bundled map',
       'Back',
@@ -165,12 +164,12 @@ describe('Options → Mapper', () => {
     // Room notes and hover mode (ADR 0077): cyclers, written at once.
     await key('ArrowDown');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
     expect(labels(host)[1]).toBe('Room notes: Off');
     await key('ArrowDown');
     expect(labels(host)[2]).toBe('Room info on hover: Full');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundCode: '' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
     expect(labels(host)[2]).toBe('Room info on hover: Off');
     await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
@@ -241,8 +240,8 @@ describe('Options → Mapper', () => {
   });
 });
 
-describe('Options → Mapper → Background colour (ADR 0085 and addendum)', () => {
-  it('two check-box rows: the named colours cycle, a typed code checks its row and is remembered', async () => {
+describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () => {
+  it('one cycler row over the named colours; no code row', async () => {
     const maps = new MapStore({
       openDb: lazyDb(new IDBFactory()),
       validate: async () => {
@@ -259,71 +258,31 @@ describe('Options → Mapper → Background colour (ADR 0085 and addendum)', () 
     await click(host, 'mapper');
     await settle();
     const bg = () => svc.settings.get().mapper.background;
-    const code = () => svc.settings.get().mapper.backgroundCode;
     const row = () => frame(host).querySelector('.wc-mrow[data-key="background"] .wc-label')?.textContent;
-    const codeRow = () => frame(host).querySelector('.wc-mrow[data-key="backgroundCode"] .wc-label')?.textContent;
-    // Two check-box rows, the named one checked; no code typed yet.
-    expect(row()).toBe('[X] Background colour: Default');
-    expect(codeRow()).toBe('[ ] Background colour code: none');
+    expect(row()).toBe('Background colour: Default');
+    expect(frame(host).querySelector('.wc-mrow[data-key="backgroundCode"]')).toBeNull();
 
-    // ←→ cycle the named list (Default first, Black next, wrapping, Dark paper last).
+    // ←→ cycle the named list (Default first, Black next, wrapping, White last).
     await click(host, 'notes'); // the cursor to a row above (notes toggles; put it back)
     await key('Enter');
     for (let i = 0; i < 4; i++) await key('ArrowDown');
     expect(frame(host).querySelector('.wc-mrow.is-sel')?.getAttribute('data-key')).toBe('background');
     await key('ArrowRight');
     expect(bg()).toBe('#000000');
-    expect(row()).toBe('[X] Background colour: Black');
+    expect(row()).toBe('Background colour: Black');
     await key('ArrowLeft');
+    await key('ArrowLeft');
+    expect(bg()).toBe('#ffffff');
+    expect(row()).toBe('Background colour: White');
     await key('ArrowLeft');
     expect(bg()).toBe('#e8dfc8');
-    expect(row()).toBe('[X] Background colour: Dark paper');
-    await key('ArrowLeft');
-    expect(bg()).toBe('#22162e');
-    // No separate page: Enter on the named row keeps it (it is checked).
+    expect(row()).toBe('Background colour: Dark paper');
+    // Enter steps forward like the other cyclers; no separate page.
     await key('Enter');
     expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
-    expect(bg()).toBe('#22162e');
-
-    // The code row: Enter or a click opens the prompt; a bad code is refused,
-    // a good one checks the row and unchecks the named one.
-    await click(host, 'backgroundCode');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Map background colour ───');
-    const field = () => frame(host).querySelector<HTMLInputElement>('input.wc-field, textarea.wc-field')!;
-    expect(field().value).toBe('#22162e');
-    const type = (v: string) =>
-      act(() => {
-        field().value = v;
-        field().dispatchEvent(new Event('input', { bubbles: true }));
-      });
-    await type('#12345');
+    expect(bg()).toBe('#ffffff');
     await key('Enter');
-    expect(frame(host).querySelector('.wc-c-danger')?.textContent).toBe('Use #rrggbb, e.g. #1c1c1c.');
-    expect(bg()).toBe('#22162e');
-    await type('#1A2B3C');
-    await key('Enter');
-    expect(bg()).toBe('#1a2b3c');
-    expect(code()).toBe('#1a2b3c');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
-    expect(frame(host).querySelector('.wc-flash')?.textContent).toBe('Map background set to #1a2b3c.');
-    expect(row()).toBe('[ ] Background colour: Default');
-    expect(codeRow()).toBe('[X] Background colour code: #1a2b3c');
-
-    // A click on the named row checks it (Default); the code is remembered.
-    await click(host, 'background');
     expect(bg()).toBe('#2e3436');
-    expect(row()).toBe('[X] Background colour: Default');
-    expect(codeRow()).toBe('[ ] Background colour code: #1a2b3c');
-    // ←→ on the code row checks it again with the remembered code.
-    expect(frame(host).querySelector('.wc-mrow.is-sel')?.getAttribute('data-key')).toBe('background');
-    await key('ArrowDown');
-    await key('ArrowRight');
-    expect(bg()).toBe('#1a2b3c');
-    expect(codeRow()).toBe('[X] Background colour code: #1a2b3c');
-    // The prompt starts from the remembered code.
-    await key('Enter');
-    expect(field().value).toBe('#1a2b3c');
-    await key('Escape');
-    expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
+    expect(row()).toBe('Background colour: Default');
   });
 });

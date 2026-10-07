@@ -1,7 +1,7 @@
-// Map background colour (ADR 0085): the named list, the typed code, the
+// Map background colour (ADR 0085): the named list, the
 // renderer colour and the worker's `background` message.
 import { describe, expect, it } from 'vitest';
-import { MAP_BACKGROUNDS, MAP_BG_DARK_PAPER, MAP_BG_DEFAULT, isNamedMapBg, mapBgIsLight, mapBgName, parseMapBg } from '../../src/map/backgrounds';
+import { MAP_BACKGROUNDS, MAP_BG_DARK_PAPER, MAP_BG_DEFAULT, isNamedMapBg, mapBgIsLight, mapBgName } from '../../src/map/backgrounds';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
 import { BACKGROUND, LIGHT_BG_INK, type RGBA, hexRgba, isLightBackground } from '../../src/map/render/palette';
 import type { Renderer } from '../../src/map/render/renderer';
@@ -30,7 +30,7 @@ describe('map background choices', () => {
     expect(new Set(MAP_BACKGROUNDS.map((c) => c.name)).size).toBe(hexes.length);
   });
 
-  it('keeps the lines legible on every named colour: white on the dark ones, dark on Dark paper', () => {
+  it('keeps the lines legible on every named colour: white on the dark ones, dark on Dark paper and White', () => {
     for (const c of MAP_BACKGROUNDS) {
       if (mapBgIsLight(c.hex)) {
         expect(contrast(LIGHT_INK, c.hex), c.name).toBeGreaterThanOrEqual(7);
@@ -40,38 +40,32 @@ describe('map background choices', () => {
         expect(isLightBackground(hexRgba(c.hex)), c.name).toBe(false);
       }
     }
-    // Only Dark paper is light, a shade darker than the paper background.
-    expect(MAP_BACKGROUNDS.filter((c) => mapBgIsLight(c.hex)).map((c) => c.name)).toEqual(['Dark paper']);
+    // Only Dark paper (a shade darker than the paper background) and White are light, last in the list.
+    expect(MAP_BACKGROUNDS.filter((c) => mapBgIsLight(c.hex)).map((c) => c.name)).toEqual(['Dark paper', 'White']);
+    expect(MAP_BACKGROUNDS.slice(-2).map((c) => c.name)).toEqual(['Dark paper', 'White']);
+    expect(MAP_BACKGROUNDS.some((c) => c.name === 'Black' && c.hex === '#000000')).toBe(true);
+    expect(contrast(LIGHT_INK, '#ffffff')).toBeGreaterThanOrEqual(14);
     expect(MAP_BG_DARK_PAPER).toBe('#e8dfc8');
     expect(luminance(MAP_BG_DARK_PAPER)).toBeLessThan(luminance('#f4ecd8'));
     expect(luminance(MAP_BG_DARK_PAPER)).toBeGreaterThan(luminance('#f4ecd8') * 0.8);
   });
 
-  it('the renderer and the options agree on light (the same threshold), also for typed codes', () => {
+  it('the renderer and the options agree on light (the same threshold), also for other colours', () => {
     for (const h of ['#ffffff', '#808080', '#767676', '#777777', '#2e3436', '#e8dfc8', '#ffff00', '#0000ff']) {
       expect(isLightBackground(hexRgba(h)), h).toBe(mapBgIsLight(h));
     }
   });
 
-  it('names a listed colour and shows a typed one as its code', () => {
+  it('names a listed colour and shows any other as its code', () => {
     expect(mapBgName('#2E3436')).toBe('Default');
     expect(mapBgName('#000000')).toBe('Black');
     expect(mapBgName('#123456')).toBe('#123456');
   });
 
-  it('tells a named colour from a typed one', () => {
+  it('tells a named colour from any other', () => {
     expect(isNamedMapBg('#2E3436')).toBe(true);
     expect(isNamedMapBg('#e8dfc8')).toBe(true);
     expect(isNamedMapBg('#abcdef')).toBe(false);
-  });
-
-  it('takes #rrggbb, #rgb and a code without #; refuses anything else', () => {
-    expect(parseMapBg('#1A2B3C')).toBe('#1a2b3c');
-    expect(parseMapBg(' 1a2b3c ')).toBe('#1a2b3c');
-    expect(parseMapBg('#abc')).toBe('#aabbcc');
-    expect(parseMapBg('#12345')).toBeNull();
-    expect(parseMapBg('navy')).toBeNull();
-    expect(parseMapBg('')).toBeNull();
   });
 
   it('turns a code into the renderer\'s RGBA, the default for a bad one', () => {
