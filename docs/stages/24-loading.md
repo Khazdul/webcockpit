@@ -113,3 +113,23 @@ pops in piece by piece.
 
 ## Owner feedback
 
+### Round 1 (2026-10-07)
+
+1. Start page, Regular 3G (~30 s): `<< Enter MUME >>` still appears
+   before the rest, and no fade is visible. Regular 4G (~10–15 s): all
+   at once, no visible fade. The fade must be clearly visible, a nice
+   effect of about 1–2 s.
+2. Map bar works, but the TUI look does not fit the map pane. Make it
+   discreet and modern: much smaller font, an ordinary modern progress
+   bar. The mapper window is deliberately more modern, a contrast to
+   the rest of the client.
+3. Tileset switch works as expected.
+4. Unthrottled: everything fast, no piecemeal rows. The fade is a bit
+   too fast.
+5. General: the banner should be visible at once when the page opens,
+   before loading starts. When loading is done, the menus fade in
+   slowly, about 2 s.
+
+Diagnosis: the font gate's 4 s safety timeout (`FONT_GATE_MS`) fires
+before the font files arrive on 3G, so the reveal ran unguarded; the
+reveal's 160 ms per row is too short to notice.
