@@ -12,6 +12,7 @@ import {
   paneBorder,
   paneEffectiveBg,
   paneIsLight,
+  paneOutline,
   paneShades,
   shadeRamp,
   washout,
@@ -149,5 +150,19 @@ describe('light transforms (Inv §10.5)', () => {
   it('line highlight lifts 12 % toward white on dark, black on light', () => {
     expect(lineHighlight('#000000')).toBe('#1f1f1f');
     expect(lineHighlight('#f4ecd8')).toBe('#d7d0be');
+  });
+
+  it('pane hover outline follows the main background (ADR 0084 addendum)', () => {
+    // Black: the discreet grey of round 1 (the frame grey).
+    expect(paneOutline('#000000')).toBe('#292929');
+    expect(paneOutline('#000000')).toBe(paneBorder('black', '#000000'));
+    // Blue: a lighter blue; paper: a darker paper shade.
+    const blue = hexToHsl(paneOutline('#0e141c'));
+    expect(blue.h).toBeGreaterThan(190);
+    expect(blue.h).toBeLessThan(230);
+    expect(blue.l).toBeGreaterThan(hexToHsl('#0e141c').l);
+    expect(paneOutline('#f4ecd8')).toBe('#d7d0be');
+    expect(hexToHsl(paneOutline('#f4ecd8')).l).toBeLessThan(hexToHsl('#f4ecd8').l);
+    expect(paneOutline('nope')).toBe('#292929');
   });
 });

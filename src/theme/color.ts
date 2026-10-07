@@ -253,6 +253,21 @@ export function mix(a: string, b: string, t: number): string {
   return rgbToHex({ r: x.r + (y.r - x.r) * t, g: x.g + (y.g - x.g) * t, b: x.b + (y.b - x.b) * t });
 }
 
+/** How far the hover outline moves from the background: black → #292929 (ADR 0084 addendum). */
+export const OUTLINE_MIX_DARK = 0.161;
+/** The same on a light background, toward black (paper → a darker paper shade). */
+export const OUTLINE_MIX_LIGHT = 0.12;
+
+/**
+ * The hover outline of a borderless pane (ADR 0084 addendum): the main
+ * window background a small step toward white (dark bg) or black (light
+ * bg). Grey on black, a lighter blue on blue, a darker paper on paper.
+ */
+export function paneOutline(termBg: string): string {
+  const bg = normalizeHex(termBg) ?? '#000000';
+  return isLight(bg) ? mix(bg, '#000000', OUTLINE_MIX_LIGHT) : mix(bg, '#ffffff', OUTLINE_MIX_DARK);
+}
+
 /** Editor current-line band: bg 12 % toward white (dark bg) or black (light bg). */
 export function lineHighlight(termBg: string): string {
   return mix(termBg, isLight(termBg) ? '#000000' : '#ffffff', 0.12);

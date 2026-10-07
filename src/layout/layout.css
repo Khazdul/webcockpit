@@ -110,15 +110,16 @@
 
 /* Hovering a borderless pane outlines it (ADR 0084): without a frame, on
  * the terminal background, it is hard to see where it ends. One pixel,
- * inside the pane (no layout shift), over its content, in the colour of
- * the close cross. Pointer devices only, not on a phone, not while a drag
- * is on. */
+ * inside the pane (no layout shift), over its content, in the main window
+ * background a step lighter (darker on a light one): `--pane-outline`,
+ * src/theme/apply.ts. Pointer devices only, not on a phone, not while a
+ * drag is on. */
 @media (hover: hover) {
   .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):hover::after {
     content: '';
     position: absolute;
     inset: 0;
-    box-shadow: inset 0 0 0 1px var(--pane-border);
+    box-shadow: inset 0 0 0 1px var(--pane-outline, var(--pane-border));
     pointer-events: none;
     z-index: 4;
   }

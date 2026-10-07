@@ -421,14 +421,17 @@ test('pane:onWheel gets whole cells; true takes the scroll, otherwise the pane s
 
 // Stage 25 A (ADR 0084): a script pane shows the grab cursor on its top
 // row and the close cross on hover like a built-in pane, framed or not;
-// hovering a borderless pane outlines it (an inset shadow in the cross's
-// colour, no layout shift); a framed pane gets no outline.
+// hovering a borderless pane outlines it (an inset shadow in the main
+// background a step lighter, no layout shift); a framed pane gets no
+// outline. Round 2: the cross shows over a link too.
 const HOVER = `-- @name hovers
 -- @api 1
 local p = createPane{id = "main", title = "Hover Pane", dock = "right", lane = "own", rows = 4, cols = 30, anchor = "top", border = false}
 for i = 1, 4 do p:setLine(i, "line " .. i) end
-p:setLine(1, "[go] top")
+p:setLine(1, "[go] top" .. string.rep(" ", 17) .. "[x]")
 p:setLink(1, 1, 4, function() send("go") end, "Go")
+-- A link under the cross: the cross still shows (ADR 0084 addendum).
+p:setLink(1, 26, 3, function() send("x") end, "X")
 `;
 
 test('a script pane has a grab cursor on its top row and a close cross on hover; a borderless one an outline', async ({ page }) => {
@@ -464,16 +467,18 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   await expect(content).toHaveCSS('cursor', 'grab');
   await expect(close).toBeVisible();
   await expect.poll(outline).toContain('inset');
-  const border = await sp.evaluate((e) => getComputedStyle(e).getPropertyValue('--pane-border').trim());
-  const rgb = await page.evaluate((c) => {
-    const d = document.createElement('div');
-    d.style.color = c;
-    document.body.append(d);
-    const v = getComputedStyle(d).color;
-    d.remove();
-    return v;
-  }, border);
-  expect(await outline()).toContain(rgb);
+  // The outline follows the main background (ADR 0084 addendum): the
+  // discreet grey on black, a lighter blue on a blue background.
+  await expect(sp).not.toHaveAttribute('data-no-cross', '');
+  expect(await outline()).toContain('rgb(41, 41, 41)');
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#0e141c' } }));
+  await expect.poll(outline).not.toContain('rgb(41, 41, 41)');
+  const [r, g, b] = (await outline()).match(/rgb\((\d+), (\d+), (\d+)\)/)!.slice(1).map(Number) as [number, number, number];
+  expect(b).toBeGreaterThan(r);
+  expect(r).toBeGreaterThan(0x0e);
+  expect(g).toBeGreaterThan(0x14);
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#000000' } }));
+  await expect.poll(outline).toContain('rgb(41, 41, 41)');
   expect(await sp.boundingBox()).toEqual(before);
   await page.mouse.move(c.x + 1.5 * cell.w, c.y + 0.5 * cell.h);
   await expect(content).toHaveCSS('cursor', 'pointer');

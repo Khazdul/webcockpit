@@ -14,6 +14,8 @@
 //   --st-*                                  Statistics / History data colours
 //                                           (all three light-aware as --c-*)
 //   --pane-bg-<tint> --pane-border-<tint>   every tint for swatches
+//   --pane-outline                          hover outline of a borderless
+//                                           pane, from the bg (ADR 0084)
 //   data-cursor="block|beam|underline", data-cursor-blink="on|off",
 //   data-light (present when the terminal bg is light)
 //   --wc-af-<rrggbb> --wc-ab-<rrggbb>       adaptive colours in use, resolved
@@ -46,6 +48,7 @@ import {
   paneBorder,
   paneEffectiveBg,
   paneIsLight,
+  paneOutline,
   paneShades,
   takesDarkInk,
 } from './color';
@@ -200,6 +203,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
     '--font-mono': fontInfo(a.font).stack,
     '--pad': `${a.padding}px`,
     '--c-line-hl': lineHighlight(a.bg),
+    '--pane-outline': paneOutline(a.bg),
     '--term-echo': inputColor(a.inputColor, a.bg),
   };
   for (let i = 0; i < 16; i++) t[`--ansi-${i}`] = a.ansi[i]!;
