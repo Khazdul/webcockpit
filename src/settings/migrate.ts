@@ -62,6 +62,7 @@ import {
   defaultSettings,
   defaultTimersSettings,
   timerColsMax,
+  LEGACY_APPEARANCE,
 } from './types';
 import { TIMER_GROUPS } from '../timers/entry';
 
@@ -90,18 +91,8 @@ function hex(v: unknown, dflt: string): string {
   return normalizeHex(v) ?? dflt;
 }
 
-/**
- * The appearance values that were the defaults before ADR 0078 (DejaVu
- * Sans Mono 15, bold is weight only). A stored appearance that lacks one
- * of these keys (or holds an invalid value) takes the old value, so an
- * existing user's look never changes with the new-user defaults. Only a
- * missing appearance (a new user, garbage) takes `defaultSettings()`.
- */
-export const LEGACY_APPEARANCE: Readonly<Pick<AppearanceSettings, 'font' | 'size' | 'boldBright'>> = Object.freeze({
-  font: 'dejavu',
-  size: 15,
-  boldBright: false,
-});
+/** The pre-ADR 0078 appearance defaults (src/settings/types.ts). */
+export { LEGACY_APPEARANCE };
 
 /** A complete, valid appearance from anything (see `LEGACY_APPEARANCE`). */
 export function migrateAppearance(raw: unknown): AppearanceSettings {

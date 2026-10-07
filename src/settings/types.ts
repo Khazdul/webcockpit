@@ -301,6 +301,19 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 // 2: the hover default became Full (ADR 0080); a stored v1 'minimal' moves to 'full'.
 export const SETTINGS_VERSION = 2;
 
+/**
+ * The appearance values that were the defaults before ADR 0078 (DejaVu
+ * Sans Mono 15, bold is weight only). A stored appearance that lacks one
+ * of these keys (or holds an invalid value) takes the old value, so an
+ * existing user's look never changes with the new-user defaults. Only a
+ * missing appearance (a new user, garbage) takes `defaultSettings()`.
+ */
+export const LEGACY_APPEARANCE: Readonly<Pick<AppearanceSettings, 'font' | 'size' | 'boldBright'>> = Object.freeze({
+  font: 'dejavu',
+  size: 15,
+  boldBright: false,
+});
+
 /** The single default. Treat as read-only; `defaultSettings()` returns a fresh copy. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = deepFreeze(defaultSettings());
 

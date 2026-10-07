@@ -1,15 +1,14 @@
 // Start page main frame (Inv §3.2): banner, menu, Tolkien quote, footer.
 // Top-anchored: blank, banner, blank, menu, flash row, quote, attribution;
-// the footer sits on the last row. The banner is dropped when it does not
-// fit with everything else (the menu always wins). The client notices
+// the footer sits on the last row (src/chrome/start-layout.ts; the first
+// paint in index.html draws the banner from the same layout, so `items`
+// must stay START_MENU_ROWS long). The client notices
 // (ADR 0025) are drawn by the start surface on the top row, above every
 // start frame (src/chrome/index.tsx `StartNotices`).
 
 import type { VNode } from 'preact';
 import { Banner } from '../banner';
-import { BANNER_H, bannerFits } from '../banner-data';
 import { useGrid, useServices } from '../kit/hooks';
-import { wrapText } from '../kit/nav';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
@@ -22,6 +21,7 @@ import {
   useMenuCursor,
 } from '../kit/widgets';
 import type { Quote } from '../quotes';
+import { startLayout } from '../start-layout';
 import { AboutFrame } from './about';
 import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
@@ -53,14 +53,8 @@ export function StartMain(p: StartMainProps): VNode {
   const [cursor, setCursor] = useMenuCursor(items, 'enter');
   useKeys((_e, nk) => (nk === 'back' ? true : menuKey(items, cursor, setCursor, nk)));
 
-  const quoteLines = wrapText(`"${p.quote.text}"`, Math.min(cols - 4, 72));
+  const { quoteLines, showQuote, showBanner, used } = startLayout(cols, rows, p.quote.text, items.length);
   const attr = `— ${p.quote.by}`;
-  // blank, menu, flash row, quote, attribution, footer.
-  const withQuote = 1 + items.length + 1 + quoteLines.length + 1 + 1;
-  const showQuote = rows >= withQuote;
-  const reserved = showQuote ? withQuote - 1 : items.length + 2;
-  const showBanner = bannerFits(rows, reserved, cols);
-  const used = (showBanner ? BANNER_H + 2 : 1) + items.length + 1 + (showQuote ? quoteLines.length + 1 : 0);
 
   return (
     <div class="wc-page wc-start-main">
