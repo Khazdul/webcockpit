@@ -54,7 +54,7 @@ import { type BufferStatus, type ScrollStatus, createBuffer, handleKey, onFirstL
 import { type ManualControl, ManualView } from './manual-view';
 import { type FindQuery, EMPTY_QUERY } from './manual-search';
 import { openSearch, searchFocused, searchFrameKey } from './search';
-import { MANUAL_URL, helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
+import { helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
 import {
   type EditorViewName,
   FULL_W,
@@ -1315,22 +1315,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
         initial={helpSection}
         onSection={setHelpSection}
         findMemory={helpFind}
-        text={helpText}
       />
     );
-  }
-
-  /** Manual text with the tt++ manual's address as a link. */
-  function helpText(text: string): string | (string | VNode)[] {
-    const i = text.indexOf(MANUAL_URL);
-    if (i < 0) return text;
-    return [
-      text.slice(0, i),
-      <a class="wc-about-link" href={`https://${MANUAL_URL}`} target="_blank" rel="noopener noreferrer">
-        {MANUAL_URL}
-      </a>,
-      text.slice(i + MANUAL_URL.length),
-    ];
   }
 
   // ------------------------------------------------------------ overlays

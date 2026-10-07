@@ -18,7 +18,6 @@
 // engine's numbers quoted in the text (REPEAT_MAX, the event names) are
 // checked by the test instead.
 
-import { COMMANDS, type CommandEntry } from '../script/commands';
 import { wrapText } from '../chrome/kit/nav';
 import { type LuaTokenClass, luaHighlightLine } from './lua-highlight';
 import { tokenizeLine } from './syntax';
@@ -68,7 +67,7 @@ export interface HelpExample {
 }
 
 /** The profile manual's groups, and the script manual's (`guide`, `reference`, `lua`). */
-export type HelpGroup = 'intro' | 'basics' | 'commands' | 'end' | 'guide' | 'reference' | 'lua';
+export type HelpGroup = 'intro' | 'basics' | 'commands' | 'guide' | 'reference' | 'lua';
 
 export interface HelpSection {
   group: HelpGroup;
@@ -85,8 +84,6 @@ export interface HelpSection {
   topics?: readonly string[];
 }
 
-export const MANUAL_URL = 'tintin.mudhalla.net/manual/';
-
 const INTRO: readonly HelpSection[] = [
   {
     group: 'intro',
@@ -94,14 +91,9 @@ const INTRO: readonly HelpSection[] = [
     text: [
       'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
       'LITE is a simplified view where you can edit your settings.',
-      'EDITOR lets you edit the whole settings file directly (experienced users). Ctrl+F finds and Ctrl+H replaces there; in LITE they switch to EDITOR first. ESC saves your changes and goes back. In this manual Ctrl+F finds too.',
-      'What is different from tt++ here:',
-      '- Every command sent to the game is echoed in the game window. Write game commands as they are; no echo helper is needed.',
-      '- File, shell, session and screen commands (#read, #system, #session, #split …) are kept in the text but do nothing.',
-      '- Some tt++ commands (#foreach, #while, #function …) are not supported yet. They are listed at the end.',
+      'EDITOR lets you edit the whole settings file directly (experienced users). ESC saves your changes and goes back. In this manual Ctrl+F finds too.',
       'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
       'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
-      `The TinTin++ manual describes the language in full: ${MANUAL_URL}`,
     ],
   },
 ];
@@ -571,16 +563,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['lua'],
     syntax: ['#lua {script} {function} {args}'],
     text: [
-      'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil.',
+      'Calls a function that a script exported with export(name, fn). The rest of the line is its argument, as one text with the words joined by spaces; with nothing after the function name it gets nil, and with an empty {} it gets an empty text ("").',
       'Works on the input line and in aliases, actions and macros. It is not run while a profile loads. When the script is not running, or has not exported the function, a line in the game window says so.',
       'How a script exports a function: Profile bridge in the script manual (MANUAL on the Scripts page).',
       'With only a script name, or nothing at all, #lua does nothing.',
     ],
     examples: [
       {
-        note: 'h Gimli gives heal the text Gimli; h alone gives it nil:',
-        code: '#alias {h} {#lua {healer} {heal} %0}',
-        check: { type: ['h Gimli', 'h'], scripts: [['lua', 'healer', 'heal', 'Gimli'], ['lua', 'healer', 'heal']] },
+        note: 'h Gimli gives heal the text Gimli; h alone gives it an empty text (""), not nil:',
+        code: '#alias {h} {#lua {healer} {heal} {%0}}',
+        check: { type: ['h Gimli', 'h'], scripts: [['lua', 'healer', 'heal', 'Gimli'], ['lua', 'healer', 'heal', '']] },
       },
       {
         via: 'input',
@@ -790,38 +782,9 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
 ];
 
-/** `#a #b #c` for the commands in `list`. */
-function names(list: readonly CommandEntry[]): string {
-  return list.map((c) => '#' + c.name).join(' ');
-}
-
-/** The closing section, derived from the command table so it cannot drift. */
-function endSections(): HelpSection[] {
-  const unsupported = COMMANDS.filter((c) => c.tier === 'unsupported');
-  // An inert command with a section of its own (#script, #lua) runs in the
-  // forms it documents, so it is not listed as doing nothing.
-  const documented = new Set(COMMAND_SECTIONS.flatMap((s) => s.covers ?? []));
-  const inert = COMMANDS.filter((c) => c.tier === 'inert' && !documented.has(c.name));
-  const byHint = new Map<string, CommandEntry[]>();
-  for (const c of inert) {
-    const h = c.hint ?? '';
-    const l = byHint.get(h);
-    if (l) l.push(c);
-    else byHint.set(h, [c]);
-  }
-  const text = [
-    'These tt++ commands are not supported yet. They stay in the profile as written and do nothing:',
-    names(unsupported),
-    'These are kept as written too and do nothing in a browser:',
-  ];
-  for (const [hint, list] of byHint) text.push(`- ${hint} ${names(list)}`);
-  text.push('In the EDITOR view such a command has a wavy underline, and a note at the bottom says why when the cursor is on its line.');
-  return [{ group: 'end', heading: 'Not supported', topics: ['unsupported'], text }];
-}
-
 /** Every section of the manual, in display order. */
 export function helpSections(): HelpSection[] {
-  return [...INTRO, ...BASICS, ...COMMAND_SECTIONS, ...endSections()];
+  return [...INTRO, ...BASICS, ...COMMAND_SECTIONS];
 }
 
 // ----------------------------------------------------------------- layout
@@ -845,7 +808,6 @@ const GROUP_TITLES: Readonly<Record<HelpGroup, string | null>> = {
   intro: null,
   basics: 'Basics',
   commands: 'Commands',
-  end: null,
   guide: 'Guide',
   reference: 'API reference',
   lua: 'Lua reference',

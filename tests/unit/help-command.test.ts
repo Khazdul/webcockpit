@@ -55,7 +55,7 @@ describe('#help resolution', () => {
     expect(heading('colours')).toBe('Colours');
     expect(heading('colors')).toBe('Colours');
     expect(heading('KEYS')).toBe('Keys');
-    expect(heading('unsupported')).toBe('Not supported');
+    expect(heading('unsupported')).toBeNull();
     // `variables` is the topic, `variable` and `var` the command.
     expect(heading('variables')).toBe('Variables $name');
     expect(heading('variable')).toBe('#variable');

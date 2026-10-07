@@ -171,14 +171,9 @@ describe('manual coverage (no drift from the command table)', () => {
     for (const s of sections.filter((x) => x.group === 'commands')) expect(s.covers).toContain(s.heading.slice(1));
   });
 
-  it('lists every unsupported and inert command at the end, from the table, except the ones with a section', () => {
-    const end = sections.filter((s) => s.group === 'end').flatMap((s) => s.text).join('\n');
-    const words = new Set(end.match(/#[a-z]+/g));
-    for (const c of COMMANDS) {
-      expect(words.has('#' + c.name), c.name).toBe(c.tier === 'unsupported' || (c.tier === 'inert' && !covered.has(c.name)));
-    }
-    expect(words.has('#script')).toBe(false);
-    expect(words.has('#lua')).toBe(false);
+  it('has no section for the commands that are not run (stage 25: no Not supported list)', () => {
+    expect(sections.some((s) => s.heading === 'Not supported')).toBe(false);
+    for (const c of COMMANDS.filter((x) => x.tier === 'unsupported')) expect(covered.has(c.name), c.name).toBe(false);
   });
 
   it('names every event the engine fires', () => {
@@ -312,7 +307,7 @@ describe('layout', () => {
     const labels = menu.map((r) => r.label);
     expect(labels.slice(0, 4)).toEqual(['Writing a profile', '', 'Basics', 'Braces and ;']);
     expect(labels[labels.indexOf('Commands') + 1]).toBe('#action');
-    expect(labels.slice(-3)).toEqual(['#variable', '', 'Not supported']);
+    expect(labels.at(-1)).toBe('#variable');
     expect(menu.every((r) => (r.kind === 'entry') === (r.section >= 0))).toBe(true);
     expect(helpMenuWidth(menu)).toBe(Math.max(...sections.map((s) => [...s.heading].length)) + 2);
     expect(helpMenuRow(menu, 0)).toBe(0);
@@ -324,7 +319,7 @@ describe('layout', () => {
     const menu = helpMenu([
       { group: 'commands', heading: '#a', text: [] },
       { group: 'commands', heading: '#b', text: [] },
-      { group: 'end', heading: 'Z', text: [] },
+      { group: 'intro', heading: 'Z', text: [] },
     ]);
     expect(menu.map((r) => `${r.kind}:${r.label}:${r.section}`)).toEqual([
       'group:Commands:-1',

@@ -471,8 +471,9 @@ test('HELP from the start page: manual, scrolling, and back to LITE with edits i
   const cell = await ped(page).locator('.wc-ped-manual-rows .wc-line').first().evaluate((el) => el.getBoundingClientRect().height);
   expect((await manualScroll(page)) - px).toBeLessThan(cell);
   await page.keyboard.press('End');
-  await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line
-  await expect(ped(page).locator('.wc-ped-help')).toContainText('#foreach');
+  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
+  // No list of the commands that are not run (stage 25).
+  await expect(ped(page).locator('.wc-ped-help')).not.toContainText('#foreach');
   await page.keyboard.press('Home');
   await expectTop(page, 'Writing a profile');
   // The manual never names the deprecated helper (ADR 0036).
@@ -637,12 +638,12 @@ test('HELP menu: click and keys jump to a section, the mark follows the manual',
   await page.keyboard.press('End');
   await helpMenu(page).hover();
   for (let i = 0; i < 15; i++) await page.mouse.wheel(0, 100);
-  await menuEntry(page, 'Not supported').click();
-  await expect(menuCurrent(page)).toHaveText(/^ Not supported\s*$/);
-  await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line
-  await expect(ped(page).locator('.wc-ped-manual [data-kind="heading"] .wc-ped-help-text').last()).toHaveText('Not supported');
-  await page.keyboard.press('p');
+  await menuEntry(page, '#variable').click();
   await expect(menuCurrent(page)).toHaveText(/^ #variable\s*$/);
+  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
+  await expect(ped(page).locator('.wc-ped-manual [data-kind="heading"] .wc-ped-help-text').last()).toHaveText('#variable');
+  await page.keyboard.press('p');
+  await expect(menuCurrent(page)).toHaveText(/^ #ticker\s*$/);
   expect(errors).toEqual([]);
 });
 
@@ -659,12 +660,12 @@ test('HELP menu scrolls to keep the current section in view', async ({ page }) =
   await helpMenu(page).hover();
   for (let i = 0; i < 15; i++) await page.mouse.wheel(0, -100);
   await expect(menuEntry(page, 'Writing a profile')).toBeVisible();
-  await expect(helpRows(page).last()).toHaveText(/\bline\.$/); // the manual's last line
+  await expect(helpRows(page).last()).toHaveText(/\$container\}\}$/); // the manual's last line
   await menuEntry(page, 'Patterns').click();
   await expectTop(page, 'Patterns');
   // Walking down the menu brings the entries in, one by one, to the end.
   for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuCurrent(page)).toHaveText(/^ Not supported\s*$/);
+  await expect(menuCurrent(page)).toHaveText(/^ #variable\s*$/);
   await expect(menuCurrent(page)).toBeVisible();
 });
 

@@ -55,6 +55,9 @@ as ` show_class`; the owner also did not find it in the EDITOR view.
   order starting with `#action`, and every engine event named. The
   "Not supported" section is generated from the command table (tiers
   `unsupported` and `inert`, grouped by their hint).
+  Removed in stage 25 (2026-10-07): the manual no longer lists the
+  commands it does not run. `#help <command>` and the EDITOR's wavy
+  underline with its note still say why for each one.
 - `_send` is not mentioned (ADR 0036); a test keeps it out.
 - The `#un…` forms are folded into their command's section. `#else` and
   `#elseif` have short sections of their own that point to `#if`.
