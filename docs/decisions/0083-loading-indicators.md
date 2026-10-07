@@ -22,7 +22,9 @@ box for seconds before the map appears (part B below).
 
 Revised in round 1 (2026-10-07, owner feedback in the stage file): the
 banner shows at once, the bar sits below it, the gate waits for the real
-font files, the menu fades in over about 2 s.
+font files, the menu fades in over about 2 s. Round 2 (same day): the
+gate covers the fallback face too, and the menu fades in as one block
+over about 1.35 s (item 5).
 
 1. **First paint: the banner before the app.** index.html draws the
    start page banner (starfield and MUME / COCKPIT wordmark) at its final
@@ -112,18 +114,58 @@ font files, the menu fades in over about 2 s.
    45 s is longer than a whole Regular 3G load (about 15–30 s) and short
    enough that a dead font never hides the client for good.
 
+   *Round 2:* the gate (and the first paint's preload) also covers the
+   regular face of the stack's fallback family, DejaVu Sans Mono
+   (`renderFaces` in src/theme/fonts.ts), see item 5.
+
 5. **Reveal.** The start page mounts at opacity 0 beside the first paint.
-   When fonts and chrome are in, `revealStart` waits for the main frame,
-   then in one task shows it and removes the first paint's banner (the
-   app's identical banner is under it), and fades every other row of the
-   main frame and the notices row in: 1400 ms each (`ease-in-out`),
-   delayed by position, 0 at the top to 600 ms at the bottom, so about
-   2 s in all. Checked on emulated 3G, 4G and unthrottled: about 180
-   frames over the fade, no gap longer than about 20 ms (the first
-   paint is contentful, so Chromium's paint holding no longer stalls it).
-   A banner the first paint did not draw (it did not fit) fades in with
-   the rest. `prefers-reduced-motion: reduce`: no fades, instant swap.
-   `<html data-wc-boot="ready">` marks the end (tests).
+   When fonts and chrome are in, `revealStart` waits for the main frame
+   and then for `document.fonts.ready` (capped by `FONT_GATE_MS`), then
+   in one task shows it and removes the first paint's banner (the app's
+   identical banner is under it), and fades every other row of the main
+   frame and the notices row in together, as one block: 1350 ms
+   (`REVEAL_FADE_MS`, `ease-in-out`), no stagger. `prefers-reduced-motion:
+   reduce`: no fades, instant swap. `<html data-wc-boot="ready">` marks the
+   end (tests).
+
+   *Why (round 2, owner on Regular 3G: `<< Enter MUME >>` still first).*
+   Every stack ends in DejaVu Sans Mono, which draws what the selected
+   family lacks (the banner's `✧`, in most families the footer's `↑↓`).
+   Its file was neither preloaded nor gated: the browser fetched it when
+   the start page was first laid out, so it was still downloading when the
+   fade began (145 KB, about 1.6 s on 3G). With `font-display: block` a
+   face that is loading hides other text of the same style too, not only
+   its own glyphs (observed in both browsers; they decide per font, the
+   family list with weight, style and size). Every regular-weight text on the page
+   (the other six menu rows, the footer; in Firefox also the italic quote)
+   stayed blank, while the bold selected row, whose bold face needs no
+   fallback glyph, faded in alone; when DejaVu landed the rest popped in
+   at once. Evidence (stage 24 round 2, Playwright video of a production
+   build behind `scripts/throttle-proxy.ts` at 750 kbit/s + 100 ms):
+   DejaVu `loading` at the reveal (13.0 s) and `loaded` at 14.7 s in both
+   browsers; the video shows the Enter row (and in Chromium the quote)
+   fading from 13.0 s while the other rows and the footer have no pixels
+   until 14.7 s, then appear at full opacity. Computed opacity was
+   identical on all rows throughout, and Playwright's screenshots wait for
+   the fonts, which is why the round 1 check (opacity samples and
+   screenshots) did not see it. Same in dev mode (65 s load) and against
+   `vite preview`. The 600 ms stagger by position was not the cause (it
+   moved the top row ahead by at most 0.1 opacity), but it did put the
+   Enter row first, so it is gone.
+
+   *Fix:* `renderFaces(id)` = the family's faces plus DejaVu's regular;
+   `preloadFont` and `loadFont` use it, so the file downloads beside the
+   others and the gate waits for it (nothing extra for DejaVu itself; for
+   other families 145 KB that the start page fetched anyway). The
+   `document.fonts.ready` wait after the first layout is the general
+   net: whatever face the rendered page starts, the reveal waits for it.
+   After the fix (same setup, Chromium and Firefox × dev and production
+   build, also about 30 s at 330 kbit/s): all rows, the quote and the
+   footer fade in on the same curve, no face loading during the fade.
+   `tests/e2e/loading.spec.ts` (new install, DejaVu held 2.5 s) samples
+   every row per frame: none above 0 before the reveal, no row more than
+   0.02 ahead of another, and no face `loading` while the menu shows; it
+   fails on the round 1 code in both browsers.
 
 6. **First boot only.** The gate and the reveal run only in
    `Shell.boot()` with `fontsReady` set. Returning to the start page
@@ -195,7 +237,8 @@ font files, the menu fades in over about 2 s.
 
 - The banner is on screen from the first paint, at its final place; on
   a slow line the bar under it moves with the bytes, and the menu, quote
-  and footer fade in over about 2 s once the fonts and the chrome are in.
+  and footer fade in together over about 1.35 s once the fonts (the
+  fallback face included) and the chrome are in.
   A fast start shows the banner and the same fade, no bar.
 - index.html is about 25 KB gzip instead of 2.4 KB (the banner faces and
   the shared layout code). A change to the banner glyphs or the font
@@ -206,6 +249,11 @@ font files, the menu fades in over about 2 s.
 - A cold map load shows where the time goes (download, unpack, build,
   tiles) instead of a grey box; a tileset switch that takes longer than
   200 ms shows the tile count.
-- Tools: `scripts/throttled-start.ts` loads a production build under
-  Chromium's network emulation (Regular 3G / 4G / none) and logs and
-  screenshots the start.
+- Tools: `scripts/throttled-start.ts` loads a production build (or the
+  dev server, `--dev`) under Chromium's network emulation or, for any
+  browser, behind `scripts/throttle-proxy.ts` (a shared-bandwidth,
+  per-request-latency proxy), and logs per-row opacity, the font faces'
+  load times and, with `--video`, records what is really on screen.
+- A cold start on 3G reveals about 1.5 s later than in round 1 (the
+  fallback face's bytes come first), which is when the page was really
+  complete before.

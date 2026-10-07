@@ -100,6 +100,24 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
   ADR 0083 start page items
 - [ ] Owner test
 
+### Round 2 — start page
+
+- [x] Reproduce at 3G in Chromium and Firefox, dev server and production
+  build: `scripts/throttle-proxy.ts` (shared 750 kbit/s, 100 ms per
+  request), `scripts/throttled-start.ts --browser --via proxy --dev
+  --video` (per-row opacity, font face load times, video)
+- [x] Cause: the DejaVu Sans Mono fallback face loaded only after the
+  start page was laid out; while it loaded, `font-display: block` hid all
+  regular-weight text, so the bold selected row faded in alone (ADR 0083
+  item 5)
+- [x] Fix: fallback face preloaded and gated (`renderFaces`), the reveal
+  waits for `document.fonts.ready`; one fade for all rows, 1350 ms, no
+  stagger
+- [x] Regression e2e (`loading.spec.ts`, new install with DejaVu held:
+  rows sampled per frame, no face loading while the menu shows; fails on
+  the round 1 code)
+- [ ] Owner test
+
 ### Round 1 — map pane
 
 - [x] Modern, discreet overlay: small `system-ui` label, thin rounded
@@ -116,9 +134,10 @@ Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
    the first moment, in its real place. Under it, where the menu will
    be, a bar with a percentage and a label (`Loading client` → … →
    `Ready`) fills as the files arrive. When everything is in, the bar
-   fades and the menu, quote and footer fade in slowly (about 2 s). The
-   banner does not move or flicker when the app takes over, and the stars
-   keep twinkling. No row (such as `<< Enter MUME >>`) appears on its own.
+   fades and the menu, quote and footer fade in together (about 1.3 s).
+   The banner does not move or flicker when the app takes over, and the
+   stars keep twinkling. No row (such as `<< Enter MUME >>`) appears on
+   its own or ahead of the others; nothing pops in after the fade.
 2. Enter the cockpit (or `?replay`) so the Map pane opens. Instead of a
    grey box, a small rounded pill in the middle shows a small label over
    a thin modern bar:
@@ -129,7 +148,7 @@ Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
    throttling still on, the same pill shows `Loading tiles  n / m` until
    the new tiles are drawn.
 4. Turn throttling off and reload: the banner at once, no bar flash, and
-   the same slow fade of the menu (about 2 s).
+   the same fade of the menu (about 1.3 s).
 5. With a non-default font or a light theme (Options → Appearance),
    reload: the early banner uses that font and those colours too.
 

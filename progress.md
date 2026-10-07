@@ -1,6 +1,6 @@
 # Progress
 
-Stage 24 (loading indicators): round 1 built, owner testing. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 24 (loading indicators): round 2 built (start page fallback-face fix, shorter fade), owner testing. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -36,6 +36,26 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-07 — Stage 24 round 2
+
+- **Owner (round 2):** on Regular 3G `<< Enter MUME >>` still first, then
+  the other rows; 4G and unthrottled fine; fade a third shorter.
+- **Cause:** the DejaVu Sans Mono fallback face loaded only after the
+  start page's first layout; while it loaded, `font-display: block` hid
+  all regular-weight text, so the bold row faded in alone (video evidence,
+  ADR 0083 item 5). Round 1's opacity samples and screenshots could not
+  see it (screenshots wait for fonts).
+- **Done:** fallback face preloaded and gated (`renderFaces`), reveal
+  waits for `document.fonts.ready`, one 1350 ms fade for all rows;
+  `scripts/throttle-proxy.ts` and Firefox/dev/video in
+  `throttled-start.ts`; regression e2e in `loading.spec.ts`.
+- **Checked:** Chromium and Firefox × dev / production build / preview at
+  3G via the proxy, plus CDP 3G and a 30 s link: all rows on one curve.
+  Typecheck, unit 2475, e2e 488/491 (appearance preload expectation
+  updated; a Firefox caret test passed on rerun), prod smoke 10/10.
+- **Next:** owner tests round 2; release on the owner's go.
+- **Commits:** 024590a, 7cc9348, this one.
 
 ### 2026-10-07 — Stage 24 round 1
 
