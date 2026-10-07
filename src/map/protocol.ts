@@ -13,6 +13,7 @@
 
 import type { ConnState } from '../core/types';
 import type { MapData } from './model';
+import type { MapProgress } from './progress';
 import type { RoomHoverInfo } from './hover';
 import type { RoomQuery } from './query';
 import type { RoomDetails, SearchHit, SearchQuery } from './search';
@@ -238,6 +239,13 @@ export type WorkerToMain =
   | { t: 'restored' }
   /** Once per load (P4): the first frame drawn with the map, every tile and the font; ms since the load started. */
   | { t: 'drawn'; req: number; ms: number }
+  /**
+   * Loading progress (stage 24, ADR 0083), at most ~20 per second; phase
+   * changes at once. Sent while a load or a tile source is in flight.
+   */
+  | ({ t: 'progress' } & MapProgress)
+  /** After an `assets` change: the first frame drawn with the new tiles. */
+  | { t: 'tilesDrawn' }
   /** A `find` answered: the rooms (nearest first, at most `max`) and how many matched. */
   | { t: 'found'; req: number; rooms: number[]; total: number }
   /** A `mark` placed on these rooms (empty: nothing matched; then `markEnded` follows at once). */

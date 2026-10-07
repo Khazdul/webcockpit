@@ -30,6 +30,13 @@
 // Map search (ADR 0077 §B): `ask` answers searches, paths and room
 // details (search.ts); the shortest-path tree from the player's room is
 // cached per map until the player's room changes.
+//
+// Loading progress (stage 24, ADR 0083): a load reports its phase (fetch
+// with bytes read from a streaming body, unpack, parse, build) and the
+// asset resolver counts the files of the current tile source; `progress`
+// snapshots go out at most every PROGRESS_MS (a phase change at once).
+// After an `assets` change, `tilesDrawn` follows the first frame drawn
+// with the new tiles.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { hoverInfo, roomAt } from '../hover';
@@ -47,6 +54,7 @@ import {
   type MarkStyle,
   type WorkerToMain,
 } from '../protocol';
+import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from '../progress';
 import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
 import type { Scene, SceneMark } from '../scene';
@@ -57,6 +65,8 @@ import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, defaultView, fitRooms, pan, zo
 
 /** Scene refresh while a mark lives, ms (15 Hz). */
 export const MARK_TICK_MS = 66;
+/** Least time between two `progress` messages, ms (≤ 20 per second). */
+export const PROGRESS_MS = 50;
 /** Blink period, ms. */
 const BLINK_MS = 1000;
 
@@ -124,6 +134,13 @@ export class MapWorkerCore {
   private focus: { id: number; savedZoom: number; touched: boolean; move: boolean } | null = null;
   /** Mark scene refreshes (tests, the bench). */
   markTicks = 0;
+  /** Loading progress: what the next `progress` message says. */
+  private readonly progress: MapProgress = { map: null, tiles: { done: 0, total: 0 } };
+  private progressAt = -Infinity;
+  private progressDirty = false;
+  private progressTimer = false;
+  /** An `assets` change waits for its first complete frame (`tilesDrawn`). */
+  private assetsPending = false;
 
   constructor(private readonly host: WorkerHost) {}
 
@@ -217,7 +234,7 @@ export class MapWorkerCore {
       return;
     }
     const make = this.host.createRenderer ?? createRenderer;
-    this.assets = assetResolver(m.assets, this.host.fetch);
+    this.assets = this.counted(assetResolver(m.assets, this.host.fetch));
     const glc = gl;
     const build = () => make(glc, this.assets!, () => this.requestRender());
     this.renderer = build();
@@ -242,8 +259,48 @@ export class MapWorkerCore {
   /** A tileset change (ADR 0082): later renderers (context restore) use it too. */
   private setAssets(src: AssetSource): void {
     if (!this.assets) return; // before init
-    this.assets = assetResolver(src, this.host.fetch);
+    this.assets = this.counted(assetResolver(src, this.host.fetch));
+    this.assetsPending = true;
     this.renderer?.setAssets?.(this.assets);
+  }
+
+  /** `inner`, its requests counted as the current tile source's files. */
+  private counted(inner: AssetResolver): AssetResolver {
+    const count = { done: 0, total: 0 };
+    this.progress.tiles = count;
+    return countingResolver(inner, count, () => {
+      if (this.progress.tiles === count) this.postProgress(count.done === count.total);
+    });
+  }
+
+  /** Posts a `progress` snapshot now (`now`) or within PROGRESS_MS. */
+  private postProgress(now = false): void {
+    this.progressDirty = true;
+    const wait = PROGRESS_MS - (this.host.now() - this.progressAt);
+    if (now || wait <= 0) {
+      this.sendProgress();
+      return;
+    }
+    if (this.progressTimer) return;
+    this.progressTimer = true;
+    (this.host.setTimer ?? ((cb, ms) => void setTimeout(cb, ms)))(() => {
+      this.progressTimer = false;
+      if (this.progressDirty) this.sendProgress();
+    }, wait);
+  }
+
+  private sendProgress(): void {
+    this.progressDirty = false;
+    this.progressAt = this.host.now();
+    const p = this.progress;
+    this.host.post({ t: 'progress', map: p.map && { ...p.map }, tiles: { ...p.tiles } });
+  }
+
+  /** The load `req` entered `phase` (dropped for a superseded load). */
+  private phase(req: number, phase: MapLoadPhase): void {
+    if (req !== this.loadReq) return;
+    this.progress.map = { req, phase, bytes: 0, total: 0 };
+    this.postProgress(true);
   }
 
   private resize(w: number, h: number, dpr: number): void {
@@ -299,9 +356,16 @@ export class MapWorkerCore {
       } else {
         let bytes: Uint8Array;
         if (source.kind === 'url') {
+          this.phase(req, 'fetch');
           const res = await this.host.fetch(source.url);
           if (!res.ok) throw new Error(`HTTP ${res.status} for ${source.url}`);
-          bytes = new Uint8Array(await res.arrayBuffer());
+          bytes = await readBody(res, (n, total) => {
+            const m = this.progress.map;
+            if (req !== this.loadReq || m?.req !== req) return;
+            m.bytes = n;
+            m.total = total;
+            this.postProgress();
+          });
           name = source.name ?? decodeURIComponent(source.url.split('/').pop() ?? source.url);
         } else {
           bytes = new Uint8Array(source.bytes);
@@ -310,10 +374,12 @@ export class MapWorkerCore {
         stages.fetch = now() - t0;
         const inflate = this.host.inflate ?? inflateZlib;
         const tp = now();
+        this.phase(req, 'unpack');
         map = await readMm2(bytes, async (z) => {
           const ti = now();
           const out = await inflate(z);
           stages.inflate = now() - ti;
+          this.phase(req, 'parse');
           return out;
         });
         stages.parse = now() - tp - stages.inflate;
@@ -322,6 +388,7 @@ export class MapWorkerCore {
         stages.hash = now() - th;
       }
       if (req !== this.loadReq) return;
+      this.phase(req, 'build');
       // Marks are room indices of the old map: gone.
       for (const id of [...this.marks.keys()]) this.endMark(id, true);
       this.map = map;
@@ -333,6 +400,8 @@ export class MapWorkerCore {
       this.renderer?.setScene(this.scene());
       this.postStatus();
       this.loadIds();
+      this.progress.map = null;
+      this.progressDirty = false;
       this.host.post({
         t: 'loaded',
         req,
@@ -356,6 +425,8 @@ export class MapWorkerCore {
       this.requestRender();
     } catch (err) {
       if (req !== this.loadReq) return;
+      this.progress.map = null;
+      this.progressDirty = false;
       this.host.post({ t: 'error', stage: 'load', req, message: err instanceof Error ? err.message : String(err) });
     }
   }
@@ -624,6 +695,10 @@ export class MapWorkerCore {
         if (d && this.map && this.renderer.complete !== false) {
           this.drawnPending = null;
           this.host.post({ t: 'drawn', req: d.req, ms: Math.round(this.host.now() - d.t0) });
+        }
+        if (this.assetsPending && this.renderer.complete !== false) {
+          this.assetsPending = false;
+          this.host.post({ t: 'tilesDrawn' });
         }
       } catch (err) {
         this.host.post({ t: 'error', stage: 'render', message: err instanceof Error ? err.message : String(err) });

@@ -165,6 +165,61 @@
   pointer-events: none;
 }
 
+/* Map loading overlay (src/panes/map-loading.ts, stage 24): a centred box
+ * in the pane's own colours over the map's fixed grey, a label over a
+ * glyph bar (`█` fill on a `░` track, whole cells). Fades out at the end. */
+.wc-map-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 250ms ease-out;
+}
+
+.wc-map-loading[hidden] {
+  display: none;
+}
+
+.wc-map-loading[data-leaving] {
+  opacity: 0;
+}
+
+.wc-map-loading-box {
+  box-sizing: content-box;
+  width: calc(var(--wc-bar-cells, 28) * 1ch);
+  padding: calc(var(--cell-h) * 0.5) 1ch;
+  background: var(--pane-bg);
+  color: var(--term-fg);
+  font-family: var(--font-mono);
+  font-size: var(--font-size);
+  line-height: var(--cell-h);
+  white-space: pre;
+}
+
+.wc-map-loading-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  color: var(--pane-shade-label, var(--term-fg));
+}
+
+.wc-map-loading-fill {
+  color: var(--pane-shade-glow, var(--term-fg));
+}
+
+.wc-map-loading-track {
+  color: var(--pane-shade-mid, var(--term-fg));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-map-loading {
+    transition: none;
+  }
+}
+
 /* Map hover box (src/panes/map-hover.ts, ADR 0077 and its round 1): the
  * room under a resting pointer, in the tooltip look of the script panes.
  * Fixed in the cockpit, near the pointer, so it may extend past the Map

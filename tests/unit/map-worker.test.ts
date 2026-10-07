@@ -5,7 +5,7 @@ import type { MapData } from '../../src/map/model';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
 import type { Renderer } from '../../src/map/render/renderer';
 import { centreOn, defaultView, pan, pxPerRoom, zoomAt, ZOOM_MAX } from '../../src/map/view';
-import { MapWorkerCore } from '../../src/map/worker/core';
+import { MapWorkerCore, PROGRESS_MS } from '../../src/map/worker/core';
 import { readMm2 } from '../../src/map/mm2';
 import { migrateLayout } from '../../src/settings/migrate';
 
@@ -239,6 +239,130 @@ describe('map worker core', () => {
     const canvas = { getContext: () => null } as unknown as OffscreenCanvas;
     core.handle({ t: 'init', protocol: MAP_PROTOCOL_VERSION, canvas, width: 1, height: 1, dpr: 1, assets: { kind: 'base', url: '/' } });
     expect(out).toEqual([{ t: 'error', stage: 'init', message: 'WebGL2 is not available' }]);
+  });
+});
+
+describe('map worker loading progress (stage 24)', () => {
+  /** A core whose clock and timers the test drives; fetch streams `file` in `chunk`-byte pieces. */
+  function progressHarness(file: Uint8Array, opts: { chunk: number; length?: string | null; tiles?: string[] }) {
+    const out: WorkerToMain[] = [];
+    const frames: (() => void)[] = [];
+    const timers: (() => void)[] = [];
+    let t = 0;
+    const renderer: Renderer & { complete: boolean } = {
+      setMap: () => {},
+      setScene: () => {},
+      resize: () => {},
+      render: () => {},
+      dispose: () => {},
+      complete: true,
+    };
+    const fetchFn = (async (u: string) => {
+      if (String(u).endsWith('.mm2')) {
+        const body = new ReadableStream<Uint8Array>({
+          start(c) {
+            for (let i = 0; i < file.length; i += opts.chunk) c.enqueue(file.slice(i, i + opts.chunk));
+            c.close();
+          },
+        });
+        const headers: Record<string, string> = {};
+        const len = opts.length === undefined ? String(file.length) : opts.length;
+        if (len !== null) headers['content-length'] = len;
+        return new Response(body, { headers });
+      }
+      return new Response('png');
+    }) as typeof fetch;
+    const core = new MapWorkerCore({
+      post: (m) => void out.push(m),
+      requestFrame: (cb) => void frames.push(cb),
+      fetch: fetchFn,
+      now: () => t,
+      setTimer: (cb) => void timers.push(cb),
+      createRenderer: (_gl, assets) => {
+        for (const f of opts.tiles ?? []) void assets(f);
+        return renderer;
+      },
+    });
+    const canvas = { width: 0, height: 0, getContext: () => ({}) as WebGL2RenderingContext } as unknown as OffscreenCanvas;
+    core.handle({ t: 'init', protocol: MAP_PROTOCOL_VERSION, canvas, width: 20, height: 10, dpr: 1, assets: { kind: 'base', url: '/map/' } });
+    return {
+      core,
+      out,
+      renderer,
+      tick: (ms: number) => void (t += ms),
+      runTimers: () => {
+        for (const cb of timers.splice(0)) cb();
+      },
+      runFrames: () => {
+        for (const cb of frames.splice(0)) cb();
+      },
+      progress: () => out.filter((m): m is Extract<WorkerToMain, { t: 'progress' }> => m.t === 'progress'),
+    };
+  }
+
+  it('reports the phases in order and the bytes against Content-Length, all before `loaded`', async () => {
+    const file = await tinyFile();
+    const h = progressHarness(file, { chunk: 8 });
+    await h.core.load(1, { kind: 'url', url: '/map/a.mm2' });
+    const p = h.progress();
+    const phases = p.map((m) => m.map?.phase).filter((x, i, a) => x !== a[i - 1]);
+    expect(phases).toEqual(['fetch', 'unpack', 'parse', 'build']);
+    expect(p.every((m) => m.map?.req === 1)).toBe(true);
+    expect(p[0]!.map).toEqual({ req: 1, phase: 'fetch', bytes: 0, total: 0 });
+    // The clock stands still: the byte reports wait for a timer; the next phase supersedes them.
+    h.runTimers();
+    expect(h.progress()).toHaveLength(p.length);
+    expect(h.out.at(-1)).toMatchObject({ t: 'loaded', req: 1 });
+    const iLoaded = h.out.findIndex((m) => m.t === 'loaded');
+    expect(h.out.slice(iLoaded).some((m) => m.t === 'progress')).toBe(false);
+  });
+
+  it('streams byte counts at most every PROGRESS_MS; unknown or wrong lengths report 0', async () => {
+    const file = await tinyFile();
+    const seen: { bytes: number; total: number }[] = [];
+    for (const length of [undefined, null, '3']) {
+      const h = progressHarness(file, { chunk: 4, length });
+      // Advance the clock on every read so every report goes out at once.
+      const orig = h.core.load.bind(h.core);
+      const post = h.out.push.bind(h.out);
+      h.out.push = (...ms: WorkerToMain[]) => {
+        h.tick(PROGRESS_MS);
+        return post(...ms);
+      };
+      await orig(1, { kind: 'url', url: '/map/a.mm2' });
+      const fetches = h.progress().filter((m) => m.map?.phase === 'fetch');
+      seen.push(fetches.at(-1)!.map!);
+      expect(fetches.length).toBeGreaterThan(2);
+    }
+    expect(seen[0]).toMatchObject({ bytes: file.length, total: file.length });
+    expect(seen[1]).toMatchObject({ bytes: file.length, total: 0 }); // no Content-Length
+    expect(seen[2]).toMatchObject({ bytes: file.length, total: 0 }); // more than announced
+  });
+
+  it('skips the fetch for bytes, and counts tile files; a tileset change ends with `tilesDrawn`', async () => {
+    const file = await tinyFile();
+    const h = progressHarness(file, { chunk: 64, tiles: ['pixmaps/a.png', 'pixmaps/b.png'] });
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    h.runTimers();
+    expect(h.progress().at(-1)!.tiles).toEqual({ done: 2, total: 2 });
+    await h.core.load(1, { kind: 'bytes', bytes: file.slice().buffer, name: 'x.mm2' });
+    expect(h.progress().some((m) => m.map?.phase === 'fetch')).toBe(false);
+    expect(h.progress().some((m) => m.map?.phase === 'unpack')).toBe(true);
+    // A tileset change: the renderer is incomplete until the new tiles are in.
+    h.renderer.complete = false;
+    h.core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/' } });
+    h.runFrames();
+    h.core.requestRender();
+    h.runFrames();
+    expect(h.out.some((m) => m.t === 'tilesDrawn')).toBe(false);
+    h.renderer.complete = true;
+    h.core.requestRender();
+    h.runFrames();
+    expect(h.out.filter((m) => m.t === 'tilesDrawn')).toHaveLength(1);
+    h.core.requestRender();
+    h.runFrames();
+    expect(h.out.filter((m) => m.t === 'tilesDrawn')).toHaveLength(1);
   });
 });
 
