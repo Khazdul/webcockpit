@@ -100,6 +100,12 @@ Spec §2.5 (start page), §2.9 (map), ADR 0020 (map), ADR 0082
   ADR 0083 start page items
 - [ ] Owner test
 
+### Round 1 — map pane
+
+- [x] Modern, discreet overlay: small `system-ui` label, thin rounded
+  bar, soft translucent pill, fixed neutral colours (ADR 0083 item 9)
+- [ ] Owner test
+
 ## Test guide
 
 **Desktop.** Open the client in Chrome or Firefox, open DevTools →
@@ -114,12 +120,13 @@ Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
    banner does not move or flicker when the app takes over, and the stars
    keep twinkling. No row (such as `<< Enter MUME >>`) appears on its own.
 2. Enter the cockpit (or `?replay`) so the Map pane opens. Instead of a
-   grey box, a small box in the middle shows a label over a bar:
+   grey box, a small rounded pill in the middle shows a small label over
+   a thin modern bar:
    `Loading map  2.1 / 5.8 MB`, then `Unpacking map…`, `Building map…`,
    `Loading tiles  40 / 126`, `Drawing map…`. The bar only moves forward
    and fades out when the map is drawn.
 3. Options → Mapper → `Tileset`: switch to another set (←→). With the
-   throttling still on, the same box shows `Loading tiles  n / m` until
+   throttling still on, the same pill shows `Loading tiles  n / m` until
    the new tiles are drawn.
 4. Turn throttling off and reload: the banner at once, no bar flash, and
    the same slow fade of the menu (about 2 s).
@@ -130,8 +137,7 @@ Network, tick *Disable cache* and set throttling to *Slow 4G* (then try
 data). Check the same: the banner at once, the bar under it, the menu
 fading in all at once, and the map bar when the map opens. A larger
 font that makes the screen narrower than 45 columns crops the starfield;
-the early banner should be cropped the same way. Check that both bars are solid,
-without thin lines between the cells.
+the early banner should be cropped the same way.
 
 **Feedback wanted:** the look of the bars and labels (size, colours,
 wording), the fade speed (too slow / too fast), and anything that still

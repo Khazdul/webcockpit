@@ -37,6 +37,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-07 — Stage 24 round 1
+
+- **Owner (round 1):** <<Enter MUME>> still first on 3G and no visible
+  fade; map bar should be modern, not TUI; banner should show at once;
+  menus fade in slowly (~2 s).
+- **Done:** banner drawn in index.html from the first paint (inlined
+  font subsets, shared start layout), bar under it with real byte
+  progress, font gate 4 s → 45 s safety net, ~2 s menu fade; map
+  overlay as a small modern pill with a thin bar (ADR 0083).
+- **Checked:** typecheck, unit 2476, e2e 487/489 (replay file:// and a
+  Firefox editor test failed under load, 156/156 on rerun), CDP 3G/4G
+  screenshot series (`scripts/throttled-start.ts`).
+- **Next:** owner tests round 1; release on the owner's go.
+- **Commits:** 827f7d1..46acf36, 67644dc, af67554, 439584f, this one.
+
 ### 2026-10-07 — Stage 24 finished (loading indicators)
 
 - **Done:** parts A (start page loader, font gate, fade-in) and B (map

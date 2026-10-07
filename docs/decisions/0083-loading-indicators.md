@@ -169,21 +169,27 @@ font files, the menu fades in over about 2 s.
    download 0.55, unpack 0.07, parse 0.14, build 0.06, tiles 0.18
    (without a download the rest is scaled to 1; a tileset change uses
    tiles alone), from the bench scaled to a remote load. The bar never
-   moves backwards within a load. The overlay is a centred box in the
-   pane's own background, a label over a 28-cell bar (cols − 4 in a
-   narrow pane, min 4). The bar is drawn like the start page loader: the
-   filled whole cells as one solid box `n ch` wide (no seams between `█`
-   glyphs, seen on a phone and in Firefox) and the track as `░` text
-   clipped to its cells. Colours: label `--pane-shade-label`, fill
-   `--pane-shade-glow`, track `--pane-shade-mid`. It appears after
-   200 ms, fades out over 250 ms on `drawn` / `tilesDrawn`, instant with
+   moves backwards within a load. It appears after 200 ms, fades out
+   over 250 ms on `drawn` / `tilesDrawn`, instant with
    prefers-reduced-motion. Errors hide it and use the existing notice.
    The HTML replay runs the same code.
 
-   ```
-        Loading map  2.1 / 5.8 MB
-   ██████████░░░░░░░░░░░░░░░░░░
-   ```
+   **Look (round 1).** The map pane is deliberately the client's modern
+   window, so its loading indicator does not use the TUI glyph bar
+   (owner, 2026-10-07). It is a small centred pill: a soft rounded,
+   slightly translucent backdrop (`rgba(36,40,42,.9)`, 6px blur,
+   radius 10px) holding an 11px `system-ui` label with tabular numbers
+   over a thin rounded bar (3px tall, `min(180px, 60%)` of the pane
+   wide). The fill is a full-width rounded strip slid in with
+   `transform: translateX(pct − 100%)` and a 220 ms ease-out transition
+   (compositor only, round leading end); a new session jumps to empty
+   instead of easing back. Colours are fixed neutral tones (Tango
+   aluminium `#eeeeec` at 72% label, 16% track, 85% fill), not theme
+   tokens, because the map background `#2e3436` is fixed in every theme.
+   Reduced motion turns off the fill transition too. The bar has
+   `role=progressbar` with `aria-valuenow`; `data-pct` on the overlay is
+   the test hook. The transitions run only while loading, so ADR 0044
+   rule 1 (nothing animates continuously) holds.
 
 ## Consequences
 
