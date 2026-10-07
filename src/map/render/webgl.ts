@@ -180,9 +180,11 @@ export class WebGLMapRenderer implements Renderer {
   private tileGen = 0;
   /** The tile load whose arrays are in use (a tileset change is pending while it lags `tileGen`). */
   private tileGenLoaded = 0;
-  /** Every tile array of the newest tile source and the current font are loaded. */
+  /** The newest font load failed (the map draws without text; nothing more will arrive). */
+  private fontFailed = false;
+  /** Every tile array of the newest tile source and the current font are loaded (or the font failed). */
   get complete(): boolean {
-    return this.texturesLoaded && this.tileGenLoaded === this.tileGen && this.fontTex !== null;
+    return this.texturesLoaded && this.tileGenLoaded === this.tileGen && (this.fontTex !== null || this.fontFailed);
   }
 
   constructor(
@@ -315,7 +317,11 @@ export class WebGLMapRenderer implements Renderer {
       const fnt = await (await this.assets(fontFntPath(size))).text();
       const fm = parseFnt(fnt);
       const img = await bitmap(this.assets, fontPagePath(size, fm.page));
-      if (req !== this.fontLoading || this.disposed || !img) return;
+      if (req !== this.fontLoading || this.disposed) {
+        img?.close();
+        return;
+      }
+      if (!img) throw new Error('font page not decodable');
       const gl = this.gl;
       if (this.fontTex) gl.deleteTexture(this.fontTex);
       const t = gl.createTexture()!;
@@ -328,11 +334,16 @@ export class WebGLMapRenderer implements Renderer {
       img.close();
       this.fontTex = t;
       this.fontMetrics = fm;
+      this.fontFailed = false;
       this.rebuildTexts();
       this.sceneMeshes = this.freeScene();
       this.onChange();
     } catch {
       // No font: the map draws without text.
+      if (req === this.fontLoading && !this.disposed) {
+        this.fontFailed = true;
+        this.onChange();
+      }
     }
   }
 

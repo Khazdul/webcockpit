@@ -211,7 +211,7 @@
 }
 
 .wc-map-loading-track {
-  color: var(--pane-shade-dim, var(--term-fg));
+  color: var(--pane-shade-mid, var(--term-fg));
 }
 
 @media (prefers-reduced-motion: reduce) {
