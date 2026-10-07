@@ -99,13 +99,12 @@
   display: none;
 }
 
-/* A borderless script pane shows the cross over its top row like a
- * built-in pane (ADR 0084, amends ADR 0065 round 2), except while a link
- * or a text field lies under it (`data-no-cross`, script-pane.ts): there
- * it would cover a button (the pane bar's last one). Options → Panes,
- * pane:hide() or the script's own command turn such a pane off. Temporary
- * panes are always framed. */
-.wc-pane.wc-pane-script:not([data-framed])[data-no-cross] > .wc-pane-close {
+/* A script pane shows the cross on hover like a built-in pane, framed or
+ * not, over whatever its top row holds (ADR 0084 addendum). A pane made
+ * with `createPane{cross = false}` (the pane bar) is marked
+ * `data-no-cross` and shows none; Options → Panes, pane:hide() or the
+ * script's own command turn it off. Temporary panes always have it. */
+.wc-pane.wc-pane-script[data-no-cross] > .wc-pane-close {
   display: none;
 }
 

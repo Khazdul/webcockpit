@@ -130,6 +130,8 @@ export interface PaneSnapshot {
   temp?: PaneTemp;
   /** Where an overflowing pane's view sticks; absent: `bottom` (ADR 0053 addendum). */
   anchor?: 'top';
+  /** `createPane{cross = false}`: no close cross on hover; absent: the cross shows (ADR 0084 addendum). */
+  cross?: false;
 }
 
 /** Where an overflowing pane's view sticks: the newest lines (a console) or the first (a list). */
@@ -253,6 +255,8 @@ export interface PaneContentOptions {
   maxLines?: number;
   /** Where the view sticks when the lines overflow (default `bottom`). */
   anchor?: PaneAnchor;
+  /** Whether the pane shows the close cross on hover (default true; ADR 0084 addendum). */
+  cross?: boolean;
 }
 
 export class PaneContent {
@@ -264,6 +268,8 @@ export class PaneContent {
   grip: PaneGrip | null = null;
   /** Where the view sticks when the lines overflow. */
   anchor: PaneAnchor;
+  /** The close cross shows on hover (`createPane{cross = false}` turns it off). */
+  cross: boolean;
   /** The hover style of links without their own (ADR 0065 round 2). */
   hover: HoverStyle = 'band';
   /** Bumped by every change (renderers compare it). */
@@ -280,6 +286,7 @@ export class PaneContent {
     this.onDropField = opts.onDropField ?? (() => {});
     this.maxLines = opts.maxLines ?? MAX_LINES;
     this.anchor = opts.anchor ?? 'bottom';
+    this.cross = opts.cross ?? true;
   }
 
   setTitle(title: string): void {
@@ -585,6 +592,7 @@ export class PaneContent {
       }),
     };
     if (this.anchor === 'top') out.anchor = 'top';
+    if (!this.cross) out.cross = false;
     return out;
   }
 
@@ -600,6 +608,7 @@ export class PaneContent {
     this.grip = null;
     this.hover = 'band';
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
+    this.cross = s.cross !== false;
     this.broken = false;
     this.version++;
   }

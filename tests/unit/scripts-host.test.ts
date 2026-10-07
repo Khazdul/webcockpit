@@ -1737,7 +1737,7 @@ describe('pane list (ADR 0065)', () => {
     expect(deriveShort('Port keys')).toBe('PORT');
   });
 
-  it('createPane checks short, border and lane; a repeated createPane takes a new short name', async () => {
+  it('createPane checks short, border, cross and lane; a repeated createPane takes a new short name', async () => {
     const panes = new ListSurface();
     const t = await setup(
       {
@@ -1749,23 +1749,31 @@ describe('pane list (ADR 0065)', () => {
           try{id = "a", lane = "inner"}
           try{id = "a", lane = "own", dock = "float"}
           try{id = "a", lane = "own", temporary = true}
+          try{id = "a", cross = "no"}
+          try{id = "a", cross = false, temporary = true}
           createPane{id = "a", title = "Alpha"}
           createPane{id = "a", short = "AL"}
+          createPane{id = "bar", cross = false}
           ${DUMP}`),
       },
       { panes },
     );
-    expect(t.sent.slice(0, 6).map((m) => m.replace(/^.*\(/, '').replace(/\)$/, ''))).toEqual([
+    expect(t.sent.slice(0, 8).map((m) => m.replace(/^.*\(/, '').replace(/\)$/, ''))).toEqual([
       'short must be 1 to 8 characters',
       'short must be 1 to 8 characters',
       'border must be true or false',
       'lane must be "own"',
       'lane is for a pane in a dock',
       'lane is for a pane in a dock',
+      'cross must be true or false',
+      'a temporary pane always has its close cross',
     ]);
+    // cross = false: the content says so (the pane hides its cross, ADR 0084 addendum); the default shows it.
+    expect(panes.opened.find((o) => o.spec.id === 's/bar')!.content.cross).toBe(false);
+    expect(panes.opened.find((o) => o.spec.id === 's/a')!.content.cross).toBe(true);
     t.sent.length = 0;
     t.engine.input('dump');
-    expect(t.sent.at(-1)).toBe('s/a|AL|true|false|right|s|true|Alpha');
+    expect(t.sent).toContain('s/a|AL|true|false|right|s|true|Alpha');
   });
 
   it('setPaneOn switches any pane; false for unknown, temporary and stopped scripts; type errors', async () => {

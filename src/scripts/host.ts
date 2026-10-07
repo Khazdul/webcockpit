@@ -1913,6 +1913,14 @@ export class ScriptHost {
       if (border !== undefined && typeof border !== 'boolean') {
         throw new Error(`bad argument #1 to 'createPane' (border must be true or false)`);
       }
+      // No close cross on hover (ADR 0084 addendum): a bar whose last cells are buttons.
+      const cross = t.cross;
+      if (cross !== undefined && typeof cross !== 'boolean') {
+        throw new Error(`bad argument #1 to 'createPane' (cross must be true or false)`);
+      }
+      if (cross === false && temporary === true) {
+        throw new Error(`bad argument #1 to 'createPane' (a temporary pane always has its close cross)`);
+      }
       const lane = t.lane;
       if (lane !== undefined && lane !== 'own') throw new Error(`bad argument #1 to 'createPane' (lane must be "own")`);
       const dock = t.dock ?? 'right';
@@ -1930,6 +1938,11 @@ export class ScriptHost {
           done(old);
         }
         if (short !== undefined) old.short = short;
+        if (cross !== undefined && old.content.cross !== cross) {
+          old.content.cross = cross;
+          old.content.version++;
+          old.view.changed();
+        }
         this.schedulePanes();
         return rt.object(cls, old.handle);
       }
@@ -1961,6 +1974,7 @@ export class ScriptHost {
       } as unknown as PaneReg;
       reg.content = new PaneContent(title ?? name, {
         anchor,
+        ...(cross === false ? { cross: false } : {}),
         onDrop: (n) => {
           const tg = reg.toggles.get(n);
           if (tg) this.releaseToggle(tg);

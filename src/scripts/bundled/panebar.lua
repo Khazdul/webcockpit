@@ -72,7 +72,7 @@ local MIN_W = 2
 
 local pane = createPane{
   id = "bar", title = "Pane bar", short = "BAR",
-  dock = "right", rows = 1, cols = 30, border = false,
+  dock = "right", rows = 1, cols = 30, border = false, cross = false,
 }
 -- A hovered button lightens (text and fill) instead of the glow band.
 pane:setHover("lighten")

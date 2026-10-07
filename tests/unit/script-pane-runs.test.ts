@@ -211,6 +211,23 @@ describe('SPANE records: anchor (ADR 0053 addendum)', () => {
     expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).anchor).toBe('bottom');
     expect(applyPaneRecord(null, '{"title":"x","lines":[],"links":[],"anchor":"sideways"}')!.anchor).toBeUndefined();
   });
+
+  it('a pane without a close cross says so in full records; deltas and the player keep it (ADR 0084 addendum)', () => {
+    const c = new PaneContent('Bar', { cross: false });
+    c.setLine(0, plain('a'));
+    const a = encodePaneRecord(null, c.snapshot())!;
+    expect(JSON.parse(a.payload).cross).toBe(false);
+    c.setLine(1, plain('b'));
+    const b = encodePaneRecord(a.state, c.snapshot())!;
+    expect(b.full).toBe(false);
+    let s = applyPaneRecord(null, a.payload)!;
+    s = applyPaneRecord(s, b.payload)!;
+    expect(s.cross).toBe(false);
+    expect(PaneContent.fromSnapshot(s).cross).toBe(false);
+    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+    expect(o.payload).not.toContain('cross');
+    expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).cross).toBe(true);
+  });
 });
 
 describe('RecordingPaneSurface', () => {

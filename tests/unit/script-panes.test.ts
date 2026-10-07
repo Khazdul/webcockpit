@@ -1093,7 +1093,7 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(r.cockpit.dragging).toBe(false);
     });
 
-    it('soft grip row: a grab cursor off links on a borderless pane, none framed; no cross over a link (ADR 0084)', () => {
+    it('soft grip row: a grab cursor off links on a borderless pane, none framed; the cross unless cross = false (ADR 0084)', () => {
       const r = rig();
       const { pane, content } = openBar(r, { dock: 'right', rows: 4, cols: 30, border: false });
       expect(pane.el.hasAttribute('data-framed')).toBe(false);
@@ -1115,8 +1115,8 @@ describe('ScriptPane and the cockpit surface', () => {
       pane.content.dispatchEvent(new PointerEvent('pointermove', at(65, 5)));
       expect(pane.content.style.cursor).toBe('');
       expect(pane.el.hasAttribute('data-no-cross')).toBe(false);
-      // Borderless again, a link under the cross (the top row's last four
-      // cells but the last): marked, so the cross is not shown (CSS).
+      // Borderless again, a link under the cross: the cross still shows
+      // (ADR 0084 addendum: it covers the top row like a built-in pane's).
       r.settings.update((d) => {
         d.panes[BAR] = { ...d.panes[BAR]!, border: false };
       });
@@ -1126,19 +1126,18 @@ describe('ScriptPane and the cockpit surface', () => {
       content.addLink(0, cols - 4, 3, 8, 'Map');
       pane.changed();
       r.flush();
+      expect(pane.el.hasAttribute('data-no-cross')).toBe(false);
+      // cross = false turns it off, framed or not.
+      content.cross = false;
+      content.version++;
+      pane.changed();
+      r.flush();
       expect(pane.el.hasAttribute('data-no-cross')).toBe(true);
-      // On the second row it is not under the cross.
-      content.setLine(0, plain('CHAR'));
-      content.setLine(1, plain(`${' '.repeat(cols - 4)}MAP `));
-      content.addLink(1, cols - 4, 3, 9, 'Map');
-      pane.changed();
+      r.settings.update((d) => {
+        d.panes[BAR] = { ...d.panes[BAR]!, border: true };
+      });
       r.flush();
-      expect(pane.el.hasAttribute('data-no-cross')).toBe(false);
-      // A link only in the last column (the resize corner) is not under it either.
-      content.addLink(0, cols - 1, 1, 10, 'Corner');
-      pane.changed();
-      r.flush();
-      expect(pane.el.hasAttribute('data-no-cross')).toBe(false);
+      expect(pane.el.hasAttribute('data-no-cross')).toBe(true);
     });
 
     it('grip cells (pane:setGrip): a grab cursor, a press moves the pane at once, no click; any row, framed too', () => {

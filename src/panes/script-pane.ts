@@ -64,9 +64,9 @@
 //   A borderless pane's top screen row (the cockpit's soft grip, ADR 0065)
 //   shows it too where no link is (ADR 0084), as a built-in pane's title
 //   row does. The close cross sits over that row's last cells (one in from
-//   the right edge); while a link or a text field lies under it there the
-//   pane is marked `data-no-cross` and shows none (layout.css), so it never
-//   covers a button (the pane bar's last one, ADR 0065 round 2).
+//   the right edge) on hover, over whatever is there, framed or not; a
+//   pane created with `cross = false` is marked `data-no-cross` and shows
+//   none (layout.css; the pane bar, ADR 0084 addendum).
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
 //   After every render the link under the pointer is looked up again; one
 //   at the same row, column and length is the same link, so the band and
@@ -97,9 +97,6 @@ import { PaneShell } from './pane';
 import { type HoverStyle, type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
 import { type ShadeRole, fitContrast, hoverLift, lightShift } from '../theme/color';
-
-/** Cells of the close cross (" × ", layout.css), one cell in from the right edge. */
-const CROSS_CELLS = 3;
 
 /** A gauge's fill when the script gives no colour (the Group pane's HP green). */
 export const DEFAULT_GAUGE_COLOR = '#005a18';
@@ -465,22 +462,14 @@ export class ScriptPane extends PaneShell {
   }
 
   /**
-   * Marks a borderless pane `data-no-cross` while a link or a text field
-   * lies under its close cross: the top screen row's cells from four in
-   * from the right edge up to the last one (ADR 0084).
+   * Marks the pane `data-no-cross` when its script turned the close cross
+   * off (`createPane{cross = false}`, ADR 0084 addendum); otherwise the
+   * cross shows on hover over whatever the top row holds, as on a
+   * built-in pane.
    */
   private updateCross(): void {
-    let covered = false;
-    const cols = this.cols;
-    const c = this.model;
-    if (this.soft && cols > 0 && !(this.shown.over && c.anchor === 'bottom')) {
-      const cellH = this.ctx.cells.get().h || 16;
-      const row = Math.floor(this.scroller.scrollTop / cellH + 0.01);
-      const from = Math.max(0, cols - 1 - CROSS_CELLS);
-      const hits = (x: { row: number; col: number; len: number }): boolean => x.row === row && x.col < cols - 1 && x.col + x.len > from;
-      covered = c.links.some(hits) || c.fields.some(hits);
-    }
-    if (this.el.hasAttribute('data-no-cross') !== covered) this.el.toggleAttribute('data-no-cross', covered);
+    const off = !this.model.cross;
+    if (this.el.hasAttribute('data-no-cross') !== off) this.el.toggleAttribute('data-no-cross', off);
   }
 
   /**
@@ -538,7 +527,6 @@ export class ScriptPane extends PaneShell {
     // Live: at the end within 2 px (a layout-free model when the browser has none).
     const end = s.scrollHeight > 0 ? s.scrollHeight - s.clientHeight : Math.max(0, n - listH) * cellH;
     this.live = s.scrollTop >= end - 2;
-    this.updateCross();
     // The content moved under the pointer: whatever is there now.
     this.resolveHover();
     this.updateMore();
