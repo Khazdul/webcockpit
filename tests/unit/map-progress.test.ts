@@ -1,14 +1,12 @@
 // @vitest-environment happy-dom
 // Map loading progress (stage 24, ADR 0083): the weighted fraction, the
-// label, the glyph bar, the streaming body reader, the counting resolver,
+// label, the streaming body reader, the counting resolver,
 // and the Map pane's overlay timing.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   LOAD_WEIGHTS,
   type LoadState,
-  barCells,
   countingResolver,
-  barFill,
   loadFraction,
   loadLabel,
   readBody,
@@ -58,23 +56,6 @@ describe('load fraction and label', () => {
     // While the map downloads, its bytes win over the tiles loading alongside.
     expect(loadLabel(load({ map: fetching(1e6, 5.8e6), tiles: { done: 3, total: 104 } }))).toBe('Loading map  1.0 / 5.8 MB');
     expect(loadLabel({ ...load(), kind: 'tiles', tiles: { done: 3, total: 104 } })).toBe('Loading tiles  3 / 104');
-  });
-});
-
-describe('bar', () => {
-  it('fills whole cells, never past the end', () => {
-    expect(barFill(0, 4)).toBe(0);
-    expect(barFill(0.49, 4)).toBe(1);
-    expect(barFill(0.5, 4)).toBe(2);
-    expect(barFill(1, 4)).toBe(4);
-    expect(barFill(1.5, 4)).toBe(4);
-    expect(barFill(Number.NaN, 4)).toBe(0);
-  });
-
-  it('is 28 cells, narrower in a narrow pane, at least 4', () => {
-    expect(barCells(80)).toBe(28);
-    expect(barCells(20)).toBe(16);
-    expect(barCells(3)).toBe(4);
   });
 });
 
@@ -147,7 +128,6 @@ describe('map loading overlay', () => {
   const make = () => {
     const l = new MapLoading(document);
     document.body.append(l.el);
-    l.resize(40);
     return l;
   };
   const text = (l: MapLoading) => l.el.textContent;
@@ -171,10 +151,13 @@ describe('map loading overlay', () => {
     vi.advanceTimersByTime(SHOW_DELAY_MS);
     expect(l.el.hidden).toBe(false);
     expect(text(l)).toContain('Loading map  2.1 / 5.8 MB');
+    // A thin bar: the fill slides in by the fraction in percent, no glyphs.
     const fill = l.el.querySelector<HTMLElement>('.wc-map-loading-fill')!;
     expect(fill.textContent).toBe('');
-    expect(Number(fill.dataset.cells) + l.el.querySelector('.wc-map-loading-track')!.textContent!.length).toBe(28);
     const pct1 = Number(l.el.dataset.pct);
+    expect(pct1).toBeGreaterThan(0);
+    expect(Math.abs(100 + parseFloat(fill.style.transform.slice('translateX('.length)) - pct1)).toBeLessThanOrEqual(0.5);
+    expect(l.el.querySelector('[role=progressbar]')!.getAttribute('aria-valuenow')).toBe(String(pct1));
     l.progress({ map: { req: 1, phase: 'build', bytes: 0, total: 0 }, tiles: { done: 10, total: 104 } });
     expect(text(l)).toContain('Building map…');
     expect(Number(l.el.dataset.pct)).toBeGreaterThan(pct1);
@@ -190,18 +173,18 @@ describe('map loading overlay', () => {
     expect(l.el.dataset.leaving).toBeUndefined();
   });
 
-  it('narrows the bar in a narrow pane; an abort hides at once', () => {
+  it('a tile session fills by files; a new session starts empty; an abort hides at once', () => {
     const l = make();
-    l.resize(12);
     l.begin('tiles');
     vi.advanceTimersByTime(SHOW_DELAY_MS);
     l.progress({ map: null, tiles: { done: 1, total: 4 } });
     const fill = l.el.querySelector<HTMLElement>('.wc-map-loading-fill')!;
-    expect(fill.dataset.cells).toBe('2');
-    expect(fill.style.width).toBe('2ch');
-    const track = l.el.querySelector<HTMLElement>('.wc-map-loading-track')!;
-    expect(track.textContent).toBe('░░░░░░');
-    expect(track.style.width).toBe('6ch');
+    expect(fill.style.transform).toBe('translateX(-75%)');
+    expect(l.el.dataset.pct).toBe('25');
+    expect(l.el.dataset.reset).toBeUndefined();
+    l.begin('load');
+    expect(fill.style.transform).toBe('translateX(-100%)');
+    expect(l.el.dataset.reset).toBeUndefined();
     l.abort();
     expect(l.el.hidden).toBe(true);
   });
