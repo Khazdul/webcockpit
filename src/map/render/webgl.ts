@@ -178,9 +178,11 @@ export class WebGLMapRenderer implements Renderer {
   private texturesLoaded = false;
   /** The newest tile load (a tileset change starts another; older ones are dropped). */
   private tileGen = 0;
-  /** Every tile array and the current font are loaded. */
+  /** The tile load whose arrays are in use (a tileset change is pending while it lags `tileGen`). */
+  private tileGenLoaded = 0;
+  /** Every tile array of the newest tile source and the current font are loaded. */
   get complete(): boolean {
-    return this.texturesLoaded && this.fontTex !== null;
+    return this.texturesLoaded && this.tileGenLoaded === this.tileGen && this.fontTex !== null;
   }
 
   constructor(
@@ -277,6 +279,7 @@ export class WebGLMapRenderer implements Renderer {
       a.close();
     }
     this.texturesLoaded = true;
+    this.tileGenLoaded = gen;
     this.onChange();
   }
 
