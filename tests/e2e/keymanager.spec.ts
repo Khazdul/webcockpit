@@ -58,7 +58,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await command(page, '#script enable keymanager');
   await expect(pane(page)).toBeVisible();
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Port keys');
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys\s+\?\s*$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys  \?\s*$/);
   await expect(prows(page).nth(2)).toHaveText(/^ No keys yet\.\s*$/);
 
   // locatel home: the cast, then the block; the row is gagged.
@@ -458,5 +458,43 @@ test('keymanager: the ◻ is light green while its TV is open and goes back to g
   await expect(tv).toHaveCount(0);
   await page.mouse.move(5, 5);
   await expect.poll(colour).toBe(closed);
+  expect(errors).toEqual([]);
+});
+
+// Stage 25 round 2 (ADR 0084 addendum): a borderless key manager pane shows
+// the close cross on hover, and its ? (right after the key count) stays
+// clear of it.
+test('keymanager: borderless, the close cross shows on hover and the ? stays clickable', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  let server: WebSocketRoute | null = null;
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    server = ws;
+    ws.send(bytes([IAC, WILL, GMCP]));
+  });
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.keyboard.press('Enter');
+  await expect.poll(() => server !== null).toBe(true);
+  server!.send(gmcp('Char.Name {"name":"Gittan","fullname":"Gittan the Tester"}'));
+  await command(page, '#script enable keymanager');
+  await expect(pane(page)).toBeVisible();
+  await page.evaluate((id) => window.__wc!.settings.update((d) => {
+    d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, border: false };
+  }), ID);
+  await expect(pane(page)).not.toHaveAttribute('data-framed', '');
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys  \?\s*$/);
+  const close = pane(page).locator('.wc-pane-close');
+  await page.mouse.move(5, 5);
+  await expect(close).toBeHidden();
+  const q = await cellAt(page, 0, 9);
+  await page.mouse.move(q.x, q.y);
+  await expect(close).toBeVisible();
+  await expect(pane(page)).not.toHaveAttribute('data-no-cross', '');
+  // The ? is the content's (a link with its tooltip), left of the cross.
+  const inContent = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.wc-pane-content'), q);
+  expect(inContent).toBe(true);
+  await expect(page.locator('.wc-spane-tip')).toContainText('help');
+  expect((await close.boundingBox())!.x).toBeGreaterThan(q.x);
   expect(errors).toEqual([]);
 });
