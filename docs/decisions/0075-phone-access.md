@@ -251,3 +251,9 @@ return, not on the next command. Desktop installs nothing.
 - Known limits on a phone: switching app or locking the screen ends the
   session (linkdeath); on iOS Safari, profiles may be deleted after 7
   days without a visit unless the site is on the home screen.
+
+## Amendment 2026-10-08 — touch detection fallback (ADR 0086)
+
+§1 *touch* is also on with a touch screen (`maxTouchPoints > 0`) and a
+short side under 600 CSS px or an Android user agent, because Samsung
+Internet does not match `(pointer: coarse) and (hover: none)`.

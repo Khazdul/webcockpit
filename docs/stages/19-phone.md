@@ -211,3 +211,10 @@ site's data). Expect Hack 14, the banner on the start page, the tabs
 GAME, CHAR, TIME, GRP, COMM, MAP (no UI, no pane bar, no FIND), and no
 enabled scripts under ESC → Scripts. Your normal phone profile keeps its
 settings.
+
+### Samsung Internet (2026-10-08, after the stage)
+
+- **Owner:** opened from a Discord link, Samsung Internet showed "Window
+  too small" (36×37); Chrome worked.
+- **Fix:** touch detection fallback (ADR 0086), released in 0.1.54.
+- **Owner verified** on the phone: the phone layout now comes up.
