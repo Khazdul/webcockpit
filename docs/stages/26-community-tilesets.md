@@ -130,6 +130,14 @@ order and credit lines fine?
 3. **Lighter dark tint on the two white sets.** Done: dark `#e3dcdc`,
    no-sundeath `#f1eded` (`Tileset.tints`), live and in the HTML replay.
 
-Status: built, awaiting the owner's re-test (preferably in the browser
-that showed the bugs).
+Status: done.
+
+### Round 2 (2026-10-08)
+
+- Re-test after round 1: "looks good now". Approved. The owner does not
+  know whether Shimrod or Desert showed the Firefox bug before (their
+  MMapper fallback walls and doors were rescaled the same way); the
+  round 1 fix covers them too.
+
+Status: stage 26 done; not released (the owner decides when).
 

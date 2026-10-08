@@ -31,13 +31,22 @@ Stage 26 (community tilesets) owner testing. Released 0.1.54 (Samsung Internet p
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
 | 25 | Polish round | Owner testing | `docs/stages/25-polish.md` |
-| 26 | Community tilesets | Owner testing | `docs/stages/26-community-tilesets.md` |
+| 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-08 — Stage 26 round 2 (approved)
+
+- **Owner:** re-tested after round 1: looks good. Stage 26 done.
+- **Open:** unknown whether Shimrod/Desert ever showed the Firefox
+  resize bug; fixed for them too.
+- **Next:** not released; the owner decides when (0.1.55 would carry
+  stage 25 rounds 4–7 and stage 26).
+- **Commits:** this one.
 
 ### 2026-10-08 — Stage 26 round 1
 
