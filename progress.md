@@ -38,6 +38,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 25 round 4
+
+- **Done:** name tag on a 2 s hover over a borderless pane (owner
+  request), pure CSS delay, top left in the outline colour. ADR 0087.
+- **Checked:** unit 2493, e2e script-panes/layout/panebar 56/56.
+- **Next:** owner tests round 4 (stage file test guide).
+- **Commits:** 859dcd6, plus this one.
+
 ### 2026-10-08 — Release 0.1.53
 
 - **Done:** released 0.1.53 (tag v0.1.53, owner's go): stage 24 loading
