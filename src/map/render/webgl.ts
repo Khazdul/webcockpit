@@ -32,7 +32,7 @@ import { BACKGROUND, BLACK, GRAY70, LIGHT_BG_INK, NAMED_COLORS, type RGBA, WATER
 import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLayerMesh } from './rooms';
 import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
-import type { Renderer } from './renderer';
+import type { Renderer, TileStyle } from './renderer';
 
 /** Zoom cutoffs (configuration.h). */
 export const CONNECTION_ZOOM = 0.15;
@@ -184,6 +184,10 @@ export class WebGLMapRenderer implements Renderer {
   private fontFailed = false;
   /** The background (Options → Mapper, ADR 0085): the clear colour and the fade over lower layers. */
   private bg: RGBA = BACKGROUND;
+  /** The tiles in use draw their flow marks untinted (ADR 0088). */
+  private streamsAsIs = false;
+  /** The style of the newest tile source, applied when its tiles are swapped in. */
+  private style: TileStyle;
   /** Every tile array of the newest tile source and the current font are loaded (or the font failed). */
   get complete(): boolean {
     return this.texturesLoaded && this.tileGenLoaded === this.tileGen && (this.fontTex !== null || this.fontFailed);
@@ -193,7 +197,9 @@ export class WebGLMapRenderer implements Renderer {
     private readonly gl: GL,
     private assets: AssetResolver,
     private readonly onChange: () => void = () => {},
+    style: TileStyle = {},
   ) {
+    this.style = style;
     this.room = compile(gl, S.ROOM_VS, S.ROOM_FS, ['uView', 'uNamed', 'uTex', 'uColor', 'uWhite']);
     this.color = compile(gl, S.COLOR_VS, S.COLOR_FS, ['uView', 'uColor', 'uInk']);
     this.texColor = compile(gl, S.TEXCOLOR_VS, S.TEXCOLOR_FS, ['uView', 'uTex']);
@@ -222,10 +228,12 @@ export class WebGLMapRenderer implements Renderer {
 
   /**
    * New tiles (a tileset change, ADR 0082): the arrays are loaded again and
-   * swapped in when complete; the old ones draw until then.
+   * swapped in when complete; the old ones draw until then. `style`
+   * (ADR 0088) takes effect with the new tiles.
    */
-  setAssets(assets: AssetResolver): void {
+  setAssets(assets: AssetResolver, style: TileStyle = {}): void {
     this.assets = assets;
+    this.style = style;
     void this.loadTextures();
   }
 
@@ -238,6 +246,7 @@ export class WebGLMapRenderer implements Renderer {
       [TEX.A256, ARRAY_FILES.A256],
     ] as const;
     const assets = this.assets;
+    const style = this.style;
     // Decode every file, size each array by its largest file, and scale the
     // others to it (a tileset's mixed sizes; the default set needs none).
     const loads = groups.map(async ([id, g]) => {
@@ -287,6 +296,7 @@ export class WebGLMapRenderer implements Renderer {
       this.charArrows = t;
       a.close();
     }
+    this.streamsAsIs = style.streamsAsIs === true;
     this.texturesLoaded = true;
     this.tileGenLoaded = gen;
     this.onChange();
@@ -557,7 +567,8 @@ export class WebGLMapRenderer implements Renderer {
     draw('tintNoSundeath', WHITE, true);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     if (!noTex) {
-      const stream: RGBA = [WATER[0] * color[0], WATER[1] * color[1], WATER[2] * color[2], color[3]];
+      // MMapper tints its white flow arrows with the river colour; a set's own coloured marks draw as is (ADR 0088).
+      const stream: RGBA = this.streamsAsIs ? color : [WATER[0] * color[0], WATER[1] * color[1], WATER[2] * color[2], color[3]];
       draw('streamIns', stream);
       draw('streamOuts', stream);
       draw('trails', color);

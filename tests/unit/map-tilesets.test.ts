@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { CLOCK_KEY, momentSeconds, SEED_EPOCH } from '../../src/gmcp/clock';
 import { type AssetResolver, assetResolver } from '../../src/map/assets';
 import { MAP_PROTOCOL_VERSION } from '../../src/map/protocol';
-import type { Renderer } from '../../src/map/render/renderer';
+import type { Renderer, TileStyle } from '../../src/map/render/renderer';
 import { arraySize, MAX_TILE_SIZE, mipLevels, RENDERER_PIXMAPS } from '../../src/map/render/textures';
 import {
   currentOverlay,
@@ -247,5 +247,50 @@ describe('worker tileset swap', () => {
     await resolvers[0]!('pixmaps/terrain-forest.png');
     await resolvers[0]!('pixmaps/door-north.png');
     expect(seen).toEqual(['/map/tilesets/shimrod-autumn/terrain-forest.png', '/map/pixmaps/door-north.png']);
+  });
+});
+
+describe('untinted flow marks (ADR 0088)', () => {
+  it('the worker tells the renderer how a source draws, at init and on a swap', () => {
+    const styles: Array<TileStyle | undefined> = [];
+    const swaps: Array<TileStyle | undefined> = [];
+    const renderer: Renderer = {
+      setMap: () => {},
+      setScene: () => {},
+      resize: () => {},
+      render: () => {},
+      dispose: () => {},
+      setAssets: (_a, style) => void swaps.push(style),
+    };
+    const canvas = { width: 0, height: 0, getContext: () => ({}) as WebGL2RenderingContext } as unknown as OffscreenCanvas;
+    const core = new MapWorkerCore({
+      post: () => {},
+      requestFrame: () => {},
+      fetch: (async () => new Response('x')) as typeof fetch,
+      now: () => 0,
+      createRenderer: (_gl, _assets, _on, style) => {
+        styles.push(style);
+        return renderer;
+      },
+    });
+    core.handle({
+      t: 'init',
+      protocol: MAP_PROTOCOL_VERSION,
+      canvas,
+      width: 10,
+      height: 10,
+      dpr: 1,
+      assets: { kind: 'base', url: '/map/', tileset: overlayFor('gefe-rik', 0) },
+    });
+    expect(styles).toEqual([{ streamsAsIs: true }]);
+    core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/', tileset: overlayFor('shimrod-autumn', 0) } });
+    core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/' } });
+    core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/', tileset: overlayFor('grays-map', 0) } });
+    core.handle({ t: 'assets', assets: { kind: 'inline', files: {}, streamsAsIs: true } });
+    expect(swaps).toEqual([{}, {}, { streamsAsIs: true }, { streamsAsIs: true }]);
+  });
+
+  it('only the community sets draw their own flow marks', () => {
+    for (const t of TILESETS) expect(t.streamsAsIs === true, t.id).toBe(t.id === 'gefe-rik' || t.id === 'grays-map');
   });
 });

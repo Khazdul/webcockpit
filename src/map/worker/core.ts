@@ -56,6 +56,7 @@ import {
   type MapEvent,
   type MapSource,
   type MarkStyle,
+  streamsAsIs,
   type WorkerToMain,
 } from '../protocol';
 import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from '../progress';
@@ -63,7 +64,7 @@ import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
 import type { Scene, SceneMark } from '../scene';
 import { BACKGROUND, type RGBA, hexRgba } from '../render/palette';
-import { type Renderer, createRenderer } from '../render/renderer';
+import { type Renderer, type TileStyle, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
 import type { LearnedIdStore } from './ids';
 import { type View, ZOOM_MAX, ZOOM_MIN, centreOn, defaultView, fitRooms, pan, zoomAt } from '../view';
@@ -93,6 +94,11 @@ interface LiveMark {
   lingering: boolean;
 }
 
+/** How an asset source's tiles are drawn (ADR 0088: a set's flow marks untinted). */
+function tileStyle(src: AssetSource): TileStyle {
+  return streamsAsIs(src) ? { streamsAsIs: true } : {};
+}
+
 export interface WorkerHost {
   post(m: WorkerToMain): void;
   /** Frame scheduler (worker requestAnimationFrame, else a 16 ms timeout). */
@@ -100,8 +106,8 @@ export interface WorkerHost {
   fetch: typeof fetch;
   inflate?: Inflate;
   now(): number;
-  /** Builds the renderer for a GL context (default `createRenderer`); `onChange` asks for a redraw. */
-  createRenderer?: (gl: WebGL2RenderingContext, assets: AssetResolver, onChange: () => void) => Renderer;
+  /** Builds the renderer for a GL context (default `createRenderer`); `onChange` asks for a redraw; `style`: ADR 0088. */
+  createRenderer?: (gl: WebGL2RenderingContext, assets: AssetResolver, onChange: () => void, style?: TileStyle) => Renderer;
   /** Where learned server ids persist (used only after `persistIds` on). */
   ids?: LearnedIdStore;
   /** A one-shot timer (default `setTimeout`): a lingering mark's end (ADR 0057). */
@@ -117,6 +123,8 @@ export class MapWorkerCore {
   private renderer: Renderer | null = null;
   /** The asset source in use (null before init). */
   private assets: AssetResolver | null = null;
+  /** How the asset source's tiles are drawn (ADR 0088). */
+  private style: TileStyle = {};
   private visible = true;
   private scheduled = false;
   /** The newest load request; older results are dropped. */
@@ -247,10 +255,11 @@ export class MapWorkerCore {
     }
     const make = this.host.createRenderer ?? createRenderer;
     this.assets = this.counted(assetResolver(m.assets, this.host.fetch));
+    this.style = tileStyle(m.assets);
     const glc = gl;
     if (m.background) this.background = hexRgba(m.background);
     const build = (): Renderer => {
-      const r = make(glc, this.assets!, () => this.requestRender());
+      const r = make(glc, this.assets!, () => this.requestRender(), this.style);
       r.setBackground?.(this.background);
       return r;
     };
@@ -277,8 +286,9 @@ export class MapWorkerCore {
   private setAssets(src: AssetSource): void {
     if (!this.assets) return; // before init
     this.assets = this.counted(assetResolver(src, this.host.fetch));
+    this.style = tileStyle(src);
     this.assetsPending = true;
-    this.renderer?.setAssets?.(this.assets);
+    this.renderer?.setAssets?.(this.assets, this.style);
   }
 
   /** `inner`, its requests counted as the current tile source's files. */

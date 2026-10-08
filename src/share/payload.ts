@@ -88,6 +88,8 @@ export interface ReplayMap {
   mm2: string;
   /** Asset path (`pixmaps/…`, `fonts/…`) → data URI; tiles not listed are drawn empty. */
   files: Record<string, string>;
+  /** The exported tileset draws its flow marks untinted (ADR 0088); absent: tinted, as MMapper. */
+  streamsAsIs?: boolean;
 }
 
 /** The capture text of a run with the excluded content removed. */

@@ -104,6 +104,39 @@ describe('HTML replay map export', () => {
     expect(urls).not.toContain('https://example.org/app/map/pixmaps/terrain-field.png');
   });
 
+  it("embeds an aliased file under the path it stands in for, and the set's untinted flow marks (ADR 0088)", async () => {
+    // Rapids (terrain 9) around the visited rooms.
+    const map = gridMap(40, 40, { noServerId: (i) => i === 206, terrain: (i) => (i % 2 ? 9 : 3) });
+    const urls: string[] = [];
+    const blob = await buildReplayHtml(chain(true), {
+      fetch: fetcher(urls),
+      base: 'https://example.org/app/',
+      map: { kind: 'data', map, name: 'grid.mm2' },
+      runMapTool: runTool,
+      tileset: overlayFor('grays-map', 0),
+    });
+    const p = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(await blob.text())![1]!);
+    const m = p.map!;
+    const b64 = (rel: string): string => `data:image/png;base64,${readFileSync(new URL(`map/${rel}`, PUBLIC)).toString('base64')}`;
+    // Rapids draw Gray's water; the set has no rapids file, so none is fetched.
+    expect(m.files['pixmaps/terrain-rapids.png']).toBe(b64('tilesets/grays-map/terrain-water.png'));
+    expect(urls).toContain('https://example.org/app/map/tilesets/grays-map/terrain-water.png');
+    expect(urls.some((u) => u.endsWith('terrain-rapids.png'))).toBe(false);
+    expect(m.streamsAsIs).toBe(true);
+    expect(replayMapHost(m).assets).toMatchObject({ kind: 'inline', streamsAsIs: true });
+    // A set without the flag embeds none.
+    const plain = await buildReplayHtml(chain(true), {
+      fetch: fetcher([]),
+      base: 'https://example.org/app/',
+      map: { kind: 'data', map, name: 'grid.mm2' },
+      runMapTool: runTool,
+      tileset: overlayFor('desert', 0),
+    });
+    const q = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(await plain.text())![1]!);
+    expect(q.map!.streamsAsIs).toBeUndefined();
+    expect('streamsAsIs' in replayMapHost(q.map).assets).toBe(false);
+  });
+
   it('embeds nothing for a chain without Room.Info, or when the map cannot be read', async () => {
     const tool = vi.fn(runTool);
     const map = { kind: 'data' as const, map: gridMap(4, 4), name: 'g' };

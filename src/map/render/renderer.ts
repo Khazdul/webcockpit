@@ -13,6 +13,12 @@ import { WebGLMapRenderer } from './webgl';
 /** MMapper background (owner config `#2e3436`), 0…1 RGB: the default (ADR 0085). */
 export const MAP_BG: readonly [number, number, number] = [BACKGROUND[0], BACKGROUND[1], BACKGROUND[2]];
 
+/** How a tile source is drawn, beside its files (ADR 0088). */
+export interface TileStyle {
+  /** The flow marks (`stream-*`) are drawn as they are, not tinted by the river colour. */
+  streamsAsIs?: boolean;
+}
+
 export interface Renderer {
   /** A new map (null: none); meshes are rebuilt here, not per frame. */
   setMap(map: MapData | null): void;
@@ -23,8 +29,11 @@ export interface Renderer {
   /** Draws one frame of `view`. */
   render(view: View): void;
   dispose(): void;
-  /** New tile assets (a tileset change, ADR 0082); absent: the renderer has no tiles. */
-  setAssets?(assets: AssetResolver): void;
+  /**
+   * New tile assets (a tileset change, ADR 0082) and how they are drawn
+   * (ADR 0088; applied with the new tiles); absent: the renderer has no tiles.
+   */
+  setAssets?(assets: AssetResolver, style?: TileStyle): void;
   /** The background colour (Options → Mapper, ADR 0085); drawn from the next render. */
   setBackground?(color: RGBA): void;
   /** False while tiles or the font are still loading (absent: nothing to load). */
@@ -58,8 +67,9 @@ export class ClearRenderer implements Renderer {
 /**
  * The renderer the worker uses (assets are read through `assets` only).
  * `onChange` is called when something that was loading (tiles, font)
- * arrived and the map should be drawn again.
+ * arrived and the map should be drawn again. `style`: how the tiles are
+ * drawn (ADR 0088).
  */
-export function createRenderer(gl: WebGL2RenderingContext, assets: AssetResolver, onChange?: () => void): Renderer {
-  return new WebGLMapRenderer(gl, assets, onChange);
+export function createRenderer(gl: WebGL2RenderingContext, assets: AssetResolver, onChange?: () => void, style?: TileStyle): Renderer {
+  return new WebGLMapRenderer(gl, assets, onChange, style);
 }

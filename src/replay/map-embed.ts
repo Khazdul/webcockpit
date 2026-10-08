@@ -29,7 +29,9 @@ export interface EmbedMapOptions {
   /**
    * The tileset the client draws (ADR 0082): each pixmap is fetched from
    * it when the set has the file, else from the default `pixmaps/`, and
-   * embedded under its `pixmaps/` path, so the page needs no tileset logic.
+   * embedded under its `pixmaps/` path (an aliased file under the path it
+   * stands in for, ADR 0088), so the page needs no tileset logic; the set's
+   * untinted flow marks travel as `ReplayMap.streamsAsIs`.
    */
   tileset?: TilesetOverlay;
 }
@@ -64,6 +66,13 @@ export async function embedReplayMap(payload: ReplayPayload, source: MapSource, 
     console.warn(`WebCockpit: the replay's map was left out (${err instanceof Error ? err.message : String(err)})`);
     return payload;
   }
-  const map: ReplayMap = { name: r.name, rooms: r.rooms, visited: r.visited, mm2: toBase64(r.mm2), files };
+  const map: ReplayMap = {
+    name: r.name,
+    rooms: r.rooms,
+    visited: r.visited,
+    mm2: toBase64(r.mm2),
+    files,
+    ...(o.tileset?.streamsAsIs ? { streamsAsIs: true } : {}),
+  };
   return { ...payload, map };
 }
