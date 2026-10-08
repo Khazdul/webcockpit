@@ -149,3 +149,21 @@ Test guide (round 4):
    while shown; is that acceptable?
 
 Feedback wanted: placement (top left vs. near the pointer), colour.
+
+### Round 4 (2026-10-08)
+
+- Tag: darker grey background, smaller and greyer text, centred. Delay
+  1 s. The map never shows it; the pane bar neither; script panes get an
+  API option, off by default (almanac, map search do not need it).
+
+Done (round 5): 1 s, centred, 0.85em, darker background and dimmer text.
+Built-in panes but the map have it; script panes opt in with
+`createPane{tooltip = true}` (default off; documented in the API
+reference and the script manual). ADR 0087 addendum.
+
+Test guide (round 5):
+
+1. A borderless built-in pane (e.g. Comm, Group with border off): hover
+   1 s → small, dim name tag centred on the top row.
+2. Map, pane bar, almanac, map search, key manager: no tag.
+3. A script with `createPane{..., border = false, tooltip = true}`: tag.

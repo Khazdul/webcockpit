@@ -32,3 +32,21 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
 - On a one-row borderless pane (the pane bar) the tag covers its first
   cells while shown; clicks still pass through.
 - The 2 s counts from entering the pane, not from the mouse resting.
+
+## Addendum — stage 25 round 4 feedback (2026-10-08)
+
+- **Delay 1 s** (was 2 s).
+- **Look:** centred on the top row (was top left), font 0.85em, the
+  background 60 % outline / 40 % terminal background (darker than the
+  outline), the text 60 % foreground / 40 % background (dimmer, greyer).
+- **Opt-in per pane.** The tag shows only on a pane marked
+  `data-tooltip`. The cockpit marks the built-in panes except the map
+  (the map has its own hover box, ADR 0077). A script pane asks for it
+  with `createPane{tooltip = true}`; the default is off, so the pane bar,
+  almanac, map search and key manager show none. `ScriptPane` marks it
+  next to `data-no-cross`. It is part of the pane content
+  (`PaneContent.tooltip`, `"tooltip": true` in full SPANE records, kept
+  by deltas, like `cross`), so the log player honours it. A reload-safe
+  `createPane` with another `tooltip` applies it.
+- The pane bar no longer has the tag over its first buttons (consequence
+  above is moot for it).

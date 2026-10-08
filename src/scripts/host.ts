@@ -1921,6 +1921,11 @@ export class ScriptHost {
       if (cross === false && temporary === true) {
         throw new Error(`bad argument #1 to 'createPane' (a temporary pane always has its close cross)`);
       }
+      // The name tag on a hover over the borderless pane (ADR 0087 addendum); off by default.
+      const tooltip = t.tooltip;
+      if (tooltip !== undefined && typeof tooltip !== 'boolean') {
+        throw new Error(`bad argument #1 to 'createPane' (tooltip must be true or false)`);
+      }
       const lane = t.lane;
       if (lane !== undefined && lane !== 'own') throw new Error(`bad argument #1 to 'createPane' (lane must be "own")`);
       const dock = t.dock ?? 'right';
@@ -1938,8 +1943,9 @@ export class ScriptHost {
           done(old);
         }
         if (short !== undefined) old.short = short;
-        if (cross !== undefined && old.content.cross !== cross) {
-          old.content.cross = cross;
+        if ((cross !== undefined && old.content.cross !== cross) || (tooltip !== undefined && old.content.tooltip !== tooltip)) {
+          if (cross !== undefined) old.content.cross = cross;
+          if (tooltip !== undefined) old.content.tooltip = tooltip;
           old.content.version++;
           old.view.changed();
         }
@@ -1975,6 +1981,7 @@ export class ScriptHost {
       reg.content = new PaneContent(title ?? name, {
         anchor,
         ...(cross === false ? { cross: false } : {}),
+        ...(tooltip === true ? { tooltip: true } : {}),
         onDrop: (n) => {
           const tg = reg.toggles.get(n);
           if (tg) this.releaseToggle(tg);

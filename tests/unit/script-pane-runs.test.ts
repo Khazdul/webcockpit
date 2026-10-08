@@ -228,6 +228,23 @@ describe('SPANE records: anchor (ADR 0053 addendum)', () => {
     expect(o.payload).not.toContain('cross');
     expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).cross).toBe(true);
   });
+
+  it('a pane with the name tag says so in full records; deltas and the player keep it (ADR 0087 addendum)', () => {
+    const c = new PaneContent('Tip', { tooltip: true });
+    c.setLine(0, plain('a'));
+    const a = encodePaneRecord(null, c.snapshot())!;
+    expect(JSON.parse(a.payload).tooltip).toBe(true);
+    c.setLine(1, plain('b'));
+    const b = encodePaneRecord(a.state, c.snapshot())!;
+    expect(b.full).toBe(false);
+    let s = applyPaneRecord(null, a.payload)!;
+    s = applyPaneRecord(s, b.payload)!;
+    expect(s.tooltip).toBe(true);
+    expect(PaneContent.fromSnapshot(s).tooltip).toBe(true);
+    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+    expect(o.payload).not.toContain('tooltip');
+    expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).tooltip).toBe(false);
+  });
 });
 
 describe('RecordingPaneSurface', () => {

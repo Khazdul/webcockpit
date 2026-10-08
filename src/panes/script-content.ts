@@ -132,6 +132,8 @@ export interface PaneSnapshot {
   anchor?: 'top';
   /** `createPane{cross = false}`: no close cross on hover; absent: the cross shows (ADR 0084 addendum). */
   cross?: false;
+  /** `createPane{tooltip = true}`: the name tag on a hover over the borderless pane; absent: none (ADR 0087 addendum). */
+  tooltip?: true;
 }
 
 /** Where an overflowing pane's view sticks: the newest lines (a console) or the first (a list). */
@@ -257,6 +259,8 @@ export interface PaneContentOptions {
   anchor?: PaneAnchor;
   /** Whether the pane shows the close cross on hover (default true; ADR 0084 addendum). */
   cross?: boolean;
+  /** Whether a hover shows the name tag on the borderless pane (default false; ADR 0087 addendum). */
+  tooltip?: boolean;
 }
 
 export class PaneContent {
@@ -270,6 +274,8 @@ export class PaneContent {
   anchor: PaneAnchor;
   /** The close cross shows on hover (`createPane{cross = false}` turns it off). */
   cross: boolean;
+  /** A hover shows the name tag when borderless (`createPane{tooltip = true}`). */
+  tooltip: boolean;
   /** The hover style of links without their own (ADR 0065 round 2). */
   hover: HoverStyle = 'band';
   /** Bumped by every change (renderers compare it). */
@@ -287,6 +293,7 @@ export class PaneContent {
     this.maxLines = opts.maxLines ?? MAX_LINES;
     this.anchor = opts.anchor ?? 'bottom';
     this.cross = opts.cross ?? true;
+    this.tooltip = opts.tooltip ?? false;
   }
 
   setTitle(title: string): void {
@@ -593,6 +600,7 @@ export class PaneContent {
     };
     if (this.anchor === 'top') out.anchor = 'top';
     if (!this.cross) out.cross = false;
+    if (this.tooltip) out.tooltip = true;
     return out;
   }
 
@@ -609,6 +617,7 @@ export class PaneContent {
     this.hover = 'band';
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.cross = s.cross !== false;
+    this.tooltip = s.tooltip === true;
     this.broken = false;
     this.version++;
   }

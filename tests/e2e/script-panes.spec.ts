@@ -507,28 +507,43 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   expect(errors).toEqual([]);
 });
 
-// ADR 0087: resting 2 s on a borderless pane shows its name at the top
-// left; leaving hides it at once; a framed pane shows none.
-test('resting on a borderless pane shows its name after 2 s', async ({ page }) => {
+// ADR 0087: hovering 1 s on a borderless pane made with tooltip = true
+// shows its name centred on the top row; leaving hides it at once; a
+// framed pane and a pane without the option show none.
+test('hovering a borderless pane with tooltip = true shows its name after 1 s', async ({ page }) => {
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await putScript(page, HOVER, 'hovers');
+  await putScript(page, HOVER.replace('border = false}', 'border = false, tooltip = true}')
+    + 'createPane{id = "plain", title = "Plain Pane", dock = "left", rows = 4, cols = 30, border = false}\n', 'hovers');
   await page.keyboard.press('Enter');
   const id = 'hovers/main';
   const sp = page.locator(`.wc-pane[data-pane="${id}"]`);
   await expect(sp).toBeVisible();
+  await expect(sp).toHaveAttribute('data-tooltip', '');
   const tag = sp.locator('.wc-pane-name');
   await expect(tag).toHaveText(' Hover Pane ');
   await expect(tag).toBeHidden();
 
   const b = (await sp.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(400);
   await expect(tag).toBeHidden();
-  await expect(tag).toBeVisible({ timeout: 3000 });
+  await expect(tag).toBeVisible({ timeout: 2000 });
+  // Centred on the pane.
+  const t = (await tag.boundingBox())!;
+  expect(Math.abs(t.x + t.width / 2 - (b.x + b.width / 2))).toBeLessThan(2);
   await page.mouse.move(5, 5);
   await expect(tag).toBeHidden();
+
+  // Without the option: no tag.
+  const plain = page.locator('.wc-pane[data-pane="hovers/plain"]');
+  await expect(plain).toBeVisible();
+  await expect(plain).not.toHaveAttribute('data-tooltip', '');
+  const p = (await plain.boundingBox())!;
+  await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
+  await page.waitForTimeout(1500);
+  await expect(plain.locator('.wc-pane-name')).toBeHidden();
 
   // Framed: no tag (the frame shows the title).
   await page.evaluate((id) => window.__wc!.settings.update((d) => {
@@ -536,6 +551,18 @@ test('resting on a borderless pane shows its name after 2 s', async ({ page }) =
   }), id);
   await expect(sp).toHaveAttribute('data-framed', '');
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.waitForTimeout(2500);
+  await page.waitForTimeout(1500);
   await expect(tag).toBeHidden();
+});
+
+// ADR 0087 addendum: built-in panes have the name tag, the map never.
+test('built-in panes have the name tag, the map none', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-pane-comm')).toBeVisible();
+  await expect(page.locator('.wc-pane-comm')).toHaveAttribute('data-tooltip', '');
+  await expect(page.locator('.wc-pane-map')).toHaveCount(1);
+  await expect(page.locator('.wc-pane-map')).not.toHaveAttribute('data-tooltip', '');
 });

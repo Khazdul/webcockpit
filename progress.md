@@ -38,6 +38,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 25 round 5
+
+- **Done:** name tag per owner feedback: 1 s, centred, smaller/dimmer;
+  not on the map; script panes opt in with `createPane{tooltip = true}`
+  (default off). ADR 0087 addendum.
+- **Checked:** unit 2494; e2e script-panes, layout, panebar, lua-help,
+  almanac, mapsearch-pane, keymanager, player, script-pane-runs 90/90.
+- **Next:** owner tests round 5.
+- **Commits:** see git log (feat + this docs commit).
+
 ### 2026-10-08 — Stage 25 round 4
 
 - **Done:** name tag on a 2 s hover over a borderless pane (owner
