@@ -48,6 +48,18 @@ Newest first.
 - **Next:** owner tests stage 25 live.
 - **Commits:** a998d91, plus this one.
 
+### 2026-10-08 — Samsung Internet phone detection
+
+- **Owner:** Samsung Internet (opened from Discord) shows "Window too
+  small" on the phone; Chrome works.
+- **Cause:** Samsung Internet does not match `(pointer: coarse) and
+  (hover: none)`, so neither device flag was set.
+- **Done:** touch fallback: `maxTouchPoints > 0` and a short side < 600
+  or Android (ADR 0086).
+- **Checked:** typecheck, unit 2493, e2e phone-layout/phone-touch/chrome 45/45.
+- **Next:** release on the owner's go; owner checks in Samsung Internet.
+- **Commits:** 2b19be2, this one.
+
 ### 2026-10-08 — Stage 25 round 3
 
 - **Owner (round 2):** drop the map colour code row; named colours only,
