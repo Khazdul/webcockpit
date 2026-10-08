@@ -128,20 +128,16 @@
     content: none;
   }
 
-  /* Hovering a borderless pane 1 s shows its name (ADR 0087): a small,
-   * dim tag centred on the top row, where a frame puts the title. Only on
-   * a pane marked `data-tooltip` (built-in panes but the map; script panes
-   * with `createPane{tooltip = true}`). The delay is a visibility
-   * transition, so no timers: leaving hides it at once and a new hover
-   * starts the 1 s again. */
+  /* Hovering a borderless pane shows its name at once (ADR 0087): a
+   * small, dim tag centred on the top row, where a frame puts the title.
+   * Only on a pane marked `data-tooltip` (built-in panes but the map;
+   * script panes with `createPane{tooltip = true}`). */
   .wc-cockpit:not([data-phone-tab]) > .wc-pane[data-tooltip]:not([data-framed]):hover > .wc-pane-name {
     visibility: visible;
-    transition-delay: 1s;
   }
 
   .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane > .wc-pane-name {
     visibility: hidden;
-    transition-delay: 0s;
   }
 }
 
@@ -162,7 +158,6 @@
   user-select: none;
   z-index: 4;
   visibility: hidden;
-  transition: visibility 0s;
 }
 
 .wc-pane[data-dragging] {

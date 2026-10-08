@@ -50,3 +50,9 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
   `createPane` with another `tooltip` applies it.
 - The pane bar no longer has the tag over its first buttons (consequence
   above is moot for it).
+
+## Addendum — stage 25 round 5 feedback (2026-10-08)
+
+- **No delay.** The tag shows as soon as the pointer is over the pane
+  (built-in panes and script panes with `tooltip = true` alike); the
+  visibility transition is removed.

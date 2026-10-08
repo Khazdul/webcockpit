@@ -167,3 +167,10 @@ Test guide (round 5):
    1 s → small, dim name tag centred on the top row.
 2. Map, pane bar, almanac, map search, key manager: no tag.
 3. A script with `createPane{..., border = false, tooltip = true}`: tag.
+
+### Round 5 (2026-10-08)
+
+- Works well; only change: no delay, the tag shows at once (also for
+  `tooltip = true` script panes).
+
+Done (round 6): delay removed. ADR 0087 addendum.

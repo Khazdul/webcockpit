@@ -507,10 +507,10 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   expect(errors).toEqual([]);
 });
 
-// ADR 0087: hovering 1 s on a borderless pane made with tooltip = true
+// ADR 0087: hovering a borderless pane made with tooltip = true
 // shows its name centred on the top row; leaving hides it at once; a
 // framed pane and a pane without the option show none.
-test('hovering a borderless pane with tooltip = true shows its name after 1 s', async ({ page }) => {
+test('hovering a borderless pane with tooltip = true shows its name at once', async ({ page }) => {
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -527,9 +527,7 @@ test('hovering a borderless pane with tooltip = true shows its name after 1 s', 
 
   const b = (await sp.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.waitForTimeout(400);
-  await expect(tag).toBeHidden();
-  await expect(tag).toBeVisible({ timeout: 2000 });
+  await expect(tag).toBeVisible({ timeout: 300 });
   // Centred on the pane.
   const t = (await tag.boundingBox())!;
   expect(Math.abs(t.x + t.width / 2 - (b.x + b.width / 2))).toBeLessThan(2);
@@ -542,7 +540,7 @@ test('hovering a borderless pane with tooltip = true shows its name after 1 s', 
   await expect(plain).not.toHaveAttribute('data-tooltip', '');
   const p = (await plain.boundingBox())!;
   await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(300);
   await expect(plain.locator('.wc-pane-name')).toBeHidden();
 
   // Framed: no tag (the frame shows the title).
@@ -551,7 +549,7 @@ test('hovering a borderless pane with tooltip = true shows its name after 1 s', 
   }), id);
   await expect(sp).toHaveAttribute('data-framed', '');
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(300);
   await expect(tag).toBeHidden();
 });
 
