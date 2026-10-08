@@ -864,7 +864,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "opts",
           "table?",
-          "value (the text to start with), placeholder (grey text while it is empty), maxLength (most characters), onSubmit(text) (Enter), onCancel() (Esc), onChange(text) (each edit), onBlur(text) (the field lost the keyboard to a click elsewhere, not by Enter or Esc) and onKey(key) (Up, Down, PgUp, PgDn, Tab, Shift+Tab: ArrowUp, ArrowDown, PageUp, PageDown, Tab, Shift+Tab).",
+          "value (the text to start with), placeholder (grey text while it is empty), maxLength (most characters), onSubmit(text) (Enter), onCancel() (Esc), onChange(text) (each edit), onBlur(text) (the field lost the keyboard to a click elsewhere, not by Enter or Esc) and onKey(key) (Up, Down, PgUp, PgDn, Tab, Shift+Tab: ArrowUp, ArrowDown, PageUp, PageDown, Tab, Shift+Tab, and the keys of keys). keys: a list of more key names for onKey, as tempKey names them (e.g. {\"Ctrl+F\"}): macros and script keys do not run while the field has the keyboard, so a script's own toggle key can come here instead.",
         ),
       ],
       returns: "A field: field:focus(), field:select(), field:value(), field:setValue(text), field:remove().",

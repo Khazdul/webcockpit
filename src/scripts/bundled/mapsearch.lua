@@ -2,6 +2,7 @@
 -- @summary  Finds rooms on the map like MMapper's Find Rooms and marks them
 -- @api      1
 -- @alias    mapsearch  Show or hide the Map search pane (mapsearch <text>: search for it)
+-- @key      Ctrl+F     Show or hide the Map search pane, the cursor in Query
 -- @help     The Map search pane finds rooms on the map, as MMapper's Find
 -- @help     Rooms dialog does. Type in Query and press Enter (or Find).
 -- @help     Search says where to look:
@@ -32,6 +33,7 @@
 -- @help     The Map pane must be on with a map loaded.
 -- @help
 -- @help       mapsearch          show or hide the pane
+-- @help       Ctrl+F             show or hide the pane (as mapsearch)
 -- @help       mapsearch <text>   search for text (with the pane's options)
 
 --[[
@@ -180,7 +182,7 @@ end
 
 -- ------------------------------------------------------------ drawing
 
-local find, close, drawStatus, drawAll -- below
+local find, close, toggle, drawStatus, drawAll -- below
 
 -- Whether any room in the list has an area (most rooms of arda.mm2 have none).
 local function anyArea()
@@ -232,6 +234,10 @@ local function drawControls()
     end,
     onCancel = function() focusWanted = false end,
     onBlur = function() focusWanted = false end,
+    -- The field keeps the keyboard from the key bindings: it reports
+    -- Ctrl+F itself, so the key closes the pane from here too.
+    keys = { "Ctrl+F" },
+    onKey = function(key) if key == "Ctrl+F" then toggle() end end,
   })
 
   -- The Search radio buttons in two columns.
@@ -452,20 +458,27 @@ pane:onResize(function(rows, cols)
   if focusWanted and input then input:focus() end
 end)
 
--- ------------------------------------------------------------ alias
+-- ------------------------------------------------------------ alias and key
+
+-- Shows the pane with the keyboard in Query, or closes it.
+toggle = function()
+  if pane:visible() then
+    close()
+  else
+    pane:show()
+    focusWanted = true
+    if input then input:focus() end
+    -- The field is made again if the pane comes back at another width.
+    tempTimer(1, function() focusWanted = false end)
+  end
+end
+
+tempKey("Ctrl+F", toggle)
 
 tempAlias("^mapsearch(?:\\s+(.*))?$", function()
   local text = trim(matches[2] or "")
   if text == "" then
-    if pane:visible() then
-      close()
-    else
-      pane:show()
-      focusWanted = true
-      if input then input:focus() end
-      -- The field is made again if the pane comes back at another width.
-      tempTimer(1, function() focusWanted = false end)
-    end
+    toggle()
     return
   end
   if not pane:visible() then pane:show() end

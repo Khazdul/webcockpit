@@ -39,6 +39,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Ctrl+F toggles Map search
+
+- **Done:** owner: Ctrl+F shows/hides the Map search pane, the cursor in
+  Query. `mapsearch` binds it with `tempKey`; new `pane:setInput{keys}`
+  lets a field report chosen keys to onKey, so Ctrl+F closes the pane
+  from the field too (keys still never leak from fields otherwise).
+  ADR 0055 addendum; API reference and manual updated.
+- **Checked:** typecheck, vitest 2507 passed; e2e mapsearch-pane,
+  new-user, script-fields pass.
+- **Next:** in the next release.
+- **Commits:** this one.
+
 ### 2026-10-08 — Character pane without the name tag
 
 - **Done:** owner: the Character pane needs no name tag on hover. It is

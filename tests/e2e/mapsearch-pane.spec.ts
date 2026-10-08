@@ -138,5 +138,15 @@ test('map search pane: Notes search, results with steps, marks until Clear, diac
   await page.keyboard.press('Enter');
   await expect(pane(page)).toBeVisible();
   await expect(field).toBeFocused();
+
+  // Ctrl+F toggles it: off from the field, on again from the input line with the field focused.
+  await page.keyboard.press('Control+f');
+  await expect(pane(page)).toBeHidden();
+  await page.locator('.wc-input-field').focus();
+  await page.keyboard.press('Control+f');
+  await expect(pane(page)).toBeVisible();
+  await expect(field).toBeFocused();
+  await page.keyboard.press('Control+f');
+  await expect(pane(page)).toBeHidden();
   expect(errors).toEqual([]);
 });

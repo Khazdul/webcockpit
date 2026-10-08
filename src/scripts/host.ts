@@ -1754,7 +1754,7 @@ export class ScriptHost {
         const len = a.number(4);
         if (!Number.isInteger(col) || col < 1) throw new Error(`bad argument #3 to '${a.name}' (column must be a whole number from 1)`);
         if (!Number.isInteger(len) || len < 1) throw new Error(`bad argument #4 to '${a.name}' (length must be a whole number from 1)`);
-        const opts: { value?: string; placeholder?: string; maxLength?: number } = {};
+        const opts: { value?: string; placeholder?: string; maxLength?: number; keys?: string[] } = {};
         const has = a.count >= 5 && a.type(5) !== 'nil';
         if (has) {
           const t = a.table(5);
@@ -1773,6 +1773,16 @@ export class ScriptHost {
               throw new Error(`bad argument #5 to '${a.name}' (maxLength must be a number from 1)`);
             }
             opts.maxLength = o.maxLength;
+          }
+          // More keys for onKey, such as the script's own toggle key (ADR 0055 addendum).
+          if (o.keys !== undefined) {
+            const bad = `bad argument #5 to '${a.name}' (keys must be a list of key names)`;
+            if (!Array.isArray(o.keys)) throw new Error(bad);
+            opts.keys = o.keys.map((k) => {
+              const key = typeof k === 'string' ? normalizeKey(k) : null;
+              if (!key) throw new Error(typeof k === 'string' ? `bad argument #5 to '${a.name}' (unknown key '${k}')` : bad);
+              return key;
+            });
           }
         }
         const n = id();

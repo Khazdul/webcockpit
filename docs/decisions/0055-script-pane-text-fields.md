@@ -127,3 +127,17 @@ The owner saw the old text through a rename field (`$deerpopop` over
   comes back). The field itself stays until the script removes it, so a
   blur never leaves a half state: it is either still a working field or
   gone.
+
+## Addendum — `keys` for a field's onKey (2026-10-08)
+
+The owner asked that Ctrl+F toggle the Map search pane and put the
+cursor in its query field. Showing it works with `tempKey`; closing it
+from the field did not, since keys never leak out of a field (above).
+
+`pane:setInput{keys = {...}}` lists more key names (as `tempKey` names
+them; an unknown name is an error) that the field reports to `onKey`
+like the arrows, instead of consuming them. The rule that macros and
+script keys do not run in a field stays: the script opts in per field,
+for its own keys. Enter and Esc stay the field's (handled first). The
+bundled `mapsearch` binds Ctrl+F with `tempKey` and lists it in its
+query field's `keys`.

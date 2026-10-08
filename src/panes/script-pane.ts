@@ -650,7 +650,7 @@ export class ScriptPane extends PaneShell {
       this.onField?.(id, { type: 'cancel' });
       return;
     }
-    if (FIELD_KEYS.has(name)) {
+    if (FIELD_KEYS.has(name) || this.model.field(id)?.keys?.includes(name)) {
       e.preventDefault();
       this.onField?.(id, { type: 'key', key: name });
       return;

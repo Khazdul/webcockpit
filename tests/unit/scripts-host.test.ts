@@ -1375,6 +1375,31 @@ describe('pane text fields (ADR 0055)', () => {
     expect(t.sent[8]).toBe('nil');
     expect(t.lib.get('v')!.lastError).toBeNull();
   });
+
+  it('keys: more keys for onKey, normalised; bad names are errors (ADR 0055 addendum)', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        k: src(`
+          local pane = createPane{id = "k"}
+          pane:setInput(1, 1, 5, {keys = {"ctrl+f", "F5"}, onKey = function(key) send("key " .. key) end})
+          for _, bad in ipairs({ {keys = "Ctrl+F"}, {keys = {"Ctrl+Nope"}}, {keys = {3}} }) do
+            local ok, err = pcall(pane.setInput, pane, 2, 1, 5, bad)
+            send(err)
+          end
+        `),
+      },
+      { panes },
+    );
+    const f = panes.get('k/k')!.content.fields[0]!;
+    expect(f.keys).toEqual(['Ctrl+F', 'F5']);
+    expect(t.sent[0]).toMatch(/keys must be a list of key names/);
+    expect(t.sent[1]).toMatch(/unknown key 'Ctrl\+Nope'/);
+    expect(t.sent[2]).toMatch(/keys must be a list of key names/);
+    t.sent.length = 0;
+    panes.get('k/k')!.events.onField!(f.id, { type: 'key', key: 'Ctrl+F' });
+    expect(t.sent).toEqual(['key Ctrl+F']);
+  });
 });
 
 describe('panes', () => {

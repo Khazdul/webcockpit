@@ -108,6 +108,8 @@ export interface PaneField {
   placeholder: string;
   /** Most characters of the value. */
   maxLength: number;
+  /** More keys (canonical names) the field reports to the script besides FIELD_KEYS (`setInput{keys}`). */
+  keys?: readonly string[];
 }
 
 /** A range of cells that drags the pane (ADR 0065 round 1). */
@@ -503,7 +505,13 @@ export class PaneContent {
    * fields it overlaps on that row are dropped. The value is cut to
    * `maxLength` (at most MAX_FIELD_VALUE) and made one line.
    */
-  addField(row: number, col: number, len: number, id: number, opts: { value?: string; placeholder?: string; maxLength?: number } = {}): void {
+  addField(
+    row: number,
+    col: number,
+    len: number,
+    id: number,
+    opts: { value?: string; placeholder?: string; maxLength?: number; keys?: readonly string[] } = {},
+  ): void {
     this.ensure(row);
     const c = Math.max(0, Math.floor(col));
     if (c >= MAX_LINE_CELLS) throw new RangeError(`column ${c + 1} is past the last column (${MAX_LINE_CELLS})`);
@@ -524,6 +532,7 @@ export class PaneContent {
       value: fieldText(opts.value ?? '', max),
       placeholder: fieldText(opts.placeholder ?? '', MAX_HINT),
       maxLength: max,
+      ...(opts.keys?.length ? { keys: [...opts.keys] } : {}),
     });
     this.version++;
   }
