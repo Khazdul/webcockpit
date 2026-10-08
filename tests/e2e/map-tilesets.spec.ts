@@ -1,7 +1,9 @@
-// Stage 22 (ADR 0082): map tilesets. Options → Mapper picks a set; the
+// Stage 22 (ADR 0082) and 26 (ADR 0088): map tilesets. Options → Mapper picks a set; the
 // Map pane fetches that set's files (the default pixmaps only for files
 // the set lacks), swaps the tiles live, and an alternating set follows a
 // mocked game clock's season. An HTML replay embeds the client's set.
+// A community set switches the map background to white and choosing
+// Default again restores the user's colour.
 //
 // WC_MAP_SHOT_DIR=<dir> saves screenshots of the default, Desert and a
 // Shimrod season at the same spot.
@@ -134,13 +136,16 @@ const diff = (a: number[], b: number[]): number =>
 
 const setOf = (id: string) => TILESETS.find((t) => t.id === id)!;
 
-/** Every renderer pixmap, as the path it must be fetched from under set `id`. */
+/** Every renderer pixmap, as the path it must be fetched from under set `id` (an alias: the set's own file, ADR 0088). */
 function expectedPaths(id: string): string[] {
   const t = setOf(id);
-  return RENDERER_PIXMAPS.map((p) => {
+  const paths = RENDERER_PIXMAPS.map((p) => {
     const f = p.slice('pixmaps/'.length);
+    const alias = t.aliases?.[f];
+    if (alias) return `tilesets/${t.dir}/${alias}`;
     return t.lacks.includes(f) ? p : `tilesets/${t.dir}/${f}`;
-  }).sort();
+  });
+  return [...new Set(paths)].sort();
 }
 
 test('Options → Mapper: a tileset is fetched (only its files), drawn and swapped live', async ({ page }, info) => {
@@ -167,14 +172,24 @@ test('Options → Mapper: a tileset is fetched (only its files), drawn and swapp
   const frame = await openOptionsMapper(page);
   await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText('Tileset: Default (MMapper)');
   await expect(frame.locator('.wc-mapper-credit')).toHaveText("MMapper's default tiles");
-  tiles.length = 0;
-  // Desert is the last choice: ← from Default wraps to it.
+  // ← from Default wraps to the last choices: Gray's Map, Gefe & Rik (ADR 0088), then Desert.
   for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowLeft');
+  await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText("Tileset: Gray's Map");
+  await page.keyboard.press('ArrowLeft');
+  await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText('Tileset: Gefe & Rik');
   await page.keyboard.press('ArrowLeft');
   await expect(frame.locator('.wc-mrow[data-key="tileset"] .wc-label')).toHaveText('Tileset: Desert');
   await expect(frame.locator('.wc-mapper-credit')).toHaveText("By Khazdul, from Shimrod's tiles");
   await expect(content).toHaveAttribute('data-map-tileset', 'desert');
-  // Exactly the renderer's files: Desert's own, the default pixmaps for what it lacks.
+  // Exactly the renderer's files: Desert's own, the default pixmaps for what it lacks
+  // (chosen afresh, so the sets passed on the way are not counted).
+  await page.evaluate(() => window.__wc!.settings.update({ mapper: { tileset: 'default' } }));
+  await expect(content).toHaveAttribute('data-map-tileset', 'default');
+  await page.waitForTimeout(1500);
+  tiles.length = 0;
+  await page.evaluate(() => window.__wc!.settings.update({ mapper: { tileset: 'desert' } }));
+  await expect(content).toHaveAttribute('data-map-tileset', 'desert');
   await expect.poll(() => [...new Set(tiles)].sort(), { timeout: 20_000 }).toEqual(expectedPaths('desert'));
   expect(tiles.some((p) => p.startsWith('tilesets/') && !p.startsWith('tilesets/desert/'))).toBe(false);
   // Back to the cockpit (the pane draws only while shown).
@@ -253,4 +268,79 @@ test('alternating picks the season of the game clock at start, and an HTML repla
     expect(files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(`../../public/map/${src}`, import.meta.url)).toString('base64')}`);
   }
   expect(fromSet).toBeGreaterThan(5);
+});
+
+test('community tilesets: last in the list, a white background while chosen, restored after (ADR 0088)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const tiles = trackTiles(page);
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  // The user's own background: Navy.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { background: '#101c3c' } }));
+  const content = page.locator('.wc-app .wc-pane-map .wc-pane-content');
+  await expect(content).toHaveAttribute('data-map-state', 'loaded', { timeout: 30_000 });
+  await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });
+  await expect(content).toHaveAttribute('data-map-bg', '#101c3c');
+  const mapper = () => page.evaluate(() => window.__wc!.settings.get().mapper);
+
+  const frame = await openOptionsMapper(page);
+  const tileRow = frame.locator('.wc-mrow[data-key="tileset"] .wc-label');
+  const bgRow = frame.locator('.wc-mrow[data-key="background"] .wc-label');
+  await expect(tileRow).toHaveText('Tileset: Default (MMapper)');
+  await expect(bgRow).toHaveText('Background colour: Navy');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+
+  // ← from Default: Gray's Map, the last row. Rapids come from its water file.
+  tiles.length = 0;
+  await page.keyboard.press('ArrowLeft');
+  await expect(tileRow).toHaveText("Tileset: Gray's Map");
+  await expect(frame.locator('.wc-mapper-credit')).toHaveText("Tiles by Sunnyl75, after Gray's Mapeditor");
+  await expect(bgRow).toHaveText('Background colour: White');
+  await expect(content).toHaveAttribute('data-map-tileset', 'grays-map');
+  await expect(content).toHaveAttribute('data-map-bg', '#ffffff');
+  await expect.poll(() => [...new Set(tiles)].sort(), { timeout: 20_000 }).toEqual(expectedPaths('grays-map'));
+  expect(tiles).toContain('tilesets/grays-map/terrain-water.png');
+  expect(tiles.some((p) => p.endsWith('terrain-rapids.png'))).toBe(false);
+  await page.waitForTimeout(1000);
+
+  // ← again: Gefe & Rik, before it; still white, the Navy remembered.
+  tiles.length = 0;
+  await page.keyboard.press('ArrowLeft');
+  await expect(tileRow).toHaveText('Tileset: Gefe & Rik');
+  await expect(frame.locator('.wc-mapper-credit')).toHaveText("Tiles by Octavia, after Gefe & Rik's maps");
+  await expect(bgRow).toHaveText('Background colour: White');
+  await expect(content).toHaveAttribute('data-map-tileset', 'gefe-rik');
+  await expect.poll(() => [...new Set(tiles)].sort(), { timeout: 20_000 }).toEqual(expectedPaths('gefe-rik'));
+  expect(tiles.some((p) => p.startsWith('tilesets/') && !p.startsWith('tilesets/gefe-rik/'))).toBe(false);
+  expect(await mapper()).toMatchObject({ tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#101c3c' });
+
+  // An HTML replay embeds the set and draws its flow marks as is, too.
+  const arda = await readMm2(new Uint8Array(readFileSync(new URL('../../public/map/arda.mm2', import.meta.url))), inflate);
+  const us0 = 1_790_000_000_000_000;
+  let log = gmcpLine(us0, 'Char.Name', { name: 'Rasta', fullname: 'Rasta' });
+  const room = arda.serverId[RENT_ROOM] ? { id: arda.serverId[RENT_ROOM], name: arda.names[RENT_ROOM], desc: arda.descs[RENT_ROOM] } : { name: arda.names[RENT_ROOM], desc: arda.descs[RENT_ROOM] };
+  log += gmcpLine(us0 + 500_000, 'Room.Info', room);
+  const html = await page.evaluate((t) => window.__wc!.replayHtml({ texts: [t], character: 'Rasta' }), log);
+  const p = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(html)![1]!);
+  expect(p.map!.streamsAsIs).toBe(true);
+  const gefe = setOf('gefe-rik');
+  const own = Object.keys(p.map!.files).filter((k) => k.startsWith('pixmaps/') && !gefe.lacks.includes(k.slice('pixmaps/'.length)));
+  expect(own.length).toBeGreaterThan(5);
+  for (const k of own) {
+    const src = `../../public/map/tilesets/gefe-rik/${k.slice('pixmaps/'.length)}`;
+    expect(p.map!.files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(src, import.meta.url)).toString('base64')}`);
+  }
+
+  // → → back to Default: the Navy comes back.
+  await page.keyboard.press('ArrowRight');
+  await expect(tileRow).toHaveText("Tileset: Gray's Map");
+  await page.keyboard.press('ArrowRight');
+  await expect(tileRow).toHaveText('Tileset: Default (MMapper)');
+  await expect(bgRow).toHaveText('Background colour: Navy');
+  await expect(content).toHaveAttribute('data-map-tileset', 'default');
+  await expect(content).toHaveAttribute('data-map-bg', '#101c3c');
+  expect(await mapper()).toMatchObject({ tileset: 'default', background: '#101c3c', backgroundBefore: '' });
+  expect(errors).toEqual([]);
 });
