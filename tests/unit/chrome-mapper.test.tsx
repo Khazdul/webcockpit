@@ -271,7 +271,7 @@ describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () =
     expect(row()).toBe('Background colour: Default');
     expect(frame(host).querySelector('.wc-mrow[data-key="backgroundCode"]')).toBeNull();
 
-    // ←→ cycle the named list (Default first, Black next, wrapping, White last).
+    // ←→ cycle the named list (Default first, Black next, wrapping, Transparent last).
     await click(host, 'notes'); // the cursor to a row above (notes toggles; put it back)
     await key('Enter');
     for (let i = 0; i < 4; i++) await key('ArrowDown');
@@ -280,6 +280,9 @@ describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () =
     expect(bg()).toBe('#000000');
     expect(row()).toBe('Background colour: Black');
     await key('ArrowLeft');
+    await key('ArrowLeft');
+    expect(bg()).toBe('transparent');
+    expect(row()).toBe('Background colour: Transparent');
     await key('ArrowLeft');
     expect(bg()).toBe('#ffffff');
     expect(row()).toBe('Background colour: White');
@@ -290,6 +293,8 @@ describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () =
     await key('Enter');
     expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Mapper ───');
     expect(bg()).toBe('#ffffff');
+    await key('Enter');
+    expect(bg()).toBe('transparent');
     await key('Enter');
     expect(bg()).toBe('#2e3436');
     expect(row()).toBe('Background colour: Default');

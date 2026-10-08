@@ -1,7 +1,16 @@
 // Map background colour (ADR 0085): the named list, the
 // renderer colour and the worker's `background` message.
 import { describe, expect, it } from 'vitest';
-import { MAP_BACKGROUNDS, MAP_BG_DARK_PAPER, MAP_BG_DEFAULT, isNamedMapBg, mapBgIsLight, mapBgName } from '../../src/map/backgrounds';
+import {
+  MAP_BACKGROUNDS,
+  MAP_BG_DARK_PAPER,
+  MAP_BG_DEFAULT,
+  MAP_BG_TRANSPARENT,
+  isNamedMapBg,
+  mapBgEffective,
+  mapBgIsLight,
+  mapBgName,
+} from '../../src/map/backgrounds';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
 import { BACKGROUND, LIGHT_BG_INK, type RGBA, hexRgba, isLightBackground } from '../../src/map/render/palette';
 import type { Renderer } from '../../src/map/render/renderer';
@@ -23,15 +32,17 @@ describe('map background choices', () => {
     expect(hexRgba(MAP_BG_DEFAULT)).toEqual(BACKGROUND);
   });
 
-  it('has unique, lower-case #rrggbb entries', () => {
+  it('has unique, lower-case #rrggbb entries, then Transparent last', () => {
     const hexes = MAP_BACKGROUNDS.map((c) => c.hex);
-    for (const h of hexes) expect(h).toMatch(/^#[0-9a-f]{6}$/);
+    expect(MAP_BACKGROUNDS.at(-1)).toEqual({ name: 'Transparent', hex: MAP_BG_TRANSPARENT });
+    for (const h of hexes.slice(0, -1)) expect(h).toMatch(/^#[0-9a-f]{6}$/);
     expect(new Set(hexes).size).toBe(hexes.length);
     expect(new Set(MAP_BACKGROUNDS.map((c) => c.name)).size).toBe(hexes.length);
   });
 
   it('keeps the lines legible on every named colour: white on the dark ones, dark on Dark paper and White', () => {
-    for (const c of MAP_BACKGROUNDS) {
+    const colours = MAP_BACKGROUNDS.filter((c) => c.hex !== MAP_BG_TRANSPARENT);
+    for (const c of colours) {
       if (mapBgIsLight(c.hex)) {
         expect(contrast(LIGHT_INK, c.hex), c.name).toBeGreaterThanOrEqual(7);
         expect(isLightBackground(hexRgba(c.hex)), c.name).toBe(true);
@@ -41,8 +52,8 @@ describe('map background choices', () => {
       }
     }
     // Only Dark paper (a shade darker than the paper background) and White are light, last in the list.
-    expect(MAP_BACKGROUNDS.filter((c) => mapBgIsLight(c.hex)).map((c) => c.name)).toEqual(['Dark paper', 'White']);
-    expect(MAP_BACKGROUNDS.slice(-2).map((c) => c.name)).toEqual(['Dark paper', 'White']);
+    expect(colours.filter((c) => mapBgIsLight(c.hex)).map((c) => c.name)).toEqual(['Dark paper', 'White']);
+    expect(colours.slice(-2).map((c) => c.name)).toEqual(['Dark paper', 'White']);
     expect(MAP_BACKGROUNDS.some((c) => c.name === 'Black' && c.hex === '#000000')).toBe(true);
     expect(contrast(LIGHT_INK, '#ffffff')).toBeGreaterThanOrEqual(14);
     expect(MAP_BG_DARK_PAPER).toBe('#e8dfc8');
@@ -54,6 +65,13 @@ describe('map background choices', () => {
     for (const h of ['#ffffff', '#808080', '#767676', '#777777', '#2e3436', '#e8dfc8', '#ffff00', '#0000ff']) {
       expect(isLightBackground(hexRgba(h)), h).toBe(mapBgIsLight(h));
     }
+  });
+
+  it('Transparent draws on the pane background; a colour stays itself (ADR 0085 addendum)', () => {
+    expect(isNamedMapBg(MAP_BG_TRANSPARENT)).toBe(true);
+    expect(mapBgName(MAP_BG_TRANSPARENT)).toBe('Transparent');
+    expect(mapBgEffective(MAP_BG_TRANSPARENT, '#f4ecd8')).toBe('#f4ecd8');
+    expect(mapBgEffective('#000000', '#f4ecd8')).toBe('#000000');
   });
 
   it('names a listed colour and shows any other as its code', () => {

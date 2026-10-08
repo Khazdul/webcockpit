@@ -27,7 +27,7 @@ import {
   normalizeDock,
 } from '../layout/types';
 import { defaultFloatSize } from '../layout/allocate';
-import { isNamedMapBg } from '../map/backgrounds';
+import { MAP_BG_TRANSPARENT, isNamedMapBg } from '../map/backgrounds';
 import { TILESET_IDS } from '../map/tilesets';
 import { normalizeHex } from '../theme/color';
 import { INPUT_COLOR_IDS } from '../theme/presets';
@@ -307,9 +307,14 @@ export function migrateInput(raw: unknown): InputSettings {
  * Stored before version 2, 'minimal' was the default and moves to the
  * new default 'full' once (ADR 0080).
  */
+/** A map background: a hex colour, normalised, or Transparent (ADR 0085 addendum); else `dflt`. */
+function mapBg(raw: unknown, dflt: string): string {
+  return raw === MAP_BG_TRANSPARENT ? MAP_BG_TRANSPARENT : hex(raw, dflt);
+}
+
 /** A remembered map background (ADR 0088): a named colour, normalised, or `''`. */
 function rememberedBg(raw: unknown): string {
-  const h = hex(raw, '');
+  const h = mapBg(raw, '');
   return h !== '' && isNamedMapBg(h) ? h : '';
 }
 
@@ -317,7 +322,7 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
   const d = defaultSettings().mapper;
   const x = isObj(raw) ? raw : {};
   const hover = fromVersion < 2 && x.hover === 'minimal' ? 'full' : x.hover;
-  const bg = hex(x.background, d.background);
+  const bg = mapBg(x.background, d.background);
   return {
     notes: bool(x.notes, d.notes),
     hover: oneOf(hover, MAP_HOVER_MODES, d.hover),

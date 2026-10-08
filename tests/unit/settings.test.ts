@@ -696,6 +696,9 @@ describe('mapper settings (ADR 0077)', () => {
     expect(migrateMapper({ hover: 'off' })).toEqual({ notes: true, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(migrateMapper({ notes: 'no', hover: 'huge' })).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(migrateMapper(null)).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
+    // Transparent (ADR 0085 addendum) is kept, as a choice and remembered.
+    expect(migrateMapper({ background: 'transparent', backgroundBefore: 'transparent' })).toMatchObject({ background: 'transparent', backgroundBefore: 'transparent' });
+    expect(migrateMapper({ background: 'Transparent' }).background).toBe('#2e3436');
     expect(migrateMapper({ hover: 'minimal' }).hover).toBe('minimal');
   });
 

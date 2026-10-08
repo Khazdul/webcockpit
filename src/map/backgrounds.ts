@@ -20,6 +20,15 @@ export const MAP_BG_DEFAULT = '#2e3436';
 export const MAP_BG_DARK_PAPER = '#e8dfc8';
 
 /**
+ * "Transparent" (ADR 0085 addendum): the map draws on the Map pane's own
+ * background, the terminal background or the pane's tint. Not a colour:
+ * the pane resolves it (`mapBgEffective`) before the worker sees it, so
+ * the lower-layer fade and the light-background lines work as for any
+ * colour.
+ */
+export const MAP_BG_TRANSPARENT = 'transparent';
+
+/**
  * Named choices after the default. The dark ones keep the white
  * connection lines, the infomark text and the tiles' edges reading
  * (ADR 0085); on the light ones at the end (Dark paper, White) the
@@ -41,12 +50,18 @@ export const MAP_BACKGROUNDS: readonly NamedColor[] = [
   { name: 'Dark purple', hex: '#22162e' },
   { name: 'Dark paper', hex: MAP_BG_DARK_PAPER },
   { name: 'White', hex: '#ffffff' },
+  { name: 'Transparent', hex: MAP_BG_TRANSPARENT },
 ];
 
 /** Whether `hex` is one of the named choices. */
 export function isNamedMapBg(hex: string): boolean {
   const h = hex.toLowerCase();
   return MAP_BACKGROUNDS.some((c) => c.hex === h);
+}
+
+/** The colour the map draws on: `bg`, or `paneBg` (`#rrggbb`) for Transparent. */
+export function mapBgEffective(bg: string, paneBg: string): string {
+  return bg === MAP_BG_TRANSPARENT ? paneBg : bg;
 }
 
 /** Whether the map draws dark lines on `hex` (ADR 0085 addendum; as the renderer decides). */

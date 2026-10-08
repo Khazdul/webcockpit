@@ -124,3 +124,25 @@ it. Also: the named list must include Black and White.
    threshold, so it takes the dark-lines path of round 2 (`#262626`
    lines, ≈ 15:1 on white; unit test asks 7:1 for every light choice).
 4. Dark paper and the dark lines on light backgrounds stay.
+
+## Addendum — Transparent (2026-10-08)
+
+The owner asked for "transparent" as a map background, if not too
+involved.
+
+1. **Choice.** `Transparent` is last in the named list; the setting
+   stores the word `transparent` (migration keeps it, also as the
+   remembered background of ADR 0088).
+2. **Meaning.** The map draws on the Map pane's own background: the
+   pane's tint fill, else the terminal background
+   (`paneEffectiveBg`). The pane resolves it (`mapBgEffective`) and
+   sends that `#rrggbb` to the worker, and follows changes to the theme
+   and the pane's colour.
+3. **Why not a see-through canvas.** The WebGL context is opaque
+   (`alpha: false`) and the lower-layer fade blends into the background
+   colour. A real alpha canvas would need premultiplied blending
+   throughout and a new fade, and would only differ where something lies
+   behind the pane, which is the pane's own opaque background. Resolving
+   to that colour looks the same, keeps the fade, and picks dark lines
+   on a light (paper) pane by the existing rule. Worker and protocol are
+   unchanged.

@@ -39,8 +39,9 @@
 // (Gefe & Rik, Gray's Map) switches the background colour to its own and
 // leaving it restores the user's (`chooseTileset`, ADR 0088). Background colour
 // (`mapper.background`, ADR 0085 and its addenda): ←→ cycles the named
-// colours of src/map/backgrounds.ts (Default first), Enter steps forward
-// like the other cyclers. The Map pane draws the colour at once.
+// colours of src/map/backgrounds.ts (Default first, Transparent last),
+// Enter steps forward like the other cyclers. The Map pane draws the
+// colour at once.
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';

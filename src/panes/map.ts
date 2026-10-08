@@ -75,6 +75,9 @@ import { type PinchPoint, pinchStep } from '../map/pinch';
 import { BUNDLED_MAP_BYTES } from '../map/progress';
 import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
 import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
+import { mapBgEffective } from '../map/backgrounds';
+import { paneEffectiveBg } from '../theme/color';
+import { paneSettingsOf } from '../settings/types';
 import { MapHover } from './map-hover';
 import { MapLoading } from './map-loading';
 import { PaneShell, type PaneContext } from './pane';
@@ -188,7 +191,8 @@ export class MapPane extends PaneShell {
     }
 
     this.applyBackground();
-    this.own(ctx.settings.subscribe((next, prev) => next.mapper.background !== prev.mapper.background && this.applyBackground(true)));
+    // Transparent follows the pane's background too (the theme, the pane's tint).
+    this.own(ctx.settings.subscribe(() => this.applyBackground(true)));
 
     this.onResize(() => this.sync());
     this.own(ctx.cells.subscribe(() => this.sync()));
@@ -370,7 +374,7 @@ export class MapPane extends PaneShell {
         height: h,
         dpr: this.dpr(),
         assets: this.assets(),
-        background: this.ctx.settings.get().mapper.background,
+        background: this.background(),
         onMessage: this.onWorker,
       });
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
@@ -387,9 +391,19 @@ export class MapPane extends PaneShell {
     }
   }
 
-  /** The background setting on the pane (CSS) and, with `send`, to a running worker (ADR 0085). */
+  /**
+   * The colour the map draws on (ADR 0085): the setting, or for
+   * Transparent the pane's own background (its tint, else the terminal's).
+   */
+  private background(): string {
+    const s = this.ctx.settings.get();
+    return mapBgEffective(s.mapper.background, paneEffectiveBg(paneSettingsOf(s.panes, 'map').color, s.appearance.bg));
+  }
+
+  /** The background on the pane (CSS) and, with `send` and a change, to a running worker (ADR 0085). */
   private applyBackground(send = false): void {
-    const bg = this.ctx.settings.get().mapper.background;
+    const bg = this.background();
+    if (this.content.dataset.mapBg === bg) return;
     this.content.style.setProperty('--map-bg', bg);
     this.content.dataset.mapBg = bg;
     if (send) this.client?.background(bg);

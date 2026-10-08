@@ -60,13 +60,18 @@ test('Options → Mapper → Background colour: a named colour is drawn live and
   const row = frame.locator('.wc-mrow[data-key="background"] .wc-label');
   await expect(row).toHaveText('Background colour: Default');
   await expect(frame.locator('.wc-mrow[data-key="backgroundCode"]')).toHaveCount(0);
-  // ← → cycle the named list: Black, back to Default, then ← past White, Dark paper and Dark purple to Maroon.
+  // ← → cycle the named list: Black, back to Default, then ← past Transparent, White, Dark paper and Dark purple to Maroon.
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowRight');
   await expect(row).toHaveText('Background colour: Black');
   await expect(content).toHaveAttribute('data-map-bg', '#000000');
   await page.keyboard.press('ArrowLeft');
   await expect(row).toHaveText('Background colour: Default');
+  await page.keyboard.press('ArrowLeft');
+  await expect(row).toHaveText('Background colour: Transparent');
+  // Transparent: the map draws on the pane's own background, the terminal's here.
+  const termBg = await page.evaluate(() => window.__wc!.settings.get().appearance.bg.toLowerCase());
+  await expect(content).toHaveAttribute('data-map-bg', termBg);
   await page.keyboard.press('ArrowLeft');
   await expect(row).toHaveText('Background colour: White');
   await expect(content).toHaveAttribute('data-map-bg', '#ffffff');
@@ -115,5 +120,29 @@ test('Dark paper and White: the map draws on them with dark lines (ADR 0085 adde
   // A dark colour draws its lines white as before.
   await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: '#000000' } }));
   await expect.poll(() => countColour(page, [0x26, 0x26, 0x26]), { timeout: 10_000 }).toBeLessThan(50);
+  expect(errors).toEqual([]);
+});
+
+test('Transparent: the map draws on the pane background and follows the theme and the pane tint (ADR 0085 addendum)', async ({ page }) => {
+  test.setTimeout(90_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { background: 'transparent' } }));
+  const pane = page.locator('.wc-app .wc-pane-map');
+  const content = pane.locator('.wc-pane-content');
+  await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });
+  const same = async () =>
+    pane.evaluate((el) => getComputedStyle(el).backgroundColor === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor);
+  await expect.poll(same).toBe(true);
+  // A paper theme, then a tinted pane: the map follows each.
+  await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8' } }));
+  await expect(content).toHaveAttribute('data-map-bg', '#f4ecd8');
+  await expect.poll(same).toBe(true);
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { color: 'blue' } } }));
+  await expect(content).toHaveAttribute('data-map-bg', '#0e141c');
+  await expect.poll(same).toBe(true);
   expect(errors).toEqual([]);
 });
