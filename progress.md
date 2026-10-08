@@ -39,6 +39,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Release 0.1.56
+
+- **Done:** released 0.1.56 (tag v0.1.56, owner's go): no hover outline
+  on the pane bar and the map, `createPane{outline}`, Transparent map
+  background.
+- **Checked:** build:pages smoke 10/10; Pages deploy green, live
+  release.json 0.1.56, test:prod against the live site 10/10.
+- **Next:** owner tests 0.1.56 live.
+- **Commits:** 6129eaa, plus this one.
+
 ### 2026-10-08 — No hover outline (pane bar, map); transparent map
 
 - **Done:** owner asked that the pane bar get no hover outline, and that
@@ -46,10 +56,10 @@ Newest first.
   `data-no-outline` + CSS, kept in SPANE records; panebar uses it; API
   reference and manual updated. ADR 0084 addendum 2. Then the same for
   the built-in map pane (always `data-no-outline`).
-- **Checked:** typecheck, vitest 2506 passed; e2e panebar,
-  script-panes and map-* all pass.
   Then Options → Mapper → Background colour: Transparent (the map draws
   on the pane's own background; ADR 0085 addendum).
+- **Checked:** typecheck, vitest 2506 passed; e2e panebar,
+  script-panes and map-* all pass.
 - **Next:** in the next release; owner checks the bar and the map on
   hover, and Transparent with a tinted and a paper theme.
 - **Commits:** this one.
