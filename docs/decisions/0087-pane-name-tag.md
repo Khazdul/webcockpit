@@ -62,3 +62,9 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
 - **Colour.** The tag's text takes the close cross's colour
   (`--pane-border`) and the tag has no background: the name is drawn
   straight over the pane's top row.
+
+## Addendum — Character without the tag (2026-10-08)
+
+Owner: the Character pane needs no name tag on hover either. It is
+marked like the map: no `data-tooltip`, so a hover over it borderless
+shows no tag. The other built-in panes keep it.

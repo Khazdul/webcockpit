@@ -39,6 +39,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Character pane without the name tag
+
+- **Done:** owner: the Character pane needs no name tag on hover. It is
+  no longer marked `data-tooltip` (as the map). ADR 0087 addendum.
+- **Checked:** typecheck, vitest 2506 passed, e2e script-panes 14/14.
+- **Next:** in the next release.
+- **Commits:** this one.
+
 ### 2026-10-08 — Release 0.1.56
 
 - **Done:** released 0.1.56 (tag v0.1.56, owner's go): no hover outline

@@ -132,8 +132,8 @@
 
   /* Hovering a borderless pane shows its name at once (ADR 0087): a
    * small, dim tag centred on the top row, where a frame puts the title.
-   * Only on a pane marked `data-tooltip` (built-in panes but the map;
-   * script panes with `createPane{tooltip = true}`). */
+   * Only on a pane marked `data-tooltip` (built-in panes but the map and
+   * Character; script panes with `createPane{tooltip = true}`). */
   .wc-cockpit:not([data-phone-tab]) > .wc-pane[data-tooltip]:not([data-framed]):hover > .wc-pane-name {
     visibility: visible;
   }

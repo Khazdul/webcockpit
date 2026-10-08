@@ -553,8 +553,8 @@ test('hovering a borderless pane with tooltip = true shows its name at once', as
   await expect(tag).toBeHidden();
 });
 
-// ADR 0087 addendum: built-in panes have the name tag, the map never.
-test('built-in panes have the name tag, the map none', async ({ page }) => {
+// ADR 0087 addenda: built-in panes have the name tag, the map and Character never.
+test('built-in panes have the name tag, the map and Character none', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
@@ -563,6 +563,8 @@ test('built-in panes have the name tag, the map none', async ({ page }) => {
   await expect(page.locator('.wc-pane-comm')).toHaveAttribute('data-tooltip', '');
   await expect(page.locator('.wc-pane-map')).toHaveCount(1);
   await expect(page.locator('.wc-pane-map')).not.toHaveAttribute('data-tooltip', '');
+  await expect(page.locator('.wc-pane-character')).toHaveCount(1);
+  await expect(page.locator('.wc-pane-character')).not.toHaveAttribute('data-tooltip', '');
   // ADR 0084 addendum 2: no hover outline on the map, the others keep it.
   await expect(page.locator('.wc-pane-map')).toHaveAttribute('data-no-outline', '');
   await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-no-outline', '');

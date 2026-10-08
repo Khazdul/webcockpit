@@ -59,7 +59,7 @@
 //   script pane made with `outline = false` (addendum 2); hovering it shows
 //   its name in a small tag centred on the top row (`.wc-pane-name`, ADR
 //   0087, CSS) on a pane marked `data-tooltip`: the built-in panes but the
-//   map, and script panes made with `tooltip = true`.
+//   map and Character, and script panes made with `tooltip = true`.
 // - Drag the gap between the game pane and a dock to resize the dock (its
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
@@ -550,8 +550,8 @@ export class Cockpit {
     tag.setAttribute('aria-hidden', 'true');
     shell.el.append(tag);
     this.nameTags.set(id, tag);
-    // Built-in panes but the map have the name tag; a script pane asks for it (ADR 0087 addendum).
-    if (isBuiltinPaneId(id) && id !== 'map') shell.el.toggleAttribute('data-tooltip', true);
+    // Built-in panes but the map and Character have the name tag; a script pane asks for it (ADR 0087 addenda).
+    if (isBuiltinPaneId(id) && id !== 'map' && id !== 'character') shell.el.toggleAttribute('data-tooltip', true);
     // The map has no hover outline either (ADR 0084 addendum 2).
     if (id === 'map') shell.el.toggleAttribute('data-no-outline', true);
     for (const edge of FLOAT_EDGES) {
