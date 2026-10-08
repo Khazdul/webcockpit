@@ -200,3 +200,5 @@ Details: ADR 0077 "Feedback round 2".
   halfway between (ADR 0079).
 - [x] 2. Room info on hover defaults to Full; a stored Minimal from
   0.1.49 moves to Full once (ADR 0080).
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

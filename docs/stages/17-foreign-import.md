@@ -178,3 +178,5 @@ Feedback wanted: wrong format detected? Settings translated wrongly or
 not at all? Is the report readable and useful?
 
 ## Owner feedback
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

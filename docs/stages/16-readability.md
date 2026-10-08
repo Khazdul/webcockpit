@@ -147,3 +147,5 @@ split with shortnames off, a missed or wrong short name)? Do you want
 other parts (e.g. arrows on arrivals, more flags)?
 
 ## Owner feedback
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

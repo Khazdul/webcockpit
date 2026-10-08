@@ -207,3 +207,5 @@ Test guide (round 7):
 3. Ctrl+F: Map search opens, the cursor in Query; type, Ctrl+F closes it.
 
 Owner (2026-10-08): round 7 test guide points 1–3 verified live in 0.1.57.
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

@@ -253,3 +253,5 @@ Tasks from round 1:
 - [x] R3.1 PLAN timeline for the selected day, generic over all events
 - [x] R3.2 now marker on the timeline
 - [x] R3.3 click a row to mark its days in the grid; default none
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

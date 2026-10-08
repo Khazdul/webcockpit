@@ -263,3 +263,5 @@ think is simple enough to translate, and whether the report is useful.
 - Owner: released as is. Whether the colorizers (fg transparent, bg
   black) show colour in Mudlet is parked; revisit if a user reports
   missing highlights.
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

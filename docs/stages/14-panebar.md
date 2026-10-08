@@ -233,3 +233,5 @@ order, and whether the short names should be shorter or longer.
 7e59808). The bar is now on by default for a new install, at the bottom
 of the right dock (ADR 0078). Test step 2's "point at a button" no longer
 applies.
+
+Owner (2026-10-08): stage approved, everything verified and good. Done.

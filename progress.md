@@ -19,18 +19,18 @@ Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community
 | 11 | Script panes | Done | `docs/stages/11-script-panes.md` |
 | 12 | Key manager | Done | `docs/stages/12-key-manager.md` |
 | 13 | Dock lanes | Done | `docs/stages/13-dock-lanes.md` |
-| 14 | Pane bar | Owner testing | `docs/stages/14-panebar.md` |
+| 14 | Pane bar | Done | `docs/stages/14-panebar.md` |
 | 15 | Spanning panes | Done | `docs/stages/15-spanning-panes.md` |
-| 16 | Readability script | Owner testing | `docs/stages/16-readability.md` |
-| 17 | Foreign import | Owner testing | `docs/stages/17-foreign-import.md` |
-| 18 | Almanac | Owner testing | `docs/stages/18-almanac.md` |
+| 16 | Readability script | Done | `docs/stages/16-readability.md` |
+| 17 | Foreign import | Done | `docs/stages/17-foreign-import.md` |
+| 18 | Almanac | Done | `docs/stages/18-almanac.md` |
 | 19 | Phone access | Done | `docs/stages/19-phone.md` |
-| 20 | Mudlet import | Owner testing | `docs/stages/20-mudlet-import.md` |
-| 21 | Room notes and map search | Owner testing | `docs/stages/21-map-search.md` |
+| 20 | Mudlet import | Done | `docs/stages/20-mudlet-import.md` |
+| 21 | Room notes and map search | Done | `docs/stages/21-map-search.md` |
 | 22 | Map tilesets | Done | `docs/stages/22-tilesets.md` |
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
-| 25 | Polish round | Owner testing | `docs/stages/25-polish.md` |
+| 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
@@ -38,6 +38,13 @@ Statuses: Next, In progress, Owner testing, Done.
 ## Session log
 
 Newest first.
+
+### 2026-10-08 — Owner approvals
+
+- **Done:** owner verified the open test guide points and approved
+  stages 14, 16, 17, 18, 20, 21 and 25; all marked Done.
+- **Next:** stage 8 (hardening) is the only one in progress; 23 parked.
+- **Commits:** this one.
 
 ### 2026-10-08 — Release 0.1.57
 
