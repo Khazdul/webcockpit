@@ -39,6 +39,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Release 0.1.57
+
+- **Done:** released 0.1.57 (tag v0.1.57, owner's go): Ctrl+F toggles
+  Map search (`setInput{keys}`), no name tag on the Character pane.
+- **Checked:** build:pages (unit 2507, smoke 10/10); Pages deploy green,
+  live release.json 0.1.57, test:prod against the live site 10/10.
+- **Next:** owner tests 0.1.57 live.
+- **Commits:** 81bfd9a, plus this one.
+
 ### 2026-10-08 — Ctrl+F toggles Map search
 
 - **Done:** owner: Ctrl+F shows/hides the Map search pane, the cursor in
