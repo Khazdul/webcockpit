@@ -80,19 +80,31 @@ export const MAP_PROTOCOL_VERSION = 1;
  *   needs as data URIs or Blobs); a missing path is an error, unless
  *   `fallback` is set: a data URI answered for a missing `pixmaps/` path
  *   (the replay embeds only the tiles its map subset uses; P3).
+ *   `streamsAsIs`: the exported set's flow marks are drawn untinted
+ *   (ADR 0088; the page has no tileset logic).
  */
 export type AssetSource =
   | { kind: 'base'; url: string; tileset?: TilesetOverlay }
-  | { kind: 'inline'; files: Record<string, string | Blob>; fallback?: string };
+  | { kind: 'inline'; files: Record<string, string | Blob>; fallback?: string; streamsAsIs?: boolean };
+
+/** Whether `src` draws its flow marks without the river tint (ADR 0088; the replay carries it inline). */
+export function streamsAsIs(src: AssetSource): boolean {
+  return src.kind === 'base' ? src.tileset?.streamsAsIs === true : src.streamsAsIs === true;
+}
 
 /**
  * A map tileset over the default pixmaps (ADR 0082): `pixmaps/<f>` is
  * read from `<dir><f>` (relative to the asset root, e.g.
  * `tilesets/desert/`) when `<f>` is in `files`, else from `pixmaps/`.
+ * ADR 0088 (additive): `aliases` reads `pixmaps/<f>` from
+ * `<dir><aliases[f]>`, one of the set's own files; `streamsAsIs` draws the
+ * flow marks (`stream-*`) without the river tint.
  */
 export interface TilesetOverlay {
   dir: string;
   files: readonly string[];
+  aliases?: Readonly<Record<string, string>>;
+  streamsAsIs?: boolean;
 }
 
 // --------------------------------------------------------------- maps

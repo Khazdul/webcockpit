@@ -25,6 +25,7 @@ import {
 } from '../../src/map/tilesets';
 import { MapWorkerCore } from '../../src/map/worker/core';
 import { tilesetCredit } from '../../src/chrome/frames/options-mapper';
+import { isNamedMapBg } from '../../src/map/backgrounds';
 import { defaultSettings, migrateMapper, migrateSettings } from '../../src/settings';
 
 const PUBLIC = new URL('../../public/map/', import.meta.url);
@@ -45,19 +46,30 @@ describe('tileset catalogue', () => {
       ['shimrod-autumn', 'Shimrod Autumn'],
       ['shimrod-winter', 'Shimrod Winter'],
       ['desert', 'Desert'],
+      ['gefe-rik', 'Gefe & Rik'],
+      ['grays-map', "Gray's Map"],
     ]);
     expect(TILESET_IDS[0]).toBe(DEFAULT_TILESET);
     for (const c of TILESET_CHOICES) expect(c.credit.length).toBeLessThanOrEqual(48);
   });
 
-  it("matches each set's folder: every renderer file but `lacks`, nothing else", () => {
+  it("matches each set's folder: every renderer file but `lacks` and aliases, nothing else", () => {
     for (const t of TILESETS) {
       const dir = new URL(`tilesets/${t.dir}/`, PUBLIC);
       expect(existsSync(dir), t.dir).toBe(true);
       const files = readdirSync(dir).sort();
-      const want = RENDERER_FILES.filter((f) => !t.lacks.includes(f)).sort();
+      const aliased = Object.keys(t.aliases ?? {});
+      const want = RENDERER_FILES.filter((f) => !t.lacks.includes(f) && !aliased.includes(f)).sort();
       expect(files, `${t.dir}: the folder holds exactly the renderer files it does not lack`).toEqual(want);
       for (const f of t.lacks) expect(RENDERER_FILES, `${t.dir} lacks ${f}`).toContain(f);
+      // An alias is a renderer file the set does not lack, drawn with a file the folder has.
+      for (const [f, to] of Object.entries(t.aliases ?? {})) {
+        expect(RENDERER_FILES, `${t.dir} alias ${f}`).toContain(f);
+        expect(t.lacks, `${t.dir} alias ${f}`).not.toContain(f);
+        expect(files, `${t.dir} alias ${f} → ${to}`).toContain(to);
+      }
+      // A recommended background is one of the named map backgrounds.
+      if (t.background) expect(isNamedMapBg(t.background), `${t.dir} background`).toBe(true);
     }
     // No folder without an entry.
     expect(readdirSync(new URL('tilesets/', PUBLIC)).sort()).toEqual(TILESETS.map((t) => t.dir).sort());
@@ -96,6 +108,32 @@ describe('tileset catalogue', () => {
     // Fonts and the default: unchanged.
     expect(overlayPath(o, 'fonts/Cantarell18.fnt')).toBe('fonts/Cantarell18.fnt');
     expect(overlayPath(undefined, 'pixmaps/terrain-field.png')).toBe('pixmaps/terrain-field.png');
+  });
+
+  it('reads an aliased file from the set’s own file, and carries the set’s flags (ADR 0088)', () => {
+    const g = tilesetOverlay(resolveTileset('grays-map', 0))!;
+    expect(g.dir).toBe('tilesets/grays-map/');
+    expect(g.files).not.toContain('terrain-rapids.png');
+    expect(overlayPath(g, 'pixmaps/terrain-rapids.png')).toBe('tilesets/grays-map/terrain-water.png');
+    expect(overlayPath(g, 'pixmaps/terrain-water.png')).toBe('tilesets/grays-map/terrain-water.png');
+    expect(overlayPath(g, 'pixmaps/stream-in-north.png')).toBe('tilesets/grays-map/stream-in-north.png');
+    expect(overlayPath(g, 'pixmaps/wall-north.png')).toBe('pixmaps/wall-north.png');
+    expect(g.streamsAsIs).toBe(true);
+    const gefe = overlayFor('gefe-rik', 0)!;
+    expect(gefe.aliases).toBeUndefined();
+    expect(gefe.streamsAsIs).toBe(true);
+    expect(overlayPath(gefe, 'pixmaps/terrain-rapids.png')).toBe('tilesets/gefe-rik/terrain-rapids.png');
+    expect(overlayPath(gefe, 'pixmaps/load-horse.png')).toBe('pixmaps/load-horse.png');
+    // The older sets: no new fields, so they draw as before.
+    for (const id of ['desert', 'shimrod-autumn']) {
+      const o = overlayFor(id, 0)!;
+      expect(o.aliases).toBeUndefined();
+      expect(o.streamsAsIs).toBeUndefined();
+    }
+    expect(tilesetChoice('gefe-rik').background).toBe('#ffffff');
+    expect(tilesetChoice('grays-map').background).toBe('#ffffff');
+    expect(tilesetChoice('desert').background).toBeUndefined();
+    expect(tilesetChoice('shimrod').background).toBeUndefined();
   });
 
   it('the base resolver fetches the overlay’s files from its folder', async () => {

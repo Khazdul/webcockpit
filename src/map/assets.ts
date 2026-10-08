@@ -14,11 +14,15 @@ export type AssetResolver = (path: string) => Promise<Blob>;
 
 /**
  * Where an asset path (relative to the asset root) is read from under an
- * overlay: `pixmaps/<f>` → `<dir><f>` when the set has `<f>`, else as is.
+ * overlay: `pixmaps/<f>` → `<dir><f>` when the set has `<f>`,
+ * `<dir><alias>` when the set draws `<f>` with another of its files
+ * (ADR 0088), else as is.
  */
 export function overlayPath(overlay: TilesetOverlay | undefined, path: string): string {
   if (!overlay || !path.startsWith('pixmaps/')) return path;
   const f = path.slice('pixmaps/'.length);
+  const alias = overlay.aliases && Object.hasOwn(overlay.aliases, f) ? overlay.aliases[f] : undefined;
+  if (alias !== undefined) return overlay.dir + alias;
   return overlay.files.includes(f) ? overlay.dir + f : path;
 }
 
