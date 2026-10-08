@@ -151,9 +151,8 @@
   overflow: hidden;
   white-space: pre;
   font-size: 0.85em;
-  /* Darker than the outline, the text dimmed toward the background. */
-  background: color-mix(in srgb, var(--pane-outline, var(--pane-border)) 60%, var(--term-bg));
-  color: color-mix(in srgb, var(--term-fg) 60%, var(--term-bg));
+  /* The close cross's colour, no background of its own. */
+  color: var(--pane-border);
   pointer-events: none;
   user-select: none;
   z-index: 4;

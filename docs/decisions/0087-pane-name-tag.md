@@ -56,3 +56,9 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
 - **No delay.** The tag shows as soon as the pointer is over the pane
   (built-in panes and script panes with `tooltip = true` alike); the
   visibility transition is removed.
+
+## Addendum — stage 25 round 6 feedback (2026-10-08)
+
+- **Colour.** The tag's text takes the close cross's colour
+  (`--pane-border`) and the tag has no background: the name is drawn
+  straight over the pane's top row.

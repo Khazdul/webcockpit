@@ -38,6 +38,12 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 25 round 7
+
+- **Done:** pane name tag in the close cross's colour, no background.
+  ADR 0087 addendum.
+- **Next:** owner tests round 7.
+
 ### 2026-10-08 — Stage 25 round 6
 
 - **Done:** pane name tag shows at once on hover (no delay). ADR 0087

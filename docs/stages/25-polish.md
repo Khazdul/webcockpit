@@ -174,3 +174,9 @@ Test guide (round 5):
   `tooltip = true` script panes).
 
 Done (round 6): delay removed. ADR 0087 addendum.
+
+### Round 6 (2026-10-08)
+
+- The tag's text should have the close cross's colour, no background.
+
+Done (round 7): text in `--pane-border`, transparent. ADR 0087 addendum.
