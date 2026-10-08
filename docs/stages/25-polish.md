@@ -205,3 +205,5 @@ Test guide (round 7):
 2. Options → Mapper → Background colour: ← from Default to Transparent.
    The map takes the pane's colour; try a paper theme and a tinted Map pane.
 3. Ctrl+F: Map search opens, the cursor in Query; type, Ctrl+F closes it.
+
+Owner (2026-10-08): round 7 test guide points 1–3 verified live in 0.1.57.

@@ -45,7 +45,7 @@ Newest first.
   Map search (`setInput{keys}`), no name tag on the Character pane.
 - **Checked:** build:pages (unit 2507, smoke 10/10); Pages deploy green,
   live release.json 0.1.57, test:prod against the live site 10/10.
-- **Next:** owner tests 0.1.57 live (stage 25 round 7 test guide).
+- **Next:** done: owner verified round 7 (points 1–3) live in 0.1.57.
 - **Session end:** full e2e 511/512; map-tilesets:151 (chromium) failed
   once under full load (extra pixmaps fetched), 18/18 on repeat: flaky,
   not from this session. Stage 25 file has round 7 feedback and guide.
