@@ -33,6 +33,7 @@ import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLa
 import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
 import type { Renderer, TileStyle } from './renderer';
+import { uploadLayer } from './upload';
 
 /** Zoom cutoffs (configuration.h). */
 export const CONNECTION_ZOOM = 0.15;
@@ -107,47 +108,12 @@ interface LayerGL {
 
 const DECODE: ImageBitmapOptions = { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
 
+/** A decoded tile (unpremultiplied, flipped for GL), or null when missing or not decodable. */
 async function bitmap(assets: AssetResolver, path: string): Promise<ImageBitmap | null> {
-  return (await tile(assets, path))?.bmp ?? null;
-}
-
-/** A decoded tile and its file (kept for a rescale). */
-interface Tile {
-  blob: Blob;
-  bmp: ImageBitmap;
-}
-
-async function tile(assets: AssetResolver, path: string): Promise<Tile | null> {
   try {
-    const blob = await assets(path);
-    return { blob, bmp: await createImageBitmap(blob, DECODE) };
+    return await createImageBitmap(await assets(path), DECODE);
   } catch {
     return null; // missing in an HTML-replay subset, or not decodable: the layer stays transparent
-  }
-}
-
-/**
- * `t` as a `size`² image (ADR 0082: a tileset file of another size than
- * its array). Decoded again with the browser's high-quality resize; where
- * that is not honoured, drawn scaled on a 2D canvas. Null when neither works.
- */
-async function rescaled(t: Tile, size: number): Promise<ImageBitmap | ImageData | null> {
-  try {
-    const b = await createImageBitmap(t.blob, { ...DECODE, resizeWidth: size, resizeHeight: size, resizeQuality: 'high' });
-    if (b.width === size && b.height === size) return b;
-    b.close();
-  } catch {
-    // fall through to the canvas
-  }
-  try {
-    const c = new OffscreenCanvas(size, size);
-    const g = c.getContext('2d');
-    if (!g) return null;
-    g.imageSmoothingQuality = 'high';
-    g.drawImage(t.bmp, 0, 0, size, size);
-    return g.getImageData(0, 0, size, size);
-  } catch {
-    return null;
   }
 }
 
@@ -247,27 +213,18 @@ export class WebGLMapRenderer implements Renderer {
     ] as const;
     const assets = this.assets;
     const style = this.style;
-    // Decode every file, size each array by its largest file, and scale the
-    // others to it (a tileset's mixed sizes; the default set needs none).
+    // Decode every file and size each array by its largest file; the others
+    // are scaled to it on the GPU at upload (`uploadLayer`; a tileset's mixed
+    // sizes, the default set needs none).
     const loads = groups.map(async ([id, g]) => {
-      const tiles = await Promise.all(g.files.map((f) => tile(assets, `pixmaps/${f}`)));
-      const size = arraySize(g.size, tiles.map((t) => t?.bmp ?? null));
-      const images = await Promise.all(
-        tiles.map(async (t) => {
-          if (!t) return null;
-          if (t.bmp.width === size && t.bmp.height === size) return t.bmp;
-          const r = await rescaled(t, size);
-          t.bmp.close();
-          return r;
-        }),
-      );
-      return { id, size, images };
+      const images = await Promise.all(g.files.map((f) => bitmap(assets, `pixmaps/${f}`)));
+      return { id, size: arraySize(g.size, images), images };
     });
     const arrowsLoad = bitmap(assets, `pixmaps/${CHAR_ARROWS_FILE}`);
     const loaded = await Promise.all(loads);
     const a = await arrowsLoad;
     if (this.disposed || gen !== this.tileGen) {
-      for (const l of loaded) for (const im of l.images) if (im && 'close' in im) im.close();
+      for (const l of loaded) for (const im of l.images) im?.close();
       a?.close();
       return;
     }
@@ -277,9 +234,10 @@ export class WebGLMapRenderer implements Renderer {
       gl.texStorage3D(gl.TEXTURE_2D_ARRAY, mipLevels(size), gl.RGBA8, size, size, images.length);
       images.forEach((im, layer) => {
         if (!im) return;
-        gl.texSubImage3D(gl.TEXTURE_2D_ARRAY, 0, 0, 0, layer, size, size, 1, gl.RGBA, gl.UNSIGNED_BYTE, im);
-        if ('close' in im) im.close();
+        uploadLayer(gl, t, size, layer, im);
+        im.close();
       });
+      gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
       gl.generateMipmap(gl.TEXTURE_2D_ARRAY);
       this.setSampling(gl.TEXTURE_2D_ARRAY, true);
       const old = this.arrays[id];
