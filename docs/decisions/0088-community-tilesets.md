@@ -150,3 +150,51 @@ README: "Set your background to white"). Neither has flow marks
 - Gefe's README also suggests magenta connections and lighter
   dark/no-sundeath tints; not done (the owner keeps the normal darkness
   tint; connection colours are not configurable).
+
+## Addendum — stage 26 round 1 (2026-10-08)
+
+Owner feedback round 1: on Gefe & Rik every river room with a flow mark
+was a solid light-blue square; on Gray's Map rooms next to a door
+(sturdydoor, trapdoor, archpinedoor, …, the Caravanserai, Bree's east
+side) were black. Dark rooms should be only just darker than white.
+
+1. **Root cause: Firefox's resize.** Since ADR 0082 a tile of another
+   size than its array was decoded again with `createImageBitmap(blob,
+   {premultiplyAlpha: 'none', resizeWidth, resizeHeight, resizeQuality:
+   'high'})`. Firefox returns a **fully opaque** bitmap for that
+   combination (probe, read back through WebGL: Gefe's 160² `stream-in-
+   north` resized to 200² had 0 transparent texels and 40 000 opaque, in
+   Chromium 39 296 transparent; Gray's 128² `door-north` to 256²: 0
+   transparent in Firefox). Every rescaled tile then covered its room in
+   its transparent texels' colour: our cyan under Gefe's flow marks,
+   black under Gray's doors (128² in an array the default 256² up/down
+   doors size); in Firefox the same must have hit the default files
+   Shimrod and Desert lack (walls, doors), which their 256² arrays
+   rescale (not checked separately).
+   `resizeQuality: 'low'` keeps alpha, `'premultiply'` keeps it but drops
+   the colour of transparent texels; Chromium is correct in all cases,
+   which is why headless Chromium, the mockups and the stage's
+   screenshots looked right. Reproduced in headless Firefox at DPR 1,
+   zoom 0.8 (35 px per room) at the Ford in the River Bruinen and the
+   Caravanserai: exactly the owner's squares.
+2. **Fix: scale on the GPU** (`uploadLayer`, src/map/render/upload.ts).
+   A tile of the array's size is uploaded as before. Another size is
+   uploaded at its own size to a scratch texture and blitted into the
+   layer with `blitFramebuffer(…, LINEAR)`: the unpremultiplied texels,
+   alpha and the colour under alpha 0 are kept in every browser (no
+   canvas, no browser resize). Arrays still take their largest file, so
+   this only ever scales up (bilinear; the old high-quality resize was
+   at most a slightly sharper upscale of fallback files). The default
+   set has no file of another size, so it is unchanged.
+   `tests/e2e/map-tile-upload.spec.ts` runs `uploadLayer` in Firefox and
+   Chromium on both sets' files and checks transparency, opacity and the
+   transparent texels' colour; it fails with the old resize in Firefox.
+3. **Room tints.** `Tileset.tints` (optional `{dark, noSundeath}`,
+   `#rrggbb`) replaces MMapper's dark `#a19494` and no-sundeath `#d4c7c7`
+   multipliers; no-sundeath stays lighter than dark (unit test). Both
+   community sets use `#e3dcdc` / `#f1eded` (owner). They travel like
+   `streamsAsIs`: `TilesetOverlay.tints`, the inline `AssetSource.tints`
+   and `ReplayMap.tints` (validated on the replay page), into
+   `TileStyle.tints`; the renderer rewrites the room shader's two named
+   colours when the set's tiles are swapped in. The default set, Shimrod
+   and Desert carry none and draw as before.

@@ -39,6 +39,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Stage 26 round 1
+
+- **Owner:** Gefe's flow rooms solid cyan, Gray's door rooms black;
+  wants lighter dark tints on the two white sets.
+- **Cause:** Firefox's `createImageBitmap` resize ('high', alpha 'none')
+  returns opaque bitmaps; every mixed-size tile filled its room. **Fix:**
+  scale on the GPU (`uploadLayer`, blit). Tints: `Tileset.tints`
+  (#e3dcdc / #f1eded), live and in the replay. ADR 0088 addendum.
+- **Checked:** typecheck; unit 2504; e2e 510/510; Firefox before/after
+  shots at the Bruinen ford and the Caravanserai (DPR 1, 35 px/room).
+- **Next:** owner re-tests stage 26.
+- **Commits:** 7c2e6a1, eb7097a, plus this one.
+
 ### 2026-10-08 — Stage 26 (community tilesets)
 
 - **Done:** Gefe & Rik (v0.1, Octavia) and Gray's Map (v1.1, Sunnyl75),

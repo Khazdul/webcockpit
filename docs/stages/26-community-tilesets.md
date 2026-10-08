@@ -117,3 +117,19 @@ the background switch and restore what you expected? Are the names,
 order and credit lines fine?
 
 ## Owner feedback
+
+### Round 1 (2026-10-08)
+
+1. **Gefe & Rik: river rooms with flow marks were solid cyan** (Bruinen
+   ford, ~35 px per room). Fixed: Firefox's `createImageBitmap` resize
+   returned opaque bitmaps; mixed-size tiles are now scaled on the GPU
+   (ADR 0088 addendum). Reproduced and verified in Firefox at DPR 1.
+2. **Gray's Map: rooms next to doors were black** (sturdydoor, trapdoor,
+   …, Caravanserai, Bree east). Same cause and fix: Gray's 128² doors
+   were rescaled into the 256² doors array.
+3. **Lighter dark tint on the two white sets.** Done: dark `#e3dcdc`,
+   no-sundeath `#f1eded` (`Tileset.tints`), live and in the HTML replay.
+
+Status: built, awaiting the owner's re-test (preferably in the browser
+that showed the bugs).
+
