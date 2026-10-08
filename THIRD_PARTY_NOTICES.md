@@ -164,8 +164,80 @@ lookup. Lucida is a trademark of its owner.
 - **Desert** tileset (`tilesets/desert/`), by Khazdul, made by
   modifying Shimrod's tiles with Shimrod's agreement; Shimrod's terms
   above apply to it too.
+- **Gefe & Rik MMapper Tileset**, version 0.1, by Octavia
+  (`tilesets/gefe-rik/`), copied unmodified from
+  https://github.com/octavia-mc/gefe-rik-mmapper-tileset/releases/tag/v0.1.
+  MIT License, Copyright (c) 2025 octavia-mc. Based on Gefe and Rik's
+  classic MUME maps (http://mume.kyrania.com/); Eolo is also credited on
+  an older Misty Mountains & Anduin Vale map.
+- **Gray's Map Tileset**, version 1.1, by Sunnyl75 (`tilesets/grays-map/`),
+  copied unmodified from
+  https://github.com/Sunnyl75/Gray-s-Map-Tileset/releases/tag/v1.1.
+  MIT License, Copyright (c) 2026 Sunnyl75. A homage to Gray's maps,
+  made with Gray's Mapeditor (Gray; later versions and ports by Morfizm,
+  Dorien/White, Moonshade and Waba).
+- The flow marks (`stream-in-*`, `stream-out-*`) in `tilesets/gefe-rik/`
+  and `tilesets/grays-map/` are not from either release: they are
+  WebCockpit's own (`scripts/build-flow-chevrons.py`, ADR 0088), under
+  WebCockpit's licence.
 
-WebCockpit's GPL does not cover the tilesets. They are separate works
-that the map draws; each keeps its author's terms.
+The MIT License is GPL-compatible. The two licence texts, in full
+(also in `public/map/README`):
+
+Gefe & Rik MMapper Tileset (`tilesets/gefe-rik/`):
+
+```
+MIT License
+
+Copyright (c) 2025 octavia-mc
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+Gray's Map Tileset (`tilesets/grays-map/`):
+
+```
+MIT License
+
+Copyright (c) 2026 Sunnyl75
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+WebCockpit's GPL does not cover the tilesets (apart from the flow marks
+noted above). They are separate works that the map draws; each keeps
+its author's terms.
 
 Details and licence texts: `public/map/README`.

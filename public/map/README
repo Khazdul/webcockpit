@@ -41,12 +41,12 @@ Alternative tilesets for the map (ADR 0082), chosen in Options -> Mapper.
 Each folder holds files under MMapper's pixmap names and overrides
 pixmaps/ file by file; a file a set lacks is taken from pixmaps/. Only
 the files the renderer draws were copied, unmodified (no re-encoding:
-the files carry content-credential metadata, and a lossless re-encode
-saved under 2 %). Only the chosen set is fetched, and only while the Map
+Shimrod's files carry content-credential metadata, and a lossless
+re-encode saved under 2 %). Only the chosen set is fetched, and only while the Map
 pane is on.
 
-WebCockpit's licence does NOT cover these tilesets. They keep their
-author's terms, below.
+WebCockpit's licence does NOT cover these tilesets (except the flow marks
+noted below). They keep their author's terms, below.
 
 tilesets/shimrod-{spring,summer,autumn,winter}/
   Shimrod's tileset for MUME mmapper, version 0.92, by Shimrod.
@@ -61,6 +61,85 @@ tilesets/shimrod-{spring,summer,autumn,winter}/
 tilesets/desert/
   Desert, by Khazdul: Shimrod's tiles, modified, with Shimrod's
   agreement. Shimrod's terms above apply.
+
+tilesets/gefe-rik/
+  Gefe & Rik MMapper Tileset, version 0.1, by Octavia (octavia-mc), 2025:
+  https://github.com/octavia-mc/gefe-rik-mmapper-tileset/releases/tag/v0.1
+  The renderer's files from the release's pixmaps/, copied unmodified
+  (its options/ folder, update0.png and terrain-deathtrap.png left out).
+  Drawn for a white background; choosing it switches the map's
+  background to white (ADR 0088).
+
+  Credits, from the set's README: Gefe and Rik's maps, available from
+  http://mume.kyrania.com/. Eolo is also credited on an older version of
+  the Misty Mountains & Anduin Vale map.
+
+  Licence (the set's LICENSE file):
+
+    MIT License
+
+    Copyright (c) 2025 octavia-mc
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+tilesets/grays-map/
+  Gray's Map Tileset, version 1.1, by Sunnyl75, 2026:
+  https://github.com/Sunnyl75/Gray-s-Map-Tileset/releases/tag/v1.1
+  The renderer's files from the release's pixmaps.zip, copied unmodified
+  (load-pony.png, mob-genericguild.png and terrain-deathtrap.png left
+  out). Rapids draw the set's water tile. Drawn for a white background;
+  choosing it switches the map's background to white (ADR 0088).
+
+  Credits, from the set's README: a homage to "Gray's maps", made with
+  Gray's Mapeditor. Gray made its first version; later versions and ports
+  were by Morfizm, Dorien/White, Moonshade and Waba.
+
+  Licence (the set's LICENSE.md):
+
+    MIT License
+
+    Copyright (c) 2026 Sunnyl75
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+
+Flow marks in tilesets/gefe-rik/ and tilesets/grays-map/
+  The stream-in-*.png and stream-out-*.png files in these two folders are
+  not part of either release: neither set has flow marks. They are
+  WebCockpit's own work, drawn by scripts/build-flow-chevrons.py, and are
+  covered by WebCockpit's licence (GPL-2.0-or-later), not the sets' MIT
+  terms.
 
 Credits for the 3D assets Shimrod used in creating the tilesets (from
 the set's README; "Not all of the assets from the list were used, but
