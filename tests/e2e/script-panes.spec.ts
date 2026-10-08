@@ -506,3 +506,36 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   expect(await page.evaluate((id) => window.__wc!.settings.get().panes[id as 'a/b']!.on, id)).toBe(false);
   expect(errors).toEqual([]);
 });
+
+// ADR 0087: resting 2 s on a borderless pane shows its name at the top
+// left; leaving hides it at once; a framed pane shows none.
+test('resting on a borderless pane shows its name after 2 s', async ({ page }) => {
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(page, HOVER, 'hovers');
+  await page.keyboard.press('Enter');
+  const id = 'hovers/main';
+  const sp = page.locator(`.wc-pane[data-pane="${id}"]`);
+  await expect(sp).toBeVisible();
+  const tag = sp.locator('.wc-pane-name');
+  await expect(tag).toHaveText(' Hover Pane ');
+  await expect(tag).toBeHidden();
+
+  const b = (await sp.boundingBox())!;
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.waitForTimeout(1000);
+  await expect(tag).toBeHidden();
+  await expect(tag).toBeVisible({ timeout: 3000 });
+  await page.mouse.move(5, 5);
+  await expect(tag).toBeHidden();
+
+  // Framed: no tag (the frame shows the title).
+  await page.evaluate((id) => window.__wc!.settings.update((d) => {
+    d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, border: true };
+  }), id);
+  await expect(sp).toHaveAttribute('data-framed', '');
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+  await page.waitForTimeout(2500);
+  await expect(tag).toBeHidden();
+});

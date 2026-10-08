@@ -131,3 +131,21 @@ Done (round 3): one `Background colour: <name>` row, ←→ cycles; code row,
 prompt and `mapper.backgroundCode` removed (a typed colour falls back to
 Default). White `#ffffff` added after Dark paper, drawn with dark lines.
 ADR 0085 addendum.
+
+### Round 3 (2026-10-08)
+
+- Hovering a borderless pane for 2 s should also show a small, discreet
+  tooltip with the pane's name.
+
+Done (round 4): a name tag ` <title> ` at the top left of a borderless
+pane, in the outline colour, after 2 s of hover (CSS delay); hidden at
+once on leave and during a drag. ADR 0087.
+
+Test guide (round 4):
+
+1. Hover a borderless pane (map, almanac, key manager) and keep the mouse
+   in it: after 2 s its name shows at the top left. Move out: it goes.
+2. A framed pane: no tag. Pane bar: the tag covers its first buttons
+   while shown; is that acceptable?
+
+Feedback wanted: placement (top left vs. near the pointer), colour.

@@ -127,6 +127,37 @@
   .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane:hover::after {
     content: none;
   }
+
+  /* Resting 2 s on a borderless pane shows its name (ADR 0087): a tag in
+   * the outline colour at the top left, where a frame puts the title.
+   * The delay is a visibility transition, so no timers: leaving hides it
+   * at once and a new hover starts the 2 s again. */
+  .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):hover > .wc-pane-name {
+    visibility: visible;
+    transition-delay: 2s;
+  }
+
+  .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane > .wc-pane-name {
+    visibility: hidden;
+    transition-delay: 0s;
+  }
+}
+
+.wc-pane-name {
+  position: absolute;
+  top: 0;
+  left: var(--cell-w);
+  max-width: calc(100% - 2 * var(--cell-w));
+  height: var(--cell-h);
+  overflow: hidden;
+  white-space: pre;
+  background: var(--pane-outline, var(--pane-border));
+  color: var(--term-fg);
+  pointer-events: none;
+  user-select: none;
+  z-index: 4;
+  visibility: hidden;
+  transition: visibility 0s;
 }
 
 .wc-pane[data-dragging] {

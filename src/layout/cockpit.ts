@@ -53,10 +53,11 @@
 //   Its edges and corners resize it. Pressing on it brings it to front.
 // - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
 //   title row, one cell in from the right edge; clicking it switches the
-//   pane off (`panes[id].on = false`, the same as Settings). A borderless
-//   script pane has none while a link or text field lies under it (it
-//   would cover a button; ADR 0065 round 2, 0084, CSS). Hovering a
-//   borderless pane outlines it (ADR 0084, CSS).
+//   pane off (`panes[id].on = false`, the same as Settings). A script pane
+//   made with `cross = false` has none (ADR 0084 addendum, CSS). Hovering a
+//   borderless pane outlines it (ADR 0084, CSS); resting on it 2 s shows
+//   its name in a small tag at the top left (`.wc-pane-name`, ADR 0087,
+//   CSS).
 // - Drag the gap between the game pane and a dock to resize the dock (its
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
@@ -394,6 +395,8 @@ export class Cockpit {
   private readonly shells = new Map<PaneId, PaneShell>();
   /** Close crosses by pane (their tooltip follows the label). */
   private readonly closers = new Map<PaneId, HTMLDivElement>();
+  /** Name tags by pane, shown on a long hover over a borderless pane (ADR 0087). */
+  private readonly nameTags = new Map<PaneId, HTMLDivElement>();
   /** Script panes added with `addPane` (ADR 0053). */
   private readonly present = new Set<PaneId>();
   /** Temporary script panes, back to front (insertion order is the z-order). */
@@ -540,6 +543,11 @@ export class Cockpit {
     });
     shell.el.append(close);
     this.closers.set(id, close);
+    const tag = div('wc-pane-name');
+    tag.textContent = ` ${shell.label} `;
+    tag.setAttribute('aria-hidden', 'true');
+    shell.el.append(tag);
+    this.nameTags.set(id, tag);
     for (const edge of FLOAT_EDGES) {
       const h = div('wc-float-handle');
       h.dataset.edge = edge;
@@ -633,6 +641,7 @@ export class Cockpit {
     const shell = this.shells.get(id);
     this.shells.delete(id);
     this.closers.delete(id);
+    this.nameTags.delete(id);
     if (shell) {
       shell.place(null, this.cells.get());
       shell.el.remove();
@@ -663,6 +672,8 @@ export class Cockpit {
     const close = this.closers.get(id);
     const shell = this.shells.get(id);
     if (close && shell) this.labelClose(close, id, shell.label);
+    const tag = this.nameTags.get(id);
+    if (tag && shell) tag.textContent = ` ${shell.label} `;
     if (this.phone) this.scheduleRelayout(); // the tab label follows
     for (const fn of [...this.paneListeners]) fn();
   }
