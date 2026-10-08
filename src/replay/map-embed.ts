@@ -31,7 +31,8 @@ export interface EmbedMapOptions {
    * it when the set has the file, else from the default `pixmaps/`, and
    * embedded under its `pixmaps/` path (an aliased file under the path it
    * stands in for, ADR 0088), so the page needs no tileset logic; the set's
-   * untinted flow marks travel as `ReplayMap.streamsAsIs`.
+   * untinted flow marks and room tints travel as `ReplayMap.streamsAsIs`
+   * and `ReplayMap.tints`.
    */
   tileset?: TilesetOverlay;
 }
@@ -73,6 +74,7 @@ export async function embedReplayMap(payload: ReplayPayload, source: MapSource, 
     mm2: toBase64(r.mm2),
     files,
     ...(o.tileset?.streamsAsIs ? { streamsAsIs: true } : {}),
+    ...(o.tileset?.tints ? { tints: { ...o.tileset.tints } } : {}),
   };
   return { ...payload, map };
 }

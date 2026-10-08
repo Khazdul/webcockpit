@@ -80,16 +80,21 @@ export const MAP_PROTOCOL_VERSION = 1;
  *   needs as data URIs or Blobs); a missing path is an error, unless
  *   `fallback` is set: a data URI answered for a missing `pixmaps/` path
  *   (the replay embeds only the tiles its map subset uses; P3).
- *   `streamsAsIs`: the exported set's flow marks are drawn untinted
- *   (ADR 0088; the page has no tileset logic).
+ *   `streamsAsIs`, `tints`: the exported set's untinted flow marks and
+ *   room tints (ADR 0088; the page has no tileset logic).
  */
 export type AssetSource =
   | { kind: 'base'; url: string; tileset?: TilesetOverlay }
-  | { kind: 'inline'; files: Record<string, string | Blob>; fallback?: string; streamsAsIs?: boolean };
+  | { kind: 'inline'; files: Record<string, string | Blob>; fallback?: string; streamsAsIs?: boolean; tints?: RoomTints };
 
 /** Whether `src` draws its flow marks without the river tint (ADR 0088; the replay carries it inline). */
 export function streamsAsIs(src: AssetSource): boolean {
   return src.kind === 'base' ? src.tileset?.streamsAsIs === true : src.streamsAsIs === true;
+}
+
+/** The room tints of `src`'s set (ADR 0088 addendum), undefined: MMapper's. */
+export function roomTints(src: AssetSource): RoomTints | undefined {
+  return src.kind === 'base' ? src.tileset?.tints : src.tints;
 }
 
 /**
@@ -105,6 +110,17 @@ export interface TilesetOverlay {
   files: readonly string[];
   aliases?: Readonly<Record<string, string>>;
   streamsAsIs?: boolean;
+  /** The set's room tints (ADR 0088 addendum). */
+  tints?: RoomTints;
+}
+
+/**
+ * A tileset's own room tints (ADR 0088 addendum), `#rrggbb` multipliers in
+ * place of MMapper's dark `#a19494` and no-sundeath `#d4c7c7`.
+ */
+export interface RoomTints {
+  dark: string;
+  noSundeath: string;
 }
 
 // --------------------------------------------------------------- maps

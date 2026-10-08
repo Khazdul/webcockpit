@@ -286,16 +286,30 @@ describe('untinted flow marks (ADR 0088)', () => {
       dpr: 1,
       assets: { kind: 'base', url: '/map/', tileset: overlayFor('gefe-rik', 0) },
     });
-    expect(styles).toEqual([{ streamsAsIs: true }]);
+    expect(styles).toEqual([{ streamsAsIs: true, tints: { dark: '#e3dcdc', noSundeath: '#f1eded' } }]);
     core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/', tileset: overlayFor('shimrod-autumn', 0) } });
     core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/' } });
     core.handle({ t: 'assets', assets: { kind: 'base', url: '/map/', tileset: overlayFor('grays-map', 0) } });
     core.handle({ t: 'assets', assets: { kind: 'inline', files: {}, streamsAsIs: true } });
-    expect(swaps).toEqual([{}, {}, { streamsAsIs: true }, { streamsAsIs: true }]);
+    core.handle({ t: 'assets', assets: { kind: 'inline', files: {}, tints: { dark: '#e3dcdc', noSundeath: '#f1eded' } } });
+    expect(swaps).toEqual([{}, {}, { streamsAsIs: true, tints: { dark: '#e3dcdc', noSundeath: '#f1eded' } }, { streamsAsIs: true }, { tints: { dark: '#e3dcdc', noSundeath: '#f1eded' } }]);
   });
 
-  it('only the community sets draw their own flow marks', () => {
+  it('only the community sets draw their own flow marks and room tints', () => {
     for (const t of TILESETS) expect(t.streamsAsIs === true, t.id).toBe(t.id === 'gefe-rik' || t.id === 'grays-map');
+    for (const t of TILESETS) expect(t.tints !== undefined, t.id).toBe(t.id === 'gefe-rik' || t.id === 'grays-map');
+    expect(overlayFor('gefe-rik', 0)?.tints).toEqual({ dark: '#e3dcdc', noSundeath: '#f1eded' });
+    expect(overlayFor('desert', 0)?.tints).toBeUndefined();
+  });
+
+  it('room tints are colours, no-sundeath lighter than dark (as MMapper)', () => {
+    const lum = (h: string) => [1, 3, 5].reduce((n, i) => n + parseInt(h.slice(i, i + 2), 16), 0);
+    for (const t of TILESETS) {
+      if (!t.tints) continue;
+      expect(t.tints.dark, t.id).toMatch(/^#[0-9a-f]{6}$/);
+      expect(t.tints.noSundeath, t.id).toMatch(/^#[0-9a-f]{6}$/);
+      expect(lum(t.tints.noSundeath), t.id).toBeGreaterThan(lum(t.tints.dark));
+    }
   });
 });
 

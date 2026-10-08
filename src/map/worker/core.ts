@@ -56,6 +56,7 @@ import {
   type MapEvent,
   type MapSource,
   type MarkStyle,
+  roomTints,
   streamsAsIs,
   type WorkerToMain,
 } from '../protocol';
@@ -94,9 +95,10 @@ interface LiveMark {
   lingering: boolean;
 }
 
-/** How an asset source's tiles are drawn (ADR 0088: a set's flow marks untinted). */
+/** How an asset source's tiles are drawn (ADR 0088: a set's flow marks untinted, its room tints). */
 function tileStyle(src: AssetSource): TileStyle {
-  return streamsAsIs(src) ? { streamsAsIs: true } : {};
+  const tints = roomTints(src);
+  return { ...(streamsAsIs(src) ? { streamsAsIs: true } : {}), ...(tints ? { tints } : {}) };
 }
 
 export interface WorkerHost {

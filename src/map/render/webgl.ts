@@ -28,7 +28,7 @@ import { buildConnections, type ConnectionLayer, type MapText } from './connecti
 import { type FontMetrics, FontVerts, FONT_STRIDE, fontFntPath, fontPagePath, fontSizeForDpr, layoutText, parseFnt } from './font';
 import { COLOR_STRIDE } from './geometry';
 import { buildInfomarks, type InfomarkLayer } from './infomarks';
-import { BACKGROUND, BLACK, GRAY70, LIGHT_BG_INK, NAMED_COLORS, type RGBA, WATER, WHITE, isLightBackground, withAlpha } from './palette';
+import { BACKGROUND, BLACK, GRAY70, LIGHT_BG_INK, NAMED_COLORS, NC, type RGBA, WATER, WHITE, hexRgba, isLightBackground, withAlpha } from './palette';
 import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLayerMesh } from './rooms';
 import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
@@ -172,10 +172,8 @@ export class WebGLMapRenderer implements Renderer {
     this.font = compile(gl, S.FONT_VS, S.FONT_FS, ['uView', 'uPhys', 'uScreen', 'uTex']);
     this.full = compile(gl, S.FULL_VS, S.FULL_FS, ['uColor']);
     this.fullVao = gl.createVertexArray()!;
-    const named = new Float32Array(S.MAX_NAMED_COLORS * 4);
-    NAMED_COLORS.forEach((c, i) => named.set(c, i * 4));
+    this.setNamedColors(undefined);
     gl.useProgram(this.room.p);
-    gl.uniform4fv(this.room.u.uNamed!, named);
     gl.uniform1i(this.room.u.uTex!, 0);
     gl.useProgram(this.texColor.p);
     gl.uniform1i(this.texColor.u.uTex!, 0);
@@ -255,9 +253,23 @@ export class WebGLMapRenderer implements Renderer {
       a.close();
     }
     this.streamsAsIs = style.streamsAsIs === true;
+    this.setNamedColors(style.tints);
     this.texturesLoaded = true;
     this.tileGenLoaded = gen;
     this.onChange();
+  }
+
+  /** The room shader's named colours, with a set's dark / no-sundeath tints when it has its own (ADR 0088 addendum). */
+  private setNamedColors(tints: TileStyle['tints']): void {
+    const gl = this.gl;
+    const named = new Float32Array(S.MAX_NAMED_COLORS * 4);
+    NAMED_COLORS.forEach((c, i) => named.set(c, i * 4));
+    if (tints) {
+      named.set(hexRgba(tints.dark, NAMED_COLORS[NC.ROOM_DARK]!), NC.ROOM_DARK * 4);
+      named.set(hexRgba(tints.noSundeath, NAMED_COLORS[NC.ROOM_NO_SUNDEATH]!), NC.ROOM_NO_SUNDEATH * 4);
+    }
+    gl.useProgram(this.room.p);
+    gl.uniform4fv(this.room.u.uNamed!, named);
   }
 
   /** LINEAR_MIPMAP_LINEAR / LINEAR, mirrored repeat (MMapper with trilinear filtering on). */

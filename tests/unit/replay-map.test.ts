@@ -123,7 +123,10 @@ describe('HTML replay map export', () => {
     expect(urls).toContain('https://example.org/app/map/tilesets/grays-map/terrain-water.png');
     expect(urls.some((u) => u.endsWith('terrain-rapids.png'))).toBe(false);
     expect(m.streamsAsIs).toBe(true);
-    expect(replayMapHost(m).assets).toMatchObject({ kind: 'inline', streamsAsIs: true });
+    expect(m.tints).toEqual({ dark: '#e3dcdc', noSundeath: '#f1eded' });
+    expect(replayMapHost(m).assets).toMatchObject({ kind: 'inline', streamsAsIs: true, tints: { dark: '#e3dcdc', noSundeath: '#f1eded' } });
+    // Malformed tints in a payload are ignored.
+    expect('tints' in replayMapHost({ ...m, tints: { dark: 'red', noSundeath: '#ffffff' } }).assets).toBe(false);
     // A set without the flag embeds none.
     const plain = await buildReplayHtml(chain(true), {
       fetch: fetcher([]),
@@ -134,6 +137,7 @@ describe('HTML replay map export', () => {
     });
     const q = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(await plain.text())![1]!);
     expect(q.map!.streamsAsIs).toBeUndefined();
+    expect(q.map!.tints).toBeUndefined();
     expect('streamsAsIs' in replayMapHost(q.map).assets).toBe(false);
   });
 

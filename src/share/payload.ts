@@ -90,6 +90,8 @@ export interface ReplayMap {
   files: Record<string, string>;
   /** The exported tileset draws its flow marks untinted (ADR 0088); absent: tinted, as MMapper. */
   streamsAsIs?: boolean;
+  /** The exported tileset's dark / no-sundeath room tints, `#rrggbb` (ADR 0088 addendum); absent: MMapper's. */
+  tints?: { dark: string; noSundeath: string };
 }
 
 /** The capture text of a run with the excluded content removed. */

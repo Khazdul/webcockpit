@@ -18,7 +18,7 @@
 
 import { CLOCK_KEY, loadClockState, momentAt } from '../gmcp/clock';
 import { type Season, seasonOf } from '../gmcp/gametime';
-import type { TilesetOverlay } from './protocol';
+import type { RoomTints, TilesetOverlay } from './protocol';
 export { overlayPath } from './assets';
 import { RENDERER_PIXMAPS } from './render/textures';
 
@@ -47,6 +47,12 @@ export interface Tileset {
   background?: string;
   /** The set's `stream-*` flow marks are drawn as they are, not tinted by the river colour (ADR 0088). */
   streamsAsIs?: boolean;
+  /**
+   * The set's room tints (ADR 0088 addendum): the multipliers for dark and
+   * no-sundeath rooms in place of MMapper's `#a19494` / `#d4c7c7`. Keep
+   * no-sundeath lighter than dark, as MMapper does.
+   */
+  tints?: RoomTints;
 }
 
 /** A choice that follows MUME's season. */
@@ -165,6 +171,9 @@ const GRAYS_MAP_LACKS: readonly string[] = [
 /** The background both community sets are drawn for (ADR 0088). */
 const WHITE_BG = '#ffffff';
 
+/** Room tints for a white map: just darker than white (owner, ADR 0088 addendum). */
+const LIGHT_TINTS: RoomTints = { dark: '#e3dcdc', noSundeath: '#f1eded' };
+
 export const TILESETS: readonly Tileset[] = [
   {
     id: 'desert',
@@ -191,6 +200,7 @@ export const TILESETS: readonly Tileset[] = [
     lacks: GEFE_RIK_LACKS,
     background: WHITE_BG,
     streamsAsIs: true,
+    tints: LIGHT_TINTS,
   },
   {
     id: 'grays-map',
@@ -201,6 +211,7 @@ export const TILESETS: readonly Tileset[] = [
     aliases: { 'terrain-rapids.png': 'terrain-water.png' },
     background: WHITE_BG,
     streamsAsIs: true,
+    tints: LIGHT_TINTS,
   },
 ];
 
@@ -301,6 +312,7 @@ export function tilesetOverlay(t: Tileset | null): TilesetOverlay | undefined {
     files,
     ...(t.aliases ? { aliases: t.aliases } : {}),
     ...(t.streamsAsIs ? { streamsAsIs: true } : {}),
+    ...(t.tints ? { tints: t.tints } : {}),
   };
 }
 

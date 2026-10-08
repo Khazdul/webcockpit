@@ -4,6 +4,7 @@
 // `ClearRenderer` only clears to the background (tests).
 
 import type { AssetResolver } from '../assets';
+import type { RoomTints } from '../protocol';
 import type { MapData } from '../model';
 import type { Scene } from '../scene';
 import type { View } from '../view';
@@ -17,6 +18,8 @@ export const MAP_BG: readonly [number, number, number] = [BACKGROUND[0], BACKGRO
 export interface TileStyle {
   /** The flow marks (`stream-*`) are drawn as they are, not tinted by the river colour. */
   streamsAsIs?: boolean;
+  /** The set's dark / no-sundeath room tints (ADR 0088 addendum); absent: MMapper's. */
+  tints?: RoomTints;
 }
 
 export interface Renderer {
