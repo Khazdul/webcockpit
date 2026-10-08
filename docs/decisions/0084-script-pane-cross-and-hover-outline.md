@@ -107,3 +107,7 @@ panes and all built-in panes keep the outline. Like `cross` and
 changed applies it, and it is kept in recorded sessions (`SPANE`
 records), so the log player and the HTML replay look the same. The
 bundled `panebar` uses it.
+
+The owner then asked the same for the borderless map pane: the built-in
+`map` pane is always marked `data-no-outline` (as it is the one built-in
+pane without the name tag, ADR 0087). Framed, it keeps its frame.

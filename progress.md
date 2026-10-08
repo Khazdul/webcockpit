@@ -44,8 +44,10 @@ Newest first.
 - **Done:** owner asked that the pane bar get no hover outline, and that
   the API can choose it. New `createPane{outline = false}` (default true),
   `data-no-outline` + CSS, kept in SPANE records; panebar uses it; API
-  reference and manual updated. ADR 0084 addendum 2.
-- **Checked:** typecheck, vitest 2505 passed, e2e panebar 10/10.
+  reference and manual updated. ADR 0084 addendum 2. Then the same for
+  the built-in map pane (always `data-no-outline`).
+- **Checked:** typecheck, vitest 2505 passed, e2e panebar and
+  script-panes 24/24.
 - **Next:** in the next release; owner checks the bar on hover.
 - **Commits:** this one.
 

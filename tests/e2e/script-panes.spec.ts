@@ -563,4 +563,9 @@ test('built-in panes have the name tag, the map none', async ({ page }) => {
   await expect(page.locator('.wc-pane-comm')).toHaveAttribute('data-tooltip', '');
   await expect(page.locator('.wc-pane-map')).toHaveCount(1);
   await expect(page.locator('.wc-pane-map')).not.toHaveAttribute('data-tooltip', '');
+  // ADR 0084 addendum 2: no hover outline on the map, the others keep it.
+  await expect(page.locator('.wc-pane-map')).toHaveAttribute('data-no-outline', '');
+  await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-no-outline', '');
+  await page.locator('.wc-pane-map').hover();
+  expect(await page.locator('.wc-pane-map').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 });
