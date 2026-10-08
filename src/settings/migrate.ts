@@ -302,10 +302,17 @@ export function migrateInput(raw: unknown): InputSettings {
  * Mapper options from anything (notes on, full hover, medium hover text;
  * ADR 0077; the default tileset, also for an unknown id, ADR 0082; the
  * default background for anything but a named colour, ADR 0085 and its
- * stage 25 round 3 addendum; a stored `backgroundCode` is dropped).
+ * stage 25 round 3 addendum; a stored `backgroundCode` is dropped; the
+ * remembered background a named colour or none, ADR 0088).
  * Stored before version 2, 'minimal' was the default and moves to the
  * new default 'full' once (ADR 0080).
  */
+/** A remembered map background (ADR 0088): a named colour, normalised, or `''`. */
+function rememberedBg(raw: unknown): string {
+  const h = hex(raw, '');
+  return h !== '' && isNamedMapBg(h) ? h : '';
+}
+
 export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): MapperSettings {
   const d = defaultSettings().mapper;
   const x = isObj(raw) ? raw : {};
@@ -317,6 +324,7 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
     hoverSize: oneOf(x.hoverSize, MAP_HOVER_SIZES, d.hoverSize),
     tileset: oneOf(x.tileset, TILESET_IDS, d.tileset),
     background: isNamedMapBg(bg) ? bg : d.background,
+    backgroundBefore: rememberedBg(x.backgroundBefore),
   };
 }
 

@@ -35,7 +35,9 @@
 // default Medium). Tileset (`mapper.tileset`, ADR 0082): ←→ cycles the
 // catalogue (src/map/tilesets.ts); the line under the menu credits the
 // set, and an alternating set names the season it draws now (the saved
-// game clock, as the Map pane resolves it). Background colour
+// game clock, as the Map pane resolves it). A set drawn for a light map
+// (Gefe & Rik, Gray's Map) switches the background colour to its own and
+// leaving it restores the user's (`chooseTileset`, ADR 0088). Background colour
 // (`mapper.background`, ADR 0085 and its addenda): ←→ cycles the named
 // colours of src/map/backgrounds.ts (Default first), Enter steps forward
 // like the other cyclers. The Map pane draws the colour at once.
@@ -45,7 +47,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { seasonOf } from '../../gmcp/gametime';
 import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg, mapBgName } from '../../map/backgrounds';
 import type { CurrentMap } from '../../map/store';
-import { localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
+import { chooseTileset, localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft, cycle } from '../kit/nav';
@@ -190,7 +192,7 @@ export function MapperOptionsFrame(): VNode {
     {
       key: 'tileset',
       label: `Tileset: ${tileset.name}`,
-      adjust: (d) => settings.update({ mapper: { tileset: cycle(TILESET_IDS, tileset.id, d) } }),
+      adjust: (d) => settings.update({ mapper: chooseTileset(mapper, cycle(TILESET_IDS, tileset.id, d)) }),
     },
     {
       key: 'background',

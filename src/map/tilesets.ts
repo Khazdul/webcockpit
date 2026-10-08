@@ -256,6 +256,32 @@ export function tilesetChoice(id: string): TilesetChoice {
   return TILESET_CHOICES.find((c) => c.id === id) ?? TILESET_CHOICES[0]!;
 }
 
+/** The mapper settings a tileset choice touches. */
+export interface TilesetBackground {
+  tileset: string;
+  background: string;
+  backgroundBefore: string;
+}
+
+/**
+ * The mapper settings after choosing tileset `next` (ADR 0088). A set with
+ * a recommended background switches the map to it and remembers the
+ * user's colour, unless the set left also had one (Gefe & Rik → Gray's
+ * Map keeps the colour remembered from before Gefe & Rik). Leaving such a
+ * set for one without a background restores the remembered colour, but
+ * only when the background is still the recommended one (a colour the
+ * user picked on the light set stays), and forgets it.
+ */
+export function chooseTileset(cur: TilesetBackground, next: string): TilesetBackground {
+  const from = tilesetChoice(cur.tileset).background;
+  const to = tilesetChoice(next).background;
+  const bg = cur.background.toLowerCase();
+  if (to) return { tileset: next, background: to, backgroundBefore: from ? cur.backgroundBefore : bg };
+  if (!from) return { ...cur, tileset: next };
+  const restore = bg === from && cur.backgroundBefore !== '';
+  return { tileset: next, background: restore ? cur.backgroundBefore : cur.background, backgroundBefore: '' };
+}
+
 /** The set a choice draws in game month `month` (0–11); null: the default pixmaps. */
 export function resolveTileset(id: string, month: number): Tileset | null {
   const c = tilesetChoice(id);

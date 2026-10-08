@@ -9,6 +9,7 @@ import { MAP_PROTOCOL_VERSION } from '../../src/map/protocol';
 import type { Renderer, TileStyle } from '../../src/map/render/renderer';
 import { arraySize, MAX_TILE_SIZE, mipLevels, RENDERER_PIXMAPS } from '../../src/map/render/textures';
 import {
+  chooseTileset,
   currentOverlay,
   DEFAULT_TILESET,
   mumeMonth,
@@ -210,6 +211,9 @@ describe('texture array sizes', () => {
     expect(arraySize(128, [{ width: 100, height: 300 }])).toBe(MAX_TILE_SIZE);
     expect(arraySize(128, [sq(1024)])).toBe(MAX_TILE_SIZE);
     expect(arraySize(256, [sq(32)])).toBe(32);
+    // Gefe & Rik mixes 128, 160 and 200 px files (ADR 0088): the largest wins, no power of two needed.
+    expect(arraySize(128, [sq(160), sq(128), sq(200), null])).toBe(200);
+    expect(mipLevels(200)).toBe(8);
     expect(mipLevels(256)).toBe(9);
     expect(mipLevels(128)).toBe(8);
     expect(mipLevels(100)).toBe(7);
@@ -292,5 +296,42 @@ describe('untinted flow marks (ADR 0088)', () => {
 
   it('only the community sets draw their own flow marks', () => {
     for (const t of TILESETS) expect(t.streamsAsIs === true, t.id).toBe(t.id === 'gefe-rik' || t.id === 'grays-map');
+  });
+});
+
+describe('recommended background (ADR 0088)', () => {
+  const at = (tileset: string, background: string, backgroundBefore = '') => ({ tileset, background, backgroundBefore });
+
+  it('switches to the set’s background and remembers the user’s', () => {
+    expect(chooseTileset(at('default', '#2e3436'), 'gefe-rik')).toEqual(at('gefe-rik', '#ffffff', '#2e3436'));
+    expect(chooseTileset(at('shimrod', '#13261a'), 'grays-map')).toEqual(at('grays-map', '#ffffff', '#13261a'));
+  });
+
+  it('keeps the first remembered colour across sets with a background', () => {
+    expect(chooseTileset(at('gefe-rik', '#ffffff', '#1c1c1c'), 'grays-map')).toEqual(at('grays-map', '#ffffff', '#1c1c1c'));
+    // A colour changed by hand on the light set is replaced by the next set's, the memory stays.
+    expect(chooseTileset(at('gefe-rik', '#e8dfc8', '#1c1c1c'), 'grays-map')).toEqual(at('grays-map', '#ffffff', '#1c1c1c'));
+  });
+
+  it('restores the remembered colour when leaving for a set without one, if the background is untouched', () => {
+    expect(chooseTileset(at('grays-map', '#ffffff', '#1c1c1c'), 'default')).toEqual(at('default', '#1c1c1c'));
+    expect(chooseTileset(at('gefe-rik', '#FFFFFF', '#2e3436'), 'shimrod')).toEqual(at('shimrod', '#2e3436'));
+    // Changed by hand: the user's colour stays, the memory goes.
+    expect(chooseTileset(at('gefe-rik', '#e8dfc8', '#2e3436'), 'desert')).toEqual(at('desert', '#e8dfc8'));
+    // Nothing remembered: the background stays.
+    expect(chooseTileset(at('gefe-rik', '#ffffff'), 'default')).toEqual(at('default', '#ffffff'));
+  });
+
+  it('leaves the background alone between sets without one', () => {
+    expect(chooseTileset(at('default', '#000000'), 'desert')).toEqual(at('desert', '#000000'));
+    expect(chooseTileset(at('desert', '#ffffff', '#000000'), 'shimrod')).toEqual(at('shimrod', '#ffffff', '#000000'));
+  });
+
+  it('keeps a remembered colour only when it is a named background', () => {
+    expect(defaultSettings().mapper.backgroundBefore).toBe('');
+    expect(migrateMapper({ backgroundBefore: '#1C1C1C' }).backgroundBefore).toBe('#1c1c1c');
+    expect(migrateMapper({ backgroundBefore: '#123456' }).backgroundBefore).toBe('');
+    expect(migrateMapper({ backgroundBefore: 7 }).backgroundBefore).toBe('');
+    expect(migrateMapper({}).backgroundBefore).toBe('');
   });
 });

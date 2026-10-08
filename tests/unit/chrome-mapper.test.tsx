@@ -164,12 +164,12 @@ describe('Options → Mapper', () => {
     // Room notes and hover mode (ADR 0077): cyclers, written at once.
     await key('ArrowDown');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(labels(host)[1]).toBe('Room notes: Off');
     await key('ArrowDown');
     expect(labels(host)[2]).toBe('Room info on hover: Full');
     await key('ArrowRight');
-    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436' });
+    expect(svc.settings.get().mapper).toEqual({ notes: false, hover: 'off', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(labels(host)[2]).toBe('Room info on hover: Off');
     await key('Enter');
     expect(svc.settings.get().mapper.hover).toBe('minimal');
@@ -189,26 +189,35 @@ describe('Options → Mapper', () => {
     const credit = (): string | null | undefined => frame(host).querySelector('.wc-mapper-credit')?.textContent;
     expect(credit()).toBe("MMapper's default tiles");
     await key('ArrowDown');
+    // ← from Default: the community sets (last), drawn for white (ADR 0088).
     await key('ArrowLeft');
-    expect(svc.settings.get().mapper.tileset).toBe('desert');
+    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'grays-map', background: '#ffffff', backgroundBefore: '#2e3436' });
+    expect(labels(host)[4]).toBe("Tileset: Gray's Map");
+    expect(labels(host)[5]).toBe('Background colour: White');
+    expect(credit()).toBe("Tiles by Sunnyl75, after Gray's Mapeditor");
+    await key('ArrowLeft');
+    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#2e3436' });
+    expect(labels(host)[4]).toBe('Tileset: Gefe & Rik');
+    expect(credit()).toBe("Tiles by Octavia, after Gefe & Rik's maps");
+    // Leaving them restores the user's colour.
+    await key('ArrowLeft');
+    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'desert', background: '#2e3436', backgroundBefore: '' });
     expect(labels(host)[4]).toBe('Tileset: Desert');
     expect(credit()).toBe("By Khazdul, from Shimrod's tiles");
-    await key('ArrowRight');
-    await key('ArrowRight');
+    for (let i = 0; i < 4; i++) await key('ArrowRight');
     expect(svc.settings.get().mapper.tileset).toBe('shimrod');
+    expect(svc.settings.get().mapper.background).toBe('#2e3436');
     expect(labels(host)[4]).toBe('Tileset: Shimrod (alternating)');
     expect(credit()).toMatch(/^Tiles by Shimrod \(v0\.92\) · now (Spring|Summer|Autumn|Winter)$/);
-    // ← from Shimrod (alternating) passes Default and Desert (last) to Winter.
-    await key('ArrowLeft');
-    await key('ArrowLeft');
-    await key('ArrowLeft');
+    // ← from Shimrod (alternating) passes Default, the community sets and Desert to Winter.
+    for (let i = 0; i < 5; i++) await key('ArrowLeft');
     expect(svc.settings.get().mapper.tileset).toBe('shimrod-winter');
     expect(labels(host)[4]).toBe('Tileset: Shimrod Winter');
     expect(credit()).toBe('Tiles by Shimrod (v0.92)');
     await key('ArrowRight');
     expect(svc.settings.get().mapper.tileset).toBe('desert');
-    await key('ArrowRight');
-    expect(svc.settings.get().mapper.tileset).toBe('default');
+    for (let i = 0; i < 3; i++) await key('ArrowRight');
+    expect(svc.settings.get().mapper).toMatchObject({ tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     await key('ArrowUp');
     await key('ArrowUp');
     await key('ArrowUp');

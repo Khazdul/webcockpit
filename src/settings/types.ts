@@ -266,6 +266,12 @@ export interface MapperSettings {
    * src/map/backgrounds.ts.
    */
   background: string;
+  /**
+   * The background the user had before choosing a tileset with a
+   * recommended background (ADR 0088), restored when they choose a set
+   * without one; `''`: none remembered.
+   */
+  backgroundBefore: string;
 }
 
 export interface Settings {
@@ -359,7 +365,7 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' },
   };
 }
 
