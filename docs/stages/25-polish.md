@@ -182,3 +182,26 @@ Done (round 6): delay removed. ADR 0087 addendum.
 Done (round 7): text in `--pane-border`, transparent. ADR 0087 addendum.
 
 Owner (2026-10-08): satisfied with the name tag; rounds 3–6 approved.
+
+### Round 7 (2026-10-08, released in 0.1.56–0.1.57)
+
+- The pane bar should get no hover outline; the API should allow it.
+- The borderless map should get no hover outline either.
+- Map background: a Transparent choice, if not too involved.
+- The Character pane needs no name tag on hover.
+- Map search: Ctrl+F toggles the pane, the cursor in its query field.
+
+Done: `createPane{outline = false}` (pane bar), the map always without
+outline (ADR 0084 addendum 2); Options → Mapper → Background colour:
+Transparent, drawn on the Map pane's own background (ADR 0085
+addendum); Character without `data-tooltip` (ADR 0087 addendum);
+`mapsearch` binds Ctrl+F, `pane:setInput{keys}` lets its field close it
+too (ADR 0055 addendum).
+
+Test guide (round 7):
+
+1. Hover the pane bar and the borderless map: no outline. Comm (borderless):
+   outline and name tag. Character: outline, no tag.
+2. Options → Mapper → Background colour: ← from Default to Transparent.
+   The map takes the pane's colour; try a paper theme and a tinted Map pane.
+3. Ctrl+F: Map search opens, the cursor in Query; type, Ctrl+F closes it.
