@@ -3,7 +3,11 @@
 //
 //   touch  the primary pointer is coarse and cannot hover
 //          (`(pointer: coarse) and (hover: none)`); a laptop with a touch
-//          screen and a touchpad stays desktop.
+//          screen and a touchpad stays desktop. Fallback for browsers
+//          that misreport the primary pointer (Samsung Internet answers
+//          `hover: hover`, ADR 0086): a touch screen
+//          (`navigator.maxTouchPoints > 0`) on a screen whose short side
+//          is under 600 CSS px, or on Android.
 //   phone  touch, and the short side of the screen is under 600 CSS px.
 //
 // `?touch=1` and `?phone=1` force them on (phone implies touch), for
@@ -19,6 +23,10 @@ export interface DeviceFlags {
 export interface DeviceInputs {
   /** `matchMedia('(pointer: coarse) and (hover: none)').matches`. */
   coarse: boolean;
+  /** `navigator.maxTouchPoints`. */
+  touchPoints: number;
+  /** `navigator.userAgent`. */
+  userAgent: string;
   screenWidth: number;
   screenHeight: number;
   /** The page's query string (`location.search`). */
@@ -37,8 +45,10 @@ const forced = (params: URLSearchParams, name: string): boolean => {
 export function decideDevice(i: DeviceInputs): DeviceFlags {
   const params = new URLSearchParams(i.search);
   const forcePhone = forced(params, 'phone');
-  const touch = forcePhone || forced(params, 'touch') || i.coarse;
-  const phone = forcePhone || (touch && Math.min(i.screenWidth, i.screenHeight) < PHONE_MAX_SHORT_SIDE);
+  const small = Math.min(i.screenWidth, i.screenHeight) < PHONE_MAX_SHORT_SIDE;
+  const touchScreen = i.touchPoints > 0 && (small || /Android/i.test(i.userAgent));
+  const touch = forcePhone || forced(params, 'touch') || i.coarse || touchScreen;
+  const phone = forcePhone || (touch && small);
   return { touch, phone };
 }
 
@@ -57,6 +67,8 @@ export function initDevice(win: Window = window): DeviceFlags {
   const coarse = win.matchMedia?.('(pointer: coarse) and (hover: none)').matches ?? false;
   flags = decideDevice({
     coarse,
+    touchPoints: win.navigator?.maxTouchPoints ?? 0,
+    userAgent: win.navigator?.userAgent ?? '',
     screenWidth: win.screen?.width ?? 0,
     screenHeight: win.screen?.height ?? 0,
     search: win.location.search,
