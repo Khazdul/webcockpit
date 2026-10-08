@@ -1,6 +1,6 @@
 # Progress
 
-Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 26 (community tilesets) owner testing. Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -31,12 +31,29 @@ Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the own
 | 23 | Remote editing | Parked | `docs/stages/23-remote-editing.md` |
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
 | 25 | Polish round | Owner testing | `docs/stages/25-polish.md` |
+| 26 | Community tilesets | Owner testing | `docs/stages/26-community-tilesets.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
 Newest first.
+
+### 2026-10-08 — Stage 26 (community tilesets)
+
+- **Done:** Gefe & Rik (v0.1, Octavia) and Gray's Map (v1.1, Sunnyl75),
+  MIT, after Desert; files unmodified, our own flow chevrons
+  (`scripts/build-flow-chevrons.py`). Catalogue fields `aliases` (Gray's
+  rapids → its water), `background` (#ffffff) and `streamsAsIs`
+  (untinted flow marks, live and in the HTML replay). Choosing a set
+  switches the background to white; leaving it restores the user's
+  (`chooseTileset`, `mapper.backgroundBefore`). Credits, ADR 0088.
+- **Checked:** typecheck; unit 2503; e2e 507/508 (typed-settings:48 ff
+  flaky under load, passes on rerun); tileset spec 6/6. Deploy +0.40 MB.
+- **Next:** owner tests stage 26 (test guide in the stage file); not
+  released.
+- **Commits:** a32c0f1, 94ed83c, 11e8630, 5a03d85, d2ce86b, 23f130e,
+  5a215da, dfdc81c, plus this one.
 
 ### 2026-10-08 — Stage 25 rounds 4–7 (pane name tag)
 
