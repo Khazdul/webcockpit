@@ -75,13 +75,45 @@ Mockups: https://claude.ai/artifact/4f83DXCkLEgM5Hh2QJVZPW (private).
 
 ## Tasks
 
-- [ ] A. Files, generator script, catalogue entries
-- [ ] B. Untinted flow marks per set (live map and replay)
-- [ ] C. Options rows, recommended background and restore
-- [ ] D. Credits (README, notices), unit + e2e, ADR 0088, test guide
+- [x] A. Files, generator script, catalogue entries (`aliases`,
+  `background`, `streamsAsIs`)
+- [x] B. Untinted flow marks per set (live map and replay)
+- [x] C. Options rows, recommended background and restore
+  (`chooseTileset`, `mapper.backgroundBefore`)
+- [x] D. Credits (README, notices), unit + e2e, ADR 0088, test guide
 
 ## Test guide
 
-(written when the stage is built)
+Open the client (local dev or the release build), enter MUME or the
+offline demo, and turn the Map pane on. Note your background colour
+(ESC → Options → Mapper → *Background colour*); pick a dark one other
+than Default, e.g. Navy, to make the restore easy to see.
+
+1. **The rows.** Options → Mapper → *Tileset*: ← from *Default (MMapper)*
+   wraps to the two new rows, last in the list: *Gray's Map*, then
+   *Gefe & Rik* (→ order: … Desert, Gefe & Rik, Gray's Map). The credit
+   line under the menu: `Tiles by Octavia, after Gefe & Rik's maps` /
+   `Tiles by Sunnyl75, after Gray's Mapeditor`.
+2. **Background switch.** Choosing either set switches *Background
+   colour* to White at once. Going from one to the other keeps it white.
+3. **Look at them.** Leave the menu and look at Bree, and at a river
+   with flow (the Anduin by Lórien, or the river east of Bree). The flow
+   marks are our "v" chevrons, one per half room: cyan on Gefe & Rik,
+   light sky blue on Gray's Map, with no dark edge. Walls, loads and
+   other icons a set lacks come from MMapper's default set.
+4. **Rapids in Gray's Map.** Rapids rooms draw Gray's plain water tile.
+5. **Restore.** Back to *Default (MMapper)* (or any older set): the
+   background returns to the colour you had (Navy). If you change the
+   background by hand while on a light set, leaving the set keeps your
+   colour.
+6. **Replay.** With Gefe & Rik or Gray's Map chosen, export an HTML
+   replay of a run with movement (History → a session → Export, HTML)
+   and open it: the same set, the white background and the same flow
+   marks.
+
+Feedback wanted: do the two sets look right (scale, sharpness, nothing
+missing that should be there)? Are the flow marks readable on both? Is
+the background switch and restore what you expected? Are the names,
+order and credit lines fine?
 
 ## Owner feedback
