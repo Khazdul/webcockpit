@@ -39,6 +39,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-08 — Pane bar without hover outline
+
+- **Done:** owner asked that the pane bar get no hover outline, and that
+  the API can choose it. New `createPane{outline = false}` (default true),
+  `data-no-outline` + CSS, kept in SPANE records; panebar uses it; API
+  reference and manual updated. ADR 0084 addendum 2.
+- **Checked:** typecheck, vitest 2505 passed, e2e panebar 10/10.
+- **Next:** in the next release; owner checks the bar on hover.
+- **Commits:** this one.
+
 ### 2026-10-08 — Release 0.1.55
 
 - **Done:** released 0.1.55 (tag v0.1.55, owner's go): stage 26

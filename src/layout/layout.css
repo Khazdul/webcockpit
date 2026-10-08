@@ -113,9 +113,10 @@
  * inside the pane (no layout shift), over its content, in the main window
  * background a step lighter (darker on a light one): `--pane-outline`,
  * src/theme/apply.ts. Pointer devices only, not on a phone, not while a
- * drag is on. */
+ * drag is on. A script pane made with `createPane{outline = false}` (the
+ * pane bar) is marked `data-no-outline` and gets none (addendum 2). */
 @media (hover: hover) {
-  .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):hover::after {
+  .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):not([data-no-outline]):hover::after {
     content: '';
     position: absolute;
     inset: 0;

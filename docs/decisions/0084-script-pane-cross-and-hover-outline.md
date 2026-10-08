@@ -95,3 +95,15 @@ background.
   (`#353a41`). The close cross keeps `--pane-border`: on the Plain tint
   that is already the background lifted a step, so the two match on
   black and stay close elsewhere.
+
+## Addendum 2 — the pane bar without a hover outline (2026-10-08)
+
+The owner asked that the pane bar not get the hover outline, and that a
+script can choose this. `createPane{outline = false}` marks the pane
+`data-no-outline` and the CSS draws no outline on a hover over it while
+it is borderless (a frame is unaffected). Default true, so other script
+panes and all built-in panes keep the outline. Like `cross` and
+`tooltip`, it is part of the pane content: a reload with the option
+changed applies it, and it is kept in recorded sessions (`SPANE`
+records), so the log player and the HTML replay look the same. The
+bundled `panebar` uses it.

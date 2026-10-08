@@ -134,6 +134,8 @@ export interface PaneSnapshot {
   cross?: false;
   /** `createPane{tooltip = true}`: the name tag on a hover over the borderless pane; absent: none (ADR 0087 addendum). */
   tooltip?: true;
+  /** `createPane{outline = false}`: no outline on a hover over the borderless pane; absent: the outline shows (ADR 0084 addendum 2). */
+  outline?: false;
 }
 
 /** Where an overflowing pane's view sticks: the newest lines (a console) or the first (a list). */
@@ -261,6 +263,8 @@ export interface PaneContentOptions {
   cross?: boolean;
   /** Whether a hover shows the name tag on the borderless pane (default false; ADR 0087 addendum). */
   tooltip?: boolean;
+  /** Whether a hover outlines the borderless pane (default true; ADR 0084 addendum 2). */
+  outline?: boolean;
 }
 
 export class PaneContent {
@@ -276,6 +280,8 @@ export class PaneContent {
   cross: boolean;
   /** A hover shows the name tag when borderless (`createPane{tooltip = true}`). */
   tooltip: boolean;
+  /** A hover outlines the pane when borderless (`createPane{outline = false}` turns it off). */
+  outline: boolean;
   /** The hover style of links without their own (ADR 0065 round 2). */
   hover: HoverStyle = 'band';
   /** Bumped by every change (renderers compare it). */
@@ -294,6 +300,7 @@ export class PaneContent {
     this.anchor = opts.anchor ?? 'bottom';
     this.cross = opts.cross ?? true;
     this.tooltip = opts.tooltip ?? false;
+    this.outline = opts.outline ?? true;
   }
 
   setTitle(title: string): void {
@@ -601,6 +608,7 @@ export class PaneContent {
     if (this.anchor === 'top') out.anchor = 'top';
     if (!this.cross) out.cross = false;
     if (this.tooltip) out.tooltip = true;
+    if (!this.outline) out.outline = false;
     return out;
   }
 
@@ -618,6 +626,7 @@ export class PaneContent {
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.cross = s.cross !== false;
     this.tooltip = s.tooltip === true;
+    this.outline = s.outline !== false;
     this.broken = false;
     this.version++;
   }

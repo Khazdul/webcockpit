@@ -55,7 +55,8 @@
 //   title row, one cell in from the right edge; clicking it switches the
 //   pane off (`panes[id].on = false`, the same as Settings). A script pane
 //   made with `cross = false` has none (ADR 0084 addendum, CSS). Hovering a
-//   borderless pane outlines it (ADR 0084, CSS); hovering it shows
+//   borderless pane outlines it (ADR 0084, CSS), unless a script pane
+//   was made with `outline = false` (addendum 2); hovering it shows
 //   its name in a small tag centred on the top row (`.wc-pane-name`, ADR
 //   0087, CSS) on a pane marked `data-tooltip`: the built-in panes but the
 //   map, and script panes made with `tooltip = true`.

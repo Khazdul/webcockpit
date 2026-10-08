@@ -690,7 +690,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   // Panes (ADR 0053).
   fn(
     "createPane",
-    "createPane{id, title, short, dock, lane, rows, cols, border, cross, tooltip, anchor, temporary, at, group, grid} → pane",
+    "createPane{id, title, short, dock, lane, rows, cols, border, cross, tooltip, outline, anchor, temporary, at, group, grid} → pane",
     "Makes the script's own pane and returns it. It docks, floats, toggles and is coloured like the built-in panes, and WebCockpit remembers where the player puts it.",
     {
       params: [
@@ -704,6 +704,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes → Appearance). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). On hover the close cross shows over the last cells of its top row (one in from the right edge), framed or not."),
         p("cross", "boolean?", "false: no close cross on hover, for a pane whose top row ends in buttons, such as a one-row bar. The player turns it off in Options → Panes → Appearance, your script with pane:hide(). Not for a temporary pane. Default true: the cross shows over the last cells of the top row while the pane is hovered, over whatever is there, so keep a link out of them (it cannot be clicked while the cross covers it)."),
         p("tooltip", "boolean?", "true: while the pane has no frame, hovering it shows its title in a small tag centred on its top row, so the player can tell which pane it is. Default false."),
+        p("outline", "boolean?", "false: while the pane has no frame, hovering it draws no outline around it, for a bar that should stay flat. Default true: a thin outline shows where the borderless pane ends."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
         p("temporary", "boolean?", "true for a short-lived pane, such as a choice: it floats over the game text at rows × cols, above the other panes, is never listed in Options, and its close cross closes it (pane:close)."),
         p("at", "string?", "A temporary pane's place until the player moves it: \"center\" (default), \"top\", \"bottom\" (just above the input line), \"left\", \"right\", or a corner: \"top-left\", \"top-right\", \"bottom-left\", \"bottom-right\". Corners let several panes open side by side."),

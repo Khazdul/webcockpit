@@ -182,6 +182,9 @@ describe('bundled panebar', () => {
       place: { dock: 'right', rows: 1, cols: 30, border: false },
     });
     expect(t.panes.bar.content.title).toBe('Pane bar');
+    // No close cross, no hover outline (ADR 0084 addenda).
+    expect(t.panes.bar.content.cross).toBe(false);
+    expect(t.panes.bar.content.outline).toBe(false);
     await t.resize(80);
     expect(t.rows()).toEqual([bar(ALL, true)]);
     expect(t.rows().join(' ')).not.toContain('BAR');

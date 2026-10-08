@@ -1138,6 +1138,13 @@ describe('ScriptPane and the cockpit surface', () => {
       });
       r.flush();
       expect(pane.el.hasAttribute('data-no-cross')).toBe(true);
+      // outline = false marks the pane, so the CSS draws no hover outline (ADR 0084 addendum 2).
+      expect(pane.el.hasAttribute('data-no-outline')).toBe(false);
+      content.outline = false;
+      content.version++;
+      pane.changed();
+      r.flush();
+      expect(pane.el.hasAttribute('data-no-outline')).toBe(true);
     });
 
     it('grip cells (pane:setGrip): a grab cursor, a press moves the pane at once, no click; any row, framed too', () => {

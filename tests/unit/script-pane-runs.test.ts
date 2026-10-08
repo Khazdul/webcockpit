@@ -245,6 +245,23 @@ describe('SPANE records: anchor (ADR 0053 addendum)', () => {
     expect(o.payload).not.toContain('tooltip');
     expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).tooltip).toBe(false);
   });
+
+  it('a pane without the hover outline says so in full records; deltas and the player keep it (ADR 0084 addendum 2)', () => {
+    const c = new PaneContent('Flat', { outline: false });
+    c.setLine(0, plain('a'));
+    const a = encodePaneRecord(null, c.snapshot())!;
+    expect(JSON.parse(a.payload).outline).toBe(false);
+    c.setLine(1, plain('b'));
+    const b = encodePaneRecord(a.state, c.snapshot())!;
+    expect(b.full).toBe(false);
+    let s = applyPaneRecord(null, a.payload)!;
+    s = applyPaneRecord(s, b.payload)!;
+    expect(s.outline).toBe(false);
+    expect(PaneContent.fromSnapshot(s).outline).toBe(false);
+    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+    expect(o.payload).not.toContain('outline');
+    expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).outline).toBe(true);
+  });
 });
 
 describe('RecordingPaneSurface', () => {

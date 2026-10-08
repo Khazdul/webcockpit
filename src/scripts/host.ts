@@ -1926,6 +1926,11 @@ export class ScriptHost {
       if (tooltip !== undefined && typeof tooltip !== 'boolean') {
         throw new Error(`bad argument #1 to 'createPane' (tooltip must be true or false)`);
       }
+      // No outline on a hover over the borderless pane (ADR 0084 addendum 2); on by default.
+      const outline = t.outline;
+      if (outline !== undefined && typeof outline !== 'boolean') {
+        throw new Error(`bad argument #1 to 'createPane' (outline must be true or false)`);
+      }
       const lane = t.lane;
       if (lane !== undefined && lane !== 'own') throw new Error(`bad argument #1 to 'createPane' (lane must be "own")`);
       const dock = t.dock ?? 'right';
@@ -1943,9 +1948,14 @@ export class ScriptHost {
           done(old);
         }
         if (short !== undefined) old.short = short;
-        if ((cross !== undefined && old.content.cross !== cross) || (tooltip !== undefined && old.content.tooltip !== tooltip)) {
+        if (
+          (cross !== undefined && old.content.cross !== cross) ||
+          (tooltip !== undefined && old.content.tooltip !== tooltip) ||
+          (outline !== undefined && old.content.outline !== outline)
+        ) {
           if (cross !== undefined) old.content.cross = cross;
           if (tooltip !== undefined) old.content.tooltip = tooltip;
+          if (outline !== undefined) old.content.outline = outline;
           old.content.version++;
           old.view.changed();
         }
@@ -1982,6 +1992,7 @@ export class ScriptHost {
         anchor,
         ...(cross === false ? { cross: false } : {}),
         ...(tooltip === true ? { tooltip: true } : {}),
+        ...(outline === false ? { outline: false } : {}),
         onDrop: (n) => {
           const tg = reg.toggles.get(n);
           if (tg) this.releaseToggle(tg);

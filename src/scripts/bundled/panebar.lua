@@ -30,7 +30,8 @@ shade (<@bg:@glow>); off is the mid shade on the track shade
 (<@mid:@track>), faded but readable. Both follow the pane tint and the
 light (paper) backgrounds. Under the pointer a button turns a step
 lighter, text and fill (pane:setHover("lighten")). A click calls
-setPaneOn. No tooltips: the buttons and arrows have no hint text.
+setPaneOn. No tooltips: the buttons and arrows have no hint text. No
+hover outline either (outline = false): the bar stays flat.
 
 The bar is one row: a grip, a dotted cell (pane:setGrip) that drags the
 bar, a blank cell, then the buttons, one empty cell apart. How wide the
@@ -73,6 +74,7 @@ local MIN_W = 2
 local pane = createPane{
   id = "bar", title = "Pane bar", short = "BAR",
   dock = "right", rows = 1, cols = 30, border = false, cross = false,
+  outline = false,
 }
 -- A hovered button lightens (text and fill) instead of the glow band.
 pane:setHover("lighten")

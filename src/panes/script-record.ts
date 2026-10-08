@@ -23,8 +23,9 @@
 // `anchor: "top"` (ADR 0053 addendum) marks a pane whose view sticks to
 // its first line; it never changes, so it is in full records only and a
 // delta keeps the pane's. `cross: false` (a pane without a close cross,
-// ADR 0084 addendum) and `tooltip: true` (a pane with the name tag,
-// ADR 0087 addendum) are the same.
+// ADR 0084 addendum), `tooltip: true` (a pane with the name tag,
+// ADR 0087 addendum) and `outline: false` (no hover outline, ADR 0084
+// addendum 2) are the same.
 //
 // `temp` marks a temporary pane (feedback round 1; its id is
 // `<script>/~<pane>`): `{"rows","cols","rect"?,"off"?}`, its wanted
@@ -71,6 +72,8 @@ export interface PaneRecordState {
   noCross?: boolean;
   /** `tooltip: true`. */
   tooltip?: boolean;
+  /** `outline: false`. */
+  noOutline?: boolean;
 }
 
 const lineJson = (l: PaneLine): string => JSON.stringify(l);
@@ -81,6 +84,7 @@ export function recordState(s: PaneSnapshot): PaneRecordState {
   if (s.anchor === 'top') st.top = true;
   if (s.cross === false) st.noCross = true;
   if (s.tooltip === true) st.tooltip = true;
+  if (s.outline === false) st.noOutline = true;
   return st;
 }
 
@@ -99,7 +103,8 @@ export function encodePaneRecord(
 ): { payload: string; state: PaneRecordState; full: boolean } | null {
   const state = recordState(next);
   const tempPart = state.temp ? `,"temp":${state.temp}` : '';
-  const fixedPart = (state.top ? ',"anchor":"top"' : '') + (state.noCross ? ',"cross":false' : '') + (state.tooltip ? ',"tooltip":true' : '');
+  const fixedPart = (state.top ? ',"anchor":"top"' : '') + (state.noCross ? ',"cross":false' : '') + (state.tooltip ? ',"tooltip":true' : '') +
+    (state.noOutline ? ',"outline":false' : '');
   const full = `{"title":${JSON.stringify(state.title)},"lines":[${state.lines.join(',')}],"links":${state.links}${tempPart}${fixedPart}}`;
   if (!prev) return { payload: full, state, full: true };
   const set: string[] = [];
@@ -189,6 +194,7 @@ export function applyPaneRecord(prev: PaneSnapshot | null, json: string): PaneSn
   if (base.anchor === 'top') out.anchor = 'top';
   if (base.cross === false) out.cross = false;
   if (base.tooltip === true) out.tooltip = true;
+  if (base.outline === false) out.outline = false;
   return out;
 }
 
@@ -298,6 +304,7 @@ export function sanitizeSnapshot(v: Obj): PaneSnapshot {
   if (v.anchor === 'top') out.anchor = 'top';
   if (v.cross === false) out.cross = false;
   if (v.tooltip === true) out.tooltip = true;
+  if (v.outline === false) out.outline = false;
   return out;
 }
 
