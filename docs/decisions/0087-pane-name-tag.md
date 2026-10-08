@@ -29,9 +29,9 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
 
 ## Consequences
 
-- On a one-row borderless pane (the pane bar) the tag covers its first
-  cells while shown; clicks still pass through.
-- The 2 s counts from entering the pane, not from the mouse resting.
+- On a one-row borderless pane the tag covers its middle cells while
+  hovered; clicks still pass through. (The pane bar has no tag: see the
+  addenda, which also replace the 2 s delay and the top-left placement.)
 
 ## Addendum — stage 25 round 4 feedback (2026-10-08)
 

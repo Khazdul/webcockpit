@@ -180,3 +180,5 @@ Done (round 6): delay removed. ADR 0087 addendum.
 - The tag's text should have the close cross's colour, no background.
 
 Done (round 7): text in `--pane-border`, transparent. ADR 0087 addendum.
+
+Owner (2026-10-08): satisfied with the name tag; rounds 3–6 approved.

@@ -38,36 +38,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
-### 2026-10-08 — Stage 25 round 7
+### 2026-10-08 — Stage 25 rounds 4–7 (pane name tag)
 
-- **Done:** pane name tag in the close cross's colour, no background.
-  ADR 0087 addendum.
-- **Next:** owner tests round 7.
-
-### 2026-10-08 — Stage 25 round 6
-
-- **Done:** pane name tag shows at once on hover (no delay). ADR 0087
-  addendum.
-- **Checked:** e2e script-panes, lua-help 24/24.
-- **Next:** owner tests round 6.
-
-### 2026-10-08 — Stage 25 round 5
-
-- **Done:** name tag per owner feedback: 1 s, centred, smaller/dimmer;
-  not on the map; script panes opt in with `createPane{tooltip = true}`
-  (default off). ADR 0087 addendum.
-- **Checked:** unit 2494; e2e script-panes, layout, panebar, lua-help,
-  almanac, mapsearch-pane, keymanager, player, script-pane-runs 90/90.
-- **Next:** owner tests round 5.
-- **Commits:** see git log (feat + this docs commit).
-
-### 2026-10-08 — Stage 25 round 4
-
-- **Done:** name tag on a 2 s hover over a borderless pane (owner
-  request), pure CSS delay, top left in the outline colour. ADR 0087.
-- **Checked:** unit 2493, e2e script-panes/layout/panebar 56/56.
-- **Next:** owner tests round 4 (stage file test guide).
-- **Commits:** 859dcd6, plus this one.
+- **Done:** hovering a borderless pane shows its name centred on the top
+  row, at once, in the close cross's colour, no background. Built-in
+  panes but the map have it; script panes opt in with
+  `createPane{tooltip = true}` (default off; API reference and manual).
+  Recorded in runs like `cross`. ADR 0087 with addenda.
+- **Owner:** approved.
+- **Checked:** typecheck; unit 2494; e2e 504/506 (script-code-editor ff
+  and replay flaky under load, both pass on rerun).
+- **Next:** not released; the owner decides when. Stage 25 otherwise
+  awaits the owner's live test.
+- **Commits:** 859dcd6, 3e32abe, 7b44658, 6f1d14a, plus this one.
 
 ### 2026-10-08 — Release 0.1.53
 
