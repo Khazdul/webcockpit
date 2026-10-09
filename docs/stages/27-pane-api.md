@@ -99,3 +99,6 @@ Feedback wanted: is anything still missing to rebuild the Group, Timers
 or Character pane as a script? Is the `?` placement right?
 
 ## Owner feedback
+
+- 2026-10-09: owner tested 0.1.58 live and approved the stage ("ser bra
+  ut"): partial-row gauges, theme query, wrapText, key manager `?`.
