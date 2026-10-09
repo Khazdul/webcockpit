@@ -63,7 +63,9 @@ import {
   scriptPaneId,
   tempPaneId,
 } from '../layout/types';
-import { HOVER_STYLES, type HoverStyle, MAX_LINES, PaneContent, isHoverStyle, plain } from '../panes/script-content';
+import { HOVER_STYLES, type HoverStyle, MAX_LINE_CELLS, MAX_LINES, type PaneGauge, PaneContent, isHoverStyle, plain } from '../panes/script-content';
+import { type PaneTheme, hex6, paneTheme, themeFill } from '../panes/pane-theme';
+import { DEFAULT_SETTINGS } from '../settings/types';
 import { TEMP_PANE_AT, type TempPaneAt } from '../layout/temp-places';
 import type { ScriptPanePlace } from '../layout/model';
 import type { ScriptMapSurface } from '../map/marks';
@@ -78,7 +80,7 @@ import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
 import { setLiveScriptKey } from '../script/script-keys';
 import type { StyledRow } from '../ui/output-pane';
 import { helpRows, listRows, settingText } from './command-rows';
-import { cechoColorName, mudletColor, parseCecho, parseScriptColor } from './colors';
+import { SHADE_TAGS, cechoColorName, mudletColor, parseCecho, parseScriptColor } from './colors';
 import { type GmcpEntry, GmcpCache } from './gmcp-cache';
 import { HangGuard } from './guard';
 import { apiProblem } from './header';
@@ -188,6 +190,8 @@ interface PaneReg {
   resize: LuaRef | null;
   /** `pane:onWheel(fn)` (ADR 0072): wheel steps in cells; true from it consumes the event. */
   wheel: LuaRef | null;
+  /** `pane:onTheme(fn)` (ADR 0090): called with `pane:theme()` when the pane's colours change. */
+  theme: LuaRef | null;
   /** The last size reported to the resize handler (`colsxrows`). */
   lastSize: string;
   /** Text fields (`pane:setInput`) by their id, which is also their Lua handle. */
@@ -1490,10 +1494,10 @@ export class ScriptHost {
       }
       return n - 1;
     };
-    const color = (a: LuaArgs, name: string): number | undefined => {
+    const color = (a: LuaArgs, name: string, i = 3): number => {
       const style = parseScriptColor(name);
       const c = style?.fg ?? style?.bg;
-      if (c === undefined) throw new Error(`bad argument #3 to '${a.name}' (unknown colour '${name}')`);
+      if (c === undefined) throw new Error(`bad argument #${i} to '${a.name}' (unknown colour '${name}')`);
       return c;
     };
     const done = (p: PaneReg): void => p.view.changed();
@@ -1655,14 +1659,38 @@ export class ScriptHost {
           if (typeof v !== 'number') throw new Error(`bad argument #3 to '${a.name}' (${k} must be a number)`);
           return v;
         };
+        const bad = (msg: string): Error => new Error(`bad argument #3 to '${a.name}' (${msg})`);
         const label = t.label;
         const c = t.color;
-        p.content.setGauge(r, {
+        const g: PaneGauge = {
           value: num('value', 0),
           max: num('max', 100),
           label: typeof label === 'string' || typeof label === 'number' ? String(label) : '',
           ...(typeof c === 'string' ? { color: color(a, c) } : {}),
-        });
+        };
+        // Part of a row (ADR 0090): from `col`, `width` cells.
+        const partial = t.col !== undefined || t.width !== undefined;
+        if (t.col !== undefined) {
+          const n = t.col;
+          if (typeof n !== 'number' || !Number.isInteger(n) || n < 1 || n > MAX_LINE_CELLS) throw bad(`col must be a whole number from 1 to ${MAX_LINE_CELLS}`);
+          g.col = n - 1;
+        }
+        if (t.width !== undefined) {
+          const n = t.width;
+          if (typeof n !== 'number' || !Number.isInteger(n) || n < 1) throw bad('width must be a whole number from 1');
+          g.width = n;
+        }
+        if (t.align !== undefined && t.align !== 'center') {
+          if (t.align !== 'left' && t.align !== 'right') throw bad('align must be "center", "left" or "right"');
+          g.align = t.align;
+        }
+        if (t.track !== undefined) {
+          if (t.track === false) g.track = false;
+          else if (typeof t.track === 'string') g.track = color(a, t.track);
+          else throw bad('track must be a colour or false');
+        }
+        if (partial) p.content.addGauge(r, g);
+        else p.content.setGauge(r, g);
         done(p);
       },
       cechoLink: (a) => {
@@ -1852,6 +1880,25 @@ export class ScriptHost {
         if (p.onClose !== null) p.owner.script?.release(p.onClose);
         p.onClose = ref;
       },
+      theme: (a) => {
+        const p = self(a);
+        return p ? themeTable(this.themeOf(p)) : null;
+      },
+      fillColor: (a) => {
+        const p = self(a);
+        const c = color(a, a.string(2), 2);
+        return p ? themeFill(this.themeOf(p), c) : null;
+      },
+      onTheme: (a) => {
+        const p = self(a);
+        const ref = a.optFunction(2);
+        if (!p) {
+          if (ref !== null) this.cur(rt).script?.release(ref);
+          return;
+        }
+        if (p.theme !== null) p.owner.script?.release(p.theme);
+        p.theme = ref;
+      },
       show: (a) => self(a)?.view.setOn(true),
       hide: (a) => self(a)?.view.setOn(false),
       visible: (a) => self(a)?.view.isOn() ?? false,
@@ -2003,6 +2050,7 @@ export class ScriptHost {
         links: new Map(),
         resize: null,
         wheel: null,
+        theme: null,
         lastSize: '',
         fields: new Map(),
         toggles: new Map(),
@@ -2031,6 +2079,7 @@ export class ScriptHost {
         onWheel: (dx: number, dy: number) => this.onPaneWheel(reg, dx, dy),
         onClose: () => this.onPaneClosed(reg),
         onField: (n: number, e: FieldEvent) => this.onPaneField(reg, n, e),
+        onTheme: () => this.onPaneTheme(reg),
       };
       const place: ScriptPanePlace = { dock: dock as DockId | 'float', rows, cols };
       if (border !== undefined) place.border = border;
@@ -2082,6 +2131,8 @@ export class ScriptHost {
     p.resize = null;
     if (p.wheel !== null) s?.release(p.wheel);
     p.wheel = null;
+    if (p.theme !== null) s?.release(p.theme);
+    p.theme = null;
     if (p.onClose !== null) s?.release(p.onClose);
     p.onClose = null;
     for (const f of [...p.fields.values()]) this.releaseField(f);
@@ -2191,6 +2242,18 @@ export class ScriptHost {
     if (p.resize !== null) this.call(p.owner, p.resize, rows, cols);
   }
 
+  /** Pane `p`'s colours now; without a surface (tests, the bench), the default settings'. */
+  private themeOf(p: PaneReg): PaneTheme {
+    return p.view.theme?.() ?? paneTheme(DEFAULT_SETTINGS, p.id);
+  }
+
+  /** Pane `p`'s colours changed: its `onTheme` handler gets the new theme (ADR 0090). */
+  private onPaneTheme(p: PaneReg): void {
+    const ref = p.theme;
+    if (ref === null || p.owner.dead || this.paneHandles.get(p.handle) !== p) return;
+    this.call(p.owner, ref, themeTable(this.themeOf(p)));
+  }
+
   /** The wheel over pane `p`, in whole cells: true when its handler consumed it (returned true). */
   private onPaneWheel(p: PaneReg, dx: number, dy: number): boolean {
     const ref = p.wheel;
@@ -2266,6 +2329,17 @@ function isObject(v: unknown): v is Record<string, unknown> {
 
 function vital(v: { value: number | null; max: number | null; word: string | null }): Record<string, unknown> {
   return { value: v.value ?? undefined, max: v.max ?? undefined, word: v.word ?? undefined };
+}
+
+/**
+ * `pane:theme()` (ADR 0090): `light`, the pane's background `bg`, the text
+ * colour `fg` of uncoloured text, and `shades` by their `<@role>` names,
+ * every colour as `#rrggbb`.
+ */
+function themeTable(t: PaneTheme): Record<string, unknown> {
+  const shades: Record<string, string> = {};
+  for (const [tag, role] of Object.entries(SHADE_TAGS)) shades[tag] = hex6(t.ramp[role]);
+  return { light: t.light, bg: hex6(t.bg), fg: hex6(t.fg), shades };
 }
 
 /** A pane without a surface (tests, the bench): content only, never shown. */

@@ -15,7 +15,9 @@
 //                                      list) only when they changed
 //
 // A row in `set` is a whole line, or `{"v"?: value, "l"?: label}` for a
-// gauge that only changed its value or label (the common countdown).
+// full-width gauge that only changed its value or label (the common
+// countdown). A text line may carry `gauges` (ADR 0090): each a gauge with
+// `col` and maybe `width`; such a line is always sent whole.
 //
 // A link may carry `hover: "lighten" | "none"` (ADR 0065 round 2), its
 // effective hover style; absent is the band.
@@ -49,6 +51,7 @@ import {
   MAX_HINT,
   MAX_LINE_CELLS,
   MAX_LINES,
+  MAX_ROW_GAUGES,
   MAX_TITLE,
   type PaneGauge,
   type PaneLine,
@@ -236,21 +239,30 @@ const isColor = (c: unknown): c is number =>
   typeof c === 'number' && Number.isInteger(c) && c >= 0 && (c <= 0x1ffffff || shadeRoleOf(c) !== null || isAdaptive(c));
 const num = (v: unknown, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 
+/** A recorded gauge, checked and capped; `partial`: one over part of a text line (it needs its `col`). */
+function sanitizeGauge(g: Obj, partial: boolean): PaneGauge | null {
+  const max = num(g.max, 1) > 0 ? num(g.max, 1) : 1;
+  const out: PaneGauge = {
+    value: Math.max(0, Math.min(max, num(g.value, 0))),
+    max,
+    label: typeof g.label === 'string' ? g.label.slice(0, MAX_LINE_CELLS) : '',
+  };
+  if (isColor(g.color)) out.color = g.color;
+  if (g.align === 'left' || g.align === 'right') out.align = g.align;
+  if (g.track === false || isColor(g.track)) out.track = g.track;
+  if (partial) {
+    const col = num(g.col, -1);
+    if (!Number.isInteger(col) || col < 0 || col >= MAX_LINE_CELLS) return null;
+    out.col = col;
+    const w = num(g.width, 0);
+    if (g.width !== undefined && w >= 1) out.width = Math.min(MAX_LINE_CELLS - col, Math.floor(w));
+  }
+  return out;
+}
+
 function sanitizeLine(l: unknown): PaneLine | null {
   if (!isObject(l)) return null;
-  if (isObject(l.gauge)) {
-    const g = l.gauge;
-    const max = num(g.max, 1) > 0 ? num(g.max, 1) : 1;
-    const out: PaneLine = {
-      gauge: {
-        value: Math.max(0, Math.min(max, num(g.value, 0))),
-        max,
-        label: typeof g.label === 'string' ? g.label.slice(0, MAX_LINE_CELLS) : '',
-      },
-    };
-    if (isColor(g.color)) out.gauge.color = g.color;
-    return out;
-  }
+  if (isObject(l.gauge)) return { gauge: sanitizeGauge(l.gauge, false)! };
   if (!Array.isArray(l.spans)) return null;
   const spans: PaneSpan[] = [];
   let cells = 0;
@@ -266,7 +278,13 @@ function sanitizeLine(l: unknown): PaneLine | null {
     if (s.underline === true) sp.underline = true;
     spans.push(sp);
   }
-  return { spans };
+  if (!Array.isArray(l.gauges)) return { spans };
+  const gauges: PaneGauge[] = [];
+  for (const g of l.gauges.slice(0, MAX_ROW_GAUGES)) {
+    const ok = isObject(g) ? sanitizeGauge(g, true) : null;
+    if (ok) gauges.push(ok);
+  }
+  return gauges.length ? { spans, gauges } : { spans };
 }
 
 function sanitizeLinks(links: unknown[], rows: number): PaneSnapshot['links'] {

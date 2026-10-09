@@ -22,6 +22,10 @@
 //   ask for its own place and size.
 // - `view.wheel(on)` (ADR 0072) turns on reporting the wheel over the pane
 //   in whole cells to `events.onWheel` (`pane:onWheel`).
+// - `view.theme()` (ADR 0090) is the pane's colours now (`pane:theme()`);
+//   `events.onTheme` is called after a settings change that changed them
+//   (the pane's colour, the terminal colours or palette, paper or dark),
+//   once per change, in a microtask: never inside the settings update.
 // - `RecordingPaneSurface` wraps a surface and reports the panes' content
 //   for the run capture (`view.pane`, ADR 0053 P1); it forwards the rest.
 //
@@ -36,6 +40,7 @@ import { type DockId, type LayoutModel, PANE_IDS, type PaneId, type ScriptPaneId
 import type { SettingsStore } from '../settings';
 import { SCRIPT_PANE_DEFAULTS, paneSettingsOf } from '../settings/types';
 import type { PaneContext } from './context';
+import { type PaneTheme, paneTheme, themeKey } from './pane-theme';
 import type { PaneContent, PaneSnapshot, PaneTemp } from './script-content';
 import { type FieldEvent, ScriptPane } from './script-pane';
 
@@ -67,6 +72,8 @@ export interface ScriptPaneEvents {
    * `view.wheel(true)` is on (ADR 0072). True consumes the event.
    */
   onWheel?(dx: number, dy: number): boolean;
+  /** The pane's colours changed (`view.theme()`, ADR 0090). */
+  onTheme?(): void;
 }
 
 /** One open script pane, as the host sees it. */
@@ -97,6 +104,8 @@ export interface ScriptPaneView {
   want?(rows: number, cols?: number): boolean;
   /** Starts (true) or stops reporting the wheel to `events.onWheel` (`pane:onWheel`, ADR 0072). */
   wheel?(on: boolean): void;
+  /** The pane's colours now (`pane:theme()`, ADR 0090). */
+  theme?(): PaneTheme;
 }
 
 /** One pane in the pane list (ADR 0065). */
@@ -142,7 +151,8 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       onFocusInput: () => this.cockpit.focusInput(),
     });
     pane.onResize((c, r) => events.onResize(c, r));
-    if (spec.temporary) return this.openTemp(spec.id, spec.temporary, pane, events);
+    const unwatch = this.watchTheme(id, events);
+    if (spec.temporary) return this.openTemp(spec.id, spec.temporary, pane, events, unwatch);
     this.open_.set(id, spec.place);
     this.ensurePlaced();
     this.unsub ??= this.settings.subscribe(() => this.ensurePlaced());
@@ -178,9 +188,11 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       size: () => ({ cols: pane.cols, rows: pane.rows }),
       focusField: (n, select) => pane.focusField(n, select),
       wheel: (on) => pane.setWheel(on ? (dx, dy) => events.onWheel?.(dx, dy) ?? false : null),
+      theme: () => paneTheme(this.settings.get(), id),
       close: () => {
         if (closed) return;
         closed = true;
+        unwatch();
         this.open_.delete(id);
         this.cockpit.removePane(id);
         pane.dispose();
@@ -202,6 +214,7 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     size: { rows: number; cols: number; at?: TempPaneAt; group?: { key: string; cols: number } },
     pane: ScriptPane,
     events: ScriptPaneEvents,
+    unwatch: () => void,
   ): ScriptPaneView {
     // A grouped pane is tiled by the cockpit, which keeps the group's place.
     const grouped = size.group !== undefined;
@@ -219,9 +232,11 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
       close: () => {
         if (closed) return;
         closed = true;
+        unwatch();
         this.cockpit.removePane(id);
         pane.dispose();
       },
+      theme: () => paneTheme(this.settings.get(), id),
       placement: () => tempPlacement(this.cockpit.tempPane(id) ?? { ...size, rect: null, on: false }),
       dock: () => 'float',
       want: () => false,
@@ -263,6 +278,32 @@ export class CockpitPaneSurface implements ScriptPaneSurface {
     return () => {
       a();
       b();
+    };
+  }
+
+  /**
+   * Calls `events.onTheme` in a microtask after a settings change that
+   * changed pane `id`'s colours (ADR 0090). Returns the unsubscribe.
+   */
+  private watchTheme(id: ScriptPaneId, events: ScriptPaneEvents): () => void {
+    if (!events.onTheme) return () => {};
+    let key = themeKey(paneTheme(this.settings.get(), id));
+    let queued = false;
+    let live = true;
+    const off = this.settings.subscribe(() => {
+      const k = themeKey(paneTheme(this.settings.get(), id));
+      if (k === key) return;
+      key = k;
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        if (live) events.onTheme?.();
+      });
+    });
+    return () => {
+      live = false;
+      off();
     };
   }
 
@@ -360,6 +401,7 @@ export class RecordingPaneSurface implements ScriptPaneSurface {
     if (view.dock) out.dock = () => view.dock!();
     if (view.want) out.want = (rows, cols) => view.want!(rows, cols);
     if (view.wheel) out.wheel = (on) => view.wheel!(on);
+    if (view.theme) out.theme = () => view.theme!();
     return out;
   }
 

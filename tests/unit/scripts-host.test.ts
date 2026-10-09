@@ -20,6 +20,10 @@ import { PANES_EVENT_MAX, ScriptHost, deriveShort } from '../../src/scripts/host
 import { type DockId, PANE_IDS } from '../../src/layout/types';
 import type { StyledRow } from '../../src/ui/output-pane';
 import { PaneContent } from '../../src/panes/script-content';
+import { type PaneTheme, paneTheme } from '../../src/panes/pane-theme';
+import { DEFAULT_SETTINGS } from '../../src/settings/types';
+import { washout } from '../../src/theme/color';
+import { SCRIPT_GUIDE } from '../../src/editor/script-manual';
 
 const PaneContentFrom = PaneContent.fromSnapshot;
 import type { PaneState, ScriptPaneEvents, ScriptPaneSpec, ScriptPaneSurface, ScriptPaneView } from '../../src/panes/script-surface';
@@ -1483,6 +1487,114 @@ describe('panes', () => {
     expect('gauge' in g && g.gauge.color).toBe(TRUECOLOR | 0xffa500);
     expect(p.view.changes).toBe(5);
     expect(t.host.isRunning('m')).toBe(true);
+  });
+
+  it('pane:gauge with col, width, align and track: bars over part of a row, under its text (ADR 0090)', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        g: src(`
+          local pane = createPane{id = "g", cols = 30}
+          pane:setLine(1, "Gimli")
+          pane:gauge(1, {col = 1, width = 10, value = 20, max = 20, color = "#005a18"})
+          pane:gauge(1, {col = 11, width = 10, value = 5, max = 20, color = "#0000aa", label = "5", align = "right"})
+          pane:gauge(1, {col = 21, value = 1, max = 2, track = false, align = "left", label = "mv"})
+          pane:gauge(2, {value = 1, max = 2, label = "full", align = "center", track = "grey"})
+          for _, bad in ipairs({ {col = 0}, {col = 1.5}, {width = 0}, {width = "x"}, {align = "middle"}, {track = true}, {track = "nocolour"} }) do
+            bad.value = 1
+            local ok, err = pcall(pane.gauge, pane, 3, bad)
+            send(err)
+          end
+        `),
+      },
+      { panes },
+    );
+    const p = panes.get('g/g')!;
+    const l = p.content.lines[0]!;
+    expect('spans' in l && l.spans.map((s) => s.text).join('')).toBe('Gimli');
+    expect('spans' in l && l.gauges).toEqual([
+      { value: 20, max: 20, label: '', col: 0, width: 10, color: TRUECOLOR | 0x005a18 },
+      { value: 5, max: 20, label: '5', col: 10, width: 10, color: TRUECOLOR | 0x0000aa, align: 'right' },
+      { value: 1, max: 2, label: 'mv', col: 20, align: 'left', track: false },
+    ]);
+    const g = p.content.lines[1]!;
+    expect('gauge' in g && g.gauge).toMatchObject({ label: 'full', track: expect.any(Number) });
+    expect('gauge' in g && 'align' in g.gauge).toBe(false);
+    expect(t.sent).toHaveLength(7);
+    expect(t.sent.every((m) => m.includes("bad argument #3 to 'pane:gauge'"))).toBe(true);
+    expect(t.sent[0]).toMatch(/col must be a whole number from 1/);
+    expect(t.sent[2]).toMatch(/width must be a whole number from 1/);
+    expect(t.sent[4]).toMatch(/align must be "center", "left" or "right"/);
+    expect(t.sent[5]).toMatch(/track must be a colour or false/);
+    expect(t.sent[6]).toMatch(/unknown colour 'nocolour'/);
+    expect(p.content.lines).toHaveLength(2);
+    expect(t.lib.get('g')!.lastError).toBeNull();
+  });
+
+  it("the manual's Group example runs: three bars per member row, the name over them (ADR 0090)", async () => {
+    const ex = SCRIPT_GUIDE.flatMap((s) => s.examples ?? []).find((e) => e.note?.startsWith('Group rows with three bars'))!;
+    const panes = new FakeSurface();
+    const t = await setup({ grp: src(ex.code) }, { panes });
+    const p = panes.get('grp/group')!;
+    p.view.cols = 30;
+    p.view.rows = 6;
+    p.events.onResize(30, 6);
+    t.gmcp('Group.Set', [
+      { id: 1, type: 'ally', name: 'Gimli', hp: 20, maxhp: 20, mana: 5, maxmana: 10, mp: 1, maxmp: 10 },
+      { id: 2, type: 'npc', name: 'a mercenary', label: 'MERC', hp: 4, maxhp: 20 },
+    ]);
+    expect(paneText(p.content)).toEqual(['Gimli', 'MERC']);
+    const row = p.content.lines[0]!;
+    expect('spans' in row && row.gauges!.map((g) => [g.col, g.width, g.value, g.max, g.color])).toEqual([
+      [0, 10, 20, 20, TRUECOLOR | 0x005a18],
+      [10, 10, 5, 10, TRUECOLOR | 0x0000aa],
+      [20, undefined, 1, 10, 1],
+    ]);
+    const merc = p.content.lines[1]!;
+    expect('spans' in merc && merc.gauges![0]!.color).toBe(1);
+    expect(t.lib.get('grp')!.lastError).toBeNull();
+  });
+
+  it('pane:theme, pane:fillColor and pane:onTheme (ADR 0090)', async () => {
+    const panes = new FakeSurface();
+    const t = await setup(
+      {
+        th: src(`
+          pane = createPane{id = "th"}
+          local function show(th)
+            send(tostring(th.light) .. " " .. th.bg .. " " .. th.fg .. " " .. th.shades.track .. " " .. th.shades.bg .. " " .. th.shades.text .. " " .. th.shades.glow)
+          end
+          show(pane:theme())
+          send(pane:fillColor("#0000aa") .. " " .. pane:fillColor("ansi_red"))
+          pane:onTheme(function(th) show(th); send(pane:fillColor("#0000aa")) end)
+          local ok, err = pcall(pane.fillColor, pane, "nocolour")
+          send(err)
+          export("off", function() pane:onTheme(nil) end)
+          export("close", function() pane:close(); send(tostring(pane:theme()) .. " " .. tostring(pane:fillColor("red"))) end)
+        `),
+      },
+      { panes },
+    );
+    // Without a surface theme: the default settings' colours for the pane.
+    const d = paneTheme(DEFAULT_SETTINGS, 'th/th' as never);
+    const hex = (c: string) => c.toLowerCase();
+    expect(t.sent[0]).toBe(`false ${hex(d.bg)} ${hex(d.fg)} ${d.ramp.track} ${d.ramp.paneBg} ${d.ramp.vtext} ${d.ramp.glow}`);
+    expect(t.sent[1]).toBe(`#0000aa ${hex(DEFAULT_SETTINGS.appearance.ansi[1]!)}`);
+    expect(t.sent[2]).toMatch(/bad argument #2 to 'pane:fillColor' \(unknown colour 'nocolour'\)/);
+    // The surface reports a change: the handler gets the new theme; fills are washed on a light pane.
+    const p = panes.get('th/th')!;
+    const light: PaneTheme = { light: true, bg: '#F4ECD8', fg: '#202020', ramp: { ...d.ramp, track: '#ABC' }, ansi: d.ansi };
+    (p.view as FakeView & { theme?: () => PaneTheme }).theme = () => light;
+    p.events.onTheme!();
+    expect(t.sent.slice(3)).toEqual([`true #f4ecd8 #202020 #aabbcc ${d.ramp.paneBg} ${d.ramp.vtext} ${d.ramp.glow}`, washout('#0000aa')]);
+    // nil removes the handler; a closed pane's theme and fills are nil.
+    t.sent.length = 0;
+    t.engine.input('#lua th off');
+    p.events.onTheme!();
+    expect(t.sent).toEqual([]);
+    t.engine.input('#lua th close');
+    expect(t.sent).toEqual(['nil nil']);
+    expect(t.lib.get('th')!.lastError).toBeNull();
   });
 
   it('the stage 11 test guide example runs: a vitals gauge and two links', async () => {

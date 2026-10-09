@@ -11,7 +11,10 @@ import { Cockpit } from '../../src/layout/cockpit';
 import { findFloat, findPane, floatPane, movePane, moveToNewLane, placeScriptPane, setLaneSize, togglePatch } from '../../src/layout/model';
 import { type LayoutModel, PANE_COLORS, defaultLayout, dockPanes, isScriptPaneId, isTempPaneId, scriptPaneId, tempPaneId } from '../../src/layout/types';
 import { createPaneContext } from '../../src/panes/context';
-import { MAX_LINE_CELLS, PaneContent, overlay, plain } from '../../src/panes/script-content';
+import { MAX_LINE_CELLS, MAX_ROW_GAUGES, PaneContent, overlay, plain } from '../../src/panes/script-content';
+import { paneTheme, themeFill, themeKey } from '../../src/panes/pane-theme';
+import { applyPaneRecord, encodePaneRecord, recordState } from '../../src/panes/script-record';
+import { washout } from '../../src/theme/color';
 import { type FieldEvent, ScriptPane, gaugeFill, paneIndicator, paneInk, scriptPaneRows, wheelSteps } from '../../src/panes/script-pane';
 import { contrast, hoverLift, lightness, paneShades } from '../../src/theme/color';
 import { CockpitPaneSurface, RecordingPaneSurface } from '../../src/panes/script-surface';
@@ -346,6 +349,124 @@ describe('drawing', () => {
     expect(l!.fg[0]).toBe('#000');
   });
 
+  it('gauges over part of a row: several per row, each from its column, the fill whole cells (ADR 0090)', () => {
+    const c = new PaneContent('t');
+    // A Group-like row: three bars, no gaps, and a name over them.
+    c.addGauge(0, { value: 10, max: 10, label: '', col: 0, width: 4, color: TRUECOLOR | 0x005a18 });
+    c.addGauge(0, { value: 1, max: 2, label: '', col: 4, width: 4, color: TRUECOLOR | 0x0000aa });
+    c.addGauge(0, { value: 0, max: 5, label: '', col: 8, color: TRUECOLOR | 0x5a3c1e, track: false });
+    c.setText(0, 0, plain('Gimli'));
+    const l = c.lines[0]!;
+    expect('spans' in l && l.gauges!.map((g) => [g.col, g.width])).toEqual([[0, 4], [4, 4], [8, undefined]]);
+    const [row] = scriptPaneRows(c, 12, ramp, false, ansi);
+    expect(row!.text()).toBe('Gimli       ');
+    expect(row!.bg).toEqual([...Array(4).fill('#005a18'), '#0000aa', '#0000aa', ramp.track, ramp.track, ...Array(4).fill('')]);
+    // The text over a bar keeps the bar's background; its own colour is the ink.
+    expect(row!.fg[0]).toBe('');
+    // The last bar runs to the pane's edge, whatever the width.
+    c.lines[0] = { spans: [], gauges: [{ value: 3, max: 4, label: '', col: 8 }] };
+    const [wide] = scriptPaneRows(c, 16, ramp, false, ansi);
+    expect(wide!.bg.slice(8).filter((b) => b === '#005a18')).toHaveLength(6);
+  });
+
+  it('gauge labels: centred, left or right in their own bar; a plain space over a bar shows it through', () => {
+    const c = new PaneContent('t');
+    c.addGauge(0, { value: 0, max: 1, label: 'ab', col: 0, width: 6 });
+    c.addGauge(0, { value: 0, max: 1, label: 'cd', col: 6, width: 6, align: 'left' });
+    c.addGauge(0, { value: 0, max: 1, label: 'ef', col: 12, width: 6, align: 'right' });
+    expect(scriptPaneRows(c, 18, ramp, false, ansi)[0]!.text()).toBe('  ab  cd        ef');
+    // setText pads with spaces: they do not hide a label; other characters do.
+    c.setText(0, 16, plain('X'));
+    const [r] = scriptPaneRows(c, 18, ramp, false, ansi);
+    expect(r!.text()).toBe('  ab  cd        Xf');
+    expect(r!.fg[2]).toBe(ramp.vtext);
+    // A space with its own background is drawn.
+    c.setText(0, 2, { text: ' ', runs: [{ start: 0, end: 1, bg: shadeColor('glow') }] });
+    expect(scriptPaneRows(c, 18, ramp, false, ansi)[0]!.text()).toBe('   b  cd        Xf');
+    // A full-width gauge aligns too, and its own track colour or none.
+    const f = new PaneContent('t');
+    f.setGauge(0, { value: 1, max: 4, label: '12m', align: 'right', track: TRUECOLOR | 0x333333 });
+    f.setGauge(1, { value: 1, max: 4, label: 'x', align: 'left', track: false });
+    const [a, b] = scriptPaneRows(f, 8, ramp, false, ansi);
+    expect(a!.text()).toBe('     12m');
+    expect(a!.bg).toEqual(['#005a18', '#005a18', ...Array(6).fill('#333333')]);
+    expect(b!.text()).toBe('x       ');
+    expect(b!.bg).toEqual(['#005a18', '#005a18', ...Array(6).fill('')]);
+  });
+
+  it('gauge fills are washed on a light pane, as the Group bars', () => {
+    const c = new PaneContent('t');
+    c.addGauge(0, { value: 1, max: 1, label: '', col: 2, width: 3, color: TRUECOLOR | 0x0000aa });
+    const [l] = scriptPaneRows(c, 6, ramp, true, ansi);
+    expect(l!.bg.slice(2, 5)).toEqual(Array(3).fill(washout('#0000aa')));
+  });
+
+  it('addGauge drops the gauges it overlaps and keeps text, links and fields; setLine and clear drop gauges', () => {
+    const dropped: number[] = [];
+    const c = new PaneContent('t', { onDrop: (id) => dropped.push(id) });
+    c.setLine(0, plain('name'));
+    c.addLink(0, 0, 4, 7, 'hint');
+    c.addField(0, 10, 3, 8);
+    c.addGauge(0, { value: 1, max: 2, label: '', col: 0, width: 5 });
+    c.addGauge(0, { value: 1, max: 2, label: '', col: 5, width: 5 });
+    const v = c.version;
+    // The same gauge again: no change.
+    c.addGauge(0, { value: 1, max: 2, label: '', col: 5, width: 5 });
+    expect(c.version).toBe(v);
+    c.addGauge(0, { value: 2, max: 2, label: '', col: 3, width: 4 });
+    const l = c.lines[0]!;
+    expect('spans' in l && l.gauges!.map((g) => g.col)).toEqual([3]);
+    expect(texts(c)).toEqual(['name']);
+    expect(c.links).toHaveLength(1);
+    expect(c.fields).toHaveLength(1);
+    expect(dropped).toEqual([]);
+    // No width: to the edge, so it overlaps everything to its right.
+    c.addGauge(0, { value: 0, max: 1, label: '', col: 8 });
+    c.addGauge(0, { value: 0, max: 1, label: '', col: 20, width: 2 });
+    expect('spans' in c.lines[0]! && c.lines[0].gauges!.map((g) => g.col)).toEqual([3, 20]);
+    // setText keeps them; setLine drops them with the links.
+    c.setText(0, 0, plain('NAME'));
+    expect('spans' in c.lines[0]! && c.lines[0].gauges).toHaveLength(2);
+    c.setLine(0, plain('name'));
+    expect(c.lines[0]).toEqual({ spans: [{ text: 'name' }] });
+    expect(dropped).toEqual([7]);
+    // On a full-width gauge row the full gauge goes; on a new row the list grows.
+    c.setGauge(1, { value: 1, max: 1, label: 'full' });
+    c.addGauge(1, { value: 1, max: 1, label: 'part', col: 2, width: 3 });
+    expect(c.lines[1]).toEqual({ spans: [], gauges: [{ value: 1, max: 1, label: 'part', col: 2, width: 3 }] });
+    c.addGauge(4, { value: 1, max: 1, label: '', col: 0, width: 1 });
+    expect(c.lines).toHaveLength(5);
+    // A full gauge replaces the row's partial ones.
+    c.setGauge(1, { value: 0, max: 1, label: 'full', col: 4, width: 2 });
+    expect(c.lines[1]).toEqual({ gauge: { value: 0, max: 1, label: 'full' } });
+    expect(() => c.addGauge(0, { value: 0, max: 1, label: '', col: MAX_LINE_CELLS })).toThrow(RangeError);
+    for (let i = 0; i < MAX_ROW_GAUGES; i++) c.addGauge(2, { value: 0, max: 1, label: '', col: i, width: 1 });
+    expect(() => c.addGauge(2, { value: 0, max: 1, label: '', col: MAX_ROW_GAUGES, width: 1 })).toThrow(/gauges already/);
+    c.clear();
+    expect(c.lines).toEqual([]);
+  });
+
+  it('partial gauges survive a snapshot, a run record and its sanitizer', () => {
+    const c = new PaneContent('t');
+    c.setLine(0, plain('ab'));
+    c.addGauge(0, { value: 2, max: 4, label: 'x', col: 1, width: 3, align: 'right', track: false, color: shadeColor('mid') });
+    const snap = c.snapshot();
+    expect(snap.lines[0]).toEqual({ spans: [{ text: 'ab' }], gauges: [{ value: 2, max: 4, label: 'x', col: 1, width: 3, align: 'right', track: false, color: shadeColor('mid') }] });
+    const copy = PaneContent.fromSnapshot(snap);
+    expect(copy.lines).toEqual(c.lines);
+    (snap.lines[0] as { gauges: unknown[] }).gauges.length = 0;
+    expect('spans' in c.lines[0]! && c.lines[0].gauges).toHaveLength(1);
+    const enc = encodePaneRecord(null, c.snapshot())!;
+    expect(applyPaneRecord(null, enc.payload)!.lines).toEqual(c.lines);
+    // A changed value goes as the whole line (no gauge patch for partial gauges).
+    c.addGauge(0, { value: 3, max: 4, label: 'x', col: 1, width: 3, align: 'right', track: false, color: shadeColor('mid') });
+    const d = encodePaneRecord(recordState(snap), c.snapshot())!;
+    expect(applyPaneRecord(applyPaneRecord(null, enc.payload), d.payload)!.lines).toEqual(c.lines);
+    // A shared file is checked: bad gauges go, good ones are capped.
+    const bad = applyPaneRecord(null, JSON.stringify({ title: 't', links: [], lines: [{ spans: [], gauges: [{ value: 1, max: 2 }, { col: 2, width: 9999, value: 9, max: 2, align: 'up', track: 'red' }, 'junk'] }] }))!;
+    expect(bad.lines[0]).toEqual({ spans: [], gauges: [{ value: 2, max: 2, label: '', col: 2, width: MAX_LINE_CELLS - 2 }] });
+  });
+
   it('hover styles: band (the default), lighten (text and background a step lighter), none; per link or per pane (ADR 0065 round 2)', () => {
     const c = new PaneContent('t');
     c.setLine(0, { text: 'ON OFF x', runs: [{ start: 0, end: 2, bg: shadeColor('glow'), fg: shadeColor('paneBg') }, { start: 3, end: 6, bg: shadeColor('track'), fg: shadeColor('mid') }] });
@@ -476,6 +597,55 @@ describe('ScriptPane and the cockpit surface', () => {
     const surface = new CockpitPaneSurface(cockpit, settings, ctx);
     return { settings, cockpit, surface, flush, ctx };
   }
+
+  it('view.theme() is the pane colours now; onTheme follows a change of them only, once, after the update (ADR 0090)', async () => {
+    const { settings, surface } = rig();
+    const id = scriptPaneId('th', 'main');
+    let calls = 0;
+    const view = surface.open({ id, place: { dock: 'left', rows: 5, cols: 20 } }, new PaneContent('T'), {
+      onLink: () => {},
+      onResize: () => {},
+      onTheme: () => calls++,
+    });
+    const t0 = view.theme!();
+    expect(t0).toEqual(paneTheme(settings.get(), id));
+    expect(t0.light).toBe(false);
+    // Not a colour change: no call.
+    settings.update((d) => {
+      d.layout.docks.left.lanes[0]!.size += 1;
+    });
+    await Promise.resolve();
+    expect(calls).toBe(0);
+    // The pane colour, twice in one go: one call, in a microtask.
+    settings.update((d) => {
+      d.panes[id] = { ...paneSettingsOf(d.panes, id), color: 'blue' };
+    });
+    settings.update((d) => {
+      d.panes[id] = { ...paneSettingsOf(d.panes, id), color: 'green' };
+    });
+    expect(calls).toBe(0);
+    await Promise.resolve();
+    expect(calls).toBe(1);
+    expect(themeKey(view.theme!())).not.toBe(themeKey(t0));
+    // A light terminal (paper): the pane goes light, fills are washed.
+    settings.update((d) => {
+      d.panes[id] = { ...paneSettingsOf(d.panes, id), color: 'black' };
+      d.appearance.bg = '#f4ecd8';
+    });
+    await Promise.resolve();
+    expect(calls).toBe(2);
+    const t1 = view.theme!();
+    expect(t1.light).toBe(true);
+    expect(themeFill(t1, TRUECOLOR | 0x0000aa)).toBe(washout('#0000aa'));
+    expect(themeFill(t0, undefined)).toBe('#005a18');
+    // Closed: no more calls.
+    view.close();
+    settings.update((d) => {
+      d.appearance.bg = '#000000';
+    });
+    await Promise.resolve();
+    expect(calls).toBe(2);
+  });
 
   it('places a new pane, shows it while open and keeps its place after close', () => {
     const { settings, cockpit, surface, flush } = rig();

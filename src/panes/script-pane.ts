@@ -24,7 +24,12 @@
 //   `lightShift` and the same contrast floor, as the UI and Comm panes
 //   (ADR 0041). Gauges fill with their colour (washed to
 //   a pastel on a light pane, as the Group bars) over the pane's track
-//   shade, the label in the value shade.
+//   shade (or the script's own track, or none), the label in the value
+//   shade, centred or to one side. A gauge over part of a text line
+//   (ADR 0090) is drawn first and the line's text over it: a text cell
+//   keeps the bar's background unless it has its own, and a space without
+//   a background lets the bar's cell (its label) show through. Fills are
+//   whole cells, as the Group and Timers bars.
 // - Links: the cell under the pointer is looked up in the content, never
 //   in the DOM. A hovered link is drawn in its hover style (ADR 0065
 //   round 2): `band` (the default) the glow band, text in the `paneBg`
@@ -85,21 +90,20 @@
 // - Render is coalesced: callers change the content and call `changed()`,
 //   which marks the pane dirty (one render per frame, none while hidden).
 
-import { type Color, isAdaptive, shadeRoleOf } from '../core/types';
+import { isAdaptive, shadeRoleOf } from '../core/types';
 import { adaptBg, adaptFg, adaptiveHex } from '../theme/adaptive';
 import { keyNameFromEvent } from '../script/keys';
 import type { PaneId } from '../layout/types';
-import { colorToCss } from '../ui/palette';
 import type { PaneContext } from './context';
 import { forwardWheel } from './anchored-list';
 import { CellLine, INDICATOR_FG, RowList, centre } from './grid';
 import { PaneShell } from './pane';
-import { type HoverStyle, type PaneContent, type PaneField, type PaneLine, type PaneLink } from './script-content';
+import { type HoverStyle, type PaneContent, type PaneField, type PaneGauge, type PaneLine, type PaneLink } from './script-content';
 import { fillFor, paneShade } from './shade';
-import { type ShadeRole, fitContrast, hoverLift, lightShift } from '../theme/color';
+import { type ShadeRole, hoverLift } from '../theme/color';
+import { DEFAULT_GAUGE_COLOR, type PaneInk, PLAIN_INK, paneColor, paneInk } from './pane-theme';
 
-/** A gauge's fill when the script gives no colour (the Group pane's HP green). */
-export const DEFAULT_GAUGE_COLOR = '#005a18';
+export { DEFAULT_GAUGE_COLOR, type PaneInk, PLAIN_INK, paneColor, paneInk };
 
 export interface ScriptPaneOptions {
   /** The content to draw (the host edits it). */
@@ -133,41 +137,6 @@ const FIELD_EDIT_KEYS: ReadonlySet<string> = new Set(
 );
 
 type Ramp = Readonly<Record<ShadeRole, string>>;
-
-/** How text colours meet the pane: `base` for uncoloured text, `fg` maps a span colour. */
-export interface PaneInk {
-  base: string;
-  fg(css: string): string;
-  /** The pane's background and font colour, for adaptive colours (ADR 0068). */
-  bg?: string;
-  text?: string;
-}
-
-/** Colours as given; uncoloured text inherits (tests, the default). */
-export const PLAIN_INK: PaneInk = { base: '', fg: (c) => c };
-
-/** Text colours for a pane on `bg` (ADR 0041's 4.5:1 rule on a light pane). */
-export function paneInk(termFg: string, bg: string, light: boolean): PaneInk {
-  const toward = light ? '#000000' : '#ffffff';
-  const base = fitContrast(termFg, bg, 4.5, toward);
-  return {
-    base,
-    fg: light ? (c) => fitContrast(lightShift(c), bg, 4.5, toward) : (c) => c,
-    bg,
-    text: base,
-  };
-}
-
-/**
- * CSS colour of a line-model colour, palette 0–15 from `ansi`; a shade-role
- * colour (ADR 0065) from `ramp` (empty without one: the default colour).
- */
-export function paneColor(c: Color, ansi: readonly string[], ramp?: Ramp): string {
-  const role = shadeRoleOf(c);
-  if (role) return ramp?.[role] ?? '';
-  if (isAdaptive(c)) return adaptiveHex(c);
-  return c < 16 ? (ansi[c] ?? colorToCss(c)) : colorToCss(c);
-}
 
 /** The part of a wheel scroll not yet given out as whole cells, per axis (ADR 0072). */
 export interface WheelRest {
@@ -213,16 +182,47 @@ export function gaugeFill(value: number, max: number, w: number): number {
   return Math.max(0, Math.min(w, Math.round((value / max) * w)));
 }
 
+/** `label` placed in `w` cells: centred, or to the left or right. */
+export function alignLabel(label: string, w: number, align: PaneGauge['align']): string {
+  if (w <= 0) return '';
+  if (align === 'left') return label.slice(0, w);
+  if (align === 'right') return label.length >= w ? label.slice(label.length - w) : ' '.repeat(w - label.length) + label;
+  return centre(label, w);
+}
+
+/** Draws gauge `g` over cells [`x`, `x` + `gw`) of `line` (clipped at the line's end). */
+export function drawGauge(line: CellLine, g: PaneGauge, x: number, gw: number, ramp: Ramp, light: boolean, ansi: readonly string[]): void {
+  const w = Math.min(gw, line.w - x);
+  if (w <= 0) return;
+  const fill = fillFor(g.color === undefined ? DEFAULT_GAUGE_COLOR : paneColor(g.color, ansi, ramp), light);
+  if (g.track !== false) line.fill(x, x + w, { bg: g.track === undefined ? ramp.track : paneColor(g.track, ansi, ramp) });
+  // The fill is of the whole bar, also when the pane cuts it.
+  line.fill(x, x + Math.min(w, gaugeFill(g.value, g.max, gw)), { bg: fill });
+  if (g.label) {
+    const text = alignLabel(g.label, gw, g.align).slice(0, w);
+    // A label of a bar without a track: only its characters (the pane's own background between them).
+    for (let i = 0; i < text.length; i++) if (text[i] !== ' ') line.put(x + i, text[i]!, { fg: ramp.vtext });
+  }
+}
+
 /** One content line as a row of `w` cells. */
 export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ansi: readonly string[], ink: PaneInk = PLAIN_INK): CellLine {
   const line = new CellLine(w);
   if ('gauge' in l) {
-    const g = l.gauge;
-    const fill = fillFor(g.color === undefined ? DEFAULT_GAUGE_COLOR : paneColor(g.color, ansi), light);
-    line.fill(0, w, { bg: ramp.track });
-    line.fill(0, gaugeFill(g.value, g.max, w), { bg: fill });
-    if (g.label) line.put(0, centre(g.label, w), { fg: ramp.vtext });
+    drawGauge(line, l.gauge, 0, w, ramp, light, ansi);
     return line;
+  }
+  // Gauges under the text (ADR 0090): `under[c]` marks their cells.
+  let under: boolean[] | null = null;
+  if (l.gauges?.length) {
+    under = new Array<boolean>(w).fill(false);
+    for (const g of l.gauges) {
+      const x0 = g.col ?? 0;
+      if (x0 >= w) continue;
+      const gw = g.width ?? w - x0;
+      drawGauge(line, g, x0, gw, ramp, light, ansi);
+      under.fill(true, x0, Math.min(w, x0 + gw));
+    }
   }
   let x = 0;
   for (const s of l.spans) {
@@ -231,7 +231,7 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
     // made for the pane's light or dark background (no light shift).
     // An adaptive colour (ADR 0068) resolves against the pane's own
     // background, as is (it is already made to read there).
-    line.put(x, s.text, {
+    const st = {
       fg:
         s.fg === undefined
           ? ink.base
@@ -242,14 +242,20 @@ export function paneLine(l: PaneLine, w: number, ramp: Ramp, light: boolean, ans
               : ink.fg(paneColor(s.fg, ansi)),
       bg:
         s.bg === undefined
-          ? ''
+          ? undefined
           : isAdaptive(s.bg)
             ? adaptBg(adaptiveHex(s.bg), ink.text || ramp.vtext, ink.bg ?? ramp.paneBg)
             : paneColor(s.bg, ansi, ramp),
       bold: !!s.bold,
       italic: !!s.italic,
       underline: !!s.underline,
-    });
+    };
+    if (under && s.bg === undefined) {
+      // Over a gauge a plain space shows the bar's cell (its label) through.
+      for (let i = 0; i < s.text.length && x + i < w; i++) {
+        if (s.text[i] !== ' ' || !under[x + i]) line.put(x + i, s.text[i]!, st);
+      }
+    } else line.put(x, s.text, st);
     x += s.text.length;
   }
   return line;

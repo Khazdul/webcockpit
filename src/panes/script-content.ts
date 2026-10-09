@@ -7,6 +7,14 @@
 // Rows and columns are 0-based here; the Lua API is 1-based and converts.
 //
 // - A line is styled text (spans) or a gauge (a full-width bar).
+// - A text line may also carry gauges over parts of it (ADR 0090): bars
+//   from a column, a number of cells wide (absent: to the pane's right
+//   edge). They are drawn under the line's text: a text cell shows its
+//   character over the bar, but a space without a background of its own
+//   lets the bar (and its label) show through. `addGauge` drops the
+//   gauges it overlaps (on a full-width gauge row, that gauge: the row
+//   becomes an empty text line). `setLine` and `clear` drop them with the
+//   rest of the row; `setText`, `append`, links and fields leave them.
 // - `append` writes like Mudlet's echo: text goes on the end of the last
 //   line and `\n` starts a new line. A trailing `\n` is remembered, so
 //   `append("a\n")`, `append("b\n")` gives two lines and no empty third.
@@ -59,17 +67,42 @@ export interface PaneSpan {
   underline?: boolean;
 }
 
-/** A full-width bar: `value` of `max` filled, `label` centred over it. */
+/** How a gauge's label sits in its bar; absent: centred. */
+export type GaugeAlign = 'left' | 'right';
+
+/**
+ * A bar: `value` of `max` filled, `label` over it. A full-width gauge
+ * (a `{ gauge }` line) has no `col`; one over part of a text line
+ * (`gauges`, ADR 0090) has its first cell `col` (0-based) and `width`
+ * cells (absent: to the pane's right edge).
+ */
 export interface PaneGauge {
   value: number;
   max: number;
   /** The fill colour; absent: the default bar colour. */
   color?: Color;
   label: string;
+  col?: number;
+  width?: number;
+  /** Where the label sits; absent: centred. */
+  align?: GaugeAlign;
+  /** Under the unfilled part: a colour, or false for none (the pane's own background); absent: the track shade. */
+  track?: Color | false;
 }
 
-/** One row: styled text or a gauge. */
-export type PaneLine = { spans: PaneSpan[] } | { gauge: PaneGauge };
+/** Most gauges on one text line. */
+export const MAX_ROW_GAUGES = 100;
+
+/** One row: styled text (with gauges under parts of it) or a full-width gauge. */
+export type PaneLine = { spans: PaneSpan[]; gauges?: PaneGauge[] } | { gauge: PaneGauge };
+
+/** A deep copy of a line. */
+export function copyLine(l: PaneLine): PaneLine {
+  if ('gauge' in l) return { gauge: { ...l.gauge } };
+  const out: PaneLine = { spans: l.spans.map((s) => ({ ...s })) };
+  if (l.gauges?.length) out.gauges = l.gauges.map((g) => ({ ...g }));
+  return out;
+}
 
 /** How a hovered link is drawn (ADR 0065 round 2). */
 export type HoverStyle = 'band' | 'lighten' | 'none';
@@ -409,7 +442,7 @@ export class PaneContent {
     this.dropRow(row);
     const spans = clip(toSpans(one), MAX_LINE_CELLS);
     const old = this.lines[row]!;
-    if (!hadLinks && 'spans' in old && sameSpans(old.spans, spans)) return;
+    if (!hadLinks && 'spans' in old && !old.gauges?.length && sameSpans(old.spans, spans)) return;
     this.lines[row] = { spans };
     this.version++;
   }
@@ -433,19 +466,42 @@ export class PaneContent {
       x += s.text.length;
     }
     if (sameSpans(old.spans, spans)) return;
-    this.lines[row] = { spans };
+    this.lines[row] = old.gauges?.length ? { spans, gauges: old.gauges } : { spans };
     this.version++;
   }
 
-  /** Replaces row `row` with a gauge. */
+  /** Replaces row `row` with a full-width gauge (`col` and `width` are ignored). */
   setGauge(row: number, g: PaneGauge): void {
     this.ensure(row);
     this.dropRow(row);
-    const max = Number.isFinite(g.max) && g.max > 0 ? g.max : 1;
-    const value = Number.isFinite(g.value) ? Math.max(0, Math.min(max, g.value)) : 0;
-    const gauge: PaneGauge = { value, max, label: clean(g.label.replace(/\n/g, ' ')).slice(0, MAX_LINE_CELLS) };
-    if (g.color !== undefined) gauge.color = g.color;
-    this.lines[row] = { gauge };
+    this.lines[row] = { gauge: normGauge(g) };
+    this.version++;
+  }
+
+  /**
+   * Puts gauge `g` over `g.width` cells of text row `row` from `g.col`
+   * (0-based; absent: 0; no width: to the pane's right edge), under the
+   * row's text (ADR 0090). Gauges it overlaps go (a full-width gauge row
+   * becomes an empty text line first); the row's text, links and fields
+   * stay. A no-op when the same gauge is already there.
+   */
+  addGauge(row: number, g: PaneGauge): void {
+    this.ensure(row);
+    const c = Math.max(0, Math.floor(g.col ?? 0));
+    if (c >= MAX_LINE_CELLS) throw new RangeError(`column ${c + 1} is past the last column (${MAX_LINE_CELLS})`);
+    const gauge = normGauge(g);
+    gauge.col = c;
+    if (g.width !== undefined) gauge.width = Math.max(1, Math.min(MAX_LINE_CELLS - c, Math.floor(g.width)));
+    const end = (x: PaneGauge): number => (x.col ?? 0) + (x.width ?? MAX_LINE_CELLS);
+    const old = this.lines[row]!;
+    const spans = 'spans' in old ? old.spans : [];
+    const was = 'spans' in old ? (old.gauges ?? []) : [];
+    if (was.some((x) => sameGauge(x, gauge))) return;
+    const kept = was.filter((x) => !((x.col ?? 0) < end(gauge) && c < end(x)));
+    if (kept.length >= MAX_ROW_GAUGES) throw new RangeError(`row ${row + 1} has ${MAX_ROW_GAUGES} gauges already`);
+    kept.push(gauge);
+    kept.sort((a, b) => (a.col ?? 0) - (b.col ?? 0));
+    this.lines[row] = { spans, gauges: kept };
     this.version++;
   }
 
@@ -596,7 +652,7 @@ export class PaneContent {
 
   /** Plain data for runs: a deep copy without link ids; fields baked in as text. */
   snapshot(): PaneSnapshot {
-    const lines: PaneLine[] = this.lines.map((l) => ('spans' in l ? { spans: l.spans.map((s) => ({ ...s })) } : { gauge: { ...l.gauge } }));
+    const lines: PaneLine[] = this.lines.map(copyLine);
     for (const f of this.fields) {
       const l = lines[f.row];
       if (!l || !('spans' in l)) continue;
@@ -627,7 +683,7 @@ export class PaneContent {
    */
   load(s: PaneSnapshot): void {
     this.title = s.title;
-    this.lines = s.lines.map((l) => ('spans' in l ? { spans: l.spans.map((x) => ({ ...x })) } : { gauge: { ...l.gauge } }));
+    this.lines = s.lines.map(copyLine);
     this.links = s.links.map((l, i) => ({ ...l, id: i + 1 }));
     this.fields = [];
     this.grip = null;
@@ -646,6 +702,31 @@ export class PaneContent {
     c.load(s);
     return c;
   }
+}
+
+/** A gauge's value in [0, max], max > 0, its label one cleaned line; the optional fields kept as given. */
+function normGauge(g: PaneGauge): PaneGauge {
+  const max = Number.isFinite(g.max) && g.max > 0 ? g.max : 1;
+  const value = Number.isFinite(g.value) ? Math.max(0, Math.min(max, g.value)) : 0;
+  const gauge: PaneGauge = { value, max, label: clean(g.label.replace(/\n/g, ' ')).slice(0, MAX_LINE_CELLS) };
+  if (g.color !== undefined) gauge.color = g.color;
+  if (g.align === 'left' || g.align === 'right') gauge.align = g.align;
+  if (g.track !== undefined) gauge.track = g.track;
+  return gauge;
+}
+
+/** Two gauges draw the same. */
+function sameGauge(a: PaneGauge, b: PaneGauge): boolean {
+  return (
+    a.value === b.value &&
+    a.max === b.max &&
+    a.label === b.label &&
+    a.color === b.color &&
+    a.col === b.col &&
+    a.width === b.width &&
+    a.align === b.align &&
+    a.track === b.track
+  );
 }
 
 /** A field value: one line, control characters out, at most `max` characters. */
