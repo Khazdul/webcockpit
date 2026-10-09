@@ -32,6 +32,7 @@ Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community
 | 24 | Loading indicators | Done | `docs/stages/24-loading.md` |
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
+| 27 | Pane API | Owner testing | `docs/stages/27-pane-api.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
