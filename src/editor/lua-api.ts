@@ -768,8 +768,8 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   ),
   fn(
     "pane:gauge",
-    "pane:gauge(row, {value, max, color, label})",
-    "Draws a full-width bar on one row, like the bars of the Group pane: value of max filled, label centred over it.",
+    "pane:gauge(row, {value, max, color, label, col, width, align, track})",
+    "Draws a bar on one row, like the bars of the Group pane: value of max filled, label over it. Without col and width it fills the whole row; with them it covers part of the row, so one row can hold several bars and text.",
     {
       params: [
         p("pane", "pane", "A pane from createPane."),
@@ -777,11 +777,16 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "gauge",
           "table",
-          "value and max (numbers; max defaults to 100), color (a colour name such as \"red\", \"<#ff8800>\" or \"orange\"; default green; not the pane's shades) and label (text over the bar).",
+          "value and max (numbers; max defaults to 100), color (a colour name such as \"red\", \"<#ff8800>\" or \"orange\"; default green; not the pane's shades), label (text over the bar), col (the first column, from 1), width (cells; default to the pane's right edge), align (\"center\", the default, \"left\" or \"right\": where the label sits) and track (the colour of the unfilled part, or false for none).",
         ),
       ],
-      more: ["The unfilled part takes the pane's track shade, so the bar follows the pane colour. Like setLine, it replaces the row and its links."],
-      example: 'pane:gauge(2, {value = 30, max = 60, color = "orange", label = "30 min left"})',
+      more: [
+        "The fill is in whole cells. Its colour is washed to a pastel on a light pane, as the Group bars; pane:fillColor gives that colour. The unfilled part takes the pane's track shade, so the bar follows the pane colour.",
+        "Without col and width the bar is the whole row: like setLine, it replaces the row, its links and its fields.",
+        "With col or width the bar goes under the row's text: the row keeps its text, links and fields, and a bar it overlaps goes. A text cell shows its character over the bar, on the bar's colour unless the text has a background of its own; a space without a background lets the bar and its label show through. pane:setText keeps the bars; pane:setLine and pane:clear remove them.",
+      ],
+      example:
+        'pane:gauge(2, {value = 30, max = 60, color = "orange", label = "30 min left"})\n-- Three bars on one row, the name over them.\npane:gauge(3, {col = 1, width = 10, value = hp, max = maxhp, color = "#005a18"})\npane:gauge(3, {col = 11, width = 10, value = mana, max = maxmana, color = "#0000aa"})\npane:gauge(3, {col = 21, value = mv, max = maxmv, color = "#5a3c1e"})\npane:setText(3, 1, "<@text>Gimli")',
     },
   ),
   fn(
@@ -843,7 +848,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [
         p("pane", "pane", "A pane from createPane."),
-        p("row", "number", "The row, from 1 (a text row, not a gauge)."),
+        p("row", "number", "The row, from 1 (a text row, not a full-row gauge; bars from pane:gauge with col stay under the text)."),
         p("col", "number", "The first column, from 1; a shorter row is padded with spaces."),
         p("text", "string", "Text with colour tags and the pane's shades (<@dim>)."),
       ],
@@ -1003,6 +1008,47 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       more: ["It is not called while the pane is hidden; pane:size() then gives 0, 0."],
       example: 'pane:onResize(function(rows, cols)\n  pane:setLine(1, string.rep("=", cols))\nend)',
+    },
+  ),
+  fn(
+    "pane:theme",
+    "pane:theme() → table",
+    "The pane's colours now, as #rrggbb: for drawing in the pane's own look, such as a bar's track or a text colour that suits a light pane.",
+    {
+      params: [p("pane", "pane", "A pane from createPane.")],
+      returns:
+        "A table: light (true on a light, paper pane), bg (the pane's background), fg (the colour of text without a colour tag) and shades, a table of the pane's shades by their tag names: track, dim, mid, bg, text, label and glow, as <@track> … <@glow>. nil once the pane is closed.",
+      more: [
+        "The colours change when the player picks another pane colour or theme in Options; pane:onTheme tells you. Colour tags such as <@dim> follow by themselves, so most panes need no theme.",
+      ],
+      example: 'local th = pane:theme()\nif th.light then\n  pane:setLine(1, "<@text>paper")\nend',
+    },
+  ),
+  fn(
+    "pane:fillColor",
+    "pane:fillColor(color) → string",
+    "The colour pane:gauge fills a bar with for color: as is on a dark pane, washed to a pastel on a light one. For drawing bars of your own with background tags.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("color", "string", "A colour name, as pane:gauge's color: \"red\", \"ansi_red\", \"<#ff8800>\" or \"#ff8800\"."),
+      ],
+      returns: "The colour as #rrggbb; nil once the pane is closed.",
+      more: ["Like the theme it changes with the pane's colour: redraw in pane:onTheme."],
+      example: 'pane:setText(1, 1, "<:" .. pane:fillColor("#0000aa") .. ">    ")',
+    },
+  ),
+  fn(
+    "pane:onTheme",
+    "pane:onTheme(fn)",
+    "Calls fn(theme) when the pane's colours change: another pane colour, terminal colour or theme in Options. theme is what pane:theme() returns. nil removes the handler.",
+    {
+      params: [
+        p("pane", "pane", "A pane from createPane."),
+        p("fn", "function?", "Called with the new theme; nil removes it."),
+      ],
+      more: ["It is called once per change, also while the pane is hidden, and not when you set it: draw once yourself first."],
+      example: '-- A bar of your own, in the gauge colour for this pane.\nlocal function draw()\n  pane:setText(1, 1, "<:" .. pane:fillColor("#0000aa") .. ">      ")\nend\ndraw()\npane:onTheme(draw)',
     },
   ),
   fn(
