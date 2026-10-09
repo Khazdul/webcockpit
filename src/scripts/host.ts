@@ -48,7 +48,7 @@
 // listens and the clock knows the hour; `sync` fires when the clock syncs.
 
 import type { Bus } from '../core/bus';
-import { type Color, type StyleRun, TRUECOLOR, type XmlSpan, gmcpKey, isAdaptive } from '../core/types';
+import { type Color, type StyleRun, TRUECOLOR, type XmlSpan, gmcpKey } from '../core/types';
 import type { CallResult, LuaArgs, LuaClass, LuaRef, LuaRuntime, LuaScript } from '../lua';
 import {
   DOCK_IDS,
@@ -78,12 +78,13 @@ import { keyBindability, normalizeKey, shadowedInputKey } from '../script/keys';
 import { setLiveScriptKey } from '../script/script-keys';
 import type { StyledRow } from '../ui/output-pane';
 import { helpRows, listRows, settingText } from './command-rows';
-import { mudletColor, parseCecho, parseScriptColor } from './colors';
+import { cechoColorName, mudletColor, parseCecho, parseScriptColor } from './colors';
 import { type GmcpEntry, GmcpCache } from './gmcp-cache';
 import { HangGuard } from './guard';
 import { apiProblem } from './header';
 import type { ScriptInfo, ScriptLibrary, StoreValue } from './library';
 import { regexPattern, substringPattern } from './patterns';
+import { wrapText } from './wrap';
 
 /** A call that takes longer than this disables its script. */
 export const SLOW_CALL_MS = 1000;
@@ -1110,6 +1111,12 @@ export class ScriptHost {
         parts.push(t === 'string' || t === 'number' ? a.string(i) : t === 'boolean' ? String(a.boolean(i)) : t);
       }
       echoLines(parts.join('\t'), false);
+    });
+    // Word-wraps cecho text to a pane's width (ADR 0089, src/scripts/wrap.ts).
+    rt.defineFunction('wrapText', (a) => {
+      const t = a.type(2);
+      const width = t === 'nil' || t === 'no value' ? 0 : a.number(2);
+      return wrapText(a.string(1), width, a.optNumber(3, 0));
     });
     // The trigger's line with its colours, as cecho text (Mudlet's
     // copy2decho, in cecho tags; ADR 0054 round 4).
@@ -2284,12 +2291,6 @@ async function defaultLoadRuntime(): Promise<LuaRuntime> {
   return loadLuaRuntime();
 }
 
-/** A line-model colour as a cecho colour name: `ansi_N` for the palette, `~#rrggbb` adaptive, `#rrggbb` else. */
-function cechoColor(c: Color): string {
-  if (c < TRUECOLOR) return `ansi_${c}`;
-  return (isAdaptive(c) ? '~#' : '#') + (c & 0xffffff).toString(16).padStart(6, '0');
-}
-
 /**
  * `text` with its style runs as cecho text (`copy2cecho`): colours as
  * `<ansi_N>` / `<#rrggbb>` (background after a colon), `<b>`, `<i>`, `<u>`,
@@ -2306,7 +2307,7 @@ export function toCecho(text: string, runs: readonly StyleRun[]): string {
     if (r.end <= s) continue;
     let tag = '';
     if (r.fg !== undefined || r.bg !== undefined) {
-      tag += `<${r.fg !== undefined ? cechoColor(r.fg) : ''}${r.bg !== undefined ? ':' + cechoColor(r.bg) : ''}>`;
+      tag += `<${r.fg !== undefined ? cechoColorName(r.fg) : ''}${r.bg !== undefined ? ':' + cechoColorName(r.bg) : ''}>`;
     }
     if (r.bold) tag += '<b>';
     if (r.italic) tag += '<i>';

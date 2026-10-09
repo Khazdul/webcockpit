@@ -1006,6 +1006,23 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     },
   ),
   fn(
+    "wrapText",
+    "wrapText(text, width, indent) → table",
+    "Word-wraps text to width cells, for a pane: returns the lines as a list, each ready for pane:setLine. Colour tags work and take no cells.",
+    {
+      params: [
+        p("text", "string", "The text; colour tags (and pane shades such as <@dim>) work. A \\n always starts a new line."),
+        p("width", "number", "The most cells per line, usually cols from pane:size() or onResize. Under 1 or nil: the text is only split at \\n."),
+        p("indent", "number?", "Spaces before every line after the first of a paragraph (a hanging indent); they count toward width. Default 0."),
+      ],
+      returns: "A list of strings, from 1.",
+      more: [
+        "Lines break at spaces, and the spaces at a break go; a word wider than the line is cut. A line that starts in a colour (or background) opens it again, so each line looks right on its own row.",
+      ],
+      example: 'pane:onResize(function(rows, cols)\n  pane:clear()\n  for i, l in ipairs(wrapText(msg, cols, 2)) do pane:setLine(i, l) end\nend)',
+    },
+  ),
+  fn(
     "pane:onWheel",
     "pane:onWheel(fn)",
     "Calls fn(dx, dy) when the wheel or the touchpad scrolls over the pane, in whole cells: dx sideways (positive = right), dy up and down (positive = down). Return true to take the scroll; nil removes the handler.",

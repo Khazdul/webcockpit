@@ -29,7 +29,7 @@
 // <red>`), or a Mudlet colour without brackets (`orange`, `white:red`,
 // `255,0,0`, `#ff8800`), each also with a `~` (`~gold`, `~gold:~navy`).
 
-import { type Color, type ShadeRoleName, type StyleRun, TRUECOLOR, adaptiveColor, shadeColor } from '../core/types';
+import { type Color, type ShadeRoleName, type StyleRun, TRUECOLOR, adaptiveColor, isAdaptive, shadeColor, shadeRoleOf } from '../core/types';
 import { type Colored, type Style, parseHighlight } from '../script/engine';
 import { applyCode, isDefaultStyle, pushRun } from '../script/engine/color';
 
@@ -172,6 +172,20 @@ export const SHADE_TAGS: Readonly<Record<string, ShadeRoleName>> = {
   label: 'label',
   glow: 'glow',
 };
+
+/**
+ * A line-model colour as a cecho colour name that `parseCecho` reads back
+ * to the same colour: `ansi_N` for the palette, `@role` for a shade role
+ * (pane text), `~#rrggbb` adaptive, `#rrggbb` else.
+ */
+export function cechoColorName(c: Color): string {
+  if (c < TRUECOLOR) return `ansi_${c}`;
+  const role = shadeRoleOf(c);
+  if (role !== null) {
+    for (const [tag, r] of Object.entries(SHADE_TAGS)) if (r === role) return `@${tag}`;
+  }
+  return (isAdaptive(c) ? '~#' : '#') + (c & 0xffffff).toString(16).padStart(6, '0');
+}
 
 /** Options of `parseCecho`. */
 export interface CechoOptions {

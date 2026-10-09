@@ -273,6 +273,16 @@ describe('display edits', () => {
     ]);
   });
 
+  it('wrapText returns the wrapped lines as a list from 1 (ADR 0089)', async () => {
+    const t = await setup({
+      s: src(`
+        local l = wrapText("<yellow>one two three", 8, 1)
+        send(#l .. "|" .. table.concat(l, "|"))
+        send(#wrapText("a b c\\nd", nil) .. "|" .. wrapText("a b c\\nd")[2])`),
+    });
+    expect(t.sent).toEqual(['2|<#ffff00>one two| <#ffff00>three', '2|d']);
+  });
+
   it("the profile's substitutes work on the replaced text", async () => {
     const t = await setup({ s: src(`tempTrigger("orc", function() replaceLine("a troll") end)`) }, { profile: '#substitute {troll} {TROLL}' });
     t.recv('an orc');
