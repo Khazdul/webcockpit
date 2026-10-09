@@ -39,6 +39,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-09 — Script API gaps, wrapText
+
+- **Done:** key library empty state drops the locatel hint; new Lua
+  global `wrapText(text, width[, indent])` (colour-aware word wrap for
+  script panes, ADR 0089). Typecheck and full unit suite green.
+- **Researched:** API gaps for rebuilding the Timers, Character and
+  Group panes as scripts. Missing: timers engine access and change event,
+  derived char data (level, XP/TP bars), unlabeled group NPCs, pane theme
+  query, read access to built-in pane options. Not built; owner decides.
+- **Next:** owner test of wrapText/key library (unreleased); stage 8.
+- **Commits:** c78c7a0, f8dea21, 30cde78, plus this one.
+
 ### 2026-10-08 — Owner approvals
 
 - **Done:** owner verified the open test guide points and approved
