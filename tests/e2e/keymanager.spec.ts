@@ -58,7 +58,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await command(page, '#script enable keymanager');
   await expect(pane(page)).toBeVisible();
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Port keys');
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys  \?\s*$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {5}$/);
   await expect(prows(page).nth(2)).toHaveText(/^ No keys yet\.\s*$/);
 
   // locatel home: the cast, then the block; the row is gagged.
@@ -462,8 +462,8 @@ test('keymanager: the ◻ is light green while its TV is open and goes back to g
 });
 
 // Stage 25 round 2 (ADR 0084 addendum): a borderless key manager pane shows
-// the close cross on hover, and its ? (right after the key count) stays
-// clear of it.
+// the close cross on hover, and its ? stays clear of it. Stage 27: the ? is
+// as far right as that allows, one empty cell before the cross.
 test('keymanager: borderless, the close cross shows on hover and the ? stays clickable', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -483,11 +483,13 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
     d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, border: false };
   }), ID);
   await expect(pane(page)).not.toHaveAttribute('data-framed', '');
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys  \?\s*$/);
+  // The ? at column width-5: four cells after it, then the last column.
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {5}$/);
   const close = pane(page).locator('.wc-pane-close');
   await page.mouse.move(5, 5);
   await expect(close).toBeHidden();
-  const q = await cellAt(page, 0, 9);
+  const qcol = (await prows(page).nth(0).textContent())!.indexOf('?');
+  const q = await cellAt(page, 0, qcol);
   await page.mouse.move(q.x, q.y);
   await expect(close).toBeVisible();
   await expect(pane(page)).not.toHaveAttribute('data-no-cross', '');
@@ -495,6 +497,8 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
   const inContent = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.wc-pane-content'), q);
   expect(inContent).toBe(true);
   await expect(page.locator('.wc-spane-tip')).toContainText('help');
-  expect((await close.boundingBox())!.x).toBeGreaterThan(q.x);
+  // The cross starts one empty cell after the ?'s cell: at its centre + 1.5 cells.
+  const cw = (await cellAt(page, 0, qcol + 1)).x - q.x;
+  expect(Math.abs((await close.boundingBox())!.x - (q.x + 1.5 * cw))).toBeLessThan(1);
   expect(errors).toEqual([]);
 });

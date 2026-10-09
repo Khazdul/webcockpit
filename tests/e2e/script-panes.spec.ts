@@ -571,3 +571,49 @@ test('built-in panes have the name tag, the map and Character none', async ({ pa
   await page.locator('.wc-pane-map').hover();
   expect(await page.locator('.wc-pane-map').evaluate((el) => getComputedStyle(el, '::after').content)).toBe('none');
 });
+
+// Stage 27 (ADR 0090): bars over part of a row, under its text, and the
+// pane's theme with onTheme when the player changes the pane colour.
+test('partial-row gauges under the text; pane:theme follows a new pane colour', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
+    ws.send(Buffer.from([IAC, WILL, GMCP]));
+  });
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await putScript(
+    page,
+    `-- @name panes
+-- @api 1
+local p = createPane{id = "main", title = "Bars", dock = "float", rows = 3, cols = 24}
+local function draw()
+  p:setLine(1, "Gimli")
+  p:gauge(1, {col = 1, width = 8, value = 8, max = 8, color = "#005a18"})
+  p:gauge(1, {col = 9, width = 8, value = 4, max = 8, color = "#0000aa"})
+  p:gauge(1, {col = 17, value = 0, max = 8, track = false, label = "mv", align = "right"})
+  local th = p:theme()
+  p:setLine(2, (th.light and "light " or "dark ") .. th.bg .. " " .. p:fillColor("#0000aa"))
+end
+draw()
+p:onTheme(draw)
+`,
+  );
+  await page.keyboard.press('Enter');
+  await expect(pane(page)).toBeVisible();
+  await expect(prows(page).nth(0)).toHaveText(`Gimli${' '.repeat(17)}mv`);
+  const bgOf = (text: string) =>
+    prows(page).nth(0).locator('span', { hasText: text }).first().evaluate((el) => getComputedStyle(el).backgroundColor);
+  // The name keeps the first bar's fill behind it; the label sits on the pane (no track).
+  expect(await bgOf('Gimli')).toBe('rgb(0, 90, 24)');
+  const blue = await prows(page).nth(0).locator('span').evaluateAll((els) =>
+    els.filter((e) => getComputedStyle(e).backgroundColor === 'rgb(0, 0, 170)').map((e) => e.textContent!.length).reduce((a, b) => a + b, 0),
+  );
+  expect(blue).toBe(4);
+  await expect(prows(page).nth(1)).toHaveText(/^dark #[0-9a-f]{6} #0000aa/);
+  await page.evaluate((id) => window.__wc!.settings.update((d) => {
+    d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, color: 'blue' };
+  }), ID);
+  await expect(prows(page).nth(1)).toHaveText(/^dark #0e141c #0000aa/);
+  expect(errors).toEqual([]);
+});
