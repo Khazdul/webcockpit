@@ -40,6 +40,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 Newest first.
 
+### 2026-10-09 — Stage 27 pane API
+
+- **Done:** partial-row gauges (`col`, `width`, `align`, `track`),
+  `pane:theme()`, `pane:fillColor()`, `pane:onTheme()` (ADR 0090); game
+  state now takes each GMCP message before scripts (guarantee documented);
+  key manager `?` at width−5, clear of the close cross.
+- **Checked:** tsc clean; unit 2529 passed, 1 skipped; e2e script panes,
+  key manager, GMCP panes, panebar, almanac 52/52 (chromium, firefox).
+- **Next:** owner test of stage 27 (unreleased; with wrapText); stage 8.
+- **Commits:** cb9d8a2, 518cb09, 043411a, 6e81370, 9e61eb4, 65f5d11,
+  plus this one.
+
 ### 2026-10-09 — Script API gaps, wrapText
 
 - **Done:** key library empty state drops the locatel hint; new Lua
