@@ -69,6 +69,8 @@ interface SetupOptions {
   before?: (bus: Bus) => void;
   panes?: ScriptPaneSurface;
   map?: ScriptMapSurface;
+  /** The game state follows the bus only after the host started (its bus handler runs last). */
+  gameLate?: boolean;
 }
 
 /** A fake pane surface: records what the host opens and lets a test click and resize. */
@@ -141,7 +143,7 @@ async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = 
   engine.attach(bus);
   if (opts.profile) engine.loadProfile(opts.profile);
   const game = new GameState();
-  game.attach(bus);
+  if (!opts.gameLate) game.attach(bus);
   bus.on('ui.message', (m) => ui.push(m));
   bus.on('text.display', (d) => shown.push(d));
   const lib = new ScriptLibrary({ factory: null, bundled: [] });
@@ -173,6 +175,7 @@ async function setup(scripts: Record<string, string> = {}, opts: SetupOptions = 
   });
   hosts.push(host);
   await host.start();
+  if (opts.gameLate) game.attach(bus);
   const recv = (text: string, runs: StyleRun[] = []) => bus.emit('text.line', line(text, runs));
   const texts = () => shown.map((d) => d.line.text);
   const uiText = () => ui.map((m) => m.parts.map((p) => (typeof p === 'string' ? p : p.value)).join(''));
@@ -527,6 +530,49 @@ describe('events, gmcp and state', () => {
     t.engine.input('#lua s show');
     expect(t.sent).toEqual(['rasta 77 1 Gimli']);
     expect(t.texts()).toEqual([]);
+  });
+
+  it('state.char and state.group are current inside a GMCP handler, whatever the bus order (ADR 0090)', async () => {
+    const body = src(`
+      registerAnonymousEventHandler("gmcp.Group", function(ev, full)
+        local names = {}
+        for _, m in ipairs(state.group) do names[#names + 1] = m.name .. "=" .. tostring(m.hp.value) end
+        send(full .. " " .. table.concat(names, ","))
+      end)
+      registerAnonymousEventHandler("gmcp.Char.Vitals", function() send("hp " .. tostring(state.char.vitals.hp)) end)`);
+    for (const gameLate of [false, true]) {
+      const t = await setup({ s: body }, { gameLate });
+      t.gmcp('Group.Set', [{ id: 1, type: 'ally', name: 'Gimli', hp: 10, maxhp: 20 }]);
+      t.gmcp('Group.Add', { id: 2, type: 'ally', name: 'Legolas', hp: 5, maxhp: 20 });
+      t.gmcp('Group.Update', { id: 1, hp: 15 });
+      t.gmcp('Group.Remove', 2);
+      t.gmcp('Char.Vitals', { hp: 77 });
+      t.gmcp('Char.Vitals', { hp: 70 });
+      expect(t.sent).toEqual([
+        'gmcp.Group.Set Gimli=10',
+        'gmcp.Group.Add Gimli=10,Legolas=5',
+        'gmcp.Group.Update Gimli=15,Legolas=5',
+        'gmcp.Group.Remove Gimli=15',
+        'hp 77',
+        'hp 70',
+      ]);
+    }
+  });
+
+  it('GameState.take applies a bus message once, so the cache hands it over first (ADR 0090)', () => {
+    const bus = new Bus();
+    const game = new GameState();
+    const cache = new GmcpCache();
+    const seen: number[] = [];
+    // The cache first on the bus: it still sees the group already updated.
+    cache.attach(bus, (m) => game.take(m));
+    cache.subscribe(() => seen.push(game.group.list().length));
+    game.attach(bus);
+    let changes = 0;
+    game.subscribe((part) => part === 'group' && changes++);
+    bus.emit('gmcp', { pkg: 'Group.Add', data: { id: 3, type: 'ally', name: 'Sam', hp: 1, maxhp: 2 } });
+    expect(seen).toEqual([1]);
+    expect(changes).toBe(1);
   });
 
   it('connection events, #event names and sysLoadEvent', async () => {

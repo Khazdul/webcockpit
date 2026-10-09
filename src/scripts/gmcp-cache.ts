@@ -18,8 +18,13 @@
 //   `Comm.Channel.Text`, `Event.*`, `Core.*`), so merging would mix
 //   different members, rooms or messages.
 // - The cache is cleared when a new connection starts (`connecting`).
+// - `attach(bus, before)`: `before` gets each bus message before the cache
+//   stores it and tells its listeners. App and the host pass the game
+//   state's `take`, so `state.char` and `state.group` are current when a
+//   script's GMCP handler runs, whatever the bus order (ADR 0090 §3).
 
 import type { Bus } from '../core/bus';
+import type { BusEvents } from '../core/types';
 
 /** Lower-case names of the messages that merge into their last value. */
 export const MERGED_GMCP: ReadonlySet<string> = new Set(['char.vitals', 'char.statusvars']);
@@ -73,12 +78,18 @@ export class GmcpCache {
     return () => this.listeners.delete(fn);
   }
 
-  /** Follows the bus: every `gmcp` message, cleared on `connecting`. Returns the detach. */
-  attach(bus: Bus): () => void {
+  /**
+   * Follows the bus: every `gmcp` message (handed to `before` first),
+   * cleared on `connecting`. Returns the detach.
+   */
+  attach(bus: Bus, before?: (m: BusEvents['gmcp']) => void): () => void {
     const a = bus.on('conn.state', (s) => {
       if (s.state === 'connecting') this.clear();
     });
-    const b = bus.on('gmcp', (m) => this.apply(m.pkg, m.data));
+    const b = bus.on('gmcp', (m) => {
+      before?.(m);
+      this.apply(m.pkg, m.data);
+    });
     return () => {
       a();
       b();

@@ -23,11 +23,17 @@
 // Listeners (`subscribe`) are told which part changed; panes mark
 // themselves dirty and render in the next frame.
 //
+// Scripts rely on char and group being current when their GMCP handler
+// runs (ADR 0090 §3): the scripts' GMCP cache hands every message to
+// `take` before it stores it and tells the script host, so the order of
+// the bus subscriptions does not matter. `take` applies a message once:
+// the bus handler here skips the one the cache already handed over.
+//
 // The clock is saved to `localStorage` `wc.clock` after every sync (not per
 // tick), global for all characters; last writer wins (Inv §2.5).
 
 import type { Bus } from '../core/bus';
-import { gmcpKey } from '../core/types';
+import { type BusEvents, gmcpKey } from '../core/types';
 import { CharModel } from './char';
 import { CLOCK_KEY, ClockModel, loadClockState } from './clock';
 import { moonEventDelta } from './gametime';
@@ -67,6 +73,8 @@ export class GameState {
   private readonly storage: Storage | null;
   private readonly listeners = new Set<(part: GamePart) => void>();
   private readonly unsubs: Array<() => void> = [];
+  /** The last bus message applied (`take`). */
+  private taken: BusEvents['gmcp'] | null = null;
 
   constructor(opts: GameStateOptions = {}) {
     this.now = opts.now ?? Date.now;
@@ -85,7 +93,7 @@ export class GameState {
   /** Follows the bus (GMCP, connection state). Returns this. */
   attach(bus: Bus): this {
     this.unsubs.push(
-      bus.on('gmcp', (m) => this.onGmcp(m.pkg, m.data, gmcpKey(m))),
+      bus.on('gmcp', (m) => this.take(m)),
       bus.on('conn.state', (s) => {
         if (s.state === 'connecting' || (s.state === 'disconnected' && !s.replay)) this.resetCharacter();
       }),
@@ -108,6 +116,16 @@ export class GameState {
 
   private emit(part: GamePart): void {
     for (const fn of [...this.listeners]) fn(part);
+  }
+
+  /**
+   * Bus message `m`, once: a second call with the same message (the
+   * scripts' cache first, then this state's own bus handler) does nothing.
+   */
+  take(m: BusEvents['gmcp']): void {
+    if (m === this.taken) return;
+    this.taken = m;
+    this.onGmcp(m.pkg, m.data, gmcpKey(m));
   }
 
   /** One GMCP message (also usable without a bus); `p` is `pkg` in lower case. */

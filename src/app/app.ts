@@ -433,7 +433,8 @@ export class App {
     this.scriptLib = player ? null : (opts.scripts ?? null);
     this.scriptOpts = { scriptStorage: opts.scriptStorage, loadLua: opts.loadLua };
     this.gmcpCache = this.scriptLib ? new GmcpCache() : null;
-    if (this.gmcpCache) this.unsubs.push(this.gmcpCache.attach(bus));
+    // The game state takes each message first: scripts see it current (ADR 0090 §3).
+    if (this.gmcpCache) this.unsubs.push(this.gmcpCache.attach(bus, (m) => this.game.take(m)));
     if (this.scriptLib) void this.watchScripts(this.scriptLib);
 
     bus.on('gmcp', (m) => {

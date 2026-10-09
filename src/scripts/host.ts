@@ -357,7 +357,9 @@ export class ScriptHost {
       );
     }
     const bus = this.o.bus;
-    if (this.ownGmcp) this.unsubs.push(this.gmcp.attach(bus));
+    const game = this.o.game;
+    // The game state takes each message first: state.char and state.group are current in a GMCP handler (ADR 0090 §3).
+    if (this.ownGmcp) this.unsubs.push(this.gmcp.attach(bus, game ? (m) => game.take(m) : undefined));
     this.unsubs.push(
       this.lib.subscribe(() => this.sync()),
       this.gmcp.subscribe((key, e) => this.onGmcp(key, e)),
