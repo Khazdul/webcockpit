@@ -252,7 +252,7 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(['cast $home']);
     t.gmcp('Char.Name', { name: 'Gittan', fullname: 'Gittan the Tester' });
     t.clock.advance(1);
-    expect(t.rows()).toEqual([' 0 keys  ?', '', ' No keys yet.', " locatel <name> stores your room's key."]);
+    expect(t.rows()).toEqual([' 0 keys  ?', '', ' No keys yet.']);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 

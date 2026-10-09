@@ -840,7 +840,6 @@ draw = function()
   if n == 0 then
     pane:setLine(2, "")
     pane:setLine(3, " No keys yet.")
-    pane:setLine(4, " <" .. DIM .. ">locatel <name> stores your room's key.")
     return
   end
   local t = now()
