@@ -635,10 +635,15 @@ local function header(n)
     return
   end
   local left = " " .. (n == 1 and "1 key" or n .. " keys")
-  -- The ? follows the count, clear of the close cross that covers the
-  -- row's last cells while the pane is hovered.
+  -- The ? as far right as it goes clear of the close cross: on a
+  -- borderless pane the cross (" × ", three cells, one in from the right
+  -- edge) covers columns width-3 to width-1 of this row while the pane is
+  -- hovered, so the ? sits at width-5 with one empty cell before the
+  -- cross (framed, the cross is on the frame). On a narrow pane it
+  -- follows the count.
+  local at = math.max(len(left) + 3, width - 5)
   row(1, {
-    { text = left .. "  ", color = DIM },
+    { text = left .. string.rep(" ", at - len(left) - 1), color = DIM },
     { text = "?", color = LINK_C, fn = function() showHelp() end, hint = "The key manager's help (keys help)" },
   })
 end
