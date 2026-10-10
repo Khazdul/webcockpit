@@ -38,6 +38,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-10 — Replay excluded-tail fix
+
+- **Done:** owner report: an exported mid-session clip switched colours
+  (and would switch layout) at its end. Cause: the trailing cut replayed
+  every later VIEW/GMCP record in no time. Timeline now drops entries after
+  the last kept one; the payload drops the tail and trailing runs (owner's
+  file: 8 runs → 1, 4.6 M → 0.9 M chars). ADR 0019 addendum. Unit + tsc green.
+- **Next:** owner re-exports a clip to verify; release when convenient.
+- **Open issues:** the leading cut still carries every record before the
+  clip (≈0.9 M chars, ~700 visited map rooms); trimming to the latest state
+  is a possible later step. Replay with zero runs not browser-tested.
+- **Commits:** 4d1c2b5, 4997dea, 4e9bf35, plus this one.
+
 Newest first.
 
 ### 2026-10-09 — Stage 27 approved
