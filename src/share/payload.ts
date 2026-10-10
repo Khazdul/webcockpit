@@ -4,22 +4,44 @@
 // What an exclusion removes (ADR 0019): inside an excluded range, inbound
 // lines, commands and the Comm pane's channel text (`Comm.*` GMCP other than
 // `Comm.Channel.List`) are dropped from the capture texts, so the file never
-// contains them. Other GMCP, VIEW, SIZE (and unknown records) are kept: the
-// timeline plays them in no time at the cut, so the panes are right when the
-// log resumes. Every range becomes a cut (the timeline plays a cut between
-// kept entries in at most 500 ms, one at either end of the log in 0).
-// Markers inside a range are dropped; comments anchored on a removed entry
-// move to the next kept visible entry or shown system line (or to the end).
+// contains them. The rest is state: the timeline plays it in no time at the
+// cut, so the panes are right when the log resumes. Every range becomes a
+// cut (the timeline plays a cut between kept entries in at most 500 ms, one
+// at either end of the log in 0). Markers inside a range are dropped;
+// comments anchored on a removed entry move to the next kept visible entry
+// or shown system line (or to the end).
+//
+// Excluded state folding (ADR 0019 addendum "Excluded state folding",
+// src/share/fold.ts): of that state the file keeps only what leaves the
+// player as it would be with all of it. Between two barriers (a VIEW, a
+// script pane record, Char.Name, an event the panes show, an unknown
+// package, anything within a second of a kept entry …) the vitals, group,
+// room and channel-list records become one block at the time of the last
+// entry they replace; what no player reads goes; no-op SIZE records keep
+// the replay clock's timers on their times. `fold: false` builds the file
+// as before (tests).
 //
 // The excluded tail (ADR 0019 addendum "Excluded tail"): an excluded range
 // that no kept entry follows (the end of the log, or a range after the
 // last entry outside every range) has nothing to resume, so its entries
 // are removed entirely, records included, and the runs that start after
-// the last kept entry are left out of `runs` (`level` and `hiddenSys` come
-// from the runs left). Runs before the first kept entry stay: they are
-// the state prefix. The timeline drops such a tail too (src/player/
-// timeline.ts), and the map embed (src/replay/map-embed.ts) reads only the
-// runs left, so the tail's rooms are not in the file.
+// the last kept entry are left out of `runs`. The timeline drops such a
+// tail too (src/player/timeline.ts), and the map embed (src/replay/
+// map-embed.ts) reads only the runs left, so the tail's rooms are not in
+// the file.
+//
+// Left-out runs (addendum "Excluded state folding"): a run entirely inside
+// excluded ranges is left out too, before the first kept entry and between
+// clips (`dropRuns: false` keeps them), unless it plays something that
+// shows (an achievement, GMCP with bad JSON). What a player keeps from run
+// to run that such a run set — VIEW parts, the Comm pane's channels — is
+// carried into the next run at its start when it differs, after pacing
+// records on the left-out entries' times. The header (`character`,
+// `startUs`) comes from the first run left, `level` from the last;
+// `hiddenSys` indexes the runs left.
+//
+// Run metadata: each run keeps only what the player reads (`playedMeta`:
+// its start and level), not its id, counters or summary.
 //
 // System lines (src/share/system-lines.ts): the login lines the player
 // prints are rows in the export editor. One whose anchor is excluded is
@@ -35,17 +57,20 @@
 // end inside a run gets a `WebCockpit.Timers` GMCP record with the timers
 // state there (src/share/timers-state.ts), before the first entry after it.
 
-import { formatGmcpRecord, formatPaneRecord } from '../capture/format';
+import { RECORD, formatGmcpRecord, formatPaneRecord, formatRecord, formatTs } from '../capture/format';
+import { parseChannelList } from '../gmcp/comm';
+import { parseGmcp } from '../net/gmcp';
 import type { PaneSnapshot } from '../panes/script-content';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
-import type { RunMeta } from '../capture/store';
-import { type ChainRun, type TimelineEdits, lastKeptUs } from '../player/timeline';
+import { overlayView, parseView } from '../player/fit';
+import { type ChainRun, type PlayedRunMeta, type TimelineEdits, lastKeptUs } from '../player/timeline';
 import { markersOf } from '../player/strip';
 import type { RunEvent } from '../runs/events';
 import { runStartUs } from '../runs/stitch';
 import type { Settings } from '../settings';
-import { captureEntries, isCommText, isVisible } from './capture';
+import { type CaptureEntry, captureEntries, isCommText, isVisible } from './capture';
 import { type ExcludeRange, type ExportDoc, commentHoldMs, isExcluded } from './edits';
+import { type FoldStats, foldExcludedState, pace, paceRecord } from './fold';
 import { systemLines } from './system-lines';
 import { TIMERS_GMCP, timersStatesAt } from './timers-state';
 
@@ -67,8 +92,11 @@ export interface ReplayPayload {
   startUs: number;
   /** The exporter's settings at export time (appearance, panes). */
   settings: Settings;
-  /** Edited capture texts, oldest run first. */
-  runs: Array<{ meta: RunMeta; text: string }>;
+  /**
+   * Edited capture texts, oldest run first, with the run metadata the
+   * player reads (older files carry the whole `RunMeta`).
+   */
+  runs: Array<{ meta: PlayedRunMeta; text: string }>;
   comments: PayloadComment[];
   /** The excluded ranges, as `TimelineEdits.cuts`. */
   cuts: ExcludeRange[];
@@ -174,28 +202,154 @@ export function addTimersRecords(edited: string, full: string, cuts: readonly Ex
   return out;
 }
 
+/** Options of `buildReplayPayload` (tests and the real-log check; the export uses the defaults). */
+export interface PayloadOptions {
+  /** Fold the state inside excluded ranges (default true; false: every record in a range is kept). */
+  fold?: boolean;
+  /** Leave out the runs that lie entirely inside excluded ranges (default true). */
+  dropRuns?: boolean;
+  /** Counters of the fold. */
+  foldStats?: FoldStats;
+}
+
+/** The run metadata the payload keeps: what the player reads. */
+export function playedMeta(m: PlayedRunMeta): PlayedRunMeta {
+  const s = m.summary;
+  if (!s) return { startedUs: m.startedUs };
+  return { startedUs: m.startedUs, summary: { startUs: s.startUs, ...(s.level !== undefined ? { level: s.level } : {}) } };
+}
+
+/**
+ * True when a run that lies entirely inside excluded ranges can be left
+ * out: nothing it plays shows but its connection lines in the UI pane. A
+ * GMCP message with bad JSON (a line in the game window) or an achievement
+ * (a UI pane line) keeps it.
+ */
+function droppable(text: string, doc: ExportDoc, tailUs: number): boolean {
+  for (const e of captureEntries(text)) {
+    if (e.ts > tailUs) break;
+    if (!isExcluded(doc, e.ts)) return false;
+    if (e.kind !== 'gmcp') continue;
+    const g = parseGmcp(e.body);
+    if (g.error !== undefined || g.pkg.toLowerCase() === 'event.achieved') return false;
+  }
+  return true;
+}
+
+/**
+ * The state a player carries from one run into the next that a left-out
+ * run may have set: the VIEW parts (PlayerHost's `base`) and the Comm
+ * pane's channels.
+ */
+class CarriedState {
+  /** The VIEW parts so far, as the player overlays them. */
+  private readonly view: Record<string, unknown> = {};
+  /** The last channel list the Comm pane took: its GMCP body and the list. */
+  private ccl: { body: string; key: string } | null = null;
+
+  take(text: string): void {
+    for (const e of captureEntries(text)) {
+      if (e.kind === 'view') {
+        const v = parseView(e.body);
+        if (v) overlayView(this.view as unknown as Settings, v);
+      } else if (e.kind === 'gmcp' && e.pkg!.toLowerCase() === 'comm.channel.list') {
+        const g = parseGmcp(e.body);
+        const list = g.pkg.toLowerCase() === 'comm.channel.list' ? parseChannelList(g.data) : null;
+        if (list) this.ccl = { body: e.body, key: JSON.stringify(list) };
+      }
+    }
+  }
+
+  /** Records at `ts` that turn `other`'s state into this one ('' when they agree). */
+  carry(other: CarriedState, ts: number): string {
+    const parts: Record<string, unknown> = {};
+    for (const k of Object.keys(this.view)) {
+      if (JSON.stringify(this.view[k]) !== JSON.stringify(other.view[k])) parts[k] = this.view[k];
+    }
+    let out = Object.keys(parts).length > 0 ? formatRecord(ts, RECORD.view, JSON.stringify(parts)) : '';
+    if (this.ccl && this.ccl.key !== other.ccl?.key) out += formatTs(ts) + ' \x1b' + RECORD.gmcp + ' ' + this.ccl.body + '\n';
+    return out;
+  }
+}
+
+/** True for an entry the player's timeline takes (src/player/timeline.ts `lineKind`). */
+function isTimelineEntry(e: CaptureEntry): boolean {
+  return e.kind === 'in' || e.kind === 'out' || (e.kind !== 'record' && e.body !== '');
+}
+
+/** Log µs of the first entry of `text`, or null. */
+function firstUs(text: string): number | null {
+  const e = captureEntries(text).next();
+  return e.done ? null : e.value.ts;
+}
+
 /** Builds the payload of a chain (oldest run first) with its events and export doc. */
 export function buildReplayPayload(
   chain: readonly ChainRun[],
   events: readonly RunEvent[],
   doc: ExportDoc,
   settings: Settings,
+  opts: PayloadOptions = {},
 ): ReplayPayload {
+  const edited = doc.excludes.length > 0;
   // The excluded tail: nothing after the last kept entry, and no run that
-  // starts after it.
-  const tailUs = doc.excludes.length === 0 ? Infinity : lastKeptUs(chain, doc.excludes);
+  // starts after it. Runs entirely inside excluded ranges go too.
+  const tailUs = edited ? lastKeptUs(chain, doc.excludes) : Infinity;
+  const texts = chain.map((r) => (edited ? editRunText(r.text, doc, tailUs) : r.text));
   let keep = chain.length;
   if (tailUs !== Infinity) {
     keep = 0;
     for (let r = 0; r < chain.length; r++) {
-      const e = captureEntries(chain[r]!.text).next();
-      if (!e.done && e.value.ts <= tailUs) keep = r + 1;
+      const first = firstUs(chain[r]!.text);
+      if (first !== null && first <= tailUs) keep = r + 1;
     }
   }
-  const runs = chain.slice(0, keep).map((r) => ({
-    meta: r.meta,
-    text: doc.excludes.length === 0 ? r.text : addTimersRecords(editRunText(r.text, doc, tailUs), r.text, doc.excludes),
-  }));
+  /** Chain run → payload run, or -1 when the run is left out. */
+  const index: number[] = [];
+  let n = 0;
+  for (let r = 0; r < chain.length; r++) {
+    const out = r >= keep || (edited && opts.dropRuns !== false && droppable(chain[r]!.text, doc, tailUs));
+    index.push(out ? -1 : n++);
+  }
+  const keptTexts = texts.filter((_, r) => index[r]! >= 0);
+  const folded: string[] = edited && opts.fold !== false ? foldExcludedState(keptTexts, doc.excludes, opts.foldStats) : keptTexts;
+  // A run after left-out ones gets the state they leave behind when it
+  // differs from what the runs played before it leave, and pacing records
+  // on their times so the replay clock (timers) goes the same way.
+  const all = new CarriedState();
+  const played = new CarriedState();
+  let gap: number[] | null = null;
+  let lastPlayed: number | null = null;
+  for (let r = 0; r < chain.length; r++) {
+    const i = index[r]!;
+    if (i < 0) {
+      gap ??= [];
+      for (const e of captureEntries(texts[r]!)) if (isTimelineEntry(e)) gap.push(e.ts);
+      all.take(texts[r]!);
+      continue;
+    }
+    const start = firstUs(texts[r]!);
+    if (gap && start !== null) {
+      const carry = all.carry(played, start);
+      if (carry) played.take(carry);
+      const points = gap.filter((t) => t < start);
+      const written = points.map((_, k) => k === 0 && lastPlayed === null);
+      pace(lastPlayed, points, start, written);
+      let head = '';
+      for (let k = 0; k < points.length; k++) if (written[k]) head += paceRecord(points[k]!);
+      folded[i] = head + carry + folded[i]!;
+    }
+    gap = null;
+    all.take(texts[r]!);
+    played.take(texts[r]!);
+    for (const e of captureEntries(folded[i]!)) lastPlayed = e.ts;
+  }
+  const runs = chain
+    .filter((_, r) => index[r]! >= 0)
+    .map((r, i) => ({
+      meta: playedMeta(r.meta),
+      text: edited ? addTimersRecords(folded[i]!, r.text, doc.excludes) : folded[i]!,
+    }));
 
   // Kept visible entries' and shown system lines' times, for moving
   // comments off removed entries.
@@ -203,8 +357,9 @@ export function buildReplayPayload(
   for (const r of runs) for (const e of captureEntries(r.text)) if (isVisible(e)) kept.push(e.ts);
   const hiddenSys: number[] = [];
   for (const l of systemLines(chain)) {
-    if (l.run >= keep) break;
-    if (isExcluded(doc, l.ts)) hiddenSys.push(l.run);
+    const i = index[l.run]!;
+    if (i < 0) continue;
+    if (isExcluded(doc, l.ts)) hiddenSys.push(i);
     else kept.push(l.ts);
   }
   kept.sort((a, b) => a - b);
@@ -230,7 +385,8 @@ export function buildReplayPayload(
 
   let level: number | undefined;
   for (const r of runs) if (r.meta.summary?.level !== undefined) level = r.meta.summary.level;
-  const first = chain[0]?.meta;
+  // The header: the first run played (the chain's first when none is).
+  const first = chain[index.indexOf(0)]?.meta ?? chain[0]?.meta;
   return {
     schema: PAYLOAD_SCHEMA,
     title: doc.title.trim(),

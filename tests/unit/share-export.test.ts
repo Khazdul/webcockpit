@@ -154,7 +154,7 @@ describe('buildReplayPayload', () => {
       comments: [{ beforeUs: null, text: 'The end.' }, { beforeUs: us(3601), text: 'In the tail.' }],
     });
     const p = buildReplayPayload(chain(), events, d, defaultSettings());
-    expect(p.runs.map((r) => r.meta.runId)).toEqual(['Rasta/a']);
+    expect(p.runs.map((r) => r.meta)).toEqual([{ startedUs: BASE_US, summary: { startUs: BASE_US, level: 41 } }]);
     expect(p.level).toBe(41);
     expect(p.hiddenSys).toBeUndefined();
     const text = p.runs[0]!.text;
@@ -198,12 +198,24 @@ describe('buildReplayPayload', () => {
     expect(buildReplayPayload(chain(), [], doc({ excludes: [[0, null]] }), defaultSettings()).runs).toEqual([]);
   });
 
-  it('keeps a run before the first kept entry as the state prefix', () => {
+  it('leaves out a run before the first kept entry, carrying the VIEW and channels it set', () => {
     const p = buildReplayPayload(chain(), [], doc({ excludes: [[0, us(3600.5)]] }), defaultSettings());
-    expect(p.runs).toHaveLength(2);
-    expect(p.runs[0]!.text).toContain('Char.Vitals {"hp":90}');
-    expect(p.runs[0]!.text).not.toContain('You hit the orc.');
-    expect(p.runs[1]!.text).toContain('Back again.');
+    expect(p.runs).toHaveLength(1);
+    const text = p.runs[0]!.text;
+    expect(text).not.toContain('Char.Vitals {"hp":90}');
+    expect(text).not.toContain('You hit the orc.');
+    expect(text).toContain('Back again.');
+    // The player keeps VIEW parts and the Comm pane's channels from run to
+    // run; the replay clock starts and catches up where it did.
+    expect(text.split('\n').slice(0, 4)).toEqual([
+      `${us(0)} \x1bSIZE {"pace":1}`,
+      `${us(5)} \x1bSIZE {"pace":1}`,
+      `${us(3600)} \x1bVIEW {"appearance":{"size":14}}`,
+      `${us(3600)} \x1bGMCP Comm.Channel.List [{"name":"tells"}]`,
+    ]);
     expect(p.level).toBe(42);
+    expect(p.startUs).toBe(us(3600));
+    // Kept with dropRuns off (the state prefix as before).
+    expect(buildReplayPayload(chain(), [], doc({ excludes: [[0, us(3600.5)]] }), defaultSettings(), { dropRuns: false }).runs).toHaveLength(2);
   });
 });
