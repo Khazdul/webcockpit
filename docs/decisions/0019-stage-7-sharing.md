@@ -810,3 +810,124 @@ or record) outside every range.
 **Not changed.** A leading range still carries every record before the
 clip (the state prefix, and its rooms in the map embed). Trimming it to
 the latest state per kind is a possible later step.
+
+
+## Addendum — excluded state folding (2026-10-10)
+
+**Problem.** After the excluded-tail fix a clip still carried every
+record of the ranges before and between its kept parts: the owner's
+27 s clip from the middle of an evening kept 0.94 MB of run text (an
+hour of Room.Info, Group.*, Char.Vitals and Room.Chars.* GMCP), and the
+map embed visited 376 rooms of the excluded hour. Only the state at each
+range's end matters to the replay.
+
+**Decision (owner, 2026-10-10).** Fold each excluded range's records to
+the few that leave the player in the same state, and leave out runs that
+lie entirely inside excluded ranges. Replays must look and behave exactly
+as before, except for the accepted differences below. Code:
+src/share/fold.ts (`foldExcludedState`, a pass between `editRunText` and
+`addTimersRecords`), src/share/payload.ts (left-out runs, carried state,
+run metadata).
+
+**Rules.**
+
+- *Barriers*, kept verbatim in place, never folded across: VIEW, SPANE,
+  Char.Name, Char.StatusVars, Core.*, Event.Sun / Moon / Achieved,
+  WebCockpit.*, any unknown package, GMCP with bad JSON (it prints a
+  line), every entry closer than `GUARD_US` (1 s = max(PAIR_MS,
+  KILL_FOLD_MS)) to a kept entry (room notes pair an exits line with a
+  Room.Info within 1 s; the kill fold reads the vitals 500 ms after a
+  kept death line), Room.Info and Event.Moved while the map's prespam
+  queue may still hold a kept move command (an upper bound: kept move
+  commands minus arrivals), and the payload's first Room.Info (the
+  embedded map opens on the first visited room).
+- *Folded*: Char.Vitals, Group.*, Room.Info, Event.Moved and
+  Comm.Channel.List between two barriers (a segment) become one block at
+  the log time of the segment's last entry: vitals anchors (the first xp
+  and tp, CharModel's session anchors) and the lowest xp (the kill fold
+  anchor is a running minimum) when they differ, the merged vitals (last
+  value per key); the Group.* skeleton (Set / Add / Remove, and Updates
+  that add a map table entry or carry a type, cut to `{id, type}`) so
+  GroupModel and the map's GroupTable (insertion order, hue generator)
+  see the same structure, then one Group.Update per table entry with its
+  final fields (`{id, label: 0}` after it where the model has no label
+  but the table keeps one); the Event.Moved just before the last
+  Room.Info, that Room.Info, the Event.Moved after it; the last channel
+  list the Comm pane takes.
+- *Checked*: CharModel, GroupModel and GroupTable fed the segment and fed
+  the block from the same state must end equal, and the run events' xp
+  (last and lowest) must agree; otherwise the segment is kept as it is.
+  (It happens when GroupModel and the table disagree on a member's name:
+  one Group.Update cannot set both. None in the owner's log.)
+- *Dropped*: SIZE (the player ignores it), Room.* other than Room.Info,
+  Client.*, Event.Darkness, External.Discord.*, MUME.Client.* (nothing
+  in a player App reads them), unknown record types (the timeline skips
+  them).
+- *Pacing*: the replay clock fires timers at their own times through
+  steps of up to 60 s and catches up over longer ones, so a removed entry
+  is replaced by a no-op `SIZE {"pace":1}` (`parseSize` rejects it; no
+  bus or telnet traffic) at both ends of a gap over 60 s, wherever leaving
+  it out would make a longer step, at a run's first entry and at a
+  segment's last entry (the timeline's log time over a cut's stretch and
+  a marker's position after a cut read the range's last entry). The
+  timers tick and the kill fold fire as before.
+- *Left-out runs*: a run with no entry outside every range is left out
+  (before the first kept entry and between clips), unless it has an
+  achievement or bad JSON (lines the viewer sees). The next run gets, at
+  its start, pacing records on the left-out entries' times (the replay
+  clock starts and ticks as before), then the VIEW parts and the channel
+  list the left-out runs set when they differ from what the runs played
+  leave (PlayerHost keeps VIEW parts and the Comm pane keeps channels
+  from run to run). `hiddenSys` indexes the runs left; `character` and
+  `startUs` come from the first run left.
+- *Run metadata*: `runs[].meta` keeps only `startedUs` and
+  `summary.{startUs, level}` (`playedMeta`), what the player reads.
+- Payload `fold: false` / `dropRuns: false` build the file as before
+  (tests, the real-log check).
+
+**Accepted differences (owner).** With left-out runs: their UI pane
+connection lines; the header's date and character from the first run
+left; between clips, the map's group hues (the table's colour generator
+goes on across runs), the game clock (Event.Sun syncs in the left-out
+run) and the map's previous room and learned server ids until the next
+Room.Info. Within runs: the map's position after a folded Room.Info that
+its server id does not locate (it is located from the room before the
+segment, and the server ids the segment's other Room.Infos taught are
+not learned).
+
+**Measured (owner's log, 8 runs, 2026-10-10).** Unfolded vs folded, each
+on its own map subset: the Tracker's room, located flag, prespam path
+and group members after every kept Room.Info are identical (5 kept
+Room.Infos for the owner's cuts; 80 and 4 for two synthetic multi-clip
+sets over the same runs); with runs left out, one member hue differs
+after a left-out run. A PlayerHost digest (character, group, game clock,
+timers, settings, UI pane, Comm pane, game window, script panes, replay
+clock) after each cut and at the end is identical; with runs left out,
+only the UI pane's connection lines differ. Owner's cuts: run text
+941 294 → 68 886 characters, payload JSON 1 053 011 → 81 533 bytes;
+Room.Info visits 701 → 7, visited rooms 376 → 6, map subset 3 836 →
+585 rooms. Test: tests/unit/share-fold-real.test.ts
+(`WC_REAL_PAYLOAD=<payload.json>`).
+
+**Other differences that remain.** Intermediate frames while a range
+plays in at once are fewer (the end state is the same). Entries less
+than 1 ms apart share a frame and a clock reading; a block can change
+that grouping at a cut's end, so a timer due within that millisecond may
+fire on the other side of the first kept entry. Where the map loads
+after a seek has fast-forwarded past some records, its table holds a
+timing-dependent subset already today; folding changes which records
+those are. The embedded map subset is smaller (fewer visited rooms),
+so the edge of the drawn area near excluded places moves.
+
+**Residual leaks.** What an excluded range still carries: every barrier
+verbatim (VIEW appearance and layout changes, script pane end states,
+Char.Name / StatusVars, Event.Sun / Moon / Achieved and their times,
+unknown packages, entries within 1 s of a kept entry, Room.Info and
+Event.Moved right after kept move commands, the payload's first
+Room.Info); per segment the end state (the room and the moves around
+it, vitals including the first and lowest xp, the group's member
+structure — adds, removes, ids, types — and final names, labels, map
+ids, the channel list); pacing records, which show when there was
+activity at a resolution of about a minute; and for left-out runs the
+VIEW parts and channel list they set. A run with an achievement or bad
+JSON is not left out (its records are folded like any other run's).
