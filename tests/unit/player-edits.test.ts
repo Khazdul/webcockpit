@@ -10,6 +10,7 @@ import {
   ENTRY_COMMENT,
   ENTRY_GMCP,
   ENTRY_IN,
+  ENTRY_VIEW,
   advancePlay,
   buildTimeline,
   entryText,
@@ -77,8 +78,10 @@ describe('buildTimeline edits', () => {
     const doc = { ...defaultExportDoc('X/1'), excludes: [[us(2.5), us(6)], [us(7), null]] as Array<[number, number | null]> };
     const chain = [{ meta: meta('X/1', BASE_US), text: editRunText(text, doc) }];
     const tl = buildTimeline(chain, { cuts: doc.excludes });
-    expect([...tl.kind]).toEqual([ENTRY_IN, ENTRY_IN, ENTRY_GMCP, ENTRY_IN, ENTRY_IN, ENTRY_GMCP]);
-    expect(plays(tl)).toEqual([0, 1000, 1000, 1000 + CUT_MAX_MS, 1700, 1700]);
+    // The state inside the middle cut stays; the excluded tail (its GMCP
+    // at 8 s) is dropped, as nothing resumes after it.
+    expect([...tl.kind]).toEqual([ENTRY_IN, ENTRY_IN, ENTRY_GMCP, ENTRY_IN, ENTRY_IN]);
+    expect(plays(tl)).toEqual([0, 1000, 1000, 1000 + CUT_MAX_MS, 1700]);
     expect(tl.durationMs).toBe(1700);
     // A cut with nothing removed still shortens the stretch over it; a
     // short one keeps its real length.
@@ -92,6 +95,69 @@ describe('buildTimeline edits', () => {
       { at: 30, in: 'B.' },
     ]);
     expect(plays(buildTimeline([{ meta: meta('X/1', BASE_US), text: long }], { cuts: [[us(2), us(29)]] }))).toEqual([0, 0]);
+  });
+
+  it('drops the excluded tail: no state after the last kept entry, end comments follow it', () => {
+    // A clip from the middle of a two-run evening: a leading cut, a middle
+    // cut and a trailing cut over the rest of run 1 and all of run 2.
+    const r1 = makeLog(BASE_US, [
+      { at: 0, view: { appearance: { size: 12 } } },
+      { at: 1, in: 'Before.' },
+      { at: 2, gmcp: 'Room.Info', json: { id: 1 } },
+      { at: 3, in: 'Clip one.' },
+      { at: 4, view: { appearance: { size: 13 } } },
+      { at: 4.5, in: 'Cut in the middle.' },
+      { at: 5, in: 'Clip two.' },
+      { at: 6, gmcp: 'Char.Vitals', json: { hp: 1 } },
+      { at: 7, view: { appearance: { size: 20 } } },
+      { at: 8, in: 'After the clip.' },
+    ]);
+    const r2 = makeLog(us(3600), [
+      { at: 0, view: { appearance: { size: 30 } } },
+      { at: 1, gmcp: 'Room.Info', json: { id: 99 } },
+      { at: 2, in: 'Late evening.' },
+    ]);
+    const cuts: Array<[number, number | null]> = [
+      [us(0), us(3)],
+      [us(4), us(5)],
+      [us(5.5), null],
+    ];
+    const doc = { ...defaultExportDoc('X/1'), excludes: cuts };
+    const chain = [
+      { meta: meta('X/1', BASE_US), text: editRunText(r1, doc) },
+      { meta: meta('X/2', us(3600)), text: editRunText(r2, doc) },
+    ];
+    const tl = buildTimeline(chain, {
+      cuts,
+      comments: [
+        { beforeUs: us(3600 + 2), text: 'Anchored in the tail.', holdMs: 1000 },
+        { beforeUs: null, text: 'The end.', holdMs: 1000 },
+      ],
+    });
+    const texts = Array.from({ length: tl.n }, (_, i) => entryText(tl, i));
+    // The leading and middle cuts keep their state; the tail's VIEW, GMCP
+    // and text are gone, in both runs.
+    expect([...tl.kind]).toEqual([ENTRY_VIEW, ENTRY_GMCP, ENTRY_IN, ENTRY_VIEW, ENTRY_IN, ENTRY_COMMENT, ENTRY_COMMENT]);
+    expect(texts.slice(0, 5)).toEqual(['{"appearance":{"size":12}}', 'Room.Info {"id":1}', 'Clip one.', '{"appearance":{"size":13}}', 'Clip two.']);
+    expect(texts.slice(5)).toEqual(['Anchored in the tail.', 'The end.']);
+    // The comments stay in the last kept entry's run (no new connection).
+    expect([...tl.run]).toEqual([0, 0, 0, 0, 0, 0, 0]);
+    expect(tl.ts[5]).toBe(us(5));
+    expect(tl.runs[0]!.end).toBe(tl.n);
+    expect(tl.runs[1]).toMatchObject({ first: tl.n, end: tl.n });
+    expect(tl.durationMs).toBe(tl.play[4]! + 2000);
+    // The same on raw texts: the tail goes, text and all.
+    const raw = buildTimeline([
+      { meta: meta('X/1', BASE_US), text: r1 },
+      { meta: meta('X/2', us(3600)), text: r2 },
+    ], { cuts });
+    expect(raw.ts[raw.n - 1]).toBe(us(5));
+    // A cut with an end but no kept entry after it is a tail too.
+    const t2 = buildTimeline(chain, { cuts: [[us(5.5), us(3600 + 1.5)], [us(3600 + 1.8), us(3600 + 3)]] });
+    expect([...t2.kind].filter((k) => k === ENTRY_VIEW).length).toBe(2);
+    expect(t2.ts[t2.n - 1]).toBe(us(5));
+    // Everything cut: nothing plays.
+    expect(buildTimeline(chain, { cuts: [[0, null]] }).n).toBe(0);
   });
 
   it('builds spotlight windows: blank, state prefix, window, dwell, runs in any order', () => {

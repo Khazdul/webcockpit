@@ -43,6 +43,12 @@
 //              time, and the stretch from the last entry before the range
 //              to the first one after it plays in at most 500 ms (0 when it
 //              is longer than the 10 s gap limit, or in a lead-in).
+//              The excluded tail (ADR 0019 addendum "Excluded tail"): the
+//              entries inside a cut after the last entry outside every cut
+//              are dropped, not played; nothing resumes after them, so
+//              their state (later VIEW appearance and layout, room, vitals)
+//              would only burst in at the end. Comments anchored there (or
+//              at null) follow the last entry taken, in its run.
 //   windows    spotlight mode, one per run: entries before `fromUs` are a
 //              state prefix (inbound lines and commands dropped, the rest
 //              in no time), entries after `toUs` are dropped, and after the
@@ -157,6 +163,83 @@ export function hasInk(text: string, b: number, e: number): boolean {
   return false;
 }
 
+/** Body start of the line `lineKind` last accepted. */
+let bodyStart = 0;
+
+/**
+ * The ENTRY_* of the capture line `text[s, e)` (no line end), or -1 when
+ * it is no entry (malformed, or an unknown record); sets `bodyStart`.
+ */
+function lineKind(text: string, s: number, e: number): number {
+  if (e - s < TS_DIGITS + 1 || text.charCodeAt(s + TS_DIGITS) !== 32) return -1;
+  let ok = true;
+  for (let k = s; k < s + TS_DIGITS; k++) {
+    if (!isDigit(text.charCodeAt(k))) {
+      ok = false;
+      break;
+    }
+  }
+  if (!ok) return -1;
+  let b = s + TS_DIGITS + 1;
+  let k: number = ENTRY_IN;
+  const c0 = text.charCodeAt(b);
+  if (c0 === 62 && text.charCodeAt(b + 1) === 32 && b + 1 < e) {
+    // "> cmd" ("> " alone is an empty Enter); a bare ">" is a prompt.
+    k = ENTRY_OUT;
+    b += 2;
+  } else if (c0 === 27) {
+    const c1 = text.charCodeAt(b + 1);
+    if (c1 >= 65 && c1 <= 90) {
+      const sp = text.indexOf(' ', b);
+      const type = text.slice(b + 1, sp < 0 || sp > e ? e : sp);
+      if (type === 'GMCP') k = ENTRY_GMCP;
+      else if (type === 'VIEW') k = ENTRY_VIEW;
+      else if (type === 'SIZE') k = ENTRY_SIZE;
+      else if (type === 'SPANE') k = ENTRY_SPANE;
+      else return -1;
+      if (sp < 0 || sp >= e) return -1; // every known record has a payload
+      b = sp + 1;
+    }
+  }
+  bodyStart = b;
+  return k;
+}
+
+/**
+ * Log µs of the last entry of the chain outside every cut (sorted), or
+ * -Infinity when there is none: entries after it are the excluded tail.
+ */
+function lastKeptUs(chain: readonly ChainRun[], cuts: ReadonlyArray<readonly [number, number | null]>): number {
+  for (let r = chain.length - 1; r >= 0; r--) {
+    const text = chain[r]!.text;
+    let nl = text.length;
+    while (nl > 0) {
+      let s = text.lastIndexOf('\n', nl - 1);
+      const lineEnd = nl;
+      nl = s < 0 ? 0 : s;
+      s = s < 0 ? 0 : s + 1;
+      let e = lineEnd;
+      if (e > s && text.charCodeAt(e - 1) === 13) e--;
+      if (lineKind(text, s, e) < 0) continue;
+      const t = Number(text.slice(s, s + TS_DIGITS));
+      if (!inCuts(cuts, t)) return t;
+    }
+  }
+  return -Infinity;
+}
+
+/** True when `t` lies in one of `cuts` (sorted, non-overlapping). */
+function inCuts(cuts: ReadonlyArray<readonly [number, number | null]>, t: number): boolean {
+  let lo = 0;
+  let hi = cuts.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (cuts[mid]![0] <= t) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo > 0 && t < (cuts[lo - 1]![1] ?? Infinity);
+}
+
 /** Parses the runs of a chain (oldest first) into one timeline, with optional edits. */
 export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits): Timeline {
   const comments = edits?.comments
@@ -190,6 +273,10 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
   let cutI = 0;
   /** Log time before the cut being passed (the last entry before its range), or null. */
   let cutBase: number | null = null;
+  /** Entries in a cut after this log µs are the excluded tail: dropped. */
+  const tailUs = cuts.length > 0 ? lastKeptUs(chain, cuts) : Infinity;
+  /** Run of the last entry taken (trailing comments join it). */
+  let lastRun = chain.length - 1;
 
   const pushComments = (r: number, t: number, upTo: number): void => {
     while (ci < comments.length && (comments[ci]!.beforeUs ?? Infinity) <= upTo) {
@@ -225,36 +312,9 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
       if (e > pos && text.charCodeAt(e - 1) === 13) e--;
       const s = pos;
       pos = nl + 1;
-      if (e - s < TS_DIGITS + 1 || text.charCodeAt(s + TS_DIGITS) !== 32) continue;
-      let ok = true;
-      for (let k = s; k < s + TS_DIGITS; k++) {
-        if (!isDigit(text.charCodeAt(k))) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-      let b = s + TS_DIGITS + 1;
-      let k: number = ENTRY_IN;
-      const c0 = text.charCodeAt(b);
-      if (c0 === 62 && text.charCodeAt(b + 1) === 32 && b + 1 < e) {
-        // "> cmd" ("> " alone is an empty Enter); a bare ">" is a prompt.
-        k = ENTRY_OUT;
-        b += 2;
-      } else if (c0 === 27) {
-        const c1 = text.charCodeAt(b + 1);
-        if (c1 >= 65 && c1 <= 90) {
-          const sp = text.indexOf(' ', b);
-          const type = text.slice(b + 1, sp < 0 || sp > e ? e : sp);
-          if (type === 'GMCP') k = ENTRY_GMCP;
-          else if (type === 'VIEW') k = ENTRY_VIEW;
-          else if (type === 'SIZE') k = ENTRY_SIZE;
-          else if (type === 'SPANE') k = ENTRY_SPANE;
-          else continue;
-          if (sp < 0 || sp >= e) continue; // every known record has a payload
-          b = sp + 1;
-        }
-      }
+      const k = lineKind(text, s, e);
+      if (k < 0) continue;
+      const b = bodyStart;
       const t = Number(text.slice(s, s + TS_DIGITS));
       if (win) {
         // Spotlight window: the state prefix loses its text, the rest after
@@ -280,6 +340,8 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
           cutI++;
         }
         inCut = cutI < cuts.length && cuts[cutI]![0] <= t;
+        // The excluded tail: no kept entry follows, so nothing resumes.
+        if (inCut && t > tailUs) continue;
         if (inCut && cutBase === null) cutBase = lastTs;
       }
       if (lead) {
@@ -301,6 +363,7 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
       if (comments.length > 0) pushComments(r, t, t);
       lastTs = t;
       runLast = t;
+      lastRun = r;
       run[n] = r;
       kind[n] = k;
       ts[n] = t;
@@ -314,8 +377,10 @@ export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits)
     runs.push({ meta, text, first, end: n });
   }
   if (ci < comments.length && chain.length > 0) {
-    pushComments(chain.length - 1, lastTs < 0 ? 0 : lastTs, Infinity);
-    runs[runs.length - 1]!.end = n;
+    // After the last entry, in its run (a later, empty run would connect anew).
+    pushComments(lastRun, lastTs < 0 ? 0 : lastTs, Infinity);
+    runs[lastRun]!.end = n;
+    for (let r = lastRun + 1; r < runs.length; r++) runs[r]!.first = runs[r]!.end = n;
   }
   const lastPlay = n > 0 ? play[n - 1]! : 0;
   return {
