@@ -774,3 +774,39 @@ removed by an exclusion, the first command of a log). The e2e now
 compares every output row of the log player and the replay of the demo
 session.
 
+
+## Addendum — excluded tail (2026-10-10)
+
+**Problem (owner report).** A ~27 s clip exported from the middle of an
+evening of 8 runs (excludes `[[start, a], [b, null]]`) switched the whole
+replay to other colours the moment the clip's text ended: the colours the
+owner had at the end of the evening. "What an exclusion removes" keeps
+GMCP / VIEW / SIZE / SPANE inside a range "so the panes are right when
+the log resumes", and the timeline played them in no time. A trailing
+range resumes nothing, so all later VIEW records (appearance, panes,
+layout) and GMCP (room, vitals, group) burst in at the end. The file
+also carried the other 7 runs' records (11.8 MB) and the map embed
+visited every room of the evening (1431).
+
+**Decision.** The *excluded tail* is the set of entries inside an
+excluded range after the last entry outside every range (`lastKeptUs`,
+src/player/timeline.ts; a range ending with `to = null`, or any range no
+kept entry follows). A kept entry is any timeline entry (text, command
+or record) outside every range.
+
+- **Timeline:** entries of the excluded tail are dropped, not played.
+  Comments anchored in it (or at `null`) play after the last entry taken,
+  in that entry's run (a later, empty run would open a new connection).
+  Leading and middle ranges are unchanged: their state is kept and
+  played in no time. Everything excluded = an empty timeline.
+- **Payload:** `editRunText(text, doc, tailUs)` removes the tail entirely,
+  records included (no folded SPANE or timers record is written past it);
+  runs that start after the last kept entry are left out of `runs`, so
+  `hiddenSys` indexes are unchanged for the runs left, and `level` comes
+  from the runs left. Runs before the first kept entry stay (the state
+  prefix). The map embed reads the payload's runs, so the tail's rooms
+  are no longer in the subset.
+
+**Not changed.** A leading range still carries every record before the
+clip (the state prefix, and its rooms in the map embed). Trimming it to
+the latest state per kind is a possible later step.
