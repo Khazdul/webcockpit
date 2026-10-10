@@ -38,6 +38,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-10 — Replay map margin and default tiles
+
+- **Done:** owner feedback on 0.1.59 (colours no longer switch at the end;
+  multi-clip export works). Replay map subset margin 8 → 16 (owner clip
+  585 → 1115 rooms) and replays always embed MMapper's default tiles
+  (Shimrod tiles were 5.7 of 6.7 MB); payload mapper settings as if
+  Default were chosen. ADR 0020 amendment. Unit 2545 + tsc green;
+  map-tilesets / tile-upload / replay e2e green in Chromium.
+- **Next:** release on the owner's go; owner checks the export size.
+- **Commits:** 85e87f3, a2dbc41, eb31b7b, plus this one.
+
 ### 2026-10-10 — Release 0.1.59
 
 - **Done:** released 0.1.59 (tag v0.1.59, owner's go): replay export
