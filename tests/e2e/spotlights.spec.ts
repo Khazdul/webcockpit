@@ -2,6 +2,7 @@
 // backup (a death, a PvP kill, a level-up and two achievements over two
 // characters: five spotlights).
 import { type Page, expect, test } from '@playwright/test';
+import { pinDemoClock } from './demo-clock';
 
 interface Eng {
   position: number;
@@ -37,6 +38,7 @@ test('Spotlights plays the reel: header, info box, ←/→, park at the end, ESC
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
   await menuRow(page, 'spotlights').click();
@@ -116,6 +118,7 @@ test('Spotlights plays the reel: header, info box, ←/→, park at the end, ESC
 test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
   await menuRow(page, 'credits').click();

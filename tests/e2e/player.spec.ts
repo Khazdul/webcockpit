@@ -3,6 +3,7 @@
 // commands echoed; speed keys, pause with the cursor line, a strip click,
 // a marker click, the end, and ESC back to History with its state kept.
 import { type Page, expect, test } from '@playwright/test';
+import { pinDemoClock } from './demo-clock';
 
 interface Eng {
   position: number;
@@ -35,6 +36,7 @@ test('History → RUN LOG plays the Rasta session; pause, speed, seek, markers, 
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   await page.evaluate(async () => {

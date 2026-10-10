@@ -2,6 +2,7 @@
 // the Rasta session: comment, exclude, title, format, the text download,
 // and the edits back after BACK and a reopen.
 import { type Page, expect, test } from '@playwright/test';
+import { pinDemoClock } from './demo-clock';
 
 const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const cur = (page: Page) => frame(page).locator('.wc-tr.is-cur-focus, .wc-tr.is-cur');
@@ -12,6 +13,7 @@ const curRow = (page: Page) => frame(page).locator('.wc-exp-row.is-cur').first()
 
 async function openHistory(page: Page): Promise<void> {
   await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   await page.evaluate(async () => {

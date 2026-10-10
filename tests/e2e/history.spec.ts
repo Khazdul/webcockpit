@@ -2,6 +2,7 @@
 // delete, stats), ESC → Statistics during a replay, and Exit with rating
 // on a mocked live session that History then lists as saved.
 import { type Page, expect, test } from '@playwright/test';
+import { pinDemoClock } from './demo-clock';
 
 async function restoreDemo(page: Page): Promise<void> {
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
@@ -29,6 +30,7 @@ async function openHistory(page: Page): Promise<void> {
 test('History lists the demo sessions; filter, sort, save, rate, delete and stats', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
   await openHistory(page);

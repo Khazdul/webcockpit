@@ -2,6 +2,7 @@
 // scroll every chrome list by pixels, as CodeMirror does in EDITOR, never
 // by whole rows. A small wheel delta moves a scroll box by less than a row.
 import { type Locator, type Page, expect, test } from '@playwright/test';
+import { pinDemoClock } from './demo-clock';
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 
@@ -74,6 +75,7 @@ test('About scrolls by pixels; the keys by rows', async ({ page }) => {
 
 test('History table scrolls by pixels; the cursor stays in view', async ({ page }) => {
   await page.setViewportSize({ width: 1100, height: 600 });
+  await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page, 8);
   await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
@@ -157,6 +159,7 @@ test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {
 
 test('Export editor log scrolls by pixels; the rows near the view are rendered', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 600 });
+  await pinDemoClock(page);
   await page.goto('/');
   await restoreRuns(page);
   await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
