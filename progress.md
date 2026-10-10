@@ -38,6 +38,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-10 — e2e demo clock
+
+- **Done:** the demo-backup e2e specs (history, export, player,
+  spotlights, scrolling) pin the page clock to 2026-09-28
+  (`tests/e2e/demo-clock.ts`); they failed once the demo runs passed the
+  14-day retention. Full e2e: 510/514 in one run, the 4 failures (map
+  notes ×2, tileset swap, Firefox caret) pass when rerun alone (load
+  flakiness).
+- **Next:** owner tests 0.1.60 exports further.
+- **Commits:** this one and the test commit before it.
+
 ### 2026-10-10 — Release 0.1.60
 
 - **Done:** released 0.1.60 (tag v0.1.60, owner's go): replay map margin
