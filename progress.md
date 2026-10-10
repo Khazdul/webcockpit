@@ -38,6 +38,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-10 — Replay excluded-state folding
+
+- **Done:** excluded ranges before/between kept clips now carry only the
+  folded end state (verified per segment through the real models, else
+  kept as is); fully excluded runs are left out (owner's choice, accepted
+  effects: their UI connect lines, map hues, game clock anchor); run meta
+  trimmed. Owner's clip: 0.94 M → 69 K chars, 701 → 7 Room.Info visits;
+  map tracker and player digest identical at every cut on real data.
+  ADR 0019 addendum. 2544 unit tests + tsc green.
+- **Next:** release, owner re-exports a multi-clip log to verify.
+- **Open issues:** e2e export/player specs fail on untouched HEAD too
+  (demo fixtures past the 14-day retention); spotlights e2e on Chromium
+  fails, cause not confirmed.
+- **Commits:** 5f5e35c, b776027, 2c61cfa, e6b816d, 8dc67ba, plus this one.
+
 ### 2026-10-10 — Replay excluded-tail fix
 
 - **Done:** owner report: an exported mid-session clip switched colours
