@@ -87,9 +87,15 @@ export class ColorGenerator {
   release(hue: number): void {
     this.prev.push(hue);
   }
+
+  /** The last hue handed out and the released hues (a copy). */
+  state(): { hue: number; released: number[] } {
+    return { hue: this.hue, released: [...this.prev] };
+  }
 }
 
-interface Entry {
+/** One member of the map's group table. */
+export interface GroupTableEntry {
   id: number;
   name: string;
   label: string;
@@ -105,7 +111,7 @@ const intId = (v: unknown): number | null => (typeof v === 'number' && Number.is
 
 /** The map's group member table. `apply` returns true when something drawn may have changed. */
 export class GroupTable {
-  private readonly byId = new Map<number, Entry>();
+  private readonly byId = new Map<number, GroupTableEntry>();
   private readonly colors: ColorGenerator;
 
   constructor(playerColor = PLAYER_COLOR) {
@@ -114,6 +120,21 @@ export class GroupTable {
 
   get size(): number {
     return this.byId.size;
+  }
+
+  /** True when `id` is in the table. */
+  has(id: number): boolean {
+    return this.byId.has(id);
+  }
+
+  /** The entries in table order, as copies (the replay export's state fold, tests). */
+  entries(): GroupTableEntry[] {
+    return [...this.byId.values()].map((e) => ({ ...e }));
+  }
+
+  /** The colour generator's state: its last hue and the released hues in reuse order. */
+  colorState(): { hue: number; released: number[] } {
+    return this.colors.state();
   }
 
   /** Applies a Group.* message (package compared case-insensitively). */
@@ -154,7 +175,7 @@ export class GroupTable {
     const id = intId(o.id);
     if (id === null) return false;
     this.remove(id);
-    const e: Entry = { id, name: '', label: '', type: '', mapid: 0, hue: -1 };
+    const e: GroupTableEntry = { id, name: '', label: '', type: '', mapid: 0, hue: -1 };
     this.merge(e, o);
     if (e.type === 'you') return true;
     e.hue = this.colors.next();
@@ -185,7 +206,7 @@ export class GroupTable {
   }
 
   /** CGroupChar::updateFromGmcp for the fields the map uses (a non-string `label`, e.g. MUME's 0, is ignored). */
-  private merge(e: Entry, o: Obj): void {
+  private merge(e: GroupTableEntry, o: Obj): void {
     const mapid = intId(o.mapid);
     if (mapid !== null) e.mapid = mapid > 0 ? mapid : 0;
     if (typeof o.name === 'string') e.name = o.name;
