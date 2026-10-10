@@ -540,3 +540,23 @@ Step 2 also needs the exit set or the description to agree (both from
 an unlocated origin), a lost tracker advances tentatively along a
 single-target exit, matches from such an origin teach no ids, and a
 learned id needs name and exit set to agree. See ADR 0071.
+
+## Amendment 2026-10-10: replay map margin and default tiles (owner)
+
+Owner feedback on 0.1.59 exports: a 30 s clip with Shimrod tiles was
+6.7 MB, of which 5.7 MB were the set's 256 px tiles (85 files) and only
+0.14 MB the map subset.
+
+- `SUBSET_MARGIN` 8 → 16 (owner: "double the radius"), so the viewer can
+  pan further. Owner's clip: 585 → 1115 subset rooms, about +0.13 MB.
+- An HTML replay always embeds MMapper's default tiles (126 files,
+  684 kB in all), whatever set the client draws. The export editor and
+  the dev hook no longer pass `tileset` to `buildReplayHtml`; the option
+  stays in `embedReplayMap`. This supersedes ADR 0082 "HTML replay" and
+  the replay part of ADR 0088 (`streamsAsIs` and `tints` are then absent).
+- The payload's `settings.mapper` is what choosing Default in Options
+  would give (`replaySettings` in src/share/payload.ts, via
+  `chooseTileset`): tileset `default`, and a background a community set
+  chose goes back to the user's remembered one.
+- Owner rejected embedding the whole map: about 10 MB with default tiles,
+  17 MB with Shimrod, for every export.

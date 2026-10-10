@@ -119,7 +119,8 @@ streams, no-ride and several terrains 256² (default 128²).
 
 ### HTML replay
 
-- `buildReplayHtml(…, {tileset})` → `embedReplayMap` fetches each needed
+- (Superseded 2026-10-10, ADR 0020 amendment: replays embed the default
+  tiles.) `buildReplayHtml(…, {tileset})` → `embedReplayMap` fetches each needed
   pixmap through `overlayPath` (the set's file, else the default) and
   embeds it under its `pixmaps/` key, so the replay page needs no
   tileset logic and `neededAssets` keeps its meaning. The export editor
