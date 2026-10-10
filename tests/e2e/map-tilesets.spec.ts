@@ -1,7 +1,7 @@
 // Stage 22 (ADR 0082) and 26 (ADR 0088): map tilesets. Options → Mapper picks a set; the
 // Map pane fetches that set's files (the default pixmaps only for files
 // the set lacks), swaps the tiles live, and an alternating set follows a
-// mocked game clock's season. An HTML replay embeds the client's set.
+// mocked game clock's season. An HTML replay embeds the default tiles.
 // A community set switches the map background to white and choosing
 // Default again restores the user's colour.
 //
@@ -227,7 +227,7 @@ test('Options → Mapper: a tileset is fetched (only its files), drawn and swapp
   expect(errors).toEqual([]);
 });
 
-test('alternating picks the season of the game clock at start, and an HTML replay embeds it', async ({ page }) => {
+test('alternating picks the season of the game clock at start; an HTML replay embeds the default tiles', async ({ page }) => {
   test.setTimeout(90_000);
   await mockClock(page, 1); // Solmath: winter
   const tiles = trackTiles(page);
@@ -245,8 +245,8 @@ test('alternating picks the season of the game clock at start, and an HTML repla
   await expect(content).toHaveAttribute('data-map-tileset', 'shimrod-winter');
   await expect.poll(() => [...new Set(tiles)].sort(), { timeout: 20_000 }).toEqual(expectedPaths('shimrod-winter'));
 
-  // The export embeds the winter tiles under their pixmaps/ names (the
-  // default pixmaps for the files the set lacks).
+  // The export embeds MMapper's default tiles whatever set the client
+  // draws (ADR 0020 addendum 2026-10-10), and the replay's settings say so.
   const arda = await readMm2(new Uint8Array(readFileSync(new URL('../../public/map/arda.mm2', import.meta.url))), inflate);
   const us0 = 1_790_000_000_000_000;
   let log = gmcpLine(us0, 'Char.Name', { name: 'Rasta', fullname: 'Rasta' });
@@ -259,15 +259,12 @@ test('alternating picks the season of the game clock at start, and an HTML repla
   const files = p.map!.files;
   const pix = Object.keys(files).filter((k) => k.startsWith('pixmaps/'));
   expect(pix.length).toBeGreaterThan(10);
-  const winter = setOf('shimrod-winter');
-  let fromSet = 0;
   for (const k of pix) {
-    const f = k.slice('pixmaps/'.length);
-    const src = winter.lacks.includes(f) ? k : `tilesets/${winter.dir}/${f}`;
-    if (src !== k) fromSet++;
-    expect(files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(`../../public/map/${src}`, import.meta.url)).toString('base64')}`);
+    expect(files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(`../../public/map/${k}`, import.meta.url)).toString('base64')}`);
   }
-  expect(fromSet).toBeGreaterThan(5);
+  expect(p.map!.streamsAsIs).toBeUndefined();
+  expect(p.map!.tints).toBeUndefined();
+  expect(p.settings.mapper.tileset).toBe('default');
 });
 
 test('community tilesets: last in the list, a white background while chosen, restored after (ADR 0088)', async ({ page }) => {
@@ -316,7 +313,8 @@ test('community tilesets: last in the list, a white background while chosen, res
   expect(tiles.some((p) => p.startsWith('tilesets/') && !p.startsWith('tilesets/gefe-rik/'))).toBe(false);
   expect(await mapper()).toMatchObject({ tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#101c3c' });
 
-  // An HTML replay embeds the set and draws its flow marks as is, too.
+  // An HTML replay still draws the default tiles on the Navy the user had
+  // before the light set (ADR 0020 addendum 2026-10-10).
   const arda = await readMm2(new Uint8Array(readFileSync(new URL('../../public/map/arda.mm2', import.meta.url))), inflate);
   const us0 = 1_790_000_000_000_000;
   let log = gmcpLine(us0, 'Char.Name', { name: 'Rasta', fullname: 'Rasta' });
@@ -324,14 +322,13 @@ test('community tilesets: last in the list, a white background while chosen, res
   log += gmcpLine(us0 + 500_000, 'Room.Info', room);
   const html = await page.evaluate((t) => window.__wc!.replayHtml({ texts: [t], character: 'Rasta' }), log);
   const p = await decodePayload(/id="wc-replay-payload">([^<]+)</.exec(html)![1]!);
-  expect(p.map!.streamsAsIs).toBe(true);
-  const gefe = setOf('gefe-rik');
-  const own = Object.keys(p.map!.files).filter((k) => k.startsWith('pixmaps/') && !gefe.lacks.includes(k.slice('pixmaps/'.length)));
-  expect(own.length).toBeGreaterThan(5);
-  for (const k of own) {
-    const src = `../../public/map/tilesets/gefe-rik/${k.slice('pixmaps/'.length)}`;
-    expect(p.map!.files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(src, import.meta.url)).toString('base64')}`);
+  expect(p.map!.streamsAsIs).toBeUndefined();
+  const pix = Object.keys(p.map!.files).filter((k) => k.startsWith('pixmaps/'));
+  expect(pix.length).toBeGreaterThan(5);
+  for (const k of pix) {
+    expect(p.map!.files[k], k).toBe(`data:image/png;base64,${readFileSync(new URL(`../../public/map/${k}`, import.meta.url)).toString('base64')}`);
   }
+  expect(p.settings.mapper).toMatchObject({ tileset: 'default', background: '#101c3c', backgroundBefore: '' });
 
   // → → back to Default: the Navy comes back.
   await page.keyboard.press('ArrowRight');

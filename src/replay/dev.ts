@@ -14,7 +14,6 @@
 //       embedded when the chain has Room.Info (ADR 0020).
 
 import type { Shell } from '../app/shell';
-import { currentOverlay } from '../map/tilesets';
 import type { ChainRun } from '../player/timeline';
 import type { RunEvent } from '../runs/events';
 import type { SettingsStore } from '../settings';
@@ -67,7 +66,8 @@ export async function devReplayBlob(shell: Shell, settings: SettingsStore, o: De
   if (o.doc) doc = normalizeExportDoc({ ...doc, ...o.doc }) ?? doc;
   return buildReplayHtml(buildReplayPayload(chain, events, doc, settings.get()), {
     map: await shell.maps.source(),
-    tileset: currentOverlay(settings.get().mapper.tileset),
+    // No tileset: a replay always draws MMapper's default tiles (ADR 0020
+    // addendum 2026-10-10), much smaller than the community sets.
   });
 }
 

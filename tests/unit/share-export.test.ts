@@ -4,7 +4,7 @@ import type { RunEvent } from '../../src/runs/events';
 import { defaultSettings } from '../../src/settings';
 import { captureEntries, stripAnsi } from '../../src/share/capture';
 import { type ExportDoc, defaultExportDoc } from '../../src/share/edits';
-import { buildReplayPayload, editRunText, payloadEdits } from '../../src/share/payload';
+import { buildReplayPayload, editRunText, payloadEdits, replaySettings } from '../../src/share/payload';
 import { ENTRY_COMMENT, buildTimeline } from '../../src/player/timeline';
 import { buildTextExport } from '../../src/share/text';
 import { formatPaneRecord } from '../../src/capture/format';
@@ -109,6 +109,20 @@ describe('buildReplayPayload', () => {
     { type: 'kill', us: us(8), logUs: us(8), mobName: 'an orc', xpDelta: 5 },
     { type: 'level_up', us: us(3600.5), level: 42 },
   ];
+
+  it('settings: the default tileset, and a background a community set chose goes back', () => {
+    const s = defaultSettings();
+    s.mapper = { ...s.mapper, tileset: 'gefe-rik', background: '#ffffff', backgroundBefore: '#101c3c' };
+    const r = replaySettings(s);
+    expect(r.mapper).toMatchObject({ tileset: 'default', background: '#101c3c', backgroundBefore: '' });
+    expect(s.mapper.tileset).toBe('gefe-rik');
+    // A colour the user picked on the light set stays; a set without a background keeps it.
+    s.mapper = { ...s.mapper, background: '#2e3436' };
+    expect(replaySettings(s).mapper).toMatchObject({ tileset: 'default', background: '#2e3436', backgroundBefore: '' });
+    s.mapper = { ...s.mapper, tileset: 'shimrod', background: 'transparent', backgroundBefore: '' };
+    expect(replaySettings(s).mapper).toMatchObject({ tileset: 'default', background: 'transparent' });
+    expect(buildReplayPayload(chain(), [], doc({}), s).settings.mapper.tileset).toBe('default');
+  });
 
   it('removes excluded text, keeps state, computes cuts and filters markers', () => {
     const d = doc({ title: ' Fight ', excludes: [[us(6), us(9)]], comments: [{ beforeUs: us(7), text: 'x'.repeat(90) }] });

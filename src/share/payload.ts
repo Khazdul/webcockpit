@@ -59,6 +59,7 @@
 
 import { RECORD, formatGmcpRecord, formatPaneRecord, formatRecord, formatTs } from '../capture/format';
 import { parseChannelList } from '../gmcp/comm';
+import { chooseTileset } from '../map/tilesets';
 import { parseGmcp } from '../net/gmcp';
 import type { PaneSnapshot } from '../panes/script-content';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
@@ -393,13 +394,26 @@ export function buildReplayPayload(
     character: first?.character ?? '',
     ...(level !== undefined ? { level } : {}),
     startUs: first ? runStartUs(first) : 0,
-    settings: JSON.parse(JSON.stringify(settings)) as Settings,
+    settings: replaySettings(settings),
     runs,
     comments,
     cuts: doc.excludes.map((r) => [r[0], r[1]] as ExcludeRange),
     markers,
     ...(hiddenSys.length > 0 ? { hiddenSys } : {}),
   };
+}
+
+/**
+ * The exporter's settings as the replay uses them: a replay always draws
+ * MMapper's default tiles (ADR 0020 addendum 2026-10-10), so the tileset
+ * is `default`, and a background a community set chose (ADR 0088) goes
+ * back to the one the user had before it, as choosing the default
+ * tileset in the options would do.
+ */
+export function replaySettings(settings: Settings): Settings {
+  const s = JSON.parse(JSON.stringify(settings)) as Settings;
+  s.mapper = { ...s.mapper, ...chooseTileset(s.mapper, 'default') };
+  return s;
 }
 
 /** The timeline edits of a payload: its comments (with holds) and cuts. */
