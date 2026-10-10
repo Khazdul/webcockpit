@@ -7,6 +7,8 @@ import { type ExportDoc, defaultExportDoc } from '../../src/share/edits';
 import { buildReplayPayload, editRunText, payloadEdits } from '../../src/share/payload';
 import { ENTRY_COMMENT, buildTimeline } from '../../src/player/timeline';
 import { buildTextExport } from '../../src/share/text';
+import { formatPaneRecord } from '../../src/capture/format';
+import { extractVisits } from '../../src/map/tools';
 import { BASE_US, makeLog, meta } from './player-helpers';
 
 const us = (s: number) => BASE_US + Math.round(s * 1e6);
@@ -142,5 +144,66 @@ describe('buildReplayPayload', () => {
     expect(p.runs[1]!.text).not.toContain('Back again.');
     expect(p.comments[0]!.beforeUs).toBeNull();
     expect(p.title).toBe('');
+  });
+
+  it('removes the excluded tail and the runs after the last kept entry', () => {
+    // A clip of run 1's middle: everything from 9 s on (the rest of run 1
+    // and all of run 2) is the tail.
+    const d = doc({
+      excludes: [[us(0), us(1)], [us(5.5), us(7.5)], [us(9), null]],
+      comments: [{ beforeUs: null, text: 'The end.' }, { beforeUs: us(3601), text: 'In the tail.' }],
+    });
+    const p = buildReplayPayload(chain(), events, d, defaultSettings());
+    expect(p.runs.map((r) => r.meta.runId)).toEqual(['Rasta/a']);
+    expect(p.level).toBe(41);
+    expect(p.hiddenSys).toBeUndefined();
+    const text = p.runs[0]!.text;
+    // The leading range keeps its state; the middle range too.
+    expect(text).toContain('Comm.Channel.List');
+    expect(text).toContain('\x1bVIEW {"appearance":{"size":14}}');
+    expect(text).toContain('Char.Vitals {"hp":90}');
+    // Nothing of the tail is left, records included.
+    const last = [...captureEntries(text)].pop()!;
+    expect(last.ts).toBe(us(8));
+    expect(text).not.toContain('Char.Vitals {"hp":100}');
+    // Markers in the tail go; comments there move to the end.
+    expect(p.markers.map((m) => m.kind)).toEqual(['K']);
+    expect(p.comments.map((c) => c.beforeUs)).toEqual([null, null]);
+    // It plays to the end comments, in run 0, with no tail state.
+    const tl = buildTimeline(p.runs, payloadEdits(p));
+    expect(tl.runs).toHaveLength(1);
+    expect(tl.kind[tl.n - 1]).toBe(ENTRY_COMMENT);
+    expect(tl.ts[tl.n - 1]).toBe(us(8));
+    // A tail from the start of a later run: that run goes, its login line is no hidden one.
+    const q = buildReplayPayload(chain(), [], doc({ excludes: [[us(3599), null]] }), defaultSettings());
+    expect(q.runs).toHaveLength(1);
+    expect(q.runs[0]!.text).toBe(chain()[0]!.text);
+    expect(q.level).toBe(41);
+    // A login line in a dropped run is not listed as hidden; a script pane
+    // record in the tail is not folded back in.
+    const c = chain();
+    c[0]!.text += formatPaneRecord(us(10.5), 'p', '{"text":"late"}');
+    c[1]!.text = makeLog(us(3600), [
+      { at: -0.5, gmcp: 'Char.Name', json: { name: 'Rasta' } },
+      { at: -0.4, gmcp: 'Room.Info', json: { id: 77, name: 'Late room' } },
+    ]) + c[1]!.text;
+    const h = buildReplayPayload(c, [], doc({ excludes: [[us(9), null]] }), defaultSettings());
+    expect(h.runs).toHaveLength(1);
+    expect(h.hiddenSys).toBeUndefined();
+    expect(h.runs[0]!.text).not.toContain('SPANE');
+    // The map embed reads the runs left: the tail's rooms are not visited.
+    expect(extractVisits(c.map((r) => r.text)).rooms).toHaveLength(1);
+    expect(extractVisits(h.runs.map((r) => r.text)).rooms).toEqual([]);
+    // Everything excluded: no runs.
+    expect(buildReplayPayload(chain(), [], doc({ excludes: [[0, null]] }), defaultSettings()).runs).toEqual([]);
+  });
+
+  it('keeps a run before the first kept entry as the state prefix', () => {
+    const p = buildReplayPayload(chain(), [], doc({ excludes: [[0, us(3600.5)]] }), defaultSettings());
+    expect(p.runs).toHaveLength(2);
+    expect(p.runs[0]!.text).toContain('Char.Vitals {"hp":90}');
+    expect(p.runs[0]!.text).not.toContain('You hit the orc.');
+    expect(p.runs[1]!.text).toContain('Back again.');
+    expect(p.level).toBe(42);
   });
 });

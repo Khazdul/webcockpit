@@ -206,10 +206,11 @@ function lineKind(text: string, s: number, e: number): number {
 }
 
 /**
- * Log µs of the last entry of the chain outside every cut (sorted), or
- * -Infinity when there is none: entries after it are the excluded tail.
+ * Log µs of the last entry of the chain outside every cut (sorted,
+ * non-overlapping), or -Infinity when there is none: the entries after it
+ * are the excluded tail (also the payload's rule, src/share/payload.ts).
  */
-function lastKeptUs(chain: readonly ChainRun[], cuts: ReadonlyArray<readonly [number, number | null]>): number {
+export function lastKeptUs(chain: readonly ChainRun[], cuts: ReadonlyArray<readonly [number, number | null]>): number {
   for (let r = chain.length - 1; r >= 0; r--) {
     const text = chain[r]!.text;
     let nl = text.length;

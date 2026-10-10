@@ -11,6 +11,16 @@
 // Markers inside a range are dropped; comments anchored on a removed entry
 // move to the next kept visible entry or shown system line (or to the end).
 //
+// The excluded tail (ADR 0019 addendum "Excluded tail"): an excluded range
+// that no kept entry follows (the end of the log, or a range after the
+// last entry outside every range) has nothing to resume, so its entries
+// are removed entirely, records included, and the runs that start after
+// the last kept entry are left out of `runs` (`level` and `hiddenSys` come
+// from the runs left). Runs before the first kept entry stay: they are
+// the state prefix. The timeline drops such a tail too (src/player/
+// timeline.ts), and the map embed (src/replay/map-embed.ts) reads only the
+// runs left, so the tail's rooms are not in the file.
+//
 // System lines (src/share/system-lines.ts): the login lines the player
 // prints are rows in the export editor. One whose anchor is excluded is
 // listed in `hiddenSys` (by run: a run prints at most one), and the player
@@ -29,7 +39,7 @@ import { formatGmcpRecord, formatPaneRecord } from '../capture/format';
 import type { PaneSnapshot } from '../panes/script-content';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
 import type { RunMeta } from '../capture/store';
-import type { ChainRun, TimelineEdits } from '../player/timeline';
+import { type ChainRun, type TimelineEdits, lastKeptUs } from '../player/timeline';
 import { markersOf } from '../player/strip';
 import type { RunEvent } from '../runs/events';
 import { runStartUs } from '../runs/stitch';
@@ -94,8 +104,12 @@ export interface ReplayMap {
   tints?: { dark: string; noSundeath: string };
 }
 
-/** The capture text of a run with the excluded content removed. */
-export function editRunText(text: string, doc: ExportDoc): string {
+/**
+ * The capture text of a run with the excluded content removed. Entries
+ * after `tailUs` (the last kept entry, `lastKeptUs`) are the excluded tail
+ * and go entirely, records included.
+ */
+export function editRunText(text: string, doc: ExportDoc, tailUs = Infinity): string {
   if (doc.excludes.length === 0) return text;
   let out = '';
   /** Each script pane's content so far (every record applied), and the panes changed inside the current range. */
@@ -111,6 +125,7 @@ export function editRunText(text: string, doc: ExportDoc): string {
     folded.clear();
   };
   for (const e of captureEntries(text)) {
+    if (e.ts > tailUs) continue;
     const ex = isExcluded(doc, e.ts);
     if (!ex && folded.size > 0) unfold();
     if (ex) lastExTs = e.ts;
@@ -166,9 +181,20 @@ export function buildReplayPayload(
   doc: ExportDoc,
   settings: Settings,
 ): ReplayPayload {
-  const runs = chain.map((r) => ({
+  // The excluded tail: nothing after the last kept entry, and no run that
+  // starts after it.
+  const tailUs = doc.excludes.length === 0 ? Infinity : lastKeptUs(chain, doc.excludes);
+  let keep = chain.length;
+  if (tailUs !== Infinity) {
+    keep = 0;
+    for (let r = 0; r < chain.length; r++) {
+      const e = captureEntries(chain[r]!.text).next();
+      if (!e.done && e.value.ts <= tailUs) keep = r + 1;
+    }
+  }
+  const runs = chain.slice(0, keep).map((r) => ({
     meta: r.meta,
-    text: doc.excludes.length === 0 ? r.text : addTimersRecords(editRunText(r.text, doc), r.text, doc.excludes),
+    text: doc.excludes.length === 0 ? r.text : addTimersRecords(editRunText(r.text, doc, tailUs), r.text, doc.excludes),
   }));
 
   // Kept visible entries' and shown system lines' times, for moving
@@ -177,6 +203,7 @@ export function buildReplayPayload(
   for (const r of runs) for (const e of captureEntries(r.text)) if (isVisible(e)) kept.push(e.ts);
   const hiddenSys: number[] = [];
   for (const l of systemLines(chain)) {
+    if (l.run >= keep) break;
     if (isExcluded(doc, l.ts)) hiddenSys.push(l.run);
     else kept.push(l.ts);
   }
@@ -202,7 +229,7 @@ export function buildReplayPayload(
     .map((m) => ({ us: m.us, kind: m.letter, tip: m.tip }));
 
   let level: number | undefined;
-  for (const r of chain) if (r.meta.summary?.level !== undefined) level = r.meta.summary.level;
+  for (const r of runs) if (r.meta.summary?.level !== undefined) level = r.meta.summary.level;
   const first = chain[0]?.meta;
   return {
     schema: PAYLOAD_SCHEMA,
