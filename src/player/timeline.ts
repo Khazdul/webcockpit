@@ -65,6 +65,7 @@
 //   runAt(p)          the run playing at p
 
 import type { RunMeta } from '../capture/store';
+import type { RunSummary } from '../runs/summary';
 import { PLAYING_COMMANDS } from '../net/session';
 
 /** Gaps longer than this (µs) take no playback time (Inv §7.5). */
@@ -105,8 +106,21 @@ export interface ChainRun {
   text: string;
 }
 
+/**
+ * What the player reads of a run's metadata (the in-app player's header):
+ * a `RunMeta` has it, and an HTML replay's payload carries only this
+ * (src/share/payload.ts).
+ */
+export type PlayedRunMeta = Pick<RunMeta, 'startedUs'> & { summary?: Pick<RunSummary, 'startUs' | 'level'> | null };
+
+/** A run as the timeline takes it: a `ChainRun`, or a payload's run. */
+export interface PlayedRun {
+  meta: PlayedRunMeta;
+  text: string;
+}
+
 export interface TimelineRun {
-  meta: RunMeta;
+  meta: PlayedRunMeta;
   text: string;
   /** Index of the run's first entry, and one past its last. */
   first: number;
@@ -210,7 +224,7 @@ function lineKind(text: string, s: number, e: number): number {
  * non-overlapping), or -Infinity when there is none: the entries after it
  * are the excluded tail (also the payload's rule, src/share/payload.ts).
  */
-export function lastKeptUs(chain: readonly ChainRun[], cuts: ReadonlyArray<readonly [number, number | null]>): number {
+export function lastKeptUs(chain: ReadonlyArray<{ text: string }>, cuts: ReadonlyArray<readonly [number, number | null]>): number {
   for (let r = chain.length - 1; r >= 0; r--) {
     const text = chain[r]!.text;
     let nl = text.length;
@@ -242,7 +256,7 @@ function inCuts(cuts: ReadonlyArray<readonly [number, number | null]>, t: number
 }
 
 /** Parses the runs of a chain (oldest first) into one timeline, with optional edits. */
-export function buildTimeline(chain: readonly ChainRun[], edits?: TimelineEdits): Timeline {
+export function buildTimeline(chain: readonly PlayedRun[], edits?: TimelineEdits): Timeline {
   const comments = edits?.comments
     ? [...edits.comments].sort((a, b) => (a.beforeUs ?? Infinity) - (b.beforeUs ?? Infinity))
     : [];

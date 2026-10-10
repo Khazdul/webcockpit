@@ -62,7 +62,7 @@ import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, STRIP_COLS, markersOf } from '../player/strip';
-import { type ChainRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
+import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
 import { PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
 import {
   VIEWER_FONTS,
@@ -230,7 +230,7 @@ export class PlayerHost {
    * Starts playing `chain` (oldest run first) with the chain's events for
    * the markers. `opts` configures another mode (HTML replay, Spotlights).
    */
-  openChain(chain: readonly ChainRun[], events: readonly RunEvent[], info: PlayerInfo, opts: PlayerOpenOptions = {}): void {
+  openChain(chain: readonly PlayedRun[], events: readonly RunEvent[], info: PlayerInfo, opts: PlayerOpenOptions = {}): void {
     const tl = buildTimeline(chain, opts.edits);
     this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
