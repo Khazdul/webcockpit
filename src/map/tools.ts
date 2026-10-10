@@ -137,10 +137,11 @@ export function resolveVisits(map: MapData, visits: MapVisits): Set<number> {
  * (Chebyshev distance, same layer or one above / below) of a visited
  * room, plus `RING` exit steps around that (so the kept rooms' exits keep
  * their targets). Chosen so the map pane of a replay shows the area around
- * the player at the default zoom; see ADR 0020 "Package notes" P3 for the
+ * the player at the default zoom with room to pan (16 since 2026-10-10, was
+ * 8; ADR 0020 addendum); see ADR 0020 "Package notes" P3 for the
  * measured sizes.
  */
-export const SUBSET_MARGIN = 8;
+export const SUBSET_MARGIN = 16;
 export const SUBSET_RING = 1;
 
 /** Rooms within `margin` of `rooms` (x/y Chebyshev distance, |Δz| ≤ 1). */
