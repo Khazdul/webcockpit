@@ -38,6 +38,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-11 — Replay map from kept content
+
+- **Found:** a clip export embedded Rivendell and the Anduin Vale (2342
+  rooms for a goblin-cave clip): `extractVisits` counted the state
+  records the payload keeps inside cuts.
+- **Done:** visits come only from kept content plus the room each kept
+  stretch starts in (ADR 0020 amendment). Real payload: 28 rooms, all in
+  the clip's area. Unit suite and typecheck green.
+- **Next:** release 0.1.61 on the owner's go (the version bump and
+  build:pages were blocked by the permission classifier); owner
+  re-exports the clip.
+- **Commits:** 5c02e6e, eaf92c2, plus this one.
+
 ### 2026-10-10 — e2e demo clock
 
 - **Done:** the demo-backup e2e specs (history, export, player,
