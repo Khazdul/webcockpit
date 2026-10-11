@@ -4,9 +4,12 @@
 //   visited (`Room.Info` ids and names, `Group.*` mapids; src/map/tools.ts)
 //   are looked up in the current map by the map tools worker, which cuts
 //   the subset (visited rooms + a margin + a ring) and writes it as a
-//   `.mm2`. The tiles and fonts that subset draws are fetched from the
-//   app's own origin (the tiles from the client's tileset, ADR 0082) and
-//   embedded as data URIs. A chain without map data
+//   `.mm2`. Only the chain's kept content counts: the state records the
+//   payload keeps inside its `cuts` are left out, except the room each
+//   kept stretch starts in, so a clip does not embed the areas of the
+//   cut-away session around it. The tiles and fonts that subset draws are
+//   fetched from the app's own origin (the tiles from the client's
+//   tileset, ADR 0082) and embedded as data URIs. A chain without map data
 //   gets no map; a map that cannot be read gets none either (the export
 //   still succeeds, with a console warning).
 //
@@ -41,7 +44,7 @@ const MIME: Readonly<Record<string, string>> = { png: 'image/png', fnt: 'text/pl
 
 /** `payload` with its map subset (a new object; the same one when there is nothing to embed). */
 export async function embedReplayMap(payload: ReplayPayload, source: MapSource, o: EmbedMapOptions): Promise<ReplayPayload> {
-  const visits = extractVisits(payload.runs.map((r) => r.text));
+  const visits = extractVisits(payload.runs.map((r) => r.text), payload.cuts);
   if (visits.rooms.length === 0 && visits.mapIds.length === 0) return payload;
   const run = o.runTool ?? (async (req: MapToolRequest) => (await import('../map/tools-client')).runMapTool(req));
   const res = await run({ t: 'subset', source, visits });

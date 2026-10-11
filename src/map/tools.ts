@@ -9,13 +9,16 @@
 //   `.mm2` subset, and the tile / font files that subset needs.
 //
 // Visited rooms (`extractVisits` on the main thread, `resolveVisits` in
-// the worker): every recorded `Room.Info` is looked up by its server id,
+// the worker): the kept part of the chain only (records inside the
+// export's cuts are left out, except the room each kept stretch starts
+// in), and every such `Room.Info` is looked up by its server id,
 // else by name + description (unique, or the one next to the previous
 // room; a few candidates are all kept), and every `Group.*` member's
 // `mapid` by server id. This is a lookup, not the locator (src/map/locate):
 // it only has to find the area to embed.
 
 import { captureEntries } from '../share/capture';
+import type { ExcludeRange } from '../share/edits';
 import { DIR_COUNT, type MapData, roomsByNameDesc } from './model';
 import { FONT_FILES } from './render/font';
 import { buildRoomMeshes, roomMeshPixmaps } from './render/rooms';
@@ -57,17 +60,41 @@ function collectMapIds(v: unknown, out: Set<number>, depth = 0): void {
   for (const k of ['members', 'data']) if (k in o) collectMapIds(o[k], out, depth + 1);
 }
 
-/** The `Room.Info` and `Group.*` data of capture texts (oldest run first). */
-export function extractVisits(texts: Iterable<string>): MapVisits {
+/**
+ * The `Room.Info` and `Group.*` data of capture texts (oldest run first).
+ *
+ * `cuts` are the export's excluded ranges (`ReplayPayload.cuts`, same
+ * test as `rangeAt` in src/share/edits.ts). The payload keeps GMCP state
+ * records inside them, but only kept content counts: a record outside
+ * every cut counts; inside a cut, only the last `Room.Info` before a kept
+ * entry does (where the player stands when that kept stretch begins), so
+ * a trailing cut adds nothing. `Group.*` mapids inside a cut never count.
+ */
+export function extractVisits(texts: Iterable<string>, cuts: readonly ExcludeRange[] = []): MapVisits {
   const rooms: RoomVisit[] = [];
   const mapIds = new Set<number>();
   let lastKey = '';
+  const push = (v: RoomVisit): void => {
+    const key = `${v.id ?? ''}\u0000${v.name ?? ''}\u0000${v.desc ?? ''}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    rooms.push(v);
+  };
+  const cut = (us: number): boolean => cuts.some((r) => us >= r[0] && (r[1] === null || us < r[1]));
+  /** The last `Room.Info` inside a cut since the last kept entry. */
+  let pending: RoomVisit | null = null;
   for (const text of texts) {
     for (const e of captureEntries(text)) {
+      const excluded = cuts.length > 0 && cut(e.ts);
+      if (!excluded && pending) {
+        push(pending);
+        pending = null;
+      }
       if (e.kind !== 'gmcp' || !e.pkg) continue;
       const pkg = e.pkg.toLowerCase();
       const isRoom = pkg === 'room.info';
       if (!isRoom && !pkg.startsWith('group.')) continue;
+      if (excluded && !isRoom) continue;
       let data: unknown;
       try {
         data = JSON.parse(e.body.slice(e.pkg.length + 1));
@@ -86,10 +113,8 @@ export function extractVisits(texts: Iterable<string>): MapVisits {
       if (typeof d.name === 'string') v.name = d.name;
       if (typeof d.desc === 'string') v.desc = d.desc;
       if (v.id === undefined && v.name === undefined) continue;
-      const key = `${v.id ?? ''}\u0000${v.name ?? ''}\u0000${v.desc ?? ''}`;
-      if (key === lastKey) continue;
-      lastKey = key;
-      rooms.push(v);
+      if (excluded) pending = v;
+      else push(v);
     }
   }
   return { rooms, mapIds: [...mapIds] };

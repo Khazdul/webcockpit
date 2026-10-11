@@ -42,6 +42,57 @@ describe('extractVisits', () => {
   it('returns nothing for a chain without map data', () => {
     expect(extractVisits(['0000000000000001 hello\n'])).toEqual({ rooms: [], mapIds: [] });
   });
+
+  describe('with cuts', () => {
+    const text = (ts: number, s: string): string => `${String(ts).padStart(16, '0')} ${s}\n`;
+    // 1–3 cut away (Rivendell), 4–6 kept, 7–9 cut to the end.
+    const chain =
+      gmcpLine(1, 'Room.Info', { id: 1001, name: 'Far 1' }) +
+      gmcpLine(2, 'Group.Set', [{ id: 1, mapid: 1050 }]) +
+      gmcpLine(3, 'Room.Info', { id: 1002, name: 'Start' }) +
+      text(4, 'kept text') +
+      gmcpLine(5, 'Room.Info', { id: 1003, name: 'Next' }) +
+      gmcpLine(6, 'Group.Update', { id: 1, mapid: 1051 }) +
+      gmcpLine(7, 'Room.Info', { id: 1004, name: 'Later' }) +
+      gmcpLine(8, 'Group.Update', { id: 1, mapid: 1052 }) +
+      text(9, 'cut text');
+    const cuts: [number, number | null][] = [
+      [1, 4],
+      [7, null],
+    ];
+
+    it('counts only kept content plus the room each kept stretch starts in', () => {
+      const v = extractVisits([chain], cuts);
+      // 1001 is in the cut and not the clip start; 1004 is in a trailing cut.
+      expect(v.rooms.map((r) => r.id)).toEqual([1002, 1003]);
+      // Group mapids inside cuts never count.
+      expect(v.mapIds).toEqual([1051]);
+    });
+
+    it('takes the clip-start room from an earlier cut when the last cut holds none', () => {
+      const t = gmcpLine(1, 'Room.Info', { id: 1001 }) + text(2, 'a') + text(3, 'b') + gmcpLine(4, 'Room.Info', { id: 1002 });
+      // Two adjacent cuts, the room in the first: the player still stands there at 3.
+      const twoCuts: [number, number | null][] = [
+        [1, 2],
+        [2, 3],
+      ];
+      expect(extractVisits([t], twoCuts).rooms.map((r) => r.id)).toEqual([1001, 1002]);
+      // A room followed by a later one in the same cut: only the later one is the clip start.
+      expect(extractVisits([t + text(5, 'c')], [[1, 5]]).rooms.map((r) => r.id)).toEqual([1002]);
+    });
+
+    it('does not repeat the clip-start room when the kept stretch repeats it', () => {
+      const t = gmcpLine(1, 'Room.Info', { id: 1001 }) + gmcpLine(2, 'Room.Info', { id: 1001 }) + text(3, 'x');
+      expect(extractVisits([t], [[1, 2]]).rooms).toEqual([{ id: 1001 }]);
+    });
+
+    it('is unchanged without cuts', () => {
+      const v = extractVisits([chain], []);
+      expect(v).toEqual(extractVisits([chain]));
+      expect(v.rooms.map((r) => r.id)).toEqual([1001, 1002, 1003, 1004]);
+      expect(v.mapIds.sort()).toEqual([1050, 1051, 1052]);
+    });
+  });
 });
 
 describe('resolveVisits', () => {
