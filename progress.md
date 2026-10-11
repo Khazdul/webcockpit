@@ -44,8 +44,10 @@ Statuses: Next, In progress, Owner testing, Done.
   embeds only the clip's kept rooms.
 - **Checked:** build:pages (unit 2549, smoke 10/10); Pages deploy green,
   live release.json 0.1.61, test:prod against the live site 10/10.
-- **Next:** owner re-exports the goblin-cave clip and checks the map.
-- **Commits:** fbe6ab5, plus this one.
+- **Verified:** the owner re-exported the goblin-cave clip; the map is
+  right.
+- **Commits:** fbe6ab5, plus this one; 1216b67 ignores
+  `.claude/settings.local.json`.
 
 ### 2026-10-11 — Replay map from kept content
 
