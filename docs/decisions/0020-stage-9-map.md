@@ -560,3 +560,23 @@ Owner feedback on 0.1.59 exports: a 30 s clip with Shimrod tiles was
   chose goes back to the user's remembered one.
 - Owner rejected embedding the whole map: about 10 MB with default tiles,
   17 MB with Shimrod, for every export.
+
+## Amendment 2026-10-11: replay map from kept content only
+
+Owner report: an export of a clip played in one area (the Ancient Broken
+Road) embedded 2342 subset rooms, among them Rivendell and the Northern
+Anduin Vale from hours before the clip. The payload keeps GMCP state
+records inside excluded ranges (`editRunText`, `foldExcludedState`), and
+`extractVisits` read every `Room.Info` and `Group.*` mapid in it.
+
+- `extractVisits(texts, cuts)` takes the payload's `cuts` (same test as
+  `rangeAt`). A `Room.Info` or `Group.*` mapid outside every cut counts.
+- Inside a cut, only the last `Room.Info` before a kept entry counts:
+  where the player stands when that kept stretch begins. A trailing cut
+  (to the end) therefore adds nothing. `Group.*` mapids inside a cut
+  never count.
+- No cuts: unchanged. Consecutive repeats are still dropped.
+- The replay map still opens on the first visited room, which is now the
+  clip-start room. On the owner's payload: 124 visits (28 distinct
+  rooms, all in the Ancient Broken Road), the first being the Armoury in
+  the cut that ends a second later.
