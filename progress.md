@@ -1,6 +1,6 @@
 # Progress
 
-Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -37,6 +37,18 @@ Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-12 — Release 0.1.62
+
+- **Done:** released 0.1.62 (tag v0.1.62, owner's go): the JMC import
+  fixes below.
+- **Checked:** build:pages (unit 2567, local smoke 10/10); Pages deploy
+  green, live release.json 0.1.62 (7f66293).
+- **Open:** test:prod against the live site timed out (7/10 failed on
+  page loads); this machine's network was very slow at the time
+  (github.com took 34 s). Re-run `WC_PROD_URL=https://mumecockpit.com
+  npm run test:prod` when the network is normal.
+- **Commits:** 7f66293, plus this one.
 
 ### 2026-10-12 — JMC substitute import fix
 
