@@ -38,6 +38,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-12 — JMC substitute import fix
+
+- **Found:** a player's imported JMC `#substitute`s came out wrong. JMC's
+  `%0` is an ordinary wildcard; ours is the whole match, so
+  `{%0 tells you '%1'} {%0 says %1}` repeated the whole line (actions too).
+- **Done:** JMC action/substitute/highlight/gag arguments shifted by one;
+  `#multisubstitute` added, plus a warning for JMC's first-match-only
+  substitutes (ADR 0073 amendment). Unit suite green (2551).
+- **Next:** release on the owner's go; ask the player to re-import.
+- **Commits:** 3e58f89, plus this one.
+
 ### 2026-10-11 — Release 0.1.61
 
 - **Done:** released 0.1.61 (tag v0.1.61, owner's go): the replay map
