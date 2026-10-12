@@ -46,8 +46,13 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Done:** JMC action/substitute/highlight/gag arguments shifted by one;
   `#multisubstitute` added, plus a warning for JMC's first-match-only
   substitutes (ADR 0073 amendment). Unit suite green (2551).
+- **Then:** audited all JMC commands against the JMC source; fixed
+  speedwalk, unbraced #gag, $$var, #if/#math operators, colour codes
+  only with colorcodes, #un… renumbering, cmds.h abbreviation order,
+  hotkeys, open-ended regex; new warnings (ADR 0073 amendment 2).
+  Unit suite green (2567).
 - **Next:** release on the owner's go; ask the player to re-import.
-- **Commits:** 3e58f89, plus this one.
+- **Commits:** 3e58f89, 6d6a71d, 5f1a515, plus this one.
 
 ### 2026-10-11 — Release 0.1.61
 
