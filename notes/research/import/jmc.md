@@ -57,24 +57,27 @@ The constructs, with examples taken from source or real files:
 |---|---|
 | Alias | `#alias {k} {kill %1} {default}`. `%0` is all arguments; `%1`–`%9` are words, and braces group words. Regex alias: `#alias {/^re(.*)$/i} {...}` |
 | Action | `#action TEXT {^You are hungry.} {eat all} {5} {default}`. TEXT/RAW/COLOR is 3.7+; 3.5 writes `#action {pat} {cmd} {pri} {group}`. The priority argument is optional and is taken as priority only if it starts with a digit, otherwise as the group. Default priority is 5; a **lower number is checked first**. [src Action.cpp, Tintin.h:611] |
-| Regex action | `#action {/test5-1 (\d+)/g} {...}` with flags `i`, `m` (multi-line batch) and `g` (fire repeatedly). `#action color {/^&RFor test1: &garg1 = &y(.*)&B.../} {...}` matches against the `&x` colour-coded line. |
+| Regex action | `#action {/test5-1 (\d+)/g} {...}` with flags `i`, `m` (multi-line batch) and `g` (fire repeatedly). Any pattern starting with `/` is a regex; the closing `/flags` is optional (`/^(\w+) arrives` works). [src nodes.cpp `ACTION::SetLeft`] `#action color {/^&RFor test1: &garg1 = &y(.*)&B.../} {...}` matches against the `&x` colour-coded line. |
 | Highlight | **Colour first**: `#highlight {light red, italic} {pattern} {group}`. Real files: `#highlight {light magenta, b gray} {%0 has recovered from a bash!} {default}` |
 | Substitute | `#substitute {pattern} {replacement}` (no group). On a wildcard match it expands `%n` in both sides and replaces every literal occurrence of the expanded pattern, so a `^` pattern replaces nothing. Only the first matching substitute applies unless `#multisubstitute` is on. [src Substitu.cpp do_one_sub] |
-| Gag | `#gag {x}` is stored as **`#substitute {x} {.}`**. A replacement of exactly `.` means drop the line. [src Action.cpp gag_command, Substitu.cpp] |
+| Gag | `#gag {x}` is stored as **`#substitute {x} {.}`**. A replacement of exactly `.` means drop the line. Unbraced, the whole rest is the pattern (`#gag You are hungry.`). [src Action.cpp gag_command, Substitu.cpp] |
 | Antisubstitute | `#antisubstitute {pattern}` (protects lines from subs and gags) |
 | Hotkey | `#hot {Ctrl+F1} {cmd} {group}`. The written command name is `hot`, which abbreviates `#hotkey`. Users write `#hotkey {Ctrl+A} {assist $leader} {default}`. |
 | Variable | `#variable {name} {value}` or `#variable {name} {value} {global}` |
 | Groups | `#group local NAME`, `#group global NAME`, `#group disable NAME`, `#group enable NAME`. Every alias, action, highlight and hotkey belongs to a group; the default group is `default`. |
 | Status bar | `#status {1..5} {text with $vars} {colour}`, `#status {count} {n}`, `#status {size} {all} {fit}` |
 | Ticker | Only one MUD tick: `#ticksize 61`, `#tickon`, `#tickoff`, `#tickset`. There are no named multiple tickers. |
-| Delays and loops | `#wait 15` or `#wt 15` (**deciseconds**; it queues all following MUD output). `#loop {1,10[:delay]} {cmd %%0}`. `#5 {sing}`. `#5:10 cmd` (repeat with delay). |
-| Conditionals | `#if {expr} {then} {else}`. The else is a third argument; there is no `#else`. Expressions are integer only (TinTin 1.x `eval_expression`). `#math` is integer too (`%d`). String comparison uses `#strcmp`. |
-| Output | `#showme {text}`, `#output [colour] {text}`, `#woutput {n} ...` (extra windows) |
+| Delays and loops | `#wait 15` or `#wt 15` (**deciseconds**; it queues all following MUD output). `#loop {1,10[:delay]} {cmd %%0}`. `#5 {sing}`. `#5:10 cmd` (repeat with delay). `#N` and `#loop` set `%0` to the counter. [src Misc.cpp do_cycle] |
+| Conditionals | `#if {expr} {then} {else}`. The else is a third argument; there is no `#else`. Expressions are integer only (TinTin 1.x `eval_expression`). `#math` is integer too (`%d`). String comparison uses `#strcmp`. A lone `=`, `&`, `|` mean `==`, `&&`, `||`. Precedence differs from C: at one parenthesis level `*` goes before `/` and `+` before `-` (`10-2+3` is 5, `8/2*2` is 2). [src Ivars.cpp conv_to_ints, do_one_inside] |
+| Output | `#showme {text}`, `#showme {colour} {text}`, `#output [colour] {text}`, `#woutput {n} ...` (extra windows). Both arguments are WITH_SPACES: an unbraced first one is all the text. |
 | Scripting | `#use file.js`, `#scriptlet {code}`, the `jmc.*` COM object (`jmc.Send`, `jmc.Parse`, `jmc.ShowMe`, `jmc.RegisterHandler`, `jmc.SetVar`/`GetVar`...) [src ttcoreex.idl]. These are not translatable; flag them. |
 | Comments | `#comment #` sets the comment char. A line starting `##` is a no-op because the command parser returns on `#` + `#`. `#nop ...` also works, since `#nop` abbreviates `#nope`. |
 
 - **Command char and separator are configurable.** `CommandChar` is in `jmc.ini` and `CommandDelimiter` (default `;`) is in `.opt`. `#write` emits `cCommandChar`, so a saved file may use a character other than `#`. Read `jmc.ini` if available, or detect the dominant first character of the lines.
-- **Command names may be abbreviated** (`is_abrev`). `#act`, `#al`, `#hi`, `#var`, `#sub` and `#ant` are all valid, and the first match in the command table wins.
+- **Command names may be abbreviated** (`is_abrev`). `#act`, `#al`, `#hi`, `#var`, `#sub` and `#ant` are all valid, and the first match in the `cmds.h` table order wins (not alphabetical): `#g` is #group, `#h` #highlight, `#r` #read, `#l` #loop, `#t` #tolower. There is no `#ungag`, `#unhighlight` or `#unvariable` (only `#unvar`).
+- **Unbraced arguments**: the first argument stops at a space (STOP_SPACES); the second of #action, #alias, #hotkey, #highlight, #substitute, #variable, the arguments of #showme/#output and the then/else of #if are WITH_SPACES: unbraced, they run to the end of the command. The `#un…` commands take their argument WITH_SPACES too.
+- **Speedwalk** is on by default (`#speedwalk` toggles; only the exact argument `on` turns it on). A command word with no arguments made of n e s w u d and digits, with at least one letter, that is not an alias, is walked: `3n2w` sends n n n w w; a trailing count is dropped. Words like `news` or `sun` walk too. [src Parse.cpp parse_input, is_speedwalk_dirs, do_speedwalk]
+- **Alias arguments** are appended to the body only when the body is unchanged by `%n` and `$var` substitution (an expanded variable counts as a change). [src Parse.cpp parse_input]
 - **Escaping**
   - Braces nest.
   - `\` before `%` keeps it literal outside braces.
@@ -82,24 +85,24 @@ The constructs, with examples taken from source or real files:
 
 ## 3. Patterns, variables, colours
 
-- **Wildcards (non-regex)**: only `%0`–`%9` (single digit). There is no `%w`, `%d` or `%*`.
+- **Wildcards (non-regex)**: only `%0`–`%9` (single digit; `%05` is `%0` followed by `5`). There is no `%w`, `%d` or `%*`.
 - **Anchors**: `^` anchors at the start. There is **no `$` end anchor**; a trailing literal match may be followed by more text. `$` always means a variable. [src Action.cpp check_a_action]
 - **Captures**
   - In wildcard patterns, `%n` is filled by its digit, so `{%1 attacks %0}` is legal.
   - In regex patterns, **`%0` is the first capture group** (group *i* goes to `%(i-1)`). In tt++, `%0` is the whole match and `%1` is the first group. [src `check_one_action`, `vars[i-1]`]
-- **Nesting levels**: inside nested braces in a body, captures need extra `%` signs, one per brace level. `%%0` sits at depth 1 and `%%%1` at depth 2. Examples: `#alias {setVar} {#var %1 {%%2}}` and `#loop {0, 10} {#math S1 {$S1 + %%0}}`. The same rule applies to `$$var`. [src `substitute_vars`: `numands == nest+1`]
+- **Nesting levels**: inside nested braces in a body, captures need extra `%` signs, one per brace level. `%%0` sits at depth 1 and `%%%1` at depth 2. Examples: `#alias {setVar} {#var %1 {%%2}}` and `#loop {0, 10} {#math S1 {$S1 + %%0}}`. The same rule applies to `$$var`. [src `substitute_vars`: `numands == nest+1`] #showme, #output, #if, #math, #strcmp and #N/#loop run `substitute_vars` on their own arguments again, so a single `%0` inside their braces is replaced as well; #variable runs only `substitute_myvars`, so `%n` in its braced value stays text.
 - **Variables**: `$name`, using allowed identifier characters. There are also special variables such as date and time, and OOB/GMCP variables via `get_oob_variable`. Variables are substituted inside action patterns too, and a pattern containing `$` is recompiled per line.
 - **Highlight colours** [src `add_codes`]
-  - Comma-separated names or numbers 1–32, with prefix abbreviations allowed.
-  - Foreground names: `black red green brown blue magenta cyan grey charcoal`, `light red/green/blue/magenta/cyan`, `yellow`, `white`.
+  - Comma-separated names or numbers 1–32, with prefix abbreviations allowed, tested in the table order below (so `re` is red, `bl` and `b` black, `bo` bold).
+  - Foreground names, in order: `black red green brown blue magenta cyan grey charcoal`, `light red`, `light green`, `yellow`, `light blue`, `light magenta`, `light cyan`, `white`; then the same with `b ` (backgrounds); then `bold faint blink italic reverse`.
   - Background: `b <name>`.
   - Attributes: `bold faint blink italic reverse`.
   - **Mapping**:
     - `brown` = 33 (dark yellow), `yellow` = 1;33, `grey` = 37, `white` = 1;37, `charcoal` = 1;30.
     - Numbers: 1 = black … 16 = white, 17–32 = backgrounds.
-    - The keyword `colorcodes` interprets the text's `&x` codes.
+    - In #showme/#output, a colour that abbreviates `colorcodes` interprets the text's `&x` codes. Highlights ignore it.
   - Unknown names (for example `b gray`, which does not abbreviate `b grey`) are **silently ignored**.
-- **Colour codes in text** (COLOR actions and `#output`): `&d &r &g &y &b &p &c &w` are normal; uppercase is bright; `&&` is a literal `&`.
+- **Colour codes in text** (COLOR actions, and #showme/#output only with the `colorcodes` colour): `&d &r &g &y &b &p &c &w` are normal; uppercase is bright; `&&` is a literal `&`. Plain #showme text and substitute replacements show `&x` as written. [src Highligh.cpp add_codes, Action.cpp convert_colored_to_ansi, Substitu.cpp do_one_sub]
 
 ## 4. Gotchas when translating to our tt++ subset
 
@@ -110,11 +113,11 @@ The constructs, with examples taken from source or real files:
 5. **`%` numbering is off by one** (regex and wildcard patterns alike): JMC `%0` is a capture and maps to tt++ `%1`, since tt++ `%0` is the whole match. Convert `/re/flags` to a tt++ PCRE `{re}`; there is no `i`, `m` or `g` equivalent apart from `%i` in tt++.
 6. **There is no `$` end anchor in JMC**. A trailing `$` would become a variable sigil.
 7. **`#substitute {x} {.}` is a gag**. Emit `#gag {x}`.
-8. **`#hot`/`#hotkey {Ctrl+F1}`**: emit `#macro` with our key naming. Key names are `F1`–`F24`, `NUM0`–`NUM9`, `NUMDEL`, `ADD`, `MIN`, `MUL`, `DIV`, `INS`, `HOME`, `PGUP`, `PGDN`, `END`, `DEL`, arrows, `ESC`, `TAB`, `BACK`, `SP`, `RETURN`/`ENTER`, and single printable characters, with the prefixes `Ctrl+`, `Alt+` and `Shift+` in that order. The lookup is case-insensitive.
+8. **`#hot`/`#hotkey {Ctrl+F1}`**: emit `#macro` with our key naming. Key names are `F1`–`F24`, `NUM0`–`NUM9`, `NUMDEL`, `ADD`, `MIN`, `MUL`, `DIV`, `INS`, `HOME`, `PGUP`, `PGDN`, `END`, `DEL`, arrows, `ESC`, `TAB`, `BACK`, `SP`, `RETURN` (keypad Enter, extended scancode 28), `ENTER` (main Enter), punctuation such as `:` (scancode 39, the semicolon key), and single printable characters, with the prefixes `Ctrl+`, `Alt+` and `Shift+` in that order. The lookup is case-insensitive.
 9. **`#if {c} {t} {e}`**: emit `#else`. Integer-only maths.
 10. **`#wait N`** is in deciseconds and queues *all* subsequent commands. Translate to a `#delay {N/10}` that wraps the rest of the command list. `#loop {a,b}` maps to the tt++ `#loop {a} {b} {var}` form, and `%%0` becomes that variable.
 11. **`#ticksize`, `#tickon` and `#tickset`** form one tick timer. Emulate it with `#ticker {tick} {...} {N}` or drop it.
-12. **Multiaction defaults to OFF**: only the first matching action (lowest priority number) fires per line unless `#multiaction on` is set. tt++ fires all matching actions. Preserve that or warn.
+12. **Multiaction defaults to OFF**: only the first matching action (lowest priority number) fires per line unless `#multiaction on` is set. tt++ fires all matching actions. Preserve that or warn. `#multihighlight` (default OFF) does the same for highlights.
 13. **Command abbreviations** (`#act`, `#al`, `#var`) and a **non-`#` command char** must be normalised.
 14. **Header and state commands with no equivalent** should be ignored with a note: `#message`, `#presub`, `#togglesubs`, `#colon`, `#race`, `#proxy`, `#secure`, `#codepage`, `#telnet`, `#oob`, `#broadcast`, `#promptend`, `#status`, `#use`, `#scriptlet`, `#woutput`, `#wdock`, `#spit`, `#pathdir`.
 15. **`$0`–`$9`** map to `%0`–`%9`.

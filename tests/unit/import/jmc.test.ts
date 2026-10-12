@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../../src/core/bus';
 import type { Line } from '../../../src/core/types';
-import { jmcColourCodes, jmcColourPrefix, jmcColours, jmcCommand, quoteComparisons } from '../../../src/import/jmc';
+import { jmcColourCodes, jmcColourPrefix, jmcColours, jmcCommand, jmcOperators, jmcOrderDiffers, jmcRegex, jmcSpeedwalk, quoteComparisons } from '../../../src/import/jmc';
 import { FakeScheduler, ScriptEngine } from '../../../src/script/engine';
 import { body, countsMatch, file, load, one, run } from './helpers';
 
@@ -35,6 +35,31 @@ describe('jmcCommand', () => {
     expect(jmcCommand('ACTION')).toBe('action');
     expect(jmcCommand('zzz')).toBe(null);
   });
+
+  it('takes the first match in cmds.h order, not the alphabetical one', () => {
+    expect(jmcCommand('g')).toBe('group');
+    expect(jmcCommand('h')).toBe('highlight');
+    expect(jmcCommand('r')).toBe('read');
+    expect(jmcCommand('l')).toBe('loop');
+    expect(jmcCommand('o')).toBe('output');
+    expect(jmcCommand('unh')).toBe('unhotkey');
+    expect(jmcCommand('unv')).toBe('unvar');
+    expect(jmcCommand('nop')).toBe('nope');
+    expect(jmcCommand('t')).toBe('tolower');
+    // Not in JMC's table: resolved only when nothing in it matches.
+    expect(jmcCommand('ung')).toBe('ungag');
+    expect(jmcCommand('unhi')).toBe('unhighlight');
+  });
+
+  it('keeps commands JMC has but we cannot translate', () => {
+    const r = jmc('#drop\n#tolower {x} {Y}\n#g local x\n#nop a note\n');
+    expect(r.items.map((i) => [i.outcome, i.reason])).toEqual([
+      ['kept', 'Unsupported JMC command #drop'],
+      ['kept', 'Unsupported JMC command #tolower'],
+      ['skipped', 'Group scope (local/global) has no meaning here'],
+    ]);
+    expect(body(r)).toEqual(['#nop {a note}']);
+  });
 });
 
 describe('jmcColours', () => {
@@ -49,36 +74,58 @@ describe('jmcColours', () => {
     expect(jmcColours('light magenta, b gray')).toEqual({ colours: 'light magenta', dropped: ['b gray'] });
     expect(jmcColours('mauve')).toBe(null);
   });
+
+  it('resolves abbreviations in JMC table order', () => {
+    expect(jmcColours('re')?.colours).toBe('red');
+    expect(jmcColours('bl')?.colours).toBe('black');
+    expect(jmcColours('b')?.colours).toBe('black');
+    expect(jmcColours('bo, b bl, rev')?.colours).toBe('bold, b black, reverse');
+    expect(jmcColours('l')?.colours).toBe('light red');
+    expect(jmcColours('faint')).toBe(null);
+  });
 });
 
 describe('JMC text colours', () => {
   it('&x codes become <abc> codes; uppercase is bold like JMC, && is &', () => {
     expect(jmcColourCodes('&RARMOUR DOWN!&w')).toBe('<118>ARMOUR DOWN!<079>');
-    expect(jmcColourCodes('&d&D&p&C fish && chips &x')).toBe('<009><108><059><168> fish & chips &x');
+    expect(jmcColourCodes('&d&D&p&C fish && chips &x')).toBe('<009><108><059><168> fish & chips \\&x');
     expect(jmcColourPrefix('light red')).toBe('<019><188>');
     expect(jmcColourPrefix('cyan, b blue, bold')).toBe('<064><188>');
     expect(jmcColourPrefix('mauve')).toBe(null);
   });
 
-  it('translates colour codes in #showme, #output and substitute replacements', () => {
+  it('converts &x codes only with the colorcodes colour; elsewhere they are text', () => {
     const r = jmc(
       '#action {^You feel less protected.} {#showme {&RARMOUR DOWN!&w}} {3} {spells}\n' +
         '#action {^a} {#showme {light red} {Hi}}\n' +
         '#action {^b} {#output {light green} {Yo &&}}\n' +
-        '#substitute {You are hungry.} {&YHUNGRY&w}\n',
+        '#action {^c} {#showme {colorcodes} {&RRED&w}}\n' +
+        '#action {^d} {#output {col} {&gok}}\n' +
+        '#substitute {You are hungry.} {&YHUNGRY&w}\n' +
+        '#substitute {gun} {Smith&Wesson}\n',
     );
     expect(body(r)).toEqual([
       '#class {spells} {open}',
-      '#action {^You feel less protected.} {#showme {<118>ARMOUR DOWN!<079>}} {3}',
+      '#action {^You feel less protected.} {#showme {\\&RARMOUR DOWN!\\&w}} {3}',
       '#class {spells} {close}',
       '#action {^a} {#showme {<019><188>Hi}}',
-      '#action {^b} {#showme {<029><188>Yo &}}',
-      '#substitute {You are hungry.} {<138>HUNGRY<079>}',
+      '#action {^b} {#showme {<029><188>Yo \\&&}}',
+      '#action {^c} {#showme {<118>RED<079>}}',
+      '#action {^d} {#showme {<029>ok}}',
+      '#substitute {You are hungry.} {\\&YHUNGRY\\&w}',
+      '#substitute {gun} {Smith\\&Wesson}',
     ]);
+    expect(r.items.every((i) => !i.warning)).toBe(true);
     const t = engineWith(r.profileText);
+    t.e.input('#variable {Wesson} {x}');
     t.recv('You feel less protected.');
-    const shown = t.shown.find((l) => l.text === 'ARMOUR DOWN!');
-    expect(shown?.runs[0]).toMatchObject({ start: 0, end: 12, fg: 1, bold: true });
+    t.recv('b');
+    t.recv('c');
+    t.recv('You are hungry.');
+    t.recv('my gun');
+    const shown = t.shown.map((l) => l.text);
+    expect(shown).toEqual(expect.arrayContaining(['&RARMOUR DOWN!&w', 'Yo &&', 'RED', '&YHUNGRY&w', 'my Smith&Wesson']));
+    expect(t.shown.find((l) => l.text === 'RED')!.runs[0]).toMatchObject({ start: 0, end: 3, fg: 1, bold: true });
   });
 
   it('#showme with unbraced text takes the whole rest', () => {
@@ -182,9 +229,27 @@ describe('JMC import', () => {
   });
 
   it('warns when %n is nested deeper than JMC replaces it', () => {
-    const r = jmc('#action {^%0 tells you} {#showme {%0}}\n');
-    expect(body(r)).toEqual(['#action {^%1 tells you} {#showme {%1}}']);
+    // #variable does not substitute %n in its value: %0 stays text in JMC.
+    const r = jmc('#action {^%0 tells you} {#var who {%0}}\n');
+    expect(body(r)).toEqual(['#action {^%1 tells you} {#variable {who} {%1}}']);
     expect(r.items[0]!.warning).toMatch(/left as text by JMC/);
+  });
+
+  it('commands that substitute their own arguments take a single %n without a warning', () => {
+    const r = jmc(
+      '#action {^%0 tells you %1} {#showme {%0};#output {red} {%0};#if {%1 == 5} {say %0} {say no};#math {n} {%1 + 1}}\n' +
+        '#alias {a} {#if {1} {#showme {%1}}}\n',
+    );
+    expect(body(r)).toEqual([
+      '#action {^%1 tells you %2} {#showme {%1};#showme {<019>%1};#if {%2 == 5} {say %1} {say no};#math {n} {%2 + 1}}',
+      '#alias {a} {#if {1} {#showme {%1}}}',
+    ]);
+    expect(r.items.every((i) => !i.warning)).toBe(true);
+    const t = engineWith(r.profileText);
+    t.recv('Bob tells you 5');
+    expect(t.shown.map((l) => l.text)).toEqual(['Bob', 'Bob', 'Bob tells you 5']);
+    expect(t.sent).toEqual(['say Bob']);
+    expect(t.e.getVariable('n')).toBe('6');
   });
 
   it('swaps highlight arguments and maps colours', () => {
@@ -284,5 +349,139 @@ describe('JMC import', () => {
   it('among unread files a .set is the entry', () => {
     const r = run(file('notes.txt', '#alias {n} {n}\n'), file('char.set', '#alias {c} {c}\n'));
     expect(r.entry).toBe('char.set');
+  });
+});
+
+describe('JMC execution details', () => {
+  it('expands speedwalks in bodies while #speedwalk is on', () => {
+    expect(jmcSpeedwalk('3n2w')).toEqual(['n', 'n', 'n', 'w', 'w']);
+    expect(jmcSpeedwalk('u7')).toEqual(['u']);
+    expect(jmcSpeedwalk('sun')).toEqual(['s', 'u', 'n']);
+    expect(jmcSpeedwalk('12')).toBe(null);
+    expect(jmcSpeedwalk('north')).toBe(null);
+    const r = jmc('#alias {go} {3n2w;n;open door;news}\n#alias {ne} {say ne}\n#alias {x} {ne}\n');
+    expect(body(r)).toEqual(['#alias {go} {n;n;n;w;w;n;open door;n;e;w;s}', '#alias {ne} {say ne}', '#alias {x} {ne}']);
+    expect(r.items[0]!.warning).toMatch(/Speedwalk 3n2w expanded \(JMC speedwalk\)\. Speedwalk news expanded/);
+    expect(r.items[2]!.warning).toBeUndefined();
+    const t = engineWith(body(r)[0]!);
+    t.e.input('go');
+    expect(t.sent).toEqual(['n', 'n', 'n', 'w', 'w', 'n', 'open door', 'n', 'e', 'w', 's']);
+  });
+
+  it('#speedwalk off (or a toggle) stops the expansion', () => {
+    const off = jmc('#speedwalk off\n#alias {go} {3n}\n');
+    expect(body(off)).toEqual(['#alias {go} {3n}']);
+    expect(off.items[0]).toMatchObject({ outcome: 'skipped' });
+    expect(body(jmc('#speedwalk\n#alias {go} {3n}\n'))).toEqual(['#alias {go} {3n}']);
+    expect(body(jmc('#speedwalk on\n#alias {go} {3n}\n'))).toEqual(['#alias {go} {n;n;n}']);
+  });
+
+  it('de-nests $$var like %%n and warns where JMC froze the value', () => {
+    const r = jmc('#alias {mk} {#action {x} {say $hp $$hp};#showme {$$hp}}\n#alias {sv} {#var x {$hp}}\n');
+    expect(body(r)).toEqual(['#alias {mk} {#action {x} {say $hp $hp};#showme {$hp}}', '#alias {sv} {#variable {x} {$hp}}']);
+    expect(r.items[0]!.warning).toMatch(/JMC read \$\$hp when the outer rule ran/);
+    expect(r.items[1]!.warning).toBeUndefined();
+    const t = engineWith(body(r)[0]!);
+    t.e.input('#variable {hp} {10}');
+    t.e.input('mk');
+    t.e.input('#variable {hp} {20}');
+    t.recv('x');
+    expect(t.shown.map((l) => l.text)).toContain('10');
+    expect(t.sent).toEqual(['say 20 20']);
+  });
+
+  it('maps JMC expression operators and warns about its precedence', () => {
+    expect(jmcOperators('$a = 1 & $b != 2 | $c >= 3')).toBe('$a == 1 && $b != 2 || $c >= 3');
+    expect(jmcOperators('$a == 1 && "x=y"')).toBe('$a == 1 && "x=y"');
+    expect(jmcOrderDiffers('10-2+3')).toBe(true);
+    expect(jmcOrderDiffers('8/2*2')).toBe(true);
+    expect(jmcOrderDiffers('-2+3')).toBe(false);
+    expect(jmcOrderDiffers('(10-2)+3')).toBe(false);
+    expect(jmcOrderDiffers('$a-1 > 0 && $b+1 > 0')).toBe(false);
+    const r = jmc('#alias {c} {#if {$hp = 10 & $mv = 5} {say yes} {say no}}\n#alias {m} {#math {x} {10-2+3}}\n');
+    expect(body(r)).toEqual(['#alias {c} {#if {$hp == 10 && $mv == 5} {say yes} {say no}}', '#alias {m} {#math {x} {10-2+3}}']);
+    expect(r.items[0]!.warning).toBeUndefined();
+    expect(r.items[1]!.warning).toMatch(/JMC evaluates \* before \/ and \+ before -/);
+    const t = engineWith(body(r)[0]!);
+    t.e.input('#variable {hp} {10}');
+    t.e.input('#variable {mv} {5}');
+    t.e.input('c');
+    expect(t.sent).toEqual(['say yes']);
+  });
+
+  it('warns that #N has no loop counter', () => {
+    const r = jmc('#alias {cnt} {#3 {say %0}}\n#alias {ok} {#3 {say hi}}\n#action {^%0 waves} {#2 say %0}\n');
+    expect(body(r)).toEqual(['#alias {cnt} {#3 {say %0}}', '#alias {ok} {#3 {say hi}}', '#action {^%1 waves} {#2 {say %1}}']);
+    expect(r.items[0]!.warning).toMatch(/loop counter \(1\.\.N\)/);
+    expect(r.items[1]!.warning).toBeUndefined();
+    expect(r.items[2]!.warning).toBeUndefined();
+  });
+
+  it('unbraced last arguments run to the end of the command', () => {
+    const r = jmc('#gag You are hungry.\n#alias {k} kill %1 now\n#action {^%0 bows} say hi %0\n#highlight red You are thirsty.\n#sub {orc} big ugly orc\n#var target big orc\n');
+    expect(body(r)).toEqual([
+      '#gag {You are hungry.}',
+      '#alias {k} {kill %1 now}',
+      '#action {^%1 bows} {say hi %1}',
+      '#highlight {You are thirsty.} {red}',
+      '#substitute {orc} {big ugly orc}',
+      '#variable {target} {big orc}',
+    ]);
+    const t = engineWith(r.profileText);
+    t.recv('You are hungry.');
+    t.recv('Ann bows');
+    expect(t.shown.map((l) => l.text)).toEqual(['Ann bows']);
+    expect(t.sent).toEqual(['say hi Ann']);
+  });
+
+  it('renumbers the patterns of #unaction, #unsubstitute, #ungag and #unhighlight', () => {
+    const r = jmc('#unaction {%0 tells you}\n#unsub {%0 arrives}\n#ungag {%0 leaves}\n#unhighlight {%0 hits}\n#unalias {k}\n#unvar {x}\n#unhotkey {NUM8}\n#alias {u} {#unaction {%0 hits}}\n');
+    expect(body(r)).toEqual([
+      '#unaction {%1 tells you}',
+      '#unsubstitute {%1 arrives}',
+      '#ungag {%1 leaves}',
+      '#unhighlight {%1 hits}',
+      '#unalias {k}',
+      '#unvariable {x}',
+      '#unmacro {Numpad8}',
+      '#alias {u} {#unaction {%%1 hits}}',
+    ]);
+    const t = engineWith('#action {%1 tells you} {say hi}\n#unaction {%1 tells you}');
+    t.recv('Bob tells you');
+    expect(t.sent).toEqual([]);
+  });
+
+  it('a pattern starting with / is a regex even without the closing slash', () => {
+    expect(jmcRegex('/^(\\w+) arrives/i')).toEqual({ body: '^(\\w+) arrives', flags: 'i' });
+    expect(jmcRegex('/^(\\w+) arrives')).toEqual({ body: '^(\\w+) arrives', flags: '' });
+    expect(jmcRegex('/gi')).toBe(null);
+    expect(jmcRegex('plain')).toBe(null);
+    const r = jmc('#action {/^(\\w+) arrives} {say hi %%0}\n#alias {/^x} {y}\n');
+    expect(body(r)).toEqual(['#action {^{\\w+} arrives} {say hi %1}']);
+    expect(r.items[1]!.reason).toBe('Regex alias (not supported)');
+  });
+
+  it('warns that typed arguments are appended to an alias body with $var and no %n', () => {
+    const r = jmc('#alias {at} {attack $target}\n#alias {k} {kill %1 $target}\n#alias {f} {flee}\n');
+    expect(r.items[0]!.warning).toMatch(/appends the typed arguments/);
+    expect(r.items[1]!.warning).toBeUndefined();
+    expect(r.items[2]!.warning).toBeUndefined();
+  });
+
+  it('a digit after a wildcard is a literal in patterns and warned about in bodies', () => {
+    const r = jmc('#action {^Cost %05 coins} {say %05}\n');
+    expect(body(r)).toEqual(['#action {^Cost %1\\5 coins} {say %15}']);
+    expect(r.items[0]!.warning).toMatch(/%05 is %0 followed by 5 in JMC; here %15 reads as one two-digit argument/);
+    const t = engineWith(body(r)[0]!);
+    t.recv('Cost 125 coins');
+    expect(t.sent).toEqual(['say']);
+  });
+
+  it('warns about first-match highlights unless #multihighlight is on', () => {
+    expect(jmc('#hi {red} {a}\n#hi {blue} {b}\n').fileWarnings).toEqual([expect.stringMatching(/first matching highlight/)]);
+    expect(jmc('#hi {red} {a}\n').fileWarnings).toEqual([]);
+    const on = jmc('#multihighlight on\n#hi {red} {a}\n#hi {blue} {b}\n');
+    expect(on.fileWarnings).toEqual([]);
+    expect(on.items[0]).toMatchObject({ outcome: 'skipped' });
   });
 });

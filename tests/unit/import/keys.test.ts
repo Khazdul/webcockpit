@@ -15,6 +15,14 @@ describe('jmcKey', () => {
     expect(key(jmcKey('F12'))).toBe('F12');
   });
 
+  it('RETURN is the keypad Enter and : the semicolon key (JMC scancodes 28 ext, 39)', () => {
+    expect(key(jmcKey('Ctrl+:'))).toBe('Ctrl+Semicolon');
+    expect(key(jmcKey(':'))).toBe('Semicolon');
+    expect(key(jmcKey('Ctrl+RETURN'))).toBe('Ctrl+NumpadEnter');
+    expect(key(jmcKey('RETURN'))).toBe('NumpadEnter');
+    expect(jmcKey('ENTER').ok).toBe(false);
+  });
+
   it('rejects unknown and unbindable keys', () => {
     expect(jmcKey('Weird+Q').ok).toBe(false);
     expect(jmcKey('BLAH').ok).toBe(false);

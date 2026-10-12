@@ -168,3 +168,47 @@ A player's imported JMC substitutes came out wrong. JMC source
   expanded pattern, so a `^`-anchored one replaces nothing (only the `.`
   gag form works). The translation keeps the anchor, which does what the
   author meant.
+
+## Amendment 2026-10-12 (2) — JMC execution details
+
+A review against the JMC 3.7 source found more mistranslations. Fixed:
+
+- Command abbreviations resolve in `cmds.h` table order, as
+  `parse_tintin_command` does (`#g` is #group, `#h` #highlight, `#r`
+  #read, `#nop` #nope). JMC commands we cannot translate are kept as
+  unsupported. #ungag, #unhighlight and #unvariable are not JMC commands
+  (JMC rejects them); they still translate, resolved after JMC's own.
+- Speedwalk (`parse_input`, `do_speedwalk`, default on): a plain word of
+  n e s w u d and digits in a body is expanded (`3n2w` → `n;n;n;w;w`),
+  also words like `news`, as JMC does; each expansion is warned about.
+  Not after `#speedwalk off`, nor for a word that is an alias name.
+- `$$var` is de-nested by the `%%n` rule (`substitute_myvars`); a run
+  JMC expanded at an outer level (freezing the value) becomes `$var`
+  with a warning that it is now read when the inner rule runs.
+- `#if`/`#math`: a lone `=`, `&`, `|` become `==`, `&&`, `||`. JMC
+  evaluates `*` before `/` and `+` before `-` at one level (`10-2+3` is
+  5); such expressions are warned about.
+- `&x` colour codes are converted only in #showme/#output whose colour
+  abbreviates `colorcodes` (`add_codes`); elsewhere, substitute
+  replacements included (`do_one_sub`), they are text, and an `&` our
+  engine would read as `&var` is escaped.
+- #showme, #output, #if, #math and #N substitute `%n` in their own
+  arguments again, so a single `%n` there is replaced by JMC too; the
+  "left as text" warning is kept for the rest (#variable values).
+  #N sets `%0` to the loop counter, which we lack: warned.
+- An unbraced WITH_SPACES argument runs to the end of the command:
+  `#gag You are hungry.`, an unbraced action/alias/hotkey body,
+  highlight pattern, substitute replacement or variable value.
+- #unaction, #unsubstitute, #ungag and #unhighlight patterns are
+  renumbered like their definitions; #unhotkey maps the key.
+- Hotkey `RETURN` is the keypad Enter (NumpadEnter), `:` the Semicolon
+  key.
+- A pattern starting with `/` is a regex even without a closing slash.
+- An alias body with a `$var` JMC expands and no `%n`: JMC does not
+  append the typed arguments, we do; warned.
+- JMC wildcards are one digit (`%05` is `%0` then `5`): the digit is
+  escaped in patterns (`%1\5`) and warned about in bodies (no separator
+  exists there).
+- Highlight colour words resolve in `add_codes` order (`re` red, `bl`
+  black, `b` black). #multihighlight is tracked; more than one highlight
+  without it gets a file warning (JMC applies only the first match).

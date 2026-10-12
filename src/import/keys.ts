@@ -47,8 +47,11 @@ const JMC_KEYS: Record<string, string> = {
   back: 'Backspace',
   sp: 'Space',
   space: 'Space',
-  return: 'Enter',
+  // RETURN is the keypad Enter (extended scancode 28), ENTER the main one.
+  return: 'NumpadEnter',
   enter: 'Enter',
+  // `:` is scancode 39, the semicolon key.
+  ':': 'Semicolon',
 };
 
 /** A JMC hotkey name (`Ctrl+F1`, `Alt+A`, `NUM5`, `Shift+PGUP`) as our key name. */

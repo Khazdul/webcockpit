@@ -184,6 +184,16 @@ export class Args {
     return s;
   }
 
+  /**
+   * The next argument, where an unbraced one runs to the end (JMC's
+   * WITH_SPACES arguments: `#gag You are hungry.`).
+   */
+  nextOrRest(): string {
+    if (this.nextBraced) return this.next();
+    this.lastBraced = false;
+    return this.rest();
+  }
+
   /** All remaining arguments. */
   all(): string[] {
     const out: string[] = [];
