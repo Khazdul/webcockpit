@@ -59,7 +59,7 @@ The constructs, with examples taken from source or real files:
 | Action | `#action TEXT {^You are hungry.} {eat all} {5} {default}`. TEXT/RAW/COLOR is 3.7+; 3.5 writes `#action {pat} {cmd} {pri} {group}`. The priority argument is optional and is taken as priority only if it starts with a digit, otherwise as the group. Default priority is 5; a **lower number is checked first**. [src Action.cpp, Tintin.h:611] |
 | Regex action | `#action {/test5-1 (\d+)/g} {...}` with flags `i`, `m` (multi-line batch) and `g` (fire repeatedly). `#action color {/^&RFor test1: &garg1 = &y(.*)&B.../} {...}` matches against the `&x` colour-coded line. |
 | Highlight | **Colour first**: `#highlight {light red, italic} {pattern} {group}`. Real files: `#highlight {light magenta, b gray} {%0 has recovered from a bash!} {default}` |
-| Substitute | `#substitute {pattern} {replacement}` (no group). It replaces the matched span. |
+| Substitute | `#substitute {pattern} {replacement}` (no group). On a wildcard match it expands `%n` in both sides and replaces every literal occurrence of the expanded pattern, so a `^` pattern replaces nothing. Only the first matching substitute applies unless `#multisubstitute` is on. [src Substitu.cpp do_one_sub] |
 | Gag | `#gag {x}` is stored as **`#substitute {x} {.}`**. A replacement of exactly `.` means drop the line. [src Action.cpp gag_command, Substitu.cpp] |
 | Antisubstitute | `#antisubstitute {pattern}` (protects lines from subs and gags) |
 | Hotkey | `#hot {Ctrl+F1} {cmd} {group}`. The written command name is `hot`, which abbreviates `#hotkey`. Users write `#hotkey {Ctrl+A} {assist $leader} {default}`. |
@@ -107,7 +107,7 @@ The constructs, with examples taken from source or real files:
 2. **`#action TEXT|RAW|COLOR`** has a leading type word that must be stripped. COLOR and RAW patterns contain `&x` codes or ANSI and need special handling; flag them.
 3. **Trailing `{priority} {group}`**. Map the group to `#class`. tt++ `#action` takes a third argument as priority, so drop or convert the group.
 4. **`%%n` nesting**: strip the extra `%` signs according to brace depth. tt++ substitutes `%n` at every depth.
-5. **Regex `%` numbering is off by one**: JMC `%0` maps to tt++ `%1`. Convert `/re/flags` to a tt++ PCRE `{re}`; there is no `i`, `m` or `g` equivalent apart from `%i` in tt++.
+5. **`%` numbering is off by one** (regex and wildcard patterns alike): JMC `%0` is a capture and maps to tt++ `%1`, since tt++ `%0` is the whole match. Convert `/re/flags` to a tt++ PCRE `{re}`; there is no `i`, `m` or `g` equivalent apart from `%i` in tt++.
 6. **There is no `$` end anchor in JMC**. A trailing `$` would become a variable sigil.
 7. **`#substitute {x} {.}` is a gag**. Emit `#gag {x}`.
 8. **`#hot`/`#hotkey {Ctrl+F1}`**: emit `#macro` with our key naming. Key names are `F1`–`F24`, `NUM0`–`NUM9`, `NUMDEL`, `ADD`, `MIN`, `MUL`, `DIV`, `INS`, `HOME`, `PGUP`, `PGDN`, `END`, `DEL`, arrows, `ESC`, `TAB`, `BACK`, `SP`, `RETURN`/`ENTER`, and single printable characters, with the prefixes `Ctrl+`, `Alt+` and `Shift+` in that order. The lookup is case-insensitive.

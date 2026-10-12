@@ -135,7 +135,7 @@ describe('JMC #if, repeats, #beep', () => {
 describe('JMC import', () => {
   it('drops the action type word, keeps priority, groups become classes', () => {
     const r = jmc('#action TEXT {^You are hungry.} {eat bread} {5} {default}\n#action TEXT {^%0 tells you} {say hi %0} {3} {pk}\n#act {x} {y} {pk}\n');
-    expect(body(r)).toEqual(['#action {^You are hungry.} {eat bread}', '#class {pk} {open}', '#action {^%0 tells you} {say hi %0} {3}', '#action {x} {y}', '#class {pk} {close}']);
+    expect(body(r)).toEqual(['#action {^You are hungry.} {eat bread}', '#class {pk} {open}', '#action {^%1 tells you} {say hi %1} {3}', '#action {x} {y}', '#class {pk} {close}']);
     expect(r.counts.translated).toBe(3);
     expect(load(r.profileText)).toEqual({ ok: true, warnings: [] });
   });
@@ -177,19 +177,19 @@ describe('JMC import', () => {
 
   it('nested definitions get one more % per level', () => {
     const r = jmc('#alias {mk} {#action {%0 hits} {say %0 hit %%1}}\n');
-    // %0 in the inner pattern and body belongs to the action: %%0 in tt++; %%1 is the alias argument: %1.
-    expect(body(r)).toEqual(['#alias {mk} {#action {%%0 hits} {say %%0 hit %1}}']);
+    // %0 in the inner pattern and body belongs to the action: %%1 in tt++ (renumbered); %%1 is the alias argument: %1.
+    expect(body(r)).toEqual(['#alias {mk} {#action {%%1 hits} {say %%1 hit %1}}']);
   });
 
   it('warns when %n is nested deeper than JMC replaces it', () => {
     const r = jmc('#action {^%0 tells you} {#showme {%0}}\n');
-    expect(body(r)).toEqual(['#action {^%0 tells you} {#showme {%0}}']);
+    expect(body(r)).toEqual(['#action {^%1 tells you} {#showme {%1}}']);
     expect(r.items[0]!.warning).toMatch(/left as text by JMC/);
   });
 
   it('swaps highlight arguments and maps colours', () => {
     const r = jmc('#highlight {light red, b blue} {^%0 hits you} {default}\n#hi {mauve} {x}\n');
-    expect(body(r)).toEqual(['#highlight {^%0 hits you} {light red, b blue}']);
+    expect(body(r)).toEqual(['#highlight {^%1 hits you} {light red, b blue}']);
     expect(r.items.map((i) => i.outcome)).toEqual(['translated', 'kept']);
     expect(load(r.profileText)).toEqual({ ok: true, warnings: [] });
   });
@@ -197,6 +197,25 @@ describe('JMC import', () => {
   it('substitute with . is a gag; #gag stays a gag', () => {
     const r = jmc('#substitute {^The sun rises.} {.}\n#sub {orc} {ORC}\n#gag {^Spam}\n');
     expect(body(r)).toEqual(['#gag {^The sun rises.}', '#substitute {orc} {ORC}', '#gag {^Spam}']);
+  });
+
+  it('renumbers wildcards: JMC %0 is a capture, not the whole match', () => {
+    const r = jmc("#substitute {%0 tells you '%1'} {%0 tells: %1}\n#sub {a %1 b %0 c} {[%0|%1]}\n#action {^%0 arrives} {say hi %0}\n");
+    expect(body(r)).toEqual(["#substitute {%1 tells you '%2'} {%1 tells: %2}", '#substitute {a %2 b %1 c} {[%1|%2]}', '#action {^%1 arrives} {say hi %1}']);
+    const t = engineWith(r.profileText);
+    t.recv("Bob tells you 'hi there'");
+    t.recv('a X b Y c');
+    t.recv('Ann arrives from the north.');
+    expect(t.shown.map((l) => l.text)).toEqual(['Bob tells: hi there', '[Y|X]', 'Ann arrives from the north.']);
+    expect(t.sent).toEqual(['say hi Ann']);
+  });
+
+  it('warns about first-match substitutes unless #multisubstitute is on', () => {
+    expect(jmc('#sub {a} {b}\n#sub {c} {d}\n').fileWarnings).toEqual([expect.stringMatching(/first matching substitute/)]);
+    expect(jmc('#sub {a} {b}\n#sub {c} {.}\n').fileWarnings).toEqual([]);
+    const on = jmc('#multisubstitute on\n#sub {a} {b}\n#sub {c} {d}\n');
+    expect(on.fileWarnings).toEqual([]);
+    expect(on.items[0]).toMatchObject({ outcome: 'skipped' });
   });
 
   it('hotkeys become macros', () => {

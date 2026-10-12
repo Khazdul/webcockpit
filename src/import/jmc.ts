@@ -6,10 +6,14 @@
 // - `#action [TEXT|RAW|COLOR] {pat} {cmd} {prio} {group}`: the type word
 //   dropped (RAW/COLOR kept: they match colour codes), the priority kept,
 //   the group as a `#class` block; `/re/flags` patterns become tt++
-//   patterns with `{…}` groups, and the body's `%n` shifts up by one
-//   (JMC's `%0` is the first group);
+//   patterns with `{…}` groups;
+// - argument numbers of action, substitute, highlight and gag patterns
+//   and bodies shift up by one: JMC's `%0` is an ordinary wildcard (or
+//   the first regex group), tt++'s is the whole match;
 // - `#highlight {colours} {pattern}` swapped, colours mapped to names;
 // - `#substitute {x} {.}` → `#gag`; `#hot`/`#hotkey` → `#macro`;
+//   first-match-only subs and actions (`#multisubstitute`/`#multiaction`
+//   OFF) are warned about;
 // - `%%n` de-nested by brace depth, `$n` → `%n`; `#wait` (deciseconds)
 //   wraps the rest of its command list in `#delay`; the tick timer
 //   (`#ticksize` + `#tickon`) becomes a `#ticker`;
@@ -57,6 +61,7 @@ const COMMANDS = [
   'message',
   'multiaction',
   'multihighlight',
+  'multisubstitute',
   'nop',
   'oob',
   'output',
@@ -309,8 +314,11 @@ interface JmcState {
   cmdChar: string;
   tickSize: number;
   multiAction: boolean;
+  multiSub: boolean;
   /** Actions translated so far (for the first-match warning). */
   actions: number;
+  /** Substitutes (not gags) translated so far (for the first-match warning). */
+  subs: number;
 }
 
 /**
@@ -585,6 +593,14 @@ type RuleResult = { ok: true; line: string; group: string | null; reason?: strin
 
 const REGEX = /^\/(.*)\/([a-z]*)$/s;
 
+/**
+ * Added to the argument numbers of action, substitute, highlight and gag
+ * patterns and their bodies. JMC's wildcards are %0–%9 and %0 is an
+ * ordinary capture; in tt++ %0 is the whole match, so JMC %n becomes %n+1.
+ * Alias arguments keep their numbers (%0 is all of them in both).
+ */
+const WILD_SHIFT = 1;
+
 function groupOf(g: string | undefined): string | null {
   const t = (g ?? '').trim();
   return t === '' || t.toLowerCase() === 'default' ? null : t;
@@ -615,16 +631,15 @@ function translateRule(name: string, rest: string, depth: number, ctx: Ctx): Rul
       if (type !== 'TEXT') return { ok: false, reason: `${type} action (matches colour codes)` };
       const m = REGEX.exec(pat);
       let pattern: string;
-      let shift = 0;
       if (m) {
         const r = regexToPattern(m[1]!, m[2]!);
         if (!r.ok) return { ok: false, reason: r.reason };
         pattern = r.pattern;
-        shift = 1;
         notes.push('Regex pattern rewritten');
         if (/[gm]/.test(m[2]!)) notes.push('regex flags g/m dropped');
-      } else pattern = withLevel(ctx, { base: depth, shift: 0 }, () => convPattern(pat, depth, ctx));
-      const b = withLevel(ctx, { base: depth, shift }, () => convBody(body, depth, ctx));
+      } else pattern = withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convPattern(pat, depth, ctx));
+      // Regex: JMC's %0 is group 1; wildcards: %0 is renumbered %1. Either way +1.
+      const b = withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convBody(body, depth, ctx));
       const p = pri !== '' && Number(pri) !== 5 ? ` {${pri}}` : '';
       ctx.state.actions++;
       return done(`#action {${pattern}} {${b}}${p}`, groupOf(group), notes);
@@ -654,7 +669,7 @@ function translateRule(name: string, rest: string, depth: number, ctx: Ctx): Rul
       if (/colorcodes/i.test(colour)) return { ok: false, reason: 'Highlight with colorcodes (no equivalent)' };
       const c = jmcColours(colour);
       if (!c) return { ok: false, reason: `Unknown highlight colour ${colour}` };
-      const pattern = withLevel(ctx, { base: depth, shift: 0 }, () => convPattern(pat, depth, ctx));
+      const pattern = withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convPattern(pat, depth, ctx));
       notes.push('Arguments swapped, colour mapped');
       const warn = c.dropped.length > 0 ? `Colour words not understood and dropped: ${c.dropped.join(', ')}` : undefined;
       return done(`#highlight {${pattern}} {${c.colours}}`, groupOf(group), notes, warn);
@@ -662,14 +677,15 @@ function translateRule(name: string, rest: string, depth: number, ctx: Ctx): Rul
     case 'substitute': {
       const pat = a.next();
       const repl = a.next();
-      const pattern = withLevel(ctx, { base: depth, shift: 0 }, () => convPattern(pat, depth, ctx));
+      const pattern = withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convPattern(pat, depth, ctx));
       if (repl.trim() === '.') return done(`#gag {${pattern}}`, null, ['Substitute with . is a gag']);
-      const r = jmcColourCodes(withLevel(ctx, { base: depth, shift: 0 }, () => convText(repl, depth, ctx)));
+      const r = jmcColourCodes(withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convText(repl, depth, ctx)));
+      ctx.state.subs++;
       return done(`#substitute {${pattern}} {${r}}`, null, notes);
     }
     case 'gag': {
       const pat = a.next();
-      const pattern = withLevel(ctx, { base: depth, shift: 0 }, () => convPattern(pat, depth, ctx));
+      const pattern = withLevel(ctx, { base: depth, shift: WILD_SHIFT }, () => convPattern(pat, depth, ctx));
       return done(`#gag {${pattern}}`, null, notes);
     }
   }
@@ -694,7 +710,7 @@ function done(line: string, group: string | null, notes: string[], warning?: str
  * state: a `#tickon` in global.set uses the profile's `#ticksize`.
  */
 export function translateJmc(entry: SourceFile, res: Resolver, out: Out, rest: SourceFile[] = [], before: (f: SourceFile) => void = () => {}): void {
-  const state: JmcState = { cmdChar: detectCmdChar(entry.text), tickSize: 60, multiAction: false, actions: 0 };
+  const state: JmcState = { cmdChar: detectCmdChar(entry.text), tickSize: 60, multiAction: false, multiSub: false, actions: 0, subs: 0 };
   if (state.cmdChar !== '#') out.warnFile(`The file uses ${state.cmdChar} as the command character; it was changed to #.`);
   translateFile(entry, res, out, state);
   for (const f of rest) {
@@ -704,6 +720,9 @@ export function translateJmc(entry: SourceFile, res: Resolver, out: Out, rest: S
   }
   if (!state.multiAction && state.actions > 0) {
     out.warnFile('JMC fires only the first matching action (#multiaction OFF); WebCockpit fires every matching action, in priority order.');
+  }
+  if (!state.multiSub && state.subs > 1) {
+    out.warnFile('JMC applies only the first matching substitute per line (#multisubstitute OFF); WebCockpit applies every matching one, each on the text the ones before it left.');
   }
   out.setClass(null);
 }
@@ -789,6 +808,12 @@ function statement(st: Statement, res: Resolver, out: Out, state: JmcState): voi
     case 'multiaction': {
       state.multiAction = /^\s*\{?\s*on/i.test(rest);
       out.skip(st, 'Client setting (WebCockpit fires every matching action)');
+      return;
+    }
+    case 'multisubstitute': {
+      // Without an argument it toggles.
+      state.multiSub = /^\s*\{?\s*on/i.test(rest) || (rest.trim() === '' && !state.multiSub);
+      out.skip(st, 'Client setting (WebCockpit applies every matching substitute)');
       return;
     }
     case 'ticksize': {

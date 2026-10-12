@@ -147,3 +147,24 @@ the source text dimmed. Buttons: EDIT (opens the profile editor), OK.
   gap visible instead of hiding it.
 - Mudlet import can be added later as another `src/import/*.ts` without
   changing the shape.
+
+## Amendment 2026-10-12 — JMC wildcard numbering and first-match substitutes
+
+A player's imported JMC substitutes came out wrong. JMC source
+(`Action.cpp` `check_a_action`, `Substitu.cpp` `do_one_sub`):
+
+- JMC's `%0` in a pattern is an ordinary wildcard; in our engine (as in
+  tt++) `%0` is the whole match. `#sub {%0 tells you '%1'} {%0 says %1}`
+  repeated the whole line. Action, substitute, highlight and gag
+  patterns and their bodies now have every argument number shifted up by
+  one (`%0`–`%9` → `%1`–`%10`), as regex actions already were. Alias
+  arguments keep their numbers (`%0` is all arguments in both).
+- JMC applies only the first matching substitute per line unless
+  `#multisubstitute` is on (the command was missing from the table and
+  is now a skipped client setting). Our engine applies every matching
+  one in turn, so a file warning is added when a file has more than one
+  substitute and `#multisubstitute` is not on.
+- Not changed: a JMC substitute replaces the literal text of its
+  expanded pattern, so a `^`-anchored one replaces nothing (only the `.`
+  gag form works). The translation keeps the anchor, which does what the
+  author meant.
