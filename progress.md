@@ -44,10 +44,9 @@ Statuses: Next, In progress, Owner testing, Done.
   fixes below.
 - **Checked:** build:pages (unit 2567, local smoke 10/10); Pages deploy
   green, live release.json 0.1.62 (7f66293).
-- **Open:** test:prod against the live site timed out (7/10 failed on
-  page loads); this machine's network was very slow at the time
-  (github.com took 34 s). Re-run `WC_PROD_URL=https://mumecockpit.com
-  npm run test:prod` when the network is normal.
+- **Live check:** test:prod 10/10 with `--workers=1`. Parallel runs
+  timed out on page loads while this machine's network was slow, and
+  were still flaky after it recovered (2/10). e2e import spec 6/6.
 - **Commits:** 7f66293, plus this one.
 
 ### 2026-10-12 — JMC substitute import fix
