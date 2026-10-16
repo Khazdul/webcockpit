@@ -14,7 +14,7 @@
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { type Ctx, type Cv, type Env, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 
 /** Real-game moon crossing time, s (one game hour is one real minute). */
 const MOON_CROSS_S = 600;
@@ -1305,6 +1305,12 @@ export function skyModule(): Module {
     },
     onEvent(env, name) {
       sky?.onEvent(env, name);
+    },
+    fps(env) {
+      // Clouds, moon, stars and the darkness sky drift slowly; a shooting star,
+      // a lightning-lit sky, sun moments and darkness bleeds move fast (and are rare).
+      if (!sky) return FPS_SLOW;
+      return sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift ? FPS_FAST : FPS_SLOW;
     },
     destroy() {
       sky = null;

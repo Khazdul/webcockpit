@@ -9,18 +9,27 @@
 // Idle: when no module has anything to show and every mix value is at rest,
 // the canvases are left cleared and the loop drops to a 4 Hz tick that only
 // runs the director; any message or a mix target wakes it.
+//
+// Rate (owner feedback 4, "Heat"): each module says how fast its content is
+// (`Module.fps`: 30 while rain falls, 12 for a drifting sky or fog, 60 for a
+// lightning strike); the loop runs at the fastest. A module slower than the
+// loop, or with a `scale` below 1 (fog at half resolution), draws into its
+// own cache canvases at its own rate, and the engine copies the caches onto
+// the canvases in between. Without window focus the loop runs at FPS_SLOW.
 
 import { Director, eventState } from '../director';
 import { themeInfo } from '../palette';
 import type { FrameStats, Geometry, MainToWorker, WorkerToMain } from '../protocol';
 import { bodyModule } from './body';
-import { type Ctx, type Env, type Module, ctx2d, fbm, noise } from './env';
+import { type Ctx, type Env, FPS_FAST, FPS_SLOW, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
 import { skyModule } from './sky';
 import { weatherModule } from './weather';
 
-/** Frames per second cap (the screen may run at 120 Hz or more). */
+/** Frames per second cap (the screen may run at 120 Hz or more); modules ask for less (`Module.fps`). */
 export const MAX_FPS = 60;
+/** Longest step a frame advances the effects, s (a stall does not make rain jump). */
+const DT_MAX = 0.25;
 /** Tick interval while idle, ms. */
 export const IDLE_MS = 250;
 const N_TIMES = 600;
@@ -33,12 +42,56 @@ export interface EngineHost {
   now(): number;
 }
 
+/** A module's drawing state: its rate and, when it draws apart from the loop, its cache. */
+interface Slot {
+  mod: Module;
+  /** Its own rate, asked after each of its frames. */
+  fps: number;
+  /** When it last drew (ms; 0 = never). */
+  last: number;
+  /** Its last frame had anything to show. */
+  busy: boolean;
+  cache: Cache | null;
+}
+
+/** A cached layer: a canvas context that notes whether anything was drawn on it since `drawn` was reset. */
+interface Layer {
+  ctx: Ctx;
+  drawn: boolean;
+}
+interface Cache {
+  back: Layer;
+  front: Layer;
+  scale: number;
+  valid: boolean;
+}
+
+const DRAW_OPS = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage', 'fillText', 'strokeText', 'putImageData'] as const;
+
+/** Wraps the drawing calls of `ctx` so that the layer knows when it holds anything (an empty cache is not copied). */
+function layer(ctx: Ctx): Layer {
+  const l: Layer = { ctx, drawn: false };
+  const o = ctx as unknown as Record<string, (...a: unknown[]) => unknown>;
+  for (const k of DRAW_OPS) {
+    const f = o[k]!;
+    o[k] = function (this: unknown, ...a: unknown[]) {
+      l.drawn = true;
+      return f.apply(ctx, a);
+    };
+  }
+  return l;
+}
+
 export class WeatherEngine {
   private env: Env | null = null;
   private back: OffscreenCanvas | null = null;
   private front: OffscreenCanvas | null = null;
   private director = new Director();
-  private readonly modules: Module[] = [skyModule(), weatherModule(), fogModule(), bodyModule()];
+  private readonly modules: Module[];
+  private readonly slots: Slot[];
+  /** The loop's rate: the fastest module's, FPS_SLOW without window focus. */
+  private rate = FPS_FAST;
+  private focused = true;
   private visible = true;
   private looping = false;
   private idle = false;
@@ -52,7 +105,14 @@ export class WeatherEngine {
   private readonly modTimes = new Map<string, Float32Array>();
   private nTimes = 0;
 
-  constructor(private readonly host: EngineHost) {}
+  /** `modules`: the four effects in drawing order (tests pass their own). */
+  constructor(
+    private readonly host: EngineHost,
+    modules?: Module[],
+  ) {
+    this.modules = modules ?? [skyModule(), weatherModule(), fogModule(), bodyModule()];
+    this.slots = this.modules.map((mod) => ({ mod, fps: FPS_FAST, last: 0, busy: false, cache: null }));
+  }
 
   handle(m: MainToWorker): void {
     switch (m.t) {
@@ -126,6 +186,9 @@ export class WeatherEngine {
       case 'visible':
         this.visible = m.on;
         break;
+      case 'focus':
+        this.focused = m.on;
+        break;
       case 'stats':
         this.host.post({ t: 'stats', stats: this.stats() });
         return;
@@ -163,7 +226,9 @@ export class WeatherEngine {
         cv.height = Math.max(1, Math.round(g.H * g.dpr));
         c.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
       }
+      for (const sl of this.slots) sl.cache = null; // re-made at the new size on use
     }
+    for (const sl of this.slots) if (sl.cache) sl.cache.valid = false;
     env.W = g.W;
     env.H = g.H;
     env.dpr = g.dpr;
@@ -226,9 +291,11 @@ export class WeatherEngine {
   }
 
   private gen = 0;
-  private schedule(slow: boolean): void {
+  /** The next tick: after IDLE_MS (slow), or on an animation frame, waiting on a timer first when that frame is far off (fewer wake-ups at low rates). */
+  private schedule(slow: boolean, wait = 0): void {
     const g = this.gen;
     if (slow) this.host.setTimeout(() => this.tick(g), IDLE_MS);
+    else if (wait > 24) this.host.setTimeout(() => g === this.gen && this.host.requestFrame(() => this.tick(g)), wait - 12);
     else this.host.requestFrame(() => this.tick(g));
   }
 
@@ -239,12 +306,13 @@ export class WeatherEngine {
       return;
     }
     const now = this.host.now();
-    if (!this.idle && now - this.lastFrame < 1000 / MAX_FPS - 2) {
-      this.schedule(false);
+    const wait = 1000 / this.rate - 2 - (now - this.lastFrame);
+    if (!this.idle && wait > 0) {
+      this.schedule(false, wait);
       return;
     }
     this.lastFrame = now;
-    const dt = Math.min(0.1, (now - this.lastT) / 1000 || 0);
+    const dt = Math.min(DT_MAX, (now - this.lastT) / 1000 || 0);
     this.lastT = now;
     this.director.tick(now, dt);
     if (this.idle) {
@@ -265,7 +333,7 @@ export class WeatherEngine {
     if (this.idleFrames > 2) {
       this.idle = true;
       this.schedule(true);
-    } else this.schedule(false);
+    } else this.schedule(false, 1000 / this.rate - 2 - (this.host.now() - now));
   };
 
   /** One frame. Returns true while anything is shown or animating. */
@@ -276,28 +344,90 @@ export class WeatherEngine {
     const { back, front } = env;
     back.clearRect(0, 0, env.W, env.H);
     front.clearRect(0, 0, env.W, env.H);
-    let busy = false;
-    for (const mod of this.modules) {
-      const m0 = performance.now();
-      back.save();
-      front.save();
-      try {
-        if (mod.frame(env, dt, now)) busy = true;
-      } catch (e) {
-        this.report(mod.id, e);
+    const loop = this.rate;
+    let busy = false, rate = 0;
+    for (const sl of this.slots) {
+      const mod = sl.mod, m0 = performance.now();
+      const scale = mod.scale ?? 1;
+      const direct = scale === 1 && sl.fps >= loop;
+      const due = direct || !sl.cache?.valid || now - sl.last >= 1000 / sl.fps - 2;
+      if (due) {
+        const mdt = sl.last ? Math.min(DT_MAX, (now - sl.last) / 1000) : dt;
+        sl.last = now;
+        if (direct) {
+          if (sl.cache) sl.cache.valid = false;
+          sl.busy = this.runModule(mod, back, front, mdt, now);
+        } else {
+          const c = this.cacheOf(sl, scale);
+          for (const l of [c.back, c.front]) {
+            if (l.drawn) l.ctx.clearRect(0, 0, env.W, env.H);
+            l.drawn = false;
+          }
+          env.back = c.back.ctx;
+          env.front = c.front.ctx;
+          try {
+            sl.busy = this.runModule(mod, c.back.ctx, c.front.ctx, mdt, now);
+          } finally {
+            env.back = back;
+            env.front = front;
+          }
+          c.valid = true;
+        }
+        try {
+          sl.fps = Math.max(1, Math.min(MAX_FPS, mod.fps?.(env) ?? FPS_FAST));
+        } catch (e) {
+          this.report(mod.id, e);
+          sl.fps = FPS_FAST;
+        }
       }
-      back.restore();
-      front.restore();
+      if (!direct && sl.busy && sl.cache) {
+        // the cache's content at its own resolution, stretched over the canvases
+        const c = sl.cache;
+        if (c.back.drawn) back.drawImage(c.back.ctx.canvas, 0, 0, env.W, env.H);
+        if (c.front.drawn) front.drawImage(c.front.ctx.canvas, 0, 0, env.W, env.H);
+      }
+      if (sl.busy) {
+        busy = true;
+        rate = Math.max(rate, sl.fps);
+      }
       let arr = this.modTimes.get(mod.id);
       if (!arr) this.modTimes.set(mod.id, (arr = new Float32Array(N_TIMES)));
       arr[this.nTimes % N_TIMES] = performance.now() - m0;
     }
+    this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(FPS_SLOW, rate));
     this.applyMask(back, 0);
     this.applyMask(front, 1);
     this.paintPaneBgs(back);
     this.times[this.nTimes % N_TIMES] = performance.now() - t0;
     this.nTimes++;
     return busy;
+  }
+
+  private runModule(mod: Module, back: Ctx, front: Ctx, dt: number, now: number): boolean {
+    let busy = false;
+    back.save();
+    front.save();
+    try {
+      busy = mod.frame(this.env!, dt, now);
+    } catch (e) {
+      this.report(mod.id, e);
+    }
+    back.restore();
+    front.restore();
+    return busy;
+  }
+
+  /** The slot's cache canvases (back, front) at `scale` × the canvases' ratio, made on first use and after a resize. */
+  private cacheOf(sl: Slot, scale: number): Cache {
+    if (sl.cache && sl.cache.scale === scale) return sl.cache;
+    const env = this.env!, r = env.dpr * scale;
+    const mk = (): Layer => {
+      const c = ctx2d(mkCanvas(Math.round(env.W * r), Math.round(env.H * r)));
+      c.setTransform(r, 0, 0, r, 0, 0);
+      return layer(c);
+    };
+    sl.cache = { back: mk(), front: mk(), scale, valid: false };
+    return sl.cache;
   }
 
   stats(): FrameStats {
@@ -310,6 +440,6 @@ export class WeatherEngine {
       for (let i = 0; i < n; i++) s += arr[i]!;
       mods[id] = n ? s / n : 0;
     }
-    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle };
+    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1 };
   }
 }

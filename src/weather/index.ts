@@ -90,16 +90,14 @@ export function themeOf(el: HTMLElement): ThemeColors {
   };
 }
 
-const dprNow = (cap = 2): number => Math.min(cap, window.devicePixelRatio || 1);
-
 /**
- * Adaptive resolution: every SLOW_CHECK_MS while drawing, the worker's
- * average frame time; above SLOW_FRAME_MS the canvases drop to ratio 1 (a quarter
- * of the pixels at ratio 2). Software canvases (Firefox draws OffscreenCanvas
- * 2D on the CPU) ran at 35–120 ms per frame at ratio 2 (stage 28 E).
+ * The canvases' device pixel ratio: always 1 (owner feedback 4, "Heat"). On
+ * a HiDPI screen the browser stretches them; soft skies, fog and 1 px rain
+ * look the same, and ratio 2 costs four times the pixels on every frame
+ * (Firefox draws worker canvases on the CPU: 35–120 ms per frame at ratio 2,
+ * stage 28 E).
  */
-export const SLOW_CHECK_MS = 4000;
-export const SLOW_FRAME_MS = 12;
+export const CANVAS_RATIO = 1;
 
 /** Starts the effects on `host`; null when the browser cannot run them. */
 export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Weather | null {
@@ -127,9 +125,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   const worker = new Worker(new URL('./worker/weather.worker.ts', import.meta.url), { type: 'module', name: 'weather' });
   const post = (m: MainToWorker, transfer: Transferable[] = []): void => worker.postMessage(m, transfer);
   let destroyed = false;
-  let slowTimer: ReturnType<typeof setInterval> | undefined;
-  let dprCap = 2;
-  let geom: Geometry = measureGeometry(host, dprNow(dprCap));
+  let geom: Geometry = measureGeometry(host, CANVAS_RATIO);
   let cats: Categories = { ...ALL_CATEGORIES, ...opts.categories };
   const statsWaiters: ((s: FrameStats) => void)[] = [];
   let resolveReady!: () => void, rejectReady!: (e: Error) => void;
@@ -145,18 +141,6 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       // only now let the docked panes go transparent: their backgrounds are on the canvas
       root.setAttribute('data-weather', '');
       resolveReady();
-      if (dprNow() > 1) {
-        slowTimer = setInterval(() => {
-          if (destroyed || doc.hidden) return;
-          void api.stats().then((st) => {
-            if (destroyed || dprCap === 1 || st.idle || st.n < 30 || st.avg <= SLOW_FRAME_MS) return;
-            console.info(`weather: ${st.avg.toFixed(1)} ms per frame; drawing at ratio 1`);
-            dprCap = 1;
-            clearInterval(slowTimer);
-            remeasure(true);
-          });
-        }, SLOW_CHECK_MS);
-      }
     } else if (m.t === 'stats') statsWaiters.splice(0).forEach((fn) => fn(m.stats));
     else if (m.t === 'error') {
       console.warn('weather:', m.message);
@@ -191,7 +175,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   let measureQueued = false;
   const remeasure = (withLines: boolean): void => {
     if (destroyed) return;
-    const next = measureGeometry(host, dprNow(dprCap), withLines, geom.lines);
+    const next = measureGeometry(host, CANVAS_RATIO, withLines, geom.lines);
     const d = geometryDiff(geom, next);
     if (d === 'none') return;
     geom = next;
@@ -221,10 +205,14 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     if (!doc.hidden) idle(() => remeasure(true));
   }, LINES_MS);
 
-  // ---- visibility
+  // ---- visibility and focus (hidden: paused; no focus: the slow rate)
   const onVis = (): void => post({ t: 'visible', on: !doc.hidden });
   doc.addEventListener('visibilitychange', onVis);
   if (doc.hidden) onVis();
+  const onFocus = (): void => post({ t: 'focus', on: doc.hasFocus() });
+  win.addEventListener('focus', onFocus);
+  win.addEventListener('blur', onFocus);
+  if (!doc.hasFocus()) onFocus();
 
   const api: Weather = {
     ready,
@@ -259,7 +247,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       if (!destroyed) post({ t: 'moonSpeed', speed });
     },
     stats() {
-      if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true });
+      if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1 });
       return new Promise((res) => {
         statsWaiters.push(res);
         post({ t: 'stats' });
@@ -273,8 +261,9 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       offLayout();
       win.removeEventListener('resize', queueMeasure);
       doc.removeEventListener('visibilitychange', onVis);
+      win.removeEventListener('focus', onFocus);
+      win.removeEventListener('blur', onFocus);
       clearInterval(linesTimer);
-      clearInterval(slowTimer);
       root.removeAttribute('data-weather');
       backEl.remove();
       frontEl.remove();

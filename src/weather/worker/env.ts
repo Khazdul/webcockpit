@@ -51,7 +51,26 @@ export interface Module {
   frame(env: Env, dt: number, t: number): boolean;
   onEvent?(env: Env, name: WeatherEvent | 'position', data?: unknown): void;
   destroy?(env: Env): void;
+  /**
+   * Frames per second the module's current content needs, asked after each
+   * of its frames: FPS_FAST while things fall, flash or shake, FPS_SLOW for
+   * drifting skies, fog and floating letters, FPS_BURST for a lightning
+   * strike. Default FPS_FAST. A module slower than the loop draws into a
+   * cache that the engine copies onto the canvases in between.
+   */
+  fps?(env: Env): number;
+  /**
+   * Resolution of the module's cache relative to the canvases (soft
+   * content: fog draws at half). Default 1; below 1 the module always draws
+   * through its cache, and must not call setTransform on env.back / front.
+   */
+  scale?: number;
 }
+
+/** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */
+export const FPS_BURST = 60;
+export const FPS_FAST = 30;
+export const FPS_SLOW = 12;
 
 export function mkCanvas(w: number, h: number): Cv {
   return new OffscreenCanvas(Math.max(1, Math.ceil(w)), Math.max(1, Math.ceil(h)));

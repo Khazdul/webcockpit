@@ -15,7 +15,7 @@
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
-import { type Ctx, type Cv, type Env, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
+import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
 
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
@@ -1477,6 +1477,13 @@ export function weatherModule(): Module {
       env.shared.flash = clamp(flash, 0, 1);
       env.shared.boltX = strike ? strike.x0 : 0;
       return busy;
+    },
+    fps() {
+      // A strike flickers in tens of ms; rain, snow, splashes and drips fall
+      // fast; what remains (drying sheen, snow dust on pane tops) is slow.
+      if (strike || sparks.on) return FPS_BURST;
+      if (rainAmt > 0 || snowAmt > 0 || fa.some((a) => a > 0) || pl.some((l) => l > 0) || va.some((a) => a > 0)) return FPS_FAST;
+      return FPS_SLOW;
     },
     destroy(env) {
       strike = null;

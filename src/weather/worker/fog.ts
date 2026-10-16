@@ -13,7 +13,7 @@
 // between frames, so a session without fog never pays for it.
 
 import { adapt, type ThemeInfo } from '../palette';
-import { type Ctx, type Cv, type Env, type Module, clamp, ctx2d, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, type Env, FPS_SLOW, type Module, clamp, ctx2d, mkCanvas, sst } from './env';
 
 function makeNoise(seed: number): { fbm: (x: number, y: number, oct: number) => number; rnd: () => number } {
   const P = new Uint8Array(512);
@@ -500,6 +500,9 @@ export function fogModule(): Module {
       fr.globalAlpha = 1;
       return true;
     },
+    // Soft banks drifting at 2–13 px/s: a slow rate and half resolution look the same.
+    fps: () => FPS_SLOW,
+    scale: 0.5,
     destroy() {
       S.ready = false;
       S.job = null;

@@ -14,7 +14,7 @@
 // client font if the worker has it, else the generic monospace.
 
 import { adapt, type Rgb } from '../palette';
-import { type Cv, type Env, type Module, TAU, clamp, ctx2d, ease, mkCanvas, sst } from './env';
+import { type Cv, type Env, FPS_FAST, FPS_SLOW, type Module, TAU, clamp, ctx2d, ease, mkCanvas, sst } from './env';
 
 interface Spatter {
   fresh: Cv;
@@ -480,6 +480,12 @@ export function bodyModule(): Module {
       } else S.hb = 0;
       fr.globalAlpha = 1;
       return true;
+    },
+    fps() {
+      // Floating z z Z and the resting/sleeping vignette are slow; a stun
+      // (shake, flare), fresh blood and the heartbeat wash need the fast rate.
+      const fresh = S.spl.some((o) => o.a > 0 && S.t - o.born < 0.3);
+      return S.t - S.stunAt < 3 || S.stun > 0.01 || S.down > 0.004 || fresh ? FPS_FAST : FPS_SLOW;
     },
     destroy() {
       S.ready = false;

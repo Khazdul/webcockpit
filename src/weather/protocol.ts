@@ -139,6 +139,8 @@ export type MainToWorker =
   | { t: 'theme'; theme: ThemeColors }
   | { t: 'cats'; cats: Categories }
   | { t: 'visible'; on: boolean }
+  /** The window has focus; without it the effects run at their slow rate. */
+  | { t: 'focus'; on: boolean }
   | { t: 'moonSpeed'; speed: number }
   | { t: 'stats' };
 
@@ -152,6 +154,10 @@ export interface FrameStats {
   mods: Record<string, number>;
   /** True while the loop idles (nothing to draw). */
   idle: boolean;
+  /** Frames drawn since the engine started (fps = its change over time). */
+  frames: number;
+  /** The device pixel ratio the canvases are drawn at. */
+  dpr: number;
 }
 
 export type WorkerToMain = { t: 'ready' } | { t: 'stats'; stats: FrameStats } | { t: 'error'; message: string };
