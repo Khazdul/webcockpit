@@ -91,15 +91,25 @@ export interface PaneGeom extends Rect {
   border: number;
   /** The pane label (its width keeps snow off the title). */
   label: string;
-  /** Floating panes stay opaque over the game text. */
+  /** A floating pane: above the game text; the worker paints its fill on the mid layer. */
   floating: boolean;
+  /** Stacking order of a floating pane (higher is in front); 0 for a docked one. */
+  z: number;
   /** The pane's own background when it differs from the terminal's (painted under the back layer, in the rect). */
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
+  /** The label's gap in the top frame line, [x0, x1] (CSS px); null without a label. */
+  tab: [number, number] | null;
 }
 
 export interface Geometry {
+  /**
+   * Layout sequence number (main thread): the worker answers `painted` with
+   * it once a frame with this layout is on screen, and floating panes go
+   * see-through only then (the mid layer covers the text under them).
+   */
+  seq: number;
   /** Canvas size in CSS px and the device pixel ratio used (≤ 2). */
   W: number;
   H: number;
@@ -126,6 +136,8 @@ export type MainToWorker =
   | {
       t: 'init';
       back: OffscreenCanvas;
+      /** Under the floating panes, above the game text: their fill plus a copy of the back layer. */
+      mid: OffscreenCanvas;
       front: OffscreenCanvas;
       geom: Geometry;
       theme: ThemeColors;
@@ -154,4 +166,9 @@ export interface FrameStats {
   idle: boolean;
 }
 
-export type WorkerToMain = { t: 'ready' } | { t: 'stats'; stats: FrameStats } | { t: 'error'; message: string };
+export type WorkerToMain =
+  | { t: 'ready' }
+  | { t: 'stats'; stats: FrameStats }
+  | { t: 'error'; message: string }
+  /** A frame drawn with layout `seq` is on screen (the mid layer covers the floating panes). */
+  | { t: 'painted'; seq: number };

@@ -33,8 +33,9 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'lines' 
   if (a.panes.length !== b.panes.length) return 'layout';
   for (let i = 0; i < a.panes.length; i++) {
     const p = a.panes[i]!, q = b.panes[i]!;
-    if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.bg !== q.bg || p.border !== q.border) return 'layout';
+    if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border) return 'layout';
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
+    if (!p.tab !== !q.tab || (p.tab && q.tab && (!near(p.tab[0], q.tab[0]) || !near(p.tab[1], q.tab[1])))) return 'layout';
   }
   return linesChanged(a.lines, b.lines) ? 'lines' : 'none';
 }
@@ -49,13 +50,21 @@ export function protectFor(W: number, gameBottom: number, cellH: number, fontSiz
   return { solidTop, fadeTop: solidTop - 3.5 * fontSize, left: Math.min(90, W * 0.05) };
 }
 
+/** Insets from a pane's edges to the outside of its frame line (src/panes/frame.ts). */
+export interface FrameInsets {
+  l: number;
+  r: number;
+  top: number;
+  b: number;
+}
+
 /**
  * A framed pane's frame box (stage 28 A, src/panes/frame.ts): inset by the
- * frame insets from the pane's edge; the fill stops at it. Unframed: the box.
+ * frame insets from the pane's edges; the fill stops at it. Unframed: the box.
  */
-export function frameRect(box: Rect, framed: boolean, fx: number, fy: number): Rect {
+export function frameRect(box: Rect, framed: boolean, f: FrameInsets): Rect {
   if (!framed) return { ...box };
-  return { x: box.x + fx, y: box.y + fy, w: box.w - 2 * fx, h: box.h - 2 * fy };
+  return { x: box.x + f.l, y: box.y + f.top, w: box.w - f.l - f.r, h: box.h - f.top - f.b };
 }
 
 const round = (v: number): number => Math.round(v * 2) / 2;
@@ -107,7 +116,7 @@ export function measureLines(game: HTMLElement, base: DOMRect, max = 120): Rect[
 }
 
 /** Measures everything the worker needs. Reads layout; call on layout changes only. */
-export function measureGeometry(host: MeasureHost, dpr: number, withLines = true, prevLines: Rect[] = []): Geometry {
+export function measureGeometry(host: MeasureHost, dpr: number, withLines = true, prevLines: Rect[] = [], seq = 0): Geometry {
   const { root, game } = host;
   const base = root.getBoundingClientRect();
   const rel = (r: DOMRect): Rect => ({ x: round(r.left - base.left), y: round(r.top - base.top), w: round(r.width), h: round(r.height) });
@@ -126,18 +135,25 @@ export function measureGeometry(host: MeasureHost, dpr: number, withLines = true
       return Number.isFinite(n) ? n : d;
     };
     const t = v('--frame-t', 2);
+    const fx = cell.w / 2 - t / 2, fy = cell.h / 2 - t / 2;
+    const ins = { l: v('--frame-l', fx), r: v('--frame-r', fx), top: v('--frame-top', fy), b: v('--frame-b', fy) };
+    const lw = framed ? v('--frame-label-w', 0) : 0;
+    const tab0 = box.x + ins.l + v('--frame-label-x', 0);
     panes.push({
-      ...frameRect(box, framed, v('--frame-x', cell.w / 2 - t / 2), v('--frame-y', cell.h / 2 - t / 2)),
+      ...frameRect(box, framed, ins),
       box,
       id: el.dataset.pane ?? '',
       border: framed ? t : 0,
       label: el.getAttribute('aria-label') ?? '',
       floating: el.hasAttribute('data-floating'),
+      z: el.hasAttribute('data-floating') ? Number(el.style.zIndex) || 0 : 0,
       bg: bg && bg !== termBg ? bg : null,
+      tab: lw > 0 ? [round(tab0), round(tab0 + lw)] : null,
     });
   }
   const W = round(base.width), H = round(base.height);
   return {
+    seq,
     W,
     H,
     dpr,
