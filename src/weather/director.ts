@@ -6,8 +6,12 @@
 //   DWELL_MS (running through rooms does not flicker); position, clock and
 //   moon are immediate.
 // - The sky comes from the latest Event.Sun / Event.Moon (clock, moonUp).
-//   light 'o' alone overrides it with the darkness sky (`evil`).
-// - Mix values ease exponentially (tau 0.9 s) toward their targets.
+//   light 'o' alone overrides it with the darkness sky (`evil`), indoors
+//   too: a dark room shows the red darkness sky for as long as it is dark
+//   (owner feedback 7, 2026-10-17); the rest of the sky stays outdoors only.
+// - Mix values ease exponentially (tau 0.9 s) toward their targets; fog
+//   instead moves at a constant FOG_RATE (a step between none, light and
+//   dense takes 20 s, owner feedback 8), so it grows and thins gradually.
 // - A category that is off has its targets at 0, so it fades out.
 
 import { ALL_CATEGORIES, type Categories, DEFAULT_STATE, type WeatherEvent, type WeatherState } from './protocol';
@@ -15,6 +19,8 @@ import { ALL_CATEGORIES, type Categories, DEFAULT_STATE, type WeatherEvent, type
 export const DWELL_MS = 3000;
 /** Mix easing time constant, seconds. */
 export const MIX_TAU = 0.9;
+/** Fog mix change per second: none → light (0.5) or light → dense takes 20 s, none → dense 40 s; the same going away. */
+export const FOG_RATE = 1 / 40;
 
 export const MIX_KEYS = [
   'outdoors',
@@ -58,7 +64,7 @@ export function mixTargets(s: Readonly<WeatherState>, cats: Readonly<Categories>
   out.torch = s.light === '!' ? 1 : 0;
   out.night = day ? 0 : 1;
   out.dark = outd && !day && !s.moonUp && !dk ? 1 : 0;
-  out.evil = outd && dk ? 1 : 0;
+  out.evil = dk ? 1 : 0;
   out.clouds = cats.sky ? outd * (CLOUD_COVER[s.weather ?? ''] ?? 0) : 0;
   const p = cats.precipitation ? outd : 0;
   out.rain = p * (s.weather === "'" || s.weather === '"' ? 1 : 0);
@@ -156,7 +162,13 @@ export class Director {
   step(dt: number): void {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     const k = 1 - Math.exp(-dt / MIX_TAU);
+    const fog0 = this.mix.fog;
     for (const key of MIX_KEYS) this.mix[key] += (t[key] - this.mix[key]) * k;
+    if (this.cats.fog) {
+      // fog: a constant rate instead (switching the category off still fades at MIX_TAU)
+      const s = dt * FOG_RATE, d = t.fog - fog0;
+      this.mix.fog = fog0 + (d > s ? s : d < -s ? -s : d);
+    }
   }
 
   /** Settles and eases in one go (one frame). */
@@ -172,6 +184,14 @@ export class Director {
       if (key === 'night' || key === 'torch') continue; // tints only: draw nothing by themselves
       if (this.mix[key] > eps || t[key] > eps) return false;
     }
+    return true;
+  }
+
+  /** True when every mix value sits at its target and nothing waits to settle (the effects' inputs are still). */
+  resting(eps = 0.002): boolean {
+    if (this.pending()) return false;
+    const t = mixTargets(this.settled, this.cats, this.tgt);
+    for (const key of MIX_KEYS) if (Math.abs(this.mix[key] - t[key]) > eps) return false;
     return true;
   }
 

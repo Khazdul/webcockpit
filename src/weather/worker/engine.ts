@@ -24,12 +24,15 @@
 // loop, or with a `scale` below 1 (fog at half resolution), draws into its
 // own cache canvases at its own rate, and the engine copies the caches onto
 // the canvases in between. Without window focus the loop runs at FPS_SLOW.
+// Content that does not move at all (a settled day sky, Module.fps
+// FPS_STILL) lets the loop drop to FPS_STILL while no mix value moves; any
+// message brings it back to FPS_SLOW at once.
 
 import { Director, eventState } from '../director';
 import { themeInfo } from '../palette';
 import type { FrameStats, Geometry, MainToWorker, WorkerToMain } from '../protocol';
 import { bodyModule } from './body';
-import { type Ctx, type Env, FPS_FAST, FPS_SLOW, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
+import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
 import { skyModule } from './sky';
 import { weatherModule } from './weather';
@@ -162,7 +165,6 @@ export class WeatherEngine {
           front,
           panes: [],
           out: { x: 0, y: 0, w: 0, h: 0 },
-          lines: [],
           protect: { solidTop: 0, fadeTop: 0, left: 0 },
           cell: { w: 8, h: 16, size: 14, font: '14px monospace' },
           raw: this.director.raw,
@@ -197,9 +199,7 @@ export class WeatherEngine {
         const env = this.env;
         const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
         this.applyGeometry(m.g);
-        if (m.linesOnly) {
-          for (const mod of this.modules) mod.lines?.(env);
-        } else if (sized) {
+        if (sized) {
           this.resizeGen++;
           for (const mod of this.modules) mod.resize(env);
         } else this.settleResize();
@@ -287,7 +287,6 @@ export class WeatherEngine {
     env.H = g.H;
     env.dpr = g.dpr;
     env.out = g.out;
-    env.lines = g.lines;
     env.protect = g.protect;
     env.cell = g.cell;
     env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, tab: p.tab }));
@@ -401,9 +400,12 @@ export class WeatherEngine {
   private wake(): void {
     if (!this.env || !this.visible) return;
     const wasIdle = this.idle;
+    // A message while the loop crawls at FPS_STILL (an event, a new state): back to FPS_SLOW at once.
+    const still = this.rate < FPS_SLOW;
     this.idle = false;
     this.idleFrames = 0;
-    if (this.looping && !wasIdle) return;
+    if (still) this.rate = FPS_SLOW;
+    if (this.looping && !wasIdle && !still) return;
     if (!this.looping) this.lastT = this.host.now();
     this.looping = true;
     this.gen++; // a pending idle tick is dropped
@@ -469,7 +471,8 @@ export class WeatherEngine {
     for (const sl of this.slots) {
       const mod = sl.mod, m0 = performance.now();
       const scale = mod.scale ?? 1;
-      const direct = scale === 1 && sl.fps >= loop;
+      // Still content draws straight too: drawing it is about one image copy, less than copying a full-size cache.
+      const direct = scale === 1 && (sl.fps >= loop || sl.fps <= FPS_STILL);
       const due = direct || !sl.cache?.valid || now - sl.last >= 1000 / sl.fps - 2;
       if (due) {
         const mdt = sl.last ? Math.min(DT_MAX, (now - sl.last) / 1000) : dt;
@@ -514,7 +517,9 @@ export class WeatherEngine {
       if (!arr) this.modTimes.set(mod.id, (arr = new Float32Array(N_TIMES)));
       arr[this.nTimes % N_TIMES] = performance.now() - m0;
     }
-    this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(FPS_SLOW, rate));
+    // Below FPS_SLOW only when every busy module says its content is still and no mix value is moving.
+    const floor = rate < FPS_SLOW && this.director.resting() ? FPS_STILL : FPS_SLOW;
+    this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(floor, rate));
     this.applyMask(back, 0);
     this.applyMask(front, 1);
     this.paintMid();

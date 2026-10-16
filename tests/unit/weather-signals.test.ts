@@ -4,7 +4,8 @@ import { CharModel } from '../../src/gmcp/char';
 import { type ClockState, momentSeconds } from '../../src/gmcp/clock';
 import { moonAt } from '../../src/gmcp/gametime';
 import { migrateSettings, defaultSettings } from '../../src/settings';
-import type { WeatherEvent, WeatherState } from '../../src/weather/protocol';
+import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
+import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
 import { WeatherSignals, almanacState, gmcpEvent, lineEvent, vitalsState } from '../../src/weather/signals';
 
 const NOW_MS = 1_800_000_000_000;
@@ -86,6 +87,75 @@ describe('GMCP events', () => {
     sig.gmcp('char.vitals', { weather: '*' });
     expect(s.events).toEqual(['sun.set', 'moon.rise', 'darkness.start']);
     expect(sig.state()).toMatchObject({ clock: 'night', moonUp: true });
+  });
+});
+
+describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
+  // The login packet as MUME sends it (tests/fixtures/gmcp-demo.log): a flat
+  // object, `light` one of "*" | "!" | ")" | "o" (MUME docs, Cockpit
+  // docs/gmcp.md), `fog` null, `weather` " " outdoors.
+  const login = {
+    hp: 172, maxhp: 172, mana: 40, maxmana: 40, mp: 131, maxmp: 131, xp: 5770000, tp: 41500, carrying: 'light',
+    ride: null, ridden: null, climb: null, sneak: null, hidden: false, swim: false,
+    light: '*', fog: null, weather: ' ', alertness: 'normal', mood: 'brave', 'spell-effort': 'normal', position: 'standing',
+    'mount-moves': null, wimpy: 30, opponent: null, buffer: null, 'opponent-hits': null, 'buffer-hits': null,
+  };
+
+  function run() {
+    const char = new CharModel();
+    const s = sink();
+    char.apply('Char.Vitals', login);
+    const sig = new WeatherSignals(s, vitalsState((k) => char.vitals.get(k)), clockAt(5, 12), NOW_MS);
+    const d = new Director(sig.state());
+    const feed = (data: unknown): void => {
+      char.apply('Char.Vitals', data);
+      sig.vitals(vitalsState((k) => char.vitals.get(k)));
+      for (const x of s.states.splice(0)) d.set(x.s);
+    };
+    return { sig, d, feed };
+  }
+
+  it('the login packet: outdoors in sunlight, no darkness', () => {
+    const { sig } = run();
+    expect(sig.state()).toMatchObject({ weather: ' ', fog: '', light: '*' });
+    expect(mixTargets(sig.state(), ALL_CATEGORIES).evil).toBe(0);
+  });
+
+  it('walking down into a dark tunnel (prompt "o=": light o, weather null) settles to the darkness sky', () => {
+    // "Limestone Tunnel" → "Darkness" in the owner's logs: the prompt's light goes from "*" to "o" underground.
+    const { d, feed } = run();
+    feed({ light: 'o', weather: null });
+    d.settle(1);
+    expect(d.settled.light).toBe('*');
+    d.settle(1 + DWELL_MS);
+    expect([d.settled.light, d.settled.weather]).toEqual(['o', null]);
+    const m = mixTargets(d.settled, ALL_CATEGORIES);
+    expect([m.outdoors, m.evil, m.sun]).toEqual([0, 1, 0]);
+    // and stays red as long as the room is dark: another dark room changes nothing
+    feed({ hp: 150 });
+    d.settle(1 + DWELL_MS * 3);
+    expect(mixTargets(d.settled, ALL_CATEGORIES).evil).toBe(1);
+    // a lit room again ("!" indoors): the darkness sky goes
+    feed({ light: '!' });
+    d.settle(2 + DWELL_MS * 3);
+    d.settle(2 + DWELL_MS * 4);
+    expect(mixTargets(d.settled, ALL_CATEGORIES).evil).toBe(0);
+  });
+
+  it('a magical darkness on a road by day (prompt "o+", weather still sent) gives the darkness sky outdoors', () => {
+    const { d, feed } = run();
+    feed({ light: 'o' });
+    d.settle(1);
+    d.settle(1 + DWELL_MS);
+    const m = mixTargets(d.settled, ALL_CATEGORIES);
+    expect([m.outdoors, m.evil, m.sun, m.clouds]).toEqual([1, 1, 0, 0]);
+  });
+
+  it('Event.Darkness payloads are {what}; unknown ones are ignored', () => {
+    expect(gmcpEvent('event.darkness', { what: 'start' })).toBe('darkness.start');
+    expect(gmcpEvent('event.darkness', { what: 'end' })).toBe('darkness.end');
+    expect(gmcpEvent('event.darkness', 'start')).toBeNull();
+    expect(gmcpEvent('event.darkness', { what: 'deepen' })).toBeNull();
   });
 });
 
