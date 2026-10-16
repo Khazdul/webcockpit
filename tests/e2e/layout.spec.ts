@@ -88,23 +88,42 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  const frame = await page.locator('.wc-pane-character .wc-pane-frame').textContent();
-  const lines = frame!.split('\n');
-  expect(lines[0]).toBe('▛▀▀ Character ' + '▀'.repeat(33 - 2 - 13) + '▜');
-  expect(lines[1]).toBe('▌' + ' '.repeat(31) + '▐');
-  expect(lines.at(-1)).toBe('▙' + '▄'.repeat(31) + '▟');
-  expect(lines.length).toBe(11);
-  // Frame glyphs in the pane's border colour over its fill.
+  // A thin frame line in the middle of the outer cells (ADR 0091), the label from the fourth cell.
+  await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
+  const geo = await page.locator('.wc-pane-character').evaluate((el) => {
+    const p = el.getBoundingClientRect();
+    const f = el.querySelector('.wc-pane-frame')!;
+    const r = f.getBoundingClientRect();
+    const t = el.querySelector('.wc-pane-title')!.getBoundingClientRect();
+    const cs = getComputedStyle(f);
+    return {
+      inset: [r.left - p.left, r.top - p.top, p.right - r.right, p.bottom - r.bottom],
+      widths: [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth],
+      title: [t.left - p.left, t.top - p.top],
+    };
+  });
+  expect(new Set(geo.widths).size).toBe(1);
+  const lw = parseFloat(geo.widths[0]!);
+  expect(lw).toBeGreaterThanOrEqual(1);
+  expect(lw).toBeLessThan(ch / 4);
+  expect(Math.abs(geo.inset[0]! + lw / 2 - cw / 2)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geo.inset[1]! + lw / 2 - ch / 2)).toBeLessThanOrEqual(1);
+  expect(geo.inset[0]).toBeCloseTo(geo.inset[2]!, 3);
+  expect(geo.inset[1]).toBeCloseTo(geo.inset[3]!, 3);
+  expect(geo.title[0]).toBeCloseTo(3 * cw, 3);
+  expect(geo.title[1]).toBeCloseTo(0, 3);
+  // The frame in the pane's border colour; its fill inside the line, the ring outside unpainted.
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
-    bg: getComputedStyle(el).backgroundColor,
-    fg: getComputedStyle(el.querySelector('.wc-pane-frame')!).color,
+    ring: getComputedStyle(el).backgroundColor,
+    bg: getComputedStyle(el.querySelector('.wc-pane-frame')!).backgroundColor,
+    fg: getComputedStyle(el.querySelector('.wc-pane-title')!).color,
   }));
-  expect(colors).toEqual({ bg: 'rgb(0, 0, 0)', fg: 'rgb(41, 41, 41)' }); // None: the terminal background
+  expect(colors).toEqual({ ring: 'rgba(0, 0, 0, 0)', bg: 'rgb(0, 0, 0)', fg: 'rgb(41, 41, 41)' }); // None: the terminal background
   await expect(page.locator('.wc-input-field')).toBeFocused();
   expect(errors).toEqual([]);
 });
 
-test('toggles, colours and borders apply live; corners are always quadrant', async ({ page }) => {
+test('toggles, colours and borders apply live; a borderless pane has no frame', async ({ page }) => {
   const { ch } = await open(page);
   await cockpitHeights(page);
   const set = (patch: object) => page.evaluate((p) => window.__wc!.settings.update(p), patch);
@@ -113,10 +132,10 @@ test('toggles, colours and borders apply live; corners are always quadrant', asy
   expect((await box(page, '.wc-pane-comm')).y).toBe((11 + 10) * ch);
   await set({ panes: { group: { on: true, color: 'purple', border: false } } });
   await expect(page.locator('.wc-pane-group')).toBeVisible();
-  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toHaveText('');
+  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toBeHidden();
   expect((await box(page, '.wc-pane-group')).height).toBe(6 * ch);
   expect(await page.locator('.wc-pane-group').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(22, 16, 28)');
-  expect((await page.locator('.wc-pane-ui .wc-pane-frame').textContent())!.startsWith('▛▀▀ UI ▀')).toBe(true);
+  await expect(page.locator('.wc-pane-ui .wc-pane-frame')).toHaveText(' UI ');
 });
 
 test('drag a pane by its title row to the left dock', async ({ page }) => {
@@ -725,9 +744,9 @@ test('floating pane: drop over the game, move, resize, reload, dock again', asyn
   await expect.poll(() => floating(page)).toEqual([{ id: 'comm', x: x - 3, y, w: 43, h: 16 }]);
   x -= 3;
   await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: x * cw, y: y * ch, width: 43 * cw, height: 16 * ch });
-  const frame = (await page.locator('.wc-pane-comm .wc-pane-frame').textContent())!.split('\n');
-  expect(frame[0]).toBe('▛▀▀ Comm ' + '▀'.repeat(43 - 2 - 8) + '▜');
-  expect(frame).toHaveLength(16);
+  await expect(page.locator('.wc-pane-comm .wc-pane-frame')).toHaveText(' Comm ');
+  // A floating pane keeps the ring outside its frame line opaque (ADR 0091).
+  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(0, 0, 0)');
   await expect(page.locator('.wc-input-field')).toBeFocused();
 
   // A reload keeps it.

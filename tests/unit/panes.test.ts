@@ -2,7 +2,7 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { frameBottom, frameEdge, frameText, frameTop } from '../../src/panes/frame';
+import { frameGeometry, frameLabel } from '../../src/panes/frame';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
@@ -11,28 +11,22 @@ import { SettingsStore } from '../../src/settings';
 import { movePane, moveToNewLane, setLaneSize } from '../../src/layout/model';
 
 describe('frame', () => {
-  it('draws the top row with the label after ▀▀ and fills to the width', () => {
-    expect(frameTop(20, 'Timers')).toBe('▛▀▀ Timers ▀▀▀▀▀▀▀▀▜');
-    expect(frameTop(20, 'Timers')).toHaveLength(20);
-    expect(frameTop(6, 'Timers')).toBe('▛▀▀ T▜');
-    expect(frameTop(2, 'UI')).toBe('▛▜');
-    expect(frameTop(1, 'UI')).toBe('▛');
-    expect(frameTop(0, 'UI')).toBe('');
+  it('puts the label from the fourth cell, chopped before the top-right corner', () => {
+    expect(frameLabel(20, 'Timers')).toBe(' Timers ');
+    expect(frameLabel(7, 'Timers')).toBe(' Ti');
+    expect(frameLabel(5, 'UI')).toBe(' ');
+    expect(frameLabel(4, 'UI')).toBe('');
+    expect(frameLabel(20, '')).toBe('');
   });
 
-  it('draws edges and the bottom row', () => {
-    expect(frameEdge(5)).toBe('▌   ▐');
-    expect(frameBottom(5)).toBe('▙▄▄▄▟');
+  it('snaps an equal-thickness line to the middle of the cell in device pixels', () => {
+    expect(frameGeometry(9, 18)).toEqual({ t: 2, x: 4, y: 8 });
+    expect(frameGeometry(9, 18, 2)).toEqual({ t: 2, x: 3.5, y: 8 });
+    expect(frameGeometry(14, 28)).toEqual({ t: 3, x: 6, y: 13 });
+    expect(frameGeometry(7, 12)).toEqual({ t: 2, x: 3, y: 5 });
+    const g = frameGeometry(8.8, 17.6, 1.25);
+    for (const v of [g.t, g.x, g.y]) expect(Math.abs(v * 1.25 - Math.round(v * 1.25))).toBeLessThan(1e-3);
   });
-
-  it('builds h rows of w cells', () => {
-    const t = frameText(12, 4, 'Comm').split('\n');
-    expect(t).toEqual(['▛▀▀ Comm ▀▀▜', '▌          ▐', '▌          ▐', '▙▄▄▄▄▄▄▄▄▄▄▟']);
-    for (const row of t) expect([...row]).toHaveLength(12);
-    expect(frameText(5, 1, 'X')).toBe('▛▀▀ ▜');
-    expect(frameText(0, 3, 'X')).toBe('');
-  });
-
 });
 
 describe('PaneShell', () => {
@@ -48,10 +42,13 @@ describe('PaneShell', () => {
     expect(p.el.style.width).toBe('90px');
     expect(p.content.style.left).toBe('9px');
     expect(p.content.style.height).toBe('51px');
-    expect(p.el.querySelector('.wc-pane-frame')!.textContent!.split('\n')[0]).toBe('▛▀▀ Comm ▜');
+    expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
+    expect(p.el.hasAttribute('data-framed')).toBe(true);
+    expect(p.el.style.getPropertyValue('--frame-t')).toBe('2px');
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');
+    expect(p.el.hasAttribute('data-framed')).toBe(false);
     p.place(null, { w: 9, h: 17 });
     expect(p.el.hidden).toBe(true);
     expect(sizes).toEqual([

@@ -135,7 +135,11 @@ test('Transparent: the map draws on the pane background and follows the theme an
   const content = pane.locator('.wc-pane-content');
   await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });
   const same = async () =>
-    pane.evaluate((el) => getComputedStyle(el).backgroundColor === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor);
+    pane.evaluate((el) => {
+      // A framed pane's fill is its frame box (ADR 0091 "Frames").
+      const fill = el.hasAttribute('data-framed') ? el.querySelector('.wc-pane-frame')! : el;
+      return getComputedStyle(fill).backgroundColor === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor;
+    });
   await expect.poll(same).toBe(true);
   // A paper theme, then a tinted pane: the map follows each.
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8' } }));

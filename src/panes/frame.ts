@@ -1,53 +1,54 @@
-// Pane frame glyph art (Inv §2.1 "Pane frame", §10.4; ADR 0010).
+// Pane frame (Inv §2.1 "Pane frame", §10.4; ADR 0010, ADR 0091 "Frames").
 //
-//   ▛▀▀ Character ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▜
-//   ▌                             ▐
-//   ▙▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▟
+//   ┌─── Character ──────────────┐      one thin line, equal on all four
+//   │                            │      sides, in the middle of the outer
+//   └────────────────────────────┘      frame cells
 //
-// The frame is drawn inside the pane as plain text on the cell grid, one
-// line per row, exactly like the game output, so it tiles the same way
-// (ADR 0011: whole-pixel cells, line height = cell height). The glyphs are
-// foreground only: the pane background shows through the unlit halves and
-// the spaces. The content element sits on top of the inner area.
+// The frame still owns the outer ring of cells (pane sizes, the content
+// rectangle and the layout are as with the old quadrant glyphs), but it is
+// drawn as a CSS box, not as text: `.wc-pane-frame` is inset half a cell
+// (less half the line) from the pane's edge and has a `t`-px border with a
+// slight bevel (layout.css). The half cell outside the line is left
+// unpainted, so neighbouring panes have a visible gap. The label is text
+// in the top row, three cells in, on a band of the pane background that
+// breaks the line as the `▀▀ Label ▀…` run did.
+//
+// `frameGeometry` snaps the line to device pixels, so it stays crisp at any
+// cell size and pixel ratio.
 
-/** Frame corners: always the quadrant glyphs (owner feedback, stage 2). */
-const TL = '▛';
-const TR = '▜';
-const BL = '▙';
-const BR = '▟';
+/** Column of the label's first cell (the old `▛▀▀` took columns 0–2). */
+export const LABEL_COL = 3;
 
-/** The top row, `w` cells: `▛▀▀ Label ▀…▀▜`, the label chopped when narrow. */
-export function frameTop(w: number, label: string): string {
-  if (w <= 0) return '';
-  if (w === 1) return TL;
-  const inner = w - 2;
-  const head = label ? `▀▀ ${label} ` : '';
-  const mid = head.length >= inner ? head.slice(0, inner) : head + '▀'.repeat(inner - head.length);
-  return TL + mid + TR;
+/** Where the frame line sits in a `w` × `h` px cell at pixel ratio `dpr` (CSS px). */
+export interface FrameGeometry {
+  /** Line thickness (every side). */
+  t: number;
+  /** Inset from the pane's left and right edges to the outside of the line. */
+  x: number;
+  /** Inset from the pane's top and bottom edges to the outside of the line. */
+  y: number;
 }
 
-/** The bottom row, `w` cells: `▙▄…▄▟`. */
-export function frameBottom(w: number): string {
-  if (w <= 0) return '';
-  if (w === 1) return BL;
-  return BL + '▄'.repeat(w - 2) + BR;
+/**
+ * The frame line for a cell of `w` × `h` CSS px at `dpr`: about a ninth of
+ * the cell height (2 px at the default size), at least 2 device px, centred
+ * in the cell, all in whole device pixels.
+ */
+export function frameGeometry(w: number, h: number, dpr = 1): FrameGeometry {
+  const d = dpr > 0 ? dpr : 1;
+  const tD = Math.max(2, Math.round((h * d) / 9));
+  const xD = Math.max(0, Math.round((w * d - tD) / 2));
+  const yD = Math.max(0, Math.round((h * d - tD) / 2));
+  const px = (v: number): number => Math.round((v / d) * 1e4) / 1e4;
+  return { t: px(tD), x: px(xD), y: px(yD) };
 }
 
-/** A middle row, `w` cells: `▌`, spaces, `▐`. */
-export function frameEdge(w: number): string {
-  if (w <= 0) return '';
-  if (w === 1) return '▌';
-  return '▌' + ' '.repeat(w - 2) + '▐';
-}
-
-/** The whole frame for a `w` × `h` pane, rows joined by `\n`. */
-export function frameText(w: number, h: number, label: string): string {
-  if (w <= 0 || h <= 0) return '';
-  const rows = [frameTop(w, label)];
-  if (h > 1) {
-    const edge = frameEdge(w);
-    for (let i = 0; i < h - 2; i++) rows.push(edge);
-    rows.push(frameBottom(w));
-  }
-  return rows.join('\n');
+/**
+ * The top-row label for a pane `w` cells wide: ` Label ` from the fourth
+ * cell (column 3), chopped so the top-right corner stays (empty when there is no
+ * room). The old glyph row was `▛▀▀ Label ▀…▀▜`.
+ */
+export function frameLabel(w: number, label: string): string {
+  if (!label || w < 5) return '';
+  return ` ${label} `.slice(0, w - 4);
 }

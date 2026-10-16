@@ -33,16 +33,54 @@
   display: none;
 }
 
-/* Foreground-only glyph frame: one text line per cell row. */
+/* A framed pane (ADR 0091 "Frames"): its fill stops at the frame line, so
+ * the half cell outside it shows the cockpit behind, a gap between
+ * neighbouring panes. A floating pane keeps that ring opaque in the
+ * terminal background, so the game text does not peek around it. */
+.wc-pane[data-framed] {
+  background: transparent;
+}
+
+.wc-pane[data-framed][data-floating] {
+  background: var(--term-bg);
+}
+
+/* The frame: one thin line of equal thickness in the middle of the outer
+ * frame cells, a slight bevel (lit top and left, shaded bottom and right).
+ * `--frame-t/x/y` come from pane.ts in whole device pixels. */
 .wc-pane-frame {
+  --frame-hi: color-mix(in srgb, var(--pane-border) 78%, #ffffff);
+  --frame-lo: color-mix(in srgb, var(--pane-border) 70%, #000000);
   position: absolute;
-  inset: 0;
-  overflow: hidden;
-  white-space: pre;
-  color: var(--pane-border);
-  line-height: var(--cell-h);
+  inset: var(--frame-y, calc(var(--cell-h) / 2 - 1px)) var(--frame-x, calc(var(--cell-w) / 2 - 1px));
+  box-sizing: border-box;
+  border: var(--frame-t, 2px) solid var(--pane-border);
+  border-color: var(--frame-hi) var(--frame-lo) var(--frame-lo) var(--frame-hi);
+  background: var(--pane-bg, var(--term-bg));
   pointer-events: none;
   user-select: none;
+}
+
+.wc-pane:not([data-framed]) > .wc-pane-frame {
+  display: none;
+}
+
+/* The label in the top row, on a small tab of the pane fill that breaks
+ * the line, so it reads on the pane's own background (on a plain pane the
+ * tab is invisible). */
+.wc-pane-title {
+  position: absolute;
+  top: calc(-1 * (var(--frame-y, 0px) + var(--frame-t, 0px)));
+  left: var(--frame-label-x, 0px);
+  height: var(--cell-h);
+  line-height: var(--cell-h);
+  white-space: pre;
+  color: var(--pane-border);
+  background: var(--pane-bg, var(--term-bg));
+}
+
+.wc-pane-title:empty {
+  display: none;
 }
 
 .wc-pane-content {
@@ -85,6 +123,11 @@
   user-select: none;
   z-index: 3;
   display: none;
+}
+
+/* On a frame: the fill only from the frame line down, as the label. */
+.wc-pane[data-framed] > .wc-pane-close {
+  background: linear-gradient(transparent var(--frame-y, 0px), var(--pane-bg, var(--term-bg)) 0);
 }
 
 .wc-pane:hover > .wc-pane-close {

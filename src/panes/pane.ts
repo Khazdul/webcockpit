@@ -3,7 +3,8 @@
 // draws its frame; a pane subclass renders into `content`.
 //
 //   .wc-pane.wc-pane-<id>[data-active]   positioned in whole cells, --pane-* tokens
-//     .wc-pane-frame                     the glyph frame (absent text when border off)
+//     .wc-pane-frame                     the thin frame box (hidden when border off)
+//       .wc-pane-title                   the label in the top row
 //     .wc-pane-content                   the inner area, `cols` × `rows` cells
 //
 // Writing a pane (ADR 0016 "Package notes"):
@@ -39,7 +40,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { frameText } from './frame';
+import { LABEL_COL, frameGeometry, frameLabel } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -87,6 +88,8 @@ export class PaneShell {
   readonly blankWhenInactive: boolean;
   protected readonly ctx: PaneContext;
   private readonly frameEl: HTMLDivElement;
+  private readonly titleEl: HTMLSpanElement;
+  private geomKey = '';
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
   private frameKey = '';
@@ -124,6 +127,9 @@ export class PaneShell {
     this.frameEl = doc.createElement('div');
     this.frameEl.className = 'wc-pane-frame';
     this.frameEl.setAttribute('aria-hidden', 'true');
+    this.titleEl = doc.createElement('span');
+    this.titleEl.className = 'wc-pane-title';
+    this.frameEl.append(this.titleEl);
     this.content = doc.createElement('div');
     this.content.className = 'wc-pane-content';
     this.el.append(this.frameEl, this.content);
@@ -287,17 +293,32 @@ export class PaneShell {
     cs.top = `${(content.y - rect.y) * cell.h}px`;
     cs.width = `${content.w * cell.w}px`;
     cs.height = `${content.h * cell.h}px`;
-    const key = p.framed ? `${rect.w}x${rect.h}|${this._label}` : '';
+    const key = p.framed ? `${rect.w}|${this._label}` : '';
     if (key !== this.frameKey) {
       this.frameKey = key;
-      this.frameEl.textContent = p.framed ? frameText(rect.w, rect.h, this._label) : '';
+      this.titleEl.textContent = p.framed ? frameLabel(rect.w, this._label) : '';
     }
+    if (p.framed) this.placeFrame(cell);
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);
     st.zIndex = p.floating === undefined ? '' : String(FLOAT_Z + p.floating);
     this.el.hidden = false;
     this._visible = true;
     this.setSize(content.w, content.h);
+  }
+
+  /** Snaps the frame line to device pixels for this cell size (ADR 0091 "Frames"). */
+  private placeFrame(cell: { w: number; h: number }): void {
+    const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
+    const key = `${cell.w}x${cell.h}@${dpr}`;
+    if (key === this.geomKey) return;
+    this.geomKey = key;
+    const g = frameGeometry(cell.w, cell.h, dpr);
+    const st = this.el.style;
+    st.setProperty('--frame-t', `${g.t}px`);
+    st.setProperty('--frame-x', `${g.x}px`);
+    st.setProperty('--frame-y', `${g.y}px`);
+    st.setProperty('--frame-label-x', `${LABEL_COL * cell.w - g.x - g.t}px`);
   }
 
   private setSize(cols: number, rows: number): void {
