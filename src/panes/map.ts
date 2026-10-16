@@ -144,6 +144,8 @@ export class MapPane extends PaneShell {
   private hoverReq = 0;
   private hoverScale = { x: 1, y: 1 };
   private placeKey = '';
+  /** The pane's box size in CSS px as last placed (null while hidden). */
+  private boxPx: { w: number; h: number } | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -255,7 +257,26 @@ export class MapPane extends PaneShell {
       this.placeKey = key;
       this.hover.cancel();
     }
+    this.boxPx = p ? { w: p.rect.w * cell.w, h: p.rect.h * cell.h } : null;
     super.place(p, cell);
+    this.fitFrame();
+  }
+
+  /**
+   * Framed, the map fills the frame up to its line on every side (owner
+   * feedback 17, ADR 0091 "Frames"), not only the content cells: the frame
+   * ring is wider than the line's gap. Every edge is on a whole device pixel
+   * (the line's inner edge). Unframed: the content cells, as PaneShell placed them.
+   */
+  private fitFrame(): void {
+    const g = this.frameLine, b = this.boxPx;
+    if (!g || !b) return;
+    const cs = this.content.style;
+    cs.left = `${g.l + g.t}px`;
+    cs.top = `${g.top + g.t}px`;
+    cs.width = `${b.w - g.l - g.r - 2 * g.t}px`;
+    cs.height = `${b.h - g.top - g.b - 2 * g.t}px`;
+    this.sync();
   }
 
   override dispose(): void {
@@ -308,8 +329,13 @@ export class MapPane extends PaneShell {
     return typeof d === 'number' && d > 0 ? d : 1;
   }
 
-  /** Canvas size in CSS px (the content area). */
+  /** Canvas size in CSS px (the content area; framed: inside the frame line, see `fitFrame`). */
   private cssSize(): { w: number; h: number } {
+    const g = this.frameLine, b = this.boxPx;
+    if (g && b && this.cols > 0) {
+      const px = (v: number): number => Math.round(v * 1e4) / 1e4;
+      return { w: px(Math.max(0, b.w - g.l - g.r - 2 * g.t)), h: px(Math.max(0, b.h - g.top - g.b - 2 * g.t)) };
+    }
     const cell = this.ctx.cells.get();
     return { w: Math.round(this.cols * cell.w), h: Math.round(this.rows * cell.h) };
   }

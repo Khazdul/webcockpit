@@ -7,7 +7,10 @@ import { expect, type Page, test } from '@playwright/test';
 
 /** Pixels of the map canvas that are exactly (±8) `rgb`. */
 async function countColour(page: Page, rgb: readonly [number, number, number]): Promise<number> {
-  const shot = await page.locator('.wc-pane-map canvas').screenshot();
+  // Below the title row: a framed map fills its frame up to the line, and the pane title lies over its top edge (ADR 0091 "Frames").
+  const r = (await page.locator('.wc-pane-map canvas').boundingBox())!;
+  const skip = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.wc-cockpit')!).getPropertyValue('--cell-h')));
+  const shot = await page.screenshot({ clip: { x: r.x, y: r.y + skip, width: r.width, height: r.height - skip } });
   return page.evaluate(
     async ([png, [r, g, b]]) => {
       const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${png}`)).blob());
@@ -117,9 +120,11 @@ test('Dark paper and White: the map draws on them with dark lines (ADR 0085 adde
   await expect.poll(() => countColour(page, [0xff, 0xff, 0xff]), { timeout: 10_000 }).toBeGreaterThan(1000);
   await expect.poll(() => countColour(page, [0x26, 0x26, 0x26]), { timeout: 10_000 }).toBeGreaterThan(50);
   await page.locator('.wc-pane-map').screenshot({ path: test.info().outputPath('white.png') });
-  // A dark colour draws its lines white as before.
+  const onWhite = await countColour(page, [0x26, 0x26, 0x26]);
+  // A dark colour draws its lines white as before: what is left of that grey is the tiles' own
+  // antialiased edges (~1/3 of the white page's count since the map fills its frame, ADR 0091).
   await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: '#000000' } }));
-  await expect.poll(() => countColour(page, [0x26, 0x26, 0x26]), { timeout: 10_000 }).toBeLessThan(50);
+  await expect.poll(() => countColour(page, [0x26, 0x26, 0x26]), { timeout: 10_000 }).toBeLessThan(onWhite / 2);
   expect(errors).toEqual([]);
 });
 
