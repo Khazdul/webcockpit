@@ -4,7 +4,7 @@
 // there is no Apply and Back never discards.
 //
 //   Options hub:  Panes · Mapper · Appearance · Text input · Spotlights ·
-//                 Weather effects · Scripts, Back (Scripts only with a
+//                 Scripts · Weather effects, Back (Scripts only with a
 //                 script library)
 //   Panes hub:    Appearance · Timers · Communication · Group · Back
 //                 (Cockpit's order; Appearance was "General" before stage 25)
@@ -88,8 +88,9 @@ export function OptionsHub(): VNode {
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'textinput', label: 'Text input', activate: () => nav.push(<TextInputOptionsFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
-    { key: 'weather', label: 'Weather effects', activate: () => nav.push(<WeatherOptionsFrame />) },
     ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
+    // Last, so the trial (ADR 0091) shifts no existing entry.
+    { key: 'weather', label: 'Weather effects', activate: () => nav.push(<WeatherOptionsFrame />) },
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];
