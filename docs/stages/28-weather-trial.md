@@ -141,8 +141,8 @@ Where things live:
   `palette.ts` (colours from the theme background), `protocol.ts`
   (worker messages), `dev.ts` (`?weather`, `window.__weather`),
   `support.ts`, `weather.css`.
-- `src/weather/worker/`: `engine.ts` (frame loop, masking, adaptive
-  resolution), `sky.ts`, `weather.ts` (rain, drips, snow, gusts,
+- `src/weather/worker/`: `engine.ts` (frame loop, masking, rates and
+  caches), `sky.ts`, `weather.ts` (rain, drips, snow, gusts,
   lightning), `fog.ts`, `body.ts`, `env.ts`.
 - Options page: `src/chrome/frames/options-weather.tsx` (last in the
   Options hub); settings `weather` section (`migrateWeather`).
@@ -194,6 +194,16 @@ Open:
    shows through), floating panes do not. Wanted: all panes see-through.
 4. **Heat.** The laptop gets noticeably warmer with weather on; the
    discrete GPU seems to wake up (it normally sleeps).
+   - [x] Done (2026-10-17, ADR 0091 "Power"): effects run at the rate of
+     their content (30 fps while rain/snow falls, 12 fps for sky, fog,
+     moon; 60 only during a lightning strike; 12 without window focus),
+     slow parts cached, fog at half resolution, canvases at ratio 1.
+     Firefox CPU: clear day sky 0.80 → 0.30 cores, heavy rain + fog +
+     moon 1.15 → 0.67 cores; Chromium 0.45 → 0.18 and 0.69 → 0.49.
+     Firefox itself never touched the NVIDIA GPU in tests; the wake-ups
+     seen here came from Chromium GPU processes (test browsers) at start.
+     To check: `cat /sys/bus/pci/devices/0000:01:00.0/power/runtime_status`
+     with only Firefox running, and whether the laptop stays cooler.
 5. **Moon jumps.** The moon sometimes jumps around, apparently avoiding
    scrolling text. It should drift smoothly (and a bit slower), never
    jump.

@@ -186,6 +186,73 @@ Results (3 rounds, `bench/results/weather.md`), off → on:
   45 ms avg (software canvas): the page's latency is unaffected, but the
   effects themselves run at ~20 fps there. To check in the owner's Firefox.
 
+### Power (2026-10-17, owner feedback 4 "Heat")
+
+The owner's laptop (i7-12700H, Intel iGPU + RTX 3050 Ti, Firefox) ran
+warm with the effects on. Measured with `bench/weather-power.ts`
+(`bench/results/weather-power.md`): headed browsers, owner geometry, CPU
+time of all browser processes per second, RAPL watts, iGPU busy share,
+NVIDIA runtime-PM state. Before, Firefox used 0.8 cores for a clear day
+sky and 1.1 cores in heavy rain + dense fog + moon (iGPU 50–95 % busy,
+package ~20–28 W); Chromium 0.45 / 0.69 cores.
+
+Decisions:
+
+- **Rate by content.** `Module.fps` says how fast each module's current
+  content is: `FPS_FAST` 30 while rain, snow, splashes or drips fall, for
+  a stun, fresh blood and the heartbeat wash, and for rare sky events
+  (shooting star, lightning-lit clouds, sun moments, darkness bleeds);
+  `FPS_SLOW` 12 for the drifting sky, clouds, moon, stars, fog and the
+  floating z z Z; `FPS_BURST` 60 only while a lightning strike flickers.
+  The loop runs at the fastest busy module (≥ 12); between its frames it
+  waits on a timer, not on every animation frame.
+- **Caches.** A module slower than the loop draws into its own pair of
+  cache canvases at its own rate, and the engine copies them onto the
+  canvases every loop frame (`source-over` is associative, so the result
+  is the same as drawing in place). A cache layer that nothing was drawn
+  on is not copied (the engine wraps the cache contexts' draw calls).
+- **Resolution.** The canvases are always at ratio 1 (`CANVAS_RATIO`);
+  the adaptive drop is gone. On the owner's ratio-2 screen rain, stars
+  and snow looked the same in side-by-side shots; it is a quarter of the
+  pixels. Fog (`Module.scale` 0.5) always draws through a half-resolution
+  cache: soft banks drifting at 2–13 px/s.
+- **Focus.** Without window focus the loop runs at `FPS_SLOW`; a hidden
+  page still pauses.
+- The cloud deck rebuilds a fixed share of rows per frame, so at 12 fps
+  its key frames are ~4.7 s apart instead of ~0.9 s (the drift speed is
+  unchanged). Accepted; the day sky is reworked next (owner item 1) and
+  should stay a cheap, mostly static image.
+
+Results, before → after (medians of 2 rounds, ms of CPU per second over
+all browser processes; 1000 = one core):
+
+| | Chromium calm | Chromium heavy | Firefox calm | Firefox heavy |
+|---|---|---|---|---|
+| CPU ms/s | 452 → 183 | 691 → 491 | 800 → 298 | 1146 → 665 |
+| Worker fps | 60 → 12 | 60 → 30 | 60 → 12 | 36 → 30 |
+| Worker ms/frame | 0.27 → 0.40 | 1.50 → 1.35 | 9.4 → 16.0 | 28.2 → 17.5 |
+| iGPU busy % | 52 → 40 | 69 → 45 | 94 → 36 | 53 → 48 |
+| RAPL package W | 7.8 → 6.7 | 8.1 → 7.7 | 20 → 16 | 28 → 18 |
+
+(Off: ~30 ms/s in both. RAPL is the whole machine and noisy; another
+agent's browsers ran during the Chromium rounds.) Firefox calm still costs
+~16 ms per frame: the day sky draws several full-screen layers in
+software; at 12 fps that is 0.2 cores.
+
+NVIDIA dGPU: watched with inotify on `/dev/nvidia*` and the runtime
+status while launching the system Firefox 157 (own profile, the owner's
+environment, which pins `__EGL_VENDOR_LIBRARY_FILENAMES` to Mesa) with the
+effects off, on (heavy) and on `about:blank`: no Firefox process ever
+opened an NVIDIA device or mapped an NVIDIA library. Every wake-up
+observed was a Chromium GPU process opening `/dev/nvidiactl` at its
+start (Playwright's Chromium and headless shell, from this session's and
+another agent's test runs; it loads `libGLX_nvidia` while probing GPUs),
+whatever the page. So the effects do not wake the dGPU in Firefox; the
+heat was CPU (software canvas) and iGPU (compositing two full-screen
+canvases at 60 fps). Context options were not changed: Firefox's worker
+canvases already draw on the CPU, and `willReadFrequently` in Chromium
+would move the raster into the worker and add a texture upload per frame.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
