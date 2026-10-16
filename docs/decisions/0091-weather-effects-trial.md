@@ -53,6 +53,19 @@ Dropping the trial = revert the branch.
 Thin equal-thickness bevelled frames drawn in the middle of the outer
 frame cells, keeping the cell grid and pane sizes.
 
+Built (stage 28 A): `.wc-pane-frame` is a CSS box, no glyph text.
+`frameGeometry` (`src/panes/frame.ts`) gives the line in whole device
+pixels: thickness `max(2, round(cell-h·dpr / 9))` device px (2 CSS px at
+the default size), centred in the outer cells; pane.ts sets `--frame-t/x/y`
+on the pane when the cell size or ratio changes. Border colours are
+`--pane-border` mixed 22 % toward white (top, left) and 30 % toward black
+(bottom, right) with `color-mix`. The pane's fill is the frame box; the
+ring outside the line is transparent (a floating pane: the terminal
+background, so game text does not show around it). The label ` Label `
+sits from column 3 on a tab of the pane fill (as the old label cells), so
+it stays legible when the tint differs from the page. Borderless panes are
+unchanged.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

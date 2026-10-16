@@ -61,7 +61,7 @@ rain + fog: text-to-screen and key-to-send latency must not move.
 
 ## Tasks
 
-- [ ] A. Thin frames (all framed panes, script panes, phone layout);
+- [x] A. Thin frames (all framed panes, script panes, phone layout);
   unit/e2e updated
 - [ ] B. Worker engine, canvases, masking, geometry feed, theme colours
 - [ ] B. Port sky, weather, fog, body from the prototype
