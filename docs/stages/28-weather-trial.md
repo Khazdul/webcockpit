@@ -181,3 +181,32 @@ Open:
 
 ## Owner feedback
 
+### 2026-10-16 — first test of the branch (to address next session)
+
+1. **Day sky.** The light sky with thin cloud streaks meant to say "day"
+   looks blurry; the owner no longer wants clouds always visible by day.
+   Wanted: something simpler, a lighter gradient toward a light sky
+   colour in which you can sense the sun.
+2. **Frames.** The borders do not look sharp and seem buggy. With two
+   docked columns on the right, all borders disappeared. Docking and
+   creating more columns felt less smooth than before.
+3. **Transparency.** Docked panes get a transparent background (weather
+   shows through), floating panes do not. Wanted: all panes see-through.
+4. **Heat.** The laptop gets noticeably warmer with weather on; the
+   discrete GPU seems to wake up (it normally sleeps).
+5. **Moon jumps.** The moon sometimes jumps around, apparently avoiding
+   scrolling text. It should drift smoothly (and a bit slower), never
+   jump.
+6. **Moving panes.** Moving a pane makes the clouds vanish quickly and
+   redraw. Clouds must not be affected by pane moves.
+7. **Darkness.** Entering rooms with darkness should give the darkness
+   animation toward a red sky, and the sky should then stay red as long
+   as the room is dark. This did not happen.
+8. **Fog fade.** Fog should fade in much more slowly and grow gradually;
+   the same when it goes away.
+9. **Text backgrounds near the top.** Text near the top sometimes gets a
+   visible, delayed adjustment of its background colour (presumably to
+   stand out against light clouds). The owner dislikes it: better that
+   text is harder to read at the very top than to adjust the background
+   of single lines.
+
