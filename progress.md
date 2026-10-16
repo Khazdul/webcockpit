@@ -38,6 +38,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-16 — Weather effects research (not a stage)
+
+- **Done:** prototypes of decorative weather effects over the whole
+  client, outside the stage plan. `notes/research/weather-atelier/` holds
+  round 2 (14 separate effects); `notes/research/weather-world/` holds
+  rounds 3–4, one combined scene (sky, weather, fog, body modules) driven
+  by GMCP vitals and Event.Sun/Moon/Darkness. It costs 0.2–0.6 ms per
+  frame on average.
+- **Owner decisions:** the sky follows the latest Event.Sun/Moon. Of the
+  light flags, only `o` counts, and it gives the darkness sky. GMCP has
+  no thunder value (`help weather`), so lightning fires only on a text
+  trigger.
+- **Next:** owner feedback on v4; then possibly a stage file and an ADR.
+- **Commits:** this one.
+
 ### 2026-10-12 — Release 0.1.62
 
 - **Done:** released 0.1.62 (tag v0.1.62, owner's go): the JMC import
