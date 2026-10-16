@@ -66,6 +66,50 @@ sits from column 3 on a tab of the pane fill (as the old label cells), so
 it stays legible when the tint differs from the page. Borderless panes are
 unchanged.
 
+### Engine (stage 28 B)
+
+- `src/weather/`: `index.ts` (main thread, `createWeather(host)`),
+  `worker/` (engine + the four ported modules), pure `director.ts`,
+  `palette.ts`, `geometry.ts`, `protocol.ts`. Nothing imports it
+  statically; the dev hook (`__wc.weather()`, `?weather`, dev builds only)
+  is the only caller until C/D.
+- Layering: the back canvas is the cockpit's first child (positioned, no
+  z-index), so it paints under the game text and docked panes; the front
+  canvas is `z-index: 90` (over floating panes, under drop bars, the drag
+  shield and the chrome). Docked panes are opaque, so while the engine runs
+  (`data-weather` on the cockpit, set on the worker's first frame) the
+  docked `.wc-pane` and its `.wc-pane-frame` get `background: transparent`,
+  and the worker paints each docked pane's own background, when it differs
+  from the terminal's, under the back layer (`destination-over`, after the
+  mask) in the frame box. The page/app background already shows through.
+  Floating panes stay opaque. The label tab keeps its fill.
+- Geometry is measured only on ResizeObserver / `Cockpit.onLayout` /
+  window resize, posted only when `geometryDiff` says it changed (0.5 px
+  tolerance). Text lines are re-sampled every 2.5 s in an idle callback
+  and posted as a cheap `linesOnly` update. Pane rects are the frame box
+  from `--frame-x/y/t` (stage 28 A), so drips and ledges sit on the line.
+- Worker loop: `requestAnimationFrame` in the worker (timer fallback),
+  capped at 60 fps; when every mix value is at rest and no module reports
+  activity it idles at a 4 Hz director tick with cleared canvases. Hidden
+  page: paused. A failing worker before its first frame removes the
+  canvases (no effects); without worker OffscreenCanvas `createWeather`
+  returns null.
+- Background adaptation (`palette.ts`): luminance > 0.3 counts as light.
+  On light backgrounds "light" effect colours (rain, snow, stars, bolt,
+  dust, letters) keep their hue with inverted lightness, additive glows
+  become `multiply` tints, the sky table is lightness-inverted at ~55 %
+  alpha, fog tints become mid greys; the moon becomes a slate disc. Dark
+  grey (#2a2a2e) uses the dark look.
+- Real-client adjustments: the text horizon (moon set line, star field
+  over the output) is at least 30 % down, since a real output is full of
+  text; the moon crosses at game pace (`moonSpeed` 1, the prototype demo
+  used 600 / 90); the z z Z letters use the client font stack in the
+  worker, falling back to `monospace`.
+- Measured (Chromium headless, 1600 × 1000, worker): heavy rain + light
+  fog + moon avg 0.38 ms, p95 0.50 ms; snow + dense fog avg 0.41 ms,
+  p95 0.53 ms; clear moonlit night avg 0.13 ms. Indoors with nothing
+  showing: idle.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

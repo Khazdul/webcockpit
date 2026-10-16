@@ -63,8 +63,8 @@ rain + fog: text-to-screen and key-to-send latency must not move.
 
 - [x] A. Thin frames (all framed panes, script panes, phone layout);
   unit/e2e updated
-- [ ] B. Worker engine, canvases, masking, geometry feed, theme colours
-- [ ] B. Port sky, weather, fog, body from the prototype
+- [x] B. Worker engine, canvases, masking, geometry feed, theme colours
+- [x] B. Port sky, weather, fog, body from the prototype
 - [ ] C. Signal bridge incl. XML weather tag; unit tests
 - [ ] D. Options page and settings (with migration), defaults off
 - [ ] E. Latency bench before/after
