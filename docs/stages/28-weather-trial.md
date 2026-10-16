@@ -268,3 +268,66 @@ Open:
      main thread's text-line sampling every 2.5 s (nothing follows the text
      any more: lightning, z z Z and blood placement included).
 
+
+### 2026-10-17 — second test (translated from the owner's Swedish)
+
+Darkness:
+
+10. The red sky only in a room with magical darkness, or in a zone the
+    darkness has spread to (if that can be told apart technically). If a
+    darkness room cannot be told apart from an ordinary night/dark room,
+    show the red effect only on the `Event.Darkness` events.
+
+Moon:
+
+11. The moon vanished just because it became day. The moon is probably up
+    by day too; then show it much fainter but visible. `Event.Moon`
+    rise/set should decide when it is up. Rising: it climbs from below and
+    comes in from the side of the screen; setting: it sinks and leaves on
+    the other side. Even pace, no (big) jumps.
+
+Panes and frames:
+
+12. Hovering a framed pane: the close "x" has an opaque background (a
+    black square). Make it transparent.
+13. Two overlapping floating panes lose the see-through effect on both.
+    Keep it.
+14. Frame line 1 px thicker; not one flat colour: slightly 3D, glossy or
+    glass-like.
+15. The gap between the frames of two horizontally adjacent panes about
+    1–2 px smaller than today; then the vertical gap the same as the
+    horizontal one.
+16. Pane title: smaller font, moved up a little, and the frame line runs
+    under the title instead of breaking for it.
+17. No gap between the map and its frame: the map sits flush against the
+    frame.
+18. Moving and dropping a pane: it first gets a background colour, then
+    turns see-through a moment later. It should be see-through at once.
+19. At sunrise/sunset, when the rays hit a pane title, a rectangle behind
+    the title shows. The title must look like text on a transparent
+    background.
+
+Effects on frames:
+
+20. Owner likes that the frames glint in the sunrise/sunset rays; make it
+    even better, and do the same for shooting stars, lightning or other
+    events.
+
+Sky:
+
+21. Dislikes the sky's gradient at the left edge that darkens it there.
+22. Day sky: visible over much more of the screen (a soft start about
+    30 % from the bottom), lighter and more "bright sky" at the top, more
+    saturated sky blue (less grey) for more day/night contrast. Add very
+    subtle flying birds (some large, some small), maybe an insect, wind,
+    and very discreet small cloud tufts (few, small, almost blending into
+    the sky). A subtle glimpse of the sun or small rays now and then (much
+    more discreet than sunrise/sunset), touching the frames they hit. The
+    problem today: it does not feel like being outdoors in daytime.
+23. Walking in/out of cloudy rooms switches to the cloud sky too fast.
+    Find a better way in/out (e.g. not all clouds fading at once, or a
+    slightly different cloud animation). The owner likes the clouds as
+    they are and does not want too distinct cloud structures.
+24. Shooting stars may pass behind the pane frames.
+25. The starry sky may reach a bit further down on the right part of the
+    screen.
