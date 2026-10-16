@@ -63,6 +63,18 @@ export function ctx2d(c: Cv): Ctx {
   return g;
 }
 
+/**
+ * A 2d context drawn by the CPU (`willReadFrequently`), for sprites built
+ * from big stroked paths or blur filters: on a GPU canvas those run on the
+ * browser's GPU thread for tens of ms and delay the page's frames (stage
+ * 28 E). Use it from the first `getContext` of that canvas on.
+ */
+export function ctx2dCpu(c: Cv): Ctx {
+  const g = c.getContext('2d', { willReadFrequently: true });
+  if (!g) throw new Error('weather: no 2d context');
+  return g;
+}
+
 // Value noise (prototype harness): one fixed permutation.
 const P = new Uint8Array(512);
 {

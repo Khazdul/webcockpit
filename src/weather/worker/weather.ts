@@ -15,7 +15,7 @@
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
-import { type Ctx, type Cv, type Env, type Module, type Pane, TAU, clamp, ctx2d, mkCanvas } from './env';
+import { type Ctx, type Cv, type Env, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
 
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
@@ -89,11 +89,11 @@ interface Strike {
   ty: number;
   ledge: boolean;
   fog: number;
-  rims: { rim: Path2D; band: Path2D; gr: CanvasGradient; k: number; b: number }[];
-  lead: Path2D;
-  tip: Path2D;
+  /** Rim light on pane borders: axis-aligned rects [x, y, w, h, …] (fills, not stroked paths). */
+  rims: { rim: number[]; band: number[]; gr: CanvasGradient; k: number; b: number }[];
   leadStep: number;
-  clip: { out: Path2D; inn: Path2D; n: number };
+  /** Text line rects [x, y, w, h, …] the bolt dims behind. */
+  clip: { rects: number[]; n: number };
   ls1: string;
   ls2: string;
 }
@@ -480,6 +480,8 @@ export function weatherModule(): Module {
   // ================================================================= lightning
   let sky: Cv | null = null, flare: Cv | null = null, wash: CanvasGradient | null = null, strike: Strike | null = null;
   let spCv: Cv | null = null, lowA: Cv | null = null, lowB: Cv | null = null, lowC: Cv | null = null;
+  /** Scratch layer for a strike behind text lines (drawStrike). */
+  let clipCv: Cv | null = null;
   const sparks = { n: 28, x: new Float32Array(28), y: new Float32Array(28), vx: new Float32Array(28), vy: new Float32Array(28), age: 0, on: false };
   const C = (r: number, g: number, b: number, a: number): string => adaptCss(r, g, b, a, th);
 
@@ -522,13 +524,9 @@ export function weatherModule(): Module {
     return env.lines.filter((l) => l.x < x1 && l.x + l.w > x0 && l.y < y1 && l.y + l.h > y0);
   }
   function clipPaths(list: Env['lines']): Strike['clip'] {
-    const out = new Path2D(), inn = new Path2D();
-    out.rect(-200, -200, W + 400, H + 400);
-    for (const l of list) {
-      out.rect(l.x - 3, l.y - 1, l.w + 6, l.h + 2);
-      inn.rect(l.x - 3, l.y - 1, l.w + 6, l.h + 2);
-    }
-    return { out, inn, n: list.length };
+    const rects: number[] = [];
+    for (const l of list) rects.push(l.x - 3, l.y - 1, l.w + 6, l.h + 2);
+    return { rects, n: list.length };
   }
   function subdiv(ax: number, ay: number, bx: number, by: number, rough: number, minLen: number, out: number[]): void {
     const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
@@ -646,7 +644,11 @@ export function weatherModule(): Module {
     const LA = lowA!, LB = lowB!, LC = lowC!;
     spCv.width = Math.ceil(sw * dpr);
     spCv.height = Math.ceil(sh * dpr);
-    const g = ctx2d(spCv);
+    // The strike's sprites are drawn once per strike on CPU canvases
+    // (willReadFrequently): big stroked paths and blur filters on a GPU
+    // canvas run on the GPU thread for tens of ms and hold up the page's
+    // frames (stage 28 E). Drawing the finished sprites is a texture upload.
+    const g = ctx2dCpu(spCv);
     g.setTransform(dpr, 0, 0, dpr, -bx0 * dpr, -by0 * dpr);
     g.lineCap = 'round';
     g.lineJoin = 'round';
@@ -657,7 +659,7 @@ export function weatherModule(): Module {
     LB.height = LA.height;
     LC.width = LA.width;
     LC.height = LA.height;
-    const ga = ctx2d(LA);
+    const ga = ctx2dCpu(LA);
     ga.setTransform(1 / q, 0, 0, 1 / q, -bx0 / q, -by0 / q);
     ga.lineCap = 'round';
     ga.lineJoin = 'round';
@@ -666,11 +668,11 @@ export function weatherModule(): Module {
       ga.lineWidth = b.w * 5 + 6;
       ga.stroke(b.p);
     }
-    const gb = ctx2d(LB);
+    const gb = ctx2dCpu(LB);
     gb.filter = 'blur(2.5px)';
     gb.drawImage(LA, 0, 0);
     gb.filter = 'none';
-    const gc = ctx2d(LC);
+    const gc = ctx2dCpu(LC);
     gc.filter = 'blur(9px)';
     gc.drawImage(LA, 0, 0);
     gc.filter = 'none';
@@ -694,7 +696,7 @@ export function weatherModule(): Module {
       g.lineWidth = Math.max(0.6, b.w * (b.lev ? 0.85 : 1));
       g.stroke(b.p);
     }
-    const ag = ctx2d(LA);
+    const ag = ctx2dCpu(LA);
     ag.setTransform(1, 0, 0, 1, 0, 0);
     ag.clearRect(0, 0, LA.width, LA.height);
     ag.setTransform(1 / q, 0, 0, 1 / q, -bx0 / q, -by0 / q);
@@ -736,24 +738,20 @@ export function weatherModule(): Module {
       const k = 1 / (1 + best / 160);
       if (k < 0.12) continue;
       const behind = best === 0;
-      const rim = new Path2D(), band = new Path2D(), b = Math.max(p.border, 2);
+      // The lines along the left / right / top edge, as the rects a 1.5 px
+      // (rim) or b px (band) butt-capped stroke covers.
+      const rim: number[] = [], band: number[] = [], b = Math.max(p.border, 2);
       const L = nx < p.x + p.w / 2;
       if (behind || L) {
-        rim.moveTo(p.x + 0.75, p.y + p.h);
-        rim.lineTo(p.x + 0.75, p.y + 0.75);
-        band.moveTo(p.x + b / 2, p.y + p.h);
-        band.lineTo(p.x + b / 2, p.y + b / 2);
+        rim.push(p.x, p.y + 0.75, 1.5, p.h - 0.75);
+        band.push(p.x, p.y + b / 2, b, p.h - b / 2);
       }
       if (behind || !L) {
-        rim.moveTo(p.x + p.w - 0.75, p.y + 0.75);
-        rim.lineTo(p.x + p.w - 0.75, p.y + p.h);
-        band.moveTo(p.x + p.w - b / 2, p.y + b / 2);
-        band.lineTo(p.x + p.w - b / 2, p.y + p.h);
+        rim.push(p.x + p.w - 1.5, p.y + 0.75, 1.5, p.h - 0.75);
+        band.push(p.x + p.w - b, p.y + b / 2, b, p.h - b / 2);
       }
-      rim.moveTo(p.x, p.y + 0.75);
-      rim.lineTo(p.x + p.w, p.y + 0.75);
-      band.moveTo(p.x, p.y + b / 2);
-      band.lineTo(p.x + p.w, p.y + b / 2);
+      rim.push(p.x, p.y, p.w, 1.5);
+      band.push(p.x, p.y, p.w, b);
       const gr = env.front.createRadialGradient(nx, ny, 0, nx, ny, Math.max(260, p.h * 0.9));
       gr.addColorStop(0, C(235, 240, 255, 1));
       gr.addColorStop(0.45, C(170, 175, 255, 0.75));
@@ -781,8 +779,6 @@ export function weatherModule(): Module {
       ledge: tg.ledge,
       fog,
       rims,
-      lead: new Path2D(),
-      tip: new Path2D(),
       leadStep: -1,
       clip: clipPaths(linesIn(env, Math.min(bx0 + pad * 0.5, x0 - 560), 0, Math.max(bx1 - pad * 0.5, x0 + 560), by1)),
       ls1: C(130, 120, 255, 0.16 * nk0),
@@ -800,46 +796,61 @@ export function weatherModule(): Module {
     }
     return b;
   }
-  function drawLeader(c: Ctx, s: Strike, k: number): void {
+  /** The stepped leader, redrawn per step on a CPU canvas (see the strike sprites) and drawn as an image. */
+  let leadCv: Cv | null = null;
+  function drawLeader(c: Ctx, s: Strike, k: number, dpr: number): void {
     const prog = clamp(s.el / s.tLead, 0, 1);
     const step = Math.ceil(prog * s.sweep);
+    const op: GlobalCompositeOperation = th.light ? 'source-over' : 'lighter';
+    leadCv ??= mkCanvas(1, 1);
     if (step !== s.leadStep) {
       s.leadStep = step;
       const reach = (step / s.sweep) * s.mainLen, segs = s.segs;
-      s.lead = new Path2D();
-      s.tip = new Path2D();
+      const lead = new Path2D(), tip = new Path2D();
       for (let n = 0, i = 0; n < s.nseg; n++, i += 8) {
         const d = segs[i + 5]!;
         if (d > reach) continue;
-        s.lead.moveTo(segs[i]!, segs[i + 1]!);
-        s.lead.lineTo(segs[i + 2]!, segs[i + 3]!);
+        lead.moveTo(segs[i]!, segs[i + 1]!);
+        lead.lineTo(segs[i + 2]!, segs[i + 3]!);
         if (d > reach - (s.mainLen / s.sweep) * 1.3) {
-          s.tip.moveTo(segs[i]!, segs[i + 1]!);
-          s.tip.lineTo(segs[i + 2]!, segs[i + 3]!);
+          tip.moveTo(segs[i]!, segs[i + 1]!);
+          tip.lineTo(segs[i + 2]!, segs[i + 3]!);
         }
       }
+      const w = Math.ceil(s.sw * dpr), h = Math.ceil(s.sh * dpr);
+      if (leadCv.width !== w || leadCv.height !== h) {
+        leadCv.width = w;
+        leadCv.height = h;
+      }
+      const g = ctx2dCpu(leadCv);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, w, h);
+      g.setTransform(dpr, 0, 0, dpr, -s.bx0 * dpr, -s.by0 * dpr);
+      g.lineCap = 'round';
+      g.globalCompositeOperation = op;
+      g.strokeStyle = s.ls1;
+      g.lineWidth = 5;
+      g.stroke(lead);
+      g.strokeStyle = s.ls2;
+      g.lineWidth = 1;
+      g.stroke(lead);
+      g.strokeStyle = C(235, 240, 255, 0.95);
+      g.lineWidth = 1.6;
+      g.stroke(tip);
+      g.globalCompositeOperation = 'source-over';
     }
-    c.lineCap = 'round';
-    c.globalCompositeOperation = th.light ? 'source-over' : 'lighter';
+    c.globalCompositeOperation = op;
     c.globalAlpha = k;
-    c.strokeStyle = s.ls1;
-    c.lineWidth = 5;
-    c.stroke(s.lead);
-    c.strokeStyle = s.ls2;
-    c.lineWidth = 1;
-    c.stroke(s.lead);
-    c.strokeStyle = C(235, 240, 255, 0.95);
-    c.lineWidth = 1.6;
-    c.stroke(s.tip);
+    c.drawImage(leadCv, s.bx0, s.by0, s.sw, s.sh);
     c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
   }
   const PS = { lead: false, fl: 0, B: 0, A: 0, V: 0, flashK: 0, nk: 1 };
-  function paintBack(b: Ctx, s: Strike, P: typeof PS, k: number): void {
+  function paintBack(b: Ctx, s: Strike, P: typeof PS, k: number, dpr: number): void {
     // glows add on dark; on light they tint (multiply) and the bolt draws over
     const add = th.add, over: GlobalCompositeOperation = th.light ? 'source-over' : 'lighter';
     if (P.lead) {
-      drawLeader(b, s, k);
+      drawLeader(b, s, k, dpr);
       if (sky) {
         b.globalCompositeOperation = add;
         b.globalAlpha = P.fl * 0.6 * k;
@@ -892,15 +903,12 @@ export function weatherModule(): Module {
       P.V = Math.max(B, P.A);
       P.flashK = (0.35 + 0.55 * nk) * (2 - s.fog);
       if (B > 0.04) {
-        f.lineCap = 'butt';
         for (const r of s.rims) {
-          f.strokeStyle = r.gr;
+          f.fillStyle = r.gr;
           f.globalAlpha = clamp(B * r.k * 0.35, 0, 1);
-          f.lineWidth = r.b;
-          f.stroke(r.band);
+          for (let i = 0; i < r.band.length; i += 4) f.fillRect(r.band[i]!, r.band[i + 1]!, r.band[i + 2]!, r.band[i + 3]!);
           f.globalAlpha = clamp(B * r.k * 1.1, 0, 1);
-          f.lineWidth = 1.5;
-          f.stroke(r.rim);
+          for (let i = 0; i < r.rim.length; i += 4) f.fillRect(r.rim[i]!, r.rim[i + 1]!, r.rim[i + 2]!, r.rim[i + 3]!);
         }
         f.globalAlpha = 1;
       }
@@ -925,39 +933,59 @@ export function weatherModule(): Module {
         }
       }
     }
+    const dpr = env.dpr;
     if (s.clip.n) {
-      b.save();
-      b.clip(s.clip.out, 'evenodd');
-      paintBack(b, s, P, 1);
-      b.restore();
-      b.save();
-      b.clip(s.clip.inn);
-      paintBack(b, s, P, 0.18);
-      b.restore();
-    } else paintBack(b, s, P, 1);
+      // Behind the text lines the bolt shows at 0.18. Painted on a scratch
+      // layer, the line rects cut to 0.18 there (destination-out), then the
+      // layer added: rect fills and image draws only, no clip paths (a clip
+      // of many rects is a full-screen software mask on the GPU thread).
+      const cw = Math.round(W * dpr), ch = Math.round(H * dpr);
+      clipCv ??= mkCanvas(cw, ch);
+      if (clipCv.width !== cw || clipCv.height !== ch) {
+        clipCv.width = cw;
+        clipCv.height = ch;
+      }
+      const t = ctx2d(clipCv);
+      t.setTransform(1, 0, 0, 1, 0, 0);
+      t.clearRect(0, 0, cw, ch);
+      t.setTransform(dpr, 0, 0, dpr, 0, 0);
+      paintBack(t, s, P, 1, dpr);
+      t.globalCompositeOperation = 'destination-out';
+      t.globalAlpha = 0.82;
+      t.fillStyle = '#000';
+      const r = s.clip.rects;
+      for (let i = 0; i < r.length; i += 4) t.fillRect(r[i]!, r[i + 1]!, r[i + 2]!, r[i + 3]!);
+      t.globalAlpha = 1;
+      t.globalCompositeOperation = 'source-over';
+      b.globalCompositeOperation = th.light ? 'multiply' : 'lighter';
+      b.drawImage(clipCv, 0, 0, W, H);
+      b.globalCompositeOperation = 'source-over';
+    } else paintBack(b, s, P, 1, dpr);
     return flash;
   }
-  function drawSparks(f: Ctx, dt: number): void {
+  function drawSparks(f: Ctx, dt: number, dpr: number): void {
     sparks.age += dt;
     const life = 0.65;
     if (sparks.age > life) {
       sparks.on = false;
       return;
     }
-    f.beginPath();
+    const a = 1 - sparks.age / life;
+    // One rotated 1.3 px rect per spark (a stroked many-subpath path costs
+    // tens to hundreds of ms on the GPU thread; see the rain streaks).
+    f.fillStyle = C((220 + 35 * a) | 0, (200 + 50 * a) | 0, 255, a * 0.95);
     for (let i = 0; i < sparks.n; i++) {
       const x = sparks.x[i]!, y = sparks.y[i]!;
       sparks.vy[i]! += 700 * dt;
       sparks.x[i]! += sparks.vx[i]! * dt;
       sparks.y[i]! += sparks.vy[i]! * dt;
-      f.moveTo(x, y);
-      f.lineTo(sparks.x[i]!, sparks.y[i]!);
+      const dx = sparks.x[i]! - x, dy = sparks.y[i]! - y, len = Math.hypot(dx, dy);
+      if (len < 0.01) continue;
+      const cs = dx / len, sn = dy / len;
+      f.setTransform(dpr * cs, dpr * sn, -dpr * sn, dpr * cs, dpr * sparks.x[i]!, dpr * sparks.y[i]!);
+      f.fillRect(-len - 0.65, -0.65, len + 1.3, 1.3);
     }
-    const a = 1 - sparks.age / life;
-    f.strokeStyle = C((220 + 35 * a) | 0, (200 + 50 * a) | 0, 255, a * 0.95);
-    f.lineWidth = 1.3;
-    f.lineCap = 'round';
-    f.stroke();
+    f.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
   function themeInit(env: Env): void {
@@ -1083,8 +1111,14 @@ export function weatherModule(): Module {
       {
         const sp = (900 + 300 * heavy) * dt, Lb = 9 + 15 * (0.4 + 0.6 * heavy), yEnd = fadeTop + 30, sl = wind;
         const glow = (0.16 + 0.14 * m.sun) * (0.55 + 0.45 * lum) * (1 - 0.35 * m.fog) * (0.75 + 0.25 * rain) + lit * 0.55 * nk;
-        b.beginPath();
-        let any = false;
+        // Streaks as sheared 1 px rects, not one stroked path: a stroked path
+        // with hundreds of subpaths across the screen goes to Skia's software
+        // path renderer on the GPU thread (a full-screen mask per frame, tens
+        // of ms), which delays the page's own frames (ADR 0091, stage 28 E).
+        const lw = th.light ? 1.1 : 1;
+        b.setTransform(env.dpr, 0, sl * env.dpr, env.dpr, 0, 0);
+        b.globalAlpha = 0.25 + 0.75 * out;
+        b.fillStyle = ST.rain[clamp(Math.round(glow * 20), 0, 20)]!;
         for (let i = 0; i < RN; i++) {
           if (!ra[i]) {
             if (i >= cnt) continue;
@@ -1125,17 +1159,11 @@ export function weatherModule(): Module {
           ry[i] = y;
           if (y < -40) continue;
           const L = Lb * rl[i]!;
-          b.moveTo(x, y);
-          b.lineTo(x - L * sl, y - L);
-          any = true;
+          // (x, y) → (x - L·sl, y - L) under x' = u + sl·v
+          b.fillRect(x - sl * y - lw / 2, y - L, lw, L);
         }
-        if (any) {
-          b.lineWidth = th.light ? 1.1 : 1;
-          b.globalAlpha = 0.25 + 0.75 * out;
-          b.strokeStyle = ST.rain[clamp(Math.round(glow * 20), 0, 20)]!;
-          b.stroke();
-          b.globalAlpha = 1;
-        }
+        b.setTransform(env.dpr, 0, 0, env.dpr, 0, 0);
+        b.globalAlpha = 1;
       }
 
       // ---- wetness, eaves, rivulets
@@ -1173,19 +1201,16 @@ export function weatherModule(): Module {
       }
 
       // ---- wet sheen along pane borders (front)
-      f.lineWidth = 1;
-      f.strokeStyle = ST.sheen;
+      // (Rects, not stroked paths: see the rain streaks.)
+      f.fillStyle = ST.sheen;
       for (let k = 0; k < panes.length; k++) {
         const p = panes[k]!;
         const a = p.wet * (0.1 + 0.22 * heavy) * lumA;
         if (a < 0.01) continue;
         f.globalAlpha = a;
-        f.beginPath();
-        f.moveTo(p.x + 0.5, p.y2 - 0.5);
-        f.lineTo(p.x + 0.5, p.y + 0.5);
-        f.lineTo(p.x2 - 0.5, p.y + 0.5);
-        f.lineTo(p.x2 - 0.5, p.y2 - 0.5);
-        f.stroke();
+        f.fillRect(p.x, p.y + 1, 1, p.y2 - p.y - 1);
+        f.fillRect(p.x, p.y, p.x2 - p.x, 1);
+        f.fillRect(p.x2 - 1, p.y + 1, 1, p.y2 - p.y - 1);
         p.gp += dt * (0.05 + 0.05 * heavy);
         const gx = p.x - 120 + ((p.gp % 1.6) / 1.6) * (p.w + 240);
         const g0 = Math.max(p.x, gx - 64), g1 = Math.min(p.x2, gx + 64);
@@ -1197,11 +1222,10 @@ export function weatherModule(): Module {
       f.globalAlpha = 1;
 
       // ---- splashes
-      f.strokeStyle = ST.splash;
+      // Each segment a rotated rect (not one stroked path: see the rain streaks).
+      f.fillStyle = ST.splash;
       f.globalAlpha = Math.min(1, 0.62 * lumA * (1 + lit));
-      f.lineWidth = 1.1;
-      f.lineCap = 'round';
-      f.beginPath();
+      const dp = env.dpr;
       let anyS = false;
       for (let i = 0; i < PN; i++) {
         if (pl[i]! <= 0) continue;
@@ -1213,15 +1237,15 @@ export function weatherModule(): Module {
           pl[i] = 0;
           continue;
         }
-        f.moveTo(px[i]! - pvx[i]! * 0.014, py[i]! - pvy[i]! * 0.014);
-        f.lineTo(px[i]!, py[i]!);
+        const vx0 = pvx[i]!, vy0s = pvy[i]!, len = Math.hypot(vx0, vy0s) * 0.014;
+        if (len < 0.01) continue;
+        const cs = vx0 * 0.014 / len, sn = vy0s * 0.014 / len;
+        f.setTransform(dp * cs, dp * sn, -dp * sn, dp * cs, dp * px[i]!, dp * py[i]!);
+        f.fillRect(-len - 0.55, -0.55, len + 1.1, 1.1);
         anyS = true;
       }
-      if (anyS) {
-        f.stroke();
-        busy = true;
-      }
-      f.lineCap = 'butt';
+      f.setTransform(dp, 0, 0, dp, 0, 0);
+      if (anyS) busy = true;
       f.globalAlpha = 1;
 
       // ---- rivulets crawling down pane sides
@@ -1243,18 +1267,11 @@ export function weatherModule(): Module {
           continue;
         }
         const tl = Math.min(vy[i]! - vy0[i]!, 40);
-        f.strokeStyle = ST.tail;
-        f.lineWidth = 1.2;
+        f.fillStyle = ST.tail;
         f.globalAlpha = 0.1 * lumA;
-        f.beginPath();
-        f.moveTo(vx[i]!, vy[i]! - tl);
-        f.lineTo(vx[i]!, vy[i]! - tl * 0.4);
-        f.stroke();
+        f.fillRect(vx[i]! - 0.6, vy[i]! - tl, 1.2, tl * 0.6);
         f.globalAlpha = 0.3 * lumA;
-        f.beginPath();
-        f.moveTo(vx[i]!, vy[i]! - tl * 0.4);
-        f.lineTo(vx[i]!, vy[i]!);
-        f.stroke();
+        f.fillRect(vx[i]! - 0.6, vy[i]! - tl * 0.4, 1.2, tl * 0.4);
         drawDrop(f, vx[i]!, vy[i]!, 1.6, 1.2, 1);
       }
 
@@ -1272,8 +1289,7 @@ export function weatherModule(): Module {
       }
 
       // ---- falling drips
-      f.strokeStyle = ST.tail;
-      f.lineWidth = 1;
+      f.fillStyle = ST.tail;
       for (let i = 0; i < DN; i++) {
         if (!fa[i]) continue;
         busy = true;
@@ -1301,10 +1317,7 @@ export function weatherModule(): Module {
         }
         const tl = Math.min(fv[i]! * 0.03, 22);
         f.globalAlpha = 0.22 * lumA;
-        f.beginPath();
-        f.moveTo(fx[i]!, fy[i]! - tl);
-        f.lineTo(fx[i]!, fy[i]!);
-        f.stroke();
+        f.fillRect(fx[i]! - 0.5, fy[i]! - tl, 1, tl);
         drawDrop(f, fx[i]!, fy[i]!, fr[i]!, 1 + Math.min(0.8, fv[i]! / 500), beadA);
       }
       f.globalAlpha = 1;
@@ -1417,23 +1430,20 @@ export function weatherModule(): Module {
         if (ga > 0.01 && snCount > 0) {
           for (let c = 0; c < 12; c++) {
             const L = byClass[c]!, r = SR[(c / 3) | 0]!, d = r * 2, plus = r > 1.1;
-            let n = 0;
-            b.beginPath();
+            // fillRect per flake, not one path of rects: a path spread over
+            // the screen goes to Skia's software path renderer on the GPU
+            // thread (see the rain streaks).
+            b.fillStyle = snowSpr[c]!;
             for (let j = 0; j < L.length; j++) {
               const i = L[j]!;
               if (!sna[i]) continue;
               const x = snx[i]!, y = sny[i]!;
               if (y < -4) continue;
               if (plus) {
-                b.rect(x - r, y - r + 0.7, d, d - 1.4);
-                b.rect(x - r + 0.7, y - r, d - 1.4, 0.7);
-                b.rect(x - r + 0.7, y + r - 0.7, d - 1.4, 0.7);
-              } else b.rect(x - r, y - r, d, d);
-              n++;
-            }
-            if (n) {
-              b.fillStyle = snowSpr[c]!;
-              b.fill();
+                b.fillRect(x - r, y - r + 0.7, d, d - 1.4);
+                b.fillRect(x - r + 0.7, y - r, d - 1.4, 0.7);
+                b.fillRect(x - r + 0.7, y + r - 0.7, d - 1.4, 0.7);
+              } else b.fillRect(x - r, y - r, d, d);
             }
           }
         }
@@ -1461,7 +1471,7 @@ export function weatherModule(): Module {
         busy = true;
       }
       if (sparks.on) {
-        drawSparks(f, dt);
+        drawSparks(f, dt, env.dpr);
         busy = true;
       }
       env.shared.flash = clamp(flash, 0, 1);

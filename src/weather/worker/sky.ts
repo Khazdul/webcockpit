@@ -1135,24 +1135,15 @@ class Sky {
       const a = I * prox * wetK * this.fogK;
       if (a < 0.02) continue;
       const side = sx > cx ? q.x + q.w - 0.75 : q.x + 0.75;
-      f.strokeStyle = col;
+      // Rects, the area the butt-capped strokes covered (no stroked paths
+      // on the GPU canvases, ADR 0091 stage 28 E).
+      f.fillStyle = col;
       f.globalAlpha = a * 0.16;
-      f.lineWidth = 5;
-      f.beginPath();
-      f.moveTo(q.x, q.y + 1.5);
-      f.lineTo(q.x + q.w, q.y + 1.5);
-      f.stroke();
+      f.fillRect(q.x, q.y - 1, q.w, 5);
       f.globalAlpha = a * 0.6;
-      f.lineWidth = 1.2;
-      f.beginPath();
-      f.moveTo(q.x, q.y + 0.6);
-      f.lineTo(q.x + q.w, q.y + 0.6);
-      f.stroke();
+      f.fillRect(q.x, q.y, q.w, 1.2);
       f.globalAlpha = a * 0.35;
-      f.beginPath();
-      f.moveTo(side, q.y);
-      f.lineTo(side, q.y + q.h * 0.6);
-      f.stroke();
+      f.fillRect(side - 0.6, q.y, 1.2, q.h * 0.6);
     }
     f.globalAlpha = 1;
     f.globalCompositeOperation = 'source-over';
@@ -1192,7 +1183,10 @@ class Sky {
       a1 = Math.max(a1, a);
     }
     const T = this.T, N = 15, L = far * 1.2;
-    const core = new Path2D();
+    // Each ray (and its core) is its own convex triangle: Skia fills those on
+    // the GPU; one path of many triangles goes to its software path renderer
+    // on the GPU thread (tens of ms per frame, stage 28 E).
+    const cores: number[] = [];
     for (let i = 0; i < N; i++) {
       const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
       const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + Math.sin(T * 0.15 + i) * 0.006;
@@ -1206,13 +1200,17 @@ class Sky {
       g.closePath();
       g.fill();
       const ww = wd * 0.4;
-      core.moveTo(sx, sy);
-      core.lineTo(sx + Math.cos(a - ww) * L, sy + Math.sin(a - ww) * L);
-      core.lineTo(sx + Math.cos(a + ww) * L, sy + Math.sin(a + ww) * L);
-      core.closePath();
+      cores.push(a - ww, a + ww);
     }
     g.globalAlpha = k * 0.62;
-    g.fill(core);
+    for (let i = 0; i < cores.length; i += 2) {
+      g.beginPath();
+      g.moveTo(sx, sy);
+      g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
+      g.lineTo(sx + Math.cos(cores[i + 1]!) * L, sy + Math.sin(cores[i + 1]!) * L);
+      g.closePath();
+      g.fill();
+    }
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'destination-out';
     g.fillStyle = '#000';
