@@ -155,8 +155,17 @@ if (replayFixture !== null) {
 const app = shell.app;
 if (app) {
   probe?.attach(app);
-  // Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`.
-  if (import.meta.env.DEV && params.has('weather')) void window.__wc?.weather();
+  // Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`;
+  // `?weather=<json>` also pins a state (as `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
+  if (import.meta.env.DEV && params.has('weather')) {
+    let state: Record<string, unknown> | undefined;
+    try {
+      state = params.get('weather') ? (JSON.parse(params.get('weather')!) as Record<string, unknown>) : undefined;
+    } catch {
+      console.warn('weather: ?weather=<json> is not JSON');
+    }
+    void window.__wc?.weather(state ? { state } : undefined);
+  }
   if (fixture !== null) {
     const speed = Number(params.get('speed') ?? '1');
     void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
