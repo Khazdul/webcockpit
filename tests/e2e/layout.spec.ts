@@ -89,44 +89,48 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  // A thin frame line in the middle of the outer cells (ADR 0091), the label from the fourth cell.
+  // A thin frame line the same inset from every edge of the outer cells (ADR 0091), the label from the fourth cell.
   await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
   const geo = await page.locator('.wc-pane-character').evaluate((el) => {
     const p = el.getBoundingClientRect();
     const f = el.querySelector('.wc-pane-frame')!;
     const r = f.getBoundingClientRect();
-    const t = el.querySelector('.wc-pane-title')!.getBoundingClientRect();
+    const title = el.querySelector('.wc-pane-title')!;
+    const t = title.getBoundingClientRect();
     const st = (el as HTMLElement).style;
     const d = devicePixelRatio;
-    const before = getComputedStyle(f, '::before');
-    const after = getComputedStyle(f, '::after');
     return {
       inset: [r.left - p.left, r.top - p.top, p.right - r.right, p.bottom - r.bottom],
       // Every edge of the frame box on a whole device pixel of the page.
       edges: [r.left, r.top, r.right, r.bottom].map((v) => Math.abs(v * d - Math.round(v * d))),
       t: parseFloat(st.getPropertyValue('--frame-t')),
+      e: parseFloat(st.getPropertyValue('--frame-e')),
       shadow: getComputedStyle(f).boxShadow,
-      title: [t.left - p.left, t.top - p.top, t.right - r.left],
-      gap: [parseFloat(before.width), parseFloat(after.left)],
-      titleBg: getComputedStyle(el.querySelector('.wc-pane-title')!).backgroundColor,
+      title: [t.left - p.left, t.top - p.top],
+      titleBg: getComputedStyle(title).backgroundColor,
+      titleZ: getComputedStyle(title).zIndex,
+      titleSize: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(el).fontSize),
+      pseudo: [getComputedStyle(f, '::before').content, getComputedStyle(f, '::after').content],
     };
   });
   const lw = geo.t;
-  expect(lw).toBeGreaterThanOrEqual(1);
+  expect(lw).toBeGreaterThanOrEqual(3);
   expect(lw).toBeLessThan(ch / 4);
   for (const e of geo.edges) expect(e).toBeLessThan(0.05);
-  // Sides and bottom are inset shadows of the line's thickness (no border, ADR 0091 "Frames").
-  expect(geo.shadow).toContain(`${lw}px 0px 0px 0px inset`);
-  expect(geo.shadow).toContain(`0px -${lw}px 0px 0px inset`);
-  expect(Math.abs(geo.inset[0]! + lw / 2 - cw / 2)).toBeLessThanOrEqual(1);
-  expect(Math.abs(geo.inset[1]! + lw / 2 - ch / 2)).toBeLessThanOrEqual(1);
-  expect(Math.abs(geo.inset[0]! - geo.inset[2]!)).toBeLessThanOrEqual(1);
-  expect(Math.abs(geo.inset[1]! - geo.inset[3]!)).toBeLessThanOrEqual(1);
+  // A glass line: outer edge band, lighter core, inner edge band, all four sides as inset spread shadows (no border, no gap).
+  expect(geo.e).toBeGreaterThan(0);
+  expect(geo.shadow).toContain(`0px 0px 0px ${geo.e}px inset`);
+  expect(geo.shadow).toContain(`0px 0px 0px ${lw - geo.e}px inset`);
+  expect(geo.shadow).toContain(`0px 0px 0px ${lw}px inset`);
+  expect(geo.pseudo).toEqual(['none', 'none']);
+  // The same inset on all four sides (owner feedback 15): equal gaps beside and above.
+  for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
+  expect(geo.inset[0]! + lw).toBeLessThan(cw);
+  // The title over the unbroken top line, smaller, at the pane's top edge, no box of its own.
   expect(geo.title[0]).toBeCloseTo(3 * cw, 1);
   expect(geo.title[1]).toBeCloseTo(0, 3);
-  // The top line stops at the label and goes on after it; the label has no box of its own.
-  expect(geo.gap[0]).toBeCloseTo(geo.title[0]! - geo.inset[0]!, 1);
-  expect(geo.gap[1]).toBeCloseTo(geo.title[2]!, 0);
+  expect(geo.titleSize).toBeCloseTo(0.82, 2);
+  expect(geo.titleZ).toBe('2');
   expect(geo.titleBg).toBe('rgba(0, 0, 0, 0)');
   // The frame in the pane's border colour; its fill inside the line, the ring outside unpainted.
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
@@ -134,7 +138,9 @@ test('default layout: game left, input under it as wide as the game, full-height
     bg: getComputedStyle(el.querySelector('.wc-pane-frame')!).backgroundColor,
     fg: getComputedStyle(el.querySelector('.wc-pane-title')!).color,
   }));
-  expect(colors).toEqual({ ring: 'rgba(0, 0, 0, 0)', bg: 'rgb(0, 0, 0)', fg: 'rgb(41, 41, 41)' }); // None: the terminal background
+  expect(colors).toMatchObject({ ring: 'rgba(0, 0, 0, 0)', bg: 'rgb(0, 0, 0)' }); // None: the terminal background
+  // The title: the border colour (#292929) 40 % toward the text colour (#c0c0c0), ~#666.
+  expect(colors.fg).toMatch(/^(rgb\(101, 101, 101\)|color\(srgb 0\.39\d* 0\.39\d* 0\.39\d*\))$/);
   await expect(page.locator('.wc-input-field')).toBeFocused();
   expect(errors).toEqual([]);
 });

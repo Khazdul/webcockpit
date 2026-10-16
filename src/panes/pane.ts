@@ -40,7 +40,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { LABEL_COL, frameGeometry, frameLabel } from './frame';
+import { type FrameGeometry, LABEL_COL, frameGeometry, frameLabel } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -102,6 +102,7 @@ export class PaneShell {
   private readonly frameEl: HTMLDivElement;
   private readonly titleEl: HTMLSpanElement;
   private geomKey = '';
+  private _frameLine: FrameGeometry | null = null;
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
   /** The label text shown in the frame's top row. */
@@ -310,7 +311,7 @@ export class PaneShell {
       this.frameKey = label;
       this.titleEl.textContent = label;
     }
-    if (p.framed) this.placeFrame(rect, cell, label.length);
+    if (p.framed) this.placeFrame(rect, cell);
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);
     st.zIndex = p.floating === undefined ? '' : String(FLOAT_Z + p.floating);
@@ -323,22 +324,28 @@ export class PaneShell {
    * Puts the frame line on whole device pixels of the page for this pane's
    * box (ADR 0091 "Frames"). Style writes only when a value changes.
    */
-  private placeFrame(rect: Rect, cell: PaneCell, labelLen: number): void {
+  private placeFrame(rect: Rect, cell: PaneCell): void {
     const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
     const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
     const g = frameGeometry(box, cell.w, cell.h, dpr);
+    this._frameLine = g;
     const labelX = LABEL_COL * cell.w - g.l;
-    const key = `${g.t},${g.l},${g.r},${g.top},${g.b},${labelX},${labelLen * cell.w}`;
+    const key = `${g.t},${g.e},${g.l},${g.r},${g.top},${g.b},${labelX}`;
     if (key === this.geomKey) return;
     this.geomKey = key;
     const st = this.el.style;
     st.setProperty('--frame-t', `${g.t}px`);
+    st.setProperty('--frame-e', `${g.e}px`);
     st.setProperty('--frame-l', `${g.l}px`);
     st.setProperty('--frame-r', `${g.r}px`);
     st.setProperty('--frame-top', `${g.top}px`);
     st.setProperty('--frame-b', `${g.b}px`);
     st.setProperty('--frame-label-x', `${labelX}px`);
-    st.setProperty('--frame-label-w', `${labelLen * cell.w}px`);
+  }
+
+  /** The frame line as last placed (CSS px from the pane's edges), null while unframed. */
+  protected get frameLine(): FrameGeometry | null {
+    return this.placed?.framed ? this._frameLine : null;
   }
 
   private setSize(cols: number, rows: number): void {

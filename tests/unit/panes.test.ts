@@ -2,7 +2,7 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { frameGeometry, frameLabel } from '../../src/panes/frame';
+import { frameGeometry, frameInset, frameLabel, frameThickness } from '../../src/panes/frame';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
@@ -19,10 +19,14 @@ describe('frame', () => {
     expect(frameLabel(20, '')).toBe('');
   });
 
-  it('puts an equal-thickness line in the middle of the outer cells', () => {
-    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 2, l: 4, r: 3, top: 8, b: 7 });
-    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 3, l: 6, r: 5, top: 13, b: 12 });
-    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 1.5, l: 3, r: 2.5, top: 5.5, b: 5 });
+  it('puts an equal-thickness line the same inset from every edge, a ninth of the cell height plus one px thick', () => {
+    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 3, e: 1, l: 3, r: 3, top: 3, b: 3 });
+    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 4, e: 1, l: 5, r: 5, top: 5, b: 5 });
+    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 2.5, e: 0.5, l: 2, r: 2, top: 2, b: 2 });
+    // The default cell (Hack 17: 10 × 19): 3 px, 6 px between two frames beside and above each other (was 8 and 17).
+    expect(frameThickness(19)).toBe(3);
+    expect(2 * frameInset(10, 19)).toBe(6.5);
+    expect(frameGeometry({ x: 400, y: 209, w: 200, h: 209 }, 10, 19)).toEqual({ t: 3, e: 1, l: 3, r: 3, top: 3, b: 3 });
   });
 
   it('snaps every edge of the line to a whole device pixel of the page, at any position and ratio', () => {
@@ -41,11 +45,14 @@ describe('frame', () => {
           const g = frameGeometry(box, cw, chh, dpr);
           const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
           whole(g.t);
+          whole(g.e);
+          expect(g.t - 2 * g.e).toBeGreaterThanOrEqual(g.e - 1e-9);
           whole(box.x + g.l);
           whole(box.x + box.w - g.r);
           whole(box.y + g.top);
           whole(box.y + box.h - g.b);
-          // Inside the outer cells, about centred.
+          // Inside the outer cells, the same inset on every side (within the snapping).
+          const i = frameInset(cw, chh, dpr);
           for (const [ins, cell] of [
             [g.l, cw],
             [g.r, cw],
@@ -54,7 +61,7 @@ describe('frame', () => {
           ] as const) {
             expect(ins).toBeGreaterThanOrEqual(0);
             expect(ins + g.t).toBeLessThanOrEqual(cell);
-            expect(Math.abs(ins + g.t / 2 - cell / 2)).toBeLessThanOrEqual(1 / dpr);
+            expect(Math.abs(ins - i)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
           }
         }
       }
@@ -77,14 +84,14 @@ describe('PaneShell', () => {
     expect(p.content.style.height).toBe('51px');
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
     expect(p.el.hasAttribute('data-framed')).toBe(true);
-    expect(p.el.style.getPropertyValue('--frame-t')).toBe('2px');
-    expect(['l', 'r', 'top', 'b', 'label-x', 'label-w'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual([
-      '4px',
+    expect(p.el.style.getPropertyValue('--frame-t')).toBe('3px');
+    expect(['e', 'l', 'r', 'top', 'b', 'label-x'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual([
+      '1px',
       '3px',
-      '8px',
-      '7px',
-      `${3 * 9 - 4}px`,
-      `${6 * 9}px`,
+      '3px',
+      '3px',
+      '3px',
+      `${3 * 9 - 3}px`,
     ]);
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
