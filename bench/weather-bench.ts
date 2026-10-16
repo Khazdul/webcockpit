@@ -9,7 +9,7 @@
 // (1728 × 1000, ratio 2), Map pane off. "On" = Options → Weather effects on
 // (`benchSettings`), the state pinned to the heaviest mix: heavy rain,
 // dense fog, dying (blood, red pulse), night with the moon up; then 9 s for
-// everything to ease in (and the adaptive resolution to settle). Off and on alternate (off/on, on/off, …) over N
+// everything to ease in. Off and on alternate (off/on, on/off, …) over N
 // rounds, so a noisy machine hits both alike; every number is the median
 // over the rounds of each round's statistic.
 //
@@ -81,7 +81,7 @@ interface Sample {
   gaps: { p95: number; max: number; over50: number };
   long: { loaf: number[]; longtask: number[]; loafOk: boolean; ltOk: boolean };
   idle: { tasks: number; totalMs: number; longest: number; over5: number } | null;
-  worker: { avg: number; p95: number; max: number; n: number } | null;
+  worker: { avg: number; p95: number; max: number; n: number; fps: number } | null;
   load: string;
 }
 
@@ -97,7 +97,7 @@ async function open(t: Target, on: boolean): Promise<Page> {
       return true;
     }, HEAVY);
     if (!ok) throw new Error(`${t.name}: the weather effects did not start`);
-    // Ease-in, and the adaptive resolution's first check (SLOW_CHECK_MS).
+    // Ease-in.
     await pause(9000);
   }
   await page.evaluate(() => window.__wcBench!.connectFake());
@@ -119,6 +119,8 @@ async function idleTrace(t: Target, page: Page): Promise<Sample['idle']> {
 async function measure(t: Target, on: boolean): Promise<Sample> {
   const load = loadavg();
   const page = await open(t, on);
+  const workerFrames = () => page.evaluate(async () => [(await window.__wcBench!.app!.weather!.controller!.engine.stats()).frames, performance.now()] as const);
+  const w0 = on ? await workerFrames() : null;
   // key → send
   const keys: number[] = [];
   for (let i = 0; i < N + 20; i++) {
@@ -144,11 +146,12 @@ async function measure(t: Target, on: boolean): Promise<Sample> {
   }
   const mon = await stopMonitor(page);
   const idle = await idleTrace(t, page);
+  const w1 = on ? await workerFrames() : null;
   const worker = on
-    ? await page.evaluate(async () => {
+    ? await page.evaluate(async (fps) => {
         const s = await window.__wcBench!.app!.weather!.controller!.engine.stats();
-        return { avg: s.avg, p95: s.p95, max: s.max, n: s.n };
-      })
+        return { avg: s.avg, p95: s.p95, max: s.max, n: s.n, fps };
+      }, w0 && w1 ? ((w1[0] - w0[0]) * 1000) / (w1[1] - w0[1]) : 0)
     : null;
   if (on && !(await page.evaluate(() => document.querySelector('.wc-cockpit[data-weather]') !== null))) throw new Error('weather not running');
   await closePage(page);
@@ -218,7 +221,7 @@ out.push(
   ...results.map((r) => `- ${r.name}: ${r.version}; WebGL: ${r.gl}`),
   `- Geometry: ${L.geometryText(OWNER)}, production bundle, Map pane off`,
   `- Fixture: \`${fixture.rel}\` (${(fixture.size / 1e6).toFixed(2)} MB)`,
-  `- On: weather pinned to ${JSON.stringify(HEAVY)} (heavy rain with drips, dense fog, dying: blood and the red heartbeat wash, moonlit night), 9 s to ease in (and for the adaptive resolution's first check)`,
+  `- On: weather pinned to ${JSON.stringify(HEAVY)} (heavy rain with drips, dense fog, dying: blood and the red heartbeat wash, moonlit night), 9 s to ease in; canvases at ratio 1, the worker at its own rates (30 fps while rain falls, ADR 0091 Power)`,
   `- ${ROUNDS} rounds per browser, off and on alternating; each cell is the median over the rounds of that round's statistic (max: the largest of any round)`,
   '',
 );
@@ -239,6 +242,7 @@ row('Long Animation Frames, count; longest (ms)', (xs) =>
 row('Idle 5 s, main-thread tasks; total (ms)', (xs) => (xs[0]?.idle ? `${f1(med(xs, (s) => s.idle!.tasks))}; ${f1(med(xs, (s) => s.idle!.totalMs))}` : 'n/a'));
 row('Idle 5 s, longest main-thread task (ms); tasks > 5 ms', (xs) => (xs[0]?.idle ? `${f2(mx(xs, (s) => s.idle!.longest))}; ${xs.reduce((a, s) => a + s.idle!.over5, 0)}` : 'n/a'));
 row('Worker frame avg / p95 / max (ms)', (xs) => (xs[0]?.worker ? `${f2(med(xs, (s) => s.worker!.avg))} / ${f2(med(xs, (s) => s.worker!.p95))} / ${f1(mx(xs, (s) => s.worker!.max))}` : '—'));
+row('Worker frames per second', (xs) => (xs[0]?.worker ? f1(med(xs, (s) => s.worker!.fps)) : '—'));
 out.push('');
 out.push('## Per round', '');
 for (const r of results) {
@@ -247,7 +251,7 @@ for (const r of results) {
       out.push(
         `- ${r.name} ${v} #${i + 1} (load ${s.load}): key ${f3(s.key.median)} / ${f3(s.key.p99)} / ${f3(s.key.max)}; painted ${f1(s.paint.median)} / ${f1(s.paint.p95)} / ${f1(s.paint.max)}; gaps max ${f1(s.gaps.max)}` +
           (s.idle ? `; idle ${s.idle.tasks} tasks, ${f1(s.idle.totalMs)} ms, longest ${f2(s.idle.longest)}` : '') +
-          (s.worker ? `; worker ${f2(s.worker.avg)} / ${f2(s.worker.p95)} / ${f1(s.worker.max)} (${s.worker.n} frames)` : ''),
+          (s.worker ? `; worker ${f2(s.worker.avg)} / ${f2(s.worker.p95)} / ${f1(s.worker.max)} (${s.worker.n} frames, ${f1(s.worker.fps)} fps)` : ''),
       ),
     );
   }
@@ -258,7 +262,7 @@ out.push(
   '- **Key → send:** the `?bench` probe sets the input to `look`, dispatches a synthetic Enter keydown and reads when `Socketish.send` ran (same as `browser-bench.ts`).',
   '- **Text → painted:** a telnet frame of the fixture is delivered through the fake socket; the time until a MessageChannel message posted from the output pane\'s frame callback arrives, i.e. after that frame rendered. The medians include the wait for the next vsync.',
   '- **Idle main thread:** a Chromium DevTools trace over 5 s with nothing arriving; `RunTask` events on the renderer main thread. With the effects on, the main thread only samples the text lines every 2.5 s in an idle callback; the drawing is in the worker.',
-  '- **Worker:** the engine\'s own frame times over its last ≤ 600 frames (`stats()`).',
+  '- **Worker:** the engine\'s own frame times over its last ≤ 600 frames (`stats()`); fps over the whole measurement.',
   '',
 );
 mkdirSync(new URL('./results/', import.meta.url), { recursive: true });
