@@ -65,15 +65,64 @@ rain + fog: text-to-screen and key-to-send latency must not move.
   unit/e2e updated
 - [x] B. Worker engine, canvases, masking, geometry feed, theme colours
 - [x] B. Port sky, weather, fog, body from the prototype
-- [ ] C. Signal bridge incl. XML weather tag; unit tests
-- [ ] D. Options page and settings (with migration), defaults off
-- [ ] E. Latency bench before/after
+- [x] C. Signal bridge incl. XML weather tag; unit tests
+- [x] D. Options page and settings (with migration), defaults off
+- [x] E. Latency bench before/after (`bench/weather-bench.ts`,
+  `bench/results/weather.md`); fixed the GPU-thread stalls it found
 - [ ] Screenshots on black, dark-grey and light backgrounds
-- [ ] ADR 0091, this file, progress table
+- [x] ADR 0091, this file, progress table
 
 ## Test guide
 
-(Written when the build is ready.)
+**Setup.** Check out branch `weather-trial`, run `npm run dev` and open
+the printed address (`http://localhost:5173/`). Enter MUME as usual.
+
+**Turn it on.** ESC → Options → Weather effects (last in the list) → `[X] Weather effects`.
+The effects start at once; turning the switch off removes them at once
+(nothing of the engine stays loaded). The six categories below the switch
+(Sky, Precipitation, Lightning, Fog, Darkness, Body) fade their part in or
+out live; the line under the menu explains the highlighted row. The
+setting is saved; it is off by default everywhere, phones included.
+
+**What to try in MUME.**
+
+1. Walk outdoors, then into a building: the sky (clouds, sun, moon,
+   stars) is outdoors only. Weather, fog and light changes wait about 3 s
+   before they show, so running through rooms does not flicker.
+2. Rain and snow areas: light rain (`'`) and heavy rain (`"`) with drips
+   along the pane edges; snow (`*`) that falls in from above, builds up
+   over half a minute and gusts now and then.
+3. Fog (`-` light, `=` dense) drifting low over the screen.
+4. Night: with the moon up a big moon in the almanac's phase crosses the
+   sky; without it a starry sky with shooting stars. Sunrise and sunset
+   (`Event.Sun`) send rays across the screen.
+5. `sleep` (floating z z Z), getting stunned, and (carefully) being
+   incapacitated or dying (blood and a red heartbeat wash).
+6. Magical darkness (light `o`, `Event.Darkness`): a dark, slightly red
+   sky and a red bleed when it starts or grows.
+7. Lightning: the Redhorn Pass room with "A bright streak of lightning
+   flashes over the … mountains." should strike a bolt each time that
+   line appears. **Please check** that it does: the client looks for
+   MUME's XML `<weather>` tag on that line first and falls back to the
+   exact sentence; the tag has not been seen live yet.
+8. Options → Appearance: change the background colour (black, dark grey,
+   a light one). The effects should follow at once and stay discreet.
+
+**Forcing states (dev server only).** `?weather` in the URL turns the
+effects on and exposes `window.__weather` in the console:
+`__weather.jump({ weather: '"', fog: '=', clock: 'night', moonUp: true })`
+pins values (the game's are ignored for those keys) until
+`__weather.unpin()`; `__weather.set({...})` sets raw values with the 3 s
+delay; `__weather.emit('strike')` (also `'gust'`, `'sun.rise'`,
+`'sun.set'`, `'darkness.start'`, …); `await __weather.stats()` shows the
+worker's frame times; `__weather.stop()` turns the option off.
+
+**Feedback wanted.** Is it discreet enough while playing (text always
+readable, nothing distracting during fights)? Which effects to keep, tone
+down or drop? Does lightning fire in the Redhorn Pass room? Any stutter
+in typing or scrolling with the effects on (the bench says no; your
+machine is the real test, especially in Firefox)? Keep the trial or drop
+it?
 
 ## Owner feedback
 

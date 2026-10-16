@@ -33,11 +33,28 @@ Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept conten
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
-| 28 | Weather effects (trial, branch `weather-trial`) | In progress | `docs/stages/28-weather-trial.md` |
+| 28 | Weather effects (trial, branch `weather-trial`) | Owner testing | `docs/stages/28-weather-trial.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-16 — Stage 28 weather effects trial (branch `weather-trial`)
+
+- **Done:** thin bevelled pane frames (A); weather engine in a Web Worker
+  on OffscreenCanvas, a port of the v4 prototype (B); GMCP/almanac bridge
+  plus lightning from the XML `<weather>` line (C); Options → Weather
+  effects, off by default (D); latency bench (E): key→send and
+  text→painted unchanged off vs on.
+- **Fixed:** Weather effects placed last in Options (it had shifted
+  Scripts and broke 60+ e2e menu walks).
+- **Checked:** typecheck, unit 2601, e2e 513 passed, plus 3 flaky that
+  pass alone.
+- **Open:** `<weather>` tag unverified live; Firefox worker canvas is slow
+  headless (~45 ms/frame). Screenshot task on three backgrounds partly
+  done (engine shots). Not merged to main, not released.
+- **Next:** owner tests on the branch; keep or drop.
+- **Commits:** 5e0214a…(this commit) on `weather-trial`.
 
 ### 2026-10-16 — Weather effects research (not a stage)
 

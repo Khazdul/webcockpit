@@ -110,6 +110,82 @@ unchanged.
   p95 0.53 ms; clear moonlit night avg 0.13 ms. Indoors with nothing
   showing: idle.
 
+### Signals (stage 28 C)
+
+- `src/weather/signals.ts` (pure) + `controller.ts` (wiring, lazy chunk).
+  `Char.Vitals` weather / fog / light / position are read from the
+  character model on its change event: it already merges the deltas,
+  keeps absent keys and clears on a new connection or character, so the
+  bridge only forwards keys whose value changed. Absent = indoors, no fog,
+  standing.
+- `Event.Sun` / `Event.Moon` / `Event.Darkness {what}` → `emit`. The bus
+  handler checks the package's first letter before anything else.
+- Almanac (`gmcp/clock.ts`, `gametime.ts`): the start state (sun up, moon
+  up) and the moon phase (level / 12, always). Re-read every 30 s; sun or
+  moon from the almanac applies only when the almanac's own value changes
+  (a predicted rise or set), so an event in between wins until then; a
+  clock sync re-applies it. An unsynced clock gives day, no moon.
+- Lightning: a `text.line` with a `weather` XML span whose text is a
+  flash (`streak|bolt|fork|flash of lightning`, `lightning
+  flashes|strikes|…`; not "lit by", "has stopped") → `strike`. Without a
+  weather span on the line, exactly `^A bright streak of lightning
+  flashes\b` (the Redhorn Pass message in the owner's logs). **The
+  `<weather>` tag is unverified live**: the log export drops tags; the
+  owner checks it. A weather-tagged "wind coming from" line, or exactly
+  `^You can feel a <word> wind coming from`, → `gust` (snow swirl).
+- `__wcBench` / dev: `controller.pin(state)` holds values over the game's
+  (bench, `__weather.jump`).
+
+### Options and loading (stage 28 D)
+
+- `settings.weather {enabled: false, sky, precipitation, lightning, fog,
+  darkness, body: true}`; additive, no version bump; `migrateWeather`.
+- Options → Weather effects (`options-weather.tsx`): master switch and
+  the six categories, a one-line help for the highlighted row; the
+  categories show dimmed while off. Phone: allowed, off by default like
+  everywhere (no phone-specific rule).
+- The one app hook is `installWeather` (`src/weather/hook.ts`), passed
+  by the Shell into `AppOptions.weather`, so the log player and the HTML
+  replay bundle never include it. It imports `controller.ts` (engine,
+  bridge, CSS; worker separate) only while enabled; off destroys it.
+  Main bundle: the hook, `support.ts` and the Options page only (a few
+  kB); the controller chunk ~10 kB, the worker ~78 kB, loaded on demand.
+- Appearance and pane colour changes call `refresh()` (theme re-read and
+  geometry re-measured in the next frame).
+- Unsupported browser or a worker failure: a UI-pane warning; the switch
+  stays on but nothing runs until it is flipped again.
+
+### Latency (stage 28 E)
+
+`bench/weather-bench.ts` (`bench/results/weather.md`): off vs on, heavy
+rain + dense fog + dying + moonlit night, owner geometry, alternating
+rounds. The first run found Chromium's text → painted p95 at 83 ms
+(off: 20 ms) and rAF gaps of 90 ms: not the main thread (idle ~4 ms/s),
+but the GPU thread, where Skia's software path renderer drew stroked
+paths with hundreds of subpaths (rain streaks, splashes, sparks), a path
+of many rects (snow) and clips of many rects (the bolt behind text) as
+full-screen masks, 60–350 ms per flush. Rule for the engine since then:
+**no many-subpath paths or clips on the GPU canvases** — rect fills
+(sheared or rotated per item, batched), separate convex polygons, and
+sprites from big paths or blur filters drawn on CPU canvases
+(`ctx2dCpu`, `willReadFrequently`) once, then as images.
+
+Firefox draws worker OffscreenCanvas 2D on the CPU (headless: 35–120 ms
+per frame at ratio 2). It does not touch the page's latency (the worker
+is its own thread) but the effects stutter, so the engine checks its
+frame time every 4 s while drawing and drops to ratio 1 above 12 ms.
+
+Results (3 rounds, `bench/results/weather.md`), off → on:
+
+- Key → send median 0.045 → 0.045 ms (Chromium), 0.040 → 0.040 ms
+  (Firefox); text → painted p95 19.7 → 19.9 ms (Chromium), 19.3 → 17.4 ms
+  (Firefox); no long tasks or Long Animation Frames, no rAF gaps > 50 ms.
+- Chromium idle main thread: 5.6 → 38.9 ms of tasks per 5 s (the canvas
+  commits and the 2.5 s line sampling), longest 2.9 ms.
+- Worker frame: Chromium 1.4 ms avg / 2.3 ms p95; headless Firefox
+  45 ms avg (software canvas): the page's latency is unaffected, but the
+  effects themselves run at ~20 fps there. To check in the owner's Firefox.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
