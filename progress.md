@@ -33,6 +33,7 @@ Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept conten
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
+| 28 | Weather effects (trial, branch `weather-trial`) | In progress | `docs/stages/28-weather-trial.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
