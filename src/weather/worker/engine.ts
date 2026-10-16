@@ -1,15 +1,17 @@
-// The weather engine inside the worker: owns the three OffscreenCanvases,
+// The weather engine inside the worker: owns the back and front
+// OffscreenCanvases and one small canvas per floating pane,
 // the director and the modules, and runs the frame loop (the prototype
 // harness).
 //
 // Frame: clear the back and front canvases, run sky, weather, fog, body
 // (each wrapped in save/restore), mask the prompt/input rows and the far
-// left, paint the mid layer under the floating panes (their fill and a copy
-// of the back layer there), then paint the docked panes' own backgrounds
+// left, copy the back layer's pixels under each floating pane into that
+// pane's own canvas, then paint the docked panes' own backgrounds
 // underneath the back layer (the panes are transparent while weather is on,
 // see weather.css).
 //
-// Layout changes: the canvases, the mask and the pane fills follow at once;
+// Layout changes: the canvases, the mask and the pane fills follow at once
+// (a float that moved gets a frame at once, not at the content's rate);
 // the modules' own rebuild (`resize`: sprites, star fields, pane edges) waits
 // until the layout has been still for RESIZE_SETTLE_MS, so dragging a pane
 // or a dock boundary does not rebuild them on every cell step.
@@ -47,15 +49,21 @@ const N_TIMES = 600;
 /** Pane-only layout changes rebuild the modules after this long without another, ms. */
 export const RESIZE_SETTLE_MS = 250;
 
-/** A floating pane's mid-layer paint, in device px of the canvases. */
-interface MidFill {
-  /** The whole pane element (its ring outside the frame included), one device px larger all round. */
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  /** The frame box tinted with the pane's own background, if it has one. */
-  bg: { x: number; y: number; w: number; h: number; c: string } | null;
+/**
+ * A floating pane's own canvas (the pane's first child, main thread): the
+ * back layer's pixels under the pane are copied into it. Its element's CSS
+ * background (terminal background, the pane's tint in the frame box) is
+ * opaque, so the game text under the pane never shows; it moves with the
+ * pane in the same frame (owner feedback 13, 18).
+ */
+interface FloatLayer {
+  pane: string;
+  canvas: OffscreenCanvas;
+  ctx: Ctx;
+  /** The pane's box in device px of the back canvas (null: not in the geometry). */
+  src: { x: number; y: number; w: number; h: number } | null;
+  /** The bitmap holds something (cleared once when there is nothing to copy). */
+  dirty: boolean;
 }
 
 export interface EngineHost {
@@ -110,14 +118,8 @@ export class WeatherEngine {
   private env: Env | null = null;
   private back: OffscreenCanvas | null = null;
   private front: OffscreenCanvas | null = null;
-  private mid: OffscreenCanvas | null = null;
-  private midCtx: Ctx | null = null;
-  private midFills: MidFill[] = [];
-  /** The mid layer holds something (cleared once when the last float goes). */
-  private midDirty = false;
-  private termBg = '#000000';
-  private geomSeq = 0;
-  private paintedSeq = 0;
+  private readonly floats = new Map<number, FloatLayer>();
+  private geom: Geometry | null = null;
   private resizeGen = 0;
   private director = new Director();
   private readonly modules: Module[];
@@ -152,9 +154,6 @@ export class WeatherEngine {
       case 'init': {
         this.back = m.back;
         this.front = m.front;
-        this.mid = m.mid;
-        this.midCtx = ctx2d(m.mid);
-        this.termBg = m.theme.bg;
         this.director = new Director(m.state, m.cats);
         const back = ctx2d(m.back), front = ctx2d(m.front);
         this.env = {
@@ -198,16 +197,26 @@ export class WeatherEngine {
         if (!this.env) break;
         const env = this.env;
         const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
-        this.applyGeometry(m.g);
+        const moved = this.applyGeometry(m.g);
         if (sized) {
           this.resizeGen++;
           for (const mod of this.modules) mod.resize(env);
         } else this.settleResize();
+        // A moved or resized float shows the weather of its old place until the next frame: draw it now.
+        if (moved) this.frameNow();
         break;
       }
+      case 'float': {
+        this.floats.set(m.key, { pane: m.pane, canvas: m.canvas, ctx: ctx2d(m.canvas), src: null, dirty: false });
+        if (this.geom) this.placeFloats(this.geom);
+        this.frameNow();
+        break;
+      }
+      case 'floatGone':
+        this.floats.delete(m.key);
+        break;
       case 'theme': {
         if (!this.env) break;
-        this.termBg = m.theme.bg;
         this.env.theme = themeInfo(m.theme.bg);
         for (const mod of this.modules) mod.init(this.env);
         for (const mod of this.modules) mod.resize(this.env);
@@ -269,7 +278,38 @@ export class WeatherEngine {
     this.host.post({ t: 'error', message: `${where}: ${e instanceof Error ? e.message : String(e)}` });
   }
 
-  private applyGeometry(g: Geometry): void {
+  /** Draws the next frame at the next animation frame, whatever the rate (a float moved or appeared). */
+  private frameNow(): void {
+    this.lastFrame = -1e9;
+    this.urgent = true;
+  }
+
+  /** Each float canvas's source rect from `g` (device px of the back canvas); true when one changed. */
+  private placeFloats(g: Geometry): boolean {
+    const d = g.dpr;
+    let changed = false;
+    for (const f of this.floats.values()) {
+      const p = g.panes.find((q) => q.floating && q.id === f.pane);
+      let src: FloatLayer['src'] = null;
+      if (p) {
+        const x = Math.round(p.box.x * d), y = Math.round(p.box.y * d);
+        src = { x, y, w: Math.max(1, Math.round((p.box.x + p.box.w) * d) - x), h: Math.max(1, Math.round((p.box.y + p.box.h) * d) - y) };
+      }
+      const o = f.src;
+      if (o && src && o.x === src.x && o.y === src.y && o.w === src.w && o.h === src.h) continue;
+      changed = true;
+      f.src = src;
+      if (src && (f.canvas.width !== src.w || f.canvas.height !== src.h)) {
+        f.canvas.width = src.w;
+        f.canvas.height = src.h;
+        f.dirty = false;
+      }
+    }
+    return changed;
+  }
+
+  /** Applies a layout; returns true when a float canvas moved or changed size. */
+  private applyGeometry(g: Geometry): boolean {
     const env = this.env!;
     if (g.W !== env.W || g.H !== env.H || g.dpr !== env.dpr) {
       for (const [cv, c] of [
@@ -289,33 +329,9 @@ export class WeatherEngine {
     env.out = g.out;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, tab: p.tab }));
-    this.geomSeq = g.seq;
-    // The mid layer takes full-size memory only while there is a floating pane.
-    const anyFloat = g.panes.some((p) => p.floating);
-    const mw = anyFloat ? Math.max(1, Math.round(g.W * g.dpr)) : 1, mh = anyFloat ? Math.max(1, Math.round(g.H * g.dpr)) : 1;
-    if (this.mid && (this.mid.width !== mw || this.mid.height !== mh)) {
-      this.mid.width = mw;
-      this.mid.height = mh;
-      this.midDirty = false;
-    }
-    // Floating panes, back to front: in device px, the pane box one px larger all round (it must hide the text under it).
-    const d = g.dpr;
-    this.midFills = g.panes
-      .filter((p) => p.floating)
-      .sort((a, b) => a.z - b.z)
-      .map((p) => {
-        const x = Math.floor(p.box.x * d) - 1, y = Math.floor(p.box.y * d) - 1;
-        const x1 = Math.ceil((p.box.x + p.box.w) * d) + 1, y1 = Math.ceil((p.box.y + p.box.h) * d) + 1;
-        const bx = Math.round(p.x * d), by = Math.round(p.y * d);
-        return {
-          x,
-          y,
-          w: x1 - x,
-          h: y1 - y,
-          bg: p.bg ? { x: bx, y: by, w: Math.round((p.x + p.w) * d) - bx, h: Math.round((p.y + p.h) * d) - by, c: p.bg } : null,
-        };
-      });
+    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating }));
+    this.geom = g;
+    const moved = this.placeFloats(g);
     // The fill of a docked pane with its own background: the frame box (framed) or the whole pane.
     this.paneBgs = g.panes.filter((p) => p.bg && !p.floating).map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, bg: p.bg! }));
     const p = g.protect;
@@ -328,6 +344,7 @@ export class WeatherEngine {
       left.addColorStop(1, 'rgba(0,0,0,0)');
       return { fade, left };
     });
+    return moved;
   }
 
   private applyMask(c: Ctx, i: number): void {
@@ -357,42 +374,26 @@ export class WeatherEngine {
   }
 
   /**
-   * The mid layer: per floating pane, back to front, the terminal background
-   * over its box (hiding the game text under it), its own background in the
-   * frame box, then the back layer's pixels there (a copy, not a re-render),
-   * so the pane shows the weather as a docked one does. Rect fills and one
-   * image copy each (ADR 0091: no paths or clips on the GPU canvases).
+   * The float canvases: per floating pane, the back layer's pixels under its
+   * box (a copy, not a re-render), so the see-through pane shows the weather
+   * as a docked one does; its element's CSS background is under the copy.
+   * One image copy each (ADR 0091: no paths or clips on the GPU canvases).
+   * Each pane is its own canvas in its own stacking layer, so an upper float
+   * hides a lower one's text where they overlap (owner feedback 13).
    */
-  private paintMid(): void {
-    const c = this.midCtx, back = this.back;
-    if (!c || !back) return;
-    if (!this.midFills.length) {
-      if (this.midDirty) c.clearRect(0, 0, c.canvas.width, c.canvas.height);
-      this.midDirty = false;
-      return;
-    }
-    this.midDirty = true;
-    c.save();
-    c.setTransform(1, 0, 0, 1, 0, 0);
-    c.globalAlpha = 1;
-    c.globalCompositeOperation = 'source-over';
-    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
-    for (const f of this.midFills) {
-      c.fillStyle = this.termBg;
-      c.fillRect(f.x, f.y, f.w, f.h);
-      if (f.bg) {
-        c.fillStyle = f.bg.c;
-        c.fillRect(f.bg.x, f.bg.y, f.bg.w, f.bg.h);
-      }
-      const x = Math.max(0, f.x), y = Math.max(0, f.y);
-      const w = Math.min(back.width, f.x + f.w) - x, h = Math.min(back.height, f.y + f.h) - y;
-      if (w > 0 && h > 0) c.drawImage(back, x, y, w, h, x, y, w, h);
-    }
-    c.restore();
-    if (this.paintedSeq !== this.geomSeq) {
-      // Answer on the next frame, once this one is on screen.
-      const s = (this.paintedSeq = this.geomSeq);
-      this.host.requestFrame(() => this.host.post({ t: 'painted', seq: s }));
+  private paintFloats(): void {
+    const back = this.back;
+    if (!back) return;
+    for (const f of this.floats.values()) {
+      const c = f.ctx, s = f.src;
+      if (f.dirty) c.clearRect(0, 0, f.canvas.width, f.canvas.height);
+      f.dirty = false;
+      if (!s) continue;
+      const x = Math.max(0, s.x), y = Math.max(0, s.y);
+      const w = Math.min(back.width, s.x + s.w) - x, h = Math.min(back.height, s.y + s.h) - y;
+      if (w <= 0 || h <= 0) continue;
+      c.drawImage(back, x, y, w, h, x - s.x, y - s.y, w, h);
+      f.dirty = true;
     }
   }
 
@@ -405,7 +406,9 @@ export class WeatherEngine {
     this.idle = false;
     this.idleFrames = 0;
     if (still) this.rate = FPS_SLOW;
-    if (this.looping && !wasIdle && !still) return;
+    const urgent = this.urgent;
+    this.urgent = false;
+    if (this.looping && !wasIdle && !still && !urgent) return;
     if (!this.looping) this.lastT = this.host.now();
     this.looping = true;
     this.gen++; // a pending idle tick is dropped
@@ -413,6 +416,8 @@ export class WeatherEngine {
   }
 
   private gen = 0;
+  /** The next frame is drawn at once (`frameNow`). */
+  private urgent = false;
   /** The next tick: after IDLE_MS (slow), or on an animation frame, waiting on a timer first when that frame is far off (fewer wake-ups at low rates). */
   private schedule(slow: boolean, wait = 0): void {
     const g = this.gen;
@@ -522,7 +527,7 @@ export class WeatherEngine {
     this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(floor, rate));
     this.applyMask(back, 0);
     this.applyMask(front, 1);
-    this.paintMid();
+    this.paintFloats();
     this.paintPaneBgs(back);
     this.times[this.nTimes % N_TIMES] = performance.now() - t0;
     this.nTimes++;

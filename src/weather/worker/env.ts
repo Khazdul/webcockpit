@@ -12,8 +12,6 @@ export interface Pane extends Rect {
   border: number;
   label: string;
   floating: boolean;
-  /** The label's gap in the top frame line, [x0, x1]; null without a label. */
-  tab: [number, number] | null;
 }
 
 export interface Env {

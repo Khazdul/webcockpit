@@ -87,11 +87,11 @@ export interface Rect {
 export interface PaneGeom extends Rect {
   /** `data-pane` (character, timers, group, comm, ui, map, script ids). */
   id: string;
-  /** Frame line thickness in px (0 without a frame). The rect is the frame box (the pane fill), or the whole pane unframed. */
+  /** Frame line thickness in px (0 without a frame). The rect is the frame box: x/y/w/h is the outer edge of the line (the pane fill inside it), or the whole pane unframed. The line is unbroken (the title is drawn over it). */
   border: number;
-  /** The pane label (its width keeps snow off the title). */
+  /** The pane label. */
   label: string;
-  /** A floating pane: above the game text; the worker paints its fill on the mid layer. */
+  /** A floating pane: above the game text; the worker copies the weather into its own canvas (`float`). */
   floating: boolean;
   /** Stacking order of a floating pane (higher is in front); 0 for a docked one. */
   z: number;
@@ -99,17 +99,9 @@ export interface PaneGeom extends Rect {
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
-  /** The label's gap in the top frame line, [x0, x1] (CSS px); null without a label. */
-  tab: [number, number] | null;
 }
 
 export interface Geometry {
-  /**
-   * Layout sequence number (main thread): the worker answers `painted` with
-   * it once a frame with this layout is on screen, and floating panes go
-   * see-through only then (the mid layer covers the text under them).
-   */
-  seq: number;
   /** Canvas size in CSS px and the device pixel ratio used (≤ 2). */
   W: number;
   H: number;
@@ -134,8 +126,6 @@ export type MainToWorker =
   | {
       t: 'init';
       back: OffscreenCanvas;
-      /** Under the floating panes, above the game text: their fill plus a copy of the back layer. */
-      mid: OffscreenCanvas;
       front: OffscreenCanvas;
       geom: Geometry;
       theme: ThemeColors;
@@ -146,6 +136,14 @@ export type MainToWorker =
   | { t: 'state'; s: Partial<WeatherState>; instant: boolean }
   | { t: 'event'; name: WeatherEvent; data?: unknown }
   | { t: 'geom'; g: Geometry }
+  /**
+   * A floating pane's own canvas (its first child, the size of the pane):
+   * the worker copies the back layer's pixels under the pane into it, so the
+   * see-through pane shows the weather (ADR 0091 "Engine", owner feedback
+   * 13, 18). `key` names it; `pane` is its `PaneGeom.id`.
+   */
+  | { t: 'float'; key: number; pane: string; canvas: OffscreenCanvas }
+  | { t: 'floatGone'; key: number }
   | { t: 'theme'; theme: ThemeColors }
   | { t: 'cats'; cats: Categories }
   | { t: 'visible'; on: boolean }
@@ -173,6 +171,4 @@ export interface FrameStats {
 export type WorkerToMain =
   | { t: 'ready' }
   | { t: 'stats'; stats: FrameStats }
-  | { t: 'error'; message: string }
-  /** A frame drawn with layout `seq` is on screen (the mid layer covers the floating panes). */
-  | { t: 'painted'; seq: number };
+  | { t: 'error'; message: string };
