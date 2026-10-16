@@ -39,6 +39,24 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-17 — Stage 28 owner feedback round 1 (branch `weather-trial`)
+
+- **Done:** all nine feedback items. Frames: one colour, whole device
+  pixels, label without a box, no weather glints on the line; floating
+  panes see-through via a mid canvas. Power: 30/12/3 fps by content,
+  caches, ratio 1 (Firefox calm 0.80 → ~0.15 core). Calm light day sky,
+  moon path independent of text, clouds kept on pane moves, darkness sky
+  indoors on light `o`, fog fades over 20–40 s, line sampling removed.
+- **Found:** the owner's dev server served main's `layout.css` after a
+  branch switch (no frames at all). Firefox never woke the NVIDIA GPU.
+- **Checked:** typecheck, unit 2614, e2e weather/layout/phone-frames/
+  map-background/script-panes, latency bench unchanged.
+- **Open:** red sky shows in every dark room (`o`), owner's call; frame
+  line brighter than before; hover close cross still opaque; sun glow
+  subtle on black.
+- **Next:** owner retests (restart the dev server first).
+- **Commits:** e317193…(this commit) on `weather-trial`.
+
 ### 2026-10-16 — Stage 28 weather effects trial (branch `weather-trial`)
 
 - **Done:** thin bevelled pane frames (A); weather engine in a Web Worker
