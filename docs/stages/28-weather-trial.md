@@ -124,5 +124,60 @@ in typing or scrolling with the effects on (the bench says no; your
 machine is the real test, especially in Firefox)? Keep the trial or drop
 it?
 
+## Handoff (end of session 2026-10-16)
+
+State: built and committed on branch `weather-trial` (not merged, not
+released). The owner will test and keep improving it in new sessions;
+some parts they like, others less. Collect their feedback under
+"Owner feedback" before changing things.
+
+Where things live:
+
+- `src/weather/` (main thread): `hook.ts` (the single app hook,
+  `installWeather`), `controller.ts` (lazy chunk: engine + bridge),
+  `index.ts` (`createWeather` API, canvases, layering), `signals.ts`
+  (GMCP / almanac / lightning-line bridge), `director.ts` (dwell 3 s, eased
+  mix, sky selection), `geometry.ts` (pane rects, text rows, diffing),
+  `palette.ts` (colours from the theme background), `protocol.ts`
+  (worker messages), `dev.ts` (`?weather`, `window.__weather`),
+  `support.ts`, `weather.css`.
+- `src/weather/worker/`: `engine.ts` (frame loop, masking, adaptive
+  resolution), `sky.ts`, `weather.ts` (rain, drips, snow, gusts,
+  lightning), `fog.ts`, `body.ts`, `env.ts`.
+- Options page: `src/chrome/frames/options-weather.tsx` (last in the
+  Options hub); settings `weather` section (`migrateWeather`).
+- Frames: `src/panes/frame.ts` (`frameGeometry`), `src/panes/pane.ts`,
+  `src/layout/layout.css`.
+- Tests: `tests/unit/weather.test.ts`, `tests/unit/weather-signals.test.ts`,
+  `tests/e2e/weather.spec.ts`. Bench: `bench/weather-bench.ts`,
+  `bench/results/weather.md`.
+- Prototype (the visual reference, approved round by round):
+  `notes/research/weather-world/` (on main too); demo artifact
+  https://claude.ai/artifact/5bQ8wjratKitNufUn6tZ8j. Earlier experiments:
+  `notes/research/weather-atelier/`.
+
+Rules learned (ADR 0091): no many-subpath paths or clips on the GPU
+canvases (Skia software path masks stalled the GPU thread: text p95 went
+83 ms); batch rect fills, use sprites made once on CPU canvases. Every
+change: rerun `node bench/weather-bench.ts --rounds 3` and compare with
+`bench/results/weather.md`.
+
+Open:
+
+- XML `<weather>` tag on the lightning line unverified live (fallback:
+  the exact Redhorn Pass sentence).
+- Firefox draws the worker canvas on the CPU (headless ~45 ms/frame);
+  check in the owner's Firefox.
+- Moon and stars over a full output show only between text lines; the
+  sky horizon sits at least 30 % down. Blood and the strike glow can lie
+  over text.
+- The pane label tab stays opaque; z z Z falls back to the system
+  monospace font in the worker.
+- Frames: the 2 px line in the default dim border colour is subtle on
+  black panes; may want brighter.
+- Screenshots on three backgrounds: engine shots exist (scratchpad, lost
+  on reboot); not kept in the repo.
+- e2e: three specs flaky under parallel load (pass alone), as before.
+
 ## Owner feedback
 
