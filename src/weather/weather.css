@@ -1,10 +1,11 @@
 /* Weather effects (stage 28, ADR 0091). Loaded with the lazy weather chunk.
  *
- * Two full-cockpit canvases the weather worker draws into. The back layer
+ * Three full-cockpit canvases the weather worker draws into. The back layer
  * is the cockpit's first child and positioned without a z-index, so it
- * paints under the game text and the docked panes; the front layer is above
- * the panes (floating ones included) and below the drop bars, the drag
- * shield and the chrome overlays. Neither takes pointer events. */
+ * paints under the game text and the docked panes; the mid layer is under
+ * the floating panes (FLOAT_Z = 10) and over everything docked; the front
+ * layer is above the panes (floating ones included) and below the drop bars,
+ * the drag shield and the chrome overlays. None takes pointer events. */
 .wc-weather-layer {
   position: absolute;
   inset: 0;
@@ -14,17 +15,28 @@
   user-select: none;
 }
 
+.wc-weather-layer[hidden] {
+  display: none;
+}
+
+.wc-weather-mid {
+  z-index: 9;
+}
+
 .wc-weather-front {
   z-index: 90;
 }
 
-/* While the engine runs, docked panes are see-through so the back layer
- * shows in their interiors (as in the prototype). A pane whose background
+/* While the engine runs, panes are see-through so the back layer shows in
+ * their interiors (as in the prototype). A docked pane whose background
  * differs from the terminal's gets that background painted by the worker
- * under the back layer, in the same box, so its tint stays. Floating panes
- * stay opaque: the game text is behind them. The label tab keeps its fill
- * (it breaks the frame line). */
+ * under the back layer, in the same box, so its tint stays. A floating pane
+ * is over the game text: it goes see-through only while the worker has
+ * painted its place on the mid layer (its fill, then the back layer's
+ * pixels), marked `data-weather-see` by index.ts. */
 .wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame {
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame,
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see],
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame {
   background: transparent;
 }

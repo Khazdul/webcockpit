@@ -62,6 +62,18 @@ export type PaneResizeListener = (cols: number, rows: number) => void;
 /** z-index of the backmost floating pane; the others stack above it. */
 export const FLOAT_Z = 10;
 
+/**
+ * The cell size the cockpit lays out with (CSS px). `ox` / `oy`: where the
+ * cockpit's origin sits on the page (CSS px), so the frame line can be put on
+ * whole device pixels of the page (ADR 0091 "Frames"); 0 when absent.
+ */
+export interface PaneCell {
+  w: number;
+  h: number;
+  ox?: number;
+  oy?: number;
+}
+
 /** Where and how the cockpit shows a pane (cells), or null when hidden. */
 export interface PanePlacement {
   rect: Rect;
@@ -92,6 +104,7 @@ export class PaneShell {
   private geomKey = '';
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
+  /** The label text shown in the frame's top row. */
   private frameKey = '';
   private _label: string;
   private themeKey = '';
@@ -100,7 +113,7 @@ export class PaneShell {
   private _visible = false;
   /** The last placement (for a label change). */
   private placed: PanePlacement | null = null;
-  private placedCell: { w: number; h: number } | null = null;
+  private placedCell: PaneCell | null = null;
   private _active: boolean;
   /** A render is wanted (kept while hidden). */
   private dirty = true;
@@ -154,7 +167,6 @@ export class PaneShell {
     if (label === this._label) return;
     this._label = label;
     this.el.setAttribute('aria-label', label);
-    this.frameKey = '';
     if (this.placed) this.place(this.placed, this.placedCell!);
   }
 
@@ -273,7 +285,7 @@ export class PaneShell {
   }
 
   /** Cockpit only: shows the pane at `p` (cells × `cell` px) or hides it. */
-  place(p: PanePlacement | null, cell: { w: number; h: number }): void {
+  place(p: PanePlacement | null, cell: PaneCell): void {
     this.placed = p;
     this.placedCell = cell;
     if (!p) {
@@ -293,12 +305,12 @@ export class PaneShell {
     cs.top = `${(content.y - rect.y) * cell.h}px`;
     cs.width = `${content.w * cell.w}px`;
     cs.height = `${content.h * cell.h}px`;
-    const key = p.framed ? `${rect.w}|${this._label}` : '';
-    if (key !== this.frameKey) {
-      this.frameKey = key;
-      this.titleEl.textContent = p.framed ? frameLabel(rect.w, this._label) : '';
+    const label = p.framed ? frameLabel(rect.w, this._label) : '';
+    if (label !== this.frameKey) {
+      this.frameKey = label;
+      this.titleEl.textContent = label;
     }
-    if (p.framed) this.placeFrame(cell);
+    if (p.framed) this.placeFrame(rect, cell, label.length);
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);
     st.zIndex = p.floating === undefined ? '' : String(FLOAT_Z + p.floating);
@@ -307,18 +319,26 @@ export class PaneShell {
     this.setSize(content.w, content.h);
   }
 
-  /** Snaps the frame line to device pixels for this cell size (ADR 0091 "Frames"). */
-  private placeFrame(cell: { w: number; h: number }): void {
+  /**
+   * Puts the frame line on whole device pixels of the page for this pane's
+   * box (ADR 0091 "Frames"). Style writes only when a value changes.
+   */
+  private placeFrame(rect: Rect, cell: PaneCell, labelLen: number): void {
     const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
-    const key = `${cell.w}x${cell.h}@${dpr}`;
+    const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
+    const g = frameGeometry(box, cell.w, cell.h, dpr);
+    const labelX = LABEL_COL * cell.w - g.l;
+    const key = `${g.t},${g.l},${g.r},${g.top},${g.b},${labelX},${labelLen * cell.w}`;
     if (key === this.geomKey) return;
     this.geomKey = key;
-    const g = frameGeometry(cell.w, cell.h, dpr);
     const st = this.el.style;
     st.setProperty('--frame-t', `${g.t}px`);
-    st.setProperty('--frame-x', `${g.x}px`);
-    st.setProperty('--frame-y', `${g.y}px`);
-    st.setProperty('--frame-label-x', `${LABEL_COL * cell.w - g.x - g.t}px`);
+    st.setProperty('--frame-l', `${g.l}px`);
+    st.setProperty('--frame-r', `${g.r}px`);
+    st.setProperty('--frame-top', `${g.top}px`);
+    st.setProperty('--frame-b', `${g.b}px`);
+    st.setProperty('--frame-label-x', `${labelX}px`);
+    st.setProperty('--frame-label-w', `${labelLen * cell.w}px`);
   }
 
   private setSize(cols: number, rows: number): void {

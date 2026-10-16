@@ -1,7 +1,8 @@
 // Weather module (port of the v4 prototype, notes/research/weather-world/modules/weather.js):
 // precipitation and lightning.
-//   rain    streaks that stop on pane top borders: splashes, wet sheen, beads
-//           under pane bottoms and corners that drip, rivulets down the sides;
+//   rain    streaks that stop on pane top borders: splashes, beads under
+//           pane bottoms and corners that drip, rivulets down the outside of
+//           the sides (nothing is drawn over a frame line, so it stays crisp);
 //           keeps dripping a while after the rain and then dries. Drops enter
 //           at the top and thicken over ~6 s; when it stops they fall out.
 //   bolt    stepped leader, branches, return stroke, re-strikes, afterglow, rim
@@ -9,7 +10,7 @@
 //           env.shared.flash / boltX.
 //   snow    flakes as particles plus far pattern tiles. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
-//           dusting gathers on pane top borders and melts afterwards.
+//           dusting gathers on top of pane top borders and melts afterwards.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
 // evil reddish, dark night dim) and adapted to the background (palette.ts).
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
@@ -43,7 +44,6 @@ interface WPane extends Pane {
   eaves: Float32Array;
   bead: Float32Array;
   rate: Float32Array;
-  gp: number;
   dust: number;
   eavesOk: boolean;
   sw: number;
@@ -143,7 +143,7 @@ export function weatherModule(): Module {
   const lift = (c: number, k: number): number => (c + (LIFT - c) * k) | 0;
   const rgbStr = (k: number, a: number): string => `rgba(${lift(tint.r, k)},${lift(tint.g, k)},${lift(tint.b, k)},${a.toFixed(3)})`;
 
-  const ST = { key: -1, rain: [] as string[], splash: '', sheen: '', tail: '' };
+  const ST = { key: -1, rain: [] as string[], splash: '', tail: '' };
   function rebuildStyles(): void {
     const key = ((tint.r / 3) | 0) * 1e6 + ((tint.g / 3) | 0) * 1e3 + ((tint.b / 3) | 0);
     if (key === ST.key) return;
@@ -151,7 +151,6 @@ export function weatherModule(): Module {
     ST.rain.length = 0;
     for (let k = 0; k <= 20; k++) ST.rain.push(rgbStr(0.02 + k * 0.03, 0.04 + k * 0.03));
     ST.splash = rgbStr(0.45, 1);
-    ST.sheen = rgbStr(0.35, 1);
     ST.tail = rgbStr(0.3, 1);
   }
 
@@ -236,7 +235,6 @@ export function weatherModule(): Module {
   const VN = 12;
   const vx = new Float32Array(VN), vy = new Float32Array(VN), vv = new Float32Array(VN), vp = new Int16Array(VN), vside = new Int8Array(VN), va = new Uint8Array(VN), vseed = new Float32Array(VN), vy0 = new Float32Array(VN);
   let panes: WPane[] = [];
-  let glint: Cv | null = null;
   let wind = 0.05, rainT = 0;
   const ra = new Uint8Array(RN);
   let rainAmt = 0;
@@ -300,12 +298,12 @@ export function weatherModule(): Module {
     }
   }
   function buildPanes(env: Env): void {
-    const fs = env.cell.size, cw = env.cell.w;
     panes = env.panes.map((p) => {
       const eaves = [p.x + 1.2, p.x + p.w - 1.2];
       const n = Math.max(1, Math.round(p.w / 95));
       for (let k = 0; k < n; k++) eaves.push(p.x + p.w * (0.12 + 0.76 * ((k + R() * 0.8) / n)));
-      const tx0 = p.x + p.border + 1.6 * fs - 2, tx1 = tx0 + p.label.length * cw + 0.8 * fs + 4;
+      // The label's gap in the top line (snow does not settle on the label).
+      const tx0 = p.tab ? p.tab[0] : 0, tx1 = p.tab ? p.tab[1] : 0;
       return {
         ...p,
         x2: p.x + p.w,
@@ -318,7 +316,6 @@ export function weatherModule(): Module {
         eaves: Float32Array.from(eaves),
         bead: Float32Array.from(eaves, () => R()),
         rate: Float32Array.from(eaves, () => 0.5 + R()),
-        gp: R(),
         dust: 0,
         eavesOk: p.y + p.h < env.protect.fadeTop - 4,
         sw: 0,
@@ -344,19 +341,6 @@ export function weatherModule(): Module {
       }
     }
   }
-  function makeGlint(): Cv {
-    const c = mkCanvas(128, 6), x = ctx2d(c);
-    const g = x.createLinearGradient(0, 0, 128, 0);
-    g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(0.5, 'rgba(255,255,255,1)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = g;
-    x.fillRect(0, 2, 128, 1.4);
-    x.globalAlpha = 0.25;
-    x.fillRect(0, 0, 128, 6);
-    return c;
-  }
-
   // ---- snow helpers
   const SR = [0.75, 1.0, 1.3, 1.65], SA = [0.3, 0.52, 0.8];
   const CLW = [0, 1, 0, 2, 1, 0, 3, 4, 5, 3, 4, 3, 6, 7, 8, 7, 9, 10, 11, 10];
@@ -1014,7 +998,6 @@ export function weatherModule(): Module {
         [0.4, C(150, 140, 255, 0.3)],
         [1, C(110, 90, 255, 0)],
       ]);
-      glint = makeGlint();
       stepTint(env.mix);
       rebuildStyles();
       pl.fill(0);
@@ -1193,33 +1176,13 @@ export function weatherModule(): Module {
               vy0[i] = vy[i] = p.y + 1;
               vv[i] = 0;
               vseed[i] = R() * 50;
-              vx[i] = vside[i] ? p.x2 - 0.6 : p.x + 0.6;
+              // Down the outside of the frame line, not over it.
+              vx[i] = vside[i] ? p.x2 + 2 : p.x - 2;
               break;
             }
           }
         }
       }
-
-      // ---- wet sheen along pane borders (front)
-      // (Rects, not stroked paths: see the rain streaks.)
-      f.fillStyle = ST.sheen;
-      for (let k = 0; k < panes.length; k++) {
-        const p = panes[k]!;
-        const a = p.wet * (0.1 + 0.22 * heavy) * lumA;
-        if (a < 0.01) continue;
-        f.globalAlpha = a;
-        f.fillRect(p.x, p.y + 1, 1, p.y2 - p.y - 1);
-        f.fillRect(p.x, p.y, p.x2 - p.x, 1);
-        f.fillRect(p.x2 - 1, p.y + 1, 1, p.y2 - p.y - 1);
-        p.gp += dt * (0.05 + 0.05 * heavy);
-        const gx = p.x - 120 + ((p.gp % 1.6) / 1.6) * (p.w + 240);
-        const g0 = Math.max(p.x, gx - 64), g1 = Math.min(p.x2, gx + 64);
-        if (g1 > g0 && glint && !th.light) {
-          f.globalAlpha = Math.min(1, p.wet * (0.25 + 0.6 * heavy) * lumA * (1 + lit * 1.5));
-          f.drawImage(glint, g0 - gx + 64, 0, g1 - g0, 6, g0, p.y - 2.2, g1 - g0, 6);
-        }
-      }
-      f.globalAlpha = 1;
 
       // ---- splashes
       // Each segment a rotated rect (not one stroked path: see the rain streaks).
@@ -1459,7 +1422,8 @@ export function weatherModule(): Module {
           if (p.dust < 0.02 || p.y < 4) continue;
           busy = true;
           f.globalAlpha = p.dust * (0.4 + 0.5 * lum);
-          f.drawImage(dustCv, p.x * d, p.dustRow * d, p.w * d, 5 * d, p.x, p.y - 3.5, p.w, 5);
+          // Lying on the top line, not over it.
+          f.drawImage(dustCv, p.x * d, p.dustRow * d, p.w * d, 5 * d, p.x, p.y - 5, p.w, 5);
         }
         f.globalAlpha = 1;
       }

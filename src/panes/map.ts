@@ -248,7 +248,7 @@ export class MapPane extends PaneShell {
   }
 
   /** A pane moved, resized or hidden by the layout takes the hover box with it. */
-  override place(p: Parameters<PaneShell['place']>[0], cell: { w: number; h: number }): void {
+  override place(p: Parameters<PaneShell['place']>[0], cell: Parameters<PaneShell['place']>[1]): void {
     const r = p?.rect;
     const key = r ? `${r.x},${r.y},${r.w},${r.h}|${cell.w}x${cell.h}` : '';
     if (key !== this.placeKey) {

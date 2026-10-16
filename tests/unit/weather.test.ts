@@ -121,12 +121,26 @@ describe('Director', () => {
 
 function geom(over: Partial<Geometry> = {}): Geometry {
   return {
+    seq: 1,
     W: 1600,
     H: 1000,
     dpr: 1,
     out: { x: 0, y: 0, w: 1200, h: 980 },
     panes: [
-      { id: 'comm', x: 1205, y: 430, w: 390, h: 430, border: 2, label: 'Comm', floating: false, bg: null, box: { x: 1200, y: 422, w: 400, h: 446 } },
+      {
+        id: 'comm',
+        x: 1205,
+        y: 430,
+        w: 390,
+        h: 430,
+        border: 2,
+        label: 'Comm',
+        floating: false,
+        z: 0,
+        bg: null,
+        box: { x: 1200, y: 422, w: 400, h: 446 },
+        tab: [1227, 1281],
+      },
     ],
     lines: [{ x: 0, y: 20, w: 300, h: 19 }],
     protect: protectFor(1600, 980, 19, 15),
@@ -145,6 +159,15 @@ describe('geometry diff', () => {
     const g = geom();
     g.panes[0]!.bg = '#102030';
     expect(geometryDiff(geom(), g)).toBe('layout');
+    const f = geom();
+    f.panes[0]!.floating = true;
+    f.panes[0]!.z = 11;
+    expect(geometryDiff(geom(), f)).toBe('layout');
+    const t = geom();
+    t.panes[0]!.tab = null;
+    expect(geometryDiff(geom(), t)).toBe('layout');
+    // The sequence number is not part of the layout.
+    expect(geometryDiff(geom(), geom({ seq: 9 }))).toBe('none');
   });
   it('ignores sub-pixel jitter', () => {
     const g = geom({ out: { x: 0.2, y: 0, w: 1200.3, h: 980 } });
@@ -156,8 +179,9 @@ describe('geometry diff', () => {
     expect(protectFor(4000, 980, 19, 15).left).toBe(90);
   });
   it('frame rect: the frame box of a framed pane', () => {
-    expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, true, 4, 8)).toEqual({ x: 14, y: 28, w: 92, h: 34 });
-    expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, false, 4, 8)).toEqual({ x: 10, y: 20, w: 100, h: 50 });
+    const ins = { l: 4, r: 3, top: 8, b: 7 };
+    expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, true, ins)).toEqual({ x: 14, y: 28, w: 93, h: 35 });
+    expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, false, ins)).toEqual({ x: 10, y: 20, w: 100, h: 50 });
   });
 });
 

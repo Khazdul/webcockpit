@@ -1,6 +1,7 @@
 // Stage 2 package B: docking layout, pane frames, drag, resize, toggles,
 // narrow collapse and the too-small screen. Uses the dev-only `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
+import { dprTest, expectDpr } from './dpr';
 
 interface Box {
   x: number;
@@ -95,23 +96,38 @@ test('default layout: game left, input under it as wide as the game, full-height
     const f = el.querySelector('.wc-pane-frame')!;
     const r = f.getBoundingClientRect();
     const t = el.querySelector('.wc-pane-title')!.getBoundingClientRect();
-    const cs = getComputedStyle(f);
+    const st = (el as HTMLElement).style;
+    const d = devicePixelRatio;
+    const before = getComputedStyle(f, '::before');
+    const after = getComputedStyle(f, '::after');
     return {
       inset: [r.left - p.left, r.top - p.top, p.right - r.right, p.bottom - r.bottom],
-      widths: [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth],
-      title: [t.left - p.left, t.top - p.top],
+      // Every edge of the frame box on a whole device pixel of the page.
+      edges: [r.left, r.top, r.right, r.bottom].map((v) => Math.abs(v * d - Math.round(v * d))),
+      t: parseFloat(st.getPropertyValue('--frame-t')),
+      shadow: getComputedStyle(f).boxShadow,
+      title: [t.left - p.left, t.top - p.top, t.right - r.left],
+      gap: [parseFloat(before.width), parseFloat(after.left)],
+      titleBg: getComputedStyle(el.querySelector('.wc-pane-title')!).backgroundColor,
     };
   });
-  expect(new Set(geo.widths).size).toBe(1);
-  const lw = parseFloat(geo.widths[0]!);
+  const lw = geo.t;
   expect(lw).toBeGreaterThanOrEqual(1);
   expect(lw).toBeLessThan(ch / 4);
+  for (const e of geo.edges) expect(e).toBeLessThan(0.05);
+  // Sides and bottom are inset shadows of the line's thickness (no border, ADR 0091 "Frames").
+  expect(geo.shadow).toContain(`${lw}px 0px 0px 0px inset`);
+  expect(geo.shadow).toContain(`0px -${lw}px 0px 0px inset`);
   expect(Math.abs(geo.inset[0]! + lw / 2 - cw / 2)).toBeLessThanOrEqual(1);
   expect(Math.abs(geo.inset[1]! + lw / 2 - ch / 2)).toBeLessThanOrEqual(1);
-  expect(geo.inset[0]).toBeCloseTo(geo.inset[2]!, 3);
-  expect(geo.inset[1]).toBeCloseTo(geo.inset[3]!, 3);
-  expect(geo.title[0]).toBeCloseTo(3 * cw, 3);
+  expect(Math.abs(geo.inset[0]! - geo.inset[2]!)).toBeLessThanOrEqual(1);
+  expect(Math.abs(geo.inset[1]! - geo.inset[3]!)).toBeLessThanOrEqual(1);
+  expect(geo.title[0]).toBeCloseTo(3 * cw, 1);
   expect(geo.title[1]).toBeCloseTo(0, 3);
+  // The top line stops at the label and goes on after it; the label has no box of its own.
+  expect(geo.gap[0]).toBeCloseTo(geo.title[0]! - geo.inset[0]!, 1);
+  expect(geo.gap[1]).toBeCloseTo(geo.title[2]!, 0);
+  expect(geo.titleBg).toBe('rgba(0, 0, 0, 0)');
   // The frame in the pane's border colour; its fill inside the line, the ring outside unpainted.
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
     ring: getComputedStyle(el).backgroundColor,
@@ -872,3 +888,44 @@ test('hovering a pane shows a close cross in its title row; clicking it hides th
   expect(await page.evaluate(() => window.__wc!.settings.get().layout.floating.map((f) => f.id))).not.toContain('timers');
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });
+
+for (const dpr of [1.25, 1.5]) {
+  dprTest.describe(`frames at pixel ratio ${dpr}`, () => {
+    dprTest.use({ dpr });
+    dprTest('every frame line edge sits on a whole device pixel, equally thick (ADR 0091 "Frames")', async ({ dprPage: page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/?replay');
+      await expect(page.locator('.wc-pane-character')).toBeVisible();
+      await expectDpr(page, dpr);
+      // Two right columns, as in the owner's report.
+      await page.evaluate(() =>
+        window.__wc!.settings.update((d) => {
+          const R = d.layout.docks.right;
+          const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
+          R.head = [];
+          R.tail = [];
+          R.lanes = [
+            { size: 33, panes: all.filter((p) => p.id !== 'comm') },
+            { size: 33, panes: all.filter((p) => p.id === 'comm') },
+          ];
+        }),
+      );
+      await expect(page.locator('.wc-pane-comm')).toBeVisible();
+      const frames = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('.wc-cockpit > .wc-pane[data-framed]')]
+          .filter((el) => !el.hidden)
+          .map((el) => {
+            const r = el.querySelector('.wc-pane-frame')!.getBoundingClientRect();
+            const d = devicePixelRatio;
+            return { t: parseFloat(el.style.getPropertyValue('--frame-t')) * d, e: [r.left, r.top, r.right, r.bottom].map((v) => v * d) };
+          }),
+      );
+      expect(frames.length).toBeGreaterThanOrEqual(4);
+      for (const f of frames) {
+        for (const v of f.e) expect(Math.abs(v - Math.round(v))).toBeLessThan(0.05);
+        expect(Math.abs(f.t - Math.round(f.t))).toBeLessThan(1e-3);
+        expect(f.t).toBe(frames[0]!.t);
+      }
+    });
+  });
+}

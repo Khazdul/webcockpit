@@ -42,6 +42,7 @@ class FakeCanvas {
 }
 
 const geom: Geometry = {
+  seq: 1,
   W: 800,
   H: 600,
   dpr: 1,
@@ -88,11 +89,12 @@ function harness(modules: Module[]) {
     },
     modules,
   );
-  const back = new FakeCanvas(800, 600), front = new FakeCanvas(800, 600);
+  const back = new FakeCanvas(800, 600), front = new FakeCanvas(800, 600), mid = new FakeCanvas(1, 1);
   engine.handle({
     t: 'init',
     back: back as unknown as OffscreenCanvas,
     front: front as unknown as OffscreenCanvas,
+    mid: mid as unknown as OffscreenCanvas,
     geom,
     theme: { bg: '#000000', fg: '#c0c0c0' },
     cats: { ...ALL_CATEGORIES },

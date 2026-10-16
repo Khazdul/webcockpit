@@ -19,13 +19,46 @@ describe('frame', () => {
     expect(frameLabel(20, '')).toBe('');
   });
 
-  it('snaps an equal-thickness line to the middle of the cell in device pixels', () => {
-    expect(frameGeometry(9, 18)).toEqual({ t: 2, x: 4, y: 8 });
-    expect(frameGeometry(9, 18, 2)).toEqual({ t: 2, x: 3.5, y: 8 });
-    expect(frameGeometry(14, 28)).toEqual({ t: 3, x: 6, y: 13 });
-    expect(frameGeometry(7, 12)).toEqual({ t: 2, x: 3, y: 5 });
-    const g = frameGeometry(8.8, 17.6, 1.25);
-    for (const v of [g.t, g.x, g.y]) expect(Math.abs(v * 1.25 - Math.round(v * 1.25))).toBeLessThan(1e-3);
+  it('puts an equal-thickness line in the middle of the outer cells', () => {
+    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 2, l: 4, r: 3, top: 8, b: 7 });
+    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 3, l: 6, r: 5, top: 13, b: 12 });
+    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 1.5, l: 3, r: 2.5, top: 5.5, b: 5 });
+  });
+
+  it('snaps every edge of the line to a whole device pixel of the page, at any position and ratio', () => {
+    for (const dpr of [1, 1.25, 1.5, 1.75, 2, 3]) {
+      for (const [cw, chh] of [
+        [9.03125, 17],
+        [8.8, 17.6],
+        [7.2, 14],
+      ] as const) {
+        for (const [col, row, w, h] of [
+          [0, 0, 33, 11],
+          [67, 12, 33, 20],
+          [101, 3, 7, 5],
+        ] as const) {
+          const box = { x: 3 + col * cw, y: 0.6 + row * chh, w: w * cw, h: h * chh };
+          const g = frameGeometry(box, cw, chh, dpr);
+          const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
+          whole(g.t);
+          whole(box.x + g.l);
+          whole(box.x + box.w - g.r);
+          whole(box.y + g.top);
+          whole(box.y + box.h - g.b);
+          // Inside the outer cells, about centred.
+          for (const [ins, cell] of [
+            [g.l, cw],
+            [g.r, cw],
+            [g.top, chh],
+            [g.b, chh],
+          ] as const) {
+            expect(ins).toBeGreaterThanOrEqual(0);
+            expect(ins + g.t).toBeLessThanOrEqual(cell);
+            expect(Math.abs(ins + g.t / 2 - cell / 2)).toBeLessThanOrEqual(1 / dpr);
+          }
+        }
+      }
+    }
   });
 });
 
@@ -45,6 +78,14 @@ describe('PaneShell', () => {
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
     expect(p.el.hasAttribute('data-framed')).toBe(true);
     expect(p.el.style.getPropertyValue('--frame-t')).toBe('2px');
+    expect(['l', 'r', 'top', 'b', 'label-x', 'label-w'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual([
+      '4px',
+      '3px',
+      '8px',
+      '7px',
+      `${3 * 9 - 4}px`,
+      `${6 * 9}px`,
+    ]);
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');

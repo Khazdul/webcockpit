@@ -1,10 +1,18 @@
-// The weather engine inside the worker: owns both OffscreenCanvases, the
-// director and the modules, and runs the frame loop (the prototype harness).
+// The weather engine inside the worker: owns the three OffscreenCanvases,
+// the director and the modules, and runs the frame loop (the prototype
+// harness).
 //
-// Frame: clear both canvases, run sky, weather, fog, body (each wrapped in
-// save/restore), mask the prompt/input rows and the far left, then paint
-// the docked panes' own backgrounds underneath the back layer (the panes are
-// transparent while weather is on, see weather.css).
+// Frame: clear the back and front canvases, run sky, weather, fog, body
+// (each wrapped in save/restore), mask the prompt/input rows and the far
+// left, paint the mid layer under the floating panes (their fill and a copy
+// of the back layer there), then paint the docked panes' own backgrounds
+// underneath the back layer (the panes are transparent while weather is on,
+// see weather.css).
+//
+// Layout changes: the canvases, the mask and the pane fills follow at once;
+// the modules' own rebuild (`resize`: sprites, star fields, pane edges) waits
+// until the layout has been still for RESIZE_SETTLE_MS, so dragging a pane
+// or a dock boundary does not rebuild them on every cell step.
 //
 // Idle: when no module has anything to show and every mix value is at rest,
 // the canvases are left cleared and the loop drops to a 4 Hz tick that only
@@ -33,6 +41,19 @@ const DT_MAX = 0.25;
 /** Tick interval while idle, ms. */
 export const IDLE_MS = 250;
 const N_TIMES = 600;
+/** Pane-only layout changes rebuild the modules after this long without another, ms. */
+export const RESIZE_SETTLE_MS = 250;
+
+/** A floating pane's mid-layer paint, in device px of the canvases. */
+interface MidFill {
+  /** The whole pane element (its ring outside the frame included), one device px larger all round. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** The frame box tinted with the pane's own background, if it has one. */
+  bg: { x: number; y: number; w: number; h: number; c: string } | null;
+}
 
 export interface EngineHost {
   post(m: WorkerToMain): void;
@@ -86,6 +107,15 @@ export class WeatherEngine {
   private env: Env | null = null;
   private back: OffscreenCanvas | null = null;
   private front: OffscreenCanvas | null = null;
+  private mid: OffscreenCanvas | null = null;
+  private midCtx: Ctx | null = null;
+  private midFills: MidFill[] = [];
+  /** The mid layer holds something (cleared once when the last float goes). */
+  private midDirty = false;
+  private termBg = '#000000';
+  private geomSeq = 0;
+  private paintedSeq = 0;
+  private resizeGen = 0;
   private director = new Director();
   private readonly modules: Module[];
   private readonly slots: Slot[];
@@ -119,6 +149,9 @@ export class WeatherEngine {
       case 'init': {
         this.back = m.back;
         this.front = m.front;
+        this.mid = m.mid;
+        this.midCtx = ctx2d(m.mid);
+        this.termBg = m.theme.bg;
         this.director = new Director(m.state, m.cats);
         const back = ctx2d(m.back), front = ctx2d(m.front);
         this.env = {
@@ -161,15 +194,20 @@ export class WeatherEngine {
       }
       case 'geom': {
         if (!this.env) break;
+        const env = this.env;
+        const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
         this.applyGeometry(m.g);
-        for (const mod of this.modules) {
-          if (m.linesOnly) mod.lines?.(this.env);
-          else mod.resize(this.env);
-        }
+        if (m.linesOnly) {
+          for (const mod of this.modules) mod.lines?.(env);
+        } else if (sized) {
+          this.resizeGen++;
+          for (const mod of this.modules) mod.resize(env);
+        } else this.settleResize();
         break;
       }
       case 'theme': {
         if (!this.env) break;
+        this.termBg = m.theme.bg;
         this.env.theme = themeInfo(m.theme.bg);
         for (const mod of this.modules) mod.init(this.env);
         for (const mod of this.modules) mod.resize(this.env);
@@ -208,6 +246,22 @@ export class WeatherEngine {
     }
   }
 
+  /** Rebuilds the modules once the layout has been still for RESIZE_SETTLE_MS. */
+  private settleResize(): void {
+    const g = ++this.resizeGen;
+    this.host.setTimeout(() => {
+      if (g !== this.resizeGen || !this.env) return;
+      for (const mod of this.modules) {
+        try {
+          mod.resize(this.env);
+        } catch (e) {
+          this.report(mod.id, e);
+        }
+      }
+      this.wake();
+    }, RESIZE_SETTLE_MS);
+  }
+
   private readonly reported = new Set<string>();
   private report(where: string, e: unknown): void {
     if (this.reported.has(where)) return; // once per module, not every frame
@@ -236,7 +290,33 @@ export class WeatherEngine {
     env.lines = g.lines;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating }));
+    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, tab: p.tab }));
+    this.geomSeq = g.seq;
+    // The mid layer takes full-size memory only while there is a floating pane.
+    const anyFloat = g.panes.some((p) => p.floating);
+    const mw = anyFloat ? Math.max(1, Math.round(g.W * g.dpr)) : 1, mh = anyFloat ? Math.max(1, Math.round(g.H * g.dpr)) : 1;
+    if (this.mid && (this.mid.width !== mw || this.mid.height !== mh)) {
+      this.mid.width = mw;
+      this.mid.height = mh;
+      this.midDirty = false;
+    }
+    // Floating panes, back to front: in device px, the pane box one px larger all round (it must hide the text under it).
+    const d = g.dpr;
+    this.midFills = g.panes
+      .filter((p) => p.floating)
+      .sort((a, b) => a.z - b.z)
+      .map((p) => {
+        const x = Math.floor(p.box.x * d) - 1, y = Math.floor(p.box.y * d) - 1;
+        const x1 = Math.ceil((p.box.x + p.box.w) * d) + 1, y1 = Math.ceil((p.box.y + p.box.h) * d) + 1;
+        const bx = Math.round(p.x * d), by = Math.round(p.y * d);
+        return {
+          x,
+          y,
+          w: x1 - x,
+          h: y1 - y,
+          bg: p.bg ? { x: bx, y: by, w: Math.round((p.x + p.w) * d) - bx, h: Math.round((p.y + p.h) * d) - by, c: p.bg } : null,
+        };
+      });
     // The fill of a docked pane with its own background: the frame box (framed) or the whole pane.
     this.paneBgs = g.panes.filter((p) => p.bg && !p.floating).map((p) => ({ x: p.x, y: p.y, w: p.w, h: p.h, bg: p.bg! }));
     const p = g.protect;
@@ -275,6 +355,46 @@ export class WeatherEngine {
       c.fillRect(p.x, p.y, p.w, p.h);
     }
     c.restore();
+  }
+
+  /**
+   * The mid layer: per floating pane, back to front, the terminal background
+   * over its box (hiding the game text under it), its own background in the
+   * frame box, then the back layer's pixels there (a copy, not a re-render),
+   * so the pane shows the weather as a docked one does. Rect fills and one
+   * image copy each (ADR 0091: no paths or clips on the GPU canvases).
+   */
+  private paintMid(): void {
+    const c = this.midCtx, back = this.back;
+    if (!c || !back) return;
+    if (!this.midFills.length) {
+      if (this.midDirty) c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      this.midDirty = false;
+      return;
+    }
+    this.midDirty = true;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalAlpha = 1;
+    c.globalCompositeOperation = 'source-over';
+    c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+    for (const f of this.midFills) {
+      c.fillStyle = this.termBg;
+      c.fillRect(f.x, f.y, f.w, f.h);
+      if (f.bg) {
+        c.fillStyle = f.bg.c;
+        c.fillRect(f.bg.x, f.bg.y, f.bg.w, f.bg.h);
+      }
+      const x = Math.max(0, f.x), y = Math.max(0, f.y);
+      const w = Math.min(back.width, f.x + f.w) - x, h = Math.min(back.height, f.y + f.h) - y;
+      if (w > 0 && h > 0) c.drawImage(back, x, y, w, h, x, y, w, h);
+    }
+    c.restore();
+    if (this.paintedSeq !== this.geomSeq) {
+      // Answer on the next frame, once this one is on screen.
+      const s = (this.paintedSeq = this.geomSeq);
+      this.host.requestFrame(() => this.host.post({ t: 'painted', seq: s }));
+    }
   }
 
   /** Starts or speeds up the loop. */
@@ -397,6 +517,7 @@ export class WeatherEngine {
     this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(FPS_SLOW, rate));
     this.applyMask(back, 0);
     this.applyMask(front, 1);
+    this.paintMid();
     this.paintPaneBgs(back);
     this.times[this.nTimes % N_TIMES] = performance.now() - t0;
     this.nTimes++;

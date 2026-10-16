@@ -190,8 +190,20 @@ Open:
 2. **Frames.** The borders do not look sharp and seem buggy. With two
    docked columns on the right, all borders disappeared. Docking and
    creating more columns felt less smooth than before.
+   - **Done (2026-10-17):** one-colour line (the bevel's dark side vanished
+     on black), every edge on a whole device pixel of the page, the label
+     breaks the line with no box behind it, no sheen/glint drawn over lines
+     with weather on. "All borders disappeared" was the stale dev server
+     (main's CSS with the new pane code); not reproducible on a fresh one.
+     The worker no longer rebuilds its sprites on every step of a drag
+     (250 ms settle). ADR 0091 "Frames" and "Engine" notes 2026-10-17.
 3. **Transparency.** Docked panes get a transparent background (weather
    shows through), floating panes do not. Wanted: all panes see-through.
+   - **Done (2026-10-17):** floating panes are see-through too: a mid canvas
+     under them gets the pane's fill plus a copy of the weather, so game text
+     stays hidden; a float being moved or resized is opaque for ~0.1 s until
+     the engine has painted its new place; two overlapping floats stay
+     opaque. ADR 0091 "Engine" note 2026-10-17.
 4. **Heat.** The laptop gets noticeably warmer with weather on; the
    discrete GPU seems to wake up (it normally sleeps).
    - [x] Done (2026-10-17, ADR 0091 "Power"): effects run at the rate of
