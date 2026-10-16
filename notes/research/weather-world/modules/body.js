@@ -210,7 +210,7 @@
     let slot = S.spl.find((o) => o.a <= 0);
     if (!slot) { if (S.spl.length >= 18) return; slot = {}; S.spl.push(slot); }
     slot.sp = sp; slot.x = pos.x; slot.y = pos.y; slot.rot = Math.random() * TAU; slot.sc = 0.85 + Math.random() * 0.5;
-    slot.born = S.t; slot.a = 1; slot.dry = 0; slot.drying = false;
+    slot.born = S.t + Math.random() * 0.14; slot.a = 1; slot.dry = 0; slot.drying = false;
   }
 
   WX.module({
@@ -311,9 +311,12 @@
       const target = pos === 'dying' ? 12 : pos === 'incapacitated' ? 6 : 0;
       let fresh = 0;
       for (const o of S.spl) if (o.a > 0 && !o.drying) fresh++;
-      if (fresh < target && t >= S.splNext) {
+      // all spatters land at once (owner v4), with a few ms of scatter so they read as one splash
+      while (fresh < target) {
+        const before = S.spl.length, free = S.spl.some((o) => o.a <= 0);
         spawnSpatter(env);
-        S.splNext = t + (fresh < target / 2 ? 0.5 : 1) * ((pos === 'dying' ? 1.1 : 2.1) + Math.random() * 1.5);
+        if (!free && S.spl.length === before) break;
+        fresh++;
       }
       if (target === 0 || fresh > target) {
         // recovering (or fewer wanted): start drying, oldest first, staggered
