@@ -66,6 +66,33 @@ sits from column 3 on a tab of the pane fill (as the old label cells), so
 it stays legible when the tint differs from the page. Borderless panes are
 unchanged.
 
+**2026-10-17 (owner feedback 2):**
+
+- Root causes. The bevel was the main "buggy" look: the dark bottom/right
+  edge (`--pane-border` 30 % toward black, ~#1d1d1d) all but vanished on a
+  black page, so frames looked open. With weather on, the rain's wet sheen
+  (1 px rects along the top and sides) and a moving glint sprite were drawn
+  over the line, and the label tab was an opaque box of the pane fill.
+  "All borders disappeared" was not reproduced on a fresh server (two right
+  columns, ratios 1–2, Chromium and Firefox, weather off and on): it matches
+  the owner's stale dev server, which served main's `layout.css` (no border
+  on `.wc-pane-frame`) with the new `pane.ts`.
+- One colour: `--pane-border` 78 % mixed with white (the old lit edge) on
+  all four sides. No bevel.
+- No CSS border: the sides and the bottom are inset box shadows of the frame
+  box, the top is two pieces (`::before`, `::after`, inset shadows too)
+  either side of the label, so the label has no box behind it and the
+  weather shows through the gap like the rest of the pane.
+- `frameGeometry(box, cell w, cell h, dpr)` puts every edge on a whole device
+  pixel of the page: the cockpit's origin (`PaneCell.ox/oy`, read once per
+  relayout) plus the pane box, insets per side (`--frame-l/r/top/b`), the
+  thickness `--frame-t`, the label gap `--frame-label-x/w`. Before, insets
+  were whole device pixels relative to a pane at a fractional `col × cell-w`.
+  Note: Playwright's emulated `deviceScaleFactor` in Chromium lays out at
+  ratio 1 and scales, so lines look soft in its screenshots at 1.25/1.5
+  either way; with a real scale factor (`--force-device-scale-factor`) both
+  the old and the new frames are sharp in Chromium, as in Firefox.
+
 ### Engine (stage 28 B)
 
 - `src/weather/`: `index.ts` (main thread, `createWeather(host)`),
@@ -109,6 +136,40 @@ unchanged.
   fog + moon avg 0.38 ms, p95 0.50 ms; snow + dense fog avg 0.41 ms,
   p95 0.53 ms; clear moonlit night avg 0.13 ms. Indoors with nothing
   showing: idle.
+
+**2026-10-17 (owner feedback 2 and 3):**
+
+- See-through floating panes. A third canvas, *mid* (`z-index: 9`, under
+  `FLOAT_Z` = 10, over the game text and docked panes). Per floating pane,
+  back to front, the worker fills the pane box (1 device px larger) with the
+  terminal background, its frame box with the pane's own background, then
+  copies the back layer's pixels there (`drawImage` of its own canvas, after
+  the mask, before the docked pane backgrounds): three rect operations per
+  float, no paths or clips. Main thread: each layout post carries a sequence
+  number; the worker answers `painted` one frame after drawing it; only then
+  `floatSee` (index.ts) sets `data-weather-see` on the floats, which drops
+  their fill (weather.css). Every relayout (Cockpit.onLayout, synchronously,
+  before it is painted) takes the mark off a float whose inline box changed,
+  so game text never shows through a moving or resizing float; it is back
+  after ~60–90 ms. Floats that overlap another float stay opaque (both): a
+  see-through upper one would show the lower one's text. Without floats the
+  mid canvas is hidden and 1 × 1 (a full-size one cost a 1.5 s GPU stall on
+  the next page in the bench).
+- Frame lines stay crisp: no wet sheen or glint along pane edges; rivulets
+  run 2 px outside the side lines; the snow dusting lies on top of the top
+  line and skips the label gap (`PaneGeom.tab`, from `--frame-label-*`).
+  Beads still hang under the bottom line. The lightning rim light (a strike
+  only) is unchanged.
+- Smoother layout changes. Measured: a layout change costs the main thread
+  the same with weather on and off and as on main (~5–10 ms of tasks,
+  CDP; no rAF gaps or long tasks in Chromium or Firefox during a lane
+  drag); `measureGeometry` takes 0.05–0.2 ms. The worker, though, rebuilt
+  every module on each geometry post: 10–25 ms (sky star canvases 6–19 ms,
+  rain/snow sprites 3–10 ms) and a reset of drips, splashes and rivulets,
+  on every cell step of a drag. Now a pane-only change applies the canvas
+  size, mask, pane fills and mid layer at once, and the modules' `resize`
+  runs once the layout has been still for `RESIZE_SETTLE_MS` (250 ms); a
+  canvas size change still rebuilds at once.
 
 ### Signals (stage 28 C)
 
