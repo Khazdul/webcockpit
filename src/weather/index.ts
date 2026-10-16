@@ -18,6 +18,7 @@
 
 import './weather.css';
 import { geometryDiff, measureGeometry } from './geometry';
+import { weatherAvailable } from './support';
 import {
   ALL_CATEGORIES,
   type Categories,
@@ -64,6 +65,8 @@ export interface Weather {
   /** Overrides the measured geometry (tests); normally automatic. */
   setGeometry(geom: Geometry): void;
   setTheme(theme: ThemeColors): void;
+  /** Re-reads the theme colours and re-measures the layout in the next frame (after a settings change). */
+  refresh(): void;
   setCategories(cats: Partial<Categories>): void;
   setMoonSpeed(speed: number): void;
   /** Worker frame times (ms). */
@@ -75,15 +78,11 @@ export interface Weather {
 
 /** True where a worker can draw on a transferred canvas. */
 export function weatherSupported(): boolean {
-  return (
-    typeof Worker !== 'undefined' &&
-    typeof OffscreenCanvas !== 'undefined' &&
-    typeof HTMLCanvasElement !== 'undefined' &&
-    'transferControlToOffscreen' in HTMLCanvasElement.prototype
-  );
+  return weatherAvailable();
 }
 
-function themeOf(el: HTMLElement): ThemeColors {
+/** The terminal colours of `el` (its `--term-bg` / `--term-fg`). */
+export function themeOf(el: HTMLElement): ThemeColors {
   const cs = getComputedStyle(el);
   return {
     bg: cs.getPropertyValue('--term-bg').trim() || '#000000',
@@ -219,6 +218,14 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     },
     setTheme(theme) {
       if (!destroyed) post({ t: 'theme', theme });
+    },
+    refresh() {
+      if (destroyed) return;
+      requestAnimationFrame(() => {
+        if (destroyed) return;
+        post({ t: 'theme', theme: themeOf(root) });
+        remeasure(false);
+      });
     },
     setCategories(c) {
       if (destroyed) return;

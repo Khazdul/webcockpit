@@ -60,6 +60,8 @@ import {
   TIMER_COLOR_ORDER,
   TIMER_COLS_MIN,
   type TimersSettings,
+  WEATHER_CATEGORIES,
+  type WeatherSettings,
   defaultSettings,
   defaultTimersSettings,
   timerColsMax,
@@ -333,6 +335,15 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
   };
 }
 
+/** Weather effects from anything (additive in stage 28: absent = off, every category on). */
+export function migrateWeather(raw: unknown): WeatherSettings {
+  const d = defaultSettings().weather;
+  const x = isObj(raw) ? raw : {};
+  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled) };
+  for (const k of WEATHER_CATEGORIES) out[k] = bool(x[k], d[k]);
+  return out;
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
 export function migrateSettings(raw: unknown): Settings {
   const d = defaultSettings();
@@ -351,5 +362,6 @@ export function migrateSettings(raw: unknown): Settings {
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
     mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
+    weather: migrateWeather(s.weather),
   };
 }

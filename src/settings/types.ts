@@ -274,6 +274,29 @@ export interface MapperSettings {
   backgroundBefore: string;
 }
 
+/**
+ * Options → Weather effects (stage 28 trial, ADR 0091): the master switch
+ * (default off; off = the engine is not even loaded) and the six effect
+ * categories. Not in `ViewSnapshot`: a log plays with the viewer's own.
+ */
+export interface WeatherSettings {
+  enabled: boolean;
+  /** Sky gradient, clouds, sun moments, moon, stars. */
+  sky: boolean;
+  /** Rain, drips, snow. */
+  precipitation: boolean;
+  /** The bolt on a lightning message. */
+  lightning: boolean;
+  fog: boolean;
+  /** The darkness sky and Event.Darkness. */
+  darkness: boolean;
+  /** Sleeping, stunned, incapacitated, dying. */
+  body: boolean;
+}
+
+/** The six categories, in the Options page's order. */
+export const WEATHER_CATEGORIES = ['sky', 'precipitation', 'lightning', 'fog', 'darkness', 'body'] as const;
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -289,6 +312,7 @@ export interface Settings {
   output: OutputSettings;
   input: InputSettings;
   mapper: MapperSettings;
+  weather: WeatherSettings;
 }
 
 /**
@@ -366,6 +390,7 @@ export function defaultSettings(): Settings {
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' },
+    weather: { enabled: false, sky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
   };
 }
 

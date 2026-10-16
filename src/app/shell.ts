@@ -72,6 +72,7 @@ import type { Notices } from './notices';
 import { NoticeIndicator } from '../ui/notice-indicator';
 import { device } from '../core/device';
 import { watchResume } from './resume-watch';
+import { installWeather } from '../weather/hook';
 import { bootDone, bootStep, revealStart } from './boot-progress';
 
 type ChromeModule = typeof import('../chrome');
@@ -379,6 +380,7 @@ export class Shell {
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
       onEscape: () => void this.openMenu(),
+      weather: installWeather,
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.
