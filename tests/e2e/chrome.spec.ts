@@ -386,7 +386,7 @@ test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0
   await expect(sel).toHaveText('<< Options >>');
   await page.keyboard.press('Enter');
   // The hub: Text input right after Appearance; the toggles are gone from it.
-  await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Scripts', 'Back']);
+  await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Weather effects', 'Scripts', 'Back']);
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
   await expect(sel).toHaveText('<< Text input >>');
   await page.keyboard.press('Enter');

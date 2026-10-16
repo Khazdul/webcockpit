@@ -106,7 +106,7 @@ describe('Options → Mapper', () => {
     expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
     await key('Escape');
     await key('Escape');
-    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Back']);
+    expect(labels(host)).toEqual(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Weather effects', 'Back']);
     // Text input: the input line toggles and the cursor rows write the store at once (ADR 0063, 0066).
     await click(host, 'textinput');
     expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Text input ───');

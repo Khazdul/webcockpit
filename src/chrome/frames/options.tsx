@@ -4,7 +4,8 @@
 // there is no Apply and Back never discards.
 //
 //   Options hub:  Panes · Mapper · Appearance · Text input · Spotlights ·
-//                 Scripts, Back (Scripts only with a script library)
+//                 Weather effects · Scripts, Back (Scripts only with a
+//                 script library)
 //   Panes hub:    Appearance · Timers · Communication · Group · Back
 //                 (Cockpit's order; Appearance was "General" before stage 25)
 //   Panes → Appearance: pane × colour grid with a Border column, reset
@@ -18,6 +19,7 @@
 //                 live preview box
 //   Text input:   options-input.tsx (auto-clear, autosuggest, cursor; ADR 0066)
 //   Spotlights:   options-spotlights.tsx
+//   Weather effects: options-weather.tsx (stage 28 trial, ADR 0091)
 //   Scripts:      scripts.tsx (ADR 0051)
 
 import type { VNode } from 'preact';
@@ -55,6 +57,7 @@ import { TextInputOptionsFrame } from './options-input';
 import { ScriptsFrame } from './scripts';
 import { SpotlightsOptionsFrame } from './options-spotlights';
 import { TimersOptionsFrame } from './options-timers';
+import { WeatherOptionsFrame } from './options-weather';
 import { centreLeft, cycle, stepValue } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import {
@@ -85,6 +88,7 @@ export function OptionsHub(): VNode {
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'textinput', label: 'Text input', activate: () => nav.push(<TextInputOptionsFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
+    { key: 'weather', label: 'Weather effects', activate: () => nav.push(<WeatherOptionsFrame />) },
     ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
