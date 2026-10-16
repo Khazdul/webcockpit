@@ -1,8 +1,8 @@
 // Weather engine pure logic (stage 28, ADR 0091): the director's dwell,
 // mix easing and sky selection, geometry diffing and background palettes.
 import { describe, expect, it } from 'vitest';
-import { DWELL_MS, Director, eventState, mixTargets, zeroMix } from '../../src/weather/director';
-import { frameRect, geometryDiff, linesChanged, protectFor } from '../../src/weather/geometry';
+import { DWELL_MS, Director, FOG_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
+import { frameRect, geometryDiff, protectFor } from '../../src/weather/geometry';
 import { adapt, luminance, parseHex, themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type WeatherState } from '../../src/weather/protocol';
 
@@ -26,9 +26,14 @@ describe('mixTargets: sky selection (v4)', () => {
     expect(mixTargets(state({ weather: ' ', clock: 'day', light: ')' }), ALL_CATEGORIES).sun).toBe(1);
   });
   it('indoors (weather null) has no sky and no precipitation', () => {
-    const m = mixTargets(state({ weather: null, clock: 'day', light: 'o', fog: '-' }), ALL_CATEGORIES);
-    expect([m.outdoors, m.sun, m.evil, m.clouds, m.rain]).toEqual([0, 0, 0, 0, 0]);
+    const m = mixTargets(state({ weather: null, clock: 'day', light: '!', fog: '-' }), ALL_CATEGORIES);
+    expect([m.outdoors, m.sun, m.moon, m.dark, m.evil, m.clouds, m.rain]).toEqual([0, 0, 0, 0, 0, 0, 0]);
     expect(m.fog).toBe(0.5);
+  });
+  it("a dark room indoors (light 'o', weather null) still gets the darkness sky (owner feedback 7)", () => {
+    const m = mixTargets(state({ weather: null, clock: 'day', light: 'o' }), ALL_CATEGORIES);
+    expect([m.outdoors, m.sun, m.evil, m.clouds]).toEqual([0, 0, 1, 0]);
+    expect(mixTargets(state({ weather: null, light: 'o' }), { ...ALL_CATEGORIES, darkness: false }).evil).toBe(0);
   });
   it('weather symbols map to cover and precipitation', () => {
     const t = (w: WeatherState['weather']) => mixTargets(state({ weather: w }), ALL_CATEGORIES);
@@ -103,6 +108,45 @@ describe('Director', () => {
     for (let i = 0; i < 600; i++) d.tick((t += 16), 0.016);
     expect(d.mix.outdoors).toBeLessThan(0.01);
   });
+  it('fog grows and thins at a constant rate: 20 s per step (owner feedback 8)', () => {
+    expect(0.5 / FOG_RATE).toBe(20);
+    const d = new Director({ weather: ' ' });
+    d.set({ fog: '-' });
+    d.settle(1);
+    let t = 1 + DWELL_MS;
+    const run = (s: number): void => {
+      for (let i = 0; i < s * 10; i++) d.tick((t += 100), 0.1);
+    };
+    run(0.1);
+    expect(d.settled.fog).toBe('-');
+    run(5);
+    expect(d.mix.fog).toBeGreaterThan(0.1);
+    expect(d.mix.fog).toBeLessThan(0.15);
+    run(15);
+    expect(d.mix.fog).toBeCloseTo(0.5, 5);
+    d.set({ fog: '' });
+    run(DWELL_MS / 1000 + 10);
+    expect(d.mix.fog).toBeGreaterThan(0.2);
+    run(11);
+    expect(d.mix.fog).toBe(0);
+    // switching the category off still fades quickly
+    d.jump({ fog: '=' });
+    d.cats = { ...d.cats, fog: false };
+    run(5);
+    expect(d.mix.fog).toBeLessThan(0.01);
+  });
+  it('resting once every mix value has arrived and nothing waits to settle', () => {
+    const d = new Director({ weather: ' ' });
+    expect(d.resting()).toBe(true);
+    d.set({ weather: '~' });
+    d.settle(1);
+    expect(d.resting()).toBe(false);
+    d.settle(1 + DWELL_MS);
+    expect(d.resting()).toBe(false);
+    let t = 1 + DWELL_MS;
+    for (let i = 0; i < 200; i++) d.tick((t += 100), 0.1);
+    expect(d.resting()).toBe(true);
+  });
   it('quiet when nothing shows', () => {
     expect(new Director({ weather: null }).quiet()).toBe(true);
     expect(new Director({ weather: ' ' }).quiet()).toBe(false);
@@ -142,7 +186,6 @@ function geom(over: Partial<Geometry> = {}): Geometry {
         tab: [1227, 1281],
       },
     ],
-    lines: [{ x: 0, y: 20, w: 300, h: 19 }],
     protect: protectFor(1600, 980, 19, 15),
     cell: { w: 9, h: 19, size: 15, font: '15px monospace' },
     ...over,
@@ -150,9 +193,8 @@ function geom(over: Partial<Geometry> = {}): Geometry {
 }
 
 describe('geometry diff', () => {
-  it('no change, lines only, or layout', () => {
+  it('no change or layout', () => {
     expect(geometryDiff(geom(), geom())).toBe('none');
-    expect(geometryDiff(geom(), geom({ lines: [{ x: 0, y: 39, w: 300, h: 19 }] }))).toBe('lines');
     expect(geometryDiff(geom(), geom({ W: 1500 }))).toBe('layout');
     expect(geometryDiff(geom(), geom({ dpr: 2 }))).toBe('layout');
     expect(geometryDiff(null, geom())).toBe('layout');
@@ -172,7 +214,6 @@ describe('geometry diff', () => {
   it('ignores sub-pixel jitter', () => {
     const g = geom({ out: { x: 0.2, y: 0, w: 1200.3, h: 980 } });
     expect(geometryDiff(geom(), g)).toBe('none');
-    expect(linesChanged([{ x: 0, y: 0, w: 10, h: 10 }], [{ x: 0.3, y: 0, w: 10, h: 10 }])).toBe(false);
   });
   it('protect: solid from one row above the game bottom, 3.5 lines of fade', () => {
     expect(protectFor(1600, 980, 19, 15)).toEqual({ solidTop: 959, fadeTop: 959 - 52.5, left: 80 });

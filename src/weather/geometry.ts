@@ -11,18 +11,8 @@ export const GEOM_EPS = 0.5;
 const near = (a: number, b: number): boolean => Math.abs(a - b) < GEOM_EPS;
 const rectEq = (a: Rect, b: Rect): boolean => near(a.x, b.x) && near(a.y, b.y) && near(a.w, b.w) && near(a.h, b.h);
 
-/** True when the text lines differ. */
-export function linesChanged(a: readonly Rect[], b: readonly Rect[]): boolean {
-  if (a.length !== b.length) return true;
-  for (let i = 0; i < a.length; i++) if (!rectEq(a[i]!, b[i]!)) return true;
-  return false;
-}
-
-/**
- * What changed between two geometries: 'none', 'lines' (only the text
- * lines, a cheap update in the worker) or 'layout' (everything else).
- */
-export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'lines' | 'layout' {
+/** What changed between two geometries: 'none' or 'layout'. */
+export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout' {
   if (!a) return 'layout';
   if (!near(a.W, b.W) || !near(a.H, b.H) || a.dpr !== b.dpr) return 'layout';
   if (!rectEq(a.out, b.out)) return 'layout';
@@ -37,7 +27,7 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'lines' 
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
     if (!p.tab !== !q.tab || (p.tab && q.tab && (!near(p.tab[0], q.tab[0]) || !near(p.tab[1], q.tab[1])))) return 'layout';
   }
-  return linesChanged(a.lines, b.lines) ? 'lines' : 'none';
+  return 'none';
 }
 
 /**
@@ -88,35 +78,8 @@ function cellOf(root: HTMLElement): Geometry['cell'] {
   return { w: px('--cell-w', size * 0.6), h: px('--cell-h', size * 1.2), size, font: `${size}px ${family}` };
 }
 
-/** Text line boxes of the output rows inside the game pane's view (newest first, at most `max`). */
-export function measureLines(game: HTMLElement, base: DOMRect, max = 120): Rect[] {
-  const out: Rect[] = [];
-  const g = game.getBoundingClientRect();
-  const rows = game.querySelector('.wc-rows');
-  if (!rows) return out;
-  const range = game.ownerDocument.createRange();
-  for (let chunk = rows.lastElementChild; chunk && out.length < max; chunk = chunk.previousElementSibling) {
-    const cr = chunk.getBoundingClientRect();
-    if (cr.top > g.bottom) continue;
-    if (cr.bottom < g.top) break;
-    for (let row = chunk.lastElementChild; row && out.length < max; row = row.previousElementSibling) {
-      const rr = row.getBoundingClientRect();
-      if (rr.top > g.bottom) continue;
-      if (rr.bottom < g.top) break;
-      if (!row.textContent || !row.textContent.trim()) continue;
-      range.selectNodeContents(row);
-      for (const r of range.getClientRects()) {
-        if (r.width <= 2 || r.bottom < g.top || r.top > g.bottom) continue;
-        out.push({ x: round(r.left - base.left), y: round(r.top - base.top), w: round(r.width), h: round(r.height) });
-      }
-    }
-  }
-  // Rects of one row can come split per span; the order is screen order bottom-up.
-  return out;
-}
-
 /** Measures everything the worker needs. Reads layout; call on layout changes only. */
-export function measureGeometry(host: MeasureHost, dpr: number, withLines = true, prevLines: Rect[] = [], seq = 0): Geometry {
+export function measureGeometry(host: MeasureHost, dpr: number, seq = 0): Geometry {
   const { root, game } = host;
   const base = root.getBoundingClientRect();
   const rel = (r: DOMRect): Rect => ({ x: round(r.left - base.left), y: round(r.top - base.top), w: round(r.width), h: round(r.height) });
@@ -159,7 +122,6 @@ export function measureGeometry(host: MeasureHost, dpr: number, withLines = true
     dpr,
     out,
     panes,
-    lines: withLines ? measureLines(game, base) : prevLines,
     protect: protectFor(W, out.y + out.h, cell.h, cell.size),
     cell,
   };

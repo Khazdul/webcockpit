@@ -230,10 +230,6 @@ export function bodyModule(): Module {
       for (let y0 = fadeTop - ch * 0.5; y0 > fadeTop - ch * 8 && y0 - rise > 0; y0 -= ch) {
         const x0 = x - cw, x1 = x + cw * 4, y1 = y0 - rise;
         let overlap = 0;
-        for (const r of env.lines) {
-          const ox = Math.min(x1, r.x + r.w) - Math.max(x0, r.x), oy = Math.min(y0 + ch, r.y + r.h) - Math.max(y1, r.y);
-          if (ox > 0 && oy > 0) overlap += ox * oy;
-        }
         for (const p of env.panes) {
           const ox = Math.min(x1 + cw * 2, p.x + p.w) - Math.max(x0, p.x), oy = Math.min(y0 + ch, p.y + p.h) - Math.max(y1, p.y);
           if (ox > 0 && oy > 0) overlap += ox * oy * 4;
@@ -261,10 +257,6 @@ export function bodyModule(): Module {
         dc = Math.min(dc, Math.hypot(q.x - x, q.y - y), Math.hypot(q.x + q.w - x, q.y - y), Math.hypot(q.x - x, q.y + q.h - y), Math.hypot(q.x + q.w - x, q.y + q.h - y));
       }
       score -= Math.min(1, dc / 160) * 0.5;
-      for (const l of env.lines) {
-        const ox = Math.min(x + r * 0.8, l.x + l.w) - Math.max(x - r * 0.8, l.x), oy = Math.min(y + r * 0.9, l.y + l.h) - Math.max(y - r * 0.6, l.y);
-        if (ox > 0 && oy > 0) score -= ((ox * oy) / (r * r)) * 4;
-      }
       for (const o of S.spl) {
         if (o.a > 0) {
           const d = Math.hypot(o.x - x, o.y - y);
@@ -315,9 +307,6 @@ export function bodyModule(): Module {
       if (!S.ready) return;
       S.L = letters(env);
       placeZ(env);
-    },
-    lines(env) {
-      if (S.ready) placeZ(env);
     },
     onEvent(env, name, data) {
       if (name !== 'position' || !data || !env.cats.body) return;

@@ -26,7 +26,6 @@ export interface Env {
   front: Ctx;
   panes: Pane[];
   out: Rect;
-  lines: Rect[];
   protect: { solidTop: number; fadeTop: number; left: number };
   cell: { w: number; h: number; size: number; font: string };
   raw: WeatherState;
@@ -47,8 +46,6 @@ export interface Module {
   id: string;
   init(env: Env): void;
   resize(env: Env): void;
-  /** Only the text lines changed (cheap path). */
-  lines?(env: Env): void;
   /** Draws one frame; returns true while it has anything to show or animate. */
   frame(env: Env, dt: number, t: number): boolean;
   onEvent?(env: Env, name: WeatherEvent | 'position', data?: unknown): void;
@@ -57,7 +54,8 @@ export interface Module {
    * Frames per second the module's current content needs, asked after each
    * of its frames: FPS_FAST while things fall, flash or shake, FPS_SLOW for
    * drifting skies, fog and floating letters, FPS_BURST for a lightning
-   * strike. Default FPS_FAST. A module slower than the loop draws into a
+   * strike, FPS_STILL for content that does not move at all (a settled day
+   * sky). Default FPS_FAST. A module slower than the loop draws into a
    * cache that the engine copies onto the canvases in between.
    */
   fps?(env: Env): number;
@@ -73,6 +71,8 @@ export interface Module {
 export const FPS_BURST = 60;
 export const FPS_FAST = 30;
 export const FPS_SLOW = 12;
+/** Content that does not move (a settled day sky): the loop runs this slowly while nothing else asks for more and the mix is at rest. */
+export const FPS_STILL = 3;
 
 export function mkCanvas(w: number, h: number): Cv {
   return new OffscreenCanvas(Math.max(1, Math.ceil(w)), Math.max(1, Math.ceil(h)));

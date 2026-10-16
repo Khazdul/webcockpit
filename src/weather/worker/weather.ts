@@ -92,8 +92,6 @@ interface Strike {
   /** Rim light on pane borders: axis-aligned rects [x, y, w, h, …] (fills, not stroked paths). */
   rims: { rim: number[]; band: number[]; gr: CanvasGradient; k: number; b: number }[];
   leadStep: number;
-  /** Text line rects [x, y, w, h, …] the bolt dims behind. */
-  clip: { rects: number[]; n: number };
   ls1: string;
   ls2: string;
 }
@@ -464,8 +462,6 @@ export function weatherModule(): Module {
   // ================================================================= lightning
   let sky: Cv | null = null, flare: Cv | null = null, wash: CanvasGradient | null = null, strike: Strike | null = null;
   let spCv: Cv | null = null, lowA: Cv | null = null, lowB: Cv | null = null, lowC: Cv | null = null;
-  /** Scratch layer for a strike behind text lines (drawStrike). */
-  let clipCv: Cv | null = null;
   const sparks = { n: 28, x: new Float32Array(28), y: new Float32Array(28), vx: new Float32Array(28), vy: new Float32Array(28), age: 0, on: false };
   const C = (r: number, g: number, b: number, a: number): string => adaptCss(r, g, b, a, th);
 
@@ -503,14 +499,6 @@ export function weatherModule(): Module {
     g.fillStyle = gr;
     g.fillRect(0, 0, size, size);
     return c;
-  }
-  function linesIn(env: Env, x0: number, y0: number, x1: number, y1: number): Env['lines'] {
-    return env.lines.filter((l) => l.x < x1 && l.x + l.w > x0 && l.y < y1 && l.y + l.h > y0);
-  }
-  function clipPaths(list: Env['lines']): Strike['clip'] {
-    const rects: number[] = [];
-    for (const l of list) rects.push(l.x - 3, l.y - 1, l.w + 6, l.h + 2);
-    return { rects, n: list.length };
   }
   function subdiv(ax: number, ay: number, bx: number, by: number, rough: number, minLen: number, out: number[]): void {
     const dx = bx - ax, dy = by - ay, len = Math.hypot(dx, dy);
@@ -569,9 +557,8 @@ export function weatherModule(): Module {
     const p = env.protect;
     const ledges = env.panes.filter((q) => q.y > 60 && q.id !== 'map');
     const comm = env.panes.find((q) => q.id === 'comm');
-    let textRight = env.out.x + 40;
-    for (const l of env.lines) if (l.y < p.fadeTop - 40) textRight = Math.max(textRight, l.x + l.w);
-    const gx0 = textRight + 40, gx1 = env.out.x + env.out.w - 30;
+    // Ground strikes land in the right part of the output, where lines tend to end (no text tracking, owner feedback 9).
+    const gx0 = env.out.x + env.out.w * 0.62, gx1 = env.out.x + env.out.w - 30;
     const u = R();
     if (u < 0.34 && ledges.length) {
       const q = ledges[(R() * ledges.length) | 0]!;
@@ -764,7 +751,6 @@ export function weatherModule(): Module {
       fog,
       rims,
       leadStep: -1,
-      clip: clipPaths(linesIn(env, Math.min(bx0 + pad * 0.5, x0 - 560), 0, Math.max(bx1 - pad * 0.5, x0 + 560), by1)),
       ls1: C(130, 120, 255, 0.16 * nk0),
       ls2: C(190, 200, 255, 0.38 + 0.2 * nk0),
     };
@@ -917,34 +903,7 @@ export function weatherModule(): Module {
         }
       }
     }
-    const dpr = env.dpr;
-    if (s.clip.n) {
-      // Behind the text lines the bolt shows at 0.18. Painted on a scratch
-      // layer, the line rects cut to 0.18 there (destination-out), then the
-      // layer added: rect fills and image draws only, no clip paths (a clip
-      // of many rects is a full-screen software mask on the GPU thread).
-      const cw = Math.round(W * dpr), ch = Math.round(H * dpr);
-      clipCv ??= mkCanvas(cw, ch);
-      if (clipCv.width !== cw || clipCv.height !== ch) {
-        clipCv.width = cw;
-        clipCv.height = ch;
-      }
-      const t = ctx2d(clipCv);
-      t.setTransform(1, 0, 0, 1, 0, 0);
-      t.clearRect(0, 0, cw, ch);
-      t.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintBack(t, s, P, 1, dpr);
-      t.globalCompositeOperation = 'destination-out';
-      t.globalAlpha = 0.82;
-      t.fillStyle = '#000';
-      const r = s.clip.rects;
-      for (let i = 0; i < r.length; i += 4) t.fillRect(r[i]!, r[i + 1]!, r[i + 2]!, r[i + 3]!);
-      t.globalAlpha = 1;
-      t.globalCompositeOperation = 'source-over';
-      b.globalCompositeOperation = th.light ? 'multiply' : 'lighter';
-      b.drawImage(clipCv, 0, 0, W, H);
-      b.globalCompositeOperation = 'source-over';
-    } else paintBack(b, s, P, 1, dpr);
+    paintBack(b, s, P, 1, env.dpr);
     return flash;
   }
   function drawSparks(f: Ctx, dt: number, dpr: number): void {

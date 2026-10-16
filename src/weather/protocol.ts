@@ -117,8 +117,6 @@ export interface Geometry {
   /** The game (output) pane. */
   out: Rect;
   panes: PaneGeom[];
-  /** Visible text line boxes in the output. */
-  lines: Rect[];
   /** Masked area: solid from `solidTop` down, faded from `fadeTop`; the far left up to `left`. */
   protect: { solidTop: number; fadeTop: number; left: number };
   /** Cell width/height, font size and CSS font. */
@@ -147,7 +145,7 @@ export type MainToWorker =
     }
   | { t: 'state'; s: Partial<WeatherState>; instant: boolean }
   | { t: 'event'; name: WeatherEvent; data?: unknown }
-  | { t: 'geom'; g: Geometry; linesOnly: boolean }
+  | { t: 'geom'; g: Geometry }
   | { t: 'theme'; theme: ThemeColors }
   | { t: 'cats'; cats: Categories }
   | { t: 'visible'; on: boolean }

@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WeatherEngine } from '../../src/weather/worker/engine';
-import { type Env, FPS_FAST, FPS_SLOW, type Module } from '../../src/weather/worker/env';
+import { type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker } from '../../src/weather/protocol';
 
 /** A 2d context that accepts every call and records drawImage sources. */
@@ -48,7 +48,6 @@ const geom: Geometry = {
   dpr: 1,
   out: { x: 0, y: 0, w: 800, h: 600 },
   panes: [],
-  lines: [],
   protect: { solidTop: 560, fadeTop: 520, left: 20 },
   cell: { w: 8, h: 16, size: 14, font: '14px monospace' },
 };
@@ -174,6 +173,29 @@ describe('WeatherEngine frame rate', () => {
     const c = fog.backs.at(-1) as { canvas: FakeCanvas };
     expect(c).not.toBe(h.back);
     expect([c.canvas.width, c.canvas.height]).toEqual([400, 300]);
+  });
+
+  it('crawls at FPS_STILL for still content while the mix rests; a message brings back the slow rate at once', () => {
+    const sky = mod('sky', FPS_STILL);
+    const h = harness([sky]);
+    h.run(1000);
+    const f0 = sky.frames;
+    h.run(3000);
+    expect((sky.frames - f0) / 3).toBeLessThanOrEqual(FPS_STILL + 1);
+    expect((sky.frames - f0) / 3).toBeGreaterThanOrEqual(FPS_STILL - 1);
+    // an event: the next frame comes within one slow frame, not one still frame
+    const f1 = sky.frames;
+    h.send({ t: 'event', name: 'darkness.start' });
+    h.run(1000 / FPS_SLOW + 20);
+    expect(sky.frames).toBeGreaterThan(f1);
+    // a moving mix (a new weather value easing in) keeps the floor at FPS_SLOW
+    h.send({ t: 'state', s: { weather: '~' }, instant: false });
+    h.run(3500);
+    const f2 = sky.frames;
+    h.run(1000);
+    expect(sky.frames - f2).toBeGreaterThanOrEqual(FPS_SLOW - 1);
+    // still content draws straight on the canvas (a copy of a full-size cache would cost more)
+    expect(sky.backs.at(-1)).toBe(h.back);
   });
 
   it('drops to the slow rate without window focus', () => {

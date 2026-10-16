@@ -10,8 +10,6 @@
 // - layout geometry (cockpit size, pane frames, the game pane, cell size)
 //   is measured on layout changes only (ResizeObserver, the cockpit's
 //   relayout hook, window resize/zoom) and posted only when it differs;
-// - the visible text lines are re-sampled every LINES_MS in an idle
-//   callback and posted only when they changed;
 // - the page being hidden pauses the worker;
 // - floating panes are see-through (`data-weather-see`) only while the
 //   worker has painted their current place on the mid layer (see `floats`).
@@ -36,9 +34,6 @@ import {
 } from './protocol';
 
 export type { Categories, FrameStats, Geometry, ThemeColors, WeatherEvent, WeatherState } from './protocol';
-
-/** How often the visible text lines are re-sampled, ms. */
-export const LINES_MS = 2500;
 
 export interface WeatherHost {
   /** The element the canvases cover (the cockpit, `.wc-cockpit`). */
@@ -133,7 +128,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   let seq = 1;
   /** The latest layout the worker has painted. */
   let ackSeq = 0;
-  let geom: Geometry = measureGeometry(host, CANVAS_RATIO, true, [], seq);
+  let geom: Geometry = measureGeometry(host, CANVAS_RATIO, seq);
   const floats = floatSee(root);
   midEl.hidden = !geom.panes.some((p) => p.floating);
   let cats: Categories = { ...ALL_CATEGORIES, ...opts.categories };
@@ -187,28 +182,26 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
 
   // ---- geometry: measured on change, posted on difference
   let measureQueued = false;
-  const remeasure = (withLines: boolean): void => {
+  const remeasure = (): void => {
     if (destroyed) return;
-    const next = measureGeometry(host, CANVAS_RATIO, withLines, geom.lines, geom.seq);
+    const next = measureGeometry(host, CANVAS_RATIO, geom.seq);
     const d = geometryDiff(geom, next);
     if (d === 'none') {
       // A relayout that moved nothing (within GEOM_EPS): what the worker painted still holds.
       if (ackSeq === geom.seq) floats.painted(geom);
       return;
     }
-    if (d === 'layout') {
-      next.seq = ++seq;
-      midEl.hidden = !next.panes.some((p) => p.floating);
-    }
+    next.seq = ++seq;
+    midEl.hidden = !next.panes.some((p) => p.floating);
     geom = next;
-    post({ t: 'geom', g: next, linesOnly: d === 'lines' });
+    post({ t: 'geom', g: next });
   };
   const queueMeasure = (): void => {
     if (measureQueued || destroyed) return;
     measureQueued = true;
     requestAnimationFrame(() => {
       measureQueued = false;
-      remeasure(true);
+      remeasure();
     });
   };
   const ro = new ResizeObserver(queueMeasure);
@@ -222,15 +215,6 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     }) ?? (() => {});
   const win = doc.defaultView ?? window;
   win.addEventListener('resize', queueMeasure);
-
-  // ---- text lines: a slow idle sample
-  const idle = (fn: () => void): void => {
-    if (typeof win.requestIdleCallback === 'function') win.requestIdleCallback(fn, { timeout: 1000 });
-    else setTimeout(fn, 0);
-  };
-  const linesTimer = setInterval(() => {
-    if (!doc.hidden) idle(() => remeasure(true));
-  }, LINES_MS);
 
   // ---- visibility and focus (hidden: paused; no focus: the slow rate)
   const onVis = (): void => post({ t: 'visible', on: !doc.hidden });
@@ -252,7 +236,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     setGeometry(g) {
       if (destroyed) return;
       geom = { ...g, seq: ++seq };
-      post({ t: 'geom', g: geom, linesOnly: false });
+      post({ t: 'geom', g: geom });
     },
     setTheme(theme) {
       if (!destroyed) post({ t: 'theme', theme });
@@ -262,7 +246,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       requestAnimationFrame(() => {
         if (destroyed) return;
         post({ t: 'theme', theme: themeOf(root) });
-        remeasure(false);
+        remeasure();
       });
     },
     setCategories(c) {
@@ -290,7 +274,6 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       doc.removeEventListener('visibilitychange', onVis);
       win.removeEventListener('focus', onFocus);
       win.removeEventListener('blur', onFocus);
-      clearInterval(linesTimer);
       root.removeAttribute('data-weather');
       floats.clear();
       backEl.remove();
