@@ -314,6 +314,99 @@ canvases at 60 fps). Context options were not changed: Firefox's worker
 canvases already draw on the CPU, and `willReadFrequently` in Chromium
 would move the raster into the worker and add a texture upload per frame.
 
+### Sky, darkness, fog, text (2026-10-17, owner feedback 1, 5–9)
+
+Root causes found:
+
+- **Moon jumps (5)** — the moon path's left end (`yL`) was the first text
+  line's y from the 2.5 s line sample (`buildProtect`, unclamped there,
+  clamped in `resize`), the right end hung on the comm pane's box, its fade
+  on the output's right edge, and the text protection map erased 72 % of
+  the sky (moon included) behind each line at the sampled places. A probe
+  (moon tracked in screenshots, text streaming, text hidden) showed jumps of
+  600–1200 px before and none after. Also, `Event.Moon rise` after the
+  almanac's predicted rise reset a moon already shown at mid-sky to the
+  horizon.
+- **Clouds vanish on a pane move (6)** — the settled `resize` (250 ms after
+  a layout change) ran the sky's `setupDeck`, which emptied both deck
+  buffers, so the clouds faded out and were rebuilt over ~10 s; the stars
+  were placed inside the pane boxes, so they jumped too. Measured: the top
+  third's mean brightness 51 → 33 within 0.7 s of floating a pane before,
+  unchanged (52.4 → 52.3) after.
+- **No darkness (7)** — `evil` required outdoors (`weather !== null`), but a
+  dark room is mostly indoors or underground: MUME sends `light: "o"`
+  (Char.Vitals; values `*` sun, `!` lit, `)` moon, `o` dark) and
+  `weather: null` there, and the sky gave nothing. The owner's logs show
+  `o` prompts in tunnels ("Limestone Tunnel" → "Darkness", `o=`) and on a
+  road in a lingering magical darkness by day (`o+`, "A deep, wavering
+  darkness lingers here."). The bleed only ran on `Event.Darkness`, which
+  is about a darkness spell's life (start / grow / shrink / end), not about
+  entering a dark room. No raw GMCP log with `Event.Darkness` exists in the
+  reference logs (the Cockpit run logs keep text only), so the event's
+  timing stays unverified live.
+- **Line backgrounds (9)** — the sky's protection map (soft blobs at the
+  sampled line boxes, `destination-out` at 0.72 and 0.88) lagged the
+  scrolling text by up to 2.5 s.
+
+Decisions:
+
+- **Signal mapping change:** `light` `o` gives the darkness sky indoors too
+  (`mix.evil` no longer needs outdoors); everything else in the sky stays
+  outdoors only. The sky watches the settled `light`: becoming `o` (after the
+  3 s dwell) plays the red bleed, as `Event.Darkness start` does, and the red
+  sky stays while the room is dark; leaving it plays the lift. `o` is every
+  dark room (caves at any hour, moonless nights outdoors), not only magical
+  darkness: GMCP does not tell them apart. The darkness sky is a clearer
+  dark red (top `[72,8,14]`, horizon `[92,16,18]`, alpha 0.72 on dark).
+- **Day sky (1):** no cirrus streaks (gone at night too); a plain gradient
+  toward a light sky blue (top `[128,170,214]`, alpha 0.44 on dark; a pale
+  blue at 0.34 on paper) with a soft warm sun glow (radial, alpha 0.36, at
+  80 % of the width just above the top edge; at night the same glow is a
+  cool lift toward the moon). `~` and wetter still bring the cloud deck,
+  now at 0.62 opacity since nothing protects the text behind it. The sky is
+  drawn once into a full-resolution cached canvas when its colours move
+  (two gradient fills) and copied per frame; the darkness sky's breathing
+  is the copy's alpha, not a redraw.
+- **Still rate:** a module whose content does not move reports
+  `FPS_STILL` (3); while every busy module is still and the director rests
+  (no dwell pending, every mix value at its target, `Director.resting`),
+  the loop runs at 3 fps; any message brings it back to 12 at once. A still
+  module draws straight on the canvases even when the loop runs faster (one
+  image copy, less than copying a full-size cache). The settled day sky is
+  the case.
+- **Relative sky (5, 6):** stars (upper 45 %, denser toward the top), the
+  moon path (rises at 86 % of the width, 60 % down; sets at 10 %, behind the
+  text horizon at 30 % down) and the clouds depend only on the canvas size.
+  The sky's `resize` returns at once when the size and ratio are unchanged;
+  a real size change rebuilds the deck in full at once (no empty sky) at the
+  same relative places. A theme change keeps the moon, the cloud drift and
+  the time. `Event.Moon rise` keeps a moon already shown; the crossing takes
+  800 s at game pace (was 600).
+- **Fog (8):** `mix.fog` moves at a constant `FOG_RATE` = 1/40 per second
+  instead of easing (tau 0.9 s): none → light, light → dense and back each
+  take 20 s, none → dense 40 s; the light and dense layers are smoothsteps
+  of it, so it grows and thins gradually. Switching the Fog category off
+  still fades at the normal rate.
+- **No text tracking (9):** the line sampling is gone (`measureLines`, the
+  2.5 s idle sample, `linesOnly` posts, `Geometry.lines`, `Module.lines`).
+  Its other users: the lightning bolt no longer dims behind lines (it
+  paints straight, a fraction of a second), ground strikes land in the right
+  38 % of the output, the z z Z and blood spatters are placed by the panes
+  and the output box only.
+
+Measured (same session, old code from a worktree of `ca52995` right after
+the new, `bench/weather-power.ts --scenes off,calm --rounds 2`, headed,
+owner geometry; the owner's own Firefox was running, so the absolute
+numbers are high): clear day sky, CPU of all browser processes per second
+Firefox 230 → 121 ms (off: ~50–75), worker 11.5 fps × 17.1 ms → 3 fps ×
+7.5 ms; Chromium 148 → 72 ms (off: ~30), 12 → 3 fps. Latency
+(`bench/weather-bench.ts --rounds 2`, heavy scene): unchanged, text →
+painted p95 Chromium 19.1 → 19.1 ms, Firefox 18.7 off / 18.1 on; Firefox's
+rAF gaps with the effects on (p95 ~33 ms) were the same with the old code
+under the same load. Chromium idle main thread with the effects on: 25.5 →
+16.4 ms per 5 s, longest task 2.7 → 0.6 ms (no line sampling).
+`bench/results/weather.md` is not rewritten (no meaningful change).
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

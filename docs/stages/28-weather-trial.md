@@ -86,20 +86,28 @@ setting is saved; it is off by default everywhere, phones included.
 
 **What to try in MUME.**
 
-1. Walk outdoors, then into a building: the sky (clouds, sun, moon,
+1. Walk outdoors, then into a building: the sky (sun glow, clouds, moon,
    stars) is outdoors only. Weather, fog and light changes wait about 3 s
-   before they show, so running through rooms does not flicker.
+   before they show, so running through rooms does not flicker. By day a
+   clear sky is a plain light-blue gradient with a soft sun glow at the top
+   right; clouds come only with weather `~` and wetter. Moving or docking
+   panes leaves the sky as it is.
 2. Rain and snow areas: light rain (`'`) and heavy rain (`"`) with drips
    along the pane edges; snow (`*`) that falls in from above, builds up
    over half a minute and gusts now and then.
-3. Fog (`-` light, `=` dense) drifting low over the screen.
+3. Fog (`-` light, `=` dense) drifting low over the screen. It grows in
+   slowly (about 20 s from nothing to light fog, 20 s more to dense) and
+   thins out at the same pace.
 4. Night: with the moon up a big moon in the almanac's phase crosses the
-   sky; without it a starry sky with shooting stars. Sunrise and sunset
+   sky slowly and smoothly, whatever the text does; without it a starry sky with shooting stars. Sunrise and sunset
    (`Event.Sun`) send rays across the screen.
 5. `sleep` (floating z z Z), getting stunned, and (carefully) being
    incapacitated or dying (blood and a red heartbeat wash).
-6. Magical darkness (light `o`, `Event.Darkness`): a dark, slightly red
-   sky and a red bleed when it starts or grows.
+6. Darkness: walk into a dark room (light `o` in the prompt, indoors or
+   out, e.g. a cave or a magical darkness): after ~3 s a red bleed from the
+   top and corners, then a dark red sky that stays as long as the room is
+   dark; leaving it gives a brief lightening. `Event.Darkness` start / grow
+   also bleed. Note: every dark room counts (caves, moonless nights).
 7. Lightning: the Redhorn Pass room with "A bright streak of lightning
    flashes over the … mountains." should strike a bolt each time that
    line appears. **Please check** that it does: the client looks for
@@ -187,6 +195,11 @@ Open:
    looks blurry; the owner no longer wants clouds always visible by day.
    Wanted: something simpler, a lighter gradient toward a light sky
    colour in which you can sense the sun.
+   - **Done (2026-10-17):** no cloud streaks any more (day or night); a plain
+     gradient toward a light sky blue with a soft warm glow where the sun is
+     (top right); clouds only with weather `~` and wetter, a bit fainter than
+     before. Drawn once into a cached image and copied; a settled day sky
+     runs at 3 frames per second. ADR 0091 "Sky, darkness, fog, text".
 2. **Frames.** The borders do not look sharp and seem buggy. With two
    docked columns on the right, all borders disappeared. Docking and
    creating more columns felt less smooth than before.
@@ -219,16 +232,39 @@ Open:
 5. **Moon jumps.** The moon sometimes jumps around, apparently avoiding
    scrolling text. It should drift smoothly (and a bit slower), never
    jump.
+   - **Done (2026-10-17):** cause verified: the moon's path and visibility
+     followed the 2.5 s sample of the text lines (and the comm pane's box);
+     an `Event.Moon rise` after the almanac's rise also put a shown moon back
+     on the horizon. Now its path depends only on the window size, it crosses
+     in 800 s instead of 600, and a moon already up keeps its place.
 6. **Moving panes.** Moving a pane makes the clouds vanish quickly and
    redraw. Clouds must not be affected by pane moves.
+   - **Done (2026-10-17):** cause verified: every layout change rebuilt the
+     cloud layer from empty (and moved the stars, which sat inside the
+     panes). Now a pane move or dock change leaves the whole sky alone; only
+     a real window size change rebuilds it, at once and in the same relative
+     places.
 7. **Darkness.** Entering rooms with darkness should give the darkness
    animation toward a red sky, and the sky should then stay red as long
    as the room is dark. This did not happen.
+   - **Done (2026-10-17):** cause found: the darkness sky was outdoors only,
+     and dark rooms are mostly indoors or underground (MUME sends `light`
+     `o` with `weather` null there); the red bleed only came with
+     `Event.Darkness`, which is about a darkness spell, not about entering a
+     dark room. Now any room with `light` `o` (after the 3 s settle) plays the
+     bleed toward a dark red sky, which stays while the room is dark;
+     leaving plays the brief lightening. Note: `o` is every dark room (caves,
+     moonless nights outdoors too); GMCP does not say "magical".
 8. **Fog fade.** Fog should fade in much more slowly and grow gradually;
    the same when it goes away.
+   - **Done (2026-10-17):** fog now changes at a constant pace: from none to
+     light, light to dense, and back, 20 s each (none to dense 40 s).
 9. **Text backgrounds near the top.** Text near the top sometimes gets a
    visible, delayed adjustment of its background colour (presumably to
    stand out against light clouds). The owner dislikes it: better that
    text is harder to read at the very top than to adjust the background
    of single lines.
+   - **Done (2026-10-17):** the per-line protection is gone, and with it the
+     main thread's text-line sampling every 2.5 s (nothing follows the text
+     any more: lightning, z z Z and blood placement included).
 
