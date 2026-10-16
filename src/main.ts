@@ -137,6 +137,7 @@ if (import.meta.env.DEV) {
     openPlayer: (id) => openPlayerSession(id),
     openPlayerLogs: (rels, character) => openPlayerLogs(rels, character),
     replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
+    weather: async (o) => (await import('./weather/dev')).devWeather(shell.app!.cockpit, o),
   };
 }
 try {
@@ -154,6 +155,8 @@ if (replayFixture !== null) {
 const app = shell.app;
 if (app) {
   probe?.attach(app);
+  // Dev only, stage 28 trial: `?weather` starts the weather engine (not wired to GMCP or Options yet).
+  if (import.meta.env.DEV && params.has('weather')) void window.__wc?.weather();
   if (fixture !== null) {
     const speed = Number(params.get('speed') ?? '1');
     void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
@@ -239,6 +242,8 @@ declare global {
       openPlayerLogs: (rels: string[], character?: string) => Promise<number>;
       /** Builds an HTML replay (src/replay/dev.ts); resolves to the file's text. */
       replayHtml: (o?: import('./replay/dev').DevReplayOptions) => Promise<string>;
+      /** Starts the weather engine on the cockpit (stage 28; `window.__weather`, src/weather/dev.ts). */
+      weather: (o?: import('./weather').WeatherOptions) => Promise<import('./weather/dev').DevWeather | null>;
     };
   }
 }

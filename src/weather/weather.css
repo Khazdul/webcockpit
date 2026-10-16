@@ -1,0 +1,30 @@
+/* Weather effects (stage 28, ADR 0091). Loaded with the lazy weather chunk.
+ *
+ * Two full-cockpit canvases the weather worker draws into. The back layer
+ * is the cockpit's first child and positioned without a z-index, so it
+ * paints under the game text and the docked panes; the front layer is above
+ * the panes (floating ones included) and below the drop bars, the drag
+ * shield and the chrome overlays. Neither takes pointer events. */
+.wc-weather-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.wc-weather-front {
+  z-index: 90;
+}
+
+/* While the engine runs, docked panes are see-through so the back layer
+ * shows in their interiors (as in the prototype). A pane whose background
+ * differs from the terminal's gets that background painted by the worker
+ * under the back layer, in the same box, so its tint stays. Floating panes
+ * stay opaque: the game text is behind them. The label tab keeps its fill
+ * (it breaks the frame line). */
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame {
+  background: transparent;
+}
