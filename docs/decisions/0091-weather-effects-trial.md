@@ -93,6 +93,50 @@ unchanged.
   either way; with a real scale factor (`--force-device-scale-factor`) both
   the old and the new frames are sharp in Chromium, as in Firefox.
 
+**2026-10-17 (owner feedback 12, 14–17, 19; second test):**
+
+- Thickness: the first thin frames' `max(2, round(cell-h·dpr / 9))` device
+  px plus one CSS px (`round(dpr)` device px): 3 px at the default size
+  (Hack 17, a 10 × 19 cell) and ratio 1, 4 device px at 1.25, 6 at 2.
+- Look: a small glass tube, the same on all four sides: an edge band
+  (`--frame-e`, a third of the line, ≥ 1 device px), a core, an edge band.
+  Edges: `--pane-border` 80 % with `--term-fg`; core: 52 % with
+  `--term-fg`, so the core has the most contrast with the page on every
+  background (lighter on black and dark grey, darker on a light page) and
+  no side fades out as the bevel's dark side did. Three inset spread box
+  shadows of the frame box; no pseudo-elements.
+- Gaps: the line is no longer centred in the outer cells; it is
+  `frameInset = (cell-w − first line − 1.5) / 2` px in from every edge, the
+  same on all four sides (still inside the outer cell ring; pane sizes, the
+  content rectangle and the layout are unchanged). Measured at the default
+  size, ratio 1 (Chromium and Firefox), outer edge to outer edge: beside
+  each other 8 → 6 px, above each other 17 → 6 px; Firefox 1.25: 6.4 and
+  6.4 (were 8 and 17.6), ratio 2: 6.5 and 6.5 (were 8 and 17).
+- Title: 0.82 em, its box at the pane's top edge (the highest it can sit:
+  the pane clips, and the gap above belongs to the neighbour's line), drawn
+  over the unbroken top line (`z-index: 2`, also over a map that fills its
+  frame), a step brighter than before (`--pane-border` 60 % with
+  `--term-fg`) with a tight 1 px halo in the pane fill so the line does not
+  cut the letters. With a 6 px gap there is no room for the letters above
+  the line: it runs through their upper part. The label gap is gone
+  everywhere (`--frame-label-w`, `PaneGeom.tab`, the snow dusting's skip).
+- Close cross on a frame: no background (it was the pane fill from the line
+  down, a black square over the line), the title's size, colour and halo;
+  the click box stays three cells wide and a row high.
+- Map: framed, its content element fills the frame up to the line's inner
+  edge on every side (`MapPane.fitFrame`); the map canvas is that size
+  (whole device px), not `cols × cell`. The title lies over its top edge.
+- Rectangle behind the title at sunrise/sunset (item 19), seen in
+  before/after shots: two edges met in the empty label gap. The sky's ray
+  glint along each pane's top (`drawRaysFront`: a 5 px rect at alpha
+  0.16·a and a 1.2 px rect at 0.6·a over the whole frame width, on the
+  front layer) ran on through the gap as a lit band under the dim title,
+  and the rays are weaker inside the frame box than outside it
+  (`drawRaysBack` cuts each pane's shadow from the frame box), a step in
+  brightness that the line hides everywhere but in the gap. With the line
+  unbroken under the title both lie on the line. The glint itself (and that
+  it is on the front layer, over the title) is left to the sky rework.
+
 ### Engine (stage 28 B)
 
 - `src/weather/`: `index.ts` (main thread, `createWeather(host)`),
@@ -170,6 +214,30 @@ unchanged.
   size, mask, pane fills and mid layer at once, and the modules' `resize`
   runs once the layout has been still for `RESIZE_SETTLE_MS` (250 ms); a
   canvas size change still rebuilds at once.
+
+**2026-10-17 (owner feedback 13, 18): float canvases replace the mid layer.**
+
+- The mid canvas could not keep two overlapping floats see-through: it lies
+  under every float, so an upper see-through float showed the lower one's
+  text. And a float that moved was opaque until the worker had painted its
+  new place (60–90 ms, longer at the 3–12 fps rates of "Power").
+- Now each shown floating pane holds its own canvas as its first child
+  (`.wc-weather-float`, `floatLayers` in index.ts), the size of the pane,
+  transferred to the worker (`float` / `floatGone` messages, keyed per
+  element). The worker copies the back layer's pixels under the pane into
+  it each frame (one `drawImage`, clipped to the canvas; no paths or clips).
+  The canvas element's CSS background is the pane's old fill (terminal
+  background, the tint inside the frame line), so the pane is opaque to the
+  game text from the moment the canvas is in and moves with it in the same
+  frame; the pane drops its own fill (`data-weather-see`) at once and keeps
+  it off while it moves. Each canvas is inside its pane's stacking layer,
+  so an upper float covers a lower one's text: overlapping floats stay
+  see-through. A geometry post that moves or resizes a float, and a new
+  float canvas, get a frame at the next animation frame whatever the rate
+  (`frameNow`), so the stale weather copy lasts one frame.
+- Gone: the mid canvas, the `painted` answer and the layout sequence
+  number. Memory: a pane-sized canvas per float instead of a full-size one
+  while any float is shown.
 
 ### Signals (stage 28 C)
 
