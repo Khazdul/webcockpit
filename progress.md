@@ -63,10 +63,16 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Round 7 (items 50–51) done:** floating panes (the map floats by
   default) use the docked panes' glass, so the transparent map matches;
   specular line 85 → 58 %, light seam 40 → 32 %, dark edge .62 → .56.
-- **Open:** title contrast over black now ~2.6:1 (owner's
+- **Round 8 (items 52–53) done:** day sun glimpses follow the sun
+  (new `sunU`, at least once a minute, most and strongest at midday,
+  6 fps); borderless panes are invisible to the weather (only framed panes
+  in `env.panes`).
+- **Open:** a borderless floating pane can be one frame out of step in
+  lightning flicker (float canvas copy; owner's call); glimpses faint on
+  Paper. Title contrast over black now ~2.6:1 (owner's
   call if darker still); Firefox told apart by user agent; beam strength a
   taste call; map-notes/map-tilesets e2e flaky under load.
-- **Next:** owner tests the frames and items 36–51.
+- **Next:** owner tests the frames and items 36–53.
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
