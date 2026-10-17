@@ -1,25 +1,18 @@
 /* The weather demo's caption box (demo.ts, owner feedback 33). Loaded with
- * the demo chunk only. Over the game pane's top left, above the front
- * weather layer, no pointer events. The frame is the panes' glass line (an
- * edge band, a core, an edge band) with the title in a gap of the top line,
- * in the default pane border colour; the box has the terminal background,
- * opaque (game text under it would ghost through), so it reads on any sky
- * and any page colour. Fades and the progress bar are CSS transitions
- * (opacity, transform): no script runs per frame. */
+ * the demo chunk only. A plain grey area at the game pane's top left (owner
+ * item 43: a debug tool, not a pane: no frame, no title plate), above the
+ * front weather layer, no pointer events. Opaque (game text under it would
+ * ghost through): the page background mixed a quarter toward mid grey, so
+ * it is dark grey on a dark page and light grey on a light one, and the
+ * theme's text colours read on it either way. Fades and the progress bar
+ * are CSS transitions (opacity, transform): no script runs per frame. */
 .wc-wdemo {
-  --wd-edge: color-mix(in srgb, var(--pane-border-none, #444) 80%, var(--term-fg));
-  --wd-core: color-mix(in srgb, var(--pane-border-none, #444) 52%, var(--term-fg));
-  --wd-line: 3px;
   position: absolute;
   z-index: 95;
   box-sizing: border-box;
   width: min(calc(var(--cell-w) * 58), calc(100% - 2 * var(--cell-w)));
-  /* the top line runs through the middle of the title, inside the box */
-  --wd-mid: 0.41em;
-  /* half a cell from the game pane's edges, so it reads as floating */
-  margin: calc(var(--cell-h) * 0.5) calc(var(--cell-w) * 0.5);
-  padding: calc(var(--wd-mid) + var(--cell-h) * 0.55) calc(var(--cell-w) * 1.5) calc(var(--cell-h) * 0.4);
-  background: var(--term-bg);
+  padding: calc(var(--cell-h) * 0.35) calc(var(--cell-w) * 1.5) calc(var(--cell-h) * 0.4);
+  background: color-mix(in srgb, var(--term-bg) 75%, #808080);
   color: var(--c-item);
   line-height: var(--cell-h);
   white-space: normal;
@@ -33,46 +26,21 @@
   opacity: 1;
 }
 
-/* The glass line, with the top line cut for the title (cells 2.5–13.5).
- * It sits inside the box's own opaque background, the top line a little
- * down, so the title, the gap and the band above the line are on the box
- * too: the box is an overlay over game text, unlike a pane. */
-.wc-wdemo::before {
-  content: '';
-  position: absolute;
-  inset: calc(var(--wd-mid) - var(--wd-line) / 2) 0 0;
-  border: 1px solid var(--wd-edge);
-  box-shadow:
-    inset 0 0 0 1px var(--wd-core),
-    inset 0 0 0 2px var(--wd-edge);
-  clip-path: polygon(
-    0 0,
-    calc(var(--cell-w) * 2.5) 0,
-    calc(var(--cell-w) * 2.5) var(--wd-line),
-    calc(var(--cell-w) * 13.5) var(--wd-line),
-    calc(var(--cell-w) * 13.5) 0,
-    100% 0,
-    100% 100%,
-    0 100%
-  );
+/* The head row: the title on the left, the step count on the right. */
+.wc-wdemo-title,
+.wc-wdemo-count {
+  display: inline-block;
+  font-size: 0.82em;
+  line-height: var(--cell-h);
+  white-space: pre;
 }
 
 .wc-wdemo-title {
-  position: absolute;
-  top: 0;
-  left: calc(var(--cell-w) * 8);
-  transform: translateX(-50%);
-  line-height: 1;
-  font-size: 0.82em;
-  white-space: pre;
   color: var(--c-title);
 }
 
 .wc-wdemo-count {
-  position: absolute;
-  top: calc(var(--wd-mid) + var(--cell-h) * 0.3);
-  right: calc(var(--cell-w) * 1.5);
-  font-size: 0.82em;
+  float: right;
   color: var(--c-body);
 }
 
