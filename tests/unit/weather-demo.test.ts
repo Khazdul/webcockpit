@@ -150,13 +150,14 @@ describe('the demo runner', () => {
   };
 
   it('plays the script with smooth pins, shows a caption per step, and ends unpinned with the effects off again', async () => {
-    settings.update({ weather: { fog: false } });
+    settings.update({ weather: { fog: false, daySky: false } });
     const h = fakeHost();
     expect(settings.get().weather.enabled).toBe(false);
     const demo = await start(h);
     // on for the demo; every category; the demo pace
     expect(settings.get().weather.enabled).toBe(true);
-    expect(h.log.slice(0, 2)).toEqual(['speed 3', 'cats 6']);
+    expect(h.log.slice(0, 2)).toEqual(['speed 3', 'cats 7']);
+    expect(h.cats().daySky).toBe(true);
     expect(said[0]).toMatch(/^Weather demo: about 1:3\d\. #weather stop ends it\.$/);
     // the first pin jumps, the rest ease
     expect(h.pins[0]).toMatchObject({ smooth: false, p: { clock: 'night', weather: ' ', moonUp: true } });
@@ -179,8 +180,8 @@ describe('the demo runner', () => {
     const rel = h.log.lastIndexOf('unpin');
     expect(h.log.slice(rel - 2, rel + 1)).toEqual(['speed 1', 'cats 5', 'unpin']);
     expect(h.pins.at(-1)).toEqual({ p: null, smooth: true });
-    expect(h.cats().fog).toBe(false);
-    expect(settings.get().weather).toMatchObject({ enabled: false, fog: false });
+    expect(h.cats()).toMatchObject({ fog: false, daySky: false });
+    expect(settings.get().weather).toMatchObject({ enabled: false, fog: false, daySky: false });
     expect(said.at(-1)).toBe('Weather demo done; the effects are off again.');
     await vi.advanceTimersByTimeAsync(500);
     expect(root.querySelector('.wc-wdemo')).toBeNull();

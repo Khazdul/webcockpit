@@ -68,6 +68,8 @@ export type WeatherEvent =
 export interface Categories {
   /** Sky gradient, clouds, sun moments, moon, stars. */
   sky: boolean;
+  /** The blue day sky (part of `sky`); off: the page background by day, the night sky fades in from it (owner feedback 36). */
+  daySky: boolean;
   /** Rain, drips, snow. */
   precipitation: boolean;
   /** The bolt on a 'strike' event. */
@@ -81,6 +83,7 @@ export interface Categories {
 
 export const ALL_CATEGORIES: Readonly<Categories> = {
   sky: true,
+  daySky: true,
   precipitation: true,
   lightning: true,
   fog: true,

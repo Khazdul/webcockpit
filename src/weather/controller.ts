@@ -27,7 +27,7 @@ export interface WeatherController {
 
 export function categoriesOf(s: Readonly<Settings>): Categories {
   const w = s.weather;
-  return { sky: w.sky, precipitation: w.precipitation, lightning: w.lightning, fog: w.fog, darkness: w.darkness, body: w.body };
+  return { sky: w.sky, daySky: w.daySky, precipitation: w.precipitation, lightning: w.lightning, fog: w.fog, darkness: w.darkness, body: w.body };
 }
 
 /** Settings are cloned on every change: compare the (small) sections by value. */

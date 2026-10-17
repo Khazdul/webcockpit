@@ -7,6 +7,7 @@
 //      [ ] Weather effects
 //
 //      [X] Sky
+//      [X] Blue day sky
 //      [X] Precipitation
 //      [X] Lightning
 //      [X] Fog
@@ -36,6 +37,7 @@ export const WEATHER_ROWS: ReadonlyArray<{ key: Category; label: string; help: s
   { key: 'body', label: 'Body', help: 'Sleeping, stunned, incapacitated and dying.' },
 ];
 
+const DAY_SKY_HELP = 'The blue sky by day. Off: the page background; clouds, sun and night sky stay.';
 const MASTER_HELP = 'A trial. Decoration only; text and keys are never slowed.';
 const UNSUPPORTED = 'Not supported in this browser (needs OffscreenCanvas).';
 
@@ -58,8 +60,8 @@ export function WeatherOptionsFrame(): VNode {
       help: weatherAvailable() ? MASTER_HELP : UNSUPPORTED,
     },
     { key: 'sp0', spacer: true },
-    ...WEATHER_ROWS.map(
-      (r): MenuItem & { help: string } => ({
+    ...WEATHER_ROWS.flatMap((r): Array<MenuItem & { help: string }> => {
+      const row = {
         key: r.key,
         glyph: w[r.key] ? '[X]' : '[ ]',
         label: r.label,
@@ -67,8 +69,22 @@ export function WeatherOptionsFrame(): VNode {
         activate: () => flip(r.key),
         adjust: () => flip(r.key),
         help: r.help,
-      }),
-    ),
+      };
+      if (r.key !== 'sky') return [row];
+      // The blue day sky on its own, under Sky (owner feedback 36).
+      return [
+        row,
+        {
+          key: 'daySky',
+          glyph: w.daySky ? '[X]' : '[ ]',
+          label: 'Blue day sky',
+          dim: !w.enabled || !w.sky,
+          activate: () => flip('daySky'),
+          adjust: () => flip('daySky'),
+          help: DAY_SKY_HELP,
+        },
+      ];
+    }),
     { key: 'sp', spacer: true },
     { key: 'back', label: 'Back', activate: () => nav.pop() },
   ];

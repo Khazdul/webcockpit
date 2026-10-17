@@ -7,6 +7,7 @@ import { migrateSettings, defaultSettings } from '../../src/settings';
 import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
 import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
 import { WeatherSignals, almanacState, gmcpEvent, lineEvent, vitalsState } from '../../src/weather/signals';
+import { categoriesOf } from '../../src/weather/controller';
 
 const NOW_MS = 1_800_000_000_000;
 const NOW_S = NOW_MS / 1000;
@@ -287,12 +288,22 @@ describe('pin', () => {
 
 describe('settings', () => {
   it('defaults weather effects off with every category on, and migrates junk', () => {
-    expect(defaultSettings().weather).toEqual({ enabled: false, sky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true });
+    expect(defaultSettings().weather).toEqual({ enabled: false, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true });
     const old = defaultSettings() as unknown as Record<string, unknown>;
     delete old.weather;
     expect(migrateSettings(old).weather.enabled).toBe(false);
     const m = migrateSettings({ ...defaultSettings(), weather: { enabled: true, fog: false, sky: 'yes' } });
-    expect(m.weather).toEqual({ enabled: true, sky: true, precipitation: true, lightning: true, fog: false, darkness: true, body: true });
+    expect(m.weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: false, darkness: true, body: true });
+  });
+
+  it('keeps the blue day sky switch on its own (owner feedback 36)', () => {
+    // absent (settings saved before the switch) = on, as before
+    expect(migrateSettings({ ...defaultSettings(), weather: { enabled: true, sky: false } }).weather).toMatchObject({ sky: false, daySky: true });
+    const off = migrateSettings({ ...defaultSettings(), weather: { enabled: true, daySky: false } }).weather;
+    expect(off).toMatchObject({ enabled: true, sky: true, daySky: false });
+    expect(migrateSettings({ weather: { daySky: 0 } }).weather.daySky).toBe(true);
+    expect(categoriesOf({ ...defaultSettings(), weather: off })).toEqual({ ...ALL_CATEGORIES, daySky: false });
+    expect(categoriesOf(defaultSettings())).toEqual(ALL_CATEGORIES);
   });
 });
 

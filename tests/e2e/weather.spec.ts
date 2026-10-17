@@ -39,6 +39,11 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   // A category and an appearance change apply live without errors.
   await row(page, 'fog').click();
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.fog)).toBe(false);
+  // The blue day sky on its own (owner feedback 36).
+  await expect(row(page, 'daySky')).toHaveText('[X] Blue day sky');
+  await row(page, 'daySky').click();
+  await expect(row(page, 'daySky')).toHaveText('[ ] Blue day sky');
+  expect(await page.evaluate(() => window.__wc!.settings.get().weather)).toMatchObject({ sky: true, daySky: false });
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
   const stats = await page.evaluate(() => window.__wc!.app.weather!.controller!.engine.stats());
   expect(stats.n).toBeGreaterThan(0);

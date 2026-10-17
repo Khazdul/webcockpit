@@ -283,6 +283,8 @@ export interface WeatherSettings {
   enabled: boolean;
   /** Sky gradient, clouds, sun moments, moon, stars. */
   sky: boolean;
+  /** The blue day sky (under Sky); off: the page background by day, everything else stays (owner feedback 36). */
+  daySky: boolean;
   /** Rain, drips, snow. */
   precipitation: boolean;
   /** The bolt on a lightning message. */
@@ -390,7 +392,7 @@ export function defaultSettings(): Settings {
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' },
-    weather: { enabled: false, sky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
+    weather: { enabled: false, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
   };
 }
 

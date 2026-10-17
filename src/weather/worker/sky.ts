@@ -405,6 +405,9 @@ class Sky {
   glowC: Rgb = [0, 0, 0];
   /** How far the sun moment is (0..1; -1 without one). */
   momentP = -1;
+  /** The blue day sky's share (0..1, eased toward the `daySky` switch), and whether it moved. */
+  dayK = 1;
+  dayMoving = false;
   /** The outdoors crossfade (0..1, eased) last frame, and whether it moved. */
   outWas = 0;
   outMoving = false;
@@ -485,7 +488,8 @@ class Sky {
       this.ox = prev.ox;
       this.oz = prev.oz;
       this.sideU = prev.sideU;
-    }
+      this.dayK = prev.dayK;
+    } else this.dayK = env.cats.daySky ? 1 : 0;
   }
 
   /**
@@ -613,6 +617,10 @@ class Sky {
     this.outMoving = Math.abs(out - this.outWas) > 1e-4;
     this.outWas = out;
     this.moving = this.outMoving;
+    // The blue day sky switched on or off: it fades (~3 s), no jump.
+    const dkT = env.cats.daySky ? 1 : 0, dk0 = this.dayK;
+    this.dayK = Math.abs(dkT - dk0) < 0.002 ? dkT : ease(dk0, dkT, dt, 0.8);
+    this.dayMoving = this.dayK !== dk0;
     let wSun = m.sun, wMoon = m.moon, wNight = m.dark;
     const ws = wSun + wMoon + wNight;
     if (ws > 0.001) {
@@ -724,10 +732,30 @@ class Sky {
       hb += P.hor[2] * w;
       a += P.a * w;
     };
-    acc(SKY.day, wSun * (1 - wet * 0.8));
     acc(SKY.grey, wSun * wet * 0.8);
     acc(SKY.moon, wMoon * (1 - wet * 0.45));
     acc(SKY.night, wNight + wMoon * wet * 0.45);
+    // The blue day sky, unless switched off on its own (owner feedback 36):
+    // then its share is see-through, in the colours of the rest of the sky,
+    // so the night (or grey) sky fades in from the page background as
+    // smoothly as it would from the blue.
+    const wDay = wSun * (1 - wet * 0.8), dk = this.dayK;
+    if (wDay > 0.0005) {
+      const wo = 1 - wDay;
+      const D = SKY.day;
+      if (dk < 0.999) {
+        const n = wo > 0.002 ? 1 / wo : 0, N = SKY.night;
+        const ot = n ? [tr * n, tg * n, tb * n] : N.top, oh = n ? [hr * n, hg * n, hb * n] : N.hor;
+        const k = wDay;
+        tr += lerp(ot[0]!, D.top[0], dk) * k;
+        tg += lerp(ot[1]!, D.top[1], dk) * k;
+        tb += lerp(ot[2]!, D.top[2], dk) * k;
+        hr += lerp(oh[0]!, D.hor[0], dk) * k;
+        hg += lerp(oh[1]!, D.hor[1], dk) * k;
+        hb += lerp(oh[2]!, D.hor[2], dk) * k;
+        a += D.a * dk * k;
+      } else acc(D, wDay);
+    }
     if (mI > 0.002) {
       // A tint of the moment's colour, mostly toward the horizon. A sunset
       // keeps the blue day sky until late (owner feedback 29): its tint grows
@@ -759,7 +787,8 @@ class Sky {
     // The glow on the light side: the sun by day (none under a grey, wet sky
     // or in a sun moment, which has its own light), a cool lift toward the
     // moon or the horizon at night, hardly any in darkness.
-    const sun = wSun * (1 - wet * 0.9) * (1 - clamp(mI * 2, 0, 1));
+    // (the warm glow belongs to the blue day sky: not with it switched off)
+    const sun = wSun * (1 - wet * 0.9) * (1 - clamp(mI * 2, 0, 1)) * dk;
     const cool = wMoon * 0.16 + wNight * 0.07;
     const vis = this.fogK * (1 - 0.5 * this.cover);
     const light = this.th.light;
@@ -775,7 +804,7 @@ class Sky {
     this.hor1 = hg;
     this.hor2 = hb;
     // How far down the sky reaches: by day to ~30 % above the bottom, at night less (feedback 22).
-    s[9] = wSun * (1 - wet * 0.8) * 100;
+    s[9] = wDay * dk * 100;
     // The bright day sky keeps the top left dark for the text there (owner feedback 28).
     s[10] = wSun * (1 - wet * 0.6) * 100;
     s[0] = tr;
@@ -1491,7 +1520,7 @@ export function skyModule(): Module {
       // Day life asks for its own rate only while a flock, an insect or a glimpse is there.
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving) return FPS_FAST;
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(FPS_SLOW, lf);
     },

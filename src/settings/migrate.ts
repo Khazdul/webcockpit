@@ -335,11 +335,11 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
   };
 }
 
-/** Weather effects from anything (additive in stage 28: absent = off, every category on). */
+/** Weather effects from anything (additive in stage 28: absent = off, every category on, the blue day sky on). */
 export function migrateWeather(raw: unknown): WeatherSettings {
   const d = defaultSettings().weather;
   const x = isObj(raw) ? raw : {};
-  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled) };
+  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled), daySky: bool(x.daySky, d.daySky) };
   for (const k of WEATHER_CATEGORIES) out[k] = bool(x[k], d[k]);
   return out;
 }
