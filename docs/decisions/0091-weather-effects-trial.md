@@ -704,6 +704,10 @@ gained the `birds` scene.
   alpha 0.3 (were 0.5 / 0.62 for the cores), the front band 0.06 (0.085).
 - **Stars (31).** `STARS_H` 0.55, `STARS_H_RIGHT` 0.9; the count follows
   the mean depth (cap 520).
+- **Title gap (19, 32).** `drawRaysFront` lights the top line only left and
+  right of `Pane.gap`; the `drawRaysBack` shadow hulls start at the line's
+  lower edge (`y + border`), so the step between the brighter rays outside
+  a pane and its shadow lies under the line, not across the title.
 
 Measured (`bench/weather-power.ts --rounds 2`, headed, owner geometry,
 quieter machine than the previous run; medians, CPU ms/s with worker fps and

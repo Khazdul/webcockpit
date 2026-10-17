@@ -1272,7 +1272,13 @@ class Sky {
       const t = q.border, side = sx > cx ? q.x + q.w - t : q.x;
       f.fillStyle = col;
       f.globalAlpha = a * 0.55;
-      f.fillRect(q.x, q.y, q.w, t);
+      // the top line stops at the title's gap (owner feedback 19, 32)
+      const gp = q.gap;
+      if (gp) {
+        if (gp.x > q.x) f.fillRect(q.x, q.y, gp.x - q.x, t);
+        const gx = gp.x + gp.w;
+        if (gx < q.x + q.w) f.fillRect(gx, q.y, q.x + q.w - gx, t);
+      } else f.fillRect(q.x, q.y, q.w, t);
       f.globalAlpha = a * 0.32;
       f.fillRect(side, q.y + t, t, q.h * 0.6);
       // Where the ray front crosses the top line: a bright glint running along it (owner feedback 20).
@@ -1366,7 +1372,10 @@ class Sky {
       for (const q of env.panes) {
         CX[0] = CX[3] = q.x;
         CX[1] = CX[2] = q.x + q.w;
-        CY[0] = CY[1] = q.y;
+        // From the line's lower edge: the step between the brighter rays
+        // outside and the shadow inside lies under the line, not across the
+        // title in the line's gap (owner feedback 19, 32).
+        CY[0] = CY[1] = q.y + q.border;
         CY[2] = CY[3] = q.y + q.h;
         for (let i = 0; i < 4; i++) {
           const dx = CX[i]! - (sx + ox), dy = CY[i]! - sy, dl = Math.hypot(dx, dy) || 1;

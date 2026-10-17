@@ -154,10 +154,10 @@ it?
 
 ## Handoff (end of session 2026-10-17)
 
-State: on branch `weather-trial` (not merged, not released). Two owner
-feedback rounds (items 1–25) are done. **Next session: the third round,
-items 26–32 below** (nothing of it started). Collect new feedback under
-"Owner feedback" before changing things. The owner's dev server must be
+State: on branch `weather-trial` (not merged, not released). Three owner
+feedback rounds (items 1–32) are done. **Next session: the owner tests
+round 3**; collect new feedback under "Owner feedback" before changing
+things. The owner's dev server must be
 restarted after a branch switch (a running Vite served main's CSS once).
 
 Where things live:
@@ -167,7 +167,7 @@ Where things live:
   `index.ts` (`createWeather`, back/front canvases, one canvas per
   floating pane `floatLayers`), `signals.ts` (GMCP / almanac / lightning
   lines), `director.ts` (dwell 3 s, mix rates, sky selection, the in/out
-  and day/night pace), `geometry.ts` (pane frame boxes incl. title notch, diffing),
+  and day/night pace), `geometry.ts` (pane frame boxes incl. the title's gap, diffing),
   `palette.ts`, `protocol.ts`, `dev.ts` (`?weather`, `?weather=<json>`,
   `window.__weather`), `support.ts`, `weather.css`.
 - `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps,
@@ -177,8 +177,9 @@ Where things live:
   gusts, lightning), `fog.ts`, `body.ts`, `env.ts`.
 - Options page: `src/chrome/frames/options-weather.tsx` (last in the
   Options hub); settings `weather` section (`migrateWeather`).
-- Frames: `src/panes/frame.ts` (`frameGeometry`, `frameNotch`,
-  `framePath`), `src/panes/pane.ts` (SVG `.wc-pane-line`),
+- Frames: `src/panes/frame.ts` (`frameGeometry`, `frameGap`,
+  `framePath`), `src/panes/pane.ts` (SVG `.wc-pane-line` with the title's
+  gap; the worker gets it as `Pane.gap`, which glints and sun rays skip),
   `src/layout/layout.css`; map flush to the line: `MapPane.fitFrame`.
 - Tests: `tests/unit/weather*.test.ts`, `tests/unit/panes.test.ts`,
   `tests/e2e/weather.spec.ts`, `tests/e2e/layout.spec.ts`. Benches:
@@ -198,8 +199,6 @@ Open:
 
 - XML `<weather>` tag on the lightning line and the XML around the
   darkness room line unverified live; no live `Event.Darkness` seen.
-- Sunrise glint (`drawRaysFront`) is a straight band across the title
-  notch (moot if item 32 removes the notch).
 - z z Z falls back to the system monospace font in the worker.
 - e2e: chromium "a drag shows its cursor on a shield" fails on main too
   (pre-existing); a few specs flaky under parallel load (pass alone).
@@ -487,5 +486,6 @@ Sky:
       height, with nothing behind it: the page, sky or weather shows
       around the letters as outside the frame, on a tinted pane too. The
       map fills its frame up to the line again. Frame glints, lightning on
-      the frames and snow on pane tops leave the gap alone; the sunrise
-      line along pane tops still crosses it until the sky rework.
+      the frames, snow on pane tops and the sunrise/sunset light on pane
+      tops leave the gap alone (no lit band or brightness step behind the
+      title).
