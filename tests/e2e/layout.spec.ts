@@ -149,8 +149,8 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(geo.title[3]).toBeCloseTo(y1, 1);
   expect(geo.titleSize).toBeCloseTo(0.68, 2);
   expect(geo.titleZ).toBe('2');
-  // Dark ink (Plain: neutral grey, oklch L 0.19, no chroma).
-  const ink = /^oklch\(0\.19 ([\d.e-]+) /.exec(geo.titleColor);
+  // Dark ink (Plain: neutral grey, oklch L 0.28, no chroma; owner item 47).
+  const ink = /^oklch\(0\.28 ([\d.e-]+) /.exec(geo.titleColor);
   expect(ink, geo.titleColor).not.toBeNull();
   expect(parseFloat(ink![1]!)).toBeLessThan(1e-3);
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({

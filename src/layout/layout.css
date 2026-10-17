@@ -57,10 +57,11 @@
  * specular line shows a yellow fringe in Chromium):
  *   glass     = oklch(from --pane-border L .59, C min(c × 10, .105), h)
  *   highlight = oklch(from --pane-border L .95, C min(c × 1.2, .018), h)
- *   title ink = oklch(from --pane-border L .19, C min(c × 4, .03), h)
- * (owner items 39, 44: the glass was L .66 and looked too light; the ink
- * L .17, near black, and the lip under the letters 70 % of the highlight,
- * now 60 %: a touch softer both ways, still engraved.)
+ *   title ink = oklch(from --pane-border L .28, C min(c × 4, .03), h)
+ * (owner items 39, 44, 47: the glass was L .66 and looked too light; the
+ * ink was L .17, near black, then .19, and the lip under the letters 70 %
+ * of the highlight, then 60 %: no visible difference, so now clearly
+ * softer both ways, ink L .28 and the lip 42 %, still engraved.)
  * The rim and plate are the glass over what is behind, with a white sheen
  * from the top: at 52 % with weather on (weather.css; the sky behind tints
  * it), at 64 % over the flat page with weather off (at 52 % over black it
@@ -70,7 +71,7 @@
   background: transparent;
   --glass: oklch(from var(--pane-border) 0.59 min(calc(c * 10), 0.105) h);
   --glass-hi: oklch(from var(--pane-border) 0.95 min(calc(c * 1.2), 0.018) h);
-  --ink: oklch(from var(--pane-border) 0.19 min(calc(c * 4), 0.03) h);
+  --ink: oklch(from var(--pane-border) 0.28 min(calc(c * 4), 0.03) h);
   --glass-mix: 64%;
   --glass-edge: rgb(0 0 0 / 0.62);
   --glass-seam: rgb(0 0 0 / 0.45);
@@ -200,7 +201,7 @@
   line-height: 1;
   white-space: pre;
   color: var(--ink);
-  text-shadow: 0 1px 0 color-mix(in srgb, var(--glass-hi) 60%, transparent);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--glass-hi) 42%, transparent);
   z-index: 2;
 }
 
