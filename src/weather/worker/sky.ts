@@ -1255,7 +1255,7 @@ class Sky {
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
-    f.globalAlpha = 0.085 * I * wetK;
+    f.globalAlpha = 0.06 * I * wetK;
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1325,7 +1325,8 @@ class Sky {
       a0 = Math.min(a0, a);
       a1 = Math.max(a1, a);
     }
-    const T = this.T, N = 15, L = far * 1.2;
+    // Few, thin rays (owner feedback 30: were 15, 1.6–7.6° wide).
+    const T = this.T, N = 8, L = far * 1.2;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
@@ -1333,19 +1334,19 @@ class Sky {
     for (let i = 0; i < N; i++) {
       const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
       const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + Math.sin(T * 0.15 + i) * 0.006;
-      const wd = 0.008 + j * 0.03;
+      const wd = 0.0035 + j * 0.01;
       const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1));
-      g.globalAlpha = k * al * 0.5;
+      g.globalAlpha = k * al * 0.3;
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
       g.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
       g.closePath();
       g.fill();
-      const ww = wd * 0.4;
+      const ww = wd * 0.35;
       cores.push(a - ww, a + ww);
     }
-    g.globalAlpha = k * 0.62;
+    g.globalAlpha = k * 0.3;
     for (let i = 0; i < cores.length; i += 2) {
       g.beginPath();
       g.moveTo(sx, sy);
