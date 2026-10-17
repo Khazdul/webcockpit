@@ -607,6 +607,14 @@ frames):
       cap lightness/chroma so the light shades stay in sRGB (03's specular
       line shows a yellow fringe otherwise); measure `backdrop-filter` cost
       over the weather canvases before building.
+    - **Owner (2026-10-17):** 12 is best, but the plate hangs down too far
+      and is too dark: smaller title font so it hangs less, plate in about
+      the rim's light mid colour. Three refinements of 12 added, all with
+      the rim's glass as the plate and dark ink with a light lip: 14
+      "Light hanging plate" (0.72 em, hangs 6 px below the rim; 12 hung
+      9), 15 "Rim swell plate" (0.68 em, 4 px, tight), 16 "Glowing glass
+      plate" (0.70 em, 5 px, a soft glow at the plate's centre). Awaiting
+      the owner's pick.
 
 Weather:
 

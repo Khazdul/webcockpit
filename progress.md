@@ -51,9 +51,9 @@ Statuses: Next, In progress, Owner testing, Done.
   `notes/research/frame-mockup/`).
 - **Checked:** typecheck, all unit tests, e2e weather (Chromium, Firefox),
   chrome e2e; latency unchanged; sun moments ~7 % more CPU in Firefox.
-- **Open:** owner picks 11/12/13, then build the frame (measure
+- **Open:** owner picks 14/15/16 (refinements of 12), then build the frame (measure
   `backdrop-filter` first). Beam strength is a taste call (`BEAM_LAYERS`).
-- **Next:** owner tests 36–38 and picks the nameplate variant.
+- **Next:** owner tests 36–38 and picks the plate variant (14–16).
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)

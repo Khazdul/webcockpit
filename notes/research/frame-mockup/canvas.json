@@ -107,6 +107,27 @@
    "w": 1280,
    "h": 760,
    "title": "13 Inlaid crystal plate"
+  },
+  "V14.dc.html": {
+   "x": 0,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "14 Light hanging plate"
+  },
+  "V15.dc.html": {
+   "x": 1360,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "15 Rim swell plate"
+  },
+  "V16.dc.html": {
+   "x": 2720,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "16 Glowing glass plate"
   }
  },
  "order": [
@@ -123,7 +144,10 @@
   "V10.dc.html",
   "V11.dc.html",
   "V12.dc.html",
-  "V13.dc.html"
+  "V13.dc.html",
+  "V14.dc.html",
+  "V15.dc.html",
+  "V16.dc.html"
  ],
  "notes": {},
  "designSystems": []
