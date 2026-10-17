@@ -11,11 +11,12 @@
 //           env.shared.flash / boltX.
 //   snow    flakes as particles plus far pattern tiles. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
-//           dusting gathers on top of pane top borders and melts afterwards.
+//           dusting gathers along the top rims (on the glass) and melts afterwards.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
 // dark night dim) and adapted to the background (palette.ts).
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
 
+import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
 import { plateRects, rimRects } from './rimshape';
@@ -436,8 +437,11 @@ export function weatherModule(): Module {
     g.setTransform(d, 0, 0, d, 0, 0);
     const dc = adapt([240, 244, 252], th);
     const dcs = `${dc[0]},${dc[1]},${dc[2]}`;
+    // Top-anchored: the row along the rim's top edge first, drifts reaching
+    // down into the glass (drawn inside the rim: nothing speckled above the
+    // frame, owner item 48).
     panes.forEach((p, k) => {
-      const y0 = k * Hs + Hs - 1;
+      const y0 = k * Hs;
       for (let x = p.x + 1; x < p.x2 - 1; x += 1) {
         const n = env.fbm(x * 0.05, k * 3.1 + 0.5);
         if (n < 0.22) continue;
@@ -446,13 +450,13 @@ export function weatherModule(): Module {
         g.fillRect(x, y0, 1, 1);
         if (hgt > 0.2) {
           g.fillStyle = `rgba(${dcs},0.4)`;
-          g.fillRect(x, y0 - hgt, 1, hgt);
+          g.fillRect(x, y0 + 1, 1, hgt);
         }
       }
       g.fillStyle = `rgba(${dcs},0.85)`;
       for (let i = 0; i < p.w / 6; i++) {
         const x = rr(p.x + 1, p.x2 - 1);
-        g.fillRect(x, y0 - 1, 1, 1);
+        g.fillRect(x, y0 + 1, 1, 1);
       }
       p.dustRow = k * Hs;
     });
@@ -1387,11 +1391,14 @@ export function weatherModule(): Module {
           const p = panes[k]!;
           const want = snow * out;
           p.dust += (want - p.dust) * Math.min(1, dt * (want > p.dust ? 0.035 : 0.12));
-          if (p.dust < 0.02 || p.y < 4) continue;
+          if (p.dust < 0.02 || !p.border) continue;
           busy = true;
           f.globalAlpha = p.dust * (0.4 + 0.5 * lum);
-          // Lying on the top rim, not over it (the rim runs on above the nameplate).
-          f.drawImage(dustCv, p.x * d, p.dustRow * d, p.w * d, 5 * d, p.x, p.y - 5, p.w, 5);
+          // On the top rim's glass, inside its rounded corners (it was a
+          // band above the rim, read as speckled artifacts outside the
+          // frame: owner item 48); the rim runs on above the nameplate.
+          const R = Math.min(RIM_R, p.border), h = Math.min(4, p.border), w = p.w - 2 * R;
+          if (w > 0) f.drawImage(dustCv, (p.x + R) * d, p.dustRow * d, w * d, h * d, p.x + R, p.y, w, h);
         }
         f.globalAlpha = 1;
       }
