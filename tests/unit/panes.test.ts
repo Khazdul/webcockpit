@@ -119,10 +119,10 @@ describe('frame nameplate', () => {
     expect(frameHolePath(86, 81, 6, p)).toBe('M6 6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15H59A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80V75H6Z');
     expect(frameHolePath(86, 81, 6, null, -6, -6)).toBe('M0 0H74V69H0Z');
     expect(frameRimPath(86, 81, 6, null)).toBe('M4 0H82A4 4 0 0 1 86 4V77A4 4 0 0 1 82 81H4A4 4 0 0 1 0 77V4A4 4 0 0 1 4 0ZM6 6H80V75H6Z');
-    // The seam: dark left, top and round the plate; light the plate's bottom, right and bottom.
+    // The seam: dark left, top and all round the plate (its bottom too, item 54); light right and bottom.
     const s = frameSeams(86, 81, 6, p);
-    expect(s.dark).toBe('M6 75V6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15M59 15A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80');
-    expect(s.light).toBe('M28 15H59M80 6V75H6');
+    expect(s.dark).toBe('M6 75V6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15H59A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80');
+    expect(s.light).toBe('M80 6V75H6');
   });
 });
 
@@ -149,7 +149,7 @@ describe('PaneShell', () => {
     expect(p.el.style.getPropertyValue('--frame-hole')).toBe(`path("${hole}")`);
     const rim = p.el.querySelector<HTMLElement>('.wc-pane-rim')!;
     expect(rim.style.clipPath).toContain(hole);
-    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M27 12H60M80 6V75H6');
+    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M80 6V75H6');
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');

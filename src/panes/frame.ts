@@ -228,8 +228,11 @@ export function frameStrips(fw: number, fh: number, t: number, p: FramePlate | n
  * The hole's edge as two open paths for the inner seam (stroked twice the
  * seam width on the edge; the rim's clip keeps the half inside the glass):
  * `dark` where the thick glass meets the pane in shadow (left, top, the
- * fillets and the plate's sides and lower corners), `light` where it catches
- * the light (the plate's bottom, the right and the bottom).
+ * fillets and the whole plate: its sides, lower corners and bottom), `light`
+ * where it catches the light (the right and the bottom). The plate's bottom
+ * is a lower edge of the glass, like the rim's outer bottom edge, so it gets
+ * a dark line, not a light one (owner item 54: a light line there read as a
+ * bright stroke under the title).
  */
 export function frameSeams(fw: number, fh: number, t: number, p: FramePlate | null): { dark: string; light: string } {
   if (!p) return { dark: `M${n(t)} ${n(fh - t)}V${n(t)}H${n(fw - t)}`, light: `M${n(fw - t)} ${n(t)}V${n(fh - t)}H${n(t)}` };
@@ -238,9 +241,9 @@ export function frameSeams(fw: number, fh: number, t: number, p: FramePlate | nu
   const dark =
     `M${n(t)} ${n(fh - t)}V${n(t)}H${n(x0 - r)}A${n(r)} ${n(r)} 0 0 1 ${n(x0)} ${n(t + r)}` +
     `V${n(y1 - br)}A${n(br)} ${n(br)} 0 0 0 ${n(x0 + br)} ${n(y1)}` +
-    `M${n(x1 - br)} ${n(y1)}A${n(br)} ${n(br)} 0 0 0 ${n(x1)} ${n(y1 - br)}` +
+    `H${n(x1 - br)}A${n(br)} ${n(br)} 0 0 0 ${n(x1)} ${n(y1 - br)}` +
     `V${n(t + r)}A${n(r)} ${n(r)} 0 0 1 ${n(x1 + r)} ${n(t)}H${n(fw - t)}`;
-  const light = `M${n(x0 + br)} ${n(y1)}H${n(x1 - br)}M${n(fw - t)} ${n(t)}V${n(fh - t)}H${n(t)}`;
+  const light = `M${n(fw - t)} ${n(t)}V${n(fh - t)}H${n(t)}`;
   return { dark, light };
 }
 
