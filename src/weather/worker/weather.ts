@@ -9,7 +9,7 @@
 //           light on every frame's lines (strongest near the bolt). ONLY on
 //           the 'strike' event. Writes
 //           env.shared.flash / boltX.
-//   snow    flakes as particles plus far pattern tiles. Snow enters from the
+//   snow    flakes as particles plus far tiles of dots. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
 //           dusting gathers along the top rims (on the glass) and melts afterwards.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
@@ -52,7 +52,18 @@ interface WPane extends Pane {
 
 interface Tile {
   S: number;
-  pat: CanvasPattern;
+  /**
+   * The tile's dots, x, y, r per dot (CSS px in its S × S cell), sorted by
+   * `style`; `cuts[k]` is where style k starts. Drawn as small rects at their
+   * place in every cell on screen (it was a full-screen pattern fill per tile:
+   * 6 of them cost Firefox's software canvas ~24 ms a frame in snow, so the
+   * snow ran late; owner feedback 56).
+   */
+  dots: Float32Array;
+  cuts: number[];
+  styles: string[];
+  /** The same as a repeating pattern (GPU canvases: one fill per tile is cheaper there than the many rects). */
+  pat: CanvasPattern | null;
   speed: number;
   ox: number;
   oy: number;
@@ -350,41 +361,63 @@ export function weatherModule(): Module {
     return out;
   }
   const TK = 3, TON = [0.04, 0.3, 0.62, 0.16, 0.46, 0.8];
+  /** Alpha levels of the far dots (each dot's alpha is rounded to one). */
+  const DOT_LEVELS = 8;
   function makeTiles(env: Env, col: Rgb): Tile[] {
-    const d = env.dpr, out: Tile[] = [];
+    const out: Tile[] = [], d = env.dpr;
     const spec: [number, number, number, number, number, number][] = [
       [300, 70, 0.7, 1.15, 0.55, 21],
       [420, 55, 1.0, 1.7, 0.8, 30],
     ];
     let seed = 99;
     const sr = (): number => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+    const rgb = `${col[0] | 0},${col[1] | 0},${col[2] | 0}`;
     for (const [S, n, r0, r1, a1, speed] of spec) {
-      const gs: Ctx[] = [], cv: Cv[] = [];
-      for (let k = 0; k < TK; k++) {
-        const c = mkCanvas(S * d, S * d), g = ctx2d(c);
-        g.setTransform(d, 0, 0, d, 0, 0);
-        cv.push(c);
-        gs.push(g);
-      }
+      const per: [number, number, number, number][][] = Array.from({ length: TK }, () => []);
       for (let i = 0; i < n; i++) {
-        const x = sr() * S, y = sr() * S, r = r0 + sr() * (r1 - r0), a = (0.35 + sr() * 0.65) * a1, g = gs[i % TK]!;
-        g.fillStyle = `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${a.toFixed(3)})`;
-        for (let ox = -S; ox <= S; ox += S) {
-          for (let oy = -S; oy <= S; oy += S) {
-            const gx = x + ox, gy = y + oy;
-            if (gx < -3 || gx > S + 3 || gy < -3 || gy > S + 3) continue;
-            g.beginPath();
-            g.arc(gx, gy, r, 0, TAU);
-            g.fill();
-          }
-        }
+        const x = sr() * S, y = sr() * S, r = r0 + sr() * (r1 - r0), a = (0.35 + sr() * 0.65) * a1;
+        const lv = Math.max(1, Math.min(DOT_LEVELS, Math.round((a / a1) * DOT_LEVELS)));
+        per[i % TK]!.push([x, y, r, lv]);
       }
       for (let k = 0; k < TK; k++) {
-        const pat = env.back.createPattern(cv[k]!, 'repeat')!;
-        pat.setTransform(new DOMMatrix([1 / d, 0, 0, 1 / d, 0, 0]));
+        const ds = per[k]!.sort((p, q) => p[3] - q[3]);
+        const dots = new Float32Array(ds.length * 3), cuts: number[] = [], styles: string[] = [];
+        ds.forEach(([x, y, r, lv], d) => {
+          dots.set([x, y, r], d * 3);
+          if (!d || ds[d - 1]![3] !== lv) {
+            cuts.push(d);
+            styles.push(`rgba(${rgb},${((lv / DOT_LEVELS) * a1).toFixed(3)})`);
+          }
+        });
+        cuts.push(ds.length);
+        let pat: CanvasPattern | null = null;
+        if (!env.cpu) {
+          const c = mkCanvas(S * d, S * d), g = ctx2d(c);
+          g.setTransform(d, 0, 0, d, 0, 0);
+          for (let k2 = 0; k2 < cuts.length - 1; k2++) {
+            g.fillStyle = styles[k2]!;
+            for (let q = cuts[k2]!; q < cuts[k2 + 1]!; q++) {
+              const x = dots[q * 3]!, y = dots[q * 3 + 1]!, r = dots[q * 3 + 2]!;
+              for (let ox = -S; ox <= S; ox += S) {
+                for (let oy = -S; oy <= S; oy += S) {
+                  const gx = x + ox, gy = y + oy;
+                  if (gx < -3 || gx > S + 3 || gy < -3 || gy > S + 3) continue;
+                  g.beginPath();
+                  g.arc(gx, gy, r, 0, TAU);
+                  g.fill();
+                }
+              }
+            }
+          }
+          pat = env.back.createPattern(c, 'repeat')!;
+          pat.setTransform(new DOMMatrix([1 / d, 0, 0, 1 / d, 0, 0]));
+        }
         const j = out.length, old = tiles ? tiles[j] : undefined;
         out.push({
           S,
+          dots,
+          cuts,
+          styles,
           pat,
           speed,
           ox: old ? old.ox : R() * S,
@@ -1319,12 +1352,37 @@ export function weatherModule(): Module {
           if (y1 - y0 < 1 || ga < 0.01) continue;
           busy = true;
           const sway = Math.sin(tt * (0.5 + T.lay * 0.23) + T.ph) * (3 + T.lay * 3);
-          const ox = T.ox + sway;
-          b.save();
-          b.translate(ox, T.oy);
-          b.fillStyle = T.pat;
-          b.fillRect(-ox, y0 - T.oy, W, y1 - y0);
-          b.restore();
+          const ox = T.ox + sway, S = T.S, D = T.dots;
+          if (T.pat) {
+            b.save();
+            b.translate(ox, T.oy);
+            b.fillStyle = T.pat;
+            b.fillRect(-ox, y0 - T.oy, W, y1 - y0);
+            b.restore();
+            continue;
+          }
+          // every cell of the tile on screen (its origin at ox, oy), rows y0..y1
+          const i0 = Math.floor(-ox / S) - 1, i1 = Math.ceil((W - ox) / S);
+          const j0 = Math.floor((y0 - T.oy) / S) - 1, j1 = Math.ceil((y1 - T.oy) / S);
+          for (let k = 0; k < T.styles.length; k++) {
+            b.fillStyle = T.styles[k]!;
+            for (let d = T.cuts[k]!; d < T.cuts[k + 1]!; d++) {
+              const dx = D[d * 3]!, dy = D[d * 3 + 1]!, r = D[d * 3 + 2]!, w = r * 1.8, plus = r > 1.1;
+              for (let jj = j0; jj <= j1; jj++) {
+                const y = T.oy + dy + jj * S;
+                if (y < y0 || y > y1) continue;
+                for (let ii = i0; ii <= i1; ii++) {
+                  const x = ox + dx + ii * S;
+                  if (x < -3 || x > W + 3) continue;
+                  // a soft round dot: a square, and for the bigger ones a plus of two bars
+                  if (plus) {
+                    b.fillRect(x - r, y - r * 0.55, 2 * r, r * 1.1);
+                    b.fillRect(x - r * 0.55, y - r, r * 1.1, 2 * r);
+                  } else b.fillRect(x - w / 2, y - w / 2, w, w);
+                }
+              }
+            }
+          }
         }
         let spawn = Math.min(nTarget - snCount, 6);
         for (let i = 0; i < SN; i++) {
