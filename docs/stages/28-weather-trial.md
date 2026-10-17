@@ -958,3 +958,12 @@ black: the brightest stroke stands out).
       less. Please try: a clear day → `~` clouds (`#weather demo` has it, or
       the game), falling snow in Firefox, and going in and out; say if
       anything still steps, or if the laptop runs warmer than before.
+
+### 2026-10-17 — tenth request (translated)
+
+57. **Borderless floating pane in step with lightning.** The owner asked
+    to fix the known lag: a borderless floating pane copies the weather
+    canvas behind it one frame late, so during lightning flicker (and
+    any fast flash) it can show the previous frame's brightness and stand
+    out as a rectangle. It should show the same frame as the weather
+    around it.
