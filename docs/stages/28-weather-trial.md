@@ -888,3 +888,18 @@ black: the brightest stroke stands out).
       framed pane's glass hides most of it. Fixing it would mean a different
       way of hiding the game text under floating panes; say if it bothers
       you.
+
+### 2026-10-17 — ninth test (translated)
+
+54. **Light line under the nameplate.** The bottom line under a pane's
+    nameplate is very light and looks wrong (`images/9.png`, the Map
+    plate); elsewhere on a frame the bottom lines do not look light
+    (`images/10.png`, a bottom rim).
+55. **Sun rays a little weaker.** Back the strength of the sun rays down
+    a little. (Read as the day sun glimpses just strengthened in item 52.)
+56. **Smoother transitions and snow; higher frame rates?** Transitions
+    sometimes feel a little laggy, e.g. between a clear day and a day with
+    clouds; falling snow also feels laggy at times. Is the frame rate too
+    low? Raise frame rates generally so everything feels more fluid, if
+    the CPU price is not too high: no need to be needlessly frugal, but
+    watch out for obvious resource hogs.
