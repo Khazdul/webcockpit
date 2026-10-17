@@ -683,3 +683,27 @@ Weather:
       third of the way in from the left as it sets, so the top-left corner
       stays dark; the moonlight on frame top lines follows it as before.
       Without a set event it waits just past the left edge.
+
+### 2026-10-17 — fifth test, on the glass frames (translated)
+
+39. **Title legibility, subtle.** The pane title is sometimes hard to
+    read, mostly over a fully black background. Make the light pixels
+    next to the letters (the light lip) not fully white, just a touch
+    darker, and the title ink not fully black, just a touch lighter.
+    Small differences only: changing too much loses the effect.
+40. **Plate 1 px shorter under the text.** The nameplate can lose about
+    1 px just below the text; it seems to fit, and the text will feel
+    better centred vertically on the plate.
+41. **Drips closer to the frame.** The drops running along the pane
+    frames sit too far out. Move them closer to the frame so they really
+    run along the edge instead of hanging in the air.
+42. **Plate takes the dawn/dusk tint.** At dusk and dawn the frames shift
+    colour a little to imitate the sunlight, but the area behind the
+    nameplates does not. The plates read as part of the frame, so they
+    should get the same colour shift.
+43. **Demo box without a pane frame.** The `#weather demo` caption box
+    need not look like a pane: a plain grey area at the top left holding
+    the text, no border. It is a debug tool, not something that needs
+    pane dress.
+44. **Darker frames.** The frames are generally too light grey now. Tone
+    them down to a darker grey without otherwise changing the look.
