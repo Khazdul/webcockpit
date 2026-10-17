@@ -69,7 +69,8 @@ rain + fog: text-to-screen and key-to-send latency must not move.
 - [x] D. Options page and settings (with migration), defaults off
 - [x] E. Latency bench before/after (`bench/weather-bench.ts`,
   `bench/results/weather.md`); fixed the GPU-thread stalls it found
-- [ ] Screenshots on black, dark-grey and light backgrounds
+- [x] Screenshots on black, dark-grey and light backgrounds (covered by
+  the per-item screenshots and the owner's own tests)
 - [x] `#weather demo` with its caption box; `?weather` after login (item 33)
 - [x] ADR 0091, this file, progress table
 
@@ -171,31 +172,33 @@ in typing or scrolling with the effects on (the bench says no; your
 machine is the real test, especially in Firefox)? Keep the trial or drop
 it?
 
-## Handoff (end of session 2026-10-17)
+## Handoff (end of session 2026-10-18)
 
-State: on branch `weather-trial` (not merged, not released). Three owner
-feedback rounds (items 1–32), the weather demo (item 33, `#weather demo`)
-and the see-through Transparent map (item 34) are done. **Next session:
-the owner brings new feedback, first on pane frames, titles and borders,
-then on the weather effects**; record it under "Owner feedback" (new
-subsection, numbered from 35) before changing things. Use `#weather demo`
-to check effects visually. The owner's dev server must be
-restarted after a branch switch (a running Vite served main's CSS once).
+State: on branch `weather-trial` (not merged, not released). Ten owner
+feedback rounds (items 1–57) are done, including the glass frames
+(design 14, item 35). The owner is fairly happy with how it works now; the
+small defects that remain are listed under "Known small defects" below,
+to pick up later if wanted. **Next session: new-player defaults** (which
+panes show and how they are arranged, the mapper's background colour, the
+map tileset, weather effects on by default, and more; the owner brings the
+list). **The session after: merge `weather-trial` to main** and review what
+is needed before a release with all of this. The owner's dev server must
+be restarted after a branch switch (a running Vite served main's CSS once).
 
 Where things live:
 
 - `src/weather/` (main thread): `hook.ts` (the single app hook,
   `installWeather`), `controller.ts` (lazy chunk: engine + bridge),
-  `index.ts` (`createWeather`, back/front canvases, one canvas per
-  floating pane `floatLayers`), `signals.ts` (GMCP / almanac / lightning
+  `index.ts` (`createWeather`, back/front canvases; floats are
+  see-through and what lies under them is clipped out, `floatHoles`), `signals.ts` (GMCP / almanac / lightning
   lines), `director.ts` (dwell 3 s, mix rates, sky selection, the in/out
-  and day/night pace), `geometry.ts` (pane frame boxes incl. the title's gap, diffing),
+  and day/night pace), `geometry.ts` (pane frame boxes incl. the nameplate, diffing, `cutRects`, `holeClip`),
   `palette.ts`, `protocol.ts`, `dev.ts` (`?weather`, `?weather=<json>`,
   `window.__weather`), `support.ts`, `weather.css`; the demo
   (`#weather demo`, its own lazy chunk): `demo-script.ts` (steps, timeline,
   command parsing), `demo.ts` (runner, caption box), `demo.css`.
 - `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps, transitions ≥ 30, clouds 20 (15 in Firefox), glimpses 6,
-  module caches, mask, float copies), `sky.ts` (sky, moon, stars, clouds,
+  module caches, mask, pane tints `paneFills`), `sky.ts` (sky, moon, stars, clouds,
   sun rays), `daylife.ts` (birds, insects, tufts, sun glimpses),
   `glint.ts` (glints on frame lines), `weather.ts` (rain, drips, snow,
   gusts, lightning), `fog.ts`, `body.ts`, `env.ts`.
@@ -222,13 +225,39 @@ Every change: rerun `node bench/weather-bench.ts --rounds 2` (latency)
 and `bench/weather-power.ts` (CPU), compare with `bench/results/`. Use
 your own `WC_E2E_PORT` / `WC_BENCH_PORT`, never the owner's 5173 server.
 
-Open:
+### Known small defects (to pick up later)
+
+Visual:
+
+- A tinted (coloured) floating pane's tint is painted by the worker and
+  can trail a moving float by about a frame. Plain floats are unaffected.
+- A black patch can show where two floating panes overlap over the game
+  text (seen before item 57 too; cause not yet found).
+- A docked pane or lower float covered by a float gets unblurred glass
+  while covered (a clipped element cannot blur what is behind it).
+- A float over a framed pane shows that pane's rain-free interior.
+- Day sun glimpses are faint on the Paper theme.
+- Title contrast over pure black is about 2.6:1.
+- Firefox's far snow (dots, item 56) looks a touch crisper than the old
+  pattern fills.
+- z z Z falls back to the system monospace font in the worker.
+
+Cost and detection:
+
+- Every fog change (a 40 s fade) runs all modules at 30 fps for its whole
+  length; a cloud cover change costs about a quarter core more while it
+  lasts.
+- Firefox is told apart by user agent (flat glass, `Env.cpu`).
+- Headless Firefox (software rendering) stalls with complex clips on the
+  game text; headed Firefox does not (ADR 0091 addendum, item 57).
+
+Unverified and tests:
 
 - XML `<weather>` tag on the lightning line and the XML around the
   darkness room line unverified live; no live `Event.Darkness` seen.
-- z z Z falls back to the system monospace font in the worker.
 - e2e: chromium "a drag shows its cursor on a shield" fails on main too
-  (pre-existing); a few specs flaky under parallel load (pass alone).
+  (pre-existing); map-notes / map-tilesets and a few other specs are
+  flaky under parallel load (pass alone).
 
 ## Owner feedback
 
