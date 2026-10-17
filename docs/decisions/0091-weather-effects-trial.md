@@ -345,6 +345,24 @@ little low on the plate, and the plate looked greyish beside the bluish rim.
   of a 5 px band above it (48; none on borderless panes). Latency unchanged
   (`weather-bench --rounds 2`: Chromium on median 10.3–11.0 / p95
   18.5–18.9 ms, worker avg 0.9–1.0 ms; Firefox on 8.4–9.8 / 16.9–17.3 ms).
+- **2026-10-17, owner items 50–51 (seventh test).** A floating pane's
+  inside now has the docked glass: the pane colour at 55 % over
+  `blur(2.5px) saturate(1.25)` (Firefox flat 64 %), was 72 % over 3.5 px
+  (78 %). The map floats by default, so with Transparent its empty space
+  read darker than the docked panes beside it (measured over the same day
+  sky: map 13,23,34 vs Timers 22,38,57; after 21,38,57 vs 22,38,57, the
+  same within 1–2 levels in Chromium and Firefox, Plain and Blue, Paper).
+  The denser float glass was not needed: the float's own canvas, opaque in
+  CSS, already hides the game text. The map draws nothing in its empty
+  space (hiding its canvas leaves those pixels unchanged), so nothing in
+  the map was changed (50). The bevel's lights are softer (51): the
+  specular line 85 % → 58 % of the highlight (Plain over black ~215 → ~171
+  grey beside the ~80 rim; Blue #ccd7e8 → #9badc4), the light seam 40 % →
+  32 % (plate bottom ~155 → ~145), the dark outer edge on a dark page
+  .62 → .56; glass L, highlight colour and the title's lip (42 %) are
+  unchanged, so the lip stays the dimmest light. Latency unchanged
+  (`weather-bench --rounds 2`: Chromium on median 10.4–10.5 / p95
+  19.1–19.3 ms, worker avg 1.1 ms; Firefox on 9.5–9.7 / 17.8 ms).
 
 ### Engine (stage 28 B)
 

@@ -806,8 +806,28 @@ black: the brightest stroke stands out).
 50. **Transparent map as see-through as other panes.** The transparent
     areas of the map pane come out a little darker than other panes; they
     should have about the same transparency.
+    - **Done (2026-10-17):** the map itself was not the cause: its empty space
+      is truly clear. The map floats by default, and floating panes had a
+      denser glass than docked ones (the pane colour at 72 % instead of 55 %,
+      in Firefox 78 % instead of 64 %), so the floating map came out about
+      40 % darker than the docked panes beside it. Floating panes now have
+      exactly the docked panes' glass (the game text under them stays
+      hidden). Measured over the same day sky: map empty space 13,23,34
+      against the Timers pane's 22,38,57 before, 21,38,57 against 22,38,57
+      now; the same in Firefox, on a Blue map and Timers, and on Paper.
+      Docked maps already matched. Any other floating pane is now as
+      see-through as a docked one too.
 51. **Brightest frame strokes toned down.** The very lightest strokes in
     the frames are a touch too light, so the frames sting the eye a
     little. Tone them down so the lightest strokes/parts are not quite as
     light, keeping the look; the frame as a whole may need rebalancing
     for it.
+    - **Done (2026-10-17):** the bright line along the top and left of each
+      rim is clearly dimmer (Plain over black about 215 → 171 grey, beside the
+      80 grey rim; Blue #ccd7e8 → #9badc4), the light line along the inner
+      bottom/right edge and under the nameplate a little dimmer (about 155 →
+      145), and the dark outer edge a touch softer, so the frame keeps its
+      depth with less contrast. The rim's glass and the title's light lip are
+      unchanged; the lip stays the softest light, under the nameplate's edge
+      and the top line. Checked at 1× over black, over the day sky and on
+      Paper.
