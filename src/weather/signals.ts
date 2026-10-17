@@ -15,14 +15,15 @@
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
 //                  moon phase always; sun and moon up at start and at each
 //                  change the almanac predicts (an event in between wins
-//                  until the next predicted change)
+//                  until the next predicted change); how far the sun is
+//                  through the day (`sunU`, for the sun glimpses)
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
 //
 // Magical darkness is a spell someone casts: only its Event.Darkness events
 // give an effect (owner feedback 26); no room text or light value does.
 
-import { type ClockState, isDay, momentAt } from '../gmcp/clock';
+import { type ClockState, DAWN, DUSK, isDay, momentAt } from '../gmcp/clock';
 import { moonAt, moonUpFraction } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
@@ -35,7 +36,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -60,15 +61,25 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
 export function almanacState(
   clock: Readonly<ClockState>,
   nowMs: number,
-): { sky: Omit<SkyState, 'moonPhase' | 'moonU'> | null; moonPhase: number; moonU: number } {
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU'> | null; moonPhase: number; moonU: number; sunU: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1 };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1 };
   const m = momentAt(clock.epoch, nowS);
-  return { sky: { clock: isDay(m.month, m.hour) ? 'day' : 'night', moonUp: moon.position !== 'below' }, moonPhase, moonU: moonUpFraction(g) };
+  const day = isDay(m.month, m.hour);
+  return { sky: { clock: day ? 'day' : 'night', moonUp: moon.position !== 'below' }, moonPhase, moonU: moonUpFraction(g), sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1 };
 }
+
+/** How far the sun is through the day at `hour:minute` of `month`: 0 at the dawn hour, → 1 at the dusk hour. */
+export function sunUpFraction(month: number, hour: number, minute: number): number {
+  const d0 = DAWN[month]! * 60, d1 = DUSK[month]! * 60;
+  return Math.min(1, Math.max(0, (hour * 60 + minute - d0) / (d1 - d0)));
+}
+
+/** `sunU` is sent again once it has moved on this much (~30–40 game minutes; the glimpses need no finer step). */
+export const SUN_U_STEP = 0.05;
 
 /** How often the almanac is re-read (real ms; one game minute is one second). */
 export const ALMANAC_MS = 30_000;
@@ -130,7 +141,7 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -143,7 +154,7 @@ export class WeatherSignals {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU };
   }
 
   /** The state to start the engine with. */
@@ -167,8 +178,14 @@ export class WeatherSignals {
   gmcp(key: string, data: unknown): void {
     const ev = gmcpEvent(key, data);
     if (!ev) return;
-    if (ev === 'sun.rise' || ev === 'sun.light') this.sky.clock = 'day';
-    else if (ev === 'sun.set' || ev === 'sun.dark') this.sky.clock = 'night';
+    // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
+    if (ev === 'sun.rise' || ev === 'sun.light') {
+      this.sky.clock = 'day';
+      if (this.sky.sunU < 0) this.sky.sunU = 0;
+    } else if (ev === 'sun.set' || ev === 'sun.dark') {
+      this.sky.clock = 'night';
+      this.sky.sunU = -1;
+    }
     else if (ev === 'moon.rise') {
       this.sky.moonUp = true;
       this.sky.moonU = 0;
@@ -206,6 +223,11 @@ export class WeatherSignals {
     }
     // Where the moon is on its way: at a clock sync, or when the almanac moves it up or down.
     if (a.sky && (force || out.moonUp !== undefined || (this.sky.moonUp && !moonWas))) out.moonU = this.sky.moonU = this.sky.moonUp ? Math.max(0, a.moonU) : -1;
+    // How far the sun is through the day: at a sync, at a predicted rise or set, and every SUN_U_STEP.
+    const su = this.sky.sunU;
+    if (force || out.clock !== undefined || (a.sunU < 0) !== (su < 0) || Math.abs(a.sunU - su) >= SUN_U_STEP) {
+      if (a.sunU !== su) out.sunU = this.sky.sunU = a.sunU;
+    }
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }

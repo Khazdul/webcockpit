@@ -70,6 +70,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: "Char.Vitals weather = ' '",
     dur: 5,
     acts: [
+      [0, pin({ sunU: 0.5 })],
       [0, emit('birds')],
       [0.6, emit('glimpse')],
       [2.5, emit('insect')],

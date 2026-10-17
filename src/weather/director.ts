@@ -106,10 +106,11 @@ export function eventState(name: WeatherEvent): Partial<WeatherState> | null {
   switch (name) {
     case 'sun.rise':
     case 'sun.light':
-      return { clock: 'day' };
+      // the day starts (the almanac's sunU, when synced, follows within a step)
+      return { clock: 'day', sunU: 0 };
     case 'sun.set':
     case 'sun.dark':
-      return { clock: 'night' };
+      return { clock: 'night', sunU: -1 };
     case 'moon.rise':
       return { moonUp: true };
     case 'moon.set':
@@ -194,6 +195,7 @@ export class Director {
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
     settled.moonU = raw.moonU;
+    settled.sunU = raw.sunU;
   }
 
   /** Eases the mix values toward their targets over `dt` seconds. */

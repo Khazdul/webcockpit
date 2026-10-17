@@ -17,6 +17,9 @@
 //   (sent after the settle; normally one comes every 70–170 s).
 // - sunset: the calm day sky, then a sunset (sent after the settle): rays,
 //   the strong beams with their frame glints, the change toward night.
+// - glimpse: the calm day sky, then a strong sun glimpse (sent after the
+//   settle; ~11 s of the 15, owner feedback 52). The calm scene itself may
+//   catch one: they come every 22–60 s on a clear day.
 //
 // Per scene and round, after SETTLE_MS to ease in, over S seconds:
 // - CPU time of the browser's processes (utime + stime from /proc/<pid>/stat,
@@ -74,9 +77,10 @@ const SCENES: Record<string, Record<string, unknown> | null> = {
   heavy: { weather: '"', fog: '=', position: 'standing', clock: 'night', moonUp: true, light: '' },
   birds: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   sunset: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  glimpse: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
 };
 /** Events sent once the scene has settled (just before measuring). */
-const SCENE_EVENTS: Record<string, string[]> = { birds: ['birds'], sunset: ['sun.set'] };
+const SCENE_EVENTS: Record<string, string[]> = { birds: ['birds'], sunset: ['sun.set'], glimpse: ['glimpse'] };
 const SCENE_NAMES = opt('scenes', 'WC_POWER_SCENES', 'off,calm,heavy').split(',').filter((s) => s in SCENES);
 
 // ------------------------------------------------------------- counters

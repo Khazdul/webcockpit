@@ -728,6 +728,7 @@ class Sky {
           life: day * (1 - wet * 0.8) * (1 - this.darkG),
           tufts: day * (1 - sst(0, 0.15, cover)) * (1 - wet) * this.fogK,
           sun: day * (1 - wet) * (1 - cover) * this.fogK,
+          sunU: env.settled.sunU,
           sx: SUN_U * env.W,
           sy: -this.skyH * 0.04,
         },

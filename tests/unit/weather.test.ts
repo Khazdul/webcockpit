@@ -187,8 +187,8 @@ describe('Director', () => {
     expect(new Director({ weather: null, position: 'sleeping' }).quiet()).toBe(false);
   });
   it('events set the sun and the moon', () => {
-    expect(eventState('sun.rise')).toEqual({ clock: 'day' });
-    expect(eventState('sun.dark')).toEqual({ clock: 'night' });
+    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
+    expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
     expect(eventState('moon.set')).toEqual({ moonUp: false });
     expect(eventState('strike')).toBeNull();
   });

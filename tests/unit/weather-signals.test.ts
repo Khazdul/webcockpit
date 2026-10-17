@@ -6,7 +6,7 @@ import { moonAt } from '../../src/gmcp/gametime';
 import { migrateSettings, defaultSettings } from '../../src/settings';
 import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
 import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
-import { WeatherSignals, almanacState, gmcpEvent, lineEvent, vitalsState } from '../../src/weather/signals';
+import { SUN_U_STEP, WeatherSignals, almanacState, gmcpEvent, lineEvent, sunUpFraction, vitalsState } from '../../src/weather/signals';
 import { categoriesOf } from '../../src/weather/controller';
 
 const NOW_MS = 1_800_000_000_000;
@@ -163,6 +163,32 @@ describe('magical darkness: only its Event.Darkness events (owner feedback 26)',
 });
 
 describe('almanac', () => {
+  it("gives how far the sun is through the day (sunU) for the glimpses: 0 at the dawn hour, 0.5 midway, -1 at night (owner feedback 52)", () => {
+    // month 5 (Forelithe): dawn 6, dusk 20
+    expect(sunUpFraction(5, 6, 0)).toBe(0);
+    expect(sunUpFraction(5, 13, 0)).toBeCloseTo(0.5, 6);
+    expect(sunUpFraction(5, 19, 59)).toBeLessThan(1);
+    // month 0 (Afteryule): dawn 8, dusk 18
+    expect(sunUpFraction(0, 13, 0)).toBeCloseTo(0.5, 6);
+    expect(almanacState(clockAt(5, 13), NOW_MS).sunU).toBeCloseTo(0.5, 6);
+    expect(almanacState(clockAt(5, 2), NOW_MS).sunU).toBe(-1);
+    expect(almanacState(clockAt(5, 13, 10, 'unset'), NOW_MS).sunU).toBe(-1);
+  });
+
+  it('sends sunU at start, on a sync and once it has moved on by SUN_U_STEP, not on every re-read', () => {
+    const c = clockAt(5, 9);
+    const s = sink();
+    const sig = new WeatherSignals(s, empty, c, NOW_MS);
+    expect(sig.state().sunU).toBeCloseTo(3 / 14, 6);
+    sig.almanac(c, NOW_MS + 30_000);
+    expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(0);
+    // the day is 14 game hours = 840 real s; SUN_U_STEP of it later, sent
+    sig.almanac(c, NOW_MS + Math.ceil(SUN_U_STEP * 840) * 1000);
+    expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(1);
+    sig.almanac(c, NOW_MS + 60_000, true);
+    expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(2);
+  });
+
   it('gives the sun, the moon and its phase from the clock', () => {
     const day = almanacState(clockAt(5, 12), NOW_MS);
     expect(day.sky?.clock).toBe('day');

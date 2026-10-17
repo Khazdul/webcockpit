@@ -30,6 +30,14 @@ export interface WeatherState {
    * at start and on a clock sync only: the sky advances it on its own.
    */
   moonU: number;
+  /**
+   * How far the sun is through the day, 0 at the dawn hour … 1 at the dusk
+   * hour (clock.ts DAWN/DUSK, by month), from the almanac; -1 at night or
+   * when the clock is not synced. Steers the day's sun glimpses (most and
+   * strongest at midday, owner feedback 52). Sent at start, on a clock sync
+   * and when it has moved on by SUN_U_STEP.
+   */
+  sunU: number;
 }
 
 export const DEFAULT_STATE: Readonly<WeatherState> = {
@@ -41,6 +49,7 @@ export const DEFAULT_STATE: Readonly<WeatherState> = {
   moonUp: false,
   moonPhase: 0.5,
   moonU: -1,
+  sunU: -1,
 };
 
 /** Momentary events (never dwelled). */
