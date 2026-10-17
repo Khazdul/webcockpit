@@ -106,7 +106,7 @@ export interface Rect {
 export interface PaneGeom extends Rect {
   /** `data-pane` (character, timers, group, comm, ui, map, script ids). */
   id: string;
-  /** Frame line thickness in px (0 without a frame). The rect is the frame box: x/y/w/h is the outer edge of the line (the pane fill inside it), or the whole pane unframed. The line is unbroken (the title is drawn over it). */
+  /** Frame line thickness in px (0 without a frame). The rect is the frame box: x/y/w/h is the outer edge of the line (the pane fill inside it, from the top line's inner edge down), or the whole pane unframed. The top line has a gap for the title (`gap`). */
   border: number;
   /** The pane label. */
   label: string;
@@ -114,18 +114,16 @@ export interface PaneGeom extends Rect {
   floating: boolean;
   /** Stacking order of a floating pane (higher is in front); 0 for a docked one. */
   z: number;
-  /** The pane's own background when it differs from the terminal's (painted under the back layer, in the rect). */
+  /** The pane's own background when it differs from the terminal's (painted under the back layer, in the rect below the top line). */
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
   /**
-   * Where the top line winds down under the title (absent without one): it
-   * leaves the top side at `x` (the left step is `[x, x + border]`), runs
-   * down, along the floor `[y + depth, y + depth + border]` and back up the
-   * right step `[x + w − border, x + w]`. Between the steps, above the floor,
-   * there is no line (the title is there).
+   * The stretch of the top line left out for the title (absent without one):
+   * `[x, x + w]` along the top, screen px. There is no line there; nothing
+   * may light it (glints, rims), or a band shows through the title.
    */
-  notch?: { x: number; w: number; depth: number };
+  gap?: { x: number; w: number };
 }
 
 export interface Geometry {

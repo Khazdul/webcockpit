@@ -210,12 +210,12 @@ describe('geometry diff', () => {
     const t = geom();
     t.panes[0]!.border = 3;
     expect(geometryDiff(geom(), t)).toBe('layout');
-    // The notch under the title is part of the line.
+    // The title's gap in the top line is part of the line.
     const n = geom();
-    n.panes[0]!.notch = { x: 1229, w: 60, depth: 11 };
+    n.panes[0]!.gap = { x: 1229, w: 60 };
     expect(geometryDiff(geom(), n)).toBe('layout');
     const n2 = geom();
-    n2.panes[0]!.notch = { x: 1229, w: 60, depth: 12 };
+    n2.panes[0]!.gap = { x: 1229, w: 62 };
     expect(geometryDiff(n, n2)).toBe('layout');
     expect(geometryDiff(n, n)).toBe('none');
   });

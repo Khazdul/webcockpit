@@ -12,8 +12,8 @@ export interface Pane extends Rect {
   border: number;
   label: string;
   floating: boolean;
-  /** Where the top line winds down under the title (protocol `PaneGeom.notch`). */
-  notch?: { x: number; w: number; depth: number };
+  /** The top line's gap for the title, `[x, x + w]` (protocol `PaneGeom.gap`): no line there. */
+  gap?: { x: number; w: number };
 }
 
 export interface Env {
