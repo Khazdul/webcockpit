@@ -4,11 +4,11 @@
 // and without window focus the loop drops to the slow rate.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WeatherEngine } from '../../src/weather/worker/engine';
+import { WeatherEngine, paneFills } from '../../src/weather/worker/engine';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
 import { Glints } from '../../src/weather/worker/glint';
 import { themeInfo } from '../../src/weather/palette';
-import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker } from '../../src/weather/protocol';
+import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker, type PaneGeom } from '../../src/weather/protocol';
 
 /** A 2d context that accepts every call and records drawImage sources. */
 function fakeCtx(canvas: FakeCanvas): Record<string, unknown> {
@@ -275,44 +275,47 @@ describe('WeatherEngine borderless panes (owner item 53)', () => {
 });
 
 describe('WeatherEngine floating panes', () => {
-  it("copies the back layer under a float into the float's own canvas; a moved float is drawn at the next frame, whatever the rate", () => {
-    const sky = mod('sky', FPS_STILL);
-    const h = harness([sky]);
-    const box = { x: 100, y: 50, w: 200, h: 100 };
-    const pane = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: true, z: 10, bg: null, box };
-    h.send({ t: 'geom', g: { ...geom, panes: [pane] } });
-    const fc = new FakeCanvas(1, 1);
-    h.send({ t: 'float', key: 1, pane: 'group', canvas: fc as unknown as OffscreenCanvas });
-    // the size of the whole pane (device px)
-    expect([fc.width, fc.height]).toEqual([200, 100]);
-    h.run(1500);
-    const backCanvas = (h.back as unknown as { canvas: unknown }).canvas;
-    const calls = (fc.ctx as unknown as { args: unknown[][] }).args;
-    expect(calls.length).toBeGreaterThan(0);
-    // one copy of the back layer's pixels under the pane, to the canvas origin
-    expect(calls.at(-1)).toEqual([backCanvas, 100, 50, 200, 100, 0, 0, 200, 100]);
-    // at FPS_STILL, a move is drawn at the next animation frame
-    const f0 = sky.frames;
-    h.send({ t: 'geom', g: { ...geom, panes: [{ ...pane, x: 143, box: { ...box, x: 140 } }] } });
-    h.run(1000 / 60 + 1);
-    expect(sky.frames).toBe(f0 + 1);
-    expect(calls.at(-1)).toEqual([backCanvas, 140, 50, 200, 100, 0, 0, 200, 100]);
-    // gone: no more copies
-    h.send({ t: 'floatGone', key: 1 });
-    const n = calls.length;
-    h.run(1000);
-    expect(calls.length).toBe(n);
+  const box = { x: 100, y: 50, w: 200, h: 100 };
+  const pane = (id: string, x: number, o: Partial<PaneGeom> = {}): PaneGeom => ({ id, x, y: 50, w: 200, h: 100, border: 0, label: id, floating: false, z: 0, bg: null, box: { ...box, x }, ...o });
+
+  it('paints a tinted pane less the floats in front of it; floats are see-through to the back layer (owner item 57)', () => {
+    const docked = pane('timers', 100, { bg: '#102030' });
+    const float = pane('ui', 250, { floating: true, z: 10 });
+    // the docked pane's tint stops at the float over it; the untinted float paints nothing
+    expect(paneFills([docked, float])).toEqual([{ x: 100, y: 50, w: 150, h: 100, bg: '#102030' }]);
+    // a tinted float under another float loses the upper one's box; the upper one keeps its whole tint
+    const low = pane('group', 100, { floating: true, z: 11, bg: '#203040' });
+    const high = pane('map', 150, { floating: true, z: 12, bg: '#304050' });
+    expect(paneFills([high, low])).toEqual([
+      { x: 150, y: 50, w: 200, h: 100, bg: '#304050' },
+      { x: 100, y: 50, w: 50, h: 100, bg: '#203040' },
+    ]);
+    // a float is in front of every docked pane, whatever the order
+    expect(paneFills([float, docked])).toEqual([{ x: 100, y: 50, w: 150, h: 100, bg: '#102030' }]);
   });
 
-  it('clips the copy to the back canvas when the float hangs over its edge', () => {
-    const h = harness([mod('weather', FPS_FAST)]);
-    const box = { x: 700, y: -10, w: 200, h: 100 };
-    h.send({ t: 'geom', g: { ...geom, panes: [{ id: 'map', x: 703, y: -7, w: 194, h: 94, border: 3, label: 'Map', floating: true, z: 10, bg: null, box }] } });
-    const fc = new FakeCanvas(1, 1);
-    h.send({ t: 'float', key: 7, pane: 'map', canvas: fc as unknown as OffscreenCanvas });
-    h.run(100);
-    const calls = (fc.ctx as unknown as { args: unknown[][] }).args;
-    expect(calls.at(-1)!.slice(1)).toEqual([700, 0, 100, 90, 0, 10, 100, 90]);
+  it('draws a tinted float that moved at the next animation frame, whatever the rate', () => {
+    const fog = mod('fog', FPS_SLOW);
+    const h = harness([fog]);
+    const vsync = 1000 / 60;
+    /** Runs to just after a drawn frame, then sends `g` and runs one vsync: frames drawn in it. */
+    const moveRight = (g: Geometry): number => {
+      const n = fog.frames;
+      while (fog.frames === n) h.run(vsync);
+      const f0 = fog.frames;
+      h.send({ t: 'geom', g });
+      h.run(vsync + 1);
+      return fog.frames - f0;
+    };
+    const f = pane('group', 100, { floating: true, z: 10, bg: '#102030' });
+    h.send({ t: 'geom', g: { ...geom, panes: [f] } });
+    h.run(1500);
+    expect(moveRight({ ...geom, panes: [{ ...f, x: 140, box: { ...box, x: 140 } }] })).toBe(1);
+    // an untinted float moving changes nothing on the canvases: the frame waits for the rate
+    const u = pane('ui', 100, { floating: true, z: 10 });
+    h.send({ t: 'geom', g: { ...geom, panes: [u] } });
+    h.run(1500);
+    expect(moveRight({ ...geom, panes: [{ ...u, x: 140, box: { ...box, x: 140 } }] })).toBe(0);
   });
 });
 

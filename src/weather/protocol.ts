@@ -132,11 +132,11 @@ export interface PaneGeom extends Rect {
   border: number;
   /** The pane label. */
   label: string;
-  /** A floating pane: above the game text; the worker copies the weather into its own canvas (`float`). */
+  /** A floating pane: above the game text, see-through to the back layer (what lies under it is clipped out, index.ts `floatHoles`). */
   floating: boolean;
   /** Stacking order of a floating pane (higher is in front); 0 for a docked one. */
   z: number;
-  /** The pane's own background when it differs from the terminal's (painted under the back layer, in the rect below the top line). */
+  /** The pane's own background when it differs from the terminal's (painted under the back layer, inside the rim less the nameplate, less the floats above it). */
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
@@ -180,14 +180,6 @@ export type MainToWorker =
   | { t: 'state'; s: Partial<WeatherState>; instant: boolean; settle?: boolean }
   | { t: 'event'; name: WeatherEvent; data?: unknown }
   | { t: 'geom'; g: Geometry }
-  /**
-   * A floating pane's own canvas (its first child, the size of the pane):
-   * the worker copies the back layer's pixels under the pane into it, so the
-   * see-through pane shows the weather (ADR 0091 "Engine", owner feedback
-   * 13, 18). `key` names it; `pane` is its `PaneGeom.id`.
-   */
-  | { t: 'float'; key: number; pane: string; canvas: OffscreenCanvas }
-  | { t: 'floatGone'; key: number }
   | { t: 'theme'; theme: ThemeColors }
   | { t: 'cats'; cats: Categories }
   | { t: 'visible'; on: boolean }

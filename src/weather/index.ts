@@ -3,22 +3,22 @@
 // pulls in its CSS and starts a worker.
 //
 // `createWeather(host)` puts two canvases into the cockpit (back: behind
-// text and docked panes; front: above everything) and one into each floating
-// pane (see `floatLayers`), transfers them to the weather worker and keeps
-// the worker's view of the layout current:
+// text and docked panes; front: above everything), transfers them to the
+// weather worker and keeps the worker's view of the layout current:
 //
 // - layout geometry (cockpit size, pane frames, the game pane, cell size)
 //   is measured on layout changes only (ResizeObserver, the cockpit's
 //   relayout hook, window resize/zoom) and posted only when it differs;
 // - the page being hidden pauses the worker;
-// - floating panes are see-through (`data-weather-see`) as long as they hold
-//   their weather canvas, whose CSS background hides the game text.
+// - floating panes are see-through (`data-weather-see`): what lies under
+//   them (game text, docked panes, lower floats) is clipped out
+//   (`floatHoles`), so the back layer itself shows through them.
 // No per-frame work happens on the main thread.
 //
 // The API is what the signal bridge (stage 28 C) and Options (D) call.
 
 import './weather.css';
-import { geometryDiff, measureGeometry } from './geometry';
+import { geometryDiff, holeClip, measureGeometry } from './geometry';
 import { glassBlurCheap, weatherAvailable } from './support';
 import {
   ALL_CATEGORIES,
@@ -171,8 +171,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     },
     [back, front],
   );
-  // After init: the worker knows the layout when the float canvases arrive.
-  const floats = floatLayers(root, post);
+  const floats = floatHoles(root);
   floats.sync();
 
   // ---- geometry: measured on change, posted on difference
@@ -198,7 +197,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   ro.observe(host.game);
   const offLayout =
     host.onLayout?.(() => {
-      // Synchronously, before this layout is painted: a new float gets its canvas (opaque CSS background) at once.
+      // Synchronously, before this layout is painted: what a float now covers is clipped out in the same frame.
       floats.sync();
       queueMeasure();
     }) ?? (() => {});
@@ -277,69 +276,78 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
 }
 
 /**
- * See-through floating panes (owner feedback 3, 13, 18; ADR 0091 "Engine").
- * Each shown floating pane gets a canvas as its first child
- * (`.wc-weather-float`, weather.css), the size of the pane, transferred to
- * the worker, which copies the back layer's pixels under the pane into it.
- * The canvas element's own CSS background is the terminal background with
- * the pane's tint in the frame box, so it hides the game text under the pane
- * from the first frame on, and it moves with the pane in the same frame (no
- * opaque pause after a move); the weather copy follows at the worker's next
- * frame. It is inside the pane's stacking layer, so an upper float covers a
- * lower one's text where they overlap. A pane holding one is marked
- * `data-weather-see`, which drops its own fill.
+ * See-through floating panes (owner feedback 3, 13, 18, item 57; ADR 0091
+ * "Engine"). A floating pane has no fill of its own while weather is on
+ * (`data-weather-see`), like a docked pane: the back layer shows through it
+ * directly, so it always shows the very frame the weather round it shows
+ * (a copy of the back layer in a canvas of its own was presented apart and
+ * now and then ran a frame off: a lit rectangle in a lightning flicker).
+ * What lies under it is clipped out instead (`clip-path`, `holeClip`): the
+ * game text and the input line, the docked panes and the floats below it.
+ * A clip makes an element a backdrop root, so the glass of a clipped pane
+ * would blur nothing: a pane with a hole is marked `data-weather-under` and
+ * gets the glass without blur (weather.css, as in Firefox) while covered.
  *
  * `sync()` runs on every relayout (synchronously, before it is painted) and
- * before each measure: new floats get a canvas; panes that docked, hid or
- * left the page lose theirs.
+ * before each measure, so a moved float and its holes move in one frame.
+ * Layout changes only, never per frame.
  */
-export function floatLayers(
-  root: HTMLElement,
-  post: (m: MainToWorker, transfer?: Transferable[]) => void,
-): { sync(): void; clear(): void } {
-  const doc = root.ownerDocument;
-  let next = 1;
-  const layers = new Map<HTMLElement, { key: number; pane: string; el: HTMLCanvasElement }>();
-  const drop = (pane: HTMLElement): void => {
-    const l = layers.get(pane);
-    if (!l) return;
-    layers.delete(pane);
-    l.el.remove();
-    pane.removeAttribute('data-weather-see');
-    post({ t: 'floatGone', key: l.key });
+export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
+  /** The clip each element got from here (to leave it alone when unchanged and to undo it). */
+  const clips = new Map<HTMLElement, string>();
+  const see = new Set<HTMLElement>();
+  const unclip = (el: HTMLElement): void => {
+    el.style.removeProperty('clip-path');
+    el.removeAttribute('data-weather-under');
+    clips.delete(el);
   };
   return {
     sync() {
-      const shown = new Set<HTMLElement>();
+      const base = root.getBoundingClientRect();
+      const rel = (el: HTMLElement) => {
+        const r = el.getBoundingClientRect();
+        return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
+      };
+      const floats: { el: HTMLElement; r: ReturnType<typeof rel>; z: number; i: number }[] = [];
       for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-pane[data-floating]')) {
         if (el.hidden) continue;
-        const pane = el.dataset.pane ?? '';
-        const have = layers.get(el);
-        if (have && have.pane === pane && have.el.parentElement === el) {
-          shown.add(el);
-          continue;
-        }
-        if (have) drop(el);
-        const c = doc.createElement('canvas');
-        c.className = 'wc-weather-float';
-        c.setAttribute('aria-hidden', 'true');
-        let canvas: OffscreenCanvas;
-        try {
-          canvas = c.transferControlToOffscreen();
-        } catch {
-          continue; // the pane stays opaque
-        }
-        el.prepend(c);
-        const key = next++;
-        layers.set(el, { key, pane, el: c });
-        el.setAttribute('data-weather-see', '');
-        post({ t: 'float', key, pane, canvas }, [canvas]);
-        shown.add(el);
+        const r = rel(el);
+        if (r.w <= 0 || r.h <= 0) continue;
+        floats.push({ el, r, z: Number(el.style.zIndex) || 0, i: floats.length });
       }
-      for (const el of [...layers.keys()]) if (!shown.has(el)) drop(el);
+      for (const el of see) if (!floats.some((f) => f.el === el)) el.removeAttribute('data-weather-see');
+      see.clear();
+      for (const f of floats) {
+        f.el.setAttribute('data-weather-see', '');
+        see.add(f.el);
+      }
+      const next = new Map<HTMLElement, string>();
+      if (floats.length) {
+        for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-game, :scope > .wc-input-slot, :scope > .wc-pane')) {
+          if (el.hidden) continue;
+          const self = floats.find((f) => f.el === el);
+          const r = self?.r ?? rel(el);
+          if (r.w <= 0 || r.h <= 0) continue;
+          const holes = floats
+            .filter((f) => f !== self && (!self || f.z > self.z || (f.z === self.z && f.i > self.i)))
+            .filter((f) => f.r.x < r.x + r.w && f.r.x + f.r.w > r.x && f.r.y < r.y + r.h && f.r.y + f.r.h > r.y)
+            .map((f) => ({ x: f.r.x - r.x, y: f.r.y - r.y, w: f.r.w, h: f.r.h }));
+          const clip = holes.length ? holeClip(r.w, r.h, holes) : '';
+          if (clip) next.set(el, clip);
+        }
+      }
+      for (const el of [...clips.keys()]) if (!next.has(el)) unclip(el);
+      for (const [el, clip] of next) {
+        if (clips.get(el) === clip) continue;
+        el.style.setProperty('clip-path', clip);
+        el.toggleAttribute('data-weather-under', el.classList.contains('wc-pane'));
+        clips.set(el, clip);
+      }
     },
     clear() {
-      for (const el of [...layers.keys()]) drop(el);
+      for (const el of [...clips.keys()]) unclip(el);
+      for (const el of see) el.removeAttribute('data-weather-see');
+      see.clear();
     },
   };
 }

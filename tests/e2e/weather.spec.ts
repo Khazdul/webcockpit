@@ -75,13 +75,10 @@ test('panes are see-through with weather on: docked at once, a float at once and
   );
   const group = page.locator('.wc-pane-group');
   const fill = () => group.evaluate((el) => getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before').backgroundColor);
-  /** The float's own weather canvas: its first child, opaque in CSS (the terminal background). */
-  const own = (sel: string) =>
-    page.evaluate((s) => {
-      const el = document.querySelector(s)!;
-      const c = el.firstElementChild as HTMLElement;
-      return c.classList.contains('wc-weather-float') ? getComputedStyle(c).backgroundColor : null;
-    }, sel);
+  /** A pane's own fill (see-through: transparent). */
+  const own = (sel: string) => page.evaluate((s) => getComputedStyle(document.querySelector(s)!).backgroundColor, sel);
+  /** The game text's clip (owner item 57: the text under a float is clipped out, the back layer shows through the float). */
+  const gameClip = () => page.evaluate(() => document.querySelector<HTMLElement>('.wc-game')!.style.clipPath);
   await expect(group).toHaveAttribute('data-floating', '');
   expect(await fill()).toBe('rgb(0, 0, 0)');
 
@@ -89,7 +86,7 @@ test('panes are see-through with weather on: docked at once, a float at once and
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
   // Docked panes turn to light glass with the first frame: the pane colour at 55 % over a light blur,
   // the rim's blur in four strips (ADR 0091 "Frames", addendum: glass rim and nameplate); the float
-  // holds its own canvas (opaque underneath) under the same glass (item 50).
+  // gets the same glass (item 50) over a hole in the game text (item 57).
   // Firefox (`data-weather-flat`): no blur, a denser tint (64 %, a float too).
   const glass = await page.locator('.wc-pane-character').evaluate((el) => {
     const f = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
@@ -112,21 +109,25 @@ test('panes are see-through with weather on: docked at once, a float at once and
   }
   await expect(group).toHaveAttribute('data-weather-see', '');
   expect(await fill()).toMatch(alpha(glass.flat ? '0\\.64' : '0\\.55'));
-  expect(await own('.wc-pane-group')).toBe('rgb(0, 0, 0)');
-  await expect(page.locator('.wc-pane-character > canvas.wc-weather-float')).toHaveCount(0);
+  expect(await own('.wc-pane-group')).toBe('rgba(0, 0, 0, 0)');
+  expect(await gameClip()).toMatch(/^path\(evenodd, "M -64 -64 H .*Z M /);
+  await expect(page.locator('canvas.wc-weather-float')).toHaveCount(0);
 
-  // Moving it: see-through in the same frame, its canvas moves with it.
+  // Moving it: see-through in the same frame, the hole in the game text moves with it.
+  const before = await gameClip();
   const moved = await page.evaluate(() => {
     window.__wc!.settings.update((d) => {
       d.layout.floating = d.layout.floating.map((f) => (f.id === 'group' ? { ...f, x: 9, y: 14 } : f));
     });
     window.__wc!.app.cockpit.relayoutNow();
     const g = document.querySelector('.wc-pane-group')!;
-    return [g.hasAttribute('data-weather-see'), g.firstElementChild!.classList.contains('wc-weather-float')];
+    return [g.hasAttribute('data-weather-see'), document.querySelector<HTMLElement>('.wc-game')!.style.clipPath];
   });
-  expect(moved).toEqual([true, true]);
+  expect(moved[0]).toBe(true);
+  expect(moved[1]).not.toBe(before);
 
-  // Over the map (another float): both stay see-through, each with its own canvas.
+  // Over the map (another float): both stay see-through, the lower one holed where the upper one lies
+  // (and its glass without blur there: a clip would leave the blur nothing behind it).
   await page.evaluate(() => {
     const m = document.querySelector<HTMLElement>('.wc-pane-map')!;
     const cs = getComputedStyle(document.querySelector('.wc-cockpit')!);
@@ -138,9 +139,10 @@ test('panes are see-through with weather on: docked at once, a float at once and
   });
   await expect(group).toHaveAttribute('data-weather-see', '');
   await expect(page.locator('.wc-pane-map')).toHaveAttribute('data-weather-see', '');
-  expect(await own('.wc-pane-map')).toBe('rgb(0, 0, 0)');
+  expect(await own('.wc-pane-map')).toBe('rgba(0, 0, 0, 0)');
+  await expect(page.locator('.wc-pane[data-floating][data-weather-under]')).toHaveCount(1);
 
-  // Docked again: no canvas, no mark.
+  // Docked again: no mark.
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
       d.layout.floating = d.layout.floating.filter((f) => f.id !== 'group');
@@ -149,13 +151,13 @@ test('panes are see-through with weather on: docked at once, a float at once and
   );
   await expect(group).not.toHaveAttribute('data-floating');
   await expect(group).not.toHaveAttribute('data-weather-see');
-  await expect(page.locator('.wc-pane-group > canvas.wc-weather-float')).toHaveCount(0);
 
   // Off: everything opaque again.
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: false } }));
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(0);
   await expect(page.locator('.wc-pane[data-weather-see]')).toHaveCount(0);
-  await expect(page.locator('canvas.wc-weather-float')).toHaveCount(0);
+  await expect(page.locator('.wc-pane[data-weather-under]')).toHaveCount(0);
+  expect(await page.evaluate(() => [...document.querySelectorAll<HTMLElement>('.wc-cockpit > *')].filter((e) => e.style.clipPath).length)).toBe(0);
   expect(errors).toEqual([]);
 });
 

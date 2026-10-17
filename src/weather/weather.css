@@ -23,13 +23,13 @@
 }
 
 /* While the engine runs, panes are see-through so the back layer shows in
- * their interiors (as in the prototype). A docked pane whose background
- * differs from the terminal's gets that background painted by the worker
- * under the back layer, inside its rim less the nameplate, so its tint
- * stays. A floating pane is over the game text: it holds its own weather
- * canvas (index.ts `floatLayers`, marked `data-weather-see`), whose CSS
- * background hides the text and which the worker fills with the back
- * layer's pixels there. */
+ * their interiors (as in the prototype). A pane whose background differs
+ * from the terminal's gets that background painted by the worker under the
+ * back layer, inside its rim less the nameplate, so its tint stays. A
+ * floating pane is over the game text: what lies under it (the text, docked
+ * panes, lower floats) is clipped out (index.ts `floatHoles`, which marks it
+ * `data-weather-see`), so it shows the back layer itself, the same frame as
+ * round it (owner item 57). */
 .wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
 .wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] {
   background: transparent;
@@ -41,9 +41,8 @@
  * as much as blurring the whole pane); the pane
  * inside is light glass, its colour at 55 % over a 2.5 px blur, so rain and
  * clouds still read as shapes behind the text. A floating pane gets the same
- * glass (item 50: its canvas copies the weather over the game text, which
- * its opaque CSS background already hides; a denser 72 % made the floating
- * map's empty space read darker than the docked panes). Weather
+ * glass (item 50: a denser 72 % made the floating map's empty space read
+ * darker than the docked panes). Weather
  * off there is nothing behind a pane but the flat page, so no blur at all
  * (layout.css: an opaque fill, the same rim colours). */
 :root:not([data-light]) .wc-cockpit[data-weather] > .wc-pane[data-framed] {
@@ -69,50 +68,24 @@
 /* Without the blur (Firefox, `data-weather-flat`, support.ts
  * `glassBlurCheap`: there it cost 16–30 % more CPU over the animated
  * canvases, whatever the radius): the same glass a little denser, so the
- * sharp weather behind reads as far off as the blurred one. */
-:root .wc-cockpit[data-weather][data-weather-flat] > .wc-pane[data-framed] {
+ * sharp weather behind reads as far off as the blurred one. The same for a
+ * pane a float lies over (`data-weather-under`, index.ts `floatHoles`): its
+ * hole is a clip-path, which makes the pane a backdrop root, so its blur
+ * would see nothing behind it (owner item 57). */
+:root .wc-cockpit[data-weather][data-weather-flat] > .wc-pane[data-framed],
+:root .wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] {
   --glass-mix: 60%;
 }
 
-.wc-cockpit[data-weather-flat] > .wc-pane[data-framed] > .wc-pane-blur {
+.wc-cockpit[data-weather-flat] > .wc-pane[data-framed] > .wc-pane-blur,
+.wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] > .wc-pane-blur {
   display: none;
 }
 
 .wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
-.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
+.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before,
+.wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] > .wc-pane-frame::before {
   background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-
-/* A floating pane's weather canvas: the pane's first child, under its rim,
- * frame and content. Its own background is what the pane's fill was (the
- * terminal background over the whole pane, the pane's tint inside the rim
- * less the nameplate: a band from the plate's bottom down and a strip either
- * side of the plate), so it is opaque from the moment it is put in,
- * wherever the pane moves; the worker's copy of the weather is drawn over
- * it. */
-.wc-weather-float {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  user-select: none;
-  background: var(--pane-bg, var(--term-bg));
-}
-
-.wc-pane[data-framed] > .wc-weather-float {
-  --fx: calc(var(--frame-l, 0px) + var(--frame-t, 0px));
-  --fy: calc(var(--frame-top, 0px) + var(--frame-t, 0px));
-  --fw: calc(100% - var(--frame-l, 0px) - var(--frame-r, 0px) - 2 * var(--frame-t, 0px));
-  --py: calc(var(--frame-top, 0px) + max(var(--plate-y1, 0px), var(--frame-t, 0px)));
-  --tint: linear-gradient(var(--pane-bg, var(--term-bg)), var(--pane-bg, var(--term-bg)));
-  background:
-    var(--tint) var(--fx) var(--py) / var(--fw) calc(100% - var(--py) - var(--frame-b, 0px) - var(--frame-t, 0px)) no-repeat,
-    var(--tint) var(--fx) var(--fy) / calc(var(--plate-x0, 0px) - var(--frame-t, 0px)) calc(var(--py) - var(--fy)) no-repeat,
-    var(--tint) calc(var(--frame-l, 0px) + var(--plate-x1, 0px)) var(--fy) /
-      calc(100% - var(--frame-l, 0px) - var(--plate-x1, 0px) - var(--frame-r, 0px) - var(--frame-t, 0px)) calc(var(--py) - var(--fy)) no-repeat,
-    var(--term-bg);
-}
-

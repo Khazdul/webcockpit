@@ -1,17 +1,16 @@
 // The weather engine inside the worker: owns the back and front
-// OffscreenCanvases and one small canvas per floating pane,
-// the director and the modules, and runs the frame loop (the prototype
-// harness).
+// OffscreenCanvases, the director and the modules, and runs the frame loop
+// (the prototype harness).
 //
 // Frame: clear the back and front canvases, run sky, weather, fog, body
 // (each wrapped in save/restore), mask the prompt/input rows (not the far
-// left any more: owner feedback 21), copy the back layer's pixels under each floating pane into that
-// pane's own canvas, then paint the docked panes' own backgrounds
-// underneath the back layer (the panes are transparent while weather is on,
-// see weather.css).
+// left any more: owner feedback 21), then paint the panes' own backgrounds
+// underneath the back layer (the panes, floating ones too, are transparent
+// while weather is on, see weather.css; a float shows the back layer itself,
+// owner item 57).
 //
 // Layout changes: the canvases, the mask and the pane fills follow at once
-// (a float that moved gets a frame at once, not at the content's rate);
+// (a tinted float that moved gets a frame at once, not at the content's rate);
 // the modules' own rebuild (`resize`: sprites, star fields, pane edges) waits
 // until the layout has been still for RESIZE_SETTLE_MS, so dragging a pane
 // or a dock boundary does not rebuild them on every cell step.
@@ -31,10 +30,10 @@
 // message brings it back to FPS_SLOW at once.
 
 import { Director, eventState } from '../director';
-import { paneTintRects } from '../geometry';
+import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
-import type { FrameStats, Geometry, MainToWorker, WorkerToMain } from '../protocol';
+import type { FrameStats, Geometry, MainToWorker, PaneGeom, WorkerToMain } from '../protocol';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -60,20 +59,18 @@ const N_TIMES = 600;
 export const RESIZE_SETTLE_MS = 250;
 
 /**
- * A floating pane's own canvas (the pane's first child, main thread): the
- * back layer's pixels under the pane are copied into it. Its element's CSS
- * background (terminal background, the pane's tint in the frame box) is
- * opaque, so the game text under the pane never shows; it moves with the
- * pane in the same frame (owner feedback 13, 18).
+ * Where each pane's own background is painted under the back layer: its
+ * tint rects (`paneTintRects`) less the boxes of the floats in front of it
+ * (docked panes are behind every float; floats by `z`, then by order).
  */
-interface FloatLayer {
-  pane: string;
-  canvas: OffscreenCanvas;
-  ctx: Ctx;
-  /** The pane's box in device px of the back canvas (null: not in the geometry). */
-  src: { x: number; y: number; w: number; h: number } | null;
-  /** The bitmap holds something (cleared once when there is nothing to copy). */
-  dirty: boolean;
+export function paneFills(panes: readonly PaneGeom[]): { x: number; y: number; w: number; h: number; bg: string }[] {
+  const out: { x: number; y: number; w: number; h: number; bg: string }[] = [];
+  panes.forEach((p, i) => {
+    if (!p.bg) return;
+    const over = panes.filter((q, j) => q.floating && q !== p && (!p.floating || q.z > p.z || (q.z === p.z && j > i))).map((q) => q.box);
+    for (const r of paneTintRects(p)) for (const c of cutRects(r, over)) out.push({ ...c, bg: p.bg });
+  });
+  return out;
 }
 
 export interface EngineHost {
@@ -128,8 +125,6 @@ export class WeatherEngine {
   private env: Env | null = null;
   private back: OffscreenCanvas | null = null;
   private front: OffscreenCanvas | null = null;
-  private readonly floats = new Map<number, FloatLayer>();
-  private geom: Geometry | null = null;
   private resizeGen = 0;
   private director = new Director();
   private readonly modules: Module[];
@@ -220,19 +215,10 @@ export class WeatherEngine {
           this.resizeGen++;
           for (const mod of this.modules) mod.resize(env);
         } else this.settleResize();
-        // A moved or resized float shows the weather of its old place until the next frame: draw it now.
+        // A tinted float that moved or changed size has its tint in the old place until the next frame: draw it now.
         if (moved) this.frameNow();
         break;
       }
-      case 'float': {
-        this.floats.set(m.key, { pane: m.pane, canvas: m.canvas, ctx: ctx2d(m.canvas), src: null, dirty: false });
-        if (this.geom) this.placeFloats(this.geom);
-        this.frameNow();
-        break;
-      }
-      case 'floatGone':
-        this.floats.delete(m.key);
-        break;
       case 'theme': {
         if (!this.env) break;
         this.env.theme = themeInfo(m.theme.bg);
@@ -300,37 +286,13 @@ export class WeatherEngine {
     this.host.post({ t: 'error', message: `${where}: ${e instanceof Error ? e.message : String(e)}` });
   }
 
-  /** Draws the next frame at the next animation frame, whatever the rate (a float moved or appeared). */
+  /** Draws the next frame at the next animation frame, whatever the rate (a pane's tint moved). */
   private frameNow(): void {
     this.lastFrame = -1e9;
     this.urgent = true;
   }
 
-  /** Each float canvas's source rect from `g` (device px of the back canvas); true when one changed. */
-  private placeFloats(g: Geometry): boolean {
-    const d = g.dpr;
-    let changed = false;
-    for (const f of this.floats.values()) {
-      const p = g.panes.find((q) => q.floating && q.id === f.pane);
-      let src: FloatLayer['src'] = null;
-      if (p) {
-        const x = Math.round(p.box.x * d), y = Math.round(p.box.y * d);
-        src = { x, y, w: Math.max(1, Math.round((p.box.x + p.box.w) * d) - x), h: Math.max(1, Math.round((p.box.y + p.box.h) * d) - y) };
-      }
-      const o = f.src;
-      if (o && src && o.x === src.x && o.y === src.y && o.w === src.w && o.h === src.h) continue;
-      changed = true;
-      f.src = src;
-      if (src && (f.canvas.width !== src.w || f.canvas.height !== src.h)) {
-        f.canvas.width = src.w;
-        f.canvas.height = src.h;
-        f.dirty = false;
-      }
-    }
-    return changed;
-  }
-
-  /** Applies a layout; returns true when a float canvas moved or changed size. */
+  /** Applies a layout; returns true when a pane's tint moved (a float's). */
   private applyGeometry(g: Geometry): boolean {
     const env = this.env!;
     if (g.W !== env.W || g.H !== env.H || g.dpr !== env.dpr) {
@@ -355,12 +317,13 @@ export class WeatherEngine {
     // A pane without a frame is no glass in the scene: no shadow, no step in
     // the rays or beams, no rain stopping on it (owner item 53).
     env.panes = env.textPanes.filter((p) => p.border > 0);
-    this.geom = g;
-    const moved = this.placeFloats(g);
-    // The fill of a docked pane with its own background: inside the rim less
-    // the nameplate (framed; as layout.css, so rim and plate show no tint) or
-    // the whole pane.
-    this.paneBgs = g.panes.filter((p) => p.bg && !p.floating).flatMap((p) => paneTintRects(p).map((r) => ({ ...r, bg: p.bg! })));
+    // The fill of a pane with its own background: inside the rim less the
+    // nameplate (framed; as layout.css, so rim and plate show no tint) or the
+    // whole pane, less every float in front of it (a float is see-through to
+    // the back layer: owner item 57).
+    const bgs = paneFills(g.panes);
+    const moved = JSON.stringify(bgs) !== JSON.stringify(this.paneBgs);
+    this.paneBgs = bgs;
     const p = g.protect;
     this.mask = [env.back, env.front].map((c) => {
       const fade = c.createLinearGradient(0, p.fadeTop, 0, p.solidTop);
@@ -394,30 +357,6 @@ export class WeatherEngine {
       c.fillRect(p.x, p.y, p.w, p.h);
     }
     c.restore();
-  }
-
-  /**
-   * The float canvases: per floating pane, the back layer's pixels under its
-   * box (a copy, not a re-render), so the see-through pane shows the weather
-   * as a docked one does; its element's CSS background is under the copy.
-   * One image copy each (ADR 0091: no paths or clips on the GPU canvases).
-   * Each pane is its own canvas in its own stacking layer, so an upper float
-   * hides a lower one's text where they overlap (owner feedback 13).
-   */
-  private paintFloats(): void {
-    const back = this.back;
-    if (!back) return;
-    for (const f of this.floats.values()) {
-      const c = f.ctx, s = f.src;
-      if (f.dirty) c.clearRect(0, 0, f.canvas.width, f.canvas.height);
-      f.dirty = false;
-      if (!s) continue;
-      const x = Math.max(0, s.x), y = Math.max(0, s.y);
-      const w = Math.min(back.width, s.x + s.w) - x, h = Math.min(back.height, s.y + s.h) - y;
-      if (w <= 0 || h <= 0) continue;
-      c.drawImage(back, x, y, w, h, x - s.x, y - s.y, w, h);
-      f.dirty = true;
-    }
   }
 
   /** Starts or speeds up the loop. */
@@ -570,7 +509,6 @@ export class WeatherEngine {
     this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(floor, rate));
     this.applyMask(back, 0);
     this.applyMask(front, 1);
-    this.paintFloats();
     this.paintPaneBgs(back);
     this.times[this.nTimes % N_TIMES] = performance.now() - t0;
     this.nTimes++;
