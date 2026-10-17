@@ -3,7 +3,8 @@
 // draws its frame; a pane subclass renders into `content`.
 //
 //   .wc-pane.wc-pane-<id>[data-active]   positioned in whole cells, --pane-* tokens
-//     .wc-pane-frame                     the thin frame box (hidden when border off)
+//     .wc-pane-frame                     the frame box (hidden when border off); ::before is its fill
+//       svg.wc-pane-line                 the line, notched under the title
 //       .wc-pane-title                   the label in the top row
 //     .wc-pane-content                   the inner area, `cols` × `rows` cells
 //
@@ -40,7 +41,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { LABEL_COL, frameGeometry, frameLabel } from './frame';
+import { type FrameGeometry, type FrameNotch, frameGeometry, frameLabel, frameNotch, framePath, notchClip } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -102,6 +103,10 @@ export class PaneShell {
   private readonly frameEl: HTMLDivElement;
   private readonly titleEl: HTMLSpanElement;
   private geomKey = '';
+  private _frameLine: FrameGeometry | null = null;
+  private _frameNotch: FrameNotch | null = null;
+  /** The line's edge and core paths. */
+  private readonly linePaths: SVGPathElement[];
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
   /** The label text shown in the frame's top row. */
@@ -140,9 +145,18 @@ export class PaneShell {
     this.frameEl = doc.createElement('div');
     this.frameEl.className = 'wc-pane-frame';
     this.frameEl.setAttribute('aria-hidden', 'true');
+    const SVG = 'http://www.w3.org/2000/svg';
+    const line = doc.createElementNS(SVG, 'svg');
+    line.setAttribute('class', 'wc-pane-line');
+    this.linePaths = (['wc-line-edge', 'wc-line-core'] as const).map((cls) => {
+      const path = doc.createElementNS(SVG, 'path');
+      path.setAttribute('class', cls);
+      line.append(path);
+      return path;
+    });
     this.titleEl = doc.createElement('span');
     this.titleEl.className = 'wc-pane-title';
-    this.frameEl.append(this.titleEl);
+    this.frameEl.append(line, this.titleEl);
     this.content = doc.createElement('div');
     this.content.className = 'wc-pane-content';
     this.el.append(this.frameEl, this.content);
@@ -323,22 +337,42 @@ export class PaneShell {
    * Puts the frame line on whole device pixels of the page for this pane's
    * box (ADR 0091 "Frames"). Style writes only when a value changes.
    */
-  private placeFrame(rect: Rect, cell: PaneCell, labelLen: number): void {
+  private placeFrame(rect: Rect, cell: PaneCell, chars: number): void {
     const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
     const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
     const g = frameGeometry(box, cell.w, cell.h, dpr);
-    const labelX = LABEL_COL * cell.w - g.l;
-    const key = `${g.t},${g.l},${g.r},${g.top},${g.b},${labelX},${labelLen * cell.w}`;
+    const n = frameNotch(box, g, cell.w, cell.h, chars, dpr);
+    this._frameLine = g;
+    this._frameNotch = n;
+    const fw = box.w - g.l - g.r, fh = box.h - g.top - g.b;
+    const key = `${g.t},${g.e},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${n ? `${n.x0},${n.x1},${n.d}` : ''}`;
     if (key === this.geomKey) return;
     this.geomKey = key;
+    const d = framePath(fw, fh, g.t, n);
+    for (const path of this.linePaths) path.setAttribute('d', d);
     const st = this.el.style;
     st.setProperty('--frame-t', `${g.t}px`);
+    st.setProperty('--frame-e', `${g.e}px`);
     st.setProperty('--frame-l', `${g.l}px`);
     st.setProperty('--frame-r', `${g.r}px`);
     st.setProperty('--frame-top', `${g.top}px`);
     st.setProperty('--frame-b', `${g.b}px`);
-    st.setProperty('--frame-label-x', `${labelX}px`);
-    st.setProperty('--frame-label-w', `${labelLen * cell.w}px`);
+    st.setProperty('--notch-clip', notchClip(n));
+    if (n) {
+      st.setProperty('--notch-x0', `${n.x0}px`);
+      st.setProperty('--notch-x1', `${n.x1}px`);
+      st.setProperty('--notch-d', `${n.d}px`);
+    } else for (const k of ['--notch-x0', '--notch-x1', '--notch-d']) st.removeProperty(k);
+  }
+
+  /** The notch under the title as last placed (frame-box px), null without one or while unframed. */
+  protected get frameNotch(): FrameNotch | null {
+    return this.placed?.framed ? this._frameNotch : null;
+  }
+
+  /** The frame line as last placed (CSS px from the pane's edges), null while unframed. */
+  protected get frameLine(): FrameGeometry | null {
+    return this.placed?.framed ? this._frameLine : null;
   }
 
   private setSize(cols: number, rows: number): void {

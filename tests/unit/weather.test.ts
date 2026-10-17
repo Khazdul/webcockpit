@@ -169,7 +169,6 @@ describe('Director', () => {
 
 function geom(over: Partial<Geometry> = {}): Geometry {
   return {
-    seq: 1,
     W: 1600,
     H: 1000,
     dpr: 1,
@@ -187,7 +186,6 @@ function geom(over: Partial<Geometry> = {}): Geometry {
         z: 0,
         bg: null,
         box: { x: 1200, y: 422, w: 400, h: 446 },
-        tab: [1227, 1281],
       },
     ],
     protect: protectFor(1600, 980, 19, 15),
@@ -210,10 +208,16 @@ describe('geometry diff', () => {
     f.panes[0]!.z = 11;
     expect(geometryDiff(geom(), f)).toBe('layout');
     const t = geom();
-    t.panes[0]!.tab = null;
+    t.panes[0]!.border = 3;
     expect(geometryDiff(geom(), t)).toBe('layout');
-    // The sequence number is not part of the layout.
-    expect(geometryDiff(geom(), geom({ seq: 9 }))).toBe('none');
+    // The notch under the title is part of the line.
+    const n = geom();
+    n.panes[0]!.notch = { x: 1229, w: 60, depth: 11 };
+    expect(geometryDiff(geom(), n)).toBe('layout');
+    const n2 = geom();
+    n2.panes[0]!.notch = { x: 1229, w: 60, depth: 12 };
+    expect(geometryDiff(n, n2)).toBe('layout');
+    expect(geometryDiff(n, n)).toBe('none');
   });
   it('ignores sub-pixel jitter', () => {
     const g = geom({ out: { x: 0.2, y: 0, w: 1200.3, h: 980 } });

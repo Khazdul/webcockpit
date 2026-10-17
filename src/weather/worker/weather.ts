@@ -38,8 +38,6 @@ interface WPane extends Pane {
   x2: number;
   y2: number;
   bw: number;
-  tx0: number;
-  tx1: number;
   wet: number;
   wetIn: number;
   eaves: Float32Array;
@@ -301,15 +299,11 @@ export function weatherModule(): Module {
       const eaves = [p.x + 1.2, p.x + p.w - 1.2];
       const n = Math.max(1, Math.round(p.w / 95));
       for (let k = 0; k < n; k++) eaves.push(p.x + p.w * (0.12 + 0.76 * ((k + R() * 0.8) / n)));
-      // The label's gap in the top line (snow does not settle on the label).
-      const tx0 = p.tab ? p.tab[0] : 0, tx1 = p.tab ? p.tab[1] : 0;
       return {
         ...p,
         x2: p.x + p.w,
         y2: p.y + p.h,
         bw: p.border,
-        tx0,
-        tx1,
         wet: 0,
         wetIn: 0,
         eaves: Float32Array.from(eaves),
@@ -439,7 +433,6 @@ export function weatherModule(): Module {
     panes.forEach((p, k) => {
       const y0 = k * Hs + Hs - 1;
       for (let x = p.x + 1; x < p.x2 - 1; x += 1) {
-        if (x > p.tx0 && x < p.tx1) continue;
         const n = env.fbm(x * 0.05, k * 3.1 + 0.5);
         if (n < 0.22) continue;
         const hgt = clamp((n - 0.42) * 6, 0, 2.2);
@@ -453,7 +446,6 @@ export function weatherModule(): Module {
       g.fillStyle = `rgba(${dcs},0.85)`;
       for (let i = 0; i < p.w / 6; i++) {
         const x = rr(p.x + 1, p.x2 - 1);
-        if (x > p.tx0 && x < p.tx1) continue;
         g.fillRect(x, y0 - 1, 1, 1);
       }
       p.dustRow = k * Hs;

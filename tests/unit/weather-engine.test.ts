@@ -11,13 +11,18 @@ import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker } from 
 /** A 2d context that accepts every call and records drawImage sources. */
 function fakeCtx(canvas: FakeCanvas): Record<string, unknown> {
   const drawn: unknown[] = [];
+  const args: unknown[][] = [];
   const grad = { addColorStop() {} };
   return new Proxy(
-    { canvas, drawn },
+    { canvas, drawn, args },
     {
       get(t, k) {
         if (k in t) return (t as Record<string | symbol, unknown>)[k];
-        if (k === 'drawImage') return (src: unknown) => drawn.push(src);
+        if (k === 'drawImage')
+          return (...a: unknown[]) => {
+            drawn.push(a[0]);
+            args.push(a);
+          };
         if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => grad;
         return () => {};
       },
@@ -42,7 +47,6 @@ class FakeCanvas {
 }
 
 const geom: Geometry = {
-  seq: 1,
   W: 800,
   H: 600,
   dpr: 1,
@@ -88,12 +92,11 @@ function harness(modules: Module[]) {
     },
     modules,
   );
-  const back = new FakeCanvas(800, 600), front = new FakeCanvas(800, 600), mid = new FakeCanvas(1, 1);
+  const back = new FakeCanvas(800, 600), front = new FakeCanvas(800, 600);
   engine.handle({
     t: 'init',
     back: back as unknown as OffscreenCanvas,
     front: front as unknown as OffscreenCanvas,
-    mid: mid as unknown as OffscreenCanvas,
     geom,
     theme: { bg: '#000000', fg: '#c0c0c0' },
     cats: { ...ALL_CATEGORIES },
@@ -211,5 +214,47 @@ describe('WeatherEngine frame rate', () => {
     const r1 = rain.frames;
     h.run(1000);
     expect(rain.frames - r1).toBeGreaterThanOrEqual(FPS_FAST - 2);
+  });
+});
+
+describe('WeatherEngine floating panes', () => {
+  it("copies the back layer under a float into the float's own canvas; a moved float is drawn at the next frame, whatever the rate", () => {
+    const sky = mod('sky', FPS_STILL);
+    const h = harness([sky]);
+    const box = { x: 100, y: 50, w: 200, h: 100 };
+    const pane = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: true, z: 10, bg: null, box };
+    h.send({ t: 'geom', g: { ...geom, panes: [pane] } });
+    const fc = new FakeCanvas(1, 1);
+    h.send({ t: 'float', key: 1, pane: 'group', canvas: fc as unknown as OffscreenCanvas });
+    // the size of the whole pane (device px)
+    expect([fc.width, fc.height]).toEqual([200, 100]);
+    h.run(1500);
+    const backCanvas = (h.back as unknown as { canvas: unknown }).canvas;
+    const calls = (fc.ctx as unknown as { args: unknown[][] }).args;
+    expect(calls.length).toBeGreaterThan(0);
+    // one copy of the back layer's pixels under the pane, to the canvas origin
+    expect(calls.at(-1)).toEqual([backCanvas, 100, 50, 200, 100, 0, 0, 200, 100]);
+    // at FPS_STILL, a move is drawn at the next animation frame
+    const f0 = sky.frames;
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...pane, x: 143, box: { ...box, x: 140 } }] } });
+    h.run(1000 / 60 + 1);
+    expect(sky.frames).toBe(f0 + 1);
+    expect(calls.at(-1)).toEqual([backCanvas, 140, 50, 200, 100, 0, 0, 200, 100]);
+    // gone: no more copies
+    h.send({ t: 'floatGone', key: 1 });
+    const n = calls.length;
+    h.run(1000);
+    expect(calls.length).toBe(n);
+  });
+
+  it('clips the copy to the back canvas when the float hangs over its edge', () => {
+    const h = harness([mod('weather', FPS_FAST)]);
+    const box = { x: 700, y: -10, w: 200, h: 100 };
+    h.send({ t: 'geom', g: { ...geom, panes: [{ id: 'map', x: 703, y: -7, w: 194, h: 94, border: 3, label: 'Map', floating: true, z: 10, bg: null, box }] } });
+    const fc = new FakeCanvas(1, 1);
+    h.send({ t: 'float', key: 7, pane: 'map', canvas: fc as unknown as OffscreenCanvas });
+    h.run(100);
+    const calls = (fc.ctx as unknown as { args: unknown[][] }).args;
+    expect(calls.at(-1)!.slice(1)).toEqual([700, 0, 100, 90, 0, 10, 100, 90]);
   });
 });

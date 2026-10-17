@@ -325,22 +325,52 @@ Panes and frames:
 
 12. Hovering a framed pane: the close "x" has an opaque background (a
     black square). Make it transparent.
+    - **Done (2026-10-17):** no background; the cross has the title's size
+      and colour and sits just under the top line; the click box is three
+      cells wide as before.
 13. Two overlapping floating panes lose the see-through effect on both.
     Keep it.
+    - **Done (2026-10-17):** each floating pane has its own weather canvas
+      (inside the pane, so the upper one covers the lower one's text); both
+      stay see-through. ADR 0091 "Engine".
 14. Frame line 1 px thicker; not one flat colour: slightly 3D, glossy or
     glass-like.
+    - **Done (2026-10-17):** 3 px at the default size (was 2), a small glass
+      tube: edge band, core with the most contrast, edge band, the same on
+      all four sides; checked on black, #2a2a2e and a light page.
 15. The gap between the frames of two horizontally adjacent panes about
     1–2 px smaller than today; then the vertical gap the same as the
     horizontal one.
+    - **Done (2026-10-17):** the line now sits the same few px in from
+      every pane edge: beside each other 8 → 6 px, above each other
+      17 → 6 px (default size, ratio 1). Layout and pane sizes unchanged.
 16. Pane title: smaller font, moved up a little, and the frame line runs
     under the title instead of breaking for it.
+    - **Done (2026-10-17):** 0.82 em; the top line winds under the title: it
+      steps down before it, runs along under the letters (its lower edge on
+      the first content row, so no content is covered) and steps back up
+      after it, the same glass line with square bends. The title sits in that
+      notch on the pane's own background, clear of the line (about 1 px
+      above the floor, 2 px under the pane's top edge at the default size).
 17. No gap between the map and its frame: the map sits flush against the
     frame.
+    - **Done (2026-10-17):** the map fills its frame up to the line on every
+      side; around the title's notch it stops at the line too.
 18. Moving and dropping a pane: it first gets a background colour, then
     turns see-through a moment later. It should be see-through at once.
+    - **Done (2026-10-17):** see-through at once and while it moves: its
+      weather canvas moves with it and is opaque underneath; the weather in
+      it catches up at the next frame.
 19. At sunrise/sunset, when the rays hit a pane title, a rectangle behind
     the title shows. The title must look like text on a transparent
     background.
+    - **Done (2026-10-17):** the box was the label's gap in the line: there
+      the sunrise glint along the pane top (a lit band) and the step between
+      the brighter rays outside a pane and the weaker ones inside it showed
+      under the title. Now the title sits in a notch of the line on the
+      pane's own background. The glint is still drawn straight along the top
+      over the notch; the engine gets the notch (`PaneGeom.notch`) so the sky
+      rework (items 20–22) can follow the line there.
 
 Effects on frames:
 

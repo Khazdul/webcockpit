@@ -34,7 +34,7 @@
 }
 
 /* A framed pane (ADR 0091 "Frames"): its fill stops at the frame line, so
- * the half cell outside it shows the cockpit behind, a gap between
+ * the few px outside it show the cockpit behind, a gap between
  * neighbouring panes. A floating pane keeps that ring opaque in the
  * terminal background, so the game text does not peek around it. */
 .wc-pane[data-framed] {
@@ -45,66 +45,82 @@
   background: var(--term-bg);
 }
 
-/* The frame: one thin line of equal thickness in the middle of the outer
- * frame cells, in one colour: the pane's border colour lifted 22 % toward
- * white (a 2 px line in the plain border colour, which glyph frames drew
- * as thick blocks, nearly vanishes on black). `--frame-t` (thickness) and the
- * insets `--frame-l/r/top/b` come from pane.ts and put every edge of the
- * line on a whole device pixel of the page.
+/* The frame (owner feedback 14–16, ADR 0091 "Frames"): one thin line of
+ * equal thickness in the outer frame cells, drawn as a small glass tube: a
+ * core between two edge bands, the same on every side, so no side fades
+ * into the page (a light/dark bevel vanished on black). Edges: the border
+ * colour a step toward the text colour; core: a bigger step, so it has the
+ * most contrast on every background. At the title the top line winds down
+ * under it and back up (the notch), so the title sits on the pane's own
+ * background, clear of the line.
  *
- * No CSS border: the top line needs a gap for the label without a box
- * behind it. The sides and the bottom are inset shadows of the frame box,
- * the top is two pieces either side of the label (::before, ::after), each
- * an inset shadow too, so all four sides are drawn the same way. */
+ * `.wc-pane-frame` is the box out to the line's outer edge (`--frame-l/r/
+ * top/b` from pane.ts, whole device pixels of the page). Its fill is
+ * `::before`, cut out at the notch (`--notch-clip`); the line is an SVG
+ * path through the middle of the line (`.wc-pane-line`, pane.ts): an edge
+ * stroke `--frame-t` wide under a core stroke `--frame-t − 2 × --frame-e`
+ * wide, mitred, so every bend shows the same three bands. */
 .wc-pane-frame {
-  --frame-line: color-mix(in srgb, var(--pane-border) 78%, #ffffff);
+  --frame-edge: color-mix(in srgb, var(--pane-border) 80%, var(--term-fg));
+  --frame-core: color-mix(in srgb, var(--pane-border) 52%, var(--term-fg));
   position: absolute;
-  top: var(--frame-top, calc(var(--cell-h) / 2 - 1px));
-  right: var(--frame-r, calc(var(--cell-w) / 2 - 1px));
-  bottom: var(--frame-b, calc(var(--cell-h) / 2 - 1px));
-  left: var(--frame-l, calc(var(--cell-w) / 2 - 1px));
-  background: var(--pane-bg, var(--term-bg));
-  box-shadow:
-    inset var(--frame-t, 2px) 0 0 0 var(--frame-line),
-    inset calc(-1 * var(--frame-t, 2px)) 0 0 0 var(--frame-line),
-    inset 0 calc(-1 * var(--frame-t, 2px)) 0 0 var(--frame-line);
+  top: var(--frame-top, 3px);
+  right: var(--frame-r, 3px);
+  bottom: var(--frame-b, 3px);
+  left: var(--frame-l, 3px);
   pointer-events: none;
   user-select: none;
 }
 
-.wc-pane-frame::before,
-.wc-pane-frame::after {
+.wc-pane-frame::before {
   content: '';
   position: absolute;
-  top: 0;
-  height: calc(2 * var(--frame-t, 2px));
-  box-shadow: inset 0 var(--frame-t, 2px) 0 0 var(--frame-line);
-}
-
-.wc-pane-frame::before {
-  left: 0;
-  width: var(--frame-label-x, 0px);
-}
-
-.wc-pane-frame::after {
-  left: calc(var(--frame-label-x, 0px) + var(--frame-label-w, 0px));
-  right: 0;
+  inset: 0;
+  background: var(--pane-bg, var(--term-bg));
+  clip-path: var(--notch-clip, none);
 }
 
 .wc-pane:not([data-framed]) > .wc-pane-frame {
   display: none;
 }
 
-/* The label in the top row, from the fourth cell, in the gap of the top
- * line; no background of its own (the pane's shows through). */
+.wc-pane-line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.wc-pane-line > path {
+  fill: none;
+  stroke-linejoin: miter;
+  stroke-linecap: butt;
+}
+
+.wc-pane-line > .wc-line-edge {
+  stroke: var(--frame-edge);
+  stroke-width: var(--frame-t, 3px);
+}
+
+.wc-pane-line > .wc-line-core {
+  stroke: var(--frame-core);
+  stroke-width: calc(var(--frame-t, 3px) - 2 * var(--frame-e, 1px));
+}
+
+/* The label from the fourth cell, a little smaller than the text, in the
+ * notch: on the pane's own background, its line box ending just above the
+ * notch's floor (feedback 16, 19). Above the content, so a pane that fills
+ * its frame (the map) does not hide it. */
 .wc-pane-title {
   position: absolute;
-  top: calc(-1 * var(--frame-top, 0px));
-  left: var(--frame-label-x, 0px);
-  height: var(--cell-h);
-  line-height: var(--cell-h);
+  top: calc(var(--notch-d, 0px) - 1em - 1px);
+  left: var(--notch-x0, 0px);
+  line-height: 1;
+  font-size: 0.82em;
   white-space: pre;
-  color: var(--pane-border);
+  color: color-mix(in srgb, var(--pane-border) 60%, var(--term-fg));
+  z-index: 2;
 }
 
 .wc-pane-title:empty {
@@ -153,9 +169,18 @@
   display: none;
 }
 
-/* On a frame: the fill only from the frame line down, as the label. */
+/* On a frame: no box behind it (owner feedback 12), the title's size and
+ * colour, just under the top line in the top-right corner; the box stays
+ * three cells wide to click. */
 .wc-pane[data-framed] > .wc-pane-close {
-  background: linear-gradient(transparent var(--frame-top, 0px), var(--pane-bg, var(--term-bg)) 0);
+  top: calc(var(--frame-top, 3px) + var(--frame-t, 3px));
+  height: calc(var(--cell-h) - var(--frame-top, 3px) - var(--frame-t, 3px));
+  background: transparent;
+  width: calc(3 * var(--cell-w));
+  text-align: center;
+  font-size: 0.82em;
+  line-height: 1;
+  color: color-mix(in srgb, var(--pane-border) 60%, var(--term-fg));
 }
 
 .wc-pane:hover > .wc-pane-close {

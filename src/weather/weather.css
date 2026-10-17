@@ -1,11 +1,10 @@
 /* Weather effects (stage 28, ADR 0091). Loaded with the lazy weather chunk.
  *
- * Three full-cockpit canvases the weather worker draws into. The back layer
+ * Two full-cockpit canvases the weather worker draws into. The back layer
  * is the cockpit's first child and positioned without a z-index, so it
- * paints under the game text and the docked panes; the mid layer is under
- * the floating panes (FLOAT_Z = 10) and over everything docked; the front
- * layer is above the panes (floating ones included) and below the drop bars,
- * the drag shield and the chrome overlays. None takes pointer events. */
+ * paints under the game text and the docked panes; the front layer is above
+ * the panes (floating ones included) and below the drop bars, the drag
+ * shield and the chrome overlays. None takes pointer events. */
 .wc-weather-layer {
   position: absolute;
   inset: 0;
@@ -19,10 +18,6 @@
   display: none;
 }
 
-.wc-weather-mid {
-  z-index: 9;
-}
-
 .wc-weather-front {
   z-index: 90;
 }
@@ -31,12 +26,34 @@
  * their interiors (as in the prototype). A docked pane whose background
  * differs from the terminal's gets that background painted by the worker
  * under the back layer, in the same box, so its tint stays. A floating pane
- * is over the game text: it goes see-through only while the worker has
- * painted its place on the mid layer (its fill, then the back layer's
- * pixels), marked `data-weather-see` by index.ts. */
+ * is over the game text: it holds its own weather canvas (index.ts
+ * `floatLayers`, marked `data-weather-see`), whose CSS background hides the
+ * text and which the worker fills with the back layer's pixels there. */
 .wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame,
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
 .wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see],
-.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame {
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
   background: transparent;
+}
+
+/* A floating pane's weather canvas: the pane's first child, under its frame
+ * and content. Its own background is what the pane's fill was (the terminal
+ * background over the whole pane, the pane's tint inside the frame line), so
+ * it is opaque from the moment it is put in, wherever the pane moves; the
+ * worker's copy of the weather is drawn over it. */
+.wc-weather-float {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+  background: var(--pane-bg, var(--term-bg));
+}
+
+.wc-pane[data-framed] > .wc-weather-float {
+  background:
+    linear-gradient(var(--pane-bg, var(--term-bg)), var(--pane-bg, var(--term-bg))) var(--frame-l, 0px) var(--frame-top, 0px) /
+      calc(100% - var(--frame-l, 0px) - var(--frame-r, 0px)) calc(100% - var(--frame-top, 0px) - var(--frame-b, 0px)) no-repeat,
+    var(--term-bg);
 }

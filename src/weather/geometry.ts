@@ -3,6 +3,7 @@
 // `measureGeometry` reads the DOM (layout changes only, never per frame);
 // the rest is pure.
 
+import { frameInset } from '../panes/frame';
 import type { Geometry, PaneGeom, Rect } from './protocol';
 
 /** Position tolerance (CSS px) below which a geometry counts as unchanged. */
@@ -25,7 +26,8 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout'
     const p = a.panes[i]!, q = b.panes[i]!;
     if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border) return 'layout';
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
-    if (!p.tab !== !q.tab || (p.tab && q.tab && (!near(p.tab[0], q.tab[0]) || !near(p.tab[1], q.tab[1])))) return 'layout';
+    const na = p.notch, nb = q.notch;
+    if (!na !== !nb || (na && nb && (!near(na.x, nb.x) || !near(na.w, nb.w) || !near(na.depth, nb.depth)))) return 'layout';
   }
   return 'none';
 }
@@ -79,7 +81,7 @@ function cellOf(root: HTMLElement): Geometry['cell'] {
 }
 
 /** Measures everything the worker needs. Reads layout; call on layout changes only. */
-export function measureGeometry(host: MeasureHost, dpr: number, seq = 0): Geometry {
+export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
   const { root, game } = host;
   const base = root.getBoundingClientRect();
   const rel = (r: DOMRect): Rect => ({ x: round(r.left - base.left), y: round(r.top - base.top), w: round(r.width), h: round(r.height) });
@@ -97,13 +99,14 @@ export function measureGeometry(host: MeasureHost, dpr: number, seq = 0): Geomet
       const n = parseFloat(el.style.getPropertyValue(name));
       return Number.isFinite(n) ? n : d;
     };
-    const t = v('--frame-t', 2);
-    const fx = cell.w / 2 - t / 2, fy = cell.h / 2 - t / 2;
-    const ins = { l: v('--frame-l', fx), r: v('--frame-r', fx), top: v('--frame-top', fy), b: v('--frame-b', fy) };
-    const lw = framed ? v('--frame-label-w', 0) : 0;
-    const tab0 = box.x + ins.l + v('--frame-label-x', 0);
+    const t = v('--frame-t', 3);
+    const fi = frameInset(cell.w, cell.h);
+    const ins = { l: v('--frame-l', fi), r: v('--frame-r', fi), top: v('--frame-top', fi), b: v('--frame-b', fi) };
+    const nx0 = v('--notch-x0', NaN), nx1 = v('--notch-x1', NaN), nd = v('--notch-d', NaN);
+    const fr = frameRect(box, framed, ins);
+    const notch = framed && Number.isFinite(nx0 + nx1 + nd) ? { x: round(fr.x + nx0 - t), w: round(nx1 - nx0 + 2 * t), depth: round(nd) } : undefined;
     panes.push({
-      ...frameRect(box, framed, ins),
+      ...fr,
       box,
       id: el.dataset.pane ?? '',
       border: framed ? t : 0,
@@ -111,12 +114,11 @@ export function measureGeometry(host: MeasureHost, dpr: number, seq = 0): Geomet
       floating: el.hasAttribute('data-floating'),
       z: el.hasAttribute('data-floating') ? Number(el.style.zIndex) || 0 : 0,
       bg: bg && bg !== termBg ? bg : null,
-      tab: lw > 0 ? [round(tab0), round(tab0 + lw)] : null,
+      ...(notch ? { notch } : {}),
     });
   }
   const W = round(base.width), H = round(base.height);
   return {
-    seq,
     W,
     H,
     dpr,
