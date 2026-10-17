@@ -178,8 +178,11 @@
  * capitals sit in the middle of the plate as seen, rim included, in any
  * font (item 35: in the mockup they sat a little low; item 40: the plate
  * ends a px higher, the letters stay where they were).
- * The plate's shadow on the pane is the box's. Above the content, so a pane
- * that fills its frame (the map) does not hide it. */
+ * The plate's shadow on the pane is `::after`'s, shown only below the
+ * plate's bottom edge: as the box's own shadow its blur fell on the rim as
+ * a thin dark vertical line either side of the plate (owner item 46; a
+ * clip at the box's sides still left a device-px line at 2×). Above the
+ * content, so a pane that fills its frame (the map) does not hide it. */
 .wc-pane-title {
   position: absolute;
   left: var(--plate-x0, 0px);
@@ -191,7 +194,6 @@
   align-items: center;
   justify-content: center;
   border-radius: 0 0 var(--plate-r, 4px) var(--plate-r, 4px);
-  box-shadow: 0 1px 1.5px -0.5px rgb(0 0 0 / 0.42);
   font-size: 0.68em;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -200,6 +202,16 @@
   color: var(--ink);
   text-shadow: 0 1px 0 color-mix(in srgb, var(--glass-hi) 60%, transparent);
   z-index: 2;
+}
+
+.wc-pane-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 1px 1.5px -0.5px rgb(0 0 0 / 0.42);
+  clip-path: inset(100% -3px -4px -3px);
+  pointer-events: none;
 }
 
 .wc-pane-title > span {
