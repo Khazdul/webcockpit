@@ -2,7 +2,7 @@
 // from the sun; the frame lines glint exactly where a beam crosses them.
 
 import { describe, expect, it } from 'vitest';
-import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, beamAim, beamHits, beamPieces, sunBeams } from '../../src/weather/worker/beams';
+import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, beamAim, beamHits, beamPieces, notchPieces, sunBeams } from '../../src/weather/worker/beams';
 import type { FrameBox } from '../../src/weather/worker/glint';
 
 const W = 1600, H = 900;
@@ -116,5 +116,30 @@ describe('beam pieces', () => {
     beamPieces(tri, [[500, 300, 900, 500]], inside, outside);
     expect(inside).toHaveLength(0);
     expect(outside).toEqual([tri]);
+  });
+});
+
+describe('shadow wedge less the nameplate (owner item 42)', () => {
+  it('tiles the wedge less the plate with convex pieces, without overlap', () => {
+    // A pane's shadow from (100, 106) down: a quad widening away from the sun.
+    const P = [100, 106, 400, 106, 700, 900, 50, 900];
+    const pieces = notchPieces(P, 130, 106, 190, 117);
+    expect(pieces).toHaveLength(3); // left, right, below (nothing of the wedge above the plate)
+    const sum = pieces.reduce((a, Q) => a + area(Q), 0);
+    expect(sum).toBeCloseTo(area(P) - 60 * 11, 3);
+    // No piece covers the plate's middle.
+    for (const Q of pieces) {
+      let ys = 0;
+      for (let i = 1; i < Q.length; i += 2) ys = Math.max(ys, Q[i]!);
+      const xs = Q.filter((_, i) => i % 2 === 0);
+      const inPlateCols = Math.min(...xs) >= 130 && Math.max(...xs) <= 190;
+      if (inPlateCols) expect(Math.min(...Q.filter((_, i) => i % 2 === 1))).toBeGreaterThanOrEqual(117);
+    }
+  });
+
+  it('keeps the wedge whole when the plate misses it', () => {
+    const P = [100, 106, 400, 106, 400, 300, 100, 300];
+    const pieces = notchPieces(P, 500, 106, 560, 117);
+    expect(pieces.reduce((a, Q) => a + area(Q), 0)).toBeCloseTo(area(P), 3);
   });
 });

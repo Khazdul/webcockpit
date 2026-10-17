@@ -156,6 +156,26 @@ function clipHalf(P: readonly number[], axis: 0 | 1, v: number, sign: 1 | -1): n
 }
 
 /**
+ * The convex polygon `poly` less the rectangle `[x0, x1] × [y0, y1]`, as up
+ * to four convex pieces that tile it without overlap (left of the rectangle,
+ * right of it, above and below it between its sides): a pane's shadow wedge
+ * with the nameplate left out, so the plate gets the light the rim gets
+ * (owner item 42). The cuts are whole lines, so with whole-pixel `x0`/`x1`
+ * the pieces meet without a seam.
+ */
+export function notchPieces(poly: readonly number[], x0: number, y0: number, x1: number, y1: number): number[][] {
+  const out: number[][] = [];
+  const left = clipHalf(poly, 0, x0, 1);
+  const rest = clipHalf(poly, 0, x0, -1);
+  const right = clipHalf(rest, 0, x1, -1);
+  const mid = clipHalf(rest, 0, x1, 1);
+  const above = clipHalf(mid, 1, y0, 1);
+  const below = clipHalf(mid, 1, y1, -1);
+  for (const P of [left, right, above, below]) if (P.length) out.push(P);
+  return out;
+}
+
+/**
  * Cuts the convex polygon `poly` into convex pieces inside the boxes (each
  * piece in the first box it meets) and outside all of them. Each piece is a
  * flat x, y list; the pieces tile `poly` exactly, so filled one by one with

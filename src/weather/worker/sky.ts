@@ -34,7 +34,7 @@
 import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, sunBeams } from './beams';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -287,9 +287,9 @@ function keyCol(K: KeyC, p: number, out: Float32Array): void {
   for (let c = 0; c < 3; c++) out[c] = K[K.length - 1]![1][c]!;
 }
 
-// convex hull of 8 points (monotone chain), filled — pane shadow wedges
+// convex hull of 8 points (monotone chain), as a flat x, y list — pane shadow wedges
 const HI = new Int32Array(8), HU = new Int32Array(17), CX = new Float32Array(4), CY = new Float32Array(4);
-function hullFill(g: Ctx, pts: Float32Array): void {
+function hull(pts: Float32Array): number[] {
   for (let i = 0; i < 8; i++) HI[i] = i;
   for (let i = 1; i < 8; i++) {
     const v = HI[i]!;
@@ -311,11 +311,9 @@ function hullFill(g: Ctx, pts: Float32Array): void {
     while (k >= t && cr(HU[k - 2]!, HU[k - 1]!, HI[i]!) <= 0) k--;
     HU[k++] = HI[i]!;
   }
-  g.beginPath();
-  g.moveTo(pts[HU[0]! * 2]!, pts[HU[0]! * 2 + 1]!);
-  for (let i = 1; i < k - 1; i++) g.lineTo(pts[HU[i]! * 2]!, pts[HU[i]! * 2 + 1]!);
-  g.closePath();
-  g.fill();
+  const out: number[] = [];
+  for (let i = 0; i < k - 1; i++) out.push(pts[HU[i]! * 2]!, pts[HU[i]! * 2 + 1]!);
+  return out;
 }
 
 export interface MoonPath {
@@ -1352,13 +1350,11 @@ class Sky {
       for (const q of env.panes) {
         if (!q.border) continue;
         const t = q.border, gp = q.plate;
-        // along the nameplate only the rim's lip above the title (owner feedback 19, 32; ADR 0091 addendum)
-        if (gp) {
-          const g0 = Math.max(q.x, gp.x - gp.r), g1 = Math.min(q.x + q.w, gp.x + gp.w + gp.r);
-          if (g0 > q.x) f.fillRect(q.x, q.y, g0 - q.x, t);
-          if (g1 > g0) f.fillRect(g0, q.y, g1 - g0, Math.min(t, gp.lip));
-          if (g1 < q.x + q.w) f.fillRect(g1, q.y, q.x + q.w - g1, t);
-        } else f.fillRect(q.x, q.y, q.w, t);
+        // the whole top rim and the nameplate with it: the plate is the
+        // rim's glass and takes the same tint (owner item 42; before, only
+        // the rim's lip above the title, feedback 19, 32)
+        f.fillRect(q.x, q.y, q.w, t);
+        if (gp && gp.y1 > q.y + t) f.fillRect(gp.x, q.y + t, gp.w, gp.y1 - q.y - t);
       }
     }
     // Where a strong beam crosses a frame line, that stretch of the line
@@ -1406,7 +1402,16 @@ class Sky {
     // the pane boxes from the top line's lower edge, as the shadow wedges
     const boxes = this.boxes;
     boxes.length = 0;
-    for (const q of env.panes) boxes.push([q.x, q.y + q.border, q.x + q.w, q.y + q.h]);
+    for (const q of env.panes) {
+      const gp = q.plate, yt = q.y + q.border, x2 = q.x + q.w, y2 = q.y + q.h;
+      if (!gp || gp.y1 >= y2) {
+        boxes.push([q.x, yt, x2, y2]);
+        continue;
+      }
+      // less the nameplate (the rim's glass: a beam on it is as strong as on the rim; owner item 42)
+      const a = Math.max(q.x, gp.x), b = Math.min(x2, gp.x + gp.w);
+      boxes.push([q.x, yt, a, y2], [b, yt, x2, y2], [a, gp.y1, b, y2]);
+    }
     const light = this.th.light ? 0.7 : 1, tri = this.tri, inside = this.pIn, outside = this.pOut;
     for (const b of this.beams) {
       for (const [w, al] of BEAM_LAYERS) {
@@ -1512,7 +1517,14 @@ class Sky {
           pts[8 + i * 2] = CX[i]! + (dx / dl) * 4000;
           pts[8 + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
         }
-        hullFill(g, pts);
+        const P = hull(pts);
+        // The nameplate is the rim's glass: no shadow over it, so it takes
+        // the sun's colour as the top rim does (owner item 42).
+        const gp = q.plate;
+        if (gp && P.length >= 6) {
+          const d = env.dpr || 1;
+          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(g, Q);
+        } else if (P.length >= 6) polyFill(g, P);
       }
     }
     // The beams after the shadows: no pane hides them (owner feedback 37).
