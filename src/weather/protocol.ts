@@ -98,11 +98,27 @@ export interface Rect {
   h: number;
 }
 
+/**
+ * A pane's nameplate (ADR 0091 "Frames", addendum: glass rim and nameplate),
+ * screen px: its body `[x, x + w]` from the rim's inner edge down to `y1`,
+ * joined to the rim by fillets of radius `r` either side. The title lies on
+ * it and reaches up over the rim to `lip` px below the frame box's top, so
+ * along `[x − r, x + w + r]` only the top `lip` px of the rim may be lit
+ * (glints, rim light), or a band runs through the letters.
+ */
+export interface PanePlate {
+  x: number;
+  w: number;
+  y1: number;
+  lip: number;
+  r: number;
+}
+
 /** A shown pane, in CSS px relative to the canvases. */
 export interface PaneGeom extends Rect {
   /** `data-pane` (character, timers, group, comm, ui, map, script ids). */
   id: string;
-  /** Frame line thickness in px (0 without a frame). The rect is the frame box: x/y/w/h is the outer edge of the line (the pane fill inside it, from the top line's inner edge down), or the whole pane unframed. The top line has a gap for the title (`gap`). */
+  /** Frame rim thickness in px (0 without a frame). The rect is the frame box: x/y/w/h is the outer edge of the rim (the pane fill inside it, less the nameplate), or the whole pane unframed. A nameplate hangs from the top rim (`plate`). */
   border: number;
   /** The pane label. */
   label: string;
@@ -114,12 +130,8 @@ export interface PaneGeom extends Rect {
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
-  /**
-   * The stretch of the top line left out for the title (absent without one):
-   * `[x, x + w]` along the top, screen px. There is no line there; nothing
-   * may light it (glints, rims), or a band shows through the title.
-   */
-  gap?: { x: number; w: number };
+  /** The nameplate hanging from the top rim (absent without a title). */
+  plate?: PanePlate;
 }
 
 export interface Geometry {

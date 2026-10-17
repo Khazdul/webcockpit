@@ -31,6 +31,7 @@
 // message brings it back to FPS_SLOW at once.
 
 import { Director, eventState } from '../director';
+import { paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import type { FrameStats, Geometry, MainToWorker, WorkerToMain } from '../protocol';
 import { bodyModule } from './body';
@@ -334,13 +335,13 @@ export class WeatherEngine {
     env.out = g.out;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, gap: p.gap }));
+    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, plate: p.plate }));
     this.geom = g;
     const moved = this.placeFloats(g);
-    // The fill of a docked pane with its own background: the frame box from the
-    // top line's inner edge down (framed; as layout.css, so the title's gap shows
-    // no tint) or the whole pane.
-    this.paneBgs = g.panes.filter((p) => p.bg && !p.floating).map((p) => ({ x: p.x, y: p.y + p.border, w: p.w, h: p.h - p.border, bg: p.bg! }));
+    // The fill of a docked pane with its own background: inside the rim less
+    // the nameplate (framed; as layout.css, so rim and plate show no tint) or
+    // the whole pane.
+    this.paneBgs = g.panes.filter((p) => p.bg && !p.floating).flatMap((p) => paneTintRects(p).map((r) => ({ ...r, bg: p.bg! })));
     const p = g.protect;
     this.mask = [env.back, env.front].map((c) => {
       const fade = c.createLinearGradient(0, p.fadeTop, 0, p.solidTop);

@@ -2,7 +2,7 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { GAP_PAD, TITLE_SCALE, frameGap, frameGeometry, frameInset, frameLabel, framePath, frameThickness } from '../../src/panes/frame';
+import { PLATE_PAD, TITLE_SCALE, frameGeometry, frameHolePath, frameInset, frameLabel, framePlate, frameRimPath, frameSeams, frameThickness } from '../../src/panes/frame';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
@@ -19,17 +19,19 @@ describe('frame', () => {
     expect(frameLabel(20, '')).toBe('');
   });
 
-  it('puts an equal-thickness line the same inset from every edge, a ninth of the cell height plus one px thick', () => {
-    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 3, e: 1, l: 3, r: 3, top: 3, b: 3 });
-    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 4, e: 1, l: 5, r: 5, top: 5, b: 5 });
-    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 2.5, e: 0.5, l: 2, r: 2, top: 2, b: 2 });
-    // The default cell (Hack 17: 10 × 19): 3 px, 6 px between two frames beside and above each other (was 8 and 17).
-    expect(frameThickness(19)).toBe(3);
-    expect(2 * frameInset(10, 19)).toBe(6.5);
-    expect(frameGeometry({ x: 400, y: 209, w: 200, h: 209 }, 10, 19)).toEqual({ t: 3, e: 1, l: 3, r: 3, top: 3, b: 3 });
+  it('puts an equal-thickness rim the same inset from every edge, a third of the cell height thick', () => {
+    expect(frameGeometry({ x: 0, y: 0, w: 90, h: 85 }, 9, 17)).toEqual({ t: 6, l: 2, r: 2, top: 2, b: 2 });
+    expect(frameGeometry({ x: 0, y: 0, w: 140, h: 280 }, 14, 28)).toEqual({ t: 9, l: 3, r: 3, top: 3, b: 3 });
+    expect(frameGeometry({ x: 0, y: 0, w: 70, h: 120 }, 7, 12, 2)).toEqual({ t: 4, l: 1.5, r: 1.5, top: 1.5, b: 1.5 });
+    // The default cell (Hack 17: 10 × 19): a 6 px rim, 2 px in from the edges (4 px between two frames, as in the mockup).
+    expect(frameThickness(19)).toBe(6);
+    expect(frameInset(10, 19)).toBeCloseTo(2.22, 2);
+    expect(frameGeometry({ x: 400, y: 209, w: 200, h: 209 }, 10, 19)).toEqual({ t: 6, l: 2, r: 2, top: 2, b: 2 });
+    // At least 1 px between the rim and the content cells.
+    for (const [w, h] of [[9, 17], [10, 19], [7.2, 14], [6, 10], [12, 24]] as const) expect(frameInset(w, h) + frameThickness(h) / 1).toBeLessThanOrEqual(w - 1 + 1e-9);
   });
 
-  it('snaps every edge of the line to a whole device pixel of the page, at any position and ratio', () => {
+  it('snaps every edge of the rim to a whole device pixel of the page, at any position and ratio', () => {
     for (const dpr of [1, 1.25, 1.5, 1.75, 2, 3]) {
       for (const [cw, chh] of [
         [9.03125, 17],
@@ -45,8 +47,6 @@ describe('frame', () => {
           const g = frameGeometry(box, cw, chh, dpr);
           const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
           whole(g.t);
-          whole(g.e);
-          expect(g.t - 2 * g.e).toBeGreaterThanOrEqual(g.e - 1e-9);
           whole(box.x + g.l);
           whole(box.x + box.w - g.r);
           whole(box.y + g.top);
@@ -69,8 +69,8 @@ describe('frame', () => {
   });
 });
 
-describe('frame title gap', () => {
-  it('ends the top line the same distance either side of the title, both ends on a device pixel', () => {
+describe('frame nameplate', () => {
+  it('hangs the plate from the rim round the title from the fourth cell, every edge on a device pixel', () => {
     for (const dpr of [1, 1.25, 1.5, 2]) {
       for (const [cw, chh] of [
         [10, 19],
@@ -79,36 +79,50 @@ describe('frame title gap', () => {
       ] as const) {
         const box = { x: 3 + 40 * cw, y: 0.6 + 7 * chh, w: 33 * cw, h: 12 * chh };
         const g = frameGeometry(box, cw, chh, dpr);
-        const n = frameGap(box, g, cw, ' Character '.length, dpr)!;
-        expect(n).not.toBeNull();
+        const p = framePlate(box, g, cw, chh, ' Character '.length, dpr)!;
+        expect(p).not.toBeNull();
         const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
-        whole(box.x + g.l + n.x0);
-        whole(box.x + g.l + n.x1);
-        // the title from the fourth cell; the gap from the middle of its leading space to the middle of its trailing one
+        whole(box.x + g.l + p.x0);
+        whole(box.x + g.l + p.x1);
+        whole(box.y + g.top + p.y0);
+        whole(box.y + g.top + p.y1);
+        whole(p.r);
+        // its sides PLATE_PAD title advances outside the label's spaces, the same either side
         const s = cw * TITLE_SCALE, xt = box.x + 3 * cw;
-        const left = box.x + g.l + n.x0 - xt, right = xt + 11 * s - (box.x + g.l + n.x1);
-        expect(Math.abs(left - GAP_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
-        expect(Math.abs(right - GAP_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
+        const left = xt - (box.x + g.l + p.x0), right = box.x + g.l + p.x1 - (xt + 11 * s);
+        expect(Math.abs(left - PLATE_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
+        expect(Math.abs(right - PLATE_PAD * s)).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
+        // under the rim's lip at the top, hanging below the rim, clear of the first content row
+        expect(p.y0).toBeGreaterThan(0);
+        expect(p.y0).toBeLessThan(g.t);
+        expect(p.y1).toBeGreaterThan(g.t + p.r);
+        expect(g.top + p.y1).toBeLessThan(chh);
       }
     }
   });
 
-  it('has no gap without a title or room for one; the path is then the closed rectangle', () => {
+  it('has no plate without a title or room for one; it stays clear of the corners', () => {
     const box = { x: 0, y: 0, w: 90, h: 85 };
     const g = frameGeometry(box, 9, 17);
-    expect(frameGap(box, g, 9, 0)).toBeNull();
-    expect(frameGap(box, g, 9, 1)).toBeNull();
-    expect(framePath(84, 79, 3, null)).toBe('M1.5 77.5V1.5H82.5V77.5Z');
-    // a gap clamps clear of the corners: the line keeps a stub past each
+    expect(framePlate(box, g, 9, 17, 0)).toBeNull();
+    expect(framePlate(box, g, 9, 17, 1)).toBeNull();
+    // a long title clamps clear of the right corner: the fillet and a px of rim before it
     const narrow = { x: 0, y: 0, w: 63, h: 85 };
-    const gn = frameGap(narrow, frameGeometry(narrow, 9, 17), 9, 12)!;
-    expect(63 - 3 - 3 - gn.x1).toBe(6);
+    const gn = frameGeometry(narrow, 9, 17);
+    const pn = framePlate(narrow, gn, 9, 17, 12)!;
+    expect(63 - 2 - 2 - 6 - pn.x1).toBe(pn.r + 1);
   });
 
-  it('is an open path from the gap round the frame; the core ends a band short', () => {
-    const n = { x0: 28, x1: 65 };
-    expect(framePath(84, 79, 3, n)).toBe('M65 1.5H82.5V77.5H1.5V1.5H28');
-    expect(framePath(84, 79, 3, n, 1)).toBe('M66 1.5H82.5V77.5H1.5V1.5H27');
+  it('cuts the plate and its fillets out of the hole; the rim is the outer edge and the hole', () => {
+    const p = { x0: 24, x1: 63, y0: 2, y1: 15, r: 4 };
+    expect(frameHolePath(86, 81, 6, null)).toBe('M6 6H80V75H6Z');
+    expect(frameHolePath(86, 81, 6, p)).toBe('M6 6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15H59A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80V75H6Z');
+    expect(frameHolePath(86, 81, 6, null, -6, -6)).toBe('M0 0H74V69H0Z');
+    expect(frameRimPath(86, 81, 6, null)).toBe('M4 0H82A4 4 0 0 1 86 4V77A4 4 0 0 1 82 81H4A4 4 0 0 1 0 77V4A4 4 0 0 1 4 0ZM6 6H80V75H6Z');
+    // The seam: dark left, top and round the plate; light the plate's bottom, right and bottom.
+    const s = frameSeams(86, 81, 6, p);
+    expect(s.dark).toBe('M6 75V6H20A4 4 0 0 1 24 10V11A4 4 0 0 0 28 15M59 15A4 4 0 0 0 63 11V10A4 4 0 0 1 67 6H80');
+    expect(s.light).toBe('M28 15H59M80 6V75H6');
   });
 });
 
@@ -127,12 +141,15 @@ describe('PaneShell', () => {
     expect(p.content.style.height).toBe('51px');
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
     expect(p.el.hasAttribute('data-framed')).toBe(true);
-    expect(p.el.style.getPropertyValue('--frame-t')).toBe('3px');
-    expect(['e', 'l', 'r', 'top', 'b'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual(['1px', '3px', '3px', '3px', '3px']);
-    // The top line's gap for ' Comm ' (frame-box px) and the line's open path round it.
-    expect(['--gap-x0', '--gap-x1'].map((k) => p.el.style.getPropertyValue(k))).toEqual(['28px', '65px']);
-    expect(p.el.querySelector('.wc-line-edge')!.getAttribute('d')).toBe('M65 1.5H82.5V77.5H1.5V1.5H28');
-    expect(p.el.querySelector('.wc-line-core')!.getAttribute('d')).toBe('M66 1.5H82.5V77.5H1.5V1.5H27');
+    expect(p.el.style.getPropertyValue('--frame-t')).toBe('6px');
+    expect(['l', 'r', 'top', 'b'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual(['2px', '2px', '2px', '2px']);
+    // The nameplate for ' Comm ' (frame-box px), the fill's clip round it and the rim's clip.
+    expect(['x0', 'x1', 'y0', 'y1', 'r'].map((k) => p.el.style.getPropertyValue(`--plate-${k}`))).toEqual(['24px', '63px', '2px', '13px', '3px']);
+    const hole = 'M6 6H21A3 3 0 0 1 24 9V10A3 3 0 0 0 27 13H60A3 3 0 0 0 63 10V9A3 3 0 0 1 66 6H80V75H6Z';
+    expect(p.el.style.getPropertyValue('--frame-hole')).toBe(`path("${hole}")`);
+    const rim = p.el.querySelector<HTMLElement>('.wc-pane-rim')!;
+    expect(rim.style.clipPath).toContain(hole);
+    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M27 13H60M80 6V75H6');
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');

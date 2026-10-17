@@ -87,10 +87,31 @@ test('panes are see-through with weather on: docked at once, a float at once and
 
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
-  // Docked panes go see-through with the first frame; the float holds its own canvas (opaque underneath).
-  expect(await page.locator('.wc-pane-character .wc-pane-frame').evaluate((f) => getComputedStyle(f, '::before').backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  // Docked panes turn to light glass with the first frame: the pane colour at 55 % over a light blur,
+  // the rim's blur in four strips (ADR 0091 "Frames", addendum: glass rim and nameplate); the float
+  // holds its own canvas (opaque underneath) under a denser glass (72 %).
+  // Firefox (`data-weather-flat`): no blur, a denser tint (64 %, a float 78 %).
+  const glass = await page.locator('.wc-pane-character').evaluate((el) => {
+    const f = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
+    const strips = [...el.querySelectorAll('.wc-pane-blur > i')].map((s) => getComputedStyle(s).backdropFilter);
+    const shown = getComputedStyle(el.querySelector('.wc-pane-blur')!).display !== 'none';
+    return { bg: f.backgroundColor, blur: f.backdropFilter, strips, shown, flat: el.parentElement!.hasAttribute('data-weather-flat') };
+  });
+  const alpha = (a: string) => new RegExp(`^(rgba\\(0, 0, 0, ${a}\\)|color\\(srgb 0 0 0 \\/ ${a}\\))$`);
+  expect(glass.flat).toBe(test.info().project.name === 'firefox');
+  expect(glass.strips).toHaveLength(4);
+  if (glass.flat) {
+    expect(glass.bg).toMatch(alpha('0\\.64'));
+    expect(glass.blur).toBe('none');
+    expect(glass.shown).toBe(false);
+  } else {
+    expect(glass.bg).toMatch(alpha('0\\.55'));
+    expect(glass.blur).toContain('blur(2.5px)');
+    expect(glass.shown).toBe(true);
+    for (const s of glass.strips) expect(s).toContain('blur(9px)');
+  }
   await expect(group).toHaveAttribute('data-weather-see', '');
-  expect(await fill()).toBe('rgba(0, 0, 0, 0)');
+  expect(await fill()).toMatch(alpha(glass.flat ? '0\\.78' : '0\\.72'));
   expect(await own('.wc-pane-group')).toBe('rgb(0, 0, 0)');
   await expect(page.locator('.wc-pane-character > canvas.wc-weather-float')).toHaveCount(0);
 

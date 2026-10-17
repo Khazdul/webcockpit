@@ -3,8 +3,8 @@
 // `measureGeometry` reads the DOM (layout changes only, never per frame);
 // the rest is pure.
 
-import { frameInset } from '../panes/frame';
-import type { Geometry, PaneGeom, Rect } from './protocol';
+import { frameInset, frameThickness } from '../panes/frame';
+import type { Geometry, PaneGeom, PanePlate, Rect } from './protocol';
 
 /** Position tolerance (CSS px) below which a geometry counts as unchanged. */
 export const GEOM_EPS = 0.5;
@@ -26,8 +26,8 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout'
     const p = a.panes[i]!, q = b.panes[i]!;
     if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border) return 'layout';
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
-    const ga = p.gap, gb = q.gap;
-    if (!ga !== !gb || (ga && gb && (!near(ga.x, gb.x) || !near(ga.w, gb.w)))) return 'layout';
+    const ga = p.plate, gb = q.plate;
+    if (!ga !== !gb || (ga && gb && (!near(ga.x, gb.x) || !near(ga.w, gb.w) || !near(ga.y1, gb.y1) || ga.lip !== gb.lip || ga.r !== gb.r))) return 'layout';
   }
   return 'none';
 }
@@ -42,7 +42,7 @@ export function protectFor(W: number, gameBottom: number, cellH: number, fontSiz
   return { solidTop, fadeTop: solidTop - 3.5 * fontSize, left: Math.min(90, W * 0.05) };
 }
 
-/** Insets from a pane's edges to the outside of its frame line (src/panes/frame.ts). */
+/** Insets from a pane's edges to the outside of its frame rim (src/panes/frame.ts). */
 export interface FrameInsets {
   l: number;
   r: number;
@@ -60,6 +60,40 @@ export function frameRect(box: Rect, framed: boolean, f: FrameInsets): Rect {
 }
 
 const round = (v: number): number => Math.round(v * 2) / 2;
+
+/**
+ * Where a docked pane's own background is painted under the back layer
+ * (engine `paintPaneBgs`): framed, inside the rim less the nameplate (a band
+ * from the plate's bottom down and a strip either side of the plate, as
+ * layout.css's fill and weather.css's float canvas), so rim and plate are
+ * glass over the page like the ring outside; unframed, the whole box.
+ */
+export function paneTintRects(p: Pick<PaneGeom, 'x' | 'y' | 'w' | 'h' | 'border' | 'plate'>): Rect[] {
+  const t = p.border;
+  if (!t) return [{ x: p.x, y: p.y, w: p.w, h: p.h }];
+  const x0 = p.x + t, x1 = p.x + p.w - t, y0 = p.y + t, y1 = p.y + p.h - t;
+  if (x1 <= x0 || y1 <= y0) return [];
+  const pl = p.plate;
+  const yb = pl ? Math.min(y1, Math.max(y0, pl.y1)) : y0;
+  const out: Rect[] = [{ x: x0, y: yb, w: x1 - x0, h: y1 - yb }];
+  if (pl && yb > y0) {
+    if (pl.x > x0) out.push({ x: x0, y: y0, w: pl.x - x0, h: yb - y0 });
+    const px1 = pl.x + pl.w;
+    if (px1 < x1) out.push({ x: px1, y: y0, w: x1 - px1, h: yb - y0 });
+  }
+  return out.filter((r) => r.w > 0 && r.h > 0);
+}
+
+/**
+ * The nameplate in screen px from the frame box `fr` and the plate's
+ * frame-box values (pane.ts `--plate-*`), its sides widened to whole half
+ * px (nothing lit may reach under the title); undefined without a plate.
+ */
+export function plateOf(fr: Rect, x0: number, x1: number, y0: number, y1: number, r: number): PanePlate | undefined {
+  if (!Number.isFinite(x0 + x1 + y0 + y1)) return undefined;
+  const a = Math.floor((fr.x + x0) * 2) / 2, b = Math.ceil((fr.x + x1) * 2) / 2;
+  return { x: a, w: b - a, y1: fr.y + y1, lip: y0, r };
+}
 
 export interface MeasureHost {
   /** The element the canvases cover (the cockpit). */
@@ -99,14 +133,11 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
       const n = parseFloat(el.style.getPropertyValue(name));
       return Number.isFinite(n) ? n : d;
     };
-    const t = v('--frame-t', 3);
+    const t = v('--frame-t', frameThickness(cell.h));
     const fi = frameInset(cell.w, cell.h);
     const ins = { l: v('--frame-l', fi), r: v('--frame-r', fi), top: v('--frame-top', fi), b: v('--frame-b', fi) };
-    const gx0 = v('--gap-x0', NaN), gx1 = v('--gap-x1', NaN);
     const fr = frameRect(box, framed, ins);
-    // The title's gap in the top line, widened to whole half px (nothing lit may reach into it).
-    const ga = Math.floor((fr.x + gx0) * 2) / 2, gb = Math.ceil((fr.x + gx1) * 2) / 2;
-    const gap = framed && Number.isFinite(ga + gb) ? { x: ga, w: gb - ga } : undefined;
+    const plate = framed ? plateOf(fr, v('--plate-x0', NaN), v('--plate-x1', NaN), v('--plate-y0', NaN), v('--plate-y1', NaN), v('--plate-r', 0)) : undefined;
     panes.push({
       ...fr,
       box,
@@ -116,7 +147,7 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
       floating: el.hasAttribute('data-floating'),
       z: el.hasAttribute('data-floating') ? Number(el.style.zIndex) || 0 : 0,
       bg: bg && bg !== termBg ? bg : null,
-      ...(gap ? { gap } : {}),
+      ...(plate ? { plate } : {}),
     });
   }
   const W = round(base.width), H = round(base.height);

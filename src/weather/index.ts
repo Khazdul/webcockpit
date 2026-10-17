@@ -19,7 +19,7 @@
 
 import './weather.css';
 import { geometryDiff, measureGeometry } from './geometry';
-import { weatherAvailable } from './support';
+import { glassBlurCheap, weatherAvailable } from './support';
 import {
   ALL_CATEGORIES,
   type Categories,
@@ -140,6 +140,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     if (m.t === 'ready') {
       // only now let the docked panes go transparent: their backgrounds are on the canvas
       root.setAttribute('data-weather', '');
+      root.toggleAttribute('data-weather-flat', !glassBlurCheap());
       resolveReady();
     } else if (m.t === 'stats') statsWaiters.splice(0).forEach((fn) => fn(m.stats));
     else if (m.t === 'error') {
@@ -266,6 +267,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       win.removeEventListener('focus', onFocus);
       win.removeEventListener('blur', onFocus);
       root.removeAttribute('data-weather');
+      root.removeAttribute('data-weather-flat');
       floats.clear();
       backEl.remove();
       frontEl.remove();

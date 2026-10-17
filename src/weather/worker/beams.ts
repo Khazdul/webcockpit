@@ -6,8 +6,8 @@
 //
 // A beam is a thin wedge from the sun: its middle at angle `a`, half-width
 // `hw` (radians), strength `k`. Its hits are the points where its middle
-// crosses a frame line (top, bottom, left, right; the top line's title gap
-// is left to Glints.line), with the stretch of the line inside the beam
+// crosses a frame rim (top, bottom, left, right; the top rim along the
+// nameplate is left to Glints.line), with the stretch of the line inside the beam
 // (`len`). The first line a beam meets on a pane is where it enters (the
 // strong glint); where it leaves it is weaker, as the beam is inside a pane.
 // The panes cast no shadow on the beams (the faint rays keep their shadow

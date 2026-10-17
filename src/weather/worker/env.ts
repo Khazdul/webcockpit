@@ -2,7 +2,7 @@
 
 import type { Mix } from '../director';
 import type { ThemeInfo } from '../palette';
-import type { Categories, Rect, WeatherEvent, WeatherState } from '../protocol';
+import type { Categories, PanePlate, Rect, WeatherEvent, WeatherState } from '../protocol';
 
 export type Ctx = OffscreenCanvasRenderingContext2D;
 export type Cv = OffscreenCanvas;
@@ -12,8 +12,8 @@ export interface Pane extends Rect {
   border: number;
   label: string;
   floating: boolean;
-  /** The top line's gap for the title, `[x, x + w]` (protocol `PaneGeom.gap`): no line there. */
-  gap?: { x: number; w: number };
+  /** The nameplate (protocol `PaneGeom.plate`): along it only the rim's top `lip` px may be lit. */
+  plate?: PanePlate;
 }
 
 export interface Env {

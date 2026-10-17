@@ -2,7 +2,7 @@
 // mix easing and sky selection, geometry diffing and background palettes.
 import { describe, expect, it } from 'vitest';
 import { DWELL_MS, Director, FOG_RATE, OUT_RATE, SKY_HOLD_S, SKY_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
-import { frameRect, geometryDiff, protectFor } from '../../src/weather/geometry';
+import { frameRect, geometryDiff, paneTintRects, plateOf, protectFor } from '../../src/weather/geometry';
 import { adapt, luminance, parseHex, themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type WeatherState } from '../../src/weather/protocol';
 
@@ -240,13 +240,16 @@ describe('geometry diff', () => {
     const t = geom();
     t.panes[0]!.border = 3;
     expect(geometryDiff(geom(), t)).toBe('layout');
-    // The title's gap in the top line is part of the line.
+    // The nameplate is part of the frame.
     const n = geom();
-    n.panes[0]!.gap = { x: 1229, w: 60 };
+    n.panes[0]!.plate = { x: 1229, w: 60, y1: 15, lip: 2, r: 4 };
     expect(geometryDiff(geom(), n)).toBe('layout');
     const n2 = geom();
-    n2.panes[0]!.gap = { x: 1229, w: 62 };
+    n2.panes[0]!.plate = { x: 1229, w: 62, y1: 15, lip: 2, r: 4 };
     expect(geometryDiff(n, n2)).toBe('layout');
+    const n3 = geom();
+    n3.panes[0]!.plate = { x: 1229, w: 60, y1: 17, lip: 2, r: 4 };
+    expect(geometryDiff(n, n3)).toBe('layout');
     expect(geometryDiff(n, n)).toBe('none');
   });
   it('ignores sub-pixel jitter', () => {
@@ -261,6 +264,21 @@ describe('geometry diff', () => {
     const ins = { l: 4, r: 3, top: 8, b: 7 };
     expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, true, ins)).toEqual({ x: 14, y: 28, w: 93, h: 35 });
     expect(frameRect({ x: 10, y: 20, w: 100, h: 50 }, false, ins)).toEqual({ x: 10, y: 20, w: 100, h: 50 });
+  });
+  it('nameplate: screen px, sides widened to half px; none without the plate values', () => {
+    const fr = { x: 10.25, y: 20, w: 200, h: 100 };
+    expect(plateOf(fr, 24, 63.1, 2, 15, 4)).toEqual({ x: 34, w: 39.5, y1: 35, lip: 2, r: 4 });
+    expect(plateOf(fr, NaN, NaN, NaN, NaN, 0)).toBeUndefined();
+  });
+  it('pane tint: inside the rim less the nameplate; the whole box unframed', () => {
+    const p = { x: 100, y: 50, w: 200, h: 100, border: 6, plate: { x: 130, w: 40, y1: 65, lip: 2, r: 4 } };
+    expect(paneTintRects(p)).toEqual([
+      { x: 106, y: 65, w: 188, h: 79 },
+      { x: 106, y: 56, w: 24, h: 9 },
+      { x: 170, y: 56, w: 124, h: 9 },
+    ]);
+    expect(paneTintRects({ ...p, plate: undefined })).toEqual([{ x: 106, y: 56, w: 188, h: 88 }]);
+    expect(paneTintRects({ ...p, border: 0 })).toEqual([{ x: 100, y: 50, w: 200, h: 100 }]);
   });
 });
 
@@ -282,5 +300,14 @@ describe('palette', () => {
     expect(luminance(a)).toBeLessThan(0.15);
     // the hue stays blue
     expect(a[2]).toBeGreaterThan(a[0]);
+  });
+});
+
+describe('glass blur', () => {
+  it('is left out in Gecko only (ADR 0091 "Frames", addendum: glass rim and nameplate)', async () => {
+    const { glassBlurCheap } = await import('../../src/weather/support');
+    expect(glassBlurCheap('Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0')).toBe(false);
+    expect(glassBlurCheap('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36')).toBe(true);
+    expect(glassBlurCheap('Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15')).toBe(true);
   });
 });

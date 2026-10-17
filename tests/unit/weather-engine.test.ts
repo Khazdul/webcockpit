@@ -262,17 +262,19 @@ describe('WeatherEngine floating panes', () => {
 });
 
 describe('frame glints', () => {
-  it('never light the top line in the title gap (owner feedback 32)', () => {
+  it('light only the lip of the rim above the nameplate, no sparkle over the title (owner feedback 32, ADR 0091 addendum)', () => {
     const g = new Glints(themeInfo('#000000'));
     const f = new FakeCanvas(800, 600).ctx as unknown as Ctx & { args: unknown[][] };
-    const p = { x: 100, y: 50, w: 400, h: 200, border: 3, gap: { x: 130, w: 60 } };
-    // A long glint with a sparkle centred in the gap; the same on the bottom line (no gap there).
+    const p = { x: 100, y: 50, w: 400, h: 200, border: 6, plate: { x: 134, w: 52, lip: 2, r: 4 } };
+    // A long glint with a sparkle centred on the plate; the same on the bottom rim (no plate there).
     g.line(f, p, 't', 160, 200, 1, 1);
     const top = f.args.splice(0);
     expect(top.every((a) => a[0] !== g.spark)).toBe(true);
-    expect(top.map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6]])).toEqual([
-      [100, 130, 50],
-      [190, 260, 50],
+    // [x0, x1, y, height]: the rim either side, only its 2 px lip along the plate and its fillets
+    expect(top.map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6], a[8]])).toEqual([
+      [100, 130, 50, 6],
+      [130, 190, 50, 2],
+      [190, 260, 50, 6],
     ]);
     g.line(f, p, 'b', 160, 200, 1, 1);
     expect(f.args.map((a) => (a[0] === g.spark ? 'spark' : [a[5], (a[5] as number) + (a[7] as number)]))).toEqual([[100, 260], 'spark']);

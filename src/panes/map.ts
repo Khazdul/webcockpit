@@ -267,19 +267,27 @@ export class MapPane extends PaneShell {
   }
 
   /**
-   * Framed, the map fills the frame up to its line on every side (owner
+   * Framed, the map fills the frame up to its rim on every side (owner
    * feedback 17, ADR 0091 "Frames"), not only the content cells: the frame
-   * ring is wider than the line's gap. Every edge is on a whole device pixel
-   * (the line's inner edge). Unframed: the content cells, as PaneShell placed them.
+   * ring is wider than the rim. Every edge is on a whole device pixel (the
+   * rim's inner edge). It is clipped around the nameplate, which hangs into
+   * it: the plate is the rim's glass and shows what is behind the pane
+   * (addendum: glass rim and nameplate). Unframed: the content cells, as
+   * PaneShell placed them.
    */
   private fitFrame(): void {
     const g = this.frameLine, b = this.boxPx;
-    if (!g || !b) return;
     const cs = this.content.style;
+    if (!g || !b) {
+      cs.clipPath = '';
+      return;
+    }
     cs.left = `${g.l + g.t}px`;
     cs.top = `${g.top + g.t}px`;
     cs.width = `${b.w - g.l - g.r - 2 * g.t}px`;
     cs.height = `${b.h - g.top - g.b - 2 * g.t}px`;
+    const hole = this.frameHole(-g.t, -g.t);
+    cs.clipPath = hole ? `path("${hole}")` : '';
     this.sync();
   }
 

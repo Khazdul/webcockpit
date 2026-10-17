@@ -1351,12 +1351,13 @@ class Sky {
       f.globalAlpha = lift;
       for (const q of env.panes) {
         if (!q.border) continue;
-        const t = q.border, gp = q.gap;
-        // the top line stops at the title's gap (owner feedback 19, 32)
+        const t = q.border, gp = q.plate;
+        // along the nameplate only the rim's lip above the title (owner feedback 19, 32; ADR 0091 addendum)
         if (gp) {
-          if (gp.x > q.x) f.fillRect(q.x, q.y, gp.x - q.x, t);
-          const gx = gp.x + gp.w;
-          if (gx < q.x + q.w) f.fillRect(gx, q.y, q.x + q.w - gx, t);
+          const g0 = Math.max(q.x, gp.x - gp.r), g1 = Math.min(q.x + q.w, gp.x + gp.w + gp.r);
+          if (g0 > q.x) f.fillRect(q.x, q.y, g0 - q.x, t);
+          if (g1 > g0) f.fillRect(g0, q.y, g1 - g0, Math.min(t, gp.lip));
+          if (g1 < q.x + q.w) f.fillRect(g1, q.y, q.x + q.w - g1, t);
         } else f.fillRect(q.x, q.y, q.w, t);
       }
     }
@@ -1499,9 +1500,9 @@ class Sky {
       for (const q of env.panes) {
         CX[0] = CX[3] = q.x;
         CX[1] = CX[2] = q.x + q.w;
-        // From the line's lower edge: the step between the brighter rays
-        // outside and the shadow inside lies under the line, not across the
-        // title in the line's gap (owner feedback 19, 32).
+        // From the rim's lower edge: the step between the brighter rays
+        // outside and the shadow inside lies under the rim (owner feedback
+        // 19, 32).
         CY[0] = CY[1] = q.y + q.border;
         CY[2] = CY[3] = q.y + q.h;
         for (let i = 0; i < 4; i++) {

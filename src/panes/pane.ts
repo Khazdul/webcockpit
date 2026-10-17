@@ -3,9 +3,11 @@
 // draws its frame; a pane subclass renders into `content`.
 //
 //   .wc-pane.wc-pane-<id>[data-active]   positioned in whole cells, --pane-* tokens
+//     .wc-pane-blur > i × 4              the rim's backdrop blur in four strips (weather on)
+//     .wc-pane-rim                       the glass rim and nameplate (hidden when border off)
+//       svg.wc-pane-seam                 the rim's inner seam
 //     .wc-pane-frame                     the frame box (hidden when border off); ::before is its fill
-//       svg.wc-pane-line                 the line, with a gap for the title
-//       .wc-pane-title                   the label in the top row
+//       .wc-pane-title > span            the label on the nameplate
 //     .wc-pane-content                   the inner area, `cols` × `rows` cells
 //
 // Writing a pane (ADR 0016 "Package notes"):
@@ -41,7 +43,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { type FrameGeometry, frameGap, frameGeometry, frameLabel, framePath } from './frame';
+import { type FrameGeometry, type FramePlate, frameGeometry, frameHolePath, frameLabel, framePlate, frameRimPath, frameSeams, frameStrips } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -100,12 +102,18 @@ export class PaneShell {
   /** Blank the content while inactive (all panes but UI). */
   readonly blankWhenInactive: boolean;
   protected readonly ctx: PaneContext;
+  private readonly rimEl: HTMLDivElement;
+  /** The rim's blur strips (top with the plate, left, right, bottom). */
+  private readonly blurEls: HTMLElement[];
   private readonly frameEl: HTMLDivElement;
   private readonly titleEl: HTMLSpanElement;
+  /** The label text inside the title (its box trimmed to the capitals, so they centre on the plate). */
+  private readonly labelEl: HTMLSpanElement;
   private geomKey = '';
   private _frameLine: FrameGeometry | null = null;
-  /** The line's edge and core paths. */
-  private readonly linePaths: SVGPathElement[];
+  private _plate: FramePlate | null = null;
+  /** The inner seam's dark and light paths. */
+  private readonly seamPaths: SVGPathElement[];
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
   /** The label text shown in the frame's top row. */
@@ -141,24 +149,35 @@ export class PaneShell {
     this.el.setAttribute('role', 'region');
     this.el.setAttribute('aria-label', this._label);
     this.el.hidden = true;
+    // The rim comes first: its backdrop is what is behind the pane, not the
+    // pane's fill (ADR 0091 "Frames", addendum: glass rim and nameplate).
+    this.rimEl = doc.createElement('div');
+    this.rimEl.className = 'wc-pane-rim';
+    this.rimEl.setAttribute('aria-hidden', 'true');
+    const SVG = 'http://www.w3.org/2000/svg';
+    const seam = doc.createElementNS(SVG, 'svg');
+    seam.setAttribute('class', 'wc-pane-seam');
+    this.seamPaths = (['wc-seam-dark', 'wc-seam-light'] as const).map((cls) => {
+      const path = doc.createElementNS(SVG, 'path');
+      path.setAttribute('class', cls);
+      seam.append(path);
+      return path;
+    });
+    this.rimEl.append(seam);
+    const blur = doc.createElement('div');
+    blur.className = 'wc-pane-blur';
+    blur.setAttribute('aria-hidden', 'true');
+    this.blurEls = [0, 1, 2, 3].map(() => blur.appendChild(doc.createElement('i')));
     this.frameEl = doc.createElement('div');
     this.frameEl.className = 'wc-pane-frame';
     this.frameEl.setAttribute('aria-hidden', 'true');
-    const SVG = 'http://www.w3.org/2000/svg';
-    const line = doc.createElementNS(SVG, 'svg');
-    line.setAttribute('class', 'wc-pane-line');
-    this.linePaths = (['wc-line-edge', 'wc-line-core'] as const).map((cls) => {
-      const path = doc.createElementNS(SVG, 'path');
-      path.setAttribute('class', cls);
-      line.append(path);
-      return path;
-    });
     this.titleEl = doc.createElement('span');
     this.titleEl.className = 'wc-pane-title';
-    this.frameEl.append(line, this.titleEl);
+    this.labelEl = doc.createElement('span');
+    this.frameEl.append(this.titleEl);
     this.content = doc.createElement('div');
     this.content.className = 'wc-pane-content';
-    this.el.append(this.frameEl, this.content);
+    this.el.append(blur, this.rimEl, this.frameEl, this.content);
     this.el.toggleAttribute('data-active', this._active);
     this.own(
       ctx.bus.on('conn.state', (s) => {
@@ -318,12 +337,16 @@ export class PaneShell {
     cs.top = `${(content.y - rect.y) * cell.h}px`;
     cs.width = `${content.w * cell.w}px`;
     cs.height = `${content.h * cell.h}px`;
-    const label = p.framed ? frameLabel(rect.w, this._label) : '';
+    const want = p.framed ? frameLabel(rect.w, this._label) : '';
+    if (p.framed) this.placeFrame(rect, cell, want.length);
+    // No plate (no room for one): no title.
+    const label = p.framed && this._plate ? want : '';
     if (label !== this.frameKey) {
       this.frameKey = label;
-      this.titleEl.textContent = label;
+      this.labelEl.textContent = label;
+      if (label) this.titleEl.replaceChildren(this.labelEl);
+      else this.titleEl.replaceChildren();
     }
-    if (p.framed) this.placeFrame(rect, cell, label.length);
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);
     st.zIndex = p.floating === undefined ? '' : String(FLOAT_Z + p.floating);
@@ -333,39 +356,67 @@ export class PaneShell {
   }
 
   /**
-   * Puts the frame line on whole device pixels of the page for this pane's
-   * box (ADR 0091 "Frames"). Style writes only when a value changes.
+   * Puts the frame rim and the nameplate on whole device pixels of the page
+   * for this pane's box (ADR 0091 "Frames"). Style writes only when a value
+   * changes.
    */
   private placeFrame(rect: Rect, cell: PaneCell, chars: number): void {
     const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
     const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
     const g = frameGeometry(box, cell.w, cell.h, dpr);
-    const n = frameGap(box, g, cell.w, chars, dpr);
+    const pl = framePlate(box, g, cell.w, cell.h, chars, dpr);
     this._frameLine = g;
+    this._plate = pl;
     const fw = box.w - g.l - g.r, fh = box.h - g.top - g.b;
-    const key = `${g.t},${g.e},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${n ? `${n.x0},${n.x1}` : ''}`;
+    const hair = Math.max(1, Math.round(dpr)) / (dpr > 0 ? dpr : 1);
+    const key = `${g.t},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${hair},${pl ? `${pl.x0},${pl.x1},${pl.y0},${pl.y1},${pl.r}` : ''}`;
     if (key === this.geomKey) return;
     this.geomKey = key;
-    // The core stops an edge band short of the gap, so the ends are closed like the bends.
-    const [edge, core] = this.linePaths as [SVGPathElement, SVGPathElement];
-    edge.setAttribute('d', framePath(fw, fh, g.t, n));
-    core.setAttribute('d', framePath(fw, fh, g.t, n, g.e));
+    const [dark, light] = this.seamPaths as [SVGPathElement, SVGPathElement];
+    const seams = frameSeams(fw, fh, g.t, pl);
+    dark.setAttribute('d', seams.dark);
+    light.setAttribute('d', seams.light);
+    this.rimEl.style.clipPath = `path(evenodd, "${frameRimPath(fw, fh, g.t, pl)}")`;
+    const strips = frameStrips(fw, fh, g.t, pl);
+    for (let i = 0; i < 4; i++) {
+      const s = strips[i]!, bs = this.blurEls[i]!.style;
+      bs.left = `${s.x}px`;
+      bs.top = `${s.y}px`;
+      bs.width = `${s.w}px`;
+      bs.height = `${s.h}px`;
+      bs.clipPath = `path(evenodd, "${frameRimPath(fw, fh, g.t, pl, -s.x, -s.y)}")`;
+    }
     const st = this.el.style;
     st.setProperty('--frame-t', `${g.t}px`);
-    st.setProperty('--frame-e', `${g.e}px`);
     st.setProperty('--frame-l', `${g.l}px`);
     st.setProperty('--frame-r', `${g.r}px`);
     st.setProperty('--frame-top', `${g.top}px`);
     st.setProperty('--frame-b', `${g.b}px`);
-    if (n) {
-      st.setProperty('--gap-x0', `${n.x0}px`);
-      st.setProperty('--gap-x1', `${n.x1}px`);
-    } else for (const k of ['--gap-x0', '--gap-x1']) st.removeProperty(k);
+    st.setProperty('--frame-hair', `${hair}px`);
+    st.setProperty('--frame-hole', `path("${frameHolePath(fw, fh, g.t, pl)}")`);
+    if (pl) {
+      st.setProperty('--plate-x0', `${pl.x0}px`);
+      st.setProperty('--plate-x1', `${pl.x1}px`);
+      st.setProperty('--plate-y0', `${pl.y0}px`);
+      st.setProperty('--plate-y1', `${pl.y1}px`);
+      st.setProperty('--plate-r', `${pl.r}px`);
+    } else for (const k of ['--plate-x0', '--plate-x1', '--plate-y0', '--plate-y1', '--plate-r']) st.removeProperty(k);
   }
 
-  /** The frame line as last placed (CSS px from the pane's edges), null while unframed. */
+  /** The frame rim as last placed (CSS px from the pane's edges), null while unframed. */
   protected get frameLine(): FrameGeometry | null {
     return this.placed?.framed ? this._frameLine : null;
+  }
+
+  /**
+   * The rim's hole (the inside less the nameplate, `frameHolePath`) moved by
+   * (`dx`, `dy`) from the frame box, for a clip; null while unframed.
+   */
+  protected frameHole(dx: number, dy: number): string | null {
+    const g = this.frameLine, p = this.placed, c = this.placedCell;
+    if (!g || !p || !c) return null;
+    const fw = p.rect.w * c.w - g.l - g.r, fh = p.rect.h * c.h - g.top - g.b;
+    return frameHolePath(fw, fh, g.t, this._plate, dx, dy);
   }
 
   private setSize(cols: number, rows: number): void {

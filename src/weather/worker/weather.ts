@@ -714,18 +714,15 @@ export function weatherModule(): Module {
         rim.push(p.x + p.w - 1.5, p.y + 0.75, 1.5, p.h - 0.75);
         band.push(p.x + p.w - b, p.y + b / 2, b, p.h - b / 2);
       }
-      // the top line in its pieces either side of the title's gap
-      const g = p.gap;
-      const tops: [number, number][] = g
-        ? [
-            [p.x, g.x],
-            [g.x + g.w, p.x + p.w],
-          ]
-        : [[p.x, p.x + p.w]];
-      for (const [x0, x1] of tops) {
-        if (x1 - x0 < 1) continue;
-        rim.push(x0, p.y, x1 - x0, 1.5);
-        band.push(x0, p.y, x1 - x0, b);
+      // the top rim; along the nameplate only its lip above the title (ADR 0091 addendum: glass rim and nameplate)
+      rim.push(p.x, p.y, p.w, 1.5);
+      const g = p.plate;
+      if (!g) band.push(p.x, p.y, p.w, b);
+      else {
+        const g0 = Math.max(p.x, g.x - g.r), g1 = Math.min(p.x + p.w, g.x + g.w + g.r);
+        if (g0 > p.x) band.push(p.x, p.y, g0 - p.x, b);
+        if (g1 > g0) band.push(g0, p.y, g1 - g0, Math.min(b, g.lip));
+        if (g1 < p.x + p.w) band.push(g1, p.y, p.x + p.w - g1, b);
       }
       if (behind || k > 0.5) band.push(p.x, p.y + p.h - b, p.w, b);
       const gr = env.front.createRadialGradient(nx, ny, 0, nx, ny, Math.max(260, p.h * 0.9));
@@ -1387,15 +1384,8 @@ export function weatherModule(): Module {
           if (p.dust < 0.02 || p.y < 4) continue;
           busy = true;
           f.globalAlpha = p.dust * (0.4 + 0.5 * lum);
-          // Lying on the top line, not over it; none on the title's gap.
-          const g = p.gap;
-          if (!g) f.drawImage(dustCv, p.x * d, p.dustRow * d, p.w * d, 5 * d, p.x, p.y - 5, p.w, 5);
-          else
-            for (const [x0, x1] of [
-              [p.x, g.x],
-              [g.x + g.w, p.x + p.w],
-            ] as const)
-              if (x1 - x0 >= 1) f.drawImage(dustCv, x0 * d, p.dustRow * d, (x1 - x0) * d, 5 * d, x0, p.y - 5, x1 - x0, 5);
+          // Lying on the top rim, not over it (the rim runs on above the nameplate).
+          f.drawImage(dustCv, p.x * d, p.dustRow * d, p.w * d, 5 * d, p.x, p.y - 5, p.w, 5);
         }
         f.globalAlpha = 1;
       }
