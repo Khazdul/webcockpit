@@ -250,7 +250,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       if (!destroyed) post({ t: 'speed', speed });
     },
     stats() {
-      if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1 });
+      if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1, gaps: { n: 0, p50: 0, p95: 0, max: 0 } });
       return new Promise((res) => {
         statsWaiters.push(res);
         post({ t: 'stats' });

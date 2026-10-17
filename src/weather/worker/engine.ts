@@ -138,6 +138,11 @@ export class WeatherEngine {
   private paneBgs: { x: number; y: number; w: number; h: number; bg: string }[] = [];
   private mask: { fade: CanvasGradient }[] = [];
   private readonly times = new Float32Array(N_TIMES);
+  /** Intervals between drawn frames since the last `stats()` (ms; at most N_TIMES kept). */
+  private readonly gaps: number[] = [];
+  private lastDrawn = 0;
+  /** The loop idled since the last drawn frame (the next interval is not a gap in motion). */
+  private wasIdle = true;
   private readonly modTimes = new Map<string, Float32Array>();
   private nTimes = 0;
 
@@ -458,6 +463,9 @@ export class WeatherEngine {
       this.idle = false;
       this.idleFrames = 0;
     }
+    if (this.lastDrawn && !this.wasIdle && this.gaps.length < N_TIMES) this.gaps.push(now - this.lastDrawn);
+    this.lastDrawn = now;
+    this.wasIdle = false;
     const busy = this.draw(now, dt);
     if (!this.readySent) {
       this.readySent = true;
@@ -467,6 +475,7 @@ export class WeatherEngine {
     else this.idleFrames = 0;
     if (this.idleFrames > 2) {
       this.idle = true;
+      this.wasIdle = true;
       this.schedule(true);
     } else this.schedule(false, 1000 / this.rate - 2 - (this.host.now() - now));
   };
@@ -579,6 +588,8 @@ export class WeatherEngine {
       for (let i = 0; i < n; i++) s += arr[i]!;
       mods[id] = n ? s / n : 0;
     }
-    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1 };
+    const g = this.gaps.splice(0).sort((x, y) => x - y), gn = g.length;
+    const gaps = { n: gn, p50: gn ? g[Math.floor(gn / 2)]! : 0, p95: gn ? g[Math.floor(gn * 0.95)]! : 0, max: gn ? g[gn - 1]! : 0 };
+    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
   }
 }

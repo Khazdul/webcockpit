@@ -20,6 +20,12 @@
 // - glimpse: the calm day sky, then a strong sun glimpse (sent after the
 //   settle; ~11 s of the 15, owner feedback 52). The calm scene itself may
 //   catch one: they come every 22–60 s on a clear day.
+// - clouds: a cloudy day (`~`): the deck drifting.
+// - snow:  snow by day.
+// - cover: the calm day sky, then clouds (`~`, sent after the settle with the
+//   normal easing): the cloud cover change, a transition (owner feedback 56).
+// - indoor: the calm day sky, then indoors (sent after the settle): the
+//   in/out fade (5 s), then the still indoor screen.
 //
 // Per scene and round, after SETTLE_MS to ease in, over S seconds:
 // - CPU time of the browser's processes (utime + stime from /proc/<pid>/stat,
@@ -78,6 +84,15 @@ const SCENES: Record<string, Record<string, unknown> | null> = {
   birds: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   sunset: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   glimpse: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  clouds: { weather: '~', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  snow: { weather: '*', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  cover: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  indoor: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+};
+/** States pinned (smoothly, with the normal easing) once the scene has settled: transitions. */
+const SCENE_PINS: Record<string, Record<string, unknown>> = {
+  cover: { weather: '~', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
+  indoor: { weather: null, fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
 };
 /** Events sent once the scene has settled (just before measuring). */
 const SCENE_EVENTS: Record<string, string[]> = { birds: ['birds'], sunset: ['sun.set'], glimpse: ['glimpse'] };
@@ -179,6 +194,7 @@ interface Sample {
   byKind: Record<string, number>;
   fps: number;
   frameMs: number;
+  gaps: { n: number; p50: number; p95: number; max: number };
   dpr: number;
   mods: Record<string, number>;
   watts: Record<keyof typeof RAPL, number>;
@@ -203,8 +219,12 @@ async function measure(t: Target, scene: string): Promise<Sample> {
   }
   await page.evaluate(() => window.__wcBench!.connectFake());
   await pause(SETTLE_MS);
-  for (const e of SCENE_EVENTS[scene] ?? []) await page.evaluate((e) => window.__wcBench!.app!.weather?.controller?.engine.emit(e as never), e);
   const stats = () => page.evaluate(() => window.__wcBench!.app!.weather?.controller?.engine.stats() ?? null);
+  // The intervals counted from here (each stats call starts a new count).
+  if (state) await stats();
+  for (const e of SCENE_EVENTS[scene] ?? []) await page.evaluate((e) => window.__wcBench!.app!.weather?.controller?.engine.emit(e as never), e);
+  const pin = SCENE_PINS[scene];
+  if (pin) await page.evaluate((p) => window.__wcBench!.app!.weather?.controller?.pin(p as never, { smooth: true }), pin);
   const s0 = state ? await stats() : null;
   const a = snap();
   const states = new Set<string>();
@@ -233,6 +253,7 @@ async function measure(t: Target, scene: string): Promise<Sample> {
     byKind,
     fps: frames / secs,
     frameMs: s1?.avg ?? 0,
+    gaps: s1?.gaps ?? { n: 0, p50: 0, p95: 0, max: 0 },
     dpr: s1?.dpr ?? 0,
     mods: s1?.mods ?? {},
     watts: { pkg: w('pkg'), core: w('core'), uncore: w('uncore') },
@@ -281,7 +302,7 @@ for (const name of BROWSERS) {
         `  ${name} round ${i + 1} ${scene.padEnd(5)}: cpu ${f1(s.cpu)} ms/s (${Object.entries(s.byKind)
           .filter(([, v]) => v >= 5)
           .map(([k, v]) => `${k} ${v.toFixed(0)}`)
-          .join(', ')}), fps ${f1(s.fps)}, frame ${f2(s.frameMs)} ms @${s.dpr} (${Object.entries(s.mods).map(([k, v]) => `${k} ${f2(v)}`).join(' ')}), pkg ${f1(s.watts.pkg)} W, igpu ${f1(s.igpuBusy)} %, nv ${f1(s.nvActive)} % (${s.nvStates})` +
+          .join(', ')}), fps ${f1(s.fps)} (gaps p50/p95/max ${f1(s.gaps.p50)}/${f1(s.gaps.p95)}/${f1(s.gaps.max)} ms), frame ${f2(s.frameMs)} ms @${s.dpr} (${Object.entries(s.mods).map(([k, v]) => `${k} ${f2(v)}`).join(' ')}), pkg ${f1(s.watts.pkg)} W, igpu ${f1(s.igpuBusy)} %, nv ${f1(s.nvActive)} % (${s.nvStates})` +
           (s.foreign ? `, ${s.foreign} foreign browser procs` : ''),
       );
     }
@@ -318,6 +339,7 @@ row('Browser CPU, ms per s', (xs) => f1(med(xs, (s) => s.cpu)));
 const kinds = [...new Set(results.flatMap((r) => Object.values(r.scenes).flatMap((xs) => xs.flatMap((s) => Object.keys(s.byKind)))))].sort();
 for (const k of kinds) row(`… ${k}`, (xs) => f1(med(xs, (s) => s.byKind[k] ?? 0)));
 row('Worker fps', (xs, sc) => (SCENES[sc] ? f1(med(xs, (s) => s.fps)) : '—'));
+row('Frame interval p50 / p95 / max (ms)', (xs, sc) => (SCENES[sc] ? `${f1(med(xs, (s) => s.gaps.p50))} / ${f1(med(xs, (s) => s.gaps.p95))} / ${f1(med(xs, (s) => s.gaps.max))}` : '—'));
 row('Worker frame avg (ms); ratio', (xs, sc) => (SCENES[sc] ? `${f2(med(xs, (s) => s.frameMs))}; ${xs[0]?.dpr ?? '—'}` : '—'));
 row('RAPL package / core / uncore (W)', (xs) => `${f1(med(xs, (s) => s.watts.pkg))} / ${f1(med(xs, (s) => s.watts.core))} / ${f1(med(xs, (s) => s.watts.uncore))}`);
 row('Intel iGPU busy (%)', (xs) => f1(med(xs, (s) => s.igpuBusy)));
@@ -329,7 +351,7 @@ for (const r of results)
   for (const sc of SCENE_NAMES)
     (r.scenes[sc] ?? []).forEach((s, i) =>
       out.push(
-        `- ${r.name} ${sc} #${i + 1}: cpu ${f1(s.cpu)} ms/s; fps ${f1(s.fps)}; frame ${f2(s.frameMs)} ms (${Object.entries(s.mods).map(([k, v]) => `${k} ${f2(v)}`).join(', ')}); pkg ${f1(s.watts.pkg)} W; igpu ${f1(s.igpuBusy)} %; nv ${f1(s.nvActive)} % (${s.nvStates})${s.foreign ? `; ${s.foreign} foreign` : ''}`,
+        `- ${r.name} ${sc} #${i + 1}: cpu ${f1(s.cpu)} ms/s; fps ${f1(s.fps)} (gaps ${f1(s.gaps.p50)}/${f1(s.gaps.p95)}/${f1(s.gaps.max)} ms); frame ${f2(s.frameMs)} ms (${Object.entries(s.mods).map(([k, v]) => `${k} ${f2(v)}`).join(', ')}); pkg ${f1(s.watts.pkg)} W; igpu ${f1(s.igpuBusy)} %; nv ${f1(s.nvActive)} % (${s.nvStates})${s.foreign ? `; ${s.foreign} foreign` : ''}`,
       ),
     );
 out.push('');

@@ -212,6 +212,11 @@ export interface FrameStats {
   frames: number;
   /** The device pixel ratio the canvases are drawn at. */
   dpr: number;
+  /**
+   * Intervals between drawn frames since the previous `stats` call (ms): how
+   * even the motion is (owner feedback 56). Idle ticks are not frames.
+   */
+  gaps: { n: number; p50: number; p95: number; max: number };
 }
 
 export type WorkerToMain =
