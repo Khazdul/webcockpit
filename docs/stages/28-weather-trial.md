@@ -742,3 +742,24 @@ Weather:
       glass), and the title's contrast on the plate goes from about 4.1:1 to
       3.6:1 over black, still clearly readable. Weather on and off, dark and
       Paper pages checked.
+
+### 2026-10-17 — sixth test, on the glass frames (translated)
+
+Screenshots from the owner: `images/4.png` (Timers, rounded corner and
+plate edges), `images/5.png` (Character plate), `images/6.png` (Map search,
+artifacts above the top rim) in the session scratchpad.
+
+45. **Square outline at rounded corners.** With some effects the rounded
+    corners get an angular outline next to them. Not very noticeable, but
+    it should go.
+46. **Thin dark vertical lines beside the plate.** A thin dark vertical
+    line crosses the rim just left and right of the nameplate. Barely
+    perceptible, but it should be possible to remove.
+47. **Title legibility, more (39 again).** No visible difference after
+    item 39. Make the dark title ink less dark and the light lip under the
+    letters less light, enough that it shows.
+48. **Artifacts outside the frame.** Along the top edge above the rim,
+    artifacts show outside the frame (a speckled band above the line).
+49. **Glint across the whole plate.** When sun rays glint along a top line
+    and pass the title, the glint does not cover the whole nameplate. It
+    should.
