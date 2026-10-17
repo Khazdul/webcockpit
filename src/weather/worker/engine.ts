@@ -173,6 +173,7 @@ export class WeatherEngine {
           theme: themeInfo(m.theme.bg),
           shared: { flash: 0, boltX: 0 },
           moonSpeed: m.moonSpeed,
+          speed: this.director.speed,
           noise,
           fbm,
           now: 0,
@@ -183,7 +184,7 @@ export class WeatherEngine {
         break;
       }
       case 'state': {
-        const ch = m.instant ? this.director.jump(m.s) : this.director.set(m.s);
+        const ch = m.instant ? this.director.jump(m.s) : this.director.set(m.s, !!m.settle);
         if (ch && this.env) this.emit('position', ch);
         break;
       }
@@ -229,6 +230,10 @@ export class WeatherEngine {
       }
       case 'moonSpeed':
         if (this.env) this.env.moonSpeed = m.speed;
+        break;
+      case 'speed':
+        this.director.speed = m.speed;
+        if (this.env) this.env.speed = m.speed;
         break;
       case 'visible':
         this.visible = m.on;

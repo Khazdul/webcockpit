@@ -535,7 +535,7 @@ class Sky {
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
     if (name === 'sun.rise' || name === 'sun.set') {
       if (!env.cats.sky) return;
-      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: name === 'sun.rise' ? RISE_S : SET_S };
+      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: (name === 'sun.rise' ? RISE_S : SET_S) / env.speed };
     } else if (name === 'moon.rise') {
       // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
       this.moonSet = null;
@@ -551,6 +551,8 @@ class Sky {
       this.life.birdsNow();
     } else if (name === 'glimpse') {
       this.life.glimpseNow(this.T);
+    } else if (name === 'insect') {
+      this.life.insectNow();
     } else if (name === 'shoot') {
       if (env.cats.sky) this.launchShoot(env);
     } else if (name === 'darkness.start' || name === 'darkness.grow') {
@@ -595,7 +597,7 @@ class Sky {
     const coverT = inside ? this.coverT : clamp(m.clouds, 0, 1);
     if (this.coverS < 0) this.coverS = coverT;
     else if (!inside) {
-      const st = dt * COVER_RATE, d = coverT - this.coverS;
+      const st = dt * env.speed * COVER_RATE, d = coverT - this.coverS;
       this.coverS += d > st ? st : d < -st ? -st : d;
     }
     this.coverT = coverT;

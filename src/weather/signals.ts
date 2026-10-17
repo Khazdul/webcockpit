@@ -28,7 +28,7 @@ import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
 
 export interface WeatherSink {
-  setState(partial: Partial<WeatherState>, opts?: { instant?: boolean }): void;
+  setState(partial: Partial<WeatherState>, opts?: { instant?: boolean; settle?: boolean }): void;
   emit(event: WeatherEvent, data?: unknown): void;
 }
 
@@ -210,10 +210,15 @@ export class WeatherSignals {
     if (Object.keys(out).length) this.push(out);
   }
 
-  /** Bench / dev: these values win over the game's until `pin(null)`; applied at once. */
-  pin(p: Partial<WeatherState> | null): void {
+  /**
+   * Bench / dev / the demo: these values win over the game's until
+   * `pin(null)`. Applied at once (`jump`), or with `smooth` settled at once
+   * but eased with the normal transitions (the demo, and its release back to
+   * the game's values).
+   */
+  pin(p: Partial<WeatherState> | null, smooth = false): void {
     this.pinned = p && Object.keys(p).length ? { ...p } : null;
-    this.sink.setState(this.state(), { instant: true });
+    this.sink.setState(this.state(), smooth ? { settle: true } : { instant: true });
   }
 
   private push(out: Partial<WeatherState>): void {

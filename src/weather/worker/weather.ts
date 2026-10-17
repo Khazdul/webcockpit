@@ -1040,8 +1040,9 @@ export function weatherModule(): Module {
       prevW = sw;
       prevRainMix = rain;
       prevSnowMix = m.snow;
-      rainAmt = isRain ? Math.min(1, rainAmt + dt / 6) : Math.max(0, rainAmt - dt / 3);
-      snowAmt = isSnow ? Math.min(1, snowAmt + dt / 26) : Math.max(0, snowAmt - dt / 10);
+      // the build-ups run at the demo's pace (`env.speed`, 1 in the game)
+      rainAmt = isRain ? Math.min(1, rainAmt + (dt * env.speed) / 6) : Math.max(0, rainAmt - dt / 3);
+      snowAmt = isSnow ? Math.min(1, snowAmt + (dt * env.speed) / 26) : Math.max(0, snowAmt - dt / 10);
       if (rainAmt > 0 || snowAmt > 0) busy = true;
 
       let lit = 0;

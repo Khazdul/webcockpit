@@ -18,8 +18,8 @@ import { gmcpKey } from '../core/types';
 
 export interface WeatherController {
   readonly engine: Weather;
-  /** Bench / dev: values that win over the game's (applied at once); null releases. */
-  pin(p: Partial<WeatherState> | null): void;
+  /** Bench / dev / demo: values that win over the game's (applied at once, or `smooth`: eased); null releases. */
+  pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
   /** The state the bridge last derived (pins included). */
   state(): WeatherState;
   destroy(): void;
@@ -39,7 +39,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
   const now = d.now ?? Date.now;
   let engine: Weather | null = null;
   const sink = {
-    setState: (p: Partial<WeatherState>, o?: { instant?: boolean }) => engine?.setState(p, o),
+    setState: (p: Partial<WeatherState>, o?: { instant?: boolean; settle?: boolean }) => engine?.setState(p, o),
     emit: (e: Parameters<Weather['emit']>[0]) => engine?.emit(e),
   };
   const charVitals = game.char.vitals;
@@ -81,7 +81,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
 
   const api: WeatherController = {
     engine: w,
-    pin: (p) => signals.pin(p),
+    pin: (p, o) => signals.pin(p, !!o?.smooth),
     state: () => signals.state(),
     destroy() {
       if (destroyed) return;

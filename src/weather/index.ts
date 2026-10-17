@@ -56,8 +56,8 @@ export interface WeatherOptions {
 }
 
 export interface Weather {
-  /** Raw game values (weather, fog, light dwell 3 s); `instant` skips dwell and easing. */
-  setState(partial: Partial<WeatherState>, opts?: { instant?: boolean }): void;
+  /** Raw game values (weather, fog, light dwell 3 s); `instant` skips dwell and easing, `settle` only the dwell. */
+  setState(partial: Partial<WeatherState>, opts?: { instant?: boolean; settle?: boolean }): void;
   /** Sun / moon / darkness events, 'strike' (lightning), 'gust' (snow test). */
   emit(event: WeatherEvent, data?: unknown): void;
   /** Overrides the measured geometry (tests); normally automatic. */
@@ -67,6 +67,8 @@ export interface Weather {
   refresh(): void;
   setCategories(cats: Partial<Categories>): void;
   setMoonSpeed(speed: number): void;
+  /** The demo's time scale (1 = the game's pace): sun moments, the day ↔ night change, cloud cover, fog, rain and snow build-up, blood drying. */
+  setSpeed(speed: number): void;
   /** Worker frame times (ms). */
   stats(): Promise<FrameStats>;
   /** Resolves on the first drawn frame (rejects if the worker fails first). */
@@ -214,7 +216,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   const api: Weather = {
     ready,
     setState(partial, o) {
-      if (!destroyed) post({ t: 'state', s: partial, instant: !!o?.instant });
+      if (!destroyed) post({ t: 'state', s: partial, instant: !!o?.instant, settle: !!o?.settle });
     },
     emit(event, data) {
       if (!destroyed) post({ t: 'event', name: event, data });
@@ -242,6 +244,9 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     },
     setMoonSpeed(speed) {
       if (!destroyed) post({ t: 'moonSpeed', speed });
+    },
+    setSpeed(speed) {
+      if (!destroyed) post({ t: 'speed', speed });
     },
     stats() {
       if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1 });

@@ -21,6 +21,10 @@
 //   sky stays through most of the sunset and the night through most of the
 //   sunrise (owner feedback 29).
 // - A category that is off has its targets at 0, so it fades out.
+// - `speed` (the demo, `#weather demo`; 1 otherwise) runs the slow paces
+//   faster: the sky selection and its hold, and fog. The worker's modules
+//   read the same factor for sun moments, cloud cover, the rain's and snow's
+//   build-up and the blood's drying (`Env.speed`).
 
 import { ALL_CATEGORIES, type Categories, DEFAULT_STATE, type WeatherEvent, type WeatherState } from './protocol';
 
@@ -124,6 +128,8 @@ export class Director {
   /** Seconds the sky selection still waits after a clock change (SKY_HOLD_S). */
   private skyHold = 0;
   cats: Categories;
+  /** Demo time scale for the slow paces (sky selection, its hold, fog); 1 = the game's pace. */
+  speed = 1;
 
   constructor(state: Partial<WeatherState> = {}, cats: Categories = { ...ALL_CATEGORIES }) {
     this.raw = { ...DEFAULT_STATE, ...state };
@@ -134,13 +140,21 @@ export class Director {
 
   /**
    * Sets raw values. Returns the position change, if any (the 'position'
-   * event for the effects). `now` is the clock the dwell runs on (ms).
+   * event for the effects). With `settle` the dwelled values in `partial`
+   * are settled at once (the demo's pins), but still eased.
    */
-  set(partial: Partial<WeatherState>): { from: string; to: string } | null {
+  set(partial: Partial<WeatherState>, settle = false): { from: string; to: string } | null {
     const prev = this.raw.position;
     for (const k of Object.keys(partial) as (keyof WeatherState)[]) {
       const v = partial[k];
       if (v !== undefined) (this.raw as unknown as Record<string, unknown>)[k] = v;
+    }
+    if (settle) {
+      for (const k of DWELLED) {
+        if (partial[k] === undefined) continue;
+        (this.settled as unknown as Record<string, unknown>)[k] = this.raw[k];
+        this.pendingSince[k] = 0;
+      }
     }
     return this.raw.position !== prev ? { from: prev, to: this.raw.position } : null;
   }
@@ -187,15 +201,16 @@ export class Director {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     const k = 1 - Math.exp(-dt / MIX_TAU), m = this.mix;
     const fog0 = m.fog;
-    const sky = this.skyHold <= 0 ? dt * SKY_RATE : 0;
-    this.skyHold = Math.max(0, this.skyHold - dt);
+    const sdt = dt * this.speed;
+    const sky = this.skyHold <= 0 ? sdt * SKY_RATE : 0;
+    this.skyHold = Math.max(0, this.skyHold - sdt);
     for (const key of MIX_KEYS) {
       if (SKY_KEYS.has(key)) m[key] = toward(m[key], t[key], sky);
       else if (key === 'outdoors') m[key] = toward(m[key], t[key], dt * OUT_RATE);
       else m[key] += (t[key] - m[key]) * k;
     }
     // fog: a constant rate (switching the category off still fades at MIX_TAU)
-    if (this.cats.fog) m.fog = toward(fog0, t.fog, dt * FOG_RATE);
+    if (this.cats.fog) m.fog = toward(fog0, t.fog, sdt * FOG_RATE);
   }
 
   /** Settles and eases in one go (one frame). */

@@ -213,8 +213,7 @@ export class DayLife {
       this.nextBug -= dt;
       if (this.nextBug <= 0) {
         this.nextBug = rr(BUG_GAP[0], BUG_GAP[1]);
-        const x = W * rr(0.15, 0.85), y = H * rr(0.2, 0.5);
-        this.bug = { x, y, tx: x, ty: y, age: 0, life: rr(3, 5), hold: 0 };
+        this.insectNow();
       }
     }
     for (let i = this.flocks.length - 1; i >= 0; i--) {
@@ -289,6 +288,11 @@ export class DayLife {
   /** Send a flock now (dev / tests). */
   birdsNow(): void {
     this.spawnFlock();
+  }
+  /** An insect now (dev / the demo). */
+  insectNow(): void {
+    const x = this.W * rr(0.15, 0.85), y = this.H * rr(0.2, 0.5);
+    this.bug = { x, y, tx: x, ty: y, age: 0, life: rr(3, 5), hold: 0 };
   }
 
   private drawGlimpse(b: Ctx, f: Ctx, panes: readonly FrameBox[], T: number, e: number, sx: number, sy: number, glints: Glints): void {

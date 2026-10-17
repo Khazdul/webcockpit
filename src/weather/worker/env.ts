@@ -37,6 +37,13 @@ export interface Env {
   shared: { flash: number; boltX: number };
   /** Moon crossing speed factor (1 = game pace; the prototype demo used 600 / 90). */
   moonSpeed: number;
+  /**
+   * The demo's time scale (`#weather demo`; 1 = the game's pace): sun
+   * moments, cloud cover, the rain's and snow's build-up and the blood's
+   * drying run this much faster (the director's sky selection and fog
+   * likewise, `Director.speed`).
+   */
+  speed: number;
   noise(x: number, y: number): number;
   fbm(x: number, y: number): number;
   now: number;

@@ -58,10 +58,11 @@ export type WeatherEvent =
   | 'darkness.end'
   | 'strike'
   | 'gust'
-  /** Dev / screenshots: a flock of birds, a sun glimpse, a shooting star now (the sky makes them on its own, rarely). */
+  /** Dev / screenshots / the demo: a flock of birds, a sun glimpse, a shooting star, an insect now (the sky makes them on its own, rarely). */
   | 'birds'
   | 'glimpse'
-  | 'shoot';
+  | 'shoot'
+  | 'insect';
 
 /** Options → Weather effects categories. Off fades the category out. */
 export interface Categories {
@@ -150,7 +151,8 @@ export type MainToWorker =
       state: WeatherState;
       moonSpeed: number;
     }
-  | { t: 'state'; s: Partial<WeatherState>; instant: boolean }
+  /** `instant`: settled and mixed at once (no dwell, no easing); `settle`: settled at once, eased as usual. */
+  | { t: 'state'; s: Partial<WeatherState>; instant: boolean; settle?: boolean }
   | { t: 'event'; name: WeatherEvent; data?: unknown }
   | { t: 'geom'; g: Geometry }
   /**
@@ -167,6 +169,8 @@ export type MainToWorker =
   /** The window has focus; without it the effects run at their slow rate. */
   | { t: 'focus'; on: boolean }
   | { t: 'moonSpeed'; speed: number }
+  /** The demo's time scale (1 = the game's pace): see `Director.speed`. */
+  | { t: 'speed'; speed: number }
   | { t: 'stats' };
 
 export interface FrameStats {
