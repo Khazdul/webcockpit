@@ -895,8 +895,25 @@ black: the brightest stroke stands out).
     nameplate is very light and looks wrong (`images/9.png`, the Map
     plate); elsewhere on a frame the bottom lines do not look light
     (`images/10.png`, a bottom rim).
+    - **Done (2026-10-17):** the nameplate's bottom edge had the light inner
+      line that the rim has where its bottom part meets the pane, but the
+      plate's bottom is a lower edge of the glass, like the frame's outer
+      bottom edge, so it read as a bright stroke under the title. It now has
+      the same dark line as the plate's sides and rounded lower corners: one
+      unbroken dark edge from fillet to fillet, with the plate's soft shadow
+      below as before. Over black at 2× the line under the Map plate went from
+      about 147 grey (beside 104 for the plate's glass) to 56; the rest of the
+      frame is unchanged. Checked on the Map and Character plates, weather on
+      and off, dark and Paper, 1× and 2×.
 55. **Sun rays a little weaker.** Back the strength of the sun rays down
     a little. (Read as the day sun glimpses just strengthened in item 52.)
+    - **Done (2026-10-17):** the day sun glimpses are a quarter weaker: the
+      rays, the warm glow at the sun and the glints where a ray meets a frame
+      (the sparkle still comes on the strongest ones). The schedule is
+      unchanged (at least once a minute, most and strongest at midday). The
+      sunrise and sunset rays and beams are left as they are: a glimpse at
+      its peak is now about two thirds of a sunrise ray, and they did not look
+      too strong beside it; say if you want those down too.
 56. **Smoother transitions and snow; higher frame rates?** Transitions
     sometimes feel a little laggy, e.g. between a clear day and a day with
     clouds; falling snow also feels laggy at times. Is the frame rate too
