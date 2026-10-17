@@ -62,6 +62,11 @@
  * ink was L .17, near black, then .19, and the lip under the letters 70 %
  * of the highlight, then 60 %: no visible difference, so now clearly
  * softer both ways, ink L .28 and the lip 42 %, still engraved.)
+ * The bevel's light strokes are the highlight mixed in: the specular line
+ * 58 % and the light seam 32 % (owner item 51: at 85 % and 40 % the
+ * specular line, ~215 grey beside a ~80 grey rim over black, stung the eye;
+ * the dark edge eased to 56 % with it, so the rim keeps its depth). The
+ * title's lip (42 %) stays the dimmest light, under the seam and the line.
  * The rim and plate are the glass over what is behind, with a white sheen
  * from the top: at 52 % with weather on (weather.css; the sky behind tints
  * it), at 64 % over the flat page with weather off (at 52 % over black it
@@ -73,7 +78,7 @@
   --glass-hi: oklch(from var(--pane-border) 0.95 min(calc(c * 1.2), 0.018) h);
   --ink: oklch(from var(--pane-border) 0.28 min(calc(c * 4), 0.03) h);
   --glass-mix: 64%;
-  --glass-edge: rgb(0 0 0 / 0.62);
+  --glass-edge: rgb(0 0 0 / 0.56);
   --glass-seam: rgb(0 0 0 / 0.45);
 }
 
@@ -102,7 +107,7 @@
   border-radius: 4px;
   border: var(--frame-hair, 1px) solid var(--glass-edge);
   box-shadow:
-    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 color-mix(in srgb, var(--glass-hi) 85%, transparent),
+    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 color-mix(in srgb, var(--glass-hi) 58%, transparent),
     inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 color-mix(in srgb, var(--glass) 45%, transparent);
 }
 
@@ -126,7 +131,7 @@
 }
 
 .wc-pane-seam > .wc-seam-light {
-  stroke: color-mix(in srgb, var(--glass-hi) 40%, transparent);
+  stroke: color-mix(in srgb, var(--glass-hi) 32%, transparent);
 }
 
 /* The fill: the inside of the rim less the plate (`--frame-hole`), so the
