@@ -589,6 +589,14 @@ Weather:
 
 36. **Blue sky off on its own.** There is no way to switch off the blue
     day sky other than switching the weather effects off altogether.
+    - **Done (2026-10-17):** Options → Weather effects has a new row "Blue
+      day sky" under Sky (on by default). Off: by day the page background
+      shows where the blue sky and its warm sun glow were; clouds, rain,
+      birds, tufts, sun glimpses, sunrise and sunset, the night sky, stars
+      and moon all stay. At sunset the night sky fades in from the plain
+      background as softly as it did from the blue, and at sunrise it fades
+      out to it. Flipping the row fades the blue in or out over ~3 s. The
+      demo shows the blue sky and puts your choice back at the end.
 37. **Sun rays that make the frames glint where they hit.** The owner
     likes the frames glinting at sunrise and sunset, but it does not look
     like it happens where the rays hit them. Make the rays more

@@ -777,6 +777,19 @@ agent's browsers). `bench/results/` is not rewritten.
   further left than `LEFT_DARK` (a third of the width), so the moon setting
   low on the left does not light the top-left corner (owner feedback 28).
   Moonlight glints follow the moon's place, unchanged.
+- **Day sky switch (36).** Setting `weather.daySky` (default true;
+  `migrateWeather` reads it, absent = true) and `Categories.daySky`, so it
+  reaches the worker with the other categories (`setCategories`, live) and
+  the demo's all-on / restore covers it. It is not one of the six
+  `WEATHER_CATEGORIES` (rows and migration loop): Options shows it as its
+  own row under Sky, dimmed while Sky or the effects are off. In the worker
+  `Sky.dayK` eases toward it (tau 0.8 s); `skyColour` gives the day share
+  the colours of the rest of the sky (night, moon, grey; night alone at full
+  day) at alpha `day.a · dayK`, so the cached gradient's alpha, not its
+  colour, carries a day↔night change and the night fades in from the page
+  background. The warm sun glow and the day depth (`skyNow[9]`) scale by
+  `dayK` too. The grey wet-day sky stays: it belongs to the weather, not
+  to the blue sky. While `dayK` moves the sky asks for `FPS_FAST`.
 
 ## Consequences
 
