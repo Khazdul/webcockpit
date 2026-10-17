@@ -39,6 +39,24 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-17 — Stage 28 owner feedback round 2 (branch `weather-trial`)
+
+- **Done:** items 10–25. Frames: 3 px glass line (SVG path), 6 px gaps
+  both ways, title in a notch the line winds under, transparent close
+  cross, map flush to the line, one weather canvas per floating pane (see-
+  through at once, also when overlapping). Sky: magical darkness from the
+  room line "A deep, impenetrable darkness lingers here." (not light `o`),
+  moon by day and an even arc driven by Event.Moon/almanac, glints on
+  frames (sun rays, shooting stars, lightning, glimpses), blue day sky with
+  birds/tufts/glimpses, staggered clouds, no left-edge fade, more stars.
+- **Checked:** typecheck, unit 2624, e2e weather/layout/map/phone-frames/
+  script-panes; latency bench unchanged.
+- **Open:** chromium "a drag shows its cursor on a shield" fails on main
+  too (pre-existing). Sunrise glint still a straight band across the
+  title notch. Darkness XML tag and live Event.Darkness unseen.
+- **Next:** owner retests.
+- **Commits:** 93cf1a0…(this commit) on `weather-trial`.
+
 ### 2026-10-17 — Stage 28 owner feedback round 1 (branch `weather-trial`)
 
 - **Done:** all nine feedback items. Frames: one colour, whole device
