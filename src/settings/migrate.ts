@@ -341,19 +341,26 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
 
 /**
  * Weather effects from anything (additive in stage 28: every category on,
- * the blue day sky on). Stored settings are off unless they say on: only a
- * new player starts with them on (ADR 0092).
+ * the blue day sky on). A missing or invalid `enabled` is on on a desktop
+ * and off on a phone (ADR 0092): existing desktop users get the weather
+ * with the update, a phone never starts with it; a stored choice is kept.
  */
-export function migrateWeather(raw: unknown): WeatherSettings {
-  const d = { ...defaultSettings().weather, enabled: false };
+export function migrateWeather(raw: unknown, phone = false): WeatherSettings {
+  const d = { ...defaultSettings().weather, enabled: !phone };
   const x = isObj(raw) ? raw : {};
   const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled), daySky: bool(x.daySky, d.daySky) };
   for (const k of WEATHER_CATEGORIES) out[k] = bool(x[k], d[k]);
   return out;
 }
 
+/** Options for `migrateSettings`. */
+export interface MigrateOptions {
+  /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
+  phone?: boolean;
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
-export function migrateSettings(raw: unknown): Settings {
+export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settings {
   const d = defaultSettings();
   const s = isObj(raw) ? raw : {};
   const profile = typeof s.profile === 'string' && s.profile !== '' ? s.profile : d.profile;
@@ -370,6 +377,6 @@ export function migrateSettings(raw: unknown): Settings {
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
     mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
-    weather: migrateWeather(s.weather),
+    weather: migrateWeather(s.weather, opts.phone ?? false),
   };
 }

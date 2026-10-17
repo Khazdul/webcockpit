@@ -15,7 +15,9 @@ Character on top, the map under it across the whole dock, Timers and
 Group side by side, Comm, UI and the pane bar; Map search floating at the
 game pane's top-right corner. Of these, Character, UI and Map search
 start hidden, so the first screen shows the map, Timers | Group and Comm.
-Everything else stays as before. Existing users must not change.
+Everything else stays as before. Existing users must not change, except
+that (owner, same day) existing desktop users get the weather on with the
+update; a phone never starts with it.
 
 ## Decision
 
@@ -60,16 +62,22 @@ value in one is an existing user's:
 - `migratePanes`: a damaged Character or UI entry falls back to on.
 - `migrateMapper`: a missing or invalid tileset or background takes
   `LEGACY_MAPPER` (MMapper tiles, `#2e3436`).
-- `migrateWeather`: a missing `enabled` is false. Every record saved on
-  `main` lacks the weather section, so the effects stay off for every
-  existing user until they turn them on in Options → Weather.
+- `migrateWeather(raw, phone)`: a missing or invalid `enabled` is true on
+  a desktop. Every record saved on `main` lacks the weather section, so
+  every existing desktop user gets the weather with the update; a stored
+  explicit `enabled: false` (the user turned it off) is kept.
+  `migrateSettings(raw, { phone })` passes the device on, and
+  `SettingsStore` passes its own `phone` on load and on every update.
 - A stored layout keeps its map float. Options → Reset layout uses the new
   default (docked map); it does not touch toggles.
 
 ### Phone
 
 `phoneDefaultSettings()` keeps Character on (it is a tab, and useful) and
-the weather off (battery). The rest of this ADR (tileset, background,
+the weather off (battery). The weather is always off by default on a
+phone, also for an existing phone user: a stored record without a weather
+section, or with an invalid `enabled`, migrates to off there; a stored
+explicit `enabled: true` is kept. The rest of this ADR (tileset, background,
 layout) applies; the phone shows panes as tabs, so the dock layout only
 matters if the user leaves phone mode.
 
@@ -77,7 +85,10 @@ matters if the user leaves phone mode.
 
 - A new desktop player sees the weather, a docked transparent Shimrod map
   and three panes; the pane bar shows CHAR, UI and FIND dim.
-- Existing users see no change. The owner's own browser keeps its stored
-  settings; to see the new defaults, use a fresh profile/private window.
+- Existing desktop users see the weather after updating (they can turn it
+  off in Options → Weather, and that choice is kept); nothing else
+  changes for them. Existing phone users see no change. The owner's own
+  browser keeps its stored layout, tileset and background; to see the
+  new defaults, use a fresh profile/private window.
 - Tests written against the ADR 0078 defaults use
   `tests/unit/legacy-defaults.ts`.
