@@ -201,10 +201,13 @@ Where things live:
   gusts, lightning), `fog.ts`, `body.ts`, `env.ts`.
 - Options page: `src/chrome/frames/options-weather.tsx` (last in the
   Options hub); settings `weather` section (`migrateWeather`).
-- Frames: `src/panes/frame.ts` (`frameGeometry`, `frameGap`,
-  `framePath`), `src/panes/pane.ts` (SVG `.wc-pane-line` with the title's
-  gap; the worker gets it as `Pane.gap`, which glints and sun rays skip),
-  `src/layout/layout.css`; map flush to the line: `MapPane.fitFrame`.
+- Frames: `src/panes/frame.ts` (`frameGeometry`, `framePlate`,
+  `frameRimPath`, `frameHolePath`, `frameSeams`, `frameStrips`),
+  `src/panes/pane.ts` (`.wc-pane-blur`, `.wc-pane-rim`, `.wc-pane-frame`;
+  the worker gets the nameplate as `Pane.plate`, along which only the rim's
+  lip is lit), `src/layout/layout.css`, glass with weather in
+  `src/weather/weather.css` (`data-weather-flat` in Firefox); map flush to
+  the rim and cut round the plate: `MapPane.fitFrame`.
 - Tests: `tests/unit/weather*.test.ts`, `tests/unit/panes.test.ts`,
   `tests/e2e/weather.spec.ts`, `tests/e2e/layout.spec.ts`. Benches:
   `bench/weather-bench.ts` (latency), `bench/weather-power.ts` (CPU/W,
@@ -619,6 +622,22 @@ frames):
       reference for the build. Two fixes: the title sits a little too low
       on the plate (move it up), and the plate looks greyish while the rim
       looks bluish: the plate must have the same colour as the rim.
+    - **Done (2026-10-17):** design 14 is built into the app. Every framed
+      pane has the frosted glass rim (6 px) in its own colour and the light
+      nameplate hanging from it, joined by rounded fillets, with the title
+      in dark engraved letters. Rim and plate are now one piece of the same
+      glass, so the plate has exactly the rim's colour over any sky, and the
+      title sits in the middle of the plate (checked at 1×, 2× and 3×).
+      Inside the panes, light glass: the weather glimpsed through a slight
+      blur. In Firefox the glass has no blur (it cost a third more CPU in
+      heavy rain); it is a little denser instead and looks almost the same.
+      With weather off the panes are opaque as before, and the rims a little
+      denser so they do not look dull on black. Light page (Paper): pastel
+      rims with softer dark edges. The map is cut around the plate; the
+      sun's beams glint on the new rims and pass over the plate's top edge
+      only, above the letters. Pane sizes, the text grid and the layout are
+      unchanged. Not yet restyled: the `#weather demo` caption box. ADR
+      0091 "Frames", addendum: glass rim and nameplate.
 
 Weather:
 

@@ -197,6 +197,113 @@ unchanged.
   `sky.ts` (being reworked): `drawRaysFront`'s lit top line (one rect over
   the frame width) and `drawRaysBack`'s shadow cut from the whole frame box.
 
+**Addendum (2026-10-17, owner item 35): glass rim and nameplate.**
+
+The owner picked mockup board 14 "Light hanging plate"
+(`notes/research/frame-mockup/V14.dc.html`) with two fixes: the title sat a
+little low on the plate, and the plate looked greyish beside the bluish rim.
+
+- **Shape.** A frosted glass rim `frameThickness` = max(3, round(cell-h ·
+  dpr / 3)) device px thick (6 px at the default Hack 17, 10 × 19 cell),
+  `frameInset` = a fifth of a cell width (2 px; two frames 4–4.5 px apart),
+  at least 1 px clear of the content cells; every edge on a whole device
+  pixel of the page as before. Outer corner radius 4 px. A nameplate hangs
+  from the top rim (`framePlate`): its sides 0.2 title advances outside the
+  label's spaces (label from the fourth cell, as before), its bottom at 8/9
+  of the top cell row (the mockup's 16 of 18 px), concave fillets and lower
+  corners of radius 4 px (less on small cells), all on whole device pixels.
+  The old SVG line, `frameGap`, `framePath`, `--frame-e` and `--gap-x0/x1`
+  are gone; pane.ts sets `--plate-x0/x1/y0/y1/r`, `--frame-hole`,
+  `--frame-hair` (one device px or more).
+- **One piece of glass (fix 2).** Cause of the grey plate: in the mockup the
+  plate was its own backdrop box over the pane's dark fill, so its 10 px
+  blur averaged mostly the fill; the rim averaged the sky. Now rim and plate
+  are one element (`.wc-pane-rim`, clipped with `path(evenodd, …)` to the
+  rounded outer edge less the hole: `frameRimPath`, `frameHolePath`), placed
+  before the fill in the pane, and the fill (`.wc-pane-frame::before`) is
+  clipped to the hole (the inside less the plate), so the plate sees what is
+  behind the pane, exactly as the rim does: same tint, same sheen, same
+  blur. The map's content is clipped around the plate the same way (the
+  plate covers its top-left corner, as the title did before). The worker's
+  pane tint (`paneTintRects`) and a float canvas's CSS tint leave out the rim
+  and the plate. Bevel: `::before` of the rim (a dark hairline edge, a
+  specular hairline top/left, a soft one bottom/right); the inner seam is an
+  SVG path along the hole's edge stroked twice the hairline (the clip keeps
+  the inner half), dark top/left and round the plate, light on the plate's
+  bottom, right and bottom.
+- **Title (fix 1).** Bold, 0.68 em (≈ the mockup's 0.72 em of 15 px on an 18
+  px cell, scaled to the app's 17 px font in a 19 px cell), dark ink with a
+  light lip. Its box runs from the rim's outer edge to the plate's bottom,
+  the label's box is trimmed to the capitals (`text-box: trim-both cap
+  alphabetic`, Chromium and Firefox) and centred, lifted one device px: the
+  capitals sit in the middle of the plate as seen, in any font (in the
+  mockup the line box was centred on the plate below the lip, so lowercase
+  bodies sat low). Checked at 1×, 2×, 3×.
+- **Colour rule.** Every shade from the pane colour, `oklch(from
+  --pane-border L C h)`: glass L .66, C min(c × 10, .115); highlight L .95, C
+  min(c × 1.2, .018); ink L .17, C min(c × 4, .03); close cross L .94, C
+  min(c × 3, .028). The mockup's caps (.14, .05, .04) were out of sRGB for
+  Teal and Paper Plain (glass) and several presets (ink, cross); the caps are
+  the largest that keep every pane colour on every page preset in sRGB
+  (`tests/unit/frame-colors.test.ts` parses layout.css and checks). Plain
+  has chroma 0 and stays neutral.
+- **Density.** Rim and plate are the glass over what is behind: 52 % with
+  weather on (the sky tints it, as in the mockup), 64 % with weather off on a
+  dark page (52 % over flat black looked dull and the dark title lost
+  contrast), 60 % on a light page either way (`:root[data-light]`, with
+  softer dark edges, .42/.30 instead of .62/.45: a black hairline on Paper
+  looked drawn on). The fixed lightness reads well on Paper: the coloured
+  rims are pastel round the dark tinted panes, Plain is tan.
+- **Weather off.** No backdrop filter anywhere (behind a pane is only the
+  flat page; a float keeps its opaque terminal-background ring over the
+  game text): the fill is the opaque pane colour as before, the rim the same
+  colours over the page.
+- **Weather on (Chromium).** Rim and plate: `blur(9px) saturate(1.35)
+  brightness(1.06)`; inside: the pane colour at 55 % over `blur(2.5px)
+  saturate(1.25)`, a float 72 % over 3.5 px. The rim's blur is four strip
+  elements under the rim (`.wc-pane-blur > i`, `frameStrips`: the top with
+  the plate, left, right, bottom), each clipped to the glass in it: a
+  backdrop filter costs by the area of its box, not of what its clip leaves,
+  and one box round the rim cost as much as blurring the whole inside.
+- **Weather on (Firefox): no blur.** `glassBlurCheap` (support.ts, a Gecko
+  UA test) sets `data-weather-flat` on the cockpit with `data-weather`: no
+  blur strips, the inside at 64 % (a float 78 %), the rim at 60 %. Side by
+  side it reads almost the same (the weather behind is sharp, a bit
+  fainter).
+- **Engine.** `PaneGeom.border` is the rim (6 px); `PaneGeom.gap` is
+  replaced by `plate {x, w, y1, lip, r}` (screen px; `plateOf`). Along the
+  plate and its fillets only the rim's top `lip` px (2: the dark edge and the
+  specular line, above the letters) may be lit: `Glints.line` (beam, moon,
+  star glints), the lightning rim band, the rays' faint top lift; no sparkle
+  within 4.5 px of the plate. The snow dusting lies along the whole top now
+  (the rim runs on over the plate). Checked at sunrise: the beams' glints
+  land on the 6 px rims and stay subtle.
+- **Measured** (`bench/weather-power.ts`, headed, owner geometry, CPU ms/s
+  of all browser processes; the machine drifted ~15 % during the session, so
+  the decisions rest on interleaved A/B runs, one round each, two cycles,
+  heavy / sunset):
+
+  | Firefox | heavy | sunset |
+  |---|---|---|
+  | before (no glass) | 680 | 889 |
+  | rim strips + inside blur | ~900 (+30 %) | ~1110 (+25 %) |
+  | inside blur only | ~812 (+19 %) | ~1029 (+16 %) |
+  | inside blur 1 px only | 920 | 1046 |
+  | no blur (chosen) | ~700 (±0) | ~873 (±0) |
+
+  Chromium, before → chosen (rim strips + inside blur): heavy 470–478 →
+  499–500, sunset 477–492 → 503–507 (+5 %). A first prototype (one rim box
+  round the pane + inside blur) cost Chromium +44 % (heavy 515 → 742), the
+  rim box alone 680, the inside alone 628. Latency (`bench/weather-bench.ts
+  --rounds 2`, heavy scene): with the blur in Firefox, text → painted went
+  from median 9 / p95 17 ms to 76 / 230 ms; with the chosen no-blur glass it
+  is 9.0–9.6 / 18.4–18.5 ms (baseline re-run at the same time 9.6–9.9 /
+  18.0–18.2); Chromium on 10.6–11.3 / 18.9–19.2 ms (before 9.8–11.5 /
+  19.9–20.5). Calm and off are unchanged in both. `bench/results/` is not
+  rewritten.
+- Not changed: the weather demo's caption box still draws the old glass line
+  (demo.css).
+
 ### Engine (stage 28 B)
 
 - `src/weather/`: `index.ts` (main thread, `createWeather(host)`),
