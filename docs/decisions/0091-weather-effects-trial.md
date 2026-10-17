@@ -790,6 +790,36 @@ agent's browsers). `bench/results/` is not rewritten.
   background. The warm sun glow and the day depth (`skyNow[9]`) scale by
   `dayK` too. The grey wet-day sky stays: it belongs to the weather, not
   to the blue sky. While `dayK` moves the sky asks for `FPS_FAST`.
+- **Sun beams and where frames glint (37).** `worker/beams.ts` (pure,
+  unit tested): `sunBeams` gives three beams (offsets −0.064, 0, +0.05 rad
+  from the bundle's middle; half-widths 0.0075–0.0105 rad; strengths
+  0.62–1 with a slow ±12 % shimmer). The middle aims at `beamAim`, a point
+  that sweeps over the moment (sunset: (0.4 W, 1.05 H) → (1.06 W, 0.3 H);
+  sunrise: (−0.06 W, 0.3 H) → (0.6 W, 1.05 H)), so the beams sweep as the
+  sun moves. Each beam is three convex triangles (a soft wide glow, the
+  body, a thin core; alpha 0.07 / 0.16 / 0.2 × strength) with one radial
+  gradient that fades only to 0.3 at 1.25 × the far corner, so the path
+  stays defined across the screen. The beams are drawn after the shadow
+  wedges are cut, so panes do not hide them; inside a pane box (from the
+  top line's lower edge, as the wedges) they are drawn at `BEAM_INSIDE`
+  0.32. That without clips: `beamPieces` cuts each triangle into convex
+  pieces inside and outside the pane boxes (Sutherland–Hodgman against the
+  box's four half-planes, at most ~5 pieces per box crossed), each filled
+  as its own one-subpath path; additive fills of pieces that tile the
+  triangle leave no seam (on paper, multiply, a faint seam is possible).
+  About 9 triangle decompositions and 10–30 small fills per frame during a
+  moment. `beamHits` gives where each beam's middle crosses each framed
+  pane's top, bottom, left and right line (ray–line intersection), the
+  beam's width on the line (2 t tan(hw) / |sin| of the crossing angle), and
+  which crossing is the entry (nearest). `drawRaysFront` draws per hit two
+  on-line glints (`Glints.line`, so the title's gap is skipped): a soft one
+  2.2 × as long at 0.4 and a core 1.8 × the beam's width on the line
+  (24–220 px) at 1.3 × strength, with a sparkle on entry; the exit is
+  `BEAM_EXIT` 0.15 of it; a hit lying inside another pane gets
+  `BEAM_INSIDE`. Gone: the whole lit top line and sun-side line by
+  "proximity" and the glints running with the ray front; left: a faint
+  lift of every top line (0.1 × strength) and the front band at 0.045
+  (was 0.06). The faint rays: alpha 0.2 (was 0.3) for rays and cores.
 
 ## Consequences
 

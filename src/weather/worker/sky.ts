@@ -18,8 +18,9 @@
 //  - a big moon with its real phase on an arc from below the right edge
 //    (east) to below the left edge (west), like the sun, at the almanac's
 //    place and pace (720 s up); by day much fainter (feedback 11, 38)
-//  - sunrise / sunset moments with rays, pane shadow wedges and a glint
-//    running along the frame lines with the ray front
+//  - sunrise / sunset moments: faint thin rays with pane shadow wedges, and
+//    a bundle of three strong beams sweeping across the screen; the frame
+//    lines glint exactly where a beam crosses them (beams.ts, feedback 37)
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
 //    bleed from the top and the corners; shrink / end: a brief lightening.
 //    Nothing else is red: no darkness sky (owner feedback 26)
@@ -33,6 +34,7 @@
 import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, sunBeams } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -349,6 +351,22 @@ export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, ou
   }
 }
 
+/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a bright thin core. */
+const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
+  [2.6, 0.07],
+  [1, 0.16],
+  [0.32, 0.2],
+];
+
+/** Fills one convex polygon (flat x, y list): one path, one subpath. */
+function polyFill(g: Ctx, P: readonly number[]): void {
+  g.beginPath();
+  g.moveTo(P[0]!, P[1]!);
+  for (let i = 2; i < P.length; i += 2) g.lineTo(P[i]!, P[i + 1]!);
+  g.closePath();
+  g.fill();
+}
+
 interface Moment {
   kind: 'rise' | 'set';
   t0: number;
@@ -418,6 +436,14 @@ class Sky {
   oz = 0;
   pts = new Float32Array(16);
   S = new Float32Array(2);
+  /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
+  beams: Beam[] = [];
+  beamK = 0;
+  hits: BeamHit[] = [];
+  boxes: Box[] = [];
+  tri = [0, 0, 0, 0, 0, 0];
+  pIn: number[][] = [];
+  pOut: number[][] = [];
   S2 = new Float32Array(2);
   hor0 = 0;
   hor1 = 0;
@@ -1312,47 +1338,91 @@ class Sky {
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
-    f.globalAlpha = 0.06 * I * wetK;
+    // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
+    f.globalAlpha = 0.045 * I * wetK;
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
-    const col = `rgb(${rgb})`;
-    for (const q of env.panes) {
-      const cx = q.x + q.w / 2, cy = q.y + q.h / 2;
-      const d = Math.hypot(cx - sx, cy - sy);
-      const prox = 0.35 + 0.65 * Math.exp(-((d - front) * (d - front)) / (bw * bw * 0.8));
-      const a = I * prox * wetK * this.fogK;
-      if (a < 0.02 || !q.border) continue;
-      // The lit lines, exactly on the line (top, and the side toward the sun):
-      // rect fills, no strokes or halo (ADR 0091; a soft band blurred the line).
-      const t = q.border, side = sx > cx ? q.x + q.w - t : q.x;
-      f.fillStyle = col;
-      f.globalAlpha = a * 0.55;
-      // the top line stops at the title's gap (owner feedback 19, 32)
-      const gp = q.gap;
-      if (gp) {
-        if (gp.x > q.x) f.fillRect(q.x, q.y, gp.x - q.x, t);
-        const gx = gp.x + gp.w;
-        if (gx < q.x + q.w) f.fillRect(gx, q.y, q.x + q.w - gx, t);
-      } else f.fillRect(q.x, q.y, q.w, t);
-      f.globalAlpha = a * 0.32;
-      f.fillRect(side, q.y + t, t, q.h * 0.6);
-      // Where the ray front crosses the top line: a bright glint running along it (owner feedback 20).
-      const dy = q.y - sy;
-      if (front > Math.abs(dy)) {
-        const r = Math.sqrt(front * front - dy * dy);
-        for (const gx of [sx - r, sx + r]) if (gx > q.x - 40 && gx < q.x + q.w + 40) this.glints.line(f, q, 't', gx, 150, I * wetK * this.fogK * 0.95, 0.9);
+    // Every framed pane: at most a faint lift of its top line (no more lit
+    // lines by nearness to the sun or the ray front; owner feedback 37).
+    const lift = I * wetK * this.fogK * 0.1;
+    if (lift > 0.01) {
+      f.fillStyle = `rgb(${rgb})`;
+      f.globalAlpha = lift;
+      for (const q of env.panes) {
+        if (!q.border) continue;
+        const t = q.border, gp = q.gap;
+        // the top line stops at the title's gap (owner feedback 19, 32)
+        if (gp) {
+          if (gp.x > q.x) f.fillRect(q.x, q.y, gp.x - q.x, t);
+          const gx = gp.x + gp.w;
+          if (gx < q.x + q.w) f.fillRect(gx, q.y, q.x + q.w - gx, t);
+        } else f.fillRect(q.x, q.y, q.w, t);
       }
-      // and down the sunward side line
-      const dxs = side + t / 2 - sx;
-      if (front > Math.abs(dxs)) {
-        const gy = sy + Math.sqrt(front * front - dxs * dxs);
-        if (gy > q.y && gy < q.y + q.h) this.glints.line(f, q, sx > cx ? 'r' : 'l', gy, 110, I * wetK * this.fogK * 0.7, 0.6);
+    }
+    // Where a strong beam crosses a frame line, that stretch of the line
+    // glints: a soft wider glow of the line and a bright core within the
+    // beam's width, a sparkle where it enters the pane (owner feedback 37).
+    const bk = this.beamK;
+    if (bk > 0.01) {
+      f.globalCompositeOperation = this.glints.comp;
+      for (let i = 0; i < this.beams.length; i++) {
+        const b = this.beams[i]!;
+        for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
+          const a = bk * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
+          if (a < 0.02) continue;
+          // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line
+          const len = clamp(h.len * 1.8, 24, 220);
+          this.glints.line(f, h.p, h.side, h.c, len * 2.2, a * 0.4);
+          this.glints.line(f, h.p, h.side, h.c, len, Math.min(1, a * 1.3), h.enter && a > 0.2 ? 1 : 0);
+        }
       }
-      f.globalCompositeOperation = this.th.add;
     }
     f.globalAlpha = 1;
     f.globalCompositeOperation = 'source-over';
+  }
+  /**
+   * The strong beams in the middle of the fan (owner feedback 37): each a
+   * soft wide wedge, its body and a bright thin core, all convex triangles
+   * with one gradient that fades slowly along the beam, so each reads as a
+   * defined path across the screen. Drawn before the panes' shadow wedges
+   * are cut, so inside and behind a pane a beam is weaker like the rays.
+   */
+  drawBeams(g: Ctx, env: Env, kind: 'rise' | 'set', p: number, sx: number, sy: number, far: number, I: number): void {
+    const W = env.W, H = env.H;
+    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
+    if (this.beams.length !== BEAMS) this.beams = [];
+    sunBeams(kind, p, this.T, sx, sy, W, H, this.beams);
+    if (bk < 0.01) return;
+    const c = this.col;
+    const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
+    const L = far * 1.25;
+    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, L);
+    gr.addColorStop(0, `rgba(${rgb},1)`);
+    gr.addColorStop(0.5, `rgba(${rgb},.8)`);
+    gr.addColorStop(1, `rgba(${rgb},.3)`);
+    g.fillStyle = gr;
+    // the pane boxes from the top line's lower edge, as the shadow wedges
+    const boxes = this.boxes;
+    boxes.length = 0;
+    for (const q of env.panes) boxes.push([q.x, q.y + q.border, q.x + q.w, q.y + q.h]);
+    const light = this.th.light ? 0.7 : 1, tri = this.tri, inside = this.pIn, outside = this.pOut;
+    for (const b of this.beams) {
+      for (const [w, al] of BEAM_LAYERS) {
+        const hw = b.hw * w, a = bk * b.k * al * light;
+        tri[0] = sx;
+        tri[1] = sy;
+        tri[2] = sx + Math.cos(b.a - hw) * L;
+        tri[3] = sy + Math.sin(b.a - hw) * L;
+        tri[4] = sx + Math.cos(b.a + hw) * L;
+        tri[5] = sy + Math.sin(b.a + hw) * L;
+        beamPieces(tri, boxes, inside, outside);
+        g.globalAlpha = a;
+        for (const P of outside) polyFill(g, P);
+        g.globalAlpha = a * BEAM_INSIDE;
+        for (const P of inside) polyFill(g, P);
+      }
+    }
   }
   drawRaysBack(env: Env, p: number, I: number): void {
     const W = env.W, H = env.H, M = this.moment!, g = env.back, S = this.S;
@@ -1388,7 +1458,8 @@ class Sky {
       a0 = Math.min(a0, a);
       a1 = Math.max(a1, a);
     }
-    // Few, thin rays (owner feedback 30: were 15, half-widths 0.5–2.2°, now 0.2–0.8°).
+    // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
+    // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
     const T = this.T, N = 8, L = far * 1.2;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
@@ -1399,7 +1470,7 @@ class Sky {
       const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + Math.sin(T * 0.15 + i) * 0.006;
       const wd = 0.0035 + j * 0.01;
       const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1));
-      g.globalAlpha = k * al * 0.3;
+      g.globalAlpha = k * al * 0.2;
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
@@ -1409,7 +1480,7 @@ class Sky {
       const ww = wd * 0.35;
       cores.push(a - ww, a + ww);
     }
-    g.globalAlpha = k * 0.3;
+    g.globalAlpha = k * 0.2;
     for (let i = 0; i < cores.length; i += 2) {
       g.beginPath();
       g.moveTo(sx, sy);
@@ -1443,6 +1514,9 @@ class Sky {
         hullFill(g, pts);
       }
     }
+    // The beams after the shadows: no pane hides them (owner feedback 37).
+    g.globalCompositeOperation = this.th.add;
+    this.drawBeams(g, env, M.kind, p, sx, sy, far, I);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }

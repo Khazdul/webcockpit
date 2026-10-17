@@ -1,5 +1,5 @@
 // Brief glints on the pane frame lines (owner feedback 20, 2026-10-17): a
-// short bright stretch of the line itself where a sunrise ray front, a
+// short bright stretch of the line itself where a sunrise beam, a
 // shooting star, a sun glimpse or the moon passes. Drawn on the front
 // layer, exactly on the line (the frame box's x/y/w/h and its `border`
 // thickness; nothing outside it), so the line stays sharp: no halo, no

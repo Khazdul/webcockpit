@@ -605,6 +605,21 @@ Weather:
     and its frame, that part of the frame glints, so the glint is seen to
     happen where the strongest rays hit (which depends on where the panes
     are on screen).
+    - **Done (2026-10-17):** in a sunrise or sunset, three strong, clearly
+      edged beams now run from the sun in the middle of the ray fan, in
+      straight lines across the screen, and sweep slowly over the moment (a
+      sunset from the top left starts steep and ends flat toward the upper
+      right; a sunrise from the top right the other way round). The other
+      rays are fainter than before. Where a beam crosses a frame line, that
+      stretch of the line glints, about as wide as the beam, with a small
+      sparkle where the beam enters the pane; where it leaves, only a trace.
+      A pane no beam crosses gets just a faint lift of its top line; the old
+      lit top and sun-side lines and the glint running with the ray front
+      are gone. The beams are not blocked by panes (they go on behind them),
+      only weaker inside a pane, like the rays. Which panes glint depends on
+      where they are on the screen and where the beams are at that moment.
+      Checked in `#weather demo` (Sunrise, Sunset) and with the `sun.rise` /
+      `sun.set` dev events, on dark and light pages.
 38. **Moon direction.** The game said "The moon disappears in the west."
     but our moon set on the right side of the screen. Swap the sides the
     moon rises and sets on.

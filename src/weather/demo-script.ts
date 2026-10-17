@@ -55,7 +55,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunrise',
-    look: 'thin rays cross the screen and glint along the frame lines; the day comes in the second half',
+    look: 'a few strong beams sweep across the screen; frame lines glint where the beams cross them; the day comes in the second half',
     signal: 'Event.Sun rise',
     dur: 8.5,
     slow: 25,
@@ -178,7 +178,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset',
-    look: 'rays and glints again; the blue sky lingers, then slowly turns into the starry night; a shooting star',
+    look: 'beams and glints again, from the left; the blue sky lingers, then slowly turns into the starry night; a shooting star',
     signal: 'Event.Sun set',
     dur: 9.5,
     slow: 27,
