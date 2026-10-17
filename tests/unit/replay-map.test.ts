@@ -15,6 +15,7 @@ import { replayMapHost } from '../../src/replay/map-host';
 import { defaultSettings, migrateSettings } from '../../src/settings';
 import { defaultExportDoc } from '../../src/share/edits';
 import { buildReplayPayload } from '../../src/share/payload';
+import { adr0078Settings } from './legacy-defaults';
 import { gridMap } from './map-grid';
 import { BASE_US, makeLog, meta } from './player-helpers';
 
@@ -175,11 +176,12 @@ describe('replay map host', () => {
 });
 
 describe('map pane layout in replays', () => {
+  // Recorded with the ADR 0078 defaults (the map floating).
   it('replays the map pane on/off, its auto float and a moved float rect from VIEW records', () => {
-    const d = defaultSettings();
+    const d = adr0078Settings();
     d.panes.map.on = true;
     const auto = parseView(JSON.stringify({ panes: d.panes, layout: d.layout }))!;
-    const s1 = migrateSettings(defaultSettings());
+    const s1 = migrateSettings(adr0078Settings());
     overlayView(s1, auto);
     const m1 = migrateSettings(s1);
     expect(m1.panes.map.on).toBe(true);
@@ -189,17 +191,27 @@ describe('map pane layout in replays', () => {
     const f = moved.floating.find((x) => x.id === 'map')!;
     Object.assign(f, { x: 3, y: 4, w: 40, h: 12 });
     delete f.auto;
-    const s2 = migrateSettings(defaultSettings());
+    const s2 = migrateSettings(adr0078Settings());
     overlayView(s2, parseView(JSON.stringify({ panes: d.panes, layout: moved }))!);
     const m2 = migrateSettings(s2);
     expect(m2.layout.floating.find((x) => x.id === 'map')).toEqual({ id: 'map', x: 3, y: 4, w: 40, h: 12 });
 
     // A VIEW from before the map existed: the map is off and floats at its default spot.
     const old = { panes: { character: d.panes.character }, layout: { docks: d.layout.docks, floating: [] } };
-    const s3 = migrateSettings(defaultSettings());
+    const s3 = migrateSettings(adr0078Settings());
     overlayView(s3, parseView(JSON.stringify(old))!);
     const m3 = migrateSettings(s3);
     expect(m3.panes.map.on).toBe(false);
     expect(m3.layout.floating.find((x) => x.id === 'map')).toMatchObject({ auto: true });
+  });
+
+  it('replays a docked map from a VIEW recorded with the new-player defaults (ADR 0092)', () => {
+    const d = defaultSettings();
+    const s = migrateSettings(adr0078Settings());
+    overlayView(s, parseView(JSON.stringify({ panes: d.panes, layout: d.layout }))!);
+    const m = migrateSettings(s);
+    expect(m.layout.floating.find((x) => x.id === 'map')).toBeUndefined();
+    expect(m.layout.docks.right.head.map((p) => p.id)).toEqual(['character', 'map']);
+    expect(m.panes.character.on).toBe(false);
   });
 });

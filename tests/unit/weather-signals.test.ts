@@ -3,7 +3,7 @@ import type { XmlSpan } from '../../src/core/types';
 import { CharModel } from '../../src/gmcp/char';
 import { type ClockState, momentSeconds } from '../../src/gmcp/clock';
 import { moonAt } from '../../src/gmcp/gametime';
-import { migrateSettings, defaultSettings } from '../../src/settings';
+import { migrateSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings';
 import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
 import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
 import { SUN_U_STEP, WeatherSignals, almanacState, gmcpEvent, lineEvent, sunUpFraction, vitalsState } from '../../src/weather/signals';
@@ -313,11 +313,13 @@ describe('pin', () => {
 });
 
 describe('settings', () => {
-  it('defaults weather effects off with every category on, and migrates junk', () => {
-    expect(defaultSettings().weather).toEqual({ enabled: false, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true });
+  it('defaults weather effects on with every category on (ADR 0092), off on a phone, and migrates junk', () => {
+    expect(defaultSettings().weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true });
+    expect(phoneDefaultSettings().weather.enabled).toBe(false);
     const old = defaultSettings() as unknown as Record<string, unknown>;
     delete old.weather;
-    expect(migrateSettings(old).weather.enabled).toBe(false);
+    expect(migrateSettings(old).weather.enabled).toBe(true);
+    expect(migrateSettings(old, { phone: true }).weather.enabled).toBe(false);
     const m = migrateSettings({ ...defaultSettings(), weather: { enabled: true, fog: false, sky: 'yes' } });
     expect(m.weather).toEqual({ enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: false, darkness: true, body: true });
   });
@@ -338,6 +340,7 @@ describe('installWeather (the app hook)', () => {
     const { installWeather } = await import('../../src/weather/hook');
     const { SettingsStore } = await import('../../src/settings');
     const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    settings.update({ weather: { enabled: false } });
     const notes: string[] = [];
     const hook = installWeather({ bus: {} as never, game: {} as never, cockpit: {} as never, settings, notify: (t) => notes.push(t) });
     expect(hook.controller).toBeNull();
@@ -351,6 +354,17 @@ describe('installWeather (the app hook)', () => {
     settings.update({ weather: { enabled: false } });
     settings.update({ weather: { enabled: true } });
     expect(notes).toHaveLength(2);
+    hook.dispose();
+  });
+
+  it('a new player has the weather on (ADR 0092): where the browser cannot run it, the user is told at once', async () => {
+    const { installWeather } = await import('../../src/weather/hook');
+    const { SettingsStore } = await import('../../src/settings');
+    const settings = new SettingsStore({ factory: null, storage: null, win: null });
+    const notes: string[] = [];
+    const hook = installWeather({ bus: {} as never, game: {} as never, cockpit: {} as never, settings, notify: (t) => notes.push(t) });
+    expect(await hook.settled()).toBeNull();
+    expect(notes).toHaveLength(1);
     hook.dispose();
   });
 });

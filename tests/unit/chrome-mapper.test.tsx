@@ -11,7 +11,7 @@ import { runMapToolRequest } from '../../src/map/tools';
 import { lazyDb } from '../../src/panes/context';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
-import { SettingsStore } from '../../src/settings';
+import { LEGACY_MAPPER, SettingsStore } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
 import { gridMap } from './map-grid';
 
@@ -43,6 +43,8 @@ afterEach(() => {
 
 function services(maps: MapStore): ChromeServices {
   const settings = new SettingsStore({ factory: null, storage: null, win: null });
+  // The mapper these tests were written for: MMapper tiles on the default grey (before ADR 0092).
+  settings.update({ mapper: { ...LEGACY_MAPPER } });
   const cells = new CellMetrics({ measure: () => ({ w: 10, h: 20, px: 15, ls: 0 }), loadFont: async () => {} });
   void cells.update(settings.get().appearance);
   return {

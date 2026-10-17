@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RunEvent } from '../../src/runs/events';
 import { defaultSettings } from '../../src/settings';
+import { adr0078Settings } from './legacy-defaults';
 import { captureEntries, stripAnsi } from '../../src/share/capture';
 import { type ExportDoc, defaultExportDoc } from '../../src/share/edits';
 import { buildReplayPayload, editRunText, payloadEdits, replaySettings } from '../../src/share/payload';
@@ -126,7 +127,8 @@ describe('buildReplayPayload', () => {
 
   it('removes excluded text, keeps state, computes cuts and filters markers', () => {
     const d = doc({ title: ' Fight ', excludes: [[us(6), us(9)]], comments: [{ beforeUs: us(7), text: 'x'.repeat(90) }] });
-    const settings = defaultSettings();
+    // The ADR 0078 defaults: the default tileset, which a replay keeps as it is.
+    const settings = adr0078Settings();
     const p = buildReplayPayload(chain(), events, d, settings);
     expect(p).toMatchObject({ schema: 1, title: 'Fight', character: 'Rasta', level: 42, startUs: BASE_US });
     const all = p.runs.map((r) => r.text).join('');

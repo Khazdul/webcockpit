@@ -27,7 +27,7 @@ import {
 } from '../../src/map/render/palette';
 import type { Renderer } from '../../src/map/render/renderer';
 import { MAP_CONTEXT, MapWorkerCore } from '../../src/map/worker/core';
-import { defaultSettings } from '../../src/settings/types';
+import { defaultSettings, migrateMapper } from '../../src/settings';
 import { contrast, luminance } from '../../src/theme/color';
 
 /** White with LIGHT_BG_INK of it taken away: the lines on a light background. */
@@ -37,10 +37,12 @@ const LIGHT_INK = (() => {
 })();
 
 describe('map background choices', () => {
-  it('starts with the default, MMapper\'s #2e3436, which is the setting\'s default', () => {
+  it('starts with the default, MMapper\'s #2e3436; a new player starts transparent (ADR 0092), a stored mapper on the default', () => {
     expect(MAP_BACKGROUNDS[0]).toEqual({ name: 'Default', hex: '#2e3436' });
     expect(MAP_BG_DEFAULT).toBe('#2e3436');
-    expect(defaultSettings().mapper.background).toBe(MAP_BG_DEFAULT);
+    expect(defaultSettings().mapper.background).toBe(MAP_BG_TRANSPARENT);
+    expect(migrateMapper({}).background).toBe(MAP_BG_DEFAULT);
+    expect(migrateMapper({ background: 'bogus' }).background).toBe(MAP_BG_DEFAULT);
     expect(hexRgba(MAP_BG_DEFAULT)).toEqual(BACKGROUND);
   });
 

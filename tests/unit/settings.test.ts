@@ -78,32 +78,62 @@ async function stored(factory: IDBFactory): Promise<unknown> {
 }
 
 describe('migrateSettings', () => {
-  it('returns the defaults for garbage', () => {
+  it('returns the defaults for garbage, with the mapper an existing user\'s (ADR 0092)', () => {
+    // A stored record is an existing user's: no mapper section means the MMapper look.
+    const d = defaultSettings();
+    d.mapper = { ...d.mapper, tileset: 'default', background: '#2e3436' };
     for (const raw of [undefined, null, 42, 'x', [], {}]) {
-      expect(migrateSettings(raw)).toEqual(defaultSettings());
+      expect(migrateSettings(raw)).toEqual(d);
     }
   });
 
-  it('default layout (ADR 0078): Character over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {
+  it('an existing user keeps the MMapper look: a stored mapper without, or with an invalid, tileset or background (ADR 0092)', () => {
+    expect(migrateSettings({ mapper: { notes: true } }).mapper).toMatchObject({ tileset: 'default', background: '#2e3436' });
+    expect(migrateSettings({ mapper: { tileset: 'nope', background: 'navy' } }).mapper).toMatchObject({ tileset: 'default', background: '#2e3436' });
+    expect(migrateSettings({ mapper: { tileset: 'shimrod', background: 'transparent' } }).mapper).toMatchObject({ tileset: 'shimrod', background: 'transparent' });
+  });
+
+  it('weather on an update (ADR 0092): on for an existing desktop user without a choice, off on a phone; a stored choice is kept', () => {
+    // Desktop: every record from main lacks the section; an invalid `enabled` counts as none.
+    expect(migrateSettings({ profile: 'x' }).weather.enabled).toBe(true);
+    expect(migrateSettings({ weather: { enabled: 'yes' } }).weather.enabled).toBe(true);
+    expect(migrateSettings({ weather: { enabled: false } }).weather.enabled).toBe(false);
+    // Phone: off unless the user turned it on.
+    expect(migrateSettings({ profile: 'x' }, { phone: true }).weather.enabled).toBe(false);
+    expect(migrateSettings({ weather: { enabled: 1 } }, { phone: true }).weather.enabled).toBe(false);
+    expect(migrateSettings({ weather: { enabled: true } }, { phone: true }).weather.enabled).toBe(true);
+    // The categories default on either way.
+    expect(migrateSettings({}, { phone: true }).weather).toMatchObject({ sky: true, precipitation: true, lightning: true });
+  });
+
+  it('a damaged Character or UI entry in a stored pane map falls back to on (ADR 0092)', () => {
+    const p = migrateSettings({ panes: { character: 'x', ui: { color: 'black' }, comm: { on: true } } }).panes;
+    expect(p.character.on).toBe(true);
+    expect(p.ui.on).toBe(true);
+    expect(migrateSettings({ panes: { character: { on: false }, ui: { on: false } } }).panes.character.on).toBe(false);
+  });
+
+  it('default layout (ADR 0078, ADR 0092): Character and the map over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {
     const right = DEFAULT_SETTINGS.layout.docks.right;
-    expect(right.head).toEqual([{ id: 'character', desired: 9 }]);
+    expect(right.head).toEqual([
+      { id: 'character', desired: 9 },
+      { id: 'map', desired: DEFAULT_SHARE.map },
+    ]);
     expect(right.lanes).toEqual([
-      { size: 20, panes: [{ id: 'group', desired: DEFAULT_SHARE.lanes }] },
-      { size: 20, panes: [{ id: 'timers', desired: DEFAULT_SHARE.lanes }] },
+      { size: 25, panes: [{ id: 'group', desired: DEFAULT_SHARE.lanes }] },
+      { size: 25, panes: [{ id: 'timers', desired: DEFAULT_SHARE.lanes }] },
     ]);
     expect(right.tail).toEqual([
       { id: 'comm', desired: DEFAULT_SHARE.comm },
       { id: 'ui', desired: DEFAULT_SHARE.ui },
       { id: 'panebar/bar', desired: 1 },
     ]);
-    expect(DEFAULT_SETTINGS.layout.floating).toEqual([
-      { id: 'map', x: 0, y: 0, w: 60, h: 20, auto: true },
-      { id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' },
-    ]);
+    expect(DEFAULT_SETTINGS.layout.floating).toEqual([{ id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' }]);
     expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
     expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true });
-    // UI without a frame; the pane bar borderless and on; Map search off.
-    expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: true, color: 'black', border: false });
+    // Character off; UI off and without a frame; the pane bar borderless and on; Map search off.
+    expect(DEFAULT_SETTINGS.panes.character).toEqual({ on: false, color: 'black', border: true });
+    expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: false, color: 'black', border: false });
     expect(DEFAULT_SETTINGS.panes['panebar/bar']).toEqual({ on: true, color: 'black', border: false });
     expect(DEFAULT_SETTINGS.panes['mapsearch/main']).toEqual({ on: false, color: 'black', border: true });
     expect(Object.isFrozen(DEFAULT_SETTINGS.appearance.ansi)).toBe(true);
@@ -529,11 +559,11 @@ describe('SettingsStore', () => {
     const off = s.subscribe((n, p) => seen.push([n.appearance.size, p.appearance.size]));
     s.update({ appearance: { size: 18 } });
     s.update((d) => {
-      d.panes.ui.on = false;
+      d.panes.ui.on = true;
     });
     s.update((d) => ({ appearance: { size: d.appearance.size + 1 } }));
     expect(s.get().appearance.size).toBe(19);
-    expect(s.get().panes.ui.on).toBe(false);
+    expect(s.get().panes.ui.on).toBe(true);
     expect(s.get().appearance.fg).toBe('#c0c0c0');
     expect(seen).toEqual([
       [18, 17],
@@ -570,6 +600,34 @@ describe('SettingsStore', () => {
     expect(again.get().panes.ui.on).toBe(true);
     // Desktop defaults are unchanged.
     expect(make({ factory: new IDBFactory() }).defaults()).toEqual(defaultSettings());
+  });
+
+  it('a stored record without a weather section loads with the weather on a desktop, off on a phone (ADR 0092)', async () => {
+    for (const phone of [false, true]) {
+      const factory = new IDBFactory();
+      const a = make({ factory, phone });
+      await a.load();
+      a.update({ profile: 'pvp' });
+      await a.dispose();
+      // Strip the weather section, as in a record saved on main.
+      const rec = (await stored(factory)) as Record<string, unknown>;
+      delete rec.weather;
+      const db = await openWebcockpitDb(factory);
+      await new Promise<void>((res, rej) => {
+        const tx = db.transaction('settings', 'readwrite');
+        tx.objectStore('settings').put(rec, 'main');
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      db.close();
+      const b = make({ factory, phone });
+      await b.load();
+      expect(b.get().profile).toBe('pvp');
+      expect(b.get().weather.enabled).toBe(!phone);
+      // An update keeps it (the draft path migrates for the same device).
+      b.update({ appearance: { size: 20 } });
+      expect(b.get().weather.enabled).toBe(!phone);
+    }
   });
 
   it('arrays in a patch replace the whole array', async () => {
@@ -687,7 +745,8 @@ describe('SettingsStore', () => {
 
 describe('mapper settings (ADR 0077)', () => {
   it('defaults to notes on and a full hover, and clamps stored values', () => {
-    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
+    // A new player: Shimrod on a transparent map (ADR 0092); a stored mapper keeps the MMapper look.
+    expect(defaultSettings().mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' });
     expect(migrateSettings({ profile: 'x' }).mapper).toEqual({ notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(migrateMapper({ notes: false, hover: 'full' })).toEqual({ notes: false, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' });
     expect(migrateMapper({ hover: 'off', hoverSize: 'large', tileset: 'default' })).toEqual({ notes: true, hover: 'off', hoverSize: 'large', tileset: 'default', background: '#2e3436', backgroundBefore: '' });

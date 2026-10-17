@@ -1,6 +1,6 @@
 // Viewer overrides (ADR 0021): font, theme, pane toggles and layout over
 // the recorded settings; cycles; reset.
-import { legacyLayout } from './legacy-defaults';
+import { adr0078Settings, legacyLayout } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { PANE_IDS } from '../../src/layout/types';
 import { overlayView } from '../../src/player/fit';
@@ -70,10 +70,10 @@ describe('viewer overrides', () => {
     let o = withPane(noOverrides(), 'comm', false);
     o = withPane(o, 'map', true);
     o = withLayout(o, layout);
-    const s = defaultSettings();
+    const s = adr0078Settings();
     s.panes.map.on = false;
     // A VIEW record passes: recorded layout and panes, then the viewer's.
-    overlayView(s, { panes: defaultSettings().panes, layout: legacyLayout() });
+    overlayView(s, { panes: adr0078Settings().panes, layout: legacyLayout() });
     applyViewer(s, o);
     expect(s.panes.comm.on).toBe(false);
     expect(s.panes.map.on).toBe(true);

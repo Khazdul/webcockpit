@@ -132,6 +132,8 @@ describe('the demo runner', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     settings = new SettingsStore({ factory: null, storage: null, win: null });
+    // The effects off before the demo (the ADR 0078 default; a new player has them on, ADR 0092).
+    settings.update({ weather: { enabled: false } });
     root = document.createElement('div');
     game = document.createElement('div');
     root.append(game);
