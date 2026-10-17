@@ -766,6 +766,18 @@ agent's browsers). `bench/results/` is not rewritten.
   is built; `weatherFromUrl` (dev.ts) uses it, so `?weather` also applies
   when the cockpit comes from the start page's Enter MUME.
 
+### Moon side, day sky switch, sun beams (2026-10-17, owner feedback 36–38)
+
+- **Moon direction (38).** The game says "The moon disappears in the
+  west."; the sun already rose on the right (east) and set on the left
+  (west). The moon's arc (`moonPath`, `moonAt` in sky.ts, now exported and
+  unit tested) runs from 2.4 R right of the screen to 2.4 R left of it,
+  same sine height. `MOON_HOLD` (0.97, waiting for a late set event) is now
+  just past the left edge. The cool night glow follows the moon's x but no
+  further left than `LEFT_DARK` (a third of the width), so the moon setting
+  low on the left does not light the top-left corner (owner feedback 28).
+  Moonlight glints follow the moon's place, unchanged.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

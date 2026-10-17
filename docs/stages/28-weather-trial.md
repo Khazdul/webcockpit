@@ -600,3 +600,9 @@ Weather:
 38. **Moon direction.** The game said "The moon disappears in the west."
     but our moon set on the right side of the screen. Swap the sides the
     moon rises and sets on.
+    - **Done (2026-10-17):** the moon now comes up below the right edge
+      (east), crosses high and goes down below the left edge (west), the same
+      way as the sun. Its cool glow at night follows it, but stops about a
+      third of the way in from the left as it sets, so the top-left corner
+      stays dark; the moonlight on frame top lines follows it as before.
+      Without a set event it waits just past the left edge.

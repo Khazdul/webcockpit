@@ -15,9 +15,9 @@
 //  - stars in the upper sky (lower on the right, feedback 25), and shooting
 //    stars that cross the whole screen on the back layer, behind the panes'
 //    frames, glinting on the frame lines they pass (feedback 20, 24)
-//  - a big moon with its real phase on an arc from below the left edge to
-//    below the right edge, at the almanac's place and pace (720 s up); by
-//    day much fainter (feedback 11)
+//  - a big moon with its real phase on an arc from below the right edge
+//    (east) to below the left edge (west), like the sun, at the almanac's
+//    place and pace (720 s up); by day much fainter (feedback 11, 38)
 //  - sunrise / sunset moments with rays, pane shadow wedges and a glint
 //    running along the frame lines with the ray front
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
@@ -39,7 +39,7 @@ import { Glints } from './glint';
 
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
-/** Without its set event the moon waits here, low at the right edge. */
+/** Without its set event the moon waits here, low at the left (west) edge. */
 const MOON_HOLD = 0.97;
 /** Where a moon of unknown age shows (no synced almanac). */
 const MOON_START = 0.5;
@@ -316,6 +316,39 @@ function hullFill(g: Ctx, pts: Float32Array): void {
   g.fill();
 }
 
+export interface MoonPath {
+  x0: number;
+  x1: number;
+  yBase: number;
+  yTop: number;
+}
+/**
+ * The moon's arc for a W × H canvas and a moon of radius R: it comes up from
+ * below the right edge (east), crosses high and goes down below the left
+ * edge (west), as the sun does and as the game says ("The moon disappears in
+ * the west."; owner feedback 11, 38).
+ */
+export function moonPath(W: number, H: number, R: number): MoonPath {
+  return { x0: W + R * 2.4, x1: -R * 2.4, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
+}
+/** The moon's place at `u` (0 rise … 1 set) on `P`: x even along it, y on a sine arc. */
+export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
+  out[0] = lerp(P.x0, P.x1, u);
+  out[1] = P.yBase - (P.yBase - P.yTop) * Math.sin(Math.PI * clamp(u, 0, 1));
+}
+
+/** The sun in a sunrise (east: the top right, climbing) or sunset (west: the top left, sinking) moment at `p` (0..1). */
+export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
+  const q = sst(0, 1, p);
+  if (kind === 'rise') {
+    out[0] = W * (1.07 - 0.2 * q);
+    out[1] = H * (0.06 - 0.5 * q);
+  } else {
+    out[0] = W * (0.22 - 0.3 * q);
+    out[1] = H * (-0.42 + 0.5 * q);
+  }
+}
+
 interface Moment {
   kind: 'rise' | 'set';
   t0: number;
@@ -382,6 +415,7 @@ class Sky {
   oz = 0;
   pts = new Float32Array(16);
   S = new Float32Array(2);
+  S2 = new Float32Array(2);
   hor0 = 0;
   hor1 = 0;
   hor2 = 0;
@@ -395,7 +429,7 @@ class Sky {
   big = new Float32Array(0);
   nBig = 0;
   moon: MoonSurface | null = null;
-  mpath = { x0: 0, x1: 0, yBase: 0, yTop: 0 };
+  mpath: MoonPath = { x0: 0, x1: 0, yBase: 0, yTop: 0 };
   gTopRed: CanvasGradient | null = null;
   gRightRed: CanvasGradient | null = null;
   gLeftRed: CanvasGradient | null = null;
@@ -503,8 +537,7 @@ class Sky {
     const MR = Math.round(clamp(H * 0.05, 30, 56));
     if (!this.moon || this.moon.R !== MR) this.moon = new MoonSurface(MR, env.noise, this.th.light);
     this.moon.phase = -1;
-    // The moon comes up from below the left edge, crosses high and goes down below the right edge (owner feedback 11).
-    this.mpath = { x0: -MR * 2.4, x1: W + MR * 2.4, yBase: H * 0.8, yTop: Math.max(MR + 14, H * 0.1) };
+    this.mpath = moonPath(W, H, MR);
     this.life.resize(W, H);
     const bk = env.back;
     this.gTopRed = bk.createLinearGradient(0, 0, 0, H * 0.45);
@@ -766,7 +799,9 @@ class Sky {
     const out = this.outWas;
     if (a * out < 0.004) return;
     let su = SUN_U;
-    if (this.mVisNow > 0.05) su = lerp(su, clamp(this.mx / env.W, 0, 1), clamp(this.mVisNow * 1.5, 0, 1));
+    // The cool glow follows the moon, but not into the top-left corner as it
+    // sets in the west (owner feedback 28, 38): it stops a third of the way in.
+    if (this.mVisNow > 0.05) su = lerp(su, clamp(this.mx / env.W, LEFT_DARK, 1), clamp(this.mVisNow * 1.5, 0, 1));
     if (mI > 0.002) su = lerp(su, clamp(this.S[0]! / env.W, 0, 1), clamp(mI * 2, 0, 1));
     this.sideU = ease(this.sideU, su, dt, 0.5);
     s[7] = this.sideU * 100;
@@ -1137,7 +1172,7 @@ class Sky {
         this.u = MOON_START;
         this.moonPres = 0;
       }
-      // An even pace: its 720 s up (game pace), slowing only to wait for a late set event at the right edge.
+      // An even pace: its 720 s up (game pace), slowing only to wait for a late set event at the left edge.
       const slow = this.u < MOON_HOLD - 0.05 ? 1 : clamp((MOON_HOLD - this.u) / 0.05, 0, 1);
       this.u += ((dt * env.moonSpeed) / MOON_UP_S) * slow;
       if (this.uCorr !== 0) {
@@ -1150,11 +1185,11 @@ class Sky {
     this.moonPres = ease(this.moonPres, want, dt, 1.5);
     if (!want && this.moonPres < 0.01) this.u = -1;
   }
-  /** The moon's place at `u`: an even arc from below the left edge, high in the middle, to below the right edge. */
+  /** The moon's place at `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west). */
   moonPos(u: number): void {
-    const P = this.mpath;
-    this.mx = lerp(P.x0, P.x1, u);
-    this.my = P.yBase - (P.yBase - P.yTop) * Math.sin(Math.PI * clamp(u, 0, 1));
+    moonAt(this.mpath, u, this.S2);
+    this.mx = this.S2[0]!;
+    this.my = this.S2[1]!;
   }
   drawMoon(b: Ctx, env: Env, dt: number, wSun: number, wMoon: number, wNight: number, out: number): void {
     this.stepMoon(env, dt);
@@ -1225,16 +1260,6 @@ class Sky {
     f.globalCompositeOperation = 'source-over';
   }
 
-  sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-    const q = sst(0, 1, p);
-    if (kind === 'rise') {
-      out[0] = W * (1.07 - 0.2 * q);
-      out[1] = H * (0.06 - 0.5 * q);
-    } else {
-      out[0] = W * (0.22 - 0.3 * q);
-      out[1] = H * (-0.42 + 0.5 * q);
-    }
-  }
   drawIndoorTint(env: Env, k: number): void {
     const f = env.back, c = this.col, H = env.H * 0.13;
     const g = f.createLinearGradient(0, 0, 0, H);
@@ -1302,7 +1327,7 @@ class Sky {
   }
   drawRaysBack(env: Env, p: number, I: number): void {
     const W = env.W, H = env.H, M = this.moment!, g = env.back, S = this.S;
-    this.sunPos(M.kind, p, W, H, S);
+    sunPos(M.kind, p, W, H, S);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
     const k = I * (1 - 0.65 * this.wet) * this.fogK * (M.kind === 'set' ? 0.62 : 1.25);
