@@ -128,31 +128,97 @@ test('Dark paper and White: the map draws on them with dark lines (ADR 0085 adde
   expect(errors).toEqual([]);
 });
 
-test('Transparent: the map draws on the pane background and follows the theme and the pane tint (ADR 0085 addendum)', async ({ page }) => {
+/**
+ * Map pixels (below the title row) that change when what lies behind the
+ * canvas changes from magenta to green: the pixels the map leaves (partly)
+ * clear. Also the pixel count.
+ */
+async function seeThrough(page: Page): Promise<{ clear: number; total: number }> {
+  const r = (await page.locator('.wc-pane-map canvas').boundingBox())!;
+  const skip = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.wc-cockpit')!).getPropertyValue('--cell-h')));
+  const clip = { x: r.x, y: r.y + skip, width: r.width, height: r.height - skip };
+  const behind = (c: string) =>
+    page.evaluate((c) => {
+      let s = document.getElementById('behind-map');
+      if (!s) document.head.append((s = Object.assign(document.createElement('style'), { id: 'behind-map' })));
+      s.textContent = `.wc-pane-map, .wc-pane-map > .wc-pane-frame::before { background: ${c} !important; }`;
+    }, c);
+  await behind('#ff00ff');
+  const a = (await page.screenshot({ clip })).toString('base64');
+  await behind('#00ff00');
+  const b = (await page.screenshot({ clip })).toString('base64');
+  await page.evaluate(() => document.getElementById('behind-map')?.remove());
+  return page.evaluate(
+    async ([a, b]) => {
+      const pixels = async (png: string) => {
+        const img = await createImageBitmap(await (await fetch(`data:image/png;base64,${png}`)).blob());
+        const ctx = new OffscreenCanvas(img.width, img.height).getContext('2d')!;
+        ctx.drawImage(img, 0, 0);
+        return ctx.getImageData(0, 0, img.width, img.height).data;
+      };
+      const [da, db] = [await pixels(a), await pixels(b)];
+      let clear = 0;
+      for (let o = 0; o < da.length; o += 4) {
+        if (Math.abs(da[o]! - db[o]!) + Math.abs(da[o + 1]! - db[o + 1]!) + Math.abs(da[o + 2]! - db[o + 2]!) > 6) clear++;
+      }
+      return { clear, total: da.length / 4 };
+    },
+    [a, b] as const,
+  );
+}
+
+test('Transparent: the map leaves its empty space clear, tiles opaque, and follows the theme and the pane tint (ADR 0085 addenda)', async ({ page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?replay');
   await expect(page.locator('.wc-cockpit')).toBeVisible();
-  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } }, mapper: { background: 'transparent' } }));
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } } }));
   const pane = page.locator('.wc-app .wc-pane-map');
   const content = pane.locator('.wc-pane-content');
   await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });
-  const same = async () =>
-    pane.evaluate((el) => {
-      // A framed pane's fill is its frame box's ::before (ADR 0091 "Frames").
-      const framed = el.hasAttribute('data-framed');
-      const fill = getComputedStyle(framed ? el.querySelector('.wc-pane-frame')! : el, framed ? '::before' : null).backgroundColor;
-      return fill === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor;
-    });
-  await expect.poll(same).toBe(true);
-  // A paper theme, then a tinted pane: the map follows each.
+  // An opaque colour (the default): nothing behind the canvas shows (polled: the labels may still be coming in).
+  await expect.poll(async () => (await seeThrough(page)).clear, { timeout: 10_000 }).toBe(0);
+  // The map settles: the replay places the player (before that the map is all slate) and the count stops changing.
+  const all = (await seeThrough(page)).total;
+  let slate = -1;
+  await expect
+    .poll(
+      async () => {
+        const n = await countColour(page, SLATE);
+        const same = n === slate && n < all * 0.8;
+        slate = n;
+        return same;
+      },
+      { timeout: 15_000, intervals: [500] },
+    )
+    .toBe(true);
+  expect(slate).toBeGreaterThan(1000);
+
+  await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: 'transparent' } }));
+  await expect(content).toHaveAttribute('data-map-transparent', '');
+  expect(await content.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  // The empty space (where the default drew its slate) is clear; the tiles, lines and marks are not.
+  await expect.poll(async () => (await seeThrough(page)).clear, { timeout: 10_000 }).toBeGreaterThan(slate * 0.9);
+  const { clear, total } = await seeThrough(page);
+  expect(total - clear).toBeGreaterThan(1000);
+  expect(clear).toBeLessThan(slate * 1.2);
+  // Without anything behind, it looks as before: the pane's fill (the terminal background) where the slate was.
+  const termBg = await page.evaluate(() => window.__wc!.settings.get().appearance.bg.toLowerCase());
+  await expect(content).toHaveAttribute('data-map-bg', termBg);
+  const hex = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16)) as unknown as [number, number, number];
+  expect(await countColour(page, hex(termBg))).toBeGreaterThan(slate * 0.9);
+
+  // The colour the map fades lower layers into and picks its lines by follows the pane: a paper theme, then a tint.
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8' } }));
   await expect(content).toHaveAttribute('data-map-bg', '#f4ecd8');
-  await expect.poll(same).toBe(true);
   await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { color: 'blue' } } }));
   await expect(content).toHaveAttribute('data-map-bg', '#0e141c');
-  await expect.poll(same).toBe(true);
+  await expect.poll(() => countColour(page, [0x0e, 0x14, 0x1c]), { timeout: 10_000 }).toBeGreaterThan(slate * 0.9);
+  // Back to a colour: opaque again.
+  await page.evaluate(() => window.__wc!.settings.update({ mapper: { background: '#2e1214' } }));
+  await expect(content).not.toHaveAttribute('data-map-transparent');
+  await expect.poll(async () => (await seeThrough(page)).clear, { timeout: 10_000 }).toBe(0);
   expect(errors).toEqual([]);
 });

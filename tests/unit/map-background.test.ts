@@ -12,9 +12,21 @@ import {
   mapBgName,
 } from '../../src/map/backgrounds';
 import { MAP_PROTOCOL_VERSION, type WorkerToMain } from '../../src/map/protocol';
-import { BACKGROUND, LIGHT_BG_INK, type RGBA, hexRgba, isLightBackground } from '../../src/map/render/palette';
+import {
+  BACKGROUND,
+  LIGHT_BG_INK,
+  LOWER_LAYER_FADE,
+  type RGBA,
+  backgroundRgba,
+  clearRgba,
+  fadeRgba,
+  hexRgba,
+  isLightBackground,
+  isTransparentBackground,
+  withAlpha,
+} from '../../src/map/render/palette';
 import type { Renderer } from '../../src/map/render/renderer';
-import { MapWorkerCore } from '../../src/map/worker/core';
+import { MAP_CONTEXT, MapWorkerCore } from '../../src/map/worker/core';
 import { defaultSettings } from '../../src/settings/types';
 import { contrast, luminance } from '../../src/theme/color';
 
@@ -74,6 +86,40 @@ describe('map background choices', () => {
     expect(mapBgEffective('#000000', '#f4ecd8')).toBe('#000000');
   });
 
+  it('Transparent: the renderer gets the pane colour with alpha 0 and clears to nothing (addendum 2)', () => {
+    const t = backgroundRgba('#f4ecd8', true);
+    expect(t).toEqual(withAlpha(hexRgba('#f4ecd8'), 0));
+    expect(isTransparentBackground(t)).toBe(true);
+    expect(clearRgba(t)).toEqual([0, 0, 0, 0]);
+    // The lines still follow the pane colour (dark on paper).
+    expect(isLightBackground(t)).toBe(true);
+    // Every colour: opaque, cleared to itself, faded at 50 % as before.
+    for (const c of MAP_BACKGROUNDS.filter((x) => x.hex !== MAP_BG_TRANSPARENT)) {
+      const bg = backgroundRgba(c.hex);
+      expect(bg, c.name).toEqual(hexRgba(c.hex));
+      expect(isTransparentBackground(bg), c.name).toBe(false);
+      expect(clearRgba(bg), c.name).toEqual(bg);
+      expect(fadeRgba(bg), c.name).toEqual(withAlpha(bg, LOWER_LAYER_FADE));
+    }
+  });
+
+  it('the transparent fade moves drawn pixels toward the pane colour, keeps their alpha and leaves the empty space clear', () => {
+    // The renderer blends the fade with (DST_ALPHA, ONE_MINUS_SRC_ALPHA) for colour, (ZERO, ONE) for alpha, premultiplied.
+    const bg = backgroundRgba('#102030', true);
+    const f = fadeRgba(bg);
+    const blend = (dst: RGBA): RGBA => [0, 1, 2].map((i) => f[i]! * dst[3] + dst[i]! * (1 - f[3])).concat(dst[3]) as unknown as RGBA;
+    expect(blend([0, 0, 0, 0])).toEqual([0, 0, 0, 0]);
+    // An opaque tile: the same as the opaque fade (bg at 50 % over it).
+    const tile: RGBA = [1, 0.5, 0, 1];
+    const opaque = [0, 1, 2].map((i) => bg[i]! * 0.5 + tile[i]! * 0.5);
+    blend(tile).slice(0, 3).forEach((v, i) => expect(v).toBeCloseTo(opaque[i]!, 6));
+    expect(blend(tile)[3]).toBe(1);
+    // A half-covered edge (premultiplied): still half covered, its colour faded the same way.
+    const edge: RGBA = [0.5, 0.25, 0, 0.5];
+    blend(edge).slice(0, 3).forEach((v, i) => expect(v / 0.5).toBeCloseTo(opaque[i]!, 6));
+    expect(blend(edge)[3]).toBe(0.5);
+  });
+
   it('names a listed colour and shows any other as its code', () => {
     expect(mapBgName('#2E3436')).toBe('Default');
     expect(mapBgName('#000000')).toBe('Black');
@@ -93,7 +139,7 @@ describe('map background choices', () => {
 });
 
 describe('map worker background', () => {
-  function harness(background?: string) {
+  function harness(background?: string, transparent?: boolean) {
     const out: WorkerToMain[] = [];
     const frames: (() => void)[] = [];
     const set: RGBA[] = [];
@@ -106,7 +152,15 @@ describe('map worker background', () => {
       dispose: () => {},
       setBackground: (c) => void set.push(c),
     };
-    const canvas = { width: 0, height: 0, getContext: () => ({}) as WebGL2RenderingContext } as unknown as OffscreenCanvas;
+    const attrs: unknown[] = [];
+    const canvas = {
+      width: 0,
+      height: 0,
+      getContext: (_kind: string, a: unknown) => {
+        attrs.push(a);
+        return {} as WebGL2RenderingContext;
+      },
+    } as unknown as OffscreenCanvas;
     const core = new MapWorkerCore({
       post: (m) => void out.push(m),
       requestFrame: (cb) => void frames.push(cb),
@@ -126,13 +180,28 @@ describe('map worker background', () => {
       dpr: 1,
       assets: { kind: 'base', url: '/map/' },
       ...(background ? { background } : {}),
+      ...(transparent ? { transparent } : {}),
     });
-    return { core, set, frames, builds: () => builds };
+    return { core, set, frames, attrs, builds: () => builds };
   }
 
   it('gives the renderer the default, or the colour sent with init', () => {
     expect(harness().set).toEqual([BACKGROUND]);
     expect(harness('#000000').set).toEqual([[0, 0, 0, 1]]);
+  });
+
+  it('makes one premultiplied alpha context for every background (addendum 2)', () => {
+    expect(harness().attrs).toEqual([MAP_CONTEXT]);
+    expect(MAP_CONTEXT).toMatchObject({ alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: false });
+  });
+
+  it('Transparent: the pane colour with alpha 0, at init and live, and back', () => {
+    const h = harness('#0e141c', true);
+    expect(h.set).toEqual([withAlpha(hexRgba('#0e141c'), 0)]);
+    h.core.handle({ t: 'background', color: '#f4ecd8', transparent: true });
+    expect(h.set.at(-1)).toEqual(withAlpha(hexRgba('#f4ecd8'), 0));
+    h.core.handle({ t: 'background', color: '#000000' });
+    expect(h.set.at(-1)).toEqual([0, 0, 0, 1]);
   });
 
   it('applies a background message live and draws again', () => {

@@ -38,6 +38,8 @@ export interface MapClientOptions {
   assets: AssetSource;
   /** The map background, `#rrggbb` (ADR 0085); absent: the default. */
   background?: string;
+  /** Transparent (ADR 0085 Transparent addendum 2): `background` is the pane's colour, the empty space is clear. */
+  transparent?: boolean;
   onMessage: (m: WorkerToMain) => void;
 }
 
@@ -68,6 +70,7 @@ export class MapClient {
         dpr: o.dpr,
         assets: o.assets,
         ...(o.background ? { background: o.background } : {}),
+        ...(o.transparent ? { transparent: true } : {}),
       },
       [canvas],
     );
@@ -90,9 +93,9 @@ export class MapClient {
     this.post({ t: 'assets', assets });
   }
 
-  /** A new map background, `#rrggbb` (ADR 0085). */
-  background(color: string): void {
-    this.post({ t: 'background', color });
+  /** A new map background, `#rrggbb` (ADR 0085); `transparent`: the pane's colour, the empty space clear. */
+  background(color: string, transparent = false): void {
+    this.post(transparent ? { t: 'background', color, transparent } : { t: 'background', color });
   }
 
   resize(width: number, height: number, dpr: number): void {

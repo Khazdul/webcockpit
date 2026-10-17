@@ -40,7 +40,10 @@
 //
 // Background (ADR 0085): `init.background` and later `background`
 // messages set the renderer's clear colour (kept for a rebuilt renderer
-// after a context restore) and ask for a redraw.
+// after a context restore) and ask for a redraw. With `transparent` the
+// colour gets alpha 0: the renderer leaves the empty space clear (ADR 0085
+// Transparent addendum 2). The context always has premultiplied alpha, so
+// a change needs no new canvas.
 
 import { type AssetResolver, assetResolver } from '../assets';
 import { hoverInfo, roomAt } from '../hover';
@@ -64,7 +67,7 @@ import { type MapLoadPhase, type MapProgress, countingResolver, readBody } from 
 import { findRooms } from '../query';
 import { roomDetails, roomPath, searchRooms } from '../search';
 import type { Scene, SceneMark } from '../scene';
-import { BACKGROUND, type RGBA, hexRgba } from '../render/palette';
+import { BACKGROUND, type RGBA, backgroundRgba } from '../render/palette';
 import { type Renderer, type TileStyle, createRenderer } from '../render/renderer';
 import { Tracker } from '../tracking';
 import type { LearnedIdStore } from './ids';
@@ -76,6 +79,22 @@ export const MARK_TICK_MS = 66;
 export const PROGRESS_MS = 50;
 /** Blink period, ms. */
 const BLINK_MS = 1000;
+
+/**
+ * The map's WebGL context. With alpha, premultiplied (ADR 0085 Transparent
+ * addendum 2): an opaque background keeps every pixel at alpha 1 (the
+ * renderer's blending), a transparent one leaves the empty space clear.
+ * Fixed for the canvas's life, so it suits both and a change of the
+ * setting is drawn live.
+ */
+export const MAP_CONTEXT: WebGLContextAttributes = {
+  alpha: true,
+  premultipliedAlpha: true,
+  antialias: false,
+  depth: false,
+  stencil: false,
+  preserveDrawingBuffer: false,
+};
 
 /** A lingering mark's alpha: steady, a little below the blink's peak. */
 export const LINGER_ALPHA = 0.75;
@@ -174,7 +193,7 @@ export class MapWorkerCore {
         this.setAssets(m.assets);
         return;
       case 'background':
-        this.background = hexRgba(m.color);
+        this.background = backgroundRgba(m.color, m.transparent);
         this.renderer?.setBackground?.(this.background);
         this.requestRender();
         return;
@@ -240,14 +259,7 @@ export class MapWorkerCore {
     this.canvas = m.canvas;
     let gl: WebGL2RenderingContext | null = null;
     try {
-      gl = m.canvas.getContext('webgl2', {
-        alpha: false,
-        antialias: false,
-        depth: false,
-        stencil: false,
-        premultipliedAlpha: false,
-        preserveDrawingBuffer: false,
-      });
+      gl = m.canvas.getContext('webgl2', MAP_CONTEXT);
     } catch {
       gl = null;
     }
@@ -259,7 +271,7 @@ export class MapWorkerCore {
     this.assets = this.counted(assetResolver(m.assets, this.host.fetch));
     this.style = tileStyle(m.assets);
     const glc = gl;
-    if (m.background) this.background = hexRgba(m.background);
+    if (m.background) this.background = backgroundRgba(m.background, m.transparent);
     const build = (): Renderer => {
       const r = make(glc, this.assets!, () => this.requestRender(), this.style);
       r.setBackground?.(this.background);

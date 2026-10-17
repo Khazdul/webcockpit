@@ -28,7 +28,23 @@ import { buildConnections, type ConnectionLayer, type MapText } from './connecti
 import { type FontMetrics, FontVerts, FONT_STRIDE, fontFntPath, fontPagePath, fontSizeForDpr, layoutText, parseFnt } from './font';
 import { COLOR_STRIDE } from './geometry';
 import { buildInfomarks, type InfomarkLayer } from './infomarks';
-import { BACKGROUND, BLACK, GRAY70, LIGHT_BG_INK, NAMED_COLORS, NC, type RGBA, WATER, WHITE, hexRgba, isLightBackground, withAlpha } from './palette';
+import {
+  BACKGROUND,
+  BLACK,
+  GRAY70,
+  LIGHT_BG_INK,
+  NAMED_COLORS,
+  NC,
+  type RGBA,
+  WATER,
+  WHITE,
+  clearRgba,
+  fadeRgba,
+  hexRgba,
+  isLightBackground,
+  isTransparentBackground,
+  withAlpha,
+} from './palette';
 import { buildRoomMeshes, type Category, CATEGORY_TEX, roomsByLayer, type RoomLayerMesh } from './rooms';
 import * as S from './shaders';
 import { ARRAY_FILES, arraySize, CHAR_ARROWS_FILE, dottedWallImages, mipLevels, TEX } from './textures';
@@ -41,6 +57,18 @@ export const DOOR_NAME_ZOOM = 0.4;
 export const INFOMARK_ZOOM = 0.25;
 
 type GL = WebGL2RenderingContext;
+
+/**
+ * Colour "over" (SRC_ALPHA); alpha accumulates as premultiplied "over"
+ * (ONE, ONE_MINUS_SRC_ALPHA). The canvas has alpha and is premultiplied
+ * (ADR 0085 Transparent addendum 2): on an opaque background every pixel
+ * stays at alpha 1 and draws as before; on a transparent one (cleared to
+ * 0) the colour sums are premultiplied, so tile and line edges over the
+ * empty space composite without dark rims.
+ */
+function blendOver(gl: GL): void {
+  gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+}
 
 interface Program {
   p: WebGLProgram;
@@ -148,7 +176,7 @@ export class WebGLMapRenderer implements Renderer {
   private tileGenLoaded = 0;
   /** The newest font load failed (the map draws without text; nothing more will arrive). */
   private fontFailed = false;
-  /** The background (Options → Mapper, ADR 0085): the clear colour and the fade over lower layers. */
+  /** The background (Options → Mapper, ADR 0085): the clear colour and the fade over lower layers; alpha 0: transparent. */
   private bg: RGBA = BACKGROUND;
   /** The tiles in use draw their flow marks untinted (ADR 0088). */
   private streamsAsIs = false;
@@ -465,7 +493,8 @@ export class WebGLMapRenderer implements Renderer {
     gl.viewport(0, 0, this.pw, this.ph);
     gl.disable(gl.DEPTH_TEST);
     gl.disable(gl.CULL_FACE);
-    gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1);
+    const clear = clearRgba(this.bg);
+    gl.clearColor(clear[0], clear[1], clear[2], clear[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
     if (!this.map) return;
 
@@ -481,12 +510,12 @@ export class WebGLMapRenderer implements Renderer {
     gl.uniform2f(this.font.u.uPhys!, this.pw, this.ph);
 
     gl.enable(gl.BLEND);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    blendOver(gl);
     const cur = view.layer;
     // A light background (ADR 0085 addendum): the white lines turn dark.
     const ink = isLightBackground(this.bg) ? LIGHT_BG_INK : 0;
     for (const l of this.layers) {
-      if (l.z === cur && l.rooms) this.fullScreen(withAlpha(this.bg, 0.5));
+      if (l.z === cur && l.rooms) this.fade();
       if (l.rooms) this.drawLayer(l, cur);
       if (view.zoom >= CONNECTION_ZOOM) {
         if (l.conn) this.drawColor(l.conn, l.z === cur ? WHITE : withAlpha(GRAY70, 0.1), l.z === cur ? ink : 0);
@@ -499,6 +528,20 @@ export class WebGLMapRenderer implements Renderer {
       if (l?.markTextMesh) this.drawFont(l.markTextMesh, this.fontTex, false);
     }
     this.drawScene(view, cssW, cssH);
+  }
+
+  /**
+   * The fade over the layers below the player's (MMapper: the background at
+   * 50 %). A transparent background (ADR 0085 Transparent addendum 2) moves
+   * the drawn pixels the same way toward the pane's colour, keeping their
+   * alpha, and leaves the empty space clear.
+   */
+  private fade(): void {
+    const gl = this.gl;
+    const clear = isTransparentBackground(this.bg);
+    if (clear) gl.blendFuncSeparate(gl.DST_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);
+    this.fullScreen(fadeRgba(this.bg));
+    if (clear) blendOver(gl);
   }
 
   private fullScreen(c: RGBA): void {
@@ -531,11 +574,17 @@ export class WebGLMapRenderer implements Renderer {
       gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, range.count);
     };
     if (noTex) draw('terrain', withAlpha(WHITE, 0.2), true);
-    else draw('terrain', color);
+    else {
+      // MMapper draws the terrain at 90 % over the background. On a transparent
+      // one, put the pane's colour under the rooms first, so they look the same
+      // and stay opaque (ADR 0085 Transparent addendum 2).
+      if (isTransparentBackground(this.bg)) draw('terrain', withAlpha(this.bg, 1), true);
+      draw('terrain', color);
+    }
     gl.blendFuncSeparate(gl.ZERO, gl.SRC_COLOR, gl.ZERO, gl.ONE);
     draw('tintDark', WHITE, true);
     draw('tintNoSundeath', WHITE, true);
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    blendOver(gl);
     if (!noTex) {
       // MMapper tints its white flow arrows with the river colour; a set's own coloured marks draw as is (ADR 0088).
       const stream: RGBA = this.streamsAsIs ? color : [WATER[0] * color[0], WATER[1] * color[1], WATER[2] * color[2], color[3]];

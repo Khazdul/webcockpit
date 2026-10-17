@@ -209,12 +209,14 @@ export type MainToWorker =
       assets: AssetSource;
       /** The map background, `#rrggbb` (ADR 0085); absent: MMapper's `#2e3436`. */
       background?: string;
+      /** Transparent (ADR 0085 Transparent addendum 2): the empty space is left clear; `background` is the pane's colour. */
+      transparent?: boolean;
     }
   | { t: 'load'; req: number; source: MapSource }
   /** New asset source (a tileset change, ADR 0082): the tiles are reloaded and swapped in; the map, view and marks stay. */
   | { t: 'assets'; assets: AssetSource }
   /** A new map background, `#rrggbb` (Options → Mapper, ADR 0085): drawn from the next frame. */
-  | { t: 'background'; color: string }
+  | { t: 'background'; color: string; transparent?: boolean }
   | { t: 'resize'; width: number; height: number; dpr: number }
   /** Drag: the grabbed point moved by (dx, dy) CSS px. */
   | { t: 'pan'; dx: number; dy: number }
