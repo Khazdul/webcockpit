@@ -861,6 +861,11 @@ export class App {
       case 'perf':
         this.perfCommand(argText);
         return;
+      case 'weather':
+        // The weather effects trial (stage 28): `#weather demo`, `#weather stop`.
+        if (this.weather) void this.weather.command(argText, (t) => this.sys(t));
+        else this.sys('Weather effects are not available here.');
+        return;
       default:
         this.sys(`Unknown command: #${name}`);
     }

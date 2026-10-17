@@ -30,6 +30,13 @@ export interface WeatherHook {
   readonly controller: WeatherController | null;
   /** Resolves once the current on/off state has been applied (the chunk loaded). */
   settled(): Promise<WeatherController | null>;
+  /**
+   * `#weather …`, the trial's client command (`demo [slow]`, `stop`): runs
+   * in its own lazy chunk (demo.ts); `say` prints a line for the user.
+   */
+  command(args: string, say: (text: string) => void): Promise<void>;
+  /** True after `dispose`. */
+  readonly disposed: boolean;
   dispose(): void;
 }
 
@@ -85,13 +92,25 @@ export function installWeather(d: WeatherHookDeps): WeatherHook {
   });
   apply();
 
-  return {
+  const hook: WeatherHook = {
     get controller() {
       return ctl;
     },
     async settled() {
       while (loading) await loading;
       return ctl;
+    },
+    async command(args, say) {
+      if (disposed) return;
+      try {
+        const m = await import('./demo');
+        if (!disposed) await m.weatherCommand(hook, d, args, say);
+      } catch (err) {
+        say(`#weather failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    },
+    get disposed() {
+      return disposed;
     },
     dispose() {
       if (disposed) return;
@@ -101,4 +120,5 @@ export function installWeather(d: WeatherHookDeps): WeatherHook {
       ctl = null;
     },
   };
+  return hook;
 }

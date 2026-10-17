@@ -11,7 +11,12 @@
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
 //   await __weather.stats()                worker frame times
+//   __weather.demo()                       the demo (`#weather demo`; 'slow' too)
+//   __weather.demoStop()                   ends it (`#weather stop`)
 //   __weather.stop()                       turns the option off again
+//
+// `?weather` in the URL calls `__wc.weather()` once the cockpit exists (at
+// once offline; after Enter MUME from the start page), see `weatherFromUrl`.
 
 import type { App } from '../app/app';
 import type { SettingsStore } from '../settings';
@@ -22,6 +27,10 @@ export interface DevWeather extends Weather {
   set(s: Partial<WeatherState>): void;
   jump(s: Partial<WeatherState>): void;
   unpin(): void;
+  /** `#weather demo [args]`. */
+  demo(args?: string): Promise<void>;
+  /** `#weather stop`. */
+  demoStop(): Promise<void>;
   stop(): void;
 }
 
@@ -60,6 +69,8 @@ export async function devWeather(app: App, settings: SettingsStore, opts: Weathe
       pinned = {};
       ctl.pin(null);
     },
+    demo: (args = '') => hook.command(`demo ${args}`, (t) => console.info(t)),
+    demoStop: () => hook.command('stop', (t) => console.info(t)),
     stop: () => {
       settings.update({ weather: { enabled: false } });
       delete window.__weather;
@@ -67,4 +78,26 @@ export async function devWeather(app: App, settings: SettingsStore, opts: Weathe
   });
   window.__weather = dev;
   return dev;
+}
+
+/**
+ * `?weather` (`?weather=<json>` pins a state too): `start` runs once the
+ * cockpit exists. `onApp` calls back at once when it does already (offline
+ * modes), or when the start page's Enter MUME builds it. False without the
+ * parameter.
+ */
+export function weatherFromUrl(
+  params: URLSearchParams,
+  onApp: (fn: () => void) => void,
+  start: (opts?: WeatherOptions) => void,
+): boolean {
+  if (!params.has('weather')) return false;
+  let state: Partial<WeatherState> | undefined;
+  try {
+    state = params.get('weather') ? (JSON.parse(params.get('weather')!) as Partial<WeatherState>) : undefined;
+  } catch {
+    console.warn('weather: ?weather=<json> is not JSON');
+  }
+  onApp(() => start(state ? { state } : undefined));
+  return true;
 }

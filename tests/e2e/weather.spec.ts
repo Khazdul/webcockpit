@@ -132,3 +132,61 @@ test('panes are see-through with weather on: docked at once, a float at once and
   await expect(page.locator('canvas.wc-weather-float')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+// Owner feedback 33: `#weather demo` plays every effect with a caption box,
+// then hands the effects back to the game. `x40` (hidden) runs the wall
+// clock 40 times faster.
+test('#weather demo: turns the effects on, captions each step, ends unpinned and off again; #weather stop aborts', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  const field = page.locator('.wc-input-field');
+  const type = async (text: string): Promise<void> => {
+    await field.fill(text);
+    await page.keyboard.press('Enter');
+  };
+  const box = page.locator('.wc-cockpit > .wc-wdemo');
+  const step = box.locator('.wc-wdemo-step');
+  const state = () => page.evaluate(() => window.__wc!.app.weather!.controller?.state() ?? null);
+
+  // Off before: the demo turns it on and off again.
+  expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(false);
+  await type('#weather demo x40');
+  await expect(box).toBeVisible();
+  await expect(box.locator('.wc-wdemo-title')).toHaveText('Weather demo');
+  await expect(step).not.toHaveText('');
+  await expect(box.locator('.wc-wdemo-hint')).toHaveText('#weather stop to end');
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  await expect(step).toHaveText('Sunset', { timeout: 5_000 });
+  expect(await state()).toMatchObject({ clock: 'night' });
+  await expect(box).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'Weather demo done; the effects are off again.' })).toHaveCount(1);
+  expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(false);
+  await expect(page.locator('.wc-cockpit > canvas.wc-weather-layer')).toHaveCount(0);
+
+  // On before, with the game's values: unpinned afterwards, the game's values again.
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  await page.evaluate(() => {
+    const bus = window.__wc!.app.bus;
+    bus.emit('gmcp', { pkg: 'Char.Vitals', key: 'char.vitals', data: { weather: '~', fog: '-', position: 'resting' } });
+  });
+  await expect.poll(state).toMatchObject({ weather: '~', fog: '-', position: 'resting' });
+  await type('#weather demo x40');
+  await expect(box).toBeVisible();
+  await expect.poll(state).toMatchObject({ position: 'standing' });
+  await expect(box).toHaveCount(0, { timeout: 10_000 });
+  expect(await state()).toMatchObject({ weather: '~', fog: '-', position: 'resting' });
+  expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(true);
+
+  // #weather stop ends it at once.
+  await type('#weather demo');
+  await expect(step).toHaveText('Night · moon and stars');
+  expect(await state()).toMatchObject({ clock: 'night', weather: ' ' });
+  await type('#weather stop');
+  await expect(box).toHaveCount(0);
+  expect(await state()).toMatchObject({ weather: '~', fog: '-', position: 'resting' });
+  await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'Weather demo stopped.' })).toHaveCount(1);
+  expect(errors).toEqual([]);
+});

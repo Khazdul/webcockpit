@@ -104,6 +104,10 @@ describe('#help resolution', () => {
     }
   });
 
+  it('has the trial line for #weather (stage 28)', () => {
+    expect(message('weather')).toBe('#weather: weather effects trial: #weather demo [slow] plays every effect, #weather stop ends it.');
+  });
+
   it('points to #help for an unknown word', () => {
     expect(message('blah')).toBe('No help for "blah". Type #help for the list.');
     expect(message('#')).toBe('No help for "#". Type #help for the list.');

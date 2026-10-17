@@ -73,6 +73,7 @@ export function resolveHelp(arg: string, sections: readonly HelpSection[] = help
   if (!entry) return unknown;
   if (entry.tier === 'unsupported') return { kind: 'message', text: `#${entry.name}: ${entry.hint ?? 'Not supported.'}` };
   if (entry.inert) return { kind: 'message', text: `#${entry.name} is not supported. ${entry.hint ?? ''}`.trimEnd() };
+  if (entry.hint) return { kind: 'message', text: `#${entry.name}: ${entry.hint}` };
   return { kind: 'message', text: `#${entry.name} has no help entry; it is handled from the menus.` };
 }
 
