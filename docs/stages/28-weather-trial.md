@@ -542,3 +542,18 @@ Sky:
       the end everything is unpinned and the effects follow the game with
       the normal transitions. `?weather` now applies once the cockpit is
       built, so `__weather` exists after login. ADR 0091 "Demo".
+34. **Transparent map over the weather** (2026-10-17). When the Mapper
+    option "Background colour" is set to Transparent, the areas of the map
+    pane that have background colours should be transparent, so weather
+    effects happening behind show through.
+    - **Done (2026-10-17):** with Transparent the map's empty space is
+      truly see-through: the sky, clouds, rain, fog and stars show between
+      the rooms, in a docked and a floating map pane, the same as through
+      any other pane. Rooms, walls, lines, marks, the character and text
+      labels stay solid and readable. Rooms on the floors below are dimmed
+      toward the pane's colour as before and stay solid (the weather shows
+      only in the empty space); the faint rooms of the floors above stay
+      faint over the weather. Lines are still dark on a light page and white
+      on a dark one. Without weather, Transparent looks exactly as before
+      (a tinted map pane keeps its tint behind the map); every other colour
+      is unchanged. ADR 0085 "Addendum 2 — see-through Transparent".
