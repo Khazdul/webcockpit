@@ -141,9 +141,10 @@ test('Transparent: the map draws on the pane background and follows the theme an
   await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });
   const same = async () =>
     pane.evaluate((el) => {
-      // A framed pane's fill is its frame box (ADR 0091 "Frames").
-      const fill = el.hasAttribute('data-framed') ? el.querySelector('.wc-pane-frame')! : el;
-      return getComputedStyle(fill).backgroundColor === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor;
+      // A framed pane's fill is its frame box's ::before (ADR 0091 "Frames").
+      const framed = el.hasAttribute('data-framed');
+      const fill = getComputedStyle(framed ? el.querySelector('.wc-pane-frame')! : el, framed ? '::before' : null).backgroundColor;
+      return fill === getComputedStyle(el.querySelector('.wc-pane-content')!).backgroundColor;
     });
   await expect.poll(same).toBe(true);
   // A paper theme, then a tinted pane: the map follows each.

@@ -30,9 +30,9 @@
  * `floatLayers`, marked `data-weather-see`), whose CSS background hides the
  * text and which the worker fills with the back layer's pixels there. */
 .wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame,
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
 .wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see],
-.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame {
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
   background: transparent;
 }
 

@@ -89,7 +89,7 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  // A thin frame line the same inset from every edge of the outer cells (ADR 0091), the label from the fourth cell.
+  // A thin frame line the same inset from every edge of the outer cells (ADR 0091), the label from the fourth cell in a notch.
   await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
   const geo = await page.locator('.wc-pane-character').evaluate((el) => {
     const p = el.getBoundingClientRect();
@@ -105,37 +105,48 @@ test('default layout: game left, input under it as wide as the game, full-height
       edges: [r.left, r.top, r.right, r.bottom].map((v) => Math.abs(v * d - Math.round(v * d))),
       t: parseFloat(st.getPropertyValue('--frame-t')),
       e: parseFloat(st.getPropertyValue('--frame-e')),
-      shadow: getComputedStyle(f).boxShadow,
-      title: [t.left - p.left, t.top - p.top],
+      paths: [...el.querySelectorAll('.wc-pane-line > path')].map((q) => [q.getAttribute('d'), getComputedStyle(q).strokeWidth]),
+      notch: ['--notch-x0', '--notch-x1', '--notch-d'].map((k) => parseFloat(st.getPropertyValue(k))),
+      clip: getComputedStyle(f, '::before').clipPath,
+      fill: getComputedStyle(f, '::before').backgroundColor,
+      top: r.top - p.top,
+      title: [t.left - r.left, t.top - p.top, t.right - r.left, t.bottom - r.top],
       titleBg: getComputedStyle(title).backgroundColor,
       titleZ: getComputedStyle(title).zIndex,
       titleSize: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(el).fontSize),
-      pseudo: [getComputedStyle(f, '::before').content, getComputedStyle(f, '::after').content],
     };
   });
   const lw = geo.t;
   expect(lw).toBeGreaterThanOrEqual(3);
   expect(lw).toBeLessThan(ch / 4);
   for (const e of geo.edges) expect(e).toBeLessThan(0.05);
-  // A glass line: outer edge band, lighter core, inner edge band, all four sides as inset spread shadows (no border, no gap).
+  // A glass line: an edge stroke the line's width under a core stroke two edge bands narrower, along one path.
   expect(geo.e).toBeGreaterThan(0);
-  expect(geo.shadow).toContain(`0px 0px 0px ${geo.e}px inset`);
-  expect(geo.shadow).toContain(`0px 0px 0px ${lw - geo.e}px inset`);
-  expect(geo.shadow).toContain(`0px 0px 0px ${lw}px inset`);
-  expect(geo.pseudo).toEqual(['none', 'none']);
+  expect(geo.paths.map((q) => parseFloat(q[1]!))).toEqual([lw, lw - 2 * geo.e]);
+  expect(geo.paths[0]![0]).toBe(geo.paths[1]![0]);
+  // The top line winds down under the title: the notch, with the fill cut out above its floor.
+  const [x0, x1, nd] = geo.notch as [number, number, number];
+  expect(geo.paths[0]![0]).toContain(`V${nd + lw / 2}`);
+  expect(geo.clip).toContain('polygon');
+  expect(geo.fill).toBe('rgb(0, 0, 0)');
+  // the floor's lower edge on the first content row
+  expect(geo.top + nd + lw).toBeCloseTo(ch, 1);
   // The same inset on all four sides (owner feedback 15): equal gaps beside and above.
   for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
   expect(geo.inset[0]! + lw).toBeLessThan(cw);
-  // The title over the unbroken top line, smaller, at the pane's top edge, no box of its own.
-  expect(geo.title[0]).toBeCloseTo(3 * cw, 1);
-  expect(geo.title[1]).toBeCloseTo(0, 3);
+  // The title in the notch, clear of the line: between the steps, above the floor, inside the pane; no box of its own.
+  expect(geo.title[0]).toBeCloseTo(x0, 1);
+  expect(geo.title[0]! + geo.inset[0]!).toBeCloseTo(3 * cw, 0);
+  expect(geo.title[2]).toBeLessThanOrEqual(x1 + 1);
+  expect(geo.title[3]).toBeLessThanOrEqual(nd);
+  expect(geo.title[1]).toBeGreaterThanOrEqual(0);
   expect(geo.titleSize).toBeCloseTo(0.82, 2);
   expect(geo.titleZ).toBe('2');
   expect(geo.titleBg).toBe('rgba(0, 0, 0, 0)');
   // The frame in the pane's border colour; its fill inside the line, the ring outside unpainted.
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
     ring: getComputedStyle(el).backgroundColor,
-    bg: getComputedStyle(el.querySelector('.wc-pane-frame')!).backgroundColor,
+    bg: getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before').backgroundColor,
     fg: getComputedStyle(el.querySelector('.wc-pane-title')!).color,
   }));
   expect(colors).toMatchObject({ ring: 'rgba(0, 0, 0, 0)', bg: 'rgb(0, 0, 0)' }); // None: the terminal background
@@ -878,13 +889,12 @@ test('hovering a pane shows a close cross in its title row; clicking it hides th
   const timers = await box(page, '.wc-pane-timers');
   await page.mouse.move(o.x + timers.x + 4 * cw, o.y + timers.y + 3 * ch);
   await expect(close).toBeVisible();
-  // " × " in the title row, one cell in from the right edge.
-  expect(await box(page, '.wc-pane-timers .wc-pane-close')).toEqual({
-    x: timers.x + timers.width - 4 * cw,
-    y: timers.y,
-    width: 3 * cw,
-    height: ch,
-  });
+  // " × " in the title row, one cell in from the right edge; on a frame, under the top line (ADR 0091 "Frames").
+  const cross = await box(page, '.wc-pane-timers .wc-pane-close');
+  expect(cross).toMatchObject({ x: timers.x + timers.width - 4 * cw, width: 3 * cw });
+  expect(cross.y).toBeGreaterThan(timers.y + 3);
+  expect(cross.y).toBeLessThan(timers.y + ch / 2);
+  expect(cross.y + cross.height).toBeCloseTo(timers.y + ch, 1);
   await expect(page.locator('.wc-pane-character .wc-pane-close')).toBeHidden();
 
   await close.click();

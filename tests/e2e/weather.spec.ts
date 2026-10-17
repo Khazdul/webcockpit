@@ -69,7 +69,7 @@ test('panes are see-through with weather on: docked at once, a float at once and
     }),
   );
   const group = page.locator('.wc-pane-group');
-  const fill = () => group.evaluate((el) => getComputedStyle(el.querySelector('.wc-pane-frame')!).backgroundColor);
+  const fill = () => group.evaluate((el) => getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before').backgroundColor);
   /** The float's own weather canvas: its first child, opaque in CSS (the terminal background). */
   const own = (sel: string) =>
     page.evaluate((s) => {
@@ -83,7 +83,7 @@ test('panes are see-through with weather on: docked at once, a float at once and
   await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
   // Docked panes go see-through with the first frame; the float holds its own canvas (opaque underneath).
-  expect(await page.locator('.wc-pane-character .wc-pane-frame').evaluate((f) => getComputedStyle(f).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  expect(await page.locator('.wc-pane-character .wc-pane-frame').evaluate((f) => getComputedStyle(f, '::before').backgroundColor)).toBe('rgba(0, 0, 0, 0)');
   await expect(group).toHaveAttribute('data-weather-see', '');
   expect(await fill()).toBe('rgba(0, 0, 0, 0)');
   expect(await own('.wc-pane-group')).toBe('rgb(0, 0, 0)');

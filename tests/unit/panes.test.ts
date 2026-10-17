@@ -2,7 +2,7 @@
 import { legacySettings } from './legacy-defaults';
 import { describe, expect, it } from 'vitest';
 import { Cockpit } from '../../src/layout/cockpit';
-import { frameGeometry, frameInset, frameLabel, frameThickness } from '../../src/panes/frame';
+import { TITLE_SCALE, frameGeometry, frameInset, frameLabel, frameNotch, framePath, frameThickness, notchClip } from '../../src/panes/frame';
 import { Bus } from '../../src/core/bus';
 import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
@@ -69,6 +69,43 @@ describe('frame', () => {
   });
 });
 
+describe('frame notch', () => {
+  it('winds the top line down under the title, the floor on the first content row, every edge on a device pixel', () => {
+    for (const dpr of [1, 1.25, 1.5, 2]) {
+      for (const [cw, chh] of [
+        [10, 19],
+        [9.03125, 17],
+        [7.2, 14],
+      ] as const) {
+        const box = { x: 3 + 40 * cw, y: 0.6 + 7 * chh, w: 33 * cw, h: 12 * chh };
+        const g = frameGeometry(box, cw, chh, dpr);
+        const n = frameNotch(box, g, cw, chh, ' Character '.length, dpr)!;
+        expect(n).not.toBeNull();
+        const whole = (v: number): void => expect(Math.abs(v * dpr - Math.round(v * dpr))).toBeLessThan(1e-3);
+        whole(box.x + g.l + n.x0);
+        whole(box.x + g.l + n.x1);
+        whole(box.y + g.top + n.d);
+        // the floor's lower edge is the first content row's top (within the snapping)
+        expect(Math.abs(box.y + g.top + n.d + g.t - (box.y + chh))).toBeLessThanOrEqual(0.5 / dpr + 1e-9);
+        // under the top line, room for the title: from the fourth cell, as wide as the label at TITLE_SCALE
+        expect(n.d).toBeGreaterThan(g.t);
+        expect(Math.abs(box.x + g.l + n.x0 - (box.x + 3 * cw))).toBeLessThanOrEqual(1);
+        expect(Math.abs(n.x1 - n.x0 - 11 * cw * TITLE_SCALE)).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
+  it('has no notch without a title or room for one; the path is then the plain rectangle', () => {
+    const box = { x: 0, y: 0, w: 90, h: 85 };
+    const g = frameGeometry(box, 9, 17);
+    expect(frameNotch(box, g, 9, 17, 0)).toBeNull();
+    expect(frameNotch(box, g, 9, 17, 1)).toBeNull();
+    expect(framePath(84, 79, 3, null)).toBe('M1.5 77.5V1.5H82.5V77.5Z');
+    expect(notchClip(null)).toBe('none');
+    expect(notchClip({ x0: 24, x1: 68, d: 11 })).toBe('polygon(0 0, 24px 0, 24px 11px, 68px 11px, 68px 0, 100% 0, 100% 100%, 0 100%)');
+  });
+});
+
 describe('PaneShell', () => {
   it('places itself in cells, draws the frame and reports its inner size', () => {
     const p = new PaneShell(createPaneContext({ doc: document }), 'comm');
@@ -85,14 +122,10 @@ describe('PaneShell', () => {
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe(' Comm ');
     expect(p.el.hasAttribute('data-framed')).toBe(true);
     expect(p.el.style.getPropertyValue('--frame-t')).toBe('3px');
-    expect(['e', 'l', 'r', 'top', 'b', 'label-x'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual([
-      '1px',
-      '3px',
-      '3px',
-      '3px',
-      '3px',
-      `${3 * 9 - 3}px`,
-    ]);
+    expect(['e', 'l', 'r', 'top', 'b'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual(['1px', '3px', '3px', '3px', '3px']);
+    // The notch under ' Comm ' (frame-box px) and the line's path through it.
+    expect(['x0', 'x1', 'd'].map((k) => p.el.style.getPropertyValue(`--notch-${k}`))).toEqual(['24px', '68px', '11px']);
+    expect(p.el.querySelector('.wc-line-edge')!.getAttribute('d')).toBe('M1.5 77.5V1.5H22.5V12.5H69.5V1.5H82.5V77.5Z');
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');
