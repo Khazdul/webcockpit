@@ -60,10 +60,13 @@ Statuses: Next, In progress, Owner testing, Done.
   (`worker/rimshape.ts`), no dark seams beside the plate, title ink L .28
   and softer lip, snow dusting on the rim (no band above), glints light
   the whole plate.
+- **Round 7 (items 50–51) done:** floating panes (the map floats by
+  default) use the docked panes' glass, so the transparent map matches;
+  specular line 85 → 58 %, light seam 40 → 32 %, dark edge .62 → .56.
 - **Open:** title contrast over black now ~2.6:1 (owner's
   call if darker still); Firefox told apart by user agent; beam strength a
   taste call; map-notes/map-tilesets e2e flaky under load.
-- **Next:** owner tests the frames and items 36–49.
+- **Next:** owner tests the frames and items 36–51.
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
