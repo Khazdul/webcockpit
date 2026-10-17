@@ -831,3 +831,16 @@ black: the brightest stroke stands out).
       unchanged; the lip stays the softest light, under the nameplate's edge
       and the top line. Checked at 1× over black, over the day sky and on
       Paper.
+
+### 2026-10-17 — eighth test (translated)
+
+52. **Day sun glimpses more often and more visible.** On a clear blue
+    day, the small sun streaks that come now and then have hardly ever
+    been seen in play. Make them a little more prominent, and let them
+    come and vary through the day: seen at least once a minute, sometimes
+    a little and sometimes more, most around midday when the sun is
+    strongest.
+53. **Borderless pane shows edges in sunrise/sunset rays.** A pane
+    without a frame (otherwise fully transparent) gets visible edges when
+    the sunrise/sunset rays pass (screenshot `images/8.png` in the session
+    scratchpad: a rectangle where the rays are weaker inside the pane).
