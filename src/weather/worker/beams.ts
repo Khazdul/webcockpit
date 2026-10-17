@@ -130,7 +130,7 @@ export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: 
   for (const h of out) {
     const x = h.side === 't' || h.side === 'b' ? h.c : h.side === 'l' ? h.p.x : h.p.x + h.p.w;
     const y = h.side === 'l' || h.side === 'r' ? h.c : h.side === 't' ? h.p.y : h.p.y + h.p.h;
-    for (const q of panes) if (q !== h.p && inBox(q, x, y)) h.att = BEAM_INSIDE;
+    for (const q of panes) if (q !== h.p && q.border && inBox(q, x, y)) h.att = BEAM_INSIDE;
   }
   out.sort((x, y) => x.t - y.t);
   return out;

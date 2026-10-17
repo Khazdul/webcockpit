@@ -219,6 +219,21 @@ describe('WeatherEngine frame rate', () => {
   });
 });
 
+describe('WeatherEngine borderless panes (owner item 53)', () => {
+  it('gives the modules only the framed panes as glass; every pane for placing things away from text', () => {
+    let seen: Env | null = null;
+    const m = { ...mod('sky', FPS_SLOW), frame(env: Env) { seen = env; return true; } };
+    const h = harness([m]);
+    const box = { x: 100, y: 50, w: 200, h: 100 };
+    const framed = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: false, z: 0, bg: null, box };
+    const bare = { ...framed, id: 'ui', x: 400, border: 0, label: 'UI', box: { ...box, x: 400 } };
+    h.send({ t: 'geom', g: { ...geom, panes: [framed, bare] } });
+    h.run(100);
+    expect(seen!.panes.map((p) => p.id)).toEqual(['group']);
+    expect(seen!.textPanes.map((p) => p.id)).toEqual(['group', 'ui']);
+  });
+});
+
 describe('WeatherEngine floating panes', () => {
   it("copies the back layer under a float into the float's own canvas; a moved float is drawn at the next frame, whatever the rate", () => {
     const sky = mod('sky', FPS_STILL);

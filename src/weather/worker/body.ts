@@ -230,7 +230,7 @@ export function bodyModule(): Module {
       for (let y0 = fadeTop - ch * 0.5; y0 > fadeTop - ch * 8 && y0 - rise > 0; y0 -= ch) {
         const x0 = x - cw, x1 = x + cw * 4, y1 = y0 - rise;
         let overlap = 0;
-        for (const p of env.panes) {
+        for (const p of env.textPanes) {
           const ox = Math.min(x1 + cw * 2, p.x + p.w) - Math.max(x0, p.x), oy = Math.min(y0 + ch, p.y + p.h) - Math.max(y1, p.y);
           if (ox > 0 && oy > 0) overlap += ox * oy * 4;
         }
@@ -253,7 +253,7 @@ export function bodyModule(): Module {
       const de = Math.min(x - p.left, W - x, y, (p.fadeTop - y) * 1.5);
       let score = (-de / Math.min(W, H)) * 3;
       let dc = 1e9;
-      for (const q of env.panes) {
+      for (const q of env.textPanes) {
         dc = Math.min(dc, Math.hypot(q.x - x, q.y - y), Math.hypot(q.x + q.w - x, q.y - y), Math.hypot(q.x - x, q.y + q.h - y), Math.hypot(q.x + q.w - x, q.y + q.h - y));
       }
       score -= Math.min(1, dc / 160) * 0.5;

@@ -24,7 +24,15 @@ export interface Env {
   back: Ctx;
   /** Above everything. */
   front: Ctx;
+  /**
+   * The framed panes: what the weather treats as glass in the scene (shadows,
+   * beams, glints, rain stopping and dripping, fog along tops). A pane
+   * without a frame is not here: the weather passes as if it were not there,
+   * as over the game text (owner item 53).
+   */
   panes: Pane[];
+  /** Every shown pane, framed or not: only for placing things away from pane text (the floating z z Z, blood). */
+  textPanes: Pane[];
   out: Rect;
   protect: { solidTop: number; fadeTop: number; left: number };
   cell: { w: number; h: number; size: number; font: string };

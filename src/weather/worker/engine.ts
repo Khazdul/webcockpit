@@ -164,6 +164,7 @@ export class WeatherEngine {
           back,
           front,
           panes: [],
+          textPanes: [],
           out: { x: 0, y: 0, w: 0, h: 0 },
           protect: { solidTop: 0, fadeTop: 0, left: 0 },
           cell: { w: 8, h: 16, size: 14, font: '14px monospace' },
@@ -335,7 +336,10 @@ export class WeatherEngine {
     env.out = g.out;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, plate: p.plate }));
+    env.textPanes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, plate: p.plate }));
+    // A pane without a frame is no glass in the scene: no shadow, no step in
+    // the rays or beams, no rain stopping on it (owner item 53).
+    env.panes = env.textPanes.filter((p) => p.border > 0);
     this.geom = g;
     const moved = this.placeFloats(g);
     // The fill of a docked pane with its own background: inside the rim less

@@ -90,6 +90,12 @@ describe('beam hits on frame lines', () => {
     expect(farHit).toMatchObject({ side: 't', att: 1 });
     expect(farHit.c).toBeCloseTo(720, 3);
   });
+
+  it('is not weaker inside a borderless pane: it is no glass (owner item 53)', () => {
+    const back = pane(500, 300, 400, 200), fl = { ...pane(600, 250, 100, 100), border: 0 };
+    const onBack = beamHits([back, fl], sx, sy, at(650, 300), []).find((h) => h.p === back && h.side === 't')!;
+    expect(onBack.att).toBe(1);
+  });
 });
 
 describe('beam pieces', () => {
