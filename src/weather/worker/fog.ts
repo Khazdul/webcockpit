@@ -138,12 +138,11 @@ const BANDS = [
 ];
 const N_BANKTEX = 8, N_WISPTEX = 4;
 
-type TintKey = 'day' | 'moon' | 'torch' | 'evil' | 'night';
+type TintKey = 'day' | 'moon' | 'torch' | 'night';
 const TINTS_DARK: Record<TintKey, [number, number, number, number]> = {
   day: [214, 220, 228, 1.0],
   moon: [170, 188, 218, 0.82],
   torch: [226, 178, 122, 0.78],
-  evil: [156, 86, 74, 0.8],
   night: [96, 104, 122, 0.55],
 };
 
@@ -238,15 +237,14 @@ export function fogModule(): Module {
     return set;
   }
 
-  const tw: Record<TintKey, number> = { day: 0, moon: 0, torch: 0, evil: 0, night: 0 };
+  const tw: Record<TintKey, number> = { day: 0, moon: 0, torch: 0, night: 0 };
   function updateTint(env: Env): void {
     const m = env.mix;
     tw.moon = m.moon;
     tw.torch = m.torch * (1 - m.moon);
-    tw.evil = m.evil;
     tw.night = m.dark;
     tw.day = m.sun;
-    const rest = Math.max(0, 1 - tw.moon - tw.torch - tw.evil - tw.night - tw.day);
+    const rest = Math.max(0, 1 - tw.moon - tw.torch - tw.night - tw.day);
     tw.day += rest * (1 - m.night);
     tw.night += rest * m.night;
     let k1: TintKey = 'day', k2: TintKey = 'moon', w1 = -1, w2 = -1, sum = 0, br = 0;

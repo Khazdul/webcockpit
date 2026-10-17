@@ -115,30 +115,30 @@ describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
     return { sig, d, feed };
   }
 
-  it('the login packet: outdoors in sunlight, no darkness', () => {
+  it('the login packet: outdoors in sunlight; no mix value is a darkness sky (owner feedback 26)', () => {
     const { sig } = run();
     expect(sig.state()).toMatchObject({ weather: ' ', fog: '', light: '*' });
-    expect(mixTargets(sig.state(), ALL_CATEGORIES).evil).toBe(0);
+    expect(Object.keys(mixTargets(sig.state(), ALL_CATEGORIES))).not.toContain('evil');
   });
 
-  it('walking down into an ordinary dark tunnel (prompt "o=": light o, weather null) gives no darkness sky', () => {
+  it('walking down into a dark tunnel (prompt "o=": light o, weather null) is just indoors', () => {
     // "Limestone Tunnel" → "Darkness" in the owner's logs: the prompt's light goes from "*" to "o" underground.
     const { d, feed } = run();
     feed({ light: 'o', weather: null });
     d.settle(1);
     d.settle(1 + DWELL_MS);
-    expect([d.settled.light, d.settled.weather, d.settled.magic]).toEqual(['o', null, false]);
+    expect([d.settled.light, d.settled.weather]).toEqual(['o', null]);
     const m = mixTargets(d.settled, ALL_CATEGORIES);
-    expect([m.outdoors, m.evil, m.sun]).toEqual([0, 0, 0]);
+    expect([m.outdoors, m.sun]).toEqual([0, 0]);
   });
 
-  it('light alone never gives the darkness sky: "o+" on a road by day is the day sky', () => {
+  it('light alone never changes the sky: "o+" on a road by day is the day sky', () => {
     const { d, feed } = run();
     feed({ light: 'o' });
     d.settle(1);
     d.settle(1 + DWELL_MS);
     const m = mixTargets(d.settled, ALL_CATEGORIES);
-    expect([m.outdoors, m.evil, m.sun]).toEqual([1, 0, 1]);
+    expect([m.outdoors, m.sun]).toEqual([1, 1]);
   });
   it('Event.Darkness payloads are {what}; unknown ones are ignored', () => {
     expect(gmcpEvent('event.darkness', { what: 'start' })).toBe('darkness.start');
@@ -148,62 +148,15 @@ describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
   });
 });
 
-describe('magical darkness from the room text (owner feedback 10)', () => {
-  // The owner's logs (/home/ole/MUME/data/runs/Rasta/2026-09-25T22-03-02.log
-  // 38420-38441, 2026-09-26T21-00-45.log 81813-81866 and 86865-86905): the
-  // line right after the room name, before the exits; the prompt's light is
-  // 'o' outside it too at night, and '!' inside it with a lantern.
-  function run() {
+describe('magical darkness: only its Event.Darkness events (owner feedback 26)', () => {
+  it('the room text of a darkened room and the spell taking hold give nothing', () => {
     const s = sink();
     const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
-    const magic = () => sig.state().magic;
-    const feed = (...texts: string[]) => {
-      for (const t of texts) sig.line(t.endsWith('>') ? line(t, [], true) : line(t));
-    };
-    return { s, sig, magic, feed };
-  }
-
-  it('is set by the lingering darkness line and cleared by the next room without it', () => {
-    const { s, magic, feed } = run();
-    // daytime on the Hollin Road: walking into the darkness and out again
-    feed('Hollin Road', 'Exits: =east=, *south*.', '*+ R Mana:Burning>');
-    expect(magic()).toBe(false);
-    feed('You feel so much better hiding in the shadows!', 'Hollin Road', 'A deep, wavering darkness lingers here.', 'Exits: *east*, south, *west*.', 'o+ R Mana:Burning>');
-    expect(magic()).toBe(true);
-    expect(s.states.map((x) => x.s)).toEqual([{ magic: true }]);
-    feed('You blink and feel weaker under the cruel light of the sun.', 'Hollin Road', 'Exits: *north*, *east*, =west=.', '*+ R Mana:Burning>');
-    expect(magic()).toBe(false);
-    expect(s.states.map((x) => x.s)).toEqual([{ magic: true }, { magic: false }]);
-  });
-
-  it('stays set through several darkened rooms in a row (the darkness spreads), with "impenetrable" and a lantern-lit "!" prompt', () => {
-    const { s, magic, feed } = run();
-    feed('Inside a Small Village', 'A deep, impenetrable darkness lingers here.', 'A circular stone well has been built here.', 'Exits: north, east.', '!. CR HP:Fine Mana:Warm>');
-    feed('Wooded Pasture', 'A deep, impenetrable darkness lingers here.', 'Exits: west.', '!. CR HP:Fine Mana:Warm>');
-    expect(magic()).toBe(true);
-    expect(s.states.length).toBe(1);
-  });
-
-  it('the spell taking hold in your room ("The light decreases.") sets it until the next room display', () => {
-    const { magic, feed } = run();
-    feed("Norsy utters the word 'eabratizgg'", 'The light decreases.', '!f~ C HP:Fine>');
-    expect(magic()).toBe(true);
-    feed('Broken Forest', 'A deep, impenetrable darkness lingers here.', 'Exits: [north], east, south, west.');
-    expect(magic()).toBe(true);
-  });
-
-  it('an ordinary dark room ("Darkness", no lingering line) and an XML exits tag clear it; prompts and look-alikes do not set it', () => {
-    const { magic, feed, sig } = run();
-    feed('A deep, impenetrable darkness lingers here.', 'Exits: north.');
-    expect(magic()).toBe(true);
-    feed('A Dark Cave');
-    sig.line(line('Exits: east, up.', [{ tag: 'exits', start: 0, end: 16 }]));
-    expect(magic()).toBe(false);
-    feed('Darkness', 'Exits: east, up.', 'o= W Mana:Burning>');
-    expect(magic()).toBe(false);
-    sig.line(line('A deep, impenetrable darkness lingers here.', [], true));
-    feed('Bob says \'A deep, impenetrable darkness lingers here.\'', 'The light decreases slowly.');
-    expect(magic()).toBe(false);
+    for (const t of ['Hollin Road', 'A deep, wavering darkness lingers here.', 'Exits: *east*, south, *west*.', 'The light decreases.', 'A deep, impenetrable darkness lingers here.', 'Exits: north.'])
+      sig.line(line(t));
+    expect(s.states).toEqual([]);
+    expect(s.events).toEqual([]);
+    expect(sig.state()).not.toHaveProperty('magic');
   });
 });
 

@@ -3,10 +3,8 @@
 //  - a sky gradient with a soft glow on one side: by day a bright, saturated
 //    sky blue that reaches down to ~30 % above the bottom (owner feedback 1,
 //    22), with the sun's warm glow at the top right; at night it fades out at
-//    ~43 % with a cool lift toward the moon; the darkness sky in a room with
-//    magical darkness (`settled.magic`, owner feedback 10). Outdoors only,
-//    except the darkness sky. Cached at full resolution and redrawn only when
-//    its colours move.
+//    ~43 % with a cool lift toward the moon. Outdoors only. Cached at full
+//    resolution and redrawn only when its colours move.
 //  - day life (daylife.ts): now and then birds, rarely an insect, small cloud
 //    tufts on a clear day, and a sun glimpse with a few faint rays
 //  - a perspective cloud deck seen from below in the top ~35 % (weather `~`
@@ -22,15 +20,15 @@
 //    day much fainter (feedback 11)
 //  - sunrise / sunset moments with rays, pane shadow wedges and a glint
 //    running along the frame lines with the ray front
-//  - entering magical darkness or Event.Darkness start / grow: a red ominous
-//    bleed from the top and the corners; leaving it or shrink / end: a brief
-//    lightening
+//  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
+//    bleed from the top and the corners; shrink / end: a brief lightening.
+//    Nothing else is red: no darkness sky (owner feedback 26)
 // Glints on the frame lines (glint.ts) are brief and drawn on the line only.
 // Nothing here follows the text lines (owner feedback 9) or the panes'
 // places (feedback 5, 6): stars, moon path and clouds are in coordinates
 // relative to the canvas and rebuilt only when its size changes.
-// Categories: `sky` gates everything but the darkness sky and the
-// darkness bleeds, which `darkness` gates.
+// Categories: `sky` gates everything but the darkness bleeds, which
+// `darkness` gates.
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
@@ -70,7 +68,6 @@ const PAL: CloudPal[] = [
   { lit: [110, 108, 150], sh: [34, 34, 60], op: 0.8 }, // 4 dusk
   { lit: [104, 113, 132], sh: [18, 21, 30], op: 0.86 }, // 5 moon
   { lit: [34, 37, 44], sh: [10, 11, 14], op: 0.84 }, // 6 dark
-  { lit: [70, 34, 34], sh: [16, 7, 9], op: 0.88 }, // 7 evil
 ];
 const NP = PAL.length;
 
@@ -79,12 +76,11 @@ interface SkyCol {
   hor: Rgb;
   a: number;
 }
-const SKY_DARK: Record<'day' | 'grey' | 'moon' | 'night' | 'evil', SkyCol> = {
+const SKY_DARK: Record<'day' | 'grey' | 'moon' | 'night', SkyCol> = {
   day: { top: [112, 184, 255], hor: [92, 152, 232], a: 0.66 },
   grey: { top: [62, 66, 73], hor: [96, 99, 104], a: 0.56 },
   moon: { top: [16, 24, 44], hor: [48, 58, 80], a: 0.66 },
   night: { top: [4, 6, 16], hor: [12, 15, 28], a: 0.75 },
-  evil: { top: [72, 8, 14], hor: [92, 16, 18], a: 0.72 },
 };
 /** The sky colours for a background: as designed on dark; lightness-inverted, fainter on light. */
 function skyTable(th: ThemeInfo): typeof SKY_DARK {
@@ -96,8 +92,6 @@ function skyTable(th: ThemeInfo): typeof SKY_DARK {
   }
   // a clear blue day sky on paper (inverted it would be a dark one)
   out.day = { top: [104, 168, 242], hor: [156, 198, 242], a: 0.44 };
-  // the darkness sky stays a dark red on paper
-  out.evil = { top: [90, 20, 26], hor: [150, 60, 60], a: 0.32 };
   return out;
 }
 /** The glow on the sky's light side: the sun's (warm) by day, a cool lift toward the moon or the horizon colour at night. */
@@ -340,8 +334,6 @@ class Sky {
   dark: { t0: number; k: number } | null = null;
   darkG = 0;
   lift: { t0: number; k: number; dur: number } | null = null;
-  /** The settled darkness of the room last frame (null before the first frame: no bleed for where we start). */
-  darkWas: boolean | null = null;
   shoot = { on: false, x: 0, y: 0, vx: 0, vy: 0, age: 0, next: 5 };
   starSpr: Cv;
   halo: Cv;
@@ -366,8 +358,6 @@ class Sky {
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
-  /** Darkness sky pulse, applied when the cached sky is drawn. */
-  pulse = 1;
   /** Something moved in the last frame (stars, moon, clouds, a sky redraw); `still` counts frames without. */
   moving = false;
   still = 0;
@@ -444,7 +434,6 @@ class Sky {
       this.ox = prev.ox;
       this.oz = prev.oz;
       this.sideU = prev.sideU;
-      this.darkWas = prev.darkWas;
     }
   }
 
@@ -567,34 +556,14 @@ class Sky {
     const out = m.outdoors;
     const oo = Math.max(out, 0.001);
     this.moving = false;
-    // Entering or leaving magical darkness (settled): the bleed and the lift, as Event.Darkness does.
-    const darkNow = env.cats.darkness && env.settled.magic;
-    if (this.darkWas !== null && darkNow !== this.darkWas) {
-      if (darkNow) {
-        if (!this.dark) this.dark = { t0: T, k: 1 };
-        this.lift = null;
-      } else if (!this.lift) {
-        if (this.dark && T - this.dark.t0 < 4.2) this.dark.t0 = T - 4.2;
-        this.lift = { t0: T, k: 0.75, dur: 2.2 + 0.75 * 1.4 };
-      }
-    }
-    this.darkWas = darkNow;
-    let wSun = m.sun, wMoon = m.moon, wNight = m.dark, wEvil = m.evil;
-    if (!skyOn) {
-      // only the darkness sky remains (its own category)
-      wSun = 0;
-      wMoon = 0;
-      wNight = 0;
-    }
-    const ws = wSun + wMoon + wNight + wEvil;
+    let wSun = m.sun, wMoon = m.moon, wNight = m.dark;
+    const ws = wSun + wMoon + wNight;
     if (ws > 0.001) {
       wSun /= ws;
       wMoon /= ws;
       wNight /= ws;
-      wEvil /= ws;
-    } else if (skyOn) wNight = 1;
-    // The darkness sky shows indoors too (a dark room); the rest of the sky is outdoors only.
-    const skyVis = skyOn ? Math.max(out, m.evil) : m.evil;
+    } else wNight = 1;
+    const skyVis = skyOn ? out : 0;
     // The cloud cover moves at a slow constant rate (owner feedback 23): the
     // deck's threshold relaxes from the noise's peaks, so clouds come one by
     // one, and the upwind side first (see buildRows). Kept while indoors.
@@ -619,7 +588,6 @@ class Sky {
     t[1]! += wSun * wet * 0.85;
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
-    t[7]! += wEvil;
     let mP = -1, mI = 0;
     const M = this.moment;
     if (M) {
@@ -640,7 +608,7 @@ class Sky {
     for (let i = 0; i < NP; i++) this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
 
     const b = env.back;
-    this.skyColour(env, wSun, wMoon, wNight, wEvil, mI, skyVis);
+    this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
     const rays = mI > 0.002 && out > 0.02;
     if (rays) this.drawRaysBack(env, mP, mI * out);
     if (skyOn) {
@@ -669,9 +637,8 @@ class Sky {
       this.mVisNow = 0;
       this.lifeFps = 0;
     }
-    const dk = Math.max(out, m.evil);
-    if (this.dark) this.drawDark(b, env, dk);
-    if (this.lift) this.drawLift(b, env, dk);
+    if (this.dark) this.drawDark(b, env, out);
+    if (this.lift) this.drawLift(b, env, out);
     this.drawSky(b, env, dt, mI);
     if (skyOn) this.drawShoot(b, env, dt, out);
     if (rays) this.drawRaysFront(env, mP, mI * out);
@@ -683,7 +650,7 @@ class Sky {
     return skyVis > 0.003 || !!this.moment || !!this.dark || !!this.lift || this.shoot.on || glinting || this.lifeFps > 0 || this.moonVis * this.moonPres > 0.01;
   }
 
-  skyColour(env: Env, wSun: number, wMoon: number, wNight: number, wEvil: number, mI: number, out: number): void {
+  skyColour(env: Env, wSun: number, wMoon: number, wNight: number, mI: number, out: number): void {
     const s = this.skyNow, wet = this.wet, SKY = this.SKY;
     let tr = 0, tg = 0, tb = 0, hr = 0, hg = 0, hb = 0, a = 0;
     const acc = (P: SkyCol, w: number): void => {
@@ -700,9 +667,6 @@ class Sky {
     acc(SKY.grey, wSun * wet * 0.8);
     acc(SKY.moon, wMoon * (1 - wet * 0.45));
     acc(SKY.night, wNight + wMoon * wet * 0.45);
-    acc(SKY.evil, wEvil);
-    // the darkness sky breathes: applied when the cached sky is drawn, not by redrawing it
-    this.pulse = wEvil > 0.01 ? 1 - 0.1 * wEvil * (0.5 + 0.5 * Math.sin(this.T * 0.7)) : 1;
     if (mI > 0.002) {
       const c = this.col, k = mI * 0.75;
       tr = lerp(tr, c[0]! * 0.7, k);
@@ -729,7 +693,7 @@ class Sky {
     // or in a sun moment, which has its own light), a cool lift toward the
     // moon or the horizon at night, hardly any in darkness.
     const sun = wSun * (1 - wet * 0.9) * (1 - clamp(mI * 2, 0, 1));
-    const cool = wMoon * 0.16 + wNight * 0.07 + wEvil * 0.03;
+    const cool = wMoon * 0.16 + wNight * 0.07;
     const vis = out * this.fogK * (1 - 0.5 * this.cover);
     const light = this.th.light;
     s[8] = (sun * (light ? 0.34 : 0.36) + cool * (1 - sun)) * vis * 100;
@@ -805,9 +769,7 @@ class Sky {
         if (x1 > x0) C.fillRect(x0, 0, x1 - x0, sh);
       }
     }
-    if (this.pulse < 0.999) this.moving = true;
     b.globalCompositeOperation = 'destination-over';
-    b.globalAlpha = this.pulse;
     const dh = this.skyDrawH;
     if (dh > 0) b.drawImage(this.skyCv, 0, 0, this.skyCv.width, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)), 0, 0, env.W, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)) / this.dpr);
     b.globalAlpha = 1;
@@ -1017,7 +979,7 @@ class Sky {
       (wNight + wMoon * 0.6) *
       (1 - sst(0.4, 0.8, this.cover)) *
       (0.25 + 0.75 * this.fogK) *
-      clamp(1 - this.palW[0]! - this.palW[2]! * 0.7 - this.palW[3]! * 0.5 - this.palW[7]!, 0, 1) *
+      clamp(1 - this.palW[0]! - this.palW[2]! * 0.7 - this.palW[3]! * 0.5, 0, 1) *
       (1 - 0.85 * this.darkG);
     this.starVis = vis;
     if (vis < 0.01) return;
@@ -1142,7 +1104,7 @@ class Sky {
     this.stepMoon(env, dt);
     // By day it is still there when it is up, much fainter (owner feedback 11).
     const day = clamp(wSun, 0, 1);
-    const light = out * clamp(wMoon + wNight * 0.65 + day * DAY_MOON, 0, 1) * (1 - this.palW[2]! * 0.8 - this.palW[3]! * 0.5 - this.palW[7]!);
+    const light = out * clamp(wMoon + wNight * 0.65 + day * DAY_MOON, 0, 1) * (1 - this.palW[2]! * 0.8 - this.palW[3]! * 0.5);
     const tgt = Math.max(0, light) * (1 - 0.8 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
     this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
     const u = this.u, mo = this.moon;
@@ -1432,7 +1394,7 @@ export function skyModule(): Module {
       sky?.onEvent(env, name);
     },
     fps(env) {
-      // Clouds, moon, stars and the darkness sky drift slowly; a shooting star,
+      // Clouds, moon and stars drift slowly; a shooting star,
       // a lightning-lit sky, sun moments and darkness bleeds move fast (and are
       // rare); a settled day sky does not move at all.
       // Day life asks for its own rate only while a flock, an insect or a glimpse is there.

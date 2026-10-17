@@ -17,10 +17,10 @@
 //                  change the almanac predicts (an event in between wins
 //                  until the next predicted change)
 //   text lines     lightning flash messages → 'strike'; a wind message in
-//                  a weather tag → 'gust' (see `lineEvent`); the room
-//                  display's magical darkness line → `magic` (see
-//                  `roomLine`: set by the line, cleared by the next room's
-//                  exits line without it)
+//                  a weather tag → 'gust' (see `lineEvent`)
+//
+// Magical darkness is a spell someone casts: only its Event.Darkness events
+// give an effect (owner feedback 26); no room text or light value does.
 
 import { type ClockState, isDay, momentAt } from '../gmcp/clock';
 import { moonAt, moonUpFraction } from '../gmcp/gametime';
@@ -88,34 +88,6 @@ const FLASH_FALLBACK_RE = /^A bright streak of lightning flashes\b/;
 const GUST_RE = /\bwind (?:coming|blowing) from\b/i;
 const GUST_FALLBACK_RE = /^You can feel an? [a-z-]+ wind coming from\b/;
 
-/**
- * Magical darkness in the room display (MUME, the owner's logs 2026-09-25/26):
- * "A deep, impenetrable darkness lingers here." (or "wavering", seen once at
- * the darkness's edge) right after the room name, on every entry and look,
- * brief mode too. An ordinary dark room never prints it (one you cannot see
- * is named "Darkness"). The prompt's light cannot tell them apart: 'o' for
- * every dark room, and '!' inside magical darkness with a lantern.
- */
-const DARK_ROOM_RE = /^A deep, (?:wavering|impenetrable) darkness lingers here\.\s*$/;
-/** The darkness spell taking hold in the room you are in (seen 4 times in the logs after the cast words). */
-const DARK_CAST_RE = /^The light decreases\.\s*$/;
-
-/**
- * What a text line says about the room's magical darkness: `dark` (the
- * lingering darkness line), `cast` (the spell taking hold here), `exits`
- * (the room display's exits line: the end of a room display), or null.
- */
-export function roomLine(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): 'dark' | 'cast' | 'exits' | null {
-  if (line.prompt) return null;
-  const text = line.text;
-  const c = text.charCodeAt(0);
-  if (c === 65) return DARK_ROOM_RE.test(text) ? 'dark' : null;
-  if (c === 84) return DARK_CAST_RE.test(text) ? 'cast' : null;
-  const tags = line.tags;
-  for (let i = 0; i < tags.length; i++) if (tags[i]!.tag === 'exits') return 'exits';
-  return c === 69 && text.startsWith('Exits:') ? 'exits' : null;
-}
-
 /** What a text line means for the weather: a strike, a gust, or nothing. */
 export function lineEvent(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): 'strike' | 'gust' | null {
   if (line.prompt) return null;
@@ -159,9 +131,6 @@ export class WeatherSignals {
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
   private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU'> | null = null;
-  /** Magical darkness: in the room now, and seen in the room display being read. */
-  private magic = false;
-  private darkLine = false;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -179,7 +148,7 @@ export class WeatherSignals {
 
   /** The state to start the engine with. */
   state(): WeatherState {
-    return { ...this.vit, ...this.sky, magic: this.magic, ...this.pinned };
+    return { ...this.vit, ...this.sky, ...this.pinned };
   }
 
   /** The current vitals (after a `Char.*` change); forwards the keys that changed. */
@@ -210,25 +179,10 @@ export class WeatherSignals {
     this.sink.emit(ev);
   }
 
-  /** A text line: lightning, a gust, or the room's magical darkness. */
+  /** A text line: lightning or a gust. */
   line(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): void {
     const ev = lineEvent(line);
     if (ev) this.sink.emit(ev);
-    const r = roomLine(line);
-    if (!r) return;
-    let magic = this.magic;
-    if (r === 'exits') {
-      // the end of a room display: dark exactly when its darkness line came
-      magic = this.darkLine;
-      this.darkLine = false;
-    } else {
-      if (r === 'dark') this.darkLine = true;
-      magic = true;
-    }
-    if (magic !== this.magic) {
-      this.magic = magic;
-      this.push({ magic });
-    }
   }
 
   /**

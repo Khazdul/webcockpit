@@ -16,13 +16,6 @@ export interface WeatherState {
   fog: FogSym;
   /** `Char.Vitals.light` ('*' sun, '!' lit, ')' moon, 'o' dark): informational; '!' tints. Every dark room is 'o'. */
   light: string;
-  /**
-   * The room has magical darkness: its display had "A deep, wavering /
-   * impenetrable darkness lingers here." (or "The light decreases." was
-   * seen in it). The only signal that tells it from an ordinary dark room
-   * (ADR 0091, 2026-10-17 notes 2); it gives the red darkness sky.
-   */
-  magic: boolean;
   /** standing, resting, sleeping, stunned, incapacitated, dying, … */
   position: string;
   /** The latest `Event.Sun`: 'day' after rise/light, 'night' after set/dark. */
@@ -47,7 +40,6 @@ export const DEFAULT_STATE: Readonly<WeatherState> = {
   clock: 'day',
   moonUp: false,
   moonPhase: 0.5,
-  magic: false,
   moonU: -1,
 };
 
@@ -80,7 +72,7 @@ export interface Categories {
   /** The bolt on a 'strike' event. */
   lightning: boolean;
   fog: boolean;
-  /** The darkness sky (a room with magical darkness) and Event.Darkness. */
+  /** Event.Darkness: the red bleed when a darkness spell spreads, the lift when it fades. */
   darkness: boolean;
   /** Position effects (sleeping, stunned, incapacitated, dying). */
   body: boolean;

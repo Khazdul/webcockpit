@@ -13,7 +13,7 @@
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
 //           dusting gathers on top of pane top borders and melts afterwards.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
-// evil reddish, dark night dim) and adapted to the background (palette.ts).
+// dark night dim) and adapted to the background (palette.ts).
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
@@ -22,14 +22,13 @@ import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
 
-type TintKey = 'sun' | 'moon' | 'torch' | 'evil' | 'dark' | 'neutral';
-const TKEYS: TintKey[] = ['sun', 'moon', 'torch', 'evil', 'dark', 'neutral'];
+type TintKey = 'sun' | 'moon' | 'torch' | 'dark' | 'neutral';
+const TKEYS: TintKey[] = ['sun', 'moon', 'torch', 'dark', 'neutral'];
 // [r, g, b, lum]
 const TINT_DARK: Record<TintKey, [number, number, number, number]> = {
   sun: [178, 196, 216, 1.0],
   moon: [150, 186, 240, 0.92],
   torch: [246, 170, 96, 0.9],
-  evil: [214, 112, 104, 0.74],
   dark: [104, 124, 156, 0.62],
   neutral: [168, 184, 206, 0.9],
 };
@@ -100,15 +99,14 @@ export function weatherModule(): Module {
   let TINT = TINT_DARK;
   /** Lighter = toward this channel value (white on dark, black on light). */
   let LIFT = 255;
-  const tw: Record<TintKey, number> = { sun: 0, moon: 0, torch: 0, evil: 0, dark: 0, neutral: 0 };
+  const tw: Record<TintKey, number> = { sun: 0, moon: 0, torch: 0, dark: 0, neutral: 0 };
   const tint = { r: 168, g: 184, b: 206, lum: 0.9, k1: 'neutral' as TintKey, w1: 1, k2: 'neutral' as TintKey, w2: 0 };
   function stepTint(mix: Env['mix']): void {
     tw.sun = mix.sun;
     tw.moon = mix.moon;
-    tw.evil = mix.evil;
     tw.dark = mix.dark;
     tw.torch = mix.torch * (1 - 0.3 * mix.outdoors * mix.night);
-    let s = tw.sun + tw.moon + tw.torch + tw.evil + tw.dark;
+    let s = tw.sun + tw.moon + tw.torch + tw.dark;
     tw.neutral = Math.max(0, 1 - s);
     s += tw.neutral;
     let r = 0, g = 0, b = 0, l = 0, k1: TintKey = 'neutral', w1 = -1, k2: TintKey = 'neutral', w2 = -1;
