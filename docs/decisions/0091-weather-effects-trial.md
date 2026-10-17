@@ -20,7 +20,10 @@ mapping. Latency of text and commands must not be affected.
   phase that rises, crosses and sets; otherwise a starry night with
   shooting stars. `light` matters only as `o`, which overrides with the
   darkness sky (dark, slight red). (Changed 2026-10-17: only a room with
-  magical darkness, from its room text; see "Sky, moon, darkness, glints".)
+  magical darkness, from its room text; see "Sky, moon, darkness, glints".
+  Changed again 2026-10-17, owner feedback 26: no darkness sky at all, only
+  the `Event.Darkness` bleed and lift; see "Sky timing, darkness, left
+  edge".)
 - `weather`: ` ` nothing; `~` few large distant clouds in the top ~35 %;
   `'` light rain with drips along pane edges; `"` heavier rain and more
   drips; `*` snow that falls in from above, builds up gradually, with gusts;
@@ -529,7 +532,9 @@ under the same load. Chromium idle main thread with the effects on: 25.5 →
   `<room>`; the log export drops tags), and `Event.Darkness` itself (only
   the synthetic fixture has it), so what exactly it announces stays open.
 
-Decision: the room text is the signal. `signals.ts` `roomLine`: the
+Decision (superseded the same day by owner feedback 26: no room-text
+trigger and no red sky; see "Sky timing, darkness, left edge"): the room
+text is the signal. `signals.ts` `roomLine`: the
 darkness line sets `magic` at once and marks the room display; the
 display's exits line (XML `exits` tag, or a line starting `Exits:`) ends
 it: `magic` = whether the darkness line came. "The light decreases." also
@@ -629,6 +634,60 @@ key → send median 0.040 → 0.045 ms (Chromium), 0.040 → 0.040 ms
 and on alike (page start-up on the busy machine). Unchanged;
 `bench/results/weather.md` is not rewritten. `bench/weather-power.ts`
 gained the `birds` scene.
+
+### Sky timing, darkness, left edge (2026-10-17, owner feedback 26–31)
+
+- **Darkness (26).** Magical darkness is a spell someone casts; the owner
+  wants an effect only on its `Event.Darkness` events. Gone: `roomLine`
+  and the room-text trigger, `WeatherState.magic` (and the dev pin), the
+  `evil` mix key with its sky colours, cloud palette and fog/rain tints.
+  `darkness.start` / `grow` play the bleed, `shrink` / `end-soon` / `end`
+  the lift (sky.ts, unchanged), indoors too; the `darkness` category gates
+  them.
+- **In / out (27).** Causes of the choppy change: `outdoors` eased with
+  tau 0.9 s (most of it in the first second), the sky selection (`sun`,
+  `moon`, `dark`) was gated by it and eased on its own, and the cached sky
+  baked `outdoors` into its alpha, redrawn at most every 4th frame (3 Hz at
+  12 fps). Now `outdoors` moves at `OUT_RATE` 1/5 per second (5 s) and the
+  sky uses a smoothstep of it; the time of day is no longer gated by it in
+  the director (`quiet()` ignores sun / moon / dark; fog and rain tints
+  multiply by `outdoors`); the cached sky is copied at that alpha, so the
+  fade is per frame without redraws; clouds, stars, moon and day life
+  multiply by the same value. Indoors (`weather` null) the sky keeps the
+  last cover and wetness, so it fades back in as it went out, and the deck
+  stops rebuilding rows. While the fade runs the sky asks for `FPS_FAST`;
+  measured 29–30 fps during a fade (Chromium, Firefox headless), then 3 fps
+  (still day sky) or idle indoors.
+- **Left edge (28).** The cached day sky is erased (`destination-out`, one
+  linear gradient rect) from the left edge (strength 1 × day share) to
+  `LEFT_DARK` 0.34 of the width, so the page background shows at the top
+  left on every background. Only when the day sky is redrawn; night
+  untouched.
+- **Sunrise / sunset (29).** Moments last `RISE_S` 24 s / `SET_S` 26 s
+  (were 9 / 10). The director's sky selection (`sun`, `moon`, `dark`,
+  `night`) moves at a constant `SKY_RATE` 1/12 per second, and after a
+  clock change only once `SKY_HOLD_S` 11 s have passed, so the day sky goes
+  11–23 s into a sunset (the night likewise into a sunrise); a moon rise or
+  set moves at the same pace without the hold; `jump` is still instant.
+  The moment's colour tints the sky less and late at sunset (k = mI ·
+  (0.1 + 0.4 · smoothstep(0.3, 0.75, p))), early at sunrise, mostly at the
+  horizon; the day sky keeps its depth through the moment.
+- **Rays (30).** 8 rays (were 15), widths 0.2–0.8° (were 0.5–2.2°),
+  alpha 0.3 (were 0.5 / 0.62 for the cores), the front band 0.06 (0.085).
+- **Stars (31).** `STARS_H` 0.55, `STARS_H_RIGHT` 0.9; the count follows
+  the mean depth (cap 520).
+
+Measured (`bench/weather-power.ts --rounds 2`, headed, owner geometry,
+quieter machine than the previous run; medians, CPU ms/s with worker fps and
+ms/frame): Chromium calm day 37 (3; 0.36), heavy 245 (30; 0.65); Firefox
+calm 110 (3; 7.8), heavy 610 (30; 15.6); off 16–26 / 29–41. Before (same
+bench, busier machine): Chromium 42 / 346, Firefox 121 / 636, so no
+regression. Latency (`bench/weather-bench.ts --rounds 2`, heavy scene, off
+→ on): key → send median 0.020–0.025 → 0.020 ms (Chromium), 0.040 →
+0.040 ms (Firefox); text → painted p95 17.6–17.7 → 16.8 ms (Chromium),
+17.2–17.5 → 17.1–17.3 ms (Firefox). Single rAF gaps of 0.4 s (on) and
+2.1 s (off) in Chromium came from the busy machine (load ~13, another
+agent's browsers). `bench/results/` is not rewritten.
 
 ## Consequences
 

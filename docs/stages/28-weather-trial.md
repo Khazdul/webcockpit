@@ -88,9 +88,12 @@ setting is saved; it is off by default everywhere, phones included.
 
 1. Walk outdoors, then into a building: the sky (sun glow, clouds, moon,
    stars) is outdoors only. Weather, fog and light changes wait about 3 s
-   before they show, so running through rooms does not flicker. By day a
-   clear sky is a plain light-blue gradient with a soft sun glow at the top
-   right; clouds come only with weather `~` and wetter. Moving or docking
+   before they show, so running through rooms does not flicker; then the
+   whole sky fades out (going in) or in (going out) evenly over about 5 s.
+   By day a clear sky is a plain light-blue gradient with a soft sun glow
+   at the top right, kept dark along the left: it starts about 30 % in
+   from the left edge, so the text at the top left stays on the background;
+   clouds come only with weather `~` and wetter. Moving or docking
    panes leaves the sky as it is. By day the sky is a brighter, bluer
    gradient down to about a third above the bottom; now and then birds
    cross, rarely an insect darts, on clear days a few faint tufts drift,
@@ -107,19 +110,22 @@ setting is saved; it is off by default everywhere, phones included.
    big moon in the almanac's phase follows one arc from below the left
    edge, high over the middle, to below the right edge over its ~12
    minutes up, at an even pace, whatever the text does; by day it is a
-   pale, faint disc. Without the moon at night a starry sky (reaching
-   lower on the right) with shooting stars, which pass behind the frames
-   and make the lines they pass glint. Sunrise and sunset (`Event.Sun`)
-   send rays across the screen; the frame lines light up and a glint runs
-   along them with the ray front. Lightning lights every frame's lines.
+   pale, faint disc. Without the moon at night a starry sky (about half way
+   down on the left, almost to the bottom on the right) with shooting
+   stars, which pass behind the frames and make the lines they pass glint.
+   Sunrise and sunset (`Event.Sun`) take about 25 s: a few thin rays cross
+   the screen, the frame lines light up and a glint runs along them with
+   the ray front. At sunset the blue day sky stays for about the first
+   half and then turns slowly into the night sky as the rays fade; at
+   sunrise the night stays first and the day comes slowly in the second
+   half. Lightning lights every frame's lines.
 5. `sleep` (floating z z Z), getting stunned, and (carefully) being
    incapacitated or dying (blood and a red heartbeat wash).
-6. Darkness: walk into a room with magical darkness (its description
-   says "A deep, impenetrable darkness lingers here."): after ~3 s a red
-   bleed from the top and corners, then a dark red sky that stays while you
-   are in darkened rooms; leaving gives a brief lightening. Ordinary dark
-   rooms (caves, moonless nights, light `o`) give nothing now.
-   `Event.Darkness` start / grow still bleed, shrink / end lift.
+6. Darkness: only when someone's darkness spell spreads or fades
+   (`Event.Darkness`): start / grow give a short red bleed from the top and
+   corners, shrink / end a brief lightening. There is no red sky any more:
+   walking into a darkened room ("A deep, impenetrable darkness lingers
+   here.") or any dark room gives nothing by itself.
 7. Lightning: the Redhorn Pass room with "A bright streak of lightning
    flashes over the … mountains." should strike a bolt each time that
    line appears. **Please check** that it does: the client looks for
@@ -134,9 +140,9 @@ effects on and exposes `window.__weather` in the console:
 pins values (the game's are ignored for those keys) until
 `__weather.unpin()`; `__weather.set({...})` sets raw values with the 3 s
 delay; `__weather.emit('strike')` (also `'gust'`, `'sun.rise'`,
-`'sun.set'`, `'darkness.start'`, `'birds'`, `'glimpse'`, `'shoot'`, …);
-`__weather.jump({ magic: true })` pins magical darkness, `{ moonU: 0.3 }`
-the moon's place (0 rising … 1 setting); `await __weather.stats()` shows the
+`'sun.set'`, `'darkness.start'`, `'darkness.end'`, `'birds'`, `'glimpse'`,
+`'shoot'`, …); `__weather.jump({ moonU: 0.3 })` pins the moon's place (0
+rising … 1 setting); `await __weather.stats()` shows the
 worker's frame times; `__weather.stop()` turns the option off.
 
 **Feedback wanted.** Is it discreet enough while playing (text always
@@ -160,8 +166,8 @@ Where things live:
   `installWeather`), `controller.ts` (lazy chunk: engine + bridge),
   `index.ts` (`createWeather`, back/front canvases, one canvas per
   floating pane `floatLayers`), `signals.ts` (GMCP / almanac / lightning
-  and darkness room lines), `director.ts` (dwell 3 s, mix rates, sky
-  selection), `geometry.ts` (pane frame boxes incl. title notch, diffing),
+  lines), `director.ts` (dwell 3 s, mix rates, sky selection, the in/out
+  and day/night pace), `geometry.ts` (pane frame boxes incl. title notch, diffing),
   `palette.ts`, `protocol.ts`, `dev.ts` (`?weather`, `?weather=<json>`,
   `window.__weather`), `support.ts`, `weather.css`.
 - `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps,
@@ -431,19 +437,46 @@ Sky:
     is a spell someone casts (a special case). Give an effect only on the
     `Event.Darkness` events (when it grows or goes away) and otherwise no
     red sky at all (drop the room-line trigger and the steady red sky).
+    - **Done (2026-10-17):** the room text ("A deep, … darkness lingers
+      here.", "The light decreases.") no longer does anything, and the red
+      darkness sky is gone. `Event.Darkness` start / grow play the red bleed,
+      shrink / end the brief lightening, indoors and out; nothing stays red.
+      The dev pin `jump({ magic: true })` is gone; `emit('darkness.start')`
+      shows the bleed.
 27. **Indoors/outdoors fades.** Going indoors (the blue sky disappears)
     and out again is far too abrupt/choppy. Make it much smoother.
+    - **Done (2026-10-17):** after the 3 s settle the whole sky (gradient,
+      clouds, stars, moon, birds) fades out or in as one, evenly over about
+      5 s with soft ends (before: ~2 s, front-loaded, and the cached sky was
+      redrawn only a few times a second, which stepped). The fade runs at
+      30 frames per second, then the engine drops back to 3 (a still day
+      sky) or idles indoors; measured in Chromium and Firefox. Indoors the
+      sky keeps its clouds and wetness, so it comes back as it was.
 28. **Top-left readability.** Text at the top left is hard to read. Keep
     the top left dark: the blue sky starts about 30 % in from the left,
     a left-to-right gradient from black to the sky.
+    - **Done (2026-10-17):** the day sky fades in from the left edge (the
+      page background there) to full at about a third of the width; with
+      the fade toward the bottom the top-left corner stays the background
+      on black, dark grey and light pages alike. The night sky and stars are
+      unchanged (dark already, they did not hurt readability in the shots).
 29. **Sunset/sunrise timing.** At sunset the blue sky should not go until
     the sunset animation is nearly over; the whole thing should take about
     2–3 times as long as now, with a much softer change from the blue day
     sky to the night sky. The same at the end of the night: slower
     sunrise, softer change to day.
+    - **Done (2026-10-17):** sunset 26 s (was 10), sunrise 24 s (was 9).
+      The day sky stays for the first 11 s of a sunset, lightly tinted, and
+      then turns into the night sky over 12 s while the rays fade, so it is
+      night as the sunset ends. A sunrise tints the night first; the day
+      comes over the same 12 s in its second half.
 30. **Sunrise/sunset rays more discreet:** thinner rays, more sparing.
+    - **Done (2026-10-17):** 8 rays instead of 15, about a third as wide,
+      fainter, and a fainter band where the ray front passes.
 31. **Stars lower.** About 10 % further down in general, and further still
     on the right (down to about 10 % from the bottom right).
+    - **Done (2026-10-17):** the star field reaches 55 % down on the left
+      (was 45 %) and 90 % on the right (was 62 %), as dense as before.
 32. **Title notch out.** The line winding under the title does not look
     good. Bring back the line ending left and right of the title (a gap,
     as before), keeping the title transparent (no box).
