@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–3 done (items 1–32), owner tests round 3; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–3 done (items 1–34: weather demo `#weather demo`, see-through Transparent map), owner tests round 3; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -38,6 +38,21 @@ Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
+
+- **Done:** item 33 `#weather demo [slow]` / `#weather stop`: 21 steps in
+  1:36 (engine time scale 3× for sun, sky, fog, build-ups; smooth pins),
+  caption box top left; `?weather` now works after login. Item 34:
+  Mapper Transparent leaves the map's empty space see-through (alpha
+  context, rooms opaque, lower floors dimmed solid; ADR 0085 addendum 2).
+- **Checked:** typecheck, unit 2648, e2e weather/layout/map/map-background/
+  phone-frames/script-panes (82); latency bench unchanged.
+- **Open:** map canvas now always composited with alpha (not benched);
+  a real `Event.Sun` during the demo can flip the sky; reloading
+  mid-demo leaves the effects on.
+- **Next:** owner tests round 3 with `#weather demo`.
+- **Commits:** 901d8a7…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 owner feedback round 3 (branch `weather-trial`)
 
