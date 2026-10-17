@@ -70,12 +70,27 @@ rain + fog: text-to-screen and key-to-send latency must not move.
 - [x] E. Latency bench before/after (`bench/weather-bench.ts`,
   `bench/results/weather.md`); fixed the GPU-thread stalls it found
 - [ ] Screenshots on black, dark-grey and light backgrounds
+- [x] `#weather demo` with its caption box; `?weather` after login (item 33)
 - [x] ADR 0091, this file, progress table
 
 ## Test guide
 
 **Setup.** Check out branch `weather-trial`, run `npm run dev` and open
 the printed address (`http://localhost:5173/`). Enter MUME as usual.
+
+**Try first: the demo.** Type `#weather demo` in the input line (dev
+server or a production build, logged in or offline). In about a minute and
+a half it plays every effect: night with moon and stars, sunrise, the day
+sky with birds, clouds, light and heavy rain, lightning, snow with a gust,
+fog, going indoors and out, sleeping, stunned, dying and getting up,
+sunset, rain and fog at night, darkness spreading and lifting. A small box
+at the top left names each step, what to look at and the game signal that
+drives it. Sun moments, the day/night change, clouds, fog and the build-up
+of rain and snow run three times faster than in the game; `#weather demo
+slow` plays them at the game's pace (about three minutes). `#weather stop`
+ends it. Afterwards the effects follow the game again with the normal
+transitions; if they were off, they are off again, and your categories are
+as you left them.
 
 **Turn it on.** ESC → Options → Weather effects (last in the list) → `[X] Weather effects`.
 The effects start at once; turning the switch off removes them at once
@@ -135,14 +150,18 @@ setting is saved; it is off by default everywhere, phones included.
    a light one). The effects should follow at once and stay discreet.
 
 **Forcing states (dev server only).** `?weather` in the URL turns the
-effects on and exposes `window.__weather` in the console:
+effects on and exposes `window.__weather` in the console once the cockpit
+exists (at once with `?replay`; after Enter MUME from the start page), or
+`await __wc.weather()` at any time after that:
 `__weather.jump({ weather: '"', fog: '=', clock: 'night', moonUp: true })`
 pins values (the game's are ignored for those keys) until
 `__weather.unpin()`; `__weather.set({...})` sets raw values with the 3 s
 delay; `__weather.emit('strike')` (also `'gust'`, `'sun.rise'`,
 `'sun.set'`, `'darkness.start'`, `'darkness.end'`, `'birds'`, `'glimpse'`,
-`'shoot'`, …); `__weather.jump({ moonU: 0.3 })` pins the moon's place (0
-rising … 1 setting); `await __weather.stats()` shows the
+`'shoot'`, `'insect'`, …); `__weather.jump({ moonU: 0.3 })` pins the
+moon's place (0 rising … 1 setting); `weather: null` means indoors (`' '`
+is a clear sky outdoors); `__weather.demo()` / `__weather.demoStop()` are
+`#weather demo` / `#weather stop`; `await __weather.stats()` shows the
 worker's frame times; `__weather.stop()` turns the option off.
 
 **Feedback wanted.** Is it discreet enough while playing (text always
@@ -169,7 +188,9 @@ Where things live:
   lines), `director.ts` (dwell 3 s, mix rates, sky selection, the in/out
   and day/night pace), `geometry.ts` (pane frame boxes incl. the title's gap, diffing),
   `palette.ts`, `protocol.ts`, `dev.ts` (`?weather`, `?weather=<json>`,
-  `window.__weather`), `support.ts`, `weather.css`.
+  `window.__weather`), `support.ts`, `weather.css`; the demo
+  (`#weather demo`, its own lazy chunk): `demo-script.ts` (steps, timeline,
+  command parsing), `demo.ts` (runner, caption box), `demo.css`.
 - `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps,
   module caches, mask, float copies), `sky.ts` (sky, moon, stars, clouds,
   sun rays), `daylife.ts` (birds, insects, tufts, sun glimpses),
@@ -489,3 +510,35 @@ Sky:
       the frames, snow on pane tops and the sunrise/sunset light on pane
       tops leave the gap alone (no lit band or brightness step behind the
       title).
+
+### 2026-10-17 — demo request (translated)
+
+33. **A demo sequence.** The owner is fairly happy, but checking every
+    effect by running around in the game looking for events is too
+    cumbersome. Wanted: a test sequence of about 60 seconds that goes
+    through every phenomenon: e.g. night for a few seconds, the sun rises,
+    day with every combination of what can happen, sunset, night with
+    everything that can happen; when it is done it goes back to the normal
+    mode that follows the game. It should be started with a command. While
+    it runs, a small box at the top left describes what happens, in a
+    visually nice way. (Also found: `?weather` in the URL left
+    `__weather` undefined after logging in from the start page.)
+    - **Done (2026-10-17):** `#weather demo` (input line, also in production
+      builds) plays 21 steps in 1:36: night with moon, stars and a shooting
+      star; sunrise; the clear day with birds, a sun glimpse and an insect;
+      clouds; light rain; heavy rain; lightning; snow and a gust; fog light
+      then dense; indoors; outdoors; sleeping; stunned; incapacitated then
+      dying; getting up (the blood dries); sunset with a shooting star;
+      rain and lightning at night; fog at night; darkness spreading; darkness
+      lifting; back to the game. To fit, the slow paces (sun moments, the
+      day/night change, cloud cover, fog, the rain and snow build-up, the
+      blood drying) run 3× faster during the demo; `#weather demo slow`
+      plays them at the game's pace (2:58). The box at the top left, in the
+      panes' frame style, shows the step, what to look at, the game signal
+      behind it, a progress bar with the time left and "#weather stop to
+      end"; it fades between steps and is gone afterwards. The demo turns
+      the effects on if they were off (and off again after), shows every
+      category, then restores yours; switching the effects off ends it. At
+      the end everything is unpinned and the effects follow the game with
+      the normal transitions. `?weather` now applies once the cockpit is
+      built, so `__weather` exists after login. ADR 0091 "Demo".

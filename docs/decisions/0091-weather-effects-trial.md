@@ -721,6 +721,51 @@ regression. Latency (`bench/weather-bench.ts --rounds 2`, heavy scene, off
 2.1 s (off) in Chromium came from the busy machine (load ~13, another
 agent's browsers). `bench/results/` is not rewritten.
 
+### Demo (2026-10-17, owner feedback 33)
+
+- **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
+  a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++
+  abbreviation changes), left out of the manual like the other trial
+  parts; `#help weather` prints one line. `App.runClient` hands it to the
+  hook (`WeatherHook.command`), which imports `demo.ts` lazily, so the
+  main bundle gains only the dispatch. Scripts can start it with
+  `expandAlias("#weather demo")`; the pane API is not extended. Dev:
+  `__weather.demo()` / `demoStop()`.
+- **Script.** `demo-script.ts`: 21 steps, each a caption (title, what to
+  look at, the game signal) and timed actions: pins of `WeatherState` and
+  engine events, the same inputs the game gives. Only the first pin jumps;
+  the others go through `pin(…, { smooth: true })`: the bridge sends them
+  with `setState(…, { settle: true })`, which settles the dwelled values at
+  once (no 3 s dwell) but leaves the easing, the sky's hold and the fog's
+  pace alone. The release at the end is the same smooth unpin, so the
+  effects ease back to the game's values. A test-only `xN` argument runs
+  the wall clock N times faster (e2e).
+- **Time scale.** `setSpeed(n)` (message `speed`): `Director.speed`
+  multiplies the sky selection's hold and rate and the fog rate;
+  `Env.speed` divides the sun moments' length and multiplies the cloud
+  cover rate, the rain and snow build-up and the blood's drying. The demo
+  uses 3 (`DEMO_SPEED`; sunrise 8 s, sunset 8.7 s) and `slow` 1, and sets
+  it back to 1 when it ends. 1:36 in all, 2:58 slow. A new `insect` event
+  sends an insect at once, like `birds` and `glimpse`.
+- **Runner.** `demo.ts`: one timer to the next due action (no per-frame
+  work). Effects off: it turns `weather.enabled` on and off again at the end
+  (this is saved, so a reload mid-demo leaves them on). Categories: the
+  engine gets all six for the demo and the user's again at the end; the
+  settings are not touched. The effects being switched off, or the
+  controller going away, ends it without further changes.
+- **Caption box.** Main-thread DOM in the cockpit (z 95, above the front
+  layer, below the drop bars), made at the start and removed at the end,
+  `pointer-events: none`. The panes' glass line with the title in a gap,
+  the terminal background (opaque: at 90–95 % the game text ghosted
+  through), theme tokens for every colour. A few DOM writes per step; the
+  fade between steps and the progress bar are CSS transitions (opacity,
+  `transform: scaleX`), an exception to "no CSS animations" (ui.css) for
+  this trial-only box: they run on the compositor and nothing runs while
+  the demo is not.
+- **`?weather` after login.** `Shell.onApp(fn)` calls back once the cockpit
+  is built; `weatherFromUrl` (dev.ts) uses it, so `?weather` also applies
+  when the cockpit comes from the start page's Enter MUME.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
