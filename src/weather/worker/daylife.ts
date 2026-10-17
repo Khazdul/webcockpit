@@ -329,9 +329,9 @@ export class DayLife {
     return this.fps();
   }
 
-  /** Start a glimpse now (dev / tests / the demo): a strong midday one. */
+  /** Start a glimpse now (dev / tests / the demo): a strong midday one, its peak 4 s on (within the demo's 5 s day step). */
   glimpseNow(T: number): void {
-    this.glimpse = { t0: T, dur: 11, peak: 1 };
+    this.glimpse = { t0: T, dur: 8, peak: 1 };
   }
   /** Send a flock now (dev / tests). */
   birdsNow(): void {
