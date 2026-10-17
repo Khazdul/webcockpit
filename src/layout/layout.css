@@ -173,7 +173,8 @@
  * rim's outer edge to the plate's bottom (pane.ts, frame.ts `framePlate`)
  * and the label's box is trimmed to the capitals (`text-box`), so the
  * capitals sit in the middle of the plate as seen, rim included, in any
- * font, lifted a device px (item 35: in the mockup they sat a little low).
+ * font (item 35: in the mockup they sat a little low; item 40: the plate
+ * ends a px higher, the letters stay where they were).
  * The plate's shadow on the pane is the box's. Above the content, so a pane
  * that fills its frame (the map) does not hide it. */
 .wc-pane-title {
@@ -186,7 +187,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-bottom: var(--frame-hair, 1px);
   border-radius: 0 0 var(--plate-r, 4px) var(--plate-r, 4px);
   box-shadow: 0 1px 1.5px -0.5px rgb(0 0 0 / 0.42);
   font-size: 0.68em;

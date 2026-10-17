@@ -144,12 +144,12 @@ describe('PaneShell', () => {
     expect(p.el.style.getPropertyValue('--frame-t')).toBe('6px');
     expect(['l', 'r', 'top', 'b'].map((k) => p.el.style.getPropertyValue(`--frame-${k}`))).toEqual(['2px', '2px', '2px', '2px']);
     // The nameplate for ' Comm ' (frame-box px), the fill's clip round it and the rim's clip.
-    expect(['x0', 'x1', 'y0', 'y1', 'r'].map((k) => p.el.style.getPropertyValue(`--plate-${k}`))).toEqual(['24px', '63px', '2px', '13px', '3px']);
-    const hole = 'M6 6H21A3 3 0 0 1 24 9V10A3 3 0 0 0 27 13H60A3 3 0 0 0 63 10V9A3 3 0 0 1 66 6H80V75H6Z';
+    expect(['x0', 'x1', 'y0', 'y1', 'r'].map((k) => p.el.style.getPropertyValue(`--plate-${k}`))).toEqual(['24px', '63px', '2px', '12px', '3px']);
+    const hole = 'M6 6H21A3 3 0 0 1 24 9V9A3 3 0 0 0 27 12H60A3 3 0 0 0 63 9V9A3 3 0 0 1 66 6H80V75H6Z';
     expect(p.el.style.getPropertyValue('--frame-hole')).toBe(`path("${hole}")`);
     const rim = p.el.querySelector<HTMLElement>('.wc-pane-rim')!;
     expect(rim.style.clipPath).toContain(hole);
-    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M27 13H60M80 6V75H6');
+    expect(rim.querySelector('.wc-seam-light')!.getAttribute('d')).toBe('M27 12H60M80 6V75H6');
     expect([p.cols, p.rows, p.visible]).toEqual([8, 3, true]);
     p.place({ rect, content: rect, framed: false }, { w: 9, h: 17 });
     expect(p.el.querySelector('.wc-pane-frame')!.textContent).toBe('');

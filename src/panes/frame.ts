@@ -135,8 +135,9 @@ export interface FramePlate {
 /**
  * The plate for a title of `chars` characters (` Label `, spaces included)
  * from the fourth cell, at TITLE_SCALE: its sides PLATE_PAD advances outside
- * the label's spaces, its bottom at 8/9 of the top cell row (the mockup's
- * 16 px of 18; clear of the first content row), every edge on a whole
+ * the label's spaces, its bottom one CSS px above 8/9 of the top cell row
+ * (the mockup's 16 px of 18 less one, owner item 40; clear of the first
+ * content row), every edge on a whole
  * device pixel of the page; the fillets clear of the rim's inner corners.
  * Null without a title or room for one.
  */
@@ -147,12 +148,14 @@ export function framePlate(box: PxRect, g: FrameGeometry, w: number, h: number, 
   const s = w * TITLE_SCALE;
   const xt = box.x + LABEL_COL * w;
   const fx = box.x + g.l, fy = box.y + g.top;
-  // Plate bottom in device px of the page, and the fillet radius it leaves room for.
-  const yb = Math.round((box.y + (h * 8) / 9) * d);
+  // Plate bottom in device px of the page (8/9 of the top row less one CSS
+  // px: owner item 40, the letters sit in its middle), and the fillet
+  // radius it leaves room for.
+  const one = Math.max(1, Math.round(d));
+  const yb = Math.round((box.y + (h * 8) / 9) * d) - one;
   const yt = Math.round(fy * d) + tD;
   if (yb - yt < 3) return null;
   const rD = Math.max(1, Math.min(Math.round(PLATE_R * d), Math.floor((yb - yt) / 2)));
-  const one = Math.max(1, Math.round(d));
   const xMin = Math.round((fx + g.t) * d) + rD + one;
   const xMax = Math.round((box.x + box.w - g.r - g.t) * d) - rD - one;
   const xa = Math.max(xMin, Math.round((xt - PLATE_PAD * s) * d));
