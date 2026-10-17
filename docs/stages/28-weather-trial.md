@@ -560,3 +560,43 @@ Sky:
       on a dark one. Without weather, Transparent looks exactly as before
       (a tinted map pane keeps its tint behind the map); every other colour
       is unchanged. ADR 0085 "Addendum 2 — see-through Transparent".
+
+### 2026-10-17 — fourth test (translated)
+
+Panes and frames (the owner is not fully happy with the panes and their
+frames):
+
+35. **Frame mockup: ten alternative designs** of panes, frame lines and
+    titles, covering every direction before one is chosen. Ideas to
+    explore:
+    1. *Better-looking frames:* thicker (about 2–4 px more) and/or built
+       from several shades so the frame "pops": e.g. a fairly dark outer
+       stroke, a much lighter second stroke, then the normal frame colour,
+       and the two innermost strokes in their own shades (instead of only
+       a dark outer and inner stroke as now).
+    2. *Titles baked into the frame:* today the title floats in the air,
+       and over an unlucky background it cannot be read. E.g. a backing
+       that blends into the frame, or a text colour that always shows
+       whatever lies behind, or text in two colours with a very thin black
+       outline around each letter, or something else clever.
+    3. *Light glass blur inside panes:* a very light blur, the weather
+       behind should still be glimpsed.
+    4. *Pane colour in the frame:* frames look about the same whatever
+       colour a pane has; the frame should clearly take the colour chosen
+       for the pane.
+
+Weather:
+
+36. **Blue sky off on its own.** There is no way to switch off the blue
+    day sky other than switching the weather effects off altogether.
+37. **Sun rays that make the frames glint where they hit.** The owner
+    likes the frames glinting at sunrise and sunset, but it does not look
+    like it happens where the rays hit them. Make the rays more
+    concentrated, e.g. a few rays in the middle stronger and on a clearly
+    defined path across the screen. Where those central rays hit a pane
+    and its frame, that part of the frame glints, so the glint is seen to
+    happen where the strongest rays hit (which depends on where the panes
+    are on screen).
+38. **Moon direction.** The game said "The moon disappears in the west."
+    but our moon set on the right side of the screen. Swap the sides the
+    moon rises and sets on.
