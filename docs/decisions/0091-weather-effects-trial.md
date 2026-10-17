@@ -1157,6 +1157,61 @@ clouds; Firefox snow about half what it was. Latency (`weather-bench.ts
 worker 23 → 30 fps, 36.9 → 29.2 ms a frame against the last results file.
 `bench/results/` is not rewritten.
 
+### Floats show the back canvas itself (2026-10-17, owner item 57)
+
+- **Cause.** A floating pane hid the game text with a canvas of its own
+  (`.wc-weather-float`, opaque CSS background) into which the worker copied
+  the back layer each frame. The copy was of the same frame, but each
+  transferred OffscreenCanvas is presented on its own (Chromium: its own
+  compositor frame sink; Gecko: its own async image), so now and then the
+  page showed the float's copy a frame earlier or later than the back
+  canvas round it ("Not fixed (53)" above). Measured across the top edge of
+  a borderless float during lightning (consecutive compositor frames from a
+  CDP screencast in Chromium, back-to-back screenshots in Firefox): inside /
+  outside brightness ratio 0.31–1.90 in Chromium and 0.52–1.38 in Firefox
+  over the lit frames, e.g. 27 outside against 43 inside.
+- **Fix: one surface.** No float canvases any more. A float has no fill of
+  its own while weather is on (`data-weather-see`, as a docked pane) and the
+  back canvas shows through it; what lies under it is clipped out instead
+  (index.ts `floatHoles`, geometry.ts `holeClip`): `clip-path: path(evenodd,
+  …)` on the game text, the input line, each docked pane and each lower
+  float, the element's box less the union of the floats in front of it
+  (made disjoint, `cutRects`, so overlapping floats stay holes). It runs on
+  each relayout, synchronously before paint, so a moved float and its holes
+  move in the same frame (before, the copy was a frame stale after a move).
+  The worker paints every pane's tint under the back layer, floats too,
+  less the boxes of the floats in front (`paneFills`); a tinted float that
+  moves gets a frame at once (`frameNow`). Gone: the `float` / `floatGone`
+  messages, `paintFloats` and one image copy per float per frame.
+- **Backdrop roots.** A clip makes its element a backdrop root, so a
+  docked pane or lower float with a hole would blur nothing behind its
+  glass (checked in Chromium). Such a pane is marked `data-weather-under`
+  and gets the glass without blur (the Firefox look: 64 %, rim 60 %) while a
+  float lies over it. A float over the game text only keeps its full glass.
+- **Rejected.** (1) Presenting every canvas through the main thread
+  (`transferToImageBitmap` per frame, `transferFromImageBitmap` in one task):
+  in step, but heavy rain cost Chromium 482 → 1829 ms/s and Firefox 593 →
+  1259 ms/s (`weather-power.ts`, map off). (2) Gecko covers showing the back
+  canvas through `-moz-element()`: views of the same canvas were still
+  painted a frame apart at times. (3) A mask (`mask-image` with gradient
+  layers) instead of the clip: the same cost as the clip in headless Firefox.
+- **Firefox and the clip.** In *headless* Firefox (software rendering) a
+  complex clip or mask on the game text cost 11–23 main-thread gaps over
+  50 ms per `weather-bench.ts` run while text arrived with the map floating
+  (a plain rect clip none). Headed, as users run it, there are none: rAF gap
+  p95 / max 17.2 / 28.4 → 17.2 / 30.0 ms, text → painted median / p95
+  9.9 / 17.8 → 9.8 / 17.9 ms (weather on, map floating, 2 rounds).
+- **Measured after.** Inside / outside ratio over the lit frames: Chromium
+  0.81–1.07 (68 frames), Firefox 0.88–1.14 (26); the remaining spread is the
+  flash's own gradient (the same in frames before and after it). Framed
+  floats unchanged (glass ratio 0.36–0.50 → 0.33–0.47 Chromium, 0.23–0.29 →
+  0.22–0.30 Firefox). A day → night fade: no step in 500 / 146 frames.
+  CPU (`weather-power.ts --rounds 2`, headed, ms/s, map off): Chromium calm
+  90 → 104, heavy 483 → 502; Firefox calm 155 → 157, heavy 593 → 591 (the
+  code path without floats is unchanged: run-to-run noise). With the map
+  floating, heavy: Chromium 568 → 516 (worker frame 1.88 → 1.65 ms, no copy),
+  Firefox 621 → 623.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

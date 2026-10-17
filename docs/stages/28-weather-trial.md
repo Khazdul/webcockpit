@@ -967,3 +967,21 @@ black: the brightest stroke stands out).
     any fast flash) it can show the previous frame's brightness and stand
     out as a rectangle. It should show the same frame as the weather
     around it.
+    - **Done (2026-10-17):** a floating pane now shows the weather canvas
+      itself instead of a copy of it. The copy was of the right frame, but
+      the browser put each canvas on screen on its own, so now and then the
+      pane showed it a frame early or late. Now the pane is see-through like
+      a docked pane, and what lies under it (game text, docked panes, a
+      lower float) is cut away round it. Measured across the top edge of a
+      borderless float in lightning, inside against outside: before, up to
+      a third or nearly double the brightness (Chromium 0.31–1.90, Firefox
+      0.52–1.38); now 0.81–1.07 and 0.88–1.14, which is the flash's own
+      shading. Day/night fades show no step; framed floats look as before. A
+      moved float now shows the right weather in the same frame too. One
+      visible change: a docked pane (or a lower float) with a float lying
+      over it gets its glass without blur while it is covered, as Firefox
+      always draws it (the cut makes the blur see nothing). The CPU cost is
+      unchanged, a little lower with floats. Please try: lightning with a
+      borderless float over the text (`#weather demo` has strikes), and drag
+      a float over a framed docked pane and see if the change in its glass
+      bothers you.
