@@ -329,7 +329,7 @@ export class WeatherEngine {
     env.out = g.out;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating }));
+    env.panes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, notch: p.notch }));
     this.geom = g;
     const moved = this.placeFloats(g);
     // The fill of a docked pane with its own background: the frame box (framed) or the whole pane.

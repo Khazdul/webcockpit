@@ -206,6 +206,14 @@ describe('geometry diff', () => {
     const t = geom();
     t.panes[0]!.border = 3;
     expect(geometryDiff(geom(), t)).toBe('layout');
+    // The notch under the title is part of the line.
+    const n = geom();
+    n.panes[0]!.notch = { x: 1229, w: 60, depth: 11 };
+    expect(geometryDiff(geom(), n)).toBe('layout');
+    const n2 = geom();
+    n2.panes[0]!.notch = { x: 1229, w: 60, depth: 12 };
+    expect(geometryDiff(n, n2)).toBe('layout');
+    expect(geometryDiff(n, n)).toBe('none');
   });
   it('ignores sub-pixel jitter', () => {
     const g = geom({ out: { x: 0.2, y: 0, w: 1200.3, h: 980 } });

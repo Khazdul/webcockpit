@@ -12,6 +12,8 @@ export interface Pane extends Rect {
   border: number;
   label: string;
   floating: boolean;
+  /** Where the top line winds down under the title (protocol `PaneGeom.notch`). */
+  notch?: { x: number; w: number; depth: number };
 }
 
 export interface Env {

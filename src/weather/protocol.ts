@@ -99,6 +99,14 @@ export interface PaneGeom extends Rect {
   bg: string | null;
   /** The rect of the whole pane element. */
   box: Rect;
+  /**
+   * Where the top line winds down under the title (absent without one): it
+   * leaves the top side at `x` (the left step is `[x, x + border]`), runs
+   * down, along the floor `[y + depth, y + depth + border]` and back up the
+   * right step `[x + w − border, x + w]`. Between the steps, above the floor,
+   * there is no line (the title is there).
+   */
+  notch?: { x: number; w: number; depth: number };
 }
 
 export interface Geometry {
