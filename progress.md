@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–3 done (items 1–34: weather demo `#weather demo`, see-through Transparent map), owner tests round 3; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–4 (items 1–38: weather demo, see-through map, day sky switch, sun beams, moon side); frame mockup awaiting the owner's pick; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -38,6 +38,23 @@ Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-17 — Stage 28 owner feedback round 4 (branch `weather-trial`)
+
+- **Done:** feedback items 35–38 recorded. 36: Options → Weather effects
+  "Blue day sky" switch (`weather.daySky`). 37: three strong sun beams in
+  the ray fan (`worker/beams.ts`); frame lines glint where a beam crosses
+  them, the position-independent lit lines are gone. 38: the moon rises on
+  the right (east) and sets on the left (west). 35: frame mockup with ten
+  designs, then three nameplate variants on the chosen frosted glass rim
+  (https://claude.ai/artifact/AA75geBq5rii2iJFydqc6H,
+  `notes/research/frame-mockup/`).
+- **Checked:** typecheck, all unit tests, e2e weather (Chromium, Firefox),
+  chrome e2e; latency unchanged; sun moments ~7 % more CPU in Firefox.
+- **Open:** owner picks 11/12/13, then build the frame (measure
+  `backdrop-filter` first). Beam strength is a taste call (`BEAM_LAYERS`).
+- **Next:** owner tests 36–38 and picks the nameplate variant.
+- **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
 

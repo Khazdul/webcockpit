@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Soft Elevation</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap">
+<style>
+/* =====================================================================
+   WebCockpit pane frames: shared scene + "00 Today" frame.
+
+   CONTRACT FOR DESIGN ARTBOARDS (V01..V10)
+   - Copy this whole file. Keep everything in "SCENE" (CSS) and every
+     scene element (sky, clouds, rays, rain, game text, input line, pane
+     bar) and every pane's position, size, colour (data-c) and content
+     exactly as they are.
+   - Replace ONLY the "FRAME DESIGN" CSS block below. You may add a few
+     elements inside each pane's markup (e.g. extra stroke divs in or
+     next to .frame), the same in every pane.
+   - Every pane has the same markup shape:
+       <div class="pane" id="p-..." data-c="none|blue|red|green|orange"
+            [data-float=""] style="left/top/width/height; --gap-x0; --gap-x1">
+         <div class="fill"></div>      glass fill (inside the frame line)
+         <div class="content">..</div> text grid: inset one cell (18 / 9 px)
+         <div class="frame"></div>     the frame line
+         <div class="title">Name</div> the title
+         <div class="close">x</div>    close cross, top right
+       </div>
+     --gap-x0 / --gap-x1: where today's top line stops/resumes for the
+     title, px from the frame box's left edge (frame.ts frameGap).
+   - Pane colours are the app's real presets (src/theme/presets.ts
+     PANE_TINTS, src/theme/color.ts paneBorder): --pane-border and
+     --pane-bg per data-c, set in FRAME DESIGN. Text colours: --term-fg.
+   - The real-app geometry: cell 9 x 18 px; the frame lives in the outer
+     cell ring (frame box inset --fi = 3 px, gap between neighbouring
+     frames 6 px), line --ft = 3 px today; up to ~7 px fits.
+   - Do NOT put z-index on .pane: docked panes must not be isolated
+     stacking contexts (the fill blends with the sky behind). Paint order
+     inside a pane is DOM order: fill, content, frame, title, close.
+   ===================================================================== */
+
+body{margin:0}
+
+/* ---------------------------------------------------------------------
+   SCENE (do not change in design artboards)
+   Dark theme defaults: --term-fg #c0c0c0 on --term-bg #000000, DOS ANSI
+   palette (src/theme/presets.ts). Day sky with a sunrise glow
+   (src/weather/worker/sky.ts: top rgb(112 184 255) a .66, horizon
+   rgb(92 152 232), faded in from the left over ~30 % of the width).
+   --------------------------------------------------------------------- */
+.scene {
+  --term-fg: #c0c0c0;
+  --term-bg: #000000;
+  --term-echo: #87a8cf;
+  position: relative; width: 1280px; height: 760px; overflow: hidden;
+  background: var(--term-bg); color: var(--term-fg);
+  font-family: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  font-size: 15px; line-height: 18px;
+  font-variant-ligatures: none;
+}
+.scene .layer { position: absolute; inset: 0; pointer-events: none; }
+
+/* sky: vertical gradient, faded in from the left (top-left stays the page bg) */
+.sky {
+  background: linear-gradient(180deg,
+    rgb(112 184 255 / .74) 0%, rgb(106 176 252 / .64) 16%, rgb(98 162 240 / .46) 36%,
+    rgb(92 152 232 / .26) 56%, rgb(92 152 232 / .10) 74%, rgb(92 152 232 / 0) 90%);
+  -webkit-mask: linear-gradient(90deg, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / .1) 13%, rgb(0 0 0 / .62) 24%, #000 34%);
+  mask: linear-gradient(90deg, rgb(0 0 0 / 0) 0%, rgb(0 0 0 / .1) 13%, rgb(0 0 0 / .62) 24%, #000 34%);
+}
+/* sunrise: warm glow from just above the top right */
+.glow {
+  background:
+    radial-gradient(ellipse 560px 400px at 97% -7%, rgb(255 214 160 / .66) 0%, rgb(255 178 120 / .40) 13%, rgb(242 132 104 / .18) 36%, rgb(220 110 110 / .06) 62%, rgb(220 110 110 / 0) 100%),
+    radial-gradient(ellipse 1100px 300px at 85% 0%, rgb(255 190 150 / .18), rgb(255 190 150 / 0) 70%);
+}
+.cloud { position: absolute; border-radius: 50%; filter: blur(12px); }
+.ray {
+  position: absolute; top: -24px; transform-origin: 100% 50%; filter: blur(.6px);
+  background: linear-gradient(270deg, rgb(255 238 214 / 1) 0%, rgb(255 228 200 / .45) 35%, rgb(255 228 200 / 0) 100%);
+}
+.rain { overflow: hidden; }
+.rain-sheet { position: absolute; will-change: transform; }
+.rain-0 {
+  left: -160px; top: -120px; width: 1600px; height: 1200px;
+  opacity: 0.2;
+  background: repeating-linear-gradient(90deg, transparent 0 36px, rgb(205 218 240) 36px 37px);
+  -webkit-mask: repeating-linear-gradient(168deg, transparent 0 101.73px, #000 101.73px 117.38px);
+  mask: repeating-linear-gradient(168deg, transparent 0 101.73px, #000 101.73px 117.38px);
+  animation: rain-fall-0 0.55s linear infinite;
+}
+@keyframes rain-fall-0 {
+  from { transform: rotate(9deg) translateY(0); }
+  to { transform: rotate(9deg) translateY(120px); }
+}
+.rain-1 {
+  left: -160px; top: -150px; width: 1600px; height: 1260px;
+  opacity: 0.15;
+  background: repeating-linear-gradient(90deg, transparent 0 52px, rgb(205 218 240) 52px 53px);
+  -webkit-mask: repeating-linear-gradient(163deg, transparent 0 122.41px, #000 122.41px 143.45px);
+  mask: repeating-linear-gradient(163deg, transparent 0 122.41px, #000 122.41px 143.45px);
+  animation: rain-fall-1 0.7s linear infinite;
+}
+@keyframes rain-fall-1 {
+  from { transform: rotate(9deg) translateY(0); }
+  to { transform: rotate(9deg) translateY(150px); }
+}
+.rain-2 {
+  left: -160px; top: -190px; width: 1600px; height: 1340px;
+  opacity: 0.11;
+  background: repeating-linear-gradient(90deg, transparent 0 70px, rgb(205 218 240) 70px 71px);
+  -webkit-mask: repeating-linear-gradient(172deg, transparent 0 162.40px, #000 162.40px 188.15px);
+  mask: repeating-linear-gradient(172deg, transparent 0 162.40px, #000 162.40px 188.15px);
+  animation: rain-fall-2 0.85s linear infinite;
+}
+@keyframes rain-fall-2 {
+  from { transform: rotate(9deg) translateY(0); }
+  to { transform: rotate(9deg) translateY(190px); }
+}
+
+/* game output: unframed, directly on the weather, as in the real client */
+.game { position: absolute; left: 0; top: 0; width: 594px; height: 741px; overflow: hidden; }
+.game .row { position: absolute; left: 0; white-space: pre; }
+.inputline { position: absolute; left: 0; top: 741px; width: 870px; height: 19px; white-space: pre; color: var(--term-echo); }
+.cursor { display: inline-block; width: 2px; height: 16px; margin-left: 1px; vertical-align: -3px; background: #ffaf00; animation: blink 1.06s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.panebar { position: absolute; left: 880px; top: 741px; width: 400px; height: 19px; white-space: pre; color: #585858; }
+.pb { background: #a8a8a8; color: #121212; }
+.pb-off { background: #3a3a3a; color: #8a8a8a; }
+
+/* text colours (DOS palette + UI roles) */
+.a-sys { color: #ffd75f; }
+.a-room { color: #00ffff; }
+.a-exits { color: #008080; }
+.a-obj { color: #00ff00; }
+.a-mob { color: #ffff00; }
+.a-hurt { color: #ff0000; }
+.a-warn { color: #ffd75f; }
+.a-ok { color: #7ac46f; }
+.a-dim { color: #8a8a8a; }
+.a-echo { color: var(--term-echo); }
+.a-narr { color: #ff00ff; }
+.a-tell { color: #00ff00; }
+.a-say { color: #ffff00; }
+.a-grp { color: #00ffff; }
+.a-name { color: #ffffff; font-weight: 700; }
+
+/* gauges and the map (pane contents) */
+.bar { display: inline-block; height: 10px; vertical-align: 0; background: rgb(255 255 255 / .10); position: relative; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; }
+.g-hp { background: #2fa84a; }
+.g-hurt { background: #c8a02a; }
+.g-mana { background: #3a6fd8; }
+.g-mv { background: #b08a3a; }
+.content-map { background: #2e3436; }
+.m-room { position: absolute; width: 26px; height: 26px; box-shadow: inset 0 0 0 1px rgb(0 0 0 / .45); }
+.m-link { position: absolute; background: #8f8a7c; }
+.m-you { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #ffd23c; box-shadow: 0 0 0 2px #2e3436, 0 0 6px 2px rgb(255 210 60 / .7); }
+.m-mob { position: absolute; width: 8px; height: 8px; border-radius: 50%; background: #e0402e; }
+
+/* ---------------------------------------------------------------------
+   FRAME DESIGN  "V09 Soft elevation"
+   No tube: each pane is a floating glass sheet. A 3 px rim in the pane's
+   own colour with a soft inner glow of the same hue, a small dark drop
+   shadow outside (separates the sheet from a bright sky), and a gentle
+   highlight along the top edge. The rim is unbroken; the title sits just
+   under it, inside the top cell row, on a short dark scrim.
+
+   Colour rule (one rule for every pane, from --pane-border only):
+     --rim    = oklch(from --pane-border  0.60  c*5.4  h)
+     --rim-hi = oklch(from --pane-border  0.76  c*4.6  h)   top edge
+     --rim-lo = oklch(from --pane-border  0.46  c*5.4  h)   bottom edge
+     --glow   = --rim at 40 % alpha (inner glow)
+     --title  = oklch(from --pane-border  0.93  c*2.6  h)
+   Chroma is multiplied, so the uncoloured preset (c = 0) stays grey.
+   --------------------------------------------------------------------- */
+.pane {
+  position: absolute;
+  overflow: hidden;
+  --fi: 3px;   /* inset from the pane box to the outside of the rim */
+  --ft: 3px;   /* rim thickness */
+  --rim:    oklch(from var(--pane-border) 0.60 calc(c * 5.4) h);
+  --rim-hi: oklch(from var(--pane-border) 0.76 calc(c * 4.6) h);
+  --rim-lo: oklch(from var(--pane-border) 0.45 calc(c * 5.4) h);
+  --glow:   oklch(from var(--pane-border) 0.62 calc(c * 5) h / 0.42);
+  --title-fg: oklch(from var(--pane-border) 0.93 calc(c * 2.6) h);
+  --glass-a: 42%;  /* how much of --pane-bg tints the glass */
+  --lift: 0 1px 2px rgb(0 0 0 / .55), 0 0 1px 1px rgb(0 0 0 / .28);
+}
+/* the app's real pane colour presets on a #000000 terminal */
+.pane[data-c="none"]   { --pane-border: #292929; --pane-bg: #000000; }
+.pane[data-c="blue"]   { --pane-border: #222830; --pane-bg: #0e141c; }
+.pane[data-c="red"]    { --pane-border: #2e2222; --pane-bg: #1a0e0e; }
+.pane[data-c="green"]  { --pane-border: #222e22; --pane-bg: #0e1a0e; }
+.pane[data-c="orange"] { --pane-border: #30281e; --pane-bg: #1c140a; }
+/* a floating pane sits higher: denser glass, deeper shadow */
+.pane[data-float] {
+  --glass-a: 72%;
+  --lift: 0 2px 3px rgb(0 0 0 / .7), 0 0 2px 1px rgb(0 0 0 / .4);
+}
+
+/* Glass sheet: tinted, lightly blurred, inside the rim. The scrim is a
+   short dark fall-off at the top, strongest behind the title. */
+.fill {
+  position: absolute;
+  inset: calc(var(--fi) + var(--ft));
+  border-radius: 2px;
+  background:
+    radial-gradient(150px 26px at calc(var(--gap-x0) + 34px) 0, rgb(0 0 0 / .5), rgb(0 0 0 / 0) 100%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--pane-bg) 60%, rgb(0 0 0 / .62)) 0px,
+      color-mix(in srgb, var(--pane-bg) 50%, rgb(0 0 0 / .30)) 9px,
+      rgb(0 0 0 / 0) 18px),
+    color-mix(in srgb, var(--pane-bg) var(--glass-a), transparent);
+  -webkit-backdrop-filter: blur(3px) saturate(1.35);
+  backdrop-filter: blur(3px) saturate(1.35);
+}
+
+/* text grid: one cell in from every edge (unchanged by any design) */
+.content { position: absolute; inset: 18px 9px; overflow: hidden; white-space: pre; }
+/* the map fills its frame up to the line's inner edge */
+.content.content-map { inset: calc(var(--fi) + var(--ft)) calc(var(--fi) + var(--ft)) calc(var(--fi) + var(--ft)); }
+
+/* The rim: lit from above (lighter top edge, deeper bottom edge), a
+   crisp dark hairline and a small drop shadow outside, a soft glow of
+   the same hue inside. */
+.frame {
+  position: absolute;
+  inset: var(--fi);
+  box-sizing: border-box;
+  border: var(--ft) solid var(--rim);
+  border-top-color: var(--rim-hi);
+  border-bottom-color: var(--rim-lo);
+  border-radius: 5px;
+  box-shadow:
+    var(--lift),
+    inset 0 0 0 1px rgb(0 0 0 / .32),
+    inset 0 0 7px 1px var(--glow);
+}
+/* gentle top highlight: a soft white sheen along the top rim */
+.frame::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--ft));
+  left: 8px; right: 8px;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / 0), rgb(255 255 255 / .62) 22%, rgb(255 255 255 / .4) 70%, rgb(255 255 255 / 0));
+}
+
+/* title: in the top cell row, just under the rim, on the scrim */
+.title {
+  position: absolute;
+  top: calc(var(--fi) + var(--ft) + 1px);
+  left: calc(var(--fi) + var(--gap-x0) - 2px);
+  font-size: 0.82em;
+  line-height: 11px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  white-space: pre;
+  color: var(--title-fg);
+  text-shadow: 0 1px 1px rgb(0 0 0 / .9), 0 0 4px rgb(0 0 0 / .6);
+}
+
+/* close cross: same row as the title, one cell in from the right */
+.close {
+  position: absolute;
+  top: calc(var(--fi) + var(--ft) + 1px);
+  right: 9px;
+  width: 27px;
+  text-align: center;
+  font-size: 0.82em;
+  line-height: 11px;
+  color: var(--title-fg);
+  opacity: .75;
+  text-shadow: 0 1px 1px rgb(0 0 0 / .9);
+}
+/* ------------------------------ end FRAME DESIGN ------------------------------ */
+</style>
+</helmet>
+<div class="scene" style="width: 1280px; height: 760px; position: relative; overflow: hidden;">
+
+  <!-- ============ SCENE: weather behind the panes ============ -->
+  <div class="layer sky" aria-hidden="true"></div>
+  <div class="layer glow" aria-hidden="true"></div>
+  <div class="layer clouds" aria-hidden="true">
+    <div class="cloud" style="left: 90px; top: 34px; width: 560px; height: 34px; background: rgb(255 204 192 / .42); transform: rotate(-4deg); filter: blur(14px);"></div>
+    <div class="cloud" style="left: 260px; top: 118px; width: 400px; height: 24px; background: rgb(255 214 200 / .30); transform: rotate(-3deg);"></div>
+    <div class="cloud" style="left: 640px; top: 222px; width: 330px; height: 30px; background: rgb(214 222 238 / .20); filter: blur(14px);"></div>
+    <div class="cloud" style="left: 1010px; top: 92px; width: 300px; height: 40px; background: rgb(255 226 212 / .48); transform: rotate(-8deg); filter: blur(14px);"></div>
+    <div class="cloud" style="left: 1120px; top: 300px; width: 220px; height: 34px; background: rgb(240 214 210 / .22); filter: blur(16px);"></div>
+    <!-- the unlucky case: a bright cloud exactly behind the Character title -->
+    <div class="cloud" style="left: 868px; top: -14px; width: 160px; height: 40px; background: rgb(255 249 240 / .96); filter: blur(8px);"></div>
+    <div class="cloud" style="left: 900px; top: -6px; width: 96px; height: 22px; background: rgb(255 255 255 / .9); filter: blur(5px);"></div>
+  </div>
+  <div class="layer rays" aria-hidden="true">
+    <div class="ray" style="left: 86px; width: 1150px; height: 1.5px; opacity: 0.3; transform: rotate(-12deg);"></div>
+    <div class="ray" style="left: 236px; width: 1000px; height: 2.5px; opacity: 0.22; transform: rotate(-19deg);"></div>
+    <div class="ray" style="left: 336px; width: 900px; height: 1.2px; opacity: 0.26; transform: rotate(-27deg);"></div>
+    <div class="ray" style="left: 286px; width: 950px; height: 3px; opacity: 0.14; transform: rotate(-34deg);"></div>
+    <div class="ray" style="left: 436px; width: 800px; height: 1.5px; opacity: 0.2; transform: rotate(-43deg);"></div>
+    <div class="ray" style="left: 536px; width: 700px; height: 2px; opacity: 0.14; transform: rotate(-55deg);"></div>
+    <div class="ray" style="left: 616px; width: 620px; height: 1.2px; opacity: 0.16; transform: rotate(-66deg);"></div>
+  </div>
+  <div class="layer rain" aria-hidden="true">
+    <div class="rain-sheet rain-0"></div>
+<div class="rain-sheet rain-1"></div>
+<div class="rain-sheet rain-2"></div>
+  </div>
+
+  <!-- ============ SCENE: game output (unframed), input line, pane bar ============ -->
+  <div class="game">
+    <div class="row" style="top: 0px;"><span class="a-sys">[SYSTEM] Connected to mume.org:4242 (TLS).</span></div>
+    <div class="row" style="top: 18px;"><span class="a-sys">[SYSTEM] Weather effects on.</span></div>
+    <div class="row" style="top: 219px;"><span class="a-room">The Great East Road</span></div>
+    <div class="row" style="top: 237px;">The road runs east and west over the low hills of the</div>
+    <div class="row" style="top: 255px;">Eastfarthing. North of it a dry-stone wall hems in a field of</div>
+    <div class="row" style="top: 273px;">barley, beaten flat by the rain. Somewhere ahead the Brandywine</div>
+    <div class="row" style="top: 291px;">rushes past, swollen and brown.</div>
+    <div class="row" style="top: 309px;"><span class="a-exits">Exits: east, west.</span></div>
+    <div class="row" style="top: 327px;"><span class="a-obj">A weathered signpost stands here, pointing east to Bree.</span></div>
+    <div class="row" style="top: 345px;"><span class="a-mob">A hobbit farmer hurries past, his hood pulled low.</span></div>
+    <div class="row" style="top: 363px;"><span class="a-mob">A large, black crebain is here, circling overhead.</span></div>
+    <div class="row" style="top: 381px;">* <span class="a-dim">HP:</span>Fine <span class="a-dim">MV:</span><span class="a-warn">Tired</span>&gt;</div>
+    <div class="row" style="top: 399px;"><span class="a-echo">kill crebain</span></div>
+    <div class="row" style="top: 417px;">You slash a large, black crebain hard.</div>
+    <div class="row" style="top: 435px;">A large, black crebain pecks at you, but misses.</div>
+    <div class="row" style="top: 453px;">You slash a large, black crebain very hard.</div>
+    <div class="row" style="top: 471px;"><span class="a-hurt">A large, black crebain scratches your left arm.</span></div>
+    <div class="row" style="top: 489px;">* <span class="a-dim">HP:</span><span class="a-warn">Hurt</span> <span class="a-dim">MV:</span><span class="a-warn">Tired</span> <span class="a-dim">crebain:Wounded</span>&gt;</div>
+    <div class="row" style="top: 507px;">You pierce a large, black crebain extremely hard.</div>
+    <div class="row" style="top: 525px;">Your blood freezes as you hear the crebain's death cry.</div>
+    <div class="row" style="top: 543px;"><span class="a-mob">A large, black crebain is dead! R.I.P.</span></div>
+    <div class="row" style="top: 561px;">* <span class="a-dim">HP:</span><span class="a-warn">Hurt</span> <span class="a-dim">MV:</span><span class="a-warn">Tired</span>&gt;</div>
+    <div class="row" style="top: 579px;"><span class="a-narr">Xyrion narrates 'anyone near Brandy bridge? need a cleric'</span></div>
+    <div class="row" style="top: 597px;"><span class="a-echo">e</span></div>
+    <div class="row" style="top: 615px;"><span class="a-room">Brandywine Bridge</span></div>
+    <div class="row" style="top: 633px;">The old stone bridge arches over the swollen river. Rain hisses</div>
+    <div class="row" style="top: 651px;">on the water and runs in sheets off the worn parapets.</div>
+    <div class="row" style="top: 669px;"><span class="a-exits">Exits: east, west.</span></div>
+    <div class="row" style="top: 687px;">The sun rises in the east.</div>
+    <div class="row" style="top: 705px;">It starts to rain.</div>
+    <div class="row" style="top: 723px;">* <span class="a-dim">HP:</span><span class="a-warn">Hurt</span> <span class="a-dim">MV:</span><span class="a-warn">Tired</span>&gt;</div>
+  </div>
+  <div class="inputline">&gt; narrate on my way, at the bridge in 2<span class="cursor"></span></div>
+  <div class="panebar">:: <span class="pb">CHAR</span> <span class="pb">TIME</span> <span class="pb">GRP</span> <span class="pb">COMM</span> <span class="pb">ROOM</span> <span class="pb">MAP</span> <span class="pb-off">FIND</span></div>
+
+  <!-- ============ PANES (identical markup shape; Group floats over the game text and the Map) ============ -->
+<div class="pane" id="p-map" data-c="none" style="left: 600px; top: 0px; width: 270px; height: 210px; --gap-x0: 28px; --gap-x1: 57px;">
+  <div class="fill"></div>
+  <div class="content content-map"><div class="m-room" style="left: 4px; top: 8px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 30px; top: 20px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 16px; top: 34px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 40px; top: 8px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 66px; top: 20px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 76px; top: 8px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 88px; top: 34px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 148px; top: 8px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 174px; top: 20px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 160px; top: 34px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 184px; top: 8px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 210px; top: 20px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 220px; top: 8px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 232px; top: 34px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 4px; top: 44px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 30px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 16px; top: 70px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 40px; top: 44px; background: #6b7a46;"></div>
+    <div class="m-link" style="left: 66px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 76px; top: 44px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 102px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 88px; top: 70px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 112px; top: 44px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 138px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 148px; top: 44px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 174px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 160px; top: 70px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 184px; top: 44px; background: #6b7a46;"></div>
+    <div class="m-link" style="left: 210px; top: 56px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 220px; top: 44px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 232px; top: 70px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 4px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 30px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 16px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 40px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 66px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 52px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 76px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 102px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 88px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 112px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 138px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 124px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 148px; top: 80px; background: #8a8a80;"></div>
+    <div class="m-link" style="left: 174px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 160px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 184px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 210px; top: 92px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 220px; top: 80px; background: #8a7458;"></div>
+    <div class="m-link" style="left: 232px; top: 106px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 4px; top: 116px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 30px; top: 128px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 16px; top: 142px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 40px; top: 116px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 66px; top: 128px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 76px; top: 116px; background: #6b7a46;"></div>
+    <div class="m-link" style="left: 102px; top: 128px; width: 10px; height: 3px;"></div>
+    <div class="m-link" style="left: 88px; top: 142px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 112px; top: 116px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 138px; top: 128px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 148px; top: 116px; background: #3a5f8a;"></div>
+    <div class="m-link" style="left: 160px; top: 142px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 220px; top: 116px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 232px; top: 142px; width: 3px; height: 10px;"></div>
+    <div class="m-room" style="left: 4px; top: 152px; background: #2f5a2a;"></div>
+    <div class="m-room" style="left: 76px; top: 152px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 102px; top: 164px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 112px; top: 152px; background: #2f5a2a;"></div>
+    <div class="m-link" style="left: 138px; top: 164px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 148px; top: 152px; background: #3a5f8a;"></div>
+    <div class="m-link" style="left: 174px; top: 164px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 184px; top: 152px; background: #4d7a3a;"></div>
+    <div class="m-link" style="left: 210px; top: 164px; width: 10px; height: 3px;"></div>
+    <div class="m-room" style="left: 220px; top: 152px; background: #2f5a2a;"></div>
+    <div class="m-you" style="left: 154px; top: 86px;"></div>
+    <div class="m-mob" style="left: 193px; top: 89px;"></div>
+    <div class="m-mob" style="left: 85px; top: 53px;"></div></div>
+  <div class="frame"></div>
+  <div class="title">Map</div>
+  <div class="close">&#215;</div>
+</div>
+
+<div class="pane" id="p-char" data-c="blue" style="left: 880px; top: 0px; width: 400px; height: 210px; --gap-x0: 28px; --gap-x1: 101px;">
+  <div class="fill"></div>
+  <div class="content"><span class="a-name">Ilmarë</span> the Ranger of the North
+<span class="a-dim">Level </span>23<span class="a-dim">   Elf   </span>Neutral
+
+<span class="a-dim">HP    </span><span class="bar" style="width: 153px;"><span class="bar-fill g-hp" style="width: 74%;"></span></span> 104/140
+<span class="a-dim">Mana  </span><span class="bar" style="width: 153px;"><span class="bar-fill g-mana" style="width: 63%;"></span></span>  38/60
+<span class="a-dim">Moves </span><span class="bar" style="width: 153px;"><span class="bar-fill g-mv" style="width: 34%;"></span></span>  41/122
+
+<span class="a-dim">XP to level </span>18,342<span class="a-dim">   Gold </span>412
+<span class="a-warn">Hungry</span>  <span class="a-ok">Standing</span>  <span class="a-dim">Day, rain</span></div>
+  <div class="frame"></div>
+  <div class="title">Character</div>
+  <div class="close">&#215;</div>
+</div>
+
+<div class="pane" id="p-timers" data-c="orange" style="left: 880px; top: 210px; width: 200px; height: 150px; --gap-x0: 28px; --gap-x1: 79px;">
+  <div class="fill"></div>
+  <div class="content"><span class="a-ok">Bless</span>        4:10
+<span class="a-ok">Armour</span>       8:02
+<span class="a-ok">Shield</span>       2:47
+<span class="a-warn">Sanctuary</span>    0:31
+<span class="a-dim">Rent</span>        29:55
+<span class="a-dim">Sunset</span>      1h 12</div>
+  <div class="frame"></div>
+  <div class="title">Timers</div>
+  <div class="close">&#215;</div>
+</div>
+
+<div class="pane" id="p-room" data-c="none" style="left: 1080px; top: 210px; width: 200px; height: 150px; --gap-x0: 28px; --gap-x1: 65px;">
+  <div class="fill"></div>
+  <div class="content"><span class="a-room">Brandywine Bridge</span>
+<span class="a-dim">Terrain </span>bridge
+<span class="a-dim">Exits   </span><span class="a-exits">e  w</span>
+<span class="a-dim">Light   </span>sun
+<span class="a-dim">Weather </span>rain
+<span class="a-dim">Zone    </span>Eastfarthing</div>
+  <div class="frame"></div>
+  <div class="title">Room</div>
+  <div class="close">&#215;</div>
+</div>
+
+<div class="pane" id="p-comm" data-c="green" style="left: 880px; top: 360px; width: 400px; height: 381px; --gap-x0: 28px; --gap-x1: 65px;">
+  <div class="fill"></div>
+  <div class="content"><span class="a-dim">12:31 </span><span class="a-narr">Brolin narrates 'grp for</span>
+      <span class="a-narr">Tharbad, need 2 more'</span>
+<span class="a-dim">12:33 </span><span class="a-tell">Thrandil tells you 'omw,</span>
+      <span class="a-tell">wait at the bridge'</span>
+<span class="a-dim">12:35 </span><span class="a-say">You say 'ok, at Brandy'</span>
+<span class="a-dim">12:38 </span><span class="a-narr">Xyrion narrates 'anyone</span>
+      <span class="a-narr">near Brandy bridge? need a</span>
+      <span class="a-narr">cleric'</span>
+<span class="a-dim">12:39 </span><span class="a-tell">You tell Xyrion 'here,</span>
+      <span class="a-tell">coming'</span>
+<span class="a-dim">12:40 </span><span class="a-grp">[group] Brolin: orcs west</span>
+      <span class="a-grp">of Bree, 4-5 of them</span>
+<span class="a-dim">12:41 </span><span class="a-narr">Melian narrates 'weather</span>
+      <span class="a-narr">turned, rain all along</span>
+      <span class="a-narr">the East Road'</span>
+<span class="a-dim">12:42 </span><span class="a-say">Brolin says 'lets go'</span></div>
+  <div class="frame"></div>
+  <div class="title">Comm</div>
+  <div class="close">&#215;</div>
+</div>
+
+<div class="pane" id="p-group" data-c="red" data-float="" style="left: 369px; top: 54px; width: 270px; height: 126px; --gap-x0: 28px; --gap-x1: 72px;">
+  <div class="fill"></div>
+  <div class="content"><span class="a-name">Ilmarë</span>  <span class="bar" style="width: 54px;"><span class="bar-fill g-hp" style="width: 74%;"></span></span> <span class="bar" style="width: 54px;"><span class="bar-fill g-mv" style="width: 34%;"></span></span> 74%
+Brolin  <span class="bar" style="width: 54px;"><span class="bar-fill g-hp" style="width: 91%;"></span></span> <span class="bar" style="width: 54px;"><span class="bar-fill g-mv" style="width: 80%;"></span></span> 91%
+Thrandil<span class="bar" style="width: 54px;"><span class="bar-fill g-hurt" style="width: 46%;"></span></span> <span class="bar" style="width: 54px;"><span class="bar-fill g-mv" style="width: 62%;"></span></span><span class="a-warn"> 46%</span>
+<span class="a-dim">pony    </span><span class="bar" style="width: 54px;"><span class="bar-fill g-hp" style="width: 100%;"></span></span> <span class="bar" style="width: 54px;"><span class="bar-fill g-mv" style="width: 95%;"></span></span> fine
+<span class="a-dim">4 members, leader Brolin</span></div>
+  <div class="frame"></div>
+  <div class="title">Group</div>
+  <div class="close">&#215;</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

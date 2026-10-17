@@ -584,6 +584,29 @@ frames):
     4. *Pane colour in the frame:* frames look about the same whatever
        colour a pane has; the frame should clearly take the colour chosen
        for the pane.
+    - **Mockup (2026-10-17):** a Design canvas
+      https://claude.ai/artifact/AA75geBq5rii2iJFydqc6H, sources in
+      `notes/research/frame-mockup/` (`BRIEF.md`, one `.dc.html` per
+      board). Board 00 is today's frame over a shared weather scene (day
+      sky, sunrise, rain, a bright cloud behind one title, panes in Plain,
+      Blue, Red, Green, Orange, a floating pane over the map); 01–10 change
+      only the frame, title and pane glass: five-band ridge, nameplate,
+      frosted glass rim, neon tube, title band, double rule, lit from
+      above, corner brackets, soft elevation, engraved metal. Each derives
+      its frame shades from the preset with `oklch(from --pane-border …)`
+      (fixed lightness per band, chroma boosted, Plain stays grey) and uses
+      a semi-transparent fill with `backdrop-filter` instead of today's
+      screen blend.
+    - **Owner choice (2026-10-17):** 03 "Frosted glass rim" for the frame
+      and its in-pane glass, with a nameplate inspired by 02 worked into
+      the frame so it seems to grow out of it. Three such variants added:
+      11 "Glass swell plate" (rim and plate one moulded piece of glass,
+      one clip path), 12 "Hanging glass plate" (02's shape in frosted
+      glass, fillets), 13 "Inlaid crystal plate" (the rim splits around a
+      chamfered crystal). Awaiting the owner's pick. Notes for the build:
+      cap lightness/chroma so the light shades stay in sRGB (03's specular
+      line shows a yellow fringe otherwise); measure `backdrop-filter` cost
+      over the weather canvases before building.
 
 Weather:
 
