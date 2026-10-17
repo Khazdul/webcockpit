@@ -220,6 +220,10 @@ export function weatherModule(): Module {
   }
 
   // ---- state
+  /** Rivulets: the drop's centre this far outside the rim's outer edge; they end this far above the frame box's bottom (the rim's 4 px corner rounds off below). */
+  const RIV_OUT = 0.5, RIV_CORNER = 3;
+  /** The corner eaves this far in from the frame box's sides (under the rounded corner's flat part). */
+  const EAVE_IN = 2.2;
   let W = 0, H = 0, fadeTop = 0;
   const RN = 340;
   const rx = new Float32Array(RN), ry = new Float32Array(RN), rs = new Float32Array(RN), rl = new Float32Array(RN);
@@ -295,7 +299,9 @@ export function weatherModule(): Module {
   }
   function buildPanes(env: Env): void {
     panes = env.panes.map((p) => {
-      const eaves = [p.x + 1.2, p.x + p.w - 1.2];
+      // the corner eaves under the rim's rounded lower corners, where they still touch the bottom edge
+      const ce = p.border ? EAVE_IN : 1.2;
+      const eaves = [p.x + ce, p.x + p.w - ce];
       const n = Math.max(1, Math.round(p.w / 95));
       for (let k = 0; k < n; k++) eaves.push(p.x + p.w * (0.12 + 0.76 * ((k + R() * 0.8) / n)));
       return {
@@ -1138,8 +1144,10 @@ export function weatherModule(): Module {
               vy0[i] = vy[i] = p.y + 1;
               vv[i] = 0;
               vseed[i] = R() * 50;
-              // Down the outside of the frame line, not over it.
-              vx[i] = vside[i] ? p.x2 + 2 : p.x - 2;
+              // Down the rim's outer edge: the drop's centre half a px
+              // outside it, so it straddles the dark edge (owner item 41;
+              // 2 px out, tuned for the old thin line, it hung in the air).
+              vx[i] = vside[i] ? p.x2 + RIV_OUT : p.x - RIV_OUT;
               break;
             }
           }
@@ -1185,7 +1193,8 @@ export function weatherModule(): Module {
         const go = env.noise(vy[i]! * 0.04, vseed[i]!) > 0.35 ? 1 : 0.08;
         vv[i]! += ((25 + 60 * heavy) * go - vv[i]!) * Math.min(1, dt * 5);
         vy[i]! += vv[i]! * dt;
-        const yEnd = Math.min(p.y2, fadeTop);
+        // to where the rim's lower corner starts to round off (its bead hangs under the corner)
+        const yEnd = Math.min(p.y2 - (p.bw ? RIV_CORNER : 0), fadeTop);
         if (vy[i]! >= yEnd) {
           va[i] = 0;
           if (p.eavesOk) p.bead[vside[i]!] = Math.min(1.2, p.bead[vside[i]!]! + 0.45);
