@@ -194,7 +194,7 @@ Where things live:
   `window.__weather`), `support.ts`, `weather.css`; the demo
   (`#weather demo`, its own lazy chunk): `demo-script.ts` (steps, timeline,
   command parsing), `demo.ts` (runner, caption box), `demo.css`.
-- `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps,
+- `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps, transitions ≥ 30, clouds 20 (15 in Firefox), glimpses 6,
   module caches, mask, float copies), `sky.ts` (sky, moon, stars, clouds,
   sun rays), `daylife.ts` (birds, insects, tufts, sun glimpses),
   `glint.ts` (glints on frame lines), `weather.ts` (rain, drips, snow,
@@ -920,3 +920,41 @@ black: the brightest stroke stands out).
     low? Raise frame rates generally so everything feels more fluid, if
     the CPU price is not too high: no need to be needlessly frugal, but
     watch out for obvious resource hogs.
+    - **Done (2026-10-17):** three causes, all fixed. (1) A change of cloud
+      cover ran at 12 frames a second, the sky's colours were redrawn only 6
+      times a second, and the clouds were rebuilt as a new "key picture" only
+      every 4.7 s, so they came and moved in long blurred steps. Now every
+      transition (clouds coming or going, day to night, in and out, rain or
+      fog coming) runs at 30 frames a second while it lasts, the sky's colours
+      change every frame, and the clouds get a new key picture every 0.7 s
+      during a change and every 1.2 s while they drift. A cloudy day drifts at
+      20 frames a second (was 12; 15 in Firefox, where it costs more). (2) The
+      frames came unevenly: now and then a frame slipped by one screen refresh
+      (33 then 50 ms at 30 frames a second). The loop now follows the screen's
+      own rhythm: measured during a cloud change the intervals are 33/33/33 ms
+      (median/95 %/max), against 83/84/94 before (Chromium; Firefox 87/91/170
+      → 33/34/34). (3) In Firefox the distant snow cost about 25 ms per frame
+      (Firefox draws the effects without the graphics card), so falling snow
+      ran right at its limit and slipped frames; it is now drawn another way
+      at about 1.5 ms (looks the same, perhaps a touch crisper), and snow costs
+      Firefox about half the CPU it did. Rain and snow stay at 30 frames a
+      second (60 would roughly double their cost); fog, moon and stars stay at
+      12, a still day sky at 3. CPU (ms per second, 1000 = one core),
+      before → after:
+
+      | Scene | Chromium | Firefox |
+      |---|---|---|
+      | Clear day | 111 → 100 | 170 → 163 |
+      | Cloudy day | 198 → 309 | 281 → 367 |
+      | Cloud cover changing (24–40 s) | 212 → 480 | 314 → 528 |
+      | Snow | 491 → 484 | 964 → 515 |
+      | Heavy rain, fog, night | 521 → 497 | 574 → 604 |
+      | Sunset | 518 → 532 | 723 → 741 |
+      | Sun glimpse | 115 → 103 | 182 → 174 |
+      | Going indoors | 153 → 158 | 200 → 218 |
+
+      So a cloudy day costs about a tenth of a core more, a cloud change about
+      a quarter of a core more while it runs, snow in Firefox half a core
+      less. Please try: a clear day → `~` clouds (`#weather demo` has it, or
+      the game), falling snow in Firefox, and going in and out; say if
+      anything still steps, or if the laptop runs warmer than before.

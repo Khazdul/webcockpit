@@ -1079,6 +1079,84 @@ rewritten.
   with holes on the output, which then needs the docked panes and stacked
   floats handled as well): left open for the owner.
 
+### Plate edge, glimpse strength, frame rates (2026-10-17, owner feedback 54–56)
+
+- **Plate's bottom edge (54).** `frameSeams` puts the plate's bottom on the
+  dark seam with its sides and lower corners (one path fillet to fillet); the
+  light seam is only the rim's right and bottom inner edge. The plate's bottom
+  is a lower edge of the glass, like the rim's outer bottom edge. Over black
+  at 2× the line under the plate went 147 → 56 grey (plate glass 104).
+- **Glimpse strength (55).** Ray alpha 0.165 dark / 0.11 light (was 0.22 /
+  0.15), the glow 0.06 / 0.045 (0.08 / 0.06), rim glints 0.375 × the ray's
+  strength (0.5), the sparkle above 0.24 (0.32) so it comes on the same
+  glimpses. Schedule unchanged. Sunrise/sunset rays and beams unchanged.
+- **Cadence (56).** The loop drew a frame when `1000/rate − 2 ms` had passed,
+  measured with `performance.now()` in the callback; an animation frame that
+  ran a little early was put off a whole vsync (33/50 ms at 30 fps under
+  jitter; reproduced in a unit test with late callbacks). Now the tick uses
+  the animation frame's own timestamp (vsync grid, clamped to the clock and
+  monotonic) for the frame decision and the time step, with a slack of
+  `min(6 ms, interval/3)` (`SLACK_MS`).
+- **Transitions at 30 fps (56).** `Director.moving()`: a mix value is not at
+  its target (the dwell before a change does not count; the sky keys do not
+  while the sky holds after a clock change). While it is true every module's
+  rate is at least `FPS_FAST` 30, cached ones (fog at half resolution)
+  included. The sky asks for `FPS_FAST` also while its own easing runs
+  (`Sky.trans`: the cloud cover on its way at `COVER_RATE`, or the palette
+  weights more than 0.003 off their targets), and redraws its cached gradient
+  on every frame it moved enough (was every other frame: 6 Hz steps at 12 fps).
+  Before, a cloud cover change ran at 12 fps with the gradient redrawn at 6 Hz.
+- **Cloud deck (56).** Key frames are timed, not counted: one per
+  `DECK_KEY_S` 1.2 s while drifting, `DECK_KEY_MOVE_S` 0.7 s while the cover
+  or palette moves (was 56 frames: 4.7 s at 12 fps, so clouds came and moved
+  in long blurred steps); the cross-fade weight is the key frame's time phase.
+  The row work per second is then fixed (a key frame is ~90 × 432 noise
+  samples at the owner geometry, a few ms). While the deck shows the sky runs
+  at `CLOUD_FPS` 20, `CLOUD_FPS_CPU` 15 where the canvases draw on the CPU
+  (`Env.cpu`, from the worker's user agent with `glassBlurCheap`: Firefox):
+  at 20 Firefox's cloudy day cost ~460 ms/s against ~360 at 15.
+- **Snow on CPU canvases (56).** The far snow was six full-screen pattern
+  fills per frame (two layers × three tiles): Firefox spent ~25 ms of its
+  ~28 ms frame there, so snow ran on the edge of 30 fps and slipped frames.
+  With `Env.cpu` the same dots are drawn as small rects (a square, or a plus of
+  two bars for the bigger ones; alpha in 8 levels, one fill style per level),
+  ~1900 rects a frame, ~1.5 ms. GPU canvases keep the pattern fills (0.7 ms;
+  the rects cost Chromium ~3 ms of worker time). Side by side the far snow
+  looks the same, a touch crisper.
+- **Kept.** `FPS_FAST` 30 for rain and snow (60 would roughly double
+  Chromium's ~490 ms/s in snow); `FPS_SLOW` 12 for fog, moon, stars and the
+  floating letters (slow drifts, ≤ 1 px a frame); `GLIMPSE_FPS` 6;
+  `FPS_STILL` 3 for a still day sky; the 60 fps burst for a strike.
+- **Bench.** `weather-power.ts` reports frame intervals (`FrameStats.gaps`:
+  p50 / p95 / max between drawn frames since the previous `stats` call) and
+  has new scenes: `clouds` and `snow` (steady, after 36 s), `cover` (a clear
+  day, then `~` with the normal easing: the cover change), `indoor` (a clear
+  day, then indoors: the 5 s fade); `heavy` now settles 45 s (it measured the
+  40 s fog and cover change before).
+
+Measured (`weather-power.ts --rounds 2`, headed, owner geometry, medians;
+CPU ms/s of all browser processes; fps; frame intervals p50 / p95 / max ms):
+
+| Scene | Chromium before → after | Firefox before → after |
+|---|---|---|
+| calm day | 111 → 100 (5.2 → 4.4 fps) | 170 → 163 (5.0 → 4.9) |
+| clouds, steady | 198 → 309 (12 → 20) | 281 → 367 (11.4 → 15.1) |
+| cover change | 212 → 480 (12 → 30; 83/84/94 → 33/33/33) | 314 → 528 (11.5 → 30; 87/91/170 → 33/34/34) |
+| snow, steady | 491 → 484 (30; 33/34/34 → 33/33/33) | 964 → 515 (30; 33/34/36–48 → 33/34/34; frame 28 → 9.5 ms) |
+| heavy, steady | 521 → 497 (30) | 574 → 604 (30) |
+| sunset | 518 → 532 (30) | 723 → 741 (30) |
+| glimpse | 115 → 103 | 182 → 174 |
+| indoor fade | 153 → 158 | 200 → 218 |
+
+Off: 30–39 ms/s. The cover change costs ~+270 ms/s in Chromium and ~+210 in
+Firefox for its 24–40 s; a steady cloudy day ~+110 / ~+85 for smoother
+clouds; Firefox snow about half what it was. Latency (`weather-bench.ts
+--rounds 2`, heavy, off → on): key → send median 0.045–0.050 → 0.050 ms
+(Chromium), 0.040 → 0.040 ms (Firefox); text → painted p95 19.8–20.2 →
+18.7–18.9 ms (Chromium), 19.5–19.7 → 17.3–18.0 ms (Firefox); Firefox's
+worker 23 → 30 fps, 36.9 → 29.2 ms a frame against the last results file.
+`bench/results/` is not rewritten.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
