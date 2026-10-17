@@ -9,9 +9,17 @@
 //   outdoors only. No room or light value gives a darkness sky: magical
 //   darkness shows only as the bleed and the lift on its Event.Darkness
 //   events (owner feedback 26).
-// - Mix values ease exponentially (tau 0.9 s) toward their targets; fog
-//   instead moves at a constant FOG_RATE (a step between none, light and
-//   dense takes 20 s, owner feedback 8), so it grows and thins gradually.
+// - The sky's selection (sun, moon, dark, night) is the time of day alone;
+//   `outdoors` gates it. The sky draws all of it (gradient, clouds, stars,
+//   moon, day life) times `outdoors`, so going in or out is one even
+//   crossfade of the whole sky.
+// - Mix values ease exponentially (tau 0.9 s) toward their targets, except:
+//   fog moves at a constant FOG_RATE (a step between none, light and dense
+//   takes 20 s, owner feedback 8); `outdoors` at OUT_RATE (5 s in or out,
+//   owner feedback 27); the sky selection at SKY_RATE, and after a change of
+//   the clock (sunrise, sunset) only once SKY_HOLD_S has passed, so the day
+//   sky stays through most of the sunset and the night through most of the
+//   sunrise (owner feedback 29).
 // - A category that is off has its targets at 0, so it fades out.
 
 import { ALL_CATEGORIES, type Categories, DEFAULT_STATE, type WeatherEvent, type WeatherState } from './protocol';
@@ -21,6 +29,17 @@ export const DWELL_MS = 3000;
 export const MIX_TAU = 0.9;
 /** Fog mix change per second: none → light (0.5) or light → dense takes 20 s, none → dense 40 s; the same going away. */
 export const FOG_RATE = 1 / 40;
+/** Outdoors mix change per second: going in or out crossfades the whole sky over 5 s (owner feedback 27). */
+export const OUT_RATE = 1 / 5;
+/** Sky selection change per second: day ↔ night over 12 s, moon up ↔ down too (owner feedback 29). */
+export const SKY_RATE = 1 / 12;
+/**
+ * After the clock changes (Event.Sun, the almanac), the sky selection waits
+ * this long before it moves: with SKY_RATE, the day sky goes from 11 s to
+ * 23 s into the 26 s sunset (worker/sky.ts SET_S), the night from 11 s to
+ * 23 s into the 24 s sunrise (RISE_S).
+ */
+export const SKY_HOLD_S = 11;
 
 export const MIX_KEYS = [
   'outdoors',
@@ -40,6 +59,8 @@ export const MIX_KEYS = [
 ] as const;
 export type MixKey = (typeof MIX_KEYS)[number];
 export type Mix = Record<MixKey, number>;
+/** The sky selection: the time of day, gated by `outdoors` where it is drawn. */
+const SKY_KEYS: ReadonlySet<MixKey> = new Set(['sun', 'moon', 'dark', 'night']);
 
 const DWELLED = ['weather', 'fog', 'light'] as const;
 type Dwelled = (typeof DWELLED)[number];
@@ -57,12 +78,13 @@ export function mixTargets(s: Readonly<WeatherState>, cats: Readonly<Categories>
   const outd = s.weather !== null ? 1 : 0;
   const day = s.clock === 'day';
   out.outdoors = outd;
-  out.sun = outd && day ? 1 : 0;
-  out.moon = outd && !day && s.moonUp ? 1 : 0;
+  // the time of day, indoors too (the sky multiplies it by `outdoors`)
+  out.sun = day ? 1 : 0;
+  out.moon = !day && s.moonUp ? 1 : 0;
   out.torch = s.light === '!' ? 1 : 0;
   out.night = day ? 0 : 1;
-  out.dark = outd && !day && !s.moonUp ? 1 : 0;
-  out.clouds = cats.sky ? outd * (CLOUD_COVER[s.weather ?? ''] ?? 0) : 0;
+  out.dark = !day && !s.moonUp ? 1 : 0;
+  out.clouds = cats.sky ? CLOUD_COVER[s.weather ?? ''] ?? 0 : 0;
   const p = cats.precipitation ? outd : 0;
   out.rain = p * (s.weather === "'" || s.weather === '"' ? 1 : 0);
   out.heavy = p * (s.weather === '"' ? 1 : 0);
@@ -99,6 +121,8 @@ export class Director {
   readonly mix: Mix = zeroMix();
   private readonly tgt: Mix = zeroMix();
   private readonly pendingSince: Record<Dwelled, number> = { weather: 0, fog: 0, light: 0 };
+  /** Seconds the sky selection still waits after a clock change (SKY_HOLD_S). */
+  private skyHold = 0;
   cats: Categories;
 
   constructor(state: Partial<WeatherState> = {}, cats: Categories = { ...ALL_CATEGORIES }) {
@@ -126,6 +150,7 @@ export class Director {
     const ch = this.set(partial);
     Object.assign(this.settled, this.raw);
     for (const k of DWELLED) this.pendingSince[k] = 0;
+    this.skyHold = 0;
     this.snap();
     return ch;
   }
@@ -150,6 +175,7 @@ export class Director {
       }
     }
     settled.position = raw.position;
+    if (settled.clock !== raw.clock) this.skyHold = SKY_HOLD_S;
     settled.clock = raw.clock;
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
@@ -159,14 +185,17 @@ export class Director {
   /** Eases the mix values toward their targets over `dt` seconds. */
   step(dt: number): void {
     const t = mixTargets(this.settled, this.cats, this.tgt);
-    const k = 1 - Math.exp(-dt / MIX_TAU);
-    const fog0 = this.mix.fog;
-    for (const key of MIX_KEYS) this.mix[key] += (t[key] - this.mix[key]) * k;
-    if (this.cats.fog) {
-      // fog: a constant rate instead (switching the category off still fades at MIX_TAU)
-      const s = dt * FOG_RATE, d = t.fog - fog0;
-      this.mix.fog = fog0 + (d > s ? s : d < -s ? -s : d);
+    const k = 1 - Math.exp(-dt / MIX_TAU), m = this.mix;
+    const fog0 = m.fog;
+    const sky = this.skyHold <= 0 ? dt * SKY_RATE : 0;
+    this.skyHold = Math.max(0, this.skyHold - dt);
+    for (const key of MIX_KEYS) {
+      if (SKY_KEYS.has(key)) m[key] = toward(m[key], t[key], sky);
+      else if (key === 'outdoors') m[key] = toward(m[key], t[key], dt * OUT_RATE);
+      else m[key] += (t[key] - m[key]) * k;
     }
+    // fog: a constant rate (switching the category off still fades at MIX_TAU)
+    if (this.cats.fog) m.fog = toward(fog0, t.fog, dt * FOG_RATE);
   }
 
   /** Settles and eases in one go (one frame). */
@@ -179,7 +208,8 @@ export class Director {
   quiet(eps = 0.003): boolean {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     for (const key of MIX_KEYS) {
-      if (key === 'night' || key === 'torch') continue; // tints only: draw nothing by themselves
+      // tints and the time of day: draw nothing by themselves (the sky needs `outdoors`)
+      if (key === 'night' || key === 'torch' || key === 'sun' || key === 'moon' || key === 'dark') continue;
       if (this.mix[key] > eps || t[key] > eps) return false;
     }
     return true;
@@ -197,4 +227,10 @@ export class Director {
   pending(): boolean {
     return DWELLED.some((k) => this.pendingSince[k] !== 0);
   }
+}
+
+/** `v` moved toward `t` by at most `s`. */
+function toward(v: number, t: number, s: number): number {
+  const d = t - v;
+  return v + (d > s ? s : d < -s ? -s : d);
 }

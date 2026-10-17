@@ -239,11 +239,12 @@ export function fogModule(): Module {
 
   const tw: Record<TintKey, number> = { day: 0, moon: 0, torch: 0, night: 0 };
   function updateTint(env: Env): void {
-    const m = env.mix;
-    tw.moon = m.moon;
-    tw.torch = m.torch * (1 - m.moon);
-    tw.night = m.dark;
-    tw.day = m.sun;
+    const m = env.mix, o = m.outdoors;
+    // the time of day tints only outdoors (the director's sun / moon / dark are not gated)
+    tw.moon = m.moon * o;
+    tw.torch = m.torch * (1 - tw.moon);
+    tw.night = m.dark * o;
+    tw.day = m.sun * o;
     const rest = Math.max(0, 1 - tw.moon - tw.torch - tw.night - tw.day);
     tw.day += rest * (1 - m.night);
     tw.night += rest * m.night;

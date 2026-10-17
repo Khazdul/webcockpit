@@ -129,7 +129,8 @@ describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
     d.settle(1 + DWELL_MS);
     expect([d.settled.light, d.settled.weather]).toEqual(['o', null]);
     const m = mixTargets(d.settled, ALL_CATEGORIES);
-    expect([m.outdoors, m.sun]).toEqual([0, 0]);
+    // the time of day stays (sun 1); outdoors 0 gates the whole sky
+    expect([m.outdoors, m.sun]).toEqual([0, 1]);
   });
 
   it('light alone never changes the sky: "o+" on a road by day is the day sky', () => {

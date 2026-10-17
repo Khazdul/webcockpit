@@ -102,9 +102,10 @@ export function weatherModule(): Module {
   const tw: Record<TintKey, number> = { sun: 0, moon: 0, torch: 0, dark: 0, neutral: 0 };
   const tint = { r: 168, g: 184, b: 206, lum: 0.9, k1: 'neutral' as TintKey, w1: 1, k2: 'neutral' as TintKey, w2: 0 };
   function stepTint(mix: Env['mix']): void {
-    tw.sun = mix.sun;
-    tw.moon = mix.moon;
-    tw.dark = mix.dark;
+    // the time of day tints only outdoors (the director's sun / moon / dark are not gated)
+    tw.sun = mix.sun * mix.outdoors;
+    tw.moon = mix.moon * mix.outdoors;
+    tw.dark = mix.dark * mix.outdoors;
     tw.torch = mix.torch * (1 - 0.3 * mix.outdoors * mix.night);
     let s = tw.sun + tw.moon + tw.torch + tw.dark;
     tw.neutral = Math.max(0, 1 - s);
@@ -559,7 +560,7 @@ export function weatherModule(): Module {
     if (gx1 - gx0 > 60) return { x: rr(gx0, gx1), y: p.fadeTop + rr(10, 40), ledge: false };
     return { x: W * rr(0.45, 0.7), y: p.fadeTop + 20, ledge: false };
   }
-  const nightK = (mix: Env['mix']): number => clamp(1 - 0.58 * mix.sun - 0.25 * mix.torch * (1 - mix.outdoors * mix.night), 0.3, 1);
+  const nightK = (mix: Env['mix']): number => clamp(1 - 0.58 * mix.sun * mix.outdoors - 0.25 * mix.torch * (1 - mix.outdoors * mix.night), 0.3, 1);
 
   function startStrike(env: Env): void {
     const tg = pickTarget(env);

@@ -30,6 +30,7 @@
 // Categories: `sky` gates everything but the darkness bleeds, which
 // `darkness` gates.
 
+import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
 import { DayLife } from './daylife';
@@ -44,6 +45,14 @@ const MOON_HOLD = 0.97;
 const MOON_START = 0.5;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
+/**
+ * Sunrise and sunset moments, s (were 9 and 10; owner feedback 29). The
+ * director changes the sky from day to night (or back) from SKY_HOLD_S to
+ * SKY_HOLD_S + 1 / SKY_RATE (11–23 s) into them, so the day sky stays
+ * through most of the sunset.
+ */
+const RISE_S = SKY_HOLD_S + 1 / SKY_RATE + 1;
+const SET_S = SKY_HOLD_S + 1 / SKY_RATE + 3;
 /** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
 const COVER_RATE = 1 / 40;
 
@@ -358,6 +367,11 @@ class Sky {
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
+  /** How far the sun moment is (0..1; -1 without one). */
+  momentP = -1;
+  /** The outdoors crossfade (0..1, eased) last frame, and whether it moved. */
+  outWas = 0;
+  outMoving = false;
   /** Something moved in the last frame (stars, moon, clouds, a sky redraw); `still` counts frames without. */
   moving = false;
   still = 0;
@@ -517,7 +531,7 @@ class Sky {
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
     if (name === 'sun.rise' || name === 'sun.set') {
       if (!env.cats.sky) return;
-      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: name === 'sun.rise' ? 9 : 10 };
+      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: name === 'sun.rise' ? RISE_S : SET_S };
     } else if (name === 'moon.rise') {
       // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
       this.moonSet = null;
@@ -553,9 +567,13 @@ class Sky {
   frame(env: Env, dt: number): boolean {
     this.T += dt;
     const T = this.T, m = env.mix, skyOn = env.cats.sky;
-    const out = m.outdoors;
-    const oo = Math.max(out, 0.001);
-    this.moving = false;
+    // Going in or out: one even crossfade of the whole sky (gradient, clouds,
+    // stars, moon, day life), the director's linear 5 s with soft ends; the
+    // cached sky is copied at this alpha, not redrawn (owner feedback 27).
+    const out = sst(0, 1, m.outdoors);
+    this.outMoving = Math.abs(out - this.outWas) > 1e-4;
+    this.outWas = out;
+    this.moving = this.outMoving;
     let wSun = m.sun, wMoon = m.moon, wNight = m.dark;
     const ws = wSun + wMoon + wNight;
     if (ws > 0.001) {
@@ -566,10 +584,13 @@ class Sky {
     const skyVis = skyOn ? out : 0;
     // The cloud cover moves at a slow constant rate (owner feedback 23): the
     // deck's threshold relaxes from the noise's peaks, so clouds come one by
-    // one, and the upwind side first (see buildRows). Kept while indoors.
-    const coverT = clamp(m.clouds / oo, 0, 1);
+    // one, and the upwind side first (see buildRows). Indoors (no weather
+    // value) the cover and the wetness of the last outdoor room are kept, so
+    // the sky fades out and back in as it was.
+    const inside = env.settled.weather === null;
+    const coverT = inside ? this.coverT : clamp(m.clouds, 0, 1);
     if (this.coverS < 0) this.coverS = coverT;
-    else if (out > 0.05) {
+    else if (!inside) {
       const st = dt * COVER_RATE, d = coverT - this.coverS;
       this.coverS += d > st ? st : d < -st ? -st : d;
     }
@@ -577,7 +598,7 @@ class Sky {
     // the deck's shapes: those of a higher cover at once, a lower one once the cover has come down to it
     if (coverT >= this.coverShape - 1e-3 || this.coverS <= coverT + 0.01) this.coverShape = coverT;
     const cover = this.coverS;
-    const wet = clamp((m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.55) / oo + cover * 0.1, 0, 1);
+    const wet = inside ? this.wet : clamp(m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.55 + cover * 0.1, 0, 1);
     this.cover = cover;
     this.wet = wet;
     this.fogK = 1 - m.fog * 0.55;
@@ -603,6 +624,7 @@ class Sky {
         keyCol(M.kind === 'rise' ? RISE_C : SET_C, mP, this.col);
       }
     }
+    this.momentP = mP;
     if (this.first) this.palW.set(t);
     const pTau = M ? 0.35 : 0.6;
     for (let i = 0; i < NP; i++) this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
@@ -668,10 +690,15 @@ class Sky {
     acc(SKY.moon, wMoon * (1 - wet * 0.45));
     acc(SKY.night, wNight + wMoon * wet * 0.45);
     if (mI > 0.002) {
-      const c = this.col, k = mI * 0.75;
-      tr = lerp(tr, c[0]! * 0.7, k);
-      tg = lerp(tg, c[1]! * 0.7, k);
-      tb = lerp(tb, c[2]! * 0.7, k);
+      // A tint of the moment's colour, mostly toward the horizon. A sunset
+      // keeps the blue day sky until late (owner feedback 29): its tint grows
+      // as the director's slow change to night starts; a sunrise tints the
+      // night early and lets the day come through.
+      const c = this.col, p = this.momentP;
+      const k = mI * (this.moment?.kind === 'set' ? 0.1 + 0.4 * sst(0.3, 0.75, p) : 0.5 - 0.3 * sst(0.4, 0.85, p));
+      tr = lerp(tr, c[0]! * 0.7, k * 0.6);
+      tg = lerp(tg, c[1]! * 0.7, k * 0.6);
+      tb = lerp(tb, c[2]! * 0.7, k * 0.6);
       hr = lerp(hr, c[0]!, k);
       hg = lerp(hg, c[1]!, k);
       hb = lerp(hb, c[2]!, k);
@@ -688,13 +715,14 @@ class Sky {
       hb = lerp(hb, 226, k);
       a = lerp(a, 0.75, k);
     }
-    a *= out * this.fogK * (1 - 0.2 * this.cover);
+    // not times `out`: the cached sky is copied at that alpha (a smooth fade without redraws)
+    a *= this.fogK * (1 - 0.2 * this.cover);
     // The glow on the light side: the sun by day (none under a grey, wet sky
     // or in a sun moment, which has its own light), a cool lift toward the
     // moon or the horizon at night, hardly any in darkness.
     const sun = wSun * (1 - wet * 0.9) * (1 - clamp(mI * 2, 0, 1));
     const cool = wMoon * 0.16 + wNight * 0.07;
-    const vis = out * this.fogK * (1 - 0.5 * this.cover);
+    const vis = this.fogK * (1 - 0.5 * this.cover);
     const light = this.th.light;
     s[8] = (sun * (light ? 0.34 : 0.36) + cool * (1 - sun)) * vis * 100;
     const sc = light ? SUN_GLOW_LIGHT : SUN_GLOW_DARK, gc = this.glowC, ks = clamp(sun / Math.max(0.001, sun + cool), 0, 1);
@@ -708,7 +736,7 @@ class Sky {
     this.hor1 = hg;
     this.hor2 = hb;
     // How far down the sky reaches: by day to ~30 % above the bottom, at night less (feedback 22).
-    s[9] = wSun * (1 - wet * 0.8) * (1 - clamp(mI * 2, 0, 1)) * 100;
+    s[9] = wSun * (1 - wet * 0.8) * 100;
     s[0] = tr;
     s[1] = tg;
     s[2] = tb;
@@ -727,7 +755,8 @@ class Sky {
    */
   drawSky(b: Ctx, env: Env, dt: number, mI: number): void {
     const s = this.skyNow, tr = s[0]!, tg = s[1]!, tb = s[2]!, hr = s[3]!, hg = s[4]!, hb = s[5]!, a = s[6]!;
-    if (a < 0.004) return;
+    const out = this.outWas;
+    if (a * out < 0.004) return;
     let su = SUN_U;
     if (this.mVisNow > 0.05) su = lerp(su, clamp(this.mx / env.W, 0, 1), clamp(this.mVisNow * 1.5, 0, 1));
     if (mI > 0.002) su = lerp(su, clamp(this.S[0]! / env.W, 0, 1), clamp(mI * 2, 0, 1));
@@ -737,7 +766,7 @@ class Sky {
     let diff = 0;
     for (let i = 0; i < 10; i++) diff += Math.abs(s[i]! - L[i]!);
     this.skyTick++;
-    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 4 || diff > 40 || this.first)) {
+    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 2 || diff > 40 || this.first)) {
       L.set(s);
       this.skyTick = 0;
       this.moving = true;
@@ -770,6 +799,7 @@ class Sky {
       }
     }
     b.globalCompositeOperation = 'destination-over';
+    b.globalAlpha = out;
     const dh = this.skyDrawH;
     if (dh > 0) b.drawImage(this.skyCv, 0, 0, this.skyCv.width, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)), 0, 0, env.W, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)) / this.dpr);
     b.globalAlpha = 1;
@@ -913,6 +943,8 @@ class Sky {
     this.ox += 0.014 * wind * dt;
     this.oz += 0.04 * wind * dt;
     const rows = this.dh;
+    // Indoors: nothing to show, the deck waits as it is.
+    if (out < 0.002 && !this.first) return;
     if (this.first) this.deckNow();
     else if (!(this.deckEmpty && this.cover < 0.02)) {
       if (this.bRow === 0) this.deckParams();
@@ -1399,7 +1431,8 @@ export function skyModule(): Module {
       // rare); a settled day sky does not move at all.
       // Day life asks for its own rate only while a flock, an insect or a glimpse is there.
       if (!sky) return FPS_SLOW;
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active) return FPS_FAST;
+      // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(FPS_SLOW, lf);
     },

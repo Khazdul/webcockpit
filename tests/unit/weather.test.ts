@@ -1,7 +1,7 @@
 // Weather engine pure logic (stage 28, ADR 0091): the director's dwell,
 // mix easing and sky selection, geometry diffing and background palettes.
 import { describe, expect, it } from 'vitest';
-import { DWELL_MS, Director, FOG_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
+import { DWELL_MS, Director, FOG_RATE, OUT_RATE, SKY_HOLD_S, SKY_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
 import { frameRect, geometryDiff, protectFor } from '../../src/weather/geometry';
 import { adapt, luminance, parseHex, themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type WeatherState } from '../../src/weather/protocol';
@@ -24,9 +24,10 @@ describe('mixTargets: sky selection (v4)', () => {
     expect(o.dark).toBe(1);
     expect(Object.keys(o)).not.toContain('evil');
   });
-  it('indoors (weather null) has no sky and no precipitation', () => {
+  it('indoors (weather null): outdoors 0 gates the sky, no clouds or precipitation; the time of day stays (owner feedback 27)', () => {
     const m = mixTargets(state({ weather: null, clock: 'day', light: '!', fog: '-' }), ALL_CATEGORIES);
-    expect([m.outdoors, m.sun, m.moon, m.dark, m.clouds, m.rain]).toEqual([0, 0, 0, 0, 0, 0]);
+    expect([m.outdoors, m.clouds, m.rain]).toEqual([0, 0, 0]);
+    expect([m.sun, m.moon, m.dark]).toEqual([1, 0, 0]);
     expect(m.fog).toBe(0.5);
   });
   it('weather symbols map to cover and precipitation', () => {
@@ -93,13 +94,53 @@ describe('Director', () => {
     d.set({ weather: null });
     d.tick(0, 0.016);
     d.tick(DWELL_MS, 0.016);
-    expect(d.mix.outdoors).toBeGreaterThan(0.9);
     let t = DWELL_MS;
     for (let i = 0; i < 60; i++) d.tick((t += 16), 0.016);
-    expect(d.mix.outdoors).toBeGreaterThan(0.2);
-    expect(d.mix.outdoors).toBeLessThan(0.6);
+    expect(d.mix.rain).toBeGreaterThan(0.2);
+    expect(d.mix.rain).toBeLessThan(0.6);
     for (let i = 0; i < 600; i++) d.tick((t += 16), 0.016);
-    expect(d.mix.outdoors).toBeLessThan(0.01);
+    expect(d.mix.rain).toBeLessThan(0.01);
+  });
+  it('going in or out crossfades the sky at a constant rate over 5 s (owner feedback 27)', () => {
+    expect(1 / OUT_RATE).toBe(5);
+    const d = new Director({ weather: ' ' });
+    d.set({ weather: null });
+    d.settle(1);
+    let t = 1 + DWELL_MS;
+    d.tick(t, 0);
+    const run = (s: number): void => {
+      for (let i = 0; i < s * 10; i++) d.tick((t += 100), 0.1);
+    };
+    run(1);
+    expect(d.mix.outdoors).toBeCloseTo(0.8, 5);
+    run(1.5);
+    expect(d.mix.outdoors).toBeCloseTo(0.5, 5);
+    run(2.5);
+    expect(d.mix.outdoors).toBeCloseTo(0, 5);
+    // the time of day does not move indoors
+    expect(d.mix.sun).toBe(1);
+  });
+  it('after a sunset the day sky holds, then changes to night slowly (owner feedback 29)', () => {
+    const d = new Director({ weather: ' ', clock: 'day' });
+    d.set(eventState('sun.set')!);
+    let t = 0;
+    const run = (s: number): void => {
+      for (let i = 0; i < s * 10; i++) d.tick((t += 100), 0.1);
+    };
+    run(SKY_HOLD_S - 0.5);
+    expect([d.mix.sun, d.mix.dark]).toEqual([1, 0]);
+    expect(d.resting()).toBe(false);
+    run(0.5 + 6);
+    expect(d.mix.sun).toBeCloseTo(1 - 6 * SKY_RATE, 1);
+    run(1 / SKY_RATE - 6 + 0.5);
+    expect([d.mix.sun, d.mix.dark, d.mix.night]).toEqual([0, 1, 1]);
+    // a moon rising after it: no hold, the same slow pace
+    d.set(eventState('moon.rise')!);
+    run(6);
+    expect(d.mix.moon).toBeCloseTo(6 * SKY_RATE, 5);
+    // a jump (page load, dev) is at once
+    d.jump({ clock: 'day' });
+    expect(d.mix.sun).toBe(1);
   });
   it('fog grows and thins at a constant rate: 20 s per step (owner feedback 8)', () => {
     expect(0.5 / FOG_RATE).toBe(20);
