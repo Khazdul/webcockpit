@@ -19,7 +19,8 @@ mapping. Latency of text and commands must not be affected.
   night with the moon up → moonlit sky with a big moon in the almanac's
   phase that rises, crosses and sets; otherwise a starry night with
   shooting stars. `light` matters only as `o`, which overrides with the
-  darkness sky (dark, slight red).
+  darkness sky (dark, slight red). (Changed 2026-10-17: only a room with
+  magical darkness, from its room text; see "Sky, moon, darkness, glints".)
 - `weather`: ` ` nothing; `~` few large distant clouds in the top ~35 %;
   `'` light rain with drips along pane edges; `"` heavier rain and more
   drips; `*` snow that falls in from above, builds up gradually, with gusts;
@@ -406,6 +407,132 @@ rAF gaps with the effects on (p95 ~33 ms) were the same with the old code
 under the same load. Chromium idle main thread with the effects on: 25.5 →
 16.4 ms per 5 s, longest task 2.7 → 0.6 ms (no line sampling).
 `bench/results/weather.md` is not rewritten (no meaningful change).
+
+### Sky, moon, darkness, glints (2026-10-17, owner feedback 10, 11, 20–25)
+
+**Darkness research (10).** Sources: the owner's raw text logs
+(`/home/ole/MUME/data/runs/Rasta/2026-09-25T22-03-02.log`,
+`2026-09-26T21-00-45.log`; text only, no GMCP or XML), Cockpit's
+`docs/gmcp.md`, `notes/research/mume-xml.md`. Findings:
+
+- *Verified (logs):* a room with magical darkness prints "A deep,
+  impenetrable darkness lingers here." (185 times; once "A deep, wavering
+  darkness lingers here." at its edge, by day) right after the room name,
+  before the aura, objects and exits, on every entry and `look`, in brief
+  mode too. It runs over neighbouring rooms in a row (the darkness
+  spreads). An ordinary dark room never prints it; one you cannot see is
+  named "Darkness". The spell taking hold in the room you are in shows
+  "The light decreases." after the cast words (4 times).
+- *Verified:* the prompt's light cannot tell them apart: `o` both inside
+  and outside the darkness at night; `!` inside it with a lantern or by a
+  caster's light; `o` for caves and moonless nights.
+- *Verified (docs):* no GMCP field says "magical": `Char.Vitals.light` is
+  `* ! ) o`, `Room.Info` has no light; `Event.Darkness` carries only
+  `{what: start|grow|shrink|end-soon|end}`, no room or zone.
+- *Not seen live:* which XML tag wraps the darkness line (likely inside
+  `<room>`; the log export drops tags), and `Event.Darkness` itself (only
+  the synthetic fixture has it), so what exactly it announces stays open.
+
+Decision: the room text is the signal. `signals.ts` `roomLine`: the
+darkness line sets `magic` at once and marks the room display; the
+display's exits line (XML `exits` tag, or a line starting `Exits:`) ends
+it: `magic` = whether the darkness line came. "The light decreases." also
+sets it (until the next room display; *suspected* to be the spell, the
+only cause seen in the logs). `WeatherState.magic` is dwelled like light
+(3 s), and `mix.evil` follows it instead of `light === 'o'`: the bleed on
+entering, the red sky while in darkened rooms, the lift on leaving; an
+ordinary dark room gives nothing. `Event.Darkness` start/grow and
+shrink/end still play the bleed and the lift on their own. Limits: a room
+display without an exits line (autoexits off) keeps the last value until
+the next one; the `exits` command's output, if it starts with "Exits:",
+ends a display too.
+
+**Moon (11).** `Event.Moon` and the almanac decide when it is up, day or
+night. By day it is drawn from a second sprite of only the lit part
+(pale, no dark side, no halo) at `DAY_MOON` 0.24 of its night strength
+and does not keep the loop above the still rate (it moves ~3 px/s). One
+arc for every moon: x even from 2.4 R left of the screen to 2.4 R right
+of it, y = 0.8 H − (0.8 H − top) · sin(π u), so it climbs from below on
+the left and sinks below on the right; low down it is fainter (behind the
+text). `u` runs at 1 / 720 per second × `moonSpeed` (720 game minutes up,
+one real second each). `gametime.ts` `moonUpFraction(g)` gives the
+almanac's place; the bridge sends `moonU` at start and at a clock sync
+only (not every 30 s re-read); a change glides (time constant 8 s), never
+a jump. Without a set event it waits at u 0.97 (low at the right edge);
+`moon.set` lets it go on at its own pace when u > 0.9, else hurries it off
+in 8–26 s. The night sky's cool glow and the frame glints follow the night
+moon only.
+
+**Glints (20, 24).** `worker/glint.ts`: 1 px gradient sprites (along the
+line) stretched over exactly the frame line (`PaneGeom` x/y/w/h and
+`border`; not the label gap, which is going away), plus a 9 × 9 sparkle
+of 1 px lines; the theme's additive mode. Users: the sunrise/sunset front
+(the lit top and sunward side lines as on-line rect fills, no 5 px band
+any more, and a glint where the ray front crosses each top and side
+line), shooting stars (a glint on lines within 48 px of the head, running
+on with it for 0.7 s; the stars were already on the back layer, so they
+pass behind the frames), the day sun glimpse, and the moon (its old 12 px
+glint sprite with a soft halo is now an on-line glint). Lightning's rim
+light now reaches every framed pane (at least 0.3 strength; the bottom
+line too near the bolt) and skips borderless ones.
+
+**Mask (21).** The `left` fade (0.85 alpha at the edge over
+`protect.left`, ≤ 90 px, meant to keep the first text columns clear of
+the effects) is no longer drawn; `protect.left` is still measured (body
+spatters keep using it).
+
+**Day sky (22).** Day colours on dark `top [112,184,255] hor
+[92,152,232] a 0.66` (was `[128,170,214] / [150,176,200] / 0.44`); on
+paper `[104,168,242] / [156,198,242] / 0.44`. By day the gradient reaches
+`SKY_H_DAY` 0.8 H (night 0.43 H) and keeps its strength longer at the
+top; only the drawn height of the cached sky is copied. `worker/daylife.ts`:
+birds (sprites of 6 flap frames, 20 px and 9 px spans, stroked once on a
+CPU canvas; a flock every 90–220 s: a loose V or a lone gull crossing at
+30–46 px/s, or 3–7 small far ones at 16–26 px/s fading after 24–36 s;
+flapping in bursts and gliding), an insect (every 160–380 s, 3–5 s of a
+darting 2 px dot), four tufts (flattened soft blobs on CPU canvases, drift
+2.4 px/s left, drawn at the still rate) on a clear day, and a sun glimpse
+(every 100–260 s, 12 s, six thin convex triangles with one radial gradient
+from the top-right sun, a faint glint where each crosses a top line).
+Rates: birds `BIRD_FPS` 10, insect and glimpse `FPS_SLOW`, glints
+`FPS_FAST`; otherwise a still day sky stays at `FPS_STILL`. Dev events
+`birds`, `glimpse`, `shoot` send one at once.
+
+**Clouds (23).** Cause: a cover change of more than 0.12 set `first`,
+which rebuilt the whole deck at once, so a clear → `~` walk switched in
+~2 s. Now the deck's cover `coverS` moves at `COVER_RATE` 1/40 per second
+(clear → `~` 24 s) and is kept while indoors. The deck has the shapes of
+`coverShape` (the higher of where it goes and where it comes from), and
+each pixel shows once `coverS / coverShape` passes its arrival value: a
+low-frequency noise of the deck coordinates (70 %) plus a side ramp
+(30 %; on the way in from the right, where the wind brings them; on the
+way out the right clears first). So clouds come and go one by one; the
+cloud look itself is unchanged.
+
+**Stars (25).** The field reaches 45 % down on the left and 62 % on the
+right (a smooth step from 45 % to 95 % of the width); 12 % more stars.
+
+Measured (`bench/weather-power.ts --rounds 2`, headed, owner geometry; the
+machine was busy with another agent's Playwright browsers during the
+after run, so off and heavy moved too; compare within a column pair):
+
+| CPU ms/s (worker fps; ms/frame) | Chromium | Firefox |
+|---|---|---|
+| off, before → after | 32 → 17 | 44 → 32 |
+| calm day, before → after | 65 (3; 0.49) → 42 (3; 0.34) | 118 (3; 7.5) → 121 (3; 7.5) |
+| calm day with a flock flying (new scene `birds`) | 93 (10.1; 0.27) | 199 (9.7; 6.8) |
+| heavy, before → after | 481 (30; 1.27) → 346 (30; 0.97) | 886 (29; 23.5) → 636 (30; 15.8) |
+
+A still day sky costs the same as before. While birds fly Firefox draws
+~10 frames a second instead of 3 (+~80 ms/s); with a flock about a quarter
+of the time that is ~+20 ms/s on average.
+Latency (`bench/weather-bench.ts --rounds 2`, heavy scene, off → on):
+key → send median 0.040 → 0.045 ms (Chromium), 0.040 → 0.040 ms
+(Firefox); text → painted p95 20.1 → 20.1 ms (Chromium), 20.0 → 17.0 ms
+(Firefox); one 1.6 s and two 0.7 s Long Animation Frames in Chromium, off
+and on alike (page start-up on the busy machine). Unchanged;
+`bench/results/weather.md` is not rewritten. `bench/weather-power.ts`
+gained the `birds` scene.
 
 ## Consequences
 

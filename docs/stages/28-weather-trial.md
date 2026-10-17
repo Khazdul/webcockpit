@@ -91,23 +91,35 @@ setting is saved; it is off by default everywhere, phones included.
    before they show, so running through rooms does not flicker. By day a
    clear sky is a plain light-blue gradient with a soft sun glow at the top
    right; clouds come only with weather `~` and wetter. Moving or docking
-   panes leaves the sky as it is.
+   panes leaves the sky as it is. By day the sky is a brighter, bluer
+   gradient down to about a third above the bottom; now and then birds
+   cross, rarely an insect darts, on clear days a few faint tufts drift,
+   and every few minutes a few faint sun rays come and go from the top
+   right. Walking from a clear into a cloudy area, the clouds come one by
+   one over ~25 s, from the right; leaving, they thin out from the right.
 2. Rain and snow areas: light rain (`'`) and heavy rain (`"`) with drips
    along the pane edges; snow (`*`) that falls in from above, builds up
    over half a minute and gusts now and then.
 3. Fog (`-` light, `=` dense) drifting low over the screen. It grows in
    slowly (about 20 s from nothing to light fog, 20 s more to dense) and
    thins out at the same pace.
-4. Night: with the moon up a big moon in the almanac's phase crosses the
-   sky slowly and smoothly, whatever the text does; without it a starry sky with shooting stars. Sunrise and sunset
-   (`Event.Sun`) send rays across the screen.
+4. Moon and night: whenever the moon is up (`Event.Moon`, the almanac), a
+   big moon in the almanac's phase follows one arc from below the left
+   edge, high over the middle, to below the right edge over its ~12
+   minutes up, at an even pace, whatever the text does; by day it is a
+   pale, faint disc. Without the moon at night a starry sky (reaching
+   lower on the right) with shooting stars, which pass behind the frames
+   and make the lines they pass glint. Sunrise and sunset (`Event.Sun`)
+   send rays across the screen; the frame lines light up and a glint runs
+   along them with the ray front. Lightning lights every frame's lines.
 5. `sleep` (floating z z Z), getting stunned, and (carefully) being
    incapacitated or dying (blood and a red heartbeat wash).
-6. Darkness: walk into a dark room (light `o` in the prompt, indoors or
-   out, e.g. a cave or a magical darkness): after ~3 s a red bleed from the
-   top and corners, then a dark red sky that stays as long as the room is
-   dark; leaving it gives a brief lightening. `Event.Darkness` start / grow
-   also bleed. Note: every dark room counts (caves, moonless nights).
+6. Darkness: walk into a room with magical darkness (its description
+   says "A deep, impenetrable darkness lingers here."): after ~3 s a red
+   bleed from the top and corners, then a dark red sky that stays while you
+   are in darkened rooms; leaving gives a brief lightening. Ordinary dark
+   rooms (caves, moonless nights, light `o`) give nothing now.
+   `Event.Darkness` start / grow still bleed, shrink / end lift.
 7. Lightning: the Redhorn Pass room with "A bright streak of lightning
    flashes over the … mountains." should strike a bolt each time that
    line appears. **Please check** that it does: the client looks for
@@ -122,7 +134,9 @@ effects on and exposes `window.__weather` in the console:
 pins values (the game's are ignored for those keys) until
 `__weather.unpin()`; `__weather.set({...})` sets raw values with the 3 s
 delay; `__weather.emit('strike')` (also `'gust'`, `'sun.rise'`,
-`'sun.set'`, `'darkness.start'`, …); `await __weather.stats()` shows the
+`'sun.set'`, `'darkness.start'`, `'birds'`, `'glimpse'`, `'shoot'`, …);
+`__weather.jump({ magic: true })` pins magical darkness, `{ moonU: 0.3 }`
+the moon's place (0 rising … 1 setting); `await __weather.stats()` shows the
 worker's frame times; `__weather.stop()` turns the option off.
 
 **Feedback wanted.** Is it discreet enough while playing (text always
@@ -277,6 +291,20 @@ Darkness:
     darkness has spread to (if that can be told apart technically). If a
     darkness room cannot be told apart from an ordinary night/dark room,
     show the red effect only on the `Event.Darkness` events.
+    - **Done (2026-10-17):** it can be told apart, from the room text. A
+      room with magical darkness prints "A deep, impenetrable darkness
+      lingers here." (once "wavering", at its edge) right after the room
+      name, on every entry and look, brief mode too; an ordinary dark room
+      never does (one you cannot see is named "Darkness"). The prompt's
+      light cannot tell them apart (`o` in any dark room, `!` inside
+      magical darkness with a lantern). Now only such rooms give the red
+      sky (also the room where "The light decreases." was just seen, the
+      spell taking hold): the bleed ~3 s after entering, the red sky while
+      you stay in darkened rooms, the lift on leaving; ordinary dark rooms
+      and nights do nothing. `Event.Darkness` start/grow and shrink/end
+      still play the bleed and the lift. Verified in the owner's logs;
+      the XML tag around the line and `Event.Darkness` itself are not seen
+      live yet. ADR 0091 "Sky, moon, darkness, glints".
 
 Moon:
 
@@ -285,6 +313,13 @@ Moon:
     rise/set should decide when it is up. Rising: it climbs from below and
     comes in from the side of the screen; setting: it sinks and leaves on
     the other side. Even pace, no (big) jumps.
+    - **Done (2026-10-17):** the moon is up whenever `Event.Moon` / the
+      almanac say so, day or night; by day a pale disc of only its lit part
+      at about a quarter of its night strength. It runs on one arc from
+      below the left edge, high in the middle, to below the right edge, at
+      an even pace over its 720 s up (game pace); the almanac gives its
+      place on load and at a clock sync (a disagreement glides, never
+      jumps); low down it is fainter (behind the text).
 
 Panes and frames:
 
@@ -312,10 +347,20 @@ Effects on frames:
 20. Owner likes that the frames glint in the sunrise/sunset rays; make it
     even better, and do the same for shooting stars, lightning or other
     events.
+    - **Done (2026-10-17):** glints are brief, sharp stretches of the line
+      itself (no halo). Sunrise/sunset: the lit top and sunward side line
+      plus a bright glint with a small sparkle running along each top and
+      side line where the ray front crosses it. Shooting star: the line it
+      passes near glints and the glint runs on with it. Lightning: every
+      frame's lines light up (the ones near the bolt most). Day sun
+      glimpses: a faint glint where a ray crosses a top line. The moon's
+      light on nearby top lines is a sharp line glint now.
 
 Sky:
 
 21. Dislikes the sky's gradient at the left edge that darkens it there.
+    - **Done (2026-10-17):** the mask's fade along the far left (meant to
+      keep the first columns of text clear) is gone.
 22. Day sky: visible over much more of the screen (a soft start about
     30 % from the bottom), lighter and more "bright sky" at the top, more
     saturated sky blue (less grey) for more day/night contrast. Add very
@@ -324,10 +369,31 @@ Sky:
     the sky). A subtle glimpse of the sun or small rays now and then (much
     more discreet than sunrise/sunset), touching the frames they hit. The
     problem today: it does not feel like being outdoors in daytime.
+    - **Done (2026-10-17):** a bright, saturated sky blue that stays strong
+      over the top and fades softly down to ~20–30 % above the bottom (on
+      paper a clear pale blue). Now and then (every 1–3 min) birds cross:
+      a loose V or a lone gull near, or a few small far-off ones that fade
+      into the distance, flapping in bursts and gliding; rarely an insect
+      darts for a few seconds; on a clear day four small soft tufts drift
+      slowly with the wind; every 2–4 min a sun glimpse: a few faint rays
+      from the top right for ~12 s, glinting faintly on the frame lines they
+      cross. The still day sky stays at 3 fps; birds ask for 10 fps while
+      they fly, an insect or a glimpse 12.
 23. Walking in/out of cloudy rooms switches to the cloud sky too fast.
     Find a better way in/out (e.g. not all clouds fading at once, or a
     slightly different cloud animation). The owner likes the clouds as
     they are and does not want too distinct cloud structures.
+    - **Done (2026-10-17):** the clouds are the same, but the cover now
+      changes at a slow constant pace (clear → `~` in ~24 s, and back), and
+      each cloud has its own arrival: they show one by one, from the right
+      (where the wind brings them) on the way in; on the way out the right
+      side clears first and the rest drift off to the left. Before, a cover
+      change of more than 0.12 rebuilt the whole deck at once.
 24. Shooting stars may pass behind the pane frames.
+    - **Done (2026-10-17):** they were already on the back layer (behind
+      the frames, seen through the panes); now the frame lines they pass
+      glint. A `shoot` dev event sends one at once.
 25. The starry sky may reach a bit further down on the right part of the
     screen.
+    - **Done (2026-10-17):** the star field reaches 45 % down on the left
+      and 62 % on the right.
