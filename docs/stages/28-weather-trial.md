@@ -864,8 +864,8 @@ black: the brightest stroke stands out).
     without a frame (otherwise fully transparent) gets visible edges when
     the sunrise/sunset rays pass (screenshot `images/8.png` in the session
     scratchpad: a rectangle where the rays are weaker inside the pane).
-    Addition (coordinator, from the owner): the same rectangle shows during
-    lightning and the day/night fade (and check the indoor/outdoor fade).
+    The owner adds: the same happens with lightning and during the
+    day/night fade, so likely the same kind of problem.
     - **Done (2026-10-17):** the weather treated every pane box as a pane:
       at sunrise and sunset the sun's shadow behind panes and the weaker
       inside of the beams also fell on panes without a frame, and in rain the
@@ -888,5 +888,3 @@ black: the brightest stroke stands out).
       framed pane's glass hides most of it. Fixing it would mean a different
       way of hiding the game text under floating panes; say if it bothers
       you.
-    The owner adds: the same happens with lightning and during the
-    day/night fade, so likely the same kind of problem.
