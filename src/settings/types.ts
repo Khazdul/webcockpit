@@ -352,6 +352,17 @@ export const LEGACY_APPEARANCE: Readonly<Pick<AppearanceSettings, 'font' | 'size
   boldBright: false,
 });
 
+/**
+ * The mapper values that were the defaults before ADR 0092 (the MMapper
+ * tileset on the default dark grey). A stored mapper section that lacks
+ * one (or holds an invalid value) takes these, so an existing user's map
+ * does not change with the new-player defaults (Shimrod, Transparent).
+ */
+export const LEGACY_MAPPER: Readonly<Pick<MapperSettings, 'tileset' | 'background'>> = Object.freeze({
+  tileset: 'default',
+  background: '#2e3436',
+});
+
 /** The single default. Treat as read-only; `defaultSettings()` returns a fresh copy. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = deepFreeze(defaultSettings());
 
@@ -372,11 +383,11 @@ export function defaultSettings(): Settings {
       boldBright: true,
     },
     panes: {
-      character: { on: true, color: 'black', border: true },
+      character: { on: false, color: 'black', border: true },
       timers: { on: true, color: 'black', border: true },
       group: { on: true, color: 'black', border: true },
       comm: { on: true, color: 'black', border: true },
-      ui: { on: true, color: 'black', border: false },
+      ui: { on: false, color: 'black', border: false },
       map: { on: true, color: 'black', border: true },
       // Pre-placed bundled script panes (ADR 0078): the pane bar is
       // borderless; Map search starts off (its script runs, the pane waits).
@@ -391,8 +402,8 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' },
-    weather: { enabled: false, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
+    weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
   };
 }
 
@@ -400,14 +411,17 @@ export function defaultSettings(): Settings {
 export const PHONE_FONT_SIZE = 14;
 
 /**
- * The defaults on a phone (ADR 0081): `defaultSettings()` with a smaller
- * font and the UI pane off. Used only where the store starts from the
+ * The defaults on a phone (ADR 0081, ADR 0092): `defaultSettings()` with a
+ * smaller font, the UI pane off, Character on and the weather off. Used only where the store starts from the
  * defaults (a new user, reset); stored settings never take it.
  */
 export function phoneDefaultSettings(): Settings {
   const s = defaultSettings();
   s.appearance.size = PHONE_FONT_SIZE;
   s.panes.ui.on = false;
+  // ADR 0092 is desktop only: a phone keeps its Character tab and no weather (battery).
+  s.panes.character.on = true;
+  s.weather.enabled = false;
   return s;
 }
 
