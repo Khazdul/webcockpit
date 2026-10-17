@@ -844,3 +844,5 @@ black: the brightest stroke stands out).
     without a frame (otherwise fully transparent) gets visible edges when
     the sunrise/sunset rays pass (screenshot `images/8.png` in the session
     scratchpad: a rectangle where the rays are weaker inside the pane).
+    The owner adds: the same happens with lightning and during the
+    day/night fade, so likely the same kind of problem.
