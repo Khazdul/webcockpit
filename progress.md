@@ -56,10 +56,14 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Round 5 (items 39–44) done:** title ink a touch lighter and its lip
   a touch darker, plate 1 px shorter, drips on the rim's edge, plate takes
   the dawn/dusk tint, demo caption a plain grey box, darker frame glass.
-- **Open:** title contrast over black ~3.6:1 after darker glass (owner's
+- **Round 6 (items 45–49) done:** frame lights follow the rounded rim
+  (`worker/rimshape.ts`), no dark seams beside the plate, title ink L .28
+  and softer lip, snow dusting on the rim (no band above), glints light
+  the whole plate.
+- **Open:** title contrast over black now ~2.6:1 (owner's
   call if darker still); Firefox told apart by user agent; beam strength a
   taste call; map-notes/map-tilesets e2e flaky under load.
-- **Next:** owner tests the frames and items 36–44.
+- **Next:** owner tests the frames and items 36–49.
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
