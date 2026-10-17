@@ -615,6 +615,10 @@ frames):
       9), 15 "Rim swell plate" (0.68 em, 4 px, tight), 16 "Glowing glass
       plate" (0.70 em, 5 px, a soft glow at the plate's centre). Awaiting
       the owner's pick.
+    - **Owner choice (2026-10-17):** 14 "Light hanging plate" is the
+      reference for the build. Two fixes: the title sits a little too low
+      on the plate (move it up), and the plate looks greyish while the rim
+      looks bluish: the plate must have the same colour as the rim.
 
 Weather:
 
