@@ -116,6 +116,8 @@ const STARS_H_RIGHT = 0.62;
 /** The sky gradient's depth, fraction of the height: at night, and by day (a soft start ~30 % above the bottom, feedback 22). */
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
+/** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28). */
+const LEFT_DARK = 0.34;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
@@ -361,8 +363,9 @@ class Sky {
   mVisNow = 0;
   mx = 0;
   my = 0;
-  skyNow = new Float32Array(10);
-  skyLast = new Float32Array(10).fill(-1);
+  /** The cached sky's inputs: top rgb, horizon rgb, alpha, glow side, glow, day depth, left fade (×100 where noted). */
+  skyNow = new Float32Array(11);
+  skyLast = new Float32Array(11).fill(-1);
   skyTick = 0;
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
@@ -737,6 +740,8 @@ class Sky {
     this.hor2 = hb;
     // How far down the sky reaches: by day to ~30 % above the bottom, at night less (feedback 22).
     s[9] = wSun * (1 - wet * 0.8) * 100;
+    // The bright day sky keeps the top left dark for the text there (owner feedback 28).
+    s[10] = wSun * (1 - wet * 0.6) * 100;
     s[0] = tr;
     s[1] = tg;
     s[2] = tb;
@@ -764,7 +769,7 @@ class Sky {
     s[7] = this.sideU * 100;
     const L = this.skyLast;
     let diff = 0;
-    for (let i = 0; i < 10; i++) diff += Math.abs(s[i]! - L[i]!);
+    for (let i = 0; i < 11; i++) diff += Math.abs(s[i]! - L[i]!);
     this.skyTick++;
     if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 2 || diff > 40 || this.first)) {
       L.set(s);
@@ -796,6 +801,22 @@ class Sky {
         C.fillStyle = gr;
         const x0 = Math.max(0, cx - R), x1 = Math.min(W, cx + R);
         if (x1 > x0) C.fillRect(x0, 0, x1 - x0, sh);
+      }
+      const lk = s[10]! / 100;
+      if (lk > 0.003) {
+        // Left to right from the page background to the sky over the first
+        // 30 % of the width; with the vertical fade the top-left corner stays
+        // the background (dark, grey or paper alike).
+        const lw = W * LEFT_DARK;
+        const gl = C.createLinearGradient(0, 0, lw, 0);
+        gl.addColorStop(0, `rgba(0,0,0,${lk.toFixed(4)})`);
+        gl.addColorStop(0.45, `rgba(0,0,0,${(lk * 0.9).toFixed(4)})`);
+        gl.addColorStop(0.8, `rgba(0,0,0,${(lk * 0.38).toFixed(4)})`);
+        gl.addColorStop(1, 'rgba(0,0,0,0)');
+        C.globalCompositeOperation = 'destination-out';
+        C.fillStyle = gl;
+        C.fillRect(0, 0, lw, sh);
+        C.globalCompositeOperation = 'source-over';
       }
     }
     b.globalCompositeOperation = 'destination-over';
