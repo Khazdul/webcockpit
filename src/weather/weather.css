@@ -40,8 +40,10 @@
  * strips under the rim, `.wc-pane-blur`: one box round the whole rim cost
  * as much as blurring the whole pane); the pane
  * inside is light glass, its colour at 55 % over a 2.5 px blur, so rain and
- * clouds still read as shapes behind the text. A floating pane is over game
- * text (its canvas copies the weather over it): a little denser. Weather
+ * clouds still read as shapes behind the text. A floating pane gets the same
+ * glass (item 50: its canvas copies the weather over the game text, which
+ * its opaque CSS background already hides; a denser 72 % made the floating
+ * map's empty space read darker than the docked panes). Weather
  * off there is nothing behind a pane but the flat page, so no blur at all
  * (layout.css: an opaque fill, the same rim colours). */
 :root:not([data-light]) .wc-cockpit[data-weather] > .wc-pane[data-framed] {
@@ -57,16 +59,11 @@
   backdrop-filter: blur(9px) saturate(1.35) brightness(1.06);
 }
 
-.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before {
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
   background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
   -webkit-backdrop-filter: blur(2.5px) saturate(1.25);
   backdrop-filter: blur(2.5px) saturate(1.25);
-}
-
-.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
-  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 72%, transparent);
-  -webkit-backdrop-filter: blur(3.5px) saturate(1.2);
-  backdrop-filter: blur(3.5px) saturate(1.2);
 }
 
 /* Without the blur (Firefox, `data-weather-flat`, support.ts
@@ -81,14 +78,9 @@
   display: none;
 }
 
-.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]) > .wc-pane-frame::before {
-  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-
+.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
 .wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
-  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 78%, transparent);
+  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }

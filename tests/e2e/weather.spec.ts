@@ -89,8 +89,8 @@ test('panes are see-through with weather on: docked at once, a float at once and
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
   // Docked panes turn to light glass with the first frame: the pane colour at 55 % over a light blur,
   // the rim's blur in four strips (ADR 0091 "Frames", addendum: glass rim and nameplate); the float
-  // holds its own canvas (opaque underneath) under a denser glass (72 %).
-  // Firefox (`data-weather-flat`): no blur, a denser tint (64 %, a float 78 %).
+  // holds its own canvas (opaque underneath) under the same glass (item 50).
+  // Firefox (`data-weather-flat`): no blur, a denser tint (64 %, a float too).
   const glass = await page.locator('.wc-pane-character').evaluate((el) => {
     const f = getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before');
     const strips = [...el.querySelectorAll('.wc-pane-blur > i')].map((s) => getComputedStyle(s).backdropFilter);
@@ -111,7 +111,7 @@ test('panes are see-through with weather on: docked at once, a float at once and
     for (const s of glass.strips) expect(s).toContain('blur(9px)');
   }
   await expect(group).toHaveAttribute('data-weather-see', '');
-  expect(await fill()).toMatch(alpha(glass.flat ? '0\\.78' : '0\\.72'));
+  expect(await fill()).toMatch(alpha(glass.flat ? '0\\.64' : '0\\.55'));
   expect(await own('.wc-pane-group')).toBe('rgb(0, 0, 0)');
   await expect(page.locator('.wc-pane-character > canvas.wc-weather-float')).toHaveCount(0);
 
