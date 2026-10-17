@@ -672,7 +672,7 @@ gained the `birds` scene.
   The moment's colour tints the sky less and late at sunset (k = mI ·
   (0.1 + 0.4 · smoothstep(0.3, 0.75, p))), early at sunrise, mostly at the
   horizon; the day sky keeps its depth through the moment.
-- **Rays (30).** 8 rays (were 15), widths 0.2–0.8° (were 0.5–2.2°),
+- **Rays (30).** 8 rays (were 15), half-widths 0.2–0.8° (were 0.5–2.2°),
   alpha 0.3 (were 0.5 / 0.62 for the cores), the front band 0.06 (0.085).
 - **Stars (31).** `STARS_H` 0.55, `STARS_H_RIGHT` 0.9; the count follows
   the mean depth (cap 520).

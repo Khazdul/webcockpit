@@ -1326,7 +1326,7 @@ class Sky {
       a0 = Math.min(a0, a);
       a1 = Math.max(a1, a);
     }
-    // Few, thin rays (owner feedback 30: were 15, 1.6–7.6° wide).
+    // Few, thin rays (owner feedback 30: were 15, half-widths 0.5–2.2°, now 0.2–0.8°).
     const T = this.T, N = 8, L = far * 1.2;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
