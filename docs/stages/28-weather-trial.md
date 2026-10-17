@@ -797,3 +797,17 @@ artifacts above the top rim) in the session scratchpad.
       above the letters). The same for the lightning flash on the rims. The
       letters are lit with it while the glint passes; still no sparkle star
       over the title.
+
+### 2026-10-17 — seventh test (translated)
+
+Screenshot: `images/7.png` in the session scratchpad (a side rim over
+black: the brightest stroke stands out).
+
+50. **Transparent map as see-through as other panes.** The transparent
+    areas of the map pane come out a little darker than other panes; they
+    should have about the same transparency.
+51. **Brightest frame strokes toned down.** The very lightest strokes in
+    the frames are a touch too light, so the frames sting the eye a
+    little. Tone them down so the lightest strokes/parts are not quite as
+    light, keeping the look; the frame as a whole may need rebalancing
+    for it.
