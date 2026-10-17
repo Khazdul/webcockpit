@@ -20,8 +20,9 @@
 // - glimpse: the calm day sky, then a strong sun glimpse (sent after the
 //   settle; ~11 s of the 15, owner feedback 52). The calm scene itself may
 //   catch one: they come every 22–60 s on a clear day.
-// - clouds: a cloudy day (`~`): the deck drifting.
-// - snow:  snow by day.
+// - clouds: a cloudy day (`~`): the deck drifting (after 36 s: the cover
+//   comes in over 24 s).
+// - snow:  snow by day (after 36 s, as clouds).
 // - cover: the calm day sky, then clouds (`~`, sent after the settle with the
 //   normal easing): the cloud cover change, a transition (owner feedback 56).
 // - indoor: the calm day sky, then indoors (sent after the settle): the
@@ -89,6 +90,8 @@ const SCENES: Record<string, Record<string, unknown> | null> = {
   cover: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   indoor: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
 };
+/** Longer settles (ms): the cloud cover comes at a slow rate (0.6 in 24 s, snow's 0.8 in 32 s), so these measure the steady scene. */
+const SCENE_SETTLE: Record<string, number> = { clouds: 36000, snow: 36000 };
 /** States pinned (smoothly, with the normal easing) once the scene has settled: transitions. */
 const SCENE_PINS: Record<string, Record<string, unknown>> = {
   cover: { weather: '~', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
@@ -218,7 +221,7 @@ async function measure(t: Target, scene: string): Promise<Sample> {
     if (!ok) throw new Error(`${t.name}: the weather effects did not start`);
   }
   await page.evaluate(() => window.__wcBench!.connectFake());
-  await pause(SETTLE_MS);
+  await pause(Math.max(SETTLE_MS, SCENE_SETTLE[scene] ?? 0));
   const stats = () => page.evaluate(() => window.__wcBench!.app!.weather?.controller?.engine.stats() ?? null);
   // The intervals counted from here (each stats call starts a new count).
   if (state) await stats();
