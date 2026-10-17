@@ -2,7 +2,7 @@
 // mix easing and sky selection, geometry diffing and background palettes.
 import { describe, expect, it } from 'vitest';
 import { DWELL_MS, Director, FOG_RATE, OUT_RATE, SKY_HOLD_S, SKY_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
-import { frameRect, geometryDiff, paneTintRects, plateOf, protectFor } from '../../src/weather/geometry';
+import { cutRects, frameRect, geometryDiff, holeClip, paneTintRects, plateOf, protectFor } from '../../src/weather/geometry';
 import { adapt, luminance, parseHex, themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type WeatherState } from '../../src/weather/protocol';
 
@@ -296,6 +296,34 @@ describe('geometry diff', () => {
     ]);
     expect(paneTintRects({ ...p, plate: undefined })).toEqual([{ x: 106, y: 56, w: 188, h: 88 }]);
     expect(paneTintRects({ ...p, border: 0 })).toEqual([{ x: 100, y: 50, w: 200, h: 100 }]);
+  });
+  const area = (rs: { w: number; h: number }[]) => rs.reduce((s, r) => s + r.w * r.h, 0);
+  it('cut rects: a rect less others, as disjoint rects', () => {
+    const r = { x: 0, y: 0, w: 100, h: 50 };
+    expect(cutRects(r, [])).toEqual([r]);
+    expect(cutRects(r, [{ x: 200, y: 0, w: 10, h: 10 }])).toEqual([r]);
+    expect(cutRects(r, [{ x: -5, y: -5, w: 200, h: 100 }])).toEqual([]);
+    // a hole in the middle: four pieces round it
+    const ring = cutRects(r, [{ x: 40, y: 10, w: 20, h: 20 }]);
+    expect(ring).toHaveLength(4);
+    expect(area(ring)).toBe(100 * 50 - 20 * 20);
+    // two overlapping cuts take their union
+    expect(area(cutRects(r, [{ x: 0, y: 0, w: 60, h: 50 }, { x: 40, y: 0, w: 30, h: 50 }]))).toBe(30 * 50);
+  });
+  it('hole clip: the element less the union of the holes, overlapping holes kept holes (owner item 57)', () => {
+    expect(holeClip(100, 50, [])).toBe('');
+    expect(holeClip(100, 50, [{ x: 500, y: 0, w: 10, h: 10 }])).toBe('');
+    expect(holeClip(100, 50, [{ x: 10.5, y: 5, w: 20, h: 10 }])).toBe('path(evenodd, "M-64 -64H164V114H-64ZM10.5 5H30.5V15H10.5Z")');
+    // two overlapping holes: disjoint subpaths (under even-odd an overlap would show again)
+    const two = holeClip(100, 50, [
+      { x: 0, y: 0, w: 60, h: 30 },
+      { x: 40, y: 10, w: 40, h: 30 },
+    ]);
+    const rects = [...two.matchAll(/M(-?[\d.]+) (-?[\d.]+)H(-?[\d.]+)V(-?[\d.]+)/g)].slice(1).map((m) => ({ x: +m[1]!, y: +m[2]!, w: +m[3]! - +m[1]!, h: +m[4]! - +m[2]! }));
+    expect(area(rects)).toBe(60 * 30 + 40 * 30 - 20 * 20);
+    for (const a of rects) for (const b of rects) if (a !== b) expect(cutRects(a, [b])).toEqual([a]);
+    // a hole reaching far out is cut to the element's box and its margin
+    expect(holeClip(100, 50, [{ x: 90, y: -1000, w: 1000, h: 2000 }])).toBe('path(evenodd, "M-64 -64H164V114H-64ZM90 -64H164V114H90Z")');
   });
 });
 

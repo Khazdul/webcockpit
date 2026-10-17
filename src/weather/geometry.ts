@@ -62,11 +62,11 @@ export function frameRect(box: Rect, framed: boolean, f: FrameInsets): Rect {
 const round = (v: number): number => Math.round(v * 2) / 2;
 
 /**
- * Where a docked pane's own background is painted under the back layer
- * (engine `paintPaneBgs`): framed, inside the rim less the nameplate (a band
- * from the plate's bottom down and a strip either side of the plate, as
- * layout.css's fill and weather.css's float canvas), so rim and plate are
- * glass over the page like the ring outside; unframed, the whole box.
+ * Where a pane's own background is painted under the back layer (engine
+ * `paneFills`, floating panes too): framed, inside the rim less the
+ * nameplate (a band from the plate's bottom down and a strip either side of
+ * the plate, as layout.css's fill), so rim and plate are glass over the page
+ * like the ring outside; unframed, the whole box.
  */
 export function paneTintRects(p: Pick<PaneGeom, 'x' | 'y' | 'w' | 'h' | 'border' | 'plate'>): Rect[] {
   const t = p.border;
@@ -93,6 +93,50 @@ export function plateOf(fr: Rect, x0: number, x1: number, y0: number, y1: number
   if (!Number.isFinite(x0 + x1 + y0 + y1)) return undefined;
   const a = Math.floor((fr.x + x0) * 2) / 2, b = Math.ceil((fr.x + x1) * 2) / 2;
   return { x: a, w: b - a, y1: fr.y + y1, lip: y0, r };
+}
+
+/** `r` less every rect in `cuts`, as disjoint rects (none when the cuts cover it). */
+export function cutRects(r: Rect, cuts: readonly Rect[]): Rect[] {
+  let out: Rect[] = [r];
+  for (const c of cuts) {
+    const next: Rect[] = [];
+    for (const a of out) {
+      const ax1 = a.x + a.w, ay1 = a.y + a.h;
+      const x0 = Math.max(a.x, c.x), x1 = Math.min(ax1, c.x + c.w);
+      const y0 = Math.max(a.y, c.y), y1 = Math.min(ay1, c.y + c.h);
+      if (x1 <= x0 || y1 <= y0) {
+        next.push(a);
+        continue;
+      }
+      if (y0 > a.y) next.push({ x: a.x, y: a.y, w: a.w, h: y0 - a.y });
+      if (y1 < ay1) next.push({ x: a.x, y: y1, w: a.w, h: ay1 - y1 });
+      if (x0 > a.x) next.push({ x: a.x, y: y0, w: x0 - a.x, h: y1 - y0 });
+      if (x1 < ax1) next.push({ x: x1, y: y0, w: ax1 - x1, h: y1 - y0 });
+    }
+    out = next;
+  }
+  return out;
+}
+
+/**
+ * A `clip-path` that shows an element of size `w` × `h` but the union of
+ * `holes` (element px): one even-odd path, the element's box (with a margin)
+ * and the holes made disjoint and cut to that box, so overlapping holes stay
+ * holes. Empty without holes (owner item 57: the text under a float).
+ */
+export function holeClip(w: number, h: number, holes: readonly Rect[]): string {
+  const m = 64;
+  const box = { x: -m, y: -m, w: w + 2 * m, h: h + 2 * m };
+  const parts: Rect[] = [];
+  for (const hole of holes) {
+    const x0 = Math.max(box.x, hole.x), y0 = Math.max(box.y, hole.y);
+    const x1 = Math.min(box.x + box.w, hole.x + hole.w), y1 = Math.min(box.y + box.h, hole.y + hole.h);
+    if (x1 > x0 && y1 > y0) parts.push(...cutRects({ x: x0, y: y0, w: x1 - x0, h: y1 - y0 }, parts));
+  }
+  if (!parts.length) return '';
+  const n = (v: number): string => String(Math.round(v * 100) / 100);
+  const rect = (r: Rect): string => `M${n(r.x)} ${n(r.y)}H${n(r.x + r.w)}V${n(r.y + r.h)}H${n(r.x)}Z`;
+  return `path(evenodd, "${rect(box)}${parts.map(rect).join('')}")`;
 }
 
 export interface MeasureHost {
