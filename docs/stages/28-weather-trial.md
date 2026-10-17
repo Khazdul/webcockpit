@@ -694,7 +694,7 @@ Weather:
     - **Done (2026-10-17):** the ink is a touch lighter (oklch L .17 → .19:
       on the blue Character plate #07101c → #0a1421) and the light lip under
       the letters a touch darker (70 % → 60 % of the highlight: #bccbde →
-      #abbad1 on the same plate). Still engraved; checked at 1× and 3× over a
+      #aebed4 on the same plate). Still engraved; checked at 1× and 3× over a
       black page, weather on and off, together with the darker frames (44).
 40. **Plate 1 px shorter under the text.** The nameplate can lose about
     1 px just below the text; it seems to fit, and the text will feel
