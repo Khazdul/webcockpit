@@ -181,6 +181,23 @@ describe('Director', () => {
     for (let i = 0; i < 200; i++) d.tick((t += 100), 0.1);
     expect(d.resting()).toBe(true);
   });
+  it('moving while a mix value eases (not in the dwell before it, nor while the sky holds after a clock change)', () => {
+    const d = new Director({ weather: ' ', clock: 'day' });
+    expect(d.moving()).toBe(false);
+    d.set({ weather: '~' });
+    d.settle(1);
+    expect(d.moving()).toBe(false);
+    let t = 1 + DWELL_MS;
+    d.tick(t, 0.1);
+    expect(d.moving()).toBe(true);
+    for (let i = 0; i < 200; i++) d.tick((t += 100), 0.1);
+    expect(d.moving()).toBe(false);
+    d.set({ clock: 'night' });
+    d.tick((t += 100), 0.1);
+    expect(d.moving()).toBe(false);
+    for (let i = 0; i < 120; i++) d.tick((t += 100), 0.1);
+    expect(d.moving()).toBe(true);
+  });
   it('quiet when nothing shows', () => {
     expect(new Director({ weather: null }).quiet()).toBe(true);
     expect(new Director({ weather: ' ' }).quiet()).toBe(false);

@@ -125,7 +125,22 @@ const LEFT_DARK = 0.34;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
-const BF = 56;
+/**
+ * Seconds per new key frame of the cloud deck (it is rebuilt row by row over
+ * that time while the last two cross-fade): while the clouds drift, and while
+ * the cover changes. In time, not in frames (was 56 frames: 4.7 s at 12 fps,
+ * so the clouds moved and came in long blurry steps; owner feedback 56).
+ */
+const DECK_KEY_S = 1.2;
+const DECK_KEY_MOVE_S = 0.7;
+/**
+ * Frames per second while the cloud deck shows (its cross-fade is the motion),
+ * above FPS_SLOW's 12; 15 where the canvases draw on the CPU (Firefox: at 20
+ * a cloudy day cost ~460 ms of CPU a second against ~280 at 12; owner
+ * feedback 56, ADR 0091).
+ */
+const CLOUD_FPS = 20;
+const CLOUD_FPS_CPU = 15;
 
 function glowSprite(r: number, rgb: string, a0: number): Cv {
   const c = mkCanvas(r * 2, r * 2), g = ctx2d(c);
@@ -432,6 +447,10 @@ class Sky {
   /** The outdoors crossfade (0..1, eased) last frame, and whether it moved. */
   outWas = 0;
   outMoving = false;
+  /** The cloud cover or the sky's palette is on its way somewhere (a transition: the fast rate). */
+  trans = false;
+  /** The cloud deck was drawn last frame. */
+  deckOn = false;
   /** Something moved in the last frame (stars, moon, clouds, a sky redraw); `still` counts frames without. */
   moving = false;
   still = 0;
@@ -486,6 +505,8 @@ class Sky {
   cX = new Float32Array(0);
   rowD = new Float32Array(0);
   bRow = 0;
+  /** How far the deck's next key frame is (0..1): its rows built so far and the cross-fade's weight. */
+  bPh = 0;
   bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
   deckEmpty = true;
   skyCv!: Cv;
@@ -649,6 +670,7 @@ class Sky {
     this.outMoving = Math.abs(out - this.outWas) > 1e-4;
     this.outWas = out;
     this.moving = this.outMoving;
+    this.deckOn = false;
     // The blue day sky switched on or off: it fades (~3 s), no jump.
     const dkT = env.cats.daySky ? 1 : 0, dk0 = this.dayK;
     this.dayK = Math.abs(dkT - dk0) < 0.002 ? dkT : ease(dk0, dkT, dt, 0.8);
@@ -706,7 +728,12 @@ class Sky {
     this.momentP = mP;
     if (this.first) this.palW.set(t);
     const pTau = M ? 0.35 : 0.6;
-    for (let i = 0; i < NP; i++) this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
+    let palD = 0;
+    for (let i = 0; i < NP; i++) {
+      this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
+      palD = Math.max(palD, Math.abs(this.palW[i]! - t[i]!));
+    }
+    this.trans = palD > 0.003 || (!inside && Math.abs(this.coverS - coverT) > 1e-3);
 
     const b = env.back;
     this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
@@ -871,7 +898,9 @@ class Sky {
     let diff = 0;
     for (let i = 0; i < 11; i++) diff += Math.abs(s[i]! - L[i]!);
     this.skyTick++;
-    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 2 || diff > 40 || this.first)) {
+    // every frame it has moved enough (it was every other frame: a 6 Hz
+    // stepping at 12 fps; transitions now run at the fast rate, owner feedback 56)
+    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 1 || diff > 40 || this.first)) {
       L.set(s);
       this.skyTick = 0;
       this.moving = true;
@@ -958,6 +987,7 @@ class Sky {
     this.rowD = new Float32Array(dw);
     for (let c = 0; c < dw; c++) this.cX[c] = ((c + 0.5) * DS - cx) / f;
     this.bRow = 0;
+    this.bPh = 0;
     this.bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
     this.deckEmpty = true;
   }
@@ -969,6 +999,7 @@ class Sky {
     this.gP.clearRect(0, 0, this.dw, this.dh);
     this.gP.drawImage(this.dN, 0, 0);
     this.bRow = 0;
+    this.bPh = 0;
     this.deckEmpty = this.bk.a < 0.004;
   }
   deckParams(): void {
@@ -1069,10 +1100,11 @@ class Sky {
     if (this.first) this.deckNow();
     else if (!(this.deckEmpty && this.cover < 0.02)) {
       if (this.bRow === 0) this.deckParams();
-      const n = Math.ceil(rows / BF), r1 = Math.min(rows, this.bRow + n);
-      this.buildRows(this.bRow, r1);
+      this.bPh = Math.min(1, this.bPh + dt / (this.trans ? DECK_KEY_MOVE_S : DECK_KEY_S));
+      const r1 = Math.min(rows, Math.ceil(this.bPh * rows));
+      if (r1 > this.bRow) this.buildRows(this.bRow, r1);
       this.bRow = r1;
-      if (this.bRow >= rows) {
+      if (this.bPh >= 1) {
         const t = this.dP;
         this.dP = this.dN;
         this.dN = t;
@@ -1082,13 +1114,15 @@ class Sky {
         this.gN.putImageData(this.bimg, 0, 0);
         this.deckEmpty = this.bk.a < 0.004;
         this.bRow = 0;
+        this.bPh = 0;
       }
     }
     // No text protection behind the clouds any more (owner feedback 9): the deck is fainter instead, everywhere.
     const fA = out * (0.4 + 0.6 * this.fogK) * DECK_A;
     if (fA < 0.01 || (this.deckEmpty && this.cover < 0.02)) return;
     this.moving = true;
-    const k = this.bRow / rows, C = this.gC;
+    this.deckOn = true;
+    const k = this.bPh, C = this.gC;
     C.globalCompositeOperation = 'copy';
     C.globalAlpha = 1 - k;
     C.drawImage(this.dP, 0, 0);
@@ -1640,9 +1674,10 @@ export function skyModule(): Module {
       // Day life asks for its own rate only while a flock, an insect or a glimpse is there.
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving) return FPS_FAST;
+      // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
-      return sky.still > 2 ? lf || FPS_STILL : Math.max(FPS_SLOW, lf);
+      return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },
     destroy() {
       sky = null;

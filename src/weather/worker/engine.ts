@@ -33,6 +33,7 @@
 import { Director, eventState } from '../director';
 import { paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
+import { glassBlurCheap } from '../support';
 import type { FrameStats, Geometry, MainToWorker, WorkerToMain } from '../protocol';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
@@ -44,6 +45,14 @@ import { weatherModule } from './weather';
 export const MAX_FPS = 60;
 /** Longest step a frame advances the effects, s (a stall does not make rain jump). */
 const DT_MAX = 0.25;
+/**
+ * How early a frame may be drawn, at most (ms; a third of the interval at
+ * most): animation frames come on the screen's vsync grid, a little late or
+ * early, and with a slack of 2 ms one that came early was put off a whole
+ * vsync, so 30 fps ran 33/50 ms apart at times (owner feedback 56). With
+ * half a vsync or so the loop keeps an even cadence on the grid.
+ */
+const SLACK_MS = 6;
 /** Tick interval while idle, ms. */
 export const IDLE_MS = 250;
 const N_TIMES = 600;
@@ -166,6 +175,7 @@ export class WeatherEngine {
           W: 0,
           H: 0,
           dpr: 1,
+          cpu: !glassBlurCheap(typeof navigator === 'undefined' ? '' : navigator.userAgent),
           back,
           front,
           panes: [],
@@ -435,24 +445,36 @@ export class WeatherEngine {
   private schedule(slow: boolean, wait = 0): void {
     const g = this.gen;
     if (slow) this.host.setTimeout(() => this.tick(g), IDLE_MS);
-    else if (wait > 24) this.host.setTimeout(() => g === this.gen && this.host.requestFrame(() => this.tick(g)), wait - 12);
-    else this.host.requestFrame(() => this.tick(g));
+    else if (wait > 24) this.host.setTimeout(() => g === this.gen && this.host.requestFrame((t) => this.tick(g, t)), wait - 12);
+    else this.host.requestFrame((t) => this.tick(g, t));
   }
 
-  private readonly tick = (g: number): void => {
+  /** How early a frame at the current rate may come (ms). */
+  private slack(): number {
+    return Math.min(SLACK_MS, 1000 / this.rate / 3);
+  }
+
+  /**
+   * One loop step. `t` is the animation frame's time (on the vsync grid) when
+   * it came from one: frames and their time steps then follow the screen's
+   * cadence, not the callback's jitter.
+   */
+  private readonly tick = (g: number, t?: number): void => {
     if (g !== this.gen) return;
     if (!this.env || !this.visible) {
       this.looping = false;
       return;
     }
-    const now = this.host.now();
-    const wait = 1000 / this.rate - 2 - (now - this.lastFrame);
+    const at = this.host.now();
+    // the frame's time: never ahead of the clock, never before the last frame
+    const now = t !== undefined && t <= at + 1 ? Math.max(t, this.lastFrame) : at;
+    const wait = 1000 / this.rate - this.slack() - (now - this.lastFrame);
     if (!this.idle && wait > 0) {
       this.schedule(false, wait);
       return;
     }
     this.lastFrame = now;
-    const dt = Math.min(DT_MAX, (now - this.lastT) / 1000 || 0);
+    const dt = Math.min(DT_MAX, Math.max(0, (now - this.lastT) / 1000) || 0);
     this.lastT = now;
     this.director.tick(now, dt);
     if (this.idle) {
@@ -477,7 +499,7 @@ export class WeatherEngine {
       this.idle = true;
       this.wasIdle = true;
       this.schedule(true);
-    } else this.schedule(false, 1000 / this.rate - 2 - (this.host.now() - now));
+    } else this.schedule(false, 1000 / this.rate - this.slack() - (this.host.now() - now));
   };
 
   /** One frame. Returns true while anything is shown or animating. */
@@ -489,6 +511,10 @@ export class WeatherEngine {
     back.clearRect(0, 0, env.W, env.H);
     front.clearRect(0, 0, env.W, env.H);
     const loop = this.rate;
+    // While a mix value moves (a transition: clouds coming, a fade, rain
+    // starting), every module runs at least at FPS_FAST, cached ones too, so
+    // nothing changes in steps (owner feedback 56).
+    const floor0 = this.director.moving() ? FPS_FAST : 1;
     let busy = false, rate = 0;
     for (const sl of this.slots) {
       const mod = sl.mod, m0 = performance.now();
@@ -519,7 +545,7 @@ export class WeatherEngine {
           c.valid = true;
         }
         try {
-          sl.fps = Math.max(1, Math.min(MAX_FPS, mod.fps?.(env) ?? FPS_FAST));
+          sl.fps = Math.max(floor0, Math.min(MAX_FPS, mod.fps?.(env) ?? FPS_FAST));
         } catch (e) {
           this.report(mod.id, e);
           sl.fps = FPS_FAST;

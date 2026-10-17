@@ -240,6 +240,21 @@ export class Director {
     return true;
   }
 
+  /**
+   * True while a mix value moves toward its target (a transition the effects
+   * show; the dwell before one is not). The sky selection does not move while
+   * it holds after a clock change.
+   */
+  moving(eps = 0.002): boolean {
+    const t = mixTargets(this.settled, this.cats, this.tgt);
+    const hold = this.skyHold > 0;
+    for (const key of MIX_KEYS) {
+      if (hold && SKY_KEYS.has(key)) continue;
+      if (Math.abs(this.mix[key] - t[key]) > eps) return true;
+    }
+    return false;
+  }
+
   /** True while a dwelled value waits to settle. */
   pending(): boolean {
     return DWELLED.some((k) => this.pendingSince[k] !== 0);

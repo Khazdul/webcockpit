@@ -20,6 +20,12 @@ export interface Env {
   W: number;
   H: number;
   dpr: number;
+  /**
+   * The canvases are drawn on the CPU (Firefox: its worker canvases have no
+   * GPU raster): big fills cost by their area there, so a few modules draw
+   * differently (weather.ts snow tiles).
+   */
+  cpu?: boolean;
   /** Behind text and panes. */
   back: Ctx;
   /** Above everything. */

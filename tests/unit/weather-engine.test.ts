@@ -80,9 +80,15 @@ function mod(id: string, fps: number, scale?: number) {
   return m satisfies Module;
 }
 
-/** A 60 Hz host with a manual clock: timers and animation frames run in time order. */
-function harness(modules: Module[]) {
+/**
+ * A 60 Hz host with a manual clock: timers and animation frames run in time
+ * order. With `jitter` (ms) each animation frame's callback runs up to that
+ * late (or early, when negative) against its vsync time, as in a busy worker.
+ */
+function harness(modules: Module[], jitter = 0) {
   let now = 1000;
+  /** The last vsync's time (the grid; `now` may run a little behind it with jitter). */
+  let vs = now;
   let raf: ((t: number) => void)[] = [];
   let timers: { at: number; cb: () => void }[] = [];
   const engine = new WeatherEngine(
@@ -109,7 +115,7 @@ function harness(modules: Module[]) {
   const run = (ms: number): void => {
     const end = now + ms;
     while (now < end) {
-      const vsync = now + 1000 / 60;
+      const vsync = (vs += 1000 / 60);
       for (;;) {
         timers.sort((a, b) => a.at - b.at);
         const t = timers[0];
@@ -121,7 +127,9 @@ function harness(modules: Module[]) {
       now = vsync;
       const cbs = raf;
       raf = [];
-      for (const cb of cbs) cb(now);
+      if (jitter) now = vsync + Math.max(0, jitter * Math.abs(Math.sin(vsync * 12.9898)));
+      for (const cb of cbs) cb(vsync);
+      now = Math.max(now, vsync);
     }
   };
   return { engine, run, back: back.ctx, front: front.ctx, send: (m: MainToWorker) => engine.handle(m) };
@@ -201,6 +209,38 @@ describe('WeatherEngine frame rate', () => {
     expect(sky.frames - f2).toBeGreaterThanOrEqual(FPS_SLOW - 1);
     // still content draws straight on the canvas (a copy of a full-size cache would cost more)
     expect(sky.backs.at(-1)).toBe(h.back);
+  });
+
+  it('runs every module at least at FPS_FAST while a mix value moves, then back at its own rate (owner feedback 56)', () => {
+    const sky = mod('sky', FPS_SLOW), fog = mod('fog', FPS_SLOW, 0.5);
+    const h = harness([sky, fog]);
+    h.run(1000);
+    h.send({ t: 'state', s: { weather: '~' }, instant: false });
+    h.run(3300); // the dwell, then the clouds ease in
+    const s0 = sky.frames, g0 = fog.frames;
+    h.run(1000);
+    expect(sky.frames - s0).toBeGreaterThanOrEqual(FPS_FAST - 2);
+    // a cached module too (fog, at half resolution)
+    expect(fog.frames - g0).toBeGreaterThanOrEqual(FPS_FAST - 2);
+    h.run(15000);
+    const s1 = sky.frames;
+    h.run(2000);
+    expect((sky.frames - s1) / 2).toBeLessThanOrEqual(FPS_SLOW + 1);
+  });
+
+  it('keeps an even cadence on the vsync grid when the animation frames come late (owner feedback 56)', () => {
+    for (const fps of [FPS_FAST, FPS_SLOW]) {
+      const h = harness([mod('weather', fps)], 5);
+      h.run(500);
+      h.engine.stats();
+      h.run(3000);
+      const g = h.engine.stats().gaps;
+      expect(g.n).toBeGreaterThan(fps * 3 - 3);
+      // every frame on the same number of vsyncs: 2 at 30 fps, 5 at 12
+      const want = 1000 / fps;
+      expect(g.p50).toBeCloseTo(want, 0);
+      expect(g.max).toBeLessThan(want + 1);
+    }
   });
 
   it('drops to the slow rate without window focus', () => {
