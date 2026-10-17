@@ -38,7 +38,8 @@
 
 /* A floating pane's weather canvas: the pane's first child, under its frame
  * and content. Its own background is what the pane's fill was (the terminal
- * background over the whole pane, the pane's tint inside the frame line), so
+ * background over the whole pane, the pane's tint inside the frame line,
+ * from the line's inner edge down, as `.wc-pane-frame::before`), so
  * it is opaque from the moment it is put in, wherever the pane moves; the
  * worker's copy of the weather is drawn over it. */
 .wc-weather-float {
@@ -53,7 +54,9 @@
 
 .wc-pane[data-framed] > .wc-weather-float {
   background:
-    linear-gradient(var(--pane-bg, var(--term-bg)), var(--pane-bg, var(--term-bg))) var(--frame-l, 0px) var(--frame-top, 0px) /
-      calc(100% - var(--frame-l, 0px) - var(--frame-r, 0px)) calc(100% - var(--frame-top, 0px) - var(--frame-b, 0px)) no-repeat,
+    linear-gradient(var(--pane-bg, var(--term-bg)), var(--pane-bg, var(--term-bg))) var(--frame-l, 0px)
+      calc(var(--frame-top, 0px) + var(--frame-t, 0px)) /
+      calc(100% - var(--frame-l, 0px) - var(--frame-r, 0px)) calc(100% - var(--frame-top, 0px) - var(--frame-t, 0px) - var(--frame-b, 0px))
+      no-repeat,
     var(--term-bg);
 }

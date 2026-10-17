@@ -1,22 +1,22 @@
 // Pane frame (Inv §2.1 "Pane frame", §10.4; ADR 0010, ADR 0091 "Frames").
 //
-//   ┌──┐ Character ┌─────────────┐      one thin line, equal on all four
-//   │  └───────────┘             │      sides, in the outer frame cells;
-//   │                            │      at the title the top line winds
-//   └────────────────────────────┘      down under it and back up
+//   ┌── Character ──────────────┐      one thin line, equal on all four
+//   │                           │      sides, in the outer frame cells;
+//   │                           │      the top line ends either side of
+//   └───────────────────────────┘      the title (a gap, no box)
 //
 // The frame still owns the outer ring of cells (pane sizes, the content
 // rectangle and the layout are as with the old quadrant glyphs), but it is
 // drawn as a box and an SVG path, not as text: `.wc-pane-frame` is inset
-// `frameInset` px from every edge of the pane, its `::before` is the fill,
-// and `svg.wc-pane-line` strokes the `t`-px line along `framePath` (layout.css:
-// a core between two edge bands, the same on every side and every bend). The
-// inset is the same horizontally and vertically, so the gap between two
-// neighbouring frames is the same beside and above (owner feedback 15). The
-// ring outside the line is left unpainted. The label is text in the top row
-// from the fourth cell, in the notch (`frameNotch`): the floor runs under it
-// on the first content row's top, so it never crosses the letters (owner
-// feedback 16).
+// `frameInset` px from every edge of the pane, its `::before` is the fill
+// (from the line's inner edge down), and `svg.wc-pane-line` strokes the
+// `t`-px line along `framePath` (layout.css: a core between two edge bands,
+// the same on every side and every bend). The inset is the same horizontally
+// and vertically, so the gap between two neighbouring frames is the same
+// beside and above (owner feedback 15). The ring outside the line is left
+// unpainted. The label is text from the fourth cell, centred on the top
+// line, which ends a little before it and resumes after it (`frameGap`,
+// owner feedback 32): nothing behind the letters but what is behind the pane.
 //
 // `frameGeometry` puts every edge of the line on a whole device pixel of the
 // page, not of the pane: panes sit at `col × cell-w`, which is fractional,
@@ -112,57 +112,55 @@ export function frameGeometry(box: PxRect, w: number, h: number, dpr = 1): Frame
 export const TITLE_SCALE = 0.82;
 
 /**
- * Where the top line winds down under the title (owner feedback 16), in CSS
- * px relative to the frame box (the line's outer edge): the line leaves the
- * top side at `x0 − t` (the left step's outer side), runs down, along the
- * floor `[d, d + t]` and back up at `x1 + t`. `x0`..`x1` is the clear space
- * the title sits in, above `d`.
+ * The stretch of the top line left out for the title (owner feedback 32; it
+ * wound down under the title in a notch before), in CSS px relative to the
+ * frame box (the line's outer edge): the line ends at `x0` and resumes at
+ * `x1`, square cut. The title is centred between them (layout.css).
  */
-export interface FrameNotch {
+export interface FrameGap {
   x0: number;
   x1: number;
-  d: number;
 }
 
+/** Room between the label's outer letters and each end of the line, in title spaces (TITLE_SCALE cells). */
+export const GAP_PAD = 0.5;
+
 /**
- * The notch for a title of `chars` characters (` Label `, spaces included)
- * from the fourth cell, at TITLE_SCALE: the floor's lower edge on the first
- * content row's top (the line stays inside the top cell row), the steps on
- * whole device pixels of the page. Null without a title, or when the cell is
- * too small for a floor below the top line.
+ * The gap for a title of `chars` characters (` Label `, spaces included)
+ * from the fourth cell, at TITLE_SCALE: from the middle of its leading space
+ * to the middle of its trailing one, so the line ends the same distance from
+ * the first and the last letter; both ends on whole device pixels of the
+ * page and clear of the corners. Null without a title or room for one.
  */
-export function frameNotch(box: PxRect, g: FrameGeometry, w: number, h: number, chars: number, dpr = 1): FrameNotch | null {
+export function frameGap(box: PxRect, g: FrameGeometry, w: number, chars: number, dpr = 1): FrameGap | null {
   if (chars < 3) return null;
   const d = dpr > 0 ? dpr : 1;
   const tD = Math.round(g.t * d);
-  const floorTop = Math.round((box.y + h) * d) - tD;
-  if (floorTop - Math.round((box.y + g.top + g.t) * d) < 2) return null;
-  const xa = Math.round((box.x + LABEL_COL * w) * d);
-  // the right step stays clear of the right side line
-  const xMax = Math.round((box.x + box.w - g.r - g.t) * d) - 2 * tD;
-  const xb = Math.min(xMax, Math.round((box.x + LABEL_COL * w + chars * w * TITLE_SCALE) * d));
+  const s = w * TITLE_SCALE;
+  const xt = box.x + LABEL_COL * w;
+  // a stub of at least a line's thickness past each corner
+  const xMin = Math.round((box.x + g.l) * d) + 2 * tD;
+  const xMax = Math.round((box.x + box.w - g.r) * d) - 2 * tD;
+  const xa = Math.max(xMin, Math.round((xt + GAP_PAD * s) * d));
+  const xb = Math.min(xMax, Math.round((xt + (chars - GAP_PAD) * s) * d));
   if (xb - xa < 2 * tD) return null;
   const px = (v: number): number => Math.round(v * 1e4) / 1e4;
-  const fx = box.x + g.l, fy = box.y + g.top;
-  return { x0: px(xa / d - fx), x1: px(xb / d - fx), d: px(floorTop / d - fy) };
+  const fx = box.x + g.l;
+  return { x0: px(xa / d - fx), x1: px(xb / d - fx) };
 }
 
 /**
  * The SVG path through the middle of the line, in frame-box coordinates
- * (`fw` × `fh`, the line's outer edges), with the notch if any. Stroked
- * `t` wide it covers exactly the line.
+ * (`fw` × `fh`, the line's outer edges). Stroked `t` wide with butt caps it
+ * covers exactly the line. With a gap it is open: from the gap's right end
+ * round the frame to its left end, each end `cut` px short of the gap (the
+ * core stroke stops short, so the edge band closes the tube's ends).
  */
-export function framePath(fw: number, fh: number, t: number, n: FrameNotch | null): string {
+export function framePath(fw: number, fh: number, t: number, gap: FrameGap | null, cut = 0): string {
   const c = t / 2;
   const r = (v: number): string => String(Math.round(v * 1e4) / 1e4);
-  const top = n ? `H${r(n.x0 - c)}V${r(n.d + c)}H${r(n.x1 + c)}V${r(c)}` : '';
-  return `M${r(c)} ${r(fh - c)}V${r(c)}${top}H${r(fw - c)}V${r(fh - c)}Z`;
-}
-
-/** The frame fill's clip (CSS `clip-path`): the frame box without the notch above its floor. */
-export function notchClip(n: FrameNotch | null): string {
-  if (!n) return 'none';
-  return `polygon(0 0, ${n.x0}px 0, ${n.x0}px ${n.d}px, ${n.x1}px ${n.d}px, ${n.x1}px 0, 100% 0, 100% 100%, 0 100%)`;
+  if (!gap) return `M${r(c)} ${r(fh - c)}V${r(c)}H${r(fw - c)}V${r(fh - c)}Z`;
+  return `M${r(gap.x1 + cut)} ${r(c)}H${r(fw - c)}V${r(fh - c)}H${r(c)}V${r(c)}H${r(gap.x0 - cut)}`;
 }
 
 /**
