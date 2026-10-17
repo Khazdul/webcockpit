@@ -447,3 +447,12 @@ Sky:
 32. **Title notch out.** The line winding under the title does not look
     good. Bring back the line ending left and right of the title (a gap,
     as before), keeping the title transparent (no box).
+    - **Done (2026-10-17):** the top line is straight again and ends about
+      half a space before the title and resumes the same distance after it
+      (square cut ends, closed by the line's edge band like the corners).
+      The title (0.82 em) sits centred in the gap, across the line's
+      height, with nothing behind it: the page, sky or weather shows
+      around the letters as outside the frame, on a tinted pane too. The
+      map fills its frame up to the line again. Frame glints, lightning on
+      the frames and snow on pane tops leave the gap alone; the sunrise
+      line along pane tops still crosses it until the sky rework.
