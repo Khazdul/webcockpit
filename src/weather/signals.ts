@@ -17,10 +17,13 @@
 //                  change the almanac predicts (an event in between wins
 //                  until the next predicted change)
 //   text lines     lightning flash messages → 'strike'; a wind message in
-//                  a weather tag → 'gust' (see `lightningLine`)
+//                  a weather tag → 'gust' (see `lineEvent`); the room
+//                  display's magical darkness line → `magic` (see
+//                  `roomLine`: set by the line, cleared by the next room's
+//                  exits line without it)
 
 import { type ClockState, isDay, momentAt } from '../gmcp/clock';
-import { moonAt } from '../gmcp/gametime';
+import { moonAt, moonUpFraction } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
 
@@ -32,7 +35,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -54,14 +57,17 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
  * Sun and moon from the almanac at `nowMs`. Null for the sun and moon
  * while the clock has never synced (`unset`); the phase is given anyway.
  */
-export function almanacState(clock: Readonly<ClockState>, nowMs: number): { sky: Omit<SkyState, 'moonPhase'> | null; moonPhase: number } {
+export function almanacState(
+  clock: Readonly<ClockState>,
+  nowMs: number,
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU'> | null; moonPhase: number; moonU: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1 };
   const m = momentAt(clock.epoch, nowS);
-  return { sky: { clock: isDay(m.month, m.hour) ? 'day' : 'night', moonUp: moon.position !== 'below' }, moonPhase };
+  return { sky: { clock: isDay(m.month, m.hour) ? 'day' : 'night', moonUp: moon.position !== 'below' }, moonPhase, moonU: moonUpFraction(g) };
 }
 
 /** How often the almanac is re-read (real ms; one game minute is one second). */
@@ -81,6 +87,34 @@ const FLASH_FALLBACK_RE = /^A bright streak of lightning flashes\b/;
 /** A gust: "You can feel a tempestuous wind coming from the north." (only inside a weather tag, or this exact form). */
 const GUST_RE = /\bwind (?:coming|blowing) from\b/i;
 const GUST_FALLBACK_RE = /^You can feel an? [a-z-]+ wind coming from\b/;
+
+/**
+ * Magical darkness in the room display (MUME, the owner's logs 2026-09-25/26):
+ * "A deep, impenetrable darkness lingers here." (or "wavering", seen once at
+ * the darkness's edge) right after the room name, on every entry and look,
+ * brief mode too. An ordinary dark room never prints it (one you cannot see
+ * is named "Darkness"). The prompt's light cannot tell them apart: 'o' for
+ * every dark room, and '!' inside magical darkness with a lantern.
+ */
+const DARK_ROOM_RE = /^A deep, (?:wavering|impenetrable) darkness lingers here\.\s*$/;
+/** The darkness spell taking hold in the room you are in (seen 4 times in the logs after the cast words). */
+const DARK_CAST_RE = /^The light decreases\.\s*$/;
+
+/**
+ * What a text line says about the room's magical darkness: `dark` (the
+ * lingering darkness line), `cast` (the spell taking hold here), `exits`
+ * (the room display's exits line: the end of a room display), or null.
+ */
+export function roomLine(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): 'dark' | 'cast' | 'exits' | null {
+  if (line.prompt) return null;
+  const text = line.text;
+  const c = text.charCodeAt(0);
+  if (c === 65) return DARK_ROOM_RE.test(text) ? 'dark' : null;
+  if (c === 84) return DARK_CAST_RE.test(text) ? 'cast' : null;
+  const tags = line.tags;
+  for (let i = 0; i < tags.length; i++) if (tags[i]!.tag === 'exits') return 'exits';
+  return c === 69 && text.startsWith('Exits:') ? 'exits' : null;
+}
 
 /** What a text line means for the weather: a strike, a gust, or nothing. */
 export function lineEvent(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): 'strike' | 'gust' | null {
@@ -124,7 +158,10 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU'> | null = null;
+  /** Magical darkness: in the room now, and seen in the room display being read. */
+  private magic = false;
+  private darkLine = false;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -137,12 +174,12 @@ export class WeatherSignals {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU };
   }
 
   /** The state to start the engine with. */
   state(): WeatherState {
-    return { ...this.vit, ...this.sky, ...this.pinned };
+    return { ...this.vit, ...this.sky, magic: this.magic, ...this.pinned };
   }
 
   /** The current vitals (after a `Char.*` change); forwards the keys that changed. */
@@ -163,15 +200,35 @@ export class WeatherSignals {
     if (!ev) return;
     if (ev === 'sun.rise' || ev === 'sun.light') this.sky.clock = 'day';
     else if (ev === 'sun.set' || ev === 'sun.dark') this.sky.clock = 'night';
-    else if (ev === 'moon.rise') this.sky.moonUp = true;
-    else if (ev === 'moon.set') this.sky.moonUp = false;
+    else if (ev === 'moon.rise') {
+      this.sky.moonUp = true;
+      this.sky.moonU = 0;
+    } else if (ev === 'moon.set') {
+      this.sky.moonUp = false;
+      this.sky.moonU = -1;
+    }
     this.sink.emit(ev);
   }
 
-  /** A text line: lightning or a gust. */
+  /** A text line: lightning, a gust, or the room's magical darkness. */
   line(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): void {
     const ev = lineEvent(line);
     if (ev) this.sink.emit(ev);
+    const r = roomLine(line);
+    if (!r) return;
+    let magic = this.magic;
+    if (r === 'exits') {
+      // the end of a room display: dark exactly when its darkness line came
+      magic = this.darkLine;
+      this.darkLine = false;
+    } else {
+      if (r === 'dark') this.darkLine = true;
+      magic = true;
+    }
+    if (magic !== this.magic) {
+      this.magic = magic;
+      this.push({ magic });
+    }
   }
 
   /**
@@ -182,6 +239,7 @@ export class WeatherSignals {
   almanac(clock: Readonly<ClockState>, nowMs: number, force = false): void {
     const a = almanacState(clock, nowMs);
     const out: Partial<WeatherState> = {};
+    const moonWas = this.sky.moonUp;
     if (Math.abs(a.moonPhase - this.sky.moonPhase) > 1e-6) out.moonPhase = this.sky.moonPhase = a.moonPhase;
     const prev = this.almanacSky;
     if (a.sky) {
@@ -192,6 +250,8 @@ export class WeatherSignals {
         if (this.sky.moonUp !== a.sky.moonUp) out.moonUp = this.sky.moonUp = a.sky.moonUp;
       }
     }
+    // Where the moon is on its way: at a clock sync, or when the almanac moves it up or down.
+    if (a.sky && (force || out.moonUp !== undefined || (this.sky.moonUp && !moonWas))) out.moonU = this.sky.moonU = this.sky.moonUp ? Math.max(0, a.moonU) : -1;
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }

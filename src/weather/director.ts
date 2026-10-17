@@ -6,9 +6,11 @@
 //   DWELL_MS (running through rooms does not flicker); position, clock and
 //   moon are immediate.
 // - The sky comes from the latest Event.Sun / Event.Moon (clock, moonUp).
-//   light 'o' alone overrides it with the darkness sky (`evil`), indoors
-//   too: a dark room shows the red darkness sky for as long as it is dark
-//   (owner feedback 7, 2026-10-17); the rest of the sky stays outdoors only.
+//   A room with magical darkness (`magic`, from its room text) overrides it
+//   with the darkness sky (`evil`), indoors too, for as long as you are in
+//   such a room; an ordinary dark room (light 'o': caves, moonless nights)
+//   does not (owner feedback 7 and 10); the rest of the sky stays outdoors
+//   only.
 // - Mix values ease exponentially (tau 0.9 s) toward their targets; fog
 //   instead moves at a constant FOG_RATE (a step between none, light and
 //   dense takes 20 s, owner feedback 8), so it grows and thins gradually.
@@ -42,7 +44,7 @@ export const MIX_KEYS = [
 export type MixKey = (typeof MIX_KEYS)[number];
 export type Mix = Record<MixKey, number>;
 
-const DWELLED = ['weather', 'fog', 'light'] as const;
+const DWELLED = ['weather', 'fog', 'light', 'magic'] as const;
 type Dwelled = (typeof DWELLED)[number];
 
 const CLOUD_COVER: Record<string, number> = { '~': 0.6, "'": 0.85, '"': 1, '*': 0.8 };
@@ -57,7 +59,7 @@ export function zeroMix(): Mix {
 export function mixTargets(s: Readonly<WeatherState>, cats: Readonly<Categories>, out: Mix = zeroMix()): Mix {
   const outd = s.weather !== null ? 1 : 0;
   const day = s.clock === 'day';
-  const dk = cats.darkness && s.light === 'o';
+  const dk = cats.darkness && s.magic;
   out.outdoors = outd;
   out.sun = outd && day && !dk ? 1 : 0;
   out.moon = outd && !day && s.moonUp && !dk ? 1 : 0;
@@ -101,7 +103,7 @@ export class Director {
   readonly settled: WeatherState;
   readonly mix: Mix = zeroMix();
   private readonly tgt: Mix = zeroMix();
-  private readonly pendingSince: Record<Dwelled, number> = { weather: 0, fog: 0, light: 0 };
+  private readonly pendingSince: Record<Dwelled, number> = { weather: 0, fog: 0, light: 0, magic: 0 };
   cats: Categories;
 
   constructor(state: Partial<WeatherState> = {}, cats: Categories = { ...ALL_CATEGORIES }) {
@@ -156,6 +158,7 @@ export class Director {
     settled.clock = raw.clock;
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
+    settled.moonU = raw.moonU;
   }
 
   /** Eases the mix values toward their targets over `dt` seconds. */

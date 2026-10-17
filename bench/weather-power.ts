@@ -12,7 +12,9 @@
 //
 // - off:   weather effects off (the baseline);
 // - calm:  a clear day sky (only slow things move);
-// - heavy: heavy rain with drips, dense fog, moonlit night.
+// - heavy: heavy rain with drips, dense fog, moonlit night;
+// - birds: the calm day sky with a flock of birds crossing all the time
+//   (sent after the settle; normally one comes every 70–170 s).
 //
 // Per scene and round, after SETTLE_MS to ease in, over S seconds:
 // - CPU time of the browser's processes (utime + stime from /proc/<pid>/stat,
@@ -68,7 +70,10 @@ const SCENES: Record<string, Record<string, unknown> | null> = {
   off: null,
   calm: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   heavy: { weather: '"', fog: '=', position: 'standing', clock: 'night', moonUp: true, light: '' },
+  birds: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
 };
+/** Events sent once the scene has settled (just before measuring). */
+const SCENE_EVENTS: Record<string, string[]> = { birds: ['birds'] };
 const SCENE_NAMES = opt('scenes', 'WC_POWER_SCENES', 'off,calm,heavy').split(',').filter((s) => s in SCENES);
 
 // ------------------------------------------------------------- counters
@@ -191,6 +196,7 @@ async function measure(t: Target, scene: string): Promise<Sample> {
   }
   await page.evaluate(() => window.__wcBench!.connectFake());
   await pause(SETTLE_MS);
+  for (const e of SCENE_EVENTS[scene] ?? []) await page.evaluate((e) => window.__wcBench!.app!.weather?.controller?.engine.emit(e as never), e);
   const stats = () => page.evaluate(() => window.__wcBench!.app!.weather?.controller?.engine.stats() ?? null);
   const s0 = state ? await stats() : null;
   const a = snap();

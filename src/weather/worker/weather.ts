@@ -6,7 +6,8 @@
 //           keeps dripping a while after the rain and then dries. Drops enter
 //           at the top and thicken over ~6 s; when it stops they fall out.
 //   bolt    stepped leader, branches, return stroke, re-strikes, afterglow, rim
-//           light on pane borders. ONLY on the 'strike' event. Writes
+//           light on every frame's lines (strongest near the bolt). ONLY on
+//           the 'strike' event. Writes
 //           env.shared.flash / boltX.
 //   snow    flakes as particles plus far pattern tiles. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
@@ -706,8 +707,9 @@ export function weatherModule(): Module {
           ny = y;
         }
       }
-      const k = 1 / (1 + best / 160);
-      if (k < 0.12) continue;
+      // Every frame line lights up briefly (owner feedback 20); the ones near the bolt most.
+      if (!p.border) continue;
+      const k = Math.max(0.3, 1 / (1 + best / 160));
       const behind = best === 0;
       // The lines along the left / right / top edge, as the rects a 1.5 px
       // (rim) or b px (band) butt-capped stroke covers.
@@ -723,6 +725,7 @@ export function weatherModule(): Module {
       }
       rim.push(p.x, p.y, p.w, 1.5);
       band.push(p.x, p.y, p.w, b);
+      if (behind || k > 0.5) band.push(p.x, p.y + p.h - b, p.w, b);
       const gr = env.front.createRadialGradient(nx, ny, 0, nx, ny, Math.max(260, p.h * 0.9));
       gr.addColorStop(0, C(235, 240, 255, 1));
       gr.addColorStop(0.45, C(170, 175, 255, 0.75));

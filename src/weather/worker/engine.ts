@@ -3,8 +3,8 @@
 // harness).
 //
 // Frame: clear the back and front canvases, run sky, weather, fog, body
-// (each wrapped in save/restore), mask the prompt/input rows and the far
-// left, paint the mid layer under the floating panes (their fill and a copy
+// (each wrapped in save/restore), mask the prompt/input rows (not the far
+// left any more: owner feedback 21), paint the mid layer under the floating panes (their fill and a copy
 // of the back layer there), then paint the docked panes' own backgrounds
 // underneath the back layer (the panes are transparent while weather is on,
 // see weather.css).
@@ -133,7 +133,7 @@ export class WeatherEngine {
   private lastFrame = 0;
   private readySent = false;
   private paneBgs: { x: number; y: number; w: number; h: number; bg: string }[] = [];
-  private mask: { fade: CanvasGradient; left: CanvasGradient }[] = [];
+  private mask: { fade: CanvasGradient }[] = [];
   private readonly times = new Float32Array(N_TIMES);
   private readonly modTimes = new Map<string, Float32Array>();
   private nTimes = 0;
@@ -323,10 +323,8 @@ export class WeatherEngine {
       const fade = c.createLinearGradient(0, p.fadeTop, 0, p.solidTop);
       fade.addColorStop(0, 'rgba(0,0,0,0)');
       fade.addColorStop(1, 'rgba(0,0,0,1)');
-      const left = c.createLinearGradient(0, 0, p.left, 0);
-      left.addColorStop(0, 'rgba(0,0,0,.85)');
-      left.addColorStop(1, 'rgba(0,0,0,0)');
-      return { fade, left };
+      // No fade along the far left (`protect.left`) any more: it darkened the sky there (owner feedback 21).
+      return { fade };
     });
   }
 
@@ -339,8 +337,6 @@ export class WeatherEngine {
     c.fillRect(0, p.fadeTop, env.W, p.solidTop - p.fadeTop);
     c.fillStyle = '#000';
     c.fillRect(0, p.solidTop, env.W, env.H - p.solidTop + 2);
-    c.fillStyle = m.left;
-    c.fillRect(0, 0, p.left, p.fadeTop);
     c.restore();
   }
 

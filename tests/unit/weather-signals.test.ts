@@ -121,41 +121,89 @@ describe('darkness from real Char.Vitals shapes (owner feedback 7)', () => {
     expect(mixTargets(sig.state(), ALL_CATEGORIES).evil).toBe(0);
   });
 
-  it('walking down into a dark tunnel (prompt "o=": light o, weather null) settles to the darkness sky', () => {
+  it('walking down into an ordinary dark tunnel (prompt "o=": light o, weather null) gives no darkness sky', () => {
     // "Limestone Tunnel" → "Darkness" in the owner's logs: the prompt's light goes from "*" to "o" underground.
     const { d, feed } = run();
     feed({ light: 'o', weather: null });
     d.settle(1);
-    expect(d.settled.light).toBe('*');
     d.settle(1 + DWELL_MS);
-    expect([d.settled.light, d.settled.weather]).toEqual(['o', null]);
+    expect([d.settled.light, d.settled.weather, d.settled.magic]).toEqual(['o', null, false]);
     const m = mixTargets(d.settled, ALL_CATEGORIES);
-    expect([m.outdoors, m.evil, m.sun]).toEqual([0, 1, 0]);
-    // and stays red as long as the room is dark: another dark room changes nothing
-    feed({ hp: 150 });
-    d.settle(1 + DWELL_MS * 3);
-    expect(mixTargets(d.settled, ALL_CATEGORIES).evil).toBe(1);
-    // a lit room again ("!" indoors): the darkness sky goes
-    feed({ light: '!' });
-    d.settle(2 + DWELL_MS * 3);
-    d.settle(2 + DWELL_MS * 4);
-    expect(mixTargets(d.settled, ALL_CATEGORIES).evil).toBe(0);
+    expect([m.outdoors, m.evil, m.sun]).toEqual([0, 0, 0]);
   });
 
-  it('a magical darkness on a road by day (prompt "o+", weather still sent) gives the darkness sky outdoors', () => {
+  it('light alone never gives the darkness sky: "o+" on a road by day is the day sky', () => {
     const { d, feed } = run();
     feed({ light: 'o' });
     d.settle(1);
     d.settle(1 + DWELL_MS);
     const m = mixTargets(d.settled, ALL_CATEGORIES);
-    expect([m.outdoors, m.evil, m.sun, m.clouds]).toEqual([1, 1, 0, 0]);
+    expect([m.outdoors, m.evil, m.sun]).toEqual([1, 0, 1]);
   });
-
   it('Event.Darkness payloads are {what}; unknown ones are ignored', () => {
     expect(gmcpEvent('event.darkness', { what: 'start' })).toBe('darkness.start');
     expect(gmcpEvent('event.darkness', { what: 'end' })).toBe('darkness.end');
     expect(gmcpEvent('event.darkness', 'start')).toBeNull();
     expect(gmcpEvent('event.darkness', { what: 'deepen' })).toBeNull();
+  });
+});
+
+describe('magical darkness from the room text (owner feedback 10)', () => {
+  // The owner's logs (/home/ole/MUME/data/runs/Rasta/2026-09-25T22-03-02.log
+  // 38420-38441, 2026-09-26T21-00-45.log 81813-81866 and 86865-86905): the
+  // line right after the room name, before the exits; the prompt's light is
+  // 'o' outside it too at night, and '!' inside it with a lantern.
+  function run() {
+    const s = sink();
+    const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
+    const magic = () => sig.state().magic;
+    const feed = (...texts: string[]) => {
+      for (const t of texts) sig.line(t.endsWith('>') ? line(t, [], true) : line(t));
+    };
+    return { s, sig, magic, feed };
+  }
+
+  it('is set by the lingering darkness line and cleared by the next room without it', () => {
+    const { s, magic, feed } = run();
+    // daytime on the Hollin Road: walking into the darkness and out again
+    feed('Hollin Road', 'Exits: =east=, *south*.', '*+ R Mana:Burning>');
+    expect(magic()).toBe(false);
+    feed('You feel so much better hiding in the shadows!', 'Hollin Road', 'A deep, wavering darkness lingers here.', 'Exits: *east*, south, *west*.', 'o+ R Mana:Burning>');
+    expect(magic()).toBe(true);
+    expect(s.states.map((x) => x.s)).toEqual([{ magic: true }]);
+    feed('You blink and feel weaker under the cruel light of the sun.', 'Hollin Road', 'Exits: *north*, *east*, =west=.', '*+ R Mana:Burning>');
+    expect(magic()).toBe(false);
+    expect(s.states.map((x) => x.s)).toEqual([{ magic: true }, { magic: false }]);
+  });
+
+  it('stays set through several darkened rooms in a row (the darkness spreads), with "impenetrable" and a lantern-lit "!" prompt', () => {
+    const { s, magic, feed } = run();
+    feed('Inside a Small Village', 'A deep, impenetrable darkness lingers here.', 'A circular stone well has been built here.', 'Exits: north, east.', '!. CR HP:Fine Mana:Warm>');
+    feed('Wooded Pasture', 'A deep, impenetrable darkness lingers here.', 'Exits: west.', '!. CR HP:Fine Mana:Warm>');
+    expect(magic()).toBe(true);
+    expect(s.states.length).toBe(1);
+  });
+
+  it('the spell taking hold in your room ("The light decreases.") sets it until the next room display', () => {
+    const { magic, feed } = run();
+    feed("Norsy utters the word 'eabratizgg'", 'The light decreases.', '!f~ C HP:Fine>');
+    expect(magic()).toBe(true);
+    feed('Broken Forest', 'A deep, impenetrable darkness lingers here.', 'Exits: [north], east, south, west.');
+    expect(magic()).toBe(true);
+  });
+
+  it('an ordinary dark room ("Darkness", no lingering line) and an XML exits tag clear it; prompts and look-alikes do not set it', () => {
+    const { magic, feed, sig } = run();
+    feed('A deep, impenetrable darkness lingers here.', 'Exits: north.');
+    expect(magic()).toBe(true);
+    feed('A Dark Cave');
+    sig.line(line('Exits: east, up.', [{ tag: 'exits', start: 0, end: 16 }]));
+    expect(magic()).toBe(false);
+    feed('Darkness', 'Exits: east, up.', 'o= W Mana:Burning>');
+    expect(magic()).toBe(false);
+    sig.line(line('A deep, impenetrable darkness lingers here.', [], true));
+    feed('Bob says \'A deep, impenetrable darkness lingers here.\'', 'The light decreases slowly.');
+    expect(magic()).toBe(false);
   });
 });
 
@@ -173,6 +221,33 @@ describe('almanac', () => {
     const unset = almanacState(clockAt(5, 2, 10, 'unset'), NOW_MS);
     expect(unset.sky).toBeNull();
     expect(unset.moonPhase).toBeGreaterThanOrEqual(0);
+  });
+
+  it("gives the moon's place on its way (moonU) at start and on a clock sync, not every re-read", () => {
+    // an hour of the night with the moon well up
+    let c = clockAt(5, 0);
+    search: for (let day = 1; day <= 30; day++) {
+      for (let h = 0; h < 24; h++) {
+        c = clockAt(5, h, day);
+        if (moonAt(NOW_S - c.epoch).position === 'south' && almanacState(c, NOW_MS).sky?.clock === 'night') break search;
+      }
+    }
+    const s = sink();
+    const sig = new WeatherSignals(s, empty, c, NOW_MS);
+    expect(sig.state().moonUp).toBe(true);
+    expect(sig.state().moonU).toBeGreaterThan(0.2);
+    expect(sig.state().moonU).toBeLessThan(0.8);
+    sig.almanac(c, NOW_MS + 30_000);
+    expect(s.states.filter((x) => 'moonU' in x.s)).toHaveLength(0);
+    sig.almanac(c, NOW_MS + 30_000, true);
+    expect(s.states.filter((x) => 'moonU' in x.s)).toHaveLength(1);
+    // Event.Moon: a rise puts it at the start, a set takes it away
+    sig.gmcp('event.moon', { what: 'rise' });
+    expect(sig.state()).toMatchObject({ moonUp: true, moonU: 0 });
+    sig.gmcp('event.moon', { what: 'set' });
+    expect(sig.state()).toMatchObject({ moonUp: false, moonU: -1 });
+    // unsynced: unknown
+    expect(new WeatherSignals(sink(), empty, clockAt(5, 2, 10, 'unset'), NOW_MS).state().moonU).toBe(-1);
   });
 
   it('starts from the almanac and applies only its predicted changes; an event wins in between', () => {

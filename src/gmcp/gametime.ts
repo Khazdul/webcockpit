@@ -117,6 +117,12 @@ export function moonAt(g: number): Moon {
   return { phase, level, waxing: z >= DAY_S / 2, position, visible, bright: visible && level > 4 };
 }
 
+/** How far the moon is through its 720 minutes up at `g`: 0 at the rise … 1 at the set; -1 while it is below the horizon. */
+export function moonUpFraction(g: number): number {
+  const h = hourAngle(g);
+  return h < DAY_S / 2 ? h / (DAY_S / 2) : -1;
+}
+
 /** The first minute ≥ `g` at which the moon rises (`rise`) or sets (`set`). */
 export function nextMoonEvent(g: number, what: 'rise' | 'set'): number {
   // Rise: the angle count reaches 1080 (mod 1440); set: 720 later.

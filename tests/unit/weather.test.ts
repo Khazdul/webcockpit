@@ -18,22 +18,26 @@ describe('mixTargets: sky selection (v4)', () => {
     const dark = mixTargets(state({ weather: ' ', clock: 'night', moonUp: false }), ALL_CATEGORIES);
     expect([dark.moon, dark.dark, dark.night]).toEqual([0, 1, 1]);
   });
-  it("light 'o' overrides with the darkness sky, day or night; other light values do not pick the sky", () => {
+  it('magical darkness overrides with the darkness sky, day or night; light values do not pick the sky (owner feedback 10)', () => {
     for (const clock of ['day', 'night'] as const) {
-      const m = mixTargets(state({ weather: ' ', clock, light: 'o', moonUp: true }), ALL_CATEGORIES);
+      const m = mixTargets(state({ weather: ' ', clock, magic: true, moonUp: true }), ALL_CATEGORIES);
       expect([m.sun, m.moon, m.dark, m.evil]).toEqual([0, 0, 0, 1]);
     }
     expect(mixTargets(state({ weather: ' ', clock: 'day', light: ')' }), ALL_CATEGORIES).sun).toBe(1);
+    // an ordinary dark room outdoors at night: the starry night, not the red sky
+    const o = mixTargets(state({ weather: ' ', clock: 'night', light: 'o' }), ALL_CATEGORIES);
+    expect([o.dark, o.evil]).toEqual([1, 0]);
   });
   it('indoors (weather null) has no sky and no precipitation', () => {
     const m = mixTargets(state({ weather: null, clock: 'day', light: '!', fog: '-' }), ALL_CATEGORIES);
     expect([m.outdoors, m.sun, m.moon, m.dark, m.evil, m.clouds, m.rain]).toEqual([0, 0, 0, 0, 0, 0, 0]);
     expect(m.fog).toBe(0.5);
   });
-  it("a dark room indoors (light 'o', weather null) still gets the darkness sky (owner feedback 7)", () => {
-    const m = mixTargets(state({ weather: null, clock: 'day', light: 'o' }), ALL_CATEGORIES);
+  it('magical darkness indoors (weather null) gets the darkness sky; an ordinary dark room does not (owner feedback 7, 10)', () => {
+    const m = mixTargets(state({ weather: null, clock: 'day', light: 'o', magic: true }), ALL_CATEGORIES);
     expect([m.outdoors, m.sun, m.evil, m.clouds]).toEqual([0, 0, 1, 0]);
-    expect(mixTargets(state({ weather: null, light: 'o' }), { ...ALL_CATEGORIES, darkness: false }).evil).toBe(0);
+    expect(mixTargets(state({ weather: null, light: 'o' }), ALL_CATEGORIES).evil).toBe(0);
+    expect(mixTargets(state({ weather: null, magic: true }), { ...ALL_CATEGORIES, darkness: false }).evil).toBe(0);
   });
   it('weather symbols map to cover and precipitation', () => {
     const t = (w: WeatherState['weather']) => mixTargets(state({ weather: w }), ALL_CATEGORIES);
@@ -52,9 +56,9 @@ describe('mixTargets: sky selection (v4)', () => {
   });
   it('a category that is off has its targets at 0', () => {
     const off = { ...ALL_CATEGORIES, darkness: false, precipitation: false, fog: false, body: false, sky: false };
-    const m = mixTargets(state({ weather: '"', light: 'o', clock: 'day', fog: '=', position: 'dying' }), off);
+    const m = mixTargets(state({ weather: '"', light: 'o', magic: true, clock: 'day', fog: '=', position: 'dying' }), off);
     expect([m.evil, m.rain, m.heavy, m.fog, m.down, m.clouds]).toEqual([0, 0, 0, 0, 0, 0]);
-    // darkness off: light 'o' no longer overrides, the day sky stays
+    // darkness off: magical darkness no longer overrides, the day sky stays
     expect(m.sun).toBe(1);
   });
 });

@@ -14,8 +14,15 @@ export type FogSym = '' | '-' | '=';
 export interface WeatherState {
   weather: WeatherSym;
   fog: FogSym;
-  /** `Char.Vitals.light`: only 'o' (darkness) matters for the sky; '!' tints. */
+  /** `Char.Vitals.light` ('*' sun, '!' lit, ')' moon, 'o' dark): informational; '!' tints. Every dark room is 'o'. */
   light: string;
+  /**
+   * The room has magical darkness: its display had "A deep, wavering /
+   * impenetrable darkness lingers here." (or "The light decreases." was
+   * seen in it). The only signal that tells it from an ordinary dark room
+   * (ADR 0091, 2026-10-17 notes 2); it gives the red darkness sky.
+   */
+  magic: boolean;
   /** standing, resting, sleeping, stunned, incapacitated, dying, … */
   position: string;
   /** The latest `Event.Sun`: 'day' after rise/light, 'night' after set/dark. */
@@ -24,6 +31,12 @@ export interface WeatherState {
   moonUp: boolean;
   /** Illuminated fraction of the moon, 0..1 (from the almanac). */
   moonPhase: number;
+  /**
+   * How far the moon is through its time up, 0 (rising) … 1 (setting),
+   * from the almanac; -1 when it is down or the clock is not synced. Sent
+   * at start and on a clock sync only: the sky advances it on its own.
+   */
+  moonU: number;
 }
 
 export const DEFAULT_STATE: Readonly<WeatherState> = {
@@ -34,6 +47,8 @@ export const DEFAULT_STATE: Readonly<WeatherState> = {
   clock: 'day',
   moonUp: false,
   moonPhase: 0.5,
+  magic: false,
+  moonU: -1,
 };
 
 /** Momentary events (never dwelled). */
@@ -50,7 +65,11 @@ export type WeatherEvent =
   | 'darkness.end-soon'
   | 'darkness.end'
   | 'strike'
-  | 'gust';
+  | 'gust'
+  /** Dev / screenshots: a flock of birds, a sun glimpse, a shooting star now (the sky makes them on its own, rarely). */
+  | 'birds'
+  | 'glimpse'
+  | 'shoot';
 
 /** Options → Weather effects categories. Off fades the category out. */
 export interface Categories {
@@ -61,7 +80,7 @@ export interface Categories {
   /** The bolt on a 'strike' event. */
   lightning: boolean;
   fog: boolean;
-  /** The darkness sky (light 'o') and Event.Darkness. */
+  /** The darkness sky (a room with magical darkness) and Event.Darkness. */
   darkness: boolean;
   /** Position effects (sleeping, stunned, incapacitated, dying). */
   body: boolean;
