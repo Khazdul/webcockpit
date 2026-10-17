@@ -31,6 +31,42 @@ export function hexRgba(hex: string, fallback: RGBA = BACKGROUND): RGBA {
   return m ? rgb(parseInt(m[1]!, 16)) : fallback;
 }
 /**
+ * The renderer's background for the setting (ADR 0085 Transparent
+ * addendum 2): `hex` as RGBA, with alpha 0 when the map is transparent. A
+ * transparent background keeps the pane's own colour (`hex`) for the
+ * lower-layer fade and the light/dark line choice; only the empty space is
+ * left clear.
+ */
+export function backgroundRgba(hex: string, transparent = false): RGBA {
+  return withAlpha(hexRgba(hex), transparent ? 0 : 1);
+}
+
+/** Whether the map background `c` leaves the empty space clear (alpha 0). */
+export function isTransparentBackground(c: RGBA): boolean {
+  return c[3] === 0;
+}
+
+/** The colour the canvas is cleared to (premultiplied): the opaque background, or nothing. */
+export function clearRgba(bg: RGBA): RGBA {
+  return isTransparentBackground(bg) ? [0, 0, 0, 0] : withAlpha(bg, 1);
+}
+
+/** The share of the background laid over the layers below the player's (MMapper's fade). */
+export const LOWER_LAYER_FADE = 0.5;
+
+/**
+ * The full-screen colour of the lower-layer fade. Opaque: the background at
+ * LOWER_LAYER_FADE, blended over (SRC_ALPHA). Transparent: premultiplied
+ * (rgb × LOWER_LAYER_FADE), blended with DST_ALPHA so a drawn pixel moves
+ * toward the background as on an opaque one and keeps its alpha, and the
+ * empty space (alpha 0) stays clear.
+ */
+export function fadeRgba(bg: RGBA): RGBA {
+  const f = LOWER_LAYER_FADE;
+  return isTransparentBackground(bg) ? [bg[0] * f, bg[1] * f, bg[2] * f, f] : withAlpha(bg, f);
+}
+
+/**
  * WCAG luminance above which dark ink reads better than white (as
  * src/theme/color.ts `takesDarkInk`). A map background this light (Dark
  * paper, White) gets dark connection and infomark lines

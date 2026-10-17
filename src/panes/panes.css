@@ -134,7 +134,9 @@
 
 /* Map pane (src/panes/map.ts, ADR 0020): the worker draws into the
  * canvas; the map background shows until the first frame. `--map-bg` is
- * the Options → Mapper setting (ADR 0085), MMapper's #2e3436 by default. */
+ * the Options → Mapper setting (ADR 0085), MMapper's #2e3436 by default;
+ * `transparent` for Transparent, so the pane's fill (or the weather behind
+ * a see-through pane) shows through the map's empty space. */
 .wc-map {
   background: var(--map-bg, #2e3436);
 }
