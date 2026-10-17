@@ -53,9 +53,13 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Checked:** typecheck, unit 2665, e2e layout/weather/script-panes/map/
   phone in all projects; latency unchanged without blur; Chromium ~+5 %
   CPU with weather on.
-- **Open:** `#weather demo` caption box still has the old frame line;
-  Firefox told apart by user agent; beam strength a taste call.
-- **Next:** owner tests the new frames and items 36–38.
+- **Round 5 (items 39–44) done:** title ink a touch lighter and its lip
+  a touch darker, plate 1 px shorter, drips on the rim's edge, plate takes
+  the dawn/dusk tint, demo caption a plain grey box, darker frame glass.
+- **Open:** title contrast over black ~3.6:1 after darker glass (owner's
+  call if darker still); Firefox told apart by user agent; beam strength a
+  taste call; map-notes/map-tilesets e2e flaky under load.
+- **Next:** owner tests the frames and items 36–44.
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
