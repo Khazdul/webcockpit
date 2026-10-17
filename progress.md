@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–4 (items 1–38: weather demo, see-through map, day sky switch, sun beams, moon side); new glass frames (design 14) built, owner tests; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 (weather effects trial) on branch `weather-trial`: feedback rounds 1–9 (items 1–56: weather demo, see-through map, day sky switch, sun beams, moon side); new glass frames (design 14) built, owner tests; handoff in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -67,12 +67,18 @@ Statuses: Next, In progress, Owner testing, Done.
   (new `sunU`, at least once a minute, most and strongest at midday,
   6 fps); borderless panes are invisible to the weather (only framed panes
   in `env.panes`).
+- **Round 9 (items 54–56) done:** plate's bottom edge gets the dark seam;
+  glimpse rays, glow and glints a quarter weaker; transitions run at
+  30 fps (`Director.moving()`), even vsync cadence, timed cloud key frames,
+  steady clouds 20 fps (Firefox 15), far snow as dots on CPU canvases
+  (Firefox snow 964 → 515 ms/s). Cost: clouds ~+0.1 core, a cover change
+  ~+0.25 core while it lasts.
 - **Open:** a borderless floating pane can be one frame out of step in
   lightning flicker (float canvas copy; owner's call); glimpses faint on
   Paper. Title contrast over black now ~2.6:1 (owner's
   call if darker still); Firefox told apart by user agent; beam strength a
   taste call; map-notes/map-tilesets e2e flaky under load.
-- **Next:** owner tests the frames and items 36–53.
+- **Next:** owner tests the frames and items 36–56.
 - **Commits:** c6dc691…(this commit) on `weather-trial`.
 
 ### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
