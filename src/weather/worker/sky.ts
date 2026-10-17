@@ -110,9 +110,9 @@ const SUN_GLOW_LIGHT: Rgb = [255, 210, 130];
 const SUN_U = 0.8;
 /** The text horizon as a fraction of the height: the moon sets behind it, the star field ends above it. */
 const HORIZON = 0.3;
-/** The star field's depth, fraction of the height: on the left, and on the right (lower there, owner feedback 25). */
-const STARS_H = 0.45;
-const STARS_H_RIGHT = 0.62;
+/** The star field's depth, fraction of the height: on the left, and on the right (lower there, owner feedback 25, 31). */
+const STARS_H = 0.55;
+const STARS_H_RIGHT = 0.9;
 /** The sky gradient's depth, fraction of the height: at night, and by day (a soft start ~30 % above the bottom, feedback 22). */
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
@@ -472,7 +472,8 @@ class Sky {
     // Stars: the upper sky, denser toward the top, reaching lower on the right; fixed relative places.
     const sh0 = H * STARS_H;
     const sh = (this.starH = Math.ceil(H * STARS_H_RIGHT));
-    const n = Math.min(400, Math.round((W * sh0 * 1.12) / 2400));
+    // about as dense as before over the deeper field
+    const n = Math.min(520, Math.round((W * (sh0 + sh) * 0.62) / 2400));
     const R = rng(777);
     this.starL = [mkCanvas(W * d, sh * d), mkCanvas(W * d, sh * d)];
     const starCol = adapt([223, 231, 255], this.th);
