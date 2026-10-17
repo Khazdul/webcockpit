@@ -14,8 +14,11 @@
   z-index: 95;
   box-sizing: border-box;
   width: min(calc(var(--cell-w) * 58), calc(100% - 2 * var(--cell-w)));
-  margin: calc(var(--cell-h) * 0.6) var(--cell-w);
-  padding: calc(var(--cell-h) * 0.55) calc(var(--cell-w) * 1.5) calc(var(--cell-h) * 0.4);
+  /* the top line runs through the middle of the title, inside the box */
+  --wd-mid: 0.41em;
+  /* half a cell from the game pane's edges, so it reads as floating */
+  margin: calc(var(--cell-h) * 0.5) calc(var(--cell-w) * 0.5);
+  padding: calc(var(--wd-mid) + var(--cell-h) * 0.55) calc(var(--cell-w) * 1.5) calc(var(--cell-h) * 0.4);
   background: var(--term-bg);
   color: var(--c-item);
   line-height: var(--cell-h);
@@ -30,11 +33,14 @@
   opacity: 1;
 }
 
-/* The glass line, with the top line cut for the title (cells 2.5–13.5). */
+/* The glass line, with the top line cut for the title (cells 2.5–13.5).
+ * It sits inside the box's own opaque background, the top line a little
+ * down, so the title, the gap and the band above the line are on the box
+ * too: the box is an overlay over game text, unlike a pane. */
 .wc-wdemo::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: calc(var(--wd-mid) - var(--wd-line) / 2) 0 0;
   border: 1px solid var(--wd-edge);
   box-shadow:
     inset 0 0 0 1px var(--wd-core),
@@ -53,7 +59,7 @@
 
 .wc-wdemo-title {
   position: absolute;
-  top: calc(var(--wd-line) / 2 - 0.5em);
+  top: 0;
   left: calc(var(--cell-w) * 8);
   transform: translateX(-50%);
   line-height: 1;
@@ -64,7 +70,7 @@
 
 .wc-wdemo-count {
   position: absolute;
-  top: calc(var(--cell-h) * 0.3);
+  top: calc(var(--wd-mid) + var(--cell-h) * 0.3);
   right: calc(var(--cell-w) * 1.5);
   font-size: 0.82em;
   color: var(--c-body);
