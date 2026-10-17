@@ -137,6 +137,34 @@ unchanged.
   unbroken under the title both lie on the line. The glint itself (and that
   it is on the front layer, over the title) is left to the sky rework.
 
+**2026-10-17, later (owner feedback 16 redone: the line winds under the title):**
+
+- "The border winds under the title": the top line no longer runs through
+  the title. Before the title it steps down, runs under the letters and
+  steps back up after them (the notch, `frameNotch`): the left step's
+  notch-side edge at the fourth cell, the right one after the label's
+  width at 0.82 em, the floor's lower edge on the first content row's top
+  (so it stays in the top cell row and covers no content; at the default
+  size the top line is at 3–6 px, the floor at 16–19 px), all on whole
+  device pixels. No notch without a title or when the cell is too small.
+- The line is now an SVG path through the middle of the line
+  (`svg.wc-pane-line` in the frame box, `framePath`): an edge stroke
+  `--frame-t` wide under a core stroke `--frame-t − 2·--frame-e` wide, mitred
+  bends, so every bend, the notch's included, shows the same three bands
+  with square corners. The inset box shadows are gone. The fill moved to
+  `.wc-pane-frame::before`, clipped (`--notch-clip`) to leave the notch
+  above its floor clear, so the title is on the page/pane background.
+- Title: 0.82 em, line box ending 1 px above the floor; no halo. Close cross
+  on a frame: the same size, just under the top line in the top-right
+  corner, no background.
+- Map: its content (flush with the line) is clipped around the notch and
+  its steps, so the title reads on the page background.
+- Engine: `PaneGeom.notch {x, w, depth}` (optional): the steps are
+  `[x, x + border]` and `[x + w − border, x + w]`, the floor
+  `[y + depth, y + depth + border]`; between the steps above the floor
+  there is no line. Passed to the modules as `Pane.notch`; nothing draws
+  with it yet (the glints are the sky rework's).
+
 ### Engine (stage 28 B)
 
 - `src/weather/`: `index.ts` (main thread, `createWeather(host)`),
