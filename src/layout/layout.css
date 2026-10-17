@@ -55,10 +55,10 @@
  * Colour rule (every pane, the same formula; Plain's chroma 0 stays neutral
  * grey; capped so every shade stays inside sRGB for all presets, else the
  * specular line shows a yellow fringe in Chromium):
- *   glass     = oklch(from --pane-border L .66, C min(c × 10, .115), h)
+ *   glass     = oklch(from --pane-border L .59, C min(c × 10, .105), h)
  *   highlight = oklch(from --pane-border L .95, C min(c × 1.2, .018), h)
  *   title ink = oklch(from --pane-border L .19, C min(c × 4, .03), h)
- * (owner item 39: the ink was
+ * (owner items 39, 44: the glass was L .66 and looked too light; the ink
  * L .17, near black, and the lip under the letters 70 % of the highlight,
  * now 60 %: a touch softer both ways, still engraved.)
  * The rim and plate are the glass over what is behind, with a white sheen
@@ -68,7 +68,7 @@
  * either way (see below). */
 .wc-pane[data-framed] {
   background: transparent;
-  --glass: oklch(from var(--pane-border) 0.66 min(calc(c * 10), 0.115) h);
+  --glass: oklch(from var(--pane-border) 0.59 min(calc(c * 10), 0.105) h);
   --glass-hi: oklch(from var(--pane-border) 0.95 min(calc(c * 1.2), 0.018) h);
   --ink: oklch(from var(--pane-border) 0.19 min(calc(c * 4), 0.03) h);
   --glass-mix: 64%;
