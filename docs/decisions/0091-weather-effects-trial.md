@@ -821,6 +821,23 @@ agent's browsers). `bench/results/` is not rewritten.
   lift of every top line (0.1 × strength) and the front band at 0.045
   (was 0.06). The faint rays: alpha 0.2 (was 0.3) for rays and cores.
 
+Measured (`bench/weather-power.ts --rounds 2 --scenes off,calm,sunset`,
+headed, owner geometry; new scene `sunset`: the calm day sky, then
+`sun.set` sent after the settle, so the 15 s cover the first ~60 % of the
+moment with the beams; before = c6dc691 with the same bench, run just
+before; per-round values, CPU ms/s and worker ms/frame): Chromium sunset
+441 / 268 (0.71 / 0.57) → 438 / 492 (0.87 / 0.93); Firefox sunset 644 / 653
+(16.4 / 16.4) → 690 / 695 (17.8 / 17.7); calm unchanged (Chromium 64–71 →
+41–57, Firefox 112–126 → 115–122). So a sunrise or sunset costs ~1.3 ms
+more per frame in Firefox (+7 % CPU for its ~25 s, twice a game day) and
+~0.25 ms in Chromium; Chromium's round-to-round CPU spread (another
+agent's browsers were running) is larger than the change. Latency
+(`bench/weather-bench.ts --rounds 2`, heavy scene, off → on): key → send
+median 0.035–0.045 → 0.040–0.045 ms (Chromium), 0.060 → 0.040–0.060 ms
+(Firefox); text → painted p95 17.4–17.7 → 17.9–18.1 ms (Chromium),
+18.3–19.4 → 17.0–17.5 ms (Firefox); unchanged. `bench/results/` is not
+rewritten.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
