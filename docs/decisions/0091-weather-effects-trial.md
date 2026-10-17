@@ -1005,6 +1005,80 @@ median 0.035–0.045 → 0.040–0.045 ms (Chromium), 0.060 → 0.040–0.060 ms
 18.3–19.4 → 17.0–17.5 ms (Firefox); unchanged. `bench/results/` is not
 rewritten.
 
+### Sun glimpses, borderless panes (2026-10-17, owner feedback 52–53)
+
+- **Time of day in the worker (52).** `WeatherState.sunU`: how far the sun
+  is from the dawn hour (0) to the dusk hour (1) of the month (clock.ts
+  `DAWN`/`DUSK`, `signals.ts sunUpFraction`); -1 at night or with the clock
+  unsynced. Sent at start, on a sync (`force`), when the almanac's day/night
+  flips and whenever it has moved by `SUN_U_STEP` 0.05 (~30–40 game min,
+  every ~40 real s; one cheap state message), not on every 30 s re-read.
+  `Event.Sun` rise/light sets 0, set/dark -1 (`eventState`), so an unsynced
+  clock still gets a dawn value; unknown counts as sun height 0.6.
+- **Glimpse schedule (52).** `daylife.ts planGlimpse(sunU)`, pure and
+  unit tested: sun height h = sin(π·sunU); one random size q = rnd^1.4
+  (small ones more often); start-to-start gap lerp(50, 22, h) + rnd ·
+  lerp(10, 18, h) s, duration lerp(5, 8, h) + q · lerp(3, 8, h) s, peak
+  lerp(0.35, 0.7, h) + q · lerp(0.2, 0.3, h). So: dawn/dusk hours a glimpse
+  every 50–60 s (~1.1/min), 5–8 s, peak 0.35–0.55; two game hours in (h ≈
+  0.5) every 36–50 s; midday every 22–40 s (~1.9/min), 8–16 s, peak 0.7–1.
+  The max gap 60 s is the owner's "at least once a minute"; every duration
+  is shorter than every gap. The countdown runs only while the glimpse input
+  (`sun`) is above 0.4: day × (1 − wet) × (1 − cover) × fogK, so cloud
+  cover ≥ ~0.6 ('~'), rain, snow, dense fog, indoors and sun moments stop
+  it, light fog dims it. The blue day sky switch (36) does not: glimpses,
+  like birds and tufts, belong to the day, not to the blue gradient. The
+  first glimpse comes 6–20 s after start (was 30–90).
+- **Look (52).** Ray alpha at the sun 0.22 dark / 0.15 light (was 0.09 /
+  0.07) × the size; the radial fade holds 0.45 at 0.65 of the length (was
+  0.12), reaching 0.95 H; a soft warm glow (alpha 0.08 × e, radius 0.42 H)
+  at the sun. The fan is 1.9–2.65 rad (was 1.78–2.38): from the sun at
+  0.8 W the steep rays fell behind the right dock's panes, which is why the
+  owner hardly saw them. Glints: where a ray's middle enters a framed pane
+  (its top line, or its right line if nearer), `Glints.line` (the rim's
+  shape and the plate, items 45/49), alpha 0.5 × the ray's, fading to 0.4
+  along the ray, a sparkle above 0.32. Sunrise/sunset rays stay ~0.25 with
+  beams to 0.4, so a glimpse stays well below them. The dev/demo glimpse
+  (`glimpseNow`) is peak 1, 8 s; the demo's day step pins `sunU` 0.5.
+- **Rate (52).** A glimpse asks `GLIMPSE_FPS` 6 (was FPS_SLOW 12): at most
+  ~3 levels of change per frame. Measured (`weather-power.ts`, new scene
+  `glimpse`: the calm day, a glimpse sent after the settle, 11 s of the
+  15 s window; headed, owner geometry, 2 rounds, CPU ms/s of all browser
+  processes): before (12 fps) Chromium calm 75–76 / glimpse 180–185,
+  Firefox 119–123 / 239–251; after (6 fps) Chromium 96–106 / 114–115,
+  Firefox 150–159 / 172–184 (the calm windows now catch a natural glimpse:
+  worker 4.3–5.0 fps against 3.0). Per glimpse second that is ~+50 ms/s
+  in Chromium and ~+80 in Firefox over the still sky (was ~+135 / ~+155).
+  Long-run, with the duty cycle (midday ~12 s per ~31 s): Chromium ~+20
+  ms/s, Firefox ~+30 ms/s at midday (2–3 % of a core), ~+6 / ~+9 at the
+  dawn/dusk hours; the old schedule (12 s per ~180 s at 12 fps) averaged
+  ~+9 / ~+10. Accepted: the owner asked for once a minute.
+- **Borderless panes are no glass (53).** The modules got every pane box
+  as `env.panes`, so a pane without a frame cast the sunrise/sunset shadow
+  wedge, held the beams' weaker inside pieces, stopped rain at its top
+  (dripping from its bottom; in a lightning flash the lit rain stopped
+  there) and grew fog wisps along its top. The engine now gives the modules
+  only framed panes (`env.panes`, border > 0); `env.textPanes` keeps every
+  pane for placing the floating z z Z and blood away from pane text.
+  `beamHits` also skips a borderless pane as the "inside another pane"
+  attenuator. The glass CSS already left borderless panes alone (no
+  `.wc-pane-frame` box: display none). Measured across the top edge of a
+  large borderless float (outside / inside, Chromium): sunset 26 / 13 →
+  26 / 26; lightning 34 / 30 → 31 / 29; the day/night and indoor fades
+  showed no step before or after, in Chromium and Firefox.
+- **Not fixed (53): float presentation lag.** A floating pane hides the
+  game text with its own canvas, into which the worker copies the back
+  layer each frame. The browser presents each OffscreenCanvas on its own,
+  and the copy sometimes appears a frame earlier or later than the back
+  canvas: with a frame-parity probe (a square drawn red/green per frame in
+  and out of a float, 15 screenshots in rain) 1 of 15 differed in
+  Chromium, 3 of 15 in Firefox. Invisible for slow changes; during the
+  flicker of a lightning flash a borderless float can flash a frame off.
+  Docked panes and the game text never show it; framed glass hides most of
+  it. A fix would hide the game text under floats another way (a CSS mask
+  with holes on the output, which then needs the docked panes and stacked
+  floats handled as well): left open for the owner.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

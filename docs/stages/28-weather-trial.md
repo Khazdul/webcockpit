@@ -840,9 +840,53 @@ black: the brightest stroke stands out).
     come and vary through the day: seen at least once a minute, sometimes
     a little and sometimes more, most around midday when the sun is
     strongest.
+    - **Done (2026-10-17):** the glimpses now follow the game's clock (how
+      far the sun is between the dawn and the dusk hour of the month). On a
+      clear day one comes at least once a minute: every 50–60 s around the
+      dawn and dusk hours, every 22–40 s at midday. Each one is a different
+      size, small ones more often: early and late 5–8 s long and faint, at
+      midday 8–16 s and up to a little more than twice as bright as before
+      (still well below a sunrise or sunset). The rays now fan out further to
+      the left over the open sky and the game text (before, most fell behind
+      the panes on the right, which is why you hardly saw them), with a soft
+      warm glow where the sun sits; where a ray enters a framed pane through
+      its top or right rim, that stretch of the rim glints, following the
+      rounded corners and taking the nameplate with it as the sun beams do.
+      Still only on a clear-ish day outdoors: clouds, rain, snow, dense fog,
+      indoors and a sunrise/sunset moment stop them; light fog makes them
+      fainter. With the blue day sky switched off they still come (as birds
+      and tufts do, item 36), over the plain background. The demo's day step
+      shows a strong one. Cost: a glimpse runs at 6 frames a second (was 12);
+      at midday that adds about 2 % of a CPU core in Firefox on average
+      (measured with the power bench), at dawn and dusk about what the old
+      rare glimpses cost.
 53. **Borderless pane shows edges in sunrise/sunset rays.** A pane
     without a frame (otherwise fully transparent) gets visible edges when
     the sunrise/sunset rays pass (screenshot `images/8.png` in the session
     scratchpad: a rectangle where the rays are weaker inside the pane).
+    Addition (coordinator, from the owner): the same rectangle shows during
+    lightning and the day/night fade (and check the indoor/outdoor fade).
+    - **Done (2026-10-17):** the weather treated every pane box as a pane:
+      at sunrise and sunset the sun's shadow behind panes and the weaker
+      inside of the beams also fell on panes without a frame, and in rain the
+      drops stopped at their top edge and dripped from their bottom, so in a
+      lightning flash the lit rain stopped at the box too. A pane without a
+      frame is now no glass to the weather at all: rays, beams, shadows,
+      rain, drips, snow and fog wisps pass as if it were not there, as over
+      the game text (which never had a box). Measured across the top edge of
+      a large borderless floating pane: at sunset outside/inside 26 vs 13
+      before, 26 vs 26 now; in a lightning flash 34 vs 30 before, 31 vs 29
+      now (Chromium). The day/night fade and the indoor/outdoor fade showed
+      no step at the box in Chromium or Firefox, before or after (57 vs 56,
+      50 vs 50). One thing is left, mostly in Firefox: a floating pane shows
+      the weather through its own small canvas (that is how it hides the
+      game text under it), and the browser sometimes puts that canvas on
+      screen a frame later than the big one, so during the flicker of a
+      lightning flash a borderless floating pane can flash a frame
+      early or late (3 of 15 frames in Firefox, 1 of 15 in Chromium, in a
+      test). Docked borderless panes and the game text never show it; a
+      framed pane's glass hides most of it. Fixing it would mean a different
+      way of hiding the game text under floating panes; say if it bothers
+      you.
     The owner adds: the same happens with lightning and during the
     day/night fade, so likely the same kind of problem.
