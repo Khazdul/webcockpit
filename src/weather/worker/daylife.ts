@@ -36,9 +36,18 @@ const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 export const GLIMPSE_FPS = 6;
 /** The sun's height for a glimpse when the time of day is unknown (clock not synced): mid-morning. */
 export const GLIMPSE_H_UNKNOWN = 0.6;
-/** A glimpse ray's alpha at its brightest (at the sun, peak 1); was 0.09 / 0.07 before owner feedback 52. Sunrise rays reach ~0.25, its beams 0.4. */
-const GLIMPSE_RAY = 0.22;
-const GLIMPSE_RAY_LIGHT = 0.15;
+/**
+ * A glimpse ray's alpha at its brightest (at the sun, peak 1): 0.09 / 0.07
+ * before owner feedback 52, then 0.22 / 0.15, a quarter less since item 55
+ * (as are the glow and the rim glints). Sunrise rays reach ~0.25, its beams 0.4.
+ */
+const GLIMPSE_RAY = 0.165;
+const GLIMPSE_RAY_LIGHT = 0.11;
+/** The glow at the sun (alpha × the glimpse's strength), dark / light pages. */
+const GLIMPSE_GLOW = 0.06;
+const GLIMPSE_GLOW_LIGHT = 0.045;
+/** A rim glint's alpha against its ray's strength (0.5 before item 55). */
+const GLIMPSE_GLINT = 0.375;
 
 /**
  * How high the sun stands for the glimpses: 0 at the dawn and dusk hours, 1
@@ -355,7 +364,7 @@ export class DayLife {
     halo.addColorStop(0.35, `rgba(${rgb},0.35)`);
     halo.addColorStop(1, `rgba(${rgb},0)`);
     b.fillStyle = halo;
-    b.globalAlpha = e * (this.light ? 0.06 : 0.08);
+    b.globalAlpha = e * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
     if (sy + R0 > 0) b.fillRect(sx - R0, 0, R0 * 2, sy + R0);
     // the rays: strongest at the sun, reaching about two thirds down the screen
     const gr = b.createRadialGradient(sx, sy, 0, sx, sy, L);
@@ -399,8 +408,8 @@ export class DayLife {
         }
         if (!side) continue;
         const fall = 1 - 0.6 * clamp(t / L, 0, 1);
-        const ga = al * 0.5 * fall;
-        glints.line(f, p, side, at, side === 't' ? 80 : 60, ga, ga > 0.32 ? 0.6 : 0);
+        const ga = al * GLIMPSE_GLINT * fall;
+        glints.line(f, p, side, at, side === 't' ? 80 : 60, ga, ga > 0.24 ? 0.6 : 0);
       }
     }
     f.globalAlpha = 1;
