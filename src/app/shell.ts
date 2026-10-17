@@ -112,6 +112,7 @@ export class Shell {
   private readonly opts: ShellOptions;
   readonly profiles: ProfileStore;
   private appRef: App | null = null;
+  private appWaiters: Array<(app: App) => void> = [];
   private chromeP: Promise<ChromeModule> | null = null;
   private startHost: HTMLDivElement;
   private startMount: HTMLDivElement;
@@ -170,6 +171,12 @@ export class Shell {
   /** The cockpit, once built. */
   get app(): App | null {
     return this.appRef;
+  }
+
+  /** Calls `fn` with the cockpit once it is built (at once when it is). */
+  onApp(fn: (app: App) => void): void {
+    if (this.appRef) fn(this.appRef);
+    else this.appWaiters.push(fn);
   }
 
   /** Shows the first view: the start page, or the cockpit in the offline modes. */
@@ -402,6 +409,7 @@ export class Shell {
     }
     app.bus.on('conn.state', (s) => this.onConn(s.state, s.reason ?? ''));
     this.appRef = app;
+    for (const fn of this.appWaiters.splice(0)) fn(app);
     return app;
   }
 

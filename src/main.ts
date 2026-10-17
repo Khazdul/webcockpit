@@ -152,20 +152,16 @@ if (replayFixture !== null) {
   void import('./replay/dev').then((m) => m.openReplayFixture(shell, settings, replayFixture, params.get('session')));
 }
 
+// Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`
+// once the cockpit exists (after Enter MUME on the start page); `?weather=<json>` also pins a state (as
+// `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
+if (import.meta.env.DEV && params.has('weather')) {
+  void import('./weather/dev').then((m) => m.weatherFromUrl(params, (fn) => shell.onApp(fn), (o) => void window.__wc?.weather(o)));
+}
+
 const app = shell.app;
 if (app) {
   probe?.attach(app);
-  // Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`;
-  // `?weather=<json>` also pins a state (as `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
-  if (import.meta.env.DEV && params.has('weather')) {
-    let state: Record<string, unknown> | undefined;
-    try {
-      state = params.get('weather') ? (JSON.parse(params.get('weather')!) as Record<string, unknown>) : undefined;
-    } catch {
-      console.warn('weather: ?weather=<json> is not JSON');
-    }
-    void window.__wc?.weather(state ? { state } : undefined);
-  }
   if (fixture !== null) {
     const speed = Number(params.get('speed') ?? '1');
     void loadFixture(app, fixture, Number.isFinite(speed) && speed >= 0 ? speed : 1);
