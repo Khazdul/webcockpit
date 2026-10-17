@@ -752,14 +752,48 @@ artifacts above the top rim) in the session scratchpad.
 45. **Square outline at rounded corners.** With some effects the rounded
     corners get an angular outline next to them. Not very noticeable, but
     it should go.
+    - **Done (2026-10-17):** the outline came from the weather's lights on
+      the frame: the faint lift of the top rims at sunrise and sunset, the
+      glints (sun beams, moon, shooting stars) and the lightning flash on the
+      rims were drawn as square strips over the frame's box, so their square
+      corner showed just outside the rounded corner; the sun's shadow behind
+      a pane and its beams did the same at the lower corners. All of them
+      now follow the rounded corners. Checked at 1× and 2× in sunrise,
+      sunset, rain, lightning, moon and fog: the corners match the
+      background around them (before, up to 10–40 levels lighter).
 46. **Thin dark vertical lines beside the plate.** A thin dark vertical
     line crosses the rim just left and right of the nameplate. Barely
     perceptible, but it should be possible to remove.
+    - **Done (2026-10-17):** it was the plate's small drop shadow: its blur
+      also fell sideways onto the rim, a line one pixel wide either side of
+      the plate (8 levels darker). The shadow now shows only under the
+      plate's bottom edge; across the rim beside the plate the pixels are
+      now even, at 1× and 2×, weather on and off.
 47. **Title legibility, more (39 again).** No visible difference after
     item 39. Make the dark title ink less dark and the light lip under the
     letters less light, enough that it shows.
+    - **Done (2026-10-17):** clearly softer both ways: the ink is lighter
+      (oklch L .19 → .28: on the blue Character plate #0a1421 → #1f2a38,
+      Plain #141414 → #292929) and the light lip under the letters dimmer
+      (60 % → 42 % of the highlight: #abb9ce → #8fa1b9 over black). Still
+      engraved. Contrast of ink against plate over black about 3.3:1 →
+      2.6:1, over the day sky 6.2 → 4.9 (Character), on Paper 8.9 → 7.0;
+      the lip against the plate 2.8 → 2.1 over black. Checked on Plain,
+      Blue, Orange, Red and Green, over black, over the day sky and on
+      Paper.
 48. **Artifacts outside the frame.** Along the top edge above the rim,
     artifacts show outside the frame (a speckled band above the line).
+    - **Done (2026-10-17):** that band was the snow dusting, which lay as a
+      5 px speckled strip above each pane's top rim (and stayed a while
+      after the snow). It now lies on the top rim itself, in its upper 4 px,
+      inside the rounded corners, so nothing speckled is drawn above the
+      frame. The rain drops running down the sides are unchanged (item 41).
 49. **Glint across the whole plate.** When sun rays glint along a top line
     and pass the title, the glint does not cover the whole nameplate. It
     should.
+    - **Done (2026-10-17):** a glint on a top rim now lights the whole
+      nameplate it passes, the fillets and the rounded lower corners in the
+      plate's own shape, as part of the rim (before, only the rim's top 2 px
+      above the letters). The same for the lightning flash on the rims. The
+      letters are lit with it while the glint passes; still no sparkle star
+      over the title.

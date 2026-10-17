@@ -324,6 +324,27 @@ little low on the plate, and the plate looked greyish beside the bluish rim.
   caption (43) is an opaque box of `--term-bg` mixed 25 % toward #808080,
   no frame. Latency unchanged (`weather-bench --rounds 2`: Chromium on
   median 9.7–10.3 / p95 18.5–18.7 ms, Firefox on 9.1–10.0 / 18.5–18.6 ms).
+- **2026-10-17, owner items 45–49 (sixth test).** Lights on the frame keep
+  to the glass (45, 49): `worker/rimshape.ts` gives the lit stretch of a rim
+  line as rects, the rounded outer corners (RIM_R) cut in columns one device
+  px wide (rows on the sides), and the plate's glass below the rim (fillets,
+  body, rounded lower corners, the shape of `frameHolePath`) the same way.
+  Glints (sprite slices per rect), the rays' top lift and the lightning rim
+  bands use it; a top-rim glint now lights the whole plate, not only the
+  2 px lip (the letters are lit with it; still no sparkle over the title).
+  Rects, not a rounded path or clip: the GPU rule above; columns meet on
+  whole device px, so the additive fill has no seams. The shadow wedge's
+  lower corners are arcs (three hull points each; `hull` takes any count),
+  and the beams count the rounded lower corners as outside (one extra box
+  per pane). The plate's drop shadow is a `::after` clipped to below the
+  plate: as the title box's shadow it blurred onto the rim beside the
+  plate, and a clip at the box's sides still left a device-px line at 2×
+  (46). Ink L .19 → .28, lip 60 % → 42 % (47): ink/plate over black ~3.3 →
+  2.6:1, over the day sky 6.2 → 4.9, on Paper 8.9 → 7.0 (Character). The
+  snow dusting lies on the top rim's upper 4 px inside the corners instead
+  of a 5 px band above it (48; none on borderless panes). Latency unchanged
+  (`weather-bench --rounds 2`: Chromium on median 10.3–11.0 / p95
+  18.5–18.9 ms, worker avg 0.9–1.0 ms; Firefox on 8.4–9.8 / 16.9–17.3 ms).
 
 ### Engine (stage 28 B)
 
