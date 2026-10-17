@@ -12,7 +12,7 @@ export interface Pane extends Rect {
   border: number;
   label: string;
   floating: boolean;
-  /** The nameplate (protocol `PaneGeom.plate`): along it only the rim's top `lip` px may be lit. */
+  /** The nameplate (protocol `PaneGeom.plate`): the rim's glass, lit with the top rim (owner items 42, 49). */
   plate?: PanePlate;
 }
 

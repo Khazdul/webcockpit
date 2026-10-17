@@ -18,6 +18,7 @@
 
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
+import { plateRects, rimRects } from './rimshape';
 
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
@@ -709,28 +710,24 @@ export function weatherModule(): Module {
       const k = Math.max(0.3, 1 / (1 + best / 160));
       const behind = best === 0;
       // The lines along the left / right / top edge, as the rects a 1.5 px
-      // (rim) or b px (band) butt-capped stroke covers.
-      const rim: number[] = [], band: number[] = [], b = Math.max(p.border, 2);
+      // (rim) or b px (band) butt-capped stroke covers, following the rim's
+      // rounded corners (rimshape.ts: no square corner outside the glass,
+      // owner item 45).
+      const rim: number[] = [], band: number[] = [], b = Math.max(p.border, 2), d = env.dpr;
       const L = nx < p.x + p.w / 2;
       if (behind || L) {
-        rim.push(p.x, p.y + 0.75, 1.5, p.h - 0.75);
-        band.push(p.x, p.y + b / 2, b, p.h - b / 2);
+        rimRects(rim, p, 'l', p.y + 0.75, p.y + p.h, 1.5, d);
+        rimRects(band, p, 'l', p.y + b / 2, p.y + p.h, b, d);
       }
       if (behind || !L) {
-        rim.push(p.x + p.w - 1.5, p.y + 0.75, 1.5, p.h - 0.75);
-        band.push(p.x + p.w - b, p.y + b / 2, b, p.h - b / 2);
+        rimRects(rim, p, 'r', p.y + 0.75, p.y + p.h, 1.5, d);
+        rimRects(band, p, 'r', p.y + b / 2, p.y + p.h, b, d);
       }
-      // the top rim; along the nameplate only its lip above the title (ADR 0091 addendum: glass rim and nameplate)
-      rim.push(p.x, p.y, p.w, 1.5);
-      const g = p.plate;
-      if (!g) band.push(p.x, p.y, p.w, b);
-      else {
-        const g0 = Math.max(p.x, g.x - g.r), g1 = Math.min(p.x + p.w, g.x + g.w + g.r);
-        if (g0 > p.x) band.push(p.x, p.y, g0 - p.x, b);
-        if (g1 > g0) band.push(g0, p.y, g1 - g0, Math.min(b, g.lip));
-        if (g1 < p.x + p.w) band.push(g1, p.y, p.x + p.w - g1, b);
-      }
-      if (behind || k > 0.5) band.push(p.x, p.y + p.h - b, p.w, b);
+      // the top rim and the nameplate with it, its whole glass (owner item 49)
+      rimRects(rim, p, 't', p.x, p.x + p.w, 1.5, d);
+      rimRects(band, p, 't', p.x, p.x + p.w, b, d);
+      plateRects(band, p, p.x, p.x + p.w, d);
+      if (behind || k > 0.5) rimRects(band, p, 'b', p.x, p.x + p.w, b, d);
       const gr = env.front.createRadialGradient(nx, ny, 0, nx, ny, Math.max(260, p.h * 0.9));
       gr.addColorStop(0, C(235, 240, 255, 1));
       gr.addColorStop(0.45, C(170, 175, 255, 0.75));

@@ -6,7 +6,7 @@ import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, beamAim, beamHits, beamPie
 import type { FrameBox } from '../../src/weather/worker/glint';
 
 const W = 1600, H = 900;
-const pane = (x: number, y: number, w: number, h: number, plate?: { x: number; w: number; lip: number; r: number }): FrameBox => ({ x, y, w, h, border: 3, plate });
+const pane = (x: number, y: number, w: number, h: number, plate?: { x: number; w: number; y1: number; lip: number; r: number }): FrameBox => ({ x, y, w, h, border: 3, plate });
 
 /** The shoelace area of a flat x, y polygon. */
 function area(P: readonly number[]): number {

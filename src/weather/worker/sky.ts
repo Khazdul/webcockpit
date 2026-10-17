@@ -31,6 +31,7 @@
 // Categories: `sky` gates everything but the darkness bleeds, which
 // `darkness` gates.
 
+import { RIM_R } from '../../panes/frame';
 import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
@@ -38,6 +39,7 @@ import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamH
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
+import { plateRects, rimRects } from './rimshape';
 
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
@@ -288,10 +290,13 @@ function keyCol(K: KeyC, p: number, out: Float32Array): void {
 }
 
 // convex hull of 8 points (monotone chain), as a flat x, y list — pane shadow wedges
-const HI = new Int32Array(8), HU = new Int32Array(17), CX = new Float32Array(4), CY = new Float32Array(4);
+/** The wedge's box points (CX, CY: the rim's lower edge on top, its rounded lower corners as arcs) and their far projections. */
+const NB = 8;
+const HI = new Int32Array(2 * NB), HU = new Int32Array(4 * NB + 1), CX = new Float32Array(NB), CY = new Float32Array(NB);
 function hull(pts: Float32Array): number[] {
-  for (let i = 0; i < 8; i++) HI[i] = i;
-  for (let i = 1; i < 8; i++) {
+  const n = pts.length >> 1;
+  for (let i = 0; i < n; i++) HI[i] = i;
+  for (let i = 1; i < n; i++) {
     const v = HI[i]!;
     let j = i - 1;
     while (j >= 0 && (pts[HI[j]! * 2]! > pts[v * 2]! || (pts[HI[j]! * 2] === pts[v * 2] && pts[HI[j]! * 2 + 1]! > pts[v * 2 + 1]!))) {
@@ -303,11 +308,11 @@ function hull(pts: Float32Array): number[] {
   const cr = (o: number, a: number, b: number): number =>
     (pts[a * 2]! - pts[o * 2]!) * (pts[b * 2 + 1]! - pts[o * 2 + 1]!) - (pts[a * 2 + 1]! - pts[o * 2 + 1]!) * (pts[b * 2]! - pts[o * 2]!);
   let k = 0;
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < n; i++) {
     while (k >= 2 && cr(HU[k - 2]!, HU[k - 1]!, HI[i]!) <= 0) k--;
     HU[k++] = HI[i]!;
   }
-  for (let i = 6, t = k + 1; i >= 0; i--) {
+  for (let i = n - 2, t = k + 1; i >= 0; i--) {
     while (k >= t && cr(HU[k - 2]!, HU[k - 1]!, HI[i]!) <= 0) k--;
     HU[k++] = HI[i]!;
   }
@@ -432,13 +437,15 @@ class Sky {
   still = 0;
   ox = 0;
   oz = 0;
-  pts = new Float32Array(16);
+  pts = new Float32Array(4 * NB);
   S = new Float32Array(2);
   /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
   beams: Beam[] = [];
   beamK = 0;
   hits: BeamHit[] = [];
   boxes: Box[] = [];
+  /** The faint top lift's rects (rimshape.ts), reused every frame. */
+  private readonly liftRects: number[] = [];
   tri = [0, 0, 0, 0, 0, 0];
   pIn: number[][] = [];
   pOut: number[][] = [];
@@ -633,6 +640,7 @@ class Sky {
 
   frame(env: Env, dt: number): boolean {
     this.T += dt;
+    this.glints.dpr = env.dpr;
     const T = this.T, m = env.mix, skyOn = env.cats.sky;
     // Going in or out: one even crossfade of the whole sky (gradient, clouds,
     // stars, moon, day life), the director's linear 5 s with soft ends; the
@@ -1347,14 +1355,18 @@ class Sky {
     if (lift > 0.01) {
       f.fillStyle = `rgb(${rgb})`;
       f.globalAlpha = lift;
+      const R = this.liftRects;
       for (const q of env.panes) {
         if (!q.border) continue;
-        const t = q.border, gp = q.plate;
         // the whole top rim and the nameplate with it: the plate is the
         // rim's glass and takes the same tint (owner item 42; before, only
-        // the rim's lip above the title, feedback 19, 32)
-        f.fillRect(q.x, q.y, q.w, t);
-        if (gp && gp.y1 > q.y + t) f.fillRect(gp.x, q.y + t, gp.w, gp.y1 - q.y - t);
+        // the rim's lip above the title, feedback 19, 32); the rim's rounded
+        // corners and the plate's fillets and lower corners followed, no
+        // square corner outside the glass (owner item 45)
+        R.length = 0;
+        rimRects(R, q, 't', q.x, q.x + q.w, q.border, env.dpr);
+        plateRects(R, q, q.x, q.x + q.w, env.dpr);
+        for (let i = 0; i < R.length; i += 4) f.fillRect(R[i]!, R[i + 1]!, R[i + 2]!, R[i + 3]!);
       }
     }
     // Where a strong beam crosses a frame line, that stretch of the line
@@ -1404,13 +1416,17 @@ class Sky {
     boxes.length = 0;
     for (const q of env.panes) {
       const gp = q.plate, yt = q.y + q.border, x2 = q.x + q.w, y2 = q.y + q.h;
-      if (!gp || gp.y1 >= y2) {
-        boxes.push([q.x, yt, x2, y2]);
+      // the rim's rounded lower corners count as outside: no square corner
+      // of the weaker inside beam shows beyond the glass (owner item 45)
+      const R = q.border && q.h - q.border > RIM_R ? Math.min(RIM_R, q.border) : 0, yb = y2 - R;
+      if (R) boxes.push([q.x + R, yb, x2 - R, y2]);
+      if (!gp || gp.y1 >= yb) {
+        boxes.push([q.x, yt, x2, yb]);
         continue;
       }
       // less the nameplate (the rim's glass: a beam on it is as strong as on the rim; owner item 42)
       const a = Math.max(q.x, gp.x), b = Math.min(x2, gp.x + gp.w);
-      boxes.push([q.x, yt, a, y2], [b, yt, x2, y2], [a, gp.y1, b, y2]);
+      boxes.push([q.x, yt, a, yb], [b, yt, x2, yb], [a, gp.y1, b, yb]);
     }
     const light = this.th.light ? 0.7 : 1, tri = this.tri, inside = this.pIn, outside = this.pOut;
     for (const b of this.beams) {
@@ -1503,19 +1519,35 @@ class Sky {
       const ox = pass ? -18 : 18;
       g.globalAlpha = 0.45;
       for (const q of env.panes) {
-        CX[0] = CX[3] = q.x;
-        CX[1] = CX[2] = q.x + q.w;
         // From the rim's lower edge: the step between the brighter rays
         // outside and the shadow inside lies under the rim (owner feedback
-        // 19, 32).
-        CY[0] = CY[1] = q.y + q.border;
-        CY[2] = CY[3] = q.y + q.h;
-        for (let i = 0; i < 4; i++) {
+        // 19, 32). The lower corners follow the rim's rounding (three points
+        // on each arc), so no square corner of shadow shows outside the
+        // glass (owner item 45).
+        const x2 = q.x + q.w, yt = q.y + q.border, y2 = q.y + q.h;
+        const R = q.border ? Math.min(RIM_R, q.border) : 0, c = R * (1 - Math.SQRT1_2);
+        CX[0] = q.x;
+        CY[0] = yt;
+        CX[1] = x2;
+        CY[1] = yt;
+        CX[2] = x2;
+        CY[2] = y2 - R;
+        CX[3] = x2 - c;
+        CY[3] = y2 - c;
+        CX[4] = x2 - R;
+        CY[4] = y2;
+        CX[5] = q.x + R;
+        CY[5] = y2;
+        CX[6] = q.x + c;
+        CY[6] = y2 - c;
+        CX[7] = q.x;
+        CY[7] = y2 - R;
+        for (let i = 0; i < NB; i++) {
           const dx = CX[i]! - (sx + ox), dy = CY[i]! - sy, dl = Math.hypot(dx, dy) || 1;
           pts[i * 2] = CX[i]!;
           pts[i * 2 + 1] = CY[i]!;
-          pts[8 + i * 2] = CX[i]! + (dx / dl) * 4000;
-          pts[8 + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
+          pts[2 * NB + i * 2] = CX[i]! + (dx / dl) * 4000;
+          pts[2 * NB + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
         }
         const P = hull(pts);
         // The nameplate is the rim's glass: no shadow over it, so it takes

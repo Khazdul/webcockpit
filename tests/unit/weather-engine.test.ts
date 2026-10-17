@@ -262,21 +262,50 @@ describe('WeatherEngine floating panes', () => {
 });
 
 describe('frame glints', () => {
-  it('light only the lip of the rim above the nameplate, no sparkle over the title (owner feedback 32, ADR 0091 addendum)', () => {
-    const g = new Glints(themeInfo('#000000'));
+  let g: Glints;
+  beforeEach(() => {
+    g = new Glints(themeInfo('#000000'));
+  });
+  const p = { x: 100, y: 50, w: 400, h: 200, border: 6, plate: { x: 134, w: 52, y1: 66, lip: 2, r: 4 } };
+  /** [x0, x1, y0, y1] of every image copy but the sparkle. */
+  const boxes = (args: unknown[][]) => args.filter((a) => a[0] !== g.spark).map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6], (a[6] as number) + (a[8] as number)] as number[]);
+  const covers = (bs: number[][], x: number, y: number) => bs.some(([x0, x1, y0, y1]) => x >= x0! && x <= x1! && y >= y0! && y <= y1!);
+
+  it('light the whole nameplate with the top rim, no sparkle over the title (owner item 49, ADR 0091 addendum)', () => {
     const f = new FakeCanvas(800, 600).ctx as unknown as Ctx & { args: unknown[][] };
-    const p = { x: 100, y: 50, w: 400, h: 200, border: 6, plate: { x: 134, w: 52, lip: 2, r: 4 } };
-    // A long glint with a sparkle centred on the plate; the same on the bottom rim (no plate there).
+    g.dpr = 1;
     g.line(f, p, 't', 160, 200, 1, 1);
     const top = f.args.splice(0);
     expect(top.every((a) => a[0] !== g.spark)).toBe(true);
-    // [x0, x1, y, height]: the rim either side, only its 2 px lip along the plate and its fillets
-    expect(top.map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6], a[8]])).toEqual([
-      [100, 130, 50, 6],
-      [130, 190, 50, 2],
-      [190, 260, 50, 6],
-    ]);
+    const bs = boxes(top);
+    // the plate's body down to its bottom, the fillets' glass, the rim beside it
+    expect(covers(bs, 160, 65.5)).toBe(true);
+    expect(covers(bs, 133.2, 57.5)).toBe(true);
+    expect(covers(bs, 120, 55)).toBe(true);
+    // not the pane beside the plate, not below the plate's rounded corners
+    expect(covers(bs, 125, 60)).toBe(false);
+    expect(covers(bs, 134.4, 65.8)).toBe(false);
+    // the copies never overlap (an additive glint would show seams)
+    for (let i = 0; i < bs.length; i++)
+      for (let j = i + 1; j < bs.length; j++) {
+        const [a0, a1, b0, b1] = bs[i]!, [c0, c1, d0, d1] = bs[j]!;
+        expect(Math.min(a1!, c1!) - Math.max(a0!, c0!) <= 1e-9 || Math.min(b1!, d1!) - Math.max(b0!, d0!) <= 1e-9).toBe(true);
+      }
     g.line(f, p, 'b', 160, 200, 1, 1);
-    expect(f.args.map((a) => (a[0] === g.spark ? 'spark' : [a[5], (a[5] as number) + (a[7] as number)]))).toEqual([[100, 260], 'spark']);
+    expect(f.args.some((a) => a[0] === g.spark)).toBe(true);
+  });
+
+  it('keep inside the rim\'s rounded corners (owner item 45)', () => {
+    for (const d of [1, 2]) {
+      const f = new FakeCanvas(800, 600).ctx as unknown as Ctx & { args: unknown[][] };
+      g.dpr = d;
+      for (const side of ['t', 'b'] as const) g.line(f, p, side, 120, 80, 1);
+      for (const side of ['l', 'r'] as const) g.line(f, p, side, 60, 80, 1);
+      const bs = boxes(f.args);
+      // the box's very corners are outside the 4 px rounding; the rim next to them is lit
+      for (const [x, y] of [[100.2, 50.2], [499.8, 50.2], [100.2, 249.8], [499.8, 249.8]] as const) expect(covers(bs, x, y)).toBe(false);
+      for (const [x, y] of [[104.5, 50.5], [100.5, 54.5], [104.5, 249.5], [499.5, 54.5]] as const) expect(covers(bs, x, y)).toBe(true);
+    }
+    g.dpr = 1;
   });
 });

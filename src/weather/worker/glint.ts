@@ -2,14 +2,18 @@
 // short bright stretch of the line itself where a sunrise beam, a
 // shooting star, a sun glimpse or the moon passes. Drawn on the front
 // layer, exactly on the rim (the frame box's x/y/w/h and its `border`
-// thickness; nothing outside it), so the rim stays sharp: no halo, no
-// constant sheen (a soft sheen along the top line made it look blurry
-// before). Sprites are made once (1 px wide gradients, stretched); every
-// glint is one or two image copies, no paths (ADR 0091).
+// thickness, its rounded outer corners followed: nothing outside it, owner
+// item 45), so the rim stays sharp: no halo, no constant sheen (a soft sheen
+// along the top line made it look blurry before). On the top rim the
+// nameplate glints with it, the whole plate (owner item 49). Sprites are
+// made once (1 px wide gradients, stretched); every glint is a few image
+// copies (rimshape.ts: columns one device px wide at the corners), no paths
+// (ADR 0091).
 
 import { adapt, type ThemeInfo } from '../palette';
 import type { PanePlate } from '../protocol';
 import { type Ctx, type Cv, clamp, ctx2d, mkCanvas } from './env';
+import { plateRects, rimRects } from './rimshape';
 
 /** A frame line: the frame box and its line thickness (env.panes). */
 export interface FrameBox {
@@ -18,8 +22,8 @@ export interface FrameBox {
   w: number;
   h: number;
   border: number;
-  /** The nameplate (env.panes): along it only the rim's top `lip` px glint, above the title. */
-  plate?: Pick<PanePlate, 'x' | 'w' | 'lip' | 'r'>;
+  /** The nameplate (env.panes): a glint on the top rim lights it too (owner item 49); no sparkle over the title. */
+  plate?: Pick<PanePlate, 'x' | 'w' | 'y1' | 'lip' | 'r'>;
 }
 
 export type Side = 't' | 'b' | 'l' | 'r';
@@ -46,6 +50,9 @@ export class Glints {
   readonly spark: Cv;
   private readonly live: Live[] = [];
   readonly comp: GlobalCompositeOperation;
+  /** Device pixel ratio (the engine sets it): the corner columns are one device px wide. */
+  dpr = 1;
+  private readonly rects: number[] = [];
 
   constructor(th: ThemeInfo, rgb: [number, number, number] = [255, 248, 232]) {
     const c = th.light ? adapt(rgb, th, 0.2, 0.6) : rgb;
@@ -80,10 +87,11 @@ export class Glints {
   /**
    * Draws one glint now: `len` px of `side` centred at `c` (along the line),
    * at alpha `a`; a sparkle at the centre when `spark` > 0. Caller sets the
-   * composite (`comp`). On the top rim, along the nameplate (and its
-   * fillets), only the rim's lip above the title glints: no lit band through
-   * the letters (owner feedback 32; ADR 0091 addendum: glass rim and
-   * nameplate), a thin bright edge on the plate's top.
+   * composite (`comp`). The lit stretch follows the rim's rounded outer
+   * corners (owner item 45); on the top rim it takes the nameplate with it,
+   * fillets and rounded corners included: the plate is the rim's glass
+   * (owner item 49; before, only the rim's 2 px lip above the title, owner
+   * feedback 32). No sparkle over the title.
    */
   line(f: Ctx, p: FrameBox, side: Side, c: number, len: number, a: number, spark = 0): void {
     const b = Math.max(1, p.border);
@@ -91,24 +99,21 @@ export class Glints {
     const horiz = side === 't' || side === 'b';
     const lo = horiz ? p.x : p.y, hi = horiz ? p.x + p.w : p.y + p.h;
     const s0 = c - len / 2, s1 = c + len / 2;
-    const a0 = Math.max(lo, s0), a1 = Math.min(hi, s1);
-    if (a1 - a0 < 1) return;
+    if (Math.min(hi, s1) - Math.max(lo, s0) < 1) return;
     f.globalAlpha = clamp(a, 0, 1);
+    const R = this.rects;
+    R.length = 0;
+    rimRects(R, p, side, s0, s1, b, this.dpr);
     const pl = side === 't' ? p.plate : undefined;
-    const g0 = pl ? pl.x - pl.r : 0, g1 = pl ? pl.x + pl.w + pl.r : 0;
-    if (horiz) {
-      const y = side === 't' ? p.y : p.y + p.h - b;
-      if (pl) {
-        this.hspan(f, s0, len, a0, Math.min(a1, g0), y, b);
-        this.hspan(f, s0, len, Math.max(a0, g0), Math.min(a1, g1), y, Math.min(b, pl.lip));
-        this.hspan(f, s0, len, Math.max(a0, g1), a1, y, b);
-      } else this.hspan(f, s0, len, a0, a1, y, b);
-    } else {
-      const u0 = ((a0 - s0) / len) * N, u1 = ((a1 - s0) / len) * N;
-      const x = side === 'l' ? p.x : p.x + p.w - b;
-      f.drawImage(this.vs, 0, u0, 1, u1 - u0, x, a0, b, a1 - a0);
+    if (pl) plateRects(R, p, s0, s1, this.dpr);
+    const k = N / len;
+    for (let i = 0; i < R.length; i += 4) {
+      const x = R[i]!, y = R[i + 1]!, w = R[i + 2]!, h = R[i + 3]!;
+      if (horiz) f.drawImage(this.hs, (x - s0) * k, 0, w * k, 1, x, y, w, h);
+      else f.drawImage(this.vs, 0, (y - s0) * k, 1, h * k, x, y, w, h);
     }
     // the sparkle is 9 px across: not where it would reach over the title
+    const g0 = pl ? pl.x - pl.r : 0, g1 = pl ? pl.x + pl.w + pl.r : 0;
     const onPlate = pl !== undefined && c > g0 - 4.5 && c < g1 + 4.5;
     if (spark > 0.02 && c >= lo && c <= hi && !onPlate) {
       const x = horiz ? c : side === 'l' ? p.x + b / 2 : p.x + p.w - b / 2;
@@ -116,13 +121,6 @@ export class Glints {
       f.globalAlpha = clamp(a * spark, 0, 1);
       f.drawImage(this.spark, Math.round(x) - 4.5, Math.round(y) - 4.5);
     }
-  }
-
-  /** The part `[a0, a1]` of a horizontal glint `len` px long from `s0`, on the line at `y`, `b` thick. */
-  private hspan(f: Ctx, s0: number, len: number, a0: number, a1: number, y: number, b: number): void {
-    if (a1 - a0 < 1) return;
-    const u0 = ((a0 - s0) / len) * N, u1 = ((a1 - s0) / len) * N;
-    f.drawImage(this.hs, u0, 0, u1 - u0, 1, a0, y, a1 - a0, b);
   }
 
   /** A glint that runs on its own for `dur` s (moving at `v` px/s along the line), fading in and out. */
