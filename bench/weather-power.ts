@@ -12,7 +12,8 @@
 //
 // - off:   weather effects off (the baseline);
 // - calm:  a clear day sky (only slow things move);
-// - heavy: heavy rain with drips, dense fog, moonlit night;
+// - heavy: heavy rain with drips, dense fog, moonlit night (after 45 s: the
+//   fog and the cover come in over 40 s);
 // - birds: the calm day sky with a flock of birds crossing all the time
 //   (sent after the settle; normally one comes every 70–170 s).
 // - sunset: the calm day sky, then a sunset (sent after the settle): rays,
@@ -90,8 +91,12 @@ const SCENES: Record<string, Record<string, unknown> | null> = {
   cover: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
   indoor: { weather: ' ', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
 };
-/** Longer settles (ms): the cloud cover comes at a slow rate (0.6 in 24 s, snow's 0.8 in 32 s), so these measure the steady scene. */
-const SCENE_SETTLE: Record<string, number> = { clouds: 36000, snow: 36000 };
+/**
+ * Longer settles (ms): the cloud cover comes at a slow rate (0.6 in 24 s,
+ * snow's 0.8 in 32 s, rain's 1 in 40 s) and dense fog in 40 s, so these
+ * measure the steady scene, not the transition into it.
+ */
+const SCENE_SETTLE: Record<string, number> = { clouds: 36000, snow: 36000, heavy: 45000 };
 /** States pinned (smoothly, with the normal easing) once the scene has settled: transitions. */
 const SCENE_PINS: Record<string, Record<string, unknown>> = {
   cover: { weather: '~', fog: '', position: 'standing', clock: 'day', moonUp: false, light: '' },
