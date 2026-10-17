@@ -146,60 +146,57 @@ in typing or scrolling with the effects on (the bench says no; your
 machine is the real test, especially in Firefox)? Keep the trial or drop
 it?
 
-## Handoff (end of session 2026-10-16)
+## Handoff (end of session 2026-10-17)
 
-State: built and committed on branch `weather-trial` (not merged, not
-released). The owner will test and keep improving it in new sessions;
-some parts they like, others less. Collect their feedback under
-"Owner feedback" before changing things.
+State: on branch `weather-trial` (not merged, not released). Two owner
+feedback rounds (items 1–25) are done. **Next session: the third round,
+items 26–32 below** (nothing of it started). Collect new feedback under
+"Owner feedback" before changing things. The owner's dev server must be
+restarted after a branch switch (a running Vite served main's CSS once).
 
 Where things live:
 
 - `src/weather/` (main thread): `hook.ts` (the single app hook,
   `installWeather`), `controller.ts` (lazy chunk: engine + bridge),
-  `index.ts` (`createWeather` API, canvases, layering), `signals.ts`
-  (GMCP / almanac / lightning-line bridge), `director.ts` (dwell 3 s, eased
-  mix, sky selection), `geometry.ts` (pane rects, text rows, diffing),
-  `palette.ts` (colours from the theme background), `protocol.ts`
-  (worker messages), `dev.ts` (`?weather`, `window.__weather`),
-  `support.ts`, `weather.css`.
-- `src/weather/worker/`: `engine.ts` (frame loop, masking, rates and
-  caches), `sky.ts`, `weather.ts` (rain, drips, snow, gusts,
-  lightning), `fog.ts`, `body.ts`, `env.ts`.
+  `index.ts` (`createWeather`, back/front canvases, one canvas per
+  floating pane `floatLayers`), `signals.ts` (GMCP / almanac / lightning
+  and darkness room lines), `director.ts` (dwell 3 s, mix rates, sky
+  selection), `geometry.ts` (pane frame boxes incl. title notch, diffing),
+  `palette.ts`, `protocol.ts`, `dev.ts` (`?weather`, `?weather=<json>`,
+  `window.__weather`), `support.ts`, `weather.css`.
+- `src/weather/worker/`: `engine.ts` (frame loop, rates 60/30/12/3 fps,
+  module caches, mask, float copies), `sky.ts` (sky, moon, stars, clouds,
+  sun rays), `daylife.ts` (birds, insects, tufts, sun glimpses),
+  `glint.ts` (glints on frame lines), `weather.ts` (rain, drips, snow,
+  gusts, lightning), `fog.ts`, `body.ts`, `env.ts`.
 - Options page: `src/chrome/frames/options-weather.tsx` (last in the
   Options hub); settings `weather` section (`migrateWeather`).
-- Frames: `src/panes/frame.ts` (`frameGeometry`), `src/panes/pane.ts`,
-  `src/layout/layout.css`.
-- Tests: `tests/unit/weather.test.ts`, `tests/unit/weather-signals.test.ts`,
-  `tests/e2e/weather.spec.ts`. Bench: `bench/weather-bench.ts`,
-  `bench/results/weather.md`.
-- Prototype (the visual reference, approved round by round):
-  `notes/research/weather-world/` (on main too); demo artifact
-  https://claude.ai/artifact/5bQ8wjratKitNufUn6tZ8j. Earlier experiments:
-  `notes/research/weather-atelier/`.
+- Frames: `src/panes/frame.ts` (`frameGeometry`, `frameNotch`,
+  `framePath`), `src/panes/pane.ts` (SVG `.wc-pane-line`),
+  `src/layout/layout.css`; map flush to the line: `MapPane.fitFrame`.
+- Tests: `tests/unit/weather*.test.ts`, `tests/unit/panes.test.ts`,
+  `tests/e2e/weather.spec.ts`, `tests/e2e/layout.spec.ts`. Benches:
+  `bench/weather-bench.ts` (latency), `bench/weather-power.ts` (CPU/W,
+  headed), results in `bench/results/`.
+- Prototype: `notes/research/weather-world/`; demo artifact
+  https://claude.ai/artifact/5bQ8wjratKitNufUn6tZ8j.
 
 Rules learned (ADR 0091): no many-subpath paths or clips on the GPU
-canvases (Skia software path masks stalled the GPU thread: text p95 went
-83 ms); batch rect fills, use sprites made once on CPU canvases. Every
-change: rerun `node bench/weather-bench.ts --rounds 3` and compare with
-`bench/results/weather.md`.
+canvases; batch rect fills, sprites made once on CPU canvases. Firefox
+draws the canvases on the CPU, so keep still scenes cached and slow.
+Every change: rerun `node bench/weather-bench.ts --rounds 2` (latency)
+and `bench/weather-power.ts` (CPU), compare with `bench/results/`. Use
+your own `WC_E2E_PORT` / `WC_BENCH_PORT`, never the owner's 5173 server.
 
 Open:
 
-- XML `<weather>` tag on the lightning line unverified live (fallback:
-  the exact Redhorn Pass sentence).
-- Firefox draws the worker canvas on the CPU (headless ~45 ms/frame);
-  check in the owner's Firefox.
-- Moon and stars over a full output show only between text lines; the
-  sky horizon sits at least 30 % down. Blood and the strike glow can lie
-  over text.
-- The pane label tab stays opaque; z z Z falls back to the system
-  monospace font in the worker.
-- Frames: the 2 px line in the default dim border colour is subtle on
-  black panes; may want brighter.
-- Screenshots on three backgrounds: engine shots exist (scratchpad, lost
-  on reboot); not kept in the repo.
-- e2e: three specs flaky under parallel load (pass alone), as before.
+- XML `<weather>` tag on the lightning line and the XML around the
+  darkness room line unverified live; no live `Event.Darkness` seen.
+- Sunrise glint (`drawRaysFront`) is a straight band across the title
+  notch (moot if item 32 removes the notch).
+- z z Z falls back to the system monospace font in the worker.
+- e2e: chromium "a drag shows its cursor on a shield" fails on main too
+  (pre-existing); a few specs flaky under parallel load (pass alone).
 
 ## Owner feedback
 
@@ -427,3 +424,26 @@ Sky:
     screen.
     - **Done (2026-10-17):** the star field reaches 45 % down on the left
       and 62 % on the right.
+
+### 2026-10-17 — third test (to address next session; translated)
+
+26. **Darkness, again.** The current trigger is wrong: magical darkness
+    is a spell someone casts (a special case). Give an effect only on the
+    `Event.Darkness` events (when it grows or goes away) and otherwise no
+    red sky at all (drop the room-line trigger and the steady red sky).
+27. **Indoors/outdoors fades.** Going indoors (the blue sky disappears)
+    and out again is far too abrupt/choppy. Make it much smoother.
+28. **Top-left readability.** Text at the top left is hard to read. Keep
+    the top left dark: the blue sky starts about 30 % in from the left,
+    a left-to-right gradient from black to the sky.
+29. **Sunset/sunrise timing.** At sunset the blue sky should not go until
+    the sunset animation is nearly over; the whole thing should take about
+    2–3 times as long as now, with a much softer change from the blue day
+    sky to the night sky. The same at the end of the night: slower
+    sunrise, softer change to day.
+30. **Sunrise/sunset rays more discreet:** thinner rays, more sparing.
+31. **Stars lower.** About 10 % further down in general, and further still
+    on the right (down to about 10 % from the bottom right).
+32. **Title notch out.** The line winding under the title does not look
+    good. Bring back the line ending left and right of the title (a gap,
+    as before), keeping the title transparent (no box).
