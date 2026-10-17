@@ -174,9 +174,12 @@ it?
 ## Handoff (end of session 2026-10-17)
 
 State: on branch `weather-trial` (not merged, not released). Three owner
-feedback rounds (items 1–32) are done. **Next session: the owner tests
-round 3**; collect new feedback under "Owner feedback" before changing
-things. The owner's dev server must be
+feedback rounds (items 1–32), the weather demo (item 33, `#weather demo`)
+and the see-through Transparent map (item 34) are done. **Next session:
+the owner brings new feedback, first on pane frames, titles and borders,
+then on the weather effects**; record it under "Owner feedback" (new
+subsection, numbered from 35) before changing things. Use `#weather demo`
+to check effects visually. The owner's dev server must be
 restarted after a branch switch (a running Vite served main's CSS once).
 
 Where things live:
