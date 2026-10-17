@@ -5,7 +5,9 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { WeatherEngine } from '../../src/weather/worker/engine';
-import { type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
+import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
+import { Glints } from '../../src/weather/worker/glint';
+import { themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker } from '../../src/weather/protocol';
 
 /** A 2d context that accepts every call and records drawImage sources. */
@@ -256,5 +258,23 @@ describe('WeatherEngine floating panes', () => {
     h.run(100);
     const calls = (fc.ctx as unknown as { args: unknown[][] }).args;
     expect(calls.at(-1)!.slice(1)).toEqual([700, 0, 100, 90, 0, 10, 100, 90]);
+  });
+});
+
+describe('frame glints', () => {
+  it('never light the top line in the title gap (owner feedback 32)', () => {
+    const g = new Glints(themeInfo('#000000'));
+    const f = new FakeCanvas(800, 600).ctx as unknown as Ctx & { args: unknown[][] };
+    const p = { x: 100, y: 50, w: 400, h: 200, border: 3, gap: { x: 130, w: 60 } };
+    // A long glint with a sparkle centred in the gap; the same on the bottom line (no gap there).
+    g.line(f, p, 't', 160, 200, 1, 1);
+    const top = f.args.splice(0);
+    expect(top.every((a) => a[0] !== g.spark)).toBe(true);
+    expect(top.map((a) => [a[5], (a[5] as number) + (a[7] as number), a[6]])).toEqual([
+      [100, 130, 50],
+      [190, 260, 50],
+    ]);
+    g.line(f, p, 'b', 160, 200, 1, 1);
+    expect(f.args.map((a) => (a[0] === g.spark ? 'spark' : [a[5], (a[5] as number) + (a[7] as number)]))).toEqual([[100, 260], 'spark']);
   });
 });

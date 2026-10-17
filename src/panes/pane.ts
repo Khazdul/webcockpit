@@ -4,7 +4,7 @@
 //
 //   .wc-pane.wc-pane-<id>[data-active]   positioned in whole cells, --pane-* tokens
 //     .wc-pane-frame                     the frame box (hidden when border off); ::before is its fill
-//       svg.wc-pane-line                 the line, notched under the title
+//       svg.wc-pane-line                 the line, with a gap for the title
 //       .wc-pane-title                   the label in the top row
 //     .wc-pane-content                   the inner area, `cols` × `rows` cells
 //
@@ -41,7 +41,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { type FrameGeometry, type FrameNotch, frameGeometry, frameLabel, frameNotch, framePath, notchClip } from './frame';
+import { type FrameGeometry, frameGap, frameGeometry, frameLabel, framePath } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -104,7 +104,6 @@ export class PaneShell {
   private readonly titleEl: HTMLSpanElement;
   private geomKey = '';
   private _frameLine: FrameGeometry | null = null;
-  private _frameNotch: FrameNotch | null = null;
   /** The line's edge and core paths. */
   private readonly linePaths: SVGPathElement[];
   private readonly listeners = new Set<PaneResizeListener>();
@@ -341,15 +340,16 @@ export class PaneShell {
     const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
     const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
     const g = frameGeometry(box, cell.w, cell.h, dpr);
-    const n = frameNotch(box, g, cell.w, cell.h, chars, dpr);
+    const n = frameGap(box, g, cell.w, chars, dpr);
     this._frameLine = g;
-    this._frameNotch = n;
     const fw = box.w - g.l - g.r, fh = box.h - g.top - g.b;
-    const key = `${g.t},${g.e},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${n ? `${n.x0},${n.x1},${n.d}` : ''}`;
+    const key = `${g.t},${g.e},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${n ? `${n.x0},${n.x1}` : ''}`;
     if (key === this.geomKey) return;
     this.geomKey = key;
-    const d = framePath(fw, fh, g.t, n);
-    for (const path of this.linePaths) path.setAttribute('d', d);
+    // The core stops an edge band short of the gap, so the ends are closed like the bends.
+    const [edge, core] = this.linePaths as [SVGPathElement, SVGPathElement];
+    edge.setAttribute('d', framePath(fw, fh, g.t, n));
+    core.setAttribute('d', framePath(fw, fh, g.t, n, g.e));
     const st = this.el.style;
     st.setProperty('--frame-t', `${g.t}px`);
     st.setProperty('--frame-e', `${g.e}px`);
@@ -357,17 +357,10 @@ export class PaneShell {
     st.setProperty('--frame-r', `${g.r}px`);
     st.setProperty('--frame-top', `${g.top}px`);
     st.setProperty('--frame-b', `${g.b}px`);
-    st.setProperty('--notch-clip', notchClip(n));
     if (n) {
-      st.setProperty('--notch-x0', `${n.x0}px`);
-      st.setProperty('--notch-x1', `${n.x1}px`);
-      st.setProperty('--notch-d', `${n.d}px`);
-    } else for (const k of ['--notch-x0', '--notch-x1', '--notch-d']) st.removeProperty(k);
-  }
-
-  /** The notch under the title as last placed (frame-box px), null without one or while unframed. */
-  protected get frameNotch(): FrameNotch | null {
-    return this.placed?.framed ? this._frameNotch : null;
+      st.setProperty('--gap-x0', `${n.x0}px`);
+      st.setProperty('--gap-x1', `${n.x1}px`);
+    } else for (const k of ['--gap-x0', '--gap-x1']) st.removeProperty(k);
   }
 
   /** The frame line as last placed (CSS px from the pane's edges), null while unframed. */

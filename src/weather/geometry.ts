@@ -26,8 +26,8 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout'
     const p = a.panes[i]!, q = b.panes[i]!;
     if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border) return 'layout';
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
-    const na = p.notch, nb = q.notch;
-    if (!na !== !nb || (na && nb && (!near(na.x, nb.x) || !near(na.w, nb.w) || !near(na.depth, nb.depth)))) return 'layout';
+    const ga = p.gap, gb = q.gap;
+    if (!ga !== !gb || (ga && gb && (!near(ga.x, gb.x) || !near(ga.w, gb.w)))) return 'layout';
   }
   return 'none';
 }
@@ -102,9 +102,11 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
     const t = v('--frame-t', 3);
     const fi = frameInset(cell.w, cell.h);
     const ins = { l: v('--frame-l', fi), r: v('--frame-r', fi), top: v('--frame-top', fi), b: v('--frame-b', fi) };
-    const nx0 = v('--notch-x0', NaN), nx1 = v('--notch-x1', NaN), nd = v('--notch-d', NaN);
+    const gx0 = v('--gap-x0', NaN), gx1 = v('--gap-x1', NaN);
     const fr = frameRect(box, framed, ins);
-    const notch = framed && Number.isFinite(nx0 + nx1 + nd) ? { x: round(fr.x + nx0 - t), w: round(nx1 - nx0 + 2 * t), depth: round(nd) } : undefined;
+    // The title's gap in the top line, widened to whole half px (nothing lit may reach into it).
+    const ga = Math.floor((fr.x + gx0) * 2) / 2, gb = Math.ceil((fr.x + gx1) * 2) / 2;
+    const gap = framed && Number.isFinite(ga + gb) ? { x: ga, w: gb - ga } : undefined;
     panes.push({
       ...fr,
       box,
@@ -114,7 +116,7 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
       floating: el.hasAttribute('data-floating'),
       z: el.hasAttribute('data-floating') ? Number(el.style.zIndex) || 0 : 0,
       bg: bg && bg !== termBg ? bg : null,
-      ...(notch ? { notch } : {}),
+      ...(gap ? { gap } : {}),
     });
   }
   const W = round(base.width), H = round(base.height);

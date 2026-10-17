@@ -270,20 +270,12 @@ export class MapPane extends PaneShell {
    */
   private fitFrame(): void {
     const g = this.frameLine, b = this.boxPx;
+    if (!g || !b) return;
     const cs = this.content.style;
-    if (!g || !b) {
-      cs.clipPath = '';
-      return;
-    }
     cs.left = `${g.l + g.t}px`;
     cs.top = `${g.top + g.t}px`;
     cs.width = `${b.w - g.l - g.r - 2 * g.t}px`;
     cs.height = `${b.h - g.top - g.b - 2 * g.t}px`;
-    // The notch under the title (and the line round it) stays clear of the map.
-    const n = this.frameNotch;
-    cs.clipPath = n
-      ? `polygon(0 0, ${n.x0 - 2 * g.t}px 0, ${n.x0 - 2 * g.t}px ${n.d}px, ${n.x1}px ${n.d}px, ${n.x1}px 0, 100% 0, 100% 100%, 0 100%)`
-      : '';
     this.sync();
   }
 

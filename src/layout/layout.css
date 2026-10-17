@@ -45,21 +45,22 @@
   background: var(--term-bg);
 }
 
-/* The frame (owner feedback 14–16, ADR 0091 "Frames"): one thin line of
+/* The frame (owner feedback 14–16, 32, ADR 0091 "Frames"): one thin line of
  * equal thickness in the outer frame cells, drawn as a small glass tube: a
  * core between two edge bands, the same on every side, so no side fades
  * into the page (a light/dark bevel vanished on black). Edges: the border
  * colour a step toward the text colour; core: a bigger step, so it has the
- * most contrast on every background. At the title the top line winds down
- * under it and back up (the notch), so the title sits on the pane's own
- * background, clear of the line.
+ * most contrast on every background. The top line ends either side of the
+ * title (the gap, `--gap-x0/x1`).
  *
  * `.wc-pane-frame` is the box out to the line's outer edge (`--frame-l/r/
  * top/b` from pane.ts, whole device pixels of the page). Its fill is
- * `::before`, cut out at the notch (`--notch-clip`); the line is an SVG
+ * `::before`, from the line's inner edge down, so the gap shows what is
+ * behind the pane, as the ring outside the line does; the line is an SVG
  * path through the middle of the line (`.wc-pane-line`, pane.ts): an edge
  * stroke `--frame-t` wide under a core stroke `--frame-t − 2 × --frame-e`
- * wide, mitred, so every bend shows the same three bands. */
+ * wide, mitred, so every bend shows the same three bands; at the gap the
+ * core stops an edge band short, so the ends are closed the same way. */
 .wc-pane-frame {
   --frame-edge: color-mix(in srgb, var(--pane-border) 80%, var(--term-fg));
   --frame-core: color-mix(in srgb, var(--pane-border) 52%, var(--term-fg));
@@ -75,9 +76,8 @@
 .wc-pane-frame::before {
   content: '';
   position: absolute;
-  inset: 0;
+  inset: var(--frame-t, 3px) 0 0;
   background: var(--pane-bg, var(--term-bg));
-  clip-path: var(--notch-clip, none);
 }
 
 .wc-pane:not([data-framed]) > .wc-pane-frame {
@@ -109,13 +109,18 @@
 }
 
 /* The label from the fourth cell, a little smaller than the text, in the
- * notch: on the pane's own background, its line box ending just above the
- * notch's floor (feedback 16, 19). Above the content, so a pane that fills
- * its frame (the map) does not hide it. */
+ * top line's gap (feedback 16, 19, 32); no box of its own. Centred in the
+ * gap, so the line ends the same distance from the first and the last
+ * letter whatever the browser rounds the glyph advances to. Its line box is
+ * centred on the line, but not above the pane's top edge: the pane clips,
+ * and higher up it cut off the ascenders and the dot of an i (Chromium).
+ * Above the content, so a pane that fills its frame (the map) does not
+ * hide it. */
 .wc-pane-title {
   position: absolute;
-  top: calc(var(--notch-d, 0px) - 1em - 1px);
-  left: var(--notch-x0, 0px);
+  top: max(calc(var(--frame-t, 3px) / 2 - 0.5em), calc(-1 * var(--frame-top, 3px)));
+  left: calc((var(--gap-x0, 0px) + var(--gap-x1, 0px)) / 2);
+  transform: translateX(-50%);
   line-height: 1;
   font-size: 0.82em;
   white-space: pre;

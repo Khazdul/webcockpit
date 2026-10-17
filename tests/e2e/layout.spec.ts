@@ -89,7 +89,7 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  // A thin frame line the same inset from every edge of the outer cells (ADR 0091), the label from the fourth cell in a notch.
+  // A thin frame line the same inset from every edge of the outer cells (ADR 0091), the label from the fourth cell in a gap of the top line.
   await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
   const geo = await page.locator('.wc-pane-character').evaluate((el) => {
     const p = el.getBoundingClientRect();
@@ -106,9 +106,9 @@ test('default layout: game left, input under it as wide as the game, full-height
       t: parseFloat(st.getPropertyValue('--frame-t')),
       e: parseFloat(st.getPropertyValue('--frame-e')),
       paths: [...el.querySelectorAll('.wc-pane-line > path')].map((q) => [q.getAttribute('d'), getComputedStyle(q).strokeWidth]),
-      notch: ['--notch-x0', '--notch-x1', '--notch-d'].map((k) => parseFloat(st.getPropertyValue(k))),
-      clip: getComputedStyle(f, '::before').clipPath,
+      gap: ['--gap-x0', '--gap-x1'].map((k) => parseFloat(st.getPropertyValue(k))),
       fill: getComputedStyle(f, '::before').backgroundColor,
+      fillTop: parseFloat(getComputedStyle(f, '::before').top),
       top: r.top - p.top,
       title: [t.left - r.left, t.top - p.top, t.right - r.left, t.bottom - r.top],
       titleBg: getComputedStyle(title).backgroundColor,
@@ -120,26 +120,29 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(lw).toBeGreaterThanOrEqual(3);
   expect(lw).toBeLessThan(ch / 4);
   for (const e of geo.edges) expect(e).toBeLessThan(0.05);
-  // A glass line: an edge stroke the line's width under a core stroke two edge bands narrower, along one path.
+  // A glass line: an edge stroke the line's width under a core stroke two edge bands narrower.
   expect(geo.e).toBeGreaterThan(0);
   expect(geo.paths.map((q) => parseFloat(q[1]!))).toEqual([lw, lw - 2 * geo.e]);
-  expect(geo.paths[0]![0]).toBe(geo.paths[1]![0]);
-  // The top line winds down under the title: the notch, with the fill cut out above its floor.
-  const [x0, x1, nd] = geo.notch as [number, number, number];
-  expect(geo.paths[0]![0]).toContain(`V${nd + lw / 2}`);
-  expect(geo.clip).toContain('polygon');
+  // The top line ends either side of the title (owner feedback 32): an open path from the gap's
+  // right end round to its left end; the core an edge band short, so the ends are closed.
+  const [x0, x1] = geo.gap as [number, number];
+  expect(x1 - x0).toBeGreaterThan(5 * cw * 0.82);
+  expect(geo.paths[0]![0]).toMatch(new RegExp(`^M${x1} ${lw / 2}H.*H${x0}$`));
+  expect(geo.paths[1]![0]).toMatch(new RegExp(`^M${x1 + geo.e} ${lw / 2}H.*H${x0 - geo.e}$`));
+  // the fill from the line's inner edge down, so the gap shows what is behind the pane
   expect(geo.fill).toBe('rgb(0, 0, 0)');
-  // the floor's lower edge on the first content row
-  expect(geo.top + nd + lw).toBeCloseTo(ch, 1);
+  expect(geo.fillTop).toBeCloseTo(lw, 3);
   // The same inset on all four sides (owner feedback 15): equal gaps beside and above.
   for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
   expect(geo.inset[0]! + lw).toBeLessThan(cw);
-  // The title in the notch, clear of the line: between the steps, above the floor, inside the pane; no box of its own.
-  expect(geo.title[0]).toBeCloseTo(x0, 1);
-  expect(geo.title[0]! + geo.inset[0]!).toBeCloseTo(3 * cw, 0);
-  expect(geo.title[2]).toBeLessThanOrEqual(x1 + 1);
-  expect(geo.title[3]).toBeLessThanOrEqual(nd);
+  // The title centred in the gap from about the fourth cell, across the top line, inside the pane; no box of its own.
+  expect((geo.title[0]! + geo.title[2]!) / 2).toBeCloseTo((x0 + x1) / 2, 0);
+  expect(Math.abs(geo.title[0]! + geo.inset[0]! - 3 * cw)).toBeLessThanOrEqual(2);
+  expect(geo.title[0]).toBeLessThan(x0);
+  expect(geo.title[2]).toBeGreaterThan(x1);
   expect(geo.title[1]).toBeGreaterThanOrEqual(0);
+  expect(geo.title[1]).toBeLessThan(geo.top);
+  expect(geo.title[3]).toBeGreaterThan(lw);
   expect(geo.titleSize).toBeCloseTo(0.82, 2);
   expect(geo.titleZ).toBe('2');
   expect(geo.titleBg).toBe('rgba(0, 0, 0, 0)');

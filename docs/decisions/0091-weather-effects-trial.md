@@ -169,6 +169,34 @@ unchanged.
   there is no line. Passed to the modules as `Pane.notch`; nothing draws
   with it yet (the glints are the sky rework's).
 
+**2026-10-17, third test (owner feedback 32: the notch is out, a title gap):**
+
+- The notch is replaced by a gap in the top line (`frameGap`, `--gap-x0/x1`
+  in frame-box px): the line ends from the middle of the label's leading
+  space to the middle of its trailing one (at 0.82 em), both ends on whole
+  device pixels, at least two line widths clear of the corners. The SVG
+  path is open, from the gap's right end round the frame to its left end;
+  butt caps give square ends, and the core stroke stops one edge band short,
+  so each end is closed by the edge band as the bends are. `frameNotch`,
+  `notchClip`, `--notch-*`/`--notch-clip` and the map's clip are gone.
+- Title: 0.82 em, no box, centred in the gap (Chromium rounds the glyph
+  advances to whole px, so a title placed from the fourth cell ended up to
+  2 px off centre) and across the line: its line box centred on the line,
+  but not above the pane's top edge (the pane clips; centred exactly, the
+  dot of an i and the ascenders were cut in Chromium). At the default size
+  the line runs through the upper part of the capitals.
+- Fill: `.wc-pane-frame::before` (and a float's `.wc-weather-float`, the
+  engine's tint fill) starts at the line's inner edge, so the gap shows
+  what is behind the pane, the same as the ring outside the line; a tinted
+  pane has no strip of tint in the gap. The map fills its frame up to the
+  line again, unclipped; the title lies over its top edge.
+- Engine: `PaneGeom.gap {x, w}` (screen px, widened to half px) replaces
+  `notch`; `Pane.gap` in the modules. `Glints.line` draws a top-line glint
+  in the pieces either side of the gap and no sparkle within 4.5 px of it;
+  the lightning rim and the snow dusting skip it. Still crossing it, in
+  `sky.ts` (being reworked): `drawRaysFront`'s lit top line (one rect over
+  the frame width) and `drawRaysBack`'s shadow cut from the whole frame box.
+
 ### Engine (stage 28 B)
 
 - `src/weather/`: `index.ts` (main thread, `createWeather(host)`),

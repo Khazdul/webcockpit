@@ -17,6 +17,8 @@ export interface FrameBox {
   w: number;
   h: number;
   border: number;
+  /** The top line's gap for the title (env.panes): no line there, so never a glint. */
+  gap?: { x: number; w: number };
 }
 
 export type Side = 't' | 'b' | 'l' | 'r';
@@ -77,7 +79,8 @@ export class Glints {
   /**
    * Draws one glint now: `len` px of `side` centred at `c` (along the line),
    * at alpha `a`; a sparkle at the centre when `spark` > 0. Caller sets the
-   * composite (`comp`).
+   * composite (`comp`). On the top line it stops at the title's gap (owner
+   * feedback 32: no lit band through the title).
    */
   line(f: Ctx, p: FrameBox, side: Side, c: number, len: number, a: number, spark = 0): void {
     const b = Math.max(1, p.border);
@@ -87,21 +90,34 @@ export class Glints {
     const s0 = c - len / 2, s1 = c + len / 2;
     const a0 = Math.max(lo, s0), a1 = Math.min(hi, s1);
     if (a1 - a0 < 1) return;
-    const u0 = ((a0 - s0) / len) * N, u1 = ((a1 - s0) / len) * N;
     f.globalAlpha = clamp(a, 0, 1);
+    const gap = side === 't' ? p.gap : undefined;
     if (horiz) {
       const y = side === 't' ? p.y : p.y + p.h - b;
-      f.drawImage(this.hs, u0, 0, u1 - u0, 1, a0, y, a1 - a0, b);
+      if (gap) {
+        this.hspan(f, s0, len, a0, Math.min(a1, gap.x), y, b);
+        this.hspan(f, s0, len, Math.max(a0, gap.x + gap.w), a1, y, b);
+      } else this.hspan(f, s0, len, a0, a1, y, b);
     } else {
+      const u0 = ((a0 - s0) / len) * N, u1 = ((a1 - s0) / len) * N;
       const x = side === 'l' ? p.x : p.x + p.w - b;
       f.drawImage(this.vs, 0, u0, 1, u1 - u0, x, a0, b, a1 - a0);
     }
-    if (spark > 0.02 && c >= lo && c <= hi) {
+    // the sparkle is 9 px across: not where it would reach into the gap
+    const inGap = gap !== undefined && c > gap.x - 4.5 && c < gap.x + gap.w + 4.5;
+    if (spark > 0.02 && c >= lo && c <= hi && !inGap) {
       const x = horiz ? c : side === 'l' ? p.x + b / 2 : p.x + p.w - b / 2;
       const y = horiz ? (side === 't' ? p.y + b / 2 : p.y + p.h - b / 2) : c;
       f.globalAlpha = clamp(a * spark, 0, 1);
       f.drawImage(this.spark, Math.round(x) - 4.5, Math.round(y) - 4.5);
     }
+  }
+
+  /** The part `[a0, a1]` of a horizontal glint `len` px long from `s0`, on the line at `y`, `b` thick. */
+  private hspan(f: Ctx, s0: number, len: number, a0: number, a1: number, y: number, b: number): void {
+    if (a1 - a0 < 1) return;
+    const u0 = ((a0 - s0) / len) * N, u1 = ((a1 - s0) / len) * N;
+    f.drawImage(this.hs, u0, 0, u1 - u0, 1, a0, y, a1 - a0, b);
   }
 
   /** A glint that runs on its own for `dur` s (moving at `v` px/s along the line), fading in and out. */
