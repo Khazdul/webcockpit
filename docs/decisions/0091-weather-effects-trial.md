@@ -302,7 +302,28 @@ little low on the plate, and the plate looked greyish beside the bluish rim.
   19.9–20.5). Calm and off are unchanged in both. `bench/results/` is not
   rewritten.
 - Not changed: the weather demo's caption box still draws the old glass line
-  (demo.css).
+  (demo.css). (Restyled 2026-10-17, item 43: see below.)
+- **2026-10-17, owner items 39–44 (fifth test).** Ink L .17 → .19 and the
+  lip 70 % → 60 % of the highlight (39); glass L .66 → .59, chroma cap .115
+  → .105, the largest that keeps Teal on a black page in sRGB at that
+  lightness (44). The two pull against each other: the title's ink/plate
+  contrast over black went 4.1 → 3.6:1 (Character), at night with weather
+  on ~3.4 → ~2.9:1; darker glass would need darker ink, so the glass stops
+  at .59. Plate bottom one CSS px higher (`framePlate`), the title box's
+  one-device-px bottom padding dropped, so the letters do not move (40).
+  Rivulets: drop centre 0.5 px outside the rim's outer edge (was 2), ending
+  3 px above the frame box's bottom; corner eaves 2.2 px in (was 1.2) (41).
+  Dawn/dusk (42): the plate lay in the pane's shadow wedge (from the rim's
+  lower edge) and inside the beams' pane box, and the front top lift was
+  limited to the lip along it. The wedge is now the convex hull less the
+  plate body, filled as up to four non-overlapping convex pieces
+  (`notchPieces`, vertical cuts on whole device px, so no seam and no
+  concave path on the GPU canvas); the beams use three boxes per pane (the
+  plate counts as outside); the lift covers the top rim and the plate body
+  (the fillets are left out; the letters get the same faint lift). The demo
+  caption (43) is an opaque box of `--term-bg` mixed 25 % toward #808080,
+  no frame. Latency unchanged (`weather-bench --rounds 2`: Chromium on
+  median 9.7–10.3 / p95 18.5–18.7 ms, Firefox on 9.1–10.0 / 18.5–18.6 ms).
 
 ### Engine (stage 28 B)
 

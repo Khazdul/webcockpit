@@ -691,19 +691,54 @@ Weather:
     next to the letters (the light lip) not fully white, just a touch
     darker, and the title ink not fully black, just a touch lighter.
     Small differences only: changing too much loses the effect.
+    - **Done (2026-10-17):** the ink is a touch lighter (oklch L .17 → .19:
+      on the blue Character plate #07101c → #0a1421) and the light lip under
+      the letters a touch darker (70 % → 60 % of the highlight: #bccbde →
+      #abbad1 on the same plate). Still engraved; checked at 1× and 3× over a
+      black page, weather on and off, together with the darker frames (44).
 40. **Plate 1 px shorter under the text.** The nameplate can lose about
     1 px just below the text; it seems to fit, and the text will feel
     better centred vertically on the plate.
+    - **Done (2026-10-17):** the plate ends 1 px higher; the letters stay
+      exactly where they were, so there is now one row of plate under the lip
+      as there is above the capitals. The rounded corners, the map's cut-out
+      round the plate and what the weather knows of the plate follow it.
 41. **Drips closer to the frame.** The drops running along the pane
     frames sit too far out. Move them closer to the frame so they really
     run along the edge instead of hanging in the air.
+    - **Done (2026-10-17):** the drops running down the pane sides now hug
+      the rim: the drop's middle is half a pixel outside the rim's outer edge
+      (it was 2 px out, from the old thin line), so it sits on the rim's dark
+      edge. They stop where the rim's lower corner rounds off, and the drops
+      hanging under the corners moved in under the corner's flat part.
+      Checked at 3× in heavy rain.
 42. **Plate takes the dawn/dusk tint.** At dusk and dawn the frames shift
     colour a little to imitate the sunlight, but the area behind the
     nameplates does not. The plates read as part of the frame, so they
     should get the same colour shift.
+    - **Done (2026-10-17):** the plate now takes the same warm (or rosy)
+      light as the rim in a sunrise or sunset. It lay in the pane's "shadow",
+      so it stayed cool beside the rim; now the shadow, the beams and the
+      faint lift of the top rim treat the plate as part of the rim. At dawn
+      on the blue Character pane rim and plate now differ by about 5 levels
+      (were 18 in red). The letters get the same faint lift.
 43. **Demo box without a pane frame.** The `#weather demo` caption box
     need not look like a pane: a plain grey area at the top left holding
     the text, no border. It is a debug tool, not something that needs
     pane dress.
+    - **Done (2026-10-17):** the caption box is a plain grey area flush with
+      the top left of the game pane: no frame, the title "Weather demo" and
+      the step count on one top line, then the step, what to look at, the
+      game signal, the progress bar and the time left as before. Dark grey on
+      a dark page, light grey on Paper, opaque so game text does not show
+      through.
 44. **Darker frames.** The frames are generally too light grey now. Tone
     them down to a darker grey without otherwise changing the look.
+    - **Done (2026-10-17):** the glass is darker (oklch L .66 → .59, its
+      colour cap .115 → .105 so Teal stays a clean colour): Plain's rim over
+      black 93 → 80 grey, Blue #3e5f89 → #345178, Orange #795624 → #68491c;
+      with weather on and on Paper the rims darken by a similar step.
+      Coloured panes keep their hue; the plates follow (it is one piece of
+      glass), and the title's contrast on the plate goes from about 4.1:1 to
+      3.6:1 over black, still clearly readable. Weather on and off, dark and
+      Paper pages checked.
