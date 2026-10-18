@@ -347,7 +347,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
     {
       params: [p("epoch", "number?", "A real time, as getEpoch() gives; default now.")],
       returns:
-        "A table: year, month (1–12), monthName, sindarin, day (1–30), hour, minute, weekday, season (winter, spring, summer, autumn), period (dawn, day, dusk, night), dawn and dusk (the month's hours), precision (day, hour, minute), epoch, and moon = {phase, level (0 new … 12 full), waxing, visible, bright, position (east, southeast, south, southwest, west, below)}. nil while the clock is unset.",
+        "A table: year, month (1–12), monthName, sindarin, day (1–30), hour, minute, weekday, season (winter, spring, summer, autumn), period (dawn, day, dusk, night; the dawn hour is still dark, the dusk hour still lit), dawn and dusk (the month's hours), precision (day, hour, minute), epoch, and moon = {phase, level (0 new … 12 full), waxing, visible, bright, position (east, southeast, south, southwest, west, below)}. nil while the clock is unset.",
       more: [
         "The clock syncs from what MUME tells (time, the sun, a room clock, MSSP). At day precision the hour is a guess; at hour precision the minute is.",
         "Moon phases: new, waxing crescent, first quarter, waxing gibbous, full, waning gibbous, third quarter, waning crescent.",

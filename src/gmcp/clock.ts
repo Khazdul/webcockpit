@@ -118,17 +118,27 @@ export function weekdayOf(month: number, day: number): number {
 }
 
 /**
- * Day: dawn + 1 ≤ hour < dusk of the month; everything else is night. The
- * dawn hour is still dark in MUME ("The light slowly increases in the
- * east.", `Event.Sun rise`); rooms are lit from the next hour ("The day has
- * begun.", `light`). Dark from the dusk hour (`set`). Stage 28 item 59.
+ * Day: dawn + 1 ≤ hour < dusk + 1 of the month; everything else is night.
+ * MUME's rooms follow `light` and `dark`, an hour after `rise` and `set`:
+ * the dawn hour is still dark ("The light slowly increases in the east.",
+ * `Event.Sun rise`), lit from the next hour ("The day has begun.",
+ * `light`); the dusk hour is still lit ("The sun slowly disappears in the
+ * west.", `set`), dark from the next hour ("The night has begun.", `dark`).
+ * Stage 28 items 59, 61.
  */
 export function isDay(month: number, hour: number): boolean {
-  return hour >= DAWN[month]! + 1 && hour < DUSK[month]!;
+  return hour >= dayHour(month) && hour < nightHour(month);
 }
 
 /** The hour the day begins in `month` (`Event.Sun light`): the hour after the dawn hour. */
-export const dayHour = (month: number): number => DAWN[month]! + 1;
+export function dayHour(month: number): number {
+  return DAWN[month]! + 1;
+}
+
+/** The hour the night begins in `month` (`Event.Sun dark`): the hour after the dusk hour. */
+export function nightHour(month: number): number {
+  return DUSK[month]! + 1;
+}
 
 /** 12-hour clock → 0–23 (`12 am` = 0, `12 pm` = 12). */
 export function hour24(h: number, ampm: string): number {
@@ -323,7 +333,7 @@ export class ClockModel {
     let period: Period;
     if (isDay(m.month, m.hour)) {
       period = 'day';
-      until = DUSK[m.month]! * 60 - t;
+      until = nightHour(m.month) * 60 - t;
     } else if (m.hour < dayHour(m.month)) {
       period = 'night';
       until = dayHour(m.month) * 60 - t;
@@ -349,9 +359,27 @@ export function dayBeginsAt(state: Readonly<ClockState>, nowMs: number): number 
   const m = momentAt(state.epoch, nowMs / 1000);
   const midnight = g - (g % DAY_S);
   let start = midnight + dayHour(m.month) * HOUR_S;
-  if (m.hour >= DUSK[m.month]!) {
+  if (m.hour >= nightHour(m.month)) {
     const next = m.day === 30 ? (m.month + 1) % 12 : m.month;
     start = midnight + DAY_S + dayHour(next) * HOUR_S;
+  }
+  return (state.epoch + start) * 1000;
+}
+
+/**
+ * Unix ms at which the current night began (after midnight: the evening
+ * before), or (by day) the coming one begins: `nightHour`:00. Null below
+ * minute precision (the time-driven sunset, ADR 0093).
+ */
+export function nightBeginsAt(state: Readonly<ClockState>, nowMs: number): number | null {
+  if (state.precision !== 'minute') return null;
+  const g = Math.max(0, Math.floor(nowMs / 1000 - state.epoch));
+  const m = momentAt(state.epoch, nowMs / 1000);
+  const midnight = g - (g % DAY_S);
+  let start = midnight + nightHour(m.month) * HOUR_S;
+  if (m.hour < dayHour(m.month)) {
+    const prev = m.day === 1 ? (m.month + 11) % 12 : m.month;
+    start = midnight - DAY_S + nightHour(prev) * HOUR_S;
   }
   return (state.epoch + start) * 1000;
 }
