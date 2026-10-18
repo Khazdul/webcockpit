@@ -10,6 +10,8 @@
 // nameplate is left to Glints.line), with the stretch of the line inside the beam
 // (`len`). The first line a beam meets on a pane is where it enters (the
 // strong glint); where it leaves it is weaker, as the beam is inside a pane.
+// Only the first pane along the beam glints (owner item 86): a pane behind
+// it, or a docked pane under a float the beam met first, gets none from it.
 // The panes cast no shadow on the beams (the faint rays keep their shadow
 // wedges): a beam goes on at full strength after a pane, only weaker inside
 // it. To draw that without clips, `beamPieces` cuts the beam's triangle into
@@ -222,8 +224,9 @@ export function sunBeams(T: number, a0: number, a1: number, out: Beam[]): void {
 const inBox = (p: FrameBox, x: number, y: number): boolean => x > p.x && x < p.x + p.w && y > p.y && y < p.y + p.h;
 
 /**
- * Where beam `b` from (sx, sy) crosses the frame lines of `panes`: written
- * to `out` (cleared first), nearest first. Borderless panes are skipped.
+ * Where beam `b` from (sx, sy) crosses the frame lines of the first pane it
+ * meets (owner item 86): written to `out` (cleared first), nearest first.
+ * Borderless panes are skipped.
  */
 export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: Beam, out: BeamHit[]): BeamHit[] {
   out.length = 0;
@@ -255,6 +258,14 @@ export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: 
     let first = n0;
     for (let i = n0 + 1; i < out.length; i++) if (out[i]!.t < out[first]!.t) first = i;
     out[first]!.enter = true;
+  }
+  // only the first pane the beam meets glints (owner item 86): its entry and its exit; none behind it
+  if (out.length > 1) {
+    let first = out[0]!;
+    for (const h of out) if (h.t < first.t) first = h;
+    let n = 0;
+    for (const h of out) if (h.p === first.p) out[n++] = h;
+    out.length = n;
   }
   // a hit inside another pane (a float over a docked pane): the beam is weaker there
   for (const h of out) {

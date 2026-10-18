@@ -223,21 +223,42 @@ describe('beam hits on frame lines', () => {
     expect(beamHits([pane(1100, 300, 200, 200)], sx, sy, at(1200, 300), hits).length).toBeGreaterThan(0);
   });
 
-  it('is weaker inside another pane (a float over a docked pane), not behind one', () => {
-    const back = pane(500, 300, 400, 200), fl = pane(600, 250, 100, 100);
-    const hits = beamHits([back, fl], sx, sy, at(650, 300), []);
-    const onBack = hits.find((h) => h.p === back && h.side === 't')!;
-    expect(onBack.att).toBe(BEAM_INSIDE);
-    // two panes one behind the other along the beam: the far one is not shadowed
+  it('glints only on the first pane it meets: a pane behind it along the beam gets nothing (owner item 86)', () => {
     const near = pane(500, 300, 200, 100), far = pane(700, 600, 300, 200);
-    const b2 = at(600, 300);
-    const h2 = beamHits([near, far], sx, sy, b2, []);
-    const farHit = h2.find((h) => h.p === far && h.enter)!;
-    expect(farHit).toMatchObject({ side: 't', att: 1 });
-    expect(farHit.c).toBeCloseTo(720, 3);
+    const b = at(600, 300);
+    // alone, the far pane is hit where the beam reaches it
+    const alone = beamHits([far], sx, sy, b, []);
+    expect(alone.find((h) => h.enter)).toMatchObject({ side: 't', att: 1 });
+    expect(alone.find((h) => h.enter)!.c).toBeCloseTo(720, 3);
+    // behind the near pane it gets nothing; the near pane both its lines
+    for (const panes of [[near, far], [far, near]]) {
+      const h = beamHits(panes, sx, sy, b, []);
+      expect(h.every((x) => x.p === near)).toBe(true);
+      expect(h[0]).toMatchObject({ side: 't', enter: true });
+      expect(h.at(-1)!.enter).toBe(false);
+    }
+    // a beam that misses the near pane reaches the far one
+    const past = beamHits([near, far], sx, sy, at(950, 600), []);
+    expect(past.length).toBeGreaterThan(0);
+    expect(past.every((x) => x.p === far)).toBe(true);
   });
 
-  it('is not weaker inside a borderless pane: it is no glass (owner item 53)', () => {
+  it('a float over a docked pane: the one the beam meets first glints, the other not', () => {
+    const back = pane(500, 300, 400, 200), fl = pane(600, 250, 100, 100);
+    // the beam meets the float's top first (y 250): only the float, its far line inside the docked pane weaker
+    const hits = beamHits([back, fl], sx, sy, at(650, 300), []);
+    expect(hits.every((h) => h.p === fl)).toBe(true);
+    expect(hits[0]).toMatchObject({ side: 't', enter: true, att: 1 });
+    expect(hits.find((h) => !h.enter)!.att).toBe(BEAM_INSIDE);
+    // a float lower down inside the docked pane: the docked pane is met first
+    const low = pane(600, 380, 100, 80);
+    const h2 = beamHits([low, back], sx, sy, at(650, 300), []);
+    expect(h2.length).toBeGreaterThan(0);
+    expect(h2.every((h) => h.p === back)).toBe(true);
+    expect(h2[0]).toMatchObject({ side: 't', enter: true });
+  });
+
+  it('a borderless pane is passed over: the pane under it glints, not weaker (owner item 53)', () => {
     const back = pane(500, 300, 400, 200), fl = { ...pane(600, 250, 100, 100), border: 0 };
     const onBack = beamHits([back, fl], sx, sy, at(650, 300), []).find((h) => h.p === back && h.side === 't')!;
     expect(onBack.att).toBe(1);
