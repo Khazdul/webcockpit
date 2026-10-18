@@ -186,8 +186,9 @@ test('#weather demo: turns the effects on, captions each step, ends unpinned and
   await expect(step).not.toHaveText('');
   await expect(box.locator('.wc-wdemo-hint')).toHaveText('#weather stop to end');
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
-  await expect(step).toHaveText('Sunset', { timeout: 5_000 });
-  expect(await state()).toMatchObject({ clock: 'night' });
+  await expect(step).toHaveText('Sunset', { timeout: 10_000 });
+  // the step after the sunset brings the night (Event.Sun dark; ADR 0093)
+  await expect.poll(state).toMatchObject({ clock: 'night' });
   await expect(box).toHaveCount(0, { timeout: 10_000 });
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'Weather demo done; the effects are off again.' })).toHaveCount(1);
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(false);

@@ -67,7 +67,7 @@ export interface Weather {
   refresh(): void;
   setCategories(cats: Partial<Categories>): void;
   setMoonSpeed(speed: number): void;
-  /** The demo's time scale (1 = the game's pace): sun moments, the day ↔ night change, cloud cover, fog, rain and snow build-up, blood drying. */
+  /** A dev time scale (`__weather.setSpeed`; 1 = the game's pace, the demo too): sunrise and sunset, the day ↔ night change, cloud cover, fog, rain and snow build-up, blood drying. */
   setSpeed(speed: number): void;
   /** Worker frame times (ms). */
   stats(): Promise<FrameStats>;

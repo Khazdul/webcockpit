@@ -244,23 +244,31 @@ describe('Director: the sunrise without minute precision', () => {
     expect(d.riseS).toBeNull();
   });
 
-  it('the demo: from a later point, at its speed; a speed change or a jump lifts the once-a-dawn guard', () => {
+  it('the demo: from a later point; its turns never hold back the game\'s; a speed change or a jump lifts the guard', () => {
     const { d, run } = rig({ dayAt: -1 });
+    d.turnEvent('rise', -25);
+    expect(d.riseS).toBe(-25);
+    run(25);
+    expect(d.riseS).toBeCloseTo(0, 5);
+    run(61);
+    expect(d.riseS).toBeNull();
+    // the demo's sunrise does not count: the game's own may come
+    d.turnEvent('rise');
+    expect(d.riseS).toBe(-60);
+    run(61 + 61);
+    expect(d.riseS).toBeNull();
+    // a game sunrise does count: no second one this dawn
+    d.turnEvent('rise');
+    expect(d.riseS).toBeNull();
+    // a dev speed change lifts it; a speed runs the turn faster
     d.speed = 3;
     d.turnEvent('rise', -30);
-    expect(d.riseS).toBe(-30);
     run(10);
     expect(d.riseS).toBeCloseTo(0, 5);
-    run(30);
-    expect(d.riseS).toBeNull();
-    d.turnEvent('rise');
-    expect(d.riseS).toBeNull();
     d.speed = 1;
-    d.turnEvent('rise', -100);
-    expect(d.riseS).toBe(-60);
     run(70);
     d.jump({ clock: 'night' });
-    d.turnEvent('rise');
+    d.turnEvent('rise', -100);
     expect(d.riseS).toBe(-60);
     expect(TURN_GUARD_MS).toBeGreaterThan(60_000 * 5);
   });

@@ -25,7 +25,9 @@
 //                                           a sun glimpse at that time of day
 //                                           (0 the day's start … 1 its end; item 65)
 //   await __weather.stats()                worker frame times
-//   __weather.demo()                       the demo (`#weather demo`; 'slow' too)
+//   __weather.demo()                       the demo (`#weather demo`)
+//   __weather.setSpeed(3)                  the slow paces (sky, turns, fog, clouds,
+//                                           build-ups) 3× faster; 1 again after
 //   __weather.demoStop()                   ends it (`#weather stop`)
 //   __weather.stop()                       turns the option off again
 //

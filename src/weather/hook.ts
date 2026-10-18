@@ -31,7 +31,7 @@ export interface WeatherHook {
   /** Resolves once the current on/off state has been applied (the chunk loaded). */
   settled(): Promise<WeatherController | null>;
   /**
-   * `#weather …`, the trial's client command (`demo [slow]`, `stop`): runs
+   * `#weather …`, the trial's client command (`demo`, `stop`): runs
    * in its own lazy chunk (demo.ts); `say` prints a line for the user.
    */
   command(args: string, say: (text: string) => void): Promise<void>;

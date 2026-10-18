@@ -1,5 +1,5 @@
 // The weather demo (owner feedback 33, ADR 0091 "Demo"): `#weather demo`
-// plays every effect in about a minute and a half (demo-script.ts), with a
+// plays every effect at the game's own pace in about three minutes (demo-script.ts), with a
 // small caption box at the top left saying what to look at, then hands the
 // effects back to the game. A lazy chunk of its own: hook.ts imports it on
 // the first `#weather` command.
@@ -8,8 +8,8 @@
 //   the end. Every category shows during the demo (the engine's categories
 //   only; the settings are not touched), and the user's come back after.
 // - It drives the engine with the game's own inputs: pinned state, settled
-//   at once but eased as usual (`pin(…, { smooth })`), and events; the
-//   engine's time scale (`setSpeed`) runs the slow paces faster.
+//   at once but eased as usual (`pin(…, { smooth })`), and events, at the
+//   game's own pace (owner item 70).
 // - The end, `#weather stop`, and the effects being switched off all end it;
 //   the first two unpin everything, so the effects follow the game's values
 //   again with the normal transitions.
@@ -28,7 +28,6 @@ import { weatherAvailable } from './support';
 export interface DemoController {
   readonly engine: {
     emit(e: WeatherEvent, data?: unknown): void;
-    setSpeed(speed: number): void;
     setCategories(c: Categories): void;
   };
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
@@ -69,7 +68,7 @@ export async function weatherCommand(
     say('Weather effects need a browser that can draw in a worker (OffscreenCanvas); there is nothing to show here.');
     return;
   }
-  const demo = new Demo(hook, d, demoPlan({ slow: cmd.slow, pace: cmd.pace }), say, () => running.delete(hook));
+  const demo = new Demo(hook, d, demoPlan({ pace: cmd.pace }), say, () => running.delete(hook));
   running.set(hook, demo);
   await demo.start();
 }
@@ -120,7 +119,6 @@ export class Demo {
       return;
     }
     this.ctl = ctl;
-    ctl.engine.setSpeed(this.plan.speed);
     ctl.engine.setCategories({ ...ALL_CATEGORIES });
     // Switching the effects off (Options) ends the demo.
     this.unsub = settings.subscribe((next) => {
@@ -184,13 +182,12 @@ export class Demo {
     else this.release();
   }
 
-  /** The game's values again (smoothly), the engine's pace and the user's categories. */
+  /** The game's values again (smoothly) and the user's categories. */
   private release(): void {
     if (this.released) return;
     this.released = true;
     const ctl = this.ctl;
     if (!ctl || this.hook.controller !== ctl) return;
-    ctl.engine.setSpeed(1);
     ctl.engine.setCategories(categoriesOf(this.d.settings.get()));
     ctl.pin(null, { smooth: true });
   }

@@ -29,9 +29,9 @@
 //   at -60 and it runs on its own; `light` / `dark` without one fades over
 //   12 s. One turn of a kind at a time and none twice in one dawn or dusk:
 //   none starts within TURN_GUARD_MS after one of its kind reached its
-//   second (reset by `jump` and a speed change, the demo's).
+//   second (reset by `jump` and a speed change; the demo's turns never count).
 // - A category that is off has its targets at 0, so it fades out.
-// - `speed` (the demo, `#weather demo`; 1 otherwise) runs the slow paces
+// - `speed` (a dev time scale, `__weather.setSpeed`; 1 otherwise) runs the slow paces
 //   faster: the sky selection, sunrise and sunset, and fog. The worker's
 //   modules read the same factor for cloud cover, the rain's and snow's
 //   build-up and the blood's drying (`Env.speed`).
@@ -144,19 +144,19 @@ export class Director {
    * started (a turn never takes back a sky that had already turned); null
    * without one (sunturn.ts, ADR 0093).
    */
-  turn: { kind: TurnKind; s: number; base: number } | null = null;
+  turn: { kind: TurnKind; s: number; base: number; demo?: boolean } | null = null;
   /** Wall ms when the last turn of each kind reached its second (TURN_GUARD_MS). */
   private readonly turnDone: Record<TurnKind, number> = { rise: -Infinity, set: -Infinity };
   /** The wall clock, unix ms (the worker's; tests set their own). */
   wall: () => number = Date.now;
 
-  /** Demo time scale for the slow paces (sky selection, fog, sunrise and sunset); 1 = the game's pace. */
+  /** Dev time scale for the slow paces (sky selection, fog, sunrise and sunset; `__weather.setSpeed`); 1 = the game's pace. */
   get speed(): number {
     return this.speedK;
   }
   set speed(v: number) {
     this.speedK = v;
-    // the demo starts or ends: its own sunrise and sunset do not block the game's
+    // a change of pace starts afresh: no earlier turn holds back the next
     this.turnDone.rise = this.turnDone.set = -Infinity;
   }
 
@@ -251,19 +251,20 @@ export class Director {
         if (!(s >= 0 && err < 0)) s = tg;
       } else s += err * (1 - Math.exp(-dt / TURN_GLIDE_TAU));
     }
-    if (was < 0 && s >= 0) this.turnDone[T.kind] = wall;
+    if (was < 0 && s >= 0 && !T.demo) this.turnDone[T.kind] = wall;
     if (s > LATE_S) this.turn = null;
     else T.s = s;
   }
 
   /**
    * `Event.Sun rise` / `set` (the dawn or dusk hour begins): the sunrise or
-   * sunset from its start (or `from` s before its second, the demo), unless
-   * one of that kind runs or ran this dawn or dusk.
+   * sunset from its start (or `from` s before its second: the demo, whose
+   * turns never hold back the game's), unless one of that kind runs or ran
+   * this dawn or dusk.
    */
   turnEvent(kind: TurnKind, from?: unknown): void {
-    const s = typeof from === 'number' && from >= -TURN_S && from < 0 ? from : -TURN_S;
-    if (this.turn?.kind !== kind) this.start(kind, s, this.wall());
+    const demo = typeof from === 'number' && from >= -TURN_S && from < 0;
+    if (this.turn?.kind !== kind && this.start(kind, demo ? from : -TURN_S, this.wall()) && demo) this.turn!.demo = true;
   }
 
   /** Starts a turn (it ends one of the other kind); false when its guard holds. */

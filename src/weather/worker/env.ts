@@ -52,7 +52,7 @@ export interface Env {
   /** Moon crossing speed factor (1 = game pace; the prototype demo used 600 / 90). */
   moonSpeed: number;
   /**
-   * The demo's time scale (`#weather demo`; 1 = the game's pace): cloud
+   * A dev time scale (`__weather.setSpeed`; 1 = the game's pace, the demo too): cloud
    * cover, the rain's and snow's build-up and the blood's drying run this
    * much faster (the director's sky selection, sunrise, sunset and fog
    * likewise, `Director.speed`).

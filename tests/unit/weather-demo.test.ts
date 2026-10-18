@@ -5,7 +5,7 @@
 // signal bridge, and `?weather` once the cockpit is built later.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { DEMO_TURN_FROM, DEMO_SPEED, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
+import { DEMO_TURN_FROM, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
 import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
@@ -15,7 +15,7 @@ import { WeatherSignals, vitalsState } from '../../src/weather/signals';
 describe('the demo script', () => {
   const plan = demoPlan();
 
-  it('runs night → sunrise → day → indoors → body → sunset → night → back, in about a minute and a half', () => {
+  it('runs night → sunrise → day → indoors → body → sunset → night → back, at the game\'s pace in at most three minutes (item 70)', () => {
     const titles = DEMO_STEPS.map((s) => s.title);
     const at = (t: string): number => titles.indexOf(t);
     expect(titles[0]).toMatch(/^Night/);
@@ -28,9 +28,9 @@ describe('the demo script', () => {
     expect(at('Sunset')).toBeLessThan(at('Night · rain and lightning'));
     expect(at('Darkness spreads')).toBeLessThan(at('Darkness lifts'));
     expect(titles.at(-1)).toBe('Back to the game');
-    expect(plan.total).toBeGreaterThan(80_000);
-    expect(plan.total).toBeLessThan(100_000);
-    expect(plan.speed).toBe(DEMO_SPEED);
+    expect(plan.total).toBeGreaterThan(150_000);
+    expect(plan.total).toBeLessThanOrEqual(180_000);
+    expect(plan).not.toHaveProperty('speed');
     expect(plan.steps).toHaveLength(DEMO_STEPS.length);
   });
 
@@ -51,36 +51,32 @@ describe('the demo script', () => {
     for (const s of DEMO_STEPS) for (const [t] of s.acts) expect(t, s.title).toBeLessThan(s.dur);
   });
 
-  it('the sun moments fit their steps at the demo pace and at the game pace', () => {
+  it('the sun turns show their last part at the game\'s pace, then the next step turns the clock', () => {
     const rise = DEMO_STEPS.find((s) => s.title === 'Sunrise')!;
     const set = DEMO_STEPS.find((s) => s.title === 'Sunset')!;
     // the sunrise from DEMO_TURN_FROM to the day's start (ADR 0093), then the day step brings the day
     expect(rise.acts).toEqual([[0, { emit: 'sun.rise', data: { from: DEMO_TURN_FROM } }]]);
     expect(DEMO_TURN_FROM).toBeGreaterThanOrEqual(-60);
-    expect(rise.dur).toBeCloseTo(-DEMO_TURN_FROM / DEMO_SPEED, 6);
-    expect(rise.slow).toBe(-DEMO_TURN_FROM);
+    expect(rise.dur).toBe(-DEMO_TURN_FROM);
     const day = DEMO_STEPS[DEMO_STEPS.indexOf(rise) + 1]!;
-    expect(day.acts[0]).toEqual([0, { pin: { clock: 'day', sunU: 0.5 } }]);
+    expect(day.acts[0]![1]).toMatchObject({ pin: { clock: 'day' } });
+    // the day sky completes 14 s into the day: the day step lets it
+    expect(day.dur).toBeGreaterThanOrEqual(12);
     // the sunset likewise, then the next step brings the night (item 61)
     expect(set.acts[0]).toEqual([0, { emit: 'sun.set', data: { from: DEMO_TURN_FROM } }]);
-    expect(set.dur).toBeCloseTo(-DEMO_TURN_FROM / DEMO_SPEED, 6);
-    expect(set.slow).toBe(-DEMO_TURN_FROM);
+    expect(set.dur).toBe(-DEMO_TURN_FROM);
     const night = DEMO_STEPS[DEMO_STEPS.indexOf(set) + 1]!;
     expect(night.acts[0]![1]).toMatchObject({ pin: { clock: 'night' } });
   });
 
-  it('timeline: steps in order, each before its own actions, the end last; slow and paced variants', () => {
+  it('timeline: steps in order, each before its own actions, the end last; a paced variant (tests)', () => {
     const steps = plan.events.filter((e) => 'step' in e).map((e) => (e as { step: number }).step);
     expect(steps).toEqual(DEMO_STEPS.map((_, i) => i));
     for (let i = 1; i < plan.events.length; i++) expect(plan.events[i]!.t).toBeGreaterThanOrEqual(plan.events[i - 1]!.t);
     expect(plan.events[0]).toEqual({ t: 0, step: 0 });
     expect(plan.events.at(-1)).toEqual({ t: plan.total, end: true });
-    const slow = demoPlan({ slow: true });
-    expect(slow.speed).toBe(1);
-    expect(slow.total).toBeGreaterThan(plan.total + 50_000);
     const fast = demoPlan({ pace: 20 });
     expect(fast.total).toBeCloseTo(plan.total / 20, 6);
-    expect(fast.speed).toBe(DEMO_SPEED);
   });
 
   it('clock text', () => {
@@ -91,14 +87,13 @@ describe('the demo script', () => {
 });
 
 describe('#weather arguments', () => {
-  it('parses demo, slow, stop and the hidden test pace', () => {
-    expect(parseWeatherCommand('demo')).toEqual({ kind: 'demo', slow: false, pace: 1 });
-    expect(parseWeatherCommand('  DEMO  slow ')).toEqual({ kind: 'demo', slow: true, pace: 1 });
-    expect(parseWeatherCommand('demo x20')).toEqual({ kind: 'demo', slow: false, pace: 20 });
-    expect(parseWeatherCommand('demo slow x2.5')).toEqual({ kind: 'demo', slow: true, pace: 2.5 });
+  it('parses demo, stop and the hidden test pace; no slow any more (item 70)', () => {
+    expect(parseWeatherCommand('demo')).toEqual({ kind: 'demo', pace: 1 });
+    expect(parseWeatherCommand('  DEMO ')).toEqual({ kind: 'demo', pace: 1 });
+    expect(parseWeatherCommand('demo x20')).toEqual({ kind: 'demo', pace: 20 });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
-    for (const a of ['', 'on', 'demo fast', 'demo slow slow', 'demo x0', 'stop now', 'demo stop x2']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
+    for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
   });
 });
 
@@ -110,7 +105,6 @@ function fakeHost() {
   const ctl: DemoController = {
     engine: {
       emit: (e, data) => log.push(data === undefined ? `emit ${e}` : `emit ${e} ${JSON.stringify(data)}`),
-      setSpeed: (s) => log.push(`speed ${s}`),
       setCategories: (c) => {
         cats = { ...c };
         log.push(`cats ${Object.values(c).filter(Boolean).length}`);
@@ -163,11 +157,12 @@ describe('the demo runner', () => {
     const h = fakeHost();
     expect(settings.get().weather.enabled).toBe(false);
     const demo = await start(h);
-    // on for the demo; every category; the demo pace
+    // on for the demo; every category; the game's own pace (no speed change, item 70)
     expect(settings.get().weather.enabled).toBe(true);
-    expect(h.log.slice(0, 2)).toEqual(['speed 3', 'cats 7']);
+    expect(h.log[0]).toBe('cats 7');
+    expect(h.log.some((l) => l.startsWith('speed'))).toBe(false);
     expect(h.cats().daySky).toBe(true);
-    expect(said[0]).toMatch(/^Weather demo: about 1:3\d\. #weather stop ends it\.$/);
+    expect(said[0]).toMatch(/^Weather demo: about 2:5\d\. #weather stop ends it\.$/);
     // the first pin jumps, the rest ease
     expect(h.pins[0]).toMatchObject({ smooth: false, p: { clock: 'night', weather: ' ', moonUp: true } });
     const box = root.querySelector('.wc-wdemo')!;
@@ -181,7 +176,7 @@ describe('the demo runner', () => {
     // the sunrise's last half minute, timed by the engine (ADR 0093); the clock stays night until the day step
     expect(h.log).toContain(`emit sun.rise {"from":${DEMO_TURN_FROM}}`);
     expect(h.pins.at(-1)).toMatchObject({ smooth: false, p: { clock: 'night', dayAt: -1 } });
-    await vi.advanceTimersByTimeAsync((-DEMO_TURN_FROM / DEMO_SPEED) * 1000);
+    await vi.advanceTimersByTimeAsync(-DEMO_TURN_FROM * 1000);
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Day · clear sky');
     expect(h.pins.at(-1)).toMatchObject({ smooth: true, p: { clock: 'day' } });
     // pins accumulate
@@ -191,7 +186,7 @@ describe('the demo runner', () => {
     expect(demo.ended).toBe('done');
     // released: the game's pace, the user's categories, unpinned smoothly; then off again
     const rel = h.log.lastIndexOf('unpin');
-    expect(h.log.slice(rel - 2, rel + 1)).toEqual(['speed 1', 'cats 5', 'unpin']);
+    expect(h.log.slice(rel - 1, rel + 1)).toEqual(['cats 5', 'unpin']);
     expect(h.pins.at(-1)).toEqual({ p: null, smooth: true });
     expect(h.cats()).toMatchObject({ fog: false, daySky: false });
     expect(settings.get().weather).toMatchObject({ enabled: false, fog: false, daySky: false });
