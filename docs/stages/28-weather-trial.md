@@ -1014,3 +1014,22 @@ black: the brightest stroke stands out).
       borderless float over the text (`#weather demo` has strikes), and drag
       a float over a framed docked pane and see if the change in its glass
       bothers you.
+
+### 2026-10-18 — new-player defaults (translated)
+
+58. **New-player defaults.** Weather effects on; the map on a transparent
+    background with the Shimrod (alternating) tileset; panes arranged after
+    two screenshots (right dock: Character, the map, Timers | Group, Comm,
+    UI, pane bar; Map search at the game pane's top-right corner) with
+    Character, UI and Map search hidden. Everything else as before. Then:
+    existing users get the weather on with the update (an explicit off is
+    kept); on a phone the weather is always off by default.
+    - **Done (2026-10-18):** ADR 0092. The map is docked under Character in
+      a 50-cell right dock (two 25-cell lanes); in 174 × 51 the default
+      shows the map 22, Timers | Group 13 and Comm 15 rows. Existing users
+      keep their layout, tileset and background; desktop users get the
+      weather on unless they turned it off; phones default to off (new and
+      existing) and keep Character on. Unit 2692; e2e 522/524 (the two
+      failures are flaky and fail on 8e0998c too). Please try: a private
+      window (new player) on desktop and on the phone, and your own browser
+      after the update (weather should be on, nothing else changed).
