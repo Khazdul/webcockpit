@@ -185,18 +185,18 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset',
-    look: 'the last 30 seconds of the day: the blue gone into a warm dusk, faint rays and beams from the sun sinking at the left, glints again; the last rays and their glints fade softly, the stars coming as they go',
+    look: 'the last 30 seconds of the day: the blue gone into a warm dusk, faint rays and beams from the sun sinking at the left, glints again; the sun, its last rays and their glints fade out as the night begins, the first stars just before',
     signal: 'the clock: the last game hour of the day (Event.Sun set when it is not synced)',
     dur: -DEMO_TURN_FROM,
     acts: [[0, emit('sun.set', { from: DEMO_TURN_FROM })]],
   },
   {
     title: 'Night · rain and lightning',
-    look: 'the stars are out; rain in the dark, and the bolt lights the night sky',
+    look: 'the stars come out; rain in the dark, and the bolt lights the night sky',
     signal: `Event.Sun dark · Char.Vitals weather = '"' · a lightning line`,
     dur: 8,
     acts: [
-      // the night begins (Event.Sun dark); its stars are complete then (TURN_FULL.set)
+      // the night begins (Event.Sun dark); its stars are complete TURN_FULL.set later
       [0, pin({ clock: 'night', weather: '"' })],
       [3.5, emit('strike')],
       [6.2, emit('strike')],
@@ -302,14 +302,14 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset · the dusk',
-    look: 'the rays and the faint beams sink toward the horizon at the left, the frame lines glinting where they cross; from about 24 seconds before the night they fade softly, their glints with them; the stars start to show 7 seconds before the night',
+    look: 'the rays and the faint beams sink toward the horizon at the left, the frame lines glinting where they cross; from about 24 seconds before the night they fade, slowly at first, their glints with them, and the sun sets as the night begins; the first stars just show 5 seconds before it',
     signal: 'the clock: the last game hour of the day',
     dur: 30,
     acts: [],
   },
   {
     title: 'The night begins',
-    look: 'the last rays are gone and the stars are out, complete as the night begins',
+    look: 'the sun has set; the stars fill in over the first 5 seconds of the night',
     signal: 'Event.Sun dark ("The night has begun.")',
     dur: Math.max(TURN_FULL.set, 10),
     acts: [[0, pin({ clock: 'night', sunU: -1 })]],

@@ -9,8 +9,10 @@
 // sunset the last game hour of the day: `s` is the time relative to the
 // turn's second (-60 at the dawn or dusk hour, 0 when the day or night
 // begins). The sun, its rays and its glow are gone at 0 for both (owner
-// items 76, 77); the new sky is complete then too: a sunrise's blue, a
-// sunset's stars, which come out over its last 7 s (owner item 81).
+// items 76, 77); a sunset's are still visible until the last seconds, so the
+// sun reads as set at the night's second (item 83). A sunrise's blue is
+// complete at 0; a sunset's stars come from 5 s before the night to 5 s
+// after (item 83; was over its last 7 s, item 81).
 // Steady all through (owner items 71, 72: no "little for long, then much at
 // once"):
 //
@@ -18,13 +20,14 @@
 //                 dusk after a sunset): a sunrise's blue over its last 30 s,
 //                 a sunset's blue fading from -50 s into the warm dusk
 //   stars         the stars' share: a sunrise's fade 50 % by -50 s, barely
-//                 there by -30; a sunset's come over its last 7 s
+//                 there by -30; a sunset's come from -5 to +5 s
 //   glow          the sun's hazy light: a sunrise's slow (25 s to what came
 //                 in 3), growing to -14 s; fading as the turn ends
 //   rays          the rays' and beams' strength: a sunrise's in step with
 //                 its glow (barely there at first, owner item 80), a
 //                 sunset's a few from the first seconds; full by
-//                 RAYS_FADE_S, then fading softly, gone at 0
+//                 RAYS_FADE_S, then fading softly, gone at 0 (a sunset's
+//                 late: half there 5 s before the night, item 83)
 //   glint         the frame glints: by the rays' strength (a little faster
 //                 down, so they fade with them, item 81), a sunrise's held
 //                 back over its first 18 s (item 80)
@@ -33,7 +36,7 @@
 //                 its three beams from -48 s, 6 s apart; a sunrise's all
 //                 come with its glow
 //   intensity     the sky tint, the day life held back: rising evenly,
-//                 fading from GLOW_FADE_S
+//                 fading from GLOW_FADE_S (a sunset's late, item 83)
 //   palette       the cloud palette's share of the warm turn palette: the same
 //   progress      0..1 along the colours and the sun's path (worker/sky.ts
 //                 RISE_C / SET_C, sunPsi): even from -60 to 0
@@ -43,8 +46,8 @@ export type TurnKind = 'rise' | 'set';
 
 /** A turn's length before its second: the last game hour (1 game minute = 1 s). */
 export const TURN_S = 60;
-/** The new sky is complete this long after the turn's second, s: a sunrise's blue at the second itself (owner item 77), a sunset's stars too (item 81; was 14 s after). */
-export const TURN_FULL: Readonly<Record<TurnKind, number>> = { rise: 0, set: 0 };
+/** The new sky is complete this long after the turn's second, s: a sunrise's blue at the second itself (owner item 77), a sunset's stars 5 s after (item 83; was 0, item 81). */
+export const TURN_FULL: Readonly<Record<TurnKind, number>> = { rise: 0, set: 5 };
 /** The longest of TURN_FULL, s. */
 export const FULL_S = Math.max(TURN_FULL.rise, TURN_FULL.set);
 /** A turn is followed this long after its second (the almanac turns the clock within its 30 s re-read), s. */
@@ -85,18 +88,20 @@ export function turnWeight(kind: TurnKind, s: number): number {
 /** A sunrise's stars: half gone 10 s in, barely there 20 s later, gone before the blue is strong (owner item 77). */
 const RISE_STARS: ReadonlyArray<readonly [number, number]> = [[-60, 1], [-57, 0.88], [-50, 0.5], [-40, 0.24], [-30, 0.1], [-18, 0.04], [-6, 0]];
 
-/** A sunset's stars start to show this long before the night begins (s; owner item 81, was -5 … +14). */
-export const SET_STARS_S = -7;
+/** A sunset's stars start to show this long before the night begins (s; owner item 83: just perceptible 5 s before, was -7, item 81). */
+export const SET_STARS_S = -6;
 
 /**
  * How much of the stars the night part of the sky shows (1 outside a turn):
  * in a sunrise they fade as the sun's light comes (`rise` its `s`); in a
- * sunset they come as the last rays go, from SET_STARS_S, complete when the
- * night begins (`set` its `s`; NaN without).
+ * sunset they come as the sun sets, from SET_STARS_S, complete TURN_FULL.set
+ * into the night (`set` its `s`; NaN without). Squared: a star shows at a
+ * small share, so they must stay faint until the night begins to read as
+ * still coming after it (owner item 83).
  */
 export function turnStars(rise: number, set: number): number {
   if (rise > -TURN_S && rise < LATE_S) return pw(RISE_STARS, rise);
-  if (set > -TURN_S && set < TURN_FULL.set) return sst(SET_STARS_S, TURN_FULL.set, set);
+  if (set > -TURN_S && set < TURN_FULL.set) return sst(SET_STARS_S, TURN_FULL.set, set) ** 2;
   return 1;
 }
 
@@ -105,14 +110,25 @@ export function turnOn(s: number): boolean {
   return s > -TURN_S && s < 0;
 }
 
-/** The rays' fade: 1 until RAYS_FADE_S, then down softly to 0 at the turn's second (barely there from -5 s). */
-export function turnFade(s: number): number {
-  return (1 - lin(RAYS_FADE_S, 0, s)) ** 1.5;
+/**
+ * A sunset's late fade over `x` 0..1 of its window: a gentle slope first
+ * (0.77 halfway; the rays still clearly fade from about -22 s, owner item
+ * 81), the most of it in the last fifth, so the sun reads as set at the
+ * night's second (item 83: with (1 − x)^1.5 it was 0.45 at -10 s, 0.1 at
+ * -5, and read as set 10 s early).
+ */
+const lateFade = (x: number): number => (1 - 0.25 * x) * (1 - x ** 3);
+
+/** The rays' fade: 1 until RAYS_FADE_S, then down to 0 at the turn's second: a sunrise's softly (barely there from -5 s), a sunset's late (half there at -5 s, item 83). */
+export function turnFade(s: number, kind: TurnKind = 'rise'): number {
+  const x = lin(RAYS_FADE_S, 0, s);
+  return kind === 'set' ? lateFade(x) : (1 - x) ** 1.5;
 }
 
-/** The glow's, tint's and palette's fade: 1 until GLOW_FADE_S, 0 at the turn's second. */
-function glowFade(s: number): number {
-  return (1 - lin(GLOW_FADE_S, 0, s)) ** 1.3;
+/** The glow's, tint's and palette's fade: 1 until GLOW_FADE_S, 0 at the turn's second (a sunset's late, item 83). */
+function glowFade(s: number, kind: TurnKind): number {
+  const x = lin(GLOW_FADE_S, 0, s);
+  return kind === 'set' ? lateFade(x) : (1 - x) ** 1.3;
 }
 
 /** A sunset's rays' strength from the first second (a few rays, vague but visible; by eye, owner items 62, 71). */
@@ -125,7 +141,7 @@ export function turnRays(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;
   const e = SET_RAYS_EARLY;
   const up = kind === 'rise' ? pw(RISE_RAYS, s) : sst(-60, -57.5, s) * (e + (1 - e) * lin(-60, RAYS_FADE_S, s));
-  return up * turnFade(s);
+  return up * turnFade(s, kind);
 }
 
 /** A sunrise's frame glints are held back over its first seconds (owner item 80: not so marked at first). */
@@ -151,19 +167,19 @@ const GLOW: Readonly<Record<TurnKind, ReadonlyArray<readonly [number, number]>>>
 /** The glow's strength at `s` (0 outside the turn). */
 export function turnGlow(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;
-  return pw(GLOW[kind], s) * (kind === 'rise' ? glowFade(s) : turnFade(s));
+  return pw(GLOW[kind], s) * (kind === 'rise' ? glowFade(s, kind) : turnFade(s, kind));
 }
 
 /** The turn's strength for the sky's tint and the day life held back (0 outside the turn). */
-export function turnIntensity(s: number): number {
+export function turnIntensity(s: number, kind: TurnKind = 'rise'): number {
   if (!turnOn(s)) return 0;
-  return lin(-60, GLOW_FADE_S, s) ** 1.3 * glowFade(s);
+  return lin(-60, GLOW_FADE_S, s) ** 1.3 * glowFade(s, kind);
 }
 
 /** How much of the cloud palette the turn's palette takes at `s` (0 outside the turn). */
-export function turnPalette(s: number): number {
+export function turnPalette(s: number, kind: TurnKind = 'rise'): number {
   if (!turnOn(s)) return 0;
-  return lin(-55, GLOW_FADE_S, s) * glowFade(s);
+  return lin(-55, GLOW_FADE_S, s) * glowFade(s, kind);
 }
 
 /** How far along its colours and the sun's path the turn is at `s`, 0..1: even from its first second to its second. */

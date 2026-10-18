@@ -30,18 +30,23 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
       expect(-60 + peak * 0.1).toBeCloseTo(RAYS_FADE_S, 0);
       for (let i = 1; i <= peak; i++) expect(v[i]!).toBeGreaterThanOrEqual(v[i - 1]! - 1e-12);
       for (let i = peak + 1; i < v.length; i++) expect(v[i]!).toBeLessThanOrEqual(v[i - 1]! + 1e-12);
-      // even: after the first 3 s, at most 0.04 a second up, at most 0.07 a second down
+      // even: after the first 3 s, at most 0.04 a second up, at most 0.07 (a sunset's late fade 0.1) a second down
       expect(maxChange(r, -57, RAYS_FADE_S)).toBeLessThan(0.04);
-      expect(maxChange(r, RAYS_FADE_S, 0)).toBeLessThan(0.07);
-      // softly to the end: half there 8 s into the fade, barely there 5 s before the turn, gone at it
+      expect(maxChange(r, RAYS_FADE_S, 0)).toBeLessThan(kind === 'set' ? 0.1 : 0.07);
       expect(r(RAYS_FADE_S + 8)).toBeGreaterThan(0.4);
-      expect(r(-5)).toBeLessThan(0.1);
-      expect(r(-5)).toBeGreaterThan(0.02);
-      expect(r(-0.05)).toBeLessThan(0.001);
+      expect(r(-0.05)).toBeLessThan(kind === 'set' ? 0.01 : 0.001);
       expect(r(0)).toBe(0);
       expect(turnOn(-0.1)).toBe(true);
       expect(turnOn(0)).toBe(false);
     }
+    // a sunrise's softly: barely there 5 s before the day
+    expect(turnRays('rise', -5)).toBeLessThan(0.1);
+    expect(turnRays('rise', -5)).toBeGreaterThan(0.02);
+    // a sunset's late: clearly fading from about -22 s, still half there at -5, faint only in its last second (item 83)
+    expect(turnRays('set', -12)).toBeLessThan(0.8);
+    expect(turnRays('set', -5)).toBeGreaterThan(0.35);
+    expect(turnRays('set', -2)).toBeGreaterThan(0.15);
+    expect(turnRays('set', -1)).toBeLessThan(0.1);
     // a sunset's few rays from the first seconds (by eye, items 62, 71)
     expect(turnRays('set', -57)).toBeCloseTo(SET_RAYS_EARLY + ((1 - SET_RAYS_EARLY) * 3) / (60 + RAYS_FADE_S), 2);
     expect(SET_RAYS_EARLY).toBeGreaterThanOrEqual(0.4);
@@ -79,7 +84,9 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
     expect(g(0)).toBe(0);
     // a sunset's sun is up from the start and goes with its rays
     expect(turnGlow('set', -52)).toBeCloseTo(0.6, 2);
-    expect(turnGlow('set', -5)).toBeLessThan(0.1);
+    // and sets at the night's second (item 83)
+    expect(turnGlow('set', -5)).toBeGreaterThan(0.35);
+    expect(turnGlow('set', -1)).toBeLessThan(0.1);
     expect(turnGlow('set', 0)).toBe(0);
   });
 
@@ -99,22 +106,26 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
     for (const f of [turnIntensity, turnPalette, (x: number) => turnRays('rise', x), (x: number) => turnGlow('rise', x)]) expect(f(0)).toBe(0);
   });
 
-  it('a sunset\'s order: the blue fades from 10 s in; the stars only as the last rays go (item 76)', () => {
+  it('a sunset\'s order: the blue fades from 10 s in; the stars from just before the sun sets to 5 s after (items 76, 83)', () => {
     expect(turnWeight('set', -50)).toBe(0);
     expect(turnWeight('set', -45)).toBeGreaterThan(0);
     expect(turnWeight('set', -25)).toBeCloseTo(0.5, 5);
     expect(turnWeight('set', 0)).toBe(1);
     const st = (x: number): number => turnStars(NaN, x);
     expect(st(-60 + 0.1)).toBe(0);
-    // from 7 s before the night, complete when it begins (item 81; was -5 … +14)
-    expect(SET_STARS_S).toBe(-7);
+    // just perceptible 5 s before the night, complete 5 s into it (item 83; was -7 … 0, item 81)
+    expect(SET_STARS_S).toBe(-6);
     expect(st(SET_STARS_S)).toBe(0);
-    expect(st(-3.5)).toBeCloseTo(0.5, 5);
-    // no stars to speak of while a ray is more than faint
-    for (let x = -60; x < 0; x += 0.1) if (st(x) > 0.01) expect(turnRays('set', x)).toBeLessThan(0.2);
-    expect(st(-0.05)).toBeGreaterThan(0.99);
-    expect(TURN_FULL.set).toBe(0);
-    expect(st(0)).toBe(1);
+    expect(st(-5)).toBeGreaterThan(0);
+    expect(st(-5)).toBeLessThan(0.01);
+    expect(st(0)).toBeGreaterThan(0.15);
+    expect(st(0)).toBeLessThan(0.35);
+    for (let x = -59.75; x < 5; x += 0.25) expect(st(x + 0.25)).toBeGreaterThanOrEqual(st(x));
+    // none while the rays are strong
+    for (let x = -60; x < 0; x += 0.1) if (st(x) > 0.01) expect(turnRays('set', x)).toBeLessThan(0.5);
+    expect(TURN_FULL.set).toBe(5);
+    expect(st(4.95)).toBeGreaterThan(0.99);
+    expect(st(5)).toBe(1);
     expect(TURN_FULL.set).toBe(FULL_S);
     // outside a turn the stars are as the sky says
     expect(turnStars(NaN, NaN)).toBe(1);
@@ -148,8 +159,8 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
       const v = at(f, -59.9, FULL_S + 2, 1 / 30);
       for (let i = 1; i < v.length; i++) expect(Math.abs(v[i]! - v[i - 1]!)).toBeLessThan(0.005);
     }
-    // a sunset's stars come in 7 s (item 81): a little faster, still no snap
-    const v = at((s) => turnStars(NaN, s), -59.9, 2, 1 / 30);
+    // a sunset's stars come in 11 s (item 83): no snap
+    const v = at((s) => turnStars(NaN, s), -59.9, FULL_S + 2, 1 / 30);
     for (let i = 1; i < v.length; i++) expect(Math.abs(v[i]! - v[i - 1]!)).toBeLessThan(0.0075);
     // the colours and the sun's path move at one pace from the first second to the turn
     expect(turnProgress(-60)).toBe(0);

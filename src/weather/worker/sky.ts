@@ -285,7 +285,8 @@ type KeyC = [number, Rgb][];
 const RISE_K: Key = [[0, 6], [0.18, 4], [0.34, 3], [0.55, 2], [0.85, 0], [1, 0]];
 const SET_K: Key = [[0, 0], [0.16, 2], [0.42, 3], [0.68, 4], [0.92, 6], [1, 6]];
 const RISE_C: KeyC = [[0, [90, 60, 150]], [0.2, [230, 110, 140]], [0.4, [255, 170, 80]], [0.7, [255, 222, 160]], [1, [255, 244, 220]]];
-const SET_C: KeyC = [[0, [255, 196, 96]], [0.2, [255, 150, 60]], [0.45, [232, 56, 52]], [0.7, [150, 48, 110]], [0.88, [50, 64, 150]], [1, [24, 32, 90]]];
+// a sunset's warm colours last to its last seconds: night blue at 0.88 (-7 s) read as the sun set 10 s early (owner item 83)
+const SET_C: KeyC = [[0, [255, 196, 96]], [0.2, [255, 150, 60]], [0.5, [232, 56, 52]], [0.8, [170, 52, 104]], [0.95, [110, 52, 128]], [1, [60, 60, 140]]];
 function keyPal(K: Key, p: number, out: Float32Array, m: number): void {
   for (let i = 0; i < K.length - 1; i++) {
     if (p <= K[i + 1]![0]) {
@@ -420,15 +421,18 @@ export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, ou
 const GLINT_CORE = 0.95;
 /** A thin ray's strength by tier (owner item 80: a little weaker than the beams, or much weaker). */
 const RAY_TIER: Readonly<Record<'m' | 'w', number>> = { m: 1, w: 0.4 };
-/** A thin ray's alpha (its body and its core; was 0.2): subtle, not a spotlight (owner item 78; by eye from headless screenshots). */
-const RAY_ALPHA = 0.085;
+/** A thin ray's alpha (its body and its core; was 0.2, then 0.085): subtle, not a spotlight (owner items 78, 83; by eye from headless screenshots). Their glints go by `turnGlint`, not by this. */
+const RAY_ALPHA = 0.0425;
 
-/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a thin core (about a third as strong as before owner item 78, which found them spotlights). */
+/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a thin core (about a third as strong as before owner item 78, which found them spotlights; half that, item 83). */
 const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
-  [2.2, 0.022],
-  [1, 0.05],
-  [0.3, 0.065],
+  [2.2, 0.011],
+  [1, 0.025],
+  [0.3, 0.0325],
 ];
+
+/** The sun's own light (its hot spot, its hazy glow, the ray front's band) by turn: half of before (owner item 83; said of the sunset, the sunrise's is the same drawing). */
+const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
 function polyFill(g: Ctx, P: readonly number[]): void {
@@ -524,6 +528,8 @@ class Sky {
   /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
   sunUs = -1;
   daySun = new Float32Array(2);
+  /** A turn's stars are coming or going (sunturn.ts `turnStars`). */
+  starsIn = false;
   /** The turn's `s` this frame (sunturn.ts: which rays and beams are there yet). */
   turnS = 0;
   /** The turn's ray fan this frame: its lower and upper edge (beams.ts turnFan). */
@@ -797,8 +803,8 @@ class Sky {
       const ts = kind === 'rise' ? env.rise : env.set;
       this.turnS = ts;
       mP = turnProgress(ts);
-      e1 = turnPalette(ts);
-      mI = turnIntensity(ts);
+      e1 = turnPalette(ts, kind);
+      mI = turnIntensity(ts, kind);
       rI = turnRays(kind, ts);
       gI = turnGlow(kind, ts);
       this.glintK = turnGlint(kind, ts) * out;
@@ -824,7 +830,10 @@ class Sky {
     if (rays) this.drawRaysBack(env, mP, rI * out, gI * out);
     if (skyOn) {
       // a sunrise's stars fade as its light comes, a sunset's come after its last rays (owner items 76, 77)
-      this.drawStars(b, env, wMoon, wNight, out * turnStars(env.rise, env.set));
+      const st = turnStars(env.rise, env.set);
+      // a sunset's stars still fill in for 5 s into the night: at the fast rate, as before it (owner item 83)
+      this.starsIn = st > 0 && st < 1 && this.starVis > 0.003;
+      this.drawStars(b, env, wMoon, wNight, out * st);
       this.drawMoon(b, env, dt, wSun, wMoon, wNight, out);
       this.drawDeck(b, env, dt, out);
       // Day life: birds, an insect, tufts on a clear day, a sun glimpse (owner feedback 22).
@@ -852,6 +861,7 @@ class Sky {
         this.glints,
       );
     } else {
+      this.starsIn = false;
       this.starVis = 0;
       this.mVisNow = 0;
       this.lifeFps = 0;
@@ -1503,7 +1513,7 @@ class Sky {
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = 0.045 * G * wetK;
+    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1634,7 +1644,7 @@ class Sky {
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
     // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
-    g.globalAlpha = G * kk;
+    g.globalAlpha = G * kk * SUN_LIGHT[kind];
     g.fillStyle = gl;
     g.fillRect(0, 0, W, H);
     const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
@@ -1820,7 +1830,7 @@ export function skyModule(): Module {
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
       // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.mKind || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.mKind || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },
