@@ -1,8 +1,9 @@
-// Sunrise / sunset beams (owner feedback 37, ADR 0091): a few strong beams
-// from the sun; the frame lines glint exactly where a beam crosses them.
+// Sunrise / sunset beams (owner feedback 37, ADR 0091): a few beams spread
+// over the sun's ray fan, which moves slowly (owner items 78, 79); the frame lines glint exactly where a beam crosses them.
 
 import { describe, expect, it } from 'vitest';
-import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_PSI, SUN_TURN_HORIZON, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
+import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_PSI, SUN_TURN_HORIZON, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi, turnFan, turnRayAngle } from '../../src/weather/worker/beams';
+import { TURN_RAY_N, type TurnKind, turnProgress } from '../../src/weather/sunturn';
 import type { FrameBox } from '../../src/weather/worker/glint';
 
 const W = 1600, H = 900;
@@ -18,22 +19,81 @@ function area(P: readonly number[]): number {
   return Math.abs(s) / 2;
 }
 
-describe('sun beams', () => {
-  it('makes a bundle of a few beams round the sun\'s middle direction, the middle one the strongest', () => {
+describe('sun beams and the ray fan (owner items 78, 79)', () => {
+  const S = new Float32Array(2), F = new Float32Array(2);
+  /** The sun and its fan for a turn at `s` (seconds to the turn's second). */
+  const fanAt = (kind: TurnKind, s: number, w = W, h = H): void => {
+    const psi = sunPsi(kind, turnProgress(s));
+    sunPoint(psi, w, h, S);
+    turnFan(psi, S[0]!, S[1]!, w, h, F);
+  };
+  /** Every thin ray's and beam's angle at `s` (T = s + 100). */
+  const angles = (kind: TurnKind, s: number, w = W, h = H): number[] => {
+    fanAt(kind, s, w, h);
+    const out: number[] = [];
+    for (let i = 0; i < TURN_RAY_N; i++) out.push(turnRayAngle(i, TURN_RAY_N, F[0]!, F[1]!, s + 100));
+    const b: Beam[] = [];
+    sunBeams(s + 100, F[0]!, F[1]!, b);
+    for (const x of b) out.push(x.a);
+    return out;
+  };
+  /** The light's angle above the horizontal (degrees; + up), for a ray toward the screen. */
+  const up = (a: number): number => (Math.atan2(-Math.sin(a), Math.abs(Math.cos(a))) * 180) / Math.PI;
+
+  it('spreads a few beams over the fan between the rays, the middle one the strongest', () => {
     const out: Beam[] = [];
-    sunBeams(0, W * 0.15, -H * 0.3, W, H, out);
+    sunBeams(0, 2, 3, out);
     expect(out).toHaveLength(BEAMS);
     expect(BEAMS).toBeGreaterThanOrEqual(2);
     expect(BEAMS).toBeLessThanOrEqual(4);
     const mid = out[1]!;
     for (const b of out) expect(b.k).toBeLessThanOrEqual(mid.k + 1e-9);
-    // a sun at the top left shines down and to the right
-    expect(Math.cos(mid.a)).toBeGreaterThan(0);
-    expect(Math.sin(mid.a)).toBeGreaterThan(0);
-    // round the direction to the screen's middle, swaying with every ray (owner item 68)
-    expect(Math.abs(mid.a - sunMid(W * 0.15, -H * 0.3, W, H) - sunDrift(0))).toBeLessThan(0.003);
-    sunBeams(0, W * 1.02, -H * 0.1, W, H, out);
-    expect(Math.cos(out[1]!.a)).toBeLessThan(0);
+    // over the fan, swaying with every ray (owner item 68)
+    expect(mid.a - sunDrift(0)).toBeCloseTo(2.5, 2);
+    expect(out[0]!.a - sunDrift(0)).toBeCloseTo(2.25, 2);
+    expect(out[2]!.a - sunDrift(0)).toBeCloseTo(2.75, 2);
+  });
+
+  it('spreads the rays evenly: no two closer than half an even step, none further than one and a half', () => {
+    const a = Array.from({ length: TURN_RAY_N }, (_, i) => turnRayAngle(i, TURN_RAY_N, 0, 1, 0) - sunDrift(0)).sort((x, y) => x - y);
+    const step = 1 / TURN_RAY_N;
+    for (let i = 1; i < a.length; i++) {
+      expect(a[i]! - a[i - 1]!).toBeGreaterThan(step * 0.75);
+      expect(a[i]! - a[i - 1]!).toBeLessThan(step * 1.25);
+    }
+    expect(a[0]!).toBeGreaterThan(0);
+    expect(a.at(-1)!).toBeLessThan(1);
+  });
+
+  it('a sunrise starts sideways and down; later some rays point up; a sunset ends the same way at the left', () => {
+    for (const [kind, s] of [['rise', -59], ['set', -1]] as const) {
+      const u = angles(kind, s).map(up);
+      // at most a few degrees up, most of them level or down
+      for (const x of u) expect(x).toBeLessThan(2.5);
+      expect(u.filter((x) => x <= 0.5).length).toBeGreaterThanOrEqual(Math.ceil(u.length / 2));
+      // from the right in the morning, from the left in the evening
+      for (const a of angles(kind, s)) expect(Math.sign(Math.cos(a))).toBe(kind === 'rise' ? -1 : 1);
+    }
+    // further into the sunrise a few point up, toward the top-left corner
+    const u = angles('rise', -40).map(up);
+    expect(Math.max(...u)).toBeGreaterThan(2.5);
+    expect(u.filter((x) => x > 1).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('never moves fast: every ray and beam under 1°/s through both turns, at any window size', () => {
+    let worst = 0;
+    for (const [w, h] of [[1600, 900], [1400, 800], [1280, 720], [1920, 1080], [2560, 1100], [900, 1000]] as const) {
+      for (const kind of ['rise', 'set'] as const) {
+        const dt = 0.05;
+        let prev = angles(kind, -60, w, h);
+        for (let s = -60 + dt; s <= 0; s += dt) {
+          const cur = angles(kind, s, w, h);
+          for (let i = 0; i < cur.length; i++) worst = Math.max(worst, (Math.abs(cur[i]! - prev[i]!) / dt) * (180 / Math.PI));
+          prev = cur;
+        }
+      }
+    }
+    expect(worst).toBeLessThan(1);
   });
 });
 

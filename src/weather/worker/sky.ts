@@ -19,8 +19,8 @@
 //    (east) to below the left edge (west), like the sun, at the almanac's
 //    place and pace (720 s up); by day much fainter (feedback 11, 38)
 //  - sunrise / sunset moments: faint thin rays with pane shadow wedges, and
-//    a bundle of three strong beams sweeping across the screen; the frame
-//    lines glint exactly where a beam crosses them (beams.ts, feedback 37).
+//    three faint beams spread over the same slow fan; the frame lines glint
+//    where a ray or beam crosses them (beams.ts, feedback 37, items 78, 79).
 //    Both follow the clock over the 60 s before the day or the night
 //    begins (`env.rise`, `env.set`; sunturn.ts curves, ADR 0093)
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
@@ -36,8 +36,8 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays } from '../sunturn';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from './beams';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars } from '../sunturn';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, rayHash, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -411,17 +411,20 @@ export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, ou
   sunPoint(sunPsi(kind, p), W, H, out);
 }
 
-/** The ray fan reaches down to here (a share of H), above the input line (owner item 75). */
-const RAY_FLOOR = 0.78;
+/**
+ * A thin ray's glint on a frame line against a beam's (its strength 1; by the
+ * square root of the ray's own strength): the faint rays drawn faintly, their
+ * glints clearly (owner item 78; was 0.35, by the ray's strength).
+ */
+const RAY_GLINT = 1.1;
+/** A thin ray's alpha (its body and its core; was 0.2): subtle, not a spotlight (owner item 78; by eye from headless screenshots). */
+const RAY_ALPHA = 0.085;
 
-/** A thin ray's glint on a frame line against a beam's (its strength 1). */
-const RAY_GLINT = 0.35;
-
-/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a bright thin core. */
+/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a thin core (about a third as strong as before owner item 78, which found them spotlights). */
 const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
-  [2.6, 0.07],
-  [1, 0.16],
-  [0.32, 0.2],
+  [2.2, 0.022],
+  [1, 0.05],
+  [0.3, 0.065],
 ];
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
@@ -518,7 +521,9 @@ class Sky {
   daySun = new Float32Array(2);
   /** The turn's `s` this frame (sunturn.ts: which rays and beams are there yet). */
   turnS = 0;
-  /** The thin rays this frame (their strength `k` 0..1): they glint where they cross a frame line too, faintly (owner item 68). */
+  /** The turn's ray fan this frame: its lower and upper edge (beams.ts turnFan). */
+  fan = new Float32Array(2);
+  /** The thin rays this frame (their strength `k` 0..1): they glint where they cross a frame line too (owner items 68, 78). */
   rays: Beam[] = [];
   hits: BeamHit[] = [];
   boxes: Box[] = [];
@@ -777,10 +782,10 @@ class Sky {
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
     // mI: the turn's strength (tint, palette, glow); rI: its rays and beams (from its first second, owner item 62)
-    let mP = -1, mI = 0, e1 = 0, rI = 0;
-    // Sunrise and sunset: the clock's last 60 s of the night or the day and on
-    // until the new sky is complete (the director's `riseS` / `setS`);
-    // strength, palette and colours by time (sunturn.ts, owner items 71, 72).
+    let mP = -1, mI = 0, e1 = 0, rI = 0, gI = 0;
+    // Sunrise and sunset: the clock's last 60 s of the night or the day, until
+    // the day or night begins (the director's `riseS` / `setS`); strength,
+    // glow, palette and colours by time (sunturn.ts, owner items 71, 72, 76, 77).
     const on = (x: number): boolean => skyOn && turnOn(x);
     const kind = on(env.rise) ? 'rise' : on(env.set) ? 'set' : null;
     if (kind) {
@@ -790,6 +795,7 @@ class Sky {
       e1 = turnPalette(ts);
       mI = turnIntensity(ts);
       rI = turnRays(kind, ts);
+      gI = turnGlow(kind, ts);
       e1 *= out;
       for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
       keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
@@ -808,10 +814,11 @@ class Sky {
 
     const b = env.back;
     this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
-    const rays = rI > 0.002 && out > 0.02;
-    if (rays) this.drawRaysBack(env, mP, rI * out);
+    const rays = (rI > 0.002 || gI > 0.002) && out > 0.02;
+    if (rays) this.drawRaysBack(env, mP, rI * out, gI * out);
     if (skyOn) {
-      this.drawStars(b, env, wMoon, wNight, out);
+      // a sunrise's stars fade as its light comes, a sunset's come after its last rays (owner items 76, 77)
+      this.drawStars(b, env, wMoon, wNight, out * turnStars(env.rise, env.set));
       this.drawMoon(b, env, dt, wSun, wMoon, wNight, out);
       this.drawDeck(b, env, dt, out);
       // Day life: birds, an insect, tufts on a clear day, a sun glimpse (owner feedback 22).
@@ -847,7 +854,7 @@ class Sky {
     if (this.lift) this.drawLift(b, env, out);
     this.drawSky(b, env, dt, mI);
     if (skyOn) this.drawShoot(b, env, dt, out);
-    if (rays) this.drawRaysFront(env, mP, rI * out);
+    if (rays) this.drawRaysFront(env, mP, rI * out, gI * out);
     if (mI > 0.002 && out < 0.98) this.drawIndoorTint(env, mI * (1 - out));
     this.drawGlints(env.front, env);
     const glinting = this.glints.draw(env.front, T);
@@ -1476,7 +1483,7 @@ class Sky {
     f.fillRect(0, 0, env.W, H);
     f.globalAlpha = 1;
   }
-  drawRaysFront(env: Env, p: number, I: number): void {
+  drawRaysFront(env: Env, p: number, I: number, G: number): void {
     const W = env.W, H = env.H, kind = this.mKind!, S = this.S, f = env.front;
     const c = this.col, rgb = `${c[0]! | 0},${c[1]! | 0},${c[2]! | 0}`;
     const wetK = 1 - 0.65 * this.wet;
@@ -1490,7 +1497,7 @@ class Sky {
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = 0.045 * I * wetK;
+    f.globalAlpha = 0.045 * G * wetK;
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1520,13 +1527,16 @@ class Sky {
     const bk = this.beamK;
     if (bk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
-      // Every thin ray glints too where it crosses a frame line, as strong as
-      // the ray is (owner item 68): RAY_GLINT of a beam's glint for a full ray.
+      // Every thin ray glints too where it crosses a frame line (owner item
+      // 68), clearly even for a faint ray (item 78: the ray drawn faintly, its
+      // glint not): a soft glow of the line and a brighter core, as a beam's.
       for (const r of this.rays) {
         for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
-          const a = bk * r.k * RAY_GLINT * h.att * (h.enter ? 1 : BEAM_EXIT);
+          const a = bk * Math.sqrt(r.k) * RAY_GLINT * h.att * (h.enter ? 1 : BEAM_EXIT);
           if (a < 0.02) continue;
-          this.glints.line(f, h.p, h.side, h.c, clamp(h.len * 3, 20, 120), a);
+          const len = clamp(h.len * 3, 36, 140);
+          this.glints.line(f, h.p, h.side, h.c, len * 2, a * 0.35);
+          this.glints.line(f, h.p, h.side, h.c, len, Math.min(1, a), h.enter && a > 0.3 ? 0.6 : 0);
         }
       }
       for (let i = 0; i < this.beams.length; i++) {
@@ -1552,10 +1562,9 @@ class Sky {
    * are cut, so inside and behind a pane a beam is weaker like the rays.
    */
   drawBeams(g: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
-    const W = env.W, H = env.H;
     const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
     if (this.beams.length !== BEAMS) this.beams = [];
-    sunBeams(this.T, sx, sy, W, H, this.beams);
+    sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams);
     // the beams come one by one as the turn builds (owner item 71)
     for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(i, this.turnS);
     if (bk < 0.01) return;
@@ -1602,12 +1611,13 @@ class Sky {
       }
     }
   }
-  drawRaysBack(env: Env, p: number, I: number): void {
+  drawRaysBack(env: Env, p: number, I: number, G: number): void {
     const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
-    sunPos(kind, p, W, H, S);
+    const psi = sunPsi(kind, p);
+    sunPoint(psi, W, H, S);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
-    const k = I * (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.62 : 1.25);
+    const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25), k = I * kk;
     g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
@@ -1616,7 +1626,8 @@ class Sky {
     gl.addColorStop(0.3, `rgba(${rgb},.16)`);
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
-    g.globalAlpha = k;
+    // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
+    g.globalAlpha = G * kk;
     g.fillStyle = gl;
     g.fillRect(0, 0, W, H);
     const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
@@ -1630,28 +1641,19 @@ class Sky {
     rg.addColorStop(0.55, `rgba(${rgb},.62)`);
     rg.addColorStop(1, `rgba(${rgb},.05)`);
     g.fillStyle = rg;
-    // the screen's corners as seen from the sun, round its middle direction
-    // (no wrap at ±π: a sun beyond the right edge looks left)
-    let a0 = 1e9, a1 = -1e9;
-    const am = sunMid(sx, sy, W, H);
-    for (let i = 0; i < 4; i++) {
-      // the fan's lower edge aims at the input line's top, not the bottom (owner item 75)
-      const d = Math.atan2((i > 1 ? H * RAY_FLOOR : 0) - sy, (i & 1 ? W : 0) - sx) - am;
-      const a = am + Math.atan2(Math.sin(d), Math.cos(d));
-      a0 = Math.min(a0, a);
-      a1 = Math.max(a1, a);
-    }
+    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
+    turnFan(psi, sx, sy, W, H, this.fan);
+    const a0 = this.fan[0]!, a1 = this.fan[1]!;
     // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
     // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
     // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
-    const T = this.T, N = TURN_RAY_N, L = far * 1.2, drift = sunDrift(T), rays = this.rays;
+    const T = this.T, N = TURN_RAY_N, L = far * 1.2, rays = this.rays;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
     const cores: number[] = [];
     for (let i = 0; i < N; i++) {
-      const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
-      const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + drift + Math.sin(T * 0.15 + i) * 0.0015;
+      const j = rayHash(i), a = turnRayAngle(i, N, a0, a1, T);
       const wd = 0.0035 + j * 0.01;
       // a few rays from the start, the others fading in one by one (owner item 71)
       const on = turnRayOn(i, this.turnS);
@@ -1661,7 +1663,7 @@ class Sky {
       r.a = a;
       r.hw = wd;
       r.k = al;
-      g.globalAlpha = k * al * 0.2;
+      g.globalAlpha = k * al * RAY_ALPHA;
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
@@ -1673,7 +1675,7 @@ class Sky {
     }
     for (let i = 0; i < cores.length; i += 3) {
       if (cores[i + 2]! < 0.005) continue;
-      g.globalAlpha = k * 0.2 * cores[i + 2]!;
+      g.globalAlpha = k * RAY_ALPHA * cores[i + 2]!;
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
