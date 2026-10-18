@@ -39,7 +39,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
-### 2026-10-18 — Stage 28 items 59–63, sun and moon timing (branch `sunrise-timing`)
+### 2026-10-18 — Stage 28 items 59–70, sun, moon and demo (branch `sunrise-timing`)
 
 - **Done:** owner live feedback after 0.1.63. Rooms are lit from "The day
   has begun." (DAWN+1) to "The night has begun." (DUSK+1), verified in
@@ -53,7 +53,13 @@ Statuses: Next, In progress, Owner testing, Done.
   sunset 0.35/0.5, set by eye). Item 63: the moon pre-rolls on its path
   from `moonRiseAt` (≈59 s at 1400×800) so it is ~80 % on screen at
   "The moon rises in the east."; pace 7.5 % slower, set unchanged. Unit 2724.
-- **Next:** owner test (guides under items 62–63), then merge to main.
+  Items 64–68: one sun model (`beams.ts` `sunPsi`: rise 0→40°, day
+  40→140° by `sunU`, set 140→180°); no glimpses during turns; beams and
+  rays share one drift; every ray glints. Item 69: the moon's place from
+  `moonRiseAt`/`moonSetAt` and `Date.now()` (no lag on a hidden tab), pace
+  capped ±50 %, fade on big jumps. Item 70: one `#weather demo` at speed
+  1, 2:58, `slow` gone. Unit 2727.
+- **Next:** owner test (guides under items 62–70), then merge to main.
 - **Open issues:** look only checked in headless screenshots; perf bench
   not rerun; the moonrise fallback without a minute-synced clock has no
   worker test.
