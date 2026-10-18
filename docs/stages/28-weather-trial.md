@@ -1503,9 +1503,38 @@ black: the brightest stroke stands out).
     The sun itself (not the rays) and the light round it should be less
     marked: the whole effect about 50 % weaker. In both sunrise and sunset
     the rays should be less marked: dimmed by about 50 %.
+    - **Done (2026-10-19):** ADR 0093, "Sunset at the night's second". It
+      read as set at -10 s mostly because the sun's light turned night blue
+      at -7 s, and its rays and glow had fallen to under half by -10 and a
+      tenth by -5. Now a sunset's colours stay warm (purple at -3 s), and its
+      rays, glow, glints and warm tint fade late: the rays 0.7 at -10, 0.4
+      at -5, 0.2 at -2, gone at 0. The stars just start at -5, are about a
+      quarter there when the night begins and complete at +5. The sun itself
+      and its hazy light are half of before, in the sunrise too (the same
+      drawing). Thin rays and beams half of before in both turns; the frame
+      glints keep their strength and still fade with the rays. Unit 2739;
+      e2e weather + layout 44/44 (Chromium, Firefox). Checked in headless
+      Chromium at 2000 × 1150, the sunset every 1–4 s from -20 to +8.
+      Please try: `#weather demo sunset` (and `#weather demo sunrise`).
+      Feedback wanted: does the sun now feel set as the night begins, do
+      the stars come in slowly enough, and are the sun and the rays faint
+      enough (or now too faint).
 84. **Day sky rays: subtler, three more, a smooth vanish.** On the blue
     day sky, make the rays even less visible, so that they are there more
     subtly. Add three more rays (spread evenly). When a ray goes out
     (opacity reaching 0) it can be perceived: make the transition smoother
     as a ray weakens and vanishes or comes in (probably the frame rate, or
     too few transparency steps, so that it looks choppy).
+    - **Done (2026-10-19):** ADR 0093, "Dithered day rays". The cause was
+      too few transparency steps: at their peak the rays add only a few
+      colour levels to the sky, so each step came at once over a whole ray
+      (or the sun's glow), the last one to nothing the most visible. Now the
+      rays and the glow are drawn from a fine, fixed grain, so each pixel
+      takes its step at its own moment and the light comes and goes
+      pixel by pixel. The rays are about 0.6 of before and nine (was six),
+      spread evenly with the same tiers in turn. Same frame rate and cost.
+      Please try: `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.35 });
+      __weather.emit('glimpse')`, and watch a few pulses (one about every
+      20 s), especially as they fade out.
+      Feedback wanted: can you still see a ray come or go, and are they
+      subtle enough.

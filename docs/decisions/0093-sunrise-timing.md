@@ -406,6 +406,79 @@ directions. This replaces the sections above where they differ.
   the same hour, so in line; bench/results/weather.md (load 2–3) left as
   it was.
 
+### Sunset at the night's second (owner item 83)
+
+After items 80–82 the sunset read as over about 10 s before the night
+began, and its stars as in place 5 s before it. Three things made it read
+as set at -10: the colour the sun's light takes (`SET_C`) was already
+night blue at progress 0.88 (-7 s), so the glow, rays and tint went dark
+before they faded; the rays and glow fell as (1 − x)^1.5 from -24 s (0.45
+at -10, 0.1 at -5) and the glints as that ^1.5 (0.3 at -10, 0.03 at -5);
+the tint and warm palette as (1 − x)^1.3 from -14 s (0.26 at -5). This
+replaces the sections above where they differ.
+
+- **A late fade for a sunset** (sunturn.ts `lateFade`, `turnFade(s, kind)`,
+  `glowFade`): (1 − x/4)(1 − x³) over the same windows (rays and glow from
+  `RAYS_FADE_S` -24, tint and palette from `GLOW_FADE_S` -14). Rays: 0.77 at
+  -12, 0.72 at -10, 0.40 at -5, 0.18 at -2, 0.09 at -1, 0 at 0; they still
+  visibly fade from about -22 (item 81). Steepest 0.094/s at the end (unit
+  bound 0.1/s; a sunrise keeps 0.07). The glints stay `turnRays^1.5`, so
+  they fade with them. A sunrise is unchanged.
+- **Warm to the end** (sky.ts `SET_C`): red at 0.5, crimson 0.8 (-12 s),
+  purple 0.95 (-3 s), a dusky blue only at 1; was purple at 0.7 and night
+  blue at 0.88.
+- **The stars from -6 to +5** (`SET_STARS_S` -6, `TURN_FULL.set` 5,
+  `FULL_S` 5): sst(-6, 5)², so just there at -5 (0.0005; a star shows at a
+  small share), 0.24 at 0, 0.7 at +3, complete at +5. The director keeps a
+  sunset's sky curve and a released demo turn to +5; `TURN_JOIN_S` (14)
+  stays above it. The sky module keeps the fast rate while the stars fill
+  in after the turn (`starsIn`). Steepest change 0.0066 per frame at 30 fps.
+- **Half the sun, half the rays.** The sun's own light (its hot spot, its
+  hazy glow, the ray front's band; sky.ts `SUN_LIGHT`) is half of before.
+  The owner asked it of the sunset; a sunrise's sun is the same drawing and
+  nothing the owner said of it conflicts, so it is halved too (one
+  constant per kind if it should not be). Thin rays `RAY_ALPHA` 0.0425
+  (was 0.085) and the beams' layers 0.011 / 0.025 / 0.0325 in both turns;
+  the frame glints go by `turnGlint` and `TIER_GLINT`, not by these, so
+  they keep their strength.
+- **Demo.** Captions for the new order; `#weather demo sunset` keeps its
+  10 s night step (the stars complete at +5).
+- Checked in headless Chromium at 2000 × 1150 by screenshots every 1–4 s
+  from -20 to +8 (sunset) and the first and last 20 s of the sunrise: the
+  warm glow and the rays still show at -5 and faintly at -2, nothing at 0,
+  the first stars just at 0 and filled in by +5.
+
+### Dithered day rays (owner item 84)
+
+The day sky's pulsing rays came and went visibly. The cause is 8-bit
+alpha: at the pulse's peak a ray's alpha is about 0.026 (the glow's 0.01),
+a few levels over the sky, and each level came or went at once over a
+whole ray (bands along it) or the glow (a ring) as the pulse crossed it,
+the last step to 0 the most visible. Headless frame diffs of the old
+build show whole stretches of a ray and the glow's disc stepping in one
+frame. The still rate (3 fps) was not the cause: a level step is
+instantaneous at any rate.
+
+- **Textures that hold the peak's light** (daylife.ts `textures`): made
+  once per size on a CPU canvas: the rays' (256 px wide, repeated across,
+  fading down the screen as item 82's gradient) and the glow's (half size,
+  drawn scaled up unsmoothed). Each pixel holds the light at the pulse's
+  peak × 0.5 … 1 (random, fixed on the screen), rounded at random. They are
+  drawn at globalAlpha = the pulse's share (0 … 1), so each pixel takes its
+  steps at its own moment: the light comes and goes pixel by pixel, over
+  seconds. A full-alpha texture under a tiny globalAlpha does not work:
+  globalAlpha is itself 8-bit, and the whole glow stepped with it (seen
+  in a first try). Frame diffs now show scattered pixels, no stretch.
+- **Subtler**: the light is 0.6 of before (`GLIMPSE_RAY` 0.132 and
+  `GLIMPSE_GLOW` 0.048 with the textures' mean 0.75; were 0.165, 0.06).
+- **Nine rays** (`DAY_TIERS` 'wSmwSwmSw': three S, two m, four w,
+  interleaved) evenly over the same ±55°; still under 1°/s.
+- **Cost**: the same rate (FPS_STILL); per frame one image copy and nine
+  pattern-filled triangles instead of a radial and a linear gradient fill;
+  the textures (256 × 0.78 H and about 0.42 H square) are made once per
+  window size. No bench run (no change of rate or of the number of draws
+  that matters).
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then
