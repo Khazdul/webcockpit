@@ -2,7 +2,7 @@
 // over the sun's ray fan, which moves slowly (owner items 78, 79); the frame lines glint exactly where a beam crosses them.
 
 import { describe, expect, it } from 'vitest';
-import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_PSI, SUN_TURN_HORIZON, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi, turnFan, turnRayAngle } from '../../src/weather/worker/beams';
+import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, FAN_SLOTS, RAY_SLOTS, SUN_RISE_PSI, SUN_SET_PSI, SUN_TURN_HORIZON, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi, rayTier, turnFan, turnRayAngle } from '../../src/weather/worker/beams';
 import { TURN_RAY_N, type TurnKind, turnProgress } from '../../src/weather/sunturn';
 import type { FrameBox } from '../../src/weather/worker/glint';
 
@@ -31,7 +31,7 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
   const angles = (kind: TurnKind, s: number, w = W, h = H): number[] => {
     fanAt(kind, s, w, h);
     const out: number[] = [];
-    for (let i = 0; i < TURN_RAY_N; i++) out.push(turnRayAngle(i, TURN_RAY_N, F[0]!, F[1]!, s + 100));
+    for (let i = 0; i < TURN_RAY_N; i++) out.push(turnRayAngle(i, F[0]!, F[1]!, s + 100));
     const b: Beam[] = [];
     sunBeams(s + 100, F[0]!, F[1]!, b);
     for (const x of b) out.push(x.a);
@@ -40,7 +40,7 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
   /** The light's angle above the horizontal (degrees; + up), for a ray toward the screen. */
   const up = (a: number): number => (Math.atan2(-Math.sin(a), Math.abs(Math.cos(a))) * 180) / Math.PI;
 
-  it('spreads a few beams over the fan between the rays, the middle one the strongest', () => {
+  it('spreads a few beams over the whole fan between the rays, of about one strength', () => {
     const out: Beam[] = [];
     sunBeams(0, 2, 3, out);
     expect(out).toHaveLength(BEAMS);
@@ -48,15 +48,32 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
     expect(BEAMS).toBeLessThanOrEqual(4);
     const mid = out[1]!;
     for (const b of out) expect(b.k).toBeLessThanOrEqual(mid.k + 1e-9);
-    // over the fan, swaying with every ray (owner item 68)
+    // a little stronger than the rays, not much (owner item 80): none much weaker than the middle one
+    for (const b of out) expect(b.k).toBeGreaterThan(mid.k * 0.65);
+    // over the whole fan, swaying with every ray (owner item 68)
     expect(mid.a - sunDrift(0)).toBeCloseTo(2.5, 2);
-    expect(out[0]!.a - sunDrift(0)).toBeCloseTo(2.25, 2);
-    expect(out[2]!.a - sunDrift(0)).toBeCloseTo(2.75, 2);
+    expect(out[0]!.a - sunDrift(0)).toBeCloseTo(2 + 3.5 / FAN_SLOTS, 2);
+    expect(out[2]!.a - sunDrift(0)).toBeCloseTo(2 + 11.5 / FAN_SLOTS, 2);
   });
 
-  it('spreads the rays evenly: no two closer than half an even step, none further than one and a half', () => {
-    const a = Array.from({ length: TURN_RAY_N }, (_, i) => turnRayAngle(i, TURN_RAY_N, 0, 1, 0) - sunDrift(0)).sort((x, y) => x - y);
-    const step = 1 / TURN_RAY_N;
+  it('interleaves the tiers evenly: beam, weak, middle, weak, beam … (owner item 80)', () => {
+    expect(RAY_SLOTS).toHaveLength(TURN_RAY_N);
+    expect(FAN_SLOTS).toBe(TURN_RAY_N + BEAMS);
+    const tiers = Array.from({ length: FAN_SLOTS }, (_, k) => (RAY_SLOTS.includes(k) ? rayTier(RAY_SLOTS.indexOf(k)) : 'S')).join('');
+    // never two of a tier side by side; beams apart by a third of the fan
+    for (let k = 1; k < tiers.length; k++) expect(tiers[k]).not.toBe(tiers[k - 1]);
+    const at = [...tiers].flatMap((c, k) => (c === 'S' ? [k] : []));
+    expect(at).toHaveLength(BEAMS);
+    for (let k = 1; k < at.length; k++) expect(at[k]! - at[k - 1]!).toBeGreaterThanOrEqual(FAN_SLOTS / 4);
+    expect(tiers.split('m').length - 1).toBeGreaterThanOrEqual(3);
+    expect(tiers.split('w').length - 1).toBeGreaterThanOrEqual(3);
+  });
+
+  it('spreads the rays and beams evenly: no two closer than 0.75 of an even step, none further than 1.25', () => {
+    const b: Beam[] = [];
+    sunBeams(0, 0, 1, b);
+    const a = [...Array.from({ length: TURN_RAY_N }, (_, i) => turnRayAngle(i, 0, 1, 0)), ...b.map((x) => x.a)].map((x) => x - sunDrift(0)).sort((x, y) => x - y);
+    const step = 1 / FAN_SLOTS;
     for (let i = 1; i < a.length; i++) {
       expect(a[i]! - a[i - 1]!).toBeGreaterThan(step * 0.75);
       expect(a[i]! - a[i - 1]!).toBeLessThan(step * 1.25);
@@ -78,6 +95,22 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
     const u = angles('rise', -40).map(up);
     expect(Math.max(...u)).toBeGreaterThan(2.5);
     expect(u.filter((x) => x > 1).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('spans from about level to steeply down, nearly straight down at the high sun (owner items 80, 81)', () => {
+    for (const [w, h] of [[2000, 1150], [1400, 800], [2560, 1100]] as const) {
+      for (const [kind, s0, s1] of [['rise', -59, -1], ['set', -1, -59]] as const) {
+        // the low sun: from about level to 35° down or more
+        let u = angles(kind, s0, w, h).map(up);
+        expect(Math.min(...u)).toBeLessThan(-35);
+        expect(Math.max(...u)).toBeGreaterThan(-5);
+        // midway: past 55° down; the high sun: past 75° down
+        u = angles(kind, -30, w, h).map(up);
+        expect(Math.min(...u)).toBeLessThan(-55);
+        expect(Math.max(...u)).toBeGreaterThan(-5);
+        expect(Math.min(...angles(kind, s1, w, h).map(up))).toBeLessThan(-75);
+      }
+    }
   });
 
   it('never moves fast: every ray and beam under 1°/s through both turns, at any window size', () => {

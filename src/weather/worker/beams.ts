@@ -43,14 +43,29 @@ export interface BeamHit {
 }
 
 /**
- * The beams: where in the ray fan (0 its lower edge, 1 its upper), half-widths,
- * strengths. The middle one is the strongest. Spread over the fan between the
- * thin rays, not bunched in its middle (owner item 78).
+ * The fan's places, lower edge first, and the light's tier at each (owner
+ * item 80): S a beam (a little stronger), m a thin ray a little weaker, w
+ * one much weaker; interleaved evenly (S w m w S …), the three beams spread
+ * over the whole fan, never side by side.
  */
-const BUNDLE: ReadonlyArray<readonly [number, number, number]> = [
-  [0.25, 0.006, 0.62],
-  [0.5, 0.0085, 1],
-  [0.75, 0.007, 0.76],
+const SLOTS = 'wmwSwmwSwmwSwmw';
+export const FAN_SLOTS = SLOTS.length;
+/** The thin rays' places (index into the fan's slots) and their tier: 'm' or 'w'. */
+export const RAY_SLOTS: readonly number[] = [...SLOTS].flatMap((c, i) => (c === 'S' ? [] : [i]));
+const BEAM_SLOTS: readonly number[] = [...SLOTS].flatMap((c, i) => (c === 'S' ? [i] : []));
+/** Thin ray `i`'s tier. */
+export const rayTier = (i: number): 'm' | 'w' => SLOTS[RAY_SLOTS[i % RAY_SLOTS.length]!] as 'm' | 'w';
+/** A tier's frame glint against a beam's (owner item 80: strongest from the beams, less from the middle rays, least from the weak). */
+export const TIER_GLINT: Readonly<Record<'S' | 'm' | 'w', number>> = { S: 1, m: 0.6, w: 0.3 };
+
+/**
+ * The beams: half-widths and strengths, at the fan's S places. Three of
+ * about one strength (owner item 80: not three much stronger ones, bunched).
+ */
+const BUNDLE: ReadonlyArray<readonly [number, number]> = [
+  [0.006, 0.9],
+  [0.0075, 1],
+  [0.0065, 0.9],
 ];
 export const BEAMS = BUNDLE.length;
 
@@ -126,37 +141,53 @@ export function sunDrift(T: number): number {
   return Math.sin(T * 0.11) * 0.008 + Math.sin(T * 0.043 + 1.3) * 0.005;
 }
 
-/** The turn's ray fan reaches down to here (a share of H), above the input line (owner item 75). */
-export const FAN_FLOOR = 0.78;
+/** The turn's ray fan reaches down to the screen's bottom edge (a share of H; owner item 80, was 0.78 above the input line, item 75). */
+export const FAN_FLOOR = 1;
+
+/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
+/** Scratch for sunToward. */
+const TP = new Float32Array(2);
+function sunToward(psi: number, x: number, y: number, W: number, H: number, am: number): number {
+  sunPoint(psi, W, H, TP);
+  const d = Math.atan2(y - TP[1]!, x - TP[0]!) - am;
+  return am + Math.atan2(Math.sin(d), Math.cos(d));
+}
 
 /**
  * The ray fan of a sunrise or sunset for the sun at `psi` (at sx, sy):
  * `out[0]` its lower edge, `out[1]` its upper (radians). Its edges do not
  * aim at the screen's corners as before: seen from a sun passing close by a
  * corner, that corner's angle swung by up to 90° in seconds and the whole
- * fan with it (owner item 79). The lower edge aims at the floor
- * FAN_FLOOR_X in from the far side; the upper edge is FAN_UP_LOW above the horizontal under a low sun (the
- * light sideways and down, owner item 78) and FAN_UP_HIGH as it climbs (a few
- * rays up), but never above the far top corner. Both points lie on the far
- * side, never near the sun, so every edge moves at under 1°/s.
+ * fan with it (owner item 79). The lower edge points nearly straight down
+ * (owner items 80, 81): toward the bottom edge FAN_FLOOR_X in from the sun's
+ * side as seen from the sun where the turn starts and where it ends, and
+ * evenly between the two in between (aimed at the point itself all the way,
+ * it swung at up to 1.4°/s while the sun was near it). The upper edge is
+ * FAN_UP_LOW above the horizontal under a low sun (owner item 78) and
+ * FAN_UP_HIGH as it climbs, but never above the far top corner. So the fan
+ * spans from about level to nearly straight down, every edge under 1°/s.
  */
 export function turnFan(psi: number, sx: number, sy: number, W: number, H: number, out: Float32Array): void {
   const low = turnLow(psi), right = psi < Math.PI / 2;
-  const dx = W * FAN_FLOOR_X, am = sunMid(sx, sy, W, H);
+  const am = sunMid(sx, sy, W, H);
   // round the sun's middle direction (no wrap at ±π: a sun beyond the right edge looks left)
   const round = (a: number): number => {
     const d = a - am;
     return am + Math.atan2(Math.sin(d), Math.cos(d));
   };
   const toward = (x: number, y: number): number => round(Math.atan2(y - sy, x - sx));
-  out[0] = toward(right ? dx : W - dx, H * FAN_FLOOR);
+  // the turn's start and end (a sunrise climbs from psi 0, a sunset sinks to π)
+  const p0 = right ? 0 : Math.PI - SUN_SET_PSI, p1 = right ? SUN_RISE_PSI : Math.PI;
+  const q = Math.min(1, Math.max(0, (psi - p0) / (p1 - p0)));
+  const fx = right ? W * (1 - FAN_FLOOR_X) : W * FAN_FLOOR_X, fy = H * FAN_FLOOR;
+  out[0] = lerp(sunToward(p0, fx, fy, W, H, am), sunToward(p1, fx, fy, W, H, am), q);
   const e = lerp(FAN_UP_HIGH, FAN_UP_LOW, low), corner = toward(right ? 0 : W, 0);
   // up is a larger angle looking left, a smaller one looking right: the lower of the two
   out[1] = right ? Math.min(round(Math.PI + e), corner) : Math.max(round(-e), corner);
 }
 
-/** Where the ray fan's lower edge meets the floor, a share of W in from the far side. */
-const FAN_FLOOR_X = 0.45;
+/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
+const FAN_FLOOR_X = 0.1;
 /** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
 const FAN_UP_LOW = (2 * Math.PI) / 180;
 const FAN_UP_HIGH = (12 * Math.PI) / 180;
@@ -169,16 +200,17 @@ export function rayHash(i: number): number {
   return r - Math.floor(r);
 }
 
-/** Thin ray `i` of `n` at time T in the fan `a0` … `a1`: evenly spread, a little off its place (was ±0.35 of a place: bunched, owner item 78), swaying with the beams (one sun, item 68) and a little on its own. */
-export function turnRayAngle(i: number, n: number, a0: number, a1: number, T: number): number {
-  return a0 + ((a1 - a0) * (i + 0.5 + (rayHash(i) - 0.5) * 0.2)) / n + sunDrift(T) + Math.sin(T * 0.15 + i) * 0.0015;
+/** Thin ray `i` at time T in the fan `a0` … `a1`: at its place among the beams (RAY_SLOTS, owner item 80), a little off it (was ±0.35 of a place: bunched, owner item 78), swaying with the beams (one sun, item 68) and a little on its own. */
+export function turnRayAngle(i: number, a0: number, a1: number, T: number): number {
+  const at = RAY_SLOTS[i % RAY_SLOTS.length]! + 0.5 + (rayHash(i) - 0.5) * 0.2;
+  return a0 + ((a1 - a0) * at) / FAN_SLOTS + sunDrift(T) + Math.sin(T * 0.15 + i) * 0.0015;
 }
 
 /** The beams at time T: spread over the sun's ray fan `a0` … `a1` (turnFan), with the rays' common sway. Fills `out` (BEAMS long). */
 export function sunBeams(T: number, a0: number, a1: number, out: Beam[]): void {
   const drift = sunDrift(T);
   for (let i = 0; i < BEAMS; i++) {
-    const [f, hw, k] = BUNDLE[i]!;
+    const [hw, k] = BUNDLE[i]!, f = (BEAM_SLOTS[i]! + 0.5) / FAN_SLOTS;
     const b = out[i] ?? (out[i] = { a: 0, hw: 0, k: 0 });
     b.a = a0 + (a1 - a0) * f + drift + Math.sin(T * 0.13 + i * 1.7) * 0.0015;
     b.hw = hw;

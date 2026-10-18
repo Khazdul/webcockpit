@@ -22,8 +22,8 @@
 //   over the 60 s before the day begins (`dayAt`) or the night begins
 //   (`nightAt`), the almanac's seconds at minute precision, the turn's `s`
 //   runs from -60 to 0 and the sky selection follows sunturn.ts
-//   `turnWeight` (a sunrise's day complete at the turn, a sunset's dusk too,
-//   its stars 14 s after, owner items 76, 77); from 0 the settled clock is
+//   `turnWeight` (a sunrise's day complete at the turn, a sunset's night with
+//   its stars too, owner items 76, 77, 81); from 0 the settled clock is
 //   the new one. A resync glides `s` toward the clock's time (a big one
 //   snaps, never back over the turn); a page load or sync mid-turn joins at
 //   its place. Without minute precision `Event.Sun rise` / `set` starts it
@@ -55,6 +55,8 @@ export const TURN_GLIDE_TAU = 2;
 export const TURN_SNAP_S = 15;
 /** A turn started mid-way glides onto its sky curve at this rate (share/s; above the curves' steepest 0.05/s, so once on it it follows it). */
 export const TURN_JOIN_RATE = 0.1;
+/** A page load or sync joins a turn the clock is in up to this long after its second (s): its sky is complete then, but the turn gives the new clock before the almanac re-reads it. */
+export const TURN_JOIN_S = 14;
 /** No new turn of a kind starts this long (wall ms) after one reached its second: never two in one dawn or dusk (a game day is 24 min). */
 export const TURN_GUARD_MS = 20 * 60_000;
 
@@ -240,7 +242,7 @@ export class Director {
     if (!T) {
       for (const kind of ['rise', 'set'] as const) {
         const tg = this.clockS(kind, wall);
-        if (inside(tg) && tg < FULL_S && this.start(kind, tg, wall)) return;
+        if (inside(tg) && tg < TURN_JOIN_S && this.start(kind, tg, wall)) return;
       }
       return;
     }

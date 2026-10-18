@@ -36,8 +36,8 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars } from '../sunturn';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, rayHash, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars } from '../sunturn';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -412,11 +412,14 @@ export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, ou
 }
 
 /**
- * A thin ray's glint on a frame line against a beam's (its strength 1; by the
- * square root of the ray's own strength): the faint rays drawn faintly, their
- * glints clearly (owner item 78; was 0.35, by the ray's strength).
+ * A glint's core at full strength (a beam's; a thin ray's by its tier,
+ * beams.ts TIER_GLINT): under 1, so the glints fade from the first moment
+ * the rays do (owner item 81: they were drawn at 1.1–1.3 and clipped at 1,
+ * so a fading glint stayed).
  */
-const RAY_GLINT = 1.1;
+const GLINT_CORE = 0.95;
+/** A thin ray's strength by tier (owner item 80: a little weaker than the beams, or much weaker). */
+const RAY_TIER: Readonly<Record<'m' | 'w', number>> = { m: 1, w: 0.4 };
 /** A thin ray's alpha (its body and its core; was 0.2): subtle, not a spotlight (owner item 78; by eye from headless screenshots). */
 const RAY_ALPHA = 0.085;
 
@@ -516,6 +519,8 @@ class Sky {
   /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
   beams: Beam[] = [];
   beamK = 0;
+  /** The frame glints' strength this frame (sunturn.ts `turnGlint`, owner items 80, 81). */
+  glintK = 0;
   /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
   sunUs = -1;
   daySun = new Float32Array(2);
@@ -523,7 +528,7 @@ class Sky {
   turnS = 0;
   /** The turn's ray fan this frame: its lower and upper edge (beams.ts turnFan). */
   fan = new Float32Array(2);
-  /** The thin rays this frame (their strength `k` 0..1): they glint where they cross a frame line too (owner items 68, 78). */
+  /** The thin rays this frame (`k` their glint by tier, 0..1): they glint where they cross a frame line too (owner items 68, 78, 80). */
   rays: Beam[] = [];
   hits: BeamHit[] = [];
   boxes: Box[] = [];
@@ -796,6 +801,7 @@ class Sky {
       mI = turnIntensity(ts);
       rI = turnRays(kind, ts);
       gI = turnGlow(kind, ts);
+      this.glintK = turnGlint(kind, ts) * out;
       e1 *= out;
       for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
       keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
@@ -1524,30 +1530,31 @@ class Sky {
     // Where a strong beam crosses a frame line, that stretch of the line
     // glints: a soft wider glow of the line and a bright core within the
     // beam's width, a sparkle where it enters the pane (owner feedback 37).
-    const bk = this.beamK;
-    if (bk > 0.01) {
+    // One strength for every glint (sunturn.ts turnGlint), so they fade in
+    // and out with the rays (owner items 80, 81), each by its ray's tier.
+    const gk = this.glintK * wetK * this.fogK * GLINT_CORE;
+    if (gk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
       // Every thin ray glints too where it crosses a frame line (owner item
-      // 68), clearly even for a faint ray (item 78: the ray drawn faintly, its
-      // glint not): a soft glow of the line and a brighter core, as a beam's.
+      // 68): a soft glow of the line and a brighter core, as a beam's.
       for (const r of this.rays) {
         for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
-          const a = bk * Math.sqrt(r.k) * RAY_GLINT * h.att * (h.enter ? 1 : BEAM_EXIT);
+          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT);
           if (a < 0.02) continue;
           const len = clamp(h.len * 3, 36, 140);
           this.glints.line(f, h.p, h.side, h.c, len * 2, a * 0.35);
-          this.glints.line(f, h.p, h.side, h.c, len, Math.min(1, a), h.enter && a > 0.3 ? 0.6 : 0);
+          this.glints.line(f, h.p, h.side, h.c, len, a, h.enter && a > 0.3 ? 0.6 : 0);
         }
       }
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
         for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
-          const a = bk * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
+          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
           if (a < 0.02) continue;
           // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line
           const len = clamp(h.len * 1.8, 24, 220);
-          this.glints.line(f, h.p, h.side, h.c, len * 2.2, a * 0.4);
-          this.glints.line(f, h.p, h.side, h.c, len, Math.min(1, a * 1.3), h.enter && a > 0.2 ? 1 : 0);
+          this.glints.line(f, h.p, h.side, h.c, len * 2.2, a * 0.3);
+          this.glints.line(f, h.p, h.side, h.c, len, a, h.enter && a > 0.2 ? 1 : 0);
         }
       }
     }
@@ -1566,7 +1573,7 @@ class Sky {
     if (this.beams.length !== BEAMS) this.beams = [];
     sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams);
     // the beams come one by one as the turn builds (owner item 71)
-    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(i, this.turnS);
+    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(this.mKind ?? 'rise', i, this.turnS);
     if (bk < 0.01) return;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
@@ -1653,16 +1660,17 @@ class Sky {
     // on the GPU thread (tens of ms per frame, stage 28 E).
     const cores: number[] = [];
     for (let i = 0; i < N; i++) {
-      const j = rayHash(i), a = turnRayAngle(i, N, a0, a1, T);
-      const wd = 0.0035 + j * 0.01;
-      // a few rays from the start, the others fading in one by one (owner item 71)
-      const on = turnRayOn(i, this.turnS);
-      const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1)) * on;
-      // kept for its glints on the frame lines (drawRaysFront)
+      const j = rayHash(i), a = turnRayAngle(i, a0, a1, T), tier = rayTier(i);
+      // by tier (owner item 80): the middle rays a little wider than the weak ones
+      const wd = (tier === 'm' ? 0.0065 : 0.0045) + j * 0.003;
+      // a sunset's few rays from the start, the others fading in one by one (owner item 71); a sunrise's all with its glow (item 80)
+      const on = turnRayOn(kind, i, this.turnS);
+      const al = RAY_TIER[tier] * (0.85 + 0.15 * Math.sin(T * (0.5 + j) + i * 2.1)) * on;
+      // kept for its glints on the frame lines (drawRaysFront), by tier
       const r = rays[i] ?? (rays[i] = { a: 0, hw: 0, k: 0 });
       r.a = a;
       r.hw = wd;
-      r.k = al;
+      r.k = TIER_GLINT[tier] * on;
       g.globalAlpha = k * al * RAY_ALPHA;
       g.beginPath();
       g.moveTo(sx, sy);
@@ -1671,7 +1679,7 @@ class Sky {
       g.closePath();
       g.fill();
       const ww = wd * 0.35;
-      cores.push(a - ww, a + ww, on);
+      cores.push(a - ww, a + ww, on * RAY_TIER[tier]);
     }
     for (let i = 0; i < cores.length; i += 3) {
       if (cores[i + 2]! < 0.005) continue;

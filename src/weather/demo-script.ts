@@ -185,18 +185,18 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset',
-    look: 'the last 30 seconds of the day: the blue gone into a warm dusk, faint rays and beams from the sun sinking at the left, glints again; the last rays fade softly, and only then the stars',
+    look: 'the last 30 seconds of the day: the blue gone into a warm dusk, faint rays and beams from the sun sinking at the left, glints again; the last rays and their glints fade softly, the stars coming as they go',
     signal: 'the clock: the last game hour of the day (Event.Sun set when it is not synced)',
     dur: -DEMO_TURN_FROM,
     acts: [[0, emit('sun.set', { from: DEMO_TURN_FROM })]],
   },
   {
     title: 'Night · rain and lightning',
-    look: 'the stars begin to come out after the last rays; rain in the dark, and the bolt lights the night sky',
+    look: 'the stars are out; rain in the dark, and the bolt lights the night sky',
     signal: `Event.Sun dark · Char.Vitals weather = '"' · a lightning line`,
     dur: 8,
     acts: [
-      // the night begins (Event.Sun dark); its stars are complete TURN_FULL.set (14 s) later
+      // the night begins (Event.Sun dark); its stars are complete then (TURN_FULL.set)
       [0, pin({ clock: 'night', weather: '"' })],
       [3.5, emit('strike')],
       [6.2, emit('strike')],
@@ -250,7 +250,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunrise · the first light',
-    look: 'the sun\'s hazy light grows slowly at the right; a few faint rays, sideways and down, then more, one by one; the stars fade, half gone 10 seconds in, barely there after 30',
+    look: 'the sun\'s hazy light grows slowly at the right, its faint rays with it, from level to steeply down, the frame lines glinting more and more; the stars fade, half gone 10 seconds in, barely there after 30',
     signal: 'the clock: the last game hour of the night ("The light slowly increases in the east.")',
     dur: 30,
     acts: [],
@@ -295,23 +295,23 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset · the first rays',
-    look: 'a few faint rays from the sun 40° up at the left, then more, one by one; from 10 seconds in the blue sky fades slowly into a warm dusk',
+    look: 'a few faint rays from the sun 40° up at the left, then more, one by one, from level to nearly straight down; from 10 seconds in the blue sky fades slowly into a warm dusk',
     signal: 'the clock: the last game hour of the day ("The sun slowly disappears in the west.")',
     dur: 30,
     acts: [],
   },
   {
     title: 'Sunset · the dusk',
-    look: 'the rays and the faint beams sink toward the horizon at the left and fade softly, the frame lines glinting where they cross; no stars yet',
+    look: 'the rays and the faint beams sink toward the horizon at the left, the frame lines glinting where they cross; from about 24 seconds before the night they fade softly, their glints with them; the stars start to show 7 seconds before the night',
     signal: 'the clock: the last game hour of the day',
     dur: 30,
     acts: [],
   },
   {
     title: 'The night begins',
-    look: 'the last rays are gone; the stars come out, complete 14 seconds into the night',
+    look: 'the last rays are gone and the stars are out, complete as the night begins',
     signal: 'Event.Sun dark ("The night has begun.")',
-    dur: TURN_FULL.set,
+    dur: Math.max(TURN_FULL.set, 10),
     acts: [[0, pin({ clock: 'night', sunU: -1 })]],
   },
   {
