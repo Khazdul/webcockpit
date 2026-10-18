@@ -69,7 +69,7 @@ Statuses: Next, In progress, Owner testing, Done.
   `sunrise-timing` (owner wants more tweaks; test with `#weather demo
   sunrise|sunset`). Owner judgement pending: early ray strength (rise
   0.6, set 0.5), day pulse strength (0.14–0.30), the moon (item 69).
-  Merge to main and release only when the owner approves., then merge to main.
+  Merge to main and release only when the owner approves.
 - **Open issues:** look only checked in headless screenshots; perf bench
   not rerun; the moonrise fallback without a minute-synced clock has no
   worker test; a demo during a live turn untested.
