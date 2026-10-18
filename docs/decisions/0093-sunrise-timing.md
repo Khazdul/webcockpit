@@ -80,7 +80,8 @@ relative to the turn's second; sst = smoothstep):
 
 | curve | formula | values |
 | --- | --- | --- |
-| intensity (rays, beams, glints, tint) | (0.06 · sst(-60, -20, s) + 0.94 · sst(-20, -7, s)) · (1 − sst(-8, 0, s)) | ≤ 0.06 to -20 s (0.03 at -40), 0.48 at -14, peak ~0.99 at -7.5, 0.5 at -4, 0 at 0 |
+| intensity (sky tint, palette glow, day life held back) | (0.06 · sst(-60, -20, s) + 0.94 · sst(-20, -7, s)) · (1 − sst(-8, 0, s)) | ≤ 0.06 to -20 s (0.03 at -40), 0.48 at -14, peak ~0.99 at -7.5, 0.5 at -4, 0 at 0 |
+| rays (rays, beams, glints; owner item 62) | max(intensity, (E · sst(-60, -57.5, s) + (L − E) · sst(-34, -26, s)) · (1 − sst(-8, 0, s))); sunrise E 0.2, L 0.3; sunset E 0.35, L 0.5 | the floor E from -57.5 s (faded in over 2.5 s), L from -26 s, then the intensity from ~-15 s; 0 at 0 |
 | palette (cloud palette → RISE_K / SET_K) | sst(-50, -14, s) · (1 − sst(-7, 0, s)) | 0.19 at -40, 1 from -14 to -7, 0 at 0 |
 | progress (RISE_C / SET_C colours, sun path, ray front) | ((s + 60) / 60)^5 | 0.004 at -40, 0.13 at -20, 0.51 at -7.5, 1 at 0 |
 | weight (the new sky's share) | sst(-28, 14, s) | 0 to -28, 0.1 at -20, 0.74 at 0, 1 at +14 |
@@ -88,7 +89,13 @@ relative to the turn's second; sst = smoothstep):
 The progress curve puts the old moments' strong middle (p ≈ 0.15–0.6:
 orange to pale gold at sunrise, gold to crimson at sunset) under the
 intensity's peak. The look (RISE_K / SET_K, RISE_C / SET_C, rays, beams,
-glints, the sky tint) is unchanged, only re-timed. While a turn's visuals
+glints, the sky tint) is unchanged, only re-timed. The rays' floor (owner
+item 62: "the first 30 seconds were rather dead") was set by eye from
+headless screenshots on the dark background at -58 … -20 s: vague but
+visible from the start, a little more from -30 s. A sunset's rays are drawn
+at about half a sunrise's strength (0.62 against 1.25) and over the day
+sky, so its floor is higher. The floor feeds only the rays, beams and their
+glints; the tint, palette, glow and day life keep the intensity. While a turn's visuals
 are on the sky asks for FPS_FAST, so the faint part creeps in steps of
 < 0.0001 per frame (< 0.001 even at FPS_STILL).
 

@@ -1135,3 +1135,22 @@ black: the brightest stroke stands out).
       clock: 'night', dayAt: Date.now() + 65_000 })` for a sunrise, then
       `__weather.unpin()`. Feedback wanted: the faint first 40 s, the pace
       of the new sky, and whether the re-timed colours look right.
+62. **Sun rays from the turn's first second.** "The first 30 seconds of
+    the sunrise were rather dead. I want the sun rays to be glimpsed right
+    from 1 minute before sunrise (visible but vague). After 30 seconds they
+    should show a little more but still not much. Otherwise it was good."
+    Then, same day: "I want the corresponding experience at sunset."
+    - **Done (2026-10-18):** ADR 0093 (curve table). The rays, beams and
+      their glints get a floor of their own: faded in over the first 2.5 s
+      and vague but visible from then on, a little more from 30 s before
+      the turn, then the old build-up over the last 20 s; still gone at
+      the turn's second. Set by eye from screenshots for each (the
+      sunset's rays are drawn about half as strong and over the blue sky,
+      so its floor is higher). The sky tint, colours and everything else
+      are unchanged. Unit 2721; e2e weather + layout 44/44.
+      Please try: the dev hooks (`__weather.jump({ weather: ' ', clock:
+      'night', dayAt: Date.now() + 65_000 })` for a sunrise, `clock: 'day',
+      nightAt: …` for a sunset, then `__weather.unpin()`) or a real dawn
+      and dusk with a synced clock: the rays should be there, faintly, from
+      the first second of the last game hour, a little stronger halfway.
+      Feedback wanted: too faint, too strong, or right, for each.
