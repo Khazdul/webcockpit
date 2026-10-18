@@ -51,7 +51,7 @@ thread. In the worker the director keeps one turn, `{ kind: rise | set,
 s, base }`, `s` in seconds relative to the turn's second, against
 `Date.now()`:
 
-- a turn starts when the clock's time lies in -60 … +14 s (a page load or a
+- a turn starts when the clock's time lies in -60 … FULL_S (+18 s; a page load or a
   sync mid-turn joins at its place, the mix with it); starting one ends one
   of the other kind;
 - it advances with the frame time (× the dev time scale) and glides toward
@@ -76,28 +76,26 @@ changes (a moon rising or setting, a turn without a sunrise or sunset)
 keep SKY_RATE.
 
 **Curves** (src/weather/sunturn.ts, the same for both; `s` = seconds
-relative to the turn's second; sst = smoothstep):
+relative to the turn's second; sst = smoothstep, lin = clamped linear;
+revised for owner items 71–72, see "Steady turns" below):
 
 | curve | formula | values |
 | --- | --- | --- |
-| intensity (sky tint, palette glow, day life held back) | (0.06 · sst(-60, -20, s) + 0.94 · sst(-20, -7, s)) · (1 − sst(-8, 0, s)) | ≤ 0.06 to -20 s (0.03 at -40), 0.48 at -14, peak ~0.99 at -7.5, 0.5 at -4, 0 at 0 |
-| rays (rays, beams, glints; owner item 62) | max(intensity, (E · sst(-60, -57.5, s) + (L − E) · sst(-34, -26, s)) · (1 − sst(-8, 0, s))); sunrise E 0.2, L 0.3; sunset E 0.35, L 0.5 | the floor E from -57.5 s (faded in over 2.5 s), L from -26 s, then the intensity from ~-15 s; 0 at 0 |
-| palette (cloud palette → RISE_K / SET_K) | sst(-50, -14, s) · (1 − sst(-7, 0, s)) | 0.19 at -40, 1 from -14 to -7, 0 at 0 |
-| progress (RISE_C / SET_C colours, sun path, ray front) | ((s + 60) / 60)^5 | 0.004 at -40, 0.13 at -20, 0.51 at -7.5, 1 at 0 |
-| weight (the new sky's share) | sst(-28, 14, s) | 0 to -28, 0.1 at -20, 0.74 at 0, 1 at +14 |
+| weight (the new sky's share) | sst(-32, 18, s) | 0 to -32, 0.15 at -20, 0.70 at 0, 1 at +18 (FULL_S) |
+| fade (the rays) | 1 − lin(-10, 18, s)^1.2 | 1 to -10 (the new sky perceptible, its share 0.4), 0.64 at 0, 0.33 at +10, 0 at +18 |
+| rays (rays, beams, glints) | sst(-60, -57.5, s) · (E + (1 − E) · lin(-60, -3, s)) · fade; sunrise E 0.45, sunset E 0.5 | 0.5 at -55, 0.74 at -30, peak 0.93 at -10, 0.71 at 0, 0.33 at +10, 0 at +18 |
+| rays on / beams on | three rays from the start, the other five from -54 s, 6 s apart (each over 8 s); the beams from -42, -34, -26 s (each over 10 s) | 3 → 8 rays by -20 s, 0 → 3 beams by -16 s |
+| intensity (sky tint, glow, day life held back) | lin(-60, -3, s)^1.3 · fade | 0.10 at -50, 0.43 at -30, 0.84 at -10, 0.71 at 0, 0 at +18 |
+| palette (cloud palette → RISE_K / SET_K) | lin(-55, -5, s) · fade | rising to 1 at -5, 0 at +18 |
+| progress (RISE_C / SET_C colours, the sun's angle) | lin(-60, 18, s) | even over the whole turn |
 
-The progress curve puts the old moments' strong middle (p ≈ 0.15–0.6:
-orange to pale gold at sunrise, gold to crimson at sunset) under the
-intensity's peak. The look (RISE_K / SET_K, RISE_C / SET_C, rays, beams,
-glints, the sky tint) is unchanged, only re-timed. The rays' floor (owner
-item 62: "the first 30 seconds were rather dead") was set by eye from
-headless screenshots on the dark background at -58 … -20 s: vague but
-visible from the start, a little more from -30 s. A sunset's rays are drawn
+The look (RISE_K / SET_K, RISE_C / SET_C, rays, beams, glints, the sky
+tint) is unchanged, only re-timed. The early ray strength was set by eye
+from headless screenshots on the dark background (owner items 62, 71: a few
+rays, vague but visible, from the first seconds); a sunset's rays are drawn
 at about half a sunrise's strength (0.62 against 1.25) and over the day
-sky, so its floor is higher. The floor feeds only the rays, beams and their
-glints; the tint, palette, glow and day life keep the intensity. While a turn's visuals
-are on the sky asks for FPS_FAST, so the faint part creeps in steps of
-< 0.0001 per frame (< 0.001 even at FPS_STILL).
+sky, so its E is higher. While a turn's visuals are on the sky asks for
+FPS_FAST (no step over 0.005 per frame at 30 fps).
 
 **Demo.** The Sunrise and Sunset steps send `sun.rise` / `sun.set` with
 `{ from: -25 }`: the last 25 s at the game's own pace (owner item 70; the
@@ -121,8 +119,7 @@ where it crosses a frame line (68).
   so it is always outside the screen: 0 at the horizon to the right, π/2
   straight above, π at the horizon to the left. Its light reaches that
   point at `psi` from the horizontal. `sunPsi('rise', p)` climbs from 0 to
-  40° (smoothstep of the turn's progress, so it stays low through the faint
-  part); `sunPsi('day', sunU)` goes on from 40° to 140°; `sunPsi('set', p)`
+  40° (linear in the turn's progress since items 71–72); `sunPsi('day', sunU)` goes on from 40° to 140°; `sunPsi('set', p)`
   sinks from 140° (40° up) to 180°. Each ends where the next begins.
 - **Glimpses** use the same sun at the day's `sunU`, eased (tau 8 s; it
   comes in SUN_U_STEP steps; unknown counts as 0.3), fanned round the
@@ -182,6 +179,42 @@ rises.
   fading) through the rise, and takes the low rule over the next tenth of
   its path. By day it stays DAY_MOON-faint.
 - Dev: see "An even pace" below.
+
+### Steady turns and a gentle pulse (owner items 71–73)
+
+After a live sunrise and sunset with the build of items 64–70: the first
+5–10 s were good (a few rays from the right angle), then very little for a
+long time and very much in a few seconds, a jerk; the rays died too fast;
+the sunset seemed to end with the sun at the middle of the left side; the
+day sky's glimpses came and went with long pauses.
+
+- **Even build-up.** The intensity's steep peak (sst(-20, -7) then gone by
+  0) and the colours' u^5 are replaced by the curves above: the strength
+  rises linearly from the kind's early value to its peak (-10 … -3 s),
+  more rays and then the beams fade in one by one, and the colours and the
+  sun's angle (`sunPsi` is linear in the progress now, no smoothstep) move
+  at one pace over the whole turn. Per second the rays change by at most
+  0.043.
+- **Slow fade, gone when the new sky is complete.** The rays, the tint and
+  the palette fade from -10 s (the new sky's share 0.4) to FULL_S = 18 s
+  (was 14), when it is complete; the turn's visuals run until then.
+- **The sunset ends at the bottom left** (beams.ts `SUN_SET_LOW` 1.0):
+  through a sunset the circle's middle sinks from the horizon (0.45 H) to
+  the bottom (1.0 H), so the sun ends below the bottom-left corner and its
+  last rays come up from the screen's lower left edge; it starts at 40° up
+  as before, continuous with the day's path.
+- **Fan fix.** For a sun beyond the right edge the rays' fan was laid
+  between the corners' angles across ±π, so most rays pointed away from the
+  screen (the dead first seconds of a sunrise); the corners are now taken
+  round the sun's middle direction.
+- **The day sky's rays pulse** (daylife.ts `pulseStrength`): one continuous
+  pulse, sin² of its phase, about every 20 s (±15 % from one to the next),
+  between nothing and 0.14 (morning, evening) … 0.30 (midday) of the old
+  glimpse's strength; no glints. Held back during a turn as before (fades
+  out with tau 0.35 s, back over 4 s). It asks for no frame rate of its
+  own: at FPS_STILL it changes by under 0.01 alpha per frame; a clear day
+  sky with it ran at 3 frames per second (60 frames in 20 s, headless
+  Chromium). The `glimpse` event (dev, demo) brings its peak in ~2 s.
 
 ### An even pace (owner item 69)
 

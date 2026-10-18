@@ -1230,6 +1230,8 @@ game's rise on the same path (`moonRiseAt`, owner item 63): ADR 0093, "The
 moonrise". One sun for sunrise, day glimpses and sunset, all rays glinting
 (owner items 64–68): ADR 0093, "One sun". The moon placed by the clock at an
 even pace (owner item 69): ADR 0093, "An even pace".
+Steady turns, the set ending at the bottom left and the day sky's ray pulse
+(owner items 71–73): ADR 0093, "Steady turns and a gentle pulse".
 
 ## Consequences
 

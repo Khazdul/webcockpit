@@ -1298,3 +1298,32 @@ black: the brightest stroke stands out).
     and only just perceptible, about every 20 s; so subtle you hardly
     notice it unless you look closely. A little more visible at midday,
     when the sun is brightest.
+    - **Done (2026-10-18), items 71–73:** ADR 0093, "Steady turns and a
+      gentle pulse". Sunrise and sunset now build up evenly: three faint
+      rays from the first seconds, the other five fading in one by one
+      over the next half minute, then the three strong beams; the strength
+      rises steadily to its peak about 10 s before the turn, and the sun's
+      angle and the colours move at one pace all through. The rays fade
+      slowly as the new sky comes (from about 10 s before the turn) and are
+      gone exactly when it is complete, 18 s after the turn. At the end of
+      a sunset the sun is below the horizon at the bottom left, so the last
+      rays come up from the lower left edge. (A fault made the first
+      seconds of a sunrise darker than meant: most of the early rays
+      pointed off the screen; fixed.) The day sky's rays no longer come and
+      go: they pulse slowly, about every 20 s, between nothing and only just
+      perceptible, a little more at midday, without glints; the frame rate
+      stays at the still rate. The demo's sunrise is followed by "The day
+      begins" (18 s, the rays fading as the blue sky fills in), still
+      3:00 at most. Unit 2725; e2e weather + layout 44/44. Checked in
+      headless Chromium (a sunrise and a sunset every 5 s from -60 to +20,
+      the pulse at morning, midday and evening).
+      Please try: a real sunrise and sunset with the clock synced (watch
+      the whole minute and the 20 s after); a clear day sky for a minute
+      or two (look closely for the pulse); dev server:
+      `__weather.jump({ weather: ' ', clock: 'night', dayAt: Date.now() +
+      65_000 })` / `clock: 'day', nightAt: …` for the turns,
+      `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.5 });
+      __weather.emit('glimpse')` for a pulse peak in 2 s, then
+      `__weather.unpin()`; and `#weather demo`. Feedback wanted: is the
+      build-up even now, is the fade slow enough, and is the pulse too
+      faint or too strong.
