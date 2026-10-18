@@ -22,8 +22,9 @@
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
 //   __weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')
-//                                           a sun glimpse at that time of day
-//                                           (0 the day's start … 1 its end; item 65)
+//                                           the day sky's ray pulse at its peak in
+//                                           ~2 s, at that time of day (0 the day's
+//                                           start … 1 its end; items 65, 73)
 //   await __weather.stats()                worker frame times
 //   __weather.demo()                       the demo (`#weather demo`)
 //   __weather.setSpeed(3)                  the slow paces (sky, turns, fog, clouds,

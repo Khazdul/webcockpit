@@ -8,7 +8,7 @@
 // Everything runs at the game's own pace (owner item 70: the old 3× demo
 // felt fast-forwarded): the demo shows a part of each slow process (the last
 // 25 s of a sunrise or sunset, enough of a build-up to read it) instead of
-// speeding it up. Times are seconds; 2:58 in all.
+// speeding it up. Times are seconds; 3:00 in all.
 
 import type { WeatherEvent, WeatherState } from './protocol';
 
@@ -43,7 +43,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     title: 'Night · moon and stars',
     look: 'a big moon in its phase, the starry sky, a shooting star that makes the frame lines it passes glint',
     signal: 'Event.Sun dark · Event.Moon rise · the almanac',
-    dur: 5,
+    dur: 4,
     acts: [
       [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 }, instant: true }],
       [1.5, emit('shoot')],
@@ -51,74 +51,82 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunrise',
-    look: 'the last 25 seconds of the night: faint rays from the horizon at the right grow into beams that climb and make the frame lines glint; the day sky comes as they fade',
+    look: 'the last 25 seconds of the night: rays from the horizon at the right, more and more of them, beams that climb and make the frame lines glint',
     signal: 'the clock: the last game hour of the night (Event.Sun rise when it is not synced)',
     dur: -DEMO_TURN_FROM,
     acts: [[0, emit('sun.rise', { from: DEMO_TURN_FROM })]],
   },
   {
-    title: 'Day · clear sky',
-    look: 'the blue sky fills in, a soft sun glow, the pale moon, birds, a sun glimpse from the morning sun, an insect',
-    signal: "Event.Sun light · Char.Vitals weather = ' '",
-    dur: 12,
+    title: 'The day begins',
+    look: 'the blue sky fills in and the rays fade slowly; they are gone when the sky is complete',
+    signal: 'Event.Sun light',
+    dur: 18,
     acts: [
-      // the day begins (Event.Sun light); the day sky completes in the next 14 s
+      // the day begins (Event.Sun light); the day sky completes FULL_S (18 s) later
       [0, pin({ clock: 'day', sunU: 0.15 })],
-      [0.5, emit('birds')],
-      [3, emit('glimpse')],
-      [8, emit('insect')],
+      [9, emit('birds')],
+    ],
+  },
+  {
+    title: 'Day · clear sky',
+    look: 'a soft sun glow, the pale moon, the morning sun\'s rays pulsing very faintly, an insect',
+    signal: "Char.Vitals weather = ' '",
+    dur: 8,
+    acts: [
+      [0, emit('glimpse')],
+      [3, emit('insect')],
     ],
   },
   {
     title: 'Day · clouds roll in',
     look: 'the clouds come one by one from the right, where the wind brings them',
     signal: "Char.Vitals weather = '~'",
-    dur: 14,
+    dur: 12,
     acts: [[0, pin({ weather: '~', moonUp: false, moonU: -1 })]],
   },
   {
     title: 'Day · light rain',
     look: 'thin rain sets in and the sky turns grey',
     signal: `Char.Vitals weather = "'"`,
-    dur: 6,
+    dur: 5,
     acts: [[0, pin({ weather: "'" })]],
   },
   {
     title: 'Day · heavy rain',
     look: 'denser rain; drips run along the pane edges',
     signal: `Char.Vitals weather = '"'`,
-    dur: 5,
+    dur: 4,
     acts: [[0, pin({ weather: '"' })]],
   },
   {
     title: 'Lightning',
     look: 'a bolt strikes and every frame line lights up',
     signal: 'a lightning line in the room text',
-    dur: 5,
+    dur: 4,
     acts: [
       [0.4, emit('strike')],
-      [2.4, emit('strike')],
-      [4.1, emit('strike')],
+      [2, emit('strike')],
+      [3.4, emit('strike')],
     ],
   },
   {
     title: 'Snow and a gust',
     look: 'snow falls in from above and slowly builds up; a gust swirls it',
     signal: "Char.Vitals weather = '*' · a wind line",
-    dur: 14,
+    dur: 12,
     acts: [
       [0, pin({ weather: '*' })],
-      [9, emit('gust')],
+      [8, emit('gust')],
     ],
   },
   {
     title: 'Fog',
     look: 'fog drifts in low over the screen and slowly thickens',
     signal: "Char.Vitals fog = '-', then '='",
-    dur: 16,
+    dur: 12,
     acts: [
       [0, pin({ weather: ' ', fog: '-' })],
-      [8, pin({ fog: '=' })],
+      [6, pin({ fog: '=' })],
     ],
   },
   {
@@ -132,7 +140,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     title: 'Outdoors again',
     look: 'the sky fades back in as it was',
     signal: "Char.Vitals weather = ' '",
-    dur: 5,
+    dur: 4,
     acts: [[0, pin({ weather: ' ' })]],
   },
   {
@@ -163,12 +171,12 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     title: 'On your feet again',
     look: 'the blood darkens, dries and fades',
     signal: 'Char.Vitals position = standing',
-    dur: 9,
+    dur: 8,
     acts: [[0, pin({ position: 'standing', sunU: 0.9 })]],
   },
   {
     title: 'Sunset',
-    look: 'the last 25 seconds of the day: rays from the sun low at the left grow into beams that sink to the horizon, glints again; the blue sky turns into the starry night as they fade; a shooting star',
+    look: 'the last 25 seconds of the day: rays from the sun low at the left, more and more of them, beams that sink toward the bottom left, glints again; the night sky comes; a shooting star',
     signal: 'the clock: the last game hour of the day (Event.Sun set when it is not synced)',
     dur: -DEMO_TURN_FROM,
     acts: [
@@ -178,11 +186,11 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Night · rain and lightning',
-    look: 'the night sky fills in; rain in the dark, and the bolt lights the night sky',
+    look: 'the night sky fills in as the last rays fade; rain in the dark, and the bolt lights the night sky',
     signal: `Event.Sun dark · Char.Vitals weather = '"' · a lightning line`,
     dur: 8,
     acts: [
-      // the night begins (Event.Sun dark); the night sky completes in the next 14 s
+      // the night begins (Event.Sun dark); the night sky completes FULL_S (18 s) later
       [0, pin({ clock: 'night', weather: '"' })],
       [3.5, emit('strike')],
       [6.2, emit('strike')],

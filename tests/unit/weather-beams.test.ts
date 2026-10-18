@@ -2,7 +2,7 @@
 // from the sun; the frame lines glint exactly where a beam crosses them.
 
 import { describe, expect, it } from 'vitest';
-import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_PSI, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
+import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_LOW, SUN_SET_PSI, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
 import type { FrameBox } from '../../src/weather/worker/glint';
 
 const W = 1600, H = 900;
@@ -55,7 +55,8 @@ describe('one sun (owner items 65-67)', () => {
     expect(elev(sunPsi('rise', 0))).toBeCloseTo(0, 6);
     expect(elev(sunPsi('day', 0))).toBeCloseTo((SUN_RISE_PSI * 180) / Math.PI, 3);
     expect(elev(sunPsi('set', 0))).toBeLessThanOrEqual(45);
-    expect(elev(sunPsi('set', 1))).toBeCloseTo(0, 6);
+    // the sunset ends below the horizon at the bottom left: its last light comes up from there (item 72)
+    expect(elev(sunPsi('set', 1))).toBeLessThan(-10);
     // from the right in the morning, from the left in the evening, from above at midday
     sunPoint(sunPsi('rise', 0), W, H, o);
     expect(o[0]).toBeGreaterThan(W);
@@ -67,6 +68,11 @@ describe('one sun (owner items 65-67)', () => {
     expect(o[0]).toBeLessThan(W / 2);
     sunPoint(sunPsi('set', 1), W, H, o);
     expect(o[0]).toBeLessThan(0);
+    expect(o[1]).toBeCloseTo(H * SUN_SET_LOW, 3);
+    expect(SUN_SET_LOW).toBeGreaterThanOrEqual(0.9);
+    // and it gets there evenly: the angle moves at one pace through a turn (items 71, 72)
+    expect(sunPsi('set', 0.5) - sunPsi('set', 0.25)).toBeCloseTo(sunPsi('set', 0.25) - sunPsi('set', 0), 9);
+    expect(sunPsi('rise', 0.5) - sunPsi('rise', 0.25)).toBeCloseTo(sunPsi('rise', 0.25) - sunPsi('rise', 0), 9);
     expect(SUN_SET_PSI).toBeLessThanOrEqual(Math.PI / 4);
   });
 

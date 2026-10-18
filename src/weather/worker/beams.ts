@@ -74,14 +74,26 @@ export const SUN_HORIZON = 0.45;
 /** The sun's angle for a sunrise or sunset `p` (0..1 into it) or the day's `sunU` (0..1). */
 export function sunPsi(kind: 'rise' | 'day' | 'set', x: number): number {
   const q = Math.min(1, Math.max(0, x));
-  if (kind === 'rise') return SUN_RISE_PSI * sst(0, 1, q);
-  if (kind === 'set') return Math.PI - SUN_SET_PSI * (1 - sst(0, 1, q));
+  // even all through: no easing that bunches the climb or the descent at an end (owner items 71, 72)
+  if (kind === 'rise') return SUN_RISE_PSI * q;
+  if (kind === 'set') return Math.PI - SUN_SET_PSI * (1 - q);
   return SUN_RISE_PSI + (Math.PI - SUN_SET_PSI - SUN_RISE_PSI) * q;
 }
 
-/** The sun's place at `psi` for a W × H screen: always outside it (beyond the right edge, above the top, beyond the left edge). */
+/** Where a sunset ends: the sun below the horizon at the bottom left, a share of H (owner item 72). */
+export const SUN_SET_LOW = 1.0;
+
+/**
+ * The sun's place at `psi` for a W × H screen: always outside it (beyond
+ * the right edge, above the top, beyond the left edge). Through a sunset
+ * (`psi` past π − SUN_SET_PSI) the circle's middle sinks from the horizon to
+ * SUN_SET_LOW · H, so the sun ends below the bottom-left corner's height and
+ * its last rays come from the screen's lower left edge (owner item 72).
+ */
 export function sunPoint(psi: number, W: number, H: number, out: Float32Array): void {
-  const cx = W / 2, cy = H * SUN_HORIZON, D = Math.hypot(cx, cy) * 1.05;
+  const cx = W / 2, D = Math.hypot(cx, H * SUN_HORIZON) * 1.05;
+  const low = sst(Math.PI - SUN_SET_PSI, Math.PI, psi);
+  const cy = H * (SUN_HORIZON + (SUN_SET_LOW - SUN_HORIZON) * low);
   out[0] = cx + D * Math.cos(psi);
   out[1] = cy - D * Math.sin(psi);
 }

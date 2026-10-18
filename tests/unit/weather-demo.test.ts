@@ -177,7 +177,7 @@ describe('the demo runner', () => {
     expect(h.log).toContain(`emit sun.rise {"from":${DEMO_TURN_FROM}}`);
     expect(h.pins.at(-1)).toMatchObject({ smooth: false, p: { clock: 'night', dayAt: -1 } });
     await vi.advanceTimersByTimeAsync(-DEMO_TURN_FROM * 1000);
-    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Day · clear sky');
+    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('The day begins');
     expect(h.pins.at(-1)).toMatchObject({ smooth: true, p: { clock: 'day' } });
     // pins accumulate
     await vi.advanceTimersByTimeAsync(30_000);

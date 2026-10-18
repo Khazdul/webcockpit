@@ -36,8 +36,8 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_S, type TurnKind, glimpseBlocked, turnIntensity, turnPalette, turnProgress, turnRays } from '../sunturn';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunPoint, sunPsi } from './beams';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays } from '../sunturn';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -513,6 +513,8 @@ class Sky {
   /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
   sunUs = -1;
   daySun = new Float32Array(2);
+  /** The turn's `s` this frame (sunturn.ts: which rays and beams are there yet). */
+  turnS = 0;
   /** The thin rays this frame (their strength `k` 0..1): they glint where they cross a frame line too, faintly (owner item 68). */
   rays: Beam[] = [];
   hits: BeamHit[] = [];
@@ -700,7 +702,7 @@ class Sky {
     } else if (name === 'birds') {
       this.life.birdsNow();
     } else if (name === 'glimpse') {
-      this.life.glimpseNow(this.T);
+      this.life.glimpseNow();
     } else if (name === 'insect') {
       this.life.insectNow();
     } else if (name === 'shoot') {
@@ -773,12 +775,14 @@ class Sky {
     t[6]! += wMoon * wet * 0.5 + wNight;
     // mI: the turn's strength (tint, palette, glow); rI: its rays and beams (from its first second, owner item 62)
     let mP = -1, mI = 0, e1 = 0, rI = 0;
-    // Sunrise and sunset: the clock's last 60 s of the night or the day (the
-    // director's `riseS` / `setS`); strength, palette and colours by time (sunturn.ts).
-    const on = (x: number): boolean => skyOn && x > -TURN_S && x < 0;
+    // Sunrise and sunset: the clock's last 60 s of the night or the day and on
+    // until the new sky is complete (the director's `riseS` / `setS`);
+    // strength, palette and colours by time (sunturn.ts, owner items 71, 72).
+    const on = (x: number): boolean => skyOn && turnOn(x);
     const kind = on(env.rise) ? 'rise' : on(env.set) ? 'set' : null;
     if (kind) {
       const ts = kind === 'rise' ? env.rise : env.set;
+      this.turnS = ts;
       mP = turnProgress(ts);
       e1 = turnPalette(ts);
       mI = turnIntensity(ts);
@@ -1549,6 +1553,8 @@ class Sky {
     const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
     if (this.beams.length !== BEAMS) this.beams = [];
     sunBeams(this.T, sx, sy, W, H, this.beams);
+    // the beams come one by one as the turn builds (owner item 71)
+    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(i, this.turnS);
     if (bk < 0.01) return;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
@@ -1621,16 +1627,20 @@ class Sky {
     rg.addColorStop(0.55, `rgba(${rgb},.62)`);
     rg.addColorStop(1, `rgba(${rgb},.05)`);
     g.fillStyle = rg;
+    // the screen's corners as seen from the sun, round its middle direction
+    // (no wrap at ±π: a sun beyond the right edge looks left)
     let a0 = 1e9, a1 = -1e9;
+    const am = sunMid(sx, sy, W, H);
     for (let i = 0; i < 4; i++) {
-      const a = Math.atan2((i > 1 ? H : 0) - sy, (i & 1 ? W : 0) - sx);
+      const d = Math.atan2((i > 1 ? H : 0) - sy, (i & 1 ? W : 0) - sx) - am;
+      const a = am + Math.atan2(Math.sin(d), Math.cos(d));
       a0 = Math.min(a0, a);
       a1 = Math.max(a1, a);
     }
     // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
     // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
     // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
-    const T = this.T, N = 8, L = far * 1.2, drift = sunDrift(T), rays = this.rays;
+    const T = this.T, N = TURN_RAY_N, L = far * 1.2, drift = sunDrift(T), rays = this.rays;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
@@ -1639,7 +1649,9 @@ class Sky {
       const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
       const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + drift + Math.sin(T * 0.15 + i) * 0.0015;
       const wd = 0.0035 + j * 0.01;
-      const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1));
+      // a few rays from the start, the others fading in one by one (owner item 71)
+      const on = turnRayOn(i, this.turnS);
+      const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1)) * on;
       // kept for its glints on the frame lines (drawRaysFront)
       const r = rays[i] ?? (rays[i] = { a: 0, hw: 0, k: 0 });
       r.a = a;
@@ -1653,10 +1665,11 @@ class Sky {
       g.closePath();
       g.fill();
       const ww = wd * 0.35;
-      cores.push(a - ww, a + ww);
+      cores.push(a - ww, a + ww, on);
     }
-    g.globalAlpha = k * 0.2;
-    for (let i = 0; i < cores.length; i += 2) {
+    for (let i = 0; i < cores.length; i += 3) {
+      if (cores[i + 2]! < 0.005) continue;
+      g.globalAlpha = k * 0.2 * cores[i + 2]!;
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
