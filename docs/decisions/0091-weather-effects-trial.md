@@ -895,6 +895,9 @@ and the demo's time scale are gone (`setSpeed` stays as a dev knob,
 `__weather.setSpeed`); 20 steps, 2:58, each showing part of a slow process
 (the last 25 s of a sunrise and a sunset, 14 s of snow building up) instead
 of speeding it up. ADR 0093 "Demo". The text below is the first version.
+**2026-10-18 (owner item 74):** `#weather demo sunrise` and `#weather demo
+sunset` play one whole turn as live (ADR 0093 "Demo"); `#weather stop`
+ends any of them.
 
 - **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
   a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++

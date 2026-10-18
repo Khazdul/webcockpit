@@ -105,6 +105,18 @@ the game's clock does not start a turn or a moon of its own; the release at
 the end gives the game's back. A demo turn (`from` given) never holds back
 the game's next one. 2:58 in all.
 
+`#weather demo sunrise` / `#weather demo sunset` (owner item 74) play one
+whole turn exactly as live: a clear moonless night (a clear day) for 5 s
+with `dayAt` (`nightAt`) pinned 65 s ahead, so the director runs the
+clock's turn (the full minute, then on until the new sky is complete at
+FULL_S), a little of the new day (night: the pulse; a shooting star), then
+the release; 1:36 / 1:34. The caption counts to and from the turn's second
+("the day begins in 0:42", "the day began 0:07 ago"), once a second. Such a
+turn counts for the once-a-dawn guard, so the release lifts it
+(`setSpeed(1)`); and a turn whose clock time the clock no longer gives (the
+game's own `dayAt` back after the release) ends once its sky is complete
+instead of LATE_S after its second, so nothing of the demo stays behind.
+
 ### One sun (owner items 64–68)
 
 After a live sunset the owner asked for: no day glimpses during a turn

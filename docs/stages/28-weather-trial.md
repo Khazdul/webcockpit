@@ -1317,13 +1317,30 @@ black: the brightest stroke stands out).
       3:00 at most. Unit 2725; e2e weather + layout 44/44. Checked in
       headless Chromium (a sunrise and a sunset every 5 s from -60 to +20,
       the pulse at morning, midday and evening).
-      Please try: a real sunrise and sunset with the clock synced (watch
+      Please try: `#weather demo sunrise` and `#weather demo sunset`
+      (item 74) or a real sunrise and sunset with the clock synced (watch
       the whole minute and the 20 s after); a clear day sky for a minute
-      or two (look closely for the pulse); dev server:
-      `__weather.jump({ weather: ' ', clock: 'night', dayAt: Date.now() +
-      65_000 })` / `clock: 'day', nightAt: …` for the turns,
-      `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.5 });
-      __weather.emit('glimpse')` for a pulse peak in 2 s, then
-      `__weather.unpin()`; and `#weather demo`. Feedback wanted: is the
+      or two (look closely for the pulse); and `#weather demo`. Feedback wanted: is the
       build-up even now, is the fade slow enough, and is the pulse too
       faint or too strong.
+74. **Demo commands for one sunrise and one sunset.** `#weather demo
+    sunrise` and `#weather demo sunset`, to test them properly: the whole
+    cycle, without console commands.
+    - **Done (2026-10-18):** ADR 0093 "Demo". `#weather demo sunrise`: a
+      clear starry night without a moon for 5 s, then the whole sunrise
+      exactly as in the game (the last game hour of the night, then on
+      until the blue sky is complete), 10 s of day with the sun's rays
+      pulsing, then back to the game; about 1:36. `#weather demo sunset` is
+      the same the other way round, ending with the starry night and a
+      shooting star; about 1:34. The caption box shows the step and counts
+      to and from the turn's second ("the day begins in 0:42", "the day
+      began 0:07 ago"), so you can name a moment in feedback.
+      `#weather stop` ends any demo; starting one while another runs says
+      so. After it, the game's own sunrise or sunset comes as usual, even
+      soon after. These commands replace the console commands in the
+      earlier "Please try" notes for testing the sunrise and sunset; `#help
+      weather` lists them. Unit 2729; e2e weather + layout 44/44. Played
+      once each in headless Chromium (screenshots, no errors).
+      Please try: `#weather demo sunrise` and `#weather demo sunset`, out
+      of the game or in it; note the caption's time for anything you want
+      changed.
