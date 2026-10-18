@@ -39,6 +39,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-18 — Stage 28 items 76–79, sky order and calm rays (branch `sunrise-timing`)
+
+- **Done:** owner feedback "sun test 2". Sunrise: the haze builds over ~25 s,
+  stars 50 % at -50 s and faint at -30 s, blue fades in from -30 s, the sun
+  and rays are gone at the day's second. Sunset: the blue fades from -50 s
+  into a warm dusk, the rays fade softly to 0 at the turn, stars only after
+  (complete at +14 s). Rays: much fainter, evenly spread, sideways/down at a
+  sunrise's start; faint-ray glints on frames much stronger; a new fan
+  (`turnFan`) ends the fast swings (max 4.4–6.5 → <0.85 °/s). ADR 0093
+  "Sky order and calm rays". Demos retimed. Unit 2734; e2e weather +
+  layout 44/44 (Chromium, Firefox).
+- **Next:** owner tests `#weather demo sunrise` / `sunset` (items 76–79).
+- **Open issues:** ~5 s plain dark sky around the night's second; sunset
+  worker frame higher from -50 s (≈4.5 ms avg in headless); weather-power
+  bench not rerun.
+- **Commits:** 9689414, 52554bf, 8d0310f, f8fc3fa, plus this one.
+
 ### 2026-10-18 — Stage 28 items 59–75, sun, moon and demo (branch `sunrise-timing`)
 
 - **Done:** owner live feedback after 0.1.63. Rooms are lit from "The day
