@@ -54,7 +54,7 @@ s, base }`, `s` in seconds relative to the turn's second, against
 - a turn starts when the clock's time lies in -60 … +14 s (a page load or a
   sync mid-turn joins at its place, the mix with it); starting one ends one
   of the other kind;
-- it advances with the frame time (× the demo's speed) and glides toward
+- it advances with the frame time (× the dev time scale) and glides toward
   the clock's time (tau 2 s), so a resync of a few seconds never jumps; a
   correction over 15 s snaps, but never back over the turn's second;
 - from 0 the settled clock is the new one (the almanac's own change, up to
@@ -65,7 +65,7 @@ s, base }`, `s` in seconds relative to the turn's second, against
   is ignored; `light` / `dark` without a turn fade over 12 s (SKY_RATE);
 - never two in one dawn or dusk: no turn of a kind starts within 20 min
   (wall) after one of that kind reached its second; `jump` and a speed
-  change (the demo) lift that.
+  change lift that, and the demo's turns never count.
 
 While it runs the director sets the sky selection itself: the new sky's
 share = max(its share when the turn started, `turnWeight`) (`sun` for a
@@ -100,10 +100,12 @@ are on the sky asks for FPS_FAST, so the faint part creeps in steps of
 < 0.0001 per frame (< 0.001 even at FPS_STILL).
 
 **Demo.** The Sunrise and Sunset steps send `sun.rise` / `sun.set` with
-`{ from: -30 }`: the last half minute (10 s at the demo's speed 3, 30 s
-`slow`); the next step pins the day (night). The first pin sets `dayAt` and
-`nightAt` to -1, so the game's clock does not start a turn of its own; the
-release at the end gives the game's back. 1:38 in all.
+`{ from: -25 }`: the last 25 s at the game's own pace (owner item 70; the
+demo has no speed-up any more); the next step pins the day (night). The
+first pin sets `dayAt`, `nightAt`, `moonRiseAt` and `moonSetAt` to -1, so
+the game's clock does not start a turn or a moon of its own; the release at
+the end gives the game's back. A demo turn (`from` given) never holds back
+the game's next one. 2:58 in all.
 
 ### One sun (owner items 64–68)
 

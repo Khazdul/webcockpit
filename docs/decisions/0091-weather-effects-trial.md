@@ -890,6 +890,12 @@ agent's browsers). `bench/results/` is not rewritten.
 
 ### Demo (2026-10-17, owner feedback 33)
 
+**2026-10-18 (owner item 70):** one demo at the game's own pace: `slow`
+and the demo's time scale are gone (`setSpeed` stays as a dev knob,
+`__weather.setSpeed`); 20 steps, 2:58, each showing part of a slow process
+(the last 25 s of a sunrise and a sunset, 14 s of snow building up) instead
+of speeding it up. ADR 0093 "Demo". The text below is the first version.
+
 - **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
   a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++
   abbreviation changes), left out of the manual like the other trial

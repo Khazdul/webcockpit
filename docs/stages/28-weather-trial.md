@@ -1256,3 +1256,24 @@ black: the brightest stroke stands out).
       (`Date.now() - 300_000` for one mid-way), then `__weather.unpin()`.
       Feedback wanted: is the pace even and right, and does it come in and
       go out at the edges at the game's messages.
+70. **One demo, at the real pace.** `#weather demo` feels fast-forwarded;
+    `#weather demo slow` gives a more realistic picture of how the effects
+    look. Keep only `#weather demo`, giving a realistic experience of the
+    different effects; it may run a little longer if needed, at most about
+    3 minutes in total.
+    - **Done (2026-10-18):** ADR 0091 "Demo" (note), ADR 0093 "Demo".
+      `#weather demo` now runs everything at the game's own pace (`slow` is
+      gone) and shows a part of each slow process instead of speeding it
+      up: the last 25 s of the sunrise and the sunset, 14 s of clouds
+      coming and of snow building up, 16 s of fog thickening, the day and
+      night skies filling in after the turns. 20 steps, 2:58:
+      night and moon 0:00 (5 s), sunrise 0:05 (25), day clear 0:30 (12),
+      clouds 0:42 (14), light rain 0:56 (6), heavy rain 1:02 (5), lightning
+      1:07 (5), snow and a gust 1:12 (14), fog 1:26 (16), indoors 1:42 (6),
+      outdoors 1:48 (5), sleeping 1:53 (4), stunned 1:57 (3),
+      incapacitated/dying 2:00 (5), on your feet 2:05 (9), sunset 2:14
+      (25), night rain and lightning 2:39 (8), darkness spreads 2:47 (5),
+      lifts 2:52 (3), back to the game 2:55 (3). Watched through once in
+      headless Chromium (screenshots at eleven points).
+      Please try: `#weather demo` once through; feedback wanted on any
+      step that feels too short to see or too long.
