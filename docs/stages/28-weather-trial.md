@@ -1033,3 +1033,6 @@ black: the brightest stroke stands out).
       failures are flaky and fail on 8e0998c too). Please try: a private
       window (new player) on desktop and on the phone, and your own browser
       after the update (weather should be on, nothing else changed).
+    - **Owner, same day:** the map pane without a frame. Done: the default
+      map toggle is borderless (a damaged stored entry stays framed); its
+      share is 195 so the rows stay the same (map 22 in 174 × 51).

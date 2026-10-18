@@ -106,11 +106,15 @@ describe('migrateSettings', () => {
     expect(migrateSettings({}, { phone: true }).weather).toMatchObject({ sky: true, precipitation: true, lightning: true });
   });
 
-  it('a damaged Character or UI entry in a stored pane map falls back to on (ADR 0092)', () => {
+  it('a damaged Character or UI entry in a stored pane map falls back to on, a damaged map entry to framed (ADR 0092)', () => {
     const p = migrateSettings({ panes: { character: 'x', ui: { color: 'black' }, comm: { on: true } } }).panes;
     expect(p.character.on).toBe(true);
     expect(p.ui.on).toBe(true);
     expect(migrateSettings({ panes: { character: { on: false }, ui: { on: false } } }).panes.character.on).toBe(false);
+    // The map's frame: a damaged entry keeps it, a stored false is kept.
+    expect(migrateSettings({ panes: { map: 'x' } }).panes.map.border).toBe(true);
+    expect(migrateSettings({ panes: { map: { on: true } } }).panes.map.border).toBe(true);
+    expect(migrateSettings({ panes: { map: { on: true, border: false } } }).panes.map.border).toBe(false);
   });
 
   it('default layout (ADR 0078, ADR 0092): Character and the map over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {

@@ -39,13 +39,14 @@ const rect = (r: LayoutResult, id: PaneId): Rect | undefined => r.panes.find((p)
 const content = (r: LayoutResult, id: PaneId): Rect | undefined => r.panes.find((p) => p.id === id)?.content;
 
 describe('new-player settings (ADR 0092)', () => {
-  it('Character, UI and Map search off; the weather on; Shimrod on a transparent map', () => {
+  it('Character, UI and Map search off; the map borderless; the weather on; Shimrod on a transparent map', () => {
     const s = defaultSettings();
     expect(s.panes.character.on).toBe(false);
     expect(s.panes.ui.on).toBe(false);
     expect(s.panes[FIND]!.on).toBe(false);
     for (const id of ['map', 'group', 'timers', 'comm', BAR] as PaneId[]) expect(s.panes[id]!.on).toBe(true);
     expect(s.weather.enabled).toBe(true);
+    expect(s.panes.map.border).toBe(false);
     expect(s.mapper.tileset).toBe('shimrod');
     expect(s.mapper.background).toBe('transparent');
   });

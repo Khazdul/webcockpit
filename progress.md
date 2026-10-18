@@ -43,7 +43,8 @@ Statuses: Next, In progress, Owner testing, Done.
 
 - **Done:** item 58, ADR 0092. New player: weather on, map docked under
   Character in a 50-cell right dock, Shimrod (alternating) on Transparent,
-  Character/UI/Map search hidden (Map search at the game's top-right).
+  Character/UI/Map search hidden (Map search at the game's top-right),
+  the map borderless.
   Existing desktop users get the weather on (explicit off kept); phones
   default off and keep Character on. Old-default tests use
   `adr0078Settings()` in `tests/unit/legacy-defaults.ts`.

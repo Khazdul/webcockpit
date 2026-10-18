@@ -26,7 +26,7 @@ update; a phone never starts with it.
 ```
 right dock (2 lanes × 25 = 50 cells)
   head:  character        desired 9   (off by default)
-         map              desired 180
+         map              desired 195  (no frame)
   lanes: [0] group        desired 110   lane 0 = screen edge
          [1] timers       desired 110
   tail:  comm             desired 130
@@ -49,7 +49,8 @@ floating: mapsearch/main  auto, below: 'map', h 15 (off)
 
 ### Settings (`defaultSettings()`)
 
-- `panes.character.on` and `panes.ui.on` false (Map search was already off).
+- `panes.character.on` and `panes.ui.on` false (Map search was already off);
+  `panes.map.border` false (owner, same day: the map without a frame).
 - `weather.enabled` true.
 - `mapper.tileset` `'shimrod'` (the seasonal family), `mapper.background`
   `'transparent'`.
@@ -59,7 +60,8 @@ floating: mapsearch/main  auto, below: 'map', h 15 (off)
 `migrateSettings` only ever sees stored records, so a missing or invalid
 value in one is an existing user's:
 
-- `migratePanes`: a damaged Character or UI entry falls back to on.
+- `migratePanes`: a damaged Character or UI entry falls back to on, a
+  damaged map entry to framed.
 - `migrateMapper`: a missing or invalid tileset or background takes
   `LEGACY_MAPPER` (MMapper tiles, `#2e3436`).
 - `migrateWeather(raw, phone)`: a missing or invalid `enabled` is true on

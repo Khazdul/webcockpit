@@ -281,7 +281,7 @@ export const EVEN_SHARE_DESIRED = 200;
  */
 export const DEFAULT_SHARE = {
   /** The map, spanning both lanes under Character (stage 28 new-player defaults). */
-  map: 180,
+  map: 195,
   /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 109. */
   lanes: 110,
   comm: 130,

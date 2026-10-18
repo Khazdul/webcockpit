@@ -388,7 +388,7 @@ export function defaultSettings(): Settings {
       group: { on: true, color: 'black', border: true },
       comm: { on: true, color: 'black', border: true },
       ui: { on: false, color: 'black', border: false },
-      map: { on: true, color: 'black', border: true },
+      map: { on: true, color: 'black', border: false },
       // Pre-placed bundled script panes (ADR 0078): the pane bar is
       // borderless; Map search starts off (its script runs, the pane waits).
       [PANEBAR_PANE]: { on: true, color: 'black', border: false },
