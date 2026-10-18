@@ -39,6 +39,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 items 83–84, sunset end and dithered day rays (branch `sunrise-timing`)
+
+- **Done:** the sunset now reads as set at the night's second (its colours
+  reached night blue at -7 s; new `lateFade`, `SET_C` blue only at 1); sun
+  and glow halved (sunrise too), rays halved in both turns, glints kept.
+  Sunset stars `lin(-9, 5)^1.2`: faint at -5, about half at 0, full at +5
+  (`FULL_S` 5). Day sky: nine fainter rays; the choppy vanish was 8-bit
+  alpha steps, fixed with dithered textures (still 3 fps). ADR 0093 two
+  subsections. Unit 2739; e2e weather + layout 44/44.
+- **Next:** owner tests items 83–84.
+- **Open issues:** halved sunrise sun unconfirmed; day-ray grain not seen
+  in Firefox by eye; no bench rerun for the textures.
+- **Commits:** b7e0eef, 3298acd, 6b73f70, 30e12d3, 07f7441, 191a753,
+  743767d, plus this one.
+
 ### 2026-10-19 — Stage 28 items 80–82, tiered rays and day rays (branch `sunrise-timing`)
 
 - **Done:** one tiered fan for sunrise and sunset (15 places: 3 beams,
