@@ -1584,3 +1584,16 @@ black: the brightest stroke stands out).
       Please try: `#weather demo sunset` and `#weather demo sunrise`.
       Feedback wanted: do the glints now sit only on the first pane, and
       are there now too few glints anywhere.
+
+### 2026-10-19 — end of session (translated)
+
+Overall the owner is happy; some polish remains for the next session.
+
+87. **Sunset stars later.** The night still feels as if it begins a little
+    early. The stars should only just be perceptible when the night begins,
+    fade in for about 5–6 s more and be complete 5–6 s after it began (now
+    perceptible from -5, about half at 0, full at +5).
+- The sunrise sun's strength (halved in item 83) feels right: kept.
+- The day sky (items 82, 84) feels better.
+- The owner will next check fog, lightning, clouds, snow, rain and the rest
+  in real play.

@@ -39,6 +39,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Session end (branch `sunrise-timing`)
+
+- **Owner verdict:** overall happy. Sunrise sun strength right (halved,
+  kept); day sky better.
+- **Next session:** item 87 (sunset stars: just perceptible at 0, complete
+  at +5…6). Then the owner's findings from real play (fog, lightning,
+  clouds, snow, rain). Then merge `sunrise-timing` to main and release.
+- **Commits:** this one.
+
 ### 2026-10-19 — Stage 28 items 85–86, demo held from the game, first-pane glints (branch `sunrise-timing`)
 
 - **Done:** item 85 (bug, owner-reported): the game's Event.Sun / Moon /
