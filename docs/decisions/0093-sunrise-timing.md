@@ -105,6 +105,46 @@ are on the sky asks for FPS_FAST, so the faint part creeps in steps of
 `nightAt` to -1, so the game's clock does not start a turn of its own; the
 release at the end gives the game's back. 1:38 in all.
 
+### The moonrise (owner item 63)
+
+The game said "The moon rises in the east." (`Event.Moon rise`) but no moon
+was seen in the minute after: the moon started at u = 0 at x0 = W + 2.4R,
+fully off the right edge, and moved (W + 4.8R) / 720 px/s, so its edge
+came in only 1.4R / v ≈ 25 s after the rise and its centre reached the edge
+after ~44 s (1400 × 800: R 40, v 2.21 px/s), low (0.67 H, the "low down is
+fainter" rule at 0.61) and behind the right dock. The almanac's own moonUp
+can also come up to 30 s late (its re-read). The owner: keep the path, but
+the moon must already be half inside the screen when the game says it
+rises.
+
+- **Clock.** At minute precision the bridge sends `WeatherState.moonRiseAt`:
+  the unix ms of the next rise (gametime.ts `nextMoonEvent`; the current
+  minute when it rises now; -1 below minute precision). It changes at a
+  sync and after each rise.
+- **Lead.** `moonLead(P, W, R) = (x0 − (W − 0.6 R)) / (x0 − x1)`: the
+  share of the path at which the centre is 0.6 R inside the right edge
+  (`MOON_RISE_IN`; about 80 % of the disc in). The game's u (0 at the
+  rise, 1 at the set) maps onto the drawn path as `lead + (1 − lead) · u`,
+  so the path (its shape and crossing) and the set's end are unchanged;
+  the way in is the path's first `lead`, game u from −lead / (1 − lead) to
+  0. The pace on the path is (1 − lead) of before (7.5 % slower at
+  1400 × 800), the price of keeping the set where it was. At 1400 × 800:
+  R 40, lead 0.0754, the way in starts 58.7 s before the rise (computed
+  from W, H and R, so it holds for any window).
+- **Worker.** While the moon is not up and `moonRiseAt` says the way in
+  has begun (or the rise was under a minute ago, while the almanac or the
+  event catches up), the moon is up at the clock's u; a page load or sync
+  joins at its place (fading in), a resync glides (the existing tau 8 s
+  correction). `Event.Moon rise` keeps a moon already on its way;
+  without one (no clock to the minute) the moon starts at the path's
+  start below the edge and glides briskly onto its way (the same
+  correction, ~13 px/s at first), no pop.
+- **Brightness.** On its way in the moon is at full strength (no "low down"
+  fading) through the rise, and takes the low rule over the next tenth of
+  its path. By day it stays DAY_MOON-faint.
+- Dev: `__weather.jump({ clock: 'night', moonUp: false, moonU: -1,
+  moonRiseAt: Date.now() + 60_000 })`.
+
 ## Consequences
 
 - The strip, the scripts' periods and the weather agree on when the day

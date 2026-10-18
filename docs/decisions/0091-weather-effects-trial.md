@@ -1219,7 +1219,9 @@ and the night at dusk + 1 (MUME's rooms follow `light` and `dark`, an hour
 after `rise` and `set`); sunrise and sunset run over the 60 s before those
 seconds, timed by the synced clock (`WeatherState.dayAt` / `nightAt`, the
 director's turn, `src/weather/sunturn.ts`), not by `Event.Sun rise` / `set`.
-`RISE_S`, `SET_S` and `SKY_HOLD_S` are gone.
+`RISE_S`, `SET_S` and `SKY_HOLD_S` are gone. The moon comes in before the
+game's rise on the same path (`moonRiseAt`, owner item 63): ADR 0093, "The
+moonrise".
 
 ## Consequences
 

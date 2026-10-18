@@ -1165,3 +1165,26 @@ black: the brightest stroke stands out).
     into the screen when the message comes: since it glides slowly, start
     it early, so that at least about half the moon is inside the screen at
     the rise message.
+    - **Done (2026-10-18):** ADR 0093, "The moonrise". Before: the moon
+      started fully off the right edge at the rise message and glided in so
+      slowly that its edge showed only ~25 s later and its centre reached
+      the edge after ~44 s, low and behind the right dock: at 18:21:00 in
+      the log about half of it was just in, at the far right, for the last
+      seconds. Now, with the clock synced to the minute, the moon starts on
+      its path about a minute before the rise (58.7 s at 1400 × 800;
+      worked out from the window size), so at the rise message its centre
+      is 0.6 radii inside the right edge (about 80 % of the disc in), at
+      full strength. The path is the same; it moves about 7 % slower so it
+      still leaves at the left edge when the game says it sets. Joining
+      mid-way or after the rise puts it in place; without a clock to the
+      minute the rise message starts it from below the edge and it glides
+      in quickly. Unit 2724; e2e weather + layout 44/44. Checked in
+      headless Chromium at 20 s and 5 s before the rise, at it, and 20 s
+      after.
+      Please try: (1) with the clock synced (the strip shows H:MM),
+      outdoors on a clear night, watch the right edge in the minute before
+      "The moon rises in the east."; the almanac script shows when;
+      (2) dev server: `__weather.jump({ clock: 'night', moonUp: false,
+      moonU: -1, moonRiseAt: Date.now() + 60_000 })`, then
+      `__weather.unpin()`. Feedback wanted: is it in early enough, and is
+      it bright enough at the edge.
