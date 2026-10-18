@@ -1188,3 +1188,26 @@ black: the brightest stroke stands out).
       moonU: -1, moonRiseAt: Date.now() + 60_000 })`, then
       `__weather.unpin()`. Feedback wanted: is it in early enough, and is
       it bright enough at the edge.
+
+### 2026-10-18 — sunset test (translated)
+
+64. **No day-sky sun rays during a sunset.** The day sky's sun rays (the
+    sun glimpses) must not appear while the sunset animation runs (nor the
+    sunrise's).
+65. **Day-sky rays follow the sun.** Today they always come from the same
+    angle. They should come slanting from the side the sun rose on (top
+    right) and through the day turn toward the side the rays come from at
+    sunset (top left).
+66. **Sunset starts with the sun lower.** The sunset animation starts with
+    the sun "too high in the sky". It should be felt to start lower: the
+    sun at most about 45° up.
+67. **Sunrise from the horizon.** Likewise the sunrise: the sun should be
+    felt to come very low (from the horizon, straight from the right at
+    first) and then climb, ending at about the angle the day sky's rays
+    are then felt to come from.
+68. **All rays from one sun, all rays glint.** The three strong beams (the
+    ones that make the pane borders glint) move differently from the other
+    rays, so the light does not feel as if it comes from one source. Some
+    rays moving a little differently is lively, but it must feel coherent,
+    all from the sun. Every sun ray that hits a pane border should make it
+    glint.
