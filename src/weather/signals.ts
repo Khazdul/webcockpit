@@ -9,9 +9,10 @@
 //                  whose value changed are forwarded. Absent = indoors,
 //                  no fog, normal light, standing.
 //   Event.Sun      rise | light | set | dark → 'sun.<what>' (the engine
-//                  derives day / night from it: day from `light`; `rise`
-//                  opens the dawn hour, still night, and starts the sunrise
-//                  when the clock cannot time it, ADR 0093)
+//                  derives day / night from it: day from `light`, night
+//                  from `dark`; `rise` / `set` open the dawn / dusk hour,
+//                  still night / day, and start the sunrise / sunset when
+//                  the clock cannot time it, ADR 0093)
 //   Event.Moon     rise | set → 'moon.<what>'
 //   Event.Darkness start | grow | shrink | end-soon | end → 'darkness.<what>'
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
@@ -19,15 +20,15 @@
 //                  change the almanac predicts (an event in between wins
 //                  until the next predicted change); how far the sun is
 //                  through the day (`sunU`, for the sun glimpses); at
-//                  minute precision the second the day begins (`dayAt`),
-//                  which times the sunrise
+//                  minute precision the seconds the day and the night
+//                  begin (`dayAt`, `nightAt`), which time sunrise and sunset
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
 //
 // Magical darkness is a spell someone casts: only its Event.Darkness events
 // give an effect (owner feedback 26); no room text or light value does.
 
-import { type ClockState, DUSK, dayBeginsAt, dayHour, isDay, momentAt } from '../gmcp/clock';
+import { type ClockState, dayBeginsAt, dayHour, isDay, momentAt, nightBeginsAt, nightHour } from '../gmcp/clock';
 import { moonAt, moonUpFraction } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
@@ -40,7 +41,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -65,12 +66,12 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
 export function almanacState(
   clock: Readonly<ClockState>,
   nowMs: number,
-): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number } {
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1 };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1 };
   const m = momentAt(clock.epoch, nowS);
   const day = isDay(m.month, m.hour);
   return {
@@ -79,12 +80,13 @@ export function almanacState(
     moonU: moonUpFraction(g),
     sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1,
     dayAt: dayBeginsAt(clock, nowMs) ?? -1,
+    nightAt: nightBeginsAt(clock, nowMs) ?? -1,
   };
 }
 
-/** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the hour after the dawn hour), → 1 at the dusk hour. */
+/** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the hour after the dawn hour), → 1 when the night begins (the hour after the dusk hour). */
 export function sunUpFraction(month: number, hour: number, minute: number): number {
-  const d0 = dayHour(month) * 60, d1 = DUSK[month]! * 60;
+  const d0 = dayHour(month) * 60, d1 = nightHour(month) * 60;
   return Math.min(1, Math.max(0, (hour * 60 + minute - d0) / (d1 - d0)));
 }
 
@@ -151,7 +153,7 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -164,7 +166,7 @@ export class WeatherSignals {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt };
   }
 
   /** The state to start the engine with. */
@@ -189,11 +191,11 @@ export class WeatherSignals {
     const ev = gmcpEvent(key, data);
     if (!ev) return;
     // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
-    // `rise` opens the dawn hour, still night: the day comes with `light` (item 59).
+    // `rise` / `set` open the dawn / dusk hour: the day comes with `light`, the night with `dark` (items 59, 61).
     if (ev === 'sun.light') {
       this.sky.clock = 'day';
       if (this.sky.sunU < 0) this.sky.sunU = 0;
-    } else if (ev === 'sun.set' || ev === 'sun.dark') {
+    } else if (ev === 'sun.dark') {
       this.sky.clock = 'night';
       this.sky.sunU = -1;
     }
@@ -239,8 +241,9 @@ export class WeatherSignals {
     if (force || out.clock !== undefined || (a.sunU < 0) !== (su < 0) || Math.abs(a.sunU - su) >= SUN_U_STEP) {
       if (a.sunU !== su) out.sunU = this.sky.sunU = a.sunU;
     }
-    // The second the day begins (minute precision): changes at a sync and at nightfall.
+    // The seconds the day and the night begin (minute precision): change at a sync, at nightfall and daybreak.
     if (a.dayAt !== this.sky.dayAt) out.dayAt = this.sky.dayAt = a.dayAt;
+    if (a.nightAt !== this.sky.nightAt) out.nightAt = this.sky.nightAt = a.nightAt;
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }

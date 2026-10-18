@@ -21,9 +21,8 @@
 //  - sunrise / sunset moments: faint thin rays with pane shadow wedges, and
 //    a bundle of three strong beams sweeping across the screen; the frame
 //    lines glint exactly where a beam crosses them (beams.ts, feedback 37).
-//    A sunset runs from its Event.Sun set; the sunrise follows the clock
-//    over the 60 s before the day begins (`env.rise`, sunrise.ts curves,
-//    ADR 0093)
+//    Both follow the clock over the 60 s before the day or the night
+//    begins (`env.rise`, `env.set`; sunturn.ts curves, ADR 0093)
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
 //    bleed from the top and the corners; shrink / end: a brief lightening.
 //    Nothing else is red: no darkness sky (owner feedback 26)
@@ -35,10 +34,9 @@
 // `darkness` gates.
 
 import { RIM_R } from '../../panes/frame';
-import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { RISE_S, riseIntensity, risePalette, riseProgress } from '../sunrise';
+import { TURN_S, type TurnKind, turnIntensity, turnPalette, turnProgress } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
@@ -53,13 +51,6 @@ const MOON_HOLD = 0.97;
 const MOON_START = 0.5;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
-/**
- * The sunset moment, s (was 10; owner feedback 29). The director changes the
- * sky from day to night from SKY_HOLD_S to SKY_HOLD_S + 1 / SKY_RATE
- * (11–23 s) into it, so the day sky stays through most of the sunset. The
- * sunrise has no length of its own: it is the clock's last 60 s of the night.
- */
-const SET_S = SKY_HOLD_S + 1 / SKY_RATE + 3;
 /** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
 const COVER_RATE = 1 / 40;
 
@@ -388,12 +379,6 @@ function polyFill(g: Ctx, P: readonly number[]): void {
   g.fill();
 }
 
-interface Moment {
-  kind: 'rise' | 'set';
-  t0: number;
-  dur: number;
-}
-
 class Sky {
   T = 0;
   W = 0;
@@ -413,7 +398,6 @@ class Sky {
   wet = 0;
   fogK = 1;
   first = true;
-  moment: Moment | null = null;
   dark: { t0: number; k: number } | null = null;
   darkG = 0;
   lift: { t0: number; k: number; dur: number } | null = null;
@@ -442,9 +426,9 @@ class Sky {
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
-  /** How far the sun moment is (0..1; -1 without one), and which it is (a sunset moment, the clock's sunrise, or none). */
+  /** How far the sun moment is (0..1; -1 without one), and which it is (the clock's sunrise or sunset, or none). */
   momentP = -1;
-  mKind: 'rise' | 'set' | null = null;
+  mKind: TurnKind | null = null;
   /** The blue day sky's share (0..1, eased toward the `daySky` switch), and whether it moved. */
   dayK = 1;
   dayMoving = false;
@@ -626,10 +610,7 @@ class Sky {
   }
 
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
-    if (name === 'sun.set') {
-      if (!env.cats.sky) return;
-      this.moment = { kind: 'set', t0: this.T, dur: SET_S / env.speed };
-    } else if (name === 'moon.rise') {
+    if (name === 'moon.rise') {
       // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
       this.moonSet = null;
       if (!(this.u >= 0 && this.moonPres > 0.02)) {
@@ -715,22 +696,15 @@ class Sky {
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
     let mP = -1, mI = 0, e1 = 0;
-    const M = this.moment;
-    if (M && (T - M.t0) / M.dur >= 1) this.moment = null;
-    // The sunrise: the clock's last 60 s of the night (the director's `riseS`);
-    // its strength, palette and colours by time (sunrise.ts). A sunset moment wins.
-    const rs = env.rise;
-    const kind = this.moment ? this.moment.kind : skyOn && rs > -RISE_S && rs < 0 ? 'rise' : null;
-    if (this.moment) {
-      mP = (T - this.moment.t0) / this.moment.dur;
-      e1 = sst(0, 0.06, mP) * (1 - sst(0.94, 1, mP));
-      mI = sst(0, 0.14, mP) * (1 - sst(0.6, 1, mP));
-    } else if (kind) {
-      mP = riseProgress(rs);
-      e1 = risePalette(rs);
-      mI = riseIntensity(rs);
-    }
+    // Sunrise and sunset: the clock's last 60 s of the night or the day (the
+    // director's `riseS` / `setS`); strength, palette and colours by time (sunturn.ts).
+    const on = (x: number): boolean => skyOn && x > -TURN_S && x < 0;
+    const kind = on(env.rise) ? 'rise' : on(env.set) ? 'set' : null;
     if (kind) {
+      const ts = kind === 'rise' ? env.rise : env.set;
+      mP = turnProgress(ts);
+      e1 = turnPalette(ts);
+      mI = turnIntensity(ts);
       e1 *= out;
       for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
       keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);

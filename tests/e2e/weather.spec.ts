@@ -32,7 +32,7 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   await page.evaluate(() => {
     const bus = window.__wc!.app.bus;
     bus.emit('gmcp', { pkg: 'Char.Vitals', key: 'char.vitals', data: { weather: '"', fog: '=', position: 'sleeping' } });
-    bus.emit('gmcp', { pkg: 'Event.Sun', key: 'event.sun', data: { what: 'set' } });
+    bus.emit('gmcp', { pkg: 'Event.Sun', key: 'event.sun', data: { what: 'dark' } });
   });
   await expect.poll(state).toMatchObject({ weather: '"', fog: '=', position: 'sleeping', clock: 'night' });
 

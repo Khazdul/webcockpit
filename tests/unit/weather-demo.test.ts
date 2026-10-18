@@ -5,7 +5,7 @@
 // signal bridge, and `?weather` once the cockpit is built later.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { DEMO_RISE_FROM, DEMO_SPEED, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
+import { DEMO_TURN_FROM, DEMO_SPEED, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
 import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
@@ -54,17 +54,19 @@ describe('the demo script', () => {
   it('the sun moments fit their steps at the demo pace and at the game pace', () => {
     const rise = DEMO_STEPS.find((s) => s.title === 'Sunrise')!;
     const set = DEMO_STEPS.find((s) => s.title === 'Sunset')!;
-    // the sunrise from DEMO_RISE_FROM to the day's start (ADR 0093), then the day step brings the day
-    expect(rise.acts).toEqual([[0, { emit: 'sun.rise', data: { from: DEMO_RISE_FROM } }]]);
-    expect(DEMO_RISE_FROM).toBeGreaterThanOrEqual(-60);
-    expect(rise.dur).toBeCloseTo(-DEMO_RISE_FROM / DEMO_SPEED, 6);
-    expect(rise.slow).toBe(-DEMO_RISE_FROM);
+    // the sunrise from DEMO_TURN_FROM to the day's start (ADR 0093), then the day step brings the day
+    expect(rise.acts).toEqual([[0, { emit: 'sun.rise', data: { from: DEMO_TURN_FROM } }]]);
+    expect(DEMO_TURN_FROM).toBeGreaterThanOrEqual(-60);
+    expect(rise.dur).toBeCloseTo(-DEMO_TURN_FROM / DEMO_SPEED, 6);
+    expect(rise.slow).toBe(-DEMO_TURN_FROM);
     const day = DEMO_STEPS[DEMO_STEPS.indexOf(rise) + 1]!;
     expect(day.acts[0]).toEqual([0, { pin: { clock: 'day', sunU: 0.5 } }]);
-    // sky.ts SET_S 26 (owner feedback 29)
-    const at = set.acts.find(([, a]) => 'emit' in a && a.emit === 'sun.set')![0];
-    expect(set.dur - at).toBeGreaterThanOrEqual(26 / DEMO_SPEED);
-    expect(set.slow! - (at * set.slow!) / set.dur).toBeGreaterThanOrEqual(26);
+    // the sunset likewise, then the next step brings the night (item 61)
+    expect(set.acts[0]).toEqual([0, { emit: 'sun.set', data: { from: DEMO_TURN_FROM } }]);
+    expect(set.dur).toBeCloseTo(-DEMO_TURN_FROM / DEMO_SPEED, 6);
+    expect(set.slow).toBe(-DEMO_TURN_FROM);
+    const night = DEMO_STEPS[DEMO_STEPS.indexOf(set) + 1]!;
+    expect(night.acts[0]![1]).toMatchObject({ pin: { clock: 'night' } });
   });
 
   it('timeline: steps in order, each before its own actions, the end last; slow and paced variants', () => {
@@ -177,9 +179,9 @@ describe('the demo runner', () => {
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Sunrise');
     expect(box.querySelector('.wc-wdemo-signal')!.textContent).toMatch(/last game hour of the night/);
     // the sunrise's last half minute, timed by the engine (ADR 0093); the clock stays night until the day step
-    expect(h.log).toContain(`emit sun.rise {"from":${DEMO_RISE_FROM}}`);
+    expect(h.log).toContain(`emit sun.rise {"from":${DEMO_TURN_FROM}}`);
     expect(h.pins.at(-1)).toMatchObject({ smooth: false, p: { clock: 'night', dayAt: -1 } });
-    await vi.advanceTimersByTimeAsync((-DEMO_RISE_FROM / DEMO_SPEED) * 1000);
+    await vi.advanceTimersByTimeAsync((-DEMO_TURN_FROM / DEMO_SPEED) * 1000);
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Day · clear sky');
     expect(h.pins.at(-1)).toMatchObject({ smooth: true, p: { clock: 'day' } });
     // pins accumulate
@@ -293,14 +295,14 @@ describe('smooth pins (the demo eases, a dev jump does not)', () => {
     expect(d.settled.weather).toBe('*');
   });
 
-  it('speed runs the sky hold and change and the fog faster', () => {
+  it('speed runs the sky change and the fog faster', () => {
     const d = new Director({ weather: ' ', clock: 'day' });
     d.speed = 3;
-    d.set(eventState('sun.set')!);
+    d.set(eventState('sun.dark')!);
     d.set({ fog: '-' }, true);
     let t = 0;
-    for (let i = 0; i < 80; i++) d.tick((t += 100), 0.1);
-    // 8 s at 3×: the 11 s hold and the 12 s change are done; fog 0.5 takes 20 / 3 s
+    for (let i = 0; i < 70; i++) d.tick((t += 100), 0.1);
+    // 7 s at 3×: the 12 s change is done; fog 0.5 takes 20 / 3 s
     expect(d.mix.sun).toBe(0);
     expect(d.mix.dark).toBe(1);
     expect(d.mix.fog).toBeCloseTo(0.5, 5);

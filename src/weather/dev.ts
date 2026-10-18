@@ -10,7 +10,9 @@
 //                                           for these keys are ignored
 //   __weather.jump({ clock: 'night', dayAt: Date.now() + 65_000 })
 //                                           a sunrise: the day begins in 65 s
-//                                           (ADR 0093; unpin after it)
+//   __weather.jump({ clock: 'day', nightAt: Date.now() + 65_000 })
+//                                           a sunset: the night begins in 65 s
+//                                           (ADR 0093; unpin after either)
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
 //   await __weather.stats()                worker frame times

@@ -52,17 +52,19 @@ export interface Env {
   /** Moon crossing speed factor (1 = game pace; the prototype demo used 600 / 90). */
   moonSpeed: number;
   /**
-   * The demo's time scale (`#weather demo`; 1 = the game's pace): sun
-   * moments, cloud cover, the rain's and snow's build-up and the blood's
-   * drying run this much faster (the director's sky selection and fog
+   * The demo's time scale (`#weather demo`; 1 = the game's pace): cloud
+   * cover, the rain's and snow's build-up and the blood's drying run this
+   * much faster (the director's sky selection, sunrise, sunset and fog
    * likewise, `Director.speed`).
    */
   speed: number;
   /**
-   * The sunrise (the director's `riseS`): seconds relative to the second
-   * the day begins, -60 … 60; NaN without one (sunrise.ts, ADR 0093).
+   * The sunrise and the sunset (the director's `riseS`, `setS`): seconds
+   * relative to the second the day or night begins, -60 … 60; NaN without
+   * one (sunturn.ts, ADR 0093).
    */
   rise: number;
+  set: number;
   noise(x: number, y: number): number;
   fbm(x: number, y: number): number;
   now: number;

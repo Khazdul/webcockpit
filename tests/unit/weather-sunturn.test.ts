@@ -1,8 +1,8 @@
-// The time-driven sunrise (stage 28 item 60, ADR 0093): the curves
-// (sunrise.ts) and the director's rise clock (director.ts).
+// The time-driven sunrise and sunset (stage 28 items 60, 61; ADR 0093): the curves
+// (sunturn.ts) and the director's turn clock (director.ts).
 import { describe, expect, it } from 'vitest';
-import { Director, RISE_GUARD_MS, SKY_RATE, eventState } from '../../src/weather/director';
-import { DAY_FULL_S, RISE_FAINT, RISE_LATE_S, riseDayWeight, riseIntensity, risePalette, riseProgress } from '../../src/weather/sunrise';
+import { Director, TURN_GUARD_MS, SKY_RATE, eventState } from '../../src/weather/director';
+import { FULL_S, TURN_FAINT, LATE_S, turnWeight, turnIntensity, turnPalette, turnProgress } from '../../src/weather/sunturn';
 
 const W0 = 1_800_000_000_000;
 
@@ -14,51 +14,53 @@ describe('sunrise curves', () => {
   };
 
   it('intensity: only just perceptible for the first 40 s, builds up over the last 20, over when the day begins', () => {
-    expect(riseIntensity(-60)).toBe(0);
-    expect(riseIntensity(-61)).toBe(0);
-    for (const v of at(riseIntensity, -60, -20)) expect(v).toBeLessThanOrEqual(RISE_FAINT + 1e-9);
-    expect(riseIntensity(-40)).toBeLessThan(0.04);
-    expect(riseIntensity(-14)).toBeGreaterThan(0.3);
-    expect(Math.max(...at(riseIntensity, -12, -4))).toBeGreaterThan(0.9);
-    expect(riseIntensity(-2)).toBeLessThan(0.2);
-    expect(riseIntensity(0)).toBe(0);
-    expect(riseIntensity(5)).toBe(0);
+    expect(turnIntensity(-60)).toBe(0);
+    expect(turnIntensity(-61)).toBe(0);
+    for (const v of at(turnIntensity, -60, -20)) expect(v).toBeLessThanOrEqual(TURN_FAINT + 1e-9);
+    expect(turnIntensity(-40)).toBeLessThan(0.04);
+    expect(turnIntensity(-14)).toBeGreaterThan(0.3);
+    expect(Math.max(...at(turnIntensity, -12, -4))).toBeGreaterThan(0.9);
+    expect(turnIntensity(-2)).toBeLessThan(0.2);
+    expect(turnIntensity(0)).toBe(0);
+    expect(turnIntensity(5)).toBe(0);
     // rising all the way to its peak, then only falling
-    const v = at(riseIntensity, -60, 0);
+    const v = at(turnIntensity, -60, 0);
     const peak = v.indexOf(Math.max(...v));
     for (let i = 1; i <= peak; i++) expect(v[i]!).toBeGreaterThanOrEqual(v[i - 1]! - 1e-12);
     for (let i = peak + 1; i < v.length; i++) expect(v[i]!).toBeLessThanOrEqual(v[i - 1]! + 1e-12);
   });
 
   it('smooth: no frame step above 1 % at 30 fps, and the faint part creeps at the still rate too', () => {
-    for (const f of [riseIntensity, risePalette, riseDayWeight, riseProgress]) {
+    for (const f of [turnIntensity, turnPalette, turnWeight, turnProgress]) {
       const v = at(f, -61, 20, 1 / 30);
       for (let i = 1; i < v.length; i++) expect(Math.abs(v[i]! - v[i - 1]!)).toBeLessThan(0.01);
     }
     // the first 40 s: under 0.001 per frame even at 3 fps (FPS_STILL)
-    const faint = at(riseIntensity, -60, -20, 1 / 3);
+    const faint = at(turnIntensity, -60, -20, 1 / 3);
     for (let i = 1; i < faint.length; i++) expect(Math.abs(faint[i]! - faint[i - 1]!)).toBeLessThan(0.001);
   });
 
   it('palette and colours: warm only late, gone when the day begins', () => {
-    expect(risePalette(-55)).toBe(0);
-    expect(risePalette(-40)).toBeLessThan(0.25);
-    expect(risePalette(-10)).toBeGreaterThan(0.8);
-    expect(risePalette(0)).toBe(0);
-    expect(riseProgress(-60)).toBe(0);
-    expect(riseProgress(-20)).toBeCloseTo(0.363, 2);
-    expect(riseProgress(0)).toBe(1);
+    expect(turnPalette(-55)).toBe(0);
+    expect(turnPalette(-40)).toBeLessThan(0.25);
+    expect(turnPalette(-10)).toBeGreaterThan(0.8);
+    expect(turnPalette(0)).toBe(0);
+    expect(turnProgress(-60)).toBe(0);
+    expect(turnProgress(-20)).toBeCloseTo(0.132, 2);
+    // the old moments' strong middle at the intensity's peak
+    expect(turnProgress(-7.5)).toBeCloseTo(0.513, 2);
+    expect(turnProgress(0)).toBe(1);
   });
 
   it('day weight: night until -28 s, the day sky stronger than the night when the day begins, complete 14 s in', () => {
-    expect(riseDayWeight(-60)).toBe(0);
-    expect(riseDayWeight(-28)).toBe(0);
-    expect(riseDayWeight(-20)).toBeLessThan(0.15);
-    expect(riseDayWeight(0)).toBeGreaterThan(0.6);
-    expect(riseDayWeight(0)).toBeCloseTo(0.741, 2);
-    expect(riseDayWeight(10)).toBeLessThan(1);
-    expect(riseDayWeight(DAY_FULL_S)).toBe(1);
-    expect(riseDayWeight(15)).toBe(1);
+    expect(turnWeight(-60)).toBe(0);
+    expect(turnWeight(-28)).toBe(0);
+    expect(turnWeight(-20)).toBeLessThan(0.15);
+    expect(turnWeight(0)).toBeGreaterThan(0.6);
+    expect(turnWeight(0)).toBeCloseTo(0.741, 2);
+    expect(turnWeight(10)).toBeLessThan(1);
+    expect(turnWeight(FULL_S)).toBe(1);
+    expect(turnWeight(15)).toBe(1);
   });
 });
 
@@ -91,7 +93,7 @@ describe('Director: the sunrise follows the clock', () => {
     expect(d.mix.sun).toBe(0);
     expect(d.settled.clock).toBe('night');
     run(20);
-    expect(d.mix.sun).toBeCloseTo(riseDayWeight(-10), 5);
+    expect(d.mix.sun).toBeCloseTo(turnWeight(-10), 5);
     expect(d.mix.sun + d.mix.dark).toBeCloseTo(1, 5);
     run(10.1);
     // the day's first second: the clock is day, the day sky outweighs the night
@@ -108,7 +110,7 @@ describe('Director: the sunrise follows the clock', () => {
       last = d.mix.sun;
     });
     expect(d.mix.sun).toBe(1);
-    run(RISE_LATE_S);
+    run(LATE_S);
     expect(d.riseS).toBeNull();
     expect([d.mix.sun, d.mix.dark, d.mix.night]).toEqual([1, 0, 0]);
   });
@@ -116,11 +118,11 @@ describe('Director: the sunrise follows the clock', () => {
   it('a page load or a sync mid-rise joins at its place', () => {
     const { d } = rig({ dayAt: W0 + 10_000 });
     expect(d.riseS).toBeCloseTo(-10, 5);
-    expect(d.mix.sun).toBeCloseTo(riseDayWeight(-10), 5);
+    expect(d.mix.sun).toBeCloseTo(turnWeight(-10), 5);
     const late = rig({ dayAt: W0 - 5_000 });
     expect(late.d.riseS).toBeCloseTo(5, 5);
     expect(late.d.settled.clock).toBe('day');
-    expect(late.d.mix.sun).toBeCloseTo(riseDayWeight(5), 5);
+    expect(late.d.mix.sun).toBeCloseTo(turnWeight(5), 5);
     // well into the day (after the day sky is complete): no rise
     expect(rig({ dayAt: W0 - 30_000 }).d.riseS).toBeNull();
   });
@@ -170,30 +172,30 @@ describe('Director: the sunrise without minute precision', () => {
   it('Event.Sun rise starts it at -60 and it runs on its own; a second one is ignored', () => {
     const { d, run } = rig({ dayAt: -1 });
     expect(eventState('sun.rise')).toBeNull();
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBe(-60);
     run(30);
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBeCloseTo(-30, 5);
     run(30);
     expect(d.settled.clock).toBe('day');
-    run(RISE_LATE_S + 1);
+    run(LATE_S + 1);
     expect(d.riseS).toBeNull();
     // the same dawn: no second sunrise
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBeNull();
   });
 
   it('a rise event while the clock-driven one runs is ignored', () => {
     const { d, run } = rig({ dayAt: W0 + 30_000 });
     run(1);
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBeCloseTo(-29, 5);
   });
 
   it('the clock catching up after the event (a sync to the minute) glides it', () => {
     const { d, run, wall } = rig({ dayAt: -1 });
-    d.riseEvent();
+    d.turnEvent('rise');
     run(5);
     d.set({ dayAt: wall() + 56_000 });
     run(10);
@@ -211,21 +213,120 @@ describe('Director: the sunrise without minute precision', () => {
   it('the demo: from a later point, at its speed; a speed change or a jump lifts the once-a-dawn guard', () => {
     const { d, run } = rig({ dayAt: -1 });
     d.speed = 3;
-    d.riseEvent(-30);
+    d.turnEvent('rise', -30);
     expect(d.riseS).toBe(-30);
     run(10);
     expect(d.riseS).toBeCloseTo(0, 5);
     run(30);
     expect(d.riseS).toBeNull();
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBeNull();
     d.speed = 1;
-    d.riseEvent(-100);
+    d.turnEvent('rise', -100);
     expect(d.riseS).toBe(-60);
     run(70);
     d.jump({ clock: 'night' });
-    d.riseEvent();
+    d.turnEvent('rise');
     expect(d.riseS).toBe(-60);
-    expect(RISE_GUARD_MS).toBeGreaterThan(60_000 * 5);
+    expect(TURN_GUARD_MS).toBeGreaterThan(60_000 * 5);
+  });
+});
+
+describe('Director: the sunset follows the clock (item 61)', () => {
+  /** By day, outdoors, the moon down unless given. */
+  const day = (state: Parameters<typeof rig>[0]) => rig({ clock: 'day', ...state });
+
+  it('runs over the last 60 s of the day: day sky first, night sky stronger at the night, complete 14 s later', () => {
+    const { d, run } = day({ nightAt: W0 + 61_000 });
+    expect(d.setS).toBeNull();
+    expect(d.mix.sun).toBe(1);
+    run(1);
+    expect(d.setS).toBeCloseTo(-60, 5);
+    expect(d.riseS).toBeNull();
+    run(30);
+    expect(d.mix.sun).toBe(1);
+    expect(d.settled.clock).toBe('day');
+    run(20);
+    expect(d.mix.sun).toBeCloseTo(1 - turnWeight(-10), 5);
+    expect(d.mix.night).toBeCloseTo(turnWeight(-10), 5);
+    run(10.1);
+    // the night's first second: the clock is night, the night sky outweighs the day
+    expect(d.settled.clock).toBe('night');
+    expect(d.mix.dark).toBeGreaterThan(0.7);
+    expect(d.mix.sun).toBeLessThan(0.3);
+    run(9.9);
+    d.set({ clock: 'night' });
+    let last = d.mix.sun;
+    run(10, () => {
+      expect(d.mix.sun).toBeLessThanOrEqual(last);
+      last = d.mix.sun;
+    });
+    expect(d.mix.sun).toBe(0);
+    run(LATE_S);
+    expect(d.setS).toBeNull();
+    expect([d.mix.sun, d.mix.dark, d.mix.night]).toEqual([0, 1, 1]);
+  });
+
+  it('a moon up takes the night part; joining mid-set; a small resync glides', () => {
+    const { d, run } = day({ moonUp: true, nightAt: W0 + 10_000 });
+    expect(d.setS).toBeCloseTo(-10, 5);
+    expect(d.mix.moon).toBeCloseTo(turnWeight(-10), 5);
+    expect(d.mix.dark).toBe(0);
+    d.set({ nightAt: W0 + 12_000 });
+    let last = d.setS!;
+    run(5, () => {
+      expect(Math.abs(d.setS! - last)).toBeLessThan(0.2);
+      last = d.setS!;
+    });
+    expect(d.setS!).toBeLessThan(-5.5);
+    expect(d.setS!).toBeGreaterThan(-7.1);
+  });
+
+  it('never back over the night once it came; never two sunsets in one dusk', () => {
+    const { d, run } = day({ nightAt: W0 + 5_000 });
+    run(10);
+    expect(d.settled.clock).toBe('night');
+    const s = d.setS!;
+    d.set({ nightAt: d.wall() + 40_000 });
+    run(1);
+    expect(d.setS!).toBeCloseTo(s + 1, 5);
+    d.set({ nightAt: W0 + 5_000 });
+    run(LATE_S);
+    expect(d.setS).toBeNull();
+    d.turnEvent('set');
+    expect(d.setS).toBeNull();
+  });
+
+  it('Event.Sun set without minute precision starts it at -60; dark alone fades to night at the sky rate', () => {
+    expect(eventState('sun.set')).toBeNull();
+    expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
+    const a = day({ nightAt: -1 });
+    a.d.turnEvent('set');
+    expect(a.d.setS).toBe(-60);
+    a.run(30);
+    a.d.turnEvent('set');
+    expect(a.d.setS).toBeCloseTo(-30, 5);
+    a.run(30);
+    expect(a.d.settled.clock).toBe('night');
+    const b = day({ nightAt: -1 });
+    b.d.set(eventState('sun.dark')!);
+    b.run(6);
+    expect(b.d.mix.sun).toBeCloseTo(1 - 6 * SKY_RATE, 5);
+    expect(b.d.setS).toBeNull();
+  });
+
+  it('a sunset starting ends a sunrise still running (the demo), and the other way round', () => {
+    const { d, run } = rig({ dayAt: -1, nightAt: -1 });
+    d.speed = 3;
+    d.turnEvent('rise', -30);
+    run(12);
+    expect(d.riseS).not.toBeNull();
+    const sun = d.mix.sun;
+    expect(sun).toBeGreaterThan(0.85);
+    d.turnEvent('set', -30);
+    expect([d.riseS, d.setS]).toEqual([null, -30]);
+    // the sky it had is where the sunset starts from: no jump
+    run(0.1);
+    expect(d.mix.sun).toBeCloseTo(sun, 5);
   });
 });

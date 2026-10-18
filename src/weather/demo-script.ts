@@ -42,8 +42,8 @@ export interface DemoStep {
 
 const pin = (p: Partial<WeatherState>): DemoAction => ({ pin: p });
 const emit = (e: WeatherEvent, data?: unknown): DemoAction => (data === undefined ? { emit: e } : { emit: e, data });
-/** Where the demo's sunrise starts, s before the day begins: its last half minute (the game's first 30 s are only just perceptible; ADR 0093). */
-export const DEMO_RISE_FROM = -30;
+/** Where the demo's sunrise and sunset start, s before the day or night begins: their last half minute (the game's first 30 s are only just perceptible; ADR 0093). */
+export const DEMO_TURN_FROM = -30;
 
 export const DEMO_STEPS: readonly DemoStep[] = [
   {
@@ -60,9 +60,9 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     title: 'Sunrise',
     look: 'the last half minute of the night: a warm hint grows, beams sweep across the screen and frame lines glint where they cross; the day sky comes as the beams fade',
     signal: 'the clock: the last game hour of the night (Event.Sun rise when it is not synced)',
-    dur: -DEMO_RISE_FROM / DEMO_SPEED,
-    slow: -DEMO_RISE_FROM,
-    acts: [[0, emit('sun.rise', { from: DEMO_RISE_FROM })]],
+    dur: -DEMO_TURN_FROM / DEMO_SPEED,
+    slow: -DEMO_TURN_FROM,
+    acts: [[0, emit('sun.rise', { from: DEMO_TURN_FROM })]],
   },
   {
     title: 'Day · clear sky',
@@ -180,14 +180,13 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset',
-    look: 'beams and glints again, from the left; the blue sky lingers, then slowly turns into the starry night; a shooting star',
-    signal: 'Event.Sun set',
-    dur: 9.5,
-    slow: 27,
+    look: 'the last half minute of the day: a warm glow grows, beams and glints again from the left; the blue sky turns into the starry night as they fade; a shooting star',
+    signal: 'the clock: the last game hour of the day (Event.Sun set when it is not synced)',
+    dur: -DEMO_TURN_FROM / DEMO_SPEED,
+    slow: -DEMO_TURN_FROM,
     acts: [
-      [0, emit('sun.set')],
-      [0, pin({ clock: 'night' })],
-      [8.6, emit('shoot')],
+      [0, emit('sun.set', { from: DEMO_TURN_FROM })],
+      [9.4, emit('shoot')],
     ],
   },
   {
@@ -196,7 +195,8 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: `Char.Vitals weather = '"' · a lightning line`,
     dur: 5,
     acts: [
-      [0, pin({ weather: '"' })],
+      // the night begins (Event.Sun dark); the night sky completes in the next 14 game seconds
+      [0, pin({ clock: 'night', weather: '"' })],
       [1.6, emit('strike')],
       [3.6, emit('strike')],
     ],

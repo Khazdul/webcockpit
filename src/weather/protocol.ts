@@ -18,7 +18,7 @@ export interface WeatherState {
   light: string;
   /** standing, resting, sleeping, stunned, incapacitated, dying, … */
   position: string;
-  /** The latest `Event.Sun` or the almanac: 'day' after light, 'night' after set/dark (the dawn hour, `rise`, is still night). */
+  /** The latest `Event.Sun` or the almanac: 'day' after light, 'night' after dark (the dawn hour, `rise`, is still night; the dusk hour, `set`, still day). */
   clock: 'day' | 'night';
   /** The latest `Event.Moon`. */
   moonUp: boolean;
@@ -33,7 +33,8 @@ export interface WeatherState {
   /**
    * How far the sun is through the day, 0 when the day begins (the hour
    * after the dawn hour) … 1 at the dusk hour (clock.ts DAWN/DUSK, by
-   * month), from the almanac; -1 at night or
+   * month; 1 when the night begins, the hour after it), from the almanac;
+   * -1 at night or
    * when the clock is not synced. Steers the day's sun glimpses (most and
    * strongest at midday, owner feedback 52). Sent at start, on a clock sync
    * and when it has moved on by SUN_U_STEP.
@@ -42,10 +43,16 @@ export interface WeatherState {
   /**
    * Unix ms of the second the current day began or (at night) the next
    * one begins (clock.ts `dayBeginsAt`); -1 below minute precision. Drives
-   * the sunrise over the 60 s before it (sunrise.ts, ADR 0093). Sent at
+   * the sunrise over the 60 s before it (sunturn.ts, ADR 0093). Sent at
    * start and when it changes (a clock sync, nightfall).
    */
   dayAt: number;
+  /**
+   * Unix ms of the second the current night began or (by day) the next one
+   * begins (clock.ts `nightBeginsAt`); -1 below minute precision. Drives
+   * the sunset over the 60 s before it. Sent like `dayAt` (a sync, daybreak).
+   */
+  nightAt: number;
 }
 
 export const DEFAULT_STATE: Readonly<WeatherState> = {
@@ -59,6 +66,7 @@ export const DEFAULT_STATE: Readonly<WeatherState> = {
   moonU: -1,
   sunU: -1,
   dayAt: -1,
+  nightAt: -1,
 };
 
 /** Momentary events (never dwelled). */

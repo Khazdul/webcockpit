@@ -82,11 +82,11 @@ describe('GMCP events', () => {
   it('emits them and keeps the sky state for a restart', () => {
     const s = sink();
     const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
-    sig.gmcp('event.sun', { what: 'set' });
+    sig.gmcp('event.sun', { what: 'dark' });
     sig.gmcp('event.moon', { what: 'rise' });
     sig.gmcp('event.darkness', { what: 'start' });
     sig.gmcp('char.vitals', { weather: '*' });
-    expect(s.events).toEqual(['sun.set', 'moon.rise', 'darkness.start']);
+    expect(s.events).toEqual(['sun.dark', 'moon.rise', 'darkness.start']);
     expect(sig.state()).toMatchObject({ clock: 'night', moonUp: true });
   });
 });
@@ -163,14 +163,17 @@ describe('magical darkness: only its Event.Darkness events (owner feedback 26)',
 });
 
 describe('almanac', () => {
-  it("gives how far the sun is through the day (sunU) for the glimpses: 0 when the day begins, 0.5 midway, -1 at night (owner feedback 52, item 59)", () => {
-    // month 5 (Forelithe): dawn hour 6 (still night), the day 7 → 20
+  it("gives how far the sun is through the day (sunU) for the glimpses: 0 when the day begins, 1 when the night begins, -1 at night (owner feedback 52, items 59, 61)", () => {
+    // month 5 (Forelithe): dawn hour 6 (still night), the day 7 → 21 (the dusk hour 20 still day)
     expect(sunUpFraction(5, 7, 0)).toBe(0);
-    expect(sunUpFraction(5, 13, 30)).toBeCloseTo(0.5, 6);
-    expect(sunUpFraction(5, 19, 59)).toBeLessThan(1);
-    // month 0 (Afteryule): dawn hour 8, the day 9 → 18
-    expect(sunUpFraction(0, 13, 30)).toBeCloseTo(0.5, 6);
-    expect(almanacState(clockAt(5, 13), NOW_MS).sunU).toBeCloseTo(6 / 13, 6);
+    expect(sunUpFraction(5, 14, 0)).toBeCloseTo(0.5, 6);
+    expect(sunUpFraction(5, 20, 59)).toBeLessThan(1);
+    expect(sunUpFraction(5, 21, 0)).toBe(1);
+    // month 0 (Afteryule): dawn hour 8, the day 9 → 19
+    expect(sunUpFraction(0, 14, 0)).toBeCloseTo(0.5, 6);
+    expect(almanacState(clockAt(5, 13), NOW_MS).sunU).toBeCloseTo(6 / 14, 6);
+    expect(almanacState(clockAt(5, 20), NOW_MS).sunU).toBeCloseTo(13 / 14, 6);
+    expect(almanacState(clockAt(5, 21), NOW_MS).sunU).toBe(-1);
     expect(almanacState(clockAt(5, 6), NOW_MS).sunU).toBe(-1);
     expect(almanacState(clockAt(5, 2), NOW_MS).sunU).toBe(-1);
     expect(almanacState(clockAt(5, 13, 10, 'unset'), NOW_MS).sunU).toBe(-1);
@@ -180,11 +183,11 @@ describe('almanac', () => {
     const c = clockAt(5, 9);
     const s = sink();
     const sig = new WeatherSignals(s, empty, c, NOW_MS);
-    expect(sig.state().sunU).toBeCloseTo(2 / 13, 6);
+    expect(sig.state().sunU).toBeCloseTo(2 / 14, 6);
     sig.almanac(c, NOW_MS + 30_000);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(0);
-    // the day is 13 game hours = 780 real s; SUN_U_STEP of it later, sent
-    sig.almanac(c, NOW_MS + (Math.ceil(SUN_U_STEP * 780) + 1) * 1000);
+    // the day is 14 game hours = 840 real s; SUN_U_STEP of it later, sent
+    sig.almanac(c, NOW_MS + (Math.ceil(SUN_U_STEP * 840) + 1) * 1000);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(1);
     sig.almanac(c, NOW_MS + 60_000, true);
     expect(s.states.filter((x) => 'sunU' in x.s)).toHaveLength(2);
@@ -243,10 +246,39 @@ describe('almanac', () => {
     // the day has begun: dayAt is its start, until nightfall gives tomorrow's
     const d = almanacState(c, NOW_MS + 60_000);
     expect([d.sky?.clock, d.dayAt, d.sunU]).toEqual(['day', NOW_MS + 60_000, 0]);
-    expect(almanacState(c, NOW_MS + 14 * 60_000).dayAt).toBe(NOW_MS + 60_000 + 1440_000);
+    expect(almanacState(c, NOW_MS + 15 * 60_000).dayAt).toBe(NOW_MS + 60_000 + 1440_000);
     // below minute precision: no time-driven sunrise
     expect(almanacState(clockAt(5, 6, 10, 'hour'), NOW_MS).dayAt).toBe(-1);
     expect(almanacState(clockAt(5, 6, 10, 'unset'), NOW_MS).dayAt).toBe(-1);
+  });
+
+  it('the dusk hour is day; the night and nightAt come at dusk + 1 (item 61)', () => {
+    // Forelithe (5): dusk hour 20, the night from 21:00.
+    const c = clockAt(5, 20);
+    const a = almanacState(c, NOW_MS);
+    expect(a.sky?.clock).toBe('day');
+    expect(a.nightAt).toBe(NOW_MS + 60_000);
+    expect(almanacState(c, NOW_MS + 30_400).nightAt).toBe(NOW_MS + 60_000);
+    // the night has begun: nightAt is its start, until daybreak gives the next
+    const n = almanacState(c, NOW_MS + 60_000);
+    expect([n.sky?.clock, n.nightAt, n.sunU]).toEqual(['night', NOW_MS + 60_000, -1]);
+    expect(almanacState(c, NOW_MS + 9 * 60_000).nightAt).toBe(NOW_MS + 60_000);
+    expect(almanacState(c, NOW_MS + 11 * 60_000).nightAt).toBe(NOW_MS + 60_000 + 1440_000);
+    expect(almanacState(clockAt(5, 20, 10, 'hour'), NOW_MS).nightAt).toBe(-1);
+  });
+
+  it('sends nightAt when it changes; Event.Sun set keeps the day, dark brings the night', () => {
+    const s = sink();
+    const c = clockAt(5, 20);
+    const sig = new WeatherSignals(s, empty, c, NOW_MS);
+    expect(sig.state()).toMatchObject({ clock: 'day', nightAt: NOW_MS + 60_000 });
+    sig.almanac({ ...c, epoch: c.epoch - 3 }, NOW_MS + 10_000, true);
+    expect(s.states.at(-1)!.s).toMatchObject({ nightAt: NOW_MS + 57_000 });
+    sig.gmcp('event.sun', { what: 'set' });
+    expect(s.events.at(-1)).toBe('sun.set');
+    expect(sig.state().clock).toBe('day');
+    sig.gmcp('event.sun', { what: 'dark' });
+    expect(sig.state()).toMatchObject({ clock: 'night', sunU: -1 });
   });
 
   it('sends dayAt at start and when it changes; Event.Sun rise keeps the night, light brings the day', () => {
@@ -269,17 +301,17 @@ describe('almanac', () => {
 
   it('starts from the almanac and applies only its predicted changes; an event wins in between', () => {
     const s = sink();
-    // 1 Forelithe (month 5): dusk at 20. Start at 19:00, day.
-    const clock = clockAt(5, 19);
+    // 1 Forelithe (month 5): dusk hour 20, night from 21. Start at 20:00, day.
+    const clock = clockAt(5, 20);
     const sig = new WeatherSignals(s, empty, clock, NOW_MS);
     expect(sig.state().clock).toBe('day');
-    // An Event.Sun set arrives early: night.
-    sig.gmcp('event.sun', { what: 'set' });
+    // An Event.Sun dark arrives early: night.
+    sig.gmcp('event.sun', { what: 'dark' });
     // The almanac still says day: no change pushed.
     sig.almanac(clock, NOW_MS + 30_000);
     expect(s.states.filter((x) => 'clock' in x.s)).toHaveLength(0);
     expect(sig.state().clock).toBe('night');
-    // The almanac's dusk (an hour later = 60 s): its change to night is a no-op.
+    // The almanac's night (an hour later = 60 s): its change to night is a no-op.
     sig.almanac(clock, NOW_MS + 61_000);
     expect(s.states.filter((x) => 'clock' in x.s)).toHaveLength(0);
     // Forced (the clock was synced): the almanac decides.

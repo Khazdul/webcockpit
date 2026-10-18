@@ -187,6 +187,7 @@ export class WeatherEngine {
           moonSpeed: m.moonSpeed,
           speed: this.director.speed,
           rise: this.director.riseS ?? NaN,
+          set: this.director.setS ?? NaN,
           noise,
           fbm,
           now: 0,
@@ -204,7 +205,7 @@ export class WeatherEngine {
       case 'event': {
         const s = eventState(m.name);
         if (s) this.director.set(s);
-        if (m.name === 'sun.rise') this.director.riseEvent((m.data as { from?: unknown } | undefined)?.from);
+        if (m.name === 'sun.rise' || m.name === 'sun.set') this.director.turnEvent(m.name === 'sun.rise' ? 'rise' : 'set', (m.data as { from?: unknown } | undefined)?.from);
         this.emit(m.name, m.data);
         break;
       }
@@ -448,6 +449,7 @@ export class WeatherEngine {
     const env = this.env!;
     env.now = now;
     env.rise = this.director.riseS ?? NaN;
+    env.set = this.director.setS ?? NaN;
     const t0 = performance.now();
     const { back, front } = env;
     back.clearRect(0, 0, env.W, env.H);
