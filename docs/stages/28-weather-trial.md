@@ -1089,3 +1089,17 @@ black: the brightest stroke stands out).
       dayAt: Date.now() + 65_000 })`, then `__weather.unpin()`. Feedback
       wanted: is the first 40 s too faint or not faint enough, and does the
       day sky arrive at the right pace.
+
+### 2026-10-18 — sunset the same way (translated)
+
+61. **Sunset timed to the game's night.** The same as item 60 for the
+    sunset: it runs over the last game hour of the day and ends exactly at
+    the second the night begins, faint for 40 s, building the last 20 s;
+    the night sky more prominent than the day sky at that second, and it
+    may go on 10–20 s after.
+    - Evidence (Cockpit run `Rasta/2026-09-25T22-03-02`): after "The sun
+      slowly disappears in the west." (`Event.Sun set`, the dusk hour) the
+      prompt's light symbol stays `*` (sunlit) for the whole hour; it turns
+      `o` at "The night has begun. You feel stronger in the dark!" (`dark`,
+      dusk + 1). So the night begins at DUSK+1 and the strip's moon icon
+      also comes one game hour early.
