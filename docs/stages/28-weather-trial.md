@@ -1154,3 +1154,14 @@ black: the brightest stroke stands out).
       and dusk with a synced clock: the rays should be there, faintly, from
       the first second of the last game hour, a little stronger halfway.
       Feedback wanted: too faint, too strong, or right, for each.
+
+### 2026-10-18 — moonrise (translated)
+
+63. **The moon on screen when the game says it rises.** The game said "The
+    moon rises in the east." (`Event.Moon rise`, log
+    `mume-Gittan-2026-10-18T20-20-06`, 18:20:16; `time` agreed, as did the
+    almanac script) but no moon was seen in the following minute. Keep the
+    path (the panes are transparent now). The moon must already have come
+    into the screen when the message comes: since it glides slowly, start
+    it early, so that at least about half the moon is inside the screen at
+    the rise message.
