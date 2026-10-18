@@ -39,7 +39,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
-### 2026-10-18 — Stage 28 items 59–62, sun timing (branch `sunrise-timing`)
+### 2026-10-18 — Stage 28 items 59–63, sun and moon timing (branch `sunrise-timing`)
 
 - **Done:** owner live feedback after 0.1.63. Rooms are lit from "The day
   has begun." (DAWN+1) to "The night has begun." (DUSK+1), verified in
@@ -50,10 +50,13 @@ Statuses: Next, In progress, Owner testing, Done.
   event moments and SKY_HOLD_S are gone. ADR 0093. Unit 2720, weather +
   layout e2e 44 (Chromium, Firefox). Item 62: faint rays from the turn's
   first second, a little more from -30 s (rays only; sunrise 0.2/0.3,
-  sunset 0.35/0.5, set by eye). Unit 2721.
-- **Next:** owner test (guide under item 62), then merge to main.
+  sunset 0.35/0.5, set by eye). Item 63: the moon pre-rolls on its path
+  from `moonRiseAt` (≈59 s at 1400×800) so it is ~80 % on screen at
+  "The moon rises in the east."; pace 7.5 % slower, set unchanged. Unit 2724.
+- **Next:** owner test (guides under items 62–63), then merge to main.
 - **Open issues:** look only checked in headless screenshots; perf bench
-  not rerun.
+  not rerun; the moonrise fallback without a minute-synced clock has no
+  worker test.
 - **Commits:** c752036…(this commit).
 
 ### 2026-10-18 — Merge stage 28, release 0.1.63
