@@ -1442,3 +1442,11 @@ black: the brightest stroke stands out).
     arrow almost level to the right across the top, two steeply down-right
     to the bottom edge). About 22 s before the night begins the rays
     clearly fade; the frame glints must fade in step with them.
+82. **Day sky: fainter, sparser, wider sun rays.** The sun glimpses / rays
+    on the blue day sky should be even fainter, only just perceptible, and
+    fade out a little towards the lower part. They are too centred in one
+    span of angles: make them a little sparser and spread them over more
+    angles from the sun's place (`img/28-item82-day-rays.png`: from a sun
+    above the top edge, right of the middle, arrows down-left at about 30°
+    and 45° below level on the left, steeply down a little to the right, and
+    down-right at about 50° to the right edge).
