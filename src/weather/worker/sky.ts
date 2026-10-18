@@ -49,6 +49,12 @@ const MOON_UP_S = 720;
 const MOON_HOLD = 0.97;
 /** Where a moon of unknown age shows (no synced almanac). */
 const MOON_START = 0.5;
+/** No moon (`Sky.u`): below any place on its way, the way in before the rise included. */
+const NO_MOON = -1;
+/** At the game's rise the moon's centre is this many radii inside the right edge (about 80 % of the disc in; owner item 63). */
+export const MOON_RISE_IN = 0.6;
+/** After the clock's rise second the moon stays up this long (game u) while the almanac (its 30 s re-read) or the event catches up. */
+const MOON_RISE_LATE = 60 / MOON_UP_S;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
 /** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
@@ -345,6 +351,29 @@ export interface MoonPath {
 export function moonPath(W: number, H: number, R: number): MoonPath {
   return { x0: W + R * 2.4, x1: -R * 2.4, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
+/**
+ * How far ahead on its path the moon is drawn at its rise, as a share of
+ * the path (owner item 63): at the game's rise (u = 0) the centre is
+ * MOON_RISE_IN · R inside the right edge. The game's u maps onto the drawn
+ * path as `moonVisU`: 0 … 1 onto `lead` … 1, so the set still ends where it
+ * did; the way in before the rise is the path's first `lead`.
+ */
+export function moonLead(P: MoonPath, W: number, R: number): number {
+  return clamp((P.x0 - (W - MOON_RISE_IN * R)) / (P.x0 - P.x1), 0, 0.5);
+}
+/** The drawn place (0 … 1 along `moonPath`) for the game's u (`-moonPreU(lead)` … 1). */
+export function moonVisU(u: number, lead: number): number {
+  return lead + (1 - lead) * u;
+}
+/** How long before its rise the moon comes in, in game u (× MOON_UP_S for seconds at game pace). */
+export function moonPreU(lead: number): number {
+  return lead / (1 - lead);
+}
+/** The game's u at `nowMs` for a rise at `riseAt` (unix ms), at the moon's pace (negative before it). */
+export function moonClockU(nowMs: number, riseAt: number, speed = 1): number {
+  return ((nowMs - riseAt) / 1000 / MOON_UP_S) * speed;
+}
+
 /** The moon's place at `u` (0 rise … 1 set) on `P`: x even along it, y on a sine arc. */
 export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
   out[0] = lerp(P.x0, P.x1, u);
@@ -415,6 +444,9 @@ class Sky {
   uCorr = 0;
   moonSet: { u0: number; t0: number; dur: number } | null = null;
   moonPres: number;
+  /** The moon's lead on its path at the rise (`moonLead`, from the size) and its way in before it (`moonPreU`). */
+  moonLd = 0;
+  moonPre = 0;
   moonVis = 0;
   mVisNow = 0;
   mx = 0;
@@ -511,7 +543,7 @@ class Sky {
     this.glints = new Glints(env.theme);
     this.life = new DayLife(env.theme);
     const mu = env.raw.moonU;
-    this.u = env.raw.moonUp ? (mu >= 0 ? mu : MOON_START) : -1;
+    this.u = env.raw.moonUp ? (mu >= 0 ? mu : MOON_START) : NO_MOON;
     this.moonUWas = mu;
     this.moonPres = env.raw.moonUp ? 1 : 0;
     if (prev) {
@@ -582,6 +614,8 @@ class Sky {
     if (!this.moon || this.moon.R !== MR) this.moon = new MoonSurface(MR, env.noise, this.th.light);
     this.moon.phase = -1;
     this.mpath = moonPath(W, H, MR);
+    this.moonLd = moonLead(this.mpath, W, MR);
+    this.moonPre = moonPreU(this.moonLd);
     this.life.resize(W, H);
     const bk = env.back;
     this.gTopRed = bk.createLinearGradient(0, 0, 0, H * 0.45);
@@ -611,16 +645,18 @@ class Sky {
 
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
     if (name === 'moon.rise') {
-      // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
+      // A moon already up or on its way in (the clock's rise, the almanac) keeps its place: never a jump.
+      // Without one (no clock to the minute) it starts below the right edge and glides briskly onto its way.
       this.moonSet = null;
-      if (!(this.u >= 0 && this.moonPres > 0.02)) {
-        this.u = 0;
+      if (!(this.u > NO_MOON && this.moonPres > 0.02)) {
+        this.u = -this.moonPre;
+        this.uCorr = this.moonPre;
         this.moonPres = 1;
       }
     } else if (name === 'moon.set') {
       // Near its end it goes on at its own pace; a moon far from it (no synced almanac) hurries off.
       const u = this.u;
-      if (u >= 0) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1.02 - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
+      if (u > NO_MOON) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1.02 - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
     } else if (name === 'birds') {
       this.life.birdsNow();
     } else if (name === 'glimpse') {
@@ -1232,27 +1268,43 @@ class Sky {
   }
 
   stepMoon(env: Env, dt: number): void {
-    const up = env.settled.moonUp, mu = env.settled.moonU;
+    let up = env.settled.moonUp;
+    const mu = env.settled.moonU, pre = this.moonPre;
     if (mu !== this.moonUWas) {
       // The almanac says where the moon is (a clock sync): glide there, never jump.
       this.moonUWas = mu;
       if (up && mu >= 0) {
-        if (this.u < 0) {
+        if (this.u <= NO_MOON) {
           this.u = mu;
           this.moonPres = 0;
         } else this.uCorr = mu - this.u;
+      }
+    }
+    // The clock's rise (owner item 63): the moon comes in before it, so it is
+    // half inside the screen when the game says it rises; it stays up a minute
+    // after while the almanac or the event catches up. Glides on a resync.
+    const ra = env.settled.moonRiseAt;
+    if (!up && !this.moonSet && ra >= 0) {
+      const tu = moonClockU(Date.now(), ra, env.moonSpeed);
+      if (tu >= -pre && tu < MOON_RISE_LATE) {
+        up = true;
+        if (this.u <= NO_MOON) {
+          this.u = tu;
+          this.uCorr = 0;
+          this.moonPres = 0;
+        } else if (Math.abs(tu - this.u - this.uCorr) > 0.5 / MOON_UP_S) this.uCorr = tu - this.u;
       }
     }
     if (this.moonSet) {
       const s = this.moonSet, p = (this.T - s.t0) / s.dur;
       if (p >= 1) {
         this.moonSet = null;
-        this.u = -1;
+        this.u = NO_MOON;
       } else this.u = lerp(s.u0, 1.02, p);
       this.uCorr = 0;
     } else if (up) {
       // Up without an Event.Moon rise and no almanac place (start, an unsynced clock): already in the sky, it fades in there.
-      if (this.u < 0) {
+      if (this.u <= NO_MOON) {
         this.u = MOON_START;
         this.moonPres = 0;
       }
@@ -1261,17 +1313,17 @@ class Sky {
       this.u += ((dt * env.moonSpeed) / MOON_UP_S) * slow;
       if (this.uCorr !== 0) {
         const k = 1 - Math.exp(-dt / 8), d = this.uCorr * k;
-        this.u = clamp(this.u + d, 0, MOON_HOLD);
+        this.u = clamp(this.u + d, -pre, MOON_HOLD);
         this.uCorr = Math.abs(this.uCorr - d) < 1e-4 ? 0 : this.uCorr - d;
       }
     }
-    const want = this.u >= 0 && (up || this.moonSet) ? 1 : 0;
+    const want = this.u > NO_MOON && (up || this.moonSet) ? 1 : 0;
     this.moonPres = ease(this.moonPres, want, dt, 1.5);
-    if (!want && this.moonPres < 0.01) this.u = -1;
+    if (!want && this.moonPres < 0.01) this.u = NO_MOON;
   }
-  /** The moon's place at `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west). */
+  /** The moon's place at the game's `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west), drawn ahead by `moonLd` (`moonVisU`). */
   moonPos(u: number): void {
-    moonAt(this.mpath, u, this.S2);
+    moonAt(this.mpath, moonVisU(u, this.moonLd), this.S2);
     this.mx = this.S2[0]!;
     this.my = this.S2[1]!;
   }
@@ -1283,7 +1335,7 @@ class Sky {
     const tgt = Math.max(0, light) * (1 - 0.8 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
     this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
     const u = this.u, mo = this.moon;
-    if (u < 0 || !mo || this.moonVis * this.moonPres < 0.01) {
+    if (u <= NO_MOON || !mo || this.moonVis * this.moonPres < 0.01) {
       this.mVisNow = 0;
       return;
     }
@@ -1293,8 +1345,12 @@ class Sky {
       this.mVisNow = 0;
       return;
     }
-    // low down (behind the text) it is fainter
-    const a = this.moonVis * this.moonPres * (0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y));
+    // low down (behind the text) it is fainter, but not on its way in at the
+    // right edge: there it is at full strength through the game's rise and
+    // takes the low rule over the next tenth of its way (owner item 63)
+    const vu = moonVisU(u, this.moonLd);
+    const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(this.moonLd, this.moonLd + 0.1, vu));
+    const a = this.moonVis * this.moonPres * low;
     const dayK = clamp(day * 1.3, 0, 1);
     // the glow side and the frame glints follow the night moon only
     this.mVisNow = a * (1 - dayK);

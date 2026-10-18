@@ -21,7 +21,9 @@
 //                  until the next predicted change); how far the sun is
 //                  through the day (`sunU`, for the sun glimpses); at
 //                  minute precision the seconds the day and the night
-//                  begin (`dayAt`, `nightAt`), which time sunrise and sunset
+//                  begin (`dayAt`, `nightAt`), which time sunrise and sunset,
+//                  and of the moon's next rise (`moonRiseAt`), which brings
+//                  the moon in before it
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
 //
@@ -29,7 +31,7 @@
 // give an effect (owner feedback 26); no room text or light value does.
 
 import { type ClockState, dayBeginsAt, dayHour, isDay, momentAt, nightBeginsAt, nightHour } from '../gmcp/clock';
-import { moonAt, moonUpFraction } from '../gmcp/gametime';
+import { moonAt, moonUpFraction, nextMoonEvent } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
 
@@ -41,7 +43,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -66,12 +68,12 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
 export function almanacState(
   clock: Readonly<ClockState>,
   nowMs: number,
-): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number } {
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number; moonRiseAt: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1 };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1 };
   const m = momentAt(clock.epoch, nowS);
   const day = isDay(m.month, m.hour);
   return {
@@ -81,6 +83,7 @@ export function almanacState(
     sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1,
     dayAt: dayBeginsAt(clock, nowMs) ?? -1,
     nightAt: nightBeginsAt(clock, nowMs) ?? -1,
+    moonRiseAt: clock.precision === 'minute' ? (clock.epoch + nextMoonEvent(g, 'rise')) * 1000 : -1,
   };
 }
 
@@ -153,7 +156,7 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -166,7 +169,7 @@ export class WeatherSignals {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt, moonRiseAt: a.moonRiseAt };
   }
 
   /** The state to start the engine with. */
@@ -244,6 +247,8 @@ export class WeatherSignals {
     // The seconds the day and the night begin (minute precision): change at a sync, at nightfall and daybreak.
     if (a.dayAt !== this.sky.dayAt) out.dayAt = this.sky.dayAt = a.dayAt;
     if (a.nightAt !== this.sky.nightAt) out.nightAt = this.sky.nightAt = a.nightAt;
+    // The moon's next rise (minute precision): changes at a sync and after each rise.
+    if (a.moonRiseAt !== this.sky.moonRiseAt) out.moonRiseAt = this.sky.moonRiseAt = a.moonRiseAt;
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }

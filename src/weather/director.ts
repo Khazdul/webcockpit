@@ -299,6 +299,7 @@ export class Director {
     settled.clock = T && T.s >= 0 ? (T.kind === 'rise' ? 'day' : 'night') : raw.clock;
     settled.dayAt = raw.dayAt;
     settled.nightAt = raw.nightAt;
+    settled.moonRiseAt = raw.moonRiseAt;
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
     settled.moonU = raw.moonU;

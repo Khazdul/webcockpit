@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { XmlSpan } from '../../src/core/types';
 import { CharModel } from '../../src/gmcp/char';
 import { type ClockState, momentSeconds } from '../../src/gmcp/clock';
-import { moonAt } from '../../src/gmcp/gametime';
+import { moonAt, nextMoonEvent } from '../../src/gmcp/gametime';
 import { migrateSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings';
 import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
 import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
@@ -297,6 +297,25 @@ describe('almanac', () => {
     expect(sig.state().clock).toBe('night');
     sig.gmcp('event.sun', { what: 'light' });
     expect(sig.state()).toMatchObject({ clock: 'day', sunU: 0 });
+  });
+
+  it("gives the moon's next rise (moonRiseAt) at minute precision and sends it when it moves on (item 63)", () => {
+    const c = clockAt(5, 2);
+    const g = NOW_S - c.epoch;
+    const rise = nextMoonEvent(g, 'rise');
+    const a = almanacState(c, NOW_MS);
+    expect(a.moonRiseAt).toBe((c.epoch + rise) * 1000);
+    expect(a.moonRiseAt).toBeGreaterThanOrEqual(NOW_MS);
+    expect(almanacState(clockAt(5, 2, 10, 'hour'), NOW_MS).moonRiseAt).toBe(-1);
+    const s = sink();
+    const sig = new WeatherSignals(s, empty, c, NOW_MS);
+    expect(sig.state().moonRiseAt).toBe(a.moonRiseAt);
+    // the rise second itself still gives it; a second later the next rise goes out
+    const at = a.moonRiseAt;
+    sig.almanac(c, at);
+    expect(s.states.filter((x) => 'moonRiseAt' in x.s)).toHaveLength(0);
+    sig.almanac(c, at + 1000);
+    expect(s.states.at(-1)!.s.moonRiseAt).toBeGreaterThan(at + 1000);
   });
 
   it('starts from the almanac and applies only its predicted changes; an event wins in between', () => {

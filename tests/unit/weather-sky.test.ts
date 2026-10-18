@@ -3,7 +3,7 @@
 // feedback 38: "The moon disappears in the west.").
 
 import { describe, expect, it } from 'vitest';
-import { moonAt, moonPath, sunPos } from '../../src/weather/worker/sky';
+import { MOON_RISE_IN, moonAt, moonClockU, moonLead, moonPath, moonPreU, moonVisU, sunPos } from '../../src/weather/worker/sky';
 
 const W = 1600, H = 900, R = 45;
 
@@ -29,6 +29,33 @@ describe('sky geometry', () => {
     const o = new Float32Array(2);
     moonAt(moonPath(W, H, R), 0.97, o);
     expect(o[0]).toBeLessThan(W * 0.05);
+  });
+
+  it('at the game\'s rise the moon is already half inside the right edge, for any window (owner item 63)', () => {
+    const o = new Float32Array(2);
+    for (const [w, h] of [[1400, 800], [1780, 1040], [1024, 640], [2560, 1400], [800, 600]] as const) {
+      const r = Math.round(Math.min(56, Math.max(30, h * 0.05)));
+      const P = moonPath(w, h, r), L = moonLead(P, w, r);
+      // the way in starts at the path's start, below the right edge
+      moonAt(P, moonVisU(-moonPreU(L), L), o);
+      expect(o[0]).toBeCloseTo(P.x0, 2);
+      // at the rise: the centre MOON_RISE_IN · R inside the edge
+      moonAt(P, moonVisU(0, L), o);
+      expect(o[0]).toBeCloseTo(w - MOON_RISE_IN * r, 2);
+      expect(o[0]).toBeLessThan(w);
+      // the set still ends at the path's end
+      expect(moonVisU(1, L)).toBe(1);
+    }
+    // 1400 × 800 → R 40, lead 0.0754 of the path, the way in 58.7 s before the rise
+    const P = moonPath(1400, 800, 40), L = moonLead(P, 1400, 40);
+    expect(L).toBeCloseTo(120 / 1592, 6);
+    expect(moonPreU(L) * 720).toBeCloseTo(58.7, 1);
+  });
+
+  it('the clock\'s u: negative before the rise, at the moon\'s pace', () => {
+    expect(moonClockU(1_000_000, 1_000_000)).toBe(0);
+    expect(moonClockU(1_000_000 - 36_000, 1_000_000)).toBeCloseTo(-0.05, 9);
+    expect(moonClockU(1_000_000 + 72_000, 1_000_000)).toBeCloseTo(0.1, 9);
   });
 
   it('the sun rises on the right and sets on the left, like the moon', () => {

@@ -52,7 +52,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: 'Event.Sun set · Event.Moon rise · the almanac',
     dur: 4.5,
     acts: [
-      [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42, dayAt: -1, nightAt: -1 }, instant: true }],
+      [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42, dayAt: -1, nightAt: -1, moonRiseAt: -1 }, instant: true }],
       [1.4, emit('shoot')],
     ],
   },
