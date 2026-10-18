@@ -5,7 +5,7 @@
 // signal bridge, and `?weather` once the cockpit is built later.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { FULL_S } from '../../src/weather/sunturn';
+import { TURN_FULL } from '../../src/weather/sunturn';
 import { DEMO_SCRIPTS, DEMO_TURN_FROM, DEMO_STEPS, SUNRISE_STEPS, SUNSET_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
 import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
@@ -61,8 +61,8 @@ describe('the demo script', () => {
     expect(rise.dur).toBe(-DEMO_TURN_FROM);
     const day = DEMO_STEPS[DEMO_STEPS.indexOf(rise) + 1]!;
     expect(day.acts[0]![1]).toMatchObject({ pin: { clock: 'day' } });
-    // the day sky completes 14 s into the day: the day step lets it
-    expect(day.dur).toBeGreaterThanOrEqual(12);
+    // the day sky is complete at the day's first second (item 77): a short look at it
+    expect(day.dur).toBeGreaterThanOrEqual(TURN_FULL.rise + 4);
     // the sunset likewise, then the next step brings the night (item 61)
     expect(set.acts[0]).toEqual([0, { emit: 'sun.set', data: { from: DEMO_TURN_FROM } }]);
     expect(set.dur).toBe(-DEMO_TURN_FROM);
@@ -104,11 +104,11 @@ describe('the one-turn demos (item 74)', () => {
       const before = steps.slice(0, at).reduce((t, s) => t + s.dur, 0);
       expect(before).toBe(turn.in);
       expect(turn.in - steps[0]!.dur).toBe(60);
-      // its sky fills in for FULL_S, then a little more of it before the release
-      expect(steps[at]!.dur).toBe(FULL_S);
+      // its sky fills in (a sunrise's is complete at the turn, a sunset's stars TURN_FULL.set later), then a little more of it before the release
+      expect(steps[at]!.dur).toBeGreaterThanOrEqual(TURN_FULL[kind]);
       expect(steps.at(-1)!.acts).toEqual([[0, { release: true }]]);
       const total = demoPlan({}, steps).total;
-      expect(total).toBeGreaterThan(80_000);
+      expect(total).toBeGreaterThanOrEqual(80_000);
       expect(total).toBeLessThan(110_000);
       // no shortcut: no `from` on any event
       for (const s of steps) for (const [t, a] of s.acts) {
@@ -238,7 +238,7 @@ describe('the demo runner', () => {
     const demo = new Demo(h.host, { settings, cockpit: { el: root, gameEl: game } as never }, demoPlan({}, SUNRISE_STEPS), say, () => {});
     const t0 = Date.now();
     await demo.start();
-    expect(said[0]).toMatch(/^Weather demo: about 1:3\d\./);
+    expect(said[0]).toMatch(/^Weather demo: about 1:2\d\./);
     expect(h.pins[0]).toMatchObject({ smooth: false, p: { clock: 'night', moonUp: false } });
     expect(h.pins[1]).toMatchObject({ smooth: true, p: { dayAt: t0 + 65_000 } });
     const box = root.querySelector('.wc-wdemo')!;

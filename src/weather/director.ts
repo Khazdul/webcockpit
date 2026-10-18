@@ -22,7 +22,8 @@
 //   over the 60 s before the day begins (`dayAt`) or the night begins
 //   (`nightAt`), the almanac's seconds at minute precision, the turn's `s`
 //   runs from -60 to 0 and the sky selection follows sunturn.ts
-//   `turnWeight` (complete 14 s after the turn); from 0 the settled clock is
+//   `turnWeight` (a sunrise's day complete at the turn, a sunset's dusk too,
+//   its stars 14 s after, owner items 76, 77); from 0 the settled clock is
 //   the new one. A resync glides `s` toward the clock's time (a big one
 //   snaps, never back over the turn); a page load or sync mid-turn joins at
 //   its place. Without minute precision `Event.Sun rise` / `set` starts it
@@ -52,6 +53,8 @@ export const SKY_RATE = 1 / 12;
 export const TURN_GLIDE_TAU = 2;
 /** A correction larger than this (s) snaps instead. */
 export const TURN_SNAP_S = 15;
+/** A turn started mid-way glides onto its sky curve at this rate (share/s; above the curves' steepest 0.05/s, so once on it it follows it). */
+export const TURN_JOIN_RATE = 0.1;
 /** No new turn of a kind starts this long (wall ms) after one reached its second: never two in one dawn or dusk (a game day is 24 min). */
 export const TURN_GUARD_MS = 20 * 60_000;
 
@@ -313,7 +316,7 @@ export class Director {
   step(dt: number): void {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     const k = 1 - Math.exp(-dt / MIX_TAU), m = this.mix;
-    const fog0 = m.fog;
+    const fog0 = m.fog, sun0 = m.sun;
     const sdt = dt * this.speed;
     const sky = sdt * SKY_RATE;
     for (const key of MIX_KEYS) {
@@ -326,8 +329,9 @@ export class Director {
       // A sunrise or sunset sets the sky selection itself: the new sky's
       // share by its curve; the night's split between moon and dark moves at
       // SKY_RATE.
-      const nw = Math.max(T.base, turnWeight(T.s));
-      const w = T.kind === 'rise' ? nw : 1 - nw;
+      const nw = Math.max(T.base, turnWeight(T.kind, T.s));
+      // a turn started mid-way by an event (the demo's `from`) glides onto its curve; joining at once (dt 0) sets it
+      const w = dt > 0 ? toward(sun0, T.kind === 'rise' ? nw : 1 - nw, sdt * TURN_JOIN_RATE) : T.kind === 'rise' ? nw : 1 - nw;
       const n = m.moon + m.dark;
       const ms = toward(n > 1e-6 ? m.moon / n : this.settled.moonUp ? 1 : 0, this.settled.moonUp ? 1 : 0, sdt * SKY_RATE);
       m.sun = w;

@@ -1,12 +1,12 @@
 // The time-driven sunrise and sunset (stage 28 items 60, 61; ADR 0093): the curves
 // (sunturn.ts) and the director's turn clock (director.ts).
 import { describe, expect, it } from 'vitest';
-import { Director, TURN_GUARD_MS, SKY_RATE, eventState } from '../../src/weather/director';
-import { FULL_S, GLIMPSE_LEAD_S, LATE_S, RAYS_FADE_S, TURN_RAYS, TURN_RAY_N, glimpseBlocked, turnBeamOn, turnFade, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnWeight } from '../../src/weather/sunturn';
+import { Director, TURN_GUARD_MS, TURN_JOIN_RATE, SKY_RATE, eventState } from '../../src/weather/director';
+import { FULL_S, GLIMPSE_LEAD_S, GLOW_FADE_S, LATE_S, RAYS_FADE_S, TURN_FULL, TURN_RAYS, TURN_RAY_N, glimpseBlocked, turnBeamOn, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars, turnWeight } from '../../src/weather/sunturn';
 
 const W0 = 1_800_000_000_000;
 
-describe('sunrise and sunset curves (items 71, 72)', () => {
+describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
   const at = (f: (s: number) => number, from: number, to: number, step = 0.1): number[] => {
     const out: number[] = [];
     for (let s = from; s <= to + 1e-9; s += step) out.push(f(s));
@@ -18,49 +18,85 @@ describe('sunrise and sunset curves (items 71, 72)', () => {
     for (let s = from; s + w <= to; s += 0.1) m = Math.max(m, Math.abs(f(s + w) - f(s)));
     return m;
   };
+  const KINDS = ['rise', 'set'] as const;
 
-  it('rays: a few from the first seconds, rising evenly to the turn, no jerk', () => {
-    for (const kind of ['rise', 'set'] as const) {
+  it('rays: a few from the first seconds, rising evenly to RAYS_FADE_S, then fading softly, gone at the turn', () => {
+    for (const kind of KINDS) {
       const e = TURN_RAYS[kind].early, r = (x: number): number => turnRays(kind, x);
       expect(r(-60)).toBe(0);
-      expect(r(-57)).toBeCloseTo(e + ((1 - e) * 3) / 57, 2);
-      // rising all the way to its peak near the turn, then only falling
-      const v = at(r, -60, FULL_S);
+      expect(r(-57)).toBeCloseTo(e + ((1 - e) * 3) / (60 + RAYS_FADE_S), 2);
+      // rising all the way to its peak at RAYS_FADE_S, then only falling
+      const v = at(r, -60, 0);
       const peak = v.indexOf(Math.max(...v));
-      const ps = -60 + peak * 0.1;
-      expect(ps).toBeGreaterThan(-12);
-      expect(ps).toBeLessThan(1);
+      expect(-60 + peak * 0.1).toBeCloseTo(RAYS_FADE_S, 0);
       for (let i = 1; i <= peak; i++) expect(v[i]!).toBeGreaterThanOrEqual(v[i - 1]! - 1e-12);
       for (let i = peak + 1; i < v.length; i++) expect(v[i]!).toBeLessThanOrEqual(v[i - 1]! + 1e-12);
-      // even: after the first 3 s, at most 0.03 a second up, at most 0.1 a second down
-      expect(maxChange(r, -57, ps)).toBeLessThan(0.03);
-      expect(maxChange(r, ps, FULL_S)).toBeLessThan(0.06);
-      // halfway through the build-up, about halfway up
-      expect(r(-30)).toBeGreaterThan(e + (1 - e) * 0.4);
-      expect(r(-30)).toBeLessThan(e + (1 - e) * 0.6);
+      // even: after the first 3 s, at most 0.03 a second up, at most 0.07 a second down
+      expect(maxChange(r, -57, RAYS_FADE_S)).toBeLessThan(0.03);
+      expect(maxChange(r, RAYS_FADE_S, 0)).toBeLessThan(0.07);
+      // softly to the end: half there 8 s into the fade, barely there 5 s before the turn, gone at it
+      expect(r(RAYS_FADE_S + 8)).toBeGreaterThan(0.4);
+      expect(r(-5)).toBeLessThan(0.1);
+      expect(r(-5)).toBeGreaterThan(0.02);
+      expect(r(-0.05)).toBeLessThan(0.001);
+      expect(r(0)).toBe(0);
+      expect(turnOn(-0.1)).toBe(true);
+      expect(turnOn(0)).toBe(false);
     }
     // set by eye per kind (a sunrise's first rays pass behind the right dock's panes, item 75)
-    for (const k of ['rise', 'set'] as const) expect(TURN_RAYS[k].early).toBeGreaterThanOrEqual(0.4);
+    for (const k of KINDS) expect(TURN_RAYS[k].early).toBeGreaterThanOrEqual(0.4);
   });
 
-  it('the rays fade as the new sky comes and are gone exactly when it is complete', () => {
-    for (const kind of ['rise', 'set'] as const) {
-      const r = (x: number): number => turnRays(kind, x);
-      // not fading before the new sky is perceptible
-      for (let s = -60; s <= RAYS_FADE_S; s += 0.5) expect(turnFade(s)).toBe(1);
-      expect(turnWeight(RAYS_FADE_S)).toBeGreaterThan(0.35);
-      expect(turnWeight(RAYS_FADE_S)).toBeLessThan(0.45);
-      // slowly: still more than a third there 10 s into the day or night
-      expect(r(10)).toBeGreaterThan(0.3);
-      expect(r(0)).toBeGreaterThan(0.4);
-      expect(r(FULL_S - 3)).toBeGreaterThan(0);
-      expect(r(FULL_S - 0.05)).toBeLessThan(0.005);
-      expect(r(FULL_S)).toBe(0);
-      expect(turnWeight(FULL_S)).toBe(1);
-      expect(turnOn(FULL_S - 0.1)).toBe(true);
-      expect(turnOn(FULL_S)).toBe(false);
-    }
-    expect(FULL_S).toBeLessThanOrEqual(20);
+  it('a sunrise\'s hazy light comes slowly: in 25 s what came in 3, then growing; gone at the day (item 77)', () => {
+    const g = (x: number): number => turnGlow('rise', x);
+    expect(g(-60)).toBe(0);
+    expect(g(-57)).toBeLessThan(0.1);
+    expect(g(-35)).toBeCloseTo(0.6, 2);
+    // the rays' strength 3 s in is what the glow had then before item 77
+    expect(turnRays('rise', -57)).toBeGreaterThan(0.55);
+    const v = at(g, -60, GLOW_FADE_S);
+    for (let i = 1; i < v.length; i++) expect(v[i]!).toBeGreaterThanOrEqual(v[i - 1]!);
+    expect(maxChange(g, -60, 0)).toBeLessThan(0.1);
+    expect(g(-0.05)).toBeLessThan(0.001);
+    expect(g(0)).toBe(0);
+    // a sunset's sun is up from the start and goes with its rays
+    expect(turnGlow('set', -52)).toBeCloseTo(0.6, 2);
+    expect(turnGlow('set', -5)).toBeLessThan(0.1);
+    expect(turnGlow('set', 0)).toBe(0);
+  });
+
+  it('a sunrise\'s order: the stars fade first, then the blue; at the day it is blue and the sun gone (item 77)', () => {
+    const st = (x: number): number => turnStars(x, NaN);
+    expect(st(-60)).toBe(1);
+    expect(st(-50)).toBeCloseTo(0.5, 5);
+    expect(st(-30)).toBeLessThanOrEqual(0.1);
+    expect(st(-30)).toBeGreaterThan(0.03);
+    expect(st(-6)).toBe(0);
+    for (let x = -60; x < 0; x += 0.5) expect(st(x + 0.5)).toBeLessThanOrEqual(st(x));
+    // the blue over the last 30 s
+    expect(turnWeight('rise', -30)).toBe(0);
+    expect(turnWeight('rise', -15)).toBeCloseTo(0.5, 5);
+    expect(turnWeight('rise', 0)).toBe(1);
+    expect(TURN_FULL.rise).toBe(0);
+    for (const f of [turnIntensity, turnPalette, (x: number) => turnRays('rise', x), (x: number) => turnGlow('rise', x)]) expect(f(0)).toBe(0);
+  });
+
+  it('a sunset\'s order: the blue fades from 10 s in; the stars only as the last rays go (item 76)', () => {
+    expect(turnWeight('set', -50)).toBe(0);
+    expect(turnWeight('set', -45)).toBeGreaterThan(0);
+    expect(turnWeight('set', -25)).toBeCloseTo(0.5, 5);
+    expect(turnWeight('set', 0)).toBe(1);
+    const st = (x: number): number => turnStars(NaN, x);
+    expect(st(-60 + 0.1)).toBe(0);
+    expect(st(-5)).toBe(0);
+    // no stars to speak of while a ray is more than barely there
+    for (let x = -60; x < 0; x += 0.1) if (st(x) > 0.01) expect(turnRays('set', x)).toBeLessThan(0.07);
+    expect(st(TURN_FULL.set - 0.05)).toBeGreaterThan(0.99);
+    expect(st(TURN_FULL.set)).toBe(1);
+    expect(TURN_FULL.set).toBe(FULL_S);
+    // outside a turn the stars are as the sky says
+    expect(turnStars(NaN, NaN)).toBe(1);
+    expect(turnStars(NaN, TURN_FULL.set + 1)).toBe(1);
   });
 
   it('more rays fade in one by one; the beams too', () => {
@@ -73,33 +109,29 @@ describe('sunrise and sunset curves (items 71, 72)', () => {
     // each fades in over seconds: no ray pops in
     for (let i = 0; i < TURN_RAY_N; i++) expect(maxChange((x) => turnRayOn(i, x), -60, 0)).toBeLessThan(0.2);
     for (let i = 0; i < 3; i++) {
-      expect(turnBeamOn(i, -45)).toBe(0);
-      expect(turnBeamOn(i, -15)).toBe(1);
+      expect(turnBeamOn(i, -49)).toBe(0);
+      // all there before the rays start to fade
+      expect(turnBeamOn(i, RAYS_FADE_S)).toBe(1);
       expect(maxChange((x) => turnBeamOn(i, x), -60, 0)).toBeLessThan(0.16);
     }
   });
 
-  it('intensity, palette, progress, weight: even, no jerk, nothing snaps', () => {
-    for (const f of [turnIntensity, turnPalette, turnWeight, turnProgress]) {
-      const v = at(f, -61, FULL_S + 2, 1 / 30);
+  it('intensity, palette, progress, weight, glow, stars: even, no jerk, nothing snaps', () => {
+    const fs: Array<(s: number) => number> = [turnIntensity, turnPalette, turnProgress, (s) => turnStars(NaN, s)];
+    for (const k of KINDS) fs.push((s) => turnWeight(k, s), (s) => turnGlow(k, s));
+    fs.push((s) => turnStars(s, NaN));
+    for (const f of fs) {
+      const v = at(f, -59.9, FULL_S + 2, 1 / 30);
       for (let i = 1; i < v.length; i++) expect(Math.abs(v[i]! - v[i - 1]!)).toBeLessThan(0.005);
     }
-    // the colours and the sun's path move at one pace from the first second until the sky is complete
+    // the colours and the sun's path move at one pace from the first second to the turn
     expect(turnProgress(-60)).toBe(0);
-    expect(turnProgress((FULL_S - 60) / 2)).toBeCloseTo(0.5, 9);
-    expect(turnProgress(FULL_S)).toBe(1);
-    expect(maxChange(turnProgress, -60, FULL_S, 10)).toBeCloseTo(10 / (60 + FULL_S), 6);
-    // gone with the rays
-    expect(turnIntensity(FULL_S)).toBe(0);
-    expect(turnPalette(FULL_S)).toBe(0);
-  });
-
-  it('weight: the new sky from -32 s, stronger than the old at the turn, complete at FULL_S', () => {
-    expect(turnWeight(-32)).toBe(0);
-    expect(turnWeight(-20)).toBeLessThan(0.15);
-    expect(turnWeight(0)).toBeGreaterThan(0.7);
-    expect(turnWeight(FULL_S - 1)).toBeLessThan(1);
-    expect(turnWeight(FULL_S)).toBe(1);
+    expect(turnProgress(-30)).toBeCloseTo(0.5, 9);
+    expect(turnProgress(0)).toBe(1);
+    expect(maxChange(turnProgress, -60, 0, 10)).toBeCloseTo(10 / 60, 6);
+    // the tint and palette start to fade only at GLOW_FADE_S
+    expect(turnIntensity(GLOW_FADE_S)).toBeCloseTo(1, 9);
+    expect(turnPalette(GLOW_FADE_S)).toBeCloseTo(1, 9);
   });
 
   it('the day sky\'s rays are held back while a turn runs and just before one (item 64)', () => {
@@ -107,9 +139,9 @@ describe('sunrise and sunset curves (items 71, 72)', () => {
     expect(glimpseBlocked(N, NaN, NaN, -1, -1)).toBe(false);
     expect(glimpseBlocked(N, -30, NaN, -1, -1)).toBe(true);
     expect(glimpseBlocked(N, NaN, -59, -1, -1)).toBe(true);
-    // until the new sky is complete
-    expect(glimpseBlocked(N, 5, NaN, -1, -1)).toBe(true);
-    expect(glimpseBlocked(N, FULL_S + 1, NaN, -1, -1)).toBe(false);
+    // until the turn's sun is gone, at its second
+    expect(glimpseBlocked(N, -1, NaN, -1, -1)).toBe(true);
+    expect(glimpseBlocked(N, 1, NaN, -1, -1)).toBe(false);
     const night = N + (60 + GLIMPSE_LEAD_S - 1) * 1000;
     expect(glimpseBlocked(N, NaN, NaN, -1, night)).toBe(true);
     expect(glimpseBlocked(N, NaN, NaN, -1, night + 2000)).toBe(false);
@@ -136,7 +168,7 @@ function rig(state: ConstructorParameters<typeof Director>[0], wall = W0) {
 }
 
 describe('Director: the sunrise follows the clock', () => {
-  it('runs over the last 60 s of the night: night sky first, day sky stronger at the day, complete FULL_S later', () => {
+  it('runs over the last 60 s of the night: night sky first, the day sky complete at the day (item 77)', () => {
     // the day begins 61 s from now
     const { d, run } = rig({ dayAt: W0 + 61_000 });
     expect(d.riseS).toBeNull();
@@ -147,14 +179,14 @@ describe('Director: the sunrise follows the clock', () => {
     expect(d.mix.sun).toBe(0);
     expect(d.settled.clock).toBe('night');
     run(25);
-    expect(d.mix.sun).toBeCloseTo(turnWeight(-10), 5);
+    expect(d.mix.sun).toBeCloseTo(turnWeight('rise', -10), 5);
     expect(d.mix.sun + d.mix.dark).toBeCloseTo(1, 5);
     run(10.1);
-    // the day's first second: the clock is day, the day sky outweighs the night
+    // the day's first second: the clock is day, the day sky complete
     expect(d.riseS).toBeCloseTo(0.1, 5);
     expect(d.settled.clock).toBe('day');
-    expect(d.mix.sun).toBeGreaterThan(0.6);
-    expect(d.mix.dark).toBeLessThan(0.4);
+    expect(d.mix.sun).toBe(1);
+    expect(d.mix.dark).toBe(0);
     // the almanac turns the clock to day a little later: nothing jumps
     run(9.9);
     d.set({ clock: 'day' });
@@ -172,11 +204,11 @@ describe('Director: the sunrise follows the clock', () => {
   it('a page load or a sync mid-rise joins at its place', () => {
     const { d } = rig({ dayAt: W0 + 10_000 });
     expect(d.riseS).toBeCloseTo(-10, 5);
-    expect(d.mix.sun).toBeCloseTo(turnWeight(-10), 5);
+    expect(d.mix.sun).toBeCloseTo(turnWeight('rise', -10), 5);
     const late = rig({ dayAt: W0 - 5_000 });
     expect(late.d.riseS).toBeCloseTo(5, 5);
     expect(late.d.settled.clock).toBe('day');
-    expect(late.d.mix.sun).toBeCloseTo(turnWeight(5), 5);
+    expect(late.d.mix.sun).toBe(1);
     // well into the day (after the day sky is complete): no rise
     expect(rig({ dayAt: W0 - 30_000 }).d.riseS).toBeNull();
   });
@@ -298,19 +330,22 @@ describe('Director: the sunset follows the clock (item 61)', () => {
   /** By day, outdoors, the moon down unless given. */
   const day = (state: Parameters<typeof rig>[0]) => rig({ clock: 'day', ...state });
 
-  it('runs over the last 60 s of the day: day sky first, night sky stronger at the night, complete FULL_S later', () => {
+  it('runs over the last 60 s of the day: the blue fades from 10 s in, gone at the night (item 76)', () => {
     const { d, run } = day({ nightAt: W0 + 61_000 });
     expect(d.setS).toBeNull();
     expect(d.mix.sun).toBe(1);
     run(1);
     expect(d.setS).toBeCloseTo(-60, 5);
     expect(d.riseS).toBeNull();
-    run(25);
+    run(10);
     expect(d.mix.sun).toBe(1);
+    run(15);
+    expect(d.mix.sun).toBeCloseTo(1 - turnWeight('set', -35), 5);
+    expect(d.mix.sun).toBeLessThan(0.9);
     expect(d.settled.clock).toBe('day');
     run(25);
-    expect(d.mix.sun).toBeCloseTo(1 - turnWeight(-10), 5);
-    expect(d.mix.night).toBeCloseTo(turnWeight(-10), 5);
+    expect(d.mix.sun).toBeCloseTo(1 - turnWeight('set', -10), 5);
+    expect(d.mix.night).toBeCloseTo(turnWeight('set', -10), 5);
     run(10.1);
     // the night's first second: the clock is night, the night sky outweighs the day
     expect(d.settled.clock).toBe('night');
@@ -332,7 +367,7 @@ describe('Director: the sunset follows the clock (item 61)', () => {
   it('a moon up takes the night part; joining mid-set; a small resync glides', () => {
     const { d, run } = day({ moonUp: true, nightAt: W0 + 10_000 });
     expect(d.setS).toBeCloseTo(-10, 5);
-    expect(d.mix.moon).toBeCloseTo(turnWeight(-10), 5);
+    expect(d.mix.moon).toBeCloseTo(turnWeight('set', -10), 5);
     expect(d.mix.dark).toBe(0);
     d.set({ nightAt: W0 + 12_000 });
     let last = d.setS!;
@@ -387,8 +422,20 @@ describe('Director: the sunset follows the clock (item 61)', () => {
     expect(sun).toBeGreaterThan(0.8);
     d.turnEvent('set', -30);
     expect([d.riseS, d.setS]).toEqual([null, -30]);
-    // the sky it had is where the sunset starts from: no jump
+    // the sky it had is where the sunset starts from: it glides onto the sunset's curve, no jump
     run(0.1);
-    expect(d.mix.sun).toBeCloseTo(sun, 5);
+    expect(Math.abs(d.mix.sun - sun)).toBeLessThanOrEqual(0.1 * 3 * TURN_JOIN_RATE + 1e-9);
+  });
+
+  it('a sunset started mid-way by the demo glides onto its curve and then follows it', () => {
+    const { d, run } = day({ nightAt: -1 });
+    d.turnEvent('set', -30);
+    let last = d.mix.sun;
+    run(8, () => {
+      expect(last - d.mix.sun).toBeLessThanOrEqual(0.1 * TURN_JOIN_RATE + 1e-9);
+      expect(d.mix.sun).toBeLessThanOrEqual(last);
+      last = d.mix.sun;
+    });
+    expect(d.mix.sun).toBeCloseTo(1 - turnWeight('set', -22), 5);
   });
 });

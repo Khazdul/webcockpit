@@ -7,14 +7,11 @@
 // state (`WeatherState`, settled at once but eased as usual) and events.
 // Everything runs at the game's own pace (owner item 70: the old 3× demo
 // felt fast-forwarded): the demo shows a part of each slow process (the last
-// 25 s of a sunrise or sunset, enough of a build-up to read it) instead of
+// 30 s of a sunrise or sunset, enough of a build-up to read it) instead of
 // speeding it up. Times are seconds; 3:00 in all.
 
 import type { WeatherEvent, WeatherState } from './protocol';
-import { FULL_S } from './sunturn';
-
-/** The one-turn demos show the new sky filling in until it is complete. */
-const FULL_S_DEMO = FULL_S;
+import { TURN_FULL } from './sunturn';
 
 export type DemoAction =
   /** Pins these values (merged with the earlier pins); `instant` jumps without easing (the start only). */
@@ -47,8 +44,8 @@ const pin = (p: Partial<WeatherState>): DemoAction => ({ pin: p });
 /** The first pin of a demo: outdoors, a clear sky, standing, no clock-driven turn or moon of the game's. */
 const SCENE: Partial<WeatherState> = { weather: ' ', fog: '', light: '', position: 'standing', dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
 const emit = (e: WeatherEvent, data?: unknown): DemoAction => (data === undefined ? { emit: e } : { emit: e, data });
-/** Where the demo's sunrise and sunset start, s before the day or night begins: their last 25 s, the build-up and the turn (ADR 0093). */
-export const DEMO_TURN_FROM = -25;
+/** Where the demo's sunrise and sunset start, s before the day or night begins: their last 30 s, the new sky coming as the rays fade (ADR 0093). */
+export const DEMO_TURN_FROM = -30;
 
 export const DEMO_STEPS: readonly DemoStep[] = [
   {
@@ -63,20 +60,20 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunrise',
-    look: 'the last 25 seconds of the night: rays from the horizon at the right, more and more of them, beams that climb and make the frame lines glint',
+    look: 'the last 30 seconds of the night: faint rays and beams from the sun low at the right, the frame lines glinting where they cross; the blue sky fades in as the rays fade, all gone when the day begins',
     signal: 'the clock: the last game hour of the night (Event.Sun rise when it is not synced)',
     dur: -DEMO_TURN_FROM,
     acts: [[0, emit('sun.rise', { from: DEMO_TURN_FROM })]],
   },
   {
     title: 'The day begins',
-    look: 'the blue sky fills in and the rays fade slowly; they are gone when the sky is complete',
+    look: 'the clear blue sky, complete at the day\'s first second; birds',
     signal: 'Event.Sun light',
-    dur: 18,
+    dur: 6,
     acts: [
-      // the day begins (Event.Sun light); the day sky completes FULL_S (18 s) later
+      // the day begins (Event.Sun light); the day sky is complete then (TURN_FULL.rise)
       [0, pin({ clock: 'day', sunU: 0.15 })],
-      [9, emit('birds')],
+      [2, emit('birds')],
     ],
   },
   {
@@ -188,21 +185,18 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset',
-    look: 'the last 25 seconds of the day: rays from the sun low at the left, more and more of them, beams that sink toward the bottom left, glints again; the night sky comes; a shooting star',
+    look: 'the last 30 seconds of the day: the blue gone into a warm dusk, faint rays and beams from the sun sinking at the left, glints again; the last rays fade softly, and only then the stars',
     signal: 'the clock: the last game hour of the day (Event.Sun set when it is not synced)',
     dur: -DEMO_TURN_FROM,
-    acts: [
-      [0, emit('sun.set', { from: DEMO_TURN_FROM })],
-      [23.5, emit('shoot')],
-    ],
+    acts: [[0, emit('sun.set', { from: DEMO_TURN_FROM })]],
   },
   {
     title: 'Night · rain and lightning',
-    look: 'the night sky fills in as the last rays fade; rain in the dark, and the bolt lights the night sky',
+    look: 'the stars begin to come out after the last rays; rain in the dark, and the bolt lights the night sky',
     signal: `Event.Sun dark · Char.Vitals weather = '"' · a lightning line`,
     dur: 8,
     acts: [
-      // the night begins (Event.Sun dark); the night sky completes FULL_S (18 s) later
+      // the night begins (Event.Sun dark); its stars are complete TURN_FULL.set (14 s) later
       [0, pin({ clock: 'night', weather: '"' })],
       [3.5, emit('strike')],
       [6.2, emit('strike')],
@@ -240,8 +234,8 @@ const TURN_LEAD = 5;
 /**
  * `#weather demo sunrise` (owner item 74): a moonless starry night, then a
  * whole sunrise at the game's pace exactly as a live one (the clock's
- * minute before the day and on until the day sky is complete), then the
- * day with its rays pulsing, then back to the game.
+ * minute before the day, complete at the day's first second), then the day
+ * with its rays pulsing, then back to the game.
  */
 export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
@@ -255,32 +249,28 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
     ],
   },
   {
-    title: 'Sunrise · the first rays',
-    look: 'a few faint rays from the horizon at the right, then more, one by one',
+    title: 'Sunrise · the first light',
+    look: 'the sun\'s hazy light grows slowly at the right; a few faint rays, sideways and down, then more, one by one; the stars fade, half gone 10 seconds in, barely there after 30',
     signal: 'the clock: the last game hour of the night ("The light slowly increases in the east.")',
     dur: 30,
     acts: [],
   },
   {
-    title: 'Sunrise · the build-up',
-    look: 'more rays and the strong beams, climbing; the frame lines glint; the blue sky starts to come',
+    title: 'Sunrise · the blue sky',
+    look: 'the blue sky fades in; the rays and the faint beams climb and fade softly, the frame lines glinting where they cross; at the day\'s first second the sky is blue and the sun gone',
     signal: 'the clock: the last game hour of the night',
     dur: 30,
     acts: [],
   },
   {
     title: 'The day begins',
-    look: 'the blue sky fills in and the rays fade slowly; they are gone when the sky is complete',
+    look: 'the clear blue sky; the morning sun\'s rays pulse very faintly, about every 20 seconds',
     signal: 'Event.Sun light ("The day has begun.")',
-    dur: FULL_S_DEMO,
-    acts: [[0, pin({ clock: 'day', sunU: 0 })]],
-  },
-  {
-    title: 'Day · the sun\'s rays',
-    look: 'the morning sun\'s rays pulse very faintly, about every 20 seconds',
-    signal: "Char.Vitals weather = ' '",
-    dur: 10,
-    acts: [[0.5, emit('glimpse')]],
+    dur: Math.max(TURN_FULL.rise, 12),
+    acts: [
+      [0, pin({ clock: 'day', sunU: 0 })],
+      [0.5, emit('glimpse')],
+    ],
   },
   {
     title: 'Back to the game',
@@ -305,23 +295,23 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset · the first rays',
-    look: 'a few faint rays from the sun 40° up at the left, then more, one by one',
+    look: 'a few faint rays from the sun 40° up at the left, then more, one by one; from 10 seconds in the blue sky fades slowly into a warm dusk',
     signal: 'the clock: the last game hour of the day ("The sun slowly disappears in the west.")',
     dur: 30,
     acts: [],
   },
   {
-    title: 'Sunset · the build-up',
-    look: 'more rays and the strong beams, sinking toward the bottom left; the frame lines glint; the night sky starts to come',
+    title: 'Sunset · the dusk',
+    look: 'the rays and the faint beams sink toward the horizon at the left and fade softly, the frame lines glinting where they cross; no stars yet',
     signal: 'the clock: the last game hour of the day',
     dur: 30,
     acts: [],
   },
   {
     title: 'The night begins',
-    look: 'the starry night fills in and the last rays, from the lower left, fade slowly; they are gone when the night is complete',
+    look: 'the last rays are gone; the stars come out, complete 14 seconds into the night',
     signal: 'Event.Sun dark ("The night has begun.")',
-    dur: FULL_S_DEMO,
+    dur: TURN_FULL.set,
     acts: [[0, pin({ clock: 'night', sunU: -1 })]],
   },
   {
