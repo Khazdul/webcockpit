@@ -942,6 +942,28 @@ ends any of them.
   is built; `weatherFromUrl` (dev.ts) uses it, so `?weather` also applies
   when the cockpit comes from the start page's Enter MUME.
 
+- **The game held back (2026-10-19, owner item 85).** A real "The night
+  has begun." upset a running demo: `push` dropped the game's almanac and
+  vitals values for pinned keys, but `WeatherSignals.gmcp` always emitted
+  Event.Sun / Event.Moon, and the worker applied them (`eventState`,
+  `turnEvent`) over the demo's pins. Now, while any pin holds (the demo,
+  a dev `jump`, a bench), none of the game's events reach the engine:
+  - sun and moon events update only the bridge's own sky state, which the
+    release (`pin(null)` sends `state()`) applies with the normal easing;
+  - a `sun.rise` / `sun.set` held back, with no `sun.light` / `sun.dark`
+    after it, is sent on release as the same event with `from` = where the
+    turn is now (−60 + seconds since), when the clock does not time that
+    turn (`dayAt` / `nightAt` −1) and it is still before its second; with
+    a synced clock the director joins it by the clock anyway;
+  - a darkness `start` / `grow` held back and not followed by another
+    darkness event is sent on release (the spell is still on);
+  - lightning and gust lines are dropped: a flash or a gust is a moment,
+    the demo shows its own, and a real one in the middle of a scripted
+    step would be read as part of it.
+  The demo's own events go straight to the engine (`ctl.engine.emit`), not
+  through the bridge, so they are untouched. One rule for every pin keeps
+  it simple; the dev pins get the same (a `jump` is a fixed scene too).
+
 ### Moon side, day sky switch, sun beams (2026-10-17, owner feedback 36–38)
 
 - **Moon direction (38).** The game says "The moon disappears in the

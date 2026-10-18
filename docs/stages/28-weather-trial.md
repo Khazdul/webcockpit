@@ -1548,6 +1548,39 @@ black: the brightest stroke stands out).
     them; the worker applies `eventState` and `turnEvent`), so a real
     "The night has begun." sets the night, and a real `Event.Sun rise/set`
     starts a turn, in the middle of a demo.
+    - **Done (2026-10-19):** ADR 0091, Demo, "The game held back". While a
+      demo (or any pin: a dev `jump`, a bench) runs, none of the game's
+      events reach the effects. The sun and moon events are still noted,
+      and when the demo ends the effects follow the game from there: a
+      night that began during the demo is night after it (eased as usual),
+      a moon that rose is up. A sunrise or sunset the game opened during
+      the demo joins at its place afterwards (by the clock when it is
+      synced; otherwise from the held `Event.Sun rise` / `set`, if its
+      minute is not over). A magical darkness begun during the demo and
+      not ended starts when it ends. Lightning and gusts from the game are
+      dropped during a demo (they are moments, and the demo shows its own).
+      Checked in headless Chromium: `#weather demo sunrise` with a real
+      `Event.Sun set`, `Event.Sun dark` and `Event.Moon rise` sent 30 s in
+      played on unchanged to its blue day sky; after it the game's night
+      and moon. Unit 2747; e2e weather + layout 44/44 (Chromium, Firefox).
+      Please try: a demo while playing, ideally across a real nightfall
+      or daybreak.
+      Feedback wanted: is the demo now undisturbed, and does the sky after
+      it match the game.
 86. **A ray glints only on the first pane it meets.** A frame glint from a
     sun ray shows only on the first pane the ray hits; a pane behind it
     along the same ray gets no glint from it.
+    - **Done (2026-10-19):** ADR 0093, "A glint on the first pane only".
+      Each sunrise or sunset ray and beam now glints only on the first
+      pane it meets along its path: where it enters (the strong glint with
+      the sparkle) and the faint trace where it leaves that same pane; any
+      pane behind it on the same ray gets nothing from it. A float the ray
+      meets before the docked pane under it is the first; a borderless
+      pane does not count. The day sky's rays have no glints (unchanged).
+      Checked in headless Chromium at 2000 × 1150 with the default right
+      dock: in the sunset the Group pane's left line no longer glints from
+      the rays that pass through Timers first; Timers' and Comm's left
+      lines still do.
+      Please try: `#weather demo sunset` and `#weather demo sunrise`.
+      Feedback wanted: do the glints now sit only on the first pane, and
+      are there now too few glints anywhere.

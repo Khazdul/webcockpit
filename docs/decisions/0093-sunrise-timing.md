@@ -484,6 +484,21 @@ instantaneous at any rate.
   window size. No bench run (no change of rate or of the number of draws
   that matters).
 
+### A glint on the first pane only (owner item 86)
+
+A ray glinted on every pane it crossed, so a ray through one pane lit the
+frame of a pane behind it too. Now `beamHits` (beams.ts) keeps only the
+hits on the pane with the nearest hit along the ray: that pane's entry
+(strong, with the sparkle) and its exit (BEAM_EXIT, as before); every pane
+further along gets none from that ray. "First" is purely along the ray:
+a float the ray meets before the docked pane under it is the first (the
+docked pane gets nothing from that ray), a float further along inside a
+docked pane gets nothing; a borderless pane is passed over (no glass, item
+53). It applies to the thin rays and the beams of a sunrise and a sunset
+(the only rays that glint; the day sky's rays have none). The drawing of
+the rays and beams is unchanged. Cost: one pass over a handful of hits per
+ray, and fewer glints drawn.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then
