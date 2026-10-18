@@ -3,7 +3,7 @@
 // perceptible, a little more at midday.
 
 import { describe, expect, it } from 'vitest';
-import { DAY_FAN, DAY_RAYS, GLIMPSE_H_UNKNOWN, PULSE_HIGH, PULSE_LOW, PULSE_S, dayRayAngle, pulseStrength, sunHeight } from '../../src/weather/worker/daylife';
+import { DAY_FAN, DAY_RAYS, GLIMPSE_H_UNKNOWN, GLIMPSE_RAY, PULSE_HIGH, PULSE_LOW, PULSE_S, dayRayAngle, pulseStrength, sunHeight } from '../../src/weather/worker/daylife';
 import { sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
 import { FPS_STILL } from '../../src/weather/worker/env';
 
@@ -36,8 +36,10 @@ describe('the day sky\'s rays pulse (item 73)', () => {
     const dt = 1 / FPS_STILL;
     let m = 0;
     for (let t = 0; t < PULSE_S * 0.85; t += 0.05) m = Math.max(m, Math.abs(pulseStrength((t + dt) / (PULSE_S * 0.85), 0.5) - pulseStrength(t / (PULSE_S * 0.85), 0.5)));
-    // strength × the ray's alpha (0.165) is what shows: under 0.01 alpha per frame
-    expect(m * 0.165).toBeLessThan(0.01);
+    // strength × the ray's alpha is what shows: under 0.01 alpha per frame (each level dithered over many frames, item 84)
+    expect(m * GLIMPSE_RAY).toBeLessThan(0.01);
+    // subtler than item 82's 0.165 (item 84)
+    expect(GLIMPSE_RAY).toBeLessThan(0.165 * 0.85);
   });
 });
 
@@ -46,7 +48,8 @@ describe('the day sky\'s rays: few, wide, calm (item 82)', () => {
   const deg = (a: number): number => (a * 180) / Math.PI;
   it('spread evenly over about 100° round the sun\'s direction, not bunched', () => {
     const a = Array.from({ length: DAY_RAYS }, (_, i) => dayRayAngle(i, 0, 0) - sunDrift(0)).sort((x, y) => x - y);
-    expect(DAY_RAYS).toBeLessThanOrEqual(7);
+    // nine (item 84, was six)
+    expect(DAY_RAYS).toBe(9);
     expect(deg(a.at(-1)! - a[0]!)).toBeGreaterThan(75);
     const step = (2 * DAY_FAN) / DAY_RAYS;
     for (let i = 1; i < a.length; i++) {

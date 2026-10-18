@@ -21,7 +21,18 @@
 // under 0.003 alpha per frame at that rate; birds ask for BIRD_FPS, an
 // insect for FPS_SLOW, only while they are there. Sprites are built
 // once on CPU canvases (paths and gradients there, ADR 0091); per frame it
-// is a handful of image copies and, during a glimpse, six convex triangles.
+// is a handful of image copies and, during a glimpse, nine convex triangles.
+//
+// The pulse's light is dithered (owner item 84): at its peak a ray adds only
+// a few 8-bit levels to the sky (its alpha about 0.026, the glow's 0.01), so
+// each level came or went at once over the whole ray or glow, and the last
+// step to 0 could be seen. The rays and the glow are now filled from textures
+// made once that hold the light at the pulse's peak, randomly rounded and
+// varied from pixel to pixel (× 0.5 … 1, fixed on the screen), drawn at
+// globalAlpha (the pulse) 0 … 1: each pixel takes its last step at its own
+// moment, so the light comes and goes pixel by pixel over seconds. (A
+// texture at full alpha under a tiny globalAlpha did not help: that alpha is
+// itself 8-bit, and the whole glow stepped with it.)
 
 import type { ThemeInfo } from '../palette';
 import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, mkCanvas, sst } from './env';
@@ -44,20 +55,24 @@ export const GLIMPSE_H_UNKNOWN = 0.6;
  * A ray's alpha at full strength (at the sun, strength 1): the glimpse's
  * since item 55. The pulse reaches only PULSE_HIGH of it at midday.
  */
-const GLIMPSE_RAY = 0.165;
-const GLIMPSE_RAY_LIGHT = 0.11;
+export const GLIMPSE_RAY = 0.132;
+const GLIMPSE_RAY_LIGHT = 0.088;
 /** The glow where the light comes in (alpha × the strength), dark / light pages. */
-const GLIMPSE_GLOW = 0.06;
-const GLIMPSE_GLOW_LIGHT = 0.045;
+const GLIMPSE_GLOW = 0.048;
+const GLIMPSE_GLOW_LIGHT = 0.036;
+/** The dither textures' alpha: 0.5 … 1 (mean 0.75), so with the values above the light is 0.6 of before (owner item 84: subtler; was 0.165 / 0.11, 0.06 / 0.045). */
+const DITHER_MIN = 0.5;
+/** The glow's texture at this share of the screen's size (drawn scaled up, unsmoothed: blocks of 2 px still dither). */
+const GLOW_TEX_K = 0.5;
 /** The pulse's peak strength: at the dawn and dusk hours, and at midday (only just perceptible; by eye, owner items 73, 82: was 0.14 and 0.3). */
 export const PULSE_LOW = 0.1;
 export const PULSE_HIGH = 0.2;
 /**
  * The day rays' tiers across their fan (owner item 82, as item 80's): S a
- * little stronger, m a little weaker, w much weaker, interleaved; few, far
- * apart (was six within about ±0.4 rad of the sun's direction).
+ * little stronger, m a little weaker, w much weaker, interleaved; nine
+ * (item 84, was six; and six within about ±0.4 rad before item 82).
  */
-const DAY_TIERS = 'wSmwSw';
+const DAY_TIERS = 'wSmwSwmSw';
 const DAY_TIER_K: Readonly<Record<string, number>> = { S: 1, m: 0.7, w: 0.4 };
 export const DAY_RAYS = DAY_TIERS.length;
 /** Half the day rays' fan, radians (its outer rays a place in): for a sun above the top right of the middle, from about 30° below level at the left to 60° at the right (owner item 82). */
@@ -202,6 +217,10 @@ export class DayLife {
   private H = 0;
   private readonly light: boolean;
   private readonly comp: GlobalCompositeOperation;
+  /** The dithered textures (owner item 84): the rays' (fading down the screen) and the glow's, for this H. */
+  private rayTex: Cv | null = null;
+  private glowTex: Cv | null = null;
+  private texH = 0;
   /** The wind's drift (px/s, negative: toward the left, as the clouds drift). */
   wind = -2.4;
 
@@ -365,9 +384,54 @@ export class DayLife {
     this.bug = { x, y, tx: x, ty: y, age: 0, life: rr(3, 5), hold: 0 };
   }
 
+  /** Builds the dithered textures for this H (once per size; CPU canvas, ADR 0091). */
+  private textures(): void {
+    const H = this.H;
+    if (this.texH === H && this.rayTex) return;
+    this.texH = H;
+    const [r, g, bl] = this.light ? [255, 214, 140] : [255, 240, 205];
+    const dith = (): number => DITHER_MIN + (1 - DITHER_MIN) * Math.random();
+    // the light at the pulse's peak, rounded at random (a share of the pixels one level up)
+    const lvl = (v: number): number => Math.min(255, Math.floor(255 * v * dith() + Math.random()));
+    const ray = PULSE_HIGH * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY), glow = PULSE_HIGH * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
+    // the rays': strongest at the top, fading down the screen, gone about three
+    // quarters down (owner item 82; was by the distance from the sun); repeated across
+    const RH = Math.ceil(H * 0.78) + 1, RW = 256;
+    const fall = (v: number): number => (v < 0.3 ? 1 - (0.4 * v) / 0.3 : v < 0.65 ? 0.6 - (0.4 * (v - 0.3)) / 0.35 : Math.max(0, 0.2 - (0.2 * (v - 0.65)) / 0.35));
+    const rc = mkCanvas(RW, RH), rx = ctx2dCpu(rc), ri = rx.createImageData(RW, RH);
+    for (let y = 0; y < RH; y++) {
+      const f = fall(y / (H * 0.78));
+      for (let x = 0; x < RW; x++) {
+        const o = (y * RW + x) * 4;
+        ri.data[o] = r;
+        ri.data[o + 1] = g;
+        ri.data[o + 2] = bl;
+        ri.data[o + 3] = lvl(ray * f);
+      }
+    }
+    rx.putImageData(ri, 0, 0);
+    this.rayTex = rc;
+    // the glow's: 1 at the middle, 0.35 at 0.35 of its radius, 0 at its edge
+    const GR = Math.ceil(H * 0.42 * GLOW_TEX_K), GS = GR * 2;
+    const gc = mkCanvas(GS, GS), gx = ctx2dCpu(gc), gi = gx.createImageData(GS, GS);
+    for (let y = 0; y < GS; y++) {
+      for (let x = 0; x < GS; x++) {
+        const d = Math.hypot(x + 0.5 - GR, y + 0.5 - GR) / GR;
+        const f = d < 0.35 ? 1 - (0.65 * d) / 0.35 : Math.max(0, 0.35 * (1 - (d - 0.35) / 0.65));
+        const o = (y * GS + x) * 4;
+        gi.data[o] = r;
+        gi.data[o + 1] = g;
+        gi.data[o + 2] = bl;
+        gi.data[o + 3] = lvl(glow * f);
+      }
+    }
+    gx.putImageData(gi, 0, 0);
+    this.glowTex = gc;
+  }
+
   private drawGlimpse(b: Ctx, T: number, e: number, sx: number, sy: number): void {
     const W = this.W, H = this.H;
-    const rgb = this.light ? '255,214,140' : '255,240,205';
+    this.textures();
     b.globalCompositeOperation = this.comp;
     // The sun is outside the screen (beams.ts `sunPoint`): its light comes in
     // where the line from it to the screen's middle crosses the edge (`gx, gy`).
@@ -377,25 +441,20 @@ export class DayLife {
     if (sx > W && mc < -1e-6) tin = Math.max(tin, (W - sx) / mc);
     if (sx < 0 && mc > 1e-6) tin = Math.max(tin, -sx / mc);
     const gx = sx + mc * tin, gy = sy + ms * tin;
-    // the sun peeking out: a soft warm glow where its light comes in
+    // the sun peeking out: a soft warm glow where its light comes in (dithered, item 84)
     const R0 = H * 0.42;
-    const halo = b.createRadialGradient(gx, gy, 0, gx, gy, R0);
-    halo.addColorStop(0, `rgba(${rgb},1)`);
-    halo.addColorStop(0.35, `rgba(${rgb},0.35)`);
-    halo.addColorStop(1, `rgba(${rgb},0)`);
-    b.fillStyle = halo;
-    b.globalAlpha = e * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
-    const hx0 = Math.max(0, gx - R0), hy0 = Math.max(0, gy - R0);
-    b.fillRect(hx0, hy0, Math.min(W, gx + R0) - hx0, Math.min(H, gy + R0) - hy0);
-    // the rays: strongest at the top, fading down the screen, gone about three
-    // quarters down (owner item 82; was by the distance from the sun)
+    // the textures hold the peak's light: the pulse is their share, 0 … 1
+    const k = Math.min(1, e / PULSE_HIGH);
+    b.globalAlpha = k;
+    const sm = b.imageSmoothingEnabled;
+    b.imageSmoothingEnabled = false;
+    b.drawImage(this.glowTex!, gx - R0, gy - R0, R0 * 2, R0 * 2);
+    b.imageSmoothingEnabled = sm;
+    // the rays: their texture fades down the screen (item 82), dithered (item 84)
     const L = tin + H * 1.6;
-    const gr = b.createLinearGradient(0, 0, 0, H * 0.78);
-    gr.addColorStop(0, `rgba(${rgb},1)`);
-    gr.addColorStop(0.3, `rgba(${rgb},0.6)`);
-    gr.addColorStop(0.65, `rgba(${rgb},0.2)`);
-    gr.addColorStop(1, `rgba(${rgb},0)`);
-    b.fillStyle = gr;
+    const pat = b.createPattern(this.rayTex!, 'repeat-x');
+    if (!pat) return;
+    b.fillStyle = pat;
     // spread wide round the sun's middle direction, a few, by tier (owner
     // item 82), swaying together (one sun, owner item 68)
     const near = (H * 0.6) / (tin + H * 0.6);
@@ -403,8 +462,7 @@ export class DayLife {
       const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5, tier = DAY_TIERS[i]!;
       const a = dayRayAngle(i, mid, T);
       const wd = (tier === 'w' ? 0.008 : 0.012 + j * 0.004) * near;
-      const al = DAY_TIER_K[tier]! * e;
-      b.globalAlpha = al * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY);
+      b.globalAlpha = DAY_TIER_K[tier]! * k;
       b.beginPath();
       b.moveTo(sx, sy);
       b.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
