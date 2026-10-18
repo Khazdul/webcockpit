@@ -1363,3 +1363,29 @@ black: the brightest stroke stands out).
       Please try: `#weather demo sunset` and `#weather demo sunrise`; note
       the caption's time for anything you want changed.
 
+
+### 2026-10-18 — sun test 2 (translated)
+
+76. **Sunset: rays fade out before the night sky shows.** As the sun goes
+    down, the last rays fade out softly. The night sky starts to show only
+    when the last rays are barely perceptible; until then the blue day sky
+    still dominates. The night sky must not be clearly visible while there
+    are visible rays and a sun that seems to be above the horizon. The blue
+    day sky also lasts too long at a sunset: it may start to fade out as
+    early as 10 s after the sunset begins.
+77. **Sunrise: the hazy light and the sky's order.** The sun's hazy light
+    (the glow, not the rays) comes too fast: what happens in the first 3 s
+    should take about 25 s, and from then until day it should grow
+    step by step. The stars fade out as the sun becomes visible: about
+    50 % faded 10 s into the sunrise, then down to barely perceptible over
+    about 20 s more; the last 30 s are the blue sky fading in. When the
+    day begins, the sky is fully blue and the sun and all its rays have
+    faded away.
+78. **Rays: subtle, even, glinting at the frames.** The rays should be much
+    more subtle; now they look a bit like moving spotlights. The glint is
+    to be much stronger for the weaker rays along the pane edges. The rays
+    should be spread evenly, not clustered. In a sunrise, and above all at
+    its start, they should mostly point sideways and down; further in, a
+    few pointing up may have come.
+79. **Rays: no fast or big movement.** Some rays start to move very fast.
+    No quick or large movement at all: the animation should feel calming.
