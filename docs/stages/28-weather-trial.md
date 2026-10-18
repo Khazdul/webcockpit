@@ -1036,3 +1036,4 @@ black: the brightest stroke stands out).
     - **Owner, same day:** the map pane without a frame. Done: the default
       map toggle is borderless (a damaged stored entry stays framed); its
       share is 195 so the rows stay the same (map 22 in 174 × 51).
+    - **Owner, 2026-10-18:** "looks good" — item 58 approved.
