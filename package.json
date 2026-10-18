@@ -1,6 +1,6 @@
 {
   "name": "webcockpit",
-  "version": "0.1.62",
+  "version": "0.1.63",
   "private": true,
   "license": "GPL-2.0-or-later",
   "type": "module",
