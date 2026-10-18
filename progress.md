@@ -39,6 +39,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-18 — Merge stage 28, release 0.1.63 prepared
+
+- **Done:** merged `weather-trial` to main (f1adffe), version 0.1.63
+  (90f86ad). build:pages green (checks, unit, local smoke 10/10).
+- **Open:** push of main and tag `v0.1.63` (starts the Pages deploy) left
+  to the owner: the session was not allowed to deploy. Then check the
+  Pages run, live release.json 0.1.63, and `WC_PROD_URL=https://mumecockpit.com
+  npm run test:prod`.
+
 ### 2026-10-18 — Stage 28 new-player defaults (branch `weather-trial`)
 
 - **Done:** item 58, ADR 0092. New player: weather on, map docked under
