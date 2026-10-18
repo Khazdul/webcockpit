@@ -39,7 +39,7 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
-### 2026-10-18 — Stage 28 items 59–70, sun, moon and demo (branch `sunrise-timing`)
+### 2026-10-18 — Stage 28 items 59–73, sun, moon and demo (branch `sunrise-timing`)
 
 - **Done:** owner live feedback after 0.1.63. Rooms are lit from "The day
   has begun." (DAWN+1) to "The night has begun." (DUSK+1), verified in
@@ -58,8 +58,11 @@ Statuses: Next, In progress, Owner testing, Done.
   rays share one drift; every ray glints. Item 69: the moon's place from
   `moonRiseAt`/`moonSetAt` and `Date.now()` (no lag on a hidden tab), pace
   capped ±50 %, fade on big jumps. Item 70: one `#weather demo` at speed
-  1, 2:58, `slow` gone. Unit 2727.
-- **Next:** owner test (guides under items 62–70), then merge to main.
+  1, 2:58, `slow` gone. Items 71–73: even turns (rays in one by one,
+  linear climb, fade from -10 s to 0 at new-sky-complete +18 s; ray fan
+  fix), sunset ends below the bottom-left, day glimpses a faint 20 s pulse
+  at the 3 fps still rate. Unit 2725.
+- **Next:** owner test (guides under items 62–73), then merge to main.
 - **Open issues:** look only checked in headless screenshots; perf bench
   not rerun; the moonrise fallback without a minute-synced clock has no
   worker test.
