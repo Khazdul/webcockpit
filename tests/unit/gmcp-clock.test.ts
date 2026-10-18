@@ -7,6 +7,8 @@ import {
   YEAR_S,
   countdownText,
   hour24,
+  dayBeginsAt,
+  dayHour,
   isDay,
   loadClockState,
   momentAt,
@@ -54,9 +56,16 @@ describe('calendar', () => {
     expect([hour24(12, 'am'), hour24(1, 'am'), hour24(12, 'pm'), hour24(11, 'PM')]).toEqual([0, 1, 12, 23]);
     expect(DAWN).toHaveLength(12);
     expect(DUSK).toHaveLength(12);
-    expect(isDay(3, 7)).toBe(true); // Astron: 7 → 19
+    // Astron: dawn hour 7 (still dark), day 8 → 19 (stage 28 item 59)
+    expect(isDay(3, 7)).toBe(false);
+    expect(isDay(3, 8)).toBe(true);
+    expect(isDay(3, 18)).toBe(true);
     expect(isDay(3, 6)).toBe(false);
     expect(isDay(3, 19)).toBe(false);
+    // Solmath (the owner's log): "The light slowly increases" at 9, "The day has begun." at 10
+    expect(isDay(1, 9)).toBe(false);
+    expect(isDay(1, 10)).toBe(true);
+    expect(dayHour(1)).toBe(10);
     expect(periodIcon('day')).toBe('☼');
     expect(periodIcon('night')).toBe('☾');
   });
@@ -153,18 +162,47 @@ describe('sync sources', () => {
 });
 
 describe('transitions and the strip text', () => {
-  it('counts down to dusk by day, to dawn by night, across midnight', () => {
-    // Astron (3): dawn 7, dusk 19.
+  it('counts down to dusk by day, to the day (dawn + 1) by night, across midnight', () => {
+    // Astron (3): dawn hour 7, the day 8:00 → 19:00.
     const day = clockAt(2973, 3, 12, 18, 55, 'minute').nextTransition(T)!;
     expect(day).toEqual({ period: 'day', at: T + 5 * 1000, precision: 'minute' });
     const early = clockAt(2973, 3, 12, 5, 30, 'minute').nextTransition(T)!;
     expect(early.period).toBe('night');
-    expect(early.at).toBe(T + 90 * 1000);
+    expect(early.at).toBe(T + 150 * 1000);
     const late = clockAt(2973, 3, 12, 22, 0, 'minute').nextTransition(T)!;
-    expect(late.at).toBe(T + (2 * 60 + 7 * 60) * 1000);
-    // Day 30: dawn of the next month (Thrimidge, 7).
+    expect(late.at).toBe(T + (2 * 60 + 8 * 60) * 1000);
+    // Day 30: the day of the next month (Thrimidge, dawn 7, day 8).
     const eom = clockAt(2973, 2, 30, 23, 0, 'minute').nextTransition(T)!;
-    expect(eom.at).toBe(T + (60 + DAWN[3]! * 60) * 1000);
+    expect(eom.at).toBe(T + (60 + (DAWN[3]! + 1) * 60) * 1000);
+  });
+
+  it('the dawn hour is still night; the day begins an hour later (item 59)', () => {
+    // Solmath (1): dawn hour 9, day from 10:00, dusk 17.
+    const before = clockAt(2973, 1, 11, 8, 59, 'minute').nextTransition(T)!;
+    expect(before).toEqual({ period: 'night', at: T + 61 * 1000, precision: 'minute' });
+    const dawn = clockAt(2973, 1, 11, 9, 0, 'minute').nextTransition(T)!;
+    expect(dawn).toEqual({ period: 'night', at: T + 60 * 1000, precision: 'minute' });
+    const last = clockAt(2973, 1, 11, 9, 59, 'minute').nextTransition(T)!;
+    expect(last).toEqual({ period: 'night', at: T + 1000, precision: 'minute' });
+    const begun = clockAt(2973, 1, 11, 10, 0, 'minute').nextTransition(T)!;
+    expect(begun).toEqual({ period: 'day', at: T + 7 * 3600 * 1000 / 60, precision: 'minute' });
+    // hour precision in the dawn hour: ~1 to the day
+    const h = clockAt(2973, 1, 11, 9, 0, 'hour').nextTransition(T)!;
+    expect(h).toMatchObject({ period: 'night', at: T + 60 * 1000 });
+  });
+
+  it('dayBeginsAt: the start of this day, or of the next one at night (minute precision only)', () => {
+    // Solmath (1): day from 10:00 to 17:00.
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 0, 'minute').state, T)).toBe(T + 60_000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 59, 'minute').state, T + 400)).toBe(T + 1000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 10, 0, 'minute').state, T)).toBe(T);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 16, 59, 'minute').state, T)).toBe(T - (6 * 60 + 59) * 1000);
+    // after dusk: tomorrow's
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 17, 0, 'minute').state, T)).toBe(T + (7 * 60 + 10 * 60) * 1000);
+    // after dusk on day 30: the next month's (Rethe: dawn 8, day 9)
+    expect(dayBeginsAt(clockAt(2973, 1, 30, 23, 0, 'minute').state, T)).toBe(T + (60 + 9 * 60) * 1000);
+    expect(dayBeginsAt(clockAt(2973, 1, 11, 9, 0, 'hour').state, T)).toBeNull();
+    expect(dayBeginsAt(new ClockModel().state, T)).toBeNull();
   });
 
   it('hour precision ignores the minute; day and unset have none', () => {
