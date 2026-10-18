@@ -1211,3 +1211,23 @@ black: the brightest stroke stands out).
     rays moving a little differently is lively, but it must feel coherent,
     all from the sun. Every sun ray that hits a pane border should make it
     glint.
+    - **Done (2026-10-18), items 64–68:** ADR 0093, "One sun". One sun
+      for the whole day: the sunrise starts at the horizon straight from
+      the right and climbs to 40°; the day's glimpses go on from there,
+      over the top to the top left by evening (following the time of day);
+      the sunset starts 40° up at the left and sinks to the horizon. The
+      strong beams and the thin rays now come from the same sun and sway
+      together; every thin ray glints where it crosses a pane border, as
+      faint as the ray. No glimpse while a sunrise or sunset runs or is
+      about to begin; one already shining fades out quickly. Colours and
+      timing as before. Unit 2726; e2e weather + layout 44/44. Checked in
+      headless Chromium (sunrise at -50/-20/-8/-2 s, glimpses at 0.05, 0.5
+      and 0.95 of the day, sunset at -50/-20/-8/-2 s).
+      Please try: a real sunrise and sunset with the clock synced; on the
+      dev server a glimpse at a given time of day: `__weather.jump({
+      weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')`
+      (0.5 midday, 0.95 evening), and the turns with `__weather.jump({
+      weather: ' ', clock: 'day', nightAt: Date.now() + 65_000 })` /
+      `clock: 'night', dayAt: …`, then `__weather.unpin()`. Feedback
+      wanted: do the angles feel right through the day, and do all rays
+      read as one sun.

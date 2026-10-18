@@ -105,6 +105,43 @@ are on the sky asks for FPS_FAST, so the faint part creeps in steps of
 `nightAt` to -1, so the game's clock does not start a turn of its own; the
 release at the end gives the game's back. 1:38 in all.
 
+### One sun (owner items 64–68)
+
+After a live sunset the owner asked for: no day glimpses during a turn
+(64); the glimpses' rays following the sun through the day (65); a sunset
+that starts at most ~45° up (66); a sunrise from the horizon straight from
+the right, climbing to where the day's glimpses then come from (67); the
+strong beams and the thin rays coming from one sun, and every ray glinting
+where it crosses a frame line (68).
+
+- **One model** (beams.ts): the sun stands at an angle `psi` on a circle
+  round the point (W/2, 0.45 H), radius 1.05 · its distance to the corner,
+  so it is always outside the screen: 0 at the horizon to the right, π/2
+  straight above, π at the horizon to the left. Its light reaches that
+  point at `psi` from the horizontal. `sunPsi('rise', p)` climbs from 0 to
+  40° (smoothstep of the turn's progress, so it stays low through the faint
+  part); `sunPsi('day', sunU)` goes on from 40° to 140°; `sunPsi('set', p)`
+  sinks from 140° (40° up) to 180°. Each ends where the next begins.
+- **Glimpses** use the same sun at the day's `sunU`, eased (tau 8 s; it
+  comes in SUN_U_STEP steps; unknown counts as 0.3), fanned round the
+  direction to that point; their glow sits where that line crosses the
+  screen's edge, their glints come from `beamHits` (any side).
+- **One source.** The beams no longer aim at a point of their own that
+  sweeps across: the bundle is laid round the sun's middle direction and
+  moves only as the sun does; the thin rays and the beams share one slow
+  sway (`sunDrift`, ±0.013 rad), each with a little of its own (±0.0015).
+- **All rays glint.** Each thin ray's crossings (`beamHits`) glint at
+  0.35 × its strength × the beams' strength factor; 8 rays and 3 beams
+  over the framed panes per frame. Headless Chromium, a sunset with the
+  default panes: the sky's worker frame 9.8 → 10.1 ms (software rendering;
+  within run-to-run noise).
+- **No glimpse in a turn** (`glimpseBlocked`, sunturn.ts): while a sunrise
+  or sunset runs, and from GLIMPSE_LEAD_S (18 s, the longest glimpse is
+  16 s) before the clock's turn begins, no glimpse starts; a running one
+  fades out (tau 0.35 s).
+- Dev: `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 });
+  __weather.emit('glimpse')`.
+
 ### The moonrise (owner item 63)
 
 The game said "The moon rises in the east." (`Event.Moon rise`) but no moon
