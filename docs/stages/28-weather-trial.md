@@ -1538,3 +1538,16 @@ black: the brightest stroke stands out).
       20 s), especially as they fade out.
       Feedback wanted: can you still see a ray come or go, and are they
       subtle enough.
+
+### 2026-10-19 — sun test 5 (translated)
+
+85. **A real event broke into a demo.** The owner believes the night
+    began in the game while a demo played and upset it. Confirmed in code:
+    the demo pins the state (clock, dayAt / nightAt …), but GMCP
+    `Event.Sun` / `Event.Moon` events pass the pins (`signals.gmcp` emits
+    them; the worker applies `eventState` and `turnEvent`), so a real
+    "The night has begun." sets the night, and a real `Event.Sun rise/set`
+    starts a turn, in the middle of a demo.
+86. **A ray glints only on the first pane it meets.** A frame glint from a
+    sun ray shows only on the first pane the ray hits; a pane behind it
+    along the same ray gets no glint from it.
