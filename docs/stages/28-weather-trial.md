@@ -1103,3 +1103,35 @@ black: the brightest stroke stands out).
       `o` at "The night has begun. You feel stronger in the dark!" (`dark`,
       dusk + 1). So the night begins at DUSK+1 and the strip's moon icon
       also comes one game hour early.
+    - **Done (2026-10-18):** ADR 0093 (now covering both). The night
+      begins at dusk + 1: the strip keeps the sun and counts down to dusk
+      + 1:00 through the dusk hour, the moon from "The night has begun."
+      on. The sunset runs like the sunrise: over the 60 s before the night
+      begins, timed by the clock; at most 6 % for the first 40 s, building
+      over the last 20, gone at the night's first second; the night sky
+      (moon or stars, as the almanac says) comes in from 28 s before, 74 %
+      of the sky at the night's first second, complete 14 s later. Joins
+      mid-set, glides on a resync, never two in one dusk; `Event.Sun set`
+      starts it without a clock synced to the minute, "The night has
+      begun." alone fades to night over 12 s. Gone: the old 26 s sunset
+      that ran from `set` and the 11 s hold before the night sky came. The
+      sunset look is the old one re-timed; the colours of both now follow
+      the timing so that the strong middle of the old moments (orange to
+      pale gold at sunrise, gold to crimson at sunset) is under the peak.
+      The demo's Sunset step plays its last half minute (10 s), like the
+      Sunrise step. Unit 2720; e2e weather + layout 44/44 (Chromium,
+      Firefox). Checked in headless Chromium by screenshots at -24, -15,
+      -7, 0 and +14 s for both; how it looks on your screen is yours to
+      judge.
+      Please try: (1) a synced clock (the strip shows H:MM), outdoors on a
+      clear evening: the last game minute before ☼ turns ☾, almost nothing
+      for 40 s, then the beams from the left build and are gone as "The
+      night has begun." comes, the stars coming through and finishing some
+      15 s into the night; the prompt's `*` should stay until the same
+      second; (2) the same at dawn for the sunrise (☾ → ☼ with "The day has
+      begun."); (3) `#weather demo`: steps Sunrise and Sunset; (4) dev
+      server: `__weather.jump({ weather: ' ', clock: 'day', nightAt:
+      Date.now() + 65_000 })` for a sunset, `__weather.jump({ weather: ' ',
+      clock: 'night', dayAt: Date.now() + 65_000 })` for a sunrise, then
+      `__weather.unpin()`. Feedback wanted: the faint first 40 s, the pace
+      of the new sky, and whether the re-timed colours look right.
