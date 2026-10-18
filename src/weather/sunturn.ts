@@ -81,6 +81,21 @@ export function turnProgress(s: number): number {
   return Math.pow(u, 5);
 }
 
+/** A day glimpse must not run into a turn: none starts this long (s) before a turn's way in begins (the longest glimpse is 16 s). */
+export const GLIMPSE_LEAD_S = 18;
+
+/**
+ * Whether the day's sun glimpses are held back (owner item 64): while a
+ * sunrise or sunset runs (`riseS` / `setS` in -60 … 0, NaN without), or
+ * when the clock says one begins within GLIMPSE_LEAD_S (`dayAt` / `nightAt`,
+ * unix ms, -1 unknown).
+ */
+export function glimpseBlocked(nowMs: number, rise: number, set: number, dayAt: number, nightAt: number): boolean {
+  if ((rise > -TURN_S && rise < 0) || (set > -TURN_S && set < 0)) return true;
+  const soon = (at: number): boolean => at >= 0 && nowMs >= at - (TURN_S + GLIMPSE_LEAD_S) * 1000 && nowMs < at;
+  return soon(dayAt) || soon(nightAt);
+}
+
 /** The new sky's share at `s` (0 before -28 s, 1 from FULL_S on). */
 export function turnWeight(s: number): number {
   return sst(-28, FULL_S, s);

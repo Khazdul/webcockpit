@@ -2,7 +2,7 @@
 // (sunturn.ts) and the director's turn clock (director.ts).
 import { describe, expect, it } from 'vitest';
 import { Director, TURN_GUARD_MS, SKY_RATE, eventState } from '../../src/weather/director';
-import { FULL_S, TURN_FAINT, LATE_S, TURN_RAYS, turnWeight, turnIntensity, turnPalette, turnProgress, turnRays } from '../../src/weather/sunturn';
+import { FULL_S, GLIMPSE_LEAD_S, TURN_FAINT, LATE_S, TURN_RAYS, glimpseBlocked, turnWeight, turnIntensity, turnPalette, turnProgress, turnRays } from '../../src/weather/sunturn';
 
 const W0 = 1_800_000_000_000;
 
@@ -57,6 +57,21 @@ describe('sunrise curves', () => {
     }
     // the sunset's rays are drawn about half as strong: its floor is higher
     expect(TURN_RAYS.set.early).toBeGreaterThan(TURN_RAYS.rise.early);
+  });
+
+  it('the day glimpses are held back while a turn runs and just before one (item 64)', () => {
+    const N = 1_800_000_000_000;
+    expect(glimpseBlocked(N, NaN, NaN, -1, -1)).toBe(false);
+    expect(glimpseBlocked(N, -30, NaN, -1, -1)).toBe(true);
+    expect(glimpseBlocked(N, NaN, -59, -1, -1)).toBe(true);
+    // after the turn's second it is day (or night): no hold
+    expect(glimpseBlocked(N, 5, NaN, -1, -1)).toBe(false);
+    // the clock's sunset begins its way in 60 s before the night: glimpses stop GLIMPSE_LEAD_S before that
+    const night = N + (60 + GLIMPSE_LEAD_S - 1) * 1000;
+    expect(glimpseBlocked(N, NaN, NaN, -1, night)).toBe(true);
+    expect(glimpseBlocked(N, NaN, NaN, -1, night + 2000)).toBe(false);
+    expect(glimpseBlocked(N, NaN, NaN, N + 30_000, -1)).toBe(true);
+    expect(glimpseBlocked(N, NaN, NaN, N - 1000, -1)).toBe(false);
   });
 
   it('palette and colours: warm only late, gone when the day begins', () => {

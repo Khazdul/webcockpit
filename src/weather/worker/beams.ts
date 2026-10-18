@@ -56,33 +56,53 @@ export const BEAM_INSIDE = 0.32;
 export const BEAM_EXIT = 0.15;
 
 /**
- * Where the bundle points: a point it crosses on the screen, moving over the
- * moment so the beams sweep across. A sunset (sun at the top left, sinking)
- * starts steep, down toward the bottom middle, and ends flat toward the right
- * edge; a sunrise (sun at the top right, climbing) the other way round:
- * flat toward the left edge first, steep toward the bottom middle at the end.
+ * One sun for the whole day (owner items 65–68, ADR 0093 "One sun"): the
+ * sun stands at an angle `psi` on a circle round a point at the screen's
+ * middle and the horizon's height: 0 at the horizon to the right (east), π/2
+ * straight above, π at the horizon to the left (west). From the screen's
+ * middle its light comes in at `psi` from the horizontal (π − psi on the
+ * left side). A sunrise climbs from 0 to SUN_RISE_PSI, the day's glimpses
+ * go on from there to π − SUN_SET_PSI, a sunset sinks from there to π, so
+ * where one ends the next begins.
  */
-export function beamAim(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-  const q = sst(0, 1, p);
-  if (kind === 'set') {
-    out[0] = W * (0.4 + 0.66 * q);
-    out[1] = H * (1.05 - 0.75 * q);
-  } else {
-    out[0] = W * (-0.06 + 0.66 * q);
-    out[1] = H * (0.3 + 0.75 * q);
-  }
+export const SUN_RISE_PSI = (40 * Math.PI) / 180;
+/** The sun's height when a sunset starts: at most ~45° up (owner item 66). */
+export const SUN_SET_PSI = (40 * Math.PI) / 180;
+/** The horizon's height on the screen, a share of H (the circle's middle). */
+export const SUN_HORIZON = 0.45;
+
+/** The sun's angle for a sunrise or sunset `p` (0..1 into it) or the day's `sunU` (0..1). */
+export function sunPsi(kind: 'rise' | 'day' | 'set', x: number): number {
+  const q = Math.min(1, Math.max(0, x));
+  if (kind === 'rise') return SUN_RISE_PSI * sst(0, 1, q);
+  if (kind === 'set') return Math.PI - SUN_SET_PSI * (1 - sst(0, 1, q));
+  return SUN_RISE_PSI + (Math.PI - SUN_SET_PSI - SUN_RISE_PSI) * q;
 }
 
-const AIM = new Float32Array(2);
+/** The sun's place at `psi` for a W × H screen: always outside it (beyond the right edge, above the top, beyond the left edge). */
+export function sunPoint(psi: number, W: number, H: number, out: Float32Array): void {
+  const cx = W / 2, cy = H * SUN_HORIZON, D = Math.hypot(cx, cy) * 1.05;
+  out[0] = cx + D * Math.cos(psi);
+  out[1] = cy - D * Math.sin(psi);
+}
 
-/** The bundle's beams for the sun at (sx, sy), `p` into a moment, at time T (a slow sway). Fills `out` (BEAMS long). */
-export function sunBeams(kind: 'rise' | 'set', p: number, T: number, sx: number, sy: number, W: number, H: number, out: Beam[]): void {
-  beamAim(kind, p, W, H, AIM);
-  const mid = Math.atan2(AIM[1]! - sy, AIM[0]! - sx);
+/** Where every ray and beam of a sun points to (the screen's middle at the horizon's height): its fan is laid round this. */
+export function sunMid(sx: number, sy: number, W: number, H: number): number {
+  return Math.atan2(H * SUN_HORIZON - sy, W * 0.5 - sx);
+}
+
+/** The slow sway every ray and beam share (radians), so the light moves as one (owner item 68). */
+export function sunDrift(T: number): number {
+  return Math.sin(T * 0.11) * 0.008 + Math.sin(T * 0.043 + 1.3) * 0.005;
+}
+
+/** The bundle's beams for the sun at (sx, sy) at time T: round the sun's middle direction, with the rays' common sway. Fills `out` (BEAMS long). */
+export function sunBeams(T: number, sx: number, sy: number, W: number, H: number, out: Beam[]): void {
+  const mid = sunMid(sx, sy, W, H) + sunDrift(T);
   for (let i = 0; i < BEAMS; i++) {
     const [off, hw, k] = BUNDLE[i]!;
     const b = out[i] ?? (out[i] = { a: 0, hw: 0, k: 0 });
-    b.a = mid + off + Math.sin(T * 0.13 + i * 1.7) * 0.004;
+    b.a = mid + off + Math.sin(T * 0.13 + i * 1.7) * 0.0015;
     b.hw = hw;
     // a slow, small shimmer in strength
     b.k = k * (0.88 + 0.12 * Math.sin(T * 0.9 + i * 2.3));

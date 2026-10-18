@@ -7,10 +7,13 @@
 //  - an insect: rarely, a few seconds of a tiny darting dot;
 //  - cloud tufts: a few small, soft, almost sky-coloured puffs on a clear
 //    day, drifting with the wind (a few px/s);
-//  - a sun glimpse: a few soft rays from the sun (top right) and a glint on
-//    the frame lines they cross; at least once a minute on a clear day, most
-//    often, longest and strongest at midday, fewer, shorter and fainter
-//    early and late (owner feedback 52; `planGlimpse`).
+//  - a sun glimpse: a few soft rays from the sun and a glint on the frame
+//    lines they cross; at least once a minute on a clear day, most often,
+//    longest and strongest at midday, fewer, shorter and fainter early and
+//    late (owner feedback 52; `planGlimpse`). The sun is the day's one sun
+//    (beams.ts `sunPsi`): from the top right in the morning, where the
+//    sunrise left it, over to the top left where the sunset takes it (owner
+//    item 65); none while a sunrise or sunset runs or is about to (item 64).
 //
 // Rates: tufts move a few px/s, so they are drawn at the still rate
 // (FPS_STILL) without asking for more; birds ask for BIRD_FPS, an insect
@@ -20,6 +23,7 @@
 
 import type { ThemeInfo } from '../palette';
 import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, mkCanvas, sst } from './env';
+import { BEAM_EXIT, type Beam, type BeamHit, beamHits, sunDrift, sunMid } from './beams';
 import type { FrameBox, Glints } from './glint';
 
 /** Frames per second while birds fly (slow, small things: 10 is plenty and cheap). */
@@ -165,10 +169,15 @@ export interface DayInput {
   sun: number;
   /** How far the sun is through the day (protocol `sunU`: 0 dawn … 1 dusk, -1 unknown): how often and how strong the glimpses are. */
   sunU: number;
-  /** Where the sun sits (CSS px; above the top edge). */
+  /** Where the sun sits (CSS px; outside the screen, beams.ts `sunPoint`). */
   sx: number;
   sy: number;
+  /** A sunrise or sunset runs or is about to: no glimpse starts, a running one fades out quickly (owner item 64). */
+  block: boolean;
 }
+
+/** A running glimpse fades out with this time constant (s) when a sunrise or sunset blocks it. */
+const GLIMPSE_BLOCK_TAU = 0.35;
 
 export class DayLife {
   private readonly big: Cv;
@@ -177,7 +186,9 @@ export class DayLife {
   private tufts: Tuft[] = [];
   private flocks: Flock[] = [];
   private bug: { x: number; y: number; tx: number; ty: number; age: number; life: number; hold: number } | null = null;
-  private glimpse: { t0: number; dur: number; peak: number } | null = null;
+  private glimpse: { t0: number; dur: number; peak: number; fade: number } | null = null;
+  private readonly gRay: Beam = { a: 0, hw: 0, k: 0 };
+  private readonly gHits: BeamHit[] = [];
   private nextBird = rr(20, 60);
   private nextBug = rr(60, 200);
   /** Seconds to the next glimpse's start (counted only while the sun is out); the first comes soon. */
@@ -323,16 +334,19 @@ export class DayLife {
     // A sun glimpse: the countdown runs start to start while the sun is out.
     if (k.sun > 0.4) {
       this.nextGlimpse -= dt;
-      if (this.nextGlimpse <= 0 && !this.glimpse) {
+      // not while a sunrise or sunset runs or is about to (owner item 64); the next one a little after
+      if (k.block) this.nextGlimpse = Math.max(this.nextGlimpse, 6);
+      else if (this.nextGlimpse <= 0 && !this.glimpse) {
         const g = planGlimpse(k.sunU);
         this.nextGlimpse = g.gap;
-        this.glimpse = { t0: T, dur: g.dur, peak: g.peak };
+        this.glimpse = { t0: T, dur: g.dur, peak: g.peak, fade: 1 };
       }
     }
     if (this.glimpse) {
       const gl = this.glimpse, p = (T - gl.t0) / gl.dur;
-      if (p >= 1) this.glimpse = null;
-      else this.drawGlimpse(b, f, panes, T, Math.sin(Math.PI * p) ** 2 * gl.peak * k.sun, k.sx, k.sy, glints);
+      if (k.block) gl.fade *= Math.exp(-dt / GLIMPSE_BLOCK_TAU);
+      if (p >= 1 || gl.fade < 0.01) this.glimpse = null;
+      else this.drawGlimpse(b, f, panes, T, Math.sin(Math.PI * p) ** 2 * gl.peak * gl.fade * k.sun, k.sx, k.sy, glints);
     }
     b.globalAlpha = 1;
     return this.fps();
@@ -340,7 +354,7 @@ export class DayLife {
 
   /** Start a glimpse now (dev / tests / the demo): a strong midday one, its peak 4 s on (within the demo's 5 s day step). */
   glimpseNow(T: number): void {
-    this.glimpse = { t0: T, dur: 8, peak: 1 };
+    this.glimpse = { t0: T, dur: 8, peak: 1, fade: 1 };
   }
   /** Send a flock now (dev / tests). */
   birdsNow(): void {
@@ -354,20 +368,30 @@ export class DayLife {
 
   private drawGlimpse(b: Ctx, f: Ctx, panes: readonly FrameBox[], T: number, e: number, sx: number, sy: number, glints: Glints): void {
     if (e < 0.01) return;
-    const H = this.H, L = H * 0.95;
+    const W = this.W, H = this.H;
     const rgb = this.light ? '255,214,140' : '255,240,205';
     b.globalCompositeOperation = this.comp;
-    // the sun peeking out: a soft warm glow in the top right corner
+    // The sun is outside the screen (beams.ts `sunPoint`): its light comes in
+    // where the line from it to the screen's middle crosses the edge (`gx, gy`).
+    const mid = sunMid(sx, sy, W, H), mc = Math.cos(mid), ms = Math.sin(mid);
+    let tin = 0;
+    if (sy < 0 && ms > 1e-6) tin = Math.max(tin, -sy / ms);
+    if (sx > W && mc < -1e-6) tin = Math.max(tin, (W - sx) / mc);
+    if (sx < 0 && mc > 1e-6) tin = Math.max(tin, -sx / mc);
+    const gx = sx + mc * tin, gy = sy + ms * tin;
+    // the sun peeking out: a soft warm glow where its light comes in
     const R0 = H * 0.42;
-    const halo = b.createRadialGradient(sx, sy, 0, sx, sy, R0);
+    const halo = b.createRadialGradient(gx, gy, 0, gx, gy, R0);
     halo.addColorStop(0, `rgba(${rgb},1)`);
     halo.addColorStop(0.35, `rgba(${rgb},0.35)`);
     halo.addColorStop(1, `rgba(${rgb},0)`);
     b.fillStyle = halo;
     b.globalAlpha = e * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
-    if (sy + R0 > 0) b.fillRect(sx - R0, 0, R0 * 2, sy + R0);
-    // the rays: strongest at the sun, reaching about two thirds down the screen
-    const gr = b.createRadialGradient(sx, sy, 0, sx, sy, L);
+    const hx0 = Math.max(0, gx - R0), hy0 = Math.max(0, gy - R0);
+    b.fillRect(hx0, hy0, Math.min(W, gx + R0) - hx0, Math.min(H, gy + R0) - hy0);
+    // the rays: strongest where they come in, reaching about two thirds down the screen
+    const L = tin + H * 0.95;
+    const gr = b.createRadialGradient(sx, sy, tin, sx, sy, L);
     gr.addColorStop(0, `rgba(${rgb},1)`);
     gr.addColorStop(0.3, `rgba(${rgb},0.8)`);
     gr.addColorStop(0.65, `rgba(${rgb},0.45)`);
@@ -375,12 +399,15 @@ export class DayLife {
     b.fillStyle = gr;
     const RAYS = 6;
     f.globalCompositeOperation = glints.comp;
+    // fanned round the sun's middle direction over most of the screen, swaying
+    // together (one sun, owner item 68)
+    // (0.15 rad apart for a sun at the screen's corner, as before; closer for a farther one, so the fan covers about as much)
+    const near = (H * 0.6) / (tin + H * 0.6), fan = 0.15 * near;
+    const drift = sunDrift(T);
     for (let i = 0; i < RAYS; i++) {
       const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5;
-      // down and to the left from the top right sun, fanned out over the open
-      // sky and the game text (steeper ones fell behind the right dock's panes)
-      const a = 1.9 + i * 0.15 + (j - 0.5) * 0.05 + Math.sin(T * 0.21 + i) * 0.012;
-      const wd = 0.008 + j * 0.012;
+      const a = mid + (i - (RAYS - 1) / 2) * fan + (j - 0.5) * fan * 0.33 + drift + Math.sin(T * 0.21 + i) * 0.003;
+      const wd = (0.008 + j * 0.012) * near;
       const al = (0.45 + 0.55 * j) * e;
       b.globalAlpha = al * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY);
       b.beginPath();
@@ -389,27 +416,19 @@ export class DayLife {
       b.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
       b.closePath();
       b.fill();
-      // where the ray's middle enters a framed pane (its top or its right
-      // line, the sun being top right): a glint on that stretch of the rim,
-      // in the rim's shape (glints.line: rounded corners, the plate with the
-      // top rim; owner items 45, 49), fading along the ray as the ray does
-      const s = Math.sin(a), c = Math.cos(a);
-      for (const p of panes) {
-        if (!p.border) continue;
-        let side: 't' | 'r' | null = null, at = 0, t = Infinity;
-        if (p.y > sy) {
-          const tt = (p.y - sy) / s, x = sx + c * tt;
-          if (x >= p.x && x <= p.x + p.w) (side = 't'), (at = x), (t = tt);
-        }
-        const xr = p.x + p.w;
-        if (c < 0 && xr < sx) {
-          const tt = (xr - sx) / c, y = sy + s * tt;
-          if (y >= p.y && y <= p.y + p.h && tt < t) (side = 'r'), (at = y), (t = tt);
-        }
-        if (!side) continue;
-        const fall = 1 - 0.6 * clamp(t / L, 0, 1);
-        const ga = al * GLIMPSE_GLINT * fall;
-        glints.line(f, p, side, at, side === 't' ? 80 : 60, ga, ga > 0.24 ? 0.6 : 0);
+      // where the ray's middle crosses a framed pane's line: a glint on that
+      // stretch of the rim, in the rim's shape (glints.line: rounded corners,
+      // the plate with the top rim; owner items 45, 49), fading along the ray
+      // as the ray does; where it leaves the pane, a trace (beams.ts)
+      const r = this.gRay;
+      r.a = a;
+      r.hw = wd;
+      r.k = 1;
+      for (const h of beamHits(panes, sx, sy, r, this.gHits)) {
+        const fall = 1 - 0.6 * clamp((h.t - tin) / (L - tin), 0, 1);
+        const ga = al * GLIMPSE_GLINT * fall * h.att * (h.enter ? 1 : BEAM_EXIT);
+        if (ga < 0.01) continue;
+        glints.line(f, h.p, h.side, h.c, h.side === 't' || h.side === 'b' ? 80 : 60, ga, ga > 0.24 ? 0.6 : 0);
       }
     }
     f.globalAlpha = 1;

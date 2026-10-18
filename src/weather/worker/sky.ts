@@ -36,8 +36,8 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_S, type TurnKind, turnIntensity, turnPalette, turnProgress, turnRays } from '../sunturn';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
+import { TURN_S, type TurnKind, glimpseBlocked, turnIntensity, turnPalette, turnProgress, turnRays } from '../sunturn';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunPoint, sunPsi } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -380,17 +380,18 @@ export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
   out[1] = P.yBase - (P.yBase - P.yTop) * Math.sin(Math.PI * clamp(u, 0, 1));
 }
 
-/** The sun in a sunrise (east: the top right, climbing) or sunset (west: the top left, sinking) moment at `p` (0..1). */
+/**
+ * The sun in a sunrise (from the horizon at the right, climbing to where the
+ * day's glimpses start) or a sunset (from ~40° up at the left, sinking to the
+ * horizon) at `p` (0..1): the one sun of beams.ts `sunPsi` / `sunPoint`
+ * (owner items 66, 67).
+ */
 export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-  const q = sst(0, 1, p);
-  if (kind === 'rise') {
-    out[0] = W * (1.07 - 0.2 * q);
-    out[1] = H * (0.06 - 0.5 * q);
-  } else {
-    out[0] = W * (0.22 - 0.3 * q);
-    out[1] = H * (-0.42 + 0.5 * q);
-  }
+  sunPoint(sunPsi(kind, p), W, H, out);
 }
+
+/** A thin ray's glint on a frame line against a beam's (its strength 1). */
+const RAY_GLINT = 0.35;
 
 /** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a bright thin core. */
 const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
@@ -481,6 +482,11 @@ class Sky {
   /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
   beams: Beam[] = [];
   beamK = 0;
+  /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
+  sunUs = -1;
+  daySun = new Float32Array(2);
+  /** The thin rays this frame (their strength `k` 0..1): they glint where they cross a frame line too, faintly (owner item 68). */
+  rays: Beam[] = [];
   hits: BeamHit[] = [];
   boxes: Box[] = [];
   /** The faint top lift's rects (rimshape.ts), reused every frame. */
@@ -769,6 +775,11 @@ class Sky {
       this.drawDeck(b, env, dt, out);
       // Day life: birds, an insect, tufts on a clear day, a sun glimpse (owner feedback 22).
       const day = out * wSun * (1 - clamp(mI * 2, 0, 1));
+      // The glimpses' sun follows the day (owner item 65): `sunU` comes in steps
+      // of SUN_U_STEP, so it glides; unknown counts as mid-morning.
+      const su = env.settled.sunU < 0 ? 0.3 : env.settled.sunU;
+      this.sunUs = this.sunUs < 0 || Math.abs(su - this.sunUs) > 0.2 ? su : ease(this.sunUs, su, dt, 8);
+      sunPoint(sunPsi('day', this.sunUs), env.W, env.H, this.daySun);
       this.lifeFps = this.life.frame(
         b,
         env.front,
@@ -780,8 +791,9 @@ class Sky {
           tufts: day * (1 - sst(0, 0.15, cover)) * (1 - wet) * this.fogK,
           sun: day * (1 - wet) * (1 - cover) * this.fogK,
           sunU: env.settled.sunU,
-          sx: SUN_U * env.W,
-          sy: -this.skyH * 0.04,
+          sx: this.daySun[0]!,
+          sy: this.daySun[1]!,
+          block: glimpseBlocked(Date.now(), env.rise, env.set, env.settled.dayAt, env.settled.nightAt),
         },
         this.glints,
       );
@@ -1454,6 +1466,15 @@ class Sky {
     const bk = this.beamK;
     if (bk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
+      // Every thin ray glints too where it crosses a frame line, as strong as
+      // the ray is (owner item 68): RAY_GLINT of a beam's glint for a full ray.
+      for (const r of this.rays) {
+        for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
+          const a = bk * r.k * RAY_GLINT * h.att * (h.enter ? 1 : BEAM_EXIT);
+          if (a < 0.02) continue;
+          this.glints.line(f, h.p, h.side, h.c, clamp(h.len * 3, 20, 120), a);
+        }
+      }
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
         for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
@@ -1476,11 +1497,11 @@ class Sky {
    * defined path across the screen. Drawn before the panes' shadow wedges
    * are cut, so inside and behind a pane a beam is weaker like the rays.
    */
-  drawBeams(g: Ctx, env: Env, kind: 'rise' | 'set', p: number, sx: number, sy: number, far: number, I: number): void {
+  drawBeams(g: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
     const W = env.W, H = env.H;
     const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
     if (this.beams.length !== BEAMS) this.beams = [];
-    sunBeams(kind, p, this.T, sx, sy, W, H, this.beams);
+    sunBeams(this.T, sx, sy, W, H, this.beams);
     if (bk < 0.01) return;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
@@ -1561,16 +1582,22 @@ class Sky {
     }
     // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
     // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
-    const T = this.T, N = 8, L = far * 1.2;
+    // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
+    const T = this.T, N = 8, L = far * 1.2, drift = sunDrift(T), rays = this.rays;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
     const cores: number[] = [];
     for (let i = 0; i < N; i++) {
       const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
-      const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + Math.sin(T * 0.15 + i) * 0.006;
+      const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + drift + Math.sin(T * 0.15 + i) * 0.0015;
       const wd = 0.0035 + j * 0.01;
       const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1));
+      // kept for its glints on the frame lines (drawRaysFront)
+      const r = rays[i] ?? (rays[i] = { a: 0, hw: 0, k: 0 });
+      r.a = a;
+      r.hw = wd;
+      r.k = al;
       g.globalAlpha = k * al * 0.2;
       g.beginPath();
       g.moveTo(sx, sy);
@@ -1640,7 +1667,7 @@ class Sky {
     }
     // The beams after the shadows: no pane hides them (owner feedback 37).
     g.globalCompositeOperation = this.th.add;
-    this.drawBeams(g, env, kind, p, sx, sy, far, I);
+    this.drawBeams(g, env, sx, sy, far, I);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }

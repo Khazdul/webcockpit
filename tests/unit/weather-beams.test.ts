@@ -2,7 +2,7 @@
 // from the sun; the frame lines glint exactly where a beam crosses them.
 
 import { describe, expect, it } from 'vitest';
-import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, beamAim, beamHits, beamPieces, notchPieces, sunBeams } from '../../src/weather/worker/beams';
+import { BEAMS, BEAM_INSIDE, type Beam, type BeamHit, SUN_RISE_PSI, SUN_SET_PSI, beamHits, beamPieces, notchPieces, sunBeams, sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
 import type { FrameBox } from '../../src/weather/worker/glint';
 
 const W = 1600, H = 900;
@@ -19,27 +19,70 @@ function area(P: readonly number[]): number {
 }
 
 describe('sun beams', () => {
-  it('makes a bundle of a few beams, the middle one the strongest, aimed across the screen', () => {
+  it('makes a bundle of a few beams round the sun\'s middle direction, the middle one the strongest', () => {
     const out: Beam[] = [];
-    sunBeams('set', 0.4, 0, W * 0.15, -H * 0.3, W, H, out);
+    sunBeams(0, W * 0.15, -H * 0.3, W, H, out);
     expect(out).toHaveLength(BEAMS);
     expect(BEAMS).toBeGreaterThanOrEqual(2);
     expect(BEAMS).toBeLessThanOrEqual(4);
     const mid = out[1]!;
     for (const b of out) expect(b.k).toBeLessThanOrEqual(mid.k + 1e-9);
-    // a sunset from the top left shines down and to the right
+    // a sun at the top left shines down and to the right
     expect(Math.cos(mid.a)).toBeGreaterThan(0);
     expect(Math.sin(mid.a)).toBeGreaterThan(0);
-    sunBeams('rise', 0.4, 0, W * 1.02, -H * 0.1, W, H, out);
+    // round the direction to the screen's middle, swaying with every ray (owner item 68)
+    expect(Math.abs(mid.a - sunMid(W * 0.15, -H * 0.3, W, H) - sunDrift(0))).toBeLessThan(0.003);
+    sunBeams(0, W * 1.02, -H * 0.1, W, H, out);
     expect(Math.cos(out[1]!.a)).toBeLessThan(0);
   });
+});
 
-  it('sweeps the aim across the screen over the moment', () => {
-    const a = new Float32Array(2), b = new Float32Array(2);
-    beamAim('set', 0.1, W, H, a);
-    beamAim('set', 0.9, W, H, b);
-    expect(b[0]!).toBeGreaterThan(a[0]!);
-    expect(b[1]!).toBeLessThan(a[1]!);
+describe('one sun (owner items 65-67)', () => {
+  const o = new Float32Array(2);
+  /** The light's angle from the horizontal as it reaches the screen's middle, degrees. */
+  const elev = (psi: number): number => {
+    sunPoint(psi, W, H, o);
+    const a = sunMid(o[0]!, o[1]!, W, H);
+    return (Math.atan2(Math.sin(a), Math.abs(Math.cos(a))) * 180) / Math.PI;
+  };
+
+  it('a sunrise climbs from the horizon at the right to where the day\'s glimpses start; a sunset sinks from there to the left', () => {
+    expect(sunPsi('rise', 0)).toBe(0);
+    expect(sunPsi('rise', 1)).toBeCloseTo(sunPsi('day', 0), 9);
+    expect(sunPsi('day', 1)).toBeCloseTo(sunPsi('set', 0), 9);
+    expect(sunPsi('set', 1)).toBeCloseTo(Math.PI, 9);
+    // the light's angle seen across the screen
+    expect(elev(sunPsi('rise', 0))).toBeCloseTo(0, 6);
+    expect(elev(sunPsi('day', 0))).toBeCloseTo((SUN_RISE_PSI * 180) / Math.PI, 3);
+    expect(elev(sunPsi('set', 0))).toBeLessThanOrEqual(45);
+    expect(elev(sunPsi('set', 1))).toBeCloseTo(0, 6);
+    // from the right in the morning, from the left in the evening, from above at midday
+    sunPoint(sunPsi('rise', 0), W, H, o);
+    expect(o[0]).toBeGreaterThan(W);
+    sunPoint(sunPsi('day', 0.05), W, H, o);
+    expect([o[0]! > W / 2, o[1]! < 0]).toEqual([true, true]);
+    sunPoint(sunPsi('day', 0.5), W, H, o);
+    expect(o[0]).toBeCloseTo(W / 2, 3);
+    sunPoint(sunPsi('day', 0.95), W, H, o);
+    expect(o[0]).toBeLessThan(W / 2);
+    sunPoint(sunPsi('set', 1), W, H, o);
+    expect(o[0]).toBeLessThan(0);
+    expect(SUN_SET_PSI).toBeLessThanOrEqual(Math.PI / 4);
+  });
+
+  it('moves smoothly: no jump between the turns and the day, and always outside the screen', () => {
+    const path: number[] = [];
+    for (let i = 0; i <= 100; i++) path.push(sunPsi('rise', i / 100));
+    for (let i = 0; i <= 100; i++) path.push(sunPsi('day', i / 100));
+    for (let i = 0; i <= 100; i++) path.push(sunPsi('set', i / 100));
+    for (let i = 1; i < path.length; i++) {
+      expect(path[i]!).toBeGreaterThanOrEqual(path[i - 1]! - 1e-12);
+      expect(path[i]! - path[i - 1]!).toBeLessThan(0.05);
+    }
+    for (const psi of path) {
+      sunPoint(psi, W, H, o);
+      expect(o[0]! > W || o[0]! < 0 || o[1]! < 0).toBe(true);
+    }
   });
 });
 

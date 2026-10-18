@@ -20,6 +20,9 @@
 //                                           rise unless `__weather.emit('moon.rise')`
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
+//   __weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')
+//                                           a sun glimpse at that time of day
+//                                           (0 the day's start … 1 its end; item 65)
 //   await __weather.stats()                worker frame times
 //   __weather.demo()                       the demo (`#weather demo`; 'slow' too)
 //   __weather.demoStop()                   ends it (`#weather stop`)
