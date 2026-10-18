@@ -58,6 +58,11 @@ export interface Env {
    * likewise, `Director.speed`).
    */
   speed: number;
+  /**
+   * The sunrise (the director's `riseS`): seconds relative to the second
+   * the day begins, -60 … 60; NaN without one (sunrise.ts, ADR 0093).
+   */
+  rise: number;
   noise(x: number, y: number): number;
   fbm(x: number, y: number): number;
   now: number;

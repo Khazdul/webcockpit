@@ -5,7 +5,7 @@
 // signal bridge, and `?weather` once the cockpit is built later.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { DEMO_SPEED, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
+import { DEMO_RISE_FROM, DEMO_SPEED, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
 import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
@@ -54,9 +54,14 @@ describe('the demo script', () => {
   it('the sun moments fit their steps at the demo pace and at the game pace', () => {
     const rise = DEMO_STEPS.find((s) => s.title === 'Sunrise')!;
     const set = DEMO_STEPS.find((s) => s.title === 'Sunset')!;
-    // sky.ts RISE_S 24, SET_S 26 (owner feedback 29)
-    expect(rise.dur).toBeGreaterThanOrEqual(24 / DEMO_SPEED);
-    expect(rise.slow).toBeGreaterThanOrEqual(24);
+    // the sunrise from DEMO_RISE_FROM to the day's start (ADR 0093), then the day step brings the day
+    expect(rise.acts).toEqual([[0, { emit: 'sun.rise', data: { from: DEMO_RISE_FROM } }]]);
+    expect(DEMO_RISE_FROM).toBeGreaterThanOrEqual(-60);
+    expect(rise.dur).toBeCloseTo(-DEMO_RISE_FROM / DEMO_SPEED, 6);
+    expect(rise.slow).toBe(-DEMO_RISE_FROM);
+    const day = DEMO_STEPS[DEMO_STEPS.indexOf(rise) + 1]!;
+    expect(day.acts[0]).toEqual([0, { pin: { clock: 'day', sunU: 0.5 } }]);
+    // sky.ts SET_S 26 (owner feedback 29)
     const at = set.acts.find(([, a]) => 'emit' in a && a.emit === 'sun.set')![0];
     expect(set.dur - at).toBeGreaterThanOrEqual(26 / DEMO_SPEED);
     expect(set.slow! - (at * set.slow!) / set.dur).toBeGreaterThanOrEqual(26);
@@ -102,7 +107,7 @@ function fakeHost() {
   let cats: Categories = { ...ALL_CATEGORIES };
   const ctl: DemoController = {
     engine: {
-      emit: (e) => log.push(`emit ${e}`),
+      emit: (e, data) => log.push(data === undefined ? `emit ${e}` : `emit ${e} ${JSON.stringify(data)}`),
       setSpeed: (s) => log.push(`speed ${s}`),
       setCategories: (c) => {
         cats = { ...c };
@@ -170,8 +175,12 @@ describe('the demo runner', () => {
     await vi.advanceTimersByTimeAsync(5_000 + 300);
     expect(demo.step).toBe(1);
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Sunrise');
-    expect(box.querySelector('.wc-wdemo-signal')!.textContent).toBe('Event.Sun rise');
-    expect(h.log).toContain('emit sun.rise');
+    expect(box.querySelector('.wc-wdemo-signal')!.textContent).toMatch(/last game hour of the night/);
+    // the sunrise's last half minute, timed by the engine (ADR 0093); the clock stays night until the day step
+    expect(h.log).toContain(`emit sun.rise {"from":${DEMO_RISE_FROM}}`);
+    expect(h.pins.at(-1)).toMatchObject({ smooth: false, p: { clock: 'night', dayAt: -1 } });
+    await vi.advanceTimersByTimeAsync((-DEMO_RISE_FROM / DEMO_SPEED) * 1000);
+    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Day · clear sky');
     expect(h.pins.at(-1)).toMatchObject({ smooth: true, p: { clock: 'day' } });
     // pins accumulate
     await vi.advanceTimersByTimeAsync(30_000);

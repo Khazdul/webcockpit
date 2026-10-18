@@ -20,7 +20,10 @@
 //    place and pace (720 s up); by day much fainter (feedback 11, 38)
 //  - sunrise / sunset moments: faint thin rays with pane shadow wedges, and
 //    a bundle of three strong beams sweeping across the screen; the frame
-//    lines glint exactly where a beam crosses them (beams.ts, feedback 37)
+//    lines glint exactly where a beam crosses them (beams.ts, feedback 37).
+//    A sunset runs from its Event.Sun set; the sunrise follows the clock
+//    over the 60 s before the day begins (`env.rise`, sunrise.ts curves,
+//    ADR 0093)
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
 //    bleed from the top and the corners; shrink / end: a brief lightening.
 //    Nothing else is red: no darkness sky (owner feedback 26)
@@ -35,6 +38,7 @@ import { RIM_R } from '../../panes/frame';
 import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
+import { RISE_S, riseIntensity, risePalette, riseProgress } from '../sunrise';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
@@ -50,12 +54,11 @@ const MOON_START = 0.5;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
 /**
- * Sunrise and sunset moments, s (were 9 and 10; owner feedback 29). The
- * director changes the sky from day to night (or back) from SKY_HOLD_S to
- * SKY_HOLD_S + 1 / SKY_RATE (11–23 s) into them, so the day sky stays
- * through most of the sunset.
+ * The sunset moment, s (was 10; owner feedback 29). The director changes the
+ * sky from day to night from SKY_HOLD_S to SKY_HOLD_S + 1 / SKY_RATE
+ * (11–23 s) into it, so the day sky stays through most of the sunset. The
+ * sunrise has no length of its own: it is the clock's last 60 s of the night.
  */
-const RISE_S = SKY_HOLD_S + 1 / SKY_RATE + 1;
 const SET_S = SKY_HOLD_S + 1 / SKY_RATE + 3;
 /** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
 const COVER_RATE = 1 / 40;
@@ -439,8 +442,9 @@ class Sky {
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
-  /** How far the sun moment is (0..1; -1 without one). */
+  /** How far the sun moment is (0..1; -1 without one), and which it is (a sunset moment, the clock's sunrise, or none). */
   momentP = -1;
+  mKind: 'rise' | 'set' | null = null;
   /** The blue day sky's share (0..1, eased toward the `daySky` switch), and whether it moved. */
   dayK = 1;
   dayMoving = false;
@@ -622,9 +626,9 @@ class Sky {
   }
 
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
-    if (name === 'sun.rise' || name === 'sun.set') {
+    if (name === 'sun.set') {
       if (!env.cats.sky) return;
-      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: (name === 'sun.rise' ? RISE_S : SET_S) / env.speed };
+      this.moment = { kind: 'set', t0: this.T, dur: SET_S / env.speed };
     } else if (name === 'moon.rise') {
       // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
       this.moonSet = null;
@@ -710,24 +714,32 @@ class Sky {
     t[1]! += wSun * wet * 0.85;
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
-    let mP = -1, mI = 0;
+    let mP = -1, mI = 0, e1 = 0;
     const M = this.moment;
-    if (M) {
-      mP = (T - M.t0) / M.dur;
-      if (mP >= 1) {
-        this.moment = null;
-        mP = -1;
-      } else {
-        const e1 = sst(0, 0.06, mP) * (1 - sst(0.94, 1, mP)) * out;
-        for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
-        keyPal(M.kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
-        mI = M.kind === 'rise' ? sst(0.04, 0.3, mP) * (1 - sst(0.62, 1, mP)) : sst(0, 0.14, mP) * (1 - sst(0.6, 1, mP));
-        keyCol(M.kind === 'rise' ? RISE_C : SET_C, mP, this.col);
-      }
+    if (M && (T - M.t0) / M.dur >= 1) this.moment = null;
+    // The sunrise: the clock's last 60 s of the night (the director's `riseS`);
+    // its strength, palette and colours by time (sunrise.ts). A sunset moment wins.
+    const rs = env.rise;
+    const kind = this.moment ? this.moment.kind : skyOn && rs > -RISE_S && rs < 0 ? 'rise' : null;
+    if (this.moment) {
+      mP = (T - this.moment.t0) / this.moment.dur;
+      e1 = sst(0, 0.06, mP) * (1 - sst(0.94, 1, mP));
+      mI = sst(0, 0.14, mP) * (1 - sst(0.6, 1, mP));
+    } else if (kind) {
+      mP = riseProgress(rs);
+      e1 = risePalette(rs);
+      mI = riseIntensity(rs);
+    }
+    if (kind) {
+      e1 *= out;
+      for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
+      keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
+      keyCol(kind === 'rise' ? RISE_C : SET_C, mP, this.col);
     }
     this.momentP = mP;
+    this.mKind = kind;
     if (this.first) this.palW.set(t);
-    const pTau = M ? 0.35 : 0.6;
+    const pTau = kind ? 0.35 : 0.6;
     let palD = 0;
     for (let i = 0; i < NP; i++) {
       this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
@@ -776,7 +788,7 @@ class Sky {
     const glinting = this.glints.draw(env.front, T);
     this.first = false;
     this.still = this.moving ? 0 : this.still + 1;
-    return skyVis > 0.003 || !!this.moment || !!this.dark || !!this.lift || this.shoot.on || glinting || this.lifeFps > 0 || this.moonVis * this.moonPres > 0.01;
+    return skyVis > 0.003 || !!this.mKind || !!this.dark || !!this.lift || this.shoot.on || glinting || this.lifeFps > 0 || this.moonVis * this.moonPres > 0.01;
   }
 
   skyColour(env: Env, wSun: number, wMoon: number, wNight: number, mI: number, out: number): void {
@@ -822,7 +834,7 @@ class Sky {
       // as the director's slow change to night starts; a sunrise tints the
       // night early and lets the day come through.
       const c = this.col, p = this.momentP;
-      const k = mI * (this.moment?.kind === 'set' ? 0.1 + 0.4 * sst(0.3, 0.75, p) : 0.5 - 0.3 * sst(0.4, 0.85, p));
+      const k = mI * (this.mKind === 'set' ? 0.1 + 0.4 * sst(0.3, 0.75, p) : 0.5 - 0.3 * sst(0.4, 0.85, p));
       tr = lerp(tr, c[0]! * 0.7, k * 0.6);
       tg = lerp(tg, c[1]! * 0.7, k * 0.6);
       tb = lerp(tb, c[2]! * 0.7, k * 0.6);
@@ -1367,13 +1379,13 @@ class Sky {
     f.globalAlpha = 1;
   }
   drawRaysFront(env: Env, p: number, I: number): void {
-    const W = env.W, H = env.H, M = this.moment!, S = this.S, f = env.front;
+    const W = env.W, H = env.H, kind = this.mKind!, S = this.S, f = env.front;
     const c = this.col, rgb = `${c[0]! | 0},${c[1]! | 0},${c[2]! | 0}`;
     const wetK = 1 - 0.65 * this.wet;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
     const near = Math.max(0, -sy);
-    const front = M.kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.1, 0.85, p));
+    const front = kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.1, 0.85, p));
     const bw = far * 0.28;
     const gr = f.createRadialGradient(sx, sy, Math.max(0, front - bw), sx, sy, front + bw);
     gr.addColorStop(0, `rgba(${rgb},0)`);
@@ -1482,11 +1494,11 @@ class Sky {
     }
   }
   drawRaysBack(env: Env, p: number, I: number): void {
-    const W = env.W, H = env.H, M = this.moment!, g = env.back, S = this.S;
-    sunPos(M.kind, p, W, H, S);
+    const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
+    sunPos(kind, p, W, H, S);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
-    const k = I * (1 - 0.65 * this.wet) * this.fogK * (M.kind === 'set' ? 0.62 : 1.25);
+    const k = I * (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.62 : 1.25);
     g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
@@ -1596,7 +1608,7 @@ class Sky {
     }
     // The beams after the shadows: no pane hides them (owner feedback 37).
     g.globalCompositeOperation = this.th.add;
-    this.drawBeams(g, env, M.kind, p, sx, sy, far, I);
+    this.drawBeams(g, env, kind, p, sx, sy, far, I);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }
@@ -1675,7 +1687,7 @@ export function skyModule(): Module {
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
       // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.mKind || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },

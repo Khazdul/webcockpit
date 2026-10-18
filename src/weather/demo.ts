@@ -27,7 +27,7 @@ import { weatherAvailable } from './support';
 /** What the demo needs of the running effects (the controller). */
 export interface DemoController {
   readonly engine: {
-    emit(e: WeatherEvent): void;
+    emit(e: WeatherEvent, data?: unknown): void;
     setSpeed(speed: number): void;
     setCategories(c: Categories): void;
   };
@@ -177,7 +177,10 @@ export class Demo {
     if ('pin' in a) {
       this.pinned = { ...this.pinned, ...a.pin };
       ctl.pin(this.pinned, { smooth: !a.instant });
-    } else if ('emit' in a) ctl.engine.emit(a.emit);
+    } else if ('emit' in a) {
+      if (a.data === undefined) ctl.engine.emit(a.emit);
+      else ctl.engine.emit(a.emit, a.data);
+    }
     else this.release();
   }
 

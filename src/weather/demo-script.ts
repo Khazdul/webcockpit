@@ -20,7 +20,8 @@ export const DEMO_SPEED = 3;
 export type DemoAction =
   /** Pins these values (merged with the earlier pins); `instant` jumps without easing (the start only). */
   | { pin: Partial<WeatherState>; instant?: true }
-  | { emit: WeatherEvent }
+  /** `data`: as the engine takes it (`sun.rise` `{ from }`: where the sunrise starts, s before the day). */
+  | { emit: WeatherEvent; data?: unknown }
   /** Unpins everything: the game's values again, with the normal transitions. */
   | { release: true };
 
@@ -40,7 +41,9 @@ export interface DemoStep {
 }
 
 const pin = (p: Partial<WeatherState>): DemoAction => ({ pin: p });
-const emit = (e: WeatherEvent): DemoAction => ({ emit: e });
+const emit = (e: WeatherEvent, data?: unknown): DemoAction => (data === undefined ? { emit: e } : { emit: e, data });
+/** Where the demo's sunrise starts, s before the day begins: its last half minute (the game's first 30 s are only just perceptible; ADR 0093). */
+export const DEMO_RISE_FROM = -30;
 
 export const DEMO_STEPS: readonly DemoStep[] = [
   {
@@ -49,20 +52,17 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: 'Event.Sun set · Event.Moon rise · the almanac',
     dur: 4.5,
     acts: [
-      [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42 }, instant: true }],
+      [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42, dayAt: -1 }, instant: true }],
       [1.4, emit('shoot')],
     ],
   },
   {
     title: 'Sunrise',
-    look: 'a few strong beams sweep across the screen; frame lines glint where the beams cross them; the day comes in the second half',
-    signal: 'Event.Sun rise',
-    dur: 8.5,
-    slow: 25,
-    acts: [
-      [0, emit('sun.rise')],
-      [0, pin({ clock: 'day' })],
-    ],
+    look: 'the last half minute of the night: a warm hint grows, beams sweep across the screen and frame lines glint where they cross; the day sky comes as the beams fade',
+    signal: 'the clock: the last game hour of the night (Event.Sun rise when it is not synced)',
+    dur: -DEMO_RISE_FROM / DEMO_SPEED,
+    slow: -DEMO_RISE_FROM,
+    acts: [[0, emit('sun.rise', { from: DEMO_RISE_FROM })]],
   },
   {
     title: 'Day · clear sky',
@@ -70,7 +70,8 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: "Char.Vitals weather = ' '",
     dur: 5,
     acts: [
-      [0, pin({ sunU: 0.5 })],
+      // the day begins (Event.Sun light); the day sky completes in the next 14 game seconds
+      [0, pin({ clock: 'day', sunU: 0.5 })],
       [0, emit('birds')],
       [0, emit('glimpse')],
       [2.5, emit('insect')],

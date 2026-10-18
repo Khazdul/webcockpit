@@ -204,7 +204,9 @@ describe('Director', () => {
     expect(new Director({ weather: null, position: 'sleeping' }).quiet()).toBe(false);
   });
   it('events set the sun and the moon', () => {
-    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
+    // the dawn hour is still night: rise starts the sunrise (Director.riseEvent), light brings the day (item 59)
+    expect(eventState('sun.rise')).toBeNull();
+    expect(eventState('sun.light')).toEqual({ clock: 'day', sunU: 0 });
     expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
     expect(eventState('moon.set')).toEqual({ moonUp: false });
     expect(eventState('strike')).toBeNull();
