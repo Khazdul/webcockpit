@@ -36,7 +36,7 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_S, type TurnKind, turnIntensity, turnPalette, turnProgress } from '../sunturn';
+import { TURN_S, type TurnKind, turnIntensity, turnPalette, turnProgress, turnRays } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
@@ -695,7 +695,8 @@ class Sky {
     t[1]! += wSun * wet * 0.85;
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
-    let mP = -1, mI = 0, e1 = 0;
+    // mI: the turn's strength (tint, palette, glow); rI: its rays and beams (from its first second, owner item 62)
+    let mP = -1, mI = 0, e1 = 0, rI = 0;
     // Sunrise and sunset: the clock's last 60 s of the night or the day (the
     // director's `riseS` / `setS`); strength, palette and colours by time (sunturn.ts).
     const on = (x: number): boolean => skyOn && x > -TURN_S && x < 0;
@@ -705,6 +706,7 @@ class Sky {
       mP = turnProgress(ts);
       e1 = turnPalette(ts);
       mI = turnIntensity(ts);
+      rI = turnRays(kind, ts);
       e1 *= out;
       for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
       keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
@@ -723,8 +725,8 @@ class Sky {
 
     const b = env.back;
     this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
-    const rays = mI > 0.002 && out > 0.02;
-    if (rays) this.drawRaysBack(env, mP, mI * out);
+    const rays = rI > 0.002 && out > 0.02;
+    if (rays) this.drawRaysBack(env, mP, rI * out);
     if (skyOn) {
       this.drawStars(b, env, wMoon, wNight, out);
       this.drawMoon(b, env, dt, wSun, wMoon, wNight, out);
@@ -756,7 +758,7 @@ class Sky {
     if (this.lift) this.drawLift(b, env, out);
     this.drawSky(b, env, dt, mI);
     if (skyOn) this.drawShoot(b, env, dt, out);
-    if (rays) this.drawRaysFront(env, mP, mI * out);
+    if (rays) this.drawRaysFront(env, mP, rI * out);
     if (mI > 0.002 && out < 0.98) this.drawIndoorTint(env, mI * (1 - out));
     this.drawGlints(env.front, env);
     const glinting = this.glints.draw(env.front, T);

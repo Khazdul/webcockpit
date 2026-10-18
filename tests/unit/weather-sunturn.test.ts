@@ -2,7 +2,7 @@
 // (sunturn.ts) and the director's turn clock (director.ts).
 import { describe, expect, it } from 'vitest';
 import { Director, TURN_GUARD_MS, SKY_RATE, eventState } from '../../src/weather/director';
-import { FULL_S, TURN_FAINT, LATE_S, turnWeight, turnIntensity, turnPalette, turnProgress } from '../../src/weather/sunturn';
+import { FULL_S, TURN_FAINT, LATE_S, TURN_RAYS, turnWeight, turnIntensity, turnPalette, turnProgress, turnRays } from '../../src/weather/sunturn';
 
 const W0 = 1_800_000_000_000;
 
@@ -38,6 +38,25 @@ describe('sunrise curves', () => {
     // the first 40 s: under 0.001 per frame even at 3 fps (FPS_STILL)
     const faint = at(turnIntensity, -60, -20, 1 / 3);
     for (let i = 1; i < faint.length; i++) expect(Math.abs(faint[i]! - faint[i - 1]!)).toBeLessThan(0.001);
+  });
+
+  it('rays: glimpsed from the first second, a little more from -30 s, then the build-up; gone at 0 (item 62)', () => {
+    for (const kind of ['rise', 'set'] as const) {
+      const f = TURN_RAYS[kind];
+      expect(turnRays(kind, -60)).toBe(0);
+      expect(turnRays(kind, -57)).toBeCloseTo(f.early, 5);
+      expect(turnRays(kind, -40)).toBeCloseTo(f.early, 5);
+      expect(turnRays(kind, -25)).toBeCloseTo(f.late, 5);
+      expect(f.late).toBeGreaterThan(f.early);
+      expect(turnRays(kind, -10)).toBeCloseTo(turnIntensity(-10), 5);
+      expect(turnRays(kind, 0)).toBe(0);
+      for (let s = -60; s < 0; s += 0.5) expect(turnRays(kind, s)).toBeGreaterThanOrEqual(turnIntensity(s));
+      // no pop: under 1 % per frame at 30 fps (the sky runs at FPS_FAST through a turn)
+      const v = at((x) => turnRays(kind, x), -61, 1, 1 / 30);
+      for (let i = 1; i < v.length; i++) expect(Math.abs(v[i]! - v[i - 1]!)).toBeLessThan(0.01);
+    }
+    // the sunset's rays are drawn about half as strong: its floor is higher
+    expect(TURN_RAYS.set.early).toBeGreaterThan(TURN_RAYS.rise.early);
   });
 
   it('palette and colours: warm only late, gone when the day begins', () => {

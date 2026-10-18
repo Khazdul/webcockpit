@@ -21,6 +21,13 @@
 //                 first, so the colours of the old moments' strong middle
 //                 (p ≈ 0.15 … 0.6) fall in the last 20 s, p ≈ 0.5 at the
 //                 intensity's peak
+//   rays          the rays and beams only (owner item 62): glimpsed from
+//                 the first second (TURN_RAYS early, faded in over 2.5 s),
+//                 a little more from -30 s (late), then the intensity's
+//                 build-up; gone at 0. Per kind: a sunset's rays are drawn
+//                 about half as strong (worker/sky.ts), so its floor is
+//                 higher. The sky tint, the palette and the rest still
+//                 follow the intensity
 //   weight        the new sky's share (day after a sunrise, night after a
 //                 sunset): from -28 s, 0.74 at the turn (more than the old
 //                 sky's), complete at +14 s
@@ -46,6 +53,20 @@ const sst = (a: number, b: number, x: number): number => {
 export function turnIntensity(s: number): number {
   if (!(s > -TURN_S && s < 0)) return 0;
   return (TURN_FAINT * sst(-60, -20, s) + (1 - TURN_FAINT) * sst(-20, -7, s)) * (1 - sst(-8, 0, s));
+}
+
+/** The rays' floor from a turn's first second (vague but visible), and from -30 s (a little more); by eye, owner item 62. */
+export const TURN_RAYS: Readonly<Record<TurnKind, { early: number; late: number }>> = {
+  rise: { early: 0.2, late: 0.3 },
+  set: { early: 0.35, late: 0.5 },
+};
+
+/** The ray and beam strength at `s`: at least the kind's floor, else the intensity (0 outside -60 … 0). */
+export function turnRays(kind: TurnKind, s: number): number {
+  if (!(s > -TURN_S && s < 0)) return 0;
+  const f = TURN_RAYS[kind];
+  const floor = (f.early * sst(-60, -57.5, s) + (f.late - f.early) * sst(-34, -26, s)) * (1 - sst(-8, 0, s));
+  return Math.max(floor, turnIntensity(s));
 }
 
 /** How much of the cloud palette the turn's palette takes at `s` (0 outside -60 … 0). */
