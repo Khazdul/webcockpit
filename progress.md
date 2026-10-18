@@ -39,6 +39,21 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 items 80–82, tiered rays and day rays (branch `sunrise-timing`)
+
+- **Done:** one tiered fan for sunrise and sunset (15 places: 3 beams,
+  4 middle, 8 weak rays, interleaved), its lower edge reaching steeply down
+  (overrides item 75); sunrise rays fade in with the glow; glints by tier,
+  held back the first ~18 s, fading with the rays. Sunset stars -7 → 0
+  (`FULL_S` 0, a sync still joins up to 14 s late). Day rays: six, fainter,
+  spread ±55°, fading down the screen. ADR 0093 "Tiered rays and a wider
+  fan". Unit 2739; e2e weather + layout 44/44. Max ray speed 0.82 °/s.
+- **Next:** owner tests items 76–82 with `#weather demo sunrise` / `sunset`
+  and a clear day sky.
+- **Open issues:** steepest sunrise rays pass the right dock (seen mostly as
+  glints); weather bench not re-recorded (machine loaded).
+- **Commits:** 79c5c2e, ba37d89, d3770e4, b3f5c36, 0f8a576, plus this one.
+
 ### 2026-10-18 — Stage 28 items 76–79, sky order and calm rays (branch `sunrise-timing`)
 
 - **Done:** owner feedback "sun test 2". Sunrise: the haze builds over ~25 s,
