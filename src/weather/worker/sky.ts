@@ -411,6 +411,9 @@ export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, ou
   sunPoint(sunPsi(kind, p), W, H, out);
 }
 
+/** The ray fan reaches down to here (a share of H), above the input line (owner item 75). */
+const RAY_FLOOR = 0.78;
+
 /** A thin ray's glint on a frame line against a beam's (its strength 1). */
 const RAY_GLINT = 0.35;
 
@@ -1632,7 +1635,8 @@ class Sky {
     let a0 = 1e9, a1 = -1e9;
     const am = sunMid(sx, sy, W, H);
     for (let i = 0; i < 4; i++) {
-      const d = Math.atan2((i > 1 ? H : 0) - sy, (i & 1 ? W : 0) - sx) - am;
+      // the fan's lower edge aims at the input line's top, not the bottom (owner item 75)
+      const d = Math.atan2((i > 1 ? H * RAY_FLOOR : 0) - sy, (i & 1 ? W : 0) - sx) - am;
       const a = am + Math.atan2(Math.sin(d), Math.cos(d));
       a0 = Math.min(a0, a);
       a1 = Math.max(a1, a);

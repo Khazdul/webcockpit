@@ -68,8 +68,14 @@ export const BEAM_EXIT = 0.15;
 export const SUN_RISE_PSI = (40 * Math.PI) / 180;
 /** The sun's height when a sunset starts: at most ~45° up (owner item 66). */
 export const SUN_SET_PSI = (40 * Math.PI) / 180;
-/** The horizon's height on the screen, a share of H (the circle's middle). */
+/** The middle of the sun's circle by day, a share of H: where its light aims. */
 export const SUN_HORIZON = 0.45;
+/**
+ * The horizon the sun rises from and sets below, a share of H: about a
+ * third up from the bottom, above the input line, where the day sky fades
+ * out (owner item 75; one line for both, so they mirror).
+ */
+export const SUN_TURN_HORIZON = 0.65;
 
 /** The sun's angle for a sunrise or sunset `p` (0..1 into it) or the day's `sunU` (0..1). */
 export function sunPsi(kind: 'rise' | 'day' | 'set', x: number): number {
@@ -80,27 +86,35 @@ export function sunPsi(kind: 'rise' | 'day' | 'set', x: number): number {
   return SUN_RISE_PSI + (Math.PI - SUN_SET_PSI - SUN_RISE_PSI) * q;
 }
 
-/** Where a sunset ends: the sun below the horizon at the bottom left, a share of H (owner item 72). */
-export const SUN_SET_LOW = 1.0;
+/** How far the sun's circle has sunk to the turn horizon at `psi`: 1 at the horizon (0, π), 0 on the day's path (SUN_RISE_PSI … π − SUN_SET_PSI). */
+function turnLow(psi: number): number {
+  return Math.max(1 - sst(0, SUN_RISE_PSI, psi), sst(Math.PI - SUN_SET_PSI, Math.PI, psi));
+}
 
 /**
  * The sun's place at `psi` for a W × H screen: always outside it (beyond
- * the right edge, above the top, beyond the left edge). Through a sunset
- * (`psi` past π − SUN_SET_PSI) the circle's middle sinks from the horizon to
- * SUN_SET_LOW · H, so the sun ends below the bottom-left corner's height and
- * its last rays come from the screen's lower left edge (owner item 72).
+ * the right edge, above the top, beyond the left edge). Through a sunrise
+ * and a sunset the circle's middle moves between the day's SUN_HORIZON and
+ * the turn horizon SUN_TURN_HORIZON, so a sunrise starts and a sunset ends
+ * with the sun at that horizon, its light coming in level with it, above
+ * the input line (owner items 72, 75).
  */
 export function sunPoint(psi: number, W: number, H: number, out: Float32Array): void {
-  const cx = W / 2, D = Math.hypot(cx, H * SUN_HORIZON) * 1.05;
-  const low = sst(Math.PI - SUN_SET_PSI, Math.PI, psi);
-  const cy = H * (SUN_HORIZON + (SUN_SET_LOW - SUN_HORIZON) * low);
+  const cx = W / 2, D = Math.hypot(cx, H * Math.max(SUN_HORIZON, SUN_TURN_HORIZON)) * 1.05;
+  const cy = H * (SUN_HORIZON + (SUN_TURN_HORIZON - SUN_HORIZON) * turnLow(psi));
   out[0] = cx + D * Math.cos(psi);
   out[1] = cy - D * Math.sin(psi);
 }
 
-/** Where every ray and beam of a sun points to (the screen's middle at the horizon's height): its fan is laid round this. */
+/**
+ * Where every ray and beam of a sun points to: the screen's middle at the
+ * day's SUN_HORIZON, or level with a sun low at the turn horizon (its light
+ * comes in level at a sunrise's start and a sunset's end); its fan is laid
+ * round this.
+ */
 export function sunMid(sx: number, sy: number, W: number, H: number): number {
-  return Math.atan2(H * SUN_HORIZON - sy, W * 0.5 - sx);
+  const ay = Math.min(H * SUN_TURN_HORIZON, Math.max(H * SUN_HORIZON, sy));
+  return Math.atan2(ay - sy, W * 0.5 - sx);
 }
 
 /** The slow sway every ray and beam share (radians), so the light moves as one (owner item 68). */

@@ -62,9 +62,9 @@ export function turnFade(s: number): number {
   return 1 - lin(RAYS_FADE_S, FULL_S, s) ** 1.2;
 }
 
-/** The rays' strength from the first second (a few rays, vague but visible; by eye, owner items 62, 71). */
+/** The rays' strength from the first second (a few rays, vague but visible; by eye, owner items 62, 71, 75: a sunrise's first rays, level from the right, pass behind the right dock's panes and their shadows). */
 export const TURN_RAYS: Readonly<Record<TurnKind, { early: number }>> = {
-  rise: { early: 0.45 },
+  rise: { early: 0.6 },
   set: { early: 0.5 },
 };
 

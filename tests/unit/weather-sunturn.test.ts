@@ -39,7 +39,8 @@ describe('sunrise and sunset curves (items 71, 72)', () => {
       expect(r(-30)).toBeGreaterThan(e + (1 - e) * 0.4);
       expect(r(-30)).toBeLessThan(e + (1 - e) * 0.6);
     }
-    expect(TURN_RAYS.set.early).toBeGreaterThan(TURN_RAYS.rise.early);
+    // set by eye per kind (a sunrise's first rays pass behind the right dock's panes, item 75)
+    for (const k of ['rise', 'set'] as const) expect(TURN_RAYS[k].early).toBeGreaterThanOrEqual(0.4);
   });
 
   it('the rays fade as the new sky comes and are gone exactly when it is complete', () => {
