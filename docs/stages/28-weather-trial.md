@@ -1420,3 +1420,25 @@ black: the brightest stroke stands out).
       gone, then stars; sunrise: glow, stars going, blue), are the rays
       subtle enough and the glints clear enough, and does any ray still
       move too much.
+
+### 2026-10-18 — sun test 3 (translated)
+
+80. **Sunrise: rays in all downward directions, strength tiers, a slow
+    start.** The rays are concentrated in one span to the left and down-left;
+    rays pointing down are missing (`img/28-item80-sunrise-rays.png`: the
+    orange arrows from the sun at the upper right go steeply down-left to
+    the bottom edge, the steepest nearly straight down at the right). No
+    three much stronger rays bunched together: instead three a little
+    stronger, some a little weaker and some much weaker, the tiers evenly
+    spread over the directions. The rays fade in in step with the sun's
+    hazy light over the first ~30 s, barely visible at the start. Frame
+    glints: strongest from the strongest rays, less from the middle ones,
+    least from the weakest; not so marked at first, fading in over the
+    first ~10–20 s of the sunrise.
+81. **Sunset: wider span, stars earlier, glints fade with the rays.** The
+    stars may start to show ~7 s before the night begins and are fully
+    visible when it begins. A few more rays for a wider span of angles
+    (`img/28-item81-sunset-rays.png`: from the sun at the upper left, one
+    arrow almost level to the right across the top, two steeply down-right
+    to the bottom edge). About 22 s before the night begins the rays
+    clearly fade; the frame glints must fade in step with them.
