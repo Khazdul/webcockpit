@@ -1222,7 +1222,8 @@ director's turn, `src/weather/sunturn.ts`), not by `Event.Sun rise` / `set`.
 `RISE_S`, `SET_S` and `SKY_HOLD_S` are gone. The moon comes in before the
 game's rise on the same path (`moonRiseAt`, owner item 63): ADR 0093, "The
 moonrise". One sun for sunrise, day glimpses and sunset, all rays glinting
-(owner items 64–68): ADR 0093, "One sun".
+(owner items 64–68): ADR 0093, "One sun". The moon placed by the clock at an
+even pace (owner item 69): ADR 0093, "An even pace".
 
 ## Consequences
 

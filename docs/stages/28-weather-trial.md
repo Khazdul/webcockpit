@@ -1231,3 +1231,28 @@ black: the brightest stroke stands out).
       `clock: 'night', dayAt: …`, then `__weather.unpin()`. Feedback
       wanted: do the angles feel right through the day, and do all rays
       read as one sun.
+69. **The moon at an even pace.** A moon came in very fast, went to about
+    the middle of the window and then moved very slowly (log
+    `mume-Gittan-2026-10-18T20-40-32`, at its end). Wanted: the moon glides
+    at about the same pace all the time, comes in from the very edge at
+    about the rise and glides out at the set.
+    - **Done (2026-10-18):** ADR 0093, "An even pace". Cause: the moon's
+      place was counted up frame by frame; with the tab in the background
+      (or the effects running slowly) it fell behind, and the `ti` at
+      18:49:59 synced the clock, which made it rush to where the game said
+      (south) and then go on at its normal, by contrast very slow, pace.
+      Now, with the clock synced to the minute, its place comes from the
+      time alone: in at the right edge at the rise, across at one even
+      pace, out at the left edge at the set. A small correction of the
+      clock changes its pace by at most half; a big one fades it out and in
+      at its place; coming back to a hidden tab, it is simply there (fading
+      in). Unit 2727; e2e weather + layout 44/44. Checked in headless
+      Chromium: a moon mid-way, the tab hidden for 90 s, back: it fades in
+      where the time says, no rush.
+      Please try: (1) on a clear night with the clock synced, watch a moon
+      cross, switch to another tab for a minute or two and back; (2) dev
+      server: `r = Date.now() + 60_000; __weather.jump({ clock: 'night',
+      moonRiseAt: r, moonSetAt: r + 745_000 })` for a rise
+      (`Date.now() - 300_000` for one mid-way), then `__weather.unpin()`.
+      Feedback wanted: is the pace even and right, and does it come in and
+      go out at the edges at the game's messages.

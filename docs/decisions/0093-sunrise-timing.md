@@ -179,8 +179,45 @@ rises.
 - **Brightness.** On its way in the moon is at full strength (no "low down"
   fading) through the rise, and takes the low rule over the next tenth of
   its path. By day it stays DAY_MOON-faint.
-- Dev: `__weather.jump({ clock: 'night', moonUp: false, moonU: -1,
-  moonRiseAt: Date.now() + 60_000 })`.
+- Dev: see "An even pace" below.
+
+### An even pace (owner item 69)
+
+A moon came in very fast, went to about the middle of the window and then
+moved very slowly (log `mume-Gittan-2026-10-18T20-40-32`). The log has a
+clock to the minute (`The current time is 4:33 pm.` 18:40:58; `Event.Sun
+set` 18:41:24 at 17:00), `Event.Moon rise` 18:45:06, no input from 18:46 to
+18:49:58, then `ti` (18:49:59, the date line: a clock sync, so the almanac
+re-sent `moonU`, the moon "to the south", u ≈ 0.41). The moon's place was
+integrated from the frame time: in a hidden tab the worker stops (and at
+the still rate frames are capped at 0.25 s), so it lagged; the re-sent
+`moonU` then glided out with tau 8 s, a rush across, and the normal pace
+afterwards looked very slow.
+
+- **The clock places it.** The bridge sends the rise and set of the moon's
+  current time up (or the next, from 2 min after the set; `moonRiseAt`,
+  `moonSetAt`, signals.ts `moonTimes`). The worker's u is `(now − rise) /
+  (set − rise)` from `Date.now()` at every frame, so its pace is its real
+  time up (~745 s, the model's hour angle stalls now and then) and no pause
+  or frame rate can make it lag.
+- **Symmetric path.** The game's u maps onto the drawn path as `lead +
+  (1 − 2 lead) · u`: at the rise the centre is 0.6 R inside the right edge,
+  at the set as far inside the left; it comes in before the rise and goes
+  out after the set at the same pace (the path's first and last `lead`).
+  The pace on screen is (1 − 2 lead) of the old one (0.85 at 1400 × 800),
+  even all the time. The set event no longer hurries it off.
+- **Corrections** (`moonGlide`): a resync changes its pace by at most half
+  (0.5 … 1.5 ×); a correction the cap cannot take up in 20 s fades it out
+  (tau 0.5 s) and in at its place. After a gap of over 2 s between frames
+  (a hidden tab), on a page load or a sync it is placed at once, fading in.
+- **Below minute precision** the place is integrated (from the real time
+  between frames) from the almanac's `moonU`, with the same caps; `Event.Moon
+  rise` without a moon fades it in at its rise place; it waits off the left
+  edge for a late set event, which then takes it out at its pace.
+- **Brightness** as for the rise: full strength through the set too.
+- Dev: `r = Date.now() + 60_000; __weather.jump({ clock: 'night',
+  moonRiseAt: r, moonSetAt: r + 745_000 })` (`Date.now() - 300_000` puts it
+  mid-way).
 
 ## Consequences
 
