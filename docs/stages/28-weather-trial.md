@@ -1492,3 +1492,14 @@ black: the brightest stroke stands out).
       watch a few pulses.
       Feedback wanted: are they faint enough now (or too faint to see), and
       is the spread right.
+
+### 2026-10-19 — sun test 4 (translated)
+
+83. **Sunset ends at the night's second; fainter sun, fainter rays.**
+    Sunset: the sun now feels set 10 s before the night begins, and the
+    stars feel in place 5 s before it. Shift the process so the sun feels
+    set exactly when the night begins. The stars fade in more slowly:
+    perceptible 5 s before the night begins, fully visible only 5 s after.
+    The sun itself (not the rays) and the light round it should be less
+    marked: the whole effect about 50 % weaker. In both sunrise and sunset
+    the rays should be less marked: dimmed by about 50 %.
