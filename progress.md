@@ -65,10 +65,14 @@ Statuses: Next, In progress, Owner testing, Done.
   full clock-driven turn each (~1:35) with a countdown caption. Item 75:
   one turn horizon at 0.65H for both (sunset no longer in the lower-left
   corner); the ray fan stays above ~0.78H. Unit 2729.
-- **Next:** owner test (guides under items 62–75), then merge to main.
+- **Next:** new session continues small polish on branch
+  `sunrise-timing` (owner wants more tweaks; test with `#weather demo
+  sunrise|sunset`). Owner judgement pending: early ray strength (rise
+  0.6, set 0.5), day pulse strength (0.14–0.30), the moon (item 69).
+  Merge to main and release only when the owner approves., then merge to main.
 - **Open issues:** look only checked in headless screenshots; perf bench
   not rerun; the moonrise fallback without a minute-synced clock has no
-  worker test.
+  worker test; a demo during a live turn untested.
 - **Commits:** c752036…(this commit).
 
 ### 2026-10-18 — Merge stage 28, release 0.1.63
