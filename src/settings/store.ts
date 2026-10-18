@@ -214,7 +214,7 @@ export class SettingsStore {
     const prev = this.current;
     let next: Settings;
     if (stored !== undefined) {
-      next = migrateSettings(stored);
+      next = migrateSettings(stored, { phone: this.phone });
       if (this.safe) next.appearance = this.defaults().appearance;
     } else {
       next = clone(prev) as Settings;
@@ -248,7 +248,7 @@ export class SettingsStore {
     } else {
       mergeInto(draft as unknown as Obj, u as Obj);
     }
-    return migrateSettings(draft);
+    return migrateSettings(draft, { phone: this.phone });
   }
 
   private changed(prev: Readonly<Settings>): void {

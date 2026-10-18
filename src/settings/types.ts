@@ -274,6 +274,31 @@ export interface MapperSettings {
   backgroundBefore: string;
 }
 
+/**
+ * Options → Weather effects (stage 28 trial, ADR 0091): the master switch
+ * (default off; off = the engine is not even loaded) and the six effect
+ * categories. Not in `ViewSnapshot`: a log plays with the viewer's own.
+ */
+export interface WeatherSettings {
+  enabled: boolean;
+  /** Sky gradient, clouds, sun moments, moon, stars. */
+  sky: boolean;
+  /** The blue day sky (under Sky); off: the page background by day, everything else stays (owner feedback 36). */
+  daySky: boolean;
+  /** Rain, drips, snow. */
+  precipitation: boolean;
+  /** The bolt on a lightning message. */
+  lightning: boolean;
+  fog: boolean;
+  /** The darkness sky and Event.Darkness. */
+  darkness: boolean;
+  /** Sleeping, stunned, incapacitated, dying. */
+  body: boolean;
+}
+
+/** The six categories, in the Options page's order. */
+export const WEATHER_CATEGORIES = ['sky', 'precipitation', 'lightning', 'fog', 'darkness', 'body'] as const;
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -289,6 +314,7 @@ export interface Settings {
   output: OutputSettings;
   input: InputSettings;
   mapper: MapperSettings;
+  weather: WeatherSettings;
 }
 
 /**
@@ -326,6 +352,17 @@ export const LEGACY_APPEARANCE: Readonly<Pick<AppearanceSettings, 'font' | 'size
   boldBright: false,
 });
 
+/**
+ * The mapper values that were the defaults before ADR 0092 (the MMapper
+ * tileset on the default dark grey). A stored mapper section that lacks
+ * one (or holds an invalid value) takes these, so an existing user's map
+ * does not change with the new-player defaults (Shimrod, Transparent).
+ */
+export const LEGACY_MAPPER: Readonly<Pick<MapperSettings, 'tileset' | 'background'>> = Object.freeze({
+  tileset: 'default',
+  background: '#2e3436',
+});
+
 /** The single default. Treat as read-only; `defaultSettings()` returns a fresh copy. */
 export const DEFAULT_SETTINGS: Readonly<Settings> = deepFreeze(defaultSettings());
 
@@ -346,12 +383,12 @@ export function defaultSettings(): Settings {
       boldBright: true,
     },
     panes: {
-      character: { on: true, color: 'black', border: true },
+      character: { on: false, color: 'black', border: true },
       timers: { on: true, color: 'black', border: true },
       group: { on: true, color: 'black', border: true },
       comm: { on: true, color: 'black', border: true },
-      ui: { on: true, color: 'black', border: false },
-      map: { on: true, color: 'black', border: true },
+      ui: { on: false, color: 'black', border: false },
+      map: { on: true, color: 'black', border: false },
       // Pre-placed bundled script panes (ADR 0078): the pane bar is
       // borderless; Map search starts off (its script runs, the pane waits).
       [PANEBAR_PANE]: { on: true, color: 'black', border: false },
@@ -365,7 +402,8 @@ export function defaultSettings(): Settings {
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
-    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'default', background: '#2e3436', backgroundBefore: '' },
+    mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
+    weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
   };
 }
 
@@ -373,14 +411,17 @@ export function defaultSettings(): Settings {
 export const PHONE_FONT_SIZE = 14;
 
 /**
- * The defaults on a phone (ADR 0081): `defaultSettings()` with a smaller
- * font and the UI pane off. Used only where the store starts from the
+ * The defaults on a phone (ADR 0081, ADR 0092): `defaultSettings()` with a
+ * smaller font, the UI pane off, Character on and the weather off. Used only where the store starts from the
  * defaults (a new user, reset); stored settings never take it.
  */
 export function phoneDefaultSettings(): Settings {
   const s = defaultSettings();
   s.appearance.size = PHONE_FONT_SIZE;
   s.panes.ui.on = false;
+  // ADR 0092 is desktop only: a phone keeps its Character tab and no weather (battery).
+  s.panes.character.on = true;
+  s.weather.enabled = false;
   return s;
 }
 

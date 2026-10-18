@@ -192,8 +192,9 @@ describe('tileset clock', () => {
 });
 
 describe('tileset setting', () => {
-  it('defaults to the default set and drops unknown ids', () => {
-    expect(defaultSettings().mapper.tileset).toBe('default');
+  it('a new player starts with Shimrod (ADR 0092); a stored mapper defaults to the default set and drops unknown ids', () => {
+    expect(defaultSettings().mapper.tileset).toBe('shimrod');
+    expect(migrateMapper({}).tileset).toBe('default');
     expect(migrateSettings({ profile: 'x' }).mapper.tileset).toBe('default');
     for (const id of TILESET_IDS) expect(migrateMapper({ tileset: id }).tileset).toBe(id);
     expect(migrateMapper({ tileset: 'gone' }).tileset).toBe('default');

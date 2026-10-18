@@ -8,7 +8,7 @@ import type { RoomTints } from '../protocol';
 import type { MapData } from '../model';
 import type { Scene } from '../scene';
 import type { View } from '../view';
-import { BACKGROUND, type RGBA } from './palette';
+import { BACKGROUND, type RGBA, clearRgba } from './palette';
 import { WebGLMapRenderer } from './webgl';
 
 /** MMapper background (owner config `#2e3436`), 0…1 RGB: the default (ADR 0085). */
@@ -37,7 +37,12 @@ export interface Renderer {
    * (ADR 0088; applied with the new tiles); absent: the renderer has no tiles.
    */
   setAssets?(assets: AssetResolver, style?: TileStyle): void;
-  /** The background colour (Options → Mapper, ADR 0085); drawn from the next render. */
+  /**
+   * The background colour (Options → Mapper, ADR 0085); drawn from the next
+   * render. Alpha 0: transparent, the empty space is left clear and the
+   * colour is the pane's, for the lower-layer fade and the lines (ADR 0085
+   * Transparent addendum 2).
+   */
   setBackground?(color: RGBA): void;
   /** False while tiles or the font are still loading (absent: nothing to load). */
   readonly complete?: boolean;
@@ -58,7 +63,8 @@ export class ClearRenderer implements Renderer {
   render(_view: View): void {
     const gl = this.gl;
     gl.viewport(0, 0, this.w, this.h);
-    gl.clearColor(this.bg[0], this.bg[1], this.bg[2], 1);
+    const c = clearRgba(this.bg);
+    gl.clearColor(c[0], c[1], c[2], c[3]);
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
   setBackground(color: RGBA): void {

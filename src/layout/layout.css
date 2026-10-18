@@ -33,16 +33,199 @@
   display: none;
 }
 
-/* Foreground-only glyph frame: one text line per cell row. */
+/* The frame (owner item 35, design 14 "Light hanging plate"; ADR 0091
+ * "Frames", addendum: glass rim and nameplate): a frosted glass rim of equal
+ * thickness in the outer frame cells, tinted by the pane colour, with a
+ * nameplate of the same glass hanging from the top rim, joined to it by
+ * concave fillets, holding the title.
+ *
+ * `.wc-pane-rim` is the glass: a box over the frame box (`--frame-l/r/top/b`
+ * from pane.ts, whole device pixels of the page), clipped (pane.ts,
+ * frame.ts `frameRimPath`) to the ring and the plate, so rim and plate are
+ * one piece with one tint, one sheen and, with weather on, one backdrop blur
+ * (weather.css). It comes before the fill in the pane, so its backdrop is
+ * what lies behind the pane. `::before` is the outer bevel (a thin dark
+ * edge, a specular line inside it on top and left, a softer one bottom and
+ * right); `svg.wc-pane-seam` the inner seam along the hole's edge (dark
+ * where the thick glass meets the pane top/left and round the plate, light
+ * bottom/right), stroked twice the seam width on the edge: the clip keeps
+ * the half in the glass, so it is `--frame-hair` (one device px or more)
+ * wide and sharp.
+ *
+ * Colour rule (every pane, the same formula; Plain's chroma 0 stays neutral
+ * grey; capped so every shade stays inside sRGB for all presets, else the
+ * specular line shows a yellow fringe in Chromium):
+ *   glass     = oklch(from --pane-border L .59, C min(c × 10, .105), h)
+ *   highlight = oklch(from --pane-border L .95, C min(c × 1.2, .018), h)
+ *   title ink = oklch(from --pane-border L .28, C min(c × 4, .03), h)
+ * (owner items 39, 44, 47: the glass was L .66 and looked too light; the
+ * ink was L .17, near black, then .19, and the lip under the letters 70 %
+ * of the highlight, then 60 %: no visible difference, so now clearly
+ * softer both ways, ink L .28 and the lip 42 %, still engraved.)
+ * The bevel's light strokes are the highlight mixed in: the specular line
+ * 58 % and the light seam 32 % (owner item 51: at 85 % and 40 % the
+ * specular line, ~215 grey beside a ~80 grey rim over black, stung the eye;
+ * the dark edge eased to 56 % with it, so the rim keeps its depth). The
+ * title's lip (42 %) stays the dimmest light, under the seam and the line.
+ * The rim and plate are the glass over what is behind, with a white sheen
+ * from the top: at 52 % with weather on (weather.css; the sky behind tints
+ * it), at 64 % over the flat page with weather off (at 52 % over black it
+ * looked dull and the dark title lost contrast), at 60 % on a light page
+ * either way (see below). */
+.wc-pane[data-framed] {
+  background: transparent;
+  --glass: oklch(from var(--pane-border) 0.59 min(calc(c * 10), 0.105) h);
+  --glass-hi: oklch(from var(--pane-border) 0.95 min(calc(c * 1.2), 0.018) h);
+  --ink: oklch(from var(--pane-border) 0.28 min(calc(c * 4), 0.03) h);
+  --glass-mix: 64%;
+  --glass-edge: rgb(0 0 0 / 0.56);
+  --glass-seam: rgb(0 0 0 / 0.45);
+}
+
+.wc-pane-blur,
+.wc-pane-rim,
 .wc-pane-frame {
   position: absolute;
-  inset: 0;
-  overflow: hidden;
-  white-space: pre;
-  color: var(--pane-border);
-  line-height: var(--cell-h);
+  top: var(--frame-top, 2px);
+  right: var(--frame-r, 2px);
+  bottom: var(--frame-b, 2px);
+  left: var(--frame-l, 2px);
   pointer-events: none;
   user-select: none;
+}
+
+.wc-pane-rim {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 40%),
+    color-mix(in srgb, var(--glass) var(--glass-mix), transparent);
+}
+
+.wc-pane-rim::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  border: var(--frame-hair, 1px) solid var(--glass-edge);
+  box-shadow:
+    inset var(--frame-hair, 1px) var(--frame-hair, 1px) 0 color-mix(in srgb, var(--glass-hi) 58%, transparent),
+    inset calc(-1 * var(--frame-hair, 1px)) calc(-1 * var(--frame-hair, 1px)) 0 color-mix(in srgb, var(--glass) 45%, transparent);
+}
+
+.wc-pane-seam {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.wc-pane-seam > path {
+  fill: none;
+  stroke-width: calc(2 * var(--frame-hair, 1px));
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+
+.wc-pane-seam > .wc-seam-dark {
+  stroke: var(--glass-seam);
+}
+
+.wc-pane-seam > .wc-seam-light {
+  stroke: color-mix(in srgb, var(--glass-hi) 32%, transparent);
+}
+
+/* The fill: the inside of the rim less the plate (`--frame-hole`), so the
+ * plate, like the rim, is glass over what is behind the pane. Weather off,
+ * the pane colour, opaque (behind a pane there is only the page, and a
+ * floating pane keeps its ring in the terminal background over the game
+ * text); weather on, light glass (weather.css). */
+.wc-pane-frame::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--pane-bg, var(--term-bg));
+  clip-path: var(--frame-hole, none);
+}
+
+/* The rim's backdrop blur (weather.css): four strips under the rim, each
+ * clipped to the glass in it (pane.ts, frame.ts `frameStrips`). Weather off
+ * there is nothing to blur. */
+.wc-pane-blur {
+  display: none;
+}
+
+.wc-pane-blur > i {
+  position: absolute;
+}
+
+.wc-pane:not([data-framed]) > :is(.wc-pane-frame, .wc-pane-rim, .wc-pane-blur) {
+  display: none;
+}
+
+/* A floating pane keeps the ring outside the rim opaque in the terminal
+ * background, so the game text does not peek around it. */
+.wc-pane[data-framed][data-floating] {
+  background: var(--term-bg);
+}
+
+/* A light page (Paper): the fixed-lightness glass over it would be paler
+ * than the page around a light pane, so it is mixed denser, and the dark
+ * edges are softer (a black hairline on a light page looked drawn on). */
+:root[data-light] .wc-pane[data-framed] {
+  --glass-mix: 60%;
+  --glass-edge: rgb(0 0 0 / 0.42);
+  --glass-seam: rgb(0 0 0 / 0.3);
+}
+
+/* The title on the plate: a little smaller than the text, bold, engraved
+ * (dark ink with a light lip under each stroke). Its box runs from the
+ * rim's outer edge to the plate's bottom (pane.ts, frame.ts `framePlate`)
+ * and the label's box is trimmed to the capitals (`text-box`), so the
+ * capitals sit in the middle of the plate as seen, rim included, in any
+ * font (item 35: in the mockup they sat a little low; item 40: the plate
+ * ends a px higher, the letters stay where they were).
+ * The plate's shadow on the pane is `::after`'s, shown only below the
+ * plate's bottom edge: as the box's own shadow its blur fell on the rim as
+ * a thin dark vertical line either side of the plate (owner item 46; a
+ * clip at the box's sides still left a device-px line at 2×). Above the
+ * content, so a pane that fills its frame (the map) does not hide it. */
+.wc-pane-title {
+  position: absolute;
+  left: var(--plate-x0, 0px);
+  top: 0;
+  width: calc(var(--plate-x1, 0px) - var(--plate-x0, 0px));
+  height: var(--plate-y1, 0px);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0 0 var(--plate-r, 4px) var(--plate-r, 4px);
+  font-size: 0.68em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: pre;
+  color: var(--ink);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--glass-hi) 42%, transparent);
+  z-index: 2;
+}
+
+.wc-pane-title::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 1px 1.5px -0.5px rgb(0 0 0 / 0.42);
+  clip-path: inset(100% -3px -4px -3px);
+  pointer-events: none;
+}
+
+.wc-pane-title > span {
+  text-box: trim-both cap alphabetic;
+}
+
+.wc-pane-title:empty {
+  display: none;
 }
 
 .wc-pane-content {
@@ -85,6 +268,27 @@
   user-select: none;
   z-index: 3;
   display: none;
+}
+
+/* On a frame: no box behind it (owner feedback 12), just under the rim in
+ * the top-right corner, light with a dark shadow on the glass pane (on a
+ * light pane: the border colour toward the text colour); the box stays
+ * three cells wide to click. */
+.wc-pane[data-framed] > .wc-pane-close {
+  top: calc(var(--frame-top, 2px) + var(--frame-t, 6px) + 1px);
+  height: calc(var(--cell-h) - var(--frame-top, 2px) - var(--frame-t, 6px) - 1px);
+  background: transparent;
+  width: calc(3 * var(--cell-w));
+  text-align: center;
+  font-size: 0.82em;
+  line-height: 1;
+  color: color-mix(in srgb, oklch(from var(--pane-border) 0.94 min(calc(c * 3), 0.028) h) 70%, transparent);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
+}
+
+.wc-pane[data-framed][data-light] > .wc-pane-close {
+  color: color-mix(in srgb, var(--pane-border) 40%, var(--term-fg));
+  text-shadow: none;
 }
 
 .wc-pane:hover > .wc-pane-close {

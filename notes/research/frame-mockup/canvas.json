@@ -1,0 +1,154 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-10-17T17:06:46+02:00"
+ },
+ "title": "WebCockpit pane frames",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1280,
+   "h": 760,
+   "title": "00 Today"
+  },
+  "V01.dc.html": {
+   "x": 1360,
+   "y": 0,
+   "w": 1280,
+   "h": 760,
+   "title": "01 Five-band ridge"
+  },
+  "V02.dc.html": {
+   "x": 2720,
+   "y": 0,
+   "w": 1280,
+   "h": 760,
+   "title": "02 Nameplate"
+  },
+  "V03.dc.html": {
+   "x": 0,
+   "y": 880,
+   "w": 1280,
+   "h": 760,
+   "title": "03 Frosted glass rim"
+  },
+  "V04.dc.html": {
+   "x": 1360,
+   "y": 880,
+   "w": 1280,
+   "h": 760,
+   "title": "04 Neon tube"
+  },
+  "V05.dc.html": {
+   "x": 2720,
+   "y": 880,
+   "w": 1280,
+   "h": 760,
+   "title": "05 Title band"
+  },
+  "V06.dc.html": {
+   "x": 0,
+   "y": 1760,
+   "w": 1280,
+   "h": 760,
+   "title": "06 Double rule"
+  },
+  "V07.dc.html": {
+   "x": 1360,
+   "y": 1760,
+   "w": 1280,
+   "h": 760,
+   "title": "07 Lit from above"
+  },
+  "V08.dc.html": {
+   "x": 2720,
+   "y": 1760,
+   "w": 1280,
+   "h": 760,
+   "title": "08 Corner brackets"
+  },
+  "V09.dc.html": {
+   "x": 0,
+   "y": 2640,
+   "w": 1280,
+   "h": 760,
+   "title": "09 Soft elevation"
+  },
+  "V10.dc.html": {
+   "x": 1360,
+   "y": 2640,
+   "w": 1280,
+   "h": 760,
+   "title": "10 Engraved metal"
+  },
+  "V11.dc.html": {
+   "x": 0,
+   "y": 3520,
+   "w": 1280,
+   "h": 760,
+   "title": "11 Glass swell plate"
+  },
+  "V12.dc.html": {
+   "x": 1360,
+   "y": 3520,
+   "w": 1280,
+   "h": 760,
+   "title": "12 Hanging glass plate"
+  },
+  "V13.dc.html": {
+   "x": 2720,
+   "y": 3520,
+   "w": 1280,
+   "h": 760,
+   "title": "13 Inlaid crystal plate"
+  },
+  "V14.dc.html": {
+   "x": 0,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "14 Light hanging plate"
+  },
+  "V15.dc.html": {
+   "x": 1360,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "15 Rim swell plate"
+  },
+  "V16.dc.html": {
+   "x": 2720,
+   "y": 4400,
+   "w": 1280,
+   "h": 760,
+   "title": "16 Glowing glass plate"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "V01.dc.html",
+  "V02.dc.html",
+  "V03.dc.html",
+  "V04.dc.html",
+  "V05.dc.html",
+  "V06.dc.html",
+  "V07.dc.html",
+  "V08.dc.html",
+  "V09.dc.html",
+  "V10.dc.html",
+  "V11.dc.html",
+  "V12.dc.html",
+  "V13.dc.html",
+  "V14.dc.html",
+  "V15.dc.html",
+  "V16.dc.html"
+ ],
+ "notes": {},
+ "designSystems": []
+}

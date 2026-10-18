@@ -249,14 +249,16 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await expect(startSel(page)).toHaveText('<< Reset layout >>');
   await page.keyboard.press('Enter');
   await expect(startFlash(page)).toHaveText('Layout reset.');
-  // The default layout (ADR 0078): Character over Group | Timers, then Comm,
-  // UI and the pane bar; the map and Map search float.
-  await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([20, 20]);
+  // The default layout (ADR 0078, ADR 0092): Character and the map over
+  // Group | Timers, then Comm, UI and the pane bar; Map search floats.
+  await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([25, 25]);
   const right = (await settings(page)).layout.docks.right;
-  expect(right.head.map((p) => p.id)).toEqual(['character']);
+  expect(right.head.map((p) => p.id)).toEqual(['character', 'map']);
   expect(right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([['group'], ['timers']]);
   expect(right.tail.map((p) => p.id)).toEqual(['comm', 'ui', 'panebar/bar']);
-  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['map', 'mapsearch/main']);
+  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['mapsearch/main']);
+  // Reset layout leaves the toggles alone: Character is still off.
+  expect((await settings(page)).panes.character.on).toBe(false);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
@@ -386,7 +388,7 @@ test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0
   await expect(sel).toHaveText('<< Options >>');
   await page.keyboard.press('Enter');
   // The hub: Text input right after Appearance; the toggles are gone from it.
-  await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Scripts', 'Back']);
+  await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Spotlights', 'Scripts', 'Weather effects', 'Back']);
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
   await expect(sel).toHaveText('<< Text input >>');
   await page.keyboard.press('Enter');

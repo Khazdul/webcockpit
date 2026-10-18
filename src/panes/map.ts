@@ -58,6 +58,10 @@
 // - Background (ADR 0085, Options → Mapper): the setting is the content's
 //   `--map-bg` (the CSS background under the canvas until the first frame)
 //   and goes to the worker at start and on every change; drawn live.
+//   Transparent: the worker gets the pane's own colour (for the lower-layer
+//   fade and the lines) and leaves the empty space clear, and `--map-bg` is
+//   `transparent`, so the pane's fill, or the weather behind a see-through
+//   pane, shows (`data-map-transparent`; ADR 0085 Transparent addendum 2).
 // - Touch (ADR 0075 §3.3, `device().touch`): every pointer is tracked; one
 //   finger pans, two fingers pan by their midpoint and zoom around it by
 //   the change in their distance (pinchStep, src/map/pinch.ts), through
@@ -75,7 +79,7 @@ import { type PinchPoint, pinchStep } from '../map/pinch';
 import { BUNDLED_MAP_BYTES } from '../map/progress';
 import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
 import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
-import { mapBgEffective } from '../map/backgrounds';
+import { MAP_BG_TRANSPARENT, mapBgEffective } from '../map/backgrounds';
 import { paneEffectiveBg } from '../theme/color';
 import { paneSettingsOf } from '../settings/types';
 import { MapHover } from './map-hover';
@@ -144,6 +148,8 @@ export class MapPane extends PaneShell {
   private hoverReq = 0;
   private hoverScale = { x: 1, y: 1 };
   private placeKey = '';
+  /** The pane's box size in CSS px as last placed (null while hidden). */
+  private boxPx: { w: number; h: number } | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'map');
@@ -248,14 +254,41 @@ export class MapPane extends PaneShell {
   }
 
   /** A pane moved, resized or hidden by the layout takes the hover box with it. */
-  override place(p: Parameters<PaneShell['place']>[0], cell: { w: number; h: number }): void {
+  override place(p: Parameters<PaneShell['place']>[0], cell: Parameters<PaneShell['place']>[1]): void {
     const r = p?.rect;
     const key = r ? `${r.x},${r.y},${r.w},${r.h}|${cell.w}x${cell.h}` : '';
     if (key !== this.placeKey) {
       this.placeKey = key;
       this.hover.cancel();
     }
+    this.boxPx = p ? { w: p.rect.w * cell.w, h: p.rect.h * cell.h } : null;
     super.place(p, cell);
+    this.fitFrame();
+  }
+
+  /**
+   * Framed, the map fills the frame up to its rim on every side (owner
+   * feedback 17, ADR 0091 "Frames"), not only the content cells: the frame
+   * ring is wider than the rim. Every edge is on a whole device pixel (the
+   * rim's inner edge). It is clipped around the nameplate, which hangs into
+   * it: the plate is the rim's glass and shows what is behind the pane
+   * (addendum: glass rim and nameplate). Unframed: the content cells, as
+   * PaneShell placed them.
+   */
+  private fitFrame(): void {
+    const g = this.frameLine, b = this.boxPx;
+    const cs = this.content.style;
+    if (!g || !b) {
+      cs.clipPath = '';
+      return;
+    }
+    cs.left = `${g.l + g.t}px`;
+    cs.top = `${g.top + g.t}px`;
+    cs.width = `${b.w - g.l - g.r - 2 * g.t}px`;
+    cs.height = `${b.h - g.top - g.b - 2 * g.t}px`;
+    const hole = this.frameHole(-g.t, -g.t);
+    cs.clipPath = hole ? `path("${hole}")` : '';
+    this.sync();
   }
 
   override dispose(): void {
@@ -308,8 +341,13 @@ export class MapPane extends PaneShell {
     return typeof d === 'number' && d > 0 ? d : 1;
   }
 
-  /** Canvas size in CSS px (the content area). */
+  /** Canvas size in CSS px (the content area; framed: inside the frame line, see `fitFrame`). */
   private cssSize(): { w: number; h: number } {
+    const g = this.frameLine, b = this.boxPx;
+    if (g && b && this.cols > 0) {
+      const px = (v: number): number => Math.round(v * 1e4) / 1e4;
+      return { w: px(Math.max(0, b.w - g.l - g.r - 2 * g.t)), h: px(Math.max(0, b.h - g.top - g.b - 2 * g.t)) };
+    }
     const cell = this.ctx.cells.get();
     return { w: Math.round(this.cols * cell.w), h: Math.round(this.rows * cell.h) };
   }
@@ -375,6 +413,7 @@ export class MapPane extends PaneShell {
         dpr: this.dpr(),
         assets: this.assets(),
         background: this.background(),
+        transparent: this.transparent(),
         onMessage: this.onWorker,
       });
       this.forwarder = new MapEventForwarder((events) => this.client?.events(events));
@@ -400,13 +439,22 @@ export class MapPane extends PaneShell {
     return mapBgEffective(s.mapper.background, paneEffectiveBg(paneSettingsOf(s.panes, 'map').color, s.appearance.bg));
   }
 
+  /** Whether the map leaves its empty space clear (Transparent, ADR 0085 Transparent addendum 2). */
+  private transparent(): boolean {
+    return this.ctx.settings.get().mapper.background === MAP_BG_TRANSPARENT;
+  }
+
   /** The background on the pane (CSS) and, with `send` and a change, to a running worker (ADR 0085). */
   private applyBackground(send = false): void {
     const bg = this.background();
-    if (this.content.dataset.mapBg === bg) return;
-    this.content.style.setProperty('--map-bg', bg);
-    this.content.dataset.mapBg = bg;
-    if (send) this.client?.background(bg);
+    const clear = this.transparent();
+    const ds = this.content.dataset;
+    if (ds.mapBg === bg && (ds.mapTransparent !== undefined) === clear) return;
+    this.content.style.setProperty('--map-bg', clear ? 'transparent' : bg);
+    ds.mapBg = bg;
+    if (clear) ds.mapTransparent = '';
+    else delete ds.mapTransparent;
+    if (send) this.client?.background(bg, clear);
   }
 
   /** The set the Mapper option draws now (null: the default pixmaps). */

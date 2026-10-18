@@ -14,6 +14,7 @@ import {
   gameTimeEventsAt,
   nextGameTimeEvents,
   moonAt,
+  moonUpFraction,
   moonZenith,
   nextAt,
   nextMoonChange,
@@ -81,6 +82,19 @@ describe('moon', () => {
     for (let t = rise; t < set; t += 30) if (places[places.length - 1] !== moonAt(t).position) places.push(moonAt(t).position);
     expect(places).toEqual(['east', 'southeast', 'south', 'southwest', 'west']);
     expect(moonAt(set).position).toBe('below');
+  });
+
+  it('moonUpFraction runs evenly from 0 at the rise to ~1 at the set; -1 below the horizon (weather sky, owner feedback 11)', () => {
+    const rise = nextMoonEvent(G0, 'rise');
+    const set = nextMoonEvent(rise, 'set');
+    expect(moonUpFraction(rise)).toBe(0);
+    expect(moonUpFraction(rise - 1)).toBe(-1);
+    expect(moonUpFraction(set)).toBe(-1);
+    expect(moonUpFraction(set - 1)).toBeGreaterThan(0.99);
+    const mid = moonUpFraction(rise + 6 * HOUR_S);
+    // the moon falls behind ~50 min a day, so 6 h after the rise is a little short of half
+    expect(mid).toBeGreaterThan(0.47);
+    expect(mid).toBeLessThan(0.51);
   });
 
   it('the closed-form rise and set match stepping, over a cycle', () => {

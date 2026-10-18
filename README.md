@@ -73,6 +73,11 @@ and marks errors, and a manual with examples is built in.
 tiles and follows you as you move. A default map is bundled, and you
 can import your own.
 
+**Weather effects (trial).** Optional, off by default: discreet sky,
+rain, snow, fog, lightning and body effects over the whole client, driven
+by the game's GMCP. Options → Weather effects has the switch and six
+categories; the drawing runs in a worker, so text and keys are not slowed.
+
 **Runs.** Every login starts a run, recorded in the browser. The
 start page offers History, Statistics, a log player that replays the
 whole screen, and Spotlights with your kills, deaths, level-ups and

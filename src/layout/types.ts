@@ -271,22 +271,25 @@ export function defaultDockSize(dock: DockId): number {
 export const EVEN_SHARE_DESIRED = 200;
 
 /**
- * Desired rows of the default right dock's shared panes (ADR 0078). Like
- * `EVEN_SHARE_DESIRED` they are larger than any window, so the dock always
- * runs in `scaled` mode: Character (head) and the pane bar are reserved,
- * and the rest is split in proportion to `desired − min`: the two lanes
- * (Group and Timers, side by side) 8 parts, Comm 21, UI 3. In a 51-row
- * window that is Character 9, the lanes 9, Comm 22 and UI 4 content rows.
+ * Desired rows of the default right dock's shared panes (ADR 0078, ADR
+ * 0092). Like `EVEN_SHARE_DESIRED` they are larger than any window, so the
+ * dock always runs in `scaled` mode: Character (head) and the pane bar are
+ * reserved, and the rest is split in proportion to `desired − min`. In a
+ * 174 × 51 window with Character and UI off (the new-player default) that
+ * is the map 22, the lanes 13 and Comm 15 outer rows; with both on,
+ * Character 11, the map 16, the lanes 9, Comm 11 and UI 3.
  */
 export const DEFAULT_SHARE = {
-  /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 80. */
-  lanes: 81,
-  comm: 211,
+  /** The map, spanning both lanes under Character (stage 28 new-player defaults). */
+  map: 195,
+  /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 109. */
+  lanes: 110,
+  comm: 130,
   ui: 31,
 } as const;
 
-/** Width of each of the default right dock's two lanes (ADR 0078): 40 cells in all. */
-export const DEFAULT_LANE_SIZE = 20;
+/** Width of each of the default right dock's two lanes (ADR 0078, ADR 0092): 50 cells in all. */
+export const DEFAULT_LANE_SIZE = 25;
 
 /** The pane bar's id (bundled `panebar`, ADR 0065), placed by the default layout (ADR 0078). */
 export const PANEBAR_PANE: ScriptPaneId = 'panebar/bar';
@@ -296,12 +299,13 @@ export const MAPSEARCH_PANE: ScriptPaneId = 'mapsearch/main';
 export const MAPSEARCH_FLOAT_H = 15;
 
 /**
- * A fresh copy of the default layout (ADR 0010, ADR 0023, ADR 0078). The
- * right dock: Character spanning the top, then two lanes side by side
- * (Group at the screen edge, Timers inside), then Comm, UI and the pane
- * bar spanning the bottom. The map floats at the game pane's top-right
- * corner and the Map search pane right under it (both `auto`). The two
- * script panes take these places once their scripts create them.
+ * A fresh copy of the default layout (ADR 0010, ADR 0023, ADR 0078, ADR
+ * 0092). The right dock: Character and the map spanning the top, then two
+ * lanes side by side (Group at the screen edge, Timers inside), then Comm,
+ * UI and the pane bar spanning the bottom. The Map search pane is an
+ * `auto` float under the map; with the map docked that is the game pane's
+ * top-right corner. The two script panes take these places once their
+ * scripts create them.
  */
 export function defaultLayout(): LayoutModel {
   return {
@@ -313,7 +317,10 @@ export function defaultLayout(): LayoutModel {
           { size: DEFAULT_LANE_SIZE, panes: [{ id: 'group', desired: DEFAULT_SHARE.lanes }] },
           { size: DEFAULT_LANE_SIZE, panes: [{ id: 'timers', desired: DEFAULT_SHARE.lanes }] },
         ],
-        head: [{ id: 'character', desired: DEFAULT_PANE_DESIRED.character }],
+        head: [
+          { id: 'character', desired: DEFAULT_PANE_DESIRED.character },
+          { id: 'map', desired: DEFAULT_SHARE.map },
+        ],
         tail: [
           { id: 'comm', desired: DEFAULT_SHARE.comm },
           { id: 'ui', desired: DEFAULT_SHARE.ui },
@@ -323,7 +330,7 @@ export function defaultLayout(): LayoutModel {
       top: { lanes: [], head: [], tail: [] },
       bottom: { lanes: [], head: [], tail: [] },
     },
-    floating: [defaultMapFloat(), defaultMapSearchFloat()],
+    floating: [defaultMapSearchFloat()],
   };
 }
 

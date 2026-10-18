@@ -137,6 +137,7 @@ if (import.meta.env.DEV) {
     openPlayer: (id) => openPlayerSession(id),
     openPlayerLogs: (rels, character) => openPlayerLogs(rels, character),
     replayHtml: async (o) => (await import('./replay/dev')).devReplayHtml(shell, settings, o),
+    weather: async (o) => (await import('./weather/dev')).devWeather(shell.app!, settings, o),
   };
 }
 try {
@@ -149,6 +150,13 @@ if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('se
 const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;
 if (replayFixture !== null) {
   void import('./replay/dev').then((m) => m.openReplayFixture(shell, settings, replayFixture, params.get('session')));
+}
+
+// Dev only, stage 28 trial: `?weather` turns Options → Weather effects on and exposes `window.__weather`
+// once the cockpit exists (after Enter MUME on the start page); `?weather=<json>` also pins a state (as
+// `__weather.jump`), e.g. `?weather={"weather":"\"","fog":"="}`.
+if (import.meta.env.DEV && params.has('weather')) {
+  void import('./weather/dev').then((m) => m.weatherFromUrl(params, (fn) => shell.onApp(fn), (o) => void window.__wc?.weather(o)));
 }
 
 const app = shell.app;
@@ -239,6 +247,8 @@ declare global {
       openPlayerLogs: (rels: string[], character?: string) => Promise<number>;
       /** Builds an HTML replay (src/replay/dev.ts); resolves to the file's text. */
       replayHtml: (o?: import('./replay/dev').DevReplayOptions) => Promise<string>;
+      /** Turns the weather effects on (stage 28; `window.__weather`, src/weather/dev.ts). */
+      weather: (o?: import('./weather').WeatherOptions) => Promise<import('./weather/dev').DevWeather | null>;
     };
   }
 }

@@ -76,6 +76,7 @@ import { LineAssembler } from '../text/assembler';
 import { InputPane } from '../ui/input-pane';
 import { CellMetrics } from '../theme/cells';
 import { Cockpit } from '../layout/cockpit';
+import type { WeatherHook, WeatherHookDeps } from '../weather/hook';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
@@ -180,6 +181,12 @@ export interface AppOptions {
    * (and in player Apps): no scripts, and `#script` / `#lua` say so.
    */
   scripts?: ScriptLibrary;
+  /**
+   * Weather effects (stage 28 trial): the shell passes `installWeather`
+   * (src/weather/hook.ts), so the log player and the HTML replay bundle
+   * never include it. Absent: no weather effects.
+   */
+  weather?: (deps: WeatherHookDeps) => WeatherHook;
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
   scriptStorage?: Storage | null;
   /** The Lua runtime loader for the script host (tests). */
@@ -209,6 +216,11 @@ export class App {
   readonly runEvents: RunEventDeriver;
   /** The live run for Statistics and Exit with rating (src/runs/live.ts). */
   readonly runs: LiveRuns;
+  /**
+   * Options → Weather effects (stage 28 trial, ADR 0091): loads the engine
+   * only while it is on. None in a log player.
+   */
+  readonly weather: WeatherHook | null;
   /** The latency monitor behind `#perf` (ADR 0047); none in a log player. */
   readonly perf: PerfMonitor | null;
   private readonly settings: SettingsStore;
@@ -443,6 +455,18 @@ export class App {
       if (typeof n === 'string' && n) this.charName = n;
     });
     bus.on('conn.state', this.onState);
+    // Weather effects (stage 28 trial): the only hook; nothing loads while they are off.
+    this.weather =
+      player || !opts.weather
+        ? null
+        : opts.weather({
+          bus,
+          game: this.game,
+          cockpit: this.cockpit,
+          settings: this.settings,
+          now,
+          notify: (text) => this.ui('warn', text),
+        });
   }
 
   private readonly onPageHide = (): void => {
@@ -458,6 +482,7 @@ export class App {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.weather?.dispose();
     this.loadToken++;
     this.session.dispose();
     for (const u of this.unsubs.splice(0)) u();
@@ -835,6 +860,11 @@ export class App {
         return;
       case 'perf':
         this.perfCommand(argText);
+        return;
+      case 'weather':
+        // The weather effects trial (stage 28): `#weather demo`, `#weather stop`.
+        if (this.weather) void this.weather.command(argText, (t) => this.sys(t));
+        else this.sys('Weather effects are not available here.');
         return;
       default:
         this.sys(`Unknown command: #${name}`);

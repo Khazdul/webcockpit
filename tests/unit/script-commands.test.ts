@@ -25,7 +25,7 @@ describe('command table', () => {
       expect(c.inert, n).toBe(true);
       expect(c.hint, n).toBeTruthy();
     }
-    for (const n of ['connect', 'disconnect', 'reconnect', 'runlog', 'replay', 'help', 'perf']) {
+    for (const n of ['connect', 'disconnect', 'reconnect', 'runlog', 'replay', 'help', 'perf', 'weather']) {
       expect(commandByName(n), n).toMatchObject({ kind: 'client', inert: false });
     }
     expect(commandByName('class')).toMatchObject({ kind: 'command', inert: false });
@@ -47,6 +47,13 @@ describe('resolveCommand', () => {
     expect(name('#elseif')).toBe('elseif');
     expect(name('run')).toBe('run');
     expect(name('runlog')).toBe('runlog');
+  });
+
+  it('#weather (stage 28 trial) needs its full name', () => {
+    expect(name('#weather')).toBe('weather');
+    expect(name('#we')).toBe(null);
+    expect(name('#wh')).toBe('while');
+    expect(name('#wr')).toBe('write');
   });
 
   it('#menu needs its full name and takes no tt++ abbreviation', () => {

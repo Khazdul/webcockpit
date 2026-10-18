@@ -1,0 +1,113 @@
+/* The weather demo's caption box (demo.ts, owner feedback 33). Loaded with
+ * the demo chunk only. A plain grey area at the game pane's top left (owner
+ * item 43: a debug tool, not a pane: no frame, no title plate), above the
+ * front weather layer, no pointer events. Opaque (game text under it would
+ * ghost through): the page background mixed a quarter toward mid grey, so
+ * it is dark grey on a dark page and light grey on a light one, and the
+ * theme's text colours read on it either way. Fades and the progress bar
+ * are CSS transitions (opacity, transform): no script runs per frame. */
+.wc-wdemo {
+  position: absolute;
+  z-index: 95;
+  box-sizing: border-box;
+  width: min(calc(var(--cell-w) * 58), calc(100% - 2 * var(--cell-w)));
+  padding: calc(var(--cell-h) * 0.35) calc(var(--cell-w) * 1.5) calc(var(--cell-h) * 0.4);
+  background: color-mix(in srgb, var(--term-bg) 75%, #808080);
+  color: var(--c-item);
+  line-height: var(--cell-h);
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.wc-wdemo[data-shown] {
+  opacity: 1;
+}
+
+/* The head row: the title on the left, the step count on the right. */
+.wc-wdemo-title,
+.wc-wdemo-count {
+  display: inline-block;
+  font-size: 0.82em;
+  line-height: var(--cell-h);
+  white-space: pre;
+}
+
+.wc-wdemo-title {
+  color: var(--c-title);
+}
+
+.wc-wdemo-count {
+  float: right;
+  color: var(--c-body);
+}
+
+.wc-wdemo-body {
+  transition: opacity 0.22s ease;
+}
+
+.wc-wdemo-body[data-fading] {
+  opacity: 0;
+}
+
+.wc-wdemo-step {
+  color: var(--c-header);
+  font-weight: bold;
+}
+
+.wc-wdemo-look {
+  /* two lines kept, so the box does not change height between steps */
+  min-height: calc(var(--cell-h) * 2);
+  color: var(--c-item);
+}
+
+.wc-wdemo-sig {
+  margin-top: calc(var(--cell-h) * 0.25);
+  font-size: 0.88em;
+}
+
+.wc-wdemo-sig[hidden] {
+  display: block;
+  visibility: hidden;
+}
+
+.wc-wdemo-in {
+  color: var(--c-body);
+}
+
+.wc-wdemo-signal {
+  color: var(--c-syn-cmd);
+  white-space: pre-wrap;
+}
+
+.wc-wdemo-bar {
+  position: relative;
+  height: 2px;
+  margin-top: calc(var(--cell-h) * 0.5);
+  background: color-mix(in srgb, var(--c-body) 35%, transparent);
+  overflow: hidden;
+}
+
+.wc-wdemo-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--c-accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+}
+
+.wc-wdemo-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--cell-w);
+  margin-top: calc(var(--cell-h) * 0.15);
+  font-size: 0.82em;
+  color: var(--c-body);
+}
+
+.wc-wdemo-hint {
+  color: var(--c-hint);
+}

@@ -60,10 +60,13 @@ import {
   TIMER_COLOR_ORDER,
   TIMER_COLS_MIN,
   type TimersSettings,
+  WEATHER_CATEGORIES,
+  type WeatherSettings,
   defaultSettings,
   defaultTimersSettings,
   timerColsMax,
   LEGACY_APPEARANCE,
+  LEGACY_MAPPER,
 } from './types';
 import { TIMER_GROUPS } from '../timers/entry';
 
@@ -131,7 +134,10 @@ function paneEntry(raw: unknown, d: Readonly<PaneSettings>): PaneSettings {
 function migratePanes(raw: unknown): PaneSettingsMap {
   if (!isObj(raw)) return defaultSettings().panes;
   const d = defaultSettings().panes;
-  d.ui = { ...d.ui, border: true };
+  // A damaged entry in a stored map takes the defaults before ADR 0078/0092.
+  d.ui = { ...d.ui, on: true, border: true };
+  d.character = { ...d.character, on: true };
+  d.map = { ...d.map, border: true };
   const p = raw;
   const out = {} as PaneSettingsMap;
   for (const id of PANE_IDS) out[id] = paneEntry(p[id], d[id]);
@@ -319,7 +325,8 @@ function rememberedBg(raw: unknown): string {
 }
 
 export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): MapperSettings {
-  const d = defaultSettings().mapper;
+  // Stored settings keep the defaults before ADR 0092 (default tileset, default background).
+  const d = { ...defaultSettings().mapper, ...LEGACY_MAPPER };
   const x = isObj(raw) ? raw : {};
   const hover = fromVersion < 2 && x.hover === 'minimal' ? 'full' : x.hover;
   const bg = mapBg(x.background, d.background);
@@ -333,8 +340,28 @@ export function migrateMapper(raw: unknown, fromVersion = SETTINGS_VERSION): Map
   };
 }
 
+/**
+ * Weather effects from anything (additive in stage 28: every category on,
+ * the blue day sky on). A missing or invalid `enabled` is on on a desktop
+ * and off on a phone (ADR 0092): existing desktop users get the weather
+ * with the update, a phone never starts with it; a stored choice is kept.
+ */
+export function migrateWeather(raw: unknown, phone = false): WeatherSettings {
+  const d = { ...defaultSettings().weather, enabled: !phone };
+  const x = isObj(raw) ? raw : {};
+  const out: WeatherSettings = { ...d, enabled: bool(x.enabled, d.enabled), daySky: bool(x.daySky, d.daySky) };
+  for (const k of WEATHER_CATEGORIES) out[k] = bool(x[k], d[k]);
+  return out;
+}
+
+/** Options for `migrateSettings`. */
+export interface MigrateOptions {
+  /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
+  phone?: boolean;
+}
+
 /** A complete, valid `Settings` from anything (stored data of any version). */
-export function migrateSettings(raw: unknown): Settings {
+export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settings {
   const d = defaultSettings();
   const s = isObj(raw) ? raw : {};
   const profile = typeof s.profile === 'string' && s.profile !== '' ? s.profile : d.profile;
@@ -351,5 +378,6 @@ export function migrateSettings(raw: unknown): Settings {
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
     mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
+    weather: migrateWeather(s.weather, opts.phone ?? false),
   };
 }

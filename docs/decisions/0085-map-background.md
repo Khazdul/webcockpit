@@ -146,3 +146,72 @@ involved.
    to that colour looks the same, keeps the fade, and picks dark lines
    on a light (paper) pane by the existing rule. Worker and protocol are
    unchanged.
+
+## Addendum 2 — see-through Transparent (2026-10-17)
+
+Owner feedback (stage 28 item 34, weather trial, ADR 0091): with
+Transparent, the background-coloured parts of the map pane should be
+transparent, so weather effects behind it show through. The Transparent
+addendum's reason for resolving to a colour (nothing lies behind the
+pane but its own background) no longer holds with weather: the back
+layer shows through docked pane interiors, and a floating pane holds its
+own weather canvas (ADR 0091 "Engine").
+
+1. **Context.** The worker's WebGL2 context is now created with
+   `alpha: true, premultipliedAlpha: true` for every background
+   (`MAP_CONTEXT`, core.ts). Context attributes are fixed for the
+   canvas's life and a transferred canvas cannot be replaced without
+   moving the pane's listeners and reloading the map, so one context that
+   suits both keeps the setting live (cycling ←→ through the list).
+2. **Opaque colours draw as before.** The clear has alpha 1 and every
+   blend keeps alpha at 1 (`blendOver`: colour `SRC_ALPHA,
+   ONE_MINUS_SRC_ALPHA`, alpha `ONE, ONE_MINUS_SRC_ALPHA`; the room tint
+   pass leaves alpha alone), so the pixels are the same as with the old
+   opaque context. The draw calls are unchanged; the only difference is
+   that the browser composites the canvas as a non-opaque layer (one
+   blended quad; not measurable against the map's on-demand frames).
+3. **Transparent.** The pane sends the resolved pane colour (its tint,
+   else the terminal background, as before) plus `transparent: true`
+   (`init` and `background` messages; an older worker ignores the flag
+   and draws opaque, so `MAP_PROTOCOL_VERSION` stays 1). The worker keeps
+   it as that colour with alpha 0 (`backgroundRgba`). The renderer:
+   - clears to (0, 0, 0, 0) (`clearRgba`): the empty space is clear;
+   - draws the pane colour, opaque, under the terrain of the current and
+     lower layers (one extra instanced draw per such layer, Transparent
+     only). MMapper draws terrain at 90 % over the background; with the
+     colour under it a room looks exactly as on the opaque colour and
+     stays opaque, instead of letting 10 % of the weather through every
+     room;
+   - the lower-layer fade (50 % of the background over the layers below
+     the player's) blends with `DST_ALPHA, ONE_MINUS_SRC_ALPHA` (alpha
+     `ZERO, ONE`) and a premultiplied colour (`fadeRgba`): a drawn pixel
+     moves toward the pane colour exactly as on an opaque background and
+     keeps its alpha; the empty space stays clear. Chosen over fading
+     toward transparency: lower-floor rooms at half opacity over moving
+     rain, clouds or a bright day sky read as noise and wash out, while
+     dimmed solid rooms keep the floors apart as MMapper intends, and the
+     map looks the same as before when nothing is behind it;
+   - the upper layers' 20 % white ghosts, connection lines, marks, text
+     and the character draw as before; their alpha edges over the clear
+     space are premultiplied, so no dark rims (textures stay
+     unpremultiplied, upload.ts is unchanged);
+   - the line colour (white, or dark on a light pane) is still chosen
+     from the resolved pane colour.
+4. **Pane.** `--map-bg` is `transparent` (the content's CSS background
+   under the canvas), `data-map-bg` stays the resolved colour and
+   `data-map-transparent` marks the mode. Without weather the pane's own
+   fill (tint or terminal background) shows through, the same colour the
+   old resolved drawing used: pixel-identical on a tinted pane (checked).
+   With weather the engine treats the map as any pane: a docked pane's
+   tint is painted under the weather in its frame box, a floating pane's
+   weather canvas has the terminal background and tint as its CSS
+   background (no weather code changed).
+5. **Replay and phone.** Same pane and worker; Transparent shows the
+   page behind, as before.
+
+Tests: `tests/unit/map-background.test.ts` (backgroundRgba, clear and
+fade colours, the fade's blend arithmetic, the context attributes, the
+worker's messages); `tests/e2e/map-background.spec.ts` swaps magenta and
+green behind the canvas: an opaque colour shows neither, Transparent
+shows them in the empty space only (as many pixels as the default's
+background) and not in the rooms.

@@ -75,6 +75,8 @@ const HINT_SCRIPT = 'Shell commands do nothing in the browser.';
 const HINT_LUA = 'Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.';
 const HINT_SCRIPT_CMD = 'Only #script list, help, set, enable, disable and reload run; other forms do nothing.';
 const HINT_LATER = 'Not supported yet; kept in the profile as written.';
+/** The weather effects trial (stage 28): not in the manual while it is a trial. */
+const HINT_WEATHER = 'weather effects trial: #weather demo [slow] plays every effect, #weather stop ends it.';
 
 // Alphabetical by name (checked by a test); order is the resolution order.
 const SPECS: readonly Spec[] = [
@@ -183,6 +185,7 @@ const SPECS: readonly Spec[] = [
   ['unticker', 'undefine', 'must', 'ticker'],
   ['unvariable', 'undefine', 'must', 'variable'],
   ['variable', 'define', 'must', 'variable'],
+  ['weather', 'client', 'client'],
   ['while', 'inert', 'unsupported'],
   ['write', 'inert', 'inert'],
   ['zap', 'inert', 'inert'],
@@ -193,6 +196,7 @@ const SESSION_CMDS = new Set(['session', 'gts', 'zap', 'all', 'snoop', 'port', '
 const SCRIPT_CMDS = new Set(['lua', 'system', 'script']);
 
 function hintFor(name: string, tier: CommandTier): string | undefined {
+  if (name === 'weather') return HINT_WEATHER;
   if (tier === 'unsupported') return HINT_LATER;
   if (tier !== 'inert') return undefined;
   if (FILE_CMDS.has(name)) return HINT_FILE;
@@ -208,7 +212,7 @@ function hintFor(name: string, tier: CommandTier): string | undefined {
  * their full name, so they never take over a tt++ abbreviation (`#me`
  * stays #message, not #menu).
  */
-const EXACT_ONLY: ReadonlySet<string> = new Set(['menu']);
+const EXACT_ONLY: ReadonlySet<string> = new Set(['menu', 'weather']);
 
 /** Shortest prefix of `names[i]` that the resolution rule maps to it. */
 function minAbbrevOf(all: readonly string[], i: number): number {

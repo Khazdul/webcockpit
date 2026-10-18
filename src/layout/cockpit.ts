@@ -96,7 +96,7 @@
 import './layout.css';
 import { type CellSource, type PaneContext, createPaneContext } from '../panes/context';
 import { PANE_FACTORIES } from '../panes/factories';
-import type { PaneShell } from '../panes/pane';
+import type { PaneCell, PaneShell } from '../panes/pane';
 import { onTempPlacesForgotten, saveTempPlace, tempPlace, type TempPaneAt } from './temp-places';
 import { type TileCorner, originFor, tileCorner, tileRects } from './tiles';
 
@@ -718,10 +718,14 @@ export class Cockpit {
 
   /** Relayouts at once. */
   relayoutNow(): void {
-    const cell = this.cells.get();
+    const cells = this.cells.get();
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
-    if (!(W > 0 && H > 0 && cell.w > 0 && cell.h > 0)) return;
+    if (!(W > 0 && H > 0 && cells.w > 0 && cells.h > 0)) return;
+    // The cockpit's place on the page (layout is clean after clientWidth), so
+    // pane frames land on whole device pixels (ADR 0091 "Frames").
+    const o = this.el.getBoundingClientRect();
+    const cell: PaneCell = { w: cells.w, h: cells.h, ox: o.left, oy: o.top };
     const s = this.settings.get();
     if (this.phone) {
       this.relayoutPhone(cell, W, H);
@@ -780,7 +784,7 @@ export class Cockpit {
   };
 
   /** Phone only: the relayout (allocatePhone, ADR 0075 §3); see the file header. */
-  private relayoutPhone(cell: { w: number; h: number }, W: number, H: number): void {
+  private relayoutPhone(cell: PaneCell, W: number, H: number): void {
     const s = this.settings.get();
     const r: PhoneLayoutResult = allocatePhone({
       layout: s.layout,

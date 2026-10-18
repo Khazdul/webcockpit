@@ -1,0 +1,91 @@
+/* Weather effects (stage 28, ADR 0091). Loaded with the lazy weather chunk.
+ *
+ * Two full-cockpit canvases the weather worker draws into. The back layer
+ * is the cockpit's first child and positioned without a z-index, so it
+ * paints under the game text and the docked panes; the front layer is above
+ * the panes (floating ones included) and below the drop bars, the drag
+ * shield and the chrome overlays. None takes pointer events. */
+.wc-weather-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  user-select: none;
+}
+
+.wc-weather-layer[hidden] {
+  display: none;
+}
+
+.wc-weather-front {
+  z-index: 90;
+}
+
+/* While the engine runs, panes are see-through so the back layer shows in
+ * their interiors (as in the prototype). A pane whose background differs
+ * from the terminal's gets that background painted by the worker under the
+ * back layer, inside its rim less the nameplate, so its tint stays. A
+ * floating pane is over the game text: what lies under it (the text, docked
+ * panes, lower floats) is clipped out (index.ts `floatHoles`, which marks it
+ * `data-weather-see`), so it shows the back layer itself, the same frame as
+ * round it (owner item 57). */
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]),
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] {
+  background: transparent;
+}
+
+/* Glass (item 35, ADR 0091 "Frames", addendum: glass rim and nameplate):
+ * the rim and plate blur what is behind them hard and brighten it (four
+ * strips under the rim, `.wc-pane-blur`: one box round the whole rim cost
+ * as much as blurring the whole pane); the pane
+ * inside is light glass, its colour at 55 % over a 2.5 px blur, so rain and
+ * clouds still read as shapes behind the text. A floating pane gets the same
+ * glass (item 50: a denser 72 % made the floating map's empty space read
+ * darker than the docked panes). Weather
+ * off there is nothing behind a pane but the flat page, so no blur at all
+ * (layout.css: an opaque fill, the same rim colours). */
+:root:not([data-light]) .wc-cockpit[data-weather] > .wc-pane[data-framed] {
+  --glass-mix: 52%;
+}
+
+.wc-cockpit[data-weather] > .wc-pane[data-framed] > .wc-pane-blur {
+  display: block;
+}
+
+.wc-cockpit[data-weather] > .wc-pane[data-framed] > .wc-pane-blur > i {
+  -webkit-backdrop-filter: blur(9px) saturate(1.35) brightness(1.06);
+  backdrop-filter: blur(9px) saturate(1.35) brightness(1.06);
+}
+
+.wc-cockpit[data-weather] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
+.wc-cockpit[data-weather] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before {
+  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
+  -webkit-backdrop-filter: blur(2.5px) saturate(1.25);
+  backdrop-filter: blur(2.5px) saturate(1.25);
+}
+
+/* Without the blur (Firefox, `data-weather-flat`, support.ts
+ * `glassBlurCheap`: there it cost 16–30 % more CPU over the animated
+ * canvases, whatever the radius): the same glass a little denser, so the
+ * sharp weather behind reads as far off as the blurred one. The same for a
+ * pane a float lies over (`data-weather-under`, index.ts `floatHoles`): its
+ * hole is a clip-path, which makes the pane a backdrop root, so its blur
+ * would see nothing behind it (owner item 57). */
+:root .wc-cockpit[data-weather][data-weather-flat] > .wc-pane[data-framed],
+:root .wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] {
+  --glass-mix: 60%;
+}
+
+.wc-cockpit[data-weather-flat] > .wc-pane[data-framed] > .wc-pane-blur,
+.wc-cockpit[data-weather] > .wc-pane[data-framed][data-weather-under] > .wc-pane-blur {
+  display: none;
+}
+
+.wc-cockpit[data-weather-flat] > .wc-pane:not([data-floating]) > .wc-pane-frame::before,
+.wc-cockpit[data-weather-flat] > .wc-pane[data-floating][data-weather-see] > .wc-pane-frame::before,
+.wc-cockpit[data-weather] > .wc-pane.wc-pane[data-weather-under] > .wc-pane-frame::before {
+  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

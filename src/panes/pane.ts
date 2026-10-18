@@ -3,7 +3,11 @@
 // draws its frame; a pane subclass renders into `content`.
 //
 //   .wc-pane.wc-pane-<id>[data-active]   positioned in whole cells, --pane-* tokens
-//     .wc-pane-frame                     the glyph frame (absent text when border off)
+//     .wc-pane-blur > i × 4              the rim's backdrop blur in four strips (weather on)
+//     .wc-pane-rim                       the glass rim and nameplate (hidden when border off)
+//       svg.wc-pane-seam                 the rim's inner seam
+//     .wc-pane-frame                     the frame box (hidden when border off); ::before is its fill
+//       .wc-pane-title > span            the label on the nameplate
 //     .wc-pane-content                   the inner area, `cols` × `rows` cells
 //
 // Writing a pane (ADR 0016 "Package notes"):
@@ -39,7 +43,7 @@ import { type Settings, paneSettingsOf } from '../settings/types';
 import type { Rect } from '../layout/allocate';
 import { type BuiltinPaneId, PANE_LABELS, type PaneId, isBuiltinPaneId } from '../layout/types';
 import type { PaneContext } from './context';
-import { frameText } from './frame';
+import { type FrameGeometry, type FramePlate, frameGeometry, frameHolePath, frameLabel, framePlate, frameRimPath, frameSeams, frameStrips } from './frame';
 
 export type { PaneContext } from './context';
 
@@ -60,6 +64,18 @@ export type PaneResizeListener = (cols: number, rows: number) => void;
 
 /** z-index of the backmost floating pane; the others stack above it. */
 export const FLOAT_Z = 10;
+
+/**
+ * The cell size the cockpit lays out with (CSS px). `ox` / `oy`: where the
+ * cockpit's origin sits on the page (CSS px), so the frame line can be put on
+ * whole device pixels of the page (ADR 0091 "Frames"); 0 when absent.
+ */
+export interface PaneCell {
+  w: number;
+  h: number;
+  ox?: number;
+  oy?: number;
+}
 
 /** Where and how the cockpit shows a pane (cells), or null when hidden. */
 export interface PanePlacement {
@@ -86,9 +102,21 @@ export class PaneShell {
   /** Blank the content while inactive (all panes but UI). */
   readonly blankWhenInactive: boolean;
   protected readonly ctx: PaneContext;
+  private readonly rimEl: HTMLDivElement;
+  /** The rim's blur strips (top with the plate, left, right, bottom). */
+  private readonly blurEls: HTMLElement[];
   private readonly frameEl: HTMLDivElement;
+  private readonly titleEl: HTMLSpanElement;
+  /** The label text inside the title (its box trimmed to the capitals, so they centre on the plate). */
+  private readonly labelEl: HTMLSpanElement;
+  private geomKey = '';
+  private _frameLine: FrameGeometry | null = null;
+  private _plate: FramePlate | null = null;
+  /** The inner seam's dark and light paths. */
+  private readonly seamPaths: SVGPathElement[];
   private readonly listeners = new Set<PaneResizeListener>();
   private readonly unsubs: (() => void)[] = [];
+  /** The label text shown in the frame's top row. */
   private frameKey = '';
   private _label: string;
   private themeKey = '';
@@ -97,7 +125,7 @@ export class PaneShell {
   private _visible = false;
   /** The last placement (for a label change). */
   private placed: PanePlacement | null = null;
-  private placedCell: { w: number; h: number } | null = null;
+  private placedCell: PaneCell | null = null;
   private _active: boolean;
   /** A render is wanted (kept while hidden). */
   private dirty = true;
@@ -121,12 +149,35 @@ export class PaneShell {
     this.el.setAttribute('role', 'region');
     this.el.setAttribute('aria-label', this._label);
     this.el.hidden = true;
+    // The rim comes first: its backdrop is what is behind the pane, not the
+    // pane's fill (ADR 0091 "Frames", addendum: glass rim and nameplate).
+    this.rimEl = doc.createElement('div');
+    this.rimEl.className = 'wc-pane-rim';
+    this.rimEl.setAttribute('aria-hidden', 'true');
+    const SVG = 'http://www.w3.org/2000/svg';
+    const seam = doc.createElementNS(SVG, 'svg');
+    seam.setAttribute('class', 'wc-pane-seam');
+    this.seamPaths = (['wc-seam-dark', 'wc-seam-light'] as const).map((cls) => {
+      const path = doc.createElementNS(SVG, 'path');
+      path.setAttribute('class', cls);
+      seam.append(path);
+      return path;
+    });
+    this.rimEl.append(seam);
+    const blur = doc.createElement('div');
+    blur.className = 'wc-pane-blur';
+    blur.setAttribute('aria-hidden', 'true');
+    this.blurEls = [0, 1, 2, 3].map(() => blur.appendChild(doc.createElement('i')));
     this.frameEl = doc.createElement('div');
     this.frameEl.className = 'wc-pane-frame';
     this.frameEl.setAttribute('aria-hidden', 'true');
+    this.titleEl = doc.createElement('span');
+    this.titleEl.className = 'wc-pane-title';
+    this.labelEl = doc.createElement('span');
+    this.frameEl.append(this.titleEl);
     this.content = doc.createElement('div');
     this.content.className = 'wc-pane-content';
-    this.el.append(this.frameEl, this.content);
+    this.el.append(blur, this.rimEl, this.frameEl, this.content);
     this.el.toggleAttribute('data-active', this._active);
     this.own(
       ctx.bus.on('conn.state', (s) => {
@@ -148,7 +199,6 @@ export class PaneShell {
     if (label === this._label) return;
     this._label = label;
     this.el.setAttribute('aria-label', label);
-    this.frameKey = '';
     if (this.placed) this.place(this.placed, this.placedCell!);
   }
 
@@ -267,7 +317,7 @@ export class PaneShell {
   }
 
   /** Cockpit only: shows the pane at `p` (cells × `cell` px) or hides it. */
-  place(p: PanePlacement | null, cell: { w: number; h: number }): void {
+  place(p: PanePlacement | null, cell: PaneCell): void {
     this.placed = p;
     this.placedCell = cell;
     if (!p) {
@@ -287,10 +337,15 @@ export class PaneShell {
     cs.top = `${(content.y - rect.y) * cell.h}px`;
     cs.width = `${content.w * cell.w}px`;
     cs.height = `${content.h * cell.h}px`;
-    const key = p.framed ? `${rect.w}x${rect.h}|${this._label}` : '';
-    if (key !== this.frameKey) {
-      this.frameKey = key;
-      this.frameEl.textContent = p.framed ? frameText(rect.w, rect.h, this._label) : '';
+    const want = p.framed ? frameLabel(rect.w, this._label) : '';
+    if (p.framed) this.placeFrame(rect, cell, want.length);
+    // No plate (no room for one): no title.
+    const label = p.framed && this._plate ? want : '';
+    if (label !== this.frameKey) {
+      this.frameKey = label;
+      this.labelEl.textContent = label;
+      if (label) this.titleEl.replaceChildren(this.labelEl);
+      else this.titleEl.replaceChildren();
     }
     this.el.toggleAttribute('data-framed', p.framed);
     this.el.toggleAttribute('data-floating', p.floating !== undefined);
@@ -298,6 +353,70 @@ export class PaneShell {
     this.el.hidden = false;
     this._visible = true;
     this.setSize(content.w, content.h);
+  }
+
+  /**
+   * Puts the frame rim and the nameplate on whole device pixels of the page
+   * for this pane's box (ADR 0091 "Frames"). Style writes only when a value
+   * changes.
+   */
+  private placeFrame(rect: Rect, cell: PaneCell, chars: number): void {
+    const dpr = this.ctx.doc.defaultView?.devicePixelRatio ?? 1;
+    const box = { x: (cell.ox ?? 0) + rect.x * cell.w, y: (cell.oy ?? 0) + rect.y * cell.h, w: rect.w * cell.w, h: rect.h * cell.h };
+    const g = frameGeometry(box, cell.w, cell.h, dpr);
+    const pl = framePlate(box, g, cell.w, cell.h, chars, dpr);
+    this._frameLine = g;
+    this._plate = pl;
+    const fw = box.w - g.l - g.r, fh = box.h - g.top - g.b;
+    const hair = Math.max(1, Math.round(dpr)) / (dpr > 0 ? dpr : 1);
+    const key = `${g.t},${g.l},${g.r},${g.top},${g.b},${fw},${fh},${hair},${pl ? `${pl.x0},${pl.x1},${pl.y0},${pl.y1},${pl.r}` : ''}`;
+    if (key === this.geomKey) return;
+    this.geomKey = key;
+    const [dark, light] = this.seamPaths as [SVGPathElement, SVGPathElement];
+    const seams = frameSeams(fw, fh, g.t, pl);
+    dark.setAttribute('d', seams.dark);
+    light.setAttribute('d', seams.light);
+    this.rimEl.style.clipPath = `path(evenodd, "${frameRimPath(fw, fh, g.t, pl)}")`;
+    const strips = frameStrips(fw, fh, g.t, pl);
+    for (let i = 0; i < 4; i++) {
+      const s = strips[i]!, bs = this.blurEls[i]!.style;
+      bs.left = `${s.x}px`;
+      bs.top = `${s.y}px`;
+      bs.width = `${s.w}px`;
+      bs.height = `${s.h}px`;
+      bs.clipPath = `path(evenodd, "${frameRimPath(fw, fh, g.t, pl, -s.x, -s.y)}")`;
+    }
+    const st = this.el.style;
+    st.setProperty('--frame-t', `${g.t}px`);
+    st.setProperty('--frame-l', `${g.l}px`);
+    st.setProperty('--frame-r', `${g.r}px`);
+    st.setProperty('--frame-top', `${g.top}px`);
+    st.setProperty('--frame-b', `${g.b}px`);
+    st.setProperty('--frame-hair', `${hair}px`);
+    st.setProperty('--frame-hole', `path("${frameHolePath(fw, fh, g.t, pl)}")`);
+    if (pl) {
+      st.setProperty('--plate-x0', `${pl.x0}px`);
+      st.setProperty('--plate-x1', `${pl.x1}px`);
+      st.setProperty('--plate-y0', `${pl.y0}px`);
+      st.setProperty('--plate-y1', `${pl.y1}px`);
+      st.setProperty('--plate-r', `${pl.r}px`);
+    } else for (const k of ['--plate-x0', '--plate-x1', '--plate-y0', '--plate-y1', '--plate-r']) st.removeProperty(k);
+  }
+
+  /** The frame rim as last placed (CSS px from the pane's edges), null while unframed. */
+  protected get frameLine(): FrameGeometry | null {
+    return this.placed?.framed ? this._frameLine : null;
+  }
+
+  /**
+   * The rim's hole (the inside less the nameplate, `frameHolePath`) moved by
+   * (`dx`, `dy`) from the frame box, for a clip; null while unframed.
+   */
+  protected frameHole(dx: number, dy: number): string | null {
+    const g = this.frameLine, p = this.placed, c = this.placedCell;
+    if (!g || !p || !c) return null;
+    const fw = p.rect.w * c.w - g.l - g.r, fh = p.rect.h * c.h - g.top - g.b;
+    return frameHolePath(fw, fh, g.t, this._plate, dx, dy);
   }
 
   private setSize(cols: number, rows: number): void {

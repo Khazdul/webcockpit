@@ -24,7 +24,9 @@ export const MAP_BG_DARK_PAPER = '#e8dfc8';
  * background, the terminal background or the pane's tint. Not a colour:
  * the pane resolves it (`mapBgEffective`) before the worker sees it, so
  * the lower-layer fade and the light-background lines work as for any
- * colour.
+ * colour. The worker is also told it is transparent and leaves the empty
+ * space clear (alpha 0), so what lies behind the pane (its fill, or the
+ * weather through a see-through pane) shows (addendum 2).
  */
 export const MAP_BG_TRANSPARENT = 'transparent';
 

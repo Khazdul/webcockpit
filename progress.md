@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 (weather effects trial) lives on branch `weather-trial` (not merged): check it out and read `docs/stages/28-weather-trial.md` (Handoff). Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 (weather effects) merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -33,10 +33,160 @@ Stage 28 (weather effects trial) lives on branch `weather-trial` (not merged): c
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
+| 28 | Weather effects | Done | `docs/stages/28-weather-trial.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-18 — Stage 28 new-player defaults (branch `weather-trial`)
+
+- **Done:** item 58, ADR 0092. New player: weather on, map docked under
+  Character in a 50-cell right dock, Shimrod (alternating) on Transparent,
+  Character/UI/Map search hidden (Map search at the game's top-right),
+  the map borderless.
+  Existing desktop users get the weather on (explicit off kept); phones
+  default off and keep Character on. Old-default tests use
+  `adr0078Settings()` in `tests/unit/legacy-defaults.ts`.
+- **Checked:** typecheck; unit 2692; e2e 522/524 (two known flakies, also
+  on 8e0998c).
+- **Owner test:** approved ("looks good").
+- **Next:** merge `weather-trial` to main and release.
+- **Open:** a browser without OffscreenCanvas now shows the weather
+  warning on every load (weather defaults on there).
+- **Commits:** a8e6fff…(this commit).
+
+### 2026-10-17 — Stage 28 owner feedback round 4 (branch `weather-trial`)
+
+- **Done:** items 35–38. 36: "Blue day sky" switch (`weather.daySky`).
+  37: three strong sun beams (`worker/beams.ts`), frame lines glint where
+  a beam crosses them. 38: moon rises east (right), sets west (left).
+  35: frame mockup (https://claude.ai/artifact/AA75geBq5rii2iJFydqc6H,
+  `notes/research/frame-mockup/`), 16 boards over three rounds; the owner
+  picked 14 "Light hanging plate" (frosted glass rim, light glass
+  nameplate) and it is built: 6 px rim, plate same glass as the rim, glass
+  blur inside panes with weather on (Chromium; Firefox gets a denser tint
+  without blur, the blur cost too much CPU there). ADR 0091 addendum.
+- **Checked:** typecheck, unit 2665, e2e layout/weather/script-panes/map/
+  phone in all projects; latency unchanged without blur; Chromium ~+5 %
+  CPU with weather on.
+- **Round 5 (items 39–44) done:** title ink a touch lighter and its lip
+  a touch darker, plate 1 px shorter, drips on the rim's edge, plate takes
+  the dawn/dusk tint, demo caption a plain grey box, darker frame glass.
+- **Round 6 (items 45–49) done:** frame lights follow the rounded rim
+  (`worker/rimshape.ts`), no dark seams beside the plate, title ink L .28
+  and softer lip, snow dusting on the rim (no band above), glints light
+  the whole plate.
+- **Round 7 (items 50–51) done:** floating panes (the map floats by
+  default) use the docked panes' glass, so the transparent map matches;
+  specular line 85 → 58 %, light seam 40 → 32 %, dark edge .62 → .56.
+- **Round 8 (items 52–53) done:** day sun glimpses follow the sun
+  (new `sunU`, at least once a minute, most and strongest at midday,
+  6 fps); borderless panes are invisible to the weather (only framed panes
+  in `env.panes`).
+- **Round 9 (items 54–56) done:** plate's bottom edge gets the dark seam;
+  glimpse rays, glow and glints a quarter weaker; transitions run at
+  30 fps (`Director.moving()`), even vsync cadence, timed cloud key frames,
+  steady clouds 20 fps (Firefox 15), far snow as dots on CPU canvases
+  (Firefox snow 964 → 515 ms/s). Cost: clouds ~+0.1 core, a cover change
+  ~+0.25 core while it lasts.
+- **Round 10 (item 57) done:** float canvases removed; floats are
+  see-through to the back canvas, and whatever lies under them is clipped
+  out (`floatHoles`, `holeClip`), so a borderless float is in step with
+  lightning in Chromium and Firefox. A pane under a float gets
+  unblurred glass while covered (owner to judge). CPU unchanged.
+- **Closed 2026-10-18:** the owner is fairly happy; remaining small
+  defects listed in the stage file ("Known small defects").
+- **Next:** session 1: new-player defaults (panes and arrangement,
+  mapper background, map tileset, weather on by default, more from the
+  owner). Session 2: merge `weather-trial` to main, review, release.
+- **Commits:** c6dc691…(this commit) on `weather-trial`.
+
+### 2026-10-17 — Stage 28 demo and see-through map (branch `weather-trial`)
+
+- **Done:** item 33 `#weather demo [slow]` / `#weather stop`: 21 steps in
+  1:36 (engine time scale 3× for sun, sky, fog, build-ups; smooth pins),
+  caption box top left; `?weather` now works after login. Item 34:
+  Mapper Transparent leaves the map's empty space see-through (alpha
+  context, rooms opaque, lower floors dimmed solid; ADR 0085 addendum 2).
+- **Checked:** typecheck, unit 2648, e2e weather/layout/map/map-background/
+  phone-frames/script-panes (82); latency bench unchanged.
+- **Open:** map canvas now always composited with alpha (not benched);
+  a real `Event.Sun` during the demo can flip the sky; reloading
+  mid-demo leaves the effects on.
+- **Next:** owner tests round 3 with `#weather demo`.
+- **Commits:** 901d8a7…(this commit) on `weather-trial`.
+
+### 2026-10-17 — Stage 28 owner feedback round 3 (branch `weather-trial`)
+
+- **Done:** items 26–32. Darkness only on `Event.Darkness` (room-line
+  trigger and red sky dropped); sky fades in/out evenly over 5 s at 30 fps;
+  day sky erased over the left 34 % (top left dark); sunrise/sunset 24/26 s
+  with a held, 12 s day↔night change; 8 thinner rays; stars to 55 %/90 %.
+  Frames: title gap in the line instead of the notch (`frameGap`,
+  `PaneGeom.gap`); glints, rays and shadows skip the gap.
+- **Checked:** typecheck, unit 2624, e2e weather/layout/phone-frames/
+  script-panes/map*; latency and power benches unchanged.
+- **Open:** `Event.Darkness` and the lightning XML tag unseen live;
+  sunset glow still brightens the top left while it lasts.
+- **Next:** owner tests round 3.
+- **Commits:** 972a56f…(this commit) on `weather-trial`.
+
+### 2026-10-17 — Stage 28 owner feedback round 2 (branch `weather-trial`)
+
+- **Done:** items 10–25. Frames: 3 px glass line (SVG path), 6 px gaps
+  both ways, title in a notch the line winds under, transparent close
+  cross, map flush to the line, one weather canvas per floating pane (see-
+  through at once, also when overlapping). Sky: magical darkness from the
+  room line "A deep, impenetrable darkness lingers here." (not light `o`),
+  moon by day and an even arc driven by Event.Moon/almanac, glints on
+  frames (sun rays, shooting stars, lightning, glimpses), blue day sky with
+  birds/tufts/glimpses, staggered clouds, no left-edge fade, more stars.
+- **Checked:** typecheck, unit 2624, e2e weather/layout/map/phone-frames/
+  script-panes; latency bench unchanged.
+- **Open:** chromium "a drag shows its cursor on a shield" fails on main
+  too (pre-existing). Sunrise glint still a straight band across the
+  title notch. Darkness XML tag and live Event.Darkness unseen.
+- **Owner test 3:** feedback items 26–32 recorded in the stage file
+  (darkness only on events, smoother fades, dark top left, slower
+  sunset/sunrise, thinner rays, lower stars, title gap back).
+- **Next:** items 26–32 (stage file "third test").
+- **Commits:** 93cf1a0…(this commit) on `weather-trial`.
+
+### 2026-10-17 — Stage 28 owner feedback round 1 (branch `weather-trial`)
+
+- **Done:** all nine feedback items. Frames: one colour, whole device
+  pixels, label without a box, no weather glints on the line; floating
+  panes see-through via a mid canvas. Power: 30/12/3 fps by content,
+  caches, ratio 1 (Firefox calm 0.80 → ~0.15 core). Calm light day sky,
+  moon path independent of text, clouds kept on pane moves, darkness sky
+  indoors on light `o`, fog fades over 20–40 s, line sampling removed.
+- **Found:** the owner's dev server served main's `layout.css` after a
+  branch switch (no frames at all). Firefox never woke the NVIDIA GPU.
+- **Checked:** typecheck, unit 2614, e2e weather/layout/phone-frames/
+  map-background/script-panes, latency bench unchanged.
+- **Open:** red sky shows in every dark room (`o`), owner's call; frame
+  line brighter than before; hover close cross still opaque; sun glow
+  subtle on black.
+- **Next:** owner retests (restart the dev server first).
+- **Commits:** e317193…(this commit) on `weather-trial`.
+
+### 2026-10-16 — Stage 28 weather effects trial (branch `weather-trial`)
+
+- **Done:** thin bevelled pane frames (A); weather engine in a Web Worker
+  on OffscreenCanvas, a port of the v4 prototype (B); GMCP/almanac bridge
+  plus lightning from the XML `<weather>` line (C); Options → Weather
+  effects, off by default (D); latency bench (E): key→send and
+  text→painted unchanged off vs on.
+- **Fixed:** Weather effects placed last in Options (it had shifted
+  Scripts and broke 60+ e2e menu walks).
+- **Checked:** typecheck, unit 2601, e2e 513 passed, plus 3 flaky that
+  pass alone.
+- **Open:** `<weather>` tag unverified live; Firefox worker canvas is slow
+  headless (~45 ms/frame). Screenshot task on three backgrounds partly
+  done (engine shots). Not merged to main, not released.
+- **Next:** owner tests on the branch; keep or drop.
+- **Commits:** 5e0214a…(this commit) on `weather-trial`.
 
 ### 2026-10-16 — Weather effects research (not a stage)
 

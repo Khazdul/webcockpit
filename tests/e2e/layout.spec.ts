@@ -1,6 +1,7 @@
 // Stage 2 package B: docking layout, pane frames, drag, resize, toggles,
 // narrow collapse and the too-small screen. Uses the dev-only `window.__wc`.
 import { type Page, expect, test } from '@playwright/test';
+import { dprTest, expectDpr } from './dpr';
 
 interface Box {
   x: number;
@@ -88,23 +89,80 @@ test('default layout: game left, input under it as wide as the game, full-height
   expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
-  const frame = await page.locator('.wc-pane-character .wc-pane-frame').textContent();
-  const lines = frame!.split('\n');
-  expect(lines[0]).toBe('▛▀▀ Character ' + '▀'.repeat(33 - 2 - 13) + '▜');
-  expect(lines[1]).toBe('▌' + ' '.repeat(31) + '▐');
-  expect(lines.at(-1)).toBe('▙' + '▄'.repeat(31) + '▟');
-  expect(lines.length).toBe(11);
-  // Frame glyphs in the pane's border colour over its fill.
+  // A glass rim the same inset from every edge of the outer cells, a nameplate hanging from it with
+  // the label from about the fourth cell (ADR 0091 "Frames", addendum: glass rim and nameplate).
+  await expect(page.locator('.wc-pane-character .wc-pane-frame')).toHaveText(' Character ');
+  const geo = await page.locator('.wc-pane-character').evaluate((el) => {
+    const p = el.getBoundingClientRect();
+    const f = el.querySelector('.wc-pane-frame')!;
+    const r = f.getBoundingClientRect();
+    const rim = el.querySelector<HTMLElement>('.wc-pane-rim')!;
+    const rr = rim.getBoundingClientRect();
+    const title = el.querySelector('.wc-pane-title')!;
+    const t = title.getBoundingClientRect();
+    const st = (el as HTMLElement).style;
+    const d = devicePixelRatio;
+    const v = (k: string): number => parseFloat(st.getPropertyValue(k));
+    return {
+      inset: [r.left - p.left, r.top - p.top, p.right - r.right, p.bottom - r.bottom],
+      rim: [rr.left - r.left, rr.top - r.top, rr.right - r.right, rr.bottom - r.bottom],
+      // Every edge of the frame box on a whole device pixel of the page.
+      edges: [r.left, r.top, r.right, r.bottom].map((x) => Math.abs(x * d - Math.round(x * d))),
+      t: v('--frame-t'),
+      plate: [v('--plate-x0'), v('--plate-x1'), v('--plate-y0'), v('--plate-y1'), v('--plate-r')],
+      rimClip: rim.style.clipPath,
+      seams: el.querySelectorAll('.wc-pane-seam > path').length,
+      fill: getComputedStyle(f, '::before').backgroundColor,
+      fillClip: getComputedStyle(f, '::before').clipPath,
+      title: [t.left - r.left, t.top - r.top, t.right - r.left, t.bottom - r.top],
+      titleZ: getComputedStyle(title).zIndex,
+      titleSize: parseFloat(getComputedStyle(title).fontSize) / parseFloat(getComputedStyle(el).fontSize),
+      titleColor: getComputedStyle(title).color,
+    };
+  });
+  const lw = geo.t;
+  expect(lw).toBeGreaterThanOrEqual(5);
+  expect(lw).toBeLessThan(ch / 2.5);
+  for (const e of geo.edges) expect(e).toBeLessThan(0.05);
+  // The rim box is the frame box, clipped to the ring and the plate (even-odd), with a seam path each side.
+  expect(geo.rim).toEqual([0, 0, 0, 0]);
+  expect(geo.rimClip).toMatch(/^path\(evenodd,/);
+  expect(geo.seams).toBe(2);
+  // The same inset on all four sides (owner feedback 15): equal gaps beside and above; 1 px clear of the text.
+  for (const i of geo.inset) expect(Math.abs(i - geo.inset[0]!)).toBeLessThanOrEqual(1);
+  expect(geo.inset[0]! + lw).toBeLessThanOrEqual(cw - 1 + 0.01);
+  // The plate: from about the fourth cell, under the rim's lip, hanging below the rim, clear of the first text row.
+  const [x0, x1, y0, y1, pr] = geo.plate as [number, number, number, number, number];
+  expect(Math.abs(x0 + geo.inset[0]! - 3 * cw)).toBeLessThanOrEqual(3);
+  expect(x1 - x0).toBeGreaterThan(9 * cw * 0.68);
+  expect(y0).toBeGreaterThan(0);
+  expect(y0).toBeLessThan(lw);
+  expect(y1).toBeGreaterThan(lw + pr);
+  expect(geo.inset[1]! + y1).toBeLessThan(ch);
+  // The fill (opaque, weather off) clipped to the hole: the inside of the rim less the plate.
+  expect(geo.fill).toBe('rgb(0, 0, 0)');
+  expect(geo.fillClip).toMatch(/^path\("M/);
+  // The title box is the plate, from the rim's outer edge down, above the content; 0.68 em.
+  expect(geo.title[0]).toBeCloseTo(x0, 1);
+  expect(geo.title[2]).toBeCloseTo(x1, 1);
+  expect(geo.title[1]).toBeCloseTo(0, 1);
+  expect(geo.title[3]).toBeCloseTo(y1, 1);
+  expect(geo.titleSize).toBeCloseTo(0.68, 2);
+  expect(geo.titleZ).toBe('2');
+  // Dark ink (Plain: neutral grey, oklch L 0.28, no chroma; owner item 47).
+  const ink = /^oklch\(0\.28 ([\d.e-]+) /.exec(geo.titleColor);
+  expect(ink, geo.titleColor).not.toBeNull();
+  expect(parseFloat(ink![1]!)).toBeLessThan(1e-3);
   const colors = await page.locator('.wc-pane-timers').evaluate((el) => ({
-    bg: getComputedStyle(el).backgroundColor,
-    fg: getComputedStyle(el.querySelector('.wc-pane-frame')!).color,
+    ring: getComputedStyle(el).backgroundColor,
+    bg: getComputedStyle(el.querySelector('.wc-pane-frame')!, '::before').backgroundColor,
   }));
-  expect(colors).toEqual({ bg: 'rgb(0, 0, 0)', fg: 'rgb(41, 41, 41)' }); // None: the terminal background
+  expect(colors).toMatchObject({ ring: 'rgba(0, 0, 0, 0)', bg: 'rgb(0, 0, 0)' }); // None: the terminal background
   await expect(page.locator('.wc-input-field')).toBeFocused();
   expect(errors).toEqual([]);
 });
 
-test('toggles, colours and borders apply live; corners are always quadrant', async ({ page }) => {
+test('toggles, colours and borders apply live; a borderless pane has no frame', async ({ page }) => {
   const { ch } = await open(page);
   await cockpitHeights(page);
   const set = (patch: object) => page.evaluate((p) => window.__wc!.settings.update(p), patch);
@@ -113,10 +171,10 @@ test('toggles, colours and borders apply live; corners are always quadrant', asy
   expect((await box(page, '.wc-pane-comm')).y).toBe((11 + 10) * ch);
   await set({ panes: { group: { on: true, color: 'purple', border: false } } });
   await expect(page.locator('.wc-pane-group')).toBeVisible();
-  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toHaveText('');
+  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toBeHidden();
   expect((await box(page, '.wc-pane-group')).height).toBe(6 * ch);
   expect(await page.locator('.wc-pane-group').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(22, 16, 28)');
-  expect((await page.locator('.wc-pane-ui .wc-pane-frame').textContent())!.startsWith('▛▀▀ UI ▀')).toBe(true);
+  await expect(page.locator('.wc-pane-ui .wc-pane-frame')).toHaveText(' UI ');
 });
 
 test('drag a pane by its title row to the left dock', async ({ page }) => {
@@ -725,9 +783,9 @@ test('floating pane: drop over the game, move, resize, reload, dock again', asyn
   await expect.poll(() => floating(page)).toEqual([{ id: 'comm', x: x - 3, y, w: 43, h: 16 }]);
   x -= 3;
   await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: x * cw, y: y * ch, width: 43 * cw, height: 16 * ch });
-  const frame = (await page.locator('.wc-pane-comm .wc-pane-frame').textContent())!.split('\n');
-  expect(frame[0]).toBe('▛▀▀ Comm ' + '▀'.repeat(43 - 2 - 8) + '▜');
-  expect(frame).toHaveLength(16);
+  await expect(page.locator('.wc-pane-comm .wc-pane-frame')).toHaveText(' Comm ');
+  // A floating pane keeps the ring outside its frame line opaque (ADR 0091).
+  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(0, 0, 0)');
   await expect(page.locator('.wc-input-field')).toBeFocused();
 
   // A reload keeps it.
@@ -837,13 +895,12 @@ test('hovering a pane shows a close cross in its title row; clicking it hides th
   const timers = await box(page, '.wc-pane-timers');
   await page.mouse.move(o.x + timers.x + 4 * cw, o.y + timers.y + 3 * ch);
   await expect(close).toBeVisible();
-  // " × " in the title row, one cell in from the right edge.
-  expect(await box(page, '.wc-pane-timers .wc-pane-close')).toEqual({
-    x: timers.x + timers.width - 4 * cw,
-    y: timers.y,
-    width: 3 * cw,
-    height: ch,
-  });
+  // " × " in the title row, one cell in from the right edge; on a frame, just under the rim (ADR 0091 "Frames").
+  const cross = await box(page, '.wc-pane-timers .wc-pane-close');
+  expect(cross).toMatchObject({ x: timers.x + timers.width - 4 * cw, width: 3 * cw });
+  expect(cross.y).toBeGreaterThan(timers.y + 3);
+  expect(cross.y).toBeLessThan(timers.y + ch * 0.6);
+  expect(cross.y + cross.height).toBeCloseTo(timers.y + ch, 1);
   await expect(page.locator('.wc-pane-character .wc-pane-close')).toBeHidden();
 
   await close.click();
@@ -853,3 +910,44 @@ test('hovering a pane shows a close cross in its title row; clicking it hides th
   expect(await page.evaluate(() => window.__wc!.settings.get().layout.floating.map((f) => f.id))).not.toContain('timers');
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });
+
+for (const dpr of [1.25, 1.5]) {
+  dprTest.describe(`frames at pixel ratio ${dpr}`, () => {
+    dprTest.use({ dpr });
+    dprTest('every frame line edge sits on a whole device pixel, equally thick (ADR 0091 "Frames")', async ({ dprPage: page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/?replay');
+      await expect(page.locator('.wc-pane-character')).toBeVisible();
+      await expectDpr(page, dpr);
+      // Two right columns, as in the owner's report.
+      await page.evaluate(() =>
+        window.__wc!.settings.update((d) => {
+          const R = d.layout.docks.right;
+          const all = [...R.head, ...R.lanes.flatMap((l) => l.panes), ...R.tail];
+          R.head = [];
+          R.tail = [];
+          R.lanes = [
+            { size: 33, panes: all.filter((p) => p.id !== 'comm') },
+            { size: 33, panes: all.filter((p) => p.id === 'comm') },
+          ];
+        }),
+      );
+      await expect(page.locator('.wc-pane-comm')).toBeVisible();
+      const frames = await page.evaluate(() =>
+        [...document.querySelectorAll<HTMLElement>('.wc-cockpit > .wc-pane[data-framed]')]
+          .filter((el) => !el.hidden)
+          .map((el) => {
+            const r = el.querySelector('.wc-pane-frame')!.getBoundingClientRect();
+            const d = devicePixelRatio;
+            return { t: parseFloat(el.style.getPropertyValue('--frame-t')) * d, e: [r.left, r.top, r.right, r.bottom].map((v) => v * d) };
+          }),
+      );
+      expect(frames.length).toBeGreaterThanOrEqual(4);
+      for (const f of frames) {
+        for (const v of f.e) expect(Math.abs(v - Math.round(v))).toBeLessThan(0.05);
+        expect(Math.abs(f.t - Math.round(f.t))).toBeLessThan(1e-3);
+        expect(f.t).toBe(frames[0]!.t);
+      }
+    });
+  });
+}
