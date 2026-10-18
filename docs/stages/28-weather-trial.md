@@ -1037,3 +1037,23 @@ black: the brightest stroke stands out).
       map toggle is borderless (a damaged stored entry stays framed); its
       share is 195 so the rows stay the same (map 22 in 174 × 51).
     - **Owner, 2026-10-18:** "looks good" — item 58 approved.
+
+### 2026-10-18 — live play after 0.1.63, night to day (translated)
+
+59. **Clock strip: the sun icon one game hour early.** The clock to the
+    right of the input line shows the sun icon one minute (one game hour)
+    before rooms are actually lit in the game.
+    - Evidence (`mume-Gittan-2026-10-18T18-01-53`): at 9 am on the 11th of
+      Solmath (dawn hour 9) `time` says "The light slowly increases in the
+      east."; "The day has begun." comes an hour later. `Event.Sun rise` is
+      the dawn hour, `light` dawn + 1; rooms are lit from `light`. The
+      strip's day starts at the dawn hour (`isDay`), one hour early.
+60. **Sunrise timed to the game's day.** The night sky turned slowly into
+    the day sky, which was complete about 25–30 s before the day began; no
+    sunrise animation at all. Wanted: the sunrise starts exactly one minute
+    (one game hour) before the day begins and ends exactly at the second the
+    day begins. It fades in very slowly: the first 40 s only just
+    perceptible, the last 20 s it builds up. Somewhere in that minute the
+    night sky turns into the day sky; the day sky need not be complete when
+    the day begins and may go on fading in 10–20 s after, but at that second
+    it must be more prominent than the night sky. The change must be smooth.
