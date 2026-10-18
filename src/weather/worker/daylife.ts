@@ -9,7 +9,8 @@
 //    day, drifting with the wind (a few px/s);
 //  - the sun's rays: a few soft rays from the sun that pulse slowly (about
 //    every 20 s) between nothing and only just perceptible, a little more at
-//    midday (owner item 73; `pulseStrength`); no glints (they would draw the
+//    midday (owner item 73; `pulseStrength`), spread wide round the sun's
+//    direction and fading down the screen (item 82); no glints (they would draw the
 //    eye). The sun is the day's one sun (beams.ts `sunPsi`): from the top
 //    right in the morning, where the sunrise left it, over to the top left
 //    where the sunset takes it (owner item 65); none while a sunrise or
@@ -48,9 +49,26 @@ const GLIMPSE_RAY_LIGHT = 0.11;
 /** The glow where the light comes in (alpha × the strength), dark / light pages. */
 const GLIMPSE_GLOW = 0.06;
 const GLIMPSE_GLOW_LIGHT = 0.045;
-/** The pulse's peak strength: at the dawn and dusk hours, and at midday (only just perceptible; by eye, owner item 73). */
-export const PULSE_LOW = 0.14;
-export const PULSE_HIGH = 0.3;
+/** The pulse's peak strength: at the dawn and dusk hours, and at midday (only just perceptible; by eye, owner items 73, 82: was 0.14 and 0.3). */
+export const PULSE_LOW = 0.1;
+export const PULSE_HIGH = 0.2;
+/**
+ * The day rays' tiers across their fan (owner item 82, as item 80's): S a
+ * little stronger, m a little weaker, w much weaker, interleaved; few, far
+ * apart (was six within about ±0.4 rad of the sun's direction).
+ */
+const DAY_TIERS = 'wSmwSw';
+const DAY_TIER_K: Readonly<Record<string, number>> = { S: 1, m: 0.7, w: 0.4 };
+export const DAY_RAYS = DAY_TIERS.length;
+/** Half the day rays' fan, radians (its outer rays a place in): for a sun above the top right of the middle, from about 30° below level at the left to 60° at the right (owner item 82). */
+export const DAY_FAN = (55 * Math.PI) / 180;
+
+/** Day ray `i`'s angle at time T round the sun's middle direction `mid` (beams.ts `sunMid`): evenly over ±DAY_FAN, a little off its place, swaying with the sun (item 68). */
+export function dayRayAngle(i: number, mid: number, T: number): number {
+  const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5;
+  const at = (i + 0.5 + (j - 0.5) * 0.3) / DAY_RAYS;
+  return mid + DAY_FAN * (2 * at - 1) + sunDrift(T) + Math.sin(T * 0.21 + i) * 0.003;
+}
 /** The pulse's period, s, and how much it varies from one to the next (± share). */
 export const PULSE_S = 20;
 const PULSE_VARY = 0.15;
@@ -369,25 +387,23 @@ export class DayLife {
     b.globalAlpha = e * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
     const hx0 = Math.max(0, gx - R0), hy0 = Math.max(0, gy - R0);
     b.fillRect(hx0, hy0, Math.min(W, gx + R0) - hx0, Math.min(H, gy + R0) - hy0);
-    // the rays: strongest where they come in, reaching about two thirds down the screen
-    const L = tin + H * 0.95;
-    const gr = b.createRadialGradient(sx, sy, tin, sx, sy, L);
+    // the rays: strongest at the top, fading down the screen, gone about three
+    // quarters down (owner item 82; was by the distance from the sun)
+    const L = tin + H * 1.6;
+    const gr = b.createLinearGradient(0, 0, 0, H * 0.78);
     gr.addColorStop(0, `rgba(${rgb},1)`);
-    gr.addColorStop(0.3, `rgba(${rgb},0.8)`);
-    gr.addColorStop(0.65, `rgba(${rgb},0.45)`);
+    gr.addColorStop(0.3, `rgba(${rgb},0.6)`);
+    gr.addColorStop(0.65, `rgba(${rgb},0.2)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     b.fillStyle = gr;
-    const RAYS = 6;
-    // fanned round the sun's middle direction over most of the screen, swaying
-    // together (one sun, owner item 68)
-    // (0.15 rad apart for a sun at the screen's corner, as before; closer for a farther one, so the fan covers about as much)
-    const near = (H * 0.6) / (tin + H * 0.6), fan = 0.15 * near;
-    const drift = sunDrift(T);
-    for (let i = 0; i < RAYS; i++) {
-      const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5;
-      const a = mid + (i - (RAYS - 1) / 2) * fan + (j - 0.5) * fan * 0.33 + drift + Math.sin(T * 0.21 + i) * 0.003;
-      const wd = (0.008 + j * 0.012) * near;
-      const al = (0.45 + 0.55 * j) * e;
+    // spread wide round the sun's middle direction, a few, by tier (owner
+    // item 82), swaying together (one sun, owner item 68)
+    const near = (H * 0.6) / (tin + H * 0.6);
+    for (let i = 0; i < DAY_RAYS; i++) {
+      const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5, tier = DAY_TIERS[i]!;
+      const a = dayRayAngle(i, mid, T);
+      const wd = (tier === 'w' ? 0.008 : 0.012 + j * 0.004) * near;
+      const al = DAY_TIER_K[tier]! * e;
       b.globalAlpha = al * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY);
       b.beginPath();
       b.moveTo(sx, sy);
