@@ -39,6 +39,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-18 — Stage 28 items 59–60, sunrise timing (branch `sunrise-timing`)
+
+- **Done:** owner live feedback after 0.1.63 (log 2026-10-18T18-01-53):
+  the day starts at DAWN+1 ("The day has begun."), not the dawn hour, in
+  the clock strip, the almanac and the weather. The sunrise follows the
+  synced clock (`dayAt`), not `Event.Sun rise`: the last 60 s of the night,
+  faint for 40 s, builds up, ends at the day's first second; day-sky weight
+  0.74 then, full 14 s later. ADR 0093. Unit 2711, weather + layout e2e 44.
+- **Next:** owner test (guide under item 60), then merge to main.
+- **Open issues:** look only checked in headless screenshots; the night
+  side is unchanged (night from DUSK), confirm live at sunset.
+- **Commits:** c752036…(this commit).
+
 ### 2026-10-18 — Merge stage 28, release 0.1.63
 
 - **Done:** merged `weather-trial` to main (f1adffe), version 0.1.63
