@@ -467,3 +467,100 @@ describe('installWeather (the app hook)', () => {
     hook.dispose();
   });
 });
+
+describe('game events held back while a pin holds (owner item 85)', () => {
+  function rec() {
+    const states: Array<Partial<WeatherState>> = [];
+    const events: Array<{ e: WeatherEvent; data?: unknown }> = [];
+    return {
+      states,
+      events,
+      setState: (s: Partial<WeatherState>) => states.push(s),
+      emit: (e: WeatherEvent, data?: unknown) => events.push(data === undefined ? { e } : { e, data }),
+    };
+  }
+  const unsynced: ClockState = { epoch: 0, precision: 'unset', lastSync: 0, reason: 'test' };
+  const DEMO_PIN: Partial<WeatherState> = { clock: 'night', moonUp: false, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
+
+  it('a real Event.Sun dark / set and Event.Moon rise during a pin do not reach the engine; the release applies them', () => {
+    const s = rec();
+    const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS, () => NOW_MS);
+    sig.pin({ ...DEMO_PIN, clock: 'day' }, true);
+    s.states.length = 0;
+    sig.gmcp('event.sun', { what: 'set' });
+    sig.gmcp('event.sun', { what: 'dark' });
+    sig.gmcp('event.moon', { what: 'rise' });
+    expect(s.events).toEqual([]);
+    expect(s.states).toEqual([]);
+    expect(sig.state()).toMatchObject({ clock: 'day', moonUp: false });
+    sig.pin(null, true);
+    expect(s.states.at(-1)).toMatchObject({ clock: 'night', moonUp: true, moonU: 0, sunU: -1 });
+    // the night already began: no sunset is replayed
+    expect(s.events).toEqual([]);
+  });
+
+  it('lightning and gusts are dropped while a pin holds, and pass again after', () => {
+    const s = rec();
+    const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
+    sig.pin(DEMO_PIN, true);
+    sig.line(line('A bright streak of lightning flashes over the wet mountains.'));
+    sig.line(line('You can feel a tempestuous wind coming from the north.'));
+    sig.pin(null, true);
+    expect(s.events).toEqual([]);
+    sig.line(line('A bright streak of lightning flashes over the wet mountains.'));
+    expect(s.events).toEqual([{ e: 'strike' }]);
+  });
+
+  it('a sunset the game opened during the pin joins at its place on release when the clock does not time it', () => {
+    const s = rec();
+    let now = NOW_MS;
+    const sig = new WeatherSignals(s, empty, unsynced, NOW_MS, () => now);
+    sig.pin({ ...DEMO_PIN, clock: 'day' }, true);
+    sig.gmcp('event.sun', { what: 'set' });
+    now += 20_000;
+    sig.pin(null, true);
+    expect(s.events).toEqual([{ e: 'sun.set', data: { from: -40 } }]);
+  });
+
+  it('no replay when the clock times the turn, or once its minute is over', () => {
+    const s = rec();
+    let now = NOW_MS;
+    const timed = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS, () => now);
+    timed.pin(DEMO_PIN, true);
+    timed.gmcp('event.sun', { what: 'set' });
+    timed.pin(null, true);
+    const late = new WeatherSignals(s, empty, unsynced, NOW_MS, () => now);
+    late.pin(DEMO_PIN, true);
+    late.gmcp('event.sun', { what: 'rise' });
+    now += 61_000;
+    late.pin(null, true);
+    expect(s.events).toEqual([]);
+  });
+
+  it('a darkness begun during the pin and not ended starts on release; one that ended does not', () => {
+    const s = rec();
+    const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
+    sig.pin(DEMO_PIN, true);
+    sig.gmcp('event.darkness', { what: 'start' });
+    sig.pin(null, true);
+    expect(s.events).toEqual([{ e: 'darkness.start' }]);
+    s.events.length = 0;
+    sig.pin(DEMO_PIN, true);
+    sig.gmcp('event.darkness', { what: 'start' });
+    sig.gmcp('event.darkness', { what: 'end' });
+    sig.pin(null, true);
+    expect(s.events).toEqual([]);
+  });
+
+  it('a pin that only changes keeps holding; events pass without a pin', () => {
+    const s = rec();
+    const sig = new WeatherSignals(s, empty, clockAt(5, 12), NOW_MS);
+    sig.pin(DEMO_PIN, true);
+    sig.pin({ ...DEMO_PIN, dayAt: NOW_MS + 60_000 }, true);
+    sig.gmcp('event.sun', { what: 'dark' });
+    expect(s.events).toEqual([]);
+    sig.pin(null);
+    sig.gmcp('event.sun', { what: 'light' });
+    expect(s.events).toEqual([{ e: 'sun.light' }]);
+  });
+});

@@ -43,7 +43,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
     emit: (e: Parameters<Weather['emit']>[0]) => engine?.emit(e),
   };
   const charVitals = game.char.vitals;
-  const signals = new WeatherSignals(sink, vitalsState((k) => charVitals.get(k)), game.clock.state, now());
+  const signals = new WeatherSignals(sink, vitalsState((k) => charVitals.get(k)), game.clock.state, now(), now);
   const unsubs: Array<() => void> = [];
   let destroyed = false;
   engine = createWeather(

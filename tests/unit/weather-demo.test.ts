@@ -257,6 +257,47 @@ describe('the demo runner', () => {
     expect(h.log.slice(rel - 2, rel + 1)).toEqual(['speed 1', 'cats 7', 'unpin']);
   });
 
+  it('a real Event.Sun dark / set during `#weather demo sunrise` leaves it undisturbed; the night applies after (item 85)', async () => {
+    // the real bridge and a director fed like the worker (engine.ts 'event' / 'state')
+    const d = new Director();
+    const sink = {
+      setState: (p: Partial<WeatherState>, o?: { settle?: boolean }) => void d.set(p, !!o?.settle),
+      emit: (e: WeatherEvent, data?: unknown) => {
+        const st = eventState(e);
+        if (st) d.set(st);
+        if (e === 'sun.rise' || e === 'sun.set') d.turnEvent(e === 'sun.rise' ? 'rise' : 'set', (data as { from?: unknown } | undefined)?.from);
+      },
+    };
+    const sig = new WeatherSignals(sink, vitalsState(() => ' '), { epoch: 0, precision: 'unset', lastSync: 0, reason: 'test' }, Date.now(), () => Date.now());
+    const ctl: DemoController = {
+      engine: { emit: sink.emit, setSpeed: (v) => void (d.speed = v), setCategories: () => {} },
+      pin: (p, o) => sig.pin(p, !!o?.smooth),
+    };
+    const host = { controller: ctl as DemoController | null, disposed: false, settled: async () => ctl };
+    const demo = new Demo(host, { settings, cockpit: { el: root, gameEl: game } as never }, demoPlan({}, SUNRISE_STEPS), say, () => {});
+    await demo.start();
+    const dayAt = d.raw.dayAt;
+    expect(dayAt).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(20_000);
+    d.advance(20);
+    expect(d.turn?.kind).toBe('rise');
+    // the game's dusk and night arrive in the middle of the demo's sunrise
+    sig.gmcp('event.sun', { what: 'set' });
+    sig.gmcp('event.sun', { what: 'dark' });
+    sig.gmcp('event.moon', { what: 'rise' });
+    expect(d.raw).toMatchObject({ clock: 'night', moonUp: false, dayAt });
+    expect(d.turn?.kind).toBe('rise');
+    await vi.advanceTimersByTimeAsync(50_000);
+    d.advance(50);
+    // the demo's day came as scripted
+    expect(d.raw.clock).toBe('day');
+    await vi.advanceTimersByTimeAsync(demoPlan({}, SUNRISE_STEPS).total);
+    expect(demo.ended).toBe('done');
+    // released: the game's night and moon; no sunset replayed (the night had begun)
+    expect(d.raw).toMatchObject({ clock: 'night', moonUp: true, dayAt: -1, sunU: -1 });
+    expect(d.turn?.kind).not.toBe('set');
+  });
+
   it('the main demo has no clock or speed change', async () => {
     const h = fakeHost();
     await start(h, 50);

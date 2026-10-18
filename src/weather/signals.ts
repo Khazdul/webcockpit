@@ -27,6 +27,13 @@
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
 //
+// While a pin holds (the demo, a dev jump, a bench; owner item 85) none of
+// the game's events reach the engine: the bridge keeps the sun and moon in
+// its own state, which the release applies; a sunrise or sunset the game
+// opened in the last TURN_S joins at its place on release (when the clock
+// does not time it); a magical darkness begun meanwhile and not ended starts
+// then. Lightning and gusts held back are dropped (a flash is a moment).
+//
 // Magical darkness is a spell someone casts: only its Event.Darkness events
 // give an effect (owner feedback 26); no room text or light value does.
 
@@ -34,6 +41,7 @@ import { type ClockState, dayBeginsAt, dayHour, isDay, momentAt, nightBeginsAt, 
 import { moonAt, moonUpFraction, nextMoonEvent } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
+import { TURN_S } from './sunturn';
 
 export interface WeatherSink {
   setState(partial: Partial<WeatherState>, opts?: { instant?: boolean; settle?: boolean }): void;
@@ -177,12 +185,16 @@ export class WeatherSignals {
   private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
+  /** Held back under a pin: the last sunrise / sunset the game opened (its wall ms), and the last darkness event. */
+  private heldTurn: { kind: 'rise' | 'set'; at: number } | null = null;
+  private heldDark: WeatherEvent | null = null;
 
   constructor(
     private readonly sink: WeatherSink,
     vitals: VitalsState,
     clock: Readonly<ClockState>,
     nowMs: number,
+    private readonly now: () => number = Date.now,
   ) {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
@@ -227,11 +239,19 @@ export class WeatherSignals {
       this.sky.moonUp = false;
       this.sky.moonU = -1;
     }
-    this.sink.emit(ev);
+    if (!this.pinned) {
+      this.sink.emit(ev);
+      return;
+    }
+    // held (item 85): the state above is applied on release
+    if (ev === 'sun.rise' || ev === 'sun.set') this.heldTurn = { kind: ev === 'sun.rise' ? 'rise' : 'set', at: this.now() };
+    else if (ev === 'sun.light' || ev === 'sun.dark') this.heldTurn = null;
+    else if (ev.startsWith('darkness.')) this.heldDark = ev;
   }
 
-  /** A text line: lightning or a gust. */
+  /** A text line: lightning or a gust (dropped while a pin holds). */
   line(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): void {
+    if (this.pinned) return;
     const ev = lineEvent(line);
     if (ev) this.sink.emit(ev);
   }
@@ -279,8 +299,22 @@ export class WeatherSignals {
    * the game's values).
    */
   pin(p: Partial<WeatherState> | null, smooth = false): void {
+    const was = this.pinned;
     this.pinned = p && Object.keys(p).length ? { ...p } : null;
     this.sink.setState(this.state(), smooth ? { settle: true } : { instant: true });
+    if (was && !this.pinned) this.replayHeld();
+  }
+
+  /** On release: what the game began while held and still runs (item 85). */
+  private replayHeld(): void {
+    const t = this.heldTurn, dark = this.heldDark;
+    this.heldTurn = this.heldDark = null;
+    if (t && (t.kind === 'rise' ? this.sky.dayAt : this.sky.nightAt) < 0) {
+      // the clock does not time it: the event did; join it where it is now
+      const from = -TURN_S + (this.now() - t.at) / 1000;
+      if (from < 0) this.sink.emit(t.kind === 'rise' ? 'sun.rise' : 'sun.set', { from: Math.max(-TURN_S, from) });
+    }
+    if (dark === 'darkness.start' || dark === 'darkness.grow') this.sink.emit(dark);
   }
 
   private push(out: Partial<WeatherState>): void {
