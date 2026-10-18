@@ -1344,3 +1344,22 @@ black: the brightest stroke stands out).
       Please try: `#weather demo sunrise` and `#weather demo sunset`, out
       of the game or in it; note the caption's time for anything you want
       changed.
+75. **Sunset to a horizon above the input.** The sun should not go all the
+    way down to the lower-left corner after all. Think of the horizon it
+    sets below as about 30–40 % up from the bottom edge, as for the
+    sunrise. The problem is that the effect gets in the way of where you
+    type. At the same time it is logical that the horizon isn't the
+    screen's bottom edge, since the day sky stops being visible about
+    20–25 % from the bottom.
+    - **Done (2026-10-18):** ADR 0093, "One horizon above the input line".
+      Sunrise and sunset now share one horizon a third up from the bottom
+      (65 % down the screen): the sunset ends with the sun just below it at
+      the left, the last rays coming in level from there, and the sunrise
+      starts the same way from the right. No strong rays reach down over
+      the input line. The sunrise's first rays were made a little stronger,
+      since they pass behind the right-hand panes. Unit 2729; e2e weather +
+      layout 44/44. Checked with `#weather demo sunset` (every 5 s) and the
+      first 25 s of `#weather demo sunrise` in headless Chromium.
+      Please try: `#weather demo sunset` and `#weather demo sunrise`; note
+      the caption's time for anything you want changed.
+

@@ -83,7 +83,7 @@ revised for owner items 71–72, see "Steady turns" below):
 | --- | --- | --- |
 | weight (the new sky's share) | sst(-32, 18, s) | 0 to -32, 0.15 at -20, 0.70 at 0, 1 at +18 (FULL_S) |
 | fade (the rays) | 1 − lin(-10, 18, s)^1.2 | 1 to -10 (the new sky perceptible, its share 0.4), 0.64 at 0, 0.33 at +10, 0 at +18 |
-| rays (rays, beams, glints) | sst(-60, -57.5, s) · (E + (1 − E) · lin(-60, -3, s)) · fade; sunrise E 0.45, sunset E 0.5 | 0.5 at -55, 0.74 at -30, peak 0.93 at -10, 0.71 at 0, 0.33 at +10, 0 at +18 |
+| rays (rays, beams, glints) | sst(-60, -57.5, s) · (E + (1 − E) · lin(-60, -3, s)) · fade; sunrise E 0.6 (item 75), sunset E 0.5 | 0.5 at -55 (sunset), 0.74 at -30, peak 0.93 at -10, 0.71 at 0, 0.33 at +10, 0 at +18 |
 | rays on / beams on | three rays from the start, the other five from -54 s, 6 s apart (each over 8 s); the beams from -42, -34, -26 s (each over 10 s) | 3 → 8 rays by -20 s, 0 → 3 beams by -16 s |
 | intensity (sky tint, glow, day life held back) | lin(-60, -3, s)^1.3 · fade | 0.10 at -50, 0.43 at -30, 0.84 at -10, 0.71 at 0, 0 at +18 |
 | palette (cloud palette → RISE_K / SET_K) | lin(-55, -5, s) · fade | rising to 1 at -5, 0 at +18 |
@@ -210,11 +210,9 @@ day sky's glimpses came and went with long pauses.
 - **Slow fade, gone when the new sky is complete.** The rays, the tint and
   the palette fade from -10 s (the new sky's share 0.4) to FULL_S = 18 s
   (was 14), when it is complete; the turn's visuals run until then.
-- **The sunset ends at the bottom left** (beams.ts `SUN_SET_LOW` 1.0):
-  through a sunset the circle's middle sinks from the horizon (0.45 H) to
-  the bottom (1.0 H), so the sun ends below the bottom-left corner and its
-  last rays come up from the screen's lower left edge; it starts at 40° up
-  as before, continuous with the day's path.
+- **The sunset ends low at the left** (item 72; its end point changed by
+  item 75, below): it starts at 40° up as before, continuous with the
+  day's path.
 - **Fan fix.** For a sun beyond the right edge the rays' fan was laid
   between the corners' angles across ±π, so most rays pointed away from the
   screen (the dead first seconds of a sunrise); the corners are now taken
@@ -227,6 +225,27 @@ day sky's glimpses came and went with long pauses.
   own: at FPS_STILL it changes by under 0.01 alpha per frame; a clear day
   sky with it ran at 3 frames per second (60 frames in 20 s, headless
   Chromium). The `glimpse` event (dev, demo) brings its peak in ~2 s.
+
+### One horizon above the input line (owner item 75)
+
+Item 72's sunset ended with the sun below the bottom-left corner, and its
+last rays crossed the input line, where one types. The owner: the horizon
+the sun sets below should be about 30–40 % up from the bottom, as for the
+sunrise; the day sky stops being visible about 20–25 % from the bottom
+anyway.
+
+- One turn horizon for both (beams.ts `SUN_TURN_HORIZON` 0.65 H, a third up
+  from the bottom): through a sunrise the sun's circle moves from it to the
+  day's middle (0.45 H) as the sun climbs to 40°, through a sunset back;
+  the circle's radius is set for the lower middle, so the sun stays outside
+  the screen. `SUN_SET_LOW` is gone.
+- The rays aim level with a sun at that horizon (`sunMid` aims at its
+  height, between 0.45 H and 0.65 H), so a sunrise starts and a sunset ends
+  with light coming in level from the right / left, above the input line;
+  the ray fan's lower edge aims at 0.78 H instead of the bottom corners.
+- A sunrise's first rays, level from the right, pass behind the right
+  dock's panes and their shadows, so its early strength E is 0.6 (was 0.45;
+  by eye from screenshots of `#weather demo sunrise`).
 
 ### An even pace (owner item 69)
 
