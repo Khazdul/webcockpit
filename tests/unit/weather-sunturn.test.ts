@@ -113,16 +113,16 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
     expect(turnWeight('set', 0)).toBe(1);
     const st = (x: number): number => turnStars(NaN, x);
     expect(st(-60 + 0.1)).toBe(0);
-    // just perceptible 5 s before the night, complete 5 s into it (item 83; was -7 … 0, item 81)
-    expect(SET_STARS_S).toBe(-6);
+    // a few faint ones 5 s before the night, about half at it, complete 5 s into it (item 83; was -7 … 0, item 81)
+    expect(SET_STARS_S).toBe(-9);
     expect(st(SET_STARS_S)).toBe(0);
-    expect(st(-5)).toBeGreaterThan(0);
-    expect(st(-5)).toBeLessThan(0.01);
-    expect(st(0)).toBeGreaterThan(0.15);
-    expect(st(0)).toBeLessThan(0.35);
+    expect(st(-5)).toBeGreaterThan(0.15);
+    expect(st(-5)).toBeLessThan(0.3);
+    expect(st(0)).toBeGreaterThan(0.45);
+    expect(st(0)).toBeLessThan(0.65);
     for (let x = -59.75; x < 5; x += 0.25) expect(st(x + 0.25)).toBeGreaterThanOrEqual(st(x));
-    // none while the rays are strong
-    for (let x = -60; x < 0; x += 0.1) if (st(x) > 0.01) expect(turnRays('set', x)).toBeLessThan(0.5);
+    // few while the rays are strong (item 76; the sun now sets at 0, the stars start under its last light, item 83)
+    for (let x = -60; x < 0; x += 0.1) if (turnRays('set', x) > 0.45) expect(st(x)).toBeLessThan(0.2);
     expect(TURN_FULL.set).toBe(5);
     expect(st(4.95)).toBeGreaterThan(0.99);
     expect(st(5)).toBe(1);

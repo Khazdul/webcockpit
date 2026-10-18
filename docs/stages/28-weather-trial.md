@@ -1508,8 +1508,8 @@ black: the brightest stroke stands out).
       at -7 s, and its rays and glow had fallen to under half by -10 and a
       tenth by -5. Now a sunset's colours stay warm (purple at -3 s), and its
       rays, glow, glints and warm tint fade late: the rays 0.7 at -10, 0.4
-      at -5, 0.2 at -2, gone at 0. The stars just start at -5, are about a
-      third there when the night begins and complete at +5. The sun itself
+      at -5, 0.2 at -2, gone at 0. A few faint stars show at -5, more at
+      -3, about half there when the night begins, complete at +5. The sun itself
       and its hazy light are half of before, in the sunrise too (the same
       drawing). Thin rays and beams half of before in both turns; the frame
       glints keep their strength and still fade with the rays. Unit 2739;

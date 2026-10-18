@@ -88,20 +88,21 @@ export function turnWeight(kind: TurnKind, s: number): number {
 /** A sunrise's stars: half gone 10 s in, barely there 20 s later, gone before the blue is strong (owner item 77). */
 const RISE_STARS: ReadonlyArray<readonly [number, number]> = [[-60, 1], [-57, 0.88], [-50, 0.5], [-40, 0.24], [-30, 0.1], [-18, 0.04], [-6, 0]];
 
-/** A sunset's stars start to show this long before the night begins (s; owner item 83: just perceptible 5 s before, was -7, item 81). */
-export const SET_STARS_S = -6;
+/** A sunset's stars start to show this long before the night begins (s; owner item 83: a few faint ones 5 s before, was -7, item 81). */
+export const SET_STARS_S = -9;
 
 /**
  * How much of the stars the night part of the sky shows (1 outside a turn):
  * in a sunrise they fade as the sun's light comes (`rise` its `s`); in a
  * sunset they come as the sun sets, from SET_STARS_S, complete TURN_FULL.set
- * into the night (`set` its `s`; NaN without). Squared: a star shows at a
- * small share, so they must stay faint until the night begins to read as
- * still coming after it (owner item 83).
+ * into the night (`set` its `s`; NaN without). Even to the power 1.2: a
+ * few faint ones at -5 s (0.22: the dusk sky is drawn over them, a share
+ * under about 0.15 does not show then), about half when the night begins,
+ * slowly to the end (owner item 83; by eye in screenshots).
  */
 export function turnStars(rise: number, set: number): number {
   if (rise > -TURN_S && rise < LATE_S) return pw(RISE_STARS, rise);
-  if (set > -TURN_S && set < TURN_FULL.set) return sst(SET_STARS_S, TURN_FULL.set, set) ** 2;
+  if (set > -TURN_S && set < TURN_FULL.set) return lin(SET_STARS_S, TURN_FULL.set, set) ** 1.2;
   return 1;
 }
 

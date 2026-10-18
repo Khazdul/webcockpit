@@ -427,12 +427,17 @@ replaces the sections above where they differ.
 - **Warm to the end** (sky.ts `SET_C`): red at 0.5, crimson 0.8 (-12 s),
   purple 0.95 (-3 s), a dusky blue only at 1; was purple at 0.7 and night
   blue at 0.88.
-- **The stars from -6 to +5** (`SET_STARS_S` -6, `TURN_FULL.set` 5,
-  `FULL_S` 5): sst(-6, 5)², so just there at -5 (0.0005; a star shows at a
-  small share), 0.32 at 0, 0.83 at +3, complete at +5. The director keeps a
+- **The stars from -9 to +5** (`SET_STARS_S` -9, `TURN_FULL.set` 5,
+  `FULL_S` 5): lin(-9, 5)^1.2: 0.16 at -6, 0.22 at -5, 0.36 at -3, 0.59 at
+  0, 0.83 at +3, complete at +5. The dusk sky is drawn over the stars, so
+  a share under about 0.15 does not show while it lasts: by eye, a few
+  faint stars at -5, more at -3, clearly there at 0 (a first try,
+  sst(-6, 5)², 0.0005 at -5, showed none before 0). The director keeps a
   sunset's sky curve and a released demo turn to +5; `TURN_JOIN_S` (14)
   stays above it. The sky module keeps the fast rate while the stars fill
-  in after the turn (`starsIn`). Steepest change 0.0066 per frame at 30 fps.
+  in after the turn (`starsIn`). Steepest change 0.003 per frame at 30 fps.
+  The item 76 test now allows a share under 0.2 while the rays are above
+  0.45 (the stars start under the sun's last light, as the owner asked).
 - **Half the sun, half the rays.** The sun's own light (its hot spot, its
   hazy glow, the ray front's band; sky.ts `SUN_LIGHT`) is half of before.
   The owner asked it of the sunset; a sunrise's sun is the same drawing and
@@ -446,7 +451,7 @@ replaces the sections above where they differ.
 - Checked in headless Chromium at 2000 × 1150 by screenshots every 1–4 s
   from -20 to +8 (sunset) and the first and last 20 s of the sunrise: the
   warm glow and the rays still show at -5 and faintly at -2, nothing at 0,
-  the first stars just at 0 and filled in by +5.
+  a few faint stars at -5, more at -3, filled in by +5.
 
 ### Dithered day rays (owner item 84)
 
