@@ -11,6 +11,10 @@
 // speeding it up. Times are seconds; 3:00 in all.
 
 import type { WeatherEvent, WeatherState } from './protocol';
+import { FULL_S } from './sunturn';
+
+/** The one-turn demos show the new sky filling in until it is complete. */
+const FULL_S_DEMO = FULL_S;
 
 export type DemoAction =
   /** Pins these values (merged with the earlier pins); `instant` jumps without easing (the start only). */
@@ -18,7 +22,13 @@ export type DemoAction =
   /** `data`: as the engine takes it (`sun.rise` `{ from }`: where the sunrise starts, s before the day). */
   | { emit: WeatherEvent; data?: unknown }
   /** Unpins everything: the game's values again, with the normal transitions. */
-  | { release: true };
+  | { release: true }
+  /**
+   * A sunrise or sunset by the clock, as in the game (owner item 74): pins
+   * `dayAt` / `nightAt` to `in` seconds from now (the runner's clock), so the
+   * director runs it exactly as a live one; the caption counts to that second.
+   */
+  | { turn: 'rise' | 'set'; in: number };
 
 export interface DemoStep {
   /** The caption's step line, e.g. "Day · heavy rain". */
@@ -34,6 +44,8 @@ export interface DemoStep {
 }
 
 const pin = (p: Partial<WeatherState>): DemoAction => ({ pin: p });
+/** The first pin of a demo: outdoors, a clear sky, standing, no clock-driven turn or moon of the game's. */
+const SCENE: Partial<WeatherState> = { weather: ' ', fog: '', light: '', position: 'standing', dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
 const emit = (e: WeatherEvent, data?: unknown): DemoAction => (data === undefined ? { emit: e } : { emit: e, data });
 /** Where the demo's sunrise and sunset start, s before the day or night begins: their last 25 s, the build-up and the turn (ADR 0093). */
 export const DEMO_TURN_FROM = -25;
@@ -45,7 +57,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     signal: 'Event.Sun dark · Event.Moon rise · the almanac',
     dur: 4,
     acts: [
-      [0, { pin: { weather: ' ', fog: '', light: '', position: 'standing', clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 }, instant: true }],
+      [0, { pin: { ...SCENE, clock: 'night', moonUp: true, moonPhase: 0.8, moonU: 0.42 }, instant: true }],
       [1.5, emit('shoot')],
     ],
   },
@@ -222,6 +234,116 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   },
 ];
 
+/** How long before the turn's second the clock is set in the one-turn demos: the night or day first, then the full minute. */
+const TURN_LEAD = 5;
+
+/**
+ * `#weather demo sunrise` (owner item 74): a moonless starry night, then a
+ * whole sunrise at the game's pace exactly as a live one (the clock's
+ * minute before the day and on until the day sky is complete), then the
+ * day with its rays pulsing, then back to the game.
+ */
+export const SUNRISE_STEPS: readonly DemoStep[] = [
+  {
+    title: 'Night · before the sunrise',
+    look: 'a clear starry night without a moon; the clock says the day begins in a minute and five seconds',
+    signal: "Event.Sun dark · Char.Vitals weather = ' '",
+    dur: TURN_LEAD,
+    acts: [
+      [0, { pin: { ...SCENE, clock: 'night', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: -1 }, instant: true }],
+      [0, { turn: 'rise', in: 60 + TURN_LEAD }],
+    ],
+  },
+  {
+    title: 'Sunrise · the first rays',
+    look: 'a few faint rays from the horizon at the right, then more, one by one',
+    signal: 'the clock: the last game hour of the night ("The light slowly increases in the east.")',
+    dur: 30,
+    acts: [],
+  },
+  {
+    title: 'Sunrise · the build-up',
+    look: 'more rays and the strong beams, climbing; the frame lines glint; the blue sky starts to come',
+    signal: 'the clock: the last game hour of the night',
+    dur: 30,
+    acts: [],
+  },
+  {
+    title: 'The day begins',
+    look: 'the blue sky fills in and the rays fade slowly; they are gone when the sky is complete',
+    signal: 'Event.Sun light ("The day has begun.")',
+    dur: FULL_S_DEMO,
+    acts: [[0, pin({ clock: 'day', sunU: 0 })]],
+  },
+  {
+    title: 'Day · the sun\'s rays',
+    look: 'the morning sun\'s rays pulse very faintly, about every 20 seconds',
+    signal: "Char.Vitals weather = ' '",
+    dur: 10,
+    acts: [[0.5, emit('glimpse')]],
+  },
+  {
+    title: 'Back to the game',
+    look: "the effects follow the game's values again, with the normal transitions",
+    signal: '',
+    dur: 3,
+    acts: [[0, { release: true }]],
+  },
+];
+
+/** `#weather demo sunset` (owner item 74): the mirror of SUNRISE_STEPS, from a clear day to the starry night. */
+export const SUNSET_STEPS: readonly DemoStep[] = [
+  {
+    title: 'Day · before the sunset',
+    look: 'a clear day sky late in the day; the clock says the night begins in a minute and five seconds',
+    signal: "Event.Sun light · Char.Vitals weather = ' '",
+    dur: TURN_LEAD,
+    acts: [
+      [0, { pin: { ...SCENE, clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.93 }, instant: true }],
+      [0, { turn: 'set', in: 60 + TURN_LEAD }],
+    ],
+  },
+  {
+    title: 'Sunset · the first rays',
+    look: 'a few faint rays from the sun 40° up at the left, then more, one by one',
+    signal: 'the clock: the last game hour of the day ("The sun slowly disappears in the west.")',
+    dur: 30,
+    acts: [],
+  },
+  {
+    title: 'Sunset · the build-up',
+    look: 'more rays and the strong beams, sinking toward the bottom left; the frame lines glint; the night sky starts to come',
+    signal: 'the clock: the last game hour of the day',
+    dur: 30,
+    acts: [],
+  },
+  {
+    title: 'The night begins',
+    look: 'the starry night fills in and the last rays, from the lower left, fade slowly; they are gone when the night is complete',
+    signal: 'Event.Sun dark ("The night has begun.")',
+    dur: FULL_S_DEMO,
+    acts: [[0, pin({ clock: 'night', sunU: -1 })]],
+  },
+  {
+    title: 'Night · stars',
+    look: 'the starry night; a shooting star',
+    signal: "Char.Vitals weather = ' '",
+    dur: 8,
+    acts: [[3, emit('shoot')]],
+  },
+  {
+    title: 'Back to the game',
+    look: "the effects follow the game's values again, with the normal transitions",
+    signal: '',
+    dur: 3,
+    acts: [[0, { release: true }]],
+  },
+];
+
+/** The demos: every effect, or one whole sunrise or sunset. */
+export type DemoScene = 'all' | 'sunrise' | 'sunset';
+export const DEMO_SCRIPTS: Readonly<Record<DemoScene, readonly DemoStep[]>> = { all: DEMO_STEPS, sunrise: SUNRISE_STEPS, sunset: SUNSET_STEPS };
+
 /** One timed entry of a played demo, `t` in ms from its start. */
 export type DemoEvent =
   | { t: number; step: number }
@@ -229,6 +351,10 @@ export type DemoEvent =
   | { t: number; end: true };
 
 export interface DemoPlan {
+  /** The script played. */
+  script: readonly DemoStep[];
+  /** The wall clock's compression (tests; 1 otherwise). */
+  pace: number;
   /** Every step's start, action and the end, in time order (a step's start before its actions). */
   events: DemoEvent[];
   /** Each step's start and length, ms. */
@@ -253,14 +379,14 @@ export function demoPlan(opts: { pace?: number } = {}, steps: readonly DemoStep[
   events.push({ t, end: true });
   // stable: a step's start stays before its own actions at the same time
   events.sort((a, b) => a.t - b.t);
-  return { events, steps: spans, total: t };
+  return { script: steps, pace, events, steps: spans, total: t };
 }
 
 /** `#weather …` arguments. */
-export type WeatherCommand = { kind: 'demo'; pace: number } | { kind: 'stop' } | { kind: 'usage' };
+export type WeatherCommand = { kind: 'demo'; scene: DemoScene; pace: number } | { kind: 'stop' } | { kind: 'usage' };
 
 /**
- * `#weather demo`, `#weather stop`, `#weather demo stop`; anything
+ * `#weather demo [sunrise|sunset]`, `#weather stop`, `#weather demo stop`; anything
  * else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
  * faster (tests).
  */
@@ -270,15 +396,18 @@ export function parseWeatherCommand(args: string): WeatherCommand {
   if (w[0] !== 'demo') return { kind: 'usage' };
   if (w.length === 2 && w[1] === 'stop') return { kind: 'stop' };
   let pace = 1;
+  let scene: DemoScene = 'all';
   for (const a of w.slice(1)) {
     const x = /^x(\d+(?:\.\d+)?)$/.exec(a);
     if (x && Number(x[1]) > 0 && pace === 1) pace = Number(x[1]);
+    else if ((a === 'sunrise' || a === 'sunset') && scene === 'all') scene = a;
     else return { kind: 'usage' };
   }
-  return { kind: 'demo', pace };
+  return { kind: 'demo', scene, pace };
 }
 
-export const WEATHER_USAGE = '#weather demo plays every weather effect at the game\'s own pace in about three minutes; #weather stop ends it.';
+export const WEATHER_USAGE =
+  '#weather demo plays every weather effect at the game\'s own pace in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather stop ends it.';
 
 /** "1:35". */
 export function clockText(ms: number): string {

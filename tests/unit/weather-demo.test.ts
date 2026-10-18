@@ -5,7 +5,8 @@
 // signal bridge, and `?weather` once the cockpit is built later.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsStore } from '../../src/settings';
-import { DEMO_TURN_FROM, DEMO_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
+import { FULL_S } from '../../src/weather/sunturn';
+import { DEMO_SCRIPTS, DEMO_TURN_FROM, DEMO_STEPS, SUNRISE_STEPS, SUNSET_STEPS, clockText, demoPlan, parseWeatherCommand } from '../../src/weather/demo-script';
 import { Demo, type DemoController, demoOf, weatherCommand } from '../../src/weather/demo';
 import { Director, DWELL_MS, eventState } from '../../src/weather/director';
 import { weatherFromUrl } from '../../src/weather/dev';
@@ -86,14 +87,50 @@ describe('the demo script', () => {
   });
 });
 
+describe('the one-turn demos (item 74)', () => {
+  for (const [scene, kind, clock, steps] of [
+    ['sunrise', 'rise', 'day', SUNRISE_STEPS],
+    ['sunset', 'set', 'night', SUNSET_STEPS],
+  ] as const) {
+    it(`${scene}: the clock's whole turn as live, then a little of the ${clock}, then back to the game`, () => {
+      expect(DEMO_SCRIPTS[scene]).toBe(steps);
+      const first = steps[0]!.acts;
+      // a clear sky outdoors, no moon, no clock turn of the game's: one jump
+      expect(first[0]![1]).toMatchObject({ instant: true, pin: { weather: ' ', fog: '', moonUp: false, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 } });
+      const turn = first.find(([, a]) => 'turn' in a)![1] as { turn: string; in: number };
+      expect(turn.turn).toBe(kind);
+      // the turn's second comes at the step that turns the clock, the minute before it runs whole
+      const at = steps.findIndex((s) => s.acts.some(([, a]) => 'pin' in a && a.pin.clock === clock && !('instant' in a)));
+      const before = steps.slice(0, at).reduce((t, s) => t + s.dur, 0);
+      expect(before).toBe(turn.in);
+      expect(turn.in - steps[0]!.dur).toBe(60);
+      // its sky fills in for FULL_S, then a little more of it before the release
+      expect(steps[at]!.dur).toBe(FULL_S);
+      expect(steps.at(-1)!.acts).toEqual([[0, { release: true }]]);
+      const total = demoPlan({}, steps).total;
+      expect(total).toBeGreaterThan(80_000);
+      expect(total).toBeLessThan(110_000);
+      // no shortcut: no `from` on any event
+      for (const s of steps) for (const [t, a] of s.acts) {
+        expect('emit' in a && a.emit.startsWith('sun.')).toBe(false);
+        expect(t).toBeLessThan(s.dur);
+      }
+    });
+  }
+});
+
 describe('#weather arguments', () => {
   it('parses demo, stop and the hidden test pace; no slow any more (item 70)', () => {
-    expect(parseWeatherCommand('demo')).toEqual({ kind: 'demo', pace: 1 });
-    expect(parseWeatherCommand('  DEMO ')).toEqual({ kind: 'demo', pace: 1 });
-    expect(parseWeatherCommand('demo x20')).toEqual({ kind: 'demo', pace: 20 });
+    expect(parseWeatherCommand('demo')).toEqual({ kind: 'demo', scene: 'all', pace: 1 });
+    expect(parseWeatherCommand('  DEMO ')).toEqual({ kind: 'demo', scene: 'all', pace: 1 });
+    expect(parseWeatherCommand('demo x20')).toEqual({ kind: 'demo', scene: 'all', pace: 20 });
+    // one whole sunrise or sunset (item 74)
+    expect(parseWeatherCommand('demo sunrise')).toEqual({ kind: 'demo', scene: 'sunrise', pace: 1 });
+    expect(parseWeatherCommand('demo Sunset')).toEqual({ kind: 'demo', scene: 'sunset', pace: 1 });
+    expect(parseWeatherCommand('demo sunset x40')).toEqual({ kind: 'demo', scene: 'sunset', pace: 40 });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
-    for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
+    for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2', 'demo sunrise sunset', 'demo sunrise sunrise', 'sunrise']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
   });
 });
 
@@ -105,6 +142,7 @@ function fakeHost() {
   const ctl: DemoController = {
     engine: {
       emit: (e, data) => log.push(data === undefined ? `emit ${e}` : `emit ${e} ${JSON.stringify(data)}`),
+      setSpeed: (v) => log.push(`speed ${v}`),
       setCategories: (c) => {
         cats = { ...c };
         log.push(`cats ${Object.values(c).filter(Boolean).length}`);
@@ -193,6 +231,38 @@ describe('the demo runner', () => {
     expect(said.at(-1)).toBe('Weather demo done; the effects are off again.');
     await vi.advanceTimersByTimeAsync(500);
     expect(root.querySelector('.wc-wdemo')).toBeNull();
+  });
+
+  it('a one-turn demo pins the clock\'s turn, counts to and from its second, and lifts the guard at the end (item 74)', async () => {
+    const h = fakeHost();
+    const demo = new Demo(h.host, { settings, cockpit: { el: root, gameEl: game } as never }, demoPlan({}, SUNRISE_STEPS), say, () => {});
+    const t0 = Date.now();
+    await demo.start();
+    expect(said[0]).toMatch(/^Weather demo: about 1:3\d\./);
+    expect(h.pins[0]).toMatchObject({ smooth: false, p: { clock: 'night', moonUp: false } });
+    expect(h.pins[1]).toMatchObject({ smooth: true, p: { dayAt: t0 + 65_000 } });
+    const box = root.querySelector('.wc-wdemo')!;
+    const clock = box.querySelector('.wc-wdemo-clock') as HTMLElement;
+    expect(clock.hidden).toBe(false);
+    expect(clock.textContent).toBe('the day begins in 1:05');
+    await vi.advanceTimersByTimeAsync(43_000);
+    expect(clock.textContent).toBe('the day begins in 0:22');
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(clock.textContent).toBe('the day began 0:08 ago');
+    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('The day begins');
+    expect(h.pins.at(-1)!.p).toMatchObject({ clock: 'day', dayAt: t0 + 65_000 });
+    await vi.advanceTimersByTimeAsync(demoPlan({}, SUNRISE_STEPS).total);
+    expect(demo.ended).toBe('done');
+    const rel = h.log.lastIndexOf('unpin');
+    expect(h.log.slice(rel - 2, rel + 1)).toEqual(['speed 1', 'cats 7', 'unpin']);
+  });
+
+  it('the main demo has no clock or speed change', async () => {
+    const h = fakeHost();
+    await start(h, 50);
+    expect(root.querySelector<HTMLElement>('.wc-wdemo-clock')!.hidden).toBe(true);
+    await vi.advanceTimersByTimeAsync(demoPlan().total / 50 + 10);
+    expect(h.log.some((l) => l.startsWith('speed'))).toBe(false);
   });
 
   it('keeps the effects on when they were on', async () => {

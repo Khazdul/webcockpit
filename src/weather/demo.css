@@ -82,6 +82,12 @@
   white-space: pre-wrap;
 }
 
+.wc-wdemo-clock {
+  margin-top: calc(var(--cell-h) * 0.25);
+  color: var(--c-header);
+  font-variant-numeric: tabular-nums;
+}
+
 .wc-wdemo-bar {
   position: relative;
   height: 2px;

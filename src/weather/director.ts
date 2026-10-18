@@ -252,7 +252,8 @@ export class Director {
       } else s += err * (1 - Math.exp(-dt / TURN_GLIDE_TAU));
     }
     if (was < 0 && s >= 0 && !T.demo) this.turnDone[T.kind] = wall;
-    if (s > LATE_S) this.turn = null;
+    // done: LATE_S after its second, or once its sky is complete when the clock says another time (a one-turn demo released)
+    if (s > LATE_S || (tg === tg && !inside(tg) && s >= FULL_S)) this.turn = null;
     else T.s = s;
   }
 

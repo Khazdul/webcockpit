@@ -1,5 +1,7 @@
 // The weather demo (owner feedback 33, ADR 0091 "Demo"): `#weather demo`
-// plays every effect at the game's own pace in about three minutes (demo-script.ts), with a
+// plays every effect at the game's own pace in about three minutes, and
+// `#weather demo sunrise` / `sunset` one whole sunrise or sunset as live
+// (demo-script.ts; owner items 70, 74), with a
 // small caption box at the top left saying what to look at, then hands the
 // effects back to the game. A lazy chunk of its own: hook.ts imports it on
 // the first `#weather` command.
@@ -9,7 +11,9 @@
 //   only; the settings are not touched), and the user's come back after.
 // - It drives the engine with the game's own inputs: pinned state, settled
 //   at once but eased as usual (`pin(…, { smooth })`), and events, at the
-//   game's own pace (owner item 70).
+//   game's own pace (owner item 70). A one-turn demo pins the clock's
+//   `dayAt` / `nightAt`, so the director runs the turn as a live one; the
+//   caption counts to and from its second, once a second.
 // - The end, `#weather stop`, and the effects being switched off all end it;
 //   the first two unpin everything, so the effects follow the game's values
 //   again with the normal transitions.
@@ -19,7 +23,7 @@
 
 import './demo.css';
 import { categoriesOf } from './controller';
-import { DEMO_STEPS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
+import { DEMO_SCRIPTS, type DemoAction, type DemoPlan, WEATHER_USAGE, clockText, demoPlan, parseWeatherCommand } from './demo-script';
 import type { WeatherHookDeps } from './hook';
 import { ALL_CATEGORIES, type Categories, type WeatherEvent, type WeatherState } from './protocol';
 import { weatherAvailable } from './support';
@@ -28,6 +32,8 @@ import { weatherAvailable } from './support';
 export interface DemoController {
   readonly engine: {
     emit(e: WeatherEvent, data?: unknown): void;
+    /** At the end, 1: a clock-driven demo turn must not hold back the game's next one (director's guard). */
+    setSpeed(speed: number): void;
     setCategories(c: Categories): void;
   };
   pin(p: Partial<WeatherState> | null, opts?: { smooth?: boolean }): void;
@@ -68,7 +74,7 @@ export async function weatherCommand(
     say('Weather effects need a browser that can draw in a worker (OffscreenCanvas); there is nothing to show here.');
     return;
   }
-  const demo = new Demo(hook, d, demoPlan({ pace: cmd.pace }), say, () => running.delete(hook));
+  const demo = new Demo(hook, d, demoPlan({ pace: cmd.pace }, DEMO_SCRIPTS[cmd.scene]), say, () => running.delete(hook));
   running.set(hook, demo);
   await demo.start();
 }
@@ -91,6 +97,9 @@ export class Demo {
   private unsub: () => void = () => {};
   private caption: Caption | null = null;
   private released = false;
+  /** A one-turn demo's turn: its kind and its second (the runner's clock, ms), and the caption's 1 s tick. */
+  private turn: { kind: 'rise' | 'set'; at: number } | null = null;
+  private tick: ReturnType<typeof setInterval> | null = null;
   ended: DemoEnd | null = null;
   /** The current step (-1 before the first). */
   step = -1;
@@ -155,9 +164,10 @@ export class Demo {
 
   private showStep(i: number): void {
     this.step = i;
-    const s = DEMO_STEPS[i]!, span = this.plan.steps[i]!, total = this.plan.total;
+    const script = this.plan.script;
+    const s = script[i]!, span = this.plan.steps[i]!, total = this.plan.total;
     let look = s.look;
-    if (i === DEMO_STEPS.length - 1 && !this.wasOn) look = 'the effects go back off, as they were';
+    if (i === script.length - 1 && !this.wasOn) look = 'the effects go back off, as they were';
     this.caption?.show({
       n: i + 1,
       title: s.title,
@@ -178,8 +188,23 @@ export class Demo {
     } else if ('emit' in a) {
       if (a.data === undefined) ctl.engine.emit(a.emit);
       else ctl.engine.emit(a.emit, a.data);
-    }
-    else this.release();
+    } else if ('turn' in a) {
+      // the clock's second of the turn: the director runs it as a live one
+      const at = Date.now() + (a.in * 1000) / this.plan.pace;
+      this.turn = { kind: a.turn, at: this.now() + (a.in * 1000) / this.plan.pace };
+      this.pinned = { ...this.pinned, ...(a.turn === 'rise' ? { dayAt: at } : { nightAt: at }) };
+      ctl.pin(this.pinned, { smooth: true });
+      this.clock();
+      this.tick = setInterval(() => this.clock(), 1000);
+    } else this.release();
+  }
+
+  /** The caption's count to and from the turn's second. */
+  private clock(): void {
+    const t = this.turn;
+    if (!t || !this.caption) return;
+    const ms = t.at - this.now(), what = t.kind === 'rise' ? 'the day' : 'the night';
+    this.caption.setClock(ms > 0 ? `${what} begins in ${clockText(ms)}` : `${what} began ${clockText(-ms)} ago`);
   }
 
   /** The game's values again (smoothly) and the user's categories. */
@@ -188,6 +213,8 @@ export class Demo {
     this.released = true;
     const ctl = this.ctl;
     if (!ctl || this.hook.controller !== ctl) return;
+    // a clock-driven demo turn counted for the director's once-a-dawn guard: lift it
+    if (this.turn) ctl.engine.setSpeed(1);
     ctl.engine.setCategories(categoriesOf(this.d.settings.get()));
     ctl.pin(null, { smooth: true });
   }
@@ -205,6 +232,8 @@ export class Demo {
     this.ended = why;
     if (this.timer) clearTimeout(this.timer);
     this.timer = null;
+    if (this.tick) clearInterval(this.tick);
+    this.tick = null;
     this.unsub();
     this.caption?.close();
     this.caption = null;
@@ -234,7 +263,7 @@ const FADE_MS = 220;
 export class Caption {
   readonly el: HTMLDivElement;
   private readonly body: HTMLDivElement;
-  private readonly fields: Record<'count' | 'step' | 'look' | 'signal' | 'left', HTMLElement>;
+  private readonly fields: Record<'count' | 'step' | 'look' | 'signal' | 'left' | 'clock', HTMLElement>;
   private readonly fill: HTMLElement;
   private swap: ReturnType<typeof setTimeout> | null = null;
   private first = true;
@@ -263,11 +292,14 @@ export class Caption {
     const sig = mk('wc-wdemo-sig', this.body);
     mk('wc-wdemo-in', sig, 'span').textContent = 'in the game: ';
     const signal = mk('wc-wdemo-signal', sig, 'span');
+    // a one-turn demo's count to and from the turn's second (owner item 74)
+    const clock = mk('wc-wdemo-clock', this.body);
+    clock.hidden = true;
     this.fill = mk('wc-wdemo-fill', mk('wc-wdemo-bar', el), 'i');
     const foot = mk('wc-wdemo-foot', el);
     const left = mk('wc-wdemo-left', foot, 'span');
     mk('wc-wdemo-hint', foot, 'span').textContent = '#weather stop to end';
-    this.fields = { count, step, look, signal, left };
+    this.fields = { count, step, look, signal, left, clock };
     // Over the game pane's top left (placed once; the demo is short).
     el.style.left = `${game.offsetLeft}px`;
     el.style.top = `${game.offsetTop}px`;
@@ -301,6 +333,13 @@ export class Caption {
       this.fill.style.transition = `transform ${s.ms}ms linear`;
       this.fill.style.transform = `scaleX(${s.to})`;
     });
+  }
+
+  /** The turn's count ("the day begins in 0:42"); shown from the first call on. */
+  setClock(text: string): void {
+    const c = this.fields.clock;
+    c.hidden = false;
+    if (c.textContent !== text) c.textContent = text;
   }
 
   close(): void {

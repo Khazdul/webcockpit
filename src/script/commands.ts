@@ -76,7 +76,7 @@ const HINT_LUA = 'Only #lua {script} {function} {args} runs (a function a script
 const HINT_SCRIPT_CMD = 'Only #script list, help, set, enable, disable and reload run; other forms do nothing.';
 const HINT_LATER = 'Not supported yet; kept in the profile as written.';
 /** The weather effects trial (stage 28): not in the manual while it is a trial. */
-const HINT_WEATHER = 'weather effects trial: #weather demo [slow] plays every effect, #weather stop ends it.';
+const HINT_WEATHER = 'weather effects trial: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather stop ends it.';
 
 // Alphabetical by name (checked by a test); order is the resolution order.
 const SPECS: readonly Spec[] = [
