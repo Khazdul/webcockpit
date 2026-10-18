@@ -1503,3 +1503,9 @@ black: the brightest stroke stands out).
     The sun itself (not the rays) and the light round it should be less
     marked: the whole effect about 50 % weaker. In both sunrise and sunset
     the rays should be less marked: dimmed by about 50 %.
+84. **Day sky rays: subtler, three more, a smooth vanish.** On the blue
+    day sky, make the rays even less visible, so that they are there more
+    subtly. Add three more rays (spread evenly). When a ray goes out
+    (opacity reaching 0) it can be perceived: make the transition smoother
+    as a ray weakens and vanishes or comes in (probably the frame rate, or
+    too few transparency steps, so that it looks choppy).
