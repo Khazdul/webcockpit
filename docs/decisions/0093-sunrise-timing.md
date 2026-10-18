@@ -247,6 +247,80 @@ anyway.
   dock's panes and their shadows, so its early strength E is 0.6 (was 0.45;
   by eye from screenshots of `#weather demo sunrise`).
 
+### Sky order and calm rays (owner items 76–79)
+
+After `#weather demo sunrise` / `sunset` with items 71–75: a sunset's blue
+lasted too long, but its stars came while rays and a sun above the horizon
+were still clearly there (76); a sunrise's hazy glow came in its first 3 s,
+its stars and blue were in the wrong order, and it was not over when the
+day began (77); the rays looked like moving spotlights, bunched, mostly
+pointing up, their glints on the frame lines faint (78); some rays moved
+very fast (79). This replaces the curve table above where they differ.
+
+- **The sun's part ends at the turn's second for both.** Rays, beams,
+  glints, glow, tint and warm palette are over at 0 (`turnOn` is -60 … 0);
+  the colours and the sun's path run over -60 … 0 (`turnProgress`), so a
+  sunset's sun reaches the horizon as its last rays go. What comes after
+  differs: a sunrise's day sky is complete at 0 (`TURN_FULL.rise` 0), a
+  sunset's stars come out over the 14 s after (`TURN_FULL.set` 14,
+  `FULL_S` 14; was 18 for both). The director's join window and the end of
+  a released demo turn use FULL_S.
+- **Sky colours and stars apart.** The sky's colour share (`turnWeight`,
+  per kind) and the stars (`turnStars`, a factor on the night part's stars
+  only; the moon is left as the almanac has it) are separate:
+
+| curve | sunrise | sunset |
+| --- | --- | --- |
+| weight (new sky's colours) | sst(-30, 0): the blue over the last 30 s | sst(-50, 0): the blue fades from 10 s in, into the dusk (the night colour under the warm tint) |
+| stars | 1 at -60, 0.5 at -50, 0.24 at -40, 0.1 at -30, 0.04 at -18, 0 at -6 (linear between) | 0 until -5 (the rays then under 0.1 and falling), sst(-5, 14) |
+| glow (the sun's haze, its own curve now) | 0 at -60 → 0.6 at -35 → 1 at -14 (in 25 s what used to come in 3), fading -14 … 0 | 0 → 0.6 at -52 → 1 at -24, fading with the rays |
+| rays | sst(-60, -57.5) · (E + (1 − E) · lin(-60, -24)) · (1 − lin(-24, 0))^1.5 | the same: 0.35 at -12, 0.1 at -5, 0 at 0 |
+| intensity, palette | lin(-60, -14)^1.3, lin(-55, -14); both · (1 − lin(-14, 0))^1.3 | the same |
+| beams on | from -48, -42, -36 s (each over 10 s) | the same |
+
+- **Gliding onto the curve** (director `TURN_JOIN_RATE` 0.1/s): a turn
+  started mid-way by an event (the demo's `from`) moves the sky to its
+  curve at that rate instead of jumping (a sunset from -30 starts with its
+  blue a third gone); joining at once (page load, sync, `jump`) still sets it.
+- **Calm rays: the fan no longer aims at the corners** (beams.ts `turnFan`).
+  The cause of 79: the fan's edges were the screen's four corners as seen
+  from the sun, and the sun's path passes close by the top-right (top-left)
+  corner, so that corner's angle swung by up to ~160° within seconds and
+  every ray, laid evenly across the fan, swung with it: up to 4.4–6.5°/s
+  (1400 × 800 … 2560 × 1100). Now the lower edge aims at the floor
+  (FAN_FLOOR 0.78 H) 45 % in from the far side, the upper edge is 2° above
+  the horizontal under a sun low at the turn horizon and 12° as it climbs,
+  but never above the far top corner; both points lie on the far side,
+  never near the sun. The beams are laid at 0.25, 0.5 and 0.75 of the same
+  fan (between the thin rays; they were bunched within ±0.06 rad of its
+  middle) and the rays at their even places ± 0.1 of a place (was ± 0.35).
+  Every ray and beam now moves at under 0.84°/s at any window size (unit
+  test bound 1°/s): the sun's own climb and the shared sway.
+- **Sideways and down.** The first rays of a sunrise (and the last of a
+  sunset) span about 6° down to 2° up, most of them level or down; from
+  about a third in, one or two point up toward the far top corner.
+- **Subtle rays, clear glints.** Thin rays drawn at 0.085 (was 0.2), the
+  beams' layers at about a third (0.022 / 0.05 / 0.065, the glow layer 2.2
+  half-widths); a sunset's rays at 0.75 of a sunrise's (was 0.62, so they
+  still show over the dusk). A thin ray's glint is now by the square root
+  of its strength × 1.1 (was linear × 0.35), as a soft glow and a brighter
+  core like a beam's, at least 36 px long. By eye from headless screenshots
+  of both demos every 5 s.
+- **Cost.** A sunset's sky colours now move from -50 s instead of -32, so
+  the sky's cached gradient is redrawn for those 18 s too: headless
+  Chromium (software), worker frame average over the last 600 frames at
+  -30 s 1.6 → 4.5 ms, p95 6.2 → 6.8 ms; at -15 s 3.6 → 4.1 ms. A turn's
+  fast rate ends at 0 (a sunset's stars then fade in at the sky's own
+  rate). `node bench/weather-bench.ts --rounds 2` (no turn in its scene):
+  in line with bench/results/weather.md.
+- **Demo.** The main demo's sunrise and sunset show their last 30 s
+  (DEMO_TURN_FROM -30, was -25); "The day begins" is 6 s (the sky is
+  complete then); the sunset step's shooting star is gone (no stars yet);
+  2:56 in all.
+  `#weather demo sunrise` 1:20 (the day step 12 s), `#weather demo sunset`
+  1:30 (the night step 14 s, the stars filling in); captions follow the
+  new order.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then

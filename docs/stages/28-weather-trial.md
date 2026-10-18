@@ -1389,3 +1389,34 @@ black: the brightest stroke stands out).
     few pointing up may have come.
 79. **Rays: no fast or big movement.** Some rays start to move very fast.
     No quick or large movement at all: the animation should feel calming.
+    - **Done (2026-10-18), items 76–79:** ADR 0093, "Sky order and calm
+      rays". The sun's part of both turns (rays, beams, glints, glow,
+      colours) now ends at the turn's second. Sunrise: the hazy glow comes
+      in over 25 s (what came in 3 s) and grows until 14 s before the day;
+      the stars are half gone 10 s in, barely there 30 s in, gone 6 s before
+      the day; the blue comes over the last 30 s and is complete when the
+      day begins, the sun and every ray gone then. Sunset: the blue starts
+      to fade 10 s in, into a warm dusk (darker, no stars); the rays fade
+      softly to nothing at the night's second (barely there 5 s before);
+      the stars come only from then, complete 14 s into the night. Rays
+      and beams are drawn much fainter (the beams about a third of before),
+      spread evenly over the fan (the beams between the rays), and a
+      sunrise starts with them sideways and down (about 6° down to 2° up),
+      a ray or two pointing up from about a third in. A faint ray's glint
+      on a frame line is now much stronger (a glow and a core, like a
+      beam's). The fast movement (79): the fan's edges were the screen's
+      corners seen from the sun, and the sun passes close by a top corner,
+      so the fan swung by up to ~160° in seconds; now it aims at two points
+      on the far side and every ray and beam moves at under 0.84°/s (was up
+      to 4.4–6.5°/s; unit test bound 1°/s). Demo: the main demo shows the
+      last 30 s of each turn (2:56 in all); `#weather demo sunrise` 1:20,
+      `#weather demo sunset` 1:30. Unit 2734; e2e weather + layout 44/44
+      (Chromium, Firefox); bench in line with bench/results. Checked in
+      headless Chromium by screenshots of both demos every 5 s (-57 … 0,
+      the sunset to +18), and against the previous build's sunrise.
+      Please try: `#weather demo sunrise` and `#weather demo sunset`; note
+      the caption's time for anything you want changed.
+      Feedback wanted: is the order right now (sunset: blue, dusk, rays
+      gone, then stars; sunrise: glow, stars going, blue), are the rays
+      subtle enough and the glints clear enough, and does any ray still
+      move too much.
