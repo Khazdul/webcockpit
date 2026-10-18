@@ -1442,6 +1442,34 @@ black: the brightest stroke stands out).
     arrow almost level to the right across the top, two steeply down-right
     to the bottom edge). About 22 s before the night begins the rays
     clearly fade; the frame glints must fade in step with them.
+    - **Done (2026-10-18), items 80–81:** ADR 0093, "Tiered rays and a
+      wider fan". Both turns now share one fan of 15 evenly spread places:
+      three beams a little stronger than the rest at a quarter, the middle
+      and three quarters of the fan, and between them twelve thin rays,
+      middle and much weaker ones in turn (beam, weak, middle, weak, beam
+      …), never two of a kind side by side. The fan reaches from about
+      level to the bottom edge: in a sunrise from 39° down at the start,
+      60° down midway and 81° down (nearly straight down at the right) at
+      the end; a sunset the mirror, nearly straight down at its start and
+      about 40° down at its end. A sunrise's rays come in step with its
+      hazy light (barely there at first, not a few rays early). The frame
+      glints go by the ray's strength: strongest from the beams, less from
+      the middle rays, least from the weak; a sunrise's are faint for its
+      first 10–20 s, and in both turns the glints fade with the rays (they
+      were drawn too strong and clipped, so the first third of the fade
+      did not show in them). A sunset's stars start to show 7 s before the
+      night and are complete when it begins (they came at -5 and were
+      complete 14 s in). Every ray still moves at under 0.82°/s. The rays
+      that go steeply down pass behind the right-hand panes, so they show
+      there mostly as glints on the frame lines. `#weather demo sunset` is
+      now 1:26. Unit 2739; e2e weather + layout 44/44 (Chromium, Firefox). Checked in
+      headless Chromium at 2000 × 1150 by screenshots of both demos every
+      2–5 s.
+      Please try: `#weather demo sunrise` and `#weather demo sunset`; note
+      the caption's time for anything you want changed.
+      Feedback wanted: does the fan reach where your arrows went, are the
+      three stronger rays and the tiers right, does the sunrise start
+      slowly enough, and do the glints now fade with the rays.
 82. **Day sky: fainter, sparser, wider sun rays.** The sun glimpses / rays
     on the blue day sky should be even fainter, only just perceptible, and
     fade out a little towards the lower part. They are too centred in one
@@ -1450,3 +1478,17 @@ black: the brightest stroke stands out).
     above the top edge, right of the middle, arrows down-left at about 30°
     and 45° below level on the left, steeply down a little to the right, and
     down-right at about 50° to the right edge).
+    - **Done (2026-10-18):** ADR 0093, "Tiered rays and a wider fan". The
+      day sky's pulsing rays are fainter (their peak about two thirds of
+      before), fade out down the screen (gone about three quarters down),
+      and are six rays spread evenly over about 110° round the sun's
+      direction (they were within about ±23°): for a sun above the top,
+      right of the middle, from about 30° below level at the left to about
+      60° at the right; two a little stronger, one middle, three weak, in
+      turn. Same cost; calm (under 1°/s). Checked in headless Chromium at
+      2000 × 1150 in the morning, before and at midday, and in the evening.
+      Please try: `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.35 });
+      __weather.emit('glimpse')` (or `#weather demo`'s clear day), and
+      watch a few pulses.
+      Feedback wanted: are they faint enough now (or too faint to see), and
+      is the spread right.

@@ -321,6 +321,91 @@ very fast (79). This replaces the curve table above where they differ.
   1:30 (the night step 14 s, the stars filling in); captions follow the
   new order.
 
+### Tiered rays and a wider fan (owner items 80–82)
+
+After items 76–79: a sunrise's rays were bunched in one span to the left
+and down-left, none pointing down, three much stronger beams side by side,
+a few rays visible from the start, the glints marked from the first
+seconds (80); a sunset's fan was too narrow, its stars came only at -5 s
+and were complete 14 s into the night, and its frame glints stayed while
+its rays faded (81); the day sky's pulsing rays were too strong, bunched
+round one direction and as strong low on the screen as high (82). The
+owner's screenshots `docs/stages/img/28-item80-sunrise-rays.png`,
+`28-item81-sunset-rays.png`, `28-item82-day-rays.png` show the wanted
+directions. This replaces the sections above where they differ.
+
+- **One tiered fan for both turns** (beams.ts `SLOTS` 'wmwSwmwSwmwSwmw'):
+  15 even places from the fan's lower edge, three beams (S, a little
+  stronger) at places 3, 7 and 11 (a quarter, the middle, three quarters),
+  four middle rays (m, 1) and eight weak ones (w, 0.4) between, so no two
+  of a tier are side by side. Thin rays 12 (`TURN_RAY_N`, was 8), beams 3
+  (strengths 0.9 / 1 / 0.9, was 0.62 / 1 / 0.76). The rays' widths by tier
+  (no more random alpha 0.21–1).
+- **Down to the bottom edge.** The fan's lower edge aims at the bottom edge
+  10 % in from the sun's side (`FAN_FLOOR` 1, `FAN_FLOOR_X` 0.1; was 0.78 H,
+  45 % in from the far side, item 75 overridden by the owner), but as the
+  angle seen from the sun where the turn starts and where it ends, linear in
+  between: aimed at the point all the way, it swung at up to 1.4°/s while
+  the low sun was near it. The upper edge is as before. Below horizontal at
+  2000 × 1150 (sunrise; a sunset the mirror, end to start):
+
+| s | lower edge | upper edge | span |
+| --- | --- | --- | --- |
+| -59 | 39° down | 2° up | 41° |
+| -45 | 49° down | 4° up | 53° |
+| -30 | 60° down | 5° up | 65° |
+| -15 | 71° down | 3° down | 68° |
+| -1 | 81° down | 9° down | 72° |
+
+  (1280 × 720 … 2560 × 1100 within 2°; 900 × 1000 to 75°.) Every ray and
+  beam moves at under 0.82°/s at the six tested window sizes (unit bound
+  1°/s).
+- **A sunrise's rays come with its glow** (`turnRays`): 0 at -60, 0.6 at
+  -35 as the glow, 1 at -24 (was 0.6 from the first seconds); all rays and
+  beams together (`turnRayOn` / `turnBeamOn` take the kind). A sunset keeps
+  its few rays from the start (`SET_RAYS_EARLY` 0.5) and the rest one by
+  one (the nine others from -54 s, 2.5 s apart; beams from -48 s).
+- **Glints by tier and with the rays** (`turnGlint`): every glint's strength
+  is `turnRays^1.5` (a sunrise's also · sst(-60, -42): faint for the first
+  10–20 s), × the tier (`TIER_GLINT` S 1, m 0.6, w 0.3), core at most 0.95
+  (`GLINT_CORE`). Before, a beam's glint was drawn at 1.3 and a ray's at 1.1
+  and clipped at 1, so the first third of the rays' fade did not show in
+  them; and a faint ray's glint went by the square root of its strength
+  (item 78). The power 1.5: a glint is bright on its line, so it must fall
+  a little faster than the faint ray to look as if it fades in step.
+- **A sunset's stars from -7 s, complete at 0** (`SET_STARS_S`,
+  `turnStars`; was -5 … +14). `TURN_FULL.set` and `FULL_S` are 0: every
+  part of both turns is complete at the turn's second, so the director's
+  sky curve and a released demo turn end there. A page load or sync still
+  joins a turn up to `TURN_JOIN_S` (14 s, director.ts) after its second, as
+  before, since the turn gives the new clock until the almanac re-reads it.
+  The "dark gap around the night's second" is gone with it. The stars' sst
+  over 7 s changes by up to 0.0071 per frame at 30 fps (unit bound 0.0075).
+- **Day sky rays** (daylife.ts, item 82): six rays (`DAY_TIERS` 'wSmwSw',
+  strengths 1 / 0.7 / 0.4) evenly over ±55° round the sun's direction
+  (`dayRayAngle`, was six within about ±0.4 rad), so a sun above the top
+  right of the middle sends them from about 30° below level at the left to
+  about 60° at the right; drawn with a vertical gradient (1 at the top, 0.6
+  at 0.23 H, 0.2 at 0.5 H, gone at 0.78 H; was by distance from the sun);
+  the pulse's peak 0.1 … 0.2 (was 0.14 … 0.3). The same six triangles a
+  frame at the still rate; under 1°/s as the sun crosses the day (unit test, a day in 10 min).
+- **Demo.** `#weather demo sunset`'s night step 10 s (was 14; the stars are
+  complete when it begins), 1:26 in all; captions name the wider fan, the
+  sunrise's rays with its glow, the glints fading with the rays and the
+  stars from 7 s before the night.
+- **Cost.** Four more thin rays (12 triangles and their cores, was 8)
+  and the glints of the wider fan. Headless Chromium (software) at
+  2000 × 1150, worker frame average / p95 over the last 600 frames, the
+  previous build in brackets (two runs): sunrise -30 s 2.21 / 6.07
+  (1.96–2.00 / 5.6–5.8), -10 s 6.20 / 10.15 (5.89–6.01 / 9.2); sunset
+  -30 s 7.96 / 13.78 (7.70–7.88 / 12.9–13.5), -10 s 6.76 / 9.41
+  (6.78–8.03 / 9.5–11.1): about +0.2 ms in a sunrise, the same in a
+  sunset. `node bench/weather-bench.ts --rounds 2` (no turn in its scene)
+  ran on a loaded machine (load 4–7.5): Chromium worker 1.86–1.95 ms,
+  Firefox 55–57 ms, against 1.62–1.95 and 54–62 for the previous build in
+  the same hour, so in line; bench/results/weather.md (load 2–3) left as
+  it was.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then
