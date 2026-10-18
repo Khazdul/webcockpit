@@ -300,6 +300,7 @@ export class Director {
     settled.dayAt = raw.dayAt;
     settled.nightAt = raw.nightAt;
     settled.moonRiseAt = raw.moonRiseAt;
+    settled.moonSetAt = raw.moonSetAt;
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
     settled.moonU = raw.moonU;

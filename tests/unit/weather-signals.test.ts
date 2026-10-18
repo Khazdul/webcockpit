@@ -6,7 +6,7 @@ import { moonAt, nextMoonEvent } from '../../src/gmcp/gametime';
 import { migrateSettings, defaultSettings, phoneDefaultSettings } from '../../src/settings';
 import { ALL_CATEGORIES, type WeatherEvent, type WeatherState } from '../../src/weather/protocol';
 import { DWELL_MS, Director, mixTargets } from '../../src/weather/director';
-import { SUN_U_STEP, WeatherSignals, almanacState, gmcpEvent, lineEvent, sunUpFraction, vitalsState } from '../../src/weather/signals';
+import { MOON_AFTER_SET, SUN_U_STEP, WeatherSignals, almanacState, moonTimes, gmcpEvent, lineEvent, sunUpFraction, vitalsState } from '../../src/weather/signals';
 import { categoriesOf } from '../../src/weather/controller';
 
 const NOW_MS = 1_800_000_000_000;
@@ -299,23 +299,35 @@ describe('almanac', () => {
     expect(sig.state()).toMatchObject({ clock: 'day', sunU: 0 });
   });
 
-  it("gives the moon's next rise (moonRiseAt) at minute precision and sends it when it moves on (item 63)", () => {
+  it("gives the moon's rise and set (moonRiseAt / moonSetAt): its time up now, else the next, at minute precision (items 63, 69)", () => {
     const c = clockAt(5, 2);
-    const g = NOW_S - c.epoch;
-    const rise = nextMoonEvent(g, 'rise');
+    const g0 = NOW_S - c.epoch;
+    // over a game day and a half, minute by minute (every 7th): the times are the moon's own
+    let changes = 0, last = -1;
+    for (let g = g0; g < g0 + 2200; g += 7) {
+      const m = moonTimes(c.epoch, g);
+      const rise = m.moonRiseAt / 1000 - c.epoch, set = m.moonSetAt / 1000 - c.epoch;
+      expect(nextMoonEvent(rise, 'rise')).toBe(rise);
+      expect(nextMoonEvent(rise, 'set')).toBe(set);
+      expect(set - rise).toBeGreaterThan(700);
+      expect(set - rise).toBeLessThan(800);
+      if (moonAt(g).position !== 'below') expect([rise <= g, g < set]).toEqual([true, true]);
+      else expect(g < rise || g < set + MOON_AFTER_SET).toBe(true);
+      if (m.moonRiseAt !== last) (changes++, (last = m.moonRiseAt));
+    }
+    expect(changes).toBeGreaterThanOrEqual(2);
     const a = almanacState(c, NOW_MS);
-    expect(a.moonRiseAt).toBe((c.epoch + rise) * 1000);
-    expect(a.moonRiseAt).toBeGreaterThanOrEqual(NOW_MS);
-    expect(almanacState(clockAt(5, 2, 10, 'hour'), NOW_MS).moonRiseAt).toBe(-1);
+    expect(a).toMatchObject(moonTimes(c.epoch, g0));
+    expect(almanacState(clockAt(5, 2, 10, 'hour'), NOW_MS)).toMatchObject({ moonRiseAt: -1, moonSetAt: -1 });
+    // sent when they move on: MOON_AFTER_SET after the set
     const s = sink();
     const sig = new WeatherSignals(s, empty, c, NOW_MS);
-    expect(sig.state().moonRiseAt).toBe(a.moonRiseAt);
-    // the rise second itself still gives it; a second later the next rise goes out
-    const at = a.moonRiseAt;
-    sig.almanac(c, at);
+    expect(sig.state()).toMatchObject({ moonRiseAt: a.moonRiseAt, moonSetAt: a.moonSetAt });
+    sig.almanac(c, a.moonSetAt + (MOON_AFTER_SET - 1) * 1000);
     expect(s.states.filter((x) => 'moonRiseAt' in x.s)).toHaveLength(0);
-    sig.almanac(c, at + 1000);
-    expect(s.states.at(-1)!.s.moonRiseAt).toBeGreaterThan(at + 1000);
+    sig.almanac(c, a.moonSetAt + MOON_AFTER_SET * 1000);
+    expect(s.states.at(-1)!.s.moonRiseAt).toBeGreaterThan(a.moonSetAt);
+    expect(s.states.at(-1)!.s.moonSetAt).toBeGreaterThan(s.states.at(-1)!.s.moonRiseAt!);
   });
 
   it('starts from the almanac and applies only its predicted changes; an event wins in between', () => {

@@ -54,13 +54,15 @@ export interface WeatherState {
    */
   nightAt: number;
   /**
-   * Unix ms of the moon's next rise (gametime.ts `nextMoonEvent`; the
-   * current minute when it rises now); -1 below minute precision. The sky
-   * brings the moon in before it, so it is half inside the screen when the
-   * game says it rises (owner item 63, ADR 0093). Sent at start, on a sync
-   * and when it changes (after each rise).
+   * Unix ms of the rise and the set of the moon's current time up, or (while
+   * it is down, from 2 min after its set) of its next one (gametime.ts
+   * `nextMoonEvent`); -1 below minute precision. The sky places the moon by
+   * them at every frame: in at the rise, out at the set, at an even pace
+   * (owner items 63, 69; ADR 0093). Sent at start, on a sync and when they
+   * change (2 min after each set).
    */
   moonRiseAt: number;
+  moonSetAt: number;
 }
 
 export const DEFAULT_STATE: Readonly<WeatherState> = {
@@ -76,6 +78,7 @@ export const DEFAULT_STATE: Readonly<WeatherState> = {
   dayAt: -1,
   nightAt: -1,
   moonRiseAt: -1,
+  moonSetAt: -1,
 };
 
 /** Momentary events (never dwelled). */

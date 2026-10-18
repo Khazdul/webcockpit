@@ -22,8 +22,8 @@
 //                  through the day (`sunU`, for the sun glimpses); at
 //                  minute precision the seconds the day and the night
 //                  begin (`dayAt`, `nightAt`), which time sunrise and sunset,
-//                  and of the moon's next rise (`moonRiseAt`), which brings
-//                  the moon in before it
+//                  and of the moon's rise and set (`moonRiseAt`,
+//                  `moonSetAt`), which place the moon
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
 //
@@ -43,7 +43,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -68,12 +68,12 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
 export function almanacState(
   clock: Readonly<ClockState>,
   nowMs: number,
-): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number; moonRiseAt: number } {
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number; moonRiseAt: number; moonSetAt: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1 };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
   const m = momentAt(clock.epoch, nowS);
   const day = isDay(m.month, m.hour);
   return {
@@ -83,8 +83,26 @@ export function almanacState(
     sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1,
     dayAt: dayBeginsAt(clock, nowMs) ?? -1,
     nightAt: nightBeginsAt(clock, nowMs) ?? -1,
-    moonRiseAt: clock.precision === 'minute' ? (clock.epoch + nextMoonEvent(g, 'rise')) * 1000 : -1,
+    ...(clock.precision === 'minute' ? moonTimes(clock.epoch, g) : { moonRiseAt: -1, moonSetAt: -1 }),
   };
+}
+
+/** The moon's times are kept this long after its set (game minutes): the sky lets it glide out past the left edge. */
+export const MOON_AFTER_SET = 2;
+
+/**
+ * Unix ms of the rise and set of the moon's time up at game minute `g` (its
+ * current one, until MOON_AFTER_SET after the set; else the next).
+ */
+export function moonTimes(epoch: number, g: number): { moonRiseAt: number; moonSetAt: number } {
+  // a time up is ~745 game minutes and rises come ~1490 apart: one rise at most in the last 900
+  let rise = nextMoonEvent(g - 900, 'rise');
+  let set = nextMoonEvent(rise, 'set');
+  if (g >= set + MOON_AFTER_SET) {
+    rise = nextMoonEvent(set, 'rise');
+    set = nextMoonEvent(rise, 'set');
+  }
+  return { moonRiseAt: (epoch + rise) * 1000, moonSetAt: (epoch + set) * 1000 };
 }
 
 /** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the hour after the dawn hour), → 1 when the night begins (the hour after the dusk hour). */
@@ -156,7 +174,7 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
 
@@ -169,7 +187,7 @@ export class WeatherSignals {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt, moonRiseAt: a.moonRiseAt };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt, moonRiseAt: a.moonRiseAt, moonSetAt: a.moonSetAt };
   }
 
   /** The state to start the engine with. */
@@ -247,8 +265,9 @@ export class WeatherSignals {
     // The seconds the day and the night begin (minute precision): change at a sync, at nightfall and daybreak.
     if (a.dayAt !== this.sky.dayAt) out.dayAt = this.sky.dayAt = a.dayAt;
     if (a.nightAt !== this.sky.nightAt) out.nightAt = this.sky.nightAt = a.nightAt;
-    // The moon's next rise (minute precision): changes at a sync and after each rise.
+    // The moon's rise and set (minute precision): change at a sync and after each set.
     if (a.moonRiseAt !== this.sky.moonRiseAt) out.moonRiseAt = this.sky.moonRiseAt = a.moonRiseAt;
+    if (a.moonSetAt !== this.sky.moonSetAt) out.moonSetAt = this.sky.moonSetAt = a.moonSetAt;
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }

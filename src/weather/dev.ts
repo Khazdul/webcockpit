@@ -13,11 +13,12 @@
 //   __weather.jump({ clock: 'day', nightAt: Date.now() + 65_000 })
 //                                           a sunset: the night begins in 65 s
 //                                           (ADR 0093; unpin after either)
-//   __weather.jump({ clock: 'night', moonUp: false, moonU: -1, moonRiseAt: Date.now() + 60_000 })
+//   r = Date.now() + 60_000; __weather.jump({ clock: 'night', moonRiseAt: r, moonSetAt: r + 745_000 })
 //                                           a moonrise in 60 s: the moon comes in
-//                                           before it (ADR 0093, item 63); pinned
-//                                           down, it fades a minute after the
-//                                           rise unless `__weather.emit('moon.rise')`
+//                                           before it and crosses at its even
+//                                           pace by the clock (ADR 0093, items
+//                                           63, 69); `r = Date.now() - 300_000`
+//                                           puts it mid-way
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
 //   __weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')
