@@ -1212,6 +1212,14 @@ worker 23 → 30 fps, 36.9 → 29.2 ms a frame against the last results file.
   floating, heavy: Chromium 568 → 516 (worker frame 1.88 → 1.65 ms, no copy),
   Firefox 621 → 623.
 
+### Sunrise timed by the clock (2026-10-18, owner items 59–60)
+
+Superseded for the sunrise by ADR 0093: the day begins at dawn + 1 (the
+dawn hour is still dark in MUME); the sunrise runs over the 60 s before
+that second, timed by the synced clock (`WeatherState.dayAt`, the
+director's `riseS`, `src/weather/sunrise.ts`), not by `Event.Sun rise`;
+`SKY_HOLD_S` applies only to a change to night. The sunset is unchanged.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

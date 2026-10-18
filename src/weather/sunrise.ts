@@ -9,7 +9,7 @@
 //
 //   intensity     rays, beams, glints, the sky tint: just perceptible for
 //                 the first 40 s (≤ RISE_FAINT), builds up over the last
-//                 20 s, peaks ~7 s before the day and is gone at 0
+//                 20 s, peaks ~7.5 s before the day and is gone at 0
 //   palette       how much of the cloud palette the warm sunrise palette
 //                 takes: slowly from -50 s, gone at 0
 //   progress      0..1 along the sunrise's colours and the sun's path

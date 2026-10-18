@@ -1048,6 +1048,12 @@ black: the brightest stroke stands out).
       east."; "The day has begun." comes an hour later. `Event.Sun rise` is
       the dawn hour, `light` dawn + 1; rooms are lit from `light`. The
       strip's day starts at the dawn hour (`isDay`), one hour early.
+    - **Done (2026-10-18):** ADR 0093. The day is dawn + 1 ≤ hour < dusk:
+      the strip shows the moon and counts down to dawn + 1:00 through the
+      dawn hour, the sun from "The day has begun." on; the weather's
+      almanac and `sunU` and the scripts' `period` agree (the scripts
+      already had the dawn hour as `dawn`, not `day`). Night still begins
+      at the dusk hour, as before.
 60. **Sunrise timed to the game's day.** The night sky turned slowly into
     the day sky, which was complete about 25–30 s before the day began; no
     sunrise animation at all. Wanted: the sunrise starts exactly one minute
@@ -1057,3 +1063,29 @@ black: the brightest stroke stands out).
     night sky turns into the day sky; the day sky need not be complete when
     the day begins and may go on fading in 10–20 s after, but at that second
     it must be more prominent than the night sky. The change must be smooth.
+    - **Done (2026-10-18):** ADR 0093. The sunrise is timed by the synced
+      clock, not by `Event.Sun rise`: it starts 60 s before the day begins
+      and is over at that second. Its rays, beams, glints and warm colours
+      stay at most 6 % for the first 40 s, build up over the last 20 (peak
+      ~7 s before the day) and fade out by the day's first second. The day
+      sky comes in from 28 s before the day; at the day's first second it
+      is 74 % of the sky, complete 14 s later. A page load or a clock sync
+      mid-rise joins at its place, a small resync glides, never two in one
+      dawn. Without a clock synced to the minute, `Event.Sun rise` starts
+      it (and syncs the clock); "The day has begun." without one fades to
+      day over 12 s. The look is the old sunrise, re-timed; the sunset is
+      unchanged. The demo's Sunrise step plays its last half minute (10 s).
+      Unit 2711 (new: the curves, the rise clock, the dawn-hour strip);
+      e2e weather + layout 44/44. Checked in headless Chromium by
+      screenshots at -24, -15, -7, 0 and +14 s; how it looks on your screen
+      is yours to judge.
+      Please try: (1) outdoors on a clear night with the clock synced to the
+      minute (the strip shows H:MM), watch the last game minute before the
+      strip's ☾ turns ☼: almost nothing for 40 s, then the beams build and
+      are gone as the day begins, the blue sky coming through and finishing
+      some 15 s into the day; (2) the strip's ☼ comes with "The day has
+      begun.", not with "The light slowly increases"; (3) `#weather demo`
+      (step 2, Sunrise); (4) dev server: `__weather.jump({ clock: 'night',
+      dayAt: Date.now() + 65_000 })`, then `__weather.unpin()`. Feedback
+      wanted: is the first 40 s too faint or not faint enough, and does the
+      day sky arrive at the right pace.
