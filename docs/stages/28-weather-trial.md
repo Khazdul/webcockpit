@@ -1277,3 +1277,24 @@ black: the brightest stroke stands out).
       headless Chromium (screenshots at eleven points).
       Please try: `#weather demo` once through; feedback wanted on any
       step that feels too short to see or too long.
+
+### 2026-10-18 — sun test (translated)
+
+71. **Sunrise builds up steadily.** The first 5–10 s were good: a few
+    rays from the right angle. Then more rays should fade in gradually over
+    the following 20–30 s, so the sunrise builds up a little all the time.
+    At the most intense part everything happened very fast and felt like a
+    jerk: very little for a long time, then very much in a very short time.
+    The climb and the build-up of rays must be gradual. Nor may the effect
+    die out too fast: when the blue sky becomes perceptible the rays fade
+    out slowly, and when the blue sky is complete the rays are gone.
+72. **Sunset: gradual, and setting at the bottom left.** The same as 71:
+    too fast at the end. When the sun reaches its end below the horizon on
+    the left, the rays should feel as if they come from the screen's lower
+    left edge; now they seemed to come from about the middle of the left
+    side when the sun was lowest.
+73. **Day-sky rays pulse gently.** Today they fade in and out with long
+    pauses between. Instead they should slowly pulse between not visible
+    and only just perceptible, about every 20 s; so subtle you hardly
+    notice it unless you look closely. A little more visible at midday,
+    when the sun is brightest.
