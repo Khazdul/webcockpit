@@ -39,6 +39,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 items 85–86, demo held from the game, first-pane glints (branch `sunrise-timing`)
+
+- **Done:** item 85 (bug, owner-reported): the game's Event.Sun / Moon /
+  Darkness and lightning/gust lines reached the engine past a demo's pins.
+  Now held while any pin is active; sun/moon recorded and applied on
+  release (a held rise/set rejoins at its place). Item 86: a ray glints
+  only on the first pane it meets (`beamHits`). ADR 0091 Demo, ADR 0093.
+  Unit 2747; e2e weather + layout 44/44.
+- **Next:** owner tests items 83–86.
+- **Open issues:** dev pins also drop real lightning until unpin; benches
+  not rerun (no hot-path change).
+- **Commits:** 268fc99, 269ae13, f00601a, 75e1437, plus this one.
+
 ### 2026-10-19 — Stage 28 items 83–84, sunset end and dithered day rays (branch `sunrise-timing`)
 
 - **Done:** the sunset now reads as set at the night's second (its colours
