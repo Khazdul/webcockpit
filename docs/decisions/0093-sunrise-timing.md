@@ -429,7 +429,7 @@ replaces the sections above where they differ.
   blue at 0.88.
 - **The stars from -6 to +5** (`SET_STARS_S` -6, `TURN_FULL.set` 5,
   `FULL_S` 5): sst(-6, 5)², so just there at -5 (0.0005; a star shows at a
-  small share), 0.24 at 0, 0.7 at +3, complete at +5. The director keeps a
+  small share), 0.32 at 0, 0.83 at +3, complete at +5. The director keeps a
   sunset's sky curve and a released demo turn to +5; `TURN_JOIN_S` (14)
   stays above it. The sky module keeps the fast rate while the stars fill
   in after the turn (`starsIn`). Steepest change 0.0066 per frame at 30 fps.
