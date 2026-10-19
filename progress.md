@@ -48,7 +48,10 @@ Statuses: Next, In progress, Owner testing, Done.
   0.1.64 (c0745a8). build:pages green (unit, local smoke 10/10).
 - **Released:** the owner pushed main and tag `v0.1.64`; Pages run green,
   live release.json 0.1.64 (6f50f47), test:prod against the live site 10/10.
-- **Next:** real-play findings (fog, lightning, clouds, snow, rain).
+- **Next session:** find why e2e `replay.spec.ts:101` ("the HTML replay
+  plays from file:// …", Chromium) fails, on main too: the last row shows a
+  prompt (`* R:Fine>`) instead of `## Watch the tank here.` after 2 s. Then
+  the real-play findings (fog, lightning, clouds, snow, rain).
 - **Commits:** this one.
 
 ### 2026-10-19 — Ray layer cost before release (branch `sunrise-timing`)
