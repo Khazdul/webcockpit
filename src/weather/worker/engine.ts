@@ -35,6 +35,7 @@ import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
 import type { FrameStats, Geometry, MainToWorker, PaneGeom, WorkerToMain } from '../protocol';
+import { LEFT_DARK, leftDark } from './band';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -104,6 +105,8 @@ interface Cache {
   front: Layer;
   scale: number;
   valid: boolean;
+  /** The left band's fade (destination-out), for a `band` module (made on first use). */
+  band?: CanvasGradient;
 }
 
 const DRAW_OPS = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage', 'fillText', 'strokeText', 'putImageData'] as const;
@@ -496,6 +499,7 @@ export class WeatherEngine {
             env.back = back;
             env.front = front;
           }
+          if (mod.band) this.bandOut(c);
           c.valid = true;
         }
         try {
@@ -542,6 +546,26 @@ export class WeatherEngine {
     back.restore();
     front.restore();
     return busy;
+  }
+
+  /** Takes the left band out of a cache's drawn layers, along the sky's curve (owner item 99; at the cache's resolution, at the module's rate). */
+  private bandOut(c: Cache): void {
+    const env = this.env!, lw = env.W * LEFT_DARK;
+    if (!c.band) {
+      const g = c.back.ctx.createLinearGradient(0, 0, lw, 0);
+      for (let i = 0; i <= 16; i++) g.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+      c.band = g;
+    }
+    for (const l of [c.back, c.front]) {
+      if (!l.drawn) continue;
+      const x = l.ctx;
+      x.save();
+      x.globalCompositeOperation = 'destination-out';
+      x.globalAlpha = 1;
+      x.fillStyle = c.band;
+      x.fillRect(0, 0, lw, env.H);
+      x.restore();
+    }
   }
 
   /** The slot's cache canvases (back, front) at `scale` × the canvases' ratio, made on first use and after a resize. */

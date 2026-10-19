@@ -93,6 +93,13 @@ export interface Module {
    * through its cache, and must not call setTransform on env.back / front.
    */
   scale?: number;
+  /**
+   * The engine takes the left band (band.ts) out of what this module drew in
+   * its cache, along the sky's curve (owner item 99). Only for a module that
+   * always draws through its cache (`scale` below 1: fog); the others fade
+   * their own elements.
+   */
+  band?: boolean;
 }
 
 /** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */
