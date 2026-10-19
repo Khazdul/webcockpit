@@ -11,8 +11,8 @@
 // begins). The sun, its rays and its glow are gone at 0 for both (owner
 // items 76, 77); a sunset's are still visible until the last seconds, so the
 // sun reads as set at the night's second (item 83). A sunrise's blue is
-// complete at 0; a sunset's stars come from 5 s before the night to 5 s
-// after (item 83; was over its last 7 s, item 81).
+// complete at 0; a sunset's stars are just perceptible at the night's second
+// and complete 10 s after (item 88; was -5 … +5, item 83).
 // Steady all through (owner items 71, 72: no "little for long, then much at
 // once"):
 //
@@ -20,19 +20,19 @@
 //                 dusk after a sunset): a sunrise's blue over its last 30 s,
 //                 a sunset's blue fading from -50 s into the warm dusk
 //   stars         the stars' share: a sunrise's fade 50 % by -50 s, barely
-//                 there by -30; a sunset's come from -5 to +5 s
+//                 there by -30; a sunset's come from 0 to +10 s
 //   glow          the sun's hazy light: a sunrise's slow (25 s to what came
 //                 in 3), growing to -14 s; fading as the turn ends
 //   rays          the rays' and beams' strength: a sunrise's in step with
 //                 its glow (barely there at first, owner item 80), a
-//                 sunset's a few from the first seconds; full by
+//                 sunset's softly over its first 14 s (item 88); full by
 //                 RAYS_FADE_S, then fading softly, gone at 0 (a sunset's
 //                 late: half there 5 s before the night, item 83)
 //   glint         the frame glints: by the rays' strength (a little faster
 //                 down, so they fade with them, item 81), a sunrise's held
 //                 back over its first 18 s (item 80)
 //   ray / beam on a sunset's rays fade in one by one (`turnRayOn`): three
-//                 from the start, the other nine from -54 s, 2.5 s apart;
+//                 from -60, -56 and -52 s, the other nine from -50 s, 2.5 s apart;
 //                 its three beams from -48 s, 6 s apart; a sunrise's all
 //                 come with its glow
 //   intensity     the sky tint, the day life held back: rising evenly,
@@ -46,8 +46,8 @@ export type TurnKind = 'rise' | 'set';
 
 /** A turn's length before its second: the last game hour (1 game minute = 1 s). */
 export const TURN_S = 60;
-/** The new sky is complete this long after the turn's second, s: a sunrise's blue at the second itself (owner item 77), a sunset's stars 5 s after (item 83; was 0, item 81). */
-export const TURN_FULL: Readonly<Record<TurnKind, number>> = { rise: 0, set: 5 };
+/** The new sky is complete this long after the turn's second, s: a sunrise's blue at the second itself (owner item 77), a sunset's stars 10 s after (item 88; was 5, item 83). */
+export const TURN_FULL: Readonly<Record<TurnKind, number>> = { rise: 0, set: 10 };
 /** The longest of TURN_FULL, s. */
 export const FULL_S = Math.max(TURN_FULL.rise, TURN_FULL.set);
 /** A turn is followed this long after its second (the almanac turns the clock within its 30 s re-read), s. */
@@ -88,17 +88,17 @@ export function turnWeight(kind: TurnKind, s: number): number {
 /** A sunrise's stars: half gone 10 s in, barely there 20 s later, gone before the blue is strong (owner item 77). */
 const RISE_STARS: ReadonlyArray<readonly [number, number]> = [[-60, 1], [-57, 0.88], [-50, 0.5], [-40, 0.24], [-30, 0.1], [-18, 0.04], [-6, 0]];
 
-/** A sunset's stars start to show this long before the night begins (s; owner item 83: a few faint ones 5 s before, was -7, item 81). */
-export const SET_STARS_S = -9;
+/** A sunset's stars start to come this long before the night begins (s), so they are just perceptible at its second (owner item 88; was -9, item 83). */
+export const SET_STARS_S = -3;
 
 /**
  * How much of the stars the night part of the sky shows (1 outside a turn):
  * in a sunrise they fade as the sun's light comes (`rise` its `s`); in a
  * sunset they come as the sun sets, from SET_STARS_S, complete TURN_FULL.set
- * into the night (`set` its `s`; NaN without). Even to the power 1.2: a
- * few faint ones at -5 s (0.22: the dusk sky is drawn over them, a share
- * under about 0.15 does not show then), about half when the night begins,
- * slowly to the end (owner item 83; by eye in screenshots).
+ * into the night (`set` its `s`; NaN without). Even to the power 1.2: under
+ * about 0.15 they do not show over the dusk sky, so at the night's second
+ * (0.17) a few are just perceptible, then they fill in over its first 10 s
+ * (owner item 88; by eye in screenshots).
  */
 export function turnStars(rise: number, set: number): number {
   if (rise > -TURN_S && rise < LATE_S) return pw(RISE_STARS, rise);
@@ -132,16 +132,19 @@ function glowFade(s: number, kind: TurnKind): number {
   return kind === 'set' ? lateFade(x) : (1 - x) ** 1.3;
 }
 
-/** A sunset's rays' strength from the first second (a few rays, vague but visible; by eye, owner items 62, 71). */
+/** A sunset's rays' strength once in (a few rays, vague but visible; by eye, owner items 62, 71). */
 export const SET_RAYS_EARLY = 0.5;
 /** A sunrise's rays come in step with its glow (owner item 80: barely there at first, not a few rays early; was 0.6 from the first seconds). */
 const RISE_RAYS: ReadonlyArray<readonly [number, number]> = [[-60, 0], [-35, 0.6], [RAYS_FADE_S, 1]];
 
-/** The ray and beam strength at `s` (0 outside the turn): a sunrise's with its glow, a sunset's from its early strength, both 1 at RAYS_FADE_S, then fading. */
+/** A sunset's rays come in softly over this window (s; owner item 88: they popped up in 2.5 s). */
+const SET_RAYS_IN: readonly [number, number] = [-60, -46];
+
+/** The ray and beam strength at `s` (0 outside the turn): a sunrise's with its glow, a sunset's softly to its early strength, both 1 at RAYS_FADE_S, then fading. */
 export function turnRays(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;
   const e = SET_RAYS_EARLY;
-  const up = kind === 'rise' ? pw(RISE_RAYS, s) : sst(-60, -57.5, s) * (e + (1 - e) * lin(-60, RAYS_FADE_S, s));
+  const up = kind === 'rise' ? pw(RISE_RAYS, s) : sst(SET_RAYS_IN[0], SET_RAYS_IN[1], s) * (e + (1 - e) * lin(-60, RAYS_FADE_S, s));
   return up * turnFade(s, kind);
 }
 
@@ -162,7 +165,7 @@ export function turnGlint(kind: TurnKind, s: number): number {
 /** The sun's hazy light (its glow, not the rays): a sunrise's comes in over 25 s to what used to come in 3, then grows to GLOW_FADE_S (owner item 77); a sunset's sun is up from the start and sinks with its rays. */
 const GLOW: Readonly<Record<TurnKind, ReadonlyArray<readonly [number, number]>>> = {
   rise: [[-60, 0], [-35, 0.6], [GLOW_FADE_S, 1]],
-  set: [[-60, 0], [-52, 0.6], [RAYS_FADE_S, 1]],
+  set: [[-60, 0], [-48, 0.6], [RAYS_FADE_S, 1]],
 };
 
 /** The glow's strength at `s` (0 outside the turn). */
@@ -193,11 +196,12 @@ export const TURN_RAY_N = 12;
 const RAY_RANK: readonly number[] = [6, 2, 4, 9, 0, 7, 11, 3, 5, 10, 1, 8];
 const TURN_RAYS_FIRST = 3;
 
-/** How much of thin ray `i` (0 … TURN_RAY_N − 1) is there at `s`: a sunrise's all (they come with its glow, owner item 80); a sunset's three from the start, the others one by one from -54 s, 2.5 s apart, each fading in over 8 s. */
+/** How much of thin ray `i` (0 … TURN_RAY_N − 1) is there at `s`: a sunrise's all (they come with its glow, owner item 80); a sunset's one at a time (item 88): the first three from -60 s, 4 s apart, each over 10 s, the others from -50 s, 2.5 s apart, each over 8 s. */
 export function turnRayOn(kind: TurnKind, i: number, s: number): number {
   const r = RAY_RANK[i % TURN_RAY_N]!;
-  if (kind === 'rise' || r < TURN_RAYS_FIRST) return 1;
-  const t0 = -54 + (r - TURN_RAYS_FIRST) * 2.5;
+  if (kind === 'rise') return 1;
+  if (r < TURN_RAYS_FIRST) return r ? sst(-60 + r * 4, -50 + r * 4, s) : 1;
+  const t0 = -50 + (r - TURN_RAYS_FIRST) * 2.5;
   return sst(t0, t0 + 8, s);
 }
 

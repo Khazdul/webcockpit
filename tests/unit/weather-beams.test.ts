@@ -113,6 +113,23 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
     }
   });
 
+  it('leaves no gap below the rays: the steepest lands near the bottom corner on the sun\'s side (owner item 88)', () => {
+    for (const [w, h] of [[1920, 1226], [2000, 1150], [1400, 800], [900, 1000]] as const) {
+      for (const kind of ['rise', 'set'] as const) {
+        for (let s = -59; s <= -1; s += 2) {
+          // where each ray that reaches the screen crosses the bottom edge, as a distance from the corner on the sun's side
+          let best = Infinity;
+          for (const a of angles(kind, s, w, h)) {
+            if (Math.sin(a) <= 0) continue;
+            const x = S[0]! + (Math.cos(a) * (h - S[1]!)) / Math.sin(a), d = kind === 'set' ? x : w - x;
+            if (d >= 0) best = Math.min(best, d);
+          }
+          expect(best).toBeLessThan(w * 0.12);
+        }
+      }
+    }
+  });
+
   it('never moves fast: every ray and beam under 1°/s through both turns, at any window size', () => {
     let worst = 0;
     for (const [w, h] of [[1600, 900], [1400, 800], [1280, 720], [1920, 1080], [2560, 1100], [900, 1000]] as const) {

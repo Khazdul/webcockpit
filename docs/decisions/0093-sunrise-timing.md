@@ -499,6 +499,33 @@ docked pane gets nothing; a borderless pane is passed over (no glass, item
 the rays and beams is unchanged. Cost: one pass over a handful of hits per
 ray, and fewer glints drawn.
 
+### No gap below the rays, a soft start, later stars (owner item 88)
+
+- **Fan's lower edge.** The even path between the turn's two ends
+  (aimed at the bottom edge 0.1 W in from the sun's side) fell up to ~15°
+  short of the bottom corner midway, so a sunset left the lower-left
+  corner without rays. `turnFan` now takes the steeper of that path and an
+  aim that puts the fan's lowest place (half a place in) about 0.02 W from
+  that corner. The aim is taken at three knots of the turn (start, middle,
+  end) and interpolated evenly: aimed at the corner each frame it swung at
+  up to 1.35°/s as a low sun neared it; now every ray stays under 0.95°/s.
+  The wider fan pushed the sunrise's upper rays down, so FAN_UP_HIGH went
+  from 12° to 15° to keep a ray or two pointing up from a third in.
+- **A soft start.** A sunset's rays reached half strength in 2.5 s, three
+  of them at once, and each 8-bit step of a faint alpha came at once over a
+  whole ray (globalAlpha is itself 8-bit; a ray adds only a few levels), so
+  they popped up. Now the rays come in over the first 14 s (smoothstep to
+  the early strength), the first three one at a time 4 s apart (each over
+  10 s), the other nine from -50 s, 2.5 s apart; the hazy glow over 12 s.
+  Every turn ray, beam and glow alpha is dithered in time (`dith8`): each
+  frame takes the 8-bit level below or above at random by how near it is,
+  so at 30 fps the light changes smoothly between levels. No new canvas or
+  texture; cost is one random number per fill.
+- **Stars.** A sunset's stars start at -3 s, so a few are just
+  perceptible at the night's second (share 0.17; under about 0.15 they do
+  not show over the dusk sky), and they are complete 10 s into the night
+  (TURN_FULL.set 10, was 5). The sunset demo is 5 s longer.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then

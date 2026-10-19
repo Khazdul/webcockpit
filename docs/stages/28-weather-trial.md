@@ -1593,7 +1593,33 @@ Overall the owner is happy; some polish remains for the next session.
     early. The stars should only just be perceptible when the night begins,
     fade in for about 5–6 s more and be complete 5–6 s after it began (now
     perceptible from -5, about half at 0, full at +5).
+    - Superseded by item 88 (the owner's later timing).
 - The sunrise sun's strength (halved in item 83) feels right: kept.
 - The day sky (items 82, 84) feels better.
 - The owner will next check fog, lightning, clouds, snow, rain and the rest
   in real play.
+
+### 2026-10-19 — sun test 6 (translated)
+
+88. **Sunset: rays downward too, a soft start, stars after the night
+    begins.** Rays also pointing down, so there is no gap below them
+    (`img/28-item88-sunset-gap.png`: from the sun at the upper left, arrows
+    steeply down along the left edge into the lower-left corner). The very
+    first rays come a bit abruptly: fade them in more softly over the first
+    10–15 s (more steps, slower steps, a higher frame rate or one ray at a
+    time), so they do not pop up. The stars fade in from the night's
+    second to 10 s after it, just barely perceptible at the second itself.
+    - **Done (2026-10-19):** ADR 0093, "No gap below the rays, a soft start,
+      later stars". The fan's lowest ray now lands near the bottom corner on
+      the sun's side all through both turns (midway it fell ~15° short),
+      still under 1°/s. A sunset's rays come in over its first 14 s, the
+      first three one at a time 4 s apart; every turn ray, beam and the glow
+      has its faint 8-bit alpha dithered frame by frame, so no step shows at
+      once over a whole ray. Stars: none before -3 s, just perceptible at 0,
+      about 60 % at +5, complete at +10. `#weather demo sunset` is 5 s
+      longer. Unit 2748; e2e weather + layout 44/44 (Chromium, Firefox).
+      Checked in headless Chromium at 1920 × 1226, the sunset at -58 … +10.
+      Please try: `#weather demo sunset` (and `#weather demo sunrise`: its
+      fan reaches the lower-right corner the same way).
+      Feedback wanted: is the lower corner filled now, do the first rays
+      come in softly enough, and do the stars come at the right moment.

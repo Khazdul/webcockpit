@@ -434,6 +434,18 @@ const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
 /** The sun's own light (its hot spot, its hazy glow, the ray front's band) by turn: half of before (owner item 83; said of the sunset, the sunrise's is the same drawing). */
 const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
 
+/**
+ * A faint alpha with its 8-bit step dithered in time (owner item 88): a
+ * turn's ray adds only a few colour levels, and globalAlpha is itself 8-bit,
+ * so as a ray came in each level arrived at once over the whole ray and it
+ * popped up. Now each frame (30 a second in a turn) takes the level below or
+ * above at random, by how near it is, so the light comes in smoothly.
+ */
+function dith8(a: number): number {
+  const v = a * 255, f = Math.floor(v);
+  return (f + (Math.random() < v - f ? 1 : 0)) / 255;
+}
+
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
 function polyFill(g: Ctx, P: readonly number[]): void {
   g.beginPath();
@@ -1513,7 +1525,7 @@ class Sky {
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
+    f.globalAlpha = dith8(0.045 * G * wetK * SUN_LIGHT[kind]);
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1621,9 +1633,9 @@ class Sky {
         tri[4] = sx + Math.cos(b.a + hw) * L;
         tri[5] = sy + Math.sin(b.a + hw) * L;
         beamPieces(tri, boxes, inside, outside);
-        g.globalAlpha = a;
+        g.globalAlpha = dith8(a);
         for (const P of outside) polyFill(g, P);
-        g.globalAlpha = a * BEAM_INSIDE;
+        g.globalAlpha = dith8(a * BEAM_INSIDE);
         for (const P of inside) polyFill(g, P);
       }
     }
@@ -1644,7 +1656,7 @@ class Sky {
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
     // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
-    g.globalAlpha = G * kk * SUN_LIGHT[kind];
+    g.globalAlpha = dith8(G * kk * SUN_LIGHT[kind]);
     g.fillStyle = gl;
     g.fillRect(0, 0, W, H);
     const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
@@ -1681,7 +1693,7 @@ class Sky {
       r.a = a;
       r.hw = wd;
       r.k = TIER_GLINT[tier] * on;
-      g.globalAlpha = k * al * RAY_ALPHA;
+      g.globalAlpha = dith8(k * al * RAY_ALPHA);
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
@@ -1693,7 +1705,7 @@ class Sky {
     }
     for (let i = 0; i < cores.length; i += 3) {
       if (cores[i + 2]! < 0.005) continue;
-      g.globalAlpha = k * RAY_ALPHA * cores[i + 2]!;
+      g.globalAlpha = dith8(k * RAY_ALPHA * cores[i + 2]!);
       g.beginPath();
       g.moveTo(sx, sy);
       g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);

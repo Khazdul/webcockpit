@@ -168,6 +168,8 @@ function sunToward(psi: number, x: number, y: number, W: number, H: number, am: 
  * FAN_UP_LOW above the horizontal under a low sun (owner item 78) and
  * FAN_UP_HIGH as it climbs, but never above the far top corner. So the fan
  * spans from about level to nearly straight down, every edge under 1°/s.
+ * The lower edge never falls short of the bottom corner on the sun's side
+ * (owner item 88: no gap below the rays).
  */
 export function turnFan(psi: number, sx: number, sy: number, W: number, H: number, out: Float32Array): void {
   const low = turnLow(psi), right = psi < Math.PI / 2;
@@ -182,17 +184,33 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   const p0 = right ? 0 : Math.PI - SUN_SET_PSI, p1 = right ? SUN_RISE_PSI : Math.PI;
   const q = Math.min(1, Math.max(0, (psi - p0) / (p1 - p0)));
   const fx = right ? W * (1 - FAN_FLOOR_X) : W * FAN_FLOOR_X, fy = H * FAN_FLOOR;
-  out[0] = lerp(sunToward(p0, fx, fy, W, H, am), sunToward(p1, fx, fy, W, H, am), q);
+  const even = lerp(sunToward(p0, fx, fy, W, H, am), sunToward(p1, fx, fy, W, H, am), q);
   const e = lerp(FAN_UP_HIGH, FAN_UP_LOW, low), corner = toward(right ? 0 : W, 0);
   // up is a larger angle looking left, a smaller one looking right: the lower of the two
   out[1] = right ? Math.min(round(Math.PI + e), corner) : Math.max(round(-e), corner);
+  // Never short of the bottom corner on the sun's side (owner item 88: midway
+  // the even path fell ~15° short of it, leaving the lower corner without
+  // rays): the fan's lowest place, half a place in, lands about FAN_CORNER_X
+  // in from it. Aimed at the point itself, it swung at up to 1.35°/s as the
+  // sun neared it, so it follows that aim from a few knots, evenly between.
+  const cx = right ? W * (1 - FAN_CORNER_X) : W * FAN_CORNER_X, n = CORNER_KNOTS - 1;
+  const k = Math.min(n - 1, Math.floor(q * n)), u = q * n - k;
+  const knot = (j: number): number => sunToward(lerp(p0, p1, j / n), cx, H, W, H, am);
+  const c = lerp(knot(k), knot(k + 1), u), f = 0.5 / FAN_SLOTS;
+  const low0 = (c - out[1] * f) / (1 - f);
+  // down is a smaller angle looking left, a larger one looking right
+  out[0] = right ? Math.min(even, low0) : Math.max(even, low0);
 }
 
 /** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
 const FAN_FLOOR_X = 0.1;
+/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
+const FAN_CORNER_X = 0.02;
+/** The corner aim's knots over a turn, its ends included (owner item 88). */
+const CORNER_KNOTS = 3;
 /** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
 const FAN_UP_LOW = (2 * Math.PI) / 180;
-const FAN_UP_HIGH = (12 * Math.PI) / 180;
+const FAN_UP_HIGH = (15 * Math.PI) / 180;
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 

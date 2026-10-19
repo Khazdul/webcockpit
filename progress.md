@@ -39,6 +39,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 item 88, sunset rays and stars (branch `sunrise-timing`)
+
+- **Done:** item 88 (replaces 87): the ray fan's lowest ray reaches the
+  bottom corner on the sun's side (no gap below the rays), under 1°/s; a
+  sunset's rays fade in over 14 s, one at a time, with faint alphas
+  dithered in time (`dith8`); stars just perceptible at the night's
+  second, complete at +10 s. ADR 0093. Unit 2748; e2e weather + layout 44/44.
+- **Next:** owner tests item 88 (`#weather demo sunset`); then real-play
+  findings (fog, lightning, clouds, snow, rain); merge to main and release.
+- **Commits:** this one.
+
 ### 2026-10-19 — Session end (branch `sunrise-timing`)
 
 - **Owner verdict:** overall happy. Sunrise sun strength right (halved,
