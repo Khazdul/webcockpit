@@ -1927,3 +1927,13 @@ Overall the owner is happy; some polish remains for the next session.
        Please try: any outdoor room; the moon in its second half.
        Feedback wanted: is the band right now, and is the moon's longer fade
        acceptable (or should its path end further right)?
+
+### 2026-10-19 — left band, a little back (translated)
+
+103. **Item 102 went a bit too far: move the boundary back** by about the
+     arrow in `img/28-item103-left-band.png` (~3.5 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.70, `LEFT_SOLID` 0.57:
+       fully dark up to ~40 % of the width, the whole sky and all weather
+       from 70 % (was ~43 % and ~73 %). `MOON_HOLD` stays 0.45. Weather unit
+       tests green. Please try: any outdoor room. Feedback wanted: is the
+       band right now?
