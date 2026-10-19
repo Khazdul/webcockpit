@@ -2047,3 +2047,14 @@ Overall the owner is happy; some polish remains for the next session.
        5 s.
        Please try: `#weather demo`. Feedback wanted: is it even, does it
        build up, is anything missing or too long?
+     - **Follow-up (2026-10-20):** cut it to about 3 minutes; no need to
+       say it runs at 2.5× or to be too technical in the captions (the
+       owner likes the texts and how they tell a story); 3× instead of
+       2.5× for the sunrises and sunsets; merge some parts or let them run
+       a little faster.
+     - **Done (2026-10-20):** 3:00, 21 steps. Sunrises and sunsets at 3×
+       (20 s each). Merged: morning and birds; clouds and rain; nightfall
+       and the moonrise; clouds and the downpour; the darkness spell's
+       start and end; indoors and out. The rest a little shorter. The
+       captions no longer mention the pace. Weather unit 179/179, e2e
+       weather 6/6; a full real-time run checked by screenshots.

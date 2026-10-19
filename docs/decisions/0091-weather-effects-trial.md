@@ -910,6 +910,11 @@ turns the clock and the pace back to 1 (also on any end, `Demo.unspeed`).
 The moon goes by a clock the demo pins (new `moon` action: `moonRiseAt`
 1 s ahead, up 200 s, so it gets in past the right-hand panes), so it comes in at the right edge at its even pace
 instead of being placed by `moonU` (it jumped). `DEMO_TURN_FROM` is gone.
+Then (same day) cut to 3:00, 21 steps: the turns at 3× (20 s each), and
+merged steps (morning with the birds, clouds and rain, nightfall with the
+moonrise, clouds and downpour, the darkness spell, indoors and out), the
+others shorter; the moon up 150 s. Captions without pace or technical
+detail.
 
 - **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
   a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++

@@ -41,9 +41,9 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ### 2026-10-20 — Stage 28 item 108 (main session)
 
-- **Done:** `#weather demo` rebuilt: one night-to-morning story, 27 steps,
-  ~4:40; whole sunrises/sunsets at 2.5× (`speed` action), the moon by a
-  demo clock (`moon` action). ADR 0091 Demo addendum, stage file item 108.
+- **Done:** `#weather demo` rebuilt: one night-to-morning story, then cut
+  to 3:00 (21 steps, merged steps); whole sunrises/sunsets at 3× (`speed`
+  action), the moon by a demo clock (`moon` action). ADR 0091 Demo addendum, stage file item 108.
 - **Tests:** weather unit 179/179; e2e weather 6/6; one real-time run
   checked by screenshots every 5 s.
 - **Next:** owner test of items 104–108; the moon (item 100). Branch

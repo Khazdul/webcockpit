@@ -1,5 +1,5 @@
 // The weather demo (owner feedback 33, ADR 0091 "Demo"): `#weather demo`
-// plays every effect, a night to the next morning, in about four and a half
+// plays every effect, a night to the next morning, in about three
 // minutes (its sunrises and sunsets whole, fast-forwarded; owner item 108), and
 // `#weather demo sunrise` / `sunset` one whole sunrise or sunset as live
 // (demo-script.ts; owner items 70, 74), with a

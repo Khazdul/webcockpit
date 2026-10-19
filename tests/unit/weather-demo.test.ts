@@ -18,27 +18,26 @@ describe('the demo script', () => {
   const titles = DEMO_STEPS.map((s) => s.title);
   const at = (t: string): number => titles.indexOf(t);
 
-  it('tells one story, night → sunrise → day → rain → sunset → moon, storm, snow → sunrise → the rest, in four to five minutes (item 108)', () => {
+  it('tells one story, night → sunrise → day → rain → sunset → moon, storm, snow → sunrise → the rest, in about three minutes (item 108)', () => {
     expect(titles[0]).toBe('Night · stars');
     expect(at('Sunrise · the first light')).toBe(1);
     for (const [x, y] of [
-      ['Sunrise · the blue sky', 'Day · birds'],
-      ['Day · birds', 'Day · rain'],
-      ['Day · rain', 'Sunset · the first rays'],
+      ['Sunrise · the blue sky', 'Morning · birds'],
+      ['Morning · birds', 'Day · clouds and rain'],
+      ['Day · clouds and rain', 'Sunset · the first rays'],
       ['Sunset · the dusk', 'Night · the moon rises'],
-      ['Night · the moon rises', 'Night · clouds'],
-      ['Night · downpour', 'Thunderstorm'],
+      ['Night · the moon rises', 'Night · clouds and downpour'],
+      ['Night · clouds and downpour', 'Thunderstorm'],
       ['Thunderstorm', 'Snow'],
-      ['Snow', 'Dawn · the sky clears'],
-      ['Darkness spreads', 'Darkness lifts'],
-      ['Dawn · the sun', 'Indoors'],
-      ['Indoors', 'Outdoors again'],
+      ['Snow', 'Darkness'],
+      ['Darkness', 'Dawn · the sky clears'],
+      ['Dawn · the sun', 'Indoors and out'],
       ['Sleeping', 'On your feet again'],
     ] as const) expect(at(x), `${x} before ${y}`).toBeLessThan(at(y));
     for (const t of titles) expect(at(t), t).toBeGreaterThanOrEqual(0);
     expect(titles.at(-1)).toBe('Back to the game');
-    expect(plan.total).toBeGreaterThan(240_000);
-    expect(plan.total).toBeLessThanOrEqual(300_000);
+    expect(plan.total).toBeGreaterThan(165_000);
+    expect(plan.total).toBeLessThanOrEqual(185_000);
     expect(plan).not.toHaveProperty('speed');
     expect(plan.steps).toHaveLength(DEMO_STEPS.length);
   });
@@ -218,14 +217,15 @@ describe('the demo runner', () => {
     expect(h.log[0]).toBe('cats 7');
     expect(h.log.some((l) => l.startsWith('speed'))).toBe(false);
     expect(h.cats().daySky).toBe(true);
-    expect(said[0]).toMatch(/^Weather demo: about 4:\d\d\. #weather stop ends it\.$/);
+    expect(said[0]).toMatch(/^Weather demo: about (2:5\d|3:0\d)\. #weather stop ends it\.$/);
     // the first pin jumps (a moonless night), the rest ease
     expect(h.pins[0]).toMatchObject({ smooth: false, p: { clock: 'night', weather: ' ', moonUp: false } });
     const box = root.querySelector('.wc-wdemo')!;
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Night · stars');
     expect(box.querySelector('.wc-wdemo-count')!.textContent).toBe(`1/${DEMO_STEPS.length}`);
     expect(box.querySelector('.wc-wdemo-hint')!.textContent).toBe('#weather stop to end');
-    await vi.advanceTimersByTimeAsync(12_000 + 300);
+    const first = DEMO_STEPS[0]!.dur * 1000;
+    await vi.advanceTimersByTimeAsync(first + 300);
     expect(demo.step).toBe(1);
     expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Sunrise · the first light');
     expect(box.querySelector('.wc-wdemo-signal')!.textContent).toMatch(/last game hour of the night/);
@@ -233,17 +233,17 @@ describe('the demo runner', () => {
     expect(h.log.slice(-2)).toEqual([`speed ${DEMO_TURN_SPEED}`, `emit sun.rise {"from":-${TURN_S}}`]);
     expect(h.pins.at(-1)).toMatchObject({ smooth: false, p: { clock: 'night', dayAt: -1 } });
     await vi.advanceTimersByTimeAsync((TURN_S / DEMO_TURN_SPEED) * 1000);
-    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Morning · the day begins');
+    expect(box.querySelector('.wc-wdemo-step')!.textContent).toBe('Morning · birds');
     expect(h.pins.at(-1)).toMatchObject({ smooth: true, p: { clock: 'day' } });
     expect(h.log.at(-1)).toBe('speed 1');
     // the moonrise by the demo's clock, from about now
-    const moonAt = demoPlan().steps[at('Night · the moon rises')]!.t;
-    await vi.advanceTimersByTimeAsync(moonAt - (12_000 + 300 + (TURN_S / DEMO_TURN_SPEED) * 1000) + 100);
+    const moonAt = demoPlan().steps[at('Night · the moon rises')]!.t + 500;
+    await vi.advanceTimersByTimeAsync(moonAt - (first + 300 + (TURN_S / DEMO_TURN_SPEED) * 1000) + 100);
     const mp = h.pins.at(-1)!.p!;
     expect(mp).toMatchObject({ clock: 'night', moonUp: true, moonPhase: 0.85 });
     expect(mp.moonRiseAt! - Date.now()).toBeGreaterThan(500);
     expect(mp.moonRiseAt! - Date.now()).toBeLessThan(1_000);
-    expect(mp.moonSetAt! - mp.moonRiseAt!).toBe(200_000);
+    expect(mp.moonSetAt! - mp.moonRiseAt!).toBe(150_000);
     await vi.advanceTimersByTimeAsync(demoPlan().total);
     expect(demo.ended).toBe('done');
     // released: the game's pace, the user's categories, unpinned smoothly; then off again
@@ -334,7 +334,7 @@ describe('the demo runner', () => {
   it('switched off in a fast-forwarded turn: the game\'s pace again', async () => {
     const h = fakeHost();
     const demo = await start(h);
-    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(DEMO_STEPS[0]!.dur * 1000 + 3_000);
     expect(h.log.at(-2)).toBe(`speed ${DEMO_TURN_SPEED}`);
     settings.update({ weather: { enabled: false } });
     expect(demo.ended).toBe('off');
@@ -375,7 +375,7 @@ describe('the demo runner', () => {
   it('switching the effects off ends it without touching anything else', async () => {
     const h = fakeHost();
     const demo = await start(h);
-    await vi.advanceTimersByTimeAsync(8_000);
+    await vi.advanceTimersByTimeAsync(5_000);
     const n = h.log.length;
     settings.update({ weather: { enabled: false } });
     expect(demo.ended).toBe('off');
