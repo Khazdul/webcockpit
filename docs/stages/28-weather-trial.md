@@ -1913,3 +1913,17 @@ Overall the owner is happy; some polish remains for the next session.
        (`MOON_HOLD`) moved from 0.6 to 0.55 so it stays right of the band.
        Weather unit tests green; checked in headless Chromium (rain by day).
        Please try: any outdoor room. Feedback wanted: is the band right now?
+
+### 2026-10-19 — left band a third time (translated)
+
+102. **Move the band's boundary further right**, by about the arrow in
+     `img/28-item102-left-band.png` (~12.5 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.735, `LEFT_SOLID` 0.59:
+       fully dark up to ~43 % of the width, the whole sky and all weather
+       from ~73 % (was 31 % and 61 %). The moon's path still ends at the
+       band's solid edge, so it now fades over roughly the second half of
+       its time up; its no-clock waiting place (`MOON_HOLD`) moved to 0.45
+       to stay right of the band. Weather unit tests green.
+       Please try: any outdoor room; the moon in its second half.
+       Feedback wanted: is the band right now, and is the moon's longer fade
+       acceptable (or should its path end further right)?

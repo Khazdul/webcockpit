@@ -23,7 +23,7 @@ describe('sky geometry', () => {
     expect(bandK(o[0]!, W)).toBe(0);
     expect(o[1]).toBeCloseTo(y0, 3);
     // fully visible (as far as the band goes) until it reaches the band, then fading by its curve
-    for (const u of [0.1, 0.3, 0.5]) {
+    for (const u of [0.1, 0.3, 0.4]) {
       moonAt(P, u, o);
       expect(bandK(o[0]!, W)).toBe(1);
     }
@@ -43,9 +43,9 @@ describe('sky geometry', () => {
       expect(L).toBe(0);
       expect(moonPreU(L)).toBe(0);
       expect(moonVisU(0.37, L)).toBe(0.37);
-      // the waiting place without a clock (MOON_HOLD 0.55) is still right of the band
+      // the waiting place without a clock (MOON_HOLD 0.45) is still right of the band
       const o = new Float32Array(2);
-      moonAt(P, 0.55, o);
+      moonAt(P, 0.45, o);
       expect(bandK(o[0]!, w)).toBe(1);
     }
   });

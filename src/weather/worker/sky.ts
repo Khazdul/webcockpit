@@ -49,7 +49,7 @@ import { plateRects, rimRects } from './rimshape';
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
 /** Without a clock to the minute and its set event the moon waits here on its path: just before it would go into the left band (owner item 100). */
-const MOON_HOLD = 0.55;
+const MOON_HOLD = 0.45;
 /** The clock's rise and set may be off this much (game u, ~45 s) from the game's Event.Moon before the event wins (owner item 100). */
 const MOON_CLOCK_SLACK = 0.06;
 /** Where a moon of unknown age shows (no synced almanac). */
