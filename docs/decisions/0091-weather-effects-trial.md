@@ -1308,6 +1308,55 @@ Steady turns, the set ending at the bottom left and the day sky's ray pulse
   same under the grey sky and under the cloud deck, which is now cut by it
   too.
 
+### Weather only over the sky (2026-10-19, owner item 99)
+
+- The left band (the sky fades to the background over `LEFT_DARK` of the
+  width, solid up to `LEFT_SOLID` of it, along a smootherstep; items 96, 97)
+  now holds for every weather effect too. The curve lives in
+  `worker/band.ts` (`leftDark`, `bandK(x, W)`, `bandSolid`, `bandEnd`); the
+  sky's gradient and cloud deck, every effect and the engine read it there.
+- Masked, per element (nothing new per frame but a multiply): rain streaks,
+  splashes, rivulets, beads and drips (`drawDrop`), snow flakes, the far
+  snow (GPU pattern fills: the ramp in 12 strips; CPU dots: skipped in the
+  band, the alpha stepped per strip), the rim dusting (by the pane's
+  middle), stars (baked into the star layers and the big stars' brightness
+  at build), shooting stars and their frame glints, birds, insect and tufts,
+  the day's glimpse rays (their texture is now the full width with the band
+  baked in, dithered like before; was a 256 px strip repeated) and glow.
+  Lightning: the bolt comes down right of the band (start and targets at
+  least 60 px right of `bandEnd`; ledges and the comm pane only right of
+  it); its sprites, the glow (now a per-strike quarter-size canvas) and the
+  wash (an eighth-size canvas per size) have the band cut out once; frames
+  light up times `bandK` at their middle.
+- Fog: the module sets `Module.band`; the engine takes the band out of its
+  half-size cache layers (one destination-out gradient fill per fog frame,
+  at the fog's 12 fps). A module that draws straight onto the canvases
+  must fade its own elements; this flag is for cached modules only.
+- Not masked (not weather): sunrise and sunset (rays, beams, glow, glints),
+  the moon and its glow, body effects, the darkness bleed and lift.
+- Cost: `weather-bench --rounds 2` text and key latency unchanged; the power
+  bench before and after: bench/results/weather-power.md notes.
+
+### The moon sets into the band (2026-10-19, owner item 100)
+
+- The moon is no longer an exception to the left band. Its path
+  (`moonPath`) runs from `W + R` (the disc touching the right edge from
+  outside) at the game's rise to `bandSolid(W)` at its set, at an even pace
+  over the real time up; its alpha is times `bandK` at its centre, so it
+  fades out along the sky's curve and is gone exactly at the set, and comes
+  into view at the rise. The lead (in before the rise, out past the left
+  edge after the set; items 63, 69, `MOON_RISE_IN`) is gone: `moonLead` is
+  0, `moonPreU` 0.
+- When the clock (minute precision) is past the set or before the rise by
+  up to `MOON_CLOCK_SLACK` (0.06 of the time up, ~45 s) while the game still
+  says up, the clock wins and holds the moon at its end, out of sight;
+  beyond that the event wins as before (a clock that is off). Without a
+  clock the moon waits for its set event at `MOON_HOLD` 0.6 (just before the
+  band; was 0.97 at the left edge) and goes from there on the event.
+  `MOON_AFTER_SET` stays as a margin for looking up the next time up.
+- Shooting stars, the cloud deck and birds keep moving left and fade on the
+  same curve (item 99).
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

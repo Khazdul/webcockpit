@@ -1827,3 +1827,78 @@ Overall the owner is happy; some polish remains for the next session.
       dev jump. Checked in headless Chromium (0.5, 2.5, 6, 12 s).
       Please try: walk into a snowy room by day and by night.
       Feedback wanted: does it start soon enough and look right?
+
+### 2026-10-19 — weather only over the sky (translated)
+
+99. **Weather only where there is sky.** Limit the snowflakes and the rain
+    to the part of the screen that has sky; not a sharp boundary: on the
+    left they fade out the same way the sky fades out. The same for the
+    drifting clouds and all other weather effects. The dark band on the left
+    must stay clear of everything. Exceptions: sunrise, sunset and the moon,
+    which stay as they are. (The owner's arrow: weather from about 34 % of
+    the width to the right edge.)
+    - **Done (2026-10-19):** ADR 0091, "Weather only over the sky". Every
+      weather effect now fades out to the left along the sky's own curve.
+      Nothing shows up to about 25 % of the width, everything from 55 %,
+      and between the two it fades just as the sky does. That one curve
+      (now in `band.ts`) is shared by the sky and all the effects, so moving
+      the band moves everything together. It covers rain (streaks, splashes,
+      drips, rivulets, the beads under panes), snow (flakes, the far snow,
+      the dusting on pane rims), the clouds, fog, lightning (the bolt now
+      always comes down right of the band; its glow, flash and the light on
+      frames in the band fade with it), stars and shooting stars, and the
+      day's birds, insects, tufts and sun glimpses. Not changed: sunrise and
+      sunset, the moon and its glow, sleeping/stunned/dying effects and a
+      darkness spell. Same cost as before: each effect simply skips or dims
+      what lies in the band (fog: once per fog frame on its half-size
+      layer). Unit 2772; e2e weather + layout 44/44 (Chromium, Firefox);
+      latency unchanged.
+      Screenshots (2000 px wide): heavy rain by day
+      `img/28-item99-heavy-rain-day.png`, snow at night
+      `img/28-item99-snow-night.png`, snow by day in Firefox
+      `img/28-item99-snow-day-firefox.png`, fog `img/28-item99-fog.png`, a
+      strike `img/28-item99-strike.png`, birds over a clear day
+      `img/28-item99-day-birds.png`; not masked: the moon on the left
+      `img/28-item99-night-moon.png`, a sunset
+      `img/28-item99-sunset.png`.
+      Please try: rain, snow, fog and a thunderstorm in the game, and a
+      starry night; then a sunset and the moon low in the west.
+      Feedback wanted: does the left band now stay clear and the weather fade
+      in smoothly where the sky does, and is anything left in the band that
+      should not be (or missing where it should show).
+
+### 2026-10-19 — the moon sets into the band (translated)
+
+100. **The moon, shooting stars, clouds and birds leave into the band.**
+     Instead of leaving at the left edge, the moon should leave (fade out)
+     where the sky fades out to the left toward the dark band; the same for
+     shooting stars, clouds and flying birds. The moon's speed may change:
+     its fade into the band must end at the game's moonset (never up in the
+     game while invisible, nor visible after it set), and it should come
+     into view at the moonrise. Sunrise and sunset stay as before.
+     - **Done (2026-10-19):** ADR 0091, "The moon sets into the band". The
+       moon's arc now runs over its real time up from the right edge to the
+       band: at the moonrise the disc just touches the right edge from
+       outside and comes into view, it crosses high, and as it goes down in
+       the west it fades out along the sky's curve, gone exactly at the
+       moonset. It moves a little slower than before, since the path is
+       shorter. It no longer slides in before the rise or out past the left
+       edge after the set. If the clock's set comes a few seconds before the
+       game's "the moon sets" message, it stays out of sight at the set
+       point instead of reappearing. Shooting stars, the clouds and the birds
+       keep moving left and fade out on the same curve (item 99). Unit 2771;
+       e2e weather + layout 44/44 (Chromium, Firefox).
+       Screenshots (2000 px wide), the moon by the clock: night at 0.6 of its
+       time up `img/28-item100-moon-night-060.png` (full, before the band),
+       0.85 `img/28-item100-moon-night-085.png` (fading), 0.95
+       `img/28-item100-moon-night-095.png`, the set
+       `img/28-item100-moon-night-100.png` (gone); by day 0.85
+       `img/28-item100-moon-day-085.png` and 0.95
+       `img/28-item100-moon-day-095.png`; a shooting star flying into the
+       band `img/28-item100-shoot-a.png`, then
+       `img/28-item100-shoot-b.png`.
+       Please try: watch a moonset (and a moonrise) in the game; a starry
+       night for shooting stars.
+       Feedback wanted: does the moon set into the band at the right moment
+       and pace, and does it come up at the moonrise?
+
