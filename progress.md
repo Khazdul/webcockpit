@@ -42,8 +42,8 @@ Statuses: Next, In progress, Owner testing, Done.
 ### 2026-10-20 — Pre-release check of `weather-real-play`
 
 - **Done:** full unit 2772 green; build green; full e2e 520/524 with the
-  4 failures passing alone (the demo e2e made robust: it waits for either
-  sunset step). Fixed the demo's start: a moon not in its first state
+  4 failures passing alone (the demo e2e made robust: it waits for the day
+  and then the night instead of a quarter-second caption; 10/10 repeated). Fixed the demo's start: a moon not in its first state
   faded out over ~2 s; a jump now sets the moon at once. Turn frame cost
   ~19 → ~16 ms (main ~12.5; ADR 0093 addendum).
 - **Next:** owner decides on merge and release (0.1.65).
