@@ -74,3 +74,18 @@ Same command on the same machine, run just before the run above.
 | NVIDIA active (% of window); states | 0.0; suspended | 0.0; suspended | 0.0; suspended | 0.0; suspended | 0.0; suspended | 0.0; suspended |
 | Foreign Playwright browser processes (max) | 2 | 2 | 2 | 0 | 0 | 0 |
 
+## Notes (2026-10-19, stage 28 items 99–100, branch `weather-real-play`)
+
+`--headless --rounds 2 --seconds 12` (headless: software GL in Chromium, so
+the worker's times there run high), before (5e53378) and after on the same
+machine, not written here:
+
+- Browser CPU, ms per s, before → after: Chromium calm 580 → 565, heavy
+  1673 → 1707, snow 1669 → 1655; Firefox calm 916 → 878, heavy 2834 → 2827,
+  snow 2271 → 2221. Firefox worker frame 13.8 → 14.0 / 27.5 → 27.6 /
+  8.4 → 8.0 ms.
+- Chromium alone, a quieter rerun: worker frame calm 1.01 → 1.32 ms, heavy
+  6.34 → 7.23 ms, snow 2.38 → 2.17 ms; browser CPU 282 → 304, 1427 → 1409,
+  1646 → 1457 ms per s. Within the run-to-run noise but for heavy's ~0.9 ms
+  (the rain's per-streak band check and fog's band cut on its cache, on
+  software GL).

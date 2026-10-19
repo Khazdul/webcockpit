@@ -563,6 +563,65 @@ ray, and fewer glints drawn.
   down. The lowest ray turns at up to 3°/s during the lift, the only move
   above item 79's 1°/s; the sun's hazy glow keeps item 83's late curve.
 
+### The sun's light over the sky only; a sunset sun at the band (owner item 104)
+
+The left band (ADR 0091, `band.ts`) kept every weather effect out, but not
+the sunrise and sunset: their glow, rays and beams reached the left edge.
+
+- **Masked along the band's curve.** The sun's glow and hot spot (drawn
+  first on the back layer, which holds nothing else then), the ray layer
+  (rays and beams) and the ray front are cut along the band's own curve
+  (destination-out, `bandCut` in sky.ts); the ray front goes through the
+  free ray layer for that, since the front layer already holds day life.
+  Frame glints fade with `bandK` at the hit. The sky's left fade also holds
+  through a turn: from a sunrise's first 12 s (before the day's sun weight)
+  and to a sunset's last 8 s, so the tint is not seen in the band either.
+- **A sunset's sun at the band.** It no longer stands beyond the left edge:
+  its x is the band's solid edge (`bandSolid`, ~40 % of W), its height and
+  the fan's angles as on its circle (`turnFan` from the circle point, then
+  the origin moved). Its light and rays come out of the band's fade.
+- **Cost (pre-release check, 2026-10-20).** Headless Chromium, software
+  rendering, 1728 × 1000 at ratio 2, the worker's frame in the middle of a
+  turn: first ~19 ms against main's ~12 ms. Most of it was the ray front
+  drawn through a layer to be cut; it is now filled straight in 8 strips
+  through the band's fade, each at the band's strength at its middle (at
+  ~2 % alpha the steps do not show). A half-size layer for the sun's glow
+  was tried and was slower (~22 ms), so the glow is still cut on the sky.
+  Now ~16 ms (p95 ~21) against main's ~12.5 (p95 ~17), inside FPS_FAST's
+  33 ms, and only while a turn runs.
+- **Dimmer sunset rays.** A sunset's rays, beams and their glints × 0.6 all
+  through (`SET_RAYS_DIM`); its glow is unchanged.
+
+### Sunset rays upward and a dusk light (owner item 105)
+
+- **A wider fan at the end.** With the sun at the band (item 104) the last
+  rays bunched between level and ~30° up (the upper edge was bounded by the
+  far top corner as seen from the sun's old place beyond the left edge).
+  The upper edge now lifts with the lower one (`setLift`, -42 … -3 s) to
+  60° up (`FAN_UP_SET_END`): the last rays spread from level to steeply
+  up-right. The lift stays under 3°/s; elsewhere every ray under 1°/s.
+- **Dusk light.** A sunset gets a wide red-orange glow (`turnDusk`,
+  sunturn.ts) apart from the sun's own glow and its rays: smoothstep in
+  from -50 to -20 s, out from -20 to -8 s. Drawn on the back layer round the
+  sun's x, no higher than mid-height, an ellipse 1.6 × 0.8 of 0.75 ×
+  max(W, H), alpha 0.22 at its middle (0.6 × on Paper), weaker with rain
+  and fog, and cut by the band with the rest of the sun's light.
+- **Near the sun (owner item 106).** The wide ellipse filled nearly the
+  whole sky with red, most of all toward the bottom. Now two layers round a
+  point a quarter into the band's fade right of the sun, at the sun's height
+  (clamped to 0.12 … 0.5 H): a core of 0.28 × max(W, H) (x 1.25), alpha 0.3,
+  and a faint flat halo of 0.6 × (x 1.4, y 0.5), alpha 0.06, that fades
+  out well above the bottom (`DUSK_LAYERS`).
+
+### A sunset's rays fall 40 % before the night (owner item 107)
+
+A sunset's ray strength (`turnRays`, so its rays, beams and, by the power
+1.5, their glints) is multiplied by `1 − 0.4 · smoothstep(-16, -10, s)`: it
+starts to fall at -16 s, is 40 % below the old level at -10 s, and from
+there fades on its old curve, at 0.6 of its old level (first 50 %, the
+owner clarified 40 %). The sun's glow and the dusk light are
+unchanged.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then

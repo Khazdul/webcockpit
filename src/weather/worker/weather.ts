@@ -12,6 +12,8 @@
 //   snow    flakes as particles plus far tiles of dots. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
 //           dusting gathers along the top rims (on the glass) and melts afterwards.
+//           When it stops, flakes, far tiles and dusting fade out over
+//           SNOW_FADE_S while they fall on (owner item 91), then are cleared.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
 // dark night dim) and adapted to the background (palette.ts).
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
@@ -19,7 +21,34 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
+import { LEFT_SOLID, bandEnd, bandK, bandSolid, leftDark } from './band';
 import { plateRects, rimRects } from './rimshape';
+
+/**
+ * Snow that begins starts at this much of its build-up at once (owner item
+ * 93): many flakes and the first far layers falling in from the top (item
+ * 98), not a few flakes that take half a minute to show. It grows on from
+ * there.
+ */
+export const SNOW_START = 0.5;
+/** The left band's ramp is drawn in this many steps for the far snow (pattern fills; owner item 99). */
+const BAND_STRIPS = 12;
+/** Each step's share (the sky's curve at its middle, band.ts). */
+const bandStrip = Array.from({ length: BAND_STRIPS }, (_, q) => 1 - leftDark(LEFT_SOLID + ((q + 0.5) / BAND_STRIPS) * (1 - LEFT_SOLID)));
+/** Snow that stops fades out over this long, s (owner item 91: it lingered a minute or more). */
+export const SNOW_FADE_S = 10;
+/** Snow that comes back mid-fade returns this fast, s (from nothing). */
+export const SNOW_BACK_S = 1.5;
+
+/** The snow's fade, linear 0..1: down over SNOW_FADE_S while it does not snow, up over SNOW_BACK_S while it does. */
+export function snowFadeStep(v: number, snowing: boolean, dt: number): number {
+  return snowing ? Math.min(1, v + dt / SNOW_BACK_S) : Math.max(0, v - dt / SNOW_FADE_S);
+}
+/** The snow's visibility for a fade value: eased (smoothstep), so it starts and ends softly. */
+export function snowFadeAlpha(v: number): number {
+  const x = clamp(v, 0, 1);
+  return x * x * (3 - 2 * x);
+}
 
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
@@ -221,7 +250,24 @@ export function weatherModule(): Module {
   }
   let dropSets: Partial<Record<TintKey, Cv[]>> = {};
   const setFor = (k: TintKey): Cv[] => (dropSets[k] ??= [dropSprite(12, TINT[k]), dropSprite(28, TINT[k]), dropSprite(72, TINT[k])]);
+  /** The left band (owner item 99): how much of an element at x shows (0 in the solid band, 1 right of it; band.ts). */
+  let bS = 0, bE = 0;
+  const bk = (x: number): number => (x >= bE ? 1 : x <= bS ? 0 : bandK(x, W));
+  /** Takes the left band out of what was drawn on `c` (its user space in screen px) from x0, y0, h high: once per strike sprite. */
+  function cutBand(c: Ctx, x0: number, y0: number, h: number): void {
+    if (x0 >= bE) return;
+    c.save();
+    c.globalCompositeOperation = 'destination-out';
+    c.globalAlpha = 1;
+    const gr = c.createLinearGradient(0, 0, bE, 0);
+    for (let i = 0; i <= 16; i++) gr.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+    c.fillStyle = gr;
+    c.fillRect(x0, y0, bE - x0, h);
+    c.restore();
+  }
   function drawDrop(c: Ctx, x: number, y: number, r: number, stretch: number, a: number): void {
+    a *= bk(x);
+    if (a < 0.004) return;
     const i = r < 2.4 ? 0 : r < 6 ? 1 : 2;
     const s = r / 0.41, sh = s * stretch, dx = x - s / 2, dy = y - sh / 2 - (sh - s) * 0.25;
     c.globalAlpha = a * tint.w1;
@@ -254,7 +300,7 @@ export function weatherModule(): Module {
   const SN = 300;
   const snx = new Float32Array(SN), sny = new Float32Array(SN), snz = new Float32Array(SN), snv = new Float32Array(SN), snph = new Float32Array(SN), sns = new Uint8Array(SN), sna = new Uint8Array(SN);
   let tiles: Tile[] | null = null, snCount = 0, snowAmt = 0, snowSpr: string[] | null = null, sprCol: Rgb = [0, 0, 0], sprAge = 1;
-  let dustCv: Cv | null = null, snowWind = 0, snowT = 0;
+  let dustCv: Cv | null = null, snowWind = 0, snowT = 0, snowFade = 1;
   let gNext = 9, gAge = -1, gDur = 5, gDir = 1, gPow = 1, gShift = 0, gE = 0;
   let prevW: string | null | undefined = undefined, prevSnowMix = 0, prevRainMix = 0;
 
@@ -496,7 +542,8 @@ export function weatherModule(): Module {
   }
 
   // ================================================================= lightning
-  let sky: Cv | null = null, flare: Cv | null = null, wash: CanvasGradient | null = null, strike: Strike | null = null;
+  let sky: Cv | null = null, flare: Cv | null = null, strike: Strike | null = null;
+  let glowCv: Cv | null = null, washCv: Cv | null = null;
   let spCv: Cv | null = null, lowA: Cv | null = null, lowB: Cv | null = null, lowC: Cv | null = null;
   const sparks = { n: 28, x: new Float32Array(28), y: new Float32Array(28), vx: new Float32Array(28), vy: new Float32Array(28), age: 0, on: false };
   const C = (r: number, g: number, b: number, a: number): string => adaptCss(r, g, b, a, th);
@@ -591,10 +638,12 @@ export function weatherModule(): Module {
   }
   function pickTarget(env: Env): { x: number; y: number; ledge: boolean } {
     const p = env.protect;
-    const ledges = env.panes.filter((q) => q.y > 60 && q.id !== 'map');
-    const comm = env.panes.find((q) => q.id === 'comm');
+    // (nothing lands in the left band, owner item 99)
+    const ledges = env.panes.filter((q) => q.y > 60 && q.id !== 'map' && q.x + q.w / 2 > bE + 40);
+    const comm0 = env.panes.find((q) => q.id === 'comm');
+    const comm = comm0 && comm0.x + comm0.w / 2 > bE + 40 ? comm0 : undefined;
     // Ground strikes land in the right part of the output, where lines tend to end (no text tracking, owner feedback 9).
-    const gx0 = env.out.x + env.out.w * 0.62, gx1 = env.out.x + env.out.w - 30;
+    const gx0 = Math.max(env.out.x + env.out.w * 0.62, bE + 60), gx1 = env.out.x + env.out.w - 30;
     const u = R();
     if (u < 0.34 && ledges.length) {
       const q = ledges[(R() * ledges.length) | 0]!;
@@ -602,7 +651,7 @@ export function weatherModule(): Module {
     }
     if (u < 0.55 && comm) return { x: comm.x + comm.w * rr(0.25, 0.75), y: comm.y + comm.h - comm.border - 1, ledge: false };
     if (gx1 - gx0 > 60) return { x: rr(gx0, gx1), y: p.fadeTop + rr(10, 40), ledge: false };
-    return { x: W * rr(0.45, 0.7), y: p.fadeTop + 20, ledge: false };
+    return { x: Math.min(W - 30, Math.max(W * rr(0.45, 0.7), bE + 60)), y: p.fadeTop + 20, ledge: false };
   }
   const nightK = (mix: Env['mix']): number => clamp(1 - 0.58 * mix.sun * mix.outdoors - 0.25 * mix.torch * (1 - mix.outdoors * mix.night), 0.3, 1);
 
@@ -611,7 +660,8 @@ export function weatherModule(): Module {
     const map = env.panes.find((q) => q.id === 'map');
     let x0 = 0;
     for (let k = 0; k < 8; k++) {
-      x0 = clamp(tg.x + (tg.ledge ? rr(-110, 110) : rr(-260, 220)), W * 0.3, W - 20);
+      // the bolt comes down right of the left band (owner item 99)
+      x0 = clamp(tg.x + (tg.ledge ? rr(-110, 110) : rr(-260, 220)), Math.min(bE + 60, W - 20), W - 20);
       if (!map || x0 < map.x - 30 || x0 > map.x + map.w + 30 || (!tg.ledge && R() < 0.08)) break;
     }
     const y0 = -8, segs: number[] = [];
@@ -703,6 +753,7 @@ export function weatherModule(): Module {
       g.lineWidth = Math.max(0.6, b.w * (b.lev ? 0.85 : 1));
       g.stroke(b.p);
     }
+    cutBand(g, bx0, by0, sh);
     const ag = ctx2dCpu(LA);
     ag.setTransform(1, 0, 0, 1, 0, 0);
     ag.clearRect(0, 0, LA.width, LA.height);
@@ -720,6 +771,20 @@ export function weatherModule(): Module {
       ag.stroke(b.p);
     }
 
+    cutBand(ag, bx0, by0, sh);
+    // the glow over the sky, with the band taken out (once per strike)
+    if (sky) {
+      const gw = 1120, gh = H * 0.62, gx = x0 - 560, gy = -40;
+      if (!glowCv) glowCv = mkCanvas(1, 1);
+      glowCv.width = 280;
+      glowCv.height = Math.max(1, Math.ceil(gh / 4));
+      const gg = ctx2dCpu(glowCv);
+      gg.setTransform(1, 0, 0, 1, 0, 0);
+      gg.clearRect(0, 0, glowCv.width, glowCv.height);
+      gg.setTransform(280 / gw, 0, 0, glowCv.height / gh, -gx * (280 / gw), -gy * (glowCv.height / gh));
+      gg.drawImage(sky, gx, gy, gw, gh);
+      cutBand(gg, gx, gy, gh);
+    }
     const strokes = [0, 1];
     const nre = 1 + ((R() * 3) | 0);
     let t = 0;
@@ -769,7 +834,8 @@ export function weatherModule(): Module {
       gr.addColorStop(0, C(235, 240, 255, 1));
       gr.addColorStop(0.45, C(170, 175, 255, 0.75));
       gr.addColorStop(1, C(120, 110, 255, 0.08));
-      rims.push({ rim, band, gr, k: k * (behind ? 1.15 : 1), b });
+      // a frame in the left band lights up as much as the sky shows there (owner item 99)
+      rims.push({ rim, band, gr, k: k * (behind ? 1.15 : 1) * bk(p.x + p.w / 2), b });
     }
     const nk0 = nightK(env.mix);
     strike = {
@@ -850,6 +916,7 @@ export function weatherModule(): Module {
       g.lineWidth = 1.6;
       g.stroke(tip);
       g.globalCompositeOperation = 'source-over';
+      cutBand(g, s.bx0, s.by0, s.sh);
     }
     c.globalCompositeOperation = op;
     c.globalAlpha = k;
@@ -863,21 +930,20 @@ export function weatherModule(): Module {
     const add = th.add, over: GlobalCompositeOperation = th.light ? 'source-over' : 'lighter';
     if (P.lead) {
       drawLeader(b, s, k, dpr);
-      if (sky) {
+      if (glowCv) {
         b.globalCompositeOperation = add;
         b.globalAlpha = P.fl * 0.6 * k;
-        b.drawImage(sky, s.x0 - 520, -30, 1040, H * 0.55);
+        b.drawImage(glowCv, s.x0 - 560, -40, 1120, H * 0.62);
       }
     } else {
       b.globalCompositeOperation = add;
-      if (sky && P.B > 0.03) {
+      if (glowCv && P.B > 0.03) {
         b.globalAlpha = clamp(P.B * P.flashK * 0.4, 0, 1) * k;
-        b.drawImage(sky, s.x0 - 560, -40, 1120, H * 0.62);
+        b.drawImage(glowCv, s.x0 - 560, -40, 1120, H * 0.62);
       }
-      if (P.B > 0.05 && wash) {
+      if (P.B > 0.05 && washCv) {
         b.globalAlpha = clamp(P.B * P.B * P.flashK * 0.06, 0, 1) * k;
-        b.fillStyle = wash;
-        b.fillRect(0, 0, W, H * 0.85);
+        b.drawImage(washCv, 0, 0, W, H * 0.85);
       }
       b.globalCompositeOperation = over;
       if (P.A > 0.01 && lowA) {
@@ -1012,6 +1078,8 @@ export function weatherModule(): Module {
     resize(env) {
       W = env.W;
       H = env.H;
+      bS = bandSolid(W);
+      bE = bandEnd(W);
       fadeTop = env.protect.fadeTop;
       buildPanes(env);
       seedRain(false);
@@ -1020,10 +1088,20 @@ export function weatherModule(): Module {
         p.wet = m.rain * (0.5 + 0.5 * m.heavy);
         p.dust = m.snow * 0.6;
       }
-      wash = env.back.createLinearGradient(0, 0, 0, H * 0.85);
+      // the flash's wash over the screen, with the left band taken out, at an eighth of the size (owner item 99)
+      if (!washCv) washCv = mkCanvas(1, 1);
+      const wh = H * 0.85;
+      washCv.width = Math.max(1, Math.ceil(W / 8));
+      washCv.height = Math.max(1, Math.ceil(wh / 8));
+      const wg = ctx2dCpu(washCv);
+      wg.setTransform(washCv.width / W, 0, 0, washCv.height / wh, 0, 0);
+      const wash = wg.createLinearGradient(0, 0, 0, wh);
       wash.addColorStop(0, 'rgba(205,210,255,1)');
       wash.addColorStop(0.5, 'rgba(150,150,240,0.45)');
       wash.addColorStop(1, 'rgba(120,110,230,0)');
+      wg.fillStyle = wash;
+      wg.fillRect(0, 0, W, wh);
+      cutBand(wg, 0, 0, wh);
       stepTint(m);
       sprCol = [lift(tint.r, 0.55), lift(tint.g, 0.55), lift(tint.b, 0.55)];
       snowSpr = makeSnowSprites(sprCol);
@@ -1056,21 +1134,42 @@ export function weatherModule(): Module {
       rainT += dt;
       let busy = false;
 
-      const sw = env.cats.precipitation ? env.settled.weather : null;
+      // Snow begins with the raw value, without the dwell (owner item 98); it stops only once settled (then fades, item 91).
+      const sw = env.cats.precipitation ? (env.raw.weather === '*' ? '*' : env.settled.weather) : null;
       const isRain = sw === "'" || sw === '"', isSnow = sw === '*';
       const jumpR = rain > 0.97 && prevRainMix < 0.5, jumpS = m.snow > 0.97 && prevSnowMix < 0.5;
       if (isRain && (jumpR || (prevW === null && sw !== prevW))) {
         rainAmt = 1;
         seedRain(true);
       }
-      if (isSnow && (jumpS || (prevW === null && sw !== prevW))) {
+      if (isSnow && (jumpS || prevW === undefined)) {
         snowAmt = 1;
+        snowFade = 1;
         for (let i = 0; i < SN; i++) newFlake(i, false);
         if (tiles) {
           for (const T of tiles) {
             T.on = 1;
             T.tail = 0;
             T.front = 1e5;
+          }
+        }
+      } else if (isSnow && prevW !== sw) {
+        // snow begins: at once and dense (item 93), but falling in from the top (item 98)
+        if (snCount === 0) snowFade = 1;
+        snowAmt = Math.max(snowAmt, SNOW_START);
+        // spread over a screen's height above the top: a steady stream that fills the screen from the top down
+        const n = snowTarget(snowAmt);
+        for (let i = 0; i < SN && snCount < n; i++) {
+          if (sna[i]) continue;
+          newFlake(i, true);
+          sny[i] = -rr(4, fadeTop + 40);
+        }
+        if (tiles) {
+          for (const T of tiles) {
+            if (T.on || T.th > snowAmt) continue;
+            T.on = 1;
+            T.tail = 0;
+            T.front = 0;
           }
         }
       }
@@ -1080,6 +1179,20 @@ export function weatherModule(): Module {
       // the build-ups run at the dev time scale (`env.speed`, 1 in the game and the demo)
       rainAmt = isRain ? Math.min(1, rainAmt + (dt * env.speed) / 6) : Math.max(0, rainAmt - dt / 3);
       snowAmt = isSnow ? Math.min(1, snowAmt + (dt * env.speed) / 26) : Math.max(0, snowAmt - dt / 10);
+      // Snow that stopped fades out over SNOW_FADE_S (item 91), then is gone.
+      const fade0 = snowFade;
+      snowFade = snowFadeStep(snowFade, isSnow, dt);
+      if (!isSnow && snowFade <= 0 && fade0 > 0) {
+        sna.fill(0);
+        snCount = 0;
+        snowAmt = 0;
+        if (tiles) for (const T of tiles) {
+          T.on = 0;
+          T.tail = T.front = 0;
+        }
+        for (const p of panes) p.dust = 0;
+      }
+      const snowVis = snowFadeAlpha(snowFade);
       if (rainAmt > 0 || snowAmt > 0) busy = true;
 
       let lit = 0;
@@ -1102,7 +1215,8 @@ export function weatherModule(): Module {
         // of ms), which delays the page's own frames (ADR 0091, stage 28 E).
         const lw = th.light ? 1.1 : 1;
         b.setTransform(env.dpr, 0, sl * env.dpr, env.dpr, 0, 0);
-        b.globalAlpha = 0.25 + 0.75 * out;
+        const rainA = 0.25 + 0.75 * out;
+        b.globalAlpha = rainA;
         b.fillStyle = ST.rain[clamp(Math.round(glow * 20), 0, 20)]!;
         for (let i = 0; i < RN; i++) {
           if (!ra[i]) {
@@ -1144,6 +1258,15 @@ export function weatherModule(): Module {
           ry[i] = y;
           if (y < -40) continue;
           const L = Lb * rl[i]!;
+          // none in the left band, fading in along the sky's curve (owner item 99)
+          if (x < bE) {
+            const k = bk(x);
+            if (k < 0.004) continue;
+            b.globalAlpha = rainA * k;
+            b.fillRect(x - sl * y - lw / 2, y - L, lw, L);
+            b.globalAlpha = rainA;
+            continue;
+          }
           // (x, y) → (x - L·sl, y - L) under x' = u + sl·v
           b.fillRect(x - sl * y - lw / 2, y - L, lw, L);
         }
@@ -1191,7 +1314,8 @@ export function weatherModule(): Module {
       // ---- splashes
       // Each segment a rotated rect (not one stroked path: see the rain streaks).
       f.fillStyle = ST.splash;
-      f.globalAlpha = Math.min(1, 0.62 * lumA * (1 + lit));
+      const splA = Math.min(1, 0.62 * lumA * (1 + lit));
+      f.globalAlpha = splA;
       const dp = env.dpr;
       let anyS = false;
       for (let i = 0; i < PN; i++) {
@@ -1206,7 +1330,9 @@ export function weatherModule(): Module {
         }
         const vx0 = pvx[i]!, vy0s = pvy[i]!, len = Math.hypot(vx0, vy0s) * 0.014;
         if (len < 0.01) continue;
-        const cs = vx0 * 0.014 / len, sn = vy0s * 0.014 / len;
+        const cs = vx0 * 0.014 / len, sn = vy0s * 0.014 / len, sk = bk(px[i]!);
+        if (sk < 0.004) continue;
+        f.globalAlpha = splA * sk;
         f.setTransform(dp * cs, dp * sn, -dp * sn, dp * cs, dp * px[i]!, dp * py[i]!);
         f.fillRect(-len - 0.55, -0.55, len + 1.1, 1.1);
         anyS = true;
@@ -1234,11 +1360,12 @@ export function weatherModule(): Module {
           if (p.eavesOk) p.bead[vside[i]!] = Math.min(1.2, p.bead[vside[i]!]! + 0.45);
           continue;
         }
-        const tl = Math.min(vy[i]! - vy0[i]!, 40);
+        const tl = Math.min(vy[i]! - vy0[i]!, 40), vk = bk(vx[i]!);
+        if (vk < 0.004) continue;
         f.fillStyle = ST.tail;
-        f.globalAlpha = 0.1 * lumA;
+        f.globalAlpha = 0.1 * lumA * vk;
         f.fillRect(vx[i]! - 0.6, vy[i]! - tl, 1.2, tl * 0.6);
-        f.globalAlpha = 0.3 * lumA;
+        f.globalAlpha = 0.3 * lumA * vk;
         f.fillRect(vx[i]! - 0.6, vy[i]! - tl * 0.4, 1.2, tl * 0.4);
         drawDrop(f, vx[i]!, vy[i]!, 1.6, 1.2, 1);
       }
@@ -1284,7 +1411,7 @@ export function weatherModule(): Module {
           continue;
         }
         const tl = Math.min(fv[i]! * 0.03, 22);
-        f.globalAlpha = 0.22 * lumA;
+        f.globalAlpha = 0.22 * lumA * bk(fx[i]!);
         f.fillRect(fx[i]! - 0.5, fy[i]! - tl, 1, tl);
         drawDrop(f, fx[i]!, fy[i]!, fr[i]!, 1 + Math.min(0.8, fv[i]! / 500), beadA);
       }
@@ -1328,7 +1455,8 @@ export function weatherModule(): Module {
         }
         const yEnd = fadeTop + 40, tt = snowT, eddy = gE > 0.02;
         const A1 = 75 * gE, A2 = 48 * gE, k1 = TAU / 330, k2 = TAU / 210;
-        const ga = (0.45 + 0.55 * lum) * 0.9 * (1 - 0.3 * m.fog) * out;
+        // (a higher floor at night: the dim night tint made the first flakes all but invisible, item 93)
+        const ga = (0.6 + 0.4 * lum) * 0.9 * (1 - 0.3 * m.fog) * out * snowVis;
         b.globalAlpha = ga;
         for (let i = 0; i < tiles.length; i++) {
           const T = tiles[i]!, v = T.speed * dt;
@@ -1357,12 +1485,20 @@ export function weatherModule(): Module {
             b.save();
             b.translate(ox, T.oy);
             b.fillStyle = T.pat;
-            b.fillRect(-ox, y0 - T.oy, W, y1 - y0);
+            // none in the left band; across its ramp in BAND_STRIPS steps (owner item 99)
+            const sw = (bE - bS) / BAND_STRIPS;
+            for (let q = 0; q < BAND_STRIPS; q++) {
+              b.globalAlpha = ga * bandStrip[q]!;
+              b.fillRect(bS + q * sw - ox, y0 - T.oy, sw, y1 - y0);
+            }
+            b.globalAlpha = ga;
+            b.fillRect(bE - ox, y0 - T.oy, W - bE, y1 - y0);
             b.restore();
             continue;
           }
           // every cell of the tile on screen (its origin at ox, oy), rows y0..y1
-          const i0 = Math.floor(-ox / S) - 1, i1 = Math.ceil((W - ox) / S);
+          const i0 = Math.floor((bS - ox) / S) - 1, i1 = Math.ceil((W - ox) / S);
+          const sw = (bE - bS) / BAND_STRIPS;
           const j0 = Math.floor((y0 - T.oy) / S) - 1, j1 = Math.ceil((y1 - T.oy) / S);
           for (let k = 0; k < T.styles.length; k++) {
             b.fillStyle = T.styles[k]!;
@@ -1371,9 +1507,16 @@ export function weatherModule(): Module {
               for (let jj = j0; jj <= j1; jj++) {
                 const y = T.oy + dy + jj * S;
                 if (y < y0 || y > y1) continue;
+                let cur = -1;
                 for (let ii = i0; ii <= i1; ii++) {
                   const x = ox + dx + ii * S;
-                  if (x < -3 || x > W + 3) continue;
+                  if (x < bS || x > W + 3) continue;
+                  // the left band's ramp in steps (owner item 99)
+                  const q = x >= bE ? BAND_STRIPS : Math.min(BAND_STRIPS - 1, ((x - bS) / sw) | 0);
+                  if (q !== cur) {
+                    cur = q;
+                    b.globalAlpha = q === BAND_STRIPS ? ga : ga * bandStrip[q]!;
+                  }
                   // a soft round dot: a square, and for the bigger ones a plus of two bars
                   if (plus) {
                     b.fillRect(x - r, y - r * 0.55, 2 * r, r * 1.1);
@@ -1427,11 +1570,19 @@ export function weatherModule(): Module {
             // the screen goes to Skia's software path renderer on the GPU
             // thread (see the rain streaks).
             b.fillStyle = snowSpr[c]!;
+            let flk = 1;
+            b.globalAlpha = ga;
             for (let j = 0; j < L.length; j++) {
               const i = L[j]!;
               if (!sna[i]) continue;
               const x = snx[i]!, y = sny[i]!;
-              if (y < -4) continue;
+              if (y < -4 || x < bS) continue;
+              // fading in across the left band's ramp (owner item 99)
+              const fk = x < bE ? bk(x) : 1;
+              if (fk !== flk) {
+                flk = fk;
+                b.globalAlpha = ga * fk;
+              }
               if (plus) {
                 b.fillRect(x - r, y - r + 0.7, d, d - 1.4);
                 b.fillRect(x - r + 0.7, y - r, d - 1.4, 0.7);
@@ -1449,9 +1600,11 @@ export function weatherModule(): Module {
           const p = panes[k]!;
           const want = snow * out;
           p.dust += (want - p.dust) * Math.min(1, dt * (want > p.dust ? 0.035 : 0.12));
-          if (p.dust < 0.02 || !p.border) continue;
+          // (by the pane's middle: the left band keeps none, owner item 99)
+          const dk = p.dust * snowVis * bk(p.x + p.w / 2);
+          if (dk < 0.02 || !p.border) continue;
           busy = true;
-          f.globalAlpha = p.dust * (0.4 + 0.5 * lum);
+          f.globalAlpha = dk * (0.4 + 0.5 * lum);
           // On the top rim's glass, inside its rounded corners (it was a
           // band above the rim, read as speckled artifacts outside the
           // frame: owner item 48); the rim runs on above the nameplate.
@@ -1479,7 +1632,7 @@ export function weatherModule(): Module {
       // A strike flickers in tens of ms; rain, snow, splashes and drips fall
       // fast; what remains (drying sheen, snow dust on pane tops) is slow.
       if (strike || sparks.on) return FPS_BURST;
-      if (rainAmt > 0 || snowAmt > 0 || fa.some((a) => a > 0) || pl.some((l) => l > 0) || va.some((a) => a > 0)) return FPS_FAST;
+      if (rainAmt > 0 || snowAmt > 0 || (snowFade > 0 && snowFade < 1) || fa.some((a) => a > 0) || pl.some((l) => l > 0) || va.some((a) => a > 0)) return FPS_FAST;
       return FPS_SLOW;
     },
     destroy(env) {

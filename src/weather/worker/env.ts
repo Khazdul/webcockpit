@@ -76,7 +76,8 @@ export interface Module {
   resize(env: Env): void;
   /** Draws one frame; returns true while it has anything to show or animate. */
   frame(env: Env, dt: number, t: number): boolean;
-  onEvent?(env: Env, name: WeatherEvent | 'position', data?: unknown): void;
+  /** `jump`: the state was set at once (a page load, a dev jump, the demo's start), not eased. */
+  onEvent?(env: Env, name: WeatherEvent | 'position' | 'jump', data?: unknown): void;
   destroy?(env: Env): void;
   /**
    * Frames per second the module's current content needs, asked after each
@@ -93,6 +94,13 @@ export interface Module {
    * through its cache, and must not call setTransform on env.back / front.
    */
   scale?: number;
+  /**
+   * The engine takes the left band (band.ts) out of what this module drew in
+   * its cache, along the sky's curve (owner item 99). Only for a module that
+   * always draws through its cache (`scale` below 1: fog); the others fade
+   * their own elements.
+   */
+  band?: boolean;
 }
 
 /** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */

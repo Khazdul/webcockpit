@@ -31,6 +31,13 @@
 //   12 s. One turn of a kind at a time and none twice in one dawn or dusk:
 //   none starts within TURN_GUARD_MS after one of its kind reached its
 //   second (reset by `jump` and a speed change; the demo's turns never count).
+// - A game flash line (ADR 0094; the 'strike' event with `{ storm: true }`)
+//   opens a STORM_WINDOW_S window with STORM_EXTRA more strikes at random
+//   times, none in its first STORM_QUIET_S, spread over the rest. They fall
+//   only while the raw weather (no dwell) is rain or snow and Lightning is
+//   on: a room without rain or snow ends the window at once; a new flash
+//   opens a new one. The engine asks `stormStrike` once per tick (also while
+//   idle, at 4 Hz) and emits 'strike'.
 // - A category that is off has its targets at 0, so it fades out.
 // - `speed` (a dev time scale, `__weather.setSpeed`; 1 otherwise) runs the slow paces
 //   faster: the sky selection, sunrise and sunset, and fog. The worker's
@@ -59,6 +66,16 @@ export const TURN_JOIN_RATE = 0.1;
 export const TURN_JOIN_S = 14;
 /** No new turn of a kind starts this long (wall ms) after one reached its second: never two in one dawn or dusk (a game day is 24 min). */
 export const TURN_GUARD_MS = 20 * 60_000;
+/** After a game flash line, more strikes come for this long, s (owner item 90). */
+export const STORM_WINDOW_S = 30;
+/** None of them in the first this long after the flash, s. */
+export const STORM_QUIET_S = 5;
+/** How many more strikes a flash brings (random in the range, inclusive). */
+export const STORM_EXTRA: readonly [number, number] = [2, 3];
+/** The weather is not checked this long after the flash, ms: the room's Char.Vitals may come just after its text. */
+export const STORM_GRACE_MS = 1500;
+/** Weather in which the window's strikes fall (rain, heavy rain, snow). */
+const STORM_WEATHER: ReadonlySet<string | null> = new Set(["'", '"', '*']);
 
 export const MIX_KEYS = [
   'outdoors',
@@ -84,7 +101,12 @@ const SKY_KEYS: ReadonlySet<MixKey> = new Set(['sun', 'moon', 'dark', 'night']);
 const DWELLED = ['weather', 'fog', 'light'] as const;
 type Dwelled = (typeof DWELLED)[number];
 
-const CLOUD_COVER: Record<string, number> = { '~': 0.6, "'": 0.85, '"': 1, '*': 0.8 };
+/**
+ * Cloud cover by weather (owner item 92): `~` partly cloudy (gaps), light
+ * rain mostly cloudy, heavy rain and snow fully overcast (the sky's deck
+ * closes at 1). GMCP has no other cloud levels.
+ */
+export const CLOUD_COVER: Readonly<Record<string, number>> = { '~': 0.6, "'": 0.88, '"': 1, '*': 1 };
 
 export function zeroMix(): Mix {
   const m = {} as Mix;
@@ -154,6 +176,12 @@ export class Director {
   private readonly turnDone: Record<TurnKind, number> = { rise: -Infinity, set: -Infinity };
   /** The wall clock, unix ms (the worker's; tests set their own). */
   wall: () => number = Date.now;
+  /** Random 0..1 for the storm's strikes (tests set their own). */
+  rand: () => number = Math.random;
+  /** The storm window's strikes still to come (the engine's ms, ascending); empty without one. */
+  stormAt: number[] = [];
+  /** When the storm window opened (the engine's ms). */
+  private stormFrom = 0;
 
   /** Dev time scale for the slow paces (sky selection, fog, sunrise and sunset; `__weather.setSpeed`); 1 = the game's pace. */
   get speed(): number {
@@ -279,6 +307,42 @@ export class Director {
     this.turn = { kind, s, base: kind === 'rise' ? this.mix.sun : 1 - this.mix.sun };
     if (s >= 0) this.turnDone[kind] = wall;
     return true;
+  }
+
+  /**
+   * A game flash line at `now` (the engine's ms): a new storm window with
+   * STORM_EXTRA strikes, one in each equal part of STORM_QUIET_S …
+   * STORM_WINDOW_S (spread, at random within its part).
+   */
+  stormFlash(now: number): void {
+    const [lo, hi] = STORM_EXTRA, n = lo + Math.min(hi - lo, Math.floor(this.rand() * (hi - lo + 1)));
+    const span = (STORM_WINDOW_S - STORM_QUIET_S) / n;
+    this.stormAt = [];
+    this.stormFrom = now;
+    for (let i = 0; i < n; i++) this.stormAt.push(now + (STORM_QUIET_S + span * (i + this.rand())) * 1000);
+  }
+
+  /** Ends the storm window (a new connection or character, a pin). */
+  stormOff(): void {
+    this.stormAt = [];
+  }
+
+  /**
+   * True when one of the storm window's strikes is due at `now`. The window
+   * ends at once when the raw weather is not rain or snow (no dwell; from
+   * STORM_GRACE_MS after the flash).
+   */
+  stormStrike(now: number): boolean {
+    const at = this.stormAt;
+    if (!at.length) return false;
+    if (!STORM_WEATHER.has(this.raw.weather) && now - this.stormFrom >= STORM_GRACE_MS) {
+      this.stormAt = [];
+      return false;
+    }
+    if (now < at[0]!) return false;
+    // one per tick; any others overdue (a hidden tab) are dropped
+    while (at.length && at[0]! <= now) at.shift();
+    return this.cats.lightning;
   }
 
   /** Mix values straight to their targets. */

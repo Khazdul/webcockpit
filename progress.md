@@ -1,6 +1,6 @@
 # Progress
 
-Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 items 90–108 (storm window, snow, overcast day sky, fast clouds, left band for all weather, the moon into the band) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -33,11 +33,129 @@ Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 00
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
-| 28 | Weather effects | Done | `docs/stages/28-weather-trial.md` |
+| 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-20 — Pre-release check of `weather-real-play`
+
+- **Done:** full unit 2772 green; build green; full e2e 520/524 with the
+  4 failures passing alone (the demo e2e made robust: it waits for the day
+  and then the night instead of a quarter-second caption; 10/10 repeated). Fixed the demo's start: a moon not in its first state
+  faded out over ~2 s; a jump now sets the moon at once. Turn frame cost
+  ~19 → ~16 ms (main ~12.5; ADR 0093 addendum).
+- **Next:** owner decides on merge and release (0.1.65).
+
+### 2026-10-20 — Stage 28 item 108 (main session)
+
+- **Done:** `#weather demo` rebuilt: one night-to-morning story, then cut
+  to 3:00 (21 steps, merged steps); whole sunrises/sunsets at 3× (`speed`
+  action), the moon by a demo clock (`moon` action). ADR 0091 Demo addendum, stage file item 108.
+- **Tests:** weather unit 179/179; e2e weather 6/6; one real-time run
+  checked by screenshots every 5 s.
+- **Next:** owner test of items 104–108; the moon (item 100). Branch
+  `weather-real-play` not merged or released.
+
+### 2026-10-20 — Stage 28 item 107 (main session)
+
+- **Done:** a sunset's rays (beams, glints) start to fall at -16 s, 40 %
+  down at -10 s, then fade on their old curve. ADR 0093 addendum, stage file item 107.
+- **Tests:** weather unit 178/178.
+- **Next:** owner test of items 104–107; the moon (item 100). Branch
+  `weather-real-play` not merged or released.
+
+### 2026-10-19 — Stage 28 item 106 (main session)
+
+- **Done:** dusk light concentrated round the sun (core + faint flat halo,
+  not toward the bottom). ADR 0093 addendum, stage file item 106.
+- **Tests:** weather unit 178/178; e2e weather 6/6.
+- **Next:** owner test of items 104–106; the moon (item 100). Branch
+  `weather-real-play` not merged or released.
+
+### 2026-10-19 — Stage 28 item 105 (main session)
+
+- **Done:** sunset fan opens to 60° up with its lift; red-orange dusk glow
+  (-50 → -20 → -8 s). ADR 0093 addendum, stage file item 105.
+- **Tests:** weather unit 178/178; e2e weather 6/6.
+- **Next:** owner test of items 104–105; the moon (item 100). Branch
+  `weather-real-play` (items 90–105) not merged or released.
+
+### 2026-10-19 — Stage 28 item 104 (main session)
+
+- **Done:** sunrise and sunset kept out of the left band (glow, rays,
+  beams, ray front, glints, tint); the sunset sun at the band's solid edge;
+  sunset rays dimmed to 60 %. ADR 0093 addendum, stage file item 104.
+- **Tests:** weather unit 178/178; e2e weather 6/6.
+- **Next:** owner test of item 104; the moon (item 100) still open. Branch
+  `weather-real-play` (items 90–104) not merged or released.
+
+### 2026-10-19 — Stage 28 items 101–103 (main session)
+
+- **Done:** left band moved right twice (item 101: `band.ts` 0.61 / 0.51;
+  item 102: 0.735 / 0.59; item 103: back to 0.70 / 0.57); `MOON_HOLD` 0.45. Weather unit tests green.
+- **E2e:** weather + layout 43/44 at once; the Firefox "narrow window"
+  layout test failed once under load and passed 3/3 alone (known flaky).
+- **Next session:** the owner wants more work on sunrise and sunset; the
+  owner will come back on the moon (item 100: fades over its second half
+  now that the band is wide). Branch `weather-real-play` (items 90–103) is
+  not merged or released: merge after the owner's test.
+
+### 2026-10-19 — Stage 28: weather only over the sky, the moon into the band (items 99–100)
+
+- **Done:** on branch `weather-real-play` (not merged). 99: one band curve
+  (`worker/band.ts`) for the sky and every weather effect; rain, snow,
+  lightning (bolt kept right), stars, shooting stars, day life fade per
+  element, fog via the engine on its cache; sunrise/sunset, body and
+  darkness untouched. 100: the moon's arc spans its real time up from the
+  right edge at the rise into the band at the set (no lead); a clock just
+  past the set keeps it hidden until the event. ADR 0091 addenda.
+- **Tests:** unit 2771; e2e weather + layout 44/44 (Chromium, Firefox);
+  weather-bench latency unchanged; power bench (headless) before/after
+  within noise (notes in bench/results).
+- **Next:** owner test of items 90–100, then merge and release.
+- **Commits:** 8d19f54, 52c3216, 60e14f2, 4215208, this one.
+
+### 2026-10-19 — Stage 28 items 97–98 (main session)
+
+- **Done:** sky left fade moved ~9 % right (item 97); snow begins on the
+  raw weather without the dwell and falls in from the top (item 98).
+  Weather unit tests green; snow start checked in headless Chromium.
+- **Next:** owner test of `weather-real-play` (items 90–98), then merge.
+- **Commits:** 47a04ed, this one.
+
+### 2026-10-19 — Stage 28 real play 2: snow start, clouds, overcast day, left band (items 93–96)
+
+- **Done:** on branch `weather-real-play` (not merged). 93: snow starts at
+  half its build-up, across the screen, as soon as the 3 s dwell is over
+  (dwell kept); brighter at night. 94: cloud cover eases in (tau 2.5 s, most
+  in ~5 s) and out (4 s). 95: the grey follows the clouds; an overcast day is
+  a light blue-grey day sky as deep as the blue one, with day-lit clouds.
+  96: left band a smootherstep to 46 % (the straight ramp's end was the
+  bright stripe), also over the grey sky and the clouds. ADR 0091 addendum.
+- **Tests:** unit 2768; e2e weather + layout 44/44 (Chromium, Firefox);
+  weather-bench --rounds 2: key→send and text→painted unchanged (Chromium
+  on 12.6/20.0 ms, Firefox 9.8/19.6); Firefox worker 51.6 ms, as before.
+- **Next:** owner test of the branch (items 90–96), then merge and release.
+- **Commits:** 8fb7cb7, 13a6f74, this one.
+
+### 2026-10-19 — Stage 28 real play: lightning, snow, overcast (items 90–92)
+
+- **Done:** on branch `weather-real-play` (not merged). Item 90 (owner-revised
+  rule, ADR 0094): a flash line strikes and opens a 30 s window with 2–3 more
+  strikes (5–30 s, spread) while the raw weather is rain or snow; a dry room,
+  a new character or a pin ends it; timed in the worker. Item 91: snow fades
+  out over 10 s. Item 92: snow and heavy rain fully overcast (cover 1, grey
+  sky, evener deck); `~` stays partly cloudy. Screenshots in the stage file.
+- **Tests:** unit 2761; e2e weather + layout 44/44 (Chromium, Firefox);
+  `weather-bench --rounds 2`: key→send and text→painted unchanged vs off
+  (Chromium on 11.2/20.7 ms, Firefox 9.6/20.4). Firefox worker 54.7 ms,
+  18 fps: the same on main (55.1, 17.9), so not from this branch; it was
+  36.9 ms in the 2026-10-16 baseline (later sky work; not investigated).
+- **Next:** owner test of the branch, then merge and release.
+- **Open:** XML `<weather>` tag still unverified live.
+- **Commits:** 13fb0bc, b26d131, bce754d, f41ceea, this one.
 
 ### 2026-10-19 — Replay e2e failure (`replay.spec.ts:101`)
 

@@ -502,6 +502,8 @@ export function fogModule(): Module {
     // Soft banks drifting at 2–13 px/s: a slow rate and half resolution look the same.
     fps: () => FPS_SLOW,
     scale: 0.5,
+    // the left band stays clear of fog, like the sky (owner item 99)
+    band: true,
     destroy() {
       S.ready = false;
       S.job = null;

@@ -206,7 +206,13 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   // A sunset's fan lifts as its sun nears the horizon, its lower edge to
   // level at the end (owner item 89: a sun at the horizon cannot shine down;
   // its last rays point right and up-right, spread over the screen).
-  if (!right) out[0] = lerp(out[0]!, round(0), setLift(q));
+  // Its upper edge lifts with it to FAN_UP_SET_END (owner item 105: rays up
+  // too, not all bunched near level), so the fan spreads as it lifts.
+  if (!right) {
+    const l = setLift(q);
+    out[0] = lerp(out[0]!, round(0), l);
+    out[1] = lerp(out[1]!, round(-FAN_UP_SET_END), l);
+  }
 }
 
 /** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
@@ -220,6 +226,8 @@ const FAN_UP_LOW = (2 * Math.PI) / 180;
 const FAN_UP_HIGH = (15 * Math.PI) / 180;
 /** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
 const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
+/** A sunset's upper edge at its end, reached with its lift (owner item 105: its last rays bunched under ~30°; its sun now stands at the band, so rays this steep stay on the screen). */
+const FAN_UP_SET_END = (60 * Math.PI) / 180;
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 

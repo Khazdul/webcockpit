@@ -94,7 +94,10 @@ export type WeatherEvent =
   | 'darkness.shrink'
   | 'darkness.end-soon'
   | 'darkness.end'
+  /** Lightning; `{ storm: true }` (a game flash line) opens a storm window with a few more strikes (ADR 0094). */
   | 'strike'
+  /** Ends a storm window (a new connection or character, a pin). */
+  | 'storm.off'
   | 'gust'
   /** Dev / screenshots / the demo: a flock of birds, a sun glimpse, a shooting star, an insect now (the sky makes them on its own, rarely). */
   | 'birds'

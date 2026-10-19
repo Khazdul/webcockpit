@@ -44,10 +44,13 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
     expect(turnRays('rise', -5)).toBeLessThan(0.1);
     expect(turnRays('rise', -5)).toBeGreaterThan(0.02);
     // a sunset's late: strong until its last 3 s, then fading out (item 89; was half there at -5, item 83)
-    expect(turnRays('set', -10)).toBeGreaterThan(0.8);
-    expect(turnRays('set', -4)).toBeGreaterThan(0.7);
-    expect(turnRays('set', -2)).toBeGreaterThan(0.35);
-    expect(turnRays('set', -1)).toBeLessThan(0.2);
+    // 40 % down from -16 to -10 s, then the old fade from there (owner item 107)
+    expect(turnRays('set', -16)).toBeGreaterThan(0.8);
+    expect(turnRays('set', -10)).toBeGreaterThan(0.48);
+    expect(turnRays('set', -10)).toBeLessThan(0.6);
+    expect(turnRays('set', -4)).toBeGreaterThan(0.42);
+    expect(turnRays('set', -2)).toBeGreaterThan(0.21);
+    expect(turnRays('set', -1)).toBeLessThan(0.12);
     // a sunset's few rays come in softly over its first 14 s (item 88; were there in 2.5 s), then as before (items 62, 71)
     expect(turnRays('set', -57)).toBeLessThan(0.08);
     expect(turnRays('set', -53)).toBeLessThan(0.35);

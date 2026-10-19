@@ -17,7 +17,8 @@
 //
 // Idle: when no module has anything to show and every mix value is at rest,
 // the canvases are left cleared and the loop drops to a 4 Hz tick that only
-// runs the director; any message or a mix target wakes it.
+// runs the director; any message, a mix target or a storm window's strike
+// (director `stormStrike`, ADR 0094) wakes it.
 //
 // Rate (owner feedback 4, "Heat"): each module says how fast its content is
 // (`Module.fps`: 30 while rain falls, 12 for a drifting sky or fog, 60 for a
@@ -34,6 +35,7 @@ import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
 import type { FrameStats, Geometry, MainToWorker, PaneGeom, WorkerToMain } from '../protocol';
+import { LEFT_DARK, leftDark } from './band';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -103,6 +105,8 @@ interface Cache {
   front: Layer;
   scale: number;
   valid: boolean;
+  /** The left band's fade (destination-out), for a `band` module (made on first use). */
+  band?: CanvasGradient;
 }
 
 const DRAW_OPS = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage', 'fillText', 'strokeText', 'putImageData'] as const;
@@ -200,11 +204,15 @@ export class WeatherEngine {
       case 'state': {
         const ch = m.instant ? this.director.jump(m.s) : this.director.set(m.s, !!m.settle);
         if (ch && this.env) this.emit('position', ch);
+        if (m.instant && this.env) this.emit('jump');
         break;
       }
       case 'event': {
         const s = eventState(m.name);
         if (s) this.director.set(s);
+        // a game flash line opens a storm window (ADR 0094)
+        if (m.name === 'strike' && (m.data as { storm?: unknown } | undefined)?.storm === true) this.director.stormFlash(this.host.now());
+        else if (m.name === 'storm.off') this.director.stormOff();
         if (m.name === 'sun.rise' || m.name === 'sun.set') this.director.turnEvent(m.name === 'sun.rise' ? 'rise' : 'set', (m.data as { from?: unknown } | undefined)?.from);
         this.emit(m.name, m.data);
         break;
@@ -419,6 +427,12 @@ export class WeatherEngine {
     const dt = Math.min(DT_MAX, Math.max(0, (now - this.lastT) / 1000) || 0);
     this.lastT = now;
     this.director.tick(now, dt);
+    // a strike of a storm window (ADR 0094): wakes an idle loop
+    if (this.director.stormStrike(now)) {
+      this.emit('strike');
+      this.idle = false;
+      this.idleFrames = 0;
+    }
     if (this.idle) {
       if (this.director.quiet()) {
         this.schedule(true);
@@ -486,6 +500,7 @@ export class WeatherEngine {
             env.back = back;
             env.front = front;
           }
+          if (mod.band) this.bandOut(c);
           c.valid = true;
         }
         try {
@@ -532,6 +547,26 @@ export class WeatherEngine {
     back.restore();
     front.restore();
     return busy;
+  }
+
+  /** Takes the left band out of a cache's drawn layers, along the sky's curve (owner item 99; at the cache's resolution, at the module's rate). */
+  private bandOut(c: Cache): void {
+    const env = this.env!, lw = env.W * LEFT_DARK;
+    if (!c.band) {
+      const g = c.back.ctx.createLinearGradient(0, 0, lw, 0);
+      for (let i = 0; i <= 16; i++) g.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+      c.band = g;
+    }
+    for (const l of [c.back, c.front]) {
+      if (!l.drawn) continue;
+      const x = l.ctx;
+      x.save();
+      x.globalCompositeOperation = 'destination-out';
+      x.globalAlpha = 1;
+      x.fillStyle = c.band;
+      x.fillRect(0, 0, lw, env.H);
+      x.restore();
+    }
   }
 
   /** The slot's cache canvases (back, front) at `scale` × the canvases' ratio, made on first use and after a resize. */

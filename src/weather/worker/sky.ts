@@ -34,10 +34,13 @@
 // `darkness` gates.
 
 import { RIM_R } from '../../panes/frame';
+// (the left band's curve lives in band.ts, owner items 96, 97, 99)
+export { leftDark } from './band';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
+import { LEFT_DARK, bandEnd, bandK, bandSolid, leftDark } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -45,14 +48,14 @@ import { plateRects, rimRects } from './rimshape';
 
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
-/** Without a clock to the minute and its set event the moon waits here on its drawn path, just past the left (west) edge. */
-const MOON_HOLD = 0.97;
+/** Without a clock to the minute and its set event the moon waits here on its path: just before it would go into the left band (owner item 100). */
+const MOON_HOLD = 0.45;
+/** The clock's rise and set may be off this much (game u, ~45 s) from the game's Event.Moon before the event wins (owner item 100). */
+const MOON_CLOCK_SLACK = 0.06;
 /** Where a moon of unknown age shows (no synced almanac). */
 const MOON_START = 0.5;
 /** No moon (`Sky.u`): below any place on its way, the way in before the rise included. */
 const NO_MOON = -1;
-/** At the game's rise the moon's centre is this many radii inside the right edge (about 80 % of the disc in; owner item 63). */
-export const MOON_RISE_IN = 0.6;
 /** The moon's pace may change this much (×) to take up a correction of its place (owner item 69): 0.5 … 1.5 of its own. */
 export const MOON_PACE_CAP = 0.5;
 /** A correction larger than the cap takes up in this long (s) fades the moon out and in at its new place instead. */
@@ -61,8 +64,35 @@ export const MOON_GLIDE_S = 20;
 const MOON_GAP_S = 2;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
-/** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
-const COVER_RATE = 1 / 40;
+/**
+ * The cloud cover eases toward the weather's (owner item 94; was a constant
+ * 1/40 per s, over 30 s from clear to snow): fast, then slower. Coming in
+ * with this time constant (s): most of the sky covered in ~5 s (90 % of the
+ * way in 5.8 s), the rest more slowly.
+ */
+export const COVER_TAU_IN = 2.5;
+/** Clearing is a little slower: 90 % gone in ~9 s. */
+export const COVER_TAU_OUT = 4;
+/** And never slower than this (per s), so the last of it does not crawl. */
+const COVER_MIN_RATE = 1 / 60;
+/** The cover after `dt` s on its way from `c` to `t` (`speed`: the dev time scale). */
+export function coverStep(c: number, t: number, dt: number, speed = 1): number {
+  const d = t - c, sdt = dt * speed;
+  if (Math.abs(d) < 1e-4) return t;
+  const k = 1 - Math.exp(-sdt / (d > 0 ? COVER_TAU_IN : COVER_TAU_OUT));
+  const st = Math.max(Math.abs(d) * k, sdt * COVER_MIN_RATE);
+  return d > 0 ? Math.min(t, c + st) : Math.max(t, c - st);
+}
+/**
+ * How grey the sky gets by weather (owner items 92, 95): `~` a little less
+ * clear blue, light rain mostly grey, heavy rain and snow overcast. The grey
+ * follows the clouds (`wetOf`), not the rain or snow.
+ */
+export const SKY_GREY: Readonly<Record<string, number>> = { '~': 0.25, "'": 0.8, '"': 1, '*': 1 };
+/** The grey now: on its way to the weather's (`wetS`), never ahead of the clouds (the cover `c`). */
+export function wetOf(wetS: number, c: number): number {
+  return Math.min(wetS, sst(0.3, 1, c));
+}
 
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 1;
@@ -79,7 +109,7 @@ interface CloudPal {
 }
 const PAL: CloudPal[] = [
   { lit: [214, 216, 218], sh: [118, 122, 130], op: 0.78 }, // 0 day
-  { lit: [128, 131, 136], sh: [58, 61, 67], op: 0.86 }, // 1 overcast
+  { lit: [198, 202, 208], sh: [136, 142, 152], op: 0.84 }, // 1 overcast by day: lit as day clouds (owner item 95)
   { lit: [250, 196, 136], sh: [112, 78, 86], op: 0.82 }, // 2 gold
   { lit: [236, 112, 92], sh: [74, 34, 56], op: 0.84 }, // 3 crimson
   { lit: [110, 108, 150], sh: [34, 34, 60], op: 0.8 }, // 4 dusk
@@ -95,7 +125,8 @@ interface SkyCol {
 }
 const SKY_DARK: Record<'day' | 'grey' | 'moon' | 'night', SkyCol> = {
   day: { top: [112, 184, 255], hor: [92, 152, 232], a: 0.66 },
-  grey: { top: [62, 66, 73], hor: [96, 99, 104], a: 0.56 },
+  // an overcast day: a light, desaturated blue-grey that still reads as day (owner item 95)
+  grey: { top: [140, 152, 168], hor: [124, 134, 148], a: 0.74 },
   moon: { top: [16, 24, 44], hor: [48, 58, 80], a: 0.66 },
   night: { top: [4, 6, 16], hor: [12, 15, 28], a: 0.75 },
 };
@@ -109,6 +140,8 @@ function skyTable(th: ThemeInfo): typeof SKY_DARK {
   }
   // a clear blue day sky on paper (inverted it would be a dark one)
   out.day = { top: [104, 168, 242], hor: [156, 198, 242], a: 0.44 };
+  // and a pale overcast one (inverted it would be dark)
+  out.grey = { top: [150, 160, 176], hor: [182, 188, 198], a: 0.42 };
   return out;
 }
 /** The glow on the sky's light side: the sun's (warm) by day, a cool lift toward the moon or the horizon colour at night. */
@@ -124,8 +157,6 @@ const STARS_H_RIGHT = 0.9;
 /** The sky gradient's depth, fraction of the height: at night, and by day (a soft start ~30 % above the bottom, feedback 22). */
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
-/** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28). */
-const LEFT_DARK = 0.34;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
@@ -348,24 +379,27 @@ export interface MoonPath {
   yTop: number;
 }
 /**
- * The moon's arc for a W × H canvas and a moon of radius R: it comes up from
- * below the right edge (east), crosses high and goes down below the left
- * edge (west), as the sun does and as the game says ("The moon disappears in
- * the west."; owner feedback 11, 38).
+ * The moon's arc for a W × H canvas and a moon of radius R: it comes up at
+ * the right edge (east), crosses high and goes down into the left band
+ * (west), as the game says ("The moon disappears in the west."; owner
+ * feedback 11, 38). Over its real time up (owner item 100): at the game's
+ * rise (u = 0) the disc just touches the right edge from outside, so it
+ * comes into view at the rise; at its set (u = 1) its centre is where the
+ * sky's left fade is complete (band.ts `bandSolid`), so it has faded out
+ * along the sky's curve exactly at the set. Up in the game is visible, set
+ * is gone.
  */
 export function moonPath(W: number, H: number, R: number): MoonPath {
-  return { x0: W + R * 2.4, x1: -R * 2.4, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
+  return { x0: W + R, x1: bandSolid(W), yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
 /**
  * How far in on its path the moon is drawn at its rise and set, as a share
- * of the path (owner items 63, 69): at the game's rise (u = 0) the centre is
- * MOON_RISE_IN · R inside the right edge, at its set (u = 1) as far inside
- * the left one. The game's u maps onto the drawn path as `moonVisU`: 0 … 1
- * onto `lead` … 1 − `lead`; the way in before the rise and out after the set
- * are the path's first and last `lead`.
+ * of the path: none since owner item 100 (it was drawn ahead, in before the
+ * rise and out past the left edge after the set, items 63, 69). The game's u
+ * maps onto the drawn path as `moonVisU`.
  */
-export function moonLead(P: MoonPath, W: number, R: number): number {
-  return clamp((P.x0 - (W - MOON_RISE_IN * R)) / (P.x0 - P.x1), 0, 0.4);
+export function moonLead(_P: MoonPath, _W: number, _R: number): number {
+  return 0;
 }
 /** The drawn place (0 … 1 along `moonPath`) for the game's u (`-moonPreU(lead)` … 1 + `moonPreU(lead)`). */
 export function moonVisU(u: number, lead: number): number {
@@ -453,6 +487,23 @@ const LAYER_SCALE = 0.5;
 const GRAIN_N = 256;
 /** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
 const SET_RAYS_LATE = 1;
+/**
+ * A sunset's dusk light (turnDusk) at its strongest (owner items 105, 106):
+ * a core round the sun (radius × max(W, H), x and y scale, alpha at its
+ * middle) and a faint, flat halo further out that does not reach the
+ * screen's bottom; its colour.
+ */
+const DUSK_LAYERS: ReadonlyArray<readonly [number, number, number, number]> = [
+  [0.28, 1.25, 1, 0.3],
+  [0.6, 1.4, 0.5, 0.06],
+];
+const DUSK_C = '255,96,44';
+
+/** The ray front's strips through the left band's fade (drawRaysFront). */
+const FRONT_STRIPS = 8;
+
+/** A sunset's rays, beams and their glints against a sunrise's: dimmed ~40 % all through (owner item 104). */
+const SET_RAYS_DIM = 0.6;
 /** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
 const RAY_SHIMMER = 0.1;
 
@@ -468,6 +519,24 @@ function grainLayer(w: number, h: number): Cv {
   const c = mkCanvas(w, h), q = ctx2d(c);
   for (let y = 0; y < h; y += GRAIN_N) for (let x = 0; x < w; x += GRAIN_N) q.drawImage(t, x, y);
   return c;
+}
+
+/** Takes the left band out of `q` along the sky's curve (band.ts): the sun's light stays over the sky (owner item 104). */
+function bandCut(q: Ctx, W: number, H: number): void {
+  const lw = bandEnd(W), gl = q.createLinearGradient(0, 0, lw, 0);
+  for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+  const op = q.globalCompositeOperation, ga = q.globalAlpha;
+  q.globalCompositeOperation = 'destination-out';
+  q.globalAlpha = 1;
+  q.fillStyle = gl;
+  q.fillRect(0, 0, lw, H);
+  q.globalCompositeOperation = op;
+  q.globalAlpha = ga;
+}
+
+/** How much of a frame glint shows at hit `h` on a screen `W` wide: none in the left band, as its ray (owner item 104). */
+function hitBand(h: BeamHit, W: number): number {
+  return bandK(h.side === 'l' ? h.p.x : h.side === 'r' ? h.p.x + h.p.w : h.c, W);
 }
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
@@ -500,6 +569,8 @@ class Sky {
   coverT = 0;
   coverShape = 0;
   wet = 0;
+  /** The grey on its way to the weather's (SKY_GREY; `wet` is it, held back by the clouds). */
+  wetS = 0;
   fogK = 1;
   first = true;
   dark: { t0: number; k: number } | null = null;
@@ -588,6 +659,8 @@ class Sky {
   hor1 = 0;
   hor2 = 0;
   starVis = 0;
+  /** The state was set at once (a jump): the moon follows at once on the next frame. */
+  moonSnap = false;
   // set by resize
   built = false;
   hz = 0;
@@ -601,6 +674,8 @@ class Sky {
   gTopRed: CanvasGradient | null = null;
   gRightRed: CanvasGradient | null = null;
   gLeftRed: CanvasGradient | null = null;
+  /** The left band taken out of the cloud deck (deck pixels; owner item 96). */
+  deckLeft: CanvasGradient | null = null;
   gLift: CanvasGradient | null = null;
   hY = 0;
   dw = 1;
@@ -622,7 +697,7 @@ class Sky {
   bRow = 0;
   /** How far the deck's next key frame is (0..1): its rows built so far and the cross-fade's weight. */
   bPh = 0;
-  bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
+  bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true, flat: 0 };
   deckEmpty = true;
   skyCv!: Cv;
   skyCg!: Ctx;
@@ -696,7 +771,9 @@ class Sky {
       const xr = R(), x = Math.round(W * (0.01 + 0.98 * xr)) + 0.5;
       const lim = sh0 + (sh - sh0) * sst(0.45, 0.95, xr);
       const y = Math.round(6 + (lim - 10) * Math.pow(R(), 1.35)) + 0.5;
-      const br = (0.4 + Math.pow(R(), 1.8) * 0.6) * (1 - 0.5 * sst(0.5, 1, y / lim)), ph2 = R() * TAU, fr = 0.6 + R() * 2.6;
+      // the left band keeps no stars (owner item 99): baked into their brightness
+      const br = (0.4 + Math.pow(R(), 1.8) * 0.6) * (1 - 0.5 * sst(0.5, 1, y / lim)) * bandK(x, W), ph2 = R() * TAU, fr = 0.6 + R() * 2.6;
+      if (br < 0.004) continue;
       if (k > 0.965) {
         big.push(x, y, br, ph2, fr);
         continue;
@@ -741,8 +818,11 @@ class Sky {
     if (!this.first) this.deckNow();
   }
 
-  onEvent(env: Env, name: WeatherEvent | 'position'): void {
-    if (name === 'moon.rise') {
+  onEvent(env: Env, name: WeatherEvent | 'position' | 'jump'): void {
+    if (name === 'jump') {
+      // set at once: the moon too, at the next frame (owner item 108: a moon not in the new state faded out over seconds)
+      this.moonSnap = true;
+    } else if (name === 'moon.rise') {
       // A moon already up or on its way in keeps its place: never a jump. The
       // clock places it on its own (owner item 69); without one it fades in
       // at its rise place, its centre just inside the right edge.
@@ -806,23 +886,27 @@ class Sky {
       wNight /= ws;
     } else wNight = 1;
     const skyVis = skyOn ? out : 0;
-    // The cloud cover moves at a slow constant rate (owner feedback 23): the
+    // The cloud cover eases in fast, then slower (owner item 94; feedback 23): the
     // deck's threshold relaxes from the noise's peaks, so clouds come one by
     // one, and the upwind side first (see buildRows). Indoors (no weather
     // value) the cover and the wetness of the last outdoor room are kept, so
     // the sky fades out and back in as it was.
     const inside = env.settled.weather === null;
     const coverT = inside ? this.coverT : clamp(m.clouds, 0, 1);
-    if (this.coverS < 0) this.coverS = coverT;
+    if (this.coverS < 0) {
+      this.coverS = coverT;
+      this.wetS = inside ? 0 : SKY_GREY[env.settled.weather ?? ''] ?? 0;
+    }
     else if (!inside) {
-      const st = dt * env.speed * COVER_RATE, d = coverT - this.coverS;
-      this.coverS += d > st ? st : d < -st ? -st : d;
+      this.coverS = coverStep(this.coverS, coverT, dt, env.speed);
+      this.wetS = ease(this.wetS, SKY_GREY[env.settled.weather ?? ''] ?? 0, dt * env.speed, 2);
     }
     this.coverT = coverT;
     // the deck's shapes: those of a higher cover at once, a lower one once the cover has come down to it
     if (coverT >= this.coverShape - 1e-3 || this.coverS <= coverT + 0.01) this.coverShape = coverT;
     const cover = this.coverS;
-    const wet = inside ? this.wet : clamp(m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.55 + cover * 0.1, 0, 1);
+    // the sky's grey: heavy rain and snow overcast (owner item 92), after the clouds (item 95)
+    const wet = inside ? this.wet : wetOf(this.wetS, cover);
     this.cover = cover;
     this.wet = wet;
     this.fogK = 1 - m.fog * 0.55;
@@ -1004,10 +1088,16 @@ class Sky {
     this.hor0 = hr;
     this.hor1 = hg;
     this.hor2 = hb;
-    // How far down the sky reaches: by day to ~30 % above the bottom, at night less (feedback 22).
-    s[9] = wDay * dk * 100;
+    // How far down the sky reaches: by day to ~30 % above the bottom, at night
+    // less (feedback 22). An overcast day reaches as far: it is still day (item 95).
+    s[9] = wSun * dk * 100;
     // The bright day sky keeps the top left dark for the text there (owner feedback 28).
-    s[10] = wSun * (1 - wet * 0.6) * 100;
+    // (the grey day sky too, owner item 96)
+    // A sunrise's and a sunset's tint stay over the sky too (owner item 104):
+    // a sunrise's band comes in with its first seconds, before the day's sun
+    // weight; a sunset's stays to its last seconds, then the night sky's own.
+    const turnBand = this.mKind === 'rise' ? sst(-60, -48, this.turnS) : this.mKind === 'set' ? 1 - sst(-8, 0, this.turnS) : 0;
+    s[10] = Math.max(wSun, turnBand) * 100;
     s[0] = tr;
     s[1] = tg;
     s[2] = tb;
@@ -1075,14 +1165,13 @@ class Sky {
       const lk = s[10]! / 100;
       if (lk > 0.003) {
         // Left to right from the page background to the sky over the first
-        // 30 % of the width; with the vertical fade the top-left corner stays
-        // the background (dark, grey or paper alike).
+        // LEFT_DARK of the width; with the vertical fade the top-left corner
+        // stays the background (dark, grey or paper alike). A smootherstep
+        // ramp: no kink where it ends (a straight ramp ending at once read
+        // as a bright vertical band there, owner item 96).
         const lw = W * LEFT_DARK;
         const gl = C.createLinearGradient(0, 0, lw, 0);
-        gl.addColorStop(0, `rgba(0,0,0,${lk.toFixed(4)})`);
-        gl.addColorStop(0.45, `rgba(0,0,0,${(lk * 0.9).toFixed(4)})`);
-        gl.addColorStop(0.8, `rgba(0,0,0,${(lk * 0.38).toFixed(4)})`);
-        gl.addColorStop(1, 'rgba(0,0,0,0)');
+        for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${(lk * leftDark(i / 16)).toFixed(4)})`);
         C.globalCompositeOperation = 'destination-out';
         C.fillStyle = gl;
         C.fillRect(0, 0, lw, sh);
@@ -1114,6 +1203,9 @@ class Sky {
     this.gC = ctx2d(this.dC);
     this.gF = ctx2d(this.dF);
     this.bimg = this.gN.createImageData(dw, dh);
+    const lw = (W * LEFT_DARK) / DS, gl = this.gC.createLinearGradient(0, 0, lw, 0);
+    for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+    this.deckLeft = gl;
     const f = W * 0.55, cx = W * 0.5;
     this.rZ = new Float32Array(dh);
     this.rA = new Float32Array(dh);
@@ -1129,7 +1221,7 @@ class Sky {
     for (let c = 0; c < dw; c++) this.cX[c] = ((c + 0.5) * DS - cx) / f;
     this.bRow = 0;
     this.bPh = 0;
-    this.bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
+    this.bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true, flat: 0 };
     this.deckEmpty = true;
   }
   /** The whole deck at once, both buffers alike (first frame, a new cover, a new size). */
@@ -1147,6 +1239,8 @@ class Sky {
     const p = this.bk, cov = this.coverShape;
     p.th = cov < 0.6 ? 0.9 - cov * 0.47 : 0.618 - (cov - 0.6) * 0.85;
     p.a = sst(0.02, 0.3, cov);
+    // a closed deck (heavy rain, snow: cover 1) is evener: less shade between thick and thin (owner item 92)
+    p.flat = 0.5 * sst(0.85, 1, cov);
     // Not all at once (owner feedback 23): the deck has the shapes of the
     // cover it goes to (or comes from), and each cloud shows once the cover
     // has come far enough for its own arrival value; on the way in the
@@ -1185,7 +1279,7 @@ class Sky {
   }
   buildRows(r0: number, r1: number): void {
     const p = this.bk, N = this.noise, o = this.bimg.data, dw = this.dw;
-    const th = p.th, A = p.a, l = p.lit, s = p.sh, hz = p.hz, S = 0.62, f = p.f * 1.15, rising = p.rising;
+    const th = p.th, A = p.a, l = p.lit, s = p.sh, hz = p.hz, S = 0.62, f = p.f * 1.15, rising = p.rising, flatK = 1 - p.flat;
     const l0 = l[0]!, l1 = l[1]!, l2 = l[2]!, s0 = s[0]!, s1 = s[1]!, s2 = s[2]!, h0 = hz[0]!, h1 = hz[1]!, h2 = hz[2]!;
     for (let r = r0; r < r1; r++) {
       const Z = this.rZ[r]!, ra = this.rA[r]! * A, hzk = this.rH[r]! * 0.7;
@@ -1221,7 +1315,7 @@ class Sky {
           }
         }
         const thick = sst(th, th + 0.32, d);
-        let li = 0.92 - 0.8 * thick + (d0 - d2) * gk + (1 - sst(th, th + 0.07, d)) * 0.3;
+        let li = 0.92 - 0.8 * thick * flatK + (d0 - d2) * gk * flatK + (1 - sst(th, th + 0.07, d)) * 0.3;
         li = li < 0 ? 0 : li > 1 ? 1 : li;
         const R = s0 + (l0 - s0) * li, G = s1 + (l1 - s1) * li, B = s2 + (l2 - s2) * li;
         o[j] = R + (h0 - R) * hzk;
@@ -1270,6 +1364,11 @@ class Sky {
     C.globalCompositeOperation = 'lighter';
     C.globalAlpha = k;
     C.drawImage(this.dN, 0, 0);
+    // the left band stays the background under the clouds too (owner item 96)
+    C.globalAlpha = 1;
+    C.globalCompositeOperation = 'destination-out';
+    C.fillStyle = this.deckLeft!;
+    C.fillRect(0, 0, Math.ceil((env.W * LEFT_DARK) / DS), this.dh);
     C.globalCompositeOperation = 'source-over';
     C.globalAlpha = 1;
     const dW = this.dw * DS, dH = this.dh * DS;
@@ -1358,7 +1457,8 @@ class Sky {
       sh.on = false;
       return;
     }
-    const fade = sst(0, 0.18, sh.age) * (0.75 + 0.25 * Math.sin(Math.min(1, sh.age / 1.6) * Math.PI)) * clamp(vis * 1.2, 0.35, 1);
+    // fading out in the left band like the sky (owner item 99)
+    const fade = sst(0, 0.18, sh.age) * (0.75 + 0.25 * Math.sin(Math.min(1, sh.age / 1.6) * Math.PI)) * clamp(vis * 1.2, 0.35, 1) * bandK(hx, env.W);
     const C = (r: number, g: number, bb: number, a: number): string => adaptCss(r, g, bb, a, this.th);
     const gr = b.createLinearGradient(tx, ty, hx, hy);
     gr.addColorStop(0, C(190, 205, 255, 0));
@@ -1392,15 +1492,19 @@ class Sky {
     const ra = st.moonRiseAt, sa = st.moonSetAt;
     const cu = ra >= 0 && sa > ra ? moonClockU(wall, ra, sa) : NaN;
     const inside = cu >= -pre && cu <= 1 + pre;
+    // just past the clock's set (or before its rise) while the game's event
+    // has not come yet: the clock's end, where the moon is out of sight (item 100)
+    const near = !inside && cu >= -MOON_CLOCK_SLACK && cu <= 1 + MOON_CLOCK_SLACK;
     // The clock places the moon at every frame (owner item 69), unless the
-    // game says it is up where the clock does not (then the event wins).
-    this.moonClock = cu === cu && (inside || !st.moonUp);
+    // game says it is up where the clock does not by more than the slack
+    // (then the event wins: a clock that is off).
+    this.moonClock = cu === cu && (inside || !st.moonUp || near);
     let want: boolean, tu: number, n: number;
     if (this.moonClock) {
       this.moonSet = null;
       this.fbU = NaN;
-      want = inside;
-      tu = cu;
+      want = inside || (near && st.moonUp);
+      tu = near ? clamp(cu, -pre, 1 + pre) : cu;
       n = 1000 / (sa - ra);
     } else {
       n = env.moonSpeed / MOON_UP_S;
@@ -1444,13 +1548,15 @@ class Sky {
       }
     }
     const on = this.u > NO_MOON && want && !this.relocate ? 1 : 0;
+    // after a jump a moon no longer up is gone at once
+    if (this.moonSnap && !on) this.moonPres = 0;
     this.moonPres = ease(this.moonPres, on, dt, this.relocate ? 0.5 : 1.5);
     if (!on && !this.relocate && this.moonPres < 0.01) {
       this.u = NO_MOON;
       if (!want) this.fbU = NaN;
     }
   }
-  /** The moon's place at the game's `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west), drawn ahead by `moonLd` (`moonVisU`). */
+  /** The moon's place at the game's `u`: an even arc from the right edge (east), high in the middle, into the left band (west; `moonPath`). */
   moonPos(u: number): void {
     moonAt(this.mpath, moonVisU(u, this.moonLd), this.S2);
     this.mx = this.S2[0]!;
@@ -1461,8 +1567,9 @@ class Sky {
     // By day it is still there when it is up, much fainter (owner feedback 11).
     const day = clamp(wSun, 0, 1);
     const light = out * clamp(wMoon + wNight * 0.65 + day * DAY_MOON, 0, 1) * (1 - this.palW[2]! * 0.8 - this.palW[3]! * 0.5);
-    const tgt = Math.max(0, light) * (1 - 0.8 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
-    this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
+    const tgt = Math.max(0, light) * (1 - 0.9 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
+    this.moonVis = this.moonSnap ? tgt : ease(this.moonVis, tgt, dt, 1.2);
+    this.moonSnap = false;
     const u = this.u, mo = this.moon;
     if (u <= NO_MOON || !mo || this.moonVis * this.moonPres < 0.01) {
       this.mVisNow = 0;
@@ -1480,7 +1587,8 @@ class Sky {
     const vu = moonVisU(u, this.moonLd);
     const L = this.moonLd;
     const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(L, L + 0.1, vu), sst(1 - L - 0.1, 1 - L, vu));
-    const a = this.moonVis * this.moonPres * low;
+    // into the left band it fades out along the sky's curve, gone at the set (owner item 100)
+    const a = this.moonVis * this.moonPres * low * bandK(x, env.W);
     const dayK = clamp(day * 1.3, 0, 1);
     // the glow side and the frame glints follow the night moon only
     this.mVisNow = a * (1 - dayK);
@@ -1554,10 +1662,20 @@ class Sky {
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
-    // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
+    // the ray front: a soft band sweeping over the screen (fainter: the beams
+    // carry the light now), none in the left band (owner item 104): through
+    // the band's fade in FRONT_STRIPS strips, each at the band's strength at
+    // its middle (at ~2 % alpha the steps do not show; a layer cut along the
+    // curve cost ~3 ms a frame)
+    const fa = 0.045 * G * wetK * SUN_LIGHT[kind], x0 = bandSolid(W), x1 = bandEnd(W);
     f.fillStyle = gr;
-    f.fillRect(0, 0, W, H);
+    f.globalAlpha = fa;
+    f.fillRect(x1, 0, W - x1, H);
+    for (let i = 0; i < FRONT_STRIPS; i++) {
+      const xa = x0 + ((x1 - x0) * i) / FRONT_STRIPS, xb = x0 + ((x1 - x0) * (i + 1)) / FRONT_STRIPS;
+      f.globalAlpha = fa * bandK((xa + xb) / 2, W);
+      f.fillRect(xa, 0, xb - xa, H);
+    }
     f.globalCompositeOperation = this.th.add;
     // Every framed pane: at most a faint lift of its top line (no more lit
     // lines by nearness to the sun or the ray front; owner feedback 37).
@@ -1584,14 +1702,14 @@ class Sky {
     // beam's width, a sparkle where it enters the pane (owner feedback 37).
     // One strength for every glint (sunturn.ts turnGlint), so they fade in
     // and out with the rays (owner items 80, 81), each by its ray's tier.
-    const gk = this.glintK * wetK * this.fogK * GLINT_CORE;
+    const gk = this.glintK * wetK * this.fogK * GLINT_CORE * (kind === 'set' ? SET_RAYS_DIM : 1);
     if (gk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
       // Every thin ray glints too where it crosses a frame line (owner item
       // 68): a soft glow of the line and a brighter core, as a beam's.
       for (const r of this.rays) {
         for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
-          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT);
+          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W);
           if (a < 0.02) continue;
           const len = clamp(h.len * 3, 36, 140);
           this.glints.line(f, h.p, h.side, h.c, len * 2, a * 0.35);
@@ -1601,7 +1719,7 @@ class Sky {
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
         for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
-          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
+          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
           if (a < 0.02) continue;
           // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line
           const len = clamp(h.len * 1.8, 24, 220);
@@ -1622,7 +1740,7 @@ class Sky {
    */
   drawBeams(lg: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
     const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
-    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late);
+    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late * (this.mKind === 'set' ? SET_RAYS_DIM : 1));
     if (this.beams.length !== BEAMS) this.beams = [];
     const kind = this.mKind ?? 'rise', s = this.turnS;
     sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams, turnShimmer(s));
@@ -1758,11 +1876,17 @@ class Sky {
     const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
     const psi = sunPsi(kind, p);
     sunPoint(psi, W, H, S);
+    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
+    turnFan(psi, S[0]!, S[1]!, W, H, this.fan);
+    // A sunset's sun stands just left of where the sky comes in from the left
+    // band, not beyond the left edge (owner item 104): its light, rays and
+    // beams come from there, on the fan's angles from its place on the circle.
+    if (kind === 'set') S[0] = bandSolid(W);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
     const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25);
     // a sunset's rays stronger late, where the dusk sky's own colour hid them (owner item 89: they should run far over the screen to the end)
-    const k = I * kk * (kind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1);
+    const k = I * kk * (kind === 'set' ? SET_RAYS_DIM * (1 + SET_RAYS_LATE * sst(-24, -8, this.turnS)) : 1);
     g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
@@ -1781,8 +1905,29 @@ class Sky {
     hs.addColorStop(1, `rgba(${rgb},0)`);
     g.fillStyle = hs;
     g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
-    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
-    turnFan(psi, sx, sy, W, H, this.fan);
+    // A sunset's dusk light: a red-orange glow mostly near the sun, a faint
+    // flat halo further out, little toward the screen's bottom (owner items
+    // 105, 106). Its middle a quarter into the band's fade, right of the sun,
+    // so the core is seen; cut with the band below.
+    const dusk = turnDusk(kind, this.turnS) * (1 - 0.65 * this.wet) * this.fogK * (this.th.light ? 0.6 : 1);
+    if (dusk > 0.003) {
+      const M = Math.max(W, H), dx = sx + (bandEnd(W) - bandSolid(W)) * 0.25, dy = clamp(sy, H * 0.12, H * 0.5);
+      for (const [r, kx, ky, al] of DUSK_LAYERS) {
+        const R = M * r;
+        g.save();
+        g.translate(dx, dy);
+        g.scale(kx, ky);
+        const dg = g.createRadialGradient(0, 0, 0, 0, 0, R);
+        dg.addColorStop(0, `rgba(${DUSK_C},1)`);
+        dg.addColorStop(0.3, `rgba(${DUSK_C},.6)`);
+        dg.addColorStop(0.65, `rgba(${DUSK_C},.2)`);
+        dg.addColorStop(1, `rgba(${DUSK_C},0)`);
+        g.globalAlpha = dusk * al;
+        g.fillStyle = dg;
+        g.fillRect(-R, -R, 2 * R, 2 * R);
+        g.restore();
+      }
+    }
     const a0 = this.fan[0]!, a1 = this.fan[1]!;
     // A sunset's rays run far over the screen to their last seconds (owner
     // item 89: they faded out from the far end and shrank to the left), then
@@ -1843,6 +1988,10 @@ class Sky {
     lg.globalAlpha = 1;
     lg.globalCompositeOperation = this.th.add;
     this.drawBeams(lg, env, sx, sy, far, I);
+    // none of the sun's light in the left band (owner item 104): the sky
+    // module draws first, so `g` holds only the sun's glow here
+    bandCut(g, W, H);
+    bandCut(lg, W, H);
     this.layerEnd(g, env);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;

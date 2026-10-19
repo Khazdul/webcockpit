@@ -508,7 +508,7 @@ describe('game events held back while a pin holds (owner item 85)', () => {
     sig.pin(null, true);
     expect(s.events).toEqual([]);
     sig.line(line('A bright streak of lightning flashes over the wet mountains.'));
-    expect(s.events).toEqual([{ e: 'strike' }]);
+    expect(s.events).toEqual([{ e: 'strike', data: { storm: true } }]);
   });
 
   it('a sunset the game opened during the pin joins at its place on release when the clock does not time it', () => {

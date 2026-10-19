@@ -114,10 +114,14 @@ setting is saved; it is off by default everywhere, phones included.
    gradient down to about a third above the bottom; now and then birds
    cross, rarely an insect darts, on clear days a few faint tufts drift,
    and every few minutes a few faint sun rays come and go from the top
-   right. Walking from a clear into a cloudy area, the clouds come one by
-   one over ~25 s, from the right; leaving, they thin out from the right.
+   right. Walking from a clear into a cloudy area, the clouds come from
+   the right and cover most of the sky in ~5 s, then fill in more slowly;
+   the sky's grey follows the clouds, and an overcast day stays a light
+   grey day sky (items 94, 95); leaving, they thin out from the right over
+   ~10 s.
 2. Rain and snow areas: light rain (`'`) and heavy rain (`"`) with drips
-   along the pane edges; snow (`*`) that falls in from above, builds up
+   along the pane edges; snow (`*`) that is there at once across the
+   screen (after the 3 s wait) and builds up
    over half a minute and gusts now and then.
 3. Fog (`-` light, `=` dense) drifting low over the screen. It grows in
    slowly (about 20 s from nothing to light fog, 20 s more to dense) and
@@ -147,6 +151,10 @@ setting is saved; it is off by default everywhere, phones included.
    line appears. **Please check** that it does: the client looks for
    MUME's XML `<weather>` tag on that line first and falls back to the
    exact sentence; the tag has not been seen live yet.
+   After that line, 2–3 more bolts come at random over the next 30 s
+   (none in the first 5 s) while you stay in rain or snow, in that room or
+   the next; a room without rain or snow ends them at once (ADR 0094,
+   item 90).
 8. Options → Appearance: change the background colour (black, dark grey,
    a light one). The effects should follow at once and stay discreet.
 
@@ -1651,3 +1659,402 @@ Overall the owner is happy; some polish remains for the next session.
       Feedback wanted: is the flicker gone, is the blue's timing right, do
       the last rays run far enough and point the right way, and does the
       fan's lift feel calm.
+
+### 2026-10-19 — real play: snow and lightning (translated)
+
+90. **Lightning now and then in a thunderstorm.** Bolts came only with the
+    game's flash line ("A bright streak of lightning flashes over the
+    snow-covered mountains."), which MUME prints on entering a room, and
+    not every time; the `weather` command confirmed a thunderstorm ("It's a
+    freezing night, the sky is snowy and lit by some flashes of lightning,
+    …"). Wanted: a few more bolts while in the storm, not only at the
+    message. **Revised by the owner the same day:** no trigger from the
+    `weather` command (the player types it). The flash line strikes at once
+    as before; then a few more strikes now and then over the next ~30 s
+    (a new flash line restarts the window), only while the player is in a
+    room with rain or snow (`'`, `"`, `*`). Moving on through rain or snow
+    keeps it going; a room without rain or snow stops it at once (raw
+    weather, no 3 s delay) until a new flash line. Discreet: 2–3 extra
+    strikes, not in the first ~5 s. Also end on a new connection or
+    character, and hold back under pins.
+    - **Done (2026-10-19):** ADR 0094. The flash line strikes at once and
+      opens a 30 s window with 2 or 3 more strikes, one at a random moment
+      in each equal part of 5–30 s after it. They fall while the game's
+      weather is rain, heavy rain or snow; the first room without them ends
+      the window for good (checked from 1.5 s after the flash, since the
+      room's weather comes just after its text: verified in the owner's
+      log). A new character or connection, a demo or a dev `jump` ends it;
+      flash lines are ignored while a demo runs. The timing lives in the
+      worker (no timer on the main thread). Unit 2761; e2e weather + layout
+      44/44 (Chromium, Firefox). Checked in headless Chromium: a flash in
+      snow gave two more bolts, at ~16 s and ~24 s.
+      Please try: walk the Redhorn Pass in a snowstorm until the flash line
+      comes, stay or move on through snow, then step out of the snow.
+      Feedback wanted: is 2–3 extra bolts over 30 s the right amount, and do
+      they stop at once when you leave the snow.
+91. **Snow lingers after leaving.** Leaving a snowy room, the snow takes a
+    very long time to disappear. Wanted: the snow fades out nicely over
+    about 10 s.
+    - **Done (2026-10-19):** ADR 0091, "Overcast, snow fade, storm window".
+      When the settled weather stops being snow (3 s after leaving, as all
+      weather changes), the flakes, the far snow and the dusting on the
+      pane rims fade out smoothly over 10 s while they keep falling, and are
+      then gone; if the snow comes back mid-fade it returns within 1.5 s.
+      (Before, the far snow fell out at its own slow speed for a minute or
+      more.) Rain's fall-out was already about 3 s and is unchanged.
+      Screenshots 0, 5 and 10 s after leaving (night, `*` → `~`):
+      `img/28-item91-fade-0s.png`, `img/28-item91-fade-5s.png`,
+      `img/28-item91-fade-10s.png`.
+      Please try: leave a snowy area for a dry one.
+      Feedback wanted: does 10 s feel right, and is the fade smooth.
+92. **Snow under a fully overcast sky.** In snow the sky is not fully
+    overcast. Snow and heavy rain should give a fully overcast sky; partly
+    cloudy and fully overcast should differ where the game tells them
+    apart.
+    - **Done (2026-10-19):** ADR 0091, "Overcast, snow fade, storm window".
+      The game tells only these apart: `~` cloudy (now partly cloudy, with
+      gaps, unchanged), light rain mostly cloudy, heavy rain and snow fully
+      overcast. Snow was 0.8 cover and only half grey; now snow and heavy
+      rain close the cloud deck, the sky behind is grey, the deck's shading
+      is evener, and at night the moon behind it is only a faint disc.
+      Screenshots: snow by day `img/28-item92-snow-day.png`, by night
+      `img/28-item92-snow-night.png`, on the Paper theme
+      `img/28-item92-snow-day-light.png`; heavy rain
+      `img/28-item92-heavy-rain-day.png`; partly cloudy by day
+      `img/28-item92-partly-day.png` and by night
+      `img/28-item92-partly-night.png`.
+      Please try: `__weather.jump({ weather: '*', clock: 'day' })`, then
+      `'"'`, `"'"` and `'~'` (or walk from snow to cloud in the game).
+      Feedback wanted: does snow and heavy rain read as fully overcast, and
+      does `~` still look partly cloudy.
+
+### 2026-10-19 — real play 2 (translated)
+
+93. **Snow at once.** Snow should start falling at once on entering a
+    snowing room. It felt slower at night than by day.
+    - **Done (2026-10-19):** ADR 0091, "Snow at once, fast clouds, an
+      overcast day, the left band". Snow used to start from nothing and
+      build up over 26 s from the top, so the first ten seconds or so showed
+      only a few flakes. At night they were fainter still (the dim night
+      tint), so it did look slower at night. Now, when the 3 s wait is over,
+      snow is already spread over the whole screen, half of its full amount
+      (it fades in over about 1.5 s), and goes on to build up as before.
+      Night flakes are a little brighter. The 3 s wait stays: without it,
+      running through rooms makes the weather flicker.
+      Screenshots 1 s after the snow begins: by day
+      `img/28-item93-snow-start-day-1s.png`, by night
+      `img/28-item93-snow-start-night-1s.png`.
+      Please try: walk from a clear room into snow, by day and at night.
+      Feedback wanted: does the snow come at once now, and is the first
+      amount right (or too much).
+94. **Clouds faster.** From a clear sky into a snow room it took over 30 s
+    before the sky was cloudy. Wanted: about 5–6 s until clouds cover most
+    of the sky, then more slowly.
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The clouds now come
+      fast and then slow down: most of the sky covered in about 5 s, the
+      rest filling in over the next few seconds (they still come from the
+      right). Clearing is a little slower: about 9 s until most of them are
+      gone. Before it was an even pace over half a minute.
+      Screenshots from a clear day into snow: `img/28-item94-clouds-2s.png`,
+      `img/28-item94-clouds-6s.png`.
+      Please try: walk from clear weather into clouds or snow, and back out.
+      Feedback wanted: is ~5 s right coming in, and ~9 s going out.
+95. **A cloudy day sky.** By day, from a clear blue sky into a snow room,
+    the sky turned grey at once and the clouds came after; it looked as if
+    night fell. Wanted: the clouds first, then the sky somewhat less clear
+    blue rather than fully grey; an overcast day that clearly reads as
+    day, with clouds lit as day clouds.
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The grey now follows
+      the clouds, never ahead of them. Cloudy (`~`) makes the blue only a
+      little greyer, light rain mostly grey, heavy rain and snow overcast.
+      The overcast day sky is a light blue-grey, about as bright as the
+      clear sky. It reaches as far down the screen as the blue one; that
+      cut-off was what made it look like night, since the lower half went
+      dark. The clouds are light day clouds. At night overcast stays dark.
+      On Paper it is a pale grey.
+      Screenshots by day: snow `img/28-item95-snow-day.png`, heavy rain
+      `img/28-item95-heavy-rain-day.png`, light rain
+      `img/28-item95-light-rain-day.png`, cloudy
+      `img/28-item95-partly-day.png`; snow at night
+      `img/28-item95-snow-night.png`; Paper: snow
+      `img/28-item95-snow-day-paper.png`, cloudy
+      `img/28-item95-partly-day-paper.png`.
+      Please try: by day, walk from clear into clouds, rain and snow.
+      Feedback wanted: does overcast now read as day, does the grey come
+      after the clouds, and is cloudy (`~`) grey enough or too grey.
+96. **The left edge of the sky.** Move the blue sky's left boundary to the
+    right, for a wider dark band along the left (the grey sky too), and
+    remove the bright vertical band just right of the boundary
+    (`img/28-item96-sky-left-band.png`).
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The bright band came
+      from the left fade itself. It was a straight ramp that stopped
+      abruptly, and the eye reads such an abrupt stop as a bright line
+      (measured: no brighter pixels there, only the kink). Now the sky
+      comes in along a smooth S-curve from 16 % to 46 % of the width (was
+      roughly 15–34 %), with no corner at either end. The same band now
+      also covers the grey sky and the clouds.
+      Screenshot (clear day, 2000 px wide):
+      `img/28-item96-clear-day.png`.
+      Please try: a clear day sky, then a grey one, on your wide screen.
+      Feedback wanted: is the band gone, and is the dark strip wide enough
+      (or too wide).
+
+
+### 2026-10-19 — left band (translated)
+
+97. **Move the sky's left boundary further right**, by about the length of
+    the arrow in `img/28-item97-left-band.png` (~9 % of the width).
+    - **Done (2026-10-19):** the left fade keeps its width and shape and moves
+      ~9 % right: fully dark up to ~25 % of the width, the whole sky from 55 %
+      (was 16 % and 46 %; `LEFT_DARK` 0.55, `LEFT_SOLID` 0.46 in `sky.ts`).
+      It applies to the blue and grey sky and the cloud deck alike.
+      Please try: any outdoor room by day. Feedback wanted: is the band wide
+      enough now?
+
+### 2026-10-19 — snow start (translated)
+
+98. **Snow falls in from the top again, at once.** Entering a snowy room by
+    day, flakes faded in over the whole screen (item 93). Wanted: as before,
+    the flakes start falling from the top, but at once on entering the room,
+    with no delay, by day and night.
+    - **Done (2026-10-19):** snow now begins on the raw `Char.Vitals` value,
+      without the 3 s dwell; it still stops only once the change has settled
+      (then the 10 s fade, item 91). At its start the flakes of half the
+      build-up (`SNOW_START`) are spread over a screen's height above the
+      top, so a steady stream falls in from the top at once and fills the
+      screen downward (~2/3 down after 12 s); the far layers fall in from
+      the top too. The whole-screen fill is kept only for a page load or a
+      dev jump. Checked in headless Chromium (0.5, 2.5, 6, 12 s).
+      Please try: walk into a snowy room by day and by night.
+      Feedback wanted: does it start soon enough and look right?
+
+### 2026-10-19 — weather only over the sky (translated)
+
+99. **Weather only where there is sky.** Limit the snowflakes and the rain
+    to the part of the screen that has sky; not a sharp boundary: on the
+    left they fade out the same way the sky fades out. The same for the
+    drifting clouds and all other weather effects. The dark band on the left
+    must stay clear of everything. Exceptions: sunrise, sunset and the moon,
+    which stay as they are. (The owner's arrow: weather from about 34 % of
+    the width to the right edge.)
+    - **Done (2026-10-19):** ADR 0091, "Weather only over the sky". Every
+      weather effect now fades out to the left along the sky's own curve.
+      Nothing shows up to about 25 % of the width, everything from 55 %,
+      and between the two it fades just as the sky does. That one curve
+      (now in `band.ts`) is shared by the sky and all the effects, so moving
+      the band moves everything together. It covers rain (streaks, splashes,
+      drips, rivulets, the beads under panes), snow (flakes, the far snow,
+      the dusting on pane rims), the clouds, fog, lightning (the bolt now
+      always comes down right of the band; its glow, flash and the light on
+      frames in the band fade with it), stars and shooting stars, and the
+      day's birds, insects, tufts and sun glimpses. Not changed: sunrise and
+      sunset, the moon and its glow, sleeping/stunned/dying effects and a
+      darkness spell. Same cost as before: each effect simply skips or dims
+      what lies in the band (fog: once per fog frame on its half-size
+      layer). Unit 2772; e2e weather + layout 44/44 (Chromium, Firefox);
+      latency unchanged.
+      Screenshots (2000 px wide): heavy rain by day
+      `img/28-item99-heavy-rain-day.png`, snow at night
+      `img/28-item99-snow-night.png`, snow by day in Firefox
+      `img/28-item99-snow-day-firefox.png`, fog `img/28-item99-fog.png`, a
+      strike `img/28-item99-strike.png`, birds over a clear day
+      `img/28-item99-day-birds.png`; not masked: the moon on the left
+      `img/28-item99-night-moon.png`, a sunset
+      `img/28-item99-sunset.png`.
+      Please try: rain, snow, fog and a thunderstorm in the game, and a
+      starry night; then a sunset and the moon low in the west.
+      Feedback wanted: does the left band now stay clear and the weather fade
+      in smoothly where the sky does, and is anything left in the band that
+      should not be (or missing where it should show).
+
+### 2026-10-19 — the moon sets into the band (translated)
+
+100. **The moon, shooting stars, clouds and birds leave into the band.**
+     Instead of leaving at the left edge, the moon should leave (fade out)
+     where the sky fades out to the left toward the dark band; the same for
+     shooting stars, clouds and flying birds. The moon's speed may change:
+     its fade into the band must end at the game's moonset (never up in the
+     game while invisible, nor visible after it set), and it should come
+     into view at the moonrise. Sunrise and sunset stay as before.
+     - **Done (2026-10-19):** ADR 0091, "The moon sets into the band". The
+       moon's arc now runs over its real time up from the right edge to the
+       band: at the moonrise the disc just touches the right edge from
+       outside and comes into view, it crosses high, and as it goes down in
+       the west it fades out along the sky's curve, gone exactly at the
+       moonset. It moves a little slower than before, since the path is
+       shorter. It no longer slides in before the rise or out past the left
+       edge after the set. If the clock's set comes a few seconds before the
+       game's "the moon sets" message, it stays out of sight at the set
+       point instead of reappearing. Shooting stars, the clouds and the birds
+       keep moving left and fade out on the same curve (item 99). Unit 2771;
+       e2e weather + layout 44/44 (Chromium, Firefox).
+       Screenshots (2000 px wide), the moon by the clock: night at 0.6 of its
+       time up `img/28-item100-moon-night-060.png` (full, before the band),
+       0.85 `img/28-item100-moon-night-085.png` (fading), 0.95
+       `img/28-item100-moon-night-095.png`, the set
+       `img/28-item100-moon-night-100.png` (gone); by day 0.85
+       `img/28-item100-moon-day-085.png` and 0.95
+       `img/28-item100-moon-day-095.png`; a shooting star flying into the
+       band `img/28-item100-shoot-a.png`, then
+       `img/28-item100-shoot-b.png`.
+       Please try: watch a moonset (and a moonrise) in the game; a starry
+       night for shooting stars.
+       Feedback wanted: does the moon set into the band at the right moment
+       and pace, and does it come up at the moonrise?
+
+
+### 2026-10-19 — left band again (translated)
+
+101. **Move the band's boundary a little further right**, by about the
+     arrow in `img/28-item101-left-band.png` (~6 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.61, `LEFT_SOLID` 0.51:
+       fully dark up to ~31 % of the width, the whole sky and all weather
+       from 61 % (was 25 % and 55 %). The moon's no-clock waiting place
+       (`MOON_HOLD`) moved from 0.6 to 0.55 so it stays right of the band.
+       Weather unit tests green; checked in headless Chromium (rain by day).
+       Please try: any outdoor room. Feedback wanted: is the band right now?
+
+### 2026-10-19 — left band a third time (translated)
+
+102. **Move the band's boundary further right**, by about the arrow in
+     `img/28-item102-left-band.png` (~12.5 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.735, `LEFT_SOLID` 0.59:
+       fully dark up to ~43 % of the width, the whole sky and all weather
+       from ~73 % (was 31 % and 61 %). The moon's path still ends at the
+       band's solid edge, so it now fades over roughly the second half of
+       its time up; its no-clock waiting place (`MOON_HOLD`) moved to 0.45
+       to stay right of the band. Weather unit tests green.
+       Please try: any outdoor room; the moon in its second half.
+       Feedback wanted: is the band right now, and is the moon's longer fade
+       acceptable (or should its path end further right)?
+
+### 2026-10-19 — left band, a little back (translated)
+
+103. **Item 102 went a bit too far: move the boundary back** by about the
+     arrow in `img/28-item103-left-band.png` (~3.5 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.70, `LEFT_SOLID` 0.57:
+       fully dark up to ~40 % of the width, the whole sky and all weather
+       from 70 % (was ~43 % and ~73 %). `MOON_HOLD` stays 0.45. Weather unit
+       tests green. Please try: any outdoor room. Feedback wanted: is the
+       band right now?
+
+### 2026-10-19 — sunrise and sunset kept out of the band (translated)
+
+104. **Sunrise and sunset only over the sky.** At sunrise the sun's light
+     covers the whole width; it should only be within the sky right of the
+     left band, and the rays should fade out like the sky and not show in
+     the band. The sunset is redone: the sun lies just left of the
+     transition between the band and the sky, the rays come from there,
+     neither rays nor light show in the band, and the sunset's rays are
+     dimmed by about 40 % all through.
+     - **Done (2026-10-19):** ADR 0093, "The sun's light over the sky only".
+       The sun's glow, its rays and beams, the sweeping light front and the
+       glints on frames all fade out along the band's curve, for sunrise and
+       sunset alike; the sky's tint stays out of the band through both. The
+       sunset's sun now stands at the band's solid edge (~40 % of the width),
+       sinking from above the top to the horizon there; its light and rays
+       come out of the band's fade at the same angles as before. Sunset rays,
+       beams and their glints are at 60 %. Weather unit 178/178, e2e weather
+       6/6 (Chromium, Firefox).
+       Screenshots (2000 px wide): sunrise 12 s before day
+       `img/28-item104-sunrise-12s.png`; sunset 25 s and 8 s before night
+       `img/28-item104-sunset-25s.png`, `img/28-item104-sunset-8s.png`.
+       Please try: a sunrise and a sunset in the game (or `__weather.jump`).
+       Feedback wanted: is the band clear now, is the sunset sun in the right
+       place, and are the dimmed sunset rays right?
+
+### 2026-10-19 — sunset rays upward, dusk light (translated)
+
+105. **Sunset rays too bunched; a dusk light.** At sunset the rays are
+     bunched within a narrow span of angles; rays pointing upward are
+     missing, mostly at the end of the sunset (the owner's arrows: from
+     ~20° to ~60° up). Also more red-orange dusk light from the sun (not the
+     rays), as a sunset looks: noticeable from 50 s before the sunset,
+     strongest at ~20 s, and nearly dark from the sun at 8 s (as today).
+     - **Done (2026-10-19):** ADR 0093, "Sunset rays upward and a dusk
+       light". Over the sunset's last 40 s the fan now opens upward as it
+       lifts: at the end the rays spread from level to about 60° up (they
+       stopped at ~30° before). A new red-orange dusk glow rises from the
+       west from -50 s, is strongest at -20 s and is gone at -8 s; it sits
+       round the sun, low over the sky, and stays out of the left band.
+       Weather unit 178/178, e2e weather 6/6.
+       Screenshots: `img/28-item105-sunset-35s.png`,
+       `img/28-item105-sunset-20s.png` (strongest dusk),
+       `img/28-item105-sunset-12s.png`, `img/28-item105-sunset-8s.png`
+       (the fan opening upward).
+       Please try: a sunset in the game. Feedback wanted: are the rays
+       spread enough upward, and is the dusk light the right strength and
+       colour (it can go stronger, redder or higher up)?
+
+### 2026-10-19 — dusk light near the sun (translated)
+
+106. **The dusk light mainly near the sun** (the owner's circle: round the
+     sun at the band's edge, upper middle of the screen). It may be sensed a
+     little further away, more subtly. Now almost the whole sky fills with
+     red, and above all it should not show so much at the bottom.
+     - **Done (2026-10-19):** ADR 0093 (same addendum, "Near the sun"). The
+       dusk light is now a smaller core round the sun, at its height,
+       moved a little right so it is seen out of the band's fade, plus a
+       faint flat halo further out that ends well above the bottom. Timing
+       unchanged (-50 / -20 / -8 s). Weather unit 178/178, e2e weather 6/6.
+       Screenshots at -20 s: `img/28-item106-sunset-20s.png`, a taller
+       window `img/28-item106-sunset-20s-tall.png`; -35 s
+       `img/28-item106-sunset-35s.png`.
+       Please try: a sunset. Feedback wanted: is the glow where you want
+       it, and its size and strength right?
+
+### 2026-10-20 — sunset rays fade earlier (translated)
+
+107. **From 16 s to 10 s before the night the sun rays should fade down
+     about 50 %** relative to their strength now; then, from the strength
+     they have at 10 s before the night, keep fading out with about the
+     course they have now (from that strength).
+     - **Clarified (2026-10-20):** not a drop over the whole span: the
+       fall starts at -16 s and at -10 s the level is 40 % below today's.
+     - **Done (2026-10-20):** ADR 0093, "A sunset's rays fall 40 % before
+       the night". The rays and beams start to fall at -16 s, are 40 %
+       below the old level at -10 s, then fade out on the same course as
+       before, from that level. Their glints on the frames follow. The dusk light and the
+       sun's glow are unchanged. Weather unit 178/178.
+       Please try: the last 20 s of a sunset. Feedback wanted: is the drop
+       right in size and timing?
+
+### 2026-10-20 — a better weather demo (translated)
+
+108. **Improve `#weather demo`.** Now it opens with a short, jerky clip of
+     night with a moon that jumps in position, then jumps into the end of a
+     sunrise, which also feels jerky. Review the whole sequence so it runs
+     evenly and builds the effects up step by step for a "wow" factor.
+     Suggested: a night sky; a fast-forwarded sunrise (the whole sequence,
+     about 2×, then 2.5–3× so the time does not run away); some day with
+     flying birds, turning to rain; night (the whole sunset ×2); in the
+     night the moon peeks in, clouds, a downpour, thunder, the weather
+     turns to snow; then a fast-forwarded sunrise; also show every other
+     effect forgotten (stunned, incapacitated etc.). A little longer is
+     fine, preferably not over 4–5 minutes; fill in what is missing.
+     - **Done (2026-10-20):** ADR 0091, "Demo" (2026-10-20 addendum). 27
+       steps, about 4:40: a clear moonless starry night with shooting
+       stars → a whole sunrise at 2.5× (24 s) → morning, birds, an insect →
+       clouds roll in → rain → the rain passes and the sky clears → a whole
+       sunset at 2.5× → night falls, the stars fill in → the moon rises at
+       the right edge → clouds hide it → downpour → thunderstorm → snow and
+       a gust → fog → a darkness spell → dawn: the sky clears and a second
+       whole sunrise → a new day → indoors and out → sleeping, stunned,
+       incapacitated, dying, on your feet → back to the game. Only the first
+       step jumps; everything after eases. The moon now goes by its own
+       clock from the right edge, so it never jumps. Weather unit 179/179,
+       e2e weather 6/6; a full real-time run checked by screenshots every
+       5 s.
+       Please try: `#weather demo`. Feedback wanted: is it even, does it
+       build up, is anything missing or too long?
+     - **Follow-up (2026-10-20):** cut it to about 3 minutes; no need to
+       say it runs at 2.5× or to be too technical in the captions (the
+       owner likes the texts and how they tell a story); 3× instead of
+       2.5× for the sunrises and sunsets; merge some parts or let them run
+       a little faster.
+     - **Done (2026-10-20):** 3:00, 21 steps. Sunrises and sunsets at 3×
+       (20 s each). Merged: morning and birds; clouds and rain; nightfall
+       and the moonrise; clouds and the downpour; the darkness spell's
+       start and end; indoors and out. The rest a little shorter. The
+       captions no longer mention the pace. Weather unit 179/179, e2e
+       weather 6/6; a full real-time run checked by screenshots.

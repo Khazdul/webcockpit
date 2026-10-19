@@ -36,6 +36,7 @@
 
 import type { ThemeInfo } from '../palette';
 import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, mkCanvas, sst } from './env';
+import { bandK } from './band';
 import { sunDrift, sunMid } from './beams';
 import type { FrameBox, Glints } from './glint';
 
@@ -221,6 +222,7 @@ export class DayLife {
   private rayTex: Cv | null = null;
   private glowTex: Cv | null = null;
   private texH = 0;
+  private texW = 0;
   /** The wind's drift (px/s, negative: toward the left, as the clouds drift). */
   wind = -2.4;
 
@@ -290,7 +292,10 @@ export class DayLife {
         t.u += (this.wind * dt) / W;
         const spr = this.tuftSpr[t.spr]!;
         if (t.u < -spr.width / W) t.u += 1 + (2 * spr.width) / W;
-        b.globalAlpha = k.tufts * t.a * (this.light ? 0.7 : 0.42);
+        // (all of day life fades out in the left band like the sky, owner item 99)
+        const ta = k.tufts * t.a * (this.light ? 0.7 : 0.42) * bandK(t.u * W + spr.width / 2, W);
+        if (ta < 0.004) continue;
+        b.globalAlpha = ta;
         b.drawImage(spr, t.u * W, t.v * H);
       }
     }
@@ -326,7 +331,9 @@ export class DayLife {
         const cyc = (T * 0.33 + bd.ph) % 1, flap = cyc < 0.45;
         const fi = flap ? Math.floor(((T * bd.rate + bd.ph) % 1) * FLAP_FRAMES) : 1;
         const x = fl.x + bd.dx * dir, y = fl.y + bd.dy + Math.sin(T * 0.7 + bd.ph) * (fl.big ? 3 : 1.5);
-        b.globalAlpha = a;
+        const ba = a * bandK(x, W);
+        if (ba < 0.004) continue;
+        b.globalAlpha = ba;
         b.drawImage(strip, fi * fw, 0, fw, fh, Math.round(x - fw / 2), Math.round(y - fh / 2), fw, fh);
       }
     }
@@ -344,7 +351,7 @@ export class DayLife {
         }
         bug.x += (bug.tx - bug.x) * Math.min(1, dt * 7);
         bug.y += (bug.ty - bug.y) * Math.min(1, dt * 7);
-        const a = k.life * sst(0, 0.5, bug.age) * (1 - sst(bug.life - 0.6, bug.life, bug.age)) * 0.6;
+        const a = k.life * sst(0, 0.5, bug.age) * (1 - sst(bug.life - 0.6, bug.life, bug.age)) * 0.6 * bandK(bug.x, W);
         b.globalAlpha = a;
         b.fillStyle = this.light ? 'rgb(60,62,70)' : 'rgb(20,24,30)';
         const x = Math.round(bug.x + Math.sin(T * 23) * 1.2), y = Math.round(bug.y + Math.cos(T * 19) * 1.2);
@@ -387,26 +394,32 @@ export class DayLife {
   /** Builds the dithered textures for this H (once per size; CPU canvas, ADR 0091). */
   private textures(): void {
     const H = this.H;
-    if (this.texH === H && this.rayTex) return;
+    if (this.texH === H && this.texW === this.W && this.rayTex) return;
     this.texH = H;
+    this.texW = this.W;
     const [r, g, bl] = this.light ? [255, 214, 140] : [255, 240, 205];
     const dith = (): number => DITHER_MIN + (1 - DITHER_MIN) * Math.random();
     // the light at the pulse's peak, rounded at random (a share of the pixels one level up)
     const lvl = (v: number): number => Math.min(255, Math.floor(255 * v * dith() + Math.random()));
     const ray = PULSE_HIGH * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY), glow = PULSE_HIGH * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
     // the rays': strongest at the top, fading down the screen, gone about three
-    // quarters down (owner item 82; was by the distance from the sun); repeated across
-    const RH = Math.ceil(H * 0.78) + 1, RW = 256;
+    // quarters down (owner item 82; was by the distance from the sun). The
+    // whole width, with the left band's curve in it, dithered like the rest
+    // (owner item 99; was a 256 px strip repeated across).
+    const RH = Math.ceil(H * 0.78) + 1, RW = Math.max(1, Math.ceil(this.W));
+    const bk = new Float32Array(RW);
+    for (let x = 0; x < RW; x++) bk[x] = bandK(x + 0.5, this.W);
     const fall = (v: number): number => (v < 0.3 ? 1 - (0.4 * v) / 0.3 : v < 0.65 ? 0.6 - (0.4 * (v - 0.3)) / 0.35 : Math.max(0, 0.2 - (0.2 * (v - 0.65)) / 0.35));
     const rc = mkCanvas(RW, RH), rx = ctx2dCpu(rc), ri = rx.createImageData(RW, RH);
     for (let y = 0; y < RH; y++) {
       const f = fall(y / (H * 0.78));
       for (let x = 0; x < RW; x++) {
         const o = (y * RW + x) * 4;
+        if (bk[x]! <= 0) continue;
         ri.data[o] = r;
         ri.data[o + 1] = g;
         ri.data[o + 2] = bl;
-        ri.data[o + 3] = lvl(ray * f);
+        ri.data[o + 3] = lvl(ray * f * bk[x]!);
       }
     }
     rx.putImageData(ri, 0, 0);
@@ -445,14 +458,14 @@ export class DayLife {
     const R0 = H * 0.42;
     // the textures hold the peak's light: the pulse is their share, 0 … 1
     const k = Math.min(1, e / PULSE_HIGH);
-    b.globalAlpha = k;
+    b.globalAlpha = k * bandK(gx, W);
     const sm = b.imageSmoothingEnabled;
     b.imageSmoothingEnabled = false;
     b.drawImage(this.glowTex!, gx - R0, gy - R0, R0 * 2, R0 * 2);
     b.imageSmoothingEnabled = sm;
     // the rays: their texture fades down the screen (item 82), dithered (item 84)
     const L = tin + H * 1.6;
-    const pat = b.createPattern(this.rayTex!, 'repeat-x');
+    const pat = b.createPattern(this.rayTex!, 'no-repeat');
     if (!pat) return;
     b.fillStyle = pat;
     // spread wide round the sun's middle direction, a few, by tier (owner
