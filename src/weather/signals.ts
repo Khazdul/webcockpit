@@ -102,7 +102,7 @@ export function almanacState(
   };
 }
 
-/** The moon's times are kept this long after its set (game minutes): the sky lets it glide out past the left edge. */
+/** The moon's times are kept this long after its set (game minutes): a margin while the next time up is looked up (since owner item 100 the moon has faded into the left band by its set). */
 export const MOON_AFTER_SET = 2;
 
 /**

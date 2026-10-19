@@ -40,7 +40,7 @@ import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
 import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
-import { LEFT_DARK, bandK, leftDark } from './band';
+import { LEFT_DARK, bandK, bandSolid, leftDark } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -48,14 +48,14 @@ import { plateRects, rimRects } from './rimshape';
 
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
-/** Without a clock to the minute and its set event the moon waits here on its drawn path, just past the left (west) edge. */
-const MOON_HOLD = 0.97;
+/** Without a clock to the minute and its set event the moon waits here on its path: just before it would go into the left band (owner item 100). */
+const MOON_HOLD = 0.6;
+/** The clock's rise and set may be off this much (game u, ~45 s) from the game's Event.Moon before the event wins (owner item 100). */
+const MOON_CLOCK_SLACK = 0.06;
 /** Where a moon of unknown age shows (no synced almanac). */
 const MOON_START = 0.5;
 /** No moon (`Sky.u`): below any place on its way, the way in before the rise included. */
 const NO_MOON = -1;
-/** At the game's rise the moon's centre is this many radii inside the right edge (about 80 % of the disc in; owner item 63). */
-export const MOON_RISE_IN = 0.6;
 /** The moon's pace may change this much (×) to take up a correction of its place (owner item 69): 0.5 … 1.5 of its own. */
 export const MOON_PACE_CAP = 0.5;
 /** A correction larger than the cap takes up in this long (s) fades the moon out and in at its new place instead. */
@@ -379,24 +379,27 @@ export interface MoonPath {
   yTop: number;
 }
 /**
- * The moon's arc for a W × H canvas and a moon of radius R: it comes up from
- * below the right edge (east), crosses high and goes down below the left
- * edge (west), as the sun does and as the game says ("The moon disappears in
- * the west."; owner feedback 11, 38).
+ * The moon's arc for a W × H canvas and a moon of radius R: it comes up at
+ * the right edge (east), crosses high and goes down into the left band
+ * (west), as the game says ("The moon disappears in the west."; owner
+ * feedback 11, 38). Over its real time up (owner item 100): at the game's
+ * rise (u = 0) the disc just touches the right edge from outside, so it
+ * comes into view at the rise; at its set (u = 1) its centre is where the
+ * sky's left fade is complete (band.ts `bandSolid`), so it has faded out
+ * along the sky's curve exactly at the set. Up in the game is visible, set
+ * is gone.
  */
 export function moonPath(W: number, H: number, R: number): MoonPath {
-  return { x0: W + R * 2.4, x1: -R * 2.4, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
+  return { x0: W + R, x1: bandSolid(W), yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
 /**
  * How far in on its path the moon is drawn at its rise and set, as a share
- * of the path (owner items 63, 69): at the game's rise (u = 0) the centre is
- * MOON_RISE_IN · R inside the right edge, at its set (u = 1) as far inside
- * the left one. The game's u maps onto the drawn path as `moonVisU`: 0 … 1
- * onto `lead` … 1 − `lead`; the way in before the rise and out after the set
- * are the path's first and last `lead`.
+ * of the path: none since owner item 100 (it was drawn ahead, in before the
+ * rise and out past the left edge after the set, items 63, 69). The game's u
+ * maps onto the drawn path as `moonVisU`.
  */
-export function moonLead(P: MoonPath, W: number, R: number): number {
-  return clamp((P.x0 - (W - MOON_RISE_IN * R)) / (P.x0 - P.x1), 0, 0.4);
+export function moonLead(_P: MoonPath, _W: number, _R: number): number {
+  return 0;
 }
 /** The drawn place (0 … 1 along `moonPath`) for the game's u (`-moonPreU(lead)` … 1 + `moonPreU(lead)`). */
 export function moonVisU(u: number, lead: number): number {
@@ -1445,15 +1448,19 @@ class Sky {
     const ra = st.moonRiseAt, sa = st.moonSetAt;
     const cu = ra >= 0 && sa > ra ? moonClockU(wall, ra, sa) : NaN;
     const inside = cu >= -pre && cu <= 1 + pre;
+    // just past the clock's set (or before its rise) while the game's event
+    // has not come yet: the clock's end, where the moon is out of sight (item 100)
+    const near = !inside && cu >= -MOON_CLOCK_SLACK && cu <= 1 + MOON_CLOCK_SLACK;
     // The clock places the moon at every frame (owner item 69), unless the
-    // game says it is up where the clock does not (then the event wins).
-    this.moonClock = cu === cu && (inside || !st.moonUp);
+    // game says it is up where the clock does not by more than the slack
+    // (then the event wins: a clock that is off).
+    this.moonClock = cu === cu && (inside || !st.moonUp || near);
     let want: boolean, tu: number, n: number;
     if (this.moonClock) {
       this.moonSet = null;
       this.fbU = NaN;
-      want = inside;
-      tu = cu;
+      want = inside || (near && st.moonUp);
+      tu = near ? clamp(cu, -pre, 1 + pre) : cu;
       n = 1000 / (sa - ra);
     } else {
       n = env.moonSpeed / MOON_UP_S;
@@ -1503,7 +1510,7 @@ class Sky {
       if (!want) this.fbU = NaN;
     }
   }
-  /** The moon's place at the game's `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west), drawn ahead by `moonLd` (`moonVisU`). */
+  /** The moon's place at the game's `u`: an even arc from the right edge (east), high in the middle, into the left band (west; `moonPath`). */
   moonPos(u: number): void {
     moonAt(this.mpath, moonVisU(u, this.moonLd), this.S2);
     this.mx = this.S2[0]!;
@@ -1533,7 +1540,8 @@ class Sky {
     const vu = moonVisU(u, this.moonLd);
     const L = this.moonLd;
     const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(L, L + 0.1, vu), sst(1 - L - 0.1, 1 - L, vu));
-    const a = this.moonVis * this.moonPres * low;
+    // into the left band it fades out along the sky's curve, gone at the set (owner item 100)
+    const a = this.moonVis * this.moonPres * low * bandK(x, env.W);
     const dayK = clamp(day * 1.3, 0, 1);
     // the glow side and the frame glints follow the night moon only
     this.mVisNow = a * (1 - dayK);
