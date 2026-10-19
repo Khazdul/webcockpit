@@ -24,8 +24,11 @@
 //                  begin (`dayAt`, `nightAt`), which time sunrise and sunset,
 //                  and of the moon's rise and set (`moonRiseAt`,
 //                  `moonSetAt`), which place the moon
-//   text lines     lightning flash messages → 'strike'; a wind message in
-//                  a weather tag → 'gust' (see `lineEvent`)
+//   text lines     lightning flash messages → 'strike' with `{ storm: true }`
+//                  (the worker adds a few strikes over the next 30 s while
+//                  it rains or snows, ADR 0094); a wind message in a weather
+//                  tag → 'gust' (see `lineEvent`)
+//   character      a new connection or character → 'storm.off'
 //
 // While a pin holds (the demo, a dev jump, a bench; owner item 85) none of
 // the game's events reach the engine: the bridge keeps the sun and moon in
@@ -42,11 +45,15 @@ import { moonAt, moonUpFraction, nextMoonEvent } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
 import { TURN_S } from './sunturn';
+import { STORM_WINDOW_S } from './director';
 
 export interface WeatherSink {
   setState(partial: Partial<WeatherState>, opts?: { instant?: boolean; settle?: boolean }): void;
   emit(event: WeatherEvent, data?: unknown): void;
 }
+
+/** The data of a game flash's 'strike': it opens a storm window (ADR 0094). */
+export const GAME_FLASH = Object.freeze({ storm: true });
 
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
@@ -188,6 +195,9 @@ export class WeatherSignals {
   /** Held back under a pin: the last sunrise / sunset the game opened (its wall ms), and the last darkness event. */
   private heldTurn: { kind: 'rise' | 'set'; at: number } | null = null;
   private heldDark: WeatherEvent | null = null;
+  private charName: string | null | undefined = undefined;
+  /** Wall ms of the last game flash line (a storm window may be open for STORM_WINDOW_S after it). */
+  private lastFlash = -Infinity;
 
   constructor(
     private readonly sink: WeatherSink,
@@ -249,11 +259,29 @@ export class WeatherSignals {
     else if (ev.startsWith('darkness.')) this.heldDark = ev;
   }
 
-  /** A text line: lightning or a gust (dropped while a pin holds). */
+  /** A text line: lightning (a flash opens a storm window) or a gust (dropped while a pin holds). */
   line(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): void {
     if (this.pinned) return;
     const ev = lineEvent(line);
-    if (ev) this.sink.emit(ev);
+    if (ev === 'strike') {
+      this.lastFlash = this.now();
+      this.sink.emit(ev, GAME_FLASH);
+    }
+    else if (ev) this.sink.emit(ev);
+  }
+
+  /** The character's name (null after a reset: a new connection): a change ends a storm window. */
+  character(name: string | null): void {
+    const was = this.charName;
+    this.charName = name;
+    if (was !== undefined && was !== name) this.stormOff();
+  }
+
+  /** Ends a storm window the last flash may have opened. */
+  private stormOff(): void {
+    if (this.now() - this.lastFlash > STORM_WINDOW_S * 1000) return;
+    this.lastFlash = -Infinity;
+    this.sink.emit('storm.off');
   }
 
   /**
@@ -301,6 +329,8 @@ export class WeatherSignals {
   pin(p: Partial<WeatherState> | null, smooth = false): void {
     const was = this.pinned;
     this.pinned = p && Object.keys(p).length ? { ...p } : null;
+    // a pin holds the game's storm window back (ADR 0094)
+    if (!was && this.pinned) this.stormOff();
     this.sink.setState(this.state(), smooth ? { settle: true } : { instant: true });
     if (was && !this.pinned) this.replayHeld();
   }

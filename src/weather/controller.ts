@@ -40,10 +40,11 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
   let engine: Weather | null = null;
   const sink = {
     setState: (p: Partial<WeatherState>, o?: { instant?: boolean; settle?: boolean }) => engine?.setState(p, o),
-    emit: (e: Parameters<Weather['emit']>[0]) => engine?.emit(e),
+    emit: (e: Parameters<Weather['emit']>[0], data?: unknown) => engine?.emit(e, data),
   };
   const charVitals = game.char.vitals;
   const signals = new WeatherSignals(sink, vitalsState((k) => charVitals.get(k)), game.clock.state, now(), now);
+  signals.character(game.char.name);
   const unsubs: Array<() => void> = [];
   let destroyed = false;
   engine = createWeather(
@@ -68,7 +69,11 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
     }),
     bus.on('text.line', (line) => signals.line(line)),
     game.subscribe((part) => {
-      if (part === 'char') signals.vitals(vitalsState((k) => charVitals.get(k)));
+      if (part === 'char') {
+        // a new connection or character ends a storm window (ADR 0094)
+        signals.character(game.char.name);
+        signals.vitals(vitalsState((k) => charVitals.get(k)));
+      }
       else if (part === 'clock') signals.almanac(game.clock.state, now(), true);
     }),
     settings.subscribe((next, prev) => {

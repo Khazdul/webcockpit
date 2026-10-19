@@ -822,7 +822,8 @@ class Sky {
     // the deck's shapes: those of a higher cover at once, a lower one once the cover has come down to it
     if (coverT >= this.coverShape - 1e-3 || this.coverS <= coverT + 0.01) this.coverShape = coverT;
     const cover = this.coverS;
-    const wet = inside ? this.wet : clamp(m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.55 + cover * 0.1, 0, 1);
+    // the sky's grey: heavy rain and snow fully grey, overcast (owner item 92); light rain and clouds partly
+    const wet = inside ? this.wet : clamp(m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.9 + cover * 0.1, 0, 1);
     this.cover = cover;
     this.wet = wet;
     this.fogK = 1 - m.fog * 0.55;

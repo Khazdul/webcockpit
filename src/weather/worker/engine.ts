@@ -17,7 +17,8 @@
 //
 // Idle: when no module has anything to show and every mix value is at rest,
 // the canvases are left cleared and the loop drops to a 4 Hz tick that only
-// runs the director; any message or a mix target wakes it.
+// runs the director; any message, a mix target or a storm window's strike
+// (director `stormStrike`, ADR 0094) wakes it.
 //
 // Rate (owner feedback 4, "Heat"): each module says how fast its content is
 // (`Module.fps`: 30 while rain falls, 12 for a drifting sky or fog, 60 for a
@@ -205,6 +206,9 @@ export class WeatherEngine {
       case 'event': {
         const s = eventState(m.name);
         if (s) this.director.set(s);
+        // a game flash line opens a storm window (ADR 0094)
+        if (m.name === 'strike' && (m.data as { storm?: unknown } | undefined)?.storm === true) this.director.stormFlash(this.host.now());
+        else if (m.name === 'storm.off') this.director.stormOff();
         if (m.name === 'sun.rise' || m.name === 'sun.set') this.director.turnEvent(m.name === 'sun.rise' ? 'rise' : 'set', (m.data as { from?: unknown } | undefined)?.from);
         this.emit(m.name, m.data);
         break;
@@ -419,6 +423,12 @@ export class WeatherEngine {
     const dt = Math.min(DT_MAX, Math.max(0, (now - this.lastT) / 1000) || 0);
     this.lastT = now;
     this.director.tick(now, dt);
+    // a strike of a storm window (ADR 0094): wakes an idle loop
+    if (this.director.stormStrike(now)) {
+      this.emit('strike');
+      this.idle = false;
+      this.idleFrames = 0;
+    }
     if (this.idle) {
       if (this.director.quiet()) {
         this.schedule(true);
