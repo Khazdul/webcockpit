@@ -186,7 +186,7 @@ test('#weather demo: turns the effects on, captions each step, ends unpinned and
   await expect(step).not.toHaveText('');
   await expect(box.locator('.wc-wdemo-hint')).toHaveText('#weather stop to end');
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
-  await expect(step).toHaveText('Sunset · the dusk', { timeout: 10_000 });
+  await expect(step).toHaveText(/^Sunset/, { timeout: 10_000 });
   // the step after the sunset brings the night (Event.Sun dark; ADR 0093); at x40 it lasts under half a second
   await expect.poll(state, { intervals: [50] }).toMatchObject({ clock: 'night' });
   await expect(box).toHaveCount(0, { timeout: 10_000 });

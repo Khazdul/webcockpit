@@ -204,6 +204,7 @@ export class WeatherEngine {
       case 'state': {
         const ch = m.instant ? this.director.jump(m.s) : this.director.set(m.s, !!m.settle);
         if (ch && this.env) this.emit('position', ch);
+        if (m.instant && this.env) this.emit('jump');
         break;
       }
       case 'event': {

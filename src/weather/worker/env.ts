@@ -76,7 +76,8 @@ export interface Module {
   resize(env: Env): void;
   /** Draws one frame; returns true while it has anything to show or animate. */
   frame(env: Env, dt: number, t: number): boolean;
-  onEvent?(env: Env, name: WeatherEvent | 'position', data?: unknown): void;
+  /** `jump`: the state was set at once (a page load, a dev jump, the demo's start), not eased. */
+  onEvent?(env: Env, name: WeatherEvent | 'position' | 'jump', data?: unknown): void;
   destroy?(env: Env): void;
   /**
    * Frames per second the module's current content needs, asked after each

@@ -656,6 +656,8 @@ class Sky {
   hor1 = 0;
   hor2 = 0;
   starVis = 0;
+  /** The state was set at once (a jump): the moon follows at once on the next frame. */
+  moonSnap = false;
   // set by resize
   built = false;
   hz = 0;
@@ -813,8 +815,11 @@ class Sky {
     if (!this.first) this.deckNow();
   }
 
-  onEvent(env: Env, name: WeatherEvent | 'position'): void {
-    if (name === 'moon.rise') {
+  onEvent(env: Env, name: WeatherEvent | 'position' | 'jump'): void {
+    if (name === 'jump') {
+      // set at once: the moon too, at the next frame (owner item 108: a moon not in the new state faded out over seconds)
+      this.moonSnap = true;
+    } else if (name === 'moon.rise') {
       // A moon already up or on its way in keeps its place: never a jump. The
       // clock places it on its own (owner item 69); without one it fades in
       // at its rise place, its centre just inside the right edge.
@@ -1540,6 +1545,8 @@ class Sky {
       }
     }
     const on = this.u > NO_MOON && want && !this.relocate ? 1 : 0;
+    // after a jump a moon no longer up is gone at once
+    if (this.moonSnap && !on) this.moonPres = 0;
     this.moonPres = ease(this.moonPres, on, dt, this.relocate ? 0.5 : 1.5);
     if (!on && !this.relocate && this.moonPres < 0.01) {
       this.u = NO_MOON;
@@ -1558,7 +1565,8 @@ class Sky {
     const day = clamp(wSun, 0, 1);
     const light = out * clamp(wMoon + wNight * 0.65 + day * DAY_MOON, 0, 1) * (1 - this.palW[2]! * 0.8 - this.palW[3]! * 0.5);
     const tgt = Math.max(0, light) * (1 - 0.9 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
-    this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
+    this.moonVis = this.moonSnap ? tgt : ease(this.moonVis, tgt, dt, 1.2);
+    this.moonSnap = false;
     const u = this.u, mo = this.moon;
     if (u <= NO_MOON || !mo || this.moonVis * this.moonPres < 0.01) {
       this.mVisNow = 0;
