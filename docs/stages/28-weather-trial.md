@@ -147,6 +147,10 @@ setting is saved; it is off by default everywhere, phones included.
    line appears. **Please check** that it does: the client looks for
    MUME's XML `<weather>` tag on that line first and falls back to the
    exact sentence; the tag has not been seen live yet.
+   After that line, 2–3 more bolts come at random over the next 30 s
+   (none in the first 5 s) while you stay in rain or snow, in that room or
+   the next; a room without rain or snow ends them at once (ADR 0094,
+   item 90).
 8. Options → Appearance: change the background colour (black, dark grey,
    a light one). The effects should follow at once and stay discreet.
 
@@ -1651,3 +1655,71 @@ Overall the owner is happy; some polish remains for the next session.
       Feedback wanted: is the flicker gone, is the blue's timing right, do
       the last rays run far enough and point the right way, and does the
       fan's lift feel calm.
+
+### 2026-10-19 — real play: snow and lightning (translated)
+
+90. **Lightning now and then in a thunderstorm.** Bolts came only with the
+    game's flash line ("A bright streak of lightning flashes over the
+    snow-covered mountains."), which MUME prints on entering a room, and
+    not every time; the `weather` command confirmed a thunderstorm ("It's a
+    freezing night, the sky is snowy and lit by some flashes of lightning,
+    …"). Wanted: a few more bolts while in the storm, not only at the
+    message. **Revised by the owner the same day:** no trigger from the
+    `weather` command (the player types it). The flash line strikes at once
+    as before; then a few more strikes now and then over the next ~30 s
+    (a new flash line restarts the window), only while the player is in a
+    room with rain or snow (`'`, `"`, `*`). Moving on through rain or snow
+    keeps it going; a room without rain or snow stops it at once (raw
+    weather, no 3 s delay) until a new flash line. Discreet: 2–3 extra
+    strikes, not in the first ~5 s. Also end on a new connection or
+    character, and hold back under pins.
+    - **Done (2026-10-19):** ADR 0094. The flash line strikes at once and
+      opens a 30 s window with 2 or 3 more strikes, one at a random moment
+      in each equal part of 5–30 s after it. They fall while the game's
+      weather is rain, heavy rain or snow; the first room without them ends
+      the window for good (checked from 1.5 s after the flash, since the
+      room's weather comes just after its text: verified in the owner's
+      log). A new character or connection, a demo or a dev `jump` ends it;
+      flash lines are ignored while a demo runs. The timing lives in the
+      worker (no timer on the main thread). Unit 2761; e2e weather + layout
+      44/44 (Chromium, Firefox). Checked in headless Chromium: a flash in
+      snow gave two more bolts, at ~16 s and ~24 s.
+      Please try: walk the Redhorn Pass in a snowstorm until the flash line
+      comes, stay or move on through snow, then step out of the snow.
+      Feedback wanted: is 2–3 extra bolts over 30 s the right amount, and do
+      they stop at once when you leave the snow.
+91. **Snow lingers after leaving.** Leaving a snowy room, the snow takes a
+    very long time to disappear. Wanted: the snow fades out nicely over
+    about 10 s.
+    - **Done (2026-10-19):** ADR 0091, "Overcast, snow fade, storm window".
+      When the settled weather stops being snow (3 s after leaving, as all
+      weather changes), the flakes, the far snow and the dusting on the
+      pane rims fade out smoothly over 10 s while they keep falling, and are
+      then gone; if the snow comes back mid-fade it returns within 1.5 s.
+      (Before, the far snow fell out at its own slow speed for a minute or
+      more.) Rain's fall-out was already about 3 s and is unchanged.
+      Screenshots 0, 5 and 10 s after leaving (night, `*` → `~`):
+      `img/28-item91-fade-0s.png`, `img/28-item91-fade-5s.png`,
+      `img/28-item91-fade-10s.png`.
+      Please try: leave a snowy area for a dry one.
+      Feedback wanted: does 10 s feel right, and is the fade smooth.
+92. **Snow under a fully overcast sky.** In snow the sky is not fully
+    overcast. Snow and heavy rain should give a fully overcast sky; partly
+    cloudy and fully overcast should differ where the game tells them
+    apart.
+    - **Done (2026-10-19):** ADR 0091, "Overcast, snow fade, storm window".
+      The game tells only these apart: `~` cloudy (now partly cloudy, with
+      gaps, unchanged), light rain mostly cloudy, heavy rain and snow fully
+      overcast. Snow was 0.8 cover and only half grey; now snow and heavy
+      rain close the cloud deck, the sky behind is grey, the deck's shading
+      is evener, and at night the moon behind it is only a faint disc.
+      Screenshots: snow by day `img/28-item92-snow-day.png`, by night
+      `img/28-item92-snow-night.png`, on the Paper theme
+      `img/28-item92-snow-day-light.png`; heavy rain
+      `img/28-item92-heavy-rain-day.png`; partly cloudy by day
+      `img/28-item92-partly-day.png` and by night
+      `img/28-item92-partly-night.png`.
+      Please try: `__weather.jump({ weather: '*', clock: 'day' })`, then
+      `'"'`, `"'"` and `'~'` (or walk from snow to cloud in the game).
+      Feedback wanted: does snow and heavy rain read as fully overcast, and
+      does `~` still look partly cloudy.

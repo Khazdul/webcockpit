@@ -21,6 +21,10 @@
 //                                           puts it mid-way
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
+//   __weather.set({ weather: '*' }); __weather.emit('strike', { storm: true })
+//                                           a game flash: a bolt and 2–3 more over
+//                                           30 s while it rains or snows (ADR 0094;
+//                                           `set`, not `jump`: a pin ends the window)
 //   __weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')
 //                                           the day sky's ray pulse at its peak in
 //                                           ~2 s, at that time of day (0 the day's

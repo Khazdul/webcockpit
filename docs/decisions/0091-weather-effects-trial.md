@@ -1258,6 +1258,23 @@ even pace (owner item 69): ADR 0093, "An even pace".
 Steady turns, the set ending at the bottom left and the day sky's ray pulse
 (owner items 71–73): ADR 0093, "Steady turns and a gentle pulse".
 
+### Overcast, snow fade, storm window (2026-10-19, owner items 90–92)
+
+- Cloud cover (`director.ts` `CLOUD_COVER`): `~` 0.6 (partly cloudy, gaps),
+  light rain 0.88 (mostly cloudy), heavy rain and snow 1 (was snow 0.8).
+  GMCP tells only these apart. In the sky (`sky.ts`) snow now weighs 0.9 in
+  `wet` (was 0.55), so snow, like heavy rain, gives the full grey sky; the
+  deck's shading between thick and thin is halved from cover 0.85 to 1
+  (`flat`), so a closed deck reads as one even overcast; the moon behind
+  cover 1 is a tenth (was a fifth).
+- Snow that stops (the settled weather is no longer `*`) fades out over
+  10 s (`SNOW_FADE_S`, smoothstep) on flakes, far tiles and the rim dusting
+  while they fall on, then they are cleared; snow back mid-fade returns in
+  1.5 s (`SNOW_BACK_S`). Before, the far tiles fell out at their own slow
+  speed for a minute or more. Rain's fall-out (3 s) is unchanged.
+- Lightning: a flash line also opens a 30 s storm window with 2–3 more
+  strikes while it rains or snows: ADR 0094.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
