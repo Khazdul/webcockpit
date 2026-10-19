@@ -34,10 +34,13 @@
 // `darkness` gates.
 
 import { RIM_R } from '../../panes/frame';
+// (the left band's curve lives in band.ts, owner items 96, 97, 99)
+export { leftDark } from './band';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
 import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
+import { LEFT_DARK, bandK, leftDark } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -141,11 +144,6 @@ function skyTable(th: ThemeInfo): typeof SKY_DARK {
   out.grey = { top: [150, 160, 176], hor: [182, 188, 198], a: 0.42 };
   return out;
 }
-/** How much of the sky the left fade takes back at `x` (share of LEFT_DARK): all up to LEFT_SOLID, then a smootherstep down to none (no kink at either end). */
-export function leftDark(x: number): number {
-  const u = clamp((x - LEFT_SOLID) / (1 - LEFT_SOLID), 0, 1);
-  return 1 - u * u * u * (u * (u * 6 - 15) + 10);
-}
 /** The glow on the sky's light side: the sun's (warm) by day, a cool lift toward the moon or the horizon colour at night. */
 const SUN_GLOW_DARK: Rgb = [255, 226, 172];
 const SUN_GLOW_LIGHT: Rgb = [255, 210, 130];
@@ -159,10 +157,6 @@ const STARS_H_RIGHT = 0.9;
 /** The sky gradient's depth, fraction of the height: at night, and by day (a soft start ~30 % above the bottom, feedback 22). */
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
-/** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28, items 96, 97). */
-const LEFT_DARK = 0.55;
-/** The sky stays fully back to the background up to this share of LEFT_DARK, then comes in smoothly (owner item 96). */
-const LEFT_SOLID = 0.46;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
@@ -737,7 +731,9 @@ class Sky {
       const xr = R(), x = Math.round(W * (0.01 + 0.98 * xr)) + 0.5;
       const lim = sh0 + (sh - sh0) * sst(0.45, 0.95, xr);
       const y = Math.round(6 + (lim - 10) * Math.pow(R(), 1.35)) + 0.5;
-      const br = (0.4 + Math.pow(R(), 1.8) * 0.6) * (1 - 0.5 * sst(0.5, 1, y / lim)), ph2 = R() * TAU, fr = 0.6 + R() * 2.6;
+      // the left band keeps no stars (owner item 99): baked into their brightness
+      const br = (0.4 + Math.pow(R(), 1.8) * 0.6) * (1 - 0.5 * sst(0.5, 1, y / lim)) * bandK(x, W), ph2 = R() * TAU, fr = 0.6 + R() * 2.6;
+      if (br < 0.004) continue;
       if (k > 0.965) {
         big.push(x, y, br, ph2, fr);
         continue;
@@ -1414,7 +1410,8 @@ class Sky {
       sh.on = false;
       return;
     }
-    const fade = sst(0, 0.18, sh.age) * (0.75 + 0.25 * Math.sin(Math.min(1, sh.age / 1.6) * Math.PI)) * clamp(vis * 1.2, 0.35, 1);
+    // fading out in the left band like the sky (owner item 99)
+    const fade = sst(0, 0.18, sh.age) * (0.75 + 0.25 * Math.sin(Math.min(1, sh.age / 1.6) * Math.PI)) * clamp(vis * 1.2, 0.35, 1) * bandK(hx, env.W);
     const C = (r: number, g: number, bb: number, a: number): string => adaptCss(r, g, bb, a, this.th);
     const gr = b.createLinearGradient(tx, ty, hx, hy);
     gr.addColorStop(0, C(190, 205, 255, 0));
