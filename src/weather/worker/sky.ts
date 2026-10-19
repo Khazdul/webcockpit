@@ -622,7 +622,7 @@ class Sky {
   bRow = 0;
   /** How far the deck's next key frame is (0..1): its rows built so far and the cross-fade's weight. */
   bPh = 0;
-  bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
+  bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true, flat: 0 };
   deckEmpty = true;
   skyCv!: Cv;
   skyCg!: Ctx;
@@ -1130,7 +1130,7 @@ class Sky {
     for (let c = 0; c < dw; c++) this.cX[c] = ((c + 0.5) * DS - cx) / f;
     this.bRow = 0;
     this.bPh = 0;
-    this.bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true };
+    this.bk = { th: 0.9, a: 0, lit: [0, 0, 0], sh: [0, 0, 0], hz: [0, 0, 0], ox: 0, oz: 0, f: 1, rising: true, flat: 0 };
     this.deckEmpty = true;
   }
   /** The whole deck at once, both buffers alike (first frame, a new cover, a new size). */
@@ -1148,6 +1148,8 @@ class Sky {
     const p = this.bk, cov = this.coverShape;
     p.th = cov < 0.6 ? 0.9 - cov * 0.47 : 0.618 - (cov - 0.6) * 0.85;
     p.a = sst(0.02, 0.3, cov);
+    // a closed deck (heavy rain, snow: cover 1) is evener: less shade between thick and thin (owner item 92)
+    p.flat = 0.5 * sst(0.85, 1, cov);
     // Not all at once (owner feedback 23): the deck has the shapes of the
     // cover it goes to (or comes from), and each cloud shows once the cover
     // has come far enough for its own arrival value; on the way in the
@@ -1186,7 +1188,7 @@ class Sky {
   }
   buildRows(r0: number, r1: number): void {
     const p = this.bk, N = this.noise, o = this.bimg.data, dw = this.dw;
-    const th = p.th, A = p.a, l = p.lit, s = p.sh, hz = p.hz, S = 0.62, f = p.f * 1.15, rising = p.rising;
+    const th = p.th, A = p.a, l = p.lit, s = p.sh, hz = p.hz, S = 0.62, f = p.f * 1.15, rising = p.rising, flatK = 1 - p.flat;
     const l0 = l[0]!, l1 = l[1]!, l2 = l[2]!, s0 = s[0]!, s1 = s[1]!, s2 = s[2]!, h0 = hz[0]!, h1 = hz[1]!, h2 = hz[2]!;
     for (let r = r0; r < r1; r++) {
       const Z = this.rZ[r]!, ra = this.rA[r]! * A, hzk = this.rH[r]! * 0.7;
@@ -1222,7 +1224,7 @@ class Sky {
           }
         }
         const thick = sst(th, th + 0.32, d);
-        let li = 0.92 - 0.8 * thick + (d0 - d2) * gk + (1 - sst(th, th + 0.07, d)) * 0.3;
+        let li = 0.92 - 0.8 * thick * flatK + (d0 - d2) * gk * flatK + (1 - sst(th, th + 0.07, d)) * 0.3;
         li = li < 0 ? 0 : li > 1 ? 1 : li;
         const R = s0 + (l0 - s0) * li, G = s1 + (l1 - s1) * li, B = s2 + (l2 - s2) * li;
         o[j] = R + (h0 - R) * hzk;
@@ -1462,7 +1464,7 @@ class Sky {
     // By day it is still there when it is up, much fainter (owner feedback 11).
     const day = clamp(wSun, 0, 1);
     const light = out * clamp(wMoon + wNight * 0.65 + day * DAY_MOON, 0, 1) * (1 - this.palW[2]! * 0.8 - this.palW[3]! * 0.5);
-    const tgt = Math.max(0, light) * (1 - 0.8 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
+    const tgt = Math.max(0, light) * (1 - 0.9 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
     this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
     const u = this.u, mo = this.moon;
     if (u <= NO_MOON || !mo || this.moonVis * this.moonPres < 0.01) {
