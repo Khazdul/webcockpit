@@ -165,12 +165,16 @@ const RISE_RAYS: ReadonlyArray<readonly [number, number]> = [[-60, 0], [-35, 0.6
 /** A sunset's rays come in softly over this window (s; owner item 88: they popped up in 2.5 s). */
 const SET_RAYS_IN: readonly [number, number] = [-60, -46];
 
+/** A sunset's rays, beams and glints fall by this share over SET_RAYS_DIP_S, then fade from there on their old curve (owner item 107). */
+const SET_RAYS_DIP = 0.5;
+const SET_RAYS_DIP_S: readonly [number, number] = [-16, -10];
+
 /** The ray and beam strength at `s` (0 outside the turn): a sunrise's with its glow, a sunset's softly to its early strength, both 1 at RAYS_FADE_S, then fading. */
 export function turnRays(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;
   const e = SET_RAYS_EARLY;
   const up = kind === 'rise' ? pw(RISE_RAYS, s) : sst(SET_RAYS_IN[0], SET_RAYS_IN[1], s) * (e + (1 - e) * lin(-60, RAYS_FADE_S, s));
-  return up * turnFade(s, kind);
+  return up * turnFade(s, kind) * (kind === 'set' ? 1 - SET_RAYS_DIP * sst(SET_RAYS_DIP_S[0], SET_RAYS_DIP_S[1], s) : 1);
 }
 
 /** A sunrise's frame glints are held back over its first seconds (owner item 80: not so marked at first). */

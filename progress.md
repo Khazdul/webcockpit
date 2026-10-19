@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 items 90–106 (storm window, snow, overcast day sky, fast clouds, left band for all weather, the moon into the band) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 items 90–107 (storm window, snow, overcast day sky, fast clouds, left band for all weather, the moon into the band) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -38,6 +38,14 @@ Stage 28 items 90–106 (storm window, snow, overcast day sky, fast clouds, left
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-20 — Stage 28 item 107 (main session)
+
+- **Done:** a sunset's rays (beams, glints) halve from -16 to -10 s, then
+  fade on their old curve. ADR 0093 addendum, stage file item 107.
+- **Tests:** weather unit 178/178.
+- **Next:** owner test of items 104–107; the moon (item 100). Branch
+  `weather-real-play` not merged or released.
 
 ### 2026-10-19 — Stage 28 item 106 (main session)
 

@@ -2002,3 +2002,17 @@ Overall the owner is happy; some polish remains for the next session.
        `img/28-item106-sunset-35s.png`.
        Please try: a sunset. Feedback wanted: is the glow where you want
        it, and its size and strength right?
+
+### 2026-10-20 — sunset rays fade earlier (translated)
+
+107. **From 16 s to 10 s before the night the sun rays should fade down
+     about 50 %** relative to their strength now; then, from the strength
+     they have at 10 s before the night, keep fading out with about the
+     course they have now (from that strength).
+     - **Done (2026-10-20):** ADR 0093, "A sunset's rays halve before the
+       night". The rays and beams fall smoothly to half between -16 and
+       -10 s, then fade out on the same course as before, from half the
+       level. Their glints on the frames follow. The dusk light and the
+       sun's glow are unchanged. Weather unit 178/178.
+       Please try: the last 20 s of a sunset. Feedback wanted: is the drop
+       right in size and timing?
