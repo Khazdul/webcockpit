@@ -23,6 +23,12 @@ import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
 import { plateRects, rimRects } from './rimshape';
 
+/**
+ * Snow that begins starts at this much of its build-up at once (owner item
+ * 93): flakes across the screen and the first far layers, not a few flakes
+ * from the top that take half a minute to show. It grows on from there.
+ */
+export const SNOW_START = 0.5;
 /** Snow that stops fades out over this long, s (owner item 91: it lingered a minute or more). */
 export const SNOW_FADE_S = 10;
 /** Snow that comes back mid-fade returns this fast, s (from nothing). */
@@ -1091,6 +1097,19 @@ export function weatherModule(): Module {
             T.front = 1e5;
           }
         }
+      } else if (isSnow && prevW !== sw && prevW !== undefined) {
+        // snow begins (after the dwell): visible at once, by day and by night (item 93)
+        snowAmt = Math.max(snowAmt, SNOW_START);
+        const n = snowTarget(snowAmt);
+        for (let i = 0; i < SN && snCount < n; i++) if (!sna[i]) newFlake(i, false);
+        if (tiles) {
+          for (const T of tiles) {
+            if (T.on || T.th > snowAmt) continue;
+            T.on = 1;
+            T.tail = 0;
+            T.front = 1e5;
+          }
+        }
       }
       prevW = sw;
       prevRainMix = rain;
@@ -1360,7 +1379,8 @@ export function weatherModule(): Module {
         }
         const yEnd = fadeTop + 40, tt = snowT, eddy = gE > 0.02;
         const A1 = 75 * gE, A2 = 48 * gE, k1 = TAU / 330, k2 = TAU / 210;
-        const ga = (0.45 + 0.55 * lum) * 0.9 * (1 - 0.3 * m.fog) * out * snowVis;
+        // (a higher floor at night: the dim night tint made the first flakes all but invisible, item 93)
+        const ga = (0.6 + 0.4 * lum) * 0.9 * (1 - 0.3 * m.fog) * out * snowVis;
         b.globalAlpha = ga;
         for (let i = 0; i < tiles.length; i++) {
           const T = tiles[i]!, v = T.speed * dt;
