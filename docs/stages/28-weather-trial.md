@@ -1799,3 +1799,14 @@ Overall the owner is happy; some polish remains for the next session.
       Feedback wanted: is the band gone, and is the dark strip wide enough
       (or too wide).
 
+
+### 2026-10-19 — left band (translated)
+
+97. **Move the sky's left boundary further right**, by about the length of
+    the arrow in `img/28-item97-left-band.png` (~9 % of the width).
+    - **Done (2026-10-19):** the left fade keeps its width and shape and moves
+      ~9 % right: fully dark up to ~25 % of the width, the whole sky from 55 %
+      (was 16 % and 46 %; `LEFT_DARK` 0.55, `LEFT_SOLID` 0.46 in `sky.ts`).
+      It applies to the blue and grey sky and the cloud deck alike.
+      Please try: any outdoor room by day. Feedback wanted: is the band wide
+      enough now?

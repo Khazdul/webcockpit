@@ -159,10 +159,10 @@ const STARS_H_RIGHT = 0.9;
 /** The sky gradient's depth, fraction of the height: at night, and by day (a soft start ~30 % above the bottom, feedback 22). */
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
-/** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28). */
-const LEFT_DARK = 0.46;
+/** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28, items 96, 97). */
+const LEFT_DARK = 0.55;
 /** The sky stays fully back to the background up to this share of LEFT_DARK, then comes in smoothly (owner item 96). */
-const LEFT_SOLID = 0.36;
+const LEFT_SOLID = 0.46;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
