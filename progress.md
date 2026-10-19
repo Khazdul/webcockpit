@@ -52,7 +52,7 @@ Statuses: Next, In progress, Owner testing, Done.
   weather-bench latency unchanged; power bench (headless) before/after
   within noise (notes in bench/results).
 - **Next:** owner test of items 90–100, then merge and release.
-- **Commits:** 8d19f54, 52c3216, the item 100 commit, this one.
+- **Commits:** 8d19f54, 52c3216, 60e14f2, 4215208, this one.
 
 ### 2026-10-19 — Stage 28 items 97–98 (main session)
 
