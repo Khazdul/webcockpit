@@ -1,6 +1,6 @@
 # Progress
 
-Stage 28 items 90–92 (storm window, snow fade, overcast) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 items 90–96 (storm window, snow fade and start, overcast day sky, fast clouds, left band) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -38,6 +38,21 @@ Stage 28 items 90–92 (storm window, snow fade, overcast) on branch `weather-re
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-19 — Stage 28 real play 2: snow start, clouds, overcast day, left band (items 93–96)
+
+- **Done:** on branch `weather-real-play` (not merged). 93: snow starts at
+  half its build-up, across the screen, as soon as the 3 s dwell is over
+  (dwell kept); brighter at night. 94: cloud cover eases in (tau 2.5 s, most
+  in ~5 s) and out (4 s). 95: the grey follows the clouds; an overcast day is
+  a light blue-grey day sky as deep as the blue one, with day-lit clouds.
+  96: left band a smootherstep to 46 % (the straight ramp's end was the
+  bright stripe), also over the grey sky and the clouds. ADR 0091 addendum.
+- **Tests:** unit 2768; e2e weather + layout 44/44 (Chromium, Firefox);
+  weather-bench --rounds 2: key→send and text→painted unchanged (Chromium
+  on 12.6/20.0 ms, Firefox 9.8/19.6); Firefox worker 51.6 ms, as before.
+- **Next:** owner test of the branch (items 90–96), then merge and release.
+- **Commits:** 8fb7cb7, 13a6f74, this one.
 
 ### 2026-10-19 — Stage 28 real play: lightning, snow, overcast (items 90–92)
 

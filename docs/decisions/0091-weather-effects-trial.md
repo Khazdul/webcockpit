@@ -1275,6 +1275,39 @@ Steady turns, the set ending at the bottom left and the day sky's ray pulse
 - Lightning: a flash line also opens a 30 s storm window with 2–3 more
   strikes while it rains or snows: ADR 0094.
 
+### Snow at once, fast clouds, an overcast day, the left band (2026-10-19, owner items 93–96)
+
+- Snow that begins (the settled weather turns `*`) starts at half its
+  build-up (`SNOW_START`): flakes spread over the screen and the first far
+  layers at once (fading in over 1.5 s), then it grows to full as before.
+  It used to start from zero and build up over 26 s from the top, so the
+  first ten seconds or so showed only a few flakes. At night they were
+  fainter still (the dim night tint), which is why it felt slower at night.
+  Snow's alpha floor is higher now (0.6 + 0.4 × lum, was 0.45 + 0.55). The 3 s
+  dwell stays: it is what stops the room-by-room flicker, and snow now shows
+  as soon as the dwell is over.
+- Cloud cover eases toward the weather's (`coverStep`): time constant 2.5 s
+  coming in (90 % of the way in 5.8 s), 4 s clearing (90 % in ~9 s), never
+  slower than 1/60 per s. It was a constant 1/40 per s (over 30 s from
+  clear to snow). Clouds still come from the upwind side first.
+- The sky's grey follows the clouds, not the rain or snow: it eases (2 s)
+  toward `SKY_GREY` (`~` 0.25, light rain 0.8, heavy rain and snow 1) and
+  never runs ahead of the cover (`wetOf`: at most `sst(0.3, 1, cover)`).
+  Before, the grey came with the precipitation mix within a second, ahead
+  of the clouds.
+- An overcast day still reads as day: the grey sky reaches as far down as
+  the blue one (its depth was cut by the wetness, so the lower half went
+  dark as at night); its colour is a light, desaturated blue-grey (top
+  140,152,168, a 0.74; was a dark 62,66,73 at 0.56), about as bright as the
+  clear sky; the overcast cloud palette is lit as day clouds (198/136, was
+  128/58). On Paper a pale grey of its own.
+- The left band: the sky comes in from 16 % to 46 % of the width (was
+  roughly 15–34 %) along a smootherstep. The straight ramp stopped at once
+  at 34 %, and that kink read as a bright vertical band just right of it
+  (owner's screenshot `28-item96-sky-left-band.png`). The band is the
+  same under the grey sky and under the cloud deck, which is now cut by it
+  too.
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).

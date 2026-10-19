@@ -114,10 +114,14 @@ setting is saved; it is off by default everywhere, phones included.
    gradient down to about a third above the bottom; now and then birds
    cross, rarely an insect darts, on clear days a few faint tufts drift,
    and every few minutes a few faint sun rays come and go from the top
-   right. Walking from a clear into a cloudy area, the clouds come one by
-   one over ~25 s, from the right; leaving, they thin out from the right.
+   right. Walking from a clear into a cloudy area, the clouds come from
+   the right and cover most of the sky in ~5 s, then fill in more slowly;
+   the sky's grey follows the clouds, and an overcast day stays a light
+   grey day sky (items 94, 95); leaving, they thin out from the right over
+   ~10 s.
 2. Rain and snow areas: light rain (`'`) and heavy rain (`"`) with drips
-   along the pane edges; snow (`*`) that falls in from above, builds up
+   along the pane edges; snow (`*`) that is there at once across the
+   screen (after the 3 s wait) and builds up
    over half a minute and gusts now and then.
 3. Fog (`-` light, `=` dense) drifting low over the screen. It grows in
    slowly (about 20 s from nothing to light fog, 20 s more to dense) and
@@ -1723,3 +1727,75 @@ Overall the owner is happy; some polish remains for the next session.
       `'"'`, `"'"` and `'~'` (or walk from snow to cloud in the game).
       Feedback wanted: does snow and heavy rain read as fully overcast, and
       does `~` still look partly cloudy.
+
+### 2026-10-19 — real play 2 (translated)
+
+93. **Snow at once.** Snow should start falling at once on entering a
+    snowing room. It felt slower at night than by day.
+    - **Done (2026-10-19):** ADR 0091, "Snow at once, fast clouds, an
+      overcast day, the left band". Snow used to start from nothing and
+      build up over 26 s from the top, so the first ten seconds or so showed
+      only a few flakes. At night they were fainter still (the dim night
+      tint), so it did look slower at night. Now, when the 3 s wait is over,
+      snow is already spread over the whole screen, half of its full amount
+      (it fades in over about 1.5 s), and goes on to build up as before.
+      Night flakes are a little brighter. The 3 s wait stays: without it,
+      running through rooms makes the weather flicker.
+      Screenshots 1 s after the snow begins: by day
+      `img/28-item93-snow-start-day-1s.png`, by night
+      `img/28-item93-snow-start-night-1s.png`.
+      Please try: walk from a clear room into snow, by day and at night.
+      Feedback wanted: does the snow come at once now, and is the first
+      amount right (or too much).
+94. **Clouds faster.** From a clear sky into a snow room it took over 30 s
+    before the sky was cloudy. Wanted: about 5–6 s until clouds cover most
+    of the sky, then more slowly.
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The clouds now come
+      fast and then slow down: most of the sky covered in about 5 s, the
+      rest filling in over the next few seconds (they still come from the
+      right). Clearing is a little slower: about 9 s until most of them are
+      gone. Before it was an even pace over half a minute.
+      Screenshots from a clear day into snow: `img/28-item94-clouds-2s.png`,
+      `img/28-item94-clouds-6s.png`.
+      Please try: walk from clear weather into clouds or snow, and back out.
+      Feedback wanted: is ~5 s right coming in, and ~9 s going out.
+95. **A cloudy day sky.** By day, from a clear blue sky into a snow room,
+    the sky turned grey at once and the clouds came after; it looked as if
+    night fell. Wanted: the clouds first, then the sky somewhat less clear
+    blue rather than fully grey; an overcast day that clearly reads as
+    day, with clouds lit as day clouds.
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The grey now follows
+      the clouds, never ahead of them. Cloudy (`~`) makes the blue only a
+      little greyer, light rain mostly grey, heavy rain and snow overcast.
+      The overcast day sky is a light blue-grey, about as bright as the
+      clear sky. It reaches as far down the screen as the blue one; that
+      cut-off was what made it look like night, since the lower half went
+      dark. The clouds are light day clouds. At night overcast stays dark.
+      On Paper it is a pale grey.
+      Screenshots by day: snow `img/28-item95-snow-day.png`, heavy rain
+      `img/28-item95-heavy-rain-day.png`, light rain
+      `img/28-item95-light-rain-day.png`, cloudy
+      `img/28-item95-partly-day.png`; snow at night
+      `img/28-item95-snow-night.png`; Paper: snow
+      `img/28-item95-snow-day-paper.png`, cloudy
+      `img/28-item95-partly-day-paper.png`.
+      Please try: by day, walk from clear into clouds, rain and snow.
+      Feedback wanted: does overcast now read as day, does the grey come
+      after the clouds, and is cloudy (`~`) grey enough or too grey.
+96. **The left edge of the sky.** Move the blue sky's left boundary to the
+    right, for a wider dark band along the left (the grey sky too), and
+    remove the bright vertical band just right of the boundary
+    (`img/28-item96-sky-left-band.png`).
+    - **Done (2026-10-19):** ADR 0091 (same addendum). The bright band came
+      from the left fade itself. It was a straight ramp that stopped
+      abruptly, and the eye reads such an abrupt stop as a bright line
+      (measured: no brighter pixels there, only the kink). Now the sky
+      comes in along a smooth S-curve from 16 % to 46 % of the width (was
+      roughly 15–34 %), with no corner at either end. The same band now
+      also covers the grey sky and the clouds.
+      Screenshot (clear day, 2000 px wide):
+      `img/28-item96-clear-day.png`.
+      Please try: a clear day sky, then a grey one, on your wide screen.
+      Feedback wanted: is the band gone, and is the dark strip wide enough
+      (or too wide).
+
