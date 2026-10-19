@@ -563,6 +563,26 @@ ray, and fewer glints drawn.
   down. The lowest ray turns at up to 3°/s during the lift, the only move
   above item 79's 1°/s; the sun's hazy glow keeps item 83's late curve.
 
+### The sun's light over the sky only; a sunset sun at the band (owner item 104)
+
+The left band (ADR 0091, `band.ts`) kept every weather effect out, but not
+the sunrise and sunset: their glow, rays and beams reached the left edge.
+
+- **Masked along the band's curve.** The sun's glow and hot spot (drawn
+  first on the back layer, which holds nothing else then), the ray layer
+  (rays and beams) and the ray front are cut along the band's own curve
+  (destination-out, `bandCut` in sky.ts); the ray front goes through the
+  free ray layer for that, since the front layer already holds day life.
+  Frame glints fade with `bandK` at the hit. The sky's left fade also holds
+  through a turn: from a sunrise's first 12 s (before the day's sun weight)
+  and to a sunset's last 8 s, so the tint is not seen in the band either.
+- **A sunset's sun at the band.** It no longer stands beyond the left edge:
+  its x is the band's solid edge (`bandSolid`, ~40 % of W), its height and
+  the fan's angles as on its circle (`turnFan` from the circle point, then
+  the origin moved). Its light and rays come out of the band's fade.
+- **Dimmer sunset rays.** A sunset's rays, beams and their glints × 0.6 all
+  through (`SET_RAYS_DIM`); its glow is unchanged.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then

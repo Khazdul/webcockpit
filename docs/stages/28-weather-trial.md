@@ -1937,3 +1937,28 @@ Overall the owner is happy; some polish remains for the next session.
        from 70 % (was ~43 % and ~73 %). `MOON_HOLD` stays 0.45. Weather unit
        tests green. Please try: any outdoor room. Feedback wanted: is the
        band right now?
+
+### 2026-10-19 — sunrise and sunset kept out of the band (translated)
+
+104. **Sunrise and sunset only over the sky.** At sunrise the sun's light
+     covers the whole width; it should only be within the sky right of the
+     left band, and the rays should fade out like the sky and not show in
+     the band. The sunset is redone: the sun lies just left of the
+     transition between the band and the sky, the rays come from there,
+     neither rays nor light show in the band, and the sunset's rays are
+     dimmed by about 40 % all through.
+     - **Done (2026-10-19):** ADR 0093, "The sun's light over the sky only".
+       The sun's glow, its rays and beams, the sweeping light front and the
+       glints on frames all fade out along the band's curve, for sunrise and
+       sunset alike; the sky's tint stays out of the band through both. The
+       sunset's sun now stands at the band's solid edge (~40 % of the width),
+       sinking from above the top to the horizon there; its light and rays
+       come out of the band's fade at the same angles as before. Sunset rays,
+       beams and their glints are at 60 %. Weather unit 178/178, e2e weather
+       6/6 (Chromium, Firefox).
+       Screenshots (2000 px wide): sunrise 12 s before day
+       `img/28-item104-sunrise-12s.png`; sunset 25 s and 8 s before night
+       `img/28-item104-sunset-25s.png`, `img/28-item104-sunset-8s.png`.
+       Please try: a sunrise and a sunset in the game (or `__weather.jump`).
+       Feedback wanted: is the band clear now, is the sunset sun in the right
+       place, and are the dimmed sunset rays right?

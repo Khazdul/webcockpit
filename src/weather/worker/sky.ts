@@ -40,7 +40,7 @@ import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
 import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
-import { LEFT_DARK, bandK, bandSolid, leftDark } from './band';
+import { LEFT_DARK, bandEnd, bandK, bandSolid, leftDark } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -487,6 +487,8 @@ const LAYER_SCALE = 0.5;
 const GRAIN_N = 256;
 /** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
 const SET_RAYS_LATE = 1;
+/** A sunset's rays, beams and their glints against a sunrise's: dimmed ~40 % all through (owner item 104). */
+const SET_RAYS_DIM = 0.6;
 /** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
 const RAY_SHIMMER = 0.1;
 
@@ -502,6 +504,24 @@ function grainLayer(w: number, h: number): Cv {
   const c = mkCanvas(w, h), q = ctx2d(c);
   for (let y = 0; y < h; y += GRAIN_N) for (let x = 0; x < w; x += GRAIN_N) q.drawImage(t, x, y);
   return c;
+}
+
+/** Takes the left band out of `q` along the sky's curve (band.ts): the sun's light stays over the sky (owner item 104). */
+function bandCut(q: Ctx, W: number, H: number): void {
+  const lw = bandEnd(W), gl = q.createLinearGradient(0, 0, lw, 0);
+  for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+  const op = q.globalCompositeOperation, ga = q.globalAlpha;
+  q.globalCompositeOperation = 'destination-out';
+  q.globalAlpha = 1;
+  q.fillStyle = gl;
+  q.fillRect(0, 0, lw, H);
+  q.globalCompositeOperation = op;
+  q.globalAlpha = ga;
+}
+
+/** How much of a frame glint shows at hit `h` on a screen `W` wide: none in the left band, as its ray (owner item 104). */
+function hitBand(h: BeamHit, W: number): number {
+  return bandK(h.side === 'l' ? h.p.x : h.side === 'r' ? h.p.x + h.p.w : h.c, W);
 }
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
@@ -1053,7 +1073,11 @@ class Sky {
     s[9] = wSun * dk * 100;
     // The bright day sky keeps the top left dark for the text there (owner feedback 28).
     // (the grey day sky too, owner item 96)
-    s[10] = wSun * 100;
+    // A sunrise's and a sunset's tint stay over the sky too (owner item 104):
+    // a sunrise's band comes in with its first seconds, before the day's sun
+    // weight; a sunset's stays to its last seconds, then the night sky's own.
+    const turnBand = this.mKind === 'rise' ? sst(-60, -48, this.turnS) : this.mKind === 'set' ? 1 - sst(-8, 0, this.turnS) : 0;
+    s[10] = Math.max(wSun, turnBand) * 100;
     s[0] = tr;
     s[1] = tg;
     s[2] = tb;
@@ -1615,10 +1639,16 @@ class Sky {
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
-    // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
+    // the ray front: a soft band sweeping over the screen (fainter: the beams
+    // carry the light now), none in the left band (owner item 104): drawn
+    // through the ray layer (free again after drawRaysBack) to cut it there
+    const lq = this.layerStart(env);
+    lq.globalCompositeOperation = 'source-over';
+    lq.fillStyle = gr;
+    lq.fillRect(0, 0, W, H);
+    bandCut(lq, W, H);
     f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
-    f.fillStyle = gr;
-    f.fillRect(0, 0, W, H);
+    f.drawImage(this.rayL!, 0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
     // Every framed pane: at most a faint lift of its top line (no more lit
     // lines by nearness to the sun or the ray front; owner feedback 37).
@@ -1645,14 +1675,14 @@ class Sky {
     // beam's width, a sparkle where it enters the pane (owner feedback 37).
     // One strength for every glint (sunturn.ts turnGlint), so they fade in
     // and out with the rays (owner items 80, 81), each by its ray's tier.
-    const gk = this.glintK * wetK * this.fogK * GLINT_CORE;
+    const gk = this.glintK * wetK * this.fogK * GLINT_CORE * (kind === 'set' ? SET_RAYS_DIM : 1);
     if (gk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
       // Every thin ray glints too where it crosses a frame line (owner item
       // 68): a soft glow of the line and a brighter core, as a beam's.
       for (const r of this.rays) {
         for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
-          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT);
+          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W);
           if (a < 0.02) continue;
           const len = clamp(h.len * 3, 36, 140);
           this.glints.line(f, h.p, h.side, h.c, len * 2, a * 0.35);
@@ -1662,7 +1692,7 @@ class Sky {
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
         for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
-          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
+          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
           if (a < 0.02) continue;
           // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line
           const len = clamp(h.len * 1.8, 24, 220);
@@ -1683,7 +1713,7 @@ class Sky {
    */
   drawBeams(lg: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
     const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
-    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late);
+    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late * (this.mKind === 'set' ? SET_RAYS_DIM : 1));
     if (this.beams.length !== BEAMS) this.beams = [];
     const kind = this.mKind ?? 'rise', s = this.turnS;
     sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams, turnShimmer(s));
@@ -1819,11 +1849,17 @@ class Sky {
     const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
     const psi = sunPsi(kind, p);
     sunPoint(psi, W, H, S);
+    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
+    turnFan(psi, S[0]!, S[1]!, W, H, this.fan);
+    // A sunset's sun stands just left of where the sky comes in from the left
+    // band, not beyond the left edge (owner item 104): its light, rays and
+    // beams come from there, on the fan's angles from its place on the circle.
+    if (kind === 'set') S[0] = bandSolid(W);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
     const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25);
     // a sunset's rays stronger late, where the dusk sky's own colour hid them (owner item 89: they should run far over the screen to the end)
-    const k = I * kk * (kind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1);
+    const k = I * kk * (kind === 'set' ? SET_RAYS_DIM * (1 + SET_RAYS_LATE * sst(-24, -8, this.turnS)) : 1);
     g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
@@ -1842,8 +1878,6 @@ class Sky {
     hs.addColorStop(1, `rgba(${rgb},0)`);
     g.fillStyle = hs;
     g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
-    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
-    turnFan(psi, sx, sy, W, H, this.fan);
     const a0 = this.fan[0]!, a1 = this.fan[1]!;
     // A sunset's rays run far over the screen to their last seconds (owner
     // item 89: they faded out from the far end and shrank to the left), then
@@ -1904,6 +1938,10 @@ class Sky {
     lg.globalAlpha = 1;
     lg.globalCompositeOperation = this.th.add;
     this.drawBeams(lg, env, sx, sy, far, I);
+    // none of the sun's light in the left band (owner item 104): the sky
+    // module draws first, so `g` holds only the sun's glow here
+    bandCut(g, W, H);
+    bandCut(lg, W, H);
     this.layerEnd(g, env);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
