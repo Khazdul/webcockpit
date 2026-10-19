@@ -1,6 +1,6 @@
 # Progress
 
-Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Stage 28 items 90–92 (storm window, snow fade, overcast) on branch `weather-real-play`, owner testing. Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -33,11 +33,28 @@ Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 00
 | 25 | Polish round | Done | `docs/stages/25-polish.md` |
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
-| 28 | Weather effects | Done | `docs/stages/28-weather-trial.md` |
+| 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-19 — Stage 28 real play: lightning, snow, overcast (items 90–92)
+
+- **Done:** on branch `weather-real-play` (not merged). Item 90 (owner-revised
+  rule, ADR 0094): a flash line strikes and opens a 30 s window with 2–3 more
+  strikes (5–30 s, spread) while the raw weather is rain or snow; a dry room,
+  a new character or a pin ends it; timed in the worker. Item 91: snow fades
+  out over 10 s. Item 92: snow and heavy rain fully overcast (cover 1, grey
+  sky, evener deck); `~` stays partly cloudy. Screenshots in the stage file.
+- **Tests:** unit 2761; e2e weather + layout 44/44 (Chromium, Firefox);
+  `weather-bench --rounds 2`: key→send and text→painted unchanged vs off
+  (Chromium on 11.2/20.7 ms, Firefox 9.6/20.4). Firefox worker 54.7 ms,
+  18 fps: the same on main (55.1, 17.9), so not from this branch; it was
+  36.9 ms in the 2026-10-16 baseline (later sky work; not investigated).
+- **Next:** owner test of the branch, then merge and release.
+- **Open:** XML `<weather>` tag still unverified live.
+- **Commits:** 13fb0bc, b26d131, bce754d, f41ceea, this one.
 
 ### 2026-10-19 — Replay e2e failure (`replay.spec.ts:101`)
 
