@@ -1810,3 +1810,20 @@ Overall the owner is happy; some polish remains for the next session.
       It applies to the blue and grey sky and the cloud deck alike.
       Please try: any outdoor room by day. Feedback wanted: is the band wide
       enough now?
+
+### 2026-10-19 — snow start (translated)
+
+98. **Snow falls in from the top again, at once.** Entering a snowy room by
+    day, flakes faded in over the whole screen (item 93). Wanted: as before,
+    the flakes start falling from the top, but at once on entering the room,
+    with no delay, by day and night.
+    - **Done (2026-10-19):** snow now begins on the raw `Char.Vitals` value,
+      without the 3 s dwell; it still stops only once the change has settled
+      (then the 10 s fade, item 91). At its start the flakes of half the
+      build-up (`SNOW_START`) are spread over a screen's height above the
+      top, so a steady stream falls in from the top at once and fills the
+      screen downward (~2/3 down after 12 s); the far layers fall in from
+      the top too. The whole-screen fill is kept only for a page load or a
+      dev jump. Checked in headless Chromium (0.5, 2.5, 6, 12 s).
+      Please try: walk into a snowy room by day and by night.
+      Feedback wanted: does it start soon enough and look right?

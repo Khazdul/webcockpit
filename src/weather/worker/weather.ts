@@ -25,8 +25,9 @@ import { plateRects, rimRects } from './rimshape';
 
 /**
  * Snow that begins starts at this much of its build-up at once (owner item
- * 93): flakes across the screen and the first far layers, not a few flakes
- * from the top that take half a minute to show. It grows on from there.
+ * 93): many flakes and the first far layers falling in from the top (item
+ * 98), not a few flakes that take half a minute to show. It grows on from
+ * there.
  */
 export const SNOW_START = 0.5;
 /** Snow that stops fades out over this long, s (owner item 91: it lingered a minute or more). */
@@ -1079,14 +1080,15 @@ export function weatherModule(): Module {
       rainT += dt;
       let busy = false;
 
-      const sw = env.cats.precipitation ? env.settled.weather : null;
+      // Snow begins with the raw value, without the dwell (owner item 98); it stops only once settled (then fades, item 91).
+      const sw = env.cats.precipitation ? (env.raw.weather === '*' ? '*' : env.settled.weather) : null;
       const isRain = sw === "'" || sw === '"', isSnow = sw === '*';
       const jumpR = rain > 0.97 && prevRainMix < 0.5, jumpS = m.snow > 0.97 && prevSnowMix < 0.5;
       if (isRain && (jumpR || (prevW === null && sw !== prevW))) {
         rainAmt = 1;
         seedRain(true);
       }
-      if (isSnow && (jumpS || (prevW === null && sw !== prevW))) {
+      if (isSnow && (jumpS || prevW === undefined)) {
         snowAmt = 1;
         snowFade = 1;
         for (let i = 0; i < SN; i++) newFlake(i, false);
@@ -1097,17 +1099,23 @@ export function weatherModule(): Module {
             T.front = 1e5;
           }
         }
-      } else if (isSnow && prevW !== sw && prevW !== undefined) {
-        // snow begins (after the dwell): visible at once, by day and by night (item 93)
+      } else if (isSnow && prevW !== sw) {
+        // snow begins: at once and dense (item 93), but falling in from the top (item 98)
+        if (snCount === 0) snowFade = 1;
         snowAmt = Math.max(snowAmt, SNOW_START);
+        // spread over a screen's height above the top: a steady stream that fills the screen from the top down
         const n = snowTarget(snowAmt);
-        for (let i = 0; i < SN && snCount < n; i++) if (!sna[i]) newFlake(i, false);
+        for (let i = 0; i < SN && snCount < n; i++) {
+          if (sna[i]) continue;
+          newFlake(i, true);
+          sny[i] = -rr(4, fadeTop + 40);
+        }
         if (tiles) {
           for (const T of tiles) {
             if (T.on || T.th > snowAmt) continue;
             T.on = 1;
             T.tail = 0;
-            T.front = 1e5;
+            T.front = 0;
           }
         }
       }

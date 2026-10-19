@@ -39,6 +39,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 items 97–98 (main session)
+
+- **Done:** sky left fade moved ~9 % right (item 97); snow begins on the
+  raw weather without the dwell and falls in from the top (item 98).
+  Weather unit tests green; snow start checked in headless Chromium.
+- **Next:** owner test of `weather-real-play` (items 90–98), then merge.
+- **Commits:** 47a04ed, this one.
+
 ### 2026-10-19 — Stage 28 real play 2: snow start, clouds, overcast day, left band (items 93–96)
 
 - **Done:** on branch `weather-real-play` (not merged). 93: snow starts at
