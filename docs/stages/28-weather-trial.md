@@ -2018,3 +2018,32 @@ Overall the owner is happy; some polish remains for the next session.
        sun's glow are unchanged. Weather unit 178/178.
        Please try: the last 20 s of a sunset. Feedback wanted: is the drop
        right in size and timing?
+
+### 2026-10-20 — a better weather demo (translated)
+
+108. **Improve `#weather demo`.** Now it opens with a short, jerky clip of
+     night with a moon that jumps in position, then jumps into the end of a
+     sunrise, which also feels jerky. Review the whole sequence so it runs
+     evenly and builds the effects up step by step for a "wow" factor.
+     Suggested: a night sky; a fast-forwarded sunrise (the whole sequence,
+     about 2×, then 2.5–3× so the time does not run away); some day with
+     flying birds, turning to rain; night (the whole sunset ×2); in the
+     night the moon peeks in, clouds, a downpour, thunder, the weather
+     turns to snow; then a fast-forwarded sunrise; also show every other
+     effect forgotten (stunned, incapacitated etc.). A little longer is
+     fine, preferably not over 4–5 minutes; fill in what is missing.
+     - **Done (2026-10-20):** ADR 0091, "Demo" (2026-10-20 addendum). 27
+       steps, about 4:40: a clear moonless starry night with shooting
+       stars → a whole sunrise at 2.5× (24 s) → morning, birds, an insect →
+       clouds roll in → rain → the rain passes and the sky clears → a whole
+       sunset at 2.5× → night falls, the stars fill in → the moon rises at
+       the right edge → clouds hide it → downpour → thunderstorm → snow and
+       a gust → fog → a darkness spell → dawn: the sky clears and a second
+       whole sunrise → a new day → indoors and out → sleeping, stunned,
+       incapacitated, dying, on your feet → back to the game. Only the first
+       step jumps; everything after eases. The moon now goes by its own
+       clock from the right edge, so it never jumps. Weather unit 179/179,
+       e2e weather 6/6; a full real-time run checked by screenshots every
+       5 s.
+       Please try: `#weather demo`. Feedback wanted: is it even, does it
+       build up, is anything missing or too long?

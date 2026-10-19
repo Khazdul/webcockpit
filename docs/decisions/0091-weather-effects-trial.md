@@ -898,6 +898,18 @@ of speeding it up. ADR 0093 "Demo". The text below is the first version.
 **2026-10-18 (owner item 74):** `#weather demo sunrise` and `#weather demo
 sunset` play one whole turn as live (ADR 0093 "Demo"); `#weather stop`
 ends any of them.
+**2026-10-20 (owner item 108):** the main demo rebuilt as one story that
+builds up, 27 steps, about 4:40: a moonless starry night, a whole sunrise,
+a day with birds turning to rain that then clears, a whole sunset, a
+moonrise, clouds, a downpour, a thunderstorm, snow, fog and a darkness
+spell, a second whole sunrise, then indoors, the body states and back.
+Item 70's "game's pace" rule is relaxed for the turns only: each runs
+whole from its first second at `DEMO_TURN_SPEED` 2.5 (new `speed` action,
+the engine's `setSpeed`; 24 s over two caption steps), and the next step
+turns the clock and the pace back to 1 (also on any end, `Demo.unspeed`).
+The moon goes by a clock the demo pins (new `moon` action: `moonRiseAt`
+1 s ahead, up 200 s, so it gets in past the right-hand panes), so it comes in at the right edge at its even pace
+instead of being placed by `moonU` (it jumped). `DEMO_TURN_FROM` is gone.
 
 - **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
   a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++

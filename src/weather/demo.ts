@@ -1,5 +1,6 @@
 // The weather demo (owner feedback 33, ADR 0091 "Demo"): `#weather demo`
-// plays every effect at the game's own pace in about three minutes, and
+// plays every effect, a night to the next morning, in about four and a half
+// minutes (its sunrises and sunsets whole, fast-forwarded; owner item 108), and
 // `#weather demo sunrise` / `sunset` one whole sunrise or sunset as live
 // (demo-script.ts; owner items 70, 74), with a
 // small caption box at the top left saying what to look at, then hands the
@@ -100,6 +101,8 @@ export class Demo {
   /** A one-turn demo's turn: its kind and its second (the runner's clock, ms), and the caption's 1 s tick. */
   private turn: { kind: 'rise' | 'set'; at: number } | null = null;
   private tick: ReturnType<typeof setInterval> | null = null;
+  /** The engine's pace was changed (a fast-forwarded turn): back to 1 at the end, however it ends. */
+  private sped = false;
   ended: DemoEnd | null = null;
   /** The current step (-1 before the first). */
   step = -1;
@@ -196,7 +199,22 @@ export class Demo {
       ctl.pin(this.pinned, { smooth: true });
       this.clock();
       this.tick = setInterval(() => this.clock(), 1000);
+    } else if ('speed' in a) {
+      this.sped = a.speed !== 1;
+      ctl.engine.setSpeed(a.speed);
+    } else if ('moon' in a) {
+      // a moonrise by the clock: the moon comes in at the right edge and goes at its even pace (owner item 108)
+      const rise = Date.now() + (a.moon.in * 1000) / this.plan.pace;
+      this.pinned = { ...this.pinned, moonUp: true, moonPhase: a.moon.phase, moonRiseAt: rise, moonSetAt: rise + (a.moon.up * 1000) / this.plan.pace };
+      ctl.pin(this.pinned, { smooth: true });
     } else this.release();
+  }
+  /** The engine's own pace again, if the demo changed it. */
+  private unspeed(): void {
+    const ctl = this.ctl;
+    if (!this.sped || !ctl || this.hook.controller !== ctl) return;
+    this.sped = false;
+    ctl.engine.setSpeed(1);
   }
 
   /** The caption's count to and from the turn's second. */
@@ -215,6 +233,7 @@ export class Demo {
     if (!ctl || this.hook.controller !== ctl) return;
     // a clock-driven demo turn counted for the director's once-a-dawn guard: lift it
     if (this.turn) ctl.engine.setSpeed(1);
+    this.unspeed();
     ctl.engine.setCategories(categoriesOf(this.d.settings.get()));
     ctl.pin(null, { smooth: true });
   }
@@ -234,6 +253,7 @@ export class Demo {
     this.timer = null;
     if (this.tick) clearInterval(this.tick);
     this.tick = null;
+    if (!this.hook.disposed) this.unspeed();
     this.unsub();
     this.caption?.close();
     this.caption = null;
