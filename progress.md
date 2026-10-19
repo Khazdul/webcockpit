@@ -39,6 +39,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Replay e2e failure (`replay.spec.ts:101`)
+
+- **Done:** the failure was a test race, not an app bug. The 2.5 s comment
+  hold is exact (measured 2 490–2 500 ms); the test waited 2 s after
+  Playwright *saw* the comment, and poll lag (0–500 ms) put the check at
+  ~2.5 s, right at the hold's end. Flaky ~1 in 5 on main (v0.1.55 5/5
+  green; bisect landed on a docs commit, so the phase shift came from
+  startup timing, not the hold). The page now times the hold itself
+  (MutationObserver); 16/16 green in Chromium and Firefox.
+- **Next:** the real-play findings (fog, lightning, clouds, snow, rain).
+- **Commits:** 70e171a, this one.
+
 ### 2026-10-19 — Merge `sunrise-timing`, release 0.1.64
 
 - **Done:** owner approved item 89. Full e2e before the merge: one stale
