@@ -12,6 +12,8 @@
 //   snow    flakes as particles plus far tiles of dots. Snow enters from the
 //           top and builds up over ~25 s; gusts swirl the flakes; a faint
 //           dusting gathers along the top rims (on the glass) and melts afterwards.
+//           When it stops, flakes, far tiles and dusting fade out over
+//           SNOW_FADE_S while they fall on (owner item 91), then are cleared.
 // Everything is tinted from env.mix (day neutral, moon silver, torch amber,
 // dark night dim) and adapted to the background (palette.ts).
 // Categories: `precipitation` (rain, drips, snow), `lightning` (the bolt).
@@ -20,6 +22,21 @@ import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
 import { plateRects, rimRects } from './rimshape';
+
+/** Snow that stops fades out over this long, s (owner item 91: it lingered a minute or more). */
+export const SNOW_FADE_S = 10;
+/** Snow that comes back mid-fade returns this fast, s (from nothing). */
+export const SNOW_BACK_S = 1.5;
+
+/** The snow's fade, linear 0..1: down over SNOW_FADE_S while it does not snow, up over SNOW_BACK_S while it does. */
+export function snowFadeStep(v: number, snowing: boolean, dt: number): number {
+  return snowing ? Math.min(1, v + dt / SNOW_BACK_S) : Math.max(0, v - dt / SNOW_FADE_S);
+}
+/** The snow's visibility for a fade value: eased (smoothstep), so it starts and ends softly. */
+export function snowFadeAlpha(v: number): number {
+  const x = clamp(v, 0, 1);
+  return x * x * (3 - 2 * x);
+}
 
 const R = Math.random;
 const rr = (a: number, b: number): number => a + R() * (b - a);
@@ -254,7 +271,7 @@ export function weatherModule(): Module {
   const SN = 300;
   const snx = new Float32Array(SN), sny = new Float32Array(SN), snz = new Float32Array(SN), snv = new Float32Array(SN), snph = new Float32Array(SN), sns = new Uint8Array(SN), sna = new Uint8Array(SN);
   let tiles: Tile[] | null = null, snCount = 0, snowAmt = 0, snowSpr: string[] | null = null, sprCol: Rgb = [0, 0, 0], sprAge = 1;
-  let dustCv: Cv | null = null, snowWind = 0, snowT = 0;
+  let dustCv: Cv | null = null, snowWind = 0, snowT = 0, snowFade = 1;
   let gNext = 9, gAge = -1, gDur = 5, gDir = 1, gPow = 1, gShift = 0, gE = 0;
   let prevW: string | null | undefined = undefined, prevSnowMix = 0, prevRainMix = 0;
 
@@ -1065,6 +1082,7 @@ export function weatherModule(): Module {
       }
       if (isSnow && (jumpS || (prevW === null && sw !== prevW))) {
         snowAmt = 1;
+        snowFade = 1;
         for (let i = 0; i < SN; i++) newFlake(i, false);
         if (tiles) {
           for (const T of tiles) {
@@ -1080,6 +1098,20 @@ export function weatherModule(): Module {
       // the build-ups run at the dev time scale (`env.speed`, 1 in the game and the demo)
       rainAmt = isRain ? Math.min(1, rainAmt + (dt * env.speed) / 6) : Math.max(0, rainAmt - dt / 3);
       snowAmt = isSnow ? Math.min(1, snowAmt + (dt * env.speed) / 26) : Math.max(0, snowAmt - dt / 10);
+      // Snow that stopped fades out over SNOW_FADE_S (item 91), then is gone.
+      const fade0 = snowFade;
+      snowFade = snowFadeStep(snowFade, isSnow, dt);
+      if (!isSnow && snowFade <= 0 && fade0 > 0) {
+        sna.fill(0);
+        snCount = 0;
+        snowAmt = 0;
+        if (tiles) for (const T of tiles) {
+          T.on = 0;
+          T.tail = T.front = 0;
+        }
+        for (const p of panes) p.dust = 0;
+      }
+      const snowVis = snowFadeAlpha(snowFade);
       if (rainAmt > 0 || snowAmt > 0) busy = true;
 
       let lit = 0;
@@ -1328,7 +1360,7 @@ export function weatherModule(): Module {
         }
         const yEnd = fadeTop + 40, tt = snowT, eddy = gE > 0.02;
         const A1 = 75 * gE, A2 = 48 * gE, k1 = TAU / 330, k2 = TAU / 210;
-        const ga = (0.45 + 0.55 * lum) * 0.9 * (1 - 0.3 * m.fog) * out;
+        const ga = (0.45 + 0.55 * lum) * 0.9 * (1 - 0.3 * m.fog) * out * snowVis;
         b.globalAlpha = ga;
         for (let i = 0; i < tiles.length; i++) {
           const T = tiles[i]!, v = T.speed * dt;
@@ -1449,9 +1481,9 @@ export function weatherModule(): Module {
           const p = panes[k]!;
           const want = snow * out;
           p.dust += (want - p.dust) * Math.min(1, dt * (want > p.dust ? 0.035 : 0.12));
-          if (p.dust < 0.02 || !p.border) continue;
+          if (p.dust * snowVis < 0.02 || !p.border) continue;
           busy = true;
-          f.globalAlpha = p.dust * (0.4 + 0.5 * lum);
+          f.globalAlpha = p.dust * snowVis * (0.4 + 0.5 * lum);
           // On the top rim's glass, inside its rounded corners (it was a
           // band above the rim, read as speckled artifacts outside the
           // frame: owner item 48); the rim runs on above the nameplate.
@@ -1479,7 +1511,7 @@ export function weatherModule(): Module {
       // A strike flickers in tens of ms; rain, snow, splashes and drips fall
       // fast; what remains (drying sheen, snow dust on pane tops) is slow.
       if (strike || sparks.on) return FPS_BURST;
-      if (rainAmt > 0 || snowAmt > 0 || fa.some((a) => a > 0) || pl.some((l) => l > 0) || va.some((a) => a > 0)) return FPS_FAST;
+      if (rainAmt > 0 || snowAmt > 0 || (snowFade > 0 && snowFade < 1) || fa.some((a) => a > 0) || pl.some((l) => l > 0) || va.some((a) => a > 0)) return FPS_FAST;
       return FPS_SLOW;
     },
     destroy(env) {
