@@ -85,8 +85,9 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
   it('a sunrise starts sideways and down; later some rays point up; a sunset ends pointing right and up-right', () => {
     // a sunset's sun at the horizon lights up-right (owner item 89; its downward rays go out, sunturn.ts turnRayFloor)
     const v = angles('set', -1).map(up);
-    expect(Math.max(...v)).toBeGreaterThan(25);
-    expect(Math.max(...v)).toBeLessThan(38);
+    // spread from level to ~60° up (owner item 105: bunched under 35° before)
+    expect(Math.max(...v)).toBeGreaterThan(50);
+    expect(Math.max(...v)).toBeLessThan(62);
     // none down: from level to up-right, spread over the fan
     for (const x of v) expect(x).toBeGreaterThan(-1.5);
     for (const a of angles('set', -1)) expect(Math.cos(a)).toBeGreaterThan(0);

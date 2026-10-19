@@ -193,6 +193,16 @@ const GLOW: Readonly<Record<TurnKind, ReadonlyArray<readonly [number, number]>>>
   set: [[-60, 0], [-48, 0.6], [RAYS_FADE_S, 1]],
 };
 
+/**
+ * A sunset's dusk light at `s` (0 outside it): the red-orange glow over the
+ * western sky, apart from the sun's own glow and its rays (owner item 105):
+ * noticed from -50 s, strongest at -20 s, gone by -8 s.
+ */
+export function turnDusk(kind: TurnKind, s: number): number {
+  if (kind !== 'set' || !turnOn(s)) return 0;
+  return sst(-50, -20, s) * (1 - sst(-20, -8, s));
+}
+
 /** The glow's strength at `s` (0 outside the turn). */
 export function turnGlow(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;

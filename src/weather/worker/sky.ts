@@ -38,7 +38,7 @@ import { RIM_R } from '../../panes/frame';
 export { leftDark } from './band';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { LEFT_DARK, bandEnd, bandK, bandSolid, leftDark } from './band';
 import { DayLife } from './daylife';
@@ -487,6 +487,10 @@ const LAYER_SCALE = 0.5;
 const GRAIN_N = 256;
 /** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
 const SET_RAYS_LATE = 1;
+/** A sunset's dusk light (turnDusk) at its strongest: its alpha at the middle, and its colour (owner item 105). */
+const DUSK_A = 0.22;
+const DUSK_C = '255,96,44';
+
 /** A sunset's rays, beams and their glints against a sunrise's: dimmed ~40 % all through (owner item 104). */
 const SET_RAYS_DIM = 0.6;
 /** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
@@ -1878,6 +1882,24 @@ class Sky {
     hs.addColorStop(1, `rgba(${rgb},0)`);
     g.fillStyle = hs;
     g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
+    // A sunset's dusk light: a wide red-orange glow low over the west, round
+    // the sun but never above mid-height (owner item 105); cut with the band below.
+    const dusk = turnDusk(kind, this.turnS) * (1 - 0.65 * this.wet) * this.fogK * (this.th.light ? 0.6 : 1);
+    if (dusk > 0.003) {
+      const R = Math.max(W, H) * 0.75;
+      g.save();
+      g.translate(sx, Math.max(sy, H * 0.5));
+      g.scale(1.6, 0.8);
+      const dg = g.createRadialGradient(0, 0, 0, 0, 0, R);
+      dg.addColorStop(0, `rgba(${DUSK_C},1)`);
+      dg.addColorStop(0.35, `rgba(${DUSK_C},.5)`);
+      dg.addColorStop(0.7, `rgba(${DUSK_C},.15)`);
+      dg.addColorStop(1, `rgba(${DUSK_C},0)`);
+      g.globalAlpha = dusk * DUSK_A;
+      g.fillStyle = dg;
+      g.fillRect(-R, -R, 2 * R, 2 * R);
+      g.restore();
+    }
     const a0 = this.fan[0]!, a1 = this.fan[1]!;
     // A sunset's rays run far over the screen to their last seconds (owner
     // item 89: they faded out from the far end and shrank to the left), then

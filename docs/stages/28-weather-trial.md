@@ -1962,3 +1962,26 @@ Overall the owner is happy; some polish remains for the next session.
        Please try: a sunrise and a sunset in the game (or `__weather.jump`).
        Feedback wanted: is the band clear now, is the sunset sun in the right
        place, and are the dimmed sunset rays right?
+
+### 2026-10-19 — sunset rays upward, dusk light (translated)
+
+105. **Sunset rays too bunched; a dusk light.** At sunset the rays are
+     bunched within a narrow span of angles; rays pointing upward are
+     missing, mostly at the end of the sunset (the owner's arrows: from
+     ~20° to ~60° up). Also more red-orange dusk light from the sun (not the
+     rays), as a sunset looks: noticeable from 50 s before the sunset,
+     strongest at ~20 s, and nearly dark from the sun at 8 s (as today).
+     - **Done (2026-10-19):** ADR 0093, "Sunset rays upward and a dusk
+       light". Over the sunset's last 40 s the fan now opens upward as it
+       lifts: at the end the rays spread from level to about 60° up (they
+       stopped at ~30° before). A new red-orange dusk glow rises from the
+       west from -50 s, is strongest at -20 s and is gone at -8 s; it sits
+       round the sun, low over the sky, and stays out of the left band.
+       Weather unit 178/178, e2e weather 6/6.
+       Screenshots: `img/28-item105-sunset-35s.png`,
+       `img/28-item105-sunset-20s.png` (strongest dusk),
+       `img/28-item105-sunset-12s.png`, `img/28-item105-sunset-8s.png`
+       (the fan opening upward).
+       Please try: a sunset in the game. Feedback wanted: are the rays
+       spread enough upward, and is the dusk light the right strength and
+       colour (it can go stronger, redder or higher up)?

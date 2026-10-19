@@ -583,6 +583,21 @@ the sunrise and sunset: their glow, rays and beams reached the left edge.
 - **Dimmer sunset rays.** A sunset's rays, beams and their glints × 0.6 all
   through (`SET_RAYS_DIM`); its glow is unchanged.
 
+### Sunset rays upward and a dusk light (owner item 105)
+
+- **A wider fan at the end.** With the sun at the band (item 104) the last
+  rays bunched between level and ~30° up (the upper edge was bounded by the
+  far top corner as seen from the sun's old place beyond the left edge).
+  The upper edge now lifts with the lower one (`setLift`, -42 … -3 s) to
+  60° up (`FAN_UP_SET_END`): the last rays spread from level to steeply
+  up-right. The lift stays under 3°/s; elsewhere every ray under 1°/s.
+- **Dusk light.** A sunset gets a wide red-orange glow (`turnDusk`,
+  sunturn.ts) apart from the sun's own glow and its rays: smoothstep in
+  from -50 to -20 s, out from -20 to -8 s. Drawn on the back layer round the
+  sun's x, no higher than mid-height, an ellipse 1.6 × 0.8 of 0.75 ×
+  max(W, H), alpha 0.22 at its middle (0.6 × on Paper), weaker with rain
+  and fog, and cut by the band with the rest of the sun's light.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then
