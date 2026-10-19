@@ -43,7 +43,12 @@ Statuses: Next, In progress, Owner testing, Done.
 
 - **Done:** left band moved right twice (item 101: `band.ts` 0.61 / 0.51;
   item 102: 0.735 / 0.59; item 103: back to 0.70 / 0.57); `MOON_HOLD` 0.45. Weather unit tests green.
-- **Next:** owner test of `weather-real-play` (items 90–103), then merge.
+- **E2e:** weather + layout 43/44 at once; the Firefox "narrow window"
+  layout test failed once under load and passed 3/3 alone (known flaky).
+- **Next session:** the owner wants more work on sunrise and sunset; the
+  owner will come back on the moon (item 100: fades over its second half
+  now that the band is wide). Branch `weather-real-play` (items 90–103) is
+  not merged or released: merge after the owner's test.
 
 ### 2026-10-19 — Stage 28: weather only over the sky, the moon into the band (items 99–100)
 
