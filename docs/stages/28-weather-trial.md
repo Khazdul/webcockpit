@@ -1985,3 +1985,20 @@ Overall the owner is happy; some polish remains for the next session.
        Please try: a sunset in the game. Feedback wanted: are the rays
        spread enough upward, and is the dusk light the right strength and
        colour (it can go stronger, redder or higher up)?
+
+### 2026-10-19 — dusk light near the sun (translated)
+
+106. **The dusk light mainly near the sun** (the owner's circle: round the
+     sun at the band's edge, upper middle of the screen). It may be sensed a
+     little further away, more subtly. Now almost the whole sky fills with
+     red, and above all it should not show so much at the bottom.
+     - **Done (2026-10-19):** ADR 0093 (same addendum, "Near the sun"). The
+       dusk light is now a smaller core round the sun, at its height,
+       moved a little right so it is seen out of the band's fade, plus a
+       faint flat halo further out that ends well above the bottom. Timing
+       unchanged (-50 / -20 / -8 s). Weather unit 178/178, e2e weather 6/6.
+       Screenshots at -20 s: `img/28-item106-sunset-20s.png`, a taller
+       window `img/28-item106-sunset-20s-tall.png`; -35 s
+       `img/28-item106-sunset-35s.png`.
+       Please try: a sunset. Feedback wanted: is the glow where you want
+       it, and its size and strength right?

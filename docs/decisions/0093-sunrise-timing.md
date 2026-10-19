@@ -597,6 +597,12 @@ the sunrise and sunset: their glow, rays and beams reached the left edge.
   sun's x, no higher than mid-height, an ellipse 1.6 × 0.8 of 0.75 ×
   max(W, H), alpha 0.22 at its middle (0.6 × on Paper), weaker with rain
   and fog, and cut by the band with the rest of the sun's light.
+- **Near the sun (owner item 106).** The wide ellipse filled nearly the
+  whole sky with red, most of all toward the bottom. Now two layers round a
+  point a quarter into the band's fade right of the sun, at the sun's height
+  (clamped to 0.12 … 0.5 H): a core of 0.28 × max(W, H) (x 1.25), alpha 0.3,
+  and a faint flat halo of 0.6 × (x 1.4, y 0.5), alpha 0.06, that fades
+  out well above the bottom (`DUSK_LAYERS`).
 
 ### An even pace (owner item 69)
 
