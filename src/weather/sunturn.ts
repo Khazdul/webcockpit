@@ -165,8 +165,8 @@ const RISE_RAYS: ReadonlyArray<readonly [number, number]> = [[-60, 0], [-35, 0.6
 /** A sunset's rays come in softly over this window (s; owner item 88: they popped up in 2.5 s). */
 const SET_RAYS_IN: readonly [number, number] = [-60, -46];
 
-/** A sunset's rays, beams and glints fall by this share over SET_RAYS_DIP_S, then fade from there on their old curve (owner item 107). */
-const SET_RAYS_DIP = 0.5;
+/** A sunset's rays, beams and glints: from SET_RAYS_DIP_S[0] they start to fall, by this share at SET_RAYS_DIP_S[1], then fade from there on their old curve (owner item 107: 40 % down at -10 s). */
+const SET_RAYS_DIP = 0.4;
 const SET_RAYS_DIP_S: readonly [number, number] = [-16, -10];
 
 /** The ray and beam strength at `s` (0 outside the turn): a sunrise's with its glow, a sunset's softly to its early strength, both 1 at RAYS_FADE_S, then fading. */

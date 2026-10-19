@@ -41,8 +41,8 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ### 2026-10-20 — Stage 28 item 107 (main session)
 
-- **Done:** a sunset's rays (beams, glints) halve from -16 to -10 s, then
-  fade on their old curve. ADR 0093 addendum, stage file item 107.
+- **Done:** a sunset's rays (beams, glints) start to fall at -16 s, 40 %
+  down at -10 s, then fade on their old curve. ADR 0093 addendum, stage file item 107.
 - **Tests:** weather unit 178/178.
 - **Next:** owner test of items 104–107; the moon (item 100). Branch
   `weather-real-play` not merged or released.

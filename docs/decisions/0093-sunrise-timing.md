@@ -604,12 +604,13 @@ the sunrise and sunset: their glow, rays and beams reached the left edge.
   and a faint flat halo of 0.6 × (x 1.4, y 0.5), alpha 0.06, that fades
   out well above the bottom (`DUSK_LAYERS`).
 
-### A sunset's rays halve before the night (owner item 107)
+### A sunset's rays fall 40 % before the night (owner item 107)
 
 A sunset's ray strength (`turnRays`, so its rays, beams and, by the power
-1.5, their glints) is multiplied by `1 − 0.5 · smoothstep(-16, -10, s)`: it
-falls to half of before between -16 and -10 s, and from there fades on its
-old curve, at half its old level. The sun's glow and the dusk light are
+1.5, their glints) is multiplied by `1 − 0.4 · smoothstep(-16, -10, s)`: it
+starts to fall at -16 s, is 40 % below the old level at -10 s, and from
+there fades on its old curve, at 0.6 of its old level (first 50 %, the
+owner clarified 40 %). The sun's glow and the dusk light are
 unchanged.
 
 ### An even pace (owner item 69)

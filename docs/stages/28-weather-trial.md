@@ -2009,10 +2009,12 @@ Overall the owner is happy; some polish remains for the next session.
      about 50 %** relative to their strength now; then, from the strength
      they have at 10 s before the night, keep fading out with about the
      course they have now (from that strength).
-     - **Done (2026-10-20):** ADR 0093, "A sunset's rays halve before the
-       night". The rays and beams fall smoothly to half between -16 and
-       -10 s, then fade out on the same course as before, from half the
-       level. Their glints on the frames follow. The dusk light and the
+     - **Clarified (2026-10-20):** not a drop over the whole span: the
+       fall starts at -16 s and at -10 s the level is 40 % below today's.
+     - **Done (2026-10-20):** ADR 0093, "A sunset's rays fall 40 % before
+       the night". The rays and beams start to fall at -16 s, are 40 %
+       below the old level at -10 s, then fade out on the same course as
+       before, from that level. Their glints on the frames follow. The dusk light and the
        sun's glow are unchanged. Weather unit 178/178.
        Please try: the last 20 s of a sunset. Feedback wanted: is the drop
        right in size and timing?
