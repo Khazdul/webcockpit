@@ -61,8 +61,35 @@ export const MOON_GLIDE_S = 20;
 const MOON_GAP_S = 2;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
-/** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
-const COVER_RATE = 1 / 40;
+/**
+ * The cloud cover eases toward the weather's (owner item 94; was a constant
+ * 1/40 per s, over 30 s from clear to snow): fast, then slower. Coming in
+ * with this time constant (s): most of the sky covered in ~5 s (90 % of the
+ * way in 5.8 s), the rest more slowly.
+ */
+export const COVER_TAU_IN = 2.5;
+/** Clearing is a little slower: 90 % gone in ~9 s. */
+export const COVER_TAU_OUT = 4;
+/** And never slower than this (per s), so the last of it does not crawl. */
+const COVER_MIN_RATE = 1 / 60;
+/** The cover after `dt` s on its way from `c` to `t` (`speed`: the dev time scale). */
+export function coverStep(c: number, t: number, dt: number, speed = 1): number {
+  const d = t - c, sdt = dt * speed;
+  if (Math.abs(d) < 1e-4) return t;
+  const k = 1 - Math.exp(-sdt / (d > 0 ? COVER_TAU_IN : COVER_TAU_OUT));
+  const st = Math.max(Math.abs(d) * k, sdt * COVER_MIN_RATE);
+  return d > 0 ? Math.min(t, c + st) : Math.max(t, c - st);
+}
+/**
+ * How grey the sky gets by weather (owner items 92, 95): `~` a little less
+ * clear blue, light rain mostly grey, heavy rain and snow overcast. The grey
+ * follows the clouds (`wetOf`), not the rain or snow.
+ */
+export const SKY_GREY: Readonly<Record<string, number>> = { '~': 0.25, "'": 0.8, '"': 1, '*': 1 };
+/** The grey now: on its way to the weather's (`wetS`), never ahead of the clouds (the cover `c`). */
+export function wetOf(wetS: number, c: number): number {
+  return Math.min(wetS, sst(0.3, 1, c));
+}
 
 function rng(seed: number): () => number {
   let s = seed >>> 0 || 1;
@@ -79,7 +106,7 @@ interface CloudPal {
 }
 const PAL: CloudPal[] = [
   { lit: [214, 216, 218], sh: [118, 122, 130], op: 0.78 }, // 0 day
-  { lit: [128, 131, 136], sh: [58, 61, 67], op: 0.86 }, // 1 overcast
+  { lit: [198, 202, 208], sh: [136, 142, 152], op: 0.84 }, // 1 overcast by day: lit as day clouds (owner item 95)
   { lit: [250, 196, 136], sh: [112, 78, 86], op: 0.82 }, // 2 gold
   { lit: [236, 112, 92], sh: [74, 34, 56], op: 0.84 }, // 3 crimson
   { lit: [110, 108, 150], sh: [34, 34, 60], op: 0.8 }, // 4 dusk
@@ -95,7 +122,8 @@ interface SkyCol {
 }
 const SKY_DARK: Record<'day' | 'grey' | 'moon' | 'night', SkyCol> = {
   day: { top: [112, 184, 255], hor: [92, 152, 232], a: 0.66 },
-  grey: { top: [62, 66, 73], hor: [96, 99, 104], a: 0.56 },
+  // an overcast day: a light, desaturated blue-grey that still reads as day (owner item 95)
+  grey: { top: [140, 152, 168], hor: [124, 134, 148], a: 0.74 },
   moon: { top: [16, 24, 44], hor: [48, 58, 80], a: 0.66 },
   night: { top: [4, 6, 16], hor: [12, 15, 28], a: 0.75 },
 };
@@ -109,7 +137,14 @@ function skyTable(th: ThemeInfo): typeof SKY_DARK {
   }
   // a clear blue day sky on paper (inverted it would be a dark one)
   out.day = { top: [104, 168, 242], hor: [156, 198, 242], a: 0.44 };
+  // and a pale overcast one (inverted it would be dark)
+  out.grey = { top: [150, 160, 176], hor: [182, 188, 198], a: 0.42 };
   return out;
+}
+/** How much of the sky the left fade takes back at `x` (share of LEFT_DARK): all up to LEFT_SOLID, then a smootherstep down to none (no kink at either end). */
+export function leftDark(x: number): number {
+  const u = clamp((x - LEFT_SOLID) / (1 - LEFT_SOLID), 0, 1);
+  return 1 - u * u * u * (u * (u * 6 - 15) + 10);
 }
 /** The glow on the sky's light side: the sun's (warm) by day, a cool lift toward the moon or the horizon colour at night. */
 const SUN_GLOW_DARK: Rgb = [255, 226, 172];
@@ -125,7 +160,9 @@ const STARS_H_RIGHT = 0.9;
 const SKY_H = 0.43;
 const SKY_H_DAY = 0.8;
 /** The day sky starts this far in from the left: from the background to the sky over it (owner feedback 28). */
-const LEFT_DARK = 0.34;
+const LEFT_DARK = 0.46;
+/** The sky stays fully back to the background up to this share of LEFT_DARK, then comes in smoothly (owner item 96). */
+const LEFT_SOLID = 0.36;
 const DS = 4;
 /** The cloud deck's opacity: the text in front of it stays readable without per-line protection. */
 const DECK_A = 0.62;
@@ -500,6 +537,8 @@ class Sky {
   coverT = 0;
   coverShape = 0;
   wet = 0;
+  /** The grey on its way to the weather's (SKY_GREY; `wet` is it, held back by the clouds). */
+  wetS = 0;
   fogK = 1;
   first = true;
   dark: { t0: number; k: number } | null = null;
@@ -601,6 +640,8 @@ class Sky {
   gTopRed: CanvasGradient | null = null;
   gRightRed: CanvasGradient | null = null;
   gLeftRed: CanvasGradient | null = null;
+  /** The left band taken out of the cloud deck (deck pixels; owner item 96). */
+  deckLeft: CanvasGradient | null = null;
   gLift: CanvasGradient | null = null;
   hY = 0;
   dw = 1;
@@ -806,24 +847,27 @@ class Sky {
       wNight /= ws;
     } else wNight = 1;
     const skyVis = skyOn ? out : 0;
-    // The cloud cover moves at a slow constant rate (owner feedback 23): the
+    // The cloud cover eases in fast, then slower (owner item 94; feedback 23): the
     // deck's threshold relaxes from the noise's peaks, so clouds come one by
     // one, and the upwind side first (see buildRows). Indoors (no weather
     // value) the cover and the wetness of the last outdoor room are kept, so
     // the sky fades out and back in as it was.
     const inside = env.settled.weather === null;
     const coverT = inside ? this.coverT : clamp(m.clouds, 0, 1);
-    if (this.coverS < 0) this.coverS = coverT;
+    if (this.coverS < 0) {
+      this.coverS = coverT;
+      this.wetS = inside ? 0 : SKY_GREY[env.settled.weather ?? ''] ?? 0;
+    }
     else if (!inside) {
-      const st = dt * env.speed * COVER_RATE, d = coverT - this.coverS;
-      this.coverS += d > st ? st : d < -st ? -st : d;
+      this.coverS = coverStep(this.coverS, coverT, dt, env.speed);
+      this.wetS = ease(this.wetS, SKY_GREY[env.settled.weather ?? ''] ?? 0, dt * env.speed, 2);
     }
     this.coverT = coverT;
     // the deck's shapes: those of a higher cover at once, a lower one once the cover has come down to it
     if (coverT >= this.coverShape - 1e-3 || this.coverS <= coverT + 0.01) this.coverShape = coverT;
     const cover = this.coverS;
-    // the sky's grey: heavy rain and snow fully grey, overcast (owner item 92); light rain and clouds partly
-    const wet = inside ? this.wet : clamp(m.rain * 0.75 + m.heavy * 0.25 + m.snow * 0.9 + cover * 0.1, 0, 1);
+    // the sky's grey: heavy rain and snow overcast (owner item 92), after the clouds (item 95)
+    const wet = inside ? this.wet : wetOf(this.wetS, cover);
     this.cover = cover;
     this.wet = wet;
     this.fogK = 1 - m.fog * 0.55;
@@ -1005,10 +1049,12 @@ class Sky {
     this.hor0 = hr;
     this.hor1 = hg;
     this.hor2 = hb;
-    // How far down the sky reaches: by day to ~30 % above the bottom, at night less (feedback 22).
-    s[9] = wDay * dk * 100;
+    // How far down the sky reaches: by day to ~30 % above the bottom, at night
+    // less (feedback 22). An overcast day reaches as far: it is still day (item 95).
+    s[9] = wSun * dk * 100;
     // The bright day sky keeps the top left dark for the text there (owner feedback 28).
-    s[10] = wSun * (1 - wet * 0.6) * 100;
+    // (the grey day sky too, owner item 96)
+    s[10] = wSun * 100;
     s[0] = tr;
     s[1] = tg;
     s[2] = tb;
@@ -1076,14 +1122,13 @@ class Sky {
       const lk = s[10]! / 100;
       if (lk > 0.003) {
         // Left to right from the page background to the sky over the first
-        // 30 % of the width; with the vertical fade the top-left corner stays
-        // the background (dark, grey or paper alike).
+        // LEFT_DARK of the width; with the vertical fade the top-left corner
+        // stays the background (dark, grey or paper alike). A smootherstep
+        // ramp: no kink where it ends (a straight ramp ending at once read
+        // as a bright vertical band there, owner item 96).
         const lw = W * LEFT_DARK;
         const gl = C.createLinearGradient(0, 0, lw, 0);
-        gl.addColorStop(0, `rgba(0,0,0,${lk.toFixed(4)})`);
-        gl.addColorStop(0.45, `rgba(0,0,0,${(lk * 0.9).toFixed(4)})`);
-        gl.addColorStop(0.8, `rgba(0,0,0,${(lk * 0.38).toFixed(4)})`);
-        gl.addColorStop(1, 'rgba(0,0,0,0)');
+        for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${(lk * leftDark(i / 16)).toFixed(4)})`);
         C.globalCompositeOperation = 'destination-out';
         C.fillStyle = gl;
         C.fillRect(0, 0, lw, sh);
@@ -1115,6 +1160,9 @@ class Sky {
     this.gC = ctx2d(this.dC);
     this.gF = ctx2d(this.dF);
     this.bimg = this.gN.createImageData(dw, dh);
+    const lw = (W * LEFT_DARK) / DS, gl = this.gC.createLinearGradient(0, 0, lw, 0);
+    for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+    this.deckLeft = gl;
     const f = W * 0.55, cx = W * 0.5;
     this.rZ = new Float32Array(dh);
     this.rA = new Float32Array(dh);
@@ -1273,6 +1321,11 @@ class Sky {
     C.globalCompositeOperation = 'lighter';
     C.globalAlpha = k;
     C.drawImage(this.dN, 0, 0);
+    // the left band stays the background under the clouds too (owner item 96)
+    C.globalAlpha = 1;
+    C.globalCompositeOperation = 'destination-out';
+    C.fillStyle = this.deckLeft!;
+    C.fillRect(0, 0, Math.ceil((env.W * LEFT_DARK) / DS), this.dh);
     C.globalCompositeOperation = 'source-over';
     C.globalAlpha = 1;
     const dW = this.dw * DS, dH = this.dh * DS;
