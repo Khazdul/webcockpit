@@ -1,6 +1,6 @@
 # Progress
 
-Release 0.1.64 prepared (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093; push and tag by the owner). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
+Released 0.1.64 (stage 28 items 59–89: sunrise and sunset by the clock, ADR 0093). Released 0.1.63 (stage 28 weather effects, new-player defaults). Stage 28 merged to main: items 1–58 done, new-player defaults approved (ADR 0092). Handoff and known small defects in its stage file. Released 0.1.62 (JMC import fixes). Released 0.1.61 (replay map from kept content only). Released 0.1.60 (replay map margin 16, default tiles). Released 0.1.59 (replay export folds excluded state). Released 0.1.58 (stage 27 pane API, approved). Stage 26 (community tilesets) owner testing. Released 0.1.55 (stage 26 community tilesets, stage 25 pane name tag). Released 0.1.54 (Samsung Internet phone detection, ADR 0086; verified by the owner). Released 0.1.53 (stages 24 and 25). Stage 25 (polish round) owner testing. Stage 24 (loading indicators) done. Stage 23 (remote editing) parked by the owner: research and plan kept for later. Stage 22 (map tilesets) done. Released 0.1.52 (manual and GMCP docs). Stage 21 (room notes and map search; owner testing). Released 0.1.50 (stage 21, new-user defaults ADR 0078, hover default Full ADR 0080), owner testing. Phone new-user defaults (ADR 0081) shipped in 0.1.51. Stage 20 (Mudlet import; released 0.1.48, owner testing). Earlier: Stage 19 (phone access) done, 0.1.47 verified on the owner's phone. Stage 18 (almanac; released 0.1.44, owner testing). Stage 17 (foreign import) and 16 (readability) released in 0.1.42/0.1.43, owner testing. Stages 14 and 15 done. Stage 8 stays open: owner test of part D (fonts), then the v1 verdict.
 
 ## Stages
 
@@ -39,17 +39,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
-### 2026-10-19 — Merge `sunrise-timing`, release 0.1.64 prepared
+### 2026-10-19 — Merge `sunrise-timing`, release 0.1.64
 
 - **Done:** owner approved item 89. Full e2e before the merge: one stale
   test fixed (the clock strip expected the day at dawn, items 59/61;
   5e4924a); `replay.spec.ts:101` fails on main too (pre-existing), the
   other failures were flaky (pass alone). Merged to main (ee91b09), version
   0.1.64 (c0745a8). build:pages green (unit, local smoke 10/10).
-- **Open:** the owner pushes main and tag `v0.1.64` (starts the Pages
-  deploy; the session may not deploy). Then check the Pages run, live
-  release.json 0.1.64, and `WC_PROD_URL=https://mumecockpit.com npm run
-  test:prod`.
+- **Released:** the owner pushed main and tag `v0.1.64`; Pages run green,
+  live release.json 0.1.64 (6f50f47), test:prod against the live site 10/10.
 - **Next:** real-play findings (fog, lightning, clouds, snow, rain).
 - **Commits:** this one.
 
