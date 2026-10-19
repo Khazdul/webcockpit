@@ -9,24 +9,39 @@
 //                  whose value changed are forwarded. Absent = indoors,
 //                  no fog, normal light, standing.
 //   Event.Sun      rise | light | set | dark → 'sun.<what>' (the engine
-//                  derives day / night from it)
+//                  derives day / night from it: day from `light`, night
+//                  from `dark`; `rise` / `set` open the dawn / dusk hour,
+//                  still night / day, and start the sunrise / sunset when
+//                  the clock cannot time it, ADR 0093)
 //   Event.Moon     rise | set → 'moon.<what>'
 //   Event.Darkness start | grow | shrink | end-soon | end → 'darkness.<what>'
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
 //                  moon phase always; sun and moon up at start and at each
 //                  change the almanac predicts (an event in between wins
 //                  until the next predicted change); how far the sun is
-//                  through the day (`sunU`, for the sun glimpses)
+//                  through the day (`sunU`, for the sun glimpses); at
+//                  minute precision the seconds the day and the night
+//                  begin (`dayAt`, `nightAt`), which time sunrise and sunset,
+//                  and of the moon's rise and set (`moonRiseAt`,
+//                  `moonSetAt`), which place the moon
 //   text lines     lightning flash messages → 'strike'; a wind message in
 //                  a weather tag → 'gust' (see `lineEvent`)
+//
+// While a pin holds (the demo, a dev jump, a bench; owner item 85) none of
+// the game's events reach the engine: the bridge keeps the sun and moon in
+// its own state, which the release applies; a sunrise or sunset the game
+// opened in the last TURN_S joins at its place on release (when the clock
+// does not time it); a magical darkness begun meanwhile and not ended starts
+// then. Lightning and gusts held back are dropped (a flash is a moment).
 //
 // Magical darkness is a spell someone casts: only its Event.Darkness events
 // give an effect (owner feedback 26); no room text or light value does.
 
-import { type ClockState, DAWN, DUSK, isDay, momentAt } from '../gmcp/clock';
-import { moonAt, moonUpFraction } from '../gmcp/gametime';
+import { type ClockState, dayBeginsAt, dayHour, isDay, momentAt, nightBeginsAt, nightHour } from '../gmcp/clock';
+import { moonAt, moonUpFraction, nextMoonEvent } from '../gmcp/gametime';
 import type { Line } from '../core/types';
 import type { FogSym, WeatherEvent, WeatherState, WeatherSym } from './protocol';
+import { TURN_S } from './sunturn';
 
 export interface WeatherSink {
   setState(partial: Partial<WeatherState>, opts?: { instant?: boolean; settle?: boolean }): void;
@@ -36,7 +51,7 @@ export interface WeatherSink {
 /** The vitals part of the state. */
 export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'position'>;
 /** The almanac part of the state. */
-export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU'>;
+export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
 
@@ -61,20 +76,46 @@ export function vitalsState(get: (key: string) => unknown): VitalsState {
 export function almanacState(
   clock: Readonly<ClockState>,
   nowMs: number,
-): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU'> | null; moonPhase: number; moonU: number; sunU: number } {
+): { sky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'> | null; moonPhase: number; moonU: number; sunU: number; dayAt: number; nightAt: number; moonRiseAt: number; moonSetAt: number } {
   const nowS = Math.floor(nowMs / 1000);
   const g = nowS - clock.epoch;
   const moon = moonAt(g);
   const moonPhase = moon.level / 12;
-  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1 };
+  if (clock.precision === 'unset') return { sky: null, moonPhase, moonU: -1, sunU: -1, dayAt: -1, nightAt: -1, moonRiseAt: -1, moonSetAt: -1 };
   const m = momentAt(clock.epoch, nowS);
   const day = isDay(m.month, m.hour);
-  return { sky: { clock: day ? 'day' : 'night', moonUp: moon.position !== 'below' }, moonPhase, moonU: moonUpFraction(g), sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1 };
+  return {
+    sky: { clock: day ? 'day' : 'night', moonUp: moon.position !== 'below' },
+    moonPhase,
+    moonU: moonUpFraction(g),
+    sunU: day ? sunUpFraction(m.month, m.hour, m.minute) : -1,
+    dayAt: dayBeginsAt(clock, nowMs) ?? -1,
+    nightAt: nightBeginsAt(clock, nowMs) ?? -1,
+    ...(clock.precision === 'minute' ? moonTimes(clock.epoch, g) : { moonRiseAt: -1, moonSetAt: -1 }),
+  };
 }
 
-/** How far the sun is through the day at `hour:minute` of `month`: 0 at the dawn hour, → 1 at the dusk hour. */
+/** The moon's times are kept this long after its set (game minutes): the sky lets it glide out past the left edge. */
+export const MOON_AFTER_SET = 2;
+
+/**
+ * Unix ms of the rise and set of the moon's time up at game minute `g` (its
+ * current one, until MOON_AFTER_SET after the set; else the next).
+ */
+export function moonTimes(epoch: number, g: number): { moonRiseAt: number; moonSetAt: number } {
+  // a time up is ~745 game minutes and rises come ~1490 apart: one rise at most in the last 900
+  let rise = nextMoonEvent(g - 900, 'rise');
+  let set = nextMoonEvent(rise, 'set');
+  if (g >= set + MOON_AFTER_SET) {
+    rise = nextMoonEvent(set, 'rise');
+    set = nextMoonEvent(rise, 'set');
+  }
+  return { moonRiseAt: (epoch + rise) * 1000, moonSetAt: (epoch + set) * 1000 };
+}
+
+/** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the hour after the dawn hour), → 1 when the night begins (the hour after the dusk hour). */
 export function sunUpFraction(month: number, hour: number, minute: number): number {
-  const d0 = DAWN[month]! * 60, d1 = DUSK[month]! * 60;
+  const d0 = dayHour(month) * 60, d1 = nightHour(month) * 60;
   return Math.min(1, Math.max(0, (hour * 60 + minute - d0) / (d1 - d0)));
 }
 
@@ -141,20 +182,24 @@ export class WeatherSignals {
   private vit: VitalsState;
   private sky: SkyState;
   /** The almanac's last sun / moon (a predicted change applies once). */
-  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU'> | null = null;
+  private almanacSky: Omit<SkyState, 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'> | null = null;
   /** Bench / dev: values that win over the game's. */
   private pinned: Partial<WeatherState> | null = null;
+  /** Held back under a pin: the last sunrise / sunset the game opened (its wall ms), and the last darkness event. */
+  private heldTurn: { kind: 'rise' | 'set'; at: number } | null = null;
+  private heldDark: WeatherEvent | null = null;
 
   constructor(
     private readonly sink: WeatherSink,
     vitals: VitalsState,
     clock: Readonly<ClockState>,
     nowMs: number,
+    private readonly now: () => number = Date.now,
   ) {
     this.vit = vitals;
     const a = almanacState(clock, nowMs);
     this.almanacSky = a.sky;
-    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU };
+    this.sky = { clock: a.sky?.clock ?? 'day', moonUp: a.sky?.moonUp ?? false, moonPhase: a.moonPhase, moonU: a.moonU, sunU: a.sunU, dayAt: a.dayAt, nightAt: a.nightAt, moonRiseAt: a.moonRiseAt, moonSetAt: a.moonSetAt };
   }
 
   /** The state to start the engine with. */
@@ -179,10 +224,11 @@ export class WeatherSignals {
     const ev = gmcpEvent(key, data);
     if (!ev) return;
     // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
-    if (ev === 'sun.rise' || ev === 'sun.light') {
+    // `rise` / `set` open the dawn / dusk hour: the day comes with `light`, the night with `dark` (items 59, 61).
+    if (ev === 'sun.light') {
       this.sky.clock = 'day';
       if (this.sky.sunU < 0) this.sky.sunU = 0;
-    } else if (ev === 'sun.set' || ev === 'sun.dark') {
+    } else if (ev === 'sun.dark') {
       this.sky.clock = 'night';
       this.sky.sunU = -1;
     }
@@ -193,11 +239,19 @@ export class WeatherSignals {
       this.sky.moonUp = false;
       this.sky.moonU = -1;
     }
-    this.sink.emit(ev);
+    if (!this.pinned) {
+      this.sink.emit(ev);
+      return;
+    }
+    // held (item 85): the state above is applied on release
+    if (ev === 'sun.rise' || ev === 'sun.set') this.heldTurn = { kind: ev === 'sun.rise' ? 'rise' : 'set', at: this.now() };
+    else if (ev === 'sun.light' || ev === 'sun.dark') this.heldTurn = null;
+    else if (ev.startsWith('darkness.')) this.heldDark = ev;
   }
 
-  /** A text line: lightning or a gust. */
+  /** A text line: lightning or a gust (dropped while a pin holds). */
   line(line: Readonly<Pick<Line, 'text' | 'tags' | 'prompt'>>): void {
+    if (this.pinned) return;
     const ev = lineEvent(line);
     if (ev) this.sink.emit(ev);
   }
@@ -228,6 +282,12 @@ export class WeatherSignals {
     if (force || out.clock !== undefined || (a.sunU < 0) !== (su < 0) || Math.abs(a.sunU - su) >= SUN_U_STEP) {
       if (a.sunU !== su) out.sunU = this.sky.sunU = a.sunU;
     }
+    // The seconds the day and the night begin (minute precision): change at a sync, at nightfall and daybreak.
+    if (a.dayAt !== this.sky.dayAt) out.dayAt = this.sky.dayAt = a.dayAt;
+    if (a.nightAt !== this.sky.nightAt) out.nightAt = this.sky.nightAt = a.nightAt;
+    // The moon's rise and set (minute precision): change at a sync and after each set.
+    if (a.moonRiseAt !== this.sky.moonRiseAt) out.moonRiseAt = this.sky.moonRiseAt = a.moonRiseAt;
+    if (a.moonSetAt !== this.sky.moonSetAt) out.moonSetAt = this.sky.moonSetAt = a.moonSetAt;
     this.almanacSky = a.sky;
     if (Object.keys(out).length) this.push(out);
   }
@@ -239,8 +299,22 @@ export class WeatherSignals {
    * the game's values).
    */
   pin(p: Partial<WeatherState> | null, smooth = false): void {
+    const was = this.pinned;
     this.pinned = p && Object.keys(p).length ? { ...p } : null;
     this.sink.setState(this.state(), smooth ? { settle: true } : { instant: true });
+    if (was && !this.pinned) this.replayHeld();
+  }
+
+  /** On release: what the game began while held and still runs (item 85). */
+  private replayHeld(): void {
+    const t = this.heldTurn, dark = this.heldDark;
+    this.heldTurn = this.heldDark = null;
+    if (t && (t.kind === 'rise' ? this.sky.dayAt : this.sky.nightAt) < 0) {
+      // the clock does not time it: the event did; join it where it is now
+      const from = -TURN_S + (this.now() - t.at) / 1000;
+      if (from < 0) this.sink.emit(t.kind === 'rise' ? 'sun.rise' : 'sun.set', { from: Math.max(-TURN_S, from) });
+    }
+    if (dark === 'darkness.start' || dark === 'darkness.grow') this.sink.emit(dark);
   }
 
   private push(out: Partial<WeatherState>): void {

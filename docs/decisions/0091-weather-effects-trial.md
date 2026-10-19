@@ -890,6 +890,15 @@ agent's browsers). `bench/results/` is not rewritten.
 
 ### Demo (2026-10-17, owner feedback 33)
 
+**2026-10-18 (owner item 70):** one demo at the game's own pace: `slow`
+and the demo's time scale are gone (`setSpeed` stays as a dev knob,
+`__weather.setSpeed`); 20 steps, 2:58, each showing part of a slow process
+(the last 25 s of a sunrise and a sunset, 14 s of snow building up) instead
+of speeding it up. ADR 0093 "Demo". The text below is the first version.
+**2026-10-18 (owner item 74):** `#weather demo sunrise` and `#weather demo
+sunset` play one whole turn as live (ADR 0093 "Demo"); `#weather stop`
+ends any of them.
+
 - **Command.** `#weather demo [slow]`, `#weather stop` (also `demo stop`):
   a WebCockpit client command, full name only (`EXACT_ONLY`, so no tt++
   abbreviation changes), left out of the manual like the other trial
@@ -932,6 +941,28 @@ agent's browsers). `bench/results/` is not rewritten.
 - **`?weather` after login.** `Shell.onApp(fn)` calls back once the cockpit
   is built; `weatherFromUrl` (dev.ts) uses it, so `?weather` also applies
   when the cockpit comes from the start page's Enter MUME.
+
+- **The game held back (2026-10-19, owner item 85).** A real "The night
+  has begun." upset a running demo: `push` dropped the game's almanac and
+  vitals values for pinned keys, but `WeatherSignals.gmcp` always emitted
+  Event.Sun / Event.Moon, and the worker applied them (`eventState`,
+  `turnEvent`) over the demo's pins. Now, while any pin holds (the demo,
+  a dev `jump`, a bench), none of the game's events reach the engine:
+  - sun and moon events update only the bridge's own sky state, which the
+    release (`pin(null)` sends `state()`) applies with the normal easing;
+  - a `sun.rise` / `sun.set` held back, with no `sun.light` / `sun.dark`
+    after it, is sent on release as the same event with `from` = where the
+    turn is now (−60 + seconds since), when the clock does not time that
+    turn (`dayAt` / `nightAt` −1) and it is still before its second; with
+    a synced clock the director joins it by the clock anyway;
+  - a darkness `start` / `grow` held back and not followed by another
+    darkness event is sent on release (the spell is still on);
+  - lightning and gust lines are dropped: a flash or a gust is a moment,
+    the demo shows its own, and a real one in the middle of a scripted
+    step would be read as part of it.
+  The demo's own events go straight to the engine (`ctl.engine.emit`), not
+  through the bridge, so they are untouched. One rule for every pin keeps
+  it simple; the dev pins get the same (a `jump` is a fixed scene too).
 
 ### Moon side, day sky switch, sun beams (2026-10-17, owner feedback 36–38)
 
@@ -1211,6 +1242,21 @@ worker 23 → 30 fps, 36.9 → 29.2 ms a frame against the last results file.
   code path without floats is unchanged: run-to-run noise). With the map
   floating, heavy: Chromium 568 → 516 (worker frame 1.88 → 1.65 ms, no copy),
   Firefox 621 → 623.
+
+### Sunrise and sunset timed by the clock (2026-10-18, owner items 59–61)
+
+Superseded for sunrise and sunset by ADR 0093: the day begins at dawn + 1
+and the night at dusk + 1 (MUME's rooms follow `light` and `dark`, an hour
+after `rise` and `set`); sunrise and sunset run over the 60 s before those
+seconds, timed by the synced clock (`WeatherState.dayAt` / `nightAt`, the
+director's turn, `src/weather/sunturn.ts`), not by `Event.Sun rise` / `set`.
+`RISE_S`, `SET_S` and `SKY_HOLD_S` are gone. The moon comes in before the
+game's rise on the same path (`moonRiseAt`, owner item 63): ADR 0093, "The
+moonrise". One sun for sunrise, day glimpses and sunset, all rays glinting
+(owner items 64–68): ADR 0093, "One sun". The moon placed by the clock at an
+even pace (owner item 69): ADR 0093, "An even pace".
+Steady turns, the set ending at the bottom left and the day sky's ray pulse
+(owner items 71–73): ADR 0093, "Steady turns and a gentle pulse".
 
 ## Consequences
 

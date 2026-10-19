@@ -1037,3 +1037,617 @@ black: the brightest stroke stands out).
       map toggle is borderless (a damaged stored entry stays framed); its
       share is 195 so the rows stay the same (map 22 in 174 × 51).
     - **Owner, 2026-10-18:** "looks good" — item 58 approved.
+
+### 2026-10-18 — live play after 0.1.63, night to day (translated)
+
+59. **Clock strip: the sun icon one game hour early.** The clock to the
+    right of the input line shows the sun icon one minute (one game hour)
+    before rooms are actually lit in the game.
+    - Evidence (`mume-Gittan-2026-10-18T18-01-53`): at 9 am on the 11th of
+      Solmath (dawn hour 9) `time` says "The light slowly increases in the
+      east."; "The day has begun." comes an hour later. `Event.Sun rise` is
+      the dawn hour, `light` dawn + 1; rooms are lit from `light`. The
+      strip's day starts at the dawn hour (`isDay`), one hour early.
+    - **Done (2026-10-18):** ADR 0093. The day is dawn + 1 ≤ hour < dusk:
+      the strip shows the moon and counts down to dawn + 1:00 through the
+      dawn hour, the sun from "The day has begun." on; the weather's
+      almanac and `sunU` and the scripts' `period` agree (the scripts
+      already had the dawn hour as `dawn`, not `day`). Night still begins
+      at the dusk hour, as before.
+60. **Sunrise timed to the game's day.** The night sky turned slowly into
+    the day sky, which was complete about 25–30 s before the day began; no
+    sunrise animation at all. Wanted: the sunrise starts exactly one minute
+    (one game hour) before the day begins and ends exactly at the second the
+    day begins. It fades in very slowly: the first 40 s only just
+    perceptible, the last 20 s it builds up. Somewhere in that minute the
+    night sky turns into the day sky; the day sky need not be complete when
+    the day begins and may go on fading in 10–20 s after, but at that second
+    it must be more prominent than the night sky. The change must be smooth.
+    - **Done (2026-10-18):** ADR 0093. The sunrise is timed by the synced
+      clock, not by `Event.Sun rise`: it starts 60 s before the day begins
+      and is over at that second. Its rays, beams, glints and warm colours
+      stay at most 6 % for the first 40 s, build up over the last 20 (peak
+      ~7 s before the day) and fade out by the day's first second. The day
+      sky comes in from 28 s before the day; at the day's first second it
+      is 74 % of the sky, complete 14 s later. A page load or a clock sync
+      mid-rise joins at its place, a small resync glides, never two in one
+      dawn. Without a clock synced to the minute, `Event.Sun rise` starts
+      it (and syncs the clock); "The day has begun." without one fades to
+      day over 12 s. The look is the old sunrise, re-timed; the sunset is
+      unchanged. The demo's Sunrise step plays its last half minute (10 s).
+      Unit 2711 (new: the curves, the rise clock, the dawn-hour strip);
+      e2e weather + layout 44/44. Checked in headless Chromium by
+      screenshots at -24, -15, -7, 0 and +14 s; how it looks on your screen
+      is yours to judge.
+      Please try: (1) outdoors on a clear night with the clock synced to the
+      minute (the strip shows H:MM), watch the last game minute before the
+      strip's ☾ turns ☼: almost nothing for 40 s, then the beams build and
+      are gone as the day begins, the blue sky coming through and finishing
+      some 15 s into the day; (2) the strip's ☼ comes with "The day has
+      begun.", not with "The light slowly increases"; (3) `#weather demo`
+      (step 2, Sunrise); (4) dev server: `__weather.jump({ clock: 'night',
+      dayAt: Date.now() + 65_000 })`, then `__weather.unpin()`. Feedback
+      wanted: is the first 40 s too faint or not faint enough, and does the
+      day sky arrive at the right pace.
+
+### 2026-10-18 — sunset the same way (translated)
+
+61. **Sunset timed to the game's night.** The same as item 60 for the
+    sunset: it runs over the last game hour of the day and ends exactly at
+    the second the night begins, faint for 40 s, building the last 20 s;
+    the night sky more prominent than the day sky at that second, and it
+    may go on 10–20 s after.
+    - Evidence (Cockpit run `Rasta/2026-09-25T22-03-02`): after "The sun
+      slowly disappears in the west." (`Event.Sun set`, the dusk hour) the
+      prompt's light symbol stays `*` (sunlit) for the whole hour; it turns
+      `o` at "The night has begun. You feel stronger in the dark!" (`dark`,
+      dusk + 1). So the night begins at DUSK+1 and the strip's moon icon
+      also comes one game hour early.
+    - **Done (2026-10-18):** ADR 0093 (now covering both). The night
+      begins at dusk + 1: the strip keeps the sun and counts down to dusk
+      + 1:00 through the dusk hour, the moon from "The night has begun."
+      on. The sunset runs like the sunrise: over the 60 s before the night
+      begins, timed by the clock; at most 6 % for the first 40 s, building
+      over the last 20, gone at the night's first second; the night sky
+      (moon or stars, as the almanac says) comes in from 28 s before, 74 %
+      of the sky at the night's first second, complete 14 s later. Joins
+      mid-set, glides on a resync, never two in one dusk; `Event.Sun set`
+      starts it without a clock synced to the minute, "The night has
+      begun." alone fades to night over 12 s. Gone: the old 26 s sunset
+      that ran from `set` and the 11 s hold before the night sky came. The
+      sunset look is the old one re-timed; the colours of both now follow
+      the timing so that the strong middle of the old moments (orange to
+      pale gold at sunrise, gold to crimson at sunset) is under the peak.
+      The demo's Sunset step plays its last half minute (10 s), like the
+      Sunrise step. Unit 2720; e2e weather + layout 44/44 (Chromium,
+      Firefox). Checked in headless Chromium by screenshots at -24, -15,
+      -7, 0 and +14 s for both; how it looks on your screen is yours to
+      judge.
+      Please try: (1) a synced clock (the strip shows H:MM), outdoors on a
+      clear evening: the last game minute before ☼ turns ☾, almost nothing
+      for 40 s, then the beams from the left build and are gone as "The
+      night has begun." comes, the stars coming through and finishing some
+      15 s into the night; the prompt's `*` should stay until the same
+      second; (2) the same at dawn for the sunrise (☾ → ☼ with "The day has
+      begun."); (3) `#weather demo`: steps Sunrise and Sunset; (4) dev
+      server: `__weather.jump({ weather: ' ', clock: 'day', nightAt:
+      Date.now() + 65_000 })` for a sunset, `__weather.jump({ weather: ' ',
+      clock: 'night', dayAt: Date.now() + 65_000 })` for a sunrise, then
+      `__weather.unpin()`. Feedback wanted: the faint first 40 s, the pace
+      of the new sky, and whether the re-timed colours look right.
+62. **Sun rays from the turn's first second.** "The first 30 seconds of
+    the sunrise were rather dead. I want the sun rays to be glimpsed right
+    from 1 minute before sunrise (visible but vague). After 30 seconds they
+    should show a little more but still not much. Otherwise it was good."
+    Then, same day: "I want the corresponding experience at sunset."
+    - **Done (2026-10-18):** ADR 0093 (curve table). The rays, beams and
+      their glints get a floor of their own: faded in over the first 2.5 s
+      and vague but visible from then on, a little more from 30 s before
+      the turn, then the old build-up over the last 20 s; still gone at
+      the turn's second. Set by eye from screenshots for each (the
+      sunset's rays are drawn about half as strong and over the blue sky,
+      so its floor is higher). The sky tint, colours and everything else
+      are unchanged. Unit 2721; e2e weather + layout 44/44.
+      Please try: the dev hooks (`__weather.jump({ weather: ' ', clock:
+      'night', dayAt: Date.now() + 65_000 })` for a sunrise, `clock: 'day',
+      nightAt: …` for a sunset, then `__weather.unpin()`) or a real dawn
+      and dusk with a synced clock: the rays should be there, faintly, from
+      the first second of the last game hour, a little stronger halfway.
+      Feedback wanted: too faint, too strong, or right, for each.
+
+### 2026-10-18 — moonrise (translated)
+
+63. **The moon on screen when the game says it rises.** The game said "The
+    moon rises in the east." (`Event.Moon rise`, log
+    `mume-Gittan-2026-10-18T20-20-06`, 18:20:16; `time` agreed, as did the
+    almanac script) but no moon was seen in the following minute. Keep the
+    path (the panes are transparent now). The moon must already have come
+    into the screen when the message comes: since it glides slowly, start
+    it early, so that at least about half the moon is inside the screen at
+    the rise message.
+    - **Done (2026-10-18):** ADR 0093, "The moonrise". Before: the moon
+      started fully off the right edge at the rise message and glided in so
+      slowly that its edge showed only ~25 s later and its centre reached
+      the edge after ~44 s, low and behind the right dock: at 18:21:00 in
+      the log about half of it was just in, at the far right, for the last
+      seconds. Now, with the clock synced to the minute, the moon starts on
+      its path about a minute before the rise (58.7 s at 1400 × 800;
+      worked out from the window size), so at the rise message its centre
+      is 0.6 radii inside the right edge (about 80 % of the disc in), at
+      full strength. The path is the same; it moves about 7 % slower so it
+      still leaves at the left edge when the game says it sets. Joining
+      mid-way or after the rise puts it in place; without a clock to the
+      minute the rise message starts it from below the edge and it glides
+      in quickly. Unit 2724; e2e weather + layout 44/44. Checked in
+      headless Chromium at 20 s and 5 s before the rise, at it, and 20 s
+      after.
+      Please try: (1) with the clock synced (the strip shows H:MM),
+      outdoors on a clear night, watch the right edge in the minute before
+      "The moon rises in the east."; the almanac script shows when;
+      (2) dev server: `__weather.jump({ clock: 'night', moonUp: false,
+      moonU: -1, moonRiseAt: Date.now() + 60_000 })`, then
+      `__weather.unpin()`. Feedback wanted: is it in early enough, and is
+      it bright enough at the edge.
+
+### 2026-10-18 — sunset test (translated)
+
+64. **No day-sky sun rays during a sunset.** The day sky's sun rays (the
+    sun glimpses) must not appear while the sunset animation runs (nor the
+    sunrise's).
+65. **Day-sky rays follow the sun.** Today they always come from the same
+    angle. They should come slanting from the side the sun rose on (top
+    right) and through the day turn toward the side the rays come from at
+    sunset (top left).
+66. **Sunset starts with the sun lower.** The sunset animation starts with
+    the sun "too high in the sky". It should be felt to start lower: the
+    sun at most about 45° up.
+67. **Sunrise from the horizon.** Likewise the sunrise: the sun should be
+    felt to come very low (from the horizon, straight from the right at
+    first) and then climb, ending at about the angle the day sky's rays
+    are then felt to come from.
+68. **All rays from one sun, all rays glint.** The three strong beams (the
+    ones that make the pane borders glint) move differently from the other
+    rays, so the light does not feel as if it comes from one source. Some
+    rays moving a little differently is lively, but it must feel coherent,
+    all from the sun. Every sun ray that hits a pane border should make it
+    glint.
+    - **Done (2026-10-18), items 64–68:** ADR 0093, "One sun". One sun
+      for the whole day: the sunrise starts at the horizon straight from
+      the right and climbs to 40°; the day's glimpses go on from there,
+      over the top to the top left by evening (following the time of day);
+      the sunset starts 40° up at the left and sinks to the horizon. The
+      strong beams and the thin rays now come from the same sun and sway
+      together; every thin ray glints where it crosses a pane border, as
+      faint as the ray. No glimpse while a sunrise or sunset runs or is
+      about to begin; one already shining fades out quickly. Colours and
+      timing as before. Unit 2726; e2e weather + layout 44/44. Checked in
+      headless Chromium (sunrise at -50/-20/-8/-2 s, glimpses at 0.05, 0.5
+      and 0.95 of the day, sunset at -50/-20/-8/-2 s).
+      Please try: a real sunrise and sunset with the clock synced; on the
+      dev server a glimpse at a given time of day: `__weather.jump({
+      weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')`
+      (0.5 midday, 0.95 evening), and the turns with `__weather.jump({
+      weather: ' ', clock: 'day', nightAt: Date.now() + 65_000 })` /
+      `clock: 'night', dayAt: …`, then `__weather.unpin()`. Feedback
+      wanted: do the angles feel right through the day, and do all rays
+      read as one sun.
+69. **The moon at an even pace.** A moon came in very fast, went to about
+    the middle of the window and then moved very slowly (log
+    `mume-Gittan-2026-10-18T20-40-32`, at its end). Wanted: the moon glides
+    at about the same pace all the time, comes in from the very edge at
+    about the rise and glides out at the set.
+    - **Done (2026-10-18):** ADR 0093, "An even pace". Cause: the moon's
+      place was counted up frame by frame; with the tab in the background
+      (or the effects running slowly) it fell behind, and the `ti` at
+      18:49:59 synced the clock, which made it rush to where the game said
+      (south) and then go on at its normal, by contrast very slow, pace.
+      Now, with the clock synced to the minute, its place comes from the
+      time alone: in at the right edge at the rise, across at one even
+      pace, out at the left edge at the set. A small correction of the
+      clock changes its pace by at most half; a big one fades it out and in
+      at its place; coming back to a hidden tab, it is simply there (fading
+      in). Unit 2727; e2e weather + layout 44/44. Checked in headless
+      Chromium: a moon mid-way, the tab hidden for 90 s, back: it fades in
+      where the time says, no rush.
+      Please try: (1) on a clear night with the clock synced, watch a moon
+      cross, switch to another tab for a minute or two and back; (2) dev
+      server: `r = Date.now() + 60_000; __weather.jump({ clock: 'night',
+      moonRiseAt: r, moonSetAt: r + 745_000 })` for a rise
+      (`Date.now() - 300_000` for one mid-way), then `__weather.unpin()`.
+      Feedback wanted: is the pace even and right, and does it come in and
+      go out at the edges at the game's messages.
+70. **One demo, at the real pace.** `#weather demo` feels fast-forwarded;
+    `#weather demo slow` gives a more realistic picture of how the effects
+    look. Keep only `#weather demo`, giving a realistic experience of the
+    different effects; it may run a little longer if needed, at most about
+    3 minutes in total.
+    - **Done (2026-10-18):** ADR 0091 "Demo" (note), ADR 0093 "Demo".
+      `#weather demo` now runs everything at the game's own pace (`slow` is
+      gone) and shows a part of each slow process instead of speeding it
+      up: the last 25 s of the sunrise and the sunset, 14 s of clouds
+      coming and of snow building up, 16 s of fog thickening, the day and
+      night skies filling in after the turns. 20 steps, 2:58:
+      night and moon 0:00 (5 s), sunrise 0:05 (25), day clear 0:30 (12),
+      clouds 0:42 (14), light rain 0:56 (6), heavy rain 1:02 (5), lightning
+      1:07 (5), snow and a gust 1:12 (14), fog 1:26 (16), indoors 1:42 (6),
+      outdoors 1:48 (5), sleeping 1:53 (4), stunned 1:57 (3),
+      incapacitated/dying 2:00 (5), on your feet 2:05 (9), sunset 2:14
+      (25), night rain and lightning 2:39 (8), darkness spreads 2:47 (5),
+      lifts 2:52 (3), back to the game 2:55 (3). Watched through once in
+      headless Chromium (screenshots at eleven points).
+      Please try: `#weather demo` once through; feedback wanted on any
+      step that feels too short to see or too long.
+
+### 2026-10-18 — sun test (translated)
+
+71. **Sunrise builds up steadily.** The first 5–10 s were good: a few
+    rays from the right angle. Then more rays should fade in gradually over
+    the following 20–30 s, so the sunrise builds up a little all the time.
+    At the most intense part everything happened very fast and felt like a
+    jerk: very little for a long time, then very much in a very short time.
+    The climb and the build-up of rays must be gradual. Nor may the effect
+    die out too fast: when the blue sky becomes perceptible the rays fade
+    out slowly, and when the blue sky is complete the rays are gone.
+72. **Sunset: gradual, and setting at the bottom left.** The same as 71:
+    too fast at the end. When the sun reaches its end below the horizon on
+    the left, the rays should feel as if they come from the screen's lower
+    left edge; now they seemed to come from about the middle of the left
+    side when the sun was lowest.
+73. **Day-sky rays pulse gently.** Today they fade in and out with long
+    pauses between. Instead they should slowly pulse between not visible
+    and only just perceptible, about every 20 s; so subtle you hardly
+    notice it unless you look closely. A little more visible at midday,
+    when the sun is brightest.
+    - **Done (2026-10-18), items 71–73:** ADR 0093, "Steady turns and a
+      gentle pulse". Sunrise and sunset now build up evenly: three faint
+      rays from the first seconds, the other five fading in one by one
+      over the next half minute, then the three strong beams; the strength
+      rises steadily to its peak about 10 s before the turn, and the sun's
+      angle and the colours move at one pace all through. The rays fade
+      slowly as the new sky comes (from about 10 s before the turn) and are
+      gone exactly when it is complete, 18 s after the turn. At the end of
+      a sunset the sun is below the horizon at the bottom left, so the last
+      rays come up from the lower left edge. (A fault made the first
+      seconds of a sunrise darker than meant: most of the early rays
+      pointed off the screen; fixed.) The day sky's rays no longer come and
+      go: they pulse slowly, about every 20 s, between nothing and only just
+      perceptible, a little more at midday, without glints; the frame rate
+      stays at the still rate. The demo's sunrise is followed by "The day
+      begins" (18 s, the rays fading as the blue sky fills in), still
+      3:00 at most. Unit 2725; e2e weather + layout 44/44. Checked in
+      headless Chromium (a sunrise and a sunset every 5 s from -60 to +20,
+      the pulse at morning, midday and evening).
+      Please try: `#weather demo sunrise` and `#weather demo sunset`
+      (item 74) or a real sunrise and sunset with the clock synced (watch
+      the whole minute and the 20 s after); a clear day sky for a minute
+      or two (look closely for the pulse); and `#weather demo`. Feedback wanted: is the
+      build-up even now, is the fade slow enough, and is the pulse too
+      faint or too strong.
+74. **Demo commands for one sunrise and one sunset.** `#weather demo
+    sunrise` and `#weather demo sunset`, to test them properly: the whole
+    cycle, without console commands.
+    - **Done (2026-10-18):** ADR 0093 "Demo". `#weather demo sunrise`: a
+      clear starry night without a moon for 5 s, then the whole sunrise
+      exactly as in the game (the last game hour of the night, then on
+      until the blue sky is complete), 10 s of day with the sun's rays
+      pulsing, then back to the game; about 1:36. `#weather demo sunset` is
+      the same the other way round, ending with the starry night and a
+      shooting star; about 1:34. The caption box shows the step and counts
+      to and from the turn's second ("the day begins in 0:42", "the day
+      began 0:07 ago"), so you can name a moment in feedback.
+      `#weather stop` ends any demo; starting one while another runs says
+      so. After it, the game's own sunrise or sunset comes as usual, even
+      soon after. These commands replace the console commands in the
+      earlier "Please try" notes for testing the sunrise and sunset; `#help
+      weather` lists them. Unit 2729; e2e weather + layout 44/44. Played
+      once each in headless Chromium (screenshots, no errors).
+      Please try: `#weather demo sunrise` and `#weather demo sunset`, out
+      of the game or in it; note the caption's time for anything you want
+      changed.
+75. **Sunset to a horizon above the input.** The sun should not go all the
+    way down to the lower-left corner after all. Think of the horizon it
+    sets below as about 30–40 % up from the bottom edge, as for the
+    sunrise. The problem is that the effect gets in the way of where you
+    type. At the same time it is logical that the horizon isn't the
+    screen's bottom edge, since the day sky stops being visible about
+    20–25 % from the bottom.
+    - **Done (2026-10-18):** ADR 0093, "One horizon above the input line".
+      Sunrise and sunset now share one horizon a third up from the bottom
+      (65 % down the screen): the sunset ends with the sun just below it at
+      the left, the last rays coming in level from there, and the sunrise
+      starts the same way from the right. No strong rays reach down over
+      the input line. The sunrise's first rays were made a little stronger,
+      since they pass behind the right-hand panes. Unit 2729; e2e weather +
+      layout 44/44. Checked with `#weather demo sunset` (every 5 s) and the
+      first 25 s of `#weather demo sunrise` in headless Chromium.
+      Please try: `#weather demo sunset` and `#weather demo sunrise`; note
+      the caption's time for anything you want changed.
+
+
+### 2026-10-18 — sun test 2 (translated)
+
+76. **Sunset: rays fade out before the night sky shows.** As the sun goes
+    down, the last rays fade out softly. The night sky starts to show only
+    when the last rays are barely perceptible; until then the blue day sky
+    still dominates. The night sky must not be clearly visible while there
+    are visible rays and a sun that seems to be above the horizon. The blue
+    day sky also lasts too long at a sunset: it may start to fade out as
+    early as 10 s after the sunset begins.
+77. **Sunrise: the hazy light and the sky's order.** The sun's hazy light
+    (the glow, not the rays) comes too fast: what happens in the first 3 s
+    should take about 25 s, and from then until day it should grow
+    step by step. The stars fade out as the sun becomes visible: about
+    50 % faded 10 s into the sunrise, then down to barely perceptible over
+    about 20 s more; the last 30 s are the blue sky fading in. When the
+    day begins, the sky is fully blue and the sun and all its rays have
+    faded away.
+78. **Rays: subtle, even, glinting at the frames.** The rays should be much
+    more subtle; now they look a bit like moving spotlights. The glint is
+    to be much stronger for the weaker rays along the pane edges. The rays
+    should be spread evenly, not clustered. In a sunrise, and above all at
+    its start, they should mostly point sideways and down; further in, a
+    few pointing up may have come.
+79. **Rays: no fast or big movement.** Some rays start to move very fast.
+    No quick or large movement at all: the animation should feel calming.
+    - **Done (2026-10-18), items 76–79:** ADR 0093, "Sky order and calm
+      rays". The sun's part of both turns (rays, beams, glints, glow,
+      colours) now ends at the turn's second. Sunrise: the hazy glow comes
+      in over 25 s (what came in 3 s) and grows until 14 s before the day;
+      the stars are half gone 10 s in, barely there 30 s in, gone 6 s before
+      the day; the blue comes over the last 30 s and is complete when the
+      day begins, the sun and every ray gone then. Sunset: the blue starts
+      to fade 10 s in, into a warm dusk (darker, no stars); the rays fade
+      softly to nothing at the night's second (barely there 5 s before);
+      the stars come only from then, complete 14 s into the night. Rays
+      and beams are drawn much fainter (the beams about a third of before),
+      spread evenly over the fan (the beams between the rays), and a
+      sunrise starts with them sideways and down (about 6° down to 2° up),
+      a ray or two pointing up from about a third in. A faint ray's glint
+      on a frame line is now much stronger (a glow and a core, like a
+      beam's). The fast movement (79): the fan's edges were the screen's
+      corners seen from the sun, and the sun passes close by a top corner,
+      so the fan swung by up to ~160° in seconds; now it aims at two points
+      on the far side and every ray and beam moves at under 0.84°/s (was up
+      to 4.4–6.5°/s; unit test bound 1°/s). Demo: the main demo shows the
+      last 30 s of each turn (2:56 in all); `#weather demo sunrise` 1:20,
+      `#weather demo sunset` 1:30. Unit 2734; e2e weather + layout 44/44
+      (Chromium, Firefox); bench in line with bench/results. Checked in
+      headless Chromium by screenshots of both demos every 5 s (-57 … 0,
+      the sunset to +18), and against the previous build's sunrise.
+      Please try: `#weather demo sunrise` and `#weather demo sunset`; note
+      the caption's time for anything you want changed.
+      Feedback wanted: is the order right now (sunset: blue, dusk, rays
+      gone, then stars; sunrise: glow, stars going, blue), are the rays
+      subtle enough and the glints clear enough, and does any ray still
+      move too much.
+
+### 2026-10-18 — sun test 3 (translated)
+
+80. **Sunrise: rays in all downward directions, strength tiers, a slow
+    start.** The rays are concentrated in one span to the left and down-left;
+    rays pointing down are missing (`img/28-item80-sunrise-rays.png`: the
+    orange arrows from the sun at the upper right go steeply down-left to
+    the bottom edge, the steepest nearly straight down at the right). No
+    three much stronger rays bunched together: instead three a little
+    stronger, some a little weaker and some much weaker, the tiers evenly
+    spread over the directions. The rays fade in in step with the sun's
+    hazy light over the first ~30 s, barely visible at the start. Frame
+    glints: strongest from the strongest rays, less from the middle ones,
+    least from the weakest; not so marked at first, fading in over the
+    first ~10–20 s of the sunrise.
+81. **Sunset: wider span, stars earlier, glints fade with the rays.** The
+    stars may start to show ~7 s before the night begins and are fully
+    visible when it begins. A few more rays for a wider span of angles
+    (`img/28-item81-sunset-rays.png`: from the sun at the upper left, one
+    arrow almost level to the right across the top, two steeply down-right
+    to the bottom edge). About 22 s before the night begins the rays
+    clearly fade; the frame glints must fade in step with them.
+    - **Done (2026-10-18), items 80–81:** ADR 0093, "Tiered rays and a
+      wider fan". Both turns now share one fan of 15 evenly spread places:
+      three beams a little stronger than the rest at a quarter, the middle
+      and three quarters of the fan, and between them twelve thin rays,
+      middle and much weaker ones in turn (beam, weak, middle, weak, beam
+      …), never two of a kind side by side. The fan reaches from about
+      level to the bottom edge: in a sunrise from 39° down at the start,
+      60° down midway and 81° down (nearly straight down at the right) at
+      the end; a sunset the mirror, nearly straight down at its start and
+      about 40° down at its end. A sunrise's rays come in step with its
+      hazy light (barely there at first, not a few rays early). The frame
+      glints go by the ray's strength: strongest from the beams, less from
+      the middle rays, least from the weak; a sunrise's are faint for its
+      first 10–20 s, and in both turns the glints fade with the rays (they
+      were drawn too strong and clipped, so the first third of the fade
+      did not show in them). A sunset's stars start to show 7 s before the
+      night and are complete when it begins (they came at -5 and were
+      complete 14 s in). Every ray still moves at under 0.82°/s. The rays
+      that go steeply down pass behind the right-hand panes, so they show
+      there mostly as glints on the frame lines. `#weather demo sunset` is
+      now 1:26. Unit 2739; e2e weather + layout 44/44 (Chromium, Firefox). Checked in
+      headless Chromium at 2000 × 1150 by screenshots of both demos every
+      2–5 s.
+      Please try: `#weather demo sunrise` and `#weather demo sunset`; note
+      the caption's time for anything you want changed.
+      Feedback wanted: does the fan reach where your arrows went, are the
+      three stronger rays and the tiers right, does the sunrise start
+      slowly enough, and do the glints now fade with the rays.
+82. **Day sky: fainter, sparser, wider sun rays.** The sun glimpses / rays
+    on the blue day sky should be even fainter, only just perceptible, and
+    fade out a little towards the lower part. They are too centred in one
+    span of angles: make them a little sparser and spread them over more
+    angles from the sun's place (`img/28-item82-day-rays.png`: from a sun
+    above the top edge, right of the middle, arrows down-left at about 30°
+    and 45° below level on the left, steeply down a little to the right, and
+    down-right at about 50° to the right edge).
+    - **Done (2026-10-18):** ADR 0093, "Tiered rays and a wider fan". The
+      day sky's pulsing rays are fainter (their peak about two thirds of
+      before), fade out down the screen (gone about three quarters down),
+      and are six rays spread evenly over about 110° round the sun's
+      direction (they were within about ±23°): for a sun above the top,
+      right of the middle, from about 30° below level at the left to about
+      60° at the right; two a little stronger, one middle, three weak, in
+      turn. Same cost; calm (under 1°/s). Checked in headless Chromium at
+      2000 × 1150 in the morning, before and at midday, and in the evening.
+      Please try: `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.35 });
+      __weather.emit('glimpse')` (or `#weather demo`'s clear day), and
+      watch a few pulses.
+      Feedback wanted: are they faint enough now (or too faint to see), and
+      is the spread right.
+
+### 2026-10-19 — sun test 4 (translated)
+
+83. **Sunset ends at the night's second; fainter sun, fainter rays.**
+    Sunset: the sun now feels set 10 s before the night begins, and the
+    stars feel in place 5 s before it. Shift the process so the sun feels
+    set exactly when the night begins. The stars fade in more slowly:
+    perceptible 5 s before the night begins, fully visible only 5 s after.
+    The sun itself (not the rays) and the light round it should be less
+    marked: the whole effect about 50 % weaker. In both sunrise and sunset
+    the rays should be less marked: dimmed by about 50 %.
+    - **Done (2026-10-19):** ADR 0093, "Sunset at the night's second". It
+      read as set at -10 s mostly because the sun's light turned night blue
+      at -7 s, and its rays and glow had fallen to under half by -10 and a
+      tenth by -5. Now a sunset's colours stay warm (purple at -3 s), and its
+      rays, glow, glints and warm tint fade late: the rays 0.7 at -10, 0.4
+      at -5, 0.2 at -2, gone at 0. A few faint stars show at -5, more at
+      -3, about half there when the night begins, complete at +5. The sun itself
+      and its hazy light are half of before, in the sunrise too (the same
+      drawing). Thin rays and beams half of before in both turns; the frame
+      glints keep their strength and still fade with the rays. Unit 2739;
+      e2e weather + layout 44/44 (Chromium, Firefox). Checked in headless
+      Chromium at 2000 × 1150, the sunset every 1–4 s from -20 to +8.
+      Please try: `#weather demo sunset` (and `#weather demo sunrise`).
+      Feedback wanted: does the sun now feel set as the night begins, do
+      the stars come in slowly enough, and are the sun and the rays faint
+      enough (or now too faint).
+84. **Day sky rays: subtler, three more, a smooth vanish.** On the blue
+    day sky, make the rays even less visible, so that they are there more
+    subtly. Add three more rays (spread evenly). When a ray goes out
+    (opacity reaching 0) it can be perceived: make the transition smoother
+    as a ray weakens and vanishes or comes in (probably the frame rate, or
+    too few transparency steps, so that it looks choppy).
+    - **Done (2026-10-19):** ADR 0093, "Dithered day rays". The cause was
+      too few transparency steps: at their peak the rays add only a few
+      colour levels to the sky, so each step came at once over a whole ray
+      (or the sun's glow), the last one to nothing the most visible. Now the
+      rays and the glow are drawn from a fine, fixed grain, so each pixel
+      takes its step at its own moment and the light comes and goes
+      pixel by pixel. The rays are about 0.6 of before and nine (was six),
+      spread evenly with the same tiers in turn. Same frame rate and cost.
+      Please try: `__weather.jump({ weather: ' ', clock: 'day', sunU: 0.35 });
+      __weather.emit('glimpse')`, and watch a few pulses (one about every
+      20 s), especially as they fade out.
+      Feedback wanted: can you still see a ray come or go, and are they
+      subtle enough.
+
+### 2026-10-19 — sun test 5 (translated)
+
+85. **A real event broke into a demo.** The owner believes the night
+    began in the game while a demo played and upset it. Confirmed in code:
+    the demo pins the state (clock, dayAt / nightAt …), but GMCP
+    `Event.Sun` / `Event.Moon` events pass the pins (`signals.gmcp` emits
+    them; the worker applies `eventState` and `turnEvent`), so a real
+    "The night has begun." sets the night, and a real `Event.Sun rise/set`
+    starts a turn, in the middle of a demo.
+    - **Done (2026-10-19):** ADR 0091, Demo, "The game held back". While a
+      demo (or any pin: a dev `jump`, a bench) runs, none of the game's
+      events reach the effects. The sun and moon events are still noted,
+      and when the demo ends the effects follow the game from there: a
+      night that began during the demo is night after it (eased as usual),
+      a moon that rose is up. A sunrise or sunset the game opened during
+      the demo joins at its place afterwards (by the clock when it is
+      synced; otherwise from the held `Event.Sun rise` / `set`, if its
+      minute is not over). A magical darkness begun during the demo and
+      not ended starts when it ends. Lightning and gusts from the game are
+      dropped during a demo (they are moments, and the demo shows its own).
+      Checked in headless Chromium: `#weather demo sunrise` with a real
+      `Event.Sun set`, `Event.Sun dark` and `Event.Moon rise` sent 30 s in
+      played on unchanged to its blue day sky; after it the game's night
+      and moon. Unit 2747; e2e weather + layout 44/44 (Chromium, Firefox).
+      Please try: a demo while playing, ideally across a real nightfall
+      or daybreak.
+      Feedback wanted: is the demo now undisturbed, and does the sky after
+      it match the game.
+86. **A ray glints only on the first pane it meets.** A frame glint from a
+    sun ray shows only on the first pane the ray hits; a pane behind it
+    along the same ray gets no glint from it.
+    - **Done (2026-10-19):** ADR 0093, "A glint on the first pane only".
+      Each sunrise or sunset ray and beam now glints only on the first
+      pane it meets along its path: where it enters (the strong glint with
+      the sparkle) and the faint trace where it leaves that same pane; any
+      pane behind it on the same ray gets nothing from it. A float the ray
+      meets before the docked pane under it is the first; a borderless
+      pane does not count. The day sky's rays have no glints (unchanged).
+      Checked in headless Chromium at 2000 × 1150 with the default right
+      dock: in the sunset the Group pane's left line no longer glints from
+      the rays that pass through Timers first; Timers' and Comm's left
+      lines still do.
+      Please try: `#weather demo sunset` and `#weather demo sunrise`.
+      Feedback wanted: do the glints now sit only on the first pane, and
+      are there now too few glints anywhere.
+
+### 2026-10-19 — end of session (translated)
+
+Overall the owner is happy; some polish remains for the next session.
+
+87. **Sunset stars later.** The night still feels as if it begins a little
+    early. The stars should only just be perceptible when the night begins,
+    fade in for about 5–6 s more and be complete 5–6 s after it began (now
+    perceptible from -5, about half at 0, full at +5).
+    - Superseded by item 88 (the owner's later timing).
+- The sunrise sun's strength (halved in item 83) feels right: kept.
+- The day sky (items 82, 84) feels better.
+- The owner will next check fog, lightning, clouds, snow, rain and the rest
+  in real play.
+
+### 2026-10-19 — sun test 6 (translated)
+
+88. **Sunset: rays downward too, a soft start, stars after the night
+    begins.** Rays also pointing down, so there is no gap below them
+    (`img/28-item88-sunset-gap.png`: from the sun at the upper left, arrows
+    steeply down along the left edge into the lower-left corner). The very
+    first rays come a bit abruptly: fade them in more softly over the first
+    10–15 s (more steps, slower steps, a higher frame rate or one ray at a
+    time), so they do not pop up. The stars fade in from the night's
+    second to 10 s after it, just barely perceptible at the second itself.
+    - **Done (2026-10-19):** ADR 0093, "No gap below the rays, a soft start,
+      later stars". The fan's lowest ray now lands near the bottom corner on
+      the sun's side all through both turns (midway it fell ~15° short),
+      still under 1°/s. A sunset's rays come in over its first 14 s, the
+      first three one at a time 4 s apart; every turn ray, beam and the glow
+      has its faint 8-bit alpha dithered frame by frame, so no step shows at
+      once over a whole ray. Stars: none before -3 s, just perceptible at 0,
+      about 60 % at +5, complete at +10. `#weather demo sunset` is 5 s
+      longer. Unit 2748; e2e weather + layout 44/44 (Chromium, Firefox).
+      Checked in headless Chromium at 1920 × 1226, the sunset at -58 … +10.
+      Please try: `#weather demo sunset` (and `#weather demo sunrise`: its
+      fan reaches the lower-right corner the same way).
+      Feedback wanted: is the lower corner filled now, do the first rays
+      come in softly enough, and do the stars come at the right moment.
+
+### 2026-10-19 — sun test 7 (translated)
+
+89. **Sunset: no flicker, a later blue, rays to the end pointing
+    right.** The stars' fade-in is good now. About 2 s before the night
+    the blue sky should still just be perceptible; 10 s before, fairly
+    clearly; 5 s before, weaker; gone when the night begins. The flicker on
+    the rays in the first 30 s is far too marked ("a bit epileptic"): much,
+    much lower there; lower the rest of the time too. Over the last ~25 s
+    the rays' spread shrinks until only a few show at the far left: the rays
+    should run far over the screen until their last 2–3 s, then fade and
+    shrink. The last rays should seem to come from the left (the horizon)
+    and, as the sun goes below it, point right or up-right, not down.
+    - **Done (2026-10-19):** ADR 0093, "Calm rays, a later dusk, a lifting
+      fan". The flicker came from item 88's dithering in time; now a fixed
+      spatial grain (no change between frames but the light), and the
+      shimmer is a third of before, growing from none over the first 30 s.
+      The blue: fairly clear at -10, weaker at -5, just perceptible at -2,
+      gone at 0. The rays keep their strength to -4 s, then fade and shrink
+      toward the sun over the last 3 s; the fan lifts from -42 s so the last
+      rays point right and up-right across the screen. The lift turns the
+      lowest ray at up to 3°/s (the only move faster than item 79's 1°/s).
+      Unit 2749; e2e weather + layout 44/44 (Chromium, Firefox). Checked in
+      headless Chromium at 1920 × 1226 (sunset -30 … 0, sunrise -45, -25).
+      Please try: `#weather demo sunset`.
+      Feedback wanted: is the flicker gone, is the blue's timing right, do
+      the last rays run far enough and point the right way, and does the
+      fan's lift feel calm.

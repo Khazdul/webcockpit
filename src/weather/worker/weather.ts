@@ -1077,7 +1077,7 @@ export function weatherModule(): Module {
       prevW = sw;
       prevRainMix = rain;
       prevSnowMix = m.snow;
-      // the build-ups run at the demo's pace (`env.speed`, 1 in the game)
+      // the build-ups run at the dev time scale (`env.speed`, 1 in the game and the demo)
       rainAmt = isRain ? Math.min(1, rainAmt + (dt * env.speed) / 6) : Math.max(0, rainAmt - dt / 3);
       snowAmt = isSnow ? Math.min(1, snowAmt + (dt * env.speed) / 26) : Math.max(0, snowAmt - dt / 10);
       if (rainAmt > 0 || snowAmt > 0) busy = true;

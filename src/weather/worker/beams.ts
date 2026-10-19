@@ -1,6 +1,6 @@
-// The sunrise / sunset beams (owner feedback 37, 2026-10-17): a few strong,
-// well-defined beams in the middle of the ray fan, on straight paths across
-// the screen, sweeping slowly as the sun moves; where a beam crosses a pane's
+// The sunrise / sunset beams (owner feedback 37, 2026-10-17): a few
+// well-defined beams spread over the ray fan (owner item 78), on straight
+// paths across the screen, moving slowly with the sun; where a beam crosses a pane's
 // frame line, that stretch of the line glints. Pure geometry here (unit
 // tested); sky.ts draws the beams and the glints (glint.ts).
 //
@@ -10,6 +10,8 @@
 // nameplate is left to Glints.line), with the stretch of the line inside the beam
 // (`len`). The first line a beam meets on a pane is where it enters (the
 // strong glint); where it leaves it is weaker, as the beam is inside a pane.
+// Only the first pane along the beam glints (owner item 86): a pane behind
+// it, or a docked pane under a float the beam met first, gets none from it.
 // The panes cast no shadow on the beams (the faint rays keep their shadow
 // wedges): a beam goes on at full strength after a pane, only weaker inside
 // it. To draw that without clips, `beamPieces` cuts the beam's triangle into
@@ -42,13 +44,34 @@ export interface BeamHit {
   att: number;
 }
 
-/** The beams: offsets from the bundle's middle (radians), half-widths, strengths. The middle one is the strongest. */
-const BUNDLE: ReadonlyArray<readonly [number, number, number]> = [
-  [-0.064, 0.0075, 0.62],
-  [0, 0.0105, 1],
-  [0.05, 0.0085, 0.76],
+/**
+ * The fan's places, lower edge first, and the light's tier at each (owner
+ * item 80): S a beam (a little stronger), m a thin ray a little weaker, w
+ * one much weaker; interleaved evenly (S w m w S …), the three beams spread
+ * over the whole fan, never side by side.
+ */
+const SLOTS = 'wmwSwmwSwmwSwmw';
+export const FAN_SLOTS = SLOTS.length;
+/** The thin rays' places (index into the fan's slots) and their tier: 'm' or 'w'. */
+export const RAY_SLOTS: readonly number[] = [...SLOTS].flatMap((c, i) => (c === 'S' ? [] : [i]));
+const BEAM_SLOTS: readonly number[] = [...SLOTS].flatMap((c, i) => (c === 'S' ? [i] : []));
+/** Thin ray `i`'s tier. */
+export const rayTier = (i: number): 'm' | 'w' => SLOTS[RAY_SLOTS[i % RAY_SLOTS.length]!] as 'm' | 'w';
+/** A tier's frame glint against a beam's (owner item 80: strongest from the beams, less from the middle rays, least from the weak). */
+export const TIER_GLINT: Readonly<Record<'S' | 'm' | 'w', number>> = { S: 1, m: 0.6, w: 0.3 };
+
+/**
+ * The beams: half-widths and strengths, at the fan's S places. Three of
+ * about one strength (owner item 80: not three much stronger ones, bunched).
+ */
+const BUNDLE: ReadonlyArray<readonly [number, number]> = [
+  [0.006, 0.9],
+  [0.0075, 1],
+  [0.0065, 0.9],
 ];
 export const BEAMS = BUNDLE.length;
+/** The beams' shimmer depth (was 0.24: 0.88 ± 0.12). */
+const BEAM_SHIMMER = 0.08;
 
 /** Inside a pane a beam is this strong (as the faint rays are in their shadow wedges, ~0.55²). */
 export const BEAM_INSIDE = 0.32;
@@ -56,44 +79,189 @@ export const BEAM_INSIDE = 0.32;
 export const BEAM_EXIT = 0.15;
 
 /**
- * Where the bundle points: a point it crosses on the screen, moving over the
- * moment so the beams sweep across. A sunset (sun at the top left, sinking)
- * starts steep, down toward the bottom middle, and ends flat toward the right
- * edge; a sunrise (sun at the top right, climbing) the other way round:
- * flat toward the left edge first, steep toward the bottom middle at the end.
+ * One sun for the whole day (owner items 65–68, ADR 0093 "One sun"): the
+ * sun stands at an angle `psi` on a circle round a point at the screen's
+ * middle and the horizon's height: 0 at the horizon to the right (east), π/2
+ * straight above, π at the horizon to the left (west). From the screen's
+ * middle its light comes in at `psi` from the horizontal (π − psi on the
+ * left side). A sunrise climbs from 0 to SUN_RISE_PSI, the day's glimpses
+ * go on from there to π − SUN_SET_PSI, a sunset sinks from there to π, so
+ * where one ends the next begins.
  */
-export function beamAim(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-  const q = sst(0, 1, p);
-  if (kind === 'set') {
-    out[0] = W * (0.4 + 0.66 * q);
-    out[1] = H * (1.05 - 0.75 * q);
-  } else {
-    out[0] = W * (-0.06 + 0.66 * q);
-    out[1] = H * (0.3 + 0.75 * q);
-  }
+export const SUN_RISE_PSI = (40 * Math.PI) / 180;
+/** The sun's height when a sunset starts: at most ~45° up (owner item 66). */
+export const SUN_SET_PSI = (40 * Math.PI) / 180;
+/** The middle of the sun's circle by day, a share of H: where its light aims. */
+export const SUN_HORIZON = 0.45;
+/**
+ * The horizon the sun rises from and sets below, a share of H: about a
+ * third up from the bottom, above the input line, where the day sky fades
+ * out (owner item 75; one line for both, so they mirror).
+ */
+export const SUN_TURN_HORIZON = 0.65;
+
+/** The sun's angle for a sunrise or sunset `p` (0..1 into it) or the day's `sunU` (0..1). */
+export function sunPsi(kind: 'rise' | 'day' | 'set', x: number): number {
+  const q = Math.min(1, Math.max(0, x));
+  // even all through: no easing that bunches the climb or the descent at an end (owner items 71, 72)
+  if (kind === 'rise') return SUN_RISE_PSI * q;
+  if (kind === 'set') return Math.PI - SUN_SET_PSI * (1 - q);
+  return SUN_RISE_PSI + (Math.PI - SUN_SET_PSI - SUN_RISE_PSI) * q;
 }
 
-const AIM = new Float32Array(2);
+/** How far the sun's circle has sunk to the turn horizon at `psi`: 1 at the horizon (0, π), 0 on the day's path (SUN_RISE_PSI … π − SUN_SET_PSI). */
+function turnLow(psi: number): number {
+  return Math.max(1 - sst(0, SUN_RISE_PSI, psi), sst(Math.PI - SUN_SET_PSI, Math.PI, psi));
+}
 
-/** The bundle's beams for the sun at (sx, sy), `p` into a moment, at time T (a slow sway). Fills `out` (BEAMS long). */
-export function sunBeams(kind: 'rise' | 'set', p: number, T: number, sx: number, sy: number, W: number, H: number, out: Beam[]): void {
-  beamAim(kind, p, W, H, AIM);
-  const mid = Math.atan2(AIM[1]! - sy, AIM[0]! - sx);
+/**
+ * The sun's place at `psi` for a W × H screen: always outside it (beyond
+ * the right edge, above the top, beyond the left edge). Through a sunrise
+ * and a sunset the circle's middle moves between the day's SUN_HORIZON and
+ * the turn horizon SUN_TURN_HORIZON, so a sunrise starts and a sunset ends
+ * with the sun at that horizon, its light coming in level with it, above
+ * the input line (owner items 72, 75).
+ */
+export function sunPoint(psi: number, W: number, H: number, out: Float32Array): void {
+  const cx = W / 2, D = Math.hypot(cx, H * Math.max(SUN_HORIZON, SUN_TURN_HORIZON)) * 1.05;
+  const cy = H * (SUN_HORIZON + (SUN_TURN_HORIZON - SUN_HORIZON) * turnLow(psi));
+  out[0] = cx + D * Math.cos(psi);
+  out[1] = cy - D * Math.sin(psi);
+}
+
+/**
+ * Where every ray and beam of a sun points to: the screen's middle at the
+ * day's SUN_HORIZON, or level with a sun low at the turn horizon (its light
+ * comes in level at a sunrise's start and a sunset's end); its fan is laid
+ * round this.
+ */
+export function sunMid(sx: number, sy: number, W: number, H: number): number {
+  const ay = Math.min(H * SUN_TURN_HORIZON, Math.max(H * SUN_HORIZON, sy));
+  return Math.atan2(ay - sy, W * 0.5 - sx);
+}
+
+/** The slow sway every ray and beam share (radians), so the light moves as one (owner item 68). */
+export function sunDrift(T: number): number {
+  return Math.sin(T * 0.11) * 0.008 + Math.sin(T * 0.043 + 1.3) * 0.005;
+}
+
+/** The turn's ray fan reaches down to the screen's bottom edge (a share of H; owner item 80, was 0.78 above the input line, item 75). */
+export const FAN_FLOOR = 1;
+
+/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
+/** Scratch for sunToward. */
+const TP = new Float32Array(2);
+function sunToward(psi: number, x: number, y: number, W: number, H: number, am: number): number {
+  sunPoint(psi, W, H, TP);
+  const d = Math.atan2(y - TP[1]!, x - TP[0]!) - am;
+  return am + Math.atan2(Math.sin(d), Math.cos(d));
+}
+
+/**
+ * The ray fan of a sunrise or sunset for the sun at `psi` (at sx, sy):
+ * `out[0]` its lower edge, `out[1]` its upper (radians). Its edges do not
+ * aim at the screen's corners as before: seen from a sun passing close by a
+ * corner, that corner's angle swung by up to 90° in seconds and the whole
+ * fan with it (owner item 79). The lower edge points nearly straight down
+ * (owner items 80, 81): toward the bottom edge FAN_FLOOR_X in from the sun's
+ * side as seen from the sun where the turn starts and where it ends, and
+ * evenly between the two in between (aimed at the point itself all the way,
+ * it swung at up to 1.4°/s while the sun was near it). The upper edge is
+ * FAN_UP_LOW above the horizontal under a low sun (owner item 78) and
+ * FAN_UP_HIGH as it climbs, but never above the far top corner. So the fan
+ * spans from about level to nearly straight down, every edge under 1°/s.
+ * The lower edge never falls short of the bottom corner on the sun's side
+ * (owner item 88: no gap below the rays).
+ */
+export function turnFan(psi: number, sx: number, sy: number, W: number, H: number, out: Float32Array): void {
+  const low = turnLow(psi), right = psi < Math.PI / 2;
+  const am = sunMid(sx, sy, W, H);
+  // round the sun's middle direction (no wrap at ±π: a sun beyond the right edge looks left)
+  const round = (a: number): number => {
+    const d = a - am;
+    return am + Math.atan2(Math.sin(d), Math.cos(d));
+  };
+  const toward = (x: number, y: number): number => round(Math.atan2(y - sy, x - sx));
+  // the turn's start and end (a sunrise climbs from psi 0, a sunset sinks to π)
+  const p0 = right ? 0 : Math.PI - SUN_SET_PSI, p1 = right ? SUN_RISE_PSI : Math.PI;
+  const q = Math.min(1, Math.max(0, (psi - p0) / (p1 - p0)));
+  const fx = right ? W * (1 - FAN_FLOOR_X) : W * FAN_FLOOR_X, fy = H * FAN_FLOOR;
+  const even = lerp(sunToward(p0, fx, fy, W, H, am), sunToward(p1, fx, fy, W, H, am), q);
+  // a sunset's sinking sun lights more upward (owner item 89: its last rays point right and up-right)
+  const e = lerp(FAN_UP_HIGH, right ? FAN_UP_LOW : FAN_UP_SET_LOW, low), corner = toward(right ? 0 : lerp(W, W * 0.35, low), 0);
+  // up is a larger angle looking left, a smaller one looking right: the lower of the two
+  out[1] = right ? Math.min(round(Math.PI + e), corner) : Math.max(round(-e), corner);
+  // Never short of the bottom corner on the sun's side (owner item 88: midway
+  // the even path fell ~15° short of it, leaving the lower corner without
+  // rays): the fan's lowest place, half a place in, lands about FAN_CORNER_X
+  // in from it. Aimed at the point itself, it swung at up to 1.35°/s as the
+  // sun neared it, so it follows that aim from a few knots, evenly between.
+  const cx = right ? W * (1 - FAN_CORNER_X) : W * FAN_CORNER_X, n = CORNER_KNOTS - 1;
+  const k = Math.min(n - 1, Math.floor(q * n)), u = q * n - k;
+  const knot = (j: number): number => sunToward(lerp(p0, p1, j / n), cx, H, W, H, am);
+  const c = lerp(knot(k), knot(k + 1), u), f = 0.5 / FAN_SLOTS;
+  const low0 = (c - out[1] * f) / (1 - f);
+  // down is a smaller angle looking left, a larger one looking right
+  out[0] = right ? Math.min(even, low0) : Math.max(even, low0);
+  // A sunset's fan lifts as its sun nears the horizon, its lower edge to
+  // level at the end (owner item 89: a sun at the horizon cannot shine down;
+  // its last rays point right and up-right, spread over the screen).
+  if (!right) out[0] = lerp(out[0]!, round(0), setLift(q));
+}
+
+/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
+const FAN_FLOOR_X = 0.1;
+/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
+const FAN_CORNER_X = 0.02;
+/** The corner aim's knots over a turn, its ends included (owner item 88). */
+const CORNER_KNOTS = 3;
+/** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
+const FAN_UP_LOW = (2 * Math.PI) / 180;
+const FAN_UP_HIGH = (15 * Math.PI) / 180;
+/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
+const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
+
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+/** A sunset's lift: how far its fan's lower edge has turned from its path to level at `q` 0..1 into it: from SET_LIFT_S[0] to SET_LIFT_S[1] s, evenly. */
+function setLift(q: number): number {
+  const s = -60 * (1 - q), [s0, s1] = SET_LIFT_S;
+  return Math.min(1, Math.max(0, (s - s0) / (s1 - s0)));
+}
+/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
+const SET_LIFT_S: readonly [number, number] = [-42, -3];
+
+/** Thin ray `i`'s own fixed random value 0..1 (its place off the even spread, width, strength). */
+export function rayHash(i: number): number {
+  const r = Math.sin(i * 12.9898 + 3) * 43758.5453;
+  return r - Math.floor(r);
+}
+
+/** Thin ray `i` at time T in the fan `a0` … `a1`: at its place among the beams (RAY_SLOTS, owner item 80), a little off it (was ±0.35 of a place: bunched, owner item 78), swaying with the beams (one sun, item 68) and a little on its own. */
+export function turnRayAngle(i: number, a0: number, a1: number, T: number): number {
+  const at = RAY_SLOTS[i % RAY_SLOTS.length]! + 0.5 + (rayHash(i) - 0.5) * 0.2;
+  return a0 + ((a1 - a0) * at) / FAN_SLOTS + sunDrift(T) + Math.sin(T * 0.15 + i) * 0.0015;
+}
+
+/** The beams at time T: spread over the sun's ray fan `a0` … `a1` (turnFan), with the rays' common sway and `sh` of their shimmer (sunturn.ts turnShimmer). Fills `out` (BEAMS long). */
+export function sunBeams(T: number, a0: number, a1: number, out: Beam[], sh = 1): void {
+  const drift = sunDrift(T);
   for (let i = 0; i < BEAMS; i++) {
-    const [off, hw, k] = BUNDLE[i]!;
+    const [hw, k] = BUNDLE[i]!, f = (BEAM_SLOTS[i]! + 0.5) / FAN_SLOTS;
     const b = out[i] ?? (out[i] = { a: 0, hw: 0, k: 0 });
-    b.a = mid + off + Math.sin(T * 0.13 + i * 1.7) * 0.004;
+    b.a = a0 + (a1 - a0) * f + drift + Math.sin(T * 0.13 + i * 1.7) * 0.0015;
     b.hw = hw;
-    // a slow, small shimmer in strength
-    b.k = k * (0.88 + 0.12 * Math.sin(T * 0.9 + i * 2.3));
+    // a slow, small shimmer in strength (owner item 89: a third of before, it flickered)
+    b.k = k * (1 - BEAM_SHIMMER * sh * (0.5 - 0.5 * Math.sin(T * 0.9 + i * 2.3)));
   }
 }
 
 const inBox = (p: FrameBox, x: number, y: number): boolean => x > p.x && x < p.x + p.w && y > p.y && y < p.y + p.h;
 
 /**
- * Where beam `b` from (sx, sy) crosses the frame lines of `panes`: written
- * to `out` (cleared first), nearest first. Borderless panes are skipped.
+ * Where beam `b` from (sx, sy) crosses the frame lines of the first pane it
+ * meets (owner item 86): written to `out` (cleared first), nearest first.
+ * Borderless panes are skipped.
  */
 export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: Beam, out: BeamHit[]): BeamHit[] {
   out.length = 0;
@@ -125,6 +293,14 @@ export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: 
     let first = n0;
     for (let i = n0 + 1; i < out.length; i++) if (out[i]!.t < out[first]!.t) first = i;
     out[first]!.enter = true;
+  }
+  // only the first pane the beam meets glints (owner item 86): its entry and its exit; none behind it
+  if (out.length > 1) {
+    let first = out[0]!;
+    for (const h of out) if (h.t < first.t) first = h;
+    let n = 0;
+    for (const h of out) if (h.p === first.p) out[n++] = h;
+    out.length = n;
   }
   // a hit inside another pane (a float over a docked pane): the beam is weaker there
   for (const h of out) {

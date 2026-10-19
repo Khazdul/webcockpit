@@ -16,17 +16,29 @@
 // - Mix values ease exponentially (tau 0.9 s) toward their targets, except:
 //   fog moves at a constant FOG_RATE (a step between none, light and dense
 //   takes 20 s, owner feedback 8); `outdoors` at OUT_RATE (5 s in or out,
-//   owner feedback 27); the sky selection at SKY_RATE, and after a change of
-//   the clock (sunrise, sunset) only once SKY_HOLD_S has passed, so the day
-//   sky stays through most of the sunset and the night through most of the
-//   sunrise (owner feedback 29).
+//   owner feedback 27); the sky selection at SKY_RATE (12 s day ↔ night when
+//   the clock turns without a sunrise or sunset, a moon rising or setting).
+// - Sunrise and sunset are timed by the clock, not by events (ADR 0093):
+//   over the 60 s before the day begins (`dayAt`) or the night begins
+//   (`nightAt`), the almanac's seconds at minute precision, the turn's `s`
+//   runs from -60 to 0 and the sky selection follows sunturn.ts
+//   `turnWeight` (a sunrise's day complete at the turn, a sunset's night with
+//   its stars too, owner items 76, 77, 81); from 0 the settled clock is
+//   the new one. A resync glides `s` toward the clock's time (a big one
+//   snaps, never back over the turn); a page load or sync mid-turn joins at
+//   its place. Without minute precision `Event.Sun rise` / `set` starts it
+//   at -60 and it runs on its own; `light` / `dark` without one fades over
+//   12 s. One turn of a kind at a time and none twice in one dawn or dusk:
+//   none starts within TURN_GUARD_MS after one of its kind reached its
+//   second (reset by `jump` and a speed change; the demo's turns never count).
 // - A category that is off has its targets at 0, so it fades out.
-// - `speed` (the demo, `#weather demo`; 1 otherwise) runs the slow paces
-//   faster: the sky selection and its hold, and fog. The worker's modules
-//   read the same factor for sun moments, cloud cover, the rain's and snow's
+// - `speed` (a dev time scale, `__weather.setSpeed`; 1 otherwise) runs the slow paces
+//   faster: the sky selection, sunrise and sunset, and fog. The worker's
+//   modules read the same factor for cloud cover, the rain's and snow's
 //   build-up and the blood's drying (`Env.speed`).
 
 import { ALL_CATEGORIES, type Categories, DEFAULT_STATE, type WeatherEvent, type WeatherState } from './protocol';
+import { FULL_S, LATE_S, TURN_S, type TurnKind, turnWeight } from './sunturn';
 
 export const DWELL_MS = 3000;
 /** Mix easing time constant, seconds. */
@@ -37,13 +49,16 @@ export const FOG_RATE = 1 / 40;
 export const OUT_RATE = 1 / 5;
 /** Sky selection change per second: day ↔ night over 12 s, moon up ↔ down too (owner feedback 29). */
 export const SKY_RATE = 1 / 12;
-/**
- * After the clock changes (Event.Sun, the almanac), the sky selection waits
- * this long before it moves: with SKY_RATE, the day sky goes from 11 s to
- * 23 s into the 26 s sunset (worker/sky.ts SET_S), the night from 11 s to
- * 23 s into the 24 s sunrise (RISE_S).
- */
-export const SKY_HOLD_S = 11;
+/** A clock correction during a sunrise or sunset glides out with this time constant, s. */
+export const TURN_GLIDE_TAU = 2;
+/** A correction larger than this (s) snaps instead. */
+export const TURN_SNAP_S = 15;
+/** A turn started mid-way glides onto its sky curve at this rate (share/s; above the curves' steepest 0.05/s, so once on it it follows it). */
+export const TURN_JOIN_RATE = 0.1;
+/** A page load or sync joins a turn the clock is in up to this long after its second (s): its sky is complete then, but the turn gives the new clock before the almanac re-reads it. */
+export const TURN_JOIN_S = 14;
+/** No new turn of a kind starts this long (wall ms) after one reached its second: never two in one dawn or dusk (a game day is 24 min). */
+export const TURN_GUARD_MS = 20 * 60_000;
 
 export const MIX_KEYS = [
   'outdoors',
@@ -104,11 +119,11 @@ export function mixTargets(s: Readonly<WeatherState>, cats: Readonly<Categories>
 /** The raw state change an event implies (sun / moon), or null. */
 export function eventState(name: WeatherEvent): Partial<WeatherState> | null {
   switch (name) {
-    case 'sun.rise':
+    // The day or night begins (the almanac's sunU, when synced, follows within
+    // a step). `sun.rise` / `sun.set` open the dawn / dusk hour, still night /
+    // day: they start the sunrise / sunset (`turnEvent`).
     case 'sun.light':
-      // the day starts (the almanac's sunU, when synced, follows within a step)
       return { clock: 'day', sunU: 0 };
-    case 'sun.set':
     case 'sun.dark':
       return { clock: 'night', sunU: -1 };
     case 'moon.rise':
@@ -126,17 +141,45 @@ export class Director {
   readonly mix: Mix = zeroMix();
   private readonly tgt: Mix = zeroMix();
   private readonly pendingSince: Record<Dwelled, number> = { weather: 0, fog: 0, light: 0 };
-  /** Seconds the sky selection still waits after a clock change (SKY_HOLD_S). */
-  private skyHold = 0;
   cats: Categories;
-  /** Demo time scale for the slow paces (sky selection, its hold, fog); 1 = the game's pace. */
-  speed = 1;
+  private speedK = 1;
+  /**
+   * The sunrise or sunset now: its kind, `s` (seconds relative to the second
+   * the day or night begins, -60 … LATE_S) and the new sky's share when it
+   * started (a turn never takes back a sky that had already turned); null
+   * without one (sunturn.ts, ADR 0093).
+   */
+  turn: { kind: TurnKind; s: number; base: number; demo?: boolean } | null = null;
+  /** Wall ms when the last turn of each kind reached its second (TURN_GUARD_MS). */
+  private readonly turnDone: Record<TurnKind, number> = { rise: -Infinity, set: -Infinity };
+  /** The wall clock, unix ms (the worker's; tests set their own). */
+  wall: () => number = Date.now;
+
+  /** Dev time scale for the slow paces (sky selection, fog, sunrise and sunset; `__weather.setSpeed`); 1 = the game's pace. */
+  get speed(): number {
+    return this.speedK;
+  }
+  set speed(v: number) {
+    this.speedK = v;
+    // a change of pace starts afresh: no earlier turn holds back the next
+    this.turnDone.rise = this.turnDone.set = -Infinity;
+  }
+
+  /** The sunrise's `s`, or null. */
+  get riseS(): number | null {
+    return this.turn?.kind === 'rise' ? this.turn.s : null;
+  }
+  /** The sunset's `s`, or null. */
+  get setS(): number | null {
+    return this.turn?.kind === 'set' ? this.turn.s : null;
+  }
 
   constructor(state: Partial<WeatherState> = {}, cats: Categories = { ...ALL_CATEGORIES }) {
     this.raw = { ...DEFAULT_STATE, ...state };
     this.settled = { ...this.raw };
     this.cats = { ...cats };
     this.snap();
+    this.joinTurn();
   }
 
   /**
@@ -165,9 +208,77 @@ export class Director {
     const ch = this.set(partial);
     Object.assign(this.settled, this.raw);
     for (const k of DWELLED) this.pendingSince[k] = 0;
-    this.skyHold = 0;
     this.snap();
+    this.turn = null;
+    this.turnDone.rise = this.turnDone.set = -Infinity;
+    this.joinTurn();
     return ch;
+  }
+
+  /** At once (start, `jump`): a sunrise or sunset the clock is in joins at its place, and the mix with it. */
+  private joinTurn(): void {
+    this.advance(0);
+    if (!this.turn) return;
+    this.settle(0);
+    this.snap();
+    this.step(0);
+  }
+
+  /** The clock's time relative to the `kind` turn's second (from `dayAt` / `nightAt`), s; NaN when unknown. */
+  private clockS(kind: TurnKind, wall: number): number {
+    const at = kind === 'rise' ? this.raw.dayAt : this.raw.nightAt;
+    return at >= 0 ? (wall - at) / 1000 : NaN;
+  }
+
+  /**
+   * Advances the sunrise or sunset by `dt` s: starts one when the clock's
+   * time lies in it, glides toward that time, ends it LATE_S after its
+   * second.
+   */
+  advance(dt: number): void {
+    const wall = this.wall();
+    const inside = (x: number): boolean => x >= -TURN_S && x < LATE_S;
+    const T = this.turn;
+    if (!T) {
+      for (const kind of ['rise', 'set'] as const) {
+        const tg = this.clockS(kind, wall);
+        if (inside(tg) && tg < TURN_JOIN_S && this.start(kind, tg, wall)) return;
+      }
+      return;
+    }
+    const was = T.s;
+    let s = was + dt * this.speedK;
+    const tg = this.clockS(T.kind, wall);
+    if (inside(tg)) {
+      const err = tg - s;
+      // a big correction snaps, but never back over the turn once it came
+      if (Math.abs(err) > TURN_SNAP_S) {
+        if (!(s >= 0 && err < 0)) s = tg;
+      } else s += err * (1 - Math.exp(-dt / TURN_GLIDE_TAU));
+    }
+    if (was < 0 && s >= 0 && !T.demo) this.turnDone[T.kind] = wall;
+    // done: LATE_S after its second, or once its sky is complete when the clock says another time (a one-turn demo released)
+    if (s > LATE_S || (tg === tg && !inside(tg) && s >= FULL_S)) this.turn = null;
+    else T.s = s;
+  }
+
+  /**
+   * `Event.Sun rise` / `set` (the dawn or dusk hour begins): the sunrise or
+   * sunset from its start (or `from` s before its second: the demo, whose
+   * turns never hold back the game's), unless one of that kind runs or ran
+   * this dawn or dusk.
+   */
+  turnEvent(kind: TurnKind, from?: unknown): void {
+    const demo = typeof from === 'number' && from >= -TURN_S && from < 0;
+    if (this.turn?.kind !== kind && this.start(kind, demo ? from : -TURN_S, this.wall()) && demo) this.turn!.demo = true;
+  }
+
+  /** Starts a turn (it ends one of the other kind); false when its guard holds. */
+  private start(kind: TurnKind, s: number, wall: number): boolean {
+    if (wall - this.turnDone[kind] < TURN_GUARD_MS) return false;
+    this.turn = { kind, s, base: kind === 'rise' ? this.mix.sun : 1 - this.mix.sun };
+    if (s >= 0) this.turnDone[kind] = wall;
+    return true;
   }
 
   /** Mix values straight to their targets. */
@@ -190,8 +301,13 @@ export class Director {
       }
     }
     settled.position = raw.position;
-    if (settled.clock !== raw.clock) this.skyHold = SKY_HOLD_S;
-    settled.clock = raw.clock;
+    // the day or night begins with its turn's second (the clock's own change may come up to an almanac re-read later)
+    const T = this.turn;
+    settled.clock = T && T.s >= 0 ? (T.kind === 'rise' ? 'day' : 'night') : raw.clock;
+    settled.dayAt = raw.dayAt;
+    settled.nightAt = raw.nightAt;
+    settled.moonRiseAt = raw.moonRiseAt;
+    settled.moonSetAt = raw.moonSetAt;
     settled.moonPhase = raw.moonPhase;
     settled.moonUp = raw.moonUp;
     settled.moonU = raw.moonU;
@@ -202,14 +318,28 @@ export class Director {
   step(dt: number): void {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     const k = 1 - Math.exp(-dt / MIX_TAU), m = this.mix;
-    const fog0 = m.fog;
+    const fog0 = m.fog, sun0 = m.sun;
     const sdt = dt * this.speed;
-    const sky = this.skyHold <= 0 ? sdt * SKY_RATE : 0;
-    this.skyHold = Math.max(0, this.skyHold - sdt);
+    const sky = sdt * SKY_RATE;
     for (const key of MIX_KEYS) {
       if (SKY_KEYS.has(key)) m[key] = toward(m[key], t[key], sky);
       else if (key === 'outdoors') m[key] = toward(m[key], t[key], dt * OUT_RATE);
       else m[key] += (t[key] - m[key]) * k;
+    }
+    const T = this.turn;
+    if (T && T.s <= FULL_S) {
+      // A sunrise or sunset sets the sky selection itself: the new sky's
+      // share by its curve; the night's split between moon and dark moves at
+      // SKY_RATE.
+      const nw = Math.max(T.base, turnWeight(T.kind, T.s));
+      // a turn started mid-way by an event (the demo's `from`) glides onto its curve; joining at once (dt 0) sets it
+      const w = dt > 0 ? toward(sun0, T.kind === 'rise' ? nw : 1 - nw, sdt * TURN_JOIN_RATE) : T.kind === 'rise' ? nw : 1 - nw;
+      const n = m.moon + m.dark;
+      const ms = toward(n > 1e-6 ? m.moon / n : this.settled.moonUp ? 1 : 0, this.settled.moonUp ? 1 : 0, sdt * SKY_RATE);
+      m.sun = w;
+      m.night = 1 - w;
+      m.moon = (1 - w) * ms;
+      m.dark = (1 - w) * (1 - ms);
     }
     // fog: a constant rate (switching the category off still fades at MIX_TAU)
     if (this.cats.fog) m.fog = toward(fog0, t.fog, sdt * FOG_RATE);
@@ -217,6 +347,7 @@ export class Director {
 
   /** Settles and eases in one go (one frame). */
   tick(now: number, dt: number): void {
+    this.advance(dt);
     this.settle(now);
     this.step(dt);
   }
@@ -242,14 +373,11 @@ export class Director {
 
   /**
    * True while a mix value moves toward its target (a transition the effects
-   * show; the dwell before one is not). The sky selection does not move while
-   * it holds after a clock change.
+   * show; the dwell before one is not).
    */
   moving(eps = 0.002): boolean {
     const t = mixTargets(this.settled, this.cats, this.tgt);
-    const hold = this.skyHold > 0;
     for (const key of MIX_KEYS) {
-      if (hold && SKY_KEYS.has(key)) continue;
       if (Math.abs(this.mix[key] - t[key]) > eps) return true;
     }
     return false;

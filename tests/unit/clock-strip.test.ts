@@ -43,8 +43,8 @@ describe('ClockStrip', () => {
 
   it('counts down at minute precision, re-rendering after each second boundary', () => {
     const t = setup();
-    // 18:55 in Astron: 5 game minutes (real seconds) to dusk.
-    t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, 18, 55), precision: 'minute', lastSync: T / 1000, reason: 't' };
+    // 19:55 in Astron: 5 game minutes (real seconds) to the night (dusk hour 19, night from 20:00).
+    t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, 19, 55), precision: 'minute', lastSync: T / 1000, reason: 't' };
     t.strip.update();
     expect(t.text()).toBe('  0:04 ☼');
     expect(t.timers.at(-1)!.ms).toBe(705); // to the next boundary (+5 ms)
@@ -59,10 +59,24 @@ describe('ClockStrip', () => {
     expect(CLOCK_DAY_FG).not.toBe(CLOCK_NIGHT_FG);
   });
 
+  it('shows the moon through the dawn hour, the sun from the day (dawn + 1) on (item 59)', () => {
+    const t = setup();
+    // 9:58 on the 11th of Solmath: dawn hour 9, the day begins at 10:00.
+    t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 1, 11, 9, 58), precision: 'minute', lastSync: T / 1000, reason: 't' };
+    t.strip.update();
+    expect(t.text()).toBe('  0:01 ☾');
+    expect(t.el.dataset.period).toBe('night');
+    t.tick(705);
+    expect(t.text()).toBe('  0:00 ☾');
+    t.tick(1000);
+    expect(t.el.dataset.period).toBe('day');
+    expect(t.text()).toBe('  7:59 ☼');
+  });
+
   it('shows ~N at hour precision and updates on a sync', () => {
     const t = setup();
     t.game.timeLine('4 pm on Sterday, the 12th of Astron, year 2973 of the Third Age.');
-    expect(t.text()).toBe('    ~3 ☼');
+    expect(t.text()).toBe('    ~4 ☼');
     t.strip.dispose();
   });
 

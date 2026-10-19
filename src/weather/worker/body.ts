@@ -426,7 +426,7 @@ export function bodyModule(): Module {
       for (const o of S.spl) {
         if (o.a <= 0) continue;
         if (o.drying && t > o.dryAt) {
-          // the demo runs the drying at its pace (`env.speed`)
+          // a dev time scale runs the drying faster (`env.speed`)
           o.dry = Math.min(1, o.dry + (dt * env.speed) / 3.5);
           if (o.dry >= 1) o.a -= (dt * env.speed) / 5;
         }

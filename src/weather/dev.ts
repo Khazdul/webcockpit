@@ -8,10 +8,27 @@
 //   __weather.jump({ weather: '*', clock: 'night', moonUp: true })
 //                                           pinned at once: the game's values
 //                                           for these keys are ignored
+//   __weather.jump({ clock: 'night', dayAt: Date.now() + 65_000 })
+//                                           a sunrise: the day begins in 65 s
+//   __weather.jump({ clock: 'day', nightAt: Date.now() + 65_000 })
+//                                           a sunset: the night begins in 65 s
+//                                           (ADR 0093; unpin after either)
+//   r = Date.now() + 60_000; __weather.jump({ clock: 'night', moonRiseAt: r, moonSetAt: r + 745_000 })
+//                                           a moonrise in 60 s: the moon comes in
+//                                           before it and crosses at its even
+//                                           pace by the clock (ADR 0093, items
+//                                           63, 69); `r = Date.now() - 300_000`
+//                                           puts it mid-way
 //   __weather.unpin()                      back to the game's values
 //   __weather.emit('strike')               events
+//   __weather.jump({ weather: ' ', clock: 'day', sunU: 0.05 }); __weather.emit('glimpse')
+//                                           the day sky's ray pulse at its peak in
+//                                           ~2 s, at that time of day (0 the day's
+//                                           start … 1 its end; items 65, 73)
 //   await __weather.stats()                worker frame times
-//   __weather.demo()                       the demo (`#weather demo`; 'slow' too)
+//   __weather.demo()                       the demo (`#weather demo`)
+//   __weather.setSpeed(3)                  the slow paces (sky, turns, fog, clouds,
+//                                           build-ups) 3× faster; 1 again after
 //   __weather.demoStop()                   ends it (`#weather stop`)
 //   __weather.stop()                       turns the option off again
 //

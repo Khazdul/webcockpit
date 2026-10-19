@@ -7,19 +7,36 @@
 //  - an insect: rarely, a few seconds of a tiny darting dot;
 //  - cloud tufts: a few small, soft, almost sky-coloured puffs on a clear
 //    day, drifting with the wind (a few px/s);
-//  - a sun glimpse: a few soft rays from the sun (top right) and a glint on
-//    the frame lines they cross; at least once a minute on a clear day, most
-//    often, longest and strongest at midday, fewer, shorter and fainter
-//    early and late (owner feedback 52; `planGlimpse`).
+//  - the sun's rays: a few soft rays from the sun that pulse slowly (about
+//    every 20 s) between nothing and only just perceptible, a little more at
+//    midday (owner item 73; `pulseStrength`), spread wide round the sun's
+//    direction and fading down the screen (item 82); no glints (they would draw the
+//    eye). The sun is the day's one sun (beams.ts `sunPsi`): from the top
+//    right in the morning, where the sunrise left it, over to the top left
+//    where the sunset takes it (owner item 65); none while a sunrise or
+//    sunset runs or is about to (item 64).
 //
 // Rates: tufts move a few px/s, so they are drawn at the still rate
-// (FPS_STILL) without asking for more; birds ask for BIRD_FPS, an insect
-// and a glimpse for FPS_SLOW, only while they are there. Sprites are built
+// (FPS_STILL) without asking for more, and so is the pulse: it changes by
+// under 0.003 alpha per frame at that rate; birds ask for BIRD_FPS, an
+// insect for FPS_SLOW, only while they are there. Sprites are built
 // once on CPU canvases (paths and gradients there, ADR 0091); per frame it
-// is a handful of image copies and, during a glimpse, six convex triangles.
+// is a handful of image copies and, during a glimpse, nine convex triangles.
+//
+// The pulse's light is dithered (owner item 84): at its peak a ray adds only
+// a few 8-bit levels to the sky (its alpha about 0.026, the glow's 0.01), so
+// each level came or went at once over the whole ray or glow, and the last
+// step to 0 could be seen. The rays and the glow are now filled from textures
+// made once that hold the light at the pulse's peak, randomly rounded and
+// varied from pixel to pixel (× 0.5 … 1, fixed on the screen), drawn at
+// globalAlpha (the pulse) 0 … 1: each pixel takes its last step at its own
+// moment, so the light comes and goes pixel by pixel over seconds. (A
+// texture at full alpha under a tiny globalAlpha did not help: that alpha is
+// itself 8-bit, and the whole glow stepped with it.)
 
 import type { ThemeInfo } from '../palette';
 import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, mkCanvas, sst } from './env';
+import { sunDrift, sunMid } from './beams';
 import type { FrameBox, Glints } from './glint';
 
 /** Frames per second while birds fly (slow, small things: 10 is plenty and cheap). */
@@ -32,25 +49,47 @@ const FLAP_FRAMES = 6;
 const rr = (a: number, b: number): number => a + Math.random() * (b - a);
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-/** Frames per second while a glimpse shines: it fades over seconds (at most ~3 levels per frame at 6 fps), so 6 is smooth and half of FPS_SLOW. */
-export const GLIMPSE_FPS = 6;
-/** The sun's height for a glimpse when the time of day is unknown (clock not synced): mid-morning. */
+/** The sun's height for the pulse when the time of day is unknown (clock not synced): mid-morning. */
 export const GLIMPSE_H_UNKNOWN = 0.6;
 /**
- * A glimpse ray's alpha at its brightest (at the sun, peak 1): 0.09 / 0.07
- * before owner feedback 52, then 0.22 / 0.15, a quarter less since item 55
- * (as are the glow and the rim glints). Sunrise rays reach ~0.25, its beams 0.4.
+ * A ray's alpha at full strength (at the sun, strength 1): the glimpse's
+ * since item 55. The pulse reaches only PULSE_HIGH of it at midday.
  */
-const GLIMPSE_RAY = 0.165;
-const GLIMPSE_RAY_LIGHT = 0.11;
-/** The glow at the sun (alpha × the glimpse's strength), dark / light pages. */
-const GLIMPSE_GLOW = 0.06;
-const GLIMPSE_GLOW_LIGHT = 0.045;
-/** A rim glint's alpha against its ray's strength (0.5 before item 55). */
-const GLIMPSE_GLINT = 0.375;
+export const GLIMPSE_RAY = 0.132;
+const GLIMPSE_RAY_LIGHT = 0.088;
+/** The glow where the light comes in (alpha × the strength), dark / light pages. */
+const GLIMPSE_GLOW = 0.048;
+const GLIMPSE_GLOW_LIGHT = 0.036;
+/** The dither textures' alpha: 0.5 … 1 (mean 0.75), so with the values above the light is 0.6 of before (owner item 84: subtler; was 0.165 / 0.11, 0.06 / 0.045). */
+const DITHER_MIN = 0.5;
+/** The glow's texture at this share of the screen's size (drawn scaled up, unsmoothed: blocks of 2 px still dither). */
+const GLOW_TEX_K = 0.5;
+/** The pulse's peak strength: at the dawn and dusk hours, and at midday (only just perceptible; by eye, owner items 73, 82: was 0.14 and 0.3). */
+export const PULSE_LOW = 0.1;
+export const PULSE_HIGH = 0.2;
+/**
+ * The day rays' tiers across their fan (owner item 82, as item 80's): S a
+ * little stronger, m a little weaker, w much weaker, interleaved; nine
+ * (item 84, was six; and six within about ±0.4 rad before item 82).
+ */
+const DAY_TIERS = 'wSmwSwmSw';
+const DAY_TIER_K: Readonly<Record<string, number>> = { S: 1, m: 0.7, w: 0.4 };
+export const DAY_RAYS = DAY_TIERS.length;
+/** Half the day rays' fan, radians (its outer rays a place in): for a sun above the top right of the middle, from about 30° below level at the left to 60° at the right (owner item 82). */
+export const DAY_FAN = (55 * Math.PI) / 180;
+
+/** Day ray `i`'s angle at time T round the sun's middle direction `mid` (beams.ts `sunMid`): evenly over ±DAY_FAN, a little off its place, swaying with the sun (item 68). */
+export function dayRayAngle(i: number, mid: number, T: number): number {
+  const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5;
+  const at = (i + 0.5 + (j - 0.5) * 0.3) / DAY_RAYS;
+  return mid + DAY_FAN * (2 * at - 1) + sunDrift(T) + Math.sin(T * 0.21 + i) * 0.003;
+}
+/** The pulse's period, s, and how much it varies from one to the next (± share). */
+export const PULSE_S = 20;
+const PULSE_VARY = 0.15;
 
 /**
- * How high the sun stands for the glimpses: 0 at the dawn and dusk hours, 1
+ * How high the sun stands for the pulse: 0 at the dawn and dusk hours, 1
  * at midday (`sunU` 0.5); `sunU` < 0 (not synced) counts as GLIMPSE_H_UNKNOWN.
  */
 export function sunHeight(sunU: number): number {
@@ -58,29 +97,14 @@ export function sunHeight(sunU: number): number {
   return Math.sin(Math.PI * clamp(sunU, 0, 1));
 }
 
-/** One glimpse: seconds from this glimpse's start to the next one's, how long it shines, its peak (0..1). */
-export interface GlimpsePlan {
-  gap: number;
-  dur: number;
-  peak: number;
-}
-
 /**
- * The next glimpse at the sun's place in the day (owner feedback 52): one
- * random size `q` makes it small (short, faint) or big (longer, stronger),
- * small ones more often; the sun's height `h` scales all of it. Start to
- * start, glimpses come every 50–60 s at the dawn/dusk hours and every 22–40 s
- * at midday, so one is seen at least once a minute; a glimpse lasts 5–8 s
- * early/late, 8–16 s at midday; its peak is 0.35–0.55 early/late, 0.7–1 at
- * midday.
+ * The day sky's rays at phase `ph` (0..1 through one pulse) and the sun's
+ * place in the day (owner item 73): a slow swell between nothing and only
+ * just perceptible, a little more at midday.
  */
-export function planGlimpse(sunU: number, rnd: () => number = Math.random): GlimpsePlan {
-  const h = sunHeight(sunU), q = rnd() ** 1.4;
-  return {
-    gap: lerp(50, 22, h) + rnd() * lerp(10, 18, h),
-    dur: lerp(5, 8, h) + q * lerp(3, 8, h),
-    peak: lerp(0.35, 0.7, h) + q * lerp(0.2, 0.3, h),
-  };
+export function pulseStrength(ph: number, sunU: number): number {
+  const s = Math.sin(Math.PI * (ph - Math.floor(ph)));
+  return lerp(PULSE_LOW, PULSE_HIGH, sunHeight(sunU)) * s * s;
 }
 
 interface Bird {
@@ -161,14 +185,20 @@ export interface DayInput {
   life: number;
   /** Cloud tufts: a clear day sky (0..1). */
   tufts: number;
-  /** Sun glimpses: the sun is out (0..1). */
+  /** The sun's rays: the sun is out (0..1). */
   sun: number;
-  /** How far the sun is through the day (protocol `sunU`: 0 dawn … 1 dusk, -1 unknown): how often and how strong the glimpses are. */
+  /** How far the sun is through the day (protocol `sunU`: 0 dawn … 1 dusk, -1 unknown): how strong the pulse is. */
   sunU: number;
-  /** Where the sun sits (CSS px; above the top edge). */
+  /** Where the sun sits (CSS px; outside the screen, beams.ts `sunPoint`). */
   sx: number;
   sy: number;
+  /** A sunrise or sunset runs or is about to: the pulse fades out quickly and stays out (owner item 64). */
+  block: boolean;
 }
+
+/** The pulse fades out with this time constant (s) when a sunrise or sunset blocks it, and back in over this much more. */
+const GLIMPSE_BLOCK_TAU = 0.35;
+const PULSE_BACK_TAU = 4;
 
 export class DayLife {
   private readonly big: Cv;
@@ -177,15 +207,20 @@ export class DayLife {
   private tufts: Tuft[] = [];
   private flocks: Flock[] = [];
   private bug: { x: number; y: number; tx: number; ty: number; age: number; life: number; hold: number } | null = null;
-  private glimpse: { t0: number; dur: number; peak: number } | null = null;
+  /** The pulse: its phase (0..1 per pulse), this pulse's length (s) and how much of it is let through (0 while a turn holds it back). */
+  private pulsePh = Math.random();
+  private pulseLen = PULSE_S;
+  private pulseOn = 1;
   private nextBird = rr(20, 60);
   private nextBug = rr(60, 200);
-  /** Seconds to the next glimpse's start (counted only while the sun is out); the first comes soon. */
-  private nextGlimpse = rr(6, 20);
   private W = 0;
   private H = 0;
   private readonly light: boolean;
   private readonly comp: GlobalCompositeOperation;
+  /** The dithered textures (owner item 84): the rays' (fading down the screen) and the glow's, for this H. */
+  private rayTex: Cv | null = null;
+  private glowTex: Cv | null = null;
+  private texH = 0;
   /** The wind's drift (px/s, negative: toward the left, as the clouds drift). */
   wind = -2.4;
 
@@ -214,11 +249,11 @@ export class DayLife {
     ];
   }
 
-  /** Something that needs more than the still rate is on (flock, insect, glimpse). */
+  /** Something that needs more than the still rate is on (flock, insect; the pulse does not). */
   fps(): number {
     if (this.bug) return FPS_SLOW;
-    if (this.flocks.length) return this.glimpse ? Math.max(BIRD_FPS, GLIMPSE_FPS) : BIRD_FPS;
-    return this.glimpse ? GLIMPSE_FPS : 0;
+    if (this.flocks.length) return BIRD_FPS;
+    return 0;
   }
 
   private spawnFlock(): void {
@@ -320,27 +355,24 @@ export class DayLife {
         b.fillRect(x + 2, y - 1, 1, 1);
       }
     }
-    // A sun glimpse: the countdown runs start to start while the sun is out.
-    if (k.sun > 0.4) {
-      this.nextGlimpse -= dt;
-      if (this.nextGlimpse <= 0 && !this.glimpse) {
-        const g = planGlimpse(k.sunU);
-        this.nextGlimpse = g.gap;
-        this.glimpse = { t0: T, dur: g.dur, peak: g.peak };
-      }
+    // The sun's rays pulse slowly (owner item 73), a little irregularly; not
+    // while a sunrise or sunset runs or is about to (owner item 64).
+    this.pulsePh += dt / this.pulseLen;
+    if (this.pulsePh >= 1) {
+      this.pulsePh -= 1;
+      this.pulseLen = PULSE_S * (1 + (Math.random() * 2 - 1) * PULSE_VARY);
     }
-    if (this.glimpse) {
-      const gl = this.glimpse, p = (T - gl.t0) / gl.dur;
-      if (p >= 1) this.glimpse = null;
-      else this.drawGlimpse(b, f, panes, T, Math.sin(Math.PI * p) ** 2 * gl.peak * k.sun, k.sx, k.sy, glints);
-    }
+    this.pulseOn = k.block ? this.pulseOn * Math.exp(-dt / GLIMPSE_BLOCK_TAU) : Math.min(1, this.pulseOn + dt / PULSE_BACK_TAU);
+    const e = pulseStrength(this.pulsePh, k.sunU) * this.pulseOn * k.sun;
+    if (e > 0.003) this.drawGlimpse(b, T, e, k.sx, k.sy);
     b.globalAlpha = 1;
     return this.fps();
   }
 
-  /** Start a glimpse now (dev / tests / the demo): a strong midday one, its peak 4 s on (within the demo's 5 s day step). */
-  glimpseNow(T: number): void {
-    this.glimpse = { t0: T, dur: 8, peak: 1 };
+  /** The pulse's peak in about 2 s (dev / the demo: the `glimpse` event). */
+  glimpseNow(): void {
+    this.pulsePh = 0.4;
+    this.pulseOn = 1;
   }
   /** Send a flock now (dev / tests). */
   birdsNow(): void {
@@ -352,68 +384,92 @@ export class DayLife {
     this.bug = { x, y, tx: x, ty: y, age: 0, life: rr(3, 5), hold: 0 };
   }
 
-  private drawGlimpse(b: Ctx, f: Ctx, panes: readonly FrameBox[], T: number, e: number, sx: number, sy: number, glints: Glints): void {
-    if (e < 0.01) return;
-    const H = this.H, L = H * 0.95;
-    const rgb = this.light ? '255,214,140' : '255,240,205';
+  /** Builds the dithered textures for this H (once per size; CPU canvas, ADR 0091). */
+  private textures(): void {
+    const H = this.H;
+    if (this.texH === H && this.rayTex) return;
+    this.texH = H;
+    const [r, g, bl] = this.light ? [255, 214, 140] : [255, 240, 205];
+    const dith = (): number => DITHER_MIN + (1 - DITHER_MIN) * Math.random();
+    // the light at the pulse's peak, rounded at random (a share of the pixels one level up)
+    const lvl = (v: number): number => Math.min(255, Math.floor(255 * v * dith() + Math.random()));
+    const ray = PULSE_HIGH * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY), glow = PULSE_HIGH * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
+    // the rays': strongest at the top, fading down the screen, gone about three
+    // quarters down (owner item 82; was by the distance from the sun); repeated across
+    const RH = Math.ceil(H * 0.78) + 1, RW = 256;
+    const fall = (v: number): number => (v < 0.3 ? 1 - (0.4 * v) / 0.3 : v < 0.65 ? 0.6 - (0.4 * (v - 0.3)) / 0.35 : Math.max(0, 0.2 - (0.2 * (v - 0.65)) / 0.35));
+    const rc = mkCanvas(RW, RH), rx = ctx2dCpu(rc), ri = rx.createImageData(RW, RH);
+    for (let y = 0; y < RH; y++) {
+      const f = fall(y / (H * 0.78));
+      for (let x = 0; x < RW; x++) {
+        const o = (y * RW + x) * 4;
+        ri.data[o] = r;
+        ri.data[o + 1] = g;
+        ri.data[o + 2] = bl;
+        ri.data[o + 3] = lvl(ray * f);
+      }
+    }
+    rx.putImageData(ri, 0, 0);
+    this.rayTex = rc;
+    // the glow's: 1 at the middle, 0.35 at 0.35 of its radius, 0 at its edge
+    const GR = Math.ceil(H * 0.42 * GLOW_TEX_K), GS = GR * 2;
+    const gc = mkCanvas(GS, GS), gx = ctx2dCpu(gc), gi = gx.createImageData(GS, GS);
+    for (let y = 0; y < GS; y++) {
+      for (let x = 0; x < GS; x++) {
+        const d = Math.hypot(x + 0.5 - GR, y + 0.5 - GR) / GR;
+        const f = d < 0.35 ? 1 - (0.65 * d) / 0.35 : Math.max(0, 0.35 * (1 - (d - 0.35) / 0.65));
+        const o = (y * GS + x) * 4;
+        gi.data[o] = r;
+        gi.data[o + 1] = g;
+        gi.data[o + 2] = bl;
+        gi.data[o + 3] = lvl(glow * f);
+      }
+    }
+    gx.putImageData(gi, 0, 0);
+    this.glowTex = gc;
+  }
+
+  private drawGlimpse(b: Ctx, T: number, e: number, sx: number, sy: number): void {
+    const W = this.W, H = this.H;
+    this.textures();
     b.globalCompositeOperation = this.comp;
-    // the sun peeking out: a soft warm glow in the top right corner
+    // The sun is outside the screen (beams.ts `sunPoint`): its light comes in
+    // where the line from it to the screen's middle crosses the edge (`gx, gy`).
+    const mid = sunMid(sx, sy, W, H), mc = Math.cos(mid), ms = Math.sin(mid);
+    let tin = 0;
+    if (sy < 0 && ms > 1e-6) tin = Math.max(tin, -sy / ms);
+    if (sx > W && mc < -1e-6) tin = Math.max(tin, (W - sx) / mc);
+    if (sx < 0 && mc > 1e-6) tin = Math.max(tin, -sx / mc);
+    const gx = sx + mc * tin, gy = sy + ms * tin;
+    // the sun peeking out: a soft warm glow where its light comes in (dithered, item 84)
     const R0 = H * 0.42;
-    const halo = b.createRadialGradient(sx, sy, 0, sx, sy, R0);
-    halo.addColorStop(0, `rgba(${rgb},1)`);
-    halo.addColorStop(0.35, `rgba(${rgb},0.35)`);
-    halo.addColorStop(1, `rgba(${rgb},0)`);
-    b.fillStyle = halo;
-    b.globalAlpha = e * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
-    if (sy + R0 > 0) b.fillRect(sx - R0, 0, R0 * 2, sy + R0);
-    // the rays: strongest at the sun, reaching about two thirds down the screen
-    const gr = b.createRadialGradient(sx, sy, 0, sx, sy, L);
-    gr.addColorStop(0, `rgba(${rgb},1)`);
-    gr.addColorStop(0.3, `rgba(${rgb},0.8)`);
-    gr.addColorStop(0.65, `rgba(${rgb},0.45)`);
-    gr.addColorStop(1, `rgba(${rgb},0)`);
-    b.fillStyle = gr;
-    const RAYS = 6;
-    f.globalCompositeOperation = glints.comp;
-    for (let i = 0; i < RAYS; i++) {
-      const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5;
-      // down and to the left from the top right sun, fanned out over the open
-      // sky and the game text (steeper ones fell behind the right dock's panes)
-      const a = 1.9 + i * 0.15 + (j - 0.5) * 0.05 + Math.sin(T * 0.21 + i) * 0.012;
-      const wd = 0.008 + j * 0.012;
-      const al = (0.45 + 0.55 * j) * e;
-      b.globalAlpha = al * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY);
+    // the textures hold the peak's light: the pulse is their share, 0 … 1
+    const k = Math.min(1, e / PULSE_HIGH);
+    b.globalAlpha = k;
+    const sm = b.imageSmoothingEnabled;
+    b.imageSmoothingEnabled = false;
+    b.drawImage(this.glowTex!, gx - R0, gy - R0, R0 * 2, R0 * 2);
+    b.imageSmoothingEnabled = sm;
+    // the rays: their texture fades down the screen (item 82), dithered (item 84)
+    const L = tin + H * 1.6;
+    const pat = b.createPattern(this.rayTex!, 'repeat-x');
+    if (!pat) return;
+    b.fillStyle = pat;
+    // spread wide round the sun's middle direction, a few, by tier (owner
+    // item 82), swaying together (one sun, owner item 68)
+    const near = (H * 0.6) / (tin + H * 0.6);
+    for (let i = 0; i < DAY_RAYS; i++) {
+      const j = Math.sin(i * 7.31 + 1.7) * 0.5 + 0.5, tier = DAY_TIERS[i]!;
+      const a = dayRayAngle(i, mid, T);
+      const wd = (tier === 'w' ? 0.008 : 0.012 + j * 0.004) * near;
+      b.globalAlpha = DAY_TIER_K[tier]! * k;
       b.beginPath();
       b.moveTo(sx, sy);
       b.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
       b.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
       b.closePath();
       b.fill();
-      // where the ray's middle enters a framed pane (its top or its right
-      // line, the sun being top right): a glint on that stretch of the rim,
-      // in the rim's shape (glints.line: rounded corners, the plate with the
-      // top rim; owner items 45, 49), fading along the ray as the ray does
-      const s = Math.sin(a), c = Math.cos(a);
-      for (const p of panes) {
-        if (!p.border) continue;
-        let side: 't' | 'r' | null = null, at = 0, t = Infinity;
-        if (p.y > sy) {
-          const tt = (p.y - sy) / s, x = sx + c * tt;
-          if (x >= p.x && x <= p.x + p.w) (side = 't'), (at = x), (t = tt);
-        }
-        const xr = p.x + p.w;
-        if (c < 0 && xr < sx) {
-          const tt = (xr - sx) / c, y = sy + s * tt;
-          if (y >= p.y && y <= p.y + p.h && tt < t) (side = 'r'), (at = y), (t = tt);
-        }
-        if (!side) continue;
-        const fall = 1 - 0.6 * clamp(t / L, 0, 1);
-        const ga = al * GLIMPSE_GLINT * fall;
-        glints.line(f, p, side, at, side === 't' ? 80 : 60, ga, ga > 0.24 ? 0.6 : 0);
-      }
     }
-    f.globalAlpha = 1;
-    f.globalCompositeOperation = 'source-over';
     b.globalAlpha = 1;
     b.globalCompositeOperation = 'source-over';
   }

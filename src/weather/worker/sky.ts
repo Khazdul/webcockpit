@@ -19,8 +19,10 @@
 //    (east) to below the left edge (west), like the sun, at the almanac's
 //    place and pace (720 s up); by day much fainter (feedback 11, 38)
 //  - sunrise / sunset moments: faint thin rays with pane shadow wedges, and
-//    a bundle of three strong beams sweeping across the screen; the frame
-//    lines glint exactly where a beam crosses them (beams.ts, feedback 37)
+//    three faint beams spread over the same slow fan; the frame lines glint
+//    where a ray or beam crosses them (beams.ts, feedback 37, items 78, 79).
+//    Both follow the clock over the 60 s before the day or the night
+//    begins (`env.rise`, `env.set`; sunturn.ts curves, ADR 0093)
 //  - Event.Darkness start / grow (a darkness spell spreading): a red ominous
 //    bleed from the top and the corners; shrink / end: a brief lightening.
 //    Nothing else is red: no darkness sky (owner feedback 26)
@@ -32,31 +34,33 @@
 // `darkness` gates.
 
 import { RIM_R } from '../../panes/frame';
-import { SKY_HOLD_S, SKY_RATE } from '../director';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, beamHits, beamPieces, notchPieces, sunBeams } from './beams';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
+import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { DayLife } from './daylife';
-import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
 import { plateRects, rimRects } from './rimshape';
 
 /** The moon's time up, real s at game pace: 720 game minutes, one real second each (gametime.ts). */
 const MOON_UP_S = 720;
-/** Without its set event the moon waits here, low at the left (west) edge. */
+/** Without a clock to the minute and its set event the moon waits here on its drawn path, just past the left (west) edge. */
 const MOON_HOLD = 0.97;
 /** Where a moon of unknown age shows (no synced almanac). */
 const MOON_START = 0.5;
+/** No moon (`Sky.u`): below any place on its way, the way in before the rise included. */
+const NO_MOON = -1;
+/** At the game's rise the moon's centre is this many radii inside the right edge (about 80 % of the disc in; owner item 63). */
+export const MOON_RISE_IN = 0.6;
+/** The moon's pace may change this much (×) to take up a correction of its place (owner item 69): 0.5 … 1.5 of its own. */
+export const MOON_PACE_CAP = 0.5;
+/** A correction larger than the cap takes up in this long (s) fades the moon out and in at its new place instead. */
+export const MOON_GLIDE_S = 20;
+/** Frames this far apart (real s: a hidden tab, a paused worker) place the moon anew, fading in. */
+const MOON_GAP_S = 2;
 /** The moon by day: this much of its night strength (owner feedback 11). */
 const DAY_MOON = 0.24;
-/**
- * Sunrise and sunset moments, s (were 9 and 10; owner feedback 29). The
- * director changes the sky from day to night (or back) from SKY_HOLD_S to
- * SKY_HOLD_S + 1 / SKY_RATE (11–23 s) into them, so the day sky stays
- * through most of the sunset.
- */
-const RISE_S = SKY_HOLD_S + 1 / SKY_RATE + 1;
-const SET_S = SKY_HOLD_S + 1 / SKY_RATE + 3;
 /** Cloud cover change per second (none → `~` 0.6 in 24 s, owner feedback 23). */
 const COVER_RATE = 1 / 40;
 
@@ -281,7 +285,8 @@ type KeyC = [number, Rgb][];
 const RISE_K: Key = [[0, 6], [0.18, 4], [0.34, 3], [0.55, 2], [0.85, 0], [1, 0]];
 const SET_K: Key = [[0, 0], [0.16, 2], [0.42, 3], [0.68, 4], [0.92, 6], [1, 6]];
 const RISE_C: KeyC = [[0, [90, 60, 150]], [0.2, [230, 110, 140]], [0.4, [255, 170, 80]], [0.7, [255, 222, 160]], [1, [255, 244, 220]]];
-const SET_C: KeyC = [[0, [255, 196, 96]], [0.2, [255, 150, 60]], [0.45, [232, 56, 52]], [0.7, [150, 48, 110]], [0.88, [50, 64, 150]], [1, [24, 32, 90]]];
+// a sunset's warm colours last to its last seconds: night blue at 0.88 (-7 s) read as the sun set 10 s early (owner item 83)
+const SET_C: KeyC = [[0, [255, 196, 96]], [0.2, [255, 150, 60]], [0.5, [232, 56, 52]], [0.8, [170, 52, 104]], [0.95, [110, 52, 128]], [1, [60, 60, 140]]];
 function keyPal(K: Key, p: number, out: Float32Array, m: number): void {
   for (let i = 0; i < K.length - 1; i++) {
     if (p <= K[i + 1]![0]) {
@@ -351,30 +356,119 @@ export interface MoonPath {
 export function moonPath(W: number, H: number, R: number): MoonPath {
   return { x0: W + R * 2.4, x1: -R * 2.4, yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
+/**
+ * How far in on its path the moon is drawn at its rise and set, as a share
+ * of the path (owner items 63, 69): at the game's rise (u = 0) the centre is
+ * MOON_RISE_IN · R inside the right edge, at its set (u = 1) as far inside
+ * the left one. The game's u maps onto the drawn path as `moonVisU`: 0 … 1
+ * onto `lead` … 1 − `lead`; the way in before the rise and out after the set
+ * are the path's first and last `lead`.
+ */
+export function moonLead(P: MoonPath, W: number, R: number): number {
+  return clamp((P.x0 - (W - MOON_RISE_IN * R)) / (P.x0 - P.x1), 0, 0.4);
+}
+/** The drawn place (0 … 1 along `moonPath`) for the game's u (`-moonPreU(lead)` … 1 + `moonPreU(lead)`). */
+export function moonVisU(u: number, lead: number): number {
+  return lead + (1 - 2 * lead) * u;
+}
+/** How long before its rise the moon comes in (and after its set goes on), in game u. */
+export function moonPreU(lead: number): number {
+  return lead / (1 - 2 * lead);
+}
+/** The game's u at `nowMs` for a time up from `riseAt` to `setAt` (unix ms): negative before the rise, above 1 after the set. */
+export function moonClockU(nowMs: number, riseAt: number, setAt: number): number {
+  return (nowMs - riseAt) / (setAt - riseAt);
+}
+/**
+ * One step of the moon toward its place `tu` (both game u; `tu` already for
+ * the step's end) at its pace `n` (u per s) over `dt` s: never slower than
+ * 1 − MOON_PACE_CAP of its pace, never faster than 1 + it, so a correction is
+ * taken up by a gentle change of pace, never a rush (owner item 69). Null
+ * when it is too far to take up within MOON_GLIDE_S: fade and place instead.
+ */
+export function moonGlide(u: number, tu: number, n: number, dt: number): number | null {
+  if (Math.abs(tu - u - n * dt) > MOON_PACE_CAP * n * MOON_GLIDE_S) return null;
+  return clamp(tu, u + (1 - MOON_PACE_CAP) * n * dt, u + (1 + MOON_PACE_CAP) * n * dt);
+}
+
+/** Without a clock the moon waits for its set event at MOON_HOLD on its drawn path: that place in game u. */
+function moonHoldU(lead: number): number {
+  return (MOON_HOLD - lead) / (1 - 2 * lead);
+}
+
 /** The moon's place at `u` (0 rise … 1 set) on `P`: x even along it, y on a sine arc. */
 export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
   out[0] = lerp(P.x0, P.x1, u);
   out[1] = P.yBase - (P.yBase - P.yTop) * Math.sin(Math.PI * clamp(u, 0, 1));
 }
 
-/** The sun in a sunrise (east: the top right, climbing) or sunset (west: the top left, sinking) moment at `p` (0..1). */
+/**
+ * The sun in a sunrise (from the horizon at the right, climbing to where the
+ * day's glimpses start) or a sunset (from ~40° up at the left, sinking to the
+ * horizon) at `p` (0..1): the one sun of beams.ts `sunPsi` / `sunPoint`
+ * (owner items 66, 67).
+ */
 export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-  const q = sst(0, 1, p);
-  if (kind === 'rise') {
-    out[0] = W * (1.07 - 0.2 * q);
-    out[1] = H * (0.06 - 0.5 * q);
-  } else {
-    out[0] = W * (0.22 - 0.3 * q);
-    out[1] = H * (-0.42 + 0.5 * q);
-  }
+  sunPoint(sunPsi(kind, p), W, H, out);
 }
 
-/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a bright thin core. */
+/**
+ * A glint's core at full strength (a beam's; a thin ray's by its tier,
+ * beams.ts TIER_GLINT): under 1, so the glints fade from the first moment
+ * the rays do (owner item 81: they were drawn at 1.1–1.3 and clipped at 1,
+ * so a fading glint stayed).
+ */
+const GLINT_CORE = 0.95;
+/** A thin ray's strength by tier (owner item 80: a little weaker than the beams, or much weaker). */
+const RAY_TIER: Readonly<Record<'m' | 'w', number>> = { m: 1, w: 0.4 };
+/** A thin ray's alpha (its body and its core; was 0.2, then 0.085): subtle, not a spotlight (owner items 78, 83; by eye from headless screenshots). Their glints go by `turnGlint`, not by this. */
+const RAY_ALPHA = 0.0425;
+
+/** A beam's layers: width (× its half-width) and alpha: a soft wide glow, the body, a thin core (about a third as strong as before owner item 78, which found them spotlights; half that, item 83). */
 const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
-  [2.6, 0.07],
-  [1, 0.16],
-  [0.32, 0.2],
+  [2.2, 0.011],
+  [1, 0.025],
+  [0.3, 0.0325],
 ];
+
+/** The sun's own light (its hot spot, its hazy glow, the ray front's band) by turn: half of before (owner item 83; said of the sunset, the sunrise's is the same drawing). */
+const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
+
+/**
+ * The turn's rays and beams are drawn into a layer at LAYER_K times their
+ * alpha, multiplied there by a fixed grain (GRAIN_MIN … 1 per pixel) and
+ * copied onto the sky at LAYER_A (owner items 88, 89). A ray adds only a few
+ * 8-bit levels to the sky and globalAlpha is itself 8-bit, so drawn
+ * directly each level came at once over a whole ray and it popped; dithered
+ * in time (a random level each frame) it flickered. Through the grain each
+ * pixel takes its step at its own moment, and nothing changes from frame to
+ * frame but the light itself.
+ */
+const LAYER_A = 21 / 255;
+const GRAIN_MIN = 0.5;
+const LAYER_K = 1 / (LAYER_A * (1 + GRAIN_MIN) * 0.5);
+/** The layer's resolution, a share of the sky's (drawn scaled up: a quarter of the pixels to clear, grain and copy each frame). */
+const LAYER_SCALE = 0.5;
+/** The grain tile's side, px. */
+const GRAIN_N = 256;
+/** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
+const SET_RAYS_LATE = 1;
+/** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
+const RAY_SHIMMER = 0.1;
+
+/** The grain for a layer of w × h px: a GRAIN_N tile repeated, on a canvas of its own (one image copy a frame; a pattern fill cost more). */
+function grainLayer(w: number, h: number): Cv {
+  const t = mkCanvas(GRAIN_N, GRAIN_N), tq = ctx2dCpu(t), im = tq.createImageData(GRAIN_N, GRAIN_N);
+  const R = rng(4242);
+  for (let i = 0; i < GRAIN_N * GRAIN_N; i++) {
+    im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = 255;
+    im.data[i * 4 + 3] = Math.round(255 * (GRAIN_MIN + (1 - GRAIN_MIN) * R()));
+  }
+  tq.putImageData(im, 0, 0);
+  const c = mkCanvas(w, h), q = ctx2d(c);
+  for (let y = 0; y < h; y += GRAIN_N) for (let x = 0; x < w; x += GRAIN_N) q.drawImage(t, x, y);
+  return c;
+}
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
 function polyFill(g: Ctx, P: readonly number[]): void {
@@ -385,13 +479,11 @@ function polyFill(g: Ctx, P: readonly number[]): void {
   g.fill();
 }
 
-interface Moment {
-  kind: 'rise' | 'set';
-  t0: number;
-  dur: number;
-}
-
 class Sky {
+  /** The turn's ray layer and its grain (LAYER_A), made on the first turn frame at this size. */
+  rayL: Cv | null = null;
+  rayLg: Ctx | null = null;
+  grain: Cv | null = null;
   T = 0;
   W = 0;
   H = 0;
@@ -410,7 +502,6 @@ class Sky {
   wet = 0;
   fogK = 1;
   first = true;
-  moment: Moment | null = null;
   dark: { t0: number; k: number } | null = null;
   darkG = 0;
   lift: { t0: number; k: number; dur: number } | null = null;
@@ -423,11 +514,21 @@ class Sky {
   lifeFps = 0;
   lastShootGlint = 0;
   u: number;
-  /** The almanac's moon place last seen, and what is left of a correction toward it (glided, never a jump). */
+  /** The almanac's moon place last seen. */
   moonUWas: number;
-  uCorr = 0;
   moonSet: { u0: number; t0: number; dur: number } | null = null;
   moonPres: number;
+  /** The moon's lead on its path at the rise and set (`moonLead`, from the size) and its way in and out (`moonPreU`). */
+  moonLd = 0;
+  moonPre = 0;
+  /** Without a clock to the minute: where the moon should be (game u; NaN unknown), moved on at its pace. */
+  fbU = NaN;
+  /** The moon fades out to be placed anew (a correction too big to glide out). */
+  relocate = false;
+  /** Wall ms of the last moon step (a gap: a hidden tab). */
+  moonWall = 0;
+  /** The clock places the moon (its rise and set are known). */
+  moonClock = false;
   moonVis = 0;
   mVisNow = 0;
   mx = 0;
@@ -439,8 +540,9 @@ class Sky {
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
-  /** How far the sun moment is (0..1; -1 without one). */
+  /** How far the sun moment is (0..1; -1 without one), and which it is (the clock's sunrise or sunset, or none). */
   momentP = -1;
+  mKind: TurnKind | null = null;
   /** The blue day sky's share (0..1, eased toward the `daySky` switch), and whether it moved. */
   dayK = 1;
   dayMoving = false;
@@ -461,6 +563,19 @@ class Sky {
   /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
   beams: Beam[] = [];
   beamK = 0;
+  /** The frame glints' strength this frame (sunturn.ts `turnGlint`, owner items 80, 81). */
+  glintK = 0;
+  /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
+  sunUs = -1;
+  daySun = new Float32Array(2);
+  /** A turn's stars are coming or going (sunturn.ts `turnStars`). */
+  starsIn = false;
+  /** The turn's `s` this frame (sunturn.ts: which rays and beams are there yet). */
+  turnS = 0;
+  /** The turn's ray fan this frame: its lower and upper edge (beams.ts turnFan). */
+  fan = new Float32Array(2);
+  /** The thin rays this frame (`k` their glint by tier, 0..1): they glint where they cross a frame line too (owner items 68, 78, 80). */
+  rays: Beam[] = [];
   hits: BeamHit[] = [];
   boxes: Box[] = [];
   /** The faint top lift's rects (rimshape.ts), reused every frame. */
@@ -523,7 +638,7 @@ class Sky {
     this.glints = new Glints(env.theme);
     this.life = new DayLife(env.theme);
     const mu = env.raw.moonU;
-    this.u = env.raw.moonUp ? (mu >= 0 ? mu : MOON_START) : -1;
+    this.u = env.raw.moonUp ? (mu >= 0 ? mu : MOON_START) : NO_MOON;
     this.moonUWas = mu;
     this.moonPres = env.raw.moonUp ? 1 : 0;
     if (prev) {
@@ -531,7 +646,9 @@ class Sky {
       this.T = prev.T;
       this.u = prev.u;
       this.moonUWas = prev.moonUWas;
-      this.uCorr = prev.uCorr;
+      this.fbU = prev.fbU;
+      this.relocate = prev.relocate;
+      this.moonWall = prev.moonWall;
       this.coverS = prev.coverS;
       this.coverShape = prev.coverShape;
       this.moonPres = prev.moonPres;
@@ -594,6 +711,8 @@ class Sky {
     if (!this.moon || this.moon.R !== MR) this.moon = new MoonSurface(MR, env.noise, this.th.light);
     this.moon.phase = -1;
     this.mpath = moonPath(W, H, MR);
+    this.moonLd = moonLead(this.mpath, W, MR);
+    this.moonPre = moonPreU(this.moonLd);
     this.life.resize(W, H);
     const bk = env.back;
     this.gTopRed = bk.createLinearGradient(0, 0, 0, H * 0.45);
@@ -612,6 +731,7 @@ class Sky {
     this.gLift.addColorStop(0, L(180, 190, 215, 0.5));
     this.gLift.addColorStop(0.5, L(140, 150, 180, 0.14));
     this.gLift.addColorStop(1, L(120, 130, 160, 0));
+    this.rayL = this.rayLg = null;
     this.skyCv = mkCanvas(W * d, Math.ceil(this.skyH) * d);
     this.skyCg = ctx2d(this.skyCv);
     this.skyCg.setTransform(d, 0, 0, d, 0, 0);
@@ -622,24 +742,27 @@ class Sky {
   }
 
   onEvent(env: Env, name: WeatherEvent | 'position'): void {
-    if (name === 'sun.rise' || name === 'sun.set') {
-      if (!env.cats.sky) return;
-      this.moment = { kind: name === 'sun.rise' ? 'rise' : 'set', t0: this.T, dur: (name === 'sun.rise' ? RISE_S : SET_S) / env.speed };
-    } else if (name === 'moon.rise') {
-      // A moon already up (the almanac predicted the rise first) keeps its place: never a jump.
+    if (name === 'moon.rise') {
+      // A moon already up or on its way in keeps its place: never a jump. The
+      // clock places it on its own (owner item 69); without one it fades in
+      // at its rise place, its centre just inside the right edge.
       this.moonSet = null;
-      if (!(this.u >= 0 && this.moonPres > 0.02)) {
-        this.u = 0;
-        this.moonPres = 1;
+      if (!this.moonClock) {
+        if (!(this.u > NO_MOON && this.moonPres > 0.02)) {
+          this.u = 0;
+          this.moonPres = 0;
+        }
+        this.fbU = Math.max(0, this.u);
       }
     } else if (name === 'moon.set') {
-      // Near its end it goes on at its own pace; a moon far from it (no synced almanac) hurries off.
+      // With the clock it goes out on its own at its pace. Without: near its
+      // end it goes on at its own pace; a moon far from it hurries off.
       const u = this.u;
-      if (u >= 0) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1.02 - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
+      if (u > NO_MOON && !this.moonClock) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1 + this.moonPre - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
     } else if (name === 'birds') {
       this.life.birdsNow();
     } else if (name === 'glimpse') {
-      this.life.glimpseNow(this.T);
+      this.life.glimpseNow();
     } else if (name === 'insect') {
       this.life.insectNow();
     } else if (name === 'shoot') {
@@ -710,24 +833,31 @@ class Sky {
     t[1]! += wSun * wet * 0.85;
     t[5]! += wMoon * (1 - wet * 0.5);
     t[6]! += wMoon * wet * 0.5 + wNight;
-    let mP = -1, mI = 0;
-    const M = this.moment;
-    if (M) {
-      mP = (T - M.t0) / M.dur;
-      if (mP >= 1) {
-        this.moment = null;
-        mP = -1;
-      } else {
-        const e1 = sst(0, 0.06, mP) * (1 - sst(0.94, 1, mP)) * out;
-        for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
-        keyPal(M.kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
-        mI = M.kind === 'rise' ? sst(0.04, 0.3, mP) * (1 - sst(0.62, 1, mP)) : sst(0, 0.14, mP) * (1 - sst(0.6, 1, mP));
-        keyCol(M.kind === 'rise' ? RISE_C : SET_C, mP, this.col);
-      }
+    // mI: the turn's strength (tint, palette, glow); rI: its rays and beams (from its first second, owner item 62)
+    let mP = -1, mI = 0, e1 = 0, rI = 0, gI = 0;
+    // Sunrise and sunset: the clock's last 60 s of the night or the day, until
+    // the day or night begins (the director's `riseS` / `setS`); strength,
+    // glow, palette and colours by time (sunturn.ts, owner items 71, 72, 76, 77).
+    const on = (x: number): boolean => skyOn && turnOn(x);
+    const kind = on(env.rise) ? 'rise' : on(env.set) ? 'set' : null;
+    if (kind) {
+      const ts = kind === 'rise' ? env.rise : env.set;
+      this.turnS = ts;
+      mP = turnProgress(ts);
+      e1 = turnPalette(ts, kind);
+      mI = turnIntensity(ts, kind);
+      rI = turnRays(kind, ts);
+      gI = turnGlow(kind, ts);
+      this.glintK = turnGlint(kind, ts) * out;
+      e1 *= out;
+      for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
+      keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
+      keyCol(kind === 'rise' ? RISE_C : SET_C, mP, this.col);
     }
     this.momentP = mP;
+    this.mKind = kind;
     if (this.first) this.palW.set(t);
-    const pTau = M ? 0.35 : 0.6;
+    const pTau = kind ? 0.35 : 0.6;
     let palD = 0;
     for (let i = 0; i < NP; i++) {
       this.palW[i] = ease(this.palW[i]!, t[i]!, dt, pTau);
@@ -737,14 +867,23 @@ class Sky {
 
     const b = env.back;
     this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
-    const rays = mI > 0.002 && out > 0.02;
-    if (rays) this.drawRaysBack(env, mP, mI * out);
+    const rays = (rI > 0.002 || gI > 0.002) && out > 0.02;
+    if (rays) this.drawRaysBack(env, mP, rI * out, gI * out);
     if (skyOn) {
-      this.drawStars(b, env, wMoon, wNight, out);
+      // a sunrise's stars fade as its light comes, a sunset's come after its last rays (owner items 76, 77)
+      const st = turnStars(env.rise, env.set);
+      // a sunset's stars still fill in for 5 s into the night: at the fast rate, as before it (owner item 83)
+      this.starsIn = st > 0 && st < 1 && this.starVis > 0.003;
+      this.drawStars(b, env, wMoon, wNight, out * st);
       this.drawMoon(b, env, dt, wSun, wMoon, wNight, out);
       this.drawDeck(b, env, dt, out);
       // Day life: birds, an insect, tufts on a clear day, a sun glimpse (owner feedback 22).
       const day = out * wSun * (1 - clamp(mI * 2, 0, 1));
+      // The glimpses' sun follows the day (owner item 65): `sunU` comes in steps
+      // of SUN_U_STEP, so it glides; unknown counts as mid-morning.
+      const su = env.settled.sunU < 0 ? 0.3 : env.settled.sunU;
+      this.sunUs = this.sunUs < 0 || Math.abs(su - this.sunUs) > 0.2 ? su : ease(this.sunUs, su, dt, 8);
+      sunPoint(sunPsi('day', this.sunUs), env.W, env.H, this.daySun);
       this.lifeFps = this.life.frame(
         b,
         env.front,
@@ -756,12 +895,14 @@ class Sky {
           tufts: day * (1 - sst(0, 0.15, cover)) * (1 - wet) * this.fogK,
           sun: day * (1 - wet) * (1 - cover) * this.fogK,
           sunU: env.settled.sunU,
-          sx: SUN_U * env.W,
-          sy: -this.skyH * 0.04,
+          sx: this.daySun[0]!,
+          sy: this.daySun[1]!,
+          block: glimpseBlocked(Date.now(), env.rise, env.set, env.settled.dayAt, env.settled.nightAt),
         },
         this.glints,
       );
     } else {
+      this.starsIn = false;
       this.starVis = 0;
       this.mVisNow = 0;
       this.lifeFps = 0;
@@ -770,13 +911,13 @@ class Sky {
     if (this.lift) this.drawLift(b, env, out);
     this.drawSky(b, env, dt, mI);
     if (skyOn) this.drawShoot(b, env, dt, out);
-    if (rays) this.drawRaysFront(env, mP, mI * out);
+    if (rays) this.drawRaysFront(env, mP, rI * out, gI * out);
     if (mI > 0.002 && out < 0.98) this.drawIndoorTint(env, mI * (1 - out));
     this.drawGlints(env.front, env);
     const glinting = this.glints.draw(env.front, T);
     this.first = false;
     this.still = this.moving ? 0 : this.still + 1;
-    return skyVis > 0.003 || !!this.moment || !!this.dark || !!this.lift || this.shoot.on || glinting || this.lifeFps > 0 || this.moonVis * this.moonPres > 0.01;
+    return skyVis > 0.003 || !!this.mKind || !!this.dark || !!this.lift || this.shoot.on || glinting || this.lifeFps > 0 || this.moonVis * this.moonPres > 0.01;
   }
 
   skyColour(env: Env, wSun: number, wMoon: number, wNight: number, mI: number, out: number): void {
@@ -822,7 +963,7 @@ class Sky {
       // as the director's slow change to night starts; a sunrise tints the
       // night early and lets the day come through.
       const c = this.col, p = this.momentP;
-      const k = mI * (this.moment?.kind === 'set' ? 0.1 + 0.4 * sst(0.3, 0.75, p) : 0.5 - 0.3 * sst(0.4, 0.85, p));
+      const k = mI * (this.mKind === 'set' ? 0.1 + 0.4 * sst(0.3, 0.75, p) : 0.5 - 0.3 * sst(0.4, 0.85, p));
       tr = lerp(tr, c[0]! * 0.7, k * 0.6);
       tg = lerp(tg, c[1]! * 0.7, k * 0.6);
       tb = lerp(tb, c[2]! * 0.7, k * 0.6);
@@ -1244,46 +1385,74 @@ class Sky {
   }
 
   stepMoon(env: Env, dt: number): void {
-    const up = env.settled.moonUp, mu = env.settled.moonU;
-    if (mu !== this.moonUWas) {
-      // The almanac says where the moon is (a clock sync): glide there, never jump.
-      this.moonUWas = mu;
-      if (up && mu >= 0) {
-        if (this.u < 0) {
-          this.u = mu;
-          this.moonPres = 0;
-        } else this.uCorr = mu - this.u;
+    const st = env.settled, pre = this.moonPre, wall = Date.now();
+    // real seconds since the last step (frames stop in a hidden tab)
+    const gap = this.moonWall ? Math.max(0, (wall - this.moonWall) / 1000) : 0;
+    this.moonWall = wall;
+    const ra = st.moonRiseAt, sa = st.moonSetAt;
+    const cu = ra >= 0 && sa > ra ? moonClockU(wall, ra, sa) : NaN;
+    const inside = cu >= -pre && cu <= 1 + pre;
+    // The clock places the moon at every frame (owner item 69), unless the
+    // game says it is up where the clock does not (then the event wins).
+    this.moonClock = cu === cu && (inside || !st.moonUp);
+    let want: boolean, tu: number, n: number;
+    if (this.moonClock) {
+      this.moonSet = null;
+      this.fbU = NaN;
+      want = inside;
+      tu = cu;
+      n = 1000 / (sa - ra);
+    } else {
+      n = env.moonSpeed / MOON_UP_S;
+      const mu = st.moonU;
+      if (mu !== this.moonUWas) {
+        // the almanac says where the moon is (a sync): the moon goes there gently (below)
+        this.moonUWas = mu;
+        if (st.moonUp && mu >= 0) this.fbU = mu;
       }
+      // Up without a place (start, a clock not even to the hour): already in the sky, it fades in there.
+      if (st.moonUp && this.fbU !== this.fbU) this.fbU = this.u > NO_MOON ? this.u : MOON_START;
+      if (this.fbU === this.fbU) this.fbU = Math.min(this.fbU + n * Math.max(dt, gap), moonHoldU(this.moonLd));
+      want = st.moonUp;
+      tu = this.fbU;
     }
     if (this.moonSet) {
       const s = this.moonSet, p = (this.T - s.t0) / s.dur;
       if (p >= 1) {
         this.moonSet = null;
-        this.u = -1;
-      } else this.u = lerp(s.u0, 1.02, p);
-      this.uCorr = 0;
-    } else if (up) {
-      // Up without an Event.Moon rise and no almanac place (start, an unsynced clock): already in the sky, it fades in there.
-      if (this.u < 0) {
-        this.u = MOON_START;
+        this.u = NO_MOON;
+        this.fbU = NaN;
+      } else this.u = lerp(s.u0, 1 + pre, p);
+      want = true;
+    } else if (want && tu === tu) {
+      if (this.u <= NO_MOON || gap > MOON_GAP_S) {
+        // placed at once, fading in: a page load, a sync, coming back to a hidden tab (never a rush across)
+        this.u = tu;
         this.moonPres = 0;
-      }
-      // An even pace: its 720 s up (game pace), slowing only to wait for a late set event at the left edge.
-      const slow = this.u < MOON_HOLD - 0.05 ? 1 : clamp((MOON_HOLD - this.u) / 0.05, 0, 1);
-      this.u += ((dt * env.moonSpeed) / MOON_UP_S) * slow;
-      if (this.uCorr !== 0) {
-        const k = 1 - Math.exp(-dt / 8), d = this.uCorr * k;
-        this.u = clamp(this.u + d, 0, MOON_HOLD);
-        this.uCorr = Math.abs(this.uCorr - d) < 1e-4 ? 0 : this.uCorr - d;
+        this.relocate = false;
+      } else if (this.relocate) {
+        // fading out to be placed anew; it goes on at its pace meanwhile
+        this.u += n * dt;
+        if (this.moonPres < 0.02) {
+          this.u = tu;
+          this.relocate = false;
+        }
+      } else {
+        const g = moonGlide(this.u, tu, n, dt);
+        if (g === null) this.relocate = true;
+        else this.u = this.moonClock ? g : Math.min(g, moonHoldU(this.moonLd));
       }
     }
-    const want = this.u >= 0 && (up || this.moonSet) ? 1 : 0;
-    this.moonPres = ease(this.moonPres, want, dt, 1.5);
-    if (!want && this.moonPres < 0.01) this.u = -1;
+    const on = this.u > NO_MOON && want && !this.relocate ? 1 : 0;
+    this.moonPres = ease(this.moonPres, on, dt, this.relocate ? 0.5 : 1.5);
+    if (!on && !this.relocate && this.moonPres < 0.01) {
+      this.u = NO_MOON;
+      if (!want) this.fbU = NaN;
+    }
   }
-  /** The moon's place at `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west). */
+  /** The moon's place at the game's `u`: an even arc from below the right edge (east), high in the middle, to below the left edge (west), drawn ahead by `moonLd` (`moonVisU`). */
   moonPos(u: number): void {
-    moonAt(this.mpath, u, this.S2);
+    moonAt(this.mpath, moonVisU(u, this.moonLd), this.S2);
     this.mx = this.S2[0]!;
     this.my = this.S2[1]!;
   }
@@ -1295,7 +1464,7 @@ class Sky {
     const tgt = Math.max(0, light) * (1 - 0.8 * sst(0.75, 1, this.cover)) * (0.35 + 0.65 * this.fogK) * (1 - 0.7 * (this.darkG || 0));
     this.moonVis = ease(this.moonVis, tgt, dt, 1.2);
     const u = this.u, mo = this.moon;
-    if (u < 0 || !mo || this.moonVis * this.moonPres < 0.01) {
+    if (u <= NO_MOON || !mo || this.moonVis * this.moonPres < 0.01) {
       this.mVisNow = 0;
       return;
     }
@@ -1305,8 +1474,13 @@ class Sky {
       this.mVisNow = 0;
       return;
     }
-    // low down (behind the text) it is fainter
-    const a = this.moonVis * this.moonPres * (0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y));
+    // low down (behind the text) it is fainter, but not on its way in or out
+    // at the edges: there it is at full strength through the game's rise and
+    // set, taking the low rule over a tenth of its way (owner items 63, 69)
+    const vu = moonVisU(u, this.moonLd);
+    const L = this.moonLd;
+    const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(L, L + 0.1, vu), sst(1 - L - 0.1, 1 - L, vu));
+    const a = this.moonVis * this.moonPres * low;
     const dayK = clamp(day * 1.3, 0, 1);
     // the glow side and the frame glints follow the night moon only
     this.mVisNow = a * (1 - dayK);
@@ -1366,21 +1540,22 @@ class Sky {
     f.fillRect(0, 0, env.W, H);
     f.globalAlpha = 1;
   }
-  drawRaysFront(env: Env, p: number, I: number): void {
-    const W = env.W, H = env.H, M = this.moment!, S = this.S, f = env.front;
+  drawRaysFront(env: Env, p: number, I: number, G: number): void {
+    const W = env.W, H = env.H, kind = this.mKind!, S = this.S, f = env.front;
     const c = this.col, rgb = `${c[0]! | 0},${c[1]! | 0},${c[2]! | 0}`;
     const wetK = 1 - 0.65 * this.wet;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
     const near = Math.max(0, -sy);
-    const front = M.kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.1, 0.85, p));
+    // a sunset's front stays far until its last seconds (owner item 89: the light shrank toward the sun)
+    const front = kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.9, 1, p));
     const bw = far * 0.28;
     const gr = f.createRadialGradient(sx, sy, Math.max(0, front - bw), sx, sy, front + bw);
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = 0.045 * I * wetK;
+    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1407,18 +1582,31 @@ class Sky {
     // Where a strong beam crosses a frame line, that stretch of the line
     // glints: a soft wider glow of the line and a bright core within the
     // beam's width, a sparkle where it enters the pane (owner feedback 37).
-    const bk = this.beamK;
-    if (bk > 0.01) {
+    // One strength for every glint (sunturn.ts turnGlint), so they fade in
+    // and out with the rays (owner items 80, 81), each by its ray's tier.
+    const gk = this.glintK * wetK * this.fogK * GLINT_CORE;
+    if (gk > 0.01) {
       f.globalCompositeOperation = this.glints.comp;
+      // Every thin ray glints too where it crosses a frame line (owner item
+      // 68): a soft glow of the line and a brighter core, as a beam's.
+      for (const r of this.rays) {
+        for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
+          const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT);
+          if (a < 0.02) continue;
+          const len = clamp(h.len * 3, 36, 140);
+          this.glints.line(f, h.p, h.side, h.c, len * 2, a * 0.35);
+          this.glints.line(f, h.p, h.side, h.c, len, a, h.enter && a > 0.3 ? 0.6 : 0);
+        }
+      }
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
         for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
-          const a = bk * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
+          const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
           if (a < 0.02) continue;
           // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line
           const len = clamp(h.len * 1.8, 24, 220);
-          this.glints.line(f, h.p, h.side, h.c, len * 2.2, a * 0.4);
-          this.glints.line(f, h.p, h.side, h.c, len, Math.min(1, a * 1.3), h.enter && a > 0.2 ? 1 : 0);
+          this.glints.line(f, h.p, h.side, h.c, len * 2.2, a * 0.3);
+          this.glints.line(f, h.p, h.side, h.c, len, a, h.enter && a > 0.2 ? 1 : 0);
         }
       }
     }
@@ -1432,20 +1620,24 @@ class Sky {
    * defined path across the screen. Drawn before the panes' shadow wedges
    * are cut, so inside and behind a pane a beam is weaker like the rays.
    */
-  drawBeams(g: Ctx, env: Env, kind: 'rise' | 'set', p: number, sx: number, sy: number, far: number, I: number): void {
-    const W = env.W, H = env.H;
-    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
+  drawBeams(lg: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
+    const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
+    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late);
     if (this.beams.length !== BEAMS) this.beams = [];
-    sunBeams(kind, p, this.T, sx, sy, W, H, this.beams);
+    const kind = this.mKind ?? 'rise', s = this.turnS;
+    sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams, turnShimmer(s));
+    // the beams come one by one as the turn builds (owner item 71)
+    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(kind, i, s);
     if (bk < 0.01) return;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
-    const L = far * 1.25;
-    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, L);
+    // a sunset's beams shrink toward the sun in its last seconds (item 89)
+    const reach = turnReach(kind, s), L = far * 1.25 * reach;
+    const gr = lg.createRadialGradient(sx, sy, 0, sx, sy, L);
     gr.addColorStop(0, `rgba(${rgb},1)`);
     gr.addColorStop(0.5, `rgba(${rgb},.8)`);
-    gr.addColorStop(1, `rgba(${rgb},.3)`);
-    g.fillStyle = gr;
+    gr.addColorStop(1, `rgba(${rgb},${(0.3 * clamp((reach - 0.4) / 0.6, 0, 1)).toFixed(3)})`);
+    lg.fillStyle = gr;
     // the pane boxes from the top line's lower edge, as the shadow wedges
     const boxes = this.boxes;
     boxes.length = 0;
@@ -1474,85 +1666,52 @@ class Sky {
         tri[4] = sx + Math.cos(b.a + hw) * L;
         tri[5] = sy + Math.sin(b.a + hw) * L;
         beamPieces(tri, boxes, inside, outside);
-        g.globalAlpha = a;
-        for (const P of outside) polyFill(g, P);
-        g.globalAlpha = a * BEAM_INSIDE;
-        for (const P of inside) polyFill(g, P);
+        lg.globalAlpha = Math.min(1, a * LAYER_K);
+        for (const P of outside) polyFill(lg, P);
+        lg.globalAlpha = Math.min(1, a * BEAM_INSIDE * LAYER_K);
+        for (const P of inside) polyFill(lg, P);
       }
     }
   }
-  drawRaysBack(env: Env, p: number, I: number): void {
-    const W = env.W, H = env.H, M = this.moment!, g = env.back, S = this.S;
-    sunPos(M.kind, p, W, H, S);
-    const c = this.col;
-    const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
-    const k = I * (1 - 0.65 * this.wet) * this.fogK * (M.kind === 'set' ? 0.62 : 1.25);
+  /** The ray layer, cleared, to draw a turn's rays or beams into at LAYER_K times their alpha (in the sky's coordinates). */
+  layerStart(env: Env): Ctx {
+    const d = (env.dpr || 1) * LAYER_SCALE;
+    if (!this.rayLg) {
+      this.rayL = mkCanvas(env.W * d, env.H * d);
+      this.rayLg = ctx2d(this.rayL);
+      this.grain = grainLayer(this.rayL.width, this.rayL.height);
+    }
+    const q = this.rayLg;
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'source-over';
+    q.setTransform(1, 0, 0, 1, 0, 0);
+    q.clearRect(0, 0, this.rayL!.width, this.rayL!.height);
+    q.setTransform(d, 0, 0, d, 0, 0);
+    q.globalCompositeOperation = this.th.add;
+    return q;
+  }
+  /** The layer through its grain onto `g` at LAYER_A. */
+  layerEnd(g: Ctx, env: Env): void {
+    const q = this.rayLg!, c = this.rayL!;
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'destination-in';
+    q.setTransform(1, 0, 0, 1, 0, 0);
+    q.drawImage(this.grain!, 0, 0);
+    const op = g.globalCompositeOperation, ga = g.globalAlpha;
     g.globalCompositeOperation = this.th.add;
-    const sx = S[0]!, sy = S[1]!;
-    const far = Math.hypot(Math.max(sx, W - sx), H - sy);
-    const gl = g.createRadialGradient(sx, sy, 0, sx, sy, far * 0.75);
-    gl.addColorStop(0, `rgba(${rgb},.5)`);
-    gl.addColorStop(0.3, `rgba(${rgb},.16)`);
-    gl.addColorStop(0.6, `rgba(${rgb},.06)`);
-    gl.addColorStop(1, `rgba(${rgb},0)`);
-    g.globalAlpha = k;
-    g.fillStyle = gl;
-    g.fillRect(0, 0, W, H);
-    const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
-    hs.addColorStop(0, 'rgba(255,250,235,.9)');
-    hs.addColorStop(0.12, `rgba(${rgb},.55)`);
-    hs.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = hs;
-    g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
-    const rg = g.createRadialGradient(sx, sy, 0, sx, sy, far * 1.05);
-    rg.addColorStop(0, `rgba(${rgb},1)`);
-    rg.addColorStop(0.55, `rgba(${rgb},.62)`);
-    rg.addColorStop(1, `rgba(${rgb},.05)`);
-    g.fillStyle = rg;
-    let a0 = 1e9, a1 = -1e9;
-    for (let i = 0; i < 4; i++) {
-      const a = Math.atan2((i > 1 ? H : 0) - sy, (i & 1 ? W : 0) - sx);
-      a0 = Math.min(a0, a);
-      a1 = Math.max(a1, a);
-    }
-    // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
-    // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
-    const T = this.T, N = 8, L = far * 1.2;
-    // Each ray (and its core) is its own convex triangle: Skia fills those on
-    // the GPU; one path of many triangles goes to its software path renderer
-    // on the GPU thread (tens of ms per frame, stage 28 E).
-    const cores: number[] = [];
-    for (let i = 0; i < N; i++) {
-      const r1 = Math.sin(i * 12.9898 + 3) * 43758.5453, j = r1 - Math.floor(r1);
-      const a = a0 + ((a1 - a0) * (i + 0.5 + (j - 0.5) * 0.7)) / N + Math.sin(T * 0.15 + i) * 0.006;
-      const wd = 0.0035 + j * 0.01;
-      const al = (0.3 + 0.7 * ((j * 7.3) % 1)) * (0.7 + 0.3 * Math.sin(T * (0.5 + j) + i * 2.1));
-      g.globalAlpha = k * al * 0.2;
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
-      g.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
-      g.closePath();
-      g.fill();
-      const ww = wd * 0.35;
-      cores.push(a - ww, a + ww);
-    }
-    g.globalAlpha = k * 0.2;
-    for (let i = 0; i < cores.length; i += 2) {
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
-      g.lineTo(sx + Math.cos(cores[i + 1]!) * L, sy + Math.sin(cores[i + 1]!) * L);
-      g.closePath();
-      g.fill();
-    }
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'destination-out';
-    g.fillStyle = '#000';
+    g.globalAlpha = LAYER_A;
+    g.drawImage(c, 0, 0, env.W, env.H);
+    g.globalCompositeOperation = op;
+    g.globalAlpha = ga;
+  }
+  /** The panes' shadow wedges, cut out of `q0` (destination-out, two soft passes). */
+  cutShadows(q0: Ctx, env: Env, sx: number, sy: number): void {
+    q0.globalCompositeOperation = 'destination-out';
+    q0.fillStyle = '#000';
     const pts = this.pts;
     for (let pass = 0; pass < 2; pass++) {
       const ox = pass ? -18 : 18;
-      g.globalAlpha = 0.45;
+      q0.globalAlpha = 0.45;
       for (const q of env.panes) {
         // From the rim's lower edge: the step between the brighter rays
         // outside and the shadow inside lies under the rim (owner feedback
@@ -1590,13 +1749,101 @@ class Sky {
         const gp = q.plate;
         if (gp && P.length >= 6) {
           const d = env.dpr || 1;
-          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(g, Q);
-        } else if (P.length >= 6) polyFill(g, P);
+          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(q0, Q);
+        } else if (P.length >= 6) polyFill(q0, P);
       }
     }
-    // The beams after the shadows: no pane hides them (owner feedback 37).
+  }
+  drawRaysBack(env: Env, p: number, I: number, G: number): void {
+    const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
+    const psi = sunPsi(kind, p);
+    sunPoint(psi, W, H, S);
+    const c = this.col;
+    const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
+    const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25);
+    // a sunset's rays stronger late, where the dusk sky's own colour hid them (owner item 89: they should run far over the screen to the end)
+    const k = I * kk * (kind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1);
     g.globalCompositeOperation = this.th.add;
-    this.drawBeams(g, env, M.kind, p, sx, sy, far, I);
+    const sx = S[0]!, sy = S[1]!;
+    const far = Math.hypot(Math.max(sx, W - sx), H - sy);
+    const gl = g.createRadialGradient(sx, sy, 0, sx, sy, far * 0.75);
+    gl.addColorStop(0, `rgba(${rgb},.5)`);
+    gl.addColorStop(0.3, `rgba(${rgb},.16)`);
+    gl.addColorStop(0.6, `rgba(${rgb},.06)`);
+    gl.addColorStop(1, `rgba(${rgb},0)`);
+    // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
+    g.globalAlpha = G * kk * SUN_LIGHT[kind];
+    g.fillStyle = gl;
+    g.fillRect(0, 0, W, H);
+    const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
+    hs.addColorStop(0, 'rgba(255,250,235,.9)');
+    hs.addColorStop(0.12, `rgba(${rgb},.55)`);
+    hs.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = hs;
+    g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
+    // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
+    turnFan(psi, sx, sy, W, H, this.fan);
+    const a0 = this.fan[0]!, a1 = this.fan[1]!;
+    // A sunset's rays run far over the screen to their last seconds (owner
+    // item 89: they faded out from the far end and shrank to the left), then
+    // shrink toward the sun (its fan lifts to level and up-right, beams.ts turnFan).
+    const s = this.turnS, reach = turnReach(kind, s), sh = turnShimmer(s);
+    const lg = this.layerStart(env);
+    const rg = lg.createRadialGradient(sx, sy, 0, sx, sy, far * 1.05 * reach);
+    rg.addColorStop(0, `rgba(${rgb},1)`);
+    rg.addColorStop(0.55, `rgba(${rgb},${kind === 'set' ? '.7' : '.62'})`);
+    rg.addColorStop(1, `rgba(${rgb},${((kind === 'set' ? 0.3 : 0.05) * clamp((reach - 0.4) / 0.6, 0, 1)).toFixed(3)})`);
+    lg.fillStyle = rg;
+    // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
+    // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
+    // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
+    const T = this.T, N = TURN_RAY_N, L = far * 1.2 * reach, rays = this.rays;
+    // Each ray (and its core) is its own convex triangle: Skia fills those on
+    // the GPU; one path of many triangles goes to its software path renderer
+    // on the GPU thread (tens of ms per frame, stage 28 E).
+    const cores: number[] = [];
+    for (let i = 0; i < N; i++) {
+      const j = rayHash(i), a = turnRayAngle(i, a0, a1, T), tier = rayTier(i);
+      // by tier (owner item 80): the middle rays a little wider than the weak ones
+      const wd = (tier === 'm' ? 0.0065 : 0.0045) + j * 0.003;
+      // a sunset's rays fading in one by one (owner items 71, 88); a sunrise's all with its glow (item 80)
+      const on = turnRayOn(kind, i, s);
+      // a slow, shallow shimmer, none at the turn's start (item 89: it flickered)
+      const al = RAY_TIER[tier] * (1 - RAY_SHIMMER * sh * (0.5 - 0.5 * Math.sin(T * (0.5 + j) + i * 2.1))) * on;
+      // kept for its glints on the frame lines (drawRaysFront), by tier
+      const r = rays[i] ?? (rays[i] = { a: 0, hw: 0, k: 0 });
+      r.a = a;
+      r.hw = wd;
+      r.k = TIER_GLINT[tier] * on;
+      lg.globalAlpha = Math.min(1, k * al * RAY_ALPHA * LAYER_K);
+      lg.beginPath();
+      lg.moveTo(sx, sy);
+      lg.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
+      lg.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
+      lg.closePath();
+      lg.fill();
+      const ww = wd * 0.35;
+      cores.push(a - ww, a + ww, on * RAY_TIER[tier]);
+    }
+    for (let i = 0; i < cores.length; i += 3) {
+      if (cores[i + 2]! < 0.005) continue;
+      lg.globalAlpha = Math.min(1, k * RAY_ALPHA * cores[i + 2]! * LAYER_K);
+      lg.beginPath();
+      lg.moveTo(sx, sy);
+      lg.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
+      lg.lineTo(sx + Math.cos(cores[i + 1]!) * L, sy + Math.sin(cores[i + 1]!) * L);
+      lg.closePath();
+      lg.fill();
+    }
+    // The panes' shadow wedges, on the sky and its glow and on the rays;
+    // then the beams, which no pane hides (owner feedback 37), into the same
+    // layer: one grain and one copy a frame.
+    this.cutShadows(g, env, sx, sy);
+    this.cutShadows(lg, env, sx, sy);
+    lg.globalAlpha = 1;
+    lg.globalCompositeOperation = this.th.add;
+    this.drawBeams(lg, env, sx, sy, far, I);
+    this.layerEnd(g, env);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }
@@ -1675,7 +1922,7 @@ export function skyModule(): Module {
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
       // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.moment || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
+      if (sky.shoot.on || env.shared.flash > 0.01 || sky.mKind || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },

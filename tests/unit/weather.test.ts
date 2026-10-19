@@ -1,7 +1,7 @@
 // Weather engine pure logic (stage 28, ADR 0091): the director's dwell,
 // mix easing and sky selection, geometry diffing and background palettes.
 import { describe, expect, it } from 'vitest';
-import { DWELL_MS, Director, FOG_RATE, OUT_RATE, SKY_HOLD_S, SKY_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
+import { DWELL_MS, Director, FOG_RATE, OUT_RATE, SKY_RATE, eventState, mixTargets, zeroMix } from '../../src/weather/director';
 import { cutRects, frameRect, geometryDiff, holeClip, paneTintRects, plateOf, protectFor } from '../../src/weather/geometry';
 import { adapt, luminance, parseHex, themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type WeatherState } from '../../src/weather/protocol';
@@ -120,17 +120,15 @@ describe('Director', () => {
     // the time of day does not move indoors
     expect(d.mix.sun).toBe(1);
   });
-  it('after a sunset the day sky holds, then changes to night slowly (owner feedback 29)', () => {
+  it('night without a sunset (Event.Sun dark, the almanac) changes the sky slowly, without a hold (ADR 0093)', () => {
     const d = new Director({ weather: ' ', clock: 'day' });
-    d.set(eventState('sun.set')!);
+    d.set(eventState('sun.dark')!);
     let t = 0;
     const run = (s: number): void => {
       for (let i = 0; i < s * 10; i++) d.tick((t += 100), 0.1);
     };
-    run(SKY_HOLD_S - 0.5);
-    expect([d.mix.sun, d.mix.dark]).toEqual([1, 0]);
+    run(6);
     expect(d.resting()).toBe(false);
-    run(0.5 + 6);
     expect(d.mix.sun).toBeCloseTo(1 - 6 * SKY_RATE, 1);
     run(1 / SKY_RATE - 6 + 0.5);
     expect([d.mix.sun, d.mix.dark, d.mix.night]).toEqual([0, 1, 1]);
@@ -181,7 +179,7 @@ describe('Director', () => {
     for (let i = 0; i < 200; i++) d.tick((t += 100), 0.1);
     expect(d.resting()).toBe(true);
   });
-  it('moving while a mix value eases (not in the dwell before it, nor while the sky holds after a clock change)', () => {
+  it('moving while a mix value eases (not in the dwell before it)', () => {
     const d = new Director({ weather: ' ', clock: 'day' });
     expect(d.moving()).toBe(false);
     d.set({ weather: '~' });
@@ -194,9 +192,9 @@ describe('Director', () => {
     expect(d.moving()).toBe(false);
     d.set({ clock: 'night' });
     d.tick((t += 100), 0.1);
-    expect(d.moving()).toBe(false);
-    for (let i = 0; i < 120; i++) d.tick((t += 100), 0.1);
     expect(d.moving()).toBe(true);
+    for (let i = 0; i < 130; i++) d.tick((t += 100), 0.1);
+    expect(d.moving()).toBe(false);
   });
   it('quiet when nothing shows', () => {
     expect(new Director({ weather: null }).quiet()).toBe(true);
@@ -204,7 +202,9 @@ describe('Director', () => {
     expect(new Director({ weather: null, position: 'sleeping' }).quiet()).toBe(false);
   });
   it('events set the sun and the moon', () => {
-    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
+    // the dawn hour is still night: rise starts the sunrise (Director.riseEvent), light brings the day (item 59)
+    expect(eventState('sun.rise')).toBeNull();
+    expect(eventState('sun.light')).toEqual({ clock: 'day', sunU: 0 });
     expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
     expect(eventState('moon.set')).toEqual({ moonUp: false });
     expect(eventState('strike')).toBeNull();

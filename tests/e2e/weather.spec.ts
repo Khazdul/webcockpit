@@ -32,7 +32,7 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   await page.evaluate(() => {
     const bus = window.__wc!.app.bus;
     bus.emit('gmcp', { pkg: 'Char.Vitals', key: 'char.vitals', data: { weather: '"', fog: '=', position: 'sleeping' } });
-    bus.emit('gmcp', { pkg: 'Event.Sun', key: 'event.sun', data: { what: 'set' } });
+    bus.emit('gmcp', { pkg: 'Event.Sun', key: 'event.sun', data: { what: 'dark' } });
   });
   await expect.poll(state).toMatchObject({ weather: '"', fog: '=', position: 'sleeping', clock: 'night' });
 
@@ -186,8 +186,9 @@ test('#weather demo: turns the effects on, captions each step, ends unpinned and
   await expect(step).not.toHaveText('');
   await expect(box.locator('.wc-wdemo-hint')).toHaveText('#weather stop to end');
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
-  await expect(step).toHaveText('Sunset', { timeout: 5_000 });
-  expect(await state()).toMatchObject({ clock: 'night' });
+  await expect(step).toHaveText('Sunset', { timeout: 10_000 });
+  // the step after the sunset brings the night (Event.Sun dark; ADR 0093); at x40 it lasts under half a second
+  await expect.poll(state, { intervals: [50] }).toMatchObject({ clock: 'night' });
   await expect(box).toHaveCount(0, { timeout: 10_000 });
   await expect(page.locator('.wc-rows .wc-row').filter({ hasText: 'Weather demo done; the effects are off again.' })).toHaveCount(1);
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(false);

@@ -39,6 +39,144 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Ray layer cost before release (branch `sunrise-timing`)
+
+- **Done:** owner approved item 89. A pre-release check found item 89's ray
+  layer made a sunset's worker frame ~4× slower (44–51 ms vs 11–13 ms,
+  headless software rendering). Now one half-resolution layer, one grain
+  copy a frame: 16–21 ms. Look and flicker checked by screenshots and
+  frame-to-frame measures. ADR 0093. Unit 2749; e2e weather + layout 44/44.
+- **Next:** full e2e, merge `sunrise-timing` to main, version, build:pages;
+  the owner pushes main and the tag.
+- **Commits:** this one.
+
+### 2026-10-19 — Stage 28 item 89, calm sunset rays (branch `sunrise-timing`)
+
+- **Done:** item 89: ray flicker fixed (fixed spatial grain in place of
+  item 88's dithering in time; shimmer a third, none at first); a sunset's
+  blue fairly clear at -10 s, gone at 0; its rays run far to -3 s, then fade
+  and shrink; the fan lifts so the last rays point right/up-right. ADR 0093.
+  Unit 2749; e2e weather + layout 44/44.
+- **Next:** owner tests item 89 (`#weather demo sunset`); then real-play
+  findings; merge to main and release.
+- **Commits:** this one.
+
+### 2026-10-19 — Stage 28 item 88, sunset rays and stars (branch `sunrise-timing`)
+
+- **Done:** item 88 (replaces 87): the ray fan's lowest ray reaches the
+  bottom corner on the sun's side (no gap below the rays), under 1°/s; a
+  sunset's rays fade in over 14 s, one at a time, with faint alphas
+  dithered in time (`dith8`); stars just perceptible at the night's
+  second, complete at +10 s. ADR 0093. Unit 2748; e2e weather + layout 44/44.
+- **Next:** owner tests item 88 (`#weather demo sunset`); then real-play
+  findings (fog, lightning, clouds, snow, rain); merge to main and release.
+- **Commits:** this one.
+
+### 2026-10-19 — Session end (branch `sunrise-timing`)
+
+- **Owner verdict:** overall happy. Sunrise sun strength right (halved,
+  kept); day sky better.
+- **Next session:** item 87 (sunset stars: just perceptible at 0, complete
+  at +5…6). Then the owner's findings from real play (fog, lightning,
+  clouds, snow, rain). Then merge `sunrise-timing` to main and release.
+- **Commits:** this one.
+
+### 2026-10-19 — Stage 28 items 85–86, demo held from the game, first-pane glints (branch `sunrise-timing`)
+
+- **Done:** item 85 (bug, owner-reported): the game's Event.Sun / Moon /
+  Darkness and lightning/gust lines reached the engine past a demo's pins.
+  Now held while any pin is active; sun/moon recorded and applied on
+  release (a held rise/set rejoins at its place). Item 86: a ray glints
+  only on the first pane it meets (`beamHits`). ADR 0091 Demo, ADR 0093.
+  Unit 2747; e2e weather + layout 44/44.
+- **Next:** owner tests items 83–86.
+- **Open issues:** dev pins also drop real lightning until unpin; benches
+  not rerun (no hot-path change).
+- **Commits:** 268fc99, 269ae13, f00601a, 75e1437, plus this one.
+
+### 2026-10-19 — Stage 28 items 83–84, sunset end and dithered day rays (branch `sunrise-timing`)
+
+- **Done:** the sunset now reads as set at the night's second (its colours
+  reached night blue at -7 s; new `lateFade`, `SET_C` blue only at 1); sun
+  and glow halved (sunrise too), rays halved in both turns, glints kept.
+  Sunset stars `lin(-9, 5)^1.2`: faint at -5, about half at 0, full at +5
+  (`FULL_S` 5). Day sky: nine fainter rays; the choppy vanish was 8-bit
+  alpha steps, fixed with dithered textures (still 3 fps). ADR 0093 two
+  subsections. Unit 2739; e2e weather + layout 44/44.
+- **Next:** owner tests items 83–84.
+- **Open issues:** halved sunrise sun unconfirmed; day-ray grain not seen
+  in Firefox by eye; no bench rerun for the textures.
+- **Commits:** b7e0eef, 3298acd, 6b73f70, 30e12d3, 07f7441, 191a753,
+  743767d, plus this one.
+
+### 2026-10-19 — Stage 28 items 80–82, tiered rays and day rays (branch `sunrise-timing`)
+
+- **Done:** one tiered fan for sunrise and sunset (15 places: 3 beams,
+  4 middle, 8 weak rays, interleaved), its lower edge reaching steeply down
+  (overrides item 75); sunrise rays fade in with the glow; glints by tier,
+  held back the first ~18 s, fading with the rays. Sunset stars -7 → 0
+  (`FULL_S` 0, a sync still joins up to 14 s late). Day rays: six, fainter,
+  spread ±55°, fading down the screen. ADR 0093 "Tiered rays and a wider
+  fan". Unit 2739; e2e weather + layout 44/44. Max ray speed 0.82 °/s.
+- **Next:** owner tests items 76–82 with `#weather demo sunrise` / `sunset`
+  and a clear day sky.
+- **Open issues:** steepest sunrise rays pass the right dock (seen mostly as
+  glints); weather bench not re-recorded (machine loaded).
+- **Commits:** 79c5c2e, ba37d89, d3770e4, b3f5c36, 0f8a576, plus this one.
+
+### 2026-10-18 — Stage 28 items 76–79, sky order and calm rays (branch `sunrise-timing`)
+
+- **Done:** owner feedback "sun test 2". Sunrise: the haze builds over ~25 s,
+  stars 50 % at -50 s and faint at -30 s, blue fades in from -30 s, the sun
+  and rays are gone at the day's second. Sunset: the blue fades from -50 s
+  into a warm dusk, the rays fade softly to 0 at the turn, stars only after
+  (complete at +14 s). Rays: much fainter, evenly spread, sideways/down at a
+  sunrise's start; faint-ray glints on frames much stronger; a new fan
+  (`turnFan`) ends the fast swings (max 4.4–6.5 → <0.85 °/s). ADR 0093
+  "Sky order and calm rays". Demos retimed. Unit 2734; e2e weather +
+  layout 44/44 (Chromium, Firefox).
+- **Next:** owner tests `#weather demo sunrise` / `sunset` (items 76–79).
+- **Open issues:** ~5 s plain dark sky around the night's second; sunset
+  worker frame higher from -50 s (≈4.5 ms avg in headless); weather-power
+  bench not rerun.
+- **Commits:** 9689414, 52554bf, 8d0310f, f8fc3fa, plus this one.
+
+### 2026-10-18 — Stage 28 items 59–75, sun, moon and demo (branch `sunrise-timing`)
+
+- **Done:** owner live feedback after 0.1.63. Rooms are lit from "The day
+  has begun." (DAWN+1) to "The night has begun." (DUSK+1), verified in
+  logs; the clock strip, almanac, scripts and weather follow. Sunrise and
+  sunset run on the synced clock (`dayAt`/`nightAt`, `sunturn.ts`), not on
+  `Event.Sun rise/set`: the last 60 s before the change, faint 40 s, builds
+  up, over at the change; the new sky 0.74 then, full 14 s later. The old
+  event moments and SKY_HOLD_S are gone. ADR 0093. Unit 2720, weather +
+  layout e2e 44 (Chromium, Firefox). Item 62: faint rays from the turn's
+  first second, a little more from -30 s (rays only; sunrise 0.2/0.3,
+  sunset 0.35/0.5, set by eye). Item 63: the moon pre-rolls on its path
+  from `moonRiseAt` (≈59 s at 1400×800) so it is ~80 % on screen at
+  "The moon rises in the east."; pace 7.5 % slower, set unchanged. Unit 2724.
+  Items 64–68: one sun model (`beams.ts` `sunPsi`: rise 0→40°, day
+  40→140° by `sunU`, set 140→180°); no glimpses during turns; beams and
+  rays share one drift; every ray glints. Item 69: the moon's place from
+  `moonRiseAt`/`moonSetAt` and `Date.now()` (no lag on a hidden tab), pace
+  capped ±50 %, fade on big jumps. Item 70: one `#weather demo` at speed
+  1, 2:58, `slow` gone. Items 71–73: even turns (rays in one by one,
+  linear climb, fade from -10 s to 0 at new-sky-complete +18 s; ray fan
+  fix), sunset ends below the bottom-left, day glimpses a faint 20 s pulse
+  at the 3 fps still rate. Item 74: `#weather demo sunrise|sunset`, one
+  full clock-driven turn each (~1:35) with a countdown caption. Item 75:
+  one turn horizon at 0.65H for both (sunset no longer in the lower-left
+  corner); the ray fan stays above ~0.78H. Unit 2729.
+- **Next:** new session continues small polish on branch
+  `sunrise-timing` (owner wants more tweaks; test with `#weather demo
+  sunrise|sunset`). Owner judgement pending: early ray strength (rise
+  0.6, set 0.5), day pulse strength (0.14–0.30), the moon (item 69).
+  Merge to main and release only when the owner approves.
+- **Open issues:** look only checked in headless screenshots; perf bench
+  not rerun; the moonrise fallback without a minute-synced clock has no
+  worker test; a demo during a live turn untested.
+- **Commits:** c752036…(this commit).
+
 ### 2026-10-18 — Merge stage 28, release 0.1.63
 
 - **Done:** merged `weather-trial` to main (f1adffe), version 0.1.63
