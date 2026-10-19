@@ -135,14 +135,27 @@ test('the HTML replay plays from file:// with no network and no storage', async 
     .toEqual(['loaded', 'loaded']);
 
   // The comment holds playback, whatever the speed: at 8x nothing follows it for seconds.
+  // The page times the hold itself (from the comment's row to the next row), so
+  // the check does not race the 2.5 s hold against Playwright's poll intervals.
+  await p.evaluate(() => {
+    const w = window as unknown as { __hold: { shown: number; ended: number } };
+    w.__hold = { shown: 0, ended: 0 };
+    new MutationObserver(() => {
+      const rows = document.querySelectorAll('.wc-player .wc-output .wc-rows .wc-row');
+      const last = rows[rows.length - 1]?.textContent;
+      if (!w.__hold.shown && last === '## Watch the tank here.') w.__hold.shown = performance.now();
+      else if (w.__hold.shown && !w.__hold.ended && last !== '## Watch the tank here.') w.__hold.ended = performance.now();
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
   await p.keyboard.press('6');
   await expect(chrome(p).locator('[data-act="speed"]')).toHaveText('8x   ');
   const comment = player(p).locator('.wc-output .wc-comment');
   await expect(comment).toHaveText('## Watch the tank here.', { timeout: 15_000 });
-  const rows = player(p).locator('.wc-output .wc-rows .wc-row');
-  await p.waitForTimeout(2000);
-  await expect(rows.last()).toHaveText('## Watch the tank here.');
   expect((await engine(p)).playing).toBe(true);
+  const hold = () => p.evaluate(() => (window as unknown as { __hold: { shown: number; ended: number } }).__hold);
+  await expect.poll(async () => (await hold()).ended, { timeout: 15_000 }).toBeGreaterThan(0);
+  const { shown, ended } = await hold();
+  expect(ended - shown).toBeGreaterThan(2000);
 
   // Play / pause, and the speed keys.
   await p.keyboard.press(' ');
