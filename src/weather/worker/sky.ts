@@ -447,6 +447,8 @@ const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
 const LAYER_A = 21 / 255;
 const GRAIN_MIN = 0.5;
 const LAYER_K = 1 / (LAYER_A * (1 + GRAIN_MIN) * 0.5);
+/** The layer's resolution, a share of the sky's (drawn scaled up: a quarter of the pixels to clear, grain and copy each frame). */
+const LAYER_SCALE = 0.5;
 /** The grain tile's side, px. */
 const GRAIN_N = 256;
 /** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
@@ -454,14 +456,17 @@ const SET_RAYS_LATE = 1;
 /** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
 const RAY_SHIMMER = 0.1;
 
-function grainTile(): Cv {
-  const c = mkCanvas(GRAIN_N, GRAIN_N), q = ctx2dCpu(c), im = q.createImageData(GRAIN_N, GRAIN_N);
+/** The grain for a layer of w × h px: a GRAIN_N tile repeated, on a canvas of its own (one image copy a frame; a pattern fill cost more). */
+function grainLayer(w: number, h: number): Cv {
+  const t = mkCanvas(GRAIN_N, GRAIN_N), tq = ctx2dCpu(t), im = tq.createImageData(GRAIN_N, GRAIN_N);
   const R = rng(4242);
   for (let i = 0; i < GRAIN_N * GRAIN_N; i++) {
     im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = 255;
     im.data[i * 4 + 3] = Math.round(255 * (GRAIN_MIN + (1 - GRAIN_MIN) * R()));
   }
-  q.putImageData(im, 0, 0);
+  tq.putImageData(im, 0, 0);
+  const c = mkCanvas(w, h), q = ctx2d(c);
+  for (let y = 0; y < h; y += GRAIN_N) for (let x = 0; x < w; x += GRAIN_N) q.drawImage(t, x, y);
   return c;
 }
 
@@ -478,7 +483,7 @@ class Sky {
   /** The turn's ray layer and its grain (LAYER_A), made on the first turn frame at this size. */
   rayL: Cv | null = null;
   rayLg: Ctx | null = null;
-  grain: CanvasPattern | null = null;
+  grain: Cv | null = null;
   T = 0;
   W = 0;
   H = 0;
@@ -1615,7 +1620,7 @@ class Sky {
    * defined path across the screen. Drawn before the panes' shadow wedges
    * are cut, so inside and behind a pane a beam is weaker like the rays.
    */
-  drawBeams(g: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
+  drawBeams(lg: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
     const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
     const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late);
     if (this.beams.length !== BEAMS) this.beams = [];
@@ -1628,7 +1633,6 @@ class Sky {
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
     // a sunset's beams shrink toward the sun in its last seconds (item 89)
     const reach = turnReach(kind, s), L = far * 1.25 * reach;
-    const lg = this.layerStart(env);
     const gr = lg.createRadialGradient(sx, sy, 0, sx, sy, L);
     gr.addColorStop(0, `rgba(${rgb},1)`);
     gr.addColorStop(0.5, `rgba(${rgb},.8)`);
@@ -1668,15 +1672,14 @@ class Sky {
         for (const P of inside) polyFill(lg, P);
       }
     }
-    this.layerEnd(g, env);
   }
   /** The ray layer, cleared, to draw a turn's rays or beams into at LAYER_K times their alpha (in the sky's coordinates). */
   layerStart(env: Env): Ctx {
-    const d = env.dpr || 1;
+    const d = (env.dpr || 1) * LAYER_SCALE;
     if (!this.rayLg) {
       this.rayL = mkCanvas(env.W * d, env.H * d);
       this.rayLg = ctx2d(this.rayL);
-      this.grain = this.rayLg.createPattern(grainTile(), 'repeat');
+      this.grain = grainLayer(this.rayL.width, this.rayL.height);
     }
     const q = this.rayLg;
     q.globalAlpha = 1;
@@ -1693,14 +1696,63 @@ class Sky {
     q.globalAlpha = 1;
     q.globalCompositeOperation = 'destination-in';
     q.setTransform(1, 0, 0, 1, 0, 0);
-    q.fillStyle = this.grain!;
-    q.fillRect(0, 0, c.width, c.height);
+    q.drawImage(this.grain!, 0, 0);
     const op = g.globalCompositeOperation, ga = g.globalAlpha;
     g.globalCompositeOperation = this.th.add;
     g.globalAlpha = LAYER_A;
     g.drawImage(c, 0, 0, env.W, env.H);
     g.globalCompositeOperation = op;
     g.globalAlpha = ga;
+  }
+  /** The panes' shadow wedges, cut out of `q0` (destination-out, two soft passes). */
+  cutShadows(q0: Ctx, env: Env, sx: number, sy: number): void {
+    q0.globalCompositeOperation = 'destination-out';
+    q0.fillStyle = '#000';
+    const pts = this.pts;
+    for (let pass = 0; pass < 2; pass++) {
+      const ox = pass ? -18 : 18;
+      q0.globalAlpha = 0.45;
+      for (const q of env.panes) {
+        // From the rim's lower edge: the step between the brighter rays
+        // outside and the shadow inside lies under the rim (owner feedback
+        // 19, 32). The lower corners follow the rim's rounding (three points
+        // on each arc), so no square corner of shadow shows outside the
+        // glass (owner item 45).
+        const x2 = q.x + q.w, yt = q.y + q.border, y2 = q.y + q.h;
+        const R = q.border ? Math.min(RIM_R, q.border) : 0, c = R * (1 - Math.SQRT1_2);
+        CX[0] = q.x;
+        CY[0] = yt;
+        CX[1] = x2;
+        CY[1] = yt;
+        CX[2] = x2;
+        CY[2] = y2 - R;
+        CX[3] = x2 - c;
+        CY[3] = y2 - c;
+        CX[4] = x2 - R;
+        CY[4] = y2;
+        CX[5] = q.x + R;
+        CY[5] = y2;
+        CX[6] = q.x + c;
+        CY[6] = y2 - c;
+        CX[7] = q.x;
+        CY[7] = y2 - R;
+        for (let i = 0; i < NB; i++) {
+          const dx = CX[i]! - (sx + ox), dy = CY[i]! - sy, dl = Math.hypot(dx, dy) || 1;
+          pts[i * 2] = CX[i]!;
+          pts[i * 2 + 1] = CY[i]!;
+          pts[2 * NB + i * 2] = CX[i]! + (dx / dl) * 4000;
+          pts[2 * NB + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
+        }
+        const P = hull(pts);
+        // The nameplate is the rim's glass: no shadow over it, so it takes
+        // the sun's colour as the top rim does (owner item 42).
+        const gp = q.plate;
+        if (gp && P.length >= 6) {
+          const d = env.dpr || 1;
+          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(q0, Q);
+        } else if (P.length >= 6) polyFill(q0, P);
+      }
+    }
   }
   drawRaysBack(env: Env, p: number, I: number, G: number): void {
     const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
@@ -1783,58 +1835,15 @@ class Sky {
       lg.closePath();
       lg.fill();
     }
+    // The panes' shadow wedges, on the sky and its glow and on the rays;
+    // then the beams, which no pane hides (owner feedback 37), into the same
+    // layer: one grain and one copy a frame.
+    this.cutShadows(g, env, sx, sy);
+    this.cutShadows(lg, env, sx, sy);
+    lg.globalAlpha = 1;
+    lg.globalCompositeOperation = this.th.add;
+    this.drawBeams(lg, env, sx, sy, far, I);
     this.layerEnd(g, env);
-    g.globalAlpha = 1;
-    g.globalCompositeOperation = 'destination-out';
-    g.fillStyle = '#000';
-    const pts = this.pts;
-    for (let pass = 0; pass < 2; pass++) {
-      const ox = pass ? -18 : 18;
-      g.globalAlpha = 0.45;
-      for (const q of env.panes) {
-        // From the rim's lower edge: the step between the brighter rays
-        // outside and the shadow inside lies under the rim (owner feedback
-        // 19, 32). The lower corners follow the rim's rounding (three points
-        // on each arc), so no square corner of shadow shows outside the
-        // glass (owner item 45).
-        const x2 = q.x + q.w, yt = q.y + q.border, y2 = q.y + q.h;
-        const R = q.border ? Math.min(RIM_R, q.border) : 0, c = R * (1 - Math.SQRT1_2);
-        CX[0] = q.x;
-        CY[0] = yt;
-        CX[1] = x2;
-        CY[1] = yt;
-        CX[2] = x2;
-        CY[2] = y2 - R;
-        CX[3] = x2 - c;
-        CY[3] = y2 - c;
-        CX[4] = x2 - R;
-        CY[4] = y2;
-        CX[5] = q.x + R;
-        CY[5] = y2;
-        CX[6] = q.x + c;
-        CY[6] = y2 - c;
-        CX[7] = q.x;
-        CY[7] = y2 - R;
-        for (let i = 0; i < NB; i++) {
-          const dx = CX[i]! - (sx + ox), dy = CY[i]! - sy, dl = Math.hypot(dx, dy) || 1;
-          pts[i * 2] = CX[i]!;
-          pts[i * 2 + 1] = CY[i]!;
-          pts[2 * NB + i * 2] = CX[i]! + (dx / dl) * 4000;
-          pts[2 * NB + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
-        }
-        const P = hull(pts);
-        // The nameplate is the rim's glass: no shadow over it, so it takes
-        // the sun's colour as the top rim does (owner item 42).
-        const gp = q.plate;
-        if (gp && P.length >= 6) {
-          const d = env.dpr || 1;
-          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(g, Q);
-        } else if (P.length >= 6) polyFill(g, P);
-      }
-    }
-    // The beams after the shadows: no pane hides them (owner feedback 37).
-    g.globalCompositeOperation = this.th.add;
-    this.drawBeams(g, env, sx, sy, far, I);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }

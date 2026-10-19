@@ -39,6 +39,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Ray layer cost before release (branch `sunrise-timing`)
+
+- **Done:** owner approved item 89. A pre-release check found item 89's ray
+  layer made a sunset's worker frame ~4× slower (44–51 ms vs 11–13 ms,
+  headless software rendering). Now one half-resolution layer, one grain
+  copy a frame: 16–21 ms. Look and flicker checked by screenshots and
+  frame-to-frame measures. ADR 0093. Unit 2749; e2e weather + layout 44/44.
+- **Next:** full e2e, merge `sunrise-timing` to main, version, build:pages;
+  the owner pushes main and the tag.
+- **Commits:** this one.
+
 ### 2026-10-19 — Stage 28 item 89, calm sunset rays (branch `sunrise-timing`)
 
 - **Done:** item 89: ray flicker fixed (fixed spatial grain in place of

@@ -538,8 +538,14 @@ ray, and fewer glints drawn.
   Chromium (40 px patches, frame-to-frame second difference): 2–4× less than
   item 88, and none left in the rays. The rays' shimmer is a third of before
   (depth 0.1, beams 0.08) and grows from none over a turn's first 30 s.
-  Cost: two full-screen layer passes per turn frame (clear, grain fill,
-  copy), only while a turn runs.
+  Cost (measured before the release, headless Chromium, software
+  rendering, 1728 × 1000, the worker's frame time in a sunset): 11–13 ms
+  before item 88's change, 44–51 ms with a full-size layer drawn in two
+  passes. Now one layer at half the resolution (drawn scaled up), the rays
+  and beams in it together (the panes' shadow wedges cut from the sky and
+  from the layer before the beams go in, as before), the grain one image copy
+  (a pattern fill cost more): 16–21 ms, inside the 33 ms of FPS_FAST, and
+  only while a turn runs (twice a game day, a minute each).
 - **The blue.** A sunset's dusk share follows points (-50 0, -30 0.16,
   -10 0.45, -5 0.68, -2 0.9, 0 1): the blue still fairly clear at -10,
   weaker at -5, just perceptible at -2, gone at the night (was smoothstep
