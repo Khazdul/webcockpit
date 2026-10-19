@@ -499,6 +499,9 @@ const DUSK_LAYERS: ReadonlyArray<readonly [number, number, number, number]> = [
 ];
 const DUSK_C = '255,96,44';
 
+/** The ray front's strips through the left band's fade (drawRaysFront). */
+const FRONT_STRIPS = 8;
+
 /** A sunset's rays, beams and their glints against a sunrise's: dimmed ~40 % all through (owner item 104). */
 const SET_RAYS_DIM = 0.6;
 /** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
@@ -1660,15 +1663,19 @@ class Sky {
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams
-    // carry the light now), none in the left band (owner item 104): drawn
-    // through the ray layer (free again after drawRaysBack) to cut it there
-    const lq = this.layerStart(env);
-    lq.globalCompositeOperation = 'source-over';
-    lq.fillStyle = gr;
-    lq.fillRect(0, 0, W, H);
-    bandCut(lq, W, H);
-    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
-    f.drawImage(this.rayL!, 0, 0, W, H);
+    // carry the light now), none in the left band (owner item 104): through
+    // the band's fade in FRONT_STRIPS strips, each at the band's strength at
+    // its middle (at ~2 % alpha the steps do not show; a layer cut along the
+    // curve cost ~3 ms a frame)
+    const fa = 0.045 * G * wetK * SUN_LIGHT[kind], x0 = bandSolid(W), x1 = bandEnd(W);
+    f.fillStyle = gr;
+    f.globalAlpha = fa;
+    f.fillRect(x1, 0, W - x1, H);
+    for (let i = 0; i < FRONT_STRIPS; i++) {
+      const xa = x0 + ((x1 - x0) * i) / FRONT_STRIPS, xb = x0 + ((x1 - x0) * (i + 1)) / FRONT_STRIPS;
+      f.globalAlpha = fa * bandK((xa + xb) / 2, W);
+      f.fillRect(xa, 0, xb - xa, H);
+    }
     f.globalCompositeOperation = this.th.add;
     // Every framed pane: at most a faint lift of its top line (no more lit
     // lines by nearness to the sun or the ray front; owner feedback 37).

@@ -580,6 +580,15 @@ the sunrise and sunset: their glow, rays and beams reached the left edge.
   its x is the band's solid edge (`bandSolid`, ~40 % of W), its height and
   the fan's angles as on its circle (`turnFan` from the circle point, then
   the origin moved). Its light and rays come out of the band's fade.
+- **Cost (pre-release check, 2026-10-20).** Headless Chromium, software
+  rendering, 1728 × 1000 at ratio 2, the worker's frame in the middle of a
+  turn: first ~19 ms against main's ~12 ms. Most of it was the ray front
+  drawn through a layer to be cut; it is now filled straight in 8 strips
+  through the band's fade, each at the band's strength at its middle (at
+  ~2 % alpha the steps do not show). A half-size layer for the sun's glow
+  was tried and was slower (~22 ms), so the glow is still cut on the sky.
+  Now ~16 ms (p95 ~21) against main's ~12.5 (p95 ~17), inside FPS_FAST's
+  33 ms, and only while a turn runs.
 - **Dimmer sunset rays.** A sunset's rays, beams and their glints × 0.6 all
   through (`SET_RAYS_DIM`); its glow is unchanged.
 
