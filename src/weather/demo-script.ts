@@ -302,7 +302,7 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   },
   {
     title: 'Sunset · the dusk',
-    look: 'the rays and the faint beams sink toward the horizon at the left, the frame lines glinting where they cross; from about 24 seconds before the night they fade, slowly at first, their glints with them, and the sun sets as the night begins',
+    look: 'the sun sinks toward the horizon at the left and its fan of rays lifts, the frame lines glinting where they cross; the blue still clear 10 seconds before the night, then fading; the last rays run right and up-right over the screen until the last 3 seconds, then fade and shrink as the sun sets at the night\'s second',
     signal: 'the clock: the last game hour of the day',
     dur: 30,
     acts: [],

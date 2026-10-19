@@ -80,9 +80,17 @@ export function turnFull(kind: TurnKind): number {
   return TURN_FULL[kind];
 }
 
-/** The new sky's share at `s`: a sunrise's blue from -30 s, complete at the day's second; a sunset's blue fading into the dusk from -50 s (owner items 76, 77). */
+/**
+ * A sunset's dusk share (1 − the blue's): the blue fades slowly from -50 s,
+ * is still fairly clear at -10, weaker at -5, just perceptible at -2 and
+ * gone at the night's second (owner item 89; was smoothstep -50 … 0, which
+ * left only a tenth of it at -10).
+ */
+const SET_DUSK: ReadonlyArray<readonly [number, number]> = [[-50, 0], [-40, 0.06], [-30, 0.16], [-20, 0.28], [-10, 0.45], [-5, 0.68], [-2, 0.9], [0, 1]];
+
+/** The new sky's share at `s`: a sunrise's blue from -30 s, complete at the day's second; a sunset's dusk from -50 s (owner items 76, 77, 89). */
 export function turnWeight(kind: TurnKind, s: number): number {
-  return kind === 'rise' ? sst(-30, 0, s) : sst(-50, 0, s);
+  return kind === 'rise' ? sst(-30, 0, s) : pw(SET_DUSK, s);
 }
 
 /** A sunrise's stars: half gone 10 s in, barely there 20 s later, gone before the blue is strong (owner item 77). */
@@ -120,10 +128,27 @@ export function turnOn(s: number): boolean {
  */
 const lateFade = (x: number): number => (1 - 0.25 * x) * (1 - x ** 3);
 
-/** The rays' fade: 1 until RAYS_FADE_S, then down to 0 at the turn's second: a sunrise's softly (barely there from -5 s), a sunset's late (half there at -5 s, item 83). */
+/**
+ * A sunset's rays' fade: they run far over the screen until their last
+ * seconds, then fade (owner item 89: they had fallen to 0.4 by -5 s and only
+ * a few showed, at the far left).
+ */
+const SET_RAYS_OUT: ReadonlyArray<readonly [number, number]> = [[RAYS_FADE_S, 1], [-10, 0.88], [-4, 0.75], [-2.5, 0.55], [-1, 0.18], [0, 0]];
+
+/** The rays' fade: 1 until RAYS_FADE_S, then down to 0 at the turn's second: a sunrise's softly (barely there from -5 s), a sunset's in its last 3 s (item 89). */
 export function turnFade(s: number, kind: TurnKind = 'rise'): number {
-  const x = lin(RAYS_FADE_S, 0, s);
-  return kind === 'set' ? lateFade(x) : (1 - x) ** 1.5;
+  if (kind === 'set') return pw(SET_RAYS_OUT, s);
+  return (1 - lin(RAYS_FADE_S, 0, s)) ** 1.5;
+}
+
+/** How far a turn's rays reach, a share of their full length: a sunset's shrink toward the sun over its last 3 s (owner item 89). */
+export function turnReach(kind: TurnKind, s: number): number {
+  return kind === 'set' ? 1 - 0.6 * sst(-3, 0, s) : 1;
+}
+
+/** The rays' and beams' own slow shimmer, a share of its full depth: none at a turn's start, growing over its first 30 s (owner item 89: it flickered). */
+export function turnShimmer(s: number): number {
+  return sst(-60, -30, s);
 }
 
 /** The glow's, tint's and palette's fade: 1 until GLOW_FADE_S, 0 at the turn's second (a sunset's late, item 83). */
@@ -171,7 +196,8 @@ const GLOW: Readonly<Record<TurnKind, ReadonlyArray<readonly [number, number]>>>
 /** The glow's strength at `s` (0 outside the turn). */
 export function turnGlow(kind: TurnKind, s: number): number {
   if (!turnOn(s)) return 0;
-  return pw(GLOW[kind], s) * (kind === 'rise' ? glowFade(s, kind) : turnFade(s, kind));
+  // a sunset's sun sinks on the late curve its rays had before item 89
+  return pw(GLOW[kind], s) * (kind === 'rise' ? glowFade(s, kind) : lateFade(lin(RAYS_FADE_S, 0, s)));
 }
 
 /** The turn's strength for the sky's tint and the day life held back (0 outside the turn). */

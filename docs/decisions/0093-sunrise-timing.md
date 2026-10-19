@@ -526,6 +526,37 @@ ray, and fewer glints drawn.
   not show over the dusk sky), and they are complete 10 s into the night
   (TURN_FULL.set 10, was 5). The sunset demo is 5 s longer.
 
+### Calm rays, a later dusk, a lifting fan (owner item 89)
+
+- **Flicker.** Item 88's dithering in time (a random 8-bit level each frame)
+  made the faint rays flicker, worst in a sunset's first 30 s where a ray is
+  one or two levels. Replaced by a fixed spatial grain: the turn's rays and
+  beams are drawn into a layer at about 16× their alpha, multiplied there by
+  a fixed grain tile (0.5 … 1 per pixel, 256 px, repeated) and copied onto the
+  sky at alpha 21/255. Each pixel takes its 8-bit step at its own moment and
+  nothing changes between frames but the light. Measured in headless
+  Chromium (40 px patches, frame-to-frame second difference): 2–4× less than
+  item 88, and none left in the rays. The rays' shimmer is a third of before
+  (depth 0.1, beams 0.08) and grows from none over a turn's first 30 s.
+  Cost: two full-screen layer passes per turn frame (clear, grain fill,
+  copy), only while a turn runs.
+- **The blue.** A sunset's dusk share follows points (-50 0, -30 0.16,
+  -10 0.45, -5 0.68, -2 0.9, 0 1): the blue still fairly clear at -10,
+  weaker at -5, just perceptible at -2, gone at the night (was smoothstep
+  -50 … 0, a tenth left at -10).
+- **The last rays.** The rays had faded from their far ends (0.4 at -5 s)
+  and the fan still pointed steeply down from a sun at the horizon, so only a
+  few short rays showed at the far left. Now a sunset's rays keep their
+  strength until -4 s (0.75), fade over the last 3 s and shrink toward the
+  sun (reach 1 → 0.4); their far end is brighter (0.3 of the start, was
+  0.05), the ray front stays far until the last tenth, and they are up to 2×
+  stronger from -8 s, where the dusk sky's own colour hid them. The fan
+  lifts: its lower edge turns evenly from its path to level between -42 and
+  -3 s, its upper edge rises to 35° up (toward 0.35 W at the top, was the far
+  corner), so the last rays point right and up-right over the screen, none
+  down. The lowest ray turns at up to 3°/s during the lift, the only move
+  above item 79's 1°/s; the sun's hazy glow keeps item 83's late curve.
+
 ### An even pace (owner item 69)
 
 A moon came in very fast, went to about the middle of the window and then

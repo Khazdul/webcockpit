@@ -82,8 +82,15 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
     expect(a.at(-1)!).toBeLessThan(1);
   });
 
-  it('a sunrise starts sideways and down; later some rays point up; a sunset ends the same way at the left', () => {
-    for (const [kind, s] of [['rise', -59], ['set', -1]] as const) {
+  it('a sunrise starts sideways and down; later some rays point up; a sunset ends pointing right and up-right', () => {
+    // a sunset's sun at the horizon lights up-right (owner item 89; its downward rays go out, sunturn.ts turnRayFloor)
+    const v = angles('set', -1).map(up);
+    expect(Math.max(...v)).toBeGreaterThan(25);
+    expect(Math.max(...v)).toBeLessThan(38);
+    // none down: from level to up-right, spread over the fan
+    for (const x of v) expect(x).toBeGreaterThan(-1.5);
+    for (const a of angles('set', -1)) expect(Math.cos(a)).toBeGreaterThan(0);
+    for (const [kind, s] of [['rise', -59]] as const) {
       const u = angles(kind, s).map(up);
       // at most a few degrees up, most of them level or down
       for (const x of u) expect(x).toBeLessThan(2.5);
@@ -100,13 +107,14 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
   it('spans from about level to steeply down, nearly straight down at the high sun (owner items 80, 81)', () => {
     for (const [w, h] of [[2000, 1150], [1400, 800], [2560, 1100]] as const) {
       for (const [kind, s0, s1] of [['rise', -59, -1], ['set', -1, -59]] as const) {
-        // the low sun: from about level to 35° down or more
+        // the low sun: from about level to 35° down or more (a sunset's lifts at its end, item 89)
         let u = angles(kind, s0, w, h).map(up);
-        expect(Math.min(...u)).toBeLessThan(-35);
+        if (kind === 'rise') expect(Math.min(...u)).toBeLessThan(-35);
         expect(Math.max(...u)).toBeGreaterThan(-5);
         // midway: past 55° down; the high sun: past 75° down
         u = angles(kind, -30, w, h).map(up);
-        expect(Math.min(...u)).toBeLessThan(-55);
+        // a sunset's already lifting toward the horizon (item 89)
+        expect(Math.min(...u)).toBeLessThan(kind === 'set' ? -45 : -55);
         expect(Math.max(...u)).toBeGreaterThan(-5);
         expect(Math.min(...angles(kind, s1, w, h).map(up))).toBeLessThan(-75);
       }
@@ -116,7 +124,8 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
   it('leaves no gap below the rays: the steepest lands near the bottom corner on the sun\'s side (owner item 88)', () => {
     for (const [w, h] of [[1920, 1226], [2000, 1150], [1400, 800], [900, 1000]] as const) {
       for (const kind of ['rise', 'set'] as const) {
-        for (let s = -59; s <= -1; s += 2) {
+        // a sunset's until its fan lifts toward the horizon (item 89)
+        for (let s = -59; s <= (kind === 'set' ? -41 : -1); s += 2) {
           // where each ray that reaches the screen crosses the bottom edge, as a distance from the corner on the sun's side
           let best = Infinity;
           for (const a of angles(kind, s, w, h)) {
@@ -130,20 +139,26 @@ describe('sun beams and the ray fan (owner items 78, 79)', () => {
     }
   });
 
-  it('never moves fast: every ray and beam under 1°/s through both turns, at any window size', () => {
-    let worst = 0;
+  it('never moves fast: every ray and beam under 1°/s through both turns, at any window size; a sunset\'s lift under 3°/s', () => {
+    let worst = 0, lift = 0;
     for (const [w, h] of [[1600, 900], [1400, 800], [1280, 720], [1920, 1080], [2560, 1100], [900, 1000]] as const) {
       for (const kind of ['rise', 'set'] as const) {
         const dt = 0.05;
         let prev = angles(kind, -60, w, h);
         for (let s = -60 + dt; s <= 0; s += dt) {
           const cur = angles(kind, s, w, h);
-          for (let i = 0; i < cur.length; i++) worst = Math.max(worst, (Math.abs(cur[i]! - prev[i]!) / dt) * (180 / Math.PI));
+          for (let i = 0; i < cur.length; i++) {
+            const v = (Math.abs(cur[i]! - prev[i]!) / dt) * (180 / Math.PI);
+            // a sunset's fan lifts over its last 42 s (owner item 89)
+            if (kind === 'set' && s > -42) lift = Math.max(lift, v);
+            else worst = Math.max(worst, v);
+          }
           prev = cur;
         }
       }
     }
     expect(worst).toBeLessThan(1);
+    expect(lift).toBeLessThan(3);
   });
 });
 

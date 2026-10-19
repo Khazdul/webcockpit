@@ -1623,3 +1623,31 @@ Overall the owner is happy; some polish remains for the next session.
       fan reaches the lower-right corner the same way).
       Feedback wanted: is the lower corner filled now, do the first rays
       come in softly enough, and do the stars come at the right moment.
+
+### 2026-10-19 — sun test 7 (translated)
+
+89. **Sunset: no flicker, a later blue, rays to the end pointing
+    right.** The stars' fade-in is good now. About 2 s before the night
+    the blue sky should still just be perceptible; 10 s before, fairly
+    clearly; 5 s before, weaker; gone when the night begins. The flicker on
+    the rays in the first 30 s is far too marked ("a bit epileptic"): much,
+    much lower there; lower the rest of the time too. Over the last ~25 s
+    the rays' spread shrinks until only a few show at the far left: the rays
+    should run far over the screen until their last 2–3 s, then fade and
+    shrink. The last rays should seem to come from the left (the horizon)
+    and, as the sun goes below it, point right or up-right, not down.
+    - **Done (2026-10-19):** ADR 0093, "Calm rays, a later dusk, a lifting
+      fan". The flicker came from item 88's dithering in time; now a fixed
+      spatial grain (no change between frames but the light), and the
+      shimmer is a third of before, growing from none over the first 30 s.
+      The blue: fairly clear at -10, weaker at -5, just perceptible at -2,
+      gone at 0. The rays keep their strength to -4 s, then fade and shrink
+      toward the sun over the last 3 s; the fan lifts from -42 s so the last
+      rays point right and up-right across the screen. The lift turns the
+      lowest ray at up to 3°/s (the only move faster than item 79's 1°/s).
+      Unit 2749; e2e weather + layout 44/44 (Chromium, Firefox). Checked in
+      headless Chromium at 1920 × 1226 (sunset -30 … 0, sunrise -45, -25).
+      Please try: `#weather demo sunset`.
+      Feedback wanted: is the flicker gone, is the blue's timing right, do
+      the last rays run far enough and point the right way, and does the
+      fan's lift feel calm.

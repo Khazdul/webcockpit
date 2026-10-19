@@ -39,6 +39,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 item 89, calm sunset rays (branch `sunrise-timing`)
+
+- **Done:** item 89: ray flicker fixed (fixed spatial grain in place of
+  item 88's dithering in time; shimmer a third, none at first); a sunset's
+  blue fairly clear at -10 s, gone at 0; its rays run far to -3 s, then fade
+  and shrink; the fan lifts so the last rays point right/up-right. ADR 0093.
+  Unit 2749; e2e weather + layout 44/44.
+- **Next:** owner tests item 89 (`#weather demo sunset`); then real-play
+  findings; merge to main and release.
+- **Commits:** this one.
+
 ### 2026-10-19 — Stage 28 item 88, sunset rays and stars (branch `sunrise-timing`)
 
 - **Done:** item 88 (replaces 87): the ray fan's lowest ray reaches the

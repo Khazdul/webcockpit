@@ -70,6 +70,8 @@ const BUNDLE: ReadonlyArray<readonly [number, number]> = [
   [0.0065, 0.9],
 ];
 export const BEAMS = BUNDLE.length;
+/** The beams' shimmer depth (was 0.24: 0.88 ± 0.12). */
+const BEAM_SHIMMER = 0.08;
 
 /** Inside a pane a beam is this strong (as the faint rays are in their shadow wedges, ~0.55²). */
 export const BEAM_INSIDE = 0.32;
@@ -185,7 +187,8 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   const q = Math.min(1, Math.max(0, (psi - p0) / (p1 - p0)));
   const fx = right ? W * (1 - FAN_FLOOR_X) : W * FAN_FLOOR_X, fy = H * FAN_FLOOR;
   const even = lerp(sunToward(p0, fx, fy, W, H, am), sunToward(p1, fx, fy, W, H, am), q);
-  const e = lerp(FAN_UP_HIGH, FAN_UP_LOW, low), corner = toward(right ? 0 : W, 0);
+  // a sunset's sinking sun lights more upward (owner item 89: its last rays point right and up-right)
+  const e = lerp(FAN_UP_HIGH, right ? FAN_UP_LOW : FAN_UP_SET_LOW, low), corner = toward(right ? 0 : lerp(W, W * 0.35, low), 0);
   // up is a larger angle looking left, a smaller one looking right: the lower of the two
   out[1] = right ? Math.min(round(Math.PI + e), corner) : Math.max(round(-e), corner);
   // Never short of the bottom corner on the sun's side (owner item 88: midway
@@ -200,6 +203,10 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   const low0 = (c - out[1] * f) / (1 - f);
   // down is a smaller angle looking left, a larger one looking right
   out[0] = right ? Math.min(even, low0) : Math.max(even, low0);
+  // A sunset's fan lifts as its sun nears the horizon, its lower edge to
+  // level at the end (owner item 89: a sun at the horizon cannot shine down;
+  // its last rays point right and up-right, spread over the screen).
+  if (!right) out[0] = lerp(out[0]!, round(0), setLift(q));
 }
 
 /** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
@@ -211,8 +218,18 @@ const CORNER_KNOTS = 3;
 /** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
 const FAN_UP_LOW = (2 * Math.PI) / 180;
 const FAN_UP_HIGH = (15 * Math.PI) / 180;
+/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
+const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
 
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+/** A sunset's lift: how far its fan's lower edge has turned from its path to level at `q` 0..1 into it: from SET_LIFT_S[0] to SET_LIFT_S[1] s, evenly. */
+function setLift(q: number): number {
+  const s = -60 * (1 - q), [s0, s1] = SET_LIFT_S;
+  return Math.min(1, Math.max(0, (s - s0) / (s1 - s0)));
+}
+/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
+const SET_LIFT_S: readonly [number, number] = [-42, -3];
 
 /** Thin ray `i`'s own fixed random value 0..1 (its place off the even spread, width, strength). */
 export function rayHash(i: number): number {
@@ -226,16 +243,16 @@ export function turnRayAngle(i: number, a0: number, a1: number, T: number): numb
   return a0 + ((a1 - a0) * at) / FAN_SLOTS + sunDrift(T) + Math.sin(T * 0.15 + i) * 0.0015;
 }
 
-/** The beams at time T: spread over the sun's ray fan `a0` … `a1` (turnFan), with the rays' common sway. Fills `out` (BEAMS long). */
-export function sunBeams(T: number, a0: number, a1: number, out: Beam[]): void {
+/** The beams at time T: spread over the sun's ray fan `a0` … `a1` (turnFan), with the rays' common sway and `sh` of their shimmer (sunturn.ts turnShimmer). Fills `out` (BEAMS long). */
+export function sunBeams(T: number, a0: number, a1: number, out: Beam[], sh = 1): void {
   const drift = sunDrift(T);
   for (let i = 0; i < BEAMS; i++) {
     const [hw, k] = BUNDLE[i]!, f = (BEAM_SLOTS[i]! + 0.5) / FAN_SLOTS;
     const b = out[i] ?? (out[i] = { a: 0, hw: 0, k: 0 });
     b.a = a0 + (a1 - a0) * f + drift + Math.sin(T * 0.13 + i * 1.7) * 0.0015;
     b.hw = hw;
-    // a slow, small shimmer in strength
-    b.k = k * (0.88 + 0.12 * Math.sin(T * 0.9 + i * 2.3));
+    // a slow, small shimmer in strength (owner item 89: a third of before, it flickered)
+    b.k = k * (1 - BEAM_SHIMMER * sh * (0.5 - 0.5 * Math.sin(T * 0.9 + i * 2.3)));
   }
 }
 

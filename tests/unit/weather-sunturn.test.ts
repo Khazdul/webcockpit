@@ -2,7 +2,7 @@
 // (sunturn.ts) and the director's turn clock (director.ts).
 import { describe, expect, it } from 'vitest';
 import { Director, TURN_GUARD_MS, TURN_JOIN_RATE, SKY_RATE, eventState } from '../../src/weather/director';
-import { FULL_S, GLIMPSE_LEAD_S, GLOW_FADE_S, LATE_S, RAYS_FADE_S, SET_RAYS_EARLY, SET_STARS_S, TURN_FULL, TURN_RAY_N, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars, turnWeight } from '../../src/weather/sunturn';
+import { FULL_S, GLIMPSE_LEAD_S, GLOW_FADE_S, LATE_S, RAYS_FADE_S, SET_RAYS_EARLY, SET_STARS_S, TURN_FULL, TURN_RAY_N, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars, turnWeight } from '../../src/weather/sunturn';
 
 const W0 = 1_800_000_000_000;
 
@@ -33,7 +33,7 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
       // even: at most 0.04 a second up, at most 0.07 (a sunset's late fade 0.1) a second down
       expect(maxChange(r, -60, RAYS_FADE_S)).toBeLessThan(0.08);
       expect(maxChange(r, -45, RAYS_FADE_S)).toBeLessThan(0.04);
-      expect(maxChange(r, RAYS_FADE_S, 0)).toBeLessThan(kind === 'set' ? 0.1 : 0.07);
+      expect(maxChange(r, RAYS_FADE_S, 0)).toBeLessThan(kind === 'set' ? 0.3 : 0.07);
       expect(r(RAYS_FADE_S + 8)).toBeGreaterThan(0.4);
       expect(r(-0.05)).toBeLessThan(kind === 'set' ? 0.01 : 0.001);
       expect(r(0)).toBe(0);
@@ -43,11 +43,11 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
     // a sunrise's softly: barely there 5 s before the day
     expect(turnRays('rise', -5)).toBeLessThan(0.1);
     expect(turnRays('rise', -5)).toBeGreaterThan(0.02);
-    // a sunset's late: clearly fading from about -22 s, still half there at -5, faint only in its last second (item 83)
-    expect(turnRays('set', -12)).toBeLessThan(0.8);
-    expect(turnRays('set', -5)).toBeGreaterThan(0.35);
-    expect(turnRays('set', -2)).toBeGreaterThan(0.15);
-    expect(turnRays('set', -1)).toBeLessThan(0.1);
+    // a sunset's late: strong until its last 3 s, then fading out (item 89; was half there at -5, item 83)
+    expect(turnRays('set', -10)).toBeGreaterThan(0.8);
+    expect(turnRays('set', -4)).toBeGreaterThan(0.7);
+    expect(turnRays('set', -2)).toBeGreaterThan(0.35);
+    expect(turnRays('set', -1)).toBeLessThan(0.2);
     // a sunset's few rays come in softly over its first 14 s (item 88; were there in 2.5 s), then as before (items 62, 71)
     expect(turnRays('set', -57)).toBeLessThan(0.08);
     expect(turnRays('set', -53)).toBeLessThan(0.35);
@@ -112,7 +112,11 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
   it('a sunset\'s order: the blue fades from 10 s in; the stars just perceptible as the sun sets, complete 10 s after (items 76, 88)', () => {
     expect(turnWeight('set', -50)).toBe(0);
     expect(turnWeight('set', -45)).toBeGreaterThan(0);
-    expect(turnWeight('set', -25)).toBeCloseTo(0.5, 5);
+    // the blue still fairly clear 10 s before the night, weaker at -5, just perceptible at -2 (item 89)
+    expect(1 - turnWeight('set', -10)).toBeGreaterThan(0.5);
+    expect(1 - turnWeight('set', -5)).toBeLessThan(0.4);
+    expect(1 - turnWeight('set', -2)).toBeLessThan(0.2);
+    expect(1 - turnWeight('set', -2)).toBeGreaterThan(0.05);
     expect(turnWeight('set', 0)).toBe(1);
     const st = (x: number): number => turnStars(NaN, x);
     expect(st(-60 + 0.1)).toBe(0);
@@ -157,6 +161,15 @@ describe('sunrise and sunset curves (items 71, 72, 76, 77)', () => {
       expect(turnBeamOn('set', i, RAYS_FADE_S)).toBe(1);
       expect(maxChange((x) => turnBeamOn('set', i, x), -60, 0)).toBeLessThan(0.16);
     }
+  });
+
+  it('a sunset\'s last seconds: its rays reach far until -3 s, then shrink; the shimmer grows from nothing (item 89)', () => {
+    expect(turnReach('set', -3)).toBe(1);
+    expect(turnReach('set', -0.01)).toBeLessThan(0.45);
+    expect(turnReach('rise', -1)).toBe(1);
+    expect(turnShimmer(-60)).toBe(0);
+    expect(turnShimmer(-45)).toBeCloseTo(0.5, 6);
+    expect(turnShimmer(-30)).toBe(1);
   });
 
   it('intensity, palette, progress, weight, glow, stars: even, no jerk, nothing snaps', () => {
@@ -384,7 +397,7 @@ describe('Director: the sunset follows the clock (item 61)', () => {
     expect(d.setS).toBeCloseTo(-60, 5);
     expect(d.riseS).toBeNull();
     run(10);
-    expect(d.mix.sun).toBe(1);
+    expect(d.mix.sun).toBeCloseTo(1, 6);
     run(15);
     expect(d.mix.sun).toBeCloseTo(1 - turnWeight('set', -35), 5);
     expect(d.mix.sun).toBeLessThan(0.9);

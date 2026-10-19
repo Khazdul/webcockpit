@@ -36,10 +36,10 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnStars } from '../sunturn';
+import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { DayLife } from './daylife';
-import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ease, lerp, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
 import { plateRects, rimRects } from './rimshape';
 
@@ -435,15 +435,34 @@ const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
 const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
 
 /**
- * A faint alpha with its 8-bit step dithered in time (owner item 88): a
- * turn's ray adds only a few colour levels, and globalAlpha is itself 8-bit,
- * so as a ray came in each level arrived at once over the whole ray and it
- * popped up. Now each frame (30 a second in a turn) takes the level below or
- * above at random, by how near it is, so the light comes in smoothly.
+ * The turn's rays and beams are drawn into a layer at LAYER_K times their
+ * alpha, multiplied there by a fixed grain (GRAIN_MIN … 1 per pixel) and
+ * copied onto the sky at LAYER_A (owner items 88, 89). A ray adds only a few
+ * 8-bit levels to the sky and globalAlpha is itself 8-bit, so drawn
+ * directly each level came at once over a whole ray and it popped; dithered
+ * in time (a random level each frame) it flickered. Through the grain each
+ * pixel takes its step at its own moment, and nothing changes from frame to
+ * frame but the light itself.
  */
-function dith8(a: number): number {
-  const v = a * 255, f = Math.floor(v);
-  return (f + (Math.random() < v - f ? 1 : 0)) / 255;
+const LAYER_A = 21 / 255;
+const GRAIN_MIN = 0.5;
+const LAYER_K = 1 / (LAYER_A * (1 + GRAIN_MIN) * 0.5);
+/** The grain tile's side, px. */
+const GRAIN_N = 256;
+/** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
+const SET_RAYS_LATE = 1;
+/** The thin rays' shimmer depth (was 0.3: 0.85 ± 0.15; owner item 89: it flickered). */
+const RAY_SHIMMER = 0.1;
+
+function grainTile(): Cv {
+  const c = mkCanvas(GRAIN_N, GRAIN_N), q = ctx2dCpu(c), im = q.createImageData(GRAIN_N, GRAIN_N);
+  const R = rng(4242);
+  for (let i = 0; i < GRAIN_N * GRAIN_N; i++) {
+    im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = 255;
+    im.data[i * 4 + 3] = Math.round(255 * (GRAIN_MIN + (1 - GRAIN_MIN) * R()));
+  }
+  q.putImageData(im, 0, 0);
+  return c;
 }
 
 /** Fills one convex polygon (flat x, y list): one path, one subpath. */
@@ -456,6 +475,10 @@ function polyFill(g: Ctx, P: readonly number[]): void {
 }
 
 class Sky {
+  /** The turn's ray layer and its grain (LAYER_A), made on the first turn frame at this size. */
+  rayL: Cv | null = null;
+  rayLg: Ctx | null = null;
+  grain: CanvasPattern | null = null;
   T = 0;
   W = 0;
   H = 0;
@@ -703,6 +726,7 @@ class Sky {
     this.gLift.addColorStop(0, L(180, 190, 215, 0.5));
     this.gLift.addColorStop(0.5, L(140, 150, 180, 0.14));
     this.gLift.addColorStop(1, L(120, 130, 160, 0));
+    this.rayL = this.rayLg = null;
     this.skyCv = mkCanvas(W * d, Math.ceil(this.skyH) * d);
     this.skyCg = ctx2d(this.skyCv);
     this.skyCg.setTransform(d, 0, 0, d, 0, 0);
@@ -1518,14 +1542,15 @@ class Sky {
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
     const near = Math.max(0, -sy);
-    const front = kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.1, 0.85, p));
+    // a sunset's front stays far until its last seconds (owner item 89: the light shrank toward the sun)
+    const front = kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.9, 1, p));
     const bw = far * 0.28;
     const gr = f.createRadialGradient(sx, sy, Math.max(0, front - bw), sx, sy, front + bw);
     gr.addColorStop(0, `rgba(${rgb},0)`);
     gr.addColorStop(0.5, `rgba(${rgb},1)`);
     gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams carry the light now)
-    f.globalAlpha = dith8(0.045 * G * wetK * SUN_LIGHT[kind]);
+    f.globalAlpha = 0.045 * G * wetK * SUN_LIGHT[kind];
     f.fillStyle = gr;
     f.fillRect(0, 0, W, H);
     f.globalCompositeOperation = this.th.add;
@@ -1591,20 +1616,24 @@ class Sky {
    * are cut, so inside and behind a pane a beam is weaker like the rays.
    */
   drawBeams(g: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
-    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK);
+    const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
+    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late);
     if (this.beams.length !== BEAMS) this.beams = [];
-    sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams);
+    const kind = this.mKind ?? 'rise', s = this.turnS;
+    sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams, turnShimmer(s));
     // the beams come one by one as the turn builds (owner item 71)
-    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(this.mKind ?? 'rise', i, this.turnS);
+    for (let i = 0; i < this.beams.length; i++) this.beams[i]!.k *= turnBeamOn(kind, i, s);
     if (bk < 0.01) return;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.5) | 0},${(c[1]! + (255 - c[1]!) * 0.5) | 0},${(c[2]! + (255 - c[2]!) * 0.45) | 0}`;
-    const L = far * 1.25;
-    const gr = g.createRadialGradient(sx, sy, 0, sx, sy, L);
+    // a sunset's beams shrink toward the sun in its last seconds (item 89)
+    const reach = turnReach(kind, s), L = far * 1.25 * reach;
+    const lg = this.layerStart(env);
+    const gr = lg.createRadialGradient(sx, sy, 0, sx, sy, L);
     gr.addColorStop(0, `rgba(${rgb},1)`);
     gr.addColorStop(0.5, `rgba(${rgb},.8)`);
-    gr.addColorStop(1, `rgba(${rgb},.3)`);
-    g.fillStyle = gr;
+    gr.addColorStop(1, `rgba(${rgb},${(0.3 * clamp((reach - 0.4) / 0.6, 0, 1)).toFixed(3)})`);
+    lg.fillStyle = gr;
     // the pane boxes from the top line's lower edge, as the shadow wedges
     const boxes = this.boxes;
     boxes.length = 0;
@@ -1633,12 +1662,45 @@ class Sky {
         tri[4] = sx + Math.cos(b.a + hw) * L;
         tri[5] = sy + Math.sin(b.a + hw) * L;
         beamPieces(tri, boxes, inside, outside);
-        g.globalAlpha = dith8(a);
-        for (const P of outside) polyFill(g, P);
-        g.globalAlpha = dith8(a * BEAM_INSIDE);
-        for (const P of inside) polyFill(g, P);
+        lg.globalAlpha = Math.min(1, a * LAYER_K);
+        for (const P of outside) polyFill(lg, P);
+        lg.globalAlpha = Math.min(1, a * BEAM_INSIDE * LAYER_K);
+        for (const P of inside) polyFill(lg, P);
       }
     }
+    this.layerEnd(g, env);
+  }
+  /** The ray layer, cleared, to draw a turn's rays or beams into at LAYER_K times their alpha (in the sky's coordinates). */
+  layerStart(env: Env): Ctx {
+    const d = env.dpr || 1;
+    if (!this.rayLg) {
+      this.rayL = mkCanvas(env.W * d, env.H * d);
+      this.rayLg = ctx2d(this.rayL);
+      this.grain = this.rayLg.createPattern(grainTile(), 'repeat');
+    }
+    const q = this.rayLg;
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'source-over';
+    q.setTransform(1, 0, 0, 1, 0, 0);
+    q.clearRect(0, 0, this.rayL!.width, this.rayL!.height);
+    q.setTransform(d, 0, 0, d, 0, 0);
+    q.globalCompositeOperation = this.th.add;
+    return q;
+  }
+  /** The layer through its grain onto `g` at LAYER_A. */
+  layerEnd(g: Ctx, env: Env): void {
+    const q = this.rayLg!, c = this.rayL!;
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'destination-in';
+    q.setTransform(1, 0, 0, 1, 0, 0);
+    q.fillStyle = this.grain!;
+    q.fillRect(0, 0, c.width, c.height);
+    const op = g.globalCompositeOperation, ga = g.globalAlpha;
+    g.globalCompositeOperation = this.th.add;
+    g.globalAlpha = LAYER_A;
+    g.drawImage(c, 0, 0, env.W, env.H);
+    g.globalCompositeOperation = op;
+    g.globalAlpha = ga;
   }
   drawRaysBack(env: Env, p: number, I: number, G: number): void {
     const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
@@ -1646,7 +1708,9 @@ class Sky {
     sunPoint(psi, W, H, S);
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
-    const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25), k = I * kk;
+    const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25);
+    // a sunset's rays stronger late, where the dusk sky's own colour hid them (owner item 89: they should run far over the screen to the end)
+    const k = I * kk * (kind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1);
     g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
@@ -1656,7 +1720,7 @@ class Sky {
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
     // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
-    g.globalAlpha = dith8(G * kk * SUN_LIGHT[kind]);
+    g.globalAlpha = G * kk * SUN_LIGHT[kind];
     g.fillStyle = gl;
     g.fillRect(0, 0, W, H);
     const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
@@ -1665,18 +1729,23 @@ class Sky {
     hs.addColorStop(1, `rgba(${rgb},0)`);
     g.fillStyle = hs;
     g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
-    const rg = g.createRadialGradient(sx, sy, 0, sx, sy, far * 1.05);
-    rg.addColorStop(0, `rgba(${rgb},1)`);
-    rg.addColorStop(0.55, `rgba(${rgb},.62)`);
-    rg.addColorStop(1, `rgba(${rgb},.05)`);
-    g.fillStyle = rg;
     // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
     turnFan(psi, sx, sy, W, H, this.fan);
     const a0 = this.fan[0]!, a1 = this.fan[1]!;
+    // A sunset's rays run far over the screen to their last seconds (owner
+    // item 89: they faded out from the far end and shrank to the left), then
+    // shrink toward the sun (its fan lifts to level and up-right, beams.ts turnFan).
+    const s = this.turnS, reach = turnReach(kind, s), sh = turnShimmer(s);
+    const lg = this.layerStart(env);
+    const rg = lg.createRadialGradient(sx, sy, 0, sx, sy, far * 1.05 * reach);
+    rg.addColorStop(0, `rgba(${rgb},1)`);
+    rg.addColorStop(0.55, `rgba(${rgb},${kind === 'set' ? '.7' : '.62'})`);
+    rg.addColorStop(1, `rgba(${rgb},${((kind === 'set' ? 0.3 : 0.05) * clamp((reach - 0.4) / 0.6, 0, 1)).toFixed(3)})`);
+    lg.fillStyle = rg;
     // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
     // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
     // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
-    const T = this.T, N = TURN_RAY_N, L = far * 1.2, rays = this.rays;
+    const T = this.T, N = TURN_RAY_N, L = far * 1.2 * reach, rays = this.rays;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
@@ -1685,34 +1754,36 @@ class Sky {
       const j = rayHash(i), a = turnRayAngle(i, a0, a1, T), tier = rayTier(i);
       // by tier (owner item 80): the middle rays a little wider than the weak ones
       const wd = (tier === 'm' ? 0.0065 : 0.0045) + j * 0.003;
-      // a sunset's few rays from the start, the others fading in one by one (owner item 71); a sunrise's all with its glow (item 80)
-      const on = turnRayOn(kind, i, this.turnS);
-      const al = RAY_TIER[tier] * (0.85 + 0.15 * Math.sin(T * (0.5 + j) + i * 2.1)) * on;
+      // a sunset's rays fading in one by one (owner items 71, 88); a sunrise's all with its glow (item 80)
+      const on = turnRayOn(kind, i, s);
+      // a slow, shallow shimmer, none at the turn's start (item 89: it flickered)
+      const al = RAY_TIER[tier] * (1 - RAY_SHIMMER * sh * (0.5 - 0.5 * Math.sin(T * (0.5 + j) + i * 2.1))) * on;
       // kept for its glints on the frame lines (drawRaysFront), by tier
       const r = rays[i] ?? (rays[i] = { a: 0, hw: 0, k: 0 });
       r.a = a;
       r.hw = wd;
       r.k = TIER_GLINT[tier] * on;
-      g.globalAlpha = dith8(k * al * RAY_ALPHA);
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
-      g.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
-      g.closePath();
-      g.fill();
+      lg.globalAlpha = Math.min(1, k * al * RAY_ALPHA * LAYER_K);
+      lg.beginPath();
+      lg.moveTo(sx, sy);
+      lg.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
+      lg.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
+      lg.closePath();
+      lg.fill();
       const ww = wd * 0.35;
       cores.push(a - ww, a + ww, on * RAY_TIER[tier]);
     }
     for (let i = 0; i < cores.length; i += 3) {
       if (cores[i + 2]! < 0.005) continue;
-      g.globalAlpha = dith8(k * RAY_ALPHA * cores[i + 2]!);
-      g.beginPath();
-      g.moveTo(sx, sy);
-      g.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
-      g.lineTo(sx + Math.cos(cores[i + 1]!) * L, sy + Math.sin(cores[i + 1]!) * L);
-      g.closePath();
-      g.fill();
+      lg.globalAlpha = Math.min(1, k * RAY_ALPHA * cores[i + 2]! * LAYER_K);
+      lg.beginPath();
+      lg.moveTo(sx, sy);
+      lg.lineTo(sx + Math.cos(cores[i]!) * L, sy + Math.sin(cores[i]!) * L);
+      lg.lineTo(sx + Math.cos(cores[i + 1]!) * L, sy + Math.sin(cores[i + 1]!) * L);
+      lg.closePath();
+      lg.fill();
     }
+    this.layerEnd(g, env);
     g.globalAlpha = 1;
     g.globalCompositeOperation = 'destination-out';
     g.fillStyle = '#000';
