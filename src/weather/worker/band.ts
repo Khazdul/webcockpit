@@ -10,9 +10,9 @@
 import { clamp } from './env';
 
 /** The sky starts this far in from the left (share of the width): from the background to the sky over it. */
-export const LEFT_DARK = 0.55;
+export const LEFT_DARK = 0.61;
 /** It stays fully the background up to this share of LEFT_DARK, then comes in smoothly. */
-export const LEFT_SOLID = 0.46;
+export const LEFT_SOLID = 0.51;
 
 /** How much of the sky the left fade takes back at `x` (share of LEFT_DARK): all up to LEFT_SOLID, then a smootherstep down to none (no kink at either end). */
 export function leftDark(x: number): number {

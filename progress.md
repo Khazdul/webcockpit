@@ -39,6 +39,12 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-19 — Stage 28 item 101 (main session)
+
+- **Done:** left band moved ~6 % further right (`band.ts` 0.61 / 0.51);
+  `MOON_HOLD` 0.55. Weather unit tests green.
+- **Next:** owner test of `weather-real-play` (items 90–101), then merge.
+
 ### 2026-10-19 — Stage 28: weather only over the sky, the moon into the band (items 99–100)
 
 - **Done:** on branch `weather-real-play` (not merged). 99: one band curve

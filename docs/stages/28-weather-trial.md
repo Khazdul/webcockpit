@@ -1902,3 +1902,14 @@ Overall the owner is happy; some polish remains for the next session.
        Feedback wanted: does the moon set into the band at the right moment
        and pace, and does it come up at the moonrise?
 
+
+### 2026-10-19 — left band again (translated)
+
+101. **Move the band's boundary a little further right**, by about the
+     arrow in `img/28-item101-left-band.png` (~6 % of the width).
+     - **Done (2026-10-19):** `band.ts` `LEFT_DARK` 0.61, `LEFT_SOLID` 0.51:
+       fully dark up to ~31 % of the width, the whole sky and all weather
+       from 61 % (was 25 % and 55 %). The moon's no-clock waiting place
+       (`MOON_HOLD`) moved from 0.6 to 0.55 so it stays right of the band.
+       Weather unit tests green; checked in headless Chromium (rain by day).
+       Please try: any outdoor room. Feedback wanted: is the band right now?

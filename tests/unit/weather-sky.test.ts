@@ -43,9 +43,9 @@ describe('sky geometry', () => {
       expect(L).toBe(0);
       expect(moonPreU(L)).toBe(0);
       expect(moonVisU(0.37, L)).toBe(0.37);
-      // the waiting place without a clock (0.6) is still right of the band
+      // the waiting place without a clock (MOON_HOLD 0.55) is still right of the band
       const o = new Float32Array(2);
-      moonAt(P, 0.6, o);
+      moonAt(P, 0.55, o);
       expect(bandK(o[0]!, w)).toBe(1);
     }
   });
