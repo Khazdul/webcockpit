@@ -1032,8 +1032,6 @@ class Sky {
       sunPoint(sunPsi('day', this.sunUs), env.W, env.H, this.daySun);
       this.lifeFps = this.life.frame(
         b,
-        env.front,
-        env.panes,
         T,
         dt,
         {
@@ -1045,7 +1043,6 @@ class Sky {
           sy: this.daySun[1]!,
           block: glimpseBlocked(Date.now(), env.rise, env.set, env.settled.dayAt, env.settled.nightAt),
         },
-        this.glints,
       );
     } else {
       this.starsIn = false;

@@ -38,11 +38,10 @@ import type { ThemeInfo } from '../palette';
 import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
 import { bandK } from './band';
 import { sunDrift, sunMid } from './beams';
-import type { FrameBox, Glints } from './glint';
 
 /** Frames per second while birds fly (slow, small things: 10 is plenty and cheap). */
 export const BIRD_FPS = 10;
-/** Seconds between flocks, between insects and between sun glimpses: [min, max]. */
+/** Seconds between flocks and between insects: [min, max]. */
 const BIRD_GAP: [number, number] = [90, 220];
 const BUG_GAP: [number, number] = [160, 380];
 const FLAP_FRAMES = 6;
@@ -286,11 +285,8 @@ export class DayLife {
     });
   }
 
-  /**
-   * Draws onto `b` (back: birds, tufts, glimpse rays) and `f` (front: glints
-   * on the frames), returns the rate it needs now (0: still).
-   */
-  frame(b: Ctx, f: Ctx, panes: readonly FrameBox[], T: number, dt: number, k: DayInput, glints: Glints): number {
+  /** Draws onto `b` (back: birds, tufts, the pulse's rays), returns the rate it needs now (0: still). */
+  frame(b: Ctx, T: number, dt: number, k: DayInput): number {
     const W = this.W, H = this.H;
     // Tufts: drift with the wind, wrap around.
     if (k.tufts > 0.01) {
