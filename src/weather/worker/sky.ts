@@ -38,9 +38,9 @@ import { RIM_R } from '../../panes/frame';
 export { leftDark } from './band';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import type { WeatherEvent } from '../protocol';
-import { TURN_RAY_N, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
+import { TURN_RAY_N, TURN_S, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk, turnGlint, turnGlow, turnIntensity, turnOn, turnPalette, turnProgress, turnRayOn, turnRays, turnReach, turnShimmer, turnStars } from '../sunturn';
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
-import { LEFT_DARK, bandEnd, bandK, bandSolid, leftDark } from './band';
+import { LEFT_DARK, bandEnd, bandGradient, bandK, bandSolid } from './band';
 import { DayLife } from './daylife';
 import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
@@ -186,6 +186,25 @@ function glowSprite(r: number, rgb: string, a0: number): Cv {
   gr.addColorStop(1, `rgba(${rgb},0)`);
   g.fillStyle = gr;
   g.fillRect(0, 0, r * 2, r * 2);
+  return c;
+}
+/** The moon's halos: an inner one HALO_IN and an outer one HALO_OUT across (× the moon's size / 24) at HALO_OUT_A of its alpha. */
+const HALO_IN = 260;
+const HALO_OUT = 600;
+const HALO_OUT_A = 0.55;
+/**
+ * Both moon halos in one sprite, the inner over the outer (item 112: two
+ * scaled-up copies of ~1250² and ~540² px a night frame were one too many in
+ * Firefox). Drawn at alpha A it differs from the two copies by at most
+ * A·(1 − A)·0.55·0.22² (under 2 levels of 255, under the moon's disc).
+ */
+function haloSprite(): Cv {
+  const one = glowSprite(130, '170,190,235', 0.22), n = 512, c = mkCanvas(n, n), g = ctx2d(c);
+  g.globalAlpha = HALO_OUT_A;
+  g.drawImage(one, 0, 0, n, n);
+  g.globalAlpha = 1;
+  const w = (n * HALO_IN) / HALO_OUT;
+  g.drawImage(one, (n - w) / 2, (n - w) / 2, w, w);
   return c;
 }
 function starSprite(th: ThemeInfo): Cv {
@@ -344,6 +363,8 @@ function keyCol(K: KeyC, p: number, out: Float32Array): void {
 /** The wedge's box points (CX, CY: the rim's lower edge on top, its rounded lower corners as arcs) and their far projections. */
 const NB = 8;
 const HI = new Int32Array(2 * NB), HU = new Int32Array(4 * NB + 1), CX = new Float32Array(NB), CY = new Float32Array(NB);
+/** `hull`'s result, reused (good until its next call). */
+const HULL: number[] = [];
 function hull(pts: Float32Array): number[] {
   const n = pts.length >> 1;
   for (let i = 0; i < n; i++) HI[i] = i;
@@ -367,8 +388,13 @@ function hull(pts: Float32Array): number[] {
     while (k >= t && cr(HU[k - 2]!, HU[k - 1]!, HI[i]!) <= 0) k--;
     HU[k++] = HI[i]!;
   }
-  const out: number[] = [];
-  for (let i = 0; i < k - 1; i++) out.push(pts[HU[i]! * 2]!, pts[HU[i]! * 2 + 1]!);
+  const out = HULL;
+  let m = 0;
+  for (let i = 0; i < k - 1; i++) {
+    out[m++] = pts[HU[i]! * 2]!;
+    out[m++] = pts[HU[i]! * 2 + 1]!;
+  }
+  out.length = m;
   return out;
 }
 
@@ -483,6 +509,8 @@ const GRAIN_MIN = 0.5;
 const LAYER_K = 1 / (LAYER_A * (1 + GRAIN_MIN) * 0.5);
 /** The layer's resolution, a share of the sky's (drawn scaled up: a quarter of the pixels to clear, grain and copy each frame). */
 const LAYER_SCALE = 0.5;
+/** The shadow mask's resolution, a share of the sky's (`shadowMask`). */
+const SHADOW_SCALE = 0.25;
 /** The grain tile's side, px. */
 const GRAIN_N = 256;
 /** A sunset's rays this much stronger from 8 s before the night (owner item 89). */
@@ -498,6 +526,15 @@ const DUSK_LAYERS: ReadonlyArray<readonly [number, number, number, number]> = [
   [0.6, 1.4, 0.5, 0.06],
 ];
 const DUSK_C = '255,96,44';
+/**
+ * The sky cache's resolution during a turn, a share of the canvases' (item
+ * 112): its colours move every frame there, and at full size rebuilding it
+ * cost ~13 ms a frame in Firefox. Its gradients are smooth over hundreds of
+ * px, so the cache scaled up looks the same.
+ */
+const SKY_TURN_SCALE = 0.25;
+/** The left band's strength (`skyNow[10]`) above which its solid part takes the whole sky (under half an 8-bit level left): nothing drawn or copied there. */
+const SKY_BAND_FULL = 0.998;
 
 /** The ray front's strips through the left band's fade (drawRaysFront). */
 const FRONT_STRIPS = 8;
@@ -521,18 +558,31 @@ function grainLayer(w: number, h: number): Cv {
   return c;
 }
 
-/** Takes the left band out of `q` along the sky's curve (band.ts): the sun's light stays over the sky (owner item 104). */
-function bandCut(q: Ctx, W: number, H: number): void {
-  const lw = bandEnd(W), gl = q.createLinearGradient(0, 0, lw, 0);
-  for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
+/**
+ * Takes the left band's fade out of `q` along the sky's curve (band.ts): the
+ * sun's light stays over the sky (owner item 104). `gl` is band.ts
+ * `bandGradient` over 0 … bandEnd(W); only the fade from `x0` is filled, the
+ * solid part left of it holds nothing (never drawn into).
+ */
+function bandCut(q: Ctx, gl: CanvasGradient, x0: number, W: number, H: number): void {
+  const lw = bandEnd(W);
+  if (lw <= x0) return;
   const op = q.globalCompositeOperation, ga = q.globalAlpha;
   q.globalCompositeOperation = 'destination-out';
   q.globalAlpha = 1;
   q.fillStyle = gl;
-  q.fillRect(0, 0, lw, H);
+  q.fillRect(x0, 0, lw - x0, H);
   q.globalCompositeOperation = op;
   q.globalAlpha = ga;
 }
+
+/** The clock's next sunrise or sunset begins within TURN_PREP_S. */
+function turnSoon(env: Env): boolean {
+  const now = Date.now(), soon = (at: number): boolean => at >= 0 && now >= at - (TURN_S + TURN_PREP_S) * 1000 && now < at;
+  return soon(env.settled.dayAt) || soon(env.settled.nightAt);
+}
+/** The turn's layers are made this long (s) before its first second (`turnSoon`). */
+const TURN_PREP_S = 10;
 
 /** How much of a frame glint shows at hit `h` on a screen `W` wide: none in the left band, as its ray (owner item 104). */
 function hitBand(h: BeamHit, W: number): number {
@@ -549,10 +599,36 @@ function polyFill(g: Ctx, P: readonly number[]): void {
 }
 
 class Sky {
-  /** The turn's ray layer and its grain (LAYER_A), made on the first turn frame at this size. */
+  /** The turn's ray layer and its grain (LAYER_A), and the sun's light layer, at LAYER_SCALE (`layers`): made ahead of a turn at this size. */
   rayL: Cv | null = null;
   rayLg: Ctx | null = null;
   grain: Cv | null = null;
+  sunL: Cv | null = null;
+  sunLg: Ctx | null = null;
+  /** The layers' scale to CSS px (dpr × LAYER_SCALE). */
+  layerD = 1;
+  /** The band's cut for the sun's layer (band.ts bandGradient). */
+  bandGl: CanvasGradient | null = null;
+  /** The ray layer's drawn bounds this frame (CSS px: x0, y0, x1, y1) and the last frame's to clear (layer px). */
+  readonly bb = new Float64Array(4);
+  readonly lb = new Float64Array(4);
+  /** The panes' shadow polygons this frame (`shadowGeom`): flat x, y in shXY, polygon i from shAt[i], shLen[i] numbers. */
+  shXY = new Float32Array(1024);
+  shAt = new Int32Array(64);
+  shLen = new Int32Array(64);
+  shN = 0;
+  shUsed = 0;
+  readonly notch: number[][] = [];
+  /** The shadow mask (`shadowMask`), its scale to CSS px and its drawn bounds (mask px). */
+  shM: Cv | null = null;
+  shMg: Ctx | null = null;
+  shD = 1;
+  readonly mb = new Float64Array(4);
+  /** The dusk light's gradients (round 0, 0) and their radii. */
+  readonly duskG: (CanvasGradient | undefined)[] = [];
+  readonly duskR: number[] = [];
+  /** The thin rays' cores this frame: from, to angle and strength per ray. */
+  readonly cores = new Float32Array(TURN_RAY_N * 3);
   T = 0;
   W = 0;
   H = 0;
@@ -578,6 +654,7 @@ class Sky {
   lift: { t0: number; k: number; dur: number } | null = null;
   shoot = { on: false, x: 0, y: 0, vx: 0, vy: 0, age: 0, next: 5 };
   starSpr: Cv;
+  /** The moon's two halos in one sprite (HALO_OUT wide in halo units). */
   halo: Cv;
   readonly glints: Glints;
   readonly life: DayLife;
@@ -666,7 +743,11 @@ class Sky {
   hz = 0;
   skyH = 0;
   starH = 0;
-  starL: Cv[] = [];
+  /** The small stars in two twinkle groups: x, y, size, alpha each (drawn one by one: two full-size layers cost ~5 ms a frame to copy in Firefox, item 112). */
+  starL: Float32Array[] = [];
+  starCol = '#fff';
+  /** The two groups as layers (GPU canvases only, `env.cpu` false). */
+  starCv: Cv[] = [];
   big = new Float32Array(0);
   nBig = 0;
   moon: MoonSurface | null = null;
@@ -703,13 +784,22 @@ class Sky {
   skyCg!: Ctx;
   /** The cached sky's drawn height (CSS px): only that much is copied. */
   skyDrawH = 0;
+  /** The cache's resolution (px per CSS px): half the canvases' during a turn (`skyHalf`). */
+  skyR = 1;
+  skyHalf = false;
+  /** Where the cached sky starts (CSS px): the band's solid part when it takes the whole sky there. */
+  skyX = 0;
+  /** The band's cut for the cache (band.ts bandGradient) and its strength and width. */
+  skyBand: CanvasGradient | null = null;
+  skyBandK = 0;
+  skyBandW = 0;
 
   constructor(env: Env, prev: Sky | null) {
     this.noise = env.noise;
     this.th = env.theme;
     this.SKY = skyTable(env.theme);
     this.starSpr = starSprite(env.theme);
-    this.halo = glowSprite(130, '170,190,235', 0.22);
+    this.halo = haloSprite();
     this.glints = new Glints(env.theme);
     this.life = new DayLife(env.theme);
     const mu = env.raw.moonU;
@@ -757,14 +847,9 @@ class Sky {
     // about as dense as before over the deeper field
     const n = Math.min(520, Math.round((W * (sh0 + sh) * 0.62) / 2400));
     const R = rng(777);
-    this.starL = [mkCanvas(W * d, sh * d), mkCanvas(W * d, sh * d)];
     const starCol = adapt([223, 231, 255], this.th);
-    const gl = this.starL.map((c) => {
-      const q = ctx2d(c);
-      q.setTransform(d, 0, 0, d, 0, 0);
-      q.fillStyle = `rgb(${starCol[0]},${starCol[1]},${starCol[2]})`;
-      return q;
-    });
+    this.starCol = `rgb(${starCol[0]},${starCol[1]},${starCol[2]})`;
+    const small: number[][] = [[], []];
     const big: number[] = [];
     for (let i = 0; i < n; i++) {
       const k = R();
@@ -778,10 +863,23 @@ class Sky {
         big.push(x, y, br, ph2, fr);
         continue;
       }
-      const cls = k > 0.7 ? 1 : 0, q = gl[i & 1]!, sz = cls ? 2 : 1.3;
-      q.globalAlpha = Math.min(1, br * (cls ? 1.1 : 0.85));
-      q.fillRect(x - sz / 2, y - sz / 2, sz, sz);
+      const cls = k > 0.7 ? 1 : 0, sz = cls ? 2 : 1.3;
+      small[i & 1]!.push(x - sz / 2, y - sz / 2, sz, Math.min(1, br * (cls ? 1.1 : 0.85)));
     }
+    this.starL = small.map((a) => new Float32Array(a));
+    // on the GPU (Chromium) two layer copies cost less than ~500 small fills
+    this.starCv = env.cpu
+      ? []
+      : this.starL.map((A) => {
+          const c = mkCanvas(W * d, sh * d), q = ctx2d(c);
+          q.setTransform(d, 0, 0, d, 0, 0);
+          q.fillStyle = this.starCol;
+          for (let i = 0; i < A.length; i += 4) {
+            q.globalAlpha = A[i + 3]!;
+            q.fillRect(A[i]!, A[i + 1]!, A[i + 2]!, A[i + 2]!);
+          }
+          return c;
+        });
     this.big = new Float32Array(big);
     this.nBig = big.length / 5;
     const MR = Math.round(clamp(H * 0.05, 30, 56));
@@ -808,10 +906,13 @@ class Sky {
     this.gLift.addColorStop(0, L(180, 190, 215, 0.5));
     this.gLift.addColorStop(0.5, L(140, 150, 180, 0.14));
     this.gLift.addColorStop(1, L(120, 130, 160, 0));
-    this.rayL = this.rayLg = null;
-    this.skyCv = mkCanvas(W * d, Math.ceil(this.skyH) * d);
+    this.rayL = this.rayLg = this.sunL = this.sunLg = this.grain = this.shM = this.shMg = null;
+    this.duskG.length = 0;
+    const sr = (this.skyR = d * (this.skyHalf ? SKY_TURN_SCALE : 1));
+    this.skyCv = mkCanvas(W * sr, Math.ceil(this.skyH) * sr);
     this.skyCg = ctx2d(this.skyCv);
-    this.skyCg.setTransform(d, 0, 0, d, 0, 0);
+    this.skyCg.setTransform(sr, 0, 0, sr, 0, 0);
+    this.skyBand = null;
     this.skyLast[0] = -1;
     this.setupDeck(env);
     // The clouds at the new size at once (no empty sky while the deck rebuilds).
@@ -937,9 +1038,12 @@ class Sky {
       for (let i = 0; i < NP; i++) t[i]! *= 1 - e1;
       keyPal(kind === 'rise' ? RISE_K : SET_K, mP, t, e1);
       keyCol(kind === 'rise' ? RISE_C : SET_C, mP, this.col);
+      this.sunPlace(env, kind, mP);
     }
     this.momentP = mP;
     this.mKind = kind;
+    // the turn's layers ready before its first frame (item 112)
+    if (!this.rayLg && skyOn && (kind || turnSoon(env))) this.layers(env);
     if (this.first) this.palW.set(t);
     const pTau = kind ? 0.35 : 0.6;
     let palD = 0;
@@ -952,7 +1056,8 @@ class Sky {
     const b = env.back;
     this.skyColour(env, wSun, wMoon, wNight, mI, skyVis);
     const rays = (rI > 0.002 || gI > 0.002) && out > 0.02;
-    if (rays) this.drawRaysBack(env, mP, rI * out, gI * out);
+    // in a turn the sky goes under the sun's light in its layer: one copy for both (drawRaysBack)
+    if (rays) this.drawRaysBack(env, rI * out, gI * out, this.skyCache(env, dt, mI));
     if (skyOn) {
       // a sunrise's stars fade as its light comes, a sunset's come after its last rays (owner items 76, 77)
       const st = turnStars(env.rise, env.set);
@@ -993,7 +1098,7 @@ class Sky {
     }
     if (this.dark) this.drawDark(b, env, out);
     if (this.lift) this.drawLift(b, env, out);
-    this.drawSky(b, env, dt, mI);
+    if (!rays) this.drawSky(b, env, dt, mI);
     if (skyOn) this.drawShoot(b, env, dt, out);
     if (rays) this.drawRaysFront(env, mP, rI * out, gI * out);
     if (mI > 0.002 && out < 0.98) this.drawIndoorTint(env, mI * (1 - out));
@@ -1110,14 +1215,35 @@ class Sky {
   /**
    * The sky: a vertical gradient (top colour → horizon colour, fading out at
    * skyH) and a soft radial glow on the light side, drawn once into a cached
-   * canvas at full resolution whenever the colours have moved enough, then
-   * copied under everything already on the back layer. A settled sky is one
-   * image copy per frame (Firefox draws these canvases on the CPU).
+   * canvas whenever the colours have moved enough, then copied under
+   * everything already on the back layer. A settled sky is one image copy
+   * per frame (Firefox draws these canvases on the CPU). The cache is at
+   * full resolution, at half during a turn, when its colours move every
+   * frame (item 112: rebuilding it at full size cost ~13 ms a frame in
+   * Firefox; the gradients are smooth, so the scaled-up copy looks the
+   * same). Where the left band takes the whole sky, nothing is drawn or
+   * copied.
    */
   drawSky(b: Ctx, env: Env, dt: number, mI: number): void {
+    if (!this.skyCache(env, dt, mI)) return;
+    b.globalCompositeOperation = 'destination-over';
+    b.globalAlpha = this.outWas;
+    this.skyCopy(b);
+    b.globalAlpha = 1;
+    b.globalCompositeOperation = 'source-over';
+  }
+  /** Copies the cached sky onto `b` (CSS px; the caller sets the composite and alpha). */
+  skyCopy(b: Ctx): void {
+    const dh = this.skyDrawH, r = this.skyR, cv = this.skyCv;
+    if (dh <= 0) return;
+    const sx = Math.round(this.skyX * r), sh = Math.min(cv.height, Math.ceil(dh * r));
+    b.drawImage(cv, sx, 0, cv.width - sx, sh, sx / r, 0, (cv.width - sx) / r, sh / r);
+  }
+  /** The sky's glow side and its cache brought up to date; false when there is no sky to draw. */
+  skyCache(env: Env, dt: number, mI: number): boolean {
     const s = this.skyNow, tr = s[0]!, tg = s[1]!, tb = s[2]!, hr = s[3]!, hg = s[4]!, hb = s[5]!, a = s[6]!;
     const out = this.outWas;
-    if (a * out < 0.004) return;
+    if (a * out < 0.004) return false;
     let su = SUN_U;
     // The cool glow follows the moon, but not into the top-left corner as it
     // sets in the west (owner feedback 28, 38): it stops a third of the way in.
@@ -1129,6 +1255,19 @@ class Sky {
     let diff = 0;
     for (let i = 0; i < 11; i++) diff += Math.abs(s[i]! - L[i]!);
     this.skyTick++;
+    const half = this.mKind !== null;
+    if (half !== this.skyHalf) {
+      // a turn begins or ends: the cache at its new resolution, drawn now
+      this.skyHalf = half;
+      const r = this.dpr * (half ? SKY_TURN_SCALE : 1);
+      this.skyR = r;
+      this.skyCv = mkCanvas(env.W * r, Math.ceil(this.skyH) * r);
+      this.skyCg = ctx2d(this.skyCv);
+      this.skyCg.setTransform(r, 0, 0, r, 0, 0);
+      this.skyBand = null;
+      L[0] = -1;
+      diff = 1e9;
+    }
     // every frame it has moved enough (it was every other frame: a 6 Hz
     // stepping at 12 fps; transitions now run at the fast rate, owner feedback 56)
     if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 1 || diff > 40 || this.first)) {
@@ -1136,6 +1275,11 @@ class Sky {
       this.skyTick = 0;
       this.moving = true;
       const C = this.skyCg, W = env.W, sh = env.H * lerp(SKY_H, SKY_H_DAY, s[9]! / 100);
+      const lk = s[10]! / 100, lw = W * LEFT_DARK;
+      // the left band takes it all up to its solid part: nothing drawn there
+      const solid = lk > SKY_BAND_FULL;
+      const xs = solid ? Math.floor(bandSolid(W) * this.skyR) / this.skyR : 0;
+      this.skyX = xs;
       C.clearRect(0, 0, W, this.skyH + 1);
       this.skyDrawH = Math.min(this.skyH, Math.ceil(sh) + 1);
       const g = C.createLinearGradient(0, 0, 0, sh);
@@ -1146,7 +1290,7 @@ class Sky {
         g.addColorStop(v, `rgba(${lerp(tr, hr, k) | 0},${lerp(tg, hg, k) | 0},${lerp(tb, hb, k) | 0},${(a * f).toFixed(4)})`);
       }
       C.fillStyle = g;
-      C.fillRect(0, 0, W, sh);
+      C.fillRect(xs, 0, W - xs, sh);
       const ga = s[8]! / 100;
       if (ga > 0.003) {
         // just above the top edge; gone before the sky's bottom (no edge)
@@ -1159,31 +1303,27 @@ class Sky {
         gr.addColorStop(0.5, `rgba(${rgb},${(ga * 0.12).toFixed(4)})`);
         gr.addColorStop(1, `rgba(${rgb},0)`);
         C.fillStyle = gr;
-        const x0 = Math.max(0, cx - R), x1 = Math.min(W, cx + R);
+        const x0 = Math.max(xs, cx - R), x1 = Math.min(W, cx + R);
         if (x1 > x0) C.fillRect(x0, 0, x1 - x0, sh);
       }
-      const lk = s[10]! / 100;
       if (lk > 0.003) {
         // Left to right from the page background to the sky over the first
         // LEFT_DARK of the width; with the vertical fade the top-left corner
         // stays the background (dark, grey or paper alike). A smootherstep
         // ramp: no kink where it ends (a straight ramp ending at once read
         // as a bright vertical band there, owner item 96).
-        const lw = W * LEFT_DARK;
-        const gl = C.createLinearGradient(0, 0, lw, 0);
-        for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${(lk * leftDark(i / 16)).toFixed(4)})`);
+        if (!this.skyBand || this.skyBandK !== lk || this.skyBandW !== lw) {
+          this.skyBand = bandGradient(C, lw, lk);
+          this.skyBandK = lk;
+          this.skyBandW = lw;
+        }
         C.globalCompositeOperation = 'destination-out';
-        C.fillStyle = gl;
-        C.fillRect(0, 0, lw, sh);
+        C.fillStyle = this.skyBand;
+        C.fillRect(xs, 0, lw - xs, sh);
         C.globalCompositeOperation = 'source-over';
       }
     }
-    b.globalCompositeOperation = 'destination-over';
-    b.globalAlpha = out;
-    const dh = this.skyDrawH;
-    if (dh > 0) b.drawImage(this.skyCv, 0, 0, this.skyCv.width, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)), 0, 0, env.W, Math.min(this.skyCv.height, Math.ceil(dh * this.dpr)) / this.dpr);
-    b.globalAlpha = 1;
-    b.globalCompositeOperation = 'source-over';
+    return true;
   }
 
   // A flat cloud layer above the viewer, ray-cast per deck pixel, rebuilt
@@ -1203,9 +1343,7 @@ class Sky {
     this.gC = ctx2d(this.dC);
     this.gF = ctx2d(this.dF);
     this.bimg = this.gN.createImageData(dw, dh);
-    const lw = (W * LEFT_DARK) / DS, gl = this.gC.createLinearGradient(0, 0, lw, 0);
-    for (let i = 0; i <= 16; i++) gl.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
-    this.deckLeft = gl;
+    this.deckLeft = bandGradient(this.gC, (W * LEFT_DARK) / DS);
     const f = W * 0.55, cx = W * 0.5;
     this.rZ = new Float32Array(dh);
     this.rA = new Float32Array(dh);
@@ -1373,7 +1511,9 @@ class Sky {
     C.globalAlpha = 1;
     const dW = this.dw * DS, dH = this.dh * DS;
     b.globalAlpha = fA;
-    b.drawImage(this.dC, 0, 0, dW, dH);
+    // the band's solid part holds no cloud (cut above): not copied
+    const cx0 = Math.max(0, Math.floor(bandSolid(env.W) / DS) - 1);
+    b.drawImage(this.dC, cx0, 0, this.dw - cx0, this.dh, cx0 * DS, 0, dW - cx0 * DS, dH);
     const fl = clamp(env.shared.flash || 0, 0, 1) * out;
     if (fl > 0.02 && !this.th.light) {
       const F = this.gF, bx = env.shared.boltX;
@@ -1411,11 +1551,22 @@ class Sky {
     this.starVis = vis;
     if (vis < 0.01) return;
     this.moving = true;
-    const T = this.T, W = env.W, sh = this.starH;
-    b.globalAlpha = vis * (0.8 + 0.2 * Math.sin(T * 1.3));
-    b.drawImage(this.starL[0]!, 0, 0, W, sh);
-    b.globalAlpha = vis * (0.8 + 0.2 * Math.sin(T * 1.9 + 2.1));
-    b.drawImage(this.starL[1]!, 0, 0, W, sh);
+    const T = this.T, W = env.W, d = this.dpr;
+    b.fillStyle = this.starCol;
+    for (let l = 0; l < 2; l++) {
+      const A = this.starL[l]!, k = vis * (l ? 0.8 + 0.2 * Math.sin(T * 1.9 + 2.1) : 0.8 + 0.2 * Math.sin(T * 1.3)), C = this.starCv[l];
+      if (C) {
+        // the band's solid part keeps no stars: not copied
+        const xs = Math.max(0, Math.floor((bandSolid(W) - 2) * d)), sw = C.width - xs;
+        b.globalAlpha = k;
+        b.drawImage(C, xs, 0, sw, C.height, xs / d, 0, sw / d, C.height / d);
+        continue;
+      }
+      for (let i = 0; i < A.length; i += 4) {
+        b.globalAlpha = A[i + 3]! * k;
+        b.fillRect(A[i]!, A[i + 1]!, A[i + 2]!, A[i + 2]!);
+      }
+    }
     const S = this.big;
     for (let i = 0; i < this.nBig; i++) {
       const o = i * 5;
@@ -1601,9 +1752,7 @@ class Sky {
     const hs = mo.R / 24;
     if (!this.th.light && dayK < 0.99) {
       b.globalAlpha = a * ph * (1 - dayK);
-      b.drawImage(this.halo, x - 130 * hs, y - 130 * hs, 260 * hs, 260 * hs);
-      b.globalAlpha = a * 0.55 * ph * (1 - dayK);
-      b.drawImage(this.halo, x - 300 * hs, y - 300 * hs, 600 * hs, 600 * hs);
+      b.drawImage(this.halo, x - (HALO_OUT / 2) * hs, y - (HALO_OUT / 2) * hs, HALO_OUT * hs, HALO_OUT * hs);
     }
     const s = mo.w / mo.S;
     if (dayK < 0.99) {
@@ -1658,23 +1807,51 @@ class Sky {
     // a sunset's front stays far until its last seconds (owner item 89: the light shrank toward the sun)
     const front = kind === 'rise' ? lerp(near, far * 1.05, sst(0.08, 0.75, p)) : lerp(far * 1.05, near, sst(0.9, 1, p));
     const bw = far * 0.28;
-    const gr = f.createRadialGradient(sx, sy, Math.max(0, front - bw), sx, sy, front + bw);
-    gr.addColorStop(0, `rgba(${rgb},0)`);
-    gr.addColorStop(0.5, `rgba(${rgb},1)`);
-    gr.addColorStop(1, `rgba(${rgb},0)`);
     // the ray front: a soft band sweeping over the screen (fainter: the beams
     // carry the light now), none in the left band (owner item 104): through
     // the band's fade in FRONT_STRIPS strips, each at the band's strength at
     // its middle (at ~2 % alpha the steps do not show; a layer cut along the
     // curve cost ~3 ms a frame)
     const fa = 0.045 * G * wetK * SUN_LIGHT[kind], x0 = bandSolid(W), x1 = bandEnd(W);
-    f.fillStyle = gr;
-    f.globalAlpha = fa;
-    f.fillRect(x1, 0, W - x1, H);
-    for (let i = 0; i < FRONT_STRIPS; i++) {
-      const xa = x0 + ((x1 - x0) * i) / FRONT_STRIPS, xb = x0 + ((x1 - x0) * (i + 1)) / FRONT_STRIPS;
-      f.globalAlpha = fa * bandK((xa + xb) / 2, W);
-      f.fillRect(xa, 0, xb - xa, H);
+    // Only the ring between the gradient's radii is filled (its colour is
+    // transparent inside and outside it): most of the screen lies inside the
+    // ring while a sunset's front stays far (item 112: the whole-screen fill
+    // was 6 ms a frame in Firefox). Under half an 8-bit level nothing shows.
+    const r0 = Math.max(0, front - bw), r1 = front + bw;
+    // where the ring's tent is under half a level it is not filled (the gradient keeps its radii)
+    const tw = bw * (1 - Math.min(1, 0.5 / (255 * fa || 1))), p0 = Math.max(0, front - tw), p1 = front + tw;
+    const reach = Math.hypot(Math.max(Math.abs(sx - x0), Math.abs(W - sx)), Math.max(Math.abs(sy), Math.abs(H - sy)));
+    if (fa * 255 >= 0.5 && p0 < reach && p1 > 0) {
+      const gr = f.createRadialGradient(sx, sy, r0, sx, sy, r1);
+      gr.addColorStop(0, `rgba(${rgb},0)`);
+      gr.addColorStop(0.5, `rgba(${rgb},1)`);
+      gr.addColorStop(1, `rgba(${rgb},0)`);
+      f.fillStyle = gr;
+      // the ring's bounds on the screen
+      const by0 = Math.max(0, sy - p1), by1 = Math.min(H, sy + p1), bx1 = Math.min(W, sx + p1), bx0 = sx - p1;
+      const ring = (xa: number, xb: number, a: number): void => {
+        xa = Math.max(xa, bx0);
+        xb = Math.min(xb, bx1);
+        if (xb <= xa || by1 <= by0 || a * 255 < 0.5) return;
+        f.globalAlpha = a;
+        f.save();
+        f.beginPath();
+        f.rect(xa, by0, xb - xa, by1 - by0);
+        f.clip();
+        f.beginPath();
+        f.arc(sx, sy, p1, 0, TAU);
+        if (p0 > 0) {
+          f.moveTo(sx + p0, sy);
+          f.arc(sx, sy, p0, 0, TAU, true);
+        }
+        f.fill();
+        f.restore();
+      };
+      ring(x1, W, fa);
+      for (let i = 0; i < FRONT_STRIPS; i++) {
+        const xa = x0 + ((x1 - x0) * i) / FRONT_STRIPS, xb = x0 + ((x1 - x0) * (i + 1)) / FRONT_STRIPS;
+        ring(xa, xb, fa * bandK((xa + xb) / 2, W));
+      }
     }
     f.globalCompositeOperation = this.th.add;
     // Every framed pane: at most a faint lift of its top line (no more lit
@@ -1774,6 +1951,8 @@ class Sky {
       boxes.push([q.x, yt, a, yb], [b, yt, x2, yb], [a, gp.y1, b, yb]);
     }
     const light = this.th.light ? 0.7 : 1, tri = this.tri, inside = this.pIn, outside = this.pOut;
+    // the ray layer's bounds (`bb`): the beams' apex and far ends
+    this.bbAdd(sx, sy);
     for (const b of this.beams) {
       for (const [w, al] of BEAM_LAYERS) {
         const hw = b.hw * w, a = bk * b.k * al * light;
@@ -1783,6 +1962,8 @@ class Sky {
         tri[3] = sy + Math.sin(b.a - hw) * L;
         tri[4] = sx + Math.cos(b.a + hw) * L;
         tri[5] = sy + Math.sin(b.a + hw) * L;
+        this.bbAdd(tri[2]!, tri[3]!);
+        this.bbAdd(tri[4]!, tri[5]!);
         beamPieces(tri, boxes, inside, outside);
         lg.globalAlpha = Math.min(1, a * LAYER_K);
         for (const P of outside) polyFill(lg, P);
@@ -1791,45 +1972,143 @@ class Sky {
       }
     }
   }
-  /** The ray layer, cleared, to draw a turn's rays or beams into at LAYER_K times their alpha (in the sky's coordinates). */
-  layerStart(env: Env): Ctx {
-    const d = (env.dpr || 1) * LAYER_SCALE;
-    if (!this.rayLg) {
-      this.rayL = mkCanvas(env.W * d, env.H * d);
-      this.rayLg = ctx2d(this.rayL);
-      this.grain = grainLayer(this.rayL.width, this.rayL.height);
+  /**
+   * The turn's layers at LAYER_SCALE of the sky's resolution: the ray layer
+   * (`rayL`), its grain, and the sun's light layer (`sunL`). Made ahead of a
+   * turn (`frame`: within TURN_PREP_S of the clock's next turn) or on its
+   * first frame, and run once through the operations a turn frame uses, so
+   * the turn's first frame costs no more than the others (item 112: making
+   * them and the first shadow cut took ~30 ms there in Firefox).
+   */
+  layers(env: Env): void {
+    if (this.rayLg) return;
+    const d = (this.layerD = (env.dpr || 1) * LAYER_SCALE), w = Math.ceil(env.W * d), h = Math.ceil(env.H * d);
+    this.rayL = mkCanvas(w, h);
+    this.rayLg = ctx2d(this.rayL);
+    this.sunL = mkCanvas(w, h);
+    this.sunLg = ctx2d(this.sunL);
+    this.grain = grainLayer(w, h);
+    const dm = (this.shD = (env.dpr || 1) * SHADOW_SCALE);
+    this.shM = mkCanvas(env.W * dm, env.H * dm);
+    this.shMg = ctx2d(this.shM);
+    this.mb[0] = this.mb[1] = 0;
+    this.mb[2] = this.shM.width;
+    this.mb[3] = this.shM.height;
+    this.bandGl = bandGradient(this.sunLg, bandEnd(env.W));
+    this.lb[0] = 0;
+    this.lb[1] = 0;
+    this.lb[2] = w;
+    this.lb[3] = h;
+    this.duskG.length = 0;
+    // warm up: a gradient fill, a cut, the grain, a layer copy
+    for (const q of [this.rayLg, this.sunLg]) {
+      const wg = q.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+      wg.addColorStop(0, 'rgba(255,255,255,.5)');
+      wg.addColorStop(1, 'rgba(255,255,255,0)');
+      q.globalCompositeOperation = 'lighter';
+      q.fillStyle = wg;
+      q.fillRect(0, 0, w, h);
+      q.globalCompositeOperation = 'destination-out';
+      q.globalAlpha = 0.45;
+      q.fillStyle = '#000';
+      q.beginPath();
+      q.moveTo(0, 0);
+      q.lineTo(w, h * 0.5);
+      q.lineTo(w * 0.5, h);
+      q.closePath();
+      q.fill();
+      q.globalAlpha = 1;
     }
-    const q = this.rayLg;
+    this.rayLg.globalCompositeOperation = 'destination-in';
+    this.rayLg.drawImage(this.grain, 0, 0);
+    this.sunLg.globalCompositeOperation = 'lighter';
+    this.sunLg.drawImage(this.rayL, 0, 0);
+    for (const q of [this.rayLg, this.sunLg]) {
+      q.globalCompositeOperation = 'source-over';
+      q.clearRect(0, 0, w, h);
+    }
+  }
+  /** The ray layer, cleared, to draw a turn's rays or beams into at LAYER_K times their alpha (in the sky's coordinates). Only what the last frame drew is cleared (`lb`); `bb` collects this frame's bounds. */
+  layerStart(env: Env): Ctx {
+    this.layers(env);
+    const d = this.layerD, q = this.rayLg!, lb = this.lb;
     q.globalAlpha = 1;
     q.globalCompositeOperation = 'source-over';
     q.setTransform(1, 0, 0, 1, 0, 0);
-    q.clearRect(0, 0, this.rayL!.width, this.rayL!.height);
+    if (lb[2]! > lb[0]! && lb[3]! > lb[1]!) q.clearRect(lb[0]!, lb[1]!, lb[2]! - lb[0]!, lb[3]! - lb[1]!);
     q.setTransform(d, 0, 0, d, 0, 0);
     q.globalCompositeOperation = this.th.add;
+    const bb = this.bb;
+    bb[0] = bb[1] = Infinity;
+    bb[2] = bb[3] = -Infinity;
     return q;
   }
-  /** The layer through its grain onto `g` at LAYER_A. */
-  layerEnd(g: Ctx, env: Env): void {
-    const q = this.rayLg!, c = this.rayL!;
+  /** Adds a drawn point to the ray layer's bounds (CSS px). */
+  bbAdd(x: number, y: number): void {
+    const bb = this.bb;
+    if (x < bb[0]!) bb[0] = x;
+    if (y < bb[1]!) bb[1] = y;
+    if (x > bb[2]!) bb[2] = x;
+    if (y > bb[3]!) bb[3] = y;
+  }
+  /**
+   * The ray layer through its grain into the sun's layer at LAYER_A: only
+   * within what was drawn (`bb`) right of `x0p` (layer px; left of it the
+   * band takes everything). `again`: the ray layer cleared after, ready to
+   * draw more into (`bb` from empty).
+   */
+  layerEnd(x0p: number, again = false): void {
+    const q = this.rayLg!, c = this.rayL!, d = this.layerD, bb = this.bb, lb = this.lb;
+    // what to clear next frame: all that was drawn (2 px for the edges' antialiasing)
+    lb[0] = clamp(Math.floor(bb[0]! * d) - 2, 0, c.width);
+    lb[1] = clamp(Math.floor(bb[1]! * d) - 2, 0, c.height);
+    lb[2] = clamp(Math.ceil(bb[2]! * d) + 2, 0, c.width);
+    lb[3] = clamp(Math.ceil(bb[3]! * d) + 2, 0, c.height);
+    const x0 = Math.max(lb[0]!, x0p), y0 = lb[1]!, w = lb[2]! - x0, h = lb[3]! - y0;
+    if (w > 0 && h > 0) this.layerMerge(x0, y0, w, h);
+    if (again) {
+      q.setTransform(1, 0, 0, 1, 0, 0);
+      q.globalAlpha = 1;
+      q.globalCompositeOperation = 'source-over';
+      if (lb[2]! > lb[0]! && lb[3]! > lb[1]!) q.clearRect(lb[0]!, lb[1]!, lb[2]! - lb[0]!, lb[3]! - lb[1]!);
+      lb[0] = lb[1] = lb[2] = lb[3] = 0;
+      bb[0] = bb[1] = Infinity;
+      bb[2] = bb[3] = -Infinity;
+      q.setTransform(d, 0, 0, d, 0, 0);
+      q.globalCompositeOperation = this.th.add;
+    }
+  }
+  /** The ray layer's rect (layer px) through the grain into the sun's layer. */
+  layerMerge(x0: number, y0: number, w: number, h: number): void {
+    const q = this.rayLg!, c = this.rayL!, d = this.layerD;
     q.globalAlpha = 1;
     q.globalCompositeOperation = 'destination-in';
     q.setTransform(1, 0, 0, 1, 0, 0);
-    q.drawImage(this.grain!, 0, 0);
-    const op = g.globalCompositeOperation, ga = g.globalAlpha;
+    // destination-in is unbounded (it would clear and cost the whole layer): clipped to the rect
+    q.save();
+    q.beginPath();
+    q.rect(x0, y0, w, h);
+    q.clip();
+    q.drawImage(this.grain!, x0, y0, w, h, x0, y0, w, h);
+    q.restore();
+    const g = this.sunLg!;
+    g.setTransform(1, 0, 0, 1, 0, 0);
     g.globalCompositeOperation = this.th.add;
     g.globalAlpha = LAYER_A;
-    g.drawImage(c, 0, 0, env.W, env.H);
-    g.globalCompositeOperation = op;
-    g.globalAlpha = ga;
+    g.drawImage(c, x0, y0, w, h, x0, y0, w, h);
+    g.setTransform(d, 0, 0, d, 0, 0);
   }
-  /** The panes' shadow wedges, cut out of `q0` (destination-out, two soft passes). */
-  cutShadows(q0: Ctx, env: Env, sx: number, sy: number): void {
-    q0.globalCompositeOperation = 'destination-out';
-    q0.fillStyle = '#000';
-    const pts = this.pts;
+  /**
+   * The panes' shadow wedges from the sun at (sx, sy), two soft passes 36 px
+   * apart, as polygons in `shXY` (computed once a frame, cut out of both
+   * layers by `cutShadows`).
+   */
+  shadowGeom(env: Env, sx: number, sy: number): void {
+    const pts = this.pts, d = env.dpr || 1;
+    this.shN = 0;
+    this.shUsed = 0;
     for (let pass = 0; pass < 2; pass++) {
       const ox = pass ? -18 : 18;
-      q0.globalAlpha = 0.45;
       for (const q of env.panes) {
         // From the rim's lower edge: the step between the brighter rays
         // outside and the shadow inside lies under the rim (owner feedback
@@ -1862,19 +2141,92 @@ class Sky {
           pts[2 * NB + i * 2 + 1] = CY[i]! + (dy / dl) * 4000;
         }
         const P = hull(pts);
+        if (P.length < 6) continue;
         // The nameplate is the rim's glass: no shadow over it, so it takes
         // the sun's colour as the top rim does (owner item 42).
         const gp = q.plate;
-        if (gp && P.length >= 6) {
-          const d = env.dpr || 1;
-          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1)) polyFill(q0, Q);
-        } else if (P.length >= 6) polyFill(q0, P);
+        if (gp) {
+          for (const Q of notchPieces(P, Math.round(gp.x * d) / d, q.y + q.border, Math.round((gp.x + gp.w) * d) / d, gp.y1, this.notch)) this.shAdd(Q);
+        } else this.shAdd(P);
       }
     }
   }
-  drawRaysBack(env: Env, p: number, I: number, G: number): void {
-    const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
-    const psi = sunPsi(kind, p);
+  /** Keeps one shadow polygon (flat x, y list). */
+  shAdd(P: readonly number[]): void {
+    const n = P.length;
+    if (this.shUsed + n > this.shXY.length) {
+      const b = new Float32Array(Math.max(this.shXY.length * 2, this.shUsed + n));
+      b.set(this.shXY);
+      this.shXY = b;
+    }
+    if (this.shN >= this.shAt.length) {
+      const a = new Int32Array(this.shAt.length * 2), l = new Int32Array(this.shAt.length * 2);
+      a.set(this.shAt);
+      l.set(this.shLen);
+      this.shAt = a;
+      this.shLen = l;
+    }
+    this.shXY.set(P, this.shUsed);
+    this.shAt[this.shN] = this.shUsed;
+    this.shLen[this.shN] = n;
+    this.shN++;
+    this.shUsed += n;
+  }
+  /**
+   * The shadow wedges (`shadowGeom`) into the mask (`shM`, at SHADOW_SCALE):
+   * each at 0.45 over the others, so where k wedges overlap the mask is
+   * 1 − 0.55^k, as k cuts at 0.45 one after the other (item 112: drawn once
+   * for both layers, small; its edges a little softer, owner-approved).
+   * Returns false when no wedge reaches the screen.
+   */
+  shadowMask(env: Env): boolean {
+    const m = this.shMg!, c = this.shM!, X = this.shXY, W = env.W, H = env.H, mb = this.mb;
+    m.setTransform(1, 0, 0, 1, 0, 0);
+    m.globalCompositeOperation = 'source-over';
+    m.globalAlpha = 1;
+    if (mb[2]! > mb[0]! && mb[3]! > mb[1]!) m.clearRect(mb[0]!, mb[1]!, mb[2]! - mb[0]!, mb[3]! - mb[1]!);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < this.shUsed; i += 2) {
+      const x = X[i]!, y = X[i + 1]!;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+    const dm = this.shD;
+    mb[0] = clamp(Math.floor(x0 * dm) - 2, 0, c.width);
+    mb[1] = clamp(Math.floor(y0 * dm) - 2, 0, c.height);
+    mb[2] = clamp(Math.ceil(x1 * dm) + 2, 0, c.width);
+    mb[3] = clamp(Math.ceil(y1 * dm) + 2, 0, c.height);
+    if (!this.shN || x1 <= 0 || y1 <= 0 || x0 >= W || y0 >= H) {
+      mb[0] = mb[1] = mb[2] = mb[3] = 0;
+      return false;
+    }
+    m.setTransform(dm, 0, 0, dm, 0, 0);
+    m.fillStyle = '#000';
+    m.globalAlpha = 0.45;
+    for (let i = 0; i < this.shN; i++) {
+      const a = this.shAt[i]!, n = this.shLen[i]!;
+      m.beginPath();
+      m.moveTo(X[a]!, X[a + 1]!);
+      for (let j = 2; j < n; j += 2) m.lineTo(X[a + j]!, X[a + j + 1]!);
+      m.closePath();
+      m.fill();
+    }
+    return true;
+  }
+  /** The shadow mask cut out of `q0` (a layer at layerD, in CSS px) right of `x0`. */
+  cutShadows(q0: Ctx, x0: number): void {
+    const c = this.shM!, mb = this.mb, dm = this.shD;
+    const sx0 = Math.max(mb[0]!, Math.floor(x0 * dm)), w = mb[2]! - sx0, h = mb[3]! - mb[1]!;
+    if (w <= 0 || h <= 0) return;
+    q0.globalCompositeOperation = 'destination-out';
+    q0.globalAlpha = 1;
+    q0.drawImage(c, sx0, mb[1]!, w, h, sx0 / dm, mb[1]! / dm, w / dm, h / dm);
+  }
+  /** The sun's place and its ray fan at `p` of the turn (also indoors: the sky's glow side follows it, so stepping out mid-turn finds it in place). */
+  sunPlace(env: Env, kind: TurnKind, p: number): void {
+    const W = env.W, H = env.H, S = this.S, psi = sunPsi(kind, p);
     sunPoint(psi, W, H, S);
     // the fan: sideways and down from a low sun, its edges moving slowly (beams.ts turnFan, owner items 78, 79)
     turnFan(psi, S[0]!, S[1]!, W, H, this.fan);
@@ -1882,29 +2234,53 @@ class Sky {
     // band, not beyond the left edge (owner item 104): its light, rays and
     // beams come from there, on the fan's angles from its place on the circle.
     if (kind === 'set') S[0] = bandSolid(W);
+  }
+  /**
+   * The sun's light on the back layer: its hazy glow, its hot spot, a
+   * sunset's dusk light, the rays and beams (through the ray layer and its
+   * grain), the panes' shadow wedges and the left band cut out, all in the
+   * sun's layer at LAYER_SCALE, then copied onto the sky once, scaled up
+   * (item 112: on the full-size back layer these fills cost ~45 ms a frame
+   * in Firefox, which draws them on the CPU). The sky module draws first, so
+   * the back layer is empty here: the layer goes in as it is.
+   */
+  drawRaysBack(env: Env, I: number, G: number, sky: boolean): void {
+    const W = env.W, H = env.H, kind = this.mKind!, g = env.back, S = this.S;
     const c = this.col;
     const rgb = `${(c[0]! + (255 - c[0]!) * 0.35) | 0},${(c[1]! + (255 - c[1]!) * 0.35) | 0},${(c[2]! + (255 - c[2]!) * 0.3) | 0}`;
     const kk = (1 - 0.65 * this.wet) * this.fogK * (kind === 'set' ? 0.75 : 1.25);
     // a sunset's rays stronger late, where the dusk sky's own colour hid them (owner item 89: they should run far over the screen to the end)
     const k = I * kk * (kind === 'set' ? SET_RAYS_DIM * (1 + SET_RAYS_LATE * sst(-24, -8, this.turnS)) : 1);
-    g.globalCompositeOperation = this.th.add;
     const sx = S[0]!, sy = S[1]!;
     const far = Math.hypot(Math.max(sx, W - sx), H - sy);
-    const gl = g.createRadialGradient(sx, sy, 0, sx, sy, far * 0.75);
+    const lg = this.layerStart(env);
+    const d = this.layerD, L0 = this.sunL!, q = this.sunLg!;
+    // the band's solid part holds nothing of the sun's light: never drawn into or copied (in whole layer px)
+    const x0p = Math.min(L0.width, Math.floor(bandSolid(W) * d)), x0 = x0p / d;
+    q.setTransform(1, 0, 0, 1, 0, 0);
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'source-over';
+    q.clearRect(x0p, 0, L0.width - x0p, L0.height);
+    q.setTransform(d, 0, 0, d, 0, 0);
+    q.globalCompositeOperation = this.th.add;
+    const gl = q.createRadialGradient(sx, sy, 0, sx, sy, far * 0.75);
     gl.addColorStop(0, `rgba(${rgb},.5)`);
     gl.addColorStop(0.3, `rgba(${rgb},.16)`);
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
     // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
-    g.globalAlpha = G * kk * SUN_LIGHT[kind];
-    g.fillStyle = gl;
-    g.fillRect(0, 0, W, H);
-    const hs = g.createRadialGradient(sx, sy, 0, sx, sy, H * 0.45);
-    hs.addColorStop(0, 'rgba(255,250,235,.9)');
-    hs.addColorStop(0.12, `rgba(${rgb},.55)`);
-    hs.addColorStop(1, `rgba(${rgb},0)`);
-    g.fillStyle = hs;
-    g.fillRect(Math.max(0, sx - H * 0.45), Math.max(0, sy - H * 0.45), H * 0.9, H * 0.9);
+    q.globalAlpha = G * kk * SUN_LIGHT[kind];
+    q.fillStyle = gl;
+    q.fillRect(x0, 0, W - x0, H);
+    const hr = H * 0.45, hx0 = Math.max(x0, sx - hr), hx1 = Math.min(W, sx + hr), hy0 = Math.max(0, sy - hr), hy1 = Math.min(H, sy + hr);
+    if (hx1 > hx0 && hy1 > hy0) {
+      const hs = q.createRadialGradient(sx, sy, 0, sx, sy, hr);
+      hs.addColorStop(0, 'rgba(255,250,235,.9)');
+      hs.addColorStop(0.12, `rgba(${rgb},.55)`);
+      hs.addColorStop(1, `rgba(${rgb},0)`);
+      q.fillStyle = hs;
+      q.fillRect(hx0, hy0, hx1 - hx0, hy1 - hy0);
+    }
     // A sunset's dusk light: a red-orange glow mostly near the sun, a faint
     // flat halo further out, little toward the screen's bottom (owner items
     // 105, 106). Its middle a quarter into the band's fade, right of the sun,
@@ -1912,20 +2288,27 @@ class Sky {
     const dusk = turnDusk(kind, this.turnS) * (1 - 0.65 * this.wet) * this.fogK * (this.th.light ? 0.6 : 1);
     if (dusk > 0.003) {
       const M = Math.max(W, H), dx = sx + (bandEnd(W) - bandSolid(W)) * 0.25, dy = clamp(sy, H * 0.12, H * 0.5);
-      for (const [r, kx, ky, al] of DUSK_LAYERS) {
+      for (let i = 0; i < DUSK_LAYERS.length; i++) {
+        const [r, kx, ky, al] = DUSK_LAYERS[i]!;
         const R = M * r;
-        g.save();
-        g.translate(dx, dy);
-        g.scale(kx, ky);
-        const dg = g.createRadialGradient(0, 0, 0, 0, 0, R);
-        dg.addColorStop(0, `rgba(${DUSK_C},1)`);
-        dg.addColorStop(0.3, `rgba(${DUSK_C},.6)`);
-        dg.addColorStop(0.65, `rgba(${DUSK_C},.2)`);
-        dg.addColorStop(1, `rgba(${DUSK_C},0)`);
-        g.globalAlpha = dusk * al;
-        g.fillStyle = dg;
-        g.fillRect(-R, -R, 2 * R, 2 * R);
-        g.restore();
+        let dg = this.duskG[i];
+        if (!dg || this.duskR[i] !== R) {
+          // round (0, 0), placed by the transform: made once per size
+          dg = this.duskG[i] = q.createRadialGradient(0, 0, 0, 0, 0, R);
+          dg.addColorStop(0, `rgba(${DUSK_C},1)`);
+          dg.addColorStop(0.3, `rgba(${DUSK_C},.6)`);
+          dg.addColorStop(0.65, `rgba(${DUSK_C},.2)`);
+          dg.addColorStop(1, `rgba(${DUSK_C},0)`);
+          this.duskR[i] = R;
+        }
+        q.save();
+        q.translate(dx, dy);
+        q.scale(kx, ky);
+        q.globalAlpha = dusk * al;
+        q.fillStyle = dg;
+        const lx = Math.max(-R, (x0 - dx) / kx);
+        if (R > lx) q.fillRect(lx, -R, R - lx, 2 * R);
+        q.restore();
       }
     }
     const a0 = this.fan[0]!, a1 = this.fan[1]!;
@@ -1933,7 +2316,6 @@ class Sky {
     // item 89: they faded out from the far end and shrank to the left), then
     // shrink toward the sun (its fan lifts to level and up-right, beams.ts turnFan).
     const s = this.turnS, reach = turnReach(kind, s), sh = turnShimmer(s);
-    const lg = this.layerStart(env);
     const rg = lg.createRadialGradient(sx, sy, 0, sx, sy, far * 1.05 * reach);
     rg.addColorStop(0, `rgba(${rgb},1)`);
     rg.addColorStop(0.55, `rgba(${rgb},${kind === 'set' ? '.7' : '.62'})`);
@@ -1942,11 +2324,16 @@ class Sky {
     // Few, thin, faint rays (owner feedback 30: were 15, half-widths 0.5–2.2°,
     // now 0.2–0.8°; feedback 37: fainter still, the beams below carry the light).
     // Every ray sways with the beams (one sun, owner item 68), each a little on its own.
-    const T = this.T, N = TURN_RAY_N, L = far * 1.2 * reach, rays = this.rays;
+    const T = this.T, N = TURN_RAY_N, L = far * 1.2 * reach, rays = this.rays, cores = this.cores;
     // Each ray (and its core) is its own convex triangle: Skia fills those on
     // the GPU; one path of many triangles goes to its software path renderer
     // on the GPU thread (tens of ms per frame, stage 28 E).
-    const cores: number[] = [];
+    this.bbAdd(sx, sy);
+    // nothing of the rays and beams is kept left of x0: not rasterised there (a sunrise's cross the band)
+    lg.save();
+    lg.beginPath();
+    lg.rect(x0, 0, W - x0, H);
+    lg.clip();
     for (let i = 0; i < N; i++) {
       const j = rayHash(i), a = turnRayAngle(i, a0, a1, T), tier = rayTier(i);
       // by tier (owner item 80): the middle rays a little wider than the weak ones
@@ -1960,17 +2347,22 @@ class Sky {
       r.a = a;
       r.hw = wd;
       r.k = TIER_GLINT[tier] * on;
+      const ax = sx + Math.cos(a - wd) * L, ay = sy + Math.sin(a - wd) * L, bx = sx + Math.cos(a + wd) * L, by = sy + Math.sin(a + wd) * L;
+      this.bbAdd(ax, ay);
+      this.bbAdd(bx, by);
       lg.globalAlpha = Math.min(1, k * al * RAY_ALPHA * LAYER_K);
       lg.beginPath();
       lg.moveTo(sx, sy);
-      lg.lineTo(sx + Math.cos(a - wd) * L, sy + Math.sin(a - wd) * L);
-      lg.lineTo(sx + Math.cos(a + wd) * L, sy + Math.sin(a + wd) * L);
+      lg.lineTo(ax, ay);
+      lg.lineTo(bx, by);
       lg.closePath();
       lg.fill();
       const ww = wd * 0.35;
-      cores.push(a - ww, a + ww, on * RAY_TIER[tier]);
+      cores[i * 3] = a - ww;
+      cores[i * 3 + 1] = a + ww;
+      cores[i * 3 + 2] = on * RAY_TIER[tier];
     }
-    for (let i = 0; i < cores.length; i += 3) {
+    for (let i = 0; i < N * 3; i += 3) {
       if (cores[i + 2]! < 0.005) continue;
       lg.globalAlpha = Math.min(1, k * RAY_ALPHA * cores[i + 2]! * LAYER_K);
       lg.beginPath();
@@ -1980,19 +2372,55 @@ class Sky {
       lg.closePath();
       lg.fill();
     }
-    // The panes' shadow wedges, on the sky and its glow and on the rays;
-    // then the beams, which no pane hides (owner feedback 37), into the same
-    // layer: one grain and one copy a frame.
-    this.cutShadows(g, env, sx, sy);
-    this.cutShadows(lg, env, sx, sy);
+    // The panes' shadow wedges, on the sun's light and on the rays (one
+    // geometry for both); then the beams, which no pane hides (owner
+    // feedback 37), into the ray layer: one grain and one copy a frame.
+    this.shadowGeom(env, sx, sy);
+    const shade = this.shadowMask(env);
+    if (this.th.add === 'lighter') {
+      // Additive: the cut of the sum is the sum of the cuts, so the rays go
+      // into the sun's layer first and one cut takes both (the beams after).
+      this.layerEnd(x0p, true);
+      if (shade) this.cutShadows(q, x0);
+    } else if (shade) {
+      this.cutShadows(q, x0);
+      this.cutShadows(lg, x0);
+    }
     lg.globalAlpha = 1;
     lg.globalCompositeOperation = this.th.add;
     this.drawBeams(lg, env, sx, sy, far, I);
-    // none of the sun's light in the left band (owner item 104): the sky
-    // module draws first, so `g` holds only the sun's glow here
-    bandCut(g, W, H);
-    bandCut(lg, W, H);
-    this.layerEnd(g, env);
+    lg.restore();
+    this.layerEnd(x0p);
+    // none of the sun's light in the left band (owner item 104): its fade cut along the sky's curve, the solid part was never drawn
+    bandCut(q, this.bandGl!, x0, W, H);
+    // The sky under it (the sky module draws first, so everything else on
+    // the back layer goes over both, as when the sky went in last with
+    // destination-over); it may reach into the band.
+    let cx = x0p;
+    if (sky) {
+      q.globalCompositeOperation = 'destination-over';
+      q.globalAlpha = this.outWas;
+      this.skyCopy(q);
+      cx = Math.min(cx, Math.max(0, Math.floor(this.skyX * d)));
+      if (cx < x0p) {
+        // the band's solid part was not cleared: only the sky goes there
+        q.globalCompositeOperation = 'copy';
+        q.save();
+        q.beginPath();
+        q.rect(cx / d, 0, x0 - cx / d, H);
+        q.clip();
+        this.skyCopy(q);
+        q.restore();
+      }
+    }
+    q.globalAlpha = 1;
+    q.globalCompositeOperation = 'source-over';
+    const sw = L0.width - cx;
+    if (sw > 0) {
+      g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 1;
+      g.drawImage(L0, cx, 0, sw, L0.height, cx / d, 0, sw / d, L0.height / d);
+    }
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
   }
@@ -2071,7 +2499,8 @@ export function skyModule(): Module {
       if (!sky) return FPS_SLOW;
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
       // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
-      if (sky.shoot.on || env.shared.flash > 0.01 || sky.mKind || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
+      // (a turn indoors: only its faint tint at the top, at the slow rate)
+      if (sky.shoot.on || env.shared.flash > 0.01 || (sky.mKind && sky.outWas > 0.02) || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },
