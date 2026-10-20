@@ -34,3 +34,16 @@ export function bandSolid(W: number): number {
 export function bandEnd(W: number): number {
   return W * LEFT_DARK;
 }
+
+/**
+ * The band's cut as a horizontal gradient from 0 to `lw` (CSS px, normally
+ * `bandEnd(W)`): alpha `k · leftDark` at 17 stops, for a destination-out
+ * fill. Its solid part (to `bandSolid`, alpha k) can be cleared instead when
+ * k is 1, the gradient filled over the fade only. Callers cache it (per
+ * context, `lw` and k): building it costs 17 colour strings.
+ */
+export function bandGradient(ctx: OffscreenCanvasRenderingContext2D, lw: number, k = 1): CanvasGradient {
+  const g = ctx.createLinearGradient(0, 0, lw, 0);
+  for (let i = 0; i <= 16; i++) g.addColorStop(i / 16, `rgba(0,0,0,${(k * leftDark(i / 16)).toFixed(4)})`);
+  return g;
+}
