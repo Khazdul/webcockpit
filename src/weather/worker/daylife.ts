@@ -46,6 +46,8 @@ export const BIRD_FPS = 10;
 const BIRD_GAP: [number, number] = [90, 220];
 const BUG_GAP: [number, number] = [160, 380];
 const FLAP_FRAMES = 6;
+/** The dither textures are built this many ms a frame (`DayLife.pump`). */
+const TEX_SLICE_MS = 3;
 
 const rr = (a: number, b: number): number => a + Math.random() * (b - a);
 const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
@@ -223,6 +225,11 @@ export class DayLife {
   private glowTex: Cv | null = null;
   private texH = 0;
   private texW = 0;
+  /** The textures being built (`textures`), run a slice per frame. */
+  private texJob: Generator<void, void> | null = null;
+  /** The rays' pattern, made once per texture and context. */
+  private pat: CanvasPattern | null = null;
+  private patCtx: Ctx | null = null;
   /** The wind's drift (px/s, negative: toward the left, as the clouds drift). */
   wind = -2.4;
 
@@ -242,6 +249,8 @@ export class DayLife {
   resize(W: number, H: number): void {
     this.W = W;
     this.H = H;
+    this.textures();
+    this.pump(TEX_SLICE_MS);
     // A few tufts at fixed relative places in the upper sky.
     this.tufts = [
       { u: 0.18, v: 0.1, spr: 0, a: 0.85 },
@@ -370,6 +379,8 @@ export class DayLife {
       this.pulseLen = PULSE_S * (1 + (Math.random() * 2 - 1) * PULSE_VARY);
     }
     this.pulseOn = k.block ? this.pulseOn * Math.exp(-dt / GLIMPSE_BLOCK_TAU) : Math.min(1, this.pulseOn + dt / PULSE_BACK_TAU);
+    // the textures are built a slice per frame; the pulse waits for them and then fades in
+    if (!this.pump(TEX_SLICE_MS)) this.pulseOn = 0;
     const e = pulseStrength(this.pulsePh, k.sunU) * this.pulseOn * k.sun;
     if (e > 0.003) this.drawGlimpse(b, T, e, k.sx, k.sy);
     b.globalAlpha = 1;
@@ -391,60 +402,105 @@ export class DayLife {
     this.bug = { x, y, tx: x, ty: y, age: 0, life: rr(3, 5), hold: 0 };
   }
 
-  /** Builds the dithered textures for this H (once per size; CPU canvas, ADR 0091). */
+  /**
+   * Starts building the dithered textures for this size (CPU canvases, ADR
+   * 0091): a job that `pump` runs a few ms at a time from the frames, never
+   * all in one (it was 43–80 ms in the first day frame after a sunrise;
+   * performance review, item 109). The pulse waits for it and fades in.
+   */
   private textures(): void {
-    const H = this.H;
-    if (this.texH === H && this.texW === this.W && this.rayTex) return;
-    this.texH = H;
+    if (this.texH === this.H && this.texW === this.W && (this.rayTex || this.texJob)) return;
+    this.texH = this.H;
     this.texW = this.W;
+    this.rayTex = this.glowTex = null;
+    this.pat = null;
+    this.texJob = this.buildTextures(this.W, this.H);
+  }
+
+  /** Runs the texture job for up to `ms`; true when the textures are ready. */
+  private pump(ms: number): boolean {
+    const job = this.texJob;
+    if (!job) return !!this.rayTex;
+    const until = performance.now() + ms;
+    do {
+      if (job.next().done) {
+        this.texJob = null;
+        return true;
+      }
+    } while (performance.now() < until);
+    return false;
+  }
+
+  private *buildTextures(W: number, H: number): Generator<void, void> {
     const [r, g, bl] = this.light ? [255, 214, 140] : [255, 240, 205];
-    const dith = (): number => DITHER_MIN + (1 - DITHER_MIN) * Math.random();
+    // a cheap PRNG (xorshift32): one 32-bit draw per pixel, the dither's
+    // share from its high half and the rounding from its low half
+    let st = (Math.random() * 0xffffffff) >>> 0 || 1;
+    const DK = (1 - DITHER_MIN) / 65536, RK = 1 / 65536;
     // the light at the pulse's peak, rounded at random (a share of the pixels one level up)
-    const lvl = (v: number): number => Math.min(255, Math.floor(255 * v * dith() + Math.random()));
+    const lvl = (v: number): number => {
+      st ^= st << 13;
+      st ^= st >>> 17;
+      st ^= st << 5;
+      const u = st >>> 0;
+      const a = Math.floor(255 * v * (DITHER_MIN + (u >>> 16) * DK) + (u & 0xffff) * RK);
+      return a > 255 ? 255 : a;
+    };
     const ray = PULSE_HIGH * (this.light ? GLIMPSE_RAY_LIGHT : GLIMPSE_RAY), glow = PULSE_HIGH * (this.light ? GLIMPSE_GLOW_LIGHT : GLIMPSE_GLOW);
     // the rays': strongest at the top, fading down the screen, gone about three
     // quarters down (owner item 82; was by the distance from the sun). The
     // whole width, with the left band's curve in it, dithered like the rest
     // (owner item 99; was a 256 px strip repeated across).
-    const RH = Math.ceil(H * 0.78) + 1, RW = Math.max(1, Math.ceil(this.W));
+    const RH = Math.ceil(H * 0.78) + 1, RW = Math.max(1, Math.ceil(W));
     const bk = new Float32Array(RW);
-    for (let x = 0; x < RW; x++) bk[x] = bandK(x + 0.5, this.W);
-    const fall = (v: number): number => (v < 0.3 ? 1 - (0.4 * v) / 0.3 : v < 0.65 ? 0.6 - (0.4 * (v - 0.3)) / 0.35 : Math.max(0, 0.2 - (0.2 * (v - 0.65)) / 0.35));
-    const rc = mkCanvas(RW, RH), rx = ctx2dCpu(rc), ri = rx.createImageData(RW, RH);
-    for (let y = 0; y < RH; y++) {
-      const f = fall(y / (H * 0.78));
-      for (let x = 0; x < RW; x++) {
-        const o = (y * RW + x) * 4;
-        if (bk[x]! <= 0) continue;
-        ri.data[o] = r;
-        ri.data[o + 1] = g;
-        ri.data[o + 2] = bl;
-        ri.data[o + 3] = lvl(ray * f * bk[x]!);
-      }
+    let x0 = RW;
+    for (let x = RW - 1; x >= 0; x--) {
+      bk[x] = bandK(x + 0.5, W);
+      if (bk[x]! > 0) x0 = x;
     }
-    rx.putImageData(ri, 0, 0);
-    this.rayTex = rc;
+    const fall = (v: number): number => (v < 0.3 ? 1 - (0.4 * v) / 0.3 : v < 0.65 ? 0.6 - (0.4 * (v - 0.3)) / 0.35 : Math.max(0, 0.2 - (0.2 * (v - 0.65)) / 0.35));
+    const rc = mkCanvas(RW, RH), rx = ctx2dCpu(rc), ri = rx.createImageData(RW, RH), rd = ri.data;
+    const ROWS = 16;
+    for (let y0 = 0; y0 < RH; y0 += ROWS) {
+      const y1 = Math.min(RH, y0 + ROWS);
+      for (let y = y0; y < y1; y++) {
+        const f = ray * fall(y / (H * 0.78));
+        for (let x = x0, o = (y * RW + x0) * 4; x < RW; x++, o += 4) {
+          rd[o] = r;
+          rd[o + 1] = g;
+          rd[o + 2] = bl;
+          rd[o + 3] = lvl(f * bk[x]!);
+        }
+      }
+      rx.putImageData(ri, 0, 0, 0, y0, RW, y1 - y0);
+      yield;
+    }
     // the glow's: 1 at the middle, 0.35 at 0.35 of its radius, 0 at its edge
     const GR = Math.ceil(H * 0.42 * GLOW_TEX_K), GS = GR * 2;
-    const gc = mkCanvas(GS, GS), gx = ctx2dCpu(gc), gi = gx.createImageData(GS, GS);
-    for (let y = 0; y < GS; y++) {
-      for (let x = 0; x < GS; x++) {
-        const d = Math.hypot(x + 0.5 - GR, y + 0.5 - GR) / GR;
-        const f = d < 0.35 ? 1 - (0.65 * d) / 0.35 : Math.max(0, 0.35 * (1 - (d - 0.35) / 0.65));
-        const o = (y * GS + x) * 4;
-        gi.data[o] = r;
-        gi.data[o + 1] = g;
-        gi.data[o + 2] = bl;
-        gi.data[o + 3] = lvl(glow * f);
+    const gc = mkCanvas(GS, GS), gx = ctx2dCpu(gc), gi = gx.createImageData(GS, GS), gd = gi.data;
+    for (let y0 = 0; y0 < GS; y0 += ROWS * 4) {
+      const y1 = Math.min(GS, y0 + ROWS * 4);
+      for (let y = y0; y < y1; y++) {
+        for (let x = 0; x < GS; x++) {
+          const d = Math.hypot(x + 0.5 - GR, y + 0.5 - GR) / GR;
+          const f = d < 0.35 ? 1 - (0.65 * d) / 0.35 : Math.max(0, 0.35 * (1 - (d - 0.35) / 0.65));
+          const o = (y * GS + x) * 4;
+          gd[o] = r;
+          gd[o + 1] = g;
+          gd[o + 2] = bl;
+          gd[o + 3] = lvl(glow * f);
+        }
       }
+      gx.putImageData(gi, 0, 0, 0, y0, GS, y1 - y0);
+      yield;
     }
-    gx.putImageData(gi, 0, 0);
+    this.rayTex = rc;
     this.glowTex = gc;
   }
 
   private drawGlimpse(b: Ctx, T: number, e: number, sx: number, sy: number): void {
     const W = this.W, H = this.H;
-    this.textures();
+    if (!this.rayTex || !this.glowTex) return;
     b.globalCompositeOperation = this.comp;
     // The sun is outside the screen (beams.ts `sunPoint`): its light comes in
     // where the line from it to the screen's middle crosses the edge (`gx, gy`).
@@ -465,7 +521,11 @@ export class DayLife {
     b.imageSmoothingEnabled = sm;
     // the rays: their texture fades down the screen (item 82), dithered (item 84)
     const L = tin + H * 1.6;
-    const pat = b.createPattern(this.rayTex!, 'no-repeat');
+    if (!this.pat || this.patCtx !== b) {
+      this.pat = b.createPattern(this.rayTex, 'no-repeat');
+      this.patCtx = b;
+    }
+    const pat = this.pat;
     if (!pat) return;
     b.fillStyle = pat;
     // spread wide round the sun's middle direction, a few, by tier (owner
