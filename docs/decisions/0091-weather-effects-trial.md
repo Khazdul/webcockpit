@@ -1449,6 +1449,24 @@ loop capped at 20 fps the same build gives 18.7–18.9 ms, so the cost is the
 frame rate, not the changes. **Open (owner):** keep 30 fps there, or cap
 Firefox's heavy scenes. Chromium unchanged (19.4 ms p95 on and off).
 
+### Corrections (item 113, 2026-10-20)
+
+Earlier sections are kept as written; two statements there no longer hold:
+
+- "Text lines are re-sampled every 2.5 s" (Frames) and "the 2.5 s line
+  sampling" (Latency, stage 28 E): the line sampling was removed with
+  feedback 9 (see "Sky, darkness, fog, text"). The only periodic main-thread
+  work left is the almanac re-read every 30 s (`ALMANAC_MS`, controller.ts).
+- "drops to ratio 1 above 12 ms" (Latency, stage 28 E): replaced by Power's
+  "Resolution" — the canvases are always at ratio 1 (`CANVAS_RATIO`), with
+  no adaptive drop.
+
+Item 113 removed code with no behaviour change: the moon's lead plumbing
+(`moonLead` had returned 0 since item 100), dead fields and parameters in
+sky.ts, weather.ts and daylife.ts, duplicate `lerp` / `rr` helpers (now
+env.ts), and three hand-built copies of the band gradient (now band.ts
+`bandGradient` everywhere).
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
