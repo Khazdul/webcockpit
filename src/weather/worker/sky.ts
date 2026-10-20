@@ -432,6 +432,20 @@ export function moonGlide(u: number, tu: number, n: number, dt: number): number 
   return clamp(tu, u + (1 - MOON_PACE_CAP) * n * dt, u + (1 + MOON_PACE_CAP) * n * dt);
 }
 
+/**
+ * How much of the moon shows at screen x (CSS px) on a screen `W` wide:
+ * fading out over the sky's left fade (from `bandEnd` to `bandSolid`) like
+ * the sky, but along its own curve, the square root of the way left. The
+ * sky's smootherstep runs out flat, so on it the moon was under 5 % for its
+ * last minute up and looked set a minute early (owner, 2026-10-20); on this
+ * one it is still ~40 % a minute before the set, ~17 % ten seconds before,
+ * and gone at it (its centre at `bandSolid`, `moonPath`).
+ */
+export function moonBandK(x: number, W: number): number {
+  const s = bandSolid(W), e = bandEnd(W);
+  return Math.sqrt(clamp((x - s) / (e - s), 0, 1));
+}
+
 /** The moon's place at `u` (0 rise … 1 set) on `P`: x even along it, y on a sine arc. */
 export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
   out[0] = lerp(P.x0, P.x1, u);
@@ -1687,8 +1701,8 @@ class Sky {
     // at the edges: there it is at full strength through the game's rise and
     // set, taking the low rule over a tenth of its way (owner items 63, 69)
     const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(0, 0.1, u), sst(0.9, 1, u));
-    // into the left band it fades out along the sky's curve, gone at the set (owner item 100)
-    const a = this.moonVis * this.moonPres * low * bandK(x, env.W);
+    // into the left band it fades out where the sky does, gone at the set (owner item 100), visible until close to it
+    const a = this.moonVis * this.moonPres * low * moonBandK(x, env.W);
     const dayK = clamp(day * 1.3, 0, 1);
     // the glow side and the frame glints follow the night moon only
     this.mVisNow = a * (1 - dayK);

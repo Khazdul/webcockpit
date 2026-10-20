@@ -1505,3 +1505,15 @@ frames are permanent features. User-facing texts drop the word "trial"
 the effects as a regular feature. `#weather` stays a hint, not a manual
 topic. The default is as ADR 0092: on for new and existing desktop users,
 off on a phone (the "default off" consequence above is superseded).
+
+### The moon's own band fade (2026-10-20, owner item 114)
+
+The owner saw the moon gone at least a minute before the game's set (log
+`mume-Gittan-2026-10-20T14-35-53`: the game shows the moon at 12:46:24 UTC,
+not at 12:46:57; the model's set 22:05 is 12:46:29, so the clock was
+right). Cause: the moon's alpha was `bandK` at its centre, whose
+smootherstep runs out flat: under 5 % for the last minute up, ~23 % two
+minutes before. The moon now fades with `moonBandK`: the square root of
+its way from `bandEnd` to `bandSolid`, the same strip as the sky, still 0
+at the set, ~40 % a minute before and ~17 % ten seconds before. The sky,
+stars, clouds, shooting stars and frame glints keep `bandK`.

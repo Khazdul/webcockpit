@@ -2135,3 +2135,18 @@ The owner: the weather effects are "not a trial any more". They stay as a
 permanent feature; "trial" is dropped from the user-facing texts, and
 README and About describe them as a regular feature (release 0.1.67,
 ADR 0091 addendum). The stage stays in owner testing for item 100.
+
+### 2026-10-20 — the moonset (translated)
+
+114. **The moon gone before it sets.** "Just tested the moonset. It stopped
+     being visible in the weather effect at least 1 minute before it
+     actually set according to the game." (logs
+     `mume-Gittan-2026-10-20T14-35-53`).
+     - **Done (2026-10-20):** ADR 0091, "The moon's own band fade". The
+       clock was right (the game's set between 12:46:24 and 12:46:57 UTC,
+       the model's at 12:46:29); the moon faded along the sky's curve,
+       which leaves it under 5 % for its last minute. It now fades over the
+       same strip on its own steeper curve: ~40 % a minute before the set,
+       ~17 % ten seconds before, gone at the set. Unit 2779.
+       Please try: watch a moonset on a clear night with the clock synced;
+       the moon should be visible, fading, until the game says it sets.

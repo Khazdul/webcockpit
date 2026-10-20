@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { bandK, bandSolid } from '../../src/weather/worker/band';
 import { sunPoint, sunPsi } from '../../src/weather/worker/beams';
-import { MOON_GLIDE_S, MOON_PACE_CAP, moonAt, moonClockU, moonGlide, moonPath } from '../../src/weather/worker/sky';
+import { MOON_GLIDE_S, MOON_PACE_CAP, moonAt, moonBandK, moonClockU, moonGlide, moonPath } from '../../src/weather/worker/sky';
 
 const W = 1600, H = 900, R = 45;
 
@@ -35,6 +35,21 @@ describe('sky geometry', () => {
     const xs = [0.1, 0.3, 0.6, 0.9].map((u) => (moonAt(P, u, o), o[0]!));
     for (let i = 1; i < xs.length; i++) expect(xs[i]!).toBeLessThan(xs[i - 1]!);
     expect(x0).toBeGreaterThan(xs[0]!);
+  });
+
+  it('the moon stays visible into its last seconds up and is gone at the set (owner 2026-10-20)', () => {
+    for (const [w, h] of [[1600, 900], [2560, 1400], [1024, 640]] as const) {
+      const r = Math.round(Math.min(56, Math.max(30, h * 0.05)));
+      const P = moonPath(w, h, r), o = new Float32Array(2);
+      // 720 s up: u at s seconds before the set
+      const k = (s: number): number => (moonAt(P, 1 - s / 720, o), moonBandK(o[0]!, w));
+      expect(k(400)).toBe(1);
+      expect(k(60)).toBeGreaterThan(0.3);
+      expect(k(10)).toBeGreaterThan(0.12);
+      expect(k(0)).toBeLessThan(0.001);
+      // fading the whole way, never back up
+      for (let s = 299; s >= 0; s--) expect(k(s)).toBeLessThanOrEqual(k(s + 1));
+    }
   });
 
   it('the waiting place without a clock is right of the band, for any window (item 100)', () => {
