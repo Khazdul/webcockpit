@@ -17,7 +17,7 @@
 // it. To draw that without clips, `beamPieces` cuts the beam's triangle into
 // convex pieces inside and outside the pane boxes.
 
-import { sst } from './env';
+import { lerp, sst } from './env';
 import type { FrameBox, Side } from './glint';
 
 export interface Beam {
@@ -147,10 +147,26 @@ export function sunDrift(T: number): number {
 
 /** The turn's ray fan reaches down to the screen's bottom edge (a share of H; owner item 80, was 0.78 above the input line, item 75). */
 export const FAN_FLOOR = 1;
+/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
+const FAN_FLOOR_X = 0.1;
+/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
+const FAN_CORNER_X = 0.02;
+/** The corner aim's knots over a turn, its ends included (owner item 88). */
+const CORNER_KNOTS = 3;
+/** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
+const FAN_UP_LOW = (2 * Math.PI) / 180;
+const FAN_UP_HIGH = (15 * Math.PI) / 180;
+/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
+const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
+/** A sunset's upper edge at its end, reached with its lift (owner item 105: its last rays bunched under ~30°; its sun now stands at the band, so rays this steep stay on the screen). */
+const FAN_UP_SET_END = (60 * Math.PI) / 180;
 
-/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
+/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
+const SET_LIFT_S: readonly [number, number] = [-42, -3];
+
 /** Scratch for sunToward. */
 const TP = new Float32Array(2);
+/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
 function sunToward(psi: number, x: number, y: number, W: number, H: number, am: number): number {
   sunPoint(psi, W, H, TP);
   const d = Math.atan2(y - TP[1]!, x - TP[0]!) - am;
@@ -215,29 +231,11 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   }
 }
 
-/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
-const FAN_FLOOR_X = 0.1;
-/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
-const FAN_CORNER_X = 0.02;
-/** The corner aim's knots over a turn, its ends included (owner item 88). */
-const CORNER_KNOTS = 3;
-/** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
-const FAN_UP_LOW = (2 * Math.PI) / 180;
-const FAN_UP_HIGH = (15 * Math.PI) / 180;
-/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
-const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
-/** A sunset's upper edge at its end, reached with its lift (owner item 105: its last rays bunched under ~30°; its sun now stands at the band, so rays this steep stay on the screen). */
-const FAN_UP_SET_END = (60 * Math.PI) / 180;
-
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
 /** A sunset's lift: how far its fan's lower edge has turned from its path to level at `q` 0..1 into it: from SET_LIFT_S[0] to SET_LIFT_S[1] s, evenly. */
 function setLift(q: number): number {
   const s = -60 * (1 - q), [s0, s1] = SET_LIFT_S;
   return Math.min(1, Math.max(0, (s - s0) / (s1 - s0)));
 }
-/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
-const SET_LIFT_S: readonly [number, number] = [-42, -3];
 
 /** Thin ray `i`'s own fixed random value 0..1 (its place off the even spread, width, strength). */
 export function rayHash(i: number): number {

@@ -21,7 +21,7 @@
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
 import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
-import { LEFT_SOLID, bandEnd, bandK, bandSolid, leftDark } from './band';
+import { LEFT_SOLID, bandEnd, bandGradient, bandK, bandSolid, leftDark } from './band';
 import { plateRects, rimRects } from './rimshape';
 
 /**
@@ -282,11 +282,7 @@ export function weatherModule(): Module {
     c.globalCompositeOperation = 'destination-out';
     c.globalAlpha = 1;
     let g = bandGr.get(c);
-    if (!g || g.bE !== bE) {
-      const gr = c.createLinearGradient(0, 0, bE, 0);
-      for (let i = 0; i <= 16; i++) gr.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
-      bandGr.set(c, (g = { gr, bE }));
-    }
+    if (!g || g.bE !== bE) bandGr.set(c, (g = { gr: bandGradient(c, bE), bE }));
     c.fillStyle = g.gr;
     c.fillRect(x0, y0, bE - x0, h);
     c.restore();

@@ -35,7 +35,7 @@ import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
 import type { FrameStats, Geometry, MainToWorker, PaneGeom, Rect, WorkerToMain } from '../protocol';
-import { LEFT_DARK, bandSolid, leftDark } from './band';
+import { LEFT_DARK, bandGradient, bandSolid } from './band';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -646,11 +646,7 @@ export class WeatherEngine {
   /** Takes the left band out of a cache's drawn layers, along the sky's curve (owner item 99; at the cache's resolution, at the module's rate). */
   private bandOut(c: Cache): void {
     const env = this.env!, lw = env.W * LEFT_DARK;
-    if (!c.band) {
-      const g = c.back.ctx.createLinearGradient(0, 0, lw, 0);
-      for (let i = 0; i <= 16; i++) g.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
-      c.band = g;
-    }
+    c.band ??= bandGradient(c.back.ctx, lw);
     for (let i = 0; i < 2; i++) {
       const l = i ? c.front : c.back;
       if (!l.drawn) continue;
