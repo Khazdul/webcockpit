@@ -23,6 +23,8 @@ interface Spatter {
   r: number;
 }
 interface Spl {
+  /** Index into the sprites (rebuilt at another dpr). */
+  si: number;
   sp: Spatter;
   x: number;
   y: number;
@@ -33,6 +35,18 @@ interface Spl {
   dry: number;
   drying: boolean;
   dryAt: number;
+  /**
+   * The spatter as it lies once landed (fresh or dry), rotated and scaled
+   * into an upright sprite on the device pixel grid: a still spatter is one
+   * unscaled copy a frame instead of a rotated, filtered one (Firefox's
+   * software canvas: ~1 ms each). Made when it is first needed.
+   */
+  baked: Cv | null;
+  /** What `baked` holds: 0 fresh, 1 dry; -1 nothing. */
+  bakedDry: number;
+  /** Its top-left corner on the canvas, device px. */
+  bx: number;
+  by: number;
 }
 interface Z {
   born: number;
@@ -98,6 +112,9 @@ function wash(rgb: Rgb): Cv {
   g.putImageData(img, 0, 0);
   return c;
 }
+/** The heartbeat wash's composite (washDeep, washHot, vigRed) before its one upscale: the vignette's size. */
+const WASH_W = 192, WASH_H = 120;
+
 function letters(env: Env): { z: Letter; Z: Letter; base: number } {
   const size = Math.round(env.cell.size * 1.6), dpr = env.dpr;
   const font = env.cell.font.replace(/^[\d.]+px/, `${size}px`) + ', monospace';
@@ -218,6 +235,10 @@ export function bodyModule(): Module {
     cornWarm: null as Cv | null,
     washDeep: null as Cv | null,
     washHot: null as Cv | null,
+    /** The heartbeat wash composited small before its one upscale. */
+    washCv: null as Cv | null,
+    /** The ratio the spatter sprites were drawn at. */
+    spriteDpr: 1,
   };
 
   function placeZ(env: Env): void {
@@ -270,15 +291,17 @@ export function bodyModule(): Module {
   }
 
   function spawnSpatter(env: Env): void {
-    const sp = S.sprites[(Math.random() * S.sprites.length) | 0]!;
+    const si = (Math.random() * S.sprites.length) | 0, sp = S.sprites[si]!;
     const pos = placeSpatter(env, sp);
     let slot = S.spl.find((o) => o.a <= 0);
     if (!slot) {
       if (S.spl.length >= 18) return;
-      slot = { sp, x: 0, y: 0, rot: 0, sc: 1, born: 0, a: 0, dry: 0, drying: false, dryAt: 0 };
+      slot = { si, sp, x: 0, y: 0, rot: 0, sc: 1, born: 0, a: 0, dry: 0, drying: false, dryAt: 0, baked: null, bakedDry: -1, bx: 0, by: 0 };
       S.spl.push(slot);
     }
+    slot.si = si;
     slot.sp = sp;
+    slot.bakedDry = -1;
     slot.x = pos.x;
     slot.y = pos.y;
     slot.rot = Math.random() * TAU;
@@ -287,6 +310,33 @@ export function bodyModule(): Module {
     slot.a = 1;
     slot.dry = 0;
     slot.drying = false;
+  }
+
+  /** Bakes spatter `o` at its landed scale and its rotation (`dry`: the dry sprite) for one unscaled copy a frame. */
+  function bake(o: Spl, dry: number, dpr: number): void {
+    const sp = o.sp, half = (sp.size / 2) * o.sc * Math.SQRT2;
+    // the sprite's box on the device pixel grid, so the copy needs no filtering
+    const bx = Math.floor((o.x - half) * dpr), by = Math.floor((o.y - half) * dpr);
+    const n = Math.ceil(2 * half * dpr) + 2;
+    if (!o.baked || o.baked.width !== n) o.baked = mkCanvas(n, n);
+    const g = ctx2d(o.baked), c = Math.cos(o.rot) * o.sc, s = Math.sin(o.rot) * o.sc;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, n, n);
+    g.setTransform(c * dpr, s * dpr, -s * dpr, c * dpr, o.x * dpr - bx, o.y * dpr - by);
+    g.drawImage(dry ? sp.dry : sp.fresh, -sp.size / 2, -sp.size / 2, sp.size, sp.size);
+    o.bakedDry = dry;
+    o.bx = bx;
+    o.by = by;
+  }
+
+  function buildSprites(dpr: number): void {
+    S.sprites = [];
+    for (let i = 0; i < 10; i++) S.sprites.push(spatter(9001 + i * 7717, dpr));
+    S.spriteDpr = dpr;
+    for (const o of S.spl) {
+      o.sp = S.sprites[o.si]!;
+      o.bakedDry = -1;
+    }
   }
 
   return {
@@ -299,14 +349,16 @@ export function bodyModule(): Module {
       S.cornWarm = corners(adapt([240, 214, 196], th, 0.3, 0.6));
       S.washDeep = wash([70, 0, 14]);
       S.washHot = wash([196, 22, 16]);
-      S.sprites = [];
-      for (let i = 0; i < 10; i++) S.sprites.push(spatter(9001 + i * 7717, env.dpr));
+      buildSprites(env.dpr);
+      S.washCv = mkCanvas(WASH_W, WASH_H);
       S.ready = true;
     },
     resize(env) {
       if (!S.ready) return;
       S.L = letters(env);
       placeZ(env);
+      // the spatters are drawn at the device's ratio: rebuilt when it changes (they were kept at init's)
+      if (env.dpr !== S.spriteDpr) buildSprites(env.dpr);
     },
     onEvent(env, name, data) {
       if (name !== 'position' || !data || !env.cats.body) return;
@@ -436,6 +488,15 @@ export function bodyModule(): Module {
         const sc = o.sc * (0.8 + 0.2 * pop);
         const a = clamp(o.a, 0, 1) * pop * 0.78;
         const sp = o.sp;
+        // landed and fresh or fully dry: its baked sprite, one unscaled copy
+        if (pop >= 1 && (o.dry <= 0 || o.dry >= 1)) {
+          const dry = o.dry >= 1 ? 1 : 0;
+          if (o.bakedDry !== dry) bake(o, dry, dpr);
+          fr.setTransform(1, 0, 0, 1, 0, 0);
+          fr.globalAlpha = dry ? a * 0.85 : a;
+          fr.drawImage(o.baked!, o.bx, o.by);
+          continue;
+        }
         const c = Math.cos(o.rot) * sc, s = Math.sin(o.rot) * sc;
         fr.setTransform(c * dpr, s * dpr, -s * dpr, c * dpr, o.x * dpr, o.y * dpr);
         if (o.dry < 1) {
@@ -458,15 +519,24 @@ export function bodyModule(): Module {
         const glow = Math.min(1, beat);
         const base = present * (0.09 + 0.04 * k);
         const hot = present * (0.05 + 0.1 * k) * glow;
-        fr.globalAlpha = base * (1 - 0.35 * glow);
-        fr.drawImage(S.washDeep!, 0, 0, W, H);
+        // The three layers composited at the vignette's size, then one
+        // upscale over the screen (three full-screen upscales cost Firefox's
+        // software canvas ~15 ms a frame at 30 fps); all three are smooth, so
+        // it looks the same.
+        const w = S.washCv!, g = ctx2d(w);
+        g.globalAlpha = 1;
+        g.clearRect(0, 0, WASH_W, WASH_H);
+        g.globalAlpha = base * (1 - 0.35 * glow);
+        g.drawImage(S.washDeep!, 0, 0, WASH_W, WASH_H);
         if (hot > 0.003) {
-          fr.globalAlpha = hot;
-          fr.drawImage(S.washHot!, 0, 0, W, H);
+          g.globalAlpha = hot;
+          g.drawImage(S.washHot!, 0, 0, WASH_W, WASH_H);
         }
         const ra = present * (0.06 + 0.04 * k) + present * (0.06 + 0.16 * k) * glow;
-        fr.globalAlpha = clamp(ra, 0, 1);
-        fr.drawImage(S.vigRed!, 0, 0, W, H);
+        g.globalAlpha = clamp(ra, 0, 1);
+        g.drawImage(S.vigRed!, 0, 0, WASH_W, WASH_H);
+        fr.globalAlpha = 1;
+        fr.drawImage(w, 0, 0, W, H);
       } else S.hb = 0;
       fr.globalAlpha = 1;
       return true;
@@ -474,7 +544,8 @@ export function bodyModule(): Module {
     fps() {
       // Floating z z Z and the resting/sleeping vignette are slow; a stun
       // (shake, flare), fresh blood and the heartbeat wash need the fast rate.
-      const fresh = S.spl.some((o) => o.a > 0 && S.t - o.born < 0.3);
+      let fresh = false;
+      for (const o of S.spl) if (o.a > 0 && S.t - o.born < 0.3) fresh = true;
       return S.t - S.stunAt < 3 || S.stun > 0.01 || S.down > 0.004 || fresh ? FPS_FAST : FPS_SLOW;
     },
     destroy() {
