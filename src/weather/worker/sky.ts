@@ -149,8 +149,6 @@ const SUN_GLOW_DARK: Rgb = [255, 226, 172];
 const SUN_GLOW_LIGHT: Rgb = [255, 210, 130];
 /** Where the sun sits, as a fraction of the width (just above the top edge). */
 const SUN_U = 0.8;
-/** The text horizon as a fraction of the height: the moon sets behind it, the star field ends above it. */
-const HORIZON = 0.3;
 /** The star field's depth, fraction of the height: on the left, and on the right (lower there, owner feedback 25, 31). */
 const STARS_H = 0.55;
 const STARS_H_RIGHT = 0.9;
@@ -418,23 +416,6 @@ export interface MoonPath {
 export function moonPath(W: number, H: number, R: number): MoonPath {
   return { x0: W + R, x1: bandSolid(W), yBase: H * 0.8, yTop: Math.max(R + 14, H * 0.1) };
 }
-/**
- * How far in on its path the moon is drawn at its rise and set, as a share
- * of the path: none since owner item 100 (it was drawn ahead, in before the
- * rise and out past the left edge after the set, items 63, 69). The game's u
- * maps onto the drawn path as `moonVisU`.
- */
-export function moonLead(_P: MoonPath, _W: number, _R: number): number {
-  return 0;
-}
-/** The drawn place (0 … 1 along `moonPath`) for the game's u (`-moonPreU(lead)` … 1 + `moonPreU(lead)`). */
-export function moonVisU(u: number, lead: number): number {
-  return lead + (1 - 2 * lead) * u;
-}
-/** How long before its rise the moon comes in (and after its set goes on), in game u. */
-export function moonPreU(lead: number): number {
-  return lead / (1 - 2 * lead);
-}
 /** The game's u at `nowMs` for a time up from `riseAt` to `setAt` (unix ms): negative before the rise, above 1 after the set. */
 export function moonClockU(nowMs: number, riseAt: number, setAt: number): number {
   return (nowMs - riseAt) / (setAt - riseAt);
@@ -451,25 +432,10 @@ export function moonGlide(u: number, tu: number, n: number, dt: number): number 
   return clamp(tu, u + (1 - MOON_PACE_CAP) * n * dt, u + (1 + MOON_PACE_CAP) * n * dt);
 }
 
-/** Without a clock the moon waits for its set event at MOON_HOLD on its drawn path: that place in game u. */
-function moonHoldU(lead: number): number {
-  return (MOON_HOLD - lead) / (1 - 2 * lead);
-}
-
 /** The moon's place at `u` (0 rise … 1 set) on `P`: x even along it, y on a sine arc. */
 export function moonAt(P: MoonPath, u: number, out: Float32Array): void {
   out[0] = lerp(P.x0, P.x1, u);
   out[1] = P.yBase - (P.yBase - P.yTop) * Math.sin(Math.PI * clamp(u, 0, 1));
-}
-
-/**
- * The sun in a sunrise (from the horizon at the right, climbing to where the
- * day's glimpses start) or a sunset (from ~40° up at the left, sinking to the
- * horizon) at `p` (0..1): the one sun of beams.ts `sunPsi` / `sunPoint`
- * (owner items 66, 67).
- */
-export function sunPos(kind: 'rise' | 'set', p: number, W: number, H: number, out: Float32Array): void {
-  sunPoint(sunPsi(kind, p), W, H, out);
 }
 
 /**
@@ -491,8 +457,8 @@ const BEAM_LAYERS: ReadonlyArray<readonly [number, number]> = [
   [0.3, 0.0325],
 ];
 
-/** The sun's own light (its hot spot, its hazy glow, the ray front's band) by turn: half of before (owner item 83; said of the sunset, the sunrise's is the same drawing). */
-const SUN_LIGHT: Readonly<Record<TurnKind, number>> = { rise: 0.5, set: 0.5 };
+/** The sun's own light (its hot spot, its hazy glow, the ray front's band), the same in both turns: half of before (owner item 83). */
+const SUN_LIGHT = 0.5;
 
 /**
  * The turn's rays and beams are drawn into a layer at LAYER_K times their
@@ -640,7 +606,7 @@ class Sky {
   palT = new Float32Array(NP);
   col = new Float32Array(3);
   cover = 0;
-  /** The deck's cover now: follows the weather's at COVER_RATE (-1 before the first frame). */
+  /** The deck's cover now: follows the weather's by `coverStep` (-1 before the first frame). */
   coverS = -1;
   coverT = 0;
   coverShape = 0;
@@ -666,9 +632,6 @@ class Sky {
   moonUWas: number;
   moonSet: { u0: number; t0: number; dur: number } | null = null;
   moonPres: number;
-  /** The moon's lead on its path at the rise and set (`moonLead`, from the size) and its way in and out (`moonPreU`). */
-  moonLd = 0;
-  moonPre = 0;
   /** Without a clock to the minute: where the moon should be (game u; NaN unknown), moved on at its pace. */
   fbU = NaN;
   /** The moon fades out to be placed anew (a correction too big to glide out). */
@@ -684,7 +647,6 @@ class Sky {
   /** The cached sky's inputs: top rgb, horizon rgb, alpha, glow side, glow, day depth, left fade (×100 where noted). */
   skyNow = new Float32Array(11);
   skyLast = new Float32Array(11).fill(-1);
-  skyTick = 0;
   sideU = SUN_U;
   /** The glow colour on the light side (its strength is skyNow[8]). */
   glowC: Rgb = [0, 0, 0];
@@ -710,7 +672,6 @@ class Sky {
   S = new Float32Array(2);
   /** The sun moment's strong beams this frame (owner feedback 37), their strength (0: none) and frame-line hits. */
   beams: Beam[] = [];
-  beamK = 0;
   /** The frame glints' strength this frame (sunturn.ts `turnGlint`, owner items 80, 81). */
   glintK = 0;
   /** The day's sun for the glimpses: `sunU` eased (-1 before the first frame), and its place. */
@@ -740,7 +701,6 @@ class Sky {
   moonSnap = false;
   // set by resize
   built = false;
-  hz = 0;
   skyH = 0;
   starH = 0;
   /** The small stars in two twinkle groups: x, y, size, alpha each (drawn one by one: two full-size layers cost ~5 ms a frame to copy in Firefox, item 112). */
@@ -839,7 +799,6 @@ class Sky {
     this.W = W;
     this.H = H;
     this.dpr = d;
-    this.hz = H * HORIZON;
     this.skyH = H * SKY_H_DAY;
     // Stars: the upper sky, denser toward the top, reaching lower on the right; fixed relative places.
     const sh0 = H * STARS_H;
@@ -886,8 +845,6 @@ class Sky {
     if (!this.moon || this.moon.R !== MR) this.moon = new MoonSurface(MR, env.noise, this.th.light);
     this.moon.phase = -1;
     this.mpath = moonPath(W, H, MR);
-    this.moonLd = moonLead(this.mpath, W, MR);
-    this.moonPre = moonPreU(this.moonLd);
     this.life.resize(W, H);
     const bk = env.back;
     this.gTopRed = bk.createLinearGradient(0, 0, 0, H * 0.45);
@@ -939,7 +896,7 @@ class Sky {
       // With the clock it goes out on its own at its pace. Without: near its
       // end it goes on at its own pace; a moon far from it hurries off.
       const u = this.u;
-      if (u > NO_MOON && !this.moonClock) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1 + this.moonPre - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
+      if (u > NO_MOON && !this.moonClock) this.moonSet = { u0: u, t0: this.T, dur: u > 0.9 ? Math.max(4, ((1 - u) * MOON_UP_S) / Math.max(0.01, env.moonSpeed)) : 8 + 18 * (1 - u) };
     } else if (name === 'birds') {
       this.life.birdsNow();
     } else if (name === 'glimpse') {
@@ -1236,8 +1193,8 @@ class Sky {
   skyCopy(b: Ctx): void {
     const dh = this.skyDrawH, r = this.skyR, cv = this.skyCv;
     if (dh <= 0) return;
-    const sx = Math.round(this.skyX * r), sh = Math.min(cv.height, Math.ceil(dh * r));
-    b.drawImage(cv, sx, 0, cv.width - sx, sh, sx / r, 0, (cv.width - sx) / r, sh / r);
+    const sx = Math.round(this.skyX * r), sw = cv.width - sx, sh = Math.min(cv.height, Math.ceil(dh * r));
+    b.drawImage(cv, sx, 0, sw, sh, sx / r, 0, sw / r, sh / r);
   }
   /** The sky's glow side and its cache brought up to date; false when there is no sky to draw. */
   skyCache(env: Env, dt: number, mI: number): boolean {
@@ -1254,7 +1211,6 @@ class Sky {
     const L = this.skyLast;
     let diff = 0;
     for (let i = 0; i < 11; i++) diff += Math.abs(s[i]! - L[i]!);
-    this.skyTick++;
     const half = this.mKind !== null;
     if (half !== this.skyHalf) {
       // a turn begins or ends: the cache at its new resolution, drawn now
@@ -1270,9 +1226,8 @@ class Sky {
     }
     // every frame it has moved enough (it was every other frame: a 6 Hz
     // stepping at 12 fps; transitions now run at the fast rate, owner feedback 56)
-    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) && (this.skyTick >= 1 || diff > 40 || this.first)) {
+    if ((diff > 0.8 || Math.abs(a - L[6]!) > 0.002) ) {
       L.set(s);
-      this.skyTick = 0;
       this.moving = true;
       const C = this.skyCg, W = env.W, sh = env.H * lerp(SKY_H, SKY_H_DAY, s[9]! / 100);
       const lk = s[10]! / 100, lw = W * LEFT_DARK;
@@ -1327,7 +1282,7 @@ class Sky {
   }
 
   // A flat cloud layer above the viewer, ray-cast per deck pixel, rebuilt
-  // row by row over BF frames while the previous two buffers cross-fade.
+  // row by row over a key frame's time (DECK_KEY_S) while the previous two buffers cross-fade.
   setupDeck(env: Env): void {
     const W = env.W, H = env.H;
     this.hY = Math.round(H * 0.36);
@@ -1636,13 +1591,13 @@ class Sky {
   }
 
   stepMoon(env: Env, dt: number): void {
-    const st = env.settled, pre = this.moonPre, wall = Date.now();
+    const st = env.settled, wall = Date.now();
     // real seconds since the last step (frames stop in a hidden tab)
     const gap = this.moonWall ? Math.max(0, (wall - this.moonWall) / 1000) : 0;
     this.moonWall = wall;
     const ra = st.moonRiseAt, sa = st.moonSetAt;
     const cu = ra >= 0 && sa > ra ? moonClockU(wall, ra, sa) : NaN;
-    const inside = cu >= -pre && cu <= 1 + pre;
+    const inside = cu >= 0 && cu <= 1;
     // just past the clock's set (or before its rise) while the game's event
     // has not come yet: the clock's end, where the moon is out of sight (item 100)
     const near = !inside && cu >= -MOON_CLOCK_SLACK && cu <= 1 + MOON_CLOCK_SLACK;
@@ -1655,7 +1610,7 @@ class Sky {
       this.moonSet = null;
       this.fbU = NaN;
       want = inside || (near && st.moonUp);
-      tu = near ? clamp(cu, -pre, 1 + pre) : cu;
+      tu = near ? clamp(cu, 0, 1) : cu;
       n = 1000 / (sa - ra);
     } else {
       n = env.moonSpeed / MOON_UP_S;
@@ -1667,7 +1622,7 @@ class Sky {
       }
       // Up without a place (start, a clock not even to the hour): already in the sky, it fades in there.
       if (st.moonUp && this.fbU !== this.fbU) this.fbU = this.u > NO_MOON ? this.u : MOON_START;
-      if (this.fbU === this.fbU) this.fbU = Math.min(this.fbU + n * Math.max(dt, gap), moonHoldU(this.moonLd));
+      if (this.fbU === this.fbU) this.fbU = Math.min(this.fbU + n * Math.max(dt, gap), MOON_HOLD);
       want = st.moonUp;
       tu = this.fbU;
     }
@@ -1677,7 +1632,7 @@ class Sky {
         this.moonSet = null;
         this.u = NO_MOON;
         this.fbU = NaN;
-      } else this.u = lerp(s.u0, 1 + pre, p);
+      } else this.u = lerp(s.u0, 1, p);
       want = true;
     } else if (want && tu === tu) {
       if (this.u <= NO_MOON || gap > MOON_GAP_S) {
@@ -1695,7 +1650,7 @@ class Sky {
       } else {
         const g = moonGlide(this.u, tu, n, dt);
         if (g === null) this.relocate = true;
-        else this.u = this.moonClock ? g : Math.min(g, moonHoldU(this.moonLd));
+        else this.u = this.moonClock ? g : Math.min(g, MOON_HOLD);
       }
     }
     const on = this.u > NO_MOON && want && !this.relocate ? 1 : 0;
@@ -1709,7 +1664,7 @@ class Sky {
   }
   /** The moon's place at the game's `u`: an even arc from the right edge (east), high in the middle, into the left band (west; `moonPath`). */
   moonPos(u: number): void {
-    moonAt(this.mpath, moonVisU(u, this.moonLd), this.S2);
+    moonAt(this.mpath, u, this.S2);
     this.mx = this.S2[0]!;
     this.my = this.S2[1]!;
   }
@@ -1735,9 +1690,7 @@ class Sky {
     // low down (behind the text) it is fainter, but not on its way in or out
     // at the edges: there it is at full strength through the game's rise and
     // set, taking the low rule over a tenth of its way (owner items 63, 69)
-    const vu = moonVisU(u, this.moonLd);
-    const L = this.moonLd;
-    const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(L, L + 0.1, vu), sst(1 - L - 0.1, 1 - L, vu));
+    const low = Math.max(0.45 + 0.55 * sst(env.H * 0.8, env.H * 0.42, y), 1 - sst(0, 0.1, u), sst(0.9, 1, u));
     // into the left band it fades out along the sky's curve, gone at the set (owner item 100)
     const a = this.moonVis * this.moonPres * low * bandK(x, env.W);
     const dayK = clamp(day * 1.3, 0, 1);
@@ -1812,7 +1765,7 @@ class Sky {
     // the band's fade in FRONT_STRIPS strips, each at the band's strength at
     // its middle (at ~2 % alpha the steps do not show; a layer cut along the
     // curve cost ~3 ms a frame)
-    const fa = 0.045 * G * wetK * SUN_LIGHT[kind], x0 = bandSolid(W), x1 = bandEnd(W);
+    const fa = 0.045 * G * wetK * SUN_LIGHT, x0 = bandSolid(W), x1 = bandEnd(W);
     // Only the ring between the gradient's radii is filled (its colour is
     // transparent inside and outside it): most of the screen lies inside the
     // ring while a sunset's front stays far (item 112: the whole-screen fill
@@ -1917,7 +1870,7 @@ class Sky {
    */
   drawBeams(lg: Ctx, env: Env, sx: number, sy: number, far: number, I: number): void {
     const late = this.mKind === 'set' ? 1 + SET_RAYS_LATE * sst(-24, -8, this.turnS) : 1;
-    const bk = (this.beamK = I * (1 - 0.65 * this.wet) * this.fogK * late * (this.mKind === 'set' ? SET_RAYS_DIM : 1));
+    const bk = I * (1 - 0.65 * this.wet) * this.fogK * late * (this.mKind === 'set' ? SET_RAYS_DIM : 1);
     if (this.beams.length !== BEAMS) this.beams = [];
     const kind = this.mKind ?? 'rise', s = this.turnS;
     sunBeams(this.T, this.fan[0]!, this.fan[1]!, this.beams, turnShimmer(s));
@@ -2269,7 +2222,7 @@ class Sky {
     gl.addColorStop(0.6, `rgba(${rgb},.06)`);
     gl.addColorStop(1, `rgba(${rgb},0)`);
     // the sun's hazy light has a curve of its own (a sunrise's comes slowly, owner item 77)
-    q.globalAlpha = G * kk * SUN_LIGHT[kind];
+    q.globalAlpha = G * kk * SUN_LIGHT;
     q.fillStyle = gl;
     q.fillRect(x0, 0, W - x0, H);
     const hr = H * 0.45, hx0 = Math.max(x0, sx - hr), hx1 = Math.min(W, sx + hr), hy0 = Math.max(0, sy - hr), hy1 = Math.min(H, sy + hr);
