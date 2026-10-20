@@ -2150,3 +2150,4 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        ~17 % ten seconds before, gone at the set. Unit 2779.
        Please try: watch a moonset on a clear night with the clock synced;
        the moon should be visible, fading, until the game says it sets.
+     - **Owner (2026-10-20, 0.1.68):** "seems to work". Approved.

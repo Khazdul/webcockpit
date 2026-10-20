@@ -45,7 +45,8 @@ Statuses: Next, In progress, Owner testing, Done.
   clock was right; the fade into the left band (sky's smootherstep) left it
   under 5 % for its last minute. `moonBandK` gives the moon its own
   square-root fade over the same strip (ADR 0091 addendum). Unit 2779.
-- **Next:** owner tests a moonset (released in 0.1.68).
+- **Owner test:** 0.1.68 "seems to work"; item 114 approved.
+- **Next:** stage 28 stays in owner testing (item 100).
 - **Commits:** 83b8686, plus this one.
 
 ### 2026-10-20 — About and README refresh, release 0.1.67
