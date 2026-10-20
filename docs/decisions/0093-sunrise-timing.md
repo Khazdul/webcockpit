@@ -588,7 +588,9 @@ the sunrise and sunset: their glow, rays and beams reached the left edge.
   ~2 % alpha the steps do not show). A half-size layer for the sun's glow
   was tried and was slower (~22 ms), so the glow is still cut on the sky.
   Now ~16 ms (p95 ~21) against main's ~12.5 (p95 ~17), inside FPS_FAST's
-  33 ms, and only while a turn runs.
+  33 ms, and only while a turn runs. (These were Chromium's software
+  rendering figures, headless: Firefox, which draws the worker's canvases
+  on the CPU, took 46–69 ms a frame, see "Firefox turn cost" below.)
 - **Dimmer sunset rays.** A sunset's rays, beams and their glints × 0.6 all
   through (`SET_RAYS_DIM`); its glow is unchanged.
 
@@ -659,6 +661,82 @@ afterwards looked very slow.
 - Dev: `r = Date.now() + 60_000; __weather.jump({ clock: 'night',
   moonRiseAt: r, moonSetAt: r + 745_000 })` (`Date.now() - 300_000` puts it
   mid-way).
+
+### Firefox turn cost (item 112, 2026-10-20)
+
+The performance review found that Firefox drew a sunrise or sunset at 15–21
+fps: the worker's frame was 46–69 ms against FPS_FAST's 33 ms. All of it was
+the sky module's full-screen fills, which Firefox rasterises on the CPU. The
+owner approved the work and a marginally softer shadow edge in the sun's
+glow, on condition that nothing else changes visibly and the frame rate does
+not drop.
+
+- **One layer for the sun's light.** The glow, hot spot, dusk light, rays and
+  beams (rays and beams still through the grain, as before), the shadow cut
+  and the band cut are all drawn into `sunL`, a layer at LAYER_SCALE (half
+  the canvases' resolution). The sky's cache goes under it there
+  (destination-over, as it went under the back layer). The layer is then
+  copied onto the empty back layer once, scaled up. The result composites as
+  before: stars, moon, deck and day life still go over it.
+- **Nothing in the band's solid part.** No fills or copies there: the sun's
+  layer, the ray layer's grain and merge, the sky cache when the band takes
+  it all (`SKY_BAND_FULL`), the deck's and the stars' copies. The band's cut
+  is one cached `bandGradient` (band.ts), filled over the fade only.
+- **The sky's cache at a quarter during a turn** (`SKY_TURN_SCALE`). Its
+  colours move every frame, and rebuilding it at full size cost ~13 ms.
+  The gradients are smooth over hundreds of px, so it looks the same.
+- **Shadows once.** The wedges' geometry is computed once a frame and drawn
+  into a quarter-size mask (each wedge at 0.45 over the others, the same
+  compounding as the cuts one after another). The mask is cut out with one
+  copy; its edge is the approved slightly softer one. On dark (`lighter`)
+  the rays go into the sun's layer before that cut, because the cut of a sum
+  is the sum of the cuts; on paper (`multiply`) both layers are cut.
+- **Grain and merge within the drawn bounds** of the rays and beams, clipped
+  (destination-in is unbounded); the rays and beams are clipped to x ≥ the
+  band's solid edge; the layer is cleared only where the last frame drew.
+- **The ray front** fills only its ring (where its tent is ≥ half a level),
+  not the whole screen.
+- **No first-frame spike.** The layers, grain and mask are made and warmed
+  up (one gradient fill, one cut, one grain pass, one merge) 10 s before the
+  clock's turn (`TURN_PREP_S`), or on its first frame without a clock.
+- **Stars on the CPU** are ~500 single fills instead of two near-full-screen
+  layer copies (~5 ms). On the GPU (Chromium, `env.cpu` false) they stay
+  layers. **The moon's two halos** are one sprite (inner over outer; at
+  alpha A it differs by at most A·(1 − A)·0.55·0.22², under 2 levels, under
+  the disc).
+- **Fixes:** the sun's place is set whenever a turn runs (`sunPlace`): the
+  sky's glow side read it stale when stepping out mid-turn. A turn indoors
+  (the sky out) no longer holds FPS_FAST. No garbage per frame in the beam
+  pieces, the frame-glint hits, the hull or the ray cores.
+
+`bench/weather-turn.ts`: headed browsers, owner geometry (1728 × 1000, ratio
+2), production bundle. It reads every worker frame's time through a whole
+turn. Worker frame avg / p95 in ms and fps by turn time s (load average
+2–4; another agent's runs shared the machine):
+
+| Browser, turn | -60…-45 | -45…-30 | -30…-15 | -15…0 | 0…+15 | first 3 s, max |
+|---|---|---|---|---|---|---|
+| Firefox sunset, before | 46.6 / 63 (21) | 65.0 / 72 (15) | 68.2 / 73 (15) | 58.1 / 69 (17) | 12.5 / 19 | 61 |
+| Firefox sunset, after | 24.1 / 37 (30) | 22.0 / 25 (30) | 23.4 / 28 (30) | 24.3 / 29 (30) | 10.1 / 14 | 38 |
+| Firefox sunrise, before | 51.7 / 57 (19) | 56.1 / 61 (18) | 62.4 / 67 (16) | 61.5 / 65 (16) | — | 54 |
+| Firefox sunrise, after | 25.5 / 38 (30) | 27.7 / 39 (30) | 26.4 / 40 (30) | 26.0 / 41 (30) | — | 48 |
+| Chromium sunset, before | 1.1 / 1.7 (30) | 2.0 / 3.2 (30) | 2.0 / 3.7 (30) | 2.1 / 3.6 (30) | 0.3 / 0.7 | 3.6 |
+| Chromium sunset, after | 2.7 / 4.9 (30) | 2.8 / 4.6 (30) | 3.0 / 5.0 (30) | 2.8 / 4.7 (30) | 0.4 / 0.7 | 8.6 |
+| Chromium sunrise, before | 2.0 / 3.5 (30) | 2.3 / 3.9 (30) | 2.6 / 4.4 (30) | 2.5 / 4.4 (30) | — | 10.1 |
+| Chromium sunrise, after | 2.5 / 4.7 (30) | 2.8 / 5.1 (30) | 3.0 / 5.2 (30) | 2.4 / 4.5 (30) | — | 14.4 |
+
+(After a sunrise the day sky is still, so its 0…+15 s frames are few.) A
+sunset's night with its stars after 0 s went from 12.5 to 10 ms in Firefox.
+Firefox now holds 30 fps through both turns. A sunset is under the ~25 ms
+aim; a sunrise is just over it (its rays cross the panes, and the ray front
+crosses the middle of the screen). Chromium costs ~0.7 ms more: more layer
+copies, still a small share of its frame. What is left in Firefox, per frame:
+the layer's upscale onto the back layer (~5 ms), the ray triangles (~3–4 ms;
+Firefox's anti-aliased path fill costs per covered pixel, whether as one path
+or many), and the ray front (~1–6 ms as it crosses the screen). Screenshots
+at -50, -30, -15 and -5 s match the old ones to a mean of ~0.1–0.2 levels;
+the differences are the rays' time-dependent sway, glint sparkles, and
+sub-level steps at the ring's and the shadows' edges.
 
 ## Consequences
 

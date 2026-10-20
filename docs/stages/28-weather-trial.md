@@ -2106,5 +2106,15 @@ package and a marginally softer shadow edge in the sun's glow.
      ≤ ~25 ms): the sun's glow, dusk light, band cut and shadow cut in a
      half-resolution layer; the sky gradient cheaper during a turn; a
      cheaper grain pass. Before/after screenshots at fixed turn times.
+     - **Done (2026-10-20):** ADR 0093, "Firefox turn cost (item 112)";
+       `bench/weather-turn.ts`. Firefox (headed, owner geometry) 46–69 ms
+       at 15–21 fps → sunset 22–24 ms, sunrise 26–28 ms, 30 fps
+       throughout, no first-frame spike; Chromium ~2 → ~2.8 ms. The sun's
+       light, sky, rays, beams and cuts in one half-size layer, the sky cache at a
+       quarter during a turn, one quarter-size shadow mask, grain and merge
+       within the drawn bounds, nothing in the band's solid part (sky,
+       deck, stars, sun layer), stars as single fills on the CPU, one moon
+       halo sprite, the stale sun position and the indoor turn rate fixed,
+       less garbage. Screenshots match to ~0.1–0.2 levels on average.
 113. **Cleanup:** dead code and stale names left from the iterations, one
      band gradient helper, stale ADR text. No change in behaviour.
