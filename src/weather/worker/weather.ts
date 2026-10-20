@@ -754,11 +754,13 @@ export function weatherModule(): Module {
     g.globalAlpha = th.light ? 0.45 : 0.8;
     g.drawImage(LB, 0, 0, LB.width * q, LB.height * q);
     g.restore();
+    yield;
     for (const b of buckets.values()) {
       g.strokeStyle = C(165, 185, 255, 0.42 * (b.lev ? b.inten * 1.4 : 1));
       g.lineWidth = b.w * 2.6 + 1.5;
       g.stroke(b.p);
     }
+    yield;
     g.globalCompositeOperation = 'source-over';
     for (const b of buckets.values()) {
       g.strokeStyle = b.lev === 0 ? C(255, 255, 255, 1) : C(235, 240, 255, clamp(b.inten * 1.7, 0.25, 1));
@@ -930,6 +932,8 @@ export function weatherModule(): Module {
     }
     return b;
   }
+  /** A strike's setup runs this long per leader frame at most (ms; one step at least, `prepStrike`). */
+  const PREP_MS = 6;
   /** The stepped leader, redrawn per step on a CPU canvas (see the strike sprites) and drawn as an image. */
   let leadCv: Cv | null = null;
   function drawLeader(c: Ctx, s: Strike, k: number, dpr: number): void {
@@ -1018,9 +1022,15 @@ export function weatherModule(): Module {
     const s = strike!, f = env.front, b = env.back, P = PS;
     s.el += dt;
     if (s.prep) {
-      // a step per leader frame; all that is left once the return stroke comes
+      // steps for up to PREP_MS per leader frame; all that is left once the return stroke comes
       if (s.el < s.tLead) {
-        if (s.prep.next().done) s.prep = null;
+        const until = performance.now() + PREP_MS;
+        do {
+          if (s.prep.next().done) {
+            s.prep = null;
+            break;
+          }
+        } while (performance.now() < until);
       } else {
         while (!s.prep.next().done);
         s.prep = null;
