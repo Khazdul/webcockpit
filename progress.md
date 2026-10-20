@@ -39,6 +39,15 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-20 — Moonset fix (stage 28 item 114)
+
+- **Done:** the moon faded out about a minute before the game's set. The
+  clock was right; the fade into the left band (sky's smootherstep) left it
+  under 5 % for its last minute. `moonBandK` gives the moon its own
+  square-root fade over the same strip (ADR 0091 addendum). Unit 2779.
+- **Next:** owner tests a moonset; release when wanted (not tagged).
+- **Commits:** 83b8686, plus this one.
+
 ### 2026-10-20 — About and README refresh, release 0.1.67
 
 - **Done:** owner asked for a sweep of About and README. Owner decisions: weather is no longer a trial; a short overview in About, proportional to the rest; high-resolution screenshots, no animated clip. About gains WHAT IS INSIDE, bundled scripts, tileset credits and wasmoon; README gains weather, tilesets, bundled scripts, phone, and fixes stale claims (weather default, layout, status). "Trial" dropped from the Options help and `#weather` hint; ADR 0091 addendum. `npm run screenshots` (`scripts/screenshots.ts`, mocked connection, fixture names only) makes 3200×1800 images in `docs/img/`.
