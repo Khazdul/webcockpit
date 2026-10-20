@@ -152,7 +152,7 @@ describe('manual coverage (no drift from the command table)', () => {
   });
 
   it('leaves out the client commands that the menus cover, everywhere', () => {
-    // #weather: the weather effects trial (stage 28) stays out of the manual.
+    // #weather: the weather effects (stage 28) stay out of the manual.
     const hidden = ['connect', 'reconnect', 'replay', 'runlog', 'disconnect', 'weather'];
     // They are still commands: only the manual is silent about them.
     expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help', 'menu', 'perf'].sort());

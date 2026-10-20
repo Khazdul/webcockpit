@@ -75,8 +75,8 @@ const HINT_SCRIPT = 'Shell commands do nothing in the browser.';
 const HINT_LUA = 'Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.';
 const HINT_SCRIPT_CMD = 'Only #script list, help, set, enable, disable and reload run; other forms do nothing.';
 const HINT_LATER = 'Not supported yet; kept in the profile as written.';
-/** The weather effects trial (stage 28): not in the manual while it is a trial. */
-const HINT_WEATHER = 'weather effects trial: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather stop ends it.';
+/** The weather effects (stage 28): a hint only, not a manual topic. */
+const HINT_WEATHER = 'weather effects: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather stop ends it.';
 
 // Alphabetical by name (checked by a test); order is the resolution order.
 const SPECS: readonly Spec[] = [

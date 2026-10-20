@@ -38,7 +38,7 @@ export const WEATHER_ROWS: ReadonlyArray<{ key: Category; label: string; help: s
 ];
 
 const DAY_SKY_HELP = 'The blue sky by day. Off: the page background; clouds, sun and night sky stay.';
-const MASTER_HELP = 'A trial. Decoration only; text and keys are never slowed.';
+const MASTER_HELP = 'Decoration only; text and keys are never slowed.';
 const UNSUPPORTED = 'Not supported in this browser (needs OffscreenCanvas).';
 
 export function WeatherOptionsFrame(): VNode {
