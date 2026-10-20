@@ -2075,17 +2075,33 @@ package and a marginally softer shadow edge in the sun's glow.
 109. **One-off spikes** (no visible change): the day life's full-screen
      texture (43–80 ms on the first day frame), a lightning strike's setup
      in one frame, the ray layer and grain built at a turn's first frame.
+     - **Done (2026-10-20):** ADR 0091, "Performance review (items
+       109–111)". Day life textures built in 3 ms slices with a cheap PRNG
+       (Chromium's first day frame 58–74 → 4–10 ms); a strike's setup over
+       the leader frames (≤ 6 ms each; frame gaps max 82–100 → 50–67 ms).
+       The turn's ray layer and grain are sky.ts: left to item 112.
 110. **Bugs:** a `theme` post (and a re-init of every module) on any pane
      or appearance change; a clock-started turn never drawn while the loop
      is idle indoors; window resize rebuilds the modules on every step
      instead of settling; the sun's position stale when stepping out
      mid-turn; spatter sprites kept at the old dpr.
+     - **Done (2026-10-20):** theme posted and modules re-inited only on a
+       new background; an indoor turn keeps the loop awake; a window drag
+       rebuilds at most once per 250 ms and once after; spatters rebuilt at
+       a new dpr. Unit tests added. The stale sun position is sky.ts: left
+       to item 112.
 111. **Other Firefox scenes** (no or marginal visible change): moon halos
      as one sprite; fog drawn once per element instead of once per tint;
      the fog cache copied up only where it holds something; the heartbeat
      wash as one upscale; nothing drawn or copied in the band's solid part;
      no FPS_FAST floor for slow modules during a whole turn; the front
      canvas left alone while empty.
+     - **Done (2026-10-20):** all but the sky.ts parts (moon halos, the
+       band's solid part in the sky; left to item 112). Firefox: dense fog
+       at night 28–29 → 22–25 ms/frame (fog 19.7 → 13–14), dying 31–32 →
+       19–24 (body 24 → 10–12). Screenshots before/after look the same.
+       Open: at the now reached 30 fps the bench's heavy+dying scene raises
+       Firefox's text → paint p95 (18–19 → 26–41 ms; at a 20 fps cap 19).
 112. **Sunrise and sunset in Firefox** (goal: a steady 30 fps, frame
      ≤ ~25 ms): the sun's glow, dusk light, band cut and shadow cut in a
      half-resolution layer; the sky gradient cheaper during a turn; a

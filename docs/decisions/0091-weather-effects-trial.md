@@ -1374,6 +1374,81 @@ Steady turns, the set ending at the bottom left and the day sky's ray pulse
 - Shooting stars, the cloud deck and birds keep moving left and fade on the
   same curve (item 99).
 
+### Performance review (items 109–111, 2026-10-20)
+
+Firefox draws the worker's canvases on the CPU, so every full-screen copy
+counts. Changes (no or marginal visible change; before/after screenshots
+of each scene compared):
+
+- **Theme.** `refresh()` posts `theme` only when `--term-bg` / `--term-fg`
+  changed, and the engine re-inits the modules only for a new background
+  (`themeInfo` reads only it). A pane toggle or appearance change no longer
+  rebuilds skies, sprites and star fields or resets their state.
+- **Turn indoors.** `Director.quiet()` is false while a sunrise or sunset
+  runs with Sky on, so a clock-started turn indoors (its tint) is drawn.
+- **Window resize.** A size change rebuilds the modules at once when none
+  came in the last `RESIZE_SETTLE_MS`, then at most once per 250 ms during
+  a drag and once after it (it was every step, 10–25 ms each). The canvases
+  change size at once; a module draws its last layout on them between (no
+  stretching). Mid-drag shots looked as before or better.
+- **Turn rate.** `moving(…, skipSky)`: while a turn runs, the sky selection
+  does not set the FPS_FAST floor for every module (the sky asks 30 fps
+  itself; checked: 30 fps in Chromium during a sunset), so fog keeps 12.
+- **Front canvas.** Wrapped like the caches (`layer()`, now without rest
+  args): not cleared or masked while it was and stays empty.
+- **Cache copies.** `Module.extent` (fog: the union of what it drew per
+  layer): the engine copies only that region of the half-resolution cache,
+  less the band's solid part and what the mask erases below `solidTop`,
+  padded two cache pixels on the cache's grid (the same sampling as a whole
+  copy; unit test).
+- **Fog tints.** Between two tints the textures are re-tinted in the mixed
+  colour (quantised to 4 levels, 8 textures per frame into a second set,
+  swapped when complete), each element drawn once instead of once per
+  tint; hazes under alpha 0.004 skipped. The two-draw blend and the single
+  mixed draw differ by at most a few % of opacity mid-crossfade; the
+  moonlit night itself has one tint and is unchanged.
+- **Body.** A landed spatter is baked upright on the device pixel grid and
+  copied unscaled (the same single resampling); the heartbeat wash's three
+  layers are composited at 192 × 120 and upscaled once (CPU canvases only;
+  on a GPU canvas the three straight draws are cheaper). Spatter sprites
+  are rebuilt when the ratio changes.
+- **Spikes.** Day life's dither textures: xorshift32, built in 3 ms slices
+  from resize and the day frames (the pulse waits and fades in), the rays'
+  pattern made once. A strike's sprites and rim lights are made in steps,
+  up to 6 ms per leader frame (the leader draws none of them), the rest at
+  the return stroke; `cutBand`'s gradient made once per context.
+- **Small.** Drops from one sprite set in the mixed tint; far snow tiles
+  set their alpha only on a change (full-alpha region and the band ramp in
+  two passes; one colour per tile, so order does not matter); splashes
+  likewise and `sqrt` for `hypot`; the dusting's styles quantised; no
+  closures or arrays per frame in `fps()`, the snow test, the fog tint loop
+  and the cache loops. `stats({ reset })` and per-module maxima for benches.
+
+Measured (worker ms per frame, avg / p95 of two rounds; headed, 1728 × 1000,
+ratio 2; another agent's browsers ran meanwhile, so calm and night swing
+±40 % with the sky, which this work did not touch):
+
+| Firefox 155 | before | after |
+|---|---|---|
+| calm day (3 fps) | 7.6–13.5 / 10–16 | 9.0–14.1 / 15–25 (noise) |
+| night, moon (12 fps) | 17.9–23.6 / 28–31 | 14.3–18.2 / 19–28 |
+| heavy rain + dense fog, night (30 fps) | 28.4–29.4 / 42–44 (fog 19.7) | 22.2–25.1 / 36–49 (fog 13.3–14.3) |
+| snow (30 fps) | 8.2–16.4 / 12–29 | 8.5–8.8 / 15 |
+| dying (30 fps) | 30.5–32.5 / 39–40 (body 23–25) | 18.5–24.4 / 28–33 (body 10–12) |
+| strike, frame gaps max | 67–100 ms | 50–67 ms |
+| fog crossfade (night → day) | 58 avg, 17 fps (fog 35) | 43–45 avg, 22–23 fps (fog 21) |
+
+Chromium: every scene 0.4–1.4 ms avg either way; the first day frame after
+night 58–74 → 4–10 ms; a strike's longest gap 50–100 → 33 ms.
+
+Latency (`weather-bench --rounds 2`, Firefox, heavy + fog + dying + moon):
+the worker frame 50.5 → 31–32 ms, so the effects now reach the 30 fps they
+ask for (before ~20). Text → painted p95 rose from 18–19 ms to 26–41 ms (off
+19–20): Firefox presents twice as many canvas frames as before. With the
+loop capped at 20 fps the same build gives 18.7–18.9 ms, so the cost is the
+frame rate, not the changes. **Open (owner):** keep 30 fps there, or cap
+Firefox's heavy scenes. Chromium unchanged (19.4 ms p95 on and off).
+
 ## Consequences
 
 - Settings gain a `weather` section (default off).
