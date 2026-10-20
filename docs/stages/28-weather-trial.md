@@ -2102,6 +2102,10 @@ package and a marginally softer shadow edge in the sun's glow.
        19–24 (body 24 → 10–12). Screenshots before/after look the same.
        Open: at the now reached 30 fps the bench's heavy+dying scene raises
        Firefox's text → paint p95 (18–19 → 26–41 ms; at a 20 fps cap 19).
+       **Resolved (2026-10-20):** headless only (software compositing on a
+       timer vsync). In a real Firefox window the p95 is 18–20 ms off, in the
+       heavy scene and mid-sunset alike; 30 fps kept, no cap. The bench
+       gets `WC_BENCH_HEADED=1` (ADR 0091, "Text latency at 30 fps").
 112. **Sunrise and sunset in Firefox** (goal: a steady 30 fps, frame
      ≤ ~25 ms): the sun's glow, dusk light, band cut and shadow cut in a
      half-resolution layer; the sky gradient cheaper during a turn; a

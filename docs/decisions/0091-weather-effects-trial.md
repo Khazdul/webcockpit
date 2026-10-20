@@ -1449,6 +1449,30 @@ loop capped at 20 fps the same build gives 18.7–18.9 ms, so the cost is the
 frame rate, not the changes. **Open (owner):** keep 30 fps there, or cap
 Firefox's heavy scenes. Chromium unchanged (19.4 ms p95 on and off).
 
+### Text latency at 30 fps (2026-10-20)
+
+Closes the open point above. The rise was headless Firefox only: it
+composites in software against a timer vsync, and the worker's canvas
+commits at 30 fps push back the main thread's refresh ticks (rAF gap p95
+47–57 ms); a test mode drawing nothing but committing at 30 fps gave the
+same. Headed (DISPLAY :1, 1728 × 1000, DPR 2, production bundle), text →
+painted p95 over rounds 3–6:
+
+| Firefox headed | worker fps | median (ms) | p95 (ms) |
+|---|---|---|---|
+| off | – | 10.0–12.5 | 18.2–23.4 |
+| heavy (rain, fog, dying, moon) | 29 | 10.3–11.7 | 18.1–20.0 |
+| sunset −45 … −5 s | 30 | 10.1–12.5 | 18.6–24.4 (mostly 19–20) |
+| calm day | 3–5 | 11–12.5 | 19.3–21.7 |
+| night with moon | 12–15 | 13.3–13.6 | 20.9–21.8 |
+
+Key → send stayed at 0.08–0.2 ms median. Decision: keep 30 fps in Firefox
+(no cap, no yielding after text). Tried headless and rejected: asking 24
+fps (Firefox snaps to 19.7 on the 60 Hz grid), pausing the worker 50 ms
+after text (8.6 fps effects). `bench/lib.ts` `launchTarget` takes
+`WC_BENCH_HEADED=1` (needs DISPLAY; the Vulkan GPU flags are dropped when
+headed) so latency is measured in a real window.
+
 ### Corrections (item 113, 2026-10-20)
 
 Earlier sections are kept as written; two statements there no longer hold:

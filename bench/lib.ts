@@ -84,10 +84,14 @@ export const gpuArgs = () => (process.env.WC_BENCH_GPU_ARGS ?? '--enable-gpu --u
  * other than 1 needs the `layout.css.devPixelsPerPx` pref (tests/e2e/dpr.ts).
  */
 export async function launchTarget(name: TargetName, geometry: Geometry, extraArgs: string[] = []): Promise<Target> {
+  // WC_BENCH_HEADED=1: a real window (needs DISPLAY). Headless Firefox composites
+  // in software on a timer vsync: worker canvas commits at 30 fps delay its main-thread
+  // frames there (text → painted p95 +5–14 ms) but not in a real window (weather latency, 2026-10-20).
+  const headless = process.env.WC_BENCH_HEADED !== '1';
   const browser =
     name === 'firefox'
-      ? await firefox.launch(geometry.dpr !== 1 ? { firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(geometry.dpr) } } : {})
-      : await chromium.launch({ args: [...(name === 'chromium-gpu' ? gpuArgs() : []), ...extraArgs] });
+      ? await firefox.launch({ headless, ...(geometry.dpr !== 1 ? { firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(geometry.dpr) } } : {}) })
+      : await chromium.launch({ headless, args: [...(name === 'chromium-gpu' && headless ? gpuArgs() : []), ...extraArgs] });
   return { name, browser, geometry, isChromium: name !== 'firefox' };
 }
 
