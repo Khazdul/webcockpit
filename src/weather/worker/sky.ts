@@ -702,7 +702,6 @@ class Sky {
   // set by resize
   built = false;
   skyH = 0;
-  starH = 0;
   /** The small stars in two twinkle groups: x, y, size, alpha each (drawn one by one: two full-size layers cost ~5 ms a frame to copy in Firefox, item 112). */
   starL: Float32Array[] = [];
   starCol = '#fff';
@@ -802,7 +801,7 @@ class Sky {
     this.skyH = H * SKY_H_DAY;
     // Stars: the upper sky, denser toward the top, reaching lower on the right; fixed relative places.
     const sh0 = H * STARS_H;
-    const sh = (this.starH = Math.ceil(H * STARS_H_RIGHT));
+    const sh = Math.ceil(H * STARS_H_RIGHT);
     // about as dense as before over the deeper field
     const n = Math.min(520, Math.round((W * (sh0 + sh) * 0.62) / 2400));
     const R = rng(777);
