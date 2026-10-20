@@ -681,14 +681,18 @@ export class WeatherEngine {
     const n = Math.min(this.nTimes, N_TIMES);
     const a = Array.from(this.times.subarray(0, n)).sort((x, y) => x - y);
     const avg = n ? a.reduce((s, v) => s + v, 0) / n : 0;
-    const mods: Record<string, number> = {};
+    const mods: Record<string, number> = {}, modsMax: Record<string, number> = {};
     for (const [id, arr] of this.modTimes) {
-      let s = 0;
-      for (let i = 0; i < n; i++) s += arr[i]!;
+      let s = 0, mx = 0;
+      for (let i = 0; i < n; i++) {
+        s += arr[i]!;
+        mx = Math.max(mx, arr[i]!);
+      }
       mods[id] = n ? s / n : 0;
+      modsMax[id] = mx;
     }
     const g = this.gaps.splice(0).sort((x, y) => x - y), gn = g.length;
     const gaps = { n: gn, p50: gn ? g[Math.floor(gn / 2)]! : 0, p95: gn ? g[Math.floor(gn * 0.95)]! : 0, max: gn ? g[gn - 1]! : 0 };
-    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
+    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, modsMax, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
   }
 }

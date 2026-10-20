@@ -231,6 +231,8 @@ export interface FrameStats {
   max: number;
   /** Average per module, ms. */
   mods: Record<string, number>;
+  /** Longest frame per module, ms (spikes). */
+  modsMax?: Record<string, number>;
   /** True while the loop idles (nothing to draw). */
   idle: boolean;
   /** Frames drawn since the engine started (fps = its change over time). */

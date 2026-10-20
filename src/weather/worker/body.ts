@@ -523,20 +523,25 @@ export function bodyModule(): Module {
         // upscale over the screen (three full-screen upscales cost Firefox's
         // software canvas ~15 ms a frame at 30 fps); all three are smooth, so
         // it looks the same.
-        const w = S.washCv!, g = ctx2d(w);
-        g.globalAlpha = 1;
-        g.clearRect(0, 0, WASH_W, WASH_H);
+        // (a GPU canvas draws the three straight: there the extra canvas costs more than it saves)
+        const cpu = !!env.cpu, w = S.washCv!, g = cpu ? ctx2d(w) : fr, gw = cpu ? WASH_W : W, gh = cpu ? WASH_H : H;
+        if (cpu) {
+          g.globalAlpha = 1;
+          g.clearRect(0, 0, WASH_W, WASH_H);
+        }
         g.globalAlpha = base * (1 - 0.35 * glow);
-        g.drawImage(S.washDeep!, 0, 0, WASH_W, WASH_H);
+        g.drawImage(S.washDeep!, 0, 0, gw, gh);
         if (hot > 0.003) {
           g.globalAlpha = hot;
-          g.drawImage(S.washHot!, 0, 0, WASH_W, WASH_H);
+          g.drawImage(S.washHot!, 0, 0, gw, gh);
         }
         const ra = present * (0.06 + 0.04 * k) + present * (0.06 + 0.16 * k) * glow;
         g.globalAlpha = clamp(ra, 0, 1);
-        g.drawImage(S.vigRed!, 0, 0, WASH_W, WASH_H);
-        fr.globalAlpha = 1;
-        fr.drawImage(w, 0, 0, W, H);
+        g.drawImage(S.vigRed!, 0, 0, gw, gh);
+        if (cpu) {
+          fr.globalAlpha = 1;
+          fr.drawImage(w, 0, 0, W, H);
+        }
       } else S.hb = 0;
       fr.globalAlpha = 1;
       return true;
