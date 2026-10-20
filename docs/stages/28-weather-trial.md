@@ -2058,3 +2058,37 @@ Overall the owner is happy; some polish remains for the next session.
        start and end; indoors and out. The rest a little shorter. The
        captions no longer mention the pace. Weather unit 179/179, e2e
        weather 6/6; a full real-time run checked by screenshots.
+
+### 2026-10-20 — performance review (translated)
+
+The owner: close to the goal; review the code and the performance after
+many iterations. A stutter seen once at a sunset. Proposals welcome, but
+the experience must not get worse (or only marginally; no lower fps).
+
+Review (four read-only agents, 2026-10-20): Firefox draws a sunrise or
+sunset at 15–19 fps (worker frame 50–68 ms, headed, owner geometry)
+against the 30 fps the turn asks for, with a 75 ms first frame; Chromium
+~3 ms. All of it is the sky (full-screen fills rasterised on the CPU).
+ADR 0093's ~16 ms was a Chromium figure. The owner approved the whole
+package and a marginally softer shadow edge in the sun's glow.
+
+109. **One-off spikes** (no visible change): the day life's full-screen
+     texture (43–80 ms on the first day frame), a lightning strike's setup
+     in one frame, the ray layer and grain built at a turn's first frame.
+110. **Bugs:** a `theme` post (and a re-init of every module) on any pane
+     or appearance change; a clock-started turn never drawn while the loop
+     is idle indoors; window resize rebuilds the modules on every step
+     instead of settling; the sun's position stale when stepping out
+     mid-turn; spatter sprites kept at the old dpr.
+111. **Other Firefox scenes** (no or marginal visible change): moon halos
+     as one sprite; fog drawn once per element instead of once per tint;
+     the fog cache copied up only where it holds something; the heartbeat
+     wash as one upscale; nothing drawn or copied in the band's solid part;
+     no FPS_FAST floor for slow modules during a whole turn; the front
+     canvas left alone while empty.
+112. **Sunrise and sunset in Firefox** (goal: a steady 30 fps, frame
+     ≤ ~25 ms): the sun's glow, dusk light, band cut and shadow cut in a
+     half-resolution layer; the sky gradient cheaper during a turn; a
+     cheaper grain pass. Before/after screenshots at fixed turn times.
+113. **Cleanup:** dead code and stale names left from the iterations, one
+     band gradient helper, stale ADR text. No change in behaviour.
