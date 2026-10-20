@@ -35,7 +35,7 @@
 // itself 8-bit, and the whole glow stepped with it.)
 
 import type { ThemeInfo } from '../palette';
-import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
 import { bandK } from './band';
 import { sunDrift, sunMid } from './beams';
 import type { FrameBox, Glints } from './glint';
@@ -48,9 +48,6 @@ const BUG_GAP: [number, number] = [160, 380];
 const FLAP_FRAMES = 6;
 /** The dither textures are built this many ms a frame (`DayLife.pump`). */
 const TEX_SLICE_MS = 3;
-
-const rr = (a: number, b: number): number => a + Math.random() * (b - a);
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 /** The sun's height for the pulse when the time of day is unknown (clock not synced): mid-morning. */
 export const GLIMPSE_H_UNKNOWN = 0.6;

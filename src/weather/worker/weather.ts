@@ -20,7 +20,7 @@
 
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
-import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas } from './env';
+import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas, rr } from './env';
 import { LEFT_SOLID, bandEnd, bandGradient, bandK, bandSolid, leftDark } from './band';
 import { plateRects, rimRects } from './rimshape';
 
@@ -51,7 +51,6 @@ export function snowFadeAlpha(v: number): number {
 }
 
 const R = Math.random;
-const rr = (a: number, b: number): number => a + R() * (b - a);
 
 type TintKey = 'sun' | 'moon' | 'torch' | 'dark' | 'neutral';
 const TKEYS: TintKey[] = ['sun', 'moon', 'torch', 'dark', 'neutral'];
@@ -75,7 +74,8 @@ interface WPane extends Pane {
   rate: Float32Array;
   dust: number;
   eavesOk: boolean;
-  sw: number;
+  /** The width (px) of fresh rain started just below it, in the dry lee under it (0: none). */
+  shelter: number;
   dustRow: number;
 }
 
@@ -130,7 +130,7 @@ interface Strike {
   ledge: boolean;
   fog: number;
   /** Rim light on pane borders: axis-aligned rects [x, y, w, h, …] (fills, not stroked paths). */
-  rims: { rim: number[]; band: number[]; gr: CanvasGradient; k: number; b: number }[];
+  rims: { rim: number[]; band: number[]; gr: CanvasGradient; k: number }[];
   leadStep: number;
   ls1: string;
   ls2: string;
@@ -320,7 +320,7 @@ export function weatherModule(): Module {
   let rainAmt = 0;
   const SN = 300;
   const snx = new Float32Array(SN), sny = new Float32Array(SN), snz = new Float32Array(SN), snv = new Float32Array(SN), snph = new Float32Array(SN), sns = new Uint8Array(SN), sna = new Uint8Array(SN);
-  let tiles: Tile[] | null = null, snCount = 0, snowAmt = 0, snowSpr: string[] | null = null, sprCol: Rgb = [0, 0, 0], sprAge = 1;
+  let tiles: Tile[] | null = null, snCount = 0, snowAmt = 0, snowFills: string[] | null = null, snowCol: Rgb = [0, 0, 0], snowColAge = 1;
   let dustCv: Cv | null = null, snowWind = 0, snowT = 0, snowFade = 1;
   let gNext = 9, gAge = -1, gDur = 5, gDir = 1, gPow = 1, gShift = 0, gE = 0;
   let prevW: string | null | undefined = undefined, prevSnowMix = 0, prevRainMix = 0;
@@ -347,13 +347,13 @@ export function weatherModule(): Module {
       let v = u - W;
       for (let k = 0; k < panes.length; k++) {
         const p = panes[k]!;
-        if (!p.sw) continue;
-        if (v < p.sw) {
+        if (!p.shelter) continue;
+        if (v < p.shelter) {
           rx[i] = rr(p.x + 2, p.x2 - 2);
           ry[i] = p.y2 + rr(0, 30);
           return;
         }
-        v -= p.sw;
+        v -= p.shelter;
       }
     }
     ry[i] = -rr(0, 90) - 30;
@@ -396,15 +396,15 @@ export function weatherModule(): Module {
         rate: Float32Array.from(eaves, () => 0.5 + R()),
         dust: 0,
         eavesOk: p.y + p.h < env.protect.fadeTop - 4,
-        sw: 0,
+        shelter: 0,
         dustRow: 0,
       };
     });
     shelterW = 0;
     const yEnd = env.protect.fadeTop + 30;
     for (const p of panes) {
-      p.sw = p.y2 < yEnd - 40 ? (p.w * (yEnd - p.y2)) / (yEnd + 60) : 0;
-      shelterW += p.sw;
+      p.shelter = p.y2 < yEnd - 40 ? (p.w * (yEnd - p.y2)) / (yEnd + 60) : 0;
+      shelterW += p.shelter;
     }
   }
   function drip(x: number, y: number, r: number): void {
@@ -422,7 +422,7 @@ export function weatherModule(): Module {
   // ---- snow helpers
   const SR = [0.75, 1.0, 1.3, 1.65], SA = [0.3, 0.52, 0.8];
   const CLW = [0, 1, 0, 2, 1, 0, 3, 4, 5, 3, 4, 3, 6, 7, 8, 7, 9, 10, 11, 10];
-  function makeSnowSprites(col: Rgb): string[] {
+  function makeSnowFills(col: Rgb): string[] {
     const out: string[] = [];
     for (let i = 0; i < SR.length; i++) for (let j = 0; j < SA.length; j++) out.push(`rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${SA[j]})`);
     return out;
@@ -826,7 +826,7 @@ export function weatherModule(): Module {
       gr.addColorStop(0.45, C(170, 175, 255, 0.75));
       gr.addColorStop(1, C(120, 110, 255, 0.08));
       // a frame in the left band lights up as much as the sky shows there (owner item 99)
-      s.rims.push({ rim, band, gr, k: k * (behind ? 1.15 : 1) * bk(p.x + p.w / 2), b });
+      s.rims.push({ rim, band, gr, k: k * (behind ? 1.15 : 1) * bk(p.x + p.w / 2) });
     }
   }
 
@@ -932,7 +932,7 @@ export function weatherModule(): Module {
   const PREP_MS = 6;
   /** The stepped leader, redrawn per step on a CPU canvas (see the strike sprites) and drawn as an image. */
   let leadCv: Cv | null = null;
-  function drawLeader(c: Ctx, s: Strike, k: number, dpr: number): void {
+  function drawLeader(c: Ctx, s: Strike, dpr: number): void {
     const prog = clamp(s.el / s.tLead, 0, 1);
     const step = Math.ceil(prog * s.sweep);
     const op: GlobalCompositeOperation = th.light ? 'source-over' : 'lighter';
@@ -975,39 +975,37 @@ export function weatherModule(): Module {
       cutBand(g, s.bx0, s.by0, s.sh);
     }
     c.globalCompositeOperation = op;
-    c.globalAlpha = k;
     c.drawImage(leadCv, s.bx0, s.by0, s.sw, s.sh);
-    c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
   }
   const PS = { lead: false, fl: 0, B: 0, A: 0, V: 0, flashK: 0, nk: 1 };
-  function paintBack(b: Ctx, s: Strike, P: typeof PS, k: number, dpr: number): void {
+  function paintBack(b: Ctx, s: Strike, P: typeof PS, dpr: number): void {
     // glows add on dark; on light they tint (multiply) and the bolt draws over
     const add = th.add, over: GlobalCompositeOperation = th.light ? 'source-over' : 'lighter';
     if (P.lead) {
-      drawLeader(b, s, k, dpr);
+      drawLeader(b, s, dpr);
       if (glowCv) {
         b.globalCompositeOperation = add;
-        b.globalAlpha = P.fl * 0.6 * k;
+        b.globalAlpha = P.fl * 0.6;
         b.drawImage(glowCv, s.x0 - 560, -40, 1120, H * 0.62);
       }
     } else {
       b.globalCompositeOperation = add;
       if (glowCv && P.B > 0.03) {
-        b.globalAlpha = clamp(P.B * P.flashK * 0.4, 0, 1) * k;
+        b.globalAlpha = clamp(P.B * P.flashK * 0.4, 0, 1);
         b.drawImage(glowCv, s.x0 - 560, -40, 1120, H * 0.62);
       }
       if (P.B > 0.05 && washCv) {
-        b.globalAlpha = clamp(P.B * P.B * P.flashK * 0.06, 0, 1) * k;
+        b.globalAlpha = clamp(P.B * P.B * P.flashK * 0.06, 0, 1);
         b.drawImage(washCv, 0, 0, W, H * 0.85);
       }
       b.globalCompositeOperation = over;
       if (P.A > 0.01 && lowA) {
-        b.globalAlpha = P.A * 0.6 * k;
+        b.globalAlpha = P.A * 0.6;
         b.drawImage(lowA, s.bx0, s.by0, lowA.width * s.q, lowA.height * s.q);
       }
       if (P.V > 0.02 && spCv) {
-        b.globalAlpha = clamp(P.V * (0.8 + 0.35 * P.nk) * s.fog, 0, 1) * k;
+        b.globalAlpha = clamp(P.V * (0.8 + 0.35 * P.nk) * s.fog, 0, 1);
         b.drawImage(spCv, s.bx0, s.by0, s.sw, s.sh);
       }
     }
@@ -1082,7 +1080,7 @@ export function weatherModule(): Module {
         }
       }
     }
-    paintBack(b, s, P, 1, env.dpr);
+    paintBack(b, s, P, env.dpr);
     return flash;
   }
   function drawSparks(f: Ctx, dt: number, dpr: number): void {
@@ -1174,9 +1172,9 @@ export function weatherModule(): Module {
       wg.fillRect(0, 0, W, wh);
       cutBand(wg, 0, 0, wh);
       stepTint(m);
-      sprCol = [lift(tint.r, 0.55), lift(tint.g, 0.55), lift(tint.b, 0.55)];
-      snowSpr = makeSnowSprites(sprCol);
-      tiles = makeTiles(env, sprCol);
+      snowCol = [lift(tint.r, 0.55), lift(tint.g, 0.55), lift(tint.b, 0.55)];
+      snowFills = makeSnowFills(snowCol);
+      tiles = makeTiles(env, snowCol);
       for (let i = 0; i < SN; i++) {
         if (sna[i]) {
           snx[i] = Math.min(snx[i]!, W);
@@ -1207,10 +1205,10 @@ export function weatherModule(): Module {
       let busy = false;
 
       // Snow begins with the raw value, without the dwell (owner item 98); it stops only once settled (then fades, item 91).
-      const sw = env.cats.precipitation ? (env.raw.weather === '*' ? '*' : env.settled.weather) : null;
-      const isRain = sw === "'" || sw === '"', isSnow = sw === '*';
+      const wx = env.cats.precipitation ? (env.raw.weather === '*' ? '*' : env.settled.weather) : null;
+      const isRain = wx === "'" || wx === '"', isSnow = wx === '*';
       const jumpR = rain > 0.97 && prevRainMix < 0.5, jumpS = m.snow > 0.97 && prevSnowMix < 0.5;
-      if (isRain && (jumpR || (prevW === null && sw !== prevW))) {
+      if (isRain && (jumpR || (prevW === null && wx !== prevW))) {
         rainAmt = 1;
         seedRain(true);
       }
@@ -1225,7 +1223,7 @@ export function weatherModule(): Module {
             T.front = 1e5;
           }
         }
-      } else if (isSnow && prevW !== sw) {
+      } else if (isSnow && prevW !== wx) {
         // snow begins: at once and dense (item 93), but falling in from the top (item 98)
         if (snCount === 0) snowFade = 1;
         snowAmt = Math.max(snowAmt, SNOW_START);
@@ -1245,7 +1243,7 @@ export function weatherModule(): Module {
           }
         }
       }
-      prevW = sw;
+      prevW = wx;
       prevRainMix = rain;
       prevSnowMix = m.snow;
       // the build-ups run at the dev time scale (`env.speed`, 1 in the game and the demo)
@@ -1521,16 +1519,16 @@ export function weatherModule(): Module {
       }
       const gx = gDir * 150 * gE;
       gShift += gx * 0.55 * dt;
-      sprAge += dt;
+      snowColAge += dt;
       let tileOn = false;
       if (tiles) for (let i = 0; i < tiles.length; i++) if (tiles[i]!.on || tiles[i]!.tail < tiles[i]!.front) tileOn = true;
-      if (snowSpr && tiles && (snCount > 0 || isSnow || snowAmt > 0 || tileOn)) {
+      if (snowFills && tiles && (snCount > 0 || isSnow || snowAmt > 0 || tileOn)) {
         const cr = lift(tint.r, 0.55), cg = lift(tint.g, 0.55), cbb = lift(tint.b, 0.55);
-        if (sprAge > 0.3 && Math.abs(cr - sprCol[0]) + Math.abs(cg - sprCol[1]) + Math.abs(cbb - sprCol[2]) > 9) {
-          sprCol = [cr, cg, cbb];
-          snowSpr = makeSnowSprites(sprCol);
-          tiles = makeTiles(env, sprCol);
-          sprAge = 0;
+        if (snowColAge > 0.3 && Math.abs(cr - snowCol[0]) + Math.abs(cg - snowCol[1]) + Math.abs(cbb - snowCol[2]) > 9) {
+          snowCol = [cr, cg, cbb];
+          snowFills = makeSnowFills(snowCol);
+          tiles = makeTiles(env, snowCol);
+          snowColAge = 0;
         }
         const yEnd = fadeTop + 40, tt = snowT, eddy = gE > 0.02;
         const A1 = 75 * gE, A2 = 48 * gE, k1 = TAU / 330, k2 = TAU / 210;
@@ -1662,7 +1660,7 @@ export function weatherModule(): Module {
             // fillRect per flake, not one path of rects: a path spread over
             // the screen goes to Skia's software path renderer on the GPU
             // thread (see the rain streaks).
-            b.fillStyle = snowSpr[c]!;
+            b.fillStyle = snowFills[c]!;
             let flk = 1;
             b.globalAlpha = ga;
             for (let j = 0; j < L.length; j++) {
@@ -1701,8 +1699,8 @@ export function weatherModule(): Module {
           // On the top rim's glass, inside its rounded corners (it was a
           // band above the rim, read as speckled artifacts outside the
           // frame: owner item 48); the rim runs on above the nameplate.
-          const R = Math.min(RIM_R, p.border), h = Math.min(4, p.border), w = p.w - 2 * R;
-          if (w > 0) f.drawImage(dustCv, (p.x + R) * d, p.dustRow * d, w * d, h * d, p.x + R, p.y, w, h);
+          const rad = Math.min(RIM_R, p.border), h = Math.min(4, p.border), w = p.w - 2 * rad;
+          if (w > 0) f.drawImage(dustCv, (p.x + rad) * d, p.dustRow * d, w * d, h * d, p.x + rad, p.y, w, h);
         }
         f.globalAlpha = 1;
       }

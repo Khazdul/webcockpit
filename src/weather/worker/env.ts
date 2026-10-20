@@ -171,4 +171,6 @@ export const sst = (a: number, b: number, x: number): number => {
 };
 export const ease = (cur: number, tgt: number, dt: number, tau: number): number => cur + (tgt - cur) * (1 - Math.exp(-dt / tau));
 export const lerp = (a: number, b: number, k: number): number => a + (b - a) * k;
+/** A random number in a … b. */
+export const rr = (a: number, b: number): number => a + Math.random() * (b - a);
 export const TAU = Math.PI * 2;
