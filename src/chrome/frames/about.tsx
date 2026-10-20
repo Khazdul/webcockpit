@@ -36,18 +36,27 @@ Choose Enter MUME on the start page. Press ESC at any time to open the menu. Opt
 
 Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → IMPORT reads profiles from TinTin++, JMC, Powwow and Mudlet.
 
+WHAT IS INSIDE
+  Panes           Character, Timers, Group, Communication, UI messages and Map. Dock them on any side, in several columns or rows, or let them float.
+  Map             Reads MMapper maps and follows you as you move. Options → Mapper picks the tileset, among them Shimrod's, which follows MUME's season.
+  Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Options → Weather effects turns them off or picks what to show; #weather demo plays them all.
+  Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page.
+  Export          Cut a run, add comments and save it as text or as an HTML replay anyone can open.
+  Phone           Log in and chat from a phone. Real play is for a keyboard.
+
 SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts. The editor helps you write them: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search, a pane bar and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper
+  Tilesets        Shimrod's seasonal tiles; Desert by Khazdul, from Shimrod's tiles; Gefe & Rik by Octavia, after Gefe and Rik's maps; Gray's Map by Sunnyl75, after Gray's maps.
   Cockpit         The terminal client for MUME that WebCockpit is modelled on.
   MUME            The game, its world and its texts belong to the MUME team and the volunteers who have built it since 1991.
   Fonts           Agave, Anonymous Pro, Cascadia Mono, DejaVu Sans Mono, Fantasque Sans Mono, Fira Code, Go Mono, Hack, Hermit, IBM 3270, IBM Plex Mono, Inconsolata, JetBrains Mono, mononoki and Noto Sans Mono, each under its own licence (fonts/README.md). Lucida Console is used only when installed and is not part of WebCockpit.
-  Libraries       Preact and CodeMirror.
+  Libraries       Preact, CodeMirror and wasmoon (Lua 5.4).
   TinTin++        The scripting language profiles are written in: tintin.mudhalla.net
 
 LICENCE
