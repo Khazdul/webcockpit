@@ -2118,3 +2118,9 @@ package and a marginally softer shadow edge in the sun's glow.
        less garbage. Screenshots match to ~0.1–0.2 levels on average.
 113. **Cleanup:** dead code and stale names left from the iterations, one
      band gradient helper, stale ADR text. No change in behaviour.
+     - **Done (2026-10-20):** the moon's lead plumbing (0 since item 100),
+       the sky's dead tick and unread fields, `sunPos` / `turnFull`, unused
+       params in weather.ts and daylife.ts, clearer names (`sw`, `R`, snow
+       fills), `lerp` / `rr` in env.ts, `bandGradient` everywhere; ADR 0091
+       "Corrections (item 113)". src/weather −73 lines. Firefox turn bench
+       unchanged (sunset 22–25, sunrise 25–27 ms avg, 30 fps).
