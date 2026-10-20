@@ -41,6 +41,7 @@ interface Live {
 }
 
 const N = 256;
+const SIDES: readonly Side[] = ['t', 'b', 'l', 'r'];
 
 export class Glints {
   /** Along-the-line profiles: horizontal (N × 1) and vertical (1 × N). */
@@ -139,13 +140,14 @@ export class Glints {
     for (const p of panes) {
       if (!p.border) continue;
       const inX = x >= p.x && x <= p.x + p.w, inY = y >= p.y && y <= p.y + p.h;
-      const cand: [Side, number, number][] = [];
-      if (inX) cand.push(['t', Math.abs(y - p.y), x], ['b', Math.abs(y - (p.y + p.h)), x]);
-      if (inY) cand.push(['l', Math.abs(x - p.x), y], ['r', Math.abs(x - (p.x + p.w)), y]);
-      for (const [side, d, c] of cand) {
+      // the lines near it: top, bottom (along x), left, right (along y); no garbage per call
+      for (let i = 0; i < 4; i++) {
+        if (i < 2 ? !inX : !inY) continue;
+        const side = SIDES[i]!;
+        const d = i === 0 ? Math.abs(y - p.y) : i === 1 ? Math.abs(y - (p.y + p.h)) : i === 2 ? Math.abs(x - p.x) : Math.abs(x - (p.x + p.w));
         if (d > r) continue;
         const s = k * (1 - d / r);
-        this.add(p, side, c, len, s, T, dur, side === 't' || side === 'b' ? v : 0);
+        this.add(p, side, i < 2 ? x : y, len, s, T, dur, i < 2 ? v : 0);
         any = true;
       }
     }
