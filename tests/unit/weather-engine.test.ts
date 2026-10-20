@@ -188,6 +188,17 @@ describe('WeatherEngine frame rate', () => {
     expect([c.canvas.width, c.canvas.height]).toEqual([400, 300]);
   });
 
+  it('copies only the region a cached module reports (Module.extent), on the cache\'s pixel grid, not below the mask', () => {
+    const fog = { ...mod('fog', FPS_SLOW, 0.5), extent: () => ({ back: { x: 101, y: 50, w: 200, h: 900 }, front: null }) };
+    const h = harness([fog]);
+    h.run(300);
+    const args = (h.back as unknown as { args: unknown[][] }).args;
+    const cache = (fog.backs.at(-1) as { canvas: unknown }).canvas;
+    const a = args.filter((x) => x[0] === cache).at(-1)!;
+    // cache px 48 … 153 (x 101 … 301 at half, padded by 2), rows 23 … 283 (down to solidTop 560 + 2)
+    expect(a.slice(1)).toEqual([48, 23, 105, 260, 96, 46, 210, 520]);
+  });
+
   it('crawls at FPS_STILL for still content while the mix rests; a message brings back the slow rate at once', () => {
     const sky = mod('sky', FPS_STILL);
     const h = harness([sky]);
