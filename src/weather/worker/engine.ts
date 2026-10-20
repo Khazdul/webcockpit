@@ -158,7 +158,8 @@ export class WeatherEngine {
   private frontLayer: Layer | null = null;
   /** The front canvas holds something from the last frame (it needs a clear). */
   private frontDirty = true;
-  private mask: { fade: CanvasGradient }[] = [];
+  /** The mask's fade above the prompt rows, per canvas (back, front). */
+  private maskFade: CanvasGradient[] = [];
   private readonly times = new Float32Array(N_TIMES);
   /** Intervals between drawn frames since the last `stats()` (ms; at most N_TIMES kept). */
   private readonly gaps: number[] = [];
@@ -391,22 +392,22 @@ export class WeatherEngine {
     const moved = JSON.stringify(bgs) !== JSON.stringify(this.paneBgs);
     this.paneBgs = bgs;
     const p = g.protect;
-    this.mask = [env.back, env.front].map((c) => {
+    // No fade along the far left any more: it darkened the sky there (owner feedback 21).
+    this.maskFade = [env.back, env.front].map((c) => {
       const fade = c.createLinearGradient(0, p.fadeTop, 0, p.solidTop);
       fade.addColorStop(0, 'rgba(0,0,0,0)');
       fade.addColorStop(1, 'rgba(0,0,0,1)');
-      // No fade along the far left (`protect.left`) any more: it darkened the sky there (owner feedback 21).
-      return { fade };
+      return fade;
     });
     return moved;
   }
 
   private applyMask(c: Ctx, i: number): void {
-    const env = this.env!, p = env.protect, m = this.mask[i]!;
+    const env = this.env!, p = env.protect;
     c.save();
     c.globalCompositeOperation = 'destination-out';
     c.globalAlpha = 1;
-    c.fillStyle = m.fade;
+    c.fillStyle = this.maskFade[i]!;
     c.fillRect(0, p.fadeTop, env.W, p.solidTop - p.fadeTop);
     c.fillStyle = '#000';
     c.fillRect(0, p.solidTop, env.W, env.H - p.solidTop + 2);

@@ -184,7 +184,7 @@ export interface Geometry {
   /** The game (output) pane. */
   out: Rect;
   panes: PaneGeom[];
-  /** Masked area: solid from `solidTop` down, faded from `fadeTop`; the far left up to `left`. */
+  /** Masked area: solid from `solidTop` down, faded from `fadeTop`; `left`: the spatters' margin from the left edge. */
   protect: { solidTop: number; fadeTop: number; left: number };
   /** Cell width/height, font size and CSS font. */
   cell: { w: number; h: number; size: number; font: string };
