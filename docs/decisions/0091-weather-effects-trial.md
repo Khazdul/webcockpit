@@ -1,6 +1,7 @@
 # 0091 — Weather effects (trial)
 
-- Status: Proposed (trial on branch `weather-trial`; may be dropped)
+- Status: Accepted 2026-10-20 (was a trial on branch `weather-trial`; the
+  owner made it a permanent feature, see the addendum at the end)
 - Date: 2026-10-16
 - Changes: ADR 0010 (pane frame glyphs) for the trial
 
@@ -1495,3 +1496,12 @@ env.ts), and three hand-built copies of the band gradient (now band.ts
 
 - Settings gain a `weather` section (default off).
 - Browsers without worker OffscreenCanvas get no effects.
+
+## Addendum: no longer a trial (2026-10-20)
+
+The owner: "not a trial any more". The weather effects and the thin pane
+frames are permanent features. User-facing texts drop the word "trial"
+(the Options help line and the `#weather` hint); README and About describe
+the effects as a regular feature. `#weather` stays a hint, not a manual
+topic. The default is as ADR 0092: on for new and existing desktop users,
+off on a phone (the "default off" consequence above is superseded).

@@ -7,15 +7,15 @@ maps) stays in your browser. It is the browser sibling of
 [MUME Cockpit][cockpit], with the same panes, menus and TUI look, and
 aims for tt++-level features and latency.
 
-<div align="center">
-<img width="400" alt="Gameplay, paper theme" src="docs/img/paper.png" />
-<img width="400" alt="Gameplay, teal theme" src="docs/img/teal.png" />
-</div>
+<p align="center">
+<img alt="Gameplay at sunset: the game text, the map, timers, group and channels, with the weather effects on" src="docs/img/hero.png" />
+</p>
 
 ## Run it
 
 Open <https://mumecockpit.com/> in a desktop Chrome or
-Firefox. Nothing to install.
+Firefox. Nothing to install. On a phone you can log in and chat; real
+play needs a keyboard.
 
 WebCockpit is a static site. To run it locally you need
 [Node.js](https://nodejs.org) 24 or newer:
@@ -43,10 +43,10 @@ directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
 
 **Panes.** Character, Timers, Group, Communication, UI messages and
-Map. They can be docked left, right, at the bottom or at the top, or
+Map. They can be docked left, right, at the bottom or at the top, in
+several columns or rows per side with panes spanning the whole dock, or
 float over the game, and resized, reordered and toggled, each with its
-own background colour. The default layout is
-Cockpit's.
+own background colour.
 
 **Appearance.** Fifteen bundled monospace fonts, font size,
 padding, the ANSI palette, cursor style and blink. Changes apply
@@ -65,18 +65,39 @@ lets through. Profiles can be exported and imported as `.tin` files,
 and import also reads TinTin++, JMC, Powwow and Mudlet profiles.
 
 **Lua scripts.** Scripts in Lua 5.4 run beside the profile, in a
-sandbox, with an API for triggers, aliases, keys, timers, GMCP, panes
-and the map. The script editor completes names, shows help as you type
-and marks errors, and a manual with examples is built in.
+sandbox, with an API for triggers, aliases, keys, timers, GMCP, the map
+and panes of their own, down to bars and buttons. The script editor
+completes names, shows help as you type and marks errors, and a manual
+with examples is built in.
+
+**Bundled scripts.** Ready to turn on in Options → Scripts: an almanac
+of MUME's seasons, moon and events; a port key manager; map search like
+MMapper's Find Rooms; a pane bar; shorter, colour-coded mob and movement
+lines; a mercenary tracker; and a coin looter.
+
+<div align="center">
+<img width="400" alt="Lua script editor" src="docs/img/scripts.png" />
+<img width="400" alt="Map pane" src="docs/img/map.png" />
+</div>
 
 **Map.** A map pane that reads MMapper `.mm2` files, draws MMapper's
 tiles and follows you as you move. A default map is bundled, and you
-can import your own.
+can import your own. Options → Mapper picks the tileset: MMapper's own,
+Shimrod's seasonal tiles (which follow MUME's season), Desert, Gefe &
+Rik and Gray's Map. Room notes show as in MMapper, and hovering a room
+tells you about it.
 
-**Weather effects (trial).** Optional, off by default: discreet sky,
-rain, snow, fog, lightning and body effects over the whole client, driven
-by the game's GMCP. Options → Weather effects has the switch and six
-categories; the drawing runs in a worker, so text and keys are not slowed.
+**Weather effects.** Sky, rain, snow, fog and lightning over the whole
+client, driven by the game's GMCP: the sun rises and sets on MUME's
+clock and snow builds up on the panes. Options → Weather effects turns
+them off or picks what to show, and `#weather demo` plays them all. The
+drawing runs in a worker, so text and keys are never slowed.
+
+<div align="center">
+<img width="400" alt="Night with moon and stars" src="docs/img/weather-night.png" />
+<img width="400" alt="Heavy rain" src="docs/img/weather-rain.png" />
+<img width="400" alt="Fog" src="docs/img/weather-fog.png" />
+</div>
 
 **Runs.** Every login starts a run, recorded in the browser. The
 start page offers History, Statistics, a log player that replays the
@@ -101,8 +122,8 @@ can open without WebCockpit.
 
 ## Status
 
-Early and under active development. It is used daily, but expect rough
-edges. Bug reports and feature requests are welcome on
+In daily use and under active development, with frequent releases.
+Bug reports and feature requests are welcome on
 [GitHub Issues](https://github.com/Khazdul/webcockpit/issues).
 
 ## Related
@@ -111,6 +132,10 @@ edges. Bug reports and feature requests are welcome on
 - [MUME Cockpit][cockpit]: the terminal client this one follows.
 - [MMapper](https://github.com/MUME/MMapper): the mapper whose map
   files and tiles the Map pane uses.
+- The tilesets: Shimrod's for MUME MMapper (and Desert, made from it),
+  [Gefe & Rik](https://github.com/octavia-mc/gefe-rik-mmapper-tileset)
+  by Octavia and [Gray's Map](https://github.com/Sunnyl75/Gray-s-Map-Tileset)
+  by Sunnyl75.
 
 ## License
 

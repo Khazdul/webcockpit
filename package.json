@@ -13,7 +13,8 @@
     "test:prod": "playwright test -c playwright.prod.config.ts",
     "bench": "node bench/text-bench.ts && node bench/script-bench.ts && node bench/lua-bench.ts && node bench/browser-bench.ts",
     "typecheck": "tsc --noEmit",
-    "build:pages": "node scripts/pages-build.ts"
+    "build:pages": "node scripts/pages-build.ts",
+    "screenshots": "node scripts/screenshots.ts"
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
