@@ -8,11 +8,15 @@
 //   haze   dense fog only: a few very large soft sprites
 //   wisps  strips that lie on pane top borders and creep along them (front)
 //   veil   dense fog only: the cores of the near banks on the front layer
-// Textures are pre-tinted per light key; a frame crossfades the two dominant
-// tints. Baking starts the first time fog is reported and runs in slices
+// Textures are pre-tinted per light key. Between two keys (dusk, the moon
+// rising) the textures are re-tinted with the mixed colour, quantised, a few
+// per frame into a second set that replaces the first when complete; every
+// element is drawn once (it was drawn once per tint; ADR 0091, performance
+// review). Baking starts the first time fog is reported and runs in slices
 // between frames, so a session without fog never pays for it.
 
 import { adapt, type ThemeInfo } from '../palette';
+import type { Rect } from '../protocol';
 import { type Ctx, type Cv, type Env, FPS_SLOW, type Module, clamp, ctx2d, mkCanvas, sst } from './env';
 
 function makeNoise(seed: number): { fbm: (x: number, y: number, oct: number) => number; rnd: () => number } {
@@ -151,6 +155,20 @@ interface TintSet {
   wisp: WispTex[];
   haze: Cv[];
 }
+
+/** Textures re-tinted per frame while the mixed colour moves (MixSet). */
+const MIX_PER_FRAME = 8;
+/** The mixed colour's quantum per channel: a re-tint only when it moves this much (a few levels of a faint mist). */
+const MIX_Q = 4;
+
+/** A tint set in the mixed colour of two keys, filled a few textures per frame. */
+interface MixSet {
+  set: TintSet;
+  /** The colour it holds (quantised; complete only when `todo` is 0). */
+  key: number;
+  /** Textures still to re-tint for `key`. */
+  todo: number;
+}
 interface Bank {
   band: number;
   tex: number;
@@ -213,6 +231,23 @@ export function fogModule(): Module {
     bright: 1,
     job: null as Generator<void, void> | null,
     env: null as Env | null,
+    /** The mixed set drawn now (complete) and the one being filled; null until a mix first needs them. */
+    mixA: null as MixSet | null,
+    mixB: null as MixSet | null,
+    /** The baked textures in re-tint order (`sources`). */
+    srcs: null as Cv[] | null,
+    /** The extent of the last frame per layer (CSS px; `Module.extent`). */
+    ext: { back: null as Rect | null, front: null as Rect | null },
+  };
+  /** Grows `r` (a layer's extent) to hold x, y, w, h. */
+  const grow = (r: Rect | null, x: number, y: number, w: number, h: number): Rect => {
+    if (!r) return { x, y, w, h };
+    const x1 = Math.max(r.x + r.w, x + w), y1 = Math.max(r.y + r.h, y + h);
+    r.x = Math.min(r.x, x);
+    r.y = Math.min(r.y, y);
+    r.w = x1 - r.x;
+    r.h = y1 - r.y;
+    return r;
   };
 
   function tintSet(key: TintKey): TintSet {
@@ -237,7 +272,80 @@ export function fogModule(): Module {
     return set;
   }
 
+  /** The source textures in a set's order (bank light, dense, core; wisp light, dense; haze), for re-tinting. */
+  function sources(): Cv[] {
+    const out: Cv[] = [];
+    for (const t of S.bankTex) out.push(t.light, t.dense, t.core);
+    for (const t of S.wispTex) out.push(t.light, t.dense);
+    for (const t of S.hazeTex) out.push(t);
+    return out;
+  }
+  /** Texture `i` of a tint set, in the order of `sources`. */
+  function slot(set: TintSet, i: number): Cv {
+    const nb = set.bank.length * 3;
+    if (i < nb) return set.bank[(i / 3) | 0]![(['light', 'dense', 'core'] as const)[i % 3]!];
+    i -= nb;
+    const nw = set.wisp.length * 2;
+    if (i < nw) return set.wisp[(i / 2) | 0]![i % 2 ? 'dense' : 'light'];
+    return set.haze[i - nw]!;
+  }
+  /** The two keys' colour mixed at S.w1 / S.w2, quantised to MIX_Q: its key and its css. */
+  function mixKey(): number {
+    const a = TINTS[S.k1], b = TINTS[S.k2];
+    const q = (i: number): number => Math.round((a[i]! * S.w1 + b[i]! * S.w2) / MIX_Q);
+    return q(0) * 65536 + q(1) * 256 + q(2);
+  }
+  /**
+   * The tint set for the current mix of two keys: the last complete mixed
+   * set; re-tints MIX_PER_FRAME textures a frame into the other one, for the
+   * colour when its fill began (a fill is never restarted, so a fast
+   * crossfade still gets a new set every few frames). Null until a first one
+   * is complete (the caller draws the two keys' sets then, as before).
+   */
+  function mixedSet(): TintSet | null {
+    const key = mixKey();
+    if (S.mixA?.key === key && !S.mixA.todo) return S.mixA.set;
+    const srcs = (S.srcs ??= sources());
+    if (!S.mixB) {
+      const base = tintSet(S.k1);
+      const copy = (c: Cv): Cv => {
+        const n = mkCanvas(c.width, c.height);
+        ctx2d(n).drawImage(c, 0, 0);
+        return n;
+      };
+      S.mixB = {
+        set: { bank: base.bank.map((t) => ({ light: copy(t.light), dense: copy(t.dense), core: copy(t.core) })), wisp: base.wisp.map((t) => ({ light: copy(t.light), dense: copy(t.dense) })), haze: base.haze.map(copy) },
+        key: -1,
+        todo: 0,
+      };
+    }
+    const B = S.mixB;
+    if (!B.todo) {
+      B.key = key;
+      B.todo = srcs.length;
+    }
+    const col = `rgb(${((B.key >> 16) & 255) * MIX_Q},${((B.key >> 8) & 255) * MIX_Q},${(B.key & 255) * MIX_Q})`;
+    for (let n = 0; n < MIX_PER_FRAME && B.todo > 0; n++) {
+      const i = srcs.length - B.todo--;
+      const dst = slot(B.set, i), x = ctx2d(dst);
+      x.globalCompositeOperation = 'copy';
+      x.drawImage(srcs[i]!, 0, 0);
+      x.globalCompositeOperation = 'source-atop';
+      x.fillStyle = col;
+      x.fillRect(0, 0, dst.width, dst.height);
+      x.globalCompositeOperation = 'source-over';
+    }
+    if (!B.todo) {
+      // complete: it becomes the drawn one; the old one is filled next
+      S.mixB = S.mixA;
+      S.mixA = B;
+      return B.set;
+    }
+    return S.mixA && !S.mixA.todo ? S.mixA.set : null;
+  }
+
   const tw: Record<TintKey, number> = { day: 0, moon: 0, torch: 0, night: 0 };
+  const TKEYS = Object.keys(tw) as TintKey[];
   function updateTint(env: Env): void {
     const m = env.mix, o = m.outdoors;
     // the time of day tints only outdoors (the director's sun / moon / dark are not gated)
@@ -249,7 +357,7 @@ export function fogModule(): Module {
     tw.day += rest * (1 - m.night);
     tw.night += rest * m.night;
     let k1: TintKey = 'day', k2: TintKey = 'moon', w1 = -1, w2 = -1, sum = 0, br = 0;
-    for (const k of Object.keys(tw) as TintKey[]) {
+    for (const k of TKEYS) {
       const w = tw[k];
       sum += w;
       br += w * TINTS[k][3];
@@ -344,14 +452,21 @@ export function fogModule(): Module {
     return sst(0.5, 1.2, Math.sqrt(ex * ex + ey * ey));
   }
 
-  function draw(c: Ctx, set: BankTex[][], kind: keyof BankTex, idx: number, a: number, x: number, y: number, w: number, h: number): void {
-    if (a < 0.004) return;
+  /** Draws a bank texture: once from the mixed set (`pair[1]` empty), else once per tint. Returns whether anything was drawn. */
+  function draw(c: Ctx, set: BankTex[][], kind: keyof BankTex, idx: number, a: number, x: number, y: number, w: number, h: number): boolean {
+    if (a < 0.004) return false;
+    if (!set[1]!.length) {
+      c.globalAlpha = a;
+      c.drawImage(set[0]![idx]![kind], x, y, w, h);
+      return true;
+    }
     c.globalAlpha = a * S.w1;
     c.drawImage(set[0]![idx]![kind], x, y, w, h);
     if (S.w2 > 0) {
       c.globalAlpha = a * S.w2;
       c.drawImage(set[1]![idx]![kind], x, y, w, h);
     }
+    return true;
   }
 
   function* bakeAll(env: Env): Generator<void, void> {
@@ -402,9 +517,11 @@ export function fogModule(): Module {
       TINTS = t;
     }
     S.tinted = {};
+    S.mixA = S.mixB = null;
   }
 
   const pair: BankTex[][] = [[], []];
+  const none: BankTex[] = [];
   return {
     id: 'fog',
     init(env) {
@@ -434,24 +551,34 @@ export function fogModule(): Module {
       }
       S.on = Math.min(1, S.on + dt / 1.5);
       const fog = env.mix.fog * S.on * S.on;
+      S.ext.back = S.ext.front = null;
       if (fog < 0.01) return false;
       const L = sst(0, 0.5, fog);
       const D = sst(0.5, 1, fog);
       updateTint(env);
-      const s1 = tintSet(S.k1), s2 = S.w2 > 0 ? tintSet(S.k2) : s1;
+      // between two tints: one set in the mixed colour (each element drawn once), else both sets
+      const mixed = S.w2 > 0 ? mixedSet() : null;
+      const s1 = mixed ?? tintSet(S.k1), s2 = S.w2 > 0 && !mixed ? tintSet(S.k2) : null;
+      const w1 = s2 ? S.w1 : 1, w2 = s2 ? S.w2 : 0;
       pair[0] = s1.bank;
-      pair[1] = s2.bank;
+      pair[1] = s2 ? s2.bank : none;
       const t = S.t, bk = env.back, fr = env.front, br = S.bright;
+      let eb: Rect | null = null, ef: Rect | null = null;
 
       if (D > 0.01) {
-        const h0 = s1.haze, h1 = S.w2 > 0 ? s2.haze : null;
+        const h0 = s1.haze, h1 = s2 ? s2.haze : null;
         for (const h of S.hazes) {
           const a = 0.2 * D * br * (0.8 + 0.2 * Math.sin(t * 0.05 + h.ph)) * cornerFade(h.x + h.w * 0.5, h.y + h.h * 0.5);
-          bk.globalAlpha = a * S.w1;
-          bk.drawImage(h0[h.tex]!, h.x, h.y - h.h * 0.5, h.w, h.h);
-          if (h1) {
-            bk.globalAlpha = a * S.w2;
-            bk.drawImage(h1[h.tex]!, h.x, h.y - h.h * 0.5, h.w, h.h);
+          const y = h.y - h.h * 0.5;
+          if (a * w1 >= 0.004) {
+            bk.globalAlpha = a * w1;
+            bk.drawImage(h0[h.tex]!, h.x, y, h.w, h.h);
+            eb = grow(eb, h.x, y, h.w, h.h);
+          }
+          if (h1 && a * w2 >= 0.004) {
+            bk.globalAlpha = a * w2;
+            bk.drawImage(h1[h.tex]!, h.x, y, h.w, h.h);
+            eb = grow(eb, h.x, y, h.w, h.h);
           }
         }
       }
@@ -466,12 +593,12 @@ export function fogModule(): Module {
         if (fade < 0.01) continue;
         const base = breathe * fade * br;
         const y = b.y - b.h * 0.5 + bob;
-        draw(bk, pair, 'light', b.tex, base * band.aL * L * (1 - D), b.x, y, b.w, b.h);
-        draw(bk, pair, 'dense', b.tex, base * band.aD * D, b.x, y, b.w, b.h);
-        if (band.veil && D > 0.02) draw(fr, pair, 'core', b.tex, base * band.veil * D * fade, b.x, y, b.w, b.h);
+        const l = draw(bk, pair, 'light', b.tex, base * band.aL * L * (1 - D), b.x, y, b.w, b.h);
+        if (draw(bk, pair, 'dense', b.tex, base * band.aD * D, b.x, y, b.w, b.h) || l) eb = grow(eb, b.x, y, b.w, b.h);
+        if (band.veil && D > 0.02 && draw(fr, pair, 'core', b.tex, base * band.veil * D * fade, b.x, y, b.w, b.h)) ef = grow(ef, b.x, y, b.w, b.h);
       }
 
-      const ws0 = s1.wisp, ws1 = S.w2 > 0 ? s2.wisp : null;
+      const ws0 = s1.wisp, ws1 = s2 ? s2.wisp : null;
       const wa = L * br * (0.42 + 0.3 * D);
       for (const w of S.wisps) {
         const s = w.seg, cx = w.x + w.w * 0.5;
@@ -482,7 +609,7 @@ export function fogModule(): Module {
         for (let k = 0; k < 2; k++) {
           const set = k ? ws1 : ws0;
           if (!set) continue;
-          const wk = k ? S.w2 : S.w1, tx = set[w.tex]!;
+          const wk = k ? w2 : w1, tx = set[w.tex]!;
           const ca = a * wk * 0.8;
           if (ca < 0.004) continue;
           if (D < 0.98) {
@@ -493,12 +620,16 @@ export function fogModule(): Module {
             fr.globalAlpha = ca * D;
             fr.drawImage(tx.dense, w.x, y, w.w, w.h);
           }
+          ef = grow(ef, w.x, y, w.w, w.h);
         }
       }
       bk.globalAlpha = 1;
       fr.globalAlpha = 1;
+      S.ext.back = eb;
+      S.ext.front = ef;
       return true;
     },
+    extent: () => S.ext,
     // Soft banks drifting at 2–13 px/s: a slow rate and half resolution look the same.
     fps: () => FPS_SLOW,
     scale: 0.5,
