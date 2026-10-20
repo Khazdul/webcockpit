@@ -4,7 +4,7 @@
 // and without window focus the loop drops to the slow rate.
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { WeatherEngine, paneFills } from '../../src/weather/worker/engine';
+import { RESIZE_SETTLE_MS, WeatherEngine, paneFills } from '../../src/weather/worker/engine';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
 import { Glints } from '../../src/weather/worker/glint';
 import { themeInfo } from '../../src/weather/palette';
@@ -188,6 +188,17 @@ describe('WeatherEngine frame rate', () => {
     expect([c.canvas.width, c.canvas.height]).toEqual([400, 300]);
   });
 
+  it('copies only the region a cached module reports (Module.extent), on the cache\'s pixel grid, not below the mask', () => {
+    const fog = { ...mod('fog', FPS_SLOW, 0.5), extent: () => ({ back: { x: 101, y: 50, w: 200, h: 900 }, front: null }) };
+    const h = harness([fog]);
+    h.run(300);
+    const args = (h.back as unknown as { args: unknown[][] }).args;
+    const cache = (fog.backs.at(-1) as { canvas: unknown }).canvas;
+    const a = args.filter((x) => x[0] === cache).at(-1)!;
+    // cache px 48 … 153 (x 101 … 301 at half, padded by 2), rows 23 … 283 (down to solidTop 560 + 2)
+    expect(a.slice(1)).toEqual([48, 23, 105, 260, 96, 46, 210, 520]);
+  });
+
   it('crawls at FPS_STILL for still content while the mix rests; a message brings back the slow rate at once', () => {
     const sky = mod('sky', FPS_STILL);
     const h = harness([sky]);
@@ -256,6 +267,62 @@ describe('WeatherEngine frame rate', () => {
     const r1 = rain.frames;
     h.run(1000);
     expect(rain.frames - r1).toBeGreaterThanOrEqual(FPS_FAST - 2);
+  });
+});
+
+describe('WeatherEngine rebuilds (performance review, item 110)', () => {
+  /** A module counting its init and resize calls. */
+  const counting = () => {
+    const m = { ...mod('sky', FPS_SLOW), inits: 0, resizes: 0 };
+    m.init = () => void m.inits++;
+    m.resize = () => void m.resizes++;
+    return m;
+  };
+
+  it('a theme post with the same background rebuilds nothing; a new one re-inits every module', () => {
+    const m = counting();
+    const h = harness([m]);
+    h.run(100);
+    const i0 = m.inits, r0 = m.resizes;
+    h.send({ t: 'theme', theme: { bg: '#000000', fg: '#ffffff' } });
+    expect([m.inits, m.resizes]).toEqual([i0, r0]);
+    h.send({ t: 'theme', theme: { bg: '#f4ecd8', fg: '#202020' } });
+    expect([m.inits, m.resizes]).toEqual([i0 + 1, r0 + 1]);
+  });
+
+  it('a window drag rebuilds the modules at once, then at most once per RESIZE_SETTLE_MS and once after it', () => {
+    const m = counting();
+    const h = harness([m]);
+    h.run(500);
+    const r0 = m.resizes;
+    // the first size change: at once (a maximise is right at once)
+    h.send({ t: 'geom', g: { ...geom, W: 900 } });
+    expect(m.resizes).toBe(r0 + 1);
+    // a drag: a step every 16 ms for 1 s
+    for (let i = 1; i <= 60; i++) {
+      h.send({ t: 'geom', g: { ...geom, W: 900 + i } });
+      h.run(1000 / 60);
+    }
+    const during = m.resizes - r0;
+    expect(during).toBeGreaterThanOrEqual(3);
+    expect(during).toBeLessThanOrEqual(6);
+    h.run(RESIZE_SETTLE_MS + 50);
+    // one more after the last step, then nothing
+    const after = m.resizes;
+    expect(after - r0).toBeLessThanOrEqual(during + 1);
+    h.run(1000);
+    expect(m.resizes).toBe(after);
+  });
+
+  it('leaves an empty front canvas alone: no clear, no mask', () => {
+    const h = harness([mod('sky', FPS_SLOW)]);
+    h.run(200); // the first frame clears what a canvas may hold
+    const calls: string[] = [];
+    const f = h.front as Record<string, unknown>;
+    f.clearRect = () => void calls.push('clear');
+    f.fillRect = () => void calls.push('fill');
+    h.run(1000);
+    expect(calls).toEqual([]);
   });
 });
 

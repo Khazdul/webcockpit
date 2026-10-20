@@ -184,7 +184,7 @@ export interface Geometry {
   /** The game (output) pane. */
   out: Rect;
   panes: PaneGeom[];
-  /** Masked area: solid from `solidTop` down, faded from `fadeTop`; the far left up to `left`. */
+  /** Masked area: solid from `solidTop` down, faded from `fadeTop`; `left`: the spatters' margin from the left edge. */
   protect: { solidTop: number; fadeTop: number; left: number };
   /** Cell width/height, font size and CSS font. */
   cell: { w: number; h: number; size: number; font: string };
@@ -220,16 +220,19 @@ export type MainToWorker =
   | { t: 'moonSpeed'; speed: number }
   /** The demo's time scale (1 = the game's pace): see `Director.speed`. */
   | { t: 'speed'; speed: number }
-  | { t: 'stats' };
+  /** `reset`: the frame times start afresh after this answer (a bench's measuring window). */
+  | { t: 'stats'; reset?: boolean };
 
 export interface FrameStats {
-  /** Frames measured (the last ≤ 600 drawn frames). */
+  /** Frames measured (the last ≤ 600 drawn frames, since the last `reset`). */
   n: number;
   avg: number;
   p95: number;
   max: number;
   /** Average per module, ms. */
   mods: Record<string, number>;
+  /** Longest frame per module, ms (spikes). */
+  modsMax?: Record<string, number>;
   /** True while the loop idles (nothing to draw). */
   idle: boolean;
   /** Frames drawn since the engine started (fps = its change over time). */

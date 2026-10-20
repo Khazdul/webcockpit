@@ -70,7 +70,8 @@ export interface Weather {
   /** A dev time scale (`__weather.setSpeed`; 1 = the game's pace, the demo too): sunrise and sunset, the day ↔ night change, cloud cover, fog, rain and snow build-up, blood drying. */
   setSpeed(speed: number): void;
   /** Worker frame times (ms). */
-  stats(): Promise<FrameStats>;
+  /** `reset`: the frame times after this call start afresh (a bench's measuring window). */
+  stats(opts?: { reset?: boolean }): Promise<FrameStats>;
   /** Resolves on the first drawn frame (rejects if the worker fails first). */
   readonly ready: Promise<void>;
   destroy(): void;
@@ -158,13 +159,20 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     api.destroy();
   };
 
+  /** The theme colours last posted: a refresh posts them only when they changed (a re-init of every module in the worker). */
+  let theme: ThemeColors = opts.theme ?? themeOf(root);
+  const postTheme = (t: ThemeColors): void => {
+    if (t.bg === theme.bg && t.fg === theme.fg) return;
+    theme = t;
+    post({ t: 'theme', theme: t });
+  };
   post(
     {
       t: 'init',
       back,
       front,
       geom,
-      theme: opts.theme ?? themeOf(root),
+      theme,
       cats,
       state: { ...DEFAULT_STATE, ...opts.state },
       moonSpeed: opts.moonSpeed ?? 1,
@@ -226,14 +234,14 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       geom = g;
       post({ t: 'geom', g: geom });
     },
-    setTheme(theme) {
-      if (!destroyed) post({ t: 'theme', theme });
+    setTheme(t) {
+      if (!destroyed) postTheme(t);
     },
     refresh() {
       if (destroyed) return;
       requestAnimationFrame(() => {
         if (destroyed) return;
-        post({ t: 'theme', theme: themeOf(root) });
+        postTheme(themeOf(root));
         remeasure();
       });
     },
@@ -248,11 +256,11 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     setSpeed(speed) {
       if (!destroyed) post({ t: 'speed', speed });
     },
-    stats() {
+    stats(o) {
       if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1, gaps: { n: 0, p50: 0, p95: 0, max: 0 } });
       return new Promise((res) => {
         statsWaiters.push(res);
-        post({ t: 'stats' });
+        post({ t: 'stats', reset: !!o?.reset });
       });
     },
     destroy() {

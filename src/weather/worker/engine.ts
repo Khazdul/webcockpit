@@ -34,8 +34,8 @@ import { Director, eventState } from '../director';
 import { cutRects, paneTintRects } from '../geometry';
 import { themeInfo } from '../palette';
 import { glassBlurCheap } from '../support';
-import type { FrameStats, Geometry, MainToWorker, PaneGeom, WorkerToMain } from '../protocol';
-import { LEFT_DARK, leftDark } from './band';
+import type { FrameStats, Geometry, MainToWorker, PaneGeom, Rect, WorkerToMain } from '../protocol';
+import { LEFT_DARK, bandGradient, bandSolid } from './band';
 import { bodyModule } from './body';
 import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, ctx2d, fbm, mkCanvas, noise } from './env';
 import { fogModule } from './fog';
@@ -105,21 +105,29 @@ interface Cache {
   front: Layer;
   scale: number;
   valid: boolean;
+  /** Where its module drew in its last frame (`Module.extent`); null: not reported, the whole layer. */
+  ext: { back: Rect | null; front: Rect | null } | null;
   /** The left band's fade (destination-out), for a `band` module (made on first use). */
   band?: CanvasGradient;
 }
 
 const DRAW_OPS = ['fillRect', 'strokeRect', 'fill', 'stroke', 'drawImage', 'fillText', 'strokeText', 'putImageData'] as const;
 
-/** Wraps the drawing calls of `ctx` so that the layer knows when it holds anything (an empty cache is not copied). */
+/**
+ * Wraps the drawing calls of `ctx` so that the layer knows when it holds
+ * anything (an empty cache is not copied, an empty front canvas is not
+ * cleared or masked). `arguments`, not rest args: no array per call, and the
+ * call keeps its arity (drawImage's overloads go by it).
+ */
 function layer(ctx: Ctx): Layer {
   const l: Layer = { ctx, drawn: false };
   const o = ctx as unknown as Record<string, (...a: unknown[]) => unknown>;
   for (const k of DRAW_OPS) {
     const f = o[k]!;
-    o[k] = function (this: unknown, ...a: unknown[]) {
+    o[k] = function () {
       l.drawn = true;
-      return f.apply(ctx, a);
+      // eslint-disable-next-line prefer-rest-params
+      return f.apply(ctx, arguments as unknown as unknown[]);
     };
   }
   return l;
@@ -144,7 +152,14 @@ export class WeatherEngine {
   private lastFrame = 0;
   private readySent = false;
   private paneBgs: { x: number; y: number; w: number; h: number; bg: string }[] = [];
-  private mask: { fade: CanvasGradient }[] = [];
+  /** The background colour the modules were built for (`theme`). */
+  private themeBg = '';
+  /** The front canvas's context, wrapped to note whether a frame drew on it. */
+  private frontLayer: Layer | null = null;
+  /** The front canvas holds something from the last frame (it needs a clear). */
+  private frontDirty = true;
+  /** The mask's fade above the prompt rows, per canvas (back, front). */
+  private maskFade: CanvasGradient[] = [];
   private readonly times = new Float32Array(N_TIMES);
   /** Intervals between drawn frames since the last `stats()` (ms; at most N_TIMES kept). */
   private readonly gaps: number[] = [];
@@ -196,6 +211,8 @@ export class WeatherEngine {
           fbm,
           now: 0,
         };
+        this.themeBg = m.theme.bg;
+        this.frontLayer = layer(front);
         this.applyGeometry(m.geom);
         for (const mod of this.modules) mod.init(this.env);
         for (const mod of this.modules) mod.resize(this.env);
@@ -222,16 +239,19 @@ export class WeatherEngine {
         const env = this.env;
         const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
         const moved = this.applyGeometry(m.g);
-        if (sized) {
-          this.resizeGen++;
-          for (const mod of this.modules) mod.resize(env);
-        } else this.settleResize();
+        if (sized) this.sizeChanged();
+        else this.settleResize();
         // A tinted float that moved or changed size has its tint in the old place until the next frame: draw it now.
         if (moved) this.frameNow();
         break;
       }
       case 'theme': {
         if (!this.env) break;
+        // The modules' look depends on the background only (themeInfo): the
+        // same one again (a pane or appearance change that kept it) rebuilds
+        // nothing and keeps every module's state.
+        if (m.theme.bg === this.themeBg) break;
+        this.themeBg = m.theme.bg;
         this.env.theme = themeInfo(m.theme.bg);
         for (const mod of this.modules) mod.init(this.env);
         for (const mod of this.modules) mod.resize(this.env);
@@ -257,6 +277,7 @@ export class WeatherEngine {
         break;
       case 'stats':
         this.host.post({ t: 'stats', stats: this.stats() });
+        if (m.reset) this.nTimes = 0;
         return;
     }
     this.wake();
@@ -274,20 +295,55 @@ export class WeatherEngine {
     }
   }
 
+  /** A size change rebuilt the modules less than RESIZE_SETTLE_MS ago. */
+  private sizeHeld = false;
+  /** Another size change came while held: rebuild when the hold ends. */
+  private sizeDirty = false;
+
+  /**
+   * The canvas size changed (the window): the modules rebuild at once when
+   * no size change came in the last RESIZE_SETTLE_MS (a maximise is right
+   * at once), else at most once per RESIZE_SETTLE_MS while a window drag
+   * goes on and once after it, not on every step (10–25 ms each). Between,
+   * a module draws its last layout on the new canvases (an edge of sky or
+   * rain missing for a moment, nothing stretched).
+   */
+  private sizeChanged(): void {
+    if (this.sizeHeld) {
+      this.sizeDirty = true;
+      return;
+    }
+    this.resizeGen++; // a pending pane-only rebuild is covered by this one
+    this.rebuild();
+    this.sizeHeld = true;
+    this.sizeDirty = false;
+    this.host.setTimeout(() => {
+      this.sizeHeld = false;
+      if (!this.sizeDirty) return;
+      this.sizeChanged();
+      this.wake();
+    }, RESIZE_SETTLE_MS);
+  }
+
   /** Rebuilds the modules once the layout has been still for RESIZE_SETTLE_MS. */
   private settleResize(): void {
     const g = ++this.resizeGen;
     this.host.setTimeout(() => {
       if (g !== this.resizeGen || !this.env) return;
-      for (const mod of this.modules) {
-        try {
-          mod.resize(this.env);
-        } catch (e) {
-          this.report(mod.id, e);
-        }
-      }
+      this.rebuild();
       this.wake();
     }, RESIZE_SETTLE_MS);
+  }
+
+  private rebuild(): void {
+    if (!this.env) return;
+    for (const mod of this.modules) {
+      try {
+        mod.resize(this.env);
+      } catch (e) {
+        this.report(mod.id, e);
+      }
+    }
   }
 
   private readonly reported = new Set<string>();
@@ -336,22 +392,22 @@ export class WeatherEngine {
     const moved = JSON.stringify(bgs) !== JSON.stringify(this.paneBgs);
     this.paneBgs = bgs;
     const p = g.protect;
-    this.mask = [env.back, env.front].map((c) => {
+    // No fade along the far left any more: it darkened the sky there (owner feedback 21).
+    this.maskFade = [env.back, env.front].map((c) => {
       const fade = c.createLinearGradient(0, p.fadeTop, 0, p.solidTop);
       fade.addColorStop(0, 'rgba(0,0,0,0)');
       fade.addColorStop(1, 'rgba(0,0,0,1)');
-      // No fade along the far left (`protect.left`) any more: it darkened the sky there (owner feedback 21).
-      return { fade };
+      return fade;
     });
     return moved;
   }
 
   private applyMask(c: Ctx, i: number): void {
-    const env = this.env!, p = env.protect, m = this.mask[i]!;
+    const env = this.env!, p = env.protect;
     c.save();
     c.globalCompositeOperation = 'destination-out';
     c.globalAlpha = 1;
-    c.fillStyle = m.fade;
+    c.fillStyle = this.maskFade[i]!;
     c.fillRect(0, p.fadeTop, env.W, p.solidTop - p.fadeTop);
     c.fillStyle = '#000';
     c.fillRect(0, p.solidTop, env.W, env.H - p.solidTop + 2);
@@ -467,12 +523,18 @@ export class WeatherEngine {
     const t0 = performance.now();
     const { back, front } = env;
     back.clearRect(0, 0, env.W, env.H);
-    front.clearRect(0, 0, env.W, env.H);
+    // The front canvas is often empty (no rain, wisps or body effects): left
+    // alone while it was and stays so (no clear, no mask).
+    const fl = this.frontLayer!;
+    if (this.frontDirty) front.clearRect(0, 0, env.W, env.H);
+    fl.drawn = false;
     const loop = this.rate;
     // While a mix value moves (a transition: clouds coming, a fade, rain
     // starting), every module runs at least at FPS_FAST, cached ones too, so
-    // nothing changes in steps (owner feedback 56).
-    const floor0 = this.director.moving() ? FPS_FAST : 1;
+    // nothing changes in steps (owner feedback 56). Not for a sunrise's or
+    // sunset's sky selection (a whole minute): the sky asks FPS_FAST itself
+    // then, the others keep their own rate.
+    const floor0 = this.director.moving(undefined, !!this.director.turn) ? FPS_FAST : 1;
     let busy = false, rate = 0;
     for (const sl of this.slots) {
       const mod = sl.mod, m0 = performance.now();
@@ -488,10 +550,9 @@ export class WeatherEngine {
           sl.busy = this.runModule(mod, back, front, mdt, now);
         } else {
           const c = this.cacheOf(sl, scale);
-          for (const l of [c.back, c.front]) {
-            if (l.drawn) l.ctx.clearRect(0, 0, env.W, env.H);
-            l.drawn = false;
-          }
+          if (c.back.drawn) c.back.ctx.clearRect(0, 0, env.W, env.H);
+          if (c.front.drawn) c.front.ctx.clearRect(0, 0, env.W, env.H);
+          c.back.drawn = c.front.drawn = false;
           env.back = c.back.ctx;
           env.front = c.front.ctx;
           try {
@@ -502,6 +563,7 @@ export class WeatherEngine {
           }
           if (mod.band) this.bandOut(c);
           c.valid = true;
+          c.ext = mod.extent?.() ?? null;
         }
         try {
           sl.fps = Math.max(floor0, Math.min(MAX_FPS, mod.fps?.(env) ?? FPS_FAST));
@@ -513,8 +575,8 @@ export class WeatherEngine {
       if (!direct && sl.busy && sl.cache) {
         // the cache's content at its own resolution, stretched over the canvases
         const c = sl.cache;
-        if (c.back.drawn) back.drawImage(c.back.ctx.canvas, 0, 0, env.W, env.H);
-        if (c.front.drawn) front.drawImage(c.front.ctx.canvas, 0, 0, env.W, env.H);
+        if (c.back.drawn) this.copyCache(back, c, c.back, c.ext ? c.ext.back : undefined, !!mod.band);
+        if (c.front.drawn) this.copyCache(front, c, c.front, c.ext ? c.ext.front : undefined, !!mod.band);
       }
       if (sl.busy) {
         busy = true;
@@ -528,7 +590,8 @@ export class WeatherEngine {
     const floor = rate < FPS_SLOW && this.director.resting() ? FPS_STILL : FPS_SLOW;
     this.rate = Math.min(this.focused ? MAX_FPS : FPS_SLOW, Math.max(floor, rate));
     this.applyMask(back, 0);
-    this.applyMask(front, 1);
+    if (fl.drawn) this.applyMask(front, 1);
+    this.frontDirty = fl.drawn;
     this.paintPaneBgs(back);
     this.times[this.nTimes % N_TIMES] = performance.now() - t0;
     this.nTimes++;
@@ -549,15 +612,44 @@ export class WeatherEngine {
     return busy;
   }
 
+  /**
+   * Copies a cache layer onto `dst`, stretched to the canvas: only the
+   * region its module drew in (`Module.extent`; undefined: all of it), less
+   * the left band's solid part for a `band` module and what the mask erases
+   * below `protect.solidTop`, padded by two cache pixels and on the cache's
+   * pixel grid. Inside that region the result is the same as copying the
+   * whole cache (the same sampling); outside it the cache is empty or erased.
+   */
+  private copyCache(dst: Ctx, c: Cache, l: Layer, r: Rect | null | undefined, band: boolean): void {
+    if (r === null) return;
+    const env = this.env!, cv = l.ctx.canvas, k = env.dpr * c.scale;
+    let x0 = 0, y0 = 0, x1 = env.W, y1 = env.H;
+    if (r) {
+      x0 = r.x;
+      y0 = r.y;
+      x1 = r.x + r.w;
+      y1 = r.y + r.h;
+    }
+    if (band) x0 = Math.max(x0, bandSolid(env.W));
+    y1 = Math.min(y1, env.protect.solidTop + 2);
+    const cx0 = Math.max(0, Math.floor(x0 * k) - 2), cy0 = Math.max(0, Math.floor(y0 * k) - 2);
+    const cx1 = Math.min(cv.width, Math.ceil(x1 * k) + 2), cy1 = Math.min(cv.height, Math.ceil(y1 * k) + 2);
+    if (cx1 <= cx0 || cy1 <= cy0) return;
+    if (cx0 === 0 && cy0 === 0 && cx1 === cv.width && cy1 === cv.height) {
+      dst.drawImage(cv, 0, 0, env.W, env.H);
+      return;
+    }
+    // the cache is W·k × H·k (rounded): its pixel i covers i / k … (i + 1) / k on the canvas, as in a whole copy
+    const sx = env.W / cv.width, sy = env.H / cv.height;
+    dst.drawImage(cv, cx0, cy0, cx1 - cx0, cy1 - cy0, cx0 * sx, cy0 * sy, (cx1 - cx0) * sx, (cy1 - cy0) * sy);
+  }
+
   /** Takes the left band out of a cache's drawn layers, along the sky's curve (owner item 99; at the cache's resolution, at the module's rate). */
   private bandOut(c: Cache): void {
     const env = this.env!, lw = env.W * LEFT_DARK;
-    if (!c.band) {
-      const g = c.back.ctx.createLinearGradient(0, 0, lw, 0);
-      for (let i = 0; i <= 16; i++) g.addColorStop(i / 16, `rgba(0,0,0,${leftDark(i / 16).toFixed(4)})`);
-      c.band = g;
-    }
-    for (const l of [c.back, c.front]) {
+    c.band ??= bandGradient(c.back.ctx, lw);
+    for (let i = 0; i < 2; i++) {
+      const l = i ? c.front : c.back;
       if (!l.drawn) continue;
       const x = l.ctx;
       x.save();
@@ -578,7 +670,7 @@ export class WeatherEngine {
       c.setTransform(r, 0, 0, r, 0, 0);
       return layer(c);
     };
-    sl.cache = { back: mk(), front: mk(), scale, valid: false };
+    sl.cache = { back: mk(), front: mk(), scale, valid: false, ext: null };
     return sl.cache;
   }
 
@@ -586,14 +678,18 @@ export class WeatherEngine {
     const n = Math.min(this.nTimes, N_TIMES);
     const a = Array.from(this.times.subarray(0, n)).sort((x, y) => x - y);
     const avg = n ? a.reduce((s, v) => s + v, 0) / n : 0;
-    const mods: Record<string, number> = {};
+    const mods: Record<string, number> = {}, modsMax: Record<string, number> = {};
     for (const [id, arr] of this.modTimes) {
-      let s = 0;
-      for (let i = 0; i < n; i++) s += arr[i]!;
+      let s = 0, mx = 0;
+      for (let i = 0; i < n; i++) {
+        s += arr[i]!;
+        mx = Math.max(mx, arr[i]!);
+      }
       mods[id] = n ? s / n : 0;
+      modsMax[id] = mx;
     }
     const g = this.gaps.splice(0).sort((x, y) => x - y), gn = g.length;
     const gaps = { n: gn, p50: gn ? g[Math.floor(gn / 2)]! : 0, p95: gn ? g[Math.floor(gn * 0.95)]! : 0, max: gn ? g[gn - 1]! : 0 };
-    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
+    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, modsMax, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
   }
 }

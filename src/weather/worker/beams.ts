@@ -17,7 +17,7 @@
 // it. To draw that without clips, `beamPieces` cuts the beam's triangle into
 // convex pieces inside and outside the pane boxes.
 
-import { sst } from './env';
+import { lerp, sst } from './env';
 import type { FrameBox, Side } from './glint';
 
 export interface Beam {
@@ -147,10 +147,26 @@ export function sunDrift(T: number): number {
 
 /** The turn's ray fan reaches down to the screen's bottom edge (a share of H; owner item 80, was 0.78 above the input line, item 75). */
 export const FAN_FLOOR = 1;
+/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
+const FAN_FLOOR_X = 0.1;
+/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
+const FAN_CORNER_X = 0.02;
+/** The corner aim's knots over a turn, its ends included (owner item 88). */
+const CORNER_KNOTS = 3;
+/** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
+const FAN_UP_LOW = (2 * Math.PI) / 180;
+const FAN_UP_HIGH = (15 * Math.PI) / 180;
+/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
+const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
+/** A sunset's upper edge at its end, reached with its lift (owner item 105: its last rays bunched under ~30°; its sun now stands at the band, so rays this steep stay on the screen). */
+const FAN_UP_SET_END = (60 * Math.PI) / 180;
 
-/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
+/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
+const SET_LIFT_S: readonly [number, number] = [-42, -3];
+
 /** Scratch for sunToward. */
 const TP = new Float32Array(2);
+/** The direction (radians, round `am`) from the sun at `psi` to (x, y) on a W × H screen. */
 function sunToward(psi: number, x: number, y: number, W: number, H: number, am: number): number {
   sunPoint(psi, W, H, TP);
   const d = Math.atan2(y - TP[1]!, x - TP[0]!) - am;
@@ -215,29 +231,11 @@ export function turnFan(psi: number, sx: number, sy: number, W: number, H: numbe
   }
 }
 
-/** Where the ray fan's lower edge meets the bottom edge, a share of W in from the sun's side (owner item 80: the steepest arrow ends there). */
-const FAN_FLOOR_X = 0.1;
-/** The fan's lowest place lands at least this near (a share of W) the bottom corner on the sun's side (owner item 88). */
-const FAN_CORNER_X = 0.02;
-/** The corner aim's knots over a turn, its ends included (owner item 88). */
-const CORNER_KNOTS = 3;
-/** The ray fan's upper edge above the horizontal: under a sun low at the turn horizon, and as it climbs (radians). */
-const FAN_UP_LOW = (2 * Math.PI) / 180;
-const FAN_UP_HIGH = (15 * Math.PI) / 180;
-/** A sunset's upper edge above the horizontal as its sun reaches the horizon (owner item 89; a sunrise's starts at FAN_UP_LOW, item 78). */
-const FAN_UP_SET_LOW = (35 * Math.PI) / 180;
-/** A sunset's upper edge at its end, reached with its lift (owner item 105: its last rays bunched under ~30°; its sun now stands at the band, so rays this steep stay on the screen). */
-const FAN_UP_SET_END = (60 * Math.PI) / 180;
-
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
 /** A sunset's lift: how far its fan's lower edge has turned from its path to level at `q` 0..1 into it: from SET_LIFT_S[0] to SET_LIFT_S[1] s, evenly. */
 function setLift(q: number): number {
   const s = -60 * (1 - q), [s0, s1] = SET_LIFT_S;
   return Math.min(1, Math.max(0, (s - s0) / (s1 - s0)));
 }
-/** When a sunset's fan lifts (s before the night). Its lower edge turns at under 3°/s, the only fast-ish move (owner item 89 asks for it; item 79's bound was 1°/s). */
-const SET_LIFT_S: readonly [number, number] = [-42, -3];
 
 /** Thin ray `i`'s own fixed random value 0..1 (its place off the even spread, width, strength). */
 export function rayHash(i: number): number {
@@ -264,6 +262,9 @@ export function sunBeams(T: number, a0: number, a1: number, out: Beam[], sh = 1)
   }
 }
 
+/** `beamHits`' hit objects, per output array. */
+const HIT_POOL = new WeakMap<BeamHit[], BeamHit[]>();
+
 const inBox = (p: FrameBox, x: number, y: number): boolean => x > p.x && x < p.x + p.w && y > p.y && y < p.y + p.h;
 
 /**
@@ -273,10 +274,23 @@ const inBox = (p: FrameBox, x: number, y: number): boolean => x > p.x && x < p.x
  */
 export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: Beam, out: BeamHit[]): BeamHit[] {
   out.length = 0;
+  // the hit objects are kept per `out` and reused (no garbage in a turn's frames)
+  let pool = HIT_POOL.get(out);
+  if (!pool) HIT_POOL.set(out, (pool = []));
+  const spare = pool;
   const dx = Math.cos(b.a), dy = Math.sin(b.a), tw = Math.tan(b.hw) * 2;
   const add = (p: FrameBox, side: Side, t: number, c: number, w: number, lo: number, hi: number): void => {
     if (t <= 0 || c < lo - w / 2 || c > hi + w / 2) return;
-    out.push({ p, side, c, len: w, t, enter: false, att: 1 });
+    const n = out.length;
+    const h = spare[n] ?? (spare[n] = { p, side, c, len: w, t, enter: false, att: 1 });
+    h.p = p;
+    h.side = side;
+    h.c = c;
+    h.len = w;
+    h.t = t;
+    h.enter = false;
+    h.att = 1;
+    out.push(h);
   };
   for (const p of panes) {
     if (!p.border) continue;
@@ -323,20 +337,44 @@ export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: 
 /** A box the beams are weaker in: x0, y0, x1, y1. */
 export type Box = readonly [number, number, number, number];
 
-/** Sutherland–Hodgman: the part of convex polygon `P` (flat x, y list) where `sign · (coord[axis] − v) ≤ 0`. */
+/**
+ * The polygon arrays `clipHalf` writes, reused: the pieces `notchPieces` and
+ * `beamPieces` return are good until the next call of either (sky.ts uses
+ * them at once; no garbage in a turn's frames).
+ */
+const POLY_POOL: number[][] = [];
+let polyN = 0;
+const EMPTY: number[] = [];
+function take(): number[] {
+  return POLY_POOL[polyN] ?? (POLY_POOL[polyN] = []), POLY_POOL[polyN++]!;
+}
+
+/** Sutherland–Hodgman: the part of convex polygon `P` (flat x, y list) where `sign · (coord[axis] − v) ≤ 0` (a pooled array; EMPTY when nothing is left). */
 function clipHalf(P: readonly number[], axis: 0 | 1, v: number, sign: 1 | -1): number[] {
-  const out: number[] = [], n = P.length / 2;
+  const n = P.length / 2;
+  if (n < 3) return EMPTY;
+  const out = take();
+  let k = 0;
   for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
+    const j = i + 1 < n ? i + 1 : 0;
     const ax = P[i * 2]!, ay = P[i * 2 + 1]!, bx = P[j * 2]!, by = P[j * 2 + 1]!;
     const da = sign * ((axis ? ay : ax) - v), db = sign * ((axis ? by : bx) - v);
-    if (da <= 0) out.push(ax, ay);
+    if (da <= 0) {
+      out[k++] = ax;
+      out[k++] = ay;
+    }
     if ((da < 0 && db > 0) || (da > 0 && db < 0)) {
       const f = da / (da - db);
-      out.push(ax + (bx - ax) * f, ay + (by - ay) * f);
+      out[k++] = ax + (bx - ax) * f;
+      out[k++] = ay + (by - ay) * f;
     }
   }
-  return out.length >= 6 ? out : [];
+  if (k < 6) {
+    polyN--;
+    return EMPTY;
+  }
+  out.length = k;
+  return out;
 }
 
 /**
@@ -345,32 +383,46 @@ function clipHalf(P: readonly number[], axis: 0 | 1, v: number, sign: 1 | -1): n
  * right of it, above and below it between its sides): a pane's shadow wedge
  * with the nameplate left out, so the plate gets the light the rim gets
  * (owner item 42). The cuts are whole lines, so with whole-pixel `x0`/`x1`
- * the pieces meet without a seam.
+ * the pieces meet without a seam. Into `out` when given (cleared first); the
+ * pieces are pooled: good until the next call.
  */
-export function notchPieces(poly: readonly number[], x0: number, y0: number, x1: number, y1: number): number[][] {
-  const out: number[][] = [];
+export function notchPieces(poly: readonly number[], x0: number, y0: number, x1: number, y1: number, out: number[][] = []): number[][] {
+  polyN = 0;
+  out.length = 0;
   const left = clipHalf(poly, 0, x0, 1);
   const rest = clipHalf(poly, 0, x0, -1);
   const right = clipHalf(rest, 0, x1, -1);
   const mid = clipHalf(rest, 0, x1, 1);
   const above = clipHalf(mid, 1, y0, 1);
   const below = clipHalf(mid, 1, y1, -1);
-  for (const P of [left, right, above, below]) if (P.length) out.push(P);
+  if (left.length) out.push(left);
+  if (right.length) out.push(right);
+  if (above.length) out.push(above);
+  if (below.length) out.push(below);
   return out;
 }
+
+const TODO: number[][] = [], NEXT: number[][] = [];
 
 /**
  * Cuts the convex polygon `poly` into convex pieces inside the boxes (each
  * piece in the first box it meets) and outside all of them. Each piece is a
  * flat x, y list; the pieces tile `poly` exactly, so filled one by one with
- * an additive mode they leave no seam.
+ * an additive mode they leave no seam. The pieces are pooled: good until the
+ * next call (of this or `notchPieces`).
  */
 export function beamPieces(poly: readonly number[], boxes: readonly Box[], inside: number[][], outside: number[][]): void {
+  polyN = 0;
   inside.length = 0;
   outside.length = 0;
-  let todo: number[][] = [poly.slice()];
+  const first = take();
+  for (let i = 0; i < poly.length; i++) first[i] = poly[i]!;
+  first.length = poly.length;
+  let todo = TODO, next = NEXT;
+  todo.length = 0;
+  todo.push(first);
   for (const [x0, y0, x1, y1] of boxes) {
-    const next: number[][] = [];
+    next.length = 0;
     for (const P of todo) {
       // quick reject: the piece's bounds miss the box
       let px0 = Infinity, py0 = Infinity, px1 = -Infinity, py1 = -Infinity;
@@ -393,10 +445,15 @@ export function beamPieces(poly: readonly number[], boxes: readonly Box[], insid
       const mid = clipHalf(band, 0, x0, -1);
       const right = clipHalf(mid, 0, x1, -1);
       const box = clipHalf(mid, 0, x1, 1);
-      for (const o of [above, below, left, right]) if (o.length) next.push(o);
+      if (above.length) next.push(above);
+      if (below.length) next.push(below);
+      if (left.length) next.push(left);
+      if (right.length) next.push(right);
       if (box.length) inside.push(box);
     }
+    const t = todo;
     todo = next;
+    next = t;
   }
   for (const P of todo) outside.push(P);
 }

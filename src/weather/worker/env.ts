@@ -101,6 +101,14 @@ export interface Module {
    * their own elements.
    */
   band?: boolean;
+  /**
+   * Where the module's last frame drew on each layer (CSS px; null: nothing
+   * there), for a module drawn through its cache: the engine copies only
+   * that region of the cache onto the canvases (ADR 0091, performance
+   * review). Must cover everything drawn; without it the whole cache is
+   * copied.
+   */
+  extent?(): { back: Rect | null; front: Rect | null };
 }
 
 /** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */
@@ -163,4 +171,6 @@ export const sst = (a: number, b: number, x: number): number => {
 };
 export const ease = (cur: number, tgt: number, dt: number, tau: number): number => cur + (tgt - cur) * (1 - Math.exp(-dt / tau));
 export const lerp = (a: number, b: number, k: number): number => a + (b - a) * k;
+/** A random number in a … b. */
+export const rr = (a: number, b: number): number => a + Math.random() * (b - a);
 export const TAU = Math.PI * 2;

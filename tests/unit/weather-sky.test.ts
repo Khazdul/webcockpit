@@ -4,7 +4,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { bandK, bandSolid } from '../../src/weather/worker/band';
-import { MOON_GLIDE_S, MOON_PACE_CAP, moonAt, moonClockU, moonGlide, moonLead, moonPath, moonPreU, moonVisU, sunPos } from '../../src/weather/worker/sky';
+import { sunPoint, sunPsi } from '../../src/weather/worker/beams';
+import { MOON_GLIDE_S, MOON_PACE_CAP, moonAt, moonClockU, moonGlide, moonPath } from '../../src/weather/worker/sky';
 
 const W = 1600, H = 900, R = 45;
 
@@ -36,13 +37,10 @@ describe('sky geometry', () => {
     expect(x0).toBeGreaterThan(xs[0]!);
   });
 
-  it('no lead: the drawn place is the game\'s, for any window (item 100; was items 63, 69)', () => {
+  it('the waiting place without a clock is right of the band, for any window (item 100)', () => {
     for (const [w, h] of [[1400, 800], [1780, 1040], [1024, 640], [2560, 1400], [800, 600]] as const) {
       const r = Math.round(Math.min(56, Math.max(30, h * 0.05)));
-      const P = moonPath(w, h, r), L = moonLead(P, w, r);
-      expect(L).toBe(0);
-      expect(moonPreU(L)).toBe(0);
-      expect(moonVisU(0.37, L)).toBe(0.37);
+      const P = moonPath(w, h, r);
       // the waiting place without a clock (MOON_HOLD 0.45) is still right of the band
       const o = new Float32Array(2);
       moonAt(P, 0.45, o);
@@ -82,9 +80,9 @@ describe('sky geometry', () => {
   it('the sun rises on the right and sets on the left, like the moon', () => {
     const o = new Float32Array(2);
     for (const p of [0, 0.5, 1]) {
-      sunPos('rise', p, W, H, o);
+      sunPoint(sunPsi('rise', p), W, H, o);
       expect(o[0]).toBeGreaterThan(W * 0.8);
-      sunPos('set', p, W, H, o);
+      sunPoint(sunPsi('set', p), W, H, o);
       expect(o[0]).toBeLessThan(W * 0.25);
     }
   });

@@ -39,6 +39,13 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-20 — Performance review (stage 28 items 109–113, branch `weather-perf`)
+
+- **Done:** four read-only reviews (profiling, sky, particles, engine); Firefox drew sunrise/sunset at 15–19 fps (50–68 ms/frame). Items 109 (spikes), 110 (bugs: theme re-init on pane toggle, idle-loop turn, resize settle, spatter dpr), 111 (fog once per element, extent copies, wash, front canvas), 112 (turns in a half-res layer: Firefox 22–28 ms, steady 30 fps; `bench/weather-turn.ts`), 113 (cleanup, −71 lines). Text latency at 30 fps: a headless-only artefact; headed p95 18–20 ms; bench `WC_BENCH_HEADED=1`. ADR 0091 / 0093 addenda.
+- **Checks:** unit 2778 green, tsc clean, e2e weather + layout 44/44.
+- **Next:** owner tests in Firefox (`#weather demo sunset`, `#weather demo sunrise`, `#weather demo`); then merge and release.
+- **Commits:** 6a621d8…(this commit).
+
 ### 2026-10-20 — Merge `weather-real-play`, release 0.1.65 prep
 
 - **Done:** owner approved overall (items 104–108 looked over; item 100,

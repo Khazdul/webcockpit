@@ -35,7 +35,8 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout'
 /**
  * The masked area (prototype `env.protect`): solid over the prompt and
  * input rows (from one row above the game pane's bottom), a 3.5-line fade
- * above it, and a soft fade along the far left.
+ * above it; `left` is the margin the body's spatters keep from the left
+ * edge (the far left is no longer masked: owner feedback 21).
  */
 export function protectFor(W: number, gameBottom: number, cellH: number, fontSize: number): Geometry['protect'] {
   const solidTop = gameBottom - cellH - 2;

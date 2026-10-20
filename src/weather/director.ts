@@ -416,8 +416,12 @@ export class Director {
     this.step(dt);
   }
 
-  /** True when every mix value and target is (nearly) zero. */
+  /**
+   * True when every mix value and target is (nearly) zero and no sunrise or
+   * sunset runs with the sky on (indoors the sky still shows its tint).
+   */
   quiet(eps = 0.003): boolean {
+    if (this.turn && this.cats.sky) return false;
     const t = mixTargets(this.settled, this.cats, this.tgt);
     for (const key of MIX_KEYS) {
       // tints and the time of day: draw nothing by themselves (the sky needs `outdoors`)
@@ -437,11 +441,14 @@ export class Director {
 
   /**
    * True while a mix value moves toward its target (a transition the effects
-   * show; the dwell before one is not).
+   * show; the dwell before one is not). `skipSky`: the sky selection (sun,
+   * moon, dark, night) does not count (it moves through a whole sunrise or
+   * sunset, which only the sky draws).
    */
-  moving(eps = 0.002): boolean {
+  moving(eps = 0.002, skipSky = false): boolean {
     const t = mixTargets(this.settled, this.cats, this.tgt);
     for (const key of MIX_KEYS) {
+      if (skipSky && SKY_KEYS.has(key)) continue;
       if (Math.abs(this.mix[key] - t[key]) > eps) return true;
     }
     return false;

@@ -2058,3 +2058,73 @@ Overall the owner is happy; some polish remains for the next session.
        start and end; indoors and out. The rest a little shorter. The
        captions no longer mention the pace. Weather unit 179/179, e2e
        weather 6/6; a full real-time run checked by screenshots.
+
+### 2026-10-20 — performance review (translated)
+
+The owner: close to the goal; review the code and the performance after
+many iterations. A stutter seen once at a sunset. Proposals welcome, but
+the experience must not get worse (or only marginally; no lower fps).
+
+Review (four read-only agents, 2026-10-20): Firefox draws a sunrise or
+sunset at 15–19 fps (worker frame 50–68 ms, headed, owner geometry)
+against the 30 fps the turn asks for, with a 75 ms first frame; Chromium
+~3 ms. All of it is the sky (full-screen fills rasterised on the CPU).
+ADR 0093's ~16 ms was a Chromium figure. The owner approved the whole
+package and a marginally softer shadow edge in the sun's glow.
+
+109. **One-off spikes** (no visible change): the day life's full-screen
+     texture (43–80 ms on the first day frame), a lightning strike's setup
+     in one frame, the ray layer and grain built at a turn's first frame.
+     - **Done (2026-10-20):** ADR 0091, "Performance review (items
+       109–111)". Day life textures built in 3 ms slices with a cheap PRNG
+       (Chromium's first day frame 58–74 → 4–10 ms); a strike's setup over
+       the leader frames (≤ 6 ms each; frame gaps max 82–100 → 50–67 ms).
+       The turn's ray layer and grain are sky.ts: left to item 112.
+110. **Bugs:** a `theme` post (and a re-init of every module) on any pane
+     or appearance change; a clock-started turn never drawn while the loop
+     is idle indoors; window resize rebuilds the modules on every step
+     instead of settling; the sun's position stale when stepping out
+     mid-turn; spatter sprites kept at the old dpr.
+     - **Done (2026-10-20):** theme posted and modules re-inited only on a
+       new background; an indoor turn keeps the loop awake; a window drag
+       rebuilds at most once per 250 ms and once after; spatters rebuilt at
+       a new dpr. Unit tests added. The stale sun position is sky.ts: left
+       to item 112.
+111. **Other Firefox scenes** (no or marginal visible change): moon halos
+     as one sprite; fog drawn once per element instead of once per tint;
+     the fog cache copied up only where it holds something; the heartbeat
+     wash as one upscale; nothing drawn or copied in the band's solid part;
+     no FPS_FAST floor for slow modules during a whole turn; the front
+     canvas left alone while empty.
+     - **Done (2026-10-20):** all but the sky.ts parts (moon halos, the
+       band's solid part in the sky; left to item 112). Firefox: dense fog
+       at night 28–29 → 22–25 ms/frame (fog 19.7 → 13–14), dying 31–32 →
+       19–24 (body 24 → 10–12). Screenshots before/after look the same.
+       Open: at the now reached 30 fps the bench's heavy+dying scene raises
+       Firefox's text → paint p95 (18–19 → 26–41 ms; at a 20 fps cap 19).
+       **Resolved (2026-10-20):** headless only (software compositing on a
+       timer vsync). In a real Firefox window the p95 is 18–20 ms off, in the
+       heavy scene and mid-sunset alike; 30 fps kept, no cap. The bench
+       gets `WC_BENCH_HEADED=1` (ADR 0091, "Text latency at 30 fps").
+112. **Sunrise and sunset in Firefox** (goal: a steady 30 fps, frame
+     ≤ ~25 ms): the sun's glow, dusk light, band cut and shadow cut in a
+     half-resolution layer; the sky gradient cheaper during a turn; a
+     cheaper grain pass. Before/after screenshots at fixed turn times.
+     - **Done (2026-10-20):** ADR 0093, "Firefox turn cost (item 112)";
+       `bench/weather-turn.ts`. Firefox (headed, owner geometry) 46–69 ms
+       at 15–21 fps → sunset 22–24 ms, sunrise 26–28 ms, 30 fps
+       throughout, no first-frame spike; Chromium ~2 → ~2.8 ms. The sun's
+       light, sky, rays, beams and cuts in one half-size layer, the sky cache at a
+       quarter during a turn, one quarter-size shadow mask, grain and merge
+       within the drawn bounds, nothing in the band's solid part (sky,
+       deck, stars, sun layer), stars as single fills on the CPU, one moon
+       halo sprite, the stale sun position and the indoor turn rate fixed,
+       less garbage. Screenshots match to ~0.1–0.2 levels on average.
+113. **Cleanup:** dead code and stale names left from the iterations, one
+     band gradient helper, stale ADR text. No change in behaviour.
+     - **Done (2026-10-20):** the moon's lead plumbing (0 since item 100),
+       the sky's dead tick and unread fields, `sunPos` / `turnFull`, unused
+       params in weather.ts and daylife.ts, clearer names (`sw`, `R`, snow
+       fills), `lerp` / `rr` in env.ts, `bandGradient` everywhere; ADR 0091
+       "Corrections (item 113)". src/weather −73 lines. Firefox turn bench
+       unchanged (sunset 22–25, sunrise 25–27 ms avg, 30 fps).

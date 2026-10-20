@@ -75,11 +75,6 @@ const pw = (P: ReadonlyArray<readonly [number, number]>, x: number): number => {
   return P[P.length - 1]![1];
 };
 
-/** When `kind`'s new sky is complete (s). */
-export function turnFull(kind: TurnKind): number {
-  return TURN_FULL[kind];
-}
-
 /**
  * A sunset's dusk share (1 − the blue's): the blue fades slowly from -50 s,
  * is still fairly clear at -10, weaker at -5, just perceptible at -2 and

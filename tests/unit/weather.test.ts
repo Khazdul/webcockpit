@@ -201,6 +201,26 @@ describe('Director', () => {
     expect(new Director({ weather: ' ' }).quiet()).toBe(false);
     expect(new Director({ weather: null, position: 'sleeping' }).quiet()).toBe(false);
   });
+  it('is not quiet while a sunrise or sunset runs with the sky on, indoors too (performance review, item 110)', () => {
+    const d = new Director({ weather: null, clock: 'night' });
+    d.wall = () => 1_000_000;
+    expect(d.quiet()).toBe(true);
+    d.turnEvent('rise');
+    expect(d.turn?.kind).toBe('rise');
+    expect(d.quiet()).toBe(false);
+    d.cats = { ...d.cats, sky: false };
+    expect(d.quiet()).toBe(true);
+  });
+  it('a sunrise\'s sky selection does not count as moving with skipSky (performance review, item 111)', () => {
+    const d = new Director({ weather: ' ', clock: 'night' });
+    d.wall = () => 1_000_000;
+    d.turnEvent('rise');
+    let t = 0;
+    for (let i = 0; i < 400; i++) d.tick((t += 100), 0.1);
+    expect(d.turn).not.toBeNull();
+    expect(d.moving()).toBe(true);
+    expect(d.moving(undefined, true)).toBe(false);
+  });
   it('events set the sun and the moon', () => {
     // the dawn hour is still night: rise starts the sunrise (Director.riseEvent), light brings the day (item 59)
     expect(eventState('sun.rise')).toBeNull();
