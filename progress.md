@@ -42,7 +42,8 @@ Statuses: Next, In progress, Owner testing, Done.
 ### 2026-10-20 — Merge `weather-perf`, release 0.1.66
 
 - **Done:** owner tested items 109–113 in Firefox and approved. Merged to main (85eead3), version 0.1.66 (30fbce1). build:pages green (unit, local smoke 10/10); full e2e 517/524 under load, the 7 failures pass alone (14/14). Pushed main and tag `v0.1.66`.
-- **Next:** check the Pages run and live release.json; the owner's later findings; item 100 (the moon into the band).
+- **Released:** Pages run green, live release.json 0.1.66 (558a310), test:prod against the live site 10/10.
+- **Next:** the owner's later findings; item 100 (the moon into the band).
 
 ### 2026-10-20 — Performance review (stage 28 items 109–113, branch `weather-perf`)
 
