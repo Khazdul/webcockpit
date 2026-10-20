@@ -2128,3 +2128,10 @@ package and a marginally softer shadow edge in the sun's glow.
        fills), `lerp` / `rr` in env.ts, `bandGradient` everywhere; ADR 0091
        "Corrections (item 113)". src/weather −73 lines. Firefox turn bench
        unchanged (sunset 22–25, sunrise 25–27 ms avg, 30 fps).
+
+### 2026-10-20 — no longer a trial
+
+The owner: the weather effects are "not a trial any more". They stay as a
+permanent feature; "trial" is dropped from the user-facing texts, and
+README and About describe them as a regular feature (release 0.1.67,
+ADR 0091 addendum). The stage stays in owner testing for item 100.
