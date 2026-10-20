@@ -307,12 +307,9 @@ export function fogModule(): Module {
     if (S.mixA?.key === key && !S.mixA.todo) return S.mixA.set;
     const srcs = (S.srcs ??= sources());
     if (!S.mixB) {
+      // canvases of the same sizes (the fill below draws every one before the set is used)
       const base = tintSet(S.k1);
-      const copy = (c: Cv): Cv => {
-        const n = mkCanvas(c.width, c.height);
-        ctx2d(n).drawImage(c, 0, 0);
-        return n;
-      };
+      const copy = (c: Cv): Cv => mkCanvas(c.width, c.height);
       S.mixB = {
         set: { bank: base.bank.map((t) => ({ light: copy(t.light), dense: copy(t.dense), core: copy(t.core) })), wisp: base.wisp.map((t) => ({ light: copy(t.light), dense: copy(t.dense) })), haze: base.haze.map(copy) },
         key: -1,
