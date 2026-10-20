@@ -220,10 +220,11 @@ export type MainToWorker =
   | { t: 'moonSpeed'; speed: number }
   /** The demo's time scale (1 = the game's pace): see `Director.speed`. */
   | { t: 'speed'; speed: number }
-  | { t: 'stats' };
+  /** `reset`: the frame times start afresh after this answer (a bench's measuring window). */
+  | { t: 'stats'; reset?: boolean };
 
 export interface FrameStats {
-  /** Frames measured (the last ≤ 600 drawn frames). */
+  /** Frames measured (the last ≤ 600 drawn frames, since the last `reset`). */
   n: number;
   avg: number;
   p95: number;

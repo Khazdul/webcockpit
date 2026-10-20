@@ -101,6 +101,14 @@ export interface Module {
    * their own elements.
    */
   band?: boolean;
+  /**
+   * Where the module's last frame drew on each layer (CSS px; null: nothing
+   * there), for a module drawn through its cache: the engine copies only
+   * that region of the cache onto the canvases (ADR 0091, performance
+   * review). Must cover everything drawn; without it the whole cache is
+   * copied.
+   */
+  extent?(): { back: Rect | null; front: Rect | null };
 }
 
 /** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */
