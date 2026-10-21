@@ -47,7 +47,7 @@ Options → Panes → Appearance goes away.
 - [x] Clear background (framed and borderless, weather on and off, floating)
 - [x] Hover buttons: Colour, Border, Background beside `×`; icons; narrow panes
 - [x] Unit tests
-- [ ] E2E tests (Chromium + Firefox)
+- [x] E2E tests (Chromium + Firefox)
 - [x] Manual (pane section) and ADR 0095
 
 ## Test guide
