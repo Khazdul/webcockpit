@@ -62,6 +62,6 @@ export function overlayView(draft: Settings, view: Partial<ViewSnapshot>): void 
   // screen, whatever today's default is.
   const panes = view.panes as Record<string, unknown> | undefined;
   if (panes && !('map' in panes)) {
-    (d.panes as Record<string, unknown>).map = { on: false, color: 'black', border: true };
+    (d.panes as Record<string, unknown>).map = { on: false, color: 'black', border: true, glass: true };
   }
 }

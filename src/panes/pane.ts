@@ -309,7 +309,9 @@ export class PaneShell {
   applyTheme(s: Readonly<Settings>): void {
     applyPaneTheme(this.el, s, this.id);
     const a = s.appearance;
-    const key = `${paneSettingsOf(s.panes, this.id).color}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
+    const p = paneSettingsOf(s.panes, this.id);
+    // The glass background too: a clear pane's text follows the page (ADR 0095).
+    const key = `${p.color}|${p.glass}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
     if (key !== this.themeKey) {
       this.themeKey = key;
       this.markDirty();

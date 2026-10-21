@@ -46,6 +46,7 @@ import {
   mix,
   normalizeHex,
   paneBorder,
+  paneContentBg,
   paneEffectiveBg,
   paneIsLight,
   paneOutline,
@@ -237,26 +238,35 @@ export function appearanceChanged(a: Readonly<AppearanceSettings>, b: Readonly<A
   return JSON.stringify(a) !== JSON.stringify(b);
 }
 
-/** The per-pane custom properties for `paneId` under `s`. */
+/**
+ * The per-pane custom properties for `paneId` under `s`. A clear pane
+ * (ADR 0095) has the page's background as `--pane-bg` (its content's
+ * background) and keeps its tint's `--pane-border` (the rim's glass).
+ */
 export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string, string> {
-  const color = paneSettingsOf(s.panes, paneId).color;
+  const { color, glass } = paneSettingsOf(s.panes, paneId);
   const bg = s.appearance.bg;
   const t: Record<string, string> = {
-    '--pane-bg': paneEffectiveBg(color, bg),
+    '--pane-bg': paneContentBg(color, bg, glass),
     '--pane-border': paneBorder(color, bg),
   };
-  const shades = paneShades(color, bg);
+  const shades = paneShades(color, bg, glass);
   for (const role of SHADE_ROLES) t[shadeVar(role)] = shades[role];
   return t;
 }
 
-/** Whether `paneId`'s effective background is light under `s`. */
+/** Whether `paneId`'s content sits on a light background under `s` (a clear pane: the page, ADR 0095). */
 export function paneLight(s: Readonly<Settings>, paneId: PaneId): boolean {
-  return paneIsLight(paneSettingsOf(s.panes, paneId).color, s.appearance.bg);
+  const p = paneSettingsOf(s.panes, paneId);
+  return paneIsLight(p.color, s.appearance.bg, p.glass);
 }
 
-/** Sets the pane tokens and `data-light` on a pane element. */
+/**
+ * Sets the pane tokens, `data-light` and `data-clear` (the glass
+ * background off, ADR 0095; layout.css, weather.css) on a pane element.
+ */
 export function applyPaneTheme(el: HTMLElement, s: Readonly<Settings>, paneId: PaneId): void {
   for (const [k, v] of Object.entries(paneTokens(s, paneId))) el.style.setProperty(k, v);
   el.toggleAttribute('data-light', paneLight(s, paneId));
+  el.toggleAttribute('data-clear', !paneSettingsOf(s.panes, paneId).glass);
 }

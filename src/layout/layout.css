@@ -168,6 +168,22 @@
   background: var(--term-bg);
 }
 
+/* A clear pane (`data-clear`, the glass background off, ADR 0095): no
+ * fill inside and no blur, weather on or off, so what lies behind shows
+ * sharp: the page, the weather, and under a float the game text and the
+ * panes it covers (weather/index.ts `floatHoles` cuts no holes for it). A
+ * frame keeps its rim and plate, the tint's glass without blur (weather.css);
+ * a borderless pane has no background at all. The content's colours follow
+ * the page then (theme/apply.ts `paneTokens`: `--pane-bg` is the page's). */
+.wc-pane[data-clear],
+.wc-pane[data-clear][data-framed][data-floating] {
+  background: transparent;
+}
+
+.wc-pane[data-clear] > .wc-pane-frame::before {
+  display: none;
+}
+
 /* A light page (Paper): the fixed-lightness glass over it would be paler
  * than the page around a light pane, so it is mixed denser, and the dark
  * edges are softer (a black hairline on a light page looked drawn on). */

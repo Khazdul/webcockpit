@@ -665,8 +665,8 @@ describe('log player', () => {
   it('applyViewer switches a script pane with no entry and tints every pane for a theme', () => {
     const d = defaultSettings();
     applyViewer(d, withPane(noOverrides(), ID, false));
-    expect(d.panes[ID]).toEqual({ on: false, color: 'black', border: true });
-    d.panes['s/x'] = { on: true, color: 'red', border: true };
+    expect(d.panes[ID]).toEqual({ on: false, color: 'black', border: true, glass: true });
+    d.panes['s/x'] = { on: true, color: 'red', border: true, glass: true };
     applyViewer(d, { ...noOverrides(), theme: 'paper' });
     expect(d.panes['s/x']!.color).toBe('black');
   });

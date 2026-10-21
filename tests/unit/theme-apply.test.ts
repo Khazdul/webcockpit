@@ -179,6 +179,25 @@ describe('pane tokens', () => {
     expect(el.hasAttribute('data-light')).toBe(false);
     for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(9);
   });
+
+  it('a clear pane (ADR 0095): the page as its background, its tint kept for the rim, data-clear set', () => {
+    const paper = migrateSettings({ appearance: { bg: '#f4ecd8' } });
+    paper.panes.timers.color = 'red';
+    paper.panes.timers.glass = false;
+    const t = paneTokens(paper, 'timers');
+    expect(t['--pane-bg']).toBe('#f4ecd8');
+    expect(t['--pane-border']).toBe('#2e2222');
+    expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#f4ecd8', false).paneBg);
+    const el = document.createElement('div');
+    applyPaneTheme(el, paper, 'timers');
+    // Its text sits on the light page, not on the dark red fill.
+    expect(el.hasAttribute('data-light')).toBe(true);
+    expect(el.hasAttribute('data-clear')).toBe(true);
+    paper.panes.timers.glass = true;
+    applyPaneTheme(el, paper, 'timers');
+    expect(el.hasAttribute('data-light')).toBe(false);
+    expect(el.hasAttribute('data-clear')).toBe(false);
+  });
 });
 
 describe('cell metrics', () => {

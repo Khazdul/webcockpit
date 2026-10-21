@@ -80,7 +80,7 @@ import { BUNDLED_MAP_BYTES } from '../map/progress';
 import type { AssetSource, MapPaneHost, MapSource, WorkerToMain } from '../map/protocol';
 import { mumeMonth, resolveTileset, type Tileset, tilesetOverlay } from '../map/tilesets';
 import { MAP_BG_TRANSPARENT, mapBgEffective } from '../map/backgrounds';
-import { paneEffectiveBg } from '../theme/color';
+import { paneContentBg } from '../theme/color';
 import { paneSettingsOf } from '../settings/types';
 import { MapHover } from './map-hover';
 import { MapLoading } from './map-loading';
@@ -436,7 +436,8 @@ export class MapPane extends PaneShell {
    */
   private background(): string {
     const s = this.ctx.settings.get();
-    return mapBgEffective(s.mapper.background, paneEffectiveBg(paneSettingsOf(s.panes, 'map').color, s.appearance.bg));
+    const p = paneSettingsOf(s.panes, 'map');
+    return mapBgEffective(s.mapper.background, paneContentBg(p.color, s.appearance.bg, p.glass));
   }
 
   /** Whether the map leaves its empty space clear (Transparent, ADR 0085 Transparent addendum 2). */

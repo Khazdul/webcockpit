@@ -137,11 +137,11 @@ const LABEL_MAX = 28;
 /** `[X]███` plus one space. */
 const CELL_W = 7;
 
-/** The next pane state after clicking column `col` of `id`'s row (Inv §2.1 grid rules). */
-export function gridToggle(
-  pane: { on: boolean; color: PaneColor; border: boolean },
-  col: number,
-): { on: boolean; color: PaneColor; border: boolean } {
+/**
+ * The next pane state after clicking column `col` of `id`'s row (Inv §2.1
+ * grid rules). Every other field (the glass background, ADR 0095) is kept.
+ */
+export function gridToggle<P extends { on: boolean; color: PaneColor; border: boolean }>(pane: P, col: number): P {
   if (col === BORDER_COL) return { ...pane, border: !pane.border };
   const color = PANE_COLORS[col]!;
   if (pane.on && pane.color === color) return { ...pane, on: false };

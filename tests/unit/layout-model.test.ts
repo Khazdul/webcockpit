@@ -18,6 +18,8 @@ import {
   shiftLanes,
   shiftSpanBoundary,
   togglePatch,
+  lookPatch,
+  nextPaneColor,
   placeScriptPane,
   wantPaneSize,
 } from '../../src/layout/model';
@@ -328,7 +330,28 @@ describe('floating panes', () => {
 describe('togglePatch', () => {
   it('flips one pane', () => {
     const s = defaultSettings();
-    expect(togglePatch(s.panes, 'group')).toEqual({ panes: { group: { color: 'black', border: true, on: false } } });
+    expect(togglePatch(s.panes, 'group')).toEqual({ panes: { group: { color: 'black', border: true, on: false, glass: true } } });
+  });
+});
+
+describe('lookPatch and nextPaneColor (ADR 0095)', () => {
+  it('steps the tint in the Options order, Purple wrapping to Plain', () => {
+    const seen = ['black'];
+    for (let i = 0; i < 7; i++) seen.push(nextPaneColor(seen.at(-1) as never));
+    expect(seen).toEqual(['black', 'red', 'green', 'blue', 'grey', 'orange', 'purple', 'black']);
+  });
+
+  it('changes one field of the whole entry, keeping the rest', () => {
+    const s = defaultSettings();
+    s.panes.group = { on: true, color: 'purple', border: true, glass: true };
+    expect(lookPatch(s.panes, 'group', 'color')).toEqual({ panes: { group: { on: true, color: 'black', border: true, glass: true } } });
+    expect(lookPatch(s.panes, 'group', 'border')).toEqual({ panes: { group: { on: true, color: 'purple', border: false, glass: true } } });
+    expect(lookPatch(s.panes, 'group', 'glass')).toEqual({ panes: { group: { on: true, color: 'purple', border: true, glass: false } } });
+  });
+
+  it('a script pane without an entry gets the defaults with the change', () => {
+    const s = defaultSettings();
+    expect(lookPatch(s.panes, 's/new' as PaneId, 'glass')).toEqual({ panes: { 's/new': { on: true, color: 'black', border: true, glass: false } } });
   });
 });
 
