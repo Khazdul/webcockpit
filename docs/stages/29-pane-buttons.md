@@ -43,12 +43,12 @@ Options → Panes → Appearance goes away.
 ## Tasks
 
 - [x] Stage file and status table
-- [ ] Setting `glass` (types, defaults, migration, script pane defaults)
-- [ ] Clear background (framed and borderless, weather on and off, floating)
-- [ ] Hover buttons: Colour, Border, Background beside `×`; icons; narrow panes
-- [ ] Unit tests
+- [x] Setting `glass` (types, defaults, migration, script pane defaults)
+- [x] Clear background (framed and borderless, weather on and off, floating)
+- [x] Hover buttons: Colour, Border, Background beside `×`; icons; narrow panes
+- [x] Unit tests
 - [ ] E2E tests (Chromium + Firefox)
-- [ ] Manual (pane section) and ADR 0095
+- [x] Manual (pane section) and ADR 0095
 
 ## Test guide
 

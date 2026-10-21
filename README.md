@@ -46,7 +46,10 @@ your round-trip time. Nobody in between sees your password.
 Map. They can be docked left, right, at the bottom or at the top, in
 several columns or rows per side with panes spanning the whole dock, or
 float over the game, and resized, reordered and toggled, each with its
-own background colour.
+own background colour. Hover a pane for its buttons, left of the close
+cross: step its colour, turn its border on or off, and switch its
+background between frosted glass and clear (no fill, so what is behind
+it shows sharp).
 
 **Appearance.** Fifteen bundled monospace fonts, font size,
 padding, the ANSI palette, cursor style and blink. Changes apply
