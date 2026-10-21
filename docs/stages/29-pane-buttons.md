@@ -68,3 +68,20 @@ Feedback wanted: the icons (shape, size, placement, colour), what clear
 looks like, and whether anything is missing before the fixed menu.
 
 ## Owner feedback
+
+### Round 1 (2026-10-22, on 0.1.72)
+
+- **Clear float:** without the glass the game text must not show through a
+  floating pane; everything else (weather, panes under it) does.
+- **Timers `+`:** the buttons cover it on a borderless Timers pane. Accepted
+  for now; not handled in this round.
+- **Borderless pane on hover:** the whole top row gets the pane's background
+  colour (a title bar). The `×` moves to the far right edge, the other
+  buttons with it. The name tag goes to the far left instead of centred.
+
+Tasks:
+
+- [ ] Clear float hides the game text under it, nothing else
+- [ ] Borderless hover title bar: full-row background, buttons at the right
+      edge, name tag at the left
+- [ ] Tests (unit, e2e Chromium + Firefox), ADR 0095 addendum, manual
