@@ -15,12 +15,12 @@ import { BASE_US, type LogItem, makeLog, meta } from './player-helpers';
 const us = (s: number) => BASE_US + Math.round(s * 1e6);
 
 const PANES = {
-  character: { on: true, color: 'black', border: true },
-  timers: { on: true, color: 'black', border: true },
-  group: { on: true, color: 'black', border: true },
-  comm: { on: true, color: 'black', border: true },
-  ui: { on: true, color: 'black', border: true },
-  map: { on: false, color: 'black', border: true },
+  character: { on: true, color: 'black', border: true, glass: true },
+  timers: { on: true, color: 'black', border: true, glass: true },
+  group: { on: true, color: 'black', border: true, glass: true },
+  comm: { on: true, color: 'black', border: true, glass: true },
+  ui: { on: true, color: 'black', border: true, glass: true },
+  map: { on: false, color: 'black', border: true, glass: true },
 };
 
 /** A busy stretch of game traffic from `at` on: group, vitals, rooms, moves. */

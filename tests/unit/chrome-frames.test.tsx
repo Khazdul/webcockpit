@@ -27,11 +27,14 @@ const status = (p: Partial<AppStatusState> = {}): AppStatusState => ({
 
 describe('options helpers', () => {
   it('toggles the pane grid: 0 or 1 checked cell per row', () => {
-    const p = { on: true, color: 'red' as const, border: true };
-    expect(gridToggle(p, 1)).toEqual({ on: false, color: 'red', border: true }); // checked cell → off
-    expect(gridToggle(p, 3)).toEqual({ on: true, color: 'blue', border: true }); // other → that colour
-    expect(gridToggle({ ...p, on: false }, 1)).toEqual({ on: true, color: 'red', border: true });
-    expect(gridToggle(p, 7)).toEqual({ on: true, color: 'red', border: false }); // Border column
+    const p = { on: true, color: 'red' as const, border: true, glass: true };
+    expect(gridToggle(p, 1)).toEqual({ on: false, color: 'red', border: true, glass: true }); // checked cell → off
+    expect(gridToggle(p, 3)).toEqual({ on: true, color: 'blue', border: true, glass: true }); // other → that colour
+    expect(gridToggle({ ...p, on: false }, 1)).toEqual({ on: true, color: 'red', border: true, glass: true });
+    expect(gridToggle(p, 7)).toEqual({ on: true, color: 'red', border: false, glass: true }); // Border column
+    // A clear pane stays clear (ADR 0095).
+    expect(gridToggle({ ...p, glass: false }, 3)).toEqual({ on: true, color: 'blue', border: true, glass: false });
+    expect(gridToggle({ ...p, glass: false }, 7)).toEqual({ on: true, color: 'red', border: false, glass: false });
   });
 
   it('toggles the timers grid: 0 or 1 swatch, clamped column caps', () => {

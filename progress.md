@@ -34,10 +34,25 @@ Released 0.1.71 (the stun effect knows your group id from login, stage 28 item 1
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
 | 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
+| 29 | Pane buttons | In progress | `docs/stages/29-pane-buttons.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-10-22 — Pane buttons (stage 29), on branch `pane-buttons`
+
+- **Owner request:** change a pane's look right on the pane. Hovering shows
+  Colour (steps the tints), Border and Background (glass vs clear) left of
+  the `×`. New pane setting `glass` (ADR 0095). Options → Panes →
+  Appearance stays until the fixed menu (a later stage).
+- **Also:** the key manager's `?` moved left, clear of the buttons.
+- **Checks:** typecheck clean, unit 2797, e2e pane-buttons 12/12; full e2e
+  535/536 (script-editor Ctrl+F, passes alone: flaky).
+- **Next:** release, then the owner tests (stage file test guide). Open: other
+  bundled scripts' top-row links keep 4 cells, which is too few when the pane
+  has no border.
+- **Commits:** baf3048, 07ca850, f0df11c, b009598, 7b33fb5, c38d068, a3a5dc5, plus this one.
 
 ### 2026-10-21 — Stun fix, take two (stage 28 item 116), release 0.1.71
 

@@ -295,6 +295,8 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
  * A clip makes an element a backdrop root, so the glass of a clipped pane
  * would blur nothing: a pane with a hole is marked `data-weather-under` and
  * gets the glass without blur (weather.css, as in Firefox) while covered.
+ * A clear float (`data-clear`, ADR 0095) cuts no holes: it shows what lies
+ * under it, the game text included.
  *
  * `sync()` runs on every relayout (synchronously, before it is painted) and
  * before each measure, so a moved float and its holes move in one frame.
@@ -337,6 +339,8 @@ export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
           const r = self?.r ?? rel(el);
           if (r.w <= 0 || r.h <= 0) continue;
           const holes = floats
+            // A clear float (ADR 0095) shows what is under it: it cuts no hole.
+            .filter((f) => !f.el.hasAttribute('data-clear'))
             .filter((f) => f !== self && (!self || f.z > self.z || (f.z === self.z && f.i > self.i)))
             .filter((f) => f.r.x < r.x + r.w && f.r.x + f.r.w > r.x && f.r.y < r.y + r.h && f.r.y + f.r.h > r.y)
             .map((f) => ({ x: f.r.x - r.x, y: f.r.y - r.y, w: f.r.w, h: f.r.h }));

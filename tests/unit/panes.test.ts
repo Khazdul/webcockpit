@@ -328,6 +328,75 @@ describe('Cockpit', () => {
     expect(c.paneContext.bus.count('conn.state')).toBe(0);
   });
 
+  it('hover buttons (ADR 0095): Colour, Border, Background before the cross; each click changes the setting and its label', () => {
+    const { c, settings, flush } = make(1200, 1000);
+    const el = c.pane('timers').el;
+    const btns = [...el.querySelectorAll<HTMLElement>('.wc-pane-btn')];
+    expect(btns.map((b) => b.dataset.look)).toEqual(['color', 'border', 'glass']);
+    // In the DOM before the cross; slots 2, 1, 0 from it.
+    expect(btns.at(-1)!.nextElementSibling).toBe(el.querySelector('.wc-pane-close'));
+    expect(btns.map((b) => b.style.getPropertyValue('--slot'))).toEqual(['2', '1', '0']);
+    expect(btns.map((b) => b.title)).toEqual(['Colour: Plain', 'Border: on', 'Background: glass']);
+    expect(btns.map((b) => b.getAttribute('aria-label'))).toEqual(['Colour: Plain', 'Border: on', 'Background: glass']);
+    expect(btns.map((b) => b.getAttribute('role'))).toEqual(['button', 'button', 'button']);
+    btns[0]!.click();
+    flush();
+    expect(settings.get().panes.timers.color).toBe('red');
+    expect(btns[0]!.title).toBe('Colour: Red');
+    btns[1]!.click();
+    flush();
+    expect(settings.get().panes.timers.border).toBe(false);
+    expect(btns[1]!.title).toBe('Border: off');
+    expect(btns[1]!.hasAttribute('data-on')).toBe(false);
+    expect(el.hasAttribute('data-framed')).toBe(false);
+    btns[2]!.click();
+    flush();
+    expect(settings.get().panes.timers).toEqual({ on: true, color: 'red', border: false, glass: false });
+    expect(btns[2]!.title).toBe('Background: clear');
+    expect(el.hasAttribute('data-clear')).toBe(true);
+    // Purple wraps to Plain.
+    settings.update({ panes: { timers: { color: 'purple' } } });
+    flush();
+    btns[0]!.click();
+    expect(settings.get().panes.timers.color).toBe('black');
+  });
+
+  it('a press on a hover button keeps the focus and starts no drag (ADR 0095)', () => {
+    const { c } = make(1200, 1000);
+    const b = c.pane('group').el.querySelector<HTMLElement>('.wc-pane-btn-border')!;
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    b.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerId: 1, clientX: 1100, clientY: 5 }));
+    expect(c.dragging).toBe(false);
+  });
+
+  it('a pane too narrow for the buttons beside its title drops them, Colour first (ADR 0095)', () => {
+    const { c, settings, flush } = make(1200, 1000);
+    const drops = () => [...c.pane('timers').el.querySelectorAll<HTMLElement>('.wc-pane-btn')].map((b) => b.hasAttribute('data-drop'));
+    expect(drops()).toEqual([false, false, false]);
+    // Two lanes: Timers in a narrower and narrower one.
+    const seen = new Set<number>();
+    for (let w = 30; w >= 8; w--) {
+      settings.update((d) => {
+        d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, w);
+      });
+      flush();
+      const shell = c.pane('timers');
+      const paneW = parseFloat(shell.el.style.width);
+      const d = drops();
+      const kept = d.filter((x) => !x).length;
+      seen.add(kept);
+      // From the left: dropped ones first, then the kept ones.
+      expect(d).toEqual([...Array(3 - kept).fill(true), ...Array(kept).fill(false)]);
+      // The leftmost kept button (two cells each, left of the cross's four) clears the nameplate.
+      if (kept) expect(paneW - (4 + 2 * kept) * 10).toBeGreaterThanOrEqual(shell.titleEnd);
+      // One more would not have.
+      if (kept < 3) expect(paneW - (4 + 2 * (kept + 1)) * 10).toBeLessThan(shell.titleEnd + 5);
+    }
+    expect([...seen].sort()).toEqual([0, 1, 2, 3]);
+  });
+
   it('lays out the default in whole cells', () => {
     const { c } = make(1205, 1010); // 120 × 50 cells, 5 px / 10 px spare
     expect(c.el.dataset.cells).toBe('120x50');

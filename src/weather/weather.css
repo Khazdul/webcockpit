@@ -89,3 +89,14 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+
+/* A clear pane (ADR 0095, layout.css `data-clear`): no fill and no blur
+ * inside, and its rim and plate without blur either, at the denser mix the
+ * unblurred glass has (as in Firefox above). */
+:root .wc-cockpit[data-weather] > .wc-pane[data-framed][data-clear] {
+  --glass-mix: 60%;
+}
+
+.wc-cockpit[data-weather] > .wc-pane[data-framed][data-clear] > .wc-pane-blur {
+  display: none;
+}

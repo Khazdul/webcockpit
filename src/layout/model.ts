@@ -12,6 +12,8 @@ import {
   type FloatPane,
   type LaneRef,
   type LayoutModel,
+  PANE_COLORS,
+  type PaneColor,
   type PaneId,
   appendToDock,
   defaultDockSize,
@@ -355,6 +357,31 @@ export function togglePatch(
 ): { panes: Partial<Record<PaneId, PaneSettings>> } {
   const cur = paneSettingsOf(panes, id);
   return { panes: { [id]: { ...cur, on: on ?? !cur.on } } };
+}
+
+/** The tint after `c` in the Options grid order, Purple wrapping to Plain (the pane's colour button, ADR 0095). */
+export function nextPaneColor(c: PaneColor): PaneColor {
+  return PANE_COLORS[(PANE_COLORS.indexOf(c) + 1) % PANE_COLORS.length]!;
+}
+
+/** What a pane's hover buttons change (ADR 0095). */
+export type PaneLook = 'color' | 'border' | 'glass';
+
+/**
+ * The settings patch a pane's hover button gives (ADR 0095): the next
+ * tint, or the border or glass background flipped. The whole entry is
+ * written, like `togglePatch`, so a script pane without one gets the
+ * defaults with the change.
+ */
+export function lookPatch(
+  panes: Readonly<PaneSettingsMap>,
+  id: PaneId,
+  what: PaneLook,
+): { panes: Partial<Record<PaneId, PaneSettings>> } {
+  const cur = paneSettingsOf(panes, id);
+  const next =
+    what === 'color' ? { ...cur, color: nextPaneColor(cur.color) } : what === 'border' ? { ...cur, border: !cur.border } : { ...cur, glass: !cur.glass };
+  return { panes: { [id]: next } };
 }
 
 /** Where a script pane goes when it is created for the first time (ADR 0053). */

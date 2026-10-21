@@ -248,7 +248,7 @@ describe('script pane ids in the layout and the settings', () => {
     expect(box.dock).toBe('right');
     expect(box.framed).toBe(true);
     // Off in the settings: not shown.
-    const off = allocate({ ...base, present, panes: { ...panes, [id]: { on: false, color: 'black', border: true } } });
+    const off = allocate({ ...base, present, panes: { ...panes, [id]: { on: false, color: 'black', border: true, glass: true } } });
     expect(off.panes.some((p) => p.id === id)).toBe(false);
   });
 
@@ -275,7 +275,7 @@ describe('script pane ids in the layout and the settings', () => {
     raw.layout.docks.left.lanes[0].panes.push({ id, desired: 3 }, { id: 'nope/', desired: 2 }, { id: 'a/b', desired: 'x' });
     raw.layout.floating.push({ id: 'c/d', x: 1, y: 2, w: 30, h: 9, auto: true });
     const s = migrateSettings(raw);
-    expect(s.panes[id]).toEqual({ on: false, color: 'red', border: true });
+    expect(s.panes[id]).toEqual({ on: false, color: 'red', border: true, glass: true });
     expect('bad id' in s.panes).toBe(false);
     expect('x/y' in s.panes).toBe(false);
     expect(s.layout.docks.left.lanes[0]!.panes).toEqual([
@@ -289,8 +289,8 @@ describe('script pane ids in the layout and the settings', () => {
   });
 
   it('togglePatch writes a whole entry for a script pane without one', () => {
-    expect(togglePatch(legacySettings().panes, id)).toEqual({ panes: { [id]: { on: false, color: 'black', border: true } } });
-    expect(paneSettingsOf(legacySettings().panes, id)).toEqual({ on: true, color: 'black', border: true });
+    expect(togglePatch(legacySettings().panes, id)).toEqual({ panes: { [id]: { on: false, color: 'black', border: true, glass: true } } });
+    expect(paneSettingsOf(legacySettings().panes, id)).toEqual({ on: true, color: 'black', border: true, glass: true });
   });
 });
 
@@ -657,7 +657,7 @@ describe('ScriptPane and the cockpit surface', () => {
       onResize: (c, r) => sizes.push(`${c}x${r}`),
     });
     expect(findPane(settings.get().layout, id)).toEqual({ dock: 'left', lane: 0, index: 0 });
-    expect(settings.get().panes[id]).toEqual({ on: true, color: 'black', border: true });
+    expect(settings.get().panes[id]).toEqual({ on: true, color: 'black', border: true, glass: true });
     flush();
     const el = cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"]`)!;
     expect(el.hidden).toBe(false);
@@ -990,7 +990,21 @@ describe('ScriptPane and the cockpit surface', () => {
     const close = cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-pane-close`)!;
     expect(close.title).toBe('Hide Q');
     close.click();
-    expect(settings.get().panes[id]).toEqual({ on: false, color: 'black', border: true });
+    expect(settings.get().panes[id]).toEqual({ on: false, color: 'black', border: true, glass: true });
+  });
+
+  it('the look buttons change a script pane with a whole settings entry (ADR 0095)', () => {
+    const { settings, cockpit, surface, flush } = rig();
+    const id = scriptPaneId('s', 'q');
+    surface.open({ id, place: { dock: 'right', rows: 3, cols: 20 } }, new PaneContent('Q'), { onLink: () => {}, onResize: () => {} });
+    flush();
+    const btn = (what: string) => cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-pane-btn-${what}`)!;
+    btn('glass').click();
+    expect(settings.get().panes[id]).toEqual({ on: true, color: 'black', border: true, glass: false });
+    btn('color').click();
+    expect(settings.get().panes[id]!.color).toBe('red');
+    flush();
+    expect(btn('color').title).toBe('Colour: Red');
   });
 
   describe('temporary panes', () => {
@@ -1008,7 +1022,7 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(isTempPaneId('s/~')).toBe(false);
       // Migration drops one that somehow reached the settings.
       const m = migrateSettings({
-        panes: { 's/~pick': { on: true, color: 'red', border: true } },
+        panes: { 's/~pick': { on: true, color: 'red', border: true, glass: true } },
         layout: { ...legacyLayout(), floating: [...legacyLayout().floating, { id: 's/~pick', x: 1, y: 1, w: 20, h: 6 }] },
       });
       expect(m.panes['s/~pick' as never]).toBeUndefined();
@@ -1071,6 +1085,8 @@ describe('ScriptPane and the cockpit surface', () => {
       flush();
       const close = cockpit.el.querySelector<HTMLElement>('.wc-pane[data-pane="s/~pick"] .wc-pane-close')!;
       expect(close.title).toBe('Close Pick');
+      // No settings of its own: no look buttons (ADR 0095).
+      expect(cockpit.el.querySelectorAll('.wc-pane[data-pane="s/~pick"] .wc-pane-btn')).toHaveLength(0);
       close.click();
       expect(closes).toBe(1);
       expect(JSON.stringify(settings.get())).toBe(before);
@@ -1212,7 +1228,7 @@ describe('ScriptPane and the cockpit surface', () => {
     it('places a borderless bar in its own 1-row lane at the bottom edge', () => {
       const r = rig();
       openBar(r);
-      expect(r.settings.get().panes[BAR]).toEqual({ on: true, color: 'black', border: false });
+      expect(r.settings.get().panes[BAR]).toEqual({ on: true, color: 'black', border: false, glass: true });
       expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
       const box = r.cockpit.layout!.panes.find((p) => p.id === BAR)!;
       expect(box).toMatchObject({ dock: 'bottom', framed: false, rect: { y: 49, h: 1 } });

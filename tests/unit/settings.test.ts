@@ -117,6 +117,16 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ panes: { map: { on: true, border: false } } }).panes.map.border).toBe(false);
   });
 
+  it('a pane entry without the glass setting migrates to glass; a stored clear pane stays clear (ADR 0095)', () => {
+    const p = migrateSettings({ panes: { comm: { on: true, color: 'red', border: true }, timers: { glass: false }, group: { glass: 'no' } } }).panes;
+    expect(p.comm).toEqual({ on: true, color: 'red', border: true, glass: true });
+    expect(p.timers.glass).toBe(false);
+    expect(p.group.glass).toBe(true);
+    // Script panes too.
+    expect(migrateSettings({ panes: { 's/x': { on: true }, 's/y': { glass: false } } }).panes['s/y']!.glass).toBe(false);
+    expect(migrateSettings({ panes: { 's/x': { on: true } } }).panes['s/x']!.glass).toBe(true);
+  });
+
   it('default layout (ADR 0078, ADR 0092): Character and the map over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {
     const right = DEFAULT_SETTINGS.layout.docks.right;
     expect(right.head).toEqual([
@@ -134,12 +144,12 @@ describe('migrateSettings', () => {
     ]);
     expect(DEFAULT_SETTINGS.layout.floating).toEqual([{ id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' }]);
     expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
-    expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true });
+    expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true, glass: true });
     // Character off; UI off and without a frame; the pane bar borderless and on; Map search off.
-    expect(DEFAULT_SETTINGS.panes.character).toEqual({ on: false, color: 'black', border: true });
-    expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: false, color: 'black', border: false });
-    expect(DEFAULT_SETTINGS.panes['panebar/bar']).toEqual({ on: true, color: 'black', border: false });
-    expect(DEFAULT_SETTINGS.panes['mapsearch/main']).toEqual({ on: false, color: 'black', border: true });
+    expect(DEFAULT_SETTINGS.panes.character).toEqual({ on: false, color: 'black', border: true, glass: true });
+    expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: false, color: 'black', border: false, glass: true });
+    expect(DEFAULT_SETTINGS.panes['panebar/bar']).toEqual({ on: true, color: 'black', border: false, glass: true });
+    expect(DEFAULT_SETTINGS.panes['mapsearch/main']).toEqual({ on: false, color: 'black', border: true, glass: true });
     expect(Object.isFrozen(DEFAULT_SETTINGS.appearance.ansi)).toBe(true);
   });
 
@@ -162,7 +172,7 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ panes: { ui: { on: true } } }).panes.ui.border).toBe(true);
     expect(migrateSettings({ panes: { ui: { on: true, border: false } } }).panes.ui.border).toBe(false);
     // Stored toggles never gain the new-user script pane entries.
-    const old = migrateSettings({ panes: { comm: { on: true, color: 'black', border: true } } });
+    const old = migrateSettings({ panes: { comm: { on: true, color: 'black', border: true, glass: true } } });
     expect('panebar/bar' in old.panes).toBe(false);
     expect('mapsearch/main' in old.panes).toBe(false);
     // A stored layout is kept: no pane bar or Map search placed into it.
@@ -186,7 +196,7 @@ describe('migrateSettings', () => {
     expect(s.appearance.ansi).toHaveLength(16);
     expect(s.appearance.cursorStyle).toBe('beam');
     expect(s.appearance.font).toBe('dejavu');
-    expect(s.panes.ui).toEqual({ on: false, color: 'black', border: true });
+    expect(s.panes.ui).toEqual({ on: false, color: 'black', border: true, glass: true });
     // The removed corner style setting is dropped silently.
     expect('corners' in s).toBe(false);
     expect(s.profile).toBe('default');

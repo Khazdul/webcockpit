@@ -121,7 +121,13 @@ export function migrateAppearance(raw: unknown): AppearanceSettings {
 
 function paneEntry(raw: unknown, d: Readonly<PaneSettings>): PaneSettings {
   const x = isObj(raw) ? raw : {};
-  return { on: bool(x.on, d.on), color: oneOf(x.color, PANE_COLORS, d.color), border: bool(x.border, d.border) };
+  return {
+    on: bool(x.on, d.on),
+    color: oneOf(x.color, PANE_COLORS, d.color),
+    border: bool(x.border, d.border),
+    // Before ADR 0095 every pane was glass.
+    glass: bool(x.glass, d.glass),
+  };
 }
 
 /**

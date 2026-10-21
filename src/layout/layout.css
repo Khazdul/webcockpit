@@ -168,6 +168,22 @@
   background: var(--term-bg);
 }
 
+/* A clear pane (`data-clear`, the glass background off, ADR 0095): no
+ * fill inside and no blur, weather on or off, so what lies behind shows
+ * sharp: the page, the weather, and under a float the game text and the
+ * panes it covers (weather/index.ts `floatHoles` cuts no holes for it). A
+ * frame keeps its rim and plate, the tint's glass without blur (weather.css);
+ * a borderless pane has no background at all. The content's colours follow
+ * the page then (theme/apply.ts `paneTokens`: `--pane-bg` is the page's). */
+.wc-pane[data-clear],
+.wc-pane[data-clear][data-framed][data-floating] {
+  background: transparent;
+}
+
+.wc-pane[data-clear] > .wc-pane-frame::before {
+  display: none;
+}
+
 /* A light page (Paper): the fixed-lightness glass over it would be paler
  * than the page around a light pane, so it is mixed denser, and the dark
  * edges are softer (a black hairline on a light page looked drawn on). */
@@ -255,8 +271,14 @@
 
 /* Close cross (" × ") in the title row, one cell in from the right so the
  * corner keeps its resize handle; shown while the pointer is over the
- * pane. Above the grip and the float handles. */
-.wc-pane-close {
+ * pane. Above the grip and the float handles.
+ *
+ * The look buttons (`.wc-pane-btn`, ADR 0095; cockpit.ts, pane-buttons.ts)
+ * sit left of it, two cells each, `--slot` 0 next to the cross: Colour,
+ * Border, Background from the left. They share the cross's box, colour,
+ * shadow, hover accent and visibility rules, so the four read as one set. */
+.wc-pane-close,
+.wc-pane-btn {
   position: absolute;
   top: 0;
   right: var(--cell-w);
@@ -270,45 +292,149 @@
   display: none;
 }
 
+.wc-pane-btn {
+  right: calc((4 + 2 * var(--slot, 0)) * var(--cell-w));
+  width: calc(2 * var(--cell-w));
+  align-items: center;
+  justify-content: center;
+  /* The icon's size: about the cross glyph's height in the same font size. */
+  --icon: 0.66em;
+}
+
 /* On a frame: no box behind it (owner feedback 12), just under the rim in
  * the top-right corner, light with a dark shadow on the glass pane (on a
  * light pane: the border colour toward the text colour); the box stays
  * three cells wide to click. */
-.wc-pane[data-framed] > .wc-pane-close {
+.wc-pane[data-framed] > :is(.wc-pane-close, .wc-pane-btn) {
   top: calc(var(--frame-top, 2px) + var(--frame-t, 6px) + 1px);
   height: calc(var(--cell-h) - var(--frame-top, 2px) - var(--frame-t, 6px) - 1px);
   background: transparent;
-  width: calc(3 * var(--cell-w));
-  text-align: center;
   font-size: 0.82em;
   line-height: 1;
   color: color-mix(in srgb, oklch(from var(--pane-border) 0.94 min(calc(c * 3), 0.028) h) 70%, transparent);
   text-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
 }
 
-.wc-pane[data-framed][data-light] > .wc-pane-close {
+.wc-pane[data-framed] > .wc-pane-close {
+  width: calc(3 * var(--cell-w));
+  text-align: center;
+}
+
+/* The icons take the cross's shadow as a drop shadow, and sit where the
+ * cross's ink sits (a little below the middle of its line box). */
+.wc-pane[data-framed] > .wc-pane-btn > * {
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.6));
+  transform: translateY(0.14em);
+}
+
+.wc-pane[data-framed][data-light] > :is(.wc-pane-close, .wc-pane-btn) {
   color: color-mix(in srgb, var(--pane-border) 40%, var(--term-fg));
   text-shadow: none;
+}
+
+.wc-pane[data-framed][data-light] > .wc-pane-btn > * {
+  filter: none;
 }
 
 .wc-pane:hover > .wc-pane-close {
   display: block;
 }
 
-.wc-pane > .wc-pane-close:hover {
+.wc-pane:hover > .wc-pane-btn {
+  display: flex;
+}
+
+/* A clear borderless pane (ADR 0095) has no background: no box behind
+ * the buttons either. */
+.wc-pane[data-clear]:not([data-framed]) > :is(.wc-pane-close, .wc-pane-btn) {
+  background: transparent;
+}
+
+.wc-pane > :is(.wc-pane-close, .wc-pane-btn):hover {
   color: var(--c-accent);
 }
 
-.wc-cockpit:has(> .wc-drag-shield:not([hidden])) .wc-pane-close {
+/* A pane too narrow for every button beside its title drops some, Colour
+ * first (cockpit.ts `syncLook`); the cross always stays. */
+.wc-pane > .wc-pane-btn[data-drop] {
   display: none;
+}
+
+.wc-cockpit:has(> .wc-drag-shield:not([hidden])) :is(.wc-pane-close, .wc-pane-btn) {
+  display: none;
+}
+
+/* The icons (pane-buttons.ts `LOOK_ICONS`). Border off and the glass
+ * background's sheen: the same ink, dimmed. */
+.wc-pane-btn > svg {
+  width: var(--icon);
+  height: var(--icon);
+  overflow: visible;
+}
+
+.wc-pane-btn-border:not([data-on]) > svg {
+  opacity: 0.4;
+}
+
+.wc-pane-btn-glass > svg > .wc-look-glass {
+  fill-opacity: 0.72;
+}
+
+.wc-pane-btn-glass[data-on] > svg > .wc-look-clear,
+.wc-pane-btn-glass:not([data-on]) > svg > .wc-look-glass {
+  display: none;
+}
+
+/* Colour: a muted colour wheel (fixed lightness and chroma, so no hue
+ * shouts) round a dot in the pane's tint (`--pane-border` lifted to the
+ * wheel's lightness; Plain's chroma 0 stays a neutral grey), a hairline
+ * gap between them. Dimmed with the cross's 70 %; on hover, full and a
+ * little stronger. */
+.wc-look-wheel {
+  --wheel-l: 0.74;
+  --wheel-c: 0.075;
+  width: var(--icon);
+  height: var(--icon);
+  border-radius: 50%;
+  opacity: 0.8;
+  background:
+    radial-gradient(circle closest-side, oklch(from var(--pane-border) var(--wheel-l) min(calc(c * 8), 0.12) h) 0 44%, transparent 45%),
+    conic-gradient(
+      oklch(var(--wheel-l) var(--wheel-c) 25),
+      oklch(var(--wheel-l) var(--wheel-c) 85),
+      oklch(var(--wheel-l) var(--wheel-c) 145),
+      oklch(var(--wheel-l) var(--wheel-c) 205),
+      oklch(var(--wheel-l) var(--wheel-c) 265),
+      oklch(var(--wheel-l) var(--wheel-c) 325),
+      oklch(var(--wheel-l) var(--wheel-c) 25)
+    );
+  -webkit-mask: radial-gradient(circle closest-side, #000 0 44%, transparent 46% 58%, #000 60% 97%, transparent 100%);
+  mask: radial-gradient(circle closest-side, #000 0 44%, transparent 46% 58%, #000 60% 97%, transparent 100%);
+}
+
+:root[data-light] .wc-look-wheel,
+.wc-pane[data-light] .wc-look-wheel {
+  --wheel-l: 0.62;
+  --wheel-c: 0.09;
+}
+
+/* Borderless, the cross is in the dim frame colour: the wheel is dimmer too. */
+.wc-pane:not([data-framed]) .wc-look-wheel {
+  opacity: 0.5;
+}
+
+.wc-pane > .wc-pane-btn-color:hover > .wc-look-wheel {
+  opacity: 1;
+  --wheel-c: 0.11;
 }
 
 /* A script pane shows the cross on hover like a built-in pane, framed or
  * not, over whatever its top row holds (ADR 0084 addendum). A pane made
  * with `createPane{cross = false}` (the pane bar) is marked
- * `data-no-cross` and shows none; Options → Panes, pane:hide() or the
- * script's own command turn it off. Temporary panes always have it. */
-.wc-pane.wc-pane-script[data-no-cross] > .wc-pane-close {
+ * `data-no-cross` and shows none, nor the look buttons (ADR 0095);
+ * Options → Panes, pane:hide() or the script's own command turn it off.
+ * Temporary panes always have the cross and never the buttons. */
+.wc-pane.wc-pane-script[data-no-cross] > :is(.wc-pane-close, .wc-pane-btn) {
   display: none;
 }
 

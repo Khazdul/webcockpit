@@ -18,7 +18,7 @@
 import './panes.css';
 import type { UiMessage, UiMessageKind, UiMessagePart } from '../core/types';
 import { paneLight } from '../theme/apply';
-import { darkInk, fitContrast, lightShift, paneEffectiveBg } from '../theme/color';
+import { darkInk, fitContrast, lightShift, paneContentBg } from '../theme/color';
 import { AnchoredList, type ListMetrics, forwardWheel } from './anchored-list';
 import { PaneShell } from './pane';
 import type { PaneContext } from './context';
@@ -203,7 +203,7 @@ export class UiPane extends PaneShell {
     const s = this.ctx.settings.get();
     const light = paneLight(s, 'ui');
     // On a light pane every colour is held to 4.5:1 against it (ADR 0041).
-    const bg = paneEffectiveBg(s.panes.ui.color, s.appearance.bg);
+    const bg = paneContentBg(s.panes.ui.color, s.appearance.bg, s.panes.ui.glass);
     const ink = (c: string): string => fitContrast(c, bg, 4.5, '#000000');
     const col = (c: string): string => (light ? ink(lightShift(c)) : c);
     const base = light ? ink(darkInk(bg)) : UI_COLORS.base;

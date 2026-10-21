@@ -143,9 +143,19 @@ export function paneEffectiveBg(color: PaneColor, termBg: string): string {
   return PANE_TINTS[color]?.fill ?? normalizeHex(termBg) ?? '#000000';
 }
 
-/** Whether a pane's content sits on a light background (Inv §10.5). */
-export function paneIsLight(color: PaneColor, termBg: string): boolean {
-  return isLight(paneEffectiveBg(color, termBg));
+/**
+ * The background a pane's content sits on: its fill (`paneEffectiveBg`), or
+ * on a clear pane (`glass` off, ADR 0095), which has no fill, the page's.
+ * Text colours follow it, so a dark tint's light text does not end up on a
+ * light page through a clear pane.
+ */
+export function paneContentBg(color: PaneColor, termBg: string, glass = true): string {
+  return glass ? paneEffectiveBg(color, termBg) : (normalizeHex(termBg) ?? '#000000');
+}
+
+/** Whether a pane's content sits on a light background (Inv §10.5; a clear pane: the page's, ADR 0095). */
+export function paneIsLight(color: PaneColor, termBg: string, glass = true): boolean {
+  return isLight(paneContentBg(color, termBg, glass));
 }
 
 /** The (h, s) the pane's border and shade ramp use. */
@@ -217,9 +227,9 @@ export function shadeRamp(h: number, s: number, light: boolean): Record<ShadeRol
 }
 
 /** A pane's shade ramp (dark or light by its own effective bg). */
-export function paneShades(color: PaneColor, termBg: string): Record<ShadeRole, string> {
+export function paneShades(color: PaneColor, termBg: string, glass = true): Record<ShadeRole, string> {
   const [h, s] = paneHs(color, termBg);
-  return shadeRamp(h, s, paneIsLight(color, termBg));
+  return shadeRamp(h, s, paneIsLight(color, termBg, glass));
 }
 
 // ------------------------------------------------------- light transforms

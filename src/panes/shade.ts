@@ -11,7 +11,7 @@
 
 import type { PaneId } from '../layout/types';
 import { type Settings, paneSettingsOf } from '../settings/types';
-import { type ShadeRole, paneEffectiveBg, paneHs, isLight, shadeRamp, washout } from '../theme/color';
+import { type ShadeRole, paneContentBg, paneHs, isLight, shadeRamp, washout } from '../theme/color';
 
 export interface PaneShade {
   /** The seven shades by role. */
@@ -24,9 +24,10 @@ export interface PaneShade {
 
 /** The shade ramp of pane `id` under `s`, resolved now. */
 export function paneShade(s: Readonly<Settings>, id: PaneId): PaneShade {
-  const color = paneSettingsOf(s.panes, id).color;
+  const { color, glass } = paneSettingsOf(s.panes, id);
   const termBg = s.appearance.bg;
-  const bg = paneEffectiveBg(color, termBg);
+  // A clear pane's content is on the page (ADR 0095).
+  const bg = paneContentBg(color, termBg, glass);
   const light = isLight(bg);
   const [h, sat] = paneHs(color, termBg);
   return { ramp: shadeRamp(h, sat, light), light, bg };

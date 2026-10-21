@@ -309,7 +309,9 @@ export class PaneShell {
   applyTheme(s: Readonly<Settings>): void {
     applyPaneTheme(this.el, s, this.id);
     const a = s.appearance;
-    const key = `${paneSettingsOf(s.panes, this.id).color}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
+    const p = paneSettingsOf(s.panes, this.id);
+    // The glass background too: a clear pane's text follows the page (ADR 0095).
+    const key = `${p.color}|${p.glass}|${a.fg}|${a.bg}|${a.ansi.join(',')}`;
     if (key !== this.themeKey) {
       this.themeKey = key;
       this.markDirty();
@@ -401,6 +403,17 @@ export class PaneShell {
       st.setProperty('--plate-y1', `${pl.y1}px`);
       st.setProperty('--plate-r', `${pl.r}px`);
     } else for (const k of ['--plate-x0', '--plate-x1', '--plate-y0', '--plate-y1', '--plate-r']) st.removeProperty(k);
+  }
+
+  /**
+   * Where the nameplate ends, in CSS px from the pane's left edge (0 with
+   * no plate or no frame): the cockpit keeps the hover buttons right of it
+   * (ADR 0095).
+   */
+  get titleEnd(): number {
+    const pl = this._plate;
+    const g = this._frameLine;
+    return this.placed?.framed && pl && g ? g.l + pl.x1 : 0;
   }
 
   /** The frame rim as last placed (CSS px from the pane's edges), null while unframed. */

@@ -101,6 +101,12 @@ export interface PaneSettings {
   color: PaneColor;
   /** Draw the half-block frame. */
   border: boolean;
+  /**
+   * Glass background (ADR 0095): the pane's fill inside the frame, over a
+   * blur with weather on. Off, the pane is clear: no fill and no blur, so
+   * what lies behind it shows sharp (a frame keeps its glass rim).
+   */
+  glass: boolean;
 }
 
 /**
@@ -110,8 +116,8 @@ export interface PaneSettings {
  */
 export type PaneSettingsMap = Record<BuiltinPaneId, PaneSettings> & { [id: ScriptPaneId]: PaneSettings | undefined };
 
-/** A script pane's toggles before the user changes them: on, no tint, framed. */
-export const SCRIPT_PANE_DEFAULTS: Readonly<PaneSettings> = Object.freeze({ on: true, color: 'black', border: true });
+/** A script pane's toggles before the user changes them: on, no tint, framed, glass. */
+export const SCRIPT_PANE_DEFAULTS: Readonly<PaneSettings> = Object.freeze({ on: true, color: 'black', border: true, glass: true });
 
 /** The toggles of pane `id` (a script pane without an entry: the defaults). */
 export function paneSettingsOf(panes: Readonly<PaneSettingsMap>, id: PaneId): PaneSettings {
@@ -383,16 +389,16 @@ export function defaultSettings(): Settings {
       boldBright: true,
     },
     panes: {
-      character: { on: false, color: 'black', border: true },
-      timers: { on: true, color: 'black', border: true },
-      group: { on: true, color: 'black', border: true },
-      comm: { on: true, color: 'black', border: true },
-      ui: { on: false, color: 'black', border: false },
-      map: { on: true, color: 'black', border: false },
+      character: { on: false, color: 'black', border: true, glass: true },
+      timers: { on: true, color: 'black', border: true, glass: true },
+      group: { on: true, color: 'black', border: true, glass: true },
+      comm: { on: true, color: 'black', border: true, glass: true },
+      ui: { on: false, color: 'black', border: false, glass: true },
+      map: { on: true, color: 'black', border: false, glass: true },
       // Pre-placed bundled script panes (ADR 0078): the pane bar is
       // borderless; Map search starts off (its script runs, the pane waits).
-      [PANEBAR_PANE]: { on: true, color: 'black', border: false },
-      [MAPSEARCH_PANE]: { on: false, color: 'black', border: true },
+      [PANEBAR_PANE]: { on: true, color: 'black', border: false, glass: true },
+      [MAPSEARCH_PANE]: { on: false, color: 'black', border: true, glass: true },
     },
     layout: defaultLayout(),
     profile: 'default',

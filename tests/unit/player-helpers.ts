@@ -158,12 +158,12 @@ export function meta(runId: string, startedUs: number, extra: Partial<RunMeta> =
 export const BASE_US = 1_790_000_000_000_000;
 /** A recorded pane set with one tint, so tests can tell recorded colours from the None default. */
 const RECORDED_PANES = {
-  character: { on: true, color: 'black', border: true },
-  timers: { on: true, color: 'red', border: true },
-  group: { on: true, color: 'black', border: true },
-  comm: { on: true, color: 'black', border: true },
-  ui: { on: true, color: 'black', border: true },
-  map: { on: true, color: 'black', border: true },
+  character: { on: true, color: 'black', border: true, glass: true },
+  timers: { on: true, color: 'red', border: true, glass: true },
+  group: { on: true, color: 'black', border: true, glass: true },
+  comm: { on: true, color: 'black', border: true, glass: true },
+  ui: { on: true, color: 'black', border: true, glass: true },
+  map: { on: true, color: 'black', border: true, glass: true },
 };
 
 export function twoRunChain(): ChainRun[] {
