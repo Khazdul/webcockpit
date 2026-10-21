@@ -636,13 +636,13 @@ local function header(n)
   end
   local left = " " .. (n == 1 and "1 key" or n .. " keys")
   -- The ? as far right as it goes clear of the close cross and the
-  -- pane's Colour, Border and Background buttons (ADR 0095): on a
-  -- borderless pane the cross (" × ", three cells, one in from the right
-  -- edge) and the buttons (two cells each, left of it) cover columns
-  -- width-9 to width-1 of this row while the pane is hovered, so the ?
-  -- sits at width-11 with one empty cell before them (framed, they are on
-  -- the frame). On a narrow pane it follows the count.
-  local at = math.max(len(left) + 3, width - 11)
+  -- pane's Colour, Border and Background buttons (ADR 0095, round 1): on
+  -- a borderless pane the cross (" × ", the last three cells) and the
+  -- buttons (two cells each, left of it) cover columns width-8 to width
+  -- of this row while the pane is hovered, so the ? sits at width-10 with
+  -- one empty cell before them (framed, they are on the frame). On a
+  -- narrow pane it follows the count.
+  local at = math.max(len(left) + 3, width - 10)
   row(1, {
     { text = left .. string.rep(" ", at - len(left) - 1), color = DIM },
     { text = "?", color = LINK_C, fn = function() showHelp() end, hint = "The key manager's help (keys help)" },

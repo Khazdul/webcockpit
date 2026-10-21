@@ -1,6 +1,6 @@
 // Pane hover buttons (ADR 0095): labels, states and what fits.
 import { describe, expect, it } from 'vitest';
-import { LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from '../../src/layout/pane-buttons';
+import { CROSS_CELLS_BORDERLESS, CROSS_CELLS_FRAMED, LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from '../../src/layout/pane-buttons';
 
 const P = { on: true, color: 'black' as const, border: true, glass: true };
 
@@ -32,6 +32,10 @@ describe('pane look buttons', () => {
     expect(lookButtonsFit(300, 10, 256)).toBe(0);
     // A pane narrower than the cross and one button.
     expect(lookButtonsFit(50, 10, 0)).toBe(0);
+    // Borderless (round 1): the cross at the edge, so one cell more for the buttons.
+    expect(lookButtonsFit(300, 10, 205, CROSS_CELLS_BORDERLESS)).toBe(3);
+    expect(lookButtonsFit(300, 10, 206, CROSS_CELLS_BORDERLESS)).toBe(2);
+    expect(CROSS_CELLS_FRAMED).toBe(4);
   });
 
   it('icons are inline SVG or CSS, without ids (they repeat in every pane)', () => {

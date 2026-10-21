@@ -278,6 +278,22 @@ export function paneOutline(termBg: string): string {
   return isLight(bg) ? mix(bg, '#000000', OUTLINE_MIX_LIGHT) : mix(bg, '#ffffff', OUTLINE_MIX_DARK);
 }
 
+/**
+ * The title bar a borderless pane's top row gets on hover (ADR 0095 round
+ * 1): opaque, one hover-outline step (`paneOutline`) from the pane's tint
+ * background, so it reads as a bar on its own fill and on the page alike;
+ * Plain is the hover outline's own colour, so bar and outline make one
+ * tab. A clear pane's text follows the page (`paneContentBg`): on a light
+ * page a tint's dark fill would put dark text on a dark bar, so there the
+ * bar is the tint's hue, light.
+ */
+export function paneBar(color: PaneColor, termBg: string, glass = true): string {
+  const content = paneContentBg(color, termBg, glass);
+  const tint = PANE_TINTS[color]?.hs;
+  if (isLight(content)) return tint ? hslToHex(tint[0], tint[1] * 0.6, 84) : paneOutline(content);
+  return paneOutline(paneEffectiveBg(color, termBg));
+}
+
 /** Editor current-line band: bg 12 % toward white (dark bg) or black (light bg). */
 export function lineHighlight(termBg: string): string {
   return mix(termBg, isLight(termBg) ? '#000000' : '#ffffff', 0.12);

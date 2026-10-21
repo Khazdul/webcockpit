@@ -14,7 +14,7 @@ import {
   shadeVar,
 } from '../../src/theme/apply';
 import { CellMetrics, cellHeight, nominalCell } from '../../src/theme/cells';
-import { hslToHex, paneShades } from '../../src/theme/color';
+import { hslToHex, isLight, paneOutline, paneShades } from '../../src/theme/color';
 import { FONTS, fontPx } from '../../src/theme/fonts';
 import { INPUT_COLOR_IDS, PAPER_PALETTE, TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
@@ -155,13 +155,13 @@ describe('input colour (ADR 0034, 0035)', () => {
 });
 
 describe('pane tokens', () => {
-  it('sets bg, border, seven shades and data-light, recomputed every call', () => {
+  it('sets bg, border, bar, seven shades and data-light, recomputed every call', () => {
     const s = legacySettings();
     s.panes.timers.color = 'red';
     const t = paneTokens(s, 'timers');
     expect(t['--pane-bg']).toBe('#1a0e0e');
     expect(t['--pane-border']).toBe('#2e2222');
-    expect(Object.keys(t)).toHaveLength(9);
+    expect(Object.keys(t)).toHaveLength(10);
     expect(t['--pane-shade-pane-bg']).toBe(paneShades('red', '#000000').paneBg);
     expect(t['--pane-shade-dim']).toBe(hslToHex(2, 60, 27));
     expect(shadeVar('paneBg')).toBe('--pane-shade-pane-bg');
@@ -177,7 +177,28 @@ describe('pane tokens', () => {
     paper.panes.timers.color = 'red';
     applyPaneTheme(el, paper, 'timers');
     expect(el.hasAttribute('data-light')).toBe(false);
-    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(9);
+    for (const id of PANE_IDS) expect(Object.keys(paneTokens(s, id))).toHaveLength(10);
+  });
+
+  it('the hover title bar (ADR 0095 round 1): a step from the tint background, light for a clear tint on a light page', () => {
+    const s = legacySettings();
+    // Plain on black: the hover outline's colour, one tab with it.
+    expect(paneTokens(s, 'comm')['--pane-bar']).toBe(paneOutline('#000000'));
+    s.panes.comm.color = 'red';
+    expect(paneTokens(s, 'comm')['--pane-bar']).toBe(paneOutline('#1a0e0e'));
+    // Clear, on black: the same (the tint, not the page).
+    s.panes.comm.glass = false;
+    expect(paneTokens(s, 'comm')['--pane-bar']).toBe(paneOutline('#1a0e0e'));
+    const paper = migrateSettings({ appearance: { bg: '#f4ecd8' } });
+    expect(paneTokens(paper, 'comm')['--pane-bar']).toBe(paneOutline('#f4ecd8'));
+    // A glass red pane on Paper is dark: a lifted dark red.
+    paper.panes.comm.color = 'red';
+    expect(paneTokens(paper, 'comm')['--pane-bar']).toBe(paneOutline('#1a0e0e'));
+    // Clear: its text is the page's (dark), so a light red bar.
+    paper.panes.comm.glass = false;
+    const bar = paneTokens(paper, 'comm')['--pane-bar']!;
+    expect(isLight(bar)).toBe(true);
+    expect(bar).toBe(hslToHex(2, 36, 84));
   });
 
   it('a clear pane (ADR 0095): the page as its background, its tint kept for the rim, data-clear set', () => {

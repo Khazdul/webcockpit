@@ -58,7 +58,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await command(page, '#script enable keymanager');
   await expect(pane(page)).toBeVisible();
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Port keys');
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {11}$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {10}$/);
   await expect(prows(page).nth(2)).toHaveText(/^ No keys yet\.\s*$/);
 
   // locatel home: the cast, then the block; the row is gagged.
@@ -484,7 +484,7 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
   }), ID);
   await expect(pane(page)).not.toHaveAttribute('data-framed', '');
   // The ? at column width-5: four cells after it, then the last column.
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {11}$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {10}$/);
   const close = pane(page).locator('.wc-pane-close');
   await page.mouse.move(5, 5);
   await expect(close).toBeHidden();

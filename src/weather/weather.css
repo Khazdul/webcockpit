@@ -100,3 +100,24 @@
 .wc-cockpit[data-weather] > .wc-pane[data-framed][data-clear] > .wc-pane-blur {
   display: none;
 }
+
+/* A borderless glass pane (ADR 0095 round 1) gets the glass a frame has
+ * inside it: its colour at 55 % over a 2.5 px blur, on the pane itself (no
+ * frame box), docked or a see-through float. Without the blur (Firefox,
+ * `data-weather-flat`) and while a float lies over it (`data-weather-under`:
+ * its hole clip), 64 % and no blur, as inside a frame. A clear one stays
+ * clear (layout.css). Weather off it keeps the opaque fill. Not the map
+ * with its own opaque background (Options → Mapper): its canvas covers the
+ * pane, so the blur would cost and show nothing. */
+.wc-cockpit[data-weather] > .wc-pane:not([data-framed]):not([data-clear]):not(.wc-pane-map:not(:has(> .wc-pane-content[data-map-transparent]))):is(:not([data-floating]), [data-weather-see]) {
+  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 55%, transparent);
+  -webkit-backdrop-filter: blur(2.5px) saturate(1.25);
+  backdrop-filter: blur(2.5px) saturate(1.25);
+}
+
+.wc-cockpit[data-weather][data-weather-flat] > .wc-pane:not([data-framed]):not([data-clear]):not(.wc-pane-map:not(:has(> .wc-pane-content[data-map-transparent]))):is(:not([data-floating]), [data-weather-see]),
+.wc-cockpit[data-weather] > .wc-pane.wc-pane:not([data-framed]):not([data-clear]):not(.wc-pane-map:not(:has(> .wc-pane-content[data-map-transparent])))[data-weather-under] {
+  background: color-mix(in srgb, var(--pane-bg, var(--term-bg)) 64%, transparent);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}

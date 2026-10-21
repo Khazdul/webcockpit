@@ -45,6 +45,7 @@ import {
   lineHighlight,
   mix,
   normalizeHex,
+  paneBar,
   paneBorder,
   paneContentBg,
   paneEffectiveBg,
@@ -242,6 +243,7 @@ export function appearanceChanged(a: Readonly<AppearanceSettings>, b: Readonly<A
  * The per-pane custom properties for `paneId` under `s`. A clear pane
  * (ADR 0095) has the page's background as `--pane-bg` (its content's
  * background) and keeps its tint's `--pane-border` (the rim's glass).
+ * `--pane-bar` is a borderless pane's hover title bar (round 1).
  */
 export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string, string> {
   const { color, glass } = paneSettingsOf(s.panes, paneId);
@@ -249,6 +251,7 @@ export function paneTokens(s: Readonly<Settings>, paneId: PaneId): Record<string
   const t: Record<string, string> = {
     '--pane-bg': paneContentBg(color, bg, glass),
     '--pane-border': paneBorder(color, bg),
+    '--pane-bar': paneBar(color, bg, glass),
   };
   const shades = paneShades(color, bg, glass);
   for (const role of SHADE_ROLES) t[shadeVar(role)] = shades[role];
