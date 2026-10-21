@@ -52,12 +52,13 @@
 //   by its title row to move it; drop it on a screen-edge zone to dock it.
 //   Its edges and corners resize it. Pressing on it brings it to front.
 // - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
-//   title row, one cell in from the right edge; clicking it switches the
+//   title row, one cell in from the right edge (borderless: at the edge,
+//   the top row a title bar on hover, ADR 0095 round 1); clicking it switches the
 //   pane off (`panes[id].on = false`, the same as Settings). A script pane
 //   made with `cross = false` has none (ADR 0084 addendum, CSS). Hovering a
 //   borderless pane outlines it (ADR 0084, CSS), but not the map or a
 //   script pane made with `outline = false` (addendum 2); hovering it shows
-//   its name in a small tag centred on the top row (`.wc-pane-name`, ADR
+//   its name in a small tag at the left of the top row (`.wc-pane-name`, ADR
 //   0087, CSS) on a pane marked `data-tooltip`: the built-in panes but the
 //   map and Character, and script panes made with `tooltip = true`.
 // - Left of the cross, hovering shows three look buttons (`.wc-pane-btn`,
@@ -149,7 +150,8 @@ import {
   lookPatch,
   togglePatch,
 } from './model';
-import { LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from './pane-buttons';
+import { floatHoles } from './float-holes';
+import { CROSS_CELLS_BORDERLESS, CROSS_CELLS_FRAMED, LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from './pane-buttons';
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
@@ -405,6 +407,8 @@ export class Cockpit {
   private readonly shells = new Map<PaneId, PaneShell>();
   /** Close crosses by pane (their tooltip follows the label). */
   private readonly closers = new Map<PaneId, HTMLDivElement>();
+  /** The holes under floating panes (float-holes.ts), recut after every layout. */
+  private readonly holes: { sync(): void; clear(): void };
   /** Hover buttons by pane (Colour, Border, Background, ADR 0095); none on temporary panes. */
   private readonly lookers = new Map<PaneId, HTMLDivElement[]>();
   /** Name tags by pane, shown on a long hover over a borderless pane (ADR 0087). */
@@ -468,6 +472,7 @@ export class Cockpit {
       return d;
     };
     this.el = div('wc-cockpit');
+    this.holes = floatHoles(this.el);
     this.gameEl = div('wc-game');
     this.inputEl = div('wc-input-slot');
     this.handlesEl = div('wc-handles');
@@ -597,13 +602,13 @@ export class Cockpit {
     const btns = this.lookers.get(id);
     if (!btns) return;
     const p = paneSettingsOf(s.panes, id);
+    const framed = shell.el.hasAttribute('data-framed');
     let freeFrom = shell.titleEnd;
-    if (!freeFrom && shell.el.hasAttribute('data-tooltip')) {
-      // The name tag, centred on the top row (layout.css: 0.85em, at most the pane less two cells); a cell a character is a safe bound.
-      const tag = Math.min((shell.label.length + 2) * cellW, paneW - 2 * cellW);
-      freeFrom = (paneW + tag) / 2;
+    if (!framed && shell.el.hasAttribute('data-tooltip')) {
+      // The name tag at the left of the top row (layout.css: 0.85em, at most the pane less the cross); a cell a character is a safe bound.
+      freeFrom = Math.min((shell.label.length + 2) * cellW, paneW - 3 * cellW);
     }
-    const fit = lookButtonsFit(paneW, cellW, freeFrom);
+    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS);
     PANE_LOOKS.forEach((what, i) => {
       const b = btns[i]!;
       const text = lookLabel(what, p);
@@ -817,7 +822,17 @@ export class Cockpit {
       if (b) this.syncLook(id, shell, s, b.rect.w * cell.w, cell.w);
     }
     this.renderHandles(r, cell);
+    // Synchronously, before this layout is painted: what a float now covers is clipped out in the same frame.
+    this.holes.sync();
     for (const fn of [...this.layoutListeners]) fn();
+  }
+
+  /**
+   * Recuts the holes under floating panes now (float-holes.ts): the
+   * weather calls it when it marks or unmarks the cockpit `data-weather`.
+   */
+  syncHoles(): void {
+    if (!this.disposed) this.holes.sync();
   }
 
   /** Phone only: the selected tab (GAME or a pane id). */
@@ -883,6 +898,8 @@ export class Cockpit {
       shell.place(b ? { rect: b.rect, content: b.content, framed: b.framed, floating } : null, cell);
     }
     this.renderStrip(r, cell);
+    // Synchronously, before this layout is painted: what a float now covers is clipped out in the same frame.
+    this.holes.sync();
     for (const fn of [...this.layoutListeners]) fn();
   }
 

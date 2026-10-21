@@ -270,8 +270,9 @@
 }
 
 /* Close cross (" × ") in the title row, one cell in from the right so the
- * corner keeps its resize handle; shown while the pointer is over the
- * pane. Above the grip and the float handles.
+ * corner keeps its resize handle (borderless: at the right edge, below);
+ * shown while the pointer is over the pane. Above the grip and the float
+ * handles.
  *
  * The look buttons (`.wc-pane-btn`, ADR 0095; cockpit.ts, pane-buttons.ts)
  * sit left of it, two cells each, `--slot` 0 next to the cross: Colour,
@@ -344,10 +345,22 @@
   display: flex;
 }
 
-/* A clear borderless pane (ADR 0095) has no background: no box behind
- * the buttons either. */
-.wc-pane[data-clear]:not([data-framed]) > :is(.wc-pane-close, .wc-pane-btn) {
-  background: transparent;
+/* Borderless (ADR 0095 round 1): the cross at the right edge, the buttons
+ * following it, on the hover title bar (`--pane-bar`, below), their boxes
+ * the bar's colour so the row's text does not show through them, their
+ * ink the pane's label shade (the frame colour vanished on the bar). A
+ * borderless float gives its top-right resize corner to the cross. */
+.wc-pane:not([data-framed]) > :is(.wc-pane-close, .wc-pane-btn) {
+  background: var(--pane-bar, var(--pane-bg, var(--term-bg)));
+  color: var(--pane-shade-label, var(--pane-border));
+}
+
+.wc-pane:not([data-framed]) > .wc-pane-close {
+  right: 0;
+}
+
+.wc-pane:not([data-framed]) > .wc-pane-btn {
+  right: calc((3 + 2 * var(--slot, 0)) * var(--cell-w));
 }
 
 .wc-pane > :is(.wc-pane-close, .wc-pane-btn):hover {
@@ -460,8 +473,29 @@
     content: none;
   }
 
+  /* The hover title bar (ADR 0095 round 1): a borderless pane's top row
+   * takes `--pane-bar` (theme/color.ts `paneBar`: opaque, a step from the
+   * tint background; Plain the outline's colour, so bar and outline make
+   * one tab), under the row's text, as a frame's top row is the frame. Not
+   * on a pane without a cross (the pane bar is its own bar). */
+  .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):not([data-no-cross]):hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--cell-h);
+    background: var(--pane-bar, var(--pane-outline));
+    pointer-events: none;
+  }
+
+  .wc-cockpit:has(> .wc-drag-shield:not([hidden])) > .wc-pane:hover::before {
+    content: none;
+  }
+
   /* Hovering a borderless pane shows its name at once (ADR 0087): a
-   * small, dim tag centred on the top row, where a frame puts the title.
+   * small tag at the left of the top row (ADR 0095 round 1: it was centred),
+   * on the title bar, where a frame puts the title.
    * Only on a pane marked `data-tooltip` (built-in panes but the map and
    * Character; script panes with `createPane{tooltip = true}`). */
   .wc-cockpit:not([data-phone-tab]) > .wc-pane[data-tooltip]:not([data-framed]):hover > .wc-pane-name {
@@ -476,15 +510,17 @@
 .wc-pane-name {
   position: absolute;
   top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: calc(100% - 2 * var(--cell-w));
+  left: 0;
+  /* Never under the cross (the last three cells). */
+  max-width: calc(100% - 3 * var(--cell-w));
   height: var(--cell-h);
   overflow: hidden;
   white-space: pre;
   font-size: 0.85em;
-  /* The close cross's colour, no background of its own. */
-  color: var(--pane-border);
+  /* The close cross's colour, on the title bar's colour so the row's text
+   * does not show through it. */
+  color: var(--pane-shade-label, var(--pane-border));
+  background: var(--pane-bar, transparent);
   pointer-events: none;
   user-select: none;
   z-index: 4;

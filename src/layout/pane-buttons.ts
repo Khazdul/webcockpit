@@ -6,7 +6,11 @@
 // a script pane made with `cross = false` has them hidden with its cross
 // (CSS `data-no-cross`).
 //
-//   … [Colour][Border][Background][ × ]▕   right edge; the last cell is the corner's
+//   framed:      … [Colour][Border][Background][ × ]▕   the last cell is the corner's
+//   borderless:  … [Colour][Border][Background][ × ]    the cross at the right edge
+//
+// (ADR 0095 round 1: on a borderless pane the cross moved to the edge and
+// the top row becomes a title bar on hover, the name tag at its left.)
 //
 // Each button is two cells wide; the cross keeps its three. The icons are
 // small inline SVGs in `currentColor` (the cross's colour, the accent on
@@ -32,8 +36,10 @@ export const PANE_LOOKS: readonly PaneLook[] = ['color', 'border', 'glass'];
 
 /** Cells per button (the cross has three). */
 export const LOOK_BUTTON_CELLS = 2;
-/** Cells from the pane's right edge to the cross's left edge: the corner cell and the cross. */
-const CROSS_CELLS = 4;
+/** Cells from the pane's right edge to the cross's left edge, framed: the corner cell and the cross. */
+export const CROSS_CELLS_FRAMED = 4;
+/** … borderless: the cross at the edge (round 1). */
+export const CROSS_CELLS_BORDERLESS = 3;
 
 /** The tooltip and aria-label: what the button changes and the state now. */
 export function lookLabel(what: PaneLook, p: Readonly<PaneSettings>): string {
@@ -55,14 +61,15 @@ export function lookOn(what: PaneLook, p: Readonly<PaneSettings>): boolean {
 /**
  * How many buttons fit in a pane `paneW` px wide (cells `cellW` px) when
  * everything left of `freeFrom` px (the nameplate, a borderless pane's name
- * tag) must stay uncovered, with half a cell between: 0–3. The buttons go
+ * tag) must stay uncovered, with half a cell between: 0–3. `crossCells`:
+ * from the right edge to the cross's left edge. The buttons go
  * from the left (Colour first), so the ones that stay keep their places
  * beside the cross; the cross always stays.
  */
-export function lookButtonsFit(paneW: number, cellW: number, freeFrom: number): number {
+export function lookButtonsFit(paneW: number, cellW: number, freeFrom: number, crossCells = CROSS_CELLS_FRAMED): number {
   const gap = freeFrom > 0 ? cellW / 2 : 0;
   let n = 0;
-  while (n < PANE_LOOKS.length && paneW - (CROSS_CELLS + LOOK_BUTTON_CELLS * (n + 1)) * cellW >= freeFrom + gap) n++;
+  while (n < PANE_LOOKS.length && paneW - (crossCells + LOOK_BUTTON_CELLS * (n + 1)) * cellW >= freeFrom + gap) n++;
   return n;
 }
 

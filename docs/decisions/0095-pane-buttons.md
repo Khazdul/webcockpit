@@ -99,3 +99,62 @@ only built-in way to show a hidden pane.
   player's choice, one click away from glass.
 - Recordings (VIEW records) made before this ADR carry no `glass`; the
   store's migration makes their panes glass, as they were.
+
+## Addendum: round 1 (2026-10-22)
+
+Owner feedback on 0.1.72.
+
+**A clear float hides the game text.** Showing the game text through a
+clear float mixed two texts; the owner wants everything else behind it
+(the weather, or the page with weather off, and docked panes) but not the
+game text. A clear float now cuts a hole in the game pane and the input
+line at its box, weather on or off, and in nothing else.
+
+- The holes moved from the weather chunk to `src/layout/float-holes.ts`,
+  owned by the cockpit: `sync()` after every relayout, before it is
+  painted (it was the weather's `floatHoles`, run from the relayout hook).
+  The weather calls `Cockpit.syncHoles` (via `WeatherHost.syncHoles`) when
+  it marks or unmarks the cockpit `data-weather`, which changes the holes,
+  and before it measures. `holeClip` and `cutRects` moved with it
+  (re-exported from `weather/geometry.ts`).
+- Weather on, a glass float works as before (see-through, holes in the
+  game, the input, docked panes and floats below). Weather off, a glass
+  float is opaque and cuts nothing, as before. Floats are see-through
+  (`data-weather-see`) only while the weather runs: before the worker's
+  first frame they were marked already, now with `data-weather`.
+
+**Borderless title bar.** Hovering a borderless pane (one with a cross)
+turns its top row into a title bar: `::before` over the row, under its
+text, in `--pane-bar`. The cross moves to the right edge (the last three
+cells; a borderless float gives its top-right resize corner to it), the
+buttons follow it (`CROSS_CELLS_BORDERLESS`), and the name tag (ADR 0087)
+moves from the centre to the left. The cross, the buttons and the tag
+have the bar's colour as their box, so the row's text does not show
+through them, and the pane's label shade as ink (the frame colour they
+had nearly vanished on the bar). The drop rule measures from the left
+tag's end. Framed panes do not change.
+
+`--pane-bar` (`paneBar`, theme/color.ts) is opaque, glass or clear: the
+tint background one hover-outline step lighter (`paneOutline`; darker on
+a light background). The tint fill itself would not read as a bar: it is
+the pane's own background with weather off, and close to black on a black
+page. Plain is therefore the hover outline's colour, so bar and outline
+make one tab. A clear tinted pane on a light page has dark text (it
+follows the page), so its bar is the tint's hue, light (L 84), not the
+dark fill.
+
+**Borderless glass.** With weather on a borderless glass pane had no
+glass: the pane was see-through and the worker painted its tint under the
+back layer, sharp. It now gets the glass a frame has inside it, on the
+pane element itself: its colour at 55 % over a 2.5 px blur; 64 % without
+blur in Firefox (`data-weather-flat`) and while a float lies over it
+(`data-weather-under`). A see-through borderless float gets the same.
+Weather off it keeps the opaque fill; clear stays clear. The map with its
+own opaque background (Options → Mapper) is left out: its canvas covers
+the pane, so the blur would cost and show nothing.
+
+**Top-row cells.** On a borderless pane the cross and the buttons now
+cover the last nine cells of the top row (was ten, one cell in); the key
+manager's `?` moves to width-10, one empty cell before them. The script
+manual says so. The Timers `+` is covered on a borderless Timers pane;
+the owner accepts that for now.
