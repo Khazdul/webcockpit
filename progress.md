@@ -40,6 +40,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — Stage 29 rounds 2 and 3, on branch `pane-buttons-r2`
+
+- **Round 2:** weather (rain, snow) falls inside clear panes, docked and
+  floating; the worker's scene panes skip clear ones.
+- **Round 3:** borderless hover shows only the icons (no bar, no boxes); the
+  name tag is gone (ADR 0087 withdrawn, `tooltip` accepted, no effect); the
+  weather lights a clear framed pane's rim (`Env.rims` vs solid `Env.panes`).
+- **Checks:** unit 2803; full e2e 539/540 (Firefox editor narrow window,
+  72/72 on repeat: flaky).
+- **Next:** owner says merge and release (0.1.74), then tests.
+- **Commits:** bf3d70e..d3545f7 on the branch, plus this one.
+
 ### 2026-10-22 — Stage 29 round 1, release 0.1.73
 
 - **Owner feedback on 0.1.72:** a clear float must hide the game text (only);
