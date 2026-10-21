@@ -167,8 +167,6 @@ export interface PaneSnapshot {
   anchor?: 'top';
   /** `createPane{cross = false}`: no close cross on hover; absent: the cross shows (ADR 0084 addendum). */
   cross?: false;
-  /** `createPane{tooltip = true}`: the name tag on a hover over the borderless pane; absent: none (ADR 0087 addendum). */
-  tooltip?: true;
   /** `createPane{outline = false}`: no outline on a hover over the borderless pane; absent: the outline shows (ADR 0084 addendum 2). */
   outline?: false;
 }
@@ -296,8 +294,6 @@ export interface PaneContentOptions {
   anchor?: PaneAnchor;
   /** Whether the pane shows the close cross on hover (default true; ADR 0084 addendum). */
   cross?: boolean;
-  /** Whether a hover shows the name tag on the borderless pane (default false; ADR 0087 addendum). */
-  tooltip?: boolean;
   /** Whether a hover outlines the borderless pane (default true; ADR 0084 addendum 2). */
   outline?: boolean;
 }
@@ -313,8 +309,6 @@ export class PaneContent {
   anchor: PaneAnchor;
   /** The close cross shows on hover (`createPane{cross = false}` turns it off). */
   cross: boolean;
-  /** A hover shows the name tag when borderless (`createPane{tooltip = true}`). */
-  tooltip: boolean;
   /** A hover outlines the pane when borderless (`createPane{outline = false}` turns it off). */
   outline: boolean;
   /** The hover style of links without their own (ADR 0065 round 2). */
@@ -334,7 +328,6 @@ export class PaneContent {
     this.maxLines = opts.maxLines ?? MAX_LINES;
     this.anchor = opts.anchor ?? 'bottom';
     this.cross = opts.cross ?? true;
-    this.tooltip = opts.tooltip ?? false;
     this.outline = opts.outline ?? true;
   }
 
@@ -672,7 +665,6 @@ export class PaneContent {
     };
     if (this.anchor === 'top') out.anchor = 'top';
     if (!this.cross) out.cross = false;
-    if (this.tooltip) out.tooltip = true;
     if (!this.outline) out.outline = false;
     return out;
   }
@@ -690,7 +682,6 @@ export class PaneContent {
     this.hover = 'band';
     this.anchor = s.anchor === 'top' ? 'top' : 'bottom';
     this.cross = s.cross !== false;
-    this.tooltip = s.tooltip === true;
     this.outline = s.outline !== false;
     this.broken = false;
     this.version++;

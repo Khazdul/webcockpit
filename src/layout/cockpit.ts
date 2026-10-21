@@ -53,14 +53,12 @@
 //   Its edges and corners resize it. Pressing on it brings it to front.
 // - Hovering a pane shows a close cross (`.wc-pane-close`, " × ") in its
 //   title row, one cell in from the right edge (borderless: at the edge,
-//   the top row a title bar on hover, ADR 0095 round 1); clicking it switches the
+//   ADR 0095 round 1); clicking it switches the
 //   pane off (`panes[id].on = false`, the same as Settings). A script pane
 //   made with `cross = false` has none (ADR 0084 addendum, CSS). Hovering a
 //   borderless pane outlines it (ADR 0084, CSS), but not the map or a
-//   script pane made with `outline = false` (addendum 2); hovering it shows
-//   its name in a small tag at the left of the top row (`.wc-pane-name`, ADR
-//   0087, CSS) on a pane marked `data-tooltip`: the built-in panes but the
-//   map and Character, and script panes made with `tooltip = true`.
+//   script pane made with `outline = false` (addendum 2). (The name tag a
+//   hover showed, ADR 0087, is gone: ADR 0095 round 3.)
 // - Left of the cross, hovering shows three look buttons (`.wc-pane-btn`,
 //   ADR 0095, src/layout/pane-buttons.ts): Colour steps the tint, Border
 //   flips the frame, Background flips glass and clear. Like the cross they
@@ -411,8 +409,6 @@ export class Cockpit {
   private readonly holes: { sync(): void; clear(): void };
   /** Hover buttons by pane (Colour, Border, Background, ADR 0095); none on temporary panes. */
   private readonly lookers = new Map<PaneId, HTMLDivElement[]>();
-  /** Name tags by pane, shown on a long hover over a borderless pane (ADR 0087). */
-  private readonly nameTags = new Map<PaneId, HTMLDivElement>();
   /** Script panes added with `addPane` (ADR 0053). */
   private readonly present = new Set<PaneId>();
   /** Temporary script panes, back to front (insertion order is the z-order). */
@@ -574,13 +570,6 @@ export class Cockpit {
     });
     shell.el.append(close);
     this.closers.set(id, close);
-    const tag = div('wc-pane-name');
-    tag.textContent = ` ${shell.label} `;
-    tag.setAttribute('aria-hidden', 'true');
-    shell.el.append(tag);
-    this.nameTags.set(id, tag);
-    // Built-in panes but the map and Character have the name tag; a script pane asks for it (ADR 0087 addenda).
-    if (isBuiltinPaneId(id) && id !== 'map' && id !== 'character') shell.el.toggleAttribute('data-tooltip', true);
     // The map has no hover outline either (ADR 0084 addendum 2).
     if (id === 'map') shell.el.toggleAttribute('data-no-outline', true);
     for (const edge of FLOAT_EDGES) {
@@ -603,11 +592,8 @@ export class Cockpit {
     if (!btns) return;
     const p = paneSettingsOf(s.panes, id);
     const framed = shell.el.hasAttribute('data-framed');
-    let freeFrom = shell.titleEnd;
-    if (!framed && shell.el.hasAttribute('data-tooltip')) {
-      // The name tag at the left of the top row (layout.css: 0.85em, at most the pane less the cross); a cell a character is a safe bound.
-      freeFrom = Math.min((shell.label.length + 2) * cellW, paneW - 3 * cellW);
-    }
+    // Clear of the nameplate on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
+    const freeFrom = shell.titleEnd;
     const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS);
     PANE_LOOKS.forEach((what, i) => {
       const b = btns[i]!;
@@ -707,7 +693,6 @@ export class Cockpit {
     this.shells.delete(id);
     this.closers.delete(id);
     this.lookers.delete(id);
-    this.nameTags.delete(id);
     if (shell) {
       shell.place(null, this.cells.get());
       shell.el.remove();
@@ -738,8 +723,6 @@ export class Cockpit {
     const close = this.closers.get(id);
     const shell = this.shells.get(id);
     if (close && shell) this.labelClose(close, id, shell.label);
-    const tag = this.nameTags.get(id);
-    if (tag && shell) tag.textContent = ` ${shell.label} `;
     if (this.phone) this.scheduleRelayout(); // the tab label follows
     for (const fn of [...this.paneListeners]) fn();
   }

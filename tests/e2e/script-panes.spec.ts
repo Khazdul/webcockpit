@@ -507,66 +507,35 @@ test('a script pane has a grab cursor on its top row and a close cross on hover;
   expect(errors).toEqual([]);
 });
 
-// ADR 0087: hovering a borderless pane made with tooltip = true
-// shows its name centred on the top row; leaving hides it at once; a
-// framed pane and a pane without the option show none.
-test('hovering a borderless pane with tooltip = true shows its name at once', async ({ page }) => {
+// ADR 0087 withdrawn (ADR 0095 round 3): no pane shows a name tag on hover;
+// createPane{tooltip = true} is still accepted and does nothing.
+test('createPane{tooltip = true} is accepted; no pane shows a name tag on hover', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await putScript(page, HOVER.replace('border = false}', 'border = false, tooltip = true}')
-    + 'createPane{id = "plain", title = "Plain Pane", dock = "left", rows = 4, cols = 30, border = false}\n', 'hovers');
+  await putScript(page, HOVER.replace('border = false}', 'border = false, tooltip = true}'), 'hovers');
   await page.keyboard.press('Enter');
-  const id = 'hovers/main';
-  const sp = page.locator(`.wc-pane[data-pane="${id}"]`);
+  // The pane exists: createPane did not reject the option.
+  const sp = page.locator('.wc-pane[data-pane="hovers/main"]');
   await expect(sp).toBeVisible();
-  await expect(sp).toHaveAttribute('data-tooltip', '');
-  const tag = sp.locator('.wc-pane-name');
-  await expect(tag).toHaveText(' Hover Pane ');
-  await expect(tag).toBeHidden();
-
   const b = (await sp.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await expect(tag).toBeVisible({ timeout: 300 });
-  // At the left of the top row, on the hover title bar (ADR 0095 round 1; it was centred).
-  const t = (await tag.boundingBox())!;
-  expect(Math.abs(t.x - b.x)).toBeLessThan(1);
-  expect(Math.abs(t.y - b.y)).toBeLessThan(1);
-  await page.mouse.move(5, 5);
-  await expect(tag).toBeHidden();
-
-  // Without the option: no tag.
-  const plain = page.locator('.wc-pane[data-pane="hovers/plain"]');
-  await expect(plain).toBeVisible();
-  await expect(plain).not.toHaveAttribute('data-tooltip', '');
-  const p = (await plain.boundingBox())!;
-  await page.mouse.move(p.x + p.width / 2, p.y + p.height / 2);
-  await page.waitForTimeout(300);
-  await expect(plain.locator('.wc-pane-name')).toBeHidden();
-
-  // Framed: no tag (the frame shows the title).
-  await page.evaluate((id) => window.__wc!.settings.update((d) => {
-    d.panes[id as 'a/b'] = { ...d.panes[id as 'a/b']!, border: true };
-  }), id);
-  await expect(sp).toHaveAttribute('data-framed', '');
-  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-  await page.waitForTimeout(300);
-  await expect(tag).toBeHidden();
+  await expect(sp.locator('> .wc-pane-close')).toBeVisible();
+  await expect(page.locator('.wc-pane-name')).toHaveCount(0);
+  await expect(page.locator('.wc-pane[data-tooltip]')).toHaveCount(0);
+  expect(errors).toEqual([]);
 });
 
-// ADR 0087 addenda: built-in panes have the name tag, the map and Character never.
-test('built-in panes have the name tag, the map and Character none', async ({ page }) => {
+// ADR 0084 addendum 2: no hover outline on the map, the others keep it.
+test('the map has no hover outline, the other panes keep it', async ({ page }) => {
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => ws.send(Buffer.from([IAC, WILL, GMCP])));
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-pane-comm')).toBeVisible();
-  await expect(page.locator('.wc-pane-comm')).toHaveAttribute('data-tooltip', '');
   await expect(page.locator('.wc-pane-map')).toHaveCount(1);
-  await expect(page.locator('.wc-pane-map')).not.toHaveAttribute('data-tooltip', '');
-  await expect(page.locator('.wc-pane-character')).toHaveCount(1);
-  await expect(page.locator('.wc-pane-character')).not.toHaveAttribute('data-tooltip', '');
-  // ADR 0084 addendum 2: no hover outline on the map, the others keep it.
   await expect(page.locator('.wc-pane-map')).toHaveAttribute('data-no-outline', '');
   await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-no-outline', '');
   await page.locator('.wc-pane-map').hover();

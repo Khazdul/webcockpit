@@ -476,9 +476,6 @@ export class ScriptPane extends PaneShell {
   private updateCross(): void {
     const off = !this.model.cross;
     if (this.el.hasAttribute('data-no-cross') !== off) this.el.toggleAttribute('data-no-cross', off);
-    // The name tag on a hover over the borderless pane (`createPane{tooltip = true}`, ADR 0087 addendum).
-    const tip = this.model.tooltip;
-    if (this.el.hasAttribute('data-tooltip') !== tip) this.el.toggleAttribute('data-tooltip', tip);
     // No outline on a hover over the borderless pane (`createPane{outline = false}`, ADR 0084 addendum 2).
     const flat = !this.model.outline;
     if (this.el.hasAttribute('data-no-outline') !== flat) this.el.toggleAttribute('data-no-outline', flat);

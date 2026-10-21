@@ -397,32 +397,21 @@ describe('Cockpit', () => {
     expect([...seen].sort()).toEqual([0, 1, 2, 3]);
   });
 
-  it('borderless (round 1): the buttons keep clear of the name tag at the left, dropped from the left', () => {
+  it('borderless (round 3): no name tag, nothing to keep clear: every button shows even in a narrow lane', () => {
     const { c, settings, flush } = make(1200, 1000);
     settings.update({ panes: { timers: { border: false } } });
     flush();
     const el = c.pane('timers').el;
     expect(el.hasAttribute('data-framed')).toBe(false);
-    expect(el.hasAttribute('data-tooltip')).toBe(true);
+    expect(c.el.querySelectorAll('.wc-pane-name, .wc-pane[data-tooltip]')).toHaveLength(0);
     const drops = () => [...el.querySelectorAll<HTMLElement>('.wc-pane-btn')].map((b) => b.hasAttribute('data-drop'));
-    // The tag " Timers " is 8 cells (a cell a character): 80 px, then half a cell free.
-    const seen = new Set<number>();
-    for (let w = 26; w >= 8; w--) {
-      settings.update((d) => {
-        d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, w);
-      });
-      flush();
-      const paneW = parseFloat(el.style.width);
-      const d = drops();
-      const kept = d.filter((x) => !x).length;
-      seen.add(kept);
-      expect(d).toEqual([...Array(3 - kept).fill(true), ...Array(kept).fill(false)]);
-      // The cross takes the last three cells, each button two.
-      const tag = Math.min(80, paneW - 30);
-      if (kept) expect(paneW - (3 + 2 * kept) * 10).toBeGreaterThanOrEqual(tag + 5);
-      if (kept < 3) expect(paneW - (3 + 2 * (kept + 1)) * 10).toBeLessThan(tag + 5);
-    }
-    expect([...seen].sort()).toEqual([0, 1, 2, 3]);
+    // A narrow lane: the pane is 9 + 3 cells wide at least, room for all three (the pure rule: pane-buttons.test.ts).
+    settings.update((d) => {
+      d.layout = moveToNewLane(legacySettings().layout, 'timers', 'right', 1, 2);
+    });
+    flush();
+    expect(parseFloat(el.style.width)).toBeGreaterThanOrEqual(90);
+    expect(drops()).toEqual([false, false, false]);
   });
 
   it('lays out the default in whole cells', () => {
