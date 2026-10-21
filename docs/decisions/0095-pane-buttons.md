@@ -193,3 +193,52 @@ no fill (round 0), so they show through it already.
   frame 4.6 ms with the panes clear and 4.5 ms with them glass, the sky
   module dominant either way; 30 fps cadence (p50 gap 33.3 ms) in both.
 - `Weather.geometry()` returns the geometry last posted (tests read it).
+
+## Addendum: round 3 (2026-10-22)
+
+Owner feedback before round 2 was released.
+
+**Borderless hover: icons only.** The round 1 title bar is gone: no bar,
+no boxes behind the cross and the buttons, no background colour at all.
+The cross stays at the right edge with the buttons beside it. Their ink
+is the pane's label shade (`--pane-shade-label`: L 60 on a dark pane, 34
+on a light one, in the tint's hue), with a soft halo in the pane's
+background colour (`text-shadow` on the cross, `drop-shadow` on the
+icons) so they stay apart from the text and the rain under them. Checked
+on Plain and tinted dark panes, a clear pane over rain, and Paper; the
+round 0 frame colour nearly vanished on all of them. The colour wheel is
+at 75 % (it was 50 % beside the dim cross). The hover outline stays.
+`--pane-bar` and `paneBar` are removed.
+
+**Name tag removed** (ADR 0087 withdrawn). Hovering a pane shows no
+name, built-in or script. The tag, its CSS, `data-tooltip` and the
+script pane model's `tooltip` are gone. `createPane{tooltip = …}` is
+accepted and ignored (no type check either), documented as having no
+effect; run records no longer write `"tooltip":true` and ignore it in old
+ones. The drop rule of a borderless pane has nothing left to keep clear,
+so its buttons drop only when the pane is narrower than they are; a
+framed pane still keeps clear of its nameplate. The key manager's `?`
+keeps its place (width-10, one cell before the buttons); the script
+manual's note says the buttons lie on the row's text with no background.
+
+**A clear framed pane is lit.** Its rim is glass and the weather lights
+it like any rim: glints of the moon and of a shooting star, the rays'
+and beams' glints, the sun's lift of the top rim, the lightning flash.
+The worker's pane list is split, no extra pass: `Env.panes` are the
+solid panes (framed, not clear) and `Env.rims` the lit rims (every framed
+pane). The lighting code reads `rims`; what treats a pane as solid reads
+`panes`:
+
+- Rain and snow still fall inside a clear pane, so it shelters nothing,
+  and no splash runs along its top edge: a splash is a drop stopping on
+  the pane, and a drop that stops there does not fall inside. The rim is
+  a few pixels; rain passing it reads right.
+- No sun shadow: the shadow wedges are the glass dimming the light
+  behind it, and a clear pane has none; a wedge for the thin rim alone
+  would read as a dark box that is not there.
+- A beam inside a clear pane is not weakened (`beamHits` takes the solid
+  panes for that), and a clear pane's interior is no "inside" box for the
+  beams. No fog along its top, no lightning strike on its ledge.
+
+Cost: the same loops over a list of the same length or shorter; the
+scene key that triggers an immediate rebuild now includes the rims.

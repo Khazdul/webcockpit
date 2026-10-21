@@ -1,6 +1,6 @@
 # 0087 — Name tag on a long hover over a borderless pane
 
-- Status: Accepted
+- Status: Withdrawn (ADR 0095 round 3, 2026-10-22)
 - Date: 2026-10-08
 - Extends: ADR 0084 (hover outline for borderless panes)
 
@@ -68,3 +68,12 @@ tooltip with the pane's name after hovering such a pane for 2 seconds.
 Owner: the Character pane needs no name tag on hover either. It is
 marked like the map: no `data-tooltip`, so a hover over it borderless
 shows no tag. The other built-in panes keep it.
+
+## Withdrawn (2026-10-22)
+
+Stage 29 round 3 (ADR 0095): hovering a pane no longer shows its name, on
+built-in and script panes alike; the owner found the tag unnecessary next
+to the pane's hover buttons. The tag element, its CSS and `data-tooltip`
+are gone. `createPane{tooltip = …}` is still accepted (old scripts run)
+and has no effect; old run records that carry `"tooltip":true` still read,
+and new ones do not write it.

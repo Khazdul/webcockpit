@@ -112,7 +112,7 @@ Tasks:
 
 Tasks:
 
-- [ ] Borderless hover: icons only, no bar or boxes
-- [ ] Name tag gone (built-in and script panes)
-- [ ] Weather lights a clear framed pane's rim
-- [ ] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual
+- [x] Borderless hover: icons only, no bar or boxes
+- [x] Name tag gone (built-in and script panes)
+- [x] Weather lights a clear framed pane's rim
+- [x] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual
