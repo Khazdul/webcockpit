@@ -48,7 +48,7 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Checks:** unit 2784, e2e 524/524 (the weather e2e sends `Group.Set`
   before the effects start).
 - **Owner test:** 0.1.71 "it works"; item 116 approved. Item 115 (sleep)
-  released in 0.1.69, not yet confirmed by the owner.
+  approved too.
 - **Next:** stage 28 stays in owner testing; the owner's later findings.
 - **Commits:** 40af205, b9a9e4d (version), plus this one.
 

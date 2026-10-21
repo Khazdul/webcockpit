@@ -2164,6 +2164,8 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        weather again. Unit 2780.
        Please try: `sleep` outdoors; the sky, clouds and rain should stay,
        with the z z Z on top. `wake` indoors should still go indoors.
+     - **Owner (2026-10-21, 0.1.71):** "works as expected now with the
+       weather". Approved.
 116. **No stun effect.** "I tried getting stunned in the game but got no
      effect."
      - **Open:** the effect fires when `Char.Vitals position` becomes
