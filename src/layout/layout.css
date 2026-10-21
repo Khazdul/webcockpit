@@ -439,9 +439,10 @@
   --wheel-c: 0.09;
 }
 
-/* Borderless, the cross is in the dim frame colour: the wheel is dimmer too. */
+/* Borderless, the icons are in the label shade (round 3): the wheel a
+ * little under its full strength, as framed. */
 .wc-pane:not([data-framed]) .wc-look-wheel {
-  opacity: 0.5;
+  opacity: 0.75;
 }
 
 .wc-pane > .wc-pane-btn-color:hover > .wc-look-wheel {
