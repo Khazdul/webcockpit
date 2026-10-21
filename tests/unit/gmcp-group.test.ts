@@ -241,3 +241,33 @@ describe('mid-fight HP from Char.Vitals (Inv §8.2)', () => {
     expect(g.apply('Char.Vitals', { 'buffer-hits': 'bad' })).toBe(false);
   });
 });
+
+describe('GroupModel selfBashed', () => {
+  // as in log mume-Gittan-2026-10-21T23-36-57 (owner item 116)
+  const you = { bashed: false, blind: false, id: 1, type: 'you', waiting: false };
+  it('follows your own entry, not a member, and is not a member itself', () => {
+    const g = new GroupModel();
+    g.apply('Group.Set', [you, npc(2, 'a troll', 'T', { bashed: true })]);
+    expect(g.selfBashed).toBe(false);
+    expect(ids(g)).toEqual([2]);
+    expect(g.apply('Group.Update', { id: 1, waiting: true })).toBe(false);
+    expect(g.apply('Group.Update', { bashed: true, id: 1 })).toBe(true);
+    expect(g.selfBashed).toBe(true);
+    expect(g.apply('Group.Update', { bashed: true, id: 2 })).toBe(false);
+    expect(g.apply('Group.Update', { bashed: false, id: 1, waiting: false })).toBe(true);
+    expect(g.selfBashed).toBe(false);
+  });
+  it('clears on a remove, a new Group.Set and a reset', () => {
+    const g = new GroupModel();
+    g.apply('Group.Add', { ...you, id: 3, bashed: true });
+    expect(g.selfBashed).toBe(true);
+    expect(g.apply('Group.Remove', 3)).toBe(true);
+    expect(g.selfBashed).toBe(false);
+    g.apply('Group.Set', [{ ...you, bashed: true }]);
+    expect(g.apply('Group.Set', [ally(5, 'Bob')])).toBe(true);
+    expect(g.selfBashed).toBe(false);
+    g.apply('Group.Set', [{ ...you, bashed: true }]);
+    g.reset();
+    expect(g.selfBashed).toBe(false);
+  });
+});

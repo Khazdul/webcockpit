@@ -45,6 +45,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
   const charVitals = game.char.vitals;
   const signals = new WeatherSignals(sink, vitalsState((k) => charVitals.get(k)), game.clock.state, now(), now);
   signals.character(game.char.name);
+  signals.bashed(game.group.selfBashed);
   const unsubs: Array<() => void> = [];
   let destroyed = false;
   engine = createWeather(
@@ -63,9 +64,8 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
 
   unsubs.push(
     bus.on('gmcp', (m) => {
-      // Event.* and Group.* only (Char.Vitals come through the character model below).
-      const c = m.pkg.charCodeAt(0) | 32;
-      if (c !== 101 && c !== 103) return;
+      // Event.* only (Char.Vitals and Group.* come through the game models below).
+      if (m.pkg.charCodeAt(0) !== 69 && m.pkg.charCodeAt(0) !== 101) return;
       signals.gmcp(gmcpKey(m), m.data);
     }),
     bus.on('text.line', (line) => signals.line(line)),
@@ -75,6 +75,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
         signals.character(game.char.name);
         signals.vitals(vitalsState((k) => charVitals.get(k)));
       }
+      else if (part === 'group') signals.bashed(game.group.selfBashed);
       else if (part === 'clock') signals.almanac(game.clock.state, now(), true);
     }),
     settings.subscribe((next, prev) => {

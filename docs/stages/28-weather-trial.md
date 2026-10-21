@@ -2182,3 +2182,11 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        Unit 2782, e2e weather 6/6.
        Please try: get bashed; the corner flare should come at "sends you
        sprawling" and the pulse end with "Your head stops stinging."
+     - **Owner (2026-10-21, 0.1.70):** "Bash-stun gives no effect" (log
+       `mume-Gittan-2026-10-21T23-36-57`; the same GMCP as before).
+     - **Fixed (2026-10-21):** `Group.Set`, which says which id is you,
+       comes at login, before the effects are loaded, so the bridge never
+       learned your id. The group model (always running) now keeps your id
+       and `selfBashed`; the bridge reads it on each group change and at
+       start. The e2e test now sends `Group.Set` before the effects are
+       turned on. Unit 2784, e2e 524/524.

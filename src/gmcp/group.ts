@@ -5,7 +5,9 @@
 //   means "not here"; coming back is a `Group.Add` with a new id. The model
 //   is "who is here", ordered by id. Stable identity is `label` (NPC) or
 //   `name` (ally), used to match the fight fields below.
-// - `type: "you"` is never kept (the Character pane covers it).
+// - `type: "you"` is never kept as a member (the Character pane covers it);
+//   only its id and its `bashed` flag (`selfBashed`, for the weather
+//   effects' stun, owner item 116) are.
 // - An NPC is a member only with a non-empty string `label` (MUME sends
 //   `label: 0` when unlabeled). Unlabeled NPCs are kept on the side
 //   (`unlabeled()`, shown in npcMode `all`). A `Group.Update` that sets a
@@ -155,6 +157,14 @@ export class GroupModel {
   /** Cached fight identities from `Char.Vitals`. */
   private buffer: string | null = null;
   private opponent: string | null = null;
+  /** Your own entry's id (`type: "you"`), and whether you are bashed. */
+  private selfId: number | null = null;
+  private bashed = false;
+
+  /** You are bashed (a bash or a trip: no prompt until "Your head stops stinging."). */
+  get selfBashed(): boolean {
+    return this.bashed;
+  }
   /** Bumped on every change. */
   version = 0;
 
@@ -193,6 +203,8 @@ export class GroupModel {
     this.side.clear();
     this.buffer = null;
     this.opponent = null;
+    this.selfId = null;
+    this.bashed = false;
     this.version++;
   }
 
@@ -227,10 +239,13 @@ export class GroupModel {
 
   private set(data: unknown): boolean {
     const had = this.members.size + this.side.size;
+    const wasBashed = this.bashed;
     this.members.clear();
     this.side.clear();
+    this.selfId = null;
+    this.bashed = false;
     if (Array.isArray(data)) for (const m of data) this.add(m);
-    return had > 0 || this.members.size + this.side.size > 0;
+    return had > 0 || this.members.size + this.side.size > 0 || this.bashed !== wasBashed;
   }
 
   private add(data: unknown): boolean {
@@ -240,7 +255,12 @@ export class GroupModel {
     const type = typeof data.type === 'string' ? data.type : '';
     this.members.delete(id);
     this.side.delete(id);
-    if (type === 'you') return true;
+    if (type === 'you') {
+      this.selfId = id;
+      this.bashed = data.bashed === true;
+      return true;
+    }
+    if (id === this.selfId) this.selfId = null;
     const m: Member = {
       id,
       type,
@@ -265,6 +285,11 @@ export class GroupModel {
     if (!isObj(data)) return false;
     const id = num(data.id);
     if (id === null) return false;
+    if (id === this.selfId) {
+      if (typeof data.bashed !== 'boolean' || data.bashed === this.bashed) return false;
+      this.bashed = data.bashed;
+      return true;
+    }
     const m = this.get(id);
     if (!m) {
       // An update for an id we never saw: take it as an add when it says
@@ -276,6 +301,8 @@ export class GroupModel {
       if (data.type === 'you') {
         this.members.delete(id);
         this.side.delete(id);
+        this.selfId = id;
+        this.bashed = data.bashed === true;
         return true;
       }
       m.type = data.type;
@@ -307,6 +334,12 @@ export class GroupModel {
     if (id === null && typeof data === 'string' && /^\s*\d+\s*$/.test(data)) id = Number(data);
     if (id === null && isObj(data)) id = num(data.id);
     if (id === null) return false;
+    if (id === this.selfId) {
+      const was = this.bashed;
+      this.selfId = null;
+      this.bashed = false;
+      return was;
+    }
     const a = this.members.delete(id);
     const b = this.side.delete(id);
     return a || b;

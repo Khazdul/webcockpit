@@ -20,6 +20,8 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   await row(page, 'weather').click();
   await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toContainText('Weather effects');
   await expect(row(page, 'enabled')).toHaveText('[ ] Weather effects');
+  // Group.Set comes at login, before the effects are loaded (owner item 116).
+  await page.evaluate(() => window.__wc!.app.bus.emit('gmcp', { pkg: 'Group.Set', key: 'group.set', data: [{ bashed: false, id: 1, type: 'you' }] }));
   await row(page, 'enabled').click();
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(true);
 
@@ -35,6 +37,15 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
     bus.emit('gmcp', { pkg: 'Event.Sun', key: 'event.sun', data: { what: 'dark' } });
   });
   await expect.poll(state).toMatchObject({ weather: '"', fog: '=', position: 'sleeping', clock: 'night' });
+  // A bash: your own Group member's `bashed` reads as stunned (owner item 116).
+  await page.evaluate(() => {
+    const bus = window.__wc!.app.bus;
+    bus.emit('gmcp', { pkg: 'Char.Vitals', key: 'char.vitals', data: { position: 'fighting' } });
+    bus.emit('gmcp', { pkg: 'Group.Update', key: 'group.update', data: { bashed: true, id: 1 } });
+  });
+  await expect.poll(state).toMatchObject({ position: 'stunned' });
+  await page.evaluate(() => window.__wc!.app.bus.emit('gmcp', { pkg: 'Group.Update', key: 'group.update', data: { bashed: false, id: 1 } }));
+  await expect.poll(state).toMatchObject({ position: 'fighting' });
 
   // A category and an appearance change apply live without errors.
   await row(page, 'fog').click();

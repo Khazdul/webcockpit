@@ -28,10 +28,12 @@
 //                  (the worker adds a few strikes over the next 30 s while
 //                  it rains or snows, ADR 0094); a wind message in a weather
 //                  tag → 'gust' (see `lineEvent`)
-//   Group.*        your own member (`type: "you"`): `bashed` (a bash, a
+//   group model    `selfBashed`, your own Group entry's `bashed` (a bash, a
 //                  trip: no prompt until "Your head stops stinging.") reads
 //                  as position `stunned` while it lasts (owner item 116;
-//                  the game's position stays standing or fighting)
+//                  the game's position stays standing or fighting; the
+//                  model, not the bridge, keeps your id: Group.Set comes at
+//                  login, before the effects are loaded)
 //   character      a new connection or character → 'storm.off'
 //
 // While a pin holds (the demo, a dev jump, a bench; owner item 85) none of
@@ -208,9 +210,8 @@ export class WeatherSignals {
   private charName: string | null | undefined = undefined;
   /** Wall ms of the last game flash line (a storm window may be open for STORM_WINDOW_S after it). */
   private lastFlash = -Infinity;
-  /** Your own group member's id (`type: "you"`), and whether it is bashed (owner item 116). */
-  private selfId: number | null = null;
-  private bashed = false;
+  /** You are bashed (owner item 116). */
+  private isBashed = false;
 
   constructor(
     private readonly sink: WeatherSink,
@@ -232,7 +233,7 @@ export class WeatherSignals {
 
   /** The position the effects see: bashed reads as stunned, unless the game's is already one in which you cannot see. */
   private pos(game: string): string {
-    return this.bashed && !UNSEEING.has(game) ? 'stunned' : game;
+    return this.isBashed && !UNSEEING.has(game) ? 'stunned' : game;
   }
 
   /** The current vitals (after a `Char.*` change); forwards the keys that changed. */
@@ -251,40 +252,21 @@ export class WeatherSignals {
     if (out) this.push(out);
   }
 
-  /** `Group.Set` / `Add` / `Update` / `Remove` (`key` in lower case): only your own member's `bashed`. */
-  private group(key: string, data: unknown): void {
-    let bashed = this.bashed;
-    if (key === 'group.remove') {
-      if (data === this.selfId) {
-        this.selfId = null;
-        bashed = false;
-      }
-    } else if (key === 'group.set' || key === 'group.add' || key === 'group.update') {
-      if (key === 'group.set') {
-        this.selfId = null;
-        bashed = false;
-      }
-      for (const m of Array.isArray(data) ? data : [data]) {
-        if (!m || typeof m !== 'object') continue;
-        const { id, type, bashed: b } = m as { id?: unknown; type?: unknown; bashed?: unknown };
-        if (type === 'you' && typeof id === 'number') this.selfId = id;
-        if (id === this.selfId && this.selfId !== null && typeof b === 'boolean') bashed = b;
-      }
-    }
-    this.setBashed(bashed);
+  /** Whether you are bashed (the group model's `selfBashed`): reads as stunned while it lasts (owner item 116). */
+  bashed(b: boolean): void {
+    this.setBashed(b);
   }
 
   private setBashed(b: boolean): void {
-    if (b === this.bashed) return;
+    if (b === this.isBashed) return;
     const was = this.pos(this.vit.position);
-    this.bashed = b;
+    this.isBashed = b;
     const pos = this.pos(this.vit.position);
     if (pos !== was) this.push({ position: pos });
   }
 
-  /** A GMCP message (`key` in lower case). Event.Sun / Moon / Darkness, and Group.* for your own `bashed`. */
+  /** A GMCP message (`key` in lower case). Only Event.Sun / Moon / Darkness matter here. */
   gmcp(key: string, data: unknown): void {
-    if (key.startsWith('group.')) return this.group(key, data);
     const ev = gmcpEvent(key, data);
     if (!ev) return;
     // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
@@ -330,7 +312,6 @@ export class WeatherSignals {
     this.charName = name;
     if (was !== undefined && was !== name) {
       this.stormOff();
-      this.selfId = null;
       this.setBashed(false);
     }
   }

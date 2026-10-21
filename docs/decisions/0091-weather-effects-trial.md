@@ -1534,8 +1534,11 @@ A bash (and the game's other stuns that set the flag) leaves `Char.Vitals
 position` alone; MUME's `stunned` position is a character near death. What
 the game does send is `Group.Update {"bashed": true | false}` for your own
 member (`type: "you"`, kept apart from the group model, which drops it).
-The signal bridge tracks your own id from `Group.Set` / `Add` and reads
-`bashed` as position `stunned` for the effects, unless the game's position
-is already one in which you cannot see (sleeping, stunned, incapacitated,
-dying), which wins. `Group.Remove` of your id, a new `Group.Set` and a new
-character clear it. The controller now forwards `Group.*` besides `Event.*`.
+The group model (src/gmcp/group.ts) keeps your own id from `Group.Set` /
+`Add` and its `bashed` as `selfBashed`; the signal bridge reads it on each
+group change and reads it as position `stunned` for the effects, unless the
+game's position is already one in which you cannot see (sleeping, stunned,
+incapacitated, dying), which wins. `Group.Remove` of your id, a new
+`Group.Set`, a reset and a new character clear it. (First tracked in the
+bridge itself, 0.1.70: `Group.Set` comes at login, before the effects are
+loaded, so it never learned your id. The model is always running.)

@@ -415,36 +415,25 @@ describe('asleep or out cold', () => {
 });
 
 describe('bashed', () => {
-  // as in log mume-Gittan-2026-10-21T23-23-02 (owner item 116)
-  const you = { bashed: false, blind: false, id: 1, type: 'you', waiting: false };
-  it('reads your own bashed as stunned until it ends', () => {
+  it('reads bashed as stunned until it ends (owner item 116)', () => {
     const s = sink();
-    const sig = new WeatherSignals(s, { ...empty, weather: ' ' }, clockAt(5, 12), NOW_MS);
-    sig.gmcp('group.set', [you, { id: 2, type: 'npc', bashed: true }]);
-    expect(s.states).toHaveLength(0);
-    sig.gmcp('group.update', { bashed: true, id: 1 });
+    const sig = new WeatherSignals(s, { ...empty, weather: ' ', position: 'fighting' }, clockAt(5, 12), NOW_MS);
+    sig.bashed(true);
     expect(s.states.at(-1)!.s).toEqual({ position: 'stunned' });
-    expect(sig.state().position).toBe('stunned');
-    // the game's position changing under it is not forwarded; another member is not you
-    sig.vitals({ ...empty, weather: ' ', position: 'fighting' });
-    sig.gmcp('group.update', { bashed: false, id: 2 });
+    // the game's position changing under it is not forwarded
+    sig.vitals({ ...empty, weather: ' ', position: 'standing' });
     expect(s.states).toHaveLength(1);
-    sig.gmcp('group.update', { bashed: false, id: 1 });
-    expect(s.states.at(-1)!.s).toEqual({ position: 'fighting' });
+    sig.bashed(false);
+    expect(s.states.at(-1)!.s).toEqual({ position: 'standing' });
   });
-  it('gives way to a worse position, and ends on a remove or a new character', () => {
+  it('gives way to a worse position, and ends with a new character', () => {
     const s = sink();
     const sig = new WeatherSignals(s, { ...empty, weather: ' ' }, clockAt(5, 12), NOW_MS);
     sig.character('Gittan');
-    sig.gmcp('group.add', { ...you, id: 4, bashed: true });
-    expect(sig.state().position).toBe('stunned');
+    sig.bashed(true);
     sig.vitals({ ...empty, weather: ' ', position: 'incapacitated' });
     expect(s.states.at(-1)!.s).toEqual({ position: 'incapacitated' });
     sig.vitals({ ...empty, weather: ' ', position: 'standing' });
-    expect(sig.state().position).toBe('stunned');
-    sig.gmcp('group.remove', 4);
-    expect(sig.state().position).toBe('standing');
-    sig.gmcp('group.set', [{ ...you, bashed: true }]);
     expect(sig.state().position).toBe('stunned');
     sig.character(null);
     expect(sig.state().position).toBe('standing');
