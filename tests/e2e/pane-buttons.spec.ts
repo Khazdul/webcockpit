@@ -138,8 +138,8 @@ test('a script pane made without a cross has no look buttons; the built-in panes
   for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn`)).toHaveCount(3);
 });
 
-test('a clear pane has no fill and no blur, weather off and on; a clear float cuts no hole in the game text', async ({ page }) => {
-  await open(page);
+test('a clear pane has no fill and no blur, weather off and on; a clear float hides only the game text under it', async ({ page }) => {
+  const { cw, ch } = await open(page);
   // Group floats over the game text.
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
@@ -182,12 +182,41 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float cu
   expect(await look('group')).toMatchObject({ own: 'rgba(0, 0, 0, 0)', fill: 'none', blur: 'none' });
   // The rim keeps the unblurred glass mix.
   expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).getPropertyValue('--glass-mix').trim())).toBe('60%');
-  // The clear float cuts no hole: the game's clip is what it is with Group off.
-  const clear = await gameClip();
+  // The clear float hides the game text under it (a hole in the game pane at its box), weather on …
+  const g = await box(page, '.wc-pane-group');
+  const game = await box(page, '.wc-game');
+  // (Browsers write the path back spaced: "M 45 136 H".)
+  const at = (v: number) => String(Math.round(v * 100) / 100);
+  const hole = new RegExp(`M ?${at(g.x - game.x)} ${at(g.y - game.y)} ?H`);
+  await expect.poll(gameClip).toMatch(hole);
+  // … and off (the page shows there then).
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: false } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(0);
+  await expect.poll(gameClip).toMatch(hole);
+  await expect(page.locator('.wc-pane-group')).not.toHaveAttribute('data-weather-see', '');
+  // Glass, weather off: opaque, no hole.
   await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: true } } }));
-  await expect.poll(gameClip).not.toBe(clear);
-  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { on: false } } }));
-  await expect.poll(gameClip).toBe(clear);
+  await expect.poll(gameClip).toBe('');
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: false } } }));
+  await expect.poll(gameClip).toMatch(hole);
+
+  // Over a docked pane: no hole in it, weather on or off; a glass float cuts one with weather on.
+  const right = await box(page, '.wc-pane-comm');
+  const paneClip = () => page.evaluate(() => document.querySelector<HTMLElement>('.wc-pane-comm')!.style.clipPath);
+  const cockpit = await box(page, '.wc-cockpit');
+  const at2 = { x: Math.floor((right.x - cockpit.x) / cw) - 10, y: Math.floor((right.y - cockpit.y) / ch) + 1 };
+  await page.evaluate((p) => window.__wc!.settings.update((d) => {
+    d.layout.floating = d.layout.floating.map((f) => (f.id === 'group' ? { ...f, ...p } : f));
+  }), at2);
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  await expect.poll(gameClip).not.toBe('');
+  expect(await paneClip()).toBe('');
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: true } } }));
+  await expect.poll(paneClip).not.toBe('');
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: false }, panes: { group: { glass: false } } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(0);
+  await expect.poll(paneClip).toBe('');
 
   // Back to glass: the fill comes back.
   await page.evaluate(() => window.__wc!.settings.update({ panes: { comm: { glass: true } } }));
@@ -195,17 +224,72 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float cu
   expect((await look('comm')).fill).not.toBe('none');
 });
 
-test('a borderless clear pane has no background, the buttons no box', async ({ page }) => {
-  await open(page);
+test('a borderless pane on hover: a title bar, the cross at the right edge with the buttons, the name tag at the left', async ({ page }) => {
+  const { cw, ch } = await open(page);
   await page.evaluate(() => window.__wc!.settings.update({ panes: { comm: { border: false, color: 'blue' } } }));
+  await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-framed', '');
   await hover(page, 'comm');
-  const bg = (sel: string) => page.locator(sel).evaluate((el) => getComputedStyle(el).backgroundColor);
-  expect(await bg('.wc-pane-comm')).not.toBe('rgba(0, 0, 0, 0)');
+  const pane = await box(page, '.wc-pane-comm');
+  const cross = await box(page, '.wc-pane-comm > .wc-pane-close');
+  expect(cross.x + cross.width).toBeCloseTo(pane.x + pane.width, 1);
+  expect(cross.y).toBeCloseTo(pane.y, 1);
+  const btns = await Promise.all((await page.locator('.wc-pane-comm > .wc-pane-btn').all()).map((b) => b.boundingBox()));
+  btns.forEach((b, i) => expect(b!.x + b!.width).toBeCloseTo(cross.x - (2 - i) * 2 * cw, 1));
+  // The name tag at the left of the row.
+  const tag = await box(page, '.wc-pane-comm > .wc-pane-name');
+  expect(tag.x).toBeCloseTo(pane.x, 1);
+  await expect(page.locator('.wc-pane-comm > .wc-pane-name')).toBeVisible();
+  // The bar: the top row, opaque, the colour the buttons and the tag sit on.
+  const look = () =>
+    page.locator('.wc-pane-comm').evaluate((el) => {
+      const bar = getComputedStyle(el, '::before');
+      const bg = (s: string) => getComputedStyle(el.querySelector(s)!).backgroundColor;
+      return { bar: bar.backgroundColor, h: bar.height, w: bar.width, btn: bg('.wc-pane-btn-border'), cross: bg('.wc-pane-close'), tag: bg('.wc-pane-name'), token: el.style.getPropertyValue('--pane-bar') };
+    });
+  const l = await look();
+  expect(parseFloat(l.h)).toBeCloseTo(ch, 1);
+  expect(parseFloat(l.w)).toBeCloseTo(pane.width, 1);
+  expect(l.bar).toMatch(/^rgb\(/);
+  expect([l.btn, l.cross, l.tag]).toEqual([l.bar, l.bar, l.bar]);
+  // Clear: the pane has no background, the bar stays opaque.
   await page.locator('.wc-pane-comm > .wc-pane-btn-glass').click();
   await hover(page, 'comm');
-  expect(await bg('.wc-pane-comm')).toBe('rgba(0, 0, 0, 0)');
-  expect(await bg('.wc-pane-comm > .wc-pane-btn-border')).toBe('rgba(0, 0, 0, 0)');
-  expect(await bg('.wc-pane-comm > .wc-pane-close')).toBe('rgba(0, 0, 0, 0)');
+  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
+  expect((await look()).bar).toBe(l.bar);
+  // Not hovered: no bar.
+  await page.mouse.move(2, 2);
+  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
+  // A framed pane keeps the cross one cell in and gets no bar.
+  await hover(page, 'timers');
+  const t = await box(page, '.wc-pane-timers');
+  expect((await box(page, '.wc-pane-timers > .wc-pane-close')).x).toBeCloseTo(t.x + t.width - 4 * cw, 1);
+  expect(await page.locator('.wc-pane-timers').evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
+});
+
+test('a borderless glass pane gets the glass with weather on; weather off it is opaque, clear it is clear', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { comm: { border: false, color: 'blue' } } }));
+  const look = () =>
+    page.locator('.wc-pane-comm').evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { bg: cs.backgroundColor, blur: cs.backdropFilter, flat: el.parentElement!.hasAttribute('data-weather-flat') };
+    });
+  await expect.poll(async () => (await look()).bg).toBe('rgb(14, 20, 28)'); // the blue tint, opaque
+  await page.evaluate(() => window.__wc!.settings.update({ weather: { enabled: true } }));
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  const g = await look();
+  expect(g.flat).toBe(test.info().project.name === 'firefox');
+  const alpha = (a: string) => new RegExp(`^(rgba\\(14, 20, 28, ${a}\\)|color\\(srgb [0-9. ]+ \\/ ${a}\\))$`);
+  if (g.flat) {
+    expect(g.bg).toMatch(alpha('0\\.64'));
+    expect(g.blur).toBe('none');
+  } else {
+    expect(g.bg).toMatch(alpha('0\\.55'));
+    expect(g.blur).toContain('blur(2.5px)');
+  }
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { comm: { glass: false } } }));
+  await expect(page.locator('.wc-pane-comm')).toHaveAttribute('data-clear', '');
+  await expect.poll(look).toMatchObject({ bg: 'rgba(0, 0, 0, 0)', blur: 'none' });
 });
 
 test('the look is kept over a reload', async ({ page }) => {
