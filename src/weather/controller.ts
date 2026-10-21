@@ -63,8 +63,9 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
 
   unsubs.push(
     bus.on('gmcp', (m) => {
-      // Event.* only (Char.Vitals come through the character model below).
-      if (m.pkg.charCodeAt(0) !== 69 && m.pkg.charCodeAt(0) !== 101) return;
+      // Event.* and Group.* only (Char.Vitals come through the character model below).
+      const c = m.pkg.charCodeAt(0) | 32;
+      if (c !== 101 && c !== 103) return;
       signals.gmcp(gmcpKey(m), m.data);
     }),
     bus.on('text.line', (line) => signals.line(line)),

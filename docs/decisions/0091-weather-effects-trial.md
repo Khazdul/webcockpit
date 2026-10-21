@@ -1527,3 +1527,15 @@ which the character cannot see (sleeping, stunned, incapacitated, dying)
 and the game's weather is null; awake again, the game's values apply
 (null then is indoors). Being carried or moved while asleep keeps the old
 room's weather until waking: accepted.
+
+### Bashed reads as stunned (2026-10-21, owner item 116)
+
+A bash (and the game's other stuns that set the flag) leaves `Char.Vitals
+position` alone; MUME's `stunned` position is a character near death. What
+the game does send is `Group.Update {"bashed": true | false}` for your own
+member (`type: "you"`, kept apart from the group model, which drops it).
+The signal bridge tracks your own id from `Group.Set` / `Add` and reads
+`bashed` as position `stunned` for the effects, unless the game's position
+is already one in which you cannot see (sleeping, stunned, incapacitated,
+dying), which wins. `Group.Remove` of your id, a new `Group.Set` and a new
+character clear it. The controller now forwards `Group.*` besides `Event.*`.

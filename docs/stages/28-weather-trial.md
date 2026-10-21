@@ -2170,3 +2170,15 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        `stunned`, which the game uses for a character near death (as in "X
        is stunned and will probably die soon"), not for a bash or a trip.
        Asked the owner how they were stunned, and for a log of it.
+     - **Owner (2026-10-21):** a log of fighting a troll
+       (`mume-Gittan-2026-10-21T23-23-02`): "sends you sprawling" is a
+       bash, one of several kinds of stun in the game.
+     - **Done (2026-10-21):** ADR 0091, "Bashed reads as stunned". The log
+       shows no position change at a bash: the game sends `Group.Update
+       {"bashed": true}` for your own member (`type: "you"`), and `false`
+       with "Your head stops stinging." (about 6.7 s later). The signal
+       bridge now reads your own `bashed` as position `stunned` while it
+       lasts: the flare at the bash, the faint pulse until it ends.
+       Unit 2782, e2e weather 6/6.
+       Please try: get bashed; the corner flare should come at "sends you
+       sprawling" and the pulse end with "Your head stops stinging."

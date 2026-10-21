@@ -39,6 +39,14 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-21 — Bashed shows the stun effect (stage 28 item 116)
+
+- **Done:** the owner's troll log shows a bash sends no position, but
+  `Group.Update {"bashed": true/false}` for your own member. The bridge reads
+  it as `stunned` (ADR 0091 addendum). Unit 2782, e2e weather 6/6.
+- **Next:** the owner tests getting bashed (released in 0.1.70).
+- **Commits:** see git log after b607361.
+
 ### 2026-10-21 — Sleeping keeps the sky (stage 28 items 115, 116)
 
 - **Done:** item 115: asleep the game sends no weather, which read as
