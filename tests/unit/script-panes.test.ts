@@ -993,6 +993,20 @@ describe('ScriptPane and the cockpit surface', () => {
     expect(settings.get().panes[id]).toEqual({ on: false, color: 'black', border: true, glass: true });
   });
 
+  it('the look buttons change a script pane with a whole settings entry (ADR 0095)', () => {
+    const { settings, cockpit, surface, flush } = rig();
+    const id = scriptPaneId('s', 'q');
+    surface.open({ id, place: { dock: 'right', rows: 3, cols: 20 } }, new PaneContent('Q'), { onLink: () => {}, onResize: () => {} });
+    flush();
+    const btn = (what: string) => cockpit.el.querySelector<HTMLElement>(`.wc-pane[data-pane="${id}"] .wc-pane-btn-${what}`)!;
+    btn('glass').click();
+    expect(settings.get().panes[id]).toEqual({ on: true, color: 'black', border: true, glass: false });
+    btn('color').click();
+    expect(settings.get().panes[id]!.color).toBe('red');
+    flush();
+    expect(btn('color').title).toBe('Colour: Red');
+  });
+
   describe('temporary panes', () => {
     const spec = (id = tempPaneId('s', 'pick')) => ({
       id,
@@ -1071,6 +1085,8 @@ describe('ScriptPane and the cockpit surface', () => {
       flush();
       const close = cockpit.el.querySelector<HTMLElement>('.wc-pane[data-pane="s/~pick"] .wc-pane-close')!;
       expect(close.title).toBe('Close Pick');
+      // No settings of its own: no look buttons (ADR 0095).
+      expect(cockpit.el.querySelectorAll('.wc-pane[data-pane="s/~pick"] .wc-pane-btn')).toHaveLength(0);
       close.click();
       expect(closes).toBe(1);
       expect(JSON.stringify(settings.get())).toBe(before);

@@ -60,6 +60,12 @@
 //   its name in a small tag centred on the top row (`.wc-pane-name`, ADR
 //   0087, CSS) on a pane marked `data-tooltip`: the built-in panes but the
 //   map and Character, and script panes made with `tooltip = true`.
+// - Left of the cross, hovering shows three look buttons (`.wc-pane-btn`,
+//   ADR 0095, src/layout/pane-buttons.ts): Colour steps the tint, Border
+//   flips the frame, Background flips glass and clear. Like the cross they
+//   take no focus and start no drag; none on a temporary pane (no
+//   settings) or where the cross is hidden. A pane too narrow for them
+//   beside its title drops them from the left (`syncLook`).
 // - Drag the gap between the game pane and a dock to resize the dock (its
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
@@ -140,9 +146,11 @@ import {
   shiftBoundary,
   shiftLanes,
   shiftSpanBoundary,
+  lookPatch,
   togglePatch,
 } from './model';
-import { paneSettingsOf } from '../settings/types';
+import { LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from './pane-buttons';
+import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
 import { keyboardUp } from './phone-viewport';
@@ -397,6 +405,8 @@ export class Cockpit {
   private readonly shells = new Map<PaneId, PaneShell>();
   /** Close crosses by pane (their tooltip follows the label). */
   private readonly closers = new Map<PaneId, HTMLDivElement>();
+  /** Hover buttons by pane (Colour, Border, Background, ADR 0095); none on temporary panes. */
+  private readonly lookers = new Map<PaneId, HTMLDivElement[]>();
   /** Name tags by pane, shown on a long hover over a borderless pane (ADR 0087). */
   private readonly nameTags = new Map<PaneId, HTMLDivElement>();
   /** Script panes added with `addPane` (ADR 0053). */
@@ -534,6 +544,20 @@ export class Cockpit {
     const grip = div('wc-pane-grip');
     grip.dataset.grip = id;
     shell.el.append(grip);
+    // The look buttons (ADR 0095) before the cross; a temporary pane has no settings to change.
+    if (!this.temps.has(id)) {
+      const btns = PANE_LOOKS.map((what) => {
+        const b = div(`wc-pane-btn wc-pane-btn-${what}`);
+        b.setAttribute('role', 'button');
+        b.dataset.look = what;
+        b.style.setProperty('--slot', String(lookSlot(what)));
+        b.innerHTML = LOOK_ICONS[what];
+        b.addEventListener('click', () => this.settings.update(lookPatch(this.settings.get().panes, id, what)));
+        shell.el.append(b);
+        return b;
+      });
+      this.lookers.set(id, btns);
+    }
     const close = div('wc-pane-close');
     close.textContent = ' × ';
     close.setAttribute('role', 'button');
@@ -561,6 +585,36 @@ export class Cockpit {
     }
     this.shells.set(id, shell);
     this.el.insertBefore(shell.el, before);
+  }
+
+  /**
+   * Brings pane `id`'s look buttons (ADR 0095) up to date after it was
+   * placed `paneW` px wide: each one's label and state, and which of them
+   * fit right of the nameplate (or a borderless pane's name tag; the rest
+   * are dropped, Colour first). Attribute writes only on a change.
+   */
+  private syncLook(id: PaneId, shell: PaneShell, s: Readonly<Settings>, paneW: number, cellW: number): void {
+    const btns = this.lookers.get(id);
+    if (!btns) return;
+    const p = paneSettingsOf(s.panes, id);
+    let freeFrom = shell.titleEnd;
+    if (!freeFrom && shell.el.hasAttribute('data-tooltip')) {
+      // The name tag, centred on the top row (layout.css: 0.85em, at most the pane less two cells); a cell a character is a safe bound.
+      const tag = Math.min((shell.label.length + 2) * cellW, paneW - 2 * cellW);
+      freeFrom = (paneW + tag) / 2;
+    }
+    const fit = lookButtonsFit(paneW, cellW, freeFrom);
+    PANE_LOOKS.forEach((what, i) => {
+      const b = btns[i]!;
+      const text = lookLabel(what, p);
+      if (b.title !== text) {
+        b.title = text;
+        b.setAttribute('aria-label', text);
+      }
+      b.toggleAttribute('data-on', lookOn(what, p));
+      // Dropped from the left: the first `3 - fit` go.
+      b.toggleAttribute('data-drop', i < PANE_LOOKS.length - fit);
+    });
   }
 
   private labelClose(close: HTMLElement, id: PaneId, label: string): void {
@@ -647,6 +701,7 @@ export class Cockpit {
     const shell = this.shells.get(id);
     this.shells.delete(id);
     this.closers.delete(id);
+    this.lookers.delete(id);
     this.nameTags.delete(id);
     if (shell) {
       shell.place(null, this.cells.get());
@@ -759,6 +814,7 @@ export class Cockpit {
         b ? { rect: b.rect, content: b.content, framed: b.framed, floating: b.dock === 'float' ? b.index : undefined } : null,
         cell,
       );
+      if (b) this.syncLook(id, shell, s, b.rect.w * cell.w, cell.w);
     }
     this.renderHandles(r, cell);
     for (const fn of [...this.layoutListeners]) fn();
@@ -1266,7 +1322,7 @@ export class Cockpit {
     if (!pane || pane.hasAttribute('data-framed') || !this.el.contains(pane)) return false;
     const id = pane.dataset.pane as PaneId;
     if (this.temps.has(id) || !this.present.has(id)) return false;
-    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-float-handle')) return false;
+    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-pane-btn, .wc-float-handle')) return false;
     const b = this.last?.panes.find((p) => p.id === id);
     return !!b && Math.floor(row) === b.content.y;
   }
@@ -1281,7 +1337,7 @@ export class Cockpit {
     if (!pane || !this.el.contains(pane) || !t.closest('.wc-pane-content')) return false;
     const id = pane.dataset.pane as PaneId;
     if (!this.present.has(id) && !this.temps.has(id)) return false;
-    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-float-handle')) return false;
+    if (t.closest('.wc-spane-field, .wc-spane-more, .wc-pane-close, .wc-pane-btn, .wc-float-handle')) return false;
     return this.shells.get(id)?.gripAt(e.clientX, e.clientY) ?? false;
   }
 
@@ -1296,7 +1352,7 @@ export class Cockpit {
   private readonly onMouseDown = (e: MouseEvent): void => {
     // Grips, handles and the gaps between panes never take the focus.
     const t = e.target as HTMLElement;
-    if (this.swallowMouseDown || t === this.el || t === this.handlesEl || t.closest('.wc-pane-close')) {
+    if (this.swallowMouseDown || t === this.el || t === this.handlesEl || t.closest('.wc-pane-close, .wc-pane-btn')) {
       e.preventDefault();
     }
     this.swallowMouseDown = false;

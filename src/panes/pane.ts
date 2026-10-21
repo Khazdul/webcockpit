@@ -405,6 +405,17 @@ export class PaneShell {
     } else for (const k of ['--plate-x0', '--plate-x1', '--plate-y0', '--plate-y1', '--plate-r']) st.removeProperty(k);
   }
 
+  /**
+   * Where the nameplate ends, in CSS px from the pane's left edge (0 with
+   * no plate or no frame): the cockpit keeps the hover buttons right of it
+   * (ADR 0095).
+   */
+  get titleEnd(): number {
+    const pl = this._plate;
+    const g = this._frameLine;
+    return this.placed?.framed && pl && g ? g.l + pl.x1 : 0;
+  }
+
   /** The frame rim as last placed (CSS px from the pane's edges), null while unframed. */
   protected get frameLine(): FrameGeometry | null {
     return this.placed?.framed ? this._frameLine : null;
