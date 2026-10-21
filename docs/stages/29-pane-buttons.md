@@ -116,3 +116,31 @@ Tasks:
 - [x] Name tag gone (built-in and script panes)
 - [x] Weather lights a clear framed pane's rim
 - [x] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual
+
+## Handoff (2026-10-22, after 0.1.74)
+
+State on main: rounds 0–3 released (0.1.72–0.1.74). Owner testing.
+
+Test 0.1.74:
+
+1. Rain or snow, a clear floating pane and a clear docked pane: the weather
+   falls inside; no game text shows through the float.
+2. A clear framed pane: lightning, moon glints and sun beams light its rim.
+   Is it clear enough? (Only lightning was checked by eye.)
+3. Hover a borderless pane: only the icons and `×` at the right edge, no
+   background, no name. Do they read over text?
+
+Known and accepted for now:
+
+- The Timers `+` (and the almanac `[+ add]`, map search field, mercenaries
+  cost link) are covered by the buttons on a borderless pane.
+- The `×` lies on a borderless float's top-right resize corner.
+- A clear rim casts no sun shadow and takes no splashes (ADR 0095 round 3).
+
+Next session (owner's agenda):
+
+- The details of the buttons and clear panes after testing.
+- The fixed menu strip (right of the input prompt): build it or not, and
+  what it holds beside showing and hiding panes.
+- Whether Options → Panes → Appearance goes away. Today it is the only
+  built-in way to show a hidden pane (besides the `panebar` script).

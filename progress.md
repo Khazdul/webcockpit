@@ -40,6 +40,20 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — Stage 29 wrap-up
+
+- **Done this session:** stage 29 built and released in four rounds
+  (0.1.72 buttons and clear background, 0.1.73 clear float holes and
+  borderless glass, 0.1.74 weather inside clear panes, icons-only borderless
+  hover, name tag gone, lit clear rims). ADR 0095 with three addenda; ADR 0087
+  withdrawn.
+- **Next:** the owner tests 0.1.74 (stage file handoff), then decides on the
+  fixed menu strip and on removing Options → Panes → Appearance.
+- **Open:** buttons cover top-row links on borderless panes (Timers `+`
+  accepted); `×` on a borderless float's resize corner; flaky e2e
+  (script-editor Ctrl+F, editor narrow window, map-tilesets timeout).
+- **Commits:** this one.
+
 ### 2026-10-22 — Stage 29 rounds 2 and 3, on branch `pane-buttons-r2`
 
 - **Round 2:** weather (rain, snow) falls inside clear panes, docked and
