@@ -1597,7 +1597,7 @@ class Sky {
     // On the back layer it passes behind the frames; where it passes close to
     // a frame line, the line glints there and the glint runs on with it a
     // little (owner feedback 20, 24).
-    if (this.T - this.lastShootGlint > 0.06 && this.glints.near(env.panes, hx, hy, 48, fade * 0.95, this.T, 0.7, 70, sh.vx * 0.25)) this.lastShootGlint = this.T;
+    if (this.T - this.lastShootGlint > 0.06 && this.glints.near(env.rims, hx, hy, 48, fade * 0.95, this.T, 0.7, 70, sh.vx * 0.25)) this.lastShootGlint = this.T;
   }
 
   stepMoon(env: Env, dt: number): void {
@@ -1735,7 +1735,7 @@ class Sky {
     const R = this.moon.R * 0.6, x = this.mx, y = this.my;
     const pk = 0.3 + 0.7 * clamp(env.settled.moonPhase, 0, 1);
     f.globalCompositeOperation = this.glints.comp;
-    for (const p of env.panes) {
+    for (const p of env.rims) {
       if (!p.border) continue;
       const dyEdge = p.y - y;
       const dx = x < p.x ? p.x - x : x > p.x + p.w ? x - (p.x + p.w) : 0;
@@ -1824,7 +1824,7 @@ class Sky {
       f.fillStyle = `rgb(${rgb})`;
       f.globalAlpha = lift;
       const R = this.liftRects;
-      for (const q of env.panes) {
+      for (const q of env.rims) {
         if (!q.border) continue;
         // the whole top rim and the nameplate with it: the plate is the
         // rim's glass and takes the same tint (owner item 42; before, only
@@ -1848,7 +1848,7 @@ class Sky {
       // Every thin ray glints too where it crosses a frame line (owner item
       // 68): a soft glow of the line and a brighter core, as a beam's.
       for (const r of this.rays) {
-        for (const h of beamHits(env.panes, sx, sy, r, this.hits)) {
+        for (const h of beamHits(env.rims, sx, sy, r, this.hits, env.panes)) {
           const a = gk * r.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W);
           if (a < 0.02) continue;
           const len = clamp(h.len * 3, 36, 140);
@@ -1858,7 +1858,7 @@ class Sky {
       }
       for (let i = 0; i < this.beams.length; i++) {
         const b = this.beams[i]!;
-        for (const h of beamHits(env.panes, sx, sy, b, this.hits)) {
+        for (const h of beamHits(env.rims, sx, sy, b, this.hits, env.panes)) {
           const a = gk * TIER_GLINT.S * b.k * h.att * (h.enter ? 1 : BEAM_EXIT) * hitBand(h, W) * (0.9 + 0.1 * Math.sin(this.T * 5.3 + i * 2 + h.c * 0.01));
           if (a < 0.02) continue;
           // the sprite is bright over its middle ~40 %: the core's bright part is the beam's width on the line

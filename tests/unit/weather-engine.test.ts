@@ -359,13 +359,20 @@ describe('WeatherEngine borderless panes (owner item 53)', () => {
     expect(seen!.panes.map((p) => p.id)).toEqual(['group']);
     // Still a text pane (things are placed away from its text).
     expect(seen!.textPanes.map((p) => [p.id, p.clear])).toEqual([['group', false], ['comm', true]]);
+    // Its rim is still lit (round 3): in the lit rims, not in the solid panes.
+    expect(seen!.rims.map((p) => p.id)).toEqual(['group', 'comm']);
     // The docked one too.
     h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true }, { ...float, clear: true }] } });
     h.run(50);
     expect(seen!.panes).toEqual([]);
+    expect(seen!.rims.map((p) => p.id)).toEqual(['group', 'comm']);
+    // A borderless clear pane has no rim to light.
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true, border: 0 }, { ...float, clear: true }] } });
+    h.run(50);
+    expect(seen!.rims.map((p) => p.id)).toEqual(['comm']);
     // A move only: waits to settle (no rebuild at once).
     const n = resized;
-    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true }, { ...float, x: 500, clear: true, box: { ...box, x: 497 } }] } });
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true, border: 0 }, { ...float, x: 500, clear: true, box: { ...box, x: 497 } }] } });
     expect(resized).toBe(n);
   });
 });

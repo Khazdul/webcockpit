@@ -40,6 +40,14 @@ export interface Env {
    * not (ADR 0095 round 2: clear is fully see-through).
    */
   panes: Pane[];
+  /**
+   * The lit rims: every framed pane, clear ones too (ADR 0095 round 3).
+   * What lights a frame line (glints of the moon, a shooting star, rays
+   * and beams, the sun's lift of the top rim, a lightning flash) uses
+   * these; what treats the pane as solid (shadows, rain and snow, fog,
+   * strikes on its ledge) uses `panes`. One list each, no extra pass.
+   */
+  rims: Pane[];
   /** Every shown pane, framed or not: only for placing things away from pane text (the floating z z Z, blood). */
   textPanes: Pane[];
   out: Rect;

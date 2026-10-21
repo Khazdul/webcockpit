@@ -270,9 +270,11 @@ const inBox = (p: FrameBox, x: number, y: number): boolean => x > p.x && x < p.x
 /**
  * Where beam `b` from (sx, sy) crosses the frame lines of the first pane it
  * meets (owner item 86): written to `out` (cleared first), nearest first.
- * Borderless panes are skipped.
+ * Borderless panes are skipped. `solid` (default `panes`): the panes whose
+ * glass weakens a hit inside them (a clear pane's rims glint, but it has
+ * no glass inside, ADR 0095 round 3).
  */
-export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: Beam, out: BeamHit[]): BeamHit[] {
+export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: Beam, out: BeamHit[], solid: readonly FrameBox[] = panes): BeamHit[] {
   out.length = 0;
   // the hit objects are kept per `out` and reused (no garbage in a turn's frames)
   let pool = HIT_POOL.get(out);
@@ -328,7 +330,7 @@ export function beamHits(panes: readonly FrameBox[], sx: number, sy: number, b: 
   for (const h of out) {
     const x = h.side === 't' || h.side === 'b' ? h.c : h.side === 'l' ? h.p.x : h.p.x + h.p.w;
     const y = h.side === 'l' || h.side === 'r' ? h.c : h.side === 't' ? h.p.y : h.p.y + h.p.h;
-    for (const q of panes) if (q !== h.p && q.border && inBox(q, x, y)) h.att = BEAM_INSIDE;
+    for (const q of solid) if (q !== h.p && q.border && inBox(q, x, y)) h.att = BEAM_INSIDE;
   }
   out.sort((x, y) => x.t - y.t);
   return out;

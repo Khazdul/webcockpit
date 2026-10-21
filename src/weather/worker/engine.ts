@@ -65,6 +65,11 @@ export function scenePanes<P extends { border: number; clear: boolean }>(panes: 
   return panes.filter((p) => p.border > 0 && !p.clear);
 }
 
+/** The panes whose rims the weather lights (`Env.rims`): every framed one, clear or not (ADR 0095 round 3). */
+export function rimPanes<P extends { border: number }>(panes: readonly P[]): P[] {
+  return panes.filter((p) => p.border > 0);
+}
+
 /**
  * Where each pane's own background is painted under the back layer: its
  * tint rects (`paneTintRects`) less the boxes of the floats in front of it
@@ -199,6 +204,7 @@ export class WeatherEngine {
           front,
           panes: [],
           textPanes: [],
+          rims: [],
           out: { x: 0, y: 0, w: 0, h: 0 },
           protect: { solidTop: 0, fadeTop: 0, left: 0 },
           cell: { w: 8, h: 16, size: 14, font: '14px monospace' },
@@ -243,14 +249,14 @@ export class WeatherEngine {
         if (!this.env) break;
         const env = this.env;
         const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
-        const scene = env.panes.map((p) => p.id).join('|');
+        const scene = env.panes.map((p) => p.id).join('|') + '#' + env.rims.map((p) => p.id).join('|');
         const moved = this.applyGeometry(m.g);
         if (sized) this.sizeChanged();
         // A pane that joined or left the scene (glass ↔ clear, a frame on or
         // off, shown or hidden: one click, not a drag) rebuilds at once, so
         // rain stops on it or falls through it from the next frame (ADR 0095
         // round 2). A drag only moves panes: that waits for the layout to settle.
-        else if (env.panes.map((p) => p.id).join('|') !== scene) {
+        else if (env.panes.map((p) => p.id).join('|') + '#' + env.rims.map((p) => p.id).join('|') !== scene) {
           this.resizeGen++;
           this.rebuild();
         } else this.settleResize();
@@ -399,6 +405,8 @@ export class WeatherEngine {
     // neither, framed or not: rain and snow fall inside it, docked or
     // floating (ADR 0095 round 2).
     env.panes = scenePanes(env.textPanes);
+    // A clear framed pane's rim is still glass and is lit like any rim (ADR 0095 round 3).
+    env.rims = rimPanes(env.textPanes);
     // The fill of a pane with its own background: inside the rim less the
     // nameplate (framed; as layout.css, so rim and plate show no tint) or the
     // whole pane, less every float in front of it (a float is see-through to
