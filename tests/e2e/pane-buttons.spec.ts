@@ -304,3 +304,42 @@ test('the look is kept over a reload', async ({ page }) => {
   await expect(page.locator('.wc-pane-group')).toHaveAttribute('data-clear', '');
   expect((await panes(page)).group).toMatchObject({ color: 'red', glass: false });
 });
+
+test('the weather knows which panes are clear, at once, and follows a clear float that moves (round 2)', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const R = d.layout.docks.right;
+      for (const l of [R.head, ...R.lanes.map((x) => x.panes), R.tail]) {
+        const i = l.findIndex((p) => p.id === 'group');
+        if (i >= 0) l.splice(i, 1);
+      }
+      d.layout.floating = [...d.layout.floating, { id: 'group', x: 20, y: 4, w: 36, h: 12 }];
+      d.panes.group.on = true;
+      d.panes.group.glass = false;
+      d.weather.enabled = true;
+    }),
+  );
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  const pane = (id: string) =>
+    page.evaluate((i) => {
+      const p = window.__wc!.app.weather!.controller!.engine.geometry().panes.find((q) => q.id === i);
+      return p ? { clear: p.clear, x: p.box.x } : null;
+    }, id);
+  await expect.poll(() => pane('group')).toMatchObject({ clear: true });
+  await expect.poll(() => pane('comm')).toMatchObject({ clear: false });
+  const x0 = (await pane('group'))!.x;
+  // Glass, then clear again: the weather follows each switch.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: true }, comm: { glass: false } } }));
+  await expect.poll(() => pane('group')).toMatchObject({ clear: false });
+  await expect.poll(() => pane('comm')).toMatchObject({ clear: true });
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: false } } }));
+  await expect.poll(() => pane('group')).toMatchObject({ clear: true });
+  // The float moves: its place follows.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.layout.floating = d.layout.floating.map((f) => (f.id === 'group' ? { ...f, x: 30 } : f));
+    }),
+  );
+  await expect.poll(async () => (await pane('group'))!.x).toBeGreaterThan(x0);
+});
