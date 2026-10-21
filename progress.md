@@ -34,6 +34,7 @@ Released 0.1.71 (the stun effect knows your group id from login, stage 28 item 1
 | 26 | Community tilesets | Done | `docs/stages/26-community-tilesets.md` |
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
 | 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
+| 29 | Pane buttons | In progress | `docs/stages/29-pane-buttons.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
