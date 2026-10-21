@@ -90,3 +90,14 @@ Tasks:
 - [x] Borderless glass with weather on (docked, float, Firefox, under a float)
 - [x] Key manager `?` and the script manual's top-row note follow the buttons
 - [x] Tests (unit, e2e Chromium + Firefox), ADR 0095 addendum, manual
+
+### Round 2 (2026-10-22, on 0.1.73)
+
+- **Weather inside clear panes:** rain (and the like: snow, other falling or
+  drifting effects) falls inside a clear floating pane. For consistency the
+  same goes for clear docked panes: clear means fully see-through.
+
+Tasks:
+
+- [ ] Weather effects fall inside clear panes (floating and docked)
+- [ ] Tests, ADR 0095 round 2 addendum
