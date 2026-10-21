@@ -99,5 +99,5 @@ Tasks:
 
 Tasks:
 
-- [ ] Weather effects fall inside clear panes (floating and docked)
-- [ ] Tests, ADR 0095 round 2 addendum
+- [x] Weather effects fall inside clear panes (floating and docked)
+- [x] Tests, ADR 0095 round 2 addendum

@@ -158,3 +158,38 @@ cover the last nine cells of the top row (was ten, one cell in); the key
 manager's `?` moves to width-10, one empty cell before them. The script
 manual says so. The Timers `+` is covered on a borderless Timers pane;
 the owner accepts that for now.
+
+## Addendum: round 2 (2026-10-22)
+
+Owner feedback on 0.1.73: rain should fall inside a clear floating pane.
+The coordinator extended it to clear docked panes: clear means fully
+see-through.
+
+What kept the weather off a pane was its place in the worker's scene,
+`Env.panes`: the framed panes, treated as glass. Rain and snow stop on
+their tops (splashes, beads, drips from the eaves) and respawn under
+them, fog wisps lie along their tops, the sun casts their shadow wedges,
+beams and glints light their rims. Inside a framed float nothing fell,
+because its top caught it. A borderless pane was already out of the scene
+(owner item 53). Darkness, the left band, the sky and lightning are drawn
+over the whole back layer and were never kept off panes; a clear pane has
+no fill (round 0), so they show through it already.
+
+- `PaneGeom.clear` (from `data-clear`, `measureGeometry`), compared in
+  `geometryDiff`, so a switch posts a new geometry with the next layout.
+- The worker's scene is `scenePanes`: framed and not clear. A clear pane,
+  framed or not, docked or floating, is out of it: rain and snow fall
+  through it, no fog along its top, no shadow, no glints or beams on its
+  rim (its rim stays, unlit by the weather). It stays in `textPanes`, so
+  the floating letters and the blood still keep off its text.
+- A geometry that changes which panes are in the scene (glass ↔ clear, a
+  frame on or off, a pane shown or hidden: a click, not a drag) rebuilds
+  the modules at once instead of after `RESIZE_SETTLE_MS`, so the change
+  shows from the next frame. A float that moves keeps the settle as
+  before (one rebuild once the drag is still).
+- Cost: nothing per frame. The modules loop over fewer panes when some are
+  clear; a switch costs one module rebuild (as a pane toggle did after the
+  settle). Measured in Chromium (heavy rain, day sky, 1280 × 860): average
+  frame 4.6 ms with the panes clear and 4.5 ms with them glass, the sky
+  module dominant either way; 30 fps cadence (p50 gap 33.3 ms) in both.
+- `Weather.geometry()` returns the geometry last posted (tests read it).
