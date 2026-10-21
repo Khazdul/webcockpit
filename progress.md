@@ -45,7 +45,7 @@ Statuses: Next, In progress, Owner testing, Done.
   `Group.Update {"bashed": true/false}` for your own member. The bridge reads
   it as `stunned` (ADR 0091 addendum). Unit 2782, e2e weather 6/6.
 - **Next:** the owner tests getting bashed (released in 0.1.70).
-- **Commits:** see git log after b607361.
+- **Commits:** 9edb273, d1d1218 (version), 3829c07, plus this one.
 
 ### 2026-10-21 — Sleeping keeps the sky (stage 28 items 115, 116)
 
@@ -54,7 +54,7 @@ Statuses: Next, In progress, Owner testing, Done.
   sleeping, stunned, incapacitated or dying (ADR 0091 addendum). Unit 2780.
 - **Open:** item 116, no stun effect: the effect fires on `position:
   stunned` (near death in MUME). Asked the owner how they were stunned.
-- **Next:** the owner sends a log of being stunned (item 116). Item 115
+- **Next:** done in the next entry (item 116, 0.1.70). Item 115
   released in 0.1.69.
 - **Commits:** 93454a4, plus this one.
 
