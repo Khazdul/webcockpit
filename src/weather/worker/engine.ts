@@ -60,6 +60,11 @@ const N_TIMES = 600;
 /** Pane-only layout changes rebuild the modules after this long without another, ms. */
 export const RESIZE_SETTLE_MS = 250;
 
+/** The panes that are glass in the scene (`Env.panes`): framed and not clear (owner item 53, ADR 0095 round 2). */
+export function scenePanes<P extends { border: number; clear: boolean }>(panes: readonly P[]): P[] {
+  return panes.filter((p) => p.border > 0 && !p.clear);
+}
+
 /**
  * Where each pane's own background is painted under the back layer: its
  * tint rects (`paneTintRects`) less the boxes of the floats in front of it
@@ -238,9 +243,17 @@ export class WeatherEngine {
         if (!this.env) break;
         const env = this.env;
         const sized = m.g.W !== env.W || m.g.H !== env.H || m.g.dpr !== env.dpr;
+        const scene = env.panes.map((p) => p.id).join('|');
         const moved = this.applyGeometry(m.g);
         if (sized) this.sizeChanged();
-        else this.settleResize();
+        // A pane that joined or left the scene (glass ↔ clear, a frame on or
+        // off, shown or hidden: one click, not a drag) rebuilds at once, so
+        // rain stops on it or falls through it from the next frame (ADR 0095
+        // round 2). A drag only moves panes: that waits for the layout to settle.
+        else if (env.panes.map((p) => p.id).join('|') !== scene) {
+          this.resizeGen++;
+          this.rebuild();
+        } else this.settleResize();
         // A tinted float that moved or changed size has its tint in the old place until the next frame: draw it now.
         if (moved) this.frameNow();
         break;
@@ -380,10 +393,12 @@ export class WeatherEngine {
     env.out = g.out;
     env.protect = g.protect;
     env.cell = g.cell;
-    env.textPanes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, plate: p.plate }));
+    env.textPanes = g.panes.map((p) => ({ id: p.id, x: p.x, y: p.y, w: p.w, h: p.h, border: p.border, label: p.label, floating: p.floating, clear: !!p.clear, plate: p.plate }));
     // A pane without a frame is no glass in the scene: no shadow, no step in
-    // the rays or beams, no rain stopping on it (owner item 53).
-    env.panes = env.textPanes.filter((p) => p.border > 0);
+    // the rays or beams, no rain stopping on it (owner item 53); a clear one
+    // neither, framed or not: rain and snow fall inside it, docked or
+    // floating (ADR 0095 round 2).
+    env.panes = scenePanes(env.textPanes);
     // The fill of a pane with its own background: inside the rim less the
     // nameplate (framed; as layout.css, so rim and plate show no tint) or the
     // whole pane, less every float in front of it (a float is see-through to
