@@ -252,7 +252,7 @@ describe('bundled keymanager', () => {
     expect(t.sent).toEqual(['cast $home']);
     t.gmcp('Char.Name', { name: 'Gittan', fullname: 'Gittan the Tester' });
     t.clock.advance(1);
-    expect(t.rows()).toEqual([` 0 keys${' '.repeat(31)}?`, '', ' No keys yet.']);
+    expect(t.rows()).toEqual([` 0 keys${' '.repeat(25)}?`, '', ' No keys yet.']);
     expect(t.lib.get('keymanager')!.lastError).toBeNull();
   });
 
@@ -269,11 +269,12 @@ describe('bundled keymanager', () => {
     expect(t.store()).toMatchObject({ safe: 'home', keys: [{ name: 'home', key: 'uxevjobve', room: 'On a hill', dist: 'Very near' }] });
     const r = t.rows();
     // The ? as far right as it goes clear of the close cross (" × ", three
-    // cells one in from the right edge, ADR 0084 addendum): column width-5
-    // (39 of 44), one empty cell before the cross's cells (41 to 43).
-    expect(r[0]).toBe(` 1 key${' '.repeat(32)}?`);
-    expect(r[0]!.indexOf('?')).toBe(38);
-    expect(t.panes.keys.content.linkAt(0, 38)).toMatchObject({ hint: "The key manager's help (keys help)" });
+    // cells one in from the right edge, ADR 0084 addendum) and the look
+    // buttons left of it (two cells each, ADR 0095): column width-11
+    // (33 of 44), one empty cell before the buttons' cells (35 to 40).
+    expect(r[0]).toBe(` 1 key${' '.repeat(26)}?`);
+    expect(r[0]!.indexOf('?')).toBe(32);
+    expect(t.panes.keys.content.linkAt(0, 32)).toMatchObject({ hint: "The key manager's help (keys help)" });
     expect(r[1]).toBe(' ★ $home On a hill uxevjobve  12h t p s w x');
     expect(r[1]).toHaveLength(43);
     // Highlighted for a few seconds.
@@ -621,15 +622,16 @@ describe('bundled keymanager', () => {
     expect(t.rows()[1]).toBe(' ★ $home On a h… 12h t p s w x');
     t.resize(24);
     expect(t.rows()[1]).toBe(' ★ $home  12h t p s w x');
+    t.resize(22);
+    // The ? follows the width: column 11 of 22.
+    expect(t.rows()[0]).toBe(' 1 key    ?');
     t.resize(16);
     expect(t.rows()[1]).toBe(' ★ $home  12h t');
-    // The ? follows the width: column 11 of 16.
-    expect(t.rows()[0]).toBe(' 1 key    ?');
     // Narrower than the count needs: right after it, as before.
     t.resize(9);
     expect(t.rows()[0]).toBe(' 1 key  ?');
     t.resize(60);
-    expect(t.rows()[0]!.indexOf('?')).toBe(60 - 5 - 1);
+    expect(t.rows()[0]!.indexOf('?')).toBe(60 - 11 - 1);
     // The time left is a tooltip only, not a button.
     const l = t.panes.keys.content;
     expect(l.linkAt(1, t.rows()[1]!.indexOf('12h'))).toMatchObject({ tip: true, hint: expect.stringMatching(/^\$home works 1[12]h \d+m more$/) });

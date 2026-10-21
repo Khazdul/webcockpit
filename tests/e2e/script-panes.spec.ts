@@ -121,7 +121,7 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await expect(row).toContainText('Merc Pane (panes)');
   await row.locator('.wc-check').first().click();
   await expect(pane(page)).toBeHidden();
-  expect(await page.evaluate((id) => window.__wc!.settings.get().panes[id as 'a/b'], ID)).toEqual({ on: false, color: 'black', border: true });
+  expect(await page.evaluate((id) => window.__wc!.settings.get().panes[id as 'a/b'], ID)).toEqual({ on: false, color: 'black', border: true, glass: true });
   await row.locator('.wc-check').nth(1).click(); // Red: on again, tinted
   await expect(pane(page)).toBeVisible();
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');

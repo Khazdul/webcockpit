@@ -224,7 +224,7 @@ test('Options → Panes toggles panes and borders live', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Space');
-  await expect.poll(async () => (await settings(page)).panes.timers).toEqual({ on: true, color: 'blue', border: true });
+  await expect.poll(async () => (await settings(page)).panes.timers).toEqual({ on: true, color: 'blue', border: true, glass: true });
   // Border column by mouse.
   await page.locator('.wc-start .wc-check[title="Comm: border"]').click();
   await expect.poll(async () => (await settings(page)).panes.comm.border).toBe(false);

@@ -58,7 +58,7 @@ test('keymanager: enable, locate stores a key, a letter casts, Ctrl+S, the pick 
   await command(page, '#script enable keymanager');
   await expect(pane(page)).toBeVisible();
   await expect(pane(page).locator('.wc-pane-frame')).toContainText('Port keys');
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {5}$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {11}$/);
   await expect(prows(page).nth(2)).toHaveText(/^ No keys yet\.\s*$/);
 
   // locatel home: the cast, then the block; the row is gagged.
@@ -484,7 +484,7 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
   }), ID);
   await expect(pane(page)).not.toHaveAttribute('data-framed', '');
   // The ? at column width-5: four cells after it, then the last column.
-  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {5}$/);
+  await expect(prows(page).nth(0)).toHaveText(/^ 0 keys +\? {11}$/);
   const close = pane(page).locator('.wc-pane-close');
   await page.mouse.move(5, 5);
   await expect(close).toBeHidden();
@@ -497,8 +497,10 @@ test('keymanager: borderless, the close cross shows on hover and the ? stays cli
   const inContent = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.wc-pane-content'), q);
   expect(inContent).toBe(true);
   await expect(page.locator('.wc-spane-tip')).toContainText('help');
-  // The cross starts one empty cell after the ?'s cell: at its centre + 1.5 cells.
+  // The look buttons (ADR 0095) start one empty cell after the ?'s cell: at its centre + 1.5 cells.
   const cw = (await cellAt(page, 0, qcol + 1)).x - q.x;
-  expect(Math.abs((await close.boundingBox())!.x - (q.x + 1.5 * cw))).toBeLessThan(1);
+  const first = pane(page).locator('.wc-pane-btn-color');
+  await expect(first).toBeVisible();
+  expect(Math.abs((await first.boundingBox())!.x - (q.x + 1.5 * cw))).toBeLessThan(1);
   expect(errors).toEqual([]);
 });
