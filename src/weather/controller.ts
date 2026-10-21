@@ -49,7 +49,7 @@ export function startWeather(d: WeatherHookDeps, onError?: (message: string) => 
   const unsubs: Array<() => void> = [];
   let destroyed = false;
   engine = createWeather(
-    { root: cockpit.el, game: cockpit.gameEl, onLayout: (fn) => cockpit.onLayout(fn) },
+    { root: cockpit.el, game: cockpit.gameEl, onLayout: (fn) => cockpit.onLayout(fn), syncHoles: () => cockpit.syncHoles() },
     {
       state: signals.state(),
       categories: categoriesOf(settings.get()),

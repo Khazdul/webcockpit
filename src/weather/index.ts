@@ -12,13 +12,15 @@
 // - the page being hidden pauses the worker;
 // - floating panes are see-through (`data-weather-see`): what lies under
 //   them (game text, docked panes, lower floats) is clipped out
-//   (`floatHoles`), so the back layer itself shows through them.
+//   (src/layout/float-holes.ts, owned by the cockpit: `host.syncHoles`
+//   after `data-weather` comes or goes), so the back layer itself shows
+//   through them.
 // No per-frame work happens on the main thread.
 //
 // The API is what the signal bridge (stage 28 C) and Options (D) call.
 
 import './weather.css';
-import { geometryDiff, holeClip, measureGeometry } from './geometry';
+import { geometryDiff, measureGeometry } from './geometry';
 import { glassBlurCheap, weatherAvailable } from './support';
 import {
   ALL_CATEGORIES,
@@ -42,6 +44,12 @@ export interface WeatherHost {
   game: HTMLElement;
   /** The cockpit's relayout hook (Cockpit.onLayout). */
   onLayout?: (fn: () => void) => () => void;
+  /**
+   * Recuts the holes under floating panes (Cockpit.syncHoles,
+   * src/layout/float-holes.ts): called when the weather marks or unmarks
+   * the root `data-weather`, which changes them, and before each measure.
+   */
+  syncHoles?: () => void;
 }
 
 export interface WeatherOptions {
@@ -142,6 +150,8 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       // only now let the docked panes go transparent: their backgrounds are on the canvas
       root.setAttribute('data-weather', '');
       root.toggleAttribute('data-weather-flat', !glassBlurCheap());
+      // The floats turn see-through: what they cover is clipped out now.
+      host.syncHoles?.();
       resolveReady();
     } else if (m.t === 'stats') statsWaiters.splice(0).forEach((fn) => fn(m.stats));
     else if (m.t === 'error') {
@@ -179,14 +189,11 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     },
     [back, front],
   );
-  const floats = floatHoles(root);
-  floats.sync();
-
   // ---- geometry: measured on change, posted on difference
   let measureQueued = false;
   const remeasure = (): void => {
     if (destroyed) return;
-    floats.sync();
+    host.syncHoles?.();
     const next = measureGeometry(host, CANVAS_RATIO);
     if (geometryDiff(geom, next) === 'none') return;
     geom = next;
@@ -204,11 +211,8 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
   ro.observe(root);
   ro.observe(host.game);
   const offLayout =
-    host.onLayout?.(() => {
-      // Synchronously, before this layout is painted: what a float now covers is clipped out in the same frame.
-      floats.sync();
-      queueMeasure();
-    }) ?? (() => {});
+    // The cockpit has recut the holes before it calls this (float-holes.ts).
+    host.onLayout?.(() => queueMeasure()) ?? (() => {});
   const win = doc.defaultView ?? window;
   win.addEventListener('resize', queueMeasure);
 
@@ -275,91 +279,11 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       win.removeEventListener('blur', onFocus);
       root.removeAttribute('data-weather');
       root.removeAttribute('data-weather-flat');
-      floats.clear();
+      // Back to the holes without weather (a clear float's only).
+      host.syncHoles?.();
       backEl.remove();
       frontEl.remove();
     },
   };
   return api;
-}
-
-/**
- * See-through floating panes (owner feedback 3, 13, 18, item 57; ADR 0091
- * "Engine"). A floating pane has no fill of its own while weather is on
- * (`data-weather-see`), like a docked pane: the back layer shows through it
- * directly, so it always shows the very frame the weather round it shows
- * (a copy of the back layer in a canvas of its own was presented apart and
- * now and then ran a frame off: a lit rectangle in a lightning flicker).
- * What lies under it is clipped out instead (`clip-path`, `holeClip`): the
- * game text and the input line, the docked panes and the floats below it.
- * A clip makes an element a backdrop root, so the glass of a clipped pane
- * would blur nothing: a pane with a hole is marked `data-weather-under` and
- * gets the glass without blur (weather.css, as in Firefox) while covered.
- * A clear float (`data-clear`, ADR 0095) cuts no holes: it shows what lies
- * under it, the game text included.
- *
- * `sync()` runs on every relayout (synchronously, before it is painted) and
- * before each measure, so a moved float and its holes move in one frame.
- * Layout changes only, never per frame.
- */
-export function floatHoles(root: HTMLElement): { sync(): void; clear(): void } {
-  /** The clip each element got from here (to leave it alone when unchanged and to undo it). */
-  const clips = new Map<HTMLElement, string>();
-  const see = new Set<HTMLElement>();
-  const unclip = (el: HTMLElement): void => {
-    el.style.removeProperty('clip-path');
-    el.removeAttribute('data-weather-under');
-    clips.delete(el);
-  };
-  return {
-    sync() {
-      const base = root.getBoundingClientRect();
-      const rel = (el: HTMLElement) => {
-        const r = el.getBoundingClientRect();
-        return { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height };
-      };
-      const floats: { el: HTMLElement; r: ReturnType<typeof rel>; z: number; i: number }[] = [];
-      for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-pane[data-floating]')) {
-        if (el.hidden) continue;
-        const r = rel(el);
-        if (r.w <= 0 || r.h <= 0) continue;
-        floats.push({ el, r, z: Number(el.style.zIndex) || 0, i: floats.length });
-      }
-      for (const el of see) if (!floats.some((f) => f.el === el)) el.removeAttribute('data-weather-see');
-      see.clear();
-      for (const f of floats) {
-        f.el.setAttribute('data-weather-see', '');
-        see.add(f.el);
-      }
-      const next = new Map<HTMLElement, string>();
-      if (floats.length) {
-        for (const el of root.querySelectorAll<HTMLElement>(':scope > .wc-game, :scope > .wc-input-slot, :scope > .wc-pane')) {
-          if (el.hidden) continue;
-          const self = floats.find((f) => f.el === el);
-          const r = self?.r ?? rel(el);
-          if (r.w <= 0 || r.h <= 0) continue;
-          const holes = floats
-            // A clear float (ADR 0095) shows what is under it: it cuts no hole.
-            .filter((f) => !f.el.hasAttribute('data-clear'))
-            .filter((f) => f !== self && (!self || f.z > self.z || (f.z === self.z && f.i > self.i)))
-            .filter((f) => f.r.x < r.x + r.w && f.r.x + f.r.w > r.x && f.r.y < r.y + r.h && f.r.y + f.r.h > r.y)
-            .map((f) => ({ x: f.r.x - r.x, y: f.r.y - r.y, w: f.r.w, h: f.r.h }));
-          const clip = holes.length ? holeClip(r.w, r.h, holes) : '';
-          if (clip) next.set(el, clip);
-        }
-      }
-      for (const el of [...clips.keys()]) if (!next.has(el)) unclip(el);
-      for (const [el, clip] of next) {
-        if (clips.get(el) === clip) continue;
-        el.style.setProperty('clip-path', clip);
-        el.toggleAttribute('data-weather-under', el.classList.contains('wc-pane'));
-        clips.set(el, clip);
-      }
-    },
-    clear() {
-      for (const el of [...clips.keys()]) unclip(el);
-      for (const el of see) el.removeAttribute('data-weather-see');
-      see.clear();
-    },
-  };
 }
