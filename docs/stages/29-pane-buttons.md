@@ -101,3 +101,15 @@ Tasks:
 
 - [x] Weather effects fall inside clear panes (floating and docked)
 - [x] Tests, ADR 0095 round 2 addendum
+
+### Round 3 (2026-10-22, before release of round 2)
+
+- **Borderless hover:** only the icons (and `×`) show, still at the right
+  edge. No background colour at all: no title bar, no boxes behind the icons.
+- **Name tag removed:** hovering a pane no longer shows its name.
+
+Tasks:
+
+- [ ] Borderless hover: icons only, no bar or boxes
+- [ ] Name tag gone (built-in and script panes)
+- [ ] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual
