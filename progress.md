@@ -47,7 +47,9 @@ Statuses: Next, In progress, Owner testing, Done.
   and `selfBashed`; the bridge reads it (ADR 0091 addendum updated).
 - **Checks:** unit 2784, e2e 524/524 (the weather e2e sends `Group.Set`
   before the effects start).
-- **Next:** the owner tests getting bashed.
+- **Owner test:** 0.1.71 "it works"; item 116 approved. Item 115 (sleep)
+  released in 0.1.69, not yet confirmed by the owner.
+- **Next:** stage 28 stays in owner testing; the owner's later findings.
 - **Commits:** 40af205, b9a9e4d (version), plus this one.
 
 ### 2026-10-21 — Bashed shows the stun effect (stage 28 item 116)

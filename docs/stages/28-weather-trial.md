@@ -2190,3 +2190,4 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        and `selfBashed`; the bridge reads it on each group change and at
        start. The e2e test now sends `Group.Set` before the effects are
        turned on. Unit 2784, e2e 524/524.
+     - **Owner (2026-10-21, 0.1.71):** "it works". Approved.
