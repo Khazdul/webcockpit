@@ -78,10 +78,15 @@ looks like, and whether anything is missing before the fixed menu.
 - **Borderless pane on hover:** the whole top row gets the pane's background
   colour (a title bar). The `×` moves to the far right edge, the other
   buttons with it. The name tag goes to the far left instead of centred.
+- **Borderless glass** (added by the coordinator): a borderless glass pane
+  gets no glass with weather on; it should get the glass a frame has
+  inside (tinted fill over a blur), weather off the opaque fill as now.
 
 Tasks:
 
-- [ ] Clear float hides the game text under it, nothing else
-- [ ] Borderless hover title bar: full-row background, buttons at the right
+- [x] Clear float hides the game text under it, nothing else
+- [x] Borderless hover title bar: full-row background, buttons at the right
       edge, name tag at the left
-- [ ] Tests (unit, e2e Chromium + Firefox), ADR 0095 addendum, manual
+- [x] Borderless glass with weather on (docked, float, Firefox, under a float)
+- [x] Key manager `?` and the script manual's top-row note follow the buttons
+- [x] Tests (unit, e2e Chromium + Firefox), ADR 0095 addendum, manual
