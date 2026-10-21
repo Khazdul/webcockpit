@@ -332,18 +332,54 @@ describe('WeatherEngine borderless panes (owner item 53)', () => {
     const m = { ...mod('sky', FPS_SLOW), frame(env: Env) { seen = env; return true; } };
     const h = harness([m]);
     const box = { x: 100, y: 50, w: 200, h: 100 };
-    const framed = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: false, z: 0, bg: null, box };
+    const framed = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: false, z: 0, bg: null, clear: false, box };
     const bare = { ...framed, id: 'ui', x: 400, border: 0, label: 'UI', box: { ...box, x: 400 } };
     h.send({ t: 'geom', g: { ...geom, panes: [framed, bare] } });
     h.run(100);
     expect(seen!.panes.map((p) => p.id)).toEqual(['group']);
     expect(seen!.textPanes.map((p) => p.id)).toEqual(['group', 'ui']);
   });
+
+  it('a clear pane, framed or not, docked or floating, is no glass in the scene; switching it rebuilds the modules at once (ADR 0095 round 2)', () => {
+    let seen: Env | null = null;
+    let resized = 0;
+    const m = { ...mod('sky', FPS_SLOW), frame(env: Env) { seen = env; return true; }, resize() { resized++; } };
+    const h = harness([m]);
+    const box = { x: 100, y: 50, w: 200, h: 100 };
+    const group = { id: 'group', x: 103, y: 53, w: 194, h: 94, border: 3, label: 'Group', floating: false, z: 0, bg: null, clear: false, box };
+    const float = { ...group, id: 'comm', x: 403, floating: true, z: 10, box: { ...box, x: 400 } };
+    h.send({ t: 'geom', g: { ...geom, panes: [group, float] } });
+    h.run(400);
+    expect(seen!.panes.map((p) => p.id)).toEqual(['group', 'comm']);
+    const before = resized;
+    // The float goes clear: out of the scene, the modules rebuilt without waiting for the layout to settle.
+    h.send({ t: 'geom', g: { ...geom, panes: [group, { ...float, clear: true }] } });
+    expect(resized).toBe(before + 1);
+    h.run(50);
+    expect(seen!.panes.map((p) => p.id)).toEqual(['group']);
+    // Still a text pane (things are placed away from its text).
+    expect(seen!.textPanes.map((p) => [p.id, p.clear])).toEqual([['group', false], ['comm', true]]);
+    // Its rim is still lit (round 3): in the lit rims, not in the solid panes.
+    expect(seen!.rims.map((p) => p.id)).toEqual(['group', 'comm']);
+    // The docked one too.
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true }, { ...float, clear: true }] } });
+    h.run(50);
+    expect(seen!.panes).toEqual([]);
+    expect(seen!.rims.map((p) => p.id)).toEqual(['group', 'comm']);
+    // A borderless clear pane has no rim to light.
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true, border: 0 }, { ...float, clear: true }] } });
+    h.run(50);
+    expect(seen!.rims.map((p) => p.id)).toEqual(['comm']);
+    // A move only: waits to settle (no rebuild at once).
+    const n = resized;
+    h.send({ t: 'geom', g: { ...geom, panes: [{ ...group, clear: true, border: 0 }, { ...float, x: 500, clear: true, box: { ...box, x: 497 } }] } });
+    expect(resized).toBe(n);
+  });
 });
 
 describe('WeatherEngine floating panes', () => {
   const box = { x: 100, y: 50, w: 200, h: 100 };
-  const pane = (id: string, x: number, o: Partial<PaneGeom> = {}): PaneGeom => ({ id, x, y: 50, w: 200, h: 100, border: 0, label: id, floating: false, z: 0, bg: null, box: { ...box, x }, ...o });
+  const pane = (id: string, x: number, o: Partial<PaneGeom> = {}): PaneGeom => ({ id, x, y: 50, w: 200, h: 100, border: 0, label: id, floating: false, z: 0, bg: null, clear: false, box: { ...box, x }, ...o });
 
   it('paints a tinted pane less the floats in front of it; floats are see-through to the back layer (owner item 57)', () => {
     const docked = pane('timers', 100, { bg: '#102030' });

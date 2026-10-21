@@ -229,21 +229,12 @@ describe('SPANE records: anchor (ADR 0053 addendum)', () => {
     expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).cross).toBe(true);
   });
 
-  it('a pane with the name tag says so in full records; deltas and the player keep it (ADR 0087 addendum)', () => {
-    const c = new PaneContent('Tip', { tooltip: true });
-    c.setLine(0, plain('a'));
-    const a = encodePaneRecord(null, c.snapshot())!;
-    expect(JSON.parse(a.payload).tooltip).toBe(true);
-    c.setLine(1, plain('b'));
-    const b = encodePaneRecord(a.state, c.snapshot())!;
-    expect(b.full).toBe(false);
-    let s = applyPaneRecord(null, a.payload)!;
-    s = applyPaneRecord(s, b.payload)!;
-    expect(s.tooltip).toBe(true);
-    expect(PaneContent.fromSnapshot(s).tooltip).toBe(true);
-    const o = encodePaneRecord(null, new PaneContent('O').snapshot())!;
+  it('an old record with the name tag (ADR 0087 addendum) still reads; it is not written any more (ADR 0095 round 3)', () => {
+    const s = applyPaneRecord(null, '{"title":"Tip","lines":[],"links":[],"tooltip":true}')!;
+    expect(s.title).toBe('Tip');
+    expect('tooltip' in s).toBe(false);
+    const o = encodePaneRecord(null, PaneContent.fromSnapshot(s).snapshot())!;
     expect(o.payload).not.toContain('tooltip');
-    expect(PaneContent.fromSnapshot(applyPaneRecord(null, o.payload)!).tooltip).toBe(false);
   });
 
   it('a pane without the hover outline says so in full records; deltas and the player keep it (ADR 0084 addendum 2)', () => {

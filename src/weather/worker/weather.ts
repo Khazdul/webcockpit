@@ -784,7 +784,8 @@ export function weatherModule(): Module {
 
     cutBand(ag, bx0, by0, sh);
     yield;
-    for (const p of env.panes) {
+    // Every rim, a clear pane's too (ADR 0095 round 3).
+    for (const p of env.rims) {
       let best = 1e9, nx = 0, ny = 0;
       for (let i = 0; i < segs.length; i += 32) {
         if (segs[i + 7] !== 0) continue;

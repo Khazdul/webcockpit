@@ -90,3 +90,29 @@ Tasks:
 - [x] Borderless glass with weather on (docked, float, Firefox, under a float)
 - [x] Key manager `?` and the script manual's top-row note follow the buttons
 - [x] Tests (unit, e2e Chromium + Firefox), ADR 0095 addendum, manual
+
+### Round 2 (2026-10-22, on 0.1.73)
+
+- **Weather inside clear panes:** rain (and the like: snow, other falling or
+  drifting effects) falls inside a clear floating pane. For consistency the
+  same goes for clear docked panes: clear means fully see-through.
+
+Tasks:
+
+- [x] Weather effects fall inside clear panes (floating and docked)
+- [x] Tests, ADR 0095 round 2 addendum
+
+### Round 3 (2026-10-22, before release of round 2)
+
+- **Borderless hover:** only the icons (and `×`) show, still at the right
+  edge. No background colour at all: no title bar, no boxes behind the icons.
+- **Name tag removed:** hovering a pane no longer shows its name.
+- **Clear framed pane lit:** the weather lights a clear pane's rim (glints,
+  beams) as it does a glass pane's; rain and snow still fall inside it.
+
+Tasks:
+
+- [x] Borderless hover: icons only, no bar or boxes
+- [x] Name tag gone (built-in and script panes)
+- [x] Weather lights a clear framed pane's rim
+- [x] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual

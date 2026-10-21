@@ -248,6 +248,7 @@ function geom(over: Partial<Geometry> = {}): Geometry {
         w: 390,
         h: 430,
         border: 2,
+        clear: false,
         label: 'Comm',
         floating: false,
         z: 0,
@@ -277,6 +278,10 @@ describe('geometry diff', () => {
     const t = geom();
     t.panes[0]!.border = 3;
     expect(geometryDiff(geom(), t)).toBe('layout');
+    // Glass ↔ clear (ADR 0095 round 2).
+    const c = geom();
+    c.panes[0]!.clear = true;
+    expect(geometryDiff(geom(), c)).toBe('layout');
     // The nameplate is part of the frame.
     const n = geom();
     n.panes[0]!.plate = { x: 1229, w: 60, y1: 15, lip: 2, r: 4 };

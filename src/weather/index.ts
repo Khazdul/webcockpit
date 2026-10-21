@@ -80,6 +80,8 @@ export interface Weather {
   /** Worker frame times (ms). */
   /** `reset`: the frame times after this call start afresh (a bench's measuring window). */
   stats(opts?: { reset?: boolean }): Promise<FrameStats>;
+  /** The layout geometry last posted to the worker (what it knows of the panes: frames, tints, clear). */
+  geometry(): Geometry;
   /** Resolves on the first drawn frame (rejects if the worker fails first). */
   readonly ready: Promise<void>;
   destroy(): void;
@@ -259,6 +261,9 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
     },
     setSpeed(speed) {
       if (!destroyed) post({ t: 'speed', speed });
+    },
+    geometry() {
+      return geom;
     },
     stats(o) {
       if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1, gaps: { n: 0, p50: 0, p95: 0, max: 0 } });

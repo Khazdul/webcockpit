@@ -224,8 +224,8 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
   expect((await look('comm')).fill).not.toBe('none');
 });
 
-test('a borderless pane on hover: a title bar, the cross at the right edge with the buttons, the name tag at the left', async ({ page }) => {
-  const { cw, ch } = await open(page);
+test('a borderless pane on hover: the cross at the right edge with the buttons, no background, no name tag', async ({ page }) => {
+  const { cw } = await open(page);
   await page.evaluate(() => window.__wc!.settings.update({ panes: { comm: { border: false, color: 'blue' } } }));
   await expect(page.locator('.wc-pane-comm')).not.toHaveAttribute('data-framed', '');
   await hover(page, 'comm');
@@ -235,35 +235,29 @@ test('a borderless pane on hover: a title bar, the cross at the right edge with 
   expect(cross.y).toBeCloseTo(pane.y, 1);
   const btns = await Promise.all((await page.locator('.wc-pane-comm > .wc-pane-btn').all()).map((b) => b.boundingBox()));
   btns.forEach((b, i) => expect(b!.x + b!.width).toBeCloseTo(cross.x - (2 - i) * 2 * cw, 1));
-  // The name tag at the left of the row.
-  const tag = await box(page, '.wc-pane-comm > .wc-pane-name');
-  expect(tag.x).toBeCloseTo(pane.x, 1);
-  await expect(page.locator('.wc-pane-comm > .wc-pane-name')).toBeVisible();
-  // The bar: the top row, opaque, the colour the buttons and the tag sit on.
+  // No name tag (ADR 0087 withdrawn), no title bar, no boxes: only the ink.
+  await expect(page.locator('.wc-pane-name')).toHaveCount(0);
   const look = () =>
     page.locator('.wc-pane-comm').evaluate((el) => {
-      const bar = getComputedStyle(el, '::before');
-      const bg = (s: string) => getComputedStyle(el.querySelector(s)!).backgroundColor;
-      return { bar: bar.backgroundColor, h: bar.height, w: bar.width, btn: bg('.wc-pane-btn-border'), cross: bg('.wc-pane-close'), tag: bg('.wc-pane-name'), token: el.style.getPropertyValue('--pane-bar') };
+      const cs = (s: string) => getComputedStyle(el.querySelector(s)!);
+      return {
+        bar: getComputedStyle(el, '::before').content,
+        btn: cs('.wc-pane-btn-border').backgroundColor,
+        cross: cs('.wc-pane-close').backgroundColor,
+        ink: cs('.wc-pane-close').color,
+        label: el.style.getPropertyValue('--pane-shade-label'),
+      };
     });
   const l = await look();
-  expect(parseFloat(l.h)).toBeCloseTo(ch, 1);
-  expect(parseFloat(l.w)).toBeCloseTo(pane.width, 1);
-  expect(l.bar).toMatch(/^rgb\(/);
-  expect([l.btn, l.cross, l.tag]).toEqual([l.bar, l.bar, l.bar]);
-  // Clear: the pane has no background, the bar stays opaque.
-  await page.locator('.wc-pane-comm > .wc-pane-btn-glass').click();
-  await hover(page, 'comm');
-  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
-  expect((await look()).bar).toBe(l.bar);
-  // Not hovered: no bar.
-  await page.mouse.move(2, 2);
-  expect(await page.locator('.wc-pane-comm').evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
-  // A framed pane keeps the cross one cell in and gets no bar.
+  expect(l).toMatchObject({ bar: 'none', btn: 'rgba(0, 0, 0, 0)', cross: 'rgba(0, 0, 0, 0)' });
+  // The ink is the pane's label shade.
+  const hex = l.label.trim();
+  const rgb = `rgb(${parseInt(hex.slice(1, 3), 16)}, ${parseInt(hex.slice(3, 5), 16)}, ${parseInt(hex.slice(5, 7), 16)})`;
+  expect(l.ink).toBe(rgb);
+  // A framed pane keeps the cross one cell in.
   await hover(page, 'timers');
   const t = await box(page, '.wc-pane-timers');
   expect((await box(page, '.wc-pane-timers > .wc-pane-close')).x).toBeCloseTo(t.x + t.width - 4 * cw, 1);
-  expect(await page.locator('.wc-pane-timers').evaluate((el) => getComputedStyle(el, '::before').content)).toBe('none');
 });
 
 test('a borderless glass pane gets the glass with weather on; weather off it is opaque, clear it is clear', async ({ page }) => {
@@ -303,4 +297,43 @@ test('the look is kept over a reload', async ({ page }) => {
   await page.reload();
   await expect(page.locator('.wc-pane-group')).toHaveAttribute('data-clear', '');
   expect((await panes(page)).group).toMatchObject({ color: 'red', glass: false });
+});
+
+test('the weather knows which panes are clear, at once, and follows a clear float that moves (round 2)', async ({ page }) => {
+  await open(page);
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const R = d.layout.docks.right;
+      for (const l of [R.head, ...R.lanes.map((x) => x.panes), R.tail]) {
+        const i = l.findIndex((p) => p.id === 'group');
+        if (i >= 0) l.splice(i, 1);
+      }
+      d.layout.floating = [...d.layout.floating, { id: 'group', x: 20, y: 4, w: 36, h: 12 }];
+      d.panes.group.on = true;
+      d.panes.group.glass = false;
+      d.weather.enabled = true;
+    }),
+  );
+  await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
+  const pane = (id: string) =>
+    page.evaluate((i) => {
+      const p = window.__wc!.app.weather!.controller!.engine.geometry().panes.find((q) => q.id === i);
+      return p ? { clear: p.clear, x: p.box.x } : null;
+    }, id);
+  await expect.poll(() => pane('group')).toMatchObject({ clear: true });
+  await expect.poll(() => pane('comm')).toMatchObject({ clear: false });
+  const x0 = (await pane('group'))!.x;
+  // Glass, then clear again: the weather follows each switch.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: true }, comm: { glass: false } } }));
+  await expect.poll(() => pane('group')).toMatchObject({ clear: false });
+  await expect.poll(() => pane('comm')).toMatchObject({ clear: true });
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { glass: false } } }));
+  await expect.poll(() => pane('group')).toMatchObject({ clear: true });
+  // The float moves: its place follows.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      d.layout.floating = d.layout.floating.map((f) => (f.id === 'group' ? { ...f, x: 30 } : f));
+    }),
+  );
+  await expect.poll(async () => (await pane('group'))!.x).toBeGreaterThan(x0);
 });

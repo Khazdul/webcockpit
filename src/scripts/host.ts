@@ -1987,11 +1987,8 @@ export class ScriptHost {
       if (cross === false && temporary === true) {
         throw new Error(`bad argument #1 to 'createPane' (a temporary pane always has its close cross)`);
       }
-      // The name tag on a hover over the borderless pane (ADR 0087 addendum); off by default.
-      const tooltip = t.tooltip;
-      if (tooltip !== undefined && typeof tooltip !== 'boolean') {
-        throw new Error(`bad argument #1 to 'createPane' (tooltip must be true or false)`);
-      }
+      // `tooltip` (the name tag, ADR 0087 addendum) is accepted and has no
+      // effect: the name tag is gone (ADR 0095 round 3), old scripts still run.
       // No outline on a hover over the borderless pane (ADR 0084 addendum 2); on by default.
       const outline = t.outline;
       if (outline !== undefined && typeof outline !== 'boolean') {
@@ -2016,11 +2013,9 @@ export class ScriptHost {
         if (short !== undefined) old.short = short;
         if (
           (cross !== undefined && old.content.cross !== cross) ||
-          (tooltip !== undefined && old.content.tooltip !== tooltip) ||
           (outline !== undefined && old.content.outline !== outline)
         ) {
           if (cross !== undefined) old.content.cross = cross;
-          if (tooltip !== undefined) old.content.tooltip = tooltip;
           if (outline !== undefined) old.content.outline = outline;
           old.content.version++;
           old.view.changed();
@@ -2058,7 +2053,6 @@ export class ScriptHost {
       reg.content = new PaneContent(title ?? name, {
         anchor,
         ...(cross === false ? { cross: false } : {}),
-        ...(tooltip === true ? { tooltip: true } : {}),
         ...(outline === false ? { outline: false } : {}),
         onDrop: (n) => {
           const tg = reg.toggles.get(n);

@@ -24,7 +24,7 @@ export function geometryDiff(a: Geometry | null, b: Geometry): 'none' | 'layout'
   if (a.panes.length !== b.panes.length) return 'layout';
   for (let i = 0; i < a.panes.length; i++) {
     const p = a.panes[i]!, q = b.panes[i]!;
-    if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border) return 'layout';
+    if (p.id !== q.id || p.label !== q.label || p.floating !== q.floating || p.z !== q.z || p.bg !== q.bg || p.border !== q.border || p.clear !== q.clear) return 'layout';
     if (!rectEq(p, q) || !rectEq(p.box, q.box)) return 'layout';
     const ga = p.plate, gb = q.plate;
     if (!ga !== !gb || (ga && gb && (!near(ga.x, gb.x) || !near(ga.w, gb.w) || !near(ga.y1, gb.y1) || ga.lip !== gb.lip || ga.r !== gb.r))) return 'layout';
@@ -152,6 +152,7 @@ export function measureGeometry(host: MeasureHost, dpr: number): Geometry {
       floating: el.hasAttribute('data-floating'),
       z: el.hasAttribute('data-floating') ? Number(el.style.zIndex) || 0 : 0,
       bg: bg && bg !== termBg ? bg : null,
+      clear: el.hasAttribute('data-clear'),
       ...(plate ? { plate } : {}),
     });
   }

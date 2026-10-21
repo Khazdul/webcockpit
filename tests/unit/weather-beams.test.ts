@@ -276,6 +276,14 @@ describe('beam hits on frame lines', () => {
     expect(past.every((x) => x.p === far)).toBe(true);
   });
 
+  it('a clear docked pane (ADR 0095 round 3): its rims glint, a hit inside it is not weakened', () => {
+    const back = pane(500, 300, 400, 200), fl = pane(600, 250, 100, 100);
+    // The docked pane is clear: lit rims both, solid only the float.
+    const hits = beamHits([back, fl], sx, sy, at(650, 300), [], [fl]);
+    expect(hits.every((h) => h.p === fl)).toBe(true);
+    expect(hits.find((h) => !h.enter)!.att).toBe(1);
+  });
+
   it('a float over a docked pane: the one the beam meets first glints, the other not', () => {
     const back = pane(500, 300, 400, 200), fl = pane(600, 250, 100, 100);
     // the beam meets the float's top first (y 250): only the float, its far line inside the docked pane weaker

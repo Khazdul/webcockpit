@@ -168,6 +168,13 @@ export interface PaneGeom extends Rect {
   floating: boolean;
   /** Stacking order of a floating pane (higher is in front); 0 for a docked one. */
   z: number;
+  /**
+   * Clear (`data-clear`, ADR 0095 round 2): no glass, so not in the scene
+   * either: no shadow, no rain or snow stopping on it, no fog along its
+   * top, no glints or beams on its rim; the weather passes through it as
+   * if it were not there (a borderless pane already does).
+   */
+  clear: boolean;
   /** The pane's own background when it differs from the terminal's (painted under the back layer, inside the rim less the nameplate, less the floats above it). */
   bg: string | null;
   /** The rect of the whole pane element. */
