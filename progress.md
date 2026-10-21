@@ -39,6 +39,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-21 — Sleeping keeps the sky (stage 28 items 115, 116)
+
+- **Done:** item 115: asleep the game sends no weather, which read as
+  indoors. The signal bridge keeps the weather, fog and light seen last while
+  sleeping, stunned, incapacitated or dying (ADR 0091 addendum). Unit 2780.
+- **Open:** item 116, no stun effect: the effect fires on `position:
+  stunned` (near death in MUME). Asked the owner how they were stunned.
+- **Next:** the owner's answer on 116; release when it is settled.
+- **Commits:** 93454a4, plus this one.
+
 ### 2026-10-20 — Moonset fix (stage 28 item 114)
 
 - **Done:** the moon faded out about a minute before the game's set. The
