@@ -1517,3 +1517,13 @@ minutes before. The moon now fades with `moonBandK`: the square root of
 its way from `bandEnd` to `bandSolid`, the same strip as the sky, still 0
 at the set, ~40 % a minute before and ~17 % ten seconds before. The sky,
 stars, clouds, shooting stars and frame glints keep `bandK`.
+
+### Asleep is not indoors (2026-10-21, owner item 115)
+
+Outdoors is `weather !== null`, and asleep the game sends no weather, so
+`sleep` crossfaded the sky out as if going indoors. The signal bridge now
+keeps the weather, fog and light seen last while the position is one in
+which the character cannot see (sleeping, stunned, incapacitated, dying)
+and the game's weather is null; awake again, the game's values apply
+(null then is indoors). Being carried or moved while asleep keeps the old
+room's weather until waking: accepted.

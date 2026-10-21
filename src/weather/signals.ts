@@ -37,6 +37,10 @@
 // does not time it); a magical darkness begun meanwhile and not ended starts
 // then. Lightning and gusts held back are dropped (a flash is a moment).
 //
+// Asleep or out cold (owner item 115) the game sends no weather: the sky
+// cannot be seen. That is not indoors: the weather, fog and light seen last
+// are kept until the character can see again.
+//
 // Magical darkness is a spell someone casts: only its Event.Darkness events
 // give an effect (owner feedback 26); no room text or light value does.
 
@@ -61,6 +65,8 @@ export type VitalsState = Pick<WeatherState, 'weather' | 'fog' | 'light' | 'posi
 export type SkyState = Pick<WeatherState, 'clock' | 'moonUp' | 'moonPhase' | 'moonU' | 'sunU' | 'dayAt' | 'nightAt' | 'moonRiseAt' | 'moonSetAt'>;
 
 const WEATHER_SYMS: readonly string[] = [' ', '~', "'", '"', '*'];
+/** Positions in which the character cannot see (the game's weather is absent then, owner item 115). */
+const UNSEEING: ReadonlySet<string> = new Set(['sleeping', 'stunned', 'incapacitated', 'dying']);
 
 /** The weather part of `Char.Vitals` (a merged map, or a raw object). */
 export function vitalsState(get: (key: string) => unknown): VitalsState {
@@ -220,6 +226,8 @@ export class WeatherSignals {
   /** The current vitals (after a `Char.*` change); forwards the keys that changed. */
   vitals(v: VitalsState): void {
     const prev = this.vit;
+    // asleep or out cold: no weather is not indoors; keep what was seen (owner item 115)
+    if (v.weather === null && UNSEEING.has(v.position)) v = { ...v, weather: prev.weather, fog: prev.fog, light: prev.light };
     let out: Partial<WeatherState> | null = null;
     for (const k of ['weather', 'fog', 'light', 'position'] as const) {
       if (v[k] === prev[k]) continue;

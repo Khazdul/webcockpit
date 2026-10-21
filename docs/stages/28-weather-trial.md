@@ -2151,3 +2151,22 @@ ADR 0091 addendum). The stage stays in owner testing for item 100.
        Please try: watch a moonset on a clear night with the clock synced;
        the moon should be visible, fading, until the game says it sets.
      - **Owner (2026-10-20, 0.1.68):** "seems to work". Approved.
+
+### 2026-10-21 — sleeping and stunned (translated)
+
+115. **Sleeping turns the sky off.** "The weather (sky, clouds, rain etc.)
+     need not go out when you sleep. Right now sleep is the same as going
+     indoors."
+     - **Done (2026-10-21):** ADR 0091, "Asleep is not indoors". Asleep the
+       game sends no weather (the sky cannot be seen), and no weather meant
+       indoors. While sleeping, stunned, incapacitated or dying, the
+       weather, fog and light seen last are now kept until the game sends
+       weather again. Unit 2780.
+       Please try: `sleep` outdoors; the sky, clouds and rain should stay,
+       with the z z Z on top. `wake` indoors should still go indoors.
+116. **No stun effect.** "I tried getting stunned in the game but got no
+     effect."
+     - **Open:** the effect fires when `Char.Vitals position` becomes
+       `stunned`, which the game uses for a character near death (as in "X
+       is stunned and will probably die soon"), not for a bash or a trip.
+       Asked the owner how they were stunned, and for a log of it.

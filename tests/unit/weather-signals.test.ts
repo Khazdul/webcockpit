@@ -54,12 +54,12 @@ describe('vitalsState', () => {
     // A delta without the weather keys: nothing forwarded, the values kept.
     feed({ hp: 90 });
     expect(s.states).toHaveLength(1);
-    feed({ position: 'sleeping' });
-    expect(s.states.at(-1)!.s).toEqual({ position: 'sleeping' });
-    // null = indoors.
+    feed({ position: 'resting' });
+    expect(s.states.at(-1)!.s).toEqual({ position: 'resting' });
+    // null = indoors (awake).
     feed({ weather: null });
     expect(s.states.at(-1)!.s).toEqual({ weather: null });
-    expect(sig.state()).toMatchObject({ weather: null, fog: '-', position: 'sleeping' });
+    expect(sig.state()).toMatchObject({ weather: null, fog: '-', position: 'resting' });
     // A new connection clears the model: indoors, no fog, standing.
     char.reset();
     sig.vitals(vitalsState((k) => char.vitals.get(k)));
@@ -395,6 +395,22 @@ describe('lightning and gusts from text lines', () => {
     sig.line(line(bolt));
     sig.line(line('Nothing here.'));
     expect(s.events).toEqual(['strike']);
+  });
+});
+
+describe('asleep or out cold', () => {
+  it('keeps the weather seen last while the game sends none (owner item 115)', () => {
+    const s = sink();
+    const out = { ...empty, weather: "'" as const, fog: '-' as const, light: ')' };
+    const sig = new WeatherSignals(s, out, clockAt(5, 12), NOW_MS);
+    sig.vitals({ ...empty, position: 'sleeping' });
+    expect(s.states.at(-1)!.s).toEqual({ position: 'sleeping' });
+    expect(sig.state()).toMatchObject({ weather: "'", fog: '-', light: ')' });
+    sig.vitals({ ...empty, position: 'stunned' });
+    expect(sig.state().weather).toBe("'");
+    // awake: the game's value again (no weather while standing is indoors)
+    sig.vitals({ ...empty, position: 'standing' });
+    expect(s.states.at(-1)!.s).toEqual({ weather: null, fog: '', light: '', position: 'standing' });
   });
 });
 
