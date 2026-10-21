@@ -528,9 +528,10 @@ test('hovering a borderless pane with tooltip = true shows its name at once', as
   const b = (await sp.boundingBox())!;
   await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
   await expect(tag).toBeVisible({ timeout: 300 });
-  // Centred on the pane.
+  // At the left of the top row, on the hover title bar (ADR 0095 round 1; it was centred).
   const t = (await tag.boundingBox())!;
-  expect(Math.abs(t.x + t.width / 2 - (b.x + b.width / 2))).toBeLessThan(2);
+  expect(Math.abs(t.x - b.x)).toBeLessThan(1);
+  expect(Math.abs(t.y - b.y)).toBeLessThan(1);
   await page.mouse.move(5, 5);
   await expect(tag).toBeHidden();
 
