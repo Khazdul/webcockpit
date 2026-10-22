@@ -1070,12 +1070,30 @@ export class Cockpit {
       const wz = Math.max(3, Math.round(cell.w * 0.4));
       for (const dock of Object.values(r.docks)) {
         const d = dock.rect;
+        const docked = r.panes.filter((p) => p.dock === dock.id);
+        // Framed panes on one side of the boundary at cell `at` (an `x` line
+        // across rows lo..hi, or a `y` line across columns lo..hi): the
+        // handle then takes their whole border cell there, so the drawn line
+        // itself grabs. Never a pane's top row: that is its move grip.
+        const framedAt = (axis: 'x' | 'y', at: number, lo: number, hi: number, after: boolean): boolean => {
+          const near = docked.filter((p) => {
+            const [s0, len, c0, clen] =
+              axis === 'x' ? [p.rect.x, p.rect.w, p.rect.y, p.rect.h] : [p.rect.y, p.rect.h, p.rect.x, p.rect.w];
+            return (after ? s0 === at : s0 + len === at) && c0 < hi && c0 + clen > lo;
+          });
+          return near.length > 0 && near.every((p) => p.framed);
+        };
         if (dock.id === 'right') {
-          add({ x: (d.x - DOCK_GAP) * cell.w, y: 0, w: DOCK_GAP * cell.w, h: d.h * cell.h }, 'x', { dock: 'right' });
+          const deep = framedAt('x', d.x, 0, d.h, true) ? cell.w : 0;
+          add({ x: (d.x - DOCK_GAP) * cell.w, y: 0, w: DOCK_GAP * cell.w + deep, h: d.h * cell.h }, 'x', { dock: 'right' });
         } else if (dock.id === 'left') {
-          add({ x: (d.x + d.w) * cell.w, y: 0, w: DOCK_GAP * cell.w, h: d.h * cell.h }, 'x', { dock: 'left' });
+          const deep = framedAt('x', d.x + d.w, 0, d.h, false) ? cell.w : 0;
+          add({ x: (d.x + d.w) * cell.w - deep, y: 0, w: DOCK_GAP * cell.w + deep, h: d.h * cell.h }, 'x', { dock: 'left' });
         } else if (dock.id === 'top') {
-          add({ x: d.x * cell.w, y: (d.y + d.h) * cell.h, w: d.w * cell.w, h: DOCK_GAP * cell.h }, 'y', { dock: 'top' });
+          const deep = framedAt('y', d.y + d.h, d.x, d.x + d.w, false) ? cell.h : 0;
+          add({ x: d.x * cell.w, y: (d.y + d.h) * cell.h - deep, w: d.w * cell.w, h: DOCK_GAP * cell.h + deep }, 'y', {
+            dock: 'top',
+          });
         } else {
           add({ x: d.x * cell.w, y: (d.y - DOCK_GAP) * cell.h, w: d.w * cell.w, h: DOCK_GAP * cell.h }, 'y', {
             dock: 'bottom',
@@ -1095,9 +1113,12 @@ export class Cockpit {
             const b = boxes[i + 1]!;
             const data = { dock: dock.id, a: a.id, b: b.id };
             if (side) {
-              add({ x: l.x * cell.w, y: b.rect.y * cell.h - hz, w: l.w * cell.w, h: hz }, 'y', data);
+              const up = a.framed ? cell.h : hz;
+              add({ x: l.x * cell.w, y: b.rect.y * cell.h - up, w: l.w * cell.w, h: up }, 'y', data);
             } else {
-              add({ x: b.rect.x * cell.w - wz, y: l.y * cell.h, w: wz, h: l.h * cell.h }, 'x', data);
+              const left = a.framed ? cell.w : wz;
+              const right = b.framed ? cell.w : 0;
+              add({ x: b.rect.x * cell.w - left, y: l.y * cell.h, w: left + right, h: l.h * cell.h }, 'x', data);
             }
           }
         }
@@ -1114,9 +1135,14 @@ export class Cockpit {
           const second = towardEdge ? inner.rect : outer.rect;
           const data = { dock: dock.id, outer: String(outer.index), inner: String(inner.index) };
           if (side) {
-            add({ x: (first.x + first.w) * cell.w - wz, y: first.y * cell.h, w: wz, h: first.h * cell.h }, 'x', data);
+            const at = first.x + first.w;
+            const left = framedAt('x', at, first.y, first.y + first.h, false) ? cell.w : wz;
+            const right = framedAt('x', at, first.y, first.y + first.h, true) ? cell.w : 0;
+            add({ x: at * cell.w - left, y: first.y * cell.h, w: left + right, h: first.h * cell.h }, 'x', data);
           } else if (first.h > 1) {
-            add({ x: first.x * cell.w, y: (first.y + first.h) * cell.h - hz, w: first.w * cell.w, h: hz }, 'y', data);
+            const at = first.y + first.h;
+            const up = framedAt('y', at, first.x, first.x + first.w, false) ? cell.h : hz;
+            add({ x: first.x * cell.w, y: at * cell.h - up, w: first.w * cell.w, h: up }, 'y', data);
           } else if (second.h > 1) {
             add({ x: second.x * cell.w, y: second.y * cell.h, w: second.w * cell.w, h: hz }, 'y', data);
           }
@@ -1128,8 +1154,14 @@ export class Cockpit {
         for (const sp of g ? dock.spans : []) {
           const data = { dock: dock.id, span: sp.side };
           const at = sp.side === 'head' ? (side ? g!.y : g!.x) : side ? g!.y + g!.h : g!.x + g!.w;
-          if (side) add({ x: d.x * cell.w, y: at * cell.h - hz, w: d.w * cell.w, h: hz }, 'y', data);
-          else add({ x: at * cell.w - wz, y: d.y * cell.h, w: wz, h: d.h * cell.h }, 'x', data);
+          if (side) {
+            const up = framedAt('y', at, d.x, d.x + d.w, false) ? cell.h : hz;
+            add({ x: d.x * cell.w, y: at * cell.h - up, w: d.w * cell.w, h: up }, 'y', data);
+          } else {
+            const left = framedAt('x', at, d.y, d.y + d.h, false) ? cell.w : wz;
+            const right = framedAt('x', at, d.y, d.y + d.h, true) ? cell.w : 0;
+            add({ x: at * cell.w - left, y: d.y * cell.h, w: left + right, h: d.h * cell.h }, 'x', data);
+          }
         }
       }
     }

@@ -374,6 +374,18 @@ test('a drag shows its cursor on a shield over the cockpit, gone after the drop'
   expect((await box(page, '.wc-pane-comm .wc-float-handle[data-edge="s"]')).height).toBe(ch);
 });
 
+test('docked framed panes resize from the drawn border line itself', async ({ page }) => {
+  const { cw, ch } = await open(page);
+  const o = await origin(page);
+  const cursorAt = (x: number, y: number) =>
+    page.evaluate(([x, y]) => getComputedStyle(document.elementFromPoint(x!, y!)!).cursor, [x, y]);
+  const c = await box(page, '.wc-pane-character');
+  // The right dock's left border (mid-cell) resizes like the gap beside it.
+  expect(await cursorAt(o.x + c.x + cw / 2, o.y + c.y + 3 * ch)).toBe('col-resize');
+  // The bottom border between two stacked panes (mid-cell) resizes them.
+  expect(await cursorAt(o.x + c.x + 5 * cw, o.y + c.y + c.height - ch / 2)).toBe('row-resize');
+});
+
 test('dock lanes: a second column by drag, lane boundary resize, reload, empty lane removed', async ({ page }) => {
   const { cw, ch, cols, rows } = await open(page);
   const o = await origin(page);

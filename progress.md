@@ -42,8 +42,9 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ### 2026-10-22 — Stage 29 round 4
 
-- **Done:** framed floats resize from the whole left, right and bottom border
-  cell (was 40 % of it). Top unchanged. e2e layout suite green.
+- **Done:** framed panes resize from the whole left, right and bottom border
+  cell (was 40 % of it), floating and docked. Top unchanged. Full suite
+  green (3 Firefox chrome.spec timeouts under load passed on rerun).
 - **Next:** owner tests on the dev build, then release with the 0.1.74 feedback.
 - **Open:** `layout.spec.ts` "a drag shows its cursor" fails when run alone
   with `-g` (also before this change); passes in the full file.

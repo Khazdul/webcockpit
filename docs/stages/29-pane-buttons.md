@@ -128,6 +128,13 @@ Tasks:
   40 % of it, so the mid-cell line itself missed); top and borderless floats
   unchanged
 - [x] e2e check of the band sizes
+- [x] Docked framed panes too (owner, same round): the dock gap, pane and
+  lane boundaries and span boundaries take the whole border cell of a framed
+  pane on either side (left/right borders on both sides of a vertical
+  boundary, the bottom border above a horizontal one). A pane's top row is
+  never covered (move grip); borderless panes keep the old 40 % bands. Gaps
+  and boundaries in `cockpit.ts` `renderHandles`; amends ADR 0064's 40 % rule
+- [x] e2e: the drawn border line itself shows the resize cursor
 
 ## Handoff (2026-10-22, after 0.1.74)
 
