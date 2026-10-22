@@ -54,10 +54,11 @@ import { FONT_GATE_MS, bootDone, bootStep, gate } from './app/boot-progress';
 bootStep(20, 'Reading settings');
 // Touch / phone flags and the `wc-touch` / `wc-phone` classes, before anything renders.
 const device = initDevice();
-// Phone only (ADR 0075 §3): no input zoom, safe areas.
-if (device.phone) phoneViewportMeta();
-// Touch (phones, and tablets per ADR 0098): the page does not scroll; the app follows the visible area.
-if (device.touch) installPhoneViewport();
+// Phone only (ADR 0075 §3): no input zoom, safe areas, the keyboard-aware visible area.
+if (device.phone) {
+  phoneViewportMeta();
+  installPhoneViewport();
+}
 const params = new URLSearchParams(location.search);
 // Macro key labels follow the keyboard layout where the browser says (ADR 0026).
 void initKeyLabels();
