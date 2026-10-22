@@ -1,5 +1,5 @@
-// Phone viewport (ADR 0075 §3, *phone* flag only): the viewport meta, and
-// the visible area under the on-screen keyboard.
+// Phone viewport (ADR 0075 §3): the viewport meta (*phone* flag), and the
+// visible area under the on-screen keyboard (*touch* flag, ADR 0098: iPads too).
 //
 // - `phoneViewportMeta` adds `maximum-scale=1` (focusing the input does
 //   not zoom the page on iOS) and `viewport-fit=cover` (the page reaches
@@ -14,7 +14,7 @@
 //   tallest seen at this width (the keyboard is open); the cockpit skips
 //   the too-small guard then.
 //
-// Nothing here runs on desktop: src/main.ts calls it only with the flag.
+// Nothing here runs on desktop: src/main.ts calls it only with the flags.
 
 /** Quiet time (ms) after the last visualViewport event before the update. */
 export const VV_SETTLE_MS = 150;
@@ -36,7 +36,7 @@ export function phoneViewportMeta(doc: Document = document): void {
 
 let kbd = false;
 
-/** True while the on-screen keyboard is up (phone only; always false on desktop). */
+/** True while the on-screen keyboard is up (touch only; always false on desktop). */
 export function keyboardUp(): boolean {
   return kbd;
 }
@@ -46,7 +46,7 @@ export function isKeyboardUp(h: number, tallest: number): boolean {
   return tallest > 0 && h < tallest * KEYBOARD_SHARE;
 }
 
-/** Starts following the visual viewport (phone only). Returns the stop function. */
+/** Starts following the visual viewport (touch only). Returns the stop function. */
 export function installPhoneViewport(win: Window = window): () => void {
   const vv = win.visualViewport;
   const root = win.document.documentElement;

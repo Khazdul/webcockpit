@@ -41,6 +41,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — iPad page scroll (side task)
+
+- **Owner report:** on the iPad the page scrolls to a black strip below
+  the input pane / start footer; a swipe up leaves fullscreen.
+- **Done:** tablets get the phones' visible-area layout (ADR 0098): no
+  page scroll, #app follows `visualViewport`. Unit suite and e2e pass
+  (two flaky under load, pass on rerun); checked with `?touch=1` at
+  1024×768.
+- **Next:** owner checks on the iPad (strip gone? swipe still exits
+  fullscreen?). Then stage 30 design as before.
+- **Commits:** this one.
+
 ### 2026-10-22 — Fullscreen button on touch (side task)
 
 - **Owner request:** fullscreen out of the menus; a discreet button in the
