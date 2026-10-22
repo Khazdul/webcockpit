@@ -1071,29 +1071,33 @@ export class Cockpit {
       for (const dock of Object.values(r.docks)) {
         const d = dock.rect;
         const docked = r.panes.filter((p) => p.dock === dock.id);
-        // Framed panes on one side of the boundary at cell `at` (an `x` line
-        // across rows lo..hi, or a `y` line across columns lo..hi): the
-        // handle then takes their whole border cell there, so the drawn line
-        // itself grabs. Never a pane's top row: that is its move grip.
-        const framedAt = (axis: 'x' | 'y', at: number, lo: number, hi: number, after: boolean): boolean => {
-          const near = docked.filter((p) => {
-            const [s0, len, c0, clen] =
-              axis === 'x' ? [p.rect.x, p.rect.w, p.rect.y, p.rect.h] : [p.rect.y, p.rect.h, p.rect.x, p.rect.w];
-            return (after ? s0 === at : s0 + len === at) && c0 < hi && c0 + clen > lo;
-          });
-          return near.length > 0 && near.every((p) => p.framed);
+        // The whole border cell of each framed pane on one side of the
+        // boundary at cell `at` (an `x` line across rows lo..hi, a `y` line
+        // across columns lo..hi) grabs too, so the drawn line itself does.
+        // Never a pane's top row: that is its move grip.
+        const borders = (axis: 'x' | 'y', at: number, lo: number, hi: number, after: boolean, data: Record<string, string>): void => {
+          for (const p of docked) {
+            if (!p.framed) continue;
+            const q = p.rect;
+            const [s0, len, c0, clen] = axis === 'x' ? [q.x, q.w, q.y, q.h] : [q.y, q.h, q.x, q.w];
+            if ((after ? s0 : s0 + len) !== at) continue;
+            const a = Math.max(lo, c0);
+            const b = Math.min(hi, c0 + clen);
+            if (a >= b) continue;
+            const at0 = after ? at : at - 1;
+            if (axis === 'x') add({ x: at0 * cell.w, y: a * cell.h, w: cell.w, h: (b - a) * cell.h }, 'x', data);
+            else add({ x: a * cell.w, y: at0 * cell.h, w: (b - a) * cell.w, h: cell.h }, 'y', data);
+          }
         };
         if (dock.id === 'right') {
-          const deep = framedAt('x', d.x, 0, d.h, true) ? cell.w : 0;
-          add({ x: (d.x - DOCK_GAP) * cell.w, y: 0, w: DOCK_GAP * cell.w + deep, h: d.h * cell.h }, 'x', { dock: 'right' });
+          add({ x: (d.x - DOCK_GAP) * cell.w, y: 0, w: DOCK_GAP * cell.w, h: d.h * cell.h }, 'x', { dock: 'right' });
+          borders('x', d.x, 0, d.h, true, { dock: 'right' });
         } else if (dock.id === 'left') {
-          const deep = framedAt('x', d.x + d.w, 0, d.h, false) ? cell.w : 0;
-          add({ x: (d.x + d.w) * cell.w - deep, y: 0, w: DOCK_GAP * cell.w + deep, h: d.h * cell.h }, 'x', { dock: 'left' });
+          add({ x: (d.x + d.w) * cell.w, y: 0, w: DOCK_GAP * cell.w, h: d.h * cell.h }, 'x', { dock: 'left' });
+          borders('x', d.x + d.w, 0, d.h, false, { dock: 'left' });
         } else if (dock.id === 'top') {
-          const deep = framedAt('y', d.y + d.h, d.x, d.x + d.w, false) ? cell.h : 0;
-          add({ x: d.x * cell.w, y: (d.y + d.h) * cell.h - deep, w: d.w * cell.w, h: DOCK_GAP * cell.h + deep }, 'y', {
-            dock: 'top',
-          });
+          add({ x: d.x * cell.w, y: (d.y + d.h) * cell.h, w: d.w * cell.w, h: DOCK_GAP * cell.h }, 'y', { dock: 'top' });
+          borders('y', d.y + d.h, d.x, d.x + d.w, false, { dock: 'top' });
         } else {
           add({ x: d.x * cell.w, y: (d.y - DOCK_GAP) * cell.h, w: d.w * cell.w, h: DOCK_GAP * cell.h }, 'y', {
             dock: 'bottom',
@@ -1113,12 +1117,12 @@ export class Cockpit {
             const b = boxes[i + 1]!;
             const data = { dock: dock.id, a: a.id, b: b.id };
             if (side) {
-              const up = a.framed ? cell.h : hz;
-              add({ x: l.x * cell.w, y: b.rect.y * cell.h - up, w: l.w * cell.w, h: up }, 'y', data);
+              add({ x: l.x * cell.w, y: b.rect.y * cell.h - hz, w: l.w * cell.w, h: hz }, 'y', data);
+              borders('y', b.rect.y, l.x, l.x + l.w, false, data);
             } else {
-              const left = a.framed ? cell.w : wz;
-              const right = b.framed ? cell.w : 0;
-              add({ x: b.rect.x * cell.w - left, y: l.y * cell.h, w: left + right, h: l.h * cell.h }, 'x', data);
+              add({ x: b.rect.x * cell.w - wz, y: l.y * cell.h, w: wz, h: l.h * cell.h }, 'x', data);
+              borders('x', b.rect.x, l.y, l.y + l.h, false, data);
+              borders('x', b.rect.x, l.y, l.y + l.h, true, data);
             }
           }
         }
@@ -1135,14 +1139,12 @@ export class Cockpit {
           const second = towardEdge ? inner.rect : outer.rect;
           const data = { dock: dock.id, outer: String(outer.index), inner: String(inner.index) };
           if (side) {
-            const at = first.x + first.w;
-            const left = framedAt('x', at, first.y, first.y + first.h, false) ? cell.w : wz;
-            const right = framedAt('x', at, first.y, first.y + first.h, true) ? cell.w : 0;
-            add({ x: at * cell.w - left, y: first.y * cell.h, w: left + right, h: first.h * cell.h }, 'x', data);
+            add({ x: (first.x + first.w) * cell.w - wz, y: first.y * cell.h, w: wz, h: first.h * cell.h }, 'x', data);
+            borders('x', first.x + first.w, first.y, first.y + first.h, false, data);
+            borders('x', first.x + first.w, first.y, first.y + first.h, true, data);
           } else if (first.h > 1) {
-            const at = first.y + first.h;
-            const up = framedAt('y', at, first.x, first.x + first.w, false) ? cell.h : hz;
-            add({ x: first.x * cell.w, y: at * cell.h - up, w: first.w * cell.w, h: up }, 'y', data);
+            add({ x: first.x * cell.w, y: (first.y + first.h) * cell.h - hz, w: first.w * cell.w, h: hz }, 'y', data);
+            borders('y', first.y + first.h, first.x, first.x + first.w, false, data);
           } else if (second.h > 1) {
             add({ x: second.x * cell.w, y: second.y * cell.h, w: second.w * cell.w, h: hz }, 'y', data);
           }
@@ -1155,12 +1157,12 @@ export class Cockpit {
           const data = { dock: dock.id, span: sp.side };
           const at = sp.side === 'head' ? (side ? g!.y : g!.x) : side ? g!.y + g!.h : g!.x + g!.w;
           if (side) {
-            const up = framedAt('y', at, d.x, d.x + d.w, false) ? cell.h : hz;
-            add({ x: d.x * cell.w, y: at * cell.h - up, w: d.w * cell.w, h: up }, 'y', data);
+            add({ x: d.x * cell.w, y: at * cell.h - hz, w: d.w * cell.w, h: hz }, 'y', data);
+            borders('y', at, d.x, d.x + d.w, false, data);
           } else {
-            const left = framedAt('x', at, d.y, d.y + d.h, false) ? cell.w : wz;
-            const right = framedAt('x', at, d.y, d.y + d.h, true) ? cell.w : 0;
-            add({ x: at * cell.w - left, y: d.y * cell.h, w: left + right, h: d.h * cell.h }, 'x', data);
+            add({ x: at * cell.w - wz, y: d.y * cell.h, w: wz, h: d.h * cell.h }, 'x', data);
+            borders('x', at, d.y, d.y + d.h, false, data);
+            borders('x', at, d.y, d.y + d.h, true, data);
           }
         }
       }

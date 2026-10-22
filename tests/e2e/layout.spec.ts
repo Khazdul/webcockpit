@@ -384,6 +384,12 @@ test('docked framed panes resize from the drawn border line itself', async ({ pa
   expect(await cursorAt(o.x + c.x + cw / 2, o.y + c.y + 3 * ch)).toBe('col-resize');
   // The bottom border between two stacked panes (mid-cell) resizes them.
   expect(await cursorAt(o.x + c.x + 5 * cw, o.y + c.y + c.height - ch / 2)).toBe('row-resize');
+  // A borderless pane in the same dock leaves the framed ones' borders wide.
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { group: { border: false } } }));
+  await expect(page.locator('.wc-pane-group .wc-pane-frame')).toBeHidden();
+  expect(await cursorAt(o.x + c.x + cw / 2, o.y + c.y + 3 * ch)).toBe('col-resize');
+  const g = await box(page, '.wc-pane-group');
+  expect(await cursorAt(o.x + g.x + cw / 2, o.y + g.y + 3 * ch)).not.toBe('col-resize');
 });
 
 test('dock lanes: a second column by drag, lane boundary resize, reload, empty lane removed', async ({ page }) => {

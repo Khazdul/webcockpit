@@ -141,3 +141,5 @@ instead of 40 % of it, so the drawn line (mid-cell) grabs: on both sides of
 a vertical boundary or dock gap where the panes there are framed, and the
 bottom border above a horizontal one. A pane's top row stays the move grip
 and is never covered. Borderless panes keep the 40 % bands.
+Per pane: each framed pane beside a boundary adds its own full-cell band,
+so a borderless neighbour does not narrow the others.

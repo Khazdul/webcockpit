@@ -44,7 +44,8 @@ Statuses: Next, In progress, Owner testing, Done.
 
 - **Done:** framed panes resize from the whole left, right and bottom border
   cell (was 40 % of it), floating and docked. Top unchanged. Full suite
-  green (3 Firefox chrome.spec timeouts under load passed on rerun).
+  green. Fix after owner test: a borderless pane in the dock no longer
+  keeps the framed panes' game-facing border narrow (per-pane bands).
 - **Next:** owner tests on the dev build, then release with the 0.1.74 feedback.
 - **Open:** `layout.spec.ts` "a drag shows its cursor" fails when run alone
   with `-g` (also before this change); passes in the full file.

@@ -135,6 +135,10 @@ Tasks:
   never covered (move grip); borderless panes keep the old 40 % bands. Gaps
   and boundaries in `cockpit.ts` `renderHandles`; amends ADR 0064's 40 % rule
 - [x] e2e: the drawn border line itself shows the resize cursor
+- [x] Fix (owner): the border facing the game stayed narrow when the dock
+  also held a borderless pane (the band widened only if every pane on that
+  side was framed). Now each framed pane gets its own full-cell band beside
+  the 40 % one
 
 ## Handoff (2026-10-22, after 0.1.74)
 
