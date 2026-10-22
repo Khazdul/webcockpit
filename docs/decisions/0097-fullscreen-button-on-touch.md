@@ -13,8 +13,9 @@ menu line everywhere. Phones and tablets have no such key.
 ## Decision
 
 - No fullscreen row in the menus. `START_MENU_ROWS` is back at 7.
-- `src/ui/fullscreen-button.ts`: a small, faint (35 % opacity) icon
-  button fixed in the top right corner of the page (inside the safe area),
+- `src/ui/fullscreen-button.ts`: a small, faint (50 % opacity, 44 px
+  touch target) icon button fixed near the top right corner of the page
+  (12 px in from the safe area),
   above the start page, the cockpit and the menus. Added once at startup
   (not in bench mode), only when `device().touch` and `canFullscreen()`:
   never on a desktop, never on the iPhone (no page fullscreen).

@@ -49,6 +49,8 @@ Statuses: Next, In progress, Owner testing, Done.
   icon button top right on touch devices with page fullscreen (ADR 0097);
   removed after a refused request (Firefox on iPad). Unit suite and the
   chrome/loading e2e specs pass; checked with `?touch=1`.
+- **Owner feedback:** bigger, a bit more visible, further in: 44 px, 50 %,
+  12 px from the corner.
 - **Next:** owner tries it on the iPad; then stage 30 design as before.
 - **Commits:** this one.
 
