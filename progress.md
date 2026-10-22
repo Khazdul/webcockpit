@@ -51,7 +51,8 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Next:** the owner tests 0.1.74/0.1.75 (stage 29 handoff).
 - **Open:** `layout.spec.ts` "a drag shows its cursor" fails when run alone
   with `-g` (also before this change); passes in the full file.
-- **Commits:** this one.
+- **Commits:** 60876e6, 5f17819, 3d8c9dc, version 0.1.75, e318722, 497a3e2,
+  plus this one.
 
 ### 2026-10-22 — Stage 29 wrap-up
 

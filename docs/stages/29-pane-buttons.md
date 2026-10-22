@@ -140,9 +140,10 @@ Tasks:
   side was framed). Now each framed pane gets its own full-cell band beside
   the 40 % one
 
-## Handoff (2026-10-22, after 0.1.74)
+## Handoff (2026-10-22, after 0.1.75)
 
-State on main: rounds 0–3 released (0.1.72–0.1.74). Owner testing.
+State on main: rounds 0–4 released (0.1.72–0.1.75). Round 4 (wide border
+resize bands) approved by the owner. Owner testing of rounds 2–3 remains.
 
 Test 0.1.74:
 
