@@ -367,6 +367,11 @@ test('a drag shows its cursor on a shield over the cockpit, gone after the drop'
     await page.mouse.up();
     await expect(shield).toBeHidden();
   }
+  // A framed float's side and bottom bands cover the whole border cell.
+  for (const edge of ['w', 'e'] as const) {
+    expect((await box(page, `.wc-pane-comm .wc-float-handle[data-edge="${edge}"]`)).width, edge).toBe(cw);
+  }
+  expect((await box(page, '.wc-pane-comm .wc-float-handle[data-edge="s"]')).height).toBe(ch);
 });
 
 test('dock lanes: a second column by drag, lane boundary resize, reload, empty lane removed', async ({ page }) => {

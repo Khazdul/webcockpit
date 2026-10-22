@@ -511,6 +511,12 @@
 .wc-float-handle[data-edge="sw"] { left: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nesw-resize; }
 .wc-float-handle[data-edge="se"] { right: 0; bottom: 0; width: var(--cell-w); height: var(--cell-h); cursor: nwse-resize; }
 
+/* A framed float: the side and bottom bands take the whole border cell, so
+ * the drawn line itself (mid-cell) grabs. The top stays thin: the title row
+ * below it is the move grip. */
+.wc-pane[data-floating][data-framed] > .wc-float-handle[data-edge="s"] { height: var(--cell-h); }
+.wc-pane[data-floating][data-framed] > .wc-float-handle:is([data-edge="e"], [data-edge="w"]) { width: var(--cell-w); }
+
 /* A borderless float (a 1-row bar, ADR 0065): thin edge bands and small
  * corners, so its cells stay clickable. */
 .wc-pane[data-floating]:not([data-framed]) > .wc-float-handle[data-edge="n"],

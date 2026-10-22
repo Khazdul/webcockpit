@@ -117,6 +117,18 @@ Tasks:
 - [x] Weather lights a clear framed pane's rim
 - [x] Tests, ADR 0095 round 3 addendum (and ADR 0087 note), manual
 
+### Round 4 (2026-10-22, on 0.1.74)
+
+- **Wider resize edges on framed floats:** the left, right and bottom border
+  should grab over a larger area; the top is fine as it is.
+
+Tasks:
+
+- [x] Framed float: the w, e and s handles cover the whole border cell (were
+  40 % of it, so the mid-cell line itself missed); top and borderless floats
+  unchanged
+- [x] e2e check of the band sizes
+
 ## Handoff (2026-10-22, after 0.1.74)
 
 State on main: rounds 0–3 released (0.1.72–0.1.74). Owner testing.
