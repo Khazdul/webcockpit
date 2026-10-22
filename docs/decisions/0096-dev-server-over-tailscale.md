@@ -42,3 +42,8 @@ tailnet name must not be in it.
 - Anyone on the owner's tailnet can reach the dev server, including the
   read-only `/__fixtures` endpoint (ADR 0007). That is the owner's own
   network and their own logs.
+- On iPad (Safari and Firefox, both WebKit) the dev log shows
+  `[Unhandled error] Error: Script error.` on every load, during the start
+  page's `host.focus()` (src/chrome/kit/stack.tsx). Not ours: a bare page
+  that only focuses a `tabindex=-1` div gets the same muted error, from a
+  script the browser injects. Focus succeeds; ignore it.

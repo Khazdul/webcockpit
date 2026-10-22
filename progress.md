@@ -48,7 +48,10 @@ Statuses: Next, In progress, Owner testing, Done.
   only, strict port 5173. Verified through the owner's `tailscale serve`
   door: 200 with COOP/COEP, HMR WebSocket upgrade 101. Plain `npm run dev`
   unchanged.
-- **Next:** owner checks the page and HMR in Safari on the iPad.
+- **Owner test:** page and HMR work on the iPad. The `Script error.` the
+  iPad reports on each load comes from a browser-injected script, not ours
+  (reproduced on a bare page; ADR 0096).
+- **Next:** the owner develops from the iPad for now (`npm run dev:tailnet`).
 - **Commits:** this one.
 
 ### 2026-10-22 — Stage 30 design start (fixed menu)
