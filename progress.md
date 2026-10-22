@@ -53,9 +53,9 @@ Statuses: Next, In progress, Owner testing, Done.
   works in Chrome and Safari on iPad; Firefox on iPad keeps page
   fullscreen off but says it is on: a request that has not taken effect
   within 2 s flashes "This browser does not allow fullscreen." and
-  disables the row for the page's life.
+  disables the row for the page's life. Safari still works after the fix.
 - **Next:** unchanged (stage 30 design).
-- **Commits:** this one.
+- **Commits:** 9a612d0, b28eccf, d3606ca, this one.
 
 ### 2026-10-22 — Dev server over Tailscale (side task)
 
