@@ -23,11 +23,10 @@ import type { ComponentChildren, JSX, VNode } from 'preact';
 import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { type NavKey, cellLen, centreLeft, footerRows, footerText, scrollbar, step, truncate, wrapText } from './nav';
 import { useGrid } from './hooks';
-import { type Nav, useFlash } from './stack';
+import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
 import { EscToken, escHints, isEscToken } from './esc';
 import { device } from '../../core/device';
-import { canFullscreen, toggleFullscreen } from '../../core/fullscreen';
 
 // ------------------------------------------------------------------- lines
 
@@ -252,24 +251,6 @@ export interface MenuItem {
   adjust?: (delta: number) => void;
   /** A bare numeric stepper: Enter/Space inert (Inv §3.3). */
   stepper?: boolean;
-}
-
-/**
- * The start and ESC menus' `Fullscreen` / `Exit fullscreen` row (`fs`:
- * `useFullscreen()`). Disabled where the browser cannot (iPhone), or once
- * it refused a request (flashed), so the start menu keeps its row count
- * for the first paint.
- */
-export function fullscreenItem(fs: boolean, nav: Pick<Nav, 'flash'>): MenuItem {
-  return {
-    key: 'fullscreen',
-    label: fs ? 'Exit fullscreen' : 'Fullscreen',
-    disabled: !canFullscreen(),
-    activate: () =>
-      void toggleFullscreen().then((ok) => {
-        if (!ok) nav.flash('This browser does not allow fullscreen.', 'fail');
-      }),
-  };
 }
 
 const selectable = (it: MenuItem | undefined): boolean => !!it && !it.spacer && !it.disabled;

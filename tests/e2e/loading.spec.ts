@@ -59,7 +59,7 @@ test('the loader shows the boot steps and is removed once the start page is up',
   // Settings are read and the entry script has run: the bar has moved.
   await expect.poll(async () => Number(await loader.getAttribute('aria-valuenow'))).toBeGreaterThanOrEqual(40);
   await revealed(page);
-  await expect(rows(page)).toHaveCount(8);
+  await expect(rows(page)).toHaveCount(7);
 });
 
 test('the banner is painted before the app loads, and the app banner takes its place pixel for pixel', async ({ page }) => {
@@ -110,7 +110,7 @@ test('the menu fades in as one block over about 1.35 s, the banner does not', as
 test('after the reveal every menu row is shown in full', async ({ page }) => {
   await page.goto('/');
   await revealed(page);
-  await expect(rows(page)).toHaveCount(8);
+  await expect(rows(page)).toHaveCount(7);
   for (const el of await rows(page).all()) {
     await expect(el).toBeVisible();
     expect(await el.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
@@ -204,7 +204,7 @@ test.describe('reduced motion', () => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('data-wc-boot', 'ready');
     expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
-    await expect(rows(page)).toHaveCount(8);
+    await expect(rows(page)).toHaveCount(7);
   });
 });
 
@@ -215,6 +215,6 @@ test('returning to the start page from the game does not fade again', async ({ p
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toBeVisible();
   await page.evaluate(() => window.__wc!.shell.exitSession());
-  await expect(rows(page)).toHaveCount(8);
+  await expect(rows(page)).toHaveCount(7);
   expect(await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
 });

@@ -12,7 +12,7 @@ import { BANNER_H, bannerFits } from './banner-data';
 import { wrapText } from './kit/nav';
 
 /** Rows of the start page main menu (Enter MUME … About). */
-export const START_MENU_ROWS = 8;
+export const START_MENU_ROWS = 7;
 
 export interface StartLayout {
   /** The quote, wrapped (with its quotation marks). */

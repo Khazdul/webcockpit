@@ -1,4 +1,4 @@
-// Fullscreen for the whole page: the start and ESC menus' `Fullscreen` row
+// Fullscreen for the whole page: the touch fullscreen button (ADR 0097)
 // and the HTML replay's `F` key and control box button. Uses the standard
 // API, falling back to the `webkit` prefix (older Safari, iPadOS). The
 // iPhone has neither for the page: `canFullscreen` is false there.

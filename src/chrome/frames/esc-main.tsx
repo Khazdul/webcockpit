@@ -6,7 +6,7 @@
 //     `Storage: not saved` (C_ERR), each with a tooltip
 //   banner (6 Hz, dropped when short)
 //   Continue (connected) · Reconnect · Statistics (while a run is on) ·
-//   Profile · Options · Fullscreen · Exit session
+//   Profile · Options · Exit session
 //   flash row
 //   ↑↓ Navigate · Enter Select · ESC Close
 
@@ -15,7 +15,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { type AppStatusState, type AppStatusView, formatLink, isLive } from '../../app/status';
 import { Banner } from '../banner';
 import { BANNER_H, bannerFits } from '../banner-data';
-import { useFullscreen, useGrid, useNotices, useServices, useSettings, useStatus } from '../kit/hooks';
+import { useGrid, useNotices, useServices, useSettings, useStatus } from '../kit/hooks';
 import { type NoticeState, noticeIndicators } from '../../app/notices';
 import { device } from '../../core/device';
 import { cellLen, centreLeft, packRows } from '../kit/nav';
@@ -27,7 +27,6 @@ import {
   Footer,
   type MenuItem,
   MenuRows,
-  fullscreenItem,
   Page,
   STARS_W,
   Stars,
@@ -96,7 +95,6 @@ export function EscMain(p: EscMainProps): VNode {
   const notices = useNotices();
   const connected = isLive(st);
   const runOn = useRunOn(p.runs);
-  const fullscreen = useFullscreen();
 
   const items: MenuItem[] = [
     ...(connected ? [{ key: 'continue', label: 'Continue', activate: p.close }] : []),
@@ -122,7 +120,6 @@ export function EscMain(p: EscMainProps): VNode {
         }),
     },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
-    fullscreenItem(fullscreen, nav),
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
   ];
   const [cursor, setCursor] = useMenuCursor(items, p.preselect);

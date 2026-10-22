@@ -41,6 +41,17 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — Fullscreen button on touch (side task)
+
+- **Owner request:** fullscreen out of the menus; a discreet button in the
+  top right corner, phones and iPads only.
+- **Done:** menu rows removed (start menu back to 7 rows). Faint fixed
+  icon button top right on touch devices with page fullscreen (ADR 0097);
+  removed after a refused request (Firefox on iPad). Unit suite and the
+  chrome/loading e2e specs pass; checked with `?touch=1`.
+- **Next:** owner tries it on the iPad; then stage 30 design as before.
+- **Commits:** this one.
+
 ### 2026-10-22 — Fullscreen menu row (side task)
 
 - **Owner request:** fullscreen as a row in the start menu and the ESC menu.

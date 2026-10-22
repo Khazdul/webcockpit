@@ -12,7 +12,6 @@ import type { MapStore } from '../../map/store';
 import type { ScriptLibrary } from '../../scripts';
 import type { NoticeState, Notices } from '../../app/notices';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
-import { isFullscreen, onFullscreenChange, onFullscreenRefused } from '../../core/fullscreen';
 
 /** The script panes on screen (ADR 0053), for Options → Panes. */
 export interface ScriptPaneList {
@@ -107,21 +106,6 @@ export function useStatus(view: AppStatusView): Readonly<AppStatusState> {
     return view.subscribe((next) => set(next));
   }, [view]);
   return s;
-}
-
-/** Whether the page is in fullscreen (re-renders when it enters or leaves, or a request is refused). */
-export function useFullscreen(): boolean {
-  const [fs, set] = useState(isFullscreen);
-  const [, setRefusals] = useState(0);
-  useEffect(() => {
-    const offChange = onFullscreenChange(() => set(isFullscreen()));
-    const offRefused = onFullscreenRefused(() => setRefusals((n) => n + 1));
-    return () => {
-      offChange();
-      offRefused();
-    };
-  }, []);
-  return fs;
 }
 
 const NO_NOTICES: Readonly<NoticeState> = Object.freeze({ update: null, storageSuperseded: false });

@@ -37,6 +37,7 @@
 import './ui/ui.css';
 import { initDevice } from './core/device';
 import { installPhoneViewport, phoneViewportMeta } from './layout/phone-viewport';
+import { installFullscreenButton } from './ui/fullscreen-button';
 import type { App } from './app/app';
 import type { BenchProbe } from './app/bench-hook';
 import { Notices } from './app/notices';
@@ -145,6 +146,8 @@ try {
 } finally {
   bootDone();
 }
+// Touch only (ADR 0097): the fullscreen button in the top right corner.
+if (!benchMode) installFullscreenButton();
 const playerFixture = import.meta.env.DEV ? params.get('player') : null;
 if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));
 const replayFixture = import.meta.env.DEV ? params.get('replayhtml') : null;

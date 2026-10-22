@@ -458,7 +458,7 @@ describe('ESC menu: Statistics and Exit with rating', () => {
     try {
       const live = liveRuns(events, null);
       const { host } = await menu(live.runs);
-      expect(keys(host)).toEqual(['continue', 'reconnect', 'stats', 'profile', 'options', 'fullscreen', 'exit']);
+      expect(keys(host)).toEqual(['continue', 'reconnect', 'stats', 'profile', 'options', 'exit']);
       await act(() => frame(host).querySelector<HTMLElement>('.wc-mrow[data-key="stats"] .wc-label')!.click());
       await until(() => (frame(host).textContent ?? '').includes('An orc scout'), 'the live kills');
       expect(frame(host).querySelector('.wc-stats-header')?.textContent).toMatch(

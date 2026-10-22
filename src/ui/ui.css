@@ -517,3 +517,35 @@ html.wc-phone.wc-kbd .wc-chrome,
 html.wc-phone.wc-kbd .wc-overlay {
   bottom: 0;
 }
+
+/* Touch only (ADR 0097): the fullscreen button, small and faint in the top
+ * right corner, above everything (start page, cockpit, menus). */
+.wc-fs-btn {
+  position: fixed;
+  top: calc(4px + env(safe-area-inset-top, 0px));
+  right: calc(4px + env(safe-area-inset-right, 0px));
+  z-index: 1000;
+  width: 32px;
+  height: 32px;
+  padding: 9px;
+  border: 0;
+  background: transparent;
+  color: var(--c-body);
+  opacity: 0.35;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.wc-fs-btn:active {
+  opacity: 0.8;
+}
+
+.wc-fs-btn svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}

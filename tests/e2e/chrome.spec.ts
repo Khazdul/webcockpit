@@ -61,7 +61,6 @@ test('start page: banner, menu and quote; no connection until Enter MUME', async
     '<< Enter MUME >>',
     '   Profile   ',
     '   Options   ',
-    '   Fullscreen   ',
     '   History   ',
     '   Spotlights   ',
     '   Credits   ',
