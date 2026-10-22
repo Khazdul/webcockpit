@@ -445,6 +445,31 @@ export function siteBase(raw = process.env.WEBCOCKPIT_BASE): string {
   return trimmed ? `/${trimmed}/` : '/';
 }
 
+/**
+ * Extra host names the dev server answers to (ADR 0096):
+ * `$WEBCOCKPIT_DEV_HOSTS`, comma-separated, e.g. a Tailscale `serve` name
+ * proxying to 127.0.0.1:5173. Empty (the default) leaves Vite's own
+ * localhost-only check and port fallback as they are.
+ */
+export function devHosts(raw = process.env.WEBCOCKPIT_DEV_HOSTS): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+}
+
+/**
+ * The dev server: isolation headers always; with proxy hosts, loopback
+ * only on exactly 5173 (the proxy's target), so a busy port fails
+ * instead of moving. HMR needs nothing more: the client connects back to
+ * the page's own host and port, which the proxy also forwards.
+ */
+function devServer(): { headers: Record<string, string>; host?: string; port?: number; strictPort?: boolean; allowedHosts?: string[] } {
+  const hosts = devHosts();
+  if (!hosts.length) return { headers: isolationHeaders };
+  return { headers: isolationHeaders, host: '127.0.0.1', port: 5173, strictPort: true, allowedHosts: hosts };
+}
+
 export default defineConfig(({ command }) => {
   buildCommit = command === 'build' ? gitCommit() : 'dev';
   return {
@@ -454,7 +479,7 @@ export default defineConfig(({ command }) => {
     plugins: [fixturesPlugin(), firstPaintPlugin(), replayBundlePlugin(), releaseManifestPlugin(), licencePlugin()],
     // The map worker is a module worker (src/map/spawn-worker.ts, ADR 0020).
     worker: { format: 'es' as const },
-    server: { headers: isolationHeaders },
+    server: devServer(),
     preview: { headers: isolationHeaders },
     build: {
       target: 'es2022',

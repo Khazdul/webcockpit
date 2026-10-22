@@ -41,6 +41,16 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — Dev server over Tailscale (side task)
+
+- **Done:** `npm run dev:tailnet` and `$WEBCOCKPIT_DEV_HOSTS` (ADR 0096):
+  allowed hosts from the env (tailnet name never in the repo), loopback
+  only, strict port 5173. Verified through the owner's `tailscale serve`
+  door: 200 with COOP/COEP, HMR WebSocket upgrade 101. Plain `npm run dev`
+  unchanged.
+- **Next:** owner checks the page and HMR in Safari on the iPad.
+- **Commits:** this one.
+
 ### 2026-10-22 — Stage 30 design start (fixed menu)
 
 - **Owner request:** a fixed menu at the right end of the input row in the
