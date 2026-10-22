@@ -3,12 +3,23 @@
 // API, falling back to the `webkit` prefix (older Safari, iPadOS). The
 // iPhone has neither for the page: `canFullscreen` is false there.
 
-type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
+type FsDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitFullscreenEnabled?: boolean;
+  webkitExitFullscreen?: () => void;
+};
 type FsElement = HTMLElement & { webkitRequestFullscreen?: () => void };
 
-/** Whether this browser can put the page in fullscreen. */
+/**
+ * Whether this browser can put the page in fullscreen. An iPadOS app may
+ * turn fullscreen off for its web view (Firefox on iPad): `fullscreenEnabled`
+ * is then false even where the request method exists.
+ */
 export function canFullscreen(doc: Document = document): boolean {
+  const d = doc as FsDocument;
   const el = doc.documentElement as FsElement;
+  const enabled = d.fullscreenEnabled ?? d.webkitFullscreenEnabled;
+  if (enabled === false) return false;
   return typeof el.requestFullscreen === 'function' || typeof el.webkitRequestFullscreen === 'function';
 }
 

@@ -22,4 +22,11 @@ describe('fullscreen', () => {
     toggleFullscreen();
     expect(req).toHaveBeenCalledOnce();
   });
+
+  it('is disabled when the browser turned fullscreen off (Firefox on iPad)', () => {
+    Object.assign(document.documentElement, { requestFullscreen: vi.fn() });
+    Object.defineProperty(document, 'fullscreenEnabled', { configurable: true, get: () => false });
+    expect(canFullscreen()).toBe(false);
+    delete (document as { fullscreenEnabled?: boolean }).fullscreenEnabled;
+  });
 });

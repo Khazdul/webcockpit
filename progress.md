@@ -49,7 +49,9 @@ Statuses: Next, In progress, Owner testing, Done.
   menu stays 8 rows (`START_MENU_ROWS`, shared with the first paint). The
   replay's fullscreen helpers moved to `src/core/fullscreen.ts`.
   Unit tests and the chrome/loading e2e specs pass; toggling checked live.
-- **Note:** the ESC banner now needs one more row to show.
+- **Note:** the ESC banner now needs one more row to show. Owner test:
+  works in Chrome and Safari on iPad; Firefox on iPad keeps page
+  fullscreen off, so the row is disabled when `fullscreenEnabled` is false.
 - **Next:** unchanged (stage 30 design).
 - **Commits:** this one.
 
