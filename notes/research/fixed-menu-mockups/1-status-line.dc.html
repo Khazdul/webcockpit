@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Menu 1 · Status line</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:440px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.scene{position:absolute;left:0;top:0;width:1440px;height:240px;overflow:hidden}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}
+.ex{color:#5faf5f}
+.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+.zoom{position:absolute;left:0;top:240px;width:1440px;height:200px;box-sizing:border-box;background:#060606;border-top:1px solid #1c1c1c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.zin{zoom:2;height:30px;display:flex;align-items:flex-end;background:#000;padding-left:10px}
+.rimcut{width:6px;height:27px;margin:0 0 3px 7px;box-sizing:border-box;border:1px solid rgba(0,0,0,.56);border-right:0;border-bottom:0;background:#545454;box-shadow:inset 1px 0 0 rgba(239,239,239,.58)}
+
+.mn{display:flex;align-items:center;height:17px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.clk .s{color:#ffb000}
+.sep{color:#3a3a3a;padding:0 0 0 0}
+.mb{all:unset;display:block;height:17px;line-height:17px;padding:0 9px;color:#6c6c6c;cursor:pointer;white-space:pre}
+.mb:hover,.mb.hot{color:#f0f0f0;background:#2a2a2a}
+.mb-exit:hover,.mb-exit.hot{color:#ff8787}
+.mb:focus-visible{outline:1px solid #888}
+</style>
+</helmet>
+<div class="board">
+<div class="scene">
+<div class="out"><div><span class="rn">Narrow Tunnel</span></div>
+<div>The tunnel twists downward through black stone. Water drips somewhere ahead,</div>
+<div>and the air smells of smoke and old ashes.</div>
+<div><span class="ex">Exits: north, down.</span></div>
+<div><span class="mob">An orc warrior stands here, guarding the passage.</span></div>
+<div>A rusty iron lantern lies here.</div>
+<div> </div>
+<div>* o Mana:Burning&gt; n</div>
+<div><span class="rn">Smoky Cavern</span></div>
+<div>Soot blackens the low ceiling of this cramped cavern. A crude fire pit</div>
+<div>smoulders in the middle of the floor.</div>
+<div><span class="ex">Exits: east, south.</span></div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span style="color: #c0c0c0">look</span><span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><span class="clk"><span class="t"> 4:33</span> <span class="s">☼</span></span><span class="sep"> │</span><sc-for list="{{items}}" as="item" hint-placeholder-count="5"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep">│</span></sc-if><button type="button" class="{{item.cls}}" title="{{item.label}}">{{item.word}}</button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+</div>
+<div class="zoom">
+<div class="zin"><div class="mn"><span class="clk"><span class="t"> 4:33</span> <span class="s">☼</span></span><span class="sep"> │</span><sc-for list="{{items}}" as="item" hint-placeholder-count="5"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep">│</span></sc-if><button type="button" class="{{item.cls}}" title="{{item.label}}">{{item.word}}</button></sc-for></div><div class="rimcut"></div></div>
+<div class="zin"><div class="mn"><span class="clk"><span class="t"> 4:33</span> <span class="s">☼</span></span><span class="sep"> │</span><sc-for list="{{itemsHot}}" as="item" hint-placeholder-count="5"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep">│</span></sc-if><button type="button" class="{{item.cls}}" title="{{item.label}}">{{item.word}}</button></sc-for></div><div class="rimcut"></div></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":440}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const words = [
+      { id: 'profile', label: 'Profile', word: 'profile' },
+      { id: 'panes', label: 'Panes', word: 'panes' },
+      { id: 'settings', label: 'Settings', word: 'settings' },
+      { id: 'menu', label: 'Menu (Esc)', word: 'menu' },
+      { id: 'exit', label: 'Exit', word: 'exit' }
+    ];
+    const mk = (hot) => words.map((w) => ({ ...w, cls: 'mb mb-' + w.id + (w.id === hot ? ' hot' : ''), gapBefore: w.id === 'menu' }));
+    return { items: mk(''), itemsHot: mk('settings') };
+  }
+}
+</script>
+</body>
+</html>
