@@ -424,7 +424,10 @@ describe('Cockpit', () => {
     expect(c.pane('character').el.style.left).toBe('870px');
     expect(c.pane('character').rows).toBe(9);
     expect(c.pane('ui').rows).toBe(8); // the right column runs the full 50 rows
-    expect(c.el.querySelectorAll('.wc-handle')).toHaveLength(5); // dock gap + 4 boundaries
+    expect(c.el.querySelectorAll('.wc-handle:not([data-border])')).toHaveLength(5); // dock gap + 4 boundaries
+    // Each framed pane's border cell: 5 toward the game, 4 bottom borders above the next pane.
+    expect(c.el.querySelectorAll('.wc-handle[data-border]')).toHaveLength(9);
+
   });
 
   it('relayouts once per frame after settings changes', () => {

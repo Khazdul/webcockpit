@@ -1076,6 +1076,7 @@ export class Cockpit {
         // across columns lo..hi) grabs too, so the drawn line itself does.
         // Never a pane's top row: that is its move grip.
         const borders = (axis: 'x' | 'y', at: number, lo: number, hi: number, after: boolean, data: Record<string, string>): void => {
+          const band = { ...data, border: '' };
           for (const p of docked) {
             if (!p.framed) continue;
             const q = p.rect;
@@ -1085,8 +1086,8 @@ export class Cockpit {
             const b = Math.min(hi, c0 + clen);
             if (a >= b) continue;
             const at0 = after ? at : at - 1;
-            if (axis === 'x') add({ x: at0 * cell.w, y: a * cell.h, w: cell.w, h: (b - a) * cell.h }, 'x', data);
-            else add({ x: a * cell.w, y: at0 * cell.h, w: (b - a) * cell.w, h: cell.h }, 'y', data);
+            if (axis === 'x') add({ x: at0 * cell.w, y: a * cell.h, w: cell.w, h: (b - a) * cell.h }, 'x', band);
+            else add({ x: a * cell.w, y: at0 * cell.h, w: (b - a) * cell.w, h: cell.h }, 'y', band);
           }
         };
         if (dock.id === 'right') {
