@@ -68,6 +68,6 @@ describe('startLayout', () => {
     expect(startLayout(80, 40, q)).toMatchObject({ showBanner: true, showQuote: true, menuRow: BANNER_H + 2 });
     expect(startLayout(80, 18, q)).toMatchObject({ showBanner: false, menuRow: 1 });
     expect(startLayout(38, 40, q).showBanner).toBe(false);
-    expect(START_MENU_ROWS).toBe(7);
+    expect(START_MENU_ROWS).toBe(8);
   });
 });

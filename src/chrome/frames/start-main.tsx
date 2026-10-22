@@ -8,7 +8,7 @@
 
 import type { VNode } from 'preact';
 import { Banner } from '../banner';
-import { useGrid, useServices } from '../kit/hooks';
+import { useFullscreen, useGrid, useServices } from '../kit/hooks';
 import { useIsTop, useKeys, useNav } from '../kit/stack';
 import {
   Blank,
@@ -17,6 +17,7 @@ import {
   Footer,
   type MenuItem,
   MenuRows,
+  fullscreenItem,
   menuKey,
   useMenuCursor,
 } from '../kit/widgets';
@@ -41,10 +42,12 @@ export function StartMain(p: StartMainProps): VNode {
   const isTop = useIsTop();
   const { cols, rows } = useGrid();
   const services = useServices();
+  const fullscreen = useFullscreen();
   const items: MenuItem[] = [
     { key: 'enter', label: 'Enter MUME', activate: p.onEnter },
     { key: 'profile', label: 'Profile', activate: () => nav.push(<ProfileFrame />) },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
+    fullscreenItem(fullscreen),
     { key: 'history', label: 'History', activate: () => nav.push(<HistoryFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => void startSpotlights(nav, services) },
     { key: 'credits', label: 'Credits', activate: () => nav.push(<CreditsFrame />) },

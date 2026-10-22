@@ -99,7 +99,7 @@ describe('About text', () => {
 beforeAll(() => {
   // happy-dom does no layout: give every element a 100 × 30 cell box.
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1000 });
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 640 });
 });
 
 let cleanup: Array<() => void> = [];

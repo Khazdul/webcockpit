@@ -28,6 +28,7 @@ import type { PlayerHeaderModel } from '../player/view';
 import type { HeaderHint } from '../player/strip';
 import { type ReplayPayload, payloadEdits } from '../share/payload';
 import { applyTheme } from '../theme/apply';
+import { exitFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 import { PAYLOAD_ELEMENT_ID, decodePayload } from './codec';
 import { fmtDate, replayTitle } from './title';
 import { replayMapHost } from './map-host';
@@ -54,30 +55,6 @@ export function replayHeader(p: ReplayPayload): PlayerHeaderModel {
     ? [{ text: clip(p.title, HEADER_TITLE_MAX), cls: 'wc-player-name' }, { text: who }]
     : [{ text: who, cls: 'wc-player-name' }];
   return { left: [...left, { text: fmtDate(p.startUs) }], hints: REPLAY_HINTS };
-}
-
-// ------------------------------------------------------------- fullscreen
-
-type FsDocument = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => void };
-type FsElement = HTMLElement & { webkitRequestFullscreen?: () => void };
-
-export function isFullscreen(doc: Document): boolean {
-  const d = doc as FsDocument;
-  return !!(d.fullscreenElement ?? d.webkitFullscreenElement);
-}
-
-export function exitFullscreen(doc: Document): void {
-  if (!isFullscreen(doc)) return;
-  const d = doc as FsDocument;
-  if (d.exitFullscreen) void d.exitFullscreen().catch(() => {});
-  else d.webkitExitFullscreen?.();
-}
-
-export function toggleFullscreen(doc: Document): void {
-  if (isFullscreen(doc)) return exitFullscreen(doc);
-  const el = doc.documentElement as FsElement;
-  if (el.requestFullscreen) void el.requestFullscreen().catch(() => {});
-  else el.webkitRequestFullscreen?.();
 }
 
 // ------------------------------------------------------------------ start
@@ -150,7 +127,6 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
     },
   );
   const refresh = (): void => host.playerView?.refresh();
-  doc.addEventListener('fullscreenchange', refresh);
-  doc.addEventListener('webkitfullscreenchange', refresh);
+  onFullscreenChange(refresh, doc);
   return { host, payload, settings };
 }

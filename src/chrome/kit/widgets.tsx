@@ -27,6 +27,7 @@ import { useFlash } from './stack';
 import { TuiScrollbar, useScrollBox } from './scroll';
 import { EscToken, escHints, isEscToken } from './esc';
 import { device } from '../../core/device';
+import { canFullscreen, toggleFullscreen } from '../../core/fullscreen';
 
 // ------------------------------------------------------------------- lines
 
@@ -251,6 +252,20 @@ export interface MenuItem {
   adjust?: (delta: number) => void;
   /** A bare numeric stepper: Enter/Space inert (Inv §3.3). */
   stepper?: boolean;
+}
+
+/**
+ * The start and ESC menus' `Fullscreen` / `Exit fullscreen` row (`fs`:
+ * `useFullscreen()`). Disabled where the browser cannot (iPhone), so the
+ * start menu keeps its row count for the first paint.
+ */
+export function fullscreenItem(fs: boolean): MenuItem {
+  return {
+    key: 'fullscreen',
+    label: fs ? 'Exit fullscreen' : 'Fullscreen',
+    disabled: !canFullscreen(),
+    activate: () => toggleFullscreen(),
+  };
 }
 
 const selectable = (it: MenuItem | undefined): boolean => !!it && !it.spacer && !it.disabled;

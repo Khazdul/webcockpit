@@ -41,6 +41,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-22 — Fullscreen menu row (side task)
+
+- **Owner request:** fullscreen as a row in the start menu and the ESC menu.
+- **Done:** `Fullscreen` / `Exit fullscreen` after Options in both menus;
+  disabled where the browser has no page fullscreen (iPhone), so the start
+  menu stays 8 rows (`START_MENU_ROWS`, shared with the first paint). The
+  replay's fullscreen helpers moved to `src/core/fullscreen.ts`.
+  Unit tests and the chrome/loading e2e specs pass; toggling checked live.
+- **Note:** the ESC banner now needs one more row to show.
+- **Next:** unchanged (stage 30 design).
+- **Commits:** this one.
+
 ### 2026-10-22 — Dev server over Tailscale (side task)
 
 - **Done:** `npm run dev:tailnet` and `$WEBCOCKPIT_DEV_HOSTS` (ADR 0096):
