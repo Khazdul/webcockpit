@@ -122,7 +122,7 @@ export function EscMain(p: EscMainProps): VNode {
         }),
     },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
-    fullscreenItem(fullscreen),
+    fullscreenItem(fullscreen, nav),
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
   ];
   const [cursor, setCursor] = useMenuCursor(items, p.preselect);

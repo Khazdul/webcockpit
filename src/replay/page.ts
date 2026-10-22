@@ -113,14 +113,14 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
         onEsc: () => exitFullscreen(doc),
         keys: (e) => {
           if (e.ctrlKey || e.altKey || e.metaKey || (e.key !== 'f' && e.key !== 'F')) return false;
-          toggleFullscreen(doc);
+          void toggleFullscreen(doc);
           return true;
         },
         stripHoverTime: true,
         boxButtons: [
           {
             label: () => (isFullscreen(doc) ? 'Exit fullscreen' : 'Fullscreen'),
-            onClick: () => toggleFullscreen(doc),
+            onClick: () => void toggleFullscreen(doc),
           },
         ],
       },

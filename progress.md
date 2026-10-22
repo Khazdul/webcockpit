@@ -51,7 +51,9 @@ Statuses: Next, In progress, Owner testing, Done.
   Unit tests and the chrome/loading e2e specs pass; toggling checked live.
 - **Note:** the ESC banner now needs one more row to show. Owner test:
   works in Chrome and Safari on iPad; Firefox on iPad keeps page
-  fullscreen off, so the row is disabled when `fullscreenEnabled` is false.
+  fullscreen off but says it is on: a request that has not taken effect
+  within 2 s flashes "This browser does not allow fullscreen." and
+  disables the row for the page's life.
 - **Next:** unchanged (stage 30 design).
 - **Commits:** this one.
 

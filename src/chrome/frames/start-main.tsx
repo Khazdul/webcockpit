@@ -47,7 +47,7 @@ export function StartMain(p: StartMainProps): VNode {
     { key: 'enter', label: 'Enter MUME', activate: p.onEnter },
     { key: 'profile', label: 'Profile', activate: () => nav.push(<ProfileFrame />) },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
-    fullscreenItem(fullscreen),
+    fullscreenItem(fullscreen, nav),
     { key: 'history', label: 'History', activate: () => nav.push(<HistoryFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => void startSpotlights(nav, services) },
     { key: 'credits', label: 'Credits', activate: () => nav.push(<CreditsFrame />) },
