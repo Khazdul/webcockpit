@@ -448,6 +448,8 @@ export class Cockpit {
   private readonly stripEl: HTMLDivElement | null = null;
   /** Phone only: the selected tab (memory only, never stored). */
   private tab: PhoneTab = GAME_TAB;
+  /** Phone only: the strip's tabs in order, GAME first (from the last relayout). */
+  private tabs: PhoneTab[] = [GAME_TAB];
   /** Phone only: what the strip shows now (redrawn when it changes). */
   private stripKey = '';
 
@@ -830,6 +832,14 @@ export class Cockpit {
     this.relayoutNow();
   }
 
+  /** Phone only: selects the strip's tab at `index` (0 = GAME, ADR 0098); false when there is none. */
+  selectTabAt(index: number): boolean {
+    const tab = this.phone ? this.tabs[index] : undefined;
+    if (tab === undefined) return false;
+    this.selectTab(tab);
+    return true;
+  }
+
   private readonly onTabClick = (e: MouseEvent): void => {
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-tab]');
     if (!t) return;
@@ -850,6 +860,7 @@ export class Cockpit {
       guard: !keyboardUp(),
     });
     this.tab = r.tab;
+    this.tabs = r.tabs;
     let res: LayoutResult = r;
     if (!r.tooSmall && r.tab === GAME_TAB && this.temps.size > 0) {
       // Temporary panes over the GAME view, kept inside it (not over the strip or the input).

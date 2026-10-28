@@ -73,6 +73,25 @@ test('tapping COMM shows the comm pane full width; GAME comes back at the same s
   expect(await layoutJson()).toBe(layout);
 });
 
+test('Ctrl+1…9 and Alt+1…9 select tabs by position (physical keyboard, ADR 0098)', async ({ page }) => {
+  await openDemo(page);
+  // GAME, CHAR, TIME, GRP, COMM, UI: Ctrl+5 is COMM.
+  await page.keyboard.press('Control+5');
+  await expect(tab(page, 'comm')).toHaveClass(/is-active/);
+  await expect(pane(page, 'comm')).toBeVisible();
+  await page.keyboard.press('Alt+2');
+  await expect(tab(page, 'character')).toHaveClass(/is-active/);
+  await page.keyboard.press('Control+1');
+  await expect(tab(page, 'game')).toHaveClass(/is-active/);
+  await expect(page.locator('.wc-game')).toBeVisible();
+  // A position past the last tab does nothing; the digit is not typed.
+  const n = await page.locator('.wc-phone-tab').count();
+  expect(n).toBeLessThan(9);
+  await page.keyboard.press(`Control+${n + 1}`);
+  await expect(tab(page, 'game')).toHaveClass(/is-active/);
+  await expect(page.locator('.wc-input-slot textarea, .wc-input-slot input').first()).toHaveValue('');
+});
+
 test('the ☰ button opens the ESC menu over the whole screen', async ({ page }) => {
   await openDemo(page);
   await page.locator('.wc-menu-btn').tap();

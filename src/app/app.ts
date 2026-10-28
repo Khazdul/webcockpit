@@ -794,7 +794,7 @@ export class App {
 
   /** Macro hook: runs the macro for a key; false when none is bound. */
   onMacroKey(key: string): boolean {
-    if (!this.script.hasMacro(key)) return false;
+    if (!this.script.hasMacro(key)) return this.phoneTabKey(key);
     this.userAction = true;
     this.userActionHandled = false;
     this.perf?.keyStart(KEY_MACRO);
@@ -805,6 +805,12 @@ export class App {
       this.perf?.keyEnd();
     }
     return true;
+  }
+
+  /** Phone only: Ctrl+1…9 or Alt+1…9 selects the strip's tab by position (ADR 0098). */
+  private phoneTabKey(key: string): boolean {
+    const m = /^(?:Ctrl|Alt)\+([1-9])$/.exec(key);
+    return m !== null && this.cockpit.selectTabAt(Number(m[1]) - 1);
   }
 
   /** The engine's sender: to the game when connected. */
