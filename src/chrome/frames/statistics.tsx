@@ -31,11 +31,15 @@ import { cellLen, centreLeft, truncate, wrapText } from '../kit/nav';
 import { device } from '../../core/device';
 import { useIsTop, useKeys } from '../kit/stack';
 import { Footer, indent } from '../kit/widgets';
-import { TuiScrollbar, useScrollBox } from '../kit/scroll';
+import { type ScrollBox, TuiScrollbar, useScrollBox } from '../kit/scroll';
 import { fmtDate, fmtDur, fmtTime, stars } from './history-model';
 import {
   DEFAULT_KILL_SORT,
   DEFAULT_PVP_SORT,
+  type KillSortKey,
+  type PvpSortKey,
+  STATS_PANE_FIXED_ROWS,
+  STATS_WIDE_MIN_COLS,
   type Seg,
   type StatCol,
   type StatSort,
@@ -43,6 +47,7 @@ import {
   fitNum,
   fmtClock,
   fmtK,
+  fitHeader,
   fmtRunDur,
   killCells,
   killCols,
@@ -55,6 +60,7 @@ import {
   sparkBuckets,
   sparkLabels,
   sparkRows,
+  statsFit,
   statsWidths,
   titleSegs,
 } from './stats-layout';
@@ -68,8 +74,6 @@ const KILLS = 2;
 const PVPS = 3;
 /** Rows of ALLIES / ACHIEVEMENTS. */
 const SMALL_ROWS = 3;
-/** On a phone narrower than this (cells) the two sides stack (ADR 0075 §3.2). */
-const STACK_BELOW = 64;
 
 function Segs(p: { segs: readonly Seg[] }): VNode {
   return <>{p.segs.map((s) => (s.cls ? <span class={s.cls}>{s.text}</span> : s.text))}</>;
@@ -85,6 +89,30 @@ export function liveHeader(m: StatsModel | null, rating: number, ended: boolean)
   if (rating > 0) parts.push(stars(rating));
   if (ended) parts.push('Run ended');
   return parts.join(' · ');
+}
+
+/**
+ * The pane's header for `cols` cells (ADR 0109): the live header, giving
+ * way in this order: the stars, the level, `STATISTICS —`, the run's
+ * duration; `Run ended` stays as long as anything does.
+ */
+export function paneHeader(m: StatsModel | null, rating: number, ended: boolean, cols: number): string {
+  const name = m?.character ?? '—';
+  const lvl = m?.level != null ? [`Lvl ${m.level}`] : [];
+  const run = [`Run ${fmtRunDur(m?.durationUs ?? 0)}`];
+  const star = rating > 0 ? [stars(rating)] : [];
+  const end = ended ? ['Run ended'] : [];
+  const join = (first: string, rest: string[]): string => [first, ...rest].join(' · ');
+  return fitHeader(
+    [
+      join(`◆ STATISTICS — ${name}`, [...lvl, ...run, ...star, ...end]),
+      join(`◆ STATISTICS — ${name}`, [...lvl, ...run, ...end]),
+      join(`◆ STATISTICS — ${name}`, [...run, ...end]),
+      join(`◆ ${name}`, [...run, ...end]),
+      join(`◆ ${name}`, end),
+    ],
+    cols,
+  );
 }
 
 /** The History header: `◆ Session details — Rasta · 2026-09-26 · 21:00 · 1h10m`. */
@@ -107,37 +135,26 @@ export function StatsView(p: StatsViewProps): VNode {
   const { cols, rows, surface } = useGrid();
   const [focus, setFocus] = useState(KILLS);
   const boxes = [useScrollBox(), useScrollBox(), useScrollBox(), useScrollBox()];
-  const [ks, setKs] = useState<StatSort<'name' | 'n' | 'xpPer' | 'xpTotal'>>(DEFAULT_KILL_SORT);
-  const [ps, setPs] = useState<StatSort<'name' | 'n' | 'xp'>>(DEFAULT_PVP_SORT);
+  const [ks, setKs] = useState<StatSort<KillSortKey>>(DEFAULT_KILL_SORT);
+  const [ps, setPs] = useState<StatSort<PvpSortKey>>(DEFAULT_PVP_SORT);
   const m = p.model;
   // Phone, narrow (ADR 0075 §3.2): the two sides stack, each the grid's
   // width, instead of squeezing two tables side by side.
-  const stacked = device().phone && cols < STACK_BELOW;
+  const stacked = device().phone && cols < STATS_WIDE_MIN_COLS;
   const { T, total } = stacked ? { T: Math.min(cols - 4, 40), total: Math.min(cols - 4, 40) + 3 } : statsWidths(cols);
-  const left = centreLeft(cols, total);
-  const allies = allyPairs(m?.allies ?? []);
-  const miles = m?.milestones ?? [];
-  const kills = sortKills(m?.kills ?? [], ks);
-  const pvps = sortPvps(m?.pvps ?? [], ps);
-  const kc = killCols(T);
-  const pc = pvpCols(T);
+  const kills = m?.kills.length ?? 0;
+  const pvps = m?.pvps.length ?? 0;
 
   // Vertical budget: header, blank, 4 (allies), blank, title + divider,
   // Total, footer (+ a blank above on the start page); then two data rows,
   // the sparklines (8) and the ruler (4) as far as they fit.
   const topBlank = surface === 'start' ? 1 : 0;
-  let rest = rows - topBlank - 11 - 2;
-  const showSpark = rest >= 8;
-  if (showSpark) rest -= 8;
-  const showRuler = rest >= 4;
-  if (showRuler) rest -= 4;
-  const fitRows = 2 + Math.max(0, rest);
+  const { showSpark, showRuler, fitRows } = statsFit(rows, topBlank + STATS_PANE_FIXED_ROWS + 1);
   const N = stacked
-    ? Math.min(Math.max(3, fitRows), Math.max(p.live ? 3 : 1, kills.length, pvps.length))
+    ? Math.min(Math.max(3, fitRows), Math.max(p.live ? 3 : 1, kills, pvps))
     : p.live
       ? fitRows
-      : Math.min(fitRows, Math.max(1, kills.length, pvps.length));
-
+      : Math.min(fitRows, Math.max(1, kills, pvps));
 
   useKeys((e, nk) => {
     if (!e.ctrlKey && !e.altKey && !e.metaKey && (e.key === 'r' || e.key === 'R') && p.onRefresh) {
@@ -168,6 +185,93 @@ export function StatsView(p: StatsViewProps): VNode {
     return false;
   });
 
+  const headers = device().phone && cellLen(p.header) > cols ? wrapText(p.header, cols) : [truncate(p.header, cols)];
+  const out = statsBody({
+    model: m,
+    headers,
+    live: p.live,
+    ...(p.note !== undefined ? { note: p.note } : {}),
+    cols,
+    layout: stacked ? 'stacked' : 'wide',
+    T,
+    total,
+    left: centreLeft(cols, total),
+    N,
+    showSpark,
+    showRuler,
+    topBlank,
+    boxes,
+    focus,
+    setFocus,
+    ks,
+    setKs,
+    ps,
+    setPs,
+  });
+
+  const footer = ['ESC Back', '↑↓ Scroll', 'Tab/Shift+Tab Switch table', ...(p.onRefresh ? ['R Refresh'] : [])];
+  return (
+    <div class="wc-page wc-stats">
+      <div class="wc-body">{out}</div>
+      <Footer tokens={footer} />
+    </div>
+  );
+}
+
+/** What `statsBody` draws: the model, the geometry and the table state of its surface. */
+export interface StatsBodyOptions {
+  model: StatsModel | null;
+  /** The header rows (each fits `cols`), centred. */
+  headers: readonly string[];
+  /** Live: the Totals always show. */
+  live: boolean;
+  /** Shown in place of the ruler (loading, errors). */
+  note?: string;
+  cols: number;
+  /**
+   * `wide`: the two sides next to each other; `stacked` (a phone frame) and
+   * `narrow` (the pane, ADR 0109): each pair's left part above its right
+   * part. `narrow` tables show all their rows and do not scroll.
+   */
+  layout: 'wide' | 'stacked' | 'narrow';
+  /** Table width per side, the whole width, and the left indent. */
+  T: number;
+  total: number;
+  left: number;
+  /** Rows of KILLS / PvPs (wide, stacked). */
+  N: number;
+  showSpark: boolean;
+  showRuler: boolean;
+  /** Blank rows above the header (the start page). */
+  topBlank: number;
+  /** The four tables' scroll boxes. */
+  boxes: readonly ScrollBox[];
+  /** The focused table (gold title), or null (the pane has no focus). */
+  focus: number | null;
+  setFocus: (id: number) => void;
+  ks: StatSort<KillSortKey>;
+  setKs: (s: StatSort<KillSortKey>) => void;
+  ps: StatSort<PvpSortKey>;
+  setPs: (s: StatSort<PvpSortKey>) => void;
+}
+
+/**
+ * The Statistics rows (header, ALLIES / ACHIEVEMENTS, KILLS / PvPs with
+ * their Totals, the sparklines, the ruler): one renderer for the ESC frame,
+ * History → STATS and the pane, with the same classes and colours.
+ */
+export function statsBody(o: StatsBodyOptions): VNode[] {
+  const { cols, T, total, left, N, boxes, focus, setFocus, ks, ps } = o;
+  const m = o.model;
+  const narrow = o.layout === 'narrow';
+  const stacked = o.layout !== 'wide';
+  const allies = allyPairs(m?.allies ?? []);
+  const miles = m?.milestones ?? [];
+  const kills = sortKills(m?.kills ?? [], ks);
+  const pvps = sortPvps(m?.pvps ?? [], ps);
+  const kc = killCols(T);
+  const pc = pvpCols(T);
+
   // ------------------------------------------------------------- pieces
 
   const titleCls = (id: number): string => (id === focus ? 'wc-c-accent' : 'wc-c-section');
@@ -191,25 +295,35 @@ export function StatsView(p: StatsViewProps): VNode {
   /**
    * One table's rows (`n` tall): a native scroll box (pixels, as EDITOR) of
    * T + 2 cells and the scrollbar cell. A click or the wheel focuses it.
+   * Narrow: all its rows (at least one), no scroll box.
    */
-  const table = (id: number, data: readonly Seg[][], n: number): VNode => (
-    <div
-      class="wc-stat-col"
-      data-table={id}
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={() => setFocus(id)}
-      onWheel={() => setFocus(id)}
-    >
-      <div class="wc-scrollbox wc-stat-rows" ref={boxes[id]!.ref} style={{ width: `calc(var(--cell-w) * ${T + 2})` }}>
-        {Array.from({ length: Math.max(n, data.length) }, (_, i) => (
+  const table = (id: number, data: readonly Seg[][], n: number): VNode =>
+    narrow ? (
+      <div class="wc-stat-rows" data-table={id} onMouseDown={(e) => e.preventDefault()}>
+        {Array.from({ length: Math.max(1, data.length) }, (_, i) => (
           <div class="wc-line" key={i}>
             <Segs segs={data[i] ?? []} />
           </div>
         ))}
       </div>
-      <TuiScrollbar target={boxes[id]!.ref} rows={n} thumbClass="wc-stat-bar wc-st-thumb" trackClass="wc-stat-bar wc-st-track" trackChar="█" jump />
-    </div>
-  );
+    ) : (
+      <div
+        class="wc-stat-col"
+        data-table={id}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setFocus(id)}
+        onWheel={() => setFocus(id)}
+      >
+        <div class="wc-scrollbox wc-stat-rows" ref={boxes[id]!.ref} style={{ width: `calc(var(--cell-w) * ${T + 2})` }}>
+          {Array.from({ length: Math.max(n, data.length) }, (_, i) => (
+            <div class="wc-line" key={i}>
+              <Segs segs={data[i] ?? []} />
+            </div>
+          ))}
+        </div>
+        <TuiScrollbar target={boxes[id]!.ref} rows={n} thumbClass="wc-stat-bar wc-st-thumb" trackClass="wc-stat-bar wc-st-track" trackChar="█" jump />
+      </div>
+    );
 
   /** Two tables side by side, `n` rows tall. */
   const tables = (l: VNode, r: VNode, n: number, key: string): VNode => (
@@ -229,8 +343,8 @@ export function StatsView(p: StatsViewProps): VNode {
     </div>
   );
 
-  // Stacked: each pair's left part queues above its right part until the
-  // block ends (`flush`).
+  // Stacked and narrow: each pair's left part queues above its right part
+  // until the block ends (`flush`).
   const lq: VNode[] = [];
   const rq: VNode[] = [];
   const pushLine = (l: VNode, r: VNode, key: string): void => {
@@ -240,11 +354,16 @@ export function StatsView(p: StatsViewProps): VNode {
   };
   const pushTables = (l: VNode, r: VNode, n: number, key: string): void => {
     if (!stacked) return void out.push(tables(l, r, n, key));
-    const box = (c: VNode, k: string): VNode => (
-      <div class="wc-scrollrow wc-stat-tables" style={{ ...indent(left), height: `calc(var(--cell-h) * ${n})` }} key={k}>
-        {c}
-      </div>
-    );
+    const box = (c: VNode, k: string): VNode =>
+      narrow ? (
+        <div style={indent(left)} key={k}>
+          {c}
+        </div>
+      ) : (
+        <div class="wc-scrollrow wc-stat-tables" style={{ ...indent(left), height: `calc(var(--cell-h) * ${n})` }} key={k}>
+          {c}
+        </div>
+      );
     lq.push(box(l, key + 'L'));
     rq.push(box(r, key + 'R'));
   };
@@ -292,9 +411,8 @@ export function StatsView(p: StatsViewProps): VNode {
 
   const out: VNode[] = [];
   const blank = (k: string): void => void out.push(<div class="wc-line" key={k} />);
-  if (topBlank) blank('top');
-  const headers = device().phone && cellLen(p.header) > cols ? wrapText(p.header, cols) : [truncate(p.header, cols)];
-  headers.forEach((header, i) =>
+  if (o.topBlank) blank('top');
+  o.headers.forEach((header, i) =>
     out.push(
       <div class="wc-line wc-stats-header" style={indent(centreLeft(cols, cellLen(header)))} key={'hdr' + i}>
         <span class="wc-st-hint">{header}</span>
@@ -327,7 +445,7 @@ export function StatsView(p: StatsViewProps): VNode {
   blank('b2');
 
   // KILLS + PvPs.
-  pushLine(renderTitle(KILLS, kc, ks, setKs), renderTitle(PVPS, pc, ps, setPs), 'kt');
+  pushLine(renderTitle(KILLS, kc, ks, o.setKs), renderTitle(PVPS, pc, ps, o.setPs), 'kt');
   const rule: Seg[] = [{ text: '─'.repeat(T), cls: 'wc-c-hint' }];
   pushLine(side(null, rule), side(null, rule), 'kd');
   const killRows = kills.map((k): Seg[] => [{ text: killCells(k, kc).join(''), cls: 'wc-st-label' }]);
@@ -339,7 +457,7 @@ export function StatsView(p: StatsViewProps): VNode {
   const kt = m?.killTotal ?? { n: 0, xp: 0 };
   const pt = m?.pvpTotal ?? { n: 0, xp: 0 };
   const killTotal: Seg[] =
-    p.live || kt.n > 0
+    o.live || kt.n > 0
       ? [
           {
             text: 'Total'.padEnd(kc[0]!.width) + fitNum(kt.n, 4) + ' '.repeat(7) + fmtK(kt.xp).padStart(9),
@@ -348,7 +466,7 @@ export function StatsView(p: StatsViewProps): VNode {
         ]
       : [];
   const pvpTotal: Seg[] =
-    p.live || pt.n > 0
+    o.live || pt.n > 0
       ? [
           {
             text: 'Total'.padEnd(pc[0]!.width) + fitNum(pt.n, 4) + fmtK(pt.xp).padStart(9),
@@ -360,7 +478,7 @@ export function StatsView(p: StatsViewProps): VNode {
   flush('fk');
 
   // Sparklines.
-  if (showSpark) {
+  if (o.showSpark) {
     blank('b3');
     const buckets = sparkBuckets(T);
     const startUs = m?.startUs ?? 0;
@@ -395,7 +513,7 @@ export function StatsView(p: StatsViewProps): VNode {
   }
 
   // XP ruler.
-  if (showRuler) {
+  if (o.showRuler) {
     blank('b4');
     const r = m?.ruler ? rulerRows(m.ruler, total) : null;
     if (r) {
@@ -411,7 +529,7 @@ export function StatsView(p: StatsViewProps): VNode {
         );
       }
     } else {
-      const note = p.note ?? (m ? 'No XP data.' : 'Loading…');
+      const note = o.note ?? (m ? 'No XP data.' : 'Loading…');
       out.push(<div class="wc-line" key="rl" />);
       out.push(
         <div class="wc-line" style={indent(centreLeft(cols, cellLen(note)))} key="rb">
@@ -421,14 +539,7 @@ export function StatsView(p: StatsViewProps): VNode {
       out.push(<div class="wc-line" key="rm" />);
     }
   }
-
-  const footer = ['ESC Back', '↑↓ Scroll', 'Tab/Shift+Tab Switch table', ...(p.onRefresh ? ['R Refresh'] : [])];
-  return (
-    <div class="wc-page wc-stats">
-      <div class="wc-body">{out}</div>
-      <Footer tokens={footer} />
-    </div>
-  );
+  return out;
 }
 
 // ---------------------------------------------------------------- live

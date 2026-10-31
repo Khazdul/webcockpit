@@ -12,7 +12,7 @@
 
 import { xpForLevel } from '../../gmcp/levels';
 import type { KillRow, PvpRow, XpRuler } from '../../runs/stats';
-import { cellLen, truncate } from '../kit/nav';
+import { cellLen, centreLeft, truncate } from '../kit/nav';
 
 /** A run of text in one colour class. */
 export interface Seg {
@@ -28,6 +28,100 @@ export function statsWidths(cols: number): { T: number; total: number } {
   const total = Math.max(40, Math.min(cols, STATS_MAX_W));
   const T = Math.floor((total - 8) / 2);
   return { T, total: 2 * T + 8 };
+}
+
+// ------------------------------------------------------------- fitting
+
+/**
+ * Narrowest grid that takes the two sides (T = 28, a KILLS name column of
+ * 8 cells): a phone frame stacks below it (ADR 0075 §3.2), the pane goes
+ * narrow (ADR 0109).
+ */
+export const STATS_WIDE_MIN_COLS = 64;
+/** Rows of the sparklines (a blank, the title, the rule, 3 bars, the axis, the labels). */
+export const STATS_SPARK_ROWS = 8;
+/** Rows of the XP ruler (a blank and three rows). */
+export const STATS_RULER_ROWS = 4;
+/** Rows the pane's wide layout always takes: header, blank, 4 (allies), blank, title + divider, Total. */
+export const STATS_PANE_FIXED_ROWS = 10;
+/** KILLS / PvPs rows the wide layout keeps at least. */
+export const STATS_MIN_DATA_ROWS = 2;
+
+/**
+ * What fits a body `rows` tall when `fixed` rows are always taken: the
+ * sparklines, then the ruler, as far as they fit after two data rows, and
+ * the KILLS / PvPs rows (the rest, at least two).
+ */
+export function statsFit(rows: number, fixed: number): { showSpark: boolean; showRuler: boolean; fitRows: number } {
+  let rest = rows - fixed - STATS_MIN_DATA_ROWS;
+  const showSpark = rest >= STATS_SPARK_ROWS;
+  if (showSpark) rest -= STATS_SPARK_ROWS;
+  const showRuler = rest >= STATS_RULER_ROWS;
+  if (showRuler) rest -= STATS_RULER_ROWS;
+  return { showSpark, showRuler, fitRows: STATS_MIN_DATA_ROWS + Math.max(0, rest) };
+}
+
+/** Narrowest table of the pane's narrow layout (a KILLS name column of 6); a narrower pane clips it. */
+export const NARROW_MIN_T = 26;
+/** The narrow layout's sparklines need this many cells (12 buckets), the ruler this many. */
+export const NARROW_SPARK_MIN = 30;
+export const NARROW_RULER_MIN = 24;
+
+/** The Statistics pane's layout for its content cells (ADR 0109). */
+export type StatsPaneLayout =
+  | {
+      /** Today's two sides; KILLS / PvPs fit the height. */
+      mode: 'wide';
+      T: number;
+      total: number;
+      left: number;
+      showSpark: boolean;
+      showRuler: boolean;
+      fitRows: number;
+    }
+  | {
+      /**
+       * One column (ALLIES, ACHIEVEMENTS, KILLS, PvPs with all their rows,
+       * the sparklines, the ruler) that scrolls as a whole: a left margin,
+       * T cells, a blank and the scrollbar.
+       */
+      mode: 'narrow';
+      T: number;
+      total: number;
+      left: number;
+      showSpark: boolean;
+      showRuler: boolean;
+    };
+
+/**
+ * The pane's layout: wide when the two sides fit at their narrowest
+ * (STATS_WIDE_MIN_COLS) and the fixed rows with two data rows fit the
+ * height; narrow otherwise, where the sparklines drop below
+ * NARROW_SPARK_MIN cells and then the ruler below NARROW_RULER_MIN.
+ */
+export function statsPaneLayout(cols: number, rows: number): StatsPaneLayout {
+  if (cols >= STATS_WIDE_MIN_COLS && rows >= STATS_PANE_FIXED_ROWS + STATS_MIN_DATA_ROWS) {
+    const { T, total } = statsWidths(cols);
+    return { mode: 'wide', T, total, left: centreLeft(cols, total), ...statsFit(rows, STATS_PANE_FIXED_ROWS) };
+  }
+  const avail = cols - 3;
+  return {
+    mode: 'narrow',
+    T: Math.max(NARROW_MIN_T, avail),
+    total: Math.max(NARROW_MIN_T, avail),
+    left: 1,
+    showSpark: avail >= NARROW_SPARK_MIN,
+    showRuler: avail >= NARROW_RULER_MIN,
+  };
+}
+
+/**
+ * The first of `candidates` (longest first) that fits `cols` cells; the
+ * last one cut with `…` when none does.
+ */
+export function fitHeader(candidates: readonly string[], cols: number): string {
+  for (const c of candidates) if (cellLen(c) <= cols) return c;
+  return truncate(candidates[candidates.length - 1] ?? '', cols);
 }
 
 // ------------------------------------------------------------ formatting
