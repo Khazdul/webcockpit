@@ -271,13 +271,13 @@ test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles pane
   await page.keyboard.press('Enter');
   await expect(startFlash(page)).toHaveText('Layout reset.');
   // The default layout (ADR 0078, ADR 0092): Character and the map over
-  // Group | Timers, then Comm, UI and the pane bar; Map search floats.
+  // Group | Timers, then Comm, UI and the pane bar; Map search and Statistics float (ADR 0109).
   await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([25, 25]);
   const right = (await settings(page)).layout.docks.right;
   expect(right.head.map((p) => p.id)).toEqual(['character', 'map']);
   expect(right.lanes.map((l) => l.panes.map((p) => p.id))).toEqual([['group'], ['timers']]);
   expect(right.tail.map((p) => p.id)).toEqual(['comm', 'ui', 'panebar/bar']);
-  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['mapsearch/main']);
+  expect((await settings(page)).layout.floating.map((f) => f.id)).toEqual(['mapsearch/main', 'statistics']);
   // Reset layout leaves the toggles alone: Character is still off.
   expect((await settings(page)).panes.character.on).toBe(false);
   await page.evaluate(() => window.__wc!.settings.reset());
