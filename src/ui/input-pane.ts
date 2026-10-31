@@ -56,13 +56,18 @@
 //   The ghost (`.wc-input-ghost`) is drawn in the caret's animation frame,
 //   never in a key handler. Right at the end, or End with the caret
 //   already there, accepts it all; Tab accepts the next word (whitespace
-//   run + word). Tab only does so while a suggestion is showing (or right
-//   after it filled the line, so a repeated Tab does not move the focus);
-//   otherwise it keeps the browser's focus move. Macros win first, as for
+//   run + word) while a suggestion is showing. Macros win first, as for
 //   every key. The ghost is never sent.
+// - Tab (ADR 0108): Tab and Shift+Tab in the line never move the focus.
+//   A macro bound to them runs; autosuggest takes a word; otherwise
+//   nothing happens. Tab with a stray focus (the page's body, or a
+//   control in `scope` that is not a text field, a popup or a window)
+//   gives the keys back to the line and does nothing else, so the focus
+//   never wanders off to the browser's own controls.
 // - Own keys (ADR 0099): an element marked `data-wc-own-keys` (the menu
-//   bar's popups) keeps the keys typed and the clicks made inside it, as
-//   another text field does: no refocus, no macro, no key handling here.
+//   bar's popups, the windows) keeps the keys typed and the clicks made
+//   inside it, as another text field does: no refocus, no macro, no key
+//   handling here.
 
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
@@ -98,6 +103,12 @@ export interface InputPaneOptions {
   requestFrame?: (cb: () => void) => void;
   /** Phone command line (a one-row <textarea>); default: the device flag. */
   phone?: boolean;
+  /**
+   * Where a stray focus is given back to the line by Tab (ADR 0108): the
+   * App's element while it is shown, null otherwise. The page's body
+   * always counts.
+   */
+  scope?: () => Element | null;
 }
 
 /** The command line element: an <input>, or a <textarea> on a phone. */
@@ -236,8 +247,6 @@ export class InputPane {
   private autoClear = false;
   /** Options → Input autosuggest (ADR 0063). */
   private autosuggest = false;
-  /** Tab just took a word of the suggestion: a further Tab stays in the line. */
-  private tabCompleting = false;
   private leaveGuard = false;
   /** Line before the dead key a macro consumed; its composition is undone. */
   private deadSnap: { value: string; start: number; end: number; dir: 'forward' | 'backward' | 'none' } | null =
@@ -415,7 +424,6 @@ export class InputPane {
   setAutosuggest(on: boolean): void {
     if (on === this.autosuggest) return;
     this.autosuggest = on;
-    this.tabCompleting = false;
     this.scheduleCaret();
   }
 
@@ -506,14 +514,12 @@ export class InputPane {
   // ---------------------------------------------------------------- history
 
   private endBrowsing(): void {
-    this.tabCompleting = false;
     this.browseIndex = -1;
     this.draft = '';
     this.draftRestored = false;
   }
 
   private show(text: string): void {
-    this.tabCompleting = false;
     this.input.value = text;
     this.input.setSelectionRange(0, text.length);
     this.scheduleCaret();
@@ -578,9 +584,28 @@ export class InputPane {
     );
   }
 
+  /**
+   * Tab (or Shift+Tab) with the focus on a stray spot (ADR 0108): the
+   * page's body, or a control in `scope` that is not a text field and not
+   * inside an element that owns its keys (a popup, a window).
+   */
+  private strayTab(e: KeyboardEvent): boolean {
+    if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey) return false;
+    const t = e.target as HTMLElement | null;
+    if (!t || t === this.input || !t.tagName) return false;
+    const doc = this.doc;
+    if (t === doc.body || t === doc.documentElement) return true;
+    const tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable === true) return false;
+    if (t.closest?.(`[${OWN_KEYS_ATTR}]`) != null) return false;
+    const scope = this.opts.scope?.() ?? null;
+    return scope !== null && scope.contains(t);
+  }
+
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (e.key === 'Enter') this.enterDown = true;
-    if (e.defaultPrevented) return;
+    // A line taken off the page handles no keys.
+    if (e.defaultPrevented || !this.input.isConnected) return;
     const dead = e.key === 'Dead';
     if (!dead) {
       // Real IME composition: the keys belong to the IME.
@@ -590,6 +615,12 @@ export class InputPane {
       this.deadEcho = null;
     }
     learnKeyLabel(e);
+    if (this.strayTab(e)) {
+      // A stray focus (ADR 0108): the keys go back to the line, nothing else.
+      e.preventDefault();
+      this.input.focus({ preventScroll: true });
+      return;
+    }
     if (this.isOtherInteractive(e.target)) return;
     const away = this.doc.activeElement !== this.input && !e.isComposing;
     if (!dead) {
@@ -782,18 +813,16 @@ export class InputPane {
           return true;
         }
         return false;
-      case 'Tab':
-        // One word of the suggestion; without one, the browser moves the
-        // focus as before (but not right after Tab filled the line).
-        if (plain && !e.shiftKey && this.autosuggest) {
-          const rest = this.suggestion();
-          if (rest === '') return this.tabCompleting && this.suggestionPossible();
+      case 'Tab': {
+        // Never a focus move (ADR 0108): one word of the suggestion, or nothing.
+        if (!plain) return false;
+        const rest = e.shiftKey ? '' : this.suggestion();
+        if (rest !== '') {
           const n = this.input.value.length;
           this.edit(n, n, nextSuggestedWord(rest));
-          this.tabCompleting = true;
-          return true;
         }
-        return false;
+        return true;
+      }
       case 'Backspace':
         if (alt) {
           this.deleteBack(wordStartBefore);
@@ -843,13 +872,6 @@ export class InputPane {
       }
     }
     return false;
-  }
-
-  /** True while the caret sits at the end of an unselected, unmasked line. */
-  private suggestionPossible(): boolean {
-    const i = this.input;
-    const n = i.value.length;
-    return !this.password && i.selectionStart === n && i.selectionEnd === n;
   }
 
   private caret(): number {

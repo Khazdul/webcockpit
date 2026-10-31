@@ -35,7 +35,8 @@ export function installFullscreenButton(doc: Document = document): FullscreenBut
     b.setAttribute('aria-label', b.title);
   };
   draw();
-  // Keep the input's focus (and the phone keyboard) where it is.
+  // Keep the input's focus (and the phone keyboard) where it is; not in the Tab order (ADR 0108).
+  b.tabIndex = -1;
   b.addEventListener('mousedown', (e) => e.preventDefault());
   b.addEventListener('click', (e) => {
     e.stopPropagation();

@@ -448,6 +448,8 @@ export class App {
       // Esc (output at the bottom): the popup, the window, then the menu (see the header).
       ...(opts.onEscape || opts.ui?.bar ? { onEscape: () => this.escape() } : {}),
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
+      // Tab from a stray focus in the shown cockpit goes back to the input (ADR 0108).
+      scope: () => (this.el.style.display === 'none' ? null : this.el),
     });
     const barUi = this.appUi?.bar ? this.appUi : null;
     if (!barUi) this.clockStrip = new ClockStrip(this.input.clockEl, { game: this.game, settings: this.settings, now });

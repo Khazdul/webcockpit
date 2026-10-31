@@ -526,7 +526,7 @@ describe('InputPane autosuggest (ADR 0063)', () => {
     expect(t.sent.at(-1)!.text).toBe('kill ');
   });
 
-  it('Tab accepts word by word, then stays put; without a suggestion it is not taken', () => {
+  it('Tab accepts word by word, then stays put; without a suggestion it does nothing (ADR 0108)', () => {
     const t = suggestSetup(['kill orc the great']);
     t.type('kill ');
     expect(t.key('Tab').defaultPrevented).toBe(true);
@@ -538,12 +538,17 @@ describe('InputPane autosuggest (ADR 0063)', () => {
     // Filled: a further Tab does nothing (and does not move the focus).
     expect(t.key('Tab').defaultPrevented).toBe(true);
     expect(t.i.value).toBe('kill orc the great');
-    // A fresh line with no suggestion: Tab keeps the browser's meaning.
+    // A fresh line with no suggestion: Tab still never moves the focus.
     t.type('look');
-    expect(t.key('Tab').defaultPrevented).toBe(false);
+    expect(t.key('Tab').defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('look');
+    // Shift+Tab never takes a word.
+    t.type('kill ');
+    expect(t.key('Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(t.i.value).toBe('kill ');
     t.pane.setAutosuggest(false);
     t.type('kill ');
-    expect(t.key('Tab').defaultPrevented).toBe(false);
+    expect(t.key('Tab').defaultPrevented).toBe(true);
     expect(t.i.value).toBe('kill ');
   });
 
@@ -1166,5 +1171,84 @@ describe('InputPane on a phone (ADR 0075 §3.2)', () => {
     expect((pane.input as HTMLInputElement).type).toBe('text');
     bus.emit('telnet.echo', { serverEchoes: true });
     expect((pane.input as HTMLInputElement).type).toBe('text');
+  });
+});
+
+describe('InputPane Tab (ADR 0108)', () => {
+  function tabSetup(macros: string[] = []) {
+    document.body.innerHTML = '';
+    const app = document.createElement('div');
+    const root = document.createElement('div');
+    app.appendChild(root);
+    document.body.appendChild(app);
+    const fired: string[] = [];
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      onMacroKey: (k) => (macros.includes(k) ? (fired.push(k), true) : false),
+      scope: () => app,
+    });
+    pane.focus();
+    const tab = (target: EventTarget, init: KeyboardEventInit = {}) => {
+      const e = new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(e);
+      return e;
+    };
+    const add = <K extends keyof HTMLElementTagNameMap>(tag: K, parent: Element = app): HTMLElementTagNameMap[K] => {
+      const el = document.createElement(tag);
+      parent.appendChild(el);
+      return el;
+    };
+    return { pane, app, fired, tab, add };
+  }
+
+  it('Tab and Shift+Tab in the line never move the focus', () => {
+    const t = tabSetup();
+    expect(t.tab(t.pane.input).defaultPrevented).toBe(true);
+    expect(t.tab(t.pane.input, { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.pane.input);
+    t.pane.dispose();
+  });
+
+  it('a macro bound to Tab or Shift+Tab still runs from the line', () => {
+    const t = tabSetup(['Tab', 'Shift+Tab']);
+    expect(t.tab(t.pane.input).defaultPrevented).toBe(true);
+    expect(t.tab(t.pane.input, { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(t.fired).toEqual(['Tab', 'Shift+Tab']);
+    t.pane.dispose();
+  });
+
+  it('Tab from a stray focus in the cockpit gives the keys back to the line, and nothing else', () => {
+    const t = tabSetup(['Tab']);
+    const b = t.add('button');
+    b.focus();
+    expect(t.tab(b).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.pane.input);
+    expect(t.fired).toEqual([]);
+    // The page's body counts as stray too.
+    t.pane.input.blur();
+    expect(document.activeElement).toBe(document.body);
+    expect(t.tab(document.body).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.pane.input);
+    expect(t.fired).toEqual([]);
+    t.pane.dispose();
+  });
+
+  it('leaves text fields, popups, windows and controls outside the cockpit alone', () => {
+    const t = tabSetup();
+    const field = t.add('input');
+    field.focus();
+    expect(t.tab(field).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(field);
+    const pop = t.add('div');
+    pop.setAttribute(OWN_KEYS_ATTR, '');
+    const pb = t.add('button', pop);
+    pb.focus();
+    expect(t.tab(pb).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(pb);
+    const outside = t.add('button', document.body);
+    outside.focus();
+    expect(t.tab(outside).defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(outside);
+    t.pane.dispose();
   });
 });
