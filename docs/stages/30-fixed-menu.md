@@ -354,6 +354,31 @@ most cases. The input row picks its extent by the room left to type:
 
 The owner tested round 2: "Feels good now." 30a is done; 30b is next.
 
+### 30b round 1 (2026-10-31)
+
+Profile changes should take effect while the window stays open, since
+you now play with it open. First choice: changes apply at once (or
+shortly after) without closing the window. Second choice: a "modified"
+notice and Ctrl+S to save and apply, as the script editor has.
+
+Decided *(Claude)*, ADR 0105:
+
+- **Lite applies by itself** at the points where an edit is finished:
+  leaving a field, moving to another entry or kind, Enter in Pattern, a
+  new or deleted entry, a captured macro key, a highlight style or
+  colour. Not on every keystroke: a half-typed action pattern (`^%1`
+  on the way to `^%1 tells you`) would match every line and fire.
+- **Ctrl+S** applies at once, in Lite and in Editor. Editor (the whole
+  text) applies only on Ctrl+S and when you go back to Lite, with a
+  "modified" mark until then.
+- An entry that does not validate, or a text that does not load, is not
+  applied; the editor says why. The close prompt only asks when changes
+  are still unapplied.
+- No `Profile applied` line in the game text for these quiet applies;
+  failures and warnings show in the editor.
+- Changes made outside the window while it is open (typed `#alias`,
+  variables written back by scripts) are kept and show in the editor.
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
@@ -431,6 +456,8 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
     - [x] Windows: unit (geometry, stack, settings, keyboard lock, bar,
       App), e2e `windows.spec.ts` and the specs that went through the ESC
       menu, ADR 0103, ADR 0099 addendum, test guide below.
+- [ ] 30b round 1 (2026-10-31): profile changes apply while the window
+  stays open (ADR 0105).
 - [ ] 30c.
 - [ ] 30d.
 - [ ] 30e.
