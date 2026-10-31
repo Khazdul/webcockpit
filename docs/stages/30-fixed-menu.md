@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30c round 1). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **Owner testing** (30c round 1 built). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -80,8 +80,9 @@ phone gets its own follow-up stage.
 - **Focus follows clicks**, as in a desktop window system. Keys go to
   what was clicked last. A click in the game text or the input field
   gives the keys back to the game. The window with focus has the brighter
-  rim; the others are dimmed *(Claude)*. The popups (S3–S5) take keys
-  only after a click inside them.
+  rim; the others are dimmed *(Claude)*. The popups (S3–S6) take the
+  keys when they open; Esc gives them back to the game (30c round 1,
+  ADR 0108). Tab in the game never moves the focus.
 - **Disconnected:** a clear, clickable notice in the input row, left of
   the bar: `Disconnected — Reconnect (Enter)`. Enter in an empty input
   field reconnects. The notice disappears once connected. The rule that
@@ -593,12 +594,12 @@ Decided *(Claude)*, ADR 0108:
     - [x] Part 2 (pane Gear): unit `pane-gear.test.tsx`, e2e
       `pane-gear.spec.ts` and `pane-buttons.spec.ts`, ADR 0095 and ADR 0107
       addenda.
-- [ ] 30c round 1 (2026-10-31): keys and focus (ADR 0108):
+- [x] 30c round 1 (2026-10-31): keys and focus (ADR 0108):
   - [x] Tab / Shift+Tab in the game input do nothing unless a macro or
     autosuggest uses them; cockpit chrome out of the Tab order.
   - [x] Bar and gear popups take the focus on open; Tab cycles inside;
     keys work; clicks keep the focus; Esc / X / icon give it to the game.
-  - [ ] Unit tests, e2e, ADR 0108, ADR 0099/0107 addenda, test guide.
+  - [x] Unit tests, e2e, ADR 0108, ADR 0099/0107 addenda, test guide.
     - [x] Unit (input pane Tab, menu bar, App, surface), e2e
       `popup-focus.spec.ts` and the specs that assumed keys after a click,
       ADR 0108, ADR 0099/0107 addenda, `#panes` / `#settings` help.
@@ -825,3 +826,31 @@ takes keys from the game when it should not.
 Known: while the browser's colour picker is open, the hex field cannot
 be typed in until the picker closes. The Mapper tab has some empty room
 at the bottom, since every tab keeps the tallest tab's height.
+
+#### Round 1
+
+Keys and focus (ADR 0108). Enter MUME or `?replay`.
+
+1. **Tab in the game:** press Tab and Shift+Tab a few times while typing:
+   nothing happens, the cursor stays in the input. With autosuggest on
+   and a suggestion shown, Tab still takes the next word. Bind Tab with
+   `#macro {Tab} {...}`: the macro runs.
+2. **Popups take the keys:** click Panes (or type `#panes`): the first
+   row has the keys. ↑↓ move, Space or Enter switches a pane, Tab and
+   Shift+Tab go round inside the popup and never leave it. Click a row
+   with the mouse: the keys stay in the popup. Esc closes it and you type
+   in the game again.
+3. **Settings and the gears:** the same. Tab goes round the controls,
+   arrows step sliders and switches, Page Up/Down scroll the popup when
+   the screen is short. Esc in an open dropdown closes only the list.
+4. **Click in the game** with a popup open: you type in the game, the
+   popup stays open; click in it to use its keys again. Esc in the input
+   still closes it.
+5. **Over a window:** with Profile focused, open Settings: the window
+   dims and the popup has the keys; Esc returns the keys to the game.
+6. **Exit:** as before, it takes the keys when it opens.
+
+Feedback wanted: whether you can still lose the game's keys by accident
+anywhere, and whether the first focus in each popup is the right spot
+(Panes: first row; Settings: the selected tab; a gear: its first
+control).
