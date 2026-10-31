@@ -50,7 +50,7 @@ import { device } from '../core/device';
 import { useGrid } from '../chrome/kit/hooks';
 import { escHints } from '../chrome/kit/esc';
 import { centreLeft, scrollbar, wrapText } from '../chrome/kit/nav';
-import { TuiScrollbar, useScrollBox } from '../chrome/kit/scroll';
+import { TuiScrollbar, barPress, useScrollBox } from '../chrome/kit/scroll';
 import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
 import {
@@ -1459,10 +1459,15 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
             onScroll={(e) => setBodyTop(Math.round((e.currentTarget as HTMLTextAreaElement).scrollTop / cellH.current))}
             onInput={(e) => setBody((e.currentTarget as HTMLTextAreaElement).value)}
           />
-          <span class="wc-ped-col">
+          <span class="wc-ped-col wc-ped-vbar">
             {Array.from({ length: n }, (_, i) =>
               bar.length ? (
-                <span class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}>{(bar[i] ? '█' : '░') + '\n'}</span>
+                <span
+                  class={bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track'}
+                  {...barPress(() => ({ el: bodyRef.current, bar, i, rowPx: cellH.current, cellPx: cellH.current }))}
+                >
+                  {(bar[i] ? '█' : '░') + '\n'}
+                </span>
               ) : (
                 ' \n'
               ),
@@ -1596,13 +1601,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
             bar.length && i < bar.length ? (
               <div
                 class={'wc-line ' + (bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track')}
-                onMouseDown={(e) => {
-                  e.preventDefault();
+                {...barPress(() => {
                   const v = viewRef.current;
-                  if (!v || bar[i]) return;
-                  const thumbAt = bar.indexOf(true);
-                  pageScroll(v, i < thumbAt ? -1 : 1);
-                }}
+                  return { el: v?.scrollDOM, bar, i, rowPx: cellHpx, page: (dir) => v && pageScroll(v, dir) };
+                })}
               >
                 {bar[i] ? '█' : '░'}
               </div>

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   centreLeft,
   cycle,
+  dragScrollTop,
   firstEnabled,
   footerRows,
   footerText,
+  jumpScrollTop,
   navKey,
   packRows,
   scrollToShow,
@@ -130,6 +132,27 @@ describe('layout helpers', () => {
     const end = scrollbar(20, 10, 10);
     expect(end[9]).toBe(true);
     expect(end[0]).toBe(false);
+  });
+
+  it('maps a thumb drag to a proportional scroll position (ADR 0106)', () => {
+    // 10 cells of 16 px, a 5-cell thumb: 80 px of travel for 400 px of content.
+    expect(dragScrollTop(0, 0, 10, 5, 16, 400)).toBe(0);
+    expect(dragScrollTop(0, 40, 10, 5, 16, 400)).toBe(200);
+    expect(dragScrollTop(0, 80, 10, 5, 16, 400)).toBe(400);
+    expect(dragScrollTop(200, -20, 10, 5, 16, 400)).toBe(100);
+    // Clamped at both ends.
+    expect(dragScrollTop(0, 500, 10, 5, 16, 400)).toBe(400);
+    expect(dragScrollTop(100, -500, 10, 5, 16, 400)).toBe(0);
+    // Nothing to scroll, or no room for the thumb to travel.
+    expect(dragScrollTop(50, 40, 10, 5, 16, 0)).toBe(0);
+    expect(dragScrollTop(50, 40, 10, 10, 16, 400)).toBe(50);
+  });
+
+  it('maps a track press to a proportional jump on a whole row', () => {
+    expect(jumpScrollTop(0, 10, 400, 16)).toBe(0);
+    expect(jumpScrollTop(9, 10, 400, 16)).toBe(400);
+    expect(jumpScrollTop(4, 10, 400, 16)).toBe(176);
+    expect(jumpScrollTop(4, 10, 0, 16)).toBe(0);
   });
 
   it('flags windows below 60×18 cells', () => {

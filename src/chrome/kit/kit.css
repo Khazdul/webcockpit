@@ -419,12 +419,15 @@ textarea.wc-field {
   display: none;
 }
 
+/* A press drags the thumb or pages (ADR 0106): no panning or selection on it. */
 .wc-tui-bar {
   flex: 0 0 auto;
   width: var(--cell-w);
+  touch-action: none;
+  user-select: none;
 }
 
-.wc-tui-bar .wc-scroll-track {
+.wc-tui-bar > .wc-line:not(:empty) {
   cursor: pointer;
 }
 

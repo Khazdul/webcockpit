@@ -752,7 +752,7 @@ async function expectFullWidth(page: Page): Promise<void> {
   // The scrollbar still pages: a click on the track below the thumb.
   const thumbs = ped(page).locator('.wc-ped-bufbar .wc-scroll-thumb');
   const before = (await thumbs.first().boundingBox())!.y;
-  await ped(page).locator('.wc-ped-bufbar .wc-scroll-track').last().dispatchEvent('mousedown');
+  await ped(page).locator('.wc-ped-bufbar .wc-scroll-track').last().click();
   await expect.poll(async () => (await thumbs.first().boundingBox())!.y).toBeGreaterThan(before);
 
   await toHelp(page);
@@ -765,7 +765,7 @@ async function expectFullWidth(page: Page): Promise<void> {
   // The manual is laid out to the new width: its rows end one blank cell before the scrollbar.
   expect(text.right).toBeCloseTo(track.left, 0);
   expect(text.width).toBeGreaterThan((toggle.width / 22) * 77); // wider than the full-size column (FULL_W)
-  await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().dispatchEvent('mousedown');
+  await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().click();
   await expect.poll(() => helpRow(page)).not.toBe('Writing a profile');
   await menuEntry(page, '#alias').click();
   await expectTop(page, '#alias');
