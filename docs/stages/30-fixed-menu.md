@@ -461,8 +461,8 @@ Technical decisions *(Claude)*, recorded as ADR 0110:
   as the bar). The gear glows while the popup is open, and the chrome does
   not auto-hide then. The popup lives beside the player element, not in it
   (the player's pointer and wheel handlers and its recorded font size stay
-  out of it); it closes with the player. The player leaves keys and the
-  wheel inside a `data-wc-own-keys` element to it; Esc with the popup open
+  out of it); it closes with the player. The player leaves keys inside a
+  `data-wc-own-keys` element to it; Esc with the popup open
   closes it first, then the reel. Closing gives the keys back to the reel.
 - **Rebuild:** the reel subscribes to the store's `spotlights`; a change
   selects again over the runs read at open and reads only the windows not
@@ -746,23 +746,25 @@ The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
     `Run ended`; `No run yet`.
   - [ ] Statistics row in the Panes popup.
   - [ ] Unit tests, e2e, ADR 0109, test guide.
-- [ ] 30e (build plan above):
-  - [ ] `SpotlightSettings`: `allCharacters`, `characters`, `period`;
+- [x] 30e (build plan above; 2026-10-31):
+  - [x] `SpotlightSettings`: `allCharacters`, `characters`, `period`;
     migration.
-  - [ ] Filter (kinds × characters × period) for the reel and Credits;
+  - [x] Filter (kinds × characters × period) for the reel and Credits;
     empty states by "any event at all".
-  - [ ] Spotlights popup (Kinds, Characters, Period; `Check` control) in
+  - [x] Spotlights popup (Kinds, Characters, Period; `Check` control) in
     the settings popups' surface.
-  - [ ] Gear in the reel's control box; popup above the box; keys and
-    wheel left to the popup; Esc order; chrome kept while open.
-  - [ ] Live rebuild (cached windows, current spotlight kept, latest
+  - [x] Gear in the reel's control box; popup above the box, beside the
+    player element; keys left to the popup; Esc order; chrome kept while
+    open.
+  - [x] Live rebuild (cached windows, current spotlight kept, latest
     change wins); empty stage in the reel.
-  - [ ] Filtered empty states on the start page offer `Settings…`; retry
+  - [x] Filtered empty states on the start page offer `Settings…`; retry
     on close (Spotlights, Credits).
-  - [ ] Options → Spotlights removed (phone checked); manual, About, spec
-    texts.
-  - [ ] Unit tests, e2e `spotlights-settings.spec.ts`, ADR 0110, ADR 0032
-    addendum, test guide.
+  - [x] Options → Spotlights removed on every device (the gear works by
+    touch: `phone-spotlights.spec.ts`); About, spec §2.5 texts.
+  - [x] Unit tests (`share-spotlights`, `settings`, `spotlights-settings`,
+    `spotlight-mode`), e2e `spotlights-settings.spec.ts`,
+    `phone-spotlights.spec.ts`, ADR 0110, ADR 0032 addendum, test guide.
 - [ ] 30f.
 
 ## Test guide
@@ -1011,3 +1013,51 @@ Feedback wanted: whether you can still lose the game's keys by accident
 anywhere, and whether the first focus in each popup is the right spot
 (Panes: first row; Settings: the selected tab; a gear: its first
 control).
+
+### 30e
+
+Open the dev server (`npm run dev`, then http://localhost:5173/). You need
+some recorded runs with kills, deaths, level-ups or achievements (your own,
+or a backup through History → RESTORE). Desktop, tablet and phone alike.
+
+1. **The gear:** Start page → Spotlights. Move the mouse (on a phone, tap
+   the screen): the control box at the bottom right now ends in a gear
+   `⚙`. Click it: a SPOTLIGHTS popup rises above the box, with Kinds,
+   Characters and Period. The gear glows, and the controls do not hide
+   while the popup is open.
+2. **Kinds:** switch Deaths off. The reel rebuilds at once (the header's
+   `SPOTLIGHT n / N` changes). If the spotlight on screen is still in the
+   reel it keeps playing where it was; otherwise the reel starts from the
+   first.
+3. **Characters:** the list shows the characters in your recorded runs,
+   dimmed while `All characters` is on. Switch All off: every character is
+   checked; uncheck one and its spotlights go. Switch All on and off
+   again: your choice comes back. A character you play for the first time
+   later is left out while All is off.
+4. **Period:** All time, Last year, Last 3 months, Last month, Last week,
+   counted back from today. A period with nothing in it shows `No
+   spotlights match your settings.` on the reel, with `Settings…` and
+   `ESC Back`; widen the period and the reel plays again.
+5. **Keys:** with the popup open, Tab goes round its controls, Space flips
+   a switch, ↑↓ move in the character list; ←→ and Space do not reach the
+   reel. Click in the reel: the keys go back to it, the popup stays. Esc
+   closes the popup first, a second Esc leaves the reel.
+6. **Start page:** narrow the settings until nothing passes, leave the
+   reel, and choose Spotlights again: the page says `No spotlights match
+   your settings.` with `Settings…` (Enter or a click opens the same
+   popup). Change something and close the popup: the reel opens if
+   something passes now.
+7. **Credits** follows the same three settings. When nothing passes, its
+   page offers `Settings…` too; close the popup after a change and the
+   credits roll.
+8. **Options:** the Spotlights row is gone (start page, the old ESC menu,
+   the phone).
+
+Feedback wanted: the gear and the popup's place above the control box,
+the checkbox list (look, and whether `All characters` should start from
+everyone checked when switched off), whether the periods are the right
+ones, and whether the start page should rather open the reel at once
+while the popup is still open (now it waits until the popup closes).
+
+Known: the characters are those with a finished (sealed) run; a character
+whose only run is still recording shows up once that run is sealed.
