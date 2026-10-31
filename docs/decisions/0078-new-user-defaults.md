@@ -1,6 +1,7 @@
 # 0078 — New-user defaults: Hack 17, two-lane right dock, pane bar and Map search
 
-- Status: Accepted; addendum 2026-10-31 (pane bar off for new users)
+- Status: Accepted; addendum 2026-10-31 (pane bar off for new users);
+  addendum 2026-11-01 (pane bar removed, ADR 0111)
 - Date: 2026-10-05
 - Builds on ADR 0010 (settings), ADR 0014/0020 (floating panes, the map's
   auto float), ADR 0023 (earlier new-user defaults), ADR 0053 (script
@@ -143,3 +144,13 @@ layout still keeps the pane bar's place at the end of the right dock's
 tail, so a user who turns the script on finds it there; its toggle entry
 stays on and borderless. Existing installs keep their script state, as
 `enableForNewUser` never touches a library with script data.
+
+## Addendum 2026-11-01 — pane bar removed (ADR 0111)
+
+The bundled `panebar` script is removed. `defaultLayout()` no longer
+keeps its slot at the end of the right dock's tail (the tail is Comm,
+UI), `defaultSettings().panes` has no entry for it and `PANEBAR_PANE` is
+gone. Existing installs drop the slot, its toggle and the script's data
+once (settings version 3, `RETIRED_PANES`, `RETIRED_BUNDLED_SCRIPTS`).
+Map search remains the one pre-placed script pane and the one entry of
+`NEW_USER_SCRIPTS`.

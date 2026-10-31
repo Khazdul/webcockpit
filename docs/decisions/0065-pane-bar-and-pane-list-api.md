@@ -1,6 +1,6 @@
 # 0065 — Pane bar and the pane list API
 
-- Status: Accepted
+- Status: Accepted; addendum 2026-11-01 (pane bar removed, ADR 0111)
 - Date: 2026-10-03
 - Amends: ADR 0053 (script panes: the top-row grip of a borderless pane),
   ADR 0064 (dock lanes: lane minimum, screen-edge zones)
@@ -341,3 +341,11 @@ they amend the sections above (and round 1) where they differ.
 `getPanes()` lists the new built-in pane `statistics` (`STAT`) last among
 the built-in panes, and `setPaneOn` switches it. The bundled `panebar`
 script leaves it out, so its six built-in buttons keep their room.
+
+## Addendum: the pane bar script removed (2026-11-01, ADR 0111)
+
+The bundled `panebar` script is removed; the menu bar's Panes popup (ADR
+0099) does its job. Existing installs lose its data and its `panebar/bar`
+pane once (ADR 0111). The Lua API of this ADR (`getPanes`, `setPaneOn`,
+`sysPanesChanged`, `short`, `border`, `lane = "own"`, the soft grip, the
+shades) stays as it is.

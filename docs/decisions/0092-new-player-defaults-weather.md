@@ -1,6 +1,7 @@
 # 0092 — New-player defaults: docked map, weather on, Shimrod, transparent map
 
-- Status: Accepted; addendum 2026-10-31 (no pane bar)
+- Status: Accepted; addendum 2026-10-31 (no pane bar); addendum
+  2026-11-01 (pane bar removed, ADR 0111)
 - Date: 2026-10-18
 - Builds on ADR 0078 (new-user defaults), ADR 0081 (phone defaults),
   ADR 0082 (tilesets), ADR 0085 (map background), ADR 0091 (weather trial)
@@ -102,3 +103,9 @@ Since stage 30a round 1 a new player starts without the pane bar script
 place. The layout still holds the bar's slot in the right dock's tail, so
 the first screen shows the map, Timers | Group and Comm down to the input
 row.
+
+## Addendum 2026-11-01 — pane bar removed
+
+The pane bar script is removed (ADR 0111) and the layout no longer holds
+its slot: the right dock's tail is Comm, UI. The first screen is the same
+as after the 2026-10-31 addendum.

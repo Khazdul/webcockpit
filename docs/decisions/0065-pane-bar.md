@@ -50,3 +50,9 @@ sections where they differ (wrapping is gone).
 - The default right dock (lane size 33) is narrower than six full
   buttons need (43 columns), so the bar starts *shrunk* there, with
   4–5-cell buttons and every built-in name whole.
+
+## Addendum: the pane bar script removed (2026-11-01, ADR 0111)
+
+The bundled `panebar` script these rounds shaped is removed; see ADR 0111
+and the addendum to `0065-pane-bar-and-pane-list-api.md`. `pane:onWheel`
+and the other API it used stay.

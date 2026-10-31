@@ -1,6 +1,6 @@
 # 0109 — The Statistics pane
 
-- Status: Accepted
+- Status: Accepted; addendum 2026-11-01 (pane bar removed, ADR 0111)
 - Date: 2026-10-31
 - Related: stage 30 (`docs/stages/30-fixed-menu.md` S4, S7, S10, "30d
   build plan"), ADR 0016 (pane context), ADR 0018 (runs, LiveRuns, the
@@ -117,3 +117,9 @@ start page, and the ESC frame stays until 30f (the phone keeps it longer).
   the z-index of the user's own floats is one higher than before.
 - The cockpit chunk grows by about 1 kB, the chrome chunk by about 5 kB,
   the HTML replay bundle by about 2 kB (the shell and the layout code).
+
+## Addendum: the pane bar removed (2026-11-01, ADR 0111)
+
+The decision's "Pane bar" item no longer applies: the bundled `panebar`
+script is removed (ADR 0111), so there is no STAT button question left.
+`getPanes()` and `setPaneOn` still include Statistics.
