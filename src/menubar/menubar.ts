@@ -23,11 +23,17 @@
 //   closes (in the popup, or in the input once the output is at the
 //   bottom); the Panes X closes. The Exit popup takes the keys when it
 //   opens; the Panes popup only after a click in it.
+// - Adopted popups (ADR 0107): the chrome chunk draws the Settings popup
+//   (and the pane gear popups) and hands each one to the bar when it opens
+//   (`adopt`), so the one-popup rule, Esc in the input, the ESC menu and
+//   hiding the cockpit close it like the bar's own. It tells the bar when
+//   it closed itself (`release`). The Settings icon is marked while its
+//   popup is open; a click on it is the chrome popup's toggle
+//   (`actions.settings`).
 // - Profile and Scripts toggle their windows (ADR 0103; the shell's
 //   src/chrome/windows.tsx); their icons are marked while the window is
 //   open, and a press on them keeps a focused window's focus, so the
-//   toggle closes it. Settings opens the ESC menu at Options until its
-//   popup exists (30c).
+//   toggle closes it.
 // - Fullscreen (ADR 0103): in the cockpit's fullscreen the bar asks for the
 //   Esc key (Keyboard Lock, Chromium), so Esc can open the Exit popup
 //   instead of leaving fullscreen (the App's Esc order).
@@ -63,13 +69,28 @@ import { Tooltip } from './tooltip';
 
 export type PopupId = 'panes' | 'exit';
 
+/**
+ * A popup the bar holds: one of its own, or one the chrome drew and handed
+ * over (ADR 0107): `settings`, or a pane's gear popup `pane:<id>`.
+ */
+export type BarPopupKey = PopupId | 'settings' | `pane:${string}`;
+
+/** A popup drawn outside the bar (the chrome's Settings and gear popups, ADR 0107). */
+export interface AdoptedPopup {
+  key: Exclude<BarPopupKey, PopupId>;
+  /** Its panel: focus in it counts as focus in the popup. */
+  el: HTMLElement;
+  /** Closes it without telling the bar back (the bar already let go). */
+  close(): void;
+}
+
 /** What the bar's buttons do outside the bar (the shell, the app). */
 export interface MenuBarActions {
   /** The Profile window (ADR 0103; the ESC menu's profile editor on a page without windows). */
   profile(): void;
   /** The Scripts window (ADR 0103). */
   scripts(): void;
-  /** Options (until 30c). */
+  /** The Settings popup's toggle (ADR 0107; the ESC menu at Options without it). */
   settings(): void;
   /** Exit to the start page (the shell's exitSession). */
   exit(): void;
@@ -116,15 +137,17 @@ interface ButtonSpec {
   icon: string;
   tip: () => string;
   click: () => void;
-  popup?: PopupId;
+  popup?: BarPopupKey;
   /** A window's toggle: a press keeps the window's focus (ADR 0103). */
   window?: boolean;
 }
 
 interface OpenPopup {
-  id: PopupId;
+  id: BarPopupKey;
   el: HTMLElement;
   dispose(): void;
+  /** Drawn and placed by the bar (Panes, Exit); false for an adopted one. */
+  own: boolean;
 }
 
 export class MenuBar {
@@ -209,7 +232,8 @@ export class MenuBar {
       { id: 'profile', label: 'Profile', icon: ICON.profile, tip: () => `Profile: ${o.settings.get().profile}`, click: () => this.run(o.actions.profile), window: true },
       { id: 'scripts', label: 'Scripts', icon: ICON.scripts, tip: () => 'Scripts', click: () => this.run(o.actions.scripts), window: true },
       { id: 'panes', label: 'Panes', icon: ICON.panes, tip: () => 'Panes', click: () => this.toggle('panes'), popup: 'panes' },
-      { id: 'settings', label: 'Settings', icon: ICON.settings, tip: () => 'Settings', click: () => this.run(o.actions.settings) },
+      // The chrome's popup (ADR 0107): its toggle closes the bar's own popup when it opens.
+      { id: 'settings', label: 'Settings', icon: ICON.settings, tip: () => 'Settings', click: () => o.actions.settings(), popup: 'settings' },
       'sep',
     ];
     if (canFullscreen(doc)) {
@@ -260,7 +284,7 @@ export class MenuBar {
   // ---------------------------------------------------------------- popups
 
   /** The open popup, or null. */
-  get openPopup(): PopupId | null {
+  get openPopup(): BarPopupKey | null {
     return this.pop?.id ?? null;
   }
 
@@ -275,7 +299,7 @@ export class MenuBar {
     else this.open(id);
   }
 
-  /** Opens popup `id` (closing any other). */
+  /** Opens the bar's own popup `id` (closing any other). */
   open(id: PopupId): void {
     if (this.pop?.id === id) return;
     this.closePopup();
@@ -292,12 +316,38 @@ export class MenuBar {
             close,
             warning: o.actions.unsaved?.() ? 'Unsaved changes in an open window will be lost.' : null,
           });
-    this.pop = { id, el: p.el, dispose: () => p.dispose() };
+    this.pop = { id, el: p.el, dispose: () => p.dispose(), own: true };
     o.layer.append(p.el);
     this.buttons.get(id)?.classList.add('is-open');
     this.place();
     // A confirmation takes the keys at once; the Panes popup after a click in it.
     if (id === 'exit') p.el.focus({ preventScroll: true });
+  }
+
+  /**
+   * A popup drawn outside the bar opened (ADR 0107): the open one closes,
+   * and this one is held until it closes itself (`release`) or the bar
+   * closes it (another popup, Esc in the input, the ESC menu, hiding).
+   */
+  adopt(p: AdoptedPopup): void {
+    if (this.pop?.id === p.key && this.pop.el === p.el) return;
+    this.closePopup();
+    this.tooltip.hide();
+    this.pop = { id: p.key, el: p.el, dispose: () => p.close(), own: false };
+    this.buttons.get(p.key)?.classList.add('is-open');
+  }
+
+  /** The adopted popup `key` closed itself (its X, Esc in it, its toggle). */
+  release(key: BarPopupKey): void {
+    const p = this.pop;
+    if (!p || p.own || p.id !== key) return;
+    this.pop = null;
+    this.buttons.get(key)?.classList.remove('is-open');
+  }
+
+  /** A bar button (`settings` …), for anchoring a popup to it. */
+  anchor(id: string): HTMLButtonElement | null {
+    return this.buttons.get(id) ?? null;
   }
 
   /**
@@ -355,7 +405,8 @@ export class MenuBar {
 
   private readonly place = (): void => {
     const p = this.pop;
-    if (!p) return;
+    // An adopted popup places itself.
+    if (!p?.own) return;
     const icon = this.buttons.get(p.id);
     if (icon) placePopup(p.el, icon, this.bar);
   };

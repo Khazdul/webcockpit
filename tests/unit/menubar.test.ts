@@ -332,9 +332,77 @@ describe('bar popups', () => {
   it('closes when a button leaves the bar', () => {
     const t = setup();
     t.bar.open('panes');
-    t.btn('settings')!.click();
+    t.btn('scripts')!.click();
     expect(t.bar.openPopup).toBeNull();
+    expect(t.actions.scripts).toHaveBeenCalledOnce();
+  });
+
+  it('Settings is the chrome popup’s toggle: the bar’s popup stays until that popup is adopted (ADR 0107)', () => {
+    const t = setup();
+    t.bar.open('panes');
+    t.btn('settings')!.click();
     expect(t.actions.settings).toHaveBeenCalledOnce();
+    expect(t.bar.openPopup).toBe('panes');
+    // The chrome opens its popup and hands it over: Panes closes.
+    const el = document.createElement('div');
+    t.layer.append(el);
+    const close = vi.fn();
+    t.bar.adopt({ key: 'settings', el, close });
+    expect(t.bar.openPopup).toBe('settings');
+    expect(t.layer.querySelector('.wc-pop-panes')).toBeNull();
+    expect(t.btn('settings')!.classList.contains('is-open')).toBe(true);
+    expect(close).not.toHaveBeenCalled();
+    // Adopting it again changes nothing.
+    t.bar.adopt({ key: 'settings', el, close });
+    expect(close).not.toHaveBeenCalled();
+    // Panes closes it (one popup at a time) and is marked instead.
+    t.btn('panes')!.click();
+    expect(close).toHaveBeenCalledOnce();
+    expect(t.bar.openPopup).toBe('panes');
+    expect(t.btn('settings')!.classList.contains('is-open')).toBe(false);
+  });
+
+  it('an adopted popup that closes itself is released; Esc, reset and hiding close it', () => {
+    const t = setup();
+    const el = document.createElement('div');
+    el.tabIndex = -1;
+    t.layer.append(el);
+    const close = vi.fn();
+    t.bar.adopt({ key: 'settings', el, close });
+    // A release for another key, or for one of the bar's own, does nothing.
+    t.bar.release('pane:map');
+    expect(t.bar.openPopup).toBe('settings');
+    t.bar.release('settings');
+    expect(t.bar.openPopup).toBeNull();
+    expect(t.btn('settings')!.classList.contains('is-open')).toBe(false);
+    expect(close).not.toHaveBeenCalled();
+    t.bar.open('panes');
+    t.bar.release('panes');
+    expect(t.bar.openPopup).toBe('panes');
+    // closePopup (Esc in the input) closes it; focus in it goes back to the input.
+    t.bar.adopt({ key: 'settings', el, close });
+    el.focus();
+    expect(t.bar.closePopup()).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
+    expect(t.focusInput).toHaveBeenCalledOnce();
+    t.bar.adopt({ key: 'pane:map', el, close });
+    t.bar.reset();
+    expect(close).toHaveBeenCalledTimes(2);
+    t.bar.adopt({ key: 'settings', el, close });
+    t.bar.setShown(false);
+    expect(close).toHaveBeenCalledTimes(3);
+    expect(t.bar.openPopup).toBeNull();
+  });
+
+  it('the Settings tooltip is off while its popup is open; anchor() finds the icon', () => {
+    const t = setup();
+    const b = t.btn('settings')!;
+    expect(t.tip(b)).toBe('Settings');
+    t.bar.tooltip.hide();
+    t.bar.adopt({ key: 'settings', el: document.createElement('div'), close: () => {} });
+    expect(t.tip(b)).toBeNull();
+    expect(t.bar.anchor('settings')).toBe(b);
+    expect(t.bar.anchor('nope')).toBeNull();
   });
 
   it('reports whether it closed one, and gives the input the focus back on request', () => {
