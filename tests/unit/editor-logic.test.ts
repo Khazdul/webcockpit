@@ -11,7 +11,11 @@ import {
   parseHighlight,
   rowText,
   FULL_W,
+  DETAIL_W,
+  LITE_MAX_W,
+  LIST_GAP,
   TOGGLE_W,
+  liteGeometry,
   VIEWS,
   sentinelPrompt,
   serializeHighlight,
@@ -107,7 +111,7 @@ describe('highlight colours', () => {
   });
 });
 
-describe('hints and warnings', () => {
+describe('warnings', () => {
   it('warns when a macro shadows an input-line key', () => {
     expect(entryWarning({ kind: 'macro', pattern: 'Ctrl+A' })).toBe('Ctrl+a overrides the input line (selects all).');
     expect(entryWarning({ kind: 'macro', pattern: 'F5' })).toBeNull();
@@ -253,5 +257,43 @@ describe('view toggle', () => {
     expect(stepView('help', -1)).toBe('editor');
     expect(stepView('editor', -1)).toBe('lite');
     expect(stepView('lite', -1)).toBe('lite');
+  });
+});
+
+describe('LITE geometry (ADR 0104)', () => {
+  const FULL_LIST = FULL_W - DETAIL_W - 1 - LIST_GAP;
+
+  it('is the full-size column at FULL_W: list 38, detail 35, kind row under it', () => {
+    const g = liteGeometry(FULL_W + 2, false);
+    expect(g).toEqual({ at: 1, w: FULL_W, list: FULL_LIST, detail: DETAIL_W, kindAt: 1, kindW: 13, kindGap: 3 });
+    expect(FULL_LIST).toBe(38);
+  });
+
+  it('fills a wider frame: the list keeps its width, the detail panel takes the rest', () => {
+    const g = liteGeometry(150, false);
+    expect(g.at).toBe(1);
+    expect(g.w).toBe(148);
+    expect(g.list).toBe(FULL_LIST);
+    expect(g.detail).toBe(148 - FULL_LIST - 1 - LIST_GAP);
+    expect(g.detail).toBeGreaterThan(DETAIL_W);
+    // The kind row keeps its buttons and starts at the column's left edge.
+    expect([g.kindAt, g.kindW, g.kindGap]).toEqual([1, 13, 3]);
+  });
+
+  it('stops at LITE_MAX_W and centres the column', () => {
+    const g = liteGeometry(240, false);
+    expect(g.w).toBe(LITE_MAX_W);
+    expect(g.at).toBe((240 - LITE_MAX_W) / 2);
+    expect(g.list + 1 + LIST_GAP + g.detail).toBe(LITE_MAX_W);
+    expect(g.kindAt).toBe(g.at);
+  });
+
+  it('keeps the narrow layout below FULL_W', () => {
+    // 60 cells: detail 45 % of the column, the list the rest.
+    expect(liteGeometry(62, false)).toMatchObject({ at: 1, w: 60, detail: 27, list: 29 });
+    // The desktop floor is 40 cells; a phone has none (ADR 0075 §3.2).
+    expect(liteGeometry(30, false)).toMatchObject({ w: 40, detail: 24, list: 12 });
+    expect(liteGeometry(30, true)).toMatchObject({ at: 1, w: 28, detail: 24, list: 0 });
+    expect(liteGeometry(41, true)).toMatchObject({ at: 1, w: 39, detail: 24, list: 11, kindGap: 1, kindW: 7, kindAt: 1 });
   });
 });
