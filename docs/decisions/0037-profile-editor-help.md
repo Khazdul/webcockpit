@@ -1,6 +1,8 @@
 # 0037 — Profile editor: HELP view; underscores in LITE
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0104 (2026-10-31, stage 30b: LITE
+  and the title row fill the frame up to 160 cells, no longer the 77-cell
+  column)
 - Date: 2026-09-30
 - Amends: ADR 0015 (P3 — profile editor)
 

@@ -9,9 +9,13 @@ import {
   keyCell,
   listRows,
   parseHighlight,
+  patternColumn,
   rowText,
   FULL_W,
+  LITE_MAX_W,
+  LIST_GAP,
   TOGGLE_W,
+  liteGeometry,
   VIEWS,
   sentinelPrompt,
   serializeHighlight,
@@ -60,9 +64,19 @@ describe('entry list', () => {
 
   it('fits a row to the pattern column', () => {
     const [e] = listEntries(parseProfile('#macro {Ctrl+Shift+F1} {cast}\n'));
-    expect(rowText(e!, 20)).toEqual({ pattern: 'Ctrl+Sh…', body: 'cast' });
+    expect(rowText(e!, 17)).toEqual({ pattern: 'Ctrl+Sh…', body: 'cast' });
     const [n] = listEntries(parseProfile('#macro {\\eOp} {flee}\n'));
-    expect(rowText(n!, 20).pattern).toBe('Numpad 0');
+    expect(rowText(n!, 17).pattern).toBe('Numpad 0');
+    // A wider list gives the pattern half the row (ADR 0104).
+    expect(rowText(e!, 37)).toEqual({ pattern: 'Ctrl+Shift+F1     ', body: 'cast' });
+  });
+
+  it('splits the list in halves, the pattern never under 8 cells (ADR 0104)', () => {
+    expect(patternColumn(11)).toBe(8);
+    expect(patternColumn(17)).toBe(8);
+    expect(patternColumn(19)).toBe(9);
+    expect(patternColumn(36)).toBe(17);
+    expect(patternColumn(77)).toBe(38);
   });
 
   it('prompts on the + New entry row', () => {
@@ -107,7 +121,7 @@ describe('highlight colours', () => {
   });
 });
 
-describe('hints and warnings', () => {
+describe('warnings', () => {
   it('warns when a macro shadows an input-line key', () => {
     expect(entryWarning({ kind: 'macro', pattern: 'Ctrl+A' })).toBe('Ctrl+a overrides the input line (selects all).');
     expect(entryWarning({ kind: 'macro', pattern: 'F5' })).toBeNull();
@@ -253,5 +267,42 @@ describe('view toggle', () => {
     expect(stepView('help', -1)).toBe('editor');
     expect(stepView('editor', -1)).toBe('lite');
     expect(stepView('lite', -1)).toBe('lite');
+  });
+});
+
+describe('LITE geometry (ADR 0104)', () => {
+  it('splits the full-size column in halves: list 36 + scrollbar, gap 3, detail 37', () => {
+    expect(liteGeometry(FULL_W + 2, false)).toEqual({ at: 1, w: FULL_W, list: 36, detail: 37, kindAt: 1, kindW: 13, kindGap: 3 });
+  });
+
+  it('fills a wider frame: list and detail grow in halves, the kind row centred', () => {
+    const g = liteGeometry(150, false);
+    expect(g.at).toBe(1);
+    expect(g.w).toBe(148);
+    expect(g.list + 1).toBe(Math.floor((148 - LIST_GAP) / 2));
+    expect(g.detail).toBe(148 - g.list - 1 - LIST_GAP);
+    expect(g.detail - (g.list + 1)).toBe(1); // the odd cell to the detail panel
+    expect([g.kindAt, g.kindW, g.kindGap]).toEqual([1 + Math.floor((148 - FULL_W) / 2), 13, 3]);
+  });
+
+  it('stops at LITE_MAX_W and centres the column', () => {
+    const g = liteGeometry(240, false);
+    expect(g.w).toBe(LITE_MAX_W);
+    expect(g.at).toBe((240 - LITE_MAX_W) / 2);
+    expect([g.list, g.detail]).toEqual([77, 79]);
+    expect(g.list + 1 + LIST_GAP + g.detail).toBe(LITE_MAX_W);
+    expect(g.kindAt).toBe(g.at + Math.floor((LITE_MAX_W - FULL_W) / 2));
+  });
+
+  it('keeps the narrow layout below FULL_W, and the switch at FULL_W is small', () => {
+    // 60 cells: detail 45 % of the column, the list the rest.
+    expect(liteGeometry(62, false)).toMatchObject({ at: 1, w: 60, detail: 27, list: 29 });
+    // The desktop floor is 40 cells; a phone has none (ADR 0075 §3.2).
+    expect(liteGeometry(30, false)).toMatchObject({ w: 40, detail: 24, list: 12 });
+    expect(liteGeometry(30, true)).toMatchObject({ at: 1, w: 28, detail: 24, list: 0 });
+    expect(liteGeometry(41, true)).toMatchObject({ at: 1, w: 39, detail: 24, list: 11, kindGap: 1, kindW: 7, kindAt: 1 });
+    // 76 → 77 cells: the detail panel gains 3 cells, the list gives 2.
+    expect(liteGeometry(78, false)).toMatchObject({ w: 76, list: 38, detail: 34 });
+    expect(liteGeometry(79, false)).toMatchObject({ w: 77, list: 36, detail: 37 });
   });
 });

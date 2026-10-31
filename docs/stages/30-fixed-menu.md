@@ -425,7 +425,7 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
   - [x] Owner request during the build: Esc in fullscreen opens the Exit
     popup instead of leaving fullscreen (Keyboard Lock, Chromium; ADR
     0103).
-  - [ ] Lite view fills the width; Commands takes the height; hints panel
+  - [x] Lite view fills the width; Commands takes the height; hints panel
     removed, warnings kept (ADR 0104).
   - [ ] Unit tests, e2e, ADRs, test guide.
     - [x] Windows: unit (geometry, stack, settings, keyboard lock, bar,

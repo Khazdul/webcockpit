@@ -27,7 +27,7 @@ const bufferText = (page: Page) =>
 const stored = (page: Page, name = 'default') =>
   page.evaluate((n) => window.__wc!.shell.profiles.get(n).then((r) => r?.text ?? null), name);
 
-/** The hint area's warning, its wrapped lines joined. */
+/** The entry warning under the detail panel, its wrapped lines joined. */
 const warnText = (page: Page) =>
   ped(page)
     .locator('.wc-ped-warn')
@@ -188,7 +188,7 @@ test('macro key capture: F5 binds, Ctrl+W is rejected, ESC cancels a new entry',
   await page.keyboard.type('draw');
   await expect(listRows(page)).toHaveText([/^F1\s+one/, /^F5\s+draw/, /\+ New entry/]);
 
-  // A key the input line uses warns in the hint area.
+  // A key the input line uses warns under the detail panel.
   await page.keyboard.press('Shift+Tab');
   await page.keyboard.press('Enter');
   await page.keyboard.press('Control+a');
@@ -726,7 +726,8 @@ async function expectFullWidth(page: Page): Promise<void> {
   await kind(page, 'alias');
   const lite = await edges(ped(page).locator('.wc-ped-list'));
   const toggle = await edges(ped(page).locator('.wc-ped-toggle'));
-  expect(frame.right - toggle.right).toBeGreaterThan(20); // there is room to fill
+  // LITE's column (ADR 0104) keeps a margin cell; EDITOR and HELP start in cell 0.
+  expect(lite.left - frame.left).toBeGreaterThan(4);
 
   await toEditor(page);
   const buffer = await edges(ped(page).locator('.wc-ped-buffer'));
@@ -751,7 +752,7 @@ async function expectFullWidth(page: Page): Promise<void> {
   expect(menu.right).toBeLessThan(text.left);
   // The manual is laid out to the new width: its rows end one blank cell before the scrollbar.
   expect(text.right).toBeCloseTo(track.left, 0);
-  expect(text.width).toBeGreaterThan(toggle.right - lite.left);
+  expect(text.width).toBeGreaterThan((toggle.width / 22) * 77); // wider than the full-size column (FULL_W)
   await ped(page).locator('.wc-ped-manual .wc-scroll-track').last().dispatchEvent('mousedown');
   await expect.poll(() => helpRow(page)).not.toBe('Writing a profile');
   await menuEntry(page, '#alias').click();
@@ -799,6 +800,78 @@ test('EDITOR in a narrow window spans the frame too', async ({ page }) => {
   const bar = await edges(ped(page).locator('.wc-ped-bufbar'));
   expect(buffer.left).toBeCloseTo(frame.left, 0);
   expect(bar.right).toBeCloseTo(frame.right, 0);
+});
+
+// ------------------------------------------------ LITE width (ADR 0104)
+
+/** The cell size and the frame's width in cells; the view toggle is 22 cells (` LITE   EDITOR   HELP `). */
+async function liteCells(page: Page): Promise<{ w: number; h: number; cols: number }> {
+  const toggle = (await ped(page).locator('.wc-ped-toggle').boundingBox())!;
+  const line = (await ped(page).locator('.wc-ped-list .wc-line').first().boundingBox())!;
+  const frame = (await ped(page).boundingBox())!;
+  const w = toggle.width / 22;
+  return { w, h: line.height, cols: Math.round(frame.width / w) };
+}
+
+test('LITE fills a wide frame: list and detail in halves, Commands takes the height (ADR 0104)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.setViewportSize({ width: 1600, height: 800 });
+  await openFromStart(page, '#alias {gv %1} {get %1;value %1}\n#macro {Ctrl+a} {score}\n');
+  await kind(page, 'alias');
+  const cell = await liteCells(page);
+  const cells = (b: { width: number }): number => Math.round(b.width / cell.w);
+  const list = (await ped(page).locator('.wc-ped-list-rows').boundingBox())!;
+  const detail = (await ped(page).locator('.wc-ped-detail').boundingBox())!;
+  const pattern = (await ped(page).locator('input[data-field="pattern"]').boundingBox())!;
+  const body = (await ped(page).locator('textarea[data-field="body"]').boundingBox())!;
+  const toggle = (await ped(page).locator('.wc-ped-toggle').boundingBox())!;
+  // The column is the frame less a cell on each side, up to 160 cells. The
+  // list (and its scrollbar cell) and the detail panel split it in halves
+  // around the 3-cell gap, the odd cell to the detail panel.
+  const w = Math.min(160, cell.cols - 2);
+  expect(w).toBeGreaterThan(100);
+  const L = Math.floor((w - 3) / 2) - 1;
+  expect(cells(list)).toBe(L);
+  expect(cells(detail)).toBe(w - L - 1 - 3);
+  expect(cells(detail)).toBeGreaterThan(35);
+  // The list's Pattern column is half the row too.
+  const header = (await ped(page).locator('.wc-ped-list .wc-line').first().textContent())!;
+  expect(header.indexOf('Commands')).toBe(Math.floor((L - 1) / 2) + 1);
+  expect(cells(pattern)).toBe(cells(detail) - 4);
+  expect(cells(body)).toBe(cells(detail) - 4);
+  // Commands takes the height that is left, past the old 10-row cap.
+  expect(Math.round(body.height / cell.h)).toBeGreaterThan(10);
+  // The view toggle ends where the detail panel does.
+  expect(toggle.x + toggle.width).toBeCloseTo(detail.x + detail.width, 0);
+  // The kind row is centred over the column (within a cell).
+  const first = (await ped(page).locator('.wc-ped-kind').first().boundingBox())!;
+  const last = (await ped(page).locator('.wc-ped-kind').last().boundingBox())!;
+  const mid = (first.x + last.x + last.width) / 2;
+  expect(Math.abs(mid - (list.x + detail.x + detail.width) / 2)).toBeLessThanOrEqual(cell.w);
+  // No hints panel.
+  await expect(ped(page)).not.toContainText('─── Hint ───');
+  await expect(ped(page)).not.toContainText('capture words');
+  // The entry warning stays, under the Commands box.
+  await kind(page, 'macro');
+  const warn = ped(page).locator('.wc-ped-warn');
+  await expect(warn).toHaveText(['Ctrl+a overrides the input line (selects all).']);
+  const box = (await ped(page).locator('textarea[data-field="body"]').boundingBox())!;
+  expect((await warn.boundingBox())!.y).toBeGreaterThanOrEqual(box.y + box.height);
+  expect(errors).toEqual([]);
+});
+
+test('LITE in a narrow window keeps its layout: the detail panel is 45 % of the column', async ({ page }) => {
+  await page.setViewportSize({ width: 620, height: 600 });
+  await openFromStart(page, '#alias {gv %1} {get %1;value %1}\n');
+  await kind(page, 'alias');
+  const cell = await liteCells(page);
+  const cells = (b: { width: number }): number => Math.round(b.width / cell.w);
+  const w = cell.cols - 2;
+  expect(w).toBeLessThan(77);
+  const d = Math.max(24, Math.floor(w * 0.45));
+  expect(cells((await ped(page).locator('.wc-ped-detail').boundingBox())!)).toBe(d);
+  expect(cells((await ped(page).locator('.wc-ped-list-rows').boundingBox())!)).toBe(w - d - 4);
+  await expect(ped(page)).not.toContainText('─── Hint ───');
 });
 
 // ------------------------------------------- every character is visible
@@ -873,8 +946,9 @@ async function expectUnderscores(page: Page, font: 'dejavu' | 'jetbrains', size:
   const input = ped(page).locator('input[data-field="pattern"]');
   await expect(input).toHaveValue('_show_class');
   const rows = listRows(page);
-  await expect(rows).toHaveText([/^_show_a…/, /^_show_c…/, /^_show_s…/, /\+ New entry/]);
-  await expect(cursorRow(page)).toHaveText(/^_show_c…/);
+  // The pattern column is half the list (ADR 0104): the patterns fit.
+  await expect(rows).toHaveText([/^_show_acontainer /, /^_show_class /, /^_show_spell /, /\+ New entry/]);
+  await expect(cursorRow(page)).toHaveText(/^_show_class /);
   const targets: Array<[string, Locator]> = [
     ['Pattern box', input],
     ['row above the cursor band', rows.nth(0)],
@@ -942,7 +1016,7 @@ test('EDITOR shows the whole stored text of the bundled khazdul profile', async 
 
   // LITE lists the alias, leading underscore included.
   await kind(page, 'alias');
-  const row = listRows(page).filter({ hasText: /^_show_c…/ });
+  const row = listRows(page).filter({ hasText: /^_show_class / });
   await expect(row).toHaveCount(1);
   await row.click();
   await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('_show_class');
