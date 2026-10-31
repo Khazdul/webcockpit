@@ -1,0 +1,552 @@
+/* The settings popups and their control kit (ADR 0107): the approved
+ * mockup 30a-3's ghost look, on top of the bar's `.wc-pop` panel
+ * (src/menubar/menubar.css). Sizes are the mockup's px at a 13 px popup
+ * font (a 15 px terminal font) in em, so the popup scales with the
+ * terminal font like the bar. Dark panels on every terminal background;
+ * only the preview shows the terminal's own colours. */
+
+/* ------------------------------------------------------------- panel */
+
+/* A press moved the focus: no focus ring until a key is used (panel.tsx). */
+.wc-sp[data-pointer] :focus-visible {
+  outline: none;
+}
+
+.wc-sp[data-pointer] .wc-ck-rng:focus-visible .wc-ck-rng-thumb {
+  box-shadow: none;
+}
+
+.wc-pop.wc-sp {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wc-sp-settings {
+  /* 452 px. */
+  width: 34.77em;
+}
+
+.wc-sp-gear {
+  width: 31em;
+}
+
+.wc-sp .wc-pop-head {
+  flex: 0 0 auto;
+  border-bottom: 0;
+}
+
+/* Every page in one grid cell: one width, the tallest page's height. */
+.wc-sp-body {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.wc-sp-page {
+  grid-area: 1 / 1;
+  padding: 0.615em 0 0.46em;
+}
+
+.wc-sp-page.is-off {
+  visibility: hidden;
+}
+
+/* --------------------------------------------------------------- tabs */
+
+.wc-ck-tabs {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 0 0.615em;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.wc-pop .wc-ck-tab {
+  margin-bottom: -1px;
+  padding: 0.46em 0.615em 0.54em;
+  border-bottom: 1px solid transparent;
+  color: #6a6a6a;
+  white-space: nowrap;
+}
+
+.wc-pop .wc-ck-tab:hover {
+  color: #c8c8c8;
+}
+
+.wc-pop .wc-ck-tab.is-sel {
+  border-bottom-color: #bcbcbc;
+  color: #ececec;
+}
+
+/* --------------------------------------------------------------- rows */
+
+.wc-ck-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.92em;
+  min-height: 2.46em;
+  padding: 0 1.077em;
+}
+
+.wc-ck-row.is-top {
+  align-items: flex-start;
+  padding-top: 0.54em;
+  padding-bottom: 0.54em;
+}
+
+.wc-ck-row.is-top .wc-ck-ctl {
+  min-height: 1.846em;
+}
+
+.wc-ck-l {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #9a9a9a;
+}
+
+.wc-ck-row.is-top > .wc-ck-l {
+  padding-top: 0.3em;
+}
+
+
+.wc-ck-help {
+  display: block;
+  margin-top: 2px;
+  color: #585858;
+  font-size: 0.846em;
+  line-height: 1.27;
+}
+
+.wc-ck-row.is-dim > .wc-ck-l {
+  color: #4a4a4a;
+}
+
+.wc-ck-row.is-dim .wc-ck-help {
+  color: #3a3a3a;
+}
+
+.wc-ck-row.is-dim > .wc-ck-ctl {
+  opacity: 0.55;
+}
+
+.wc-ck-ctl {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.615em;
+  min-width: 0;
+}
+
+.wc-ck-note {
+  flex: 1 1 auto;
+  min-height: 1.27em;
+  padding: 0 1.3em;
+  color: #6a6a6a;
+  font-size: 0.846em;
+}
+
+.wc-ck-note.is-fail {
+  color: #ff8a8a;
+}
+
+.wc-ck-btns {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.615em;
+  flex-wrap: wrap;
+}
+
+.wc-ck-foot {
+  margin-top: 0.46em;
+  padding: 0.77em 1.077em 0.31em;
+  border-top: 1px solid #1a1a1a;
+}
+
+.wc-ck-foot .wc-ck-note {
+  padding: 0;
+}
+
+/* ------------------------------------------------------------- toggle */
+
+.wc-pop .wc-ck-tg {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2em;
+  height: 1.077em;
+  border: 1px solid #3a3a3a;
+  border-radius: 0.54em;
+  background: #111;
+}
+
+.wc-ck-tg i {
+  position: absolute;
+  top: 0.154em;
+  left: 0.154em;
+  width: 0.615em;
+  height: 0.615em;
+  border-radius: 50%;
+  background: #4a4a4a;
+}
+
+.wc-pop .wc-ck-tg.is-on {
+  border-color: #5a5a5a;
+  background: #3a3a3a;
+}
+
+.wc-ck-tg.is-on i {
+  left: 1.077em;
+  background: #ececec;
+}
+
+.wc-pop .wc-ck-tg:hover {
+  border-color: #6a6a6a;
+}
+
+/* ---------------------------------------------------------- segmented */
+
+.wc-ck-seg {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+}
+
+.wc-pop .wc-ck-sg {
+  height: 1.69em;
+  padding: 0 0.77em;
+  border-left: 1px solid #2e2e2e;
+  color: #7a7a7a;
+  line-height: 1.69em;
+  white-space: nowrap;
+}
+
+.wc-pop .wc-ck-sg:first-child {
+  border-left: 0;
+}
+
+.wc-pop .wc-ck-sg:hover {
+  color: #d0d0d0;
+}
+
+.wc-pop .wc-ck-sg.is-on {
+  background: #2a2a2a;
+  color: #ececec;
+}
+
+.wc-pop .wc-ck-sg:focus-visible {
+  outline-offset: -1px;
+}
+
+/* ------------------------------------------------------------- slider */
+
+.wc-ck-rng {
+  position: relative;
+  flex: 0 0 11.54em;
+  width: 11.54em;
+  height: 1.077em;
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+}
+
+.wc-ck-rng-track,
+.wc-ck-rng-fill {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+}
+
+.wc-ck-rng-track {
+  right: 0;
+  background: #333;
+}
+
+.wc-ck-rng-fill {
+  background: #9a9a9a;
+}
+
+.wc-ck-rng-thumb {
+  position: absolute;
+  top: 50%;
+  width: 0.846em;
+  height: 0.846em;
+  margin: -0.423em 0 0 -0.423em;
+  border-radius: 50%;
+  background: #d8d8d8;
+}
+
+.wc-ck-rng:hover .wc-ck-rng-thumb,
+.wc-ck-rng:active .wc-ck-rng-thumb {
+  background: #fff;
+}
+
+.wc-ck-rng:focus-visible .wc-ck-rng-thumb {
+  box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 3px #6a6a6a;
+}
+
+.wc-ck-val {
+  flex: 0 0 3.38em;
+  width: 3.38em;
+  color: #d0d0d0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------- dropdown */
+
+.wc-ck-ddw {
+  display: flex;
+}
+
+.wc-pop .wc-ck-dd {
+  display: flex;
+  align-items: center;
+  gap: 0.615em;
+  width: 14.6em;
+  height: 1.846em;
+  padding: 0 0.615em;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  background: #0f0f0f;
+  color: #d0d0d0;
+}
+
+.wc-pop .wc-ck-dd:hover,
+.wc-pop .wc-ck-dd.is-open {
+  border-color: #5a5a5a;
+}
+
+.wc-ck-v {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-ck-chev {
+  flex: 0 0 auto;
+  width: 0.77em;
+  height: 0.77em;
+  fill: none;
+  stroke: #686868;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wc-ck-sw {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 0.923em;
+  height: 0.923em;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+}
+
+.wc-ck-list {
+  position: fixed;
+  z-index: 1;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 0.23em 0;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  background: #0f0f0f;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+  outline: none;
+  scrollbar-width: thin;
+}
+
+.wc-ck-opt {
+  display: flex;
+  align-items: center;
+  gap: 0.615em;
+  height: 1.846em;
+  padding: 0 0.615em;
+  color: #b0b0b0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.wc-ck-opt.is-sel {
+  color: #ececec;
+}
+
+.wc-ck-opt.is-active {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ececec;
+}
+
+/* ------------------------------------------------------------ swatches */
+
+.wc-ck-pal {
+  display: grid;
+  gap: 0.31em;
+  width: 14.6em;
+}
+
+.wc-pop .wc-ck-pc {
+  box-sizing: border-box;
+  height: 1.23em;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+}
+
+.wc-pop .wc-ck-pc:hover {
+  border-color: #ececec;
+}
+
+.wc-pop .wc-ck-pc.is-sel {
+  border-color: #ececec;
+  box-shadow: 0 0 0 1px #0a0a0a, 0 0 0 2px #8a8a8a;
+}
+
+/* -------------------------------------------------------------- button */
+
+.wc-pop .wc-ck-gb {
+  height: 1.69em;
+  padding: 0 0.69em;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  color: #a8a8a8;
+  line-height: calc(1.69em - 2px);
+  white-space: nowrap;
+}
+
+.wc-pop .wc-ck-gb:hover {
+  border-color: #5a5a5a;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ececec;
+}
+
+.wc-pop .wc-ck-gb:disabled,
+.wc-pop .wc-ck-gb:disabled:hover {
+  border-color: #1e1e1e;
+  background: none;
+  color: #4a4a4a;
+  cursor: default;
+}
+
+.wc-pop .wc-ck-gb.is-danger {
+  border-color: #5a2a2a;
+  color: #ff8a8a;
+}
+
+/* ----------------------------------------------------------- hex field */
+
+.wc-ck-hex {
+  box-sizing: border-box;
+  width: 6.2em;
+  height: 1.69em;
+  padding: 0 0.46em;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  background: #0f0f0f;
+  color: #d0d0d0;
+  font: inherit;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.wc-ck-hex:focus {
+  border-color: #6a6a6a;
+}
+
+.wc-ck-hex.is-bad {
+  border-color: #8a3a3a;
+}
+
+.wc-ck-hint {
+  color: #585858;
+  font-size: 0.846em;
+}
+
+/* ------------------------------------------------- the Appearance page */
+
+.wc-sp-palw {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.46em;
+}
+
+/* The browser's colour picker, laid over the swatch clicked (it opens there). */
+.wc-sp-picker {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wc-sp-hexrow {
+  display: flex;
+  align-items: center;
+  gap: 0.615em;
+}
+
+.wc-sp-hexrow.is-off {
+  visibility: hidden;
+}
+
+.wc-sp-preview {
+  margin: 0.46em 1.077em 0.15em;
+  padding: 0.4em 0.7em;
+  overflow: hidden;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  background: var(--term-bg);
+  color: var(--term-fg);
+  font-family: var(--font-mono);
+  font-size: 0.82em;
+  line-height: 1.25;
+  white-space: pre;
+}
+
+.wc-sp-pl {
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+/* ---------------------------------------------------- the Mapper page */
+
+.wc-sp-mapfile {
+  color: #7a7a7a;
+}
+
+.wc-sp-maprow .wc-ck-help {
+  white-space: normal;
+}
+
+.wc-sp-maprow .wc-ck-btns {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.31em;
+}
+
+/* --------------------------------------------------- the Weather page */
+
+.wc-sp-master > .wc-ck-l {
+  color: #d0d0d0;
+}
+
+.wc-ck-row.is-sub {
+  padding-left: 2.15em;
+}

@@ -37,9 +37,9 @@ export const WEATHER_ROWS: ReadonlyArray<{ key: Category; label: string; help: s
   { key: 'body', label: 'Body', help: 'Sleeping, stunned, incapacitated and dying.' },
 ];
 
-const DAY_SKY_HELP = 'The blue sky by day. Off: the page background; clouds, sun and night sky stay.';
-const MASTER_HELP = 'Decoration only; text and keys are never slowed.';
-const UNSUPPORTED = 'Not supported in this browser (needs OffscreenCanvas).';
+export const DAY_SKY_HELP = 'The blue sky by day. Off: the page background; clouds, sun and night sky stay.';
+export const MASTER_HELP = 'Decoration only; text and keys are never slowed.';
+export const WEATHER_UNSUPPORTED = 'Not supported in this browser (needs OffscreenCanvas).';
 
 export function WeatherOptionsFrame(): VNode {
   const { settings } = useServices();
@@ -57,7 +57,7 @@ export function WeatherOptionsFrame(): VNode {
       label: 'Weather effects',
       activate: () => flip('enabled'),
       adjust: () => flip('enabled'),
-      help: weatherAvailable() ? MASTER_HELP : UNSUPPORTED,
+      help: weatherAvailable() ? MASTER_HELP : WEATHER_UNSUPPORTED,
     },
     { key: 'sp0', spacer: true },
     ...WEATHER_ROWS.flatMap((r): Array<MenuItem & { help: string }> => {

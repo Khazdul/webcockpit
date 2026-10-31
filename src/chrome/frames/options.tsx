@@ -369,18 +369,18 @@ export function parseHex(s: string): string | null {
  * colour). `bold` makes the first that many characters bold, drawn with the
  * renderer's classes so "Bold brightens colours" (ADR 0060) shows on them.
  */
-type PreviewLine = readonly [text: string, ansi: number | null, bold?: number];
-const PREVIEW: readonly PreviewLine[] = [
+export type PreviewLine = readonly [text: string, ansi: number | null, bold?: number];
+export const PREVIEW: readonly PreviewLine[] = [
   ['A Quiet Glade', 2],
   ['Tall beeches ring a mossy clearing. A thin', null],
   ['stream winds south and vanishes into the ferns.', null],
   ['Exits: north, south.', null],
 ];
 /** Then a game prompt and an echoed command (the input colour). */
-const PREVIEW_PROMPT = '*> ';
-const PREVIEW_ECHO = 'north';
+export const PREVIEW_PROMPT = '*> ';
+export const PREVIEW_ECHO = 'north';
 /** The last lines: what happens after the command, in palette colours. */
-const PREVIEW_AFTER: readonly PreviewLine[] = [
+export const PREVIEW_AFTER: readonly PreviewLine[] = [
   ['A grey-haired elf shrugs indifferently.', 6],
   ['The gate magically opens for you.', 5],
   ['A mother wolf hits your right hand and tickles it.', 1],

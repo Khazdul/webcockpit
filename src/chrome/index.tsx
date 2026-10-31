@@ -9,6 +9,8 @@
 //   const menu = chrome.mountEscMenu(host, services, { status, close, reconnect, exit });
 //   menu.open({ preselect: 'reconnect' });
 //   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
+//   const wins = chrome.mountWindows(host, services, { … });        // ADR 0103
+//   const pops = chrome.mountSettingsPopups(host, services, { … }); // ADR 0107
 
 import './kit/kit.css';
 import { type VNode, render } from 'preact';
@@ -29,6 +31,15 @@ import { bootQuote } from '../app/boot-progress';
 
 export type { ChromeServices } from './kit/hooks';
 export { WINDOW_BTN_ATTR, type WindowId, type WindowsHandle, type WindowsOptions, mountWindows } from './windows';
+export {
+  GEAR_POPUPS,
+  type PopupPlace,
+  type SettingsPopupKey,
+  type SettingsPopupTarget,
+  type SettingsPopupsHandle,
+  type SettingsPopupsOptions,
+  mountSettingsPopups,
+} from './popups/surface';
 
 // ------------------------------------------------------------ start page
 
