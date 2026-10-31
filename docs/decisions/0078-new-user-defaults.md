@@ -1,6 +1,6 @@
 # 0078 — New-user defaults: Hack 17, two-lane right dock, pane bar and Map search
 
-- Status: Accepted
+- Status: Accepted; addendum 2026-10-31 (pane bar off for new users)
 - Date: 2026-10-05
 - Builds on ADR 0010 (settings), ADR 0014/0020 (floating panes, the map's
   auto float), ADR 0023 (earlier new-user defaults), ADR 0053 (script
@@ -133,3 +133,13 @@ has stored settings, so (1) is false; one who has script data fails (2).
   narrower (AUTO_FLOAT), nothing else.
 - Tests written against the old defaults use `tests/unit/legacy-defaults.ts`
   (`legacyLayout`, `legacySettings`).
+
+## Addendum 2026-10-31 — pane bar off for new users (stage 30a round 1)
+
+The owner (stage 30a round 1): the menu bar's Panes popup (ADR 0099) now
+does the pane bar's job, so a new user no longer starts with it.
+`NEW_USER_SCRIPTS` is `['mapsearch']`. Nothing else changes: the default
+layout still keeps the pane bar's place at the end of the right dock's
+tail, so a user who turns the script on finds it there; its toggle entry
+stays on and borderless. Existing installs keep their script state, as
+`enableForNewUser` never touches a library with script data.

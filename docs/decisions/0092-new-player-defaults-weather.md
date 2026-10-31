@@ -1,6 +1,6 @@
 # 0092 — New-player defaults: docked map, weather on, Shimrod, transparent map
 
-- Status: Accepted
+- Status: Accepted; addendum 2026-10-31 (no pane bar)
 - Date: 2026-10-18
 - Builds on ADR 0078 (new-user defaults), ADR 0081 (phone defaults),
   ADR 0082 (tilesets), ADR 0085 (map background), ADR 0091 (weather trial)
@@ -94,3 +94,11 @@ matters if the user leaves phone mode.
   new defaults, use a fresh profile/private window.
 - Tests written against the ADR 0078 defaults use
   `tests/unit/legacy-defaults.ts`.
+
+## Addendum 2026-10-31 — no pane bar
+
+Since stage 30a round 1 a new player starts without the pane bar script
+(ADR 0078 addendum 2026-10-31); the Panes popup in the menu bar takes its
+place. The layout still holds the bar's slot in the right dock's tail, so
+the first screen shows the map, Timers | Group and Comm down to the input
+row.

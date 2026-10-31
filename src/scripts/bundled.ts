@@ -18,8 +18,9 @@ export const BUNDLED_SCRIPTS: readonly BundledScript[] = Object.entries(FILES).m
 }));
 
 /**
- * Bundled scripts a new user starts with enabled (ADR 0078): the pane bar
- * and Map search (whose pane starts off). Applied once per install by
- * `ScriptLibrary.enableForNewUser`.
+ * Bundled scripts a new user starts with enabled (ADR 0078): Map search
+ * (whose pane starts off). The pane bar was on too until stage 30a round 1
+ * (ADR 0078 addendum 2026-10-31: the menu bar's Panes popup does its job).
+ * Applied once per install by `ScriptLibrary.enableForNewUser`.
  */
-export const NEW_USER_SCRIPTS: readonly string[] = ['panebar', 'mapsearch'];
+export const NEW_USER_SCRIPTS: readonly string[] = ['mapsearch'];

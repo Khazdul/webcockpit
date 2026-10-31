@@ -201,20 +201,20 @@ const lua = (name: string): { name: string; source: string } => ({ name, source:
 const BUNDLED = [lua('panebar'), lua('mapsearch'), lua('almanac')];
 
 describe('bundled scripts for a new user', () => {
-  it('are the pane bar and Map search', () => {
-    expect(NEW_USER_SCRIPTS).toEqual(['panebar', 'mapsearch']);
+  it('are Map search only: the pane bar is off for new users since stage 30a round 1 (ADR 0078 addendum)', () => {
+    expect(NEW_USER_SCRIPTS).toEqual(['mapsearch']);
   });
 
   it('an empty library enables them once, written as records, so a reload keeps them and a later call changes nothing', async () => {
     const factory = new IDBFactory();
     const lib = new ScriptLibrary({ factory, bundled: BUNDLED });
     expect(await lib.enableForNewUser(NEW_USER_SCRIPTS)).toBe(true);
-    expect(lib.enabledNames()).toEqual(['mapsearch', 'panebar']);
-    await lib.setEnabled('panebar', false);
+    expect(lib.enabledNames()).toEqual(['mapsearch']);
+    await lib.setEnabled('mapsearch', false);
     await lib.close();
     const again = new ScriptLibrary({ factory, bundled: BUNDLED });
     expect(await again.enableForNewUser(NEW_USER_SCRIPTS)).toBe(false);
-    expect(again.enabledNames()).toEqual(['mapsearch']);
+    expect(again.enabledNames()).toEqual([]);
     await again.close();
   });
 
