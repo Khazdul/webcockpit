@@ -306,6 +306,10 @@ most cases. The input row picks its extent by the room left to type:
   (Update, Disconnected) do not count, so a notice never moves the docks
   *(Claude)*.
 
+### 30a approved (2026-10-31)
+
+The owner tested round 2: "Feels good now." 30a is done; 30b is next.
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
@@ -363,6 +367,7 @@ most cases. The input row picks its extent by the room left to type:
     no right dock, collapse, with/without a bottom dock; cockpit; menu
     bar; new-user defaults), e2e (layout wide and narrow, new-user,
     panebar), screenshots checked.
+- [x] 30a approved by the owner after round 2 (2026-10-31).
 - [ ] 30b.
 - [ ] 30c.
 - [ ] 30d.
