@@ -317,4 +317,22 @@ describe('Recorder with run events', () => {
     expect((await store.getRun(id1))!.rating).toBe(5);
     expect((await store.getRun(id2))!.rating).toBe(5);
   });
+
+  it('latest(): the run in progress or the one that ended, with its id; null before any run (ADR 0109)', async () => {
+    const t = recorderSetup();
+    expect(t.runs.latest()).toBeNull();
+    t.play();
+    t.gmcp('Char.Vitals', { xp: 1000 });
+    t.line('A guard is dead! R.I.P.');
+    t.advance(500);
+    await t.rec.flush();
+    const id = t.rec.runId!;
+    expect(t.runs.latest()).toMatchObject({ runId: id, ended: false });
+    t.quit();
+    await t.rec.idle();
+    const l = t.runs.latest()!;
+    expect(l).toMatchObject({ runId: id, ended: true });
+    expect(l.events.map((e) => e.type)).toEqual(['run_start', 'kill', 'run_end']);
+    expect(t.runs.anchor()).toBe(id);
+  });
 });
