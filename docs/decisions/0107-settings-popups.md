@@ -223,3 +223,16 @@ control when they open, by a click, `#settings` or a macro. The key rules
 handling moved to `src/menubar/popup.ts` (`popupKey`, `pressPopup`,
 `focusPopup`), shared with the bar's popups; `data-pointer` hides the
 focus rings of every popup opened or pressed by the mouse.
+
+## Addendum: the palette's hex field and picker (2026-10-31)
+
+A click on a palette swatch no longer opens the browser's colour picker:
+that picker is a native window that holds the keys while open, so the hex
+field beside it could not be typed in. The click now chooses the colour
+and puts the keys in its hex field with the value selected, so typing a
+new value replaces it. A **Picker…** button beside the field opens the
+browser's picker for the chosen colour, laid over its swatch. The hex
+field is keyed by the chosen colour: its value sync used to run after the
+selection and reset it, and a full field (7 of 7 characters) then took no
+typed characters at all.
+

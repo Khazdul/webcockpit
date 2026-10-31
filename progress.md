@@ -45,10 +45,12 @@ Statuses: Next, In progress, Owner testing, Done.
 
 - **Owner test:** round 1 approved ("Feels OK now"). 30c is done.
 - **Not released:** 30a, 30b and 30c are on `main` after 0.1.76.
-- **Open:** native colour picker blocks the hex field while open;
-  `panebar.lua` help names Options → Panes → Appearance.
+- **Open:** none from 30c.
 - **Next:** 30d (Statistics pane: adaptive layout, latest run).
-- **Commits:** this one.
+- **Commits:** d76c0f4, and after it the two small items: a swatch
+  click selects the colour into the hex field (it could not be typed in;
+  Picker… opens the native picker, ADR 0107 addendum); `panebar.lua`
+  help points to the Panes box.
 
 ### 2026-10-31 — Stage 30c round 1 (font names, popup focus, Tab)
 

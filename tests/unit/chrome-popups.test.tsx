@@ -459,11 +459,15 @@ describe('Settings popup tabs', () => {
     click(el.querySelector('.wc-ck-dd[aria-label="Scrollback"]'));
     click([...el.querySelectorAll('.wc-ck-list .wc-ck-opt')].find((o) => o.textContent === '50 000 lines')!);
     expect(t.s().output.scrollback).toBe(50000);
-    // The palette: a swatch opens the picker and the hex field; both apply live.
+    // The palette: a swatch chooses the colour and shows its hex field (no
+    // native picker); the Picker button opens the picker; both apply live.
     const sw = el.querySelectorAll<HTMLElement>('.wc-ck-pc')[1]!;
+    vi.mocked(HTMLInputElement.prototype.showPicker!).mockClear();
     click(sw);
-    expect(HTMLInputElement.prototype.showPicker).toHaveBeenCalled();
+    expect(HTMLInputElement.prototype.showPicker).not.toHaveBeenCalled();
     expect(el.querySelector('.wc-sp-palrow .wc-ck-help')!.textContent).toBe('1 Red');
+    click(el.querySelector('.wc-sp-pick'));
+    expect(HTMLInputElement.prototype.showPicker).toHaveBeenCalled();
     const picker = el.querySelector<HTMLInputElement>('.wc-sp-picker')!;
     act(() => {
       picker.value = '#aabbcc';

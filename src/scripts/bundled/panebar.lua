@@ -4,7 +4,7 @@
 -- @alias    bar  Show or hide the pane bar (also: bar list)
 -- @help     One button per pane: the built-in panes (CHAR, TIME, GRP,
 -- @help     COMM, UI, MAP) and the panes of the scripts that run, in the
--- @help     order of Options → Panes → Appearance. Click a button to
+-- @help     order of the Panes box in the menu bar. Click a button to
 -- @help     hide its pane, click again to show it. A bright button is
 -- @help     on, a dark one is off.
 -- @help
@@ -23,7 +23,7 @@
 --[[
 How it works
 
-getPanes() lists every pane in Options -> Panes -> Appearance order with its
+getPanes() lists every pane in the Panes box's order (the menu bar) with its
 short name, title and on/off; the bar leaves out its own pane. On is the
 Character pane's lit toggle box, the pane background shade on the glow
 shade (<@bg:@glow>); off is the mid shade on the track shade

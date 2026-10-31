@@ -222,8 +222,14 @@ test('changes go to the settings store at once', async ({ page }) => {
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).appearance.bg).toBe('#000000');
-  // A palette colour: a click opens the browser's picker (its input applies live) and the hex field.
+  // A palette colour: a click chooses it and puts the keys in its hex field;
+  // the browser's picker opens only from the Picker button (its input applies live).
   await page.locator('.wc-ck-pc[data-index="1"]').click();
+  await expect(page.locator('.wc-ck-hex')).toBeFocused();
+  expect(await page.evaluate(() => (window as unknown as { pickerOpened: number }).pickerOpened)).toBe(0);
+  await page.keyboard.type('#a0b0c0');
+  await expect.poll(async () => (await settings(page)).appearance.ansi[1]).toBe('#a0b0c0');
+  await page.locator('.wc-sp-pick').click();
   expect(await page.evaluate(() => (window as unknown as { pickerOpened: number }).pickerOpened)).toBe(1);
   await page.locator('.wc-sp-picker').evaluate((el: HTMLInputElement) => {
     el.value = '#abcdef';

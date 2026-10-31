@@ -18,9 +18,9 @@
 //   shows as the one drawn, `effectiveFont`), size and padding (sliders),
 //   font colour, background (`backgroundPatch`: a preset background sets
 //   its font colour and palette), input colour, bold brightens, scrollback,
-//   the 16-colour ANSI palette (a click on a swatch opens the browser's
-//   colour picker and a hex field for it), Reset palette, Reset appearance
-//   and a small live preview (the TUI page's sample lines). A colour that
+//   the 16-colour ANSI palette (a click on a swatch chooses it and puts
+//   the keys in its hex field; its Picker button opens the browser's
+//   colour picker), Reset palette, Reset appearance and a small live preview (the TUI page's sample lines). A colour that
 //   is not in a list is shown by its hex and kept (`colorChoices`).
 // - Text input: auto-clear, autosuggest, cursor style, cursor blink.
 // - Mapper: popups/mapper-settings.tsx (also the map pane's gear popup).
@@ -28,7 +28,7 @@
 //   browser without OffscreenCanvas is told so), the categories with their
 //   help, and Blue day sky under Sky.
 
-import type { VNode } from 'preact';
+import type { RefObject, VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   CURSOR_STYLES,
@@ -156,6 +156,7 @@ function AppearancePage(): VNode {
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const palWrap = useRef<HTMLSpanElement>(null);
+  const hexInput = useRef<HTMLInputElement>(null);
   useEffect(() => () => void (noteTimer.current && clearTimeout(noteTimer.current)), []);
 
   const set = (patch: Partial<AppearanceSettings>): void => settings.update({ appearance: patch });
@@ -169,18 +170,35 @@ function AppearancePage(): VNode {
     noteTimer.current = setTimeout(() => setNote(''), 3000);
   };
 
-  // The browser's colour picker, laid over the swatch so it opens there.
-  const openPicker = (i: number, el: HTMLElement): void => {
+  // A swatch chooses the colour and puts the keys in its hex field. The
+  // browser's own picker opens only from the Picker button: it is a native
+  // window that holds the keys while open, so the hex field could not be
+  // typed in beside it (owner, 30c).
+  const choose = (i: number): void => {
     setSel(i);
+    // After the render that shows the field (and its new value).
+    requestAnimationFrame(() => {
+      const f = hexInput.current;
+      if (!f) return;
+      f.focus({ preventScroll: true });
+      f.select();
+    });
+  };
+  // The browser's colour picker, laid over the chosen swatch so it opens there.
+  const openPicker = (): void => {
+    const i = sel;
     const input = picker.current;
     const wrap = palWrap.current;
-    if (!input || !wrap) return;
-    const r = el.getBoundingClientRect();
-    const w = wrap.getBoundingClientRect();
-    input.style.left = `${r.left - w.left}px`;
-    input.style.top = `${r.top - w.top}px`;
-    input.style.width = `${r.width}px`;
-    input.style.height = `${r.height}px`;
+    if (i === null || !input || !wrap) return;
+    const el = wrap.querySelectorAll<HTMLElement>('.wc-ck-pc')[i];
+    if (el) {
+      const r = el.getBoundingClientRect();
+      const w = wrap.getBoundingClientRect();
+      input.style.left = `${r.left - w.left}px`;
+      input.style.top = `${r.top - w.top}px`;
+      input.style.width = `${r.width}px`;
+      input.style.height = `${r.height}px`;
+    }
     input.value = settings.get().appearance.ansi[i]!;
     try {
       if (typeof input.showPicker === 'function') input.showPicker();
@@ -256,7 +274,7 @@ function AppearancePage(): VNode {
         class="wc-sp-palrow"
       >
         <span class="wc-sp-palw" ref={palWrap}>
-          <SwatchGrid label="ANSI palette" colors={a.ansi} names={names} selected={sel} onPick={openPicker} />
+          <SwatchGrid label="ANSI palette" colors={a.ansi} names={names} selected={sel} onPick={choose} />
           <input
             ref={picker}
             type="color"
@@ -269,7 +287,17 @@ function AppearancePage(): VNode {
             }}
           />
           {/* Its room is kept while no colour is chosen, so choosing one does not move the popup. */}
-          <HexField index={sel ?? 0} value={a.ansi[sel ?? 0]!} shown={sel !== null} onSet={(hex) => sel !== null && setAnsi(sel, hex)} />
+          {/* Keyed by the colour, so the field starts with its value and the
+              selection made when it is chosen is not reset by a later sync. */}
+          <HexField
+            key={sel ?? -1}
+            index={sel ?? 0}
+            value={a.ansi[sel ?? 0]!}
+            shown={sel !== null}
+            inputRef={hexInput}
+            onSet={(hex) => sel !== null && setAnsi(sel, hex)}
+            onPicker={openPicker}
+          />
         </span>
       </Row>
       <Preview />
@@ -301,8 +329,19 @@ function AppearancePage(): VNode {
   );
 }
 
-/** A palette colour as `#rrggbb`: a full hex applies as typed; `#rgb` on Enter or when the field is left. */
-function HexField(p: { index: number; value: string; shown: boolean; onSet: (hex: string) => void }): VNode {
+/**
+ * A palette colour as `#rrggbb`: a full hex applies as typed; `#rgb` on
+ * Enter or when the field is left. The Picker button beside it opens the
+ * browser's colour picker for the same colour.
+ */
+function HexField(p: {
+  index: number;
+  value: string;
+  shown: boolean;
+  inputRef: RefObject<HTMLInputElement>;
+  onSet: (hex: string) => void;
+  onPicker: () => void;
+}): VNode {
   const [draft, setDraft] = useState(p.value);
   const [bad, setBad] = useState(false);
   useEffect(() => {
@@ -319,6 +358,7 @@ function HexField(p: { index: number; value: string; shown: boolean; onSet: (hex
   return (
     <span class={`wc-sp-hexrow${p.shown ? '' : ' is-off'}`} aria-hidden={p.shown ? undefined : 'true'}>
       <input
+        ref={p.inputRef}
         type="text"
         class={`wc-ck-hex${bad ? ' is-bad' : ''}`}
         value={draft}
@@ -344,7 +384,10 @@ function HexField(p: { index: number; value: string; shown: boolean; onSet: (hex
         }}
         onBlur={commit}
       />
-      <span class="wc-ck-hint">{bad ? 'Use #rrggbb, e.g. #ff5f5f.' : '#rrggbb'}</span>
+      <GhostButton class="wc-sp-pick" onClick={p.onPicker} label={`Pick ANSI colour ${p.index}`}>
+        Picker…
+      </GhostButton>
+      <span class="wc-ck-hint">{bad ? 'Use #rrggbb' : '#rrggbb'}</span>
     </span>
   );
 }
