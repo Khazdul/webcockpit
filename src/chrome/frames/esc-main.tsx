@@ -9,6 +9,9 @@
 //   Profile · Options · Exit session
 //   flash row
 //   ↑↓ Navigate · Enter Select · ESC Close
+//
+// `ProfileEntry` is the root frame when the menu opens straight at the
+// profile editor (the menu bar, ADR 0099).
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
@@ -111,13 +114,7 @@ export function EscMain(p: EscMainProps): VNode {
     {
       key: 'profile',
       label: 'Profile',
-      activate: () =>
-        void editProfile(nav, profiles, settings.profile, {
-          isLive: () => isLive(p.status.get()),
-          apply: p.liveApply,
-          beforeLoad: p.flushWriteBack,
-          onSaved: onProfileSaved,
-        }),
+      activate: () => void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved)),
     },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
@@ -166,6 +163,43 @@ export function EscMain(p: EscMainProps): VNode {
       <Blank n={Math.max(0, rows - used - 1)} />
       <Footer tokens={['↑↓ Navigate', 'Enter Select', 'ESC Close']} />
     </div>
+  );
+}
+
+/** The editor options of the ESC menu's Profile: live apply while connected. */
+function profileEditOptions(p: EscActions, onSaved: ((name: string) => void) | undefined) {
+  return {
+    isLive: () => isLive(p.status.get()),
+    apply: p.liveApply,
+    beforeLoad: p.flushWriteBack,
+    onSaved,
+  };
+}
+
+/**
+ * The ESC menu opened straight at the profile editor (the menu bar's
+ * Profile and `#profile`, ADR 0099): the root frame loads the active
+ * profile's editor over itself, as ESC → Profile does, and closes the menu
+ * once the editor is left. A load failure is flashed here; Esc closes.
+ */
+export function ProfileEntry(p: EscActions): VNode {
+  const nav = useNav();
+  const isTop = useIsTop();
+  const settings = useSettings();
+  const { profiles, onProfileSaved } = useServices();
+  const left = useRef(false);
+  useEffect(() => {
+    void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved));
+  }, []);
+  useEffect(() => {
+    if (!isTop) left.current = true;
+    else if (left.current) p.close();
+  }, [isTop]);
+  return (
+    <Page title="Profile" footer={['ESC Close']}>
+      <Blank />
+      <FlashRow />
+    </Page>
   );
 }
 

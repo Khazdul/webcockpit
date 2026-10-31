@@ -288,4 +288,82 @@ describe('ESC menu', () => {
     await key('y');
     expect(exit).toHaveBeenCalledTimes(1);
   });
+  it('opens straight at a frame; leaving that frame closes the menu (ADR 0099)', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const st = view(status());
+    const close = vi.fn();
+    const exit = vi.fn();
+    const menu = mountEscMenu(host, { ...services(), scripts: undefined }, { status: st, close, reconnect: vi.fn(), exit });
+    cleanup.push(() => menu.dispose());
+    const shut = async () => {
+      await act(() => menu.close());
+    };
+
+    // Settings: Options; Esc on it closes, and so does its Back row.
+    await act(() => menu.open({ target: 'settings' }));
+    expect(title(host)).toBe('─── Options ───');
+    await key('Escape');
+    expect(close).toHaveBeenCalledTimes(1);
+    await shut();
+    await act(() => menu.open({ target: 'settings' }));
+    await key('End');
+    expect(selected(host)).toBe('<< Back >>');
+    await key('Enter');
+    expect(close).toHaveBeenCalledTimes(2);
+    await shut();
+    // A sub-frame pops back to it, not out of the menu.
+    await act(() => menu.open({ target: 'settings' }));
+    await key('Home');
+    await key('Enter');
+    expect(title(host)).toBe('─── Panes ───');
+    await key('Escape');
+    expect(title(host)).toBe('─── Options ───');
+    expect(close).toHaveBeenCalledTimes(2);
+    await shut();
+
+    // Scripts, Panes and Exit.
+    await act(() => menu.open({ target: 'scripts' }));
+    expect(title(host)).toBe('─── Scripts ───');
+    await act(() => host.querySelector<HTMLElement>('.wc-frame:not([hidden]) .wc-footer-btn')!.click());
+    expect(close).toHaveBeenCalledTimes(3);
+    await shut();
+    await act(() => menu.open({ target: 'panes' }));
+    expect(title(host)).toBe('─── Pane appearance ───');
+    await key('Escape');
+    expect(close).toHaveBeenCalledTimes(4);
+    await shut();
+    await act(() => menu.open({ target: 'exit' }));
+    expect(title(host)).toBe('─── Exit session ───');
+    await key('Escape');
+    expect(close).toHaveBeenCalledTimes(5);
+    await shut();
+    await act(() => menu.open({ target: 'exit' }));
+    await key('y');
+    expect(exit).toHaveBeenCalledTimes(1);
+    await shut();
+
+    // Opened plainly again, it is the main frame.
+    await act(() => menu.open());
+    expect(selected(host)).toBe('<< Continue >>');
+  });
+
+  it('opens at the profile editor’s entry frame; a failed load is flashed and Esc closes', async () => {
+    const host = document.createElement('div');
+    document.body.append(host);
+    const close = vi.fn();
+    const menu = mountEscMenu(host, services(), { status: view(status()), close, reconnect: vi.fn(), exit: vi.fn() });
+    cleanup.push(() => menu.dispose());
+    await act(() => menu.open({ target: 'profile' }));
+    expect(title(host)).toBe('─── Profile ───');
+    await vi.waitFor(
+      async () => {
+        await act(async () => {});
+        expect(host.querySelector('.wc-frame:not([hidden]) .wc-flash')?.textContent).toMatch(/profile|editor/i);
+      },
+      { timeout: 10_000 },
+    );
+    await key('Escape');
+    expect(close).toHaveBeenCalledTimes(1);
+  });
 });

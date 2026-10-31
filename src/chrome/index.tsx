@@ -8,6 +8,7 @@
 //   start.hide(); …; start.show({ keep: true });   // back where it was
 //   const menu = chrome.mountEscMenu(host, services, { status, close, reconnect, exit });
 //   menu.open({ preselect: 'reconnect' });
+//   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
 
 import './kit/kit.css';
 import { type VNode, render } from 'preact';
@@ -15,7 +16,9 @@ import { useRef } from 'preact/hooks';
 import { noticeIndicators } from '../app/notices';
 import { isLive } from '../app/status';
 import { CLIENT_VERSION } from '../core/build-info';
-import { EscMain, type EscActions } from './frames/esc-main';
+import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/esc-main';
+import { OptionsHub, PanesFrame } from './frames/options';
+import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
 import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
@@ -198,9 +201,20 @@ export function mountStartPage(host: HTMLElement, services: ChromeServices, opts
 
 export type EscMenuOptions = EscActions;
 
+/**
+ * A frame the menu can open at instead of its main frame (the menu bar
+ * and `#profile` …, ADR 0099): the profile editor, Options → Scripts,
+ * Options, Options → Panes → Appearance, Exit session. Leaving that frame
+ * (Esc or Back on it) closes the menu.
+ */
+export type EscMenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
+
 export interface EscMenuHandle {
-  /** Opens the menu (no-op when open). `preselect` defaults by connection state. */
-  open(opts?: { preselect?: 'continue' | 'reconnect' }): void;
+  /**
+   * Opens the menu (no-op when open). `preselect` defaults by connection
+   * state; `target` opens it at that frame.
+   */
+  open(opts?: { preselect?: 'continue' | 'reconnect'; target?: EscMenuTarget }): void;
   close(): void;
   readonly isOpen: boolean;
   dispose(): void;
@@ -210,6 +224,25 @@ interface MenuSurfaceProps extends EscActions {
   open: boolean;
   epoch: number;
   preselect: 'continue' | 'reconnect';
+  target: EscMenuTarget | null;
+}
+
+/** The menu's root frame: the main frame, or the frame it was opened at. */
+function menuRoot(p: MenuSurfaceProps): VNode {
+  switch (p.target) {
+    case 'profile':
+      return <ProfileEntry {...p} />;
+    case 'scripts':
+      return <ScriptsFrame />;
+    case 'settings':
+      return <OptionsHub />;
+    case 'panes':
+      return <PanesFrame />;
+    case 'exit':
+      return <ExitConfirm exit={p.exit} runs={p.runs} />;
+    default:
+      return <EscMain {...p} />;
+  }
 }
 
 /** Share of the window the menu covers (Inv §4.1); the whole screen on a phone (ADR 0075 §3). */
@@ -246,7 +279,7 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
             <GridCtx.Provider value={{ cols: W - 2, rows: H - 2, surface: 'menu' }}>
               <FrameStack
                 key={p.epoch}
-                root={<EscMain {...p} />}
+                root={menuRoot(p)}
                 active={p.open}
                 onRootBack={p.close}
               />
@@ -263,10 +296,11 @@ export function mountEscMenu(host: HTMLElement, services: ChromeServices, opts: 
   let open = false;
   let epoch = 0;
   let preselect: 'continue' | 'reconnect' = 'continue';
+  let target: EscMenuTarget | null = null;
   const draw = (): void =>
     render(
       <ServicesCtx.Provider value={services}>
-        <MenuSurface {...opts} open={open} epoch={epoch} preselect={preselect} />
+        <MenuSurface {...opts} open={open} epoch={epoch} preselect={preselect} target={target} />
       </ServicesCtx.Provider>,
       host,
     );
@@ -276,6 +310,7 @@ export function mountEscMenu(host: HTMLElement, services: ChromeServices, opts: 
       if (open) return;
       const live = isLive(opts.status.get());
       preselect = o.preselect ?? (live ? 'continue' : 'reconnect');
+      target = o.target ?? null;
       open = true;
       epoch++;
       draw();

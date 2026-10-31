@@ -7,7 +7,7 @@
 // routes every key to the top frame's handler (`useKeys`) and stops it
 // there, so the game input (which listens on the document) never sees
 // keys meant for the chrome. Unhandled ESC pops (or calls `onRootBack`
-// on the root frame). Focus: the stack host is focused on every frame
+// on the root frame; so does `nav.pop()` there, e.g. a root frame's Back). Focus: the stack host is focused on every frame
 // change unless the frame focused something of its own (a text field),
 // and focus is trapped inside the host while active.
 
@@ -33,7 +33,7 @@ export const FLASH_MS = 3000;
 
 export interface Nav {
   push(node: VNode): void;
-  /** Pops `n` frames (never the root). */
+  /** Pops `n` frames (never the root; on the root it calls the stack's `onRootBack`). */
   pop(n?: number): void;
   /** Replaces the top frame. */
   replace(node: VNode): void;
@@ -120,7 +120,12 @@ export function FrameStack(props: FrameStackProps): VNode {
         setFlash(null);
         setStack((s) => [...s, mk(node)]);
       },
-      pop: (n = 1) => setStack((s) => (s.length > 1 ? s.slice(0, Math.max(1, s.length - n)) : s)),
+      // Popping the root frame leaves the stack (`onRootBack`): the ESC
+      // menu opened straight at a frame closes (ADR 0099).
+      pop: (n = 1) => {
+        if (stackRef.current.length <= 1) propsRef.current.onRootBack?.();
+        else setStack((s) => (s.length > 1 ? s.slice(0, Math.max(1, s.length - n)) : s));
+      },
       replace: (node) => setStack((s) => [...s.slice(0, -1), mk(node)]),
       flash: (text, kind = 'ok') => {
         if (flashTimer.current) clearTimeout(flashTimer.current);
