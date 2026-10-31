@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App, type AppUi } from '../../src/app/app';
 import { FakeSocket } from './net-helpers';
+import { CLOCK_CELLS, barCells } from '../../src/menubar/menubar';
 
 function setup(ui: Partial<AppUi> | null = {}) {
   document.body.innerHTML = '';
@@ -48,6 +49,8 @@ describe('App with the menu bar', () => {
     expect(t.app.input.el.lastElementChild).toBe(bar.el);
     expect(bar.bar.contains(t.app.input.clockEl)).toBe(true);
     expect(t.app.clockStrip).toBe(bar.clock);
+    // The cockpit lays out the input row with the bar's width (ADR 0102).
+    expect(t.app.cockpit.barCells).toBe(barCells(bar.bar.querySelector('[data-mb="fullscreen"]') !== null));
   });
 
   it('keeps the plain clock strip without the bar (phone, player, tests)', () => {
@@ -55,6 +58,7 @@ describe('App with the menu bar', () => {
     expect(t.app.menuBar).toBeNull();
     expect(t.app.input.el.lastElementChild).toBe(t.app.input.clockEl);
     expect(t.app.input.clockEl.textContent).toBe('        ');
+    expect(t.app.cockpit.barCells).toBe(CLOCK_CELLS);
   });
 
   it('Esc in the input closes the open popup first, then opens the ESC menu', () => {

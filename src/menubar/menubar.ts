@@ -77,6 +77,8 @@ export interface MenuBarOptions {
   actions: MenuBarActions;
   /** Wall clock (tests). */
   now?: () => number;
+  /** Told the bar's width in whole cells when it is built and whenever it changes (the cockpit's layout, ADR 0102). */
+  onCells?: (cells: number) => void;
 }
 
 /** Widths in cells (see the header). */
@@ -325,7 +327,9 @@ export class MenuBar {
   }
 
   private sizeBar(): void {
-    this.bar.style.width = `calc(${barCells(this.buttons.has('fullscreen'))} * var(--cell-w))`;
+    const cells = barCells(this.buttons.has('fullscreen'));
+    this.bar.style.width = `calc(${cells} * var(--cell-w))`;
+    this.o.onCells?.(cells);
   }
 
   private onFullscreen(): void {

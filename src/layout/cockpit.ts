@@ -4,9 +4,10 @@
 //
 //   .wc-cockpit
 //     .wc-game          the output pane (src/ui/output-pane.ts) goes in here
-//     .wc-input-slot    the input row (src/ui/input-pane.ts), under the game pane and
-//                       the right dock, out to the screen's right edge (ADR 0101);
-//                       before the panes in paint order (see the constructor)
+//     .wc-input-slot    the input row (src/ui/input-pane.ts), under the game pane; in
+//                       a narrow game column on under the right dock to the screen's
+//                       right edge (ADR 0101, ADR 0102); before the panes in paint
+//                       order (see the constructor)
 //     .wc-pane × 6      pane shells (src/panes/pane.ts; the map included), then script panes
 //     .wc-handles       invisible resize handles over the gaps, lane and pane boundaries
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
@@ -32,9 +33,10 @@
 //   as the title row: the press is a move at once, never a click. The insertion
 //   bar shows where it lands. Dropping on the screen edge of a dock that is
 //   not shown opens that dock at its default size. The edge zones follow
-//   the docks' extent (ADR 0101): the right one ends above the input row,
-//   the left one at the input row's bottom, the bottom one runs along the
-//   whole bottom edge.
+//   the docks' extent (ADR 0101, ADR 0102): the left one ends at the input
+//   row's bottom, the right one there too or, when the input row runs
+//   under the right dock, at its top; the bottom one runs along the whole
+//   bottom edge.
 // - Lanes (ADR 0064): a dock is a list of lanes from the screen edge
 //   inward, columns of a side dock, rows of the top/bottom dock. Over the
 //   middle of a lane the pane goes into that lane; over a lane's
@@ -131,6 +133,7 @@ import {
   allocate,
   clampFloat,
   floatMin,
+  inputFitsGameColumn,
   isSideDock,
   paneCrossMin,
 } from './allocate';
@@ -436,6 +439,8 @@ export class Cockpit {
   private lastSize = '';
   private readonly ro: ResizeObserver | null = null;
   private last: LayoutResult | null = null;
+  /** Cells the input row keeps for the menu bar or the clock (`setBarCells`, ADR 0102). */
+  private inputBar = 0;
   private preview: LayoutModel | null = null;
   private drag: Drag | null = null;
   /** Span drop outlines of the running drag by target (ADR 0067), so a move over the same target allocates once. */
@@ -497,8 +502,8 @@ export class Cockpit {
     this.paneContext =
       opts.paneContext ??
       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
-    // The input row before the panes in paint order (ADR 0101): it runs under
-    // the right dock, and painted after the panes it would overlap their
+    // The input row before the panes in paint order (ADR 0101): in a narrow
+    // game column it runs under the right dock (ADR 0102), and painted after the panes it would overlap their
     // composited scrollers and be promoted to a layer of its own, which at
     // a fractional pixel ratio snaps differently and cuts the top device
     // pixel of accents (ADR 0042). The two never overlap on screen, and
@@ -762,6 +767,23 @@ export class Cockpit {
     return () => this.layoutListeners.delete(fn);
   }
 
+  /**
+   * The width in cells of the menu bar (or the clock strip) at the input
+   * row's right end (ADR 0099). It decides whether the input row stays in
+   * the game column or runs under the right dock (ADR 0102).
+   */
+  setBarCells(cells: number): void {
+    const n = Math.max(0, Math.ceil(cells));
+    if (n === this.inputBar) return;
+    this.inputBar = n;
+    this.scheduleRelayout();
+  }
+
+  /** The bar width the layout counts (`setBarCells`). */
+  get barCells(): number {
+    return this.inputBar;
+  }
+
   /** Relayouts in the next animation frame (coalesced). */
   scheduleRelayout(): void {
     if (this.scheduled || this.disposed) return;
@@ -794,6 +816,7 @@ export class Cockpit {
       present: this.present,
       cols: Math.floor(W / cell.w + 1e-6),
       rows: Math.floor(H / cell.h + 1e-6),
+      barCells: this.inputBar,
     });
     const r = base.tooSmall || this.temps.size === 0 ? base : { ...base, panes: [...base.panes, ...this.tempBoxes(base, layout)] };
     this.last = r;
@@ -1723,7 +1746,7 @@ export class Cockpit {
       }
       const key = `${id}|${dock.id}|${side}|${index}|${r.cols}x${r.rows}`;
       if (!this.ghosts.has(key)) {
-        const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows });
+        const res = allocate({ layout: moved, panes: s.panes, present: this.present, cols: r.cols, rows: r.rows, barCells: this.inputBar });
         this.ghosts.set(key, res.panes.find((p) => p.id === id)?.rect ?? null);
       }
       const d = dock.rect;
@@ -1788,15 +1811,20 @@ export class Cockpit {
     // Screen-edge zones: a shown dock takes the pane into the lane at the
     // screen edge, at the pointer; a hidden one (not collapsed) opens with
     // one lane at its default size. The zones follow the docks' extent
-    // (ADR 0101): the left one down to the input row's bottom (where the
-    // gap row above the bottom dock starts), the right one down to the
-    // input row's top, the top one over the game column, the bottom one
-    // along the whole bottom edge below those.
+    // (ADR 0101, ADR 0102): the left one down to the input row's bottom
+    // (where the gap row above the bottom dock starts), the right one there
+    // too, or down to the input row's top when the input row runs under the
+    // right dock (for a hidden right dock: when it would at its default
+    // size), the top one over the game column, the bottom one along the
+    // whole bottom edge below those.
     const E = EDGE_CELLS;
     if (!isTemp && cy >= 0 && cy < H) {
       const inGameCol = cx >= r.game.x && cx < r.game.x + r.game.w;
       const leftEnd = r.input.y + r.input.h;
-      const rightEnd = r.input.y;
+      const underRight = r.docks.right
+        ? r.inputSpan === 'screen'
+        : !inputFitsGameColumn(r.game.w - defaultDockSize('right') - DOCK_GAP, this.inputBar);
+      const rightEnd = underRight ? r.input.y : leftEnd;
       const zone: DockId | null =
         cx < E && cy < leftEnd ? 'left'
         : cx >= r.cols - E && cy < rightEnd ? 'right'

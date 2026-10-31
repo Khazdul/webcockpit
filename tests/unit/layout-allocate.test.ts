@@ -4,16 +4,19 @@ import {
   type AllocateInput,
   type AxisItem,
   GAME_MIN_COLS,
+  INPUT_TYPE_MIN,
   allocate,
   allocateAxis,
   clampFloat,
   floatMin,
+  inputFitsGameColumn,
   minRows,
   paneCrossMin,
   shrinkLanes,
   SIDE_DOCK_MIN,
 } from '../../src/layout/allocate';
 import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
+import { barCells } from '../../src/menubar/menubar';
 import { floatPane, movePane, moveToNewLane, placeScriptPane, setDesired, setFloatRect, setLaneSize } from '../../src/layout/model';
 
 const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
@@ -35,11 +38,23 @@ function toggles(off: PaneId[] = [], noBorder: PaneId[] = [], mapOn = false): Al
   ) as AllocateInput['panes'];
 }
 
-const input = (cols: number, rows: number, layout: LayoutModel = legacyLayout(), panes = toggles()): AllocateInput => ({
+/** The menu bar's width with the fullscreen button (26) and without it (24; ADR 0099). */
+const BAR_FS = barCells(true);
+const BAR_NO_FS = barCells(false);
+
+/** The layout input; the bar at the input row's end as on desktop (ADR 0102 decides the input row's case with it). */
+const input = (
+  cols: number,
+  rows: number,
+  layout: LayoutModel = legacyLayout(),
+  panes = toggles(),
+  bar = BAR_FS,
+): AllocateInput => ({
   layout,
   panes,
   cols,
   rows,
+  barCells: bar,
 });
 
 describe('allocateAxis', () => {
@@ -138,16 +153,17 @@ describe('allocateAxis', () => {
 });
 
 describe('allocate', () => {
-  it('lays out the default: game left, right dock 33 wide down to the input row, the input row under both (ADR 0101)', () => {
+  it('lays out the default (wide case, ADR 0102): game left, the input row under it, right dock 33 wide and full height', () => {
     const r = allocate(input(120, 50));
     expect(r.tooSmall).toBe(false);
-    // The input row runs on under the gap and the right dock to the screen edge.
-    expect(r.input).toEqual({ x: 0, y: 49, w: 120, h: 1 });
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 49 });
+    // 86 − 2 − 26 = 58 cells to type: the input row stays in the game column.
+    expect(r.inputSpan).toBe('game');
+    expect(r.input).toEqual({ x: 0, y: 49, w: 86, h: 1 });
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 50 });
     expect(r.game).toEqual({ x: 0, y: 0, w: 86, h: 49 });
     expect(r.panes.map((p) => p.id)).toEqual([...DOCKED_BY_DEFAULT]);
     const heights = r.panes.map((p) => p.content.h);
-    expect(heights).toEqual([9, 7, 7, 8, 8]); // Character 9, the other 30 rows split about evenly (ADR 0023)
+    expect(heights).toEqual([9, 8, 7, 8, 8]); // Character 9, the other 31 rows split about evenly (ADR 0023)
     let y = 0;
     for (const p of r.panes) {
       expect(p.rect.y).toBe(y);
@@ -155,7 +171,7 @@ describe('allocate', () => {
       expect(p.content).toEqual({ x: 88, y: y + 1, w: 31, h: p.rect.h - 2 });
       y += p.rect.h;
     }
-    expect(y).toBe(49);
+    expect(y).toBe(50);
     expect(r.hidden).toEqual([]);
   });
 
@@ -177,9 +193,11 @@ describe('allocate', () => {
 
   it('drops panes when the window is short, without touching the toggles', () => {
     const r = allocate(input(120, 18));
-    // 18 rows leave the right dock 17 above the input row: every minimum with frames.
+    // Wide case: the right dock's 18 rows = every minimum with frames (17) plus one, to UI.
     expect(r.hidden).toEqual([]);
-    expect(r.panes.map((p) => p.content.h)).toEqual([3, 1, 1, 1, 1]);
+    expect(r.panes.map((p) => p.content.h)).toEqual([3, 1, 1, 1, 2]);
+    // Narrow case (the bar without room to type beside it): 17 rows above the input row, every minimum.
+    expect(allocate(input(120, 18, legacyLayout(), toggles(), 40)).panes.map((p) => p.content.h)).toEqual([3, 1, 1, 1, 1]);
     const r17 = allocate(input(120, 17));
     expect(r17.tooSmall).toBe(true);
   });
@@ -203,7 +221,7 @@ describe('allocate', () => {
     expect(narrow.input).toEqual({ x: 0, y: 29, w: 63, h: 1 });
   });
 
-  it('keeps the right dock and collapses the left one first', () => {
+  it('keeps the right dock and collapses the left one first (narrow case)', () => {
     let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
     m = setLaneSize(m, 'left', 0, 20);
     const both = allocate(input(120, 40, m));
@@ -231,7 +249,7 @@ describe('allocate', () => {
     expect(r.docks.left!.rect.w).toBe(12);
   });
 
-  it('lays out the bottom dock under the input row at the full screen width, side by side (ADR 0101)', () => {
+  it('lays out the bottom dock under the input row at the full screen width, side by side (wide case, ADR 0101, 0102)', () => {
     let m = movePane(legacyLayout(), 'comm', 'bottom', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 1);
     const r = allocate(input(120, 50, m));
@@ -239,9 +257,9 @@ describe('allocate', () => {
     // Game rows 0–37, input row 38, gap row 39, bottom dock rows 40–49.
     expect(b.rect).toEqual({ x: 0, y: 40, w: 120, h: 10 });
     expect(r.game).toEqual({ x: 0, y: 0, w: 86, h: 38 });
-    expect(r.input).toEqual({ x: 0, y: 38, w: 120, h: 1 });
-    // The right dock ends above the input row.
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 38 });
+    expect(r.input).toEqual({ x: 0, y: 38, w: 86, h: 1 });
+    // The right dock runs down beside the input row to the gap row.
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 39 });
     const [comm, ui] = r.panes.filter((p) => p.dock === 'bottom');
     expect(comm!.rect).toEqual({ x: 0, y: 40, w: 32, h: 10 });
     // UI takes the leftover columns, out to the screen edge.
@@ -254,10 +272,11 @@ describe('allocate', () => {
     const r = allocate(input(120, 18, setLaneSize(m, 'bottom', 0, 20)));
     // 18 rows: game 5 + input 1 + gap 1 leave 11 for the bottom dock.
     expect(r.game.h).toBe(5);
-    expect(r.input).toEqual({ x: 0, y: 5, w: 120, h: 1 });
+    expect(r.input).toEqual({ x: 0, y: 5, w: 86, h: 1 });
     expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 7, w: 120, h: 11 });
-    // The right dock keeps the game pane's 5 rows; its panes drop in DROP_ORDER until UI is left (ADR 0101).
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 5 });
+    // Wide case: the right dock keeps the game pane's 5 rows and the input
+    // row's; its panes drop in DROP_ORDER until UI is left (ADR 0101, 0102).
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 6 });
     expect(r.docks.right!.panes).toEqual(['ui']);
     expect(r.hidden).toEqual(['group', 'timers', 'character']);
     // A lane below the minimum is shown at the minimum (ADR 0064).
@@ -273,7 +292,7 @@ describe('allocate', () => {
     expect(c.game.h).toBe(17);
   });
 
-  it('lays out the top dock above the game pane, side by side, between the side docks', () => {
+  it('lays out the top dock above the game pane, side by side, between the side docks (narrow case)', () => {
     let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'group', 'left', 0, 0);
     m = setLaneSize(m, 'left', 0, 20);
@@ -289,7 +308,7 @@ describe('allocate', () => {
     expect(r.input).toEqual({ x: 21, y: 49, w: 120 - 21, h: 1 });
   });
 
-  it('fits top and bottom docks together and keeps the game pane 5 rows high', () => {
+  it('fits top and bottom docks together and keeps the game pane 5 rows high (wide case)', () => {
     let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     const r = allocate(input(120, 50, m));
@@ -297,9 +316,9 @@ describe('allocate', () => {
     expect(r.docks.top!.rect).toEqual({ x: 0, y: 0, w: 86, h: 10 });
     expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 120, h: 10 });
     expect(r.game).toEqual({ x: 0, y: 11, w: 86, h: 27 });
-    expect(r.input).toEqual({ x: 0, y: 38, w: 120, h: 1 });
-    // The right dock runs from the top past the top dock and the game pane down to the input row.
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 38 });
+    expect(r.input).toEqual({ x: 0, y: 38, w: 86, h: 1 });
+    // The right dock runs from the top past the top dock, the game pane and the input row down to the gap row.
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 39 });
     // 18 rows: game 5 + input 1 leave 12 for docks and gaps.
     const s = allocate(input(120, 18, m));
     expect(s.game.h).toBe(5);
@@ -324,17 +343,22 @@ describe('allocate', () => {
     expect(u.game).toEqual({ x: 0, y: 0, w: 86, h: 17 - 9 });
   });
 
-  it('stacks the centre column: top dock, game, input row; the input row to the right edge, the bottom dock across the screen (ADR 0101)', () => {
+  it('stacks the centre column: top dock, game, input row; the bottom dock across the screen; either input row case (ADR 0101, 0102)', () => {
     let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     m = movePane(m, 'group', 'left', 0, 0);
-    for (const [cols, rows] of [[120, 50], [100, 30], [70, 18], [200, 80]] as const) {
+    const seen = new Set<string>();
+    for (const [cols, rows] of [[120, 50], [100, 30], [70, 18], [200, 80], [160, 40]] as const) {
       const r = allocate(input(cols, rows, m));
       const t = r.docks.top;
       const b = r.docks.bottom;
+      const rd = r.docks.right;
+      seen.add(r.inputSpan);
       expect(r.input.h).toBe(1);
       expect(r.input.x).toBe(r.game.x);
-      expect(r.input.x + r.input.w).toBe(cols);
+      // Narrow: on under the right dock to the screen edge; wide (or no right dock): the game column.
+      expect(r.inputSpan).toBe(rd && !inputFitsGameColumn(r.game.w, BAR_FS) ? 'screen' : 'game');
+      expect(r.input.w).toBe(r.inputSpan === 'screen' ? cols - r.input.x : r.game.w);
       expect(r.input.y).toBe(r.game.y + r.game.h);
       expect(r.game.h).toBeGreaterThanOrEqual(5);
       expect(r.game.w).toBeGreaterThanOrEqual(GAME_MIN_COLS);
@@ -347,14 +371,14 @@ describe('allocate', () => {
         expect(r.input.y + 1).toBe(rows);
       }
       // The left dock ends at the gap row above the bottom dock (beside the
-      // input row), the right dock right above the input row.
+      // input row); the right dock there too (wide) or right above the input row (narrow).
       const l = r.docks.left;
       if (l) expect(l.rect).toMatchObject({ y: 0, h: b ? b.rect.y - 1 : rows });
       if (l) expect(l.rect.y + l.rect.h).toBe(r.input.y + 1);
-      const rd = r.docks.right;
-      if (rd) expect(rd.rect).toMatchObject({ y: 0, h: r.input.y });
+      if (rd) expect(rd.rect).toMatchObject({ y: 0, h: r.inputSpan === 'screen' ? r.input.y : r.input.y + 1 });
       if (rd) expect(rd.rect.x + rd.rect.w).toBe(cols);
     }
+    expect([...seen].sort()).toEqual(['game', 'screen']);
   });
 
   it('never drops the input row, even when every dock is crowded', () => {
@@ -444,7 +468,7 @@ describe('allocate: dock lanes (ADR 0064)', () => {
   /** Right dock: lane 0 (outer) = character, timers, comm, ui; lane 1 (inner, 20 wide) = group. */
   const rightTwo = (): LayoutModel => moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
 
-  it('puts two lanes of the right dock side by side, lane 0 at the screen edge', () => {
+  it('puts two lanes of the right dock side by side, lane 0 at the screen edge (narrow case)', () => {
     const r = allocate(input(120, 50, rightTwo()));
     const d = r.docks.right!;
     expect(d.rect).toEqual({ x: 67, y: 0, w: 53, h: 49 });
@@ -499,14 +523,14 @@ describe('allocate: dock lanes (ADR 0064)', () => {
     expect(r.panes.map((p) => p.id)).toEqual(['character', 'comm', 'ui', 'group', 'timers']);
   });
 
-  it('gives no space to a lane whose panes are all hidden', () => {
+  it('gives no space to a lane whose panes are all hidden (wide case)', () => {
     const r = allocate(input(120, 50, rightTwo(), toggles(['group'])));
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 49 });
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 50 });
     expect(r.docks.right!.lanes.map((l) => l.index)).toEqual([0]);
     expect(r.game.w).toBe(86);
     // The outer lane hidden: the inner one moves to the screen edge.
     const o = allocate(input(120, 50, rightTwo(), toggles(['character', 'timers', 'comm', 'ui'])));
-    expect(o.docks.right!.lanes.map((l) => [l.index, l.rect])).toEqual([[1, { x: 100, y: 0, w: 20, h: 49 }]]);
+    expect(o.docks.right!.lanes.map((l) => [l.index, l.rect])).toEqual([[1, { x: 100, y: 0, w: 20, h: 50 }]]);
     expect(o.panes.map((p) => [p.id, p.lane])).toEqual([['group', 1]]);
   });
 
@@ -635,38 +659,38 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     expect(d.docks.right!.spans).toEqual([]);
   });
 
-  it('right dock: a head span across both columns, the columns below it', () => {
+  it('right dock: a head span across both columns, the columns below it (wide case)', () => {
     const m = movePane(twoRight(), 'map', 'right', 'head', 0);
     const r = allocate(input(200, 70, m, toggles([], [], true)));
     const dock = r.docks.right!;
-    // 69 rows: the dock ends above the input row (ADR 0101).
-    expect(dock.rect).toEqual({ x: 147, y: 0, w: 53, h: 69 });
-    // Region desired 40 (lane 0), map 22: the 7 left over go to the map (it ranks above the region's best, UI).
-    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 53, h: 29 });
-    expect(dock.spans).toEqual([{ side: 'head', rect: { x: 147, y: 0, w: 53, h: 29 }, panes: ['map'], mode: 'fit' }]);
-    expect(dock.region).toEqual({ x: 147, y: 29, w: 53, h: 40 });
+    // The full 70 rows: the input row stays in the game column (ADR 0102).
+    expect(dock.rect).toEqual({ x: 147, y: 0, w: 53, h: 70 });
+    // Region desired 40 (lane 0), map 22: the 8 left over go to the map (it ranks above the region's best, UI).
+    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 53, h: 30 });
+    expect(dock.spans).toEqual([{ side: 'head', rect: { x: 147, y: 0, w: 53, h: 30 }, panes: ['map'], mode: 'fit' }]);
+    expect(dock.region).toEqual({ x: 147, y: 30, w: 53, h: 40 });
     expect(dock.lanes.map((l) => l.rect)).toEqual([
-      { x: 167, y: 29, w: 33, h: 40 },
-      { x: 147, y: 29, w: 20, h: 40 },
+      { x: 167, y: 30, w: 33, h: 40 },
+      { x: 147, y: 30, w: 20, h: 40 },
     ]);
-    expect(rect(r, 'character')).toEqual({ x: 167, y: 29, w: 33, h: 11 });
-    expect(rect(r, 'group')!.y).toBe(29);
+    expect(rect(r, 'character')).toEqual({ x: 167, y: 30, w: 33, h: 11 });
+    expect(rect(r, 'group')!.y).toBe(30);
     expect(box(r, 'map')).toMatchObject({ dock: 'right', lane: 'head', index: 0, framed: true });
     expect(dock.panes).toEqual(['map', 'character', 'timers', 'comm', 'ui', 'group']);
     expect(r.panes.slice(0, 2).map((p) => p.id)).toEqual(['map', 'character']);
   });
 
-  it('a tail span below the columns, and the region gets the leftover when it holds the map', () => {
+  it('a tail span below the columns, and the region gets the leftover when it holds the map (wide case)', () => {
     let m = movePane(twoRight(), 'map', 'right', 1, 0);
     m = movePane(m, 'ui', 'right', 'tail', 0);
     const r = allocate(input(200, 70, m, toggles([], [], true)));
     const dock = r.docks.right!;
-    // ui: 5 + 2 at the bottom, right above the input row; the region (map in lane 1) takes the rest.
-    expect(rect(r, 'ui')).toEqual({ x: 147, y: 62, w: 53, h: 7 });
-    expect(dock.region).toEqual({ x: 147, y: 0, w: 53, h: 62 });
+    // ui: 5 + 2 at the bottom of the screen; the region (map in lane 1) takes the rest.
+    expect(rect(r, 'ui')).toEqual({ x: 147, y: 63, w: 53, h: 7 });
+    expect(dock.region).toEqual({ x: 147, y: 0, w: 53, h: 63 });
     expect(dock.spans.map((s) => s.side)).toEqual(['tail']);
     // In lane 1 the map takes the region's leftover.
-    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 20, h: 62 - 8 });
+    expect(rect(r, 'map')).toEqual({ x: 147, y: 0, w: 20, h: 63 - 8 });
     expect(box(r, 'ui')).toMatchObject({ lane: 'tail', index: 0 });
   });
 
@@ -717,7 +741,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     ]);
   });
 
-  it('drops from the spans and the binding lane only when the minimums do not fit', () => {
+  it('drops from the spans and the binding lane only when the minimums do not fit (narrow case)', () => {
     const S = 's/p' as PaneId;
     const A = 'a/x' as PaneId;
     // 17 rows above the input row. Head: timers, ui (6); lane 0: character, comm, group, a/x (14, binding); lane 1: s/p (3).
@@ -751,10 +775,10 @@ describe('allocate: spanning panes (ADR 0067)', () => {
     // Every lane pane off: the span alone, as wide as the stored lanes.
     const off = toggles(['character', 'timers', 'group', 'comm', 'ui']);
     const alone = allocate({ ...input(200, 70, m, off), present: new Set([S]) });
-    expect(alone.docks.right!.rect).toEqual({ x: 147, y: 0, w: 53, h: 69 });
+    expect(alone.docks.right!.rect).toEqual({ x: 147, y: 0, w: 53, h: 70 });
     expect(alone.docks.right!.region).toBeNull();
     expect(alone.docks.right!.lanes).toEqual([]);
-    expect(rect(alone, S)).toEqual({ x: 147, y: 0, w: 53, h: 69 });
+    expect(rect(alone, S)).toEqual({ x: 147, y: 0, w: 53, h: 70 });
   });
 
   it('collapses and shrinks a dock with spans as a whole', () => {
@@ -789,7 +813,7 @@ describe('allocate: spanning panes (ADR 0067)', () => {
 });
 
 
-describe('allocate: dock structure with the menu bar (ADR 0101)', () => {
+describe('allocate: narrow case, the input row under the right dock (ADR 0101)', () => {
   /** Left dock (20): Comm; right dock: Character, Timers, UI; bottom dock: Group. */
   const three = (): LayoutModel => {
     let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
@@ -798,17 +822,19 @@ describe('allocate: dock structure with the menu bar (ADR 0101)', () => {
   };
 
   it('left, right and bottom docks: the bottom dock spans the screen under the left dock and the input row', () => {
-    const r = allocate(input(140, 50, three()));
+    // A 75-cell game column leaves 75 − 2 − 26 = 47 < 50 to type: narrow.
+    const r = allocate(input(130, 50, three()));
+    expect(r.inputSpan).toBe('screen');
     // Bottom dock rows 40–49, gap row 39, input row 38.
-    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 140, h: 10 });
-    expect(r.panes.find((p) => p.id === 'group')!.rect).toEqual({ x: 0, y: 40, w: 140, h: 10 });
+    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 130, h: 10 });
+    expect(r.panes.find((p) => p.id === 'group')!.rect).toEqual({ x: 0, y: 40, w: 130, h: 10 });
     // The left dock ends at the gap row, beside the input row.
     expect(r.docks.left!.rect).toEqual({ x: 0, y: 0, w: 20, h: 39 });
     // The game pane keeps its width between the side docks; the input row runs on to the screen edge.
-    expect(r.game).toEqual({ x: 21, y: 0, w: 140 - 21 - 34, h: 38 });
-    expect(r.input).toEqual({ x: 21, y: 38, w: 140 - 21, h: 1 });
+    expect(r.game).toEqual({ x: 21, y: 0, w: 130 - 21 - 34, h: 38 });
+    expect(r.input).toEqual({ x: 21, y: 38, w: 130 - 21, h: 1 });
     // The right dock ends right above the input row; its last pane touches it.
-    expect(r.docks.right!.rect).toEqual({ x: 107, y: 0, w: 33, h: 38 });
+    expect(r.docks.right!.rect).toEqual({ x: 97, y: 0, w: 33, h: 38 });
     const right = r.panes.filter((p) => p.dock === 'right');
     expect(right.at(-1)!.rect.y + right.at(-1)!.rect.h).toBe(r.input.y);
     expect(r.hidden).toEqual([]);
@@ -827,6 +853,7 @@ describe('allocate: dock structure with the menu bar (ADR 0101)', () => {
   });
 
   it('narrow collapse gives the freed width to the game column and the input row; the bottom dock stays full width', () => {
+    // Every game column here leaves fewer than 50 cells to type: the narrow case wherever a right dock shows.
     // 20 + 1 + 30 + 1 + 33 = 85 columns keep both side docks.
     const both = allocate(input(85, 40, three()));
     expect(both.collapsed).toEqual([]);
@@ -884,18 +911,19 @@ describe('allocate: dock structure with the menu bar (ADR 0101)', () => {
     let m = movePane(legacyLayout(), 'comm', 'top', 0, 0);
     m = movePane(m, 'ui', 'bottom', 0, 0);
     m = setLaneSize(setLaneSize(m, 'top', 0, 40), 'bottom', 0, 40);
-    // 18 rows: top 3 + gap + game 5 = the right dock's 9 rows above the input row; bottom 7.
-    const r = allocate(input(120, 18, m));
+    // 110 columns: a 76-cell game column, 48 to type. 18 rows: top 3 + gap + game 5 = the right dock's 9 rows above the input row; bottom 7.
+    const r = allocate(input(110, 18, m));
+    expect(r.inputSpan).toBe('screen');
     expect(r.docks.top!.rect.h).toBe(3);
-    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 11, w: 120, h: 7 });
-    expect(r.game).toEqual({ x: 0, y: 4, w: 86, h: 5 });
-    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 9 });
+    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 11, w: 110, h: 7 });
+    expect(r.game).toEqual({ x: 0, y: 4, w: 76, h: 5 });
+    expect(r.docks.right!.rect).toEqual({ x: 77, y: 0, w: 33, h: 9 });
     // Character 5 + Timers 3 fit; Group drops (DROP_ORDER).
     expect(r.docks.right!.panes).toEqual(['character', 'timers']);
     expect(r.hidden).toEqual(['group']);
     // Taller windows give it the rows back.
     for (let rows = 18; rows <= 60; rows++) {
-      const t = allocate(input(120, rows, m));
+      const t = allocate(input(110, rows, m));
       const d = t.docks.right!;
       expect(d.rect.y + d.rect.h).toBe(t.input.y);
       expect(d.panes.length).toBeGreaterThan(0);
@@ -907,11 +935,163 @@ describe('allocate: dock structure with the menu bar (ADR 0101)', () => {
     let m = moveToNewLane(legacyLayout(), 'group', 'right', 1, 20);
     m = movePane(m, 'ui', 'right', 'tail', 0);
     m = movePane(m, 'comm', 'bottom', 0, 0);
-    const r = allocate(input(160, 50, m));
+    // A 76-cell game column: narrow.
+    const r = allocate(input(130, 50, m));
     const ui = r.panes.find((p) => p.id === 'ui')!.rect;
     expect(ui.y + ui.h).toBe(r.input.y);
-    expect(r.input).toEqual({ x: 0, y: 38, w: 160, h: 1 });
-    expect(r.docks.right!.rect).toEqual({ x: 107, y: 0, w: 53, h: 38 });
+    expect(r.input).toEqual({ x: 0, y: 38, w: 130, h: 1 });
+    expect(r.docks.right!.rect).toEqual({ x: 77, y: 0, w: 53, h: 38 });
+    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 130, h: 10 });
+    // Wide (a 106-cell game column): the tail span ends at the gap row, beside the input row.
+    const w = allocate(input(160, 50, m));
+    const wui = w.panes.find((p) => p.id === 'ui')!.rect;
+    expect(w.input).toEqual({ x: 0, y: 38, w: 106, h: 1 });
+    expect(wui.y + wui.h).toBe(39);
+    expect(w.docks.right!.rect).toEqual({ x: 107, y: 0, w: 53, h: 39 });
+  });
+});
+
+describe("allocate: the input row's case (ADR 0102)", () => {
+  /** Left dock (20): Comm; right dock (33): Character, Timers, UI; bottom dock (10): Group. */
+  const three = (): LayoutModel => {
+    let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
+    m = setLaneSize(m, 'left', 0, 20);
+    return movePane(m, 'group', 'bottom', 0, 0);
+  };
+  /** Cells left to type in the wide case: the game column less `> ` and the bar. */
+  const typing = (r: ReturnType<typeof allocate>, bar = BAR_FS): number => r.game.w - 2 - bar;
+
+  it('wide: the right dock runs down to the bottom dock like the left one, the input row spans the game column', () => {
+    const r = allocate(input(160, 50, three()));
+    expect(typing(r)).toBe(105 - 28);
+    expect(r.inputSpan).toBe('game');
+    expect(r.game).toEqual({ x: 21, y: 0, w: 105, h: 38 });
+    // The input row under the game pane only; the bar at its right end, left of the right gap column.
+    expect(r.input).toEqual({ x: 21, y: 38, w: 105, h: 1 });
+    // Both side docks end at the gap row above the bottom dock.
+    expect(r.docks.left!.rect).toEqual({ x: 0, y: 0, w: 20, h: 39 });
+    expect(r.docks.right!.rect).toEqual({ x: 127, y: 0, w: 33, h: 39 });
+    const right = r.panes.filter((p) => p.dock === 'right');
+    expect(right.at(-1)!.rect.y + right.at(-1)!.rect.h).toBe(39);
+    // The bottom dock still spans the screen.
     expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 160, h: 10 });
+    expect(r.hidden).toEqual([]);
+  });
+
+  it('narrow: the round 1 geometry, the input row under the right dock to the screen edge', () => {
+    const r = allocate(input(120, 50, three()));
+    expect(typing(r)).toBe(65 - 28);
+    expect(r.inputSpan).toBe('screen');
+    expect(r.game).toEqual({ x: 21, y: 0, w: 65, h: 38 });
+    expect(r.input).toEqual({ x: 21, y: 38, w: 99, h: 1 });
+    expect(r.docks.left!.rect).toEqual({ x: 0, y: 0, w: 20, h: 39 });
+    // The right dock ends right above the input row.
+    expect(r.docks.right!.rect).toEqual({ x: 87, y: 0, w: 33, h: 38 });
+    expect(r.docks.bottom!.rect).toEqual({ x: 0, y: 40, w: 120, h: 10 });
+  });
+
+  it('switches exactly at 50 cells to type: 50 is wide, 49 is narrow', () => {
+    expect(INPUT_TYPE_MIN).toBe(50);
+    // Default layout: the game column is cols − 34; to type: cols − 34 − 2 − 26.
+    const at = allocate(input(112, 40));
+    expect(typing(at)).toBe(50);
+    expect(at.inputSpan).toBe('game');
+    expect(at.input).toEqual({ x: 0, y: 39, w: 78, h: 1 });
+    expect(at.docks.right!.rect).toEqual({ x: 79, y: 0, w: 33, h: 40 });
+    const below = allocate(input(111, 40));
+    expect(typing(below)).toBe(49);
+    expect(below.inputSpan).toBe('screen');
+    expect(below.input).toEqual({ x: 0, y: 39, w: 111, h: 1 });
+    expect(below.docks.right!.rect).toEqual({ x: 78, y: 0, w: 33, h: 39 });
+    // The game pane is the same in both cases: only the input row and the right dock change.
+    expect(inputFitsGameColumn(78, BAR_FS)).toBe(true);
+    expect(inputFitsGameColumn(77, BAR_FS)).toBe(false);
+  });
+
+  it('the bar without the fullscreen button (24 cells) moves the threshold two columns', () => {
+    expect(BAR_FS).toBe(26);
+    expect(BAR_NO_FS).toBe(24);
+    // 110 columns: a 76-cell game column, 50 to type beside 24 cells, 48 beside 26.
+    expect(allocate(input(110, 40, legacyLayout(), toggles(), BAR_NO_FS)).inputSpan).toBe('game');
+    expect(allocate(input(110, 40)).inputSpan).toBe('screen');
+    expect(allocate(input(109, 40, legacyLayout(), toggles(), BAR_NO_FS)).inputSpan).toBe('screen');
+    // No bar input at all counts as 0 cells.
+    // 100 columns: a 66-cell game column, 64 to type without a bar, 38 beside the bar.
+    const { barCells: _bar, ...noBar } = input(100, 40);
+    expect(allocate(noBar).inputSpan).toBe('game');
+    expect(allocate(input(100, 40)).inputSpan).toBe('screen');
+  });
+
+  it('without a right dock the input row spans the game column, however narrow', () => {
+    let m = movePane(legacyLayout(), 'character', 'left', 0, 0);
+    for (const id of ['timers', 'group', 'comm', 'ui'] as const) m = movePane(m, id, 'left', 0, 0);
+    m = setLaneSize(m, 'left', 0, 20);
+    const r = allocate(input(70, 30, m));
+    expect(r.docks.right).toBeUndefined();
+    expect(typing(r)).toBeLessThan(50);
+    expect(r.inputSpan).toBe('game');
+    expect(r.input).toEqual({ x: 21, y: 29, w: 49, h: 1 });
+    // Every pane off: no docks, the input row is the screen's width.
+    const none = allocate(input(70, 30, legacyLayout(), toggles([...PANE_IDS])));
+    expect(none.inputSpan).toBe('game');
+    expect(none.input).toEqual({ x: 0, y: 29, w: 70, h: 1 });
+  });
+
+  it('decides after narrow collapse, from the game column that is left', () => {
+    // Left dock 50 wide, right 33: both need 50 + 1 + 30 + 1 + 33 = 115 columns.
+    let m = movePane(legacyLayout(), 'comm', 'left', 0, 0);
+    m = setLaneSize(m, 'left', 0, 50);
+    const both = allocate(input(115, 40, m));
+    expect(both.collapsed).toEqual([]);
+    expect(both.game.w).toBe(GAME_MIN_COLS);
+    expect(both.inputSpan).toBe('screen');
+    expect(both.docks.right!.rect.h).toBe(39);
+    // One column less: the left dock collapses and the 80-cell game column leaves 52 to type: wide.
+    const r = allocate(input(114, 40, m));
+    expect(r.collapsed).toEqual(['left']);
+    expect(r.game.w).toBe(80);
+    expect(r.inputSpan).toBe('game');
+    expect(r.input).toEqual({ x: 0, y: 39, w: 80, h: 1 });
+    expect(r.docks.right!.rect).toEqual({ x: 81, y: 0, w: 33, h: 40 });
+    // The right dock collapsing leaves no right dock: the game column.
+    const k = allocate(input(70, 40, setLaneSize(setLaneSize(m, 'left', 0, 12), 'right', 0, 50)));
+    expect(k.collapsed).toEqual(['right']);
+    expect(k.inputSpan).toBe('game');
+    expect(k.input).toEqual({ x: 13, y: 39, w: 57, h: 1 });
+  });
+
+  it('with and without a bottom dock: the right dock reaches the gap row or the screen bottom (wide), the input row (narrow)', () => {
+    const plain = movePane(legacyLayout(), 'comm', 'left', 0, 0);
+    const withBottom = movePane(plain, 'group', 'bottom', 0, 0);
+    // Wide, no bottom dock: both side docks the full height.
+    const a = allocate(input(160, 50, plain));
+    expect(a.inputSpan).toBe('game');
+    expect(a.docks.left!.rect.h).toBe(50);
+    expect(a.docks.right!.rect.h).toBe(50);
+    expect(a.input.y).toBe(49);
+    // Wide, bottom dock: both end at the gap row.
+    const b = allocate(input(160, 50, withBottom));
+    expect(b.docks.right!.rect.h).toBe(b.docks.bottom!.rect.y - 1);
+    expect(b.docks.left!.rect.h).toBe(b.docks.bottom!.rect.y - 1);
+    expect(b.docks.bottom!.rect).toMatchObject({ x: 0, w: 160 });
+    // Narrow, no bottom dock: the right dock ends above the input row, the left one at the bottom.
+    const c = allocate(input(130, 50, plain));
+    expect(c.inputSpan).toBe('screen');
+    expect(c.docks.right!.rect.h).toBe(49);
+    expect(c.docks.left!.rect.h).toBe(50);
+    expect(c.input).toEqual({ x: c.game.x, y: 49, w: 130 - c.game.x, h: 1 });
+    // Narrow, bottom dock: the right dock above the input row, the left one at the gap row.
+    const d = allocate(input(130, 50, withBottom));
+    expect(d.docks.right!.rect.h).toBe(d.input.y);
+    expect(d.docks.left!.rect.h).toBe(d.input.y + 1);
+    expect(d.docks.bottom!.rect).toMatchObject({ x: 0, w: 130 });
+  });
+
+  it('does not depend on the rows or the bottom dock: the same columns give the same case', () => {
+    const m = movePane(legacyLayout(), 'comm', 'bottom', 0, 0);
+    for (const cols of [100, 111, 112, 140]) {
+      const spans = new Set([18, 30, 50, 80].map((rows) => allocate(input(cols, rows, m)).inputSpan));
+      expect(spans.size).toBe(1);
+    }
   });
 });

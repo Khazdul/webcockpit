@@ -117,6 +117,7 @@ export function allocatePhone(input: PhoneAllocateInput): PhoneLayoutResult {
     tooSmall: false,
     game: EMPTY,
     input: inputRect,
+    inputSpan: 'game',
     docks: {},
     collapsed: [],
     panes: [],

@@ -90,7 +90,7 @@ import { RoomNotes } from '../map/notes';
 import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
-import { MenuBar } from '../menubar/menubar';
+import { CLOCK_CELLS, MenuBar } from '../menubar/menubar';
 import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
@@ -473,6 +473,7 @@ export class App {
           scriptPanes: { list: () => this.cockpit.scriptPanes(), subscribe: (fn) => this.cockpit.onScriptPanes(fn) },
           focusInput: () => this.input.focus(),
           now,
+          onCells: (cells) => this.cockpit.setBarCells(cells),
           actions: {
             profile: () => barUi.openMenuAt('profile'),
             scripts: () => barUi.openMenuAt('scripts'),
@@ -486,6 +487,8 @@ export class App {
         })
       : null;
     if (this.menuBar) this.clockStrip = this.menuBar.clock;
+    // Without the bar the clock strip ends the input row (ADR 0102 counts it).
+    else this.cockpit.setBarCells(CLOCK_CELLS);
     this.writeBack = this.profiles
       ? new ProfileWriteBack(this.profiles, {
           ...(opts.writeBackDelayMs !== undefined ? { delayMs: opts.writeBackDelayMs } : {}),

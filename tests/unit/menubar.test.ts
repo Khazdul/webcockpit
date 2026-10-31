@@ -88,6 +88,7 @@ function setup(opts: { runs?: LiveRuns; fullscreen?: boolean } = {}) {
     reconnect: vi.fn(),
   };
   const focusInput = vi.fn(() => input.focus());
+  const cells: number[] = [];
   const bar = new MenuBar({
     clockEl,
     layer,
@@ -99,6 +100,7 @@ function setup(opts: { runs?: LiveRuns; fullscreen?: boolean } = {}) {
     focusInput,
     actions: actions as unknown as MenuBarActions,
     now: () => now,
+    onCells: (n) => cells.push(n),
   });
   const btn = (id: string) => bar.bar.querySelector<HTMLButtonElement>(`[data-mb="${id}"]`);
   const tip = (el: HTMLElement) => {
@@ -107,7 +109,7 @@ function setup(opts: { runs?: LiveRuns; fullscreen?: boolean } = {}) {
   };
   const key = (target: HTMLElement, k: string) =>
     target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
-  return { bar, row, input, clockEl, layer, game, settings, status, setPanes, actions, focusInput, btn, tip, key, setNow: (n: number) => (now = n) };
+  return { bar, row, input, clockEl, layer, game, settings, status, setPanes, actions, focusInput, btn, tip, key, cells, setNow: (n: number) => (now = n) };
 }
 
 afterEach(() => {
@@ -156,6 +158,8 @@ describe('menu bar layout', () => {
     await vi.advanceTimersByTimeAsync(2000);
     expect(t.btn('fullscreen')).toBeNull();
     expect(t.bar.bar.style.width).toBe(`calc(${barCells(false)} * var(--cell-w))`);
+    // The cockpit is told each width: it decides the input row's case (ADR 0102).
+    expect(t.cells).toEqual([barCells(true), barCells(false)]);
   });
 
   it('never takes the focus on a mouse down', () => {

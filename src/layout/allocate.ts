@@ -4,7 +4,27 @@
 // (in cells) to rectangles in cells. No DOM: src/layout/cockpit.ts turns
 // the result into pixels once per frame.
 //
-// Screen (C × R cells; ADR 0101):
+// Screen (C × R cells; ADR 0101, ADR 0102). The input row's extent
+// depends on the room left to type (`inputSpan`). Wide: the typing field
+// gets at least INPUT_TYPE_MIN cells beside the bar in the game column, so
+// the input row stays in the game column and the right dock runs down like
+// the left one (`inputSpan` = `game`):
+//
+//   +------+--+----------------------+--+---------+
+//   | left |  |   top dock           |  |  right  |
+//   | dock |g +----------------------+g |  dock   |
+//   |      |a |      (gap row)       |a |         |
+//   |      |p |        game          |p |         |
+//   |      |  +----------------------+  |         |
+//   |      |  | input    clock … bar |  |         |
+//   +------+--+----------------------+--+---------+
+//   |            (gap row)                        |
+//   |     bottom dock, full screen width          |
+//   +---------------------------------------------+
+//
+// Narrow: fewer than INPUT_TYPE_MIN cells; the input row runs on under the
+// right gap column and the right dock to the screen edge, and the right
+// dock ends above it (`inputSpan` = `screen`, ADR 0101):
 //
 //   +------+--+----------------------+--+---------+
 //   | left |  |   top dock           |  |  right  |
@@ -20,27 +40,31 @@
 //
 // - The top dock sits between the side docks (and their gap columns),
 //   above the game pane, as wide as it.
-// - The right dock runs from the top down to just above the input row.
 // - The input row (1 row: the input field, the notices, the clock or the
-//   menu bar at its right end) starts at the game pane's left edge and
-//   runs to the screen's right edge, under the right gap column and the
-//   right dock. The game pane keeps its width; only the input row is
-//   wider than it.
+//   menu bar at its right end) starts at the game pane's left edge. The
+//   case is decided from the wide geometry alone: the typing field there
+//   is the game column's width less the prompt `> ` and the bar
+//   (`barCells`, ADR 0099); transient notices do not count. It does not
+//   depend on itself, so it cannot oscillate. Without a shown right dock
+//   the two cases are the same (`game`). The game pane keeps its width in
+//   both; only the narrow case's input row is wider than it.
+// - The right dock runs from the top down to the gap row above the bottom
+//   dock (wide) or to just above the input row (narrow).
 // - The left dock runs from the top down to the gap row above the bottom
 //   dock, beside the input row (to the bottom of the screen without a
 //   bottom dock).
-// - The bottom dock spans the whole screen width, under the left dock
-//   and the input row.
-// - One gap cell separates the game column (and the input row) from the
-//   left dock and the game column from the right dock; one gap row
-//   separates the top dock from the game pane and the input row and the
-//   left dock from the bottom dock. The input row sits directly under the
-//   game pane and the right dock. Panes inside a dock touch (their frames
-//   separate them, as in Cockpit).
+// - The bottom dock spans the whole screen width, under the side docks
+//   (the left one, and the right one in the wide case) and the input row.
+// - One gap cell separates the game column (and the input row) from each
+//   side dock; one gap row separates the top dock from the game pane and
+//   the input row and the side docks from the bottom dock. In the narrow
+//   case the input row sits directly under the game pane and the right
+//   dock. Panes inside a dock touch (their frames separate them, as in
+//   Cockpit).
 // - Heights: the game pane keeps GAME_MIN_ROWS, so the right dock is
-//   always at least that high (plus the top dock and its gap row); it
-//   loses the input row and the bottom dock with its gap row, the left
-//   dock the bottom dock and its gap row. A side dock too short for its
+//   always at least that high (plus the top dock and its gap row); a side
+//   dock loses the bottom dock with its gap row, and in the narrow case
+//   the right dock the input row too. A side dock too short for its
 //   panes drops them in DROP_ORDER like any lane; one pane at its
 //   minimum always fits, so a shown side dock is never empty.
 // - Each dock is a list of lanes (ADR 0064), from the screen edge inward:
@@ -93,8 +117,9 @@
 //   Each is clamped into the window (shrunk if the window is smaller than
 //   it) on every layout; the model keeps the stored rectangle.
 // - Narrow collapse frees the side dock's width for the game column; the
-//   input row always runs from the game pane's left edge to the screen's
-//   right edge, so it gets the freed width too.
+//   input row starts at the game pane's left edge and spans at least the
+//   game column, so it gets the freed width too. The input row's case is
+//   decided after the collapse, from the game column that is left.
 // - Below MIN_VIEW_COLS × MIN_VIEW_ROWS the result is `tooSmall`.
 // - Script panes (ADR 0053) take part only while they are `present` (their
 //   script runs and has created them); otherwise they take no space and
@@ -121,7 +146,7 @@ export const MIN_VIEW_COLS = 60;
 export const MIN_VIEW_ROWS = 18;
 /** Cells a frame adds on each axis (top+bottom rows or left+right columns). */
 export const FRAME_CELLS = 2;
-/** Gap between the game column and a side dock, the top dock and the game pane, or the input row and left dock and the bottom dock (ADR 0101). */
+/** Gap between the game column and a side dock, the top dock and the game pane, or the input row and side docks and the bottom dock (ADR 0101, ADR 0102). */
 export const DOCK_GAP = 1;
 /** Narrowest side dock and lowest top/bottom dock (cells, frame included). */
 export const SIDE_DOCK_MIN = 10;
@@ -134,6 +159,23 @@ export function laneMin(dock: DockId): number {
 }
 /** Rows of the input line. */
 export const INPUT_ROWS = 1;
+/** Cells of the input row's prompt `> ` (src/ui/input-pane.ts). */
+export const INPUT_PROMPT_CELLS = 2;
+/**
+ * Fewest cells the typing field keeps beside the bar for the input row to
+ * stay in the game column, the right dock running down beside it (ADR
+ * 0102). With fewer the input row runs under the right dock (ADR 0101).
+ */
+export const INPUT_TYPE_MIN = 50;
+
+/**
+ * Whether an input row as wide as a `gameCols` game column leaves at least
+ * INPUT_TYPE_MIN cells to type beside a `barCells` bar (ADR 0102): the
+ * wide case, the input row in the game column.
+ */
+export function inputFitsGameColumn(gameCols: number, barCells: number): boolean {
+  return gameCols - INPUT_PROMPT_CELLS - barCells >= INPUT_TYPE_MIN;
+}
 
 /** Minimum content rows in a side dock (Inv §2.1 "Heights"). */
 export const MIN_ROWS: Readonly<Record<BuiltinPaneId, number>> = {
@@ -413,6 +455,12 @@ export interface AllocateInput {
   /** Viewport in whole cells. */
   cols: number;
   rows: number;
+  /**
+   * Cells the input row keeps at its right end for the menu bar or the
+   * clock strip (ADR 0099), whole cells; transient notices do not count.
+   * It decides the input row's case (ADR 0102). Absent: 0.
+   */
+  barCells?: number;
 }
 
 export interface PaneBox {
@@ -479,8 +527,19 @@ export interface LayoutResult {
   /** The viewport is below MIN_VIEW_COLS × MIN_VIEW_ROWS; nothing else is laid out. */
   tooSmall: boolean;
   game: Rect;
-  /** The input row: from the game pane's left edge to the screen's right edge, under the game pane and the right dock (ADR 0101). */
+  /**
+   * The input row, from the game pane's left edge: across the game column
+   * (`inputSpan` = `game`) or on under the right dock to the screen's right
+   * edge (`screen`; ADR 0101, ADR 0102).
+   */
   input: Rect;
+  /**
+   * The input row's case (ADR 0102). `game`: it spans the game column and
+   * the right dock runs down to the bottom dock's gap row (or the screen
+   * bottom); also without a shown right dock. `screen`: it runs under the
+   * right dock to the screen edge, and the right dock ends above it.
+   */
+  inputSpan: 'game' | 'screen';
   /** Shown docks only. */
   docks: Partial<Record<DockId, DockBox>>;
   /** Docks with panes switched on that are hidden for lack of space. */
@@ -599,6 +658,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     tooSmall: false,
     game: EMPTY,
     input: { x: 0, y: Math.max(0, rows - INPUT_ROWS), w: cols, h: Math.min(rows, INPUT_ROWS) },
+    inputSpan: 'game',
     docks: {},
     collapsed: [],
     panes: [],
@@ -680,8 +740,12 @@ export function allocate(input: AllocateInput): LayoutResult {
   const gy = topH > 0 ? topH + DOCK_GAP : 0;
   const below = bottomH > 0 ? bottomH + DOCK_GAP : 0;
   res.game = { x: gx, y: gy, w: gw, h: rows - gy - INPUT_ROWS - below };
-  // The input row runs on under the right gap and the right dock to the screen edge (ADR 0101).
-  res.input = { x: gx, y: rows - below - INPUT_ROWS, w: cols - gx, h: INPUT_ROWS };
+  // The input row's case (ADR 0102), from the wide geometry: the game
+  // column as the input row. Too little room to type there: it runs on
+  // under the right gap and the right dock to the screen edge (ADR 0101).
+  const underRight = showR && !inputFitsGameColumn(gw, Math.max(0, input.barCells ?? 0));
+  res.inputSpan = underRight ? 'screen' : 'game';
+  res.input = { x: gx, y: rows - below - INPUT_ROWS, w: underRight ? cols - gx : gw, h: INPUT_ROWS };
 
   // One pane's box at `at` along `area` (the stack's rectangle).
   const paneBox = (
@@ -813,10 +877,11 @@ export function allocate(input: AllocateInput): LayoutResult {
     stack('tail', after);
     box.panes.push(...after.map((s) => s.id));
   };
-  // ADR 0101: the left dock ends at the gap row above the bottom dock, the
-  // right dock above the input row; the bottom dock spans the screen.
+  // ADR 0101, 0102: the left dock ends at the gap row above the bottom
+  // dock, the right dock there too or (narrow case) above the input row;
+  // the bottom dock spans the screen.
   if (showL) place('left', { x: 0, y: 0, w: leftW, h: rows - below });
-  if (showR) place('right', { x: cols - rightW, y: 0, w: rightW, h: rows - below - INPUT_ROWS });
+  if (showR) place('right', { x: cols - rightW, y: 0, w: rightW, h: rows - below - (underRight ? INPUT_ROWS : 0) });
   if (topH > 0) place('top', { x: gx, y: 0, w: gw, h: topH });
   if (bottomH > 0) place('bottom', { x: 0, y: rows - bottomH, w: cols, h: bottomH });
 

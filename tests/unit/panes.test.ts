@@ -8,6 +8,7 @@ import type { ConnState } from '../../src/core/types';
 import { createPaneContext, lazyDb } from '../../src/panes/context';
 import { PaneShell } from '../../src/panes/pane';
 import { SettingsStore } from '../../src/settings';
+import { barCells } from '../../src/menubar/menubar';
 import { movePane, moveToNewLane, setLaneSize } from '../../src/layout/model';
 
 describe('frame', () => {
@@ -302,10 +303,12 @@ describe('Cockpit', () => {
     });
     Object.defineProperty(c.el, 'clientWidth', { get: () => size.width, configurable: true });
     Object.defineProperty(c.el, 'clientHeight', { get: () => size.height, configurable: true });
-    c.relayoutNow();
     const flush = () => {
       while (frames.length) frames.shift()!();
     };
+    // The desktop menu bar's width (ADR 0102 decides the input row's case with it); the first layout.
+    c.setBarCells(barCells(true));
+    flush();
     return { c, settings, size, flush };
   }
 
@@ -420,12 +423,14 @@ describe('Cockpit', () => {
     expect(c.gameEl.style.width).toBe('860px');
     expect(c.inputEl.style.top).toBe('980px');
     expect(c.inputEl.style.left).toBe('0px');
-    expect(c.inputEl.style.width).toBe('1200px'); // under the game pane and the right dock, to the edge (ADR 0101)
+    // Wide case (ADR 0102): 86 − 2 − 26 = 58 cells to type, the input row as wide as the game pane.
+    expect(c.layout!.inputSpan).toBe('game');
+    expect(c.inputEl.style.width).toBe('860px');
     expect(c.pane('character').el.style.left).toBe('870px');
     expect(c.pane('character').rows).toBe(9);
-    expect(c.pane('ui').rows).toBe(8); // the right column runs the 49 rows above the input row
+    expect(c.pane('ui').rows).toBe(8); // the right column runs the full 50 rows
     const ui = c.pane('ui').el;
-    expect(parseFloat(ui.style.top) + parseFloat(ui.style.height)).toBe(980);
+    expect(parseFloat(ui.style.top) + parseFloat(ui.style.height)).toBe(1000);
     expect(c.el.querySelectorAll('.wc-handle:not([data-border])')).toHaveLength(5); // dock gap + 4 boundaries
     // Each framed pane's border cell: 5 toward the game, 4 bottom borders above the next pane.
     expect(c.el.querySelectorAll('.wc-handle[data-border]')).toHaveLength(9);
@@ -441,7 +446,7 @@ describe('Cockpit', () => {
     expect(c.pane('ui').visible).toBe(false);
     expect(c.pane('group').visible).toBe(false);
     expect(c.pane('character').rows).toBe(9);
-    expect(c.pane('timers').rows + c.pane('comm').rows).toBe(43 - 9); // the rest of 49 rows shared without UI and Group
+    expect(c.pane('timers').rows + c.pane('comm').rows).toBe(44 - 9); // the rest of 50 rows shared without UI and Group
   });
 
   it('shows the too-small state and makes the view inert', () => {
@@ -468,11 +473,11 @@ describe('Cockpit', () => {
     expect(c.dropTarget(900, 970, 'character')).toMatchObject({ dock: 'right', index: 5 });
     expect(c.dropTarget(5, 400, 'comm')).toMatchObject({ dock: 'left', index: 0, open: true });
     expect(c.dropTarget(400, 970, 'comm')).toMatchObject({ dock: 'bottom', open: true });
-    // ADR 0101: the bottom zone runs along the whole bottom edge, its bar too; the right
-    // zone ends above the input row, the left one runs down to the bottom.
-    expect(c.dropTarget(1000, 990, 'comm')).toMatchObject({ dock: 'bottom', open: true, bar: { x: 0, w: 1200 } });
-    expect(c.dropTarget(1195, 990, 'comm')).toMatchObject({ dock: 'bottom', open: true });
-    expect(c.dropTarget(1195, 970, 'comm')).toMatchObject({ dock: 'right' });
+    // Wide case (ADR 0102): the right dock runs to the bottom, so its last row is
+    // the dock's; the bottom zone's bar runs along the whole bottom edge (ADR 0101);
+    // the left zone runs down to the bottom.
+    expect(c.dropTarget(1000, 990, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', index: 5 });
+    expect(c.dropTarget(400, 990, 'comm')).toMatchObject({ dock: 'bottom', open: true, bar: { x: 0, w: 1200 } });
     expect(c.dropTarget(5, 990, 'comm')).toMatchObject({ dock: 'left', open: true, bar: { y: 0, h: 1000 } });
     expect(c.dropTarget(400, 5, 'comm')).toMatchObject({ kind: 'dock', dock: 'top', open: true });
     // The lower half of the top row floats at row 0 instead of docking.
@@ -486,13 +491,53 @@ describe('Cockpit', () => {
     expect(c.dropTarget(850, 900, 'comm')).toEqual({ kind: 'float', rect: { x: 84, y: 36, w: 36, h: 14 } });
   });
 
+  it("follows the input row's case (ADR 0102): the input slot, the right dock, its gap handle, the edge zones", () => {
+    const { c, settings, size, flush } = make(1200, 1000); // 120 × 50: a 86-cell game column, 58 to type
+    const gap = () => c.el.querySelector<HTMLElement>('.wc-handle[data-dock="right"][data-axis="x"]:not([data-border])')!;
+    const resize = (w: number) => {
+      size.width = w;
+      c.scheduleRelayout();
+      flush();
+    };
+    // Wide: the input slot under the game pane, the right dock and its gap handle the full height.
+    expect(c.layout!.inputSpan).toBe('game');
+    expect(c.inputEl.style.width).toBe('860px');
+    expect(c.layout!.docks.right!.rect.h).toBe(50);
+    expect(gap().style.left).toBe('860px');
+    expect(gap().style.height).toBe('1000px');
+    // The right edge zone reaches the bottom row, which is the right dock's.
+    expect(c.dropTarget(1195, 990, 'comm')).toMatchObject({ dock: 'right' });
+    // 90 columns: a 56-cell game column, 28 to type: narrow (ADR 0101 geometry).
+    resize(900);
+    expect(c.layout!.inputSpan).toBe('screen');
+    expect(c.inputEl.style.width).toBe('900px');
+    expect(gap().style.height).toBe('980px');
+    expect(c.dropTarget(895, 970, 'comm')).toMatchObject({ dock: 'right' });
+    expect(c.dropTarget(895, 990, 'comm')).toMatchObject({ kind: 'dock', dock: 'bottom', open: true, bar: { x: 0, w: 900 } });
+    // Without a bar the same column leaves 54 to type: wide again.
+    c.setBarCells(0);
+    flush();
+    expect(c.layout!.inputSpan).toBe('game');
+    expect(c.inputEl.style.width).toBe('560px');
+    c.setBarCells(barCells(true));
+    flush();
+    // A hidden right dock: its edge bar follows the case it would open in (at its default size, 33).
+    settings.update({ panes: { character: { on: false }, timers: { on: false }, group: { on: false }, comm: { on: false }, ui: { on: false } } });
+    flush();
+    expect(c.layout!.docks.right).toBeUndefined();
+    expect(c.dropTarget(895, 970, 'map')).toMatchObject({ dock: 'right', open: true, bar: { y: 0, h: 980 } });
+    expect(c.dropTarget(895, 990, 'map')).toMatchObject({ dock: 'bottom', open: true });
+    resize(1200);
+    expect(c.dropTarget(1195, 990, 'map')).toMatchObject({ dock: 'right', open: true, bar: { y: 0, h: 1000 } });
+  });
+
   it('finds new-lane targets on the edge bands of a lane (ADR 0064)', () => {
     const { c, settings, flush } = make(1200, 1000); // 120 × 50, right dock x 87..119: bands 3 cells
     // The inner (left) band: a new lane inside lane 0; the outer band: at the screen edge.
     expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 1, size: 33 });
     expect(c.dropTarget(1195, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 0, size: 33 });
-    // The bar runs along the whole lane boundary.
-    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ bar: { y: 0, h: 980 } });
+    // The bar runs along the whole lane boundary (wide case: the full height).
+    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ bar: { y: 0, h: 1000 } });
     // Just inside the band: into the lane as before.
     expect(c.dropTarget(900, 30, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 0, index: 0 });
     settings.update((d) => {
@@ -526,6 +571,8 @@ describe('Cockpit', () => {
     const head = c.dropTarget(900, 10, 'comm');
     expect(head).toMatchObject({ kind: 'span', dock: 'right', side: 'head', index: 0 });
     expect(head).toMatchObject({ bar: { x: 670, w: 530 }, ghost: { x: 67, y: 0, w: 53 } });
+    // A 66-cell game column leaves 38 to type: the narrow case (ADR 0102), the dock ends above the input row.
+    expect(c.layout!.inputSpan).toBe('screen');
     // Its last row: first in the tail spans.
     expect(c.dropTarget(760, 970, 'comm')).toMatchObject({ kind: 'span', side: 'tail', index: 0, ghost: { x: 67, w: 53 } });
     // The input row under it is not the dock's (ADR 0101): the bottom edge zone there.
