@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **Owner testing** (30c round 1 built). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30c done, 30d next). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -482,6 +482,10 @@ Decided *(Claude)*, ADR 0108:
   leaves the popup open; a click in it takes them back. Esc in the game
   input still closes the open popup first (after the scrolled-back rule).
 - Windows unchanged (ADR 0103).
+
+### 30c approved (2026-10-31)
+
+The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
 
 ## Open questions
 
