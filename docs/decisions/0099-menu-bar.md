@@ -93,3 +93,15 @@ interim target until 30c. Esc in the input now reaches the topmost window
 after the open popup, and in the cockpit's fullscreen it ends at the Exit
 popup instead of the ESC menu (ADR 0103). The Exit popup can show a
 warning line about unsaved changes in a window.
+
+## Addendum (2026-10-31, stage 30c)
+
+Settings is no longer an interim target where the bar exists: the
+Settings icon and `#settings` toggle the Settings popup (ADR 0107). The
+popup is drawn by the chrome chunk and adopted by the bar as its open
+popup (`MenuBar.adopt` / `release`), so the one-popup rule, Esc in the
+input, the ESC menu and hiding the cockpit close it like Panes and Exit;
+the Settings icon is marked and its tooltip off while it is open. The
+phone keeps the interim target (the ESC menu at Options), and Options →
+Panes → Appearance is phone only, so `#panes` without the bar still opens
+it.

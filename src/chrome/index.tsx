@@ -217,7 +217,8 @@ export type EscMenuOptions = EscActions;
  * A frame the menu can open at instead of its main frame (the menu bar
  * and `#profile` …, ADR 0099): the profile editor, Options → Scripts,
  * Options, Options → Panes → Appearance, Exit session. Leaving that frame
- * (Esc or Back on it) closes the menu.
+ * (Esc or Back on it) closes the menu. The phone's way to them since the
+ * bar has windows (ADR 0103) and the Settings popup (ADR 0107).
  */
 export type EscMenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
 

@@ -541,15 +541,18 @@ drops pending `#delay`s; revisit if it bites in play.
   - [x] Unit tests, e2e `profile-apply.spec.ts`, ADR 0105, ADR 0015
     addendum, manual text, test guide.
 - [ ] 30c:
-  - [ ] Control kit (toggle, segmented, slider, dropdown, swatch, button)
+  - [x] Control kit (toggle, segmented, slider, dropdown, swatch, button)
     in the ghost look; popup surface in the chrome chunk; one-popup rule
     with the bar's popups; keys after a click; Esc order.
-  - [ ] Settings popup: Appearance (with preview and palette picker), Text
+  - [x] Settings popup: Appearance (with preview and palette picker), Text
     input, Mapper, Weather effects; `#settings` and the icon toggle it.
   - [ ] Gear button on Mapper, Comm, Timers, Group (not phone, dropped
     first when narrow); gear popups beside the pane.
-  - [ ] Options → Panes → Appearance removed on desktop and tablet.
+  - [x] Options → Panes → Appearance removed on desktop and tablet.
   - [ ] Unit tests, e2e, ADR 0107, ADR 0095/0099 addenda, test guide.
+    - [x] Part 1 (Settings popup): unit `chrome-popups.test.tsx`, menu bar
+      and App tests, e2e `settings-popup.spec.ts` and the specs that went
+      through the pane grid, ADR 0107, ADR 0099 addendum.
 - [ ] 30d.
 - [ ] 30e.
 - [ ] 30f.
