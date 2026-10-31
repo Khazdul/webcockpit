@@ -1,7 +1,7 @@
 # Stage 30 — Fixed menu
 
-Status: **Next**. Spec agreed with the owner 2026-10-31 (below); build
-starts with 30a.
+Status: **Next**. Spec agreed with the owner 2026-10-31 (below); 30a
+mockups approved the same day. Build starts with 30a.
 
 ## Goal
 
@@ -235,7 +235,7 @@ Each step ends with a test in the browser.
 - [x] 30a refined mockups (ghost look), six artboards (2026-10-31).
 - [x] 30a round 2 (2026-10-31): link dot only on a bad link; conventional
   window frame; one separator less; scroll icon for Scripts.
-- [ ] 30a owner approval of the mockups.
+- [x] 30a mockups approved by the owner (2026-10-31, after round 2).
 - [ ] 30a build.
 - [ ] 30b.
 - [ ] 30c.
