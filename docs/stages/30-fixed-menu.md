@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30b done, 30c next). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30c building). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -303,6 +303,66 @@ Technical decisions *(Claude)*, recorded as ADR 0103 (windows) and ADR
 - **Stacking:** above the panes (floating included), below the bar popups
   and tooltips and the ESC menu.
 
+## 30c build plan
+
+Scope: S5 (Settings popup, four tabs) and S6 (gear on Mapper, Comm,
+Timers, Group, and their settings popups). Options → Panes → Appearance
+goes away where the bar exists. The rest of the TUI Options (start page
+and ESC menu) stays until later steps; the double upkeep is accepted
+(S10). Mockups: 30a-3 (Settings) and 30a-5 (pane gear).
+
+Technical decisions *(Claude)*, recorded as ADR 0107:
+
+- **Where:** a Preact surface in the chrome chunk (`mountSettingsPopups`),
+  like the windows: the content needs the chrome's services (map store,
+  tilesets, font list) and helpers (`backgroundPatch`, `chooseTileset`,
+  map import), which would otherwise grow the cockpit chunk and the HTML
+  replay bundle. The chunk is prefetched at idle. A small modern control
+  kit (toggle, segmented control, slider, dropdown, swatch, ghost button)
+  in the bar's ghost look, shared by Settings and every gear popup, and
+  built on the `.wc-pop` styles.
+- **One popup at a time:** the Settings popup and the gear popups join the
+  bar's popup rule: opening any of them closes the open Panes / Exit /
+  Settings / gear popup. Esc order unchanged: the open popup is the first
+  thing Esc in the input closes (after the scrolled-back rule).
+- **Keys:** like the Panes popup, a Settings or gear popup takes the keys
+  only after a click inside it; a click in the game text or the input
+  gives them back without closing it. It closes on Esc (inside it, or in
+  the input), its X, a click on its icon (Settings icon, the pane's gear),
+  when the ESC menu opens, when the cockpit is hidden, and a gear popup
+  also when its pane is hidden.
+- **Size:** fits its content; the Settings popup keeps one width for all
+  four tabs and the height of its tallest tab, so switching tabs does not
+  move it. Text size follows the terminal font, like the bar; while a
+  slider is held, the popup keeps its scale and refits on release (a Size
+  drag would otherwise move the thumb from under the pointer). Kept inside
+  the viewport, with an inner scroll when the screen is short.
+- **Appearance tab:** as the TUI page: font, size, padding, font colour,
+  background (with `backgroundPatch`), input colour, bold brightens,
+  scrollback, the 16-colour ANSI palette (click a swatch: the browser's
+  colour picker plus a hex field), Reset palette, Reset appearance, and a
+  small live preview (the TUI page's sample lines).
+- **Gear:** the leftmost pane hover button (Gear, Colour, Border,
+  Background, ×) on `map`, `comm`, `timers`, `group`. ADR 0095's rules:
+  not on the phone, dropped first when the pane is narrow. Its tooltip
+  names the pane (`Comm settings`). The popup opens beside the pane, on the
+  side with room (the game side first), top-aligned with the pane, kept
+  inside the viewport, re-placed on relayout.
+- **Mapper:** one component in Settings → Mapper and in the map pane's
+  gear popup: show map pane, room notes, room info on hover, hover text
+  size, tileset (with its credit), background colour, the map file (name,
+  rooms, size), Import map file…, Use bundled map.
+- **Comm, Timers, Group:** what Options → Panes holds today, as modern
+  controls. Comm: the ten channels (swatch, label, toggle), Show channel
+  header. Timers: per group its colour (or off), columns, Clock, Bar;
+  Display headers, Compact layout. Group: Show players, NPC visibility.
+- **Options → Panes → Appearance:** removed on desktop and tablet (start
+  page and ESC menu), since the Panes popup and the pane buttons hold it.
+  The phone keeps it until its own stage: it has neither, and `#panes`
+  there still opens it.
+- **`#settings`** and the Settings icon toggle the popup; the phone keeps
+  the interim target (the ESC menu at Options).
+
 ## Owner feedback
 
 ### 30a round 1 (2026-10-31)
@@ -480,7 +540,16 @@ drops pending `#delay`s; revisit if it bites in play.
     saves on the write-back queue); session variables survive an apply.
   - [x] Unit tests, e2e `profile-apply.spec.ts`, ADR 0105, ADR 0015
     addendum, manual text, test guide.
-- [ ] 30c.
+- [ ] 30c:
+  - [ ] Control kit (toggle, segmented, slider, dropdown, swatch, button)
+    in the ghost look; popup surface in the chrome chunk; one-popup rule
+    with the bar's popups; keys after a click; Esc order.
+  - [ ] Settings popup: Appearance (with preview and palette picker), Text
+    input, Mapper, Weather effects; `#settings` and the icon toggle it.
+  - [ ] Gear button on Mapper, Comm, Timers, Group (not phone, dropped
+    first when narrow); gear popups beside the pane.
+  - [ ] Options → Panes → Appearance removed on desktop and tablet.
+  - [ ] Unit tests, e2e, ADR 0107, ADR 0095/0099 addenda, test guide.
 - [ ] 30d.
 - [ ] 30e.
 - [ ] 30f.
