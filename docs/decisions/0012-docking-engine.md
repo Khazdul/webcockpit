@@ -3,7 +3,8 @@
 - Status: Accepted; amended by ADR 0014 (top dock, floating panes,
   quadrant corners only); amended by ADR 0101 (dock structure around the
   menu bar: the right dock ends above the input row, the bottom dock
-  spans the screen)
+  spans the screen); amended by ADR 0102 (the right dock ends above the
+  input row only in a narrow game column)
 - Date: 2026-09-27
 
 ## Context

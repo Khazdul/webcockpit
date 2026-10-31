@@ -3,7 +3,9 @@
 - Status: Accepted; amended below (input placement, standard float size);
   amended by ADR 0101 (the input row runs under the right dock to the
   screen edge, the side docks no longer run the full height, the bottom
-  dock and its edge zone span the screen)
+  dock and its edge zone span the screen); amended by ADR 0102 (that
+  input row only in a narrow game column; otherwise as wide as the game
+  pane, with the side docks down to the bottom dock)
 - Date: 2026-09-27
 - Amends: ADR 0010 ("Settings": `corners`), ADR 0012 (geometry,
   interaction)

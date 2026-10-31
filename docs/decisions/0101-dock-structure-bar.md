@@ -1,6 +1,9 @@
 # 0101 — Dock structure around the menu bar
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0102 (2026-10-31, 30a round 2: this
+  geometry only when the game column leaves fewer than 50 cells to type
+  beside the bar; otherwise the right dock runs down to the bottom dock
+  and the input row stays in the game column)
 - Date: 2026-10-31
 - Amends: ADR 0012 ("Geometry": side docks full height, bottom dock
   under the game pane only), ADR 0014 (amendment 2026-09-27: the input
