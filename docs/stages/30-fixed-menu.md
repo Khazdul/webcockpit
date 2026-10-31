@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30b). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30b done, 30c next). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -378,6 +378,12 @@ Decided *(Claude)*, ADR 0105:
   failures and warnings show in the editor.
 - Changes made outside the window while it is open (typed `#alias`,
   variables written back by scripts) are kept and show in the editor.
+
+### 30b approved (2026-10-31)
+
+The owner tested 30b with round 1: "Seems to work." 30b is done; 30c is
+next. Open: each applied profile change restarts profile tickers and
+drops pending `#delay`s; revisit if it bites in play.
 
 ## Open questions
 
