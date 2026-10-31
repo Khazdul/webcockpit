@@ -58,6 +58,7 @@ export class ProfileStore {
   private db: Promise<IDBDatabase> | null = null;
   /** Memory fallback, used once IndexedDB has failed to open. */
   private mem: Map<string, ProfileRecord> | null = null;
+  private readonly listeners = new Set<(name: string, text: string) => void>();
 
   constructor(opts: ProfileStoreOptions = {}) {
     this.factory = opts.factory === undefined ? (globalThis.indexedDB ?? null) : opts.factory;
@@ -114,13 +115,30 @@ export class ProfileStore {
     });
   }
 
-  /** Replaces the text of `name` (stage 3 editor; kept here for the record shape). */
+  /** Replaces the text of `name`; the listeners hear of it once it is stored. */
   async save(name: string, text: string): Promise<void> {
     await this.tx('readwrite', async (st) => {
       const cur = await st.get(name);
       if (!cur) throw new ProfileError(`No profile "${name}".`);
       await st.put({ ...cur, text, modified: this.now() });
     });
+    for (const fn of [...this.listeners]) {
+      try {
+        fn(name, text);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  /**
+   * Calls `fn` after every `save` (any caller: the editor, the write-back),
+   * with the name and the new text. Returns the unsubscribe. The profile
+   * editor follows outside changes with it (ADR 0105).
+   */
+  subscribe(fn: (name: string, text: string) => void): () => void {
+    this.listeners.add(fn);
+    return () => void this.listeners.delete(fn);
   }
 
   /** Renames `from` to `to`. Same name is a no-op; `default` cannot be renamed. */

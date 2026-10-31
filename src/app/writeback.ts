@@ -15,7 +15,8 @@
 //
 // Every job reads the latest stored text, edits the document model and
 // saves when the text changed, so an edit made in the editor meanwhile is
-// kept and untouched text stays byte for byte. Nothing is written until a
+// kept and untouched text stays byte for byte. The editor's own saves join
+// the same chain (`save`, ADR 0105). Nothing is written until a
 // profile has loaded completely (`target` is null before that: the "has
 // loaded" guard, Inv §5.9).
 
@@ -102,6 +103,24 @@ export class ProfileWriteBack {
     }
     this.run(() => this.writeTyped(name, change));
     return true;
+  }
+
+  /**
+   * Saves `text` as the next job on the chain (the profile editor's apply,
+   * ADR 0105): a typed setting or a value queued after this call is written
+   * on top of it, never under it. Rejects when the save fails.
+   */
+  save(name: string, text: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      void this.run(async () => {
+        try {
+          await this.store.save(name, text);
+          resolve();
+        } catch (err) {
+          reject(err instanceof Error ? err : new Error(String(err)));
+        }
+      });
+    });
   }
 
   /** Drops script values that are queued (the engine was reloaded from the text). */

@@ -164,10 +164,8 @@ describe('App + script engine', () => {
     const sock = await t.connect();
     expect(t.app.applyProfile('#alias {x} {new')).toEqual({ ok: false, reason: 'Unbalanced braces: the { on line 1 is never closed.' });
     enter(t.app, 'x');
-    expect(t.app.applyProfile('#alias {x} {new}\n#lua {x}')).toEqual({
-      ok: true,
-      warnings: ['line 2: #lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.'],
-    });
+    const lua = 'line 2: #lua: Only #lua {script} {function} {args} runs (a function a script exported); other forms do nothing.';
+    expect(t.app.applyProfile('#alias {x} {new}\n#lua {x}')).toEqual({ ok: true, warnings: [lua], added: [lua] });
     enter(t.app, 'x');
     expect(t.sentLines(sock).slice(-2)).toEqual(['old', 'new']);
   });

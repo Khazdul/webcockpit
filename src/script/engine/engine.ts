@@ -318,8 +318,11 @@ export class ScriptEngine {
    * user store and swaps it in when done (the old store's timers stop).
    * Commands that would send to the game or run client commands are not
    * run while loading. Unbalanced braces refuse the whole text.
+   * `keepVars` (a live apply from the editor, ADR 0105): the variables of
+   * the old store that the new text does not set are carried over, so a
+   * value a rule set for the session survives an edit.
    */
-  loadProfile(text: string): LoadResult {
+  loadProfile(text: string, opts: { keepVars?: boolean } = {}): LoadResult {
     const braces = checkBraces(text);
     if (!braces.ok) {
       const line = text.slice(0, braces.index).split('\n').length;
@@ -360,6 +363,7 @@ export class ScriptEngine {
     }
     this.loading = null;
     this.hinted.clear();
+    if (opts.keepVars) for (const [k, v] of old.vars) if (!fresh.vars.has(k)) fresh.vars.set(k, v);
     old.dispose();
     return { ok: true, warnings: state.warnings };
   }

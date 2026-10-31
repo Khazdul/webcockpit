@@ -9,7 +9,8 @@
 //
 // Script engine (ADR 0015): the selected profile is loaded at start-up (so
 // an offline replay runs it too) and again whenever a live session starts.
-// `applyProfile(text)` swaps it atomically (the ESC-menu editor). Settings
+// `applyProfile(text)` swaps it atomically; the profile editor applies
+// through `commitProfile` (ADR 0105), in place while it stays open. Settings
 // typed on the input line, and declared variables a script sets, are
 // written to the stored profile (src/app/writeback.ts, ADR 0038).
 // Password mode bypasses the engine (InputPane sends secrets directly).
@@ -77,7 +78,7 @@
 
 import { downloadRun } from '../capture/download';
 import { Recorder, type RecorderOptions, STATUS as CAPTURE_STATUS } from '../capture/recorder';
-import type { ProfileStore } from '../profiles';
+import type { CommitOptions, CommitResult, ProfileStore } from '../profiles';
 import { type LoadResult, type Scheduler, ScriptEngine, type TypedChange } from '../script/engine';
 import { Bus } from '../core/bus';
 import { type BusEvents, type Socketish, gmcpKey } from '../core/types';
@@ -273,6 +274,8 @@ export class App {
   private readonly writeBack: ProfileWriteBack | null;
   /** Bumped by every profile load, so a slow store read cannot undo a newer load. */
   private loadToken = 0;
+  /** The load warnings of the running profile, without their `line N:` (new ones are reported, ADR 0105). */
+  private runningWarnings: string[] = [];
   /** True while a typed line or a macro runs (it may reconnect). */
   private userAction = false;
   /** The current typed line already reconnected or reported "not connected". */
@@ -711,6 +714,7 @@ export class App {
       return;
     }
     void this.writeBack?.setTarget(name);
+    this.runningWarnings = r.warnings.map(warningKey);
     this.reportLoad(name, r.warnings, announce);
   }
 
@@ -731,25 +735,87 @@ export class App {
   }
 
   /**
-   * Replaces the live profile with `text` (the ESC-menu editor's Apply).
-   * All or nothing: on failure the running profile stays as it was.
-   * Variables set later are written back to the loaded profile.
+   * Replaces the live profile with `text` (the profile editor's apply).
+   * All or nothing: on failure the running profile stays as it was. The
+   * session's variables that `text` does not set are kept (ADR 0105).
+   * Variables set later are written back to the loaded profile. `quiet`:
+   * no UI pane line (the editor reports the result itself).
    */
-  applyProfile(text: string): { ok: true; warnings: string[] } | { ok: false; reason: string } {
+  applyProfile(
+    text: string,
+    opts: { quiet?: boolean } = {},
+  ): { ok: true; warnings: string[]; added: string[] } | { ok: false; reason: string } {
     this.loadToken++;
-    const r: LoadResult = this.script.loadProfile(text);
+    const r: LoadResult = this.script.loadProfile(text, { keepVars: true });
     const name = uiValue(this.settings.get().profile);
     if (!r.ok) {
-      this.ui('error', `Profile {${name}} not applied.`);
+      if (!opts.quiet) this.ui('error', `Profile {${name}} not applied.`);
       return r;
     }
     // Values queued by the rules that were just replaced are stale.
     this.writeBack?.discard();
     if (this.writeBack && this.writeBack.target === null) void this.writeBack.setTarget(this.settings.get().profile);
+    const keys = r.warnings.map(warningKey);
+    const before = new Map<string, number>();
+    for (const k of this.runningWarnings) before.set(k, (before.get(k) ?? 0) + 1);
+    const added: string[] = [];
+    keys.forEach((k, i) => {
+      const n = before.get(k) ?? 0;
+      if (n > 0) before.set(k, n - 1);
+      else added.push(r.warnings[i]!);
+    });
+    this.runningWarnings = keys;
     const n = r.warnings.length;
-    if (n === 0) this.ui('system', `Profile {${name}} applied.`);
-    else this.ui('warn', `Profile {${name}} applied with {${n}} warning${n === 1 ? '' : 's'}.`);
-    return { ok: true, warnings: r.warnings };
+    if (!opts.quiet) {
+      if (n === 0) this.ui('system', `Profile {${name}} applied.`);
+      else this.ui('warn', `Profile {${name}} applied with {${n}} warning${n === 1 ? '' : 's'}.`);
+    }
+    return { ok: true, warnings: r.warnings, added };
+  }
+
+  /**
+   * The profile editor's apply (ADR 0105). Waits until the write-back is
+   * idle, reads the stored text of `name`, lets `build` make the text to
+   * store from it, applies that (when `opts.live`) and saves it as the next
+   * write-back job. From the read to the queued save nothing awaits, so a
+   * typed setting or a variable value can neither slip in between nor be
+   * written under the editor's text: what was typed before is in the text
+   * read, what comes after is written on top of the save.
+   */
+  async commitProfile(name: string, build: (stored: string) => string, opts: CommitOptions): Promise<CommitResult> {
+    const store = this.profiles;
+    if (!store) return { ok: false, reason: 'Profiles are not available here.', stage: 'read' };
+    const wb = this.writeBack;
+    let stored: string;
+    try {
+      let rec: Awaited<ReturnType<ProfileStore['get']>>;
+      let tries = 0;
+      do {
+        await wb?.flush();
+        rec = await store.get(name);
+      } while (wb?.busy && ++tries < 50);
+      if (!rec) return { ok: false, reason: `No profile "${name}".`, stage: 'read' };
+      stored = rec.text;
+    } catch (err) {
+      return { ok: false, reason: `Could not read the profile: ${err instanceof Error ? err.message : String(err)}`, stage: 'read' };
+    }
+    const text = build(stored);
+    if (text === stored) return { ok: true, changed: false, warnings: [], added: [] };
+    let warnings: string[] = [];
+    let added: string[] = [];
+    if (opts.live) {
+      const r = this.applyProfile(text, { quiet: opts.quiet });
+      if (!r.ok) return { ok: false, reason: r.reason, stage: 'apply' };
+      warnings = r.warnings;
+      added = r.added;
+    }
+    try {
+      await (wb ? wb.save(name, text) : store.save(name, text));
+    } catch (err) {
+      const why = err instanceof Error ? err.message : String(err);
+      return { ok: false, reason: opts.live ? `Applied, but saving failed: ${why}` : `Save failed: ${why}`, stage: 'save' };
+    }
+    return { ok: true, changed: true, warnings, added };
   }
 
   // --------------------------------------------------------------- scripts
@@ -1088,6 +1154,9 @@ export class App {
     this.bus.emit('ui.message', uiMsg(kind, template));
   }
 }
+
+/** A load warning without its `line N: ` (lines move as the text is edited). */
+const warningKey = (w: string): string => w.replace(/^line \d+: /, '');
 
 function defaultLocalStorage(): Storage | null {
   try {
