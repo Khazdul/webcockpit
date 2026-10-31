@@ -11,6 +11,7 @@
 //   menu.open({ target: 'scripts' });   // straight at a frame (ADR 0099)
 //   const wins = chrome.mountWindows(host, services, { … });        // ADR 0103
 //   const pops = chrome.mountSettingsPopups(host, services, { … }); // ADR 0107
+//   const stats = chrome.mountStatsPane(host, services, { runs, status }); // ADR 0109
 
 import './kit/kit.css';
 import { type VNode, render } from 'preact';
@@ -40,6 +41,7 @@ export {
   type SettingsPopupsOptions,
   mountSettingsPopups,
 } from './popups/surface';
+export { type StatsPaneHandle, type StatsPaneOptions, mountStatsPane } from './stats-pane';
 
 // ------------------------------------------------------------ start page
 

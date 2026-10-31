@@ -98,7 +98,7 @@ import type { WeatherHook, WeatherHookDeps } from '../weather/hook';
 import { type Settings, SettingsStore, viewSnapshot } from '../settings';
 import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
-import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
+import { type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
 import { CLOCK_CELLS, MenuBar } from '../menubar/menubar';
@@ -223,6 +223,12 @@ export interface AppOptions {
 /** An ESC menu frame the shell can open straight away (ADR 0099). */
 export type MenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
 
+/** What the Statistics pane's view reads (ADR 0109). */
+export interface StatsPaneDeps {
+  runs: LiveRuns;
+  status: AppStatusView;
+}
+
 /** What the App asks the shell for (the menu bar, `#profile` …). */
 export interface AppUi {
   /** Build the menu bar (desktop and tablet). */
@@ -246,6 +252,11 @@ export interface AppUi {
    * Timers and Group panes' Gear). Absent: the panes have no Gear.
    */
   togglePaneSettings?(id: PaneId): void;
+  /**
+   * With the bar: mounts the Statistics pane's view into `host` (ADR 0109;
+   * the shell loads the chrome chunk). Absent: the pane stays empty.
+   */
+  mountStatsPane?(host: HTMLElement, deps: StatsPaneDeps): Promise<StatsPaneView>;
   /** Esc in the input with no popup open: the topmost window's close request; false when none is open. */
   escapeWindow?(): boolean;
   /** True while an open window holds unsaved changes (the Exit popup warns). */
@@ -419,6 +430,10 @@ export class App {
       ...(opts.map ? { map: opts.map } : {}),
       ...(player ? {} : { mapMarks: this.mapMarks }),
       mapNotes: this.mapNotes,
+      // The Statistics pane's view (ADR 0109); `runs` exists by its first show.
+      ...(!player && this.appUi?.mountStatsPane
+        ? { statsView: (host: HTMLElement) => this.appUi!.mountStatsPane!(host, { runs: this.runs, status: this.status }) }
+        : {}),
     });
     this.cockpit = new Cockpit({
       root: this.el,

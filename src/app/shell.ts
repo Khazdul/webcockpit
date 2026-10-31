@@ -54,6 +54,11 @@
 // a setting or Reset layout, or the window too small); the Gear is marked
 // while its popup is open (`Cockpit.markGear`).
 //
+// Statistics pane (ADR 0109): where the bar exists, the App's
+// `ui.mountStatsPane` loads the chrome chunk and mounts the pane's view
+// (src/chrome/stats-pane.tsx) into the pane's content element on its first
+// show. The cockpit chunk holds only the pane's shell.
+//
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
 // shows (Web Lock `webcockpit-sweep`, so one tab sweeps; errors are silent).
@@ -103,7 +108,7 @@ import { REASON_USER_DISCONNECT, REASON_USER_RECONNECT } from '../net/session';
 import { DEFAULT_PROFILE, ProfileStore } from '../profiles';
 import type { SettingsStore } from '../settings';
 import type { CellMetrics } from '../theme/cells';
-import { App, REASON_REPLAY_START } from './app';
+import { App, REASON_REPLAY_START, type StatsPaneDeps } from './app';
 import { nowUs } from '../core/types';
 import { RunLibrary } from '../runs/library';
 import { uiValue } from './ui-messages';
@@ -556,6 +561,8 @@ export class Shell {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
               toggleSettings: () => void this.toggleSettings(),
               togglePaneSettings: (id: PaneId) => void this.togglePaneSettings(id),
+              mountStatsPane: (host: HTMLElement, deps: StatsPaneDeps) =>
+                this.loadChrome().then((chrome) => chrome.mountStatsPane(host, this.services(), deps)),
               escapeWindow: () => this.windows?.escapeTop() ?? false,
               windowsUnsaved: () => this.windows?.unsaved() ?? false,
             }),

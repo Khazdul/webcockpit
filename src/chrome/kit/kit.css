@@ -452,6 +452,22 @@ textarea.wc-field {
   flex: 0 0 auto;
 }
 
+/* The Statistics pane (ADR 0109): the chrome's cell text inside a pane's
+ * content element. No selection and no focus: the game keeps the keys. */
+.wc-stats-pane {
+  height: 100%;
+  overflow: hidden;
+  font-variant-ligatures: none;
+  white-space: pre;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+.wc-stats-pane > .wc-stats-page {
+  height: 100%;
+}
+
 /* Phone only (ADR 0075 §3.2): nothing in a page body is cut at the right
  * edge. Content wider than the grid (a colour grid, a wide table, the
  * appearance preview) makes the body swipe sideways; the rows and the

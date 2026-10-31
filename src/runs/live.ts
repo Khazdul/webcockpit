@@ -6,11 +6,16 @@
 //                    `run_start` and after the run ended. `runId` is ''
 //                    when the run is not recorded (a replay, capture off,
 //                    another tab records the character).
+//   latest()         the latest run of this tab, in progress or ended: its
+//                    id ('' when not recorded) and its events (the
+//                    deriver keeps them until the next run starts), or
+//                    null before any run (the Statistics pane, ADR 0109)
 //   subscribe(fn)    after every event
 //   chain()          the anchor run's session: the live run plus its sealed
 //                    predecessors in the chain (pending writes flushed first)
 //   chainEvents()    that session's events: stored ones for the sealed
-//                    runs, the in-memory ones for the live run
+//                    runs, the in-memory ones for the live run; a live run
+//                    that is not recorded has no chain: its own events
 //   saveChain(r)     Exit with rating: r > 0 saves the chain with rating r;
 //                    0 re-saves an already saved chain keeping its ratings
 //                    and never creates a save
@@ -42,6 +47,8 @@ export class LiveRuns {
   private readonly listeners = new Set<() => void>();
   /** Stored events of sealed chain runs, by run id (they never change). */
   private readonly sealedEvents = new Map<string, RunEvent[]>();
+  /** The recorder's id of the latest run while it was in progress ('' when not recorded). */
+  private latestId = '';
 
   constructor(opts: LiveRunsOptions) {
     this.deriver = opts.deriver;
@@ -50,6 +57,7 @@ export class LiveRuns {
       opts.openLibrary ?? (() => this.recorder.getStore().then((s) => (s ? new RunLibrary(s) : null)));
     this.clock = opts.nowUs ?? clockUs;
     this.deriver.subscribe(() => {
+      if (this.deriver.started) this.latestId = this.recorder.runId ?? '';
       for (const fn of [...this.listeners]) fn();
     });
   }
@@ -58,6 +66,14 @@ export class LiveRuns {
   current(): { runId: string; events: readonly RunEvent[] } | null {
     if (!this.deriver.started) return null;
     return { runId: this.recorder.runId ?? '', events: this.deriver.events };
+  }
+
+  /** The latest run of this tab, in progress or ended (see the file header), or null. */
+  latest(): { runId: string; events: readonly RunEvent[]; ended: boolean } | null {
+    const events = this.deriver.events;
+    if (events.length === 0) return null;
+    const ended = !this.deriver.started;
+    return { runId: ended ? this.latestId : (this.recorder.runId ?? ''), events, ended };
   }
 
   /** Calls `fn` after every run event. Returns the unsubscribe. */
@@ -90,6 +106,8 @@ export class LiveRuns {
   /** The events of the anchor's session: stored for sealed runs, in memory for the live one. */
   async chainEvents(): Promise<RunEvent[]> {
     const live = this.current();
+    // A run that is not recorded (a replay, capture off) is not in any chain.
+    if (live && !live.runId) return [...live.events];
     const lib = await this.library();
     const id = this.anchor();
     if (!lib || !id) return live ? [...live.events] : [];
