@@ -1251,4 +1251,26 @@ describe('InputPane Tab (ADR 0108)', () => {
     expect(document.activeElement).toBe(outside);
     t.pane.dispose();
   });
+
+  it('a hidden cockpit (no scope) leaves even the body alone', () => {
+    let shown = true;
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: () => {}, sendGmcp: () => {} },
+      scope: () => (shown ? root : null),
+    });
+    const b = document.createElement('button');
+    root.appendChild(b);
+    shown = false;
+    b.focus();
+    const e = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
+    b.dispatchEvent(e);
+    expect(document.activeElement).toBe(b);
+    shown = true;
+    b.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(pane.input);
+    pane.dispose();
+  });
 });

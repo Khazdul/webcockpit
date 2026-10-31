@@ -105,8 +105,8 @@ export interface InputPaneOptions {
   phone?: boolean;
   /**
    * Where a stray focus is given back to the line by Tab (ADR 0108): the
-   * App's element while it is shown, null otherwise. The page's body
-   * always counts.
+   * App's element while it is shown (the page's body counts then too),
+   * null while it is hidden. Default: the whole page.
    */
   scope?: () => Element | null;
 }
@@ -594,12 +594,14 @@ export class InputPane {
     const t = e.target as HTMLElement | null;
     if (!t || t === this.input || !t.tagName) return false;
     const doc = this.doc;
+    // Without a scope the whole page; a hidden cockpit has none.
+    const scope = this.opts.scope ? this.opts.scope() : doc.body;
+    if (!scope) return false;
     if (t === doc.body || t === doc.documentElement) return true;
     const tag = t.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || t.isContentEditable === true) return false;
     if (t.closest?.(`[${OWN_KEYS_ATTR}]`) != null) return false;
-    const scope = this.opts.scope?.() ?? null;
-    return scope !== null && scope.contains(t);
+    return scope.contains(t);
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
