@@ -111,7 +111,7 @@ test('Options → Panes → Timers changes colours and column caps live', async 
   await expect(menuTitle(page)).toHaveText('─── Options ───');
   await page.keyboard.press('Enter'); // Panes
   await expect(menuTitle(page)).toHaveText('─── Panes ───');
-  await page.keyboard.press('ArrowDown');
+  // Timers first on desktop (no pane Appearance page, ADR 0107).
   await expect(menuSel(page)).toHaveText('<< Timers >>');
   await page.keyboard.press('Enter');
   await expect(menuTitle(page)).toHaveText('─── Timers ───');
