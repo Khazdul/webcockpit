@@ -68,7 +68,6 @@ import {
   LIST_GAP,
   type LiteKind,
   NEW_BODY,
-  PATTERN_COL,
   TOGGLE_W,
   VIEWS,
   ansiIndex,
@@ -80,6 +79,7 @@ import {
   listRows,
   liteGeometry,
   parseHighlight,
+  patternColumn,
   rowText,
   sentinelPrompt,
   serializeHighlight,
@@ -960,9 +960,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
 
   function renderList(): VNode {
     const labels = FIELD_LABELS[kind];
-    const header = pad(labels.pattern, PATTERN_COL) + ' ' + labels.body;
+    const patW = patternColumn(L);
+    const header = pad(labels.pattern, patW) + ' ' + labels.body;
     const listFocused = zone === 'list' && !capture;
-    const bodyW = L - PATTERN_COL - 1;
+    const bodyW = L - patW - 1;
     // All rows in a native scroll box (pixels, as EDITOR); the TUI scrollbar beside it.
     return (
       <div class="wc-ped-list" style={{ width: `calc(var(--cell-w) * ${L + 1})` }}>

@@ -53,8 +53,17 @@ export function sentinelPrompt(kind: LiteKind, count: number): string {
 // Entry list
 // ---------------------------------------------------------------------------
 
-/** Width of the pattern column in the entry list (Inv §5.6). */
+/** Width of the pattern column in the entry list (Inv §5.6); the narrowest it gets (ADR 0104). */
 export const PATTERN_COL = 8;
+
+/**
+ * The pattern column of an entry list `width` cells wide (ADR 0104): half
+ * the row less the separating space, never under PATTERN_COL. The
+ * Commands column takes the rest.
+ */
+export function patternColumn(width: number): number {
+  return Math.max(PATTERN_COL, Math.floor((width - 1) / 2));
+}
 
 /**
  * The entries of `kind` in lite display order (Inv §5.6 "Sort"): by
@@ -108,11 +117,12 @@ export function bodyPreview(kind: EntryKind, raw: string, width: number): string
   return cps.length + 1 <= width ? first + '…' : cps.slice(0, Math.max(0, width - 1)).join('') + '…';
 }
 
-/** A list row's two columns, cut to their widths. */
+/** A list row's two columns (`patternColumn`), cut to their widths. */
 export function rowText(e: EntryNode, width: number): { pattern: string; body: string } {
-  const bodyW = Math.max(1, width - PATTERN_COL - 1);
-  const pat = ellipsis(patternLabel(e.kind, e.pattern), PATTERN_COL);
-  return { pattern: pat + ' '.repeat(PATTERN_COL - [...pat].length), body: bodyPreview(e.kind, e.body, bodyW) };
+  const patW = patternColumn(width);
+  const bodyW = Math.max(1, width - patW - 1);
+  const pat = ellipsis(patternLabel(e.kind, e.pattern), patW);
+  return { pattern: pat + ' '.repeat(patW - [...pat].length), body: bodyPreview(e.kind, e.body, bodyW) };
 }
 
 // ---------------------------------------------------------------------------
@@ -300,8 +310,8 @@ export const TOGGLE_W = VIEWS.reduce((n, v) => n + v.width, 0) + VIEWS.length - 
 
 /**
  * Width of the centred column at full size in Inv §5.3 (title, kind row,
- * LITE body). Since ADR 0104 the column grows past it; the entry list
- * keeps the width it has here.
+ * LITE body). Since ADR 0104 the column grows past it, and from here up
+ * the list and the detail panel split it in halves.
  */
 export const FULL_W = 77;
 
@@ -309,7 +319,6 @@ export const FULL_W = 77;
 export const LITE_MAX_W = 160;
 
 /** Sizes in cells (Inv §5.3). */
-export const DETAIL_W = 35;
 export const KIND_W = 13;
 export const KIND_GAP = 3;
 /** Between the list's scrollbar column and the detail panel. */
@@ -332,22 +341,21 @@ export interface LiteGeometry {
 
 /**
  * The LITE layout (ADR 0104). The column fills the frame less one cell on
- * each side, up to LITE_MAX_W, centred. From FULL_W up the list keeps its
- * full-size width and the detail panel takes the rest; below FULL_W the
- * detail panel is 45 % (at least 24 cells) and the list the rest, as
- * before. A desktop frame keeps a 40-cell floor; a phone has none
- * (ADR 0075 §3.2). The kind row keeps its full-size buttons and starts
- * at the column's left edge, as it does at FULL_W.
+ * each side, up to LITE_MAX_W, centred. From FULL_W up the list (with its
+ * scrollbar cell) and the detail panel split the column less LIST_GAP in
+ * halves, the odd cell to the detail panel; below FULL_W the detail panel
+ * is 45 % (at least 24 cells) and the list the rest, as before. A desktop
+ * frame keeps a 40-cell floor; a phone has none (ADR 0075 §3.2). The kind
+ * row is centred over the column, its buttons full size from FULL_W up.
  */
 export function liteGeometry(cols: number, phone: boolean): LiteGeometry {
   const w = Math.max(phone ? Math.min(40, cols - 2) : 40, Math.min(LITE_MAX_W, cols - 2));
   const at = Math.max(0, Math.floor((cols - w) / 2));
-  const list = w >= FULL_W ? FULL_W - DETAIL_W - 1 - LIST_GAP : w - Math.max(24, Math.floor(w * 0.45)) - 1 - LIST_GAP;
+  const list = w >= FULL_W ? Math.floor((w - LIST_GAP) / 2) - 1 : w - Math.max(24, Math.floor(w * 0.45)) - 1 - LIST_GAP;
   const detail = w - list - 1 - LIST_GAP;
   const kindGap = 5 * KIND_W + 4 * KIND_GAP <= w ? KIND_GAP : 1;
   const kindW = kindGap === KIND_GAP ? KIND_W : Math.floor((w - 4) / 5);
-  // Under the column's left edge from FULL_W up; centred in a narrower column.
-  const kindAt = at + Math.max(0, Math.floor((Math.min(w, FULL_W) - (5 * kindW + 4 * kindGap)) / 2));
+  const kindAt = at + Math.max(0, Math.floor((w - (5 * kindW + 4 * kindGap)) / 2));
   return { at, w, list, detail, kindAt, kindW, kindGap };
 }
 
