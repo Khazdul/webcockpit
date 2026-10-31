@@ -8,7 +8,9 @@
 // and stops it there, so the game input (which listens on the document)
 // never sees keys meant for the chrome. One listener per window serves
 // every active stack and hands a key to the most recently activated one
-// only, so two stacks never both handle a key (ADR 0103). Unhandled ESC
+// only, so two stacks never both handle a key (ADR 0103). A key whose
+// target is inside a `data-wc-own-keys` element within the stack (a popup
+// drawn in a frame, ADR 0110) is left to that element. Unhandled ESC
 // pops (or calls `onRootBack` on the root frame; so does `nav.pop()`
 // there, e.g. a root frame's Back). Focus: the stack host is focused on
 // every frame change unless the frame focused something of its own (a
@@ -28,6 +30,7 @@ import type { ComponentChildren, VNode } from 'preact';
 import { createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { type NavKey, navKey } from './nav';
+import { OWN_KEYS_ATTR } from '../../ui/input-pane';
 
 /** A frame's key handler: true = consumed (the default action is prevented). */
 export type KeyHandler = (e: KeyboardEvent, nav: NavKey | null) => boolean;
@@ -251,6 +254,9 @@ export function FrameStack(props: FrameStackProps): VNode {
     if (!win) return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.isComposing) return;
+      // A popup inside a frame keeps its keys (a window's own frame is outside the host).
+      const own = (e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`);
+      if (own && own !== hostRef.current && hostRef.current?.contains(own)) return;
       e.stopPropagation();
       if (propsRef.current.paused) {
         if (navKey(e)) e.preventDefault();
