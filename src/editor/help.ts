@@ -505,6 +505,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     syntax: ['#fullscreen'],
     text: [
       'Switches the page to fullscreen and back, as the menu bar\'s fullscreen button does. In a browser without page fullscreen (iPhone) it says so. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'In fullscreen, Chrome and Edge give Esc to the game: once nothing else is open, Esc asks whether to exit, as the Exit button does, instead of leaving fullscreen. Holding Esc down still leaves fullscreen. Firefox and Safari always leave fullscreen on Esc.',
     ],
     examples: [{ via: 'input', code: '#fullscreen' }],
   },
@@ -710,7 +711,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['profile'],
     syntax: ['#profile'],
     text: [
-      'Opens the editor of the profile in use, as the menu bar\'s Profile button does, with the changes applied to the game when saved. Leaving the editor returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'Opens the Profile window with the editor of the profile in use, as the menu bar\'s Profile button does; the changes are applied to the game when saved. The window can be moved and resized and stays open while you play: a click in the game text or the input line gives the keys back to the game, a click in the window gives them to the window. Typed again, #profile brings the window to the front and gives it the keys; the Profile button does too, and closes the window when it already has them. X or Esc in the window closes it, asking first about unsaved changes. On a phone it opens the editor in the menu instead. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#profile' }],
   },
@@ -757,7 +758,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['scripts'],
     syntax: ['#scripts'],
     text: [
-      'Opens the Scripts page (turn scripts on and off, edit, set their options), as the menu bar\'s Scripts button does. Leaving it returns to the game. #script, without the s, is the command for scripts on the input line. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'Opens the Scripts window (turn scripts on and off, edit, set their options), as the menu bar\'s Scripts button does. It works as the Profile window does (see #profile): it stays open while you play, typed again #scripts brings it to the front, and the Scripts button closes it when it has the keys. On a phone it opens the Scripts page in the menu instead. #script, without the s, is the command for scripts on the input line. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#scripts' }],
   },
