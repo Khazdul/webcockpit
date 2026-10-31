@@ -456,8 +456,21 @@ Decided *(Claude)*, ADR 0105:
     - [x] Windows: unit (geometry, stack, settings, keyboard lock, bar,
       App), e2e `windows.spec.ts` and the specs that went through the ESC
       menu, ADR 0103, ADR 0099 addendum, test guide below.
-- [ ] 30b round 1 (2026-10-31): profile changes apply while the window
+- [x] 30b round 1 (2026-10-31): profile changes apply while the window
   stays open (ADR 0105).
+  - [x] LITE applies at commit points (field left, window left, entry or
+    kind changed, new or deleted entry, captured key, highlight); a new
+    entry waits for its Commands.
+  - [x] Ctrl+S in LITE, EDITOR and HELP; EDITOR applies on Ctrl+S and the
+    flip back, `Modified` in its footer.
+  - [x] Invalid entries and texts that do not load are held back with the
+    reason; the close prompt only while something is unapplied.
+  - [x] Quiet applies (no UI pane lines), `Applied` flash, new warnings.
+  - [x] Typed settings and script variables saved while open are rebased
+    under the edits (document-model rebase, `ProfileStore.subscribe`,
+    saves on the write-back queue); session variables survive an apply.
+  - [x] Unit tests, e2e `profile-apply.spec.ts`, ADR 0105, ADR 0015
+    addendum, manual text, test guide.
 - [ ] 30c.
 - [ ] 30d.
 - [ ] 30e.
@@ -588,3 +601,39 @@ grip), the dimming without focus, the default size and place, whether
 focus following clicks feels right, the Lite halves and the tall
 Commands box, and anything that takes keys from the
 game when it should not.
+
+#### Round 1
+
+Changes now take effect while the Profile window stays open. Enter MUME
+(connected, so the changes go into the running game) and open Profile.
+
+1. **LITE applies by itself:** add an alias (`n`, a pattern, Tab, its
+   commands) and click in the game. `Applied` shows briefly in the
+   window's footer, and the alias works at once; the window stays open.
+   It also applies when you move to another entry or kind, delete an
+   entry, bind a macro key or pick a highlight colour. It does not apply
+   while you type, and a new entry waits until it has commands.
+2. **No spam:** the game text and the UI pane get no `Profile applied` or
+   `saved` lines for these.
+3. **EDITOR:** switch to EDITOR and change the text. `Modified` shows
+   left of the cursor position; a click in the game does not apply.
+   Ctrl+S applies (no browser Save dialog), and so does going back to
+   LITE.
+4. **Mistakes:** give an entry an unbalanced brace (`say {hi`) and click
+   the game: the footer says `Not applied: …` in red, and the game keeps
+   the old version. In EDITOR, an unbalanced text is not applied either.
+5. **Closing:** with everything applied, X or Esc closes at once. With
+   something unapplied, it asks Apply / Discard / Keep editing; when what
+   is left cannot be applied, it says why and offers Discard / Keep
+   editing.
+6. **Typed settings:** with the window open, type `#alias {zz} {say hi}`
+   in the game input: it appears in the window's list (and in EDITOR's
+   text). Edit another alias and apply: `zz` is still there and still
+   works. Variables your scripts set are kept too.
+7. On the start page (Profile → EDIT) the same rules save instead of
+   apply; `Saved` shows in the footer.
+
+Feedback wanted: whether applying on leaving a field feels right (or
+should it be even sooner, or only with Ctrl+S), whether the `Applied`
+flash is enough feedback, the wording of the `Not applied` messages, and
+whether the close prompt still asks too often or too seldom.

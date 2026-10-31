@@ -414,3 +414,26 @@ TypeScript, unit tested in Node.
   same size as before (+1 request). Cold start (`vite preview`, Chromium,
   20 Mbit/s, 40 ms RTT, Playwright goto → menu row visible): median 418 ms,
   with no editor bytes before the menu.
+
+## Addendum 2026-10-31 — the editor applies in place (ADR 0105)
+
+Stage 30b round 1 changes these rules; ADR 0105 has the details.
+
+- **Editor host.** `{ name, text, isLive(), load(), commit(build, {
+  quiet }), subscribe?() }`: the host reads the latest stored text, the
+  editor's `build` rebases its edits onto it, the host applies (live) and
+  saves. `save` and `apply` are gone.
+- **Close (ESC).** The editor applies while it stays open (LITE at the
+  points where an edit is finished, EDITOR on Ctrl+S and the flip back to
+  LITE). ESC leaves without asking when nothing is unapplied; live, the
+  Apply / Discard / Keep editing prompt shows only while something is.
+  A failed apply keeps the editor open with the reason instead of leaving
+  with `Profile not applied: …`.
+- **Lite model.** Only new entries (not in the last applied text) with
+  an empty pattern are dropped; an edited entry that does not validate is
+  held back, not saved ("saving is never blocked" no longer holds for
+  LITE entries).
+- **loadProfile.** A live apply from the editor keeps the session's
+  variables that the new text does not set (`keepVars`); "runtime-created
+  variables vanish at the next load" now holds for a session start only.
+  Runtime-created rules still vanish.
