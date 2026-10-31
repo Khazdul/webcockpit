@@ -60,3 +60,12 @@ Owner feedback: the tip lines drop the `L  ` prefix; `markRows` gives
 `tips` as the plain texts (`Reached level 42`), one line per marker, in
 time order. This applies to old HTML replays opened in a new build only
 if re-exported (the replay page code ships in the file).
+
+## Addendum 2026-10-31 — a gear for the Spotlights settings (stage 30e)
+
+The owner reversed "no gear in the control box" for one purpose (stage 30
+S9): the reel's control box has a gear again, in the viewer gear's cell,
+but it opens the Spotlights settings popup (kinds, characters, period),
+not the viewer settings. The reel stays bare otherwise: no panes, no
+viewer font, colour or pane toggles (`viewerSettings: false` as before;
+the gear is `PlayerViewOptions.gear`). See ADR 0110.

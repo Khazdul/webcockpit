@@ -40,7 +40,7 @@ WHAT IS INSIDE
   Panes           Character, Timers, Group, Communication, UI messages and Map. Dock them on any side, in several columns or rows, or let them float.
   Map             Reads MMapper maps and follows you as you move. Options → Mapper picks the tileset, among them Shimrod's, which follows MUME's season.
   Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Options → Weather effects turns them off or picks what to show; #weather demo plays them all.
-  Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page.
+  Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page. The gear in the Spotlights reel picks the kinds, characters and period shown there and in Credits.
   Export          Cut a run, add comments and save it as text or as an HTML replay anyone can open.
   Phone           Log in and chat from a phone. Real play is for a keyboard.
 
