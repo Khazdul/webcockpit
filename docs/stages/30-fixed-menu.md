@@ -416,6 +416,82 @@ Technical decisions *(Claude)*, recorded as ADR 0109:
   when the run is not recorded, so it does not blank when the run ends.
   Before any run in this tab: `No run yet`, centred.
 
+## 30e build plan
+
+Scope: S9 (Spotlights settings in the reel: kinds, characters, period;
+Credits follows; the filtered empty states offer the settings; Options →
+Spotlights removed). The start page's other Options stay (S10). This
+reverses ADR 0032's "no gear" for the reel, for these settings only: the
+viewer settings (panes, font, colours) stay out of the reel.
+
+Technical decisions *(Claude)*, recorded as ADR 0110:
+
+- **Settings shape:** `SpotlightSettings` gains `allCharacters: boolean`
+  (default true), `characters: string[]` (the checked subset, kept while
+  All is on, so turning All off brings it back) and `period: 'all' |
+  'year' | '3months' | 'month' | 'week'` (default `'all'`). Global, not per
+  profile. The migration fills the defaults (additive, no version bump);
+  `characters` keeps non-empty strings only, without duplicates.
+- **Filter** (pure, `src/share/spotlights.ts`): one predicate over kind ×
+  character × moment (`logUs ?? us`), used by the reel's selection and by
+  the Credits chronicle, with `now` passed in. Period: a rolling window back
+  from now in local calendar terms (the same clock time one year, three
+  months or one month ago; seven days for a week). Characters: all, or the
+  checked names; a character not checked (a new one included) is left out
+  while All is off.
+- **Characters list:** `RunLibrary.characters()` (sealed runs,
+  alphabetical; empty names dropped), read when the popup opens. A checked
+  name no longer in the runs is not shown; the next character change
+  writes only listed names. Turning All off when none of the remembered
+  names is listed checks every listed character, so the reel does not go
+  empty by surprise.
+- **Popup:** a `spotlights` target in the settings popups' surface (ADR
+  0107), the same `PopupPanel` and control kit in the ghost look: Kinds
+  (four toggles), Characters (`All characters` toggle, then a list of
+  checkboxes, dimmed and disabled while All is on, scrolling past about
+  eight names; ↑↓ move in it), Period (a dropdown: All time, Last year,
+  Last 3 months, Last month, Last week). A small `Check` control
+  (`role=checkbox`) joins the kit. It follows ADR 0107/0108's rules: it
+  takes the focus on open (the first toggle), Tab cycles inside, Esc, its X
+  or the gear close it. Every change goes to the settings store at once.
+- **Gear in the reel:** the control box gets the viewer's `⚙` cell at the
+  end of its first row (ADR 0021's place and glyph rules), titled
+  `Spotlights settings`; it toggles the popup, placed above the control
+  box with their right edges aligned (the bar's `placePopup` with the box
+  as the bar). The gear glows while the popup is open, and the chrome does
+  not auto-hide then. The popup lives beside the player element, not in it
+  (the player's pointer and wheel handlers and its recorded font size stay
+  out of it); it closes with the player. The player leaves keys and the
+  wheel inside a `data-wc-own-keys` element to it; Esc with the popup open
+  closes it first, then the reel. Closing gives the keys back to the reel.
+- **Rebuild:** the reel subscribes to the store's `spotlights`; a change
+  selects again over the runs read at open and reads only the windows not
+  read yet (cached by spotlight id), then reopens the chain on the same
+  player host (the old engine, App and view disposed). The current
+  spotlight is kept, at the same offset into it, when it still passes;
+  otherwise the reel starts from the first. Paused stays paused; parked at
+  the end plays again. Changes in flight: the latest wins.
+- **Empty while in the reel:** a change that leaves nothing stops the reel
+  and the stage shows `No spotlights match your settings.`, a `Settings…`
+  control and `ESC Back`; the popup stays open, and the next change that
+  lets something through starts the reel again.
+- **Empty states on the start page:** `no_data` (no event of any kind in
+  any run) stays as it is. `filtered` (events exist, none passes) reads
+  `No spotlights match your settings.` (Credits: `No chronicle entries
+  match your settings.`) with a `Settings…` row (Enter, Space or a click)
+  that opens the same popup, drawn inside the page so the start page's
+  focus trap keeps it; the frame stack leaves keys whose target is inside
+  a `data-wc-own-keys` element within the stack to that element. Footer
+  `Enter Settings · ESC Back`; Esc closes the popup first. When the popup
+  closes after a change, Spotlights tries again (the reel opens, or the
+  page stays) and Credits builds the chronicle again (it rolls, or the page
+  stays).
+- **Credits** follows all three filters (`buildChronicle` takes the
+  settings and `now`); no settings of its own.
+- **Options → Spotlights** removed from the Options hub (start page and
+  ESC menu) and its frame deleted, on every device where the reel's gear
+  works by touch (checked on the phone in the build).
+
 ## Owner feedback
 
 ### 30a round 1 (2026-10-31)
@@ -670,7 +746,23 @@ The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
     `Run ended`; `No run yet`.
   - [ ] Statistics row in the Panes popup.
   - [ ] Unit tests, e2e, ADR 0109, test guide.
-- [ ] 30e.
+- [ ] 30e (build plan above):
+  - [ ] `SpotlightSettings`: `allCharacters`, `characters`, `period`;
+    migration.
+  - [ ] Filter (kinds × characters × period) for the reel and Credits;
+    empty states by "any event at all".
+  - [ ] Spotlights popup (Kinds, Characters, Period; `Check` control) in
+    the settings popups' surface.
+  - [ ] Gear in the reel's control box; popup above the box; keys and
+    wheel left to the popup; Esc order; chrome kept while open.
+  - [ ] Live rebuild (cached windows, current spotlight kept, latest
+    change wins); empty stage in the reel.
+  - [ ] Filtered empty states on the start page offer `Settings…`; retry
+    on close (Spotlights, Credits).
+  - [ ] Options → Spotlights removed (phone checked); manual, About, spec
+    texts.
+  - [ ] Unit tests, e2e `spotlights-settings.spec.ts`, ADR 0110, ADR 0032
+    addendum, test guide.
 - [ ] 30f.
 
 ## Test guide
