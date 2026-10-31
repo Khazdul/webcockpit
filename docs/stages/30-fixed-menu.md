@@ -413,17 +413,24 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
     panebar), screenshots checked.
 - [x] 30a approved by the owner after round 2 (2026-10-31).
 - [ ] 30b (2026-10-31):
-  - [ ] Window kit: frame, drag, resize, grip, snap to cells, minimum
+  - [x] Window kit: frame, drag, resize, grip, snap to cells, minimum
     size, kept on screen, z-order, focus and dimming (ADR 0103).
-  - [ ] `FrameStack` without focus trap; keys only while focused.
-  - [ ] Profile and Scripts windows; bar icons, `#profile`, `#scripts`,
-    ESC menu entries open them; toggle rules.
-  - [ ] Close via X / Esc through the frames' unsaved prompts; Esc order
+  - [x] `FrameStack` without focus trap; keys only while focused; one key
+    owner per browser window.
+  - [x] Profile and Scripts windows; bar icons, `#profile`, `#scripts`,
+    ESC menu entries open them; toggle rules; `#help` texts.
+  - [x] Close via X / Esc through the frames' unsaved prompts; Esc order
     in the input; Exit popup warning.
-  - [ ] Position and size remembered across reloads.
+  - [x] Position and size remembered across reloads.
+  - [x] Owner request during the build: Esc in fullscreen opens the Exit
+    popup instead of leaving fullscreen (Keyboard Lock, Chromium; ADR
+    0103).
   - [ ] Lite view fills the width; Commands takes the height; hints panel
     removed, warnings kept (ADR 0104).
   - [ ] Unit tests, e2e, ADRs, test guide.
+    - [x] Windows: unit (geometry, stack, settings, keyboard lock, bar,
+      App), e2e `windows.spec.ts` and the specs that went through the ESC
+      menu, ADR 0103, ADR 0099 addendum, test guide below.
 - [ ] 30c.
 - [ ] 30d.
 - [ ] 30e.
@@ -508,3 +515,42 @@ dock's column (it now runs under it, as the diagram showed).
 
 Feedback wanted: whether 50 cells is the right switch point, and
 whether the switch feels abrupt when resizing.
+
+### 30b
+
+Open the dev server (`npm run dev`, then http://localhost:5173/), Enter
+MUME (or `?replay` offline). The windows exist on desktop and tablet; a
+phone is unchanged.
+
+1. **Open:** click Profile in the bar. A window opens over the game with
+   the profile editor, about 80% of the screen. Type `#scripts` (or click
+   Scripts): a second window, one cell right and down. Both can be open.
+2. **Focus:** click in the game text or the input line: the windows dim
+   and your keys go to the game. Click in a window: it lights up, comes to
+   the front and takes the keys. Click the other window: it does.
+3. **Move and resize:** drag the title bar; drag any edge or corner, or
+   the small grip bottom right. It moves in whole cells, stops at the
+   screen edges and at a minimum size. Make the browser smaller: the
+   windows stay fully on screen. Reload: they open where you left them.
+4. **Toggle:** click Profile again while its window has the keys: it
+   closes. While it is dimmed, the click brings it forward instead.
+5. **Unsaved changes:** while connected, add an alias in the editor and
+   click X: Apply / Discard / Keep editing, as Esc asks. Esc in the game
+   input closes a bar popup first, then reaches the topmost window (it
+   lights up and asks), then opens the old menu.
+6. **Exit** with an unsaved change in a window: the Exit popup warns on a
+   line of its own; Exit discards the change. The windows close with the
+   cockpit.
+7. **The old menu:** Esc → Profile and Esc → Options → Scripts now open
+   the windows and close the menu.
+8. **Fullscreen** (Chrome or Edge): enter fullscreen from the bar and
+   press Esc with nothing open: the Exit popup instead of leaving
+   fullscreen (Esc again cancels it). Holding Esc still leaves fullscreen.
+   Firefox and Safari always leave fullscreen on Esc.
+9. A light background (Options → Appearance): the windows' title bars
+   turn pale; the cyan border stays.
+
+Feedback wanted: the frame's look against the mockup (border, title bar,
+grip), the dimming without focus, the default size and place, whether
+focus following clicks feels right, and anything that takes keys from the
+game when it should not.
