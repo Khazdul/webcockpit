@@ -73,6 +73,8 @@ export function WindowFrame(p: WindowFrameProps): VNode {
   const move = (e: JSX.TargetedPointerEvent<HTMLElement>): void => {
     const d = drag.current;
     if (!d || d.pointerId !== e.pointerId) return;
+    // The button came up where no pointerup reached us: the drag is over.
+    if (e.pointerType === 'mouse' && e.buttons === 0) return end(e);
     const q = propsRef.current;
     const dx = cellDelta(e.clientX - d.x0, q.cellW);
     const dy = cellDelta(e.clientY - d.y0, q.cellH);
