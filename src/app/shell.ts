@@ -17,11 +17,20 @@
 // editor (CodeMirror) is a chunk of its own, imported by the chrome when it
 // is opened and prefetched when idle once the start page is up.
 //
-// ESC menu auto-open (Inv §4.7): on a transition from login/playing to
-// disconnected on a live connection, unless the user caused it (#reconnect,
-// #disconnect, Exit session, a replay starting), unless the menu is
-// already open, and never before the first connection reached login.
-// Reconnect is pre-selected then.
+// ESC menu auto-open (Inv §4.7), phone only since stage 30 (ADR 0100): on
+// a transition from login/playing to disconnected on a live connection,
+// unless the user caused it (#reconnect, #disconnect, Exit session, a
+// replay starting), unless the menu is already open, and never before the
+// first connection reached login. Reconnect is pre-selected then. On
+// desktop and tablet the menu bar's Disconnected notice takes its place
+// (src/menubar/menubar.ts), and Enter still reconnects.
+//
+// Menu bar (ADR 0099): desktop and tablet (`device().phone` keeps the
+// clock strip and `☰`; a tablet keeps `☰` beside the bar until the ESC
+// menu goes away). The cockpit's `ui` hands it `openMenuAt` (the ESC menu
+// straight at the profile editor, Options → Scripts, Options, Panes or
+// Exit; leaving that frame closes the menu) and `exitSession`. Its popups
+// close when the ESC menu opens and when the cockpit is hidden.
 //
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
@@ -48,7 +57,7 @@
 // page's main menu the same way.
 
 import type { BenchProbe } from './bench-hook';
-import type { ChromeServices, EscMenuHandle, StartPageHandle } from '../chrome';
+import type { ChromeServices, EscMenuHandle, EscMenuTarget, StartPageHandle } from '../chrome';
 import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
@@ -251,12 +260,16 @@ export class Shell {
     this.showStart();
   }
 
-  /** Opens the ESC menu over the cockpit (no-op elsewhere or when open). */
-  async openMenu(preselect?: 'continue' | 'reconnect'): Promise<void> {
+  /**
+   * Opens the ESC menu over the cockpit (no-op elsewhere or when open), at
+   * `target`'s frame when given. The menu bar's popup closes first.
+   */
+  async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef) return;
+    this.appRef.menuBar?.reset();
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
-    menu.open(preselect ? { preselect } : {});
+    menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
   }
 
   /** The touch menu button (`☰`); a tap opens the ESC menu without focusing the input. */
@@ -354,6 +367,7 @@ export class Shell {
 
   private showStart(): void {
     this.inCockpit = false;
+    this.appRef?.menuBar?.reset();
     if (this.appRef) this.appRef.el.style.display = 'none';
     this.startHost.style.display = '';
     this.start?.show();
@@ -387,19 +401,26 @@ export class Shell {
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
       onEscape: () => void this.openMenu(),
+      ui: {
+        bar: !device().phone,
+        openMenuAt: (target) => void this.openMenu(undefined, target),
+        exit: () => void this.exitSession(),
+      },
       weather: installWeather,
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
     });
     // Keep the menu host last, so the overlay is above the cockpit in DOM order too.
     root.appendChild(this.menuHost);
+    // The right end of the input row: the menu bar (ADR 0099), or the clock strip on a phone.
+    const rowEnd = app.menuBar?.el ?? app.input.clockEl;
     const notices = this.opts.notices;
     if (notices) {
-      app.input.clockEl.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
+      rowEnd.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
       notices.attach(app.bus);
     }
     // Touch only (ADR 0075): a `☰` at the end of the input row opens the
     // ESC menu, as Esc does. Desktop has no such control.
-    if (device().touch) app.input.clockEl.after(this.menuButton(root.ownerDocument));
+    if (device().touch) rowEnd.after(this.menuButton(root.ownerDocument));
     // Phone only (ADR 0075 §3.4): back from the background, check the link
     // at once; a dead one drops with a reason, and onConn opens the menu
     // with Reconnect selected. Desktop installs nothing.
@@ -423,6 +444,8 @@ export class Shell {
     const wasUp = prev === 'login' || prev === 'playing';
     if (!wasUp || !this.everUp || this.connIsReplay || QUIET_REASONS.has(reason)) return;
     if (!this.inCockpit || this.menuOpen) return;
+    // Desktop and tablet: the menu bar's Disconnected notice instead (ADR 0100).
+    if (!device().phone) return;
     void this.openMenu('reconnect');
   }
 

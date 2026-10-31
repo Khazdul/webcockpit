@@ -4,7 +4,7 @@ import { canFullscreen, isFullscreen, resetFullscreenRefusal, toggleFullscreen }
 import { setDeviceForTest } from '../../src/core/device';
 import { installFullscreenButton } from '../../src/ui/fullscreen-button';
 
-const touch = (): void => setDeviceForTest({ touch: true, phone: false });
+const touch = (): void => setDeviceForTest({ touch: true, phone: true });
 
 describe('fullscreen', () => {
   afterEach(() => {
@@ -28,7 +28,14 @@ describe('fullscreen', () => {
     expect(installFullscreenButton()).toBeNull();
   });
 
-  it('puts the button in the page on touch and requests fullscreen on a tap', () => {
+  it('has no corner button on a tablet: the menu bar has one (ADR 0099)', () => {
+    setDeviceForTest({ touch: true, phone: false });
+    Object.assign(document.documentElement, { requestFullscreen: vi.fn(() => Promise.resolve()) });
+    expect(canFullscreen()).toBe(true);
+    expect(installFullscreenButton()).toBeNull();
+  });
+
+  it('puts the button in the page on a phone and requests fullscreen on a tap', () => {
     touch();
     const req = vi.fn(() => Promise.resolve());
     Object.assign(document.documentElement, { requestFullscreen: req });

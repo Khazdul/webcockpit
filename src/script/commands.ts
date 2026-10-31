@@ -15,7 +15,9 @@
 // - One exception: a one-letter word that starts several names is
 //   'ambiguous' (tt++ would silently pick the first, e.g. `#s` → #scan).
 // - A word longer than a name never matches it: `#macros` is unknown.
-// - WebCockpit-only commands in `EXACT_ONLY` (`#menu`) need the full name.
+// - WebCockpit-only commands in `EXACT_ONLY` (`#menu`, the menu bar's
+//   `#profile`, `#scripts`, `#panes`, `#settings`, `#fullscreen`, `#exit`)
+//   need the full name.
 //
 // `#script` and `#lua` are inert except in the forms that act on the
 // script library (spec §3, §2.10, ADR 0051): see `scriptCommandArgs`.
@@ -111,8 +113,10 @@ const SPECS: readonly Spec[] = [
   ['elseif', 'control', 'must'],
   ['end', 'inert', 'inert'],
   ['event', 'define', 'should', 'event'],
+  ['exit', 'client', 'client'],
   ['foreach', 'inert', 'unsupported'],
   ['format', 'command', 'should'],
+  ['fullscreen', 'client', 'client'],
   ['function', 'inert', 'unsupported'],
   ['gag', 'define', 'must', 'gag'],
   ['grep', 'inert', 'inert'],
@@ -136,11 +140,13 @@ const SPECS: readonly Spec[] = [
   ['menu', 'client', 'client'],
   ['message', 'command', 'should'],
   ['nop', 'command', 'must'],
+  ['panes', 'client', 'client'],
   ['parse', 'inert', 'unsupported'],
   ['path', 'inert', 'inert'],
   ['pathdir', 'inert', 'inert'],
   ['perf', 'client', 'client'],
   ['port', 'inert', 'inert'],
+  ['profile', 'client', 'client'],
   ['prompt', 'inert', 'unsupported'],
   ['read', 'inert', 'inert'],
   ['reconnect', 'client', 'client'],
@@ -153,8 +159,10 @@ const SPECS: readonly Spec[] = [
   ['scan', 'inert', 'inert'],
   ['screen', 'inert', 'inert'],
   ['script', 'inert', 'inert'],
+  ['scripts', 'client', 'client'],
   ['send', 'inert', 'inert'],
   ['session', 'inert', 'inert'],
+  ['settings', 'client', 'client'],
   ['showme', 'command', 'must'],
   ['snoop', 'inert', 'inert'],
   ['split', 'inert', 'inert'],
@@ -212,7 +220,17 @@ function hintFor(name: string, tier: CommandTier): string | undefined {
  * their full name, so they never take over a tt++ abbreviation (`#me`
  * stays #message, not #menu).
  */
-const EXACT_ONLY: ReadonlySet<string> = new Set(['menu', 'weather']);
+const EXACT_ONLY: ReadonlySet<string> = new Set([
+  'menu',
+  'weather',
+  // The menu bar's commands (ADR 0099).
+  'exit',
+  'fullscreen',
+  'panes',
+  'profile',
+  'scripts',
+  'settings',
+]);
 
 /** Shortest prefix of `names[i]` that the resolution rule maps to it. */
 function minAbbrevOf(all: readonly string[], i: number): number {

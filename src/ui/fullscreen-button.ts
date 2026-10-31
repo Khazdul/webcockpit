@@ -1,6 +1,6 @@
 // The fullscreen button (ADR 0097): a small, faint icon fixed in the top
-// right corner of the page, on touch devices only (phones, iPads), where
-// there is no F11. It is left out where the browser has no page fullscreen
+// right corner of the page, on phones only, where there is no F11. Desktop
+// and tablet have the menu bar's fullscreen button instead (ADR 0099). It is left out where the browser has no page fullscreen
 // (iPhone) and removed once a request is refused (Firefox on iPad). The
 // icon shows the action: expand corners, or inward corners in fullscreen.
 
@@ -18,7 +18,7 @@ export interface FullscreenButton {
 
 /** Adds the button to `doc.body`; null where it does not apply. */
 export function installFullscreenButton(doc: Document = document): FullscreenButton | null {
-  if (!device().touch || !canFullscreen(doc)) return null;
+  if (!device().phone || !canFullscreen(doc)) return null;
   const b = doc.createElement('button');
   b.type = 'button';
   b.className = 'wc-fs-btn';

@@ -469,6 +469,17 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#exit',
+    covers: ['exit'],
+    syntax: ['#exit'],
+    text: [
+      'Asks whether to exit to the main menu, in a small box above the menu bar\'s Exit button (the power symbol), or closes that box when it is open. Y exits, Esc stays. When there is a run to rate, 0 to 5 or the stars rate and save it first, as Exit session in the menu does.',
+      'On a phone, where there is no menu bar, it opens the menu\'s Exit session page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#exit' }],
+  },
+  {
+    group: 'commands',
     heading: '#format',
     covers: ['format'],
     syntax: ['#format {variable} {format} {argument} {argument} …'],
@@ -486,6 +497,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
         check: { type: ['rep Gimli'], vars: { line: 'Gimli     87 hp' }, shows: ['## Gimli     87 hp'] },
       },
     ],
+  },
+  {
+    group: 'commands',
+    heading: '#fullscreen',
+    covers: ['fullscreen'],
+    syntax: ['#fullscreen'],
+    text: [
+      'Switches the page to fullscreen and back, as the menu bar\'s fullscreen button does. In a browser without page fullscreen (iPhone) it says so. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#fullscreen' }],
   },
   {
     group: 'commands',
@@ -662,6 +683,17 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
   },
   {
     group: 'commands',
+    heading: '#panes',
+    covers: ['panes'],
+    syntax: ['#panes'],
+    text: [
+      'Opens the Panes box above the menu bar\'s Panes button, or closes it when it is open: a switch per pane shows or hides it, built-in panes first, then the panes of running scripts, and Reset layout puts every pane back in its first place. The box takes the keys only after a click in it; Esc closes it.',
+      'On a phone, where there is no menu bar, it opens the menu\'s pane page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#panes' }, { note: 'F12 opens and closes the Panes box:', code: '#macro {F12} {#panes}' }],
+  },
+  {
+    group: 'commands',
     heading: '#perf',
     covers: ['perf'],
     syntax: ['#perf', '#perf worst', '#perf reset'],
@@ -671,6 +703,16 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
       '#perf worst lists the ten slowest moments with their time and what was happening: type it right after something felt slow. #perf reset starts over.',
     ],
     examples: [{ via: 'input', code: '#perf' }, { via: 'input', code: '#perf worst' }],
+  },
+  {
+    group: 'commands',
+    heading: '#profile',
+    covers: ['profile'],
+    syntax: ['#profile'],
+    text: [
+      'Opens the editor of the profile in use, as the menu bar\'s Profile button does, with the changes applied to the game when saved. Leaving the editor returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#profile' }],
   },
   {
     group: 'commands',
@@ -708,6 +750,26 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
         check: { keys: ['F9'], scripts: [['script', 'disable', 'autoeat']] },
       },
     ],
+  },
+  {
+    group: 'commands',
+    heading: '#scripts',
+    covers: ['scripts'],
+    syntax: ['#scripts'],
+    text: [
+      'Opens the Scripts page (turn scripts on and off, edit, set their options), as the menu bar\'s Scripts button does. Leaving it returns to the game. #script, without the s, is the command for scripts on the input line. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#scripts' }],
+  },
+  {
+    group: 'commands',
+    heading: '#settings',
+    covers: ['settings'],
+    syntax: ['#settings'],
+    text: [
+      'Opens Options, as the menu bar\'s Settings button does. Leaving it returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+    ],
+    examples: [{ via: 'input', code: '#settings' }],
   },
   {
     group: 'commands',

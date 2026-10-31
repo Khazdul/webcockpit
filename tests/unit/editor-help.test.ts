@@ -140,12 +140,15 @@ describe('manual examples', () => {
   });
 });
 
+/** The menu bar's commands (ADR 0099): documented, since a macro may bind them. */
+const BAR_COMMANDS = ['exit', 'fullscreen', 'panes', 'profile', 'scripts', 'settings'];
+
 describe('manual coverage (no drift from the command table)', () => {
   const covered = new Set(sections.flatMap((s) => s.covers ?? []));
 
   it('has a section for every command the engine runs, except the ones the menus cover', () => {
     // #script and #lua are inert in the table but run in the forms their sections document.
-    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'menu', 'perf', 'script', 'lua'];
+    const runs = [...COMMANDS.filter((c) => c.tier === 'must' || c.tier === 'should').map((c) => c.name), 'help', 'menu', 'perf', 'script', 'lua', ...BAR_COMMANDS];
     expect(runs.filter((n) => !covered.has(n))).toEqual([]);
     // … and documents nothing beyond those.
     expect([...covered].filter((n) => !runs.includes(n))).toEqual([]);
@@ -155,7 +158,7 @@ describe('manual coverage (no drift from the command table)', () => {
     // #weather: the weather effects (stage 28) stay out of the manual.
     const hidden = ['connect', 'reconnect', 'replay', 'runlog', 'disconnect', 'weather'];
     // They are still commands: only the manual is silent about them.
-    expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help', 'menu', 'perf'].sort());
+    expect(COMMANDS.filter((c) => c.tier === 'client').map((c) => c.name).sort()).toEqual([...hidden, 'help', 'menu', 'perf', ...BAR_COMMANDS].sort());
     const all = JSON.stringify(sections);
     for (const h of hidden) {
       expect(covered.has(h), h).toBe(false);

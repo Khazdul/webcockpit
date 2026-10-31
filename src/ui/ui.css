@@ -518,8 +518,8 @@ html.wc-phone.wc-kbd .wc-overlay {
   bottom: 0;
 }
 
-/* Touch only (ADR 0097): the fullscreen button, small and faint in the top
- * right corner, above everything (start page, cockpit, menus). */
+/* Phone only (ADR 0097, ADR 0099): the fullscreen button, small and faint
+ * in the top right corner, above everything (start page, cockpit, menus). */
 .wc-fs-btn {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0px));

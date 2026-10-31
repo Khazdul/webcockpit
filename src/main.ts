@@ -146,7 +146,7 @@ try {
 } finally {
   bootDone();
 }
-// Touch only (ADR 0097): the fullscreen button in the top right corner.
+// Phone only (ADR 0097, ADR 0099): the fullscreen button in the top right corner.
 if (!benchMode) installFullscreenButton();
 const playerFixture = import.meta.env.DEV ? params.get('player') : null;
 if (playerFixture !== null) void openPlayerFixture(playerFixture, params.get('session'));

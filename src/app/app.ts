@@ -56,6 +56,13 @@
 // Script panes go through a RecordingPaneSurface, which emits their
 // content as `view.pane` for the run capture (ADR 0053 P1).
 //
+// Menu bar (ADR 0099): with `ui.bar` (desktop and tablet) the input row's
+// clock strip becomes the menu bar (src/menubar/menubar.ts), and Esc in the
+// input closes its open popup before it opens the ESC menu. The client
+// commands `#profile`, `#scripts`, `#settings`, `#panes`, `#exit` and
+// `#fullscreen` open or toggle the same things; without the bar (the
+// phone) they open the ESC menu at the matching frame (`ui.openMenuAt`).
+//
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
 // captures, keeps nothing (no clock, pane database or UI ring storage),
@@ -83,6 +90,8 @@ import { RoomNotes } from '../map/notes';
 import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
+import { MenuBar } from '../menubar/menubar';
+import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
@@ -187,10 +196,29 @@ export interface AppOptions {
    * never include it. Absent: no weather effects.
    */
   weather?: (deps: WeatherHookDeps) => WeatherHook;
+  /**
+   * The shell's menu targets (ADR 0099): with `bar`, the menu bar replaces
+   * the clock strip. Absent (player Apps, tests): no bar, and `#profile` …
+   * say they are not available.
+   */
+  ui?: AppUi;
   /** Hang-guard storage for the script host (tests; default `localStorage`). */
   scriptStorage?: Storage | null;
   /** The Lua runtime loader for the script host (tests). */
   loadLua?: () => Promise<import('../lua').LuaRuntime>;
+}
+
+/** An ESC menu frame the shell can open straight away (ADR 0099). */
+export type MenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
+
+/** What the App asks the shell for (the menu bar, `#profile` …). */
+export interface AppUi {
+  /** Build the menu bar (desktop and tablet). */
+  bar: boolean;
+  /** Opens the ESC menu at `target`'s frame; leaving it closes the menu. */
+  openMenuAt(target: MenuTarget): void;
+  /** Exit to the start page (the shell's exitSession). */
+  exit(): void;
 }
 
 export class App {
@@ -210,8 +238,11 @@ export class App {
   readonly script: ScriptEngine;
   /** Character, group and clock state (src/gmcp/state.ts), shared with the panes. */
   readonly game: GameState;
-  /** The input line's day/night clock. */
-  readonly clockStrip: ClockStrip;
+  /** The input line's day/night clock (in the menu bar where there is one). */
+  readonly clockStrip!: ClockStrip;
+  /** The menu bar (ADR 0099), desktop and tablet; null elsewhere. */
+  readonly menuBar: MenuBar | null;
+  private readonly appUi: AppUi | null;
   /** Run events of the current connection (src/runs/events.ts). */
   readonly runEvents: RunEventDeriver;
   /** The live run for Statistics and Exit with rating (src/runs/live.ts). */
@@ -271,6 +302,7 @@ export class App {
     this.offline = opts.offline ?? false;
     this.onEscape = opts.onEscape;
     const player = (this.player = opts.player ?? false);
+    this.appUi = player ? null : (opts.ui ?? null);
 
     this.el = doc.createElement('div');
     this.el.className = 'wc-app';
@@ -381,10 +413,14 @@ export class App {
       output: this.output,
       onCommand: (text) => this.onCommand(text),
       onMacroKey: (key) => this.onMacroKey(key),
-      ...(opts.onEscape ? { onEscape: opts.onEscape } : {}),
+      // Esc (output at the bottom): the bar's open popup closes first (ADR 0099).
+      ...(opts.onEscape || opts.ui?.bar
+        ? { onEscape: () => void (this.menuBar?.closePopup(true) || opts.onEscape?.()) }
+        : {}),
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
     });
-    this.clockStrip = new ClockStrip(this.input.clockEl, { game: this.game, settings: this.settings, now });
+    const barUi = this.appUi?.bar ? this.appUi : null;
+    if (!barUi) this.clockStrip = new ClockStrip(this.input.clockEl, { game: this.game, settings: this.settings, now });
     // The scrollback depth and the input line options apply live (ADR 0046, 0063).
     const applyInput = (s: Readonly<Settings>): void => {
       this.input.setAutoClear(s.input.autoClear);
@@ -426,6 +462,30 @@ export class App {
     this.game.timers.installRules(this.script.system);
     this.runEvents.installRules(this.script.system);
     this.runs = new LiveRuns({ deriver: this.runEvents, recorder: this.recorder });
+    this.menuBar = barUi
+      ? new MenuBar({
+          clockEl: this.input.clockEl,
+          layer: this.el,
+          game: this.game,
+          settings: this.settings,
+          status: this.status,
+          runs: this.runs,
+          scriptPanes: { list: () => this.cockpit.scriptPanes(), subscribe: (fn) => this.cockpit.onScriptPanes(fn) },
+          focusInput: () => this.input.focus(),
+          now,
+          actions: {
+            profile: () => barUi.openMenuAt('profile'),
+            scripts: () => barUi.openMenuAt('scripts'),
+            settings: () => barUi.openMenuAt('settings'),
+            exit: () => barUi.exit(),
+            reconnect: () => {
+              this.runClient('reconnect', '');
+              this.input.focus();
+            },
+          },
+        })
+      : null;
+    if (this.menuBar) this.clockStrip = this.menuBar.clock;
     this.writeBack = this.profiles
       ? new ProfileWriteBack(this.profiles, {
           ...(opts.writeBackDelayMs !== undefined ? { delayMs: opts.writeBackDelayMs } : {}),
@@ -495,6 +555,7 @@ export class App {
     this.game.dispose();
     this.recorder.dispose();
     this.statusImpl.dispose();
+    this.menuBar?.dispose();
     this.clockStrip.dispose();
     this.input.dispose();
     this.output.dispose();
@@ -864,6 +925,24 @@ export class App {
         // Opens the ESC menu (all devices; the phone's main way in, ADR 0075).
         this.onEscape?.();
         return;
+      case 'panes':
+      case 'exit':
+        // The bar's popups (ADR 0099); without the bar, the ESC menu's frame.
+        if (this.menuBar) this.menuBar.toggle(name);
+        else this.openMenuAt(name);
+        return;
+      case 'profile':
+      case 'scripts':
+      case 'settings':
+        this.menuBar?.closePopup();
+        this.openMenuAt(name);
+        return;
+      case 'fullscreen': {
+        const doc = this.el.ownerDocument;
+        if (canFullscreen(doc)) void toggleFullscreen(doc);
+        else this.sys('Fullscreen is not available in this browser.');
+        return;
+      }
       case 'perf':
         this.perfCommand(argText);
         return;
@@ -875,6 +954,11 @@ export class App {
       default:
         this.sys(`Unknown command: #${name}`);
     }
+  }
+
+  private openMenuAt(target: MenuTarget): void {
+    if (this.appUi) this.appUi.openMenuAt(target);
+    else this.sys(`#${target} is not available here.`);
   }
 
   /**

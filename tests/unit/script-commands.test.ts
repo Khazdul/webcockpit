@@ -65,6 +65,36 @@ describe('resolveCommand', () => {
     expect(commandByName('message')?.minAbbrev).toBe(2);
   });
 
+  it('the menu bar commands (ADR 0099) need their full names and change no tt++ abbreviation', () => {
+    for (const n of ['profile', 'scripts', 'panes', 'settings', 'fullscreen', 'exit']) {
+      expect(name('#' + n), n).toBe(n);
+      expect(name('#' + n.toUpperCase()), n).toBe(n);
+      expect(commandByName(n), n).toMatchObject({ kind: 'client', tier: 'client', inert: false, minAbbrev: n.length });
+      // One letter short is never the command.
+      expect(name('#' + n.slice(0, -1)), n).not.toBe(n);
+    }
+    // tt++'s own resolution is unchanged.
+    expect(name('#script')).toBe('script');
+    expect(name('#scri')).toBe('script');
+    expect(name('#scr')).toBe('screen');
+    expect(name('#pa')).toBe('parse');
+    expect(name('#pane')).toBe(null);
+    expect(name('#pr')).toBe('prompt');
+    expect(name('#pro')).toBe('prompt');
+    expect(name('#prof')).toBe(null);
+    expect(name('#se')).toBe('send');
+    expect(name('#ses')).toBe('session');
+    expect(name('#set')).toBe(null);
+    expect(name('#fu')).toBe('function');
+    expect(name('#ex')).toBe(null);
+    expect(name('#e')).toBe('ambiguous');
+    expect(commandByName('script')?.minAbbrev).toBe(4);
+    expect(commandByName('session')?.minAbbrev).toBe(3);
+    expect(commandByName('prompt')?.minAbbrev).toBe(2);
+    expect(commandByName('parse')?.minAbbrev).toBe(2);
+    expect(commandByName('function')?.minAbbrev).toBe(2);
+  });
+
   it('resolves the short forms real profiles use', () => {
     const cases: Record<string, string> = {
       var: 'variable',
