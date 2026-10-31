@@ -47,7 +47,7 @@
 // and placed above the Settings icon (`placePopup`). The bar adopts it as
 // its open popup, so the one-popup rule, Esc, the ESC menu and hiding the
 // cockpit close it as they close Panes and Exit. 30c part 2 opens the pane
-// gear popups through the same layer (`popupsHandle`, `toggleGear`).
+// gear popups through the same layer (`togglePopup`, `popupsHandle`).
 //
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
