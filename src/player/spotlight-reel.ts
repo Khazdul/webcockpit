@@ -2,8 +2,9 @@
 // reel's arithmetic. No DOM; the info box is src/player/spotlight-box.ts and
 // the player wiring src/player/spotlight-mode.ts.
 //
-// Loading. Every sealed run with a log and its events → `selectSpotlights`
-// (Options → Spotlights filters, rotation order). Each spotlight's window is
+// Loading (`ReelSource`). Every sealed run with a log and its events →
+// `selectSpotlights` (the Spotlights settings' filters, ADR 0110; rotation
+// order). Each spotlight's window is
 // then read on its own with `RunLibrary.chainLogRange(runId, prefixFromUs,
 // toUs)`: only the chunks around the window (the state prefix of at most
 // 10 minutes and the 15 s window), never the whole run, a few at a time.
@@ -12,7 +13,8 @@
 // LOGIN_US after `run_start`) is read too and put before the prefix; the
 // timeline keeps only its GMCP / VIEW / SIZE (everything before the window
 // is state prefix).
-// A window with no visible entry is dropped. The reel opens once every
+// A window with no visible entry is dropped. Runs and windows are cached,
+// so a rebuild for new settings reads only new windows. The reel opens once every
 // window is read: the header's TOTAL, the strip and the markers cover the
 // whole reel, and one timeline cannot grow while it plays (a reel of a
 // hundred spotlights reads in well under a second).
@@ -25,7 +27,7 @@
 import type { RunLibrary } from '../runs/library';
 import type { SpotlightSettings } from '../settings';
 import { runStartUs } from '../runs/stitch';
-import { type Spotlight, emptyState, hasVisibleEntry, selectSpotlights } from '../share/spotlights';
+import { OPEN_FILTERS, type Spotlight, type SpotlightRun, emptyState, filtersOpen, hasVisibleEntry, selectSpotlights } from '../share/spotlights';
 import { type MarkLetter, type PlacedMark, markTip } from './strip';
 import { type ChainRun, type Timeline, playAtLogUs } from './timeline';
 
@@ -59,39 +61,82 @@ function linesBefore(text: string, us: number): string {
   return text.slice(0, end);
 }
 
-/** Loads the reel, or says which empty state to show. */
-export async function loadReel(lib: RunLibrary, filters: SpotlightSettings): Promise<Reel | { empty: ReelEmpty }> {
-  const metas = (await lib.store.listRuns()).filter((m) => m.sealed && m.bytes > 0);
-  const runs = await Promise.all(metas.map(async (meta) => ({ meta, events: await lib.events([meta.runId]) })));
-  const picked = selectSpotlights(runs, filters);
-  const metaOf = new Map(metas.map((m) => [m.runId, m]));
-  const logs: Array<ChainRun | null> = new Array<ChainRun | null>(picked.length).fill(null);
-  let next = 0;
-  const worker = async (): Promise<void> => {
-    while (next < picked.length) {
-      const i = next++;
-      const s = picked[i]!;
-      const r = await lib.chainLogRange(s.runId, s.prefixFromUs, s.toUs);
-      if (!r || !hasVisibleEntry(r.text, s.fromUs, s.toUs)) continue;
-      const meta = metaOf.get(s.runId);
-      const from = firstTs(r.text);
-      if (meta && meta.startedUs < from) {
-        const login = await lib.chainLogRange(s.runId, meta.startedUs, Math.min(runStartUs(meta) + LOGIN_US, from));
-        if (login) r.text = linesBefore(login.text, from) + r.text;
+/** What loads a reel for the current settings (`ReelSource`, or a test double). */
+export interface ReelLoader {
+  load(filters: SpotlightSettings, nowUs: number): Promise<Reel | { empty: ReelEmpty }>;
+}
+
+/**
+ * Loads reels from the run library. The runs and their events are read once
+ * (nothing is recorded while the start page shows), and each spotlight's
+ * window once (cached by spotlight id), so a reel rebuilt for new settings
+ * (ADR 0110) reads only the windows it has not read yet.
+ */
+export class ReelSource implements ReelLoader {
+  private runsP: Promise<SpotlightRun[]> | null = null;
+  private readonly windows = new Map<string, Promise<ChainRun | null>>();
+
+  constructor(private readonly lib: RunLibrary) {}
+
+  /** Sealed runs with a log, with their events. */
+  runs(): Promise<SpotlightRun[]> {
+    this.runsP ??= (async () => {
+      const metas = (await this.lib.store.listRuns()).filter((m) => m.sealed && m.bytes > 0);
+      return Promise.all(metas.map(async (meta) => ({ meta, events: await this.lib.events([meta.runId]) })));
+    })();
+    return this.runsP;
+  }
+
+  /** The reel for `filters` at `nowUs`, or which empty state to show. */
+  async load(filters: SpotlightSettings, nowUs: number): Promise<Reel | { empty: ReelEmpty }> {
+    const runs = await this.runs();
+    const picked = selectSpotlights(runs, filters, nowUs);
+    const logs: Array<ChainRun | null> = new Array<ChainRun | null>(picked.length).fill(null);
+    let next = 0;
+    const worker = async (): Promise<void> => {
+      while (next < picked.length) {
+        const i = next++;
+        logs[i] = await this.window(picked[i]!, runs);
       }
-      logs[i] = r;
+    };
+    await Promise.all(Array.from({ length: Math.min(LOAD_PARALLEL, picked.length) }, worker));
+    const spots: Spotlight[] = [];
+    const chain: ChainRun[] = [];
+    picked.forEach((s, i) => {
+      const log = logs[i];
+      if (!log) return;
+      spots.push(s);
+      chain.push(log);
+    });
+    if (spots.length > 0) return { spots, chain };
+    // `no_data` only when nothing would show with open filters (ADR 0110).
+    return { empty: emptyState(filters, filtersOpen(filters) ? false : selectSpotlights(runs, OPEN_FILTERS, nowUs).length > 0) };
+  }
+
+  /** A spotlight's cut log (its login stretch first), or null without a visible entry. */
+  private window(s: Spotlight, runs: readonly SpotlightRun[]): Promise<ChainRun | null> {
+    let p = this.windows.get(s.id);
+    if (!p) {
+      p = (async () => {
+        const r = await this.lib.chainLogRange(s.runId, s.prefixFromUs, s.toUs);
+        if (!r || !hasVisibleEntry(r.text, s.fromUs, s.toUs)) return null;
+        const meta = runs.find((x) => x.meta.runId === s.runId)?.meta;
+        const from = firstTs(r.text);
+        if (meta && meta.startedUs < from) {
+          const login = await this.lib.chainLogRange(s.runId, meta.startedUs, Math.min(runStartUs(meta) + LOGIN_US, from));
+          if (login) r.text = linesBefore(login.text, from) + r.text;
+        }
+        return r;
+      })();
+      this.windows.set(s.id, p);
     }
-  };
-  await Promise.all(Array.from({ length: Math.min(LOAD_PARALLEL, picked.length) }, worker));
-  const spots: Spotlight[] = [];
-  const chain: ChainRun[] = [];
-  picked.forEach((s, i) => {
-    const log = logs[i];
-    if (!log) return;
-    spots.push(s);
-    chain.push(log);
-  });
-  return spots.length > 0 ? { spots, chain } : { empty: emptyState(filters) };
+    return p;
+  }
+}
+
+/** Loads the reel, or says which empty state to show (a one-off `ReelSource`). */
+export function loadReel(lib: RunLibrary, filters: SpotlightSettings, nowUs: number = Date.now() * 1000): Promise<Reel | { empty: ReelEmpty }> {
+  return new ReelSource(lib).load(filters, nowUs);
 }
 
 // ------------------------------------------------------------ positions

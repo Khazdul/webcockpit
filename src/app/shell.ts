@@ -96,6 +96,7 @@ import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
+import type { ReelHandle } from '../player/spotlight-mode';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
@@ -178,6 +179,8 @@ export class Shell {
   private swept = false;
   private player: PlayerHost | null = null;
   private playerOpening = false;
+  /** The open Spotlights reel (ADR 0110). */
+  private reel: ReelHandle | null = null;
   /** The current map (ADR 0020): the cockpit's and the log player's Map pane, Options → Mapper. */
   readonly maps: MapStore;
   /** The script library (ADR 0051): the cockpit's script host and the Scripts page. */
@@ -426,8 +429,9 @@ export class Shell {
       app.el.append(host);
       this.popups = chrome.mountSettingsPopups(host, this.services(), {
         focusInput: () => app.input.focus(),
-        onOpen: (key, el, close) => app.menuBar?.adopt({ key, el, close }),
-        onClose: (key) => app.menuBar?.release(key),
+        // The cockpit never opens the reel's `spotlights` popup (ADR 0110).
+        onOpen: (key, el, close) => key !== 'spotlights' && app.menuBar?.adopt({ key, el, close }),
+        onClose: (key) => key !== 'spotlights' && app.menuBar?.release(key),
         onChange: (key) => app.cockpit.markGear(gearPaneOf(key) as PaneId | null),
       });
       // The open gear popup follows its pane, or closes when the pane is no longer shown.
@@ -462,12 +466,29 @@ export class Shell {
    */
   async openSpotlights(): Promise<'no_data' | 'filtered' | null> {
     if (this.inCockpit || this.player || this.playerOpening) return null;
-    const [{ loadReel }, lib] = await Promise.all([import('../player/spotlight-reel'), this.runLibrary()]);
-    const reel = await loadReel(lib, this.opts.settings.get().spotlights);
+    const [{ ReelSource }, lib] = await Promise.all([import('../player/spotlight-reel'), this.runLibrary()]);
+    const settings = this.opts.settings;
+    // One source per open: the runs are read once, and a rebuild for new
+    // settings reads only windows not read yet (ADR 0110).
+    const source = new ReelSource(lib);
+    const reel = await source.load(settings.get().spotlights, Date.now() * 1000);
     if ('empty' in reel) return reel.empty;
     const { openSpotlightReel } = await import('../player/spotlight-mode');
-    await this.startPlayer((host) => openSpotlightReel(host, reel));
+    await this.startPlayer((host) => {
+      this.reel = openSpotlightReel(host, reel, {
+        source,
+        settings,
+        // The gear's popup (the chrome chunk), beside the player.
+        popups: async (el, o) => (await this.loadChrome()).mountSettingsPopups(el, this.services(), o),
+      });
+      host.onDispose(() => (this.reel = null));
+    });
     return null;
+  }
+
+  /** The open Spotlights reel (tests, the dev hook). */
+  get spotlightReel(): ReelHandle | null {
+    return this.reel;
   }
 
   private async startPlayer(load: (host: PlayerHost) => Promise<void> | void): Promise<void> {

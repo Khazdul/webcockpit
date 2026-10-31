@@ -52,6 +52,12 @@
 // box takes the pointer (clicks and the wheel there never reach the stage
 // or move the pause cursor). The gear cell is one cell wide whatever font
 // draws it (JetBrains Mono has no ⚙; DejaVu Sans Mono does).
+//
+// A mode's own gear (`gear`, the Spotlights reel's settings popup, ADR
+// 0110) takes the same cell instead and calls the mode; the mode marks it
+// while its popup is open (`setGearOn`), and the chrome does not auto-hide
+// then. Keys whose target is inside a `data-wc-own-keys` element (a popup)
+// are left to it.
 
 import './player.css';
 import type { OutputPane } from '../ui/output-pane';
@@ -74,6 +80,7 @@ import {
 } from './strip';
 import { SPEEDS } from './engine';
 import { playAtLogUs } from './timeline';
+import { OWN_KEYS_ATTR } from '../ui/input-pane';
 
 /** Chrome hides this long after the last activity in play, ms. */
 export const HIDE_MS = 6000;
@@ -161,8 +168,16 @@ export interface PlayerViewOptions {
   boxButtons?: BoxButton[];
   /** The gear and its settings section (ADR 0021). */
   settings?: ViewerControls;
+  /** A mode's own gear in the same place, instead of `settings` (the reel, ADR 0110). */
+  gear?: PlayerGear;
   /** Auto-hide delay (tests). */
   hideMs?: number;
+}
+
+/** A mode's gear: its tooltip, and what a click does (given the gear and the control box). */
+export interface PlayerGear {
+  title: string;
+  onClick: (gear: HTMLElement, box: HTMLElement) => void;
 }
 
 /** The viewer settings the control box's gear shows (PlayerHost implements it). */
@@ -200,6 +215,8 @@ export class PlayerView {
   private readonly boxGear: HTMLSpanElement | null = null;
   private readonly settingsEl: HTMLDivElement;
   private settingsOpen = false;
+  /** The mode's gear popup is open: the chrome stays (`setGearOn`). */
+  private pinned = false;
   private readonly hintEl: HTMLDivElement;
   private readonly tipEl: HTMLDivElement;
   private readonly unsubs: Array<() => void> = [];
@@ -245,10 +262,10 @@ export class PlayerView {
     const rewind = this.button('rewind', '◄◄ Rewind');
     this.boxPlay = this.button('play', '');
     this.boxSpeed = this.button('speed', '');
-    if (opts.settings) {
+    if (opts.settings || opts.gear) {
       this.boxGear = this.button('settings', '⚙');
       this.boxGear.classList.add('wc-player-gear');
-      this.boxGear.title = 'Viewer settings';
+      this.boxGear.title = opts.gear?.title ?? 'Viewer settings';
       row1.append('│ ', rewind, '  ', this.boxPlay, '  ', this.boxSpeed, ' ', this.boxGear, ' │');
     } else row1.append('│ ', rewind, '  ', this.boxPlay, '  ', this.boxSpeed, '   │');
     this.settingsEl = div('wc-player-settings');
@@ -318,7 +335,10 @@ export class PlayerView {
     const eng = this.o.engine;
     if (a === 'rewind') eng.seek(0);
     else if (a === 'play') this.toggle();
-    else if (a === 'settings') this.setSettingsOpen(!this.settingsOpen);
+    else if (a === 'settings') {
+      if (this.o.gear && this.boxGear) this.o.gear.onClick(this.boxGear, this.boxEl);
+      else this.setSettingsOpen(!this.settingsOpen);
+    }
     else {
       const i = SPEEDS.indexOf(eng.speed);
       eng.setSpeed(SPEEDS[(i + 1) % SPEEDS.length]!);
@@ -333,6 +353,22 @@ export class PlayerView {
   /** True while the settings section is folded out. */
   get settingsShown(): boolean {
     return this.settingsOpen;
+  }
+
+  /** The control box and its gear (a mode's popup is placed over them). */
+  get boxElement(): HTMLElement {
+    return this.boxEl;
+  }
+
+  get gearElement(): HTMLElement | null {
+    return this.boxGear;
+  }
+
+  /** Marks the mode's gear while its popup is open; the chrome stays shown meanwhile. */
+  setGearOn(on: boolean): void {
+    this.boxGear?.classList.toggle('is-on', on);
+    this.pinned = on;
+    this.touch();
   }
 
   /** Folds the settings section in or out (the gear). */
@@ -624,10 +660,10 @@ export class PlayerView {
     this.show();
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.hideTimer = null;
-    if (!this.o.engine.playing) return;
+    if (!this.o.engine.playing || this.pinned) return;
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
-      if (this.o.engine.playing && !this.drag) this.setShown(false);
+      if (this.o.engine.playing && !this.drag && !this.pinned) this.setShown(false);
     }, this.o.hideMs ?? HIDE_MS);
   }
 
@@ -647,6 +683,8 @@ export class PlayerView {
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.isComposing) return;
+    // A popup's keys are its own (the reel's settings popup, ADR 0110).
+    if ((e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`)) return;
     // The player owns the keyboard (see the file header).
     e.stopPropagation();
     this.quiet = false;
