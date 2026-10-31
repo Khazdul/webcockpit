@@ -660,16 +660,18 @@ The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
       `popup-focus.spec.ts` and the specs that assumed keys after a click,
       ADR 0108, ADR 0099/0107 addenda, `#panes` / `#settings` help.
     - [x] Test guide.
-- [ ] 30d (build plan above):
-  - [ ] `statistics` built-in pane id, off by default, migration, not on
+- [x] 30d (build plan above, 2026-10-31):
+  - [x] `statistics` built-in pane id, off by default, migration, not on
     the phone or in the log player / replay bundle.
-  - [ ] Default float when switched on; Reset layout forgets it.
-  - [ ] Shared renderer for the frame and the pane; chrome-chunk mount.
-  - [ ] Adaptive layout (wide, narrow), header shortening.
-  - [ ] Live data (run events ≤1 Hz, 1 Hz clock tick, idle when hidden);
+  - [x] Default float when switched on; Reset layout forgets it.
+  - [x] Shared renderer for the frame and the pane; chrome-chunk mount.
+  - [x] Adaptive layout (wide, narrow), header shortening.
+  - [x] Live data (run events ≤1 Hz, 1 Hz clock tick, idle when hidden);
     `Run ended`; `No run yet`.
-  - [ ] Statistics row in the Panes popup.
-  - [ ] Unit tests, e2e, ADR 0109, test guide.
+  - [x] Statistics row in the Panes popup; the pane bar leaves it out.
+  - [x] Unit tests (`statistics-pane.test.tsx`, layout, settings, Panes
+    popup, LiveRuns), e2e `statistics-pane.spec.ts`, ADR 0109, ADR
+    0018/0065 addenda, `#panes` help, manual, README, test guide.
 - [ ] 30e.
 - [ ] 30f.
 
@@ -919,3 +921,46 @@ Feedback wanted: whether you can still lose the game's keys by accident
 anywhere, and whether the first focus in each popup is the right spot
 (Panes: first row; Settings: the selected tab; a gear: its first
 control).
+
+### 30d
+
+Open the dev server (`npm run dev`, then http://localhost:5173/), Enter
+MUME (or `?replay`, or `?fixture=gmcp-demo.log` for a replayed run).
+Desktop and tablet; the phone is unchanged (ESC → Statistics).
+
+1. **Switch it on:** Panes in the bar (or `#panes`): the last built-in
+   row is Statistics, off. Switch it on: the pane opens as a float in the
+   middle of the game text, about 80 × 24 cells (smaller in a small
+   window).
+2. **Before a run:** it says `No run yet` in the middle. Log in (or start
+   a replay): the run shows, as on ESC → Statistics, and follows the game
+   about once a second (kills, the running clock in the header).
+3. **Wide:** the two sides as in the ESC frame: ALLIES / ACHIEVEMENTS,
+   KILLS / PvPs with Totals, XP/h and TP/h, the XP ruler. Make it shorter:
+   the sparklines go first, then the ruler; the tables take the rest.
+4. **Narrow:** make it narrower than about 66 cells (drag its right
+   edge): one column, ALLIES, ACHIEVEMENTS, KILLS, PvPs with all their
+   rows, then the sparklines and the ruler. The wheel scrolls the whole
+   pane; the bar on the right shows where you are. Narrower still: the
+   sparklines drop, then the ruler. The header shortens to fit.
+5. **No keys:** click anywhere in it, also a column title (it sorts: the
+   arrow moves), a table or its scrollbar: keep typing, the keys stay in
+   the game input. The wheel scrolls the tables.
+6. **Run ended:** disconnect (or let a replay finish): the header says
+   `Run ended` and the run stays. Log in again: the new run shows.
+7. **Like any pane:** move, resize, dock it; it comes back where you put
+   it after a reload. Its hover buttons are Colour, Border, Background and
+   ×; no gear. Reset layout in the Panes popup puts it back in the middle.
+8. **Unchanged:** ESC → Statistics and History → STATS look and work as
+   before (keys, footer, R). The log player and an HTML replay never show
+   the pane. The pane bar script has no STAT button.
+
+Feedback wanted: the first size and place (centred over the game text),
+where narrow starts (64 columns), the shortened headers, whether the pane
+bar should get a STAT button after all, and whether ESC → Statistics can
+go in 30f with this as its replacement.
+
+Known: a pane switched on after a page reload shows `No run yet` until a
+run starts (the latest run is remembered per tab, not across reloads).
+In the narrow layout the tables show every row, so a long kill list makes
+a long page to scroll. The header's run time of a replay is log time.
