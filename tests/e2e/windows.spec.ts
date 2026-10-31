@@ -178,7 +178,8 @@ test('two windows: a press raises one above the other; places survive a reload',
   await page.mouse.move(pb.x + 30 - c.w * 3, pb.y + pb.height / 2 - c.h * 2, { steps: 3 });
   await page.mouse.up();
   const moved = await cells(page, 'profile');
-  await expect.poll(() => page.evaluate(() => localStorage.length)).toBeGreaterThan(0);
+  // The focus stayed in the focused window: the dimmed one never takes it.
+  expect(await page.evaluate(() => !!document.activeElement?.closest('.wc-win[data-win="profile"]'))).toBe(true);
   await page.waitForTimeout(1200);
   await page.reload();
   await expect(field(page)).toBeFocused();

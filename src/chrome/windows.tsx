@@ -26,8 +26,8 @@
 //   ends, and shown fitted to the screen.
 
 import './kit/window.css';
-import { type VNode, render } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
+import { Component, type VNode, render } from 'preact';
+import { useEffect, useMemo, useRef } from 'preact/hooks';
 import type { WindowId, WindowRect } from '../settings';
 import { isLight } from '../theme/color';
 import { WINDOW_BTN_ATTR } from '../ui/input-pane';
@@ -129,20 +129,64 @@ function WindowsSurface(p: SurfaceProps): VNode {
               onRect={(r, done) => p.onRect(w.id, r, done)}
               onClose={() => p.requestClose(w.id)}
             >
-              <GridCtx.Provider value={{ cols: rect.w - FRAME_W, rows: rect.h - FRAME_H, surface: 'menu' }}>
-                <FrameStack
-                  key={w.epoch}
-                  root={profile ? <ProfileRoot opts={p.opts} close={() => p.close('profile')} /> : <ScriptsFrame />}
-                  active={focused}
-                  trap={false}
-                  onRootBack={() => p.close(w.id)}
-                  control={(ctl) => p.control(w.id, ctl)}
-                />
-              </GridCtx.Provider>
+              <WinStack
+                id={w.id}
+                epoch={w.epoch}
+                focused={focused}
+                cols={rect.w - FRAME_W}
+                rows={rect.h - FRAME_H}
+                opts={p.opts}
+                control={p.control}
+                close={p.close}
+              />
             </WindowFrame>
           );
         })}
     </div>
+  );
+}
+
+interface WinStackProps {
+  id: WindowId;
+  epoch: number;
+  focused: boolean;
+  cols: number;
+  rows: number;
+  opts: WindowsOptions;
+  control: (id: WindowId, c: StackControl | null) => void;
+  close: (id: WindowId) => void;
+}
+
+/**
+ * A window's frame stack on its cell grid. Rendered again only when its
+ * focus, size or open changes, not on every move of a window or change of
+ * the other one: frames re-render on every stack render (the frame
+ * context), and some focus themselves when they do.
+ */
+class WinStack extends Component<WinStackProps> {
+  override shouldComponentUpdate(n: WinStackProps): boolean {
+    const p = this.props;
+    return p.id !== n.id || p.epoch !== n.epoch || p.focused !== n.focused || p.cols !== n.cols || p.rows !== n.rows;
+  }
+
+  override render(): VNode {
+    return <WinStackBody {...this.props} />;
+  }
+}
+
+function WinStackBody(p: WinStackProps): VNode {
+  const grid = useMemo(() => ({ cols: p.cols, rows: p.rows, surface: 'menu' as const }), [p.cols, p.rows]);
+  return (
+    <GridCtx.Provider value={grid}>
+      <FrameStack
+        key={p.epoch}
+        root={p.id === 'profile' ? <ProfileRoot opts={p.opts} close={() => p.close('profile')} /> : <ScriptsFrame />}
+        active={p.focused}
+        trap={false}
+        onRootBack={() => p.close(p.id)}
+        control={(ctl) => p.control(p.id, ctl)}
+      />
+    </GridCtx.Provider>
   );
 }
 
@@ -289,9 +333,11 @@ export function mountWindows(host: HTMLElement, services: ChromeServices, opts: 
   const onFocusIn = (e: FocusEvent): void => {
     const el = winEl(e.target);
     if (!el || el.dataset.win === focused) return;
+    // Back where it was: outside the windows, or in the focused one.
     const back = e.relatedTarget as HTMLElement | null;
-    if (back && !inWindows(back) && back.isConnected) back.focus({ preventScroll: true });
-    else opts.focusInput();
+    const ok = !!back && back.isConnected && (!inWindows(back) || winEl(back)?.dataset.win === focused);
+    if (ok) back!.focus({ preventScroll: true });
+    else if (focused === null) opts.focusInput();
   };
   host.addEventListener('focusin', onFocusIn);
 
