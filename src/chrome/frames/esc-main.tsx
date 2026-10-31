@@ -18,7 +18,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { type AppStatusState, type AppStatusView, formatLink, isLive } from '../../app/status';
 import { Banner } from '../banner';
 import { BANNER_H, bannerFits } from '../banner-data';
-import { useGrid, useNotices, useServices, useSettings, useStatus } from '../kit/hooks';
+import { useGrid, useNotices, useOpenWindow, useServices, useSettings, useStatus } from '../kit/hooks';
 import { type NoticeState, noticeIndicators } from '../../app/notices';
 import { device } from '../../core/device';
 import { cellLen, centreLeft, packRows } from '../kit/nav';
@@ -57,6 +57,11 @@ export interface EscActions {
   flushWriteBack?: () => Promise<void>;
   /** The live run (`app.runs`): Statistics and the Exit rating. Absent: neither is offered. */
   runs?: LiveRuns;
+  /**
+   * Where the menu bar exists: opens a window (ADR 0103) and closes the
+   * menu. The menu's Profile and Options → Scripts use it. Absent: their frames.
+   */
+  openWindow?: (id: 'profile' | 'scripts') => void;
 }
 
 export interface EscMainProps extends EscActions {
@@ -98,6 +103,7 @@ export function EscMain(p: EscMainProps): VNode {
   const notices = useNotices();
   const connected = isLive(st);
   const runOn = useRunOn(p.runs);
+  const openWindow = useOpenWindow();
 
   const items: MenuItem[] = [
     ...(connected ? [{ key: 'continue', label: 'Continue', activate: p.close }] : []),
@@ -114,7 +120,11 @@ export function EscMain(p: EscMainProps): VNode {
     {
       key: 'profile',
       label: 'Profile',
-      activate: () => void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved)),
+      // Where the bar exists, the Profile window (ADR 0103), so a profile is never edited in two places.
+      activate: () =>
+        openWindow
+          ? openWindow('profile')
+          : void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved)),
     },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
@@ -166,8 +176,11 @@ export function EscMain(p: EscMainProps): VNode {
   );
 }
 
-/** The editor options of the ESC menu's Profile: live apply while connected. */
-function profileEditOptions(p: EscActions, onSaved: ((name: string) => void) | undefined) {
+/** The editor options of the ESC menu's Profile and the Profile window: live apply while connected. */
+export function profileEditOptions(
+  p: Pick<EscActions, 'status' | 'liveApply' | 'flushWriteBack'>,
+  onSaved: ((name: string) => void) | undefined,
+) {
   return {
     isLive: () => isLive(p.status.get()),
     apply: p.liveApply,

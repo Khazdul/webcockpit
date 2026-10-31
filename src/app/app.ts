@@ -57,11 +57,16 @@
 // content as `view.pane` for the run capture (ADR 0053 P1).
 //
 // Menu bar (ADR 0099): with `ui.bar` (desktop and tablet) the input row's
-// clock strip becomes the menu bar (src/menubar/menubar.ts), and Esc in the
-// input closes its open popup before it opens the ESC menu. The client
+// clock strip becomes the menu bar (src/menubar/menubar.ts). The client
 // commands `#profile`, `#scripts`, `#settings`, `#panes`, `#exit` and
 // `#fullscreen` open or toggle the same things; without the bar (the
 // phone) they open the ESC menu at the matching frame (`ui.openMenuAt`).
+// Profile and Scripts toggle the shell's windows (`ui.toggleWindow`, ADR
+// 0103). Esc in the input (stage 30 S2): scrolled back → bottom (the input
+// pane); else the bar's open popup closes; else the topmost window gets
+// its close request (`ui.escapeWindow`); else, in the cockpit's
+// fullscreen, the Exit popup opens (Esc reaches the page there only with
+// the bar's Keyboard Lock); else the ESC menu opens.
 //
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
@@ -91,7 +96,7 @@ import { createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
 import { CLOCK_CELLS, MenuBar } from '../menubar/menubar';
-import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
+import { canFullscreen, isFullscreen, toggleFullscreen } from '../core/fullscreen';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
@@ -219,6 +224,15 @@ export interface AppUi {
   openMenuAt(target: MenuTarget): void;
   /** Exit to the start page (the shell's exitSession). */
   exit(): void;
+  /**
+   * With the bar: toggles the Profile or Scripts window (ADR 0103). Absent:
+   * they open the ESC menu at their frame.
+   */
+  toggleWindow?(id: 'profile' | 'scripts'): void;
+  /** Esc in the input with no popup open: the topmost window's close request; false when none is open. */
+  escapeWindow?(): boolean;
+  /** True while an open window holds unsaved changes (the Exit popup warns). */
+  windowsUnsaved?(): boolean;
 }
 
 export class App {
@@ -413,10 +427,8 @@ export class App {
       output: this.output,
       onCommand: (text) => this.onCommand(text),
       onMacroKey: (key) => this.onMacroKey(key),
-      // Esc (output at the bottom): the bar's open popup closes first (ADR 0099).
-      ...(opts.onEscape || opts.ui?.bar
-        ? { onEscape: () => void (this.menuBar?.closePopup(true) || opts.onEscape?.()) }
-        : {}),
+      // Esc (output at the bottom): the popup, the window, then the menu (see the header).
+      ...(opts.onEscape || opts.ui?.bar ? { onEscape: () => this.escape() } : {}),
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
     });
     const barUi = this.appUi?.bar ? this.appUi : null;
@@ -475,10 +487,11 @@ export class App {
           now,
           onCells: (cells) => this.cockpit.setBarCells(cells),
           actions: {
-            profile: () => barUi.openMenuAt('profile'),
-            scripts: () => barUi.openMenuAt('scripts'),
+            profile: () => this.openWindow('profile'),
+            scripts: () => this.openWindow('scripts'),
             settings: () => barUi.openMenuAt('settings'),
             exit: () => barUi.exit(),
+            unsaved: () => barUi.windowsUnsaved?.() ?? false,
             reconnect: () => {
               this.runClient('reconnect', '');
               this.input.focus();
@@ -936,14 +949,20 @@ export class App {
         return;
       case 'profile':
       case 'scripts':
+        // The windows where the bar exists (ADR 0103); else the ESC menu's frame.
+        this.menuBar?.closePopup();
+        this.openWindow(name);
+        return;
       case 'settings':
         this.menuBar?.closePopup();
         this.openMenuAt(name);
         return;
       case 'fullscreen': {
         const doc = this.el.ownerDocument;
-        if (canFullscreen(doc)) void toggleFullscreen(doc);
-        else this.sys('Fullscreen is not available in this browser.');
+        // With the bar, its toggle (it asks for the Esc key in fullscreen, ADR 0103).
+        const ok = this.menuBar ? this.menuBar.toggleFullscreen() : canFullscreen(doc);
+        if (ok && !this.menuBar) void toggleFullscreen(doc);
+        if (!ok) this.sys('Fullscreen is not available in this browser.');
         return;
       }
       case 'perf':
@@ -962,6 +981,23 @@ export class App {
   private openMenuAt(target: MenuTarget): void {
     if (this.appUi) this.appUi.openMenuAt(target);
     else this.sys(`#${target} is not available here.`);
+  }
+
+  /** The Profile or Scripts window where the bar has them (ADR 0103); else the ESC menu's frame. */
+  private openWindow(id: 'profile' | 'scripts'): void {
+    if (this.menuBar && this.appUi?.toggleWindow) this.appUi.toggleWindow(id);
+    else this.openMenuAt(id);
+  }
+
+  /** Esc in the input with the output at the bottom (see the header). */
+  private escape(): void {
+    if (this.menuBar?.closePopup(true)) return;
+    if (this.menuBar && this.appUi?.escapeWindow?.()) return;
+    if (this.menuBar && isFullscreen(this.el.ownerDocument)) {
+      this.menuBar.open('exit');
+      return;
+    }
+    this.onEscape?.();
   }
 
   /**

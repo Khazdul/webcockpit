@@ -531,6 +531,52 @@ describe('Exit popup', () => {
     expect(p.value).toBe(5);
   });
 
+  it('marks the open windows on their toggles (ADR 0103)', () => {
+    const t = setup();
+    t.bar.markWindows(['scripts']);
+    expect(t.btn('scripts')!.classList.contains('is-open')).toBe(true);
+    expect(t.btn('profile')!.classList.contains('is-open')).toBe(false);
+    t.bar.markWindows([]);
+    expect(t.btn('scripts')!.classList.contains('is-open')).toBe(false);
+  });
+
+  it('asks for Esc in the cockpit’s fullscreen and gives it back on leaving (ADR 0103)', () => {
+    const lock = vi.fn(() => Promise.resolve());
+    const unlock = vi.fn();
+    Object.defineProperty(navigator, 'keyboard', { configurable: true, value: { lock, unlock } });
+    let fs: Element | null = null;
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => fs });
+    try {
+      const t = setup({ fullscreen: true });
+      fs = document.documentElement;
+      t.bar.setShown(true);
+      expect(lock).toHaveBeenCalledTimes(1);
+      expect(lock).toHaveBeenCalledWith(['Escape']);
+      // The cockpit hidden (the start page): back to the browser; shown again: asked again.
+      t.bar.setShown(false);
+      expect(unlock).toHaveBeenCalledTimes(1);
+      t.bar.setShown(true);
+      expect(lock).toHaveBeenCalledTimes(2);
+      // Leaving fullscreen gives it back (every bar of this file listens to the event).
+      fs = null;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      expect(unlock.mock.calls.length).toBeGreaterThanOrEqual(2);
+      const n = unlock.mock.calls.length;
+      t.bar.dispose();
+      expect(unlock).toHaveBeenCalledTimes(n);
+    } finally {
+      delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+      delete (navigator as { keyboard?: unknown }).keyboard;
+    }
+  });
+
+  it('shows a warning line when asked to (unsaved changes in a window)', () => {
+    const p = new ExitPopup({ doc: document, exit: vi.fn(), close: vi.fn(), warning: 'Unsaved!' });
+    expect(p.el.querySelector('.wc-pop-warn')!.textContent).toBe('Unsaved!');
+    const q = new ExitPopup({ doc: document, exit: vi.fn(), close: vi.fn(), warning: null });
+    expect(q.el.querySelector('.wc-pop-warn')).toBeNull();
+  });
+
   it('reads rating keys as the ESC menu does', () => {
     const k = (key: string, mod: Partial<KeyboardEvent> = {}) =>
       ratingFromKey({ key, ctrlKey: false, altKey: false, metaKey: false, ...mod }, 2);

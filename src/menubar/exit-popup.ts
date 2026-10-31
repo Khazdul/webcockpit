@@ -8,6 +8,9 @@
 // saves (`saveChain`: > 0 saves the chain, 0 keeps an existing save) and
 // exits, and a failed save never stops the exit.
 //
+// A window with unsaved changes (ADR 0103) adds a warning line under the
+// question; Exit discards those changes.
+//
 // It takes the keys when it opens (a confirmation that `#exit` from a
 // macro must be able to answer without the mouse): Y exits, Esc cancels.
 
@@ -22,6 +25,8 @@ export interface ExitPopupOptions {
   exit: () => void;
   /** Close the popup; `refocus` gives the input its focus back. */
   close: (refocus: boolean) => void;
+  /** A warning on a line of its own (unsaved changes in a window, ADR 0103); null or absent: none. */
+  warning?: string | null;
 }
 
 /** The rating after key `e` (0–5, ←→), or null when it is not a rating key. */
@@ -54,6 +59,12 @@ export class ExitPopup {
     q.className = 'wc-pop-ask';
     q.textContent = 'Exit to main menu?';
     this.el.append(q);
+    if (o.warning) {
+      const w = doc.createElement('div');
+      w.className = 'wc-pop-warn';
+      w.textContent = o.warning;
+      this.el.append(w);
+    }
     if (this.rateable) {
       const sub = doc.createElement('div');
       sub.className = 'wc-pop-note';

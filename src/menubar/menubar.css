@@ -461,6 +461,13 @@
   font-size: 1.077em;
 }
 
+/* Unsaved changes in an open window (ADR 0103). */
+.wc-pop-warn {
+  margin-top: 0.6em;
+  color: #d7af5f;
+  font-size: 0.846em;
+}
+
 .wc-pop-note {
   margin-top: 1.1em;
   color: #585858;

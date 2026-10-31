@@ -29,8 +29,17 @@
 // clock strip and `☰`; a tablet keeps `☰` beside the bar until the ESC
 // menu goes away). The cockpit's `ui` hands it `openMenuAt` (the ESC menu
 // straight at the profile editor, Options → Scripts, Options, Panes or
-// Exit; leaving that frame closes the menu) and `exitSession`. Its popups
-// close when the ESC menu opens and when the cockpit is hidden.
+// Exit; leaving that frame closes the menu; the phone's way to Profile and
+// Scripts) and `exitSession`. Its popups close when the ESC menu opens and
+// when the cockpit is hidden.
+//
+// Windows (ADR 0103): where the bar exists, Profile and Scripts are
+// movable windows (src/chrome/windows.tsx), mounted on first use in a
+// layer of the cockpit element. The bar, `#profile` / `#scripts` and the
+// ESC menu's Profile and Options → Scripts open them (`toggleWindow`,
+// `openWindow`); Esc in the input reaches the topmost one; the ESC menu
+// takes their focus when it opens. They close with the cockpit (Exit, the
+// start page), unsaved changes discarded; the Exit popup warns first.
 //
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
@@ -57,7 +66,7 @@
 // page's main menu the same way.
 
 import type { BenchProbe } from './bench-hook';
-import type { ChromeServices, EscMenuHandle, EscMenuTarget, StartPageHandle } from '../chrome';
+import type { ChromeServices, EscMenuHandle, EscMenuTarget, StartPageHandle, WindowId, WindowsHandle } from '../chrome';
 import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
@@ -128,6 +137,9 @@ export class Shell {
   private menuHost: HTMLDivElement;
   private start: StartPageHandle | null = null;
   private menu: EscMenuHandle | null = null;
+  /** The windows layer (ADR 0103), mounted on first use. */
+  private windows: WindowsHandle | null = null;
+  private windowsP: Promise<WindowsHandle> | null = null;
   /** The cockpit is the visible view. */
   private inCockpit = false;
   /** Some live connection has reached login (the bootstrap guard). */
@@ -267,6 +279,7 @@ export class Shell {
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
     if (!this.inCockpit || !this.appRef) return;
     this.appRef.menuBar?.reset();
+    this.windows?.blur();
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
@@ -296,6 +309,46 @@ export class Shell {
 
   get menuOpen(): boolean {
     return this.menu?.isOpen ?? false;
+  }
+
+  // -------------------------------------------------------------- windows
+
+  /** The windows layer, once mounted (tests, the dev hook). */
+  get windowsHandle(): WindowsHandle | null {
+    return this.windows;
+  }
+
+  /** The bar's Profile / Scripts and `#profile` / `#scripts`: the window's toggle (ADR 0103). */
+  async toggleWindow(id: WindowId): Promise<void> {
+    if (!this.inCockpit || !this.appRef) return;
+    const w = await this.ensureWindows(this.appRef);
+    if (this.inCockpit && !this.menuOpen) w.toggle(id);
+  }
+
+  /** The ESC menu's Profile and Options → Scripts: the menu closes, the window opens. */
+  async openWindow(id: WindowId): Promise<void> {
+    if (!this.inCockpit || !this.appRef) return;
+    this.menu?.close();
+    const w = await this.ensureWindows(this.appRef);
+    if (this.inCockpit) w.open(id);
+  }
+
+  private ensureWindows(app: App): Promise<WindowsHandle> {
+    this.windowsP ??= this.loadChrome().then((chrome) => {
+      const host = app.el.ownerDocument.createElement('div');
+      host.className = 'wc-windows-host';
+      app.cockpit.el.append(host);
+      this.windows = chrome.mountWindows(host, this.services(), {
+        status: app.status,
+        liveApply: (text) => app.applyProfile(text),
+        flushWriteBack: () => app.flushWriteBack(),
+        focusInput: () => app.input.focus(),
+        onChange: () => app.menuBar?.markWindows(this.windows?.openIds ?? []),
+      });
+      return this.windows;
+    });
+    this.windowsP.catch(() => (this.windowsP = null));
+    return this.windowsP;
   }
 
   // ----------------------------------------------------------- log player
@@ -367,7 +420,9 @@ export class Shell {
 
   private showStart(): void {
     this.inCockpit = false;
-    this.appRef?.menuBar?.reset();
+    // The windows close with the cockpit; their unsaved changes are discarded (ADR 0103).
+    this.windows?.closeAll();
+    this.appRef?.menuBar?.setShown(false);
     if (this.appRef) this.appRef.el.style.display = 'none';
     this.startHost.style.display = '';
     this.start?.show();
@@ -384,6 +439,7 @@ export class Shell {
     this.startHost.style.display = 'none';
     app.el.style.display = '';
     this.inCockpit = true;
+    app.menuBar?.setShown(true);
     app.input.focus();
   }
 
@@ -405,6 +461,14 @@ export class Shell {
         bar: !device().phone,
         openMenuAt: (target) => void this.openMenu(undefined, target),
         exit: () => void this.exitSession(),
+        // The windows (ADR 0103): where the bar exists.
+        ...(device().phone
+          ? {}
+          : {
+              toggleWindow: (id: WindowId) => void this.toggleWindow(id),
+              escapeWindow: () => this.windows?.escapeTop() ?? false,
+              windowsUnsaved: () => this.windows?.unsaved() ?? false,
+            }),
       },
       weather: installWeather,
       ...(probe ? { requestFrame: probe.requestFrame } : {}),
@@ -503,6 +567,8 @@ export class Shell {
       liveApply: (text) => app.applyProfile(text),
       flushWriteBack: () => app.flushWriteBack(),
       runs: app.runs,
+      // Where the bar exists, the menu's Profile and Options → Scripts open the windows (ADR 0103).
+      ...(app.menuBar ? { openWindow: (id: WindowId) => void this.openWindow(id) } : {}),
     });
     return this.menu;
   }

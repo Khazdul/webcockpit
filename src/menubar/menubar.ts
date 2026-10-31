@@ -23,8 +23,14 @@
 //   closes (in the popup, or in the input once the output is at the
 //   bottom); the Panes X closes. The Exit popup takes the keys when it
 //   opens; the Panes popup only after a click in it.
-// - Profile, Scripts and Settings open the ESC menu at the profile editor,
-//   Options → Scripts and Options until their windows exist (30b, 30c).
+// - Profile and Scripts toggle their windows (ADR 0103; the shell's
+//   src/chrome/windows.tsx); their icons are marked while the window is
+//   open, and a press on them keeps a focused window's focus, so the
+//   toggle closes it. Settings opens the ESC menu at Options until its
+//   popup exists (30c).
+// - Fullscreen (ADR 0103): in the cockpit's fullscreen the bar asks for the
+//   Esc key (Keyboard Lock, Chromium), so Esc can open the Exit popup
+//   instead of leaving fullscreen (the App's Esc order).
 // - Fullscreen where the browser has page fullscreen; removed when a
 //   request is refused.
 // - The Disconnected notice (ADR 0100) left of the clock: after a live
@@ -36,7 +42,16 @@ import type { AppStatusState, AppStatusView } from '../app/status';
 import type { GameState } from '../gmcp/state';
 import type { LiveRuns } from '../runs/live';
 import type { SettingsStore } from '../settings';
-import { canFullscreen, isFullscreen, onFullscreenChange, onFullscreenRefused, toggleFullscreen } from '../core/fullscreen';
+import {
+  canFullscreen,
+  isFullscreen,
+  lockEscape,
+  onFullscreenChange,
+  onFullscreenRefused,
+  toggleFullscreen,
+  unlockEscape,
+} from '../core/fullscreen';
+import { WINDOW_BTN_ATTR } from '../ui/input-pane';
 import { isLight } from '../theme/color';
 import { ClockStrip } from '../ui/clock-strip';
 import { ExitPopup } from './exit-popup';
@@ -50,9 +65,9 @@ export type PopupId = 'panes' | 'exit';
 
 /** What the bar's buttons do outside the bar (the shell, the app). */
 export interface MenuBarActions {
-  /** The profile editor (ESC menu → Profile until 30b). */
+  /** The Profile window (ADR 0103; the ESC menu's profile editor on a page without windows). */
   profile(): void;
-  /** Options → Scripts (until 30b). */
+  /** The Scripts window (ADR 0103). */
   scripts(): void;
   /** Options (until 30c). */
   settings(): void;
@@ -60,6 +75,8 @@ export interface MenuBarActions {
   exit(): void;
   /** Reconnect (the Disconnected notice's button). */
   reconnect(): void;
+  /** True while a window holds unsaved changes: the Exit popup warns (ADR 0103). */
+  unsaved?(): boolean;
 }
 
 export interface MenuBarOptions {
@@ -100,6 +117,8 @@ interface ButtonSpec {
   tip: () => string;
   click: () => void;
   popup?: PopupId;
+  /** A window's toggle: a press keeps the window's focus (ADR 0103). */
+  window?: boolean;
 }
 
 interface OpenPopup {
@@ -128,6 +147,10 @@ export class MenuBar {
   private rttOverdue = false;
   private rttTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly offs: Array<() => void> = [];
+  /** The cockpit is the visible view (the shell's `setShown`). */
+  private shown = true;
+  /** Esc is asked for (Keyboard Lock) while shown in fullscreen. */
+  private keyLocked = false;
 
   constructor(o: MenuBarOptions) {
     this.o = o;
@@ -183,8 +206,8 @@ export class MenuBar {
 
     const specs: Array<ButtonSpec | 'sep'> = [
       'sep',
-      { id: 'profile', label: 'Profile', icon: ICON.profile, tip: () => `Profile: ${o.settings.get().profile}`, click: () => this.run(o.actions.profile) },
-      { id: 'scripts', label: 'Scripts', icon: ICON.scripts, tip: () => 'Scripts', click: () => this.run(o.actions.scripts) },
+      { id: 'profile', label: 'Profile', icon: ICON.profile, tip: () => `Profile: ${o.settings.get().profile}`, click: () => this.run(o.actions.profile), window: true },
+      { id: 'scripts', label: 'Scripts', icon: ICON.scripts, tip: () => 'Scripts', click: () => this.run(o.actions.scripts), window: true },
       { id: 'panes', label: 'Panes', icon: ICON.panes, tip: () => 'Panes', click: () => this.toggle('panes'), popup: 'panes' },
       { id: 'settings', label: 'Settings', icon: ICON.settings, tip: () => 'Settings', click: () => this.run(o.actions.settings) },
       'sep',
@@ -195,7 +218,7 @@ export class MenuBar {
         label: 'Fullscreen',
         icon: ICON.fullscreen,
         tip: () => (isFullscreen(doc) ? 'Exit fullscreen' : 'Fullscreen'),
-        click: () => void toggleFullscreen(doc),
+        click: () => this.toggleFullscreen(),
       });
     }
     specs.push({ id: 'exit', label: 'Exit', icon: ICON.exit, tip: () => 'Exit to main menu', click: () => this.toggle('exit'), popup: 'exit' });
@@ -262,7 +285,13 @@ export class MenuBar {
     const p =
       id === 'panes'
         ? new PanesPopup({ doc: this.doc, settings: o.settings, scriptPanes: o.scriptPanes, close })
-        : new ExitPopup({ doc: this.doc, runs: o.runs, exit: () => o.actions.exit(), close });
+        : new ExitPopup({
+            doc: this.doc,
+            runs: o.runs,
+            exit: () => o.actions.exit(),
+            close,
+            warning: o.actions.unsaved?.() ? 'Unsaved changes in an open window will be lost.' : null,
+          });
     this.pop = { id, el: p.el, dispose: () => p.dispose() };
     o.layer.append(p.el);
     this.buttons.get(id)?.classList.add('is-open');
@@ -292,6 +321,38 @@ export class MenuBar {
     this.tooltip.hide();
   }
 
+  /**
+   * The cockpit is shown or hidden (the shell): hidden, the popup closes and
+   * the Esc key goes back to the browser; shown in fullscreen, the bar asks
+   * for it again.
+   */
+  setShown(on: boolean): void {
+    this.shown = on;
+    if (!on) this.reset();
+    this.syncKeyLock();
+  }
+
+  /** Marks the window toggles whose window is open (ADR 0103). */
+  markWindows(open: readonly string[]): void {
+    for (const id of ['profile', 'scripts']) this.buttons.get(id)?.classList.toggle('is-open', open.includes(id));
+  }
+
+  /** Fullscreen on or off (the button, `#fullscreen`); false when the browser has none. */
+  toggleFullscreen(): boolean {
+    if (!canFullscreen(this.doc)) return false;
+    void toggleFullscreen(this.doc);
+    return true;
+  }
+
+  /** Esc to the page while the cockpit is shown in fullscreen (Keyboard Lock where there is one). */
+  private syncKeyLock(): void {
+    const want = this.shown && isFullscreen(this.doc);
+    if (want === this.keyLocked) return;
+    this.keyLocked = want;
+    if (want) lockEscape(this.doc.defaultView?.navigator);
+    else unlockEscape(this.doc.defaultView?.navigator);
+  }
+
   private readonly place = (): void => {
     const p = this.pop;
     if (!p) return;
@@ -315,6 +376,7 @@ export class MenuBar {
       this.tooltip.hide();
       s.click();
     });
+    if (s.window) b.setAttribute(WINDOW_BTN_ATTR, '');
     this.tooltip.attach(b, s.tip, () => !s.popup || this.pop?.id !== s.popup);
     this.buttons.set(s.id, b);
     return b;
@@ -333,6 +395,7 @@ export class MenuBar {
   }
 
   private onFullscreen(): void {
+    this.syncKeyLock();
     const fs = isFullscreen(this.doc);
     this.fsPath?.setAttribute('d', fs ? ICON.fullscreenExit : ICON.fullscreen);
     this.buttons.get('fullscreen')?.setAttribute('aria-label', fs ? 'Exit fullscreen' : 'Fullscreen');
@@ -412,6 +475,8 @@ export class MenuBar {
 
   dispose(): void {
     this.closePopup();
+    this.shown = false;
+    this.syncKeyLock();
     this.stopRttTimer();
     for (const off of this.offs.splice(0)) off();
     this.clock.dispose();

@@ -106,6 +106,53 @@ describe('App with the menu bar', () => {
     expect(t.exit).toHaveBeenCalledOnce();
   });
 
+  it('with windows (ADR 0103): the bar and #profile / #scripts toggle them; Esc reaches the topmost window before the menu', () => {
+    const toggleWindow = vi.fn();
+    let open = true;
+    const escapeWindow = vi.fn(() => open);
+    const t = setup({ toggleWindow, escapeWindow, windowsUnsaved: () => true });
+    const btn = (id: string) => t.app.menuBar!.bar.querySelector<HTMLButtonElement>(`[data-mb="${id}"]`)!;
+    btn('profile').click();
+    btn('scripts').click();
+    t.enter('#profile');
+    t.enter('#scripts');
+    expect(toggleWindow.mock.calls.map((c) => c[0])).toEqual(['profile', 'scripts', 'profile', 'scripts']);
+    expect(t.openMenuAt).not.toHaveBeenCalled();
+    // A press on the toggles keeps a window's focus.
+    expect(btn('profile').hasAttribute('data-wc-window-btn')).toBe(true);
+    expect(btn('panes').hasAttribute('data-wc-window-btn')).toBe(false);
+    // Esc: the popup, then the window, then the menu.
+    t.app.input.focus();
+    t.app.menuBar!.open('panes');
+    t.key('Escape');
+    expect(escapeWindow).not.toHaveBeenCalled();
+    t.key('Escape');
+    expect(escapeWindow).toHaveBeenCalledOnce();
+    expect(t.onEscape).not.toHaveBeenCalled();
+    open = false;
+    t.key('Escape');
+    expect(t.onEscape).toHaveBeenCalledOnce();
+    // The Exit popup warns about the window's unsaved changes.
+    t.enter('#exit');
+    expect(t.app.menuBar!.popupEl!.querySelector('.wc-pop-warn')!.textContent).toBe(
+      'Unsaved changes in an open window will be lost.',
+    );
+  });
+
+  it('in fullscreen, Esc with nothing open opens the Exit popup instead of the menu (ADR 0103)', () => {
+    const t = setup({ escapeWindow: () => false });
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement });
+    try {
+      t.app.input.focus();
+      t.key('Escape');
+      expect(t.app.menuBar!.openPopup).toBe('exit');
+      expect(t.onEscape).not.toHaveBeenCalled();
+      expect(t.app.menuBar!.popupEl!.querySelector('.wc-pop-warn')).toBeNull();
+    } finally {
+      delete (document as { fullscreenElement?: unknown }).fullscreenElement;
+    }
+  });
+
   it('without the bar, #panes and #exit open the ESC menu at their frame', () => {
     const t = setup({ bar: false });
     t.enter('#panes');

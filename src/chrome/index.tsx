@@ -20,7 +20,7 @@ import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/es
 import { OptionsHub, PanesFrame } from './frames/options';
 import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
-import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
+import { type ChromeServices, GridCtx, OpenWindowCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
@@ -28,6 +28,7 @@ import { QUOTES, type Quote, randomQuote } from './quotes';
 import { bootQuote } from '../app/boot-progress';
 
 export type { ChromeServices } from './kit/hooks';
+export { WINDOW_BTN_ATTR, type WindowId, type WindowsHandle, type WindowsOptions, mountWindows } from './windows';
 
 // ------------------------------------------------------------ start page
 
@@ -277,12 +278,9 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
           </div>
           <div class="wc-overlay-inner" style={{ left: cw, top: ch, width: (W - 2) * cw, height: (H - 2) * ch }}>
             <GridCtx.Provider value={{ cols: W - 2, rows: H - 2, surface: 'menu' }}>
-              <FrameStack
-                key={p.epoch}
-                root={menuRoot(p)}
-                active={p.open}
-                onRootBack={p.close}
-              />
+              <OpenWindowCtx.Provider value={p.openWindow ?? null}>
+                <FrameStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
+              </OpenWindowCtx.Provider>
             </GridCtx.Provider>
           </div>
         </div>

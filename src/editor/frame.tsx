@@ -34,7 +34,7 @@ import { useGrid } from '../chrome/kit/hooks';
 import { escHints } from '../chrome/kit/esc';
 import { centreLeft, scrollbar, wrapText } from '../chrome/kit/nav';
 import { TuiScrollbar, useScrollBox } from '../chrome/kit/scroll';
-import { type Nav, useKeys, useNav } from '../chrome/kit/stack';
+import { type Nav, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
 import {
   type EntryNode,
@@ -485,6 +485,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     if (mode === 'editor') return viewRef.current?.state.doc.toString() ?? bufferInit.current;
     return serialize(dropEmpty(doc, touched));
   };
+  // A window's close request waits for the prompt; the Exit popup warns (ADR 0103).
+  useUnsaved(() => currentText() !== host.text, modal !== null);
 
   const close = async (): Promise<void> => {
     const text = currentText();

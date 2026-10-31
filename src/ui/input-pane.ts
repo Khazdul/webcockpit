@@ -109,6 +109,12 @@ const BULLET = '•';
 export const OWN_KEYS_ATTR = 'data-wc-own-keys';
 
 /**
+ * Marks a control whose press keeps a focused window's focus (the bar's
+ * Profile and Scripts, so their toggle sees the window focused; ADR 0103).
+ */
+export const WINDOW_BTN_ATTR = 'data-wc-window-btn';
+
+/**
  * The autosuggestion for `text` (ADR 0063): the rest of the newest entry
  * in `history` (oldest first) that starts with `text` and is longer, or
  * '' when there is none or `text` holds no space yet.

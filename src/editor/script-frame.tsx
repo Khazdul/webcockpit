@@ -23,7 +23,7 @@ import { useGrid, useServices } from '../chrome/kit/hooks';
 import { escHints } from '../chrome/kit/esc';
 import { device } from '../core/device';
 import { cellLen, centreLeft, scrollbar, truncate } from '../chrome/kit/nav';
-import { type Nav, useIsTop, useKeys, useNav } from '../chrome/kit/stack';
+import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
 import { Button, indent } from '../chrome/kit/widgets';
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { type BufferStatus, type ScrollStatus, handleKey, onFirstLine, pageScroll } from './cm';
@@ -243,6 +243,8 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
     if (dirty || (!readOnly && current() !== saved)) return setModal('confirm');
     nav.pop();
   };
+  // A window's close request waits for the prompt; the Exit popup warns (ADR 0103).
+  useUnsaved(() => dirty || (!readOnly && current() !== saved), modal !== null);
 
   const saveAndClose = async (): Promise<void> => {
     setModal('saving');
