@@ -2,7 +2,8 @@
 // frame stack, with two views over the same profile text and a manual.
 //
 //   LITE    kind buttons, entry list (display sort only), detail panel,
-//           hints, highlight colour picker, macro key capture
+//           highlight colour picker, macro key capture (ADR 0104: the
+//           column fills the frame up to LITE_MAX_W, no hints panel)
 //   EDITOR  CodeMirror 6 buffer (cm.ts)
 //   HELP    the read-only manual (help.ts), scrollable (ADR 0037)
 //
@@ -57,8 +58,6 @@ import { openSearch, searchFocused, searchFrameKey } from './search';
 import { helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
 import {
   type EditorViewName,
-  FULL_W,
-  HINTS,
   HL_COLORS,
   HL_STYLES,
   HL_STYLE_LABELS,
@@ -66,6 +65,7 @@ import {
   type HlPick,
   KINDS,
   KIND_TITLES,
+  LIST_GAP,
   type LiteKind,
   NEW_BODY,
   PATTERN_COL,
@@ -78,6 +78,7 @@ import {
   highlightStyle,
   keyCell,
   listRows,
+  liteGeometry,
   parseHighlight,
   rowText,
   sentinelPrompt,
@@ -117,12 +118,8 @@ const FIELDS: Readonly<Record<LiteKind, readonly Field[]>> = {
   highlight: ['pattern', 'style', 'text', 'bg'],
 };
 
-/** Sizes in cells (Inv §5.3). */
-const DETAIL_W = 35;
-const KIND_W = 13;
-const KIND_GAP = 3;
-const LIST_GAP = 3;
-const BODY_MAX_ROWS = 10;
+/** Rows under the detail panel's last box for the validation message and the entry warning (ADR 0104). */
+const NOTE_ROWS = 2;
 const FLASH_MS = 1500;
 const BOUND_MS = 2000;
 
@@ -270,14 +267,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   // ------------------------------------------------------------- geometry
 
   const gap = surface === 'start' ? 2 : 1;
-  // A phone may be narrower than 42 columns (ADR 0075 §3.2): no 40-cell floor there.
-  const W = Math.max(device().phone ? Math.min(40, cols - 2) : 40, Math.min(FULL_W, cols - 2));
-  const at = centreLeft(cols, W);
-  const D = W >= FULL_W ? DETAIL_W : Math.max(24, Math.floor(W * 0.45));
-  const L = W - D - 1 - LIST_GAP;
-  const kindGap = 5 * KIND_W + 4 * KIND_GAP <= W ? KIND_GAP : 1;
-  const kindW = kindGap === KIND_GAP ? KIND_W : Math.floor((W - 4) / 5);
-  const kindAt = centreLeft(cols, 5 * kindW + 4 * kindGap);
+  // The LITE column, list and detail widths (ADR 0104; logic.ts `liteGeometry`).
+  const { w: W, at, list: L, detail: D, kindAt, kindW, kindGap } = liteGeometry(cols, device().phone);
   // gap + title + blank + (kind row 3 + blank) + body + blank + footer
   const bodyH = Math.max(4, rows - gap - 2 - 4 - 2);
   const bufferH = Math.max(3, rows - gap - 2 - 2);
@@ -1117,10 +1108,9 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       for (const r of renderSwatches()) push(r);
     } else {
       const f = focused('body');
-      const hintRows = 4;
-      const room = Math.max(1, bodyH - used - 1 - 2 - 1 - hintRows);
+      // The box takes the height that is left: its label, its borders and the note rows aside.
+      const n = Math.max(1, bodyH - used - 1 - 2 - NOTE_ROWS);
       const total = visualRows(bodyText, inner);
-      const n = Math.max(1, Math.min(BODY_MAX_ROWS, room, total));
       const bar = scrollbar(total, n, bodyTop);
       push(<div class="wc-line wc-c-hint">{labels.body}</div>);
       push(boxTop(D, f));
@@ -1157,17 +1147,16 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       push(boxBottom(D, f));
     }
 
-    push(<div class="wc-line wc-c-danger wc-ped-msg">{msg ? ellipsis(msg, D) : ''}</div>);
-    if (used + 4 <= bodyH) {
-      const lines = warn ? wrapText(warn, D).slice(0, 2) : [...HINTS[cur.kind as LiteKind]];
-      push(<div class="wc-line" />);
-      push(
-        <div class="wc-line wc-c-hint" style={indent(centreLeft(D, 12))}>
-          {'─── Hint ───'}
-        </div>,
-      );
-      for (const l of lines) push(<div class={'wc-line ' + (warn ? 'wc-c-yellow wc-ped-warn' : 'wc-c-hint')}>{ellipsis(l, D)}</div>);
+    // The note rows: the validation message (red), then the entry warning (yellow), wrapped.
+    const notes: VNode[] = [];
+    if (msg) notes.push(<div class="wc-line wc-c-danger wc-ped-msg">{ellipsis(msg, D)}</div>);
+    if (warn) {
+      const lines = wrapText(warn, D);
+      const room = Math.max(1, NOTE_ROWS - notes.length);
+      const shown = lines.length > room ? [...lines.slice(0, room - 1), lines.slice(room - 1).join(' ')] : lines;
+      for (const l of shown) notes.push(<div class="wc-line wc-c-yellow wc-ped-warn">{ellipsis(l, D)}</div>);
     }
+    for (const v of notes.slice(0, Math.max(0, bodyH - used))) push(v);
     return (
       <div class="wc-ped-detail" style={style} data-kind={cur.kind}>
         {rowsOut}

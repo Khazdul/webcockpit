@@ -238,17 +238,8 @@ export function highlightStyle(body: string): { color?: string; background?: str
 }
 
 // ---------------------------------------------------------------------------
-// Hints and warnings
+// Warnings
 // ---------------------------------------------------------------------------
-
-/** The two hint lines under `─── Hint ───` (Inv §5.6). */
-export const HINTS: Readonly<Record<LiteKind, readonly [string, string]>> = {
-  alias: ['%1 %2 capture words · ; chains', 'gv %1  →  get %1;value %1'],
-  action: ['%1 %2 match text · ^ anchors line', '^%1 raises %2 hand  →  group %1'],
-  highlight: ['%1 matches text · ^ anchors line', '^%1 enters  colours whole line'],
-  substitute: ['%1 %2 capture & reuse in New text', '%1 massacres %2 → %1 MASSACRES %2'],
-  macro: ['Enter on Key cell to bind a key', '$var inserts variable · ; chains'],
-};
 
 /**
  * A warning for an entry that will not behave as the user expects, or
@@ -307,8 +298,58 @@ export const VIEWS: readonly { view: EditorViewName; label: string; width: numbe
 /** Width of the toggle: ` LITE ` + space + ` EDITOR ` + space + ` HELP `. */
 export const TOGGLE_W = VIEWS.reduce((n, v) => n + v.width, 0) + VIEWS.length - 1;
 
-/** Width of the centred column at full size (title, kind row, LITE body). */
+/**
+ * Width of the centred column at full size in Inv §5.3 (title, kind row,
+ * LITE body). Since ADR 0104 the column grows past it; the entry list
+ * keeps the width it has here.
+ */
 export const FULL_W = 77;
+
+/** The widest LITE column (ADR 0104): a wider frame centres it. */
+export const LITE_MAX_W = 160;
+
+/** Sizes in cells (Inv §5.3). */
+export const DETAIL_W = 35;
+export const KIND_W = 13;
+export const KIND_GAP = 3;
+/** Between the list's scrollbar column and the detail panel. */
+export const LIST_GAP = 3;
+
+/** Where the LITE view's parts go on a frame `cols` cells wide (ADR 0104). */
+export interface LiteGeometry {
+  /** The column: `w` cells from cell `at` (title row, kind row, body). */
+  at: number;
+  w: number;
+  /** The entry list's text width; its scrollbar takes one more cell. */
+  list: number;
+  /** The detail panel's width (Pattern and Commands boxes). */
+  detail: number;
+  /** The kind row: five buttons `kindW` wide, `kindGap` apart, from `kindAt`. */
+  kindAt: number;
+  kindW: number;
+  kindGap: number;
+}
+
+/**
+ * The LITE layout (ADR 0104). The column fills the frame less one cell on
+ * each side, up to LITE_MAX_W, centred. From FULL_W up the list keeps its
+ * full-size width and the detail panel takes the rest; below FULL_W the
+ * detail panel is 45 % (at least 24 cells) and the list the rest, as
+ * before. A desktop frame keeps a 40-cell floor; a phone has none
+ * (ADR 0075 §3.2). The kind row keeps its full-size buttons and starts
+ * at the column's left edge, as it does at FULL_W.
+ */
+export function liteGeometry(cols: number, phone: boolean): LiteGeometry {
+  const w = Math.max(phone ? Math.min(40, cols - 2) : 40, Math.min(LITE_MAX_W, cols - 2));
+  const at = Math.max(0, Math.floor((cols - w) / 2));
+  const list = w >= FULL_W ? FULL_W - DETAIL_W - 1 - LIST_GAP : w - Math.max(24, Math.floor(w * 0.45)) - 1 - LIST_GAP;
+  const detail = w - list - 1 - LIST_GAP;
+  const kindGap = 5 * KIND_W + 4 * KIND_GAP <= w ? KIND_GAP : 1;
+  const kindW = kindGap === KIND_GAP ? KIND_W : Math.floor((w - 4) / 5);
+  // Under the column's left edge from FULL_W up; centred in a narrower column.
+  const kindAt = at + Math.max(0, Math.floor((Math.min(w, FULL_W) - (5 * kindW + 4 * kindGap)) / 2));
+  return { at, w, list, detail, kindAt, kindW, kindGap };
+}
 
 /** The view ← / → moves to from `cur` in the toggle (no wrap-around). */
 export function stepView(cur: EditorViewName, dir: 1 | -1): EditorViewName {
