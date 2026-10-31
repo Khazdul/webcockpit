@@ -18,6 +18,7 @@
 // - The tabs are `GAME`, then every pane the layout has switched on (and,
 //   for a script pane, `present`), in the layout's order: the docks left,
 //   right, top, bottom (each in stack order), then the floating panes.
+//   Statistics never gets a tab (NOT_ON_PHONE, ADR 0109).
 // - The game pane always gets the view rectangle, also while another tab
 //   is selected (the cockpit hides it then), so its width, its scroll
 //   position and NAWS do not change on a tab switch.
@@ -27,7 +28,7 @@
 //   `guard` is false (the on-screen keyboard is up, ADR 0075 §3).
 
 import { FRAME_CELLS, INPUT_ROWS, type LayoutResult, type PaneBox, type PaneToggle, type AllocateInput, type Rect } from './allocate';
-import { DOCK_IDS, type DockId, type LaneRef, type PaneId, isBuiltinPaneId } from './types';
+import { DOCK_IDS, type DockId, type LaneRef, NOT_ON_PHONE, type PaneId, isBuiltinPaneId } from './types';
 
 /** The phone's "Window too small" limit (ADR 0075 §3; desktop keeps 60 × 18). */
 export const PHONE_MIN_COLS = 30;
@@ -75,8 +76,9 @@ export interface PhoneLayoutResult extends LayoutResult {
 const EMPTY: Rect = { x: 0, y: 0, w: 0, h: 0 };
 const DEFAULT_TOGGLE: PaneToggle = { on: true, border: true };
 
-/** The toggles of `id`, or null when it takes no part (off, or a script pane not present). */
+/** The toggles of `id`, or null when it takes no part (off, a script pane not present, or not on a phone). */
 function shownToggle(input: AllocateInput, id: PaneId): PaneToggle | null {
+  if (NOT_ON_PHONE.has(id)) return null;
   const builtin = isBuiltinPaneId(id);
   if (!builtin && !input.present?.has(id)) return null;
   const t = input.panes[id] ?? (builtin ? null : DEFAULT_TOGGLE);

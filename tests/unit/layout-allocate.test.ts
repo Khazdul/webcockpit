@@ -19,8 +19,8 @@ import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type
 import { barCells } from '../../src/menubar/menubar';
 import { floatPane, movePane, moveToNewLane, placeScriptPane, setDesired, setFloatRect, setLaneSize } from '../../src/layout/model';
 
-const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3 };
-const DES: Record<BuiltinPaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20 };
+const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3, statistics: 3 };
+const DES: Record<BuiltinPaneId, number> = { character: 9, timers: 8, group: 6, comm: 10, ui: 5, map: 20, statistics: 24 };
 
 const items = (ids: BuiltinPaneId[] = [...DOCKED_BY_DEFAULT], frame = 2): AxisItem[] =>
   ids.map((id) => ({ id, desired: DES[id], min: MIN[id], frame }));
@@ -31,10 +31,16 @@ const sizes = (r: ReturnType<typeof allocateAxis>): Record<string, number> =>
 const total = (r: ReturnType<typeof allocateAxis>, frame = 2): number =>
   r.sizes.reduce((a, s) => a + s.size + frame, 0);
 
-/** Every pane on except `off` and the map (off by default, ADR 0020) unless `mapOn`. */
-function toggles(off: PaneId[] = [], noBorder: PaneId[] = [], mapOn = false): AllocateInput['panes'] {
+/**
+ * Every pane on except `off`, the map (off by default, ADR 0020) unless
+ * `mapOn`, and Statistics (off by default, ADR 0109) unless `statsOn`.
+ */
+function toggles(off: PaneId[] = [], noBorder: PaneId[] = [], mapOn = false, statsOn = false): AllocateInput['panes'] {
   return Object.fromEntries(
-    PANE_IDS.map((id) => [id, { on: (id !== 'map' || mapOn) && !off.includes(id), border: !noBorder.includes(id) }]),
+    PANE_IDS.map((id) => [
+      id,
+      { on: (id !== 'map' || mapOn) && (id !== 'statistics' || statsOn) && !off.includes(id), border: !noBorder.includes(id) },
+    ]),
   ) as AllocateInput['panes'];
 }
 
@@ -90,7 +96,7 @@ describe('allocateAxis', () => {
 
   it('keeps exact desired sizes when they sum to the length', () => {
     const r = allocateAxis(items(), 48);
-    const { map: _map, ...docked } = DES;
+    const { map: _map, statistics: _stats, ...docked } = DES;
     expect(sizes(r)).toEqual(docked);
     expect(r.mode).toBe('fit');
   });
@@ -408,10 +414,10 @@ describe('allocate', () => {
     expect(r.game).toEqual({ x: 0, y: 0, w: 86, h: 49 });
     expect(r.docks.right!.panes).toEqual(['character', 'timers', 'ui']);
     const floats = r.panes.filter((p) => p.dock === 'float');
-    // Index 0 is the map's default entry (off, ADR 0020).
+    // Index 0 is the map's default entry (off, ADR 0020), 1 Statistics' (off, ADR 0109).
     expect(floats.map((p) => [p.id, p.index])).toEqual([
-      ['comm', 1],
-      ['group', 2],
+      ['comm', 2],
+      ['group', 3],
     ]);
     expect(floats[0]!.rect).toEqual({ x: 10, y: 5, w: 30, h: 12 });
     expect(floats[0]!.content).toEqual({ x: 11, y: 6, w: 28, h: 10 });

@@ -11,7 +11,7 @@
 // later VIEW records included. Nothing here is saved (ADR 0021 "Not saved").
 // Pure.
 
-import { type LayoutModel, type PaneId, isScriptPaneId } from '../layout/types';
+import { LIVE_ONLY, type LayoutModel, type PaneId, isScriptPaneId } from '../layout/types';
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../theme/presets';
 
@@ -113,6 +113,11 @@ export function applyViewer(draft: Settings, o: Readonly<ViewerOverrides>): void
     }
   }
   if (o.layout) draft.layout = clone(o.layout);
+  // Live-only panes (Statistics, ADR 0109) never show in a player.
+  for (const id of LIVE_ONLY) {
+    const p = draft.panes[id];
+    if (p) p.on = false;
+  }
 }
 
 /** `o` with pane `id` switched `on`. */

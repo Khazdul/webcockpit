@@ -21,6 +21,7 @@ import {
   appendToDock,
   defaultDockSize,
   defaultMapFloat,
+  defaultStatsFloat,
   defaultPaneRows,
   isPaneId,
   isScriptPaneId,
@@ -167,7 +168,8 @@ function migratePanes(raw: unknown): PaneSettingsMap {
  * (ADR 0067; a layout without spans gets empty ones), and any built-in pane missing from
  * every dock and from `floating` appended to lane 0 of the right dock (made
  * at its default size if the dock is empty) with its default height (the map instead
- * floats at its default spot, `defaultMapFloat`). A dock missing from an
+ * floats at its default spot, `defaultMapFloat`, and Statistics at its own,
+ * `defaultStatsFloat`). A dock missing from an
  * older layout (the top dock) comes back empty. A dock of the shape before
  * ADR 0064 (`{ size, panes }`) becomes one lane.
  * Script panes with a well-formed id keep their place (at most
@@ -233,8 +235,10 @@ export function migrateLayout(raw: unknown): LayoutModel {
   // joins the right dock. The map goes first (backmost), under panes the
   // user already floats.
   if (!seen.has('map')) out.floating.unshift(defaultMapFloat());
+  // Statistics (ADR 0109): its auto float, in front, centred over the game pane.
+  if (!seen.has('statistics')) out.floating.push(defaultStatsFloat());
   for (const id of PANE_IDS) {
-    if (!seen.has(id) && id !== 'map') appendToDock(out.docks, 'right', { id, desired: DEFAULT_PANE_DESIRED[id] });
+    if (!seen.has(id) && id !== 'map' && id !== 'statistics') appendToDock(out.docks, 'right', { id, desired: DEFAULT_PANE_DESIRED[id] });
   }
   return out;
 }

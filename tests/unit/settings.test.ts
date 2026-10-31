@@ -2,7 +2,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CaptureStore } from '../../src/capture/store';
 import { DB_NAME, DB_VERSION, openWebcockpitDb } from '../../src/core/db';
-import { DEFAULT_SHARE, PANE_IDS, defaultMapFloat, dockPanes } from '../../src/layout/types';
+import { DEFAULT_SHARE, PANE_IDS, defaultMapFloat, defaultStatsFloat, dockPanes } from '../../src/layout/types';
 import { legacyLayout } from './legacy-defaults';
 import {
   DEFAULT_SETTINGS,
@@ -143,7 +143,12 @@ describe('migrateSettings', () => {
       { id: 'ui', desired: DEFAULT_SHARE.ui },
       { id: 'panebar/bar', desired: 1 },
     ]);
-    expect(DEFAULT_SETTINGS.layout.floating).toEqual([{ id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' }]);
+    // Statistics: an auto float centred over the game pane, off (ADR 0109).
+    expect(DEFAULT_SETTINGS.layout.floating).toEqual([
+      { id: 'mapsearch/main', x: 0, y: 0, w: 36, h: 15, auto: true, below: 'map' },
+      { id: 'statistics', x: 0, y: 0, w: 82, h: 26, auto: true },
+    ]);
+    expect(DEFAULT_SETTINGS.panes.statistics).toEqual({ on: false, color: 'black', border: true, glass: true });
     expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
     expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true, glass: true });
     // Character off; UI off and without a frame; the pane bar borderless and on; Map search off.
@@ -372,9 +377,9 @@ describe('migrateSettings', () => {
     // Layouts stored before the top dock existed get an empty one.
     expect(s.layout.docks.top).toEqual({ lanes: [], head: [], tail: [] });
     const all = Object.values(s.layout.docks).flatMap((d) => dockPanes(d).map((p) => p.id));
-    // The map floats at its default spot (ADR 0020).
-    expect(s.layout.floating).toEqual([defaultMapFloat()]);
-    expect([...all, 'map'].sort()).toEqual([...PANE_IDS].sort());
+    // The map floats at its default spot (ADR 0020), Statistics at its own (ADR 0109).
+    expect(s.layout.floating).toEqual([defaultMapFloat(), defaultStatsFloat()]);
+    expect([...all, 'map', 'statistics'].sort()).toEqual([...PANE_IDS].sort());
   });
 });
 
@@ -397,14 +402,15 @@ describe('migrateLayout: floating panes', () => {
       defaultMapFloat(),
       { id: 'comm', x: 4, y: 2, w: 30, h: 12 },
       { id: 'group', x: 0, y: 0, w: 1, h: 8 },
+      defaultStatsFloat(),
     ]);
     expect(dockPanes(s.layout.docks.right).map((p) => p.id)).toEqual(['character', 'timers', 'ui']);
     expect(s.layout.docks.top).toEqual({ lanes: [], head: [], tail: [] });
   });
 
-  it('gives an older layout a floating list with only the map and a top dock', () => {
+  it('gives an older layout a floating list with only the map and Statistics, and a top dock', () => {
     const s = migrateSettings({ layout: { docks: { right: { size: 40, panes: [] } } } });
-    expect(s.layout.floating).toEqual([defaultMapFloat()]);
+    expect(s.layout.floating).toEqual([defaultMapFloat(), defaultStatsFloat()]);
     expect(s.layout.docks.top.lanes).toEqual([]);
     // An empty old dock has no lanes; the missing panes make lane 0 at the default size.
     expect(s.layout.docks.right.lanes.map((l) => l.size)).toEqual([33]);

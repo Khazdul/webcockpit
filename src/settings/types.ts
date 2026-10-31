@@ -418,6 +418,8 @@ export function defaultSettings(): Settings {
       comm: { on: true, color: 'black', border: true, glass: true },
       ui: { on: false, color: 'black', border: false, glass: true },
       map: { on: true, color: 'black', border: false, glass: true },
+      // Off for everyone until switched on in the Panes popup (ADR 0109).
+      statistics: { on: false, color: 'black', border: true, glass: true },
       // Pre-placed bundled script panes (ADR 0078): the pane bar is
       // borderless; Map search starts off (its script runs, the pane waits).
       [PANEBAR_PANE]: { on: true, color: 'black', border: false, glass: true },

@@ -29,7 +29,7 @@ import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import type { ScriptPaneInfo } from '../../layout/cockpit';
 import { forgetTempPlaces } from '../../layout/temp-places';
-import { PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
+import { NOT_ON_PHONE, PANE_COLORS, PANE_IDS, PANE_LABELS, type PaneColor, type PaneId, defaultLayout } from '../../layout/types';
 import { type AppearanceSettings, paneSettingsOf } from '../../settings/types';
 import {
   FONT_SIZE_MAX,
@@ -180,9 +180,9 @@ export function PanesFrame(): VNode {
   const [row, setRow] = useState(0);
   const [col, setCol] = useState(0);
   const scripts = useScriptPanes(scriptPanes);
-  // The built-in panes, then the running script panes (ADR 0053).
+  // The built-in panes (not Statistics: the grid is the phone's, ADR 0109), then the running script panes (ADR 0053).
   const rows: { id: PaneId; label: string; tip: string }[] = [
-    ...PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id], tip: PANE_LABELS[id] })),
+    ...PANE_IDS.filter((id) => !NOT_ON_PHONE.has(id)).map((id) => ({ id, label: PANE_LABELS[id], tip: PANE_LABELS[id] })),
     ...scripts.map((p) => ({ id: p.id, label: scriptPaneLabel(p), tip: `${p.title}, a pane of script ${p.script}` })),
   ];
   const labelW = Math.min(LABEL_MAX, Math.max(LABEL_W, ...rows.map((r) => r.label.length + 1)));

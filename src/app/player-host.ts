@@ -52,7 +52,7 @@ import type { RunEvent } from '../runs/events';
 import type { Session } from '../runs/stitch';
 import { type Settings, SettingsStore, type ViewSnapshot } from '../settings';
 import { paneSettingsOf } from '../settings/types';
-import { PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
+import { LIVE_ONLY, PANE_IDS, PANE_LABELS, type PaneId, type ScriptPaneId, isScriptPaneId, isTempPaneId, paneScript } from '../layout/types';
 import { PaneContent, type PaneSnapshot } from '../panes/script-content';
 import { ScriptPane } from '../panes/script-pane';
 import { applyPaneRecord, splitPaneRecord } from '../panes/script-record';
@@ -471,7 +471,7 @@ export class PlayerHost {
     };
     return {
       panes: () => [
-        ...PANE_IDS.map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+        ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
         ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
       ],
       togglePane: (id) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),

@@ -9,6 +9,7 @@ import type { PaneContext } from './context';
 import { GroupPane } from './group';
 import { MapPane } from './map';
 import type { PaneShell } from './pane';
+import { StatsPane } from './statistics';
 import { TimersPane } from './timers';
 import { UiPane } from './ui';
 
@@ -22,4 +23,5 @@ export const PANE_FACTORIES: Readonly<Record<PaneId, PaneFactory>> = {
   comm: (ctx) => new CommPane(ctx),
   ui: (ctx) => new UiPane(ctx),
   map: (ctx) => new MapPane(ctx),
+  statistics: (ctx) => new StatsPane(ctx),
 };

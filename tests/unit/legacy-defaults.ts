@@ -12,10 +12,11 @@ import {
   PANE_IDS,
   defaultMapFloat,
   defaultMapSearchFloat,
+  defaultStatsFloat,
 } from '../../src/layout/types';
 import { LEGACY_MAPPER, type Settings, defaultSettings } from '../../src/settings/types';
 
-/** The default layout before ADR 0078. */
+/** The default layout before ADR 0078 (with the Statistics float every layout has since ADR 0109). */
 export function legacyLayout(): LayoutModel {
   return {
     docks: {
@@ -36,7 +37,7 @@ export function legacyLayout(): LayoutModel {
       top: { lanes: [], head: [], tail: [] },
       bottom: { lanes: [], head: [], tail: [] },
     },
-    floating: [defaultMapFloat()],
+    floating: [defaultMapFloat(), defaultStatsFloat()],
   };
 }
 

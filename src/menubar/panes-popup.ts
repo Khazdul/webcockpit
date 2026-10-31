@@ -3,8 +3,9 @@
 // the running script panes under a "Script panes" subhead (label and a
 // dim script name). Reset layout asks inline: `Reset layout?` Reset /
 // Cancel. Every change goes straight to the settings store, and the rows
-// follow the store and the script panes while open. The Statistics row
-// comes with its pane (30d).
+// follow the store and the script panes while open. Statistics is the last
+// built-in row (ADR 0109); switched on without a place of its own it opens
+// as a float centred over the game text.
 //
 // It takes the focus when it opens, on its first row (ADR 0108): Esc
 // closes and gives the game its keys back; ↑↓ move between the rows and

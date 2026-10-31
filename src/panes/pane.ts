@@ -47,7 +47,7 @@ import { type FrameGeometry, type FramePlate, frameGeometry, frameHolePath, fram
 
 export type { PaneContext } from './context';
 
-/** Panes that blank their content while not `playing` (Inv §2.1): all but UI and the map. */
+/** Panes that blank their content while not `playing` (Inv §2.1): all but UI, the map and Statistics. */
 export const BLANK_WHEN_INACTIVE: Readonly<Record<BuiltinPaneId, boolean>> = {
   character: true,
   timers: true,
@@ -55,6 +55,8 @@ export const BLANK_WHEN_INACTIVE: Readonly<Record<BuiltinPaneId, boolean>> = {
   comm: true,
   ui: false,
   map: false,
+  // Keeps the latest run after a disconnect (ADR 0109).
+  statistics: false,
 };
 
 /** True for the connection state in which panes are active. */

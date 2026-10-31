@@ -1921,6 +1921,7 @@ describe('pane list (ADR 0065)', () => {
       'comm|COMM|true|true|right|-|false|Comm',
       'ui|UI|true|false|right|-|false|UI',
       'map|MAP|false|false|right|-|false|Map',
+      'statistics|STAT|true|false|right|-|false|Statistics',
       'a/main|MERC|true|false|left|a|true|Mercenaries',
       'a/k|KEYS|true|false|top|a|true|Port keys',
       'a/z9|Z9|true|false|right|a|true|!!',

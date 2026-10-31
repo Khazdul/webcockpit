@@ -16,6 +16,9 @@ import { ScriptLibrary } from '../../src/scripts';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { ScriptHost } from '../../src/scripts/host';
 
+/** The built-in panes the bar's layout cases were written for (Statistics, ADR 0109, left out). */
+const BUILTINS = PANE_IDS.filter((id) => id !== 'statistics');
+
 const hosts: ScriptHost[] = [];
 afterEach(() => {
   for (const h of hosts.splice(0)) h.dispose();
@@ -68,7 +71,7 @@ class Surface implements ScriptPaneSurface {
   states(): PaneState[] {
     const open = this.opened.filter((o) => !o.view.closed && !o.spec.temporary);
     return [
-      ...PANE_IDS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: true, dock: 'right' as const })),
+      ...BUILTINS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: true, dock: 'right' as const })),
       ...open.map((o) => ({ id: o.spec.id, on: o.view.on, shown: o.view.on, dock: o.view.dock!() })),
     ];
   }

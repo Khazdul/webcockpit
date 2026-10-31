@@ -1431,7 +1431,7 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(changes).toBe(1);
       off();
       const st = r.surface.states();
-      expect(st.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map', BAR]);
+      expect(st.map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map', 'statistics', BAR]);
       expect(st.find((p) => p.id === 'comm')).toEqual({ id: 'comm', on: true, shown: true, dock: 'right' });
       expect(st.find((p) => p.id === 'map')).toMatchObject({ dock: 'float' });
       expect(st.find((p) => p.id === BAR)).toEqual({ id: BAR, on: true, shown: true, dock: 'bottom' });
@@ -1490,7 +1490,7 @@ describe('ScriptPane and the cockpit surface', () => {
       const r = rig();
       const { RecordingPaneSurface } = await import('../../src/panes/script-surface');
       const rec = new RecordingPaneSurface(r.surface, () => {}, () => 0);
-      expect(rec.states!().map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map']);
+      expect(rec.states!().map((p) => p.id)).toEqual(['character', 'timers', 'group', 'comm', 'ui', 'map', 'statistics']);
       expect(rec.setOn!('ui', false)).toBe(true);
       let n = 0;
       const unsub = rec.onStates!(() => n++);

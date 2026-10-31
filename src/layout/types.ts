@@ -4,8 +4,11 @@
 // `LayoutModel` as plain data and repairs a damaged one on load
 // (src/settings/migrate.ts).
 
-/** The framed side panes, in Cockpit's order (Inv §2.1), then the map (ADR 0020). */
-export type BuiltinPaneId = 'character' | 'timers' | 'group' | 'comm' | 'ui' | 'map';
+/**
+ * The framed side panes, in Cockpit's order (Inv §2.1), then the map (ADR
+ * 0020) and the live Statistics (ADR 0109).
+ */
+export type BuiltinPaneId = 'character' | 'timers' | 'group' | 'comm' | 'ui' | 'map' | 'statistics';
 
 /**
  * A script pane (ADR 0053): `<script>/<pane id>`. Script names never
@@ -16,8 +19,22 @@ export type ScriptPaneId = `${string}/${string}`;
 /** Any pane: a built-in one or a script pane. */
 export type PaneId = BuiltinPaneId | ScriptPaneId;
 
-/** Every built-in pane id in Cockpit's default stack order, then the map. */
-export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map'];
+/** Every built-in pane id in Cockpit's default stack order, then the map and Statistics. */
+export const PANE_IDS: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui', 'map', 'statistics'];
+
+/**
+ * Built-in panes that have no place on a phone (ADR 0109): its tab layout
+ * and its Options → Panes grid leave them out; the phone keeps ESC →
+ * Statistics.
+ */
+export const NOT_ON_PHONE: ReadonlySet<PaneId> = new Set<PaneId>(['statistics']);
+
+/**
+ * Built-in panes that show a live session only (ADR 0109): the log player
+ * and the HTML replay keep them off and leave them out of the viewer's
+ * pane toggles, whatever a VIEW record says.
+ */
+export const LIVE_ONLY: ReadonlySet<PaneId> = new Set<PaneId>(['statistics']);
 
 /** The built-in panes of the default right dock (the map floats by default). */
 export const DOCKED_BY_DEFAULT: readonly BuiltinPaneId[] = ['character', 'timers', 'group', 'comm', 'ui'];
@@ -78,6 +95,7 @@ export const PANE_LABELS: Readonly<Record<BuiltinPaneId, string>> = {
   comm: 'Comm',
   ui: 'UI',
   map: 'Map',
+  statistics: 'Statistics',
 };
 
 /** Short names of the built-in panes (the pane bar's buttons, ADR 0065). */
@@ -88,6 +106,7 @@ export const PANE_SHORT: Readonly<Record<BuiltinPaneId, string>> = {
   comm: 'COMM',
   ui: 'UI',
   map: 'MAP',
+  statistics: 'STAT',
 };
 
 /**
@@ -236,6 +255,7 @@ export const DEFAULT_PANE_DESIRED: Readonly<Record<BuiltinPaneId, number>> = {
   comm: 10,
   ui: 5,
   map: 20,
+  statistics: 24,
 };
 
 /** Desired content rows of a script pane that enters a side dock without a size of its own. */
@@ -332,13 +352,29 @@ export function defaultLayout(): LayoutModel {
       top: { lanes: [], head: [], tail: [] },
       bottom: { lanes: [], head: [], tail: [] },
     },
-    floating: [defaultMapSearchFloat()],
+    floating: [defaultMapSearchFloat(), defaultStatsFloat()],
   };
 }
 
 /** The Map search pane's default float: under the map, as wide as it (ADR 0078). */
 export function defaultMapSearchFloat(): FloatPane {
   return { id: MAPSEARCH_PANE, x: 0, y: 0, w: 36, h: MAPSEARCH_FLOAT_H, auto: true, below: 'map' };
+}
+
+/**
+ * Outer size of the Statistics pane's first float (ADR 0109): 80 × 24
+ * content cells and the frame, room for the wide layout; `allocate`
+ * clamps it to the game pane.
+ */
+export const STATS_FLOAT = { w: 82, h: 26 } as const;
+
+/**
+ * The Statistics pane's place until the user gives it one (ADR 0109): an
+ * `auto` float that `allocate` centres over the game pane. It is off by
+ * default, so it shows only once switched on.
+ */
+export function defaultStatsFloat(): FloatPane {
+  return { id: 'statistics', x: 0, y: 0, w: STATS_FLOAT.w, h: STATS_FLOAT.h, auto: true };
 }
 
 /** The map's first floating entry: placed by `allocate` until the user moves it (ADR 0020). */

@@ -93,9 +93,10 @@ describe('default layout (ADR 0092)', () => {
     expect(rect(r, 'ui')).toBeUndefined();
     // No pane bar for a new user: Comm ends at the screen bottom, beside the input row.
     expect(rect(r, BAR)).toBeUndefined();
-    // No floats: the map is docked and Map search is off.
+    // No floats: the map is docked, Map search and Statistics are off.
     expect(rect(r, FIND)).toBeUndefined();
-    expect(defaultLayout().floating.map((f) => f.id)).toEqual([FIND]);
+    expect(rect(r, 'statistics')).toBeUndefined();
+    expect(defaultLayout().floating.map((f) => f.id)).toEqual([FIND, 'statistics']);
   });
 
   it('with the pane bar turned on it is the dock\'s last row, beside the input row', () => {

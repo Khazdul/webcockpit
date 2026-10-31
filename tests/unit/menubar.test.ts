@@ -520,9 +520,10 @@ describe('Panes popup', () => {
     expect(paneRows([]).map((r) => r.id)).toEqual([...PANE_IDS]);
     const t = setup();
     t.bar.open('panes');
-    expect(labels(t)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map']);
+    // Statistics last among the built-ins (ADR 0109).
+    expect(labels(t)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map', 'Statistics']);
     t.setPanes([{ id: 'keymanager/keys', script: 'keymanager', title: 'Keys' }]);
-    expect(labels(t)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map', 'Script panes', 'Keys keymanager']);
+    expect(labels(t)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map', 'Statistics', 'Script panes', 'Keys keymanager']);
   });
 
   it('shows and hides a pane, following the store while open', () => {

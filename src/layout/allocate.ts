@@ -133,6 +133,7 @@ import {
   type LaneRef,
   type LayoutModel,
   type PaneId,
+  STATS_FLOAT,
   defaultPaneRows,
   dockPanes,
   isBuiltinPaneId,
@@ -185,6 +186,7 @@ export const MIN_ROWS: Readonly<Record<BuiltinPaneId, number>> = {
   comm: 1,
   ui: 1,
   map: 3,
+  statistics: 3,
 };
 /** Minimum content rows of a script pane in a side dock (ADR 0053). */
 export const SCRIPT_MIN_ROWS = 1;
@@ -200,13 +202,13 @@ export const MIN_COLS = 8;
 export const DEFAULT_BOTTOM_DESIRED = 30;
 
 /** Who gets the leftover cells first (Inv §2.1); script panes after these, in stack order. */
-export const LEFTOVER_PRIORITY: readonly BuiltinPaneId[] = ['map', 'ui', 'character', 'comm', 'timers', 'group'];
+export const LEFTOVER_PRIORITY: readonly BuiltinPaneId[] = ['map', 'ui', 'character', 'comm', 'timers', 'group', 'statistics'];
 /**
  * Who is dropped first when even the minimums do not fit (Inv §2.1; the map
  * first, ADR 0020). Script panes go right after the map, the last in the
- * stack first (ADR 0053).
+ * stack first (ADR 0053); Statistics after them (ADR 0109).
  */
-export const DROP_ORDER: readonly BuiltinPaneId[] = ['map', 'group', 'timers', 'comm', 'character', 'ui'];
+export const DROP_ORDER: readonly BuiltinPaneId[] = ['map', 'statistics', 'group', 'timers', 'comm', 'character', 'ui'];
 
 /**
  * The ids of `live` by leftover priority: the built-in order, then script
@@ -269,6 +271,7 @@ export const FLOAT_STANDARD_H = 14;
 
 /** Size of a pane that starts floating without a shown rectangle to copy (settings migration). */
 export function defaultFloatSize(id: PaneId): { w: number; h: number } {
+  if (id === 'statistics') return { ...STATS_FLOAT };
   return { w: DEFAULT_SIDE_DOCK_SIZE, h: defaultPaneRows(id) + FRAME_CELLS };
 }
 
@@ -285,6 +288,21 @@ export function autoFloatRect(game: Rect, cols: number, rows: number): Rect {
   const w = Math.round(cols * AUTO_FLOAT.w);
   const h = Math.round(rows * AUTO_FLOAT.h);
   return { x: game.x + game.w - w, y: game.y, w, h };
+}
+
+/**
+ * The rectangle of the Statistics pane's `auto` float (ADR 0109): its
+ * stored size (STATS_FLOAT) cut to the game pane, centred over it.
+ */
+export function statsAutoFloatRect(game: Rect, size: { w: number; h: number }): Rect {
+  const w = Math.max(1, Math.min(size.w, game.w));
+  const h = Math.max(1, Math.min(size.h, game.h));
+  return { x: game.x + Math.floor((game.w - w) / 2), y: game.y + Math.floor((game.h - h) / 2), w, h };
+}
+
+/** The rectangle of a built-in pane's `auto` float: the map's corner, or Statistics centred. */
+function builtinAutoRect(id: PaneId, g: { w: number; h: number }, game: Rect, cols: number, rows: number): Rect {
+  return id === 'statistics' ? statsAutoFloatRect(game, g) : autoFloatRect(game, cols, rows);
 }
 
 /**
@@ -893,7 +911,7 @@ export function allocate(input: AllocateInput): LayoutResult {
     const g = input.layout.floating.find((f) => f.id === id);
     const t = g && !g.below ? shownToggle(input, id) : null;
     if (!g || !t) return null;
-    const want = !g.auto ? g : isBuiltinPaneId(id) ? autoFloatRect(res.game, cols, rows) : scriptAutoFloatRect(res.game, g, mapAuto);
+    const want = !g.auto ? g : isBuiltinPaneId(id) ? builtinAutoRect(id, g, res.game, cols, rows) : scriptAutoFloatRect(res.game, g, mapAuto);
     return clampFloat(want, floatMin(id, t.border), cols, rows);
   };
   input.layout.floating.forEach((f, index) => {
@@ -906,7 +924,7 @@ export function allocate(input: AllocateInput): LayoutResult {
       : under
         ? floatBelow(under, f.h)
         : isBuiltinPaneId(f.id)
-          ? autoFloatRect(res.game, cols, rows)
+          ? builtinAutoRect(f.id, f, res.game, cols, rows)
           : scriptAutoFloatRect(res.game, f, mapAuto);
     const r = clampFloat(want, floatMin(f.id, framed), cols, rows);
     const c: Rect = framed ? { x: r.x + 1, y: r.y + 1, w: r.w - 2, h: r.h - 2 } : { ...r };

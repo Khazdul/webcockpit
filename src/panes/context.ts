@@ -26,6 +26,19 @@ export interface CellSource {
   subscribe(fn: (c: { w: number; h: number }) => void): () => void;
 }
 
+/**
+ * The Statistics pane's view (ADR 0109), drawn by the chrome chunk into the
+ * pane's content element. `resize(cols, rows)` follows the content size;
+ * 0 × 0 while the pane is hidden (the view stops its work then).
+ */
+export interface StatsPaneView {
+  resize(cols: number, rows: number): void;
+  dispose(): void;
+}
+
+/** Mounts the Statistics view into `host` (the shell loads the chrome chunk first). */
+export type StatsViewMount = (host: HTMLElement) => Promise<StatsPaneView>;
+
 export interface PaneContext {
   readonly doc: Document;
   /** The app bus: `gmcp`, `conn.state`, `text.line`, `ui.message` … */
@@ -67,6 +80,11 @@ export interface PaneContext {
    * game or profile state (the Timers corner `+` and charm `×` are gone).
    */
   readonly player?: boolean;
+  /**
+   * The Statistics pane's view (ADR 0109), mounted on its first show.
+   * Absent (the log player, the phone, tests): the pane stays empty.
+   */
+  readonly statsView?: StatsViewMount;
 }
 
 /** A sender that drops everything (tests, a cockpit without a session). */
@@ -149,5 +167,6 @@ export function createPaneContext(p: Partial<PaneContext> & { doc: Document }): 
     ...(p.mapMarks ? { mapMarks: p.mapMarks } : {}),
     ...(p.mapNotes ? { mapNotes: p.mapNotes } : {}),
     ...(p.player ? { player: true } : {}),
+    ...(p.statsView ? { statsView: p.statsView } : {}),
   };
 }
