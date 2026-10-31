@@ -242,3 +242,38 @@ pane). The lighting code reads `rims`; what treats a pane as solid reads
 
 Cost: the same loops over a list of the same length or shorter; the
 scene key that triggers an immediate rebuild now includes the rims.
+
+## Addendum: the Gear (stage 30c, 2026-10-31)
+
+Stage 30 S6 (ADR 0107) adds a fourth hover button, the **Gear**, which
+opens the pane's settings popup beside the pane.
+
+- **Which panes:** Map, Comm, Timers and Group (`GEAR_PANES`,
+  `pane-buttons.ts`), and only where the cockpit has a gear handler
+  (`CockpitOptions.onGear`; the App passes one with the menu bar, so
+  desktop and tablet). Never on the phone (no hover buttons there), on
+  temporary or script panes, or on Character and UI (no settings of their
+  own beyond the look). The cockpit does not import the chrome: the click
+  calls `onGear(id)`, and the App's `ui.togglePaneSettings` toggles the
+  popup.
+- **Slot:** the leftmost, `--slot` 3: Gear, Colour, Border, Background,
+  `×`. Two cells, the same ink, shadow, hover accent and rules as the
+  others: hidden while a drag runs, hidden with the cross on a
+  `cross = false` pane, a press kept from the focus, the grip and the soft
+  grip (it is a `.wc-pane-btn`).
+- **Drop order:** a pane too narrow for all four drops them from the
+  left, so the Gear goes first, then Colour, Border, Background; those
+  that stay keep their places beside the cross (`lookButtonsFit` with the
+  button count).
+- **Icon:** the mockup 30a-5 gear as inline SVG in `currentColor`, no ids:
+  a dashed thick circle for the teeth, a ring and a hub.
+- **Label:** tooltip and aria-label `<pane label> settings` (`Map
+  settings`, `Comm settings`, `Timers settings`, `Group settings`);
+  `data-mb="pane:<id>"`, the key the menu bar holds the popup by.
+- **Open mark:** while its popup is open the Gear is marked `data-open`
+  (`Cockpit.markGear`, from the popups' `onChange`) and drawn in the hover
+  accent whenever it shows. It is not forced visible: like the others it
+  shows while the pointer is over the pane.
+- **Cost:** the last twelve cells of a framed pane's top row (eleven
+  borderless) are covered on hover on the four panes, two more than
+  before.

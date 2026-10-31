@@ -149,3 +149,58 @@ double upkeep is accepted (S10).
   the keys, so the hex field is used after it is closed.
 - The script manual names the Panes box and the pane buttons where it
   pointed to Options → Panes → Appearance.
+
+## Addendum: the gear popups (30c part 2, 2026-10-31)
+
+- **Opening:** the pane's Gear (ADR 0095 addendum) calls the App's
+  `ui.togglePaneSettings(id)`, the shell's `togglePaneSettings`, which
+  toggles `{ pane: id }` through `togglePopup` (nothing while the ESC menu
+  is open). The menu bar adopts it as `pane:<id>`, so the one-popup rule
+  with Panes, Exit and Settings, Esc in the input, the ESC menu and
+  hiding the cockpit close it like the others. The surface's
+  `onChange(key)` reports every open and close, whoever closed it; the
+  shell marks the Gear with it (`Cockpit.markGear`).
+- **Placement** (`besidePlace` / `placeBeside`, `src/menubar/popup.ts`):
+  beside the pane's box, top-aligned with it, 6 px from it, on the side
+  toward the game column (the side the game pane's centre is on) when the
+  popup fits there, else on the other side. With room on neither side (a
+  wide pane in the top or bottom dock) it lies over the pane, one row
+  below its top edge (the title row and its Gear stay free), on the game
+  side. Always inside the viewport (4 px margin): moved up when the pane
+  is low, capped in height (`max-height`, the body scrolls) when the
+  screen is short. A floating pane is treated the same. Placed again on
+  every cockpit layout (pane moves, dock resizes, a float dragged or
+  dropped, the window resized) and on the panel's own triggers.
+- **Close when the pane is gone:** after every cockpit layout the shell
+  runs `followPane`: an open gear popup whose pane is no longer shown
+  (`Cockpit.isShown`: hidden by its cross, the Panes popup, a setting,
+  Reset layout, the Map popup's own Show map pane, a script; removed; the
+  window too small) closes, reported to the bar; the input gets the focus
+  back when it was in the popup. Hiding the cockpit closes it through the
+  bar.
+- **Contents** (`src/chrome/popups/pane-settings.tsx`; semantics shared
+  with the TUI pages in `src/chrome/pane-options-model.ts`, which those
+  pages now use too):
+  - **Map:** the Mapper component (as Settings → Mapper).
+  - **Comm:** a `Channels` subheading, the ten channels in the fixed
+    order, each a row with a swatch in the channel colour (grey when
+    off), the label and a toggle; a click anywhere in the row toggles it.
+    Then a hairline and Show channel header. The filters stay sparse; the
+    Comm pane cancels its solo when they change from outside it, as for
+    the TUI page. 250 px at a 15 px font (mockup 30a-5).
+  - **Timers:** a grid, one row per group (`TIMER_GROUPS`) under the
+    headings Colour, Cols, Clock, Bar: a colour dropdown with Off first
+    and the seven colours with their swatches (Off hides the group and
+    keeps its colour, as unchecking the TUI grid's swatch; the row dims,
+    its controls still work), a `Stepper` for the column cap within
+    `TIMER_COLS_MIN`..`timerColsMax(group)` (Charmies 1–2), and Clock and
+    Bar toggles (none for Charmies). Then Display headers and Compact
+    layout.
+  - **Group:** Show players, NPC visibility (segmented Off, Labeled,
+    All).
+- **Stepper** (control kit): `‹ N ›`, `role=spinbutton` with its value
+  and range, one tab stop; ←↓ and ‹ step down, →↑ and › up, Home/End
+  jump; the arrow at an end is dimmed.
+- **Sizes:** each gear popup has its own width (Map 31 em, Comm 19.23 em,
+  Group 25 em, Timers 29.5 em at the popup font) and fits its content's
+  height.

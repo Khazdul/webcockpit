@@ -546,13 +546,16 @@ drops pending `#delay`s; revisit if it bites in play.
     with the bar's popups; keys after a click; Esc order.
   - [x] Settings popup: Appearance (with preview and palette picker), Text
     input, Mapper, Weather effects; `#settings` and the icon toggle it.
-  - [ ] Gear button on Mapper, Comm, Timers, Group (not phone, dropped
+  - [x] Gear button on Mapper, Comm, Timers, Group (not phone, dropped
     first when narrow); gear popups beside the pane.
   - [x] Options → Panes → Appearance removed on desktop and tablet.
   - [ ] Unit tests, e2e, ADR 0107, ADR 0095/0099 addenda, test guide.
     - [x] Part 1 (Settings popup): unit `chrome-popups.test.tsx`, menu bar
       and App tests, e2e `settings-popup.spec.ts` and the specs that went
       through the pane grid, ADR 0107, ADR 0099 addendum.
+    - [x] Part 2 (pane Gear): unit `pane-gear.test.tsx`, e2e
+      `pane-gear.spec.ts` and `pane-buttons.spec.ts`, ADR 0095 and ADR 0107
+      addenda.
 - [ ] 30d.
 - [ ] 30e.
 - [ ] 30f.
