@@ -51,7 +51,9 @@ Statuses: Next, In progress, Owner testing, Done.
   spec §5 is updated. Look: mockup 2, ghost icons.
 - **Mockups:** six 30a artboards on the owner's canvas (bar, Panes,
   Settings, Exit, pane gear, windows); source in
-  `notes/research/fixed-menu-mockups/30a-*`.
+  `notes/research/fixed-menu-mockups/30a-*`. Round 2 after owner
+  feedback: link dot only on a bad link, plain cyan-bordered windows,
+  one separator less, scroll icon for Scripts.
 - **Next:** owner feedback on the 30a mockups, then build 30a (new session).
 - **Open:** technical defaults marked *(Claude)* in the spec become ADRs
   as they are built.

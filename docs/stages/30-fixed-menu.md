@@ -35,7 +35,9 @@ phone gets its own follow-up stage.
   today, left of any right-docked panes. One cell high.
 - **Contents, left to right:**
 
-      CLOCK · link dot | PROFILE  SCRIPTS | PANES  SETTINGS | FULLSCREEN  EXIT
+      CLOCK (link dot) | PROFILE  SCRIPTS  PANES  SETTINGS | FULLSCREEN  EXIT
+
+  Two separators only (owner, 2026-10-31 round 2).
 
   The MENU button from the 2026-10-22 brief is dropped, because the ESC
   menu goes away.
@@ -43,14 +45,18 @@ phone gets its own follow-up stage.
   straight on black, lit on hover. Always visible but quiet; the clock
   is always fully readable. Exit turns red on hover. The popups (S3–S5)
   share this look. The 2026-10-22 icons are placeholders, so the icons
-  are drawn anew.
+  are drawn anew. Scripts is a scroll, one connected shape (the first
+  `{ }` read as two loose characters).
 - **Clock:** the clock strip as today (countdown and ☼/☾). Clicking it
   does nothing. The tooltip explains it, e.g. `Night in 4:33`.
 - **Status in tooltips** (the ESC menu header today):
   - Profile icon: `Profile: <name>`.
-  - **Link dot:** a small dot next to the clock, coloured as today's
-    `Link:` text (dim when fine, yellow when suspect, red when unknown).
-    Its tooltip reads `Link: 38ms` plus the capture state when recording.
+  - **Link dot:** hidden while the link is fine. It appears next to the
+    clock only when the link deviates: yellow while lagging or frozen
+    (today's suspect state), red when broken or unknown. Its tooltip
+    reads e.g. `Link: 1.8s · lagging` plus the capture state when
+    recording. With the dot hidden, the capture state goes in the clock's
+    tooltip *(Claude)*.
 - **Notices** (`Update: …`, `Storage: not saved`) stay in the input row,
   left of the bar, as today.
 - **Fullscreen:** on every device that has page fullscreen. Where the bar
@@ -150,11 +156,13 @@ phone gets its own follow-up stage.
   with live apply, as ESC → Profile does today. You switch and manage
   profiles on the start page, as today.
 - **Scripts** opens what Options → Scripts holds today.
-- **Window frame:** a rim in the panes' look (framed pane borders), cyan
-  tint kept, with the title in the nameplate and an **X** at the top
-  right. It is movable (drag the title bar) and resizable (the whole
-  border cell, as framed panes, stage 29 round 4). The background is
-  opaque terminal background, not glass.
+- **Window frame:** set apart from the panes on purpose (owner,
+  2026-10-31 round 2): a conventional, modern and sparse window, not
+  the panes' glass rim. A thin cyan border, almost square corners, a
+  slim title bar (title left, **X** right), a small resize grip in the
+  bottom right corner. It is movable (drag the title bar) and resizable
+  (any edge or corner). The background is opaque terminal background.
+  The unfocused window has a dim border and title and dimmed content.
 - Both windows can be open at once; a click raises one above the other.
 - **Remembered:** position and size per window, across reloads, always
   kept fully on screen. This is global, not per profile *(Claude)*.
@@ -225,6 +233,8 @@ Each step ends with a test in the browser.
 - [x] Five aesthetic mockups (2026-10-22).
 - [x] Spec and decisions with the owner (2026-10-31).
 - [x] 30a refined mockups (ghost look), six artboards (2026-10-31).
+- [x] 30a round 2 (2026-10-31): link dot only on a bad link; conventional
+  window frame; one separator less; scroll icon for Scripts.
 - [ ] 30a owner approval of the mockups.
 - [ ] 30a build.
 - [ ] 30b.
