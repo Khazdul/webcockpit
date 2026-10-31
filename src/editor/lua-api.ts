@@ -701,8 +701,8 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p("lane", "string?", "\"own\": the first time, the pane gets a lane of its own at the screen edge of its dock (a row of the top or bottom dock, a column at the side), as high (or wide) as rows (cols) plus the frame. Not for a float or a temporary pane."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
         p("cols", "number?", "Wanted width in columns (default 30): in the top or bottom dock and a float."),
-        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on in Options → Panes → Appearance). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). On hover the close cross shows over the last cells of its top row (one in from the right edge), framed or not."),
-        p("cross", "boolean?", "false: no close cross on hover, for a pane whose top row ends in buttons, such as a one-row bar. The player turns it off in Options → Panes → Appearance, your script with pane:hide(). Not for a temporary pane. Default true: the cross shows over the last cells of the top row while the pane is hovered, over whatever is there, so keep a link out of them (it cannot be clicked while the cross covers it)."),
+        p("border", "boolean?", "false: the first time, the pane has no frame (the player can turn it on with the pane's Border button). A borderless pane in the top or bottom dock can be a single row; drag it by its top row, past a few pixels (a click there is the pane's own). On hover the close cross shows over the last cells of its top row (one in from the right edge), framed or not."),
+        p("cross", "boolean?", "false: no close cross on hover, for a pane whose top row ends in buttons, such as a one-row bar. The player turns it off in the Panes box, your script with pane:hide(). Not for a temporary pane. Default true: the cross shows over the last cells of the top row while the pane is hovered, over whatever is there, so keep a link out of them (it cannot be clicked while the cross covers it)."),
         p("tooltip", "boolean?", "Accepted and ignored: it once showed the title in a small tag on hover (gone). Old scripts that pass it still run."),
         p("outline", "boolean?", "false: while the pane has no frame, hovering it draws no outline around it, for a bar that should stay flat. Default true: a thin outline shows where the borderless pane ends."),
         p("anchor", "string?", "Where the view sticks when the lines do not fit: \"bottom\" (default, a console: it follows new lines while scrolled to the end) or \"top\" (a list: it stays at the first line)."),
@@ -713,10 +713,10 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       ],
       returns: "The pane, an object whose methods are called with a colon: pane:echo(\"text\").",
       more: [
-        "dock, lane, border, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; Options → Panes → Appearance lists it with its title and script, to switch it off, colour it or drop its border.",
+        "dock, lane, border, rows and cols only place a new pane. After that the pane stays where the player docked, floated or resized it, also after a reload, a restart or Reset layout of the other panes; the Panes box lists it with its title and script, to switch it off, and its pane buttons colour it or drop its border.",
         "The pane shows while the script runs. Turning the script off or saving it takes the pane away (it comes back where it was when the script creates it again). Calling createPane with an id the script already has returns the same pane.",
         "Rows and columns count from 1. Text wider than the pane is cut. More lines than fit scroll (wheel, touchpad, touch), with one row telling how many are hidden: on top for anchor = \"bottom\", at the bottom for \"top\"; a click on it goes back. A pane keeps at most 500 lines.",
-        "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Options → Panes → Appearance → Reset layout forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
+        "A temporary pane ignores dock and never docks: it comes and goes, and docking it would move the other panes each time. The player can move and resize it; that place is kept on this device for the next time a pane of the same script and id opens (Reset layout in the Panes box forgets it). It is in runs like any pane. Its id is apart from the ordinary panes': a temporary and an ordinary pane may share an id. createPane with an id the script already has returns that pane, temporary or not.",
       ],
       example:
         'local pane = createPane{id = "hp", title = "Health", dock = "right", rows = 3}\npane:gauge(1, {value = 80, max = 120, color = "green", label = "HP 80/120"})',
@@ -1088,7 +1088,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "pane:show",
     "pane:show()",
-    "Switches the pane on, as its row in Options → Panes → Appearance does.",
+    "Switches the pane on, as its switch in the Panes box does.",
     {
       params: [p("pane", "pane", "A pane from createPane.")],
       more: [
@@ -1119,7 +1119,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "pane:setTitle",
     "pane:setTitle(text)",
-    "Changes the title in the pane's frame and in Options → Panes → Appearance.",
+    "Changes the title in the pane's frame and in the Panes box.",
     {
       params: [p("pane", "pane", "A pane from createPane."), p("text", "string", "The new title (at most 60 characters).")],
       example: 'pane:setTitle("Mercenaries (" .. count .. ")")',
@@ -1202,7 +1202,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "getPanes",
     "getPanes() → list",
-    "Every pane in Options → Panes → Appearance order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",
+    "Every pane in the Panes box's order: the built-in panes, then the panes of the scripts that run. Temporary panes are not listed.",
     {
       params: [],
       returns:
@@ -1216,7 +1216,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "setPaneOn",
     "setPaneOn(id, on) → boolean",
-    "Switches any pane on or off, as its close cross and Options → Panes → Appearance do.",
+    "Switches any pane on or off, as its close cross and the Panes box do.",
     {
       params: [
         p("id", "string", "A pane id from getPanes (\"comm\", \"merc/main\")."),
