@@ -544,9 +544,15 @@ The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
 The owner tested 30d: feedback questions 1–4 are OK (first size and place,
 where narrow starts, the shortened headers); details may be polished
 later, not a priority. "It works as wanted." ESC → Statistics can go in
-30f, with this pane as its replacement. 30d is done. Open: whether the
-pane bar script gets a STAT button (explained to the owner, answer
-pending).
+30f, with this pane as its replacement. 30d is done. The owner removed
+the pane bar script instead (ADR 0111).
+
+### Pane bar script removed (2026-11-01)
+
+The owner decided to remove the bundled `panebar` script entirely: the
+menu bar's Panes popup does its job. The script, its default slot and its
+toggle are gone; existing installs drop its data and its pane once
+(settings version 3). The pane API stays. ADR 0111.
 
 ## Open questions
 
