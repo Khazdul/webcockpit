@@ -92,6 +92,18 @@ test('Ctrl+1…9 and Alt+1…9 select tabs by position (physical keyboard, ADR 0
   await expect(page.locator('.wc-input-slot textarea, .wc-input-slot input').first()).toHaveValue('');
 });
 
+test('the phone keeps the clock strip and ☰: no menu bar (ADR 0099)', async ({ page }) => {
+  await openDemo(page);
+  await expect(page.locator('.wc-menubar')).toHaveCount(0);
+  await expect(page.locator('.wc-input-clock')).toBeVisible();
+  await expect(page.locator('.wc-menu-btn')).toBeVisible();
+  // #panes falls back to the ESC menu's pane page.
+  const field = page.locator('.wc-input-slot textarea, .wc-input-slot input').first();
+  await field.fill('#panes');
+  await field.press('Enter');
+  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Pane appearance ───');
+});
+
 test('the ☰ button opens the ESC menu over the whole screen', async ({ page }) => {
   await openDemo(page);
   await page.locator('.wc-menu-btn').tap();

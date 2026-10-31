@@ -286,6 +286,9 @@ test('ESC menu → Profile while disconnected saves directly', async ({ page }) 
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await mock.server()!.close();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
+  // Desktop: no auto-open (ADR 0100); Esc opens the menu with Reconnect selected.
+  await page.keyboard.press('Escape');
   const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
   await expect(menuSel).toHaveText('<< Reconnect >>');
   await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();

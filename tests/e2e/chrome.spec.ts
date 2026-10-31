@@ -149,22 +149,33 @@ test('Enter MUME shows the cockpit and connects; ESC opens and closes the menu',
   await expect(field).toBeFocused();
 });
 
-test('the menu opens by itself on a disconnect, with Reconnect selected', async ({ page }) => {
+test('a disconnect shows the Disconnected notice instead of the menu; Enter or its button reconnects', async ({ page }) => {
   const mock = await enterMume(page);
+  const notice = page.locator('.wc-mb-disc');
+  await expect(notice).toBeHidden();
   await mock.server()!.close();
-  await expect(overlay(page)).toBeVisible();
-  await expect(menuSel(page)).toHaveText('<< Reconnect >>');
-  await expect(page.locator('.wc-overlay .wc-mrow[data-key="continue"]')).toHaveCount(0);
-  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
+  await expect(notice).toBeVisible();
+  await expect(notice).toHaveText('DisconnectedReconnect Enter');
+  await page.waitForTimeout(300);
   await expect(overlay(page)).toBeHidden();
+  // Enter in the input reconnects (spec §2.2).
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+  await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await expect(notice).toBeHidden();
   expect(mock.opened()).toBe(2);
-  // A user disconnect does not open it.
+  // A user disconnect shows it too (ADR 0100); its button reconnects.
   await page.locator('.wc-input-field').fill('#disconnect');
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
-  await page.waitForTimeout(300);
+  await expect(notice).toBeVisible();
   await expect(overlay(page)).toBeHidden();
+  await page.locator('.wc-mb-rc').click();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
+  await expect(notice).toBeHidden();
+  await expect(page.locator('.wc-input-field')).toBeFocused();
+  expect(mock.opened()).toBe(3);
 });
 
 test('no auto-open when the first connection never reaches login', async ({ page }) => {

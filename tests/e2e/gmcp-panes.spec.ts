@@ -55,7 +55,9 @@ test('the clock strip counts down to the day after dawn and the room clock', asy
   const clock = page.locator('.wc-input-clock');
   // 7:03 am in Astron: the dawn hour is still night; the day begins at 8:00
   // (an hour after dawn, as MUME's rooms: stage 28 items 59, 61), under an hour away.
-  await expect(clock).toHaveText(/^ {2}0:5\d ☾$/);
+  // In the menu bar (ADR 0099) the moon is an SVG: the text is the gutter and the time.
+  await expect(clock).toHaveText(/^ {2}0:5\d$/);
+  await expect(clock).toHaveAttribute('data-period', 'night');
   const first = await clock.textContent();
   await expect.poll(() => clock.textContent(), { timeout: 3000 }).not.toBe(first);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('wc.clock') ?? 'null'));
