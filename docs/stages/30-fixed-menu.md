@@ -458,6 +458,9 @@ Decided *(Claude)*, ADR 0105:
       menu, ADR 0103, ADR 0099 addendum, test guide below.
 - [x] 30b round 1 (2026-10-31): profile changes apply while the window
   stays open (ADR 0105).
+- [x] Owner report during round 1 (2026-10-31): drag the thumb of every
+  TUI scrollbar; the LITE Commands box wraps and scrolls again (ADR
+  0106).
   - [x] LITE applies at commit points (field left, window left, entry or
     kind changed, new or deleted entry, captured key, highlight); a new
     entry waits for its Commands.
@@ -637,3 +640,15 @@ Feedback wanted: whether applying on leaving a field feels right (or
 should it be even sooner, or only with Ctrl+S), whether the `Applied`
 flash is enough feedback, the wording of the `Not applied` messages, and
 whether the close prompt still asks too often or too seldom.
+
+Known side effect: every applied change reloads the whole profile, so
+tickers defined in the profile restart their countdown and pending
+`#delay`s are dropped (as Apply did before, but now more often). Say if
+that bites in play.
+
+8. **Scrollbars** (owner report during round 1, ADR 0106): drag the `█`
+   thumb of any TUI scrollbar: the profile EDITOR, the LITE Commands box,
+   the script editor, the script manual and Help, the Scripts page help,
+   About. The content follows, also when the pointer leaves the bar. A
+   press on the track pages; holding it keeps paging. The LITE Commands
+   box wraps and scrolls again (it had stopped since a phone CSS rule).
