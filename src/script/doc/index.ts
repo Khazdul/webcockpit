@@ -2,3 +2,4 @@
 export * from './model';
 export * from './edit';
 export * from './text';
+export * from './rebase';
