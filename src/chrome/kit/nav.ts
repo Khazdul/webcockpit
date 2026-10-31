@@ -194,6 +194,29 @@ export function scrollbar(count: number, visible: number, top: number): boolean[
   return Array.from({ length: visible }, (_, i) => i >= pos && i < pos + size);
 }
 
+/**
+ * The scroll position a thumb drag gives (ADR 0106). The press started at
+ * `startTop` px and the pointer has moved `dy` px since. The thumb, `thumb`
+ * cells of a `cells`-cell bar whose cells are `cellPx` tall, travels the
+ * free `cells - thumb` cells while the content travels `maxTop` px, so the
+ * content follows in proportion. Clamped to 0..maxTop.
+ */
+export function dragScrollTop(startTop: number, dy: number, cells: number, thumb: number, cellPx: number, maxTop: number): number {
+  if (maxTop <= 0) return 0;
+  const travel = (cells - thumb) * cellPx;
+  const top = travel > 0 ? startTop + (dy * maxTop) / travel : startTop;
+  return Math.max(0, Math.min(maxTop, top));
+}
+
+/**
+ * The scroll position a press on track cell `i` of a `cells`-cell bar jumps
+ * to (the `jump` bars): proportional, on a whole row of `rowPx`.
+ */
+export function jumpScrollTop(i: number, cells: number, maxTop: number, rowPx: number): number {
+  if (maxTop <= 0 || rowPx <= 0) return 0;
+  return Math.round((i / Math.max(1, cells - 1)) * (maxTop / rowPx)) * rowPx;
+}
+
 /** Minimum window for any chrome or the cockpit (Inv §3.1). */
 export const MIN_COLS = 60;
 export const MIN_ROWS = 18;
