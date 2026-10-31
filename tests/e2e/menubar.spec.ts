@@ -61,9 +61,12 @@ test('the bar sits at the end of the input row on the cell grid, with no touch c
   expect(geo.bar.right).toBeCloseTo(geo.row.right, 1);
   const fieldCells = geo.field.width / geo.cw;
   expect(Math.abs(fieldCells - Math.round(fieldCells))).toBeLessThan(0.01);
-  // A click on an icon keeps the input's focus.
+  // The icons are not in the Tab order; a click on one never focuses it, and its popup takes the keys (ADR 0108).
+  expect(await page.locator('.wc-mb, .wc-mb-rc').evaluateAll((els) => els.map((e) => (e as HTMLElement).tabIndex))).toEqual(
+    Array(7).fill(-1),
+  );
   await icon(page, 'panes').click();
-  await expect(field(page)).toBeFocused();
+  await expect(page.locator('.wc-pop-row').first()).toBeFocused();
   expect(errors).toEqual([]);
 });
 
@@ -104,15 +107,18 @@ test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens
   const b = (await bar(page).boundingBox())!;
   expect(p.y + p.height).toBeLessThanOrEqual(b.y);
   expect(p.x).toBeGreaterThanOrEqual(0);
-  // Keys after a click in it: Esc closes it and gives the game its keys back.
-  await expect(popup(page)).toBeFocused();
+  // A click on a switch keeps the keys in it (ADR 0108); Esc closes it and gives the game its keys back.
+  await expect(timers).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   await expect(overlay(page)).toBeHidden();
-  // Opened without a click in it, the input keeps the keys; its Esc closes the popup first.
+  // Opened by the icon it has the keys; a click in the game gives them back and leaves it open; Esc in the input closes it first.
   await icon(page, 'panes').click();
+  await expect(page.locator('.wc-pop-row').first()).toBeFocused();
+  await page.locator('.wc-output').click({ position: { x: 20, y: 20 } });
   await expect(field(page)).toBeFocused();
+  await expect(popup(page)).toBeVisible();
   await page.keyboard.type('abc');
   await expect(field(page)).toHaveValue('abc');
   await page.keyboard.press('Escape');
@@ -127,7 +133,8 @@ test('#panes opens and closes the popup; the icon toggles it; Reset layout asks 
   await page.keyboard.type('#panes');
   await page.keyboard.press('Enter');
   await expect(popup(page)).toBeVisible();
-  await expect(field(page)).toBeFocused();
+  // It takes the keys (ADR 0108).
+  await expect(page.locator('.wc-pop-row').first()).toBeFocused();
   await page.locator('.wc-pop-foot [data-act="reset"]').click();
   await expect(page.locator('.wc-pop-foot')).toHaveText('Reset layout?ResetCancel');
   await page.locator('.wc-pop-foot [data-act="reset-no"]').click();

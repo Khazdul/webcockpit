@@ -223,6 +223,8 @@ test('the Esc order in the input: popup, then window, then the ESC menu', async 
   await field(page).click();
   await icon(page, 'panes').click();
   await expect(popup(page)).toBeVisible();
+  // The popup takes the keys (ADR 0108); a click in the game gives them back.
+  await page.locator('.wc-output').click({ position: { x: 20, y: 20 } });
   await expect(field(page)).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(popup(page)).toHaveCount(0);

@@ -104,8 +104,8 @@ test('the Gear: leftmost, named after the pane; opens Comm settings beside the p
   await expect(pop.locator('.wc-ck-sub')).toHaveText('Channels');
   await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
   await expect(g).toHaveAttribute('data-open', '');
-  // The keys stay in the game.
-  await expect(field(page)).toBeFocused();
+  // It takes the keys, on its first control (ADR 0108).
+  await expect(pop.locator('.wc-sp-body :focus')).toHaveCount(1);
   // Beside the pane, toward the game (Comm is docked right), top-aligned unless kept inside the viewport.
   const p = await insideViewport(page, 'comm');
   expect(p.x + p.width).toBeLessThanOrEqual(pane.x);
@@ -153,9 +153,9 @@ test('one popup at a time with Settings and Panes; Esc closes it', async ({ page
   await page.keyboard.press('Escape');
   await expect(anyPop(page)).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
-  // Esc inside it, after a click in it, closes it and gives the keys back.
+  // Esc inside it closes it and gives the keys back (it took them when it opened).
   await clickGear(page, 'group');
-  await gearPop(page, 'group').locator('.wc-pop-title').click();
+  await expect(gearPop(page, 'group').locator(':focus')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(anyPop(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();

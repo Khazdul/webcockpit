@@ -1,7 +1,7 @@
 // Stage 30c (ADR 0107): the Settings popup above the menu bar's Settings
 // icon: open, close and toggle (icon, `#settings`, X, Esc); one popup at a
-// time with Panes; the Esc order in the input; keys only after a click in
-// it; live changes through its controls; one size for every tab; and the
+// time with Panes; the Esc order in the input; the focus on open (ADR
+// 0108) and the keys in it; live changes through its controls; one size for every tab; and the
 // pane Appearance page gone from Options → Panes on desktop.
 import { type Page, expect, test } from '@playwright/test';
 
@@ -37,8 +37,8 @@ test('the icon, #settings, X and Esc open and close it above the Settings icon',
   await icon(page, 'settings').click();
   await expect(pop(page)).toBeVisible();
   await expect(icon(page, 'settings')).toHaveClass(/is-open/);
-  // It does not take the keys when it opens.
-  await expect(field(page)).toBeFocused();
+  // It takes the keys when it opens, on its selected tab (ADR 0108).
+  await expect(tab(page, 'appearance')).toBeFocused();
   // Above the icon, its right edge at most at the bar's end.
   const p = (await pop(page).boundingBox())!;
   const i = (await icon(page, 'settings').boundingBox())!;
@@ -62,6 +62,11 @@ test('the icon, #settings, X and Esc open and close it above the Settings icon',
   // The X closes; the input has the keys.
   await command(page, '#settings');
   await pop(page).locator('.wc-pop-x').click();
+  await expect(anyPop(page)).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
+  // The icon's close gives the keys back too.
+  await icon(page, 'settings').click();
+  await icon(page, 'settings').click();
   await expect(anyPop(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   // Esc inside it closes it and gives the keys back.
@@ -109,6 +114,9 @@ test('Esc in the input: the popup first, then the window, then the ESC menu', as
   await expect(field(page)).toBeFocused();
   await icon(page, 'settings').click();
   await expect(pop(page)).toBeVisible();
+  // The popup has the keys; a click in the game gives them back, and Esc in the input closes it first.
+  await page.locator('.wc-output').click({ position: { x: 20, y: 20 } });
+  await expect(field(page)).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(anyPop(page)).toHaveCount(0);
   await expect(page.locator('.wc-win[data-win="scripts"]')).toBeVisible();
@@ -120,14 +128,17 @@ test('Esc in the input: the popup first, then the window, then the ESC menu', as
   await expect(overlay(page)).toBeVisible();
 });
 
-test('it takes the keys only after a click in it; a click in the game gives them back', async ({ page }) => {
+test('it takes the keys when it opens and after a click in it; a click in the game gives them back', async ({ page }) => {
   await offline(page);
+  await field(page).fill('look');
   await icon(page, 'settings').click();
-  await page.keyboard.type('look');
+  await expect(tab(page, 'appearance')).toBeFocused();
+  // It has the keys: typing goes nowhere near the input.
+  await page.keyboard.type('xy');
   await expect(field(page)).toHaveValue('look');
   await tab(page, 'input').click();
   await expect(page_(page, 'input')).toBeVisible();
-  // The press took the keys: typing goes nowhere near the input.
+  // The press kept the keys.
   await page.keyboard.type('xy');
   await expect(field(page)).toHaveValue('look');
   // ←→ move between the tabs from the keyboard.
