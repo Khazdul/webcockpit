@@ -255,6 +255,10 @@ Mapped to Inv §4.
 
 Mapped to Inv §5.
 
+- **In play** on desktop and tablet the editor opens in a movable
+  Profile window over the cockpit, and the Scripts page in a Scripts
+  window (stage 30 S8, ADR 0103).
+
 - **Lite view.**
   - Cockpit's 5 kinds: actions, aliases, highlights, macros and
     substitutes.

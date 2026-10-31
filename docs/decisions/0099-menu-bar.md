@@ -81,3 +81,15 @@ ESC menu stays until 30f.
   menu's frames are reused as the interim targets.
 - 30c's Settings popup and the pane gear build on `popup.ts` and the
   `.wc-pop` styles.
+
+## Addendum (2026-10-31, stage 30b)
+
+The interim targets for Profile and Scripts are replaced by windows (ADR
+0103) where the bar exists: the bar's icons and `#profile` / `#scripts`
+toggle the Profile and Scripts windows, and the ESC menu's Profile and
+Options → Scripts open them and close the menu. The phone keeps the
+interim targets (`openMenuAt('profile' | 'scripts')`). Settings keeps its
+interim target until 30c. Esc in the input now reaches the topmost window
+after the open popup, and in the cockpit's fullscreen it ends at the Exit
+popup instead of the ESC menu (ADR 0103). The Exit popup can show a
+warning line about unsaved changes in a window.
