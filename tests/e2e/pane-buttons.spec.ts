@@ -39,7 +39,8 @@ test('hovering a pane shows Colour, Border and Background left of the cross; cli
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const { cw } = await open(page);
-  const btns = page.locator('.wc-pane-timers > .wc-pane-btn');
+  // The look buttons; the Gear left of them (ADR 0107) is pane-gear.spec.ts's.
+  const btns = page.locator('.wc-pane-timers > .wc-pane-btn:not(.wc-pane-btn-gear)');
   await expect(btns).toHaveCount(3);
   await expect(btns.first()).toBeHidden();
   await hover(page, 'timers');
@@ -135,7 +136,10 @@ test('a script pane made without a cross has no look buttons; the built-in panes
     await expect(bar.locator('> .wc-pane-btn:visible')).toHaveCount(0);
   }
   // Built-in panes all have them.
-  for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn`)).toHaveCount(3);
+  // Built-in panes all have them; Timers, Group and Comm the Gear too (ADR 0107).
+  for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn:not(.wc-pane-btn-gear)`)).toHaveCount(3);
+  for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn-gear`)).toHaveCount(1);
+  await expect(page.locator('.wc-pane-character > .wc-pane-btn')).toHaveCount(3);
 });
 
 test('a clear pane has no fill and no blur, weather off and on; a clear float hides only the game text under it', async ({ page }) => {
@@ -233,7 +237,7 @@ test('a borderless pane on hover: the cross at the right edge with the buttons, 
   const cross = await box(page, '.wc-pane-comm > .wc-pane-close');
   expect(cross.x + cross.width).toBeCloseTo(pane.x + pane.width, 1);
   expect(cross.y).toBeCloseTo(pane.y, 1);
-  const btns = await Promise.all((await page.locator('.wc-pane-comm > .wc-pane-btn').all()).map((b) => b.boundingBox()));
+  const btns = await Promise.all((await page.locator('.wc-pane-comm > .wc-pane-btn:not(.wc-pane-btn-gear)').all()).map((b) => b.boundingBox()));
   btns.forEach((b, i) => expect(b!.x + b!.width).toBeCloseTo(cross.x - (2 - i) * 2 * cw, 1));
   // No name tag (ADR 0087 withdrawn), no title bar, no boxes: only the ink.
   await expect(page.locator('.wc-pane-name')).toHaveCount(0);
