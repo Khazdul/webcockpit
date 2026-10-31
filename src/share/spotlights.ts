@@ -4,7 +4,8 @@
 //
 //   events     char_death, level_up, pkill and achievement of every
 //              character's sealed runs that have a log, one spotlight per
-//              event (no merging), filtered by Options → Spotlights
+//              event (no merging), filtered by the Spotlights settings
+//              (kinds × characters × period, `spotlightFilter`; ADR 0110)
 //   window     [at − 10 s, at + 5 s] with at = logUs ?? us; the player
 //              trims the pre-roll to the first visible entry and dwells
 //              through the post-roll; a window with no visible entry is
@@ -20,7 +21,7 @@ import { hasInk } from '../player/timeline';
 import { PLAYING_COMMANDS } from '../net/session';
 import type { RunEvent } from '../runs/events';
 import { runStartUs } from '../runs/stitch';
-import type { SpotlightSettings } from '../settings';
+import type { SpotlightPeriod, SpotlightSettings } from '../settings';
 import { captureEntries } from './capture';
 
 export const WINDOW_BEFORE_US = 10_000_000;
@@ -89,6 +90,53 @@ export function kindShown(kind: SpotlightKind, f: SpotlightSettings): boolean {
   return f.achievements;
 }
 
+/** Filters that let everything through (every kind, every character, all time). */
+export const OPEN_FILTERS: Readonly<SpotlightSettings> = {
+  achievements: true,
+  deaths: true,
+  levelUps: true,
+  pvp: true,
+  allCharacters: true,
+  characters: [],
+  period: 'all',
+};
+
+/** True when `f` lets everything through. */
+export function filtersOpen(f: SpotlightSettings): boolean {
+  return f.achievements && f.deaths && f.levelUps && f.pvp && f.allCharacters && f.period === 'all';
+}
+
+/**
+ * The earliest moment (µs) a period lets through at `nowUs`, or -Infinity
+ * for all time: the same local clock time one year, three months or one
+ * month back, or seven days back for a week.
+ */
+export function periodStartUs(period: SpotlightPeriod, nowUs: number): number {
+  if (period === 'all') return -Infinity;
+  const d = new Date(nowUs / 1000);
+  const day = d.getDate();
+  if (period === 'week') d.setDate(day - 7);
+  else {
+    // Back by calendar months, the day clamped to the target month (31 March → 28/29 February).
+    const months = period === 'year' ? 12 : period === '3months' ? 3 : 1;
+    d.setDate(1);
+    d.setMonth(d.getMonth() - months);
+    const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, last));
+  }
+  return d.getTime() * 1000;
+}
+
+/** Whether one event passes: its kind, its character and its moment (µs). */
+export type SpotlightFilter = (kind: SpotlightKind, character: string, atUs: number) => boolean;
+
+/** The filter of the Spotlights settings at `nowUs` (ADR 0110): kinds × characters × period. */
+export function spotlightFilter(f: SpotlightSettings, nowUs: number): SpotlightFilter {
+  const from = periodStartUs(f.period, nowUs);
+  const names = f.allCharacters ? null : new Set(f.characters);
+  return (kind, character, atUs) => kindShown(kind, f) && (names === null || names.has(character)) && atUs >= from;
+}
+
 /** The event's moment in the log: `logUs ?? us`. */
 export function eventAt(e: RunEvent): number {
   return 'logUs' in e && typeof e.logUs === 'number' ? e.logUs : e.us;
@@ -146,14 +194,16 @@ function spotlightsOf(run: SpotlightRun): Spotlight[] {
 
 /**
  * The reel: every shown event of sealed runs with a log, one spotlight each,
- * in rotation order (see the file header).
+ * in rotation order (see the file header). The period counts back from
+ * `nowUs`.
  */
-export function selectSpotlights(runs: readonly SpotlightRun[], filters: SpotlightSettings): Spotlight[] {
+export function selectSpotlights(runs: readonly SpotlightRun[], filters: SpotlightSettings, nowUs: number = Date.now() * 1000): Spotlight[] {
+  const shown = spotlightFilter(filters, nowUs);
   const queues = new Map<string, Spotlight[]>();
   for (const r of runs) {
     if (!r.meta.sealed || !(r.meta.bytes > 0)) continue;
     for (const s of spotlightsOf(r)) {
-      if (!kindShown(s.kind, filters)) continue;
+      if (!shown(s.kind, s.character, s.atUs)) continue;
       const q = queues.get(s.character);
       if (q) q.push(s);
       else queues.set(s.character, [s]);
@@ -202,7 +252,11 @@ export function hasVisibleEntry(text: string, fromUs: number, toUs: number): boo
   return false;
 }
 
-/** Which empty state to show when there is nothing to play: any kind switched off = `filtered`. */
-export function emptyState(filters: SpotlightSettings): 'no_data' | 'filtered' {
-  return filters.achievements && filters.deaths && filters.levelUps && filters.pvp ? 'no_data' : 'filtered';
+/**
+ * Which empty state to show when nothing passes: `no_data` when there is
+ * nothing at all (`any`: something would show with open filters) or the
+ * filters are open, else `filtered` (ADR 0110).
+ */
+export function emptyState(filters: SpotlightSettings, any = true): 'no_data' | 'filtered' {
+  return !any || filtersOpen(filters) ? 'no_data' : 'filtered';
 }

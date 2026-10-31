@@ -13,10 +13,14 @@ import {
   wrapText,
 } from '../../src/share/chronicle';
 import {
+  OPEN_FILTERS,
   STATE_PREFIX_US,
   emptyState,
+  filtersOpen,
   hasVisibleEntry,
+  periodStartUs,
   selectSpotlights,
+  spotlightFilter,
   spotlightLabel,
 } from '../../src/share/spotlights';
 import { BASE_US, makeLog, meta } from './player-helpers';
@@ -123,7 +127,7 @@ describe('buildChronicle', () => {
     expect(a.startsWith(datePhrase(BASE_US))).toBe(true);
     expect(TEMPLATES.level.map((t) => t.replace('{date}', datePhrase(BASE_US)).replace('{level}', '7'))).toContain(a);
     expect(stableHash('abc')).toBe(0x1a47e90b);
-    const onlyPvp = { achievements: false, deaths: false, levelUps: false, pvp: true };
+    const onlyPvp = { ...all(), achievements: false, deaths: false, levelUps: false, pvp: true };
     const text = buildChronicle([rasta, gittan], onlyPvp).join(' ');
     expect(text).toContain('Ibuki');
     expect(text).not.toContain('Gittan');
@@ -135,5 +139,60 @@ describe('buildChronicle', () => {
     expect(datePhrase(new Date(2026, 11, 31, 12).getTime() * 1000)).toBe('On the thirty-first of December, 2026');
     expect(wrapText('aaa bbb ccc', 7)).toEqual(['aaa bbb', 'ccc']);
     expect(wrapText('abcdefghij', 4)).toEqual(['abcd', 'efgh', 'ij']);
+  });
+});
+
+describe('Spotlights filter (ADR 0110)', () => {
+  const DAY = 86_400 * S;
+  const at = (y: number, m: number, d: number, h = 12) => new Date(y, m, d, h).getTime() * 1000;
+  // A fixed clock: 2026-10-31 12:00 local.
+  const NOW = at(2026, 9, 31);
+
+  it('counts each period back from now in calendar terms', () => {
+    expect(periodStartUs('all', NOW)).toBe(-Infinity);
+    expect(periodStartUs('week', NOW)).toBe(at(2026, 9, 24));
+    expect(periodStartUs('month', NOW)).toBe(at(2026, 8, 30)); // 31 Oct → 30 Sep (clamped)
+    expect(periodStartUs('3months', NOW)).toBe(at(2026, 6, 31));
+    expect(periodStartUs('year', NOW)).toBe(at(2025, 9, 31));
+    expect(periodStartUs('month', at(2026, 2, 31))).toBe(at(2026, 1, 28));
+  });
+
+  it('crosses kinds, characters and the period', () => {
+    const f = spotlightFilter({ ...all(), deaths: false, allCharacters: false, characters: ['Rasta'], period: 'week' }, NOW);
+    expect(f('pkill', 'Rasta', NOW - DAY)).toBe(true);
+    expect(f('death', 'Rasta', NOW - DAY)).toBe(false); // kind off
+    expect(f('pkill', 'Gittan', NOW - DAY)).toBe(false); // not checked
+    expect(f('pkill', 'Newbie', NOW - DAY)).toBe(false); // a new character, All off
+    expect(f('pkill', 'Rasta', NOW - 8 * DAY)).toBe(false); // too old
+    expect(f('pkill', 'Rasta', at(2026, 9, 24))).toBe(true); // the window's first moment
+    // All on: the remembered subset does not matter, new characters count.
+    const g = spotlightFilter({ ...all(), allCharacters: true, characters: ['Rasta'] }, NOW);
+    expect(g('achievement', 'Newbie', 0)).toBe(true);
+  });
+
+  it('selects by character and period, and tells filtered from no data', () => {
+    const now = BASE_US + 200 * S;
+    const onlyGittan = { ...all(), allCharacters: false, characters: ['Gittan'] };
+    expect(selectSpotlights([rasta, gittan], onlyGittan, now).map((x) => x.character)).toEqual(['Gittan', 'Gittan']);
+    expect(selectSpotlights([rasta, gittan], { ...all(), allCharacters: false, characters: [] }, now)).toEqual([]);
+    // A week back from 30 days later: nothing.
+    expect(selectSpotlights([rasta, gittan], { ...all(), period: 'week' }, now + 30 * DAY)).toEqual([]);
+    expect(selectSpotlights([rasta, gittan], { ...all(), period: 'month' }, now + 20 * DAY)).toHaveLength(5);
+    expect(filtersOpen(all())).toBe(true);
+    expect(filtersOpen(OPEN_FILTERS)).toBe(true);
+    expect(filtersOpen(onlyGittan)).toBe(false);
+    expect(filtersOpen({ ...all(), period: 'year' })).toBe(false);
+    expect(emptyState(onlyGittan, true)).toBe('filtered');
+    expect(emptyState(onlyGittan, false)).toBe('no_data');
+    expect(emptyState(all(), true)).toBe('no_data');
+  });
+
+  it('filters the chronicle the same way', () => {
+    const now = BASE_US + 200 * S;
+    const text = buildChronicle([rasta, gittan], { ...all(), allCharacters: false, characters: ['Rasta'] }, { nowUs: now }).join(' ');
+    expect(text).toContain('Ibuki');
+    expect(text).not.toContain('Gittan');
+    expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 30 * DAY })).toEqual([]);
+    expect(buildChronicle([rasta, gittan], { ...all(), period: 'week' }, { nowUs: now + 3 * DAY }).join(' ')).toContain('Gittan');
   });
 });

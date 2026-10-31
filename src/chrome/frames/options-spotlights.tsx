@@ -11,13 +11,12 @@
 //            Back
 
 import type { VNode } from 'preact';
-import type { SpotlightSettings } from '../../settings';
 import { useServices, useSettings } from '../kit/hooks';
 import { useKeys, useNav } from '../kit/stack';
 import { type MenuItem, MenuRows, Page, menuKey, useMenuCursor } from '../kit/widgets';
 
 /** The rows, in Cockpit's order. */
-export const SPOTLIGHT_ROWS: ReadonlyArray<{ key: keyof SpotlightSettings; label: string }> = [
+export const SPOTLIGHT_ROWS: ReadonlyArray<{ key: 'achievements' | 'deaths' | 'levelUps' | 'pvp'; label: string }> = [
   { key: 'achievements', label: 'Achievements' },
   { key: 'deaths', label: 'Deaths' },
   { key: 'levelUps', label: 'Level-ups' },

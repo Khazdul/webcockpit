@@ -55,6 +55,7 @@ import {
   SCRIPT_PANE_DEFAULTS,
   SCROLLBACK_CHOICES,
   SETTINGS_VERSION,
+  SPOTLIGHT_PERIODS,
   type Settings,
   type SpotlightSettings,
   TIMER_COLOR_ORDER,
@@ -287,15 +288,22 @@ export function migrateTimers(raw: unknown): TimersSettings {
   return { groups: d.groups, headers: bool(t.headers, d.headers), compact: bool(t.compact, d.compact) };
 }
 
-/** Spotlights filters from anything (every kind defaults to shown). */
+/**
+ * Spotlights filters from anything (every kind shown, all characters, all
+ * time by default; the character and period fields are additive, ADR 0110).
+ */
 export function migrateSpotlights(raw: unknown): SpotlightSettings {
   const d = defaultSettings().spotlights;
   const x = isObj(raw) ? raw : {};
+  const names = Array.isArray(x.characters) ? x.characters.filter((n): n is string => typeof n === 'string' && n !== '') : [];
   return {
     achievements: bool(x.achievements, d.achievements),
     deaths: bool(x.deaths, d.deaths),
     levelUps: bool(x.levelUps, d.levelUps),
     pvp: bool(x.pvp, d.pvp),
+    allCharacters: bool(x.allCharacters, d.allCharacters),
+    characters: [...new Set(names)],
+    period: oneOf(x.period, SPOTLIGHT_PERIODS, d.period),
   };
 }
 

@@ -5,14 +5,14 @@
 //
 // Shape: an opening line, one chapter per character (the character whose
 // first deed is oldest first), each with a header and one sentence per
-// death, level-up, PvP kill and achievement (filtered by Options →
-// Spotlights; no log needed), then `The End.` Lines are word-wrapped to the
+// death, level-up, PvP kill and achievement (filtered by the Spotlights
+// settings: kinds × characters × period, ADR 0110; no log needed), then `The End.` Lines are word-wrapped to the
 // column width; an empty string is a blank row. The wording is our own.
 
 import type { RunMeta } from '../capture/store';
 import type { RunEvent } from '../runs/events';
 import type { SpotlightSettings } from '../settings';
-import { type SpotlightKind, eventAt, kindShown } from './spotlights';
+import { type SpotlightKind, eventAt, spotlightFilter } from './spotlights';
 
 export const CHRONICLE_OPENING = 'Here the scribes have set down, as well as memory allows, the deeds of your companions.';
 export const CHRONICLE_END = 'The End.';
@@ -195,6 +195,8 @@ export interface ChronicleRun {
 export interface ChronicleOptions {
   /** Column width in cells (default 60). */
   width?: number;
+  /** Now, µs: the period counts back from it (default the clock). */
+  nowUs?: number;
 }
 
 /**
@@ -207,6 +209,7 @@ export function buildChronicle(
   opts: ChronicleOptions = {},
 ): string[] {
   const width = opts.width ?? 60;
+  const shown = spotlightFilter(filters, opts.nowUs ?? Date.now() * 1000);
   const byChar = new Map<string, Array<{ us: number; text: string }>>();
   for (const r of runs) {
     let level: number | undefined = undefined;
@@ -214,7 +217,7 @@ export function buildChronicle(
       if (e.type === 'run_start' && e.level !== undefined) level = e.level;
       if (e.type === 'level_up') level = e.level;
       const kind = kindOf(e);
-      if (!kind || !kindShown(kind, filters)) continue;
+      if (!kind || !shown(kind, r.meta.character, eventAt(e))) continue;
       const text = eventSentence(r.meta.character, r.meta.runId, e, level ?? r.meta.summary?.level);
       if (!text) continue;
       const list = byChar.get(r.meta.character) ?? [];
