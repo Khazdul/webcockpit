@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30c building). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **Owner testing** (30c built, owner test next). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -540,7 +540,7 @@ drops pending `#delay`s; revisit if it bites in play.
     saves on the write-back queue); session variables survive an apply.
   - [x] Unit tests, e2e `profile-apply.spec.ts`, ADR 0105, ADR 0015
     addendum, manual text, test guide.
-- [ ] 30c:
+- [x] 30c (2026-10-31):
   - [x] Control kit (toggle, segmented, slider, dropdown, swatch, button)
     in the ghost look; popup surface in the chrome chunk; one-popup rule
     with the bar's popups; keys after a click; Esc order.
@@ -549,7 +549,7 @@ drops pending `#delay`s; revisit if it bites in play.
   - [x] Gear button on Mapper, Comm, Timers, Group (not phone, dropped
     first when narrow); gear popups beside the pane.
   - [x] Options → Panes → Appearance removed on desktop and tablet.
-  - [ ] Unit tests, e2e, ADR 0107, ADR 0095/0099 addenda, test guide.
+  - [x] Unit tests, e2e, ADR 0107, ADR 0095/0099 addenda, test guide.
     - [x] Part 1 (Settings popup): unit `chrome-popups.test.tsx`, menu bar
       and App tests, e2e `settings-popup.spec.ts` and the specs that went
       through the pane grid, ADR 0107, ADR 0099 addendum.
@@ -733,3 +733,47 @@ that bites in play.
    About. The content follows, also when the pointer leaves the bar. A
    press on the track pages; holding it keeps paging. The LITE Commands
    box wraps and scrolls again (it had stopped since a phone CSS rule).
+
+### 30c
+
+Open the dev server (`npm run dev`, then http://localhost:5173/), Enter
+MUME (or `?replay` offline). Desktop and tablet; a phone is unchanged.
+
+1. **Settings:** click the Settings icon (sliders) in the bar, or type
+   `#settings`. A popup rises above the icon with four tabs: Appearance,
+   Text input, Mapper, Weather effects. Switching tabs does not move or
+   resize it.
+2. **Live while you play:** change font, size, padding, colours,
+   scrollback, a palette colour (click a swatch: colour picker and a hex
+   field), cursor style, a weather category. The game text follows at
+   once; the small preview in Appearance too. Click in the game text or
+   the input and keep typing: the popup stays open, the keys go to the
+   game. Click in the popup again to use its keys.
+3. **Closing:** its X, Esc (in the popup, or in the input once the text
+   is scrolled to the bottom), or the Settings icon again. Opening Panes
+   or Exit closes it, and the other way round: only one popup at a time.
+4. **Gear on the panes:** hover Map, Comm, Timers or Group: a gear is the
+   first of the buttons left of `×`. It opens that pane's settings beside
+   the pane (toward the game text): Comm channels and channel header;
+   Timers colour (or Off), columns, Clock, Bar per group, headers,
+   compact; Group players and NPC visibility; Map the same as Settings →
+   Mapper. Changes show in the pane at once. The gear glows while its
+   popup is open. A narrow pane drops the gear first (as the other
+   buttons drop), so a narrow Timers | Group lane may show none.
+5. **Pane hidden:** with a gear popup open, close its pane (`×`, or the
+   Panes popup): the popup closes too. Move or resize the dock: it
+   follows the pane.
+6. **Old menu:** Esc → Options → Panes now starts at Timers; the
+   Appearance grid is gone there and on the start page (the Panes popup
+   and the pane buttons do its job). The phone keeps it.
+7. A light background (Paper): the popups stay dark panels.
+
+Feedback wanted: the controls' look and size against the mockups, the
+popup's place above the bar and beside the panes, whether Settings
+should remember its last tab across reloads (now only until reload),
+the Timers layout (colour as a dropdown with Off), and anything that
+takes keys from the game when it should not.
+
+Known: while the browser's colour picker is open, the hex field cannot
+be typed in until the picker closes. The Mapper tab has some empty room
+at the bottom, since every tab keeps the tallest tab's height.
