@@ -98,7 +98,7 @@ export const PANE_LABELS: Readonly<Record<BuiltinPaneId, string>> = {
   statistics: 'Statistics',
 };
 
-/** Short names of the built-in panes (the pane bar's buttons, ADR 0065). */
+/** Short names of the built-in panes (`getPanes`, ADR 0065). */
 export const PANE_SHORT: Readonly<Record<BuiltinPaneId, string>> = {
   character: 'CHAR',
   timers: 'TIME',
@@ -293,13 +293,12 @@ export const EVEN_SHARE_DESIRED = 200;
 /**
  * Desired rows of the default right dock's shared panes (ADR 0078, ADR
  * 0092). Like `EVEN_SHARE_DESIRED` they are larger than any window, so the
- * dock always runs in `scaled` mode: Character (head) and the pane bar
- * (while its script runs) are reserved, and the rest is split in
- * proportion to `desired − min`. In a 174 × 51 window (the dock the full
- * 51 rows beside the input row, ADR 0102) with Character and UI off and no
- * pane bar (the new-player default) that is the map 22, the lanes 13 and
- * Comm 16 outer rows; with both on, Character 11, the map 16, the lanes 10,
- * Comm 11 and UI 3.
+ * dock always runs in `scaled` mode: Character (head) is reserved, and
+ * the rest is split in proportion to `desired − min`. In a 174 × 51
+ * window (the dock the full 51 rows beside the input row, ADR 0102) with
+ * Character and UI off (the new-player default) that is the map 22, the
+ * lanes 13 and Comm 16 outer rows; with both on, Character 11, the map
+ * 16, the lanes 10, Comm 11 and UI 3.
  */
 export const DEFAULT_SHARE = {
   /** The map, spanning both lanes under Character (stage 28 new-player defaults). */
@@ -313,8 +312,6 @@ export const DEFAULT_SHARE = {
 /** Width of each of the default right dock's two lanes (ADR 0078, ADR 0092): 50 cells in all. */
 export const DEFAULT_LANE_SIZE = 25;
 
-/** The pane bar's id (bundled `panebar`, ADR 0065), placed by the default layout (ADR 0078). */
-export const PANEBAR_PANE: ScriptPaneId = 'panebar/bar';
 /** The Map search pane's id (bundled `mapsearch`, ADR 0077), placed by the default layout (ADR 0078). */
 export const MAPSEARCH_PANE: ScriptPaneId = 'mapsearch/main';
 /** Outer height of the Map search pane's default float under the map (ADR 0078). */
@@ -323,11 +320,11 @@ export const MAPSEARCH_FLOAT_H = 15;
 /**
  * A fresh copy of the default layout (ADR 0010, ADR 0023, ADR 0078, ADR
  * 0092). The right dock: Character and the map spanning the top, then two
- * lanes side by side (Group at the screen edge, Timers inside), then Comm,
- * UI and the pane bar spanning the bottom. The Map search pane is an
- * `auto` float under the map; with the map docked that is the game pane's
- * top-right corner. The two script panes take these places once their
- * scripts create them.
+ * lanes side by side (Group at the screen edge, Timers inside), then Comm
+ * and UI spanning the bottom. The Map search pane is an `auto` float under
+ * the map; with the map docked that is the game pane's top-right corner.
+ * It takes that place once its script creates it. Statistics floats,
+ * centred over the game pane (ADR 0109).
  */
 export function defaultLayout(): LayoutModel {
   return {
@@ -346,7 +343,6 @@ export function defaultLayout(): LayoutModel {
         tail: [
           { id: 'comm', desired: DEFAULT_SHARE.comm },
           { id: 'ui', desired: DEFAULT_SHARE.ui },
-          { id: PANEBAR_PANE, desired: 1 },
         ],
       },
       top: { lanes: [], head: [], tail: [] },

@@ -19,6 +19,7 @@ import {
   migrateInput,
   migrateMapper,
   SCROLLBACK_CHOICES,
+  SETTINGS_VERSION,
   defaultTimersSettings,
   TIMER_COLOR_HEX,
   migrateGroup,
@@ -128,7 +129,7 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ panes: { 's/x': { on: true } } }).panes['s/x']!.glass).toBe(true);
   });
 
-  it('default layout (ADR 0078, ADR 0092): Character and the map over two lanes (Group at the edge, Timers inside), then Comm, UI and the pane bar; Map search under the map', () => {
+  it('default layout (ADR 0078, ADR 0092): Character and the map over two lanes (Group at the edge, Timers inside), then Comm and UI (no pane bar, ADR 0111); Map search under the map', () => {
     const right = DEFAULT_SETTINGS.layout.docks.right;
     expect(right.head).toEqual([
       { id: 'character', desired: 9 },
@@ -141,7 +142,6 @@ describe('migrateSettings', () => {
     expect(right.tail).toEqual([
       { id: 'comm', desired: DEFAULT_SHARE.comm },
       { id: 'ui', desired: DEFAULT_SHARE.ui },
-      { id: 'panebar/bar', desired: 1 },
     ]);
     // Statistics: an auto float centred over the game pane, off (ADR 0109).
     expect(DEFAULT_SETTINGS.layout.floating).toEqual([
@@ -151,10 +151,10 @@ describe('migrateSettings', () => {
     expect(DEFAULT_SETTINGS.panes.statistics).toEqual({ on: false, color: 'black', border: true, glass: true });
     expect(DEFAULT_SETTINGS.layout.docks.left.lanes).toEqual([]);
     expect(DEFAULT_SETTINGS.panes.timers).toEqual({ on: true, color: 'black', border: true, glass: true });
-    // Character off; UI off and without a frame; the pane bar borderless and on; Map search off.
+    // Character off; UI off and without a frame; Map search off; no pane bar entry.
     expect(DEFAULT_SETTINGS.panes.character).toEqual({ on: false, color: 'black', border: true, glass: true });
     expect(DEFAULT_SETTINGS.panes.ui).toEqual({ on: false, color: 'black', border: false, glass: true });
-    expect(DEFAULT_SETTINGS.panes['panebar/bar']).toEqual({ on: true, color: 'black', border: false, glass: true });
+    expect('panebar/bar' in DEFAULT_SETTINGS.panes).toBe(false);
     expect(DEFAULT_SETTINGS.panes['mapsearch/main']).toEqual({ on: false, color: 'black', border: true, glass: true });
     expect(Object.isFrozen(DEFAULT_SETTINGS.appearance.ansi)).toBe(true);
   });
@@ -179,9 +179,8 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ panes: { ui: { on: true, border: false } } }).panes.ui.border).toBe(false);
     // Stored toggles never gain the new-user script pane entries.
     const old = migrateSettings({ panes: { comm: { on: true, color: 'black', border: true, glass: true } } });
-    expect('panebar/bar' in old.panes).toBe(false);
     expect('mapsearch/main' in old.panes).toBe(false);
-    // A stored layout is kept: no pane bar or Map search placed into it.
+    // A stored layout is kept: no Map search placed into it.
     const kept = migrateSettings({ layout: legacyLayout() }).layout;
     expect(kept).toEqual(legacyLayout());
   });
@@ -819,6 +818,6 @@ describe('mapper settings (ADR 0077)', () => {
     expect(migrateSettings({ mapper: { hover: 'minimal' } }).mapper.hover).toBe('full');
     expect(migrateSettings({ version: 1, mapper: { hover: 'off' } }).mapper.hover).toBe('off');
     expect(migrateSettings({ version: 2, mapper: { hover: 'minimal' } }).mapper.hover).toBe('minimal');
-    expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }).version).toBe(2);
+    expect(migrateSettings({ version: 1, mapper: { hover: 'minimal' } }).version).toBe(SETTINGS_VERSION);
   });
 });

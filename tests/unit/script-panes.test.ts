@@ -508,7 +508,7 @@ describe('drawing', () => {
     expect(back.links.map((l) => back.hoverOf(l))).toEqual(['lighten', 'none', 'band']);
   });
 
-  it("the pane bar's off text (@mid on @track) reads at about 3:1 on dark and paper, far lighter than @bg on dark (ADR 0065 round 2)", () => {
+  it("a button bar's off text (@mid on @track) reads at about 3:1 on dark and paper, far lighter than @bg on dark (ADR 0065 round 2)", () => {
     for (const bg of ['#000000', '#f4ecd8']) {
       const r = paneShades('black', bg);
       const c = contrast(r.mid, r.track);
@@ -1211,12 +1211,14 @@ describe('ScriptPane and the cockpit surface', () => {
     });
   });
 
-  describe('pane bar support (ADR 0065)', () => {
-    const BAR = scriptPaneId('panebar', 'bar');
+  // A borderless one-row bar of buttons, as the retired bundled pane bar
+  // script was (ADR 0065, ADR 0111): the pane API it used stays.
+  describe('button bar support (ADR 0065)', () => {
+    const BAR = scriptPaneId('mybar', 'bar');
     const barPlace = { dock: 'bottom' as const, rows: 1, cols: 80, border: false, lane: 'own' as const };
 
     function openBar(r: ReturnType<typeof rig>, place: Parameters<CockpitPaneSurface['open']>[0]['place'] = barPlace) {
-      const content = new PaneContent('Pane bar');
+      const content = new PaneContent('Button bar');
       content.setLine(0, plain('CHAR TIME'));
       content.addLink(0, 0, 4, 7, 'Character');
       const clicks: number[] = [];
@@ -1237,7 +1239,7 @@ describe('ScriptPane and the cockpit surface', () => {
       expect(r.settings.get().layout.docks.bottom.lanes).toEqual([{ size: 1, panes: [{ id: BAR, desired: 80 }] }]);
     });
 
-    it("panebar's default place: the bottom of the right dock (lane 0, the last pane), again after Reset layout", () => {
+    it('placed in the right dock: the bottom of lane 0 (the last pane), again after Reset layout', () => {
       const r = rig();
       openBar(r, { dock: 'right', rows: 1, cols: 30, border: false });
       const ids = (): string[] => r.settings.get().layout.docks.right.lanes[0]!.panes.map((p) => p.id);

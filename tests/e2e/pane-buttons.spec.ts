@@ -129,13 +129,21 @@ test('the look buttons hide while a pane is dragged, and a narrow pane drops the
 
 test('a script pane made without a cross has no look buttons; the built-in panes have them', async ({ page }) => {
   await open(page);
-  // The pane bar (`cross = false`): none shown.
-  const bar = page.locator('.wc-pane[data-pane="panebar/bar"]');
-  if (await bar.count()) {
-    await bar.hover();
-    await expect(bar.locator('> .wc-pane-btn:visible')).toHaveCount(0);
-  }
-  // Built-in panes all have them.
+  // A borderless one-row bar made with `cross = false`: none shown.
+  await page.evaluate(async () => {
+    const lib = window.__wc!.shell.scripts;
+    await lib.create(
+      'nocross',
+      '-- @name nocross\n-- @api 1\nlocal p = createPane{id = "bar", title = "Bar", dock = "bottom", lane = "own", rows = 1, border = false, cross = false}\np:setLine(1, "A B C")\n',
+    );
+    await lib.setEnabled('nocross', true);
+  });
+  const bar = page.locator('.wc-pane[data-pane="nocross/bar"]');
+  await expect(bar).toBeVisible();
+  await expect(bar).toHaveAttribute('data-no-cross', '');
+  await bar.hover();
+  await expect(bar.locator('> .wc-pane-btn:visible')).toHaveCount(0);
+  await expect(bar.locator('> .wc-pane-close:visible')).toHaveCount(0);
   // Built-in panes all have them; Timers, Group and Comm the Gear too (ADR 0107).
   for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn:not(.wc-pane-btn-gear)`)).toHaveCount(3);
   for (const id of ['timers', 'group', 'comm']) await expect(page.locator(`.wc-pane-${id} > .wc-pane-btn-gear`)).toHaveCount(1);

@@ -7,7 +7,9 @@
 // panes (ADR 0053) keep their well-formed entries in `panes` and the
 // layout, so they return where they were when their script runs again. Keys
 // that are no longer part of `Settings` (e.g. `corners`, removed after the
-// stage 2 feedback) are dropped silently.
+// stage 2 feedback) are dropped silently. Panes of retired bundled scripts
+// (`RETIRED_PANES`) are dropped once, from settings stored before the
+// version that retired them.
 
 import {
   DEFAULT_PANE_DESIRED,
@@ -18,6 +20,7 @@ import {
   PANE_COLORS,
   PANE_IDS,
   type PaneId,
+  type ScriptPaneId,
   appendToDock,
   defaultDockSize,
   defaultMapFloat,
@@ -79,6 +82,25 @@ export const MAX_CELLS = 1000;
 /** Most script pane entries kept in `panes` and in the layout (a sanity bound only). */
 export const MAX_SCRIPT_PANES = 200;
 
+/**
+ * Panes of bundled scripts that were removed, with the settings version
+ * that removed them: settings stored before that version drop the pane
+ * from `panes` and from the layout (docks and floats), so no slot is
+ * left behind. Settings of that version or newer keep it, so a user
+ * script that later takes the name and the pane id is never touched.
+ */
+export const RETIRED_PANES: readonly { id: ScriptPaneId; version: number }[] = [
+  // The pane bar (ADR 0065), replaced by the menu bar's Panes popup (ADR 0111).
+  { id: 'panebar/bar', version: 3 },
+];
+
+/** The retired panes settings stored at `fromVersion` still hold. */
+function retiredPanes(fromVersion: number): ReadonlySet<PaneId> {
+  return new Set(RETIRED_PANES.filter((r) => fromVersion < r.version).map((r) => r.id));
+}
+
+const NONE: ReadonlySet<PaneId> = new Set();
+
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 
@@ -139,9 +161,10 @@ function paneEntry(raw: unknown, d: Readonly<PaneSettings>): PaneSettings {
  * most MAX_SCRIPT_PANES). Stored toggles never take the new-user script
  * pane entries of `defaultSettings()` (ADR 0078), and a stored map whose
  * UI entry is damaged keeps the UI frame on (the default before ADR 0078).
- * A missing map (a new user, garbage) is the defaults.
+ * A missing map (a new user, garbage) is the defaults. Ids in `drop`
+ * (retired panes) are left out.
  */
-function migratePanes(raw: unknown): PaneSettingsMap {
+function migratePanes(raw: unknown, drop: ReadonlySet<PaneId> = NONE): PaneSettingsMap {
   if (!isObj(raw)) return defaultSettings().panes;
   const d = defaultSettings().panes;
   // A damaged entry in a stored map takes the defaults before ADR 0078/0092.
@@ -153,7 +176,7 @@ function migratePanes(raw: unknown): PaneSettingsMap {
   for (const id of PANE_IDS) out[id] = paneEntry(p[id], d[id]);
   let n = 0;
   for (const [id, x] of Object.entries(p)) {
-    if (!isScriptPaneId(id) || !isObj(x)) continue;
+    if (!isScriptPaneId(id) || !isObj(x) || drop.has(id)) continue;
     if (++n > MAX_SCRIPT_PANES) break;
     out[id] = paneEntry(x, SCRIPT_PANE_DEFAULTS);
   }
@@ -174,9 +197,10 @@ function migratePanes(raw: unknown): PaneSettingsMap {
  * ADR 0064 (`{ size, panes }`) becomes one lane.
  * Script panes with a well-formed id keep their place (at most
  * MAX_SCRIPT_PANES); a missing one is placed again when its script creates
- * it (ADR 0053).
+ * it (ADR 0053). Ids in `drop` (retired panes) are left out, and a float
+ * `below` one of them loses its anchor.
  */
-export function migrateLayout(raw: unknown): LayoutModel {
+export function migrateLayout(raw: unknown, drop: ReadonlySet<PaneId> = NONE): LayoutModel {
   const d = defaultSettings().layout;
   const docksRaw = isObj(raw) && isObj(raw.docks) ? raw.docks : null;
   if (!docksRaw) return d;
@@ -184,7 +208,7 @@ export function migrateLayout(raw: unknown): LayoutModel {
   let scripts = 0;
   /** True when `id` is a pane id not seen yet (and within the script pane bound). */
   const take = (id: unknown): id is PaneId => {
-    if (!isPaneId(id) || seen.has(id)) return false;
+    if (!isPaneId(id) || seen.has(id) || drop.has(id)) return false;
     if (isScriptPaneId(id) && ++scripts > MAX_SCRIPT_PANES) return false;
     seen.add(id);
     return true;
@@ -228,7 +252,7 @@ export function migrateLayout(raw: unknown): LayoutModel {
       w: int(f.w, 1, MAX_CELLS, size.w),
       h: int(f.h, 1, MAX_CELLS, size.h),
       ...(f.auto === true ? { auto: true } : {}),
-      ...(f.auto === true && isPaneId(f.below) && f.below !== id ? { below: f.below } : {}),
+      ...(f.auto === true && isPaneId(f.below) && f.below !== id && !drop.has(f.below) ? { below: f.below } : {}),
     });
   }
   // The map floats at its default spot (ADR 0020); a missing side pane
@@ -401,11 +425,13 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
   const d = defaultSettings();
   const s = isObj(raw) ? raw : {};
   const profile = typeof s.profile === 'string' && s.profile !== '' ? s.profile : d.profile;
+  const fromVersion = typeof s.version === 'number' ? s.version : 0;
+  const retired = retiredPanes(fromVersion);
   return {
     version: SETTINGS_VERSION,
     appearance: migrateAppearance(s.appearance),
-    panes: migratePanes(s.panes),
-    layout: migrateLayout(s.layout),
+    panes: migratePanes(s.panes, retired),
+    layout: migrateLayout(s.layout, retired),
     profile,
     group: migrateGroup(s.group),
     comm: migrateComm(s.comm),
@@ -413,7 +439,7 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     spotlights: migrateSpotlights(s.spotlights),
     output: migrateOutput(s.output),
     input: migrateInput(s.input),
-    mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
+    mapper: migrateMapper(s.mapper, fromVersion),
     weather: migrateWeather(s.weather, opts.phone ?? false),
     windows: migrateWindows(s.windows),
   };

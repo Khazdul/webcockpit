@@ -2,7 +2,7 @@
 // and bright bold, the right dock with the map (Character above it, off)
 // over Group | Timers, then Comm and a frameless UI pane (off); the
 // weather on, Shimrod on a transparent map. The Map search script runs
-// (the pane bar no longer does, ADR 0078 addendum 2026-10-31), the Map
+// (the only bundled script on; the pane bar is gone, ADR 0111), the Map
 // search pane is off and opens at the game pane's top-right corner. A
 // reload does not enable the script again once turned off. The rest of the suite starts as an existing
 // install (legacy-state.ts).
@@ -10,7 +10,6 @@ import { type Page, expect, test } from '@playwright/test';
 
 test.use({ storageState: { cookies: [], origins: [] }, viewport: { width: 1990, height: 1125 } });
 
-const BAR = 'panebar/bar';
 const FIND = 'mapsearch/main';
 const pane = (page: Page, id: string) => page.locator(`.wc-pane[data-pane="${id}"]`);
 const box = async (page: Page, id: string) => (await pane(page, id).boundingBox())!;
@@ -19,7 +18,7 @@ async function enabled(page: Page): Promise<string[]> {
   return page.evaluate(() => window.__wc!.shell.scripts.enabledNames());
 }
 
-test('new install: Hack 17, the docked map over two lanes, the weather on, no pane bar, Map search off until opened at the corner', async ({ page }) => {
+test('new install: Hack 17, the docked map over two lanes, the weather on, Map search off until opened at the corner', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/?replay');
@@ -37,9 +36,10 @@ test('new install: Hack 17, the docked map over two lanes, the weather on, no pa
   expect(s.panes.statistics.on).toBe(false);
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
 
-  // Map search runs; the pane bar does not (stage 30a round 1).
+  // Map search runs, the only bundled script on; no pane bar (ADR 0111).
   await expect.poll(() => enabled(page)).toEqual(['mapsearch']);
-  await expect(pane(page, BAR)).toBeHidden();
+  expect(await page.evaluate(() => window.__wc!.shell.scripts.get('panebar'))).toBeNull();
+  expect('panebar/bar' in s.panes).toBe(false);
   await expect(pane(page, FIND)).toBeHidden();
   await expect(pane(page, 'character')).toBeHidden();
   await expect(pane(page, 'ui')).toBeHidden();

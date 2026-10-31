@@ -7,7 +7,6 @@ import {
   type BuiltinPaneId,
   type LayoutModel,
   MAPSEARCH_PANE,
-  PANEBAR_PANE,
   type PaneColor,
   type PaneId,
   type ScriptPaneId,
@@ -366,7 +365,9 @@ export function viewSnapshot(s: Readonly<Settings>): ViewSnapshot {
 }
 
 // 2: the hover default became Full (ADR 0080); a stored v1 'minimal' moves to 'full'.
-export const SETTINGS_VERSION = 2;
+// 3: the bundled pane bar script was removed (ADR 0111); a stored v2 or older
+//    drops its pane `panebar/bar` from `panes` and the layout.
+export const SETTINGS_VERSION = 3;
 
 /**
  * The appearance values that were the defaults before ADR 0078 (DejaVu
@@ -420,9 +421,8 @@ export function defaultSettings(): Settings {
       map: { on: true, color: 'black', border: false, glass: true },
       // Off for everyone until switched on in the Panes popup (ADR 0109).
       statistics: { on: false, color: 'black', border: true, glass: true },
-      // Pre-placed bundled script panes (ADR 0078): the pane bar is
-      // borderless; Map search starts off (its script runs, the pane waits).
-      [PANEBAR_PANE]: { on: true, color: 'black', border: false, glass: true },
+      // The pre-placed bundled script pane (ADR 0078): Map search starts
+      // off (its script runs, the pane waits).
       [MAPSEARCH_PANE]: { on: false, color: 'black', border: true, glass: true },
     },
     layout: defaultLayout(),

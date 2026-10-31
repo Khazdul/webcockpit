@@ -8,7 +8,6 @@ import {
   DOCKED_BY_DEFAULT,
   EVEN_SHARE_DESIRED,
   type LayoutModel,
-  PANEBAR_PANE,
   PANE_IDS,
   defaultMapFloat,
   defaultMapSearchFloat,
@@ -53,10 +52,11 @@ export function legacySettings(): Settings {
 }
 
 // The defaults of ADR 0078 (before ADR 0092), for tests written against
-// them: Character over Group | Timers (20 cells each), then Comm, UI and
-// the pane bar; the map and the Map search pane floating at the game
-// pane's top-right corner; every built-in pane on, the weather off and
-// the MMapper tileset on the default dark grey.
+// them: Character over Group | Timers (20 cells each), then Comm and UI
+// (ADR 0078 also had the pane bar last, removed by ADR 0111); the map and
+// the Map search pane floating at the game pane's top-right corner; every
+// built-in pane on, the weather off and the MMapper tileset on the default
+// dark grey.
 
 /** `DEFAULT_SHARE` of ADR 0078. */
 export const ADR0078_SHARE = { lanes: 81, comm: 211, ui: 31 } as const;
@@ -77,7 +77,6 @@ export function adr0078Layout(): LayoutModel {
         tail: [
           { id: 'comm', desired: ADR0078_SHARE.comm },
           { id: 'ui', desired: ADR0078_SHARE.ui },
-          { id: PANEBAR_PANE, desired: 1 },
         ],
       },
       top: { lanes: [], head: [], tail: [] },

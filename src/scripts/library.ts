@@ -25,6 +25,11 @@
 // `importFile` rewrite the `@name` line. A user script whose name a new
 // release's bundled script takes is renamed (`_2`) at `init`.
 //
+// A bundled script a release removes (`RETIRED_BUNDLED_SCRIPTS`, ADR
+// 0111) is gone with it; at `init` its data record is deleted unless a
+// user script of that name owns it. Copies made with Duplicate are user
+// scripts under their own names and are never touched.
+//
 // Everything is read into memory at `init`; `list` and `get` are
 // synchronous. Writes go to IndexedDB first and then to memory, so a
 // failed write changes nothing. Without IndexedDB the library lives in
@@ -36,7 +41,7 @@ import { STORE, idbDone, idbRequest, openWebcockpitDb } from '../core/db';
 import { normalizeKey } from '../script/keys';
 import { setDeclaredScriptKeys } from '../script/script-keys';
 import type { ScriptBackup } from './backup';
-import { BUNDLED_SCRIPTS, type BundledScript } from './bundled';
+import { BUNDLED_SCRIPTS, type BundledScript, RETIRED_BUNDLED_SCRIPTS } from './bundled';
 import { type ParsedHeader, type ScriptHeader, type SettingValue, apiProblem, convertSetting, parseHeader, withHeaderName } from './header';
 
 export const SCRIPT_NAME_MAX = 32;
@@ -109,6 +114,8 @@ export interface ScriptLibraryOptions {
   factory?: IDBFactory | null;
   /** Bundled scripts (tests). Default: the build's (`src/scripts/bundled/`). */
   bundled?: readonly BundledScript[];
+  /** Names of removed bundled scripts whose data is deleted at `init` (tests). Default `RETIRED_BUNDLED_SCRIPTS`. */
+  retired?: readonly string[];
   now?: () => number;
   /** Write-behind delay for `store` data in ms (tests). */
   storeFlushMs?: number;
@@ -166,6 +173,7 @@ interface Entry {
 export class ScriptLibrary {
   private readonly factory: IDBFactory | null;
   private readonly bundled: readonly BundledScript[];
+  private readonly retired: readonly string[];
   private readonly now: () => number;
   private readonly storeFlushMs: number;
   private db: Promise<IDBDatabase> | null = null;
@@ -183,6 +191,7 @@ export class ScriptLibrary {
   constructor(opts: ScriptLibraryOptions = {}) {
     this.factory = opts.factory === undefined ? (globalThis.indexedDB ?? null) : opts.factory;
     this.bundled = opts.bundled ?? BUNDLED_SCRIPTS;
+    this.retired = opts.retired ?? RETIRED_BUNDLED_SCRIPTS;
     this.now = opts.now ?? Date.now;
     this.storeFlushMs = opts.storeFlushMs ?? STORE_FLUSH_MS;
     if (!this.factory) this.memory = true;
@@ -227,6 +236,13 @@ export class ScriptLibrary {
         await this.write([{ store: STORE.scripts, put: r }]).catch(() => {});
       }
       this.entries.set(r.name, this.entry(r.name, r.source, false, r));
+    }
+    // A removed bundled script (ADR 0111): its data record goes too, unless
+    // a script of that name (a user script made after the removal) owns it.
+    const orphans = this.retired.filter((n) => this.data.has(n) && !this.entries.has(n));
+    if (orphans.length > 0) {
+      await this.write(orphans.map((n) => ({ store: STORE.scriptData, del: n }))).catch(() => {});
+      for (const n of orphans) this.data.delete(n);
     }
     this.changed();
   }

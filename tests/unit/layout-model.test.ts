@@ -359,8 +359,8 @@ describe('lookPatch and nextPaneColor (ADR 0095)', () => {
   });
 });
 
-describe('pane bar placement and sizes (ADR 0065)', () => {
-  const BAR = 'panebar/bar' as PaneId;
+describe('one-row script pane placement and sizes (ADR 0065)', () => {
+  const BAR = 'mybar/bar' as PaneId;
   const own = { rows: 1, cols: 80, lane: 'own' as const };
 
   it("lane 'own' opens a new lane 0 at the screen edge of every dock, sized to the pane and frame", () => {

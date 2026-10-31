@@ -1,8 +1,8 @@
 // New-user defaults (ADR 0078, ADR 0092): the default layout as allocated
-// (Character and the map over Group | Timers, then Comm, UI and the pane
-// bar's slot; in the owner's window down to the screen bottom beside the
-// input row (ADR 0102); the Map search pane floating at the game pane's
-// top-right corner),
+// (Character and the map over Group | Timers, then Comm and UI; in the
+// owner's window down to the screen bottom beside the input row (ADR
+// 0102); the Map search pane floating at the game pane's top-right
+// corner),
 // the Map search float under a floated map (the ADR 0078 layout), its
 // migration, and the bundled scripts a new install starts with
 // (fresh-install detection).
@@ -10,20 +10,18 @@ import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
 import { type AllocateInput, type LayoutResult, type Rect, allocate, autoFloatRect, floatBelow } from '../../src/layout/allocate';
 import { setFloatRect, movePane } from '../../src/layout/model';
-import { MAPSEARCH_PANE, PANEBAR_PANE, type LayoutModel, type PaneId, defaultLayout } from '../../src/layout/types';
+import { MAPSEARCH_PANE, type LayoutModel, type PaneId, defaultLayout } from '../../src/layout/types';
 import { SettingsStore, defaultSettings, migrateSettings, phoneDefaultSettings } from '../../src/settings';
 import { NEW_USER_SCRIPTS, ScriptLibrary } from '../../src/scripts';
 import { barCells } from '../../src/menubar/menubar';
 import { adr0078Layout, adr0078Settings } from './legacy-defaults';
 
-const BAR = PANEBAR_PANE;
 const FIND = MAPSEARCH_PANE;
 
 /**
  * The default settings' toggles, `on` overrides; Map search present (its
- * script runs for a new user), the pane bar not (off for new users since
- * stage 30a round 1, ADR 0078 addendum); the desktop menu bar (26 cells)
- * at the input row's end (ADR 0102).
+ * script runs for a new user); the desktop menu bar (26 cells) at the
+ * input row's end (ADR 0102).
  */
 function input(
   cols: number,
@@ -39,12 +37,9 @@ function input(
   return { layout, panes, present: new Set<PaneId>([FIND]), cols, rows, barCells: barCells(true) };
 }
 
-/** `i` with the pane bar's script running too (a user who turned it on, or an ADR 0078 install). */
-const withBar = (i: AllocateInput): AllocateInput => ({ ...i, present: new Set<PaneId>([BAR, FIND]) });
-
-/** The ADR 0078 defaults: its layout and its toggles (Character and UI on), with the pane bar running. */
+/** The ADR 0078 defaults: its layout and its toggles (Character and UI on). */
 const input0078 = (cols: number, rows: number, layout: LayoutModel = adr0078Layout(), on: Partial<Record<PaneId, boolean>> = {}): AllocateInput =>
-  withBar(input(cols, rows, layout, on, adr0078Settings().panes));
+  input(cols, rows, layout, on, adr0078Settings().panes);
 
 const rect = (r: LayoutResult, id: PaneId): Rect | undefined => r.panes.find((p) => p.id === id)?.rect;
 const content = (r: LayoutResult, id: PaneId): Rect | undefined => r.panes.find((p) => p.id === id)?.content;
@@ -55,7 +50,7 @@ describe('new-player settings (ADR 0092)', () => {
     expect(s.panes.character.on).toBe(false);
     expect(s.panes.ui.on).toBe(false);
     expect(s.panes[FIND]!.on).toBe(false);
-    for (const id of ['map', 'group', 'timers', 'comm', BAR] as PaneId[]) expect(s.panes[id]!.on).toBe(true);
+    for (const id of ['map', 'group', 'timers', 'comm'] as PaneId[]) expect(s.panes[id]!.on).toBe(true);
     expect(s.weather.enabled).toBe(true);
     expect(s.panes.map.border).toBe(false);
     expect(s.mapper.tileset).toBe('shimrod');
@@ -90,21 +85,12 @@ describe('default layout (ADR 0092)', () => {
     expect(rect(r, 'group')).toEqual({ x: 149, y: 22, w: 25, h: 13 });
     expect(rect(r, 'timers')).toEqual({ x: 124, y: 22, w: 25, h: 13 });
     expect(rect(r, 'comm')).toEqual({ x: 124, y: 35, w: 50, h: 16 });
+    // UI is off: Comm ends at the screen bottom, beside the input row.
     expect(rect(r, 'ui')).toBeUndefined();
-    // No pane bar for a new user: Comm ends at the screen bottom, beside the input row.
-    expect(rect(r, BAR)).toBeUndefined();
     // No floats: the map is docked, Map search and Statistics are off.
     expect(rect(r, FIND)).toBeUndefined();
     expect(rect(r, 'statistics')).toBeUndefined();
     expect(defaultLayout().floating.map((f) => f.id)).toEqual([FIND, 'statistics']);
-  });
-
-  it('with the pane bar turned on it is the dock\'s last row, beside the input row', () => {
-    const r = allocate(withBar(input(174, 51)));
-    expect(r.hidden).toEqual([]);
-    expect(rect(r, 'map')).toEqual({ x: 124, y: 0, w: 50, h: 22 });
-    expect(rect(r, 'comm')).toEqual({ x: 124, y: 35, w: 50, h: 15 });
-    expect(rect(r, BAR)).toEqual({ x: 124, y: 50, w: 50, h: 1 });
   });
 
   it('with Character, UI and Map search on: Character 11, the map 16, the lanes 10, Comm 11, UI 3; Map search at the top-right corner', () => {
@@ -125,15 +111,14 @@ describe('default layout (ADR 0092)', () => {
 
   it('every pane keeps room in a small window; a taller one gives the map and Comm more', () => {
     const all = { character: true, ui: true };
-    const tall = allocate(withBar(input(200, 70, defaultLayout(), all)));
-    const base = allocate(withBar(input(174, 51, defaultLayout(), all)));
+    const tall = allocate(input(200, 70, defaultLayout(), all));
+    const base = allocate(input(174, 51, defaultLayout(), all));
     expect(content(tall, 'map')!.h).toBeGreaterThan(content(base, 'map')!.h);
     expect(content(tall, 'comm')!.h).toBeGreaterThan(content(base, 'comm')!.h);
     expect(content(tall, 'character')!.h).toBe(9);
-    expect(content(tall, BAR)!.h).toBe(1);
-    const small = allocate(withBar(input(100, 30, defaultLayout(), all)));
+    const small = allocate(input(100, 30, defaultLayout(), all));
     expect(small.hidden).toEqual([]);
-    for (const id of ['character', 'map', 'group', 'timers', 'comm', 'ui', BAR] as PaneId[]) expect(content(small, id)!.h).toBeGreaterThanOrEqual(1);
+    for (const id of ['character', 'map', 'group', 'timers', 'comm', 'ui'] as PaneId[]) expect(content(small, id)!.h).toBeGreaterThanOrEqual(1);
     // 100 columns: a 49-cell game column, too narrow to type beside the bar: the dock ends above the input row (ADR 0101).
     expect(small.inputSpan).toBe('screen');
     expect(small.docks.right!.rect.h).toBe(29);
@@ -148,7 +133,7 @@ describe('default layout (ADR 0092)', () => {
 });
 
 describe('default layout (ADR 0078)', () => {
-  it("lays out the owner's 174 × 51 window: dock 40 wide, 51 rows; Character 9, the lanes 9, Comm 22, UI 4, the bar 1 row", () => {
+  it("lays out the owner's 174 × 51 window: dock 40 wide, 51 rows; Character 9, the lanes 9, Comm 22, UI 5 (no pane bar since ADR 0111)", () => {
     const r = allocate(input0078(174, 51));
     expect(r.hidden).toEqual([]);
     // Wide case (ADR 0102): the dock runs the full height beside the input row.
@@ -158,8 +143,7 @@ describe('default layout (ADR 0078)', () => {
     expect(rect(r, 'group')).toEqual({ x: 154, y: 11, w: 20, h: 11 });
     expect(rect(r, 'timers')).toEqual({ x: 134, y: 11, w: 20, h: 11 });
     expect(rect(r, 'comm')).toEqual({ x: 134, y: 22, w: 40, h: 24 });
-    expect(rect(r, 'ui')).toEqual({ x: 134, y: 46, w: 40, h: 4 });
-    expect(rect(r, BAR)).toEqual({ x: 134, y: 50, w: 40, h: 1 });
+    expect(rect(r, 'ui')).toEqual({ x: 134, y: 46, w: 40, h: 5 });
     // The map: 21 % × 27 % at the game pane's top-right corner. Map search is off.
     expect(rect(r, 'map')).toEqual({ x: 96, y: 0, w: 37, h: 14 });
     expect(rect(r, FIND)).toBeUndefined();
@@ -223,10 +207,10 @@ describe('Map search under the map (FloatPane.below)', () => {
 });
 
 const lua = (name: string): { name: string; source: string } => ({ name, source: `-- @name ${name}\n-- @api 1\n` });
-const BUNDLED = [lua('panebar'), lua('mapsearch'), lua('almanac')];
+const BUNDLED = [lua('mapsearch'), lua('almanac')];
 
 describe('bundled scripts for a new user', () => {
-  it('are Map search only: the pane bar is off for new users since stage 30a round 1 (ADR 0078 addendum)', () => {
+  it('are Map search only (the pane bar was removed, ADR 0111)', () => {
     expect(NEW_USER_SCRIPTS).toEqual(['mapsearch']);
   });
 

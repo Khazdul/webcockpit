@@ -574,7 +574,7 @@ describe('allocate: dock lanes (ADR 0064)', () => {
 });
 
 describe('allocate: per-lane minimum (ADR 0065)', () => {
-  const BAR = 'panebar/bar' as PaneId;
+  const BAR = 'mybar/bar' as PaneId;
   /** Built-in toggles plus the bar, present, borderless unless `framed`. */
   const withBar = (framed = false): Pick<AllocateInput, 'panes' | 'present'> => ({
     panes: { ...toggles(), [BAR]: { on: true, border: framed } },

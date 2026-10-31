@@ -19,8 +19,16 @@ export const BUNDLED_SCRIPTS: readonly BundledScript[] = Object.entries(FILES).m
 
 /**
  * Bundled scripts a new user starts with enabled (ADR 0078): Map search
- * (whose pane starts off). The pane bar was on too until stage 30a round 1
- * (ADR 0078 addendum 2026-10-31: the menu bar's Panes popup does its job).
- * Applied once per install by `ScriptLibrary.enableForNewUser`.
+ * (whose pane starts off). Applied once per install by
+ * `ScriptLibrary.enableForNewUser`.
  */
 export const NEW_USER_SCRIPTS: readonly string[] = ['mapsearch'];
+
+/**
+ * Bundled scripts that later releases removed (ADR 0111). At `init` the
+ * library deletes the stored data record (enabled flag, settings, `store`)
+ * of each one no script of that name owns, so nothing of it lingers.
+ * - panebar: the pane bar (ADR 0065), replaced by the menu bar's Panes
+ *   popup (ADR 0099); its pane is dropped by the settings migration.
+ */
+export const RETIRED_BUNDLED_SCRIPTS: readonly string[] = ['panebar'];
