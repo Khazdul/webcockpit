@@ -330,7 +330,7 @@ describe('settings popups surface', () => {
   it('one at a time: a gear popup replaces Settings; a pane without one does nothing', () => {
     const t = surface();
     act(() => t.pops.open('settings', t.place));
-    act(() => t.pops.open({ pane: 'comm' }, t.place));
+    act(() => t.pops.open({ pane: 'character' }, t.place));
     expect(t.pops.openKey).toBe('settings');
     act(() => t.pops.toggle({ pane: 'map' }, t.place));
     expect(t.onClose).toHaveBeenCalledWith('settings');

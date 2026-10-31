@@ -9,12 +9,13 @@
 //   <Dropdown value={v} options={[{ value, label, swatch? }]} onChange={…} label="Font" />
 //   <SwatchGrid colors={…} names={…} selected={i} onPick={…} label="ANSI palette" />
 //   <GhostButton onClick={…}>Reset palette</GhostButton>
+//   <Stepper value={4} min={1} max={6} onChange={…} label="Spells columns" />
 //
 // - Every control is a real focusable element with its ARIA role, and is
 //   used from the keyboard once the popup has the keys (after a click in
 //   it, ADR 0099): Tab and Shift+Tab move between them, Space or Enter
-//   press, ←→ (and ↑↓) step a slider, a segmented control, the tabs and
-//   the swatches, Home/End jump. A dropdown opens with Enter, Space or ↓;
+//   press, ←→ (and ↑↓) step a slider, a stepper, a segmented control, the
+//   tabs and the swatches, Home/End jump. A dropdown opens with Enter, Space or ↓;
 //   its list takes ↑↓, Home/End, Enter and Esc (Esc closes only the list).
 // - A slider is drawn here (pointer capture, `touch-action: none`), so it
 //   drags the same in every browser and tells the popup while it is held
@@ -545,6 +546,69 @@ export function GhostButton(p: {
     >
       {p.children}
     </button>
+  );
+}
+
+/**
+ * A small number stepper (`role=spinbutton`): `‹ 4 ›`, one tab stop; ←↓
+ * and ‹ step down, →↑ and › up, Home/End jump to the ends. Inside
+ * [min, max].
+ */
+export function Stepper(p: { value: number; min: number; max: number; onChange: (v: number) => void; label: string; class?: string }): VNode {
+  const set = (v: number): void => {
+    const n = Math.max(p.min, Math.min(p.max, v));
+    if (n !== p.value) p.onChange(n);
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (!plain(e)) return;
+    const k = e.key;
+    const next =
+      k === 'ArrowLeft' || k === 'ArrowDown'
+        ? p.value - 1
+        : k === 'ArrowRight' || k === 'ArrowUp'
+          ? p.value + 1
+          : k === 'Home'
+            ? p.min
+            : k === 'End'
+              ? p.max
+              : null;
+    if (next === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    set(next);
+  };
+  const step = (d: number, glyph: string, disabled: boolean): VNode => (
+    <button
+      type="button"
+      class={cls('wc-ck-step', disabled && 'is-off')}
+      tabIndex={-1}
+      aria-hidden="true"
+      data-step={d < 0 ? 'dec' : 'inc'}
+      onClick={(e) => {
+        e.stopPropagation();
+        set(p.value + d);
+      }}
+    >
+      <svg viewBox="0 0 10 10" aria-hidden="true">
+        <path d={glyph} />
+      </svg>
+    </button>
+  );
+  return (
+    <span
+      class={cls('wc-ck-num', p.class)}
+      role="spinbutton"
+      tabIndex={0}
+      aria-label={p.label}
+      aria-valuenow={p.value}
+      aria-valuemin={p.min}
+      aria-valuemax={p.max}
+      onKeyDown={onKey}
+    >
+      {step(-1, 'M6 2.5 3.5 5 6 7.5', p.value <= p.min)}
+      <span class="wc-ck-num-v">{p.value}</span>
+      {step(1, 'M4 2.5 6.5 5 4 7.5', p.value >= p.max)}
+    </span>
   );
 }
 

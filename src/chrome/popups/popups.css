@@ -27,8 +27,22 @@
   width: 34.77em;
 }
 
+/* Gear popups (beside their pane): each as wide as its content needs. */
 .wc-sp-gear {
   width: 31em;
+}
+
+/* 250 px at a 13 px font (mockup 30a-5). */
+.wc-sp-gear-comm {
+  width: 19.23em;
+}
+
+.wc-sp-gear-group {
+  width: 25em;
+}
+
+.wc-sp-gear-timers {
+  width: 29.5em;
 }
 
 .wc-sp .wc-pop-head {
@@ -171,6 +185,22 @@
 
 .wc-ck-foot .wc-ck-note {
   padding: 0;
+}
+
+/* A small uppercase subheading (`Channels`, the Timers grid's columns). */
+.wc-ck-sub {
+  padding: 0.3em 1.077em 0.23em;
+  color: #585858;
+  font-size: 0.846em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* A hairline between a list and what follows it. */
+.wc-ck-sep {
+  margin: 0.31em 0;
+  border-top: 1px solid #1c1c1c;
 }
 
 /* ------------------------------------------------------------- toggle */
@@ -442,6 +472,60 @@
   color: #ff8a8a;
 }
 
+/* ------------------------------------------------------------ stepper */
+
+.wc-ck-num {
+  display: inline-flex;
+  align-items: center;
+  height: 1.69em;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  outline: none;
+}
+
+.wc-ck-num:focus-visible {
+  border-color: #6a6a6a;
+}
+
+.wc-pop .wc-ck-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.31em;
+  height: 100%;
+  color: #7a7a7a;
+}
+
+.wc-pop .wc-ck-step:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ececec;
+}
+
+.wc-pop .wc-ck-step.is-off {
+  color: #333;
+  cursor: default;
+}
+
+.wc-pop .wc-ck-step.is-off:hover {
+  background: none;
+}
+
+.wc-ck-step svg {
+  width: 0.77em;
+  height: 0.77em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wc-ck-num-v {
+  min-width: 1.2em;
+  color: #d0d0d0;
+  text-align: center;
+}
+
 /* ----------------------------------------------------------- hex field */
 
 .wc-ck-hex {
@@ -549,4 +633,77 @@
 
 .wc-ck-row.is-sub {
   padding-left: 2.15em;
+}
+
+/* ------------------------------------------------- the pane gear popups */
+
+/* Comm: one tight row a channel, the whole row a click target (mockup 30a-5). */
+.wc-ck-row.wc-sp-chan {
+  min-height: 1.92em;
+  cursor: pointer;
+}
+
+.wc-ck-row.wc-sp-chan:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.wc-sp-chan > .wc-ck-l {
+  display: flex;
+  align-items: center;
+  gap: 0.69em;
+  color: #d0d0d0;
+}
+
+.wc-sp-chan.is-off > .wc-ck-l {
+  color: #5a5a5a;
+}
+
+.wc-sp-chan .wc-ck-sw {
+  width: 0.69em;
+  height: 0.69em;
+  border: 0;
+}
+
+.wc-sp-comm > .wc-ck-sub {
+  padding-top: 0;
+}
+
+/* Timers: a grid of the groups, a column for each control under its heading. */
+.wc-sp-tgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  column-gap: 0.77em;
+  row-gap: 0.31em;
+  padding: 0 1.077em;
+}
+
+.wc-sp-tgrid > .wc-ck-sub {
+  padding: 0 0 0.15em;
+  text-align: center;
+}
+
+.wc-sp-tg-l {
+  overflow: hidden;
+  color: #9a9a9a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-sp-tg-c {
+  display: flex;
+  justify-content: center;
+}
+
+.wc-sp-tg-l.is-dim {
+  color: #4a4a4a;
+}
+
+/* An Off group dims (its controls still work); its colour list says Off. */
+.wc-sp-tg-c.is-dim > :not(.wc-ck-ddw) {
+  opacity: 0.55;
+}
+
+.wc-pop .wc-sp-tcolor > .wc-ck-dd {
+  width: 9.2em;
 }

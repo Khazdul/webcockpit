@@ -1,13 +1,13 @@
 // The settings popups' surface (stage 30 S5/S6, ADR 0107): a Preact layer
 // in the chrome chunk that draws one settings popup at a time, the
-// Settings popup above the menu bar's Settings icon and (30c part 2) a
-// pane's gear popup beside its pane. The shell mounts it on first use in
-// the App's element, next to the bar's own popups, where the bar exists
-// (desktop and tablet).
+// Settings popup above the menu bar's Settings icon and a pane's gear
+// popup beside its pane. The shell mounts it on first use in the App's
+// element, next to the bar's own popups, where the bar exists (desktop and
+// tablet).
 //
-//   const pops = chrome.mountSettingsPopups(host, services, { focusInput, onOpen, onClose });
+//   const pops = chrome.mountSettingsPopups(host, services, { focusInput, onOpen, onClose, onChange });
 //   pops.toggle('settings', (el) => placePopup(el, icon, bar));
-//   pops.toggle({ pane: 'map' }, (el) => placeBeside(el, paneEl));   // part 2
+//   pops.toggle({ pane: 'comm' }, (el) => placeBeside(el, paneEl, gameEl));
 //   pops.close();
 //
 // - One popup rule (ADR 0099): `onOpen(key, el, close)` hands the open
@@ -20,11 +20,14 @@
 // - Focus: it never takes the keys when it opens; after a click in it, it
 //   has them (popups/panel.tsx). Closing from inside it, or while the focus
 //   was in it, gives the game input its focus back.
+// - `onChange(key)` follows what is open, whoever closed it (the shell marks
+//   the pane's Gear with it).
 // - The content per target: `settings` → SettingsPopup; `{ pane }` → the
-//   pane's entry in `GEAR_POPUPS` (Mapper now; Comm, Timers and Group come
-//   with the gear button in part 2). A target without content does nothing.
+//   pane's entry in `GEAR_POPUPS` (Map, Comm, Timers, Group;
+//   pane-settings.tsx). A target without content does nothing.
 // - The caller's `place` is called on open and on every relayout (see
-//   panel.tsx); `place()` re-places from outside (the cockpit relayout).
+//   panel.tsx); `place()` re-places from outside (the cockpit relayout; the
+//   shell closes a gear popup whose pane is no longer shown).
 
 import './popups.css';
 import type { VNode } from 'preact';
@@ -33,6 +36,7 @@ import type { PaneId } from '../../layout/types';
 import { type ChromeServices, ServicesCtx } from '../kit/hooks';
 import { MapperSettings } from './mapper-settings';
 import { type PopupPlace, PopupPanel } from './panel';
+import { CommSettings, GroupSettings, TimersSettings } from './pane-settings';
 import { SettingsPopup } from './settings-popup';
 
 export type { PopupPlace } from './panel';
@@ -52,12 +56,15 @@ export interface GearPopup {
 }
 
 /**
- * The pane gear popups by pane id. Part 2 of 30c adds Comm, Timers and
- * Group with the gear button; Mapper is the same component as Settings →
- * Mapper.
+ * The pane gear popups by pane id (the panes with a Gear,
+ * layout/pane-buttons.ts `GEAR_PANES`). Mapper is the same component as
+ * Settings → Mapper.
  */
 export const GEAR_POPUPS: Partial<Record<string, GearPopup>> = {
   map: { title: 'Map', body: () => <MapperSettings /> },
+  comm: { title: 'Comm', body: () => <CommSettings /> },
+  timers: { title: 'Timers', body: () => <TimersSettings /> },
+  group: { title: 'Group', body: () => <GroupSettings /> },
 };
 
 export interface SettingsPopupsOptions {
@@ -67,6 +74,8 @@ export interface SettingsPopupsOptions {
   onOpen?: (key: SettingsPopupKey, el: HTMLElement, close: () => void) => void;
   /** The popup closed itself (X, Esc, its toggle, `close()`). */
   onClose?: (key: SettingsPopupKey) => void;
+  /** What is open changed (null: none), for any reason. */
+  onChange?: (key: SettingsPopupKey | null) => void;
 }
 
 export interface SettingsPopupsHandle {
@@ -129,6 +138,7 @@ export function mountSettingsPopups(host: HTMLElement, services: ChromeServices,
     const hadFocus = host.contains(doc.activeElement);
     open = null;
     draw();
+    opts.onChange?.(null);
     if (report) opts.onClose?.(o.key);
     if (report && (refocus || hadFocus)) opts.focusInput();
     return true;
@@ -147,6 +157,7 @@ export function mountSettingsPopups(host: HTMLElement, services: ChromeServices,
       open = null;
       return;
     }
+    opts.onChange?.(key);
     // The bar holds it from now on; its close does not report back.
     opts.onOpen?.(key, el, () => void shut(false, false));
   };
