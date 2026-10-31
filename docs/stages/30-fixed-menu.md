@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30d built, owner testing; 30e in progress). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30d done; 30e in progress). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -538,6 +538,15 @@ Decided *(Claude)*, ADR 0108:
 ### 30c approved (2026-10-31)
 
 The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
+
+### 30d approved (2026-11-01)
+
+The owner tested 30d: feedback questions 1–4 are OK (first size and place,
+where narrow starts, the shortened headers); details may be polished
+later, not a priority. "It works as wanted." ESC → Statistics can go in
+30f, with this pane as its replacement. 30d is done. Open: whether the
+pane bar script gets a STAT button (explained to the owner, answer
+pending).
 
 ## Open questions
 
