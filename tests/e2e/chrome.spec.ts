@@ -215,8 +215,18 @@ test('Exit session returns to the start page and closes the connection', async (
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 });
 
-test('Options → Panes toggles panes and borders live', async ({ page }) => {
+test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles panes and borders live', async ({ page }) => {
   await openStart(page);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter'); // Panes
+  await expect(startTitle(page)).toHaveText('─── Panes ───');
+  // Desktop and tablet: the Panes popup and the pane buttons hold it (ADR 0107).
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow .wc-label')).toHaveText(['Timers', 'Communication', 'Group', 'Back']);
+  // The phone keeps it until its own stage.
+  await page.goto('/?phone=1');
+  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');

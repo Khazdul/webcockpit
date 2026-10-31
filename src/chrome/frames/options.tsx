@@ -10,7 +10,10 @@
 //                 (Cockpit's order; Appearance was "General" before stage 25)
 //   Panes → Appearance: pane × colour grid with a Border column, reset
 //                 layout; its page is titled "Pane appearance", apart from
-//                 the hub's own Appearance page below
+//                 the hub's own Appearance page below. Phone only since
+//                 stage 30c (ADR 0107): on desktop and tablet the Panes
+//                 popup and the pane buttons hold it, and the hub starts at
+//                 Timers (start page and ESC menu alike).
 //   Timers:       options-timers.tsx
 //   Communication: comm-options.tsx
 //   Group:        options-group.tsx
@@ -36,6 +39,7 @@ import {
   PADDING_STEP,
   SCROLLBACK_CHOICES,
 } from '../../settings';
+import { device } from '../../core/device';
 import { FONTS, effectiveFont, fontChoices } from '../../theme/fonts';
 import {
   ANSI_NAMES,
@@ -109,11 +113,11 @@ export function OptionsHub(): VNode {
 
 // ------------------------------------------------------------ panes hub
 
-/** Options → Panes: one entry per page (ADR 0016 P1). */
+/** Options → Panes: one entry per page (ADR 0016 P1); Appearance on a phone only (ADR 0107). */
 export function PanesHub(): VNode {
   const nav = useNav();
   const items: MenuItem[] = [
-    { key: 'appearance', label: 'Appearance', activate: () => nav.push(<PanesFrame />) },
+    ...(device().phone ? [{ key: 'appearance', label: 'Appearance', activate: () => nav.push(<PanesFrame />) }] : []),
     { key: 'timers', label: 'Timers', activate: () => nav.push(<TimersOptionsFrame />) },
     { key: 'comm', label: 'Communication', activate: () => nav.push(<CommOptionsFrame />) },
     { key: 'group', label: 'Group', activate: () => nav.push(<GroupOptionsFrame />) },

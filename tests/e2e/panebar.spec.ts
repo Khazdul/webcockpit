@@ -15,7 +15,6 @@ const BAR = 'panebar/bar';
 
 const bar = (page: Page) => page.locator(`.wc-pane[data-pane="${BAR}"]`);
 const prows = (page: Page) => bar(page).locator('.wc-pane-content .wc-prow');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 
 async function command(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
@@ -325,18 +324,14 @@ test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, c
   await expectRightBottom(page);
 
   // Reset layout after a move: back at the bottom of the right dock.
+  // The Panes popup lists it under the script panes; its Reset layout (ADR 0099).
   await toBottomLane(page);
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
-  await expect(page.locator(`.wc-overlay [data-pane-row="${BAR}"]`)).toContainText('Pane bar (panebar)');
-  await page.locator('.wc-overlay').getByText('Reset layout').click();
-  await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator(`.wc-pop-panes .wc-pop-row[data-pane="${BAR}"]`)).toHaveText('Pane bar panebar');
+  await page.locator('.wc-pop-foot [data-act="reset"]').click();
+  await page.locator('.wc-pop-foot [data-act="reset-yes"]').click();
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   // The default layout since ADR 0078: the last pane of the right dock's tail span.
   await expect.poll(() => page.evaluate((id) => window.__wc!.settings.get().layout.docks.right.tail.at(-1)?.id, BAR)).toBe(BAR);
   await expect(bar(page)).toBeVisible();

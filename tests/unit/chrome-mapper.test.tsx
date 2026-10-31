@@ -4,6 +4,7 @@ import { deflateSync, inflateSync } from 'node:zlib';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
+import { setDeviceForTest } from '../../src/core/device';
 import { fmtBytes, fmtCount, mapInfoRows } from '../../src/chrome/frames/options-mapper';
 import { writeMm2 } from '../../src/map/mm2-write';
 import { MapStore } from '../../src/map/store';
@@ -100,10 +101,15 @@ describe('Options → Mapper', () => {
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
+    // Desktop and tablet: no pane Appearance page (the Panes popup and the pane buttons hold it, ADR 0107).
+    await click(host, 'panes');
+    expect(labels(host)).toEqual(['Timers', 'Communication', 'Group', 'Back']);
+    await key('Escape');
+    // The phone keeps it; it lists the map pane like the others.
+    setDeviceForTest({ touch: true, phone: true });
+    cleanup.push(() => setDeviceForTest({ touch: false, phone: false }));
     await click(host, 'panes');
     expect(labels(host)).toEqual(['Appearance', 'Timers', 'Communication', 'Group', 'Back']);
-
-    // Appearance lists the map pane like the others.
     await click(host, 'appearance');
     expect([...frame(host).querySelectorAll('.wc-grid-row')].map((r) => r.textContent!.slice(0, 12).trim())).toContain('Map');
     await key('Escape');

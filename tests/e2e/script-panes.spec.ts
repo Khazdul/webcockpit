@@ -62,7 +62,6 @@ async function putScript(page: Page, source = SCRIPT, name = 'panes'): Promise<v
 
 const pane = (page: Page) => page.locator(`.wc-pane[data-pane="${ID}"]`);
 const prows = (page: Page) => pane(page).locator('.wc-pane-content .wc-prow');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 
 async function command(page: Page, text: string): Promise<void> {
   await page.keyboard.type(text);
@@ -109,23 +108,19 @@ test('a script pane floats, docks, toggles, takes clicks and comes back where it
   await page.mouse.move(content!.x + 15.5 * cell.w, at.y);
   await expect(tip).toBeHidden();
 
-  // Options → Panes → Appearance lists it under the built-ins; its None box switches it off and on.
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Enter'); // Panes
-  await expect(menuTitle(page)).toHaveText('─── Panes ───');
-  await page.keyboard.press('Enter'); // Appearance
-  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
-  const row = page.locator(`.wc-grid-row:has([data-pane-row="${ID}"])`);
-  await expect(row).toContainText('Merc Pane (panes)');
-  await row.locator('.wc-check').first().click();
+  // The Panes popup lists it under the built-ins, by title and script; its switch turns it off and on (ADR 0099).
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  const row = page.locator(`.wc-pop-panes .wc-pop-row[data-pane="${ID}"]`);
+  await expect(row).toHaveText('Merc Pane panes');
+  await row.click();
   await expect(pane(page)).toBeHidden();
   expect(await page.evaluate((id) => window.__wc!.settings.get().panes[id as 'a/b'], ID)).toEqual({ on: false, color: 'black', border: true, glass: true });
-  await row.locator('.wc-check').nth(1).click(); // Red: on again, tinted
+  await row.click();
   await expect(pane(page)).toBeVisible();
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
+  // Tinted red (the pane's Colour button, ADR 0095, writes the same setting).
+  await page.evaluate((id) => window.__wc!.settings.update({ panes: { [id as 'a/b']: { color: 'red' as const } } }), ID);
 
   // The alias toggles it through pane:hide() / pane:show().
   await command(page, 'pt');
@@ -228,17 +223,13 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect(temp).toHaveAttribute('data-floating', '');
   expect(await inSettings()).toBe(false);
 
-  // Options → Panes → Appearance does not list it.
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
-  await expect(page.locator('.wc-overlay')).not.toContainText('Pick (temps)');
-  await expect(page.locator(`[data-pane-row="${TID}"]`)).toHaveCount(0);
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  // The Panes popup does not list it.
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator('.wc-pop-panes')).toBeVisible();
+  await expect(page.locator('.wc-pop-panes')).not.toContainText('Pick');
+  await expect(page.locator(`.wc-pop-row[data-pane="${TID}"]`)).toHaveCount(0);
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
 
   // Its close cross closes it (not hide) and calls onClose.
   await temp.hover();
@@ -259,17 +250,12 @@ test('a temporary pane floats centred, stays out of Options and the settings, an
   await expect.poll(sentText).toContain('chose a\r\n');
   await expect(temp).toHaveCount(0);
 
-  // Options → Panes → Reset layout forgets the place: centred again.
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
-  await page.locator('.wc-overlay').getByText('Reset layout').click();
-  await expect(page.locator('.wc-overlay')).toContainText('Layout reset.');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  // The Panes popup's Reset layout forgets the place: centred again.
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await page.locator('.wc-pop-foot [data-act="reset"]').click();
+  await page.locator('.wc-pop-foot [data-act="reset-yes"]').click();
+  await page.locator('.wc-mb[data-mb="panes"]').click();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('webcockpit.tempPanes'))).toBeNull();
   await command(page, 'tp');
   await expect(temp).toBeVisible();
