@@ -6,7 +6,7 @@
 //   <Toggle on={x} onChange={…} label="Room notes" />
 //   <Segmented value={v} options={[{ value, label }]} onChange={…} label="Cursor style" />
 //   <Slider value={15} min={6} max={32} onChange={…} label="Size" unit="px" />
-//   <Dropdown value={v} options={[{ value, label, swatch? }]} onChange={…} label="Font" />
+//   <Dropdown value={v} options={[{ value, label, swatch?, font? }]} onChange={…} label="Font" />
 //   <SwatchGrid colors={…} names={…} selected={i} onPick={…} label="ANSI palette" />
 //   <GhostButton onClick={…}>Reset palette</GhostButton>
 //   <Stepper value={4} min={1} max={6} onChange={…} label="Spells columns" />
@@ -26,6 +26,8 @@
 //   resize.
 // - Values are shown as given: a colour that is not in a list stays
 //   selected and is shown by its hex (the caller adds it, `colorOptions`).
+// - An option with `font` draws its label in that CSS font family, on the
+//   button and in the list (the font dropdown shows each font in itself).
 
 import type { ComponentChildren, VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
@@ -262,6 +264,8 @@ export function Slider(p: {
 export interface DropdownOption<T> extends Choice<T> {
   /** A colour swatch before the label (any CSS colour). */
   swatch?: string;
+  /** A CSS `font-family` for the label (the font dropdown: each name in its own font). */
+  font?: string;
 }
 
 /** Rows a dropdown's list shows before it scrolls. */
@@ -427,7 +431,9 @@ export function Dropdown<T extends string | number>(p: {
         }}
       >
         {cur?.swatch !== undefined && <span class="wc-ck-sw" style={{ background: cur.swatch }} />}
-        <span class="wc-ck-v">{cur?.label ?? String(p.value)}</span>
+        <span class="wc-ck-v" style={cur?.font ? { fontFamily: cur.font } : undefined}>
+          {cur?.label ?? String(p.value)}
+        </span>
         <svg class="wc-ck-chev" viewBox="0 0 10 10" aria-hidden="true">
           <path d={CHEVRON} />
         </svg>
@@ -462,7 +468,9 @@ export function Dropdown<T extends string | number>(p: {
               }}
             >
               {o.swatch !== undefined && <span class="wc-ck-sw" style={{ background: o.swatch }} />}
-              <span class="wc-ck-v">{o.label}</span>
+              <span class="wc-ck-v" style={o.font ? { fontFamily: o.font } : undefined}>
+                {o.label}
+              </span>
             </div>
           ))}
         </div>

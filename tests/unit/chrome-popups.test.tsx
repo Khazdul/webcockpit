@@ -23,6 +23,7 @@ import { CURSOR_CHOICES, SETTINGS_TABS, colorOptions, scrollbackOptions } from '
 import { ProfileStore } from '../../src/profiles';
 import { SettingsStore } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
+import { FONTS } from '../../src/theme/fonts';
 import { TERMINAL_BG_PRESETS, TERMINAL_FG_PRESETS } from '../../src/theme/presets';
 
 const cleanup: Array<() => void> = [];
@@ -417,6 +418,13 @@ describe('Settings popup tabs', () => {
     click(el.querySelector('.wc-ck-dd[aria-label="Input colour"]'));
     click([...el.querySelectorAll('.wc-ck-list .wc-ck-opt')].find((o) => o.textContent === 'Amber')!);
     expect(t.s().appearance.inputColor).toBe('amber');
+    // The font list shows each name in its own font, the button too.
+    click(el.querySelector('.wc-ck-dd[aria-label="Font"]'));
+    const hack = [...el.querySelectorAll<HTMLElement>('.wc-ck-list .wc-ck-opt')].find((o) => o.textContent === FONTS.hack.label)!;
+    expect(hack.querySelector<HTMLElement>('.wc-ck-v')!.style.fontFamily).toContain(FONTS.hack.family);
+    click(hack);
+    expect(t.s().appearance.font).toBe('hack');
+    expect(el.querySelector<HTMLElement>('.wc-ck-dd[aria-label="Font"] .wc-ck-v')!.style.fontFamily).toContain(FONTS.hack.family);
     // Bold brightens and scrollback.
     const bold0 = t.s().appearance.boldBright;
     click(el.querySelector('.wc-ck-tg[aria-label="Bold brightens colours"]'));

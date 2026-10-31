@@ -191,7 +191,13 @@ function AppearancePage(): VNode {
   };
 
   const font = effectiveFont(a.font);
-  const fonts: DropdownOption<FontId>[] = fontChoices().map((id) => ({ value: id, label: FONTS[id].label }));
+  const fonts: DropdownOption<FontId>[] = fontChoices().map((id) => ({
+    value: id,
+    label: FONTS[id].label,
+    // Each name in its own font (owner, 30c): opening the list fetches the
+    // families' regular files once (about 1.3 MB in all), then they are cached.
+    font: FONTS[id].stack,
+  }));
   const inputs: DropdownOption<(typeof INPUT_COLOR_IDS)[number]>[] = INPUT_COLOR_IDS.map((id) => ({
     value: id,
     label: INPUT_COLORS[id].label,

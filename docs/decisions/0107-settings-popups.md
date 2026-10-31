@@ -204,3 +204,12 @@ double upkeep is accepted (S10).
 - **Sizes:** each gear popup has its own width (Map 31 em, Comm 19.23 em,
   Group 25 em, Timers 29.5 em at the popup font) and fits its content's
   height.
+
+## Addendum: font names in their own font (2026-10-31)
+
+Owner request during 30c: the Font dropdown draws each name in its own
+family (`DropdownOption.font`, the family's `stack`), on the button and in
+the list. Opening the list makes the browser fetch every bundled family's
+regular file once (about 1.3 MB in all), then the cache serves them; a
+name shows in the fallback font for a moment until its file arrives.
+Lucida Console is local only and never fetched.

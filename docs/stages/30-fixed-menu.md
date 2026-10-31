@@ -746,7 +746,8 @@ MUME (or `?replay` offline). Desktop and tablet; a phone is unchanged.
 2. **Live while you play:** change font, size, padding, colours,
    scrollback, a palette colour (click a swatch: colour picker and a hex
    field), cursor style, a weather category. The game text follows at
-   once; the small preview in Appearance too. Click in the game text or
+   once; the small preview in Appearance too. The font list shows each
+   name in its own font (owner request during the build). Click in the game text or
    the input and keep typing: the popup stays open, the keys go to the
    game. Click in the popup again to use its keys.
 3. **Closing:** its X, Esc (in the popup, or in the input once the text
