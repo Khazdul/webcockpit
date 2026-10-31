@@ -5,7 +5,8 @@
 //   .wc-cockpit
 //     .wc-game          the output pane (src/ui/output-pane.ts) goes in here
 //     .wc-pane × 6      pane shells (src/panes/pane.ts; the map included)
-//     .wc-input-slot    the input line (src/ui/input-pane.ts), under the game pane
+//     .wc-input-slot    the input row (src/ui/input-pane.ts), under the game pane and
+//                       the right dock, out to the screen's right edge (ADR 0101)
 //     .wc-handles       invisible resize handles over the gaps, lane and pane boundaries
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
@@ -29,7 +30,10 @@
 //   pane's grip cells (`pane:setGrip`, ADR 0065 round 1) on any row work
 //   as the title row: the press is a move at once, never a click. The insertion
 //   bar shows where it lands. Dropping on the screen edge of a dock that is
-//   not shown opens that dock at its default size.
+//   not shown opens that dock at its default size. The edge zones follow
+//   the docks' extent (ADR 0101): the right one ends above the input row,
+//   the left one at the input row's bottom, the bottom one runs along the
+//   whole bottom edge.
 // - Lanes (ADR 0064): a dock is a list of lanes from the screen edge
 //   inward, columns of a side dock, rows of the top/bottom dock. Over the
 //   middle of a lane the pane goes into that lane; over a lane's
@@ -1776,15 +1780,21 @@ export class Cockpit {
 
     // Screen-edge zones: a shown dock takes the pane into the lane at the
     // screen edge, at the pointer; a hidden one (not collapsed) opens with
-    // one lane at its default size.
+    // one lane at its default size. The zones follow the docks' extent
+    // (ADR 0101): the left one down to the input row's bottom (where the
+    // gap row above the bottom dock starts), the right one down to the
+    // input row's top, the top one over the game column, the bottom one
+    // along the whole bottom edge below those.
     const E = EDGE_CELLS;
     if (!isTemp && cy >= 0 && cy < H) {
       const inGameCol = cx >= r.game.x && cx < r.game.x + r.game.w;
+      const leftEnd = r.input.y + r.input.h;
+      const rightEnd = r.input.y;
       const zone: DockId | null =
-        cx < E ? 'left'
-        : cx >= r.cols - E ? 'right'
+        cx < E && cy < leftEnd ? 'left'
+        : cx >= r.cols - E && cy < rightEnd ? 'right'
         : cy < TOP_EDGE_ROWS && inGameCol ? 'top'
-        : cy >= H - E && inGameCol ? 'bottom'
+        : cy >= H - E ? 'bottom'
         : null;
       const shown = zone ? r.docks[zone] : undefined;
       // Over a span stack along the dock (ADR 0067): into that stack.
@@ -1815,11 +1825,12 @@ export class Cockpit {
       }
       if (zone && !r.collapsed.includes(zone)) {
         const g = r.game;
+        // Each bar along the extent the dock opens with (ADR 0101).
         const bar: Record<DockId, Rect> = {
-          left: { x: 0, y: 0, w: 2 * T, h: H * cell.h },
-          right: { x: W - 2 * T, y: 0, w: 2 * T, h: H * cell.h },
+          left: { x: 0, y: 0, w: 2 * T, h: leftEnd * cell.h },
+          right: { x: W - 2 * T, y: 0, w: 2 * T, h: rightEnd * cell.h },
           top: { x: g.x * cell.w, y: 0, w: g.w * cell.w, h: 2 * T },
-          bottom: { x: g.x * cell.w, y: H * cell.h - 2 * T, w: g.w * cell.w, h: 2 * T },
+          bottom: { x: 0, y: H * cell.h - 2 * T, w: W, h: 2 * T },
         };
         const index = layout.docks[zone].lanes[0]?.panes.length ?? 0;
         return { kind: 'dock', dock: zone, lane: 0, index, open: true, bar: bar[zone] };

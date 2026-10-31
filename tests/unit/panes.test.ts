@@ -420,10 +420,12 @@ describe('Cockpit', () => {
     expect(c.gameEl.style.width).toBe('860px');
     expect(c.inputEl.style.top).toBe('980px');
     expect(c.inputEl.style.left).toBe('0px');
-    expect(c.inputEl.style.width).toBe('860px'); // as wide as the game pane
+    expect(c.inputEl.style.width).toBe('1200px'); // under the game pane and the right dock, to the edge (ADR 0101)
     expect(c.pane('character').el.style.left).toBe('870px');
     expect(c.pane('character').rows).toBe(9);
-    expect(c.pane('ui').rows).toBe(8); // the right column runs the full 50 rows
+    expect(c.pane('ui').rows).toBe(8); // the right column runs the 49 rows above the input row
+    const ui = c.pane('ui').el;
+    expect(parseFloat(ui.style.top) + parseFloat(ui.style.height)).toBe(980);
     expect(c.el.querySelectorAll('.wc-handle:not([data-border])')).toHaveLength(5); // dock gap + 4 boundaries
     // Each framed pane's border cell: 5 toward the game, 4 bottom borders above the next pane.
     expect(c.el.querySelectorAll('.wc-handle[data-border]')).toHaveLength(9);
@@ -439,7 +441,7 @@ describe('Cockpit', () => {
     expect(c.pane('ui').visible).toBe(false);
     expect(c.pane('group').visible).toBe(false);
     expect(c.pane('character').rows).toBe(9);
-    expect(c.pane('timers').rows + c.pane('comm').rows).toBe(44 - 9); // the rest shared without UI and Group
+    expect(c.pane('timers').rows + c.pane('comm').rows).toBe(43 - 9); // the rest of 49 rows shared without UI and Group
   });
 
   it('shows the too-small state and makes the view inert', () => {
@@ -466,6 +468,12 @@ describe('Cockpit', () => {
     expect(c.dropTarget(900, 970, 'character')).toMatchObject({ dock: 'right', index: 5 });
     expect(c.dropTarget(5, 400, 'comm')).toMatchObject({ dock: 'left', index: 0, open: true });
     expect(c.dropTarget(400, 970, 'comm')).toMatchObject({ dock: 'bottom', open: true });
+    // ADR 0101: the bottom zone runs along the whole bottom edge, its bar too; the right
+    // zone ends above the input row, the left one runs down to the bottom.
+    expect(c.dropTarget(1000, 990, 'comm')).toMatchObject({ dock: 'bottom', open: true, bar: { x: 0, w: 1200 } });
+    expect(c.dropTarget(1195, 990, 'comm')).toMatchObject({ dock: 'bottom', open: true });
+    expect(c.dropTarget(1195, 970, 'comm')).toMatchObject({ dock: 'right' });
+    expect(c.dropTarget(5, 990, 'comm')).toMatchObject({ dock: 'left', open: true, bar: { y: 0, h: 1000 } });
     expect(c.dropTarget(400, 5, 'comm')).toMatchObject({ kind: 'dock', dock: 'top', open: true });
     // The lower half of the top row floats at row 0 instead of docking.
     expect(c.dropTarget(400, 15, 'comm')).toEqual({ kind: 'float', rect: { x: 40, y: 0, w: 36, h: 14 } });
@@ -484,7 +492,7 @@ describe('Cockpit', () => {
     expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 1, size: 33 });
     expect(c.dropTarget(1195, 400, 'comm')).toMatchObject({ kind: 'lane', dock: 'right', at: 0, size: 33 });
     // The bar runs along the whole lane boundary.
-    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ bar: { y: 0, h: 1000 } });
+    expect(c.dropTarget(880, 400, 'comm')).toMatchObject({ bar: { y: 0, h: 980 } });
     // Just inside the band: into the lane as before.
     expect(c.dropTarget(900, 30, 'comm')).toMatchObject({ kind: 'dock', dock: 'right', lane: 0, index: 0 });
     settings.update((d) => {
@@ -519,7 +527,9 @@ describe('Cockpit', () => {
     expect(head).toMatchObject({ kind: 'span', dock: 'right', side: 'head', index: 0 });
     expect(head).toMatchObject({ bar: { x: 670, w: 530 }, ghost: { x: 67, y: 0, w: 53 } });
     // Its last row: first in the tail spans.
-    expect(c.dropTarget(760, 990, 'comm')).toMatchObject({ kind: 'span', side: 'tail', index: 0, ghost: { x: 67, w: 53 } });
+    expect(c.dropTarget(760, 970, 'comm')).toMatchObject({ kind: 'span', side: 'tail', index: 0, ghost: { x: 67, w: 53 } });
+    // The input row under it is not the dock's (ADR 0101): the bottom edge zone there.
+    expect(c.dropTarget(760, 990, 'comm')).toMatchObject({ kind: 'dock', dock: 'bottom', open: true });
     // The second row: the in-lane insert as before.
     expect(c.dropTarget(900, 30, 'comm')).toMatchObject({ kind: 'dock', lane: 0, index: 0 });
     // group is alone in lane 1: a span would fold the dock, so no span target.
@@ -550,12 +560,14 @@ describe('Cockpit', () => {
       m = moveToNewLane(m, 'ui', 'bottom', 1, 10);
       d.layout = m;
     });
-    flush(); // bottom dock x 0..85 (86 wide: strips 3 columns), rows 30..49
+    flush(); // bottom dock x 0..119 (the full width, ADR 0101: strips 3 columns), rows 30..49
     const b = c.layout!.docks.bottom!;
-    expect(b.rect).toMatchObject({ x: 0, w: 86, y: 30, h: 20 });
+    expect(b.rect).toMatchObject({ x: 0, w: 120, y: 30, h: 20 });
     expect(c.dropTarget(15, 900, 'group')).toMatchObject({ kind: 'span', dock: 'bottom', side: 'head', index: 0 });
     expect(c.dropTarget(15, 900, 'group')).toMatchObject({ ghost: { x: 0, y: 30, h: 20 } });
-    expect(c.dropTarget(835, 650, 'group')).toMatchObject({ kind: 'span', side: 'tail', index: 0 });
+    expect(c.dropTarget(1175, 650, 'group')).toMatchObject({ kind: 'span', side: 'tail', index: 0 });
+    // Under the right dock, short of the strip: the rows as before.
+    expect(c.dropTarget(1000, 650, 'group')).toMatchObject({ kind: 'dock', dock: 'bottom' });
     // Inside the strips: the rows as before.
     expect(c.dropTarget(400, 900, 'group')).toMatchObject({ kind: 'dock', dock: 'bottom' });
   });
