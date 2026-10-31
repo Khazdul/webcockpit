@@ -24,6 +24,7 @@ import { escHints } from '../chrome/kit/esc';
 import { device } from '../core/device';
 import { cellLen, centreLeft, scrollbar, truncate } from '../chrome/kit/nav';
 import { type Nav, useIsTop, useKeys, useNav, useUnsaved } from '../chrome/kit/stack';
+import { barPress } from '../chrome/kit/scroll';
 import { Button, indent } from '../chrome/kit/widgets';
 import type { ScriptInfo, ScriptLibrary } from '../scripts';
 import { type BufferStatus, type ScrollStatus, handleKey, onFirstLine, pageScroll } from './cm';
@@ -445,12 +446,10 @@ export function ScriptEditor({ host, flash: initialFlash }: { host: ScriptEditor
             bar.length && i < bar.length ? (
               <div
                 class={'wc-line ' + (bar[i] ? 'wc-scroll-thumb' : 'wc-scroll-track')}
-                onMouseDown={(e) => {
-                  e.preventDefault();
+                {...barPress(() => {
                   const v = viewRef.current;
-                  if (!v || bar[i]) return;
-                  pageScroll(v, i < bar.indexOf(true) ? -1 : 1);
-                }}
+                  return { el: v?.scrollDOM, bar, i, rowPx: cellHpx, page: (dir) => v && pageScroll(v, dir) };
+                })}
               >
                 {bar[i] ? '█' : '░'}
               </div>

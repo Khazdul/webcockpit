@@ -177,12 +177,19 @@
   overflow: hidden;
 }
 
-.wc-ped-bufbar {
+/* The buffer's and the body box's `░█` bars (ADR 0106): no panning or selection on them. */
+.wc-ped-bufbar,
+.wc-ped-vbar {
   flex: 0 0 auto;
   width: var(--cell-w);
+  touch-action: none;
+  user-select: none;
 }
 
-.wc-ped-bufbar .wc-scroll-track {
+.wc-ped-bufbar .wc-scroll-track,
+.wc-ped-bufbar .wc-scroll-thumb,
+.wc-ped-vbar .wc-scroll-track,
+.wc-ped-vbar .wc-scroll-thumb {
   cursor: pointer;
 }
 
