@@ -274,7 +274,7 @@ test('highlight picker: styles, text and background swatches', async ({ page }) 
   expect(await stored(page)).toBe('#highlight {bold one} {bold red}\n#highlight {^%1 enters} {reverse green}\n');
 });
 
-test('ESC menu → Profile while disconnected saves directly', async ({ page }) => {
+test('ESC menu → Profile (the window) while disconnected saves directly', async ({ page }) => {
   const errors = watchErrors(page);
   const mock = await mockMume(page);
   await page.goto('/');
@@ -297,12 +297,13 @@ test('ESC menu → Profile while disconnected saves directly', async ({ page }) 
   await page.keyboard.press('n');
   await page.keyboard.type('x');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  // Saved, and the Profile window (ADR 0103) closes with the editor.
+  await expect(page.locator('.wc-win[data-win="profile"]')).toHaveCount(0);
   expect(await stored(page)).toBe('#alias {a} {b}\n#alias {x} {}\n');
   expect(errors).toEqual([]);
 });
 
-test('ESC menu → Profile while connected: Keep editing, Discard, Apply', async ({ page }) => {
+test('ESC menu → Profile (the window) while connected: Keep editing, Discard, Apply', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -314,14 +315,23 @@ test('ESC menu → Profile while connected: Keep editing, Discard, Apply', async
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  await expect(page.locator('.wc-overlay')).toBeHidden();
   await expect(ped(page)).toBeVisible();
+  const win = page.locator('.wc-win[data-win="profile"]');
+  const field = page.locator('.wc-input-field');
 
-  // Clean: ESC pops silently.
+  // Clean: ESC leaves silently and the window closes.
   await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel')).toBeVisible();
+  await expect(win).toHaveCount(0);
+  await expect(field).toBeFocused();
 
   const modal = () => ped(page).locator('.wc-ped-overlay');
-  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  const reopen = async () => {
+    await field.fill('#profile');
+    await page.keyboard.press('Enter');
+    await expect(ped(page)).toBeVisible();
+  };
+  await reopen();
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('y');
@@ -332,18 +342,18 @@ test('ESC menu → Profile while connected: Keep editing, Discard, Apply', async
   await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('y');
   await page.keyboard.press('Escape');
   await page.keyboard.press('n'); // discard
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel')).toBeVisible();
+  await expect(win).toHaveCount(0);
   expect(await stored(page)).toBe('#alias {a} {b}\n');
 
-  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  await reopen();
   await kind(page, 'alias');
   await page.keyboard.press('n');
   await page.keyboard.type('z');
   await page.keyboard.press('Escape');
   await page.keyboard.press('y');
-  // Apply swaps the live rule set, then saves.
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-flash')).toHaveText('Profile updated.');
-  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
+  // Apply swaps the live rule set, then saves; the window closes.
+  await expect(win).toHaveCount(0);
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
   expect(await page.evaluate(() => window.__wc!.app.script.user.plainAlias('z') !== undefined)).toBe(true);
 });
 
@@ -545,7 +555,7 @@ test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ pag
   expect(await stored(page)).toBe('one\ntwo\nthree\n');
 });
 
-test('ESC menu → Profile → HELP while connected: ESC asks to apply', async ({ page }) => {
+test('ESC menu → Profile (the window) → HELP while connected: ESC asks to apply', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -564,8 +574,8 @@ test('ESC menu → Profile → HELP while connected: ESC asks to apply', async (
   await toHelp(page);
   await page.keyboard.press('Tab');
   await jumpToHeading(page, '#action');
-  // The menu and the manual fit the 80 % box: the menu starts inside it, the scrollbar ends inside it.
-  const box = (await page.locator('.wc-overlay .wc-overlay-inner').boundingBox())!;
+  // The menu and the manual fit the window: the menu starts inside it, the scrollbar ends inside it.
+  const box = (await page.locator('.wc-win[data-win="profile"] .wc-win-body').boundingBox())!;
   const bar = (await ped(page).locator('.wc-ped-manual .wc-scroll-track').first().boundingBox())!;
   expect(bar.x + bar.width).toBeLessThanOrEqual(box.x + box.width);
   const menu = (await helpMenu(page).boundingBox())!;
@@ -582,8 +592,8 @@ test('ESC menu → Profile → HELP while connected: ESC asks to apply', async (
   await expectTop(page, '#action');
   await page.keyboard.press('Escape');
   await page.keyboard.press('y');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-flash')).toHaveText('Profile updated.');
-  expect(await stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
+  await expect(page.locator('.wc-win[data-win="profile"]')).toHaveCount(0);
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
 });
 
 test('HELP menu: click and keys jump to a section, the mark follows the manual', async ({ page }) => {
@@ -759,7 +769,7 @@ test('EDITOR and HELP fill the frame to its last cell from the start page; LITE 
   expect(errors).toEqual([]);
 });
 
-test('EDITOR and HELP fill the in-game box to its last cell', async ({ page }) => {
+test('EDITOR and HELP fill the Profile window to its last cell', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1600, height: 800 });
   await mockMume(page);
@@ -774,7 +784,7 @@ test('EDITOR and HELP fill the in-game box to its last cell', async ({ page }) =
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
   await expectFullWidth(page);
-  const box = (await page.locator('.wc-overlay .wc-overlay-inner').boundingBox())!;
+  const box = (await page.locator('.wc-win[data-win="profile"] .wc-win-body').boundingBox())!;
   const track = await edges(ped(page).locator('.wc-ped-manual .wc-scroll-track').last());
   expect(track.right).toBeLessThanOrEqual(box.x + box.width);
   expect(errors).toEqual([]);

@@ -1,6 +1,7 @@
 // Stage 30a (ADR 0099, ADR 0100): the menu bar at the right end of the
 // input row on desktop: clock, icons, tooltips, the Panes and Exit popups,
-// the ESC menu at a frame, and `#panes`.
+// the ESC menu at a frame, and `#panes`. Profile and Scripts open windows
+// since 30b (ADR 0103; tests/e2e/windows.spec.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -145,7 +146,7 @@ test('#panes opens and closes the popup; the icon toggles it; Reset layout asks 
   await expect(popup(page)).toHaveCount(0);
 });
 
-test('Settings, Scripts and Profile open the menu at their frame; leaving it returns to the game', async ({ page }) => {
+test('Settings opens the menu at Options; Scripts and Profile open their windows (ADR 0103)', async ({ page }) => {
   await offline(page);
   await icon(page, 'settings').click();
   await expect(menuTitle(page)).toHaveText('─── Options ───');
@@ -153,14 +154,18 @@ test('Settings, Scripts and Profile open the menu at their frame; leaving it ret
   await expect(overlay(page)).toBeHidden();
   await expect(field(page)).toBeFocused();
   await icon(page, 'scripts').click();
-  await expect(menuTitle(page)).toHaveText('─── Scripts ───');
-  await page.keyboard.press('Escape');
   await expect(overlay(page)).toBeHidden();
+  const scripts = page.locator('.wc-win[data-win="scripts"]');
+  await expect(scripts.locator('.wc-frame:not([hidden]) .wc-title-row .wc-c-section')).toHaveText('─── Scripts ───');
+  await page.keyboard.press('Escape');
+  await expect(scripts).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
   await field(page).fill('#profile');
   await page.keyboard.press('Enter');
-  const ped = page.locator('.wc-overlay .wc-frame:not([hidden]) > .wc-ped');
+  const ped = page.locator('.wc-win[data-win="profile"] .wc-frame:not([hidden]) > .wc-ped');
   await expect(ped.locator('.wc-ped-title .wc-c-section')).toHaveText('─── Profile Editor: default ───');
   await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(overlay(page)).toBeHidden();
   await expect(field(page)).toBeFocused();
 });

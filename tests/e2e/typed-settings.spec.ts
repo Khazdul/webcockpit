@@ -13,7 +13,6 @@ const content = (page: Page) => ped(page).locator('.cm-content');
 const bufferText = (page: Page) =>
   content(page).evaluate((el) => [...el.querySelectorAll('.cm-line')].map((l) => l.textContent).join('\n'));
 const stored = (page: Page) => page.evaluate(() => window.__wc!.shell.profiles.get('default').then((r) => r?.text ?? null));
-const menuSel = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
 
 async function enterMume(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -29,7 +28,7 @@ async function type(page: Page, line: string): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-/** ESC → Profile; returns once the editor shows the alias list. */
+/** ESC → Profile (the Profile window, ADR 0103); returns once the editor shows the alias list. */
 async function openProfile(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
   await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
@@ -37,12 +36,11 @@ async function openProfile(page: Page): Promise<void> {
   await ped(page).locator('[data-kind="alias"]').first().click();
 }
 
-/** Editor → menu → game. */
+/** Editor → game: the window closes with the editor. */
 async function backToGame(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden])')).toHaveCount(0);
+  await expect(page.locator('.wc-win')).toHaveCount(0);
+  await expect(page.locator('.wc-overlay')).toBeHidden();
 }
 
 test('a typed alias is in ESC → Profile at once, #unalias removes it, and it survives a reload', async ({ page }) => {

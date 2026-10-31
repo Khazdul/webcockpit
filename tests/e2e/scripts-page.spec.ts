@@ -37,6 +37,8 @@ end)
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const menuFrame = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden])');
+/** The Scripts window's visible frame (ADR 0103: the ESC menu's Options → Scripts opens it). */
+const scriptsWin = (page: Page) => page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
 const lib = <T,>(page: Page, fn: string, ...args: unknown[]) =>
@@ -144,7 +146,7 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   expect(errors).toEqual([]);
 });
 
-test('ESC menu → Scripts: new script, edit, save, enable; its trigger works and a save reloads it', async ({ page }) => {
+test('ESC menu → Scripts (the window): new script, edit, save, enable; its trigger works and a save reloads it', async ({ page }) => {
   const errors = watchErrors(page);
   await openStart(page);
   await page.keyboard.press('Enter');
@@ -154,7 +156,8 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await expect(page.locator('.wc-overlay .wc-mrow[data-key="options"]')).toBeVisible();
   await expect(menuFrame(page).locator('.wc-mrow[data-key="scripts"]')).toHaveCount(0);
   await openScriptsFromEsc(page);
-  const f = menuFrame(page);
+  await expect(page.locator('.wc-overlay')).toBeHidden();
+  const f = scriptsWin(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
 
   // NEW: name prompt, then the editor on the template.
@@ -198,8 +201,9 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await expect(row(f, 'pagetest').locator('.wc-scr-mark')).toHaveText('●', { timeout: 10_000 });
   await expect(f.locator('.wc-scr-help')).toContainText('● on · running');
 
-  // Back to the game: the trigger fires.
-  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
+  // Esc on the list closes the window; back in the game the trigger fires.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
   const rows = page.locator('.wc-rows .wc-row');
   await page.keyboard.type('look');
@@ -216,7 +220,8 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await setBuffer(page, SOURCE('again'));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
   await page.keyboard.type('look');
@@ -232,7 +237,8 @@ test('ESC menu → Scripts: new script, edit, save, enable; its trigger works an
   await setBuffer(page, SOURCE('again').replace('echo(', 'ecko('));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
   await page.keyboard.type('look');
