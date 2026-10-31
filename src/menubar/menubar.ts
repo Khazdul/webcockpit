@@ -12,7 +12,8 @@
 //   2-cell sun/moon), the link dot and each separator one cell, each icon
 //   2.5 cells; the bar's width is rounded up to whole cells, so the input
 //   field keeps the cell grid. Buttons never take the input's focus on a
-//   mouse down.
+//   mouse down, and are not in the Tab order (ADR 0108): Tab in the game
+//   never reaches them; they are still clicked and announced.
 // - Tooltips (src/menubar/tooltip.ts), live: the clock's countdown, the
 //   link (`Link: 1.8s · lagging`), `Profile: <name>`, and the rest by name.
 // - Link dot (src/menubar/status-text.ts): hidden while the link is fine;
@@ -21,8 +22,10 @@
 // - Popups (src/menubar/popup.ts): Panes and Exit, one at a time, above
 //   the bar and above floating panes. A click on the icon toggles; Esc
 //   closes (in the popup, or in the input once the output is at the
-//   bottom); the Panes X closes. The Exit popup takes the keys when it
-//   opens; the Panes popup only after a click in it.
+//   bottom); the Panes X closes. Every popup takes the focus when it opens
+//   (ADR 0108), by a click, a `#` command or a macro: Panes on its first
+//   row, Exit on its panel (Y, Esc, 0–5). Closing it with the focus in it
+//   gives the keys to the game input.
 // - Adopted popups (ADR 0107): the chrome chunk draws the Settings popup
 //   (and the pane gear popups) and hands each one to the bar when it opens
 //   (`adopt`), so the one-popup rule, Esc in the input, the ESC menu and
@@ -63,7 +66,7 @@ import { ClockStrip } from '../ui/clock-strip';
 import { ExitPopup } from './exit-popup';
 import { ICON, strokeIcon } from './icons';
 import { PanesPopup, type ScriptPaneSource } from './panes-popup';
-import { placePopup } from './popup';
+import { focusPopup, placePopup, watchInput } from './popup';
 import { type LinkInput, NO_RTT_MS, captureNote, clockTip, linkDot, linkTip, showDisconnected } from './status-text';
 import { Tooltip } from './tooltip';
 
@@ -185,6 +188,8 @@ export class MenuBar {
     this.bar.setAttribute('role', 'toolbar');
     this.bar.setAttribute('aria-label', 'Menu bar');
     this.tooltip = new Tooltip(o.layer);
+    // A popup opened by a click hides its focus ring (ADR 0108).
+    watchInput(doc);
 
     // Disconnected notice (ADR 0100).
     this.notice = doc.createElement('span');
@@ -201,6 +206,7 @@ export class MenuBar {
     k.className = 'wc-mb-k';
     k.textContent = 'Enter';
     rc.append(k);
+    rc.tabIndex = -1;
     rc.addEventListener('mousedown', (e) => e.preventDefault());
     rc.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -320,8 +326,9 @@ export class MenuBar {
     o.layer.append(p.el);
     this.buttons.get(id)?.classList.add('is-open');
     this.place();
-    // A confirmation takes the keys at once; the Panes popup after a click in it.
-    if (id === 'exit') p.el.focus({ preventScroll: true });
+    // Every popup takes the keys when it opens (ADR 0108): Panes on its
+    // first row, Exit on its panel (its keys answer it).
+    focusPopup(p.el, id === 'exit' ? p.el : null);
   }
 
   /**
@@ -419,6 +426,8 @@ export class MenuBar {
     b.className = `wc-mb wc-mb-${s.id}`;
     b.dataset.mb = s.id;
     b.setAttribute('aria-label', s.label);
+    // Out of the Tab order (ADR 0108); still clicked and announced.
+    b.tabIndex = -1;
     b.append(strokeIcon(this.doc, s.icon, 'wc-mb-ic').svg);
     // Keep the input's focus (and its keys) where it is.
     b.addEventListener('mousedown', (e) => e.preventDefault());

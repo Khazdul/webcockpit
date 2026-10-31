@@ -300,13 +300,40 @@ describe('settings popups surface', () => {
     expect(t.onOpen.mock.calls[0]![1]).toBe(el);
     expect(t.pops.openKey).toBe('settings');
     expect(t.pops.el).toBe(el);
-    // It does not take the focus when it opens.
-    expect(el.contains(document.activeElement)).toBe(false);
+    // It takes the focus when it opens, on its selected tab (ADR 0108).
+    expect(document.activeElement).toBe(el.querySelector('.wc-ck-tab.is-sel'));
+    // Its toggle (the icon) closes it and, the focus being in it, gives the input the keys.
     act(() => t.pops.toggle('settings', t.place));
     expect(t.panel()).toBeNull();
     expect(t.onClose).toHaveBeenCalledWith('settings');
-    expect(t.focusInput).not.toHaveBeenCalled();
+    expect(t.focusInput).toHaveBeenCalledOnce();
     expect(t.pops.isOpen).toBe(false);
+  });
+
+  it('a gear popup takes the focus on its first control; the focus left elsewhere is not taken back on close', () => {
+    const t = surface();
+    act(() => t.pops.open({ pane: 'map' }, t.place));
+    const el = t.panel()!;
+    const first = tabbables(el).find((i) => !i.classList.contains('wc-pop-x'))!;
+    expect(document.activeElement).toBe(first);
+    expect(first.closest('.wc-sp-body')).not.toBeNull();
+    // A click in the game moved the keys: closing does not take them.
+    first.blur();
+    act(() => void t.pops.close());
+    expect(t.focusInput).not.toHaveBeenCalled();
+  });
+
+  it('Page Up/Down never leave the popup; a popup opened by a key shows its ring', () => {
+    const t = surface();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    act(() => t.pops.open('settings', t.place));
+    const el = t.panel()!;
+    expect(el.hasAttribute('data-pointer')).toBe(false);
+    const tab = document.activeElement as HTMLElement;
+    const e = new KeyboardEvent('keydown', { key: 'PageDown', bubbles: true, cancelable: true });
+    tab.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(tab);
   });
 
   it('the bar’s close does not report back; X and Esc in it close it and give the input its focus', () => {

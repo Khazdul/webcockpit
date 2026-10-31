@@ -17,9 +17,12 @@
 //   cockpit hidden) by calling `close`; that close does not report back.
 //   When the popup closes itself (its X, Esc in it, its toggle, `close()`)
 //   it reports `onClose(key)` (`MenuBar.release`).
-// - Focus: it never takes the keys when it opens; after a click in it, it
-//   has them (popups/panel.tsx). Closing from inside it, or while the focus
-//   was in it, gives the game input its focus back.
+// - Focus (ADR 0108): it takes the focus when it opens, by a click, a `#`
+//   command or a macro: the Settings popup on its selected tab, a gear
+//   popup on its first control (`focusPopup`, src/menubar/popup.ts). A
+//   click in the game gives the keys back and leaves it open; a click in it
+//   takes them again (popups/panel.tsx). Closing from inside it, or while
+//   the focus was in it, gives the game input its focus back.
 // - `onChange(key)` follows what is open, whoever closed it (the shell marks
 //   the pane's Gear with it).
 // - The content per target: `settings` → SettingsPopup; `{ pane }` → the
@@ -33,6 +36,7 @@ import './popups.css';
 import type { VNode } from 'preact';
 import { render } from 'preact';
 import type { PaneId } from '../../layout/types';
+import { focusPopup, watchInput } from '../../menubar/popup';
 import { type ChromeServices, ServicesCtx } from '../kit/hooks';
 import { MapperSettings } from './mapper-settings';
 import { type PopupPlace, PopupPanel } from './panel';
@@ -160,8 +164,11 @@ export function mountSettingsPopups(host: HTMLElement, services: ChromeServices,
     opts.onChange?.(key);
     // The bar holds it from now on; its close does not report back.
     opts.onOpen?.(key, el, () => void shut(false, false));
+    // It takes the keys (ADR 0108): the first control (Settings: its selected tab).
+    if (open?.key === key) focusPopup(el);
   };
 
+  watchInput(doc);
   draw();
   return {
     toggle(target, place) {

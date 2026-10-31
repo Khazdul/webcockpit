@@ -6,9 +6,15 @@
 // - The panel carries `data-wc-own-keys`, so the input pane's document
 //   key and click routing leaves what happens inside it alone
 //   (src/ui/input-pane.ts).
-// - A mouse down anywhere in it gives it the keys (the panel itself takes
-//   the focus; a button inside still gets its click), and never starts a
-//   text selection.
+// - Focus and keys (ADR 0108): a popup takes the focus when it opens
+//   (`focusPopup`: its first control, or a given one), by a click, a `#`
+//   command or a macro. Tab and Shift+Tab wrap inside it; Page Up/Down
+//   scroll it when it scrolls and are swallowed otherwise (`popupKey`). A
+//   mouse down in it never starts a text selection and gives the focus to
+//   the control pressed (or the panel); a text field takes it itself
+//   (`pressPopup`). Opened or pressed by the mouse, it hides its focus
+//   rings until a key is used (`data-pointer`; `watchInput` tells a press
+//   from a key).
 // - Placement: its right edge on the bar's right end (the mockups), moved
 //   left far enough to cover its icon, kept inside the viewport; above the
 //   bar, or squeezed with a scroll when the space above is short. A pane's
@@ -21,7 +27,7 @@ import { CLOSE_X, strokeIcon } from './icons';
 const GAP = 6;
 const MARGIN = 4;
 
-/** A bar popup's panel: `div.wc-pop.<cls>`, a focusable dialog. */
+/** A bar popup's panel: `div.wc-pop.<cls>`, a focusable dialog with the popup key rules. */
 export function popupPanel(doc: Document, cls: string, label: string): HTMLDivElement {
   const el = doc.createElement('div');
   el.className = `wc-pop ${cls}`;
@@ -29,11 +35,113 @@ export function popupPanel(doc: Document, cls: string, label: string): HTMLDivEl
   el.setAttribute('aria-label', label);
   el.setAttribute(OWN_KEYS_ATTR, '');
   el.tabIndex = -1;
-  el.addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    if (doc.activeElement !== el) el.focus({ preventScroll: true });
+  el.addEventListener('mousedown', (e) => pressPopup(e, el));
+  el.addEventListener('keydown', (e) => {
+    if (popupKey(e, el)) e.preventDefault();
   });
   return el;
+}
+
+// ------------------------------------------------------- focus (ADR 0108)
+
+const FOCUSABLE = 'button, input, select, textarea, [tabindex]';
+
+/** A popup's tabbable controls, in document order (visible ones only). */
+export function popupTabbables(panel: HTMLElement): HTMLElement[] {
+  return [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => {
+    if (el.tabIndex < 0 || (el as HTMLButtonElement).disabled) return false;
+    if (el.closest('[aria-hidden="true"], [hidden]')) return false;
+    return (el as HTMLInputElement).type !== 'hidden' && (el as HTMLInputElement).type !== 'file';
+  });
+}
+
+/** Per document: the last input was a press (true) or a key (false). */
+const lastPress = new WeakMap<Document, { pointer: boolean }>();
+
+/**
+ * Follows whether the last input in `doc` was a press or a key (window
+ * listeners in the capture phase, ahead of everything that stops a key),
+ * so a popup opened by a click hides its focus ring. Once per document.
+ */
+export function watchInput(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win || lastPress.has(doc)) return;
+  const st = { pointer: false };
+  lastPress.set(doc, st);
+  const press = (): void => void (st.pointer = true);
+  win.addEventListener('pointerdown', press, true);
+  win.addEventListener('mousedown', press, true);
+  win.addEventListener('keydown', () => void (st.pointer = false), true);
+}
+
+/** True when the last input in `doc` was a press (see `watchInput`). */
+export const pressedLast = (doc: Document): boolean => lastPress.get(doc)?.pointer ?? false;
+
+/**
+ * Gives an opening popup the focus: `first` when given, else its first
+ * tabbable control that is not the close cross, else the panel. Opened by
+ * a press, its focus rings stay hidden until a key is used.
+ */
+export function focusPopup(panel: HTMLElement, first?: HTMLElement | null): void {
+  const doc = panel.ownerDocument;
+  panel.toggleAttribute('data-pointer', pressedLast(doc));
+  const to = first ?? popupTabbables(panel).find((el) => !el.classList.contains('wc-pop-x')) ?? panel;
+  to.focus({ preventScroll: true });
+  if (!panel.contains(doc.activeElement)) panel.focus({ preventScroll: true });
+}
+
+/**
+ * A mouse down in a popup: no text selection and no native focus move;
+ * the control pressed (or the panel) takes the focus, so the keyboard
+ * goes on from there. A text field takes the focus (and its caret) itself.
+ * Focus rings hide until a key is used.
+ */
+export function pressPopup(e: MouseEvent, panel: HTMLElement): void {
+  const t = e.target as Element | null;
+  if (t?.closest?.('input, textarea, select')) return;
+  e.preventDefault();
+  panel.setAttribute('data-pointer', '');
+  const doc = panel.ownerDocument;
+  const f = t?.closest?.<HTMLElement>(FOCUSABLE);
+  const to = f && panel.contains(f) ? f : panel;
+  if (doc.activeElement !== to) to.focus({ preventScroll: true });
+  if (!panel.contains(doc.activeElement)) panel.focus({ preventScroll: true });
+}
+
+/** The element that scrolls a popup's content (its body, or the panel), or null when nothing scrolls. */
+function scroller(panel: HTMLElement): HTMLElement | null {
+  const body = panel.querySelector<HTMLElement>('.wc-sp-body');
+  for (const el of [body, panel]) if (el && el.scrollHeight > el.clientHeight + 1) return el;
+  return null;
+}
+
+/**
+ * The key rules every popup shares (ADR 0108), for a keydown in `panel`;
+ * true when it took the key (the caller prevents its default). A key shows
+ * the focus rings again. Tab and Shift+Tab wrap inside the popup and
+ * never leave it; Page Up and Page Down scroll it when it scrolls and are
+ * swallowed otherwise (never the game behind); Space on the panel itself
+ * does nothing. A key a control already took is left alone.
+ */
+export function popupKey(e: KeyboardEvent, panel: HTMLElement): boolean {
+  panel.removeAttribute('data-pointer');
+  if (e.defaultPrevented || e.ctrlKey || e.altKey || e.metaKey) return false;
+  const doc = panel.ownerDocument;
+  if (e.key === 'Tab') {
+    const items = popupTabbables(panel);
+    if (items.length === 0) return true;
+    const at = items.indexOf(doc.activeElement as HTMLElement);
+    const n = items.length;
+    const next = at < 0 ? (e.shiftKey ? n - 1 : 0) : (at + (e.shiftKey ? n - 1 : 1)) % n;
+    items[next]!.focus({ preventScroll: true });
+    return true;
+  }
+  if (e.key === 'PageUp' || e.key === 'PageDown') {
+    const sc = scroller(panel);
+    if (sc) sc.scrollTop += (e.key === 'PageDown' ? 1 : -1) * Math.max(1, Math.round(sc.clientHeight * 0.9));
+    return true;
+  }
+  return e.key === ' ' && e.target === panel;
 }
 
 /** A ghost button: `<button class=cls>` with `text`, clicked with `fn`. */

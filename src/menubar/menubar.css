@@ -281,6 +281,11 @@
   outline: 1px solid #6a6a6a;
 }
 
+/* Opened or pressed by the mouse: no focus ring until a key is used (ADR 0108). */
+.wc-pop[data-pointer] :focus-visible {
+  outline: none;
+}
+
 .wc-pop-head {
   display: flex;
   align-items: center;
@@ -352,6 +357,10 @@
 .wc-pop .wc-pop-row:focus-visible {
   outline: none;
   background: rgba(255, 255, 255, 0.045);
+}
+
+.wc-pop[data-pointer] .wc-pop-row:focus-visible:not(:hover) {
+  background: none;
 }
 
 .wc-pop-lb {

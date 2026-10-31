@@ -6,9 +6,10 @@
 // follow the store and the script panes while open. The Statistics row
 // comes with its pane (30d).
 //
-// Keys only after a click in it (the bar's popup rules): Esc closes and
-// gives the game its keys back; ↑↓ move between the rows and buttons;
-// Enter or Space press the focused one.
+// It takes the focus when it opens, on its first row (ADR 0108): Esc
+// closes and gives the game its keys back; ↑↓ move between the rows and
+// buttons; Enter or Space press the focused one; Tab and Shift+Tab wrap
+// inside it (popup.ts). A click on a row keeps the focus on that row.
 
 import { forgetTempPlaces } from '../layout/temp-places';
 import { PANE_IDS, PANE_LABELS, type PaneId, defaultLayout } from '../layout/types';

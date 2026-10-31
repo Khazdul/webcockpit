@@ -7,12 +7,9 @@
 
 /* ------------------------------------------------------------- panel */
 
-/* A press moved the focus: no focus ring until a key is used (panel.tsx). */
-.wc-sp[data-pointer] :focus-visible {
-  outline: none;
-}
-
-.wc-sp[data-pointer] .wc-ck-rng:focus-visible .wc-ck-rng-thumb {
+/* A press moved the focus: no focus ring until a key is used (ADR 0108;
+ * the outline rule is in menubar.css for every popup). */
+.wc-pop[data-pointer] .wc-ck-rng:focus-visible .wc-ck-rng-thumb {
   box-shadow: none;
 }
 

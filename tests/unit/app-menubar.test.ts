@@ -73,6 +73,37 @@ describe('App with the menu bar', () => {
     expect(t.onEscape).toHaveBeenCalledOnce();
   });
 
+  it('popups take the focus when they open (ADR 0108): #panes, a Tab macro; Esc gives it back', () => {
+    const t = setup();
+    t.app.input.focus();
+    t.enter('#panes');
+    const pop = t.app.menuBar!.popupEl!;
+    expect(pop.contains(document.activeElement)).toBe(true);
+    expect((document.activeElement as HTMLElement).dataset.pane).toBeDefined();
+    pop.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(t.app.menuBar!.openPopup).toBeNull();
+    expect(document.activeElement).toBe(t.app.input.input);
+    // A macro bound to Tab runs (and its popup takes the focus).
+    t.enter('#macro {Tab} {#exit}');
+    const e = new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true });
+    t.app.input.input.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(t.app.menuBar!.openPopup).toBe('exit');
+    expect(document.activeElement).toBe(t.app.menuBar!.popupEl);
+  });
+
+  it('Tab on a stray focus in the cockpit gives the keys back to the input (ADR 0108)', () => {
+    const t = setup();
+    const icon = t.app.menuBar!.bar.querySelector<HTMLButtonElement>('[data-mb="panes"]')!;
+    expect(icon.tabIndex).toBe(-1);
+    icon.focus();
+    const e = new KeyboardEvent('keydown', { key: 'Tab', code: 'Tab', bubbles: true, cancelable: true });
+    icon.dispatchEvent(e);
+    expect(e.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(t.app.input.input);
+    expect(t.app.menuBar!.openPopup).toBeNull();
+  });
+
   it('#panes and #exit toggle the popups; #profile, #scripts, #settings open the menu at a frame', () => {
     const t = setup();
     t.enter('#panes');

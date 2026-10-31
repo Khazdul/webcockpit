@@ -11,8 +11,9 @@
 // A window with unsaved changes (ADR 0103) adds a warning line under the
 // question; Exit discards those changes.
 //
-// It takes the keys when it opens (a confirmation that `#exit` from a
-// macro must be able to answer without the mouse): Y exits, Esc cancels.
+// It takes the keys when it opens, on its panel (ADR 0108; a confirmation
+// that `#exit` from a macro must be able to answer without the mouse): Y
+// exits, Esc cancels; Tab and Shift+Tab wrap inside it (popup.ts).
 
 import type { LiveRuns } from '../runs/live';
 import { ghostButton, plainKey, popupPanel } from './popup';

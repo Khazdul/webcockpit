@@ -16,7 +16,9 @@
 //   away, and the keys go to the game input again. A press on a bar
 //   button marked `data-wc-window-btn` keeps the focus, so its toggle sees
 //   it. A window without focus never takes the DOM focus (a frame that
-//   focuses itself on a re-render is sent back).
+//   focuses itself on a re-render is sent back). A popup that takes the
+//   focus (it opens, ADR 0108) takes it from the windows too: the focused
+//   window dims and its stack lets the keys go.
 // - The close request (`requestClose`, the X, Esc on the root frame, the
 //   toggle) leaves the stack as Esc would, through the frames' own Esc
 //   layers and unsaved-changes prompts (kit/stack.tsx `StackControl`), and
@@ -30,7 +32,7 @@ import { Component, type VNode, render } from 'preact';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 import type { WindowId, WindowRect } from '../settings';
 import { isLight } from '../theme/color';
-import { WINDOW_BTN_ATTR } from '../ui/input-pane';
+import { OWN_KEYS_ATTR, WINDOW_BTN_ATTR } from '../ui/input-pane';
 import { type EscActions, profileEditOptions } from './frames/esc-main';
 import { editProfile } from './frames/profile-edit';
 import { ScriptsFrame } from './frames/scripts';
@@ -341,6 +343,17 @@ export function mountWindows(host: HTMLElement, services: ChromeServices, opts: 
   };
   host.addEventListener('focusin', onFocusIn);
 
+  // A popup taking the focus (ADR 0108) takes it from the windows; the
+  // DOM focus stays in the popup.
+  const onDocFocusIn = (e: FocusEvent): void => {
+    if (focused === null) return;
+    const t = e.target as Element | null;
+    if (!t || inWindows(t) || !t.closest?.(`[${OWN_KEYS_ATTR}]`)) return;
+    focused = null;
+    draw();
+  };
+  doc.addEventListener('focusin', onDocFocusIn);
+
   draw();
   return {
     toggle(id) {
@@ -379,6 +392,7 @@ export function mountWindows(host: HTMLElement, services: ChromeServices, opts: 
     dispose() {
       doc.removeEventListener('pointerdown', onPointerDown, true);
       host.removeEventListener('focusin', onFocusIn);
+      doc.removeEventListener('focusin', onDocFocusIn);
       render(null, host);
     },
   };

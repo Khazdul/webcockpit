@@ -2,15 +2,18 @@
 // title, a close cross and its content, shared by the Settings popup and
 // the pane gear popups. The surface (surface.tsx) mounts one at a time.
 //
-// - Keys only after a click in it (ADR 0099): it carries
-//   `data-wc-own-keys`, so the input pane's key and click routing leaves
-//   it alone. A mouse down in it never starts a text selection and gives
-//   the focus to the control pressed (or the panel), so the keyboard goes
-//   on from there; a text field takes its focus itself. A click in the game
-//   text or the input gives the keys back without closing it. A press
-//   hides the focus ring until a key is used (`data-pointer`).
+// - Keys (ADR 0108): it carries `data-wc-own-keys`, so the input pane's
+//   key and click routing leaves it alone, and the surface gives it the
+//   focus when it opens. A mouse down in it never starts a text selection
+//   and gives the focus to the control pressed (or the panel), so the
+//   keyboard goes on from there; a text field takes its focus itself. A
+//   click in the game text or the input gives the keys back without
+//   closing it. A press hides the focus ring until a key is used
+//   (`data-pointer`).
 // - Esc in it closes it (a control's own Esc, such as an open dropdown
-//   list, comes first); Tab and Shift+Tab wrap inside it.
+//   list, comes first); Tab and Shift+Tab wrap inside it; Page Up/Down
+//   scroll its body when it scrolls and are swallowed otherwise (the bar's
+//   `popupKey`, src/menubar/popup.ts).
 // - Placed by the caller's `place` (above the Settings icon, beside a pane)
 //   when it opens, on a resize of the window or of itself, and on every
 //   settings or cell change (the font moves the bar). While a slider is
@@ -21,6 +24,7 @@
 import { type ComponentChildren, type VNode, createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { CLOSE_X } from '../../menubar/icons';
+import { popupKey, popupTabbables, pressPopup } from '../../menubar/popup';
 import { OWN_KEYS_ATTR } from '../../ui/input-pane';
 import { useServices } from '../kit/hooks';
 
@@ -35,16 +39,8 @@ export function useHold(): (held: boolean) => void {
   return useContext(HoldCtx);
 }
 
-const FOCUSABLE = 'button, input, select, textarea, [tabindex]';
-
 /** The panel's tabbable controls, in document order (visible ones only). */
-export function tabbables(panel: HTMLElement): HTMLElement[] {
-  return [...panel.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => {
-    if (el.tabIndex < 0 || (el as HTMLButtonElement).disabled) return false;
-    if (el.closest('[aria-hidden="true"], [hidden]')) return false;
-    return (el as HTMLInputElement).type !== 'hidden' && (el as HTMLInputElement).type !== 'file';
-  });
-}
+export const tabbables = popupTabbables;
 
 export interface PopupPanelProps {
   /** Extra class on `.wc-pop` (`wc-sp-settings` …). */
@@ -108,40 +104,18 @@ export function PopupPanel(p: PopupPanelProps): VNode {
     }
   };
 
-  const onMouseDown = (e: MouseEvent): void => {
-    const el = ref.current!;
-    const t = e.target as Element;
-    // A text field takes the focus (and its caret) itself.
-    if (t.closest?.('input, textarea, select')) return;
-    e.preventDefault();
-    el.setAttribute('data-pointer', '');
-    const doc = el.ownerDocument;
-    const f = t.closest?.<HTMLElement>(FOCUSABLE);
-    const to = f && el.contains(f) ? f : el;
-    if (doc.activeElement !== to) to.focus({ preventScroll: true });
-    if (!el.contains(doc.activeElement)) el.focus({ preventScroll: true });
-  };
+  const onMouseDown = (e: MouseEvent): void => pressPopup(e, ref.current!);
 
   const onKeyDown = (e: KeyboardEvent): void => {
-    ref.current?.removeAttribute('data-pointer');
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.key === 'Escape') {
+    const el = ref.current!;
+    if (e.key === 'Escape' && !e.defaultPrevented && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      el.removeAttribute('data-pointer');
       e.preventDefault();
       e.stopPropagation();
       p.onClose();
       return;
     }
-    if (e.key !== 'Tab') return;
-    const el = ref.current!;
-    const items = tabbables(el);
-    if (items.length === 0) return;
-    const at = items.indexOf(el.ownerDocument.activeElement as HTMLElement);
-    const first = items[0]!;
-    const last = items[items.length - 1]!;
-    const next = e.shiftKey ? (at <= 0 ? last : null) : at < 0 || at === items.length - 1 ? first : null;
-    if (!next) return;
-    e.preventDefault();
-    next.focus({ preventScroll: true });
+    if (popupKey(e, el)) e.preventDefault();
   };
 
   return (

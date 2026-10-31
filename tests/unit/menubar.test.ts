@@ -107,8 +107,11 @@ function setup(opts: { runs?: LiveRuns; fullscreen?: boolean } = {}) {
     bar.tooltip.show(el);
     return bar.tooltip.el.hidden ? null : bar.tooltip.el.textContent;
   };
-  const key = (target: HTMLElement, k: string) =>
-    target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
+  const key = (target: HTMLElement, k: string, init: KeyboardEventInit = {}) => {
+    const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init });
+    target.dispatchEvent(e);
+    return e;
+  };
   return { bar, row, input, clockEl, layer, game, settings, status, setPanes, actions, focusInput, btn, tip, key, cells, setNow: (n: number) => (now = n) };
 }
 
@@ -382,6 +385,7 @@ describe('bar popups', () => {
     // closePopup (Esc in the input) closes it; focus in it goes back to the input.
     t.bar.adopt({ key: 'settings', el, close });
     el.focus();
+    t.focusInput.mockClear();
     expect(t.bar.closePopup()).toBe(true);
     expect(close).toHaveBeenCalledOnce();
     expect(t.focusInput).toHaveBeenCalledOnce();
@@ -416,23 +420,85 @@ describe('bar popups', () => {
     expect(t.bar.openPopup).toBeNull();
   });
 
-  it('marks the popup as owning its keys; the Exit popup takes the focus, Panes does not', () => {
+  it('marks the popup as owning its keys; every popup takes the focus when it opens (ADR 0108)', () => {
     const t = setup();
     t.input.focus();
     t.bar.open('panes');
     expect(t.bar.popupEl!.hasAttribute('data-wc-own-keys')).toBe(true);
-    expect(document.activeElement).toBe(t.input);
-    // A click in it gives it the keys.
+    // Panes: on its first row.
+    expect((document.activeElement as HTMLElement).dataset.pane).toBe('character');
+    // A click in the game gives the keys back and leaves it open; a press in it takes them again.
+    t.input.focus();
+    expect(t.bar.openPopup).toBe('panes');
     t.bar.popupEl!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
     expect(document.activeElement).toBe(t.bar.popupEl);
     t.key(t.bar.popupEl!, 'Escape');
     expect(t.bar.openPopup).toBeNull();
     expect(document.activeElement).toBe(t.input);
+    // Exit: on its panel, so Y and Esc answer it.
     t.bar.open('exit');
     expect(document.activeElement).toBe(t.bar.popupEl);
     t.key(t.bar.popupEl!, 'Escape');
     expect(t.bar.openPopup).toBeNull();
     expect(document.activeElement).toBe(t.input);
+  });
+
+  it('a press on a control focuses that control and hides the focus ring until a key', () => {
+    const t = setup();
+    t.bar.open('panes');
+    const pop = t.bar.popupEl!;
+    const r = pop.querySelector<HTMLElement>('[data-pane="comm"]')!;
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    r.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(r);
+    expect(pop.hasAttribute('data-pointer')).toBe(true);
+    // The toggle keeps the focus in the popup.
+    r.click();
+    expect(t.bar.openPopup).toBe('panes');
+    expect(document.activeElement).toBe(r);
+    t.key(pop, 'ArrowDown');
+    expect(pop.hasAttribute('data-pointer')).toBe(false);
+  });
+
+  it('a popup opened by a press hides its ring; by a key it shows it', () => {
+    const t = setup();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    t.bar.open('panes');
+    expect(t.bar.popupEl!.hasAttribute('data-pointer')).toBe(false);
+    t.bar.closePopup();
+    t.btn('panes')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    t.btn('panes')!.click();
+    expect(t.bar.openPopup).toBe('panes');
+    expect(t.bar.popupEl!.hasAttribute('data-pointer')).toBe(true);
+  });
+
+  it('Tab and Shift+Tab wrap inside a popup; Page Up/Down are swallowed', () => {
+    const t = setup();
+    t.bar.open('panes');
+    const pop = t.bar.popupEl!;
+    const items = [...pop.querySelectorAll<HTMLElement>('button')];
+    expect(items.length).toBeGreaterThan(2);
+    const last = items[items.length - 1]!;
+    // Shift+Tab from the first row goes back over the X to the last button and on.
+    const first = items[1]!;
+    expect(document.activeElement).toBe(first);
+    expect(t.key(first, 'Tab', { shiftKey: true }).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(items[0]);
+    t.key(items[0]!, 'Tab', { shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    expect(t.key(last, 'Tab').defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(items[0]);
+    expect(t.key(items[0]!, 'PageDown').defaultPrevented).toBe(true);
+    expect(t.key(items[0]!, 'PageUp').defaultPrevented).toBe(true);
+    expect(pop.contains(document.activeElement)).toBe(true);
+  });
+
+  it('the bar icons and the Reconnect button are not in the Tab order', () => {
+    const t = setup();
+    const btns = [...t.row.querySelectorAll<HTMLButtonElement>('button')];
+    expect(btns.length).toBeGreaterThan(4);
+    for (const b of btns) expect(b.tabIndex).toBe(-1);
   });
 
   it('closes the Panes popup on its X', () => {
