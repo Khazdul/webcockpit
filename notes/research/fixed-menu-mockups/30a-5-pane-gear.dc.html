@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Pane gear</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:520px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}.ex{color:#5faf5f}.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:464px;bottom:0;height:17px;display:flex;align-items:flex-end}
+
+.pane{position:absolute;right:0;top:0;bottom:0;width:460px}
+.prim{position:absolute;inset:2px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.phole{position:absolute;left:9px;right:9px;top:9px;bottom:9px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.plate{position:absolute;left:18px;top:9px;height:17px;padding:0 9px;background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,0)),#545454;border-radius:0 0 4px 4px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.45),inset 1px 0 0 rgba(0,0,0,.35),inset -1px 0 0 rgba(0,0,0,.35);color:#2b2b2b;font-weight:700;line-height:16px;text-shadow:0 1px 0 rgba(255,255,255,.26)}
+.hov{position:absolute;right:11px;top:10px;display:flex;align-items:center;gap:0}
+.hb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:18px;height:17px;cursor:pointer;color:#bdbdbd;filter:drop-shadow(0 1px 0 rgba(0,0,0,.9))}
+.hb:hover,.hb.hot{color:#ffffff}
+.hb svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.hb.x{width:27px;font-size:15px}
+.wheel{width:11px;height:11px;border-radius:50%;background:conic-gradient(#b58a8a,#b5a98a,#8ab58f,#8aa9b5,#9a8ab5,#b58aa9,#b58a8a);display:flex;align-items:center;justify-content:center}
+.wheel i{width:5px;height:5px;border-radius:50%;background:#7a7a7a;box-shadow:0 0 0 1px #000}
+.tip{position:absolute;top:calc(100% + 4px);right:0;white-space:nowrap;font-size:10px;line-height:14px;padding:0 5px;border-radius:3px;background:#161616;border:1px solid #333;color:#ddd;filter:none}
+.cm{position:absolute;left:8px;right:8px;bottom:4px;white-space:pre;font-size:15px}
+.tm{color:#687685}
+.v1{color:#949400}.v2{color:#008000}.v3{color:#008f8f}
+.tk{color:#c2a878}.me{color:#afd2d2}.mo{color:#91bec1}.ms{color:#c3e6e9}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover{background:rgba(255,255,255,.07)}
+.mb:hover .ic{stroke:#ececec}
+
+.pop{position:absolute;right:466px;top:6px;width:250px;box-sizing:border-box;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;box-shadow:0 10px 28px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);font-size:13px;line-height:16px;color:#c0c0c0}
+.ph{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px 0 12px;border-bottom:1px solid #1c1c1c}
+.pt{color:#8a8a8a;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.x{all:unset;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:3px;cursor:pointer}
+.x svg{width:11px;height:11px;stroke:#686868;stroke-width:1.8;stroke-linecap:round;fill:none}
+.x:hover{background:rgba(255,255,255,.07)}.x:hover svg{stroke:#ececec}
+.sub{padding:8px 12px 3px;color:#585858;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.row{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:9px;width:100%;height:25px;padding:0 12px;cursor:pointer}
+.row:hover{background:rgba(255,255,255,.045)}
+.chs{width:9px;height:9px;border-radius:2px}
+.lb{flex:1;color:#d0d0d0}.lb.off{color:#5a5a5a}
+.tg{position:relative;width:26px;height:14px;box-sizing:border-box;border-radius:7px;border:1px solid #3a3a3a;background:#111}
+.tg i{position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:#4a4a4a}
+.tg.on{background:#3a3a3a;border-color:#5a5a5a}
+.tg.on i{left:14px;background:#ececec}
+.pf{border-top:1px solid #1c1c1c;margin-top:4px;padding:3px 0 5px}
+</style>
+</helmet>
+<div class="board">
+<div class="out"><div><span class="rn">Crossroads</span></div>
+<div>Four worn paths meet here beneath an old, crooked oak. A weathered stone</div>
+<div>marks the way to Bree in faded letters.</div>
+<div><span class="ex">Exits: north, east, south, west.</span></div>
+<div>The sky is cloudless and a warm breeze blows from the south.</div>
+<div>* o Mana:Burning&gt;</div>
+<div>Elwen arrives from the north.</div>
+<div>Elwen nods at you.</div>
+<div>* o Mana:Burning&gt; nod elwen</div>
+<div>You nod at Elwen.</div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw"><span class="dot"></span></span></div><sc-for list="{{bar}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+
+<div class="pane">
+<div class="prim"></div>
+<div class="phole">
+<div class="cm"><div><span class="tm">21:02</span> <span class="tk">Gandor</span> <span class="v1">narrates</span> <span class="mo">'anyone up for Moria?'</span></div>
+<div><span class="tm">21:03</span> <span class="tk">Elwen</span> <span class="v2">tells you</span> <span class="mo">'meet at the ford'</span></div>
+<div><span class="tm">21:03</span> <span class="me">You</span> <span class="v2">tell Elwen</span> <span class="ms">'on my way'</span></div>
+<div><span class="tm">21:05</span> <span class="tk">Borin</span> <span class="v3">says</span> <span class="mo">'the troll went west'</span></div>
+<div><span class="tm">21:06</span> <span class="tk">Gandor</span> <span class="v1">narrates</span> <span class="mo">'5 for Moria, meet at Bree'</span></div></div>
+</div>
+<div class="plate">Comm</div>
+<div class="hov">
+<button type="button" class="hb hot" aria-label="Settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.6" stroke-width="3.6" stroke-dasharray="3 2.97"></circle><circle cx="12" cy="12" r="5.6"></circle><circle cx="12" cy="12" r="2.1"></circle></svg><span class="tip">Comm settings</span></button>
+<button type="button" class="hb" aria-label="Colour: Plain"><span class="wheel"><i></i></span></button>
+<button type="button" class="hb" aria-label="Border: on"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg></button>
+<button type="button" class="hb" aria-label="Background: glass"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect><path d="M4 15l11-11 M9 20l11-11"></path></svg></button>
+<button type="button" class="hb x" aria-label="Close pane">×</button>
+</div>
+</div>
+
+<div class="pop" role="dialog" aria-label="Comm settings">
+<div class="ph"><span class="pt">Comm</span><button type="button" class="x" aria-label="Close"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"></path></svg></button></div>
+<div class="sub">Channels</div>
+<sc-for list="{{chans}}" as="c" hint-placeholder-count="10"><button type="button" class="row" onClick="{{c.flip}}" aria-pressed="{{c.on}}"><span class="chs" style="background: {{c.sw}}"></span><span class="{{c.lbCls}}">{{c.label}}</span><span class="{{c.tgCls}}"><i></i></span></button></sc-for>
+<div class="pf"><button type="button" class="row" onClick="{{flipHeader}}" aria-pressed="{{header}}"><span class="lb">Show channel header</span><span class="{{headerCls}}"><i></i></span></button></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":520}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { off: { yells: true, socials: true }, header: true };
+  }
+  renderVals() {
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile', gap: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts', d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const bar = icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id, gapBefore: !!i.gap }));
+    const list = [['tales', 'Narrates', '#949400'], ['tells', 'Tells', '#008000'], ['says', 'Says', '#008f8f'], ['yells', 'Yells', '#640064'], ['prayers', 'Prayers', '#c3c36e'], ['emotes', 'Emotes', '#008000'], ['whispers', 'Whispers', '#965a00'], ['questions', 'Questions', '#008f8f'], ['songs', 'Songs', '#b49696'], ['socials', 'Socials', '#9600a0']];
+    const off = this.state.off;
+    const chans = list.map(([id, label, col]) => {
+      const on = !off[id];
+      return { label, on, sw: on ? col : '#3a3a3a', lbCls: on ? 'lb' : 'lb off', tgCls: on ? 'tg on' : 'tg', flip: () => this.setState({ off: { ...this.state.off, [id]: on } }) };
+    });
+    return { sun, bar, chans, header: this.state.header, headerCls: this.state.header ? 'tg on' : 'tg', flipHeader: () => this.setState({ header: !this.state.header }) };
+  }
+}
+</script>
+</body>
+</html>

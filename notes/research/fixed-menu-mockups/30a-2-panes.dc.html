@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Panes popup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:440px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}.ex{color:#5faf5f}.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover,.mb.hot{background:rgba(255,255,255,.07)}
+.mb:hover .ic,.mb.hot .ic{stroke:#ececec}
+.mb-exit:hover .ic{stroke:#ff7a7a}
+
+.pop{position:absolute;right:404px;bottom:23px;width:264px;box-sizing:border-box;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;box-shadow:0 10px 28px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);font-size:13px;line-height:16px;color:#c0c0c0}
+.ph{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px 0 12px;border-bottom:1px solid #1c1c1c}
+.pt{color:#8a8a8a;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.x{all:unset;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:3px;cursor:pointer}
+.x svg{width:11px;height:11px;stroke:#686868;stroke-width:1.8;stroke-linecap:round;fill:none}
+.x:hover{background:rgba(255,255,255,.07)}.x:hover svg{stroke:#ececec}
+.list{padding:4px 0}
+.sub{padding:8px 12px 3px;color:#585858;font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.row{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;width:100%;height:26px;padding:0 12px;cursor:pointer}
+.row:hover{background:rgba(255,255,255,.045)}
+.lb{color:#d0d0d0}.lb.off{color:#6a6a6a}
+.lb .sc{color:#585858}
+.tg{position:relative;width:26px;height:14px;box-sizing:border-box;border-radius:7px;border:1px solid #3a3a3a;background:#111}
+.tg i{position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:#4a4a4a}
+.tg.on{background:#3a3a3a;border-color:#5a5a5a}
+.tg.on i{left:14px;background:#ececec}
+.pf{border-top:1px solid #1c1c1c;padding:8px 12px 10px;display:flex;align-items:center;gap:8px;min-height:26px}
+.gb{all:unset;cursor:pointer;height:22px;line-height:22px;padding:0 9px;border-radius:3px;border:1px solid #2e2e2e;color:#a8a8a8}
+.gb:hover{border-color:#5a5a5a;color:#ececec;background:rgba(255,255,255,.05)}
+.gb.danger{color:#ff8a8a;border-color:#5a2a2a}
+.gb.danger:hover{background:rgba(255,95,95,.1);border-color:#8a3a3a;color:#ffb0b0}
+.q{color:#d0d0d0;flex:1}
+</style>
+</helmet>
+<div class="board">
+<div class="out"><div>A rusty iron lantern lies here.</div>
+<div> </div>
+<div>* o Mana:Burning&gt; n</div>
+<div><span class="rn">Smoky Cavern</span></div>
+<div>Soot blackens the low ceiling of this cramped cavern. A crude fire pit</div>
+<div>smoulders in the middle of the floor.</div>
+<div><span class="ex">Exits: east, south.</span></div>
+<div><span class="mob">A troll, hungry and mean, is standing here.</span></div>
+<div>* o Mana:Burning&gt; kill troll</div>
+<div>You slash a troll's body hard.</div>
+<div>A troll pierces your left leg hard.</div>
+<div>You slash a troll's right arm extremely hard.</div>
+<div>* W Mana:Burning troll:Wounded&gt;</div>
+<div>You slash a troll's head extremely hard.</div>
+<div>A troll misses you.</div>
+<div>You slash a troll's body very hard.</div>
+<div>* W Mana:Burning troll:Fine&gt;</div>
+<div>A troll is dead! R.I.P.</div>
+<div>You receive your share of experience.</div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw"><span class="dot"></span></span></div><sc-for list="{{bar}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+
+<div class="pop" role="dialog" aria-label="Panes">
+<div class="ph"><span class="pt">Panes</span><button type="button" class="x" aria-label="Close"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"></path></svg></button></div>
+<div class="list">
+<sc-for list="{{builtin}}" as="p" hint-placeholder-count="7"><button type="button" class="row" onClick="{{p.flip}}" aria-pressed="{{p.on}}"><span class="{{p.lbCls}}">{{p.label}}</span><span class="{{p.tgCls}}"><i></i></span></button></sc-for>
+<div class="sub">Script panes</div>
+<sc-for list="{{scripts}}" as="p" hint-placeholder-count="2"><button type="button" class="row" onClick="{{p.flip}}" aria-pressed="{{p.on}}"><span class="{{p.lbCls}}">{{p.label}} <span class="sc">{{p.script}}</span></span><span class="{{p.tgCls}}"><i></i></span></button></sc-for>
+</div>
+<div class="pf">
+<sc-if value="{{confirming}}" hint-placeholder-val="{{false}}"><span class="q">Reset layout?</span><button type="button" class="gb danger" onClick="{{cancel}}">Reset</button><button type="button" class="gb" onClick="{{cancel}}">Cancel</button></sc-if>
+<sc-if value="{{notConfirming}}" hint-placeholder-val="{{true}}"><button type="button" class="gb" onClick="{{ask}}">Reset layout</button></sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":440}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { on: { character: false, comm: true, group: false, map: false, timers: false, ui: false, stats: false, keys: true, search: false }, confirming: false };
+  }
+  renderVals() {
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile', gap: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts', d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const bar = icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id + (i.id === 'panes' ? ' hot' : ''), gapBefore: !!i.gap }));
+    const on = this.state.on;
+    const mk = (id, label, script) => ({
+      label, script,
+      on: !!on[id],
+      lbCls: on[id] ? 'lb' : 'lb off',
+      tgCls: on[id] ? 'tg on' : 'tg',
+      flip: () => this.setState({ on: { ...this.state.on, [id]: !this.state.on[id] } })
+    });
+    return {
+      sun, bar,
+      builtin: [mk('character', 'Character'), mk('comm', 'Comm'), mk('group', 'Group'), mk('map', 'Map'), mk('timers', 'Timers'), mk('ui', 'UI'), mk('stats', 'Statistics')],
+      scripts: [mk('keys', 'Keys', 'keymanager'), mk('search', 'Map search', 'mapsearch')],
+      confirming: this.state.confirming,
+      notConfirming: !this.state.confirming,
+      ask: () => this.setState({ confirming: true }),
+      cancel: () => this.setState({ confirming: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

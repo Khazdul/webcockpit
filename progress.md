@@ -49,8 +49,10 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Done:** a question session (28 decisions). The spec S1–S10 and the
   steps 30a–f are in `docs/stages/30-fixed-menu.md`; the stage 30 row in
   spec §5 is updated. Look: mockup 2, ghost icons.
-- **Next:** 30a, refined mockups (bar, Panes, Settings, window frame),
-  then build the bar.
+- **Mockups:** six 30a artboards on the owner's canvas (bar, Panes,
+  Settings, Exit, pane gear, windows); source in
+  `notes/research/fixed-menu-mockups/30a-*`.
+- **Next:** owner feedback on the 30a mockups, then build 30a (new session).
 - **Open:** technical defaults marked *(Claude)* in the spec become ADRs
   as they are built.
 - **Commits:** this one.

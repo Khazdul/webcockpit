@@ -224,7 +224,8 @@ Each step ends with a test in the browser.
 
 - [x] Five aesthetic mockups (2026-10-22).
 - [x] Spec and decisions with the owner (2026-10-31).
-- [ ] 30a refined mockups (ghost look), owner approval.
+- [x] 30a refined mockups (ghost look), six artboards (2026-10-31).
+- [ ] 30a owner approval of the mockups.
 - [ ] 30a build.
 - [ ] 30b.
 - [ ] 30c.

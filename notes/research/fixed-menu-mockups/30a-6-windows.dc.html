@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Profile and Scripts windows</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:860px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.out{position:absolute;left:0;bottom:17px;white-space:pre;color:#8a8a8a}
+.rn{color:#5fafff;font-weight:700}.ex{color:#5faf5f}.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top;opacity:.35}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover{background:rgba(255,255,255,.07)}
+.mb:hover .ic{stroke:#ececec}
+.mb.open .ic{stroke:#a8a8a8}
+.mb.open::after{content:'';position:absolute;bottom:0;left:8px;right:8px;height:1px;background:#6fb8bc}
+
+/* window frame: the panes' glass rim, tinted cyan */
+.win{position:absolute;--glass:oklch(0.59 0.105 200);--hi:oklch(0.95 0.018 200);--ink:oklch(0.28 0.03 200)}
+.win.blur{--glass:oklch(0.44 0.045 200);--hi:oklch(0.8 0.01 200);--ink:oklch(0.22 0.02 200)}
+.wr{position:absolute;inset:0;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),color-mix(in srgb,var(--glass) 70%,#000);box-shadow:inset 1px 1px 0 color-mix(in srgb,var(--hi) 58%,transparent),inset -1px -1px 0 color-mix(in srgb,var(--glass) 45%,transparent),0 18px 50px rgba(0,0,0,.75)}
+.wh{position:absolute;left:9px;right:9px;top:9px;bottom:9px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) color-mix(in srgb,var(--hi) 30%,transparent) color-mix(in srgb,var(--hi) 30%,transparent) rgba(0,0,0,.6);overflow:hidden}
+.np{position:absolute;top:9px;height:17px;display:flex;align-items:center;gap:7px;padding:0 9px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,0)),color-mix(in srgb,var(--glass) 70%,#000);border-radius:0 0 4px 4px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.45),inset 1px 0 0 rgba(0,0,0,.35),inset -1px 0 0 rgba(0,0,0,.35);color:var(--ink);font-weight:700;line-height:16px;text-shadow:0 1px 0 color-mix(in srgb,var(--hi) 42%,transparent);cursor:move}
+.np.l{left:18px}
+.np.r{right:18px;padding:0 4px;cursor:default}
+.grip{display:grid;grid-template-columns:repeat(2, minmax(0, 1fr));gap:2px;width:6px}
+.grip i{width:2px;height:2px;border-radius:1px;background:var(--ink);opacity:.7}
+.wx{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;width:20px;height:15px;border-radius:2px;color:var(--ink)}
+.wx svg{width:9px;height:9px;stroke:currentColor;stroke-width:2;stroke-linecap:round;fill:none}
+.wx:hover{background:rgba(0,0,0,.18)}
+.cg{position:absolute;width:12px;height:12px;border-color:color-mix(in srgb,var(--hi) 75%,transparent);border-style:solid;border-width:0}
+.cg.tl{left:2px;top:2px;border-left-width:2px;border-top-width:2px;border-top-left-radius:3px}
+.cg.tr{right:2px;top:2px;border-right-width:2px;border-top-width:2px;border-top-right-radius:3px}
+.cg.bl{left:2px;bottom:2px;border-left-width:2px;border-bottom-width:2px;border-bottom-left-radius:3px}
+.cg.br{right:2px;bottom:2px;border-right-width:2px;border-bottom-width:2px;border-bottom-right-radius:3px}
+.win.blur .cg{display:none}
+.win.blur .wh{opacity:.55}
+
+/* profile editor content, on the cell grid */
+.pe{position:absolute;inset:0;padding:17px 18px 0;display:flex;flex-direction:column}
+.trow{display:flex;justify-content:flex-end;gap:9px;height:17px}
+.tb{padding:0 9px;color:#bcbcbc;white-space:pre}
+.tb.sel{background:#bcbcbc;color:#000}
+.kinds{display:grid;grid-template-columns:repeat(5, minmax(0, 1fr));gap:27px;margin-top:17px}
+.kd{height:51px;display:flex;align-items:center;justify-content:center;color:#bcbcbc;background:#161616;letter-spacing:.02em}
+.kd.sel{background:#bcbcbc;color:#000}
+.main{display:flex;gap:27px;margin-top:17px;flex:1;min-height:0}
+.lst{flex:0 0 360px;display:flex}
+.lrows{flex:1;white-space:pre}
+.hd{color:#585858}
+.lr{color:#bcbcbc;height:17px;overflow:hidden}
+.lr.cur{background:#bcbcbc;color:#000}
+.lr.new{color:#585858}
+.sb{width:9px;display:flex;flex-direction:column;color:#585858;line-height:17px;text-align:center}
+.sb .th{flex:0 0 102px;background:#bcbcbc;margin:0 2px}
+.sb .tr{flex:1}
+.det{flex:1;display:flex;flex-direction:column;min-width:0;padding-bottom:17px}
+.lbl{color:#585858;height:17px}
+.box{border:1px solid #585858;padding:4px 8px;white-space:pre;color:#bcbcbc;margin-bottom:17px}
+.box.focus{border-color:#ffaf00;box-shadow:0 0 0 1px rgba(255,175,0,.25)}
+.box.grow{flex:1;margin-bottom:0;line-height:17px}
+.bc{display:inline-block;width:9px;height:15px;background:#ffaf00;vertical-align:top;margin-top:1px}
+.kw{color:#5fafaf}.br{color:#8290a0}.st{color:#c8a060}
+.foot{height:17px;margin-bottom:17px;text-align:center;color:#585858;white-space:pre}
+
+/* scripts window content */
+.sc{position:absolute;inset:0;padding:17px 18px;white-space:pre}
+.sc .h{color:#585858}
+.sc .on{color:#7ac46f}.sc .off{color:#3a3a3a}
+.sc .cur{background:#bcbcbc;color:#000}
+</style>
+</helmet>
+<div class="board">
+<div class="out"><div>A troll is dead! R.I.P.</div>
+<div>You receive your share of experience.</div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">Crossroads</span></div>
+<div>Four worn paths meet here beneath an old, crooked oak. A weathered stone</div>
+<div>marks the way to Bree in faded letters.</div>
+<div><span class="ex">Exits: north, east, south, west.</span></div>
+<div>The sky is cloudless and a warm breeze blows from the south.</div>
+<div>* o Mana:Burning&gt;</div>
+<div>Elwen arrives from the north.</div>
+<div>Elwen nods at you.</div>
+<div>* o Mana:Burning&gt; nod elwen</div>
+<div>You nod at Elwen.</div>
+<div>* o Mana:Burning&gt; n</div>
+<div><span class="rn">Great East Road</span></div>
+<div>The road runs straight between low hedges. Far to the east the land rises</div>
+<div>toward the Weather Hills.</div>
+<div><span class="ex">Exits: east, south, west.</span></div>
+<div>* o Mana:Burning&gt;</div>
+<div>Gandor narrates 'anyone up for Moria?'</div>
+<div>* o Mana:Burning&gt; gt corpse</div>
+<div>You get a small leather purse from the corpse of a troll.</div>
+<div>You put some coins in your purse.</div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">Great East Road</span></div>
+<div>The hedges give way to open fields of long grass, bending in the wind.</div>
+<div><span class="ex">Exits: east, west.</span></div>
+<div><span class="mob">A hobbit farmer walks here, minding his own business.</span></div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">Great East Road</span></div>
+<div>The road dips toward a shallow stream crossed by a stone bridge.</div>
+<div><span class="ex">Exits: east, west.</span></div>
+<div>The sky is cloudless and a warm breeze blows from the south.</div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">Stone Bridge</span></div>
+<div>Cold water rushes beneath the old stones of the bridge.</div>
+<div><span class="ex">Exits: east, west.</span></div>
+<div>Elwen tells you 'meet at the ford'</div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">The Ford</span></div>
+<div>The river runs wide and shallow here over a bed of round pebbles.</div>
+<div><span class="ex">Exits: north, east, west.</span></div>
+<div><span class="mob">Elwen the Elf is standing here.</span></div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw"><span class="dot"></span></span></div><sc-for list="{{bar}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+
+<div class="win blur" style="left: 830px; top: 40px; width: 560px; height: 360px">
+<div class="wr"></div>
+<div class="wh"><div class="sc"><div class="h">Name           State   Version   Panes</div>
+<div class="cur">keymanager     on      1.4.2     Keys</div>
+<div>mapsearch      <span class="on">on</span>      1.1.0     Map search</div>
+<div>almanac        <span class="on">on</span>      2.0.1     Almanac</div>
+<div>readability    <span class="off">off</span>     1.0.3</div>
+<div> </div>
+<div class="h">      ENABLE  DISABLE  SETTINGS  REMOVE</div></div></div>
+<div class="np l"><span class="grip"><i></i><i></i><i></i><i></i><i></i><i></i></span>Scripts</div>
+<div class="np r"><button type="button" class="wx" aria-label="Close Scripts"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"></path></svg></button></div>
+</div>
+
+<div class="win" style="left: 70px; top: 70px; width: 940px; height: 660px">
+<div class="wr"></div>
+<div class="wh">
+<div class="pe">
+<div class="trow"><span class="tb sel"> LITE </span><span class="tb"> EDITOR </span><span class="tb"> HELP </span></div>
+<div class="kinds"><span class="kd">ACTIONS</span><span class="kd sel">ALIASES</span><span class="kd">HIGHLIGHTS</span><span class="kd">MACROS</span><span class="kd">SUBSTITUTES</span></div>
+<div class="main">
+<div class="lst"><div class="lrows"><div class="hd">Pattern  Commands</div>
+<div class="lr">bb       bash %1;bash %1</div>
+<div class="lr">eq       equipment</div>
+<div class="lr">fl       flee</div>
+<div class="lr cur">gt       get all %1;put coins purse;…   </div>
+<div class="lr">gv       get %1;value %1</div>
+<div class="lr">k        kill %1</div>
+<div class="lr">lt       light torch</div>
+<div class="lr">od       open door %1;%1</div>
+<div class="lr">rc       recall</div>
+<div class="lr">rs       rest;sleep</div>
+<div class="lr">sc       score;info</div>
+<div class="lr">wk       wake;stand</div>
+<div class="lr new">+ New entry</div></div>
+<div class="sb"><span>▲</span><span class="th"></span><span class="tr"></span><span>▼</span></div></div>
+<div class="det">
+<div class="lbl">Pattern</div>
+<div class="box">gt %1</div>
+<div class="lbl">Commands</div>
+<div class="box focus grow"><div>get all %1</div>
+<div>put coins purse</div>
+<div><span class="kw">#if</span> <span class="br">{</span><span class="st">"$autoloot" == "on"</span><span class="br">}</span> <span class="br">{</span></div>
+<div>  examine %1<span class="bc"></span></div>
+<div><span class="br">}</span></div></div>
+</div>
+</div>
+<div class="foot">n New · Del Delete · Tab Cycle · ESC Close</div>
+</div>
+</div>
+<div class="np l"><span class="grip"><i></i><i></i><i></i><i></i><i></i><i></i></span>Profile Editor · default</div>
+<div class="np r"><button type="button" class="wx" aria-label="Close Profile Editor"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"></path></svg></button></div>
+<span class="cg tl"></span><span class="cg tr"></span><span class="cg bl"></span><span class="cg br"></span>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":860}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile (open)', gap: true, open: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts (open)', open: true, d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const bar = icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id + (i.open ? ' open' : ''), gapBefore: !!i.gap }));
+    return { sun, bar };
+  }
+}
+</script>
+</body>
+</html>

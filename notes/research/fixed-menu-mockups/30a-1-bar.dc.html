@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Menu bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:560px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.scene{position:absolute;left:0;top:0;width:1440px;height:250px;overflow:hidden}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}
+.ex{color:#5faf5f}
+.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+
+.zoom{position:absolute;left:0;top:250px;width:1440px;height:310px;box-sizing:border-box;background:#060606;border-top:1px solid #1c1c1c;padding:34px 40px 0;display:flex;flex-direction:column;gap:30px}
+.zrow{display:flex;align-items:flex-end;justify-content:space-between}
+.zcell{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.cap{font-family:system-ui,sans-serif;font-size:12px;line-height:16px;color:#6a6a6a;padding-left:2px}
+.z25{zoom:2.5}
+.z175{zoom:1.75}
+.zin{height:40px;display:flex;align-items:flex-end;background:#000;padding:0 0 0 10px}
+.rimcut{width:6px;height:37px;margin:0 0 3px 7px;box-sizing:border-box;border:1px solid rgba(0,0,0,.56);border-right:0;border-bottom:0;background:#545454;box-shadow:inset 1px 0 0 rgba(239,239,239,.58)}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px 0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{position:relative;display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.dot.slow{background:#ffd75f}
+.dot.down{background:#ff5f5f}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover,.mb.hot{background:rgba(255,255,255,.07)}
+.mb:hover .ic,.mb.hot .ic{stroke:#ececec}
+.mb-exit:hover .ic,.mb-exit.hot .ic{stroke:#ff7a7a}
+.mb:focus-visible{outline:1px solid #888}
+.tip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;line-height:14px;padding:0 5px;border-radius:3px;background:#161616;border:1px solid #333;color:#ddd;font-weight:400}
+.tip b{font-weight:400;color:#ffd75f}
+.notice{display:flex;align-items:center;gap:6px;margin-right:10px;white-space:pre}
+.notice .nt{color:#ff7a7a}
+.rc{all:unset;cursor:pointer;color:#ececec;padding:0 5px;height:15px;line-height:15px;border:1px solid #3a3a3a;border-radius:3px;background:rgba(255,255,255,.05)}
+.rc:hover{border-color:#6a6a6a;background:rgba(255,255,255,.1)}
+.rc .k{color:#7a7a7a}
+</style>
+</helmet>
+<div class="board">
+<div class="scene">
+<div class="out"><div><span class="rn">Narrow Tunnel</span></div>
+<div>The tunnel twists downward through black stone. Water drips somewhere ahead,</div>
+<div>and the air smells of smoke and old ashes.</div>
+<div><span class="ex">Exits: north, down.</span></div>
+<div><span class="mob">An orc warrior stands here, guarding the passage.</span></div>
+<div>A rusty iron lantern lies here.</div>
+<div> </div>
+<div>* o Mana:Burning&gt; n</div>
+<div><span class="rn">Smoky Cavern</span></div>
+<div>Soot blackens the low ceiling of this cramped cavern. A crude fire pit</div>
+<div>smoulders in the middle of the floor.</div>
+<div><span class="ex">Exits: east, south.</span></div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span style="color: #c0c0c0">look</span><span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw" title="Link: 38ms"><span class="dot"></span></span></div><sc-for list="{{rest}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.tip}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+</div>
+
+<div class="zoom">
+<div class="zrow">
+<sc-for list="{{rowA}}" as="inst" hint-placeholder-count="2">
+<div class="zcell">
+<div class="z25"><div class="zin"><div class="mn"><sc-if value="{{inst.notice}}" hint-placeholder-val="{{false}}"><div class="notice"><span class="nt">Disconnected</span><button type="button" class="rc">Reconnect <span class="k">Enter</span></button></div></sc-if><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{inst.sun}}"></path></svg><span class="dotw"><span class="{{inst.dotCls}}"></span><sc-if value="{{inst.dotTipOn}}" hint-placeholder-val="{{false}}"><span class="tip">Link: <b>212ms</b> · capture: recording</span></sc-if></span></div><sc-for list="{{inst.items}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg><sc-if value="{{item.tipOn}}" hint-placeholder-val="{{false}}"><span class="tip">{{item.tip}}</span></sc-if></button></sc-for></div><div class="rimcut"></div></div></div>
+<div class="cap">{{inst.cap}}</div>
+</div>
+</sc-for>
+</div>
+<div class="zrow">
+<sc-for list="{{rowB}}" as="inst" hint-placeholder-count="2">
+<div class="zcell">
+<div class="z175"><div class="zin" style="padding-left: 70px"><div class="mn"><sc-if value="{{inst.notice}}" hint-placeholder-val="{{false}}"><div class="notice"><span class="nt">Disconnected</span><button type="button" class="rc">Reconnect <span class="k">Enter</span></button></div></sc-if><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{inst.sun}}"></path></svg><span class="dotw"><span class="{{inst.dotCls}}"></span><sc-if value="{{inst.dotTipOn}}" hint-placeholder-val="{{false}}"><span class="tip">Link: <b>212ms</b> · capture: recording</span></sc-if></span></div><sc-for list="{{inst.items}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg><sc-if value="{{item.tipOn}}" hint-placeholder-val="{{false}}"><span class="tip">{{item.tip}}</span></sc-if></button></sc-for></div><div class="rimcut"></div></div></div>
+<div class="cap">{{inst.cap}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile', tip: 'Profile: default', gap: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts', tip: 'Scripts', d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', tip: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', tip: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', tip: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', tip: 'Exit to main menu', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const mk = (hot) => icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id + (i.id === hot ? ' hot' : ''), tipOn: i.id === hot, gapBefore: !!i.gap }));
+    const inst = (cap, hot, dotCls, dotTipOn, notice) => ({ cap, sun, items: mk(hot), dotCls, dotTipOn, notice });
+    return {
+      sun,
+      rest: mk(''),
+      rowA: [
+        inst('Vila: klocka · länkprick | profil  skript | panes  inställningar | helskärm  exit', '', 'dot', false, false),
+        inst('Hover på Profile: namnet i tooltip', 'profile', 'dot', false, false)
+      ],
+      rowB: [
+        inst('Seg länk: pricken gul; ms och inspelning i tooltip', '', 'dot slow', true, false),
+        inst('Frånkopplad: notis till vänster, Enter i tom rad återansluter; pricken röd', '', 'dot down', false, true)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

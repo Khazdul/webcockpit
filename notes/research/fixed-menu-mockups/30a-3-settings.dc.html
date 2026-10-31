@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Settings popup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:620px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}.ex{color:#5faf5f}.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover,.mb.hot{background:rgba(255,255,255,.07)}
+.mb:hover .ic,.mb.hot .ic{stroke:#ececec}
+.mb-exit:hover .ic{stroke:#ff7a7a}
+
+.pop{position:absolute;right:404px;bottom:23px;width:452px;box-sizing:border-box;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;box-shadow:0 10px 28px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);font-size:13px;line-height:16px;color:#c0c0c0}
+.ph{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px 0 12px}
+.pt{color:#8a8a8a;letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.x{all:unset;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:3px;cursor:pointer}
+.x svg{width:11px;height:11px;stroke:#686868;stroke-width:1.8;stroke-linecap:round;fill:none}
+.x:hover{background:rgba(255,255,255,.07)}.x:hover svg{stroke:#ececec}
+.tabs{display:flex;gap:2px;padding:0 8px;border-bottom:1px solid #1e1e1e}
+.tab{all:unset;cursor:pointer;padding:6px 8px 7px;color:#6a6a6a;border-bottom:1px solid transparent;margin-bottom:-1px}
+.tab:hover{color:#c8c8c8}
+.tab.sel{color:#ececec;border-bottom-color:#bcbcbc}
+.body{padding:8px 0 6px;min-height:380px}
+.r{display:flex;align-items:center;justify-content:space-between;min-height:32px;padding:0 14px;gap:12px}
+.r.top{align-items:flex-start;padding-top:7px;padding-bottom:7px}
+.l{color:#9a9a9a;flex:0 0 140px}
+.l small{display:block;color:#585858;font-size:11px;line-height:14px;margin-top:2px}
+.ctl{display:flex;align-items:center;gap:8px;justify-content:flex-end;flex:1}
+.dd{all:unset;cursor:pointer;box-sizing:border-box;display:flex;align-items:center;gap:8px;height:24px;min-width:190px;padding:0 8px;border:1px solid #2e2e2e;border-radius:3px;background:#0f0f0f;color:#d0d0d0}
+.dd:hover{border-color:#5a5a5a}
+.dd .v{flex:1}
+.dd svg{width:10px;height:10px;stroke:#686868;stroke-width:1.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.sw{width:12px;height:12px;border-radius:2px;border:1px solid rgba(255,255,255,.18);box-sizing:border-box}
+.rng{-webkit-appearance:none;appearance:none;width:150px;height:14px;background:transparent;cursor:pointer;margin:0}
+.rng::-webkit-slider-runnable-track{height:2px;background:#333;border-radius:1px}
+.rng::-moz-range-track{height:2px;background:#333;border-radius:1px}
+.rng::-moz-range-progress{height:2px;background:#9a9a9a}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;margin-top:-4.5px;border-radius:50%;background:#d8d8d8;border:0}
+.rng::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#d8d8d8;border:0}
+.val{width:44px;text-align:right;color:#d0d0d0}
+.tg{all:unset;cursor:pointer;position:relative;width:26px;height:14px;box-sizing:border-box;border-radius:7px;border:1px solid #3a3a3a;background:#111}
+.tg i{position:absolute;top:2px;left:2px;width:8px;height:8px;border-radius:50%;background:#4a4a4a}
+.tg.on{background:#3a3a3a;border-color:#5a5a5a}
+.tg.on i{left:14px;background:#ececec}
+.seg{display:flex;border:1px solid #2e2e2e;border-radius:3px;overflow:hidden}
+.sg{all:unset;cursor:pointer;padding:0 10px;height:22px;line-height:22px;color:#7a7a7a;border-left:1px solid #2e2e2e}
+.sg:first-child{border-left:0}
+.sg:hover{color:#d0d0d0}
+.sg.on{background:#2a2a2a;color:#ececec}
+.pal{display:grid;grid-template-columns:repeat(8, minmax(0, 1fr));gap:4px;width:190px}
+.pc{all:unset;cursor:pointer;height:16px;border-radius:2px;border:1px solid rgba(255,255,255,.14)}
+.pc:hover{border-color:#ececec}
+.btns{display:flex;gap:8px;justify-content:flex-end;padding:10px 14px 4px;border-top:1px solid #1a1a1a;margin-top:6px}
+.gb{all:unset;cursor:pointer;height:22px;line-height:22px;padding:0 9px;border-radius:3px;border:1px solid #2e2e2e;color:#a8a8a8}
+.gb:hover{border-color:#5a5a5a;color:#ececec;background:rgba(255,255,255,.05)}
+.note{color:#585858;font-size:11px;padding:0 14px}
+.dim .l{color:#4a4a4a}.dim .l small{color:#3a3a3a}
+</style>
+</helmet>
+<div class="board">
+<div class="out"><div><span class="rn">Smoky Cavern</span></div>
+<div>Soot blackens the low ceiling of this cramped cavern. A crude fire pit</div>
+<div>smoulders in the middle of the floor.</div>
+<div><span class="ex">Exits: east, south.</span></div>
+<div><span class="mob">A troll, hungry and mean, is standing here.</span></div>
+<div>* o Mana:Burning&gt; kill troll</div>
+<div>You slash a troll's body hard.</div>
+<div>A troll pierces your left leg hard.</div>
+<div>You slash a troll's right arm extremely hard.</div>
+<div>* W Mana:Burning troll:Wounded&gt;</div>
+<div>You slash a troll's head extremely hard.</div>
+<div>A troll misses you.</div>
+<div>You slash a troll's body very hard.</div>
+<div>* W Mana:Burning troll:Fine&gt;</div>
+<div>A troll is dead! R.I.P.</div>
+<div>You receive your share of experience.</div>
+<div>* o Mana:Burning&gt; e</div>
+<div><span class="rn">Crossroads</span></div>
+<div>Four worn paths meet here beneath an old, crooked oak. A weathered stone</div>
+<div>marks the way to Bree in faded letters.</div>
+<div><span class="ex">Exits: north, east, south, west.</span></div>
+<div>The sky is cloudless and a warm breeze blows from the south.</div>
+<div>* o Mana:Burning&gt;</div>
+<div>Elwen arrives from the north.</div>
+<div>Elwen nods at you.</div>
+<div>* o Mana:Burning&gt; nod elwen</div>
+<div>You nod at Elwen.</div>
+<div>* o Mana:Burning&gt;</div></div>
+<div class="input">&gt; <span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw"><span class="dot"></span></span></div><sc-for list="{{bar}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+
+<div class="pop" role="dialog" aria-label="Settings">
+<div class="ph"><span class="pt">Settings</span><button type="button" class="x" aria-label="Close"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 2l8 8M10 2l-8 8"></path></svg></button></div>
+<div class="tabs" role="tablist"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" class="{{t.cls}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<div class="body">
+
+<sc-if value="{{isApp}}" hint-placeholder-val="{{true}}">
+<div class="r"><span class="l">Font</span><span class="ctl"><button type="button" class="dd"><span class="v">DejaVu Sans Mono</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r"><label class="l" for="sz">Size</label><span class="ctl"><input id="sz" class="rng" type="range" min="10" max="28" step="1" value="{{size}}" onInput="{{setSize}}"><span class="val">{{size}} px</span></span></div>
+<div class="r"><label class="l" for="pd">Padding</label><span class="ctl"><input id="pd" class="rng" type="range" min="0" max="40" step="2" value="{{pad}}" onInput="{{setPad}}"><span class="val">{{pad}} px</span></span></div>
+<div class="r"><span class="l">Font colour</span><span class="ctl"><button type="button" class="dd"><span class="sw" style="background: #c0c0c0"></span><span class="v">Silver</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r"><span class="l">Background</span><span class="ctl"><button type="button" class="dd"><span class="sw" style="background: #000000"></span><span class="v">Black</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r"><span class="l">Input colour</span><span class="ctl"><button type="button" class="dd"><span class="sw" style="background: #7fb2e6"></span><span class="v">Steel</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r"><span class="l">Bold brightens colours</span><span class="ctl"><button type="button" class="{{boldCls}}" onClick="{{flipBold}}" aria-label="Bold brightens colours"><i></i></button></span></div>
+<div class="r"><span class="l">Scrollback</span><span class="ctl"><button type="button" class="dd"><span class="v">20,000 lines</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r top"><span class="l">ANSI palette<small>Click a colour to change it</small></span><span class="ctl"><span class="pal"><sc-for list="{{pal}}" as="c" hint-placeholder-count="16"><button type="button" class="pc" style="background: {{c.hex}}" aria-label="{{c.name}}" title="{{c.name}}"></button></sc-for></span></span></div>
+<div class="btns"><button type="button" class="gb">Reset palette</button><button type="button" class="gb">Reset appearance</button></div>
+</sc-if>
+
+<sc-if value="{{isInput}}" hint-placeholder-val="{{false}}">
+<div class="r"><span class="l">Auto-clear input</span><span class="ctl"><button type="button" class="{{clearCls}}" onClick="{{flipClear}}" aria-label="Auto-clear input"><i></i></button></span></div>
+<div class="r"><span class="l">Autosuggest</span><span class="ctl"><button type="button" class="{{suggCls}}" onClick="{{flipSugg}}" aria-label="Autosuggest"><i></i></button></span></div>
+<div class="r"><span class="l">Cursor style</span><span class="ctl"><span class="seg"><sc-for list="{{cursors}}" as="o" hint-placeholder-count="3"><button type="button" class="{{o.cls}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></span></span></div>
+<div class="r"><span class="l">Cursor blink</span><span class="ctl"><button type="button" class="{{blinkCls}}" onClick="{{flipBlink}}" aria-label="Cursor blink"><i></i></button></span></div>
+</sc-if>
+
+<sc-if value="{{isMap}}" hint-placeholder-val="{{false}}">
+<div class="r"><span class="l">Show map pane</span><span class="ctl"><button type="button" class="{{mapCls}}" onClick="{{flipMap}}" aria-label="Show map pane"><i></i></button></span></div>
+<div class="r"><span class="l">Room notes</span><span class="ctl"><button type="button" class="{{notesCls}}" onClick="{{flipNotes}}" aria-label="Room notes"><i></i></button></span></div>
+<div class="r"><span class="l">Room info on hover</span><span class="ctl"><span class="seg"><sc-for list="{{hovers}}" as="o" hint-placeholder-count="3"><button type="button" class="{{o.cls}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></span></span></div>
+<div class="r"><span class="l">Hover text size</span><span class="ctl"><span class="seg"><sc-for list="{{sizes}}" as="o" hint-placeholder-count="3"><button type="button" class="{{o.cls}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></span></span></div>
+<div class="r"><span class="l">Tileset</span><span class="ctl"><button type="button" class="dd"><span class="v">Shimrod Autumn</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r"><span class="l">Background colour</span><span class="ctl"><button type="button" class="dd"><span class="sw" style="background: #0b0f0b"></span><span class="v">Default</span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></button></span></div>
+<div class="r top"><span class="l">Map file<small>Bundled map · 34,512 rooms</small></span><span class="ctl"><button type="button" class="gb">Import map file…</button></span></div>
+</sc-if>
+
+<sc-if value="{{isWx}}" hint-placeholder-val="{{false}}">
+<div class="r"><span class="l" style="color: #d0d0d0">Weather effects</span><span class="ctl"><button type="button" class="{{wxCls}}" onClick="{{flipWx}}" aria-label="Weather effects"><i></i></button></span></div>
+<div class="{{wxRowsCls}}">
+<sc-for list="{{wx}}" as="w" hint-placeholder-count="6"><div class="r top"><span class="l" style="flex: 1">{{w.label}}<small>{{w.help}}</small></span><span class="ctl" style="flex: 0 0 auto"><button type="button" class="{{w.cls}}" onClick="{{w.flip}}" aria-label="{{w.label}}"><i></i></button></span></div></sc-for>
+</div>
+</sc-if>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":620}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'app', size: 15, pad: 4, bold: true, clear: false, sugg: true, cursor: 'Block', blink: true, map: true, notes: true, hover: 'Full', hsize: 'Medium', wx: true,
+      w: { sky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true, blue: false } };
+  }
+  renderVals() {
+    const s = this.state;
+    const set = (patch) => this.setState(patch);
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile', gap: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts', d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const bar = icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id + (i.id === 'settings' ? ' hot' : ''), gapBefore: !!i.gap }));
+    const tg = (on) => (on ? 'tg on' : 'tg');
+    const tabs = [['app', 'Appearance'], ['input', 'Text input'], ['map', 'Mapper'], ['wx', 'Weather effects']].map(([id, label]) => ({ label, cls: s.tab === id ? 'tab sel' : 'tab', pick: () => set({ tab: id }) }));
+    const seg = (key, opts) => opts.map((label) => ({ label, cls: s[key] === label ? 'sg on' : 'sg', pick: () => set({ [key]: label }) }));
+    const pal = ['#000000', '#800000', '#008000', '#808000', '#000080', '#800080', '#008080', '#c0c0c0', '#808080', '#ff0000', '#00ff00', '#ffff00', '#0000ff', '#ff00ff', '#00ffff', '#ffffff'];
+    const names = ['Black', 'Red', 'Green', 'Yellow', 'Blue', 'Magenta', 'Cyan', 'White', 'Bright black', 'Bright red', 'Bright green', 'Bright yellow', 'Bright blue', 'Bright magenta', 'Bright cyan', 'Bright white'];
+    const wxRows = [
+      ['sky', 'Sky', 'Sky, clouds, sunrise and sunset, moon and stars outdoors.'],
+      ['precipitation', 'Precipitation', 'Rain with drips along the panes; snow that builds up.'],
+      ['lightning', 'Lightning', 'A bolt when the game reports a lightning flash.'],
+      ['fog', 'Fog', 'Light or dense fog drifting low over the screen.'],
+      ['darkness', 'Darkness', 'A red bleed when a darkness spell spreads, a lift when it fades.'],
+      ['body', 'Body', 'Sleeping, stunned, incapacitated and dying.'],
+      ['blue', 'Blue day sky', 'A blue sky by day instead of the dark one.']
+    ];
+    return {
+      sun, bar, tabs,
+      isApp: s.tab === 'app', isInput: s.tab === 'input', isMap: s.tab === 'map', isWx: s.tab === 'wx',
+      size: s.size, pad: s.pad,
+      setSize: (e) => set({ size: Number(e.target.value) }),
+      setPad: (e) => set({ pad: Number(e.target.value) }),
+      boldCls: tg(s.bold), flipBold: () => set({ bold: !s.bold }),
+      pal: pal.map((hex, i) => ({ hex, name: names[i] })),
+      clearCls: tg(s.clear), flipClear: () => set({ clear: !s.clear }),
+      suggCls: tg(s.sugg), flipSugg: () => set({ sugg: !s.sugg }),
+      blinkCls: tg(s.blink), flipBlink: () => set({ blink: !s.blink }),
+      cursors: seg('cursor', ['Block', 'Bar', 'Underline']),
+      mapCls: tg(s.map), flipMap: () => set({ map: !s.map }),
+      notesCls: tg(s.notes), flipNotes: () => set({ notes: !s.notes }),
+      hovers: seg('hover', ['Off', 'Minimal', 'Full']),
+      sizes: seg('hsize', ['Small', 'Medium', 'Large']),
+      wxCls: tg(s.wx), flipWx: () => set({ wx: !s.wx }),
+      wxRowsCls: s.wx ? '' : 'dim',
+      wx: wxRows.map(([id, label, help]) => ({ label, help, cls: tg(s.w[id]), flip: () => set({ w: { ...s.w, [id]: !s.w[id] } }) }))
+    };
+  }
+}
+</script>
+</body>
+</html>

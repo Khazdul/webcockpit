@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>30a · Exit popup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#000}
+.board{position:relative;width:1440px;height:340px;overflow:hidden;background:#000;color:#c0c0c0;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:15px;line-height:17px}
+.out{position:absolute;left:0;bottom:17px;white-space:pre}
+.rn{color:#5fafff;font-weight:700}.ex{color:#5faf5f}.mob{color:#d7d75f}
+.input{position:absolute;left:0;bottom:0;height:17px;white-space:pre;color:#87afd7}
+.caret{display:inline-block;width:9px;height:15px;margin-top:1px;background:#c0c0c0;vertical-align:top}
+.slot{position:absolute;right:404px;bottom:0;height:17px;display:flex;align-items:flex-end}
+.dock{position:absolute;right:0;top:0;bottom:0;width:400px}
+.rim{position:absolute;left:3px;right:3px;top:-40px;bottom:3px;box-sizing:border-box;border-radius:4px;border:1px solid rgba(0,0,0,.56);background:linear-gradient(180deg,rgba(255,255,255,.16),rgba(255,255,255,0) 40%),#545454;box-shadow:inset 1px 1px 0 rgba(239,239,239,.58),inset -1px -1px 0 rgba(125,125,125,.45)}
+.hole{position:absolute;inset:5px;background:#000;border:1px solid;border-color:rgba(0,0,0,.6) rgba(239,239,239,.28) rgba(239,239,239,.28) rgba(0,0,0,.6);overflow:hidden}
+.comm{position:absolute;left:6px;right:6px;bottom:2px;white-space:pre}
+.cn{color:#d7875f}.ct{color:#87d7af}
+
+.mn{display:flex;align-items:center;height:17px;gap:2px}
+.clk{display:flex;align-items:center;gap:5px;padding:0 2px;white-space:pre}
+.clk .t{color:#fff;font-weight:700}
+.sun{width:13px;height:13px;fill:none;stroke:#ffb000;stroke-width:2;stroke-linecap:round}
+.dotw{display:flex;align-items:center;justify-content:center;width:12px;height:17px}
+.dot{width:5px;height:5px;border-radius:50%;background:#3c3c3c}
+.sep{width:1px;height:11px;background:#2c2c2c;margin:0 5px}
+.mb{all:unset;position:relative;display:flex;align-items:center;justify-content:center;width:22px;height:17px;border-radius:3px;cursor:pointer}
+.ic{width:13px;height:13px;fill:none;stroke:#686868;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.mb:hover,.mb.hot{background:rgba(255,255,255,.07)}
+.mb:hover .ic{stroke:#ececec}
+.mb-exit.hot .ic,.mb-exit:hover .ic{stroke:#ff7a7a}
+
+.pop{position:absolute;right:404px;bottom:23px;width:280px;box-sizing:border-box;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:5px;box-shadow:0 10px 28px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);font-size:13px;line-height:16px;color:#c0c0c0;padding:14px 14px 12px}
+.q{color:#ececec;font-size:14px}
+.sub{color:#585858;font-size:11px;margin-top:12px}
+.stars{display:flex;gap:2px;margin-top:4px}
+.st{all:unset;cursor:pointer;font-size:20px;line-height:24px;width:22px;text-align:center;color:#3a3a3a}
+.st.on{color:#ffd060}
+.st:hover{color:#ffe08a}
+.clr{all:unset;cursor:pointer;margin-left:8px;align-self:center;font-size:11px;color:#585858}
+.clr:hover{color:#bcbcbc}
+.btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.gb{all:unset;cursor:pointer;height:24px;line-height:24px;padding:0 10px;border-radius:3px;border:1px solid #2e2e2e;color:#a8a8a8}
+.gb:hover{border-color:#5a5a5a;color:#ececec;background:rgba(255,255,255,.05)}
+.gb .k{color:#585858;margin-left:6px}
+.gb.danger{color:#ff8a8a;border-color:#5a2a2a}
+.gb.danger:hover{background:rgba(255,95,95,.1);border-color:#8a3a3a;color:#ffb0b0}
+.gb.danger .k{color:#8a4a4a}
+</style>
+</helmet>
+<div class="board">
+<div class="out"><div><span class="rn">The Prancing Pony</span></div>
+<div>The common room is warm and loud. Hobbits and Men crowd the long tables,</div>
+<div>and the smell of ale and pipe-weed hangs under the beams.</div>
+<div><span class="ex">Exits: north, east, west.</span></div>
+<div><span class="mob">Barliman Butterbur is here, bustling about.</span></div>
+<div>* o&gt; rent</div>
+<div>Barliman Butterbur says 'A room for the night? That will be 12 copper.'</div>
+<div>* o&gt;</div></div>
+<div class="input">&gt; <span class="caret"></span></div>
+<div class="slot">
+<div class="mn"><div class="clk"><span class="t">4:33</span><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><path d="{{sun}}"></path></svg><span class="dotw"><span class="dot"></span></span></div><sc-for list="{{bar}}" as="item" hint-placeholder-count="6"><sc-if value="{{item.gapBefore}}" hint-placeholder-val="{{false}}"><span class="sep"></span></sc-if><button type="button" class="{{item.cls}}" aria-label="{{item.label}}" title="{{item.label}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="{{item.d}}"></path></svg></button></sc-for></div>
+</div>
+<div class="dock"><div class="rim"><div class="hole"><div class="comm"><div><span class="cn">Gandor narrates</span> 'anyone up for Moria?'</div>
+<div><span class="cn">Elwen tells you</span> 'meet at the ford'</div>
+<div><span class="ct">You narrate</span> 'on my way'</div></div></div></div></div>
+
+<div class="pop" role="dialog" aria-label="Exit to main menu">
+<div class="q">Exit to main menu?</div>
+<div class="sub">Rate &amp; save this run (optional)</div>
+<div class="stars"><sc-for list="{{stars}}" as="s" hint-placeholder-count="5"><button type="button" class="{{s.cls}}" onClick="{{s.pick}}" aria-label="{{s.label}}">★</button></sc-for><sc-if value="{{rated}}" hint-placeholder-val="{{true}}"><button type="button" class="clr" onClick="{{clear}}">clear</button></sc-if></div>
+<div class="btns"><button type="button" class="gb">Cancel<span class="k">Esc</span></button><button type="button" class="gb danger">Exit<span class="k">Y</span></button></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":340}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { rating: 4 };
+  }
+  renderVals() {
+    const sun = 'M12 8.5a3.5 3.5 0 1 1 0 7a3.5 3.5 0 1 1 0-7z M12 2v2.5 M12 19.5V22 M2 12h2.5 M19.5 12H22 M4.9 4.9l1.8 1.8 M17.3 17.3l1.8 1.8 M4.9 19.1l1.8-1.8 M17.3 6.7l1.8-1.8';
+    const icons = [
+      { id: 'profile', label: 'Profile', gap: true, d: 'M12 4a4 4 0 1 1 0 8a4 4 0 1 1 0-8z M4.5 20.5c0-4.2 3.4-6.3 7.5-6.3s7.5 2.1 7.5 6.3' },
+      { id: 'scripts', label: 'Scripts', d: 'M9 4.5c-2 0-2.8 1-2.8 2.8v2.4c0 1.3-.8 2.1-2.2 2.3c1.4.2 2.2 1 2.2 2.3v2.4c0 1.8.8 2.8 2.8 2.8 M15 4.5c2 0 2.8 1 2.8 2.8v2.4c0 1.3.8 2.1 2.2 2.3c-1.4.2-2.2 1-2.2 2.3v2.4c0 1.8-.8 2.8-2.8 2.8' },
+      { id: 'panes', label: 'Panes', gap: true, d: 'M4 4h16v16H4z M14 4v16 M14 12h6' },
+      { id: 'settings', label: 'Settings', d: 'M4 7h9 M17 7h3 M15 4.5v5 M4 12h3 M11 12h9 M9 9.5v5 M4 17h11 M19 17h1 M17 14.5v5' },
+      { id: 'full', label: 'Fullscreen', gap: true, d: 'M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5' },
+      { id: 'exit', label: 'Exit', d: 'M12 3v8 M6.6 6.6a7.6 7.6 0 1 0 10.8 0' }
+    ];
+    const bar = icons.map((i) => ({ ...i, cls: 'mb mb-' + i.id + (i.id === 'exit' ? ' hot' : ''), gapBefore: !!i.gap }));
+    const r = this.state.rating;
+    const stars = [1, 2, 3, 4, 5].map((n) => ({ cls: n <= r ? 'st on' : 'st', label: n + ' star' + (n > 1 ? 's' : ''), pick: () => this.setState({ rating: n }) }));
+    return { sun, bar, stars, rated: r > 0, clear: () => this.setState({ rating: 0 }) };
+  }
+}
+</script>
+</body>
+</html>
