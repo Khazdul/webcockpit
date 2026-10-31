@@ -6,8 +6,13 @@
 // a script pane made with `cross = false` has them hidden with its cross
 // (CSS `data-no-cross`).
 //
-//   framed:      … [Colour][Border][Background][ × ]▕   the last cell is the corner's
-//   borderless:  … [Colour][Border][Background][ × ]    the cross at the right edge
+//   framed:      … [Gear][Colour][Border][Background][ × ]▕   the last cell is the corner's
+//   borderless:  … [Gear][Colour][Border][Background][ × ]    the cross at the right edge
+//
+// The Gear (stage 30 S6, ADR 0095 addendum 30c) is on the Map, Comm,
+// Timers and Group panes only (`GEAR_PANES`), where the cockpit has a gear
+// handler (the App's settings popups): it opens the pane's settings popup.
+// It is the leftmost button, so it is the first one dropped.
 //
 // (ADR 0095 round 1: on a borderless pane the cross moved to the edge and
 // the top row becomes a title bar on hover, the name tag at its left.)
@@ -34,6 +39,23 @@ import { PANE_TINTS } from '../theme/presets';
 /** The buttons from the left, Colour first; the cross comes after them. */
 export const PANE_LOOKS: readonly PaneLook[] = ['color', 'border', 'glass'];
 
+/** A hover button: a look button or the Gear (left of them). */
+export type PaneButton = PaneLook | 'gear';
+
+/** The panes with a Gear (their settings popup, ADR 0107). */
+export const GEAR_PANES: readonly string[] = ['map', 'comm', 'timers', 'group'];
+
+/** True when pane `id` has a Gear. */
+export const hasGear = (id: string): boolean => GEAR_PANES.includes(id);
+
+/** A pane's hover buttons from the left: the Gear first where it has one. */
+export function paneButtons(gear: boolean): readonly PaneButton[] {
+  return gear ? ['gear', ...PANE_LOOKS] : PANE_LOOKS;
+}
+
+/** The Gear's tooltip and aria-label: `Comm settings`. */
+export const gearLabel = (paneLabel: string): string => `${paneLabel} settings`;
+
 /** Cells per button (the cross has three). */
 export const LOOK_BUTTON_CELLS = 2;
 /** Cells from the pane's right edge to the cross's left edge, framed: the corner cell and the cross. */
@@ -59,24 +81,42 @@ export function lookOn(what: PaneLook, p: Readonly<PaneSettings>): boolean {
 }
 
 /**
- * How many buttons fit in a pane `paneW` px wide (cells `cellW` px) when
- * everything left of `freeFrom` px (the nameplate, a borderless pane's name
- * tag) must stay uncovered, with half a cell between: 0–3. `crossCells`:
- * from the right edge to the cross's left edge. The buttons go
- * from the left (Colour first), so the ones that stay keep their places
+ * How many of `count` buttons (3, or 4 with the Gear) fit in a pane `paneW`
+ * px wide (cells `cellW` px) when everything left of `freeFrom` px (the
+ * nameplate) must stay uncovered, with half a cell between. `crossCells`:
+ * from the right edge to the cross's left edge. The buttons go from the
+ * left (the Gear, then Colour), so the ones that stay keep their places
  * beside the cross; the cross always stays.
  */
-export function lookButtonsFit(paneW: number, cellW: number, freeFrom: number, crossCells = CROSS_CELLS_FRAMED): number {
+export function lookButtonsFit(
+  paneW: number,
+  cellW: number,
+  freeFrom: number,
+  crossCells = CROSS_CELLS_FRAMED,
+  count = PANE_LOOKS.length,
+): number {
   const gap = freeFrom > 0 ? cellW / 2 : 0;
   let n = 0;
-  while (n < PANE_LOOKS.length && paneW - (crossCells + LOOK_BUTTON_CELLS * (n + 1)) * cellW >= freeFrom + gap) n++;
+  while (n < count && paneW - (crossCells + LOOK_BUTTON_CELLS * (n + 1)) * cellW >= freeFrom + gap) n++;
   return n;
 }
 
-/** The slot from the cross (0: next to it) of button `what`, for its CSS place. */
-export function lookSlot(what: PaneLook): number {
-  return PANE_LOOKS.length - 1 - PANE_LOOKS.indexOf(what);
+/** The slot from the cross (0: next to it) of button `what`, for its CSS place; the Gear's is 3. */
+export function lookSlot(what: PaneButton): number {
+  return what === 'gear' ? PANE_LOOKS.length : PANE_LOOKS.length - 1 - PANE_LOOKS.indexOf(what);
 }
+
+/**
+ * The Gear's icon (mockup 30a-5): a toothed ring round a hub, strokes in
+ * `currentColor`, no ids. viewBox 24 × 24; the teeth are a dashed thick
+ * circle, so they stay even at any size.
+ */
+export const GEAR_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor">' +
+  '<circle cx="12" cy="12" r="8.2" stroke-width="3.6" stroke-dasharray="3.2 3.24"/>' +
+  '<circle cx="12" cy="12" r="5.6" stroke-width="2.4"/>' +
+  '<circle cx="12" cy="12" r="1.9" stroke-width="2"/>' +
+  '</svg>';
 
 /**
  * The icon markup (static). viewBox 12 × 12; the rounded square is the

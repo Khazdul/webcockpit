@@ -72,6 +72,11 @@
 //   take no focus and start no drag; none on a temporary pane (no
 //   settings) or where the cross is hidden. A pane too narrow for them
 //   beside its title drops them from the left (`syncLook`).
+// - With `onGear` (the App's settings popups, ADR 0107), the Map, Comm,
+//   Timers and Group panes have a Gear left of them (`GEAR_PANES`): its
+//   click calls `onGear(id)`, which toggles the pane's settings popup; the
+//   cockpit never imports the chrome. `markGear(id)` marks the Gear whose
+//   popup is open (`data-open`). The Gear is dropped first when narrow.
 // - Drag the gap between the game pane and a dock to resize the dock (its
 //   innermost lane), the boundary between two lanes (the right part of the
 //   left lane's last column, or the lower part of the upper lane's last
@@ -157,7 +162,20 @@ import {
   togglePatch,
 } from './model';
 import { floatHoles } from './float-holes';
-import { CROSS_CELLS_BORDERLESS, CROSS_CELLS_FRAMED, LOOK_ICONS, PANE_LOOKS, lookButtonsFit, lookLabel, lookOn, lookSlot } from './pane-buttons';
+import {
+  CROSS_CELLS_BORDERLESS,
+  CROSS_CELLS_FRAMED,
+  GEAR_ICON,
+  LOOK_ICONS,
+  type PaneButton,
+  gearLabel,
+  hasGear,
+  lookButtonsFit,
+  lookLabel,
+  lookOn,
+  lookSlot,
+  paneButtons,
+} from './pane-buttons';
 import { type Settings, paneSettingsOf } from '../settings/types';
 import { device } from '../core/device';
 import { GAME_TAB, PHONE_MIN_COLS, PHONE_MIN_ROWS, type PhoneLayoutResult, type PhoneTab, allocatePhone } from './phone';
@@ -261,6 +279,11 @@ export interface CockpitOptions {
    * cells and frame scheduler. The cockpit emits `view.size` on its bus.
    */
   paneContext?: PaneContext;
+  /**
+   * The Gear's click on pane `id` (ADR 0107: the App toggles its settings
+   * popup). Without it no pane has a Gear.
+   */
+  onGear?: (id: PaneId) => void;
 }
 
 /**
@@ -415,8 +438,11 @@ export class Cockpit {
   private readonly closers = new Map<PaneId, HTMLDivElement>();
   /** The holes under floating panes (float-holes.ts), recut after every layout. */
   private readonly holes: { sync(): void; clear(): void };
-  /** Hover buttons by pane (Colour, Border, Background, ADR 0095); none on temporary panes. */
-  private readonly lookers = new Map<PaneId, HTMLDivElement[]>();
+  /** Hover buttons by pane (the Gear, Colour, Border, Background, ADR 0095), from the left; none on temporary panes. */
+  private readonly lookers = new Map<PaneId, { what: PaneButton; el: HTMLDivElement }[]>();
+  private readonly onGear: ((id: PaneId) => void) | null;
+  /** The pane whose Gear popup is open (`markGear`). */
+  private gearOpen: PaneId | null = null;
   /** Script panes added with `addPane` (ADR 0053). */
   private readonly present = new Set<PaneId>();
   /** Temporary script panes, back to front (insertion order is the z-order). */
@@ -468,6 +494,7 @@ export class Cockpit {
     this.settings = opts.settings;
     this.cells = opts.cells;
     this.onFocusInput = opts.onFocusInput ?? (() => {});
+    this.onGear = opts.onGear ?? null;
     this.requestFrame =
       opts.requestFrame ??
       (typeof requestAnimationFrame === 'function'
@@ -563,17 +590,27 @@ export class Cockpit {
     const grip = div('wc-pane-grip');
     grip.dataset.grip = id;
     shell.el.append(grip);
-    // The look buttons (ADR 0095) before the cross; a temporary pane has no settings to change.
+    // The Gear and the look buttons (ADR 0095) before the cross; a temporary pane has no settings to change.
     if (!this.temps.has(id)) {
-      const btns = PANE_LOOKS.map((what) => {
+      const gear = this.onGear !== null && hasGear(id);
+      const btns = paneButtons(gear).map((what) => {
         const b = div(`wc-pane-btn wc-pane-btn-${what}`);
         b.setAttribute('role', 'button');
         b.dataset.look = what;
         b.style.setProperty('--slot', String(lookSlot(what)));
-        b.innerHTML = LOOK_ICONS[what];
-        b.addEventListener('click', () => this.settings.update(lookPatch(this.settings.get().panes, id, what)));
+        if (what === 'gear') {
+          b.innerHTML = GEAR_ICON;
+          const text = gearLabel(shell.label);
+          b.title = text;
+          b.setAttribute('aria-label', text);
+          b.dataset.mb = `pane:${id}`;
+          b.addEventListener('click', () => this.onGear?.(id));
+        } else {
+          b.innerHTML = LOOK_ICONS[what];
+          b.addEventListener('click', () => this.settings.update(lookPatch(this.settings.get().panes, id, what)));
+        }
         shell.el.append(b);
-        return b;
+        return { what, el: b };
       });
       this.lookers.set(id, btns);
     }
@@ -612,18 +649,39 @@ export class Cockpit {
     const framed = shell.el.hasAttribute('data-framed');
     // Clear of the nameplate on a frame; a borderless pane has nothing to keep clear (ADR 0095 round 3: no name tag).
     const freeFrom = shell.titleEnd;
-    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS);
-    PANE_LOOKS.forEach((what, i) => {
-      const b = btns[i]!;
+    const fit = lookButtonsFit(paneW, cellW, freeFrom, framed ? CROSS_CELLS_FRAMED : CROSS_CELLS_BORDERLESS, btns.length);
+    btns.forEach(({ what, el: b }, i) => {
+      // Dropped from the left: the first `n - fit` go (the Gear first).
+      b.toggleAttribute('data-drop', i < btns.length - fit);
+      if (what === 'gear') return;
       const text = lookLabel(what, p);
       if (b.title !== text) {
         b.title = text;
         b.setAttribute('aria-label', text);
       }
       b.toggleAttribute('data-on', lookOn(what, p));
-      // Dropped from the left: the first `3 - fit` go.
-      b.toggleAttribute('data-drop', i < PANE_LOOKS.length - fit);
     });
+  }
+
+  /**
+   * Marks the Gear of pane `id` as open (its settings popup is shown), or
+   * none (null). The App calls it when the popup opens or closes.
+   */
+  markGear(id: PaneId | null): void {
+    if (id === this.gearOpen) return;
+    const mark = (pid: PaneId | null, on: boolean): void => {
+      const g = pid === null ? undefined : this.lookers.get(pid)?.find((b) => b.what === 'gear');
+      g?.el.toggleAttribute('data-open', on);
+    };
+    mark(this.gearOpen, false);
+    this.gearOpen = id;
+    mark(id, true);
+  }
+
+  /** True when pane `id` has a box in the last layout (shown, not too small). */
+  isShown(id: PaneId): boolean {
+    const r = this.last;
+    return !!r && !r.tooSmall && r.panes.some((p) => p.id === id);
   }
 
   private labelClose(close: HTMLElement, id: PaneId, label: string): void {

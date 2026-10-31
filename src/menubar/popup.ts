@@ -11,7 +11,8 @@
 //   text selection.
 // - Placement: its right edge on the bar's right end (the mockups), moved
 //   left far enough to cover its icon, kept inside the viewport; above the
-//   bar, or squeezed with a scroll when the space above is short.
+//   bar, or squeezed with a scroll when the space above is short. A pane's
+//   gear popup goes beside its pane instead (`placeBeside`, ADR 0107).
 
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
 import { CLOSE_X, strokeIcon } from './icons';
@@ -77,6 +78,87 @@ export function placePopup(el: HTMLElement, icon: Element, bar: Element): void {
   const top = Math.max(MARGIN, b.top - GAP - el.offsetHeight);
   el.style.left = `${Math.round(left)}px`;
   el.style.top = `${Math.round(top)}px`;
+}
+
+/** A box on screen (px, viewport coordinates). */
+export interface ScreenBox {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Where `besidePlace` puts a popup: its top-left corner, and a height cap (null: none). */
+export interface BesidePos {
+  left: number;
+  top: number;
+  maxHeight: number | null;
+  /** Beside the pane, or over it (no room on either side). */
+  side: 'left' | 'right' | 'over';
+}
+
+/**
+ * A pane's gear popup (ADR 0107): `w` × `h` px beside `pane`, top-aligned
+ * with it, on the side toward the game column (`game`) when it fits there,
+ * else on the other side; with room on neither side (a wide pane) over the
+ * pane's box near its top edge (`inset` px below it, the title row), on the
+ * game side. Always inside the `vw` × `vh` viewport; taller than it, the
+ * height is capped (the popup's body scrolls).
+ */
+export function besidePlace(pane: ScreenBox, game: ScreenBox, w: number, h: number, vw: number, vh: number, inset = 0): BesidePos {
+  const gameLeft = (game.left + game.right) / 2 <= (pane.left + pane.right) / 2;
+  const fitsLeft = pane.left - GAP - w >= MARGIN;
+  const fitsRight = pane.right + GAP + w <= vw - MARGIN;
+  const order: Array<'left' | 'right'> = gameLeft ? ['left', 'right'] : ['right', 'left'];
+  const side = order.find((s) => (s === 'left' ? fitsLeft : fitsRight)) ?? 'over';
+  let left: number;
+  let top = pane.top;
+  if (side === 'left') left = pane.left - GAP - w;
+  else if (side === 'right') left = pane.right + GAP;
+  else {
+    left = gameLeft ? pane.left + GAP : pane.right - GAP - w;
+    top = pane.top + inset;
+  }
+  left = Math.max(MARGIN, Math.min(left, vw - w - MARGIN));
+  const room = vh - 2 * MARGIN;
+  const maxHeight = h > room ? Math.max(0, room) : null;
+  top = Math.max(MARGIN, Math.min(top, vh - MARGIN - Math.min(h, room)));
+  return { left: Math.round(left), top: Math.round(top), maxHeight, side };
+}
+
+/** Places a gear popup `el` beside the pane element `pane` (see `besidePlace`). */
+export function placeBeside(el: HTMLElement, pane: Element, game: Element, inset = 0): void {
+  const win = el.ownerDocument.defaultView;
+  el.style.maxHeight = '';
+  const p = besidePlace(
+    pane.getBoundingClientRect(),
+    game.getBoundingClientRect(),
+    el.offsetWidth,
+    el.offsetHeight,
+    win?.innerWidth ?? 0,
+    win?.innerHeight ?? 0,
+    inset,
+  );
+  if (p.maxHeight !== null) el.style.maxHeight = `${p.maxHeight}px`;
+  el.style.left = `${p.left}px`;
+  el.style.top = `${p.top}px`;
+  el.dataset.side = p.side;
+}
+
+/** The pane of a gear popup's key (`pane:comm` → `comm`), or null for another popup. */
+export const gearPaneOf = (key: string | null | undefined): string | null => (key?.startsWith('pane:') ? key.slice(5) : null);
+
+/**
+ * After a cockpit layout: an open gear popup follows its pane (placed
+ * again) while the pane is `shown`, and closes when it is not (hidden by
+ * its cross, the Panes popup, a setting or Reset layout; removed; the
+ * window too small). Other popups are left alone.
+ */
+export function followPane(p: { readonly openKey: string | null; place(): void; close(): boolean }, shown: (id: string) => boolean): void {
+  const id = gearPaneOf(p.openKey);
+  if (id === null) return;
+  if (shown(id)) p.place();
+  else p.close();
 }
 
 /** Moves the focus among `items` with ↑/↓ (wrapping); true when it moved. */

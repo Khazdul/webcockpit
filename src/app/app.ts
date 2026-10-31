@@ -65,7 +65,8 @@
 // Profile and Scripts toggle the shell's windows (`ui.toggleWindow`, ADR
 // 0103); Settings and `#settings` toggle the shell's Settings popup
 // (`ui.toggleSettings`, ADR 0107), which the bar holds as its open popup
-// while it is open. Esc in the input (stage 30 S2): scrolled back → bottom (the input
+// while it is open. The Map, Comm, Timers and Group panes' Gear toggles
+// their gear popup (`ui.togglePaneSettings`, the cockpit's `onGear`). Esc in the input (stage 30 S2): scrolled back → bottom (the input
 // pane); else the bar's open popup closes; else the topmost window gets
 // its close request (`ui.escapeWindow`); else, in the cockpit's
 // fullscreen, the Exit popup opens (Esc reaches the page there only with
@@ -114,6 +115,7 @@ import type { ScriptHost } from '../scripts/host';
 import { GmcpCache } from '../scripts/gmcp-cache';
 import { device } from '../core/device';
 import { phoneNawsCols } from '../layout/phone';
+import type { PaneId } from '../layout/types';
 
 /** UI pane warnings for capture states that mean runs are not recorded. */
 const CAPTURE_WARNINGS: Readonly<Record<string, string>> = {
@@ -237,6 +239,11 @@ export interface AppUi {
    * Settings and `#settings` open the ESC menu at Options.
    */
   toggleSettings?(): void;
+  /**
+   * With the bar: toggles pane `id`'s gear popup (ADR 0107; the Map, Comm,
+   * Timers and Group panes' Gear). Absent: the panes have no Gear.
+   */
+  togglePaneSettings?(id: PaneId): void;
   /** Esc in the input with no popup open: the topmost window's close request; false when none is open. */
   escapeWindow?(): boolean;
   /** True while an open window holds unsaved changes (the Exit popup warns). */
@@ -417,6 +424,7 @@ export class App {
       cells: cellSource,
       onFocusInput: () => this.input.focus(),
       paneContext,
+      ...(this.appUi?.bar && this.appUi.togglePaneSettings ? { onGear: (id: PaneId) => this.appUi?.togglePaneSettings?.(id) } : {}),
     });
     this.output = new OutputPane(bus, this.cockpit.gameEl, {
       scrollback: this.settings.get().output.scrollback,

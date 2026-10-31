@@ -46,8 +46,13 @@
 // mounted on first use in the App's element beside the bar's own popups
 // and placed above the Settings icon (`placePopup`). The bar adopts it as
 // its open popup, so the one-popup rule, Esc, the ESC menu and hiding the
-// cockpit close it as they close Panes and Exit. 30c part 2 opens the pane
-// gear popups through the same layer (`togglePopup`, `popupsHandle`).
+// cockpit close it as they close Panes and Exit. The Map, Comm, Timers and
+// Group panes' Gear opens their gear popup through the same layer
+// (`togglePaneSettings`, the App's `ui.togglePaneSettings`), beside the
+// pane (`placeBeside`), placed again after every cockpit layout and closed
+// when its pane is no longer shown (hidden by its cross, the Panes popup,
+// a setting or Reset layout, or the window too small); the Gear is marked
+// while its popup is open (`Cockpit.markGear`).
 //
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
@@ -85,7 +90,8 @@ import type {
   WindowId,
   WindowsHandle,
 } from '../chrome';
-import { placePopup } from '../menubar/popup';
+import { followPane, gearPaneOf, placeBeside, placePopup } from '../menubar/popup';
+import type { PaneId } from '../layout/types';
 import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
@@ -389,9 +395,23 @@ export class Shell {
     });
   }
 
+  /** A pane's Gear: its gear popup's toggle, beside the pane (ADR 0107). */
+  async togglePaneSettings(id: PaneId): Promise<void> {
+    const app = this.appRef;
+    if (!app) return;
+    const cockpit = app.cockpit;
+    await this.togglePopup({ pane: id }, (el) => {
+      if (!cockpit.isShown(id)) return;
+      const doc = el.ownerDocument;
+      // Over a wide pane: below its title row.
+      const cellH = parseFloat(getComputedStyle(doc.documentElement).getPropertyValue('--cell-h')) || 0;
+      placeBeside(el, cockpit.pane(id).el, cockpit.gameEl, cellH);
+    });
+  }
+
   /**
    * Toggles the settings popup for `target`, placed by `place` (the Settings
-   * popup above its icon; 30c part 2's gear popups beside their pane).
+   * popup above its icon; a gear popup beside its pane).
    */
   async togglePopup(target: SettingsPopupTarget, place: PopupPlace): Promise<void> {
     if (!this.inCockpit || !this.appRef?.menuBar) return;
@@ -408,7 +428,11 @@ export class Shell {
         focusInput: () => app.input.focus(),
         onOpen: (key, el, close) => app.menuBar?.adopt({ key, el, close }),
         onClose: (key) => app.menuBar?.release(key),
+        onChange: (key) => app.cockpit.markGear(gearPaneOf(key) as PaneId | null),
       });
+      // The open gear popup follows its pane, or closes when the pane is no longer shown.
+      const popups = this.popups;
+      app.cockpit.onLayout(() => followPane(popups, (id) => app.cockpit.isShown(id as PaneId)));
       return this.popups;
     });
     this.popupsP.catch(() => (this.popupsP = null));
@@ -531,6 +555,7 @@ export class Shell {
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
               toggleSettings: () => void this.toggleSettings(),
+              togglePaneSettings: (id: PaneId) => void this.togglePaneSettings(id),
               escapeWindow: () => this.windows?.escapeTop() ?? false,
               windowsUnsaved: () => this.windows?.unsaved() ?? false,
             }),

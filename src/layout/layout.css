@@ -275,9 +275,10 @@
  * handles.
  *
  * The look buttons (`.wc-pane-btn`, ADR 0095; cockpit.ts, pane-buttons.ts)
- * sit left of it, two cells each, `--slot` 0 next to the cross: Colour,
- * Border, Background from the left. They share the cross's box, colour,
- * shadow, hover accent and visibility rules, so the four read as one set. */
+ * sit left of it, two cells each, `--slot` 0 next to the cross: (the Gear
+ * on Map, Comm, Timers and Group, slot 3,) Colour, Border, Background from
+ * the left. They share the cross's box, colour, shadow, hover accent and
+ * visibility rules, so they read as one set. */
 .wc-pane-close,
 .wc-pane-btn {
   position: absolute;
@@ -385,8 +386,14 @@
   display: none;
 }
 
-/* The icons (pane-buttons.ts `LOOK_ICONS`). Border off and the glass
- * background's sheen: the same ink, dimmed. */
+/* The Gear whose settings popup is open (ADR 0107, `Cockpit.markGear`):
+ * lit in the hover accent while it shows, on every pane look. */
+.wc-cockpit .wc-pane > .wc-pane-btn.wc-pane-btn-gear[data-open] {
+  color: var(--c-accent);
+}
+
+/* The icons (pane-buttons.ts `LOOK_ICONS`, `GEAR_ICON`). Border off and
+ * the glass background's sheen: the same ink, dimmed. */
 .wc-pane-btn > svg {
   width: var(--icon);
   height: var(--icon);
