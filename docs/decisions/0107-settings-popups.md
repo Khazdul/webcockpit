@@ -213,3 +213,13 @@ the list. Opening the list makes the browser fetch every bundled family's
 regular file once (about 1.3 MB in all), then the cache serves them; a
 name shows in the fallback font for a moment until its file arrives.
 Lucida Console is local only and never fetched.
+
+## Addendum: focus on open (2026-10-31, 30c round 1)
+
+ADR 0108 replaces "it never takes the focus when it opens": the Settings
+popup takes the focus on its selected tab and a gear popup on its first
+control when they open, by a click, `#settings` or a macro. The key rules
+(Tab wraps; Page Up/Down scroll the body or are swallowed) and the press
+handling moved to `src/menubar/popup.ts` (`popupKey`, `pressPopup`,
+`focusPopup`), shared with the bar's popups; `data-pointer` hides the
+focus rings of every popup opened or pressed by the mouse.

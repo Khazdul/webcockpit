@@ -105,3 +105,12 @@ the Settings icon is marked and its tooltip off while it is open. The
 phone keeps the interim target (the ESC menu at Options), and Options →
 Panes → Appearance is phone only, so `#panes` without the bar still opens
 it.
+
+## Addendum (2026-10-31, stage 30c round 1)
+
+ADR 0108 changes the popups' focus rule: every bar popup takes the focus
+when it opens (Panes on its first row, Exit on its panel, as before), by a
+click, a `#` command or a macro; Tab wraps inside it, Page Up/Down never
+reach the game, and a click on a control keeps the keys in it. The bar's
+icons and the Reconnect button are out of the Tab order, and Tab in the
+game input never moves the focus.

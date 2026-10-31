@@ -594,11 +594,15 @@ Decided *(Claude)*, ADR 0108:
       `pane-gear.spec.ts` and `pane-buttons.spec.ts`, ADR 0095 and ADR 0107
       addenda.
 - [ ] 30c round 1 (2026-10-31): keys and focus (ADR 0108):
-  - [ ] Tab / Shift+Tab in the game input do nothing unless a macro or
+  - [x] Tab / Shift+Tab in the game input do nothing unless a macro or
     autosuggest uses them; cockpit chrome out of the Tab order.
-  - [ ] Bar and gear popups take the focus on open; Tab cycles inside;
+  - [x] Bar and gear popups take the focus on open; Tab cycles inside;
     keys work; clicks keep the focus; Esc / X / icon give it to the game.
   - [ ] Unit tests, e2e, ADR 0108, ADR 0099/0107 addenda, test guide.
+    - [x] Unit (input pane Tab, menu bar, App, surface), e2e
+      `popup-focus.spec.ts` and the specs that assumed keys after a click,
+      ADR 0108, ADR 0099/0107 addenda, `#panes` / `#settings` help.
+    - [ ] Test guide.
 - [ ] 30d.
 - [ ] 30e.
 - [ ] 30f.

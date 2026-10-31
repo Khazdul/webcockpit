@@ -70,7 +70,9 @@
 // pane); else the bar's open popup closes; else the topmost window gets
 // its close request (`ui.escapeWindow`); else, in the cockpit's
 // fullscreen, the Exit popup opens (Esc reaches the page there only with
-// the bar's Keyboard Lock); else the ESC menu opens.
+// the bar's Keyboard Lock); else the ESC menu opens. The popups take the
+// focus when they open (ADR 0108); Tab in the input never moves the focus,
+// and Tab from a stray focus in the shown App gives it back (`scope`).
 //
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never

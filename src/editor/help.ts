@@ -689,7 +689,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['panes'],
     syntax: ['#panes'],
     text: [
-      'Opens the Panes box above the menu bar\'s Panes button, or closes it when it is open: a switch per pane shows or hides it, built-in panes first, then the panes of running scripts, and Reset layout puts every pane back in its first place. The box takes the keys only after a click in it; Esc closes it.',
+      'Opens the Panes box above the menu bar\'s Panes button, or closes it when it is open: a switch per pane shows or hides it, built-in panes first, then the panes of running scripts, and Reset layout puts every pane back in its first place. The box takes the keys when it opens: ↑ and ↓ move between the switches, Space or Enter flips one, Tab moves within the box. Esc closes it and gives the keys back to the game; a click in the game gives them back and leaves it open.',
       'On a phone, where there is no menu bar, it opens the menu\'s pane page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#panes' }, { note: 'F12 opens and closes the Panes box:', code: '#macro {F12} {#panes}' }],
@@ -769,7 +769,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['settings'],
     syntax: ['#settings'],
     text: [
-      'Opens the Settings box above the menu bar\'s Settings button, or closes it when it is open, as the button does: tabs for Appearance, Text input, Mapper and Weather effects, and every change shows at once while you play. The box takes the keys only after a click in it; Esc, its cross or the button close it.',
+      'Opens the Settings box above the menu bar\'s Settings button, or closes it when it is open, as the button does: tabs for Appearance, Text input, Mapper and Weather effects, and every change shows at once while you play. The box takes the keys when it opens: Tab moves within it, the arrows, Space and Enter work its controls, Page Up and Page Down scroll it on a small screen. Esc, its cross or the button close it and give the keys back to the game; a click in the game gives them back and leaves it open.',
       'On a phone, where there is no menu bar, it opens Options in the menu; leaving it returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#settings' }],
