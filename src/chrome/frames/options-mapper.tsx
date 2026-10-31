@@ -24,7 +24,9 @@
 // thread) and stores it in IndexedDB; a running Map pane reloads. A bad
 // file flashes the reason and the old map stays. "Use bundled map"
 // deletes the import. The Map pane's on/off is the same setting as its
-// row in Options → Panes → Appearance.
+// row in the Panes popup (and Options → Panes → Appearance on a phone).
+// The logic is shared with the Settings popup's Mapper tab
+// (../mapper-model.ts, ADR 0107).
 //
 // Room notes (ADR 0077, `mapper.notes`, default On): the map file's note
 // for the located room after its exits line in the game window. Room info
@@ -45,11 +47,20 @@
 
 import type { VNode } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { seasonOf } from '../../gmcp/gametime';
-import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg, mapBgName } from '../../map/backgrounds';
+import { mapBgName } from '../../map/backgrounds';
 import type { CurrentMap } from '../../map/store';
-import { chooseTileset, localStorageOrNull, mumeMonth, storedClockEpoch, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
+import { chooseTileset, TILESET_IDS, tilesetChoice } from '../../map/tilesets';
 import { MAP_HOVER_MODES, MAP_HOVER_SIZES } from '../../settings';
+import {
+  BUNDLED_MAP,
+  MAP_BG_HEXES,
+  currentMap,
+  importMapFile,
+  mapBgChoice,
+  mapInfoRows,
+  tilesetCreditNow,
+  useBundledMap,
+} from '../mapper-model';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft, cycle } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
@@ -65,51 +76,11 @@ import {
   useMenuCursor,
 } from '../kit/widgets';
 
-const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
-
-/** `5.8 MB`, `812 kB`, `64 B`. */
-export function fmtBytes(n: number): string {
-  if (n >= 1e6) return `${(n / 1e6).toFixed(1)} MB`;
-  if (n >= 1e3) return `${Math.round(n / 1e3)} kB`;
-  return `${n} B`;
-}
-
-/** `30 074` (thin groups, as elsewhere in the chrome). */
-export function fmtCount(n: number): string {
-  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-}
-
-/** Local `YYYY-MM-DD HH:MM`. */
-export function fmtDate(ms: number): string {
-  const d = new Date(ms);
-  const p = (x: number): string => String(x).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-
-/** The info rows for the current map: [label, value]. */
-export function mapInfoRows(m: CurrentMap | null): Array<[string, string]> {
-  if (!m) return [['Map', '…']];
-  if (m.kind === 'bundled') return [['Map', `${m.name} (bundled)`]];
-  return [
-    ['Map', m.name],
-    ...(m.rooms !== undefined ? [['Rooms', fmtCount(m.rooms)] as [string, string]] : []),
-    ['Size', fmtBytes(m.size)],
-    ['Imported', fmtDate(m.date)],
-  ];
-}
+// The helpers live in ../mapper-model.ts (shared with the Settings popup's
+// Mapper tab, ADR 0107); re-exported for the page's callers.
+export { fmtBytes, fmtCount, fmtDate, mapInfoRows, tilesetCredit } from '../mapper-model';
 
 const LABEL_W = 10;
-
-/** What ←→ cycles on the background row: the list, Default first. */
-const MAP_BG_HEXES = MAP_BACKGROUNDS.map((c) => c.hex);
-
-/** The credit line under the menu; an alternating set adds the season it draws now (game month `month`). */
-export function tilesetCredit(id: string, month: number): string {
-  const c = tilesetChoice(id);
-  if (!c.family) return c.credit;
-  const season = seasonOf(month);
-  return `${c.credit} · now ${season[0]!.toUpperCase()}${season.slice(1)}`;
-}
 
 export function MapperOptionsFrame(): VNode {
   const { settings, maps } = useServices();
@@ -121,12 +92,7 @@ export function MapperOptionsFrame(): VNode {
   const [cur, setCur] = useState<CurrentMap | null>(null);
 
   const refresh = async (): Promise<void> => {
-    if (!maps) return;
-    try {
-      setCur(await maps.current());
-    } catch {
-      setCur({ kind: 'bundled', name: 'arda.mm2' });
-    }
+    if (maps) setCur(await currentMap(maps));
   };
   useEffect(() => {
     void refresh();
@@ -139,10 +105,10 @@ export function MapperOptionsFrame(): VNode {
   const toggleNotes = (): void => settings.update({ mapper: { notes: !mapper.notes } });
   const hoverLabel = mapper.hover === 'full' ? 'Full' : mapper.hover === 'off' ? 'Off' : 'Minimal';
   const tileset = tilesetChoice(mapper.tileset);
-  const credit = tilesetCredit(mapper.tileset, mumeMonth(storedClockEpoch(localStorageOrNull(), Date.now()), Date.now()));
+  const credit = tilesetCreditNow(mapper.tileset);
   const sizeLabel = mapper.hoverSize === 'small' ? 'Small' : mapper.hoverSize === 'large' ? 'Large' : 'Medium';
   // Background (ADR 0085): migration keeps only named colours; anything else reads as Default.
-  const bg = isNamedMapBg(mapper.background) ? mapper.background.toLowerCase() : MAP_BG_DEFAULT;
+  const bg = mapBgChoice(mapper.background);
 
   const run = async (f: () => Promise<void>): Promise<void> => {
     if (busy.current) return;
@@ -160,22 +126,10 @@ export function MapperOptionsFrame(): VNode {
       const file = input?.files?.[0];
       if (!input || !file) return;
       input.value = '';
-      if (!maps) return nav.flash('Import failed: no map storage here.', 'fail');
-      nav.flash(`Checking ${file.name}…`);
-      try {
-        const rec = await maps.importFile(file.name, await file.arrayBuffer());
-        nav.flash(`Imported ${rec.name}` + (rec.rooms !== undefined ? ` (${fmtCount(rec.rooms)} rooms).` : '.'));
-      } catch (e) {
-        nav.flash(`Import failed: ${errText(e)}`, 'fail');
-      }
+      await importMapFile(maps, file, (t, k) => nav.flash(t, k));
     });
 
-  const useBundled = (): Promise<void> =>
-    run(async () => {
-      if (!maps || cur?.kind !== 'imported') return;
-      await maps.useBundled();
-      nav.flash('Using the bundled map.');
-    });
+  const useBundled = (): Promise<void> => run(() => useBundledMap(maps, cur, (t) => nav.flash(t)));
 
   const items: MenuItem[] = [
     { key: 'on', glyph: on ? '[X]' : '[ ]', label: 'Show map pane', activate: toggle, adjust: toggle },
@@ -215,7 +169,7 @@ export function MapperOptionsFrame(): VNode {
   const [cursor, setCursor] = useMenuCursor(items);
   useKeys((_e, nk) => menuKey(items, cursor, setCursor, nk));
 
-  const rows = mapInfoRows(maps ? cur : { kind: 'bundled', name: 'arda.mm2' });
+  const rows = mapInfoRows(maps ? cur : BUNDLED_MAP);
   const w = LABEL_W + Math.max(...rows.map(([, v]) => v.length));
   const at = centreLeft(cols, w);
   return (
