@@ -103,7 +103,8 @@ export function FilteredFrame(p: { title: string; body: string; onSettingsClosed
     return menuKey(items, cursor, setCursor, nk);
   });
   const lines = wrapText(p.body, Math.max(20, Math.min(cols - 8, 64)));
-  const top = Math.max(0, Math.floor((rows - lines.length - 2) / 2) - 1);
+  // A third down, not centred: the popup opens below `Settings…` without covering the text.
+  const top = Math.max(0, Math.floor((rows - lines.length - 2) / 3));
   const place = (el: HTMLElement): void => {
     const a = ref.current?.querySelector('.wc-mrow[data-key="settings"] .wc-label');
     if (a) placeNear(el, a);

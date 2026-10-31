@@ -60,7 +60,8 @@
 }
 
 /* The empty stage (ADR 0110): the settings leave nothing to play. The
- * message, `Settings…` and `ESC Back`, centred on the player. */
+ * message, `Settings…` and `ESC Back`, centred across and a third down,
+ * so the settings popup opens below them. */
 .wc-spot-empty {
   position: absolute;
   inset: 0;
@@ -68,7 +69,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  padding-top: 30vh;
+  box-sizing: border-box;
   background: var(--term-bg);
   color: var(--c-body);
   white-space: pre;

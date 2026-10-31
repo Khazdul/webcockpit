@@ -1,5 +1,5 @@
-// Stage 7 P3: Spotlights, Credits and Options → Spotlights on the demo
-// backup (a death, a PvP kill, a level-up and two achievements over two
+// Stage 7 P3: Spotlights and Credits on the demo backup (the settings in
+// the reel's gear: spotlights-settings.spec.ts) (a death, a PvP kill, a level-up and two achievements over two
 // characters: five spotlights).
 import { type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
@@ -78,9 +78,10 @@ test('Spotlights plays the reel: header, info box, ←/→, park at the end, ESC
   await expect(box(page).locator('[data-nav="next"]')).toHaveCount(1);
   // A key showed the chrome.
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
-  // Stripped down: no panes, no gear; the markers' tips name the character.
+  // Stripped down: no panes; the gear is the Spotlights settings' (ADR 0110), not the viewer's.
   await expect(player(page).locator('.wc-pane:visible')).toHaveCount(0);
-  await expect(chrome(page).locator('.wc-player-gear')).toHaveCount(0);
+  await expect(chrome(page).locator('.wc-player-gear')).toHaveAttribute('title', 'Spotlights settings');
+  // The markers' tips name the character.
   await chrome(page).locator('.wc-player-mark', { hasText: 'K►' }).hover();
   await expect(chrome(page).locator('.wc-player-tip')).toContainText(': Killed *');
 
@@ -146,60 +147,5 @@ test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ p
   await expect(frame(page).locator('.wc-credits-col')).toBeVisible();
   await page.evaluate(() => document.getAnimations().forEach((a) => a.finish()));
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Credits >>');
-  expect(errors).toEqual([]);
-});
-
-test('Options → Spotlights toggles filter the reel and Credits', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/');
-  await restoreDemo(page);
-  await menuRow(page, 'options').click();
-  await frame(page).locator('.wc-mrow[data-key="spotlights"] .wc-label').click();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Spotlights ───');
-  const rows = frame(page).locator('.wc-mrow .wc-label');
-  await expect(rows).toHaveText(['[X] Achievements', '[X] Deaths', '[X] Level-ups', '[X] PvP kills', 'Back']);
-  // Enter and Space on the keyboard, a click with the mouse.
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press(' ');
-  await frame(page).locator('.wc-mrow[data-key="levelUps"] .wc-label').click();
-  await frame(page).locator('.wc-mrow[data-key="pvp"] .wc-label').click();
-  await expect(rows).toHaveText(['[ ] Achievements', '[ ] Deaths', '[ ] Level-ups', '[ ] PvP kills', 'Back']);
-  const saved = await page.evaluate(
-    () => (window as unknown as { __wc: { settings: { get(): { spotlights: unknown } } } }).__wc.settings.get().spotlights,
-  );
-  expect(saved).toEqual({ achievements: false, deaths: false, levelUps: false, pvp: false });
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
-
-  // Spotlights: the filtered empty state; any key returns.
-  await menuRow(page, 'spotlights').click();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Spotlights ───');
-  await expect(frame(page)).toContainText('Options → Spotlights');
-  await expect(frame(page).locator('.wc-footer')).toHaveText('Any key to return');
-  await expect(player(page)).toHaveCount(0);
-  await page.keyboard.press('x');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Spotlights >>');
-
-  // Credits: the same.
-  await menuRow(page, 'credits').click();
-  await expect(frame(page).locator('.wc-title-row')).toHaveText('─── Credits ───');
-  await expect(frame(page)).toContainText('Options → Spotlights');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Credits >>');
-
-  // Only PvP kills back on: one spotlight.
-  await page.evaluate(() =>
-    (window as unknown as { __wc: { settings: { update(f: (d: { spotlights: { pvp: boolean } }) => void): void } } }).__wc.settings.update(
-      (d) => {
-        d.spotlights.pvp = true;
-      },
-    ),
-  );
-  await menuRow(page, 'spotlights').click();
-  await expect(header(page)).toContainText('Rasta (L42) · SPOTLIGHT 1 / 1');
-  await expect(box(page)).toContainText('*Ibuki the Half-Elf*');
   expect(errors).toEqual([]);
 });
