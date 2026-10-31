@@ -41,6 +41,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-31 — Stage 30a round 1 (dock structure, pane bar default)
+
+- **Owner feedback:** the bar must not sit left of the right dock; the
+  pane bar script off by default (likely removed later).
+- **Done:** `panebar` dropped from the new-user scripts (ADR 0078/0092
+  addenda). New dock structure (ADR 0101, amends 0012/0014): right dock
+  ends above the input row, the input row and bar reach the screen edge,
+  bottom dock spans the full width under the left dock. Input row now
+  before the panes in DOM order (a Chromium layer clipped accents).
+- **Tests:** unit 2876 passed; targeted e2e 216 passed; full e2e 555/558,
+  the 3 failures pass on rerun (script-editor Ctrl+F known flake).
+- **Open:** `spec.md` still shows the old geometry (ADRs carry it).
+- **Next:** owner test of 30a incl. round 1, then 30b.
+- **Commits:** 496c265, fc42445, 0baf57e, 580a4fb, 9b03dac, 7332682,
+  3fe6b5d, this one.
+
 ### 2026-10-31 — Stage 30a build (menu bar)
 
 - **Done:** menu bar in the input row on desktop and tablet (`src/menubar/`):
