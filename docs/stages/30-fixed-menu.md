@@ -364,6 +364,58 @@ Technical decisions *(Claude)*, recorded as ADR 0107:
 - **`#settings`** and the Settings icon toggle the popup; the phone keeps
   the interim target (the ESC menu at Options).
 
+## 30d build plan
+
+Scope: S7 (Statistics pane) and its row in the Panes popup (S4). ESC →
+Statistics and History → STATS stay as they are (S10: the ESC menu goes in
+30f). Desktop and tablet; the phone keeps ESC → Statistics until its own
+stage.
+
+Technical decisions *(Claude)*, recorded as ADR 0109:
+
+- **Pane id:** a new built-in pane `statistics` (label `Statistics`),
+  last among the built-ins (`PANE_IDS`, Panes popup rows). Off by default
+  (`on: false` for new and existing users; settings migration adds it
+  without turning it on). Not on the phone (its tab layout and its
+  Options → Panes grid leave it out) and not in the log player or the
+  HTML replay bundle, which have no live runs.
+- **Where it appears:** switched on without a place of its own, it opens
+  as a floating pane, auto-placed in the game area (as the map's first
+  float, ADR 0020), large enough for the wide layout when the screen
+  allows (about 80×24 cells, clamped). The user can move, resize and dock
+  it like any pane; that place is kept. Reset layout forgets it.
+- **Rendering:** the pane (cockpit chunk) is the frame and a content
+  host; the view is a Preact component in the chrome chunk (like the
+  popups, ADR 0107), mounted into that host on first show through a
+  mount hook the shell hands in. The cockpit chunk and the replay bundle
+  do not grow with the stats view. The frame and the pane share one
+  renderer: `StatsView`'s pieces (title rows, tables, totals, sparklines,
+  ruler) are factored so both surfaces use them, with the same classes and
+  colours. Pane buttons: Colour, Border, Background, × (no gear: nothing
+  to set).
+- **Keys:** none. A pane never takes the game's keys (S2). Mouse only: a
+  click on a column title sorts (as today), the wheel and the scrollbar
+  thumbs scroll the tables; in the narrow layout the wheel scrolls the
+  pane. No footer and no `R` (the pane refreshes itself).
+- **Adaptive layout** by the pane's cells:
+  - **Wide** (room for the two columns at today's minimum table width):
+    today's layout. KILLS / PvPs fit the height; the sparklines and then
+    the ruler drop when the height is short, as in the frame.
+  - **Narrow:** one column, in order ALLIES, ACHIEVEMENTS, KILLS, PvPs,
+    each table full width with all its rows, then the sparklines (XP/h
+    above TP/h) at the pane's width, then the ruler. The whole content
+    scrolls. The sparklines drop below a minimum width, then the ruler.
+  - The header shortens to fit (`◆ STATISTICS — Rasta · Lvl 42 · Run 1h
+    10m`, then fewer parts).
+- **Data:** the live run chain (`app.runs`), as the ESC frame: rebuilt on
+  run events at most once a second, plus a 1 Hz tick for the running clock
+  while a run is in progress. Nothing runs while the pane is hidden or
+  not mounted. The rating stars as in the frame.
+- **No run in progress:** the latest run of this tab (the run anchor,
+  `LiveRuns.anchor()`), with `Run ended` in the header; kept in memory
+  when the run is not recorded, so it does not blank when the run ends.
+  Before any run in this tab: `No run yet`, centred.
+
 ## Owner feedback
 
 ### 30a round 1 (2026-10-31)
@@ -607,8 +659,17 @@ The owner tested round 1: "Feels OK now." 30c is done; 30d is next.
     - [x] Unit (input pane Tab, menu bar, App, surface), e2e
       `popup-focus.spec.ts` and the specs that assumed keys after a click,
       ADR 0108, ADR 0099/0107 addenda, `#panes` / `#settings` help.
-    - [ ] Test guide.
-- [ ] 30d.
+    - [x] Test guide.
+- [ ] 30d (build plan above):
+  - [ ] `statistics` built-in pane id, off by default, migration, not on
+    the phone or in the log player / replay bundle.
+  - [ ] Default float when switched on; Reset layout forgets it.
+  - [ ] Shared renderer for the frame and the pane; chrome-chunk mount.
+  - [ ] Adaptive layout (wide, narrow), header shortening.
+  - [ ] Live data (run events ≤1 Hz, 1 Hz clock tick, idle when hidden);
+    `Run ended`; `No run yet`.
+  - [ ] Statistics row in the Panes popup.
+  - [ ] Unit tests, e2e, ADR 0109, test guide.
 - [ ] 30e.
 - [ ] 30f.
 
