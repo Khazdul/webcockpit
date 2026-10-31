@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **Owner testing** (30c built, owner test next). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30c round 1). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -445,6 +445,43 @@ The owner tested 30b with round 1: "Seems to work." 30b is done; 30c is
 next. Open: each applied profile change restarts profile tickers and
 drops pending `#delay`s; revisit if it bites in play.
 
+### 30c round 1 (2026-10-31)
+
+Items 1–4 of the test guide seem OK. Feedback:
+
+1. Switching a pane on or off in the Panes popup takes the keys from the
+   game.
+2. **Tab does nothing by default.** Today Tab in the game moves the focus
+   to the bar's icons and on to the browser's own controls; you lose the
+   game without knowing why. Tab only does something when a macro binds it
+   or autosuggest has a word to complete.
+3. **Popups take the focus when they open**, as the Profile and Scripts
+   windows do: Settings, Panes and Exit. While one is open, Tab, Enter,
+   Space, the arrows and Page Up/Down work in it. Esc closes it and gives
+   the keys back to the game.
+4. Asked: after a mouse click on a control in an open popup, the keys stay
+   in the popup (owner's choice); Esc or a click in the game gives them
+   back.
+
+Decided *(Claude)*, ADR 0108:
+
+- **Tab and Shift+Tab in the game input** never move the focus. A macro
+  bound to the key runs; autosuggest completes a word when it has one;
+  otherwise nothing. Nothing in the cockpit outside a popup or a window is
+  in the Tab order (bar icons, the Disconnected notice's button, pane
+  buttons), so no stray focus can land there; Tab with the focus on such a
+  spot gives the keys back to the game.
+- **Every bar popup and gear popup takes the focus when it opens**, by
+  click, `#` command or macro (the gear popups follow S6: the same rules
+  as Settings). Tab and Shift+Tab cycle inside it and never leave it;
+  ↑↓, ←→, Enter, Space work on its controls; Page Up/Down scroll it when
+  it scrolls. A mouse click on a control keeps the focus in it.
+- **Closing** by Esc, its X or its icon gives the keys to the game. A
+  click in the game text or the input gives the keys to the game and
+  leaves the popup open; a click in it takes them back. Esc in the game
+  input still closes the open popup first (after the scrolled-back rule).
+- Windows unchanged (ADR 0103).
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
@@ -556,6 +593,12 @@ drops pending `#delay`s; revisit if it bites in play.
     - [x] Part 2 (pane Gear): unit `pane-gear.test.tsx`, e2e
       `pane-gear.spec.ts` and `pane-buttons.spec.ts`, ADR 0095 and ADR 0107
       addenda.
+- [ ] 30c round 1 (2026-10-31): keys and focus (ADR 0108):
+  - [ ] Tab / Shift+Tab in the game input do nothing unless a macro or
+    autosuggest uses them; cockpit chrome out of the Tab order.
+  - [ ] Bar and gear popups take the focus on open; Tab cycles inside;
+    keys work; clicks keep the focus; Esc / X / icon give it to the game.
+  - [ ] Unit tests, e2e, ADR 0108, ADR 0099/0107 addenda, test guide.
 - [ ] 30d.
 - [ ] 30e.
 - [ ] 30f.
