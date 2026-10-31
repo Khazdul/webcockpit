@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30c done, 30d next). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30d built, owner testing; 30e in progress). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
