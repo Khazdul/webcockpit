@@ -71,7 +71,9 @@ start page, and the ESC frame stays until 30f (the phone keeps it longer).
   pane would otherwise cut its fixed rows, where narrow scrolls.
 - **Header** (`paneHeader`): one row, the live header shortened to fit, in
   this order: the stars, the level, `STATISTICS —`, the run's duration;
-  `Run ended` stays as long as the name does; then cut with `…`.
+  `Run ended` stays as long as the name does; then cut with `…`. Narrow, it
+  fits the column less a cell on each side (the scrollbar's column is not
+  counted).
 - **Keys and focus:** none. The pane never takes the game's keys: every
   mousedown in the view is prevented (no focus, no selection), and the
   cockpit's mouseup returns the keys to the input. A click on a column

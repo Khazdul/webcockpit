@@ -71,12 +71,15 @@ function StatsPaneSurface(p: SurfaceProps): VNode | null {
   }
 
   const lay = statsPaneLayout(cols, rows);
+  // Narrow: the last column is the scrollbar's.
+  const w = lay.mode === 'wide' ? cols : cols - 1;
   const out = statsBody({
     model: st.model,
-    headers: [paneHeader(st.model, st.rating, st.ended, cols)],
+    // Narrow: a cell kept free on each side, as the column's margin.
+    headers: [paneHeader(st.model, st.rating, st.ended, lay.mode === 'wide' ? w : w - 2)],
     live: true,
     ...(st.note !== undefined ? { note: st.note } : {}),
-    cols,
+    cols: w,
     layout: lay.mode,
     T: lay.T,
     total: lay.total,
@@ -103,7 +106,7 @@ function StatsPaneSurface(p: SurfaceProps): VNode | null {
   // Narrow: the whole content scrolls, with the bar in the last column.
   return (
     <div class="wc-scrollrow wc-stats wc-stats-pane" data-layout="narrow" onMouseDown={prevent}>
-      <div class="wc-scrollbox wc-stats-page" ref={page.ref} style={{ width: `calc(var(--cell-w) * ${cols - 1})` }}>
+      <div class="wc-scrollbox wc-stats-page" ref={page.ref} style={{ width: `calc(var(--cell-w) * ${w})` }}>
         {out}
       </div>
       <TuiScrollbar target={page.ref} rows={rows} thumbClass="wc-stat-bar wc-st-thumb" trackClass="wc-stat-bar wc-st-track" trackChar="█" jump />
