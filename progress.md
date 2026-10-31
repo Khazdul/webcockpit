@@ -41,6 +41,19 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-10-31 — Stage 30a round 2 (bar placement by room to type)
+
+- **Owner feedback:** keep the bar left of the right dock when there is
+  room; under the right dock only when typing room is short.
+- **Done:** the allocator keeps the input row in the game column (right
+  dock down to the bottom dock) when the field gets >= 50 cells beside
+  the bar, else round 1's layout; decided from columns only, no flapping
+  (ADR 0102, amends 0101). Bottom dock full width in both.
+- **Tests:** unit 2885 passed; full e2e 560/560.
+- **Open:** whether 50 cells is the right switch point (owner test).
+- **Next:** owner test of 30a, then 30b.
+- **Commits:** 6d9caae, d5f064f, 43c3344, 9e758b3, b6598eb, this one.
+
 ### 2026-10-31 — Stage 30a round 1 (dock structure, pane bar default)
 
 - **Owner feedback:** the bar must not sit left of the right dock; the
