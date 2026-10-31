@@ -1208,7 +1208,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       returns:
         "A list of tables {id, title, short, on, shown, dock, script, own}: on is the player's on/off, shown is true when it is on the screen now (on and room for it), dock is \"left\", \"right\", \"top\", \"bottom\" or \"float\", script names the script that owns it (nil for a built-in pane) and own is true for this script's own panes.",
       more: [
-        "The built-in panes' ids are character, timers, group, comm, ui and map, with the short names CHAR, TIME, GRP, COMM, UI and MAP; a script pane's id is script/id. The event sysPanesChanged tells when the list changes.",
+        "The built-in panes' ids are character, timers, group, comm, ui, map and statistics, with the short names CHAR, TIME, GRP, COMM, UI, MAP and STAT; a script pane's id is script/id. The event sysPanesChanged tells when the list changes.",
       ],
       example: 'for _, p in ipairs(getPanes()) do\n  if not p.own then echo(p.short .. (p.on and " on" or " off") .. "\\n") end\nend',
     },

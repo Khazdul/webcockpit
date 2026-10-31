@@ -689,7 +689,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['panes'],
     syntax: ['#panes'],
     text: [
-      'Opens the Panes box above the menu bar\'s Panes button, or closes it when it is open: a switch per pane shows or hides it, built-in panes first, then the panes of running scripts, and Reset layout puts every pane back in its first place. The box takes the keys when it opens: ↑ and ↓ move between the switches, Space or Enter flips one, Tab moves within the box. Esc closes it and gives the keys back to the game; a click in the game gives them back and leaves it open.',
+      'Opens the Panes box above the menu bar\'s Panes button, or closes it when it is open: a switch per pane shows or hides it, built-in panes first (Statistics last among them: off at first, it opens over the game text and shows the live run, or the latest one), then the panes of running scripts, and Reset layout puts every pane back in its first place. The box takes the keys when it opens: ↑ and ↓ move between the switches, Space or Enter flips one, Tab moves within the box. Esc closes it and gives the keys back to the game; a click in the game gives them back and leaves it open.',
       'On a phone, where there is no menu bar, it opens the menu\'s pane page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#panes' }, { note: 'F12 opens and closes the Panes box:', code: '#macro {F12} {#panes}' }],

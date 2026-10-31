@@ -49,8 +49,8 @@ To serve it under a subpath, build with `WEBCOCKPIT_BASE=/path/ npm run build`
 directly, with full GMCP and a keep-alive that shows
 your round-trip time. Nobody in between sees your password.
 
-**Panes.** Character, Timers, Group, Communication, UI messages and
-Map. They can be docked left, right, at the bottom or at the top, in
+**Panes.** Character, Timers, Group, Communication, UI messages,
+Map and the live Statistics of the run. They can be docked left, right, at the bottom or at the top, in
 several columns or rows per side with panes spanning the whole dock, or
 float over the game, and resized, reordered and toggled, each with its
 own background colour. Hover a pane for its buttons, left of the close

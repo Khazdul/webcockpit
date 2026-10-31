@@ -703,3 +703,14 @@ left of the strip. On a narrow window `↑↓ Cursor`, then `1–6 Speed`, then
 least 2 columns separate the hints from the left part, which is clipped
 only if even `ESC Back` does not fit.
 
+
+## Addendum: LiveRuns for the Statistics pane (2026-10-31, ADR 0109)
+
+`LiveRuns.latest()` returns the latest run of the tab, in progress or
+ended: the recorder's id it had while in progress ('' when not recorded),
+its events from the deriver (kept until the next run starts) and whether
+it ended. The Statistics pane shows an ended run that was not recorded
+from it. `chainEvents()` of a live run that is not recorded now returns
+that run's own events: before, it looked up the anchor, which is then an
+older recorded run of the tab, and returned that run's chain without the
+live events.

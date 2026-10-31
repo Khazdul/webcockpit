@@ -335,3 +335,9 @@ they amend the sections above (and round 1) where they differ.
   pane (more API for a case with no other use). Built-in panes without a
   frame keep the cross (their top content row is not interactive), and
   temporary panes are always framed.
+
+## Addendum: Statistics (2026-10-31, ADR 0109)
+
+`getPanes()` lists the new built-in pane `statistics` (`STAT`) last among
+the built-in panes, and `setPaneOn` switches it. The bundled `panebar`
+script leaves it out, so its six built-in buttons keep their room.

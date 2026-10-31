@@ -37,7 +37,7 @@ Choose Enter MUME on the start page. Press ESC at any time to open the menu. Opt
 Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → IMPORT reads profiles from TinTin++, JMC, Powwow and Mudlet.
 
 WHAT IS INSIDE
-  Panes           Character, Timers, Group, Communication, UI messages and Map. Dock them on any side, in several columns or rows, or let them float.
+  Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
   Map             Reads MMapper maps and follows you as you move. Options → Mapper picks the tileset, among them Shimrod's, which follows MUME's season.
   Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Options → Weather effects turns them off or picks what to show; #weather demo plays them all.
   Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page.
