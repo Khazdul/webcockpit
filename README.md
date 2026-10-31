@@ -82,7 +82,7 @@ with examples is built in.
 
 **Bundled scripts.** Ready to turn on in Options → Scripts: an almanac
 of MUME's seasons, moon and events; a port key manager; map search like
-MMapper's Find Rooms; a pane bar; shorter, colour-coded mob and movement
+MMapper's Find Rooms; shorter, colour-coded mob and movement
 lines; a mercenary tracker; and a coin looter.
 
 <div align="center">

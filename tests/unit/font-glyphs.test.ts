@@ -24,7 +24,7 @@ const DIR = new URL('../../public/fonts/', import.meta.url);
 /** Box drawing, half blocks, quadrants and blocks: must be in the font itself. */
 const STRUCTURAL = '─│┌┐└┘┬═║▀▄▌▐▛▜▙▟█░▁▂▃▅▆▇';
 /** Symbols: a fallback font in the CSS stack is acceptable. */
-/** (∷ is the pane bar's grip, ADR 0065 round 1: ⠿ is in neither DejaVu nor most families; ←→ its scroll arrows, round 3.) */
+/** (∷ is a grip glyph for script panes, ADR 0065 round 1: ⠿ is in neither DejaVu nor most families; ←→ arrows.) */
 const SYMBOLS = '·◦✦✧◄►▲▼⚔♦★☆✓●◆▶⚠✖•…▬↑‹›∷←→';
 
 const KNOWN_TAGS = [

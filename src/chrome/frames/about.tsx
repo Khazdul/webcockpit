@@ -48,7 +48,7 @@ SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search, a pane bar and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper

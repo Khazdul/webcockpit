@@ -459,7 +459,7 @@
 
 /* A script pane shows the cross on hover like a built-in pane, framed or
  * not, over whatever its top row holds (ADR 0084 addendum). A pane made
- * with `createPane{cross = false}` (the pane bar) is marked
+ * with `createPane{cross = false}` is marked
  * `data-no-cross` and shows none, nor the look buttons (ADR 0095);
  * Options → Panes, pane:hide() or the script's own command turn it off.
  * Temporary panes always have the cross and never the buttons. */
@@ -473,7 +473,7 @@
  * background a step lighter (darker on a light one): `--pane-outline`,
  * src/theme/apply.ts. Pointer devices only, not on a phone, not while a
  * drag is on. The map and a script pane made with
- * `createPane{outline = false}` (the pane bar) are marked
+ * `createPane{outline = false}` are marked
  * `data-no-outline` and get none (addendum 2). */
 @media (hover: hover) {
   .wc-cockpit:not([data-phone-tab]) > .wc-pane:not([data-framed]):not([data-no-outline]):hover::after {

@@ -71,7 +71,7 @@
 //   row does. The close cross sits over that row's last cells (one in from
 //   the right edge) on hover, over whatever is there, framed or not; a
 //   pane created with `cross = false` is marked `data-no-cross` and shows
-//   none (layout.css; the pane bar, ADR 0084 addendum).
+//   none (layout.css, ADR 0084 addendum).
 // - Steady hover (ADR 0056): the hover follows the pointer, not a link id.
 //   After every render the link under the pointer is looked up again; one
 //   at the same row, column and length is the same link, so the band and

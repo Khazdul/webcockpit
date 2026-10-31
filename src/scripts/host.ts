@@ -1969,7 +1969,7 @@ export class ScriptHost {
       if (anchor !== 'top' && anchor !== 'bottom') {
         throw new Error(`bad argument #1 to 'createPane' (anchor must be "top" or "bottom")`);
       }
-      // The pane bar's fields (ADR 0065).
+      // The short name (getPanes) and the frame (ADR 0065).
       let short: string | undefined;
       if (t.short !== undefined) {
         short = typeof t.short === 'string' || typeof t.short === 'number' ? String(t.short).trim() : '';

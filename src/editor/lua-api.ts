@@ -696,7 +696,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
       params: [
         p("id", "string", "The pane's id within the script: 1 to 32 letters, digits, _ or -."),
         p("title", "string?", "The frame title (default: the id). pane:setTitle changes it."),
-        p("short", "string?", "A short name of 1 to 8 characters for lists such as the pane bar (getPanes). Default: the first four letters and digits of the title, in capitals."),
+        p("short", "string?", "A short name of 1 to 8 characters for compact lists of panes (getPanes). Default: the first four letters and digits of the title, in capitals."),
         p("dock", "string?", "Where it goes the first time: \"right\" (default), \"left\", \"top\", \"bottom\" or \"float\"."),
         p("lane", "string?", "\"own\": the first time, the pane gets a lane of its own at the screen edge of its dock (a row of the top or bottom dock, a column at the side), as high (or wide) as rows (cols) plus the frame. Not for a float or a temporary pane."),
         p("rows", "number?", "Wanted height in rows (default 8): in a side dock and a float."),
