@@ -113,7 +113,7 @@ export interface PlayerOpenOptions {
   /** Markers as playback offsets; default: the events' markers (`markersOf`) on `playAtLogUs`. */
   marks?: (tl: Timeline) => PlacedMark[];
   /** View mode options; `header` and `onEsc` replace the log player's. */
-  view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'overlay' | 'startHidden' | 'stripHoverTime' | 'boxButtons' | 'onEsc'>>;
+  view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'overlay' | 'startHidden' | 'stripHoverTime' | 'boxButtons' | 'onEsc' | 'gear'>>;
   /** Start playing at once (default true). */
   autoplay?: boolean;
   /** Runs whose login system line is not printed (HTML replay `hiddenSys`, ADR 0019). */
@@ -174,6 +174,8 @@ export class PlayerHost {
   private tempHidden = false;
   /** Drops the temporary panes the current build shows. */
   private dropTemps: () => void = () => {};
+  /** Run when the host is disposed (a mode's own layers, ADR 0110). */
+  private readonly disposers: Array<() => void> = [];
 
   constructor(opts: PlayerHostOptions) {
     this.opts = opts;
@@ -231,6 +233,8 @@ export class PlayerHost {
    * the markers. `opts` configures another mode (HTML replay, Spotlights).
    */
   openChain(chain: readonly PlayedRun[], events: readonly RunEvent[], info: PlayerInfo, opts: PlayerOpenOptions = {}): void {
+    // A reel rebuilt for new settings opens again on the same host (ADR 0110).
+    this.clearChain();
     const tl = buildTimeline(chain, opts.edits);
     this.scriptIds = scriptPaneIdsOf(tl).filter(isScriptPaneId);
     this.hiddenSys = new Set(opts.hiddenSys ?? []);
@@ -278,16 +282,33 @@ export class PlayerHost {
     this.opts.onClose();
   }
 
-  /** Tears everything down (no callback). */
-  dispose(): void {
-    this.closed = true;
+  /** Stops what plays: the view, the engine and its App go; the host stays open. */
+  clearChain(): void {
     this.view?.dispose();
     this.view = null;
     this.engineRef?.dispose();
     this.engineRef = null;
+  }
+
+  /** Runs `fn` when the host is disposed (closed or torn down). */
+  onDispose(fn: () => void): void {
+    this.disposers.push(fn);
+  }
+
+  /** True once the host is disposed. */
+  get isClosed(): boolean {
+    return this.closed;
+  }
+
+  /** Tears everything down (no callback). */
+  dispose(): void {
+    if (this.closed) return;
+    this.closed = true;
+    this.clearChain();
     this.ro?.disconnect();
     this.cells.dispose();
     this.el.remove();
+    for (const fn of this.disposers.splice(0)) fn();
   }
 
   // ------------------------------------------------------------------ App

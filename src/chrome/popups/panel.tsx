@@ -24,7 +24,7 @@
 import { type ComponentChildren, type VNode, createContext } from 'preact';
 import { useContext, useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { CLOSE_X } from '../../menubar/icons';
-import { popupKey, popupTabbables, pressPopup } from '../../menubar/popup';
+import { focusPopup, popupKey, popupTabbables, pressPopup } from '../../menubar/popup';
 import { OWN_KEYS_ATTR } from '../../ui/input-pane';
 import { useServices } from '../kit/hooks';
 
@@ -51,6 +51,8 @@ export interface PopupPanelProps {
   place: PopupPlace;
   /** The X and Esc in it. */
   onClose: () => void;
+  /** Takes the focus when it mounts (a popup drawn inside a page; the surface focuses its own). */
+  focusOnOpen?: boolean;
   children?: ComponentChildren;
 }
 
@@ -66,6 +68,9 @@ export function PopupPanel(p: PopupPanelProps): VNode {
     if (el && !held.current) place.current(el);
   };
   useLayoutEffect(doPlace, [p.place]);
+  useLayoutEffect(() => {
+    if (p.focusOnOpen && ref.current) focusPopup(ref.current);
+  }, []);
 
   useEffect(() => {
     const el = ref.current!;

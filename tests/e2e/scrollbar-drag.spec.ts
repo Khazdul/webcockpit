@@ -148,7 +148,7 @@ test('script manual: the text and menu scrollbars drag their thumbs; the track p
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
@@ -178,7 +178,7 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="longscript"] [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');

@@ -237,7 +237,8 @@ Mapped to Inv §3.
 
 - **Profile picker:** create, copy, delete, **import and export** (new).
   Import also takes foreign settings files (§2.11).
-- **Options:** panes, appearance and spotlights.
+- **Options:** panes, appearance and more. The Spotlights settings (kinds,
+  characters, period) are in the reel's gear (stage 30e, ADR 0110).
 - **History, Statistics, Spotlights, Credits, About.**
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.

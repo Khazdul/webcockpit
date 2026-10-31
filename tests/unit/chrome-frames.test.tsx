@@ -215,25 +215,15 @@ describe('start page', () => {
     expect(selected(host)).toBe('<< Spotlights >>');
   });
 
-  it('Options → Spotlights flips the four kinds in the settings', async () => {
+  it('Options has no Spotlights page: its settings are in the reel (ADR 0110)', async () => {
     const host = document.createElement('div');
     document.body.append(host);
-    const svc = services();
-    const page = mountStartPage(host, svc, { onEnter: () => {} });
+    const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
     await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
-    await act(() => host.querySelector<HTMLElement>('.wc-frame:not([hidden]) .wc-mrow[data-key="spotlights"] .wc-label')!.click());
-    expect(title(host)).toBe('─── Spotlights ───');
-    const labels = () => [...host.querySelectorAll('.wc-frame:not([hidden]) .wc-mrow .wc-label')].map((e) => e.textContent);
-    expect(labels()).toEqual(['[X] Achievements', '[X] Deaths', '[X] Level-ups', '[X] PvP kills', 'Back']);
-    await key('Enter');
-    await key('ArrowDown');
-    await key(' ');
-    expect(svc.settings.get().spotlights).toEqual({ achievements: false, deaths: false, levelUps: true, pvp: true });
-    expect(labels()).toEqual(['[ ] Achievements', '[ ] Deaths', '[X] Level-ups', '[X] PvP kills', 'Back']);
-    await key('Enter');
-    expect(svc.settings.get().spotlights.deaths).toBe(true);
+    expect(title(host)).toBe('─── Options ───');
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-mrow[data-key="spotlights"]')).toBeNull();
   });
 });
 

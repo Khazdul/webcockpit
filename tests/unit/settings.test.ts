@@ -314,17 +314,40 @@ describe('migrateSettings', () => {
   });
 
   it('adds the Spotlights filters with defaults and checks each key (Inv §3.8)', () => {
-    expect(migrateSettings({ profile: 'x' }).spotlights).toEqual({ achievements: true, deaths: true, levelUps: true, pvp: true });
+    const open = { allCharacters: true, characters: [], period: 'all' };
+    expect(migrateSettings({ profile: 'x' }).spotlights).toEqual({ achievements: true, deaths: true, levelUps: true, pvp: true, ...open });
     expect(migrateSpotlights({ deaths: false, pvp: 'no', levelUps: 0 })).toEqual({
       achievements: true,
       deaths: false,
       levelUps: true,
       pvp: true,
+      ...open,
     });
     expect(migrateSpotlights(null)).toEqual(defaultSettings().spotlights);
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ spotlights: { achievements: false } });
     expect(store.get().spotlights).toMatchObject({ achievements: false, deaths: true });
+  });
+
+  it('the Spotlights characters and period (ADR 0110): an existing user gets all characters and all time; values checked', () => {
+    // A user from before 30e: the four kinds only.
+    const old = migrateSettings({ spotlights: { achievements: true, deaths: false, levelUps: true, pvp: true } }).spotlights;
+    expect(old).toEqual({ achievements: true, deaths: false, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' });
+    expect(migrateSpotlights({ allCharacters: false, characters: ['Rasta', '', 3, 'Gittan', 'Rasta'], period: '3months' })).toMatchObject({
+      allCharacters: false,
+      characters: ['Rasta', 'Gittan'],
+      period: '3months',
+    });
+    expect(migrateSpotlights({ allCharacters: 'no', characters: 'Rasta', period: 'decade' })).toMatchObject({
+      allCharacters: true,
+      characters: [],
+      period: 'all',
+    });
+    // A patch replaces the subset whole.
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ spotlights: { characters: ['A', 'B'] } });
+    store.update({ spotlights: { characters: ['B'] } });
+    expect(store.get().spotlights.characters).toEqual(['B']);
   });
 
   it('adds the scrollback depth with its default and keeps only offered depths (ADR 0046)', () => {

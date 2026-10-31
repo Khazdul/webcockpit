@@ -3,9 +3,10 @@
 // applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
-//   Options hub:  Panes · Mapper · Appearance · Text input · Spotlights ·
-//                 Scripts · Weather effects, Back (Scripts only with a
-//                 script library)
+//   Options hub:  Panes · Mapper · Appearance · Text input · Scripts ·
+//                 Weather effects, Back (Scripts only with a script
+//                 library). Spotlights moved to the reel's gear in stage
+//                 30e (ADR 0110).
 //   Panes hub:    Appearance · Timers · Communication · Group · Back
 //                 (Cockpit's order; Appearance was "General" before stage 25)
 //   Panes → Appearance: pane × colour grid with a Border column, reset
@@ -21,7 +22,6 @@
 //   Appearance:   font, size, padding, colours, scrollback, ANSI palette,
 //                 live preview box
 //   Text input:   options-input.tsx (auto-clear, autosuggest, cursor; ADR 0066)
-//   Spotlights:   options-spotlights.tsx
 //   Weather effects: options-weather.tsx (stage 28 trial, ADR 0091)
 //   Scripts:      scripts.tsx (ADR 0051)
 
@@ -59,7 +59,6 @@ import { GroupOptionsFrame } from './options-group';
 import { MapperOptionsFrame } from './options-mapper';
 import { TextInputOptionsFrame } from './options-input';
 import { ScriptsFrame } from './scripts';
-import { SpotlightsOptionsFrame } from './options-spotlights';
 import { TimersOptionsFrame } from './options-timers';
 import { WeatherOptionsFrame } from './options-weather';
 import { centreLeft, cycle, stepValue } from '../kit/nav';
@@ -92,7 +91,6 @@ export function OptionsHub(): VNode {
     { key: 'mapper', label: 'Mapper', activate: () => nav.push(<MapperOptionsFrame />) },
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'textinput', label: 'Text input', activate: () => nav.push(<TextInputOptionsFrame />) },
-    { key: 'spotlights', label: 'Spotlights', activate: () => nav.push(<SpotlightsOptionsFrame />) },
     // The ESC menu where the bar exists: the Scripts window (ADR 0103).
     ...(scripts
       ? [{ key: 'scripts', label: 'Scripts', activate: () => (openWindow ? openWindow('scripts') : nav.push(<ScriptsFrame />)) }]

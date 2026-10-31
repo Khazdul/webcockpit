@@ -71,11 +71,11 @@ async function openEditor(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await lib(page, 'init');
   await lib(page, 'create', 'luahelp', SOURCE);
-  // Options → Scripts (Options is third, Scripts fifth in the hub).
+  // Options → Scripts (Options is third, Scripts fifth in the hub since Spotlights left it, ADR 0110).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown'); // Scripts
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown'); // Scripts
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

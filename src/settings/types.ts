@@ -208,12 +208,27 @@ export interface TimersSettings {
   compact: boolean;
 }
 
-/** Options → Spotlights (Inv §3.8, ADR 0019): event kinds shown in the reel and Credits, global. */
+/** How far back the Spotlights reel and Credits reach (ADR 0110): a rolling window back from now. */
+export type SpotlightPeriod = 'all' | 'year' | '3months' | 'month' | 'week';
+
+/** The periods, in the popup's order. */
+export const SPOTLIGHT_PERIODS: readonly SpotlightPeriod[] = ['all', 'year', '3months', 'month', 'week'];
+
+/**
+ * What the Spotlights reel and Credits show (Inv §3.8, ADR 0019, ADR 0110):
+ * the event kinds, the characters and the period. Global; set from the
+ * reel's gear.
+ */
 export interface SpotlightSettings {
   achievements: boolean;
   deaths: boolean;
   levelUps: boolean;
   pvp: boolean;
+  /** Every character, new ones included (the default). */
+  allCharacters: boolean;
+  /** The checked characters, used while `allCharacters` is off (kept while it is on). */
+  characters: string[];
+  period: SpotlightPeriod;
 }
 
 /**
@@ -430,7 +445,7 @@ export function defaultSettings(): Settings {
     group: { showPlayers: true, npcMode: 'labeled' },
     comm: { filters: {}, showHeader: true },
     timers: defaultTimersSettings(),
-    spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true },
+    spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
     output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },

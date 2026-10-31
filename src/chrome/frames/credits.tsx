@@ -1,8 +1,10 @@
 // Credits (ADR 0019 "Credits", Inv §7.6): every character's deeds rolled
 // up the screen like end credits. The chronicle (src/share/chronicle.ts)
 // is built once from every stored run's events (no log needed), filtered
-// by Options → Spotlights, in a centred column min(60, max(40, cols − 8))
-// wide.
+// by the Spotlights settings (kinds × characters × period, ADR 0110; set
+// from the reel's gear, or from the "filtered" page's `Settings…`), in a
+// centred column min(60, max(40, cols − 8)) wide. The filters are read when
+// the frame opens and again when that page's popup closes after a change.
 //
 // Scroll: 1 row/s, bottom to top, smooth. The first line starts on the
 // bottom row; when `The End.` has left the top the frame pops back to the
@@ -21,13 +23,13 @@ import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks';
 import type { RunLibrary } from '../../runs/library';
 import { buildChronicle, type ChronicleRun } from '../../share/chronicle';
-import { emptyState } from '../../share/spotlights';
+import { OPEN_FILTERS, emptyState, filtersOpen } from '../../share/spotlights';
 import { useCells, useGrid, useServices, useSettings } from '../kit/hooks';
 import { cellLen, centreLeft } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { indent } from '../kit/widgets';
 import { EscToken } from '../kit/esc';
-import { CREDITS_EMPTY, EmptyStateFrame } from './spotlights';
+import { CREDITS_EMPTY, EmptyStateFrame, FilteredFrame } from './spotlights';
 import type { SpotlightSettings } from '../../settings';
 
 /** Scroll speed, rows per second (Inv §7.6). */
@@ -63,9 +65,11 @@ async function chronicleRuns(lib: RunLibrary): Promise<ChronicleRun[]> {
 }
 
 export function CreditsFrame(): VNode {
-  const { runs } = useServices();
+  const { runs, settings: store } = useServices();
   const settings = useSettings();
   const nav = useNav();
+  // The filters and the period's clock as the roll was built (see the header).
+  const [view, setView] = useState(() => ({ filters: settings.spotlights, nowUs: Date.now() * 1000 }));
   const [data, setData] = useState<ChronicleRun[] | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -85,7 +89,15 @@ export function CreditsFrame(): VNode {
   if (!data) {
     return <LoadingFrame />;
   }
-  return <CreditsRoll runs={data} filters={settings.spotlights} onDone={() => nav.pop()} />;
+  return (
+    <CreditsRoll
+      runs={data}
+      filters={view.filters}
+      nowUs={view.nowUs}
+      onDone={() => nav.pop()}
+      onSettingsClosed={(changed) => changed && setView({ filters: store.get().spotlights, nowUs: Date.now() * 1000 })}
+    />
+  );
 }
 
 function LoadingFrame(): VNode {
@@ -93,12 +105,23 @@ function LoadingFrame(): VNode {
   return <div class="wc-page wc-credits" />;
 }
 
-function CreditsRoll(p: { runs: ChronicleRun[]; filters: SpotlightSettings; onDone: () => void }): VNode {
+function CreditsRoll(p: {
+  runs: ChronicleRun[];
+  filters: SpotlightSettings;
+  nowUs: number;
+  onDone: () => void;
+  onSettingsClosed: (changed: boolean) => void;
+}): VNode {
   const { cols, rows } = useGrid();
   const cells = useCells();
   const width = creditsWidth(cols);
-  const lines = useMemo(() => buildChronicle(p.runs, p.filters, { width }), [p.runs, p.filters, width]);
-  if (lines.length === 0) return <EmptyStateFrame title="Credits" body={CREDITS_EMPTY[emptyState(p.filters)]} />;
+  const lines = useMemo(() => buildChronicle(p.runs, p.filters, { width, nowUs: p.nowUs }), [p.runs, p.filters, p.nowUs, width]);
+  if (lines.length === 0) {
+    // `no_data` only when nothing would be told with open filters (ADR 0110).
+    const any = !filtersOpen(p.filters) && buildChronicle(p.runs, OPEN_FILTERS, { width, nowUs: p.nowUs }).length > 0;
+    if (emptyState(p.filters, any) === 'no_data') return <EmptyStateFrame title="Credits" body={CREDITS_EMPTY.no_data} />;
+    return <FilteredFrame title="Credits" body={CREDITS_EMPTY.filtered} onSettingsClosed={p.onSettingsClosed} />;
+  }
   return <Roll lines={lines} cols={cols} rows={rows} cellH={cells.h} width={width} onDone={p.onDone} />;
 }
 
