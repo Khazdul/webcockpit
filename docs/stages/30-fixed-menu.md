@@ -259,6 +259,36 @@ and ADR 0100 (Disconnected notice):
   rather than the spec's tentative "Enter does not reconnect from quiet
   disconnects".
 
+## Owner feedback
+
+### 30a round 1 (2026-10-31)
+
+1. **Pane bar script off for new users.** `panebar` is no longer enabled
+   by default; the Panes popup does its job. It will probably be removed
+   altogether later. Existing installs keep whatever they have.
+2. **Right dock above the menu bar.** The bar must not sit left of a
+   right-docked pane. New dock structure:
+   - The top dock stays between the left and right docks (as today).
+   - The right dock ends just above the input row.
+   - The input row (input field, notices, clock, menu bar) fills today's
+     width plus the gap and the area under the right dock, out to the
+     screen's right edge. The bar sits at the right end.
+   - The left dock runs from the top down to the bottom dock, beside the
+     input row (the input row does not extend under it).
+   - The bottom dock fills the whole screen width, under the left dock and
+     under the input row (with the gap row above it).
+
+         +------+--+-------------------+--+-------+
+         | left |g |    top dock       |g | right |
+         | dock |a +-------------------+a | dock  |
+         |      |p |      game         |p |       |
+         |      |  +-------------------+--+-------+
+         |      |  | > input        clock … exit  |
+         +------+--+-----------------------------+
+         |  (gap row)                            |
+         |  bottom dock, full screen width       |
+         +---------------------------------------+
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
