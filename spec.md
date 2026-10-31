@@ -200,7 +200,9 @@ Mapped to Inv §2.1 and §10.
   - Per-pane options match Cockpit's: background colour, and the
     options listed per pane in the inventory.
 - **Docking engine.** Our own, cell-grid aligned, with no tabs. Tabs are
-  added only if the owner asks for them.
+  added only if the owner asks for them. The dock geometry (where the
+  side, top and bottom docks and the input row with its menu bar sit) is
+  in ADR 0012, ADR 0101 and ADR 0102.
 - **Visual system.**
   - Inv §10: palette tokens, pane frame, 7-step shade ramp and
     light-background variant.
@@ -227,7 +229,7 @@ Mapped to Inv §2.1 and §10.
 | Group | Inv §2.3 | Room-scoped membership, value freshness, NPC label promotion. |
 | Communication | Inv §2.7 | Channel filters (global, as in Cockpit), right-click solo, per-channel colours, history kept across reloads. |
 | UI messages | Inv §2.4 | Structured messages from the system and scripts. |
-| Clock | Inv §2.5 | Shown in the input clock strip. Syncs from MSSP and game text. |
+| Clock | Inv §2.5 | Shown in the input clock strip, at the left end of the menu bar on desktop and tablet (stage 30, ADR 0099). Syncs from MSSP and game text. |
 
 ### 2.5 Start page (launcher)
 

@@ -45,8 +45,10 @@ Statuses: Next, In progress, Owner testing, Done.
 
 - **Owner test:** round 2 approved ("Feels good now"). 30a is done.
 - **Not released:** 30a and its rounds are on `main` after 0.1.76.
+- **Spec:** §2.3 points to the dock geometry ADRs (0012, 0101, 0102);
+  §2.4 Clock row names the menu bar.
 - **Next:** 30b (window frame; Profile and Scripts as windows).
-- **Commits:** this one.
+- **Commits:** 5dc7a73, this one.
 
 ### 2026-10-31 — Stage 30a round 2 (bar placement by room to type)
 
