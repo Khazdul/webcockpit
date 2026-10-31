@@ -341,9 +341,10 @@ test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, c
   await expect.poll(() => page.evaluate((id) => window.__wc!.settings.get().layout.docks.right.tail.at(-1)?.id, BAR)).toBe(BAR);
   await expect(bar(page)).toBeVisible();
   const b = (await bar(page).boundingBox())!;
-  // The dock's last row, right above the input row (ADR 0101).
+  // The dock's last row, beside the input row: the default window is wide (ADR 0102).
+  expect(await page.evaluate(() => window.__wc!.app.cockpit.layout?.inputSpan)).toBe('game');
   const input = (await page.locator('.wc-input-slot').boundingBox())!;
-  expect(Math.abs(input.y - (b.y + b.height))).toBeLessThan(0.5);
+  expect(Math.abs(input.y + input.height - (b.y + b.height))).toBeLessThan(0.5);
   expect(errors).toEqual([]);
 });
 
