@@ -412,7 +412,7 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
     bar; new-user defaults), e2e (layout wide and narrow, new-user,
     panebar), screenshots checked.
 - [x] 30a approved by the owner after round 2 (2026-10-31).
-- [ ] 30b (2026-10-31):
+- [x] 30b (2026-10-31):
   - [x] Window kit: frame, drag, resize, grip, snap to cells, minimum
     size, kept on screen, z-order, focus and dimming (ADR 0103).
   - [x] `FrameStack` without focus trap; keys only while focused; one key
@@ -427,7 +427,7 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
     0103).
   - [x] Lite view fills the width; Commands takes the height; hints panel
     removed, warnings kept (ADR 0104).
-  - [ ] Unit tests, e2e, ADRs, test guide.
+  - [x] Unit tests, e2e, ADRs, test guide.
     - [x] Windows: unit (geometry, stack, settings, keyboard lock, bar,
       App), e2e `windows.spec.ts` and the specs that went through the ESC
       menu, ADR 0103, ADR 0099 addendum, test guide below.
@@ -549,8 +549,15 @@ phone is unchanged.
    Firefox and Safari always leave fullscreen on Esc.
 9. A light background (Options → Appearance): the windows' title bars
    turn pale; the cyan border stays.
+10. **Lite view** (owner round during the build: tabs centred, halves):
+    the kind tabs are centred; the entry list and the detail panel share
+    the width in halves, and so do the list's Pattern and Commands
+    columns. The Commands box fills the height. The hints panel is gone;
+    an entry's warning shows under the box. Resize the window: narrow,
+    it falls back to today's layout.
 
 Feedback wanted: the frame's look against the mockup (border, title bar,
 grip), the dimming without focus, the default size and place, whether
-focus following clicks feels right, and anything that takes keys from the
+focus following clicks feels right, the Lite halves and the tall
+Commands box, and anything that takes keys from the
 game when it should not.
