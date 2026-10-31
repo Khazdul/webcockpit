@@ -6,6 +6,7 @@ import {
   BLINK_MS,
   InputPane,
   MAX_HISTORY,
+  OWN_KEYS_ATTR,
   type ScrollTarget,
   nextSuggestedWord,
   normalizePaste,
@@ -352,6 +353,35 @@ describe('InputPane keys', () => {
     document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(document.activeElement).toBe(t.i);
     expect(t.sent.length).toBe(1);
+  });
+
+  it('leaves the keys and clicks inside an own-keys element (a bar popup) alone', () => {
+    document.body.innerHTML = '';
+    const root = document.createElement('div');
+    const pop = document.createElement('div');
+    pop.setAttribute(OWN_KEYS_ATTR, '');
+    pop.tabIndex = -1;
+    const inner = document.createElement('span');
+    pop.append(inner);
+    document.body.append(root, pop);
+    const macros: string[] = [];
+    const sent: string[] = [];
+    const pane = new InputPane(new Bus(), root, {
+      sender: { sendCommand: (t) => sent.push(t), sendGmcp: () => {} },
+      onMacroKey: (k) => (macros.push(k), true),
+    });
+    pop.focus();
+    for (const k of ['F1', 'Enter', 'y']) {
+      const e = new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true });
+      pop.dispatchEvent(e);
+      expect(e.defaultPrevented, k).toBe(false);
+    }
+    expect(document.activeElement).toBe(pop);
+    inner.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(document.activeElement).toBe(pop);
+    expect(macros).toEqual([]);
+    expect(sent).toEqual([]);
+    pane.dispose();
   });
 
   it('word helpers', () => {

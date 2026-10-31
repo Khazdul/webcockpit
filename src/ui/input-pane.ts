@@ -60,6 +60,9 @@
 //   after it filled the line, so a repeated Tab does not move the focus);
 //   otherwise it keeps the browser's focus move. Macros win first, as for
 //   every key. The ghost is never sent.
+// - Own keys (ADR 0099): an element marked `data-wc-own-keys` (the menu
+//   bar's popups) keeps the keys typed and the clicks made inside it, as
+//   another text field does: no refocus, no macro, no key handling here.
 
 import { device, touchInteraction } from '../core/device';
 import type { Bus } from '../core/bus';
@@ -101,6 +104,9 @@ export interface InputPaneOptions {
 export type CommandField = HTMLInputElement | HTMLTextAreaElement;
 
 const BULLET = '•';
+
+/** Marks an element that keeps its own keys and clicks (the menu bar popups, ADR 0099). */
+export const OWN_KEYS_ATTR = 'data-wc-own-keys';
 
 /**
  * The autosuggestion for `text` (ADR 0063): the rest of the newest entry
@@ -192,7 +198,11 @@ export class InputPane {
   private ghostX = NaN;
   /** The custom caret element. */
   readonly caretEl: HTMLSpanElement;
-  /** The clock strip at the right end (8 cells; src/ui/clock-strip.ts draws it). */
+  /**
+   * The clock strip at the right end (8 cells; src/ui/clock-strip.ts draws
+   * it). On desktop and tablet the menu bar takes its place in the row and
+   * holds it (src/menubar/menubar.ts).
+   */
   readonly clockEl: HTMLSpanElement;
   private readonly doc: Document;
   private readonly requestFrame: (cb: () => void) => void;
@@ -557,7 +567,8 @@ export class InputPane {
       tag === 'TEXTAREA' ||
       tag === 'SELECT' ||
       tag === 'BUTTON' ||
-      el.isContentEditable === true
+      el.isContentEditable === true ||
+      el.closest?.(`[${OWN_KEYS_ATTR}]`) != null
     );
   }
 
