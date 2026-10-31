@@ -221,6 +221,44 @@ Each step ends with a test in the browser.
 | 30e | Spotlights settings in the reel (kinds, characters, period); Credits follows; Options → Spotlights removed. |
 | 30f | ESC menu removed on desktop and tablet; Esc behaviour per S2; `#menu` hint; docs (spec §2.6, manual). |
 
+## 30a build plan
+
+Scope: S1 (bar, clock, link dot, tooltips, fullscreen, `#` commands),
+S3 (Exit popup), S4 (Panes popup, without the Statistics row, which
+comes with its pane in 30d), the S2 Disconnected notice, and S2's Esc
+rule for the popups. The ESC menu stays.
+
+Technical decisions *(Claude)*, recorded as ADR 0099 (bar and popups)
+and ADR 0100 (Disconnected notice):
+
+- **Plain DOM in the cockpit chunk**, like the clock strip and the pane
+  buttons, so the bar paints with the cockpit and a click never waits for
+  a chunk. A small popup kit (`src/menubar/`) holds the shared ghost look
+  that 30c's Settings popup and the pane gear build on.
+- **Desktop and tablet only.** The phone keeps today's input row (clock,
+  `☰`) and the corner fullscreen button. Tablets keep `☰` beside the bar
+  until 30f, since the ESC menu is their only way to Profile and Options
+  until then. Where the bar exists the corner fullscreen button is not
+  installed.
+- **Interim targets until 30b/30c:** Profile, Scripts and Settings (and
+  their `#` commands) open the ESC menu straight at the profile editor,
+  Options → Scripts and Options. Leaving that first frame closes the menu
+  and returns to the game.
+- **Keys:** Esc in the input closes the open popup (after the scrolled-back
+  rule); with no popup it opens the ESC menu as today. The Exit popup takes
+  the keys when it opens (Y, Esc, 0–5, ←→): it is a confirmation, and
+  `#exit` from a macro must be answerable without the mouse. The Panes
+  popup takes keys only after a click inside it.
+- **Link dot:** yellow while the RTT is suspect; red while connected with
+  no RTT 10 s after login, or after a live connection dropped. Never in
+  the offline modes or during a replay.
+- **Disconnected notice:** shown after a live connection drops (any
+  reason the input's Enter reconnects from), hidden once connecting. Enter
+  keeps today's rule (spec §2.2: the first command reconnects); the notice
+  only states it. This keeps `#disconnect` → Enter working as today,
+  rather than the spec's tentative "Enter does not reconnect from quiet
+  disconnects".
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
