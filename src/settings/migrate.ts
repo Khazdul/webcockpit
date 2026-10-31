@@ -62,6 +62,9 @@ import {
   type TimersSettings,
   WEATHER_CATEGORIES,
   type WeatherSettings,
+  WINDOW_IDS,
+  type WindowRect,
+  type WindowSettings,
   defaultSettings,
   defaultTimersSettings,
   timerColsMax,
@@ -360,6 +363,29 @@ export function migrateWeather(raw: unknown, phone = false): WeatherSettings {
   return out;
 }
 
+/** Largest window coordinate or size kept, in cells (a sanity bound only). */
+export const MAX_WINDOW_CELLS = 10000;
+
+/** A stored window rectangle from anything: whole cells (size at least 1), else null (ADR 0103). */
+function windowRect(raw: unknown): WindowRect | null {
+  if (!isObj(raw)) return null;
+  const n = (v: unknown, lo: number): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(MAX_WINDOW_CELLS, Math.round(v))) : null;
+  const x = n(raw.x, 0);
+  const y = n(raw.y, 0);
+  const w = n(raw.w, 1);
+  const h = n(raw.h, 1);
+  return x === null || y === null || w === null || h === null ? null : { x, y, w, h };
+}
+
+/** Window places from anything (additive in stage 30b: none placed yet). */
+export function migrateWindows(raw: unknown): WindowSettings {
+  const x = isObj(raw) ? raw : {};
+  const out = {} as WindowSettings;
+  for (const id of WINDOW_IDS) out[id] = windowRect(x[id]);
+  return out;
+}
+
 /** Options for `migrateSettings`. */
 export interface MigrateOptions {
   /** A phone (ADR 0081): sections that default differently there (the weather, ADR 0092). */
@@ -385,5 +411,6 @@ export function migrateSettings(raw: unknown, opts: MigrateOptions = {}): Settin
     input: migrateInput(s.input),
     mapper: migrateMapper(s.mapper, typeof s.version === 'number' ? s.version : 0),
     weather: migrateWeather(s.weather, opts.phone ?? false),
+    windows: migrateWindows(s.windows),
   };
 }

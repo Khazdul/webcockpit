@@ -14,6 +14,7 @@ import {
   migrateComm,
   migrateTimers,
   migrateSpotlights,
+  migrateWindows,
   migrateOutput,
   migrateInput,
   migrateMapper,
@@ -292,6 +293,20 @@ describe('migrateSettings', () => {
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ timers: { groups: { debuff: { cols: 3 } } } });
     expect(store.get().timers.groups.debuff).toMatchObject({ cols: 3, color: 'red' });
+  });
+
+  it('adds the window places (ADR 0103): none placed, whole cells, garbage dropped', () => {
+    expect(migrateSettings({ profile: 'x' }).windows).toEqual({ profile: null, scripts: null });
+    expect(defaultSettings().windows).toEqual({ profile: null, scripts: null });
+    expect(
+      migrateWindows({ profile: { x: 3.4, y: -2, w: 80, h: 0 }, scripts: { x: 1, y: 2, w: 'wide', h: 3 }, other: { x: 1 } }),
+    ).toEqual({ profile: { x: 3, y: 0, w: 80, h: 1 }, scripts: null });
+    expect(migrateWindows({ profile: { x: 1e9, y: 0, w: 70, h: 20 } }).profile).toEqual({ x: 10000, y: 0, w: 70, h: 20 });
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ windows: { scripts: { x: 5, y: 6, w: 70, h: 22 } } });
+    expect(store.get().windows).toEqual({ profile: null, scripts: { x: 5, y: 6, w: 70, h: 22 } });
+    store.update({ windows: { scripts: { x: 9, y: 6, w: 70, h: 22 } } });
+    expect(store.get().windows.scripts).toEqual({ x: 9, y: 6, w: 70, h: 22 });
   });
 
   it('adds the Spotlights filters with defaults and checks each key (Inv §3.8)', () => {

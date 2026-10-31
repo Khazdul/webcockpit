@@ -305,6 +305,28 @@ export interface WeatherSettings {
 /** The six categories, in the Options page's order. */
 export const WEATHER_CATEGORIES = ['sky', 'precipitation', 'lightning', 'fog', 'darkness', 'body'] as const;
 
+/**
+ * A window's place in whole cells on the cockpit grid (stage 30 S8, ADR
+ * 0103): the outer box, as last moved or resized. Shown fitted to the
+ * screen (src/chrome/kit/window-geom.ts `fitRect`).
+ */
+export interface WindowRect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** The ids of the movable windows (ADR 0103). */
+export const WINDOW_IDS = ['profile', 'scripts'] as const;
+export type WindowId = (typeof WINDOW_IDS)[number];
+
+/**
+ * Where each window was last placed (ADR 0103); null: never moved or
+ * resized, so it opens at the default place. Global, not per profile.
+ */
+export type WindowSettings = Record<WindowId, WindowRect | null>;
+
 export interface Settings {
   /** Schema version of the stored object (bumped only for non-additive changes). */
   version: number;
@@ -321,6 +343,7 @@ export interface Settings {
   input: InputSettings;
   mapper: MapperSettings;
   weather: WeatherSettings;
+  windows: WindowSettings;
 }
 
 /**
@@ -410,6 +433,7 @@ export function defaultSettings(): Settings {
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },
+    windows: { profile: null, scripts: null },
   };
 }
 
