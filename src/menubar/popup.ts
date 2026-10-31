@@ -188,6 +188,31 @@ export function placePopup(el: HTMLElement, icon: Element, bar: Element): void {
   el.style.top = `${Math.round(top)}px`;
 }
 
+/**
+ * Places `el` (position: fixed) next to `anchor`: below it when it fits
+ * (or has the more room), else above, centred on it, inside the viewport;
+ * capped in height (the body scrolls) when neither side has the room.
+ */
+export function placeNear(el: HTMLElement, anchor: Element): void {
+  const win = el.ownerDocument.defaultView;
+  const vw = win?.innerWidth ?? 0;
+  const vh = win?.innerHeight ?? 0;
+  const a = anchor.getBoundingClientRect();
+  el.style.maxHeight = '';
+  const w = el.offsetWidth;
+  const h = el.offsetHeight;
+  const below = vh - a.bottom - GAP - MARGIN;
+  const above = a.top - GAP - MARGIN;
+  const down = h <= below || below >= above;
+  const room = Math.max(0, down ? below : above);
+  if (h > room) el.style.maxHeight = `${room}px`;
+  const hh = Math.min(h, room);
+  const top = down ? a.bottom + GAP : a.top - GAP - hh;
+  const left = Math.max(MARGIN, Math.min(a.left + a.width / 2 - w / 2, vw - w - MARGIN));
+  el.style.left = `${Math.round(left)}px`;
+  el.style.top = `${Math.round(top)}px`;
+}
+
 /** A box on screen (px, viewport coordinates). */
 export interface ScreenBox {
   left: number;

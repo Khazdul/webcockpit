@@ -10,6 +10,7 @@
 //   <SwatchGrid colors={…} names={…} selected={i} onPick={…} label="ANSI palette" />
 //   <GhostButton onClick={…}>Reset palette</GhostButton>
 //   <Stepper value={4} min={1} max={6} onChange={…} label="Spells columns" />
+//   <Check on={x} onChange={…} label="Rasta" disabled={all} />
 //
 // - Every control is a real focusable element with its ARIA role, and is
 //   used from the keyboard once the popup has the keys (after a click in
@@ -652,5 +653,37 @@ export function Tabs<T extends string>(p: { value: T; tabs: readonly Choice<T>[]
         </button>
       ))}
     </div>
+  );
+}
+
+const CHECK = 'M2.5 6.2l2.4 2.4 4.6-5';
+
+/**
+ * A checkbox with its label (`role=checkbox`), the whole row one button: a
+ * small box, ticked when on, then the label. Disabled, it dims and leaves
+ * the Tab order (a list governed by a master switch).
+ */
+export function Check(p: { on: boolean; onChange: (on: boolean) => void; label: string; disabled?: boolean; class?: string }): VNode {
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      class={cls('wc-ck-cb', p.on && 'is-on', p.class)}
+      aria-checked={p.on ? 'true' : 'false'}
+      disabled={p.disabled}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!p.disabled) p.onChange(!p.on);
+      }}
+    >
+      <span class="wc-ck-cb-box" aria-hidden="true">
+        {p.on && (
+          <svg viewBox="0 0 12 12">
+            <path d={CHECK} />
+          </svg>
+        )}
+      </span>
+      <span class="wc-ck-cb-l">{p.label}</span>
+    </button>
   );
 }
