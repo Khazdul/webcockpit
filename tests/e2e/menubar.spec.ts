@@ -1,7 +1,8 @@
 // Stage 30a (ADR 0099, ADR 0100): the menu bar at the right end of the
 // input row on desktop: clock, icons, tooltips, the Panes and Exit popups,
 // the ESC menu at a frame, and `#panes`. Profile and Scripts open windows
-// since 30b (ADR 0103; tests/e2e/windows.spec.ts).
+// since 30b (ADR 0103; tests/e2e/windows.spec.ts), Settings its popup since
+// 30c (ADR 0107; tests/e2e/settings-popup.spec.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -14,7 +15,6 @@ const tip = (page: Page) => page.locator('.wc-mb-tip');
 const popup = (page: Page) => page.locator('.wc-pop');
 const overlay = (page: Page) => page.locator('.wc-overlay');
 const field = (page: Page) => page.locator('.wc-input-field');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 
 function watchErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -146,12 +146,13 @@ test('#panes opens and closes the popup; the icon toggles it; Reset layout asks 
   await expect(popup(page)).toHaveCount(0);
 });
 
-test('Settings opens the menu at Options; Scripts and Profile open their windows (ADR 0103)', async ({ page }) => {
+test('Settings opens its popup (ADR 0107); Scripts and Profile open their windows (ADR 0103)', async ({ page }) => {
   await offline(page);
   await icon(page, 'settings').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-sp-settings')).toBeVisible();
   await expect(overlay(page)).toBeHidden();
+  await page.keyboard.press('Escape');
+  await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   await icon(page, 'scripts').click();
   await expect(overlay(page)).toBeHidden();

@@ -769,7 +769,8 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['settings'],
     syntax: ['#settings'],
     text: [
-      'Opens Options, as the menu bar\'s Settings button does. Leaving it returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'Opens the Settings box above the menu bar\'s Settings button, or closes it when it is open, as the button does: tabs for Appearance, Text input, Mapper and Weather effects, and every change shows at once while you play. The box takes the keys only after a click in it; Esc, its cross or the button close it.',
+      'On a phone, where there is no menu bar, it opens Options in the menu; leaving it returns to the game. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#settings' }],
   },

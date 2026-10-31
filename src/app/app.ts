@@ -63,7 +63,9 @@
 // `#fullscreen` open or toggle the same things; without the bar (the
 // phone) they open the ESC menu at the matching frame (`ui.openMenuAt`).
 // Profile and Scripts toggle the shell's windows (`ui.toggleWindow`, ADR
-// 0103). Esc in the input (stage 30 S2): scrolled back → bottom (the input
+// 0103); Settings and `#settings` toggle the shell's Settings popup
+// (`ui.toggleSettings`, ADR 0107), which the bar holds as its open popup
+// while it is open. Esc in the input (stage 30 S2): scrolled back → bottom (the input
 // pane); else the bar's open popup closes; else the topmost window gets
 // its close request (`ui.escapeWindow`); else, in the cockpit's
 // fullscreen, the Exit popup opens (Esc reaches the page there only with
@@ -230,6 +232,11 @@ export interface AppUi {
    * they open the ESC menu at their frame.
    */
   toggleWindow?(id: 'profile' | 'scripts'): void;
+  /**
+   * With the bar: toggles the Settings popup (ADR 0107). Absent: the bar's
+   * Settings and `#settings` open the ESC menu at Options.
+   */
+  toggleSettings?(): void;
   /** Esc in the input with no popup open: the topmost window's close request; false when none is open. */
   escapeWindow?(): boolean;
   /** True while an open window holds unsaved changes (the Exit popup warns). */
@@ -492,7 +499,7 @@ export class App {
           actions: {
             profile: () => this.openWindow('profile'),
             scripts: () => this.openWindow('scripts'),
-            settings: () => barUi.openMenuAt('settings'),
+            settings: () => this.openSettings(),
             exit: () => barUi.exit(),
             unsaved: () => barUi.windowsUnsaved?.() ?? false,
             reconnect: () => {
@@ -1020,8 +1027,8 @@ export class App {
         this.openWindow(name);
         return;
       case 'settings':
-        this.menuBar?.closePopup();
-        this.openMenuAt(name);
+        // The Settings popup where the bar exists (ADR 0107); else the ESC menu at Options.
+        this.openSettings();
         return;
       case 'fullscreen': {
         const doc = this.el.ownerDocument;
@@ -1053,6 +1060,13 @@ export class App {
   private openWindow(id: 'profile' | 'scripts'): void {
     if (this.menuBar && this.appUi?.toggleWindow) this.appUi.toggleWindow(id);
     else this.openMenuAt(id);
+  }
+
+  /** The bar's Settings and `#settings`: the popup's toggle (ADR 0107), else the ESC menu at Options. */
+  private openSettings(): void {
+    if (this.menuBar && this.appUi?.toggleSettings) return this.appUi.toggleSettings();
+    this.menuBar?.closePopup();
+    this.openMenuAt('settings');
   }
 
   /** Esc in the input with the output at the bottom (see the header). */

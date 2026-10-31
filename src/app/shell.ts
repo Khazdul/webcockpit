@@ -29,8 +29,8 @@
 // clock strip and `☰`; a tablet keeps `☰` beside the bar until the ESC
 // menu goes away). The cockpit's `ui` hands it `openMenuAt` (the ESC menu
 // straight at the profile editor, Options → Scripts, Options, Panes or
-// Exit; leaving that frame closes the menu; the phone's way to Profile and
-// Scripts) and `exitSession`. Its popups close when the ESC menu opens and
+// Exit; leaving that frame closes the menu; the phone's way to Profile,
+// Scripts and Settings) and `exitSession`. Its popups close when the ESC menu opens and
 // when the cockpit is hidden.
 //
 // Windows (ADR 0103): where the bar exists, Profile and Scripts are
@@ -40,6 +40,14 @@
 // `openWindow`); Esc in the input reaches the topmost one; the ESC menu
 // takes their focus when it opens. They close with the cockpit (Exit, the
 // start page), unsaved changes discarded; the Exit popup warns first.
+//
+// Settings popups (ADR 0107): where the bar exists, the bar's Settings and
+// `#settings` toggle the Settings popup (src/chrome/popups/surface.tsx),
+// mounted on first use in the App's element beside the bar's own popups
+// and placed above the Settings icon (`placePopup`). The bar adopts it as
+// its open popup, so the one-popup rule, Esc, the ESC menu and hiding the
+// cockpit close it as they close Panes and Exit. 30c part 2 opens the pane
+// gear popups through the same layer (`popupsHandle`, `toggleGear`).
 //
 // Runs (ADR 0018): the shell owns one RunLibrary (`runLibrary()`, opened on
 // first use) and runs the retention sweep once, when the start page first
@@ -66,7 +74,18 @@
 // page's main menu the same way.
 
 import type { BenchProbe } from './bench-hook';
-import type { ChromeServices, EscMenuHandle, EscMenuTarget, StartPageHandle, WindowId, WindowsHandle } from '../chrome';
+import type {
+  ChromeServices,
+  EscMenuHandle,
+  EscMenuTarget,
+  PopupPlace,
+  SettingsPopupTarget,
+  SettingsPopupsHandle,
+  StartPageHandle,
+  WindowId,
+  WindowsHandle,
+} from '../chrome';
+import { placePopup } from '../menubar/popup';
 import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
@@ -139,6 +158,9 @@ export class Shell {
   /** The windows layer (ADR 0103), mounted on first use. */
   private windows: WindowsHandle | null = null;
   private windowsP: Promise<WindowsHandle> | null = null;
+  /** The settings popups' layer (ADR 0107), mounted on first use. */
+  private popups: SettingsPopupsHandle | null = null;
+  private popupsP: Promise<SettingsPopupsHandle> | null = null;
   /** The cockpit is the visible view. */
   private inCockpit = false;
   /** Some live connection has reached login (the bootstrap guard). */
@@ -350,6 +372,49 @@ export class Shell {
     return this.windowsP;
   }
 
+  // ------------------------------------------------------ settings popups
+
+  /** The settings popups' layer, once mounted (tests, the dev hook, 30c part 2). */
+  get popupsHandle(): SettingsPopupsHandle | null {
+    return this.popups;
+  }
+
+  /** The bar's Settings and `#settings`: the Settings popup's toggle, above the Settings icon (ADR 0107). */
+  async toggleSettings(): Promise<void> {
+    const bar = this.appRef?.menuBar;
+    if (!bar) return;
+    await this.togglePopup('settings', (el) => {
+      const icon = bar.anchor('settings');
+      if (icon) placePopup(el, icon, bar.bar);
+    });
+  }
+
+  /**
+   * Toggles the settings popup for `target`, placed by `place` (the Settings
+   * popup above its icon; 30c part 2's gear popups beside their pane).
+   */
+  async togglePopup(target: SettingsPopupTarget, place: PopupPlace): Promise<void> {
+    if (!this.inCockpit || !this.appRef?.menuBar) return;
+    const p = await this.ensurePopups(this.appRef);
+    if (this.inCockpit && !this.menuOpen) p.toggle(target, place);
+  }
+
+  private ensurePopups(app: App): Promise<SettingsPopupsHandle> {
+    this.popupsP ??= this.loadChrome().then((chrome) => {
+      const host = app.el.ownerDocument.createElement('div');
+      host.className = 'wc-popups-host';
+      app.el.append(host);
+      this.popups = chrome.mountSettingsPopups(host, this.services(), {
+        focusInput: () => app.input.focus(),
+        onOpen: (key, el, close) => app.menuBar?.adopt({ key, el, close }),
+        onClose: (key) => app.menuBar?.release(key),
+      });
+      return this.popups;
+    });
+    this.popupsP.catch(() => (this.popupsP = null));
+    return this.popupsP;
+  }
+
   // ----------------------------------------------------------- log player
 
   /** The open log player (tests, the dev hook). */
@@ -465,6 +530,7 @@ export class Shell {
           ? {}
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
+              toggleSettings: () => void this.toggleSettings(),
               escapeWindow: () => this.windows?.escapeTop() ?? false,
               windowsUnsaved: () => this.windows?.unsaved() ?? false,
             }),

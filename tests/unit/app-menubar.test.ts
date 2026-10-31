@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 // The menu bar in the real App (ADR 0099, ADR 0100): it replaces the clock
 // strip with `ui.bar`, Esc in the input closes its popup before the ESC
-// menu, the `#profile` … commands, and the Disconnected notice.
+// menu, the `#profile` … commands, the Settings popup's toggle (ADR 0107)
+// and the Disconnected notice.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App, type AppUi } from '../../src/app/app';
 import { FakeSocket } from './net-helpers';
@@ -104,6 +105,26 @@ describe('App with the menu bar', () => {
     t.app.menuBar!.popupEl!.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', bubbles: true }));
     await new Promise((r) => setTimeout(r, 0));
     expect(t.exit).toHaveBeenCalledOnce();
+  });
+
+  it('with the Settings popup (ADR 0107): the bar and #settings toggle it; adopted, Esc in the input closes it first', () => {
+    const toggleSettings = vi.fn();
+    const t = setup({ toggleSettings });
+    const bar = t.app.menuBar!;
+    bar.bar.querySelector<HTMLButtonElement>('[data-mb="settings"]')!.click();
+    t.enter('#settings');
+    expect(toggleSettings).toHaveBeenCalledTimes(2);
+    expect(t.openMenuAt).not.toHaveBeenCalled();
+    // The shell hands the open popup to the bar; Esc closes it before the ESC menu.
+    const close = vi.fn();
+    bar.adopt({ key: 'settings', el: document.createElement('div'), close });
+    t.app.input.focus();
+    t.key('Escape');
+    expect(close).toHaveBeenCalledOnce();
+    expect(bar.openPopup).toBeNull();
+    expect(t.onEscape).not.toHaveBeenCalled();
+    t.key('Escape');
+    expect(t.onEscape).toHaveBeenCalledOnce();
   });
 
   it('with windows (ADR 0103): the bar and #profile / #scripts toggle them; Esc reaches the topmost window before the menu', () => {
