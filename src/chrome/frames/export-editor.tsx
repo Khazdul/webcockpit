@@ -58,7 +58,7 @@ import { useGrid, useServices } from '../kit/hooks';
 import { cellLen, centreLeft, step, truncate } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { Blank, Button, FlashRow, Line, Page, cellsWide, indent, useBodyRows } from '../kit/widgets';
-import { cellHeight, useScrollBox } from '../kit/scroll';
+import { barPress, cellHeight, useScrollBox } from '../kit/scroll';
 import {
   type CursorKey,
   type EditorLog,
@@ -528,6 +528,8 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
   while (rowsOut.length < to - from) rowsOut.push(<div class="wc-line wc-exp-row is-empty" />);
 
   const [thumbA, thumbB] = mapThumb(items, Math.min(top, Math.max(0, items.totalRows - height)), height, height);
+  // The map's thumb drags the log like a scrollbar's (ADR 0106); a click still jumps.
+  const thumbBar = items.totalRows > height ? marks.map((_, r) => r >= thumbA && r <= thumbB) : [];
   const mapRows = marks.map((m, r) => {
     const content =
       m === null ? (
@@ -554,7 +556,13 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
         }}
       >
         {content}
-        <span class={thumb ? 'wc-exp-map-thumb' : 'wc-exp-map-track'}>{thumb ? '█' : ' '}</span>
+        <span
+          class={thumb ? 'wc-exp-map-thumb' : 'wc-exp-map-track'}
+          // Only the thumb drags (an empty bar ignores the press): the track's click jumps.
+          {...barPress(() => ({ el: box.ref.current, bar: thumb ? thumbBar : [], i: r }))}
+        >
+          {thumb ? '█' : ' '}
+        </span>
       </div>
     );
   });

@@ -57,7 +57,12 @@
   color: var(--c-hint);
 }
 
-/* Overview map. */
+/* Overview map. Its thumb drags the log (ADR 0106): no panning on it. */
+.wc-exp-map {
+  touch-action: none;
+  user-select: none;
+}
+
 .wc-exp-map-row {
   cursor: pointer;
 }
