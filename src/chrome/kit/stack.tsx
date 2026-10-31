@@ -3,13 +3,26 @@
 // top stay mounted (hidden), so a frame keeps its cursor while a sub-page
 // is open and has it again on return.
 //
-// Keys: while `active`, one window keydown listener in the capture phase
-// routes every key to the top frame's handler (`useKeys`) and stops it
-// there, so the game input (which listens on the document) never sees
-// keys meant for the chrome. Unhandled ESC pops (or calls `onRootBack`
-// on the root frame; so does `nav.pop()` there, e.g. a root frame's Back). Focus: the stack host is focused on every frame
-// change unless the frame focused something of its own (a text field),
-// and focus is trapped inside the host while active.
+// Keys: while `active`, the stack routes every key to the top frame's
+// handler (`useKeys`) from a window keydown listener in the capture phase
+// and stops it there, so the game input (which listens on the document)
+// never sees keys meant for the chrome. One listener per window serves
+// every active stack and hands a key to the most recently activated one
+// only, so two stacks never both handle a key (ADR 0103). Unhandled ESC
+// pops (or calls `onRootBack` on the root frame; so does `nav.pop()`
+// there, e.g. a root frame's Back). Focus: the stack host is focused on
+// every frame change unless the frame focused something of its own (a
+// text field), and focus is trapped inside the host while active, unless
+// `trap` is false (a window, ADR 0103).
+//
+// Close requests (ADR 0103): `control.requestClose()` leaves the stack the
+// way Esc would, frame by frame: it sends Esc to the top frame, and goes on
+// with the next frame after every pop, until the root frame's Esc calls
+// `onRootBack`. A frame that asks first (`useUnsaved(dirty, prompting)`,
+// the editors' Apply / Discard / Keep editing) holds the request while its
+// prompt is up; the request goes on when the frame leaves (Apply,
+// Discard) and is dropped when the prompt closes with the frame still
+// there (Keep editing). `control.unsaved()` asks the frames' `dirty`.
 
 import type { ComponentChildren, VNode } from 'preact';
 import { createContext } from 'preact';
@@ -47,13 +60,21 @@ interface Entry {
   id: number;
   node: VNode;
   keys: { current: KeyHandler | null };
+  /** `useUnsaved`: whether the frame holds changes that would be lost. */
+  dirty: { current: (() => boolean) | null };
+  /** `useUnsaved`: the frame shows its unsaved-changes prompt (or is saving). */
+  prompting: boolean;
 }
 
 interface FrameCtxValue {
   entry: Entry;
   nav: Nav;
   isTop: boolean;
+  /** Top of the stack, whether or not the stack is active. */
+  topFrame: boolean;
   flash: Flash | null;
+  /** The stack's close request bookkeeping (`useUnsaved`). */
+  promptClosed: (entry: Entry) => void;
 }
 
 const FrameCtx = createContext<FrameCtxValue | null>(null);
@@ -78,15 +99,77 @@ export function useIsTop(): boolean {
   return useFrameCtx().isTop;
 }
 
+/** True while this frame is the stack's top frame, active or not (a window without focus). */
+export function useIsTopFrame(): boolean {
+  return useFrameCtx().topFrame;
+}
+
 /** The current flash message (shared by the stack). */
 export function useFlash(): Flash | null {
   return useFrameCtx().flash;
 }
 
+/**
+ * Registers the frame's unsaved state (ADR 0103): `dirty` tells whether
+ * leaving now would lose changes (the Exit popup's warning); `prompting`
+ * is true while the frame shows its unsaved-changes prompt or saves, so a
+ * close request waits for the answer. The prompt closing with the frame
+ * still on the stack (Keep editing) drops the close request.
+ */
+export function useUnsaved(dirty: () => boolean, prompting: boolean): void {
+  const c = useFrameCtx();
+  const was = c.entry.prompting;
+  c.entry.dirty.current = dirty;
+  c.entry.prompting = prompting;
+  useLayoutEffect(() => {
+    if (was && !prompting) c.promptClosed(c.entry);
+  }, [prompting]);
+}
+
+/** What the owner of a stack can ask of it (a window, ADR 0103). */
+export interface StackControl {
+  /** Leaves the stack as Esc would, frame by frame, through the frames' prompts. */
+  requestClose(): void;
+  /** True while a frame on the stack would lose changes. */
+  unsaved(): boolean;
+  /** True while the top frame shows its unsaved-changes prompt. */
+  prompting(): boolean;
+}
+
+// One capture-phase keydown listener per window; the most recently
+// activated stack gets the key.
+type Router = (e: KeyboardEvent) => void;
+const routers = new WeakMap<Window, { list: Router[]; listener: (e: KeyboardEvent) => void }>();
+
+function claimKeys(win: Window, fn: Router): () => void {
+  let r = routers.get(win);
+  if (!r) {
+    const list: Router[] = [];
+    const listener = (e: KeyboardEvent): void => list[list.length - 1]?.(e);
+    r = { list, listener };
+    routers.set(win, r);
+  }
+  if (r.list.length === 0) win.addEventListener('keydown', r.listener, true);
+  r.list.push(fn);
+  const reg = r;
+  return () => {
+    const i = reg.list.lastIndexOf(fn);
+    if (i >= 0) reg.list.splice(i, 1);
+    if (reg.list.length === 0) win.removeEventListener('keydown', reg.listener, true);
+  };
+}
+
+/** Close requests: how many Esc steps that neither pop nor prompt are tried before giving up. */
+const CLOSE_TRIES = 6;
+
 export interface FrameStackProps {
   root: VNode;
-  /** Routes keys and traps focus. */
+  /** Routes keys (and traps focus, unless `trap` is false). */
   active: boolean;
+  /** Keep the focus inside the host while active (default true; a window: false). */
+  trap?: boolean;
+  /** Receives the stack's control (a window's close request, ADR 0103). */
+  control?: (c: StackControl | null) => void;
   /** Keys are swallowed but not handled (the too-small notice is shown). */
   paused?: boolean;
   /** ESC on the root frame (start page: nothing; ESC menu: close). */
@@ -103,7 +186,13 @@ const isTextField = (t: EventTarget | null): boolean => {
 
 export function FrameStack(props: FrameStackProps): VNode {
   const nextId = useRef(1);
-  const mk = (node: VNode): Entry => ({ id: nextId.current++, node, keys: { current: null } });
+  const mk = (node: VNode): Entry => ({
+    id: nextId.current++,
+    node,
+    keys: { current: null },
+    dirty: { current: null },
+    prompting: false,
+  });
   const [stack, setStack] = useState<Entry[]>(() => [mk(props.root)]);
   const [flash, setFlash] = useState<Flash | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -141,6 +230,19 @@ export function FrameStack(props: FrameStackProps): VNode {
     if (flashTimer.current) clearTimeout(flashTimer.current);
   }, []);
 
+  /** An Esc for the top frame: its handler first, else pop (or `onRootBack` on the root). */
+  const back = (e: KeyboardEvent): 'handled' | 'popped' | 'root' => {
+    const s = stackRef.current;
+    const top = s[s.length - 1]!;
+    if (top.keys.current?.(e, 'back')) return 'handled';
+    if (s.length > 1) {
+      nav.pop();
+      return 'popped';
+    }
+    propsRef.current.onRootBack?.();
+    return 'root';
+  };
+
   // Keys: capture phase on the window, ahead of the game input's document
   // listener. A layout effect, so keys work from the first painted frame.
   useLayoutEffect(() => {
@@ -170,9 +272,83 @@ export function FrameStack(props: FrameStackProps): VNode {
       if (nk === 'tab' || nk === 'backtab') e.preventDefault();
       else if (nk && !isTextField(e.target)) e.preventDefault();
     };
-    win.addEventListener('keydown', onKey, true);
-    return () => win.removeEventListener('keydown', onKey, true);
+    return claimKeys(win, onKey);
   }, [props.active, nav]);
+
+  // Close requests (see the header).
+  const closing = useRef(false);
+  const tries = useRef(0);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const alive = useRef(true);
+  useEffect(
+    () => () => {
+      alive.current = false;
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
+  const later = (fn: () => void): void => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => {
+      closeTimer.current = null;
+      if (alive.current) fn();
+    }, 0);
+  };
+  const closeStep = (): void => {
+    if (!closing.current) return;
+    const s = stackRef.current;
+    const top = s[s.length - 1]!;
+    // The prompt is up: the answer decides.
+    if (top.prompting) return;
+    const depth = s.length;
+    const win = hostRef.current?.ownerDocument.defaultView;
+    const KE = win?.KeyboardEvent ?? KeyboardEvent;
+    // The root's Esc: the owner closes (or keeps) the stack; the request is done.
+    if (back(new KE('keydown', { key: 'Escape', code: 'Escape', cancelable: true })) === 'root') {
+      closing.current = false;
+      return;
+    }
+    later(() => {
+      if (!closing.current) return;
+      const now = stackRef.current;
+      if (now.length < depth) return; // the pop's own effect goes on
+      if (now[now.length - 1]!.prompting) return;
+      // Esc closed something inside the frame (a search, a pop-up): again.
+      if (++tries.current < CLOSE_TRIES) closeStep();
+      else closing.current = false;
+    });
+  };
+  // After every pop during a close request, the next frame's Esc.
+  const depthNow = stack.length;
+  const lastDepth = useRef(depthNow);
+  useLayoutEffect(() => {
+    const popped = depthNow < lastDepth.current;
+    lastDepth.current = depthNow;
+    if (popped && closing.current) {
+      tries.current = 0;
+      later(closeStep);
+    }
+  }, [depthNow]);
+  const promptClosed = (entry: Entry): void => {
+    // Keep editing: the frame is still there.
+    if (stackRef.current.includes(entry)) closing.current = false;
+  };
+  const control = useMemo<StackControl>(
+    () => ({
+      requestClose: () => {
+        closing.current = true;
+        tries.current = 0;
+        closeStep();
+      },
+      unsaved: () => stackRef.current.some((e) => e.dirty.current?.() === true),
+      prompting: () => stackRef.current[stackRef.current.length - 1]!.prompting,
+    }),
+    [],
+  );
+  useLayoutEffect(() => {
+    props.control?.(control);
+    return () => props.control?.(null);
+  }, [props.control, control]);
 
   // Focus: on every frame change, and trapped while active.
   const topId = stack[stack.length - 1]!.id;
@@ -185,14 +361,14 @@ export function FrameStack(props: FrameStackProps): VNode {
 
   useEffect(() => {
     const host = hostRef.current;
-    if (!props.active || !host) return;
+    if (!props.active || props.trap === false || !host) return;
     const doc = host.ownerDocument;
     const onFocusIn = (e: FocusEvent): void => {
       if (!host.contains(e.target as Node)) host.focus({ preventScroll: true });
     };
     doc.addEventListener('focusin', onFocusIn);
     return () => doc.removeEventListener('focusin', onFocusIn);
-  }, [props.active]);
+  }, [props.active, props.trap]);
 
   return (
     <div
@@ -211,7 +387,9 @@ export function FrameStack(props: FrameStackProps): VNode {
         const isTop = i === stack.length - 1;
         return (
           <div key={entry.id} class="wc-frame" data-frame={entry.id} hidden={!isTop}>
-            <FrameCtx.Provider value={{ entry, nav, isTop: isTop && props.active, flash: isTop ? flash : null }}>
+            <FrameCtx.Provider
+              value={{ entry, nav, isTop: isTop && props.active, topFrame: isTop, flash: isTop ? flash : null, promptClosed }}
+            >
               {entry.node}
             </FrameCtx.Provider>
           </div>
