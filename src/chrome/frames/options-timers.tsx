@@ -17,23 +17,20 @@
 // Bar are per group, inert blanks for Charmies. ↑↓ rows, ←→ columns on the
 // grid rows, Enter/click toggles, hover moves the cursor. Every change goes
 // to the settings store at once, so the pane follows live on both surfaces.
+// The semantics (`colorToggle`, `stepCols`) are shared with the Timers gear
+// popup (../pane-options-model.ts).
 
 import type { VNode } from 'preact';
 import { useState } from 'preact/hooks';
-import {
-  TIMER_COLOR_HEX,
-  TIMER_COLOR_LABELS,
-  TIMER_COLOR_ORDER,
-  TIMER_COLS_MIN,
-  type TimerColor,
-  type TimerGroupSettings,
-  timerColsMax,
-} from '../../settings';
+import { TIMER_COLOR_HEX, TIMER_COLOR_LABELS, TIMER_COLOR_ORDER, type TimerGroupSettings } from '../../settings';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS, type TimerGroup } from '../../timers/entry';
 import { useGrid, useServices, useSettings } from '../kit/hooks';
 import { centreLeft } from '../kit/nav';
 import { useKeys, useNav } from '../kit/stack';
 import { Blank, CheckCell, Line, type MenuItem, MenuRows, Page } from '../kit/widgets';
+import { colorToggle, stepCols } from '../pane-options-model';
+
+export { colorToggle, stepCols } from '../pane-options-model';
 
 const LABEL_W = 9;
 /** `[X]███` plus one space. */
@@ -67,17 +64,6 @@ export function timersHeader(): string {
     '  ' +
     centred('Bar', BAR_W)
   );
-}
-
-/** A group's next look after clicking colour column `col` (0 or 1 checked). */
-export function colorToggle(g: TimerGroupSettings, color: TimerColor): Pick<TimerGroupSettings, 'enabled' | 'color'> {
-  if (g.enabled && g.color === color) return { enabled: false, color };
-  return { enabled: true, color };
-}
-
-/** `cols` stepped by `d`, clamped to the group's range. */
-export function stepCols(group: TimerGroup, cols: number, d: number): number {
-  return Math.max(TIMER_COLS_MIN, Math.min(timerColsMax(group), cols + d));
 }
 
 export function TimersOptionsFrame(): VNode {
