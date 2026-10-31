@@ -348,6 +348,21 @@ most cases. The input row picks its extent by the room left to type:
     promoted to its own layer (accent tops at pixel ratio 1.5).
   - [x] Unit tests (allocate, cockpit, new-user defaults), e2e (layout,
     panebar, new-user), screenshots checked.
+- [x] 30a round 2 (2026-10-31):
+  - [x] The input row's case by the room to type (ADR 0102): wide (at
+    least 50 cells beside the bar in the game column) keeps the input row
+    in the game column, the bar left of the right dock, the right dock
+    down to the bottom dock; narrow is round 1's geometry. Decided from
+    the wide geometry (columns only), after narrow collapse.
+  - [x] The bar's width (26 / 24 cells, ADR 0099) reaches `allocate` from
+    the menu bar through the cockpit (`setBarCells`); without the bar the
+    clock strip counts (8). Notices and the tablet's `☰` do not.
+  - [x] The right edge zone, its open bar and the right gap handle follow
+    both cases; a hidden right dock's bar the case it would open in.
+  - [x] Unit tests (allocate: both cases, the 49/50 threshold, 24 vs 26,
+    no right dock, collapse, with/without a bottom dock; cockpit; menu
+    bar; new-user defaults), e2e (layout wide and narrow, new-user,
+    panebar), screenshots checked.
 - [ ] 30b.
 - [ ] 30c.
 - [ ] 30d.
@@ -416,3 +431,20 @@ start; your own browser keeps its layout.
 Feedback wanted: whether the bar under the right dock reads well, and
 whether the bottom dock should rather stay out from under the right
 dock's column (it now runs under it, as the diagram showed).
+
+#### Round 2
+
+1. **Wide window** (your usual one): the input row ends at the game
+   text's right edge with the bar there, left of the right dock; the
+   right dock runs down to the bottom (or to the gap row above a bottom
+   dock), like the left dock. The bottom dock still spans the whole
+   width.
+2. **Narrow it:** make the window narrower (or the right dock wider by
+   its gap, or open a wide left dock) until fewer than 50 cells are left
+   to type beside the bar: the right dock stops above the input row and
+   the input row with the bar runs under it to the screen edge (round 1).
+   Widen again and it switches back, at one exact width.
+3. A notice (Disconnected, Update) never moves the docks.
+
+Feedback wanted: whether 50 cells is the right switch point, and
+whether the switch feels abrupt when resizing.
