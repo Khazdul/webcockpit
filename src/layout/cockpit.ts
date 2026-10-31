@@ -4,9 +4,10 @@
 //
 //   .wc-cockpit
 //     .wc-game          the output pane (src/ui/output-pane.ts) goes in here
-//     .wc-pane × 6      pane shells (src/panes/pane.ts; the map included)
 //     .wc-input-slot    the input row (src/ui/input-pane.ts), under the game pane and
-//                       the right dock, out to the screen's right edge (ADR 0101)
+//                       the right dock, out to the screen's right edge (ADR 0101);
+//                       before the panes in paint order (see the constructor)
+//     .wc-pane × 6      pane shells (src/panes/pane.ts; the map included), then script panes
 //     .wc-handles       invisible resize handles over the gaps, lane and pane boundaries
 //     .wc-drop-bar      insertion bar while a pane is dragged to a dock
 //     .wc-drop-ghost    outline where a pane dragged over the game will float (or the box a span drop gives)
@@ -496,9 +497,15 @@ export class Cockpit {
     this.paneContext =
       opts.paneContext ??
       createPaneContext({ doc, settings: this.settings, cells: this.cells, requestFrame: this.requestFrame });
-    this.el.append(this.gameEl);
+    // The input row before the panes in paint order (ADR 0101): it runs under
+    // the right dock, and painted after the panes it would overlap their
+    // composited scrollers and be promoted to a layer of its own, which at
+    // a fractional pixel ratio snaps differently and cuts the top device
+    // pixel of accents (ADR 0042). The two never overlap on screen, and
+    // floating panes are above both by z-index.
+    this.el.append(this.gameEl, this.inputEl);
     for (const id of PANE_IDS) this.attach(PANE_FACTORIES[id](this.paneContext));
-    this.el.append(this.inputEl, this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
+    this.el.append(this.handlesEl, this.barEl, this.ghostEl, this.tooSmallEl, this.shieldEl);
     if (this.stripEl) this.el.append(this.stripEl);
     opts.root.appendChild(this.el);
 
@@ -656,7 +663,7 @@ export class Cockpit {
         box: null,
       });
     }
-    this.attach(shell, this.inputEl);
+    this.attach(shell, this.handlesEl);
     if (temp) this.scheduleRelayout();
     else {
       this.present.add(shell.id);

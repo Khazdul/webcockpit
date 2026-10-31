@@ -89,6 +89,15 @@ The view (`src/layout/cockpit.ts`) follows `allocate`:
   bottom bar is the full width.
 - Over the input row a dragged pane floats (or, in the bottom 2 rows,
   docks at the bottom); the input row is no dock's.
+- **Paint order:** the input slot now comes right after the game pane in
+  the cockpit's DOM, before the panes (script panes are inserted before
+  the handles). Painted after the panes, the wider slot overlapped the
+  right dock's composited scrollers and Chromium promoted it to a layer
+  of its own, which at a pixel ratio of 1.5 snapped one device pixel
+  differently and cut the top of accents in the input line (ADR 0042,
+  `underscores.spec.ts`). The slot and the docked panes never overlap on
+  screen, and floating panes and the bar's popups are above both by
+  z-index, so nothing visible changes.
 - Floating panes, temporary panes, float holes (`float-holes.ts`) and
   the weather mask need no change: they measure the DOM or the game
   rect, and the weather's text mask already spans the full width below
