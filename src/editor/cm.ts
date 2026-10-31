@@ -27,7 +27,7 @@ import {
   RangeSetBuilder,
   StateEffect,
   StateField,
-  type Transaction,
+  Transaction,
 } from '@codemirror/state';
 import {
   Decoration,
@@ -291,6 +291,32 @@ export function createBuffer(parent: HTMLElement, opts: BufferOptions): EditorVi
  */
 export function handleKey(view: EditorView, e: KeyboardEvent): boolean {
   return runScopeHandlers(view, e, 'editor');
+}
+
+/** The buffer's text with the document's own line breaks (`lineSeparator`). */
+export function bufferText(view: EditorView): string {
+  return view.state.sliceDoc();
+}
+
+/**
+ * Replaces the buffer's text with `text` as one change over the part that
+ * differs, so the cursor and the rest stay where they were, outside the
+ * undo history (an apply or an outside change, ADR 0105).
+ */
+export function replaceText(view: EditorView, text: string): void {
+  const next = view.state.toText(text);
+  const a = view.state.doc.toString();
+  const b = next.toString();
+  if (a === b) return;
+  const max = Math.min(a.length, b.length);
+  let p = 0;
+  while (p < max && a.charCodeAt(p) === b.charCodeAt(p)) p++;
+  let s = 0;
+  while (s < max - p && a.charCodeAt(a.length - 1 - s) === b.charCodeAt(b.length - 1 - s)) s++;
+  view.dispatch({
+    changes: { from: p, to: a.length - s, insert: next.slice(p, b.length - s) },
+    annotations: Transaction.addToHistory.of(false),
+  });
 }
 
 /** True when the cursor is on the buffer's first line (↑ then leaves the buffer). */

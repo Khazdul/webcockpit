@@ -90,8 +90,9 @@ const INTRO: readonly HelpSection[] = [
     heading: 'Writing a profile',
     text: [
       'A profile is a text file of TinTin++ (tt++) commands: your actions, aliases, highlights, macros, substitutes, variables and timers. It is loaded when you connect, and again when you apply changes.',
-      'LITE is a simplified view where you can edit your settings.',
-      'EDITOR lets you edit the whole settings file directly (experienced users). ESC saves your changes and goes back. In this manual Ctrl+F finds too.',
+      'LITE is a simplified view where you can edit your settings. A change takes effect by itself once you finish it: when you leave the field, go to another entry or kind, click in the game, add or delete an entry, bind a key or pick a highlight colour. Not while you type, so a half-written pattern never fires. An entry with a problem (a missing pattern, unbalanced braces) is not applied until it is fixed; the line under it and the footer say why.',
+      'EDITOR lets you edit the whole settings file directly (experienced users). Its changes take effect with Ctrl+S, or when you go back to LITE; until then the footer shows Modified. A text that does not load (unbalanced braces) is not applied, and the footer says why. In this manual Ctrl+F finds too.',
+      'Ctrl+S applies at once in either view. While you are connected the changes go into the running game; otherwise they are saved and load on the next connect. Settings you type on the input line meanwhile (#alias …) and variables your scripts save are kept, and show up in the editor. ESC goes back; it asks Apply / Discard / Keep editing only while something is not applied yet.',
       'Profile → IMPORT on the start page also reads settings from TinTin++, JMC (.set files) and Powwow. Choose the main file together with the files it #reads; a report then shows what was translated, what was kept as #nop and why.',
       'It also reads Mudlet profile saves and exported packages (.xml or .mpackage). Aliases, triggers, keys, timers and variables become profile rules; no scripts are made, and Lua it cannot translate is kept as #nop.',
     ],
@@ -711,7 +712,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['profile'],
     syntax: ['#profile'],
     text: [
-      'Opens the Profile window with the editor of the profile in use, as the menu bar\'s Profile button does; the changes are applied to the game when saved. The window can be moved and resized and stays open while you play: a click in the game text or the input line gives the keys back to the game, a click in the window gives them to the window. Typed again, #profile brings the window to the front and gives it the keys; the Profile button does too, and closes the window when it already has them. X or Esc in the window closes it, asking first about unsaved changes. On a phone it opens the editor in the menu instead. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
+      'Opens the Profile window with the editor of the profile in use, as the menu bar\'s Profile button does. Changes take effect while the window stays open: in LITE when you finish an edit (leave the field, click in the game), in EDITOR with Ctrl+S. The window can be moved and resized and stays open while you play: a click in the game text or the input line gives the keys back to the game, a click in the window gives them to the window. Typed again, #profile brings the window to the front and gives it the keys; the Profile button does too, and closes the window when it already has them. X or Esc in the window closes it, asking first only when a change is not applied yet. On a phone it opens the editor in the menu instead. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#profile' }],
   },

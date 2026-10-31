@@ -4,7 +4,7 @@
 // shell mounts it in the cockpit element and drives it from the menu bar,
 // `#profile` / `#scripts`, the ESC menu and Esc in the game input.
 //
-//   const wins = chrome.mountWindows(host, services, { status, liveApply, flushWriteBack, focusInput });
+//   const wins = chrome.mountWindows(host, services, { status, commitProfile, flushWriteBack, focusInput });
 //   wins.toggle('profile');   // closed → open and focus; open → raise and focus; focused → close request
 //
 // - Each window holds its own FrameStack on its own cell grid, inside the
@@ -44,7 +44,7 @@ export type { WindowId } from '../settings';
 
 export { WINDOW_BTN_ATTR };
 
-export interface WindowsOptions extends Pick<EscActions, 'status' | 'liveApply' | 'flushWriteBack'> {
+export interface WindowsOptions extends Pick<EscActions, 'status' | 'commitProfile' | 'flushWriteBack'> {
   /** Gives the game input its focus (a window lost its focus or closed). */
   focusInput: () => void;
   /** Called after every change of the open windows or the focus (the bar's marks). */

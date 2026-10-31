@@ -389,11 +389,12 @@ test('editor keys: line swap, undo, copy line, Tab and ↑ to the toggle', async
   await page.keyboard.press('Control+Home');
   await page.keyboard.press('ArrowUp');
   await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
-  // ← on the toggle flips to LITE; the edited text is parsed back.
+  // ← on the toggle flips to LITE; the edited text is parsed back and saved (ADR 0105).
   await page.keyboard.press('ArrowLeft');
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect.poll(() => stored(page)).toBe('one\nthree\n');
   await page.keyboard.press('Escape');
-  expect(await stored(page)).toBe('one\nthree\n');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
 });
 
 // ---------------------------------------------------------------- HELP view
@@ -555,7 +556,7 @@ test('HELP keeps the EDITOR buffer: text, cursor and undo history', async ({ pag
   expect(await stored(page)).toBe('one\ntwo\nthree\n');
 });
 
-test('ESC menu → Profile (the window) → HELP while connected: ESC asks to apply', async ({ page }) => {
+test('ESC menu → Profile (the window) → HELP while connected: LITE applies on the way, EDITOR asks', async ({ page }) => {
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -571,7 +572,9 @@ test('ESC menu → Profile (the window) → HELP while connected: ESC asks to ap
   await page.keyboard.press('n');
   await page.keyboard.type('z');
 
+  // Leaving the field for HELP applies the new alias (ADR 0105).
   await toHelp(page);
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
   await page.keyboard.press('Tab');
   await jumpToHeading(page, '#action');
   // The menu and the manual fit the window: the menu starts inside it, the scrollbar ends inside it.
@@ -583,6 +586,15 @@ test('ESC menu → Profile (the window) → HELP while connected: ESC asks to ap
   expect(menu.x + menu.width).toBeLessThan(bar.x);
   await expect(menuCurrent(page)).toHaveText(/^ #action\s*$/);
 
+  // An EDITOR edit stays unapplied over HELP: ESC there asks.
+  await ped(page).locator('[data-btn="EDITOR"]').click();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('#alias {w} {x}');
+  // HELP again: the manual is where it was.
+  await ped(page).locator('[data-btn="HELP"]').click();
+  await expect(ped(page)).toHaveAttribute('data-view', 'help');
+  await expectTop(page, '#action');
   const modal = () => ped(page).locator('.wc-ped-overlay');
   await page.keyboard.press('Escape');
   await expect(modal()).toContainText('Apply changes to your profile?');
@@ -593,7 +605,7 @@ test('ESC menu → Profile (the window) → HELP while connected: ESC asks to ap
   await page.keyboard.press('Escape');
   await page.keyboard.press('y');
   await expect(page.locator('.wc-win[data-win="profile"]')).toHaveCount(0);
-  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n');
+  await expect.poll(() => stored(page)).toBe('#alias {a} {b}\n#alias {z} {}\n#alias {w} {x}');
 });
 
 test('HELP menu: click and keys jump to a section, the mark follows the manual', async ({ page }) => {

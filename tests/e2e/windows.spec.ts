@@ -311,7 +311,13 @@ test('X with unsaved changes asks Apply / Discard / Keep editing, as Esc does', 
   expect(await stored(page)).toBe('#alias {a} {b}\n');
 
   // Esc in the game input reaches the window: it takes the focus and asks; Y applies and closes.
-  await editAlias(page, 'r');
+  // (A LITE edit applies by itself when the game is clicked, ADR 0105; an EDITOR edit waits.)
+  await icon(page, 'profile').click();
+  await ped(page).locator('[data-btn="EDITOR"]').click();
+  await expect(ped(page)).toHaveAttribute('data-mode', 'editor');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type('#alias {r} {}\n');
   await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
   await expect(win(page, 'profile')).not.toHaveAttribute('data-focused', '');
   await page.keyboard.press('Escape');
@@ -327,7 +333,8 @@ test('Exit warns about unsaved changes in a window, then discards them; the wind
   await enterMume(page, '#alias {a} {b}\n');
   await icon(page, 'scripts').click();
   await expect(win(page, 'scripts')).toBeVisible();
-  await editAlias(page, 's');
+  // An entry that does not validate stays unapplied when the window loses the focus (ADR 0105).
+  await editAlias(page, 's{');
   await icon(page, 'exit').click();
   await expect(page.locator('.wc-pop-exit')).toBeFocused();
   await expect(page.locator('.wc-pop-warn')).toHaveText('Unsaved changes in an open window will be lost.');

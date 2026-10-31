@@ -4,12 +4,14 @@
 
 import { resolveCommand } from '../script/commands';
 import {
+  type DocNode,
   type EntryKind,
   type EntryNode,
   type ProfileDoc,
   displayBody,
   listEntries,
   removeEntry,
+  validateEntry,
 } from '../script/doc';
 import { compareKeys, displayKey, normalizeKey, shadowedInputKey } from '../script/keys';
 import { scriptKeyOwner } from '../script/script-keys';
@@ -371,12 +373,52 @@ export function titleText(name: string, width: number): string {
 }
 
 /**
- * The document to save from the lite view: entries created or edited in
- * the lite view (`touched`) whose pattern is still empty are dropped
- * ("saving is never blocked", Inv §5.6). Other entries are left alone.
+ * The lite view's document without its empty new entries: entries that are
+ * not in `base` (created since the last apply) and whose pattern is still
+ * empty are dropped ("saving is never blocked", Inv §5.6). Unapplied
+ * changes are what this differs from `base` in (ADR 0105).
  */
-export function dropEmpty(doc: ProfileDoc, touched: ReadonlySet<number>): ProfileDoc {
+export function pendingDoc(base: ProfileDoc, doc: ProfileDoc): ProfileDoc {
+  const known = new Set(base.nodes.map((n) => n.id));
   let out = doc;
-  for (const e of listEntries(doc)) if (touched.has(e.id) && e.pattern.trim() === '') out = removeEntry(out, e.id);
+  for (const e of listEntries(doc)) if (!known.has(e.id) && e.pattern.trim() === '') out = removeEntry(out, e.id);
   return out;
+}
+
+/** A changed entry the lite view does not apply, and why (`validateEntry`). */
+export interface HeldEntry {
+  entry: EntryNode;
+  reason: string;
+}
+
+/**
+ * What the lite view applies (ADR 0105): `doc` with every changed entry
+ * that does not validate held back. A held entry that is in `base` keeps
+ * its base text there; a new one is left out. Empty new entries are left
+ * out silently (`pendingDoc`); the others are listed in `held`.
+ */
+export function applicableDoc(base: ProfileDoc, doc: ProfileDoc): { doc: ProfileDoc; held: HeldEntry[] } {
+  const was = new Map(base.nodes.map((n) => [n.id, n]));
+  const held: HeldEntry[] = [];
+  const nodes: DocNode[] = [];
+  for (const n of doc.nodes) {
+    const b = was.get(n.id);
+    if ((b && b.text === n.text) || n.type !== 'entry') {
+      nodes.push(n);
+      continue;
+    }
+    const reason = validateEntry(n);
+    if (reason === null) nodes.push(n);
+    else {
+      if (b) nodes.push(b);
+      if (b || n.pattern.trim() !== '') held.push({ entry: n, reason });
+    }
+  }
+  return { doc: { ...doc, nodes }, held };
+}
+
+/** `Unbalanced braces in Commands (alias gv)`: a held entry for a message. */
+export function heldText(h: HeldEntry): string {
+  const what = h.entry.pattern.trim() === '' ? h.entry.kind : `${h.entry.kind} ${ellipsis(h.entry.pattern.trim(), 24)}`;
+  return `${h.reason} (${what})`;
 }

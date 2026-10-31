@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  applicableDoc,
   bodyPreview,
-  dropEmpty,
+  heldText,
+  pendingDoc,
   ellipsis,
   entryWarning,
   highlightStyle,
@@ -170,11 +172,12 @@ describe('validation precedence', () => {
 describe('round trip over the PvP corpus', () => {
   it('a flip with no edits is byte-exact (serialise → parse → serialise)', () => {
     const doc = parseProfile(PVP);
-    const buffer = serialize(dropEmpty(doc, new Set()));
+    const buffer = serialize(pendingDoc(doc, doc));
     expect(buffer).toBe(PVP);
     expect(serialize(parseProfile(buffer))).toBe(PVP);
     const crlf = PVP.replace(/\n/g, '\r\n');
-    expect(serialize(dropEmpty(parseProfile(crlf), new Set()))).toBe(crlf);
+    const crlfDoc = parseProfile(crlf);
+    expect(serialize(pendingDoc(crlfDoc, crlfDoc))).toBe(crlf);
   });
 
   it('adding and deleting through the lite view leaves the other bytes intact', () => {
@@ -194,10 +197,41 @@ describe('round trip over the PvP corpus', () => {
     expect(serialize(removeEntry(doc, cloak.id))).toBe(PVP.replace('#VARIABLE {cloak} {grey}\n', ''));
   });
 
-  it('drops only lite-touched entries with an empty pattern on save', () => {
+  it('drops only new entries with an empty pattern from the pending text', () => {
     const doc = parseProfile('#alias {} {kept}\n');
-    const { doc: d2, id } = addEntry(doc, { kind: 'alias', pattern: '', body: 'x' });
-    expect(serialize(dropEmpty(d2, new Set([id])))).toBe('#alias {} {kept}\n');
+    const { doc: d2 } = addEntry(doc, { kind: 'alias', pattern: '', body: 'x' });
+    expect(serialize(pendingDoc(doc, d2))).toBe('#alias {} {kept}\n');
+  });
+});
+
+describe('applicableDoc (ADR 0105)', () => {
+  const base = parseProfile('#alias {a} {one}\n#alias {b} {two}\n');
+  const [a, b] = listEntries(base);
+
+  it('applies valid changes and holds back the ones that do not validate', () => {
+    let d = editEntry(base, a!.id, { body: 'uno' });
+    d = editEntry(d, b!.id, { body: 'dos{' });
+    const r = applicableDoc(base, d);
+    expect(serialize(r.doc)).toBe('#alias {a} {uno}\n#alias {b} {two}\n');
+    expect(r.held.map(heldText)).toEqual(['Unbalanced braces in Commands (alias b)']);
+  });
+
+  it('leaves out a new entry that does not validate; an empty new one silently', () => {
+    const { doc: d1 } = addEntry(base, { kind: 'alias', pattern: '', body: '' });
+    expect(applicableDoc(base, d1)).toEqual({ doc: expect.anything(), held: [] });
+    expect(serialize(applicableDoc(base, d1).doc)).toBe(serialize(base));
+    const { doc: d2 } = addEntry(base, { kind: 'alias', pattern: 'c{', body: 'x' });
+    const r = applicableDoc(base, d2);
+    expect(serialize(r.doc)).toBe(serialize(base));
+    expect(r.held.map(heldText)).toEqual(['Unbalanced braces in Pattern (alias c{)']);
+  });
+
+  it('holds back an existing entry whose pattern was cleared instead of deleting it', () => {
+    const d = editEntry(base, a!.id, { pattern: '' });
+    const r = applicableDoc(base, d);
+    expect(serialize(r.doc)).toBe(serialize(base));
+    expect(r.held.map(heldText)).toEqual(['Pattern required (alias)']);
+    expect(serialize(pendingDoc(base, d))).not.toBe(serialize(base));
   });
 });
 

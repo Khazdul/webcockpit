@@ -5,10 +5,10 @@
 // it carries CodeMirror, so it never sits on the cold-start path.
 //
 //   const { openProfileEditor } = await import('../../editor');
-//   openProfileEditor(nav, { name, text, isLive, save, apply });
+//   openProfileEditor(nav, { name, text, isLive, load, commit, subscribe });
 
 import './editor.css';
 
-export { type ApplyResult, type EditorHost, ProfileEditor, openProfileEditor } from './frame';
+export { type EditorHost, ProfileEditor, openProfileEditor } from './frame';
 export { type ScriptEditorHost, ScriptEditor, openScriptEditor } from './script-frame';
 export { ScriptManual, openScriptManual } from './script-manual-frame';

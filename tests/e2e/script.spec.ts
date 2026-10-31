@@ -45,7 +45,7 @@ test('macros on printable keys win over typing (ADR 0026)', async ({ page }) => 
   const r = await page.evaluate(() =>
     window.__wc!.app.applyProfile(['#macro {a} {#showme bare-a}', '#macro {Shift+B} {#showme shift-b}', '#macro {Shift+1} {#showme shift-1}'].join('\n')),
   );
-  expect(r).toEqual({ ok: true, warnings: [] });
+  expect(r).toEqual({ ok: true, warnings: [], added: [] });
   const input = page.locator('.wc-input-field');
   await input.focus();
   await page.keyboard.press('KeyA');
@@ -65,7 +65,7 @@ test('macros on dead keys fire once and leave no accent (ADR 0026)', async ({ pa
   const r = await page.evaluate(() =>
     window.__wc!.app.applyProfile(['#macro {Equal} {#showme acute}', '#macro {BracketRight} {#showme diaeresis}'].join('\n')),
   );
-  expect(r).toEqual({ ok: true, warnings: [] });
+  expect(r).toEqual({ ok: true, warnings: [], added: [] });
   const input = page.locator('.wc-input-field');
   await input.focus();
   await page.keyboard.type('ab');
@@ -140,7 +140,7 @@ test('highlights, substitutes and gags change only the display in a replay', asy
       ].join('\n'),
     ),
   );
-  expect(r).toEqual({ ok: true, warnings: [] });
+  expect(r).toEqual({ ok: true, warnings: [], added: [] });
   const log = [
     'You feel - sanctuary.',
     'You hear some noise to the east.',

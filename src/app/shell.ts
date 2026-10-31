@@ -71,7 +71,6 @@ import type { PlayerHost, PlayerInfo } from './player-host';
 import type { Session } from '../runs/stitch';
 import type { RunEvent } from '../runs/events';
 import type { ChainRun } from '../player/timeline';
-import type { ApplyResult } from '../editor';
 import type { ConnState } from '../core/types';
 import { CLIENT_COMMIT, CLIENT_VERSION } from '../core/build-info';
 import { defaultLinkFetch } from '../net/link-probe';
@@ -340,7 +339,7 @@ export class Shell {
       app.cockpit.el.append(host);
       this.windows = chrome.mountWindows(host, this.services(), {
         status: app.status,
-        liveApply: (text) => app.applyProfile(text),
+        commitProfile: (name, build, opts) => app.commitProfile(name, build, opts),
         flushWriteBack: () => app.flushWriteBack(),
         focusInput: () => app.input.focus(),
         onChange: () => app.menuBar?.markWindows(this.windows?.openIds ?? []),
@@ -564,7 +563,7 @@ export class Shell {
         app.onCommand('#reconnect');
       },
       exit: () => void this.exitSession(),
-      liveApply: (text) => app.applyProfile(text),
+      commitProfile: (name, build, opts) => app.commitProfile(name, build, opts),
       flushWriteBack: () => app.flushWriteBack(),
       runs: app.runs,
       // Where the bar exists, the menu's Profile and Options → Scripts open the windows (ADR 0103).

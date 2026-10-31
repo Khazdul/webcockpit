@@ -1,22 +1,24 @@
 // Opens the profile editor (src/editor, a separate lazy chunk) for a stored
-// profile. Shared by the start page's Profile → EDIT and the ESC menu's
-// Profile row (Inv §4.5, §5.1). The chunk is imported here, on demand, so
-// the chrome chunk never carries CodeMirror.
+// profile. Shared by the start page's Profile → EDIT, the ESC menu's
+// Profile row and the Profile window (Inv §4.5, §5.1, ADR 0103). The chunk
+// is imported here, on demand, so the chrome chunk never carries CodeMirror.
+//
+// The editor applies while it stays open (ADR 0105): `commit` reads the
+// latest stored text, builds the editor's text on it, applies it when live
+// and saves. With the App's commit (a cockpit) it runs on the write-back
+// queue; without it (the start page) it reads and saves the store.
 
-import type { ApplyResult } from '../../editor';
-import type { ProfileStore } from '../../profiles';
+import { type CommitProfile, type ProfileStore, commitStored } from '../../profiles';
 import type { Nav } from '../kit/stack';
 
-export type { ApplyResult } from '../../editor';
-
 export interface EditOptions {
-  /** A live session runs the profile (ESC menu while connected). */
+  /** A live session runs the profile (connected): an apply swaps the running rules. */
   isLive: () => boolean;
-  /** The live apply, when the app offers one; absent = save only. */
-  apply?: ((text: string) => ApplyResult | Promise<ApplyResult>) | undefined;
+  /** The App's commit (`App.commitProfile`); absent = read and save the store. */
+  commit?: CommitProfile | undefined;
   /** Runs before the stored text is read (flushes pending variable write-back). */
   beforeLoad?: (() => Promise<void>) | undefined;
-  /** Called after the editor saved the profile. */
+  /** Called after an explicit apply (the editor's prompt) saved the profile. */
   onSaved?: ((name: string) => void) | undefined;
 }
 
@@ -39,11 +41,18 @@ export async function editProfile(nav: Nav, profiles: ProfileStore, name: string
       name,
       text: rec.text,
       isLive: opts.isLive,
-      save: async (text) => {
-        await profiles.save(name, text);
-        opts.onSaved?.(name);
+      load: async () => {
+        const r = await profiles.get(name);
+        if (!r) throw new Error(`No profile "${name}".`);
+        return r.text;
       },
-      ...(opts.apply ? { apply: opts.apply } : {}),
+      commit: async (build, { quiet }) => {
+        const live = opts.isLive();
+        const r = opts.commit ? await opts.commit(name, build, { live, quiet }) : await commitStored(profiles, name, build);
+        if (r.ok && r.changed && !quiet) opts.onSaved?.(name);
+        return r;
+      },
+      subscribe: (fn) => profiles.subscribe((n, text) => n === name && fn(text)),
     });
   } catch (e) {
     nav.flash(`Could not open the editor: ${errText(e)}`, 'fail');

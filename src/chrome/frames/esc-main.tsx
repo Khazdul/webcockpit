@@ -39,9 +39,10 @@ import {
   useMenuCursor,
 } from '../kit/widgets';
 import type { LiveRuns } from '../../runs/live';
+import type { CommitProfile } from '../../profiles';
 import { OptionsHub } from './options';
 import { LiveStatsFrame } from './statistics';
-import { type ApplyResult, editProfile } from './profile-edit';
+import { editProfile } from './profile-edit';
 
 export interface EscActions {
   status: AppStatusView;
@@ -51,8 +52,8 @@ export interface EscActions {
   reconnect: () => void;
   /** End the session and return to the start page. */
   exit: () => void;
-  /** The live profile apply (Inv §4.5, ADR 0015). Absent: Apply only saves. */
-  liveApply?: (text: string) => ApplyResult;
+  /** The profile editor's apply (`App.commitProfile`, ADR 0105). Absent: the editor saves to the store only. */
+  commitProfile?: CommitProfile;
   /** Saves pending runtime variable values before the editor reads the profile. */
   flushWriteBack?: () => Promise<void>;
   /** The live run (`app.runs`): Statistics and the Exit rating. Absent: neither is offered. */
@@ -178,12 +179,12 @@ export function EscMain(p: EscMainProps): VNode {
 
 /** The editor options of the ESC menu's Profile and the Profile window: live apply while connected. */
 export function profileEditOptions(
-  p: Pick<EscActions, 'status' | 'liveApply' | 'flushWriteBack'>,
+  p: Pick<EscActions, 'status' | 'commitProfile' | 'flushWriteBack'>,
   onSaved: ((name: string) => void) | undefined,
 ) {
   return {
     isLive: () => isLive(p.status.get()),
-    apply: p.liveApply,
+    commit: p.commitProfile,
     beforeLoad: p.flushWriteBack,
     onSaved,
   };
