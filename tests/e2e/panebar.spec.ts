@@ -341,10 +341,9 @@ test('panebar: the bottom of the right dock, clicks toggle panes, no tooltips, c
   await expect.poll(() => page.evaluate((id) => window.__wc!.settings.get().layout.docks.right.tail.at(-1)?.id, BAR)).toBe(BAR);
   await expect(bar(page)).toBeVisible();
   const b = (await bar(page).boundingBox())!;
-  const app = (await page.locator('.wc-cockpit').boundingBox())!;
-  // The last whole cell row (the cockpit's height need not be a whole number of cells).
-  expect(app.y + app.height - (b.y + b.height)).toBeLessThan(b.height);
-  expect(app.y + app.height - (b.y + b.height)).toBeGreaterThanOrEqual(0);
+  // The dock's last row, right above the input row (ADR 0101).
+  const input = (await page.locator('.wc-input-slot').boundingBox())!;
+  expect(Math.abs(input.y - (b.y + b.height))).toBeLessThan(0.5);
   expect(errors).toEqual([]);
 });
 

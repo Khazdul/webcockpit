@@ -61,17 +61,18 @@ async function origin(page: Page): Promise<{ x: number; y: number }> {
 
 const ORDER = ['character', 'timers', 'group', 'comm', 'ui'];
 
-test('default layout: game left, input under it as wide as the game, full-height right column', async ({ page }) => {
+test('default layout: game left, the right column down to the input row, the input row under both to the edge (ADR 0101)', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const { cw, ch, cols, rows } = await open(page);
   const game = await box(page, '.wc-game');
   expect(game).toEqual({ x: 0, y: 0, width: (cols - 34) * cw, height: (rows - 1) * ch });
   const input = await box(page, '.wc-input-slot');
-  expect(input).toEqual({ x: 0, y: (rows - 1) * ch, width: (cols - 34) * cw, height: ch });
-  // The clock strip sits at the right end of the input line, under the game pane.
-  const clock = await box(page, '.wc-input-clock');
-  expect(clock.x + clock.width).toBeLessThanOrEqual(game.width + 0.5);
+  expect(input).toEqual({ x: 0, y: (rows - 1) * ch, width: cols * cw, height: ch });
+  // The menu bar (and its clock) sits at the right end of the input row, at the screen edge under the right dock.
+  const bar = await box(page, '.wc-menubar');
+  expect(Math.abs(bar.x + bar.width - cols * cw)).toBeLessThanOrEqual(0.5);
+  expect((await box(page, '.wc-input-clock')).x).toBeGreaterThan(game.width);
 
   let y = 0;
   const heights: number[] = [];
@@ -83,10 +84,10 @@ test('default layout: game left, input under it as wide as the game, full-height
     heights.push(Math.round(b.height / ch) - 2);
     y += b.height;
   }
-  expect(y).toBe(rows * ch); // the right column reaches the bottom of the window
+  expect(y).toBe((rows - 1) * ch); // the right column reaches the input row
   // Character keeps 9 content rows; the other four share the rest evenly (ADR 0023).
   expect(heights[0]).toBe(9);
-  expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 2 * ORDER.length);
+  expect(heights.reduce((a, b) => a + b, 0)).toBe(rows - 1 - 2 * ORDER.length);
   expect(Math.max(...heights.slice(1)) - Math.min(...heights.slice(1))).toBeLessThanOrEqual(1);
 
   // A glass rim the same inset from every edge of the outer cells, a nameplate hanging from it with
@@ -192,9 +193,10 @@ test('drag a pane by its title row to the left dock', async ({ page }) => {
 
   await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ x: 0, y: 0, width: 33 * cw });
   expect(await box(page, '.wc-game')).toMatchObject({ x: 34 * cw, width: (cols - 68) * cw });
-  // The left dock runs the full height, beside the input line.
+  // Without a bottom dock the left dock runs the full height, beside the input row,
+  // which runs on under the right dock to the screen edge (ADR 0101).
   expect(await box(page, '.wc-pane-comm')).toMatchObject({ height: rows * ch });
-  expect(await box(page, '.wc-input-slot')).toEqual({ x: 34 * cw, y: (rows - 1) * ch, width: (cols - 68) * cw, height: ch });
+  expect(await box(page, '.wc-input-slot')).toEqual({ x: 34 * cw, y: (rows - 1) * ch, width: (cols - 34) * cw, height: ch });
   const left = await page.evaluate(() => window.__wc!.settings.get().layout.docks.left.lanes.flatMap((l) => l.panes).map((p) => p.id));
   expect(left).toEqual(['comm']);
   await expect(page.locator('.wc-input-field')).toBeFocused();
@@ -229,7 +231,7 @@ test('drag a pane to the top screen edge opens the top dock', async ({ page }) =
 
   await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: 0, y: 0, width: (cols - 34) * cw, height: 10 * ch });
   expect(await box(page, '.wc-game')).toEqual({ x: 0, y: 11 * ch, width: (cols - 34) * cw, height: (rows - 12) * ch });
-  expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 1) * ch, width: (cols - 34) * cw, height: ch });
+  expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 1) * ch, width: cols * cw, height: ch });
   const top = await page.evaluate(() => window.__wc!.settings.get().layout.docks.top);
   expect(top).toEqual({ lanes: [{ size: 10, panes: [{ id: 'comm', desired: 30 }] }], head: [], tail: [] });
 
@@ -243,7 +245,7 @@ test('drag a pane to the top screen edge opens the top dock', async ({ page }) =
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });
 
-test('drag a pane to the bottom screen edge docks it under the input line', async ({ page }) => {
+test('drag a pane to the bottom screen edge docks it under the input row, the full screen width', async ({ page }) => {
   const { cw, ch, cols, rows } = await open(page);
   const o = await origin(page);
   const comm = await box(page, '.wc-pane-comm');
@@ -254,18 +256,18 @@ test('drag a pane to the bottom screen edge docks it under the input line', asyn
   await page.mouse.up();
 
   const gw = (cols - 34) * cw;
-  // Game, input line, gap row, bottom dock (10 rows); the right column still runs to the bottom.
-  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: 0, y: (rows - 10) * ch, width: gw, height: 10 * ch });
+  // Game, input row, gap row, bottom dock (10 rows) across the screen; the right column ends above the input row (ADR 0101).
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: 0, y: (rows - 10) * ch, width: cols * cw, height: 10 * ch });
   expect(await box(page, '.wc-game')).toEqual({ x: 0, y: 0, width: gw, height: (rows - 12) * ch });
-  expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 12) * ch, width: gw, height: ch });
+  expect(await box(page, '.wc-input-slot')).toEqual({ x: 0, y: (rows - 12) * ch, width: cols * cw, height: ch });
   const ui = await box(page, '.wc-pane-ui');
-  expect(ui.y + ui.height).toBe(rows * ch);
+  expect(ui.y + ui.height).toBe((rows - 12) * ch);
 
-  // The gap row between the input line and the bottom dock resizes it.
+  // The gap row between the input row and the bottom dock resizes it, also under the right dock.
   const gapY = o.y + (rows - 11) * ch + ch / 2;
-  await page.mouse.move(o.x + 300, gapY);
+  await page.mouse.move(o.x + (cols - 10) * cw, gapY);
   await page.mouse.down();
-  await page.mouse.move(o.x + 300, gapY - 3 * ch, { steps: 4 });
+  await page.mouse.move(o.x + (cols - 10) * cw, gapY - 3 * ch, { steps: 4 });
   await page.mouse.up();
   await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ y: (rows - 13) * ch, height: 13 * ch });
   expect(await box(page, '.wc-input-slot')).toMatchObject({ y: (rows - 15) * ch });
@@ -400,22 +402,22 @@ test('dock lanes: a second column by drag, lane boundary resize, reload, empty l
       window.__wc!.settings.get().layout.docks.right.lanes.map((l) => [l.size, l.panes.map((p) => p.id)] as const),
     );
 
-  // Drag Comm to the inner (left) edge band of the right column: a full-height
-  // vertical bar along the column edge, and a new column inside it.
+  // Drag Comm to the inner (left) edge band of the right column: a vertical
+  // bar along the whole column edge (down to the input row), and a new column inside it.
   const comm = await box(page, '.wc-pane-comm');
   await page.mouse.move(o.x + comm.x + 6 * cw, o.y + comm.y + ch / 2);
   await page.mouse.down();
   await page.mouse.move(o.x + (cols - 33) * cw + cw / 2, o.y + 300, { steps: 8 });
   await expect(page.locator('.wc-drop-bar')).toBeVisible();
   const bar = await box(page, '.wc-drop-bar');
-  expect(bar.height).toBe(rows * ch);
+  expect(bar.height).toBe((rows - 1) * ch);
   expect(Math.abs(bar.x + bar.width / 2 - (cols - 33) * cw)).toBeLessThanOrEqual(1);
   await page.mouse.up();
   await expect.poll(lanes).toEqual([
     [33, ['character', 'timers', 'group', 'ui']],
     [33, ['comm']],
   ]);
-  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 66) * cw, y: 0, width: 33 * cw, height: rows * ch });
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 66) * cw, y: 0, width: 33 * cw, height: (rows - 1) * ch });
   const gameW = (cols - 67) * cw;
   expect(await box(page, '.wc-game')).toMatchObject({ x: 0, width: gameW });
   await expect(page.locator('.wc-input-field')).toBeFocused();
@@ -453,7 +455,7 @@ test('dock lanes: a second column by drag, lane boundary resize, reload, empty l
   await page.reload();
   await expect(page.locator('.wc-cockpit')).toBeVisible();
   await metrics(page);
-  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 63) * cw, y: 0, width: 25 * cw, height: rows * ch });
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: (cols - 63) * cw, y: 0, width: 25 * cw, height: (rows - 1) * ch });
   expect(await box(page, '.wc-pane-character')).toMatchObject({ x: (cols - 38) * cw, width: 38 * cw });
 
   // Moving the last pane out of the inner column removes it; the game pane
@@ -486,7 +488,7 @@ test('dock lanes: a second row in the bottom dock from the upper edge band', asy
   await page.mouse.down();
   await page.mouse.move(o.x + 300, o.y + (rows - 10) * ch + ch / 2, { steps: 8 });
   await expect(page.locator('.wc-drop-bar')).toBeVisible();
-  expect((await box(page, '.wc-drop-bar')).width).toBe((cols - 34) * cw);
+  expect((await box(page, '.wc-drop-bar')).width).toBe(cols * cw);
   await page.mouse.up();
   await expect
     .poll(() => page.evaluate(() => window.__wc!.settings.get().layout.docks.bottom.lanes.map((l) => [l.size, l.panes.map((p) => p.id)])))
@@ -494,7 +496,7 @@ test('dock lanes: a second row in the bottom dock from the upper edge band', asy
       [10, ['comm']],
       [10, ['ui']],
     ]);
-  await expect.poll(() => box(page, '.wc-pane-ui')).toEqual({ x: 0, y: (rows - 20) * ch, width: (cols - 34) * cw, height: 10 * ch });
+  await expect.poll(() => box(page, '.wc-pane-ui')).toEqual({ x: 0, y: (rows - 20) * ch, width: cols * cw, height: 10 * ch });
   expect(await box(page, '.wc-input-slot')).toMatchObject({ y: (rows - 22) * ch });
 });
 
@@ -663,7 +665,8 @@ test('spanning panes: a bottom-dock span covers both rows; a float joins a span 
       lane.panes = lane.panes.filter((p) => p.id !== 'comm' && p.id !== 'ui');
     }),
   );
-  const gameW = cols - 34;
+  // The bottom dock spans the screen width (ADR 0101).
+  const dockW = cols;
   await expect.poll(() => box(page, '.wc-pane-ui')).toMatchObject({ y: (rows - 20) * ch, height: 10 * ch });
   // Group to the left end of the rows (the region's first columns): a
   // vertical bar the whole dock high, an outline of the box.
@@ -681,7 +684,7 @@ test('spanning panes: a bottom-dock span covers both rows; a float joins a span 
   await expect.poll(() => box(page, '.wc-pane-group')).toEqual(ghost);
   const g = await box(page, '.wc-pane-group');
   expect(g).toMatchObject({ x: 0, y: (rows - 20) * ch, height: 20 * ch });
-  expect(await box(page, '.wc-pane-ui')).toMatchObject({ x: g.width, y: (rows - 20) * ch, width: gameW * cw - g.width });
+  expect(await box(page, '.wc-pane-ui')).toMatchObject({ x: g.width, y: (rows - 20) * ch, width: dockW * cw - g.width });
   expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: g.width, y: (rows - 10) * ch });
 
   // Right dock: two columns with UI spanning at the top; Comm floats.
@@ -738,6 +741,53 @@ test('narrow window collapses the side dock and restores it when widened', async
   await page.setViewportSize({ width: 1280, height: 900 });
   await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-collapsed', '');
   for (const id of ORDER) await expect(page.locator(`.wc-pane-${id}`)).toBeVisible();
+});
+
+test('dock structure (ADR 0101): the right dock above the input row, the bar under it, the bottom dock across the screen', async ({ page }) => {
+  const { cw, ch, cols, rows } = await open(page);
+  // Left dock (20): Group; right dock: Character, Timers, UI; bottom dock: Comm.
+  await page.evaluate(() =>
+    window.__wc!.settings.update((d) => {
+      const lane = d.layout.docks.right.lanes[0]!;
+      d.layout.docks.left.lanes = [{ size: 20, panes: lane.panes.filter((p) => p.id === 'group') }];
+      d.layout.docks.bottom.lanes = [{ size: 8, panes: lane.panes.filter((p) => p.id === 'comm') }];
+      lane.panes = lane.panes.filter((p) => p.id !== 'group' && p.id !== 'comm');
+    }),
+  );
+  // Bottom dock rows rows−8.., gap row rows−9, input row rows−10.
+  await expect.poll(() => box(page, '.wc-pane-comm')).toEqual({ x: 0, y: (rows - 8) * ch, width: cols * cw, height: 8 * ch });
+  expect(await box(page, '.wc-pane-group')).toEqual({ x: 0, y: 0, width: 20 * cw, height: (rows - 9) * ch });
+  expect(await box(page, '.wc-game')).toEqual({ x: 21 * cw, y: 0, width: (cols - 21 - 34) * cw, height: (rows - 10) * ch });
+  expect(await box(page, '.wc-input-slot')).toEqual({ x: 21 * cw, y: (rows - 10) * ch, width: (cols - 21) * cw, height: ch });
+  const ui = await box(page, '.wc-pane-ui');
+  expect(ui.y + ui.height).toBe((rows - 10) * ch);
+  expect(ui.x).toBe((cols - 33) * cw);
+  // The menu bar ends at the screen edge, under the right dock.
+  const bar = await box(page, '.wc-menubar');
+  expect(bar.y).toBe((rows - 10) * ch);
+  expect(Math.abs(bar.x + bar.width - cols * cw)).toBeLessThanOrEqual(0.5);
+  expect(bar.x).toBeGreaterThanOrEqual(ui.x);
+  // The right dock's resize handle ends above the input row; the bottom one spans the screen.
+  const handles = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>('.wc-handle[data-dock]:not([data-border]):not([data-a]):not([data-outer]):not([data-span])')].map((h) => ({
+      dock: h.dataset.dock,
+      top: parseFloat(h.style.top),
+      height: parseFloat(h.style.height),
+      left: parseFloat(h.style.left),
+      width: parseFloat(h.style.width),
+    })),
+  );
+  expect(handles.find((h) => h.dock === 'right')).toMatchObject({ top: 0, height: (rows - 10) * ch });
+  expect(handles.find((h) => h.dock === 'left')).toMatchObject({ top: 0, height: (rows - 9) * ch });
+  expect(handles.find((h) => h.dock === 'bottom')).toMatchObject({ left: 0, width: cols * cw, top: (rows - 9) * ch });
+
+  // Narrow: the left dock collapses; the game column and the input row take its width.
+  await page.setViewportSize({ width: Math.ceil(80.5 * cw), height: 900 });
+  await expect(page.locator('.wc-cockpit')).toHaveAttribute('data-collapsed', 'left');
+  const m = await metrics(page);
+  await expect.poll(() => box(page, '.wc-input-slot')).toMatchObject({ x: 0, width: m.cols * cw });
+  expect(await box(page, '.wc-game')).toMatchObject({ x: 0, width: (m.cols - 34) * cw });
+  expect(await box(page, '.wc-pane-comm')).toMatchObject({ x: 0, width: m.cols * cw });
 });
 
 /** Floating panes other than the map (whose default entry stays backmost, ADR 0020). */
@@ -887,7 +937,7 @@ test('floating panes come to front on a press and stay inside a smaller window',
 test('a tall docked pane dragged out floats at the standard 36 × 14 size', async ({ page }) => {
   const { cw, ch, rows } = await open(page);
   const o = await origin(page);
-  // Comm alone in the right column: it is the full window height.
+  // Comm alone in the right column: it runs from the top down to the input row.
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
       const lane = d.layout.docks.right.lanes[0]!;
@@ -895,7 +945,7 @@ test('a tall docked pane dragged out floats at the standard 36 × 14 size', asyn
       lane.panes = lane.panes.filter((p) => p.id === 'comm');
     }),
   );
-  await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ y: 0, height: rows * ch });
+  await expect.poll(() => box(page, '.wc-pane-comm')).toMatchObject({ y: 0, height: (rows - 1) * ch });
   const comm = await box(page, '.wc-pane-comm');
   await page.mouse.move(o.x + comm.x + 4 * cw + cw / 2, o.y + ch / 2);
   await page.mouse.down();

@@ -55,6 +55,13 @@ test('new install: Hack 17, the docked map over two lanes, the weather on, no pa
   expect(group.y).toBeGreaterThanOrEqual(map.y + map.height - 1);
   expect(comm.y).toBeGreaterThanOrEqual(group.y + group.height - 1);
   expect(map.height).toBeGreaterThan(group.height);
+  // Comm is the dock's last pane and ends right above the input row, which runs
+  // under the dock to the screen edge with the menu bar at its end (ADR 0101).
+  const input = (await page.locator('.wc-input-slot').boundingBox())!;
+  expect(comm.y + comm.height).toBeCloseTo(input.y, 0);
+  const menubar = (await page.locator('.wc-menubar').boundingBox())!;
+  expect(menubar.x).toBeGreaterThan(comm.x);
+  expect(menubar.x + menubar.width).toBeCloseTo(comm.x + comm.width, 0);
   await expect(pane(page, 'comm')).toHaveAttribute('data-framed', '');
 
   // The Map search pane is off.
