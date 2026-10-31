@@ -24,7 +24,9 @@
 How it works
 
 getPanes() lists every pane in the Panes box's order (the menu bar) with its
-short name, title and on/off; the bar leaves out its own pane. On is the
+short name, title and on/off; the bar leaves out its own pane, and the
+Statistics pane (an occasional view, switched on in the Panes box), so the
+six built-in buttons keep their room (ADR 0109). On is the
 Character pane's lit toggle box, the pane background shade on the glow
 shade (<@bg:@glow>); off is the mid shade on the track shade
 (<@mid:@track>), faded but readable. Both follow the pane tint and the
@@ -85,11 +87,11 @@ local wheelRest = 0
 -- Set by the last draw: scrolled or not, buttons in the list and shown.
 local scrolled, count, shown = false, 0, 0
 
--- The panes the bar has buttons for: every pane but its own.
+-- The panes the bar has buttons for: every pane but its own and Statistics.
 local function others()
   local out = {}
   for _, e in ipairs(getPanes()) do
-    if not e.own then out[#out + 1] = e end
+    if not e.own and e.id ~= "statistics" then out[#out + 1] = e end
   end
   return out
 end

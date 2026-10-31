@@ -33,7 +33,8 @@ test('new install: Hack 17, the docked map over two lanes, the weather on, no pa
   expect(s.mapper).toMatchObject({ tileset: 'shimrod', background: 'transparent' });
   expect(s.panes.character.on).toBe(false);
   expect(s.panes.ui.on).toBe(false);
-  expect(s.layout.floating.map((f) => f.id)).toEqual([FIND]);
+  expect(s.layout.floating.map((f) => f.id)).toEqual([FIND, 'statistics']);
+  expect(s.panes.statistics.on).toBe(false);
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(1);
 
   // Map search runs; the pane bar does not (stage 30a round 1).

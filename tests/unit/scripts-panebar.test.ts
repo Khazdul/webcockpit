@@ -16,9 +16,6 @@ import { ScriptLibrary } from '../../src/scripts';
 import { BUNDLED_SCRIPTS } from '../../src/scripts/bundled';
 import { ScriptHost } from '../../src/scripts/host';
 
-/** The built-in panes the bar's layout cases were written for (Statistics, ADR 0109, left out). */
-const BUILTINS = PANE_IDS.filter((id) => id !== 'statistics');
-
 const hosts: ScriptHost[] = [];
 afterEach(() => {
   for (const h of hosts.splice(0)) h.dispose();
@@ -71,7 +68,7 @@ class Surface implements ScriptPaneSurface {
   states(): PaneState[] {
     const open = this.opened.filter((o) => !o.view.closed && !o.spec.temporary);
     return [
-      ...BUILTINS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: true, dock: 'right' as const })),
+      ...PANE_IDS.map((id) => ({ id, on: this.builtinOn.get(id) ?? true, shown: true, dock: 'right' as const })),
       ...open.map((o) => ({ id: o.spec.id, on: o.view.on, shown: o.view.on, dock: o.view.dock!() })),
     ];
   }
@@ -191,6 +188,8 @@ describe('bundled panebar', () => {
     await t.resize(80);
     expect(t.rows()).toEqual([bar(ALL, true)]);
     expect(t.rows().join(' ')).not.toContain('BAR');
+    // Statistics has no button (ADR 0109), though getPanes lists it.
+    expect(t.rows().join(' ')).not.toContain('STAT');
     expect(t.panes.wants.at(-1)).toEqual([1, undefined]);
     // No tooltips (stage 21): a button's link has no hint.
     expect(t.button('COMM').link.hint).toBe('');
