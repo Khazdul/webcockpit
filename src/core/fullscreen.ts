@@ -97,3 +97,49 @@ export function onFullscreenRefused(fn: () => void): () => void {
 export function resetFullscreenRefusal(): void {
   refused = false;
 }
+
+// Keyboard Lock (stage 30b, ADR 0103): in the cockpit's page fullscreen the
+// menu bar asks the browser to deliver Esc to the page instead of leaving
+// fullscreen, so Esc can open the Exit popup. Chromium only (Chrome, Edge,
+// Opera); elsewhere there is no API and Esc leaves fullscreen as before.
+// A press and hold of Esc still leaves fullscreen (the browser says so).
+
+interface KeyboardLockApi {
+  lock(keys?: string[]): Promise<void>;
+  unlock(): void;
+}
+
+type NavigatorWithKeyboard = Navigator & { keyboard?: Partial<KeyboardLockApi> };
+
+function keyboardApi(nav: Navigator | undefined): Partial<KeyboardLockApi> | null {
+  const k = (nav as NavigatorWithKeyboard | undefined)?.keyboard;
+  return k && typeof k.lock === 'function' && typeof k.unlock === 'function' ? k : null;
+}
+
+/** Whether this browser has the Keyboard Lock API. */
+export function canLockEscape(nav: Navigator | undefined = globalThis.navigator): boolean {
+  return keyboardApi(nav) !== null;
+}
+
+/** Asks the browser for the Esc key while in fullscreen; false when there is no API. Rejections are ignored. */
+export function lockEscape(nav: Navigator | undefined = globalThis.navigator): boolean {
+  const k = keyboardApi(nav);
+  if (!k) return false;
+  try {
+    void Promise.resolve(k.lock!(['Escape'])).catch(() => {});
+  } catch {
+    /* refused */
+  }
+  return true;
+}
+
+/** Gives the keys back to the browser (no-op without the API). */
+export function unlockEscape(nav: Navigator | undefined = globalThis.navigator): void {
+  const k = keyboardApi(nav);
+  if (!k) return;
+  try {
+    k.unlock!();
+  } catch {
+    /* nothing locked */
+  }
+}

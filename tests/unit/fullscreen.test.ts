@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { canFullscreen, isFullscreen, resetFullscreenRefusal, toggleFullscreen } from '../../src/core/fullscreen';
+import {
+  canFullscreen,
+  canLockEscape,
+  isFullscreen,
+  lockEscape,
+  resetFullscreenRefusal,
+  toggleFullscreen,
+  unlockEscape,
+} from '../../src/core/fullscreen';
 import { setDeviceForTest } from '../../src/core/device';
 import { installFullscreenButton } from '../../src/ui/fullscreen-button';
 
@@ -65,5 +73,34 @@ describe('fullscreen', () => {
     expect(await ok).toBe(false);
     expect(canFullscreen()).toBe(false);
     expect(b.el.isConnected).toBe(false);
+  });
+});
+
+describe('Esc in fullscreen: Keyboard Lock (ADR 0103)', () => {
+  it('asks for Escape and gives it back where the API exists; rejections are ignored', async () => {
+    const lock = vi.fn(() => Promise.reject(new Error('not allowed')));
+    const unlock = vi.fn();
+    const nav = { keyboard: { lock, unlock } } as unknown as Navigator;
+    expect(canLockEscape(nav)).toBe(true);
+    expect(lockEscape(nav)).toBe(true);
+    expect(lock).toHaveBeenCalledWith(['Escape']);
+    await Promise.resolve();
+    unlockEscape(nav);
+    expect(unlock).toHaveBeenCalledOnce();
+  });
+
+  it('does nothing without the API (Firefox, Safari)', () => {
+    const nav = {} as Navigator;
+    expect(canLockEscape(nav)).toBe(false);
+    expect(lockEscape(nav)).toBe(false);
+    expect(() => unlockEscape(nav)).not.toThrow();
+    expect(lockEscape({ keyboard: { lock: 1 } } as unknown as Navigator)).toBe(false);
+    expect(lockEscape(undefined)).toBe(false);
+  });
+
+  it('survives a lock that throws', () => {
+    const nav = { keyboard: { lock: () => { throw new Error('x'); }, unlock: () => { throw new Error('y'); } } } as unknown as Navigator;
+    expect(lockEscape(nav)).toBe(true);
+    expect(() => unlockEscape(nav)).not.toThrow();
   });
 });
