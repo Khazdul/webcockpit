@@ -289,6 +289,23 @@ and ADR 0100 (Disconnected notice):
          |  bottom dock, full screen width       |
          +---------------------------------------+
 
+### 30a round 2 (2026-10-31)
+
+The owner likes round 1 but prefers the bar left of the right dock in
+most cases. The input row picks its extent by the room left to type:
+
+- **Wide** (the typing field has at least ~50 cells with the clock and
+  the bar beside it, in the game column's width): the right dock runs
+  down to the bottom dock, like the left dock, and the bar sits at the
+  input row's right end, left of the right dock (as in the first 30a
+  build).
+- **Narrow** (fewer than ~50 cells): as round 1. The right dock ends
+  above the input row, which reaches the screen's right edge with the
+  bar under the right dock.
+- The bottom dock spans the full width in both cases. Transient notices
+  (Update, Disconnected) do not count, so a notice never moves the docks
+  *(Claude)*.
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
