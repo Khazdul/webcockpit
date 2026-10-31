@@ -1,7 +1,8 @@
 // App status: a small read-only observable of what the stage-1 status line
 // showed (connection state, character, Link RTT, capture, XML). The ESC
 // menu header (stage 2, package C) shows `Profile · Link: 38ms · capture`
-// from it. Fed by the bus and by the app (capture text, replay flag).
+// from it, and the menu bar's link dot and tooltips follow it (ADR 0099).
+// Fed by the bus and by the app (capture text, replay flag).
 
 import type { Bus } from '../core/bus';
 import { type ConnState, gmcpKey } from '../core/types';

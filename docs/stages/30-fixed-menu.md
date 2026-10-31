@@ -274,7 +274,21 @@ and ADR 0100 (Disconnected notice):
 - [x] 30a round 2 (2026-10-31): link dot only on a bad link; conventional
   window frame; one separator less; scroll icon for Scripts.
 - [x] 30a mockups approved by the owner (2026-10-31, after round 2).
-- [ ] 30a build.
+- [x] 30a build (2026-10-31):
+  - [x] Menu bar in the input row (desktop, tablet): clock with SVG
+    sun/moon, link dot, icons, two separators, whole cells (ADR 0099).
+  - [x] Live tooltips (clock, link, profile, buttons).
+  - [x] Link dot rules; Disconnected notice; ESC menu auto-open on the
+    phone only (ADR 0100).
+  - [x] Fullscreen in the bar; corner button phone only.
+  - [x] Panes popup (toggles, script panes, Reset layout with confirm).
+  - [x] Exit popup (rating as ExitConfirm, keys Y/Esc/0–5/←→).
+  - [x] Popup rules: one at a time, toggle on icon, Esc order, own keys.
+  - [x] Profile, Scripts, Settings open the ESC menu at their frame;
+    leaving it closes the menu.
+  - [x] `#profile`, `#scripts`, `#panes`, `#settings`, `#fullscreen`,
+    `#exit` (exact names), `#help` sections, phone fallbacks.
+  - [x] Unit tests, e2e `menubar.spec.ts`, phone check, ADRs 0099, 0100.
 - [ ] 30b.
 - [ ] 30c.
 - [ ] 30d.
@@ -284,3 +298,37 @@ and ADR 0100 (Disconnected notice):
 ## Test guide
 
 Written per step when it is built.
+
+### 30a
+
+Open the local dev server (`npm run dev`, then http://localhost:5173/),
+Enter MUME, and play as usual. `?replay` shows the cockpit offline.
+
+Try:
+
+1. **The bar** at the right end of the input line: clock, then Profile,
+   Scripts, Panes, Settings, then Fullscreen and Exit. Hover each: the
+   icon lights and a small tooltip names it (`Profile: <name>`,
+   `Night in 4:33` on the clock, counting live). Clicking an icon never
+   takes the keys from the game.
+2. **Panes:** click it. Switch panes off and on, also a script pane.
+   Try Reset layout (it asks first). Close it with the icon, its X, or
+   Esc (Esc in the input closes it; a second Esc opens the old menu).
+3. **Exit:** click it. With a run in progress you can rate it with the
+   stars or 0–5. Esc cancels, Y or Exit goes to the main menu.
+4. **Profile, Scripts, Settings:** for now they open the old menu at the
+   profile editor, Scripts and Options. Esc out of them goes straight
+   back to the game.
+5. **Commands:** type `#panes`, `#exit`, `#profile`, `#scripts`,
+   `#settings`, `#fullscreen`. Bind one to a key with `#macro`.
+6. **Disconnect:** `#disconnect`, or lose the connection. The menu no
+   longer opens by itself; `Disconnected  Reconnect Enter` appears left
+   of the clock and the link dot turns red. Click Reconnect or press
+   Enter.
+7. A light background (Options → Appearance) and a tablet, if you have
+   one (the bar plus `☰`). A phone has no bar yet.
+
+Feedback wanted: icon size and spacing against the mockups, tooltip
+size and delay, the popups' position, whether the Disconnected notice is
+clear enough, and anything that takes keys from the game when it should
+not.

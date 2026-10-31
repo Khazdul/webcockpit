@@ -1,6 +1,7 @@
 # 0097 — Fullscreen button on touch devices
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0099 (the corner button is phone only;
+  desktop and tablet have the menu bar's fullscreen button)
 - Date: 2026-10-22
 - Related: ADR 0075 (touch and phone flags)
 

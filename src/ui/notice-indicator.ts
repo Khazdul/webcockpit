@@ -1,5 +1,5 @@
-// The notice indicator in the cockpit's input row, left of the clock strip
-// (ADR 0025, src/app/notices.ts): e.g. `Update: 0.1.3` (C_YELLOW) and
+// The notice indicator in the cockpit's input row, left of the menu bar
+// (ADR 0099) or, on a phone, the clock strip (ADR 0025, src/app/notices.ts): e.g. `Update: 0.1.3` (C_YELLOW) and
 // `Storage: not saved` (C_ERR), each with a tooltip. Empty (and taking no
 // room) while there is nothing to say. Informational: clicking does
 // nothing, since a reload would disconnect from the game.
