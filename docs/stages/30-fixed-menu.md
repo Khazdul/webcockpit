@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **Next**. Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30b). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -259,6 +259,50 @@ and ADR 0100 (Disconnected notice):
   rather than the spec's tentative "Enter does not reconnect from quiet
   disconnects".
 
+## 30b build plan
+
+Scope: S8 (Profile and Scripts as windows; the window frame; Lite view
+width; hints removed) and S2's focus and Esc rules for windows. The ESC
+menu stays (30f). Desktop and tablet only: the phone keeps the ESC menu
+targets from 30a.
+
+Technical decisions *(Claude)*, recorded as ADR 0103 (windows) and ADR
+0104 (Lite view):
+
+- **Where:** the windows are a Preact surface in the chrome chunk
+  (`mountWindows`), since their content (profile editor, Scripts page)
+  lives there; the chunk is prefetched at idle. Each window holds its own
+  `FrameStack` on its own cell grid. The frame itself (border, title bar,
+  X, grip, drag and resize) is the window kit, separate from the ESC
+  menu's box.
+- **Keys and focus:** a window's stack routes keys only while that window
+  has focus, and never traps focus. A mouse down in a window focuses and
+  raises it; a mouse down anywhere else (game text, input, a pane, the
+  bar, a popup, the other window) takes its focus away. With no window
+  focused, keys go to the game as before. Opening the ESC menu takes the
+  focus from the windows.
+- **Open and toggle:** the Profile and Scripts icons and `#profile` /
+  `#scripts`: closed → open and focus; open but not focused → raise and
+  focus; focused → close (as X). The ESC menu's Profile and Options →
+  Scripts open the window too where the bar exists (the menu closes), so
+  the same profile is never edited in two places.
+- **Closing:** X and Esc on the window's root frame leave through the
+  frames' own Esc layers (the editor's Apply / Discard / Keep editing,
+  an open script editor's prompt), then close the window. Esc in the input
+  field: scrolled back → bottom; else the open popup; else the topmost
+  window (its close request focuses it if it prompts); else the ESC menu,
+  as today.
+- **Exit and leaving the cockpit:** the windows close with the cockpit.
+  The Exit popup warns on a line of its own when a window has unsaved
+  changes; those changes are discarded on Exit.
+- **Geometry:** in whole cells on the cockpit grid. Default: about 80% of
+  the screen, centred (Scripts one cell row and column offset when both
+  are open for the first time). Minimum 60×18 content cells; a smaller
+  screen fills the screen. Kept fully on screen on every viewport change.
+  Stored per window in the settings store (global, not per profile).
+- **Stacking:** above the panes (floating included), below the bar popups
+  and tooltips and the ESC menu.
+
 ## Owner feedback
 
 ### 30a round 1 (2026-10-31)
@@ -368,7 +412,18 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
     bar; new-user defaults), e2e (layout wide and narrow, new-user,
     panebar), screenshots checked.
 - [x] 30a approved by the owner after round 2 (2026-10-31).
-- [ ] 30b.
+- [ ] 30b (2026-10-31):
+  - [ ] Window kit: frame, drag, resize, grip, snap to cells, minimum
+    size, kept on screen, z-order, focus and dimming (ADR 0103).
+  - [ ] `FrameStack` without focus trap; keys only while focused.
+  - [ ] Profile and Scripts windows; bar icons, `#profile`, `#scripts`,
+    ESC menu entries open them; toggle rules.
+  - [ ] Close via X / Esc through the frames' unsaved prompts; Esc order
+    in the input; Exit popup warning.
+  - [ ] Position and size remembered across reloads.
+  - [ ] Lite view fills the width; Commands takes the height; hints panel
+    removed, warnings kept (ADR 0104).
+  - [ ] Unit tests, e2e, ADRs, test guide.
 - [ ] 30c.
 - [ ] 30d.
 - [ ] 30e.
