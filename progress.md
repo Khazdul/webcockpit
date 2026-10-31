@@ -35,7 +35,7 @@ Next: stage 30d (Statistics pane), see its stage file. Stage 30c (Settings popup
 | 27 | Pane API | Done | `docs/stages/27-pane-api.md` |
 | 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
 | 29 | Pane buttons | Owner testing | `docs/stages/29-pane-buttons.md` |
-| 30 | Fixed menu | Owner testing | `docs/stages/30-fixed-menu.md` |
+| 30 | Fixed menu | In progress | `docs/stages/30-fixed-menu.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
