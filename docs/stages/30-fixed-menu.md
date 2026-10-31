@@ -319,6 +319,18 @@ and ADR 0100 (Disconnected notice):
   - [x] `#profile`, `#scripts`, `#panes`, `#settings`, `#fullscreen`,
     `#exit` (exact names), `#help` sections, phone fallbacks.
   - [x] Unit tests, e2e `menubar.spec.ts`, phone check, ADRs 0099, 0100.
+- [x] 30a round 1 (2026-10-31):
+  - [x] Pane bar script off for new users (`NEW_USER_SCRIPTS` =
+    `['mapsearch']`; ADR 0078 and 0092 addenda).
+  - [x] New dock structure (ADR 0101): right dock down to the input row,
+    the input row (and the bar) under it to the screen edge, left dock
+    down to the bottom dock, bottom dock across the screen.
+  - [x] Edge drop zones, their bars and the dock handles follow the new
+    extents; game text width unchanged.
+  - [x] The input slot paints before the panes, so the wider row is not
+    promoted to its own layer (accent tops at pixel ratio 1.5).
+  - [x] Unit tests (allocate, cockpit, new-user defaults), e2e (layout,
+    panebar, new-user), screenshots checked.
 - [ ] 30b.
 - [ ] 30c.
 - [ ] 30d.
@@ -362,3 +374,28 @@ Feedback wanted: icon size and spacing against the mockups, tooltip
 size and delay, the popups' position, whether the Disconnected notice is
 clear enough, and anything that takes keys from the game when it should
 not.
+
+#### Round 1
+
+Use a private window (or clear the site data) to see the new-user
+start; your own browser keeps its layout.
+
+1. **New user:** no pane bar; the right dock is the map, Timers | Group
+   and Comm, and Comm ends right above the input row.
+2. **The bar under the right dock:** the input row now runs under the
+   right dock to the screen's right edge, with the bar at its end. The
+   game text keeps its width; only the input line is wider.
+3. **Docks:** drag a pane to the left edge, another to the bottom edge
+   (anywhere along it, also under the right dock). The left dock stops
+   at the gap row above the bottom dock; the bottom dock fills the whole
+   width under the left dock and the input row. Try two rows and a
+   spanning pane in the bottom dock, and the top dock (unchanged).
+4. **Resize:** the gap beside each dock and the gap row above the bottom
+   dock (now the full width) still resize. A tall bottom dock makes the
+   right dock shorter; its panes drop when they no longer fit.
+5. **Narrow window:** make it narrow until a side dock collapses: the
+   input row takes the freed width, the bottom dock stays full width.
+
+Feedback wanted: whether the bar under the right dock reads well, and
+whether the bottom dock should rather stay out from under the right
+dock's column (it now runs under it, as the diagram showed).
