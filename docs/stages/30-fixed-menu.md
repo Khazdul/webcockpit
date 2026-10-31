@@ -421,7 +421,7 @@ The owner tested round 2: "Feels good now." 30a is done; 30b is next.
   - [ ] Close via X / Esc through the frames' unsaved prompts; Esc order
     in the input; Exit popup warning.
   - [ ] Position and size remembered across reloads.
-  - [ ] Lite view fills the width; Commands takes the height; hints panel
+  - [x] Lite view fills the width; Commands takes the height; hints panel
     removed, warnings kept (ADR 0104).
   - [ ] Unit tests, e2e, ADRs, test guide.
 - [ ] 30c.
