@@ -104,7 +104,9 @@
   white-space: pre;
 }
 
-.wc-ped-textarea {
+/* Two classes: ahead of the phone's one-row `textarea.wc-field` (kit.css),
+   which would keep the box from wrapping and scrolling. */
+.wc-ped-textbox .wc-ped-textarea {
   display: block;
   flex: 0 0 auto;
   resize: none;
