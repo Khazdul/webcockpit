@@ -132,6 +132,22 @@
   background: #050505;
 }
 
+/* A light viewer theme (Paper): the header on the canvas colour, in dark
+ * greys (the box and its popups stay dark glass). */
+.wc-player[data-light] .wc-player-head-left,
+.wc-player[data-light] .wc-player-hints {
+  background: var(--term-bg);
+  color: #6a6a6a;
+}
+
+.wc-player[data-light] .wc-player-name {
+  color: #1a1a1a;
+}
+
+.wc-player[data-light] .wc-player-sep {
+  color: #a8a090;
+}
+
 .wc-player-head-left[hidden],
 .wc-player-hints[hidden] {
   display: none;
