@@ -697,6 +697,15 @@ Answers to the 30f guide's questions, before testing in the browser:
 
 The 30e test is moved further ahead.
 
+### 30f approved on desktop (2026-11-01)
+
+The owner tested the 30f guide on desktop (Firefox): items 1–4 and 6–8
+OK (Esc with nothing open → Exit popup, the Esc order, two windows, the
+unsaved prompt, `#menu`, the Disconnected notice, the Statistics pane).
+Item 5 (Esc in Chrome/Edge fullscreen) not tested: no Chrome at hand;
+covered by unit tests. Items 9 (tablet) and 10 (phone) are tested later,
+together with 30e.
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
