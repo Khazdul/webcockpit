@@ -98,7 +98,6 @@ const NAME_MAX = 32;
 /** Between the list's scrollbar cell and the help panel. */
 export const LIST_GAP = 3;
 const DETAIL_MIN = 28;
-const DETAIL_MAX = 76;
 
 export interface ScriptsLayout {
   /** Left edge of the package (cells). */
@@ -111,9 +110,11 @@ export interface ScriptsLayout {
 }
 
 /**
- * The package `[ buttons / list | scrollbar | gap | help ]`, centred on the
- * grid as one block (the Profile frame's rule). The name column grows with
- * the longest name (12–32 cells) and fills the column under the buttons.
+ * The package `[ buttons / list | scrollbar | gap | help ]`. The help panel
+ * takes all the room right of the list (ADR 0115 §1), so the package spans
+ * the grid less a one-cell margin each side; without a help panel (a narrow
+ * grid, a phone) the list is centred. The name column grows with the
+ * longest name (12–32 cells) and fills the column under the buttons.
  */
 export function scriptsLayout(cols: number, names: readonly string[], phone = false): ScriptsLayout {
   const longest = Math.max(0, ...names.map(cellLen));
@@ -127,7 +128,7 @@ export function scriptsLayout(cols: number, names: readonly string[], phone = fa
   const listW = Math.max(BUTTONS_W, rowW);
   const nameW = listW - ROW_FIXED;
   const room = cols - 2 - listW - 1 - LIST_GAP;
-  const detailW = room >= DETAIL_MIN ? Math.min(DETAIL_MAX, room) : 0;
+  const detailW = room >= DETAIL_MIN ? room : 0;
   const width = listW + 1 + (detailW > 0 ? LIST_GAP + detailW : 0);
   return { at: centreLeft(cols, width), listW, nameW, detailW };
 }

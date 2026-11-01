@@ -45,12 +45,16 @@ async function library(): Promise<ScriptLibrary> {
 }
 
 describe('scripts model', () => {
-  it('lays the package out: name column grows, help fills to 76 cells, dropped when narrow', () => {
+  it('lays the package out: name column grows, help fills the width, dropped when narrow', () => {
     const wide = scriptsLayout(200, ['a', 'looter']);
     expect(wide.listW).toBe(BUTTONS_W);
     expect(wide.nameW).toBe(BUTTONS_W - ROW_FIXED);
-    expect(wide.detailW).toBe(76);
-    expect(wide.at).toBe(Math.floor((200 - (wide.listW + 1 + 3 + 76)) / 2));
+    // The package spans the grid less one cell each side (ADR 0115 §1).
+    expect(wide.at).toBe(1);
+    expect(wide.listW + 1 + 3 + wide.detailW).toBe(200 - 2);
+    const huge = scriptsLayout(400, ['a']);
+    expect(huge.at).toBe(1);
+    expect(huge.listW + 1 + 3 + huge.detailW).toBe(400 - 2);
     // The button row (with MANUAL) is wider than the longest name column.
     expect(BUTTONS_W).toBeGreaterThan(32 + ROW_FIXED);
     const long = scriptsLayout(200, ['x'.repeat(40)]);
