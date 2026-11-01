@@ -188,7 +188,8 @@ test('toggles, colours and borders apply live; a borderless pane has no frame', 
 });
 
 test('drag a pane by its title row to the left dock', async ({ page }) => {
-  const { cw, ch, cols, rows } = await open(page);
+  // 1200 px: narrow enough that two side docks leave too little room to type (ADR 0102).
+  const { cw, ch, cols, rows } = await open(page, 1200);
   const o = await origin(page);
   const comm = await box(page, '.wc-pane-comm');
   await page.mouse.move(o.x + comm.x + 6 * cw, o.y + comm.y + ch / 2);
@@ -1008,7 +1009,8 @@ test('floating panes come to front on a press and stay inside a smaller window',
 });
 
 test('a tall docked pane dragged out floats at the standard 36 × 14 size', async ({ page }) => {
-  const { cw, ch, rows } = await open(page);
+  // 1200 px: narrow enough for the narrow case with two side docks (ADR 0102).
+  const { cw, ch, rows } = await open(page, 1200);
   const o = await origin(page);
   // Comm alone in the right column, a left dock as wide: the narrow case (ADR 0102), so it
   // runs from the top down to the input row.
