@@ -3,6 +3,8 @@
 //   npm run screenshots                 every shot
 //   npm run screenshots -- hero map     only these
 //
+// WC_SHOT_OUT=<dir> writes the PNGs there instead of docs/img/.
+//
 // Starts the dev server on WC_SHOT_PORT (default 5188) unless one answers
 // there already, and drives Chromium at 1600×900 CSS px, device scale 2
 // (3200×1800 PNG). Every shot starts from an empty browser profile (the
@@ -12,8 +14,11 @@
 // fixtures (tests/fixtures/*.log, invented names); the weather is pinned
 // with the dev hook `__weather` (src/weather/dev.ts). `exporteditor` also
 // writes htmlplayer.png: it records a run through the mocked connection,
-// exports it as HTML from the export editor and opens the file. The snow
-// shot runs in Firefox (see there).
+// edits it in the Export Editor (ADR 0115), exports the HTML replay (H) and
+// opens the file. The snow shots run in Firefox (see there). The
+// `discord-*` shots are for the 0.2.0 release post (WC_SHOT_OUT them
+// elsewhere); some restore the demo runs (tests/fixtures/runs-demo.jsonl.gz)
+// with the page's clock pinned, as tests/e2e/demo-clock.ts does.
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -21,7 +26,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { type Browser, type BrowserContext, type Page, type WebSocketRoute, chromium, firefox as firefoxType } from '@playwright/test';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const OUT = `${ROOT}docs/img/`;
+/** Output directory (WC_SHOT_OUT, default docs/img/), with a trailing slash. */
+const OUT = process.env.WC_SHOT_OUT ? `${process.env.WC_SHOT_OUT.replace(/\/+$/, '')}/` : `${ROOT}docs/img/`;
 const PORT = Number(process.env.WC_SHOT_PORT ?? 5188);
 const BASE = `http://localhost:${PORT}`;
 const VIEWPORT = { width: 1600, height: 900 };
@@ -261,7 +267,10 @@ async function live(page: Page, steps: readonly Step[], prepare?: (page: Page) =
   let server: WebSocketRoute | null = null;
   await page.routeWebSocket('wss://mume.org/ws-play/', (ws) => {
     server = ws;
-    ws.onMessage(() => {});
+    // Core.Ping answered at once, so the bar's link dot reads a good link (not "no answer").
+    ws.onMessage((m) => {
+      if (Buffer.from(m).includes('Core.Ping')) ws.send(gmcpBytes('Core.Ping'));
+    });
     ws.send(Buffer.from([IAC, WILL, GMCP]));
   });
   await page.goto('/');
@@ -323,9 +332,10 @@ async function gameplay(
   name: string,
   pin: (now: number) => Pin,
   then: (page: Page) => Promise<void | Buffer>,
-  o: { prepare?: (page: Page) => Promise<void>; fight?: Fight } = {},
+  o: { prepare?: (page: Page) => Promise<void>; fight?: Fight; clock?: number } = {},
 ): Promise<void> {
   const { ctx, page } = await newPage(browser);
+  if (o.clock !== undefined) await page.clock.setSystemTime(o.clock);
   await live(page, gameFeed(o.fight), o.prepare);
   await weather(page);
   await jump(page, { ...SCENE, ...pin(Date.now()) });
@@ -356,6 +366,147 @@ async function brightShare(page: Page, png: Buffer): Promise<number> {
 const DAY: Pin = { clock: 'day', light: '*', sunU: 0.5, moonUp: false, moonU: -1 };
 const NIGHT: Pin = { clock: 'night', light: ')', sunU: -1 };
 
+// ------------------------------------------------------------ helpers
+
+/** The demo backup's runs (tests/fixtures/runs-demo.jsonl.gz) restored into the library. */
+async function restoreDemo(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__wc !== undefined);
+  await page.evaluate(async () => {
+    const lib = await window.__wc!.runs();
+    await lib.restore(await (await fetch('/__fixtures/runs-demo.jsonl.gz')).blob());
+  });
+}
+
+/**
+ * The day after the demo backup (as tests/e2e/demo-clock.ts): its unsaved
+ * runs are past the 14-day retention by the real date.
+ */
+const DEMO_NOW = new Date(2026, 8, 28, 12, 0, 0).getTime();
+/**
+ * Ten minutes after the demo's Rasta session ended (its last run's
+ * `endedUs`): a run of Rasta started then joins that session's chain.
+ */
+const AFTER_RASTA = 1_790_454_872_856 + 10 * 60_000;
+
+/** The start page of a fresh profile with the demo runs restored, the page's clock at `clock`. */
+async function demoStart(browser: Browser, clock = DEMO_NOW): Promise<{ ctx: BrowserContext; page: Page }> {
+  const { ctx, page } = await newPage(browser);
+  await page.clock.setSystemTime(clock);
+  await page.goto('/');
+  await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+  await restoreDemo(page);
+  return { ctx, page };
+}
+
+/** Clicks a start-menu row. */
+const menuRow = (page: Page, key: string): Promise<void> => page.locator(`.wc-start .wc-mrow[data-key="${key}"] .wc-label`).click();
+
+/** The best of `tries` lightning strikes (the most near-white sky), `gap` ms apart. */
+async function brightestStrike(page: Page, tries: number, gap = 3000): Promise<Buffer> {
+  let best: { png: Buffer; lit: number } | null = null;
+  for (let i = 0; i < tries; i++) {
+    await page.evaluate(() => window.__weather!.emit('strike'));
+    await sleep(120);
+    const png = await page.screenshot();
+    const lit = await brightShare(page, png);
+    if (!best || lit > best.lit) best = { png, lit };
+    await sleep(gap);
+  }
+  return best!.png;
+}
+
+/** Opens a menu-bar popup or window (`panes`, `settings`, `scripts`, …), then rests the pointer away from the bar. */
+async function barOpen(page: Page, id: string): Promise<void> {
+  await page.locator(`.wc-mb[data-mb="${id}"]`).click();
+  await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.3);
+}
+
+/** The menu bar's Settings popup on its Weather effects tab. */
+async function weatherTab(page: Page): Promise<void> {
+  await barOpen(page, 'settings');
+  await page.locator('.wc-ck-tab[data-tab="weather"]').click();
+  await page.locator('.wc-sp-page[data-page="weather"]').waitFor();
+  await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.3);
+}
+
+/**
+ * A run recorded in this session (the gameplay feed with the whole fight,
+ * through the mocked connection), History → EXPORT: a stretch of channel
+ * talk excluded, a comment where the ruffian arrives and a selection in the
+ * fight below it, the panel beside the log. With `player`, H exports the
+ * HTML replay and the file is opened from disk for that shot too.
+ */
+async function exportEditor(browser: Browser, name: string, player?: string): Promise<void> {
+  const { ctx, page } = await newPage(browser);
+  const server = await live(page, gameFeed('full'));
+  await weather(page);
+  await jump(page, { ...SCENE, ...DAY, weather: ' ' });
+  // The server ends the connection: the run is sealed when the session leaves `playing`.
+  await sleep(1000);
+  await server.close();
+  await page.waitForFunction(() => !/^playing/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
+  await sleep(1500);
+  await page.goto('/');
+  await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
+  await menuRow(page, 'history');
+  const f = page.locator('.wc-start .wc-frame:not([hidden])');
+  await f.locator('.wc-tr:not(.is-empty)').first().waitFor();
+  await page.keyboard.press('Home');
+  await f.locator('[data-btn="EXPORT"]').click();
+  await f.locator('.wc-exp-row:not(.is-empty)').first().waitFor();
+  const cur = (text: string) => f.locator('.wc-exp-row.is-cur', { hasText: text });
+  const downTo = async (text: string): Promise<void> => {
+    for (let i = 0; i < 600 && !(await cur(text).count()); i++) await page.keyboard.press('ArrowDown');
+    if (!(await cur(text).count())) throw new Error(`export editor: no line "${text}"`);
+  };
+  // Gibur's last tell excluded with its prompts (Shift+↓ selects, X excludes).
+  await downTo("Gibur tells you 'more coming, 2 trolls'");
+  for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowUp');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowDown');
+  await page.keyboard.press('x');
+  // A comment before the ruffian's arrival.
+  await downTo('A half-orc ruffian arrives');
+  await page.keyboard.press('c');
+  await page.keyboard.type('The ruffian shows up: watch the merc rescue Dori.');
+  await page.keyboard.press('Enter');
+  // A selection in the fight below it, scrolled up to the middle of the log.
+  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Shift+ArrowDown');
+  const log = (await f.locator('.wc-exp-log').boundingBox())!;
+  await page.mouse.move(log.x + log.width / 2, log.y + log.height / 2);
+  await page.mouse.wheel(0, log.height * 0.3);
+  await sleep(300);
+  // On a whole row, so no line is cut at the top.
+  await f.locator('.wc-exp-log').evaluate((el) => {
+    const ch = parseFloat(getComputedStyle(el).getPropertyValue('--cell-h'));
+    el.scrollTop = Math.round(el.scrollTop / ch) * ch;
+  });
+  await page.mouse.move(5, VIEWPORT.height - 5);
+  await sleep(800);
+  await shot(page, name);
+  if (!player) return ctx.close();
+
+  // H: the HTML replay, downloaded, then opened from disk.
+  await page.keyboard.press('Escape'); // the selection goes; the export takes the whole log either way
+  const download = page.waitForEvent('download');
+  await page.keyboard.press('h');
+  const file = `${TMP}replay.html`;
+  await (await download).saveAs(file);
+  await ctx.close();
+
+  const { ctx: c2, page: p2 } = await newPage(browser);
+  await p2.goto(pathToFileURL(file).href);
+  // Seek to the fight (src/replay/main.ts exposes `__wcReplay`), then play on a little.
+  const engine = 'window.__wcReplay.host.engine';
+  await p2.waitForFunction(`!!${engine} && ${engine}.duration > 0`);
+  await p2.evaluate(`${engine}.seek(${engine}.duration * 0.93)`);
+  await p2.waitForFunction(`!${engine}.seeking`);
+  await p2.evaluate(`${engine}.play()`);
+  await sleep(2500);
+  await shot(p2, player);
+  await c2.close();
+}
+
 const SHOTS: Record<string, Shot> = {
   // A sunset by the clock under a clear sky: the shot 20 s before the night begins (the turn runs over the
   // 60 s before it), when the warm glow and its rays are strongest. Tried: -52 … -3 s, sunrises, light clouds.
@@ -367,16 +518,7 @@ const SHOTS: Record<string, Shot> = {
   'weather-rain': (b) =>
     gameplay(b, 'weather-rain', () => ({ ...DAY, weather: '"' }), async (page) => {
       await sleep(8000);
-      let best: { png: Buffer; lit: number } | null = null;
-      for (let i = 0; i < 4; i++) {
-        await page.evaluate(() => window.__weather!.emit('strike'));
-        await sleep(120);
-        const png = await page.screenshot();
-        const lit = await brightShare(page, png);
-        if (!best || lit > best.lit) best = { png, lit };
-        await sleep(3000);
-      }
-      return best!.png;
+      return brightestStrike(page, 4);
     }, { fight: 'mid' }),
   // Snow by day, built up on the pane tops (at the game's pace). Firefox: its worker canvases draw the
   // far snow layers as dots; headless Chromium's pattern fills showed few of them.
@@ -467,60 +609,172 @@ const SHOTS: Record<string, Shot> = {
     await ctx.close();
   },
 
-  // A run recorded in this session (the gameplay feed with the whole fight, through the mocked
-  // connection), History → EXPORT with a comment, then the HTML export of it opened as a file.
-  async exporteditor(browser) {
-    const { ctx, page } = await newPage(browser);
-    const server = await live(page, gameFeed('full'));
-    await weather(page);
-    await jump(page, { ...SCENE, ...DAY, weather: ' ' });
-    // The server ends the connection: the run is sealed when the session leaves `playing`.
-    await sleep(1000);
-    await server.close();
-    await page.waitForFunction(() => !/^playing/.test(document.querySelector('.wc-app')?.getAttribute('data-status') ?? ''));
-    await sleep(1500);
-    await page.goto('/');
-    await page.locator('.wc-start .wc-mrow.is-sel', { hasText: 'Enter MUME' }).waitFor();
-    await page.locator('.wc-start .wc-mrow[data-key="history"] .wc-label').click();
-    const f = page.locator('.wc-start .wc-frame:not([hidden])');
-    await f.locator('.wc-tr:not(.is-empty)').first().waitFor();
-    await page.keyboard.press('Home');
-    await f.locator('[data-btn="EXPORT"]').click();
-    await f.locator('.wc-exp-row:not(.is-empty)').first().waitFor();
-    // Down to the ruffian's arrival; a comment before it.
-    const rows = f.locator('.wc-exp-row:not(.is-empty)');
-    for (let i = 0; i < 400; i++) {
-      if (await f.locator('.wc-exp-row.is-cur', { hasText: 'A half-orc ruffian arrives' }).count()) break;
-      await page.keyboard.press('ArrowDown');
-    }
-    await page.keyboard.press('c');
-    await page.keyboard.type('The ruffian shows up: watch the merc rescue Dori.');
-    await page.keyboard.press('Enter');
-    // On into the fight, the comment still in view.
-    for (let i = 0; i < 16; i++) await page.keyboard.press('ArrowDown');
-    await rows.first().waitFor();
-    await sleep(800);
-    await shot(page, 'exporteditor');
+  exporteditor: (b) => exportEditor(b, 'exporteditor', 'htmlplayer'),
 
-    // EXPORT (HTML is the default format): the downloaded file, opened from disk.
-    const download = page.waitForEvent('download');
-    await f.locator('[data-btn="EXPORT"]').click();
-    const file = `${TMP}replay.html`;
-    await (await download).saveAs(file);
-    await ctx.close();
+  // ---------------------------------------------------- the 0.2.0 release post (`discord-*`)
 
-    const { ctx: c2, page: p2 } = await newPage(browser);
-    await p2.goto(pathToFileURL(file).href);
-    // Seek to the fight (src/replay/main.ts exposes `__wcReplay`), then play on a little.
-    const engine = 'window.__wcReplay.host.engine';
-    await p2.waitForFunction(`!!${engine} && ${engine}.duration > 0`);
-    await p2.evaluate(`${engine}.seek(${engine}.duration * 0.93)`);
-    await p2.waitForFunction(`!${engine}.seeking`);
-    await p2.evaluate(`${engine}.play()`);
-    await sleep(2500);
-    await shot(p2, 'htmlplayer');
-    await c2.close();
+  // A thunderstorm at night during the fight: heavy rain, the brightest of several strikes.
+  'discord-storm': (b) =>
+    gameplay(b, 'discord-storm', () => ({ ...NIGHT, weather: '"', moonUp: false }), async (page) => {
+      await sleep(8000);
+      return brightestStrike(page, 8);
+    }, { fight: 'mid' }),
+
+  // Snow by day, well built up on the pane tops (Firefox, as weather-snow), the Panes popup open.
+  'discord-snow-panes': async () =>
+    gameplay(await firefox(), 'discord-snow-panes', () => ({ ...DAY, weather: '*' }), async (page) => {
+      // The build-ups 4× faster: 90 s show about six minutes of snow on the pane tops.
+      await page.evaluate(() => window.__weather!.setSpeed(4));
+      await sleep(90_000);
+      await barOpen(page, 'panes');
+      await page.locator('.wc-pop-row').first().waitFor();
+      await sleep(800);
+    }),
+
+  // The Settings popup on its Weather effects tab over a sunset (20 s before the night, as hero).
+  'discord-settings': (b) => {
+    let nightAt = 0;
+    return gameplay(b, 'discord-settings', (now) => ({ ...DAY, weather: ' ', sunU: 0.97, nightAt: (nightAt = now + 26_000) }), async (page) => {
+      await sleep(1500);
+      await weatherTab(page);
+      await sleep(Math.max(500, nightAt - 20_000 - Date.now()));
+    });
   },
+  // The same over a clear night, the full moon up (as weather-night).
+  'discord-settings-night': (b) =>
+    gameplay(
+      b,
+      'discord-settings-night',
+      (now) => ({ ...NIGHT, weather: ' ', moonUp: true, moonPhase: 1, moonRiseAt: now - 450_000, moonSetAt: now + 295_000 }),
+      async (page) => {
+        await sleep(3000);
+        await weatherTab(page);
+        await sleep(2000);
+      },
+    ),
+
+  // The Statistics pane over the game in light rain: Rasta's run joins his demo session (restored
+  // first, the page's clock ten minutes after it), so the chain has its kills, PvP and achievements.
+  // The fight stops before the feed's own level-up (level 26 beside the demo's 42 reads oddly).
+  'discord-statistics': (b) =>
+    gameplay(b, 'discord-statistics', () => ({ ...DAY, weather: "'", fog: '-' }), async (page) => {
+      await barOpen(page, 'panes');
+      await page.locator('.wc-pop-row[data-pane="statistics"]').click();
+      await page.keyboard.press('Escape');
+      await page.locator('.wc-pane[data-pane="statistics"] .wc-stats-pane[data-layout="wide"]').waitFor();
+      await page.mouse.move(5, VIEWPORT.height * 0.5);
+      await sleep(6000);
+    }, { fight: 'mid', clock: AFTER_RASTA, prepare: restoreDemo }),
+
+  // Start page → Spotlights: the reel plays Rasta's death in the Large font (Display), its card at the
+  // top right, the control box shown. The demo's spotlights are short: the default font leaves the top half empty.
+  async 'discord-spotlights'(browser) {
+    const { ctx, page } = await demoStart(browser);
+    await menuRow(page, 'spotlights');
+    await page.locator('.wc-spot-card').waitFor();
+    const box = page.locator('.wc-player-chrome .wc-player-box');
+    await page.mouse.move(VIEWPORT.width * 0.35, VIEWPORT.height * 0.45, { steps: 4 });
+    await box.locator('[data-act="display"]').click();
+    await page.locator('.wc-pc-pop-display .wc-pc-sg[data-font="large"]').click();
+    await box.locator('[data-act="display"]').click();
+    await page.locator('.wc-pc-pop-display').waitFor({ state: 'hidden' });
+    await page.locator('.wc-player .wc-output', { hasText: 'You are dead!' }).waitFor({ timeout: 30_000 });
+    await sleep(1500);
+    // A move shows the chrome again (it hides 6 s after the last); the pointer rests on the text.
+    await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.4, { steps: 4 });
+    await sleep(700);
+    await shot(page, 'discord-spotlights');
+    await ctx.close();
+  },
+
+  // History → the Rasta session → RUN LOG, at the level-up of run 1; the box with its Panes popup,
+  // where Timers (empty in the demo) has just been switched off.
+  async 'discord-runlog'(browser) {
+    const { ctx, page } = await demoStart(browser);
+    await menuRow(page, 'history');
+    const f = page.locator('.wc-start .wc-frame:not([hidden])');
+    await f.locator('.wc-tr:not(.is-empty)').nth(2).waitFor();
+    await page.keyboard.press('ArrowDown');
+    await f.locator('.wc-tr.is-cur-focus, .wc-tr.is-cur', { hasText: 'Rasta' }).waitFor();
+    await f.locator('[data-btn="RUN LOG"]').click();
+    // The in-app player's engine (as tests/e2e/player.spec.ts reads it).
+    const engine = 'window.__wc.shell.playerHost.engine';
+    await page.waitForFunction('window.__wc.shell.playerHost?.engine?.duration > 0');
+    await page.evaluate(`${engine}.seek(${engine}.duration * 0.6)`);
+    await page.waitForFunction(`!${engine}.seeking`);
+    await sleep(3000);
+    const box = page.locator('.wc-player-chrome .wc-player-box');
+    await page.mouse.move(VIEWPORT.width * 0.4, VIEWPORT.height * 0.5, { steps: 4 });
+    await box.locator('[data-act="panes"]').click();
+    await page.locator('.wc-pc-pop-panes .wc-pc-prow[data-pane="timers"]').click();
+    await page.mouse.move(VIEWPORT.width * 0.4, VIEWPORT.height * 0.5, { steps: 4 });
+    await sleep(1000);
+    // Played on until the top line is short (the header line sits over it).
+    await page
+      .waitForFunction(
+        () => {
+          const out = document.querySelector('.wc-player .wc-output');
+          if (!out) return false;
+          const top = out.getBoundingClientRect().top;
+          const row = [...out.querySelectorAll('.wc-row')].find((r) => r.getBoundingClientRect().bottom > top + 2);
+          return (row?.textContent ?? '').trim().length < 12;
+        },
+        undefined,
+        { timeout: 10_000, polling: 50 },
+      )
+      .catch(() => {});
+    await shot(page, 'discord-runlog');
+    await ctx.close();
+  },
+
+  'discord-export-editor': (b) => exportEditor(b, 'discord-export-editor'),
+
+  // The pointer on the Group pane in fog and light rain: its Colour, Border and Background buttons.
+  'discord-pane-hover': (b) =>
+    gameplay(b, 'discord-pane-hover', () => ({ ...DAY, weather: "'", fog: '=' }), async (page) => {
+      await sleep(15_000);
+      const g = (await page.locator('.wc-pane[data-pane="group"]').boundingBox())!;
+      await page.mouse.move(g.x + g.width * 0.6, g.y + g.height * 0.6, { steps: 5 });
+      await page.locator('.wc-pane[data-pane="group"] .wc-pane-btn').first().waitFor();
+      await sleep(800);
+    }),
+
+  // The Scripts window over a moonlit night, left of the dock: the kill counter script (on) in the
+  // list with its help, its Kills pane in the dock.
+  'discord-scripts-window': (b) =>
+    gameplay(
+      b,
+      'discord-scripts-window',
+      (now) => ({ ...NIGHT, weather: ' ', moonUp: true, moonPhase: 1, moonRiseAt: now - 450_000, moonSetAt: now + 295_000 }),
+      async (page) => {
+        await sleep(3000);
+        await barOpen(page, 'scripts');
+        const row = page.locator('.wc-scr-row[data-script="killcounter"]').first();
+        await row.waitFor();
+        for (let i = 0; i < 8 && !(await row.evaluate((el) => el.querySelector('.is-cur') !== null)); i++) {
+          await page.keyboard.press('ArrowDown');
+        }
+        await page.mouse.move(VIEWPORT.width * 0.3, VIEWPORT.height * 0.03);
+        await sleep(1500);
+      },
+      {
+        fight: 'full',
+        prepare: (page) =>
+          page.evaluate(async (src) => {
+            const wc = window.__wc!;
+            // A place left of the dock, in cells.
+            wc.settings.update({ windows: { profile: null, scripts: { x: 3, y: 3, w: 104, h: 30 } } });
+            const lib = wc.shell.scripts as unknown as {
+              init(): Promise<void>;
+              create(n: string, s: string): Promise<unknown>;
+              setEnabled(n: string, on: boolean): Promise<unknown>;
+            };
+            await lib.init();
+            await lib.create('killcounter', src);
+            await lib.setEnabled('killcounter', true);
+          }, KILL_COUNTER),
+      },
+    ),
 };
 
 // ------------------------------------------------------------ main
