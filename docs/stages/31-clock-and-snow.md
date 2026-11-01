@@ -69,7 +69,10 @@ Two independent parts, in this order:
 - [x] 31a: owner round 2: icon and ring only, a larger ring with a real sun; variants I1–I5.
 - [x] 31a: owner picks I2 (ghost sun in a time-left ring), no time beside it; exact time on hover (2026-11-01).
 - [x] 31a: mockups of the sync states (minute, hour: T1–T4, not synced: U1–U2).
-- [ ] 31a: owner picks the hour indicator and the not-synced look.
+- [x] 31a: owner picks (2026-11-01): hour precision T1 (grey `~` after the
+  icon, one cell wider); not synced U2 (no icon, the empty slot keeps its
+  tooltip); hover shows the countdown as today; hour tooltip text as today.
+  `day` precision counts as not synced (no countdown exists).
 - [ ] 31a: build, ADR, tests, test guide.
 - [ ] 31b: measurements and root cause (research note).
 - [ ] 31b: fix, ADR, before/after numbers, merge.
