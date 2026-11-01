@@ -37,14 +37,15 @@ export const SEASONS: readonly Season[] = ['winter', 'spring', 'summer', 'autumn
 /** The season of a month (0–11). */
 export const seasonOf = (month: number): Season => SEASONS[Math.floor(month / 3)]!;
 
-/** Period of the day: the dawn hour, day, the dusk hour, night. */
+/** Period of the day: the dawn hour (the sun rises), day, the dusk hour (the sun sets), night. */
 export type DayPeriod = 'dawn' | 'day' | 'dusk' | 'night';
 export const DAY_PERIODS: readonly DayPeriod[] = ['dawn', 'day', 'dusk', 'night'];
 
 /**
- * The period of `hour` in `month` (DAWN/DUSK tables): the dawn hour (still
- * dark in MUME), the day, the dusk hour (still lit), the night. clock.ts
- * `isDay` is `day` or `dusk` (dawn + 1 ≤ h < dusk + 1).
+ * The period of `hour` in `month` (DAWN/DUSK tables): the dawn hour (the
+ * sun rises: sunlit), the day, the dusk hour (the sun sets: still sunlit),
+ * the night. clock.ts `isDay` is `dawn`, `day` or `dusk` (dawn ≤ h < dusk
+ * + 1); only `night` is dark (ADR 0093, addendum 2026-11-01).
  */
 export function periodOf(month: number, hour: number): DayPeriod {
   const dawn = DAWN[month]!;

@@ -119,21 +119,23 @@ export function weekdayOf(month: number, day: number): number {
 }
 
 /**
- * Day: dawn + 1 ≤ hour < dusk + 1 of the month; everything else is night.
- * MUME's rooms follow `light` and `dark`, an hour after `rise` and `set`:
- * the dawn hour is still dark ("The light slowly increases in the east.",
- * `Event.Sun rise`), lit from the next hour ("The day has begun.",
- * `light`); the dusk hour is still lit ("The sun slowly disappears in the
- * west.", `set`), dark from the next hour ("The night has begun.", `dark`).
- * Stage 28 items 59, 61.
+ * Day (sunlight): dawn ≤ hour < dusk + 1 of the month; everything else is
+ * night. The sun is up from the dawn hour ("The sun rises in the east.",
+ * `Event.Sun rise`) through the dusk hour ("The sun slowly disappears in
+ * the west.", `set`) and down from the hour after ("The night has
+ * begun.", `dark`). "The day has begun." (`light`, the hour after the dawn
+ * hour) changes nothing: the sun is already up. The owner's logs show the
+ * prompt's light symbol turning `*` at the dawn tick and `o` at dusk + 1
+ * (ADR 0093, addendum 2026-11-01). One rule for the clock, the sky, the
+ * almanac and the scripts: trolls die in sunlight.
  */
 export function isDay(month: number, hour: number): boolean {
   return hour >= dayHour(month) && hour < nightHour(month);
 }
 
-/** The hour the day begins in `month` (`Event.Sun light`): the hour after the dawn hour. */
+/** The hour the day (sunlight) begins in `month` (`Event.Sun rise`): the dawn hour. */
 export function dayHour(month: number): number {
-  return DAWN[month]! + 1;
+  return DAWN[month]!;
 }
 
 /** The hour the night begins in `month` (`Event.Sun dark`): the hour after the dusk hour. */

@@ -317,21 +317,19 @@ describe('Director: the sunrise follows the clock', () => {
 });
 
 describe('Director: the sunrise without minute precision', () => {
-  it('Event.Sun rise starts it at -60 and it runs on its own; a second one is ignored', () => {
+  it('Event.Sun rise is the day begun (the dawn hour): no sunrise starts, the day sky fades in at the sky rate (ADR 0093 addendum 2026-11-01)', () => {
     const { d, run } = rig({ dayAt: -1 });
-    expect(eventState('sun.rise')).toBeNull();
+    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
+    // the demo's rise, with a `from`, starts its sunrise instead
+    expect(eventState('sun.rise', { from: -60 })).toBeNull();
     d.turnEvent('rise');
-    expect(d.riseS).toBe(-60);
-    run(30);
-    d.turnEvent('rise');
-    expect(d.riseS).toBeCloseTo(-30, 5);
-    run(30);
+    expect(d.riseS).toBeNull();
+    d.set(eventState('sun.rise')!);
+    run(6);
+    expect(d.mix.sun).toBeCloseTo(6 * SKY_RATE, 5);
+    expect(d.riseS).toBeNull();
+    run(10);
     expect(d.settled.clock).toBe('day');
-    run(LATE_S + 1);
-    expect(d.riseS).toBeNull();
-    // the same dawn: no second sunrise
-    d.turnEvent('rise');
-    expect(d.riseS).toBeNull();
   });
 
   it('a rise event while the clock-driven one runs is ignored', () => {
@@ -341,16 +339,16 @@ describe('Director: the sunrise without minute precision', () => {
     expect(d.riseS).toBeCloseTo(-29, 5);
   });
 
-  it('the clock catching up after the event (a sync to the minute) glides it', () => {
-    const { d, run, wall } = rig({ dayAt: -1 });
-    d.turnEvent('rise');
+  it('the clock catching up after the sunset event (a sync to the minute) glides it', () => {
+    const { d, run, wall } = rig({ clock: 'day', nightAt: -1 });
+    d.turnEvent('set');
     run(5);
-    d.set({ dayAt: wall() + 56_000 });
+    d.set({ nightAt: wall() + 56_000 });
     run(10);
-    expect(d.riseS).toBeCloseTo(-46, 0);
+    expect(d.setS).toBeCloseTo(-46, 0);
   });
 
-  it('light without a sunrise: the day sky fades in at the sky rate, without the hold', () => {
+  it('light without a sunrise or a rise: the day sky fades in at the sky rate, without the hold', () => {
     const { d, run } = rig({ dayAt: -1 });
     d.set(eventState('sun.light')!);
     run(6);
@@ -359,31 +357,36 @@ describe('Director: the sunrise without minute precision', () => {
   });
 
   it('the demo: from a later point; its turns never hold back the game\'s; a speed change or a jump lifts the guard', () => {
-    const { d, run } = rig({ dayAt: -1 });
+    const { d, run, wall } = rig({ dayAt: -1 });
     d.turnEvent('rise', -25);
     expect(d.riseS).toBe(-25);
     run(25);
     expect(d.riseS).toBeCloseTo(0, 5);
     run(61);
     expect(d.riseS).toBeNull();
-    // the demo's sunrise does not count: the game's own may come
-    d.turnEvent('rise');
-    expect(d.riseS).toBe(-60);
+    // the demo's sunrise does not count: the game's own (by the clock) may come
+    d.set({ dayAt: wall() + 60_000 });
+    run(0.1);
+    expect(d.riseS).toBeCloseTo(-59.9, 5);
     run(61 + 61);
     expect(d.riseS).toBeNull();
     // a game sunrise does count: no second one this dawn
-    d.turnEvent('rise');
+    d.set({ dayAt: wall() + 30_000 });
+    run(0.1);
     expect(d.riseS).toBeNull();
-    // a dev speed change lifts it; a speed runs the turn faster
+    // a dev speed change lifts it; a speed runs the turn faster (no clock to glide it to)
+    d.set({ dayAt: -1 });
     d.speed = 3;
     d.turnEvent('rise', -30);
     run(10);
     expect(d.riseS).toBeCloseTo(0, 5);
     d.speed = 1;
     run(70);
-    d.jump({ clock: 'night' });
+    // a `from` outside -60 … 0 is the game's: its rise is the day begun, no sunrise
     d.turnEvent('rise', -100);
-    expect(d.riseS).toBe(-60);
+    expect(d.riseS).toBeNull();
+    d.jump({ clock: 'night', dayAt: wall() + 60_000 });
+    expect(d.riseS).toBeCloseTo(-60, 5);
     expect(TURN_GUARD_MS).toBeGreaterThan(60_000 * 5);
   });
 });

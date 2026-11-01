@@ -303,8 +303,9 @@ for _, m in ipairs(MONTHS) do
   WORDS[m[2]:lower()] = { "month", { m[1] } }
 end
 for _, p in ipairs({ "dawn", "day", "dusk", "night" }) do WORDS[p] = { "period", { p } } end
-WORDS.daylight = { "period", { "dawn", "day" } }
-WORDS.dark = { "period", { "dusk", "night" } }
+-- Sunlight from the dawn hour through the dusk hour (ADR 0093, addendum 2026-11-01).
+WORDS.daylight = { "period", { "dawn", "day", "dusk" } }
+WORDS.dark = { "period", { "night" } }
 WORDS.sunrise = { "at", "dawn" }
 WORDS.sunset = { "at", "dusk" }
 WORDS["at dawn"] = { "at", "dawn" }
@@ -1035,12 +1036,13 @@ local function memoized(key, make)
 end
 
 local NIGHT, NIGHT_DEEP, DAY_LO, DAY_HI = { 22, 33, 62 }, { 12, 18, 40 }, { 214, 170, 70 }, { 255, 228, 130 }
+-- Sunlit from the dawn hour (sunrise) through the dusk hour (sunset).
 local function hourColour(h, dawn, dusk)
   if h == dawn then return { 227, 146, 74 } end
-  if h == dusk - 1 then return { 196, 96, 104 } end
-  if h > dawn and h < dusk - 1 then
-    local mid = (dawn + dusk) / 2
-    return mix(DAY_LO, DAY_HI, 1 - math.abs(h + 0.5 - mid) / ((dusk - dawn) / 2))
+  if h == dusk then return { 196, 96, 104 } end
+  if h > dawn and h < dusk then
+    local mid = (dawn + dusk + 1) / 2
+    return mix(DAY_LO, DAY_HI, 1 - math.abs(h + 0.5 - mid) / ((dusk + 1 - dawn) / 2))
   end
   return mix(NIGHT_DEEP, NIGHT, math.abs(((h + 12) % 24) - 12) / 12)
 end
@@ -1079,7 +1081,7 @@ local function drawNow(g, t)
   clockSpot = g.precision == "minute" and { row = 6, col = X, hour = g.hour } or nil
   local x2 = put(X, 6, clockText(g), { fg = C.glow, b = true,
     tip = "Game time " .. pad2(g.hour) .. ":00–" .. pad2(g.hour) .. ":59; a game hour is a real minute" })
-  local sun = g.period == "dawn" or g.period == "day"
+  local sun = g.period ~= "night"
   put(x2 + 1, 6, (sun and "☼ " or "☾ ") .. g.period, { fg = sun and C.gold or C.night })
 
   local m = g.moon
@@ -1107,15 +1109,16 @@ local function drawNow(g, t)
   -- Daylight: 24 game hours.
   local cph = W >= 50 and 2 or 1
   local dx = put(2, 11, "DAYLIGHT", { fg = C.dim, b = true })
-  if not rightAfter(11, dx, "dawn " .. pad2(g.dawn) .. " · dusk " .. pad2(g.dusk) .. " · " .. (g.dusk - g.dawn) .. "h light", { fg = C.dim }) then
-    rightAfter(11, dx, pad2(g.dawn) .. "–" .. pad2(g.dusk) .. " · " .. (g.dusk - g.dawn) .. "h", { fg = C.dim,
-      tip = "Dawn " .. pad2(g.dawn) .. ":00, dusk " .. pad2(g.dusk) .. ":00: " .. (g.dusk - g.dawn) .. " hours of light" })
+  local light = g.dusk + 1 - g.dawn
+  if not rightAfter(11, dx, "dawn " .. pad2(g.dawn) .. " · dusk " .. pad2(g.dusk) .. " · " .. light .. "h light", { fg = C.dim }) then
+    rightAfter(11, dx, pad2(g.dawn) .. "–" .. pad2(g.dusk) .. " · " .. light .. "h", { fg = C.dim,
+      tip = "Dawn " .. pad2(g.dawn) .. ":00, dusk " .. pad2(g.dusk) .. ":00: " .. light .. " hours of light, " .. pad2(g.dawn) .. ":00–" .. pad2(g.dusk) .. ":59" })
   end
   local band = memoized("day:" .. g.dawn .. ":" .. g.dusk .. ":" .. cph, function()
     local list = {}
     for h = 0, 23 do
       list[#list + 1] = { 2 + h * cph, string.rep(" ", cph), { bg = hex(hourColour(h, g.dawn, g.dusk)),
-        tip = pad2(h) .. ":00 " .. ((h >= g.dawn and h < g.dusk) and "day" or "night") } }
+        tip = pad2(h) .. ":00 " .. ((h >= g.dawn and h <= g.dusk) and "day" or "night") } }
     end
     return list
   end)

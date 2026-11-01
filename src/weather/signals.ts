@@ -9,10 +9,11 @@
 //                  whose value changed are forwarded. Absent = indoors,
 //                  no fog, normal light, standing.
 //   Event.Sun      rise | light | set | dark → 'sun.<what>' (the engine
-//                  derives day / night from it: day from `light`, night
-//                  from `dark`; `rise` / `set` open the dawn / dusk hour,
-//                  still night / day, and start the sunrise / sunset when
-//                  the clock cannot time it, ADR 0093)
+//                  derives day / night from it: day from `rise` (the sun
+//                  is up from the dawn hour; `light` an hour later keeps
+//                  it), night from `dark`; `set` opens the dusk hour, still
+//                  day, and starts the sunset when the clock cannot time
+//                  it, ADR 0093 and its 2026-11-01 addendum)
 //   Event.Moon     rise | set → 'moon.<what>'
 //   Event.Darkness start | grow | shrink | end-soon | end → 'darkness.<what>'
 //   almanac        the game clock (src/gmcp/clock.ts, gametime.ts): the
@@ -132,7 +133,7 @@ export function moonTimes(epoch: number, g: number): { moonRiseAt: number; moonS
   return { moonRiseAt: (epoch + rise) * 1000, moonSetAt: (epoch + set) * 1000 };
 }
 
-/** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the hour after the dawn hour), → 1 when the night begins (the hour after the dusk hour). */
+/** How far the sun is through the day at `hour:minute` of `month`: 0 when the day begins (the dawn hour), → 1 when the night begins (the hour after the dusk hour). */
 export function sunUpFraction(month: number, hour: number, minute: number): number {
   const d0 = dayHour(month) * 60, d1 = nightHour(month) * 60;
   return Math.min(1, Math.max(0, (hour * 60 + minute - d0) / (d1 - d0)));
@@ -270,8 +271,9 @@ export class WeatherSignals {
     const ev = gmcpEvent(key, data);
     if (!ev) return;
     // (the engine sets sunU 0 / -1 from the event itself, director `eventState`)
-    // `rise` / `set` open the dawn / dusk hour: the day comes with `light`, the night with `dark` (items 59, 61).
-    if (ev === 'sun.light') {
+    // The day (sunlight) comes with `rise`, the dawn hour (`light` an hour later keeps it); `set` opens the
+    // dusk hour, still day; the night comes with `dark` (ADR 0093, addendum 2026-11-01).
+    if (ev === 'sun.rise' || ev === 'sun.light') {
       this.sky.clock = 'day';
       if (this.sky.sunU < 0) this.sky.sunU = 0;
     } else if (ev === 'sun.dark') {
@@ -290,8 +292,9 @@ export class WeatherSignals {
       return;
     }
     // held (item 85): the state above is applied on release
-    if (ev === 'sun.rise' || ev === 'sun.set') this.heldTurn = { kind: ev === 'sun.rise' ? 'rise' : 'set', at: this.now() };
-    else if (ev === 'sun.light' || ev === 'sun.dark') this.heldTurn = null;
+    // (only a sunset follows its event; a sunrise ends at `rise`)
+    if (ev === 'sun.set') this.heldTurn = { kind: 'set', at: this.now() };
+    else if (ev === 'sun.rise' || ev === 'sun.light' || ev === 'sun.dark') this.heldTurn = null;
     else if (ev.startsWith('darkness.')) this.heldDark = ev;
   }
 

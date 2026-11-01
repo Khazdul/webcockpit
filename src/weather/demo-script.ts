@@ -82,7 +82,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
     {
       title: 'Sunrise · the first light',
       look: 'the sun\'s hazy light grows at the right, faint rays and beams with it, the frame lines glinting where they cross; the stars fade',
-      signal: 'the clock: the last game hour of the night ("The light slowly increases in the east.")',
+      signal: 'the clock: the last game hour of the night, before "The sun rises in the east."',
       acts: [],
     },
     {
@@ -93,8 +93,8 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   ),
   {
     title: 'Morning · birds',
-    look: 'the day has begun: a soft ray of sun, a flock of birds crossing the sky, an insect buzzing by',
-    signal: 'Event.Sun light ("The day has begun.")',
+    look: 'the sun is up: a soft ray of sun, a flock of birds crossing the sky, an insect buzzing by',
+    signal: 'Event.Sun rise ("The sun rises in the east.")',
     dur: Math.max(TURN_FULL.rise, 10),
     acts: [
       [0, pin({ clock: 'day', sunU: 0.15 })],
@@ -215,7 +215,7 @@ export const DEMO_STEPS: readonly DemoStep[] = [
   {
     title: 'A new day',
     look: 'the clear blue sky, the pale moon',
-    signal: 'Event.Sun light',
+    signal: 'Event.Sun rise',
     dur: 3,
     acts: [
       [0, pin({ clock: 'day', sunU: 0.15 })],
@@ -298,7 +298,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
     title: 'Sunrise · the first light',
     look: 'the sun\'s hazy light grows slowly at the right, its faint rays with it, from level to steeply down, the frame lines glinting more and more; the stars fade, half gone 10 seconds in, barely there after 30',
-    signal: 'the clock: the last game hour of the night ("The light slowly increases in the east.")',
+    signal: 'the clock: the last game hour of the night, before "The sun rises in the east."',
     dur: 30,
     acts: [],
   },
@@ -312,7 +312,7 @@ export const SUNRISE_STEPS: readonly DemoStep[] = [
   {
     title: 'The day begins',
     look: 'the clear blue sky; the morning sun\'s rays pulse very faintly, about every 20 seconds',
-    signal: 'Event.Sun light ("The day has begun.")',
+    signal: 'Event.Sun rise ("The sun rises in the east.")',
     dur: Math.max(TURN_FULL.rise, 12),
     acts: [
       [0, pin({ clock: 'day', sunU: 0 })],
@@ -333,7 +333,7 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   {
     title: 'Day · before the sunset',
     look: 'a clear day sky late in the day; the clock says the night begins in a minute and five seconds',
-    signal: "Event.Sun light · Char.Vitals weather = ' '",
+    signal: "Event.Sun rise · Char.Vitals weather = ' '",
     dur: TURN_LEAD,
     acts: [
       [0, { pin: { ...SCENE, clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.93 }, instant: true }],

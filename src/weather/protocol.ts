@@ -18,7 +18,7 @@ export interface WeatherState {
   light: string;
   /** standing, resting, sleeping, stunned, incapacitated, dying, … */
   position: string;
-  /** The latest `Event.Sun` or the almanac: 'day' after light, 'night' after dark (the dawn hour, `rise`, is still night; the dusk hour, `set`, still day). */
+  /** The latest `Event.Sun` or the almanac: 'day' from rise (the dawn hour; light an hour later keeps it), 'night' after dark (the dusk hour, `set`, is still day). */
   clock: 'day' | 'night';
   /** The latest `Event.Moon`. */
   moonUp: boolean;
@@ -31,9 +31,9 @@ export interface WeatherState {
    */
   moonU: number;
   /**
-   * How far the sun is through the day, 0 when the day begins (the hour
-   * after the dawn hour) … 1 at the dusk hour (clock.ts DAWN/DUSK, by
-   * month; 1 when the night begins, the hour after it), from the almanac;
+   * How far the sun is through the day, 0 when the day begins (the dawn
+   * hour, clock.ts DAWN/DUSK by month) … 1 when the night begins (the
+   * hour after the dusk hour), from the almanac;
    * -1 at night or
    * when the clock is not synced. Steers the day's sun glimpses (most and
    * strongest at midday, owner feedback 52). Sent at start, on a clock sync

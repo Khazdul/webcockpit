@@ -2,13 +2,13 @@
 // Pure: no DOM, no canvas; the director (director.ts) and the sky
 // (worker/sky.ts) share it.
 //
-// MUME's rooms follow `Event.Sun light` and `dark`: the day begins at the
-// hour after the dawn hour ("The day has begun."), the night at the hour
-// after the dusk hour ("The night has begun."; clock.ts `dayBeginsAt`,
-// `nightBeginsAt`). A sunrise fills the last game hour of the night, a
-// sunset the last game hour of the day: `s` is the time relative to the
-// turn's second (-60 at the dawn or dusk hour, 0 when the day or night
-// begins). The sun, its rays and its glow are gone at 0 for both (owner
+// Sunlight lasts from the dawn hour ("The sun rises in the east.", `Event.Sun
+// rise`) to the hour after the dusk hour ("The night has begun.", `dark`;
+// clock.ts `dayBeginsAt`, `nightBeginsAt`; ADR 0093, addendum 2026-11-01).
+// A sunrise fills the last game hour of the night (the hour before the dawn
+// hour), a sunset the last game hour of the day (the dusk hour): `s` is the
+// time relative to the turn's second (-60 an hour before, 0 when the day or
+// night begins). The sun, its rays and its glow are gone at 0 for both (owner
 // items 76, 77); a sunset's are still visible until the last seconds, so the
 // sun reads as set at the night's second (item 83). A sunrise's blue is
 // complete at 0; a sunset's stars are just perceptible at the night's second

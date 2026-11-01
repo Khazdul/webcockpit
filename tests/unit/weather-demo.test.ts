@@ -312,7 +312,7 @@ describe('the demo runner', () => {
     const sink = {
       setState: (p: Partial<WeatherState>, o?: { settle?: boolean }) => void d.set(p, !!o?.settle),
       emit: (e: WeatherEvent, data?: unknown) => {
-        const st = eventState(e);
+        const st = eventState(e, data);
         if (st) d.set(st);
         if (e === 'sun.rise' || e === 'sun.set') d.turnEvent(e === 'sun.rise' ? 'rise' : 'set', (data as { from?: unknown } | undefined)?.from);
       },

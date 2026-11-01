@@ -63,7 +63,7 @@ test('almanac: synced clock, NOW, PLAN and LORE tabs, an event added with the ed
   await expect(prows(page).nth(0)).toHaveText(/^ {2}NOW {3}PLAN {3}LORE/);
   await expect(prows(page).nth(2)).toHaveText(/19 Wedmath 2855\s*$/);
   await expect(prows(page).nth(5)).toHaveText(/ 12 pm ☼ day\s*$/);
-  await expect(prows(page).nth(10)).toHaveText(/DAYLIGHT\s+dawn 04 · dusk 22 · 18h light/);
+  await expect(prows(page).nth(10)).toHaveText(/DAYLIGHT\s+dawn 04 · dusk 22 · 19h light/);
   await expect(prows(page).nth(19)).toHaveText(/COMING UP/);
   await expect(pane(page).locator('.wc-pane-content')).toContainText('Dead Knight slab');
 

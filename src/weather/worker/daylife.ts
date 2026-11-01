@@ -71,7 +71,7 @@ const GLIMPSE_GLOW_LIGHT = 0.036;
 const DITHER_MIN = 0.5;
 /** The glow's texture at this share of the screen's size (drawn scaled up, unsmoothed: blocks of 2 px still dither). */
 const GLOW_TEX_K = 0.5;
-/** The pulse's peak strength: at the dawn and dusk hours, and at midday (only just perceptible; by eye, owner items 73, 82: was 0.14 and 0.3). */
+/** The pulse's peak strength: as the day begins and as it ends, and at midday (only just perceptible; by eye, owner items 73, 82: was 0.14 and 0.3). */
 export const PULSE_LOW = 0.1;
 export const PULSE_HIGH = 0.2;
 /**
@@ -96,7 +96,7 @@ export const PULSE_S = 20;
 const PULSE_VARY = 0.15;
 
 /**
- * How high the sun stands for the pulse: 0 at the dawn and dusk hours, 1
+ * How high the sun stands for the pulse: 0 as the day begins and ends, 1
  * at midday (`sunU` 0.5); `sunU` < 0 (not synced) counts as GLIMPSE_H_UNKNOWN.
  */
 export function sunHeight(sunU: number): number {

@@ -238,7 +238,7 @@ export class WeatherEngine {
         break;
       }
       case 'event': {
-        const s = eventState(m.name);
+        const s = eventState(m.name, m.data);
         if (s) this.director.set(s);
         // a game flash line opens a storm window (ADR 0094)
         if (m.name === 'strike' && (m.data as { storm?: unknown } | undefined)?.storm === true) this.director.stormFlash(this.host.now());

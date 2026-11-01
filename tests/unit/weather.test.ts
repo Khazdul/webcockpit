@@ -205,7 +205,8 @@ describe('Director', () => {
     const d = new Director({ weather: null, clock: 'night' });
     d.wall = () => 1_000_000;
     expect(d.quiet()).toBe(true);
-    d.turnEvent('rise');
+    // (a sunrise from its start, as the demo's: the game's comes by the clock)
+    d.turnEvent('rise', -60);
     expect(d.turn?.kind).toBe('rise');
     expect(d.quiet()).toBe(false);
     d.cats = { ...d.cats, sky: false };
@@ -214,7 +215,7 @@ describe('Director', () => {
   it('a sunrise\'s sky selection does not count as moving with skipSky (performance review, item 111)', () => {
     const d = new Director({ weather: ' ', clock: 'night' });
     d.wall = () => 1_000_000;
-    d.turnEvent('rise');
+    d.turnEvent('rise', -60);
     let t = 0;
     for (let i = 0; i < 400; i++) d.tick((t += 100), 0.1);
     expect(d.turn).not.toBeNull();
@@ -222,9 +223,10 @@ describe('Director', () => {
     expect(d.moving(undefined, true)).toBe(false);
   });
   it('events set the sun and the moon', () => {
-    // the dawn hour is still night: rise starts the sunrise (Director.riseEvent), light brings the day (item 59)
-    expect(eventState('sun.rise')).toBeNull();
-    expect(eventState('sun.light')).toEqual({ clock: 'day', sunU: 0 });
+    // the day (sunlight) begins with rise, the dawn hour; light an hour later keeps it (ADR 0093 addendum 2026-11-01)
+    expect(eventState('sun.rise')).toEqual({ clock: 'day', sunU: 0 });
+    expect(eventState('sun.rise', { from: -60 })).toBeNull();
+    expect(eventState('sun.light')).toEqual({ clock: 'day' });
     expect(eventState('sun.dark')).toEqual({ clock: 'night', sunU: -1 });
     expect(eventState('moon.set')).toEqual({ moonUp: false });
     expect(eventState('strike')).toBeNull();

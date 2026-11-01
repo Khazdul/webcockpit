@@ -26,9 +26,10 @@
 //   its stars too, owner items 76, 77, 81); from 0 the settled clock is
 //   the new one. A resync glides `s` toward the clock's time (a big one
 //   snaps, never back over the turn); a page load or sync mid-turn joins at
-//   its place. Without minute precision `Event.Sun rise` / `set` starts it
-//   at -60 and it runs on its own; `light` / `dark` without one fades over
-//   12 s. One turn of a kind at a time and none twice in one dawn or dusk:
+//   its place. Without minute precision `Event.Sun set` starts the sunset
+//   at -60 and it runs on its own; `rise` (the day begins at the dawn hour:
+//   nothing comes before it to start a sunrise, ADR 0093 addendum
+//   2026-11-01) and `dark` without one fade over 12 s. One turn of a kind at a time and none twice in one dawn or dusk:
 //   none starts within TURN_GUARD_MS after one of its kind reached its
 //   second (reset by `jump` and a speed change; the demo's turns never count).
 // - A game flash line (ADR 0094; the 'strike' event with `{ storm: true }`)
@@ -138,14 +139,23 @@ export function mixTargets(s: Readonly<WeatherState>, cats: Readonly<Categories>
   return out;
 }
 
-/** The raw state change an event implies (sun / moon), or null. */
-export function eventState(name: WeatherEvent): Partial<WeatherState> | null {
+/** A demo turn's start, s before its second (-TURN_S … 0), from a `sun.rise` / `sun.set` event's `from`; null for the game's. */
+function demoFrom(from: unknown): number | null {
+  return typeof from === 'number' && from >= -TURN_S && from < 0 ? from : null;
+}
+
+/** The raw state change an event implies (sun / moon), or null (`data`: the event's, `{ from }` on a demo turn). */
+export function eventState(name: WeatherEvent, data?: unknown): Partial<WeatherState> | null {
   switch (name) {
     // The day or night begins (the almanac's sunU, when synced, follows within
-    // a step). `sun.rise` / `sun.set` open the dawn / dusk hour, still night /
-    // day: they start the sunrise / sunset (`turnEvent`).
+    // a step). The day (sunlight) begins with `sun.rise`, the dawn hour; the
+    // demo's `sun.rise` with a `from` starts its sunrise instead (`turnEvent`).
+    // `sun.light`, an hour later, keeps the day. `sun.set` opens the dusk hour,
+    // still day: it starts the sunset (`turnEvent`).
+    case 'sun.rise':
+      return demoFrom((data as { from?: unknown } | undefined)?.from) === null ? { clock: 'day', sunU: 0 } : null;
     case 'sun.light':
-      return { clock: 'day', sunU: 0 };
+      return { clock: 'day' };
     case 'sun.dark':
       return { clock: 'night', sunU: -1 };
     case 'moon.rise':
@@ -291,14 +301,16 @@ export class Director {
   }
 
   /**
-   * `Event.Sun rise` / `set` (the dawn or dusk hour begins): the sunrise or
-   * sunset from its start (or `from` s before its second: the demo, whose
-   * turns never hold back the game's), unless one of that kind runs or ran
-   * this dawn or dusk.
+   * `Event.Sun set` (the dusk hour begins): the sunset from its start (or
+   * `from` s before its second: the demo, whose turns never hold back the
+   * game's), unless one of that kind runs or ran this dusk. The game's
+   * `rise` is the sunrise's second, the day begun (`eventState`): only the
+   * demo's, with a `from`, starts a sunrise.
    */
   turnEvent(kind: TurnKind, from?: unknown): void {
-    const demo = typeof from === 'number' && from >= -TURN_S && from < 0;
-    if (this.turn?.kind !== kind && this.start(kind, demo ? from : -TURN_S, this.wall()) && demo) this.turn!.demo = true;
+    const demo = demoFrom(from) !== null;
+    if (kind === 'rise' && !demo) return;
+    if (this.turn?.kind !== kind && this.start(kind, demo ? (from as number) : -TURN_S, this.wall()) && demo) this.turn!.demo = true;
   }
 
   /** Starts a turn (it ends one of the other kind); false when its guard holds. */

@@ -236,7 +236,8 @@ describe('bundled almanac', () => {
     expect(rows[5]).toMatch(/ {3}12:00 pm ☼ day$/);
     expect(rows[7]).toMatch(/☽ Waxing crescent +37% lit$/);
     expect(rows[8]).toMatch(/full in 8d 12h +(rises|sets) in \d+(d \d+)?h$/);
-    expect(rows[10]).toMatch(/^ DAYLIGHT +dawn 04 · dusk 22 · 18h light$/);
+    // sunlight 4:00 – 22:59 (ADR 0093 addendum 2026-11-01)
+    expect(rows[10]).toMatch(/^ DAYLIGHT +dawn 04 · dusk 22 · 19h light$/);
     expect(rows[12]!.indexOf('▲')).toBe(1 + 12 * 2);
     expect(rows[13]).toBe(' ☾ Sunset 10 pm  in 10h');
     expect(rows[15]).toBe(' YEAR                           Autumn in 41d 12h');
@@ -541,8 +542,8 @@ describe('almanac condition text (the advanced path)', () => {
       ['sunrise', 'sunrise'],
       ['at dusk', 'sunset'],
       ['dusk', 'dusk'],
-      ['daylight', 'dawn|day'],
-      ['dark', 'dusk|night'],
+      ['daylight', 'dawn|day|dusk'],
+      ['dark', 'night'],
       ['autumn|winter', 'autumn|winter'],
       ['not winter|spring', 'not winter|spring'],
       ['Afteryule or Gwaeron', 'Afteryule|Rethe'],

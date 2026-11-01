@@ -59,10 +59,10 @@ describe('ClockStrip', () => {
     expect(CLOCK_DAY_FG).not.toBe(CLOCK_NIGHT_FG);
   });
 
-  it('shows the moon through the dawn hour, the sun from the day (dawn + 1) on (item 59)', () => {
+  it('shows the moon until the dawn hour, the sun from the dawn hour on (the sun rises, ADR 0093 addendum 2026-11-01)', () => {
     const t = setup();
-    // 9:58 on the 11th of Solmath: dawn hour 9, the day begins at 10:00.
-    t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 1, 11, 9, 58), precision: 'minute', lastSync: T / 1000, reason: 't' };
+    // 8:58 on the 11th of Solmath: the day (sunlight) begins at the dawn hour, 9:00.
+    t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 1, 11, 8, 58), precision: 'minute', lastSync: T / 1000, reason: 't' };
     t.strip.update();
     expect(t.text()).toBe('  0:01 ☾');
     expect(t.el.dataset.period).toBe('night');
@@ -70,7 +70,7 @@ describe('ClockStrip', () => {
     expect(t.text()).toBe('  0:00 ☾');
     t.tick(1000);
     expect(t.el.dataset.period).toBe('day');
-    expect(t.text()).toBe('  7:59 ☼');
+    expect(t.text()).toBe('  8:59 ☼');
   });
 
   it('shows ~N at hour precision and updates on a sync', () => {
