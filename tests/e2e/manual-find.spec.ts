@@ -44,17 +44,17 @@ const currentInView = (page: Page, root: ReturnType<typeof manual>) =>
     return b.top >= a.top - 1 && b.bottom <= a.bottom + 1;
   });
 
-/** Start page → Options → Scripts → EDIT on a user script, then F1: the Script Manual. */
+/** Start page → Scripts → EDIT on a user script, then F1: the Script Manual. */
 async function openManual(page: Page): Promise<void> {
   await mockMume(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await lib(page, 'init');
   await lib(page, 'create', 'findme', '-- @name     findme\n-- @summary  find test\n-- @api      1\n\nlocal x = 1\n');
+  // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

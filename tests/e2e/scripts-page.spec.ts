@@ -56,15 +56,12 @@ async function openStart(page: Page): Promise<void> {
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
 }
 
-/** Start page → Options → Scripts with the keyboard (Scripts is last in the Options hub). */
+/** Start page → Scripts with the keyboard (under Profile since stage 32). */
 async function scriptsFromStart(page: Page): Promise<Locator> {
   await openStart(page);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
-  await page.keyboard.press('Enter');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

@@ -2,6 +2,7 @@
 // Most tests use the offline GMCP demo (tests/fixtures/gmcp-demo.log) at
 // max speed; the archive test uses a mocked MUME WebSocket.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 const IAC = 255;
@@ -174,11 +175,9 @@ test('the Comm gear toggles channels and the header live (ADR 0107)', async ({ p
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options → Panes → Communication on the start page toggles channels and the header', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
-  await frame.locator('.wc-mrow[data-key="options"]').click();
+test('Options → Panes → Communication in the phone\'s ESC menu toggles channels and the header', async ({ page }) => {
+  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
+  const frame = await openEscOptions(page);
   await frame.locator('.wc-mrow[data-key="panes"]').click();
   await frame.locator('.wc-mrow[data-key="comm"]').click();
   await expect(frame.locator('.wc-title-row')).toContainText('Communication');

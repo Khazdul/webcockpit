@@ -148,17 +148,17 @@ test('a period that leaves nothing shows the empty stage; Settings… there brin
   expect(errors).toEqual([]);
 });
 
-test('the filtered start page offers Settings…; a change opens the reel; Options has no Spotlights', async ({ page }) => {
+test('the filtered start page offers Settings…; a change opens the reel; no Options on the start page', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
 
-  // Options → Spotlights is gone.
-  await menuRow(page, 'options').click();
-  await expect(frame(page).locator('.wc-mrow[data-key="spotlights"]')).toHaveCount(0);
-  await page.keyboard.press('Escape');
+  // Options left the start page in stage 32 (Options → Spotlights went in
+  // stage 30e; the ESC menu's hub: tests/unit/chrome-frames.test.tsx).
+  await expect(menuRow(page, 'spotlights')).toBeVisible();
+  await expect(menuRow(page, 'options')).toHaveCount(0);
 
   await setSpot(page, { allCharacters: false, characters: [] });
   await menuRow(page, 'spotlights').click();

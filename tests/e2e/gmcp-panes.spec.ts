@@ -3,6 +3,7 @@
 // (tests/fixtures/gmcp-demo.log) and, for the live disconnect, a mocked
 // MUME WebSocket.
 import { type Page, expect, test } from '@playwright/test';
+import { menuSel, menuTitle, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
@@ -86,30 +87,29 @@ test('the Group gear applies live (ADR 0107)', async ({ page }) => {
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options → Panes → Group on the start page writes the settings', async ({ page }) => {
-  await page.goto('/');
-  const startSel = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel');
-  const startTitle = page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
-  await expect(startSel).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(startTitle).toHaveText('─── Options ───');
+test('Options → Panes → Group in the phone\'s ESC menu writes the settings', async ({ page }) => {
+  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
+  await openEscOptions(page);
+  const sel = menuSel(page);
+  const title = menuTitle(page);
   await page.keyboard.press('Enter'); // Panes
-  await expect(startTitle).toHaveText('─── Panes ───');
-  // Timers first on desktop (no pane Appearance page, ADR 0107).
+  await expect(title).toHaveText('─── Panes ───');
+  // The phone's pane Appearance page first, then Timers (ADR 0107).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(startSel).toHaveText('<< Group >>');
+  await page.keyboard.press('ArrowDown');
+  await expect(sel).toHaveText('<< Group >>');
   await page.keyboard.press('Enter');
-  await expect(startTitle).toHaveText('─── Group ───');
-  await expect(startSel).toContainText('[X] Show players');
+  await expect(title).toHaveText('─── Group ───');
+  await expect(sel).toContainText('[X] Show players');
   await page.keyboard.press('Enter');
-  await expect(startSel).toContainText('[ ] Show players');
+  await expect(sel).toContainText('[ ] Show players');
   await page.keyboard.press('ArrowDown');
-  await expect(startSel).toHaveText('<< NPC visibility: Labeled >>');
+  await expect(sel).toHaveText('<< NPC visibility: Labeled >>');
   await page.keyboard.press('ArrowRight');
-  await expect(startSel).toHaveText('<< NPC visibility: All >>');
+  await expect(sel).toHaveText('<< NPC visibility: All >>');
   await page.keyboard.press('ArrowRight');
-  await expect(startSel).toHaveText('<< NPC visibility: Off >>');
+  await expect(sel).toHaveText('<< NPC visibility: Off >>');
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
   expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());

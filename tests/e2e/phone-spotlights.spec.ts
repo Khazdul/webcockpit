@@ -30,10 +30,10 @@ for (const width of [412, 360]) {
     await pinDemoClock(page);
     await page.goto('/?phone=1');
     await restoreDemo(page);
-    // Options has no Spotlights row on the phone either.
-    await page.locator('.wc-start .wc-mrow[data-key="options"]').tap();
-    await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="spotlights"]')).toHaveCount(0);
-    await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="back"]').tap();
+    // No Options on the start page (stage 32); the ESC menu's Options has
+    // no Spotlights row either (tests/e2e/phone-esc-menu.spec.ts).
+    await expect(page.locator('.wc-start .wc-mrow[data-key="spotlights"]')).toBeVisible();
+    await expect(page.locator('.wc-start .wc-mrow[data-key="options"]')).toHaveCount(0);
 
     await page.locator('.wc-start .wc-mrow[data-key="spotlights"]').tap();
     const header = page.locator('.wc-player-header');

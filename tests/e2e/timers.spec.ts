@@ -2,6 +2,7 @@
 // GMCP demo makes the panes active (they keep their picture after the
 // replay); the debug hooks on `game.timers` put the cells in.
 import { type Page, expect, test } from '@playwright/test';
+import { menuFrame, openEscOptions } from './esc-options';
 
 const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 
@@ -140,13 +141,12 @@ test('the Timers gear changes colours and column caps live (ADR 0107)', async ({
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options → Panes → Timers works from the start page', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-start .wc-mrow[data-key="panes"] .wc-label').click();
-  await page.locator('.wc-start .wc-mrow[data-key="timers"] .wc-label').click();
-  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
+test('Options → Panes → Timers works in the phone\'s ESC menu', async ({ page }) => {
+  // The start page's Options went in stage 32; the phone's ESC menu keeps it.
+  await openEscOptions(page);
+  await menuFrame(page).locator('.wc-mrow[data-key="panes"] .wc-label').click();
+  await menuFrame(page).locator('.wc-mrow[data-key="timers"] .wc-label').click();
+  const frame = menuFrame(page);
   await expect(frame.locator('.wc-title-row')).toHaveText('─── Timers ───');
   // Blinds → Clock (click), Charmies' Clock is an inert blank.
   const blinds = frame.locator('.wc-grid-row').nth(4);

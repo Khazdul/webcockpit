@@ -145,10 +145,10 @@ test('script manual: the text and menu scrollbars drag their thumbs; the track p
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
   await lib(page, 'init');
   await lib(page, 'create', 'dragtest', '-- @name dragtest\n-- @api 1\n\necho("x")\n');
+  // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
@@ -175,10 +175,10 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await lib(page, 'init');
   const src = '-- @name longscript\n-- @api 1\n\n' + Array.from({ length: 150 }, (_, i) => `echo("${i}")`).join('\n') + '\n';
   await lib(page, 'create', 'longscript', src);
+  // Scripts, under Profile on the start page (stage 32).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
   await startFrame(page).locator('.wc-scr-row[data-script="longscript"] [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');

@@ -157,6 +157,8 @@ test('Profile and Options → Scripts open their frames in the menu, not windows
   await page.keyboard.press('Escape');
   await expect(menu(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
   await menu(page).locator('.wc-mrow[data-key="options"]').tap();
+  // Options has no Spotlights row: its settings are in the reel's gear (ADR 0110).
+  await expect(menu(page).locator('.wc-mrow[data-key="spotlights"]')).toHaveCount(0);
   await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
   await expect(menu(page).locator('.wc-title-row')).toContainText('Scripts');
   await expect(page.locator('.wc-win')).toHaveCount(0);

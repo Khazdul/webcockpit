@@ -20,12 +20,12 @@ test('a click on ESC Back goes back (the start page)', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(startTitle(page)).toHaveText('─── Options ───');
+  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await expect(startTitle(page)).toHaveText('─── Scripts ───');
   await escToken(page, 'ESC Back').click();
-  // Back on the main menu, the cursor on Options.
+  // Back on the main menu, the cursor on Scripts.
   await expect(startFrame(page).locator('.wc-mrow[data-key="enter"]')).toBeVisible();
-  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   expect(errors).toEqual([]);
 });
 

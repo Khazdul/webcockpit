@@ -17,7 +17,7 @@ async function tapRow(page: Page, key: string): Promise<void> {
   await startFrame(page).locator(`.wc-mrow[data-key="${key}"]`).tap();
 }
 
-/** Start page → Options → Scripts by taps, with one own script `phonetest`. */
+/** Start page → Scripts by a tap, with one own script `phonetest`. */
 async function openScripts(page: Page): Promise<Locator> {
   await page.goto('/?phone=1');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
@@ -26,7 +26,6 @@ async function openScripts(page: Page): Promise<Locator> {
     await l.init();
     if (!l.list().some((s) => s.name === 'phonetest')) await l.create('phonetest');
   });
-  await tapRow(page, 'options');
   await tapRow(page, 'scripts');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');

@@ -1,8 +1,10 @@
 // Stage 2 package C: start page, profiles, Options and the page flow,
 // against a mocked MUME WebSocket (nothing reaches the real server). The
 // ESC menu is the phone's since stage 30f (ADR 0112):
-// tests/e2e/phone-esc-menu.spec.ts.
+// tests/e2e/phone-esc-menu.spec.ts. Options left the start page in stage
+// 32: its frames are tested in the phone's ESC menu (tests/e2e/esc-options.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
+import { menuFlash, menuFrame, menuSel, menuTitle, openEscOptions } from './esc-options';
 
 const IAC = 255;
 const WILL = 251;
@@ -58,10 +60,11 @@ test('start page: banner, menu and quote; no connection until Enter MUME', async
   await expect(page.locator('.wc-start .wc-banner .wc-line')).toHaveCount(11);
   await expect(page.locator('.wc-start .wc-banner [data-star]')).toHaveCount(13);
   const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow');
+  // Stage 32: no Options; Scripts under Profile.
   await expect(rows).toHaveText([
     '<< Enter MUME >>',
     '   Profile   ',
-    '   Options   ',
+    '   Scripts   ',
     '   History   ',
     '   Spotlights   ',
     '   Credits   ',
@@ -112,10 +115,10 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(startSel(page)).toHaveText('<< About >>');
   // Hover lightens without moving the cursor; clicking selects and activates.
-  await page.locator('.wc-start .wc-mrow[data-key="options"]').hover();
+  await page.locator('.wc-start .wc-mrow[data-key="scripts"]').hover();
   await expect(startSel(page)).toHaveText('<< About >>');
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(startTitle(page)).toHaveText('─── Options ───');
+  await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
+  await expect(startTitle(page)).toHaveText('─── Scripts ───');
 });
 
 test('Enter MUME shows the cockpit and connects; Esc opens the Exit popup, no menu (ADR 0112)', async ({ page }) => {
@@ -195,29 +198,20 @@ test('Exit returns to the start page and closes the connection; Enter MUME again
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
 });
 
-test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles panes and borders live', async ({ page }) => {
-  await openStart(page);
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
+test('Options → Panes in the phone\'s ESC menu: the pane grid toggles panes and borders live', async ({ page }) => {
+  // Desktop and tablet have no pane grid: the Panes popup and the pane
+  // buttons hold it (ADR 0107; the hub's rows there: tests/unit/chrome-mapper).
+  // The phone keeps it, in the ESC menu's Options.
+  await openEscOptions(page);
   await page.keyboard.press('Enter'); // Panes
-  await expect(startTitle(page)).toHaveText('─── Panes ───');
-  // Desktop and tablet: the Panes popup and the pane buttons hold it (ADR 0107).
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow .wc-label')).toHaveText(['Timers', 'Communication', 'Group', 'Back']);
-  // The phone keeps it until its own stage.
-  await page.goto('/?phone=1');
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('Enter');
-  await page.keyboard.press('Enter'); // Panes
-  await expect(startTitle(page)).toHaveText('─── Panes ───');
+  await expect(menuTitle(page)).toHaveText('─── Panes ───');
+  await expect(menuFrame(page).locator('.wc-mrow .wc-label')).toHaveText(['Appearance', 'Timers', 'Communication', 'Group', 'Back']);
   await page.keyboard.press('Enter'); // Appearance
-  await expect(startTitle(page)).toHaveText('─── Pane appearance ───');
+  await expect(menuTitle(page)).toHaveText('─── Pane appearance ───');
   // The untinted column is "Plain", explained under the grid (stage 25 round 2).
-  await expect(page.locator('.wc-start')).toContainText('Plain  Red');
-  await expect(page.locator('.wc-start .wc-panes-hint')).toHaveText('Plain: the main window background.');
-  await expect(page.locator('.wc-start .wc-check[title="Character: Plain"]')).toHaveCount(1);
+  await expect(menuFrame(page)).toContainText('Plain  Red');
+  await expect(menuFrame(page).locator('.wc-panes-hint')).toHaveText('Plain: the main window background.');
+  await expect(menuFrame(page).locator('.wc-check[title="Character: Plain"]')).toHaveCount(1);
   // Character is on with Plain: Enter on its checked cell turns it off.
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).panes.character.on).toBe(false);
@@ -227,10 +221,10 @@ test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles pane
   await page.keyboard.press('Space');
   await expect.poll(async () => (await settings(page)).panes.timers).toEqual({ on: true, color: 'blue', border: true, glass: true });
   // Border column by mouse.
-  await page.locator('.wc-start .wc-check[title="Comm: border"]').click();
+  await menuFrame(page).locator('.wc-check[title="Comm: border"]').click();
   await expect.poll(async () => (await settings(page)).panes.comm.border).toBe(false);
   // No corner style row: the frames are always quadrant.
-  await expect(page.locator('.wc-start')).not.toContainText('Corner style');
+  await expect(menuFrame(page)).not.toContainText('Corner style');
   // Reset layout (the click moved the cursor to Comm; UI, Map, then Reset).
   await page.evaluate(() =>
     window.__wc!.settings.update((d) => {
@@ -247,9 +241,9 @@ test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles pane
   );
   await expect.poll(async () => (await settings(page)).layout.docks.right.head.map((p) => p.id)).toEqual(['group']);
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
-  await expect(startSel(page)).toHaveText('<< Reset layout >>');
+  await expect(menuSel(page)).toHaveText('<< Reset layout >>');
   await page.keyboard.press('Enter');
-  await expect(startFlash(page)).toHaveText('Layout reset.');
+  await expect(menuFlash(page)).toHaveText('Layout reset.');
   // The default layout (ADR 0078, ADR 0092): Character and the map over
   // Group | Timers, then Comm and UI; Map search and Statistics float (ADR 0109).
   await expect.poll(async () => (await settings(page)).layout.docks.right.lanes.map((l) => l.size)).toEqual([25, 25]);
@@ -264,28 +258,29 @@ test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles pane
 });
 
 test('Options → Appearance changes the font size live', async ({ page }) => {
-  await openStart(page);
+  await page.goto('/?replay&phone=1');
+  await expect(page.locator('.wc-app')).toBeVisible();
   const fontSize = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
   const before = await fontSize();
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await openEscOptions(page, { goto: false });
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown'); // past Mapper
   await page.keyboard.press('Enter'); // Appearance
-  await expect(startTitle(page)).toHaveText('─── Appearance ───');
+  await expect(menuTitle(page)).toHaveText('─── Appearance ───');
   await page.keyboard.press('ArrowDown');
-  await expect(startSel(page)).toHaveText('<< Size: 15 >>');
+  await expect(menuSel(page)).toHaveText('<< Size: 15 >>');
   // Enter is inert on a stepper.
   await page.keyboard.press('Enter');
-  await expect(startSel(page)).toHaveText('<< Size: 15 >>');
+  await expect(menuSel(page)).toHaveText('<< Size: 15 >>');
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-  await expect(startSel(page)).toHaveText('<< Size: 20 >>');
+  await expect(menuSel(page)).toHaveText('<< Size: 20 >>');
   await expect.poll(fontSize).not.toBe(before);
   expect((await settings(page)).appearance.size).toBe(20);
   // Background cycler, live (past Padding and Font color).
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
-  await expect(startSel(page)).toHaveText('<< Background: black >>');
+  await expect(menuSel(page)).toHaveText('<< Background: black >>');
   await page.keyboard.press('Enter');
-  await expect(startSel(page)).toHaveText('<< Background: red >>');
+  await expect(menuSel(page)).toHaveText('<< Background: red >>');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--term-bg')))
     .toBe('#1a0e0e');
@@ -293,11 +288,11 @@ test('Options → Appearance changes the font size live', async ({ page }) => {
   // leaving it puts the defaults back.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
-  await expect(startSel(page)).toHaveText('<< Background: paper >>');
+  await expect(menuSel(page)).toHaveText('<< Background: paper >>');
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#000000');
   expect((await settings(page)).appearance.ansi[7]).toBe('#4a4538');
   await page.keyboard.press('ArrowRight');
-  await expect(startSel(page)).toHaveText('<< Background: black >>');
+  await expect(menuSel(page)).toHaveText('<< Background: black >>');
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#c0c0c0');
   expect((await settings(page)).appearance.ansi[7]).toBe('#c0c0c0');
   await page.keyboard.press('ArrowRight');
@@ -309,14 +304,15 @@ test('Options → Appearance changes the font size live', async ({ page }) => {
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── ANSI 9: bright red ───');
+  await expect(menuFrame(page).locator('.wc-title-row')).toHaveText('─── ANSI 9: bright red ───');
   await page.keyboard.press('Control+a');
   await page.keyboard.type('#abc');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).appearance.ansi[9]).toBe('#aabbcc');
-  // Reset appearance: the defaults of a new install (Hack 17, ADR 0078).
-  await page.locator('.wc-start .wc-mrow[data-key="reset"] .wc-label').click();
-  await expect.poll(async () => (await settings(page)).appearance.size).toBe(17);
+  // Reset appearance: the defaults of a new install (Hack, ADR 0078), the
+  // phone's smaller size (14, ADR 0081).
+  await menuFrame(page).locator('.wc-mrow[data-key="reset"] .wc-label').click();
+  await expect.poll(async () => (await settings(page)).appearance.size).toBe(14);
   expect((await settings(page)).appearance.font).toBe('hack');
   await expect.poll(fontSize).not.toBe(before);
   await page.evaluate(() => window.__wc!.settings.reset());
@@ -377,20 +373,16 @@ test('Options → Text input: auto-clear and autosuggest apply live (ADR 0063, 0
 
 test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0066)', async ({ page }) => {
   const errors = watchErrors(page);
-  await openStart(page);
-  const sel = startSel(page);
-  const rows = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow .wc-label');
-  const row = (k: string) => page.locator(`.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="${k}"] .wc-label`);
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown');
-  await expect(sel).toHaveText('<< Options >>');
-  await page.keyboard.press('Enter');
+  const sel = menuSel(page);
+  const rows = menuFrame(page).locator('.wc-mrow .wc-label');
+  const row = (k: string) => menuFrame(page).locator(`.wc-mrow[data-key="${k}"] .wc-label`);
+  await openEscOptions(page);
   // The hub: Text input right after Appearance; the toggles are gone from it.
   await expect(rows).toHaveText(['Panes', 'Mapper', 'Appearance', 'Text input', 'Scripts', 'Weather effects', 'Back']);
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
   await expect(sel).toHaveText('<< Text input >>');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Text input ───');
+  await expect(menuTitle(page)).toHaveText('─── Text input ───');
   await expect(rows).toHaveText(['[ ] Auto-clear input', '[ ] Input autosuggest', 'Cursor style: beam', 'Cursor blink: On', 'Back']);
 
   // Keyboard: Enter and Space flip the toggles, ←→ cycle the cursor rows.
@@ -419,25 +411,25 @@ test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0
   // Persisted across a reload.
   await page.evaluate(() => window.__wc!.settings.flush());
   await page.reload();
-  await expect(startSel(page)).toHaveText('<< Enter MUME >>');
+  await expect(page.locator('.wc-app')).toBeVisible();
   s = await settings(page);
   expect(s.input).toEqual({ autoClear: false, autosuggest: true });
   expect([s.appearance.cursorStyle, s.appearance.cursorBlink]).toEqual(['block', false]);
 
   // Back row and ESC both return to the hub with Text input selected.
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await openEscOptions(page, { goto: false });
   await row('textinput').click();
   await row('back').click();
   await expect(sel).toHaveText('<< Text input >>');
   await page.keyboard.press('Enter');
-  await expect(startTitle(page)).toHaveText('─── Text input ───');
+  await expect(menuTitle(page)).toHaveText('─── Text input ───');
   await page.keyboard.press('Escape');
   await expect(sel).toHaveText('<< Text input >>');
 
   // Appearance no longer lists the cursor rows.
   await row('appearance').click();
-  await expect(startTitle(page)).toHaveText('─── Appearance ───');
-  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
+  await expect(menuTitle(page)).toHaveText('─── Appearance ───');
+  const frame = menuFrame(page);
   await expect(frame.locator('.wc-mrow[data-key="font"]')).toBeVisible();
   for (const k of ['cursor', 'blink', 'autoclear', 'autosuggest']) await expect(frame.locator(`.wc-mrow[data-key="${k}"]`)).toHaveCount(0);
   await expect(frame).not.toContainText('Cursor');
@@ -449,10 +441,9 @@ test('Options → Text input: menu, keyboard and mouse toggles, persisted (ADR 0
 });
 
 test('Options → Appearance: the bold orc in the preview follows "Bold brightens colours"', async ({ page }) => {
-  await openStart(page);
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="appearance"] .wc-label').click();
-  const orc = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-preview-text.wc-bold');
+  await openEscOptions(page);
+  await menuFrame(page).locator('.wc-mrow[data-key="appearance"] .wc-label').click();
+  const orc = menuFrame(page).locator('.wc-preview .wc-preview-text.wc-bold');
   await expect(orc).toHaveText('*an Orc*');
   await expect(orc.locator('xpath=..')).toHaveText(/│ \*an Orc\*, wielding a scimitar, is standing here\. *│/);
   const colourOf = () => orc.evaluate((el) => getComputedStyle(el).color);
@@ -478,10 +469,9 @@ test('Options → Appearance: the bold orc in the preview follows "Bold brighten
 
 test('Options → Appearance: the preview ends with Elrond in palette yellow and fits at 800 px', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
-  await openStart(page);
-  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="appearance"] .wc-label').click();
-  const lines = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-preview-text');
+  await openEscOptions(page);
+  await menuFrame(page).locator('.wc-mrow[data-key="appearance"] .wc-label').click();
+  const lines = menuFrame(page).locator('.wc-preview .wc-preview-text');
   const elrond = lines.last();
   await expect(elrond).toHaveText(/^ Elrond narrates 'The road goes ever on and on\.' *$/);
   const colourOf = () => elrond.evaluate((el) => getComputedStyle(el).color);
@@ -504,7 +494,7 @@ test('Options → Appearance: the preview ends with Elrond in palette yellow and
   );
   await expect.poll(colourOf).toBe('rgb(170, 187, 0)');
   // The box keeps its width and the whole box is on screen.
-  const box = page.locator('.wc-start .wc-frame:not([hidden]) .wc-preview .wc-line');
+  const box = menuFrame(page).locator('.wc-preview .wc-line');
   await expect(box.first()).toHaveText('┌' + '─'.repeat(52) + '┐');
   await expect(box.last()).toBeInViewport({ ratio: 1 });
   await page.evaluate(() => window.__wc!.settings.reset());

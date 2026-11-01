@@ -1,7 +1,6 @@
 // Stage 9 P3 (ADR 0020 "Map files and storage", "Replays"): Settings →
 // Mapper (in play, ADR 0107) imports a .mm2 and the running Map pane
-// reloads it; Options → Mapper on the start page goes back to the bundled
-// map; the
+// reloads it, and later goes back to the bundled map; the
 // log player uses the same map; an HTML replay embeds the map subset
 // around the rooms its chain visited and loads it from file://.
 import { NO_STATE } from './legacy-state';
@@ -19,7 +18,7 @@ const deflate = async (b: Uint8Array): Promise<Uint8Array> => new Uint8Array(def
 
 type ReplayWindow = { __wcReplay?: { host: { store: { update(p: object): void } } } };
 
-test('Settings → Mapper imports a map; the pane and the log player load it', async ({ page }) => {
+test('Settings → Mapper imports a map; the pane and the log player load it; Use bundled map goes back', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
@@ -67,13 +66,17 @@ test('Settings → Mapper imports a map; the pane and the log player load it', a
   await page.keyboard.press('Escape');
   await expect(page.locator('.wc-player')).toHaveCount(0);
 
-  // Use bundled map (from the start page's Options this time).
-  const start = page.locator('.wc-start .wc-frame:not([hidden])');
-  await start.locator('.wc-mrow[data-key="options"] .wc-label').click();
-  await start.locator('.wc-mrow[data-key="mapper"] .wc-label').click();
-  await expect(start.locator('.wc-mapper-info').first()).toHaveText(/Map\s+small\.mm2/);
-  await start.locator('.wc-mrow[data-key="bundled"] .wc-label').click();
-  await expect(start.locator('.wc-mapper-info').first()).toHaveText(/Map\s+arda\.mm2 \(bundled\)/);
+  // Use bundled map (back in play: the start page has no Options since
+  // stage 32; the TUI Mapper page, the phone's, is in tests/unit/chrome-mapper).
+  await page.goto('/?replay');
+  await expect(page.locator('.wc-cockpit')).toBeVisible();
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await page.locator('.wc-ck-tab[data-tab="mapper"]').click();
+  await expect(pop.locator('.wc-sp-mapfile')).toContainText('small.mm2 · 21 rooms');
+  await pop.locator('.wc-sp-bundled').click();
+  await expect(pop.locator('.wc-sp-mapnote')).toHaveText('Using the bundled map.');
+  await expect(pop.locator('.wc-sp-mapfile')).toHaveText('arda.mm2 (bundled)');
+  await expect(content).toHaveAttribute('data-map-rooms', '30074', { timeout: 20_000 });
   expect(await page.evaluate(async () => (await window.__wc!.shell.maps.current()).kind)).toBe('bundled');
   expect(errors).toEqual([]);
 });
