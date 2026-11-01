@@ -61,6 +61,7 @@ import { applyTheme } from '../theme/apply';
 import { DEFAULT_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
+import { kindTokens } from '../player/icons';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
 import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
@@ -539,6 +540,7 @@ export class PlayerHost {
     if (!store || this.closed) return;
     const s = store.get();
     applyTheme(s, this.el);
+    for (const [k, v] of Object.entries(kindTokens(s.appearance.bg))) this.el.style.setProperty(k, v);
     let a = s.appearance;
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;

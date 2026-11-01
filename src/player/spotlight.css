@@ -1,7 +1,9 @@
 /* The Spotlights card (src/player/spotlight-card.ts, stage 32c, ADR 0114):
  * the ghost look of the player chrome (player.css) at fixed px sizes.
  * Inside .wc-player, below the chrome (z 50), so the box's popups and the
- * marker tips stay on top; above the empty stage. */
+ * marker tips stay on top; above the empty stage. Colours: the player's
+ * menu surface tokens (`--sf-*`, ADR 0116); the kind colours are the
+ * player's `--kind-*` (icons.ts, fitted to the panel). */
 
 .wc-spot-card {
   position: absolute;
@@ -9,11 +11,12 @@
   z-index: 49;
   box-sizing: border-box;
   width: 330px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--sf-border);
   border-radius: 6px;
-  background: rgba(10, 10, 10, 0.95);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  color: #c0c0c0;
+  background: var(--sf-glass);
+  box-shadow: var(--sf-shadow);
+  color: var(--sf-fg);
+  color-scheme: var(--sf-scheme);
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: normal;
@@ -42,7 +45,7 @@
 
 .wc-spot-card button:focus-visible,
 .wc-spot-card select:focus-visible {
-  outline: 1px solid #6a6a6a;
+  outline: 1px solid var(--sf-focus);
 }
 
 .wc-sc-head {
@@ -61,12 +64,12 @@
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  color: #767676;
+  color: var(--sf-icon);
 }
 
 .wc-spot-card .wc-sc-ib:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #ececec;
+  background: var(--sf-hover);
+  color: var(--sf-hot);
 }
 
 .wc-spot-card .wc-sc-ib:disabled {
@@ -76,12 +79,12 @@
 
 .wc-spot-card .wc-sc-ib:disabled:hover {
   background: none;
-  color: #767676;
+  color: var(--sf-icon);
 }
 
 .wc-sc-count {
   min-width: 112px;
-  color: #8a8a8a;
+  color: var(--sf-dim);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-align: center;
@@ -108,7 +111,7 @@
   display: -webkit-box;
   margin-top: 6px;
   overflow: hidden;
-  color: #ececec;
+  color: var(--sf-hot);
   font-size: 16px;
   font-weight: bold;
   line-height: 21px;
@@ -120,7 +123,7 @@
 
 .wc-sc-meta {
   margin-top: 4px;
-  color: #5e5e5e;
+  color: var(--sf-faint);
   font-size: 11px;
 }
 
@@ -130,7 +133,7 @@
   height: 2px;
   margin: 0 14px 12px;
   border-radius: 1px;
-  background: #1a1a1a;
+  background: var(--sf-line);
 }
 
 .wc-sc-cd i {
@@ -138,18 +141,18 @@
   top: 0;
   bottom: 0;
   border-radius: 1px;
-  background: #8a8a8a;
+  background: var(--sf-dim);
 }
 
 .wc-sc-empty {
   padding: 6px 14px 14px;
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
 }
 
 .wc-sc-empty small {
   display: block;
   margin-top: 4px;
-  color: #5e5e5e;
+  color: var(--sf-faint);
   font-size: 11px;
 }
 
@@ -157,7 +160,7 @@
 
 .wc-sc-filter {
   padding: 4px 0;
-  border-top: 1px solid #1e1e1e;
+  border-top: 1px solid var(--sf-line);
 }
 
 .wc-spot-card .wc-sc-fold,
@@ -177,11 +180,11 @@
 }
 
 .wc-sc-fl {
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
 }
 
 .wc-sc-fold:hover .wc-sc-fl {
-  color: #d8d8d8;
+  color: var(--sf-hot);
 }
 
 .wc-sc-grow {
@@ -191,7 +194,7 @@
 .wc-sc-sum {
   overflow: hidden;
   max-width: 60%;
-  color: #d0d0d0;
+  color: var(--sf-fg);
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -201,7 +204,7 @@
   flex: none;
   width: 12px;
   height: 12px;
-  color: #686868;
+  color: var(--sf-icon);
   transition: transform 0.12s;
 }
 
@@ -212,7 +215,7 @@
 .wc-sc-fb {
   margin: 0 12px 4px 18px;
   padding: 0 0 6px 12px;
-  border-left: 1px solid #222;
+  border-left: 1px solid var(--sf-line);
 }
 
 .wc-spot-card .wc-sc-row {
@@ -228,13 +231,13 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
   font-size: 12px;
 }
 
 .wc-sc-row:hover .wc-sc-rl,
 .wc-sc-row.is-on .wc-sc-rl {
-  color: #d0d0d0;
+  color: var(--sf-fg);
 }
 
 .wc-sc-rl .wc-pc-ki {
@@ -249,9 +252,9 @@
   box-sizing: border-box;
   width: 26px;
   height: 14px;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--sf-border);
   border-radius: 7px;
-  background: #111;
+  background: var(--sf-field);
 }
 
 .wc-spot-card .wc-pc-tg i {
@@ -261,17 +264,17 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4a4a4a;
+  background: var(--sf-off);
 }
 
 .wc-spot-card .wc-pc-tg.is-on {
-  border-color: #5a5a5a;
-  background: #3a3a3a;
+  border-color: var(--sf-on-track);
+  background: var(--sf-on-track);
 }
 
 .wc-spot-card .wc-pc-tg.is-on i {
   left: 14px;
-  background: #ececec;
+  background: var(--sf-on-knob);
 }
 
 .wc-sc-chars {
@@ -287,7 +290,7 @@
   gap: 8px;
   width: 100%;
   height: 24px;
-  color: #c0c0c0;
+  color: var(--sf-fg);
   font-size: 12px;
 }
 
@@ -297,13 +300,13 @@
   box-sizing: border-box;
   width: 12px;
   height: 12px;
-  border: 1px solid #4a4a4a;
+  border: 1px solid var(--sf-off);
   border-radius: 2px;
 }
 
 .wc-sc-cb.is-on i {
-  border-color: #d8d8d8;
-  background: #d8d8d8;
+  border-color: var(--sf-fg);
+  background: var(--sf-fg);
 }
 
 .wc-sc-cb.is-on i::after {
@@ -313,7 +316,7 @@
   top: 0;
   width: 3px;
   height: 7px;
-  border: solid #000;
+  border: solid var(--sf-bg);
   border-width: 0 1.6px 1.6px 0;
   transform: rotate(45deg);
 }
@@ -326,7 +329,7 @@
 .wc-sc-note {
   display: block;
   padding: 2px 0 4px;
-  color: #5e5e5e;
+  color: var(--sf-faint);
   font-size: 11px;
 }
 
@@ -338,10 +341,10 @@
 .wc-sc-sel {
   height: 24px;
   padding: 0 26px 0 8px;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
-  background: #0f0f0f;
-  color: #d0d0d0;
+  background: var(--sf-field);
+  color: var(--sf-fg);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -351,12 +354,12 @@
 }
 
 .wc-sc-sel:hover {
-  border-color: #5a5a5a;
+  border-color: var(--sf-border-hot);
 }
 
 .wc-sc-sel option {
-  background: #0f0f0f;
-  color: #d0d0d0;
+  background: var(--sf-bg);
+  color: var(--sf-fg);
 }
 
 .wc-spot-card .wc-sc-selic {
@@ -365,7 +368,7 @@
   right: 7px;
   width: 11px;
   height: 11px;
-  color: #686868;
+  color: var(--sf-icon);
   transform: rotate(90deg);
   pointer-events: none;
 }
@@ -388,19 +391,27 @@
   display: flex;
   justify-content: center;
   height: var(--cell-h);
-  color: #646464;
+  color: var(--sf-icon);
   white-space: pre;
 }
 
 .wc-spot-empty-head > span {
   padding: 0 var(--cell-w);
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.82);
+  background: var(--term-bg);
 }
 
 .wc-spot-empty-head b {
-  color: #c8c8c8;
+  color: var(--sf-fg);
   font-weight: normal;
+}
+
+.wc-player[data-light] .wc-spot-empty-head {
+  color: var(--sf-dim);
+}
+
+.wc-player[data-light] .wc-spot-empty-head b {
+  color: var(--sf-hot);
 }
 
 .wc-spot-empty-back {
@@ -408,5 +419,5 @@
 }
 
 .wc-spot-empty-back:hover {
-  color: #ececec;
+  color: var(--sf-hot);
 }

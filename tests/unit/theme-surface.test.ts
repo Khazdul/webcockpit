@@ -5,6 +5,7 @@ import { rootTokens } from '../../src/theme/apply';
 import { contrast, luminance } from '../../src/theme/color';
 import { migrateSettings } from '../../src/settings';
 import { TERMINAL_BG_PRESETS } from '../../src/theme/presets';
+import { KIND_COLOR, KIND_MIN_CONTRAST, kindTokens } from '../../src/player/icons';
 import {
   SURFACE_MIN_CONTRAST,
   surfaceColors,
@@ -72,5 +73,18 @@ describe('surface tokens', () => {
     expect(t['--sf-bg']).toBe(surfaceColors(PAPER).bg);
     expect(t['--sf-scheme']).toBe('light');
     expect(rootTokens(migrateSettings({}))['--sf-bg']).toBe('#0a0a0a');
+  });
+});
+
+describe('kind colours on the surface', () => {
+  it('keep their colour on black and stay visible on every panel', () => {
+    expect(kindTokens('#000000')['--kind-achievement']).toBe(KIND_COLOR.achievement);
+    for (const { name, hex } of TERMINAL_BG_PRESETS) {
+      const t = kindTokens(hex);
+      const bg = surfaceColors(hex).bg;
+      for (const k of Object.keys(KIND_COLOR)) {
+        expect(contrast(t[`--kind-${k}`]!, bg), `${name} ${k}`).toBeGreaterThanOrEqual(KIND_MIN_CONTRAST - 0.01);
+      }
+    }
   });
 });

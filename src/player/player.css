@@ -1,7 +1,10 @@
 /* The log player (src/app/player-host.ts, src/player/view.ts; Inv §7.5).
  * The player element carries its own theme and cell custom properties
  * (the recorded VIEW, the fitted font size), so everything inside is
- * re-declared from them rather than inherited from <body>. */
+ * re-declared from them rather than inherited from <body>. The chrome's
+ * colours are the menu surface tokens (`--sf-*`, ADR 0116) of that theme:
+ * a light card on Paper, a tinted panel on the dark themes, following the
+ * viewer's chosen background, not the app's. */
 
 .wc-player {
   position: relative;
@@ -32,11 +35,11 @@
 }
 
 .wc-player .wc-player-cursor {
-  background: #303030;
+  background: var(--sf-raised);
 }
 
 /* A light viewer theme (Paper, ADR 0021): the cursor band is taken
- * toward black instead. The chrome is dark glass on every background. */
+ * toward black instead. */
 .wc-player[data-light] .wc-player-cursor {
   background: var(--c-line-hl);
 }
@@ -51,15 +54,18 @@
  * Stage 32c (ADR 0114): the ghost look of the in-game popups
  * (src/menubar/menubar.css, src/chrome/popups/popups.css), at fixed px
  * sizes (the approved A2 mockup), so the viewer's font size choice moves
- * the game text, not the controls. */
+ * the game text, not the controls. Colours: the player's `--sf-*`. */
 
 .wc-player-chrome {
-  --pc-fg: #c0c0c0;
-  --pc-ic: #767676;
-  --pc-hot: #ececec;
-  --pc-hover-bg: rgba(255, 255, 255, 0.07);
-  --pc-on-bg: rgba(255, 255, 255, 0.09);
-  --pc-line: #262626;
+  --pc-fg: var(--sf-fg);
+  --pc-ic: var(--sf-icon);
+  --pc-hot: var(--sf-hot);
+  --pc-hover-bg: var(--sf-hover);
+  --pc-on-bg: var(--sf-raised);
+  --pc-line: var(--sf-border);
+  /* A control's own border (the play button): a step above the panel's. */
+  --pc-ctl-bd: color-mix(in srgb, var(--sf-border) 70%, var(--sf-border-hot));
+  /* The playhead's gold, kept on the dark side, fitted on a light one. */
   --pc-gold: #ffb000;
   position: absolute;
   inset: 0;
@@ -71,6 +77,10 @@
   transition: opacity 0.2s linear;
 }
 
+.wc-player[data-light] .wc-player-chrome {
+  --pc-gold: var(--sf-gold);
+}
+
 .wc-player-chrome[data-hidden] {
   opacity: 0;
 }
@@ -79,18 +89,19 @@
   pointer-events: none !important;
 }
 
-/* Dark glass: the control box, its popups, the marker tip, the time hint
- * (and the Spotlights card, spotlight.css). */
+/* Glass: the control box, its popups, the marker tip, the time hint (and
+ * the Spotlights card, spotlight.css). */
 .wc-player-box,
 .wc-pc-pop,
 .wc-player-tip,
 .wc-player-hint {
   box-sizing: border-box;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--sf-border);
   border-radius: 6px;
-  background: rgba(10, 10, 10, 0.95);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--sf-glass);
+  box-shadow: var(--sf-shadow);
   color: var(--pc-fg);
+  color-scheme: var(--sf-scheme);
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: normal;
@@ -105,7 +116,7 @@
 }
 
 .wc-player-chrome button:focus-visible {
-  outline: 1px solid #6a6a6a;
+  outline: 1px solid var(--sf-focus);
 }
 
 .wc-pc-pop[data-pointer] :focus-visible {
@@ -120,32 +131,26 @@
   height: var(--cell-h);
   display: flex;
   justify-content: space-between;
-  color: #646464;
+  color: var(--sf-icon);
   overflow: hidden;
 }
 
-/* Opaque: the game text's first line runs under the header. */
+/* Opaque: the game text's first line runs under the header. On the
+ * canvas colour, in the surface's greys. */
 .wc-player-head-left,
 .wc-player-hints {
   padding: 0 var(--cell-w);
   border-radius: 3px;
-  background: #050505;
-}
-
-/* A light viewer theme (Paper): the header on the canvas colour, in dark
- * greys (the box and its popups stay dark glass). */
-.wc-player[data-light] .wc-player-head-left,
-.wc-player[data-light] .wc-player-hints {
   background: var(--term-bg);
-  color: #6a6a6a;
 }
 
-.wc-player[data-light] .wc-player-name {
-  color: #1a1a1a;
+/* A light viewer theme (Paper): one step darker, on the page. */
+.wc-player[data-light] .wc-player-header {
+  color: var(--sf-dim);
 }
 
 .wc-player[data-light] .wc-player-sep {
-  color: #a8a090;
+  color: var(--sf-border-hot);
 }
 
 .wc-player-head-left[hidden],
@@ -165,11 +170,15 @@
 }
 
 .wc-player-name {
-  color: #c8c8c8;
+  color: var(--sf-fg);
+}
+
+.wc-player[data-light] .wc-player-name {
+  color: var(--sf-hot);
 }
 
 .wc-player-sep {
-  color: #3e3e3e;
+  color: var(--sf-off);
 }
 
 .wc-player-back,
@@ -216,11 +225,11 @@
   left: 4px;
   width: 4px;
   border-radius: 2px;
-  background: #1c1c1c;
+  background: var(--sf-line);
 }
 
 .wc-player-rail:hover .wc-player-rail-track {
-  background: #242424;
+  background: var(--sf-border);
 }
 
 .wc-player-rail-done {
@@ -229,7 +238,7 @@
   right: 0;
   top: 0;
   border-radius: 2px;
-  background: #4e4e4e;
+  background: var(--sf-border-hot);
 }
 
 .wc-player-rail-head {
@@ -240,7 +249,7 @@
   margin-top: -1px;
   border-radius: 1px;
   background: var(--pc-gold);
-  box-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--pc-gold) 45%, transparent);
 }
 
 .wc-player-marks {
@@ -258,14 +267,14 @@
   gap: 1px;
   padding: 2px 3px;
   border-radius: 3px;
-  background: rgba(0, 0, 0, 0.6);
+  background: color-mix(in srgb, var(--sf-bg) 60%, transparent);
   transform: translateY(-50%);
   pointer-events: auto;
   cursor: pointer;
 }
 
 .wc-player-mark:hover {
-  background: #1e1e1e;
+  background: var(--sf-raised);
 }
 
 .wc-player-mark-ic,
@@ -297,7 +306,7 @@
   max-width: calc(100% - 80px);
   padding: 4px 8px;
   border-radius: 4px;
-  color: #d0d0d0;
+  color: var(--sf-fg);
   font-size: 12px;
 }
 
@@ -384,13 +393,13 @@
   width: 34px;
   height: 34px;
   margin: 0 2px;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--pc-ctl-bd);
   border-radius: 50%;
   color: var(--pc-hot);
 }
 
 .wc-player-chrome .wc-pc-play:hover {
-  border-color: #707070;
+  border-color: var(--sf-border-hot);
   background: var(--pc-hover-bg);
 }
 
@@ -430,19 +439,19 @@
 
 .wc-player-speed {
   min-width: 38px;
-  color: #d0d0d0;
+  color: var(--sf-fg);
   font-size: 12px;
   text-align: center;
 }
 
 .wc-player-clock {
   margin-left: 10px;
-  color: #6e6e6e;
+  color: var(--sf-icon);
   font-size: 12px;
 }
 
 .wc-player-clock b {
-  color: #d0d0d0;
+  color: var(--sf-fg);
   font-weight: normal;
 }
 
@@ -524,7 +533,7 @@
 }
 
 .wc-pc-pop-title {
-  color: #8a8a8a;
+  color: var(--sf-dim);
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -543,7 +552,7 @@
   width: 11px;
   height: 11px;
   fill: none;
-  stroke: #686868;
+  stroke: var(--sf-icon);
   stroke-width: 1.8;
   stroke-linecap: round;
 }
@@ -578,19 +587,19 @@
 }
 
 .wc-player-chrome .wc-pc-prow:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--sf-hover);
 }
 
 .wc-pc-plabel {
   overflow: hidden;
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .wc-pc-prow:hover .wc-pc-plabel,
 .wc-pc-prow.is-on .wc-pc-plabel {
-  color: #d0d0d0;
+  color: var(--sf-fg);
 }
 
 /* The toggle switch of the in-game popups. */
@@ -600,9 +609,9 @@
   box-sizing: border-box;
   width: 26px;
   height: 14px;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--sf-border);
   border-radius: 7px;
-  background: #111;
+  background: var(--sf-field);
 }
 
 .wc-pc-tg i {
@@ -612,41 +621,41 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4a4a4a;
+  background: var(--sf-off);
 }
 
 .is-on > .wc-pc-tg,
 .wc-pc-tg.is-on {
-  border-color: #5a5a5a;
-  background: #3a3a3a;
+  border-color: var(--sf-on-track);
+  background: var(--sf-on-track);
 }
 
 .is-on > .wc-pc-tg i,
 .wc-pc-tg.is-on i {
   left: 14px;
-  background: var(--pc-hot);
+  background: var(--sf-on-knob);
 }
 
 .wc-pc-pop-foot {
   display: flex;
   justify-content: flex-end;
   padding: 8px 12px 10px;
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--sf-line);
 }
 
 .wc-player-chrome .wc-pc-btn {
   height: 22px;
   padding: 0 9px;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
-  color: #a8a8a8;
+  color: var(--sf-dim);
   font-size: 12px;
   line-height: 20px;
 }
 
 .wc-player-chrome .wc-pc-btn:hover {
-  border-color: #5a5a5a;
-  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--sf-border-hot);
+  background: var(--sf-hover);
   color: var(--pc-hot);
 }
 
@@ -656,14 +665,14 @@
 }
 
 .wc-player-chrome .wc-pc-btn.is-off:hover {
-  border-color: #2e2e2e;
+  border-color: var(--sf-border);
   background: none;
-  color: #a8a8a8;
+  color: var(--sf-dim);
 }
 
 .wc-pc-sub {
   padding: 8px 12px 4px;
-  color: #585858;
+  color: var(--sf-faint);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -673,15 +682,15 @@
   display: flex;
   margin: 0 12px 8px;
   overflow: hidden;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
 }
 
 .wc-player-chrome .wc-pc-sg {
   flex: 1;
   height: 24px;
-  border-left: 1px solid #2e2e2e;
-  color: #7a7a7a;
+  border-left: 1px solid var(--sf-border);
+  color: var(--sf-dim);
   font-size: 12px;
   line-height: 24px;
   text-align: center;
@@ -692,11 +701,12 @@
 }
 
 .wc-player-chrome .wc-pc-sg:hover {
-  color: #d0d0d0;
+  background: var(--sf-hover);
+  color: var(--sf-fg);
 }
 
 .wc-player-chrome .wc-pc-sg.is-on {
-  background: #2a2a2a;
+  background: var(--sf-raised);
   color: var(--pc-hot);
 }
 
@@ -716,17 +726,17 @@
   overflow: hidden;
   border: 1px solid var(--pc-line);
   border-radius: 3px;
-  color: #8a8a8a;
+  color: var(--sf-dim);
   font-size: 12px;
 }
 
 .wc-player-chrome .wc-pc-sw:hover {
-  border-color: #5a5a5a;
-  color: #d0d0d0;
+  border-color: var(--sf-border-hot);
+  color: var(--sf-fg);
 }
 
 .wc-player-chrome .wc-pc-sw.is-on {
-  border-color: #a0a0a0;
+  border-color: var(--sf-dim);
   color: var(--pc-hot);
 }
 
@@ -735,6 +745,6 @@
   box-sizing: border-box;
   width: 12px;
   height: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid color-mix(in srgb, var(--sf-hot) 22%, transparent);
   border-radius: 2px;
 }

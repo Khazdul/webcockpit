@@ -3,9 +3,13 @@
 // strokes, lit on hover; src/menubar/icons.ts). The paths are the approved
 // A2 mockup's (notes/research/player-mockups/gen.mjs). The kind icons mark
 // the four spotlight kinds on the rail, in the Spotlights card and in its
-// filter, each in its own colour.
+// filter, each in its own colour: `--kind-<kind>` on the player root
+// (`kindTokens`), the colour fitted to the player's menu surface (ADR 0116)
+// so a gold star stays visible on Paper's light card.
 
 import { ICON as BAR_ICON, strokeIcon } from '../menubar/icons';
+import { fitContrast } from '../theme/color';
+import { surfaceColors } from '../theme/surface';
 import type { MarkLetter } from './strip';
 
 export const PLAYER_ICON = {
@@ -46,6 +50,27 @@ export const KIND_COLOR: Readonly<Record<KindIcon, string>> = {
   level: '#7fbf7f',
 };
 
+/** Least contrast of a kind colour against the surface panel. */
+export const KIND_MIN_CONTRAST = 3;
+
+/** A kind's colour as CSS: the player root's fitted token, else the colour itself. */
+export function kindColor(kind: KindIcon): string {
+  return `var(--kind-${kind}, ${KIND_COLOR[kind]})`;
+}
+
+/**
+ * The `--kind-<kind>` tokens for a terminal background: each kind colour,
+ * unchanged where it already stands out on the surface panel, else taken
+ * toward the panel's ink until it does (the light side: Paper).
+ */
+export function kindTokens(termBg: string): Record<string, string> {
+  const s = surfaceColors(termBg);
+  const toward = s.scheme === 'light' ? '#000000' : '#ffffff';
+  const t: Record<string, string> = {};
+  for (const [k, c] of Object.entries(KIND_COLOR)) t[`--kind-${k}`] = fitContrast(c, s.bg, KIND_MIN_CONTRAST, toward);
+  return t;
+}
+
 /** The kind of a marker letter (K/D/A/L). */
 export const LETTER_KIND: Readonly<Record<MarkLetter, KindIcon>> = {
   A: 'achievement',
@@ -62,7 +87,7 @@ export function playerIcon(doc: Document, name: PlayerIconName, cls = 'wc-pc-ic'
 /** A kind icon, stroked in its colour. */
 export function kindIcon(doc: Document, kind: KindIcon, cls = 'wc-pc-ki'): SVGSVGElement {
   const svg = strokeIcon(doc, KIND_PATH[kind], cls).svg;
-  svg.style.stroke = KIND_COLOR[kind];
+  svg.style.stroke = kindColor(kind);
   svg.dataset.kind = kind;
   return svg;
 }

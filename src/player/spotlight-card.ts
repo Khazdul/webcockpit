@@ -41,7 +41,7 @@ import {
   characterRows,
 } from '../share/spotlights';
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
-import { type KindIcon, KIND_COLOR, kindIcon, playerIcon } from './icons';
+import { type KindIcon, kindColor, kindIcon, playerIcon } from './icons';
 import { RAIL_W } from './strip';
 import { fmtDate } from './spotlight-reel';
 
@@ -181,7 +181,7 @@ export class SpotlightCard {
       if (s) {
         const kind = s.spot.kind as KindIcon;
         this.kind.replaceChildren(kindIcon(this.doc, kind), KIND_LABEL[s.spot.kind]);
-        this.kind.style.color = KIND_COLOR[kind];
+        this.kind.style.color = kindColor(kind);
         this.kind.dataset.kind = kind;
         this.label.textContent = s.spot.label;
         this.label.title = s.spot.label;
