@@ -1,6 +1,6 @@
 # Stage 32 — Players and the start menu
 
-Status: **Owner testing** (2026-11-01). Owner brief 2026-11-01
+Status: **Done** (2026-11-01; approved by the owner on the live site, 0.1.78). Owner brief 2026-11-01
 (below), after testing run logs and Spotlights.
 
 ## Goal
@@ -135,7 +135,7 @@ Decisions *(Claude)*, recorded in a new ADR (amending ADRs 0018, 0021,
   passed; e2e 671/671. Known cosmetic: on a phone the fullscreen corner
   button touches the card's corner; the header chip's corner shows a
   pixel of the first game line.
-- [ ] 32c: test guide, owner test.
+- [x] 32c: test guide, owner test: approved on 0.1.78 (2026-11-01).
 
 ## Test guide 32a (start menu)
 
@@ -178,3 +178,8 @@ Firefox first, then a phone if at hand.
 
 Feedback wanted: do the icons and colours read well? Is the box the
 right size? Anything you miss from the old player?
+
+## Owner feedback
+
+- 2026-11-01: tested 32a and 32c on the live site (0.1.78): "looks good".
+  Stage 32 done.
