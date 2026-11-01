@@ -35,7 +35,7 @@
 // itself 8-bit, and the whole glow stepped with it.)
 
 import type { ThemeInfo } from '../palette';
-import { type Ctx, type Cv, FPS_FAST, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
+import { type Ctx, type Cv, FPS_SMOOTH, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
 import { bandK } from './band';
 import { sunDrift, sunMid } from './beams';
 
@@ -43,12 +43,13 @@ import { sunDrift, sunMid } from './beams';
  * Frames per second while birds fly or an insect darts. It was 10: a bird
  * moved 2–5 px in whole-pixel steps every 100 ms and its 6 wing frames were
  * sampled 3–4 times a flap, so a flock crossed in visible jerks (stage 31b,
- * ADR 0113). 30 with sub-pixel places moves a bird 0.5–1.5 px a frame.
- * FPS_SMOOTH would be smoother still, but while a flock flies the sky is
+ * ADR 0113). At the screen's rate (FPS_SMOOTH, as the snow) and sub-pixel
+ * places a bird moves 0.25–0.75 px a frame. While a flock flies the sky is
  * drawn whole every frame: browser CPU ~200 ms/s at 10, ~320–450 at 30,
- * ~600–700 at 60 (Chromium–Firefox; an owner decision, ADR 0113).
+ * ~600–700 at 60 (Chromium–Firefox); the owner chose 60 (2026-11-01,
+ * ADR 0113 addendum).
  */
-export const BIRD_FPS = FPS_FAST;
+export const BIRD_FPS = FPS_SMOOTH;
 /** Seconds between flocks and between insects: [min, max]. */
 const BIRD_GAP: [number, number] = [90, 220];
 const BUG_GAP: [number, number] = [160, 380];

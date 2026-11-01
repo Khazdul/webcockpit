@@ -104,3 +104,9 @@ flocks and an insect on a clear day) and `#weather demo rain` (clouds,
 rain, a downpour) play one effect alone, each under a minute, with the
 same caption box and hand-back as the other demos (`demo-script.ts`
 `SNOW_STEPS`, `BIRDS_STEPS`, `RAIN_STEPS`).
+
+## Addendum 2026-11-01: birds at the screen's rate
+
+The owner chose 60 for birds and insects (`BIRD_FPS = FPS_SMOOTH`),
+like the snow, accepting the higher CPU while a flock is on screen
+(measured ~600–700 ms/s of browser CPU against ~320–450 at 30).
