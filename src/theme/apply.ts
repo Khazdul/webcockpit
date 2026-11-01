@@ -11,6 +11,9 @@
 //                                           input line (ADR 0034, 0035)
 //   --bold-0..7 --bold-fg --bold-fg-def     bold colours (ADR 0060)
 //   --banner-* --star-* --ui-*              banner and UI-message colours
+//   --sf-*                                  menu surfaces: popups, tooltips,
+//                                           player chrome (ADR 0116,
+//                                           src/theme/surface.ts)
 //   --st-*                                  Statistics / History data colours
 //                                           (all three light-aware as --c-*)
 //   --pane-bg-<tint> --pane-border-<tint>   every tint for swatches
@@ -54,6 +57,7 @@ import {
   takesDarkInk,
 } from './color';
 import { applyAdaptive } from './adaptive';
+import { surfaceTokens } from './surface';
 import { fontInfo } from './fonts';
 import {
   BANNER_COLORS,
@@ -214,6 +218,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
   for (const [k, v] of Object.entries(c.banner)) t[`--${k}`] = v;
   for (const [k, v] of Object.entries(c.messages)) t[`--ui-${k}`] = v;
   for (const [k, v] of Object.entries(c.stats)) t[`--st-${k}`] = v;
+  Object.assign(t, surfaceTokens(a.bg));
   for (const c of PANE_COLORS) {
     const name = c === 'black' ? 'none' : c;
     t[`--pane-bg-${name}`] = paneEffectiveBg(c, a.bg);
