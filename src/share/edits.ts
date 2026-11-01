@@ -44,6 +44,7 @@ export interface ExportDoc {
   schema: 1;
   /** '' = the default title. */
   title: string;
+  /** The format last exported (ADR 0115 §4); default 'html'. */
   format: ExportFormat;
   excludes: ExcludeRange[];
   comments: ExportComment[];
@@ -214,6 +215,87 @@ export function excludedCount(doc: ExportDoc, keys: readonly number[]): number {
 // returns the input itself.
 
 /**
+ * EXCLUDE (ADR 0115 §3): excludes the half-open range `[fromUs, toUs)` of
+ * entry log µs (`toUs` null = to the end of the log), merged with the ranges
+ * already there. A no-op when it is already all excluded or empty.
+ */
+export function excludeRange(doc: ExportDoc, fromUs: number, toUs: number | null): ExportDoc {
+  if (toUs !== null && toUs <= fromUs) return doc;
+  const excludes = mergeRanges([...doc.excludes, [fromUs, toUs]]);
+  return sameRanges(excludes, doc.excludes) ? doc : { ...doc, excludes };
+}
+
+/**
+ * INCLUDE (ADR 0115 §3): takes the half-open range `[fromUs, toUs)` out of
+ * every exclusion (`toUs` null = to the end of the log); a range that
+ * straddles it is split. `keys` (the entries' log µs, ascending) lets a
+ * bounded piece that holds no entry go too. A no-op when nothing in it was
+ * excluded.
+ */
+export function includeRange(
+  doc: ExportDoc,
+  fromUs: number,
+  toUs: number | null,
+  keys?: readonly number[],
+): ExportDoc {
+  if (toUs !== null && toUs <= fromUs) return doc;
+  const end = (v: number | null): number => v ?? Infinity;
+  const out: ExcludeRange[] = [];
+  for (const [a, b] of doc.excludes) {
+    if (end(b) <= fromUs || (toUs !== null && a >= toUs)) {
+      out.push([a, b]);
+      continue;
+    }
+    if (a < fromUs) out.push([a, fromUs]);
+    if (toUs !== null && end(b) > toUs) out.push([toUs, b]);
+  }
+  const kept = keys ? out.filter((r) => r[1] === null || holdsKey(keys, r[0], r[1])) : out;
+  return sameRanges(kept, doc.excludes) ? doc : { ...doc, excludes: kept };
+}
+
+/** Whether some key (ascending) lies in `[from, to)`. */
+function holdsKey(keys: readonly number[], from: number, to: number): boolean {
+  let lo = 0;
+  let hi = keys.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (keys[mid]! < from) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo < keys.length && keys[lo]! < to;
+}
+
+function sameRanges(a: readonly ExcludeRange[], b: readonly ExcludeRange[]): boolean {
+  return a.length === b.length && a.every((r, i) => r[0] === b[i]![0] && r[1] === b[i]![1]);
+}
+
+/**
+ * How many of the entries `lo`..`hi` (indices into `keys`, the entries' log
+ * µs ascending, inclusive) are excluded. Binary searches per range, so a
+ * selection over a 5 h log costs nothing.
+ */
+export function excludedBetween(doc: ExportDoc, keys: readonly number[], lo: number, hi: number): number {
+  if (hi < lo) return 0;
+  const at = (us: number): number => {
+    let a = 0;
+    let b = keys.length;
+    while (a < b) {
+      const mid = (a + b) >> 1;
+      if (keys[mid]! < us) a = mid + 1;
+      else b = mid;
+    }
+    return a;
+  };
+  let n = 0;
+  for (const [from, to] of doc.excludes) {
+    const first = Math.max(lo, at(from));
+    const last = Math.min(hi, (to === null ? keys.length : at(to)) - 1);
+    if (last >= first) n += last - first + 1;
+  }
+  return n;
+}
+
+/**
  * EXCLUDE FROM HERE (Inv §7.7): opens a range at `us` that runs to the end
  * of the next range (merging with it), or to the end of the log. A no-op on
  * an excluded entry.
@@ -280,6 +362,11 @@ export function deleteComment(doc: ExportDoc, index: number): ExportDoc {
 export function setTitle(doc: ExportDoc, title: string): ExportDoc {
   const t = title.replace(/\s+/g, ' ').trim().slice(0, 200);
   return t === doc.title ? doc : { ...doc, title: t };
+}
+
+/** The format last exported (ADR 0115 §4): the panel marks its button, the title shows its extension. */
+export function setFormat(doc: ExportDoc, format: ExportFormat): ExportDoc {
+  return doc.format === format ? doc : { ...doc, format };
 }
 
 export function toggleFormat(doc: ExportDoc): ExportDoc {

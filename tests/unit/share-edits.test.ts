@@ -11,16 +11,17 @@ import {
   defaultTitle,
   deleteComment,
   editComment,
-  excludeFrom,
+  excludeRange,
+  excludedBetween,
   excludedCount,
   exportFileName,
   isExcluded,
   mergeRanges,
   normalizeExportDoc,
   sanitizeFileName,
+  includeRange,
+  setFormat,
   setTitle,
-  stopExcluding,
-  toggleFormat,
 } from '../../src/share/edits';
 
 const d0 = (): ExportDoc => defaultExportDoc('Rasta/2026-09-26T21-00-00');
@@ -40,8 +41,10 @@ describe('export doc defaults and names', () => {
     expect(sanitizeFileName('..hidden')).toBe('-hidden');
     expect(sanitizeFileName('   ')).toBe('mume');
     expect(setTitle(d0(), '  a   b ').title).toBe('a b');
-    expect(toggleFormat(d0()).format).toBe('text');
-    expect(toggleFormat(toggleFormat(d0())).format).toBe('html');
+    expect(setFormat(d0(), 'text').format).toBe('text');
+    expect(setFormat(d0(), 'html')).toEqual(d0());
+    const t = setFormat(d0(), 'text');
+    expect(setFormat(t, 'text')).toBe(t);
   });
 
   it('normalises stored data', () => {
@@ -70,31 +73,84 @@ describe('export doc defaults and names', () => {
 });
 
 describe('exclusions', () => {
-  it('excludes from here to the end, or to the end of the next range (merging)', () => {
-    let d = excludeFrom(d0(), 50);
-    expect(d.excludes).toEqual([[50, null]]);
-    d = excludeFrom(d, 20);
-    expect(d.excludes).toEqual([[20, null]]);
-    expect(excludeFrom(d, 30)).toBe(d); // already excluded: no-op
-    let e = { ...d0(), excludes: [[40, 60]] as ExportDoc['excludes'] };
-    e = excludeFrom(e, 20);
-    expect(e.excludes).toEqual([[20, 60]]);
-    expect(excludedCount(e, KEYS)).toBe(4);
-    expect(isExcluded(e, 60)).toBe(false);
-    expect(isExcluded(e, 20)).toBe(true);
+  const ex = (r: ExportDoc['excludes']): ExportDoc => ({ ...d0(), excludes: r });
+
+  it('excludes a range, merging with touching and overlapping ranges', () => {
+    let d = excludeRange(d0(), 30, 50);
+    expect(d.excludes).toEqual([[30, 50]]);
+    d = excludeRange(d, 50, 60);
+    expect(d.excludes).toEqual([[30, 60]]);
+    d = excludeRange(d, 10, 20);
+    expect(d.excludes).toEqual([
+      [10, 20],
+      [30, 60],
+    ]);
+    d = excludeRange(d, 15, 40);
+    expect(d.excludes).toEqual([[10, 60]]);
+    expect(excludeRange(d, 20, 50)).toBe(d); // already excluded: no-op
+    expect(excludeRange(d, 70, 70)).toBe(d); // empty: no-op
+    // To the end of the log.
+    d = excludeRange(d, 70, null);
+    expect(d.excludes).toEqual([
+      [10, 60],
+      [70, null],
+    ]);
+    expect(excludeRange(d, 40, null).excludes).toEqual([[10, null]]);
+    expect(excludedCount(d, KEYS)).toBe(6);
+    expect(isExcluded(d, 60)).toBe(false);
+    expect(d0().excludes).toEqual([]); // ops never mutate
   });
 
-  it('stops excluding: the range ends above the cursor; on its first line it goes', () => {
-    const d = { ...d0(), excludes: [[20, 60]] as ExportDoc['excludes'] };
-    expect(stopExcluding(d, 40).excludes).toEqual([[20, 40]]);
-    expect(stopExcluding(d, 20).excludes).toEqual([]);
-    expect(stopExcluding(d, 70)).toBe(d);
-    // A range whose start is not an entry: with the keys, the first entry in it removes it.
-    const e = { ...d0(), excludes: [[15, null]] as ExportDoc['excludes'] };
-    expect(stopExcluding(e, 20, KEYS).excludes).toEqual([]);
-    expect(stopExcluding(e, 20).excludes).toEqual([[15, 20]]);
-    expect(stopExcluding(e, 40, KEYS).excludes).toEqual([[15, 40]]);
-    expect(excludedCount(e, KEYS)).toBe(6);
+  it('includes a range: trims, splits and removes ranges', () => {
+    const d = ex([[20, 60]]);
+    expect(includeRange(d, 20, 60).excludes).toEqual([]);
+    expect(includeRange(d, 30, 50).excludes).toEqual([
+      [20, 30],
+      [50, 60],
+    ]);
+    expect(includeRange(d, 10, 40).excludes).toEqual([[40, 60]]);
+    expect(includeRange(d, 50, null).excludes).toEqual([[20, 50]]);
+    expect(includeRange(d, 60, 70)).toBe(d); // nothing excluded there: no-op
+    // An open range is split; the tail stays open.
+    expect(includeRange(ex([[10, null]]), 30, 40).excludes).toEqual([
+      [10, 30],
+      [40, null],
+    ]);
+    // Across several ranges.
+    expect(
+      includeRange(
+        ex([
+          [10, 20],
+          [30, 40],
+          [50, null],
+        ]),
+        15,
+        55,
+      ).excludes,
+    ).toEqual([
+      [10, 15],
+      [55, null],
+    ]);
+    // With the keys, a bounded piece without an entry goes.
+    expect(includeRange(ex([[15, 45]]), 20, 40, KEYS).excludes).toEqual([[40, 45]]);
+    expect(includeRange(ex([[15, 45]]), 20, 40).excludes).toEqual([
+      [15, 20],
+      [40, 45],
+    ]);
+  });
+
+  it('counts the excluded entries in an index range', () => {
+    const d = ex([
+      [20, 40],
+      [60, null],
+    ]);
+    // KEYS: 10 20 30 40 50 60 70 → excluded: 20 30 60 70.
+    expect(excludedBetween(d, KEYS, 0, 6)).toBe(4);
+    expect(excludedBetween(d, KEYS, 1, 2)).toBe(2);
+    expect(excludedBetween(d, KEYS, 2, 4)).toBe(1);
+    expect(excludedBetween(d, KEYS, 3, 4)).toBe(0);
+    expect(excludedBetween(d, KEYS, 5, 6)).toBe(2);
+    expect(excludedBetween(d, KEYS, 4, 3)).toBe(0);
   });
 });
 
