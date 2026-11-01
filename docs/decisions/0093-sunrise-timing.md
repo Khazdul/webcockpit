@@ -749,3 +749,58 @@ sub-level steps at the ring's and the shadows' edges.
 - Dev: `__weather.jump({ weather: ' ', clock: 'night', dayAt: Date.now() +
   65_000 })` plays a sunrise, `__weather.jump({ weather: ' ', clock: 'day',
   nightAt: Date.now() + 65_000 })` a sunset (then `__weather.unpin()`).
+
+## Addendum 2026-11-01: sunlight from the dawn hour (stage 31a)
+
+The owner found the clock an hour late for the day (Wedmath: the sun is up
+from 4:00 am). The prompt's light symbol (`*` sunlit, `o` dark) in the
+owner's Cockpit logs (`/home/ole/MUME/data/runs/Rasta/2026-09-25T22-03-02.log`,
+`2026-09-26T21-00-45.log`), 75 s before and after each hourly message:
+
+| hour | event | game text | prompt before → after |
+| --- | --- | --- | --- |
+| dawn | `rise` | "The sun rises in the east." | `o` → `*` |
+| dawn + 1 | `light` | "The day has begun." | `*` → `*` |
+| dusk | `set` | "The sun slowly disappears in the west." | `*` → `*` |
+| dusk + 1 | `dark` | "The night has begun." | `*` → `o` |
+
+Sunlight lasts **dawn:00 ≤ t < (dusk + 1):00**. The morning row of the
+table in Context was wrong: "The light slowly increases in the east." is
+not the hourly dawn message but part of a `time` output
+(`mume-Gittan-2026-10-18T18-01-53`, lines 1750–1760), and the prompt there
+was already `*` when it was typed, after the dawn tick. The evening rows
+stand.
+
+Sunlight matters for safety (trolls die in it), so there is one rule
+everywhere:
+
+- **Day = dawn ≤ hour < dusk + 1**: `dayHour` is the dawn hour,
+  `nightHour` stays dusk + 1, `isDay` follows. The clock display (the menu
+  bar's ring, the phone's strip, `nextTransition`) shows the sun from the
+  dawn hour.
+- **The sky.** `dayBeginsAt` is the dawn hour, so the sunrise now runs
+  over the last game hour of the night (the hour before the dawn hour)
+  and ends as the sun rises; the sunset still runs through the dusk hour
+  and ends at dusk + 1. Both start one game hour before the day or the
+  night begins, as the owner wants. `sunU` is 0 at the dawn hour, 1 at
+  dusk + 1.
+- **The events.** `Event.Sun rise` brings the day (`clock: 'day'`, `sunU`
+  0); `light` keeps it. Without minute precision nothing comes before
+  `rise` to start a sunrise, so a game `rise` fades the day sky in at the
+  sky rate like `dark` does the night; only the demo's `sun.rise` with a
+  `from` starts a sunrise (`eventState`, `turnEvent`). `set` still starts
+  the sunset when the clock cannot time it. A `rise` held back by a pin is
+  not replayed; the release brings the day. `syncSun` keeps the game's
+  times (`rise` dawn, `light` dawn + 1, `set` dusk, `dark` dusk + 1).
+- **The scripts.** gametime.ts `periodOf` keeps its four periods; the dawn
+  hour (the sun rises), the day and the dusk hour (the sun sets) are
+  sunlit, only the night is dark. The almanac's words follow (`daylight` =
+  dawn, day, dusk; `dark` = night), as do its sun icon, its daylight band
+  and its hours of light (dusk + 1 − dawn: 19 h in Wedmath). The script
+  manual and the Lua API reference say so.
+- The demo's captions name `Event.Sun rise` ("The sun rises in the
+  east.") as the day's start.
+
+This replaces the Decision's "Day = dawn + 1 ≤ hour < dusk + 1" and its
+"the dawn hour is dark": the clock, the scripts' periods and the weather
+still agree, now on the dawn hour.

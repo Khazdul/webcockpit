@@ -789,6 +789,10 @@ reserved).
 - Dawn/dusk hours per month (0 = Afteryule):
   `dawn = 8,9,8,7,7,6,5,4,5,6,7,7`, `dusk = 18,17,18,19,20,20,21,22,21,20,20,19`.
   Day = dawn ≤ hour < dusk; everything else night.
+  WebCockpit (2026-11-01): sunlight is dawn ≤ hour < dusk + 1, from "The sun
+  rises in the east." to "The night has begun." (the prompt's `*` / `o` in
+  the owner's logs); one rule for the clock, the sky and the scripts (ADR 0093,
+  addendum 2026-11-01).
 - Month names (Westron/Sindarin) and weekday names in docs/clock.md.
 
 #### Sync sources

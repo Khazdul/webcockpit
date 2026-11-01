@@ -178,3 +178,13 @@ unchanged, and loses its `svg` mode.
   about 5.5:1 and 6.0:1 on white; the dark ones are 9.4:1 and 6.6:1 on
   black. The light shades are the dark ones' hues, darkened until they
   clear 4.5:1 on `#f4ecd8` and white.
+
+### Addendum 2026-11-01: the sun from the dawn hour (stage 31a)
+
+The owner found the clock showed the day an hour late. The ring clock and
+the phone's strip now show the sun from the month's dawn hour ("The sun
+rises in the east.", Wedmath 4:00 am) to the hour after the dusk hour
+("The night has begun.", 11:00 pm), the game's sunlight, one rule with
+the rooms, the weather sky and the scripts (ADR 0093, addendum of the same
+date). The ring's period and the tooltip's countdown follow
+`nextTransition`, unchanged.
