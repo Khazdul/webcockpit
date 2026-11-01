@@ -28,7 +28,7 @@ export function stateWord(s: ScriptInfo, running: boolean): string {
 
 /** `#script list`: one row per script. */
 export function listRows(list: readonly ScriptInfo[], running: (name: string) => boolean, width = 80): StyledRow[] {
-  if (list.length === 0) return [row('note', 'No scripts yet. #scripts opens the Scripts page; on the start page it is under Options.')];
+  if (list.length === 0) return [row('note', 'No scripts yet. #scripts opens the Scripts page; the start page has it under Profile.')];
   const nameW = Math.min(24, Math.max(...list.map((s) => s.name.length)));
   const out: StyledRow[] = [row('heading', 'Scripts')];
   for (const s of list) {

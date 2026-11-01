@@ -431,7 +431,7 @@ close = function()
   pane:hide()
 end
 
--- The pane's close cross (or Options → Panes) hides it: the marks go too.
+-- The pane's close cross (or the Panes popup) hides it: the marks go too.
 registerAnonymousEventHandler("sysPanesChanged", function()
   -- Shown by the alias: the field can take the keyboard once it is on screen
   -- (a pane shown again at the same size gets no onResize).

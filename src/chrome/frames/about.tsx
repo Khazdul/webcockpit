@@ -32,14 +32,14 @@ MUME is free to play. No subscription, just connect.
   Discord         discord.gg/XkZN55am9a
 
 GETTING STARTED
-Choose Enter MUME on the start page. Press ESC at any time to open the menu. Options sets up the panes and the look; every change applies at once.
+Choose Enter MUME on the start page. In the game, the menu bar along the top holds Panes and Settings, which set up the panes and the look; every change applies at once. On a phone, ☰ opens the menu.
 
 Profile holds the aliases, actions, highlights, macros, timers and variables you play with. Edit one with Profile → EDIT. A profile is written in TinTin++ syntax. HELP in the profile editor, or #help in the game, explains each command with examples. Profile → IMPORT reads profiles from TinTin++, JMC, Powwow and Mudlet.
 
 WHAT IS INSIDE
   Panes           Character, Timers, Group, Communication, UI messages, Map and Statistics. Dock them on any side, in several columns or rows, or let them float.
-  Map             Reads MMapper maps and follows you as you move. Options → Mapper picks the tileset, among them Shimrod's, which follows MUME's season.
-  Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Options → Weather effects turns them off or picks what to show; #weather demo plays them all.
+  Map             Reads MMapper maps and follows you as you move. Settings → Mapper in the game picks the tileset, among them Shimrod's, which follows MUME's season.
+  Weather         Sky, rain, snow, fog and lightning over the whole client, driven by the game. Settings → Weather effects in the game turns them off or picks what to show; #weather demo plays them all.
   Runs            Every login is recorded in this browser. History, Statistics, the log player and Spotlights are on the start page. The gear in the Spotlights reel picks the kinds, characters and period shown there and in Credits.
   Export          Cut a run, add comments and save it as text or as an HTML replay anyone can open.
   Phone           Log in and chat from a phone. Real play is for a keyboard.
@@ -48,7 +48,7 @@ SETTINGS
 Settings and profiles are kept in this browser only. Use Profile → EXPORT to keep a copy of a profile. If a setting makes the page unusable, open the link with ?safe added to start with the default look.
 
 LUA SCRIPTS
-Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Options → Scripts, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
+Beside the profile, WebCockpit runs scripts written in Lua, with its own API for triggers, aliases, keys, timers, GMCP, panes and the map. Open them with Scripts on the start page or in the game's menu bar, where ready-made scripts wait to be turned on: an almanac, a port key manager, map search and more. The editor helps you write your own: it completes commands, shows their syntax and help as you type, and marks errors at once. MANUAL on the Scripts page, or F1 in the editor, opens the full manual with examples.
 
 CREDITS
   MMapper         The map is built on MMapper, the graphical mapper for MUME by the MMapper Authors. Its look, tiles and fonts come from MMapper, and the default map is an MMapper map. MMapper runs on Windows, macOS and Linux: github.com/MUME/MMapper

@@ -219,10 +219,10 @@ Mapped to Inv §2.1 and §10.
   Mono are bundled. Both are checked for the box, block and quadrant
   glyphs the UI uses. (ADR 0049 adds thirteen more bundled families, fill
   faces for the glyphs some lack, and Lucida Console where installed.)
-- **Settings take effect immediately**, from the start page's Options and,
-  in play, from the menu bar's Settings popup and the pane gears (stage
-  30, ADR 0107); on the phone from the ESC menu's Options. There is one
-  settings store.
+- **Settings take effect immediately**, in play from the menu bar's
+  Settings popup and the pane gears (stage 30, ADR 0107); on the phone
+  from the ESC menu's Options. The start page has no Options since stage
+  32: settings are changed in the game. There is one settings store.
 
 ### 2.4 Right-column panes
 
@@ -239,11 +239,15 @@ Mapped to Inv §2.1 and §10.
 
 Mapped to Inv §3.
 
+- **Main menu** (stage 32): Enter MUME, Profile, Scripts, History,
+  Spotlights, Credits, About. No Options: settings are changed in the
+  game (§2.3, §2.6).
 - **Profile picker:** create, copy, delete, **import and export** (new).
   Import also takes foreign settings files (§2.11).
-- **Options:** panes, appearance and more. The Spotlights settings (kinds,
-  characters, period) are in the reel's gear (stage 30e, ADR 0110).
-- **History, Statistics, Spotlights, Credits, About.**
+- **Scripts:** the Scripts page (§2.10), under Profile.
+- **History, Statistics, Spotlights, Credits, About.** The Spotlights
+  settings (kinds, characters, period) are in the reel's gear (stage 30e,
+  ADR 0110).
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
 
@@ -364,7 +368,8 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - *Export* also offers a backup of all user scripts with every
     script's settings and saved data, as one file. *Import* restores it:
     it adds what is missing, turned off, and replaces nothing (ADR 0053).
-- **Menu.** *Scripts* sits under *Options* on the start page. In play it
+- **Menu.** *Scripts* sits under *Profile* on the start page's main menu
+  (stage 32). In play it
   is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
   menu's Options → Scripts.
 - **Scripts page:**

@@ -216,7 +216,7 @@ const BASICS: readonly HelpSection[] = [
       'The three-digit tt++ codes work too, such as <148>: the first digit is 0 reset, 1 bold, 3 italic, 4 underline, 5 blink, 7 reverse, 8 keep; the second is the text colour and the third the background: 0 black, 1 red, 2 green, 3 yellow, 4 blue, 5 magenta, 6 cyan, 7 white, 8 keep, 9 default.',
       'Three letters a to f pick one of the 256 colours: <aaa> to <fff> for the text, <AAA> to <FFF> for the background (<faa> is red). <g00> to <g23> are greys from dark to light, <G00> to <G23> as background.',
       '#highlight takes colour names: black red green yellow blue magenta cyan white. A capital letter or the word light (or bright) makes it bright (Red, light red); dark keeps it normal (dark Red). b, bg or background before a colour sets the background (b red). Styles: underscore (or underline), blink, reverse, bold, italic. reset means the default colours. A colour code works as well.',
-      'Bold is drawn in a heavier weight. With Options → Appearance → Bold brightens colours on, bold text in one of the eight basic colours, or in the default colour, is also shown bright, as in xterm.',
+      'Bold is drawn in a heavier weight. With Settings → Appearance → Bold brightens colours on, bold text in one of the eight basic colours, or in the default colour, is also shown bright, as in xterm.',
     ],
     examples: [
       {
@@ -282,7 +282,7 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Scripts',
     topics: ['scripts'],
     text: [
-      'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
       'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],

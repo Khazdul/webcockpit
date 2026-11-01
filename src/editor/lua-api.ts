@@ -1041,7 +1041,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   fn(
     "pane:onTheme",
     "pane:onTheme(fn)",
-    "Calls fn(theme) when the pane's colours change: another pane colour, terminal colour or theme in Options. theme is what pane:theme() returns. nil removes the handler.",
+    "Calls fn(theme) when the pane's colours change: another pane colour, terminal colour or theme in the settings. theme is what pane:theme() returns. nil removes the handler.",
     {
       params: [
         p("pane", "pane", "A pane from createPane."),

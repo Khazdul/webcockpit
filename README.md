@@ -69,7 +69,7 @@ them. On a phone the ESC menu (`☰`) holds them instead.
 
 **Appearance.** Fifteen bundled monospace fonts, font size,
 padding, the ANSI palette, cursor style and blink. Changes apply
-immediately, from the start page or the menu bar's Settings.
+immediately, from the menu bar's Settings in the game.
 
 <div align="center">
 <img width="400" alt="Start page" src="docs/img/startpage.png" />
@@ -89,10 +89,10 @@ and panes of their own, down to bars and buttons. The script editor
 completes names, shows help as you type and marks errors, and a manual
 with examples is built in.
 
-**Bundled scripts.** Ready to turn on in Options → Scripts: an almanac
-of MUME's seasons, moon and events; a port key manager; map search like
-MMapper's Find Rooms; shorter, colour-coded mob and movement
-lines; a mercenary tracker; and a coin looter.
+**Bundled scripts.** Ready to turn on in Scripts (on the start page or
+the menu bar): an almanac of MUME's seasons, moon and events; a port key
+manager; map search like MMapper's Find Rooms; shorter, colour-coded mob
+and movement lines; a mercenary tracker; and a coin looter.
 
 <div align="center">
 <img width="400" alt="Lua script editor" src="docs/img/scripts.png" />
@@ -101,14 +101,14 @@ lines; a mercenary tracker; and a coin looter.
 
 **Map.** A map pane that reads MMapper `.mm2` files, draws MMapper's
 tiles and follows you as you move. A default map is bundled, and you
-can import your own. Options → Mapper picks the tileset: MMapper's own,
+can import your own. Settings → Mapper picks the tileset: MMapper's own,
 Shimrod's seasonal tiles (which follow MUME's season), Desert, Gefe &
 Rik and Gray's Map. Room notes show as in MMapper, and hovering a room
 tells you about it.
 
 **Weather effects.** Sky, rain, snow, fog and lightning over the whole
 client, driven by the game's GMCP: the sun rises and sets on MUME's
-clock and snow builds up on the panes. Options → Weather effects turns
+clock and snow builds up on the panes. Settings → Weather effects turns
 them off or picks what to show, and `#weather demo` plays them all. The
 drawing runs in a worker, so text and keys are never slowed.
 
