@@ -18,7 +18,7 @@ const GETTING_STARTED: HelpSection = {
   heading: "Getting started",
   text: [
     "A script is a small Lua 5.4 program that reacts to the game: it can watch the lines MUME sends, add aliases and keys, run timers, read GMCP data and send commands. Scripts live in a library beside the profile, not in it. A script that is on runs whichever profile you use. Scripts run only once you have entered MUME: on the start page, a script that is on shows on · runs when you enter MUME.",
-    "Open the Scripts page with ESC → Options → Scripts, or Options → Scripts on the start page. It lists every script:",
+    "Open the Scripts window with the menu bar's Scripts button or #scripts (on a phone, ESC → Options → Scripts), or Options → Scripts on the start page. It lists every script:",
     "- [X] turns a script on or off. A dot after the name means it is running; ! means it is on but failed to load, with the problem in red under its row.",
     "- EDIT opens the script in the editor. The panel on the right shows the selected script's help: summary, aliases, keys, help text and settings.",
     "- Scripts with a lock are bundled with WebCockpit. They are read-only and are updated with each release. DUPLICATE in the editor makes your own copy, named <name>-copy, which you can change. The copy starts off, with the same settings and an empty store.",
@@ -240,7 +240,7 @@ const KEYS: HelpSection = {
     "Names are physical keys: Alt+a is the key labelled A on a US keyboard, whatever your layout prints there.",
     "Some keys cannot be bound, and tempKey raises an error for them:",
     "- keys that type text: a letter, digit, space or punctuation key alone or with Shift (with Ctrl or Alt they are fine);",
-    "- ESC (it opens the menu) and Enter without Ctrl, Alt or Meta (it sends the input line);",
+    "- ESC (it closes what is open, and opens the menu on a phone) and Enter without Ctrl, Alt or Meta (it sends the input line);",
     "- keys the browser keeps: Ctrl+W, Ctrl+T, Ctrl+N, Ctrl+Shift+W, Ctrl+Shift+T, Ctrl+Shift+N, Ctrl+Tab and Ctrl+Shift+Tab.",
     "A profile macro on the same key wins over the script. When two scripts bind the same key, the one bound last wins. The profile editor warns about a macro on a key a running script has bound.",
     "killKey(id) removes a binding. Keys are released when the script stops.",

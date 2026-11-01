@@ -86,7 +86,8 @@ describe('#help resolution', () => {
     for (const w of ['script', '#script', 'scri', '{script}']) expect(heading(w), w).toBe('#script');
     for (const w of ['lua', 'LUA', '#lua']) expect(heading(w), w).toBe('#lua');
     const intro = helpSections().find((x) => x.heading === 'Scripts')!.text.join('\n');
-    expect(intro).toContain('ESC → Options → Scripts');
+    expect(intro).toContain('#scripts');
+    expect(intro).toContain('Options → Scripts on the start page');
     expect(intro).toContain('MANUAL');
     expect(intro).toContain('#script');
     expect(intro).toContain('#lua');

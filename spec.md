@@ -81,7 +81,7 @@
    - Triggers fan out: every matching consumer sees the line.
 6. **Display pipeline.** Substitutes, gags and highlights change only the
    displayed copy. Taps and the raw log see the unmodified line.
-7. **UI.** Panes, launcher, ESC menu, editors.
+7. **UI.** Panes, launcher, menu bar (the ESC menu on the phone), editors.
 
 ### 1.3 Performance budgets
 
@@ -153,8 +153,10 @@ differences.
 Mapped to Inv §9.
 
 - **Session.** One character per tab. Connect, login, disconnect, and
-  reconnect from the ESC menu. The menu opens automatically on disconnect
-  (ADR 0058 behaviour).
+  reconnect. On desktop and tablet a dropped connection shows a
+  `Disconnected — Reconnect` notice in the input row, and Enter
+  reconnects (ADR 0100). On the phone the ESC menu opens automatically on
+  disconnect with Reconnect selected (ADR 0058 behaviour).
 - **Keep-alive.** GMCP `Core.Ping` goes out every 10 s (ADR 0007, amended).
   - The `Link:` readout is an HTTPS round trip to mume.org, with the
     `Core.Ping` round trip as the fallback (ADR 0030).
@@ -217,8 +219,10 @@ Mapped to Inv §2.1 and §10.
   Mono are bundled. Both are checked for the box, block and quadrant
   glyphs the UI uses. (ADR 0049 adds thirteen more bundled families, fill
   faces for the glyphs some lack, and Lucida Console where installed.)
-- **Settings take effect immediately**, from both the start page and the
-  ESC menu. There is one settings store.
+- **Settings take effect immediately**, from the start page's Options and,
+  in play, from the menu bar's Settings popup and the pane gears (stage
+  30, ADR 0107); on the phone from the ESC menu's Options. There is one
+  settings store.
 
 ### 2.4 Right-column panes
 
@@ -243,14 +247,24 @@ Mapped to Inv §3.
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
 
-### 2.6 ESC menu
+### 2.6 Menu bar and ESC menu
 
 Mapped to Inv §4.
 
-- **Entries:** Continue/Reconnect, Statistics, Options, Profile (live
-  editing with Apply, Discard or Keep editing), and Exit with a run
-  rating.
-- **Status header** with the `Link:` round-trip time.
+- **Desktop and tablet:** there is no ESC menu in play (stage 30f, ADR
+  0112). The menu bar right of the input field holds its entries: the
+  Profile window (live editing with Apply, Discard or Keep editing), the
+  Scripts window, the Panes popup, the Settings popup, Fullscreen, and the
+  Exit popup with a run rating (ADR 0099, 0103, 0107). The Statistics
+  pane shows the live run (ADR 0109), the Disconnected notice offers
+  Reconnect (ADR 0100), and the tooltips carry the status header (link
+  round-trip time, profile, capture). Esc closes the open popup or the
+  topmost window and otherwise does nothing; `#menu` prints a hint naming
+  the bar and its `#` commands.
+- **Phone** (until its own stage): the ESC menu, opened by Esc, `☰` or
+  `#menu`. **Entries:** Continue/Reconnect, Statistics, Options, Profile
+  (live editing with Apply, Discard or Keep editing), and Exit with a run
+  rating. **Status header** with the `Link:` round-trip time.
 
 ### 2.7 Profile editor
 
@@ -349,8 +363,9 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   - *Export* also offers a backup of all user scripts with every
     script's settings and saved data, as one file. *Import* restores it:
     it adds what is missing, turned off, and replaces nothing (ADR 0053).
-- **Menu.** *Scripts* sits directly under *Profile*, on the start page
-  and in the ESC menu.
+- **Menu.** *Scripts* sits under *Options* on the start page. In play it
+  is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
+  menu's Options → Scripts.
 - **Scripts page:**
   - **List on the left:** every script by name, with an enable toggle, an
     *Edit* button, and a lock mark on bundled scripts. *New*, *Import*
@@ -605,7 +620,8 @@ Research: `notes/research/mobile.md`. Design: ADR 0075. Stage 19.
   short screen side under 600 CSS px). `?touch=1` / `?phone=1` force them
   for development and tests. With both off, no phone code runs and no
   phone CSS matches: desktop is unchanged.
-- **Touch (part A):** an on-screen menu button replaces Esc; every Back /
+- **Touch (part A):** an on-screen menu button replaces Esc (on the phone
+  only since stage 30f: a tablet has the menu bar, ADR 0112); every Back /
   Esc footer becomes tappable; taps do not pull focus to the input (no
   keyboard pop-up); whole menu rows are tap targets; menu bodies scroll
   by swipe; no double-tap zoom on controls.

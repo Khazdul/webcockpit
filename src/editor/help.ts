@@ -254,7 +254,7 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Typing commands',
     topics: ['typing'],
     text: [
-      'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. So is a typed #message setting. ESC → Profile shows the same entries, see What is saved.',
+      'Everything in a profile can also be typed on the input line while you play. A definition you type (#alias, #action, #highlight, #substitute, #gag, #macro, #variable, #ticker, #event) is written to the profile at once, and the matching #un… command removes it from the profile. So is a typed #message setting. The Profile window (the menu bar\'s Profile button, or #profile) shows the same entries, see What is saved.',
       'A typed command is confirmed with one row in the game window: the entry as it stands in the profile, or what happened to it (removed, not found). Commands run by an alias, action, macro or timer are not confirmed, and neither is a profile while it loads. #message switches the confirmations off, one kind at a time.',
       'Typed without Commands, a command lists what exists, in the same form: #alias shows all aliases, #alias {k*} those starting with k, #variable all variables, #ticker and #delay the running timers.',
       '#3 north repeats a command (at most 100 times). When typing, braces may be left out around single words (#var target orc); the profile gets the line with all its braces.',
@@ -282,7 +282,7 @@ const BASICS: readonly HelpSection[] = [
     heading: 'Scripts',
     topics: ['scripts'],
     text: [
-      'Scripts are small Lua programs kept beside the profile, not in it. ESC → Options → Scripts (or Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
+      'Scripts are small Lua programs kept beside the profile, not in it. The Scripts window (the menu bar\'s Scripts button, or #scripts; Options → Scripts on the start page) lists them: turn one on or off, read its help, or open it in the editor to write your own. A script that is on runs in every profile.',
       'MANUAL on the Scripts page opens the script manual: a guide to writing scripts and every function of the API, with examples. F1 in the script editor opens it at the name under the cursor.',
       '#script controls the scripts from the input line, and #lua calls a function a script exported. Both are under Commands below.',
     ],
@@ -474,7 +474,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['exit'],
     syntax: ['#exit'],
     text: [
-      'Asks whether to exit to the main menu, in a small box above the menu bar\'s Exit button (the power symbol), or closes that box when it is open. Y exits, Esc stays. When there is a run to rate, 0 to 5 or the stars rate and save it first, as Exit session in the menu does.',
+      'Asks whether to exit to the main menu, in a small box above the menu bar\'s Exit button (the power symbol), or closes that box when it is open. Y exits, Esc stays. When there is a run to rate, 0 to 5 or the stars rate and save it first.',
       'On a phone, where there is no menu bar, it opens the menu\'s Exit session page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#exit' }],
@@ -649,7 +649,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['menu'],
     syntax: ['#menu'],
     text: [
-      'Typed on the input line. Opens the menu, as ESC does. The full name is needed: #me is #message.',
+      'Typed on the input line. On a phone it opens the menu, as ESC and the ☰ button do. Elsewhere the menu bar has taken the menu\'s place and #menu only says so: The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit. The full name is needed: #me is #message.',
     ],
     examples: [{ via: 'input', code: '#menu' }],
   },

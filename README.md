@@ -58,9 +58,16 @@ cross: step its colour, turn its border on or off, and switch its
 background between frosted glass and clear (no fill, so what is behind
 it shows sharp).
 
+**Menu bar.** At the right end of the input line: the game clock, then
+Profile, Scripts, Panes, Settings, Fullscreen and Exit. Profile and
+Scripts open movable windows and Settings a box of controls, all of them
+live while you keep playing; `#profile`, `#scripts`, `#panes`,
+`#settings`, `#fullscreen` and `#exit` do the same, so a macro can bind
+them. On a phone the ESC menu (`☰`) holds them instead.
+
 **Appearance.** Fifteen bundled monospace fonts, font size,
 padding, the ANSI palette, cursor style and blink. Changes apply
-immediately, from the start page or the ESC menu.
+immediately, from the start page or the menu bar's Settings.
 
 <div align="center">
 <img width="400" alt="Start page" src="docs/img/startpage.png" />
