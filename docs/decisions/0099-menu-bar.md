@@ -125,3 +125,56 @@ bar's disposal (`MenuBar.reset` is private). Esc in the input ends after
 the Exit popup in fullscreen, with nothing. The interim targets
 (`openMenuAt`) are the phone's only: the shell no longer hands
 `ui.openMenuAt` to an App with the bar.
+
+## Addendum 2026-11-01: the clock as a ghost sun in a time-left ring (stage 31a)
+
+The owner picked mockup I2 "Spöksol" (`notes/research/clock-mockups/`,
+`Clock31a-ghostsun.dc.html`). The bar's clock is now
+`src/menubar/bar-clock.ts` (`BarClock`); the text strip
+(`src/ui/clock-strip.ts`) stays on the phone and wherever there is no bar,
+unchanged, and loses its `svg` mode.
+
+- **No countdown text in the bar.** An icon only: by day a line-drawn sun
+  like the bar's other icons (circle r 3.4 and 8 rays 5.9–7.9 from 12
+  o'clock, stroke 1.5), by night a filled crescent (circle (11.4, 12.6) r
+  6.4 minus circle (14.6, 9.4) r 5.2, one path), inside a time-left ring
+  (r 11, stroke 1.35, round caps) in a 24-unit box. The svg is as tall as
+  the cell in a 2-cell slot, centred on the bar.
+- **The ring** is the part of the period left, `(at − now) / (at − from)`
+  (`periodLeft`): full as the period begins, it vanishes clockwise from 12
+  o'clock; the arc left is an explicit path (`ringPath`) from the current
+  point clockwise to 12 o'clock, a full circle as two arcs. `Transition`
+  gained `from`, the start of the current period, computed in
+  `nextTransition` at the same precision as `at` (after midnight the night
+  began the evening before, in the month before on the 1st). Re-rendered
+  just after each second boundary while a ring is shown, as before.
+- **Synced to the minute:** the ring as above; tooltip unchanged
+  (`Night in 4:33`).
+- **Synced to the hour only:** the same ring, counted from the start of
+  the game hour (it steps once a game hour, as `~N` does), and a grey `~`
+  after it (T1) in the bar's icon grey, the terminal font at 0.87 of its
+  size, nudged 0.1 cell left and 0.04 cell up so it sits optically on the
+  ring's centre line. Tooltip unchanged (`Night in ~6 game hours`).
+- **Not synced** (`unset` or `day`: no countdown exists): no icon; the slot
+  keeps its width and the tooltip `Game clock unknown: type time` (U2).
+  Hovered, a faint dashed circle (`#333` on dark) shows where the clock is.
+  No timer runs. Nothing else lights on hover; a click does nothing.
+- **Widths:** the clock is 3 cells (a one-cell gutter to the input text
+  and the 2-cell ring), 4 with the `~`. The bar is therefore 21 cells with
+  fullscreen and 19 without (22 and 20 while approximate); `barCells`
+  takes the approximate flag, and `BarClock` reports a width change
+  (`onCells`) so the bar re-sizes and tells the cockpit. The link dot stays
+  a cell right after the clock: the mockups left it out, so the gap from
+  the ring to the separator is the dot cell plus half a separator (about
+  1.5 cells), as with the stage 30 clock.
+- **A narrower bar moves the input row's case** (ADR 0102): 5 cells fewer
+  for the bar leave 5 more to type, so a game column 5 cells narrower than
+  before still keeps the input row (the wide case).
+- **Colours** (`--mb-clk-*` in `menubar.css`). Dark terminal: day ring
+  `#d9a54a`, sun `#e0a336`, night ring and moon `#5b93d6`, the not-synced
+  circle `#333`. Light terminal (`data-light`): day ring `#8f5f0c`, sun
+  `#94600a`, night ring and moon `#2a64a8`, the circle `rgba(0, 0, 0,
+  0.22)`. On `#f4ecd8` they reach about 4.7:1 (day) and 5.1:1 (night),
+  about 5.5:1 and 6.0:1 on white; the dark ones are 9.4:1 and 6.6:1 on
+  black. The light shades are the dark ones' hues, darkened until they
+  clear 4.5:1 on `#f4ecd8` and white.

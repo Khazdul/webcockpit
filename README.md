@@ -58,8 +58,10 @@ cross: step its colour, turn its border on or off, and switch its
 background between frosted glass and clear (no fill, so what is behind
 it shows sharp).
 
-**Menu bar.** At the right end of the input line: the game clock, then
-Profile, Scripts, Panes, Settings, Fullscreen and Exit. Profile and
+**Menu bar.** At the right end of the input line: the game clock (a sun
+or moon in a ring that empties as the day or night runs out; hover it for
+the time to the next change), then Profile, Scripts, Panes, Settings,
+Fullscreen and Exit. Profile and
 Scripts open movable windows and Settings a box of controls, all of them
 live while you keep playing; `#profile`, `#scripts`, `#panes`,
 `#settings`, `#fullscreen` and `#exit` do the same, so a macro can bind

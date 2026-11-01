@@ -233,7 +233,7 @@ Mapped to Inv §2.1 and §10.
 | Group | Inv §2.3 | Room-scoped membership, value freshness, NPC label promotion. |
 | Communication | Inv §2.7 | Channel filters (global, as in Cockpit), right-click solo, per-channel colours, history kept across reloads. |
 | UI messages | Inv §2.4 | Structured messages from the system and scripts. |
-| Clock | Inv §2.5 | Shown in the input clock strip, at the left end of the menu bar on desktop and tablet (stage 30, ADR 0099). Syncs from MSSP and game text. |
+| Clock | Inv §2.5 | On desktop and tablet at the left end of the menu bar: a sun or moon in a ring of the period left, `~` after it while synced to the hour only, the countdown in its tooltip (stage 31a, ADR 0099). On the phone the input clock strip with the countdown text. Syncs from MSSP and game text. |
 
 ### 2.5 Start page (launcher)
 
