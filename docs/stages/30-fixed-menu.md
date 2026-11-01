@@ -1184,3 +1184,50 @@ while the popup is still open (now it waits until the popup closes).
 
 Known: the characters are those with a finished (sealed) run; a character
 whose only run is still recording shows up once that run is sealed.
+
+### 30f
+
+Open the dev server (`npm run dev`, then http://localhost:5173/), Enter
+MUME (or `?replay` to try it offline). Desktop first, then a tablet (or
+`?touch=1` on desktop) and a phone.
+
+**Desktop**
+
+1. **Esc with nothing open:** click in the game input and press Esc. Nothing
+   opens: no menu covers the game, and you keep typing. Press it a few
+   times; still nothing.
+2. **Esc order:** scroll the game text back (Page Up), open the Panes
+   popup and the Profile window. Esc: the text jumps to the bottom. Esc:
+   the popup closes. Esc: the window closes (it asks first if a change is
+   not applied). Esc: nothing. With the Scripts window open on top of
+   the Profile window, Esc closes Scripts first, then Profile.
+3. **Fullscreen (Chrome or Edge):** the bar's Fullscreen, then Esc with
+   nothing open: the Exit popup rises, as before; Esc again closes it.
+   Holding Esc still leaves fullscreen. Firefox leaves fullscreen on Esc.
+4. **`#menu`:** type it. One line: `The ESC menu is gone: use the menu bar,
+   or #profile, #scripts, #panes, #settings, #fullscreen, #exit.` Nothing
+   opens. `#help menu` says the same.
+5. **Disconnect:** `#disconnect` (or drop the network while logged in):
+   `Disconnected  Reconnect Enter` shows left of the clock, no menu
+   opens. Enter, or a click on Reconnect, connects again.
+6. **What the old ESC menu held:** Statistics is the Statistics pane
+   (Panes → Statistics); Profile and Scripts are the bar's windows;
+   Options is Panes, Settings and the pane gears; Exit session is the
+   bar's Exit. The start page's Options is unchanged.
+
+**Tablet** (an iPad, or `?touch=1` on desktop)
+
+7. No `☰` after the bar. The bar's icons, popups and windows work by
+   touch; Esc on a keyboard acts as on desktop.
+
+**Phone**
+
+8. Unchanged: `☰`, Esc and `#menu` open the ESC menu; a dropped
+   connection opens it with Reconnect selected; Profile, Statistics,
+   Options (Scripts included) and Exit session work as before.
+
+Feedback wanted: whether the `#menu` hint reads right (or should name
+something else, or `#menu` should be dropped later); whether anything
+from the old ESC menu is missed on desktop (for example its status
+header: profile, link time and capture are now in the bar's tooltips);
+and whether Esc with nothing open should do something after all.

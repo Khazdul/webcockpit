@@ -339,7 +339,7 @@ test('Exit warns about unsaved changes in a window, then discards them; the wind
   await expect(page.locator('.wc-pop-warn')).toHaveCount(0);
 });
 
-test('the windows sit above a floating pane and below the bar popups and the ESC menu', async ({ page }) => {
+test('the windows sit above a floating pane and below the bar popups', async ({ page }) => {
   await offline(page);
   await icon(page, 'scripts').click();
   await expect(win(page, 'scripts')).toBeVisible();
