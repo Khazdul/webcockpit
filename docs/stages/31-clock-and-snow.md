@@ -79,7 +79,16 @@ Two independent parts, in this order:
   e2e 666/667 (the one, `new-user` in Firefox, a load timeout, green
   alone).
 - [x] 31a: test guide (below).
-- [ ] 31a: owner test.
+- [x] 31a: owner test round 1 (2026-11-01): the look approved; the clock
+  showed day an hour late. Owner's Cockpit logs (prompt `*` sunlit / `o`
+  dark around each sun message) show sunlight from "The sun rises in the
+  east." (the dawn hour) to "The night has begun." (dusk + 1); ADR 0093
+  had the day an hour late. One rule everywhere: day = dawn ≤ hour <
+  dusk + 1 (clock, sky, almanac, scripts); the sunrise turn now runs the
+  hour before the dawn hour, the sunset through the dusk hour (958e410,
+  1423d88; ADR 0093 addendum). Unit 3045 passed; clock/weather/almanac
+  e2e green. Safety-critical (trolls die in sunlight).
+- [ ] 31a: owner check at a real dawn and dusk (below).
 - [x] 31b: measurements and root cause (`notes/research/weather-smoothness.md`):
   snow ran at an even 30 fps (every second refresh in both browsers);
   motion was already time-based, sub-pixel, no drops. The rate itself
@@ -154,3 +163,20 @@ ends one early).
 5. **Heat:** does the laptop run noticeably warmer in snow than before?
 
 Feedback wanted: snow smoothness, birds 30 or 60, anything that got worse.
+
+### 31a round 2 — the clock at a real dawn and dusk
+
+Safety-critical: a troll dies in sunlight. Watch the prompt's first
+character (`*` sunlit, `o` dark, `!` lit by a light) at a real dawn and a
+real dusk, outdoors, with the clock synced (no `~`):
+
+1. **Dawn:** at "The sun rises in the east." the prompt turns `*` and the
+   clock turns to the sun in the same second. The sky's sunrise ran the
+   game hour before and ends then.
+2. **Dusk:** "The sun slowly disappears in the west." comes; the clock
+   keeps the sun and the prompt stays `*` for that whole game hour; the
+   sky's sunset runs over it. At "The night has begun." the prompt turns
+   `o` and the clock to the moon in the same second.
+3. `#weather demo sunrise` / `sunset`: the captions name these messages.
+
+Feedback wanted: any second where the clock and the prompt disagree.
