@@ -195,16 +195,23 @@ const LOGIC = (mode, dir) => `class Component extends DCLogic {
     const KC = { death: '#d75f5f', ach: '#d7af5f', pvp: '#e0915a', lvl: '#87af87' };
     const KL = { death: 'Death', ach: 'Achievement', pvp: 'PvP kill', lvl: 'Level-up' };
     const KS = { death: 'D', ach: 'A', pvp: 'K', lvl: 'L' };
+    const KI = {
+      death: 'M12 3.5c-4 0-7 2.9-7 6.8 0 2.3 1.1 4.1 2.8 5.1V19a1 1 0 0 0 1 1h6.4a1 1 0 0 0 1-1v-3.6c1.7-1 2.8-2.8 2.8-5.1 0-3.9-3-6.8-7-6.8z M8.4 10.8a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z M13 10.8a1.3 1.3 0 1 0 2.6 0a1.3 1.3 0 1 0-2.6 0z M10.7 20v-2.2 M13.3 20v-2.2',
+      pvp: 'M4 4l9.5 9.5 M11.5 15.5l4-4 M14 14l4.5 4.5 M20 4l-9.5 9.5 M8.5 11.5l4 4 M10 14l-4.5 4.5',
+      ach: 'M12 3.8l2.5 5.1 5.6.8-4.05 3.95.95 5.6L12 16.6l-5 2.65.95-5.6L3.9 9.7l5.6-.8z',
+      lvl: 'M6.5 12.5l5.5-5.5 5.5 5.5 M6.5 18l5.5-5.5 5.5 5.5'
+    };
+    const KC2 = { death: '#e06c6c', ach: '#e3b341', pvp: '#e0915a', lvl: '#7fbf7f' };
     const f = dur > 0 ? pos / dur : 0;
 
     let marks = run
       ? [
-          { t: 64, lab: 'AL', kind: 'ach', tip: 'Achievement unlocked: That was a quick trip!  ·  Level 42', to: 61 },
-          { t: 110, lab: 'K', kind: 'pvp', tip: 'Killed *Ibuki the Half-Elf*', to: 107 },
-          { t: 120, lab: 'D', kind: 'death', tip: 'Death (level 42)', to: 117 }
+          { t: 64, lab: 'AL', kind: 'ach', ks: ['ach', 'lvl'], tip: 'Achievement unlocked: That was a quick trip!  ·  Level 42', to: 61 },
+          { t: 110, lab: 'K', kind: 'pvp', ks: ['pvp'], tip: 'Killed *Ibuki the Half-Elf*', to: 107 },
+          { t: 120, lab: 'D', kind: 'death', ks: ['death'], tip: 'Death (level 42)', to: 117 }
         ]
-      : spots.map((x, i) => ({ t: i * SEG + SEG * 0.7, lab: KS[x.kind], kind: x.kind, tip: KL[x.kind] + ': ' + x.label, to: i * SEG }));
-    marks = marks.map((m) => ({ lab: m.lab, tip: m.tip, at: pct(m.t / dur), cls: 'mk mk-' + m.kind, seek: (e) => { e.stopPropagation(); seek(m.to); } }));
+      : spots.map((x, i) => ({ t: i * SEG + SEG * 0.7, lab: KS[x.kind], kind: x.kind, ks: [x.kind], tip: KL[x.kind] + ': ' + x.label, to: i * SEG }));
+    marks = marks.map((m) => ({ icons: m.ks.map((k) => ({ d: KI[k], c: KC2[k] })), lab: m.lab, tip: m.tip, at: pct(m.t / dur), cls: 'mk mk-' + m.kind, seek: (e) => { e.stopPropagation(); seek(m.to); } }));
 
     const n = spots.length;
     const cur = n ? Math.min(n - 1, Math.floor(pos / SEG)) : 0;
@@ -252,10 +259,14 @@ const LOGIC = (mode, dir) => `class Component extends DCLogic {
       themes: themeDef.map(([id, label, bg]) => ({ label, bg, cls: s.theme === id ? 'swb on' : 'swb', pick: () => set({ theme: id }) })),
       boardBg: th[2], outFg: th[3], outFs: fpx + 'px', outLh: (fpx + 2) + 'px',
       keys: keys.map(([k, a]) => ({ k, a })),
+      spotHdr: n ? 'Spotlight ' + (cur + 1) + ' / ' + n + '  ·  ' + sp.date : 'No spotlights', spotWho: sp ? sp.name : 'Spotlights',
       runNo, runDate: runNo === 1 ? '2026-09-26 21:00' : '2026-09-26 22:02',
 
       hasSpots: n > 0, noSpots: n === 0, nSpots: n,
       cnt: n ? 'Spotlight ' + (cur + 1) + ' / ' + n : 'Spotlight 0 / 0',
+      kindIcon: sp ? KI[sp.kind] : '', kindColor2: sp ? KC2[sp.kind] : '#555',
+      speedDown: () => s.sp > 0 && set({ sp: s.sp - 1 }), speedUp: () => s.sp < 5 && set({ sp: s.sp + 1 }),
+      sdCls: s.sp > 0 ? 'ib sm' : 'ib sm dis', suCls: s.sp < 5 ? 'ib sm' : 'ib sm dis',
       kindLabel: sp ? KL[sp.kind] : '', kindColor: sp ? KC[sp.kind] : '#555', label: sp ? sp.label : '', meta: sp ? sp.name + '  ·  ' + sp.date : '',
       prevCls: n && cur > 0 ? 'ib' : 'ib dis', nextCls: n && cur < n - 1 ? 'ib' : 'ib dis',
       prev: () => cur > 0 && seek((cur - 1) * SEG), next: () => cur < n - 1 && seek((cur + 1) * SEG),
@@ -264,7 +275,7 @@ const LOGIC = (mode, dir) => `class Component extends DCLogic {
       fOpen: s.fOpen, fClosed: !s.fOpen, flipF: () => set({ fOpen: !s.fOpen }), filterCls: s.fOpen ? 'ib on' : 'ib',
       kOpen: s.kOpen, cOpen: s.cOpen, flipK: () => set({ kOpen: !s.kOpen }), flipC: () => set({ cOpen: !s.cOpen }),
       kChev: s.kOpen ? 'ic chev open' : 'ic chev', cChev: s.cOpen ? 'ic chev open' : 'ic chev',
-      kinds: kindsDef.map(([k, label]) => ({ label, c: KC[k], cls: tg(s.kinds[k]), chip: s.kinds[k] ? 'kc on' : 'kc', flip: flipKind(k) })),
+      kinds: kindsDef.map(([k, label]) => ({ label, d: KI[k], c2: KC2[k], c: KC[k], cls: tg(s.kinds[k]), chip: s.kinds[k] ? 'kc on' : 'kc', flip: flipKind(k) })),
       kindsSum: kOn === 4 ? 'All' : kOn === 0 ? 'None' : kOn + ' of 4',
       allCls: tg(s.all), flipAll: () => set({ all: !s.all, pos: 0 }),
       chars: names.map((x) => ({ name: x, cls: 'cbx' + (s.all || s.chars[x] ? ' on' : '') + (s.all ? ' dis' : ''), flip: () => !s.all && set({ chars: Object.assign({}, s.chars, { [x]: !s.chars[x] }), pos: 0 }) })),
@@ -475,3 +486,76 @@ for (const dir of ['A', 'B', 'C']) for (const mode of ['spot', 'run']) {
   writeFileSync(`${S}/canvas/project/${file}`, board(dir, mode));
 }
 console.log(BOARDS.map((b) => b.file).join('\n'));
+
+// ------------------------------------------------- A2: the owner's pick, revised
+// (2026-11-01): speed with ◄ ► beside it; the header line with the key
+// hints stays (no Keys menu); kind icons in colour in the card, the filter
+// and on the rail (instead of letters); the rail as in A.
+
+const A2_CSS = `
+.hdr{position:absolute;top:0;left:0;height:22px;display:flex;justify-content:center;align-items:center;gap:28px;font-size:12px;color:#646464;white-space:pre;pointer-events:none}
+.hdr span{background:rgba(0,0,0,.82);padding:0 8px;border-radius:3px}
+.hdr b{color:#c8c8c8;font-weight:400}
+.boxA{position:absolute;right:44px;bottom:12px;padding:6px 6px 6px 10px}
+.ib.sm{width:20px;height:24px}
+.ib.sm .ic{width:12px;height:12px;stroke-width:2}
+.spdc{display:flex;align-items:center;border:1px solid #262626;border-radius:4px;height:26px;margin-left:4px}
+.spv{min-width:38px;text-align:center;color:#d0d0d0;font-size:12px}
+.mi{all:unset;cursor:pointer;position:absolute;right:0;transform:translateY(-50%);display:flex;gap:1px;padding:2px 3px;border-radius:3px;background:rgba(0,0,0,.6)}
+.mi:hover{background:#1e1e1e}
+.mi svg,.ki{width:14px;height:14px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ki{flex:none;width:15px;height:15px}
+.fbr .ki{width:13px;height:13px}
+`;
+
+const A2_RAIL = `<div class="rail" onClick="{{seekV}}" title="Click to jump"><div class="rail-dn" style="height: {{pct}}"></div><div class="rail-hd" style="top: {{pct}}"></div></div>
+<div class="rmk"><sc-for list="{{marks}}" as="m" hint-placeholder-count="5"><button type="button" class="mi" style="top: {{m.at}}" title="{{m.tip}}" aria-label="{{m.tip}}" onClick="{{m.seek}}"><sc-for list="{{m.icons}}" as="k" hint-placeholder-count="1"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: {{k.c}}"><path d="{{k.d}}"></path></svg></sc-for></button></sc-for></div>`;
+const A2_SPEED = `<span class="spdc"><button type="button" class="{{sdCls}}" aria-label="Slower" title="Slower" onClick="{{speedDown}}">${ic(P.prev)}</button><span class="spv" title="Speed (1–6)">{{speedLabel}}</span><button type="button" class="{{suCls}}" aria-label="Faster" title="Faster" onClick="{{speedUp}}">${ic(P.next)}</button></span>`;
+const KICON = (d, c, cls = 'ki') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" style="stroke: ${c}"><path d="${d}"></path></svg>`;
+const A2_BODY = CARD_BODY.replace('<span class="dot" style="background: {{kindColor}}"></span>', KICON('{{kindIcon}}', '{{kindColor2}}'))
+  .replace('<div class="kind">', '<div class="kind" style="color: {{kindColor2}}">');
+const A2_KINDS = FOLD_KINDS.replace('<span class="dot" style="background: {{k.c}}"></span>', KICON('{{k.d}}', '{{k.c2}}'));
+const A2_CARD = `<div class="card glass ui" style="position: absolute; top: 26px; right: 44px; width: 330px">${CARD_HEAD()}${A2_BODY}<div class="fs">${A2_KINDS}${FOLD_CHARS}${PERIOD}</div></div>`;
+
+function boardA2(mode) {
+  const spot = mode === 'spot';
+  const hdr = spot
+    ? `<div class="hdr" style="right: 44px"><span><b>{{spotWho}}</b>  ·  {{spotHdr}}</span><span>Space Play/Pause  ·  ← → Prev/next  ·  Shift ← → 10 s  ·  1–6 Speed  ·  Esc Back</span></div>`
+    : `<div class="hdr" style="right: 410px"><span><b>Rasta</b> (L42)  ·  Run {{runNo}} of 2  ·  {{runDate}}</span><span>Space Play/Pause  ·  ← → 10 s  ·  1–6 Speed  ·  ↑↓ Cursor  ·  Esc Back</span></div>`;
+  const tail = spot ? `<span class="vs"></span>${VIEW_BTN}${CLOSE_BTN(true)}` : `<span class="vs"></span>${PANES_BTN}${VIEW_BTN}${CLOSE_BTN(false)}`;
+  const body = `${spot ? OUT(true, 12) : OUT(false).replace('top: 2px', 'top: 24px')}
+${spot ? '' : DOCK(44, 70, 360)}
+${spot ? A2_CARD : ''}
+${hdr}
+${A2_RAIL}
+<div class="boxA glass ui"><div class="row">${TRANSPORT(spot)}${A2_SPEED}<span style="width: 10px"></span>${TIME}<span style="flex: 1; min-width: 12px"></span>${tail}</div>
+${spot ? '' : POP_PANES()}${POP_VIEW()}</div>`;
+  const title = `32 · A2 Kompakt, reviderad · ${spot ? 'Spotlights' : 'Run log'}`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>${CSS + RAIL_CSS + A2_CSS}</style>
+</helmet>
+<div class="board" style="background: {{boardBg}}">
+${body}
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+${LOGIC(mode, 'A')}
+</script>
+</body>
+</html>
+`;
+}
+for (const mode of ['spot', 'run']) {
+  const file = `Player32A2-${mode === 'spot' ? 'spotlights' : 'runlog'}.dc.html`;
+  writeFileSync(`${S}/canvas/project/${file}`, boardA2(mode));
+  console.log(file);
+}

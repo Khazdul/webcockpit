@@ -29,3 +29,12 @@ the info card at the top right.
 
 Keys proposed: run log ← → back/forward 10 s; Spotlights ← → previous/next
 (as today) and Shift+← → 10 s; Home to the start in both.
+
+## Owner pick and A2 (2026-11-01)
+
+The owner picked A, with changes, drawn as A2 (`Player32A2-*`): speed with
+◄ ► beside it; the header line with key hints stays and the Keys menu
+goes; kind icons in colour (Death skull red, PvP kill crossed swords
+orange, Achievement star gold, Level-up double chevrons green) in the
+card, the filter and on the rail instead of letters; the rail as in A.
+The icon paths are `KI` in `gen.mjs`.

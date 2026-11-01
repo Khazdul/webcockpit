@@ -70,6 +70,52 @@ Start menu:
 | 32b | Mockups on the owner's canvas: three directions, each with the Spotlights reel and the run log player; clickable menus. Owner picks. |
 | 32c | Build the pick (plan written after 32b). |
 
+## Owner pick (2026-11-01)
+
+Direction **A** (compact box at the bottom right, the right-edge rail),
+with these changes, drawn as **A2** on the canvas
+(`notes/research/player-mockups/`, `Player32A2-*`):
+
+1. Speed has ◄ ► beside it: one click changes it.
+2. The header line at the top (character, run or spotlight, date, key
+   hints) stays while the chrome shows. No Keys icon.
+3. Spotlights: each kind gets its own icon in a fitting colour instead of
+   the dot: Death a skull (red), PvP kill crossed swords (orange),
+   Achievement a star (gold), Level-up double chevrons (green). The same
+   icons replace the letters at the rail.
+4. The right-edge strip stays as in the mockup: narrower than today and a
+   little more modern, with today's character (gold playhead, markers).
+5. The exported HTML replays get the same new look.
+
+## 32c plan
+
+Decisions *(Claude)*, recorded in a new ADR (amending ADRs 0018, 0021,
+0110):
+
+- **Control box:** plain DOM in the ghost look of the in-game popups, one
+  row: To the start, −10 s, Play/Pause, +10 s, speed `◄ 1× ►`, time,
+  then Panes (run log), Display, Close (Esc). Panes and Display open
+  popups above the box: Panes = pane toggles and Reset layout; Display =
+  font size (Default, Small, Medium, Large) and colours (the six viewer
+  themes). They replace today's folded TUI settings section.
+- **Header:** kept as the top line, restyled lightly (text on a dark
+  chip, as A2); hints gain the 10 s keys.
+- **Rail:** replaces the 2-column strip: a thin track, the played part,
+  the gold playhead; click and drag seek as today, with the time hint.
+  Markers are the kind icons left of it, tooltips as today; a marker with
+  several kinds shows several icons.
+- **Spotlights card:** replaces the TUI info box and the gear popup:
+  `‹ Spotlight n / N ›`, the kind icon and name in its colour, the label,
+  character and date, the countdown as a thin line; under it the filter:
+  Kinds and Characters fold out, Period is a list. Changes rebuild the
+  reel live as ADR 0110. With nothing to show, the card stays with its
+  filter and says so.
+- **Keys:** run log ← → 10 s; Spotlights ← → previous/next (as today),
+  Shift+← → 10 s; Home to the start; 1–6 speed as today.
+- **HTML replay:** the same chrome; it stays one self-contained file.
+- **Touch and narrow windows:** every control works by touch; the card
+  hides when the player is too narrow, as today.
+
 ## Tasks
 
 - [x] 32a: start menu (Enter MUME, Profile, Scripts, History, Spotlights,
@@ -81,8 +127,10 @@ Start menu:
 - [x] 32b: mockups on the canvas, column "Steg 32": directions A (compact box,
   right-edge rail), B (timeline in the box), C (full-width bottom bar);
   source and table in `notes/research/player-mockups/` (2026-11-01).
-- [ ] 32b: owner picks.
-- [ ] 32c: plan, build, test guide.
+- [x] 32b: owner picks A with changes (2026-11-01); revised as A2 on the
+  canvas (`Player32A2-*`).
+- [ ] 32c: build (plan below).
+- [ ] 32c: test guide, owner test.
 
 ## Test guide 32a (start menu)
 
