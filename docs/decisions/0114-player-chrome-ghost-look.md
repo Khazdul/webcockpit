@@ -74,7 +74,8 @@ card; the pick was direction A as revised (A2).
 ### Header
 
 - Kept as the top line, its two parts on dark chips (opaque, since the
-  game text's first line runs under it); the hint fitting is unchanged
+  game text's first line runs under it; on a light theme, Paper, the
+  canvas colour with dark greys); the hint fitting is unchanged
   (cells), with each chip's padding (two cells) counted. Hints: run log `Space
   Play/Pause · ← → 10 s · 1–6 Speed · ↑↓ Cursor · ESC Back`; reel `← →
   Prev/next · Shift ← → 10 s · 1–6 Speed · ESC Back`; replay `Space Play ·
