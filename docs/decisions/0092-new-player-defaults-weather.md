@@ -109,3 +109,17 @@ row.
 The pane bar script is removed (ADR 0111) and the layout no longer holds
 its slot: the right dock's tail is Comm, UI. The first screen is the same
 as after the 2026-10-31 addendum.
+
+## Addendum 2026-11-01 — a clear map, a taller map
+
+The owner (stage 33) wants a new player's map pane clear and taller:
+
+- `panes.map.glass` false in `defaultSettings()` (and so on a phone). A
+  stored map entry without the setting, or a damaged one, stays glass
+  (`migratePanes`), so existing users keep what they had.
+- `DEFAULT_SHARE` map 330, lanes 80, Comm 125 (was 195, 110, 130). With
+  Character and UI off the map takes about 58 % of the dock, the lanes
+  17 % and Comm 25 %, after the owner's screenshot: in a 72-row dock
+  42, 12 and 18 outer rows; in 174 × 51, 29, 9 and 13. With Character
+  and UI on: 11, 21, 7, 9 and 3. Stored layouts keep their sizes; Reset
+  layout takes the new default.

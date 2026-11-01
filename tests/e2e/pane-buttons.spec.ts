@@ -164,6 +164,8 @@ test('a clear pane has no fill and no blur, weather off and on; a clear float hi
       d.panes.group.on = true;
       d.panes.group.color = 'red';
       d.panes.comm.color = 'blue';
+      // Every other pane glass (a new player's map is clear, ADR 0092 addendum).
+      d.panes.map.glass = true;
     }),
   );
   const look = (id: string) =>

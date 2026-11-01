@@ -162,7 +162,8 @@ test('Transparent: the map leaves its empty space clear, tiles opaque, and follo
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.goto('/?replay');
   await expect(page.locator('.wc-cockpit')).toBeVisible();
-  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true } } }));
+  await page.evaluate(() => window.__wc!.settings.update({ panes: { map: { on: true, glass: true } } }));
+  // A glass pane (a new player's map is clear, ADR 0092 addendum): its fill follows the tint.
   const pane = page.locator('.wc-app .wc-pane-map');
   const content = pane.locator('.wc-pane-content');
   await expect(content).toHaveAttribute('data-map-drawn-ms', /\d/, { timeout: 30_000 });

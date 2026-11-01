@@ -171,7 +171,7 @@ function migratePanes(raw: unknown, drop: ReadonlySet<PaneId> = NONE): PaneSetti
   // A damaged entry in a stored map takes the defaults before ADR 0078/0092.
   d.ui = { ...d.ui, on: true, border: true };
   d.character = { ...d.character, on: true };
-  d.map = { ...d.map, border: true };
+  d.map = { ...d.map, border: true, glass: true };
   const p = raw;
   const out = {} as PaneSettingsMap;
   for (const id of PANE_IDS) out[id] = paneEntry(p[id], d[id]);

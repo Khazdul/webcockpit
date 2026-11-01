@@ -119,6 +119,13 @@ describe('migrateSettings', () => {
     expect(migrateSettings({ panes: { map: { on: true, border: false } } }).panes.map.border).toBe(false);
   });
 
+  it('a new player\'s map is clear (ADR 0092 addendum); a stored map without the glass setting stays glass', () => {
+    expect(migrateSettings(undefined).panes.map.glass).toBe(false);
+    expect(migrateSettings({ panes: { map: { on: true, border: false } } }).panes.map.glass).toBe(true);
+    expect(migrateSettings({ panes: { map: 'x' } }).panes.map.glass).toBe(true);
+    expect(migrateSettings({ panes: { map: { glass: false } } }).panes.map.glass).toBe(false);
+  });
+
   it('a pane entry without the glass setting migrates to glass; a stored clear pane stays clear (ADR 0095)', () => {
     const p = migrateSettings({ panes: { comm: { on: true, color: 'red', border: true }, timers: { glass: false }, group: { glass: 'no' } } }).panes;
     expect(p.comm).toEqual({ on: true, color: 'red', border: true, glass: true });

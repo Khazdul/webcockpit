@@ -69,7 +69,7 @@ describe('new-player settings (ADR 0092)', () => {
 });
 
 describe('default layout (ADR 0092)', () => {
-  it("lays out the owner's 174 × 51 window: dock 50 wide, the full height (wide case); the map 22, the lanes 13, Comm 16", () => {
+  it("lays out the owner's 174 × 51 window: dock 50 wide, the full height (wide case); the map 29, the lanes 9, Comm 13 (owner, 2026-11-01)", () => {
     const r = allocate(input(174, 51));
     expect(r.hidden).toEqual([]);
     // The right dock: 50 cells after a one-cell gap, all 51 rows: a 123-cell
@@ -80,11 +80,11 @@ describe('default layout (ADR 0092)', () => {
     expect(r.input).toEqual({ x: 0, y: 50, w: 123, h: 1 });
     expect(r.docks.right!.mode).toBe('scaled');
     expect(rect(r, 'character')).toBeUndefined();
-    expect(rect(r, 'map')).toEqual({ x: 124, y: 0, w: 50, h: 22 });
+    expect(rect(r, 'map')).toEqual({ x: 124, y: 0, w: 50, h: 29 });
     // Group at the screen edge (lane 0), Timers inside it (lane 1), 25 each.
-    expect(rect(r, 'group')).toEqual({ x: 149, y: 22, w: 25, h: 13 });
-    expect(rect(r, 'timers')).toEqual({ x: 124, y: 22, w: 25, h: 13 });
-    expect(rect(r, 'comm')).toEqual({ x: 124, y: 35, w: 50, h: 16 });
+    expect(rect(r, 'group')).toEqual({ x: 149, y: 29, w: 25, h: 9 });
+    expect(rect(r, 'timers')).toEqual({ x: 124, y: 29, w: 25, h: 9 });
+    expect(rect(r, 'comm')).toEqual({ x: 124, y: 38, w: 50, h: 13 });
     // UI is off: Comm ends at the screen bottom, beside the input row.
     expect(rect(r, 'ui')).toBeUndefined();
     // No floats: the map is docked, Map search and Statistics are off.
@@ -93,15 +93,15 @@ describe('default layout (ADR 0092)', () => {
     expect(defaultLayout().floating.map((f) => f.id)).toEqual([FIND, 'statistics']);
   });
 
-  it('with Character, UI and Map search on: Character 11, the map 16, the lanes 10, Comm 11, UI 3; Map search at the top-right corner', () => {
+  it('with Character, UI and Map search on: Character 11, the map 21, the lanes 7, Comm 9, UI 3; Map search at the top-right corner', () => {
     const r = allocate(input(174, 51, defaultLayout(), { character: true, ui: true, [FIND]: true }));
     expect(r.hidden).toEqual([]);
     expect(rect(r, 'character')).toEqual({ x: 124, y: 0, w: 50, h: 11 });
     expect(content(r, 'character')!.h).toBe(9);
-    expect(rect(r, 'map')).toEqual({ x: 124, y: 11, w: 50, h: 16 });
-    expect(rect(r, 'group')).toEqual({ x: 149, y: 27, w: 25, h: 10 });
-    expect(rect(r, 'timers')).toEqual({ x: 124, y: 27, w: 25, h: 10 });
-    expect(rect(r, 'comm')).toEqual({ x: 124, y: 37, w: 50, h: 11 });
+    expect(rect(r, 'map')).toEqual({ x: 124, y: 11, w: 50, h: 21 });
+    expect(rect(r, 'group')).toEqual({ x: 149, y: 32, w: 25, h: 7 });
+    expect(rect(r, 'timers')).toEqual({ x: 124, y: 32, w: 25, h: 7 });
+    expect(rect(r, 'comm')).toEqual({ x: 124, y: 39, w: 50, h: 9 });
     // UI without a frame: three rows of messages, the last the screen's bottom row.
     expect(rect(r, 'ui')).toEqual({ x: 124, y: 48, w: 50, h: 3 });
     expect(r.panes.find((p) => p.id === 'ui')!.framed).toBe(false);
@@ -128,7 +128,7 @@ describe('default layout (ADR 0092)', () => {
     const r = allocate(input(174, 51, defaultLayout(), { group: false, timers: false }));
     expect(rect(r, 'group')).toBeUndefined();
     expect(rect(r, 'map')!.h + rect(r, 'comm')!.h).toBe(51);
-    expect(rect(r, 'comm')!.h).toBeGreaterThan(15);
+    expect(rect(r, 'comm')!.h).toBeGreaterThan(13);
   });
 });
 

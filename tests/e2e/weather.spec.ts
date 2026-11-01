@@ -81,6 +81,8 @@ test('panes are see-through with weather on: docked at once, a float at once and
       }
       d.layout.floating = [...d.layout.floating, { id: 'group', x: 5, y: 8, w: 36, h: 12 }];
       d.panes.group.on = true;
+      // Every other pane glass (a new player's map is clear, ADR 0092 addendum).
+      d.panes.map.glass = true;
     }),
   );
   const group = page.locator('.wc-pane-group');

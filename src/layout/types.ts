@@ -294,18 +294,18 @@ export const EVEN_SHARE_DESIRED = 200;
  * Desired rows of the default right dock's shared panes (ADR 0078, ADR
  * 0092). Like `EVEN_SHARE_DESIRED` they are larger than any window, so the
  * dock always runs in `scaled` mode: Character (head) is reserved, and
- * the rest is split in proportion to `desired − min`. In a 174 × 51
- * window (the dock the full 51 rows beside the input row, ADR 0102) with
- * Character and UI off (the new-player default) that is the map 22, the
- * lanes 13 and Comm 16 outer rows; with both on, Character 11, the map
- * 16, the lanes 10, Comm 11 and UI 3.
+ * the rest is split in proportion to `desired − min`. With Character and
+ * UI off (the new-player default) the map takes about 58 %, the lanes 17 %
+ * and Comm 25 % (owner, 2026-11-01): in a 72-row dock the map 42, the
+ * lanes 12 and Comm 18 outer rows; in a 174 × 51 window (the dock the full
+ * 51 rows beside the input row, ADR 0102) 29, 9 and 13.
  */
 export const DEFAULT_SHARE = {
   /** The map, spanning both lanes under Character (stage 28 new-player defaults). */
-  map: 195,
-  /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 109. */
-  lanes: 110,
-  comm: 130,
+  map: 330,
+  /** Each lane's pane: the region's `desired − min` is `lanes + frame − (1 + frame)` = 79. */
+  lanes: 80,
+  comm: 125,
   ui: 31,
 } as const;
 

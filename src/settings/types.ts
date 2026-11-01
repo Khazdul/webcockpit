@@ -433,7 +433,7 @@ export function defaultSettings(): Settings {
       group: { on: true, color: 'black', border: true, glass: true },
       comm: { on: true, color: 'black', border: true, glass: true },
       ui: { on: false, color: 'black', border: false, glass: true },
-      map: { on: true, color: 'black', border: false, glass: true },
+      map: { on: true, color: 'black', border: false, glass: false },
       // Off for everyone until switched on in the Panes popup (ADR 0109).
       statistics: { on: false, color: 'black', border: true, glass: true },
       // The pre-placed bundled script pane (ADR 0078): Map search starts
