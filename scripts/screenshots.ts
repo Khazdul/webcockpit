@@ -394,14 +394,14 @@ const SHOTS: Record<string, Shot> = {
     await ctx.close();
   },
 
-  // ESC → Options → Appearance over the game, on a starry night.
+  // The menu bar's Settings popup (Appearance tab) over the game, on a starry night.
   appearance: (b) =>
     gameplay(b, 'appearance', () => ({ ...NIGHT, weather: ' ', moonUp: false }), async (page) => {
       await sleep(2000);
-      await page.keyboard.press('Escape');
-      await menuRow(page, 'options').click();
-      await menuRow(page, 'appearance').click();
-      await page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row', { hasText: 'Appearance' }).waitFor();
+      await page.locator('.wc-mb[data-mb="settings"]').click();
+      await page.locator('.wc-sp-settings .wc-sp-page[data-page="appearance"]').waitFor();
+      // No hover glow on the icon in the picture.
+      await page.mouse.move(10, 10);
       await sleep(800);
     }),
 
@@ -523,10 +523,6 @@ const SHOTS: Record<string, Shot> = {
     await c2.close();
   },
 };
-
-/** A row of the visible ESC menu frame. */
-const menuRow = (page: Page, key: string) => page.locator(`.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="${key}"] .wc-label`);
-
 
 // ------------------------------------------------------------ main
 
