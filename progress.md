@@ -36,7 +36,7 @@ Next: stage 31 (31a clock mockups for the menu bar, 31b weather smoothness revie
 | 28 | Weather effects | Owner testing | `docs/stages/28-weather-trial.md` |
 | 29 | Pane buttons | Owner testing | `docs/stages/29-pane-buttons.md` |
 | 30 | Fixed menu | Owner testing | `docs/stages/30-fixed-menu.md` |
-| 31 | Menu bar clock and weather smoothness | Next | `docs/stages/31-clock-and-snow.md` |
+| 31 | Menu bar clock and weather smoothness | In progress | `docs/stages/31-clock-and-snow.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

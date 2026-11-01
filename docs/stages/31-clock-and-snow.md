@@ -1,7 +1,7 @@
 # Stage 31 — Menu bar clock and weather smoothness
 
-Status: **Next**. Owner brief 2026-11-01 (below). The plan, tasks and test
-guide are written when the stage starts. After this stage: a release
+Status: **In progress** (31a mockups with the owner; 31b review running
+in a worktree). Owner brief 2026-11-01 (below). After this stage: a release
 (stage 30 and 31 together), then the owner's deferred device tests (stage
 30's tablet and phone items, the 30e Spotlights guide, and other open
 owner tests).
@@ -45,3 +45,28 @@ Two independent parts, in this order:
 |---|---|
 | 31a | Clock mockups (small tweaks and drastic variants) → owner picks → build, test guide. |
 | 31b | Weather review: measure snow (and the others) in Firefox and Chromium, find the cause of the jerkiness, fix, test guide. |
+
+## Plan
+
+- **31a.** Measure today's clock in the real bar, then mockups on the
+  owner's canvas (new column "Steg 31a", two artboards: four small
+  tweaks with today for comparison, four drastic variants). Source and
+  variant table in `notes/research/clock-mockups/`. The owner picks (or
+  combines); the build follows with an ADR (addendum to ADR 0099) and a
+  test guide.
+- **31b.** One agent in a worktree measures snow and the other effects
+  in Firefox and Chromium (frame timestamps, per-flake motion), writes
+  `notes/research/weather-smoothness.md`, fixes the cause with an ADR and
+  before/after numbers. Merged after review; a visible trade-off (CPU
+  against smoothness) goes to the owner.
+
+## Tasks
+
+- [x] 31a: today's clock measured (boxes centred; bold digits taller
+  than the 13 px icons, the moon's ink low in its box).
+- [x] 31a: mockups A–G on the canvas (2026-11-01).
+- [ ] 31a: owner picks a variant.
+- [ ] 31a: build, ADR, tests, test guide.
+- [ ] 31b: measurements and root cause (research note).
+- [ ] 31b: fix, ADR, before/after numbers, merge.
+- [ ] 31b: test guide.
