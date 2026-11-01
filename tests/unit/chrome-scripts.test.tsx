@@ -4,7 +4,8 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { type ChromeServices, mountStartPage } from '../../src/chrome';
+import type { AppStatusState, AppStatusView } from '../../src/app/status';
+import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
 import {
   BUTTONS_W,
   ROW_FIXED,
@@ -179,28 +180,49 @@ async function openScripts(lib: ScriptLibrary): Promise<HTMLElement> {
   cleanup.push(() => page.dispose());
   await act(() => page.show());
   const items = [...host.querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
-  expect(items.slice(0, 3)).toEqual(['enter', 'profile', 'options']);
-  // Scripts sits under Options.
-  await act(() => (host.querySelector('.wc-mrow[data-key="options"] .wc-label') as HTMLElement).click());
-  await flush();
-  const hub = [...frame(host).querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
-  expect(hub).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'scripts', 'weather', 'back']);
-  await act(() => (frame(host).querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
+  // Scripts sits under Profile on the main menu (stage 32).
+  expect(items.slice(0, 3)).toEqual(['enter', 'profile', 'scripts']);
+  await act(() => (host.querySelector('.wc-mrow[data-key="scripts"] .wc-label') as HTMLElement).click());
   await flush();
   return host;
 }
 
+/** The phone's ESC menu opened at Options (the hub's only home since stage 32): its row keys. */
+async function escOptionsHub(lib?: ScriptLibrary): Promise<(string | null)[]> {
+  const host = document.createElement('div');
+  document.body.append(host);
+  const state: AppStatusState = {
+    conn: 'playing',
+    replay: false,
+    character: '',
+    linkMs: 38,
+    linkSuspect: false,
+    capture: '',
+    xml: true,
+  };
+  const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
+  const menu = mountEscMenu(host, services(lib), { status, close: () => {}, reconnect: () => {}, exit: () => {} });
+  await act(() => menu.open({ target: 'settings' }));
+  await flush();
+  const keys = [...frame(host).querySelectorAll('.wc-mrow')].map((e) => e.getAttribute('data-key'));
+  // One surface at a time (each holds the focus).
+  await act(() => menu.dispose());
+  host.remove();
+  return keys;
+}
+
 describe('Scripts page', () => {
-  it('is not under Options without a library', async () => {
+  it('is on the start page and in the ESC menu\'s Options only with a library', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await act(() => (host.querySelector('.wc-mrow[data-key="options"] .wc-label') as HTMLElement).click());
-    await flush();
-    expect(frame(host).querySelector('.wc-mrow[data-key="options"]')).toBeNull();
+    expect(host.querySelector('.wc-mrow[data-key="profile"]')).not.toBeNull();
     expect(host.querySelector('.wc-mrow[data-key="scripts"]')).toBeNull();
+    await act(() => page.dispose());
+    expect(await escOptionsHub()).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'weather', 'back']);
+    expect(await escOptionsHub(await library())).toEqual(['panes', 'mapper', 'appearance', 'textinput', 'scripts', 'weather', 'back']);
   });
 
   it('lists the scripts with a lock on bundled ones and shows the help', async () => {

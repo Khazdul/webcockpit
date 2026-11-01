@@ -11,7 +11,10 @@
 import { BANNER_H, bannerFits } from './banner-data';
 import { wrapText } from './kit/nav';
 
-/** Rows of the start page main menu (Enter MUME … About). */
+/**
+ * Rows of the start page main menu: Enter MUME, Profile, Scripts, History,
+ * Spotlights, Credits, About (src/chrome/frames/start-main.tsx).
+ */
 export const START_MENU_ROWS = 7;
 
 export interface StartLayout {

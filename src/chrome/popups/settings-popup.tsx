@@ -2,7 +2,8 @@
 // menu bar's Settings icon, four tabs of modern controls. Every change goes
 // straight to the settings store and applies live (ADR 0010); the same
 // settings as the TUI pages Options → Appearance, Text input, Mapper and
-// Weather effects (frames/options*.tsx), which stay on the start page.
+// Weather effects (frames/options*.tsx), which stay in the phone's ESC menu
+// (the start page lost Options in stage 32).
 //
 //   SETTINGS                                                   ×
 //   Appearance  Text input  Mapper  Weather effects

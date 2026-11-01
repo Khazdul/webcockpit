@@ -2,7 +2,11 @@
 // Top-anchored: blank, banner, blank, menu, flash row, quote, attribution;
 // the footer sits on the last row (src/chrome/start-layout.ts; the first
 // paint in index.html draws the banner from the same layout, so `items`
-// must stay START_MENU_ROWS long). The client notices
+// must stay START_MENU_ROWS long). Scripts needs the script library, which
+// the shell always has; only tests mount the page without it, and then the
+// menu is a row shorter (the first paint is not involved there). Options
+// left the start page in stage 32 (its settings are changed in the game);
+// the phone's ESC menu keeps it. The client notices
 // (ADR 0025) are drawn by the start surface on the top row, above every
 // start frame (src/chrome/index.tsx `StartNotices`).
 
@@ -25,8 +29,8 @@ import { startLayout } from '../start-layout';
 import { AboutFrame } from './about';
 import { CreditsFrame } from './credits';
 import { HistoryFrame } from './history';
-import { OptionsHub } from './options';
 import { ProfileFrame } from './profiles';
+import { ScriptsFrame } from './scripts';
 import { startSpotlights } from './spotlights';
 
 export const LATER = 'Coming in a later stage.';
@@ -44,7 +48,7 @@ export function StartMain(p: StartMainProps): VNode {
   const items: MenuItem[] = [
     { key: 'enter', label: 'Enter MUME', activate: p.onEnter },
     { key: 'profile', label: 'Profile', activate: () => nav.push(<ProfileFrame />) },
-    { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
+    ...(services.scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     { key: 'history', label: 'History', activate: () => nav.push(<HistoryFrame />) },
     { key: 'spotlights', label: 'Spotlights', activate: () => void startSpotlights(nav, services) },
     { key: 'credits', label: 'Credits', activate: () => nav.push(<CreditsFrame />) },

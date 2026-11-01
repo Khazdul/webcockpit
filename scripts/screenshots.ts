@@ -451,8 +451,7 @@ const SHOTS: Record<string, Shot> = {
       // On: the editor's state line reads "● on · runs when you enter MUME", not "○ off".
       await lib.setEnabled('killcounter', true);
     }, KILL_COUNTER);
-    await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
-    await page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow[data-key="scripts"] .wc-label').click();
+    await page.locator('.wc-start .wc-mrow[data-key="scripts"] .wc-label').click();
     const f = page.locator('.wc-start .wc-frame:not([hidden])');
     await f.locator('.wc-scr-row[data-script="killcounter"] [data-btn="EDIT"]').click();
     const ed = page.locator('.wc-frame:not([hidden]) > .wc-sed');

@@ -12,6 +12,7 @@ import { pasteText } from '../../src/chrome/frames/export-input';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
 import { DAY_US } from '../../src/runs/stitch';
+import { ScriptLibrary } from '../../src/scripts';
 import { SettingsStore } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
 
@@ -67,7 +68,9 @@ function services(lib: RunLibrary): ChromeServices {
   const cells = new CellMetrics({ measure: () => ({ w: 10, h: 20, px: 15, ls: 0 }), loadFont: async () => {} });
   void cells.update(settings.get().appearance);
   const profiles = new ProfileStore({ factory: null });
-  return { settings, cells, profiles, version: '9.9.9', runs: async () => lib };
+  // The shell always has a script library: the start menu has its Scripts row.
+  const scripts = new ScriptLibrary({ factory: null, bundled: [] });
+  return { settings, cells, profiles, version: '9.9.9', runs: async () => lib, scripts };
 }
 
 const key = (k: string, init: KeyboardEventInit = {}) =>

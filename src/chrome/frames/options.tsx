@@ -1,6 +1,6 @@
-// Options (Inv §3.5, §3.7, §4.4, §2.1), shared by the start page and the
-// phone's ESC menu (ADR 0112). Every change is written to the settings store at once and
-// applies live (ADR 0010: one store, no launcher/popup asymmetry), so
+// Options (Inv §3.5, §3.7, §4.4, §2.1), in the phone's ESC menu (ADR 0112;
+// on the start page too until stage 32). Every change is written to the
+// settings store at once and applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
 //   Options hub:  Panes · Mapper · Appearance · Text input · Scripts ·

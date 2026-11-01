@@ -29,6 +29,7 @@ import type { RunEvent } from '../../src/runs/events';
 import { RunLibrary } from '../../src/runs/library';
 import type { LiveRuns } from '../../src/runs/live';
 import { DAY_US, type Session } from '../../src/runs/stitch';
+import { ScriptLibrary } from '../../src/scripts';
 import { SettingsStore } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
 
@@ -173,7 +174,9 @@ function services(lib: RunLibrary, extra: Partial<ChromeServices> = {}): ChromeS
   const cells = new CellMetrics({ measure: () => ({ w: 10, h: 20, px: 15, ls: 0 }), loadFont: async () => {} });
   void cells.update(settings.get().appearance);
   const profiles = new ProfileStore({ factory: null });
-  return { settings, cells, profiles, version: '9.9.9', runs: async () => lib, ...extra };
+  // The shell always has a script library: the start menu has its Scripts row.
+  const scripts = new ScriptLibrary({ factory: null, bundled: [] });
+  return { settings, cells, profiles, version: '9.9.9', runs: async () => lib, scripts, ...extra };
 }
 
 const key = (k: string, init: KeyboardEventInit = {}) =>

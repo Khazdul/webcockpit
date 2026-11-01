@@ -3,7 +3,8 @@ import { IDBFactory } from 'fake-indexeddb';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { type ChromeServices, mountStartPage } from '../../src/chrome';
+import type { AppStatusState, AppStatusView } from '../../src/app/status';
+import { type ChromeServices, mountEscMenu } from '../../src/chrome';
 import { setDeviceForTest } from '../../src/core/device';
 import { fmtBytes, fmtCount, mapInfoRows } from '../../src/chrome/frames/options-mapper';
 import { writeMm2 } from '../../src/map/mm2-write';
@@ -67,6 +68,23 @@ const labels = (host: HTMLElement) => [...frame(host).querySelectorAll('.wc-mrow
 const info = (host: HTMLElement) => [...frame(host).querySelectorAll('.wc-mapper-info')].map((e) => e.textContent!.replace(/\s+/g, ' ').trim());
 const click = (host: HTMLElement, k: string) =>
   act(() => frame(host).querySelector<HTMLElement>(`.wc-mrow[data-key="${k}"] .wc-label`)!.click());
+/** Options, in the phone's ESC menu (its only home since the start page lost it in stage 32). */
+async function openOptions(host: HTMLElement, svc: ChromeServices): Promise<void> {
+  const state: AppStatusState = {
+    conn: 'playing',
+    replay: false,
+    character: '',
+    linkMs: 38,
+    linkSuspect: false,
+    capture: '',
+    xml: true,
+  };
+  const status: AppStatusView = { get: () => state, subscribe: () => () => {} };
+  const menu = mountEscMenu(host, svc, { status, close: () => {}, reconnect: () => {}, exit: () => {} });
+  cleanup.push(() => menu.dispose());
+  await act(() => menu.open({ target: 'settings' }));
+  expect(frame(host).querySelector('.wc-c-section')?.textContent).toBe('─── Options ───');
+}
 const settle = () => act(async () => {
   for (let i = 0; i < 20; i++) await new Promise((r) => setTimeout(r, 0));
 });
@@ -97,10 +115,7 @@ describe('Options → Mapper', () => {
     const svc = services(maps);
     const host = document.createElement('div');
     document.body.append(host);
-    const page = mountStartPage(host, svc, { onEnter: () => {} });
-    cleanup.push(() => page.dispose());
-    await act(() => page.show());
-    await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
+    await openOptions(host, svc);
     // Desktop and tablet: no pane Appearance page (the Panes popup and the pane buttons hold it, ADR 0107).
     await click(host, 'panes');
     expect(labels(host)).toEqual(['Timers', 'Communication', 'Group', 'Back']);
@@ -268,10 +283,7 @@ describe('Options → Mapper → Background colour (ADR 0085 and addenda)', () =
     const svc = services(maps);
     const host = document.createElement('div');
     document.body.append(host);
-    const page = mountStartPage(host, svc, { onEnter: () => {} });
-    cleanup.push(() => page.dispose());
-    await act(() => page.show());
-    await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
+    await openOptions(host, svc);
     await click(host, 'mapper');
     await settle();
     const bg = () => svc.settings.get().mapper.background;

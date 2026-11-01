@@ -8,8 +8,10 @@ import { headerParts, linkClass } from '../../src/chrome/frames/esc-main';
 import { colorChoices, gridToggle, parseHex } from '../../src/chrome/frames/options';
 import { TIMERS_GRID_W, colorToggle, stepCols, timersHeader } from '../../src/chrome/frames/options-timers';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
+import { START_MENU_ROWS } from '../../src/chrome/start-layout';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
+import { ScriptLibrary } from '../../src/scripts';
 import { SettingsStore } from '../../src/settings';
 import { CellMetrics } from '../../src/theme/cells';
 import { TERMINAL_FG_PRESETS } from '../../src/theme/presets';
@@ -117,6 +119,14 @@ function services(): ChromeServices {
   return { settings, cells, profiles, version: '9.9.9', runs: () => RunLibrary.open(new IDBFactory()) };
 }
 
+/** As the shell gives the start page: with a script library (the Scripts row). */
+function startServices(): ChromeServices {
+  return { ...services(), scripts: new ScriptLibrary({ factory: null, bundled: [] }) };
+}
+
+const menuLabels = (host: HTMLElement) =>
+  [...host.querySelectorAll('.wc-frame:not([hidden]) .wc-mrow .wc-label')].map((e) => e.textContent);
+
 const key = (k: string, init: KeyboardEventInit = {}) =>
   act(() => {
     (document.activeElement ?? document.body).dispatchEvent(
@@ -135,7 +145,7 @@ describe('start page', () => {
     const docKeys = vi.fn();
     document.addEventListener('keydown', docKeys, true);
     cleanup.push(() => document.removeEventListener('keydown', docKeys, true));
-    const page = mountStartPage(host, services(), { onEnter });
+    const page = mountStartPage(host, startServices(), { onEnter });
     cleanup.push(() => page.dispose());
     const started = vi.spyOn(window, 'setInterval');
     await act(() => page.show());
@@ -144,6 +154,11 @@ describe('start page', () => {
     expect(host.querySelectorAll('.wc-banner .wc-line')).toHaveLength(11);
     expect(host.querySelector('[data-star]')).not.toBeNull();
     expect(selected(host)).toBe('<< Enter MUME >>');
+    // Stage 32: no Options; Scripts under Profile; as long as the first paint's menu.
+    const labels = ['Enter MUME', 'Profile', 'Scripts', 'History', 'Spotlights', 'Credits', 'About'];
+    expect(menuLabels(host)).toEqual(labels);
+    expect(labels).toHaveLength(START_MENU_ROWS);
+    expect(host.querySelector('.wc-mrow[data-key="options"]')).toBeNull();
 
     await key('ArrowUp');
     expect(selected(host)).toBe('<< About >>');
@@ -160,18 +175,18 @@ describe('start page', () => {
     await key('Enter');
     expect(host.querySelector('.wc-flash')?.textContent).toMatch(/not available/);
 
-    // Options opens and ESC comes back with the cursor kept.
+    // Scripts opens and ESC comes back with the cursor kept.
     await key('ArrowUp');
     await key('ArrowUp');
     await key('Enter');
-    expect(title(host)).toBe('─── Options ───');
+    expect(title(host)).toBe('─── Scripts ───');
     await key('Escape');
     expect(title(host)).toBeUndefined();
-    expect(selected(host)).toBe('<< Options >>');
+    expect(selected(host)).toBe('<< Scripts >>');
 
     // ESC on the main page is a no-op; Enter MUME calls back.
     await key('Escape');
-    expect(selected(host)).toBe('<< Options >>');
+    expect(selected(host)).toBe('<< Scripts >>');
     await key('Home');
     await key('Enter');
     expect(onEnter).toHaveBeenCalledTimes(1);
@@ -215,15 +230,13 @@ describe('start page', () => {
     expect(selected(host)).toBe('<< Spotlights >>');
   });
 
-  it('Options has no Spotlights page: its settings are in the reel (ADR 0110)', async () => {
+  it('without a script library there is no Scripts row (only tests mount it so)', async () => {
     const host = document.createElement('div');
     document.body.append(host);
     const page = mountStartPage(host, services(), { onEnter: () => {} });
     cleanup.push(() => page.dispose());
     await act(() => page.show());
-    await act(() => host.querySelector<HTMLElement>('.wc-mrow[data-key="options"] .wc-label')!.click());
-    expect(title(host)).toBe('─── Options ───');
-    expect(host.querySelector('.wc-frame:not([hidden]) .wc-mrow[data-key="spotlights"]')).toBeNull();
+    expect(menuLabels(host)).toEqual(['Enter MUME', 'Profile', 'History', 'Spotlights', 'Credits', 'About']);
   });
 });
 
@@ -293,6 +306,8 @@ describe('ESC menu', () => {
     // Settings: Options; Esc on it closes, and so does its Back row.
     await act(() => menu.open({ target: 'settings' }));
     expect(title(host)).toBe('─── Options ───');
+    // Options has no Spotlights page: its settings are in the reel (ADR 0110).
+    expect(host.querySelector('.wc-frame:not([hidden]) .wc-mrow[data-key="spotlights"]')).toBeNull();
     await key('Escape');
     expect(close).toHaveBeenCalledTimes(1);
     await shut();
