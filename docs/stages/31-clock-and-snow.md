@@ -141,7 +141,7 @@ effects on.
    Then at night: `__weather.jump({ weather: '*', clock: 'night', moonUp: true })`.
    The overcast sky and the snow dusting on pane tops should look as
    before. `__weather.unpin()` goes back to the game's weather.
-2. **Birds:** a clear day (`__weather.jump({ weather: '', clock: 'day' })`),
+2. **Birds:** a clear day (`__weather.jump({ weather: ' ', clock: 'day' })`),
    then `__weather.emit('birds')`. Birds now fly at 30 frames a second
    (was 10). Smooth enough, or should they get 60 like the snow? 60 costs
    noticeably more CPU while a flock is on screen (ADR 0113).
