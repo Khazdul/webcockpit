@@ -1,6 +1,6 @@
 # Stage 31 — Menu bar clock and weather smoothness
 
-Status: **In progress** (31a mockups with the owner; 31b review running
+Status: **Owner testing** (31a: clock at a real dawn and dusk; 31b: demos;
 in a worktree). Owner brief 2026-11-01 (below). After this stage: a release
 (stage 30 and 31 together), then the owner's deferred device tests (stage
 30's tablet and phone items, the 30e Spotlights guide, and other open
