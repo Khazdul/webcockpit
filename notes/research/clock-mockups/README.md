@@ -1,6 +1,6 @@
 # Menu bar clock mockups (stage 31a)
 
-Four design-canvas artboards from 2026-11-01, in a new column on the
+Five design-canvas artboards from 2026-11-01, in a new column on the
 owner's canvas https://claude.ai/artifact/Bap2VJPNro2qcKTDrXXmaj (private
 to the owner; the stage 30 mockups are on the same canvas). Each shows the
 bar zoomed 2.5× (day and night) and at 1:1 under a game line, at a 15 px
@@ -33,3 +33,15 @@ low in its box, so the moon reads low.
 | I4 · Strålkransen räknar ner | No separate ring: the sun's twelve rays are the ring and go out one by one clockwise from 12; at night twelve small stars around the moon. |
 | I5 · Strålsol med spår | I1 with the vanished part as a faint track. |
 | Jämförelse · I1 med tid | I1 with the toned time kept, for comparison. |
+
+## Owner pick (2026-11-01) and sync states
+
+The owner picked **I2 · Spöksol** without the time beside it; hovering
+shows the exact time. The fifth artboard, `Clock31a-ghostsun.dc.html`,
+shows the clock's sync states (`ClockModel.precision`):
+
+| State | Precision | Shown |
+|---|---|---|
+| Synced to the minute | `minute` | Ghost sun or moon in the time-left ring; tooltip `Night in 4:33`. |
+| Synced to the hour only | `hour` | Approximate; four indicator proposals: T1 grey `~` beside, T2 dashed ring, T3 small raised `~` in the sun's colour, T4 grey ring plus `~`. Tooltip `Night in ~6 game hours` (today's text). |
+| Not synced | `unset`, `day` | No icon (owner). U1 the slot is gone and the bar starts with Profile; U2 the empty slot keeps the tooltip `Game clock unknown: type time`. |

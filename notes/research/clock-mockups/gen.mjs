@@ -73,6 +73,29 @@ function ring2(style, day, f, track) {
   return `<svg class="ring2" viewBox="0 0 24 24" aria-hidden="true">${trk}${arc}${inner}</svg>`;
 }
 
+// Ghost sun (I2) with sync states. The ring's remaining part as an explicit
+// arc path (from fraction f clockwise to 12 o'clock), so a dash pattern is free.
+function arcPath(f, r = R2) {
+  const a0 = f * 2 * Math.PI - Math.PI / 2, x0 = 12 + r * Math.cos(a0), y0 = 12 + r * Math.sin(a0);
+  const large = 1 - f > 0.5 ? 1 : 0;
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${large} 1 12 ${12 - r}`;
+}
+function ghostSun(day, f) {
+  const inner = day
+    ? `<circle class="g-line" cx="12" cy="12" r="3.4"></circle><path class="g-ray" d="${rays(8, 5.9, 7.9, -Math.PI / 2)}"></path>`
+    : `<path class="g-fill" d="${MOON_BIG}"></path>`;
+  return `<svg class="ring2" viewBox="0 0 24 24" aria-hidden="true"><path class="r2-arc" d="${arcPath(f)}"></path>${inner}</svg>`;
+}
+// mode: min | t1..t4 (hour precision) | u1 | u2 (not synced). tip: tooltip text or ''.
+function gsClock(per, f, mode, tip) {
+  const day = per === 'day';
+  const tipEl = tip ? `<span class="tip">${tip}</span>` : '';
+  if (mode === 'u1') return '';
+  if (mode === 'u2') return `<div class="clk gs u2${tip ? ' hov' : ''}">${tipEl}<span class="gs-slot"></span></div>`;
+  const tilde = mode === 't1' || mode === 't4' ? `<span class="tl">~</span>` : mode === 't3' ? `<span class="tl sup">~</span>` : '';
+  return `<div class="clk gs ${per} ${mode}${tip ? ' hov' : ''}">${tipEl}${ghostSun(day, f)}${tilde}</div>`;
+}
+
 // One clock, by variant. per: day | night; time; f: fraction of the period gone.
 function clock(v, per, time, f, extra = '') {
   const day = per === 'day';
@@ -90,7 +113,7 @@ function clock(v, per, time, f, extra = '') {
     case 'g': return `<div class="${cls}"><span class="chip">${svg('ci', icC)}<span class="t">${time}</span></span></div>`;
   }
 }
-const bar = (c) => `<div class="mn">${c}${rest}</div>`;
+const bar = (c) => `<div class="mn">${c}${c ? rest : rest.replace('<span class="sep"></span>', '')}</div>`;
 const zoom = (c, cap) => `<div class="zc"><div class="z"><div class="zin">${bar(c)}<span class="rimcut"></span></div></div><div class="cap">${cap}</div></div>`;
 const real = (c, cap) => `<div class="zc"><div class="scene"><div class="gl">* o Mana:Burning&gt;</div><div class="ir"><span class="in">&gt; look<span class="caret"></span></span>${bar(c)}<span class="rimcut"></span></div></div><div class="cap">${cap}</div></div>`;
 
@@ -113,6 +136,15 @@ const ROWS = {
     { v: 'i4', name: 'I4 · Strålkransen räknar ner', desc: 'Ingen separat ring: solens tolv strålar är själva ringen och slocknar en i taget medurs från klockan tolv. På natten är det tolv små stjärnor runt månen som slocknar.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.3, '', 'natt, tidigt'], ['night', '1:12', 0.7, '', 'natt, sent']] },
     { v: 'i5', name: 'I5 · Strålsol med spår', desc: 'Som I1, men den del av ringen som försvunnit syns som ett svagt spår.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt, sent']] },
     { v: 'i1t', name: 'Jämförelse · I1 med tid', desc: 'I1 med klockslaget kvar, tonat som i A, för att jämföra hur mycket tiden tar.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+  ],
+  gs: [
+    { v: 'min', name: 'Synkad på minut', desc: 'Spöksolen med ringen, ingen tid bredvid. Hovra: den exakta nedräkningen som i dag.', inst: [['day', 'Night in 4:33', 0.45], ['night', 'Day in 1:12', 0.7], ['day', 'Night in 4:33', 0.45, 'tip', 'hovrad']] },
+    { v: 't1', name: 'Timme · T1 ~ bredvid', desc: 'Bara synkad på timme: ett grått ~ efter ikonen, ditt förslag. Klockan blir en ruta bredare medan den är ungefärlig. Hovra: ungefärlig tid i speltimmar, som i dag.', inst: [['day', '', 0.45], ['night', '', 0.7], ['day', 'Night in ~6 game hours', 0.45, 'tip', 'hovrad']] },
+    { v: 't2', name: 'Timme · T2 streckad ring', desc: 'Ringen streckad i stället för hel: ungefärlig. Inget extra tecken, samma bredd.', inst: [['day', '', 0.45], ['night', '', 0.7], ['day', 'Night in ~6 game hours', 0.45, 'tip', 'hovrad']] },
+    { v: 't3', name: 'Timme · T3 litet ~ uppe', desc: 'Ett litet ~ i solens färg uppe till höger om ringen, som ett exponenttecken. Nästan samma bredd.', inst: [['day', '', 0.45], ['night', '', 0.7], ['day', 'Night in ~6 game hours', 0.45, 'tip', 'hovrad']] },
+    { v: 't4', name: 'Timme · T4 grå ring och ~', desc: 'Ringen grå i stället för färgad, plus ~ bredvid: tydligast skillnad mot exakt läge.', inst: [['day', '', 0.45], ['night', '', 0.7], ['day', 'Night in ~6 game hours', 0.45, 'tip', 'hovrad']] },
+    { v: 'u1', name: 'Inte synkad · U1 borta helt', desc: 'Ingen ikon och ingen plats: raden börjar med Profile. Nackdel: inget att hovra för att få veta att man kan skriva time.', inst: [['day', '', 0]] },
+    { v: 'u2', name: 'Inte synkad · U2 tom plats', desc: 'Ingen ikon, men platsen finns kvar och har tooltipen. Hovra: en svag streckad cirkel och texten som i dag.', inst: [['day', '', 0], ['day', 'Game clock unknown: type time', 0, 'tip', 'hovrad']] },
   ],
   big: [
     { v: 'd', name: 'D · Lugn tills skiftet', desc: 'Helt grå, ikonen först som de andra knapparna. Den sista minuten före skiftet tänds den i periodens färg som en påminnelse.', inst: [['day', '4:33', 0.4], ['day', '0:42', 0.97, 'near', 'sista minuten'], ['night', '1:12', 0.7]] },
@@ -235,6 +267,17 @@ body{margin:0;background:#050505}
 .clk.night .g-star{fill:#7fa6dc}
 .clk.day .g-glow{fill:rgba(255,176,0,.16);stroke:none}
 
+/* Ghost sun states */
+.zin.tall{height:auto;min-height:23px;padding-top:26px}
+.clk.gs{position:relative;padding:0 3px 0 6px;gap:2px}
+.clk.gs .tip{position:absolute;bottom:calc(100% + 4px);left:2px;white-space:nowrap;font-size:10.8px;line-height:15px;padding:0 5px;border-radius:3px;background:#161616;border:1px solid #333;color:#ddd}
+.clk.gs .tl{color:#8a8a8a;font-size:13px;line-height:17px;position:relative;top:-1px}
+.clk.gs .tl.sup{font-size:10px;line-height:10px;align-self:flex-start;top:0;margin-left:-3px;color:#c99a45}
+.clk.gs.t2 .r2-arc{stroke-dasharray:1.6 2.4}
+.clk.gs.t4 .r2-arc{stroke:#5a5a5a}
+.clk.gs.u2 .gs-slot{display:block;width:17px;height:17px}
+.clk.gs.u2.hov .gs-slot{outline:1px dashed #333;outline-offset:-1px;border-radius:50%}
+
 /* G */
 .clk.g{padding:0 5px 0 9px}
 .clk.g .chip{display:flex;align-items:center;gap:5px;height:13px;padding:0 6px 0 4px;border-radius:3px;background:#0c0c0c;border:1px solid #232323;box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
@@ -249,6 +292,15 @@ function board(kind, title, intro) {
     const zf = kind === 'ring2' ? '2,3×' : '2,5×';
     const z = r.inst.map(([per, time, f, extra, note]) => zoom(clock(r.v, per, time, f, extra), capOf(per, note) + ' · förstorad ' + zf)).join('');
     const rl = r.inst.filter((i) => !i[3] && (!'hi'.includes(r.v[0]) || i[2] === 0.45 || i[2] === 0.7)).map(([per, time, f]) => real(clock(r.v, per, time, f), capOf(per) + ' · verklig storlek')).join('');
+    if (kind === 'gs') {
+      const zz = r.inst.map(([per, tip, f, extra, note]) => {
+        const c = gsClock(per, f, r.v, extra ? tip : '');
+        const cap = (r.v[0] === 'u' ? (extra ? 'hovrad' : 'vila') : capOf(per, note)) + ' · förstorad 2,3×';
+        return `<div class="zc"><div class="z"><div class="zin${extra ? ' tall' : ''}">${bar(c)}<span class="rimcut"></span></div></div><div class="cap">${cap}</div></div>`;
+      }).join('');
+      const rr = r.inst.filter((i) => !i[3]).map(([per, tip, f]) => real(gsClock(per, f, r.v, ''), (r.v[0] === 'u' ? 'vila' : capOf(per)) + ' · verklig storlek')).join('');
+      return `<div class="row row2"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="g2">${zz}${rr}</div></div>`;
+    }
     if (kind === 'ring2') return `<div class="row row2"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="g2">${z}${rl}</div></div>`;
     return `<div class="row"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="zs">${z}</div><div class="rs">${rl}</div></div>`;
   }).join('\n');
@@ -259,6 +311,7 @@ const BOARDS = [
   { file: 'Clock31a-small.dc.html', kind: 'small', title: '31a · Klockan: små justeringar', intro: 'Klockan i menyraden, små justeringar. Nu överst som jämförelse. Allt annat i raden (ikoner, avskiljare, Comm-panelens kant till höger) är som i dag.' },
   { file: 'Clock31a-ring.dc.html', kind: 'ring', title: '31a · Klockan: ring som räknar ner', intro: 'Ditt förslag: en mindre sol eller måne i en ring som visar tiden kvar av perioden. Ringen försvinner medurs från klockan tolv. Tooltipen (t.ex. Day in 4:33) finns kvar.' },
   { file: 'Clock31a-ring2.dc.html', kind: 'ring2', title: '31a · Klockan: bara ikon och ring', intro: 'Bara ikonen med ringen, inget klockslag: tiden står i tooltipen (t.ex. Day in 4:33). Ringen fyller radens höjd så att solen får strålar och månen blir större. I verkligheten är rutan 19 px hög (här 17), så allt blir lite större.' },
+  { file: 'Clock31a-ghostsun.dc.html', kind: 'gs', title: '31a · Spöksol: synk-lägen', intro: 'Vald: I2 Spöksol, utan tid bredvid. Här klockans tre lägen: synkad på minut (exakt), bara synkad på timme (ungefärlig; fyra förslag på indikator) och inte synkad (ikonen borta; två förslag). Ringen räknas från den kända tiden även när den är ungefärlig.' },
   { file: 'Clock31a-big.dc.html', kind: 'big', title: '31a · Klockan: större omtag', intro: 'Klockan i menyraden, större omtag av hur den ser ut och passar in. Tooltipen (t.ex. Night in 4:33) finns kvar i alla.' },
 ];
 for (const b of BOARDS) {
@@ -277,7 +330,7 @@ for (const b of BOARDS) {
 </helmet>
 ${body}
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":${({ ring: 1100, ring2: 1740 })[b.kind] ?? 1020}}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":${({ ring: 1100, ring2: 1740, gs: 2200 })[b.kind] ?? 1020}}}'>
 class Component extends DCLogic {
   renderVals() {
     return {};

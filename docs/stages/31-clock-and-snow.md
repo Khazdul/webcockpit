@@ -67,7 +67,9 @@ Two independent parts, in this order:
 - [x] 31a: mockups A–G on the canvas (2026-11-01).
 - [x] 31a: owner idea H (time-left ring around a smaller sun or moon), with H2 (no time) and H3 (faint track).
 - [x] 31a: owner round 2: icon and ring only, a larger ring with a real sun; variants I1–I5.
-- [ ] 31a: owner picks a variant.
+- [x] 31a: owner picks I2 (ghost sun in a time-left ring), no time beside it; exact time on hover (2026-11-01).
+- [x] 31a: mockups of the sync states (minute, hour: T1–T4, not synced: U1–U2).
+- [ ] 31a: owner picks the hour indicator and the not-synced look.
 - [ ] 31a: build, ADR, tests, test guide.
 - [ ] 31b: measurements and root cause (research note).
 - [ ] 31b: fix, ADR, before/after numbers, merge.
