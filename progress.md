@@ -38,6 +38,7 @@ Next session: the owner starts by reviewing some start-page menus that can be im
 | 30 | Fixed menu | Done | `docs/stages/30-fixed-menu.md` |
 | 31 | Menu bar clock and weather smoothness | Done | `docs/stages/31-clock-and-snow.md` |
 | 32 | Players and the start menu | Done | `docs/stages/32-players.md` |
+| 33 | Full-width Scripts and a new Export Editor | In progress | `docs/stages/33-export-editor.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
