@@ -1,5 +1,6 @@
-// The bar popups' shared kit (ADR 0099): a small dark panel in the ghost
-// look, anchored above the menu bar, that owns the keys and clicks inside
+// The bar popups' shared kit (ADR 0099): a small panel in the ghost
+// look, in the menu surface colours of the background (`--sf-*`, ADR
+// 0116), anchored above the menu bar, that owns the keys and clicks inside
 // it. 30a's Panes and Exit popups use it; 30c's Settings popup and the
 // pane gear build on it.
 //

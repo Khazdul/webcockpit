@@ -1,8 +1,9 @@
-// The menu bar's tooltip (ADR 0099): one small dark label above the
-// hovered control, in the ghost look, instead of the browser's `title`
-// (which is slow, unstyled, and frozen while shown). Its text is read from
-// a function, so `refresh()` keeps a shown tooltip live (the clock's
-// countdown, the link's RTT). Hidden on pointer down and on leave.
+// The menu bar's tooltip (ADR 0099): one small label above the hovered
+// control, in the ghost look and the menu surface colours (ADR 0116),
+// instead of the browser's `title` (which is slow, unstyled, and frozen
+// while shown). Its text is read from a function, so `refresh()` keeps a
+// shown tooltip live (the clock's countdown, the link's RTT). Hidden on
+// pointer down and on leave.
 
 /** Hover time before the tooltip shows. */
 export const TIP_DELAY_MS = 350;

@@ -50,3 +50,9 @@ and do not hurt the eyes.
 - On black nothing changes visibly; on tinted dark backgrounds the panels
   are tinted; on Paper every menu is a light card.
 - New floating UI must use `--sf-*`, not hard-coded greys.
+- The Spotlights kind colours are published as `--kind-<kind>` on the
+  player root (`kindTokens`, src/player/icons.ts): each kind colour fitted
+  to the panel at contrast 3, so they are unchanged on the dark presets
+  and darkened on Paper's card.
+- The windows' title bar mixes the surface tokens with its cyan identity
+  colour (`color-mix`), so it is tinted like the page and stays cyan.

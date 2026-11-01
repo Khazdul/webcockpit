@@ -29,15 +29,22 @@ and Paper); do a broad review.
 ## Tasks
 
 - [x] `surface.ts` and the `--sf-*` root tokens (ADR 0116)
-- [ ] Unit tests for `surface.ts`
-- [ ] Menu bar: popups, Exit, tooltip (`src/menubar/menubar.css`)
-- [ ] Settings and gear popups, control kit (`src/chrome/popups/`)
-- [ ] Player chrome and popups (`src/player/player.css`, `view.ts`)
-- [ ] Spotlights card (`src/player/spotlight.css`)
-- [ ] Windows' title bar (`src/chrome/kit/window.css`)
-- [ ] Review of the rest (layout, panes, frames) for other floating menus
-- [ ] Screenshots on Black, Teal, Sepia, Slate and Paper, reviewed
-- [ ] Unit and e2e green
+- [x] Unit tests for `surface.ts`
+- [x] Menu bar: popups, Exit, tooltip (`src/menubar/menubar.css`)
+- [x] Settings and gear popups, control kit (`src/chrome/popups/`)
+- [x] Player chrome and popups (`src/player/player.css`, `view.ts`)
+- [x] Spotlights card (`src/player/spotlight.css`)
+- [x] Windows' title bar (`src/chrome/kit/window.css`)
+- [x] Review of the rest (layout, panes, frames) for other floating menus
+- [x] Screenshots on Black, Teal, Sepia, Slate and Paper, reviewed
+- [x] Unit and e2e green
+
+Review notes: the map hover, the script panes' link tips, the ESC menu,
+the phone tabs and the export editor's bands are TUI elements already
+drawn from the terminal colours (`--c-*`, `--c-line-hl`), not fixed dark
+panels, and stay. The map's loading box sits on the map's own background
+and stays. The kind colours are published as `--kind-*` on the player
+(`kindTokens`, src/player/icons.ts), fitted to the panel (contrast 3).
 
 ## Test guide
 

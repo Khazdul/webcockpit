@@ -7,7 +7,7 @@
 // replay all use it.
 //
 //   .wc-player-chrome           over the whole player (pointer-events none)
-//     .wc-player-header         top line: `<char> (L<lvl>) · Run X of Y · date`, key hints, on dark chips
+//     .wc-player-header         top line: `<char> (L<lvl>) · Run X of Y · date`, key hints, on opaque chips
 //     .wc-player-marks          kind icons left of the rail, one marker per slot
 //     .wc-player-rail           right edge, RAIL_W px: track, played part, gold playhead
 //     .wc-player-box            the control box (ghost look), bottom right
@@ -681,7 +681,7 @@ export class PlayerView {
     this.el.toggleAttribute('data-seeking', eng.seeking);
   }
 
-  /** Header: the left part and the hints that fit, each on a dark chip, centred left of the rail. */
+  /** Header: the left part and the hints that fit, each on an opaque chip, centred left of the rail. */
   private renderHeader(W: number, w: number, cols: number): void {
     const hd = this.o.header(this.o.engine.run);
     const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);

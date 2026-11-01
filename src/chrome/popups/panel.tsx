@@ -1,4 +1,4 @@
-// A settings popup's panel (ADR 0107): the bar's dark `.wc-pop` box with a
+// A settings popup's panel (ADR 0107): the bar's `.wc-pop` box with a
 // title, a close cross and its content, shared by the Settings popup and
 // the pane gear popups. The surface (surface.tsx) mounts one at a time.
 //
