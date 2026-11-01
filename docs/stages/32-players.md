@@ -72,9 +72,27 @@ Start menu:
 
 ## Tasks
 
-- [ ] 32a: start menu (Enter MUME, Profile, Scripts, History, Spotlights, Credits, About).
+- [x] 32a: start menu (Enter MUME, Profile, Scripts, History, Spotlights,
+  Credits, About) on every device (bbb79a6, 532b8a1, dc025e1). Texts
+  (About, `#help`, manual, README, spec §2.3/§2.5/§2.10, bundled script
+  help) point to the in-game Settings. The TUI Options frames are
+  tested through the phone's ESC menu (`tests/e2e/esc-options.ts`).
+  Unit 3045 passed; e2e 667/667.
 - [x] 32b: mockups on the canvas, column "Steg 32": directions A (compact box,
   right-edge rail), B (timeline in the box), C (full-width bottom bar);
   source and table in `notes/research/player-mockups/` (2026-11-01).
 - [ ] 32b: owner picks.
 - [ ] 32c: plan, build, test guide.
+
+## Test guide 32a (start menu)
+
+1. Open the start page: the menu reads Enter MUME, Profile, Scripts,
+   History, Spotlights, Credits, About. No Options.
+2. Choose Scripts: the scripts page opens; ESC goes back with the cursor
+   on Scripts.
+3. About → Getting started: it points to the menu bar's Panes and
+   Settings (and ☰ on a phone), not to Options.
+4. On a phone: same menu; in the game, ☰ → Options still works.
+
+Feedback wanted: is anything you used to set from the start page now
+hard to find?
