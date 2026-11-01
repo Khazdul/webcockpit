@@ -170,3 +170,21 @@ test('Credits rolls the chronicle; ESC returns, and so does the end', async ({ p
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Credits >>');
   expect(errors).toEqual([]);
 });
+
+test('the Spotlights box has Fullscreen', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await pinDemoClock(page);
+  await page.goto('/');
+  await restoreDemo(page);
+  await menuRow(page, 'spotlights').click();
+  await expect(player(page)).toBeVisible();
+  const fs = chrome(page).locator('.wc-player-box [data-act="extra"]');
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  await page.mouse.move(400, 400);
+  await page.mouse.move(420, 420);
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Exit fullscreen');
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
+});

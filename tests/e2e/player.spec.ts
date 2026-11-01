@@ -276,3 +276,20 @@ test('the box: ±10 s by buttons and keys, To the start, speed steps, Panes and 
   await expect(player(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('the run log box has Fullscreen: it toggles the page fullscreen, its label follows', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 820 });
+  await page.goto('/?player=runs-demo.jsonl.gz');
+  await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
+  const fs = chrome(page).locator('.wc-player-box [data-act="extra"]');
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+  // Fullscreen sits before Close.
+  const acts = await chrome(page).locator('.wc-player-box button[data-act]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.act));
+  expect(acts.indexOf('extra')).toBe(acts.indexOf('close') - 1);
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
+  await expect(fs).toHaveAttribute('aria-label', 'Exit fullscreen');
+  await fs.click();
+  await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(false);
+  await expect(fs).toHaveAttribute('aria-label', 'Fullscreen');
+});

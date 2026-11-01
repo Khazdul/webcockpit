@@ -79,6 +79,8 @@ import { commentLines } from '../share/edits';
 import type { ReplayClock } from '../player/clock';
 import type { MapPaneHost } from '../map/protocol';
 import { App } from './app';
+import { device } from '../core/device';
+import { canFullscreen, isFullscreen, onFullscreenChange, toggleFullscreen } from '../core/fullscreen';
 
 export interface PlayerHostOptions {
   /** Parent element (the page root); the player fills it. */
@@ -186,6 +188,8 @@ export class PlayerHost {
     opts.root.appendChild(this.el);
     this.cells = new CellMetrics({ doc, root: this.el });
     this.cells.subscribe(() => this.placeStage());
+    // The control box's Fullscreen icon follows the page's state.
+    this.disposers.push(onFullscreenChange(() => this.view?.refresh(), doc));
     if (typeof ResizeObserver !== 'undefined') {
       this.ro = new ResizeObserver(() => this.relayout());
       this.ro.observe(this.el);
@@ -246,6 +250,20 @@ export class PlayerHost {
       ? opts.marks(tl)
       : markersOf(events).map((m) => ({ letter: m.letter, offset: playAtLogUs(tl, m.us), tip: m.tip }));
     const onEsc = (): void => this.close();
+    // Fullscreen in the control box (run log, Spotlights) where the page has
+    // it; the HTML replay passes its own (with its F key) in `opts.view`. Not
+    // on a phone: it has the corner button (ADR 0097), and the compact box
+    // has no room for one more icon at 360 px.
+    const doc = this.el.ownerDocument;
+    const fullscreen = canFullscreen(doc) && !device().phone
+      ? [
+          {
+            label: () => (isFullscreen(doc) ? 'Exit fullscreen' : 'Fullscreen'),
+            icon: () => (isFullscreen(doc) ? ('fullscreenExit' as const) : ('fullscreen' as const)),
+            onClick: () => void toggleFullscreen(doc),
+          },
+        ]
+      : [];
     this.view = new PlayerView({
       root: this.el,
       engine,
@@ -269,6 +287,7 @@ export class PlayerHost {
       closeTitle: 'Back to History (Esc)',
       ...(this.opts.hideMs !== undefined ? { hideMs: this.opts.hideMs } : {}),
       ...(opts.viewerSettings !== false ? { settings: this.controls(opts.viewerSettings !== 'display') } : {}),
+      boxButtons: fullscreen,
       ...opts.view,
     });
     if (opts.autoplay !== false) engine.play();

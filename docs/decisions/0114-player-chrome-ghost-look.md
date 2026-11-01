@@ -130,3 +130,15 @@ card; the pick was direction A as revised (A2).
 - The ADR 0021 settings section, the ADR 0110 gear and its popup target,
   and the TUI box helpers (`stripCells`, `countdownRow`, `labelLines`,
   `boxFits`) are gone.
+
+## Addendum 2026-11-01 — Fullscreen in the run log and Spotlights
+
+The owner wants a fullscreen button in the run log player's box and in
+the Spotlights box too, not only in the HTML replay. `PlayerHost.openChain`
+now gives every mode a Fullscreen icon before Close (`boxButtons`, label
+`Fullscreen` / `Exit fullscreen`, refreshed on `fullscreenchange`) where
+the page has fullscreen. The HTML replay still passes its own (`F` key,
+`(F)` in the label). Not on a phone: it keeps the corner button (ADR
+0097), and the compact box at 360 px has no room for another icon. Esc in
+fullscreen is the browser's first (it leaves fullscreen); the next Esc
+closes the player as before.
