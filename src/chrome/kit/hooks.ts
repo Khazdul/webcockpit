@@ -70,18 +70,6 @@ export interface ChromeServices {
 
 export const ServicesCtx = createContext<ChromeServices | null>(null);
 
-/**
- * The ESC menu's way to the windows (ADR 0103): where the menu bar exists,
- * the menu's Profile and Options → Scripts open the window (and the menu
- * closes) instead of a frame. null elsewhere (the start page, the phone).
- */
-export const OpenWindowCtx = createContext<((id: 'profile' | 'scripts') => void) | null>(null);
-
-/** The ESC menu's way to the windows, or null (see `OpenWindowCtx`). */
-export function useOpenWindow(): ((id: 'profile' | 'scripts') => void) | null {
-  return useContext(OpenWindowCtx);
-}
-
 export function useServices(): ChromeServices {
   const s = useContext(ServicesCtx);
   if (!s) throw new Error('chrome: no services');

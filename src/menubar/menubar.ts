@@ -28,8 +28,8 @@
 //   gives the keys to the game input.
 // - Adopted popups (ADR 0107): the chrome chunk draws the Settings popup
 //   (and the pane gear popups) and hands each one to the bar when it opens
-//   (`adopt`), so the one-popup rule, Esc in the input, the ESC menu and
-//   hiding the cockpit close it like the bar's own. It tells the bar when
+//   (`adopt`), so the one-popup rule, Esc in the input and hiding the
+//   cockpit close it like the bar's own. It tells the bar when
 //   it closed itself (`release`). The Settings icon is marked while its
 //   popup is open; a click on it is the chrome popup's toggle
 //   (`actions.settings`).
@@ -89,11 +89,11 @@ export interface AdoptedPopup {
 
 /** What the bar's buttons do outside the bar (the shell, the app). */
 export interface MenuBarActions {
-  /** The Profile window (ADR 0103; the ESC menu's profile editor on a page without windows). */
+  /** The Profile window (ADR 0103). */
   profile(): void;
   /** The Scripts window (ADR 0103). */
   scripts(): void;
-  /** The Settings popup's toggle (ADR 0107; the ESC menu at Options without it). */
+  /** The Settings popup's toggle (ADR 0107). */
   settings(): void;
   /** Exit to the start page (the shell's exitSession). */
   exit(): void;
@@ -334,7 +334,7 @@ export class MenuBar {
   /**
    * A popup drawn outside the bar opened (ADR 0107): the open one closes,
    * and this one is held until it closes itself (`release`) or the bar
-   * closes it (another popup, Esc in the input, the ESC menu, hiding).
+   * closes it (another popup, Esc in the input, hiding).
    */
   adopt(p: AdoptedPopup): void {
     if (this.pop?.id === p.key && this.pop.el === p.el) return;
@@ -372,8 +372,8 @@ export class MenuBar {
     return true;
   }
 
-  /** Closes the popup and the tooltip (the ESC menu opens, the cockpit hides). */
-  reset(): void {
+  /** Closes the popup and the tooltip (the cockpit hides). */
+  private reset(): void {
     this.closePopup();
     this.tooltip.hide();
   }

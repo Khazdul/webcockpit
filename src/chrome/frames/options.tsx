@@ -1,5 +1,5 @@
 // Options (Inv §3.5, §3.7, §4.4, §2.1), shared by the start page and the
-// ESC menu. Every change is written to the settings store at once and
+// phone's ESC menu (ADR 0112). Every change is written to the settings store at once and
 // applies live (ADR 0010: one store, no launcher/popup asymmetry), so
 // there is no Apply and Back never discards.
 //
@@ -14,7 +14,7 @@
 //                 the hub's own Appearance page below. Phone only since
 //                 stage 30c (ADR 0107): on desktop and tablet the Panes
 //                 popup and the pane buttons hold it, and the hub starts at
-//                 Timers (start page and ESC menu alike).
+//                 Timers.
 //   Timers:       options-timers.tsx
 //   Communication: comm-options.tsx
 //   Group:        options-group.tsx
@@ -53,7 +53,7 @@ import {
   backgroundTheme,
   presetName,
 } from '../../theme/presets';
-import { type ScriptPaneList, useGrid, useOpenWindow, useServices, useSettings } from '../kit/hooks';
+import { type ScriptPaneList, useGrid, useServices, useSettings } from '../kit/hooks';
 import { CommOptionsFrame } from './comm-options';
 import { GroupOptionsFrame } from './options-group';
 import { MapperOptionsFrame } from './options-mapper';
@@ -85,16 +85,12 @@ const MENU_FOOTER = ['↑↓ Navigate', 'Enter Select', 'ESC Back'];
 export function OptionsHub(): VNode {
   const nav = useNav();
   const { scripts } = useServices();
-  const openWindow = useOpenWindow();
   const items: MenuItem[] = [
     { key: 'panes', label: 'Panes', activate: () => nav.push(<PanesHub />) },
     { key: 'mapper', label: 'Mapper', activate: () => nav.push(<MapperOptionsFrame />) },
     { key: 'appearance', label: 'Appearance', activate: () => nav.push(<AppearanceFrame />) },
     { key: 'textinput', label: 'Text input', activate: () => nav.push(<TextInputOptionsFrame />) },
-    // The ESC menu where the bar exists: the Scripts window (ADR 0103).
-    ...(scripts
-      ? [{ key: 'scripts', label: 'Scripts', activate: () => (openWindow ? openWindow('scripts') : nav.push(<ScriptsFrame />)) }]
-      : []),
+    ...(scripts ? [{ key: 'scripts', label: 'Scripts', activate: () => nav.push(<ScriptsFrame />) }] : []),
     // Last, so the trial (ADR 0091) shifts no existing entry.
     { key: 'weather', label: 'Weather effects', activate: () => nav.push(<WeatherOptionsFrame />) },
     { key: 'sp', spacer: true },

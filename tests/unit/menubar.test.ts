@@ -390,11 +390,8 @@ describe('bar popups', () => {
     expect(close).toHaveBeenCalledOnce();
     expect(t.focusInput).toHaveBeenCalledOnce();
     t.bar.adopt({ key: 'pane:map', el, close });
-    t.bar.reset();
-    expect(close).toHaveBeenCalledTimes(2);
-    t.bar.adopt({ key: 'settings', el, close });
     t.bar.setShown(false);
-    expect(close).toHaveBeenCalledTimes(3);
+    expect(close).toHaveBeenCalledTimes(2);
     expect(t.bar.openPopup).toBeNull();
   });
 
@@ -416,7 +413,7 @@ describe('bar popups', () => {
     expect(t.bar.closePopup(true)).toBe(true);
     expect(t.focusInput).toHaveBeenCalledOnce();
     t.bar.open('panes');
-    t.bar.reset();
+    t.bar.setShown(false);
     expect(t.bar.openPopup).toBeNull();
   });
 

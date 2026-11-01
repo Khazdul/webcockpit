@@ -1,5 +1,6 @@
 // ESC menu main frame (Inv §4.2, §4.3) and Exit confirm with the rating
-// row (§4.6, ADR 0018).
+// row (§4.6, ADR 0018). The phone's only since stage 30f (ADR 0112);
+// `profileEditOptions` is shared with the Profile window (ADR 0103).
 //
 //   Profile: default  ·  Link: 38ms  ·  capture: recording     (C_HINT)
 //     then the client notices (ADR 0025): `Update: 0.1.3` (C_YELLOW),
@@ -18,7 +19,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { type AppStatusState, type AppStatusView, formatLink, isLive } from '../../app/status';
 import { Banner } from '../banner';
 import { BANNER_H, bannerFits } from '../banner-data';
-import { useGrid, useNotices, useOpenWindow, useServices, useSettings, useStatus } from '../kit/hooks';
+import { useGrid, useNotices, useServices, useSettings, useStatus } from '../kit/hooks';
 import { type NoticeState, noticeIndicators } from '../../app/notices';
 import { device } from '../../core/device';
 import { cellLen, centreLeft, packRows } from '../kit/nav';
@@ -58,11 +59,6 @@ export interface EscActions {
   flushWriteBack?: () => Promise<void>;
   /** The live run (`app.runs`): Statistics and the Exit rating. Absent: neither is offered. */
   runs?: LiveRuns;
-  /**
-   * Where the menu bar exists: opens a window (ADR 0103) and closes the
-   * menu. The menu's Profile and Options → Scripts use it. Absent: their frames.
-   */
-  openWindow?: (id: 'profile' | 'scripts') => void;
 }
 
 export interface EscMainProps extends EscActions {
@@ -104,7 +100,6 @@ export function EscMain(p: EscMainProps): VNode {
   const notices = useNotices();
   const connected = isLive(st);
   const runOn = useRunOn(p.runs);
-  const openWindow = useOpenWindow();
 
   const items: MenuItem[] = [
     ...(connected ? [{ key: 'continue', label: 'Continue', activate: p.close }] : []),
@@ -121,11 +116,7 @@ export function EscMain(p: EscMainProps): VNode {
     {
       key: 'profile',
       label: 'Profile',
-      // Where the bar exists, the Profile window (ADR 0103), so a profile is never edited in two places.
-      activate: () =>
-        openWindow
-          ? openWindow('profile')
-          : void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved)),
+      activate: () => void editProfile(nav, profiles, settings.profile, profileEditOptions(p, onProfileSaved)),
     },
     { key: 'options', label: 'Options', activate: () => nav.push(<OptionsHub />) },
     { key: 'exit', label: 'Exit session', activate: () => nav.push(<ExitConfirm exit={p.exit} runs={p.runs} />) },
@@ -191,8 +182,8 @@ export function profileEditOptions(
 }
 
 /**
- * The ESC menu opened straight at the profile editor (the menu bar's
- * Profile and `#profile`, ADR 0099): the root frame loads the active
+ * The ESC menu opened straight at the profile editor (the phone's
+ * `#profile`, ADR 0099; the menu bar has the Profile window, ADR 0103): the root frame loads the active
  * profile's editor over itself, as ESC → Profile does, and closes the menu
  * once the editor is left. A load failure is flashed here; Esc closes.
  */

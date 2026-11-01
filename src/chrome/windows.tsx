@@ -2,7 +2,7 @@
 // profile's editor, live apply) and Scripts (the Scripts page), over the
 // cockpit on desktop and tablet. A Preact surface in the chrome chunk; the
 // shell mounts it in the cockpit element and drives it from the menu bar,
-// `#profile` / `#scripts`, the ESC menu and Esc in the game input.
+// `#profile` / `#scripts` and Esc in the game input.
 //
 //   const wins = chrome.mountWindows(host, services, { status, commitProfile, flushWriteBack, focusInput });
 //   wins.toggle('profile');   // closed → open and focus; open → raise and focus; focused → close request
@@ -66,8 +66,6 @@ export interface WindowsHandle {
    * False when no window is open.
    */
   escapeTop(): boolean;
-  /** Takes the focus from the windows (the ESC menu opens). */
-  blur(): void;
   /** Closes every window at once; unsaved changes are discarded (leaving the cockpit). */
   closeAll(): void;
   /** True while a window holds changes that closing it would lose. */
@@ -370,7 +368,6 @@ export function mountWindows(host: HTMLElement, services: ChromeServices, opts: 
       requestClose(top.id);
       return true;
     },
-    blur: unfocus,
     closeAll() {
       if (wins.length === 0) return;
       const hadFocus = focused !== null;

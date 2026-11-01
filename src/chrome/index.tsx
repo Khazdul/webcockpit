@@ -1,5 +1,6 @@
 // The chrome chunk (ADR 0010 "Chrome", ADR 0013): the start page and the
-// ESC menu as Preact surfaces on the cell grid. Loaded with a dynamic
+// phone's ESC menu (ADR 0112) as Preact surfaces on the cell grid, and the
+// cockpit's windows, popups and Statistics pane where the menu bar exists. Loaded with a dynamic
 // import from src/app/shell.ts, so Preact never sits on the game's hot
 // path (the output and input panes are plain TypeScript).
 //
@@ -23,7 +24,7 @@ import { EscMain, type EscActions, ExitConfirm, ProfileEntry } from './frames/es
 import { OptionsHub, PanesFrame } from './frames/options';
 import { ScriptsFrame } from './frames/scripts';
 import { StartMain } from './frames/start-main';
-import { type ChromeServices, GridCtx, OpenWindowCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
+import { type ChromeServices, GridCtx, ServicesCtx, useHostGrid, useNotices } from './kit/hooks';
 import { centreLeft, minView, tooSmall, truncate } from './kit/nav';
 import { device } from '../core/device';
 import { FrameStack } from './kit/stack';
@@ -212,6 +213,8 @@ export function mountStartPage(host: HTMLElement, services: ChromeServices, opts
 }
 
 // --------------------------------------------------------------- ESC menu
+// The phone's only since stage 30f (ADR 0112): where the menu bar exists the
+// shell never mounts it.
 
 export type EscMenuOptions = EscActions;
 
@@ -292,9 +295,7 @@ function MenuSurface(p: MenuSurfaceProps): VNode {
           </div>
           <div class="wc-overlay-inner" style={{ left: cw, top: ch, width: (W - 2) * cw, height: (H - 2) * ch }}>
             <GridCtx.Provider value={{ cols: W - 2, rows: H - 2, surface: 'menu' }}>
-              <OpenWindowCtx.Provider value={p.openWindow ?? null}>
-                <FrameStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
-              </OpenWindowCtx.Provider>
+              <FrameStack key={p.epoch} root={menuRoot(p)} active={p.open} onRootBack={p.close} />
             </GridCtx.Provider>
           </div>
         </div>
