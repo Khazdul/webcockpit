@@ -95,3 +95,12 @@ ms, Firefox 12.0 / 19.9 → 10.7 / 20.6 ms; key → send unchanged
   have to move too); drawing cached modules in a task after the visible
   frame (Firefox's frames already finish in time at 60 fps: p95 8 ms);
   rain at 60 (an owner decision: see the research note).
+
+## Addendum 2026-11-01: one-effect demos
+
+So the owner can judge the change without the browser console,
+`#weather demo snow` (day then night snow), `#weather demo birds` (three
+flocks and an insect on a clear day) and `#weather demo rain` (clouds,
+rain, a downpour) play one effect alone, each under a minute, with the
+same caption box and hand-back as the other demos (`demo-script.ts`
+`SNOW_STEPS`, `BIRDS_STEPS`, `RAIN_STEPS`).

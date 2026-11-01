@@ -93,6 +93,8 @@ Two independent parts, in this order:
   avg; browser CPU in snow +12 %; text latency unchanged. Unit 3040
   passed after the merge; weather, demo and menubar e2e 28/28.
 - [x] 31b: test guide (below).
+- [x] 31b: `#weather demo snow`, `birds` and `rain` (owner, 2026-11-01:
+  test without the console); help text, unit tests.
 - [ ] 31b: owner test; birds at 60 is an owner option (ADR 0113).
 
 ## Test guide
@@ -133,20 +135,21 @@ are fine.
 
 ### 31b — smoother snow and birds
 
-Open the dev server in Firefox (then Chromium if at hand), Weather
-effects on.
+Open the dev server in Firefox (then Chromium if at hand). No console
+needed: each demo turns the effects on, shows a caption with what to
+look for, and gives the game's weather back at the end (`#weather stop`
+ends one early).
 
-1. **Snow:** in the console, `__weather.jump({ weather: '*' })`. Follow a
-   single large flake for a few seconds. Does it glide now, or still step?
-   Then at night: `__weather.jump({ weather: '*', clock: 'night', moonUp: true })`.
-   The overcast sky and the snow dusting on pane tops should look as
-   before. `__weather.unpin()` goes back to the game's weather.
-2. **Birds:** a clear day (`__weather.jump({ weather: ' ', clock: 'day' })`),
-   then `__weather.emit('birds')`. Birds now fly at 30 frames a second
-   (was 10). Smooth enough, or should they get 60 like the snow? 60 costs
-   noticeably more CPU while a flock is on screen (ADR 0113).
-3. **Rain and clouds:** `__weather.jump({ weather: '"' })` and
-   `__weather.jump({ weather: '~' })`: nothing should look worse.
+1. **`#weather demo snow`** (under a minute): snow by day, then by night.
+   Follow a single large flake for a few seconds: does it glide now, or
+   still step? The overcast sky and the snow dusting on pane tops should
+   look as before.
+2. **`#weather demo birds`** (about 45 s): three flocks and an insect on a
+   clear day. Birds now fly at 30 frames a second (was 10). Smooth enough,
+   or should they get 60 like the snow? 60 costs noticeably more CPU while
+   a flock is on screen (ADR 0113).
+3. **`#weather demo rain`** (about 40 s): clouds, rain, a downpour.
+   Nothing should look worse than before.
 4. **`#weather demo`** once through, as a whole.
 5. **Heat:** does the laptop run noticeably warmer in snow than before?
 
