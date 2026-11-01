@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30d done; 30e built, owner test deferred; 30f built, owner test pending). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **Done** on desktop (2026-11-01). Tablet and phone are left for a later phone stage (owner). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -705,6 +705,15 @@ unsaved prompt, `#menu`, the Disconnected notice, the Statistics pane).
 Item 5 (Esc in Chrome/Edge fullscreen) not tested: no Chrome at hand;
 covered by unit tests. Items 9 (tablet) and 10 (phone) are tested later,
 together with 30e.
+
+
+### Closing (2026-11-01)
+
+- 30e: Spotlights feel good (after the stage 32 redesign, which replaced
+  the gear with the card's filter).
+- 30f item 5 (fullscreen): OK.
+- 30f items 9 and 10 (tablet, phone): not tested here; the owner revisits
+  them in a later stage with improvements, above all for the phone.
 
 ## Open questions
 
