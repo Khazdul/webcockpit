@@ -119,14 +119,17 @@ test('the HTML replay plays from file:// with no network and no storage', async 
 
   // Header, hints, the panes, text, markers, no input line.
   await expect(chrome(p).locator('.wc-player-header')).toContainText('Demo fight · Rasta (L42) · 2026-09-26');
-  await expect(chrome(p).locator('.wc-player-hints')).toHaveText('Space Play · ↑↓ Scroll · 1–6 Speed · F Fullscreen');
+  await expect(chrome(p).locator('.wc-player-hints')).toHaveText('Space Play · ← → 10 s · ↑↓ Scroll · 1–6 Speed · F Fullscreen');
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await expect(player(p).locator('.wc-pane[data-pane="character"]')).toContainText('Rasta');
-  await expect(chrome(p).locator('.wc-player-mark')).toHaveText(['AL►', 'K►', 'D►']);
-  await chrome(p).locator('.wc-player-mark', { hasText: 'D►' }).hover();
+  // The kind-icon markers and the A2 chrome, from the file alone (nothing fetched).
+  expect(await chrome(p).locator('.wc-player-mark').evaluateAll((ms) => ms.map((m) => (m as HTMLElement).dataset.kinds))).toEqual(['AL', 'K', 'D']);
+  await expect(chrome(p).locator('.wc-player-mark[data-kinds="D"] svg')).toHaveAttribute('data-kind', 'death');
+  await expect(chrome(p).locator('.wc-player-box')).toHaveCSS('border-radius', '6px');
+  await chrome(p).locator('.wc-player-mark[data-kinds="D"]').hover();
   await expect(chrome(p).locator('.wc-player-tip')).toHaveText('Died (level 42)');
   await expect(player(p).locator('.wc-input-slot')).toBeHidden();
-  await expect(chrome(p).locator('.wc-player-strip')).toBeVisible();
+  await expect(chrome(p).locator('.wc-player-rail')).toBeVisible();
   // The font came from the file, the underscore face (ADR 0043) too.
   expect(await p.evaluate(() => document.fonts.check('15px "DejaVu Sans Mono"'))).toBe(true);
   expect(html.match(/font-family:"WebCockpit Underscore";src:url\(data:font\/woff2;base64,[^)]+\) format\("woff2"\);font-weight:(normal|bold);font-style:normal;font-display:block;unicode-range:U\+5F\}/g)).toHaveLength(2);
@@ -148,7 +151,7 @@ test('the HTML replay plays from file:// with no network and no storage', async 
     }).observe(document.body, { subtree: true, childList: true, characterData: true });
   });
   await p.keyboard.press('6');
-  await expect(chrome(p).locator('[data-act="speed"]')).toHaveText('8x   ');
+  await expect(chrome(p).locator('.wc-player-speed')).toHaveText('8×');
   const comment = player(p).locator('.wc-output .wc-comment');
   await expect(comment).toHaveText('## Watch the tank here.', { timeout: 15_000 });
   expect((await engine(p)).playing).toBe(true);
@@ -159,15 +162,20 @@ test('the HTML replay plays from file:// with no network and no storage', async 
 
   // Play / pause, and the speed keys.
   await p.keyboard.press(' ');
-  await expect(chrome(p).locator('[data-act="play"]')).toHaveText('► Play  ');
+  await expect(chrome(p).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+  // ← → go back and forward 10 s here too.
+  const before = (await engine(p)).position;
+  await p.keyboard.press('ArrowLeft');
+  await expect.poll(async () => (await engine(p)).seeking).toBe(false);
+  expect(Math.round(((await engine(p)).position - Math.max(0, before - 10_000)) / 100)).toBe(0);
   await p.keyboard.press(' ');
-  await expect(chrome(p).locator('[data-act="play"]')).toHaveText('▌▌ Pause');
+  await expect(chrome(p).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Pause');
   await p.keyboard.press('1');
-  await expect(chrome(p).locator('[data-act="speed"]')).toHaveText('0.25x');
+  await expect(chrome(p).locator('.wc-player-speed')).toHaveText('0.25×');
   expect((await engine(p)).speed).toBe(0.25);
 
-  // Strip hover shows MM:SS; a click seeks.
-  const strip = (await chrome(p).locator('.wc-player-strip').boundingBox())!;
+  // Rail hover shows MM:SS; a click seeks.
+  const strip = (await chrome(p).locator('.wc-player-rail').boundingBox())!;
   await p.mouse.move(strip.x + strip.width / 2, strip.y + strip.height / 2);
   await expect(chrome(p).locator('.wc-player-hint')).toHaveText(/^\s*\d\d:\d\d\s*$/);
   await p.mouse.click(strip.x + strip.width / 2, strip.y + strip.height * 0.8);
@@ -176,14 +184,15 @@ test('the HTML replay plays from file:// with no network and no storage', async 
   expect(e.position / e.duration).toBeGreaterThan(0.7);
 
   // F and the box button toggle fullscreen; ESC does not close the replay.
-  const fsButton = chrome(p).locator('.wc-player-box .wc-player-btn', { hasText: 'Fullscreen' });
-  await expect(fsButton).toHaveText('Fullscreen');
+  const fsButton = chrome(p).locator('.wc-player-box [data-act="extra"]');
+  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await p.keyboard.press('f');
   await expect.poll(() => p.evaluate(() => document.fullscreenElement !== null)).toBe(true);
-  await expect(fsButton).toHaveText('Exit fullscreen');
+  await expect(fsButton).toHaveAttribute('aria-label', 'Exit fullscreen (F)');
   await p.keyboard.press('F');
   await expect.poll(() => p.evaluate(() => document.fullscreenElement !== null)).toBe(false);
-  await expect(fsButton).toHaveText('Fullscreen');
+  await expect(fsButton).toHaveAttribute('aria-label', 'Fullscreen (F)');
+  await expect(chrome(p).locator('.wc-player-box [data-act="close"]')).toHaveCount(0);
   await p.keyboard.press('Escape');
   await expect(player(p)).toBeVisible();
 

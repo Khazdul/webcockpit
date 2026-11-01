@@ -1,5 +1,5 @@
-// Stage 30e (ADR 0110): the Spotlights settings in the reel's gear (kinds,
-// characters, period), the live rebuild, the empty stage, the start page's
+// Stage 30e (ADR 0110), 32c (ADR 0114): the Spotlights settings in the
+// reel's card (kinds, characters, period), the live rebuild, the empty card, the start page's
 // "filtered" pages with Settings…, and Credits following the filters. On
 // the demo backup: five spotlights over two characters (Rasta: a death, a
 // PvP kill, a level-up, an achievement; Gittan: an achievement), recorded
@@ -32,95 +32,104 @@ const frame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
 const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
 const header = (page: Page) => chrome(page).locator('.wc-player-header');
-const gear = (page: Page) => chrome(page).locator('.wc-player-gear');
+const card = (page: Page) => page.locator('.wc-spot-card');
 const pop = (page: Page) => page.locator('.wc-sp-spot');
 const toggle = (page: Page, label: string) => pop(page).locator(`[role="switch"][aria-label="${label}"]`);
 const check = (page: Page, name: string) => pop(page).locator('.wc-ck-cb', { hasText: name });
+const cardSwitch = (page: Page, label: string) => card(page).locator(`[role="switch"][aria-label="${label}"]`);
+const cardCheck = (page: Page, name: string) => card(page).locator(`.wc-sc-cb[data-name="${name}"]`);
+const fold = (page: Page, key: 'kinds' | 'chars') => card(page).locator(`[data-fold="${key}"]`);
 const menuRow = (page: Page, key: string) => page.locator(`.wc-start .wc-mrow[data-key="${key}"] .wc-label`);
 
-/** Opens the reel and shows its chrome, then opens the gear's popup. */
-async function openGear(page: Page): Promise<void> {
+/** Opens the reel; the card is there with its filter. */
+async function openReel(page: Page): Promise<void> {
   await menuRow(page, 'spotlights').click();
   await expect(player(page)).toBeVisible();
-  await page.mouse.move(300, 300);
-  await page.mouse.move(320, 320);
-  await expect(gear(page)).toBeVisible();
-  await expect(gear(page)).toHaveAttribute('title', 'Spotlights settings');
-  await gear(page).click();
-  await expect(pop(page)).toBeVisible();
+  await expect(card(page)).toBeVisible();
+  await expect(card(page).locator('.wc-sc-filter')).toBeVisible();
 }
 
-test('the reel gear: kinds, characters and period rebuild the reel at once', async ({ page }) => {
+test('the card filter: kinds, characters and period fold out and rebuild the reel at once', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
   await pinDemoClock(page);
   await page.goto('/');
   await restoreDemo(page);
-  await openGear(page);
+  await openReel(page);
   await expect(header(page)).toContainText('SPOTLIGHT 1 / 5');
+  // No gear any more.
+  await expect(page.locator('.wc-player-gear')).toHaveCount(0);
 
-  // The popup: above the control box, right edges aligned, the keys on its first control.
-  await expect(pop(page).locator('.wc-ck-cb')).toHaveText(['Gittan', 'Rasta']);
-  const geo = () =>
-    page.evaluate(() => {
-      const p = document.querySelector('.wc-sp-spot')!.getBoundingClientRect();
-      const b = document.querySelector('.wc-player-box')!.getBoundingClientRect();
-      return { above: p.bottom <= b.top + 0.5, right: Math.abs(p.right - b.right) < 2, focus: document.activeElement?.getAttribute('aria-label') };
-    });
-  // Placed again once the character list has grown it.
-  await expect.poll(geo).toEqual({ above: true, right: true, focus: 'Achievements' });
-  await expect(gear(page)).toHaveClass(/is-on/);
-  await expect(pop(page).locator('.wc-ck-sub')).toHaveText(['Kinds', 'Characters']);
-  await expect(pop(page).locator('.wc-ck-cb')).toHaveText(['Gittan', 'Rasta']);
-  await expect(check(page, 'Rasta')).toBeDisabled();
+  // Folded: one line each with a summary; Period is a list.
+  await expect(fold(page, 'kinds')).toHaveText(/Kinds\s*All/);
+  await expect(fold(page, 'chars')).toHaveText(/Characters\s*All/);
+  await expect(cardSwitch(page, 'Deaths')).toHaveCount(0);
+  await expect(card(page).locator('.wc-sc-sel')).toHaveValue('all');
 
-  // Kinds: Deaths off → four spotlights, the PvP kill first.
-  await toggle(page, 'Deaths').click();
+  // Kinds fold out with their icons; Deaths off → four spotlights, the PvP kill first.
+  await fold(page, 'kinds').click();
+  await expect(fold(page, 'kinds')).toHaveAttribute('aria-expanded', 'true');
+  expect(await card(page).locator('.wc-sc-row[data-kind] svg').evaluateAll((xs) => xs.map((x) => (x as SVGElement).dataset.kind))).toEqual([
+    'achievement',
+    'death',
+    'level',
+    'pkill',
+  ]);
+  await cardSwitch(page, 'Deaths').click();
   await expect(header(page)).toContainText('Rasta (L42) · SPOTLIGHT 1 / 4');
-  await expect(page.locator('.wc-spot-box')).toContainText('RASTA: PvP kill');
+  await expect(card(page).locator('.wc-sc-kind')).toHaveText('PvP kill');
+  await expect(fold(page, 'kinds')).toHaveText(/3 of 4/);
   expect((await spotSettings(page)).deaths).toBe(false);
+  // The fold stays open across the rebuild.
+  await expect(cardSwitch(page, 'Deaths')).toHaveAttribute('aria-checked', 'false');
 
-  // The chrome stays while the popup is open (it hides 6 s after the last move otherwise).
+  // The card stays while the chrome hides (6 s after the last move).
   await page.waitForTimeout(6500);
-  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await expect(chrome(page)).toHaveAttribute('data-hidden', '');
+  await expect(card(page)).toBeVisible();
 
-  // Characters: All off checks both; Rasta off → Gittan only.
-  await toggle(page, 'All characters').click();
-  await expect(check(page, 'Rasta')).toBeEnabled();
-  await expect(check(page, 'Rasta')).toHaveAttribute('aria-checked', 'true');
-  await check(page, 'Rasta').click();
+  // Characters: All on disables the checks; All off checks both; Rasta off → Gittan only.
+  await fold(page, 'chars').click();
+  await expect(card(page).locator('.wc-sc-cb')).toHaveText(['Gittan', 'Rasta']);
+  await expect(cardCheck(page, 'Rasta')).toBeDisabled();
+  await cardSwitch(page, 'All characters').click();
+  await expect(cardCheck(page, 'Rasta')).toBeEnabled();
+  await expect(cardCheck(page, 'Rasta')).toHaveAttribute('aria-checked', 'true');
+  await cardCheck(page, 'Rasta').click();
   await expect(header(page)).toContainText('Gittan (L14) · SPOTLIGHT 1 / 1');
   expect(await spotSettings(page)).toMatchObject({ allCharacters: false, characters: ['Gittan'] });
+  await expect(fold(page, 'chars')).toHaveText(/Characters\s*Gittan/);
 
-  // Keys stay in the popup: Tab cycles inside it, Space flips a switch, ←→ do not move the reel.
-  await toggle(page, 'All characters').focus();
-  await page.keyboard.press('Space');
+  // A press in the card leaves the keys with the reel: → after a click steps spotlights.
+  await cardSwitch(page, 'All characters').click();
   // Gittan's spotlight still passes: it stays, now second of four.
   await expect(header(page)).toContainText('Gittan (L14) · SPOTLIGHT 2 / 4');
-  for (let i = 0; i < 12; i++) await page.keyboard.press('Tab');
-  expect(await page.evaluate(() => !!document.activeElement?.closest('.wc-sp-spot'))).toBe(true);
   await page.keyboard.press('ArrowRight');
-  await expect(header(page)).toContainText('SPOTLIGHT 2 / 4');
+  await expect(header(page)).toContainText('SPOTLIGHT 3 / 4');
+
+  // Keys inside the card are its own (tabbed into): → there does not move the reel.
+  await cardSwitch(page, 'Deaths').focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(header(page)).toContainText('SPOTLIGHT 3 / 4');
+  // Esc there gives the keys back (the reel stays).
+  await page.keyboard.press('Escape');
+  await expect(player(page)).toBeVisible();
+  expect(await page.evaluate(() => !!document.activeElement?.closest('.wc-spot-card'))).toBe(false);
 
   // Period: Last week from the day after the demo keeps everything.
-  await pop(page).locator('.wc-sp-period .wc-ck-dd').click();
-  await pop(page).locator('.wc-ck-opt', { hasText: 'Last week' }).click();
+  await card(page).locator('.wc-sc-sel').selectOption('week');
   expect((await spotSettings(page)).period).toBe('week');
-  await expect(header(page)).toContainText('SPOTLIGHT 2 / 4');
+  await expect(header(page)).toContainText('/ 4');
 
-  // Esc closes the popup first, then the reel.
-  await page.keyboard.press('Escape');
-  await expect(pop(page)).toHaveCount(0);
-  await expect(player(page)).toBeVisible();
-  await expect(gear(page)).not.toHaveClass(/is-on/);
+  // Esc leaves the reel.
   await page.keyboard.press('Escape');
   await expect(player(page)).toHaveCount(0);
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Spotlights >>');
   expect(errors).toEqual([]);
 });
 
-test('a period that leaves nothing shows the empty stage; Settings… there brings it back', async ({ page }) => {
+test('a period that leaves nothing keeps the card with its filter; a change there brings the reel back', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
@@ -128,23 +137,22 @@ test('a period that leaves nothing shows the empty stage; Settings… there brin
   await page.clock.setSystemTime(new Date(2026, 9, 5, 12, 0, 0));
   await page.goto('/');
   await restoreDemo(page);
-  await openGear(page);
-  await pop(page).locator('.wc-sp-period .wc-ck-dd').click();
-  await pop(page).locator('.wc-ck-opt', { hasText: 'Last week' }).click();
+  await openReel(page);
+  await card(page).locator('.wc-sc-sel').selectOption('week');
   const empty = page.locator('.wc-spot-empty');
-  await expect(empty).toContainText('No spotlights match your settings.');
-  await expect(empty).toContainText('Settings…');
   await expect(empty).toContainText('ESC Back');
-  await expect(pop(page)).toBeVisible();
-  // Close the popup; Settings… on the stage opens it again.
-  await pop(page).locator('.wc-pop-x').click();
-  await expect(pop(page)).toHaveCount(0);
-  await empty.locator('.wc-spot-empty-btn').click();
-  await expect(pop(page)).toBeVisible();
-  await pop(page).locator('.wc-sp-period .wc-ck-dd').click();
-  await pop(page).locator('.wc-ck-opt', { hasText: 'Last month' }).click();
+  await expect(card(page)).toBeVisible();
+  await expect(card(page).locator('.wc-sc-empty')).toContainText('No spotlights match your settings.');
+  await expect(card(page).locator('.wc-sc-count')).toHaveText('Spotlight 0 / 0');
+  await expect(chrome(page)).toHaveCount(0);
+  await card(page).locator('.wc-sc-sel').selectOption('month');
   await expect(empty).toHaveCount(0);
   await expect(header(page)).toContainText('SPOTLIGHT 1 / 5');
+  await expect(card(page).locator('.wc-sc-empty')).toBeHidden();
+  // Empty again: ESC Back on the stage leaves.
+  await card(page).locator('.wc-sc-sel').selectOption('week');
+  await empty.locator('.wc-spot-empty-back').click();
+  await expect(player(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

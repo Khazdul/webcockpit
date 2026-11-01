@@ -162,14 +162,15 @@ test('a run with a script pane plays back with the pane, in the log player and t
   });
   await expect(prows(page).nth(2)).toHaveText(/^updated/);
   await checkInertLink(page);
-  // The viewer's gear lists it; its toggle hides it.
+  // The viewer's Panes popup lists it; its toggle hides it.
   await page.mouse.move(10, 10);
-  await page.locator('.wc-player-gear').click();
-  const toggle = page.locator(`.wc-player-toggle[data-pane="${ID}"]`);
-  await expect(toggle).toHaveText('[X] Rec Pane (rec)');
+  await page.locator('.wc-player-box [data-act="panes"]').click();
+  const toggle = page.locator(`.wc-pc-pop [data-pane="${ID}"]`);
+  await expect(toggle).toHaveText('Rec Pane (rec)');
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await toggle.click();
   await expect(pane(page)).toBeHidden();
-  await expect(toggle).toHaveText('[ ] Rec Pane (rec)');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   expect(sentText()).not.toContain('order merc');
 
   // The HTML replay of the same session.

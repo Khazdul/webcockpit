@@ -1,8 +1,8 @@
-// Stage 8 part A (ADR 0021): the viewer settings behind the control box's
-// gear, in RUN LOG (`?player=` on the demo backup) and in the HTML replay
+// Stage 8 part A (ADR 0021; the popups of stage 32c, ADR 0114): the viewer
+// settings behind the control box's Panes and Display, in RUN LOG (`?player=` on the demo backup) and in the HTML replay
 // opened from file://. Pane toggles, colour themes (every pane None), font
 // size, a dragged pane that survives a backward seek, Reset, no timers `+`,
-// and the chrome staying while the section is open.
+// and the chrome staying while a popup is open.
 import { NO_STATE } from './legacy-state';
 import { writeFileSync } from 'node:fs';
 import { type Page, expect, test } from '@playwright/test';
@@ -54,60 +54,69 @@ async function seek(page: Page, frac: number): Promise<void> {
 const player = (page: Page) => page.locator('.wc-player');
 const chrome = (page: Page) => page.locator('.wc-player-chrome');
 const box = (page: Page) => chrome(page).locator('.wc-player-box');
-const section = (page: Page) => box(page).locator('.wc-player-settings');
+const panesPop = (page: Page) => box(page).locator('.wc-pc-pop[data-pop="panes"]');
+const displayPop = (page: Page) => box(page).locator('.wc-pc-pop[data-pop="display"]');
 const pane = (page: Page, id: string) => player(page).locator(`.wc-pane[data-pane="${id}"]`);
 
 /** The settings round every mode runs: toggles, themes, font. */
 async function settingsRound(page: Page): Promise<void> {
-  const gear = box(page).locator('.wc-player-gear');
-  await expect(gear).toHaveText('⚙');
-  // One cell wide, like every other box character.
-  const cellW = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.wc-player')!).getPropertyValue('--cell-w')));
-  expect(Math.abs((await gear.boundingBox())!.width - cellW)).toBeLessThan(0.5);
-  await expect(section(page)).toBeHidden();
-  await gear.click();
-  await expect(section(page)).toBeVisible();
-  await expect(section(page)).toContainText('Panes');
-  await expect(section(page)).toContainText('Reset layout');
+  await expect(panesPop(page)).toBeHidden();
+  await box(page).locator('[data-act="panes"]').click();
+  await expect(panesPop(page)).toBeVisible();
+  await expect(panesPop(page)).toContainText('Panes');
+  await expect(panesPop(page)).toContainText('Reset layout');
 
   // Pane toggle: off and on again.
+  const timers = panesPop(page).locator('[data-pane="timers"]');
   await expect(pane(page, 'timers')).toBeVisible();
-  await section(page).locator('[data-pane="timers"]').click();
+  await timers.click();
   await expect(pane(page, 'timers')).toBeHidden();
-  await expect(section(page).locator('[data-pane="timers"]')).toHaveText('[ ] Timers');
-  await section(page).locator('[data-pane="timers"]').click();
+  await expect(timers).toHaveAttribute('aria-checked', 'false');
+  await timers.click();
   await expect(pane(page, 'timers')).toBeVisible();
+  await expect(timers).toHaveAttribute('aria-checked', 'true');
 
   // Colours: Dark, then Teal; every pane None. Back to Default: as recorded.
   const recorded = await probe(page);
-  const theme = section(page).locator('[data-set="theme"][data-dir="1"]');
-  await theme.click();
-  await expect(section(page).locator('[data-set="theme"][data-value]')).toHaveText(' Dark    ');
-  await theme.click();
-  await expect(section(page).locator('[data-set="theme"][data-value]')).toHaveText(' Teal    ');
+  await box(page).locator('[data-act="display"]').click();
+  await expect(panesPop(page)).toBeHidden();
+  await expect(displayPop(page)).toBeVisible();
+  const theme = (id: string) => displayPop(page).locator(`[data-theme="${id}"]`);
+  await expect(theme('default')).toHaveAttribute('aria-checked', 'true');
+  await theme('dark').click();
+  await expect(theme('dark')).toHaveAttribute('aria-checked', 'true');
+  await theme('teal').click();
+  await expect(theme('teal')).toHaveAttribute('aria-checked', 'true');
+  await expect(theme('dark')).toHaveAttribute('aria-checked', 'false');
   await expect(player(page)).toHaveCSS('background-color', 'rgb(0, 43, 54)');
+  // The swatches show each theme's background.
+  await expect(theme('teal').locator('.wc-pc-swd')).toHaveCSS('background-color', 'rgb(0, 43, 54)');
   let p = await probe(page);
   expect(p.bg).toBe('#002b36');
   expect(Object.values(p.panes).map((x) => x.color)).toEqual(Object.values(p.panes).map(() => 'black'));
-  for (let i = 0; i < 4; i++) await theme.click(); // Paper, Sepia, Slate, Default
-  await expect(section(page).locator('[data-set="theme"][data-value]')).toHaveText(' Default ');
+  await theme('default').click();
   p = await probe(page);
   expect(p.bg).toBe(recorded.bg);
   expect(p.panes).toEqual(recorded.panes);
 
-  // Font: Small (12 px, the cell grid rounds the rendered size); ◄ back to Default.
+  // Font: Small (12 px, the cell grid rounds the rendered size); back to Default.
   const px = (): Promise<number> => player(page).evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
   const before = await px();
-  await section(page).locator('[data-set="font"][data-dir="1"]').click();
-  await expect(section(page).locator('[data-set="font"][data-value]')).toHaveText(' Small   ');
+  const font = (id: string) => displayPop(page).locator(`[data-font="${id}"]`);
+  await font('small').click();
+  await expect(font('small')).toHaveClass(/is-on/);
   expect((await probe(page)).size).toBe(12);
   await expect.poll(px).toBeLessThan(Math.min(before, 12.5));
-  await section(page).locator('[data-set="font"][data-dir="-1"]').click();
-  await expect(section(page).locator('[data-set="font"][data-value]')).toHaveText(' Default ');
+  // The controls keep their size whatever the font.
+  await expect(font('small')).toHaveCSS('font-size', '12px');
+  await font('default').click();
+  await expect(font('default')).toHaveClass(/is-on/);
   expect((await probe(page)).size).toBe(recorded.size);
+  await box(page).locator('[data-act="display"]').click();
+  await expect(displayPop(page)).toBeHidden();
 }
 
-test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no timers +', async ({ page }) => {
+test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Reset, no timers +', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
@@ -115,24 +124,26 @@ test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no t
   await page.goto('/?player=runs-demo.jsonl.gz');
   await expect(player(page).locator('.wc-output')).toContainText('Rivendell Stables');
   // Paused, so the output stays put while we click (the cursor parks on the last line).
+  const play = chrome(page).locator('[data-act="play"]');
   await page.keyboard.press(' ');
-  await expect(chrome(page).locator('[data-act="play"]')).toHaveText('► Play  ');
+  await expect(play).toHaveAttribute('aria-label', 'Play');
   await page.keyboard.press(' ');
-  await expect(chrome(page).locator('[data-act="play"]')).toHaveText('▌▌ Pause');
+  await expect(play).toHaveAttribute('aria-label', 'Pause');
 
-  // Playing with the section open: the chrome hides as it does folded.
-  await box(page).locator('.wc-player-gear').click();
-  await expect(section(page)).toBeVisible();
+  // Playing with a popup open: the chrome stays; closed, it hides again.
+  await box(page).locator('[data-act="panes"]').click();
+  await expect(panesPop(page)).toBeVisible();
+  await page.clock.runFor(6500);
+  await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
+  await box(page).locator('[data-act="panes"]').click();
+  await expect(panesPop(page)).toBeHidden();
   await page.clock.runFor(6500);
   await expect(chrome(page)).toHaveAttribute('data-hidden', '');
   await page.mouse.move(300, 300);
   await expect(chrome(page)).not.toHaveAttribute('data-hidden', '');
-  await expect(section(page)).toBeVisible();
-  await box(page).locator('.wc-player-gear').click();
-  await expect(section(page)).toBeHidden();
 
   await page.keyboard.press(' ');
-  await expect(chrome(page).locator('[data-act="play"]')).toHaveText('► Play  ');
+  await expect(play).toHaveAttribute('aria-label', 'Play');
   await expect(player(page).locator('.wc-player-cursor')).toHaveCount(1);
   const cursorBefore = await player(page).locator('.wc-player-cursor').textContent();
   await settingsRound(page);
@@ -150,7 +161,7 @@ test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no t
   await expect.poll(async () => (await pane(page, 'group').boundingBox())!.x).toBeLessThan(20);
   expect((await probe(page)).layout).toBe(true);
   // The drag moved no pause cursor and did not resume play.
-  await expect(chrome(page).locator('[data-act="play"]')).toHaveText('► Play  ');
+  await expect(play).toHaveAttribute('aria-label', 'Play');
 
   // Forward past later VIEW records, then back (a new App): the layout stays.
   const builds = (await probe(page)).builds;
@@ -161,10 +172,12 @@ test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no t
   await expect.poll(async () => (await pane(page, 'group').boundingBox())!.x).toBeLessThan(20);
 
   // Reset layout: back to the right dock.
-  await section(page).locator('[data-set="reset"]').click();
+  await box(page).locator('[data-act="panes"]').click();
+  await expect(panesPop(page).locator('[data-set="reset"]')).not.toHaveClass(/is-off/);
+  await panesPop(page).locator('[data-set="reset"]').click();
   await expect.poll(async () => (await pane(page, 'group').boundingBox())!.x).toBeGreaterThan(700);
   expect((await probe(page)).layout).toBe(false);
-  await expect(section(page).locator('[data-set="reset"]')).toHaveClass(/is-off/);
+  await expect(panesPop(page).locator('[data-set="reset"]')).toHaveClass(/is-off/);
 
   // The timers pane is active (live, an active pane always has the corner
   // `+`, even empty) and never has a corner + or a charm × in a player.
@@ -175,14 +188,16 @@ test('RUN LOG: the gear, pane toggles, colours, font, a sticky drag, Reset, no t
     await expect(pane(page, 'timers').locator('.wc-timers-hit[data-hit="charm"]')).toHaveCount(0);
   }
 
-  // ESC folds the section, the next ESC leaves the player.
+  // ESC closes the popup, the next ESC leaves the player.
   await page.keyboard.press('Escape');
-  await expect(section(page)).toBeHidden();
+  await expect(panesPop(page)).toBeHidden();
   await expect(player(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(player(page)).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
-test('the HTML replay has the gear and the same settings (file://, no storage)', async ({ page, browser }, info) => {
+test('the HTML replay has Panes and Display and the same settings (file://, no storage)', async ({ page, browser }, info) => {
   await page.goto('/');
   await page.waitForFunction(() => (window as unknown as { __wc?: unknown }).__wc !== undefined);
   const html = await page.evaluate(async () => {
@@ -216,9 +231,10 @@ test('the HTML replay has the gear and the same settings (file://, no storage)',
   await p.waitForFunction(() => (window as unknown as { __wcReplay?: unknown }).__wcReplay != null);
   await expect(player(p).locator('.wc-output')).toContainText('Rivendell Stables');
   await p.keyboard.press(' ');
-  await expect(chrome(p).locator('[data-act="play"]')).toHaveText('► Play  ');
-  // The replay's own box row (Fullscreen) is still there, under the transport row.
-  await expect(box(p).locator('.wc-player-btn', { hasText: 'Fullscreen' })).toBeVisible();
+  await expect(chrome(p).locator('[data-act="play"]')).toHaveAttribute('aria-label', 'Play');
+  // The replay's own button (Fullscreen) is in the box; no Close.
+  await expect(box(p).locator('[data-act="extra"]')).toHaveAttribute('aria-label', 'Fullscreen (F)');
+  await expect(box(p).locator('[data-act="close"]')).toHaveCount(0);
   await settingsRound(p);
   await expect(pane(p, 'timers').locator('.wc-timers-hit[data-hit="corner"]')).toHaveCount(0);
   expect(await p.evaluate(() => (window as unknown as { __touched: string[] }).__touched)).toEqual([]);
