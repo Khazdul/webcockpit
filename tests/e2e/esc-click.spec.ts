@@ -1,32 +1,56 @@
 // Desktop (ADR 0075 §2, owner-approved for desktop too): `ESC …` footer
-// tokens are clickable and `#menu` opens the ESC menu.
+// tokens are clickable. Since stage 30f (ADR 0112) there is no ESC menu
+// where the menu bar exists: Esc with nothing open opens nothing and `#menu`
+// prints a hint. The tablet (no `☰`): tests/e2e/phone-touch.spec.ts.
 import { type Page, expect, test } from '@playwright/test';
 
 const overlay = (page: Page) => page.locator('.wc-overlay');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
-const escToken = (page: Page, text: string) =>
-  page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-footer .wc-esc-btn', { hasText: text });
+const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
+const startTitle = (page: Page) => startFrame(page).locator('.wc-title-row .wc-c-section');
+const escToken = (page: Page, text: string) => startFrame(page).locator('.wc-footer .wc-esc-btn', { hasText: text });
+const HINT = 'The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit.';
 
-test('#menu opens the ESC menu; a click on ESC Back and ESC Close goes back', async ({ page }) => {
+function watchErrors(page: Page): string[] {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  return errors;
+}
+
+test('a click on ESC Back goes back (the start page)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await expect(startTitle(page)).toHaveText('─── Options ───');
+  await escToken(page, 'ESC Back').click();
+  // Back on the main menu, the cursor on Options.
+  await expect(startFrame(page).locator('.wc-mrow[data-key="enter"]')).toBeVisible();
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Options >>');
+  expect(errors).toEqual([]);
+});
+
+test('Esc with nothing open and #menu open no menu; #menu prints the hint', async ({ page }) => {
+  const errors = watchErrors(page);
   await page.goto('/?replay');
   const input = page.locator('.wc-input-field');
   await expect(input).toBeFocused();
+  await expect(page.locator('.wc-mb-bar')).toBeVisible();
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
+  await expect(input).toBeFocused();
   await page.keyboard.type('#menu');
   await page.keyboard.press('Enter');
-  await expect(overlay(page)).toBeVisible();
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await escToken(page, 'ESC Back').click();
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="options"]')).toBeVisible();
-  await escToken(page, 'ESC Close').click();
-  await expect(overlay(page)).toBeHidden();
+  await expect(page.locator('.wc-output .wc-row', { hasText: HINT })).toHaveCount(1);
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
   await expect(input).toBeFocused();
-  // `#me` is still #message: no menu.
+  // `#me` is still #message: no hint, no menu.
   await page.keyboard.type('#me');
   await page.keyboard.press('Enter');
-  await expect(overlay(page)).toBeHidden();
+  await expect(page.locator('.wc-output .wc-row', { hasText: HINT })).toHaveCount(1);
+  await expect(overlay(page)).toHaveCount(0);
   // No touch control on desktop.
   await expect(page.locator('.wc-menu-btn')).toHaveCount(0);
   await expect(page.locator('html')).not.toHaveClass(/wc-touch/);

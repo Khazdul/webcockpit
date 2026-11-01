@@ -1,8 +1,9 @@
 // Stage 30a (ADR 0099, ADR 0100): the menu bar at the right end of the
 // input row on desktop: clock, icons, tooltips, the Panes and Exit popups,
-// the ESC menu at a frame, and `#panes`. Profile and Scripts open windows
-// since 30b (ADR 0103; tests/e2e/windows.spec.ts), Settings its popup since
-// 30c (ADR 0107; tests/e2e/settings-popup.spec.ts).
+// and `#panes`. Profile and Scripts open windows since 30b (ADR 0103;
+// tests/e2e/windows.spec.ts), Settings its popup since 30c (ADR 0107;
+// tests/e2e/settings-popup.spec.ts). There is no ESC menu beside it since
+// 30f (ADR 0112; tests/e2e/esc-click.spec.ts).
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -88,7 +89,7 @@ test('tooltips: the profile, the buttons and the clock', async ({ page }) => {
   await expect(tip(page)).toBeHidden();
 });
 
-test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens the menu', async ({ page }) => {
+test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens nothing', async ({ page }) => {
   await offline(page);
   await expect(page.locator('.wc-pane-timers')).toBeVisible();
   await icon(page, 'panes').click();
@@ -124,8 +125,12 @@ test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens
   await page.keyboard.press('Escape');
   await expect(popup(page)).toHaveCount(0);
   await expect(overlay(page)).toBeHidden();
+  // With nothing open Esc does nothing (ADR 0112).
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  await expect(popup(page)).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
 });
 
 test('#panes opens and closes the popup; the icon toggles it; Reset layout asks first', async ({ page }) => {
@@ -198,5 +203,9 @@ test('Exit: the popup takes the keys; Esc cancels, Y returns to the start page',
   await expect(page.locator('.wc-app')).toBeHidden();
   await expect.poll(() => closed).toBe(true);
   await expect(popup(page)).toHaveCount(0);
+  // And back in again.
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   expect(errors).toEqual([]);
 });

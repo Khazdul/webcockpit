@@ -1,5 +1,7 @@
-// Stage 2 package C: start page, profiles, Options, ESC menu and the page
-// flow, against a mocked MUME WebSocket (nothing reaches the real server).
+// Stage 2 package C: start page, profiles, Options and the page flow,
+// against a mocked MUME WebSocket (nothing reaches the real server). The
+// ESC menu is the phone's since stage 30f (ADR 0112):
+// tests/e2e/phone-esc-menu.spec.ts.
 import { type Page, type WebSocketRoute, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -25,7 +27,6 @@ async function mockMume(page: Page): Promise<Mock> {
 const start = (page: Page) => page.locator('.wc-start');
 const overlay = (page: Page) => page.locator('.wc-overlay');
 const startSel = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel');
-const menuSel = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
 const startTitle = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 const startFlash = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash');
 const settings = (page: Page) => page.evaluate(() => window.__wc!.settings.get());
@@ -117,39 +118,22 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startTitle(page)).toHaveText('─── Options ───');
 });
 
-test('Enter MUME shows the cockpit and connects; ESC opens and closes the menu', async ({ page }) => {
+test('Enter MUME shows the cockpit and connects; Esc opens no menu (ADR 0112)', async ({ page }) => {
   const mock = await enterMume(page);
   expect(mock.opened()).toBe(1);
   await expect(start(page)).toBeHidden();
   const field = page.locator('.wc-input-field');
   await expect(field).toBeFocused();
-
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
-  await expect(menuSel(page)).toHaveText('<< Continue >>');
-  await expect(page.locator('.wc-overlay .wc-esc-header')).toContainText('Profile: default');
-  await expect(page.locator('.wc-overlay .wc-esc-header')).toContainText('Link:');
-  // Keys go to the menu, not the game input.
-  await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toHaveText('<< Reconnect >>');
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  // The keys stay with the game input.
+  await expect(field).toBeFocused();
   await page.keyboard.type('xyz');
-  await expect(field).toHaveValue('');
-  // Clicking outside the box keeps focus in the menu.
-  await page.mouse.click(5, 5);
-  await page.keyboard.press('ArrowUp');
-  await expect(menuSel(page)).toHaveText('<< Continue >>');
-
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeHidden();
-  await expect(field).toBeFocused();
-
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Enter'); // Continue
-  await expect(overlay(page)).toBeHidden();
-  await expect(field).toBeFocused();
+  await expect(field).toHaveValue('xyz');
 });
 
-test('a disconnect shows the Disconnected notice instead of the menu; Enter or its button reconnects', async ({ page }) => {
+test('a disconnect shows the Disconnected notice and opens no menu (ADR 0100, 0112); Enter or its button reconnects', async ({ page }) => {
   const mock = await enterMume(page);
   const notice = page.locator('.wc-mb-disc');
   await expect(notice).toBeHidden();
@@ -158,7 +142,7 @@ test('a disconnect shows the Disconnected notice instead of the menu; Enter or i
   await expect(notice).toBeVisible();
   await expect(notice).toHaveText('DisconnectedReconnect Enter');
   await page.waitForTimeout(300);
-  await expect(overlay(page)).toBeHidden();
+  await expect(overlay(page)).toHaveCount(0);
   // Enter in the input reconnects (spec §2.2).
   await expect(page.locator('.wc-input-field')).toBeFocused();
   await page.keyboard.press('Enter');
@@ -170,7 +154,7 @@ test('a disconnect shows the Disconnected notice instead of the menu; Enter or i
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^disconnected/);
   await expect(notice).toBeVisible();
-  await expect(overlay(page)).toBeHidden();
+  await expect(overlay(page)).toHaveCount(0);
   await page.locator('.wc-mb-rc').click();
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
   await expect(notice).toBeHidden();
@@ -190,19 +174,13 @@ test('no auto-open when the first connection never reaches login', async ({ page
   await expect(overlay(page)).toHaveCount(0);
 });
 
-test('Exit session returns to the start page and closes the connection', async ({ page }) => {
+test('Exit returns to the start page and closes the connection; Enter MUME again', async ({ page }) => {
   const mock = await enterMume(page);
   let closed = false;
   mock.server()!.onClose(() => (closed = true));
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('End');
-  await expect(menuSel(page)).toHaveText('<< Exit session >>');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Exit session ───');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-body .wc-c-err')).toHaveText('Attention! This terminates the current session.');
-  await page.keyboard.press('Escape');
-  await expect(menuSel(page)).toHaveText('<< Exit session >>');
-  await page.keyboard.press('Enter');
+  // The bar's Exit popup (ADR 0099); the phone's Exit session: phone-esc-menu.spec.ts.
+  await page.locator('.wc-mb[data-mb="exit"]').click();
+  await expect(page.locator('.wc-pop-exit')).toBeFocused();
   await page.keyboard.press('y');
   await expect(start(page)).toBeVisible();
   await expect(startSel(page)).toHaveText('<< Enter MUME >>');
@@ -283,30 +261,29 @@ test('Options → Panes: no pane grid on desktop; the phone\'s grid toggles pane
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 
-test('Options → Appearance changes the font size live, also from the ESC menu', async ({ page }) => {
-  await enterMume(page);
+test('Options → Appearance changes the font size live', async ({ page }) => {
+  await openStart(page);
   const fontSize = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
   const before = await fontSize();
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown'); // past Mapper
   await page.keyboard.press('Enter'); // Appearance
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Appearance ───');
+  await expect(startTitle(page)).toHaveText('─── Appearance ───');
   await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toHaveText('<< Size: 15 >>');
+  await expect(startSel(page)).toHaveText('<< Size: 15 >>');
   // Enter is inert on a stepper.
   await page.keyboard.press('Enter');
-  await expect(menuSel(page)).toHaveText('<< Size: 15 >>');
+  await expect(startSel(page)).toHaveText('<< Size: 15 >>');
   for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowRight');
-  await expect(menuSel(page)).toHaveText('<< Size: 20 >>');
+  await expect(startSel(page)).toHaveText('<< Size: 20 >>');
   await expect.poll(fontSize).not.toBe(before);
   expect((await settings(page)).appearance.size).toBe(20);
   // Background cycler, live (past Padding and Font color).
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toHaveText('<< Background: black >>');
+  await expect(startSel(page)).toHaveText('<< Background: black >>');
   await page.keyboard.press('Enter');
-  await expect(menuSel(page)).toHaveText('<< Background: red >>');
+  await expect(startSel(page)).toHaveText('<< Background: red >>');
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--term-bg')))
     .toBe('#1a0e0e');
@@ -314,11 +291,11 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   // leaving it puts the defaults back.
   await page.keyboard.press('ArrowLeft');
   await page.keyboard.press('ArrowLeft');
-  await expect(menuSel(page)).toHaveText('<< Background: paper >>');
+  await expect(startSel(page)).toHaveText('<< Background: paper >>');
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#000000');
   expect((await settings(page)).appearance.ansi[7]).toBe('#4a4538');
   await page.keyboard.press('ArrowRight');
-  await expect(menuSel(page)).toHaveText('<< Background: black >>');
+  await expect(startSel(page)).toHaveText('<< Background: black >>');
   await expect.poll(async () => (await settings(page)).appearance.fg).toBe('#c0c0c0');
   expect((await settings(page)).appearance.ansi[7]).toBe('#c0c0c0');
   await page.keyboard.press('ArrowRight');
@@ -330,13 +307,13 @@ test('Options → Appearance changes the font size live, also from the ESC menu'
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── ANSI 9: bright red ───');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── ANSI 9: bright red ───');
   await page.keyboard.press('Control+a');
   await page.keyboard.type('#abc');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).appearance.ansi[9]).toBe('#aabbcc');
   // Reset appearance: the defaults of a new install (Hack 17, ADR 0078).
-  await page.locator('.wc-overlay .wc-mrow[data-key="reset"] .wc-label').click();
+  await page.locator('.wc-start .wc-mrow[data-key="reset"] .wc-label').click();
   await expect.poll(async () => (await settings(page)).appearance.size).toBe(17);
   expect((await settings(page)).appearance.font).toBe('hack');
   await expect.poll(fontSize).not.toBe(before);
@@ -352,20 +329,18 @@ test('Options → Text input: auto-clear and autosuggest apply live (ADR 0063, 0
   await page.keyboard.press('Enter');
   await expect(field).toHaveValue('kill orc the great');
 
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  const row = (k: string) => page.locator(`.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="${k}"] .wc-label`);
-  await row('textinput').click();
-  await expect(row('autoclear')).toHaveText('[ ] Auto-clear input');
-  await row('autoclear').click();
-  await expect(row('autoclear')).toHaveText('[X] Auto-clear input');
-  await row('autosuggest').click();
-  await expect(row('autosuggest')).toHaveText('[X] Input autosuggest');
+  // In play: the Settings popup's Text input tab (ADR 0107); the start page's frame below.
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await page.locator('.wc-ck-tab[data-tab="input"]').click();
+  const toggle = (label: string) => page.locator(`.wc-sp-settings .wc-ck-tg[aria-label="${label}"]`);
+  await expect(toggle('Auto-clear input')).toHaveAttribute('aria-checked', 'false');
+  await toggle('Auto-clear input').click();
+  await expect(toggle('Auto-clear input')).toHaveAttribute('aria-checked', 'true');
+  await toggle('Autosuggest').click();
+  await expect(toggle('Autosuggest')).toHaveAttribute('aria-checked', 'true');
   expect((await settings(page)).input).toEqual({ autoClear: true, autosuggest: true });
   await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeHidden();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await expect(field).toBeFocused();
 
   // Autosuggest: greyed after a space, Tab takes a word, Right the rest.
@@ -659,7 +634,7 @@ test('profiles: Enter or a click on the selected profile edits it, on another se
   await expect(startTitle(page)).toHaveText('─── Profile ───');
 });
 
-test('the selected profile shows in the ESC menu header', async ({ page }) => {
+test('the selected profile shows in the bar\'s Profile tooltip', async ({ page }) => {
   await openStart(page);
   await page.evaluate(async () => {
     await window.__wc!.shell.profiles.create('scout', '');
@@ -667,8 +642,8 @@ test('the selected profile shows in the ESC menu header', async ({ page }) => {
   });
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay .wc-esc-header')).toContainText('Profile: scout');
+  await page.locator('.wc-mb[data-mb="profile"]').hover();
+  await expect(page.locator('.wc-mb-tip')).toHaveText('Profile: scout');
 });
 
 test('too small a window shows a notice instead of the menu', async ({ page }) => {
@@ -683,15 +658,14 @@ test('too small a window shows a notice instead of the menu', async ({ page }) =
   await expect(startSel(page)).toHaveText('<< Enter MUME >>');
 });
 
-test('offline modes skip the start page and still have the ESC menu', async ({ page }) => {
+test('offline modes skip the start page; the bar is there and Esc opens no menu', async ({ page }) => {
   await page.goto('/?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   await expect(start(page)).toHaveCount(0);
   await expect(page.locator('.wc-input-field')).toBeFocused();
+  await expect(page.locator('.wc-mb-bar')).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
-  await expect(menuSel(page)).toHaveText('<< Reconnect >>');
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeHidden();
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });
