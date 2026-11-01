@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30d done; 30e built, owner test deferred; 30f next). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30d done; 30e built, owner test deferred; 30f building). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -492,6 +492,55 @@ Technical decisions *(Claude)*, recorded as ADR 0110:
   ESC menu) and its frame deleted, on every device where the reel's gear
   works by touch (checked on the phone in the build).
 
+## 30f build plan
+
+Scope: S10's first point and S2's Esc rule. Where the menu bar exists
+(desktop and tablet, `ui.bar`), the ESC menu is gone: nothing opens it,
+the shell never mounts it. The phone keeps `☰`, the ESC menu, its
+auto-open on disconnect and the corner fullscreen button, unchanged. The
+start page's Options stays as it is (S10). Every ESC menu entry already
+has its replacement (30a–30d): Continue → nothing; Reconnect → the
+Disconnected notice (ADR 0100); Statistics → the Statistics pane (ADR
+0109); Profile → the Profile window; Options → Panes popup, Settings
+popup, pane gears, Scripts window; Exit → the Exit popup.
+
+Technical decisions *(Claude)*, recorded as ADR 0112:
+
+- **Esc in the input** (desktop, tablet): scrolled back → bottom; else the
+  bar's open popup closes; else the topmost window's close request; else,
+  in the cockpit's fullscreen, the Exit popup (the owner's 30b request,
+  ADR 0103, kept); else nothing. A focused popup or window handles its
+  own Esc as today (ADR 0108). The phone's Esc still opens the ESC menu.
+- **`#menu`** with the bar prints one system line naming the new ways:
+  `The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes,
+  #settings, #fullscreen, #exit.` On the phone it opens the menu as
+  today. `#help menu` and `#help` say the same.
+- **Tablet `☰`:** removed. Only the phone (`device().phone`) gets the
+  menu button; a tablet uses the bar by touch.
+- **Disconnect:** unchanged from ADR 0100 (the notice on bar devices, the
+  auto-open on the phone).
+- **Dead paths removed** where they only served the ESC menu beside the
+  bar: the ESC menu's `openWindow` (Profile and Options → Scripts opening
+  the windows), the windows' blur and the bar's popup reset when the menu
+  opens, `ui.openMenuAt` on bar devices (the bar never calls it), and
+  their comments. Where the code is shared with the phone or the start
+  page, it stays.
+- **Chrome loading:** `?bench` and the offline modes load the chrome
+  chunk on the first window, popup or Statistics pane instead of the
+  first ESC; the prefetch rules stay.
+- **Tests:** e2e and unit tests that reached a frame through the ESC menu
+  on desktop go through the bar, its popups and windows, or a `#`
+  command; tests of the ESC menu itself run on the phone (or are dropped
+  where a phone spec already covers the same). New checks: Esc on desktop
+  with nothing open opens nothing; `#menu` prints the hint; a tablet has
+  no `☰`; a disconnect on desktop opens no menu. The screenshot script's
+  `ESC → Options → Appearance` scene uses the Settings popup.
+- **Docs:** spec §2.6 (the ESC menu is the phone's; desktop and tablet
+  have the menu bar), spec §2.2/§2.8 lines that send the user to the ESC
+  menu, the manual and `#help` texts, README, the Scripts page note
+  ("Scripts sits under Profile on the start page and in the ESC menu"),
+  and comments naming the ESC menu as the desktop's way in.
+
 ## Owner feedback
 
 ### 30a round 1 (2026-10-31)
@@ -787,7 +836,16 @@ and bring any feedback then. The 30e test guide stands.
   - [x] Unit tests (`share-spotlights`, `settings`, `spotlights-settings`,
     `spotlight-mode`), e2e `spotlights-settings.spec.ts`,
     `phone-spotlights.spec.ts`, ADR 0110, ADR 0032 addendum, test guide.
-- [ ] 30f.
+- [ ] 30f (build plan above, 2026-11-01):
+  - [ ] Esc on desktop and tablet ends without the ESC menu; the shell
+    never mounts it where the bar exists.
+  - [ ] `#menu` hint with the bar; `#help` texts.
+  - [ ] Tablet `☰` removed; phone unchanged.
+  - [ ] Dead ESC-menu-beside-the-bar paths removed; chrome loading notes.
+  - [ ] Unit and e2e tests moved off the desktop ESC menu; new checks;
+    screenshot script.
+  - [ ] Docs: spec §2.6 and others, manual, `#help`, README, Scripts note;
+    ADR 0112 and addenda; test guide.
 
 ## Test guide
 
