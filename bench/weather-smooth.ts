@@ -230,6 +230,7 @@ function analyse(scene: string, trace: number[], probe: { t: number[]; ch: numbe
     draw.push(f.end - f.at);
     if (f.end - base > vsync) late++;
   }
+  if (process.env.WC_SMOOTH_SEQ) console.log('    intervals (refreshes):', ivs.join(''));
   const span = fr.length > 1 ? (fr[fr.length - 1]!.now - fr[0]!.now) / 1000 : 1;
   let shown: number[] | null = null, shownFps = NaN, pageHz = NaN;
   if (probe) {
