@@ -706,6 +706,7 @@ what feedback is wanted.
 | 23 | **Remote editing** (parked 2026-10-07). MUME.Client Edit/View over GMCP: a floating edit pane and read-only view panes, Latin-1 and size checks, disconnect handling, and Edit/View text kept out of recordings and exports. | Write a mail and a board post in the edit pane; view a board post. |
 | 24 | **Loading indicators.** A TUI loading bar and fade-in for the start page (no piecemeal font reveal), and a progress bar over the map pane while map data and tiles load. | Load the page and turn the map on over a slow connection (phone). |
 | 30 | **Fixed menu.** A menu bar right of the input field (clock, Profile, Scripts, Panes, Settings, Fullscreen, Exit) in the ghost-icon look. Movable Profile and Scripts windows, a live Settings popup, gears on the panes, a Statistics pane, Spotlights settings in the reel; the ESC menu removed on desktop last (`docs/stages/30-fixed-menu.md`, steps 30a–f). | Change settings while you play. |
+| 31 | **Menu bar clock and weather smoothness.** Mockups for a clock that blends into the menu bar (small tweaks and drastic variants), then the chosen one built; a review of why snow (and other weather) feels jerky, and the fix (`docs/stages/31-clock-and-snow.md`, steps 31a–b). | Pick a clock; watch snow fall smoothly. |
 
 ## 6. Open questions for the owner
 
