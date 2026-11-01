@@ -111,11 +111,18 @@ function linked(text: string): (string | VNode)[] {
   );
 }
 
+/** The widest the About text wraps (cells): wide, but still readable prose. */
+const TEXT_MAX = 110;
+
 export function AboutFrame(): VNode {
   const { version, commit } = useServices();
   const { cols } = useGrid();
   const visible = useBodyRows();
-  const width = Math.max(20, Math.min(cols - 4, 76));
+  // The scroll box spans the grid (one cell each side, its scrollbar at the
+  // right edge); the text inside wraps at most TEXT_MAX wide, centred.
+  const boxW = Math.max(20, cols - 4);
+  const width = Math.min(boxW, TEXT_MAX);
+  const pad = Math.floor((boxW - width) / 2);
   const box = useScrollBox();
   useKeys((_e, nk) => {
     switch (nk) {
@@ -152,14 +159,14 @@ export function AboutFrame(): VNode {
       )),
     [width],
   );
-  const at = centreLeft(cols, width + 2);
+  const at = centreLeft(cols, boxW + 2);
   const height = `calc(var(--cell-h) * ${visible})`;
   // The text scrolls natively (pixels, as EDITOR); the TUI scrollbar one cell after it.
   return (
     <Page title="About" titleRight={commit ? `${version} (${commit})` : version} footer={['↑↓ Scroll', 'PgUp/PgDn Page', 'ESC Back']}>
       <div class="wc-about wc-scrollrow" style={{ ...indent(at), height }}>
-        <div class="wc-scrollbox wc-about-text" ref={box.ref} style={{ ...cellsWide(width), height }}>
-          {rows}
+        <div class="wc-scrollbox wc-about-text" ref={box.ref} style={{ ...cellsWide(boxW), height }}>
+          <div style={indent(pad)}>{rows}</div>
         </div>
         <div class="wc-cell-gap" />
         <TuiScrollbar target={box.ref} rows={visible} />

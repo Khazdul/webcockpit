@@ -101,4 +101,7 @@ read well, and is anything missing or in the way?
 
 ## Owner feedback
 
-*(after testing)*
+- 2026-11-01: Export Editor and Scripts look good. About also left wide
+  black bands. Fixed: its scroll box spans the grid with the scrollbar at
+  the right edge; the text wraps at most 110 cells (was 76), centred in
+  the box (`src/chrome/frames/about.tsx`, `TEXT_MAX`).
