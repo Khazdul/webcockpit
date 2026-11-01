@@ -22,6 +22,16 @@ function arc(f) {
   return `<svg class="arc" viewBox="0 0 27 17" aria-hidden="true"><path class="arc-rest" d="M3 14A10.5 10.5 0 0 1 24 14"></path><path class="arc-done" d="M3 14A10.5 10.5 0 0 1 ${x} ${y}"></path><circle class="orb" cx="${x}" cy="${y}" r="2.4"></circle><path class="arc-hz" d="M1 14.5h25"></path></svg>`;
 }
 
+// Ring (H): a small sun or moon inside a time-left ring. The ring starts
+// full and vanishes clockwise from 12 o'clock as the period runs out.
+const R = 10, CIRC = 2 * Math.PI * R;
+const SUN_DISC = 'M12 9a3 3 0 1 1 0 6a3 3 0 1 1 0-6z';
+function ring(day, f, track) {
+  const left = 1 - f;
+  const inner = day ? `<circle class="glyph-fill" cx="12" cy="12" r="3.6"></circle>` : `<path class="glyph-fill" d="M15.6 13.3A4.6 4.6 0 1 1 10.7 7.4a3.7 3.7 0 0 0 4.9 5.9z"></path>`;
+  return `<svg class="ring" viewBox="0 0 24 24" aria-hidden="true">${track ? `<circle class="ring-track" cx="12" cy="12" r="${R}"></circle>` : ''}<circle class="ring-arc" cx="12" cy="12" r="${R}" transform="rotate(-90 12 12)" stroke-dasharray="${(CIRC * left).toFixed(2)} ${CIRC.toFixed(2)}" stroke-dashoffset="${(-CIRC * f).toFixed(2)}"></circle>${inner}</svg>`;
+}
+
 // One clock, by variant. per: day | night; time; f: fraction of the period gone.
 function clock(v, per, time, f, extra = '') {
   const day = per === 'day';
@@ -34,6 +44,7 @@ function clock(v, per, time, f, extra = '') {
     case 'd': return `<div class="${cls}">${svg('ci', icC)}<span class="t">${time}</span></div>`;
     case 'e': return `<div class="${cls}"><span class="t">${time}</span><span class="trk"><span class="done" style="width: ${f * 100}%"></span><span class="orb" style="left: ${f * 100}%"></span></span></div>`;
     case 'f': return `<div class="${cls}">${arc(f)}<span class="t">${time}</span></div>`;
+    case 'h': case 'h2': case 'h3': return `<div class="${cls}">${v !== 'h2' ? `<span class="t">${time}</span>` : ''}${ring(day, f, v === 'h3')}</div>`;
     case 'g': return `<div class="${cls}"><span class="chip">${svg('ci', icC)}<span class="t">${time}</span></span></div>`;
   }
 }
@@ -47,6 +58,11 @@ const ROWS = {
     { v: 'a', name: 'A · Tonad', desc: 'Tiden i vanlig vikt, mindre och ljusgrå (som spelets text). Solen och månen lika stora och lika tunna som de andra ikonerna, färgen lite dämpad, mitt i raden.', inst: [['day', '4:33', 0.4], ['night', '1:12', 0.7]] },
     { v: 'b', name: 'B · Spökgrå', desc: 'Klockan blir en spökikon som de andra: grå tid, solen och månen bara svagt färgade. Hovra så tänds den (vit tid, full färg), precis som ikonerna.', inst: [['day', '4:33', 0.4], ['night', '1:12', 0.7], ['day', '4:33', 0.4, 'hot', 'hovrad']] },
     { v: 'c', name: 'C · Periodens färg', desc: 'Ingen vit text alls: tiden tar solens bärnsten på dagen och månens blå på natten, dämpat. Klocka och ikon blir en enhet.', inst: [['day', '4:33', 0.4], ['night', '1:12', 0.7]] },
+  ],
+  ring: [
+    { v: 'h', name: 'H · Ring som räknar ner', desc: 'Solen eller månen mindre, inuti en ring som är tiden kvar av perioden. Ringen är hel när perioden börjar och försvinner medurs från klockan tolv i takt med nedräkningen. Solen en fylld skiva och månen en fylld skära (strålarna blir en klump så små). Tiden tonad som i A. Samma bredd som i dag.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.92, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt']] },
+    { v: 'h2', name: 'H2 · Ring utan siffror', desc: 'Samma ring utan tiden bredvid: tiden finns i tooltipen. Ungefär hälften så bred.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['night', '1:12', 0.7, '', 'natt']] },
+    { v: 'h3', name: 'H3 · Ring med spår', desc: 'Som H, men den del av ringen som har försvunnit finns kvar som ett mycket svagt spår, så att man ser hur stor del av perioden som har gått.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.92, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt']] },
   ],
   big: [
     { v: 'd', name: 'D · Lugn tills skiftet', desc: 'Helt grå, ikonen först som de andra knapparna. Den sista minuten före skiftet tänds den i periodens färg som en påminnelse.', inst: [['day', '4:33', 0.4], ['day', '0:42', 0.97, 'near', 'sista minuten'], ['night', '1:12', 0.7]] },
@@ -137,6 +153,18 @@ body{margin:0;background:#050505}
 .clk.f.day .orb{fill:#e8a63a;stroke:none}
 .clk.f.night .orb{fill:#5b93d6;stroke:none}
 
+/* H */
+.clk.h{padding:0 3px 0 18px;gap:5px}
+.clk.h2{padding:0 3px 0 6px}
+.clk.h3{padding:0 3px 0 18px;gap:5px}
+.clk.h .t,.clk.h3 .t{color:#b4b4b4;font-size:13px;position:relative;top:.5px}
+.ring{width:16px;height:16px;display:block;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ring-arc{stroke-width:1.6}
+.ring-track{stroke:#262626;stroke-width:1.6}
+.ring .glyph-fill{stroke:none}
+.clk.day .ring-arc{stroke:#d9a54a}.clk.night .ring-arc{stroke:#5b93d6}
+.clk.day .glyph-fill{fill:#e0a336}.clk.night .glyph-fill{fill:#5b93d6}
+
 /* G */
 .clk.g{padding:0 5px 0 9px}
 .clk.g .chip{display:flex;align-items:center;gap:5px;height:13px;padding:0 6px 0 4px;border-radius:3px;background:#0c0c0c;border:1px solid #232323;box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
@@ -149,7 +177,7 @@ const capOf = (per, note) => note ?? (per === 'day' ? 'dag' : 'natt');
 function board(kind, title, intro) {
   const rows = ROWS[kind].map((r) => {
     const z = r.inst.map(([per, time, f, extra, note]) => zoom(clock(r.v, per, time, f, extra), capOf(per, note) + ' · förstorad 2,5×')).join('');
-    const rl = r.inst.filter((i) => !i[3]).map(([per, time, f]) => real(clock(r.v, per, time, f), capOf(per) + ' · verklig storlek')).join('');
+    const rl = r.inst.filter((i) => !i[3] && (r.v[0] !== 'h' || i[2] === 0.45 || i[1] === '1:12')).map(([per, time, f]) => real(clock(r.v, per, time, f), capOf(per) + ' · verklig storlek')).join('');
     return `<div class="row"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="zs">${z}</div><div class="rs">${rl}</div></div>`;
   }).join('\n');
   return `<div class="board"><div class="hd">${intro}</div>\n${rows}\n</div>`;
@@ -157,6 +185,7 @@ function board(kind, title, intro) {
 
 const BOARDS = [
   { file: 'Clock31a-small.dc.html', kind: 'small', title: '31a · Klockan: små justeringar', intro: 'Klockan i menyraden, små justeringar. Nu överst som jämförelse. Allt annat i raden (ikoner, avskiljare, Comm-panelens kant till höger) är som i dag.' },
+  { file: 'Clock31a-ring.dc.html', kind: 'ring', title: '31a · Klockan: ring som räknar ner', intro: 'Ditt förslag: en mindre sol eller måne i en ring som visar tiden kvar av perioden. Ringen försvinner medurs från klockan tolv. Tooltipen (t.ex. Day in 4:33) finns kvar.' },
   { file: 'Clock31a-big.dc.html', kind: 'big', title: '31a · Klockan: större omtag', intro: 'Klockan i menyraden, större omtag av hur den ser ut och passar in. Tooltipen (t.ex. Night in 4:33) finns kvar i alla.' },
 ];
 for (const b of BOARDS) {
@@ -175,7 +204,7 @@ for (const b of BOARDS) {
 </helmet>
 ${body}
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1020}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":${b.kind === 'ring' ? 1100 : 1020}}}'>
 class Component extends DCLogic {
   renderVals() {
     return {};

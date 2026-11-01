@@ -1,6 +1,6 @@
 # Menu bar clock mockups (stage 31a)
 
-Two design-canvas artboards from 2026-11-01, in a new column on the
+Three design-canvas artboards from 2026-11-01, in a new column on the
 owner's canvas https://claude.ai/artifact/Bap2VJPNro2qcKTDrXXmaj (private
 to the owner; the stage 30 mockups are on the same canvas). Each shows the
 bar zoomed 2.5× (day and night) and at 1:1 under a game line, at a 15 px
@@ -24,3 +24,6 @@ low in its box, so the moon reads low.
 | E · Horisontlinje | No icon: a 5-cell line where a sun or moon dot travels left to right over the period; small grey time in front. 2 cells wider. |
 | F · Solbåge | A tiny sundial: the sun or moon dot follows an arc over the horizon; grey time after it. Same width as today. |
 | G · Bricka | The clock in a faintly recessed chip, like a small display: muted icon and small time. |
+| H · Ring som räknar ner | Owner's idea (2026-11-01): a smaller sun or moon (filled disc, filled crescent) inside a time-left ring that vanishes clockwise from 12 o'clock as the period runs out; toned time as in A. Same width as today. |
+| H2 · Ring utan siffror | H without the time beside it (time in the tooltip). About half as wide. |
+| H3 · Ring med spår | H with the vanished part kept as a faint track. |

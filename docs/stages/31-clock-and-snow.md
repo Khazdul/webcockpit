@@ -65,6 +65,7 @@ Two independent parts, in this order:
 - [x] 31a: today's clock measured (boxes centred; bold digits taller
   than the 13 px icons, the moon's ink low in its box).
 - [x] 31a: mockups A–G on the canvas (2026-11-01).
+- [x] 31a: owner idea H (time-left ring around a smaller sun or moon), with H2 (no time) and H3 (faint track).
 - [ ] 31a: owner picks a variant.
 - [ ] 31a: build, ADR, tests, test guide.
 - [ ] 31b: measurements and root cause (research note).
