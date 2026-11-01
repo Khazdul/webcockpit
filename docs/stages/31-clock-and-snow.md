@@ -1,7 +1,7 @@
 # Stage 31 — Menu bar clock and weather smoothness
 
-Status: **Owner testing** (31a: clock at a real dawn and dusk; 31b: demos;
-birds 30 or 60). Owner brief 2026-11-01 (below). After this stage: a release
+Status: **Done** (2026-11-01; the owner keeps an eye on the clock at dawn
+and dusk while playing). Owner brief 2026-11-01 (below). After this stage: a release
 (stage 30 and 31 together), then the owner's deferred device tests (stage
 30's tablet and phone items, the 30e Spotlights guide, and other open
 owner tests).
@@ -88,7 +88,8 @@ Two independent parts, in this order:
   hour before the dawn hour, the sunset through the dusk hour (958e410,
   1423d88; ADR 0093 addendum). Unit 3045 passed; clock/weather/almanac
   e2e green. Safety-critical (trolls die in sunlight).
-- [ ] 31a: owner check at a real dawn and dusk (below).
+- [x] 31a: owner (2026-11-01): taken as right; the owner checks dawn and
+  dusk while playing and reopens it if anything is off.
 - [x] 31b: measurements and root cause (`notes/research/weather-smoothness.md`):
   snow ran at an even 30 fps (every second refresh in both browsers);
   motion was already time-based, sub-pixel, no drops. The rate itself
@@ -104,7 +105,8 @@ Two independent parts, in this order:
 - [x] 31b: test guide (below).
 - [x] 31b: `#weather demo snow`, `birds` and `rain` (owner, 2026-11-01:
   test without the console); help text, unit tests.
-- [ ] 31b: owner test; birds at 60 is an owner option (ADR 0113).
+- [x] 31b: owner test (2026-11-01): the weather looks good; birds at 60
+  like the snow (e8ccfef, ADR 0113 addendum).
 
 ## Test guide
 
