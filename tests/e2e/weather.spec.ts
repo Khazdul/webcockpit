@@ -1,11 +1,12 @@
-// Stage 28 (trial, ADR 0091): Options → Weather effects loads and unloads
-// the engine live, and the bridge follows GMCP.
+// Stage 28 (trial, ADR 0091): the weather effects switch (the Settings
+// popup in play, ADR 0107) loads and unloads the engine live, and the
+// bridge follows GMCP.
 import { type Page, expect, test } from '@playwright/test';
 
 const layers = (page: Page) => page.locator('.wc-cockpit > canvas.wc-weather-layer');
-const row = (page: Page, key: string) => page.locator(`.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="${key}"] .wc-label`);
+const toggle = (page: Page, label: string) => page.locator(`.wc-sp-settings .wc-ck-tg[aria-label="${label}"]`);
 
-test('Options → Weather effects turns the engine on and off live; the bridge follows GMCP', async ({ page }) => {
+test('Settings → Weather effects turns the engine on and off live; the bridge follows GMCP', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => {
@@ -15,14 +16,12 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   await expect(page.locator('.wc-app')).toBeVisible();
   await expect(layers(page)).toHaveCount(0);
 
-  await page.keyboard.press('Escape');
-  await row(page, 'options').click();
-  await row(page, 'weather').click();
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toContainText('Weather effects');
-  await expect(row(page, 'enabled')).toHaveText('[ ] Weather effects');
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await page.locator('.wc-ck-tab[data-tab="weather"]').click();
+  await expect(toggle(page, 'Weather effects')).toHaveAttribute('aria-checked', 'false');
   // Group.Set comes at login, before the effects are loaded (owner item 116).
   await page.evaluate(() => window.__wc!.app.bus.emit('gmcp', { pkg: 'Group.Set', key: 'group.set', data: [{ bashed: false, id: 1, type: 'you' }] }));
-  await row(page, 'enabled').click();
+  await toggle(page, 'Weather effects').click();
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.enabled)).toBe(true);
 
   // Two canvases (back, front); the worker's first frame marks the cockpit.
@@ -48,19 +47,19 @@ test('Options → Weather effects turns the engine on and off live; the bridge f
   await expect.poll(state).toMatchObject({ position: 'fighting' });
 
   // A category and an appearance change apply live without errors.
-  await row(page, 'fog').click();
+  await toggle(page, 'Fog').click();
   expect(await page.evaluate(() => window.__wc!.settings.get().weather.fog)).toBe(false);
   // The blue day sky on its own (owner feedback 36).
-  await expect(row(page, 'daySky')).toHaveText('[X] Blue day sky');
-  await row(page, 'daySky').click();
-  await expect(row(page, 'daySky')).toHaveText('[ ] Blue day sky');
+  await expect(toggle(page, 'Blue day sky')).toHaveAttribute('aria-checked', 'true');
+  await toggle(page, 'Blue day sky').click();
+  await expect(toggle(page, 'Blue day sky')).toHaveAttribute('aria-checked', 'false');
   expect(await page.evaluate(() => window.__wc!.settings.get().weather)).toMatchObject({ sky: true, daySky: false });
   await page.evaluate(() => window.__wc!.settings.update({ appearance: { bg: '#f4ecd8', fg: '#000000' } }));
   const stats = await page.evaluate(() => window.__wc!.app.weather!.controller!.engine.stats());
   expect(stats.n).toBeGreaterThan(0);
 
   // Off: the worker, the canvases and the attribute are gone.
-  await row(page, 'enabled').click();
+  await toggle(page, 'Weather effects').click();
   await expect(layers(page)).toHaveCount(0);
   await expect(page.locator('.wc-cockpit[data-weather]')).toHaveCount(0);
   expect(await page.evaluate(() => window.__wc!.app.weather!.controller)).toBeNull();
