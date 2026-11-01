@@ -12,8 +12,6 @@ const rows = (page: Page) => page.locator('.wc-rows .wc-row');
 const content = (page: Page) => page.locator('.wc-pane[data-pane="timers"] .wc-pane-content');
 const prows = (page: Page) => content(page).locator('.wc-prow');
 const hit = (page: Page, sel: string) => content(page).locator(`.wc-timers-hit${sel}`);
-const menuSel = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 
 const texts = async (page: Page): Promise<string[]> => (await prows(page).allTextContents()).map((t) => t.trimEnd());
 
@@ -101,44 +99,40 @@ test('the corner + opens the herblore add-view; [+] Healing starts it', async ({
   await expect.poll(async () => (await texts(page))[0]).toMatch(/^Spells:\s+\+$/);
 });
 
-test('Options → Panes → Timers changes colours and column caps live', async ({ page }) => {
+test('the Timers gear changes colours and column caps live (ADR 0107)', async ({ page }) => {
   await demoDone(page);
   await populate(page);
   await expect.poll(() => texts(page)).toHaveLength(8);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
-  await page.keyboard.press('Enter'); // Panes
-  await expect(menuTitle(page)).toHaveText('─── Panes ───');
-  // Timers first on desktop (no pane Appearance page, ADR 0107).
-  await expect(menuSel(page)).toHaveText('<< Timers >>');
-  await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── Timers ───');
-  const frame = page.locator('.wc-overlay .wc-frame:not([hidden])');
-  await expect(frame.locator('.wc-c-hint').first()).toContainText('Blue');
-
-  // Spells: Blue is checked; Enter unchecks it → the group hides.
-  await page.keyboard.press('Enter');
+  // The pane's buttons show on hover (ADR 0095).
+  await page.locator('.wc-pane-timers').hover();
+  await page.locator('.wc-pane-timers > .wc-pane-btn-gear').click();
+  const pop = page.locator('.wc-sp-gear-timers');
+  const colour = pop.locator('[aria-label="Spells colour"]');
+  await expect(colour).toContainText('Blue');
+  const pick = async (v: string) => {
+    await colour.click();
+    await page.locator(`.wc-ck-list .wc-ck-opt[data-value="${v}"]`).click();
+  };
+  // Spells off → the group hides.
+  await pick('off');
   await expect.poll(() => texts(page)).toHaveLength(6);
   expect((await texts(page))[0]).toMatch(/^Buffs:/);
-  // → Green, Enter: shown again in green.
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
+  // Green: shown again in green.
+  await pick('green');
   await expect.poll(() => texts(page)).toHaveLength(8);
   await expect(prows(page).nth(1).locator('span').first()).toHaveCSS('background-color', 'rgb(0, 217, 0)');
-  // Spells cap 4 → 1 with the ◄ stepper (mouse): one spell per row.
-  const dec = frame.locator('.wc-grid-row').first().locator('[data-step="dec"]');
-  for (let i = 0; i < 4; i++) await dec.click();
-  await expect(frame.locator('[data-cols="spell"]')).toHaveText(' 1 ');
+  // Spells cap 4 → 1 with the stepper: one spell per row.
+  const cols = pop.locator('[aria-label="Spells columns"]');
+  for (let i = 0; i < 3; i++) await cols.locator('[data-step="dec"]').click();
+  await expect(cols).toHaveAttribute('aria-valuenow', '1');
   // Nine rows in eight: the indicator takes the last one.
   await expect.poll(async () => (await texts(page)).at(-1)).toBe('↓ 2 more rows');
   expect((await texts(page)).slice(1, 3).map((r) => r.replace(/\s+▌?$/, ''))).toEqual(['ARMOUR', 'SANCTUARY']);
-  // Display headers off (keyboard: down past the six grid rows).
-  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toContainText('[X] Display headers');
-  await page.keyboard.press('Enter');
-  await expect(menuSel(page)).toContainText('[ ] Display headers');
+  // Display headers off.
+  const headers = pop.locator('.wc-ck-tg[aria-label="Display headers"]');
+  await expect(headers).toHaveAttribute('aria-checked', 'true');
+  await headers.click();
+  await expect(headers).toHaveAttribute('aria-checked', 'false');
   await expect.poll(() => texts(page)).toHaveLength(5);
   const s = await page.evaluate(() => window.__wc!.settings.get().timers);
   expect(s.groups.spell).toEqual({ enabled: true, color: 'green', cols: 1, clock: false, bar: true });

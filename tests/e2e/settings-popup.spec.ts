@@ -1,8 +1,9 @@
 // Stage 30c (ADR 0107): the Settings popup above the menu bar's Settings
 // icon: open, close and toggle (icon, `#settings`, X, Esc); one popup at a
 // time with Panes; the Esc order in the input; the focus on open (ADR
-// 0108) and the keys in it; live changes through its controls; one size for every tab; and the
-// pane Appearance page gone from Options → Panes on desktop.
+// 0108) and the keys in it; live changes through its controls; one size
+// for every tab. The pane Appearance page gone from Options → Panes on
+// desktop: chrome.spec.ts.
 import { type Page, expect, test } from '@playwright/test';
 
 const field = (page: Page) => page.locator('.wc-input-field');
@@ -79,7 +80,7 @@ test('the icon, #settings, X and Esc open and close it above the Settings icon',
   expect(errors).toEqual([]);
 });
 
-test('one popup at a time with Panes and Exit; the ESC menu closes it', async ({ page }) => {
+test('one popup at a time with Panes and Exit; #menu leaves it open', async ({ page }) => {
   await offline(page);
   await icon(page, 'panes').click();
   await expect(page.locator('.wc-pop-panes')).toBeVisible();
@@ -98,14 +99,15 @@ test('one popup at a time with Panes and Exit; the ESC menu closes it', async ({
   await expect(pop(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
   await expect(anyPop(page)).toHaveCount(0);
-  // The ESC menu closes it.
+  // #menu only prints its hint (ADR 0112): no ESC menu to close it.
   await icon(page, 'settings').click();
   await command(page, '#menu');
-  await expect(overlay(page)).toBeVisible();
-  await expect(anyPop(page)).toHaveCount(0);
+  await expect(page.locator('.wc-output .wc-row', { hasText: 'The ESC menu is gone' })).toHaveCount(1);
+  await expect(pop(page)).toBeVisible();
+  await expect(overlay(page)).toHaveCount(0);
 });
 
-test('Esc in the input: the popup first, then the window, then the ESC menu', async ({ page }) => {
+test('Esc in the input: the popup first, then the window, then nothing', async ({ page }) => {
   await offline(page);
   await icon(page, 'scripts').click();
   await expect(page.locator('.wc-win[data-win="scripts"]')).toBeVisible();
@@ -125,7 +127,9 @@ test('Esc in the input: the popup first, then the window, then the ESC menu', as
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
 });
 
 test('it takes the keys when it opens and after a click in it; a click in the game gives them back', async ({ page }) => {
@@ -263,12 +267,4 @@ test('changes go to the settings store at once', async ({ page }) => {
   expect((await settings(page)).weather.enabled).toBe(!on0);
   await expect(page.locator('.wc-sp-wx-fog')).toHaveClass(on0 ? /is-dim/ : /^(?!.*is-dim)/);
   expect(errors).toEqual([]);
-});
-
-test('Options → Panes has no pane Appearance page on desktop', async ({ page }) => {
-  await offline(page);
-  await command(page, '#menu');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-overlay .wc-mrow[data-key="panes"] .wc-label').click();
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow .wc-label')).toHaveText(['Timers', 'Communication', 'Group', 'Back']);
 });

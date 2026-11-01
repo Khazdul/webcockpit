@@ -205,18 +205,20 @@ test('focus follows presses: input, output, the other window; keys go where the 
   await expect(win(page, 'scripts')).toHaveAttribute('data-focused', '');
   await page.keyboard.type('xyz');
   await expect(field(page)).toHaveValue('look');
-  // The ESC menu takes the focus from the window.
+  // A press in the game, then Esc in the input with a window open: the
+  // window's close request (no unsaved changes: it closes).
   await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
   await field(page).fill('');
   await page.keyboard.press('Escape');
-  // Esc in the input with a window open: the window's close request (no unsaved changes: it closes).
   await expect(win(page, 'scripts')).toHaveCount(0);
-  await expect(overlay(page)).toBeHidden();
+  // Nothing open: Esc opens nothing (ADR 0112).
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
 });
 
-test('the Esc order in the input: popup, then window, then the ESC menu', async ({ page }) => {
+test('the Esc order in the input: popup, then window, then nothing', async ({ page }) => {
   await offline(page);
   await icon(page, 'scripts').click();
   await expect(win(page, 'scripts')).toBeVisible();
@@ -231,29 +233,11 @@ test('the Esc order in the input: popup, then window, then the ESC menu', async 
   await expect(win(page, 'scripts')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(win(page, 'scripts')).toHaveCount(0);
-  await expect(overlay(page)).toBeHidden();
+  await expect(overlay(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
-});
-
-test('the ESC menu Profile and Options → Scripts open the windows and close the menu', async ({ page }) => {
-  await offline(page);
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
-  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
-  await expect(overlay(page)).toBeHidden();
-  await expect(win(page, 'profile')).toHaveAttribute('data-focused', '');
-  await expect(editorToggle(page)).toBeVisible();
-  // Opening the menu takes the window's focus.
-  await page.locator('.wc-game').click({ position: { x: 20, y: 20 } });
-  await page.keyboard.press('Escape'); // the window closes first
-  await expect(win(page, 'profile')).toHaveCount(0);
-  await page.keyboard.press('Escape');
-  await expect(overlay(page)).toBeVisible();
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-overlay .wc-mrow[data-key="scripts"] .wc-label').click();
-  await expect(overlay(page)).toBeHidden();
-  await expect(win(page, 'scripts')).toHaveAttribute('data-focused', '');
+  await page.waitForTimeout(300);
+  await expect(overlay(page)).toHaveCount(0);
+  await expect(field(page)).toBeFocused();
 });
 
 // ------------------------------------------------- live: unsaved changes

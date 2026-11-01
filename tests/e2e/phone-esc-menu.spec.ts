@@ -145,3 +145,20 @@ test('Statistics shows the live run of a replay', async ({ page }) => {
   await expect(menu(page).locator('.wc-mrow[data-key="stats"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });
+
+test('Profile and Options → Scripts open their frames in the menu, not windows', async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto('/?replay&phone=1');
+  await expect(page.locator('.wc-app')).toBeVisible();
+  await page.locator('.wc-menu-btn').tap();
+  await menu(page).locator('.wc-mrow[data-key="profile"]').tap();
+  await expect(menu(page).locator('.wc-ped-title .wc-c-section')).toContainText('Profile Edit');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(menu(page).locator('.wc-mrow[data-key="options"]')).toBeVisible();
+  await menu(page).locator('.wc-mrow[data-key="options"]').tap();
+  await menu(page).locator('.wc-mrow[data-key="scripts"]').tap();
+  await expect(menu(page).locator('.wc-title-row')).toContainText('Scripts');
+  await expect(page.locator('.wc-win')).toHaveCount(0);
+  expect(errors).toEqual([]);
+});

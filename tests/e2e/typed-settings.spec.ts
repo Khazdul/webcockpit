@@ -1,6 +1,6 @@
 // Typed settings persist (ADR 0038): what is typed in the game input is in
-// ESC → Profile at once, and still works after a page reload. Against a
-// mocked MUME WebSocket.
+// the Profile window (ADR 0103) at once, and still works after a page
+// reload. Against a mocked MUME WebSocket.
 import { type Page, expect, test } from '@playwright/test';
 
 const IAC = 255;
@@ -28,10 +28,9 @@ async function type(page: Page, line: string): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-/** ESC → Profile (the Profile window, ADR 0103); returns once the editor shows the alias list. */
+/** The bar's Profile (the Profile window, ADR 0103); returns once the editor shows the alias list. */
 async function openProfile(page: Page): Promise<void> {
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="profile"] .wc-label').click();
+  await page.locator('.wc-mb[data-mb="profile"]').click();
   await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
   await ped(page).locator('[data-kind="alias"]').first().click();
 }
@@ -43,7 +42,7 @@ async function backToGame(page: Page): Promise<void> {
   await expect(page.locator('.wc-overlay')).toBeHidden();
 }
 
-test('a typed alias is in ESC → Profile at once, #unalias removes it, and it survives a reload', async ({ page }) => {
+test('a typed alias is in the Profile window at once, #unalias removes it, and it survives a reload', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const received: Buffer[] = [];

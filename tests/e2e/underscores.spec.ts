@@ -188,7 +188,8 @@ for (const dpr of [1, 1.5]) {
       );
     });
 
-    it('the cockpit keeps underscores: last output row, input line, pane rows, ESC header', async ({ dprPage: page }) => {
+    // The ESC menu header was checked here until 30f; the desktop has none now (ADR 0112).
+    it('the cockpit keeps underscores: last output row, input line, pane rows', async ({ dprPage: page }) => {
       await page.goto(DEMO);
       await expectDpr(page, dpr);
       const rows = page.locator('.wc-output .wc-row:not(.wc-partial)');
@@ -225,15 +226,6 @@ for (const dpr of [1, 1.5]) {
       const cellH = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')));
       expect(await rows.last().evaluate((el) => el.getBoundingClientRect().height)).toBe(cellH);
       expect(await input.evaluate((el) => el.getBoundingClientRect().height)).toBe(cellH);
-
-      // The ESC menu header names the profile.
-      await page.keyboard.press('Escape');
-      const header = page.locator('.wc-overlay .wc-esc-header span', { hasText: NAME });
-      await expect(header).toHaveCount(1);
-      for (const [font, size] of LOOKS) {
-        await look(page, font, size);
-        await expectInk(page, [['ESC menu header', header]], `${font} ${size}`);
-      }
     });
   });
 }
