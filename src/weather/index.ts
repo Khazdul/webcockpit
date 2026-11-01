@@ -78,8 +78,8 @@ export interface Weather {
   /** A dev time scale (`__weather.setSpeed`; 1 = the game's pace, the demo too): sunrise and sunset, the day ↔ night change, cloud cover, fog, rain and snow build-up, blood drying. */
   setSpeed(speed: number): void;
   /** Worker frame times (ms). */
-  /** `reset`: the frame times after this call start afresh (a bench's measuring window). */
-  stats(opts?: { reset?: boolean }): Promise<FrameStats>;
+  /** `reset`: the frame times after this call start afresh (a bench's measuring window); `trace`: with `FrameStats.trace`. */
+  stats(opts?: { reset?: boolean; trace?: boolean }): Promise<FrameStats>;
   /** The layout geometry last posted to the worker (what it knows of the panes: frames, tints, clear). */
   geometry(): Geometry;
   /** Resolves on the first drawn frame (rejects if the worker fails first). */
@@ -269,7 +269,7 @@ export function createWeather(host: WeatherHost, opts: WeatherOptions = {}): Wea
       if (destroyed) return Promise.resolve({ n: 0, avg: 0, p95: 0, max: 0, mods: {}, idle: true, frames: 0, dpr: 1, gaps: { n: 0, p50: 0, p95: 0, max: 0 } });
       return new Promise((res) => {
         statsWaiters.push(res);
-        post({ t: 'stats', reset: !!o?.reset });
+        post({ t: 'stats', reset: !!o?.reset, trace: !!o?.trace });
       });
     },
     destroy() {

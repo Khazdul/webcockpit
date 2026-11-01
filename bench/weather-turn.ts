@@ -229,8 +229,8 @@ try {
   for (const bname of BROWSERS) {
     const browser =
       bname === 'firefox'
-        ? await firefox.launch({ headless: HEADLESS, firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(OWNER.dpr) } })
-        : await chromium.launch({ headless: HEADLESS });
+        ? await firefox.launch({ headless: HEADLESS, args: HEADLESS ? [] : L.wmClassArgs('firefox'), firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(OWNER.dpr) } })
+        : await chromium.launch({ headless: HEADLESS, args: HEADLESS ? [] : L.wmClassArgs('chromium') });
     console.log(`\n${bname} ${browser.version()}`);
     for (const kind of TURNS) {
       const l0 = loadavg();

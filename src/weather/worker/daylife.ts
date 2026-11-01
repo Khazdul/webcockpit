@@ -18,8 +18,8 @@
 //
 // Rates: tufts move a few px/s, so they are drawn at the still rate
 // (FPS_STILL) without asking for more, and so is the pulse: it changes by
-// under 0.003 alpha per frame at that rate; birds ask for BIRD_FPS, an
-// insect for FPS_SLOW, only while they are there. Sprites are built
+// under 0.003 alpha per frame at that rate; birds and an insect ask for
+// BIRD_FPS, only while they are there. Sprites are built
 // once on CPU canvases (paths and gradients there, ADR 0091); per frame it
 // is a handful of image copies and, during a glimpse, nine convex triangles.
 //
@@ -35,12 +35,20 @@
 // itself 8-bit, and the whole glow stepped with it.)
 
 import type { ThemeInfo } from '../palette';
-import { type Ctx, type Cv, FPS_SLOW, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
+import { type Ctx, type Cv, FPS_FAST, TAU, clamp, ctx2dCpu, lerp, mkCanvas, rr, sst } from './env';
 import { bandK } from './band';
 import { sunDrift, sunMid } from './beams';
 
-/** Frames per second while birds fly (slow, small things: 10 is plenty and cheap). */
-export const BIRD_FPS = 10;
+/**
+ * Frames per second while birds fly or an insect darts. It was 10: a bird
+ * moved 2–5 px in whole-pixel steps every 100 ms and its 6 wing frames were
+ * sampled 3–4 times a flap, so a flock crossed in visible jerks (stage 31b,
+ * ADR 0113). 30 with sub-pixel places moves a bird 0.5–1.5 px a frame.
+ * FPS_SMOOTH would be smoother still, but while a flock flies the sky is
+ * drawn whole every frame: browser CPU ~200 ms/s at 10, ~320–450 at 30,
+ * ~600–700 at 60 (Chromium–Firefox; an owner decision, ADR 0113).
+ */
+export const BIRD_FPS = FPS_FAST;
 /** Seconds between flocks and between insects: [min, max]. */
 const BIRD_GAP: [number, number] = [90, 220];
 const BUG_GAP: [number, number] = [160, 380];
@@ -258,8 +266,7 @@ export class DayLife {
 
   /** Something that needs more than the still rate is on (flock, insect; the pulse does not). */
   fps(): number {
-    if (this.bug) return FPS_SLOW;
-    if (this.flocks.length) return BIRD_FPS;
+    if (this.bug || this.flocks.length) return BIRD_FPS;
     return 0;
   }
 
@@ -336,7 +343,8 @@ export class DayLife {
         const ba = a * bandK(x, W);
         if (ba < 0.004) continue;
         b.globalAlpha = ba;
-        b.drawImage(strip, fi * fw, 0, fw, fh, Math.round(x - fw / 2), Math.round(y - fh / 2), fw, fh);
+        // at its sub-pixel place: whole pixels made a slow bird step 0 or 1 px a frame unevenly
+        b.drawImage(strip, fi * fw, 0, fw, fh, x - fw / 2, y - fh / 2, fw, fh);
       }
     }
     // An insect: hovers, darts to a near spot, hovers again.

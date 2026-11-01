@@ -2,10 +2,11 @@
 // a slow pulse, about every 20 s, between nothing and only just
 // perceptible, a little more at midday.
 
-import { describe, expect, it } from 'vitest';
-import { DAY_FAN, DAY_RAYS, GLIMPSE_H_UNKNOWN, GLIMPSE_RAY, PULSE_HIGH, PULSE_LOW, PULSE_S, dayRayAngle, pulseStrength, sunHeight } from '../../src/weather/worker/daylife';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { themeInfo } from '../../src/weather/palette';
+import { BIRD_FPS, DAY_FAN, DayLife, DAY_RAYS, GLIMPSE_H_UNKNOWN, GLIMPSE_RAY, PULSE_HIGH, PULSE_LOW, PULSE_S, dayRayAngle, pulseStrength, sunHeight } from '../../src/weather/worker/daylife';
 import { sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
-import { FPS_STILL } from '../../src/weather/worker/env';
+import { FPS_FAST, FPS_STILL } from '../../src/weather/worker/env';
 
 describe('the day sky\'s rays pulse (item 73)', () => {
   it('the sun stands highest at midday, low at the dawn and dusk hours; unknown counts as mid-morning', () => {
@@ -81,5 +82,61 @@ describe('the day sky\'s rays: few, wide, calm (item 82)', () => {
       }
     }
     expect(worst).toBeLessThan(1);
+  });
+});
+
+describe('birds at a smoother rate (stage 31b, ADR 0113)', () => {
+  /** A canvas whose context accepts every call and records drawImage's arguments. */
+  class Cv {
+    calls: unknown[][] = [];
+    constructor(
+      public width: number,
+      public height: number,
+    ) {}
+    getContext() {
+      const calls = this.calls, canvas = this;
+      const grad = { addColorStop() {} };
+      return new Proxy({ canvas } as Record<string, unknown>, {
+        get(t, k) {
+          if (k in t) return t[k as string];
+          if (k === 'drawImage') return (...a: unknown[]) => void calls.push(a);
+          if (k === 'getImageData' || k === 'createImageData') return (w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(4 * w * h) });
+          if (k.toString().startsWith('create')) return () => grad;
+          return () => {};
+        },
+        set(t, k, v) {
+          t[k as string] = v;
+          return true;
+        },
+      });
+    }
+  }
+  let saved: unknown;
+  beforeEach(() => {
+    saved = (globalThis as Record<string, unknown>).OffscreenCanvas;
+    (globalThis as Record<string, unknown>).OffscreenCanvas = Cv;
+  });
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).OffscreenCanvas = saved;
+  });
+
+  it('ask for BIRD_FPS (30, was 10) while a flock flies, and are drawn at sub-pixel places', () => {
+    const life = new DayLife(themeInfo('#000000'));
+    life.resize(1600, 900);
+    expect(life.fps()).toBe(0);
+    // a small flock in the middle of the screen (out of the left band)
+    const rnd = vi.spyOn(Math, 'random').mockReturnValue(0.7);
+    life.birdsNow();
+    rnd.mockRestore();
+    expect(life.fps()).toBe(BIRD_FPS);
+    expect(BIRD_FPS).toBe(FPS_FAST);
+    const b = new Cv(1600, 900);
+    const ctx = b.getContext() as unknown as Parameters<DayLife['frame']>[0];
+    const k = { life: 1, tufts: 0, sun: 0, sunU: 0.5, sx: 0, sy: 0, block: false };
+    for (let i = 0; i < 120; i++) life.frame(ctx, 10 + i / 60, 1 / 60, k);
+    // the birds' strip copies (9 arguments): their places are not whole pixels
+    const at = b.calls.filter((a) => a.length === 9).map((a) => a[5] as number);
+    expect(at.length).toBeGreaterThan(0);
+    expect(at.some((x) => !Number.isInteger(x))).toBe(true);
   });
 });
