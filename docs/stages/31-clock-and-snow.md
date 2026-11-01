@@ -80,9 +80,20 @@ Two independent parts, in this order:
   alone).
 - [x] 31a: test guide (below).
 - [ ] 31a: owner test.
-- [ ] 31b: measurements and root cause (research note).
-- [ ] 31b: fix, ADR, before/after numbers, merge.
-- [ ] 31b: test guide.
+- [x] 31b: measurements and root cause (`notes/research/weather-smoothness.md`):
+  snow ran at an even 30 fps (every second refresh in both browsers);
+  motion was already time-based, sub-pixel, no drops. The rate itself
+  read as jerky: a sharp flake stood still two refreshes, then jumped
+  ~2 px. Firefox also stumbled now and then at 30.
+- [x] 31b: fix (ef4d2f1…bf733b2, merged 10aa8eb): snow at the screen's
+  rate (60), birds and insects 10 → 30 fps at sub-pixel places, the snow
+  fade no longer runs on every page load; frame trace and
+  `bench/weather-smooth.ts`. ADR 0113. Other effects unchanged (evenly
+  paced and soft enough for their rate). Firefox snow frame 6.1 → 4.3 ms
+  avg; browser CPU in snow +12 %; text latency unchanged. Unit 3040
+  passed after the merge; weather, demo and menubar e2e 28/28.
+- [x] 31b: test guide (below).
+- [ ] 31b: owner test; birds at 60 is an owner option (ADR 0113).
 
 ## Test guide
 
@@ -119,3 +130,24 @@ Feedback wanted: the look at rest against the other icons, the `~`, the
 space between the clock and the first separator (about 1.5 cells: the
 link dot's cell sits there), and whether the hour-precision ring steps
 are fine.
+
+### 31b — smoother snow and birds
+
+Open the dev server in Firefox (then Chromium if at hand), Weather
+effects on.
+
+1. **Snow:** in the console, `__weather.jump({ weather: '*' })`. Follow a
+   single large flake for a few seconds. Does it glide now, or still step?
+   Then at night: `__weather.jump({ weather: '*', clock: 'night', moonUp: true })`.
+   The overcast sky and the snow dusting on pane tops should look as
+   before. `__weather.unpin()` goes back to the game's weather.
+2. **Birds:** a clear day (`__weather.jump({ weather: '', clock: 'day' })`),
+   then `__weather.emit('birds')`. Birds now fly at 30 frames a second
+   (was 10). Smooth enough, or should they get 60 like the snow? 60 costs
+   noticeably more CPU while a flock is on screen (ADR 0113).
+3. **Rain and clouds:** `__weather.jump({ weather: '"' })` and
+   `__weather.jump({ weather: '~' })`: nothing should look worse.
+4. **`#weather demo`** once through, as a whole.
+5. **Heat:** does the laptop run noticeably warmer in snow than before?
+
+Feedback wanted: snow smoothness, birds 30 or 60, anything that got worse.
