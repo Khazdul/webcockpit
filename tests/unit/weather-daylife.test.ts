@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { themeInfo } from '../../src/weather/palette';
 import { BIRD_FPS, DAY_FAN, DayLife, DAY_RAYS, GLIMPSE_H_UNKNOWN, GLIMPSE_RAY, PULSE_HIGH, PULSE_LOW, PULSE_S, dayRayAngle, pulseStrength, sunHeight } from '../../src/weather/worker/daylife';
 import { sunDrift, sunMid, sunPoint, sunPsi } from '../../src/weather/worker/beams';
-import { FPS_SMOOTH, FPS_STILL } from '../../src/weather/worker/env';
+import { FPS_FAST, FPS_STILL } from '../../src/weather/worker/env';
 
 describe('the day sky\'s rays pulse (item 73)', () => {
   it('the sun stands highest at midday, low at the dawn and dusk hours; unknown counts as mid-morning', () => {
@@ -85,7 +85,7 @@ describe('the day sky\'s rays: few, wide, calm (item 82)', () => {
   });
 });
 
-describe('birds at the screen\'s rate (stage 31b, ADR 0113)', () => {
+describe('birds at a smoother rate (stage 31b, ADR 0113)', () => {
   /** A canvas whose context accepts every call and records drawImage's arguments. */
   class Cv {
     calls: unknown[][] = [];
@@ -120,7 +120,7 @@ describe('birds at the screen\'s rate (stage 31b, ADR 0113)', () => {
     (globalThis as Record<string, unknown>).OffscreenCanvas = saved;
   });
 
-  it('ask for FPS_SMOOTH while a flock flies, and are drawn at sub-pixel places', () => {
+  it('ask for BIRD_FPS (30, was 10) while a flock flies, and are drawn at sub-pixel places', () => {
     const life = new DayLife(themeInfo('#000000'));
     life.resize(1600, 900);
     expect(life.fps()).toBe(0);
@@ -129,7 +129,7 @@ describe('birds at the screen\'s rate (stage 31b, ADR 0113)', () => {
     life.birdsNow();
     rnd.mockRestore();
     expect(life.fps()).toBe(BIRD_FPS);
-    expect(BIRD_FPS).toBe(FPS_SMOOTH);
+    expect(BIRD_FPS).toBe(FPS_FAST);
     const b = new Cv(1600, 900);
     const ctx = b.getContext() as unknown as Parameters<DayLife['frame']>[0];
     const k = { life: 1, tufts: 0, sun: 0, sunU: 0.5, sx: 0, sy: 0, block: false };
