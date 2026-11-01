@@ -37,6 +37,7 @@ Next: the owner tests, then a session to improve run logs and Spotlights from th
 | 29 | Pane buttons | Owner testing | `docs/stages/29-pane-buttons.md` |
 | 30 | Fixed menu | Owner testing | `docs/stages/30-fixed-menu.md` |
 | 31 | Menu bar clock and weather smoothness | Done | `docs/stages/31-clock-and-snow.md` |
+| 32 | Players and the start menu | In progress | `docs/stages/32-players.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
