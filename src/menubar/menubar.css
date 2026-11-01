@@ -19,6 +19,11 @@
   --mb-rc-bd-hot: #6a6a6a;
   --mb-rc-bg-hot: rgba(255, 255, 255, 0.1);
   --mb-k: #7a7a7a;
+  /* The clock's ring and glyph (stage 31a). */
+  --mb-clk-day-ring: #d9a54a;
+  --mb-clk-sun: #e0a336;
+  --mb-clk-night: #5b93d6;
+  --mb-clk-slot: #333333;
   /* Icon size: 13 px in a 17 px cell. */
   --mb-isz: calc(var(--cell-h) * 0.76);
   display: flex;
@@ -43,6 +48,10 @@
   --mb-rc-bd-hot: rgba(0, 0, 0, 0.5);
   --mb-rc-bg-hot: rgba(0, 0, 0, 0.08);
   --mb-k: #6a6a6a;
+  --mb-clk-day-ring: #8f5f0c;
+  --mb-clk-sun: #94600a;
+  --mb-clk-night: #2a64a8;
+  --mb-clk-slot: rgba(0, 0, 0, 0.22);
 }
 
 .wc-mb-bar {
@@ -54,29 +63,78 @@
   overflow: hidden;
 }
 
-/* The clock strip in the bar: gutter, 5-cell time, a 2-cell sun or moon. */
+/* The clock (src/menubar/bar-clock.ts, stage 31a): a gutter, then the
+ * ring in a 2-cell slot, as tall as the cell, and while synced to the hour
+ * only a grey `~` in one more cell. The width (3 or 4 cells) is set by
+ * bar-clock.ts. Not synced: an empty slot, a faint dashed circle on hover. */
 .wc-mb-clock {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--cell-h);
   cursor: default;
 }
 
-.wc-mb-clock .wc-clock-icon {
-  display: inline-flex;
-  align-items: center;
+.wc-mb-ring {
+  display: block;
+  flex: 0 0 calc(2 * var(--cell-w));
   width: calc(2 * var(--cell-w));
   height: var(--cell-h);
-  vertical-align: top;
-}
-
-.wc-clock-svg {
-  width: var(--mb-isz);
-  height: var(--mb-isz);
-  margin-left: calc(var(--cell-w) * 0.5);
   fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.wc-mb-ring-arc {
+  stroke-width: 1.35;
+}
+
+.wc-mb-clock[data-period="day"] .wc-mb-ring-arc {
+  stroke: var(--mb-clk-day-ring);
+}
+
+.wc-mb-clock[data-period="day"] .wc-mb-ring-glyph {
+  stroke: var(--mb-clk-sun);
+  stroke-width: 1.5;
+}
+
+.wc-mb-clock[data-period="night"] .wc-mb-ring-arc {
+  stroke: var(--mb-clk-night);
+}
+
+.wc-mb-clock[data-period="night"] .wc-mb-ring-glyph {
+  fill: var(--mb-clk-night);
+}
+
+.wc-mb-ring-slot {
+  visibility: hidden;
+  stroke: var(--mb-clk-slot);
+  stroke-width: 1.35;
+  stroke-dasharray: 2 2.2;
+}
+
+.wc-mb-clock[data-sync="none"]:hover .wc-mb-ring-slot {
+  visibility: visible;
+}
+
+.wc-mb-tilde {
+  display: block;
+  flex: 0 0 var(--cell-w);
+  width: var(--cell-w);
+  height: var(--cell-h);
+  font-size: calc(var(--font-size) * 0.87);
+  line-height: var(--cell-h);
+  text-align: center;
+  color: var(--mb-ic);
+  /* Optically: a little closer to the ring, and centred on it (the glyph's
+   * ink sits below the cell's middle). */
+  position: relative;
+  left: calc(var(--cell-w) * -0.1);
+  top: calc(var(--cell-h) * -0.04);
+}
+
+.wc-mb-tilde[hidden] {
+  display: none;
 }
 
 /* The link dot: one cell, shown only when the link deviates. */

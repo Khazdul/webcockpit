@@ -14,20 +14,21 @@
 //   and re-rendered just after each wall-clock second boundary (Cockpit
 //   ADR 0034), so it steps evenly. The timer runs only while a countdown
 //   is shown.
-// - In the menu bar (ADR 0099, desktop and tablet) the icon is a stroke
-//   SVG (sun or moon, same colours) in a two-cell slot (`svg: true`), and
-//   `onUpdate` lets the bar refresh the clock's tooltip on every render.
+// - Used on the phone and wherever there is no menu bar. The menu bar (ADR 0099,
+//   desktop and tablet) draws its own clock in this element's place: a
+//   ring and no text (src/menubar/bar-clock.ts, stage 31a).
 
 import type { GameState } from '../gmcp/state';
 import { countdownText, periodIcon, STRIP_TIME_W } from '../gmcp/clock';
 import type { SettingsStore } from '../settings';
 import { darkInk, isLight } from '../theme/color';
-import type { Transition } from '../gmcp/clock';
-import { ICON, strokeIcon } from '../menubar/icons';
 
 export const CLOCK_DAY_FG = '#ffb000';
 export const CLOCK_NIGHT_FG = '#4a90e2';
 export const CLOCK_TEXT_FG = '#ffffff';
+
+/** The strip's width in cells (the cockpit's layout counts it, ADR 0102). */
+export const STRIP_CELLS = 8;
 
 export interface ClockStripOptions {
   game: GameState;
@@ -38,10 +39,6 @@ export interface ClockStripOptions {
   /** Timer (tests). */
   setTimer?: (fn: () => void, ms: number) => unknown;
   clearTimer?: (h: unknown) => void;
-  /** Draw the icon as a stroke SVG (the menu bar) instead of ☼/☾. */
-  svg?: boolean;
-  /** Called after every render (the menu bar's live tooltip). */
-  onUpdate?: () => void;
 }
 
 /** The strip's text parts for `game` at `nowMs`: time (5 cells) and icon, or null. */
@@ -55,7 +52,6 @@ export class ClockStrip {
   private readonly el: HTMLElement;
   private readonly timeEl: HTMLSpanElement;
   private readonly iconEl: HTMLSpanElement;
-  private readonly iconPath: SVGPathElement | null = null;
   private readonly o: ClockStripOptions;
   private readonly now: () => number;
   private readonly setTimer: (fn: () => void, ms: number) => unknown;
@@ -77,14 +73,7 @@ export class ClockStrip {
     this.timeEl.className = 'wc-clock-time';
     this.iconEl = doc.createElement('span');
     this.iconEl.className = 'wc-clock-icon';
-    if (o.svg) {
-      const { svg, path } = strokeIcon(doc, '', 'wc-clock-svg');
-      this.iconEl.append(svg);
-      this.iconPath = path;
-      el.replaceChildren(doc.createTextNode(' '), this.timeEl, this.iconEl);
-    } else {
-      el.replaceChildren(doc.createTextNode(' '), this.timeEl, doc.createTextNode(' '), this.iconEl);
-    }
+    el.replaceChildren(doc.createTextNode(' '), this.timeEl, doc.createTextNode(' '), this.iconEl);
     el.setAttribute('aria-label', 'Game clock');
     this.unsubs.push(
       o.game.subscribe((part) => part === 'clock' && this.update()),
@@ -105,13 +94,8 @@ export class ClockStrip {
     const p = stripParts(this.o.game, now);
     const time = p ? p.time : ' '.repeat(STRIP_TIME_W);
     if (this.timeEl.textContent !== time) this.timeEl.textContent = time;
-    if (this.iconPath) {
-      const d = p ? (p.day ? ICON.sun : ICON.moon) : '';
-      if (this.iconPath.getAttribute('d') !== d) this.iconPath.setAttribute('d', d);
-    } else {
-      const icon = p ? p.icon : ' ';
-      if (this.iconEl.textContent !== icon) this.iconEl.textContent = icon;
-    }
+    const icon = p ? p.icon : ' ';
+    if (this.iconEl.textContent !== icon) this.iconEl.textContent = icon;
     const color = p ? (p.day ? CLOCK_DAY_FG : CLOCK_NIGHT_FG) : '';
     if (this.iconColor !== color) {
       this.iconColor = color;
@@ -119,17 +103,6 @@ export class ClockStrip {
     }
     this.el.dataset.period = p ? (p.day ? 'day' : 'night') : '';
     if (p) this.timer = this.setTimer(() => this.update(), 1000 - (now % 1000) + 5);
-    this.o.onUpdate?.();
-  }
-
-  /** The next day/night change as of now, or null below hour precision. */
-  transition(): Transition | null {
-    return this.o.game.clock.nextTransition(this.now());
-  }
-
-  /** The wall clock the strip renders with. */
-  nowMs(): number {
-    return this.now();
   }
 
   private paintInk(): void {

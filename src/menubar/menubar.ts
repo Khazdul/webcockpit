@@ -8,8 +8,11 @@
 // - Ghost look (mockup 30a-1): thin grey stroke icons on the terminal
 //   background, lit on hover, Exit red on hover. On a light terminal the
 //   greys and the hover tint flip (`data-light`).
-// - Whole cells: the clock is the 8-cell strip (gutter, 5-cell time, a
-//   2-cell sun/moon), the link dot and each separator one cell, each icon
+// - The clock (src/menubar/bar-clock.ts, stage 31a): a ghost sun or moon
+//   in a time-left ring, no countdown text; a grey `~` while synced to the
+//   hour only; an empty slot while not synced.
+// - Whole cells: the clock is 3 cells (a gutter and the 2-cell ring), 4
+//   with the `~`, the link dot and each separator one cell, each icon
 //   2.5 cells; the bar's width is rounded up to whole cells, so the input
 //   field keeps the cell grid. Buttons never take the input's focus on a
 //   mouse down, and are not in the Tab order (ADR 0108): Tab in the game
@@ -62,7 +65,7 @@ import {
 } from '../core/fullscreen';
 import { WINDOW_BTN_ATTR } from '../ui/input-pane';
 import { isLight } from '../theme/color';
-import { ClockStrip } from '../ui/clock-strip';
+import { BarClock, CLOCK_APPROX_CELLS, CLOCK_CELLS } from './bar-clock';
 import { ExitPopup } from './exit-popup';
 import { ICON, strokeIcon } from './icons';
 import { PanesPopup, type ScriptPaneSource } from './panes-popup';
@@ -122,16 +125,20 @@ export interface MenuBarOptions {
   onCells?: (cells: number) => void;
 }
 
-/** Widths in cells (see the header). */
-export const CLOCK_CELLS = 8;
+/** Widths in cells (see the header; the clock's in bar-clock.ts). */
+export { CLOCK_APPROX_CELLS, CLOCK_CELLS };
 export const DOT_CELLS = 1;
 export const SEP_CELLS = 1;
 export const BUTTON_CELLS = 2.5;
 
-/** The bar's width in whole cells, with or without the fullscreen button. */
-export function barCells(fullscreen: boolean): number {
+/**
+ * The bar's width in whole cells, with or without the fullscreen button,
+ * and with the clock one cell wider while it is approximate (hour precision).
+ */
+export function barCells(fullscreen: boolean, approx = false): number {
   const buttons = 4 + (fullscreen ? 2 : 1);
-  return Math.ceil(CLOCK_CELLS + DOT_CELLS + 2 * SEP_CELLS + buttons * BUTTON_CELLS);
+  const clock = approx ? CLOCK_APPROX_CELLS : CLOCK_CELLS;
+  return Math.ceil(clock + DOT_CELLS + 2 * SEP_CELLS + buttons * BUTTON_CELLS);
 }
 
 interface ButtonSpec {
@@ -157,7 +164,7 @@ export class MenuBar {
   /** The bar's row element: the Disconnected notice and the bar. */
   readonly el: HTMLSpanElement;
   readonly bar: HTMLSpanElement;
-  readonly clock: ClockStrip;
+  readonly clock: BarClock;
   readonly tooltip: Tooltip;
   readonly notice: HTMLSpanElement;
   private readonly o: MenuBarOptions;
@@ -217,11 +224,10 @@ export class MenuBar {
     // Clock and link dot.
     o.clockEl.replaceWith(this.el);
     o.clockEl.classList.add('wc-mb-clock');
-    this.clock = new ClockStrip(o.clockEl, {
+    this.clock = new BarClock(o.clockEl, {
       game: o.game,
-      settings: o.settings,
-      svg: true,
       onUpdate: () => this.refreshTip(o.clockEl),
+      onCells: () => this.sizeBar(),
       ...(o.now ? { now: o.now } : {}),
     });
     this.tooltip.attach(o.clockEl, () => this.clockText());
@@ -449,7 +455,7 @@ export class MenuBar {
   }
 
   private sizeBar(): void {
-    const cells = barCells(this.buttons.has('fullscreen'));
+    const cells = barCells(this.buttons.has('fullscreen'), this.clock.cells === CLOCK_APPROX_CELLS);
     this.bar.style.width = `calc(${cells} * var(--cell-w))`;
     this.o.onCells?.(cells);
   }

@@ -7,7 +7,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App, type AppUi, MENU_GONE_HINT } from '../../src/app/app';
 import { FakeSocket } from './net-helpers';
-import { CLOCK_CELLS, barCells } from '../../src/menubar/menubar';
+import { barCells } from '../../src/menubar/menubar';
+import { STRIP_CELLS } from '../../src/ui/clock-strip';
 
 function setup(ui: Partial<AppUi> | null = {}) {
   document.body.innerHTML = '';
@@ -61,7 +62,7 @@ describe('App with the menu bar', () => {
     expect(t.app.menuBar).toBeNull();
     expect(t.app.input.el.lastElementChild).toBe(t.app.input.clockEl);
     expect(t.app.input.clockEl.textContent).toBe('        ');
-    expect(t.app.cockpit.barCells).toBe(CLOCK_CELLS);
+    expect(t.app.cockpit.barCells).toBe(STRIP_CELLS);
   });
 
   it('Esc in the input closes the open popup; with nothing open it opens the Exit popup (ADR 0112)', () => {

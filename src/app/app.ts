@@ -109,8 +109,9 @@ import { MapMarkHub } from '../map/marks';
 import { RoomNotes } from '../map/notes';
 import { type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } from '../panes/context';
 import { OutputPane } from '../ui/output-pane';
-import { ClockStrip } from '../ui/clock-strip';
-import { CLOCK_CELLS, MenuBar } from '../menubar/menubar';
+import { ClockStrip, STRIP_CELLS } from '../ui/clock-strip';
+import { MenuBar } from '../menubar/menubar';
+import type { BarClock } from '../menubar/bar-clock';
 import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
@@ -301,7 +302,7 @@ export class App {
   /** Character, group and clock state (src/gmcp/state.ts), shared with the panes. */
   readonly game: GameState;
   /** The input line's day/night clock (in the menu bar where there is one). */
-  readonly clockStrip!: ClockStrip;
+  readonly clockStrip!: ClockStrip | BarClock;
   /** The menu bar (ADR 0099), desktop and tablet; null elsewhere. */
   readonly menuBar: MenuBar | null;
   private readonly appUi: AppUi | null;
@@ -558,7 +559,7 @@ export class App {
       : null;
     if (this.menuBar) this.clockStrip = this.menuBar.clock;
     // Without the bar the clock strip ends the input row (ADR 0102 counts it).
-    else this.cockpit.setBarCells(CLOCK_CELLS);
+    else this.cockpit.setBarCells(STRIP_CELLS);
     this.writeBack = this.profiles
       ? new ProfileWriteBack(this.profiles, {
           ...(opts.writeBackDelayMs !== undefined ? { delayMs: opts.writeBackDelayMs } : {}),

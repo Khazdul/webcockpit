@@ -139,13 +139,31 @@ describe('menu bar layout', () => {
       'exit',
     ]);
     expect(t.bar.bar.style.width).toBe(`calc(${barCells(false)} * var(--cell-w))`);
-    expect(t.clockEl.querySelector('svg.wc-clock-svg')).not.toBeNull();
+    expect(t.clockEl.querySelector('svg.wc-mb-ring')).not.toBeNull();
   });
 
   it('is a whole number of cells wide, with or without fullscreen', () => {
-    expect(barCells(true)).toBe(26);
-    expect(barCells(false)).toBe(24);
-    expect(Number.isInteger(barCells(false))).toBe(true);
+    expect(barCells(true)).toBe(21);
+    expect(barCells(false)).toBe(19);
+    // One cell wider while the clock is approximate (hour precision, stage 31a).
+    expect(barCells(true, true)).toBe(22);
+    expect(barCells(false, true)).toBe(20);
+  });
+
+  it('widens by a cell while the clock is synced to the hour only, and tells the cockpit', () => {
+    const t = setup();
+    const at = (h: number, precision: 'hour' | 'minute') => {
+      t.game.clock.state = { epoch: Math.floor(T / 1000) - momentSeconds(2973, 3, 12, h, 0), precision, lastSync: T / 1000, reason: 't' };
+      t.bar.clock.update();
+    };
+    at(14, 'hour');
+    expect(t.bar.bar.style.width).toBe(`calc(${barCells(false, true)} * var(--cell-w))`);
+    expect(t.clockEl.dataset.sync).toBe('hour');
+    expect(t.tip(t.clockEl)).toBe('Night in ~6 game hours');
+    at(14, 'minute');
+    expect(t.bar.bar.style.width).toBe(`calc(${barCells(false)} * var(--cell-w))`);
+    expect(t.tip(t.clockEl)).toBe('Night in 5:59');
+    expect(t.cells).toEqual([barCells(false), barCells(false, true), barCells(false)]);
   });
 
   it('has a fullscreen button where the browser has page fullscreen, dropped on a refusal', async () => {

@@ -16,7 +16,6 @@ import {
   SIDE_DOCK_MIN,
 } from '../../src/layout/allocate';
 import { type BuiltinPaneId, DOCKED_BY_DEFAULT, type LayoutModel, PANE_IDS, type PaneId, defaultLayout } from '../../src/layout/types';
-import { barCells } from '../../src/menubar/menubar';
 import { floatPane, movePane, moveToNewLane, placeScriptPane, setDesired, setFloatRect, setLaneSize } from '../../src/layout/model';
 
 const MIN: Record<BuiltinPaneId, number> = { character: 3, timers: 1, group: 1, comm: 1, ui: 1, map: 3, statistics: 3 };
@@ -44,9 +43,13 @@ function toggles(off: PaneId[] = [], noBorder: PaneId[] = [], mapOn = false, sta
   ) as AllocateInput['panes'];
 }
 
-/** The menu bar's width with the fullscreen button (26) and without it (24; ADR 0099). */
-const BAR_FS = barCells(true);
-const BAR_NO_FS = barCells(false);
+/**
+ * Bar widths as fixtures: stage 30's menu bar with the fullscreen button
+ * (26) and without it (24; ADR 0099). The allocator only takes a number;
+ * the real bar is narrower since stage 31a (src/menubar/menubar.ts barCells).
+ */
+const BAR_FS = 26;
+const BAR_NO_FS = 24;
 
 /** The layout input; the bar at the input row's end as on desktop (ADR 0102 decides the input row's case with it). */
 const input = (
