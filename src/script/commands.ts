@@ -78,7 +78,7 @@ const HINT_LUA = 'Only #lua {script} {function} {args} runs (a function a script
 const HINT_SCRIPT_CMD = 'Only #script list, help, set, enable, disable and reload run; other forms do nothing.';
 const HINT_LATER = 'Not supported yet; kept in the profile as written.';
 /** The weather effects (stage 28): a hint only, not a manual topic. */
-const HINT_WEATHER = 'weather effects: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather stop ends it.';
+const HINT_WEATHER = 'weather effects: #weather demo plays every effect, #weather demo sunrise / sunset one whole sunrise or sunset, #weather demo snow / birds / rain one effect alone, #weather stop ends it.';
 
 // Alphabetical by name (checked by a test); order is the resolution order.
 const SPECS: readonly Spec[] = [

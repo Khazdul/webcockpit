@@ -135,6 +135,30 @@ describe('the one-turn demos (item 74)', () => {
   }
 });
 
+describe('the one-effect demos (stage 31b)', () => {
+  for (const scene of ['snow', 'birds', 'rain'] as const) {
+    it(`${scene}: one instant pin first, under a minute, every action inside its step, back to the game at the end`, () => {
+      const steps = DEMO_SCRIPTS[scene];
+      const plan = demoPlan({}, steps);
+      expect(plan.total).toBeLessThan(60_000);
+      const pins = steps.flatMap((st) => st.acts.map(([, a]) => a)).filter((a) => 'pin' in a);
+      expect(pins[0]).toMatchObject({ instant: true });
+      expect(pins.slice(1).every((a) => !('instant' in a))).toBe(true);
+      for (const st of steps) for (const [at] of st.acts) expect(at).toBeLessThan(st.dur);
+      expect(steps.at(-1)!.acts).toEqual([[0, { release: true }]]);
+    });
+  }
+
+  it('each shows its own effect', () => {
+    const weathers = (sc: 'snow' | 'rain') =>
+      DEMO_SCRIPTS[sc].flatMap((st) => st.acts.map(([, a]) => ('pin' in a ? a.pin.weather : undefined))).filter((w) => w !== undefined);
+    expect(weathers('snow')).toEqual(['*']);
+    expect(weathers('rain')).toEqual(['~', "'", '"']);
+    const events = DEMO_SCRIPTS.birds.flatMap((st) => st.acts.map(([, a]) => ('emit' in a ? a.emit : null))).filter(Boolean);
+    expect(events.filter((e) => e === 'birds')).toHaveLength(3);
+  });
+});
+
 describe('#weather arguments', () => {
   it('parses demo, stop and the hidden test pace; no slow any more (item 70)', () => {
     expect(parseWeatherCommand('demo')).toEqual({ kind: 'demo', scene: 'all', pace: 1 });
@@ -144,9 +168,10 @@ describe('#weather arguments', () => {
     expect(parseWeatherCommand('demo sunrise')).toEqual({ kind: 'demo', scene: 'sunrise', pace: 1 });
     expect(parseWeatherCommand('demo Sunset')).toEqual({ kind: 'demo', scene: 'sunset', pace: 1 });
     expect(parseWeatherCommand('demo sunset x40')).toEqual({ kind: 'demo', scene: 'sunset', pace: 40 });
+    for (const sc of ['snow', 'birds', 'rain'] as const) expect(parseWeatherCommand(`demo ${sc}`)).toEqual({ kind: 'demo', scene: sc, pace: 1 });
     expect(parseWeatherCommand('stop')).toEqual({ kind: 'stop' });
     expect(parseWeatherCommand('demo stop')).toEqual({ kind: 'stop' });
-    for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2', 'demo sunrise sunset', 'demo sunrise sunrise', 'sunrise']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
+    for (const a of ['', 'on', 'demo fast', 'demo slow', 'demo x2 x3', 'demo x0', 'stop now', 'demo stop x2', 'demo sunrise sunset', 'demo sunrise sunrise', 'sunrise', 'demo snow rain', 'snow']) expect(parseWeatherCommand(a), a).toEqual({ kind: 'usage' });
   });
 });
 

@@ -377,9 +377,91 @@ export const SUNSET_STEPS: readonly DemoStep[] = [
   },
 ];
 
-/** The demos: every effect, or one whole sunrise or sunset. */
-export type DemoScene = 'all' | 'sunrise' | 'sunset';
-export const DEMO_SCRIPTS: Readonly<Record<DemoScene, readonly DemoStep[]>> = { all: DEMO_STEPS, sunrise: SUNRISE_STEPS, sunset: SUNSET_STEPS };
+const BACK: DemoStep = {
+  title: 'Back to the game',
+  look: "the effects follow the game's values again, with the normal transitions",
+  signal: '',
+  dur: 3,
+  acts: [[0, { release: true }]],
+};
+
+/** `#weather demo snow` (stage 31b): long enough to follow single flakes, by day and by night. */
+export const SNOW_STEPS: readonly DemoStep[] = [
+  {
+    title: 'Day · snow',
+    look: 'follow one large flake for a few seconds: it should glide down, not step; the overcast sky and the snow dusting on the pane tops as before; a gust halfway',
+    signal: 'Char.Vitals weather = *',
+    dur: 30,
+    acts: [
+      [0, { pin: { ...SCENE, weather: '*', clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.4 }, instant: true }],
+      [15, emit('gust')],
+    ],
+  },
+  {
+    title: 'Night · snow',
+    look: 'the same snow at night: the flakes glide, the sky darkens over the first seconds',
+    signal: 'Event.Sun dark · Char.Vitals weather = *',
+    dur: 25,
+    acts: [[0, pin({ clock: 'night', sunU: -1 })]],
+  },
+  BACK,
+];
+
+/** `#weather demo birds` (stage 31b): flocks and an insect on a clear day. */
+export const BIRDS_STEPS: readonly DemoStep[] = [
+  {
+    title: 'Day · birds',
+    look: 'three flocks cross the sky, an insect darts in between: do the birds and their wing beats move smoothly?',
+    signal: "the almanac: a clear day · Char.Vitals weather = ' '",
+    dur: 40,
+    acts: [
+      [0, { pin: { ...SCENE, clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.3 }, instant: true }],
+      [1, emit('birds')],
+      [9, emit('insect')],
+      [14, emit('birds')],
+      [27, emit('birds')],
+    ],
+  },
+  BACK,
+];
+
+/** `#weather demo rain` (stage 31b): clouds, rain and a downpour by day, nothing else. */
+export const RAIN_STEPS: readonly DemoStep[] = [
+  {
+    title: 'Day · clouds',
+    look: 'clouds drift in and cover the sky',
+    signal: 'Char.Vitals weather = ~',
+    dur: 12,
+    acts: [[0, { pin: { ...SCENE, weather: '~', clock: 'day', moonUp: false, moonU: -1, moonPhase: 0.5, sunU: 0.5 }, instant: true }]],
+  },
+  {
+    title: 'Day · rain',
+    look: 'rain streaks fall evenly; drops on the pane tops',
+    signal: "Char.Vitals weather = '",
+    dur: 12,
+    acts: [[0, pin({ weather: "'" })]],
+  },
+  {
+    title: 'Day · downpour',
+    look: 'heavy rain: denser, faster streaks and splashes',
+    signal: 'Char.Vitals weather = "',
+    dur: 12,
+    acts: [[0, pin({ weather: '"' })]],
+  },
+  BACK,
+];
+
+/** The demos: every effect, one whole sunrise or sunset, or one effect to look at closely. */
+export type DemoScene = 'all' | 'sunrise' | 'sunset' | 'snow' | 'birds' | 'rain';
+export const DEMO_SCRIPTS: Readonly<Record<DemoScene, readonly DemoStep[]>> = {
+  all: DEMO_STEPS,
+  sunrise: SUNRISE_STEPS,
+  sunset: SUNSET_STEPS,
+  snow: SNOW_STEPS,
+  birds: BIRDS_STEPS,
+  rain: RAIN_STEPS,
+};
+const SCENES = Object.keys(DEMO_SCRIPTS).filter((k) => k !== 'all') as DemoScene[];
 
 /** One timed entry of a played demo, `t` in ms from its start. */
 export type DemoEvent =
@@ -423,7 +505,7 @@ export function demoPlan(opts: { pace?: number } = {}, steps: readonly DemoStep[
 export type WeatherCommand = { kind: 'demo'; scene: DemoScene; pace: number } | { kind: 'stop' } | { kind: 'usage' };
 
 /**
- * `#weather demo [sunrise|sunset]`, `#weather stop`, `#weather demo stop`; anything
+ * `#weather demo [sunrise|sunset|snow|birds|rain]`, `#weather stop`, `#weather demo stop`; anything
  * else is 'usage'. A hidden `xN` after `demo` runs the wall clock N times
  * faster (tests).
  */
@@ -437,14 +519,14 @@ export function parseWeatherCommand(args: string): WeatherCommand {
   for (const a of w.slice(1)) {
     const x = /^x(\d+(?:\.\d+)?)$/.exec(a);
     if (x && Number(x[1]) > 0 && pace === 1) pace = Number(x[1]);
-    else if ((a === 'sunrise' || a === 'sunset') && scene === 'all') scene = a;
+    else if ((SCENES as string[]).includes(a) && scene === 'all') scene = a as DemoScene;
     else return { kind: 'usage' };
   }
   return { kind: 'demo', scene, pace };
 }
 
 export const WEATHER_USAGE =
-  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather stop ends it.';
+  '#weather demo plays every weather effect, from a night to the next morning, in about three minutes; #weather demo sunrise and #weather demo sunset play one whole sunrise or sunset (about a minute and a half); #weather demo snow, birds or rain shows that effect alone for under a minute; #weather stop ends it.';
 
 /** "1:35". */
 export function clockText(ms: number): string {

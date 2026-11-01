@@ -2,7 +2,8 @@
 // plays every effect, a night to the next morning, in about three
 // minutes (its sunrises and sunsets whole, fast-forwarded; owner item 108), and
 // `#weather demo sunrise` / `sunset` one whole sunrise or sunset as live
-// (demo-script.ts; owner items 70, 74), with a
+// (demo-script.ts; owner items 70, 74), `#weather demo snow` / `birds` /
+// `rain` one effect alone to look at closely (stage 31b), with a
 // small caption box at the top left saying what to look at, then hands the
 // effects back to the game. A lazy chunk of its own: hook.ts imports it on
 // the first `#weather` command.
