@@ -188,15 +188,12 @@ test('Bold brightens colours: off keeps the Cockpit look, on brightens live (ADR
     ['rgb(255, 0, 0)', '700'],
   ]);
 
-  // On, from Options → Appearance: the drawn rows change at once.
-  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
-  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuSel).toHaveText('<< Bold brightens colours: Off >>');
-  await page.keyboard.press('Enter');
-  await expect(menuSel).toHaveText('<< Bold brightens colours: On >>');
+  // On, from the Settings popup's Appearance tab (ADR 0107): the drawn rows change at once.
+  const toggle = page.locator('.wc-sp-settings .wc-ck-tg[aria-label="Bold brightens colours"]');
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
   expect(await page.evaluate(() => window.__wc!.settings.get().appearance.boldBright)).toBe(true);
   // Default fg (silver) → bright white; red → bright red; inverse untouched.
   await expect.poll(colours).toEqual([
@@ -224,8 +221,8 @@ test('Bold brightens colours: off keeps the Cockpit look, on brightens live (ADR
   ]);
 
   // Off again; persisted across a reload while on.
-  await page.keyboard.press('Enter');
-  await expect(menuSel).toHaveText('<< Bold brightens colours: Off >>');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect.poll(async () => (await colours())[1]).toEqual(['rgb(160, 28, 28)', '700']);
   await page.evaluate(async () => {
     window.__wc!.settings.update({ appearance: { boldBright: true } });

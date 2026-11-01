@@ -109,36 +109,34 @@ test('reaches playing on Char.Name and sends the width commands', async ({ page 
   expect(steel.got).not.toBe(steel.plain);
   for (const el of [field, prompt]) expect((await mixColours(el, 55, '#7fb2e6')).got).toBe(steel.want);
 
-  // Appearance → Input color: Amber, then None (the plain fg).
-  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowDown'); // past Mapper
-  await page.keyboard.press('Enter'); // Appearance
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
-  await expect(menuSel).toHaveText('<< Input color: Steel >>');
-  await page.keyboard.press('ArrowLeft');
-  await page.keyboard.press('ArrowLeft');
-  await expect(menuSel).toHaveText('<< Input color: Amber >>');
-  // The preview's echo line follows it.
-  const amberPreview = await mixColours(page.locator('.wc-overlay .wc-preview-echo'), 15, '#ffaf00');
-  expect(amberPreview.got).toBe(amberPreview.want);
+  // Settings → Appearance → Input colour (ADR 0107): Amber, then None (the plain fg).
+  const dd = page.locator('.wc-sp-settings .wc-ck-dd[aria-label="Input colour"]');
+  const pick = async (label: string) => {
+    await dd.click();
+    await page.locator('.wc-ck-list .wc-ck-opt', { hasText: label }).click();
+  };
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await expect(dd).toContainText('Steel');
+  await pick('Amber');
+  await expect(dd).toContainText('Amber');
   const amber = await mixColours(echo, 15, '#ffaf00');
   expect(amber.got).toBe(amber.want);
   expect(amber.got).not.toBe(steel.got);
   for (const el of [field, prompt]) expect((await mixColours(el, 15, '#ffaf00')).got).toBe(amber.want);
-  await page.keyboard.press('ArrowRight'); // wraps
-  await expect(menuSel).toHaveText('<< Input color: None >>');
+  // The preview's echo line follows it.
+  const previewEcho = page.locator('.wc-sp-preview span', { hasText: /^north$/ }).first();
+  expect(await previewEcho.evaluate((e) => getComputedStyle(e).color)).toBe(amber.want);
+  await pick('None');
+  await expect(dd).toContainText('None');
   for (const el of [echo, field, prompt]) {
     const c = await mixColours(el, 55, '#7fb2e6');
     expect(c.got).toBe(c.plain);
   }
   // Back to the default for the rest of the test.
-  await page.keyboard.press('ArrowRight');
-  await expect(menuSel).toHaveText('<< Input color: Steel >>');
+  await pick('Steel');
   await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().appearance.inputColor)).toBe('steel');
-  while (await page.locator('.wc-overlay').isVisible()) await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await expect(field).toBeFocused();
 
   await page.keyboard.type('#disconnect');

@@ -9,8 +9,6 @@ const DEMO = '/?fixture=gmcp-demo.log&speed=0';
 const rows = (page: Page) => page.locator('.wc-rows .wc-row');
 const content = (page: Page, id: string) => page.locator(`.wc-pane[data-pane="${id}"] .wc-pane-content`);
 const prows = (page: Page, id: string) => content(page, id).locator('.wc-prow');
-const menuSel = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-const menuTitle = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
 
 async function demoDone(page: Page): Promise<void> {
   await page.goto(DEMO);
@@ -64,32 +62,51 @@ test('the clock strip counts down to the day after dawn and the room clock', asy
   expect(saved).toMatchObject({ precision: 'minute', reason: 'room_clock' });
 });
 
-test('Options → Panes → Group applies live from the ESC menu', async ({ page }) => {
+test('the Group gear applies live (ADR 0107)', async ({ page }) => {
   await demoDone(page);
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeVisible();
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await expect(menuTitle(page)).toHaveText('─── Options ───');
+  // The pane's buttons show on hover (ADR 0095).
+  await page.locator('.wc-pane-group').hover();
+  await page.locator('.wc-pane-group > .wc-pane-btn-gear').click();
+  const pop = page.locator('.wc-sp-gear-group');
+  const players = pop.locator('.wc-ck-tg[aria-label="Show players"]');
+  await expect(players).toHaveAttribute('aria-checked', 'true');
+  await players.click();
+  await expect(players).toHaveAttribute('aria-checked', 'false');
+  await expect.poll(() => groupNames(page)).toEqual(['a citizen mercenary (MERC)', 'a large dog (DOG)']);
+  const npc = (v: string) => pop.locator(`[aria-label="NPC visibility"] [data-value="${v}"]`);
+  await npc('all').click();
+  await expect.poll(() => groupNames(page)).toEqual(['a citizen mercenary (MERC)', 'a large dog (DOG)', 'a sturdy pony']);
+  await npc('off').click();
+  await expect.poll(() => groupNames(page)).toEqual([]);
+  const s = await page.evaluate(() => window.__wc!.settings.get().group);
+  expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('Options → Panes → Group on the start page writes the settings', async ({ page }) => {
+  await page.goto('/');
+  const startSel = page.locator('.wc-start .wc-frame:not([hidden]) .wc-mrow.is-sel');
+  const startTitle = page.locator('.wc-start .wc-frame:not([hidden]) .wc-title-row .wc-c-section');
+  await expect(startSel).toHaveText('<< Enter MUME >>');
+  await page.locator('.wc-start .wc-mrow[data-key="options"] .wc-label').click();
+  await expect(startTitle).toHaveText('─── Options ───');
   await page.keyboard.press('Enter'); // Panes
-  await expect(menuTitle(page)).toHaveText('─── Panes ───');
+  await expect(startTitle).toHaveText('─── Panes ───');
   // Timers first on desktop (no pane Appearance page, ADR 0107).
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toHaveText('<< Group >>');
+  await expect(startSel).toHaveText('<< Group >>');
   await page.keyboard.press('Enter');
-  await expect(menuTitle(page)).toHaveText('─── Group ───');
-  await expect(menuSel(page)).toContainText('[X] Show players');
+  await expect(startTitle).toHaveText('─── Group ───');
+  await expect(startSel).toContainText('[X] Show players');
   await page.keyboard.press('Enter');
-  await expect(menuSel(page)).toContainText('[ ] Show players');
-  await expect.poll(() => groupNames(page)).toEqual(['a citizen mercenary (MERC)', 'a large dog (DOG)']);
+  await expect(startSel).toContainText('[ ] Show players');
   await page.keyboard.press('ArrowDown');
-  await expect(menuSel(page)).toHaveText('<< NPC visibility: Labeled >>');
+  await expect(startSel).toHaveText('<< NPC visibility: Labeled >>');
   await page.keyboard.press('ArrowRight');
-  await expect(menuSel(page)).toHaveText('<< NPC visibility: All >>');
-  await expect.poll(() => groupNames(page)).toEqual(['a citizen mercenary (MERC)', 'a large dog (DOG)', 'a sturdy pony']);
+  await expect(startSel).toHaveText('<< NPC visibility: All >>');
   await page.keyboard.press('ArrowRight');
-  await expect(menuSel(page)).toHaveText('<< NPC visibility: Off >>');
-  await expect.poll(() => groupNames(page)).toEqual([]);
+  await expect(startSel).toHaveText('<< NPC visibility: Off >>');
   const s = await page.evaluate(() => window.__wc!.settings.get().group);
   expect(s).toEqual({ showPlayers: false, npcMode: 'off' });
   await page.evaluate(() => window.__wc!.settings.reset());

@@ -149,35 +149,54 @@ test('the wheel scrolls back with timestamps; the indicator returns to live', as
   await expect(comm(page).locator('.wc-comm-time')).toHaveCount(0);
 });
 
-test('Options → Panes → Communication toggles channels and the header live', async ({ page }) => {
+test('the Comm gear toggles channels and the header live (ADR 0107)', async ({ page }) => {
   await demo(page);
-  await page.locator('.wc-input-field').focus();
-  await page.keyboard.press('Escape');
-  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-  await expect(menuSel).toBeVisible();
-  await page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="options"]').click();
-  await page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="panes"]').click();
-  await page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="comm"]').click();
-  const frame = page.locator('.wc-overlay .wc-frame:not([hidden])');
+  await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
+  // The pane's buttons show on hover (ADR 0095).
+  await page.locator('.wc-pane-comm').hover();
+  await page.locator('.wc-pane-comm > .wc-pane-btn-gear').click();
+  const pop = page.locator('.wc-sp-gear-comm');
+  await expect(pop.locator('.wc-sp-chan[data-channel]')).toHaveCount(10);
+  const tales = pop.locator('.wc-sp-chan[data-channel="tales"] [role=switch]');
+  await tales.click();
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false });
+  await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
+  await tales.click();
+  await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
+  await expect(commRows(page).filter({ hasText: 'narrate' }).first()).toBeVisible();
+  // Show channel header off: the header row goes.
+  const header = pop.locator('[data-key="show-header"] [role=switch]');
+  await header.click();
+  await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(false);
+  await expect(comm(page).locator('.wc-comm-header')).toBeHidden();
+  await header.click();
+  await expect(comm(page).locator('.wc-comm-header')).toBeVisible();
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
+test('Options → Panes → Communication on the start page toggles channels and the header', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Enter MUME >>');
+  const frame = page.locator('.wc-start .wc-frame:not([hidden])');
+  await frame.locator('.wc-mrow[data-key="options"]').click();
+  await frame.locator('.wc-mrow[data-key="panes"]').click();
+  await frame.locator('.wc-mrow[data-key="comm"]').click();
   await expect(frame.locator('.wc-title-row')).toContainText('Communication');
   await expect(frame.locator('[data-channel]')).toHaveText([
     'Narrates', 'Tells', 'Says', 'Yells', 'Prayers', 'Emotes', 'Whispers', 'Questions', 'Songs', 'Socials',
   ]);
-  // Enter on the first row turns Narrates off, live (the mouse moved away:
+  // Enter on the first row turns Narrates off (the mouse moved away:
   // hovering a row moves the cursor).
   await page.mouse.move(0, 0);
   await page.keyboard.press('Home');
   await page.keyboard.press('Enter');
   await expect.poll(async () => (await settings(page)).comm.filters).toEqual({ tales: false });
-  await expect(commRows(page).filter({ hasText: 'narrate' })).toHaveCount(0);
   await frame.locator('[data-channel="tales"]').click();
   await expect.poll(async () => (await settings(page)).comm.filters).toEqual({});
-  // Show channel header off: the header row goes.
   await frame.locator('[data-key="show-header"]').click();
   await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(false);
-  await expect(comm(page).locator('.wc-comm-header')).toBeHidden();
   await frame.locator('[data-key="show-header"]').click();
-  await expect(comm(page).locator('.wc-comm-header')).toBeVisible();
+  await expect.poll(async () => (await settings(page)).comm.showHeader).toBe(true);
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 

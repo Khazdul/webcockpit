@@ -1,6 +1,8 @@
 // Stage 6 P1: History with the demo backup (filter, sort, save, rate,
-// delete, stats), ESC → Statistics during a replay, and Exit with rating
-// on a mocked live session that History then lists as saved.
+// delete, stats), and Exit with rating (the menu bar's Exit popup, ADR
+// 0099) on a mocked live session that History then lists as saved. The
+// live run in play: the Statistics pane (statistics-pane.spec.ts) and, on
+// the phone, ESC → Statistics (phone-esc-menu.spec.ts).
 import { type Page, expect, test } from '@playwright/test';
 import { pinDemoClock } from './demo-clock';
 
@@ -102,27 +104,6 @@ test('History lists the demo sessions; filter, sort, save, rate, delete and stat
   expect(errors).toEqual([]);
 });
 
-test('ESC → Statistics shows the live run of a replay', async ({ page }) => {
-  const errors: string[] = [];
-  page.on('pageerror', (e) => errors.push(e.message));
-  await page.goto('/?fixture=gmcp-demo.log&speed=3');
-  await expect(page.locator('.wc-pane[data-pane="ui"]')).toContainText('KILL: An orc scout', { timeout: 20_000 });
-  await page.keyboard.press('Escape');
-  const menu = page.locator('.wc-overlay .wc-frame:not([hidden])');
-  await menu.locator('.wc-mrow[data-key="stats"] .wc-label').click();
-  const stats = menu.locator('.wc-stats');
-  await expect(stats.locator('.wc-stats-header')).toHaveText(/^◆ STATISTICS — Rasta · Lvl \d+ · Run \d+m/);
-  await expect(stats).toContainText('An orc scout');
-  await expect(stats).toContainText('★ Defeated an orc scout');
-  await expect(stats).toContainText('R Refresh');
-  // The replay ends while it is open: the data stays.
-  await expect(stats.locator('.wc-stats-header')).toContainText('Run ended', { timeout: 25_000 });
-  await expect(stats).toContainText('An orc scout');
-  await page.keyboard.press('Escape');
-  await expect(menu.locator('.wc-mrow[data-key="stats"]')).toHaveCount(0);
-  expect(errors).toEqual([]);
-});
-
 const IAC = 255;
 const WILL = 251;
 const SB = 250;
@@ -132,7 +113,7 @@ const bytes = (...parts: (number[] | string)[]): Buffer =>
   Buffer.concat(parts.map((p) => (typeof p === 'string' ? Buffer.from(p, 'utf8') : Buffer.from(p))));
 const gmcp = (payload: string) => bytes([IAC, SB, GMCP], payload, [IAC, SE]);
 
-test('Exit session with a rating saves the run; History lists it as saved', async ({ page }) => {
+test('Exit with a rating saves the run; History lists it as saved', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   let server: { send(b: Buffer): void } | null = null;
@@ -152,15 +133,13 @@ test('Exit session with a rating saves the run; History lists it as saved', asyn
   server!.send(gmcp('Char.Vitals {"xp":5860000}'));
   await expect(page.locator('.wc-pane[data-pane="ui"]')).toContainText('KILL: An orc scout');
 
-  await page.keyboard.press('Escape');
-  const menu = page.locator('.wc-overlay .wc-frame:not([hidden])');
-  await expect(menu.locator('.wc-mrow[data-key="stats"]')).toHaveCount(1);
-  await menu.locator('.wc-mrow[data-key="exit"] .wc-label').click();
-  await expect(menu.locator('.wc-title-row')).toHaveText('─── Exit session ───');
-  await expect(menu).toContainText('Rate & save this run (optional)');
+  await page.locator('.wc-mb[data-mb="exit"]').click();
+  const pop = page.locator('.wc-pop-exit');
+  await expect(pop).toBeFocused();
+  await expect(pop).toContainText('Rate & save this run (optional)');
   await page.keyboard.press('4');
   await page.keyboard.press('ArrowLeft');
-  await expect(menu.locator('.wc-stars .wc-st-star')).toHaveCount(3);
+  await expect(pop.locator('.wc-pop-star.is-on')).toHaveCount(3);
   await page.keyboard.press('y');
 
   // Back on the start page; History lists the run as saved with ★★★.
