@@ -227,8 +227,11 @@ export type MainToWorker =
   | { t: 'moonSpeed'; speed: number }
   /** The demo's time scale (1 = the game's pace): see `Director.speed`. */
   | { t: 'speed'; speed: number }
-  /** `reset`: the frame times start afresh after this answer (a bench's measuring window). */
-  | { t: 'stats'; reset?: boolean };
+  /**
+   * `reset`: the frame times start afresh after this answer (a bench's
+   * measuring window). `trace`: the answer carries `FrameStats.trace`.
+   */
+  | { t: 'stats'; reset?: boolean; trace?: boolean };
 
 export interface FrameStats {
   /** Frames measured (the last ≤ 600 drawn frames, since the last `reset`). */
@@ -251,6 +254,14 @@ export interface FrameStats {
    * even the motion is (owner feedback 56). Idle ticks are not frames.
    */
   gaps: { n: number; p50: number; p95: number; max: number };
+  /**
+   * The last ≤ 600 drawn frames, oldest first, four numbers each (ms,
+   * `performance.now()` clock): the animation frame's own time (NaN from a
+   * timer), the frame time the effects advanced to, when the callback ran,
+   * when the frame's drawing ended. Only when asked (`stats` with `trace`):
+   * how the frames sit on the screen's refresh grid (bench/weather-smooth.ts).
+   */
+  trace?: number[];
 }
 
 export type WorkerToMain =

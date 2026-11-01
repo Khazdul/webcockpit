@@ -178,6 +178,8 @@ export class WeatherEngine {
   private wasIdle = true;
   private readonly modTimes = new Map<string, Float32Array>();
   private nTimes = 0;
+  /** Per drawn frame (`FrameStats.trace`): animation frame time, frame time, callback, end of drawing. */
+  private readonly trace = new Float64Array(N_TIMES * 4);
 
   /** `modules`: the four effects in drawing order (tests pass their own). */
   constructor(
@@ -295,7 +297,7 @@ export class WeatherEngine {
         this.focused = m.on;
         break;
       case 'stats':
-        this.host.post({ t: 'stats', stats: this.stats() });
+        this.host.post({ t: 'stats', stats: this.stats(!!m.trace) });
         if (m.reset) this.nTimes = 0;
         return;
     }
@@ -523,7 +525,12 @@ export class WeatherEngine {
     if (this.lastDrawn && !this.wasIdle && this.gaps.length < N_TIMES) this.gaps.push(now - this.lastDrawn);
     this.lastDrawn = now;
     this.wasIdle = false;
+    const tr = (this.nTimes % N_TIMES) * 4;
     const busy = this.draw(now, dt);
+    this.trace[tr] = t ?? NaN;
+    this.trace[tr + 1] = now;
+    this.trace[tr + 2] = at;
+    this.trace[tr + 3] = this.host.now();
     if (!this.readySent) {
       this.readySent = true;
       this.host.post({ t: 'ready' });
@@ -697,7 +704,7 @@ export class WeatherEngine {
     return sl.cache;
   }
 
-  stats(): FrameStats {
+  stats(withTrace = false): FrameStats {
     const n = Math.min(this.nTimes, N_TIMES);
     const a = Array.from(this.times.subarray(0, n)).sort((x, y) => x - y);
     const avg = n ? a.reduce((s, v) => s + v, 0) / n : 0;
@@ -713,6 +720,12 @@ export class WeatherEngine {
     }
     const g = this.gaps.splice(0).sort((x, y) => x - y), gn = g.length;
     const gaps = { n: gn, p50: gn ? g[Math.floor(gn / 2)]! : 0, p95: gn ? g[Math.floor(gn * 0.95)]! : 0, max: gn ? g[gn - 1]! : 0 };
-    return { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, modsMax, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
+    const out: FrameStats = { n, avg, p95: n ? a[Math.floor(n * 0.95)]! : 0, max: n ? a[n - 1]! : 0, mods, modsMax, idle: this.idle, frames: this.nTimes, dpr: this.env?.dpr ?? 1, gaps };
+    if (withTrace) {
+      const k = Math.min(this.nTimes, N_TIMES), tr: number[] = [];
+      for (let i = this.nTimes - k; i < this.nTimes; i++) for (let j = 0; j < 4; j++) tr.push(this.trace[(i % N_TIMES) * 4 + j]!);
+      out.trace = tr;
+    }
+    return out;
   }
 }

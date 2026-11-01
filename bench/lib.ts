@@ -76,6 +76,31 @@ export interface Target {
   isChromium: boolean;
 }
 
+/**
+ * WC_BENCH_WM_CLASS=<name>: headed browsers open with this window class (a
+ * window manager rule may send the default classes to a hidden workspace,
+ * where Firefox throttles its animation frames to a few per second).
+ */
+export function wmClassArgs(name: 'firefox' | 'chromium'): string[] {
+  const c = process.env.WC_BENCH_WM_CLASS;
+  if (!c) return [];
+  return name === 'firefox' ? ['--name', c] : [`--class=${c}`];
+}
+
+/** The page's animation frame rate over `ms` (a sanity check before measuring frame pacing). */
+export async function rafRate(page: Page, ms = 1000): Promise<number> {
+  return page.evaluate(
+    (ms) =>
+      new Promise<number>((res) => {
+        let n = 0;
+        const t0 = performance.now();
+        const f = () => (performance.now() - t0 < ms ? (n++, requestAnimationFrame(f)) : res((n * 1000) / (performance.now() - t0)));
+        requestAnimationFrame(f);
+      }),
+    ms,
+  );
+}
+
 export const gpuArgs = () => (process.env.WC_BENCH_GPU_ARGS ?? '--enable-gpu --use-angle=vulkan').split(' ').filter(Boolean);
 
 /**
@@ -90,8 +115,8 @@ export async function launchTarget(name: TargetName, geometry: Geometry, extraAr
   const headless = process.env.WC_BENCH_HEADED !== '1';
   const browser =
     name === 'firefox'
-      ? await firefox.launch({ headless, ...(geometry.dpr !== 1 ? { firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(geometry.dpr) } } : {}) })
-      : await chromium.launch({ headless, args: [...(name === 'chromium-gpu' && headless ? gpuArgs() : []), ...extraArgs] });
+      ? await firefox.launch({ headless, args: headless ? [] : wmClassArgs('firefox'), ...(geometry.dpr !== 1 ? { firefoxUserPrefs: { 'layout.css.devPixelsPerPx': String(geometry.dpr) } } : {}) })
+      : await chromium.launch({ headless, args: [...(name === 'chromium-gpu' && headless ? gpuArgs() : []), ...(headless ? [] : wmClassArgs('chromium')), ...extraArgs] });
   return { name, browser, geometry, isChromium: name !== 'firefox' };
 }
 
