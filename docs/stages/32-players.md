@@ -73,6 +73,8 @@ Start menu:
 ## Tasks
 
 - [ ] 32a: start menu (Enter MUME, Profile, Scripts, History, Spotlights, Credits, About).
-- [ ] 32b: mockups on the canvas, column "Steg 32".
+- [x] 32b: mockups on the canvas, column "Steg 32": directions A (compact box,
+  right-edge rail), B (timeline in the box), C (full-width bottom bar);
+  source and table in `notes/research/player-mockups/` (2026-11-01).
 - [ ] 32b: owner picks.
 - [ ] 32c: plan, build, test guide.
