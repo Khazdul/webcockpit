@@ -17,6 +17,7 @@ import {
   momentSeconds,
   monthIndex,
   periodIcon,
+  periodLeft,
   unsetClock,
   WEEKDAYS,
   weekdayOf,
@@ -169,12 +170,12 @@ describe('transitions and the strip text', () => {
   it('counts down to the night (dusk + 1) by day, to the day (dawn + 1) by night, across midnight', () => {
     // Astron (3): dawn hour 7, the day 8:00 → 20:00.
     const day = clockAt(2973, 3, 12, 19, 55, 'minute').nextTransition(T)!;
-    expect(day).toEqual({ period: 'day', at: T + 5 * 1000, precision: 'minute' });
+    expect(day).toEqual({ period: 'day', at: T + 5 * 1000, from: T - 715 * 1000, precision: 'minute' });
     // the dusk hour is still day
     const dusk = clockAt(2973, 3, 12, 19, 0, 'minute').nextTransition(T)!;
-    expect(dusk).toEqual({ period: 'day', at: T + 60 * 1000, precision: 'minute' });
+    expect(dusk).toEqual({ period: 'day', at: T + 60 * 1000, from: T - 660 * 1000, precision: 'minute' });
     const night = clockAt(2973, 3, 12, 20, 0, 'minute').nextTransition(T)!;
-    expect(night).toEqual({ period: 'night', at: T + 12 * 60 * 1000, precision: 'minute' });
+    expect(night).toEqual({ period: 'night', at: T + 12 * 60 * 1000, from: T, precision: 'minute' });
     const early = clockAt(2973, 3, 12, 5, 30, 'minute').nextTransition(T)!;
     expect(early.period).toBe('night');
     expect(early.at).toBe(T + 150 * 1000);
@@ -188,13 +189,13 @@ describe('transitions and the strip text', () => {
   it('the dawn hour is still night; the day begins an hour later (item 59)', () => {
     // Solmath (1): dawn hour 9, day from 10:00, dusk 17.
     const before = clockAt(2973, 1, 11, 8, 59, 'minute').nextTransition(T)!;
-    expect(before).toEqual({ period: 'night', at: T + 61 * 1000, precision: 'minute' });
+    expect(before).toEqual({ period: 'night', at: T + 61 * 1000, from: T - 899 * 1000, precision: 'minute' });
     const dawn = clockAt(2973, 1, 11, 9, 0, 'minute').nextTransition(T)!;
-    expect(dawn).toEqual({ period: 'night', at: T + 60 * 1000, precision: 'minute' });
+    expect(dawn).toEqual({ period: 'night', at: T + 60 * 1000, from: T - 900 * 1000, precision: 'minute' });
     const last = clockAt(2973, 1, 11, 9, 59, 'minute').nextTransition(T)!;
-    expect(last).toEqual({ period: 'night', at: T + 1000, precision: 'minute' });
+    expect(last).toEqual({ period: 'night', at: T + 1000, from: T - 959 * 1000, precision: 'minute' });
     const begun = clockAt(2973, 1, 11, 10, 0, 'minute').nextTransition(T)!;
-    expect(begun).toEqual({ period: 'day', at: T + 8 * 3600 * 1000 / 60, precision: 'minute' });
+    expect(begun).toEqual({ period: 'day', at: T + 8 * 3600 * 1000 / 60, from: T, precision: 'minute' });
     // hour precision in the dawn hour: ~1 to the day
     const h = clockAt(2973, 1, 11, 9, 0, 'hour').nextTransition(T)!;
     expect(h).toMatchObject({ period: 'night', at: T + 60 * 1000 });
@@ -217,11 +218,11 @@ describe('transitions and the strip text', () => {
   it('the dusk hour is still day; the night begins an hour later (item 61)', () => {
     // Solmath (1): dusk hour 17 ("The sun slowly disappears"), night from 18:00 ("The night has begun.").
     const set = clockAt(2973, 1, 11, 17, 0, 'minute').nextTransition(T)!;
-    expect(set).toEqual({ period: 'day', at: T + 60 * 1000, precision: 'minute' });
+    expect(set).toEqual({ period: 'day', at: T + 60 * 1000, from: T - 420 * 1000, precision: 'minute' });
     const last = clockAt(2973, 1, 11, 17, 59, 'minute').nextTransition(T)!;
-    expect(last).toEqual({ period: 'day', at: T + 1000, precision: 'minute' });
+    expect(last).toEqual({ period: 'day', at: T + 1000, from: T - 479 * 1000, precision: 'minute' });
     const begun = clockAt(2973, 1, 11, 18, 0, 'minute').nextTransition(T)!;
-    expect(begun).toEqual({ period: 'night', at: T + (6 * 60 + 10 * 60) * 1000, precision: 'minute' });
+    expect(begun).toEqual({ period: 'night', at: T + (6 * 60 + 10 * 60) * 1000, from: T, precision: 'minute' });
   });
 
   it('nightBeginsAt: the start of this night (the evening before, after midnight), or of the coming one by day', () => {
@@ -239,6 +240,51 @@ describe('transitions and the strip text', () => {
     expect(nightBeginsAt(clockAt(2973, 1, 11, 17, 0, 'hour').state, T)).toBeNull();
   });
 
+  it('the period began: minute precision, across midnight and into a new month and year', () => {
+    // Astron (3): day 8:00 → 20:00, night 20:00 → 8:00.
+    expect(clockAt(2973, 3, 12, 8, 0, 'minute').nextTransition(T)!.from).toBe(T);
+    expect(clockAt(2973, 3, 12, 14, 30, 'minute').nextTransition(T + 700)!.from).toBe(T - 390_000);
+    expect(clockAt(2973, 3, 12, 23, 10, 'minute').nextTransition(T)!.from).toBe(T - 190_000);
+    // after midnight: the evening before (20:00), 6 h 10 min ago
+    expect(clockAt(2973, 3, 12, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - 370_000);
+    // the 1st of Astron after midnight: the last evening of Rethe (dusk 18, night 19)
+    expect(clockAt(2973, 3, 1, 2, 10, 'minute').nextTransition(T)!.from).toBe(T - (5 * 60 + 2 * 60 + 10) * 1000);
+    // the 1st of Afteryule: the last evening of Foreyule the year before (dusk 19, night 20)
+    const ny = clockAt(2974, 0, 1, 3, 0, 'minute').nextTransition(T)!;
+    expect(ny.from).toBe(T - (4 * 60 + 3 * 60) * 1000);
+    expect(ny.at).toBe(T + (DAWN[0]! + 1 - 3) * 60_000);
+    // a night that starts on day 30 ends in the next month: the whole night is one period
+    const eom = clockAt(2973, 2, 30, 23, 0, 'minute').nextTransition(T)!;
+    expect(eom.at - eom.from).toBe((24 - (DUSK[2]! + 1) + DAWN[3]! + 1) * 60_000);
+  });
+
+  it('the period began: hour precision counts from the start of the game hour', () => {
+    // Astron 14:xx, hour precision: the day began 6 game hours before :00.
+    const h = clockAt(2973, 3, 12, 14, 0, 'hour');
+    const t0 = h.nextTransition(T)!;
+    expect(t0.from).toBe(T - 6 * 60_000);
+    expect(t0.at).toBe(T + 6 * 60_000);
+    // 40 s (game minutes) later the same estimate, moved with the wall clock
+    const t1 = h.nextTransition(T + 40_000)!;
+    expect(t1.at - t1.from).toBe(12 * 60_000);
+    expect(periodLeft(t1, T + 40_000)).toBe(0.5);
+    // after midnight at hour precision, on the 1st (Rethe's last evening: night 19)
+    const n = clockAt(2973, 3, 1, 2, 0, 'hour').nextTransition(T)!;
+    expect(n.period).toBe('night');
+    expect(n.from).toBe(T - 7 * 60_000);
+    expect(n.at).toBe(T + 6 * 60_000);
+  });
+
+  it('periodLeft: 1 as the period begins, 0 at the change, clamped', () => {
+    const t = { period: 'day' as const, at: T + 600_000, from: T - 120_000, precision: 'minute' as const };
+    expect(periodLeft(t, T - 120_000)).toBe(1);
+    expect(periodLeft(t, T + 240_000)).toBe(0.5);
+    expect(periodLeft(t, T + 600_000)).toBe(0);
+    expect(periodLeft(t, T + 700_000)).toBe(0);
+    expect(periodLeft(t, T - 500_000)).toBe(1);
+    expect(periodLeft({ ...t, from: t.at }, T)).toBe(0);
+  });
+
   it('hour precision ignores the minute; day and unset have none', () => {
     const h = clockAt(2973, 3, 12, 16, 0, 'hour').nextTransition(T + 20_000)!;
     expect(h.precision).toBe('hour');
@@ -248,7 +294,7 @@ describe('transitions and the strip text', () => {
   });
 
   it('formats H:MM and ~N', () => {
-    const t = { period: 'day' as const, at: T + 273_000, precision: 'minute' as const };
+    const t = { period: 'day' as const, at: T + 273_000, from: T - 207_000, precision: 'minute' as const };
     expect(countdownText(t, T)).toBe('4:33');
     expect(countdownText(t, T + 268_000)).toBe('0:05');
     expect(countdownText(t, T + 400_000)).toBe('0:00');

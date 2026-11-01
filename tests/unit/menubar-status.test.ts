@@ -74,18 +74,18 @@ describe('tooltip texts', () => {
 
   it('counts the clock down to the next change', () => {
     const now = 1_000_000;
-    const day: Transition = { period: 'day', at: now + 273_000, precision: 'minute' };
+    const day: Transition = { period: 'day', at: now + 273_000, from: now - 207_000, precision: 'minute' };
     expect(clockTip(day, now)).toBe('Night in 4:33');
-    const night: Transition = { period: 'night', at: now + 61_000, precision: 'minute' };
+    const night: Transition = { period: 'night', at: now + 61_000, from: now - 659_000, precision: 'minute' };
     expect(clockTip(night, now)).toBe('Day in 1:01');
-    expect(clockTip({ period: 'night', at: now + 150_000, precision: 'hour' }, now)).toBe('Day in ~3 game hours');
-    expect(clockTip({ period: 'day', at: now + 30_000, precision: 'hour' }, now)).toBe('Night in ~1 game hour');
+    expect(clockTip({ period: 'night', at: now + 150_000, from: now - 600_000, precision: 'hour' }, now)).toBe('Day in ~3 game hours');
+    expect(clockTip({ period: 'day', at: now + 30_000, from: now - 600_000, precision: 'hour' }, now)).toBe('Night in ~1 game hour');
   });
 
   it('says how to set an unknown clock, and adds the capture state', () => {
     expect(clockTip(null, 0)).toBe('Game clock unknown: type time');
     expect(clockTip(null, 0, 'capture: recording')).toBe('Game clock unknown: type time · capture: recording');
-    expect(clockTip({ period: 'day', at: 273_000, precision: 'minute' }, 0, 'capture: idle')).toBe('Night in 4:33');
+    expect(clockTip({ period: 'day', at: 273_000, from: -207_000, precision: 'minute' }, 0, 'capture: idle')).toBe('Night in 4:33');
   });
 });
 

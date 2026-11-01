@@ -22,7 +22,8 @@
 // Cockpit's 2026 logs).
 //
 // The input-line strip shows the time to the next day/night change
-// (`nextTransition`, `stripText`); the Character pane no longer shows it.
+// (`nextTransition`, `countdownText`); the menu bar shows the part of the
+// period left as a ring (`periodLeft`); the Character pane no longer shows it.
 
 /** localStorage key of the clock state (saved by src/gmcp/state.ts). */
 export const CLOCK_KEY = 'wc.clock';
@@ -149,11 +150,16 @@ export function hour24(h: number, ampm: string): number {
 
 export type Period = 'day' | 'night';
 
-/** The next day/night change: the current period and when it ends (ms). */
+/** The next day/night change: the current period, when it began and when it ends (ms). */
 export interface Transition {
   period: Period;
   /** Unix ms of the change. */
   at: number;
+  /**
+   * Unix ms the current period began, at the same precision as `at` (at
+   * hour precision both are counted from the start of the game hour).
+   */
+  from: number;
   precision: 'hour' | 'minute';
 }
 
@@ -322,7 +328,11 @@ export class ClockModel {
     return true;
   }
 
-  /** The next day/night change, or null below hour precision. */
+  /**
+   * The next day/night change and the start of the current period, or null
+   * below hour precision. At hour precision the minute is taken as :00, so
+   * `at` and `from` step once per game hour.
+   */
   nextTransition(nowMs: number): Transition | null {
     const p = this.state.precision;
     if (p !== 'hour' && p !== 'minute') return null;
@@ -330,22 +340,38 @@ export class ClockModel {
     const minute = p === 'minute' ? m.minute : 0;
     const t = m.hour * 60 + minute;
     let until: number;
+    let since: number;
     let period: Period;
     if (isDay(m.month, m.hour)) {
       period = 'day';
       until = nightHour(m.month) * 60 - t;
+      since = t - dayHour(m.month) * 60;
     } else if (m.hour < dayHour(m.month)) {
+      // After midnight: the night began the evening before (the month before on the 1st).
       period = 'night';
       until = dayHour(m.month) * 60 - t;
+      const prev = m.day === 1 ? (m.month + 11) % 12 : m.month;
+      since = t + 24 * 60 - nightHour(prev) * 60;
     } else {
       period = 'night';
       const next = m.day === 30 ? (m.month + 1) % 12 : m.month;
       until = 24 * 60 - t + dayHour(next) * 60;
+      since = t - nightHour(m.month) * 60;
     }
     // Game minutes are real seconds; count from the start of this second.
-    const at = (Math.floor(nowMs / 1000) + until) * 1000;
-    return { period, at, precision: p };
+    const s = Math.floor(nowMs / 1000);
+    return { period, at: (s + until) * 1000, from: (s - since) * 1000, precision: p };
   }
+}
+
+/**
+ * The part of the current period still left at `nowMs`, 0–1: 1 as the
+ * period begins, 0 at the change (the menu bar's time-left ring).
+ */
+export function periodLeft(t: Transition, nowMs: number): number {
+  const len = t.at - t.from;
+  if (len <= 0) return 0;
+  return Math.min(1, Math.max(0, (t.at - nowMs) / len));
 }
 
 /**
