@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // Stage 7 player modes (ADR 0019): PlayerHost shows comments and blanks in
 // the output pane; PlayerView's options (header provider, extra keys,
-// overlay, startHidden, box buttons, onEsc) and the cursor skipping blanks.
+// startHidden, box buttons, Close, onEsc) and the cursor skipping blanks.
 import { describe, expect, it } from 'vitest';
 import { PlayerHost, type PlayerOpenOptions } from '../../src/app/player-host';
 import { SettingsStore } from '../../src/settings';
@@ -71,7 +71,7 @@ describe('PlayerHost comments and blanks', () => {
     let guard = 0;
     while (host.playerView!.cursorLine!.textContent !== 'Two.' && guard++ < 20) key('ArrowUp');
     expect(host.playerView!.cursorLine!.textContent).toBe('Two.');
-    key('Home');
+    host.playerView!.moveCursor(-Infinity);
     expect(host.playerView!.cursorLine!.classList.contains('wc-blank')).toBe(false);
     host.dispose();
   });
@@ -91,12 +91,10 @@ describe('PlayerView options', () => {
     host.dispose();
   });
 
-  it('takes a header provider, extra keys, an overlay, box buttons and onEsc; starts hidden', async () => {
+  it('takes a header provider, extra keys, box buttons, no Close and onEsc; starts hidden', async () => {
     const seen: string[] = [];
     let esc = 0;
     let fs = false;
-    const overlay = document.createElement('div');
-    overlay.className = 'info';
     const { root, host, closed } = open({
       view: {
         header: (run) => ({
@@ -111,18 +109,20 @@ describe('PlayerView options', () => {
           seen.push('right');
           return true;
         },
-        overlay: { el: overlay },
         startHidden: true,
-        stripHoverTime: true,
-        boxButtons: [{ label: () => (fs ? 'Exit fullscreen' : 'Fullscreen'), onClick: () => (fs = !fs) }],
+        railHoverTime: true,
+        closeTitle: null,
+        boxButtons: [
+          { label: () => (fs ? 'Exit fullscreen' : 'Fullscreen'), icon: () => (fs ? 'fullscreenExit' : 'fullscreen'), onClick: () => (fs = !fs) },
+        ],
         onEsc: () => esc++,
       },
     });
     await frame();
     const chrome = root.querySelector('.wc-player-chrome')!;
     expect(chrome.hasAttribute('data-hidden')).toBe(true);
-    expect(overlay.parentElement).toBe(host.el);
-    expect(overlay.hasAttribute('data-hidden')).toBe(true);
+    // No Close button (closeTitle null): the replay's box.
+    expect(root.querySelector('[data-act="close"]')).toBeNull();
     expect(root.querySelector('.wc-player-head-left')!.textContent).toBe('SPOT 1 · X');
     // happy-dom has no layout: give the player a size so the hints fit.
     Object.defineProperty(host.el, 'clientWidth', { value: 1200 });
@@ -135,16 +135,16 @@ describe('PlayerView options', () => {
     key('ArrowRight');
     expect(seen).toEqual(['click', 'right']);
     expect(chrome.hasAttribute('data-hidden')).toBe(false); // a key shows the chrome
-    expect(overlay.hasAttribute('data-hidden')).toBe(false);
     key('Escape');
     expect(esc).toBe(1);
     expect(closed()).toBe(0);
-    const btn = [...root.querySelectorAll<HTMLElement>('.wc-player-btn')].find((b) => b.textContent === 'Fullscreen')!;
+    const btn = root.querySelector<HTMLElement>('[data-act="extra"]')!;
+    expect(btn.getAttribute('aria-label')).toBe('Fullscreen');
     btn.click();
     expect(fs).toBe(true);
     await frame();
-    expect([...root.querySelectorAll('.wc-player-btn')].some((b) => b.textContent === 'Exit fullscreen')).toBe(true);
+    expect(btn.getAttribute('aria-label')).toBe('Exit fullscreen');
     host.dispose();
-    expect(overlay.isConnected).toBe(false);
+    expect(root.querySelector('.wc-player-chrome')).toBeNull();
   });
 });

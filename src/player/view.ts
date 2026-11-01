@@ -1,63 +1,51 @@
-// The in-app log player chrome (Inv §7.5, ADR 0018): header, right-edge
-// strip with the gold playhead, K/D/A/L markers, control box, auto-hide,
+// The log player chrome (Inv §7.5, ADR 0018; the look of stage 32c, ADR
+// 0114): header, the right-edge rail with the gold playhead, the kind-icon
+// markers, the control box with its Panes and Display popups, auto-hide,
 // the pause cursor line and the keys. It drives a PlayerEngine and reads
 // the current player App's output pane; the engine and the timeline know
-// nothing about it (the stage 7 HTML replay brings its own chrome).
+// nothing about it. The in-app player, the Spotlights reel and the HTML
+// replay all use it.
 //
 //   .wc-player-chrome           over the whole player (pointer-events none)
-//     .wc-player-header         top row: `<char> (L<lvl>) · Run X of Y · date`, key hints
-//     .wc-player-marks          markers, 5 cols left of the strip
-//     .wc-player-strip          right edge, 2 cols, full height
-//     .wc-player-box            control box, 8 cols in from the right, 1 row up
-//     .wc-player-hint           `MM:SS` beside the pointer while dragging the strip
+//     .wc-player-header         top line: `<char> (L<lvl>) · Run X of Y · date`, key hints, on dark chips
+//     .wc-player-marks          kind icons left of the rail, one marker per slot
+//     .wc-player-rail           right edge, RAIL_W px: track, played part, gold playhead
+//     .wc-player-box            the control box (ghost look), bottom right
+//       .wc-pc-row              To the start, −10 s, Play/Pause, +10 s, speed ◄ 1× ►, time,
+//                               Panes, Display, the mode's buttons, Close
+//       .wc-pc-pop              the Panes or the Display popup, above the box
+//     .wc-player-hint           `MM:SS` beside the pointer while dragging the rail
 //     .wc-player-tip            a marker's events, left of the marker under the pointer
 //
 // Modes. Play: the output follows the tail, the chrome hides 6 s after the
-// last key or mouse move. Pause: the chrome stays, and a cursor line
-// (`bg #303030`) starts on the last line; ↑/↓, PgUp/PgDn (±20), Home/End
-// and the wheel move it, a click on a line sets it. Space resumes from the
-// cursor line's time (a backward seek unless it is still the last line).
-// Those keys pause first when playing. `1`–`6` set the speed, ESC goes
-// back. While the player is open it owns the keyboard: a window capture
-// listener stops every key from reaching the (hidden) input panes.
+// last key or mouse move (not while a popup is open). Pause: the chrome
+// stays, and a cursor line (`bg #303030`) starts on the last line; ↑/↓,
+// PgUp/PgDn (±20), End and the wheel move it, a click on a line sets it.
+// Space resumes from the cursor line's time (a backward seek unless it is
+// still the last line). Those keys pause first when playing. ← / → (with
+// or without Shift) go back or forward 10 s, Home to the start, `1`–`6`
+// set the speed, ESC closes an open popup, then goes back. While the
+// player is open it owns the keyboard: a window capture listener stops
+// every key from reaching the (hidden) input panes; keys whose target is
+// inside a `data-wc-own-keys` element (a popup, the Spotlights card) are
+// left to it.
 //
-// Modes (stage 7, ADR 0019 "PlayerView options"). The view is configured,
-// so the HTML replay and the Spotlights reel add their modes in their own
-// files: the header's parts and hints come from `header` (`runHeader` is
-// the in-app player's), `keys` sees every key first, `overlay` is an extra
-// layer (the spotlight info box) hidden with the chrome or always shown,
-// `startHidden` starts with the chrome hidden until the user moves or
-// presses something, `stripHoverTime` shows `MM:SS` beside the pointer over
-// the strip, `boxButtons` adds a row of buttons to the control box, and
-// `onEsc` is ESC.
+// Mode options (ADR 0019 "PlayerView options"): the header's parts and
+// hints come from `header` (`runHeader` is the in-app player's), `keys`
+// sees every key first (the reel takes plain ← →), `startHidden` starts
+// with the chrome hidden until the user moves or presses something,
+// `railHoverTime` shows `MM:SS` beside the pointer over the rail,
+// `boxButtons` adds icon buttons before Close (the replay's Fullscreen),
+// `closeTitle` adds Close (absent: none, the replay), `shiftSeek` names
+// Shift+← → in the ±10 s tooltips, and `onEsc` is ESC.
 //
-// Viewer settings (stage 8, ADR 0021): with `settings`, a gear `⚙` ends the
-// control box's first row. It folds a settings section into the box, above
-// the transport row:
-//
-//   ┌──────────────────────────────┐
-//   │ Panes                        │
-//   │ [X] Character  [X] Timers    │
-//   │ [X] Group      [X] Comm      │
-//   │ [X] UI         [ ] Map       │
-//   │ Font      ◄ Default ►        │
-//   │ Colours   ◄ Default ►        │
-//   │ Reset layout                 │
-//   ├──────────────────────────────┤
-//   │ ◄◄ Rewind  ► Play    1x    ⚙ │
-//   │        00:12 / 02:02         │
-//   └──────────────────────────────┘
-//
-// The chrome auto-hides with it open as without; ESC folds it first. The
-// box takes the pointer (clicks and the wheel there never reach the stage
-// or move the pause cursor). The gear cell is one cell wide whatever font
-// draws it (JetBrains Mono has no ⚙; DejaVu Sans Mono does).
-//
-// A mode's own gear (`gear`, the Spotlights reel's settings popup, ADR
-// 0110) takes the same cell instead and calls the mode; the mode marks it
-// while its popup is open (`setGearOn`), and the chrome does not auto-hide
-// then. Keys whose target is inside a `data-wc-own-keys` element (a popup)
-// are left to it.
+// Viewer settings (ADR 0021, as 0114): with `settings`, Display (font size
+// and colours) and, when it has panes, Panes (pane toggles and Reset
+// layout) open popups above the box. The box takes the pointer (clicks and
+// the wheel there never reach the stage or move the pause cursor). A popup
+// opened from the keyboard takes the focus; opened by a press it leaves
+// the keys with the player. The box buttons never take the focus on a
+// press, so Space after a click still plays or pauses.
 
 import './player.css';
 import type { OutputPane } from '../ui/output-pane';
@@ -66,39 +54,47 @@ import {
   type HeaderHint,
   HINTS,
   HINT_SEP,
-  STRIP_COLS,
-  type PlacedMark,
-  fitHints,
-  hintsWidth,
+  MARK_SLOT,
   type MarkRow,
+  type PlacedMark,
+  RAIL_PAD,
+  RAIL_W,
+  fitHints,
   fmtClock,
   fmtDateTime,
   fmtSpeed,
+  hintsWidth,
   markRows,
-  stripCells,
+  railFraction,
   yToOffset,
 } from './strip';
 import { SPEEDS } from './engine';
 import { playAtLogUs } from './timeline';
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
+import { closeButton, focusPopup, popupKey, pressPopup } from '../menubar/popup';
+import { LETTER_KIND, type PlayerIconName, kindIcon, playerIcon, tenIcon } from './icons';
+import type { ViewerFont, ViewerTheme } from './viewer';
 
 /** Chrome hides this long after the last activity in play, ms. */
 export const HIDE_MS = 6000;
 /** Cursor step of PgUp / PgDn, lines. */
 export const PAGE_STEP = 20;
+/** ← / → step, ms. */
+export const SKIP_MS = 10_000;
 /** Header width in cells (centred); wider only as far as the full hint list needs. */
 const HEADER_COLS = 80;
-/** Least gap between the header's left part and the hints, cells. */
+/** Least gap between the header's left part and the hints, cells; and each chip's padding (both sides), cells. */
 const HEADER_GAP = 2;
-/** Control box: cells in from the right edge, rows up from the bottom. */
-const BOX_RIGHT = 8;
-const BOX_BOTTOM = 1;
-const BOX_INNER = 30;
-/** Settings section: the pane toggles' column width, and the name column of Font / Colours. */
-const TOGGLE_W = 15;
-const NAME_W = 10;
-/** Width of a cycled value (`Default`, `Medium` …). */
-const VALUE_W = 7;
+const CHIP_PAD = 2;
+/** The control box: px in from the rail (roomy, and compact on a narrow player), and up from the bottom. */
+const BOX_RIGHT = 28;
+const BOX_RIGHT_COMPACT = 24;
+const BOX_BOTTOM = 12;
+/** Least space left of the box, px. */
+const BOX_MARGIN = 8;
+/** A popup's gap above the box, and its least margin to the player's top, px. */
+const POP_GAP = 8;
+const POP_TOP = 6;
 
 /** What the in-app log player's header shows (`runHeader`). */
 export interface PlayerHeader {
@@ -136,9 +132,11 @@ export function runHeader(h: PlayerHeader, onEsc: () => void): PlayerHeaderModel
   };
 }
 
-/** A button in the control box's extra row. */
+/** An icon button of the mode's own, before Close (the replay's Fullscreen). */
 export interface BoxButton {
+  /** Tooltip and accessible name. */
   label: () => string;
+  icon: () => PlayerIconName;
   onClick: () => void;
 }
 
@@ -158,44 +156,70 @@ export interface PlayerViewOptions {
   onEsc: () => void;
   /** Extra keys, before the player's own; true = handled (the view then prevents the default). */
   keys?: (e: KeyboardEvent) => boolean;
-  /** An extra layer over the player, hidden with the chrome unless `keepVisible`. */
-  overlay?: { el: HTMLElement; keepVisible?: boolean };
   /** Start with the chrome hidden; the first key or pointer move shows it. */
   startHidden?: boolean;
-  /** `MM:SS` beside the pointer while it hovers over the strip. */
-  stripHoverTime?: boolean;
-  /** Buttons of an extra control box row (above the clock). */
+  /** `MM:SS` beside the pointer while it hovers over the rail. */
+  railHoverTime?: boolean;
+  /** Icon buttons of the mode, before Close. */
   boxButtons?: BoxButton[];
-  /** The gear and its settings section (ADR 0021). */
+  /** The Close button's tooltip; absent or null = no Close button. */
+  closeTitle?: string | null;
+  /** ±10 s is Shift+← → (the reel's plain arrows step spotlights). */
+  shiftSeek?: boolean;
+  /** Display, and Panes when it has panes (ADR 0021, 0114). */
   settings?: ViewerControls;
-  /** A mode's own gear in the same place, instead of `settings` (the reel, ADR 0110). */
-  gear?: PlayerGear;
   /** Auto-hide delay (tests). */
   hideMs?: number;
 }
 
-/** A mode's gear: its tooltip, and what a click does (given the gear and the control box). */
-export interface PlayerGear {
-  title: string;
-  onClick: (gear: HTMLElement, box: HTMLElement) => void;
-}
-
-/** The viewer settings the control box's gear shows (PlayerHost implements it). */
-export interface ViewerControls {
-  /** `wide`: a row of its own, the label cut to fit (script panes). */
-  panes: () => ReadonlyArray<{ id: string; label: string; on: boolean; wide?: boolean }>;
-  togglePane: (id: string) => void;
-  /** Current font / theme choice, as shown. */
-  font: () => string;
-  cycleFont: (dir: 1 | -1) => void;
-  theme: () => string;
-  cycleTheme: (dir: 1 | -1) => void;
-  /** Something to reset (the reset button is dim otherwise). */
+/** The pane part of the viewer settings (the Panes popup). */
+export interface ViewerPanes {
+  /** `wide`: a script pane (its label may be cut). */
+  list: () => ReadonlyArray<{ id: string; label: string; on: boolean; wide?: boolean }>;
+  toggle: (id: string) => void;
+  /** Something to reset (the button is dim otherwise). */
   canReset: () => boolean;
   reset: () => void;
 }
 
-type Act = 'rewind' | 'play' | 'speed' | 'settings';
+/** The viewer settings the box's popups show (PlayerHost implements it). */
+export interface ViewerControls {
+  /** Absent: no Panes button (the reel shows no panes, ADR 0032). */
+  panes?: ViewerPanes;
+  font: () => ViewerFont;
+  setFont: (f: ViewerFont) => void;
+  theme: () => ViewerTheme;
+  setTheme: (t: ViewerTheme) => void;
+  /** A theme's swatch: its background (Default: the recorded one). */
+  swatch: (t: ViewerTheme) => string;
+}
+
+/** Display's choices, in order. */
+const FONT_CHOICES: ReadonlyArray<[ViewerFont, string]> = [
+  ['default', 'Default'],
+  ['small', 'Small'],
+  ['medium', 'Medium'],
+  ['large', 'Large'],
+];
+const THEME_CHOICES: ReadonlyArray<[ViewerTheme, string]> = [
+  ['default', 'Default'],
+  ['dark', 'Dark'],
+  ['teal', 'Teal'],
+  ['paper', 'Paper'],
+  ['sepia', 'Sepia'],
+  ['slate', 'Slate'],
+];
+
+export type PlayerPopup = 'panes' | 'display';
+
+type Act = 'start' | 'back' | 'play' | 'fwd' | 'slower' | 'faster' | 'panes' | 'display' | 'close';
+
+interface Popup {
+  el: HTMLDivElement;
+  body: HTMLDivElement;
+  btn: HTMLButtonElement;
+  sig: string;
+}
 
 export class PlayerView {
   readonly el: HTMLDivElement;
@@ -206,17 +230,18 @@ export class PlayerView {
   private readonly headLeft: HTMLSpanElement;
   private readonly headHints: HTMLSpanElement;
   private readonly marksEl: HTMLDivElement;
-  private readonly stripEl: HTMLDivElement;
+  private readonly railEl: HTMLDivElement;
+  private readonly railDone: HTMLDivElement;
+  private readonly railHead: HTMLDivElement;
   private readonly boxEl: HTMLDivElement;
-  private readonly boxPlay: HTMLSpanElement;
-  private readonly boxSpeed: HTMLSpanElement;
-  private readonly boxClock: HTMLDivElement;
-  private readonly boxExtra: HTMLDivElement | null = null;
-  private readonly boxGear: HTMLSpanElement | null = null;
-  private readonly settingsEl: HTMLDivElement;
-  private settingsOpen = false;
-  /** The mode's gear popup is open: the chrome stays (`setGearOn`). */
-  private pinned = false;
+  private readonly btnPlay: HTMLButtonElement;
+  private readonly btnSlower: HTMLButtonElement;
+  private readonly btnFaster: HTMLButtonElement;
+  private readonly speedEl: HTMLSpanElement;
+  private readonly clockEl: HTMLSpanElement;
+  private readonly extraBtns: HTMLButtonElement[] = [];
+  private readonly popups = new Map<PlayerPopup, Popup>();
+  private openPop: PlayerPopup | null = null;
   private readonly hintEl: HTMLDivElement;
   private readonly tipEl: HTMLDivElement;
   private readonly unsubs: Array<() => void> = [];
@@ -224,11 +249,14 @@ export class PlayerView {
   private raf: number | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private shown = true;
-  private stripSig = '';
+  private railSig = '';
   private marksSig = '';
   private headSig = '';
   private boxSig = '';
-  /** Strip drag: pointer id and the previewed offset. */
+  /** The box is compact (no time, smaller buttons) on a narrow player; its full width, px, once measured. */
+  private compact = false;
+  private fullBoxW = 0;
+  /** Rail drag: pointer id and the previewed offset. */
   private drag: { id: number; offset: number } | null = null;
   private cursor: HTMLElement | null = null;
   /** The cursor was moved since the pause (Space then resumes from it). */
@@ -243,50 +271,83 @@ export class PlayerView {
     this.o = opts;
     this.doc = opts.root.ownerDocument;
     this.win = this.doc.defaultView!;
+    const doc = this.doc;
     const div = (cls: string): HTMLDivElement => {
-      const d = this.doc.createElement('div');
+      const d = doc.createElement('div');
       d.className = cls;
       return d;
     };
     this.el = div('wc-player-chrome');
     this.headerEl = div('wc-player-header');
-    this.headLeft = this.doc.createElement('span');
+    this.headLeft = doc.createElement('span');
     this.headLeft.className = 'wc-player-head-left';
-    this.headHints = this.doc.createElement('span');
+    this.headHints = doc.createElement('span');
     this.headHints.className = 'wc-player-hints';
     this.headerEl.append(this.headLeft, this.headHints);
     this.marksEl = div('wc-player-marks');
-    this.stripEl = div('wc-player-strip');
+    this.railEl = div('wc-player-rail');
+    const track = div('wc-player-rail-track');
+    this.railDone = div('wc-player-rail-done');
+    track.append(this.railDone);
+    this.railHead = div('wc-player-rail-head');
+    this.railEl.append(track, this.railHead);
+    this.railEl.style.setProperty('--rail-pad', `${RAIL_PAD}px`);
+
+    // The control box.
     this.boxEl = div('wc-player-box');
-    const row1 = div('wc-player-box-row');
-    const rewind = this.button('rewind', '◄◄ Rewind');
-    this.boxPlay = this.button('play', '');
-    this.boxSpeed = this.button('speed', '');
-    if (opts.settings || opts.gear) {
-      this.boxGear = this.button('settings', '⚙');
-      this.boxGear.classList.add('wc-player-gear');
-      this.boxGear.title = opts.gear?.title ?? 'Viewer settings';
-      row1.append('│ ', rewind, '  ', this.boxPlay, '  ', this.boxSpeed, ' ', this.boxGear, ' │');
-    } else row1.append('│ ', rewind, '  ', this.boxPlay, '  ', this.boxSpeed, '   │');
-    this.settingsEl = div('wc-player-settings');
-    this.settingsEl.hidden = true;
-    this.boxClock = div('wc-player-box-row wc-player-clock');
-    const top = div('wc-player-box-frame');
-    top.textContent = '┌' + '─'.repeat(BOX_INNER) + '┐';
-    const bottom = div('wc-player-box-frame');
-    bottom.textContent = '└' + '─'.repeat(BOX_INNER) + '┘';
-    if (opts.boxButtons?.length) {
-      this.boxExtra = div('wc-player-box-row');
-      this.boxEl.append(top, this.settingsEl, row1, this.boxExtra, this.boxClock, bottom);
-    } else this.boxEl.append(top, this.settingsEl, row1, this.boxClock, bottom);
+    const row = div('wc-pc-row');
+    const seekKey = (dir: string): string => (opts.shiftSeek ? `Shift+${dir}` : dir);
+    const start = this.button('start', 'To the start (Home)', playerIcon(doc, 'start'));
+    const back = this.button('back', `Back 10 s (${seekKey('←')})`, tenIcon(doc, 'back'));
+    this.btnPlay = this.button('play', 'Play / pause (Space)', playerIcon(doc, 'pause'), 'wc-pc-play');
+    const fwd = this.button('fwd', `Forward 10 s (${seekKey('→')})`, tenIcon(doc, 'fwd'));
+    this.btnSlower = this.button('slower', 'Slower (1–6)', playerIcon(doc, 'prev'), 'wc-pc-ib wc-pc-sm');
+    this.btnFaster = this.button('faster', 'Faster (1–6)', playerIcon(doc, 'next'), 'wc-pc-ib wc-pc-sm');
+    this.speedEl = doc.createElement('span');
+    this.speedEl.className = 'wc-player-speed';
+    this.speedEl.title = 'Speed (1–6)';
+    const speed = doc.createElement('span');
+    speed.className = 'wc-pc-speed';
+    speed.append(this.btnSlower, this.speedEl, this.btnFaster);
+    this.clockEl = doc.createElement('span');
+    this.clockEl.className = 'wc-player-clock';
+    const grow = doc.createElement('span');
+    grow.className = 'wc-pc-grow';
+    row.append(start, back, this.btnPlay, fwd, speed, this.clockEl, grow);
+    const tail: HTMLElement[] = [];
+    if (opts.settings?.panes) tail.push(this.popupButton('panes', 'Panes', 'panes'));
+    if (opts.settings) tail.push(this.popupButton('display', 'Display: font size and colours', 'display'));
+    for (const b of opts.boxButtons ?? []) {
+      const btn = this.iconButton('wc-pc-ib', b.label(), playerIcon(doc, b.icon()));
+      btn.dataset.act = 'extra';
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.touch();
+        b.onClick();
+        this.schedule();
+      });
+      this.extraBtns.push(btn);
+      tail.push(btn);
+    }
+    if (opts.closeTitle) tail.push(this.button('close', opts.closeTitle, playerIcon(doc, 'close')));
+    if (tail.length > 0) {
+      const vs = doc.createElement('span');
+      vs.className = 'wc-pc-vs';
+      row.append(vs, ...tail);
+    }
+    this.boxEl.append(row, ...[...this.popups.values()].map((p) => p.el));
     this.boxEl.addEventListener('wheel', this.onBoxWheel, { passive: false });
+    // A press on the box never moves the focus (keys stay with the player)
+    // and never reaches the stage (no cursor move).
+    row.addEventListener('mousedown', (e) => e.preventDefault());
+    this.boxEl.addEventListener('click', (e) => e.stopPropagation());
+
     this.hintEl = div('wc-player-hint');
     this.hintEl.hidden = true;
     this.tipEl = div('wc-player-tip');
     this.tipEl.hidden = true;
-    this.el.append(this.headerEl, this.marksEl, this.stripEl, this.boxEl, this.hintEl, this.tipEl);
+    this.el.append(this.headerEl, this.marksEl, this.railEl, this.boxEl, this.hintEl, this.tipEl);
     opts.root.appendChild(this.el);
-    if (opts.overlay) opts.root.appendChild(opts.overlay.el);
     this.quiet = opts.startHidden ?? false;
 
     this.wasPlaying = opts.engine.playing;
@@ -296,11 +357,11 @@ export class PlayerView {
     opts.root.addEventListener('pointerdown', this.onActivity);
     opts.root.addEventListener('wheel', this.onWheel, { passive: false });
     opts.root.addEventListener('click', this.onStageClick);
-    this.stripEl.addEventListener('pointerdown', this.onStripDown);
-    this.stripEl.addEventListener('pointermove', this.onStripMove);
-    this.stripEl.addEventListener('pointerup', this.onStripUp);
-    this.stripEl.addEventListener('pointercancel', this.onStripCancel);
-    this.stripEl.addEventListener('pointerleave', this.onStripLeave);
+    this.railEl.addEventListener('pointerdown', this.onRailDown);
+    this.railEl.addEventListener('pointermove', this.onRailMove);
+    this.railEl.addEventListener('pointerup', this.onRailUp);
+    this.railEl.addEventListener('pointercancel', this.onRailCancel);
+    this.railEl.addEventListener('pointerleave', this.onRailLeave);
     this.marksEl.addEventListener('click', this.onMarkClick);
     this.marksEl.addEventListener('pointerover', this.onMarkOver);
     this.marksEl.addEventListener('pointerout', this.onMarkOut);
@@ -313,16 +374,24 @@ export class PlayerView {
     this.render();
   }
 
-  /** Redraws on the next frame (a header that changed outside the engine's events). */
+  /** Redraws on the next frame (a header or setting that changed outside the engine's events). */
   refresh(): void {
     this.schedule();
   }
 
-  private button(act: Act, text: string): HTMLSpanElement {
-    const b = this.doc.createElement('span');
-    b.className = 'wc-player-btn';
+  private iconButton(cls: string, label: string, icon: SVGSVGElement): HTMLButtonElement {
+    const b = this.doc.createElement('button');
+    b.type = 'button';
+    b.className = cls;
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.append(icon);
+    return b;
+  }
+
+  private button(act: Act, label: string, icon: SVGSVGElement, cls = 'wc-pc-ib'): HTMLButtonElement {
+    const b = this.iconButton(cls, label, icon);
     b.dataset.act = act;
-    b.textContent = text;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       this.touch();
@@ -331,18 +400,91 @@ export class PlayerView {
     return b;
   }
 
+  /** A box button that opens popup `name`, and the popup (hidden). */
+  private popupButton(name: PlayerPopup, label: string, icon: PlayerIconName): HTMLButtonElement {
+    const doc = this.doc;
+    const btn = this.iconButton('wc-pc-ib', label, playerIcon(doc, icon));
+    btn.dataset.act = name;
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // From the keyboard (the button had the focus): the popup takes it.
+      const keyed = doc.activeElement === btn;
+      this.setPopup(this.openPop === name ? null : name, keyed);
+    });
+    const el = doc.createElement('div');
+    el.className = `wc-pc-pop wc-pc-pop-${name}`;
+    el.dataset.pop = name;
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', name === 'panes' ? 'Panes' : 'Display');
+    el.setAttribute(OWN_KEYS_ATTR, '');
+    el.tabIndex = -1;
+    el.hidden = true;
+    el.addEventListener('mousedown', (e) => pressPopup(e, el));
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.setPopup(null);
+        return;
+      }
+      if (popupKey(e, el)) e.preventDefault();
+    });
+    el.addEventListener('wheel', (e) => e.stopPropagation(), { passive: true });
+    const head = doc.createElement('div');
+    head.className = 'wc-pc-pop-head';
+    const title = doc.createElement('span');
+    title.className = 'wc-pc-pop-title';
+    title.textContent = name === 'panes' ? 'Panes' : 'Display';
+    head.append(title, closeButton(doc, () => this.setPopup(null)));
+    const body = doc.createElement('div');
+    body.className = 'wc-pc-pop-body';
+    el.append(head, body);
+    this.popups.set(name, { el, body, btn, sig: '' });
+    return btn;
+  }
+
   private act(a: Act): void {
     const eng = this.o.engine;
-    if (a === 'rewind') eng.seek(0);
-    else if (a === 'play') this.toggle();
-    else if (a === 'settings') {
-      if (this.o.gear && this.boxGear) this.o.gear.onClick(this.boxGear, this.boxEl);
-      else this.setSettingsOpen(!this.settingsOpen);
+    switch (a) {
+      case 'start':
+        this.seekTo(0);
+        break;
+      case 'back':
+        this.skip(-SKIP_MS);
+        break;
+      case 'fwd':
+        this.skip(SKIP_MS);
+        break;
+      case 'play':
+        this.toggle();
+        break;
+      case 'slower':
+      case 'faster': {
+        const i = SPEEDS.indexOf(eng.speed) + (a === 'faster' ? 1 : -1);
+        if (i >= 0 && i < SPEEDS.length) eng.setSpeed(SPEEDS[i]!);
+        break;
+      }
+      case 'close':
+        this.setPopup(null);
+        this.o.onEsc();
+        return;
+      default:
+        break;
     }
-    else {
-      const i = SPEEDS.indexOf(eng.speed);
-      eng.setSpeed(SPEEDS[(i + 1) % SPEEDS.length]!);
-    }
+    this.schedule();
+  }
+
+  /** Seeks to `ms` (clamped); the cursor line goes, paused stays paused. */
+  private seekTo(ms: number): void {
+    const eng = this.o.engine;
+    this.clearCursor();
+    eng.seek(Math.max(0, Math.min(eng.duration, ms)));
+  }
+
+  /** Back (−) or forward (+) `ms` from where it plays. */
+  skip(ms: number): void {
+    this.seekTo(this.o.engine.position + ms);
   }
 
   /** True while the chrome is shown (tests). */
@@ -350,37 +492,54 @@ export class PlayerView {
     return this.shown;
   }
 
-  /** True while the settings section is folded out. */
-  get settingsShown(): boolean {
-    return this.settingsOpen;
+  /** The open popup, or null. */
+  get popup(): PlayerPopup | null {
+    return this.openPop;
   }
 
-  /** The control box and its gear (a mode's popup is placed over them). */
+  /** The control box (tests). */
   get boxElement(): HTMLElement {
     return this.boxEl;
   }
 
-  get gearElement(): HTMLElement | null {
-    return this.boxGear;
-  }
-
-  /** Marks the mode's gear while its popup is open; the chrome stays shown meanwhile. */
-  setGearOn(on: boolean): void {
-    this.boxGear?.classList.toggle('is-on', on);
-    this.pinned = on;
+  /**
+   * Opens popup `name` (closing the other) or closes the open one (null).
+   * `focus`: it takes the focus (opened from the keyboard). The chrome
+   * stays shown while a popup is open.
+   */
+  setPopup(name: PlayerPopup | null, focus = false): void {
+    if (name !== null && !this.popups.has(name)) return;
+    const prev = this.openPop;
+    if (prev === name) return;
+    const doc = this.doc;
+    if (prev) {
+      const p = this.popups.get(prev)!;
+      const had = p.el.contains(doc.activeElement);
+      p.el.hidden = true;
+      p.btn.classList.remove('is-on');
+      p.btn.setAttribute('aria-expanded', 'false');
+      // The keys go back to the player.
+      if (had) (doc.activeElement as HTMLElement | null)?.blur?.();
+    }
+    this.openPop = name;
+    this.boxEl.toggleAttribute('data-popup', name !== null);
+    if (name) {
+      const p = this.popups.get(name)!;
+      p.sig = '';
+      this.renderPopup(name);
+      p.el.hidden = false;
+      p.btn.classList.add('is-on');
+      p.btn.setAttribute('aria-expanded', 'true');
+      this.placePopup(p);
+      if (focus) focusPopup(p.el);
+    }
     this.touch();
   }
 
-  /** Folds the settings section in or out (the gear). */
-  setSettingsOpen(on: boolean): void {
-    if (!this.o.settings || on === this.settingsOpen) return;
-    this.settingsOpen = on;
-    this.settingsEl.hidden = !on;
-    this.boxGear?.classList.toggle('is-on', on);
-    this.boxEl.toggleAttribute('data-settings', on);
-    this.boxSig = '';
-    this.touch();
-    this.schedule();
+  /** The popup's height is capped by the room above the box. */
+  private placePopup(p: Popup): void {
+    const room = this.boxEl.offsetTop - POP_GAP - POP_TOP;
+    p.el.style.maxHeight = room > 0 ? `${room}px` : '';
   }
 
   /** The pause cursor's line, or null. */
@@ -458,193 +617,280 @@ export class PlayerView {
     if (!(w > 0 && h > 0)) return;
     const W = this.o.root.clientWidth;
     const H = this.o.root.clientHeight;
-    const cols = Math.max(1, Math.floor(W / w));
-    const rows = Math.max(2, Math.floor(H / h));
+    const cols = Math.max(1, Math.floor((W - RAIL_W) / w));
     const dur = eng.duration;
     const pos = this.drag ? this.drag.offset : eng.position;
 
-    // Header.
-    const hd = this.o.header(eng.run);
-    const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
-    const full = hintsWidth(hd.hints.map((x) => x.text));
-    const hc = Math.max(1, Math.min(Math.max(HEADER_COLS, leftLen + HEADER_GAP + full), cols - STRIP_COLS));
-    const hints = fitHints(hc - leftLen - HEADER_GAP, hd.hints);
-    const headSig = `${JSON.stringify(hd)}|${hc}|${w}|${W}|${hints.join()}`;
-    if (headSig !== this.headSig) {
-      this.headSig = headSig;
-      this.headerEl.style.width = `${hc * w}px`;
-      this.headerEl.style.left = `${Math.max(0, Math.floor((W - STRIP_COLS * w - hc * w) / 2))}px`;
-      this.headLeft.textContent = '';
-      hd.left.forEach((p, i) => {
-        if (i > 0) {
-          const s = this.doc.createElement('span');
-          s.className = 'wc-player-sep';
-          s.textContent = ' · ';
-          this.headLeft.append(s);
-        }
-        if (!p.cls) return void this.headLeft.append(p.text);
-        const span = this.doc.createElement('span');
-        span.className = p.cls;
-        span.textContent = p.text;
-        this.headLeft.append(span);
-      });
-      this.headHints.textContent = '';
-      hints.forEach((t, i) => {
-        if (i > 0) this.headHints.append(HINT_SEP);
-        const h = hd.hints.find((x) => x.text === t);
-        if (!h?.onClick && !h?.cls) return void this.headHints.append(t);
-        const span = this.doc.createElement('span');
-        span.className = h.cls ?? 'wc-player-click';
-        span.textContent = t;
-        const click = h.onClick;
-        if (click) span.addEventListener('click', () => click());
-        this.headHints.append(span);
-      });
+    this.renderHeader(W, w, cols);
+
+    // Rail: the played part and the playhead, at whole px.
+    const span = Math.max(0, H - 2 * RAIL_PAD);
+    const y = Math.round(railFraction(pos, dur) * span);
+    const railSig = `${H}|${y}`;
+    if (railSig !== this.railSig) {
+      this.railSig = railSig;
+      this.railDone.style.height = `${y}px`;
+      this.railHead.style.top = `${RAIL_PAD + y}px`;
     }
 
-    // Strip.
-    const stripSig = `${rows}|${h}|${dur > 0 ? Math.round((pos / dur) * (rows * 2 - 1)) : 0}`;
-    if (stripSig !== this.stripSig) {
-      this.stripSig = stripSig;
-      const frag = this.doc.createDocumentFragment();
-      for (const c of stripCells(pos, dur, rows)) {
-        const r = this.doc.createElement('div');
-        r.textContent = c.ch.repeat(STRIP_COLS);
-        r.style.color = c.fg;
-        r.style.backgroundColor = c.bg;
-        frag.appendChild(r);
-      }
-      this.stripEl.textContent = '';
-      this.stripEl.appendChild(frag);
-    }
-
-    // Markers.
-    const marksSig = `${rows}|${h}|${w}`;
+    // Markers: one per slot, at the earliest event's place.
+    const slots = Math.max(1, Math.floor(span / MARK_SLOT));
+    const marksSig = `${H}|${slots}`;
     if (marksSig !== this.marksSig) {
       this.marksSig = marksSig;
       this.tipEl.hidden = true;
       this.marksEl.textContent = '';
-      for (const m of markRows(this.o.marks, dur, rows)) this.marksEl.appendChild(this.markEl(m, h));
+      for (const m of markRows(this.o.marks, dur, slots)) this.marksEl.appendChild(this.markEl(m, RAIL_PAD + railFraction(m.offset, dur) * span));
     }
 
     // Control box.
-    const playLabel = (eng.playing ? '▌▌ Pause' : '► Play').padEnd(8);
-    const clock = `${fmtClock(pos)} / ${fmtClock(dur)}`;
-    const extra = this.o.boxButtons?.map((b) => b.label()) ?? [];
-    const vs = this.o.settings && this.settingsOpen ? this.o.settings : null;
-    const setSig = vs
-      ? JSON.stringify([vs.panes(), vs.font(), vs.theme(), vs.canReset()])
-      : '';
-    const boxSig = `${playLabel}|${eng.speed}|${clock}|${extra.join('|')}|${setSig}`;
+    const labels = this.o.boxButtons?.map((b) => `${b.label()}|${b.icon()}`) ?? [];
+    const boxSig = `${eng.playing}|${eng.speed}|${fmtClock(pos)}|${fmtClock(dur)}|${labels.join('|')}`;
     if (boxSig !== this.boxSig) {
       this.boxSig = boxSig;
-      if (vs) this.renderSettings(vs);
-      if (this.boxExtra) {
-        const text = extra.join('  ');
-        const pad = Math.max(0, BOX_INNER - text.length);
-        this.boxExtra.textContent = '';
-        this.boxExtra.append('│' + ' '.repeat(pad >> 1));
-        extra.forEach((label, i) => {
-          if (i > 0) this.boxExtra!.append('  ');
-          const b = this.doc.createElement('span');
-          b.className = 'wc-player-btn';
-          b.textContent = label;
-          b.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.touch();
-            this.o.boxButtons![i]!.onClick();
-            this.schedule();
-          });
-          this.boxExtra!.append(b);
-        });
-        this.boxExtra.append(' '.repeat(pad - (pad >> 1)) + '│');
+      const playing = eng.playing;
+      if (this.btnPlay.dataset.playing !== String(playing)) {
+        this.btnPlay.dataset.playing = String(playing);
+        this.btnPlay.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+        this.btnPlay.replaceChildren(playerIcon(this.doc, playing ? 'pause' : 'play'));
       }
-      this.boxPlay.textContent = playLabel;
-      this.boxSpeed.textContent = fmtSpeed(eng.speed).padEnd(5);
-      const pad = BOX_INNER - clock.length;
-      this.boxClock.textContent = '│' + ' '.repeat(pad >> 1) + clock + ' '.repeat(pad - (pad >> 1)) + '│';
+      const i = SPEEDS.indexOf(eng.speed);
+      this.speedEl.textContent = fmtSpeed(eng.speed);
+      this.btnSlower.disabled = i <= 0;
+      this.btnFaster.disabled = i < 0 || i >= SPEEDS.length - 1;
+      const cur = this.doc.createElement('b');
+      cur.textContent = fmtClock(pos);
+      this.clockEl.replaceChildren(cur, ` / ${fmtClock(dur)}`);
+      this.o.boxButtons?.forEach((b, k) => {
+        const btn = this.extraBtns[k]!;
+        const label = b.label();
+        if (btn.title === label) return;
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.replaceChildren(playerIcon(this.doc, b.icon()));
+      });
     }
-    this.boxEl.style.right = `${BOX_RIGHT * w}px`;
-    this.boxEl.style.bottom = `${BOX_BOTTOM * h}px`;
+    this.fitBox(W);
+    if (this.openPop) {
+      this.renderPopup(this.openPop);
+      this.placePopup(this.popups.get(this.openPop)!);
+    }
     this.el.dataset.playing = String(eng.playing);
     this.el.toggleAttribute('data-seeking', eng.seeking);
   }
 
-  /** The settings section's rows (see the file header). */
-  private renderSettings(vs: ViewerControls): void {
-    const doc = this.doc;
-    const rows: HTMLDivElement[] = [];
-    const row = (...parts: Array<string | HTMLElement>): void => {
-      const r = doc.createElement('div');
-      r.className = 'wc-player-box-row';
-      const len = parts.reduce((n, p) => n + (typeof p === 'string' ? p.length : (p.textContent ?? '').length), 0);
-      r.append('│ ', ...parts, ' '.repeat(Math.max(0, BOX_INNER - 1 - len)) + '│');
-      rows.push(r);
-    };
-    const btn = (text: string, cls: string, onClick: () => void, data: Record<string, string> = {}): HTMLSpanElement => {
-      const b = doc.createElement('span');
-      b.className = `wc-player-btn ${cls}`;
-      b.textContent = text;
-      Object.assign(b.dataset, data);
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.touch();
-        onClick();
-        this.schedule();
-      });
-      return b;
-    };
-    const label = (text: string, cls: string): HTMLSpanElement => {
-      const l = doc.createElement('span');
-      l.className = cls;
-      l.textContent = text;
-      return l;
-    };
-    row(label('Panes', 'wc-player-set-head'));
-    const panes = vs.panes();
-    const toggle = (p: (typeof panes)[number], text: string): HTMLSpanElement =>
-      btn(text, `wc-player-toggle${p.on ? ' is-on' : ''}`, () => vs.togglePane(p.id), { pane: p.id });
-    const narrow = panes.filter((p) => !p.wide);
-    for (let i = 0; i < narrow.length; i += 2) {
-      const parts: Array<string | HTMLElement> = [];
-      narrow.slice(i, i + 2).forEach((p, j) => {
-        const text = `[${p.on ? 'X' : ' '}] ${p.label}`;
-        parts.push(toggle(p, text));
-        if (j === 0) parts.push(' '.repeat(Math.max(1, TOGGLE_W - text.length)));
-      });
-      row(...parts);
-    }
-    for (const p of panes) {
-      if (!p.wide) continue;
-      const text = `[${p.on ? 'X' : ' '}] ${p.label}`;
-      const max = BOX_INNER - 1;
-      row(toggle(p, text.length > max ? text.slice(0, max - 1) + '…' : text));
-    }
-    const cycler = (name: string, key: string, value: string, step: (dir: 1 | -1) => void): void =>
-      row(
-        label(name.padEnd(NAME_W), 'wc-player-set-head'),
-        btn('◄', 'wc-player-step', () => step(-1), { set: key, dir: '-1' }),
-        btn(` ${value.padEnd(VALUE_W)} `, 'wc-player-value', () => step(1), { set: key, value }),
-        btn('►', 'wc-player-step', () => step(1), { set: key, dir: '1' }),
-      );
-    cycler('Font-size', 'font', vs.font(), vs.cycleFont);
-    cycler('Colours', 'theme', vs.theme(), vs.cycleTheme);
-    const can = vs.canReset();
-    row(btn('Reset layout', `wc-player-reset${can ? '' : ' is-off'}`, () => can && vs.reset(), { set: 'reset' }));
-    const sep = doc.createElement('div');
-    sep.className = 'wc-player-box-row wc-player-box-frame';
-    sep.textContent = '├' + '─'.repeat(BOX_INNER) + '┤';
-    rows.push(sep);
-    this.settingsEl.replaceChildren(...rows);
+  /** Header: the left part and the hints that fit, each on a dark chip, centred left of the rail. */
+  private renderHeader(W: number, w: number, cols: number): void {
+    const hd = this.o.header(this.o.engine.run);
+    const leftLen = hd.left.reduce((n, p) => n + p.text.length, 0) + 3 * Math.max(0, hd.left.length - 1);
+    const full = hintsWidth(hd.hints.map((x) => x.text));
+    const extra = HEADER_GAP + 2 * CHIP_PAD;
+    const hc = Math.max(1, Math.min(Math.max(HEADER_COLS, leftLen + extra + full), cols));
+    const hints = fitHints(hc - leftLen - extra, hd.hints);
+    const headSig = `${JSON.stringify(hd)}|${hc}|${w}|${W}|${hints.join()}`;
+    if (headSig === this.headSig) return;
+    this.headSig = headSig;
+    this.headerEl.style.width = `${hc * w}px`;
+    this.headerEl.style.left = `${Math.max(0, Math.floor((W - RAIL_W - hc * w) / 2))}px`;
+    this.headLeft.textContent = '';
+    hd.left.forEach((p, i) => {
+      if (i > 0) {
+        const s = this.doc.createElement('span');
+        s.className = 'wc-player-sep';
+        s.textContent = ' · ';
+        this.headLeft.append(s);
+      }
+      if (!p.cls) return void this.headLeft.append(p.text);
+      const span = this.doc.createElement('span');
+      span.className = p.cls;
+      span.textContent = p.text;
+      this.headLeft.append(span);
+    });
+    this.headLeft.hidden = hd.left.length === 0;
+    this.headHints.textContent = '';
+    hints.forEach((t, i) => {
+      if (i > 0) this.headHints.append(HINT_SEP);
+      const h = hd.hints.find((x) => x.text === t);
+      if (!h?.onClick && !h?.cls) return void this.headHints.append(t);
+      const span = this.doc.createElement('span');
+      span.className = h.cls ?? 'wc-player-click';
+      span.textContent = t;
+      const click = h.onClick;
+      if (click) span.addEventListener('click', () => click());
+      this.headHints.append(span);
+    });
+    this.headHints.hidden = hints.length === 0;
   }
 
-  private markEl(m: MarkRow, h: number): HTMLDivElement {
+  /**
+   * The box sits BOX_RIGHT px left of the rail; on a player too narrow for
+   * its full width it goes compact: next to the rail, without the time,
+   * with smaller buttons.
+   */
+  private fitBox(W: number): void {
+    if (!this.compact) {
+      const bw = this.boxEl.offsetWidth;
+      if (bw > 0) this.fullBoxW = bw;
+    }
+    const room = W - RAIL_W - BOX_RIGHT - BOX_MARGIN;
+    const compact = this.fullBoxW > 0 && room < this.fullBoxW;
+    if (compact !== this.compact) {
+      this.compact = compact;
+      this.boxEl.toggleAttribute('data-compact', compact);
+    }
+    this.boxEl.style.right = `${RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT)}px`;
+    this.boxEl.style.bottom = `${BOX_BOTTOM}px`;
+  }
+
+  /** Fills or updates popup `name` from the settings. */
+  private renderPopup(name: PlayerPopup): void {
+    const vs = this.o.settings;
+    const p = this.popups.get(name);
+    if (!vs || !p) return;
+    if (name === 'panes' && vs.panes) this.renderPanes(p, vs.panes);
+    else if (name === 'display') this.renderDisplay(p, vs);
+  }
+
+  private renderPanes(p: Popup, vp: ViewerPanes): void {
+    const doc = this.doc;
+    const list = vp.list();
+    const can = vp.canReset();
+    const ids = list.map((x) => x.id).join('|');
+    // Built once per list of panes; the states are updated in place (the focus stays).
+    if (p.body.dataset.ids !== ids || !p.body.firstChild) {
+      p.body.dataset.ids = ids;
+      const rows = list.map((x) => {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.className = `wc-pc-prow${x.wide ? ' is-wide' : ''}`;
+        b.dataset.pane = x.id;
+        b.setAttribute('role', 'switch');
+        const l = doc.createElement('span');
+        l.className = 'wc-pc-plabel';
+        l.textContent = x.label;
+        b.title = x.label;
+        const tg = doc.createElement('span');
+        tg.className = 'wc-pc-tg';
+        tg.append(doc.createElement('i'));
+        b.append(l, tg);
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          vp.toggle(x.id);
+          this.schedule();
+        });
+        return b;
+      });
+      const foot = doc.createElement('div');
+      foot.className = 'wc-pc-pop-foot';
+      const reset = doc.createElement('button');
+      reset.type = 'button';
+      reset.className = 'wc-pc-btn';
+      reset.dataset.set = 'reset';
+      reset.textContent = 'Reset layout';
+      reset.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (vp.canReset()) vp.reset();
+        this.schedule();
+      });
+      foot.append(reset);
+      const listEl = doc.createElement('div');
+      listEl.className = 'wc-pc-plist';
+      listEl.append(...rows);
+      p.body.replaceChildren(listEl, foot);
+      p.sig = '';
+    }
+    const sig = JSON.stringify([list, can]);
+    if (sig === p.sig) return;
+    p.sig = sig;
+    const byId = new Map(list.map((x) => [x.id, x]));
+    for (const b of p.body.querySelectorAll<HTMLElement>('[data-pane]')) {
+      const x = byId.get(b.dataset.pane!);
+      if (!x) continue;
+      b.setAttribute('aria-checked', String(x.on));
+      b.classList.toggle('is-on', x.on);
+      b.querySelector('.wc-pc-plabel')!.textContent = x.label;
+    }
+    const reset = p.body.querySelector<HTMLButtonElement>('[data-set="reset"]')!;
+    reset.classList.toggle('is-off', !can);
+    reset.setAttribute('aria-disabled', String(!can));
+  }
+
+  private renderDisplay(p: Popup, vs: ViewerControls): void {
+    const doc = this.doc;
+    if (!p.body.firstChild) {
+      const sub = (text: string): HTMLDivElement => {
+        const d = doc.createElement('div');
+        d.className = 'wc-pc-sub';
+        d.textContent = text;
+        return d;
+      };
+      const seg = doc.createElement('div');
+      seg.className = 'wc-pc-seg';
+      seg.setAttribute('role', 'radiogroup');
+      seg.setAttribute('aria-label', 'Font size');
+      for (const [id, label] of FONT_CHOICES) {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.className = 'wc-pc-sg';
+        b.dataset.font = id;
+        b.setAttribute('role', 'radio');
+        b.textContent = label;
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          vs.setFont(id);
+          this.schedule();
+        });
+        seg.append(b);
+      }
+      const sws = doc.createElement('div');
+      sws.className = 'wc-pc-sws';
+      sws.setAttribute('role', 'radiogroup');
+      sws.setAttribute('aria-label', 'Colours');
+      for (const [id, label] of THEME_CHOICES) {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.className = 'wc-pc-sw';
+        b.dataset.theme = id;
+        b.setAttribute('role', 'radio');
+        const d = doc.createElement('span');
+        d.className = 'wc-pc-swd';
+        b.append(d, label);
+        b.addEventListener('click', (e) => {
+          e.stopPropagation();
+          vs.setTheme(id);
+          this.schedule();
+        });
+        sws.append(b);
+      }
+      p.body.replaceChildren(sub('Font size'), seg, sub('Colours'), sws);
+      p.sig = '';
+    }
+    const sig = `${vs.font()}|${vs.theme()}|${vs.swatch('default')}`;
+    if (sig === p.sig) return;
+    p.sig = sig;
+    for (const b of p.body.querySelectorAll<HTMLElement>('[data-font]')) {
+      const on = b.dataset.font === vs.font();
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-checked', String(on));
+    }
+    for (const b of p.body.querySelectorAll<HTMLElement>('[data-theme]')) {
+      const on = b.dataset.theme === vs.theme();
+      b.classList.toggle('is-on', on);
+      b.setAttribute('aria-checked', String(on));
+      b.querySelector<HTMLElement>('.wc-pc-swd')!.style.background = vs.swatch(b.dataset.theme as ViewerTheme);
+    }
+  }
+
+  private markEl(m: MarkRow, top: number): HTMLDivElement {
     const d = this.doc.createElement('div');
     d.className = 'wc-player-mark';
-    d.textContent = m.text;
-    d.style.top = `${m.row * h}px`;
+    d.style.top = `${Math.round(top)}px`;
     d.dataset.offset = String(m.offset);
+    d.dataset.kinds = m.letters.join('');
     d.dataset.tip = m.tips.join('\n');
+    d.setAttribute('role', 'button');
+    d.setAttribute('aria-label', m.tips.join('; '));
+    for (const l of m.letters) d.append(kindIcon(this.doc, LETTER_KIND[l], 'wc-player-mark-ic'));
     return d;
   }
 
@@ -655,15 +901,15 @@ export class PlayerView {
     this.touch();
   };
 
-  /** Shows the chrome and re-arms the auto-hide (in play). */
+  /** Shows the chrome and re-arms the auto-hide (in play, no popup open). */
   touch(): void {
     this.show();
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.hideTimer = null;
-    if (!this.o.engine.playing || this.pinned) return;
+    if (!this.o.engine.playing || this.openPop) return;
     this.hideTimer = setTimeout(() => {
       this.hideTimer = null;
-      if (this.o.engine.playing && !this.drag && !this.pinned) this.setShown(false);
+      if (this.o.engine.playing && !this.drag && !this.openPop) this.setShown(false);
     }, this.o.hideMs ?? HIDE_MS);
   }
 
@@ -675,20 +921,24 @@ export class PlayerView {
     if (on === this.shown) return;
     this.shown = on;
     this.el.toggleAttribute('data-hidden', !on);
-    const ov = this.o.overlay;
-    if (ov && !ov.keepVisible) ov.el.toggleAttribute('data-hidden', !on);
   }
 
   // ----------------------------------------------------------------- keys
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (e.isComposing) return;
-    // A popup's keys are its own (the reel's settings popup, ADR 0110).
+    // A popup's keys are its own (the box's popups, the Spotlights card).
     if ((e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`)) return;
     // The player owns the keyboard (see the file header).
     e.stopPropagation();
     this.quiet = false;
     this.touch();
+    // Esc closes an open popup before anything else.
+    if (e.key === 'Escape' && this.openPop && !e.ctrlKey && !e.altKey && !e.metaKey) {
+      e.preventDefault();
+      this.setPopup(null);
+      return;
+    }
     if (this.o.keys?.(e)) {
       e.preventDefault();
       return;
@@ -698,11 +948,19 @@ export class PlayerView {
     let handled = true;
     switch (e.key) {
       case 'Escape':
-        if (this.settingsOpen) this.setSettingsOpen(false);
-        else this.o.onEsc();
+        this.o.onEsc();
         break;
       case ' ':
         this.toggle();
+        break;
+      case 'ArrowLeft':
+        this.skip(-SKIP_MS);
+        break;
+      case 'ArrowRight':
+        this.skip(SKIP_MS);
+        break;
+      case 'Home':
+        this.seekTo(0);
         break;
       case 'ArrowUp':
         this.moveCursor(-1);
@@ -715,9 +973,6 @@ export class PlayerView {
         break;
       case 'PageDown':
         this.moveCursor(PAGE_STEP);
-        break;
-      case 'Home':
-        this.moveCursor(-Infinity);
         break;
       case 'End':
         this.moveCursor(Infinity);
@@ -789,21 +1044,23 @@ export class PlayerView {
   }
 
   private readonly onWheel = (e: WheelEvent): void => {
-    if (this.stripEl.contains(e.target as Node)) return;
+    if (this.railEl.contains(e.target as Node)) return;
     // A side pane scrolls itself natively (Comm, UI, Timers; ADR 0052): the
     // wheel keeps its default there. Only the game text moves the cursor.
     if ((e.target as Element | null)?.closest?.('.wc-pane')) return void this.touch();
+    // The Spotlights card's character list scrolls itself.
+    if ((e.target as Element | null)?.closest?.(`[${OWN_KEYS_ATTR}]`)) return void this.touch();
     e.preventDefault();
     this.touch();
     if (this.o.engine.playing || e.deltaY === 0) return;
     this.moveCursor(e.deltaY < 0 ? -1 : 1);
   };
 
-  /** The box keeps the wheel (no page scroll, no cursor move). */
+  /** The box keeps the wheel (no page scroll, no cursor move); its popups scroll themselves. */
   private readonly onBoxWheel = (e: WheelEvent): void => {
-    e.preventDefault();
     e.stopPropagation();
     this.touch();
+    if (!(e.target as Element | null)?.closest?.('.wc-pc-pop')) e.preventDefault();
   };
 
   private readonly onStageClick = (e: MouseEvent): void => {
@@ -814,25 +1071,25 @@ export class PlayerView {
     if (row && rows?.contains(row) && !isBlank(row)) this.setCursor(row, true);
   };
 
-  // ---------------------------------------------------------------- strip
+  // ----------------------------------------------------------------- rail
 
   private offsetAt(clientY: number): number {
-    const r = this.stripEl.getBoundingClientRect();
-    return yToOffset(clientY - r.top, r.height, this.o.cells().h, this.o.engine.duration);
+    const r = this.railEl.getBoundingClientRect();
+    return yToOffset(clientY - r.top, r.height, RAIL_PAD, this.o.engine.duration);
   }
 
-  private readonly onStripDown = (e: PointerEvent): void => {
+  private readonly onRailDown = (e: PointerEvent): void => {
     if (e.button !== 0) return;
     e.preventDefault();
-    this.stripEl.setPointerCapture?.(e.pointerId);
+    this.railEl.setPointerCapture?.(e.pointerId);
     this.drag = { id: e.pointerId, offset: this.offsetAt(e.clientY) };
     this.showHint(e.clientY);
     this.render();
   };
 
-  private readonly onStripMove = (e: PointerEvent): void => {
+  private readonly onRailMove = (e: PointerEvent): void => {
     if (!this.drag) {
-      if (this.o.stripHoverTime) this.showHint(e.clientY, this.offsetAt(e.clientY));
+      if (this.o.railHoverTime) this.showHint(e.clientY, this.offsetAt(e.clientY));
       return;
     }
     if (e.pointerId !== this.drag.id) return;
@@ -841,11 +1098,11 @@ export class PlayerView {
     this.schedule();
   };
 
-  private readonly onStripLeave = (): void => {
+  private readonly onRailLeave = (): void => {
     if (!this.drag) this.hintEl.hidden = true;
   };
 
-  private readonly onStripUp = (e: PointerEvent): void => {
+  private readonly onRailUp = (e: PointerEvent): void => {
     if (!this.drag || e.pointerId !== this.drag.id) return;
     const offset = this.offsetAt(e.clientY);
     this.drag = null;
@@ -856,7 +1113,7 @@ export class PlayerView {
     this.schedule();
   };
 
-  private readonly onStripCancel = (): void => {
+  private readonly onRailCancel = (): void => {
     this.drag = null;
     this.hintEl.hidden = true;
     this.schedule();
@@ -864,35 +1121,31 @@ export class PlayerView {
 
   private showHint(clientY: number, offset = this.drag?.offset ?? 0): void {
     const root = this.o.root.getBoundingClientRect();
-    const { h } = this.o.cells();
-    this.hintEl.textContent = ` ${fmtClock(offset)} `;
-    this.hintEl.style.top = `${Math.max(0, Math.floor((clientY - root.top) / h)) * h}px`;
+    this.hintEl.textContent = fmtClock(offset);
+    this.hintEl.style.top = `${Math.round(clientY - root.top)}px`;
     this.hintEl.hidden = false;
   }
 
   /**
-   * Hover tip of a marker row: one line per event, right-aligned one cell
-   * left of the marker's text, from the marker's row down (up when it
-   * would run off the bottom).
+   * Hover tip of a marker: one line per event, right-aligned left of the
+   * marker, from its top down (kept inside the player).
    */
   private readonly onMarkOver = (e: PointerEvent): void => {
     const m = (e.target as Element | null)?.closest?.('.wc-player-mark') as HTMLElement | null;
     if (!m?.dataset.tip) return;
-    const { w, h } = this.o.cells();
     const lines = m.dataset.tip.split('\n');
     this.tipEl.replaceChildren(
       ...lines.map((l) => {
         const r = this.doc.createElement('div');
-        r.textContent = ` ${l} `;
+        r.textContent = l;
         return r;
       }),
     );
-    const row = Math.round(m.offsetTop / (h || 1));
-    const rows = h > 0 ? Math.floor(this.o.root.clientHeight / h + 1e-6) : 0;
-    const top = Math.max(0, Math.min(row, rows - lines.length));
-    this.tipEl.style.top = `${top * h}px`;
-    this.tipEl.style.right = `${(STRIP_COLS + (m.textContent ?? '').length) * w}px`;
     this.tipEl.hidden = false;
+    const H = this.o.root.clientHeight;
+    const top = m.offsetTop - m.offsetHeight / 2;
+    this.tipEl.style.top = `${Math.max(0, Math.min(top, H - this.tipEl.offsetHeight))}px`;
+    this.tipEl.style.right = `${RAIL_W + m.offsetWidth + 6}px`;
   };
 
   private readonly onMarkOut = (e: PointerEvent): void => {
@@ -925,7 +1178,6 @@ export class PlayerView {
     if (this.raf !== null) this.win.cancelAnimationFrame(this.raf);
     if (this.hideTimer !== null) clearTimeout(this.hideTimer);
     this.el.remove();
-    this.o.overlay?.el.remove();
   }
 }
 

@@ -35,42 +35,39 @@
   background: #303030;
 }
 
-/* A light viewer theme (Paper, ADR 0021): the cursor band and the box's
- * greys are taken toward black instead. */
+/* A light viewer theme (Paper, ADR 0021): the cursor band is taken
+ * toward black instead. The chrome is dark glass on every background. */
 .wc-player[data-light] .wc-player-cursor {
   background: var(--c-line-hl);
 }
 
-.wc-player[data-light] .wc-player-box {
-  color: #8a8a8a;
+/* Read-only panes (ADR 0021): the Comm header's filter cells do not take
+ * the pointer, so a borderless Comm pane is still dragged by its top row. */
+.wc-player .wc-comm-cell {
+  pointer-events: none;
 }
 
-.wc-player[data-light] .wc-player-clock,
-.wc-player[data-light] .wc-player-set-head {
-  color: #6a6a6a;
-}
-
-.wc-player[data-light] .wc-player-btn {
-  color: #404040;
-}
-
-.wc-player[data-light] .wc-player-btn.is-off {
-  color: #b8b0a0;
-}
-
-.wc-player[data-light] .wc-player-btn.wc-player-toggle.is-on,
-.wc-player[data-light] .wc-player-btn.wc-player-value,
-.wc-player[data-light] .wc-player-btn.wc-player-gear.is-on {
-  color: #a05a00;
-}
+/* ------------------------------------------------------------ chrome
+ * Stage 32c (ADR 0114): the ghost look of the in-game popups
+ * (src/menubar/menubar.css, src/chrome/popups/popups.css), at fixed px
+ * sizes (the approved A2 mockup), so the viewer's font size choice moves
+ * the game text, not the controls. */
 
 .wc-player-chrome {
+  --pc-fg: #c0c0c0;
+  --pc-ic: #767676;
+  --pc-hot: #ececec;
+  --pc-hover-bg: rgba(255, 255, 255, 0.07);
+  --pc-on-bg: rgba(255, 255, 255, 0.09);
+  --pc-line: #262626;
+  --pc-gold: #ffb000;
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 50;
   white-space: pre;
   user-select: none;
+  -webkit-user-select: none;
   transition: opacity 0.2s linear;
 }
 
@@ -78,9 +75,44 @@
   opacity: 0;
 }
 
-.wc-player-chrome[data-hidden] > * {
+.wc-player-chrome[data-hidden] * {
   pointer-events: none !important;
 }
+
+/* Dark glass: the control box, its popups, the marker tip, the time hint
+ * (and the Spotlights card, spotlight.css). */
+.wc-player-box,
+.wc-pc-pop,
+.wc-player-tip,
+.wc-player-hint {
+  box-sizing: border-box;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: rgba(10, 10, 10, 0.95);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: var(--pc-fg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 16px;
+  letter-spacing: normal;
+}
+
+.wc-player-chrome button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.wc-player-chrome button:focus-visible {
+  outline: 1px solid #6a6a6a;
+}
+
+.wc-pc-pop[data-pointer] :focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------ header */
 
 .wc-player-header {
   position: absolute;
@@ -88,9 +120,21 @@
   height: var(--cell-h);
   display: flex;
   justify-content: space-between;
-  background: var(--term-bg);
-  color: var(--c-hint);
+  color: #646464;
   overflow: hidden;
+}
+
+/* Opaque: the game text's first line runs under the header. */
+.wc-player-head-left,
+.wc-player-hints {
+  padding: 0 var(--cell-w);
+  border-radius: 3px;
+  background: #050505;
+}
+
+.wc-player-head-left[hidden],
+.wc-player-hints[hidden] {
+  display: none;
 }
 
 .wc-player-head-left {
@@ -101,15 +145,15 @@
 
 .wc-player-hints {
   flex: 0 0 auto;
-  padding-left: calc(var(--cell-w) * 2);
+  margin-left: calc(var(--cell-w) * 2);
 }
 
 .wc-player-name {
-  color: var(--c-body);
+  color: #c8c8c8;
 }
 
 .wc-player-sep {
-  color: var(--c-off);
+  color: #3e3e3e;
 }
 
 .wc-player-back,
@@ -118,130 +162,553 @@
   cursor: pointer;
 }
 
-.wc-player-strip {
+.wc-player-back:hover,
+.wc-player-click:hover {
+  color: var(--pc-hot);
+}
+
+/* -------------------------------------------------------------- rail */
+
+.wc-player-rail {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: calc(var(--cell-w) * 2);
-  background: var(--term-bg);
+  width: 12px;
   pointer-events: auto;
   cursor: pointer;
   touch-action: none;
 }
 
-.wc-player-strip > div {
-  height: var(--cell-h);
+/* A finger needs more than the rail's width: the touch target reaches a
+ * little over the stage's edge. */
+@media (pointer: coarse) {
+  .wc-player-rail::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -10px;
+    right: 0;
+  }
+}
+
+.wc-player-rail-track {
+  position: absolute;
+  top: var(--rail-pad);
+  bottom: var(--rail-pad);
+  left: 4px;
+  width: 4px;
+  border-radius: 2px;
+  background: #1c1c1c;
+}
+
+.wc-player-rail:hover .wc-player-rail-track {
+  background: #242424;
+}
+
+.wc-player-rail-done {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  border-radius: 2px;
+  background: #4e4e4e;
+}
+
+.wc-player-rail-head {
+  position: absolute;
+  left: 0;
+  width: 12px;
+  height: 3px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--pc-gold);
+  box-shadow: 0 0 6px rgba(255, 176, 0, 0.45);
 }
 
 .wc-player-marks {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: calc(var(--cell-w) * 2);
-  width: calc(var(--cell-w) * 5);
+  right: 14px;
+  width: 0;
 }
 
 .wc-player-mark {
   position: absolute;
   right: 0;
-  height: var(--cell-h);
-  color: #4d4d4d;
-  background: var(--term-bg);
+  display: flex;
+  gap: 1px;
+  padding: 2px 3px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  transform: translateY(-50%);
   pointer-events: auto;
   cursor: pointer;
 }
 
-.wc-player-box {
-  position: absolute;
-  background: var(--term-bg);
-  color: #585858;
-  /* The box takes the pointer: clicks never fall through to the stage. */
-  pointer-events: auto;
+.wc-player-mark:hover {
+  background: #1e1e1e;
 }
 
-.wc-player-settings[hidden] {
-  display: none;
+.wc-player-mark-ic,
+.wc-pc-ki {
+  display: block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-/* One cell whatever font draws the glyph (JetBrains Mono has no ⚙). */
-.wc-player-gear {
-  display: inline-block;
-  width: var(--cell-w);
-  overflow: hidden;
-  text-align: center;
-  vertical-align: top;
-  font-family: "DejaVu Sans Mono", var(--font-mono);
-}
-
-.wc-player-btn.wc-player-gear.is-on,
-.wc-player-btn.wc-player-toggle.is-on,
-.wc-player-btn.wc-player-value {
-  color: var(--c-accent);
-}
-
-.wc-player-set-head {
-  color: #6f6f6f;
-}
-
-.wc-player-btn.is-off {
-  color: #3a3a3a;
-  cursor: default;
-}
-
-.wc-player-btn.is-off:hover {
-  background: none;
-  font-weight: normal;
-}
-
-.wc-player-box-row {
-  height: var(--cell-h);
-}
-
-.wc-player-clock {
-  color: #6f6f6f;
-}
-
-.wc-player-btn {
-  color: #9a9a9a;
-  pointer-events: auto;
-  cursor: pointer;
-}
-
-.wc-player-btn:hover {
-  color: #dde4e0;
-  background: #242a27;
-  font-weight: bold;
-}
-
+/* `MM:SS` beside the pointer over the rail. */
 .wc-player-hint {
   position: absolute;
-  right: calc(var(--cell-w) * 2);
-  height: var(--cell-h);
-  color: var(--c-accent);
-  background: var(--term-bg);
+  right: 18px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--pc-gold);
+  font-size: 12px;
+  transform: translateY(-50%);
 }
 
-/* A marker's hover tip: one row per event, right-aligned left of the marker. */
+/* A marker's hover tip: one row per event, left of the marker. */
 .wc-player-tip {
   position: absolute;
-  max-width: calc(100% - var(--cell-w) * 10);
-  color: var(--c-body);
-  background: var(--c-line-hl, #303030);
+  max-width: calc(100% - 80px);
+  padding: 4px 8px;
+  border-radius: 4px;
+  color: #d0d0d0;
+  font-size: 12px;
 }
 
 .wc-player-tip > div {
-  height: var(--cell-h);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Read-only panes (ADR 0021): the Comm header's filter cells do not take
- * the pointer, so a borderless Comm pane is still dragged by its top row. */
-.wc-player .wc-comm-cell {
-  pointer-events: none;
+/* ------------------------------------------------------- control box */
+
+.wc-player-box {
+  position: absolute;
+  width: max-content;
+  padding: 6px 6px 6px 10px;
+  /* The box takes the pointer: clicks never fall through to the stage. */
+  pointer-events: auto;
+  white-space: nowrap;
 }
 
-.wc-player[data-light] .wc-player-btn:hover {
-  color: #dde4e0;
+.wc-pc-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.wc-pc-ic {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wc-pc-ic10 {
+  width: 21px;
+  height: 21px;
+  stroke-width: 1.5;
+}
+
+.wc-pc-ic10 text {
+  fill: currentColor;
+  stroke: none;
+  font: 700 8.5px "DejaVu Sans", sans-serif;
+}
+
+.wc-player-chrome .wc-pc-ib {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: var(--pc-ic);
+}
+
+.wc-player-chrome .wc-pc-ib:hover {
+  background: var(--pc-hover-bg);
+  color: var(--pc-hot);
+}
+
+.wc-player-chrome .wc-pc-ib.is-on {
+  background: var(--pc-on-bg);
+  color: var(--pc-hot);
+}
+
+.wc-player-chrome .wc-pc-ib:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.wc-player-chrome .wc-pc-ib:disabled:hover {
+  background: none;
+  color: var(--pc-ic);
+}
+
+.wc-player-chrome .wc-pc-play {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin: 0 2px;
+  border: 1px solid #3a3a3a;
+  border-radius: 50%;
+  color: var(--pc-hot);
+}
+
+.wc-player-chrome .wc-pc-play:hover {
+  border-color: #707070;
+  background: var(--pc-hover-bg);
+}
+
+.wc-pc-play .wc-pc-ic {
+  width: 15px;
+  height: 15px;
+}
+
+.wc-pc-play[data-playing="false"] .wc-pc-ic {
+  fill: currentColor;
+  stroke-width: 1.2;
+}
+
+.wc-pc-play[data-playing="true"] .wc-pc-ic {
+  stroke-width: 3;
+}
+
+.wc-pc-speed {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  margin-left: 4px;
+  border: 1px solid var(--pc-line);
+  border-radius: 4px;
+}
+
+.wc-player-chrome .wc-pc-sm {
+  width: 20px;
+  height: 24px;
+}
+
+.wc-pc-sm .wc-pc-ic {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2;
+}
+
+.wc-player-speed {
+  min-width: 38px;
+  color: #d0d0d0;
+  font-size: 12px;
+  text-align: center;
+}
+
+.wc-player-clock {
+  margin-left: 10px;
+  color: #6e6e6e;
+  font-size: 12px;
+}
+
+.wc-player-clock b {
+  color: #d0d0d0;
+  font-weight: normal;
+}
+
+.wc-pc-grow {
+  flex: 1 0 12px;
+}
+
+.wc-pc-vs {
+  flex: none;
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--pc-line);
+}
+
+/* A narrow player (a phone): no time, smaller buttons, next to the rail. */
+.wc-player-box[data-compact] {
+  padding: 4px;
+}
+
+.wc-player-box[data-compact] .wc-player-clock,
+.wc-player-box[data-compact] .wc-pc-vs {
+  display: none;
+}
+
+.wc-player-box[data-compact] .wc-pc-grow {
+  flex-basis: 4px;
+}
+
+.wc-player-box[data-compact] .wc-pc-ib {
+  width: 26px;
+}
+
+.wc-player-box[data-compact] .wc-pc-sm {
+  width: 18px;
+}
+
+.wc-player-box[data-compact] .wc-player-speed {
+  min-width: 32px;
+}
+
+/* ------------------------------------------------------------ popups */
+
+.wc-pc-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 290px;
+  max-width: calc(100vw - 24px);
+  overflow: hidden;
+  white-space: normal;
+  outline: none;
+}
+
+.wc-pc-pop[hidden] {
+  display: none;
+}
+
+.wc-pc-pop-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 30px;
+  padding: 0 6px 0 12px;
+}
+
+.wc-pc-pop-title {
+  color: #8a8a8a;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.wc-player-chrome .wc-pop-x {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+}
+
+.wc-player-chrome .wc-pop-x-svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: #686868;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.wc-player-chrome .wc-pop-x:hover {
+  background: var(--pc-hover-bg);
+}
+
+.wc-player-chrome .wc-pop-x:hover .wc-pop-x-svg {
+  stroke: var(--pc-hot);
+}
+
+.wc-pc-pop-body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.wc-pc-plist {
+  padding-bottom: 4px;
+}
+
+.wc-player-chrome .wc-pc-prow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 12px;
+}
+
+.wc-player-chrome .wc-pc-prow:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.wc-pc-plabel {
+  overflow: hidden;
+  color: #9a9a9a;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-pc-prow:hover .wc-pc-plabel,
+.wc-pc-prow.is-on .wc-pc-plabel {
+  color: #d0d0d0;
+}
+
+/* The toggle switch of the in-game popups. */
+.wc-pc-tg {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 26px;
+  height: 14px;
+  border: 1px solid #3a3a3a;
+  border-radius: 7px;
+  background: #111;
+}
+
+.wc-pc-tg i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a4a4a;
+}
+
+.is-on > .wc-pc-tg,
+.wc-pc-tg.is-on {
+  border-color: #5a5a5a;
+  background: #3a3a3a;
+}
+
+.is-on > .wc-pc-tg i,
+.wc-pc-tg.is-on i {
+  left: 14px;
+  background: var(--pc-hot);
+}
+
+.wc-pc-pop-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 10px;
+  border-top: 1px solid #1a1a1a;
+}
+
+.wc-player-chrome .wc-pc-btn {
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  color: #a8a8a8;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.wc-player-chrome .wc-pc-btn:hover {
+  border-color: #5a5a5a;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pc-hot);
+}
+
+.wc-player-chrome .wc-pc-btn.is-off {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.wc-player-chrome .wc-pc-btn.is-off:hover {
+  border-color: #2e2e2e;
+  background: none;
+  color: #a8a8a8;
+}
+
+.wc-pc-sub {
+  padding: 8px 12px 4px;
+  color: #585858;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.wc-pc-seg {
+  display: flex;
+  margin: 0 12px 8px;
+  overflow: hidden;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+}
+
+.wc-player-chrome .wc-pc-sg {
+  flex: 1;
+  height: 24px;
+  border-left: 1px solid #2e2e2e;
+  color: #7a7a7a;
+  font-size: 12px;
+  line-height: 24px;
+  text-align: center;
+}
+
+.wc-player-chrome .wc-pc-sg:first-child {
+  border-left: 0;
+}
+
+.wc-player-chrome .wc-pc-sg:hover {
+  color: #d0d0d0;
+}
+
+.wc-player-chrome .wc-pc-sg.is-on {
+  background: #2a2a2a;
+  color: var(--pc-hot);
+}
+
+.wc-pc-sws {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+
+.wc-player-chrome .wc-pc-sw {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 7px;
+  overflow: hidden;
+  border: 1px solid var(--pc-line);
+  border-radius: 3px;
+  color: #8a8a8a;
+  font-size: 12px;
+}
+
+.wc-player-chrome .wc-pc-sw:hover {
+  border-color: #5a5a5a;
+  color: #d0d0d0;
+}
+
+.wc-player-chrome .wc-pc-sw.is-on {
+  border-color: #a0a0a0;
+  color: var(--pc-hot);
+}
+
+.wc-pc-swd {
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 2px;
 }

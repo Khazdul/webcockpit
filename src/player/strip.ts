@@ -1,24 +1,22 @@
-// Player chrome maths (Inv §7.5, ADR 0018): the right-edge strip with its
-// half-block playhead, the K/D/A/L markers, the clock and the header. Pure,
-// so the stage 7 HTML replay can draw the same strip.
+// Player chrome maths (Inv §7.5, ADR 0018, ADR 0114): the right-edge rail
+// with its gold playhead, the K/D/A/L markers, the clock and the header.
+// Pure, so the HTML replay draws the same rail.
 //
-// Row mapping (the same for the playhead and the markers, so a marker and
-// the playhead meet on one row): `half = round(f × (rows × 2 − 1))`,
-// `row = half >> 1`, upper half when `half` is even; `f` = offset /
-// duration clamped to 0–1. A pointer at `y` px seeks to
-// `f = (y − cellH / 2) / (height − cellH)`, so the top row's centre is the
-// start and the bottom row's centre the end.
+// The rail (stage 32c) is RAIL_W px at the right edge; its track runs from
+// RAIL_PAD px below the top to RAIL_PAD px above the bottom. The playhead
+// and the markers sit at `f` = offset / duration (clamped to 0–1) down the
+// track, and a pointer at `y` px seeks to `f = (y − pad) / (height − 2·pad)`.
+// Markers closer together than one slot (MARK_SLOT px) share one marker:
+// `offsetToRow` over the track's slots groups them.
 
 import type { RunEvent } from '../runs/events';
 
-export const STRIP_COLS = 2;
-export const MARK_COLS = 5;
-export const COLOR = {
-  played: '#9a9a9a',
-  remaining: '#242424',
-  playhead: '#ffaf00',
-  mark: '#4d4d4d',
-} as const;
+/** The rail's width at the right edge, px (the stage ends left of it). */
+export const RAIL_W = 12;
+/** The track's inset at the top and the bottom, px. */
+export const RAIL_PAD = 10;
+/** Markers closer than this (px) share one marker. */
+export const MARK_SLOT = 18;
 
 /** Marker letters in their stacking order (Inv §7.5). */
 export const MARK_ORDER = ['A', 'D', 'K', 'L'] as const;
@@ -85,54 +83,37 @@ export function markersOf(events: readonly RunEvent[]): Marker[] {
   return out;
 }
 
-function fraction(offset: number, duration: number): number {
+/** How far down the rail `offset` is: 0 (start) to 1 (end). */
+export function railFraction(offset: number, duration: number): number {
   if (!(duration > 0)) return 0;
   return Math.max(0, Math.min(1, offset / duration));
 }
 
-/** Row and half of `offset` on a strip of `rows` rows. */
+/** Row and half of `offset` on a rail of `rows` slots. */
 export function offsetToRow(offset: number, duration: number, rows: number): { row: number; upper: boolean } {
-  const half = Math.round(fraction(offset, duration) * (rows * 2 - 1));
+  const half = Math.round(railFraction(offset, duration) * (rows * 2 - 1));
   return { row: half >> 1, upper: (half & 1) === 0 };
 }
 
-export interface StripCell {
-  ch: string;
-  fg: string;
-  bg: string;
-}
-
-/** One cell per row: played above the playhead, remaining below, the gold half-block on its row. */
-export function stripCells(offset: number, duration: number, rows: number): StripCell[] {
-  const { row, upper } = offsetToRow(offset, duration, rows);
-  const out: StripCell[] = [];
-  for (let r = 0; r < rows; r++) {
-    if (r < row) out.push({ ch: '█', fg: COLOR.played, bg: COLOR.played });
-    else if (r > row) out.push({ ch: '█', fg: COLOR.remaining, bg: COLOR.remaining });
-    else if (upper) out.push({ ch: '▀', fg: COLOR.playhead, bg: COLOR.remaining });
-    else out.push({ ch: '▄', fg: COLOR.playhead, bg: COLOR.played });
-  }
-  return out;
-}
-
-/** Playback offset for a pointer `y` px down a strip `height` px high. */
-export function yToOffset(y: number, height: number, cellH: number, duration: number): number {
-  const span = height - cellH;
-  const f = span > 0 ? (y - cellH / 2) / span : 0;
+/** Playback offset for a pointer `y` px down a rail `height` px high whose track is inset `pad` px at each end. */
+export function yToOffset(y: number, height: number, pad: number, duration: number): number {
+  const span = height - 2 * pad;
+  const f = span > 0 ? (y - pad) / span : 0;
   return Math.max(0, Math.min(1, f)) * duration;
 }
 
 export interface MarkRow {
+  /** The slot (markers in one slot share a marker). */
   row: number;
-  /** Stacked letters plus `►`, e.g. `K►`, `ADKL►`. */
-  text: string;
+  /** The kinds on the slot, in MARK_ORDER, e.g. `['A', 'L']`. */
+  letters: MarkLetter[];
   /** The earliest marker offset on the row (a click seeks there). */
   offset: number;
   /** The hover tip: one line per marker on the row, in time order. */
   tips: string[];
 }
 
-/** Markers (as playback offsets) grouped by strip row, top to bottom. */
+/** Markers (as playback offsets) grouped by rail slot, top to bottom. */
 export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, rows: number): MarkRow[] {
   const byRow = new Map<number, { letters: Set<MarkLetter>; offset: number; marks: PlacedMark[] }>();
   for (const m of marks) {
@@ -150,7 +131,7 @@ export function markRows(marks: ReadonlyArray<PlacedMark>, duration: number, row
     .map(([row, v]) => ({
       row,
       offset: v.offset,
-      text: MARK_ORDER.filter((l) => v.letters.has(l)).join('') + '►',
+      letters: MARK_ORDER.filter((l) => v.letters.has(l)),
       tips: v.marks
         .slice()
         .sort((a, b) => a.offset - b.offset)
@@ -174,7 +155,8 @@ export interface HeaderHint {
  * they give way in when the header is narrow (1 first). `ESC Back` stays.
  */
 export const HINTS: ReadonlyArray<HeaderHint> = [
-  { text: 'Space Play/Pause', drop: 3 },
+  { text: 'Space Play/Pause', drop: 4 },
+  { text: '← → 10 s', drop: 3 },
   { text: '1–6 Speed', drop: 2 },
   { text: '↑↓ Cursor', drop: 1 },
   { text: 'ESC Back', drop: Infinity },
@@ -215,7 +197,7 @@ export function fmtDateTime(us: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
-/** Speed label for the control box (`0.25x` … `8x`). */
+/** Speed label for the control box (`0.25×` … `8×`). */
 export function fmtSpeed(s: number): string {
-  return `${s}x`;
+  return `${s}×`;
 }

@@ -6,12 +6,14 @@
 // backward seek) and `PlayerView`, with the replay's mode options:
 //
 // - header `<title> · <char> (L<lvl>) · YYYY-MM-DD`, hints `Space Play ·
-//   ↑↓ Scroll · 1–6 Speed · F Fullscreen` (they give way when narrow);
-// - no ESC Back: ESC leaves fullscreen (the browser usually does that
-//   itself), `F` and the control box's `Fullscreen` / `Exit fullscreen`
-//   toggle it;
-// - `MM:SS` beside the pointer over the strip; comment holds and cuts from
+//   ← → 10 s · ↑↓ Scroll · 1–6 Speed · F Fullscreen` (they give way when
+//   narrow);
+// - no ESC Back and no Close: ESC leaves fullscreen (the browser usually
+//   does that itself), `F` and the control box's Fullscreen icon toggle it;
+// - `MM:SS` beside the pointer over the rail; comment holds and cuts from
 //   the payload (`payloadEdits`).
+// The chrome is the in-app player's (stage 32c, ADR 0114): its CSS and
+// icons are bundled into the runtime, nothing is fetched.
 //
 // The page may be opened from `file://` with no network and no storage
 // (a browser may even throw on `localStorage`). Nothing here touches
@@ -35,7 +37,8 @@ import { replayMapHost } from './map-host';
 
 /** Header hints; all of them give way when narrow (Inv §7.7). */
 export const REPLAY_HINTS: ReadonlyArray<HeaderHint> = [
-  { text: 'Space Play', drop: 4 },
+  { text: 'Space Play', drop: 5 },
+  { text: '← → 10 s', drop: 4 },
   { text: '↑↓ Scroll', drop: 1 },
   { text: '1–6 Speed', drop: 2 },
   { text: 'F Fullscreen', drop: 3 },
@@ -116,10 +119,12 @@ export function openReplay(doc: Document, root: HTMLElement, payload: ReplayPayl
           void toggleFullscreen(doc);
           return true;
         },
-        stripHoverTime: true,
+        railHoverTime: true,
+        closeTitle: null,
         boxButtons: [
           {
-            label: () => (isFullscreen(doc) ? 'Exit fullscreen' : 'Fullscreen'),
+            label: () => (isFullscreen(doc) ? 'Exit fullscreen (F)' : 'Fullscreen (F)'),
+            icon: () => (isFullscreen(doc) ? 'fullscreenExit' : 'fullscreen'),
             onClick: () => void toggleFullscreen(doc),
           },
         ],

@@ -1,5 +1,5 @@
 // Recorded layout (ADR 0018 "Recorded layout", amended 2026-09-28): the
-// player lays the cockpit out on the viewer's window (left of the strip)
+// player lays the cockpit out on the viewer's window (left of the rail)
 // with the recorded VIEW applied over the viewer's settings — layout, pane
 // settings and appearance, font size included — so docks keep their
 // recorded cell sizes and the game pane flexes to fill the rest, as in the
@@ -10,8 +10,8 @@ import { type TextGrid, nominalCell } from '../theme/cells';
 import { type AppearanceSettings, FONT_SIZE_MIN, type Settings, type ViewSnapshot } from '../settings/types';
 
 /**
- * The player's font size in a `w` × `h` px window with `reserveCols` cells
- * kept free on the right (the strip): the appearance's own size, or, when
+ * The player's font size in a `w` × `h` px window with `reservePx` px
+ * kept free on the right (the rail): the appearance's own size, or, when
  * its grid would be below the cockpit's minimum (MIN_VIEW_COLS ×
  * MIN_VIEW_ROWS), the largest smaller size that meets it (FONT_SIZE_MIN
  * when none does).
@@ -20,13 +20,13 @@ export function playerFontSize(
   a: Readonly<AppearanceSettings>,
   w: number,
   h: number,
-  reserveCols: number,
+  reservePx: number,
   dpr = 1,
   grid: TextGrid = 'css',
 ): number {
   for (let size = a.size; size > FONT_SIZE_MIN; size--) {
     const c = nominalCell({ ...a, size }, dpr, grid);
-    if (Math.floor(w / c.w + 1e-6) - reserveCols >= MIN_VIEW_COLS && Math.floor(h / c.h + 1e-6) >= MIN_VIEW_ROWS) return size;
+    if (Math.floor((w - reservePx) / c.w + 1e-6) >= MIN_VIEW_COLS && Math.floor(h / c.h + 1e-6) >= MIN_VIEW_ROWS) return size;
   }
   return FONT_SIZE_MIN;
 }

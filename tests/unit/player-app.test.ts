@@ -253,47 +253,120 @@ describe('PlayerHost', () => {
     host.dispose();
   });
 
-  it('the gear folds the settings section; its buttons change the overrides', async () => {
+  it('Panes and Display open popups above the box; their buttons change the overrides', async () => {
     const { root, host } = open();
     host.engine!.pause();
     const view = host.playerView!;
-    const gear = root.querySelector<HTMLElement>('.wc-player-gear')!;
-    expect(gear.textContent).toBe('⚙');
-    const section = root.querySelector<HTMLElement>('.wc-player-settings')!;
-    expect(section.hidden).toBe(true);
-    gear.click();
-    expect(view.settingsShown).toBe(true);
-    view.render();
-    expect(section.hidden).toBe(false);
-    const rows = [...section.children].map((r) => r.textContent!);
-    expect(rows.every((r) => r.length === 32)).toBe(true);
-    expect(rows[1]).toBe('│ [X] Character  [X] Timers    │');
-    section.querySelector<HTMLElement>('[data-pane="timers"]')!.click();
+    const btn = (act: string) => root.querySelector<HTMLElement>(`.wc-player-box [data-act="${act}"]`)!;
+    const pop = (name: string) => root.querySelector<HTMLElement>(`.wc-pc-pop[data-pop="${name}"]`)!;
+    expect(pop('panes').hidden).toBe(true);
+    btn('panes').click();
+    expect(view.popup).toBe('panes');
+    expect(pop('panes').hidden).toBe(false);
+    expect(pop('panes').hasAttribute('data-wc-own-keys')).toBe(true);
+    expect(btn('panes').classList.contains('is-on')).toBe(true);
+    const rows = [...pop('panes').querySelectorAll<HTMLElement>('[data-pane]')];
+    expect(rows.map((r) => r.textContent)).toEqual(['Character', 'Timers', 'Group', 'Comm', 'UI', 'Map']);
+    expect(rows[1]!.getAttribute('aria-checked')).toBe('true');
+    rows[1]!.click();
     expect(host.viewerOverrides.panes).toEqual({ timers: false });
-    section.querySelector<HTMLElement>('[data-set="font"][data-dir="1"]')!.click();
-    section.querySelector<HTMLElement>('[data-set="theme"][data-dir="-1"]')!.click();
+    view.render();
+    expect(rows[1]!.getAttribute('aria-checked')).toBe('false');
+    // The reset button follows the overrides.
+    const reset = pop('panes').querySelector<HTMLElement>('[data-set="reset"]')!;
+    expect(reset.classList.contains('is-off')).toBe(false);
+    reset.click();
+    view.render();
+    expect(host.viewerOverrides.panes).toBeUndefined();
+    expect(reset.classList.contains('is-off')).toBe(true);
+
+    // Display: one popup at a time; font size and colours.
+    btn('display').click();
+    expect(view.popup).toBe('display');
+    expect(pop('panes').hidden).toBe(true);
+    pop('display').querySelector<HTMLElement>('[data-font="small"]')!.click();
+    pop('display').querySelector<HTMLElement>('[data-theme="slate"]')!.click();
     expect(host.viewerOverrides.font).toBe('small');
     expect(host.viewerOverrides.theme).toBe('slate');
     view.render();
-    expect(section.querySelector('[data-pane="timers"]')!.textContent).toBe('[ ] Timers');
-    expect(section.querySelector('[data-set="theme"][data-value]')!.textContent).toBe(' Slate   ');
-    // ESC folds the section first, then leaves.
+    expect(pop('display').querySelector('[data-font="small"]')!.classList.contains('is-on')).toBe(true);
+    expect(pop('display').querySelector('[data-theme="slate"]')!.getAttribute('aria-checked')).toBe('true');
+    // ESC closes the popup first, then leaves.
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
-    expect(view.settingsShown).toBe(false);
+    expect(view.popup).toBeNull();
+    expect(pop('display').hidden).toBe(true);
     expect(root.querySelector('.wc-player')).not.toBeNull();
     host.dispose();
   });
 
-  it('auto-hides in play with the settings section folded out', async () => {
+  it('the transport: To the start, ±10 s, speed steps disabled at the ends, Close', async () => {
+    const { root, host, wall, closed } = open();
+    const eng = host.engine!;
+    const btn = (act: string) => root.querySelector<HTMLButtonElement>(`.wc-player-box [data-act="${act}"]`)!;
+    eng.pause();
+    wall.flush();
+    const at = eng.position;
+    btn('fwd').click();
+    wall.flush();
+    expect(eng.position).toBeCloseTo(Math.min(eng.duration, at + 10_000), -1);
+    const at2 = eng.position;
+    btn('back').click();
+    wall.flush();
+    expect(eng.position).toBeCloseTo(Math.max(0, at2 - 10_000), -1);
+    btn('start').click();
+    wall.flush();
+    expect(eng.position).toBe(0);
+    expect(eng.playing).toBe(false);
+    // Speed: one step per click, disabled at the ends.
+    eng.setSpeed(1);
+    btn('faster').click();
+    expect(eng.speed).toBe(2);
+    eng.setSpeed(8);
+    host.playerView!.render();
+    expect(btn('faster').disabled).toBe(true);
+    expect(root.querySelector('.wc-player-speed')!.textContent).toBe('8×');
+    eng.setSpeed(0.25);
+    host.playerView!.render();
+    expect(btn('slower').disabled).toBe(true);
+    btn('faster').click();
+    expect(eng.speed).toBe(0.5);
+    // Play / pause.
+    btn('play').click();
+    expect(eng.playing).toBe(true);
+    host.playerView!.render();
+    expect(btn('play').getAttribute('aria-label')).toBe('Pause');
+    // Keys: → +10 s, ← −10 s, Home to the start.
+    eng.pause();
+    const key = (k: string, shiftKey = false) =>
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: k, shiftKey, bubbles: true, cancelable: true }));
+    const p0 = eng.position;
+    key('ArrowRight');
+    wall.flush();
+    expect(eng.position).toBeCloseTo(Math.min(eng.duration, p0 + 10_000), -1);
+    key('ArrowLeft', true);
+    wall.flush();
+    expect(eng.position).toBeCloseTo(p0, -1);
+    key('Home');
+    wall.flush();
+    expect(eng.position).toBe(0);
+    // Close leaves (as ESC).
+    expect(btn('close').title).toBe('Back to History (Esc)');
+    btn('close').click();
+    expect(closed()).toBe(1);
+  });
+
+  it('stays shown in play while a popup is open, and hides once it closes', async () => {
     const { root, host } = open([], 20);
     expect(host.engine!.playing).toBe(true);
-    root.querySelector<HTMLElement>('.wc-player-gear')!.click();
-    expect(host.playerView!.settingsShown).toBe(true);
+    root.querySelector<HTMLElement>('[data-act="display"]')!.click();
+    expect(host.playerView!.popup).toBe('display');
     const chrome = root.querySelector('.wc-player-chrome')!;
+    await new Promise((r) => setTimeout(r, 60));
     expect(chrome.hasAttribute('data-hidden')).toBe(false);
+    root.querySelector<HTMLElement>('.wc-pc-pop[data-pop="display"] .wc-pop-x')!.click();
+    expect(host.playerView!.popup).toBeNull();
     await new Promise((r) => setTimeout(r, 60));
     expect(chrome.hasAttribute('data-hidden')).toBe(true);
-    expect(host.playerView!.settingsShown).toBe(true);
     host.dispose();
   });
 
@@ -306,8 +379,18 @@ describe('PlayerHost', () => {
     await new Promise((r) => setTimeout(r, 50));
     const chrome = root.querySelector('.wc-player-chrome')!;
     expect(chrome.querySelector('.wc-player-header')!.textContent).toContain('Rasta (L42) · Run 1 of 2 · ');
-    const marks = [...chrome.querySelectorAll<HTMLElement>('.wc-player-mark')];
-    expect(marks.map((m) => m.textContent)).toEqual(['K►', 'L►']);
+    // Without layout (happy-dom) the rail is one slot: one marker with both kinds' icons.
+    let marks = [...chrome.querySelectorAll<HTMLElement>('.wc-player-mark')];
+    expect(marks.map((m) => m.dataset.kinds)).toEqual(['KL']);
+    expect([...marks[0]!.querySelectorAll('svg')].map((x) => x.dataset.kind)).toEqual(['pkill', 'level']);
+    expect(marks[0]!.dataset.tip).toBe('Killed *Ibuki the Half-Elf*\nReached level 43');
+    // An 800 px rail: a marker each, at their places.
+    Object.defineProperty(host.el, 'clientHeight', { configurable: true, value: 800 });
+    host.playerView!.render();
+    marks = [...chrome.querySelectorAll<HTMLElement>('.wc-player-mark')];
+    expect(marks.map((m) => m.dataset.kinds)).toEqual(['K', 'L']);
+    // Kind icons: crossed swords, double chevrons.
+    expect(marks.map((m) => [...m.querySelectorAll('svg')].map((x) => x.dataset.kind))).toEqual([['pkill'], ['level']]);
     expect(marks.map((m) => Number(m.dataset.offset))).toEqual([2000, 9100]); // the extra VIEW adds 0.1 s before the collapsed gap
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     expect(closed()).toBe(1);

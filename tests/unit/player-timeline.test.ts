@@ -12,7 +12,7 @@ import {
   markRows,
   markersOf,
   offsetToRow,
-  stripCells,
+  railFraction,
   yToOffset,
 } from '../../src/player/strip';
 import {
@@ -258,22 +258,19 @@ describe('strip maths', () => {
     expect(offsetToRow(10, 0, 10)).toEqual({ row: 0, upper: true });
   });
 
-  it('draws played above, remaining below and the gold half-block between', () => {
-    const cells = stripCells(50, 100, 4); // half = round(0.5 × 7) = 4 → row 2, upper
-    expect(cells.map((c) => c.ch).join('')).toBe('██▀█');
-    expect(cells[0]!.fg).toBe('#9a9a9a');
-    expect(cells[2]).toEqual({ ch: '▀', fg: '#ffaf00', bg: '#242424' });
-    expect(cells[3]!.fg).toBe('#242424');
-    const low = stripCells(40, 100, 4); // half = round(2.8) = 3 → row 1, lower
-    expect(low.map((c) => c.ch).join('')).toBe('█▄██');
-    expect(low[1]).toEqual({ ch: '▄', fg: '#ffaf00', bg: '#9a9a9a' });
+  it('places the playhead at the offset\'s fraction of the rail', () => {
+    expect(railFraction(50, 100)).toBe(0.5);
+    expect(railFraction(-5, 100)).toBe(0);
+    expect(railFraction(150, 100)).toBe(1);
+    expect(railFraction(10, 0)).toBe(0);
   });
 
-  it('turns a pointer position into an offset (top row centre = start, bottom = end)', () => {
-    expect(yToOffset(5, 100, 10, 1000)).toBe(0);
-    expect(yToOffset(95, 100, 10, 1000)).toBe(1000);
-    expect(yToOffset(50, 100, 10, 1000)).toBe(500);
-    expect(yToOffset(-40, 100, 10, 1000)).toBe(0);
+  it('turns a pointer position into an offset (the track\'s top = start, its bottom = end)', () => {
+    expect(yToOffset(5, 100, 5, 1000)).toBe(0);
+    expect(yToOffset(95, 100, 5, 1000)).toBe(1000);
+    expect(yToOffset(50, 100, 5, 1000)).toBe(500);
+    expect(yToOffset(-40, 100, 5, 1000)).toBe(0);
+    expect(yToOffset(140, 100, 5, 1000)).toBe(1000);
   });
 
   it('maps the chain events to K/D/A/L markers at logUs ?? us', () => {
@@ -294,7 +291,7 @@ describe('strip maths', () => {
     ]);
   });
 
-  it('stacks markers on a row as A D K L + ►, seeking to the earliest', () => {
+  it('stacks markers on a slot as A D K L, seeking to the earliest', () => {
     const rows = markRows(
       [
         { letter: 'L', offset: 51, tip: 'Reached level 3' },
@@ -307,21 +304,22 @@ describe('strip maths', () => {
       10,
     );
     expect(rows).toEqual([
-      { row: 0, text: 'K►', offset: 0, tips: ['Killed *Ibuki*'] },
+      { row: 0, letters: ['K'], offset: 0, tips: ['Killed *Ibuki*'] },
       // Tips in time order; a marker without one gets its letter's (older replays).
-      { row: 5, text: 'ADL►', offset: 50, tips: ['Achievement', 'Reached level 3', 'Death'] },
+      { row: 5, letters: ['A', 'D', 'L'], offset: 50, tips: ['Achievement', 'Reached level 3', 'Death'] },
     ]);
   });
 
   it('fits the header hints, dropping the lowest priority first and keeping ESC Back', () => {
-    const all = ['Space Play/Pause', '1–6 Speed', '↑↓ Cursor', 'ESC Back'];
-    expect(hintsWidth(all)).toBe(51);
+    const all = ['Space Play/Pause', '← → 10 s', '1–6 Speed', '↑↓ Cursor', 'ESC Back'];
+    expect(hintsWidth(all)).toBe(62);
     expect(fitHints(200)).toEqual(all);
-    expect(fitHints(51)).toEqual(all);
-    expect(fitHints(50)).toEqual(['Space Play/Pause', '1–6 Speed', 'ESC Back']);
-    expect(fitHints(39)).toEqual(['Space Play/Pause', '1–6 Speed', 'ESC Back']);
-    expect(fitHints(38)).toEqual(['Space Play/Pause', 'ESC Back']);
-    expect(fitHints(27)).toEqual(['Space Play/Pause', 'ESC Back']);
+    expect(fitHints(62)).toEqual(all);
+    expect(fitHints(61)).toEqual(['Space Play/Pause', '← → 10 s', '1–6 Speed', 'ESC Back']);
+    expect(fitHints(50)).toEqual(['Space Play/Pause', '← → 10 s', '1–6 Speed', 'ESC Back']);
+    expect(fitHints(49)).toEqual(['Space Play/Pause', '← → 10 s', 'ESC Back']);
+    expect(fitHints(38)).toEqual(['Space Play/Pause', '← → 10 s', 'ESC Back']);
+    expect(fitHints(37)).toEqual(['Space Play/Pause', 'ESC Back']);
     expect(fitHints(26)).toEqual(['ESC Back']);
     expect(fitHints(0)).toEqual(['ESC Back']);
   });
@@ -334,27 +332,27 @@ describe('strip maths', () => {
 });
 
 describe('recorded layout', () => {
-  it('keeps the recorded font size when the grid left of the strip meets the minimum', () => {
+  it('keeps the recorded font size when the grid left of the rail meets the minimum', () => {
     const a = { ...defaultSettings().appearance, size: 15 };
-    expect(playerFontSize(a, 1440, 860, 2)).toBe(15);
-    expect(playerFontSize(a, 1920, 1080, 2)).toBe(15);
-    expect(playerFontSize({ ...a, size: 22 }, 1920, 1080, 2)).toBe(22);
+    expect(playerFontSize(a, 1440, 860, 12)).toBe(15);
+    expect(playerFontSize(a, 1920, 1080, 12)).toBe(15);
+    expect(playerFontSize({ ...a, size: 22 }, 1920, 1080, 12)).toBe(22);
   });
 
   it('falls back to the largest smaller size that meets the minimum grid', () => {
     const a = { ...defaultSettings().appearance, size: 24 };
     const W = 700;
     const H = 400;
-    const size = playerFontSize(a, W, H, 2);
+    const size = playerFontSize(a, W, H, 12);
     expect(size).toBeLessThan(24);
     const fits = (n: number) => {
       const c = nominalCell({ ...a, size: n });
-      return Math.floor(W / c.w) - 2 >= MIN_VIEW_COLS && Math.floor(H / c.h) >= MIN_VIEW_ROWS;
+      return Math.floor((W - 12) / c.w) >= MIN_VIEW_COLS && Math.floor(H / c.h) >= MIN_VIEW_ROWS;
     };
     expect(fits(size)).toBe(true);
     expect(fits(size + 1)).toBe(false);
     // Nothing fits: the smallest size.
-    expect(playerFontSize(a, 100, 100, 2)).toBe(6);
+    expect(playerFontSize(a, 100, 100, 12)).toBe(6);
   });
 
   it('parses a VIEW and replaces its parts whole', () => {

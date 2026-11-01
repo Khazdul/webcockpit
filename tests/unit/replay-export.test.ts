@@ -220,7 +220,7 @@ describe('replay header', () => {
     const p = payload();
     const h = replayHeader(p);
     expect(h.left.map((x) => x.text)).toEqual(['A fight', 'Rasta (L42)', fmtDate(BASE_US)]);
-    expect(fitHints(200, h.hints)).toEqual(['Space Play', '↑↓ Scroll', '1–6 Speed', 'F Fullscreen']);
+    expect(fitHints(200, h.hints)).toEqual(['Space Play', '← → 10 s', '↑↓ Scroll', '1–6 Speed', 'F Fullscreen']);
     expect(fitHints(5, REPLAY_HINTS)).toEqual([]);
     const untitled = replayHeader({ ...p, title: '', level: undefined as never });
     expect(untitled.left.map((x) => x.text)).toEqual(['Rasta', fmtDate(BASE_US)]);

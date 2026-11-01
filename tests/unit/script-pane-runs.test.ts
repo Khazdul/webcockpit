@@ -575,8 +575,8 @@ describe('log player', () => {
     // No click handler: a click on a link does nothing (and throws nothing).
     expect((p as unknown as { onLink: unknown }).onLink).toBeNull();
     const controls = (host.playerView as unknown as { o: { settings: ViewerControls } }).o.settings;
-    expect(controls.panes().at(-1)).toEqual({ id: ID, label: 'Mercenaries (merc)', on: true, wide: true });
-    controls.togglePane(ID);
+    expect(controls.panes!.list().at(-1)).toEqual({ id: ID, label: 'Mercenaries (merc)', on: true, wide: true });
+    controls.panes!.toggle(ID);
     const store = () => (host.app as unknown as { settings: SettingsStore }).settings;
     expect(store().get().panes[ID]?.on).toBe(false);
     expect(host.viewerOverrides.panes).toEqual({ [ID]: false });
@@ -584,7 +584,7 @@ describe('log player', () => {
     host.dispose();
   });
 
-  it('draws a temporary pane where the player saw it, keeps it out of the gear, and its cross hides it', () => {
+  it('draws a temporary pane where the player saw it, keeps it out of the Panes popup, and its cross hides it', () => {
     const TID = 'merc/~pick';
     const s0 = defaultSettings();
     const view = { appearance: { size: 14 }, panes: s0.panes, layout: s0.layout };
@@ -629,7 +629,7 @@ describe('log player', () => {
     expect(cockpit().scriptPanes()).toEqual([]);
     expect(host.scriptPaneIds).toEqual([]);
     const controls = (host.playerView as unknown as { o: { settings: ViewerControls } }).o.settings;
-    expect(controls.panes().some((p) => p.id === TID)).toBe(false);
+    expect(controls.panes!.list().some((p) => p.id === TID)).toBe(false);
     seekLog(BASE_US + 2.5e6);
     expect(cockpit().tempPane(TID)!.rect).toEqual({ x: 3, y: 4, w: 24, h: 6 });
     seekLog(BASE_US + 3.5e6);

@@ -3,7 +3,7 @@
 //
 //   .wc-player                  fills the page; the recorded theme and the
 //                               cell size are custom properties on it
-//     .wc-player-stage          the window left of the strip
+//     .wc-player-stage          the window left of the rail
 //       .wc-app                 a player App (src/app/app.ts `player: true`)
 //     .wc-player-chrome         src/player/view.ts
 //
@@ -12,7 +12,7 @@
 // settings store (in memory, never saved) holding the viewer's settings;
 // VIEW records replace their parts as they pass (src/player/fit.ts), so
 // after a seek the settings are those of the latest VIEW before it. The
-// stage is the window left of the strip, laid out by the cockpit at the
+// stage is the window left of the rail, laid out by the cockpit at the
 // recorded font size (smaller only when the grid would be below the
 // cockpit's minimum): docks keep their recorded cell sizes, the game pane
 // takes the rest and the text reflows, as live. SIZE records are not used
@@ -32,8 +32,9 @@
 // (`base`) → the overrides (`applyViewer`). A layout change the host did
 // not make itself is the viewer dragging or resizing in the player
 // cockpit; it becomes the layout override. A pane hidden with its close
-// cross becomes a pane override, as the settings toggle. The control box's gear shows
-// the controls (`ViewerControls`, PlayerView).
+// cross becomes a pane override, as the settings toggle. The control box's
+// Panes and Display popups show the controls (`ViewerControls`, PlayerView;
+// ADR 0114); the Spotlights reel gets Display only.
 //
 // Stage 11 (ADR 0053 P1): SPANE records build the script panes as the
 // player saw them, without Lua: a `ScriptPane` per pane id on the
@@ -61,19 +62,16 @@ import { DEFAULT_INPUT_COLOR } from '../theme/presets';
 import { CellMetrics, devicePixelRatioOf, textGridOf } from '../theme/cells';
 import { PlayerEngine, type PlayerTarget, type Wall } from '../player/engine';
 import { overlayView, parseView, playerFontSize } from '../player/fit';
-import { type PlacedMark, STRIP_COLS, markersOf } from '../player/strip';
+import { type PlacedMark, RAIL_W, markersOf } from '../player/strip';
 import { type PlayedRun, type Timeline, type TimelineEdits, buildTimeline, playAtLogUs, scriptPaneIdsOf } from '../player/timeline';
 import { PlayerView, type PlayerViewOptions, type ViewerControls, runHeader } from '../player/view';
 import {
-  VIEWER_FONTS,
-  VIEWER_THEMES,
   type ViewerOverrides,
   applyViewer,
-  cycle,
   hasLayoutOverride,
   noOverrides,
   resetLayout,
-  viewerLabel,
+  themeColors,
   withLayout,
   withPane,
 } from '../player/viewer';
@@ -113,13 +111,13 @@ export interface PlayerOpenOptions {
   /** Markers as playback offsets; default: the events' markers (`markersOf`) on `playAtLogUs`. */
   marks?: (tl: Timeline) => PlacedMark[];
   /** View mode options; `header` and `onEsc` replace the log player's. */
-  view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'overlay' | 'startHidden' | 'stripHoverTime' | 'boxButtons' | 'onEsc' | 'gear'>>;
+  view?: Partial<Pick<PlayerViewOptions, 'header' | 'keys' | 'startHidden' | 'railHoverTime' | 'boxButtons' | 'onEsc' | 'closeTitle' | 'shiftSeek'>>;
   /** Start playing at once (default true). */
   autoplay?: boolean;
   /** Runs whose login system line is not printed (HTML replay `hiddenSys`, ADR 0019). */
   hiddenSys?: readonly number[];
-  /** The control box's gear and viewer settings (ADR 0021; default true). */
-  viewerSettings?: boolean;
+  /** The viewer settings (ADR 0021): Panes and Display (default true), Display only, or none. */
+  viewerSettings?: boolean | 'display';
 }
 
 /** Paint gate: frame callbacks wait while it is closed. */
@@ -268,8 +266,9 @@ export class PlayerHost {
       output: () => this.appRef?.output ?? null,
       cells: () => this.cells.get(),
       onEsc,
+      closeTitle: 'Back to History (Esc)',
       ...(this.opts.hideMs !== undefined ? { hideMs: this.opts.hideMs } : {}),
-      ...(opts.viewerSettings !== false ? { settings: this.controls() } : {}),
+      ...(opts.viewerSettings !== false ? { settings: this.controls(opts.viewerSettings !== 'display') } : {}),
       ...opts.view,
     });
     if (opts.autoplay !== false) engine.play();
@@ -480,8 +479,8 @@ export class PlayerHost {
     }
   }
 
-  /** The control box's settings section (PlayerView), over this host. */
-  private controls(): ViewerControls {
+  /** The control box's popups' settings (PlayerView), over this host; `panes`: with the Panes popup. */
+  private controls(panes: boolean): ViewerControls {
     const on = (id: PaneId): boolean => {
       const s = this.store?.get();
       return s ? paneSettingsOf(s.panes, id).on : false;
@@ -491,17 +490,25 @@ export class PlayerHost {
       return `${shown?.title ?? id.slice(id.indexOf('/') + 1)} (${paneScript(id)})`;
     };
     return {
-      panes: () => [
-        ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
-        ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
-      ],
-      togglePane: (id) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),
-      font: () => viewerLabel(this.viewer.font),
-      cycleFont: (dir) => this.setViewer({ ...this.viewer, font: cycle(VIEWER_FONTS, this.viewer.font, dir) }),
-      theme: () => viewerLabel(this.viewer.theme),
-      cycleTheme: (dir) => this.setViewer({ ...this.viewer, theme: cycle(VIEWER_THEMES, this.viewer.theme, dir) }),
-      canReset: () => hasLayoutOverride(this.viewer),
-      reset: () => this.setViewer(resetLayout(this.viewer)),
+      ...(panes
+        ? {
+            panes: {
+              list: () => [
+                ...PANE_IDS.filter((id) => !LIVE_ONLY.has(id)).map((id) => ({ id, label: PANE_LABELS[id] as string, on: on(id) })),
+                ...this.scriptIds.map((id) => ({ id, label: scriptLabel(id), on: on(id), wide: true })),
+              ],
+              toggle: (id: string) => this.setViewer(withPane(this.viewer, id as PaneId, !on(id as PaneId))),
+              canReset: () => hasLayoutOverride(this.viewer),
+              reset: () => this.setViewer(resetLayout(this.viewer)),
+            },
+          }
+        : {}),
+      font: () => this.viewer.font,
+      setFont: (font) => this.setViewer({ ...this.viewer, font }),
+      theme: () => this.viewer.theme,
+      setTheme: (theme) => this.setViewer({ ...this.viewer, theme }),
+      // Default: the recorded background (the viewer's own before any VIEW).
+      swatch: (t) => themeColors(t)?.bg ?? this.base?.appearance.bg ?? this.opts.settings.get().appearance.bg,
     };
   }
 
@@ -516,8 +523,8 @@ export class PlayerHost {
     let a = s.appearance;
     const W = this.el.clientWidth;
     const H = this.el.clientHeight;
-    // The strip's columns are kept free, so it never covers a pane.
-    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, STRIP_COLS, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
+    // The rail's width is kept free, so it never covers a pane.
+    if (W > 0 && H > 0) a = { ...a, size: playerFontSize(a, W, H, RAIL_W, devicePixelRatioOf(this.el.ownerDocument), textGridOf(this.el.ownerDocument)) };
     const key = JSON.stringify(a);
     if (key !== this.fitKey) {
       this.fitKey = key;
@@ -526,13 +533,12 @@ export class PlayerHost {
     this.placeStage();
   }
 
-  /** Sizes the stage: the whole player less the strip's columns on the right. */
+  /** Sizes the stage: the whole player less the rail on the right. */
   private placeStage(): void {
     const st = this.stage.style;
-    const c = this.cells.get();
     st.left = '0';
     st.top = '0';
     st.height = '100%';
-    st.width = c.w > 0 ? `${Math.max(0, this.el.clientWidth - STRIP_COLS * c.w)}px` : '100%';
+    st.width = `calc(100% - ${RAIL_W}px)`;
   }
 }
