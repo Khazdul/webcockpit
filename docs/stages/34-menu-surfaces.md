@@ -1,6 +1,6 @@
 # Stage 34 — Menu surfaces follow the background
 
-Status: **In progress** (2026-11-01).
+Status: **Owner testing** (2026-11-01).
 
 ## Goal
 
