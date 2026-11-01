@@ -141,3 +141,9 @@ menu takes the focus from the windows" is gone with `WindowsHandle.blur`.
 Esc in the game input ends after the Exit popup in fullscreen with
 nothing, not the ESC menu. The windows still stack below z-index 100,
 where the phone's ESC menu sits; the phone has no windows.
+
+## Addendum (2026-11-01, stage 30f, owner)
+
+Esc with nothing open opens the Exit popup everywhere the bar exists, not
+only in fullscreen (ADR 0112 addendum). Keyboard Lock is still asked for
+in fullscreen, so Chromium gives Esc to the page there.

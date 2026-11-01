@@ -54,8 +54,14 @@ Statuses: Next, In progress, Owner testing, Done.
 - **Open:** `underscores.spec` lost its ESC-header target (no
   replacement found); `docs/img/appearance.png` not regenerated (script
   scene now uses the Settings popup).
-- **Next:** owner test of 30f, then 30e; then stage 30 verdict and release.
-- **Commits:** 8b98503, c9d57b0…46c860a, this one.
+- **Owner round 1 (same day):** `#menu` hint OK, nothing missed; Esc
+  with nothing open now opens the Exit popup, in and out of fullscreen
+  (ADR 0112/0103 addenda). e2e 654/661 on the full run: 4 ours (fixed,
+  green), 3 load flakes (editor underscores, output selection; green
+  alone). 30e test postponed further.
+- **Next:** owner test of 30f in the browser, later 30e; then stage 30
+  verdict and release.
+- **Commits:** 8b98503, c9d57b0…46c860a, 0d58db4, round 1, this one.
 
 ### 2026-11-01 — Stage 30e build, pane bar script removed
 

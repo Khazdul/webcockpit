@@ -75,7 +75,8 @@ phone gets its own follow-up stage.
   does nothing beyond what it already does in the input: jump to the
   bottom of scrolled-back text. Order, when the input has focus: scrolled
   back → bottom; else the topmost popup; else the topmost window
-  *(Claude)*. Inside a window, the window's own Esc layers (close search,
+  *(Claude)*. **Changed 2026-11-01 (30f round 1, owner):** with nothing
+  open, Esc opens the Exit popup, as the Exit icon does. Inside a window, the window's own Esc layers (close search,
   leave Help, the unsaved-changes prompt) come first.
 - **Focus follows clicks**, as in a desktop window system. Keys go to
   what was clicked last. A click in the game text or the input field
@@ -684,6 +685,18 @@ toggle are gone; existing installs drop its data and its pane once
 The owner moves on to 30f without testing 30e; they will test it later
 and bring any feedback then. The 30e test guide stands.
 
+### 30f round 1 (2026-11-01)
+
+Answers to the 30f guide's questions, before testing in the browser:
+
+1. The `#menu` hint reads right.
+2. Nothing from the old ESC menu is missed.
+3. **Esc with nothing open** should do what the bar's Exit icon does:
+   open the Exit popup, in and out of fullscreen. Done (ADR 0112
+   addendum, ADR 0103 addendum, help texts, spec §2.6, tests).
+
+The 30e test is moved further ahead.
+
 ## Open questions
 
 - 30a: icon designs and the popups' exact look. They are settled on the
@@ -849,6 +862,9 @@ and bring any feedback then. The 30e test guide stands.
       `chrome`, `menubar`, `windows`, `settings-popup`.
   - [x] Docs: spec §2.6 and others, manual, `#help`, README, Scripts note;
     ADR 0112 and addenda; test guide.
+- [x] 30f round 1 (2026-11-01): Esc with nothing open opens the Exit
+  popup, in and out of fullscreen (ADR 0112 and 0103 addenda; help, spec,
+  unit and e2e tests).
 
 ## Test guide
 
@@ -1196,16 +1212,18 @@ MUME (or `?replay` to try it offline). Desktop first, then a tablet (or
 
 **Desktop**
 
-1. **Esc with nothing open:** click in the game input and press Esc. Nothing
-   opens: no menu covers the game, and you keep typing. Press it a few
-   times; still nothing.
+1. **Esc with nothing open:** click in the game input and press Esc. The
+   Exit popup rises above the Exit icon, as a click on the icon does (no
+   menu covers the game). Esc again closes it and you keep typing; Y
+   exits. (Changed after the build, owner round 1.)
 2. **Esc order:** scroll the game text back (Page Up), open the Panes
    popup and the Profile window. Esc: the text jumps to the bottom. Esc:
    the popup closes. Esc: the window closes (it asks first if a change is
-   not applied). Esc: nothing. With the Scripts window open on top of
+   not applied). Esc: the Exit popup. With the Scripts window open on top of
    the Profile window, Esc closes Scripts first, then Profile.
 3. **Fullscreen (Chrome or Edge):** the bar's Fullscreen, then Esc with
-   nothing open: the Exit popup rises, as before; Esc again closes it.
+   nothing open: the Exit popup rises, as outside fullscreen; Esc again
+   closes it.
    Holding Esc still leaves fullscreen. Firefox leaves fullscreen on Esc.
 4. **`#menu`:** type it. One line: `The ESC menu is gone: use the menu bar,
    or #profile, #scripts, #panes, #settings, #fullscreen, #exit.` Nothing

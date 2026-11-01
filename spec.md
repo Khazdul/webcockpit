@@ -259,7 +259,8 @@ Mapped to Inv §4.
   pane shows the live run (ADR 0109), the Disconnected notice offers
   Reconnect (ADR 0100), and the tooltips carry the status header (link
   round-trip time, profile, capture). Esc closes the open popup or the
-  topmost window and otherwise does nothing; `#menu` prints a hint naming
+  topmost window and otherwise opens the Exit popup, as the Exit icon
+  does; `#menu` prints a hint naming
   the bar and its `#` commands.
 - **Phone** (until its own stage): the ESC menu, opened by Esc, `☰` or
   `#menu`. **Entries:** Continue/Reconnect, Statistics, Options, Profile

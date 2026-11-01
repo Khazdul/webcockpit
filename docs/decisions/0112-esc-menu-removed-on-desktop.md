@@ -80,3 +80,16 @@ its own stage; the start page's Options is unchanged.
   disconnect on desktop opens no menu.
 - The ESC menu's code stays in the chrome chunk for the phone; it goes
   with the phone stage.
+
+## Addendum (2026-11-01, owner after the 30f build)
+
+Esc in the game input with nothing open opens the **Exit popup**, as the
+bar's Exit icon does, in and out of fullscreen (the owner: "Esc när inget
+är öppet kan göra samma sak som Exit-ikonen"). The order is now: scrolled
+back → bottom; else the bar's open popup closes (the Exit popup too, so a
+second Esc closes it again); else the topmost window's close request; else
+the Exit popup. The fullscreen-only branch from ADR 0103 is gone; it is
+the general rule now. The popup takes the keys (ADR 0108), and Y is
+needed to exit, so a stray Esc never leaves the game. The phone is
+unchanged. The Consequences' "Esc with nothing open is free" no longer
+holds; the e2e checks assert the Exit popup instead of nothing.
