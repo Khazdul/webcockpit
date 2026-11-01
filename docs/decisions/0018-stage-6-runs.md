@@ -1,6 +1,6 @@
 # 0018 — Stage 6: run events, the run library, History, Statistics and the log player
 
-- Status: Accepted
+- Status: Accepted; the player chrome amended by ADR 0114
 - Date: 2026-09-27
 
 ## Context
@@ -714,3 +714,12 @@ from it. `chainEvents()` of a live run that is not recorded now returns
 that run's own events: before, it looked up the anchor, which is then an
 older recorded run of the tab, and returned that run's chain without the
 live events.
+
+## Addendum: the chrome in the ghost look (2026-11-01, ADR 0114)
+
+The control box, the 2-column strip with `K►` letters and the header's
+plain row are redrawn in stage 32c: a ghost-look box (to the start, ±10 s,
+play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a 12 px rail with
+kind-icon markers, and the header on dark chips. ← → now go back and
+forward 10 s and Home to the start; the hints gain `← → 10 s`. The strip
+maths here (half-block rows) are replaced by the rail's (ADR 0114).

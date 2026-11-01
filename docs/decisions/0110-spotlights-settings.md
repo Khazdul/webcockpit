@@ -1,6 +1,6 @@
 # 0110 — Spotlights settings in the reel
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0114 (the gear gives way to the card's filter)
 - Date: 2026-10-31
 - Related: stage 30 (`docs/stages/30-fixed-menu.md` S9, "30e build
   plan"), ADR 0019 (Spotlights, Credits, Options → Spotlights), ADR 0021
@@ -117,3 +117,11 @@ Options → Spotlights, and the Options page goes. This reverses ADR 0032's
 - The Spotlights settings can no longer be changed without opening the
   reel or a filtered page; with no recorded spotlight at all there is
   nothing to filter.
+
+## Addendum: the filter in the reel's card (2026-11-01, ADR 0114)
+
+The reel's gear and its popup are replaced by the Spotlights card's filter
+(Kinds and Characters fold out, Period is a list; same rules and store).
+With nothing to play the card stays with its filter and says so; the empty
+stage's `Settings…` is gone. The settings popups lose the `spotlights`
+target; the start page's "filtered" pages keep their popup.

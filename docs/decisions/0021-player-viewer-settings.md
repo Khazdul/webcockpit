@@ -1,6 +1,6 @@
 # 0021 — Player viewer settings (stage 8 part A)
 
-- Status: Accepted
+- Status: Accepted; amended by ADR 0114 (Panes and Display popups)
 - Date: 2026-09-28
 
 ## Context
@@ -129,3 +129,10 @@ Part A build, 2026-09-28:
   on it, as in the live client. Sepia and Slate were built with ink as
   first briefed; black text on their dark backgrounds was unreadable, so
   the owner changed both to silver (2026-09-28).
+
+## Addendum: Panes and Display popups (2026-11-01, ADR 0114)
+
+The gear and the settings section folded into the box are replaced by two
+popups above the box: Panes (switches, Reset layout) and Display (font
+size, colour swatches). The chrome no longer auto-hides while one is open.
+The reel gets Display (font and colours), still no panes.

@@ -246,8 +246,8 @@ Mapped to Inv §3.
   Import also takes foreign settings files (§2.11).
 - **Scripts:** the Scripts page (§2.10), under Profile.
 - **History, Statistics, Spotlights, Credits, About.** The Spotlights
-  settings (kinds, characters, period) are in the reel's gear (stage 30e,
-  ADR 0110).
+  settings (kinds, characters, period) are in the reel's card at the top
+  right (stage 30e, ADR 0110; stage 32c, ADR 0114).
 - **Removed:** connection modes and the update flow. Updating means
   reloading the page.
 
@@ -315,9 +315,15 @@ Mapped to Inv §7.
     data come later.
 - **Screens:**
   - History browser.
-  - Log player, with play, pause, scrubber, jump and speed control.
+  - Log player, with play, pause, scrubber, jump and speed control. Its
+    chrome (stage 32c, ADR 0114) is in the ghost look of the in-game
+    popups: a control box (to the start, back and forward 10 s,
+    play/pause, speed `◄ 1× ►`, time, Panes, Display, Close), a thin
+    rail at the right edge with kind-icon markers, and the header line
+    with the key hints.
   - Statistics.
-  - Spotlights reel and Credits.
+  - Spotlights reel and Credits. The reel's card shows the spotlight and
+    holds its filter (ADR 0114).
   - Export editor with cuts and comments. It exports plain text or a
     self-contained HTML replay.
   - The log player and the HTML replay share one renderer.
