@@ -1,6 +1,6 @@
 # Stage 32 — Players and the start menu
 
-Status: **In progress** (started 2026-11-01). Owner brief 2026-11-01
+Status: **Owner testing** (2026-11-01). Owner brief 2026-11-01
 (below), after testing run logs and Spotlights.
 
 ## Goal
@@ -129,7 +129,12 @@ Decisions *(Claude)*, recorded in a new ADR (amending ADRs 0018, 0021,
   source and table in `notes/research/player-mockups/` (2026-11-01).
 - [x] 32b: owner picks A with changes (2026-11-01); revised as A2 on the
   canvas (`Player32A2-*`).
-- [ ] 32c: build (plan below).
+- [x] 32c: build (4631601…602b57f, ADR 0114): control box, Panes and
+  Display popups, the rail with kind icons, the Spotlights card with the
+  filter (gear removed), keys, HTML replay, phone widths. Unit 3046
+  passed; e2e 671/671. Known cosmetic: on a phone the fullscreen corner
+  button touches the card's corner; the header chip's corner shows a
+  pixel of the first game line.
 - [ ] 32c: test guide, owner test.
 
 ## Test guide 32a (start menu)
@@ -144,3 +149,32 @@ Decisions *(Claude)*, recorded in a new ADR (amending ADRs 0018, 0021,
 
 Feedback wanted: is anything you used to set from the start page now
 hard to find?
+
+## Test guide 32c (players)
+
+Open the dev server as usual (`npm run dev`, http://localhost:5173/).
+Firefox first, then a phone if at hand.
+
+1. **Run log:** History → a session → RUN LOG. Move the mouse: the
+   header line at the top and the box at the bottom right show. Try To
+   the start, −10 s, +10 s, Play/Pause, and the speed arrows ◄ ►
+   (greyed at 0.25× and 8×). Keys: ← → 10 s, Home to the start, Space,
+   1–6.
+2. **Panes and Display:** the panes icon opens a menu with a switch per
+   pane and Reset layout; the sliders icon opens font size and colours.
+   Esc closes the menu first, then leaves the player.
+3. **Rail:** the thin strip at the right edge. Click and drag it to seek
+   (the time shows beside the pointer). The markers are coloured icons;
+   hover one for what happened, click to jump there.
+4. **Spotlights:** start page → Spotlights. The card at the top right:
+   ‹ › between spotlights, the kind icon and colour, the countdown line.
+   Open Kinds and Characters, change something: the reel rebuilds at
+   once. Period "Last week" shows the empty card. ← → previous/next,
+   Shift+← → 10 s.
+5. **HTML replay:** export a run as HTML (export editor) and open the
+   file: the same box, rail and menus.
+6. **Phone** (optional): Spotlights and a run log at phone width; every
+   button by tap.
+
+Feedback wanted: do the icons and colours read well? Is the box the
+right size? Anything you miss from the old player?
