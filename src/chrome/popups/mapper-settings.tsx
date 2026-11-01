@@ -52,7 +52,7 @@ export const HOVER_SIZE_CHOICES: readonly Choice<MapHoverSize>[] = [
 ];
 
 /** A see-through swatch for Transparent: the checkerboard of image editors. */
-const TRANSPARENT_SWATCH = 'repeating-conic-gradient(#3a3a3a 0 25%, #1a1a1a 0 50%) 50% / 6px 6px';
+const TRANSPARENT_SWATCH = 'repeating-conic-gradient(var(--sf-off) 0 25%, var(--sf-field) 0 50%) 50% / 6px 6px';
 
 /** The map file line: `arda.mm2 (bundled)`, `my.mm2 · 30 074 rooms · 5.8 MB · imported 2026-10-31 12:00`. */
 export function mapFileLine(m: CurrentMap | null): string {

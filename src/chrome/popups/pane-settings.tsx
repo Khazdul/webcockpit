@@ -36,7 +36,7 @@ import {
 import { type DropdownOption, Dropdown, Row, Segmented, Stepper, Toggle } from './controls';
 
 /** A channel's swatch while it is off. */
-const OFF_SWATCH = '#3a3a3a';
+const OFF_SWATCH = 'var(--sf-off)';
 
 export function CommSettings(): VNode {
   const { settings } = useServices();

@@ -2,8 +2,10 @@
  * mockup 30a-3's ghost look, on top of the bar's `.wc-pop` panel
  * (src/menubar/menubar.css). Sizes are the mockup's px at a 13 px popup
  * font (a 15 px terminal font) in em, so the popup scales with the
- * terminal font like the bar. Dark panels on every terminal background;
- * only the preview shows the terminal's own colours. */
+ * terminal font like the bar. Every colour is a menu surface token
+ * (`--sf-*`, ADR 0116), derived from the terminal background: a light card
+ * on Paper, a tinted panel on the dark themes. Only the preview shows the
+ * terminal's own colours, and the swatches their own. */
 
 /* ------------------------------------------------------------- panel */
 
@@ -78,24 +80,24 @@
   flex: 0 0 auto;
   gap: 2px;
   padding: 0 0.615em;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--sf-line);
 }
 
 .wc-pop .wc-ck-tab {
   margin-bottom: -1px;
   padding: 0.46em 0.615em 0.54em;
   border-bottom: 1px solid transparent;
-  color: #6a6a6a;
+  color: color-mix(in srgb, var(--sf-faint), var(--sf-dim));
   white-space: nowrap;
 }
 
 .wc-pop .wc-ck-tab:hover {
-  color: #c8c8c8;
+  color: var(--sf-fg);
 }
 
 .wc-pop .wc-ck-tab.is-sel {
-  border-bottom-color: #bcbcbc;
-  color: #ececec;
+  border-bottom-color: var(--sf-fg);
+  color: var(--sf-hot);
 }
 
 /* --------------------------------------------------------------- rows */
@@ -122,7 +124,7 @@
 .wc-ck-l {
   flex: 1 1 auto;
   min-width: 0;
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
 }
 
 .wc-ck-row.is-top > .wc-ck-l {
@@ -133,17 +135,17 @@
 .wc-ck-help {
   display: block;
   margin-top: 2px;
-  color: #585858;
+  color: var(--sf-faint);
   font-size: 0.846em;
   line-height: 1.27;
 }
 
 .wc-ck-row.is-dim > .wc-ck-l {
-  color: #4a4a4a;
+  color: var(--sf-off);
 }
 
 .wc-ck-row.is-dim .wc-ck-help {
-  color: #3a3a3a;
+  color: color-mix(in srgb, var(--sf-off) 70%, var(--sf-bg));
 }
 
 .wc-ck-row.is-dim > .wc-ck-ctl {
@@ -163,12 +165,12 @@
   flex: 1 1 auto;
   min-height: 1.27em;
   padding: 0 1.3em;
-  color: #6a6a6a;
+  color: var(--sf-faint);
   font-size: 0.846em;
 }
 
 .wc-ck-note.is-fail {
-  color: #ff8a8a;
+  color: var(--sf-danger);
 }
 
 .wc-ck-btns {
@@ -182,7 +184,7 @@
 .wc-ck-foot {
   margin-top: 0.46em;
   padding: 0.77em 1.077em 0.31em;
-  border-top: 1px solid #1a1a1a;
+  border-top: 1px solid var(--sf-line);
 }
 
 .wc-ck-foot .wc-ck-note {
@@ -192,7 +194,7 @@
 /* A small uppercase subheading (`Channels`, the Timers grid's columns). */
 .wc-ck-sub {
   padding: 0.3em 1.077em 0.23em;
-  color: #585858;
+  color: var(--sf-faint);
   font-size: 0.846em;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -202,7 +204,7 @@
 /* A hairline between a list and what follows it. */
 .wc-ck-sep {
   margin: 0.31em 0;
-  border-top: 1px solid #1c1c1c;
+  border-top: 1px solid var(--sf-line);
 }
 
 /* ------------------------------------------------------------- toggle */
@@ -212,9 +214,9 @@
   flex: 0 0 auto;
   width: 2em;
   height: 1.077em;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--sf-border);
   border-radius: 0.54em;
-  background: #111;
+  background: var(--sf-field);
 }
 
 .wc-ck-tg i {
@@ -224,21 +226,21 @@
   width: 0.615em;
   height: 0.615em;
   border-radius: 50%;
-  background: #4a4a4a;
+  background: var(--sf-off);
 }
 
 .wc-pop .wc-ck-tg.is-on {
-  border-color: #5a5a5a;
-  background: #3a3a3a;
+  border-color: var(--sf-on-track);
+  background: var(--sf-on-track);
 }
 
 .wc-ck-tg.is-on i {
   left: 1.077em;
-  background: #ececec;
+  background: var(--sf-on-knob);
 }
 
 .wc-pop .wc-ck-tg:hover {
-  border-color: #6a6a6a;
+  border-color: var(--sf-border-hot);
 }
 
 /* ---------------------------------------------------------- segmented */
@@ -246,15 +248,15 @@
 .wc-ck-seg {
   display: flex;
   overflow: hidden;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
 }
 
 .wc-pop .wc-ck-sg {
   height: 1.69em;
   padding: 0 0.77em;
-  border-left: 1px solid #2e2e2e;
-  color: #7a7a7a;
+  border-left: 1px solid var(--sf-border);
+  color: var(--sf-dim);
   line-height: 1.69em;
   white-space: nowrap;
 }
@@ -264,12 +266,13 @@
 }
 
 .wc-pop .wc-ck-sg:hover {
-  color: #d0d0d0;
+  background: var(--sf-hover);
+  color: var(--sf-fg);
 }
 
 .wc-pop .wc-ck-sg.is-on {
-  background: #2a2a2a;
-  color: #ececec;
+  background: var(--sf-raised);
+  color: var(--sf-hot);
 }
 
 .wc-pop .wc-ck-sg:focus-visible {
@@ -300,11 +303,11 @@
 
 .wc-ck-rng-track {
   right: 0;
-  background: #333;
+  background: var(--sf-border);
 }
 
 .wc-ck-rng-fill {
-  background: #9a9a9a;
+  background: var(--sf-dim);
 }
 
 .wc-ck-rng-thumb {
@@ -314,22 +317,22 @@
   height: 0.846em;
   margin: -0.423em 0 0 -0.423em;
   border-radius: 50%;
-  background: #d8d8d8;
+  background: var(--sf-fg);
 }
 
 .wc-ck-rng:hover .wc-ck-rng-thumb,
 .wc-ck-rng:active .wc-ck-rng-thumb {
-  background: #fff;
+  background: var(--sf-hot);
 }
 
 .wc-ck-rng:focus-visible .wc-ck-rng-thumb {
-  box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 3px #6a6a6a;
+  box-shadow: 0 0 0 2px var(--sf-bg), 0 0 0 3px var(--sf-focus);
 }
 
 .wc-ck-val {
   flex: 0 0 3.38em;
   width: 3.38em;
-  color: #d0d0d0;
+  color: var(--sf-fg);
   text-align: right;
   white-space: nowrap;
 }
@@ -347,15 +350,15 @@
   width: 14.6em;
   height: 1.846em;
   padding: 0 0.615em;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
-  background: #0f0f0f;
-  color: #d0d0d0;
+  background: var(--sf-field);
+  color: var(--sf-fg);
 }
 
 .wc-pop .wc-ck-dd:hover,
 .wc-pop .wc-ck-dd.is-open {
-  border-color: #5a5a5a;
+  border-color: var(--sf-border-hot);
 }
 
 .wc-ck-v {
@@ -370,7 +373,7 @@
   width: 0.77em;
   height: 0.77em;
   fill: none;
-  stroke: #686868;
+  stroke: var(--sf-icon);
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -381,7 +384,7 @@
   box-sizing: border-box;
   width: 0.923em;
   height: 0.923em;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid color-mix(in srgb, var(--sf-hot) 18%, transparent);
   border-radius: 2px;
 }
 
@@ -391,10 +394,11 @@
   box-sizing: border-box;
   overflow: auto;
   padding: 0.23em 0;
-  border: 1px solid #3a3a3a;
+  border: 1px solid color-mix(in srgb, var(--sf-border) 70%, var(--sf-border-hot));
   border-radius: 3px;
-  background: #0f0f0f;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.75);
+  background: var(--sf-bg);
+  box-shadow: var(--sf-shadow);
+  color-scheme: var(--sf-scheme);
   outline: none;
   scrollbar-width: thin;
 }
@@ -405,18 +409,18 @@
   gap: 0.615em;
   height: 1.846em;
   padding: 0 0.615em;
-  color: #b0b0b0;
+  color: var(--sf-fg);
   white-space: nowrap;
   cursor: pointer;
 }
 
 .wc-ck-opt.is-sel {
-  color: #ececec;
+  color: var(--sf-hot);
 }
 
 .wc-ck-opt.is-active {
-  background: rgba(255, 255, 255, 0.07);
-  color: #ececec;
+  background: var(--sf-hover);
+  color: var(--sf-hot);
 }
 
 /* ------------------------------------------------------------ swatches */
@@ -430,17 +434,17 @@
 .wc-pop .wc-ck-pc {
   box-sizing: border-box;
   height: 1.23em;
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  border: 1px solid color-mix(in srgb, var(--sf-hot) 14%, transparent);
   border-radius: 2px;
 }
 
 .wc-pop .wc-ck-pc:hover {
-  border-color: #ececec;
+  border-color: var(--sf-hot);
 }
 
 .wc-pop .wc-ck-pc.is-sel {
-  border-color: #ececec;
-  box-shadow: 0 0 0 1px #0a0a0a, 0 0 0 2px #8a8a8a;
+  border-color: var(--sf-hot);
+  box-shadow: 0 0 0 1px var(--sf-bg), 0 0 0 2px var(--sf-dim);
 }
 
 /* -------------------------------------------------------------- button */
@@ -448,30 +452,35 @@
 .wc-pop .wc-ck-gb {
   height: 1.69em;
   padding: 0 0.69em;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
-  color: #a8a8a8;
+  color: var(--sf-dim);
   line-height: calc(1.69em - 2px);
   white-space: nowrap;
 }
 
 .wc-pop .wc-ck-gb:hover {
-  border-color: #5a5a5a;
-  background: rgba(255, 255, 255, 0.05);
-  color: #ececec;
+  border-color: var(--sf-border-hot);
+  background: var(--sf-hover);
+  color: var(--sf-hot);
 }
 
 .wc-pop .wc-ck-gb:disabled,
 .wc-pop .wc-ck-gb:disabled:hover {
-  border-color: #1e1e1e;
+  border-color: var(--sf-line);
   background: none;
-  color: #4a4a4a;
+  color: var(--sf-off);
   cursor: default;
 }
 
 .wc-pop .wc-ck-gb.is-danger {
-  border-color: #5a2a2a;
-  color: #ff8a8a;
+  border-color: var(--sf-danger-border);
+  color: var(--sf-danger);
+}
+
+.wc-pop .wc-ck-gb.is-danger:hover {
+  border-color: var(--sf-danger);
+  background: var(--sf-danger-hover);
 }
 
 /* ------------------------------------------------------------ stepper */
@@ -480,13 +489,13 @@
   display: inline-flex;
   align-items: center;
   height: 1.69em;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
   outline: none;
 }
 
 .wc-ck-num:focus-visible {
-  border-color: #6a6a6a;
+  border-color: var(--sf-focus);
 }
 
 .wc-pop .wc-ck-step {
@@ -495,16 +504,16 @@
   justify-content: center;
   width: 1.31em;
   height: 100%;
-  color: #7a7a7a;
+  color: var(--sf-dim);
 }
 
 .wc-pop .wc-ck-step:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ececec;
+  background: var(--sf-hover);
+  color: var(--sf-hot);
 }
 
 .wc-pop .wc-ck-step.is-off {
-  color: #333;
+  color: var(--sf-off);
   cursor: default;
 }
 
@@ -524,7 +533,7 @@
 
 .wc-ck-num-v {
   min-width: 1.2em;
-  color: #d0d0d0;
+  color: var(--sf-fg);
   text-align: center;
 }
 
@@ -535,10 +544,10 @@
   width: 6.2em;
   height: 1.69em;
   padding: 0 0.46em;
-  border: 1px solid #2e2e2e;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
-  background: #0f0f0f;
-  color: #d0d0d0;
+  background: var(--sf-field);
+  color: var(--sf-fg);
   font: inherit;
   outline: none;
   user-select: text;
@@ -546,15 +555,15 @@
 }
 
 .wc-ck-hex:focus {
-  border-color: #6a6a6a;
+  border-color: var(--sf-focus);
 }
 
 .wc-ck-hex.is-bad {
-  border-color: #8a3a3a;
+  border-color: var(--sf-danger);
 }
 
 .wc-ck-hint {
-  color: #585858;
+  color: var(--sf-faint);
   font-size: 0.846em;
 }
 
@@ -596,7 +605,7 @@
   margin: 0.46em 1.077em 0.15em;
   padding: 0.4em 0.7em;
   overflow: hidden;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--sf-border);
   border-radius: 3px;
   background: var(--term-bg);
   color: var(--term-fg);
@@ -614,7 +623,7 @@
 /* ---------------------------------------------------- the Mapper page */
 
 .wc-sp-mapfile {
-  color: #7a7a7a;
+  color: var(--sf-dim);
 }
 
 .wc-sp-maprow .wc-ck-help {
@@ -630,7 +639,7 @@
 /* --------------------------------------------------- the Weather page */
 
 .wc-sp-master > .wc-ck-l {
-  color: #d0d0d0;
+  color: var(--sf-fg);
 }
 
 .wc-ck-row.is-sub {
@@ -646,18 +655,18 @@
 }
 
 .wc-ck-row.wc-sp-chan:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--sf-hover);
 }
 
 .wc-sp-chan > .wc-ck-l {
   display: flex;
   align-items: center;
   gap: 0.69em;
-  color: #d0d0d0;
+  color: var(--sf-fg);
 }
 
 .wc-sp-chan.is-off > .wc-ck-l {
-  color: #5a5a5a;
+  color: var(--sf-faint);
 }
 
 .wc-sp-chan .wc-ck-sw {
@@ -687,7 +696,7 @@
 
 .wc-sp-tg-l {
   overflow: hidden;
-  color: #9a9a9a;
+  color: color-mix(in srgb, var(--sf-dim) 70%, var(--sf-fg));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -698,7 +707,7 @@
 }
 
 .wc-sp-tg-l.is-dim {
-  color: #4a4a4a;
+  color: var(--sf-off);
 }
 
 /* An Off group dims (its controls still work); its colour list says Off. */
@@ -720,11 +729,11 @@
   width: 100%;
   min-height: 1.92em;
   padding: 0 1.077em;
-  color: #d0d0d0;
+  color: var(--sf-fg);
 }
 
 .wc-pop .wc-ck-cb:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: var(--sf-hover);
 }
 
 .wc-ck-cb-box {
@@ -735,21 +744,21 @@
   box-sizing: border-box;
   width: 1em;
   height: 1em;
-  border: 1px solid #3a3a3a;
+  border: 1px solid var(--sf-border);
   border-radius: 2px;
-  background: #111;
+  background: var(--sf-field);
 }
 
 .wc-ck-cb.is-on .wc-ck-cb-box {
-  border-color: #5a5a5a;
-  background: #3a3a3a;
+  border-color: var(--sf-on-track);
+  background: var(--sf-on-track);
 }
 
 .wc-ck-cb-box svg {
   width: 0.77em;
   height: 0.77em;
   fill: none;
-  stroke: #ececec;
+  stroke: var(--sf-on-knob);
   stroke-width: 1.6;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -763,7 +772,7 @@
 }
 
 .wc-pop .wc-ck-cb:hover .wc-ck-cb-box {
-  border-color: #6a6a6a;
+  border-color: var(--sf-border-hot);
 }
 
 .wc-pop .wc-ck-cb:disabled {
@@ -775,7 +784,7 @@
 }
 
 .wc-ck-cb:disabled .wc-ck-cb-l {
-  color: #4a4a4a;
+  color: var(--sf-off);
 }
 
 .wc-ck-cb:disabled .wc-ck-cb-box {
