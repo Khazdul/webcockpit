@@ -105,3 +105,24 @@ Focus zones stay: the log and the panel, Tab / Shift+Tab between them,
 - The export buttons say what they make; nothing is a hidden mode.
 - The log uses a wide screen fully; very wide prose in the Scripts help
   is the accepted cost of filling the width.
+
+## Build notes (2026-11-01)
+
+Small additions made while building; none changes the design above.
+
+- `includeRange` takes an optional fourth argument, the entries' µs, so a
+  bounded piece left without an entry is dropped instead of kept as an
+  empty range. `excludedBetween(doc, keys, lo, hi)` counts the excluded
+  entries of a selection by binary search (EXCLUDE vs INCLUDE on a 5 h
+  log).
+- The selection heading also reads `COMMENT` (cursor on a comment, no
+  selection) and `END OF LOG` (cursor on the end row).
+- EDIT COMMENT and DELETE COMMENT keep their two panel rows (blank off a
+  comment), so nothing below them moves as the cursor goes over comments.
+- In the panel zone Enter presses the focused button; Enter edits a
+  comment in the log zone only. A click on the overview map moves the
+  cursor and clears the selection, as a plain move does.
+- The format is saved as "last used" after the download succeeds.
+- On a narrow grid the one-line summary ends with `· n selected` while a
+  selection is up (there is no selection heading there), and the export
+  used last is marked `◄` after its button.

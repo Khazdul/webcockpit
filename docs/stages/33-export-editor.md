@@ -55,19 +55,19 @@ range operations, the panel, keys, touch, narrow grids.
 
 ## Tasks
 
-- [ ] 33a Scripts: the help panel fills the room to the right of the list
+- [x] 33a Scripts: the help panel fills the room to the right of the list
       (no 76-cell cap); tests updated.
-- [ ] 33a/b Export Editor: the log fills the width (no 100-cell cap).
-- [ ] 33b `edits.ts`: `excludeRange` / `includeRange` over entry µs;
+- [x] 33a/b Export Editor: the log fills the width (no 100-cell cap).
+- [x] 33b `edits.ts`: `excludeRange` / `includeRange` over entry µs;
       `format` becomes "last used"; unit tests.
-- [ ] 33b Selection: anchor + cursor over entries; mouse drag in the log
+- [x] 33b Selection: anchor + cursor over entries; mouse drag in the log
       (margin or text), Shift+click, Shift+keys, auto-scroll while
       dragging, Esc clears it first; the margin shows it.
-- [ ] 33b Right panel: summary, selection actions, comment actions,
+- [x] 33b Right panel: summary, selection actions, comment actions,
       title, two export buttons, BACK, legend; Tab between log and panel.
-- [ ] 33b Keys and footer: X, C, E, D, Enter, Delete, T, H, P, ESC.
-- [ ] 33b Narrow grids and touch (ADR 0115 §6).
-- [ ] 33b Unit and e2e tests updated; `npm run check`, unit, e2e green.
+- [x] 33b Keys and footer: X, C, E, D, Enter, Delete, T, H, P, ESC.
+- [x] 33b Narrow grids and touch (ADR 0115 §6).
+- [x] 33b Unit and e2e tests updated; `npm run typecheck`, unit, e2e green.
 - [ ] Owner test.
 
 ## Test guide 33
