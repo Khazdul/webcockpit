@@ -1,5 +1,5 @@
 // Page flow (ADR 0010 "Page flow", ADR 0013): start page ↔ cockpit, the
-// ESC menu and its auto-open on disconnect.
+// phone's ESC menu and its auto-open on disconnect.
 //
 //   /                      start page; Enter MUME builds the cockpit (once)
 //                          and connects
@@ -13,9 +13,14 @@
 //
 // The chrome (Preact) is a separate chunk. On `/` it is loaded at once
 // (the start page is chrome); in the offline modes it is prefetched after
-// start-up (not in `?bench`, where it loads on the first ESC). The profile
+// start-up (not in `?bench`, where it loads on the first window, popup or
+// Statistics pane, or the phone's first ESC). The profile
 // editor (CodeMirror) is a chunk of its own, imported by the chrome when it
 // is opened and prefetched when idle once the start page is up.
+//
+// ESC menu (Inv §4): the phone only since stage 30f (ADR 0112). Esc in the
+// input, `#menu` and the `☰` open it there; where the menu bar exists the
+// shell never mounts it, and nothing opens it.
 //
 // ESC menu auto-open (Inv §4.7), phone only since stage 30 (ADR 0100): on
 // a transition from login/playing to disconnected on a live connection,
@@ -26,27 +31,25 @@
 // (src/menubar/menubar.ts), and Enter still reconnects.
 //
 // Menu bar (ADR 0099): desktop and tablet (`device().phone` keeps the
-// clock strip and `☰`; a tablet keeps `☰` beside the bar until the ESC
-// menu goes away). The cockpit's `ui` hands it `openMenuAt` (the ESC menu
-// straight at the profile editor, Options → Scripts, Options, Panes or
-// Exit; leaving that frame closes the menu; the phone's way to Profile,
-// Scripts and Settings) and `exitSession`. Its popups close when the ESC menu opens and
-// when the cockpit is hidden.
+// clock strip and `☰`; a tablet uses the bar by touch, ADR 0112). The
+// cockpit's `ui` hands it `exitSession`; its popups close when the cockpit
+// is hidden. On the phone `ui.openMenuAt` opens the ESC menu straight at
+// the profile editor, Options → Scripts, Options, Panes or Exit (leaving
+// that frame closes the menu): the phone's way to `#profile` and the rest.
 //
 // Windows (ADR 0103): where the bar exists, Profile and Scripts are
 // movable windows (src/chrome/windows.tsx), mounted on first use in a
-// layer of the cockpit element. The bar, `#profile` / `#scripts` and the
-// ESC menu's Profile and Options → Scripts open them (`toggleWindow`,
-// `openWindow`); Esc in the input reaches the topmost one; the ESC menu
-// takes their focus when it opens. They close with the cockpit (Exit, the
-// start page), unsaved changes discarded; the Exit popup warns first.
+// layer of the cockpit element. The bar and `#profile` / `#scripts` toggle
+// them (`toggleWindow`); Esc in the input reaches the topmost one. They
+// close with the cockpit (Exit, the start page), unsaved changes
+// discarded; the Exit popup warns first.
 //
 // Settings popups (ADR 0107): where the bar exists, the bar's Settings and
 // `#settings` toggle the Settings popup (src/chrome/popups/surface.tsx),
 // mounted on first use in the App's element beside the bar's own popups
 // and placed above the Settings icon (`placePopup`). The bar adopts it as
-// its open popup, so the one-popup rule, Esc, the ESC menu and hiding the
-// cockpit close it as they close Panes and Exit. The Map, Comm, Timers and
+// its open popup, so the one-popup rule, Esc and hiding the cockpit close
+// it as they close Panes and Exit. The Map, Comm, Timers and
 // Group panes' Gear opens their gear popup through the same layer
 // (`togglePaneSettings`, the App's `ui.togglePaneSettings`), beside the
 // pane (`placeBeside`), placed again after every cockpit layout and closed
@@ -75,8 +78,8 @@
 //
 // Notices (ADR 0025): the shell's `Notices` (a newer version, a lost chunk,
 // superseded storage) are shown in the cockpit's input row and sent to the
-// cockpit App's output once; the chrome shows them in the ESC menu header
-// and on the start page (`services.notices`).
+// cockpit App's output once; the chrome shows them on the start page and
+// in the phone's ESC menu header (`services.notices`).
 //
 // Spotlights (ADR 0019): `openSpotlights()` (the start page's Spotlights)
 // loads the reel (src/player/spotlight-reel.ts) and opens it in the same
@@ -309,18 +312,17 @@ export class Shell {
 
   /**
    * Opens the ESC menu over the cockpit (no-op elsewhere or when open), at
-   * `target`'s frame when given. The menu bar's popup closes first.
+   * `target`'s frame when given. The phone only: where the menu bar exists
+   * there is no ESC menu (ADR 0112).
    */
   async openMenu(preselect?: 'continue' | 'reconnect', target?: EscMenuTarget): Promise<void> {
-    if (!this.inCockpit || !this.appRef) return;
-    this.appRef.menuBar?.reset();
-    this.windows?.blur();
+    if (!this.inCockpit || !this.appRef || this.appRef.menuBar) return;
     const menu = await this.ensureMenu(this.appRef);
     if (!this.inCockpit) return;
     menu.open({ ...(preselect ? { preselect } : {}), ...(target ? { target } : {}) });
   }
 
-  /** The touch menu button (`☰`); a tap opens the ESC menu without focusing the input. */
+  /** The phone's menu button (`☰`); a tap opens the ESC menu without focusing the input. */
   private menuButton(doc: Document): HTMLSpanElement {
     const b = doc.createElement('span');
     b.className = 'wc-menu-btn';
@@ -357,15 +359,7 @@ export class Shell {
   async toggleWindow(id: WindowId): Promise<void> {
     if (!this.inCockpit || !this.appRef) return;
     const w = await this.ensureWindows(this.appRef);
-    if (this.inCockpit && !this.menuOpen) w.toggle(id);
-  }
-
-  /** The ESC menu's Profile and Options → Scripts: the menu closes, the window opens. */
-  async openWindow(id: WindowId): Promise<void> {
-    if (!this.inCockpit || !this.appRef) return;
-    this.menu?.close();
-    const w = await this.ensureWindows(this.appRef);
-    if (this.inCockpit) w.open(id);
+    if (this.inCockpit) w.toggle(id);
   }
 
   private ensureWindows(app: App): Promise<WindowsHandle> {
@@ -424,7 +418,7 @@ export class Shell {
   async togglePopup(target: SettingsPopupTarget, place: PopupPlace): Promise<void> {
     if (!this.inCockpit || !this.appRef?.menuBar) return;
     const p = await this.ensurePopups(this.appRef);
-    if (this.inCockpit && !this.menuOpen) p.toggle(target, place);
+    if (this.inCockpit) p.toggle(target, place);
   }
 
   private ensurePopups(app: App): Promise<SettingsPopupsHandle> {
@@ -570,14 +564,14 @@ export class Shell {
       profiles: this.profiles,
       scripts: this.scripts,
       map: this.maps.host({ persistIds: true }),
-      onEscape: () => void this.openMenu(),
+      // The ESC menu is the phone's only (ADR 0112): Esc, `#menu` and the menu targets.
+      ...(device().phone ? { onEscape: () => void this.openMenu() } : {}),
       ui: {
         bar: !device().phone,
-        openMenuAt: (target) => void this.openMenu(undefined, target),
         exit: () => void this.exitSession(),
-        // The windows (ADR 0103): where the bar exists.
+        // The windows (ADR 0103) and popups where the bar exists.
         ...(device().phone
-          ? {}
+          ? { openMenuAt: (target: EscMenuTarget) => void this.openMenu(undefined, target) }
           : {
               toggleWindow: (id: WindowId) => void this.toggleWindow(id),
               toggleSettings: () => void this.toggleSettings(),
@@ -600,9 +594,9 @@ export class Shell {
       rowEnd.before(new NoticeIndicator(root.ownerDocument, notices, CLIENT_VERSION).el);
       notices.attach(app.bus);
     }
-    // Touch only (ADR 0075): a `☰` at the end of the input row opens the
-    // ESC menu, as Esc does. Desktop has no such control.
-    if (device().touch) rowEnd.after(this.menuButton(root.ownerDocument));
+    // Phone only (ADR 0075, ADR 0112): a `☰` at the end of the input row
+    // opens the ESC menu, as Esc does. Desktop and tablet have the bar.
+    if (device().phone) rowEnd.after(this.menuButton(root.ownerDocument));
     // Phone only (ADR 0075 §3.4): back from the background, check the link
     // at once; a dead one drops with a reason, and onConn opens the menu
     // with Reconnect selected. Desktop installs nothing.
@@ -685,8 +679,6 @@ export class Shell {
       commitProfile: (name, build, opts) => app.commitProfile(name, build, opts),
       flushWriteBack: () => app.flushWriteBack(),
       runs: app.runs,
-      // Where the bar exists, the menu's Profile and Options → Scripts open the windows (ADR 0103).
-      ...(app.menuBar ? { openWindow: (id: WindowId) => void this.openWindow(id) } : {}),
     });
     return this.menu;
   }

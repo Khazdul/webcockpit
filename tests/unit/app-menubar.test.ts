@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 // The menu bar in the real App (ADR 0099, ADR 0100): it replaces the clock
-// strip with `ui.bar`, Esc in the input closes its popup before the ESC
-// menu, the `#profile` … commands, the Settings popup's toggle (ADR 0107)
-// and the Disconnected notice.
+// strip with `ui.bar`, Esc in the input closes its popup and otherwise
+// opens nothing (ADR 0112; the phone's ESC menu without the bar), `#menu`,
+// the `#profile` … commands, the Settings popup's toggle (ADR 0107) and
+// the Disconnected notice.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { App, type AppUi } from '../../src/app/app';
+import { App, type AppUi, MENU_GONE_HINT } from '../../src/app/app';
 import { FakeSocket } from './net-helpers';
 import { CLOCK_CELLS, barCells } from '../../src/menubar/menubar';
 
@@ -26,7 +27,8 @@ function setup(ui: Partial<AppUi> | null = {}) {
     recorder: { openStore: () => Promise.reject(new Error('no store')), win: null },
     requestFrame: () => {},
     onEscape,
-    ...(ui ? { ui: { bar: true, openMenuAt, exit, ...ui } } : {}),
+    // The shell hands `openMenuAt` to the phone only (no bar, ADR 0112).
+    ...(ui ? { ui: { bar: true, exit, ...(ui.bar === false ? { openMenuAt } : {}), ...ui } } : {}),
   });
   const key = (k: string) =>
     app.input.input.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
@@ -62,15 +64,39 @@ describe('App with the menu bar', () => {
     expect(t.app.cockpit.barCells).toBe(CLOCK_CELLS);
   });
 
-  it('Esc in the input closes the open popup first, then opens the ESC menu', () => {
+  it('Esc in the input closes the open popup; with nothing open it opens nothing (ADR 0112)', () => {
     const t = setup();
     t.app.input.focus();
     t.app.menuBar!.open('panes');
     t.key('Escape');
     expect(t.app.menuBar!.openPopup).toBeNull();
+    t.key('Escape');
+    t.key('Escape');
     expect(t.onEscape).not.toHaveBeenCalled();
+    expect(t.app.menuBar!.openPopup).toBeNull();
+    expect(document.activeElement).toBe(t.app.input.input);
+  });
+
+  it('#menu with the bar prints the hint and opens nothing (ADR 0112)', () => {
+    const t = setup();
+    const said: string[] = [];
+    t.app.bus.on('sys.message', (m) => said.push(m.text));
+    t.enter('#menu');
+    expect(said).toEqual([MENU_GONE_HINT]);
+    expect(MENU_GONE_HINT).toBe(
+      'The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit.',
+    );
+    expect(t.onEscape).not.toHaveBeenCalled();
+    expect(t.app.menuBar!.openPopup).toBeNull();
+  });
+
+  it('without the bar (the phone), Esc and #menu open the ESC menu', () => {
+    const t = setup({ bar: false });
+    t.app.input.focus();
     t.key('Escape');
     expect(t.onEscape).toHaveBeenCalledOnce();
+    t.enter('#menu');
+    expect(t.onEscape).toHaveBeenCalledTimes(2);
   });
 
   it('popups take the focus when they open (ADR 0108): #panes, a Tab macro; Esc gives it back', () => {
@@ -104,8 +130,10 @@ describe('App with the menu bar', () => {
     expect(t.app.menuBar!.openPopup).toBeNull();
   });
 
-  it('#panes and #exit toggle the popups; #profile, #scripts, #settings open the menu at a frame', () => {
-    const t = setup();
+  it('#panes and #exit toggle the popups; #profile, #scripts, #settings reach the shell', () => {
+    const toggleWindow = vi.fn();
+    const toggleSettings = vi.fn();
+    const t = setup({ toggleWindow, toggleSettings });
     t.enter('#panes');
     expect(t.app.menuBar!.openPopup).toBe('panes');
     t.enter('#panes');
@@ -118,20 +146,18 @@ describe('App with the menu bar', () => {
     expect(t.app.menuBar!.openPopup).toBeNull();
     t.enter('#scripts');
     t.enter('#settings');
-    expect(t.openMenuAt.mock.calls.map((c) => c[0])).toEqual(['profile', 'scripts', 'settings']);
+    expect(toggleWindow.mock.calls.map((c) => c[0])).toEqual(['profile', 'scripts']);
+    expect(toggleSettings).toHaveBeenCalledOnce();
     // The full name is needed: #pa stays tt++'s #parse (inert), #pro #prompt.
     t.enter('#pa');
     t.enter('#prof');
-    expect(t.openMenuAt).toHaveBeenCalledTimes(3);
+    expect(toggleWindow).toHaveBeenCalledTimes(2);
+    expect(t.openMenuAt).not.toHaveBeenCalled();
   });
 
-  it('the bar’s Profile, Scripts and Settings open the menu at a frame; Exit exits', async () => {
+  it('the bar’s Exit exits', async () => {
     const t = setup();
     const btn = (id: string) => t.app.menuBar!.bar.querySelector<HTMLButtonElement>(`[data-mb="${id}"]`)!;
-    btn('profile').click();
-    btn('scripts').click();
-    btn('settings').click();
-    expect(t.openMenuAt.mock.calls.map((c) => c[0])).toEqual(['profile', 'scripts', 'settings']);
     btn('exit').click();
     t.app.menuBar!.popupEl!.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', bubbles: true }));
     await new Promise((r) => setTimeout(r, 0));
@@ -146,19 +172,19 @@ describe('App with the menu bar', () => {
     t.enter('#settings');
     expect(toggleSettings).toHaveBeenCalledTimes(2);
     expect(t.openMenuAt).not.toHaveBeenCalled();
-    // The shell hands the open popup to the bar; Esc closes it before the ESC menu.
+    // The shell hands the open popup to the bar; Esc in the input closes it.
     const close = vi.fn();
     bar.adopt({ key: 'settings', el: document.createElement('div'), close });
     t.app.input.focus();
     t.key('Escape');
     expect(close).toHaveBeenCalledOnce();
     expect(bar.openPopup).toBeNull();
-    expect(t.onEscape).not.toHaveBeenCalled();
     t.key('Escape');
-    expect(t.onEscape).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+    expect(t.onEscape).not.toHaveBeenCalled();
   });
 
-  it('with windows (ADR 0103): the bar and #profile / #scripts toggle them; Esc reaches the topmost window before the menu', () => {
+  it('with windows (ADR 0103): the bar and #profile / #scripts toggle them; Esc reaches the topmost window', () => {
     const toggleWindow = vi.fn();
     let open = true;
     const escapeWindow = vi.fn(() => open);
@@ -173,17 +199,18 @@ describe('App with the menu bar', () => {
     // A press on the toggles keeps a window's focus.
     expect(btn('profile').hasAttribute('data-wc-window-btn')).toBe(true);
     expect(btn('panes').hasAttribute('data-wc-window-btn')).toBe(false);
-    // Esc: the popup, then the window, then the menu.
+    // Esc: the popup, then the window, then nothing (ADR 0112).
     t.app.input.focus();
     t.app.menuBar!.open('panes');
     t.key('Escape');
     expect(escapeWindow).not.toHaveBeenCalled();
     t.key('Escape');
     expect(escapeWindow).toHaveBeenCalledOnce();
-    expect(t.onEscape).not.toHaveBeenCalled();
     open = false;
     t.key('Escape');
-    expect(t.onEscape).toHaveBeenCalledOnce();
+    expect(escapeWindow).toHaveBeenCalledTimes(2);
+    expect(t.onEscape).not.toHaveBeenCalled();
+    expect(t.app.menuBar!.openPopup).toBeNull();
     // The Exit popup warns about the window's unsaved changes.
     t.enter('#exit');
     expect(t.app.menuBar!.popupEl!.querySelector('.wc-pop-warn')!.textContent).toBe(
@@ -191,7 +218,7 @@ describe('App with the menu bar', () => {
     );
   });
 
-  it('in fullscreen, Esc with nothing open opens the Exit popup instead of the menu (ADR 0103)', () => {
+  it('in fullscreen, Esc with nothing open opens the Exit popup (ADR 0103)', () => {
     const t = setup({ escapeWindow: () => false });
     Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => document.documentElement });
     try {
@@ -205,11 +232,23 @@ describe('App with the menu bar', () => {
     }
   });
 
-  it('without the bar, #panes and #exit open the ESC menu at their frame', () => {
+  it('without the bar, #panes, #exit, #profile, #scripts and #settings open the ESC menu at their frame', () => {
     const t = setup({ bar: false });
     t.enter('#panes');
     t.enter('#exit');
-    expect(t.openMenuAt.mock.calls.map((c) => c[0])).toEqual(['panes', 'exit']);
+    t.enter('#profile');
+    t.enter('#scripts');
+    t.enter('#settings');
+    expect(t.openMenuAt.mock.calls.map((c) => c[0])).toEqual(['panes', 'exit', 'profile', 'scripts', 'settings']);
+  });
+
+  it('with the bar but no window or popup handlers, the commands say they are not available', () => {
+    const t = setup();
+    const said: string[] = [];
+    t.app.bus.on('sys.message', (m) => said.push(m.text));
+    t.enter('#profile');
+    t.enter('#settings');
+    expect(said).toEqual(['#profile is not available here.', '#settings is not available here.']);
   });
 
   it('#fullscreen says so where the browser has none', () => {

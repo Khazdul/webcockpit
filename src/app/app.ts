@@ -20,7 +20,8 @@
 // panes in the docks, laid out from the settings (ADR 0010, ADR 0012).
 //
 // `app.status` is the read-only status observable (connection, character,
-// Link, capture, XML) for the ESC menu header. Its text form is also kept
+// Link, capture, XML) for the menu bar's tooltips and the phone's ESC menu
+// header. Its text form is also kept
 // in `data-status` on the app element for the browser tests.
 //
 // Live vs replay
@@ -37,7 +38,8 @@
 // from the bus and the death lines (a system rule) in every connection,
 // replays included, and emits the `◆ KILL/PKILL/DEATH` UI lines; the
 // recorder persists them for recorded runs. `app.runs` (LiveRuns) is the
-// live run for the ESC menu.
+// live run for the Statistics pane, the Exit rating and the phone's ESC
+// menu.
 //
 // Side panes get a `PaneContext` (src/panes/context.ts) built here: the bus,
 // the settings, the cells, a frame scheduler, the session as sender and a
@@ -58,21 +60,27 @@
 // content as `view.pane` for the run capture (ADR 0053 P1).
 //
 // Menu bar (ADR 0099): with `ui.bar` (desktop and tablet) the input row's
-// clock strip becomes the menu bar (src/menubar/menubar.ts). The client
-// commands `#profile`, `#scripts`, `#settings`, `#panes`, `#exit` and
-// `#fullscreen` open or toggle the same things; without the bar (the
-// phone) they open the ESC menu at the matching frame (`ui.openMenuAt`).
-// Profile and Scripts toggle the shell's windows (`ui.toggleWindow`, ADR
-// 0103); Settings and `#settings` toggle the shell's Settings popup
-// (`ui.toggleSettings`, ADR 0107), which the bar holds as its open popup
-// while it is open. The Map, Comm, Timers and Group panes' Gear toggles
-// their gear popup (`ui.togglePaneSettings`, the cockpit's `onGear`). Esc in the input (stage 30 S2): scrolled back → bottom (the input
-// pane); else the bar's open popup closes; else the topmost window gets
-// its close request (`ui.escapeWindow`); else, in the cockpit's
-// fullscreen, the Exit popup opens (Esc reaches the page there only with
-// the bar's Keyboard Lock); else the ESC menu opens. The popups take the
-// focus when they open (ADR 0108); Tab in the input never moves the focus,
-// and Tab from a stray focus in the shown App gives it back (`scope`).
+// clock strip becomes the menu bar (src/menubar/menubar.ts), and there is
+// no ESC menu (ADR 0112). The client commands `#profile`, `#scripts`,
+// `#settings`, `#panes`, `#exit` and `#fullscreen` open or toggle the same
+// things; without the bar (the phone) they open the ESC menu at the
+// matching frame (`ui.openMenuAt`). Profile and Scripts toggle the shell's
+// windows (`ui.toggleWindow`, ADR 0103); Settings and `#settings` toggle
+// the shell's Settings popup (`ui.toggleSettings`, ADR 0107), which the
+// bar holds as its open popup while it is open. The Map, Comm, Timers and
+// Group panes' Gear toggles their gear popup (`ui.togglePaneSettings`, the
+// cockpit's `onGear`).
+//
+// Esc in the input (stage 30 S2, ADR 0112): scrolled back → bottom (the
+// input pane). With the bar: else the bar's open popup closes; else the
+// topmost window gets its close request (`ui.escapeWindow`); else, in the
+// cockpit's fullscreen, the Exit popup opens (Esc reaches the page there
+// only with the bar's Keyboard Lock); else nothing. Without the bar (the
+// phone): the ESC menu opens (`onEscape`). `#menu` opens the ESC menu on
+// the phone and prints a hint naming the bar and its commands where the
+// bar exists. The popups take the focus when they open (ADR 0108); Tab in
+// the input never moves the focus, and Tab from a stray focus in the shown
+// App gives it back (`scope`).
 //
 // Player Apps (ADR 0018, `player: true`): the log player builds an App per
 // open (and per backward seek) and `dispose()`s it. Such an App never
@@ -132,6 +140,9 @@ export const REASON_REPLAY_START = 'replay started';
 const REASON_REPLAY_STOP = 'replay stopped';
 /** Reason ReplaySocket gives when the log is exhausted. */
 const REASON_REPLAY_DONE = 'replay finished';
+/** `#menu` where the bar exists (ADR 0112): the ESC menu is the phone's only. */
+export const MENU_GONE_HINT =
+  'The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit.';
 
 export interface AppOptions {
   /** Element the app is built into. */
@@ -161,7 +172,11 @@ export interface AppOptions {
    * in-memory store with the default settings (unit tests).
    */
   settings?: SettingsStore;
-  /** ESC in the input when the output is not scrolled: open the ESC menu (src/app/shell.ts). */
+  /**
+   * Without the bar (the phone): ESC in the input when the output is not
+   * scrolled, and `#menu`, open the ESC menu (src/app/shell.ts). Never
+   * called where the bar exists (ADR 0112).
+   */
   onEscape?: () => void;
   /**
    * The profile store. The selected profile (`settings.profile`) is loaded
@@ -220,7 +235,7 @@ export interface AppOptions {
   loadLua?: () => Promise<import('../lua').LuaRuntime>;
 }
 
-/** An ESC menu frame the shell can open straight away (ADR 0099). */
+/** An ESC menu frame the shell can open straight away (ADR 0099; the phone). */
 export type MenuTarget = 'profile' | 'scripts' | 'settings' | 'panes' | 'exit';
 
 /** What the Statistics pane's view reads (ADR 0109). */
@@ -233,18 +248,22 @@ export interface StatsPaneDeps {
 export interface AppUi {
   /** Build the menu bar (desktop and tablet). */
   bar: boolean;
-  /** Opens the ESC menu at `target`'s frame; leaving it closes the menu. */
-  openMenuAt(target: MenuTarget): void;
+  /**
+   * Without the bar (the phone): opens the ESC menu at `target`'s frame;
+   * leaving it closes the menu. Absent (where the bar exists, ADR 0112):
+   * the commands without a bar target say they are not available.
+   */
+  openMenuAt?(target: MenuTarget): void;
   /** Exit to the start page (the shell's exitSession). */
   exit(): void;
   /**
-   * With the bar: toggles the Profile or Scripts window (ADR 0103). Absent:
-   * they open the ESC menu at their frame.
+   * With the bar: toggles the Profile or Scripts window (ADR 0103). Without
+   * the bar: they open the ESC menu at their frame.
    */
   toggleWindow?(id: 'profile' | 'scripts'): void;
   /**
-   * With the bar: toggles the Settings popup (ADR 0107). Absent: the bar's
-   * Settings and `#settings` open the ESC menu at Options.
+   * With the bar: toggles the Settings popup (ADR 0107). Without the bar:
+   * `#settings` opens the ESC menu at Options.
    */
   toggleSettings?(): void;
   /**
@@ -312,7 +331,7 @@ export class App {
   private replaying = false;
   /** Enter on a closed connection does not connect live. */
   private offline: boolean;
-  /** Opens the ESC menu (`#menu`; the shell's `onEscape`). */
+  /** Opens the ESC menu without the bar (Esc, `#menu`; the shell's `onEscape`). */
   private readonly onEscape: (() => void) | undefined;
   private replayLabel = '';
   private charName = '';
@@ -462,7 +481,7 @@ export class App {
       output: this.output,
       onCommand: (text) => this.onCommand(text),
       onMacroKey: (key) => this.onMacroKey(key),
-      // Esc (output at the bottom): the popup, the window, then the menu (see the header).
+      // Esc (output at the bottom): the popup, the window, the Exit popup in fullscreen; the phone's menu (see the header).
       ...(opts.onEscape || opts.ui?.bar ? { onEscape: () => this.escape() } : {}),
       ...(cells ? { cellWidth: () => cells.get().w } : {}),
       // Tab from a stray focus in the shown cockpit goes back to the input (ADR 0108).
@@ -1038,8 +1057,9 @@ export class App {
         this.help(argText);
         return;
       case 'menu':
-        // Opens the ESC menu (all devices; the phone's main way in, ADR 0075).
-        this.onEscape?.();
+        // The phone's main way into the ESC menu (ADR 0075); gone where the bar exists (ADR 0112).
+        if (this.menuBar) this.sys(MENU_GONE_HINT);
+        else this.onEscape?.();
         return;
       case 'panes':
       case 'exit':
@@ -1079,7 +1099,7 @@ export class App {
   }
 
   private openMenuAt(target: MenuTarget): void {
-    if (this.appUi) this.appUi.openMenuAt(target);
+    if (this.appUi?.openMenuAt) this.appUi.openMenuAt(target);
     else this.sys(`#${target} is not available here.`);
   }
 
@@ -1098,13 +1118,14 @@ export class App {
 
   /** Esc in the input with the output at the bottom (see the header). */
   private escape(): void {
-    if (this.menuBar?.closePopup(true)) return;
-    if (this.menuBar && this.appUi?.escapeWindow?.()) return;
-    if (this.menuBar && isFullscreen(this.el.ownerDocument)) {
-      this.menuBar.open('exit');
+    if (!this.menuBar) {
+      this.onEscape?.();
       return;
     }
-    this.onEscape?.();
+    // With the bar there is no ESC menu (ADR 0112): with nothing open, Esc does nothing.
+    if (this.menuBar.closePopup(true)) return;
+    if (this.appUi?.escapeWindow?.()) return;
+    if (isFullscreen(this.el.ownerDocument)) this.menuBar.open('exit');
   }
 
   /**
