@@ -42,7 +42,7 @@ import { TURN_RAY_N, TURN_S, type TurnKind, glimpseBlocked, turnBeamOn, turnDusk
 import { BEAMS, BEAM_EXIT, BEAM_INSIDE, type Beam, type BeamHit, type Box, TIER_GLINT, beamHits, beamPieces, notchPieces, rayHash, rayTier, sunBeams, sunPoint, sunPsi, turnFan, turnRayAngle } from './beams';
 import { LEFT_DARK, bandEnd, bandGradient, bandK, bandSolid } from './band';
 import { DayLife } from './daylife';
-import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
+import { type Ctx, type Cv, type Env, FPS_FAST, FPS_SLOW, FPS_SMOOTH, FPS_STILL, type Module, TAU, clamp, ctx2d, ctx2dCpu, ease, lerp, mkCanvas, sst } from './env';
 import { Glints } from './glint';
 import { plateRects, rimRects } from './rimshape';
 
@@ -2455,7 +2455,7 @@ export function skyModule(): Module {
       sky?.onEvent(env, name);
     },
     fps(env) {
-      // Clouds, moon and stars drift slowly; a shooting star,
+      // Clouds, moon and stars drift slowly; a shooting star (FPS_SMOOTH),
       // a lightning-lit sky, sun moments and darkness bleeds move fast (and are
       // rare); a settled day sky does not move at all.
       // Day life asks for its own rate only while a flock, an insect or a glimpse is there.
@@ -2463,7 +2463,11 @@ export function skyModule(): Module {
       // Going in or out: the whole sky crossfades, smoothly at the fast rate (owner feedback 27).
       // So do the cloud cover and the palette on their way (clouds coming, day to night, rain greying the sky; owner feedback 56).
       // (a turn indoors: only its faint tint at the top, at the slow rate)
-      if (sky.shoot.on || env.shared.flash > 0.01 || (sky.mKind && sky.outWas > 0.02) || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
+      // A shooting star crosses at 760–1140 px/s: at FPS_FAST it jumped 25–38 px
+      // a frame; at the screen's rate (as snow and birds, ADR 0113) for its
+      // second or two (owner, 2026-11-01).
+      if (sky.shoot.on) return FPS_SMOOTH;
+      if (env.shared.flash > 0.01 || (sky.mKind && sky.outWas > 0.02) || sky.starsIn || sky.dark || sky.lift || sky.glints.active || sky.outMoving || sky.dayMoving || sky.trans) return FPS_FAST;
       const lf = sky.lifeFps;
       return sky.still > 2 ? lf || FPS_STILL : Math.max(sky.deckOn ? (env.cpu ? CLOUD_FPS_CPU : CLOUD_FPS) : FPS_SLOW, lf);
     },

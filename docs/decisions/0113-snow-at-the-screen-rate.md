@@ -110,3 +110,12 @@ same caption box and hand-back as the other demos (`demo-script.ts`
 The owner chose 60 for birds and insects (`BIRD_FPS = FPS_SMOOTH`),
 like the snow, accepting the higher CPU while a flock is on screen
 (measured ~600–700 ms/s of browser CPU against ~320–450 at 30).
+
+## Addendum 2026-11-01: shooting stars at the screen's rate
+
+The owner found shooting stars jerky. One crosses at 760–1140 px/s, so at
+FPS_FAST it jumped 25–38 px a frame (already at sub-pixel places). While
+one is on, the sky asks for FPS_SMOOTH (sky.ts `fps`), for its second or
+two; the rest of the sky's rates are unchanged. Measured with the frame
+trace (headless, `?replay&weather`, a clear night): Firefox 30 → 60 during
+a star and back to 12 after; Chromium 30 → 60.
