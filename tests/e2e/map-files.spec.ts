@@ -1,5 +1,7 @@
-// Stage 9 P3 (ADR 0020 "Map files and storage", "Replays"): Options →
-// Mapper imports a .mm2 and the running Map pane reloads it; the
+// Stage 9 P3 (ADR 0020 "Map files and storage", "Replays"): Settings →
+// Mapper (in play, ADR 0107) imports a .mm2 and the running Map pane
+// reloads it; Options → Mapper on the start page goes back to the bundled
+// map; the
 // log player uses the same map; an HTML replay embeds the map subset
 // around the rooms its chain visited and loads it from file://.
 import { NO_STATE } from './legacy-state';
@@ -17,7 +19,7 @@ const deflate = async (b: Uint8Array): Promise<Uint8Array> => new Uint8Array(def
 
 type ReplayWindow = { __wcReplay?: { host: { store: { update(p: object): void } } } };
 
-test('Options → Mapper imports a map; the pane and the log player load it', async ({ page }) => {
+test('Settings → Mapper imports a map; the pane and the log player load it', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.setViewportSize({ width: 1400, height: 820 });
@@ -27,24 +29,23 @@ test('Options → Mapper imports a map; the pane and the log player load it', as
   const content = page.locator('.wc-app .wc-pane-map .wc-pane-content');
   await expect(content).toHaveAttribute('data-map-rooms', '30074', { timeout: 20_000 });
 
-  // ESC menu → Options → Mapper.
-  await page.locator('.wc-input-field').focus();
-  await page.keyboard.press('Escape');
-  const frame = page.locator('.wc-frame:not([hidden])');
-  await frame.locator('.wc-mrow[data-key="options"] .wc-label').click();
-  await frame.locator('.wc-mrow[data-key="mapper"] .wc-label').click();
-  await expect(frame.locator('.wc-mapper-info').first()).toHaveText(/Map\s+arda\.mm2 \(bundled\)/);
-  await expect(frame.locator('.wc-mrow[data-key="on"] .wc-label')).toHaveText('[X] Show map pane');
+  // The Settings popup's Mapper tab.
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await page.locator('.wc-ck-tab[data-tab="mapper"]').click();
+  const pop = page.locator('.wc-sp-settings');
+  await expect(pop.locator('.wc-sp-mapfile')).toHaveText('arda.mm2 (bundled)');
+  await expect(pop.locator('.wc-ck-tg[aria-label="Show map pane"]')).toHaveAttribute('aria-checked', 'true');
 
   // A bad file keeps the map.
-  await frame.locator('.wc-mapper-file').setInputFiles({ name: 'junk.mm2', mimeType: 'application/octet-stream', buffer: Buffer.from([1, 2, 3]) });
-  await expect(frame.locator('.wc-flash')).toHaveText(/^Import failed: Not an MMapper map/);
+  const input = pop.locator('.wc-sp-mapfile-input');
+  await input.setInputFiles({ name: 'junk.mm2', mimeType: 'application/octet-stream', buffer: Buffer.from([1, 2, 3]) });
+  await expect(pop.locator('.wc-sp-mapnote')).toHaveText(/^Import failed: Not an MMapper map/);
 
   // A small synthetic map: stored, and the running pane reloads it.
   const small = await writeMm2(gridMap(7, 3), deflate);
-  await frame.locator('.wc-mapper-file').setInputFiles({ name: 'small.mm2', mimeType: 'application/octet-stream', buffer: Buffer.from(small) });
-  await expect(frame.locator('.wc-flash')).toHaveText('Imported small.mm2 (21 rooms).', { timeout: 15_000 });
-  await expect(frame.locator('.wc-mapper-info').nth(1)).toHaveText(/Rooms\s+21/);
+  await input.setInputFiles({ name: 'small.mm2', mimeType: 'application/octet-stream', buffer: Buffer.from(small) });
+  await expect(pop.locator('.wc-sp-mapnote')).toHaveText('Imported small.mm2 (21 rooms).', { timeout: 15_000 });
+  await expect(pop.locator('.wc-sp-mapfile')).toContainText('small.mm2 · 21 rooms');
   await expect(content).toHaveAttribute('data-map-rooms', '21', { timeout: 15_000 });
 
   // Kept across a reload.

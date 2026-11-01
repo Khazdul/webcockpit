@@ -1,5 +1,6 @@
 // Stage 10 P2: the Scripts page and the script editor (spec §2.10,
-// ADR 0051), from the start page and the ESC menu, against a mocked MUME.
+// ADR 0051), from the start page and the menu bar's Scripts window,
+// against a mocked MUME.
 import { readFile } from 'node:fs/promises';
 import { type Locator, type Page, expect, test } from '@playwright/test';
 
@@ -36,8 +37,7 @@ end)
 `;
 
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const menuFrame = (page: Page) => page.locator('.wc-overlay .wc-frame:not([hidden])');
-/** The Scripts window's visible frame (ADR 0103: the ESC menu's Options → Scripts opens it). */
+/** The Scripts window's visible frame (ADR 0103). */
 const scriptsWin = (page: Page) => page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
 const editor = (page: Page) => page.locator('.wc-frame:not([hidden]) > .wc-sed');
 const row = (f: Locator, name: string) => f.locator(`.wc-scr-row[data-script="${name}"]`);
@@ -71,10 +71,9 @@ async function scriptsFromStart(page: Page): Promise<Locator> {
   return f;
 }
 
-/** ESC menu (open) → Options → Scripts. */
-async function openScriptsFromEsc(page: Page): Promise<void> {
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await menuFrame(page).locator('.wc-mrow[data-key="scripts"] .wc-label').click();
+/** The menu bar's Scripts: the Scripts window (ADR 0103). */
+async function openScriptsWindow(page: Page): Promise<void> {
+  await page.locator('.wc-mb[data-mb="scripts"]').click();
 }
 
 /** Replaces the buffer's text (one input event: no auto-indent or bracket closing). */
@@ -146,17 +145,12 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   expect(errors).toEqual([]);
 });
 
-test('ESC menu → Scripts (the window): new script, edit, save, enable; its trigger works and a save reloads it', async ({ page }) => {
+test('the Scripts window: new script, edit, save, enable; its trigger works and a save reloads it', async ({ page }) => {
   const errors = watchErrors(page);
   await openStart(page);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.keyboard.press('Escape');
-  // Scripts is not in the ESC menu itself but under Options.
-  await expect(page.locator('.wc-overlay .wc-mrow[data-key="options"]')).toBeVisible();
-  await expect(menuFrame(page).locator('.wc-mrow[data-key="scripts"]')).toHaveCount(0);
-  await openScriptsFromEsc(page);
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await openScriptsWindow(page);
   const f = scriptsWin(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
 
@@ -211,8 +205,7 @@ test('ESC menu → Scripts (the window): new script, edit, save, enable; its tri
   await expect(rows.filter({ hasText: '[goblin seen]' })).toHaveCount(1);
 
   // Edit and save while it runs: it reloads at once.
-  await page.keyboard.press('Escape');
-  await openScriptsFromEsc(page);
+  await openScriptsWindow(page);
   await expect(row(f, 'pagetest')).toBeVisible();
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'pagetest');
@@ -230,8 +223,7 @@ test('ESC menu → Scripts (the window): new script, edit, save, enable; its tri
   await expect(rows.filter({ hasText: '[goblin seen]' })).toHaveCount(1);
 
   // A runtime error shows on the editor's status row and under the list row.
-  await page.keyboard.press('Escape');
-  await openScriptsFromEsc(page);
+  await openScriptsWindow(page);
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again').replace('echo(', 'ecko('));
@@ -244,8 +236,7 @@ test('ESC menu → Scripts (the window): new script, edit, save, enable; its tri
   await page.keyboard.type('look');
   await page.keyboard.press('Enter');
   await expect.poll(() => lib<{ lastError: string | null }>(page, 'get', 'pagetest').then((s) => s.lastError)).toMatch(/^pagetest:8:/);
-  await page.keyboard.press('Escape');
-  await openScriptsFromEsc(page);
+  await openScriptsWindow(page);
   await expect(f.locator('.wc-scr-error')).toContainText('pagetest:8:');
   await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
   // … and on its line in the editor (lua-lint.ts).

@@ -192,7 +192,7 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   expect(errors).toEqual([]);
 });
 
-test('Scripts window from the ESC menu: the help scrollbar drags; the game input keeps away', async ({ page }) => {
+test('the Scripts window: the help scrollbar drags; the game input keeps away', async ({ page }) => {
   const errors = watchErrors(page);
   await page.setViewportSize({ width: 1280, height: 600 });
   await mockMume(page);
@@ -203,9 +203,7 @@ test('Scripts window from the ESC menu: the help scrollbar drags; the game input
   await lib(page, 'create', 'aaahelp', `-- @name aaahelp\n-- @summary Long help\n-- @api 1\n${help}\n\necho("x")\n`);
   await page.keyboard.press('Enter');
   await expect(page.locator('.wc-app')).toHaveAttribute('data-status', /^login/);
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow[data-key="scripts"] .wc-label').click();
+  await page.locator('.wc-mb[data-mb="scripts"]').click();
   const win = page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
   await win.locator('.wc-scr-row[data-script="aaahelp"] .wc-scr-name').first().click();
   await expect(win.locator('.wc-scr-help')).toContainText('Help line 0');

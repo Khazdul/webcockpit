@@ -1,4 +1,4 @@
-// Stage 25 (ADR 0085 and its addenda): Options → Mapper → Background
+// Stage 25 (ADR 0085 and its addenda): the Mapper's Background
 // colour, one cycler row over the named colours (typed codes removed in
 // round 3). The chosen colour is drawn by the map worker at once, the
 // pane's CSS background follows, and the setting survives a reload. Dark
@@ -28,18 +28,10 @@ async function countColour(page: Page, rgb: readonly [number, number, number]): 
   );
 }
 
-async function closeMenus(page: Page): Promise<void> {
-  for (let i = 0; i < 6 && (await page.locator('.wc-frame:not([hidden])').count()) > 0; i++) {
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(100);
-  }
-  await expect(page.locator('.wc-frame:not([hidden])')).toHaveCount(0);
-}
-
 const SLATE = [0x2e, 0x34, 0x36] as const;
 const MAROON = [0x2e, 0x12, 0x14] as const;
 
-test('Options → Mapper → Background colour: a named colour is drawn live and kept over a reload', async ({ page }) => {
+test('Settings → Mapper → Background colour: a named colour is drawn live and kept over a reload', async ({ page }) => {
   test.setTimeout(90_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -54,33 +46,29 @@ test('Options → Mapper → Background colour: a named colour is drawn live and
   await expect.poll(() => countColour(page, SLATE), { timeout: 10_000 }).toBeGreaterThan(1000);
   const maroonBefore = await countColour(page, MAROON);
 
-  // ESC → Options → Mapper: one cycler row, no colour code row.
-  await page.locator('.wc-input-field').focus();
-  await page.keyboard.press('Escape');
-  const frame = page.locator('.wc-frame:not([hidden])');
-  await frame.locator('.wc-mrow[data-key="options"] .wc-label').click();
-  await frame.locator('.wc-mrow[data-key="mapper"] .wc-label').click();
-  const row = frame.locator('.wc-mrow[data-key="background"] .wc-label');
-  await expect(row).toHaveText('Background colour: Default');
-  await expect(frame.locator('.wc-mrow[data-key="backgroundCode"]')).toHaveCount(0);
-  // ← → cycle the named list: Black, back to Default, then ← past Transparent, White, Dark paper and Dark purple to Maroon.
-  for (let i = 0; i < 5; i++) await page.keyboard.press('ArrowDown');
-  await page.keyboard.press('ArrowRight');
-  await expect(row).toHaveText('Background colour: Black');
+  // Settings → Mapper (ADR 0107): the named colours, live (the TUI cycler: tests/unit/chrome-mapper.test.tsx).
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  await page.locator('.wc-ck-tab[data-tab="mapper"]').click();
+  const dd = page.locator('.wc-sp-settings .wc-ck-dd[aria-label="Background colour"]');
+  const pick = async (hex: string) => {
+    await dd.click();
+    await page.locator(`.wc-ck-list .wc-ck-opt[data-value="${hex}"]`).click();
+  };
+  await expect(dd).toContainText('Default');
+  await pick('#000000');
+  await expect(dd).toContainText('Black');
   await expect(content).toHaveAttribute('data-map-bg', '#000000');
-  await page.keyboard.press('ArrowLeft');
-  await expect(row).toHaveText('Background colour: Default');
-  await page.keyboard.press('ArrowLeft');
-  await expect(row).toHaveText('Background colour: Transparent');
+  await pick('transparent');
+  await expect(dd).toContainText('Transparent');
   // Transparent: the map draws on the pane's own background, the terminal's here.
   const termBg = await page.evaluate(() => window.__wc!.settings.get().appearance.bg.toLowerCase());
   await expect(content).toHaveAttribute('data-map-bg', termBg);
-  await page.keyboard.press('ArrowLeft');
-  await expect(row).toHaveText('Background colour: White');
+  await pick('#ffffff');
   await expect(content).toHaveAttribute('data-map-bg', '#ffffff');
-  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
-  await expect(row).toHaveText('Background colour: Maroon');
-  await closeMenus(page);
+  await pick('#2e1214');
+  await expect(dd).toContainText('Maroon');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
 
   // Drawn at once, and the pane's own background (before a frame) follows.
   await expect(content).toHaveAttribute('data-map-bg', '#2e1214');

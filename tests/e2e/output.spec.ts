@@ -389,33 +389,28 @@ test.describe('scrolling a full scrollback', () => {
 
 // ------------------------------------------------- scrollback depth (ADR 0046)
 
-test('Options → Appearance → Scrollback changes the depth live', async ({ page }) => {
+test('Settings → Appearance → Scrollback changes the depth live', async ({ page }) => {
   await fill(page, 20_500);
   const rows = () => page.evaluate(() => window.__wc!.app.output.rows);
-  const menuSel = page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-mrow.is-sel');
-  // Esc at the tail opens the menu.
-  await page.keyboard.press('Escape');
-  await page.locator('.wc-overlay .wc-mrow[data-key="options"] .wc-label').click();
-  await page.locator('.wc-overlay .wc-mrow[data-key="appearance"] .wc-label').click();
-  await expect(page.locator('.wc-overlay .wc-frame:not([hidden]) .wc-title-row')).toHaveText('─── Appearance ───');
-  for (let i = 0; i < 7; i++) await page.keyboard.press('ArrowDown'); // past Bold brightens colours
-  await expect(menuSel).toHaveText('<< Scrollback: 20 000 lines >>');
-  await page.keyboard.press('ArrowLeft');
-  await page.keyboard.press('ArrowLeft');
-  await expect(menuSel).toHaveText('<< Scrollback: 5 000 lines >>');
+  // The Settings popup (ADR 0107); the TUI row on the start page is the same setting.
+  await page.locator('.wc-mb[data-mb="settings"]').click();
+  const dd = page.locator('.wc-sp-settings .wc-ck-dd[aria-label="Scrollback"]');
+  const pick = async (n: number) => {
+    await dd.click();
+    await page.locator(`.wc-ck-list .wc-ck-opt[data-value="${n}"]`).click();
+  };
+  await expect(dd).toContainText('20 000');
+  await pick(5000);
+  await expect(dd).toContainText('5 000');
   // Lowered: the oldest rows go at once, without a reload or new output.
   await expect.poll(rows).toBeLessThan(5_200);
   expect(await rows()).toBeGreaterThanOrEqual(5_000);
   expect(await page.evaluate(() => window.__wc!.settings.get().output.scrollback)).toBe(5000);
   // Raised: the pane keeps more from now on.
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('ArrowRight');
-  await expect(menuSel).toHaveText('<< Scrollback: 50 000 lines >>');
+  await pick(50000);
+  await expect(dd).toContainText('50 000');
   await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
-  await expect(page.locator('.wc-overlay')).toBeHidden();
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await push(page, 20_500, 30_500);
   expect(await rows()).toBeGreaterThan(14_000);
   await expect.poll(() => atTail(page)).toBe(true);
