@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30d done; 30e built, owner test deferred; 30f building). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30d done; 30e built, owner test deferred; 30f built, owner test pending). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -836,15 +836,18 @@ and bring any feedback then. The 30e test guide stands.
   - [x] Unit tests (`share-spotlights`, `settings`, `spotlights-settings`,
     `spotlight-mode`), e2e `spotlights-settings.spec.ts`,
     `phone-spotlights.spec.ts`, ADR 0110, ADR 0032 addendum, test guide.
-- [ ] 30f (build plan above, 2026-11-01):
-  - [ ] Esc on desktop and tablet ends without the ESC menu; the shell
+- [x] 30f (build plan above, 2026-11-01):
+  - [x] Esc on desktop and tablet ends without the ESC menu; the shell
     never mounts it where the bar exists.
-  - [ ] `#menu` hint with the bar; `#help` texts.
-  - [ ] Tablet `☰` removed; phone unchanged.
-  - [ ] Dead ESC-menu-beside-the-bar paths removed; chrome loading notes.
-  - [ ] Unit and e2e tests moved off the desktop ESC menu; new checks;
+  - [x] `#menu` hint with the bar; `#help` texts.
+  - [x] Tablet `☰` removed; phone unchanged.
+  - [x] Dead ESC-menu-beside-the-bar paths removed; chrome loading notes.
+  - [x] Unit and e2e tests moved off the desktop ESC menu; new checks;
     screenshot script.
-  - [ ] Docs: spec §2.6 and others, manual, `#help`, README, Scripts note;
+    - [x] ESC menu specs on the phone (`phone-esc-menu.spec.ts`); the
+      tablet in `phone-touch.spec.ts`; desktop checks in `esc-click`,
+      `chrome`, `menubar`, `windows`, `settings-popup`.
+  - [x] Docs: spec §2.6 and others, manual, `#help`, README, Scripts note;
     ADR 0112 and addenda; test guide.
 
 ## Test guide
