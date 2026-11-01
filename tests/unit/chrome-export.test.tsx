@@ -10,6 +10,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { RunMeta } from '../../src/capture/store';
 import { type ChromeServices, mountStartPage } from '../../src/chrome';
 import { pasteText } from '../../src/chrome/frames/export-input';
+import { setDeviceForTest } from '../../src/core/device';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
 import { DAY_US } from '../../src/runs/stitch';
@@ -319,6 +320,31 @@ describe('Export editor frame', () => {
     await key('Enter');
     expect(logRows(host).some((r) => r.kind === 'comment')).toBe(false);
     expect(logRows(host)[1]).toMatchObject({ text: '> look', cur: true });
+  });
+
+  it('touch: a margin tap selects the line, a second extends; a text tap clears', async () => {
+    setDeviceForTest({ touch: true, phone: false });
+    cleanup.push(() => setDeviceForTest({ touch: false, phone: false }));
+    const lib = await library();
+    const host = await openEditor(lib);
+    const log = frame(host).querySelector<HTMLElement>('.wc-exp-log')!;
+    log.getBoundingClientRect = () => ({ top: 0, bottom: 800, left: 0, right: 910, width: 910, height: 800, x: 0, y: 0, toJSON: () => ({}) });
+    const tap = (item: number, x: number) =>
+      act(() => {
+        rowEl(host, item).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: x }));
+      });
+    // A touch press starts no drag.
+    await pointer(rowEl(host, 3), 'pointerdown', 52, { pointerType: 'touch' });
+    expect(selHead(host)).toBe('LINE · 1');
+    await tap(1, 5);
+    expect(selHead(host)).toBe('SELECTION · 1 line');
+    await tap(3, 5);
+    expect(selHead(host)).toBe('SELECTION · 3 lines');
+    await key('x');
+    expect(kinds(host)).toEqual(['entry', 'excluded', 'excluded', 'excluded', 'entry', 'end']);
+    await tap(4, 200);
+    expect(selHead(host)).toBe('LINE · 5');
+    expect(logRows(host).some((r) => r.sel)).toBe(false);
   });
 
   it('C above a selection; title, the text export marks its button, persistence across reopen', async () => {

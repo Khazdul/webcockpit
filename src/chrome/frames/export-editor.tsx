@@ -536,12 +536,14 @@ export function ExportEditorFrame(p: { session: Session }): VNode {
       const yy = Math.max(r.top, Math.min(r.bottom - 1, y));
       return itemAtRow(it, Math.floor((yy - r.top + el.scrollTop) / cellHeight(el)));
     };
+    let last = i;
     const follow = (): void => {
       const it = itemsRef.current;
       if (!it) return;
       const j = itemAtPointer();
-      if (!moved && j === from) return;
+      if ((!moved && j === from) || (moved && j === last)) return;
       moved = true;
+      last = j;
       setAnchor(itemKey(it, from));
       setCursor(itemKey(it, j));
     };
