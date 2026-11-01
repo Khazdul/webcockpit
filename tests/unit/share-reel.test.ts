@@ -1,5 +1,5 @@
-// Stage 7 P3: the Spotlights reel's loading and arithmetic, the info box
-// text, and the Credits roll (ADR 0019, Inv §7.6).
+// Stage 7 P3: the Spotlights reel's loading and arithmetic, the card's
+// countdown and width (stage 32c), and the Credits roll (ADR 0019, Inv §7.6).
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { describe, expect, it } from 'vitest';
@@ -7,15 +7,10 @@ import { creditsRoll, creditsWidth } from '../../src/chrome/frames/credits';
 import type { RunEvent } from '../../src/runs/events';
 import { RunLibrary } from '../../src/runs/library';
 import { defaultSettings } from '../../src/settings';
+import { CARD_MIN_W, CARD_W, cardWidth, countdownLeft } from '../../src/player/spotlight-card';
 import {
-  BAR_HALF,
-  BOX_W,
   RESTART_MS,
-  boxFits,
-  countdownHalf,
-  countdownRow,
   fmtDate,
-  labelLines,
   loadReel,
   navTarget,
   reelMarks,
@@ -91,33 +86,20 @@ describe('reel positions', () => {
   });
 });
 
-describe('info box', () => {
+describe('Spotlights card', () => {
   it('drains the countdown symmetrically to the moment', () => {
-    expect(countdownHalf(1000, 11000, 1000)).toBe(BAR_HALF);
-    expect(countdownHalf(1000, 11000, 6000)).toBe(5);
-    expect(countdownHalf(1000, 11000, 11000)).toBe(0);
-    expect(countdownHalf(1000, 11000, 15000)).toBe(0);
-    expect(countdownHalf(1000, 1000, 1000)).toBe(0); // the moment is the first line
-    const full = countdownRow(BAR_HALF);
-    expect(full).toHaveLength(BOX_W);
-    expect(full).toBe('    ▐' + '█'.repeat(20) + '▌    ');
-    expect(countdownRow(3)).toBe(' '.repeat(11) + '▐██████▌' + ' '.repeat(11));
-    expect(countdownRow(0)).toBe(' '.repeat(BOX_W));
+    expect(countdownLeft(1000, 11000, 1000)).toBe(1);
+    expect(countdownLeft(1000, 11000, 6000)).toBe(0.5);
+    expect(countdownLeft(1000, 11000, 11000)).toBe(0);
+    expect(countdownLeft(1000, 11000, 15000)).toBe(0);
+    expect(countdownLeft(1000, 1000, 1000)).toBe(0); // the moment is the first line
   });
 
-  it('wraps the label to two lines, then …', () => {
-    expect(labelLines('*Ibuki the Half-Elf*')).toEqual(['*Ibuki the Half-Elf*']);
-    expect(labelLines('Achievement: Put a barrow-wight to rest.')).toEqual(['Achievement: Put a', 'barrow-wight to rest.']);
-    const long = labelLines('Achievement: one two three four five six seven eight nine ten eleven twelve thirteen');
-    expect(long).toHaveLength(2);
-    expect([...long[1]!]).toHaveLength(28);
-    expect(long[1]!.endsWith('…')).toBe(true);
-    expect(labelLines('x'.repeat(40))).toEqual(['x'.repeat(27) + '…']);
-  });
-
-  it('hides when the player is too narrow', () => {
-    expect(boxFits(36)).toBe(true);
-    expect(boxFits(35)).toBe(false);
+  it('is CARD_W wide, narrower on a narrow player, and hides when too narrow', () => {
+    expect(cardWidth(1400)).toBe(CARD_W);
+    expect(cardWidth(360)).toBe(360 - 12 - 28 - 8);
+    expect(cardWidth(12 + 28 + 8 + CARD_MIN_W)).toBe(CARD_MIN_W);
+    expect(cardWidth(12 + 28 + 8 + CARD_MIN_W - 1)).toBe(0);
   });
 
   it('formats the header date', () => {

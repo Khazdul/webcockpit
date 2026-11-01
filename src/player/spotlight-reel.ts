@@ -1,5 +1,5 @@
 // The Spotlights reel (ADR 0019 "Spotlights", Inv §7.6): loading and the
-// reel's arithmetic. No DOM; the info box is src/player/spotlight-box.ts and
+// reel's arithmetic. No DOM; the card is src/player/spotlight-card.ts and
 // the player wiring src/player/spotlight-mode.ts.
 //
 // Loading (`ReelSource`). Every sealed run with a log and its events →
@@ -193,84 +193,12 @@ const MARK_OF: Readonly<Record<Spotlight['kind'], MarkLetter>> = {
   achievement: 'A',
 };
 
-/** Strip markers: one per spotlight at its moment. */
+/** Rail markers: one per spotlight at its moment. */
 export function reelMarks(tl: Timeline, spots: readonly Spotlight[]): PlacedMark[] {
   return spotMoments(tl, spots).map((offset, i) => {
     const s = spots[i]!;
     return { letter: MARK_OF[s.kind], offset, tip: `${s.character}: ${markTip(s.event, s.level)}` };
   });
-}
-
-// ------------------------------------------------------------- info box
-
-/** Info box size: 30 × 7 cells plus the countdown row (Inv §7.6). */
-export const BOX_W = 30;
-export const BOX_INNER = BOX_W - 2;
-/** Top row, and cells in from the right edge (clear of the 2-column strip). */
-export const BOX_TOP = 2;
-export const BOX_RIGHT = 4;
-/** Least cells left of the box; narrower players hide it. */
-export const BOX_MARGIN = 2;
-/** Half of the countdown bar's full fill (it drains one cell from each side). */
-export const BAR_HALF = 10;
-
-/** True when the info box fits in `cols` cells. */
-export function boxFits(cols: number): boolean {
-  return cols >= BOX_W + BOX_RIGHT + BOX_MARGIN;
-}
-
-/**
- * The label on at most two lines of `width` cells: word-wrapped, a word
- * longer than a line cut with `…`, and the second line ending in `…` when
- * the label needs more.
- */
-export function labelLines(label: string, width = BOX_INNER): string[] {
-  const words = label.split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let cur = '';
-  for (const w of words) {
-    if (!cur) cur = w;
-    else if (cellLen(cur) + 1 + cellLen(w) <= width) cur += ' ' + w;
-    else {
-      lines.push(cur);
-      cur = w;
-    }
-  }
-  if (cur) lines.push(cur);
-  if (lines.length <= 2) return lines.map((l) => truncate(l, width));
-  // The rest never fits on one line (the wrap is greedy), so it ends in `…`.
-  return [truncate(lines[0]!, width), truncate(lines.slice(1).join(' '), width)];
-}
-
-/**
- * Half the countdown bar's fill at `p` in a spotlight starting at `start`
- * whose moment is `moment`: BAR_HALF at the start, 0 at the moment and
- * after (and when the moment is at the start).
- */
-export function countdownHalf(start: number, moment: number, p: number): number {
-  const span = moment - start;
-  if (!(span > 0)) return 0;
-  const f = Math.max(0, Math.min(1, (moment - p) / span));
-  return Math.round(f * BAR_HALF);
-}
-
-/** The countdown row (BOX_W cells): `▐` + `█` × 2·half + `▌` centred, or blank. */
-export function countdownRow(half: number): string {
-  if (half <= 0) return ' '.repeat(BOX_W);
-  const bar = '▐' + '█'.repeat(2 * half) + '▌';
-  const pad = BOX_W - bar.length;
-  return ' '.repeat(pad >> 1) + bar + ' '.repeat(pad - (pad >> 1));
-}
-
-/** Length in cells (code points). */
-function cellLen(s: string): number {
-  return [...s].length;
-}
-
-/** `s` cut to `n` cells with `…` when longer. */
-function truncate(s: string, n: number): string {
-  const cps = [...s];
-  return cps.length <= n ? s : cps.slice(0, Math.max(0, n - 1)).join('') + '…';
 }
 
 /** `YYYY-MM-DD`, local time. */

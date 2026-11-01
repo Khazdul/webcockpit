@@ -429,8 +429,8 @@ export class Shell {
       this.popups = chrome.mountSettingsPopups(host, this.services(), {
         focusInput: () => app.input.focus(),
         // The cockpit never opens the reel's `spotlights` popup (ADR 0110).
-        onOpen: (key, el, close) => key !== 'spotlights' && app.menuBar?.adopt({ key, el, close }),
-        onClose: (key) => key !== 'spotlights' && app.menuBar?.release(key),
+        onOpen: (key, el, close) => app.menuBar?.adopt({ key, el, close }),
+        onClose: (key) => app.menuBar?.release(key),
         onChange: (key) => app.cockpit.markGear(gearPaneOf(key) as PaneId | null),
       });
       // The open gear popup follows its pane, or closes when the pane is no longer shown.
@@ -477,8 +477,8 @@ export class Shell {
       this.reel = openSpotlightReel(host, reel, {
         source,
         settings,
-        // The gear's popup (the chrome chunk), beside the player.
-        popups: async (el, o) => (await this.loadChrome()).mountSettingsPopups(el, this.services(), o),
+        // The card's Characters list: the recorded characters.
+        characters: () => lib.characters(),
       });
       host.onDispose(() => (this.reel = null));
     });

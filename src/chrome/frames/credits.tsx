@@ -2,7 +2,7 @@
 // up the screen like end credits. The chronicle (src/share/chronicle.ts)
 // is built once from every stored run's events (no log needed), filtered
 // by the Spotlights settings (kinds × characters × period, ADR 0110; set
-// from the reel's gear, or from the "filtered" page's `Settings…`), in a
+// from the reel's card, or from the "filtered" page's `Settings…`), in a
 // centred column min(60, max(40, cols − 8)) wide. The filters are read when
 // the frame opens and again when that page's popup closes after a change.
 //

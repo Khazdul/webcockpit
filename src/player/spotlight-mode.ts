@@ -1,54 +1,53 @@
 // The Spotlights reel in the in-app player (ADR 0019 "Spotlights", Inv
 // §7.6): a PlayerHost playing one timeline over every spotlight (each its
-// window with a blank transition), with the spotlight header, the info box
-// overlay, `←` / `→` and the markers of the moments. It starts playing with
-// the chrome hidden (a pointer move or a key shows it; the info box stays)
-// and parks paused at the end (the engine stops there). ESC closes the
-// player (the shell shows the start page as it was).
+// window with a blank transition), with the spotlight header, the
+// Spotlights card, `←` / `→` and the markers of the moments. It starts
+// playing with the chrome hidden (a pointer move or a key shows it; the
+// card stays) and parks paused at the end (the engine stops there). ESC
+// closes the player (the shell shows the start page as it was).
 //
 // Stripped down (owner feedback 2026-09-29, ADR 0032): a spotlight is a
 // short snapshot, so the reel shows the game text only — every pane is
 // off, script panes included (a viewer override, so later VIEW records
-// cannot switch one on) — and the control box has no viewer settings.
+// cannot switch one on) — and the control box has Display (font size,
+// colours; kept across rebuilds) but no Panes.
 //
-// Settings (stage 30 S9, ADR 0110): the control box's gear (`⚙`, where the
-// viewer's gear sits in other modes) opens the Spotlights settings popup
-// above the box. The popup is the chrome chunk's (`opts.popups` mounts the
-// settings popups' layer beside the player element, not in it); it takes
-// the keys while it has the focus, Esc closes it before the reel, and the
-// chrome stays while it is open. Every change of the settings' `spotlights`
-// rebuilds the reel at once (`opts.source` loads it, reading only windows
-// not read yet): the current spotlight is kept at the same offset when it
-// still passes, otherwise the reel starts from the first; paused stays
-// paused, parked at the end plays again; the latest change wins. A change
-// that leaves nothing stops the reel and shows an empty stage
-// (`No spotlights match your settings.`, `Settings…`, `ESC Back`) until a
-// change lets something through again.
+// The card (stage 32c, ADR 0114; src/player/spotlight-card.ts) is made once
+// per open and lives on the player element across rebuilds: the current
+// spotlight, `‹ ›`, the countdown, and the filter (kinds, characters,
+// period) that replaced the gear popup of ADR 0110. Every change of the
+// settings' `spotlights` rebuilds the reel at once (`opts.source` loads
+// it, reading only windows not read yet): the current spotlight is kept
+// at the same offset when it still passes, otherwise the reel starts from
+// the first; paused stays paused, parked at the end plays again; the
+// latest change wins. A change that leaves nothing stops the reel and
+// shows the empty stage — the card with its filter and `No spotlights
+// match your settings.`, and a top line with `ESC Back` — until a change
+// lets something through again.
+//
+// Keys: plain ← → go to the previous or next spotlight (the view's keys
+// hook); Shift+← → are the view's ±10 s, Home its To the start.
 
 import type { PlayerHost } from '../app/player-host';
-import type { SettingsPopupsHandle, SettingsPopupsOptions } from '../chrome/popups/surface';
 import type { SettingsStore } from '../settings';
 import type { HeaderHint } from './strip';
-import type { PlayerGear, PlayerHeaderModel } from './view';
-import { BOX_W, type Reel, type ReelLoader, countdownHalf, fmtDate, navTarget, reelMarks, spotAt, spotMoments, spotStarts } from './spotlight-reel';
-import { SpotlightBox } from './spotlight-box';
+import type { PlayerHeaderModel } from './view';
+import { type Reel, type ReelLoader, fmtDate, navTarget, reelMarks, spotAt, spotMoments, spotStarts } from './spotlight-reel';
+import { REEL_NO_MATCH, SpotlightCard, countdownLeft } from './spotlight-card';
 import { BLANK_LINES } from './timeline';
 import { PANE_IDS, type PaneId } from '../layout/types';
-import { noOverrides } from './viewer';
-import { placeNear, placePopup } from '../menubar/popup';
 import { OWN_KEYS_ATTR } from '../ui/input-pane';
 
-/** The empty stage's text (the start page's "filtered" page says the same). */
-export const REEL_NO_MATCH = 'No spotlights match your settings.';
+export { REEL_NO_MATCH };
 
-/** What the reel needs beyond the host for its gear and rebuilds (ADR 0110); none = a fixed reel without a gear. */
+/** What the reel needs beyond the host for its filter and rebuilds (ADR 0110, 0114); none = a fixed reel without a filter. */
 export interface ReelOptions {
   /** Loads the reel for new settings. */
   source?: ReelLoader;
-  /** The settings store: a change of `spotlights` rebuilds the reel. */
+  /** The settings store: the card's filter writes it, and a change of `spotlights` rebuilds the reel. */
   settings?: SettingsStore;
-  /** Mounts the settings popups' layer (chrome chunk) into `host`; the gear opens its `spotlights` popup. */
-  popups?: (host: HTMLElement, opts: SettingsPopupsOptions) => Promise<SettingsPopupsHandle>;
+  /** The recorded characters (the card's Characters list). */
+  characters?: () => Promise<string[]>;
   /** Now, µs (the period's clock; tests). */
   now?: () => number;
 }
@@ -57,8 +56,8 @@ export interface ReelOptions {
 export interface ReelHandle {
   /** The reel playing, or null while the empty stage shows. */
   readonly reel: Reel | null;
-  /** Opens or closes the settings popup (the gear). */
-  toggleSettings(): Promise<void>;
+  /** The Spotlights card. */
+  readonly card: HTMLElement;
   /** Rebuilds for the current settings (a settings change does it by itself). */
   rebuild(): Promise<void>;
 }
@@ -85,9 +84,10 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
 
   const onEsc = (): void => host.close();
   const hints: HeaderHint[] = [
+    { text: '← → Prev/next', drop: 3 },
+    { text: 'Shift ← → 10 s', drop: 1 },
+    { text: '1–6 Speed', drop: 2 },
     { text: 'ESC Back', drop: Infinity, cls: 'wc-player-back', onClick: onEsc },
-    { text: '←→ Prev/next', drop: 2 },
-    { text: '1–6 Speed', drop: 1 },
   ];
   const header = (): PlayerHeaderModel => {
     const spots = cur?.spots ?? [];
@@ -105,56 +105,37 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     };
   };
 
-  // ------------------------------------------------------- settings popup
+  // ----------------------------------------------------------------- card
 
-  let popups: SettingsPopupsHandle | null = null;
-  let popupsP: Promise<SettingsPopupsHandle> | null = null;
-  let popHost: HTMLDivElement | null = null;
-  let popupOpen = false;
+  const card = new SpotlightCard(doc, {
+    onNav: go,
+    ...(opts.settings ? { filter: { settings: opts.settings, characters: opts.characters ?? (async () => []) } } : {}),
+  });
+  host.el.append(card.el);
   let emptyEl: HTMLDivElement | null = null;
-  let emptyBtn: HTMLElement | null = null;
 
-  /** Above the control box, right edges aligned; on the empty stage next to its `Settings…`. */
-  const place = (el: HTMLElement): void => {
-    const v = host.playerView;
-    const g = v?.gearElement;
-    if (v && g && !emptyEl) placePopup(el, g, v.boxElement);
-    else if (emptyBtn) placeNear(el, emptyBtn);
+  // The card follows the engine (ticks at least every 250 ms while playing)
+  // and the player's width.
+  let raf: number | null = null;
+  const draw = (): void => {
+    raf = null;
+    if (host.isClosed) return;
+    card.place(host.el.clientWidth);
+    const e = host.engine;
+    const spots = cur?.spots;
+    if (!e || !spots || spots.length === 0) return card.update(null);
+    const p = e.position;
+    const i = spotAt(starts, p);
+    card.update({ index: i, total: spots.length, spot: spots[i]!, countdown: countdownLeft(starts[i] ?? 0, moments[i] ?? 0, p) });
   };
-
-  const ensurePopups = (): Promise<SettingsPopupsHandle> => {
-    popupsP ??= (async () => {
-      const el = doc.createElement('div');
-      el.className = 'wc-popups-host';
-      // Beside the player, not in it: its pointer and wheel handlers and its
-      // recorded font size stay out of the popup.
-      host.el.after(el);
-      popHost = el;
-      const p = await opts.popups!(el, {
-        // Keys back to the reel: nothing in the player takes the focus.
-        focusInput: () => (doc.activeElement as HTMLElement | null)?.blur?.(),
-        onChange: (key) => {
-          popupOpen = key !== null;
-          host.playerView?.setGearOn(popupOpen);
-        },
-      });
-      popups = p;
-      if (host.isClosed) p.dispose();
-      return p;
-    })();
-    return popupsP;
+  const schedule = (): void => {
+    if (raf === null) raf = win.requestAnimationFrame(draw);
   };
-
-  const toggleSettings = async (): Promise<void> => {
-    if (!opts.popups || host.isClosed) return;
-    const p = await ensurePopups();
-    if (!host.isClosed) p.toggle('spotlights', place);
-  };
-
-  const gear: PlayerGear | null = opts.popups ? { title: 'Spotlights settings', onClick: () => void toggleSettings() } : null;
-
-  /** Esc with the popup open (the keys elsewhere) closes it first (S2). */
-  const escPopup = (): boolean => (popups?.isOpen ? popups.close() : false);
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(schedule);
+    ro.observe(host.el);
+    host.onDispose(() => ro.disconnect());
+  }
 
   // ---------------------------------------------------------------- reel
 
@@ -166,9 +147,8 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     hideEmpty();
     cur = r;
     const { spots, chain } = r;
-    const total = spots.length;
-    const box = new SpotlightBox(doc, go);
-    host.setViewer({ ...noOverrides(), panes });
+    // Display's font and colours stay across rebuilds; the panes stay off.
+    host.setViewer({ ...host.viewerOverrides, panes });
     host.openChain(
       chain,
       [],
@@ -183,19 +163,18 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
         view: {
           header,
           onEsc,
+          closeTitle: 'Back to the start page (Esc)',
+          shiftSeek: true,
           keys: (e) => {
-            if (e.key === 'Escape' && !e.ctrlKey && !e.altKey && !e.metaKey && escPopup()) return true;
             if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return false;
             if (e.key === 'ArrowRight') go(1);
             else if (e.key === 'ArrowLeft') go(-1);
             else return false;
             return true;
           },
-          overlay: { el: box.el, keepVisible: true },
           startHidden: hidden,
-          ...(gear ? { gear } : {}),
         },
-        viewerSettings: false,
+        viewerSettings: 'display',
         autoplay,
       },
     );
@@ -203,7 +182,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     host.hideTempPanes();
     if (host.scriptPaneIds.length > 0) {
       for (const id of host.scriptPaneIds) panes[id] = false;
-      host.setViewer({ ...noOverrides(), panes });
+      host.setViewer({ ...host.viewerOverrides, panes });
     }
     const eng = host.engine;
     if (eng && at) {
@@ -211,41 +190,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
       const end = at.index + 1 < starts.length ? starts[at.index + 1]! : eng.duration;
       eng.seek(start + Math.max(0, Math.min(at.offset, end - start - 1)));
     }
-    if (popupOpen) host.playerView?.setGearOn(true);
-
-    // The box follows the engine (ticks at least every 250 ms while playing).
-    let raf: number | null = null;
-    const draw = (): void => {
-      raf = null;
-      const e = host.engine;
-      if (!e || !box.el.isConnected) return;
-      const p = e.position;
-      const i = spotAt(starts, p);
-      const cellW = box.el.offsetWidth / BOX_W;
-      // Top-right of the game text, not of the player: the right dock's
-      // panes (Character, Group) stay in view (owner review, stage 7).
-      const out = host.el.querySelector<HTMLElement>('.wc-output');
-      const hostBox = host.el.getBoundingClientRect();
-      const outBox = out?.getBoundingClientRect();
-      const width = outBox && outBox.width > 0 ? outBox.width : host.el.clientWidth;
-      const inset = outBox && outBox.width > 0 ? Math.max(0, hostBox.right - outBox.right) : 0;
-      box.el.style.right = `calc(${inset}px + var(--cell-w) * 4)`;
-      box.update({
-        index: i,
-        total,
-        spot: spots[i]!,
-        half: countdownHalf(starts[i] ?? 0, moments[i] ?? 0, p),
-        cols: cellW > 0 ? Math.floor(width / cellW + 1e-6) : Infinity,
-      });
-    };
-    const schedule = (): void => {
-      if (raf === null) raf = win.requestAnimationFrame(draw);
-    };
     eng?.subscribe(schedule);
-    if (typeof ResizeObserver !== 'undefined') {
-      const ro = new ResizeObserver(() => (box.el.isConnected ? schedule() : ro.disconnect()));
-      ro.observe(host.el);
-    }
     draw();
   };
 
@@ -256,50 +201,44 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     // The player owns the keyboard, as its view does.
     e.stopPropagation();
     if (e.ctrlKey || e.altKey || e.metaKey) return;
-    if (e.key === 'Escape') {
-      if (!escPopup()) host.close();
-    } else if (e.key === 'Enter' || e.key === ' ') void toggleSettings();
-    else return;
+    if (e.key !== 'Escape') return;
     e.preventDefault();
-  };
-
-  const line = (text: string, cls = ''): HTMLDivElement => {
-    const d = doc.createElement('div');
-    d.className = `wc-spot-empty-line${cls ? ' ' + cls : ''}`;
-    d.textContent = text;
-    return d;
+    host.close();
   };
 
   const showEmpty = (): void => {
     cur = null;
     starts = [];
     moments = [];
+    draw();
     if (emptyEl) return;
     const el = doc.createElement('div');
     el.className = 'wc-spot-empty';
-    const btn = line('Settings…', 'wc-spot-empty-btn');
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      void toggleSettings();
-    });
-    const back = line('ESC Back', 'wc-spot-empty-back');
+    const head = doc.createElement('div');
+    head.className = 'wc-spot-empty-head';
+    const chip = doc.createElement('span');
+    const name = doc.createElement('b');
+    name.textContent = 'Spotlights';
+    const back = doc.createElement('span');
+    back.className = 'wc-spot-empty-back';
+    back.textContent = 'ESC Back';
     back.addEventListener('click', (e) => {
       e.stopPropagation();
       onEsc();
     });
-    el.append(line(REEL_NO_MATCH), line(''), ...(opts.popups ? [btn, line('')] : []), back);
-    host.el.append(el);
+    chip.append(name, ' · Nothing to play · ', back);
+    head.append(chip);
+    el.append(head);
+    // Under the card (it stays with its filter).
+    host.el.insertBefore(el, card.el);
     emptyEl = el;
-    emptyBtn = btn;
     win.addEventListener('keydown', onEmptyKey, true);
-    popups?.place();
   };
 
   function hideEmpty(): void {
     if (!emptyEl) return;
     emptyEl.remove();
     emptyEl = null;
-    emptyBtn = null;
     win.removeEventListener('keydown', onEmptyKey, true);
   }
 
@@ -327,7 +266,6 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
       autoplay = eng.playing;
     }
     play(r, at, autoplay, false);
-    popups?.place();
   };
 
   const unsub = opts.settings?.subscribe((next, prev) => {
@@ -337,8 +275,8 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     seq++;
     unsub?.();
     hideEmpty();
-    popups?.dispose();
-    popHost?.remove();
+    if (raf !== null) win.cancelAnimationFrame(raf);
+    card.dispose();
   });
 
   play(reel, null, true, true);
@@ -347,7 +285,7 @@ export function openSpotlightReel(host: PlayerHost, reel: Reel, opts: ReelOption
     get reel() {
       return cur;
     },
-    toggleSettings,
+    card: card.el,
     rebuild,
   };
 }

@@ -1,14 +1,17 @@
 // @vitest-environment happy-dom
 // Stage 30e (ADR 0110): the Spotlights settings popup (kinds, characters,
-// period) through the settings popups' surface, its character rules, the
+// period; the start page's, since the reel's card took the gear's place in
+// stage 32c, ADR 0114), its character rules, the
 // start page's "filtered" pages with their `Settings…`, and Credits
 // following the filters.
 import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { type ChromeServices, mountSettingsPopups, mountStartPage } from '../../src/chrome';
+import { type ChromeServices, mountStartPage } from '../../src/chrome';
+import { ServicesCtx } from '../../src/chrome/kit/hooks';
 import { Check } from '../../src/chrome/popups/controls';
 import {
   PERIOD_LABELS,
+  SpotlightsPopup,
   allCharactersPatch,
   characterPatch,
   characterRows,
@@ -117,20 +120,25 @@ describe('Spotlights popup', () => {
     const host = document.createElement('div');
     document.body.append(host);
     const svc = services(fakeLib(names));
-    const focusInput = vi.fn();
-    const onChange = vi.fn();
-    const pops = mountSettingsPopups(host, svc, { focusInput, onChange });
-    cleanup.push(() => pops.dispose());
     const place = vi.fn();
-    act(() => pops.toggle('spotlights', place));
+    let shown = true;
+    const onClose = vi.fn(() => {
+      shown = false;
+      draw();
+    });
+    const draw = () =>
+      render(
+        <ServicesCtx.Provider value={svc}>{shown && <SpotlightsPopup place={place} onClose={onClose} focusOnOpen />}</ServicesCtx.Provider>,
+        host,
+      );
+    act(draw);
+    cleanup.push(() => render(null, host));
     await flush();
-    return { svc, pops, place, focusInput, onChange };
+    return { svc, place, onClose, isOpen: () => pop() !== null };
   }
 
   it('opens with the focus on its first control; kinds write the store at once', async () => {
-    const { svc, pops, place, onChange } = await open(['Bob', 'Rasta']);
-    expect(pops.openKey).toBe('spotlights');
-    expect(onChange).toHaveBeenCalledWith('spotlights');
+    const { svc, place } = await open(['Bob', 'Rasta']);
     expect(place).toHaveBeenCalled();
     expect(pop()!.getAttribute('aria-label')).toBe('Spotlights settings');
     expect(pop()!.querySelector('.wc-pop-title')!.textContent).toBe('Spotlights');
@@ -179,18 +187,16 @@ describe('Spotlights popup', () => {
     expect(svc.settings.get().spotlights.period).toBe('month');
   });
 
-  it('Esc and its X close it; the second toggle closes it', async () => {
-    const { pops, focusInput } = await open(['Bob']);
+  it('Esc and its X close it', async () => {
+    const a = await open(['Bob']);
     await keydown(document.activeElement, 'Escape');
-    expect(pops.isOpen).toBe(false);
-    expect(focusInput).toHaveBeenCalled();
-    act(() => pops.toggle('spotlights', () => {}));
-    await flush();
+    expect(a.onClose).toHaveBeenCalledTimes(1);
+    expect(a.isOpen()).toBe(false);
+    render(null, document.body.lastElementChild!);
+    const b = await open(['Bob']);
     await click(pop()!.querySelector('.wc-pop-x'));
-    expect(pops.isOpen).toBe(false);
-    act(() => pops.toggle('spotlights', () => {}));
-    act(() => pops.toggle('spotlights', () => {}));
-    expect(pops.isOpen).toBe(false);
+    expect(b.onClose).toHaveBeenCalledTimes(1);
+    expect(b.isOpen()).toBe(false);
   });
 });
 

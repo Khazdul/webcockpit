@@ -1,100 +1,412 @@
-/* The Spotlights info box (src/player/spotlight-box.ts, Inv §7.6). Inside
- * .wc-player, so the cell size and the canvas colour are its custom
- * properties. Below the player chrome (z 50), so the markers and the
- * strip hint stay on top. */
+/* The Spotlights card (src/player/spotlight-card.ts, stage 32c, ADR 0114):
+ * the ghost look of the player chrome (player.css) at fixed px sizes.
+ * Inside .wc-player, below the chrome (z 50), so the box's popups and the
+ * marker tips stay on top; above the empty stage. */
 
-.wc-spot-box {
+.wc-spot-card {
   position: absolute;
-  top: calc(var(--cell-h) * 2);
-  right: calc(var(--cell-w) * 4);
-  width: calc(var(--cell-w) * 30);
+  top: 26px;
   z-index: 49;
-  background: var(--term-bg);
-  color: #585858;
-  white-space: pre;
+  box-sizing: border-box;
+  width: 330px;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  background: rgba(10, 10, 10, 0.95);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  color: #c0c0c0;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: normal;
+  line-height: 16px;
+  letter-spacing: normal;
+  white-space: normal;
   user-select: none;
+  -webkit-user-select: none;
   pointer-events: auto;
 }
 
-/* The view hides an overlay with the chrome through data-hidden (the reel
- * keeps it visible); data-narrow: the player is too narrow for the box
- * (it keeps its layout, so its width still gives the cell size). */
-.wc-spot-box[data-hidden] {
+/* The player is too narrow for it. */
+.wc-spot-card[data-narrow] {
   display: none;
 }
 
-.wc-spot-box[data-narrow] {
-  visibility: hidden;
+.wc-spot-card [hidden] {
+  display: none !important;
 }
 
-.wc-spot-row,
-.wc-spot-bar {
-  height: var(--cell-h);
-  overflow: hidden;
-}
-
-.wc-spot-bar {
-  color: #333333;
-}
-
-.wc-spot-count {
-  color: #6f6f6f;
-}
-
-.wc-spot-arrow {
-  color: #c79a4a;
+.wc-spot-card button {
+  all: unset;
+  box-sizing: border-box;
   cursor: pointer;
 }
 
-.wc-spot-arrow:hover {
-  color: #ffaf00;
+.wc-spot-card button:focus-visible,
+.wc-spot-card select:focus-visible {
+  outline: 1px solid #6a6a6a;
 }
 
-.wc-spot-type {
+.wc-sc-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 32px;
+  padding: 0 6px 0 8px;
+}
+
+.wc-spot-card .wc-sc-ib {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  color: #767676;
+}
+
+.wc-spot-card .wc-sc-ib:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ececec;
+}
+
+.wc-spot-card .wc-sc-ib:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.wc-spot-card .wc-sc-ib:disabled:hover {
+  background: none;
+  color: #767676;
+}
+
+.wc-sc-count {
+  min-width: 112px;
   color: #8a8a8a;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
 }
 
-.wc-spot-label {
-  color: #dde4e0;
+.wc-sc-info {
+  padding: 0 14px 12px;
+}
+
+.wc-sc-kind {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+
+.wc-sc-kind .wc-pc-ki {
+  width: 15px;
+  height: 15px;
+}
+
+.wc-sc-label {
+  display: -webkit-box;
+  margin-top: 6px;
+  overflow: hidden;
+  color: #ececec;
+  font-size: 16px;
   font-weight: bold;
+  line-height: 21px;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
-/* The empty stage (ADR 0110): the settings leave nothing to play. The
- * message, `Settings…` and `ESC Back`, centred across and a third down,
- * so the settings popup opens below them. */
+.wc-sc-meta {
+  margin-top: 4px;
+  color: #5e5e5e;
+  font-size: 11px;
+}
+
+/* The countdown: a thin line draining from both sides to the moment. */
+.wc-sc-cd {
+  position: relative;
+  height: 2px;
+  margin: 0 14px 12px;
+  border-radius: 1px;
+  background: #1a1a1a;
+}
+
+.wc-sc-cd i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 1px;
+  background: #8a8a8a;
+}
+
+.wc-sc-empty {
+  padding: 6px 14px 14px;
+  color: #9a9a9a;
+}
+
+.wc-sc-empty small {
+  display: block;
+  margin-top: 4px;
+  color: #5e5e5e;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------ filter */
+
+.wc-sc-filter {
+  padding: 4px 0;
+  border-top: 1px solid #1e1e1e;
+}
+
+.wc-spot-card .wc-sc-fold,
+.wc-sc-period {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 10px 0 12px;
+}
+
+.wc-sc-period {
+  box-sizing: border-box;
+  justify-content: space-between;
+  padding-left: 32px;
+}
+
+.wc-sc-fl {
+  color: #9a9a9a;
+}
+
+.wc-sc-fold:hover .wc-sc-fl {
+  color: #d8d8d8;
+}
+
+.wc-sc-grow {
+  flex: 1;
+}
+
+.wc-sc-sum {
+  overflow: hidden;
+  max-width: 60%;
+  color: #d0d0d0;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wc-spot-card .wc-sc-chev {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: #686868;
+  transition: transform 0.12s;
+}
+
+.wc-spot-card .wc-sc-chev.is-open {
+  transform: rotate(90deg);
+}
+
+.wc-sc-fb {
+  margin: 0 12px 4px 18px;
+  padding: 0 0 6px 12px;
+  border-left: 1px solid #222;
+}
+
+.wc-spot-card .wc-sc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 26px;
+}
+
+.wc-sc-rl {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #9a9a9a;
+  font-size: 12px;
+}
+
+.wc-sc-row:hover .wc-sc-rl,
+.wc-sc-row.is-on .wc-sc-rl {
+  color: #d0d0d0;
+}
+
+.wc-sc-rl .wc-pc-ki {
+  width: 13px;
+  height: 13px;
+}
+
+/* The toggle switch (as the box's Panes popup, player.css). */
+.wc-spot-card .wc-pc-tg {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 26px;
+  height: 14px;
+  border: 1px solid #3a3a3a;
+  border-radius: 7px;
+  background: #111;
+}
+
+.wc-spot-card .wc-pc-tg i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4a4a4a;
+}
+
+.wc-spot-card .wc-pc-tg.is-on {
+  border-color: #5a5a5a;
+  background: #3a3a3a;
+}
+
+.wc-spot-card .wc-pc-tg.is-on i {
+  left: 14px;
+  background: #ececec;
+}
+
+.wc-sc-chars {
+  max-height: 200px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.wc-spot-card .wc-sc-cb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 24px;
+  color: #c0c0c0;
+  font-size: 12px;
+}
+
+.wc-sc-cb i {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1px solid #4a4a4a;
+  border-radius: 2px;
+}
+
+.wc-sc-cb.is-on i {
+  border-color: #d8d8d8;
+  background: #d8d8d8;
+}
+
+.wc-sc-cb.is-on i::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0;
+  width: 3px;
+  height: 7px;
+  border: solid #000;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+
+.wc-spot-card .wc-sc-cb:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.wc-sc-note {
+  display: block;
+  padding: 2px 0 4px;
+  color: #5e5e5e;
+  font-size: 11px;
+}
+
+.wc-sc-selw {
+  position: relative;
+  display: inline-flex;
+}
+
+.wc-sc-sel {
+  height: 24px;
+  padding: 0 26px 0 8px;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  background: #0f0f0f;
+  color: #d0d0d0;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
+}
+
+.wc-sc-sel:hover {
+  border-color: #5a5a5a;
+}
+
+.wc-sc-sel option {
+  background: #0f0f0f;
+  color: #d0d0d0;
+}
+
+.wc-spot-card .wc-sc-selic {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 11px;
+  height: 11px;
+  color: #686868;
+  transform: rotate(90deg);
+  pointer-events: none;
+}
+
+/* The empty stage (ADR 0110, 0114): nothing passes the filter. The card
+ * stays above it; the top line names the reel and offers ESC Back. */
 .wc-spot-empty {
   position: absolute;
   inset: 0;
-  z-index: 49;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: 30vh;
-  box-sizing: border-box;
+  z-index: 48;
   background: var(--term-bg);
-  color: var(--c-body);
-  white-space: pre;
   user-select: none;
 }
 
-.wc-spot-empty-line {
-  min-height: var(--cell-h);
-  line-height: var(--cell-h);
+.wc-spot-empty-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 12px;
+  display: flex;
+  justify-content: center;
+  height: var(--cell-h);
+  color: #646464;
+  white-space: pre;
 }
 
-.wc-spot-empty-btn {
-  color: var(--c-active);
-  font-weight: bold;
-  cursor: pointer;
+.wc-spot-empty-head > span {
+  padding: 0 var(--cell-w);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.wc-spot-empty-head b {
+  color: #c8c8c8;
+  font-weight: normal;
 }
 
 .wc-spot-empty-back {
-  color: var(--c-hint);
   cursor: pointer;
 }
 
-.wc-spot-empty-btn:hover,
 .wc-spot-empty-back:hover {
-  color: #ffaf00;
+  color: #ececec;
 }

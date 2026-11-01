@@ -8,7 +8,7 @@
 //   `Any key to return`.
 // - Filtered (events exist, the Spotlights settings let none through; ADR
 //   0110): `No spotlights match your settings.` and a `Settings…` row that
-//   opens the Spotlights settings popup (the reel's gear opens the same),
+//   opens the Spotlights settings popup (the reel's card has the same filter),
 //   drawn inside the page. Esc closes the popup first, then the page. When
 //   the popup closes after a change, the owner tries again
 //   (`onSettingsClosed`): Spotlights opens the reel when something passes

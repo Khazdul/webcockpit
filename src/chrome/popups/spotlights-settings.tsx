@@ -1,6 +1,7 @@
 // The Spotlights settings popup (stage 30 S9, ADR 0110): what the
-// Spotlights reel and Credits show, opened from the gear in the reel's
-// control box and from the start page's "filtered" empty pages. The
+// Spotlights reel and Credits show, opened from the start page's
+// "filtered" empty pages (the reel has the same filter in its card, stage
+// 32c, ADR 0114; the rules and patches are shared, src/share/spotlights.ts). The
 // popup's panel and controls are the settings popups' (ADR 0107), with
 // their focus and key rules (ADR 0108); every change goes to the settings
 // store at once, and the reel rebuilds from it.
@@ -31,48 +32,14 @@ import type { VNode } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { arrowFocus, plainKey } from '../../menubar/popup';
 import { SPOTLIGHT_PERIODS, type SpotlightPeriod, type SpotlightSettings } from '../../settings';
+import { PERIOD_LABELS, SPOTLIGHT_KINDS, allCharactersPatch, characterPatch, characterRows } from '../../share/spotlights';
 import { useServices, useSettings } from '../kit/hooks';
 import { Check, type DropdownOption, Dropdown, Row, Toggle } from './controls';
 import { type PopupPlace, PopupPanel } from './panel';
 
-type KindKey = 'achievements' | 'deaths' | 'levelUps' | 'pvp';
-
-/** The kinds, in Cockpit's order. */
-export const SPOTLIGHT_KINDS: ReadonlyArray<{ key: KindKey; label: string }> = [
-  { key: 'achievements', label: 'Achievements' },
-  { key: 'deaths', label: 'Deaths' },
-  { key: 'levelUps', label: 'Level-ups' },
-  { key: 'pvp', label: 'PvP kills' },
-];
-
-export const PERIOD_LABELS: Readonly<Record<SpotlightPeriod, string>> = {
-  all: 'All time',
-  year: 'Last year',
-  '3months': 'Last 3 months',
-  month: 'Last month',
-  week: 'Last week',
-};
+export { PERIOD_LABELS, SPOTLIGHT_KINDS, allCharactersPatch, characterPatch, characterRows };
 
 const PERIOD_CHOICES: readonly DropdownOption<SpotlightPeriod>[] = SPOTLIGHT_PERIODS.map((value) => ({ value, label: PERIOD_LABELS[value] }));
-
-/** The listed characters with their checks (the remembered subset; listed names only). */
-export function characterRows(names: readonly string[], f: SpotlightSettings): Array<{ name: string; on: boolean }> {
-  const set = new Set(f.characters);
-  return names.map((name) => ({ name, on: set.has(name) }));
-}
-
-/** The patch for `All characters` turned on or off over the listed `names`. */
-export function allCharactersPatch(names: readonly string[], f: SpotlightSettings, on: boolean): Partial<SpotlightSettings> {
-  if (on) return { allCharacters: true };
-  const kept = names.filter((n) => f.characters.includes(n));
-  // None of the remembered names is listed: start from every listed character.
-  return { allCharacters: false, characters: kept.length > 0 ? kept : [...names] };
-}
-
-/** The patch for one character checked or unchecked (listed names only, in list order). */
-export function characterPatch(names: readonly string[], f: SpotlightSettings, name: string, on: boolean): Partial<SpotlightSettings> {
-  return { characters: names.filter((n) => (n === name ? on : f.characters.includes(n))) };
-}
 
 export function SpotlightsSettings(): VNode {
   const { settings, runs } = useServices();

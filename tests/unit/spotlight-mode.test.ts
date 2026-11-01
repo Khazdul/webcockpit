@@ -1,18 +1,16 @@
 // @vitest-environment happy-dom
-// Stage 30e (ADR 0110): the reel's gear and its popup (through a stand-in
-// for the chrome chunk's settings popups), the Esc order, the keys left to
-// the popup, the live rebuild on a settings change (current spotlight
+// Stage 30e (ADR 0110) and 32c (ADR 0114): the reel's card (info, ‹ ›,
+// countdown, the filter that replaced the gear popup), its keys, Display
+// without Panes, the live rebuild on a settings change (current spotlight
 // kept, paused stays paused, the latest change wins) and the empty stage.
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { PlayerHost } from '../../src/app/player-host';
-import type { SettingsPopupsHandle, SettingsPopupsOptions } from '../../src/chrome/popups/surface';
 import { type ReelHandle, REEL_NO_MATCH, openSpotlightReel } from '../../src/player/spotlight-mode';
 import type { Reel, ReelLoader } from '../../src/player/spotlight-reel';
 import type { RunEvent } from '../../src/runs/events';
 import { SettingsStore, type SpotlightSettings } from '../../src/settings';
 import { type SpotlightRun, selectSpotlights } from '../../src/share/spotlights';
 import type { ChainRun } from '../../src/player/timeline';
-import { OWN_KEYS_ATTR } from '../../src/ui/input-pane';
 import { BASE_US, FakeWall, makeLog, meta } from './player-helpers';
 
 const S = 1e6;
@@ -62,52 +60,7 @@ function loader(): ReelLoader & { calls: number; gate: Promise<void> | null } {
   return l;
 }
 
-/** A stand-in for the chrome chunk's settings popups. */
-function fakePopups() {
-  const st = {
-    opts: null as SettingsPopupsOptions | null,
-    host: null as HTMLElement | null,
-    open: false,
-    placed: 0,
-    disposed: false,
-    handle: null as SettingsPopupsHandle | null,
-  };
-  const handle = {
-    toggle: vi.fn((_t: unknown, place: (el: HTMLElement) => void) => {
-      st.open = !st.open;
-      if (st.open) {
-        const el = document.createElement('div');
-        el.className = 'wc-pop';
-        el.setAttribute(OWN_KEYS_ATTR, '');
-        st.host!.append(el);
-        place(el);
-        st.placed++;
-      } else st.host!.replaceChildren();
-      st.opts!.onChange?.(st.open ? 'spotlights' : null);
-    }),
-    close: vi.fn(() => {
-      if (!st.open) return false;
-      st.open = false;
-      st.host!.replaceChildren();
-      st.opts!.onChange?.(null);
-      return true;
-    }),
-    place: vi.fn(),
-    dispose: vi.fn(() => void (st.disposed = true)),
-    get isOpen() {
-      return st.open;
-    },
-  } as unknown as SettingsPopupsHandle;
-  st.handle = handle;
-  const mount = vi.fn(async (host: HTMLElement, opts: SettingsPopupsOptions) => {
-    st.host = host;
-    st.opts = opts;
-    return handle;
-  });
-  return { st, mount, handle };
-}
-
-async function openReel(withGear = true) {
+async function openReel(withFilter = true) {
   const root = document.createElement('div');
   root.style.cssText = 'width:1200px;height:800px';
   document.body.appendChild(root);
@@ -116,68 +69,137 @@ async function openReel(withGear = true) {
   void settings.load();
   let closed = 0;
   const host = new PlayerHost({ root, settings, wall, onClose: () => closed++, hideMs: 100 });
+  // happy-dom has no layout: a player wide enough for the card.
+  Object.defineProperty(host.el, 'clientWidth', { configurable: true, value: 1200 });
   const src = loader();
   const now = () => BASE_US + 86_400 * S;
   const first = await src.load(settings.get().spotlights, now());
   if ('empty' in first) throw new Error('no reel');
-  const pops = fakePopups();
-  const reel: ReelHandle = openSpotlightReel(host, first, withGear ? { source: src, settings, popups: pops.mount, now } : {});
-  return { root, wall, settings, host, src, pops, reel, closed: () => closed };
+  const characters = async () => ['Bob', 'Rasta'];
+  const reel: ReelHandle = openSpotlightReel(host, first, withFilter ? { source: src, settings, characters, now } : {});
+  return { root, wall, settings, host, src, reel, closed: () => closed };
 }
 
-const key = (k: string, target: EventTarget = window) =>
-  target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true }));
-const gear = (root: HTMLElement) => root.querySelector<HTMLElement>('.wc-player-gear');
+const key = (k: string, target: EventTarget = window, shiftKey = false) =>
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: k, shiftKey, bubbles: true, cancelable: true }));
 const header = (root: HTMLElement) => root.querySelector('.wc-player-head-left')?.textContent ?? '';
+const card = (root: HTMLElement) => root.querySelector<HTMLElement>('.wc-spot-card')!;
+const q = <T extends HTMLElement = HTMLElement>(root: HTMLElement, sel: string) => card(root).querySelector<T>(sel);
 
-describe('Spotlights reel: gear and popup (ADR 0110)', () => {
-  it('has no gear without the settings services; the gear otherwise', async () => {
-    const a = await openReel(false);
-    expect(gear(a.root)).toBeNull();
-    a.host.dispose();
-    const b = await openReel();
-    expect(gear(b.root)!.title).toBe('Spotlights settings');
-    expect(gear(b.root)!.textContent).toBe('⚙');
-    b.host.dispose();
-  });
-
-  it('the gear opens the popup beside the player, marks the gear and keeps the chrome', async () => {
-    const { root, host, pops } = await openReel();
-    gear(root)!.click();
+describe('Spotlights reel: the card (ADR 0114)', () => {
+  it('shows the spotlight: count, arrows disabled at the ends, kind icon and name, label, character and date', async () => {
+    const { root, host, reel } = await openReel();
     await frame();
-    expect(pops.mount).toHaveBeenCalledTimes(1);
-    // Beside the player element, not inside it.
-    expect(pops.st.host!.parentElement).toBe(root);
-    expect(host.el.contains(pops.st.host)).toBe(false);
-    expect(pops.handle.toggle).toHaveBeenCalledWith('spotlights', expect.any(Function));
-    expect(pops.st.open).toBe(true);
-    expect(gear(root)!.classList.contains('is-on')).toBe(true);
-    // The chrome does not auto-hide while it is open (hideMs 100).
-    await new Promise((r) => setTimeout(r, 250));
-    expect(host.playerView!.chromeShown).toBe(true);
-    // The gear again closes it.
-    gear(root)!.click();
+    expect(reel.card).toBe(card(root));
+    expect(card(root).parentElement).toBe(host.el);
+    expect(card(root).hasAttribute('data-wc-own-keys')).toBe(true);
+    expect(q(root, '.wc-sc-count')!.textContent).toBe('Spotlight 1 / 3');
+    expect(q<HTMLButtonElement>(root, '[data-nav="prev"]')!.disabled).toBe(true);
+    expect(q<HTMLButtonElement>(root, '[data-nav="next"]')!.disabled).toBe(false);
+    expect(q(root, '.wc-sc-kind')!.textContent).toBe('Achievement');
+    expect(q(root, '.wc-sc-kind svg')!.dataset.kind).toBe('achievement');
+    expect(q(root, '.wc-sc-label')!.textContent).toBe('Achievement: Slayer of Rats');
+    expect(q(root, '.wc-sc-meta')!.textContent).toMatch(/^Bob · \d{4}-\d\d-\d\d$/);
+    // The countdown runs toward the moment.
+    expect(q(root, '.wc-sc-cd i')!.hidden).toBe(false);
+    // › goes to the next one; the last one has no next.
+    q(root, '[data-nav="next"]')!.click();
+    q(root, '[data-nav="next"]')!.click();
     await frame();
-    expect(pops.st.open).toBe(false);
-    expect(gear(root)!.classList.contains('is-on')).toBe(false);
+    expect(header(root)).toContain('SPOTLIGHT 3 / 3');
+    expect(q(root, '.wc-sc-count')!.textContent).toBe('Spotlight 3 / 3');
+    expect(q<HTMLButtonElement>(root, '[data-nav="next"]')!.disabled).toBe(true);
+    expect(q(root, '.wc-sc-kind svg')!.dataset.kind).toBe('level');
+    // The rail's markers carry the kind icons.
+    const kinds = [...root.querySelectorAll<HTMLElement>('.wc-player-mark svg')].map((x) => x.dataset.kind);
+    expect(new Set(kinds)).toEqual(new Set(['achievement', 'death', 'level']));
     host.dispose();
-    expect(pops.st.disposed).toBe(true);
-    expect(pops.st.host!.isConnected).toBe(false);
+    expect(card(root)).toBeNull();
   });
 
-  it('keys in the popup are its own; Esc closes the popup before the reel', async () => {
-    const { root, host, pops, closed } = await openReel();
-    gear(root)!.click();
+  it('has no filter without the settings; the filter folds otherwise', async () => {
+    const a = await openReel(false);
+    expect(q(a.root, '.wc-sc-filter')).toBeNull();
+    a.host.dispose();
+    const { root, host, settings } = await openReel();
+    await frame();
+    expect([...card(root).querySelectorAll('.wc-sc-fold')].map((f) => f.textContent)).toEqual(['KindsAll', 'CharactersAll']);
+    expect(q(root, '[data-kind="deaths"]')).toBeNull();
+    // Kinds fold out: a switch per kind with its icon.
+    q(root, '[data-fold="kinds"]')!.click();
+    expect(q(root, '[data-fold="kinds"]')!.getAttribute('aria-expanded')).toBe('true');
+    const rows = [...card(root).querySelectorAll<HTMLElement>('.wc-sc-row[data-kind]')];
+    expect(rows.map((r) => r.getAttribute('aria-label'))).toEqual(['Achievements', 'Deaths', 'Level-ups', 'PvP kills']);
+    expect(rows.map((r) => r.querySelector('svg')!.dataset.kind)).toEqual(['achievement', 'death', 'level', 'pkill']);
+    q(root, '[data-kind="deaths"]')!.click();
+    expect(settings.get().spotlights.deaths).toBe(false);
+    expect(q(root, '[data-kind="deaths"]')!.getAttribute('aria-checked')).toBe('false');
+    expect(q(root, '[data-fold="kinds"] .wc-sc-sum')!.textContent).toBe('3 of 4');
+    // Characters fold out: All on disables the checks; All off checks every name; a check writes the subset.
+    q(root, '[data-fold="chars"]')!.click();
+    const checks = () => [...card(root).querySelectorAll<HTMLButtonElement>('.wc-sc-cb')];
+    expect(checks().map((c) => c.textContent)).toEqual(['Bob', 'Rasta']);
+    expect(checks().every((c) => c.disabled)).toBe(true);
+    q(root, '[aria-label="All characters"]')!.click();
+    expect(settings.get().spotlights).toMatchObject({ allCharacters: false, characters: ['Bob', 'Rasta'] });
+    expect(checks().every((c) => !c.disabled && c.getAttribute('aria-checked') === 'true')).toBe(true);
+    checks()[0]!.click();
+    expect(settings.get().spotlights.characters).toEqual(['Rasta']);
+    expect(q(root, '[data-fold="chars"] .wc-sc-sum')!.textContent).toBe('Rasta');
+    // Period: a list.
+    const sel = q<HTMLSelectElement>(root, '.wc-sc-sel')!;
+    expect([...sel.options].map((o) => o.textContent)).toEqual(['All time', 'Last year', 'Last 3 months', 'Last month', 'Last week']);
+    sel.value = 'month';
+    sel.dispatchEvent(new Event('change'));
+    expect(settings.get().spotlights.period).toBe('month');
+    // Folding in keeps the settings.
+    q(root, '[data-fold="kinds"]')!.click();
+    expect(q(root, '[data-kind="deaths"]')).toBeNull();
+    host.dispose();
+  });
+
+  it('keys in the card are its own; ← → step spotlights, Shift+← → 10 s, Esc closes', async () => {
+    const { root, host, closed } = await openReel();
     await frame();
     const speed = host.engine!.speed;
-    key('3', pops.st.host!.firstElementChild!);
+    key('3', q(root, '[data-nav="next"]')!);
     expect(host.engine!.speed).toBe(speed);
-    // Esc with the keys outside the popup: the popup closes, the reel stays.
-    key('Escape');
-    expect(pops.st.open).toBe(false);
-    expect(closed()).toBe(0);
+    key('ArrowRight', q(root, '[data-nav="next"]')!);
+    expect(header(root)).toContain('SPOTLIGHT 1 / 3');
+    key('ArrowRight');
+    host.playerView!.refresh();
+    await frame();
+    expect(header(root)).toContain('SPOTLIGHT 2 / 3');
+    host.engine!.pause();
+    const p = host.engine!.position;
+    key('ArrowRight', window, true);
+    expect(host.engine!.position).toBeCloseTo(Math.min(host.engine!.duration, p + 10_000), -1);
+    key('ArrowLeft', window, true);
+    expect(host.engine!.position).toBeCloseTo(p, -1);
+    // Home: to the start.
+    key('Home');
+    expect(host.engine!.position).toBe(0);
+    expect(root.querySelector('[data-act="back"]')!.getAttribute('title')).toBe('Back 10 s (Shift+←)');
     key('Escape');
     expect(closed()).toBe(1);
+  });
+
+  it('has Display but no Panes; Display survives a rebuild', async () => {
+    const { root, host, settings } = await openReel();
+    await frame();
+    expect(root.querySelector('[data-act="panes"]')).toBeNull();
+    root.querySelector<HTMLElement>('[data-act="display"]')!.click();
+    root.querySelector<HTMLElement>('[data-font="large"]')!.click();
+    root.querySelector<HTMLElement>('[data-theme="paper"]')!.click();
+    expect(host.viewerOverrides).toMatchObject({ font: 'large', theme: 'paper' });
+    // The chrome does not auto-hide while the popup is open (hideMs 100).
+    await new Promise((r) => setTimeout(r, 250));
+    expect(host.playerView!.chromeShown).toBe(true);
+    settings.update({ spotlights: { pvp: false } });
+    await frame();
+    expect(host.viewerOverrides).toMatchObject({ font: 'large', theme: 'paper' });
+    expect(Object.values(host.viewerOverrides.panes ?? {}).every((on) => on === false)).toBe(true);
+    host.dispose();
   });
 });
 
@@ -205,8 +227,8 @@ describe('Spotlights reel: rebuild (ADR 0110)', () => {
     expect(reel.reel!.spots.map((s) => s.character)).toEqual(['Bob']);
     expect(header(root)).toContain('Bob · SPOTLIGHT 1 / 1');
     expect(host.engine!.playing).toBe(true);
-    // The gear is still there.
-    expect(gear(root)).not.toBeNull();
+    // The card is the same element, still there.
+    expect(card(root).isConnected).toBe(true);
     host.dispose();
   });
 
@@ -223,10 +245,9 @@ describe('Spotlights reel: rebuild (ADR 0110)', () => {
     host.dispose();
   });
 
-  it('a change that leaves nothing shows the empty stage; a change back plays again', async () => {
-    const { root, host, settings, pops, reel, closed } = await openReel();
-    gear(root)!.click();
-    await frame();
+  it('a change that leaves nothing shows the empty stage with the card; a change back plays again', async () => {
+    const { root, host, settings, reel, closed } = await openReel();
+    const el = card(root);
     settings.update({ spotlights: { period: 'week' } });
     await frame();
     // The moments are 1 day old at the reel's clock: a week keeps them.
@@ -236,26 +257,25 @@ describe('Spotlights reel: rebuild (ADR 0110)', () => {
     expect(reel.reel).toBeNull();
     expect(host.engine).toBeNull();
     const empty = root.querySelector('.wc-spot-empty')!;
-    expect(empty.textContent).toContain(REEL_NO_MATCH);
-    expect(empty.textContent).toContain('Settings…');
     expect(empty.textContent).toContain('ESC Back');
-    // The popup stayed open and is placed again by the empty stage.
-    expect(pops.st.open).toBe(true);
-    expect(pops.handle.place).toHaveBeenCalled();
-    settings.update({ spotlights: { allCharacters: true } });
+    // The card stays, with its filter, and says so.
+    expect(card(root)).toBe(el);
+    expect(el.hasAttribute('data-empty')).toBe(true);
+    expect(q(root, '.wc-sc-empty')!.textContent).toContain(REEL_NO_MATCH);
+    expect(q(root, '.wc-sc-count')!.textContent).toBe('Spotlight 0 / 0');
+    expect(q(root, '.wc-sc-filter')).not.toBeNull();
+    // Through the card's filter: All characters again plays.
+    q(root, '[data-fold="chars"]')!.click();
+    q(root, '[aria-label="All characters"]')!.click();
     await frame();
     expect(root.querySelector('.wc-spot-empty')).toBeNull();
     expect(reel.reel!.spots).toHaveLength(3);
-    expect(gear(root)!.classList.contains('is-on')).toBe(true);
-    // Empty again: Enter toggles the popup, Esc closes it, then the reel.
+    expect(el.hasAttribute('data-empty')).toBe(false);
+    // Empty again: Esc in the card only gives the keys back; Esc on the stage closes.
     settings.update({ spotlights: { allCharacters: false } });
     await frame();
-    key('Escape');
-    expect(pops.st.open).toBe(false);
-    key('Enter');
-    await frame();
-    expect(pops.st.open).toBe(true);
-    key('Escape');
+    key('Escape', q(root, '.wc-sc-sel')!);
+    expect(closed()).toBe(0);
     key('Escape');
     expect(closed()).toBe(1);
     expect(root.querySelector('.wc-spot-empty')).toBeNull();

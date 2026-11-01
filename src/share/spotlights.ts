@@ -101,6 +101,44 @@ export const OPEN_FILTERS: Readonly<SpotlightSettings> = {
   period: 'all',
 };
 
+/** A kind's switch in the Spotlights settings. */
+export type SpotlightKindKey = 'achievements' | 'deaths' | 'levelUps' | 'pvp';
+
+/** The kinds as the settings list them, in Cockpit's order (ADR 0110). */
+export const SPOTLIGHT_KINDS: ReadonlyArray<{ key: SpotlightKindKey; kind: SpotlightKind; label: string }> = [
+  { key: 'achievements', kind: 'achievement', label: 'Achievements' },
+  { key: 'deaths', kind: 'death', label: 'Deaths' },
+  { key: 'levelUps', kind: 'level', label: 'Level-ups' },
+  { key: 'pvp', kind: 'pkill', label: 'PvP kills' },
+];
+
+export const PERIOD_LABELS: Readonly<Record<SpotlightPeriod, string>> = {
+  all: 'All time',
+  year: 'Last year',
+  '3months': 'Last 3 months',
+  month: 'Last month',
+  week: 'Last week',
+};
+
+/** The listed characters with their checks (the remembered subset; listed names only). */
+export function characterRows(names: readonly string[], f: SpotlightSettings): Array<{ name: string; on: boolean }> {
+  const set = new Set(f.characters);
+  return names.map((name) => ({ name, on: set.has(name) }));
+}
+
+/** The patch for `All characters` turned on or off over the listed `names`. */
+export function allCharactersPatch(names: readonly string[], f: SpotlightSettings, on: boolean): Partial<SpotlightSettings> {
+  if (on) return { allCharacters: true };
+  const kept = names.filter((n) => f.characters.includes(n));
+  // None of the remembered names is listed: start from every listed character.
+  return { allCharacters: false, characters: kept.length > 0 ? kept : [...names] };
+}
+
+/** The patch for one character checked or unchecked (listed names only, in list order). */
+export function characterPatch(names: readonly string[], f: SpotlightSettings, name: string, on: boolean): Partial<SpotlightSettings> {
+  return { characters: names.filter((n) => (n === name ? on : f.characters.includes(n))) };
+}
+
 /** True when `f` lets everything through. */
 export function filtersOpen(f: SpotlightSettings): boolean {
   return f.achievements && f.deaths && f.levelUps && f.pvp && f.allCharacters && f.period === 'all';

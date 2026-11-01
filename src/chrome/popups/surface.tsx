@@ -26,9 +26,9 @@
 //   the pane's Gear with it).
 // - The content per target: `settings` → SettingsPopup; `{ pane }` → the
 //   pane's entry in `GEAR_POPUPS` (Map, Comm, Timers, Group;
-//   pane-settings.tsx); `spotlights` → the Spotlights settings (the reel's
-//   gear, ADR 0110; mounted by the reel beside the player, without the
-//   menu bar). A target without content does nothing.
+//   pane-settings.tsx). A target without content does nothing. (The
+//   reel's Spotlights settings left for its card in stage 32c, ADR 0114;
+//   the start page draws their popup itself.)
 // - The caller's `place` is called on open and on every relayout (see
 //   panel.tsx); `place()` re-places from outside (the cockpit relayout; the
 //   shell closes a gear popup whose pane is no longer shown).
@@ -43,15 +43,14 @@ import { MapperSettings } from './mapper-settings';
 import { type PopupPlace, PopupPanel } from './panel';
 import { CommSettings, GroupSettings, TimersSettings } from './pane-settings';
 import { SettingsPopup } from './settings-popup';
-import { SpotlightsPopup } from './spotlights-settings';
 
 export type { PopupPlace } from './panel';
 
-/** What a popup is for: the Settings popup, a pane's gear popup, or the reel's Spotlights settings. */
-export type SettingsPopupTarget = 'settings' | 'spotlights' | { pane: PaneId };
+/** What a popup is for: the Settings popup or a pane's gear popup. */
+export type SettingsPopupTarget = 'settings' | { pane: PaneId };
 
-/** A target's key, as the menu bar holds it (`settings`, `pane:map`, `spotlights`). */
-export type SettingsPopupKey = 'settings' | 'spotlights' | `pane:${string}`;
+/** A target's key, as the menu bar holds it (`settings`, `pane:map`). */
+export type SettingsPopupKey = 'settings' | `pane:${string}`;
 
 export const popupKey = (t: SettingsPopupTarget): SettingsPopupKey => (typeof t === 'string' ? t : `pane:${t.pane}`);
 
@@ -111,7 +110,6 @@ function Surface(p: { open: Open | null; onClose: () => void }): VNode | null {
   const o = p.open;
   if (!o) return null;
   if (o.target === 'settings') return <SettingsPopup key={o.epoch} place={o.place} onClose={p.onClose} />;
-  if (o.target === 'spotlights') return <SpotlightsPopup key={o.epoch} place={o.place} onClose={p.onClose} />;
   const gear = GEAR_POPUPS[o.target.pane];
   if (!gear) return null;
   return (
