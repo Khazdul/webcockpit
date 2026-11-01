@@ -73,7 +73,49 @@ Two independent parts, in this order:
   icon, one cell wider); not synced U2 (no icon, the empty slot keeps its
   tooltip); hover shows the countdown as today; hour tooltip text as today.
   `day` precision counts as not synced (no countdown exists).
-- [ ] 31a: build, ADR, tests, test guide.
+- [x] 31a: build (3cafb2b…d5e557e): `src/menubar/bar-clock.ts`, period
+  start at hour and minute precision, ADR 0099 addendum, spec, README.
+  Bar 26/24 → 21/19 cells (22/20 while approximate). Unit 3036 passed;
+  e2e 666/667 (the one, `new-user` in Firefox, a load timeout, green
+  alone).
+- [x] 31a: test guide (below).
+- [ ] 31a: owner test.
 - [ ] 31b: measurements and root cause (research note).
 - [ ] 31b: fix, ADR, before/after numbers, merge.
 - [ ] 31b: test guide.
+
+## Test guide
+
+### 31a — the clock as a ghost sun
+
+Open the dev server as usual (`npm run dev`, http://localhost:5173/),
+Enter MUME and play. The clock left of Profile is now only an icon: a
+line-drawn sun by day, a filled moon by night, inside a ring that is the
+time left of the period. The ring is full when the period starts and
+vanishes clockwise from 12 o'clock.
+
+Try:
+
+1. **At rest:** does the clock blend into the bar now (size, colour,
+   height centred against the other icons)? Day and night if you can.
+2. **Hover:** the tooltip shows the countdown as before (`Night in 4:33`),
+   counting live.
+3. **Hour precision (`~`):** in the browser console run
+   `localStorage.removeItem('wc.clock')`, reload, and Enter MUME. The
+   login syncs the clock to the hour: a grey `~` after the icon, the bar
+   one cell wider, tooltip `Night in ~6 game hours`. The ring steps once
+   a game hour (each real minute). The `~` goes at the next dawn or dusk
+   (when the game sends the sun event), or keep playing until it does.
+4. **Not synced:** run `localStorage.removeItem('wc.clock')` again and
+   reload with `?replay` (offline). No icon; hover the empty place left of
+   Profile: a faint dashed circle and `Game clock unknown: type time`.
+5. **Light terminal:** Settings → Appearance, a light background: the
+   ring and sun turn darker amber and blue.
+6. **Layout:** the bar is 5 cells narrower, so the input line has more
+   room; at some window widths the input row may now stay under the
+   game text where before it ran under a right-docked pane.
+
+Feedback wanted: the look at rest against the other icons, the `~`, the
+space between the clock and the first separator (about 1.5 cells: the
+link dot's cell sits there), and whether the hour-precision ring steps
+are fine.
