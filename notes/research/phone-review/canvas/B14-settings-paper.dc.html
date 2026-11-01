@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B14 Settings, Paper theme</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#f4ecd8}
+*{box-sizing:border-box}
+.ph{--bg:#f4ecd8;--tx:#2b2b2b;--hi:#1e1e1e;--dim:#6b6252;--acc:#ffaf00;--acc-tx:#8a5200;--acc-ui:#8a5200;--on-acc:#fff;--sf:#ebe1c8;--rs:#f7f1e2;--bd:#d2c4a2;--empty:#d9cdb0;--swoff:#d6c9a8;--knob:#fff;--red:#a8322d;--green:#3d7a35;--yellow:#7a6a10;--blue:#2f5aa8;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:13px;line-height:1.35}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;flex:none}
+.gt{margin:0;padding:0 6px;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:var(--tx)}
+.y{color:var(--yellow)}
+.cap{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.strip{flex:none;height:30px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.sb{flex:1;display:flex;align-items:center;gap:5px}
+.sb b{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.bar{display:block;flex:1;height:6px;border-radius:3px;background:var(--empty);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:#d75f5f}.ma{background:#5f87d7}.mv{background:#5faf5f}
+.foe{flex:none;font-size:11px;color:var(--tx)}
+.scrim{position:absolute;inset:0;background:rgba(43,38,28,.38);z-index:2}
+.sheet{position:absolute;left:0;right:0;top:32px;bottom:0;z-index:4;display:flex;flex-direction:column;background:var(--sf);border:1px solid var(--bd);border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -8px 24px rgba(60,48,20,.25)}
+.grab{flex:none;width:40px;height:4px;margin:8px auto 6px;border-radius:2px;background:#bfb08c}
+.shead{flex:none;display:flex;align-items:center;height:48px;padding:0 6px 0 16px;border-bottom:1px solid var(--bd)}
+.shead h2{flex:1;margin:0;font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--hi)}
+.x{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--hi);border-radius:10px}
+.body{flex:1;min-height:0;overflow:hidden}
+.sec{padding:14px 16px 8px}
+.group{margin:0 12px;background:var(--rs);border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:0 14px;border-top:1px solid var(--bd);font-size:14px;color:var(--hi);text-align:left}
+.row:first-child{border-top:0}
+.row .t{flex:1;min-width:0}
+.row .val{font-size:13px;color:var(--dim)}
+.row .ico{color:var(--dim)}
+.sw{-webkit-appearance:none;appearance:none;flex:none;position:relative;width:44px;height:26px;border-radius:13px;background:var(--swoff);border:0;margin:0}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:18px;height:18px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.sw:checked{background:var(--acc-ui)}
+.sw:checked::after{left:22px;background:var(--on-acc)}
+.cchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px}
+.chip{flex:none;height:44px;padding:0 12px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--hi);white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--acc-ui)}
+.chip[aria-pressed="false"]{background:transparent;color:var(--dim);font-weight:400}
+.chip[aria-pressed="false"] i{background:transparent;border:1.5px solid #a89a78}
+.note{margin:0;padding:14px 18px 0;font-size:12px;line-height:16px;color:var(--dim)}
+</style>
+</helmet>
+<div class="ph">
+  <div class="strip" aria-hidden="true">
+    <div class="sb"><b>HP</b><span class="bar"><i class="hp" style="width:74%"></i></span></div>
+    <div class="sb"><b>MA</b><span class="bar"><i class="ma" style="width:80%"></i></span></div>
+    <div class="sb"><b>MV</b><span class="bar"><i class="mv" style="width:90%"></i></span></div>
+    <span class="foe">ruffian: <span class="y">Wounded</span></span>
+  </div>
+<pre class="gt" aria-hidden="true">*= HP:Hurt R:Wounded&gt;</pre>
+
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="sheet" role="dialog" aria-label="Settings">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="shead">
+      <h2>SETTINGS</h2>
+      <button class="x" aria-label="Close settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <div class="body">
+      <div class="sec"><h3 class="cap">Timers shown</h3></div>
+      <div class="cchips">
+        <button class="chip" aria-pressed="true"><i></i>Spells</button>
+        <button class="chip" aria-pressed="true"><i></i>Buffs</button>
+        <button class="chip" aria-pressed="true"><i></i>Debuffs</button>
+        <button class="chip" aria-pressed="false"><i></i>Stored</button>
+        <button class="chip" aria-pressed="true"><i></i>Blinds</button>
+        <button class="chip" aria-pressed="false"><i></i>Charmies</button>
+      </div>
+
+      <div class="sec"><h3 class="cap">Map</h3></div>
+      <div class="group">
+        <button class="row"><span class="t">Tileset</span><span class="val">Classic</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+        <label class="row"><span class="t">Room notes</span><input class="sw" type="checkbox" role="switch" checked></label>
+      </div>
+
+      <div class="sec"><h3 class="cap">Display</h3></div>
+      <div class="group">
+        <label class="row"><span class="t">Weather effects</span><input class="sw" type="checkbox" role="switch" checked></label>
+      </div>
+
+      <div class="sec"><h3 class="cap">Input</h3></div>
+      <div class="group">
+        <label class="row"><span class="t">Auto-clear</span><input class="sw" type="checkbox" role="switch"></label>
+        <label class="row"><span class="t">Autosuggest</span><input class="sw" type="checkbox" role="switch" checked></label>
+      </div>
+
+      <div class="sec"><h3 class="cap">Phone</h3></div>
+      <div class="group">
+        <label class="row"><span class="t">Keep screen on while connected</span><input class="sw" type="checkbox" role="switch" checked></label>
+        <label class="row"><span class="t">Reconnect automatically</span><input class="sw" type="checkbox" role="switch" checked></label>
+        <label class="row"><span class="t">Vibrate on tell</span><input class="sw" type="checkbox" role="switch"></label>
+      </div>
+
+      <p class="note">Pane colours, borders, palette, cursor and layout are set on a computer.</p>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

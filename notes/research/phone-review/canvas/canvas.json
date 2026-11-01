@@ -1,0 +1,509 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-11-01T21:30:00Z"
+ },
+ "title": "WebCockpit phone review",
+ "launch": {
+  "view": "canvas"
+ },
+ "pages": [],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 0,
+   "w": 1440,
+   "h": 2000,
+   "title": "Overview"
+  },
+  "Today.dc.html": {
+   "x": 1520,
+   "y": 0,
+   "w": 2980,
+   "h": 980,
+   "title": "Today on the phone"
+  },
+  "A01-launcher.dc.html": {
+   "x": 0,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A01 Launcher"
+  },
+  "A02-add-character.dc.html": {
+   "x": 470,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A02 Add character"
+  },
+  "A03-game-l1.dc.html": {
+   "x": 940,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A03 Game, companion"
+  },
+  "A04-game-l2.dc.html": {
+   "x": 1410,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A04 Game, light play"
+  },
+  "A05-keyboard.dc.html": {
+   "x": 1880,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A05 Keyboard up"
+  },
+  "A06-comm.dc.html": {
+   "x": 2350,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A06 Chat"
+  },
+  "A07-status.dc.html": {
+   "x": 2820,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A07 Status"
+  },
+  "A08-map.dc.html": {
+   "x": 3290,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A08 Map"
+  },
+  "A09-menu.dc.html": {
+   "x": 3760,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A09 Menu"
+  },
+  "A10-settings.dc.html": {
+   "x": 4230,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A10 Settings"
+  },
+  "A11-reconnect.dc.html": {
+   "x": 4700,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A11 Reconnect"
+  },
+  "A12-quick-buttons.dc.html": {
+   "x": 5170,
+   "y": 2400,
+   "w": 390,
+   "h": 844,
+   "title": "A12 Profile"
+  },
+  "A13-landscape.dc.html": {
+   "x": 5640,
+   "y": 2400,
+   "w": 844,
+   "h": 390,
+   "title": "A13 Landscape"
+  },
+  "B01-launcher.dc.html": {
+   "x": 0,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B01 Launcher"
+  },
+  "B02-add-character.dc.html": {
+   "x": 470,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B02 Add character"
+  },
+  "B03-game-l1.dc.html": {
+   "x": 940,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B03 Game, companion"
+  },
+  "B04-game-l2.dc.html": {
+   "x": 1410,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B04 Game, light play"
+  },
+  "B05-keyboard.dc.html": {
+   "x": 1880,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B05 Keyboard up"
+  },
+  "B06-comm.dc.html": {
+   "x": 2350,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B06 Chat"
+  },
+  "B07-status.dc.html": {
+   "x": 2820,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B07 Status"
+  },
+  "B08-map.dc.html": {
+   "x": 3290,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B08 Map"
+  },
+  "B09-menu.dc.html": {
+   "x": 3760,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B09 Menu"
+  },
+  "B10-settings.dc.html": {
+   "x": 4230,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B10 Settings"
+  },
+  "B11-reconnect.dc.html": {
+   "x": 4700,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B11 Reconnect"
+  },
+  "B12-profile.dc.html": {
+   "x": 5170,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B12 Profile"
+  },
+  "B13-landscape.dc.html": {
+   "x": 5640,
+   "y": 3720,
+   "w": 844,
+   "h": 390,
+   "title": "B13 Landscape"
+  },
+  "B14-settings-paper.dc.html": {
+   "x": 6564,
+   "y": 3720,
+   "w": 390,
+   "h": 844,
+   "title": "B14 Settings on Paper"
+  },
+  "C01-launcher.dc.html": {
+   "x": 0,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C01 Launcher"
+  },
+  "C02-add-character.dc.html": {
+   "x": 470,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C02 Add character"
+  },
+  "C03-game-l1.dc.html": {
+   "x": 940,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C03 Game, companion"
+  },
+  "C04-game-l2.dc.html": {
+   "x": 1410,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C04 Game, light play"
+  },
+  "C05-keyboard.dc.html": {
+   "x": 1880,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C05 Keyboard up"
+  },
+  "C06-comm.dc.html": {
+   "x": 2350,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C06 Chat"
+  },
+  "C07-status.dc.html": {
+   "x": 2820,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C07 Status"
+  },
+  "C08-map.dc.html": {
+   "x": 3290,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C08 Map"
+  },
+  "C09-menu.dc.html": {
+   "x": 3760,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C09 Menu"
+  },
+  "C10-settings.dc.html": {
+   "x": 4230,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C10 Settings"
+  },
+  "C11-reconnect.dc.html": {
+   "x": 4700,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C11 Reconnect"
+  },
+  "C12-profile.dc.html": {
+   "x": 5170,
+   "y": 5040,
+   "w": 390,
+   "h": 844,
+   "title": "C12 Profile"
+  },
+  "C13-landscape.dc.html": {
+   "x": 5640,
+   "y": 5040,
+   "w": 844,
+   "h": 390,
+   "title": "C13 Landscape"
+  },
+  "W01-width-today.dc.html": {
+   "x": 0,
+   "y": 6360,
+   "w": 390,
+   "h": 844,
+   "title": "W01 Today: 80, rewrapped"
+  },
+  "W02-width-real.dc.html": {
+   "x": 470,
+   "y": 6360,
+   "w": 390,
+   "h": 844,
+   "title": "W02 Real width"
+  },
+  "W03-width-wide-blocks.dc.html": {
+   "x": 940,
+   "y": 6360,
+   "w": 390,
+   "h": 844,
+   "title": "W03 Wide blocks swipe"
+  },
+  "W04-width-shrink.dc.html": {
+   "x": 1410,
+   "y": 6360,
+   "w": 390,
+   "h": 844,
+   "title": "W04 Wide blocks shrink"
+  },
+  "W05-width-landscape.dc.html": {
+   "x": 1880,
+   "y": 6360,
+   "w": 844,
+   "h": 390,
+   "title": "W05 Landscape"
+  },
+  "T01-tablet-keyboard.dc.html": {
+   "x": 0,
+   "y": 7680,
+   "w": 1180,
+   "h": 820,
+   "title": "T01 Tablet today, keyboard up"
+  },
+  "T02-tablet-buttons.dc.html": {
+   "x": 1260,
+   "y": 7680,
+   "w": 1180,
+   "h": 820,
+   "title": "T02 Tablet button panel"
+  },
+  "T03-tablet-strip.dc.html": {
+   "x": 2520,
+   "y": 7680,
+   "w": 1180,
+   "h": 820,
+   "title": "T03 Tablet accessory row"
+  },
+  "P01-install.dc.html": {
+   "x": 0,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P01 Install hint"
+  },
+  "P02-installed.dc.html": {
+   "x": 470,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P02 Installed app"
+  },
+  "P03-history.dc.html": {
+   "x": 940,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P03 History"
+  },
+  "P04-scripts.dc.html": {
+   "x": 1410,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P04 Scripts"
+  },
+  "P05-about.dc.html": {
+   "x": 1880,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P05 About + Credits"
+  },
+  "P01b-install-iphone.dc.html": {
+   "x": 2350,
+   "y": 8880,
+   "w": 390,
+   "h": 844,
+   "title": "P01b Install hint, iPhone"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "Today.dc.html",
+  "A01-launcher.dc.html",
+  "A02-add-character.dc.html",
+  "A03-game-l1.dc.html",
+  "A04-game-l2.dc.html",
+  "A05-keyboard.dc.html",
+  "A06-comm.dc.html",
+  "A07-status.dc.html",
+  "A08-map.dc.html",
+  "A09-menu.dc.html",
+  "A10-settings.dc.html",
+  "A11-reconnect.dc.html",
+  "A12-quick-buttons.dc.html",
+  "A13-landscape.dc.html",
+  "B01-launcher.dc.html",
+  "B02-add-character.dc.html",
+  "B03-game-l1.dc.html",
+  "B04-game-l2.dc.html",
+  "B05-keyboard.dc.html",
+  "B06-comm.dc.html",
+  "B07-status.dc.html",
+  "B08-map.dc.html",
+  "B09-menu.dc.html",
+  "B10-settings.dc.html",
+  "B11-reconnect.dc.html",
+  "B12-profile.dc.html",
+  "B13-landscape.dc.html",
+  "B14-settings-paper.dc.html",
+  "C01-launcher.dc.html",
+  "C02-add-character.dc.html",
+  "C03-game-l1.dc.html",
+  "C04-game-l2.dc.html",
+  "C05-keyboard.dc.html",
+  "C06-comm.dc.html",
+  "C07-status.dc.html",
+  "C08-map.dc.html",
+  "C09-menu.dc.html",
+  "C10-settings.dc.html",
+  "C11-reconnect.dc.html",
+  "C12-profile.dc.html",
+  "C13-landscape.dc.html",
+  "W01-width-today.dc.html",
+  "W02-width-real.dc.html",
+  "W03-width-wide-blocks.dc.html",
+  "W04-width-shrink.dc.html",
+  "W05-width-landscape.dc.html",
+  "T01-tablet-keyboard.dc.html",
+  "T02-tablet-buttons.dc.html",
+  "T03-tablet-strip.dc.html",
+  "P01-install.dc.html",
+  "P02-installed.dc.html",
+  "P03-history.dc.html",
+  "P04-scripts.dc.html",
+  "P05-about.dc.html",
+  "P01b-install-iphone.dc.html"
+ ],
+ "notes": {
+  "tA": {
+   "x": 0,
+   "y": 2080,
+   "text": "A \u2014 Terminal: pure TUI, made big",
+   "kind": "title1",
+   "maxW": 6400
+  },
+  "tB": {
+   "x": 0,
+   "y": 3400,
+   "text": "B \u2014 Hybrid: TUI game, touch chrome",
+   "kind": "title1",
+   "maxW": 6900
+  },
+  "tC": {
+   "x": 0,
+   "y": 4720,
+   "text": "C \u2014 Touch-native: app around the text",
+   "kind": "title1",
+   "maxW": 6400
+  },
+  "tW": {
+   "x": 0,
+   "y": 6040,
+   "text": "Text width: what MUME is told",
+   "kind": "title1",
+   "maxW": 2800
+  },
+  "tT": {
+   "x": 0,
+   "y": 7360,
+   "text": "Tablet: buttons instead of the keyboard",
+   "kind": "title1",
+   "maxW": 3700
+  },
+  "tP": {
+   "x": 0,
+   "y": 8560,
+   "text": "Platform and start pages",
+   "kind": "title1",
+   "maxW": 2800
+  }
+ },
+ "designSystems": []
+}

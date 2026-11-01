@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C06 Chat</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.rec{width:10px;height:10px;border-radius:5px;background:#d75f5f;margin:0 8px 0 6px;flex:none}
+.filters{height:60px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;overflow:hidden;position:relative;border-bottom:1px solid #1b1e21}
+.filters::after{content:'';position:absolute;right:0;top:0;bottom:0;width:36px;background:linear-gradient(90deg,rgba(0,0,0,0),#000)}
+.fc{display:flex;align-items:center;gap:6px;height:44px;padding:0 14px 0 10px;border-radius:22px;background:#1b1e21;border:1px solid #3a3a3a;color:#e8e8e8;font-size:14px;font-weight:500;flex:none;white-space:nowrap}
+.fc .cd{width:10px;height:10px;border-radius:5px;flex:none}
+.fc.off{background:transparent;border-color:#2a2e33;color:#9a9a9a}
+.fc.off .cd{opacity:.45}
+.list{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:8px 0 6px}
+.sep{text-align:center;font-size:12px;color:#9a9a9a;margin:2px 0 6px}
+.msg{display:flex;gap:12px;padding:8px 16px;position:relative;background:#000}
+.av{width:36px;height:36px;border-radius:18px;background:#1b1e21;display:grid;place-items:center;font-weight:700;font-size:15px;flex:none}
+.mb2{flex:1;min-width:0}
+.mh{display:flex;align-items:center;gap:8px}
+.who{font-size:15px;font-weight:600;color:#e8e8e8}
+.tag{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 8px;border-radius:10px}
+.tm{margin-left:auto;font-size:12px;color:#9a9a9a}
+.mt{font-size:16px;color:#d0d0d0;margin-top:2px}
+.mt .d{color:#9a9a9a;font-size:14px}
+.msg.tell{background:#0e1a0f;box-shadow:inset 3px 0 0 #5faf5f}
+.swipe{position:relative;overflow:hidden;background:#0a0b0c}
+.swipe .rv{position:absolute;left:14px;top:50%;margin-top:-20px;width:40px;height:40px;border-radius:20px;background:#5faf5f;color:#000;display:grid;place-items:center}
+.swipe .msg{transform:translateX(68px)}
+.ctx{height:44px;flex:none;display:flex;align-items:center;gap:10px;padding:0 4px 0 16px;background:#121416;border-top:1px solid #2a2e33;font-size:14px;color:#c6c6c6}
+.ctx svg{color:#5faf5f}
+.ctx span{flex:1}
+.ctx b{color:#7fcf7f;font-weight:600}
+.ctx .ib{width:44px;height:44px;color:#c6c6c6}
+.inrow{height:60px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;background:#121416}
+.inp{flex:1;min-width:0;height:44px;border-radius:22px;background:#1b1e21;border:2px solid #ffaf00;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;padding:0 15px;outline:none}
+.send{width:44px;height:44px;border-radius:22px;background:#ffaf00;color:#000;display:grid;place-items:center;flex:none}
+.nav{height:64px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:#121416;border-top:1px solid #2a2e33;padding:6px 4px 8px}
+.nv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:500;color:#9a9a9a;position:relative}
+.nv .pl{width:56px;height:30px;border-radius:15px;display:grid;place-items:center;position:relative}
+.nv.on{color:#ffaf00}
+.nv.on .pl{background:rgba(255,175,0,.16)}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div class="ttl">Rasta</div>
+    <span class="lq"><span class="dot"></span>38 ms</span>
+    <span class="rec" role="img" aria-label="Recording"></span>
+  </div>
+  <div class="filters" role="group" aria-label="Channels">
+    <button class="fc" aria-pressed="true"><span class="cd" style="background:#5faf5f"></span>Tells</button>
+    <button class="fc" aria-pressed="true"><span class="cd" style="background:#d7d75f"></span>Narrates</button>
+    <button class="fc" aria-pressed="true"><span class="cd" style="background:#00afaf"></span>Says</button>
+    <button class="fc" aria-pressed="true"><span class="cd" style="background:#d75f5f"></span>Yells</button>
+    <button class="fc off" aria-pressed="false"><span class="cd" style="background:#af5faf"></span>Prayers</button>
+    <button class="fc off" aria-pressed="false"><span class="cd" style="background:#8a8a8a"></span>Emotes</button>
+  </div>
+  <div class="list" role="log" aria-label="Messages">
+    <div class="sep">Today</div>
+    <div class="msg">
+      <div class="av" style="color:#d7d75f">G</div>
+      <div class="mb2">
+        <div class="mh"><span class="who">Gibur</span><span class="tag" style="color:#d7d75f;background:rgba(215,215,95,.13)">Narrates</span><span class="tm">6m</span></div>
+        <div class="mt">orcs gathering at the ford</div>
+      </div>
+    </div>
+    <div class="msg tell">
+      <div class="av" style="color:#7fcf7f">G</div>
+      <div class="mb2">
+        <div class="mh"><span class="who">Gibur</span><span class="tag" style="color:#7fcf7f;background:rgba(95,175,95,.16)">Tells you</span><span class="tm">5m</span></div>
+        <div class="mt">meet me at the Pony, bring the merc</div>
+      </div>
+    </div>
+    <div class="msg">
+      <div class="av" style="color:#00c8c8">D</div>
+      <div class="mb2">
+        <div class="mh"><span class="who">Dori</span><span class="tag" style="color:#00c8c8;background:rgba(0,175,175,.14)">Says</span><span class="tm">4m</span></div>
+        <div class="mt">I can smell them</div>
+      </div>
+    </div>
+    <div class="msg">
+      <div class="av" style="color:#00c8c8">E</div>
+      <div class="mb2">
+        <div class="mh"><span class="who">Ecthel</span><span class="tag" style="color:#00c8c8;background:rgba(0,175,175,.14)">Asks</span><span class="tm">3m</span></div>
+        <div class="mt">anyone near Rivendell?</div>
+      </div>
+    </div>
+    <div class="msg">
+      <div class="av" style="color:#9a9a9a">L</div>
+      <div class="mb2">
+        <div class="mh"><span class="who">Lindir</span><span class="tag" style="color:#9a9a9a;background:rgba(138,138,138,.14)">Sings</span><span class="tm">2m</span></div>
+        <div class="mt" style="color:#9a9a9a;font-style:italic">A Elbereth Gilthoniel</div>
+      </div>
+    </div>
+    <div class="swipe">
+      <div class="rv" aria-hidden="true"><svg class="i sm" viewBox="0 0 24 24"><path d="M9 17l-5-5 5-5M4 12h11a5 5 0 0 1 5 5v2"></path></svg></div>
+      <div class="msg tell">
+        <div class="av" style="color:#7fcf7f">G</div>
+        <div class="mb2">
+          <div class="mh"><span class="who">Gibur</span><span class="tag" style="color:#7fcf7f;background:rgba(95,175,95,.16)">Tells you</span></div>
+          <div class="mt">more coming, 2 trolls</div>
+        </div>
+      </div>
+    </div>
+    <div class="msg">
+      <div class="av" style="color:#e88080">T</div>
+      <div class="mb2">
+        <div class="mh"><span class="who" style="color:#e88080">*Throzghul*</span><span class="tag" style="color:#e88080;background:rgba(215,95,95,.15)">Yells</span><span class="tm">now</span></div>
+        <div class="mt">kill them all <span class="d">· in Orkish</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ctx">
+    <svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17l-5-5 5-5M4 12h11a5 5 0 0 1 5 5v2"></path></svg>
+    <span>Reply → <b>tell Gibur</b></span>
+    <button class="ib" aria-label="Cancel reply"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+  </div>
+  <div class="inrow">
+    <label class="sr" for="c06-in">Message</label>
+    <input class="inp" id="c06-in" type="text" value="tell gibur " autocomplete="off" autocapitalize="off">
+    <button class="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>Game</button>
+    <button class="nv on" aria-current="page"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>Chat</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Status</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg></span>Map</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>P04 Scripts on phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:390px;height:844px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace}
+.bar{height:56px;display:flex;align-items:center;gap:4px;padding:0 12px 0 4px;border-bottom:1px solid #2a2e33}
+.back{width:44px;height:44px;background:transparent;border:0;color:#c6c6c6;display:grid;place-items:center;padding:0}
+.back svg{width:22px;height:22px}
+.bar h1{margin:0;flex:1;font:700 16px/1 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8;letter-spacing:.04em}
+.list{margin:10px 16px 0;background:#121416;border:1px solid #2a2e33;border-radius:10px;overflow:hidden}
+.srow{display:flex;align-items:center;gap:6px;padding-right:10px;border-top:1px solid #2a2e33}
+.srow:first-child{border-top:0}
+.sinfo{flex:1;min-width:0;min-height:58px;display:flex;flex-direction:column;justify-content:center;gap:3px;padding:8px 0 8px 14px;background:transparent;border:0;text-align:left;color:#c6c6c6}
+.sn{display:flex;align-items:center;gap:6px;color:#e8e8e8;font:700 14px/18px 'JetBrains Mono',ui-monospace,monospace}
+.sn svg{width:13px;height:13px;color:#8a8a8a}
+.ss{display:block;width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:#8a8a8a;font:12px/16px 'JetBrains Mono',ui-monospace,monospace}
+.swl{width:56px;height:44px;flex:none;display:grid;place-items:center}
+.sw{appearance:none;-webkit-appearance:none;margin:0;width:48px;height:28px;border-radius:14px;background:#262626;border:1px solid #3a3a3a;position:relative;cursor:pointer}
+.sw::before{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#8a8a8a}
+.sw:checked{background:#ffaf00;border-color:#ffaf00}
+.sw:checked::before{left:23px;background:#000}
+.note{margin:12px 18px 0;color:#8a8a8a;font:12px/16px 'JetBrains Mono',ui-monospace,monospace}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:384px;box-sizing:border-box;padding:8px 16px 0;background:#121416;border-top:1px solid #2a2e33;border-radius:16px 16px 0 0;overflow:hidden}
+.grab{width:40px;height:4px;border-radius:2px;background:#3a3a3a;margin:0 auto 6px}
+.sh{display:flex;align-items:center;gap:8px}
+.sh h2{margin:0;font:700 17px/1 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid #2a2e33;border-radius:10px;color:#8a8a8a;font:11px/14px 'JetBrains Mono',ui-monospace,monospace}
+.tag svg{width:11px;height:11px}
+.close{margin-left:auto;width:44px;height:44px;background:transparent;border:0;color:#c6c6c6;display:grid;place-items:center;padding:0}
+.close svg{width:20px;height:20px}
+.help{margin:4px 0 0;font:13px/19px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+.help .ex{display:block;margin-top:6px;padding:6px 10px;background:#000;border:1px solid #2a2e33;border-radius:8px;font-size:12px;line-height:17px;white-space:pre;color:#c6c6c6}
+.help .ex .cy{color:#00afaf}
+.help .ex .d{color:#8a8a8a}
+.lbl{margin:14px 0 2px;font:700 11px/14px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.14em;color:#8a8a8a;text-transform:uppercase}
+.set{display:flex;align-items:center;gap:8px;min-height:48px;border-bottom:1px solid #2a2e33}
+.set label{flex:1;font:13px/18px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+</style>
+</helmet>
+<div class="root">
+  <header class="bar">
+    <button class="back" type="button" aria-label="Back"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <h1>Scripts</h1>
+  </header>
+  <p class="note">Write and import scripts on a computer.</p>
+  <div class="list" role="list">
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Almanac<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Seasons, moon and time-bound events in a pane</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" checked aria-label="Almanac"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Coin looter<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Picks up the coins after your kills</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" aria-label="Coin looter"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Key manager<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Your port keys from locate life, in a pane</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" checked aria-label="Key manager"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Map search<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Finds rooms on the map and marks them</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" checked aria-label="Map search"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Mercenaries<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Keeps track of your hired mercenaries</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" aria-label="Mercenaries"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Pane bar</span><span class="ss">Buttons that show and hide your panes</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" checked aria-label="Pane bar"></span>
+    </div>
+    <div class="srow" role="listitem">
+      <button class="sinfo" type="button"><span class="sn">Readability<svg role="img" aria-label="Bundled" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span><span class="ss">Shorter, colour-coded mob, movement and exit lines</span></button>
+      <span class="swl"><input class="sw" type="checkbox" role="switch" checked aria-label="Readability"></span>
+    </div>
+  </div>
+
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="p04sh">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="sh">
+      <h2 id="p04sh">Readability</h2>
+      <span class="tag"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>Bundled</span>
+      <button class="close" type="button" aria-label="Close"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <div class="help">Makes the busy lines of MUME quicker to read: short mob names, and colour for movement and exits.<span class="ex">A young troll leaves north.
+<span class="d">becomes:</span> A young troll leaves <span class="cy">north ▲</span></span></div>
+    <div class="lbl">Settings</div>
+    <div class="set"><label for="p04s1">Colour who leaves and arrives</label><span class="swl"><input id="p04s1" class="sw" type="checkbox" role="switch" checked></span></div>
+    <div class="set"><label for="p04s2">Colour the Exits line</label><span class="swl"><input id="p04s2" class="sw" type="checkbox" role="switch" checked></span></div>
+    <div class="set"><label for="p04s3">Shorten and colour mobs</label><span class="swl"><input id="p04s3" class="sw" type="checkbox" role="switch" checked></span></div>
+    <div class="set"><label for="p04s4">An arrow with each direction</label><span class="swl"><input id="p04s4" class="sw" type="checkbox" role="switch"></span></div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

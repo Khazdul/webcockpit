@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B10 Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{--bg:#000;--tx:#c6c6c6;--hi:#e8e8e8;--dim:#8a8a8a;--acc:#ffaf00;--acc-tx:#ffaf00;--acc-ui:#ffaf00;--on-acc:#000;--sf:#121416;--rs:#1b1e21;--bd:#2a2e33;--empty:#262626;--swoff:#2f3338;--knob:#9a9a9a;--red:#d75f5f;--green:#5faf5f;--yellow:#d7d75f;--blue:#5f87d7;--mag:#af5faf;--cyan:#00afaf;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:13px;line-height:1.35}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;flex:none}
+.gt{margin:0;padding:0 6px;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:var(--tx)}
+.r{color:var(--red)}.g{color:var(--green)}.y{color:var(--yellow)}
+.cap{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.strip{flex:none;height:30px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.sb{flex:1;display:flex;align-items:center;gap:5px}
+.sb b{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.bar{display:block;flex:1;height:6px;border-radius:3px;background:var(--empty);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:var(--red)}.ma{background:var(--blue)}.mv{background:var(--green)}
+.foe{flex:none;font-size:11px;color:var(--tx)}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.62);z-index:2}
+.sheet{position:absolute;left:0;right:0;top:36px;bottom:0;z-index:4;display:flex;flex-direction:column;background:var(--sf);border:1px solid var(--bd);border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.55)}
+.grab{flex:none;width:40px;height:4px;margin:8px auto 6px;border-radius:2px;background:#4a4f55}
+.shead{flex:none;display:flex;align-items:center;height:48px;padding:0 6px 0 16px;border-bottom:1px solid var(--bd)}
+.shead h2{flex:1;margin:0;font-size:13px;font-weight:700;letter-spacing:.14em;color:var(--hi)}
+.x{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--hi);border-radius:10px}
+.body{flex:1;min-height:0;overflow:hidden}
+.sec{padding:14px 16px 8px}
+.group{margin:0 12px;background:var(--rs);border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:0 14px;border-top:1px solid var(--bd);font-size:14px;color:var(--hi);text-align:left}
+.row:first-child{border-top:0}
+.row .t{flex:1;min-width:0}
+.row .sub{display:block;font-size:12px;color:var(--dim)}
+.row .val{font-size:13px;color:var(--dim)}
+.row .ico{color:var(--dim)}
+.step{display:flex;align-items:center;border:1px solid var(--bd);border-radius:10px;overflow:hidden;background:var(--sf)}
+.step button{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--hi)}
+.step output{width:40px;text-align:center;font-size:15px;font-weight:700;color:var(--hi);border-left:1px solid var(--bd);border-right:1px solid var(--bd);line-height:44px}
+.preview{border-top:1px solid var(--bd);background:#000;padding:12px 14px;font:14px/18px 'JetBrains Mono',monospace;white-space:pre;color:var(--red)}
+.sw{-webkit-appearance:none;appearance:none;flex:none;position:relative;width:44px;height:26px;border-radius:13px;background:var(--swoff);border:0;margin:0}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:18px;height:18px;border-radius:50%;background:var(--knob)}
+.sw:checked{background:var(--acc-ui)}
+.sw:checked::after{left:22px;background:var(--on-acc)}
+.lab{flex:1;display:flex;align-items:center;gap:12px;min-height:52px}
+.grip{width:44px;height:44px;margin-left:-12px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.swatches{display:flex;gap:6px;padding:0 16px}
+.swb{width:54px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+.swb .s{width:48px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;border:1px solid #3a3f45}
+.swb.on{color:var(--acc-tx)}
+.swb.on .s{outline:2px solid var(--acc);outline-offset:2px}
+.seg{display:flex;margin:0 12px;padding:3px;gap:3px;background:var(--rs);border:1px solid var(--bd);border-radius:12px}
+.seg button{flex:1;height:44px;border-radius:9px;font-size:13px;font-weight:700;letter-spacing:.06em;color:var(--hi)}
+.seg button[aria-pressed="true"]{background:var(--acc);color:#000}
+.cchips{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px}
+.chip{flex:none;height:44px;padding:0 12px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--hi);white-space:nowrap}
+.chip i{width:8px;height:8px;border-radius:50%}
+.chip[aria-pressed="false"]{background:transparent;color:var(--dim);font-weight:400}
+.chip[aria-pressed="false"] i{background:transparent !important;border:1.5px solid #5a5f66}
+</style>
+</helmet>
+<div class="ph">
+  <div class="strip" aria-hidden="true">
+    <div class="sb"><b>HP</b><span class="bar"><i class="hp" style="width:74%"></i></span></div>
+    <div class="sb"><b>MA</b><span class="bar"><i class="ma" style="width:80%"></i></span></div>
+    <div class="sb"><b>MV</b><span class="bar"><i class="mv" style="width:90%"></i></span></div>
+    <span class="foe">ruffian: <span class="y">Wounded</span></span>
+  </div>
+<pre class="gt" aria-hidden="true">*= HP:Hurt R:Wounded&gt;</pre>
+
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="sheet" role="dialog" aria-label="Settings">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="shead">
+      <h2>SETTINGS</h2>
+      <button class="x" aria-label="Close settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <div class="body">
+      <div class="sec"><h3 class="cap">Text</h3></div>
+      <div class="group">
+        <div class="row">
+          <span class="t" id="tsl">Text size</span>
+          <div class="step" role="group" aria-labelledby="tsl">
+            <button aria-label="Smaller"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+            <output>14</output>
+            <button aria-label="Larger"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+          </div>
+        </div>
+        <div class="preview">You slash a half-orc ruffian hard.</div>
+        <button class="row"><span class="t">Font</span><span class="val">Hack</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      </div>
+
+      <div class="sec"><h3 class="cap">Theme</h3></div>
+      <div class="swatches" role="radiogroup" aria-label="Theme">
+        <button class="swb on" role="radio" aria-checked="true"><span class="s" style="background:#000;color:#c6c6c6">Aa</span>Black</button>
+        <button class="swb" role="radio" aria-checked="false"><span class="s" style="background:#1d232b;color:#c8d0da">Aa</span>Slate</button>
+        <button class="swb" role="radio" aria-checked="false"><span class="s" style="background:#0d2627;color:#9fd9d6">Aa</span>Teal</button>
+        <button class="swb" role="radio" aria-checked="false"><span class="s" style="background:#2a2118;color:#e0cfae">Aa</span>Sepia</button>
+        <button class="swb" role="radio" aria-checked="false"><span class="s" style="background:#f4ecd8;color:#2b2b2b">Aa</span>Paper</button>
+        <button class="swb"><span class="s" style="background:#1b1e21;color:#e8e8e8"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 12h.01M12 12h.01M18 12h.01"></path></svg></span>More</button>
+      </div>
+
+      <div class="sec"><h3 class="cap">Views</h3></div>
+      <div class="group">
+        <div class="row"><button class="grip" type="button" aria-label="Reorder COMM"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"></path></svg></button><label class="lab"><span class="t">COMM</span><input class="sw" type="checkbox" role="switch" checked></label></div>
+        <div class="row"><button class="grip" type="button" aria-label="Reorder STATUS"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"></path></svg></button><label class="lab"><span class="t">STATUS</span><input class="sw" type="checkbox" role="switch" checked></label></div>
+        <div class="row"><button class="grip" type="button" aria-label="Reorder MAP"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"></path></svg></button><label class="lab"><span class="t">MAP</span><input class="sw" type="checkbox" role="switch" checked></label></div>
+        <div class="row"><button class="grip" type="button" aria-label="Reorder almanac"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01"></path></svg></button><label class="lab"><span class="t">almanac<span class="sub">Script pane</span></span><input class="sw" type="checkbox" role="switch"></label></div>
+      </div>
+
+      <div class="sec"><h3 class="cap">Group NPCs</h3></div>
+      <div class="seg" role="group" aria-label="Group NPCs">
+        <button aria-pressed="false">Off</button>
+        <button aria-pressed="true">Labeled</button>
+        <button aria-pressed="false">All</button>
+      </div>
+
+      <div class="sec"><h3 class="cap">Communication channels</h3></div>
+      <div class="cchips">
+        <button class="chip" aria-pressed="true"><i style="background:#d7d75f"></i>Narrates</button>
+        <button class="chip" aria-pressed="true"><i style="background:#5faf5f"></i>Tells</button>
+        <button class="chip" aria-pressed="true"><i style="background:#00afaf"></i>Says</button>
+        <button class="chip" aria-pressed="true"><i style="background:#af5faf"></i>Yells</button>
+        <button class="chip" aria-pressed="true"><i style="background:#e8e8e8"></i>Prayers</button>
+        <button class="chip" aria-pressed="false"><i></i>Emotes</button>
+        <button class="chip" aria-pressed="true"><i style="background:#5f87d7"></i>Whispers</button>
+        <button class="chip" aria-pressed="true"><i style="background:#00afaf"></i>Questions</button>
+        <button class="chip" aria-pressed="true"><i style="background:#8a8a8a"></i>Songs</button>
+        <button class="chip" aria-pressed="false"><i></i>Socials</button>
+      </div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

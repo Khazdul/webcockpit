@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B04 Game, light play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{--bg:#000;--tx:#c6c6c6;--hi:#e8e8e8;--dim:#8a8a8a;--acc:#ffaf00;--acc-tx:#ffaf00;--acc-ui:#ffaf00;--sf:#121416;--rs:#1b1e21;--bd:#2a2e33;--empty:#262626;--red:#d75f5f;--green:#5faf5f;--yellow:#d7d75f;--blue:#5f87d7;--cyan:#00afaf;--cmd:#87afd7;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:13px;line-height:1.35}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;flex:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.gt{margin:0;padding:0 6px;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:var(--tx)}
+.r{color:var(--red)}.g{color:var(--green)}.y{color:var(--yellow)}.c{color:var(--cyan)}.cmd{color:var(--cmd)}.dim{color:var(--dim)}
+.game{position:relative;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:16px}
+.dots{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:6px}
+.dots i{width:5px;height:5px;border-radius:3px;background:#3a3a3a}
+.dots i.on{width:14px;background:var(--acc)}
+.strip{flex:none;height:30px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.sb{flex:1;display:flex;align-items:center;gap:5px}
+.sb b{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.bar{display:block;flex:1;height:6px;border-radius:3px;background:var(--empty);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:var(--red)}.ma{background:var(--blue)}.mv{background:var(--green)}
+.foe{flex:none;font-size:11px;color:var(--tx)}
+.chips{flex:none;padding:4px 0;background:var(--sf);border-top:1px solid var(--bd)}
+.scroll{display:flex;gap:4px;padding:0 8px;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+.chip{flex:none;height:44px;min-width:44px;padding:0 12px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:700;color:var(--hi);white-space:nowrap}
+.chip.flee{color:var(--red)}
+.chip.ic{padding:0;width:44px;color:var(--acc-tx)}
+.vdiv{flex:none;width:1px;margin:8px 2px;background:var(--bd)}
+.inrow{flex:none;display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--sf);border-top:1px solid var(--bd)}
+.field{flex:1;min-width:0;height:44px;display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:10px;background:var(--bg);border:1px solid var(--bd)}
+.field .pr{color:var(--dim);font-size:15px}
+.field input{flex:1;min-width:0;border:0;outline:0;padding:0;background:transparent;font-size:15px;color:var(--tx)}
+.field input::placeholder{color:var(--dim)}
+.ibtn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--hi)}
+.nav{flex:none;height:56px;display:flex;background:var(--sf);border-top:1px solid var(--bd)}
+.navi{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--dim)}
+.navi.on{color:var(--acc-tx)}
+.navi.on::before{content:"";position:absolute;top:-1px;left:28%;right:28%;height:2px;border-radius:0 0 2px 2px;background:var(--acc)}
+.badge{position:absolute;top:5px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--acc);color:#000;font-size:11px;font-weight:700;letter-spacing:0;line-height:18px;text-align:center}
+.toast{position:absolute;top:10px;left:8px;right:8px;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 14px;background:var(--rs);border:1px solid var(--bd);border-left:3px solid var(--green);border-radius:12px;box-shadow:0 10px 26px rgba(0,0,0,.75)}
+.toast .t{flex:1;min-width:0}
+.toast .k{display:block;font-size:10px;font-weight:700;letter-spacing:.14em;color:var(--green)}
+.toast .m{display:block;font-size:14px;color:var(--hi);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.reply{flex:none;height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--acc);color:var(--acc-tx);font-size:12px;font-weight:700;letter-spacing:.1em;display:flex;align-items:center;gap:6px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="strip" role="group" aria-label="Vitals">
+    <div class="sb"><b>HP</b><span class="bar"><i class="hp" style="width:74%"></i></span></div>
+    <div class="sb"><b>MA</b><span class="bar"><i class="ma" style="width:80%"></i></span></div>
+    <div class="sb"><b>MV</b><span class="bar"><i class="mv" style="width:90%"></i></span></div>
+    <span class="foe">ruffian: <span class="y">Wounded</span></span>
+  </div>
+
+  <main class="game" aria-label="Game output">
+<pre class="gt"><span class="y">Gibur narrates 'orcs gathering at the
+ford'</span>
+
+*= HP:Fine&gt;
+<span class="g">Gibur tells you 'meet me at the Pony,
+bring the merc'</span>
+
+*=&gt; <span class="cmd">tell gibur on my way</span>
+You tell Gibur 'on my way'
+
+*= HP:Fine&gt;
+<span class="c">Ecthel asks 'anyone near Rivendell?'</span>
+<span class="dim">Lindir sings 'A Elbereth Gilthoniel'</span>
+
+*=&gt; <span class="cmd">n</span>
+<span class="g">Hill Road</span>
+Almost twelve feet wide, this road
+naturally follows the hills of Bree. It
+is made from an almost white gravel,
+bordered on the sides with larger blocks
+of the same stone. Eastwards you can see
+the roof of the Prancing Pony Inn, and a
+door set between two windows in a
+hillside. To the west the Mayor of Bree
+and other official services can be found.
+Exits: north, south, east, west.
+
+*=&gt; <span class="cmd">n</span>
+<span class="g">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally
+though Bree-hill, slightly narrowing
+where it intersects with an entrance to
+a large grassy park to the east.
+Exits: north, south, east.
+
+*=&gt;
+<span class="c">Dori says 'I can smell them'</span>
+<span class="r">A half-orc ruffian arrives from the north.</span>
+
+*=&gt; <span class="cmd">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</pre>
+    <div class="toast" role="status">
+      <span class="t"><span class="k">TELL</span><span class="m">Gibur: more coming, 2 trolls</span></span>
+      <button class="reply"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 7L5 12l5 5M5 12h9a5 5 0 0 1 5 5v1"></path></svg>REPLY</button>
+    </div>
+    <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+  </main>
+
+  <div class="chips">
+    <div class="scroll" role="toolbar" aria-label="Quick buttons">
+      <button class="chip ic" aria-label="Direction pad"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M9 3.5h6v5.5h5.5v6H15v5.5H9V15H3.5V9H9z"></path></svg></button>
+      <span class="vdiv"></span>
+      <button class="chip">N</button>
+      <button class="chip">S</button>
+      <button class="chip">E</button>
+      <button class="chip">W</button>
+      <button class="chip">U</button>
+      <button class="chip">D</button>
+      <button class="chip flee">FLEE</button>
+      <button class="chip">LOOK</button>
+      <button class="chip">OPEN</button>
+    </div>
+  </div>
+
+  <div class="inrow">
+    <div class="field">
+      <span class="pr" aria-hidden="true">&gt;</span>
+      <label class="sr" for="cmd">Command</label>
+      <input id="cmd" type="text" placeholder="Type a command" autocomplete="off">
+    </div>
+    <button class="ibtn" aria-label="Menu"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Views">
+    <button class="navi on" aria-current="page"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="2"></rect><path d="M7 9.5l3 2.5-3 2.5M12.5 15H17"></path></svg>GAME</button>
+    <button class="navi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5.5h16v11H10l-4.5 3.5v-3.5H4z"></path></svg>COMM<span class="badge">3</span></button>
+    <button class="navi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"></path></svg>STATUS</button>
+    <button class="navi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4.5L3.5 6.5v13L9 17.5l6 2 5.5-2v-13L15 6.5z"></path><path d="M9 4.5v13M15 6.5v13"></path></svg>MAP</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

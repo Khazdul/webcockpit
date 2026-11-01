@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B08 Map with pad</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{--bg:#000;--tx:#c6c6c6;--hi:#e8e8e8;--dim:#8a8a8a;--acc:#ffaf00;--acc-tx:#ffaf00;--acc-ui:#ffaf00;--sf:#121416;--rs:#1b1e21;--bd:#2a2e33;--empty:#262626;--red:#d75f5f;--green:#5faf5f;--yellow:#d7d75f;--blue:#5f87d7;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:13px;line-height:1.35}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;flex:none}
+.y{color:var(--yellow)}
+.cap{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.strip{flex:none;height:30px;display:flex;align-items:center;gap:10px;padding:0 10px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.sb{flex:1;display:flex;align-items:center;gap:5px}
+.sb b{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--dim)}
+.bar{display:block;flex:1;height:6px;border-radius:3px;background:var(--empty);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px}
+.hp{background:var(--red)}.ma{background:var(--blue)}.mv{background:var(--green)}
+.foe{flex:none;font-size:11px;color:var(--tx)}
+.mhead{flex:none;height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--bd)}
+.mhead .room{font-size:15px;font-weight:700;color:#5faf5f}
+.mhead .area{font-size:12px;color:var(--dim)}
+.mhead .ex{margin-left:auto;font-size:12px;color:var(--dim)}
+.map{position:relative;flex:1;min-height:0;overflow:hidden}
+.map .rd rect{fill:#3c3d39;stroke:#6a6a62;stroke-width:1}
+.map .pk rect{fill:#2b4a26;stroke:#4f8a45;stroke-width:1}
+.map .bl rect{fill:#4a3220;stroke:#8a6040;stroke-width:1}
+.map text{font:10px 'JetBrains Mono',monospace;fill:#8a8a8a}
+.zoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:8px}
+.ibtn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--hi)}
+.sheet{position:absolute;left:0;right:0;bottom:0;z-index:4;height:276px;display:flex;flex-direction:column;background:var(--sf);border:1px solid var(--bd);border-bottom:0;border-radius:12px 12px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.6)}
+.grab{flex:none;width:40px;height:4px;margin:8px auto 0;border-radius:2px;background:#4a4f55}
+.shead{flex:none;display:flex;align-items:center;height:44px;padding:0 6px 0 16px}
+.shead h2{flex:1;margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;color:var(--dim)}
+.shead .x{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--hi);border-radius:10px}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,60px);gap:8px;padding:2px 16px 0}
+.k{border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;letter-spacing:.1em;color:var(--hi)}
+.k.dir{font-size:20px;letter-spacing:0;background:#22262a;border-color:#3a3f45}
+.k.dir.no{background:transparent;color:var(--dim);font-weight:400}
+.k.flee{color:var(--red);border-color:#4a2a2a}
+.k.mid{color:var(--acc-tx);border-color:#5a4a20}
+.pad .gap{border-left:1px solid var(--bd)}
+</style>
+</helmet>
+<div class="ph">
+  <div class="strip" role="group" aria-label="Vitals">
+    <div class="sb"><b>HP</b><span class="bar"><i class="hp" style="width:74%"></i></span></div>
+    <div class="sb"><b>MA</b><span class="bar"><i class="ma" style="width:80%"></i></span></div>
+    <div class="sb"><b>MV</b><span class="bar"><i class="mv" style="width:90%"></i></span></div>
+    <span class="foe">ruffian: <span class="y">Wounded</span></span>
+  </div>
+
+  <div class="mhead">
+    <span class="room">Hill Road</span><span class="area">Bree</span>
+    <span class="ex">N S E</span>
+  </div>
+
+  <main class="map" aria-label="Map">
+    <svg width="390" height="494" viewBox="0 0 390 494" role="img" aria-label="Map around Hill Road, you are in the centre"><g stroke="#5a5f66" stroke-width="2"><line x1="195" y1="22" x2="195" y2="66"></line><line x1="195" y1="66" x2="195" y2="110"></line><line x1="195" y1="110" x2="195" y2="154"></line><line x1="195" y1="154" x2="195" y2="198"></line><line x1="195" y1="198" x2="195" y2="242"></line><line x1="195" y1="242" x2="195" y2="286"></line><line x1="195" y1="286" x2="195" y2="330"></line><line x1="195" y1="330" x2="195" y2="374"></line><line x1="195" y1="374" x2="195" y2="418"></line><line x1="195" y1="418" x2="195" y2="462"></line><line x1="195" y1="242" x2="239" y2="242"></line><line x1="239" y1="242" x2="283" y2="242"></line><line x1="283" y1="242" x2="327" y2="242"></line><line x1="283" y1="242" x2="283" y2="198"></line><line x1="283" y1="198" x2="327" y2="198"></line><line x1="283" y1="198" x2="283" y2="154"></line><line x1="327" y1="198" x2="327" y2="242"></line><line x1="195" y1="286" x2="239" y2="286"></line><line x1="239" y1="286" x2="283" y2="286"></line><line x1="195" y1="286" x2="151" y2="286"></line><line x1="151" y1="286" x2="107" y2="286"></line><line x1="107" y1="286" x2="63" y2="286"></line><line x1="63" y1="286" x2="63" y2="242"></line><line x1="107" y1="286" x2="107" y2="330"></line><line x1="107" y1="330" x2="63" y2="330"></line><line x1="195" y1="110" x2="151" y2="110"></line><line x1="151" y1="110" x2="107" y2="110"></line><line x1="107" y1="110" x2="107" y2="66"></line><line x1="107" y1="110" x2="107" y2="154"></line><line x1="195" y1="66" x2="239" y2="66"></line><line x1="239" y1="66" x2="239" y2="110"></line><line x1="195" y1="418" x2="239" y2="418"></line><line x1="239" y1="418" x2="283" y2="418"></line><line x1="283" y1="418" x2="327" y2="418"></line><line x1="327" y1="418" x2="327" y2="374"></line><line x1="283" y1="418" x2="283" y2="462"></line><line x1="195" y1="418" x2="151" y2="418"></line></g><g class="rd"><rect x="182" y="9" width="26" height="26" rx="3"></rect><rect x="182" y="53" width="26" height="26" rx="3"></rect><rect x="182" y="97" width="26" height="26" rx="3"></rect><rect x="182" y="141" width="26" height="26" rx="3"></rect><rect x="182" y="185" width="26" height="26" rx="3"></rect><rect x="182" y="229" width="26" height="26" rx="3"></rect><rect x="182" y="273" width="26" height="26" rx="3"></rect><rect x="182" y="317" width="26" height="26" rx="3"></rect><rect x="182" y="361" width="26" height="26" rx="3"></rect><rect x="182" y="405" width="26" height="26" rx="3"></rect><rect x="182" y="449" width="26" height="26" rx="3"></rect><rect x="138" y="273" width="26" height="26" rx="3"></rect><rect x="94" y="273" width="26" height="26" rx="3"></rect><rect x="50" y="273" width="26" height="26" rx="3"></rect><rect x="226" y="405" width="26" height="26" rx="3"></rect><rect x="270" y="405" width="26" height="26" rx="3"></rect><rect x="314" y="405" width="26" height="26" rx="3"></rect><rect x="138" y="97" width="26" height="26" rx="3"></rect><rect x="94" y="97" width="26" height="26" rx="3"></rect></g><g class="pk"><rect x="226" y="229" width="26" height="26" rx="3"></rect><rect x="270" y="229" width="26" height="26" rx="3"></rect><rect x="270" y="185" width="26" height="26" rx="3"></rect><rect x="314" y="185" width="26" height="26" rx="3"></rect><rect x="314" y="229" width="26" height="26" rx="3"></rect><rect x="270" y="141" width="26" height="26" rx="3"></rect></g><g class="bl"><rect x="226" y="273" width="26" height="26" rx="3"></rect><rect x="270" y="273" width="26" height="26" rx="3"></rect><rect x="50" y="229" width="26" height="26" rx="3"></rect><rect x="94" y="317" width="26" height="26" rx="3"></rect><rect x="50" y="317" width="26" height="26" rx="3"></rect><rect x="226" y="53" width="26" height="26" rx="3"></rect><rect x="226" y="97" width="26" height="26" rx="3"></rect><rect x="94" y="53" width="26" height="26" rx="3"></rect><rect x="94" y="141" width="26" height="26" rx="3"></rect><rect x="314" y="361" width="26" height="26" rx="3"></rect><rect x="270" y="449" width="26" height="26" rx="3"></rect><rect x="138" y="405" width="26" height="26" rx="3"></rect></g><text x="302" y="290">Pony</text><text x="226" y="140">park</text><rect x="177" y="224" width="36" height="36" rx="5" fill="none" stroke="#ffaf00" stroke-width="2.5"></rect><rect x="190" y="237" width="10" height="10" rx="2" fill="#ffaf00"></rect></svg>
+    <div class="zoom">
+      <button class="ibtn" aria-label="Zoom in"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+      <button class="ibtn" aria-label="Zoom out"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+      <button class="ibtn" aria-label="Re-centre"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6"></circle><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"></path></svg></button>
+    </div>
+  </main>
+
+  <section class="sheet" aria-label="Direction pad">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="shead">
+      <h2>PAD</h2>
+      <button class="x" aria-label="Close pad"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <div class="pad">
+      <button class="k">OPEN</button>
+      <button class="k dir" aria-label="North">N</button>
+      <button class="k">CLOSE</button>
+      <button class="k dir no" aria-label="Up">U</button>
+      <button class="k dir no" aria-label="West">W</button>
+      <button class="k mid">EXITS</button>
+      <button class="k dir" aria-label="East">E</button>
+      <button class="k flee">FLEE</button>
+      <button class="k">LOOK</button>
+      <button class="k dir" aria-label="South">S</button>
+      <button class="k">BASH</button>
+      <button class="k dir no" aria-label="Down">D</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

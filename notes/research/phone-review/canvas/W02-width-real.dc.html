@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W02 Width real</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:390px;height:844px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;display:flex;flex-direction:column}
+.game{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:0 6px 6px}
+.gt{margin:0;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:#c6c6c6}
+.g{color:#5faf5f}.r{color:#d75f5f}.y{color:#d7d75f}.c{color:#00afaf}.m{color:#af5faf}.e{color:#87afd7}.d{color:#8a8a8a}.w{color:#e8e8e8}
+.miss{position:relative;background:rgba(215,95,95,.16);text-decoration:underline dashed #d75f5f;text-underline-offset:3px}
+.miss::before{content:"";position:absolute;left:-6px;top:0;bottom:0;width:3px;background:#d75f5f}
+.inrow{display:flex;gap:8px;align-items:center;padding:6px 8px 4px}
+.infield{flex:1;display:flex;align-items:center;height:44px;box-sizing:border-box;background:#121416;border:1px solid #2a2e33;border-radius:10px;padding:0 12px;gap:8px}
+.infield label{color:#87afd7;font-size:15px}
+.infield input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:#e8e8e8;font:15px 'JetBrains Mono',ui-monospace,monospace;padding:0}
+.iconbtn{width:44px;height:44px;flex:none;box-sizing:border-box;border-radius:10px;background:#121416;border:1px solid #2a2e33;color:#ffaf00;display:grid;place-items:center;padding:0}
+.iconbtn svg{width:22px;height:22px}
+.nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px}
+.nav button{height:48px;box-sizing:border-box;background:#121416;border:1px solid #2a2e33;border-radius:10px;color:#8a8a8a;font:700 12px/1 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em;position:relative;padding:0}
+.nav button[aria-current="page"]{background:#ffaf00;border-color:#ffaf00;color:#000}
+.badge{position:absolute;top:5px;right:8px;min-width:18px;height:18px;border-radius:9px;background:#d75f5f;color:#000;font-size:11px;line-height:18px;letter-spacing:0}
+</style>
+</helmet>
+<div class="root">
+  <main class="game" aria-label="Game text">
+<div class="gt">*=&gt; <span class="e">n</span>
+<span class="g">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally though
+Bree-hill, slightly narrowing where it
+intersects with an entrance to a large
+grassy park to the east. Up on a hillside
+to the west the wooden wall of a large
+house rising up with several ornamented
+windows is on display.
+Exits: north, south, east.
+
+*=&gt; <span class="e">who</span>
+Players
+-------
+  [25 Hob] Rasta the Wanderer     (Bree)
+<span class="miss">  [32 Dwa] Gibur Stonefist of Ere (Bree)</span>
+  [18 Hum] Dori the Stout         (Bree)
+<span class="miss">* [40 Elf] Ecthel Lord of the Golden
+           Flower</span>
+There are 4 visible players.
+
+*=&gt; <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</div>
+  </main>
+  <div class="inrow">
+    <div class="infield"><label for="w02cmd">&gt;</label><input id="w02cmd" type="text" autocomplete="off" aria-label="Command"></div>
+    <button class="iconbtn" type="button" aria-label="Menu"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button type="button" aria-current="page">GAME</button>
+    <button type="button" aria-label="COMM, 3 unread">COMM<span class="badge" aria-hidden="true">3</span></button>
+    <button type="button">STATUS</button>
+    <button type="button">MAP</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

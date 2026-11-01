@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>T02 Tablet button panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:1180px;height:820px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;display:flex;flex-direction:column}
+.main{flex:1;min-height:0;display:flex;gap:12px;padding:0 8px}
+.game{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding-bottom:4px}
+.gt{margin:0;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:#c6c6c6}
+.g{color:#5faf5f}.r{color:#d75f5f}.y{color:#d7d75f}.c{color:#00afaf}.m{color:#af5faf}.e{color:#87afd7}.d{color:#8a8a8a}.w{color:#e8e8e8}
+.side{width:354px;flex:none;display:flex;flex-direction:column;gap:16px;padding:14px 0 8px;min-height:0}
+.pane{position:relative;flex:none;border:1px solid #3a3a3a;padding:12px 10px 8px;font:14px/18px 'JetBrains Mono',ui-monospace,monospace}
+.pane.grow{flex:1;min-height:0}
+.pt{position:absolute;top:-10px;left:10px;background:#000;padding:0 6px;color:#8a8a8a;font:700 12px/18px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em}
+.pb{height:100%;overflow:hidden}
+.hd{display:flex;justify-content:space-between;color:#e8e8e8;margin-bottom:4px}
+.vb{display:grid;grid-template-columns:44px 1fr 40px;align-items:center;gap:8px;color:#8a8a8a}
+.vb span:last-child{text-align:right;color:#c6c6c6}
+.tr{height:8px;background:#262626}
+.tr i{display:block;height:100%}
+.gr{display:grid;grid-template-columns:118px 1fr 1fr 1fr;align-items:center;gap:6px}
+.gr .tr{height:6px}
+.cm p{margin:0 0 2px}
+.tp{flex:none;display:flex;gap:12px;padding:10px;background:#121416;border:1px solid #2a2e33;border-radius:10px}
+.dpad{display:grid;grid-template-columns:repeat(3,56px);grid-template-rows:repeat(3,56px);gap:6px}
+.k{box-sizing:border-box;background:#1b1e21;border:1px solid #2a2e33;border-radius:10px;color:#e8e8e8;font:700 17px/1 'JetBrains Mono',ui-monospace,monospace;padding:0}
+.k small{display:block;margin-top:4px;font-size:10px;font-weight:400;color:#8a8a8a}
+.hub{display:grid;place-items:center}
+.hub i{width:8px;height:8px;border-radius:50%;border:1px solid #4a4a4a}
+.qk{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,56px);gap:6px}
+.qk .k{font-size:14px}
+.qk .flee{color:#d75f5f;border-color:rgba(215,95,95,.55)}
+.inrow{display:flex;align-items:center;height:44px;border-top:1px solid #3a3a3a;padding:0 4px 0 2px;gap:2px;flex:none}
+.inrow label{color:#87afd7;font-size:15px;margin:0 8px 0 4px}
+.inrow input{flex:1;min-width:0;height:40px;background:transparent;border:0;outline:none;color:#e8e8e8;font:15px 'JetBrains Mono',ui-monospace,monospace;padding:0}
+.kbt{width:52px;height:44px;background:transparent;border:0;border-right:1px solid #3a3a3a;color:#8a8a8a;display:grid;place-items:center;padding:0}
+.kbt svg{width:24px;height:24px}
+.mb{display:flex;align-items:center;gap:0}
+.mb .st{color:#8a8a8a;font-size:13px;padding:0 10px}
+.mb button{width:44px;height:44px;background:transparent;border:0;color:#8a8a8a;display:grid;place-items:center;padding:0}
+.mb button svg{width:20px;height:20px}
+</style>
+</helmet>
+<div class="root">
+  <div class="main">
+    <main class="game" aria-label="Game text">
+<div class="gt">of the Prancing Pony Inn, and a door set between two windows in a hillside. To
+the west the Mayor of Bree and other official services can be found.
+Exits: north, south, east, west.
+
+*=&gt; <span class="e">who</span>
+Players
+-------
+  [25 Hob] Rasta the Wanderer           (Bree)
+  [32 Dwa] Gibur Stonefist of Erebor    (Bree)
+  [18 Hum] Dori the Stout               (Bree)
+* [40 Elf] Ecthel Lord of the Golden Flower
+There are 4 visible players.
+
+*=&gt; <span class="e">n</span>
+<span class="g">Hill Road</span>
+The white gravelled road bordered with white stone blocks flows naturally
+though Bree-hill, slightly narrowing where it intersects with an entrance to
+a large grassy park to the east. Up on a hillside to the west the wooden wall
+of a large house rising up with several ornamented windows is on display.
+Exits: north, south, east.
+
+*=&gt;
+<span class="g">Gibur tells you 'meet me at the Pony, bring the merc'</span>
+
+*=&gt;
+<span class="r">A half-orc ruffian arrives from the north.</span>
+
+*=&gt; <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= R:Healthy&gt;
+A half-orc ruffian slashes you.
+You pierce a half-orc ruffian.
+
+*= HP:Fine R:Fine&gt;
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east 'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</div>
+    </main>
+    <aside class="side" aria-label="Panes">
+      <section class="pane" aria-label="Character">
+        <span class="pt" aria-hidden="true">CHAR</span>
+        <div class="pb">
+          <div class="hd"><span>Rasta the Wanderer</span><span class="d">L25</span></div>
+          <div class="vb"><span>HP</span><span class="tr"><i style="width:74%;background:#d75f5f"></i></span><span>74%</span></div>
+          <div class="vb"><span>Mana</span><span class="tr"><i style="width:80%;background:#5f87d7"></i></span><span>80%</span></div>
+          <div class="vb"><span>Move</span><span class="tr"><i style="width:90%;background:#5faf5f"></i></span><span>90%</span></div>
+        </div>
+      </section>
+      <section class="pane" aria-label="Group">
+        <span class="pt" aria-hidden="true">GROUP</span>
+        <div class="pb">
+          <div class="gr"><span class="w">Rasta</span><span class="tr"><i style="width:74%;background:#d75f5f"></i></span><span class="tr"><i style="width:80%;background:#5f87d7"></i></span><span class="tr"><i style="width:90%;background:#5faf5f"></i></span></div>
+          <div class="gr"><span>Gibur</span><span class="tr"><i style="width:85%;background:#d75f5f"></i></span><span class="tr"><i style="width:60%;background:#5f87d7"></i></span><span class="tr"><i style="width:70%;background:#5faf5f"></i></span></div>
+          <div class="gr"><span class="r">Dori</span><span class="tr"><i style="width:41%;background:#d75f5f"></i></span><span class="tr"></span><span class="tr"><i style="width:55%;background:#5faf5f"></i></span></div>
+          <div class="gr"><span class="d">merc (NPC)</span><span class="tr"><i style="width:90%;background:#d75f5f"></i></span><span></span><span></span></div>
+        </div>
+      </section>
+      <section class="pane grow cm" aria-label="Communication">
+        <span class="pt" aria-hidden="true">COMM</span>
+        <div class="pb">
+          <p class="y">Gibur narrates 'orcs gathering at the ford'</p>
+          <p class="g">Gibur tells you 'meet me at the Pony, bring the merc'</p>
+          <p class="c">Dori says 'I can smell them'</p>
+          <p class="c">Ecthel asks 'anyone near Rivendell?'</p>
+          <p class="d">Lindir sings 'A Elbereth Gilthoniel'</p>
+          <p class="g">Gibur tells you 'more coming, 2 trolls'</p>
+          <p><span class="r">*Throzghul*</span> <span class="m">yells 'kill them all'</span></p>
+        </div>
+      </section>
+      <section class="tp" aria-label="Touch buttons">
+        <div class="dpad">
+          <span></span>
+          <button class="k" type="button" aria-label="North">N</button>
+          <button class="k" type="button" aria-label="Up">U<small>up</small></button>
+          <button class="k" type="button" aria-label="West">W</button>
+          <span class="hub" aria-hidden="true"><i></i></span>
+          <button class="k" type="button" aria-label="East">E</button>
+          <span></span>
+          <button class="k" type="button" aria-label="South">S</button>
+          <button class="k" type="button" aria-label="Down">D<small>down</small></button>
+        </div>
+        <div class="qk">
+          <button class="k flee" type="button">Flee</button>
+          <button class="k" type="button">Look</button>
+          <button class="k" type="button">Exits</button>
+          <button class="k" type="button">Rescue</button>
+          <button class="k" type="button">Bash</button>
+          <button class="k" type="button">Score</button>
+        </div>
+      </section>
+    </aside>
+  </div>
+  <div class="inrow">
+    <button class="kbt" type="button" aria-pressed="false" aria-label="Keyboard"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="6" width="19" height="12" rx="2"></rect><path d="M6.5 10h1M10.5 10h1M14.5 10h1M17.5 10h.5M7 14h10"></path></svg></button>
+    <label for="t02cmd">&gt;</label><input id="t02cmd" type="text" autocomplete="off" inputmode="none" aria-label="Command">
+    <div class="mb" role="toolbar" aria-label="Menu bar">
+      <span class="st">Link 38 ms · 3:40 ☼</span>
+      <button type="button" aria-label="Profile"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4.5 14.5-4.5 16 0"></path></svg></button>
+      <button type="button" aria-label="Scripts"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"></path></svg></button>
+      <button type="button" aria-label="Panes"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="1"></rect><path d="M14 4v16M14 12h7"></path></svg></button>
+      <button type="button" aria-label="Settings"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"></path><circle cx="16" cy="7" r="2"></circle><circle cx="10" cy="17" r="2"></circle></svg></button>
+      <button type="button" aria-label="Fullscreen"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"></path></svg></button>
+      <button type="button" aria-label="Exit"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"></path></svg></button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1180,"height":820}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

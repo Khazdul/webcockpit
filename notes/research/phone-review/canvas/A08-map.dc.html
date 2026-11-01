@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A08 Map with pad, light play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+:where(.s) button,:where(.s) input{font:inherit;letter-spacing:inherit;border-radius:0;margin:0}
+:where(.s) button{background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.d{color:#8a8a8a}.r{color:#d75f5f}.g{color:#5faf5f}.y{color:#d7d75f}.bl{color:#5f87d7}.a{color:#ffaf00}.w{color:#e8e8e8}.e{color:#262626}.b{font-weight:700}
+.st{flex:none;padding:4px 6px;border-bottom:1px solid #3a3a3a;white-space:pre}
+.st .row{display:flex;justify-content:space-between}
+.mh{flex:none;display:flex;align-items:stretch;height:49px;border-bottom:1px solid #3a3a3a}
+.mh h2{flex:1;margin:0;font:inherit;font-weight:700;color:#5faf5f;display:flex;align-items:center;padding-left:8px}
+.tools{display:flex;gap:1px;background:#3a3a3a;border-left:1px solid #3a3a3a}
+.tools button{width:48px;height:48px;border:0;padding:0;font-size:20px;display:flex;align-items:center;justify-content:center}
+.tools button[aria-pressed="true"]{background:#ffaf00;color:#000;font-weight:700;font-size:15px;width:56px}
+.map{flex:1;min-height:0;position:relative;overflow:hidden;background:#000}
+.map svg{position:absolute;left:0;top:0}
+.lbl{position:absolute;color:#8a8a8a}
+.pad{position:absolute;right:8px;bottom:8px;display:grid;grid-template-columns:repeat(4,52px);grid-auto-rows:48px;gap:1px;background:#3a3a3a;border:1px solid #3a3a3a}
+.pad button{border:0;padding:0;min-height:48px;height:48px;font-weight:700;color:#e8e8e8}
+.pad .no{color:#8a8a8a;font-weight:400}
+.pad .ud{color:#00afaf}
+.pad .lk{color:#ffaf00}
+.pad .fl{color:#d75f5f}
+.grid{flex:none;display:flex;gap:1px;background:#3a3a3a;border-top:1px solid #3a3a3a}
+.grid>button{flex:1;border:0;padding:0;height:48px}
+.tabs>button{color:#8a8a8a;letter-spacing:.06em}
+.tabs>button[aria-selected="true"]{background:#ffaf00;color:#000;font-weight:700}
+.badge{background:#d75f5f;color:#000;font-weight:700;padding:0 5px;margin-left:6px}
+.in{flex:none;display:flex;height:53px;border-top:1px solid #3a3a3a}
+.in .p{width:28px;flex:none;display:flex;align-items:center;justify-content:center;color:#87afd7}
+.in input{flex:1;min-width:0;height:52px;background:#000;border:0;color:#e8e8e8;outline:none;padding:0 8px 0 0;caret-color:#ffaf00}
+.in .menu{width:58px;flex:none;height:52px;border:0;border-left:1px solid #3a3a3a;color:#ffaf00;font-size:28px;padding:0}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <div class="st" role="group" aria-label="Status">
+    <div class="row"><span><span class="d">HP</span> <span class="r">████▍</span><span class="e">█</span> 74%</span><span><span class="d">MA</span> <span class="bl">████▊</span><span class="e">█</span> 80%</span><span><span class="d">MV</span> <span class="g">█████▍</span> 90%</span></div>
+    <div class="row"><span>ruffian: <span class="y">Wounded</span></span><span class="d">☼ 3:40</span></div>
+  </div>
+
+  <div class="mh">
+    <h2>Hill Road</h2>
+    <div class="tools">
+      <button type="button" aria-label="Zoom in">+</button>
+      <button type="button" aria-label="Zoom out">−</button>
+      <button type="button" aria-label="Re-centre"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#e8e8e8" stroke-width="1.6"><circle cx="11" cy="11" r="6"></circle><path d="M11 1v5M11 16v5M1 11h5M16 11h5"></path></svg></button>
+      <button type="button" aria-pressed="true">PAD</button>
+    </div>
+  </div>
+
+  <div class="map" role="img" aria-label="Map of Bree around Hill Road, your room highlighted">
+    <svg width="390" height="648" viewBox="0 0 390 648" aria-hidden="true"><path d="M195 20V60M395 20V60M75 60V100M195 60V100M275 60H315M275 60V100M315 60V100M395 60V100M75 100H115M75 100V140M115 100H155M155 100H195M195 100V140M275 100H315M275 100V140M315 100V140M395 100V140M195 140V180M275 140H315M275 140V180M315 140H355M315 140V180M395 140V180M195 180V220M275 180H315M275 180V220M315 180V220M395 180V220M195 220V260M235 220H275M235 220V260M275 220H315M275 220V260M395 220V260M195 260H235M195 260V300M235 260H275M395 260V300M75 300V340M115 300V340M195 300V340M395 300V340M35 340H75M75 340H115M75 340V380M115 340H155M155 340H195M195 340H235M195 340V380M235 340H275M275 340H315M275 340V380M315 340H355M355 340H395M395 340V380M195 380V420M195 420V460M195 460V500M115 500H155M155 500H195M195 500H235M195 500V540M235 500H275M195 540V580M195 580V620" stroke="#5a5a5a" stroke-width="2" fill="none"></path><rect x="182" y="7" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="382" y="7" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="62" y="47" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="47" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="47" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="302" y="47" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="47" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="87" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="102" y="87" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="142" y="87" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="182" y="87" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="87" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="302" y="87" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="87" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="127" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="127" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="127" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="302" y="127" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="342" y="127" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="127" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="182" y="167" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="167" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="302" y="167" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="167" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="207" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="102" y="207" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="207" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="222" y="207" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="262" y="207" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="302" y="207" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="207" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="102" y="247" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="247" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="222" y="247" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="262" y="247" width="26" height="26" fill="#22381f" stroke="#4f7a45"></rect><rect x="382" y="247" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="287" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="102" y="287" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="287" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="382" y="287" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="22" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="102" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="142" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="182" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="222" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="302" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="342" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="382" y="327" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="367" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="367" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="367" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="382" y="367" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="62" y="407" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="407" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="407" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="302" y="407" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="447" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="62" y="487" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="102" y="487" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="142" y="487" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="182" y="487" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="222" y="487" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="487" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="102" y="527" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="527" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="262" y="527" width="26" height="26" fill="#3a2a1c" stroke="#7a5a3a"></rect><rect x="182" y="567" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="182" y="607" width="26" height="26" fill="#2e2e2e" stroke="#6a6a6a"></rect><rect x="177" y="242" width="36" height="36" fill="none" stroke="#ffaf00" stroke-width="3"></rect></svg>
+    <span class="lbl" style="left:8px;top:356px">Westhill ←</span>
+    <span class="lbl" style="left:216px;top:11px">↑ Staddle</span>
+
+    <div class="pad" role="group" aria-label="Direction pad">
+      <button type="button" class="no" aria-label="Northwest">NW</button>
+      <button type="button" aria-label="North">N</button>
+      <button type="button" class="no" aria-label="Northeast">NE</button>
+      <button type="button" class="ud no" aria-label="Up">U</button>
+      <button type="button" class="no" aria-label="West">W</button>
+      <button type="button" class="lk">LOOK</button>
+      <button type="button" aria-label="East">E</button>
+      <button type="button" class="ud no" aria-label="Down">D</button>
+      <button type="button" class="no" aria-label="Southwest">SW</button>
+      <button type="button" aria-label="South">S</button>
+      <button type="button" class="no" aria-label="Southeast">SE</button>
+      <button type="button" class="fl">FLEE</button>
+    </div>
+  </div>
+
+  <div class="grid tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" aria-selected="false">GAME</button>
+    <button type="button" role="tab" aria-selected="false" aria-label="COMM, 3 unread">COMM<span class="badge">3</span></button>
+    <button type="button" role="tab" aria-selected="false">STATUS</button>
+    <button type="button" role="tab" aria-selected="true">MAP</button>
+  </div>
+
+  <div class="in">
+    <label class="p" for="cmd">&gt;<span class="sr">Command</span></label>
+    <input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button type="button" class="menu" aria-label="Menu">≡</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

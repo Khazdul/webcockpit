@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C12 Quick buttons and profile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.body{flex:1;min-height:0;overflow:hidden;padding:0 16px}
+.sh{display:flex;align-items:flex-end;justify-content:space-between;height:28px;padding:0 16px 6px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9a9a9a}
+.grp{border-radius:14px;background:#121416;overflow:hidden}
+.row{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;padding:0 4px 0 14px;border-top:1px solid #23272b;text-align:left;color:#e8e8e8;font-size:16px}
+.grp > :first-child{border-top:0}
+.row .l{flex:1;min-width:0}
+.row .v{font-size:15px;color:#9a9a9a}
+.row .ch{color:#6a6a6a;margin-right:8px}
+.prof{min-height:56px}
+.prof .ic{width:36px;height:36px;border-radius:10px;background:rgba(0,200,200,.14);color:#00c8c8;display:grid;place-items:center;flex:none}
+.prof .s{display:block;font-size:13px;color:#9a9a9a}
+.qr{padding-left:0;gap:6px}
+.grip{width:40px;height:48px;display:grid;place-items:center;color:#8a8a8a;flex:none}
+.qchip{height:32px;min-width:40px;padding:0 12px;border-radius:16px;background:#1b1e21;border:1px solid #3a3a3a;font-weight:600;font-size:14px;color:#e8e8e8;display:flex;align-items:center;justify-content:center;flex:none}
+.qchip.flee{background:#d75f5f;border-color:#d75f5f;color:#000}
+.arrow{color:#8a8a8a;flex:none}
+.cmd{flex:1;min-width:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;color:#87afd7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.del{width:44px;height:44px;display:grid;place-items:center;color:#9a9a9a;flex:none}
+.acts{display:flex;gap:8px;padding:8px;border-top:1px solid #23272b}
+.acts button{flex:1;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#ffaf00;font-weight:600;font-size:15px;display:flex;align-items:center;justify-content:center;gap:6px}
+.segc{display:flex;height:44px;border-radius:22px;background:#121416;border:1px solid #2a2e33;padding:3px;margin-bottom:8px}
+.segc button{flex:1;border-radius:18px;font-size:15px;font-weight:600;color:#c6c6c6}
+.segc button.on{background:#ffaf00;color:#000}
+.search{position:relative;margin-bottom:8px}
+.search svg{position:absolute;left:14px;top:10px;color:#9a9a9a}
+.search input{width:100%;height:44px;border-radius:22px;background:#121416;border:1px solid #2a2e33;padding:0 16px 0 44px;color:#e8e8e8;font-size:15px;outline:none}
+.search input::placeholder{color:#8a8a8a}
+.gh{display:flex;justify-content:space-between;align-items:center;height:28px;padding:0 14px;background:#0c0d0f;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#9a9a9a}
+.gh + .row{border-top:0}
+.pat{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;color:#e8e8e8;white-space:nowrap}
+.sws{width:14px;height:14px;border-radius:4px;flex:none}
+.note{margin-top:8px;display:flex;align-items:center;gap:12px;min-height:52px;padding:0 4px 0 14px;border-radius:14px;border:1px dashed #3a3a3a;color:#c6c6c6;font-size:14px;width:100%;text-align:left}
+.note svg.c{color:#00c8c8}
+.note .l{flex:1}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <div class="ttl">Quick buttons &amp; profile</div>
+  </div>
+  <div class="body">
+    <div class="sh">Active profile</div>
+    <div class="grp">
+      <button class="row prof"><span class="ic"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg></span><span class="l">default<span class="s">Used by Rasta and Gittan</span></span><span class="v">Change</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+
+    <div class="sh">Quick buttons <span>13</span></div>
+    <div class="grp">
+      <div class="row qr"><button class="grip" aria-label="Reorder N"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg></button><button class="qchip" aria-label="Edit N">N</button><svg class="i sm arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="cmd">north</span><button class="del" aria-label="Delete N"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"></path></svg></button></div>
+      <div class="row qr"><button class="grip" aria-label="Reorder Flee"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg></button><button class="qchip flee" aria-label="Edit Flee">Flee</button><svg class="i sm arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="cmd">flee</span><button class="del" aria-label="Delete Flee"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"></path></svg></button></div>
+      <div class="row qr"><button class="grip" aria-label="Reorder rescue dori"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg></button><button class="qchip" aria-label="Edit rescue dori">rescue dori</button><svg class="i sm arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="cmd">rescue dori</span><button class="del" aria-label="Delete rescue dori"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"></path></svg></button></div>
+      <button class="row"><span class="l">Show all 13</span><span class="v">+10 more</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <div class="acts">
+        <button><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add</button>
+        <button><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>Import from macros</button>
+      </div>
+    </div>
+
+    <div class="sh">Profile contents</div>
+    <div class="segc" role="tablist" aria-label="Profile view">
+      <button class="on" role="tab" aria-selected="true">List</button>
+      <button role="tab" aria-selected="false">Code</button>
+    </div>
+    <div class="search">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+      <label class="sr" for="c12-q">Search profile</label>
+      <input id="c12-q" type="search" placeholder="Search aliases, actions, highlights">
+    </div>
+    <div class="grp">
+      <div class="gh">Aliases <span>12</span></div>
+      <button class="row"><span class="pat">rd</span><svg class="i sm arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="cmd">rescue dori</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <div class="gh">Actions <span>4</span></div>
+      <button class="row"><span class="pat">^You are hungry.</span><svg class="i sm arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg><span class="cmd">eat bread</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <div class="gh">Highlights <span>6</span></div>
+      <button class="row"><span class="pat">tells you</span><span class="l"></span><span class="sws" style="background:#5faf5f"></span><span class="v">green</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+    <button class="note"><svg class="i c" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"></path></svg><span class="l">Code opens the full editor for this profile</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true" style="color:#6a6a6a;margin-right:8px"><path d="M9 6l6 6-6 6"></path></svg></button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A12 Quick buttons and profile</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+:where(.s) button,:where(.s) input{font:inherit;letter-spacing:inherit;border-radius:0;margin:0}
+:where(.s) button{background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.d{color:#8a8a8a}.r{color:#d75f5f}.a{color:#ffaf00}.w{color:#e8e8e8}.b{font-weight:700}
+.hdr{flex:none;display:flex;align-items:center;height:52px;border-bottom:1px solid #3a3a3a}
+.back{width:52px;height:51px;border:0;border-right:1px solid #3a3a3a;color:#ffaf00;font-size:20px;padding:0}
+.hdr h1{margin:0 0 0 14px;font-size:15px;font-weight:700;letter-spacing:.08em;color:#e8e8e8}
+.pg{flex:1;min-height:0;overflow:hidden;padding:0 16px}
+.hd{display:flex;align-items:center;gap:8px;height:28px;margin:2px 0 0;font:inherit;color:#8a8a8a;letter-spacing:.08em}
+.hd::before{content:"";width:14px;border-top:1px solid #3a3a3a}
+.hd::after{content:"";flex:1;border-top:1px solid #3a3a3a}
+.acts{display:flex;gap:6px;margin:2px 0 6px}
+.acts button{height:44px;padding:0 10px}
+.acts .add{color:#ffaf00;border-color:#ffaf00;font-weight:700}
+ul{list-style:none;margin:0;padding:0;border-top:1px solid #262626}
+.qb{display:flex;align-items:stretch;height:44px;border-bottom:1px solid #262626}
+.grip{width:40px;min-height:43px;height:43px;border:0;padding:0;display:flex;align-items:center;justify-content:center}
+.ed{flex:1;display:flex;align-items:center;min-height:43px;height:43px;border:0;padding:0 6px;text-align:left}
+.ed .lb{width:72px;font-weight:700;color:#e8e8e8}
+.ed .ar{color:#8a8a8a;width:28px}
+.ed .cm{color:#87afd7}
+.del{width:44px;min-height:43px;height:43px;border:0;padding:0;color:#8a8a8a;font-size:18px}
+.rad label{display:flex;align-items:center;gap:10px;height:44px;cursor:pointer;color:#e8e8e8;border-bottom:1px solid #262626}
+.rad .bx{width:36px;font-weight:700;color:#ffaf00}
+.rad .bx.off{color:#8a8a8a}
+.note{color:#8a8a8a;margin:8px 0 0}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <header class="hdr"><button type="button" class="back" aria-label="Back">←</button><h1>QUICK BUTTONS &amp; PROFILE</h1></header>
+
+  <div class="pg">
+    <h2 class="hd">PROFILE</h2>
+    <div class="rad" role="radiogroup" aria-label="Active profile">
+      <input class="sr" type="radio" name="pf" id="pf1" checked><label for="pf1"><span class="bx" aria-hidden="true">(●)</span>default <span class="d">active</span></label>
+      <input class="sr" type="radio" name="pf" id="pf2"><label for="pf2"><span class="bx off" aria-hidden="true">( )</span>warrior</label>
+    </div>
+    <p class="note">Aliases, actions and highlights are edited on a computer.</p>
+
+    <h2 class="hd">QUICK BUTTONS</h2>
+    <div class="acts">
+      <button type="button" class="add">+ ADD</button>
+      <button type="button">Import from profile macros</button>
+    </div>
+    <ul aria-label="Quick buttons">
+      <li class="qb"><button type="button" class="grip" aria-label="Move N"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">N</span><span class="ar">→</span><span class="cm">north</span></button><button type="button" class="del" aria-label="Delete N">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move S"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">S</span><span class="ar">→</span><span class="cm">south</span></button><button type="button" class="del" aria-label="Delete S">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move E"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">E</span><span class="ar">→</span><span class="cm">east</span></button><button type="button" class="del" aria-label="Delete E">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move W"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">W</span><span class="ar">→</span><span class="cm">west</span></button><button type="button" class="del" aria-label="Delete W">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move U"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">U</span><span class="ar">→</span><span class="cm">up</span></button><button type="button" class="del" aria-label="Delete U">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move D"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">D</span><span class="ar">→</span><span class="cm">down</span></button><button type="button" class="del" aria-label="Delete D">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move FLEE"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb r">FLEE</span><span class="ar">→</span><span class="cm">flee</span></button><button type="button" class="del" aria-label="Delete FLEE">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move LOOK"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">LOOK</span><span class="ar">→</span><span class="cm">exits</span></button><button type="button" class="del" aria-label="Delete LOOK">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move OPEN"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">OPEN</span><span class="ar">→</span><span class="cm">open exit</span></button><button type="button" class="del" aria-label="Delete OPEN">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move CLOSE"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">CLOSE</span><span class="ar">→</span><span class="cm">close exit</span></button><button type="button" class="del" aria-label="Delete CLOSE">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move RESC"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">RESC</span><span class="ar">→</span><span class="cm">rescue dori</span></button><button type="button" class="del" aria-label="Delete RESC">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move SCORE"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">SCORE</span><span class="ar">→</span><span class="cm">score</span></button><button type="button" class="del" aria-label="Delete SCORE">×</button></li>
+      <li class="qb"><button type="button" class="grip" aria-label="Move BASH"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button><button type="button" class="ed"><span class="lb">BASH</span><span class="ar">→</span><span class="cm">bash</span></button><button type="button" class="del" aria-label="Delete BASH">×</button></li>
+    </ul>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

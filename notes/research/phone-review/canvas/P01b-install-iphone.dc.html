@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>P01b Install on iPhone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:390px;height:844px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace}
+.page{height:100%;box-sizing:border-box;padding:0 16px 16px;display:flex;flex-direction:column}
+.page > *{flex:none}
+.wm{display:flex;justify-content:center;padding:26px 0 0;margin:0}
+.wm svg{width:268px;height:20px;shape-rendering:crispEdges}
+.lbl{margin:20px 2px 8px;font:700 11px/14px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.14em;color:#8a8a8a;text-transform:uppercase}
+.card{background:#121416;border:1px solid #2a2e33;border-radius:10px}
+.ch{display:flex;align-items:center;gap:12px;padding:12px 12px 12px 14px;margin-bottom:8px}
+.av{width:40px;height:40px;flex:none;box-sizing:border-box;border-radius:8px;border:1px solid #2a2e33;background:#1b1e21;display:grid;place-items:center;color:#00c8c8;font:700 18px/1 'JetBrains Mono',ui-monospace,monospace}
+.who{flex:1;min-width:0}
+.nm{color:#e8e8e8;font:700 16px/20px 'JetBrains Mono',ui-monospace,monospace}
+.sub{color:#8a8a8a;font:12px/16px 'JetBrains Mono',ui-monospace,monospace;margin-top:2px}
+.play{height:48px;padding:0 18px;border-radius:10px;background:#ffaf00;border:0;color:#000;font:700 14px/1 'JetBrains Mono',ui-monospace,monospace;display:flex;align-items:center;gap:8px}
+.play svg{width:14px;height:14px}
+.add{width:100%;height:48px;box-sizing:border-box;border:1px dashed #3a3a3a;border-radius:10px;background:transparent;color:#c6c6c6;font:14px/1 'JetBrains Mono',ui-monospace,monospace;display:flex;align-items:center;justify-content:center;gap:8px}
+.add svg{width:16px;height:16px;color:#ffaf00}
+.list{overflow:hidden}
+.row{width:100%;height:48px;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 14px;background:transparent;border:0;border-top:1px solid #2a2e33;color:#c6c6c6;font:14px/1 'JetBrains Mono',ui-monospace,monospace;text-align:left}
+.row:first-child{border-top:0}
+.row .i{width:18px;height:18px;color:#8a8a8a;flex:none}
+.row .sp{flex:1}
+.row .v{color:#8a8a8a;font-size:12px}
+.row .chev{width:16px;height:16px;color:#8a8a8a;flex:none}
+.inst{margin-top:20px;padding:14px;border-color:rgba(255,175,0,.4)}
+.ih{display:flex;align-items:center;gap:10px}
+.ii{width:32px;height:32px;flex:none;border-radius:8px;background:rgba(255,175,0,.12);color:#ffaf00;display:grid;place-items:center}
+.ii svg{width:18px;height:18px}
+.inst h2{margin:0;font:700 15px/20px 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8}
+.inst p{margin:10px 0 10px;font:13px/19px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+.steps{list-style:none;margin:0 0 12px;padding:0;border-top:1px solid #2a2e33}
+.steps li{display:flex;align-items:center;gap:10px;min-height:40px;border-bottom:1px solid #2a2e33;font:13px/18px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+.steps .n{width:20px;flex:none;color:#ffaf00;font-weight:700}
+.steps svg{width:20px;height:20px;flex:none;color:#5f87d7}
+.steps b{color:#e8e8e8}
+.sec{width:100%;height:44px;background:transparent;border:1px solid #2a2e33;border-radius:10px;color:#c6c6c6;font:14px/1 'JetBrains Mono',ui-monospace,monospace}
+.ver{margin-top:auto;padding-top:14px;text-align:center;color:#8a8a8a;font:12px/16px 'JetBrains Mono',ui-monospace,monospace}
+</style>
+</helmet>
+<div class="root">
+  <div class="page">
+    <h1 class="wm"><svg role="img" aria-label="MUME Cockpit" viewBox="0 0 67 5"><path fill="#00c8c8" d="M0 0h1v1h-1zM4 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM6 0h1v1h-1zM10 0h1v1h-1zM6 1h1v1h-1zM10 1h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM12 0h1v1h-1zM16 0h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM12 3h1v1h-1zM16 3h1v1h-1zM12 4h1v1h-1zM16 4h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM21 0h1v1h-1zM22 0h1v1h-1zM18 1h1v1h-1zM18 2h1v1h-1zM19 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1z"></path><path fill="#00a3a3" d="M27 0h1v1h-1zM28 0h1v1h-1zM29 0h1v1h-1zM30 0h1v1h-1zM26 1h1v1h-1zM26 2h1v1h-1zM26 3h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM29 4h1v1h-1zM30 4h1v1h-1zM33 0h1v1h-1zM34 0h1v1h-1zM35 0h1v1h-1zM32 1h1v1h-1zM36 1h1v1h-1zM32 2h1v1h-1zM36 2h1v1h-1zM32 3h1v1h-1zM36 3h1v1h-1zM33 4h1v1h-1zM34 4h1v1h-1zM35 4h1v1h-1zM39 0h1v1h-1zM40 0h1v1h-1zM41 0h1v1h-1zM42 0h1v1h-1zM38 1h1v1h-1zM38 2h1v1h-1zM38 3h1v1h-1zM39 4h1v1h-1zM40 4h1v1h-1zM41 4h1v1h-1zM42 4h1v1h-1zM44 0h1v1h-1zM48 0h1v1h-1zM44 1h1v1h-1zM47 1h1v1h-1zM44 2h1v1h-1zM45 2h1v1h-1zM46 2h1v1h-1zM44 3h1v1h-1zM47 3h1v1h-1zM44 4h1v1h-1zM48 4h1v1h-1zM50 0h1v1h-1zM51 0h1v1h-1zM52 0h1v1h-1zM53 0h1v1h-1zM50 1h1v1h-1zM54 1h1v1h-1zM50 2h1v1h-1zM51 2h1v1h-1zM52 2h1v1h-1zM53 2h1v1h-1zM50 3h1v1h-1zM50 4h1v1h-1zM56 0h1v1h-1zM57 0h1v1h-1zM58 0h1v1h-1zM59 0h1v1h-1zM60 0h1v1h-1zM58 1h1v1h-1zM58 2h1v1h-1zM58 3h1v1h-1zM56 4h1v1h-1zM57 4h1v1h-1zM58 4h1v1h-1zM59 4h1v1h-1zM60 4h1v1h-1zM62 0h1v1h-1zM63 0h1v1h-1zM64 0h1v1h-1zM65 0h1v1h-1zM66 0h1v1h-1zM64 1h1v1h-1zM64 2h1v1h-1zM64 3h1v1h-1zM64 4h1v1h-1z"></path></svg></h1>
+
+    <section class="card inst" aria-labelledby="p01bit">
+      <div class="ih">
+        <span class="ii"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"></path></svg></span>
+        <h2 id="p01bit">Install WebCockpit</h2>
+      </div>
+      <p>Add it to your home screen: it opens fullscreen, keeps your profiles on iPhone, and starts faster.</p>
+      <ol class="steps">
+        <li><span class="n">1</span><span>Tap</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M8 10H6v10h12V10h-2"></path></svg><b>Share</b></li>
+        <li><span class="n">2</span><span>Choose</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="16" height="16" rx="3"></rect><path d="M12 8v8M8 12h8"></path></svg><b>Add to Home Screen</b></li>
+        <li><span class="n">3</span><span>Tap</span><b>Add</b></li>
+      </ol>
+      <button class="sec" type="button">Not now</button>
+    </section>
+
+    <div class="lbl" id="p01bchars">Characters</div>
+    <div role="list" aria-labelledby="p01bchars">
+      <div class="card ch" role="listitem">
+        <span class="av" aria-hidden="true">R</span>
+        <div class="who"><div class="nm">Rasta</div><div class="sub">2 h ago · password saved</div></div>
+        <button class="play" type="button" aria-label="Play Rasta"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8z"></path></svg>Play</button>
+      </div>
+      <div class="card ch" role="listitem">
+        <span class="av" aria-hidden="true">G</span>
+        <div class="who"><div class="nm">Gittan</div><div class="sub">Yesterday · name only</div></div>
+        <button class="play" type="button" aria-label="Play Gittan"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8z"></path></svg>Play</button>
+      </div>
+    </div>
+    <button class="add" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>Add character</button>
+
+    <nav class="card list" aria-label="More" style="margin-top:16px">
+      <button class="row" type="button"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>History<span class="sp"></span><svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row" type="button"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"></path></svg>Spotlights<span class="sp"></span><svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row" type="button"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4.5 14.5-4.5 16 0"></path></svg>Profile<span class="sp"></span><span class="v">default</span><svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row" type="button"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"></path></svg>Scripts<span class="sp"></span><svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row" type="button"><svg class="i" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.5"></path></svg>About<span class="sp"></span><svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </nav>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A10 Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+:where(.s) button,:where(.s) input{font:inherit;letter-spacing:inherit;border-radius:0;margin:0}
+:where(.s) button{background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.d{color:#8a8a8a}.r{color:#d75f5f}.g{color:#5faf5f}.y{color:#d7d75f}.m{color:#af5faf}.c{color:#00afaf}.a{color:#ffaf00}.w{color:#e8e8e8}.b{font-weight:700}
+.hdr{flex:none;display:flex;align-items:center;height:56px;border-bottom:1px solid #3a3a3a}
+.back{width:56px;height:55px;border:0;border-right:1px solid #3a3a3a;color:#ffaf00;font-size:20px;padding:0}
+.hdr h1{margin:0 0 0 14px;font-size:15px;font-weight:700;letter-spacing:.08em;color:#e8e8e8}
+.pg{flex:1;min-height:0;overflow:hidden;padding:0 16px;position:relative}
+.sb{position:absolute;right:0;top:0;bottom:0;width:3px;background:#1a1a1a}
+.sb i{position:absolute;left:0;top:0;width:3px;height:38%;background:#ffaf00}
+.hd{display:flex;align-items:center;gap:8px;height:34px;margin:4px 0 0;font:inherit;color:#8a8a8a;letter-spacing:.08em}
+.hd::before{content:"";width:14px;border-top:1px solid #3a3a3a}
+.hd::after{content:"";flex:1;border-top:1px solid #3a3a3a}
+.row{display:flex;align-items:center;justify-content:space-between;min-height:48px;color:#e8e8e8}
+.step{display:flex;align-items:center}
+.step button{width:48px;height:44px;padding:0;font-size:18px}
+.step output{width:44px;text-align:center;font-weight:700;color:#ffaf00}
+.prev{border:1px solid #262626;background:#0d0d0d;padding:9px 10px;font-size:14px;line-height:17px;color:#d75f5f;margin:2px 0 4px}
+.pick{height:44px;color:#e8e8e8}
+.sw{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;padding:4px 0}
+.sw button{height:52px;padding:0;font-size:13px;border-color:#3a3a3a}
+.sw button[aria-pressed="true"]{outline:2px solid #ffaf00;outline-offset:1px;border-color:#000}
+.tg{display:flex;align-items:center}
+.tg label{flex:1;display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;color:#e8e8e8}
+.bx{flex:none;width:36px;font-weight:700;font-size:18px;color:#ffaf00}
+.bx.off{color:#8a8a8a}
+.grip{width:48px;height:48px;border:0;padding:0;display:flex;align-items:center;justify-content:center}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:4px 0}
+.chips button{height:44px;padding:0 10px}
+.chips button[aria-pressed="false"]{color:#8a8a8a;border-color:#262626}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#3a3a3a;border:1px solid #3a3a3a;margin:4px 0}
+.seg button{border:0;height:48px;padding:0}
+.seg button[aria-checked="true"]{background:#ffaf00;color:#000;font-weight:700}
+.two{display:grid;grid-template-columns:1fr 1fr}
+.foot{color:#8a8a8a;margin:16px 0 24px}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <header class="hdr"><button type="button" class="back" aria-label="Back">←</button><h1>SETTINGS</h1></header>
+
+  <div class="pg">
+    <h2 class="hd">TEXT</h2>
+    <div class="row"><span>Text size</span>
+      <div class="step"><button type="button" aria-label="Smaller text">−</button><output aria-live="polite">14</output><button type="button" aria-label="Larger text">+</button></div>
+    </div>
+    <div class="prev" aria-hidden="true">You slash a half-orc ruffian hard.</div>
+    <div class="row"><span>Font</span><button type="button" class="pick">Hack ▸</button></div>
+
+    <h2 class="hd">THEME</h2>
+    <div class="sw" role="group" aria-label="Theme">
+      <button type="button" aria-pressed="true" style="background:#000;color:#c6c6c6">Black</button>
+      <button type="button" aria-pressed="false" style="background:#1c2530;color:#c6c6c6">Slate</button>
+      <button type="button" aria-pressed="false" style="background:#0b2a2c;color:#c6c6c6">Teal</button>
+      <button type="button" aria-pressed="false" style="background:#2b2118;color:#e0c9a6">Sepia</button>
+      <button type="button" aria-pressed="false" style="background:#f4ecd8;color:#2b2b2b">Paper</button>
+      <button type="button" style="background:#000;color:#c6c6c6">more…</button>
+    </div>
+
+    <h2 class="hd">VIEWS</h2>
+    <div class="tg"><input class="sr" type="checkbox" id="v1" checked><label for="v1"><span class="bx" aria-hidden="true">[X]</span>COMM</label><button type="button" class="grip" aria-label="Reorder COMM"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button></div>
+    <div class="tg"><input class="sr" type="checkbox" id="v2" checked><label for="v2"><span class="bx" aria-hidden="true">[X]</span>STATUS</label><button type="button" class="grip" aria-label="Reorder STATUS"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button></div>
+    <div class="tg"><input class="sr" type="checkbox" id="v3" checked><label for="v3"><span class="bx" aria-hidden="true">[X]</span>MAP</label><button type="button" class="grip" aria-label="Reorder MAP"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button></div>
+    <div class="tg"><input class="sr" type="checkbox" id="v4"><label for="v4"><span class="bx off" aria-hidden="true">[ ]</span>Almanac <span class="d">script</span></label><button type="button" class="grip" aria-label="Reorder Almanac"><svg aria-hidden="true" width="14" height="20" viewBox="0 0 14 20" fill="none" stroke="#8a8a8a" stroke-width="3" stroke-linecap="square"><path d="M4 4h.01M10 4h.01M4 10h.01M10 10h.01M4 16h.01M10 16h.01"></path></svg></button></div>
+
+    <h2 class="hd">COMMUNICATION</h2>
+    <div class="chips" role="group" aria-label="Channels shown">
+      <button type="button" aria-pressed="true" class="y">Narrates</button>
+      <button type="button" aria-pressed="true" class="g">Tells</button>
+      <button type="button" aria-pressed="true" class="c">Says</button>
+      <button type="button" aria-pressed="true" class="m">Yells</button>
+      <button type="button" aria-pressed="true" class="w">Prayers</button>
+      <button type="button" aria-pressed="true" class="g">Emotes</button>
+      <button type="button" aria-pressed="true" class="y">Whispers</button>
+      <button type="button" aria-pressed="true" class="c">Questions</button>
+      <button type="button" aria-pressed="false">Songs</button>
+      <button type="button" aria-pressed="false">Socials</button>
+    </div>
+
+    <h2 class="hd">GROUP NPCS</h2>
+    <div class="seg" role="radiogroup" aria-label="Group NPCs">
+      <button type="button" role="radio" aria-checked="false">Off</button>
+      <button type="button" role="radio" aria-checked="true">Labeled</button>
+      <button type="button" role="radio" aria-checked="false">All</button>
+    </div>
+
+    <h2 class="hd">TIMERS</h2>
+    <div class="two">
+      <div class="tg"><input class="sr" type="checkbox" id="t1" checked><label for="t1"><span class="bx" aria-hidden="true">[X]</span>Spells</label></div>
+      <div class="tg"><input class="sr" type="checkbox" id="t2" checked><label for="t2"><span class="bx" aria-hidden="true">[X]</span>Buffs</label></div>
+      <div class="tg"><input class="sr" type="checkbox" id="t3" checked><label for="t3"><span class="bx" aria-hidden="true">[X]</span>Debuffs</label></div>
+      <div class="tg"><input class="sr" type="checkbox" id="t4"><label for="t4"><span class="bx off" aria-hidden="true">[ ]</span>Stored</label></div>
+      <div class="tg"><input class="sr" type="checkbox" id="t5" checked><label for="t5"><span class="bx" aria-hidden="true">[X]</span>Blinds</label></div>
+      <div class="tg"><input class="sr" type="checkbox" id="t6"><label for="t6"><span class="bx off" aria-hidden="true">[ ]</span>Charmies</label></div>
+    </div>
+
+    <h2 class="hd">MAP</h2>
+    <div class="row"><span>Tileset</span><button type="button" class="pick">Classic ▸</button></div>
+    <div class="tg"><input class="sr" type="checkbox" id="m1" checked><label for="m1"><span class="bx" aria-hidden="true">[X]</span>Room notes</label></div>
+
+    <h2 class="hd">WEATHER</h2>
+    <div class="tg"><input class="sr" type="checkbox" id="w1" checked><label for="w1"><span class="bx" aria-hidden="true">[X]</span>Weather effects</label></div>
+
+    <h2 class="hd">INPUT</h2>
+    <div class="tg"><input class="sr" type="checkbox" id="i1" checked><label for="i1"><span class="bx" aria-hidden="true">[X]</span>Auto-clear after send</label></div>
+    <div class="tg"><input class="sr" type="checkbox" id="i2" checked><label for="i2"><span class="bx" aria-hidden="true">[X]</span>Autosuggest</label></div>
+
+    <h2 class="hd">PHONE</h2>
+    <div class="tg"><input class="sr" type="checkbox" id="p1" checked><label for="p1"><span class="bx" aria-hidden="true">[X]</span>Keep screen on while connected</label></div>
+    <div class="tg"><input class="sr" type="checkbox" id="p2" checked><label for="p2"><span class="bx" aria-hidden="true">[X]</span>Reconnect automatically</label></div>
+    <div class="tg"><input class="sr" type="checkbox" id="p3"><label for="p3"><span class="bx off" aria-hidden="true">[ ]</span>Vibrate on tell</label></div>
+
+    <p class="foot">Pane colours, borders, palette, cursor and layout are set on a computer.</p>
+
+    <div class="sb" aria-hidden="true"><i></i></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

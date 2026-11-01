@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C11 Reconnecting</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6;margin-right:8px}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.dot.off{background:transparent;border:1.5px solid #9a9a9a}
+.banner{position:absolute;left:8px;right:8px;top:64px;display:flex;align-items:center;gap:12px;padding:10px 6px 10px 14px;border-radius:18px;background:#1f2326;border:1px solid #4a3a12;box-shadow:0 10px 30px rgba(0,0,0,.75)}
+.spin{width:36px;height:36px;border-radius:18px;background:rgba(255,175,0,.14);color:#ffaf00;display:grid;place-items:center;flex:none}
+.bt{flex:1;min-width:0;font-size:15px;color:#e8e8e8;line-height:1.3}
+.bt small{display:block;font-size:13px;color:#9a9a9a;margin-top:2px}
+.cancel{height:44px;padding:0 16px;border-radius:22px;color:#ffaf00;font-weight:600;font-size:15px;flex:none}
+.game{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 6px 8px;position:relative}
+.gt{margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;white-space:pre;color:#c6c6c6}
+.r{color:#d75f5f}.g{color:#5faf5f}.y{color:#d7d75f}.c{color:#00afaf}.e{color:#87afd7}.d{color:#8a8a8a}
+.inrow{height:60px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;background:#121416;border-top:1px solid #2a2e33}
+.inp{flex:1;min-width:0;height:44px;border-radius:22px;background:#16181a;border:1px solid #2a2e33;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;padding:0 16px;outline:none}
+.inp::placeholder{color:#8a8a8a;font-family:'IBM Plex Sans',sans-serif}
+.send{width:44px;height:44px;border-radius:22px;background:#2a2e33;color:#8a8a8a;display:grid;place-items:center;flex:none}
+.nav{height:64px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:#121416;border-top:1px solid #2a2e33;padding:6px 4px 8px}
+.nv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:500;color:#9a9a9a;position:relative}
+.nv .pl{width:56px;height:30px;border-radius:15px;display:grid;place-items:center;position:relative}
+.nv.on{color:#ffaf00}
+.nv.on .pl{background:rgba(255,175,0,.16)}
+.bdg{position:absolute;top:-4px;left:34px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffaf00;color:#000;font-size:12px;font-weight:700;line-height:20px;text-align:center}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div class="ttl">Rasta</div>
+    <span class="lq"><span class="dot off"></span>Offline</span>
+  </div>
+  <div class="game" role="log" aria-label="Game output">
+<pre class="gt">*=> <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;
+<span class="d">
+──────── link lost 21:14 ────────</span></pre>
+  </div>
+  <div class="inrow">
+    <label class="sr" for="c11-in">Command</label>
+    <input class="inp" id="c11-in" type="text" placeholder="Waiting for the link…" disabled="">
+    <button class="send" aria-label="Send" disabled=""><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button class="nv on" aria-current="page"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>Game</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="bdg">3</span></span>Chat</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Status</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg></span>Map</button>
+  </nav>
+  <div class="banner" role="status">
+    <div class="spin" aria-hidden="true"><svg class="i sm" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8M21 3v5h-5"></path></svg></div>
+    <div class="bt">Connection lost in the background — reconnecting…<small>Logging in as Rasta</small></div>
+    <button class="cancel">Cancel</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

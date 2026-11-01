@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C05 Keyboard up, light play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.rec{width:10px;height:10px;border-radius:5px;background:#d75f5f;margin:0 8px 0 6px;flex:none}
+.strip{height:40px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;background:#0c0d0f;border-bottom:1px solid #2a2e33;font-size:12px;font-weight:600}
+.sv{display:flex;align-items:center;gap:5px;color:#c6c6c6}
+.mb{width:36px;height:6px;border-radius:3px;background:#262626;overflow:hidden;flex:none}
+.mb i{display:block;height:100%;border-radius:3px}
+.foe{margin-left:auto;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:rgba(215,95,95,.16);color:#f09090;white-space:nowrap}
+.game{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 6px 8px;position:relative}
+.gt{margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;white-space:pre;color:#c6c6c6}
+.r{color:#d75f5f}.g{color:#5faf5f}.y{color:#d7d75f}.c{color:#00afaf}.e{color:#87afd7}
+.inrow{height:60px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;background:#121416;border-top:1px solid #2a2e33}
+.inp{flex:1;min-width:0;height:44px;border-radius:22px;background:#1b1e21;border:2px solid #ffaf00;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;padding:0 15px;outline:none}
+.send{width:44px;height:44px;border-radius:22px;background:#ffaf00;color:#000;display:grid;place-items:center;flex:none}
+.chips{height:56px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;background:#121416;overflow:hidden;position:relative}
+.chips::after{content:'';position:absolute;right:0;top:0;bottom:0;width:40px;background:linear-gradient(90deg,rgba(18,20,22,0),#121416)}
+.hist{width:44px;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;display:grid;place-items:center;flex:none}
+.chip{height:44px;padding:0 14px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;flex:none;white-space:nowrap;min-width:44px}
+.chip.sug{background:rgba(255,175,0,.14);border-color:#ffaf00;color:#ffcf66;display:flex;align-items:center;gap:6px;padding:0 14px 0 10px}
+.chip.sug u{text-decoration:none;color:#ffffff;font-weight:700}
+.kb{height:300px;flex:none;background:#26282b;padding:10px 4px 0;display:flex;flex-direction:column;gap:12px}
+.kr{display:flex;gap:6px;justify-content:center}
+.k{height:44px;flex:0 0 33px;border-radius:6px;background:#34373b}
+.k.w{flex-basis:46px}
+.k.sp{flex-basis:186px}
+.k.ret{flex-basis:88px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div class="ttl">Rasta</div>
+    <span class="lq"><span class="dot"></span>38 ms</span>
+    <span class="rec" role="img" aria-label="Recording"></span>
+  </div>
+  <div class="strip" aria-label="Vitals">
+    <span class="sv">HP <span class="mb"><i style="width:74%;background:#d75f5f"></i></span></span>
+    <span class="sv">MA <span class="mb"><i style="width:80%;background:#5f87d7"></i></span></span>
+    <span class="sv">MV <span class="mb"><i style="width:90%;background:#5faf5f"></i></span></span>
+    <span class="foe">ruffian: Wounded</span>
+  </div>
+  <div class="game" role="log" aria-label="Game output">
+<pre class="gt">*=> <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</pre>
+  </div>
+  <div class="inrow">
+    <label class="sr" for="c05-in">Command</label>
+    <input class="inp" id="c05-in" type="text" value="res" autocomplete="off" autocapitalize="off">
+    <button class="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+  </div>
+  <div class="chips" aria-label="Suggestions and history">
+    <button class="hist" aria-label="Command history"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"></path></svg></button>
+    <button class="chip sug"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg><span><u>res</u>cue dori</span></button>
+    <button class="chip">n</button>
+    <button class="chip">look</button>
+    <button class="chip">kill ruffian</button>
+    <button class="chip">rescue dori</button>
+  </div>
+  <div class="kb" aria-hidden="true">
+    <div class="kr"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+    <div class="kr"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+    <div class="kr"><div class="k w"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k w"></div></div>
+    <div class="kr"><div class="k w"></div><div class="k"></div><div class="k sp"></div><div class="k ret"></div></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

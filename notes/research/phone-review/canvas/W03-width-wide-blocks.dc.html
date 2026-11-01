@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>W03 Wide blocks swipe</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:390px;height:844px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;display:flex;flex-direction:column}
+.game{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;padding:0 6px 6px}
+.gt{margin:0;font:15px/18px 'JetBrains Mono',ui-monospace,monospace;white-space:pre;color:#c6c6c6;flex:none}
+.bl{height:18px;flex:none}
+.g{color:#5faf5f}.r{color:#d75f5f}.y{color:#d7d75f}.c{color:#00afaf}.m{color:#af5faf}.e{color:#87afd7}.d{color:#8a8a8a}.w{color:#e8e8e8}
+.wb{position:relative;flex:none;margin:3px -6px;background:#0b0d0e;border-top:1px solid #1b1e21;border-bottom:1px solid #1b1e21}
+.sc{overflow-x:auto;overflow-y:hidden;padding:4px 6px;scrollbar-width:none}
+.sc::-webkit-scrollbar{display:none}
+.sc .gt{width:max-content;padding-right:30px}
+.fade{position:absolute;top:0;right:0;bottom:0;width:48px;background:linear-gradient(to right,rgba(11,13,14,0),#0b0d0e 78%);pointer-events:none}
+.hint{position:absolute;top:4px;right:6px;font-size:14px;line-height:18px;color:#8a8a8a;pointer-events:none}
+.inrow{display:flex;gap:8px;align-items:center;padding:6px 8px 4px}
+.infield{flex:1;display:flex;align-items:center;height:44px;box-sizing:border-box;background:#121416;border:1px solid #2a2e33;border-radius:10px;padding:0 12px;gap:8px}
+.infield label{color:#87afd7;font-size:15px}
+.infield input{flex:1;min-width:0;background:transparent;border:0;outline:none;color:#e8e8e8;font:15px 'JetBrains Mono',ui-monospace,monospace;padding:0}
+.iconbtn{width:44px;height:44px;flex:none;box-sizing:border-box;border-radius:10px;background:#121416;border:1px solid #2a2e33;color:#ffaf00;display:grid;place-items:center;padding:0}
+.iconbtn svg{width:22px;height:22px}
+.nav{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 8px 8px}
+.nav button{height:48px;box-sizing:border-box;background:#121416;border:1px solid #2a2e33;border-radius:10px;color:#8a8a8a;font:700 12px/1 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.08em;position:relative;padding:0}
+.nav button[aria-current="page"]{background:#ffaf00;border-color:#ffaf00;color:#000}
+.badge{position:absolute;top:5px;right:8px;min-width:18px;height:18px;border-radius:9px;background:#d75f5f;color:#000;font-size:11px;line-height:18px;letter-spacing:0}
+</style>
+</helmet>
+<div class="root">
+  <main class="game" aria-label="Game text">
+    <div class="gt">*=&gt; <span class="e">n</span>
+<span class="g">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally though
+Bree-hill, slightly narrowing where it
+intersects with an entrance to a large
+grassy park to the east. Up on a hillside
+to the west the wooden wall of a large
+house rising up with several ornamented
+windows is on display.
+Exits: north, south, east.</div>
+    <div class="bl"></div>
+    <div class="gt">*=&gt; <span class="e">who</span>
+Players
+-------</div>
+    <div class="wb">
+      <div class="sc" role="region" aria-label="Who list, swipe sideways" tabindex="0">
+        <div class="gt">  [25 Hob] Rasta the Wanderer           (Bree)
+  [32 Dwa] Gibur Stonefist of Erebor    (Bree)
+  [18 Hum] Dori the Stout               (Bree)
+* [40 Elf] Ecthel Lord of the Golden Flower</div>
+      </div>
+      <div class="fade" aria-hidden="true"></div>
+      <span class="hint" aria-hidden="true">⇆</span>
+    </div>
+    <div class="gt">There are 4 visible players.</div>
+    <div class="bl"></div>
+    <div class="gt">*=&gt; <span class="e">eq</span>
+You are using:</div>
+    <div class="wb">
+      <div class="sc" role="region" aria-label="Equipment, swipe sideways" tabindex="0">
+        <div class="gt">&lt;used as light&gt;      a hooded brass lantern
+&lt;worn on head&gt;       a dented iron helm
+&lt;worn on body&gt;       a shirt of black ring mail
+&lt;worn on legs&gt;       a pair of leather leggings
+&lt;worn about body&gt;    a hooded cloak of dark green wool
+&lt;wielded&gt;            a long sword
+&lt;held&gt;               a round wooden shield</div>
+      </div>
+      <div class="fade" aria-hidden="true"></div>
+      <span class="hint" aria-hidden="true">⇆</span>
+    </div>
+    <div class="bl"></div>
+    <div class="gt">*=&gt; <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span></div>
+    <div class="bl"></div>
+    <div class="gt">*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span></div>
+  </main>
+  <div class="inrow">
+    <div class="infield"><label for="w03cmd">&gt;</label><input id="w03cmd" type="text" autocomplete="off" aria-label="Command"></div>
+    <button class="iconbtn" type="button" aria-label="Menu"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button type="button" aria-current="page">GAME</button>
+    <button type="button" aria-label="COMM, 3 unread">COMM<span class="badge" aria-hidden="true">3</span></button>
+    <button type="button">STATUS</button>
+    <button type="button">MAP</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

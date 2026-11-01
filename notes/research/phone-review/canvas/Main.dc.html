@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone review overview</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;family=IBM+Plex+Sans:wght@400;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.ov h2{font-family:'JetBrains Mono',monospace;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#00c8c8;margin:0 0 14px 0;font-weight:700}
+.ov p,.ov li{font-size:15px;line-height:1.5;color:#c6c6c6}
+.ov ul{margin:0;padding-left:18px}
+.ov li{margin:0 0 6px 0}
+.card{background:#121416;border:1px solid #2a2e33;border-radius:10px;padding:22px 24px}
+.tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:2px 8px;border-radius:4px;margin-right:6px}
+.k{background:#1d3320;color:#8fd18f}
+.s{background:#33301a;color:#e0d27a}
+.r{background:#3a1d1d;color:#e89a9a}
+.n{background:#1a2a3a;color:#8fb8e8}
+table.fm{width:100%;border-collapse:collapse;font-size:14px}
+table.fm td{padding:7px 8px;border-top:1px solid #23272b;vertical-align:top;color:#c6c6c6;line-height:1.4}
+table.fm td.f{font-family:'JetBrains Mono',monospace;color:#e8e8e8;width:34%}
+table.fm tr.h td{font-family:'JetBrains Mono',monospace;color:#ffaf00;font-size:13px;letter-spacing:.1em;border-top:none;padding-top:16px}
+</style>
+</helmet>
+<div class="ov" style="width: 1440px; height: 2000px; box-sizing: border-box; padding: 72px 80px; background: #000000; font-family: 'IBM Plex Sans', sans-serif; color: #c6c6c6; overflow: hidden; display: flex; flex-direction: column; gap: 36px">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: #8a8a8a; letter-spacing: .12em">WEBCOCKPIT · PHONE REVIEW · 2026-11-01 · BRAINSTORM, NOTHING DECIDED</div>
+<h1 style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 46px; color: #e8e8e8; font-weight: 700">A phone-first WebCockpit</h1>
+<p style="margin: 0; max-width: 980px; font-size: 18px">Three directions for the same feature set, each at two ambition levels: <b style="color:#e8e8e8">L1 Companion</b> (read, chat, status, map, type) and <b style="color:#e8e8e8">L2 Light play</b> (plus direction pad, quick buttons and history chips, so you can walk and act without the keyboard). Desktop does not change: everything here sits behind the phone flag.</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div class="card"><h2>What hurts today</h2><ul>
+<li>Every target is about 15 px tall: menu rows, tabs, the ☰ (16×14 px).</li>
+<li>Menus are keyboard pages: footers list keys, cyclers need tiny &lt;&lt; &gt;&gt; arrows, grids are 67–76 columns wide and swipe sideways.</li>
+<li>Everything must be typed; the keyboard takes half the screen; no history, macros dead.</li>
+<li>MUME is told 80 columns, the phone rewraps to 42: tables break.</li>
+<li>CHAR, GRP and TIME are each 80 % empty; one tab at a time.</li>
+<li>The fullscreen corner button covers content on every screen.</li>
+</ul></div>
+<div class="card"><h2>Principles</h2><ul>
+<li><b>Desktop untouched.</b> Phone code behind the phone flag only; desktop e2e unchanged.</li>
+<li><b>Read at the top, act at the bottom</b> (thumb reach).</li>
+<li><b>44 px</b> minimum target, no keyboard hints on touch.</li>
+<li><b>Game text first:</b> chrome folds away when the keyboard is up.</li>
+<li><b>Configure on the computer,</b> adjust on the phone: a small settings subset.</li>
+<li><b>No keyboard needed</b> for common actions (L2).</li>
+</ul></div>
+<div class="card"><h2>The three directions</h2><ul>
+<li><b style="color:#e8e8e8">A Terminal</b> — pure TUI made big: box cells, bottom TUI tab bar, Termux-style key row. Profile: select only.</li>
+<li><b style="color:#e8e8e8">B Hybrid</b> — TUI game and panes; chrome as surface panels, bottom nav, bottom sheets, chip bars. Profile: simple list editor.</li>
+<li><b style="color:#e8e8e8">C Touch-native</b> — app bar, drawer, chat view, cards, floating pad, sans type around mono text. Profile: list + code.</li>
+</ul></div>
+</div>
+
+<div class="card" style="display: flex; flex-direction: column; gap: 8px">
+<h2>Feature map on the phone &#160;<span class="tag k">keep</span><span class="tag s">simplify</span><span class="tag n">new</span><span class="tag r">computer only</span></h2>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px">
+<table class="fm">
+<tr class="h"><td colspan="2">START PAGE</td></tr>
+<tr><td class="f">Enter MUME</td><td><span class="tag s">simplify</span>character cards with Play and saved login</td></tr>
+<tr><td class="f">Profile</td><td><span class="tag s">simplify</span>pick, new, import from a computer; edit depth per direction</td></tr>
+<tr><td class="f">Scripts</td><td><span class="tag s">simplify</span>switches, help and settings; no editor, import, export</td></tr>
+<tr><td class="f">History</td><td><span class="tag s">simplify</span>list, play, rate, keep, delete; no export, backup, restore</td></tr>
+<tr><td class="f">Spotlights</td><td><span class="tag k">keep</span></td></tr>
+<tr><td class="f">Credits, About</td><td><span class="tag s">simplify</span>one About page, Credits folded in</td></tr>
+<tr><td class="f">Keyboard footers, ↑↓ hints</td><td><span class="tag r">gone on phone</span></td></tr>
+<tr><td class="f">Fullscreen corner button</td><td><span class="tag s">simplify</span>into the menu (Android) and the installed app</td></tr>
+<tr class="h"><td colspan="2">MENU (TODAY THE ESC MENU)</td></tr>
+<tr><td class="f">Continue</td><td><span class="tag r">gone</span>closing the menu is enough</td></tr>
+<tr><td class="f">Reconnect</td><td><span class="tag s">simplify</span>automatic, with a banner and a button</td></tr>
+<tr><td class="f">Statistics</td><td><span class="tag k">keep</span>while a run is on</td></tr>
+<tr><td class="f">Profile (live editor)</td><td><span class="tag s">simplify</span>Quick buttons &amp; profile</td></tr>
+<tr><td class="f">Options</td><td><span class="tag s">simplify</span>Settings, phone subset</td></tr>
+<tr><td class="f">Exit session + rating</td><td><span class="tag k">keep</span>big stars</td></tr>
+<tr><td class="f">Banner in the menu</td><td><span class="tag r">gone</span></td></tr>
+</table>
+<table class="fm">
+<tr class="h"><td colspan="2">IN GAME</td></tr>
+<tr><td class="f">Tab strip, 15 px, top</td><td><span class="tag s">simplify</span>bottom navigation: GAME COMM STATUS MAP</td></tr>
+<tr><td class="f">CHAR + GRP + TIME</td><td><span class="tag s">simplify</span>one STATUS view</td></tr>
+<tr><td class="f">Script panes</td><td><span class="tag k">keep</span>as extra views</td></tr>
+<tr><td class="f">☰ 16×14 px, clock strip</td><td><span class="tag s">simplify</span>44 px menu button; clock to STATUS</td></tr>
+<tr><td class="f">Status strip HP/Mana/Move</td><td><span class="tag n">new</span>L2</td></tr>
+<tr><td class="f">Quick buttons, direction pad</td><td><span class="tag n">new</span>L2, seeded from the profile's numpad macros</td></tr>
+<tr><td class="f">History and suggestion chips</td><td><span class="tag n">new</span>replace ↑↓ and Tab</td></tr>
+<tr><td class="f">↓ N new lines, tell toast, Reply</td><td><span class="tag n">new</span></td></tr>
+<tr><td class="f">Comm solo by right-click</td><td><span class="tag s">simplify</span>long press</td></tr>
+<tr class="h"><td colspan="2">SETTINGS</td></tr>
+<tr><td class="f">Size, theme, font</td><td><span class="tag k">keep</span>stepper, swatches, picker</td></tr>
+<tr><td class="f">Views on/off and order</td><td><span class="tag n">new</span>reorder on the phone</td></tr>
+<tr><td class="f">Comm channels, group NPCs, timer groups, map tileset and notes, weather on/off, auto-clear, autosuggest</td><td><span class="tag k">keep</span>as simple switches</td></tr>
+<tr><td class="f">Keep screen on, auto reconnect, vibrate on tell</td><td><span class="tag n">new</span>phone only</td></tr>
+<tr><td class="f">Padding, colours, palette, cursor, scrollback, pane grid, layout, timer columns, map import</td><td><span class="tag r">computer only</span></td></tr>
+</table>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px">
+<div class="card"><h2>Also on the canvas</h2><ul>
+<li><b>Text width</b> W01–W05: 80 columns rewrapped (today), real width, wide blocks that swipe, wide blocks that shrink, landscape.</li>
+<li><b>Tablet</b> T01–T03: a button panel instead of the keyboard, or an accessory row on top of it.</li>
+<li><b>Platform</b> P01–P02: install to the home screen, the installed app. P03–P05: History, Scripts, About on the phone.</li>
+<li><b>Today</b>: eight screenshots of the current phone UI, to the right.</li>
+</ul></div>
+<div class="card"><h2>Questions to answer next</h2><ul>
+<li>Which direction (or which mix)?</li>
+<li>L1 first and L2 later, or both at once?</li>
+<li>Saved passwords: accept plain storage on the device?</li>
+<li>Which text-width option, W03 or W04?</li>
+<li>Tablet buttons in or out?</li>
+</ul></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2000}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

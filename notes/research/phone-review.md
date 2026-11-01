@@ -1,6 +1,9 @@
 # Phone review — a phone-first WebCockpit
 
-Date: 2026-11-01. Status: **brainstorm, nothing decided.** Owner request:
+Date: 2026-11-01. Status: **parked side quest, nothing decided.** The
+owner parked this on 2026-11-01: no choices now, picked up again the day
+phone support gets real effort (not soon). To resume: read this note, open
+the canvas, and put the §7 questions to the owner. Owner request:
 a broad review of how the phone works today and how the phone experience
 could be redone, with a focus on working as well as possible from the
 phone. Not every feature has to be reachable from the phone. The start
@@ -11,6 +14,12 @@ Mockups: the "WebCockpit phone review" design canvas (claude.ai artifact
 directions (A Terminal, B Hybrid, C Touch-native) with 13–14 screens each,
 and studies of text width, tablet and platform. Screenshots of today's UI
 were made with a Playwright tour (390×844, DPR 3, `?phone=1`, mocked MUME).
+
+Sources in the repo, under `notes/research/phone-review/`: `canvas/` (all
+57 artboards and `canvas.json`, so the canvas can be republished or
+edited), `brief.md` (the shared mockup brief), `tour/` (the tour scripts
+and the shot index with findings per screenshot), `shots/` (ten key
+screenshots of today's UI; rerun the tour for all 58).
 
 Builds on: intent Goal 12, spec §2.12, ADR 0075, 0081, 0086, 0097, 0098,
 0112, stage 19, `notes/research/mobile.md`.

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C10 Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.body{flex:1;padding:0 16px;display:flex;flex-direction:column}
+.sh{height:26px;flex:none;display:flex;align-items:flex-end;padding:0 16px 5px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9a9a9a}
+.grp{border-radius:14px;background:#121416;overflow:hidden;flex:none}
+.row{display:flex;align-items:center;gap:10px;height:44px;padding:0 4px 0 16px;border-top:1px solid #23272b;font-size:16px;color:#e8e8e8;width:100%;text-align:left}
+.grp > .row:first-child,.grp > :first-child{border-top:0}
+.row .l{flex:1;min-width:0;white-space:nowrap}
+.row .v{font-size:15px;color:#9a9a9a;white-space:nowrap}
+.row .ch{color:#6a6a6a;margin-right:6px}
+.row.h48{height:48px}
+.step{display:flex;align-items:center;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;margin-right:2px}
+.step button{width:44px;height:42px;display:grid;place-items:center;color:#ffaf00}
+.step output{width:30px;text-align:center;font-weight:600;color:#e8e8e8;font-variant-numeric:tabular-nums}
+.prev{height:30px;display:flex;align-items:center;padding:0 16px;border-top:1px solid #23272b;background:#000;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;color:#d75f5f;white-space:nowrap;overflow:hidden}
+.theme{height:64px;display:flex;align-items:center;gap:0;padding:0 8px 0 16px;border-top:1px solid #23272b}
+.theme .l{width:58px;font-size:16px;color:#e8e8e8}
+.sw{width:44px;height:44px;display:grid;place-items:center;flex:none;margin-left:2px}
+.sw i{width:34px;height:34px;border-radius:17px;border:1px solid #3a3a3a;display:block}
+.sw.on i{box-shadow:0 0 0 2px #121416,0 0 0 4px #ffaf00}
+.sw.more{color:#c6c6c6}
+.seg{display:flex;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;padding:3px;margin-right:2px}
+.seg button{height:36px;padding:0 12px;border-radius:18px;font-size:14px;font-weight:600;color:#c6c6c6;min-width:44px}
+.seg button.on{background:#ffaf00;color:#000}
+.tg{position:relative;width:60px;height:44px;flex:none}
+.tg::before{content:'';position:absolute;left:4px;top:6px;width:52px;height:32px;border-radius:16px;background:#3a3a3a}
+.tg::after{content:'';position:absolute;left:8px;top:10px;width:24px;height:24px;border-radius:12px;background:#c6c6c6}
+.tg.on::before{background:#ffaf00}
+.tg.on::after{left:28px;background:#000}
+.foot{height:30px;flex:none;padding:4px 16px 0;font-size:12px;line-height:14px;color:#9a9a9a}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <div class="ttl">Settings</div>
+  </div>
+  <div class="body">
+    <div class="sh">Display</div>
+    <div class="grp">
+      <div class="row h48"><span class="l" id="c10-ts">Text size</span>
+        <div class="step" role="group" aria-labelledby="c10-ts"><button aria-label="Smaller"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg></button><output>14</output><button aria-label="Larger"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button></div>
+      </div>
+      <div class="prev" aria-label="Preview">You slash a half-orc ruffian hard.</div>
+      <div class="theme" role="radiogroup" aria-label="Theme">
+        <span class="l">Theme</span>
+        <button class="sw on" role="radio" aria-checked="true" aria-label="Black"><i style="background:#000"></i></button>
+        <button class="sw" role="radio" aria-checked="false" aria-label="Slate"><i style="background:#1d2530"></i></button>
+        <button class="sw" role="radio" aria-checked="false" aria-label="Teal"><i style="background:#0b2b2d"></i></button>
+        <button class="sw" role="radio" aria-checked="false" aria-label="Sepia"><i style="background:#3a2c1c"></i></button>
+        <button class="sw" role="radio" aria-checked="false" aria-label="Paper"><i style="background:#f4ecd8"></i></button>
+        <button class="sw more" aria-label="More themes"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+      </div>
+      <button class="row"><span class="l">Font</span><span class="v">Hack</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+
+    <div class="sh">Game</div>
+    <div class="grp">
+      <button class="row"><span class="l">Views &amp; order</span><span class="v">Chat, Status, Map</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><span class="l">Chat channels</span><span class="v">8 of 10</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <div class="row h48"><span class="l" id="c10-npc">Group NPCs</span>
+        <div class="seg" role="radiogroup" aria-labelledby="c10-npc"><button role="radio" aria-checked="false">Off</button><button class="on" role="radio" aria-checked="true">Labeled</button><button role="radio" aria-checked="false">All</button></div>
+      </div>
+      <button class="row"><span class="l">Timer groups</span><span class="v">All 6</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><span class="l">Map</span><span class="v">Tiles · Room notes</span><svg class="i sm ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <div class="row"><span class="l" id="c10-wx">Weather effects</span><button class="tg on" role="switch" aria-checked="true" aria-labelledby="c10-wx"></button></div>
+    </div>
+
+    <div class="sh">Input and phone</div>
+    <div class="grp">
+      <div class="row"><span class="l" id="c10-ac">Auto-clear input</span><button class="tg on" role="switch" aria-checked="true" aria-labelledby="c10-ac"></button></div>
+      <div class="row"><span class="l" id="c10-as">Autosuggest</span><button class="tg on" role="switch" aria-checked="true" aria-labelledby="c10-as"></button></div>
+      <div class="row"><span class="l" id="c10-ks">Keep screen on while connected</span><button class="tg on" role="switch" aria-checked="true" aria-labelledby="c10-ks"></button></div>
+      <div class="row"><span class="l" id="c10-rc">Reconnect automatically</span><button class="tg on" role="switch" aria-checked="true" aria-labelledby="c10-rc"></button></div>
+      <div class="row"><span class="l" id="c10-vb">Vibrate on tell</span><button class="tg" role="switch" aria-checked="false" aria-labelledby="c10-vb"></button></div>
+    </div>
+    <div class="foot">Pane colours, borders, palette, cursor and layout are set on a computer.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

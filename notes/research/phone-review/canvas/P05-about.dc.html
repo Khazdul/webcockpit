@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>P05 About and credits</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.root{width:390px;height:844px;overflow:hidden;position:relative;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;display:flex;flex-direction:column}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 12px 0 4px;border-bottom:1px solid #2a2e33}
+.back{width:44px;height:44px;background:transparent;border:0;color:#c6c6c6;display:grid;place-items:center;padding:0}
+.back svg{width:22px;height:22px}
+.bar h1{margin:0;flex:1;font:700 16px/1 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8;letter-spacing:.04em}
+.body{flex:1;min-height:0;overflow:hidden;padding:0 16px}
+.intro{padding:22px 2px 0}
+.wm{display:block;width:201px;height:15px;shape-rendering:crispEdges}
+.ver{margin-top:12px;font:700 14px/18px 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8}
+.ver span{color:#8a8a8a;font-weight:400}
+.intro p{margin:10px 0 0;font:13px/19px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+.lbl{margin:22px 2px 8px;font:700 11px/14px 'JetBrains Mono',ui-monospace,monospace;letter-spacing:.14em;color:#8a8a8a;text-transform:uppercase}
+.card{background:#121416;border:1px solid #2a2e33;border-radius:10px;overflow:hidden}
+.ln{display:flex;align-items:center;gap:10px;height:48px;padding:0 14px;border-top:1px solid #2a2e33;color:#c6c6c6;text-decoration:none;font:14px/1 'JetBrains Mono',ui-monospace,monospace}
+.ln:first-child{border-top:0}
+.ln .v{margin-left:auto;color:#8a8a8a;font-size:12px}
+.ln svg{width:15px;height:15px;color:#8a8a8a;flex:none}
+details.card{margin-top:12px}
+summary{list-style:none;display:flex;align-items:center;height:48px;padding:0 14px;cursor:pointer;font:700 14px/1 'JetBrains Mono',ui-monospace,monospace;color:#e8e8e8}
+summary::-webkit-details-marker{display:none}
+summary svg{margin-left:auto;width:16px;height:16px;color:#8a8a8a;transform:rotate(90deg)}
+dl{margin:0;padding:0 14px 4px;border-top:1px solid #2a2e33}
+dt{margin-top:10px;font:700 12px/16px 'JetBrains Mono',ui-monospace,monospace;color:#ffaf00}
+dd{margin:2px 0 0;font:12px/17px 'JetBrains Mono',ui-monospace,monospace;color:#c6c6c6}
+.chron{display:flex;align-items:center;gap:10px;width:calc(100% - 28px);height:48px;margin:12px 14px 14px;padding:0 14px;box-sizing:border-box;background:#1b1e21;border:1px solid #2a2e33;border-radius:10px;color:#e8e8e8;font:14px/1 'JetBrains Mono',ui-monospace,monospace}
+.chron svg{width:14px;height:14px;color:#ffaf00}
+.chron .v{margin-left:auto;color:#8a8a8a;font-size:12px}
+.fine{margin:14px 2px 16px;color:#8a8a8a;font:12px/17px 'JetBrains Mono',ui-monospace,monospace}
+</style>
+</helmet>
+<div class="root">
+  <header class="bar">
+    <button class="back" type="button" aria-label="Back"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <h1>About</h1>
+  </header>
+  <div class="body">
+    <div class="intro">
+      <svg class="wm" role="img" aria-label="MUME Cockpit" viewBox="0 0 67 5"><path fill="#00c8c8" d="M0 0h1v1h-1zM4 0h1v1h-1zM0 1h1v1h-1zM1 1h1v1h-1zM3 1h1v1h-1zM4 1h1v1h-1zM0 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM6 0h1v1h-1zM10 0h1v1h-1zM6 1h1v1h-1zM10 1h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM7 4h1v1h-1zM8 4h1v1h-1zM9 4h1v1h-1zM12 0h1v1h-1zM16 0h1v1h-1zM12 1h1v1h-1zM13 1h1v1h-1zM15 1h1v1h-1zM16 1h1v1h-1zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM12 3h1v1h-1zM16 3h1v1h-1zM12 4h1v1h-1zM16 4h1v1h-1zM18 0h1v1h-1zM19 0h1v1h-1zM20 0h1v1h-1zM21 0h1v1h-1zM22 0h1v1h-1zM18 1h1v1h-1zM18 2h1v1h-1zM19 2h1v1h-1zM20 2h1v1h-1zM21 2h1v1h-1zM18 3h1v1h-1zM18 4h1v1h-1zM19 4h1v1h-1zM20 4h1v1h-1zM21 4h1v1h-1zM22 4h1v1h-1z"></path><path fill="#00a3a3" d="M27 0h1v1h-1zM28 0h1v1h-1zM29 0h1v1h-1zM30 0h1v1h-1zM26 1h1v1h-1zM26 2h1v1h-1zM26 3h1v1h-1zM27 4h1v1h-1zM28 4h1v1h-1zM29 4h1v1h-1zM30 4h1v1h-1zM33 0h1v1h-1zM34 0h1v1h-1zM35 0h1v1h-1zM32 1h1v1h-1zM36 1h1v1h-1zM32 2h1v1h-1zM36 2h1v1h-1zM32 3h1v1h-1zM36 3h1v1h-1zM33 4h1v1h-1zM34 4h1v1h-1zM35 4h1v1h-1zM39 0h1v1h-1zM40 0h1v1h-1zM41 0h1v1h-1zM42 0h1v1h-1zM38 1h1v1h-1zM38 2h1v1h-1zM38 3h1v1h-1zM39 4h1v1h-1zM40 4h1v1h-1zM41 4h1v1h-1zM42 4h1v1h-1zM44 0h1v1h-1zM48 0h1v1h-1zM44 1h1v1h-1zM47 1h1v1h-1zM44 2h1v1h-1zM45 2h1v1h-1zM46 2h1v1h-1zM44 3h1v1h-1zM47 3h1v1h-1zM44 4h1v1h-1zM48 4h1v1h-1zM50 0h1v1h-1zM51 0h1v1h-1zM52 0h1v1h-1zM53 0h1v1h-1zM50 1h1v1h-1zM54 1h1v1h-1zM50 2h1v1h-1zM51 2h1v1h-1zM52 2h1v1h-1zM53 2h1v1h-1zM50 3h1v1h-1zM50 4h1v1h-1zM56 0h1v1h-1zM57 0h1v1h-1zM58 0h1v1h-1zM59 0h1v1h-1zM60 0h1v1h-1zM58 1h1v1h-1zM58 2h1v1h-1zM58 3h1v1h-1zM56 4h1v1h-1zM57 4h1v1h-1zM58 4h1v1h-1zM59 4h1v1h-1zM60 4h1v1h-1zM62 0h1v1h-1zM63 0h1v1h-1zM64 0h1v1h-1zM65 0h1v1h-1zM66 0h1v1h-1zM64 1h1v1h-1zM64 2h1v1h-1zM64 3h1v1h-1zM64 4h1v1h-1z"></path></svg>
+      <div class="ver">WebCockpit <span>0.2.1</span></div>
+      <p>A MUD client for MUME, built for fast PvP. It runs in your browser from a link: no server in between, and nothing kept anywhere but this browser.</p>
+    </div>
+
+    <div class="lbl">Links</div>
+    <nav class="card" aria-label="Links">
+      <a class="ln" href="https://mume.org">MUME website<span class="v">mume.org</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg></a>
+      <a class="ln" href="https://discord.gg/XkZN55am9a">MUME Discord<span class="v">discord.gg</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg></a>
+      <a class="ln" href="https://github.com/Khazdul/webcockpit">Source code<span class="v">github.com</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"></path></svg></a>
+      <a class="ln" href="LICENSE.txt">Licence<span class="v">GPL v2 or later</span><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></a>
+    </nav>
+
+    <details class="card" open>
+      <summary>Credits<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg></summary>
+      <dl>
+        <dt>MMapper</dt>
+        <dd>The map is built on MMapper by the MMapper Authors: its look, tiles and fonts.</dd>
+        <dt>Tilesets</dt>
+        <dd>Shimrod's seasonal tiles; Desert by Khazdul; Gefe &amp; Rik by Octavia; Gray's Map by Sunnyl75.</dd>
+        <dt>Cockpit</dt>
+        <dd>The terminal client WebCockpit is modelled on.</dd>
+        <dt>MUME</dt>
+        <dd>The game, its world and its texts belong to the MUME team and its volunteers.</dd>
+        <dt>Fonts · Libraries</dt>
+        <dd>Hack, JetBrains Mono and 13 more · Preact, CodeMirror, wasmoon.</dd>
+      </dl>
+      <button class="chron" type="button"><svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l15 8-15 8z"></path></svg>Your chronicle<span class="v">Rasta, Gittan</span></button>
+    </details>
+
+    <p class="fine">MUME is run by its own team; WebCockpit is an independent client and is not made or endorsed by MUME.</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

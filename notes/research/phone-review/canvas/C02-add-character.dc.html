@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C02 Add character</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.body{flex:1;display:flex;flex-direction:column;padding:24px 16px 24px}
+.fl{display:block;font-size:14px;font-weight:600;color:#c6c6c6;margin:0 4px 8px}
+.field{position:relative;margin-bottom:22px}
+.fi{width:100%;height:54px;border-radius:14px;background:#121416;border:1px solid #3a3a3a;color:#e8e8e8;font-size:17px;padding:0 16px;outline:none}
+.fi::placeholder{color:#8a8a8a}
+.fi.focus{border:2px solid #ffaf00;padding:0 15px}
+.fi.pw{padding-right:56px;letter-spacing:.2em}
+.eye{position:absolute;right:5px;bottom:5px;width:44px;height:44px;border-radius:22px;display:grid;place-items:center;color:#c6c6c6}
+.chk{display:flex;align-items:center;gap:14px;min-height:52px;padding:0 4px}
+.chk input{width:24px;height:24px;accent-color:#ffaf00;margin:0;flex:none}
+.chk label{font-size:16px;color:#e8e8e8}
+.warn{display:flex;align-items:center;gap:8px;margin:2px 4px 22px 42px;font-size:14px;color:#ffaf00}
+.sel{display:flex;align-items:center;width:100%;height:54px;border-radius:14px;background:#121416;border:1px solid #3a3a3a;padding:0 12px 0 16px;color:#e8e8e8;font-size:17px;text-align:left}
+.sel span{flex:1}
+.sel svg{color:#9a9a9a}
+.foot{margin-top:auto;display:flex;flex-direction:column;gap:8px}
+.primary{height:54px;border-radius:27px;background:#ffaf00;color:#000;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;gap:10px}
+.primary svg.i{fill:currentColor;stroke:none;width:18px;height:18px}
+.textbtn{height:48px;border-radius:24px;color:#ffaf00;font-weight:600;font-size:16px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Back"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+    <div class="ttl">Add character</div>
+  </div>
+  <div class="body">
+    <div class="field">
+      <label class="fl" for="c02-name">Character name</label>
+      <input class="fi focus" id="c02-name" type="text" placeholder="Your name in MUME" autocomplete="username">
+    </div>
+    <div class="field">
+      <label class="fl" for="c02-pw">Password</label>
+      <input class="fi pw" id="c02-pw" type="password" value="hunter22" autocomplete="current-password">
+      <button class="eye" aria-label="Show password"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+    </div>
+    <div class="chk">
+      <input id="c02-rem" type="checkbox" checked>
+      <label for="c02-rem">Remember password on this device</label>
+    </div>
+    <div class="warn"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"></path></svg>Stored unencrypted in this browser.</div>
+    <div class="field">
+      <label class="fl" for="c02-prof">Profile</label>
+      <button class="sel" id="c02-prof" aria-haspopup="listbox"><span>default</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </div>
+    <div class="foot">
+      <button class="primary"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Save &amp; play</button>
+      <button class="textbtn">Play without saving</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

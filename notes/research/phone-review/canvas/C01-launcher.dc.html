@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C01 Launcher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.top{display:flex;justify-content:center;padding:32px 0 0}
+.wrap{padding:0 16px;display:flex;flex-direction:column;flex:1}
+.note{margin-top:22px;display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 6px 6px 14px;border-radius:14px;background:#121416;border:1px solid #2a2e33;font-size:14px;color:#e8e8e8}
+.note .txt{flex:1}
+.note .sub{display:block;font-size:13px;color:#9a9a9a}
+.tonal{height:44px;padding:0 16px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#ffaf00;font-weight:600;font-size:15px}
+.hdr{margin:24px 4px 8px;font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#9a9a9a}
+.card{display:flex;align-items:center;gap:12px;height:80px;padding:0 12px 0 14px;border-radius:16px;background:#121416;border:1px solid #2a2e33;margin-bottom:10px}
+.av{width:44px;height:44px;border-radius:22px;display:grid;place-items:center;font-weight:700;font-size:18px;flex:none}
+.who{flex:1;min-width:0}
+.nm{font-size:18px;font-weight:600;color:#e8e8e8}
+.meta{display:flex;align-items:center;gap:6px;font-size:13px;color:#9a9a9a;margin-top:2px}
+.play{display:flex;align-items:center;justify-content:center;gap:8px;width:104px;height:52px;border-radius:26px;background:#ffaf00;color:#000;font-weight:700;font-size:16px;flex:none}
+.play.alt{background:#1b1e21;color:#ffaf00;border:1px solid #3a3a3a}
+.play svg.i{fill:currentColor;stroke:none;width:18px;height:18px}
+.add{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;height:52px;border-radius:16px;border:1.5px dashed #3a3a3a;color:#e8e8e8;font-weight:600;font-size:16px}
+.list{margin-top:20px;border-radius:16px;background:#121416;border:1px solid #2a2e33;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;width:100%;height:52px;padding:0 12px 0 16px;text-align:left;color:#e8e8e8;font-size:16px;border-top:1px solid #2a2e33}
+.row:first-child{border-top:0}
+.row .l{flex:1}
+.row .ic{color:#00c8c8}
+.row .ch{color:#6a6a6a}
+.quote{margin-top:auto;padding:0 0 28px;text-align:center;font-size:14px;color:#9a9a9a;font-style:italic}
+.quote b{display:block;font-style:normal;font-weight:500;color:#87af87;margin-top:2px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="top">
+    <svg width="195" height="56" viewBox="0 0 195 56" role="img" aria-label="MUME Cockpit"><g transform="translate(40 0)"><path fill="#00d7d7" d="M0 0h5v5h-5zM20 0h5v5h-5zM0 5h5v5h-5zM5 5h5v5h-5zM15 5h5v5h-5zM20 5h5v5h-5zM0 10h5v5h-5zM10 10h5v5h-5zM20 10h5v5h-5zM0 15h5v5h-5zM20 15h5v5h-5zM0 20h5v5h-5zM20 20h5v5h-5zM30 0h5v5h-5zM50 0h5v5h-5zM30 5h5v5h-5zM50 5h5v5h-5zM30 10h5v5h-5zM50 10h5v5h-5zM30 15h5v5h-5zM50 15h5v5h-5zM35 20h5v5h-5zM40 20h5v5h-5zM45 20h5v5h-5zM60 0h5v5h-5zM80 0h5v5h-5zM60 5h5v5h-5zM65 5h5v5h-5zM75 5h5v5h-5zM80 5h5v5h-5zM60 10h5v5h-5zM70 10h5v5h-5zM80 10h5v5h-5zM60 15h5v5h-5zM80 15h5v5h-5zM60 20h5v5h-5zM80 20h5v5h-5zM90 0h5v5h-5zM95 0h5v5h-5zM100 0h5v5h-5zM105 0h5v5h-5zM110 0h5v5h-5zM90 5h5v5h-5zM90 10h5v5h-5zM95 10h5v5h-5zM100 10h5v5h-5zM105 10h5v5h-5zM90 15h5v5h-5zM90 20h5v5h-5zM95 20h5v5h-5zM100 20h5v5h-5zM105 20h5v5h-5zM110 20h5v5h-5z"></path></g><path fill="#00a8a8" d="M5 31h5v5h-5zM10 31h5v5h-5zM15 31h5v5h-5zM20 31h5v5h-5zM0 36h5v5h-5zM0 41h5v5h-5zM0 46h5v5h-5zM5 51h5v5h-5zM10 51h5v5h-5zM15 51h5v5h-5zM20 51h5v5h-5zM35 31h5v5h-5zM40 31h5v5h-5zM45 31h5v5h-5zM30 36h5v5h-5zM50 36h5v5h-5zM30 41h5v5h-5zM50 41h5v5h-5zM30 46h5v5h-5zM50 46h5v5h-5zM35 51h5v5h-5zM40 51h5v5h-5zM45 51h5v5h-5zM65 31h5v5h-5zM70 31h5v5h-5zM75 31h5v5h-5zM80 31h5v5h-5zM60 36h5v5h-5zM60 41h5v5h-5zM60 46h5v5h-5zM65 51h5v5h-5zM70 51h5v5h-5zM75 51h5v5h-5zM80 51h5v5h-5zM90 31h5v5h-5zM110 31h5v5h-5zM90 36h5v5h-5zM105 36h5v5h-5zM90 41h5v5h-5zM95 41h5v5h-5zM100 41h5v5h-5zM90 46h5v5h-5zM105 46h5v5h-5zM90 51h5v5h-5zM110 51h5v5h-5zM120 31h5v5h-5zM125 31h5v5h-5zM130 31h5v5h-5zM135 31h5v5h-5zM120 36h5v5h-5zM140 36h5v5h-5zM120 41h5v5h-5zM125 41h5v5h-5zM130 41h5v5h-5zM135 41h5v5h-5zM120 46h5v5h-5zM120 51h5v5h-5zM150 31h5v5h-5zM155 31h5v5h-5zM160 31h5v5h-5zM155 36h5v5h-5zM155 41h5v5h-5zM155 46h5v5h-5zM150 51h5v5h-5zM155 51h5v5h-5zM160 51h5v5h-5zM170 31h5v5h-5zM175 31h5v5h-5zM180 31h5v5h-5zM185 31h5v5h-5zM190 31h5v5h-5zM180 36h5v5h-5zM180 41h5v5h-5zM180 46h5v5h-5zM180 51h5v5h-5z"></path></svg>
+  </div>
+  <div class="wrap">
+    <div class="note" role="status">
+      <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:#00c8c8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"></path></svg>
+      <span class="txt">Version 0.2.2 is ready<span class="sub">Reload to update</span></span>
+      <button class="tonal">Reload</button>
+    </div>
+
+    <div class="hdr">Characters</div>
+    <div class="card">
+      <div class="av" style="background:#00c8c8;color:#000">R</div>
+      <div class="who">
+        <div class="nm">Rasta</div>
+        <div class="meta"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 8 0v4"></path></svg>2 h ago · Password saved</div>
+      </div>
+      <button class="play" aria-label="Play Rasta"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Play</button>
+    </div>
+    <div class="card">
+      <div class="av" style="background:#1b1e21;color:#00c8c8;border:1px solid #2a2e33">G</div>
+      <div class="who">
+        <div class="nm">Gittan</div>
+        <div class="meta">Yesterday · Name only</div>
+      </div>
+      <button class="play alt" aria-label="Play Gittan"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>Play</button>
+    </div>
+    <button class="add"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add character</button>
+
+    <div class="list">
+      <button class="row"><svg class="i ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg><span class="l">History</span><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="i ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path><path d="M19 17v4M17 19h4"></path></svg><span class="l">Spotlights</span><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="i ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg><span class="l">Profile</span><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="i ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"></path></svg><span class="l">Scripts</span><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="i ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 16v-4M12 8h.01"></path></svg><span class="l">About</span><svg class="i ch" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </div>
+
+    <div class="quote">"The burned hand teaches best."<b>— Gandalf</b></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

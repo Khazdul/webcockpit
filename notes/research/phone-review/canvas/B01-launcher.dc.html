@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>B01 Launcher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{--bg:#000;--tx:#c6c6c6;--hi:#e8e8e8;--dim:#8a8a8a;--acc:#ffaf00;--acc-tx:#ffaf00;--acc-ui:#ffaf00;--on-acc:#000;--sf:#121416;--rs:#1b1e21;--bd:#2a2e33;--empty:#262626;--red:#d75f5f;--green:#5faf5f;--yellow:#d7d75f;--blue:#5f87d7;--cyan:#00afaf;--cmd:#87afd7;position:relative;width:390px;height:844px;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--tx);font-family:'JetBrains Mono',ui-monospace,Menlo,monospace;font-size:13px;line-height:1.35}
+button,input,select{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg{display:block;flex:none}
+.cap{margin:0;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.ibtn{flex:none;width:44px;height:44px;border-radius:10px;background:var(--rs);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;color:var(--hi)}
+.btn{height:48px;padding:0 18px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.btn.pri{background:var(--acc);color:#000}
+.btn.sec{background:var(--rs);border:1px solid var(--bd);color:var(--hi)}
+.group{margin:0 16px;background:var(--sf);border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:14px;width:100%;min-height:52px;padding:0 14px;border-top:1px solid var(--bd);font-size:14px;color:var(--hi);text-align:left}
+.row:first-child{border-top:0}
+.row .t{flex:1}
+.row .val{color:var(--dim);font-size:13px}
+.row .ico{color:var(--dim)}
+.banner{display:flex;align-items:center;gap:12px;margin:12px 16px 0;padding:8px 8px 8px 14px;background:var(--sf);border:1px solid var(--bd);border-left:3px solid var(--acc);border-radius:10px}
+.banner p{flex:1;margin:0;font-size:13px;color:var(--hi)}
+.banner .btn{height:44px;padding:0 14px;font-size:12px}
+.wm{display:flex;justify-content:center;margin-top:30px}
+.quote{margin:14px 0 0;text-align:center;font-size:12px;font-style:italic;color:var(--dim)}
+.quote span{font-style:normal;color:#87af87}
+.head{display:flex;align-items:center;padding:26px 16px 10px}
+.char{display:flex;align-items:center;gap:12px;margin:0 16px 8px;padding:12px 12px 12px 14px;background:var(--sf);border:1px solid var(--bd);border-radius:12px}
+.av{flex:none;width:40px;height:40px;border-radius:8px;background:#0b2526;border:1px solid #13494b;color:#00c8c8;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.ct{flex:1;min-width:0}
+.cn{font-size:17px;font-weight:700;color:var(--hi)}
+.cs{font-size:12px;color:var(--dim)}
+.kb{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+.play{width:96px;padding:0}
+.add{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 16px;width:358px;height:52px;border:1px dashed #3e434a;border-radius:12px;font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--hi)}
+.more{margin-top:auto;padding-bottom:20px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="banner" role="status">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffaf00" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v10M7 9l5 5 5-5M5 19h14"></path></svg>
+    <p>Version 0.2.2 is ready.</p>
+    <button class="btn sec">Reload</button>
+  </div>
+
+  <div class="wm">
+    <svg width="205" height="55" viewBox="0 0 41 11" shape-rendering="crispEdges" role="img" aria-label="MUME Cockpit"><path fill="#00c8c8" d="M9 0h1v1h-1zM13 0h1v1h-1zM9 1h2v1h-2zM12 1h2v1h-2zM9 2h1v1h-1zM11 2h1v1h-1zM13 2h1v1h-1zM9 3h1v1h-1zM13 3h1v1h-1zM9 4h1v1h-1zM13 4h1v1h-1zM15 0h1v1h-1zM19 0h1v1h-1zM15 1h1v1h-1zM19 1h1v1h-1zM15 2h1v1h-1zM19 2h1v1h-1zM15 3h1v1h-1zM19 3h1v1h-1zM16 4h3v1h-3zM21 0h1v1h-1zM25 0h1v1h-1zM21 1h2v1h-2zM24 1h2v1h-2zM21 2h1v1h-1zM23 2h1v1h-1zM25 2h1v1h-1zM21 3h1v1h-1zM25 3h1v1h-1zM21 4h1v1h-1zM25 4h1v1h-1zM27 0h5v1h-5zM27 1h1v1h-1zM27 2h4v1h-4zM27 3h1v1h-1zM27 4h5v1h-5z"></path><path fill="#0a9a9a" d="M1 6h4v1h-4zM0 7h1v1h-1zM0 8h1v1h-1zM0 9h1v1h-1zM1 10h4v1h-4zM7 6h3v1h-3zM6 7h1v1h-1zM10 7h1v1h-1zM6 8h1v1h-1zM10 8h1v1h-1zM6 9h1v1h-1zM10 9h1v1h-1zM7 10h3v1h-3zM13 6h4v1h-4zM12 7h1v1h-1zM12 8h1v1h-1zM12 9h1v1h-1zM13 10h4v1h-4zM18 6h1v1h-1zM22 6h1v1h-1zM18 7h1v1h-1zM21 7h1v1h-1zM18 8h3v1h-3zM18 9h1v1h-1zM21 9h1v1h-1zM18 10h1v1h-1zM22 10h1v1h-1zM24 6h4v1h-4zM24 7h1v1h-1zM28 7h1v1h-1zM24 8h4v1h-4zM24 9h1v1h-1zM24 10h1v1h-1zM30 6h5v1h-5zM32 7h1v1h-1zM32 8h1v1h-1zM32 9h1v1h-1zM30 10h5v1h-5zM36 6h5v1h-5zM38 7h1v1h-1zM38 8h1v1h-1zM38 9h1v1h-1zM38 10h1v1h-1z"></path></svg>
+  </div>
+  <p class="quote">"The burned hand teaches best." <span>— Gandalf</span></p>
+
+  <div class="head"><h2 class="cap">Characters</h2></div>
+
+  <div class="char">
+    <div class="av" aria-hidden="true">R</div>
+    <div class="ct">
+      <div class="cn">Rasta</div>
+      <div class="cs">2 h ago</div>
+      <div class="cs">Password saved</div>
+    </div>
+    <button class="kb" aria-label="Rasta options"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6h.01M12 12h.01M12 18h.01"></path></svg></button>
+    <button class="btn pri play" aria-label="Play Rasta"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"></path></svg>Play</button>
+  </div>
+
+  <div class="char">
+    <div class="av" aria-hidden="true">G</div>
+    <div class="ct">
+      <div class="cn">Gittan</div>
+      <div class="cs">Yesterday</div>
+      <div class="cs">Name only</div>
+    </div>
+    <button class="kb" aria-label="Gittan options"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6h.01M12 12h.01M12 18h.01"></path></svg></button>
+    <button class="btn pri play" aria-label="Play Gittan"><svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"></path></svg>Play</button>
+  </div>
+
+  <button class="add"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add character</button>
+
+  <div class="more">
+    <div class="head"><h2 class="cap">More</h2></div>
+    <nav class="group" aria-label="More">
+      <button class="row"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4M12 8v4l3 2"></path></svg><span class="t">History</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4l2.3 5 5.2.5-4 3.5 1.2 5.2L12 15.5l-4.7 2.7L8.5 13l-4-3.5 5.2-.5z"></path></svg><span class="t">Spotlights</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"></rect><rect x="13" y="4" width="7" height="7" rx="1.5"></rect><rect x="4" y="13" width="7" height="7" rx="1.5"></rect><rect x="13" y="13" width="7" height="7" rx="1.5"></rect></svg><span class="t">Profile</span><span class="val">default</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M13.5 6l-3 12"></path></svg><span class="t">Scripts</span><span class="val">3 on</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+      <button class="row"><svg class="ico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 11v5M12 8h.01"></path></svg><span class="t">About</span><span class="val">v0.2.1</span><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+    </nav>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C13 Landscape, light play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ls{position:relative;width:844px;height:390px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.rail{width:72px;flex:none;display:flex;flex-direction:column;align-items:center;background:#121416;border-right:1px solid #2a2e33;padding:6px 0 8px}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.rv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:72px;height:58px;font-size:11px;font-weight:500;color:#9a9a9a}
+.rv .pl{width:48px;height:28px;border-radius:14px;display:grid;place-items:center;position:relative}
+.rv.on{color:#ffaf00}
+.rv.on .pl{background:rgba(255,175,0,.16)}
+.rv.focus .pl{box-shadow:inset 0 0 0 1px #3a3a3a}
+.bdg{position:absolute;top:-5px;left:30px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#ffaf00;color:#000;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+.lk{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;font-weight:500;color:#c6c6c6}
+.lk span{display:flex;align-items:center;gap:4px}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.rd{background:#d75f5f}
+.gcol{width:472px;flex:none;display:flex;flex-direction:column;min-width:0}
+.strip{height:36px;flex:none;display:flex;align-items:center;gap:12px;padding:0 10px;background:#0c0d0f;border-bottom:1px solid #2a2e33;font-size:12px;font-weight:600}
+.sv{display:flex;align-items:center;gap:5px;color:#c6c6c6}
+.mb{width:48px;height:6px;border-radius:3px;background:#262626;overflow:hidden;flex:none}
+.mb i{display:block;height:100%;border-radius:3px}
+.foe{margin-left:auto;display:flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;background:rgba(215,95,95,.16);color:#f09090;white-space:nowrap}
+.game{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:4px 6px 6px}
+.gt{margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;white-space:pre;color:#c6c6c6}
+.r{color:#d75f5f}.g{color:#5faf5f}.e{color:#87afd7}
+.qrow{height:52px;flex:none;display:flex;align-items:center;gap:4px;padding:0 4px;border-top:1px solid #1b1e21}
+.qb{height:44px;min-width:44px;padding:0 16px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-weight:600;font-size:15px;flex:none;display:flex;align-items:center;justify-content:center}
+.qb.mono{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:14px;font-weight:400}
+.qb.more{padding:0;width:44px}
+.inrow{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 6px 0 8px;background:#121416;border-top:1px solid #2a2e33}
+.inp{flex:1;min-width:0;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;padding:0 16px;outline:none}
+.inp::placeholder{color:#8a8a8a;font-family:'IBM Plex Sans',sans-serif}
+.send{width:44px;height:44px;border-radius:22px;background:#ffaf00;color:#000;display:grid;place-items:center;flex:none}
+.panel{flex:1;min-width:0;display:flex;flex-direction:column;background:#0b0c0e;border-left:1px solid #2a2e33}
+.filters{height:52px;flex:none;display:flex;align-items:center;gap:6px;padding:0 8px;overflow:hidden;position:relative;border-bottom:1px solid #1b1e21}
+.filters::after{content:'';position:absolute;right:0;top:0;bottom:0;width:32px;background:linear-gradient(90deg,rgba(11,12,14,0),#0b0c0e)}
+.fc{display:flex;align-items:center;gap:6px;height:44px;padding:0 12px 0 10px;border-radius:22px;border:1px solid #2a2e33;color:#9a9a9a;font-size:14px;font-weight:500;flex:none;white-space:nowrap}
+.fc .cd{width:10px;height:10px;border-radius:5px;flex:none;opacity:.45}
+.fc.solo{background:rgba(95,175,95,.16);border-color:#5faf5f;color:#e8e8e8}
+.fc.solo .cd{opacity:1}
+.fc.solo small{font-size:10px;font-weight:700;letter-spacing:.06em;padding:1px 6px;border-radius:8px;background:#5faf5f;color:#000}
+.msgs{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;gap:8px;padding:8px 10px}
+.bub{max-width:230px;padding:7px 12px 8px;border-radius:16px 16px 16px 4px;background:#14231a;border:1px solid #24402c;font-size:15px;color:#e8e8e8;line-height:1.3}
+.bub b{display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:600;color:#7fcf7f;margin-bottom:1px}
+.bub b span{font-weight:400;color:#9a9a9a}
+.bub.me{align-self:flex-end;border-radius:16px 16px 4px 16px;background:#1b1e21;border-color:#2a2e33}
+.bub.me b{color:#c6c6c6}
+.padbox{height:152px;flex:none;display:flex;gap:8px;padding:6px 8px;border-top:1px solid #1b1e21}
+.dp{display:grid;grid-template-columns:repeat(3,44px);grid-template-rows:repeat(3,44px);gap:4px}
+.dp button{border-radius:12px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-weight:700;font-size:15px}
+.dp button.ud{background:#16181b;color:#c6c6c6;font-size:14px}
+.dp button.ctr{font-size:12px;font-weight:600;color:#c6c6c6}
+.dp span{display:block}
+.side{flex:1;display:flex;flex-direction:column;gap:4px}
+.side button{height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-weight:600;font-size:15px}
+.side button.flee{background:#d75f5f;border-color:#d75f5f;color:#000}
+</style>
+</helmet>
+<div class="ls">
+  <nav class="rail" aria-label="Views">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <button class="rv focus"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>Game</button>
+    <button class="rv on" aria-current="page"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></span>Chat</button>
+    <button class="rv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Status</button>
+    <button class="rv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg></span>Map</button>
+    <div class="lk"><span><i class="dot"></i>38 ms</span><span><i class="dot rd"></i>REC</span></div>
+  </nav>
+
+  <div class="gcol">
+    <div class="strip" aria-label="Vitals">
+      <span class="sv">HP <span class="mb"><i style="width:74%;background:#d75f5f"></i></span></span>
+      <span class="sv">MA <span class="mb"><i style="width:80%;background:#5f87d7"></i></span></span>
+      <span class="sv">MV <span class="mb"><i style="width:90%;background:#5faf5f"></i></span></span>
+      <span class="foe">ruffian: Wounded</span>
+    </div>
+    <div class="game" role="log" aria-label="Game output">
+<pre class="gt">a large grassy park to the east.
+Exits: north, south, east.
+
+*=> <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east 'kill them
+all' in Orkish.
+A citizen mercenary (MERC) heroically rescues
+Dori.
+<span class="r">You cleave a half-orc ruffian extremely hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</pre>
+    </div>
+    <div class="qrow" aria-label="Quick buttons">
+      <button class="qb">Look</button>
+      <button class="qb mono">rescue dori</button>
+      <button class="qb mono">score</button>
+      <button class="qb mono">bash</button>
+      <button class="qb more" aria-label="More quick buttons"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+    </div>
+    <div class="inrow">
+      <label class="sr" for="c13-in">Command</label>
+      <input class="inp" id="c13-in" type="text" placeholder="Type a command" autocomplete="off" autocapitalize="off">
+      <button class="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+    </div>
+  </div>
+
+  <aside class="panel" aria-label="Chat">
+    <div class="filters" role="group" aria-label="Channels">
+      <button class="fc solo" aria-pressed="true"><span class="cd" style="background:#5faf5f"></span>Tells<small>SOLO</small></button>
+      <button class="fc" aria-pressed="false"><span class="cd" style="background:#d7d75f"></span>Narrates</button>
+      <button class="fc" aria-pressed="false"><span class="cd" style="background:#00afaf"></span>Says</button>
+    </div>
+    <div class="msgs" role="log" aria-label="Tells">
+      <div class="bub"><b>Gibur<span>5m</span></b>meet me at the Pony, bring the merc</div>
+      <div class="bub me"><b>You<span>4m</span></b>on my way</div>
+      <div class="bub"><b>Gibur<span>now</span></b>more coming, 2 trolls</div>
+    </div>
+    <div class="padbox">
+      <div class="dp" role="group" aria-label="Direction pad">
+        <span></span>
+        <button aria-label="North">N</button>
+        <button class="ud" aria-label="Up">U</button>
+        <button aria-label="West">W</button>
+        <button class="ctr">Exits</button>
+        <button aria-label="East">E</button>
+        <span></span>
+        <button aria-label="South">S</button>
+        <button class="ud" aria-label="Down">D</button>
+      </div>
+      <div class="side">
+        <button class="flee">Flee</button>
+        <button>Open</button>
+        <button>Close</button>
+      </div>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":844,"height":390}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

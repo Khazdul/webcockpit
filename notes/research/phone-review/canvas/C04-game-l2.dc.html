@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C04 Game, light play</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.rec{width:10px;height:10px;border-radius:5px;background:#d75f5f;margin:0 8px 0 6px;flex:none}
+.strip{height:40px;flex:none;display:flex;align-items:center;gap:10px;padding:0 12px;background:#0c0d0f;border-bottom:1px solid #2a2e33;font-size:12px;font-weight:600}
+.sv{display:flex;align-items:center;gap:5px;color:#c6c6c6}
+.mb{width:36px;height:6px;border-radius:3px;background:#262626;overflow:hidden;flex:none}
+.mb i{display:block;height:100%;border-radius:3px}
+.foe{margin-left:auto;display:flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:13px;background:rgba(215,95,95,.16);color:#f09090;white-space:nowrap}
+.game{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 6px 8px;position:relative}
+.gt{margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;white-space:pre;color:#c6c6c6}
+.r{color:#d75f5f}.g{color:#5faf5f}.y{color:#d7d75f}.c{color:#00afaf}.e{color:#87afd7}
+.qrow{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 4px;background:#000;border-top:1px solid #1b1e21}
+.seg{display:flex;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;overflow:hidden;flex:none}
+.seg button{width:44px;height:42px;font-weight:600;font-size:15px;color:#e8e8e8;border-left:1px solid #2a2e33}
+.seg button:first-child{border-left:0}
+.qb{height:44px;min-width:44px;padding:0 14px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-weight:600;font-size:15px;flex:none;display:flex;align-items:center;justify-content:center}
+.qb.flee{background:#d75f5f;border-color:#d75f5f;color:#000;width:64px}
+.qb.more{width:44px;padding:0}
+.inrow{height:60px;flex:none;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;background:#121416;border-top:1px solid #2a2e33}
+.inp{flex:1;min-width:0;height:44px;border-radius:22px;background:#1b1e21;border:1px solid #2a2e33;color:#e8e8e8;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;padding:0 16px;outline:none}
+.inp::placeholder{color:#8a8a8a;font-family:'IBM Plex Sans',sans-serif}
+.send{width:44px;height:44px;border-radius:22px;background:#ffaf00;color:#000;display:grid;place-items:center;flex:none}
+.nav{height:64px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:#121416;border-top:1px solid #2a2e33;padding:6px 4px 8px}
+.nv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:500;color:#9a9a9a;position:relative}
+.nv .pl{width:56px;height:30px;border-radius:15px;display:grid;place-items:center;position:relative}
+.nv.on{color:#ffaf00}
+.nv.on .pl{background:rgba(255,175,0,.16)}
+.bdg{position:absolute;top:-4px;left:34px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffaf00;color:#000;font-size:12px;font-weight:700;line-height:20px;text-align:center}
+.fab{position:absolute;right:16px;bottom:196px;width:56px;height:56px;border-radius:28px;background:#ffaf00;color:#000;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.7)}
+.toast{position:absolute;left:8px;right:8px;top:8px;display:flex;align-items:center;gap:12px;padding:12px 8px 12px 14px;border-radius:18px;background:#1f2326;border:1px solid #33383e;box-shadow:0 10px 30px rgba(0,0,0,.75)}
+.tav{width:40px;height:40px;border-radius:20px;background:rgba(95,175,95,.18);color:#7fcf7f;display:grid;place-items:center;font-weight:700;font-size:17px;flex:none}
+.tb{flex:1;min-width:0}
+.th{display:flex;align-items:baseline;gap:6px;font-size:13px;color:#9a9a9a}
+.th b{font-size:15px;font-weight:600;color:#e8e8e8}
+.th .ch{color:#7fcf7f;font-weight:600}
+.tm{font-size:15px;color:#e8e8e8;margin-top:1px}
+.reply{display:flex;align-items:center;gap:6px;height:44px;padding:0 14px;border-radius:22px;background:#ffaf00;color:#000;font-weight:600;font-size:15px;flex:none}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div class="ttl">Rasta</div>
+    <span class="lq"><span class="dot"></span>38 ms</span>
+    <span class="rec" role="img" aria-label="Recording"></span>
+  </div>
+  <div class="strip" aria-label="Vitals">
+    <span class="sv">HP <span class="mb"><i style="width:74%;background:#d75f5f"></i></span></span>
+    <span class="sv">MA <span class="mb"><i style="width:80%;background:#5f87d7"></i></span></span>
+    <span class="sv">MV <span class="mb"><i style="width:90%;background:#5faf5f"></i></span></span>
+    <span class="foe">ruffian: Wounded</span>
+  </div>
+  <div class="game" role="log" aria-label="Game output">
+<pre class="gt">Exits: north, south, east, west.
+
+*=> <span class="e">n</span>
+<span class="g">Hill Road</span>
+The white gravelled road bordered with
+white stone blocks flows naturally
+though Bree-hill, slightly narrowing
+where it intersects with an entrance to
+a large grassy park to the east.
+Exits: north, south, east.
+
+*=>
+<span class="r">A half-orc ruffian arrives from the north.</span>
+
+*=> <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</pre>
+  </div>
+  <button class="fab" aria-label="Direction pad"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M15.5 8.5l-2 5-5 2 2-5z"></path></svg></button>
+  <div class="qrow" aria-label="Quick buttons">
+    <div class="seg" role="group" aria-label="Directions">
+      <button aria-label="North">N</button><button aria-label="South">S</button><button aria-label="East">E</button><button aria-label="West">W</button><button aria-label="Up">U</button><button aria-label="Down">D</button>
+    </div>
+    <button class="qb flee">Flee</button>
+    <button class="qb more" aria-label="More quick buttons"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></button>
+  </div>
+  <div class="inrow">
+    <label class="sr" for="c04-in">Command</label>
+    <input class="inp" id="c04-in" type="text" placeholder="Type a command" autocomplete="off" autocapitalize="off">
+    <button class="send" aria-label="Send"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button class="nv on" aria-current="page"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>Game</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="bdg">3</span></span>Chat</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Status</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg></span>Map</button>
+  </nav>
+  <div class="toast" role="status">
+    <div class="tav" aria-hidden="true">G</div>
+    <div class="tb">
+      <div class="th"><b>Gibur</b><span class="ch">tells you</span><span>· now</span></div>
+      <div class="tm">more coming, 2 trolls</div>
+    </div>
+    <button class="reply"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 17l-5-5 5-5M4 12h11a5 5 0 0 1 5 5v2"></path></svg>Reply</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C07 Status</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35;display:flex;flex-direction:column}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.rec{width:10px;height:10px;border-radius:5px;background:#d75f5f;margin:0 8px 0 6px;flex:none}
+.scroll{flex:1;min-height:0;overflow:hidden;padding:12px 16px 0;display:flex;flex-direction:column;gap:12px}
+.card{border-radius:18px;background:#121416;border:1px solid #2a2e33;padding:14px 16px;flex:none}
+.ch{display:flex;align-items:center;gap:10px}
+.cn{font-size:22px;font-weight:600;color:#e8e8e8;line-height:1.15}
+.cs{font-size:14px;color:#9a9a9a}
+.clock{margin-left:auto;display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:14px;font-weight:600;color:#e8d68a}
+.bars{margin-top:12px;display:flex;flex-direction:column;gap:6px}
+.br{display:flex;align-items:center;gap:10px;height:24px}
+.br .lb{width:44px;font-size:14px;font-weight:600;color:#c6c6c6}
+.br .tr{flex:1;height:12px;border-radius:6px;background:#262626;overflow:hidden}
+.br .tr i{display:block;height:100%;border-radius:6px}
+.br .nm{width:72px;text-align:right;font-size:15px;font-weight:600;color:#e8e8e8;font-variant-numeric:tabular-nums}
+.br .nm small{font-size:12px;font-weight:500;color:#9a9a9a}
+.kv{margin-top:12px;display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:8px}
+.kv div{font-size:12px;color:#9a9a9a}
+.kv b{display:block;font-size:15px;font-weight:600;color:#e8e8e8}
+.pills{margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pill{height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:14px;font-weight:600}
+.pill.on{background:#00c8c8;color:#000}
+.pill.off{border:1px solid #3a3a3a;color:#9a9a9a}
+.pill.off small{font-size:12px;font-weight:500}
+.hd{display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600;color:#e8e8e8;margin-bottom:4px}
+.hd span{font-size:13px;font-weight:500;color:#9a9a9a}
+.gr{display:grid;grid-template-columns:112px 1fr 1fr 1fr;column-gap:8px;align-items:end;height:48px;padding-bottom:6px;border-top:1px solid #1f2327}
+.gr:nth-child(2){border-top:0}
+.gn{font-size:15px;font-weight:600;color:#e8e8e8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;align-self:center}
+.gn small{display:block;font-size:12px;font-weight:500;color:#9a9a9a}
+.gn small.hurt{color:#f09090}
+.gc{font-size:12px;color:#9a9a9a;font-variant-numeric:tabular-nums}
+.gc b{color:#e8e8e8;font-weight:600}
+.gb{height:6px;border-radius:3px;background:#262626;overflow:hidden;margin-top:3px}
+.gb i{display:block;height:100%;border-radius:3px}
+.rings{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px}
+.tmr{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;color:#c6c6c6;text-align:center;white-space:nowrap}
+.ring{position:relative;width:56px;height:56px}
+.ring svg{position:absolute;inset:0}
+.ring span{position:absolute;inset:0;display:grid;place-items:center;font-size:13px;font-weight:700;color:#e8e8e8;font-variant-numeric:tabular-nums}
+.urgent .ring span{color:#ffaf00}
+.urgent{color:#ffaf00}
+.blink{animation:bl 1s steps(2,start) infinite}
+@keyframes bl{to{visibility:hidden}}
+.nav{height:64px;flex:none;display:grid;grid-template-columns:repeat(4,1fr);background:#121416;border-top:1px solid #2a2e33;padding:6px 4px 8px}
+.nv{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:500;color:#9a9a9a;position:relative}
+.nv .pl{width:56px;height:30px;border-radius:15px;display:grid;place-items:center;position:relative}
+.nv.on{color:#ffaf00}
+.nv.on .pl{background:rgba(255,175,0,.16)}
+.bdg{position:absolute;top:-4px;left:34px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffaf00;color:#000;font-size:12px;font-weight:700;line-height:20px;text-align:center}
+</style>
+</helmet>
+<div class="ph">
+  <div class="bar">
+    <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+    <div class="ttl">Rasta</div>
+    <span class="lq"><span class="dot"></span>38 ms</span>
+    <span class="rec" role="img" aria-label="Recording"></span>
+  </div>
+  <div class="scroll">
+    <section class="card" aria-label="Character">
+      <div class="ch">
+        <div><div class="cn">Rasta</div><div class="cs">Level 25 · Hill Road</div></div>
+        <span class="clock">☼ 3:40</span>
+      </div>
+      <div class="bars">
+        <div class="br"><span class="lb">HP</span><span class="tr"><i style="width:74%;background:#d75f5f"></i></span><span class="nm">118<small> /160</small></span></div>
+        <div class="br"><span class="lb">Mana</span><span class="tr"><i style="width:80%;background:#5f87d7"></i></span><span class="nm">96<small> /120</small></span></div>
+        <div class="br"><span class="lb">Move</span><span class="tr"><i style="width:90%;background:#5faf5f"></i></span><span class="nm">81<small> /90</small></span></div>
+      </div>
+      <div class="kv">
+        <div>Fighting<b style="color:#f09090">ruffian · Wounded</b></div>
+        <div>Mood<b>Brave</b></div>
+        <div>Alertness<b>Careful</b></div>
+      </div>
+      <div class="pills">
+        <button class="pill on" aria-pressed="true"><svg class="i sm" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width:3"><path d="M5 12l5 5 9-10"></path></svg>Sneak</button>
+        <button class="pill off" aria-pressed="false">Ride <small>off</small></button>
+        <button class="pill off" aria-pressed="false">Climb <small>off</small></button>
+        <button class="pill off" aria-pressed="false">Swim <small>off</small></button>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Group">
+      <div class="hd">Group <span>4 members</span></div>
+      <div class="gr">
+        <div class="gn">Rasta<small>you</small></div>
+        <div class="gc">HP <b>74%</b><div class="gb"><i style="width:74%;background:#d75f5f"></i></div></div>
+        <div class="gc">Mana <b>80%</b><div class="gb"><i style="width:80%;background:#5f87d7"></i></div></div>
+        <div class="gc">Move <b>90%</b><div class="gb"><i style="width:90%;background:#5faf5f"></i></div></div>
+      </div>
+      <div class="gr">
+        <div class="gn">Gibur</div>
+        <div class="gc">HP <b>85%</b><div class="gb"><i style="width:85%;background:#d75f5f"></i></div></div>
+        <div class="gc">Mana <b>60%</b><div class="gb"><i style="width:60%;background:#5f87d7"></i></div></div>
+        <div class="gc">Move <b>70%</b><div class="gb"><i style="width:70%;background:#5faf5f"></i></div></div>
+      </div>
+      <div class="gr">
+        <div class="gn">Dori<small class="hurt">Hurt · blind</small></div>
+        <div class="gc">HP <b style="color:#f09090">41%</b><div class="gb"><i style="width:41%;background:#d75f5f"></i></div></div>
+        <div class="gc">Mana <b>–</b><div class="gb"></div></div>
+        <div class="gc">Move <b>55%</b><div class="gb"><i style="width:55%;background:#5faf5f"></i></div></div>
+      </div>
+      <div class="gr">
+        <div class="gn">citizen mercenary<small>NPC</small></div>
+        <div class="gc">HP <b>90%</b><div class="gb"><i style="width:90%;background:#d75f5f"></i></div></div>
+        <div class="gc">Mana <b>–</b><div class="gb"></div></div>
+        <div class="gc">Move <b>–</b><div class="gb"></div></div>
+      </div>
+    </section>
+
+    <section class="card" aria-label="Timers">
+      <div class="hd">Timers <span>5 active</span></div>
+      <div class="rings">
+        <div class="tmr urgent">
+          <div class="ring"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="#262626" stroke-width="5"></circle><circle class="blink" cx="28" cy="28" r="24" fill="none" stroke="#ffaf00" stroke-width="5" stroke-linecap="round" stroke-dasharray="19 151" transform="rotate(-90 28 28)"></circle></svg><span>1m</span></div>
+          sanctuary
+        </div>
+        <div class="tmr" style="color:#f09090">
+          <div class="ring"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="#262626" stroke-width="5"></circle><circle cx="28" cy="28" r="24" fill="none" stroke="#d75f5f" stroke-width="5" stroke-linecap="round" stroke-dasharray="30 151" transform="rotate(-90 28 28)"></circle></svg><span>0:24</span></div>
+          blind: Dori
+        </div>
+        <div class="tmr">
+          <div class="ring"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="#262626" stroke-width="5"></circle><circle cx="28" cy="28" r="24" fill="none" stroke="#00c8c8" stroke-width="5" stroke-linecap="round" stroke-dasharray="50 151" transform="rotate(-90 28 28)"></circle></svg><span>4m</span></div>
+          bless
+        </div>
+        <div class="tmr">
+          <div class="ring"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="#262626" stroke-width="5"></circle><circle cx="28" cy="28" r="24" fill="none" stroke="#00c8c8" stroke-width="5" stroke-linecap="round" stroke-dasharray="113 151" transform="rotate(-90 28 28)"></circle></svg><span>9m</span></div>
+          strength
+        </div>
+        <div class="tmr">
+          <div class="ring"><svg width="56" height="56" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="24" fill="none" stroke="#262626" stroke-width="5"></circle><circle cx="28" cy="28" r="24" fill="none" stroke="#00c8c8" stroke-width="5" stroke-linecap="round" stroke-dasharray="75 151" transform="rotate(-90 28 28)"></circle></svg><span>12m</span></div>
+          armour
+        </div>
+      </div>
+    </section>
+  </div>
+  <nav class="nav" aria-label="Views">
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l6-6-6-6M12 19h8"></path></svg></span>Game</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><span class="bdg">3</span></span>Chat</button>
+    <button class="nv on" aria-current="page"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg></span>Status</button>
+    <button class="nv"><span class="pl"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"></path></svg></span>Map</button>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>C09 Menu drawer</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+*{box-sizing:border-box}
+.ph{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.35}
+button,input{font:inherit;color:inherit;margin:0}
+button{background:none;border:0;padding:0;cursor:pointer}
+svg.i{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+svg.sm{width:18px;height:18px}
+.under{position:absolute;inset:0;display:flex;flex-direction:column}
+.bar{height:56px;flex:none;display:flex;align-items:center;gap:4px;padding:0 8px 0 4px;background:#121416;border-bottom:1px solid #2a2e33}
+.ib{width:48px;height:48px;border-radius:24px;display:grid;place-items:center;color:#e8e8e8;flex:none}
+.ttl{flex:1;min-width:0;font-size:18px;font-weight:600;color:#e8e8e8}
+.lq{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:16px;background:#1b1e21;font-size:13px;font-weight:500;color:#c6c6c6}
+.dot{width:8px;height:8px;border-radius:4px;background:#5faf5f;flex:none}
+.game{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:6px 6px 8px}
+.gt{margin:0;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;white-space:pre;color:#c6c6c6}
+.r{color:#d75f5f}.g{color:#5faf5f}.e{color:#87afd7}
+.inrow{height:60px;flex:none;background:#121416;border-top:1px solid #2a2e33}
+.nav{height:64px;flex:none;background:#121416;border-top:1px solid #2a2e33}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.66)}
+.drawer{position:absolute;left:0;top:0;bottom:0;width:316px;background:#121416;border-right:1px solid #2a2e33;border-radius:0 22px 22px 0;display:flex;flex-direction:column;box-shadow:12px 0 40px rgba(0,0,0,.6)}
+.dh{padding:20px 16px 16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #2a2e33}
+.av{width:52px;height:52px;border-radius:26px;background:#00c8c8;color:#000;display:grid;place-items:center;font-weight:700;font-size:22px;flex:none}
+.dn{font-size:20px;font-weight:600;color:#e8e8e8}
+.ds{display:flex;align-items:center;gap:6px;font-size:13px;color:#c6c6c6;margin-top:2px;white-space:nowrap}
+.ds .rd{width:8px;height:8px;border-radius:4px;background:#d75f5f;margin-left:4px}
+.items{padding:8px 8px 0;display:flex;flex-direction:column}
+.it{display:flex;align-items:center;gap:16px;min-height:52px;padding:0 12px;border-radius:26px;text-align:left;color:#e8e8e8;font-size:16px;font-weight:500}
+.it svg{color:#c6c6c6}
+.it .t{flex:1}
+.it .s{display:block;font-size:13px;font-weight:400;color:#9a9a9a}
+.it.big{min-height:60px}
+.it .live{display:inline-flex;align-items:center;gap:6px;color:#f09090}
+.it .live i{width:8px;height:8px;border-radius:4px;background:#d75f5f}
+.it .tagx{font-size:12px;color:#9a9a9a}
+.div{height:1px;background:#2a2e33;margin:8px 12px}
+.exit{margin:auto 12px 16px;padding:14px 14px 12px;border-radius:18px;background:#1b1e21;border:1px solid #2a2e33}
+.exit .q{font-size:14px;color:#c6c6c6;text-align:center}
+.stars{display:flex;justify-content:center;gap:2px;margin:6px 0 10px}
+.star{width:48px;height:48px;display:grid;place-items:center;color:#ffaf00}
+.star svg{width:32px;height:32px}
+.star.f svg{fill:#ffaf00}
+.star.e{color:#6a6a6a}
+.exb{width:100%;height:50px;border-radius:25px;background:#d75f5f;color:#000;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+</style>
+</helmet>
+<div class="ph">
+  <div class="under" inert="">
+    <div class="bar">
+      <button class="ib" aria-label="Menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+      <div class="ttl">Rasta</div>
+      <span class="lq"><span class="dot"></span>38 ms</span>
+    </div>
+    <div class="game">
+<pre class="gt">*=> <span class="e">kill ruffian</span>
+You attack a half-orc ruffian.
+<span class="r">You slash a half-orc ruffian hard.</span>
+
+*= HP:Fine R:Fine&gt;
+A half-orc ruffian slashes you.
+<span class="g">Gibur tells you 'more coming, 2 trolls'</span>
+<span class="r">*Throzghul*</span> yells loudly from the east
+'kill them all' in Orkish.
+A citizen mercenary (MERC) heroically
+rescues Dori.
+<span class="r">You cleave a half-orc ruffian extremely
+hard.</span>
+
+*= HP:Hurt R:Wounded&gt;</pre>
+    </div>
+    <div class="inrow"></div>
+    <div class="nav"></div>
+  </div>
+  <div class="scrim" aria-hidden="true"></div>
+  <nav class="drawer" aria-label="Session menu">
+    <div class="dh">
+      <div class="av" aria-hidden="true">R</div>
+      <div>
+        <div class="dn">Rasta</div>
+        <div class="ds"><span class="dot"></span>Link 38 ms<span class="rd"></span>Recording</div>
+      </div>
+    </div>
+    <div class="items">
+      <button class="it big"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg><span class="t">Statistics<span class="s"><span class="live"><i></i>Run in progress</span> · 42 min</span></span></button>
+      <button class="it"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"></path></svg><span class="t">Quick buttons &amp; profile</span></button>
+      <button class="it"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg><span class="t">Settings</span></button>
+      <button class="it"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg><span class="t">Fullscreen</span></button>
+      <button class="it"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 16v-4M12 8h.01"></path></svg><span class="t">About</span></button>
+      <div class="div"></div>
+      <button class="it"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M18.4 6.6a9 9 0 1 1-12.8 0M12 2v10"></path></svg><span class="t">Disconnect</span></button>
+    </div>
+    <div class="exit">
+      <div class="q">How was this session?</div>
+      <div class="stars" role="radiogroup" aria-label="Rate this session">
+        <button class="star f" role="radio" aria-checked="false" aria-label="1 star"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"></path></svg></button>
+        <button class="star f" role="radio" aria-checked="false" aria-label="2 stars"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"></path></svg></button>
+        <button class="star f" role="radio" aria-checked="false" aria-label="3 stars"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"></path></svg></button>
+        <button class="star f" role="radio" aria-checked="true" aria-label="4 stars"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"></path></svg></button>
+        <button class="star e" role="radio" aria-checked="false" aria-label="5 stars"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5-4.8-4.6 6.6-.9z"></path></svg></button>
+      </div>
+      <button class="exb"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>Exit session</button>
+    </div>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

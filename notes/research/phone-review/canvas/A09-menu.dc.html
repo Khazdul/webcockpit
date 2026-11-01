@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A09 In-game menu</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+:where(.s) button{font:inherit;letter-spacing:inherit;border-radius:0;margin:0;background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.d{color:#8a8a8a}.r{color:#d75f5f}.a{color:#ffaf00}.w{color:#e8e8e8}.b{font-weight:700}
+.top{flex:none;display:flex;align-items:center;justify-content:space-between;padding:14px 0 0 16px}
+.x{width:56px;height:56px;border:0;color:#ffaf00;font-size:22px;padding:0}
+.who{flex:none;padding:10px 16px 0;color:#8a8a8a}
+.who .rec{color:#d75f5f}
+.sp{flex:1}
+nav{flex:none;padding:0 16px}
+.it{display:flex;align-items:center;justify-content:space-between;width:100%;height:52px;border:0;border-bottom:1px solid #262626;padding:0 6px;text-align:left}
+.it:first-child{border-top:1px solid #262626}
+.it .k{color:#8a8a8a}
+.ex{color:#d75f5f;font-weight:700;border-bottom:0}
+.rate{flex:none;margin:0 16px 16px;border:1px solid #d75f5f;padding:12px 10px 10px}
+.rate p{margin:0 0 10px;color:#e8e8e8}
+.stars{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#3a3a3a;border:1px solid #3a3a3a;margin-bottom:10px}
+.stars button{border:0;height:56px;padding:0;font-size:26px;color:#8a8a8a}
+.stars button.on{color:#ffaf00}
+.acts{display:flex;gap:8px}
+.acts button{flex:1;height:52px}
+.acts .go{background:#d75f5f;border-color:#d75f5f;color:#000;font-weight:700}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <div class="top">
+    <svg role="img" aria-label="MUME Cockpit" width="177" height="15" viewBox="0 0 59 5" shape-rendering="crispEdges"><path fill="#00c8c8" d="M0 0h1v1h-1zM4 0h1v1h-1zM0 1h2v1h-2zM3 1h2v1h-2zM0 2h1v1h-1zM2 2h1v1h-1zM4 2h1v1h-1zM0 3h1v1h-1zM4 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM6 0h1v1h-1zM10 0h1v1h-1zM6 1h1v1h-1zM10 1h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM7 4h3v1h-3zM12 0h1v1h-1zM16 0h1v1h-1zM12 1h2v1h-2zM15 1h2v1h-2zM12 2h1v1h-1zM14 2h1v1h-1zM16 2h1v1h-1zM12 3h1v1h-1zM16 3h1v1h-1zM12 4h1v1h-1zM16 4h1v1h-1zM18 0h4v1h-4zM18 1h1v1h-1zM18 2h3v1h-3zM18 3h1v1h-1zM18 4h4v1h-4z"></path><path fill="#0a9a9a" d="M26 0h3v1h-3zM25 1h1v1h-1zM25 2h1v1h-1zM25 3h1v1h-1zM26 4h3v1h-3zM31 0h2v1h-2zM30 1h1v1h-1zM33 1h1v1h-1zM30 2h1v1h-1zM33 2h1v1h-1zM30 3h1v1h-1zM33 3h1v1h-1zM31 4h2v1h-2zM36 0h3v1h-3zM35 1h1v1h-1zM35 2h1v1h-1zM35 3h1v1h-1zM36 4h3v1h-3zM40 0h1v1h-1zM43 0h1v1h-1zM40 1h1v1h-1zM42 1h1v1h-1zM40 2h2v1h-2zM40 3h1v1h-1zM42 3h1v1h-1zM40 4h1v1h-1zM43 4h1v1h-1zM45 0h3v1h-3zM45 1h1v1h-1zM48 1h1v1h-1zM45 2h3v1h-3zM45 3h1v1h-1zM45 4h1v1h-1zM50 0h3v1h-3zM51 1h1v1h-1zM51 2h1v1h-1zM51 3h1v1h-1zM50 4h3v1h-3zM54 0h5v1h-5zM56 1h1v1h-1zM56 2h1v1h-1zM56 3h1v1h-1zM56 4h1v1h-1z"></path></svg>
+    <button type="button" class="x" aria-label="Close menu">×</button>
+  </div>
+  <div class="who"><span class="w b">Rasta</span> · Link 38 ms · <span class="rec">● Recording</span></div>
+
+  <div class="sp"></div>
+
+  <nav aria-label="Menu">
+    <button type="button" class="it">Statistics<span class="k">run in progress ▸</span></button>
+    <button type="button" class="it">Quick buttons &amp; profile<span class="k">▸</span></button>
+    <button type="button" class="it">Settings<span class="k">▸</span></button>
+    <button type="button" class="it" aria-pressed="false">Fullscreen<span class="k">[ ]</span></button>
+    <button type="button" class="it">About<span class="k">▸</span></button>
+    <button type="button" class="it">Disconnect<span class="k">▸</span></button>
+    <button type="button" class="it ex" aria-expanded="true">Exit session<span>▾</span></button>
+  </nav>
+
+  <div class="rate" role="group" aria-labelledby="rt">
+    <p id="rt">Rate this session</p>
+    <div class="stars">
+      <button type="button" class="on" aria-label="1 star">★</button>
+      <button type="button" class="on" aria-label="2 stars">★</button>
+      <button type="button" class="on" aria-label="3 stars">★</button>
+      <button type="button" class="on" aria-label="4 stars" aria-pressed="true">★</button>
+      <button type="button" aria-label="5 stars">☆</button>
+    </div>
+    <div class="acts">
+      <button type="button">[ CANCEL ]</button>
+      <button type="button" class="go">[ EXIT ]</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

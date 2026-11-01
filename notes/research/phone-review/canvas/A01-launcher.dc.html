@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A01 Launcher</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+.s button{font:inherit;letter-spacing:inherit;border-radius:0;margin:0;background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.d{color:#8a8a8a}.g{color:#5faf5f}.y{color:#d7d75f}.a{color:#ffaf00}.w{color:#e8e8e8}.b{font-weight:700}
+.top{flex:none;display:flex;flex-direction:column;align-items:center;padding-top:44px}
+.ver{margin-top:10px}
+.ban{flex:none;margin:20px 16px 0;display:flex;align-items:center;border:1px solid #d7d75f;height:48px;color:#d7d75f}
+.ban span{flex:1;padding-left:12px}
+.ban button{height:46px;border:0;border-left:1px solid #d7d75f;color:#d7d75f;font-weight:700}
+.quote{flex:none;margin:30px 0 0;text-align:center}
+.quote i{color:#8a8a8a}
+.sp{flex:1}
+.bot{flex:none;padding:0 16px 16px}
+.hd{display:flex;align-items:center;gap:8px;height:30px;color:#8a8a8a;letter-spacing:.08em}
+.hd::before{content:"";width:14px;border-top:1px solid #3a3a3a}
+.hd::after{content:"";flex:1;border-top:1px solid #3a3a3a}
+.card{display:flex;align-items:stretch;border:1px solid #3a3a3a;height:68px;margin-bottom:8px}
+.who{flex:1;display:flex;flex-direction:column;justify-content:center;gap:5px;padding-left:12px}
+.play{width:118px;border:0 !important;border-left:1px solid #3a3a3a !important;color:#ffaf00 !important;font-weight:700}
+.play.on{background:#ffaf00 !important;color:#000 !important}
+.add{width:100%;height:48px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;width:100%;height:46px;border:0 !important;border-bottom:1px solid #262626 !important;padding:0 6px !important;color:#c6c6c6 !important;text-align:left}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <div class="top">
+    <svg role="img" aria-label="MUME Cockpit" width="204" height="66" viewBox="0 0 34 11" shape-rendering="crispEdges"><path fill="#00c8c8" d="M6 0h1v1h-1zM10 0h1v1h-1zM6 1h2v1h-2zM9 1h2v1h-2zM6 2h1v1h-1zM8 2h1v1h-1zM10 2h1v1h-1zM6 3h1v1h-1zM10 3h1v1h-1zM6 4h1v1h-1zM10 4h1v1h-1zM12 0h1v1h-1zM16 0h1v1h-1zM12 1h1v1h-1zM16 1h1v1h-1zM12 2h1v1h-1zM16 2h1v1h-1zM12 3h1v1h-1zM16 3h1v1h-1zM13 4h3v1h-3zM18 0h1v1h-1zM22 0h1v1h-1zM18 1h2v1h-2zM21 1h2v1h-2zM18 2h1v1h-1zM20 2h1v1h-1zM22 2h1v1h-1zM18 3h1v1h-1zM22 3h1v1h-1zM18 4h1v1h-1zM22 4h1v1h-1zM24 0h4v1h-4zM24 1h1v1h-1zM24 2h3v1h-3zM24 3h1v1h-1zM24 4h4v1h-4z"></path><path fill="#0a9a9a" d="M1 6h3v1h-3zM0 7h1v1h-1zM0 8h1v1h-1zM0 9h1v1h-1zM1 10h3v1h-3zM6 6h2v1h-2zM5 7h1v1h-1zM8 7h1v1h-1zM5 8h1v1h-1zM8 8h1v1h-1zM5 9h1v1h-1zM8 9h1v1h-1zM6 10h2v1h-2zM11 6h3v1h-3zM10 7h1v1h-1zM10 8h1v1h-1zM10 9h1v1h-1zM11 10h3v1h-3zM15 6h1v1h-1zM18 6h1v1h-1zM15 7h1v1h-1zM17 7h1v1h-1zM15 8h2v1h-2zM15 9h1v1h-1zM17 9h1v1h-1zM15 10h1v1h-1zM18 10h1v1h-1zM20 6h3v1h-3zM20 7h1v1h-1zM23 7h1v1h-1zM20 8h3v1h-3zM20 9h1v1h-1zM20 10h1v1h-1zM25 6h3v1h-3zM26 7h1v1h-1zM26 8h1v1h-1zM26 9h1v1h-1zM25 10h3v1h-3zM29 6h5v1h-5zM31 7h1v1h-1zM31 8h1v1h-1zM31 9h1v1h-1zM31 10h1v1h-1z"></path></svg>
+    <div class="ver d">v0.2.1</div>
+  </div>
+
+  <div class="ban" role="status"><span>▲ Update 0.2.2 is ready</span><button type="button">RELOAD</button></div>
+
+  <p class="quote"><i>"The burned hand teaches best."</i><br><span class="g">— Gandalf</span></p>
+
+  <div class="sp"></div>
+
+  <div class="bot">
+    <div class="hd">CHARACTERS</div>
+    <div class="card">
+      <div class="who"><span class="w b">Rasta</span><span class="d">2 h ago · password saved</span></div>
+      <button type="button" class="play on" aria-label="Play as Rasta">[ PLAY ]</button>
+    </div>
+    <div class="card">
+      <div class="who"><span class="w b">Gittan</span><span class="d">yesterday · name only</span></div>
+      <button type="button" class="play" aria-label="Play as Gittan">[ PLAY ]</button>
+    </div>
+    <button type="button" class="add">[ + ADD CHARACTER ]</button>
+
+    <nav aria-label="More">
+      <button type="button" class="row" style="border-top:1px solid #262626 !important">History<span class="d">▸</span></button>
+      <button type="button" class="row">Spotlights<span class="d">▸</span></button>
+      <button type="button" class="row">Profile<span class="d">default ▸</span></button>
+      <button type="button" class="row">Scripts<span class="d">▸</span></button>
+      <button type="button" class="row">About<span class="d">▸</span></button>
+    </nav>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

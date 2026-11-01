@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>A06 Comm, message actions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000}
+.s{position:relative;width:390px;height:844px;overflow:hidden;background:#000;color:#c6c6c6;font-family:'JetBrains Mono',ui-monospace,monospace;font-size:15px;line-height:18px;display:flex;flex-direction:column}
+.s *{box-sizing:border-box}
+:where(.s) button,:where(.s) input{font:inherit;letter-spacing:inherit;border-radius:0;margin:0}
+:where(.s) button{background:#000;color:#e8e8e8;border:1px solid #3a3a3a;padding:0 12px;min-height:44px;cursor:pointer}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.d{color:#8a8a8a}.g{color:#5faf5f}.a{color:#ffaf00}.w{color:#e8e8e8}.b{font-weight:700}
+.fl{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 6px;border-bottom:1px solid #3a3a3a}
+.fl button{height:44px;padding:0 10px;color:#8a8a8a;border-color:#262626}
+.fl button.solo{background:#5faf5f;color:#000;border-color:#5faf5f;font-weight:700}
+.fl .clr{margin-left:auto;color:#ffaf00;border-color:#ffaf00}
+.list{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;list-style:none;margin:0;padding:0 0 8px}
+.msg{display:block;width:100%;text-align:left;border:0;border-left:3px solid transparent;padding:6px 6px 6px 6px;min-height:44px;color:#c6c6c6;white-space:normal}
+.msg.sel{background:#1b1b1b;border-left-color:#ffaf00}
+.acts{display:flex;gap:6px;padding:6px 6px 4px 9px;background:#1b1b1b;border-left:3px solid #ffaf00}
+.acts button{height:44px}
+.acts .rp{border-color:#ffaf00;color:#ffaf00;font-weight:700}
+.grid{flex:none;display:flex;gap:1px;background:#3a3a3a;border-top:1px solid #3a3a3a}
+.grid>button{flex:1;border:0;padding:0;height:48px}
+.tabs>button{color:#8a8a8a;letter-spacing:.06em}
+.tabs>button[aria-selected="true"]{background:#ffaf00;color:#000;font-weight:700}
+.in{flex:none;display:flex;height:53px;border-top:1px solid #3a3a3a}
+.in .p{width:28px;flex:none;display:flex;align-items:center;justify-content:center;color:#87afd7}
+.in input{flex:1;min-width:0;height:52px;background:#000;border:0;color:#e8e8e8;outline:none;padding:0 8px 0 0;caret-color:#ffaf00}
+.in .menu{width:58px;flex:none;height:52px;border:0;border-left:1px solid #3a3a3a;color:#ffaf00;font-size:28px;padding:0}
+</style>
+</helmet>
+<div class="s" style="width: 390px; height: 844px; overflow: hidden;">
+  <div class="fl" role="group" aria-label="Channels">
+    <button type="button" aria-pressed="false">Narrates</button>
+    <button type="button" aria-pressed="true" class="solo" aria-label="Tells, solo">◉ Tells</button>
+    <button type="button" aria-pressed="false">Says</button>
+    <button type="button" aria-pressed="false">Yells</button>
+    <button type="button" aria-pressed="false">Prayers</button>
+    <button type="button" aria-pressed="false">Emotes</button>
+    <button type="button" aria-pressed="false">Whispers</button>
+    <button type="button" aria-pressed="false">Questions</button>
+    <button type="button" aria-pressed="false">Songs</button>
+    <button type="button" aria-pressed="false">Socials</button>
+    <button type="button" class="clr">[ SHOW ALL ]</button>
+  </div>
+
+  <ul class="list" role="log" aria-label="Messages">
+    <li><button type="button" class="msg"><span class="w">Gibur</span> <span class="g">tells</span> you 'meet me at the Pony, bring the merc'</button></li>
+    <li><button type="button" class="msg sel" aria-expanded="true"><span class="w">Gibur</span> <span class="g">tells</span> you 'more coming, 2 trolls'</button>
+      <div class="acts"><button type="button" class="rp">[ ↩ REPLY → tell Gibur ]</button><button type="button">[ COPY ]</button></div>
+    </li>
+  </ul>
+
+  <div class="grid tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" aria-selected="false">GAME</button>
+    <button type="button" role="tab" aria-selected="true">COMM</button>
+    <button type="button" role="tab" aria-selected="false">STATUS</button>
+    <button type="button" role="tab" aria-selected="false">MAP</button>
+  </div>
+
+  <div class="in">
+    <label class="p" for="cmd">&gt;<span class="sr">Command</span></label>
+    <input id="cmd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button type="button" class="menu" aria-label="Menu">≡</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
