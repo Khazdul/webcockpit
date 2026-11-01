@@ -255,6 +255,8 @@ export class PlayerView {
   private boxSig = '';
   /** The box is compact (no time, smaller buttons) on a narrow player; its full width, px, once measured. */
   private compact = false;
+  /** The compact box's width, px, once measured (before `data-tight` hides anything). */
+  private compactBoxW = 0;
   private fullBoxW = 0;
   /** Rail drag: pointer id and the previewed offset. */
   private drag: { id: number; offset: number } | null = null;
@@ -738,8 +740,20 @@ export class PlayerView {
       this.compact = compact;
       this.boxEl.toggleAttribute('data-compact', compact);
     }
-    this.boxEl.style.right = `${RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT)}px`;
+    // Still too wide when compact (a 320 px phone, a very narrow window):
+    // tight drops Fullscreen and To the start (the rail seeks there too).
+    if (compact && !this.boxEl.hasAttribute('data-tight')) {
+      const bw = this.boxEl.offsetWidth;
+      if (bw > 0) this.compactBoxW = bw;
+    }
+    const tightRoom = W - RAIL_W - BOX_RIGHT_COMPACT - BOX_MARGIN;
+    const tight = compact && this.compactBoxW > 0 && tightRoom < this.compactBoxW;
+    if (tight !== this.boxEl.hasAttribute('data-tight')) this.boxEl.toggleAttribute('data-tight', tight);
+    const right = RAIL_W + (compact ? BOX_RIGHT_COMPACT : BOX_RIGHT);
+    this.boxEl.style.right = `${right}px`;
     this.boxEl.style.bottom = `${BOX_BOTTOM}px`;
+    // The popups hang from the box's right edge: never wider than the room left of it.
+    this.boxEl.style.setProperty('--pc-pop-max', `${Math.max(160, W - right - BOX_MARGIN)}px`);
   }
 
   /** Fills or updates popup `name` from the settings. */

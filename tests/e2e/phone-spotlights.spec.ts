@@ -23,7 +23,7 @@ async function inView(page: Page, l: Locator): Promise<void> {
   expect(b.y + b.height).toBeLessThanOrEqual(v.height + 0.5);
 }
 
-for (const width of [412, 360]) {
+for (const width of [412, 360, 320]) {
   test(`${width} wide: the card and its filter by tap; the reel rebuilds; the box fits`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -73,7 +73,7 @@ for (const width of [412, 360]) {
   });
 }
 
-for (const width of [412, 360]) {
+for (const width of [412, 360, 320]) {
   test(`${width} wide: the run log's box fits, its buttons work by tap`, async ({ page }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -84,6 +84,14 @@ for (const width of [412, 360]) {
     const box = page.locator('.wc-player-box');
     await expect(box).toBeVisible();
     await inView(page, box);
+    // Every button inside the box (Firefox once let Close stick out).
+    const bb = (await box.boundingBox())!;
+    for (const b of await box.locator(':scope > .wc-pc-row button').all()) {
+      if (!(await b.isVisible())) continue;
+      const r = (await b.boundingBox())!;
+      expect(r.x).toBeGreaterThanOrEqual(bb.x - 0.5);
+      expect(r.x + r.width).toBeLessThanOrEqual(bb.x + bb.width + 0.5);
+    }
     // Too narrow for the time: the compact box.
     await expect(box).toHaveAttribute('data-compact', '');
     await box.locator('[data-act="play"]').tap();
@@ -96,8 +104,14 @@ for (const width of [412, 360]) {
     await box.locator('[data-act="fwd"]').tap();
     await expect.poll(async () => (await pos()).seeking).toBe(false);
     expect((await pos()).position).toBeGreaterThanOrEqual(10_000);
-    await box.locator('[data-act="start"]').tap();
-    await expect.poll(async () => (await pos()).position).toBe(0);
+    if (width > 320) {
+      await box.locator('[data-act="start"]').tap();
+      await expect.poll(async () => (await pos()).position).toBe(0);
+    } else {
+      // 320 px: tight, no To the start (the rail seeks there).
+      await expect(box).toHaveAttribute('data-tight', '');
+      await expect(box.locator('[data-act="start"]')).toBeHidden();
+    }
     await box.locator('[data-act="panes"]').tap();
     const panes = box.locator('.wc-pc-pop[data-pop="panes"]');
     await expect(panes).toBeVisible();

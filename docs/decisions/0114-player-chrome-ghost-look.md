@@ -142,3 +142,18 @@ the page has fullscreen. The HTML replay still passes its own (`F` key,
 0097), and the compact box at 360 px has no room for another icon. Esc in
 fullscreen is the browser's first (it leaves fullscreen); the next Esc
 closes the player as before.
+
+## Addendum 2026-11-01 — nothing outside the box
+
+A sweep of widths 320–1920 px (Chromium, Firefox, the phone project):
+
+- Firefox left `flex-basis` out of the box's max-content width, so the
+  12 px spacer was missing and Close stuck 5 px out of the box at every
+  width (pre-existing). The spacer has a `width` as well now.
+- A 320 px phone (and a desktop window that narrow) overflowed even
+  compact. A third step, `data-tight`, hides Fullscreen and To the start
+  (the rail seeks to the start too); `fitBox` measures the compact width
+  first.
+- The Panes and Display popups hang from the box's right edge; their
+  width is capped to the room left of it (`--pc-pop-max`), not to
+  `100vw − 24px`.

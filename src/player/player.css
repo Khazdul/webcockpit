@@ -448,6 +448,9 @@
 
 .wc-pc-grow {
   flex: 1 0 12px;
+  /* Firefox leaves flex-basis out of the box's max-content width: the width
+     keeps the Close button inside the box there. */
+  width: 12px;
 }
 
 .wc-pc-vs {
@@ -470,6 +473,7 @@
 
 .wc-player-box[data-compact] .wc-pc-grow {
   flex-basis: 4px;
+  width: 4px;
 }
 
 .wc-player-box[data-compact] .wc-pc-ib {
@@ -484,6 +488,12 @@
   min-width: 32px;
 }
 
+/* Too narrow even compact (view.ts fitBox): no Fullscreen, no To the start. */
+.wc-player-box[data-tight] [data-act="extra"],
+.wc-player-box[data-tight] [data-act="start"] {
+  display: none;
+}
+
 /* ------------------------------------------------------------ popups */
 
 .wc-pc-pop {
@@ -494,7 +504,7 @@
   display: flex;
   flex-direction: column;
   width: 290px;
-  max-width: calc(100vw - 24px);
+  max-width: var(--pc-pop-max, calc(100vw - 24px));
   overflow: hidden;
   white-space: normal;
   outline: none;

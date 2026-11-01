@@ -286,6 +286,14 @@ test('the run log box has Fullscreen: it toggles the page fullscreen, its label 
   // Fullscreen sits before Close.
   const acts = await chrome(page).locator('.wc-player-box button[data-act]').evaluateAll((bs) => bs.map((b) => (b as HTMLElement).dataset.act));
   expect(acts.indexOf('extra')).toBe(acts.indexOf('close') - 1);
+  // Every button inside the box (Firefox once let Close stick out: flex-basis left out of max-content).
+  const out = await chrome(page).locator('.wc-player-box').evaluate((box) => {
+    const b = box.getBoundingClientRect();
+    return [...box.querySelectorAll(':scope > .wc-pc-row button')]
+      .map((x) => x.getBoundingClientRect())
+      .filter((r) => r.width > 0 && (r.left < b.left - 0.5 || r.right > b.right + 0.5)).length;
+  });
+  expect(out).toBe(0);
   await fs.click();
   await expect.poll(() => page.evaluate(() => document.fullscreenElement !== null)).toBe(true);
   await expect(fs).toHaveAttribute('aria-label', 'Exit fullscreen');
