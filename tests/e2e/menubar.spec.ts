@@ -89,6 +89,95 @@ test('tooltips: the profile, the buttons and the clock', async ({ page }) => {
   await expect(tip(page)).toBeHidden();
 });
 
+/** Seeds the saved game clock: 2973-04-12 (Astron) at `hour`:00, synced to `precision` just now. */
+async function seedClock(page: Page, precision: 'minute' | 'hour' | 'unset', hour: number): Promise<void> {
+  // Game seconds since the anchor (src/gmcp/clock.ts momentSeconds): year, month 3, day 12.
+  const sec = 2973 * 518_400 + 3 * 43_200 + 11 * 1440 + hour * 60;
+  await page.addInitScript(
+    ({ precision, sec }) => {
+      const nowS = Math.floor(Date.now() / 1000);
+      localStorage.setItem('wc.clock', JSON.stringify({ epoch: nowS - sec, precision, lastSync: nowS, reason: null }));
+    },
+    { precision, sec },
+  );
+}
+
+/** The bar and the input field in cells (both should be whole numbers). */
+async function barGeometry(page: Page): Promise<{ bar: number; field: number; clock: number }> {
+  return page.evaluate(() => {
+    const cw = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-w'));
+    const w = (s: string) => document.querySelector(s)!.getBoundingClientRect().width / cw;
+    return { bar: w('.wc-mb-bar'), field: w('.wc-input-field'), clock: w('.wc-mb-clock') };
+  });
+}
+
+const whole = (n: number) => Math.abs(n - Math.round(n)) < 0.01;
+
+test('clock synced to the minute: the sun in a time-left ring, no text, the countdown on hover', async ({ page }) => {
+  await seedClock(page, 'minute', 14);
+  await offline(page);
+  const clock = page.locator('.wc-mb-clock');
+  await expect(clock).toHaveAttribute('data-sync', 'minute');
+  await expect(clock).toHaveAttribute('data-period', 'day');
+  // No countdown text: the only text is the hidden `~`.
+  expect(await clock.evaluate((e) => (e as HTMLElement).innerText.trim())).toBe('');
+  await expect(page.locator('.wc-mb-tilde')).toBeHidden();
+  // Half the day (8:00 → 20:00) is left at 14:00: the arc from about 6 o'clock up to 12.
+  const d = (await page.locator('.wc-mb-ring-arc').getAttribute('d'))!;
+  expect(d).toMatch(/A11 11 0 0 1 12 1$/);
+  // The ring is as tall as the cell and centred on the bar.
+  const ring = (await page.locator('.wc-mb-ring').boundingBox())!;
+  const b = (await bar(page).boundingBox())!;
+  expect(ring.height).toBeCloseTo(b.height, 1);
+  expect(ring.y + ring.height / 2).toBeCloseTo(b.y + b.height / 2, 1);
+  const geo = await barGeometry(page);
+  expect(geo.clock).toBeCloseTo(3, 2);
+  expect(whole(geo.bar) && whole(geo.field)).toBe(true);
+  await clock.hover();
+  await expect(tip(page)).toHaveText(/^Night in [5-6]:\d\d$/);
+});
+
+test('clock synced to the hour only: the ring and a grey ~, one cell wider, on whole cells', async ({ page }) => {
+  await seedClock(page, 'hour', 23);
+  await offline(page);
+  const clock = page.locator('.wc-mb-clock');
+  await expect(clock).toHaveAttribute('data-sync', 'hour');
+  await expect(clock).toHaveAttribute('data-period', 'night');
+  await expect(page.locator('.wc-mb-tilde')).toBeVisible();
+  await expect(page.locator('.wc-mb-tilde')).toHaveText('~');
+  expect(await page.locator('.wc-mb-ring-glyph').getAttribute('d')).toMatch(/z$/);
+  const geo = await barGeometry(page);
+  expect(geo.clock).toBeCloseTo(4, 2);
+  expect(whole(geo.bar) && whole(geo.field)).toBe(true);
+  // The ~ sits in the cell after the ring, before the link dot.
+  const t = (await page.locator('.wc-mb-tilde').boundingBox())!;
+  const ring = (await page.locator('.wc-mb-ring').boundingBox())!;
+  const dot = (await page.locator('.wc-mb-dotw').boundingBox())!;
+  expect(t.x).toBeGreaterThan(ring.x + ring.width - 2);
+  expect(t.x + t.width).toBeLessThanOrEqual(dot.x + 1);
+  await clock.hover();
+  await expect(tip(page)).toHaveText('Day in ~9 game hours');
+});
+
+test('clock not synced: an empty slot that keeps its width and its tooltip', async ({ page }) => {
+  await seedClock(page, 'unset', 14);
+  await offline(page);
+  const clock = page.locator('.wc-mb-clock');
+  await expect(clock).toHaveAttribute('data-sync', 'none');
+  expect(await page.locator('.wc-mb-ring-arc').getAttribute('d')).toBe('');
+  expect(await page.locator('.wc-mb-ring-glyph').getAttribute('d')).toBe('');
+  await expect(page.locator('.wc-mb-tilde')).toBeHidden();
+  const slot = page.locator('.wc-mb-ring-slot');
+  expect(await slot.evaluate((e) => getComputedStyle(e).visibility)).toBe('hidden');
+  const geo = await barGeometry(page);
+  expect(geo.clock).toBeCloseTo(3, 2);
+  expect(whole(geo.bar) && whole(geo.field)).toBe(true);
+  await clock.hover();
+  await expect(tip(page)).toHaveText('Game clock unknown: type time');
+  // Hovered, a faint dashed circle shows where the clock is.
+  expect(await slot.evaluate((e) => getComputedStyle(e).visibility)).toBe('visible');
+});
+
 test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens Exit', async ({ page }) => {
   await offline(page);
   await expect(page.locator('.wc-pane-timers')).toBeVisible();
