@@ -94,3 +94,9 @@ keeps the keys there; Esc or a click in the game gives them back.
 - The e2e specs that expected the input to keep the keys after a popup
   opened now click in the game first (`tests/e2e/popup-focus.spec.ts` has
   the new rules).
+
+## Addendum (2026-11-01, stage 30f)
+
+"A popup closed because … the ESC menu opened": no longer a case where
+the bar exists, since the ESC menu is gone there (ADR 0112). Esc in the
+game input with nothing open does nothing on desktop and tablet.

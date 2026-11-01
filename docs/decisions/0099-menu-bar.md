@@ -114,3 +114,14 @@ click, a `#` command or a macro; Tab wraps inside it, Page Up/Down never
 reach the game, and a click on a control keeps the keys in it. The bar's
 icons and the Reconnect button are out of the Tab order, and Tab in the
 game input never moves the focus.
+
+## Addendum (2026-11-01, stage 30f)
+
+The ESC menu is gone where the bar exists (ADR 0112). "A tablet keeps `☰`
+after the bar until 30f" is over: `☰` is phone only. The popups no longer
+close "when the ESC menu opens", since it never opens beside the bar; they
+close on another popup, Esc in the input, the cockpit being hidden and the
+bar's disposal (`MenuBar.reset` is private). Esc in the input ends after
+the Exit popup in fullscreen, with nothing. The interim targets
+(`openMenuAt`) are the phone's only: the shell no longer hands
+`ui.openMenuAt` to an App with the bar.

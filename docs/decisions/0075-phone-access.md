@@ -257,3 +257,13 @@ return, not on the next command. Desktop installs nothing.
 §1 *touch* is also on with a touch screen (`maxTouchPoints > 0`) and a
 short side under 600 CSS px or an Android user agent, because Samsung
 Internet does not match `(pointer: coarse) and (hover: none)`.
+
+## Addendum 2026-11-01 — the menu button and `#menu` with the menu bar (ADR 0112)
+
+§2 **Menu button** is phone only (`device().phone`) since stage 30f: a
+tablet has the menu bar (ADR 0099) and uses it by touch, and has no ESC
+menu. §2 **`#menu`** opens the ESC menu on the phone only; where the bar
+exists it prints `The ESC menu is gone: use the menu bar, or #profile,
+#scripts, #panes, #settings, #fullscreen, #exit.` The clickable `ESC …`
+footer tokens are unchanged on every device. §3.4's resume check still
+ends in the ESC menu's auto-open, which was already phone only.

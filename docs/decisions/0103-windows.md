@@ -130,3 +130,14 @@ button.
 - The e2e specs that reached the editor or the Scripts page through the
   ESC menu on desktop now find them in the windows.
 - Firefox and Safari users still leave fullscreen with Esc.
+
+## Addendum (2026-11-01, stage 30f)
+
+The ESC menu is gone where the windows exist (ADR 0112). The menu's
+Profile and Options → Scripts no longer open the windows
+(`EscActions.openWindow`, `OpenWindowCtx` and `Shell.openWindow` are
+removed; on the phone they are frames, as before), and "opening the ESC
+menu takes the focus from the windows" is gone with `WindowsHandle.blur`.
+Esc in the game input ends after the Exit popup in fullscreen with
+nothing, not the ESC menu. The windows still stack below z-index 100,
+where the phone's ESC menu sits; the phone has no windows.

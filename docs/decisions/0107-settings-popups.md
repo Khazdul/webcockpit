@@ -236,3 +236,14 @@ field is keyed by the chosen colour: its value sync used to run after the
 selection and reset it, and a full field (7 of 7 characters) then took no
 typed characters at all.
 
+
+## Addendum: the ESC menu removed (2026-11-01, stage 30f)
+
+There is no ESC menu beside the bar (ADR 0112), so the popups no longer
+close when it opens, and `togglePopup` no longer checks for it. The Esc
+order in the input ends after the Exit popup in fullscreen with nothing.
+"Without `toggleSettings` (the phone, tests) the old target stays": on the
+phone `#settings` opens the ESC menu at Options as before; an App with
+the bar but no `toggleSettings` (unit tests) says `#settings is not
+available here.` Options → Panes → Appearance stays phone only, on the
+start page and in the phone's ESC menu.

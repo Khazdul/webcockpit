@@ -1,6 +1,6 @@
 # 0109 — The Statistics pane
 
-- Status: Accepted; addendum 2026-11-01 (pane bar removed, ADR 0111)
+- Status: Accepted; addenda 2026-11-01 (pane bar removed, ADR 0111; ESC menu removed, ADR 0112)
 - Date: 2026-10-31
 - Related: stage 30 (`docs/stages/30-fixed-menu.md` S4, S7, S10, "30d
   build plan"), ADR 0016 (pane context), ADR 0018 (runs, LiveRuns, the
@@ -123,3 +123,9 @@ start page, and the ESC frame stays until 30f (the phone keeps it longer).
 The decision's "Pane bar" item no longer applies: the bundled `panebar`
 script is removed (ADR 0111), so there is no STAT button question left.
 `getPanes()` and `setPaneOn` still include Statistics.
+
+## Addendum: the ESC menu removed (2026-11-01, stage 30f)
+
+The ESC menu is gone on desktop and tablet (ADR 0112): there the pane is
+the only live Statistics view in play. The ESC frame (`LiveStatsFrame`)
+stays for the phone, which has no Statistics pane.

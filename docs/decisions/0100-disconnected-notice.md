@@ -33,3 +33,10 @@ still be obvious and one action away, without covering the game.
 
 The e2e tests that waited for the auto-opened menu on desktop now look
 for the notice (chrome.spec) or press Esc first (editor.spec).
+
+## Addendum (2026-11-01, stage 30f)
+
+"On desktop and tablet Esc still opens the menu, with Reconnect selected
+while disconnected" no longer holds: there is no ESC menu there (ADR
+0112). The notice's Reconnect button and Enter are the ways back. The
+phone's auto-open is unchanged.
