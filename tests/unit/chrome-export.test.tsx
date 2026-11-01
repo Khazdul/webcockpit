@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
-// Stage 7 P1: the export editor frame (History → EXPORT): rows, exclude,
-// comments through the input frame, title, format, persistence and the
-// text export download.
+// Stage 7 P1, stage 33 (ADR 0115): the export editor frame (History →
+// EXPORT): rows, the selection (keys, mouse), exclude / include, comments
+// through the input frame, title, the two export buttons, persistence and
+// the text export download.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { act } from 'preact/test-utils';
@@ -100,10 +101,21 @@ const btn = (host: HTMLElement, label: string) => frame(host).querySelector<HTML
 const logRows = (host: HTMLElement) =>
   [...frame(host).querySelectorAll<HTMLElement>('.wc-exp-row:not(.is-empty)')].map((r) => ({
     kind: r.dataset.kind,
-    text: r.textContent!.slice(3).trimEnd(),
+    text: r.textContent!.slice(2).trimEnd(),
     cur: r.classList.contains('is-cur'),
+    sel: r.classList.contains('is-sel'),
   }));
-const info = (host: HTMLElement) => frame(host).querySelector('.wc-exp-info')?.textContent ?? '';
+const panel = (host: HTMLElement) => frame(host).querySelector('.wc-exp-panel')?.textContent ?? '';
+const counts = (host: HTMLElement) => frame(host).querySelector('.wc-exp-counts')?.textContent ?? '';
+const selHead = (host: HTMLElement) => frame(host).querySelector('.wc-exp-selhead')?.textContent ?? '';
+const docTitle = (host: HTMLElement) => frame(host).querySelector('.wc-exp-title')?.textContent ?? '';
+const kinds = (host: HTMLElement) => logRows(host).map((r) => r.kind);
+const rowEl = (host: HTMLElement, item: number) => frame(host).querySelector<HTMLElement>(`.wc-exp-row[data-item="${item}"]`)!;
+/** A mouse pointer event on `el` (clientY in the 16 px rows of the stubbed log box). */
+const pointer = (el: EventTarget, type: string, y: number, init: PointerEventInit = {}) =>
+  act(() => {
+    el.dispatchEvent(new PointerEvent(type, { bubbles: true, cancelable: true, button: 0, pointerId: 1, pointerType: 'mouse', clientY: y, ...init }));
+  });
 const flash = (host: HTMLElement) => frame(host).querySelector('.wc-flash')?.textContent ?? '';
 
 async function openEditor(lib: RunLibrary) {
@@ -122,11 +134,11 @@ async function openEditor(lib: RunLibrary) {
 }
 
 describe('Export editor frame', () => {
-  it('shows the log with the info row; X excludes and stops; the edit is saved', async () => {
+  it('shows the log and the panel; X excludes and includes the cursor line; the edit is saved', async () => {
     const lib = await library();
     const host = await openEditor(lib);
     expect(title(host)).toBe('─── Export Editor ───');
-    expect(info(host)).toMatch(/^Rasta · \d{4}-\d\d-\d\d · 5 lines · 0 excluded · 0 comments · → mume-Rasta-.*\.html$/);
+    expect(panel(host)).toMatch(/^Rasta\d{4}-\d\d-\d\d · 5 lines0 excluded · 0 comments/);
     expect(logRows(host).map((r) => r.text)).toEqual([
       'You are standing in a field.',
       '> look',
@@ -136,27 +148,116 @@ describe('Export editor frame', () => {
       '── end of log ──',
     ]);
     expect(logRows(host)[0]!.cur).toBe(true);
+    expect(selHead(host)).toBe('LINE · 1');
     expect(frame(host).querySelector('.wc-exp-row .wc-f2')?.textContent).toBe('You are standing in a field.');
+    // The two export buttons; HTML (the default) is marked as the last used.
+    expect(btn(host, 'HTML REPLAY')!.parentElement!.textContent).toContain('◄ last');
+    expect(btn(host, 'TEXT FILE')!.parentElement!.textContent).not.toContain('◄');
 
-    // ↓↓ X: exclude from line 3 to the end.
+    // ↓↓ X: only line 3 is excluded.
     await key('ArrowDown');
     await key('ArrowDown');
     await key('x');
-    expect(logRows(host).map((r) => r.kind)).toEqual(['entry', 'entry', 'excluded', 'excluded', 'excluded', 'end']);
-    expect(info(host)).toContain('3 excluded');
-    expect(btn(host, 'STOP EXCLUDING')).not.toBeNull();
-    // ↓↓ X on the last line: the range now stops above it.
-    await key('ArrowDown');
-    await key('ArrowDown');
-    await key('x');
-    expect(logRows(host).map((r) => r.kind)).toEqual(['entry', 'entry', 'excluded', 'excluded', 'entry', 'end']);
+    expect(kinds(host)).toEqual(['entry', 'entry', 'excluded', 'entry', 'entry', 'end']);
+    expect(counts(host)).toBe('1 excluded · 0 comments');
+    expect(btn(host, 'INCLUDE')).not.toBeNull();
     await until(() => true);
-    const doc = await lib.exportDoc('Rasta/1');
-    expect(doc.excludes).toEqual([[T0 + 2e6, T0 + 5e6]]);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0 + 2e6, T0 + 4e6]]);
+    // X again includes it.
+    await key('x');
+    expect(kinds(host)).toEqual(['entry', 'entry', 'entry', 'entry', 'entry', 'end']);
+    expect(btn(host, 'EXCLUDE')).not.toBeNull();
+    // The last line: the range runs to the end of the log.
+    await key('End');
+    await key('ArrowUp');
+    await key('x');
+    await until(() => true);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0 + 5e6, null]]);
     // The end row: exclude, edit and delete are disabled.
     await key('End');
-    expect(btn(host, 'EXCLUDE FROM HERE')!.getAttribute('aria-disabled')).toBe('true');
-    expect(btn(host, 'EDIT COMMENT')!.getAttribute('aria-disabled')).toBe('true');
+    expect(selHead(host)).toBe('END OF LOG');
+    expect(btn(host, 'EXCLUDE')!.getAttribute('aria-disabled')).toBe('true');
+    expect(btn(host, 'EDIT COMMENT')).toBeNull();
+  });
+
+  it('Shift+keys select a range; X excludes it, X again includes it; Esc clears the selection first', async () => {
+    const lib = await library();
+    const host = await openEditor(lib);
+    await key('ArrowDown');
+    await key('ArrowDown', { shiftKey: true });
+    await key('ArrowDown', { shiftKey: true });
+    expect(selHead(host)).toBe('SELECTION · 3 lines');
+    expect(logRows(host).map((r) => r.sel)).toEqual([false, true, true, true, false, false]);
+    expect(rowEl(host, 1).querySelector('.wc-exp-mark')!.textContent).toBe('┃');
+    expect(rowEl(host, 3).querySelector('.wc-exp-mark')!.textContent).toBe('►');
+    await key('x');
+    expect(kinds(host)).toEqual(['entry', 'excluded', 'excluded', 'excluded', 'entry', 'end']);
+    expect(btn(host, 'INCLUDE')).not.toBeNull();
+    await until(() => true);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0 + 1e6, T0 + 5e6]]);
+    // Shift+↑ shrinks it to two lines, still all excluded: INCLUDE takes them out.
+    await key('ArrowUp', { shiftKey: true });
+    expect(selHead(host)).toBe('SELECTION · 2 lines');
+    await key('x');
+    expect(kinds(host)).toEqual(['entry', 'entry', 'entry', 'excluded', 'entry', 'end']);
+    await until(() => true);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0 + 4e6, T0 + 5e6]]);
+    // A selection with a shown line in it excludes all of it again.
+    await key('ArrowDown', { shiftKey: true });
+    expect(btn(host, 'EXCLUDE')).not.toBeNull();
+    // Shift+End: to the end of the log; X excludes the tail.
+    await key('End', { shiftKey: true });
+    expect(selHead(host)).toBe('SELECTION · 4 lines');
+    await key('x');
+    await until(() => true);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0 + 1e6, null]]);
+    // Esc clears the selection; the next Esc leaves.
+    await key('Escape');
+    expect(title(host)).toBe('─── Export Editor ───');
+    expect(logRows(host).some((r) => r.sel)).toBe(false);
+    expect(selHead(host)).toBe('END OF LOG');
+    // A plain move clears a selection too.
+    await key('Home');
+    await key('ArrowDown', { shiftKey: true });
+    expect(selHead(host)).toBe('SELECTION · 2 lines');
+    await key('ArrowDown');
+    expect(selHead(host)).toBe('LINE · 3');
+    await key('Escape');
+    expect(title(host)).toBe('─── History ───');
+  });
+
+  it('the mouse: a press moves the cursor, a drag selects, Shift+click extends', async () => {
+    const lib = await library();
+    const host = await openEditor(lib);
+    // happy-dom does no layout: the log box is 800 px tall at the top, rows 16 px.
+    const log = frame(host).querySelector<HTMLElement>('.wc-exp-log')!;
+    log.getBoundingClientRect = () => ({ top: 0, bottom: 800, left: 0, right: 1000, width: 1000, height: 800, x: 0, y: 0, toJSON: () => ({}) });
+    await pointer(rowEl(host, 1), 'pointerdown', 20);
+    await pointer(window, 'pointerup', 20);
+    expect(selHead(host)).toBe('LINE · 2');
+    // Press on line 2, drag to line 4.
+    await pointer(rowEl(host, 1), 'pointerdown', 20);
+    await pointer(window, 'pointermove', 40);
+    await pointer(window, 'pointermove', 56);
+    await pointer(window, 'pointerup', 56);
+    expect(selHead(host)).toBe('SELECTION · 3 lines');
+    expect(logRows(host).map((r) => r.sel)).toEqual([false, true, true, true, false, false]);
+    await key('x');
+    expect(kinds(host)).toEqual(['entry', 'excluded', 'excluded', 'excluded', 'entry', 'end']);
+    // A press without movement clears it.
+    await pointer(rowEl(host, 0), 'pointerdown', 4);
+    await pointer(window, 'pointerup', 4);
+    expect(logRows(host).some((r) => r.sel)).toBe(false);
+    expect(selHead(host)).toBe('LINE · 1');
+    // Shift+click extends from the cursor.
+    await pointer(rowEl(host, 2), 'pointerdown', 36, { shiftKey: true });
+    await pointer(window, 'pointerup', 36);
+    expect(selHead(host)).toBe('SELECTION · 3 lines');
+    // EXCLUDE (some lines are shown) by the panel button.
+    await act(() => btn(host, 'EXCLUDE')!.click());
+    expect(kinds(host)).toEqual(['excluded', 'excluded', 'excluded', 'excluded', 'entry', 'end']);
+    await until(() => true);
+    expect((await lib.exportDoc('Rasta/1')).excludes).toEqual([[T0, T0 + 5e6]]);
   });
 
   it('adds, edits and deletes comments through the input frame', async () => {
@@ -177,9 +278,9 @@ describe('Export editor frame', () => {
     await key('Enter');
     expect(title(host)).toBe('─── Export Editor ───');
     let rows = logRows(host);
-    expect(rows[1]).toEqual({ kind: 'comment', text: '## Hello there big figh', cur: true });
+    expect(rows[1]).toEqual({ kind: 'comment', text: '## Hello there big figh', cur: true, sel: false });
     expect(rows[2]!.text).toBe('> look');
-    expect(info(host)).toContain('1 comments');
+    expect(counts(host)).toBe('0 excluded · 1 comment');
 
     // E edits it; ESC cancels; Ctrl+U + text + Enter replaces.
     await key('e');
@@ -205,9 +306,13 @@ describe('Export editor frame', () => {
       { beforeUs: T0 + 1e6, text: 'Second' },
     ]);
 
-    // D deletes the cursor comment; an emptied edit deletes too.
-    await key('d');
+    // EDIT and DELETE show in the panel on a comment.
+    expect(btn(host, 'EDIT COMMENT')).not.toBeNull();
+    expect(selHead(host)).toBe('COMMENT');
+    // Delete deletes the cursor comment; an emptied edit deletes too.
+    await key('Delete');
     expect(logRows(host)[2]).toMatchObject({ text: '> look', cur: true });
+    expect(btn(host, 'EDIT COMMENT')).toBeNull();
     await key('ArrowUp');
     await key('e');
     await key('u', { ctrlKey: true });
@@ -216,22 +321,31 @@ describe('Export editor frame', () => {
     expect(logRows(host)[1]).toMatchObject({ text: '> look', cur: true });
   });
 
-  it('title, format, persistence across reopen and the text download', async () => {
+  it('C above a selection; title, the text export marks its button, persistence across reopen', async () => {
     const lib = await library();
     let host = await openEditor(lib);
+    // C with lines 3–4 selected: the comment goes above the selection.
+    await key('ArrowDown');
+    await key('ArrowDown');
+    await key('ArrowDown', { shiftKey: true });
+    await key('c');
+    await type('Fight');
+    await key('Enter');
+    expect(logRows(host)[2]).toMatchObject({ kind: 'comment', text: '## Fight', cur: true });
+    expect(logRows(host).some((r) => r.sel)).toBe(false);
+    await key('ArrowUp');
+    await key('ArrowUp');
+
     await key('t');
     expect(title(host)).toBe('─── Export title ───');
     await key('u', { ctrlKey: true });
     await type('Big fight');
     await key('Enter');
-    expect(info(host)).toMatch(/→ Big fight\.html$/);
-    await key('f');
-    expect(info(host)).toMatch(/→ Big fight\.txt$/);
-    expect(btn(host, 'FORMAT: TEXT')).not.toBeNull();
+    expect(docTitle(host)).toBe('Big fight');
     await key('ArrowDown');
     await key('x');
 
-    // Text export: the Blob is downloaded as `<title>.txt`.
+    // P: the text export, downloaded as `<title>.txt`.
     const blobs: Blob[] = [];
     const names: string[] = [];
     const url = URL as unknown as { createObjectURL: (b: Blob) => string; revokeObjectURL: (u: string) => void };
@@ -243,11 +357,17 @@ describe('Export editor frame', () => {
     vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       names.push(this.download);
     });
-    await key('s');
+    await key('p');
     await until(() => names.length === 1, 'the download');
     expect(names).toEqual(['Big fight.txt']);
-    expect(await blobs[0]!.text()).toBe('You are standing in a field.\n');
+    expect(await blobs[0]!.text()).toBe('You are standing in a field.\n## Fight\nAn orc scout is here.\nThe orc scout is dead!\nYou feel better.\n');
     expect(flash(host)).toBe('Exported Big fight.txt');
+    // TEXT FILE is now the one marked.
+    expect(btn(host, 'TEXT FILE')!.parentElement!.textContent).toContain('◄ last');
+    expect(btn(host, 'HTML REPLAY')!.parentElement!.textContent).not.toContain('◄');
+    // The TEXT FILE button exports too.
+    await act(() => btn(host, 'TEXT FILE')!.click());
+    await until(() => names.length === 2, 'the second download');
 
     // BACK returns to History; reopening restores the edits.
     await key('Escape');
@@ -255,12 +375,35 @@ describe('Export editor frame', () => {
     cleanup.splice(0).forEach((c) => c());
     document.body.innerHTML = '';
     host = await openEditor(lib);
-    expect(info(host)).toMatch(/4 excluded · 0 comments · → Big fight\.txt$/);
+    expect(counts(host)).toBe('1 excluded · 1 comment');
+    expect(docTitle(host)).toBe('Big fight');
+    expect(btn(host, 'TEXT FILE')!.parentElement!.textContent).toContain('◄ last');
     // Title back to the default: an empty title.
     await key('t');
     await key('u', { ctrlKey: true });
     await key('Enter');
-    expect(info(host)).toMatch(/→ mume-Rasta-.*\.txt$/);
+    expect(docTitle(host)).toMatch(/^mume-Rasta-/);
+  });
+
+  it('Tab moves to the panel: ↑↓ over its enabled buttons, Enter presses', async () => {
+    const lib = await library();
+    const host = await openEditor(lib);
+    await key('Tab');
+    const sel = () => frame(host).querySelector('.wc-exp-panel .wc-btn.is-sel-focus')?.textContent?.trim();
+    expect(sel()).toBe('EXCLUDE');
+    await key('ArrowDown');
+    expect(sel()).toBe('ADD COMMENT');
+    // EDIT / DELETE COMMENT are not there off a comment: ↓ goes to EDIT TITLE.
+    await key('ArrowDown');
+    expect(sel()).toBe('EDIT TITLE');
+    await key('ArrowUp');
+    await key('ArrowUp');
+    await key('Enter');
+    expect(kinds(host)[0]).toBe('excluded');
+    // The log keys still move the cursor after Shift+Tab.
+    await key('Tab', { shiftKey: true });
+    await key('ArrowDown');
+    expect(selHead(host)).toBe('LINE · 2');
   });
 
   it('pastes newlines as spaces', () => {

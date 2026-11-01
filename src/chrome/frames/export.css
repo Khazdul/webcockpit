@@ -24,6 +24,20 @@
   font-weight: bold;
 }
 
+/* The selection (ADR 0115 §2): a faint band, `┃` in the margin. */
+.wc-exp-row.is-sel {
+  background: color-mix(in srgb, var(--c-accent) 12%, transparent);
+}
+
+.wc-exp-row.is-sel.is-cur {
+  background: color-mix(in srgb, var(--c-accent) 22%, #303030);
+}
+
+.wc-exp-mark.is-sel {
+  color: var(--c-accent);
+  font-weight: bold;
+}
+
 /* Exclusion bar, excluded lines (flat grey), comments. */
 .wc-exp-bar {
   color: #af5f5f;
@@ -41,6 +55,10 @@
  * toward black instead, the reds darker. */
 [data-light] .wc-exp-row.is-cur {
   background: var(--c-line-hl);
+}
+
+[data-light] .wc-exp-row.is-sel.is-cur {
+  background: color-mix(in srgb, var(--c-accent) 22%, var(--c-line-hl));
 }
 
 [data-light] .wc-exp-excl {
@@ -95,6 +113,17 @@
  * rows sit in a window placed at their row. */
 .wc-exp-log {
   flex: 0 0 auto;
+  user-select: none;
+}
+
+/* The panel right of the log (ADR 0115 §5); the export used last is marked. */
+.wc-exp-panel {
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.wc-exp-last {
+  color: var(--c-accent);
 }
 
 .wc-exp-spacer {

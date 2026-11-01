@@ -14,8 +14,9 @@ import {
   entryAtOrAfter,
   entryPlainRows,
   entryRows,
+  entryRangeUs,
   entrySegments,
-  infoText,
+  exportLayout,
   itemAtRow,
   itemKey,
   keyAfterDelete,
@@ -26,10 +27,14 @@ import {
   pageItem,
   parseSgr,
   runStyle,
+  selectedEntries,
+  selectionTitle,
+  summaryLines,
+  summaryText,
   topFor,
 } from '../../src/chrome/frames/export-model';
 import type { RunEvent } from '../../src/runs/events';
-import { addComment, defaultExportDoc, excludeFrom } from '../../src/share/edits';
+import { addComment, defaultExportDoc, excludeRange } from '../../src/share/edits';
 
 const T = 1_790_000_000_000_000;
 const ts = (s: number) => String(T + s * 1e6).padStart(16, '0');
@@ -132,6 +137,32 @@ describe('export editor items', () => {
     // Deleting comment 0 moves the cursor to what followed it (comment 1 → 0).
     expect(keyAfterDelete(items, 0)).toEqual({ comment: 0 });
     expect(keyAfterDelete(items, 1)).toEqual({ entry: 2 });
+    // Above a selection that starts on a comment: before it.
+    expect(commentSlot(doc, log, items, 3, true)).toEqual({ beforeUs: T + 2e6, slot: 1 });
+    expect(commentSlot(doc, log, items, 2, true)).toEqual({ beforeUs: T + 2e6, slot: 0 });
+  });
+
+  it('selection: the entries between two items, comments skipped, as a µs range', () => {
+    let doc = defaultExportDoc('Rasta/1');
+    doc = addComment(doc, T + 2e6, 'one');
+    const items = buildItems(log, doc.comments, 80);
+    // Items: e0 e1 c0 e2 e3 e4 end.
+    expect(selectedEntries(items, 1, 3)).toEqual([1, 2]);
+    expect(selectedEntries(items, 3, 1)).toEqual([1, 2]);
+    expect(selectedEntries(items, 2, 2)).toBeNull();
+    expect(selectedEntries(items, 2, 6)).toEqual([2, 4]);
+    expect(selectedEntries(items, 6, 6)).toBeNull();
+    expect(entryRangeUs(log, 1, 2)).toEqual([log.ts[1], log.ts[3]]);
+    expect(entryRangeUs(log, 2, 4)).toEqual([log.ts[2], null]);
+  });
+
+  it('lays the package out: the log fills the width beside a 30-cell panel; narrow puts the panel above', () => {
+    // [margin 2][log][gap 1][map 2][gap 2][panel 30] within cols − 2.
+    expect(exportLayout(200)).toEqual({ at: 1, logW: 200 - 2 - 2 - 1 - 2 - 2 - 30, panelW: 30 });
+    expect(exportLayout(400).logW).toBe(400 - 39);
+    expect(exportLayout(79)).toEqual({ at: 1, logW: 40, panelW: 30 });
+    expect(exportLayout(78)).toEqual({ at: 1, logW: 78 - 7, panelW: 0 });
+    expect(exportLayout(30).logW).toBe(23);
   });
 
   it('keeps the cursor on screen, pages by the viewport and centres', () => {
@@ -150,7 +181,7 @@ describe('export editor items', () => {
   it('draws the overview map: markers over comments over excluded, and the thumb', () => {
     const long = buildEditorLog(chain(Array.from({ length: 100 }, (_, i) => `${ts(i)} line ${i}`)));
     let doc = defaultExportDoc('Rasta/1');
-    doc = excludeFrom(doc, T + 90e6);
+    doc = excludeRange(doc, T + 90e6, null);
     doc = addComment(doc, T + 30e6, 'hello');
     const items = buildItems(long, doc.comments, 80);
     const events = [{ type: 'pkill', us: T + 50e6 + 5, logUs: T + 50e6, name: 'X', race: 'y', xpDelta: 1 }] as RunEvent[];
@@ -167,13 +198,17 @@ describe('export editor items', () => {
     expect(mapItem(items, 5, 10)).toBe(56);
   });
 
-  it('writes the info row', () => {
-    expect(
-      infoText({ character: 'Rasta', level: 73, date: '2026-09-25', lines: 70098, excluded: 3, comments: 1, file: 'a.html' }),
-    ).toBe('Rasta (L73) · 2026-09-25 · 70098 lines · 3 excluded · 1 comments · → a.html');
-    expect(infoText({ character: 'Rasta', date: 'd', lines: 1, excluded: 0, comments: 0, file: 'f' })).toBe(
-      'Rasta · d · 1 lines · 0 excluded · 0 comments · → f',
+  it('writes the summary and the selection heading', () => {
+    const sum = { character: 'Rasta', level: 73, date: '2026-09-25', lines: 70098, excluded: 3, comments: 1 };
+    expect(summaryLines(sum)).toEqual(['Rasta (L73)', '2026-09-25 · 70098 lines', '3 excluded · 1 comment']);
+    expect(summaryText({ character: 'Rasta', date: 'd', lines: 1, excluded: 0, comments: 2 })).toBe(
+      'Rasta · d · 1 line · 0 excluded · 2 comments',
     );
+    expect(selectionTitle({ selected: 4 })).toBe('SELECTION · 4 lines');
+    expect(selectionTitle({ selected: 1 })).toBe('SELECTION · 1 line');
+    expect(selectionTitle({ entry: 11 })).toBe('LINE · 12');
+    expect(selectionTitle({ comment: true })).toBe('COMMENT');
+    expect(selectionTitle({ end: true })).toBe('END OF LOG');
   });
 });
 
@@ -187,7 +222,7 @@ describe('export editor on a 5 h chain', () => {
     const t0 = performance.now();
     const big = buildEditorLog(text);
     let doc = defaultExportDoc('Rasta/1');
-    doc = excludeFrom(doc, T + 1000e6);
+    doc = excludeRange(doc, T + 1000e6, null);
     doc = addComment(doc, T + 500e6, 'hello');
     const items = buildItems(big, doc.comments, 100);
     mapMarks(items, big, doc, [], 40);

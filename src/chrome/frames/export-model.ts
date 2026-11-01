@@ -1,8 +1,8 @@
-// Export editor (Inv §7.7, ADR 0019): pure helpers for the frame in
-// export-editor.tsx. The log's visible entries, the item list (entries,
-// comments, the end row) with its wrapped row offsets, the overview map,
-// SGR colouring of the rows on screen, and the cursor arithmetic. No DOM;
-// unit tested.
+// Export editor (Inv §7.7, ADR 0019, ADR 0115): pure helpers for the frame
+// in export-editor.tsx. The layout, the log's visible entries, the item
+// list (entries, comments, the end row) with its wrapped row offsets, the
+// selection's entries, the overview map, SGR colouring of the rows on
+// screen, and the cursor arithmetic. No DOM; unit tested.
 //
 // Built for a 5 h chain (~100 000 entries): the log is read once into flat
 // arrays; the item list is rebuilt in one pass when the comments or the
@@ -18,6 +18,39 @@ import { stripAnsi } from '../../share/capture';
 import { SYS_PREFIX, playerEntries } from '../../share/system-lines';
 import { COMMENT_COLS, type ExportComment, type ExportDoc, commentLines, rangeAt } from '../../share/edits';
 import { colorToCss } from '../../ui/palette';
+
+// ---------------------------------------------------------------- layout
+
+/** The log's margin: the cursor / selection cell and the exclusion cell. */
+export const MARGIN = 2;
+export const MAP_GAP = 1;
+export const MAP_W = 2;
+export const PANEL_GAP = 2;
+export const PANEL_W = 30;
+/** The narrowest log beside the panel; below it the panel goes above the log. */
+export const LOG_MIN = 40;
+
+export interface ExportLayout {
+  /** Left edge of the package (cells). */
+  at: number;
+  /** The log's text width (the margin not included). */
+  logW: number;
+  /** The panel's width on the right; 0 = the panel sits above the log as rows. */
+  panelW: number;
+}
+
+/**
+ * The package `[margin 2][log][gap 1][map 2][gap 2][panel 30]`, the grid
+ * less a one-cell margin each side (ADR 0115 §1). The log has no upper cap.
+ * When a 40-cell log does not fit beside the panel, the panel moves above
+ * the log and the log takes the whole width (ADR 0115 §6).
+ */
+export function exportLayout(cols: number): ExportLayout {
+  const room = cols - 2 - MARGIN - MAP_GAP - MAP_W;
+  const beside = room - PANEL_GAP - PANEL_W;
+  if (beside >= LOG_MIN) return { at: 1, logW: beside, panelW: PANEL_W };
+  return { at: 1, logW: Math.max(8, room), panelW: 0 };
+}
 
 // ------------------------------------------------------------------- log
 
@@ -208,12 +241,17 @@ export function pageItem(items: Items, cur: number, height: number, dir: 1 | -1)
 
 // ------------------------------------------------------------ comments
 
-/** Where ADD COMMENT puts a comment: before the cursor entry, after a cursor comment, or at the end. */
+/**
+ * Where ADD COMMENT puts a comment: before the cursor entry, after a cursor
+ * comment (`above`: before it, a selection that starts on a comment), or at
+ * the end.
+ */
 export function commentSlot(
   doc: ExportDoc,
   log: EditorLog,
   items: Items,
   cur: number,
+  above = false,
 ): { beforeUs: number | null; slot: number } {
   const k = items.kind[cur];
   if (k === ITEM_ENTRY) return { beforeUs: log.ts[items.ref[cur]!]!, slot: Infinity };
@@ -222,7 +260,7 @@ export function commentSlot(
     const anchor = doc.comments[ci]!.beforeUs;
     let first = ci;
     while (first > 0 && doc.comments[first - 1]!.beforeUs === anchor) first--;
-    return { beforeUs: anchor, slot: ci - first + 1 };
+    return { beforeUs: anchor, slot: ci - first + (above ? 0 : 1) };
   }
   return { beforeUs: null, slot: Infinity };
 }
@@ -257,6 +295,30 @@ export function keyAfterDelete(items: Items, deleted: number): CursorKey {
   const next = itemKey(items, Math.min(items.count - 1, items.commentItem[deleted]! + 1));
   if ('comment' in next) return { comment: next.comment - 1 };
   return next;
+}
+
+// ------------------------------------------------------------ selection
+
+/**
+ * The entries a selection from item `a` to item `b` (either order,
+ * inclusive) covers, as the first and last entry index; comments and the
+ * end row are skipped (ADR 0115 §2). Null when it holds no entry.
+ */
+export function selectedEntries(items: Items, a: number, b: number): [number, number] | null {
+  let lo = Math.max(0, Math.min(a, b));
+  let hi = Math.min(items.count - 1, Math.max(a, b));
+  while (lo <= hi && items.kind[lo] !== ITEM_ENTRY) lo++;
+  while (hi >= lo && items.kind[hi] !== ITEM_ENTRY) hi--;
+  return lo <= hi ? [items.ref[lo]!, items.ref[hi]!] : null;
+}
+
+/**
+ * The half-open µs range of entries `lo`..`hi` (ADR 0115 §3): from the
+ * first's µs to the µs of the entry after the last, null when the last is
+ * the log's last.
+ */
+export function entryRangeUs(log: EditorLog, lo: number, hi: number): [number, number | null] {
+  return [log.ts[lo]!, hi + 1 < log.ts.length ? log.ts[hi + 1]! : null];
 }
 
 // ------------------------------------------------------------------ map
@@ -512,18 +574,34 @@ export function entryPlainRows(log: EditorLog, e: number, width: number): string
 
 // ----------------------------------------------------------------- info
 
-/** `Rasta (L73) · 2026-09-25 · 70098 lines · 3 excluded · 1 comments · → mume-Rasta-….html` */
-export function infoText(p: {
+export interface Summary {
   character: string;
   level?: number | undefined;
   date: string;
   lines: number;
   excluded: number;
   comments: number;
-  file: string;
-}): string {
+}
+
+const plural = (n: number, w: string): string => `${n} ${w}${n === 1 ? '' : 's'}`;
+
+/** The panel's summary (ADR 0115 §5): `Rasta (L73)`, `2026-09-25 · 70098 lines`, `3 excluded · 1 comment`. */
+export function summaryLines(p: Summary): [string, string, string] {
   const who = p.level !== undefined ? `${p.character} (L${p.level})` : p.character;
-  return `${who} · ${p.date} · ${p.lines} lines · ${p.excluded} excluded · ${p.comments} comments · → ${p.file}`;
+  return [who, `${p.date} · ${plural(p.lines, 'line')}`, `${p.excluded} excluded · ${plural(p.comments, 'comment')}`];
+}
+
+/** The summary on one line (the panel above the log, ADR 0115 §6). */
+export function summaryText(p: Summary): string {
+  return summaryLines(p).join(' · ');
+}
+
+/** The panel's selection heading: `SELECTION · 4 lines`, `LINE · 12`, `COMMENT`, `END OF LOG`. */
+export function selectionTitle(sel: { selected: number } | { entry: number } | { comment: true } | { end: true }): string {
+  if ('selected' in sel) return `SELECTION · ${plural(sel.selected, 'line')}`;
+  if ('entry' in sel) return `LINE · ${sel.entry + 1}`;
+  if ('comment' in sel) return 'COMMENT';
+  return 'END OF LOG';
 }
 
 /** The hold line under a comment preview: `Holds the replay for 7 s.` */

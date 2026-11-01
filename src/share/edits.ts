@@ -296,35 +296,6 @@ export function excludedBetween(doc: ExportDoc, keys: readonly number[], lo: num
 }
 
 /**
- * EXCLUDE FROM HERE (Inv §7.7): opens a range at `us` that runs to the end
- * of the next range (merging with it), or to the end of the log. A no-op on
- * an excluded entry.
- */
-export function excludeFrom(doc: ExportDoc, us: number): ExportDoc {
-  if (isExcluded(doc, us)) return doc;
-  const next = doc.excludes.find((r) => r[0] > us);
-  const to = next ? next[1] : null;
-  return { ...doc, excludes: mergeRanges([...doc.excludes, [us, to]]) };
-}
-
-/**
- * STOP EXCLUDING (Inv §7.7) on the excluded entry `us`: the range holding it
- * now ends just above it; on the range's first entry the range is removed.
- * `keys` (the entries' log µs, ascending) tells whether any entry is left
- * above `us` in the range; without it only `us` = the range start removes it.
- */
-export function stopExcluding(doc: ExportDoc, us: number, keys?: readonly number[]): ExportDoc {
-  const i = rangeAt(doc, us);
-  if (i < 0) return doc;
-  const [from] = doc.excludes[i]!;
-  const first = keys ? !keys.some((k) => k >= from && k < us) : us <= from;
-  const excludes = doc.excludes.map((r) => [r[0], r[1]] as ExcludeRange);
-  if (first) excludes.splice(i, 1);
-  else excludes[i] = [from, us];
-  return { ...doc, excludes };
-}
-
-/**
  * Adds a comment before the entry `beforeUs` (null: after the last one).
  * `slot` is its place among the comments already on that anchor (0 = first,
  * default last). An empty text is a no-op.
@@ -367,8 +338,4 @@ export function setTitle(doc: ExportDoc, title: string): ExportDoc {
 /** The format last exported (ADR 0115 §4): the panel marks its button, the title shows its extension. */
 export function setFormat(doc: ExportDoc, format: ExportFormat): ExportDoc {
   return doc.format === format ? doc : { ...doc, format };
-}
-
-export function toggleFormat(doc: ExportDoc): ExportDoc {
-  return { ...doc, format: doc.format === 'html' ? 'text' : 'html' };
 }
