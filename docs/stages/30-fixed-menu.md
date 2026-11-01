@@ -1,6 +1,6 @@
 # Stage 30 — Fixed menu
 
-Status: **In progress** (30d done; 30e built, owner testing). Spec agreed with the owner 2026-10-31 (below); 30a
+Status: **In progress** (30d done; 30e built, owner test deferred; 30f next). Spec agreed with the owner 2026-10-31 (below); 30a
 mockups approved the same day. Build starts with 30a.
 
 ## Goal
@@ -629,6 +629,11 @@ The owner decided to remove the bundled `panebar` script entirely: the
 menu bar's Panes popup does its job. The script, its default slot and its
 toggle are gone; existing installs drop its data and its pane once
 (settings version 3). The pane API stays. ADR 0111.
+
+### 30e test deferred (2026-11-01)
+
+The owner moves on to 30f without testing 30e; they will test it later
+and bring any feedback then. The 30e test guide stands.
 
 ## Open questions
 
