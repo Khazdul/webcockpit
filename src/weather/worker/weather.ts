@@ -20,7 +20,7 @@
 
 import { RIM_R } from '../../panes/frame';
 import { adapt, adaptCss, type Rgb, type ThemeInfo } from '../palette';
-import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas, rr } from './env';
+import { type Ctx, type Cv, type Env, FPS_BURST, FPS_FAST, FPS_SLOW, FPS_SMOOTH, type Module, type Pane, TAU, clamp, ctx2d, ctx2dCpu, mkCanvas, rr } from './env';
 import { LEFT_SOLID, bandEnd, bandGradient, bandK, bandSolid, leftDark } from './band';
 import { plateRects, rimRects } from './rimshape';
 
@@ -321,7 +321,9 @@ export function weatherModule(): Module {
   const SN = 300;
   const snx = new Float32Array(SN), sny = new Float32Array(SN), snz = new Float32Array(SN), snv = new Float32Array(SN), snph = new Float32Array(SN), sns = new Uint8Array(SN), sna = new Uint8Array(SN);
   let tiles: Tile[] | null = null, snCount = 0, snowAmt = 0, snowFills: string[] | null = null, snowCol: Rgb = [0, 0, 0], snowColAge = 1;
-  let dustCv: Cv | null = null, snowWind = 0, snowT = 0, snowFade = 1;
+  // snowFade starts at 0: nothing to fade until snow begins (it started at 1
+  // and faded for SNOW_FADE_S on every page load, asking the fast rate for nothing)
+  let dustCv: Cv | null = null, snowWind = 0, snowT = 0, snowFade = 0;
   let gNext = 9, gAge = -1, gDur = 5, gDir = 1, gPow = 1, gShift = 0, gE = 0;
   let prevW: string | null | undefined = undefined, prevSnowMix = 0, prevRainMix = 0;
 
@@ -1721,10 +1723,12 @@ export function weatherModule(): Module {
       return busy;
     },
     fps() {
-      // A strike flickers in tens of ms; rain, snow, splashes and drips fall
-      // fast; what remains (drying sheen, snow dust on pane tops) is slow.
+      // A strike flickers in tens of ms; snow drifts at the screen's rate
+      // (FPS_SMOOTH); rain, splashes and drips fall fast; what remains
+      // (drying sheen, snow dust on pane tops) is slow.
       if (strike || sparks.on) return FPS_BURST;
-      if (rainAmt > 0 || snowAmt > 0 || (snowFade > 0 && snowFade < 1)) return FPS_FAST;
+      if (snowAmt > 0 || snCount > 0 || (snowFade > 0 && snowFade < 1)) return FPS_SMOOTH;
+      if (rainAmt > 0) return FPS_FAST;
       for (let i = 0; i < DN; i++) if (fa[i]) return FPS_FAST;
       for (let i = 0; i < PN; i++) if (pl[i]! > 0) return FPS_FAST;
       for (let i = 0; i < VN; i++) if (va[i]) return FPS_FAST;

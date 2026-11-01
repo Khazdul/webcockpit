@@ -124,6 +124,13 @@ export interface Module {
 
 /** Frame rates (owner feedback 4, "Heat"): a decorative effect needs far less than the screen's rate. */
 export const FPS_BURST = 60;
+/**
+ * Small, sharp things that drift slowly and that the eye follows: falling
+ * snow (stage 31b, ADR 0113). At FPS_FAST each flake stood still for two
+ * refreshes of a 60 Hz screen and then jumped ~2 px: an even cadence, but
+ * read as jerky. Rain's long, fast streaks look the same at FPS_FAST.
+ */
+export const FPS_SMOOTH = 60;
 export const FPS_FAST = 30;
 export const FPS_SLOW = 12;
 /** Content that does not move (a settled day sky): the loop runs this slowly while nothing else asks for more and the mix is at rest. */

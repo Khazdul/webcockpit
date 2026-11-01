@@ -5,7 +5,8 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { RESIZE_SETTLE_MS, WeatherEngine, paneFills } from '../../src/weather/worker/engine';
-import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_STILL, type Module } from '../../src/weather/worker/env';
+import { type Ctx, type Env, FPS_FAST, FPS_SLOW, FPS_SMOOTH, FPS_STILL, type Module } from '../../src/weather/worker/env';
+import { weatherModule } from '../../src/weather/worker/weather';
 import { Glints } from '../../src/weather/worker/glint';
 import { themeInfo } from '../../src/weather/palette';
 import { ALL_CATEGORIES, DEFAULT_STATE, type Geometry, type MainToWorker, type PaneGeom } from '../../src/weather/protocol';
@@ -26,6 +27,14 @@ function fakeCtx(canvas: FakeCanvas): Record<string, unknown> {
             args.push(a);
           };
         if (k === 'createLinearGradient' || k === 'createRadialGradient') return () => grad;
+        // enough for the real modules (weatherModule)
+        if (k === 'createImageData' || k === 'getImageData')
+          return (...a: number[]) => {
+            const w = a.length > 2 ? a[2]! : a[0]!, h = a.length > 2 ? a[3]! : a[1]!;
+            return { width: w, height: h, data: new Uint8ClampedArray(Math.max(1, w * h * 4)) };
+          };
+        if (k === 'createPattern') return () => ({ setTransform() {} });
+        if (k === 'measureText') return () => ({ width: 0 });
         return () => {};
       },
       set(t, k, v) {
@@ -267,6 +276,54 @@ describe('WeatherEngine frame rate', () => {
     const r1 = rain.frames;
     h.run(1000);
     expect(rain.frames - r1).toBeGreaterThanOrEqual(FPS_FAST - 2);
+  });
+});
+
+describe('snow at the screen\'s rate (stage 31b, ADR 0113)', () => {
+  let dm: unknown;
+  beforeEach(() => {
+    dm = (globalThis as Record<string, unknown>).DOMMatrix;
+    (globalThis as Record<string, unknown>).DOMMatrix ??= class {};
+  });
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).DOMMatrix = dm;
+  });
+  /** The real weather module in the 60 Hz harness, the state set at once; its frames per second over 2 s. */
+  const rate = (state: Record<string, unknown>, after = 1000) => {
+    const h = harness([weatherModule()]);
+    h.send({ t: 'state', s: { ...DEFAULT_STATE, ...state }, instant: true });
+    h.run(after);
+    const f0 = h.engine.stats().frames;
+    h.run(2000);
+    return { fps: (h.engine.stats().frames - f0) / 2, gaps: h.engine.stats().gaps };
+  };
+
+  it('falling snow runs at FPS_SMOOTH on every vsync of a 60 Hz screen', () => {
+    const r = rate({ weather: '*' });
+    expect(FPS_SMOOTH).toBe(60);
+    expect(r.fps).toBeGreaterThanOrEqual(FPS_SMOOTH - 2);
+    expect(r.gaps.max).toBeLessThan(1000 / 60 + 1);
+  });
+
+  it('rain stays at FPS_FAST', () => {
+    const r = rate({ weather: '"' });
+    expect(r.fps).toBeGreaterThanOrEqual(FPS_FAST - 2);
+    expect(r.fps).toBeLessThanOrEqual(FPS_FAST + 1);
+  });
+
+  it('snow that stops runs at FPS_SMOOTH while it fades, then drops back', () => {
+    const h = harness([weatherModule()]);
+    h.send({ t: 'state', s: { ...DEFAULT_STATE, weather: '*' }, instant: true });
+    h.run(1000);
+    h.send({ t: 'state', s: { weather: ' ' }, instant: false });
+    h.run(5000); // the dwell, then the fade (SNOW_FADE_S) under way
+    let f0 = h.engine.stats().frames;
+    h.run(1000);
+    expect(h.engine.stats().frames - f0).toBeGreaterThanOrEqual(FPS_SMOOTH - 2);
+    h.run(15000);
+    f0 = h.engine.stats().frames;
+    h.run(2000);
+    expect((h.engine.stats().frames - f0) / 2).toBeLessThanOrEqual(FPS_SLOW + 1);
   });
 });
 
