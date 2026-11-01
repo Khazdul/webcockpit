@@ -1,6 +1,6 @@
 # Stage 34 — Menu surfaces follow the background
 
-Status: **Owner testing** (2026-11-01).
+Status: **Done** (2026-11-01). Released in 0.2.1.
 
 ## Goal
 
@@ -65,4 +65,5 @@ too strong or too weak?
 
 ## Owner feedback
 
-(pending)
+2026-11-01: "Looks fantastic. We go with this. Publish." Approved and
+released in 0.2.1.
