@@ -45,6 +45,23 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-01 — Phone review (brainstorm, no stage)
+
+- **Owner brief:** a broad review of the phone experience, phone first;
+  not every feature on the phone; start and ESC menus not made for touch.
+  Many questions first; mockups in several directions. Desktop must not be
+  affected in any way.
+- **Done:** code inventory and a 58-shot Playwright tour of today's phone
+  UI; owner answers recorded; `notes/research/phone-review.md` (findings,
+  principles, keep/simplify/new/computer-only map, three directions,
+  details, open questions, a possible stage plan). Design canvas (artifact
+  `LDJAQLb64W4Cnzkw4zfz56`): overview, today, directions A Terminal, B
+  Hybrid, C Touch-native (13–14 screens each, L1 and L2), text width W01–05,
+  tablet T01–03, platform and start pages P01–05.
+- **Next:** owner picks a direction and answers §7 of the note; then
+  maybe intent Goal 12 amendment, spec and a phone stage.
+- **Commits:** (this commit).
+
 ### 2026-11-01 — Stage 34 (menu surfaces follow the background)
 
 - **Owner brief:** menus blend badly with some backgrounds, worst on
