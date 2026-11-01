@@ -89,7 +89,7 @@ test('tooltips: the profile, the buttons and the clock', async ({ page }) => {
   await expect(tip(page)).toBeHidden();
 });
 
-test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens nothing', async ({ page }) => {
+test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens Exit', async ({ page }) => {
   await offline(page);
   await expect(page.locator('.wc-pane-timers')).toBeVisible();
   await icon(page, 'panes').click();
@@ -125,10 +125,11 @@ test('Panes: the switch hides and shows a pane; Esc closes the popup, then opens
   await page.keyboard.press('Escape');
   await expect(popup(page)).toHaveCount(0);
   await expect(overlay(page)).toBeHidden();
-  // With nothing open Esc does nothing (ADR 0112).
+  // With nothing open Esc opens the Exit popup (ADR 0112); Esc again closes it.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(page.locator('.wc-pop-exit')).toBeVisible();
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
   await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
 });

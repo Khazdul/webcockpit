@@ -61,11 +61,11 @@ test.describe('a tablet', () => {
     await expect(page.locator('.wc-pop')).toHaveCount(0);
     await page.locator('.wc-mb[data-mb="scripts"]').tap();
     await expect(page.locator('.wc-win[data-win="scripts"]')).toHaveCount(1);
-    // A keyboard's Esc closes the window, then opens nothing.
+    // A keyboard's Esc closes the window, then opens the Exit popup, never the ESC menu.
     await page.locator('.wc-input-field').press('Escape');
     await expect(page.locator('.wc-win')).toHaveCount(0);
     await page.locator('.wc-input-field').press('Escape');
-    await page.waitForTimeout(300);
+    await expect(page.locator('.wc-pop-exit')).toBeVisible();
     await expect(overlay(page)).toHaveCount(0);
     expect(errors).toEqual([]);
   });

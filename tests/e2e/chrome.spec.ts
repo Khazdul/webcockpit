@@ -118,15 +118,17 @@ test('keyboard navigation, Credits, About and ESC', async ({ page }) => {
   await expect(startTitle(page)).toHaveText('─── Options ───');
 });
 
-test('Enter MUME shows the cockpit and connects; Esc opens no menu (ADR 0112)', async ({ page }) => {
+test('Enter MUME shows the cockpit and connects; Esc opens the Exit popup, no menu (ADR 0112)', async ({ page }) => {
   const mock = await enterMume(page);
   expect(mock.opened()).toBe(1);
   await expect(start(page)).toBeHidden();
   const field = page.locator('.wc-input-field');
   await expect(field).toBeFocused();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(page.locator('.wc-pop-exit')).toBeVisible();
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   // The keys stay with the game input.
   await expect(field).toBeFocused();
   await page.keyboard.type('xyz');
@@ -658,14 +660,16 @@ test('too small a window shows a notice instead of the menu', async ({ page }) =
   await expect(startSel(page)).toHaveText('<< Enter MUME >>');
 });
 
-test('offline modes skip the start page; the bar is there and Esc opens no menu', async ({ page }) => {
+test('offline modes skip the start page; the bar is there and Esc opens the Exit popup, no menu', async ({ page }) => {
   await page.goto('/?replay');
   await expect(page.locator('.wc-app')).toBeVisible();
   await expect(start(page)).toHaveCount(0);
   await expect(page.locator('.wc-input-field')).toBeFocused();
   await expect(page.locator('.wc-mb-bar')).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(page.locator('.wc-pop-exit')).toBeVisible();
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await expect(page.locator('.wc-input-field')).toBeFocused();
 });

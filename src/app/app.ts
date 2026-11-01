@@ -73,9 +73,10 @@
 //
 // Esc in the input (stage 30 S2, ADR 0112): scrolled back → bottom (the
 // input pane). With the bar: else the bar's open popup closes; else the
-// topmost window gets its close request (`ui.escapeWindow`); else, in the
-// cockpit's fullscreen, the Exit popup opens (Esc reaches the page there
-// only with the bar's Keyboard Lock); else nothing. Without the bar (the
+// topmost window gets its close request (`ui.escapeWindow`); else the Exit
+// popup opens, as the bar's Exit icon does (ADR 0112 addendum; in the
+// cockpit's fullscreen Esc reaches the page only with the bar's Keyboard
+// Lock). Without the bar (the
 // phone): the ESC menu opens (`onEscape`). `#menu` opens the ESC menu on
 // the phone and prints a hint naming the bar and its commands where the
 // bar exists. The popups take the focus when they open (ADR 0108); Tab in
@@ -110,7 +111,7 @@ import { type StatsPaneView, createPaneContext, defaultRequestFrame, lazyDb } fr
 import { OutputPane } from '../ui/output-pane';
 import { ClockStrip } from '../ui/clock-strip';
 import { CLOCK_CELLS, MenuBar } from '../menubar/menubar';
-import { canFullscreen, isFullscreen, toggleFullscreen } from '../core/fullscreen';
+import { canFullscreen, toggleFullscreen } from '../core/fullscreen';
 import { GameState } from '../gmcp/state';
 import { AppStatus, type AppStatusView, formatStatus } from './status';
 import { ProfileWriteBack } from './writeback';
@@ -1122,10 +1123,10 @@ export class App {
       this.onEscape?.();
       return;
     }
-    // With the bar there is no ESC menu (ADR 0112): with nothing open, Esc does nothing.
+    // With the bar there is no ESC menu (ADR 0112): with nothing open, Esc opens the Exit popup.
     if (this.menuBar.closePopup(true)) return;
     if (this.appUi?.escapeWindow?.()) return;
-    if (isFullscreen(this.el.ownerDocument)) this.menuBar.open('exit');
+    this.menuBar.open('exit');
   }
 
   /**

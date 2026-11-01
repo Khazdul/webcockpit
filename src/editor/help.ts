@@ -474,7 +474,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['exit'],
     syntax: ['#exit'],
     text: [
-      'Asks whether to exit to the main menu, in a small box above the menu bar\'s Exit button (the power symbol), or closes that box when it is open. Y exits, Esc stays. When there is a run to rate, 0 to 5 or the stars rate and save it first.',
+      'Asks whether to exit to the main menu, in a small box above the menu bar\'s Exit button (the power symbol), or closes that box when it is open. Esc in the game, with nothing else open, opens it too. Y exits, Esc stays. When there is a run to rate, 0 to 5 or the stars rate and save it first.',
       'On a phone, where there is no menu bar, it opens the menu\'s Exit session page. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
     ],
     examples: [{ via: 'input', code: '#exit' }],
@@ -506,7 +506,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     syntax: ['#fullscreen'],
     text: [
       'Switches the page to fullscreen and back, as the menu bar\'s fullscreen button does. In a browser without page fullscreen (iPhone) it says so. The full name is needed. Works on the input line and in macros, so a key can be bound to it.',
-      'In fullscreen, Chrome and Edge give Esc to the game: once nothing else is open, Esc asks whether to exit, as the Exit button does, instead of leaving fullscreen. Holding Esc down still leaves fullscreen. Firefox and Safari always leave fullscreen on Esc.',
+      'In fullscreen, Chrome and Edge give Esc to the game, so Esc works as it does outside fullscreen (once nothing else is open, it asks whether to exit, as the Exit button does) instead of leaving fullscreen. Holding Esc down still leaves fullscreen. Firefox and Safari always leave fullscreen on Esc.',
     ],
     examples: [{ via: 'input', code: '#fullscreen' }],
   },
@@ -649,7 +649,7 @@ const COMMAND_SECTIONS: readonly HelpSection[] = [
     covers: ['menu'],
     syntax: ['#menu'],
     text: [
-      'Typed on the input line. On a phone it opens the menu, as ESC and the ☰ button do. Elsewhere the menu bar has taken the menu\'s place and #menu only says so: The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit. The full name is needed: #me is #message.',
+      'Typed on the input line. On a phone it opens the menu, as ESC and the ☰ button do. Elsewhere the menu bar has taken the menu\'s place (Esc, with nothing else open, asks whether to exit, as the bar\'s Exit button does) and #menu only says so: The ESC menu is gone: use the menu bar, or #profile, #scripts, #panes, #settings, #fullscreen, #exit. The full name is needed: #me is #message.',
     ],
     examples: [{ via: 'input', code: '#menu' }],
   },

@@ -211,14 +211,16 @@ test('focus follows presses: input, output, the other window; keys go where the 
   await field(page).fill('');
   await page.keyboard.press('Escape');
   await expect(win(page, 'scripts')).toHaveCount(0);
-  // Nothing open: Esc opens nothing (ADR 0112).
+  // Nothing open: Esc opens the Exit popup (ADR 0112); Esc again closes it.
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(popup(page)).toHaveClass(/wc-pop-exit/);
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
 });
 
-test('the Esc order in the input: popup, then window, then nothing', async ({ page }) => {
+test('the Esc order in the input: popup, then window, then the Exit popup', async ({ page }) => {
   await offline(page);
   await icon(page, 'scripts').click();
   await expect(win(page, 'scripts')).toBeVisible();
@@ -235,8 +237,10 @@ test('the Esc order in the input: popup, then window, then nothing', async ({ pa
   await expect(win(page, 'scripts')).toHaveCount(0);
   await expect(overlay(page)).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(popup(page)).toHaveClass(/wc-pop-exit/);
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(popup(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
 });
 

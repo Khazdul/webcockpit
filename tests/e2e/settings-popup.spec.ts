@@ -107,7 +107,7 @@ test('one popup at a time with Panes and Exit; #menu leaves it open', async ({ p
   await expect(overlay(page)).toHaveCount(0);
 });
 
-test('Esc in the input: the popup first, then the window, then nothing', async ({ page }) => {
+test('Esc in the input: the popup first, then the window, then the Exit popup', async ({ page }) => {
   await offline(page);
   await icon(page, 'scripts').click();
   await expect(page.locator('.wc-win[data-win="scripts"]')).toBeVisible();
@@ -127,8 +127,10 @@ test('Esc in the input: the popup first, then the window, then nothing', async (
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(field(page)).toBeFocused();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await expect(page.locator('.wc-pop-exit')).toBeVisible();
   await expect(overlay(page)).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(anyPop(page)).toHaveCount(0);
   await expect(field(page)).toBeFocused();
 });
 

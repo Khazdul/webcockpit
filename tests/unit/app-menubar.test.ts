@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 // The menu bar in the real App (ADR 0099, ADR 0100): it replaces the clock
 // strip with `ui.bar`, Esc in the input closes its popup and otherwise
-// opens nothing (ADR 0112; the phone's ESC menu without the bar), `#menu`,
+// opens the Exit popup (ADR 0112; the phone's ESC menu without the bar), `#menu`,
 // the `#profile` … commands, the Settings popup's toggle (ADR 0107) and
 // the Disconnected notice.
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -64,17 +64,16 @@ describe('App with the menu bar', () => {
     expect(t.app.cockpit.barCells).toBe(CLOCK_CELLS);
   });
 
-  it('Esc in the input closes the open popup; with nothing open it opens nothing (ADR 0112)', () => {
+  it('Esc in the input closes the open popup; with nothing open it opens the Exit popup (ADR 0112)', () => {
     const t = setup();
     t.app.input.focus();
     t.app.menuBar!.open('panes');
     t.key('Escape');
     expect(t.app.menuBar!.openPopup).toBeNull();
-    t.key('Escape');
-    t.key('Escape');
-    expect(t.onEscape).not.toHaveBeenCalled();
-    expect(t.app.menuBar!.openPopup).toBeNull();
     expect(document.activeElement).toBe(t.app.input.input);
+    t.key('Escape');
+    expect(t.app.menuBar!.openPopup).toBe('exit');
+    expect(t.onEscape).not.toHaveBeenCalled();
   });
 
   it('#menu with the bar prints the hint and opens nothing (ADR 0112)', () => {
@@ -199,7 +198,7 @@ describe('App with the menu bar', () => {
     // A press on the toggles keeps a window's focus.
     expect(btn('profile').hasAttribute('data-wc-window-btn')).toBe(true);
     expect(btn('panes').hasAttribute('data-wc-window-btn')).toBe(false);
-    // Esc: the popup, then the window, then nothing (ADR 0112).
+    // Esc: the popup, then the window, then the Exit popup (ADR 0112).
     t.app.input.focus();
     t.app.menuBar!.open('panes');
     t.key('Escape');
@@ -210,7 +209,8 @@ describe('App with the menu bar', () => {
     t.key('Escape');
     expect(escapeWindow).toHaveBeenCalledTimes(2);
     expect(t.onEscape).not.toHaveBeenCalled();
-    expect(t.app.menuBar!.openPopup).toBeNull();
+    expect(t.app.menuBar!.openPopup).toBe('exit');
+    t.app.menuBar!.closePopup();
     // The Exit popup warns about the window's unsaved changes.
     t.enter('#exit');
     expect(t.app.menuBar!.popupEl!.querySelector('.wc-pop-warn')!.textContent).toBe(

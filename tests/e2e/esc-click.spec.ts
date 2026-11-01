@@ -29,16 +29,19 @@ test('a click on ESC Back goes back (the start page)', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test('Esc with nothing open and #menu open no menu; #menu prints the hint', async ({ page }) => {
+test('Esc with nothing open opens the Exit popup, not a menu; #menu prints the hint', async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto('/?replay');
   const input = page.locator('.wc-input-field');
   await expect(input).toBeFocused();
   await expect(page.locator('.wc-mb-bar')).toBeVisible();
-  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
+  // Esc opens the Exit popup as the bar's Exit does; Esc again closes it.
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop-exit')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await page.waitForTimeout(300);
   await expect(overlay(page)).toHaveCount(0);
-  await expect(page.locator('.wc-pop')).toHaveCount(0);
   await expect(input).toBeFocused();
   await page.keyboard.type('#menu');
   await page.keyboard.press('Enter');
