@@ -55,6 +55,10 @@ Statuses: Next, In progress, Owner testing, Done.
   HTML REPLAY / TEXT FILE, narrow fallback. Unit 3053; export, scrolling
   and scripts e2e 52/52. Full e2e had a few flaky failures elsewhere
   (load 17–21), all green on re-run.
+- **After the owner's look:** About fills the width (scrollbar at the
+  edge, text up to 110 cells). New-player defaults: the map clear and
+  about 58 % of the dock (ADR 0092 addendum). Full e2e 673/675, the two
+  Firefox failures green on re-run.
 - **Next:** owner test 33; not released. Open: panel labels are centred
   (a little ragged); light-theme selection band unseen.
 - **Commits:** 1c9744a…(this commit).
