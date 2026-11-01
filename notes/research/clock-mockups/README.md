@@ -1,6 +1,6 @@
 # Menu bar clock mockups (stage 31a)
 
-Three design-canvas artboards from 2026-11-01, in a new column on the
+Four design-canvas artboards from 2026-11-01, in a new column on the
 owner's canvas https://claude.ai/artifact/Bap2VJPNro2qcKTDrXXmaj (private
 to the owner; the stage 30 mockups are on the same canvas). Each shows the
 bar zoomed 2.5× (day and night) and at 1:1 under a game line, at a 15 px
@@ -27,3 +27,9 @@ low in its box, so the moon reads low.
 | H · Ring som räknar ner | Owner's idea (2026-11-01): a smaller sun or moon (filled disc, filled crescent) inside a time-left ring that vanishes clockwise from 12 o'clock as the period runs out; toned time as in A. Same width as today. |
 | H2 · Ring utan siffror | H without the time beside it (time in the tooltip). About half as wide. |
 | H3 · Ring med spår | H with the vanished part kept as a faint track. |
+| I1 · Strålsol | Icon and ring only, no time (time in the tooltip). Ring as tall as the cell and thinner; a filled sun with eight short rays; a larger moon. |
+| I2 · Spöksol | I1 with the sun drawn in lines like the bar's other icons. |
+| I3 · Glödande sol | No rays: a larger sun disc with a soft glow inside the ring. |
+| I4 · Strålkransen räknar ner | No separate ring: the sun's twelve rays are the ring and go out one by one clockwise from 12; at night twelve small stars around the moon. |
+| I5 · Strålsol med spår | I1 with the vanished part as a faint track. |
+| Jämförelse · I1 med tid | I1 with the toned time kept, for comparison. |

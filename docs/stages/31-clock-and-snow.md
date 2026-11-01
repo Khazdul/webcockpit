@@ -66,6 +66,7 @@ Two independent parts, in this order:
   than the 13 px icons, the moon's ink low in its box).
 - [x] 31a: mockups A–G on the canvas (2026-11-01).
 - [x] 31a: owner idea H (time-left ring around a smaller sun or moon), with H2 (no time) and H3 (faint track).
+- [x] 31a: owner round 2: icon and ring only, a larger ring with a real sun; variants I1–I5.
 - [ ] 31a: owner picks a variant.
 - [ ] 31a: build, ADR, tests, test guide.
 - [ ] 31b: measurements and root cause (research note).

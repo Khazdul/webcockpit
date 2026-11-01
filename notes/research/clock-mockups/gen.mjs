@@ -32,6 +32,47 @@ function ring(day, f, track) {
   return `<svg class="ring" viewBox="0 0 24 24" aria-hidden="true">${track ? `<circle class="ring-track" cx="12" cy="12" r="${R}"></circle>` : ''}<circle class="ring-arc" cx="12" cy="12" r="${R}" transform="rotate(-90 12 12)" stroke-dasharray="${(CIRC * left).toFixed(2)} ${CIRC.toFixed(2)}" stroke-dashoffset="${(-CIRC * f).toFixed(2)}"></circle>${inner}</svg>`;
 }
 
+// Ring 2 (I1–I5): the ring as tall as the cell and thinner, room for a sun with rays.
+// Crescent: circle (cx,cy,r) minus circle (ox,oy,r2), as one path.
+function crescent(cx, cy, r, ox, oy, r2) {
+  const dx = ox - cx, dy = oy - cy, d = Math.hypot(dx, dy);
+  const a = (r * r - r2 * r2 + d * d) / (2 * d), h = Math.sqrt(r * r - a * a);
+  const mx = cx + (a * dx) / d, my = cy + (a * dy) / d;
+  const p1 = [mx + (h * dy) / d, my - (h * dx) / d], p2 = [mx - (h * dy) / d, my + (h * dx) / d];
+  const P = (q) => `${q[0].toFixed(2)} ${q[1].toFixed(2)}`;
+  return `M${P(p1)}A${r} ${r} 0 1 0 ${P(p2)}A${r2} ${r2} 0 0 1 ${P(p1)}z`;
+}
+const MOON_BIG = crescent(11.4, 12.6, 6.4, 14.6, 9.4, 5.2);
+const MOON_MID = crescent(11.6, 12.4, 5.6, 14.4, 9.6, 4.6);
+const rays = (n, r0, r1, off = 0) => Array.from({ length: n }, (_, k) => {
+  const a = (k / n) * 2 * Math.PI + off, c = Math.cos(a), si = Math.sin(a);
+  return `M${(12 + r0 * c).toFixed(2)} ${(12 + r0 * si).toFixed(2)}L${(12 + r1 * c).toFixed(2)} ${(12 + r1 * si).toFixed(2)}`;
+}).join('');
+const R2 = 11, CIRC2 = 2 * Math.PI * R2;
+function ring2(style, day, f, track) {
+  const left = 1 - f;
+  const arc = `<circle class="r2-arc" cx="12" cy="12" r="${R2}" transform="rotate(-90 12 12)" stroke-dasharray="${(CIRC2 * left).toFixed(2)} ${CIRC2.toFixed(2)}" stroke-dashoffset="${(-CIRC2 * f).toFixed(2)}"></circle>`;
+  const trk = track ? `<circle class="r2-track" cx="12" cy="12" r="${R2}"></circle>` : '';
+  let inner;
+  if (!day) inner = `<path class="g-fill" d="${style === 'i4' ? MOON_MID : MOON_BIG}"></path>`;
+  else if (style === 'i1' || style === 'i5') inner = `<circle class="g-fill" cx="12" cy="12" r="3.3"></circle><path class="g-ray" d="${rays(8, 5.4, 7.7, -Math.PI / 2)}"></path>`;
+  else if (style === 'i2') inner = `<circle class="g-line" cx="12" cy="12" r="3.4"></circle><path class="g-ray" d="${rays(8, 5.9, 7.9, -Math.PI / 2)}"></path>`;
+  else if (style === 'i3') inner = `<circle class="g-glow" cx="12" cy="12" r="8.6"></circle><circle class="g-fill" cx="12" cy="12" r="4.4"></circle>`;
+  if (style === 'i4') {
+    // The rays are the ring: 12 ticks that go out clockwise from 12 o'clock.
+    const ticks = Array.from({ length: 12 }, (_, k) => {
+      if ((k + 0.5) / 12 <= f) return '';
+      const a = ((k + 0.5) / 12) * 2 * Math.PI - Math.PI / 2, c = Math.cos(a), si = Math.sin(a);
+      return day
+        ? `<path class="g-tick" d="M${(12 + 7.6 * c).toFixed(2)} ${(12 + 7.6 * si).toFixed(2)}L${(12 + 10.9 * c).toFixed(2)} ${(12 + 10.9 * si).toFixed(2)}"></path>`
+        : `<circle class="g-star" cx="${(12 + 10 * c).toFixed(2)}" cy="${(12 + 10 * si).toFixed(2)}" r="1.05"></circle>`;
+    }).join('');
+    const core = day ? `<circle class="g-fill" cx="12" cy="12" r="4.8"></circle>` : inner;
+    return `<svg class="ring2" viewBox="0 0 24 24" aria-hidden="true">${core}${ticks}</svg>`;
+  }
+  return `<svg class="ring2" viewBox="0 0 24 24" aria-hidden="true">${trk}${arc}${inner}</svg>`;
+}
+
 // One clock, by variant. per: day | night; time; f: fraction of the period gone.
 function clock(v, per, time, f, extra = '') {
   const day = per === 'day';
@@ -45,6 +86,7 @@ function clock(v, per, time, f, extra = '') {
     case 'e': return `<div class="${cls}"><span class="t">${time}</span><span class="trk"><span class="done" style="width: ${f * 100}%"></span><span class="orb" style="left: ${f * 100}%"></span></span></div>`;
     case 'f': return `<div class="${cls}">${arc(f)}<span class="t">${time}</span></div>`;
     case 'h': case 'h2': case 'h3': return `<div class="${cls}">${v !== 'h2' ? `<span class="t">${time}</span>` : ''}${ring(day, f, v === 'h3')}</div>`;
+    case 'i1': case 'i2': case 'i3': case 'i4': case 'i5': case 'i1t': return `<div class="${cls} i">${v === 'i1t' ? `<span class="t">${time}</span>` : ''}${ring2(v === 'i1t' ? 'i1' : v, day, f, v === 'i5')}</div>`;
     case 'g': return `<div class="${cls}"><span class="chip">${svg('ci', icC)}<span class="t">${time}</span></span></div>`;
   }
 }
@@ -63,6 +105,14 @@ const ROWS = {
     { v: 'h', name: 'H · Ring som räknar ner', desc: 'Solen eller månen mindre, inuti en ring som är tiden kvar av perioden. Ringen är hel när perioden börjar och försvinner medurs från klockan tolv i takt med nedräkningen. Solen en fylld skiva och månen en fylld skära (strålarna blir en klump så små). Tiden tonad som i A. Samma bredd som i dag.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.92, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt']] },
     { v: 'h2', name: 'H2 · Ring utan siffror', desc: 'Samma ring utan tiden bredvid: tiden finns i tooltipen. Ungefär hälften så bred.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['night', '1:12', 0.7, '', 'natt']] },
     { v: 'h3', name: 'H3 · Ring med spår', desc: 'Som H, men den del av ringen som har försvunnit finns kvar som ett mycket svagt spår, så att man ser hur stor del av perioden som har gått.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.92, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt']] },
+  ],
+  ring2: [
+    { v: 'i1', name: 'I1 · Strålsol', desc: 'Bara ikonen och ringen, inget klockslag. Ringen lika hög som raden och tunnare. Inuti en fylld sol med åtta korta strålar; månen större. Tiden i tooltipen.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+    { v: 'i2', name: 'I2 · Spöksol', desc: 'Som I1, men solen ritad med linjer som de andra ikonerna i raden (ring och strålar), inte fylld. Månen som I1.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+    { v: 'i3', name: 'I3 · Glödande sol', desc: 'Inga strålar: en större solskiva med ett mjukt sken omkring sig inuti ringen. Lugnast att se på, men mindre tydligt en sol.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+    { v: 'i4', name: 'I4 · Strålkransen räknar ner', desc: 'Ingen separat ring: solens tolv strålar är själva ringen och slocknar en i taget medurs från klockan tolv. På natten är det tolv små stjärnor runt månen som slocknar.', inst: [['day', '7:40', 0.1, '', 'dag, nyss soluppgång'], ['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.3, '', 'natt, tidigt'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+    { v: 'i5', name: 'I5 · Strålsol med spår', desc: 'Som I1, men den del av ringen som försvunnit syns som ett svagt spår.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['day', '0:42', 0.9, '', 'dag, snart skymning'], ['night', '1:12', 0.7, '', 'natt, sent']] },
+    { v: 'i1t', name: 'Jämförelse · I1 med tid', desc: 'I1 med klockslaget kvar, tonat som i A, för att jämföra hur mycket tiden tar.', inst: [['day', '4:33', 0.45, '', 'dag, halvvägs'], ['night', '1:12', 0.7, '', 'natt, sent']] },
   ],
   big: [
     { v: 'd', name: 'D · Lugn tills skiftet', desc: 'Helt grå, ikonen först som de andra knapparna. Den sista minuten före skiftet tänds den i periodens färg som en påminnelse.', inst: [['day', '4:33', 0.4], ['day', '0:42', 0.97, 'near', 'sista minuten'], ['night', '1:12', 0.7]] },
@@ -83,6 +133,8 @@ body{margin:0;background:#050505}
 .zs{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
 .rs{display:flex;flex-direction:column;gap:12px;flex:0 0 auto}
 .zc{display:flex;flex-direction:column;gap:4px}
+.row2{gap:24px}.row2 .z{zoom:2.3}.row2 .lab{flex:0 0 210px}
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px;flex:1 1 auto;align-items:start}
 .cap{font-family:system-ui,sans-serif;font-size:11px;line-height:14px;color:#5f5f5f}
 .z{zoom:2.5}
 .zin{height:23px;display:flex;align-items:flex-end;background:#000;padding:0 0 0 12px;width:fit-content}
@@ -165,6 +217,24 @@ body{margin:0;background:#050505}
 .clk.day .ring-arc{stroke:#d9a54a}.clk.night .ring-arc{stroke:#5b93d6}
 .clk.day .glyph-fill{fill:#e0a336}.clk.night .glyph-fill{fill:#5b93d6}
 
+/* I */
+.clk.i{padding:0 3px 0 6px}
+.clk.i1t{padding:0 3px 0 18px;gap:5px}
+.clk.i1t .t{color:#b4b4b4;font-size:13px;position:relative;top:.5px}
+.ring2{width:17px;height:17px;display:block;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.r2-arc{stroke-width:1.35}
+.r2-track{stroke:#262626;stroke-width:1.35}
+.ring2 .g-fill{stroke:none}
+.ring2 .g-ray{stroke-width:1.5}
+.ring2 .g-line{stroke-width:1.5}
+.ring2 .g-tick{stroke-width:1.7}
+.ring2 .g-star{stroke:none}
+.clk.day .r2-arc{stroke:#d9a54a}.clk.night .r2-arc{stroke:#5b93d6}
+.clk.day .g-fill{fill:#e0a336}.clk.night .g-fill{fill:#5b93d6}
+.clk.day .g-ray,.clk.day .g-line,.clk.day .g-tick{stroke:#e0a336}
+.clk.night .g-star{fill:#7fa6dc}
+.clk.day .g-glow{fill:rgba(255,176,0,.16);stroke:none}
+
 /* G */
 .clk.g{padding:0 5px 0 9px}
 .clk.g .chip{display:flex;align-items:center;gap:5px;height:13px;padding:0 6px 0 4px;border-radius:3px;background:#0c0c0c;border:1px solid #232323;box-shadow:inset 0 1px 2px rgba(0,0,0,.8)}
@@ -176,8 +246,10 @@ body{margin:0;background:#050505}
 const capOf = (per, note) => note ?? (per === 'day' ? 'dag' : 'natt');
 function board(kind, title, intro) {
   const rows = ROWS[kind].map((r) => {
-    const z = r.inst.map(([per, time, f, extra, note]) => zoom(clock(r.v, per, time, f, extra), capOf(per, note) + ' · förstorad 2,5×')).join('');
-    const rl = r.inst.filter((i) => !i[3] && (r.v[0] !== 'h' || i[2] === 0.45 || i[1] === '1:12')).map(([per, time, f]) => real(clock(r.v, per, time, f), capOf(per) + ' · verklig storlek')).join('');
+    const zf = kind === 'ring2' ? '2,3×' : '2,5×';
+    const z = r.inst.map(([per, time, f, extra, note]) => zoom(clock(r.v, per, time, f, extra), capOf(per, note) + ' · förstorad ' + zf)).join('');
+    const rl = r.inst.filter((i) => !i[3] && (!'hi'.includes(r.v[0]) || i[2] === 0.45 || i[2] === 0.7)).map(([per, time, f]) => real(clock(r.v, per, time, f), capOf(per) + ' · verklig storlek')).join('');
+    if (kind === 'ring2') return `<div class="row row2"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="g2">${z}${rl}</div></div>`;
     return `<div class="row"><div class="lab"><div class="name">${r.name}</div><div class="desc">${r.desc}</div></div><div class="zs">${z}</div><div class="rs">${rl}</div></div>`;
   }).join('\n');
   return `<div class="board"><div class="hd">${intro}</div>\n${rows}\n</div>`;
@@ -186,6 +258,7 @@ function board(kind, title, intro) {
 const BOARDS = [
   { file: 'Clock31a-small.dc.html', kind: 'small', title: '31a · Klockan: små justeringar', intro: 'Klockan i menyraden, små justeringar. Nu överst som jämförelse. Allt annat i raden (ikoner, avskiljare, Comm-panelens kant till höger) är som i dag.' },
   { file: 'Clock31a-ring.dc.html', kind: 'ring', title: '31a · Klockan: ring som räknar ner', intro: 'Ditt förslag: en mindre sol eller måne i en ring som visar tiden kvar av perioden. Ringen försvinner medurs från klockan tolv. Tooltipen (t.ex. Day in 4:33) finns kvar.' },
+  { file: 'Clock31a-ring2.dc.html', kind: 'ring2', title: '31a · Klockan: bara ikon och ring', intro: 'Bara ikonen med ringen, inget klockslag: tiden står i tooltipen (t.ex. Day in 4:33). Ringen fyller radens höjd så att solen får strålar och månen blir större. I verkligheten är rutan 19 px hög (här 17), så allt blir lite större.' },
   { file: 'Clock31a-big.dc.html', kind: 'big', title: '31a · Klockan: större omtag', intro: 'Klockan i menyraden, större omtag av hur den ser ut och passar in. Tooltipen (t.ex. Night in 4:33) finns kvar i alla.' },
 ];
 for (const b of BOARDS) {
@@ -204,7 +277,7 @@ for (const b of BOARDS) {
 </helmet>
 ${body}
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":${b.kind === 'ring' ? 1100 : 1020}}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":${({ ring: 1100, ring2: 1740 })[b.kind] ?? 1020}}}'>
 class Component extends DCLogic {
   renderVals() {
     return {};
