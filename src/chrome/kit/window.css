@@ -2,7 +2,9 @@
  * src/chrome/windows.tsx). A conventional frame, set apart from the panes:
  * thin cyan border, almost square corners, a slim title bar one cell high,
  * a small grip bottom right, the opaque terminal background. Unfocused: a
- * dim border and title, dimmed content.
+ * dim border and title, dimmed content. The title bar's fills and texts are
+ * the menu surface tokens (`--sf-*`, ADR 0116) with a share of the cyan
+ * border, so the bar is tinted like the page and keeps its cyan identity.
  *
  * Stacking: the layer is a stacking context at z-index 98 in the cockpit,
  * above the panes (floating ones from 10 up) and the weather's front layer
@@ -14,37 +16,25 @@
   inset: 0;
   z-index: 98;
   pointer-events: none;
+  /* The identity colour, on every background. */
   --win-border: #1f8a8f;
-  --win-border-dim: #1f3b3d;
-  --win-bar: #0c1112;
-  --win-bar-dim: #080909;
-  --win-bar-line: #16292a;
-  --win-bar-line-dim: #141a1a;
-  --win-title: #9fd3d6;
-  --win-title-dim: #4a6264;
-  --win-note: #4f7f82;
-  --win-note-dim: #334546;
-  --win-x: #5f8f92;
-  --win-x-dim: #2f4547;
-  --win-grip: #2f6f73;
+  --win-border-dim: color-mix(in srgb, var(--win-border) 30%, var(--sf-border));
+  --win-bar: color-mix(in srgb, var(--sf-bg) 95%, var(--win-border));
+  --win-bar-dim: color-mix(in srgb, var(--sf-bg) 70%, var(--term-bg));
+  --win-bar-line: color-mix(in srgb, var(--sf-bg) 78%, var(--win-border));
+  --win-bar-line-dim: var(--sf-line);
+  --win-title: color-mix(in srgb, var(--sf-hot) 60%, var(--win-border));
+  --win-title-dim: color-mix(in srgb, var(--sf-faint) 70%, var(--win-border));
+  --win-note: color-mix(in srgb, var(--sf-dim) 50%, var(--win-border));
+  --win-note-dim: color-mix(in srgb, var(--sf-off) 78%, var(--win-border));
+  --win-x: color-mix(in srgb, var(--sf-dim) 50%, var(--win-border));
+  --win-x-dim: color-mix(in srgb, var(--sf-off) 78%, var(--win-border));
+  --win-grip: color-mix(in srgb, var(--win-border) 75%, var(--sf-bg));
   --win-shadow: 0 0 0 1px rgba(0, 0, 0, 0.8), 0 20px 56px rgba(0, 0, 0, 0.8);
 }
 
-/* A light terminal background: the same cyan, a pale title bar. */
+/* A light terminal background: a softer shadow. */
 .wc-windows[data-light] {
-  --win-border: #1f8a8f;
-  --win-border-dim: #a9c6c8;
-  --win-bar: #e3eeef;
-  --win-bar-dim: #eef2f2;
-  --win-bar-line: #c4dadb;
-  --win-bar-line-dim: #dde5e5;
-  --win-title: #155a5e;
-  --win-title-dim: #8aa3a5;
-  --win-note: #4f8487;
-  --win-note-dim: #a9bbbc;
-  --win-x: #3f7376;
-  --win-x-dim: #a6babb;
-  --win-grip: #3f8f93;
   --win-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 16px 44px rgba(0, 0, 0, 0.28);
 }
 
@@ -153,11 +143,11 @@
 }
 
 .wc-win-x:hover {
-  background: rgba(255, 95, 95, 0.14);
+  background: var(--sf-danger-hover);
 }
 
 .wc-win-x:hover > svg {
-  stroke: #ff7a7a;
+  stroke: var(--sf-danger);
 }
 
 .wc-win-body {
