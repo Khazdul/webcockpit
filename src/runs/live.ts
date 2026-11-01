@@ -1,5 +1,5 @@
-// The live run for the ESC menu (ADR 0018 "LiveRuns"; Inv §4.6, §7.3):
-// `app.runs`.
+// The live run (ADR 0018 "LiveRuns"; Inv §4.6, §7.3): `app.runs`, for the
+// Statistics pane, the Exit popup's rating and the phone's ESC menu.
 //
 //   current()        the run in progress: its id and its events so far
 //                    (the deriver's in-memory list), or null before

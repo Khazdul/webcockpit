@@ -6,7 +6,8 @@
  *
  * Stacking: the layer is a stacking context at z-index 98 in the cockpit,
  * above the panes (floating ones from 10 up) and the weather's front layer
- * (90), below the ESC menu (100), the bar popups (260) and tooltips (270). */
+ * (90), below the bar popups (260) and tooltips (270). The phone's ESC menu
+ * (100) never meets them: the phone has no windows. */
 
 .wc-windows {
   position: absolute;

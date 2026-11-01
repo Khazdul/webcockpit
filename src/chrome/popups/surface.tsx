@@ -13,8 +13,7 @@
 // - One popup rule (ADR 0099): `onOpen(key, el, close)` hands the open
 //   popup to the menu bar (`MenuBar.adopt`), which closes its own Panes or
 //   Exit popup and, from then on, closes this one for every reason it
-//   closes its own (another popup, Esc in the input, the ESC menu, the
-//   cockpit hidden) by calling `close`; that close does not report back.
+//   closes its own (another popup, Esc in the input, the cockpit hidden) by calling `close`; that close does not report back.
 //   When the popup closes itself (its X, Esc in it, its toggle, `close()`)
 //   it reports `onClose(key)` (`MenuBar.release`).
 // - Focus (ADR 0108): it takes the focus when it opens, by a click, a `#`

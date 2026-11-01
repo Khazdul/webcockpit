@@ -8,7 +8,7 @@
 // Each notice is shown twice:
 //
 // - a persistent indicator: the cockpit's input row, left of the clock
-//   (src/ui/notice-indicator.ts), the ESC menu's status header and the
+//   (src/ui/notice-indicator.ts), the phone's ESC menu status header and the
 //   start page's footer (src/chrome), from `get()` / `subscribe()`;
 // - once, a `[SYSTEM]` line in the output and a UI pane line, on the bus of
 //   the App `attach`ed (lines from before the App existed are replayed when

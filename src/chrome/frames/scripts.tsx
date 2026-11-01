@@ -1,5 +1,6 @@
 // Scripts page (spec §2.10, ADR 0051 "P2"): the script library beside the
-// profile, under Profile on the start page and in the ESC menu.
+// profile, under Options on the start page and in the phone's ESC menu, and
+// in the Scripts window where the menu bar exists (ADR 0103).
 //
 //   [ NEW IMPORT EXPORT RENAME DELETE MANUAL ]
 //   [ [X] name        🔒 ● EDIT ]  ░   [ help of the selected script ]
