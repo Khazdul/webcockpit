@@ -548,6 +548,53 @@ test.describe('split scrollback', () => {
     await page.evaluate(() => window.__wc!.settings.reset());
   });
 
+  test('a mouse selection copies only the half it starts in', async ({ page }) => {
+    await fill(page, 2_000);
+    // The pane copies a mouse selection on mouseup (then the input takes the focus back).
+    await page.evaluate(() => {
+      const w = window as unknown as { __copied: string[] };
+      w.__copied = [];
+      navigator.clipboard.writeText = async (t: string) => void w.__copied.push(t);
+    });
+    const copied = async (): Promise<string[]> => {
+      const all = await page.evaluate(() => (window as unknown as { __copied: string[] }).__copied.splice(0));
+      expect(all).toHaveLength(1);
+      return all[0]!.replace(/\r/g, '').split('\n').filter(Boolean);
+    };
+    await page.locator('.wc-input-field').focus();
+    await page.keyboard.press('PageUp');
+    await settle(page);
+    await expect(splitTail(page)).toBeVisible();
+    const s = (await scroller(page).boundingBox())!;
+    const t = (await splitTail(page).boundingBox())!;
+    // From the upper half down into the tail: no row twice.
+    await page.mouse.move(s.x + 20, s.y + s.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(s.x + 40, t.y + t.height / 2, { steps: 8 });
+    await page.mouse.up();
+    const down = await copied();
+    expect(down.length).toBeGreaterThan(1);
+    expect(new Set(down).size).toBe(down.length);
+    // It ends at the last row in view above the divider (one that shows only a pixel or so counts).
+    const n = (line: string): number => Number(/row (\d+)/.exec(line)?.[1] ?? NaN);
+    const lastAbove = (await shownRows(page))[1];
+    expect(n(down.at(-1)!) - lastAbove).toBeGreaterThanOrEqual(0);
+    expect(n(down.at(-1)!) - lastAbove).toBeLessThanOrEqual(1);
+    // From the tail up into the upper half: only tail rows, ending at the newest.
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('PageUp');
+    await settle(page);
+    const t2 = (await splitTail(page).boundingBox())!;
+    await page.mouse.move(t2.x + 300, t2.y + t2.height - 4);
+    await page.mouse.down();
+    await page.mouse.move(t2.x + 20, s.y + 20, { steps: 8 });
+    await page.mouse.up();
+    const up = await copied();
+    expect(up.length).toBeGreaterThan(1);
+    expect(up.length).toBeLessThanOrEqual(await tailRows(page));
+    expect(up.at(-1)).toBe('[SYSTEM] row 1999');
+  });
+
   test('a touch device keeps the tail bar and the snap on send', async ({ page }) => {
     await page.goto('/?replay&touch=1');
     await expect(page.locator('.wc-rows .wc-row').first()).toHaveText(/Offline replay mode/);

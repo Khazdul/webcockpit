@@ -198,6 +198,8 @@ export class OutputPane {
   private readonly wheelScale: number;
   /** Sub-pixel wheel scroll not yet applied (scrollTop takes whole px). */
   private wheelRest = 0;
+  /** The selection clamp of a mouse drag while split (onSelectStart), until just after its mouseup. */
+  private selClamp: (() => void) | null = null;
 
   /** Rows of watched anchor lines (ADR 0077 room notes): null until flushed. */
   private readonly anchorRows = new WeakMap<Line, HTMLElement | null>();
@@ -340,8 +342,54 @@ export class OutputPane {
     rows.className = 'wc-split-rows';
     tail.append(rows);
     tail.addEventListener('mouseup', this.onMouseUp);
+    // A selection stays in the half it starts in: the tail's rows are copies
+    // of the newest rows, so a selection over both would copy them twice,
+    // and above the tail lies the whole scrollback in DOM order.
+    this.scroller.addEventListener('mousedown', this.onSelectStart);
+    tail.addEventListener('mousedown', this.onSelectStart);
     return { bar, count, tail, rows };
   }
+
+  /**
+   * Holds a selection inside the half it started in, from a left press in
+   * the scroller or the tail until the button comes up. A drag from the
+   * scroller into the tail ends at the last row in view above the divider;
+   * a drag from the tail upward ends at the tail's first row. It runs on
+   * every `selectionchange` of the drag and once more on the mouseup,
+   * before the copy (the last change may not have been delivered yet).
+   */
+  private readonly onSelectStart = (e: MouseEvent): void => {
+    if (e.button !== 0 || !this.splitEls || this.splitEls.tail.hidden) return;
+    const doc = this.el.ownerDocument;
+    const { rows } = this.splitEls;
+    const half: Node = this.scroller.contains(e.target as Node) ? this.scroller : rows;
+    const clamp = (): void => {
+      const sel = doc.getSelection();
+      if (!sel || !sel.anchorNode || !sel.focusNode || !half.contains(sel.anchorNode)) return;
+      if (half.contains(sel.focusNode)) return;
+      if (half === rows) {
+        sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, rows, 0);
+        return;
+      }
+      const last = this.elementAt(this.scroller.clientHeight - 1);
+      if (last) sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, last, last.childNodes.length);
+    };
+    this.selClamp?.();
+    this.selClamp = clamp;
+    doc.addEventListener('selectionchange', clamp);
+    doc.defaultView?.addEventListener(
+      'mouseup',
+      () => {
+        doc.removeEventListener('selectionchange', clamp);
+        // The pane's own mouseup (the copy) runs after this capture listener
+        // and calls the clamp once more; a microtask would run before it.
+        setTimeout(() => {
+          if (this.selClamp === clamp) this.selClamp = null;
+        }, 0);
+      },
+      { capture: true, once: true },
+    );
+  };
 
   // ------------------------------------------------------------------ input
 
@@ -1086,6 +1134,7 @@ export class OutputPane {
   private readonly onMouseUp = (): void => {
     // A tap on a touch device neither copies nor refocuses (ADR 0075).
     if (touchInteraction()) return;
+    this.selClamp?.();
     const sel = this.el.ownerDocument.getSelection();
     const text = sel && !sel.isCollapsed ? sel.toString() : '';
     if (text && sel && this.el.contains(sel.anchorNode)) {
@@ -1169,6 +1218,8 @@ export class OutputPane {
       this.splitEls.bar.removeEventListener('pointerdown', this.onBarDown);
       this.splitEls.bar.removeEventListener('mousedown', preventDefault);
       this.splitEls.tail.removeEventListener('mouseup', this.onMouseUp);
+      this.splitEls.tail.removeEventListener('mousedown', this.onSelectStart);
+      this.scroller.removeEventListener('mousedown', this.onSelectStart);
     }
     this.el.remove();
   }

@@ -46,6 +46,12 @@ the bottom the split goes; the border can be dragged.
   mousedown prevented (input keeps focus), snaps to whole cell rows, at
   least 2 rows on each side. The size is a share of the game window,
   `settings.output.splitShare`, default 0.3, saved when a drag ends.
+- **Selection.** A mouse selection stays in the half it starts in: a
+  drag from the upper half into the tail ends at the last row in view
+  above the divider, one from the tail upward at the tail's first row
+  (a `selectionchange` clamp during the drag, run once more before the
+  copy). `user-select: none` on the tail did not keep its rows out of the
+  copied text in either engine.
 - **NAWS** is measured from `.wc-output` (rows) and the scroller's
   `clientWidth` (columns), so opening the split never changes the window
   size MUME sees.
