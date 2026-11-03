@@ -122,6 +122,12 @@ focus back to it (docs/input-pane.md, docs/tmux-bindings.md, ADR 0024, 0127).
 - Cockpit shows tmux's copy-mode position indicator (`[n/m]` top right) while
   scrolled. This is a tmux artefact, and a browser equivalent is a design choice
   (e.g. a subtle "scrolled / N new lines" marker). **Not specified by Cockpit.**
+- **WebCockpit amends this (ADR 0117), on the desktop only:** while scrolled
+  back, the bottom of the game pane shows the live tail below a draggable
+  divider (a TUI rule carrying the "N new lines" marker); reaching the bottom
+  or Esc removes the split, and sending a command does **not** snap back while
+  split. Touch devices, the log player and the HTML replay keep the behaviour
+  above (tail bar, snap on send).
 
 **Selection / copy (mouse)** (docs/tmux-bindings.md, ADR 0036)
 - **Drag** in the game pane (or the comm/ui panes) selects text. On release the

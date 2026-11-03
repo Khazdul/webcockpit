@@ -243,7 +243,19 @@ export const DEFAULT_SCROLLBACK_ROWS = 20000;
 export interface OutputSettings {
   /** Rows kept in the scrollback, one of `SCROLLBACK_CHOICES`. */
   scrollback: number;
+  /**
+   * The live part of the split game window while scrolled back, as a share
+   * of the game window's height (ADR 0117, desktop only). Set by dragging
+   * the divider; between `SPLIT_SHARE_MIN` and `SPLIT_SHARE_MAX`.
+   */
+  splitShare: number;
 }
+
+/** The split's default live share (owner, ADR 0117). */
+export const DEFAULT_SPLIT_SHARE = 0.3;
+/** Bounds of a stored split share (the pane also keeps 2 rows on each side). */
+export const SPLIT_SHARE_MIN = 0.02;
+export const SPLIT_SHARE_MAX = 0.95;
 
 /**
  * The input line's behaviour (Options hub, ADR 0063). Not in
@@ -446,7 +458,7 @@ export function defaultSettings(): Settings {
     comm: { filters: {}, showHeader: true },
     timers: defaultTimersSettings(),
     spotlights: { achievements: true, deaths: true, levelUps: true, pvp: true, allCharacters: true, characters: [], period: 'all' },
-    output: { scrollback: DEFAULT_SCROLLBACK_ROWS },
+    output: { scrollback: DEFAULT_SCROLLBACK_ROWS, splitShare: DEFAULT_SPLIT_SHARE },
     input: { autoClear: false, autosuggest: false },
     mapper: { notes: true, hover: 'full', hoverSize: 'medium', tileset: 'shimrod', background: 'transparent', backgroundBefore: '' },
     weather: { enabled: true, sky: true, daySky: true, precipitation: true, lightning: true, fog: true, darkness: true, body: true },

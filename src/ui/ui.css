@@ -183,6 +183,63 @@ body {
   display: none;
 }
 
+/* Split scrollback (ADR 0117, desktop): scrolled back, the scroller above
+ * shrinks and the live tail shows below a divider. The divider is a TUI
+ * rule across the whole pane with the scroll text set into it; it can be
+ * dragged (output-pane.ts). Both lie in normal flow on the terminal
+ * background (transparent, as the rows: weather shows through them). */
+.wc-split-bar {
+  flex: none;
+  height: var(--cell-h);
+  white-space: pre;
+  overflow: hidden;
+  color: var(--c-item);
+  cursor: row-resize;
+  user-select: none;
+  touch-action: none;
+}
+
+/* The rule is a neutral grey like the game window's scrollbar thumb
+ * (owner, 2026-11-03): light on a dark background, darker on a light one.
+ * `--sf-scheme` is the background's side (ADR 0116); `color-scheme` is
+ * inherited only by the bar's own few spans. */
+.wc-split-bar {
+  color-scheme: var(--sf-scheme, dark);
+}
+
+.wc-split-rule {
+  color: light-dark(#8c8c8c, #a8a8a8);
+}
+
+.wc-split-bar:hover .wc-split-rule,
+.wc-split-bar.wc-dragging .wc-split-rule {
+  color: light-dark(#4a4a4a, #dadada);
+}
+
+.wc-split-bar:hover .wc-split-text,
+.wc-split-bar.wc-dragging .wc-split-text {
+  color: var(--c-hover);
+}
+
+/* Newest row at the bottom; what does not fit is clipped at the top. */
+.wc-split-tail {
+  flex: none;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.wc-split-tail > * {
+  flex: none;
+}
+
+.wc-split-bar[hidden],
+.wc-split-tail[hidden] {
+  display: none;
+}
+
 .wc-output ::selection,
 .wc-input ::selection,
 .wc-input-field::selection {

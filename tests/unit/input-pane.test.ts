@@ -120,6 +120,28 @@ describe('InputPane Enter semantics', () => {
     expect(order).toEqual(['send', 'send', 'toTail', 'send', 'toTail']);
   });
 
+  it('keeps the view after a send while the output is split (ADR 0117); Esc returns', () => {
+    const t = setup();
+    let split = false;
+    t.output.isSplit = () => split;
+    t.key('PageUp');
+    split = true;
+    t.type('look');
+    t.key('Enter');
+    // An empty Enter and a password send keep it too.
+    t.type('');
+    t.key('Enter');
+    t.bus.emit('telnet.echo', { serverEchoes: true });
+    t.type('secret');
+    t.key('Enter');
+    expect(t.sent.map((s) => s.text)).toEqual(['look', '', 'secret']);
+    expect(t.output.calls).toEqual(['pageUp']);
+    expect(t.output.isScrolled()).toBe(true);
+    t.key('Escape');
+    expect(t.output.calls).toEqual(['pageUp', 'toTail']);
+    expect(t.onEscape).not.toHaveBeenCalled();
+  });
+
   it('routes handled built-in commands away from the sender', () => {
     const t = setup((s) => s.startsWith('#'));
     t.type('#connect');

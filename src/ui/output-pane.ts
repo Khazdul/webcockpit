@@ -32,6 +32,9 @@
 //   pins the view to the bottom. Scrolled back, the pane keeps one row in
 //   place itself (see "anchoring"), through trims, chunks taking their real
 //   height and width changes.
+// - Split scrollback (ADR 0117, the `split` option): scrolled back, the
+//   scroller shrinks to the share above a divider row, and a tail element
+//   below shows clones of the newest rows. Nothing of it runs at the tail.
 //
 // Game text only ever reaches the DOM through textContent / text nodes.
 //
@@ -130,6 +133,26 @@ export interface OutputPaneOptions {
    * player needs: it takes the wheel for its cursor.
    */
   wheelScale?: number;
+  /**
+   * Split scrollback (ADR 0117): scrolled back, the bottom `share` of the
+   * pane shows the live tail below a divider that can be dragged; `onShare`
+   * gets the new share when a drag ends. Absent: the tail bar over the last
+   * row (touch devices, the log player, the HTML replay).
+   */
+  split?: { share: number; onShare?: (share: number) => void };
+}
+
+/** The rule glyph of the split divider (ADR 0117). */
+const RULE = '\u2501';
+/** The divider's trailing rule: wider than any game window, clipped. */
+const RULE_FILL = ' ' + RULE.repeat(1000);
+
+/**
+ * The live tail's height in cell rows for a pane `total` rows high and a
+ * wanted `rows`: at least 2 rows, and at least 2 above the divider.
+ */
+export function clampSplitRows(total: number, rows: number): number {
+  return Math.max(0, Math.min(total - 3, Math.max(2, rows)));
 }
 
 /** Default wheel speed: the browser's own scrolls about six rows a notch. */
@@ -145,6 +168,25 @@ export class OutputPane {
   private readonly tailBar: HTMLDivElement;
   private readonly measurer: HTMLSpanElement;
 
+  /** Split scrollback (ADR 0117); null without the `split` option. */
+  private readonly splitEls: {
+    bar: HTMLDivElement;
+    count: HTMLSpanElement;
+    tail: HTMLDivElement;
+    rows: HTMLDivElement;
+  } | null = null;
+  private splitShare = 0;
+  private readonly onSplitShare: ((share: number) => void) | undefined;
+  private splitOpen = false;
+  /** The tail's height in cell rows while open. */
+  private tailRows = -1;
+  /** The tail's right padding (the scroller's classic scrollbar), px. */
+  private tailGutter = -1;
+  /** The clone in the tail of a row in the scroller (stale entries are detached). */
+  private clones = new WeakMap<Element, HTMLElement>();
+  /** The clone of the open partial in the tail, or null. */
+  private tailPartial: HTMLElement | null = null;
+
   private scrollback: number;
   private chunkRows: number;
   private readonly requestFrame: (cb: () => void) => void;
@@ -156,6 +198,8 @@ export class OutputPane {
   private readonly wheelScale: number;
   /** Sub-pixel wheel scroll not yet applied (scrollTop takes whole px). */
   private wheelRest = 0;
+  /** The selection clamp of a mouse drag while split (onSelectStart), until just after its mouseup. */
+  private selClamp: (() => void) | null = null;
 
   /** Rows of watched anchor lines (ADR 0077 room notes): null until flushed. */
   private readonly anchorRows = new WeakMap<Line, HTMLElement | null>();
@@ -230,6 +274,12 @@ export class OutputPane {
 
     this.scroller.append(this.rowsEl, this.partialEl);
     this.el.append(this.scroller, this.measurer, this.tailBar);
+    if (opts.split) {
+      this.splitShare = opts.split.share;
+      this.onSplitShare = opts.split.onShare;
+      this.splitEls = this.buildSplit(doc);
+      this.el.append(this.splitEls.bar, this.splitEls.tail);
+    }
     root.appendChild(this.el);
 
     this.unsubs.push(
@@ -250,8 +300,96 @@ export class OutputPane {
       // takes its real height when the browser starts rendering it (ADR
       // 0045). The observer runs before the paint, so the tail stays pinned.
       this.resizeObserver.observe(this.rowsEl);
+      // The split's tail follows the pane's height as a share (ADR 0117).
+      if (this.splitEls) this.resizeObserver.observe(this.el);
     }
   }
+
+  /**
+   * The divider and the tail (ADR 0117), both hidden until the view is
+   * scrolled back. The divider is a full-width rule with the tail bar's
+   * text set into it: `━━ 16 new lines ━━ PgDn / Esc to return ━━━…`.
+   */
+  private buildSplit(doc: Document): NonNullable<OutputPane['splitEls']> {
+    const span = (cls: string, text: string): HTMLSpanElement => {
+      const el = doc.createElement('span');
+      el.className = cls;
+      el.textContent = text;
+      return el;
+    };
+    const bar = doc.createElement('div');
+    bar.className = 'wc-split-bar';
+    bar.hidden = true;
+    bar.setAttribute('role', 'separator');
+    bar.setAttribute('aria-orientation', 'horizontal');
+    const count = span('wc-split-text', '');
+    bar.append(
+      span('wc-split-rule', RULE + RULE + ' '),
+      count,
+      span('wc-split-rule', ' ' + RULE + RULE + ' '),
+      span('wc-split-text', 'PgDn / Esc to return'),
+      span('wc-split-rule', RULE_FILL),
+    );
+    bar.addEventListener('pointerdown', this.onBarDown);
+    // The press neither moves the focus from the input nor starts a selection.
+    bar.addEventListener('mousedown', preventDefault);
+    const tail = doc.createElement('div');
+    tail.className = 'wc-split-tail';
+    tail.hidden = true;
+    // The rows exist twice in the DOM while it shows.
+    tail.setAttribute('aria-hidden', 'true');
+    const rows = doc.createElement('div');
+    rows.className = 'wc-split-rows';
+    tail.append(rows);
+    tail.addEventListener('mouseup', this.onMouseUp);
+    // A selection stays in the half it starts in: the tail's rows are copies
+    // of the newest rows, so a selection over both would copy them twice,
+    // and above the tail lies the whole scrollback in DOM order.
+    this.scroller.addEventListener('mousedown', this.onSelectStart);
+    tail.addEventListener('mousedown', this.onSelectStart);
+    return { bar, count, tail, rows };
+  }
+
+  /**
+   * Holds a selection inside the half it started in, from a left press in
+   * the scroller or the tail until the button comes up. A drag from the
+   * scroller into the tail ends at the last row in view above the divider;
+   * a drag from the tail upward ends at the tail's first row. It runs on
+   * every `selectionchange` of the drag and once more on the mouseup,
+   * before the copy (the last change may not have been delivered yet).
+   */
+  private readonly onSelectStart = (e: MouseEvent): void => {
+    if (e.button !== 0 || !this.splitEls || this.splitEls.tail.hidden) return;
+    const doc = this.el.ownerDocument;
+    const { rows } = this.splitEls;
+    const half: Node = this.scroller.contains(e.target as Node) ? this.scroller : rows;
+    const clamp = (): void => {
+      const sel = doc.getSelection();
+      if (!sel || !sel.anchorNode || !sel.focusNode || !half.contains(sel.anchorNode)) return;
+      if (half.contains(sel.focusNode)) return;
+      if (half === rows) {
+        sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, rows, 0);
+        return;
+      }
+      const last = this.elementAt(this.scroller.clientHeight - 1);
+      if (last) sel.setBaseAndExtent(sel.anchorNode, sel.anchorOffset, last, last.childNodes.length);
+    };
+    this.selClamp?.();
+    this.selClamp = clamp;
+    doc.addEventListener('selectionchange', clamp);
+    doc.defaultView?.addEventListener(
+      'mouseup',
+      () => {
+        doc.removeEventListener('selectionchange', clamp);
+        // The pane's own mouseup (the copy) runs after this capture listener
+        // and calls the clamp once more; a microtask would run before it.
+        setTimeout(() => {
+          if (this.selClamp === clamp) this.selClamp = null;
+        }, 0);
+      },
+      { capture: true, once: true },
+    );
+  };
 
   // ------------------------------------------------------------------ input
 
@@ -369,6 +507,7 @@ export class OutputPane {
     this.rowCount += built.length;
     if (el === this.lastRow) this.lastRow = built[built.length - 1]!;
     this.trimTop();
+    if (this.splitOpen) this.tailInsertAfter(el, built);
     if (!this.scrolled) this.scroller.scrollTop = this.scroller.scrollHeight;
     return true;
   }
@@ -418,6 +557,9 @@ export class OutputPane {
     stats.runs = 0;
     stats.receivedUs = 0;
     let prev = this.lastRow;
+    // The last row of an earlier flush, when this one appends an echo to it
+    // (the split's tail then clones it again).
+    let echoed: HTMLElement | null = null;
     for (let i = start; i < end; i++) {
       const op = this.queue[i]!;
       let row: HTMLElement | null;
@@ -442,10 +584,17 @@ export class OutputPane {
       } else if (op.kind === OP_STYLED) {
         row = renderStyled(doc, op.styled!);
         stats.runs += op.styled!.segs.length;
-      } else if (op.kind === OP_ECHO_ATTACH) {
-        row = renderEcho(doc, prev && !prev.classList.contains('wc-echoed') ? prev : null, op.text);
       } else {
-        row = renderEcho(doc, isOpenPrompt(prev) ? prev : null, op.text);
+        const target =
+          op.kind === OP_ECHO_ATTACH
+            ? prev && !prev.classList.contains('wc-echoed')
+              ? prev
+              : null
+            : isOpenPrompt(prev)
+              ? prev
+              : null;
+        row = renderEcho(doc, target, op.text);
+        if (target && target === this.lastRow) echoed = target;
       }
       if (row) {
         built.push(row);
@@ -470,13 +619,15 @@ export class OutputPane {
       this.trimTop();
     }
 
+    if (this.splitOpen && (added > 0 || echoed)) this.tailAppend(built, echoed);
     if (this.partialDirty) this.renderPartial();
 
     if (!wasScrolled) {
       this.scroller.scrollTop = this.scroller.scrollHeight;
     } else if (added > 0) {
       this.newWhileScrolled += added;
-      this.updateTailBar();
+      if (this.splitEls) this.updateSplitBar();
+      else this.updateTailBar();
     }
 
     if (this.head < this.queue.length) this.schedule();
@@ -579,12 +730,14 @@ export class OutputPane {
     if (!p) {
       el.textContent = '';
       el.hidden = true;
+      if (this.splitOpen) this.tailSetPartial();
       return;
     }
     el.textContent = '';
     fillRow(el.ownerDocument, el, p);
     if (this.partialEcho !== null) renderEcho(el.ownerDocument, el, this.partialEcho);
     el.hidden = false;
+    if (this.splitOpen) this.tailSetPartial();
   }
 
   // -------------------------------------------------------------- scrolling
@@ -610,14 +763,26 @@ export class OutputPane {
         this.newWhileScrolled = 0;
         this.tailBar.hidden = true;
       }
+      // The upper half reached its bottom (or a PgUp found nothing above):
+      // the scroller grows back and the tail is pinned again.
+      if (this.splitOpen) {
+        this.closeSplit();
+        s.scrollTop = s.scrollHeight;
+      }
     } else if (!this.scrolled) {
       this.scrolled = true;
       // The open chunk at the tail may now leave the view (see addChunkLines).
       this.writeChunkSize(this.rowsEl.lastElementChild);
       this.scroller.classList.add('wc-scrolled');
       this.newWhileScrolled = 0;
-      this.updateTailBar();
-      this.tailBar.hidden = false;
+      if (this.splitEls) {
+        // The scroller shrinks under its top row: the scrolled text stays
+        // where it is, and the live rows show below the divider.
+        this.openSplit();
+      } else {
+        this.updateTailBar();
+        this.tailBar.hidden = false;
+      }
     }
   }
 
@@ -632,8 +797,12 @@ export class OutputPane {
     return Math.max(lh, this.scroller.clientHeight - lh);
   }
 
-  /** Scrolls up one page (keeping one row of context). */
+  /**
+   * Scrolls up one page (keeping one row of context). From the tail the
+   * split opens first, so the old top row lands just above the divider.
+   */
   pageUp(): void {
+    if (this.splitEls && !this.scrolled) this.openSplit();
     this.pageBy(-this.pageSize());
   }
 
@@ -743,6 +912,7 @@ export class OutputPane {
 
   /** Returns to the live tail. */
   toTail(): void {
+    this.closeSplit();
     this.scroller.scrollTop = this.scroller.scrollHeight;
     this.anchor = null;
     this.scrolled = false;
@@ -755,6 +925,194 @@ export class OutputPane {
   isScrolled(): boolean {
     return this.scrolled;
   }
+
+  /**
+   * True while the split shows the live tail below the scrolled view
+   * (ADR 0117): a command sent then leaves the view where it is.
+   */
+  isSplit(): boolean {
+    return this.splitOpen;
+  }
+
+  // ------------------------------------------------------------------ split
+  //
+  // Scrolled back (ADR 0117), `.wc-output` (a flex column) shows the
+  // scroller above, a divider row, and the tail: clones of the newest rows
+  // and the open partial, newest at the bottom, clipped at the top. The
+  // clones are added per flush, so a selection in the tail survives new
+  // output; a row changed after its flush (an echo appended to the prompt
+  // row, room notes inserted after a row) is cloned again. Opening and
+  // closing change only the scroller's height: its top row stays (the
+  // scroller's top does not move, and the anchor holds it through the
+  // layout that follows), and closing pins the tail as before.
+
+  /** Shows the divider and the tail, sized from the share. */
+  private openSplit(): void {
+    const e = this.splitEls;
+    if (!e || this.splitOpen) return;
+    this.splitOpen = true;
+    this.updateSplitBar();
+    e.bar.hidden = false;
+    e.tail.hidden = false;
+    this.sizeSplit();
+    this.tailSetPartial();
+  }
+
+  /** Hides the divider and the tail, and drops the clones. */
+  private closeSplit(): void {
+    const e = this.splitEls;
+    if (!e || !this.splitOpen) return;
+    this.splitOpen = false;
+    e.bar.hidden = true;
+    e.tail.hidden = true;
+    e.rows.textContent = '';
+    this.tailPartial?.remove();
+    this.tailPartial = null;
+    this.clones = new WeakMap();
+  }
+
+  /**
+   * Sizes the open tail from the share in whole cell rows, and fills it
+   * with clones when it now holds fewer rows than it shows.
+   */
+  private sizeSplit(): void {
+    const e = this.splitEls;
+    if (!e || !this.splitOpen) return;
+    const h = this.cellSize().h;
+    const total = h > 0 ? Math.floor(this.el.clientHeight / h + 1e-6) : 0;
+    const rows = clampSplitRows(total, Math.round(this.splitShare * total));
+    if (rows !== this.tailRows) {
+      this.tailRows = rows;
+      e.tail.style.height = `calc(var(--cell-h) * ${rows})`;
+    }
+    // The rows wrap at the scroller's text width: leave the classic
+    // scrollbar's width free on the right.
+    const gutter = Math.max(0, this.scroller.offsetWidth - this.scroller.clientWidth);
+    if (gutter !== this.tailGutter) {
+      this.tailGutter = gutter;
+      e.tail.style.paddingRight = gutter + 'px';
+    }
+    const have = e.rows.childElementCount;
+    if (have < rows && have < this.rowCount) this.tailRebuild();
+    else this.tailTrim();
+  }
+
+  /** Clones the newest `tailRows` rows into the tail afresh. */
+  private tailRebuild(): void {
+    const e = this.splitEls!;
+    const list: HTMLElement[] = [];
+    for (let r = this.lastRow; r && list.length < this.tailRows; r = prevRow(r)) list.push(r);
+    list.reverse();
+    e.rows.textContent = '';
+    this.clones = new WeakMap();
+    this.tailAppend(list, null);
+  }
+
+  /** Appends clones of `rows` (newest last), first cloning `echoed` again. */
+  private tailAppend(rows: readonly HTMLElement[], echoed: HTMLElement | null): void {
+    const e = this.splitEls!;
+    if (echoed) this.tailReclone(echoed);
+    const cap = this.tailRows;
+    const from = Math.max(0, rows.length - cap);
+    if (rows.length >= cap) e.rows.textContent = '';
+    const frag = e.rows.ownerDocument.createDocumentFragment();
+    for (let i = from; i < rows.length; i++) frag.appendChild(this.cloneRow(rows[i]!));
+    e.rows.appendChild(frag);
+    this.tailTrim();
+  }
+
+  /** Clones `rows`, inserted after `anchor` (ADR 0077 room notes), after its clone. */
+  private tailInsertAfter(anchor: HTMLElement, rows: readonly HTMLElement[]): void {
+    const at = this.clones.get(anchor);
+    if (!at || at.parentNode !== this.splitEls!.rows) return;
+    at.after(...rows.map((r) => this.cloneRow(r)));
+    this.tailTrim();
+  }
+
+  /** Replaces the clone of `row` (changed after its flush) with a new one. */
+  private tailReclone(row: HTMLElement): void {
+    const old = this.clones.get(row);
+    if (old && old.parentNode === this.splitEls!.rows) old.replaceWith(this.cloneRow(row));
+  }
+
+  private cloneRow(row: HTMLElement): HTMLElement {
+    const c = row.cloneNode(true) as HTMLElement;
+    this.clones.set(row, c);
+    return c;
+  }
+
+  /** Drops the oldest clones beyond the tail's height in rows. */
+  private tailTrim(): void {
+    const rows = this.splitEls!.rows;
+    for (let n = rows.childElementCount - Math.max(0, this.tailRows); n > 0; n--) rows.firstElementChild!.remove();
+  }
+
+  /** Clones the open partial (or none) below the tail's rows. */
+  private tailSetPartial(): void {
+    const e = this.splitEls!;
+    this.tailPartial?.remove();
+    this.tailPartial = null;
+    if (this.partialEl.hidden) return;
+    this.tailPartial = this.partialEl.cloneNode(true) as HTMLElement;
+    e.tail.appendChild(this.tailPartial);
+  }
+
+  private updateSplitBar(): void {
+    const n = this.newWhileScrolled;
+    this.splitEls!.count.textContent = n > 0 ? `${n} new line${n === 1 ? '' : 's'}` : 'scrolled';
+  }
+
+  /** Changes the tail's share of the pane (the setting changed elsewhere). */
+  setSplitShare(share: number): void {
+    if (!this.splitEls || !(share > 0) || share === this.splitShare) return;
+    this.splitShare = share;
+    this.sizeSplit();
+  }
+
+  /**
+   * A drag on the divider (the ADR 0106 pattern): pointer capture, so it
+   * goes on outside the pane; the tail's height snaps to whole cell rows
+   * and keeps 2 rows on each side; the share is reported when it ends.
+   */
+  private readonly onBarDown = (e: PointerEvent): void => {
+    const els = this.splitEls;
+    const h = this.cellSize().h;
+    if (!els || !this.splitOpen || e.button !== 0 || !(h > 0)) return;
+    const bar = els.bar;
+    const win = this.el.ownerDocument.defaultView ?? window;
+    const grab = e.clientY - bar.getBoundingClientRect().top;
+    const before = this.tailRows;
+    try {
+      bar.setPointerCapture(e.pointerId);
+    } catch {
+      // A synthetic or already released pointer: the window listeners still see it.
+    }
+    bar.classList.add('wc-dragging');
+    const onMove = (ev: PointerEvent): void => {
+      if (ev.pointerId !== e.pointerId || !this.splitOpen) return;
+      const total = Math.floor(this.el.clientHeight / h + 1e-6);
+      if (total <= 0) return;
+      // The divider's top follows the pointer; the tail is what lies below it.
+      const top = ev.clientY - grab - this.el.getBoundingClientRect().top;
+      const rows = clampSplitRows(total, Math.round((this.el.clientHeight - h - top) / h));
+      if (rows === this.tailRows) return;
+      this.splitShare = rows / total;
+      this.sizeSplit();
+    };
+    const onEnd = (ev: Event): void => {
+      if ((ev as PointerEvent).pointerId !== e.pointerId) return;
+      win.removeEventListener('pointermove', onMove, true);
+      win.removeEventListener('pointerup', onEnd, true);
+      win.removeEventListener('pointercancel', onEnd, true);
+      bar.removeEventListener('lostpointercapture', onEnd);
+      bar.classList.remove('wc-dragging');
+      if (this.tailRows !== before) this.onSplitShare?.(this.splitShare);
+    };
+    win.addEventListener('pointermove', onMove, true);
+    win.addEventListener('pointerup', onEnd, true);
+    win.addEventListener('pointercancel', onEnd, true);
+    bar.addEventListener('lostpointercapture', onEnd);
+  };
 
   // ------------------------------------------------------ selection / focus
 
@@ -776,6 +1134,7 @@ export class OutputPane {
   private readonly onMouseUp = (): void => {
     // A tap on a touch device neither copies nor refocuses (ADR 0075).
     if (touchInteraction()) return;
+    this.selClamp?.();
     const sel = this.el.ownerDocument.getSelection();
     const text = sel && !sel.isCollapsed ? sel.toString() : '';
     if (text && sel && this.el.contains(sel.anchorNode)) {
@@ -806,11 +1165,15 @@ export class OutputPane {
     return {
       // Cells can be fractional CSS px (whole device px, ADR 0050).
       cols: Math.floor(this.scroller.clientWidth / w + 1e-6),
-      rows: Math.floor(this.scroller.clientHeight / h + 1e-6),
+      // With the split, rows from the whole pane: opening, closing or
+      // dragging it never changes the size MUME sees (ADR 0117).
+      rows: Math.floor((this.splitEls ? this.el.clientHeight : this.scroller.clientHeight) / h + 1e-6),
     };
   }
 
   private handleResize(): void {
+    // The tail keeps its share of a pane whose height changed.
+    if (this.splitOpen) this.sizeSplit();
     if (!this.scrolled) this.scroller.scrollTop = this.scroller.scrollHeight;
     else this.keepAnchor();
     const { cols, rows } = this.measureCells();
@@ -851,8 +1214,25 @@ export class OutputPane {
     this.scroller.removeEventListener('scroll', this.onScroll);
     this.scroller.removeEventListener('mouseup', this.onMouseUp);
     this.scroller.removeEventListener('wheel', this.onWheel);
+    if (this.splitEls) {
+      this.splitEls.bar.removeEventListener('pointerdown', this.onBarDown);
+      this.splitEls.bar.removeEventListener('mousedown', preventDefault);
+      this.splitEls.tail.removeEventListener('mouseup', this.onMouseUp);
+      this.splitEls.tail.removeEventListener('mousedown', this.onSelectStart);
+      this.scroller.removeEventListener('mousedown', this.onSelectStart);
+    }
     this.el.remove();
   }
+}
+
+function preventDefault(e: Event): void {
+  e.preventDefault();
+}
+
+/** The row before `row` in the scrollback (across chunks), or null. */
+function prevRow(row: HTMLElement): HTMLElement | null {
+  const p = row.previousElementSibling ?? row.parentElement?.previousElementSibling?.lastElementChild ?? null;
+  return p as HTMLElement | null;
 }
 
 /**

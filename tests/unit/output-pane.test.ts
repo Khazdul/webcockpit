@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { type Line, type StyleRun, rgb } from '../../src/core/types';
-import { OutputPane, MAX_ROWS_PER_FRAME, renderLine } from '../../src/ui/output-pane';
+import { OutputPane, MAX_ROWS_PER_FRAME, clampSplitRows, renderLine } from '../../src/ui/output-pane';
 import { PALETTE_256, colorToCss } from '../../src/ui/palette';
 import { lines } from './text-helpers';
 import { chart24Rows, chart256Rows } from '../fixtures/colour-chart';
@@ -546,5 +546,262 @@ describe('OutputPane scrolling and selection', () => {
     expect(t.clip).toHaveBeenCalledWith('copy me');
     expect(t.focus).toHaveBeenCalled();
     sel.removeAllRanges();
+  });
+});
+
+describe('OutputPane split scrollback (ADR 0117)', () => {
+  beforeEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  /**
+   * A split pane 10 cells of 10 px high (the tail takes 3 rows at the
+   * default share), with a scroller that reports fixed heights.
+   */
+  function setupSplit(share = 0.3) {
+    const bus = new Bus();
+    bus.on('text.line', (l) => bus.emit('text.display', { line: l, source: l }));
+    bus.on('text.partial', (l) => bus.emit('text.displayPartial', { line: l, source: l }));
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const frames: Array<() => void> = [];
+    const clip = vi.fn(() => Promise.resolve());
+    const focus = vi.fn();
+    const onShare = vi.fn();
+    const sizes: Array<[number, number]> = [];
+    const pane = new OutputPane(bus, root, {
+      scrollback: 1000,
+      requestFrame: (cb) => frames.push(cb),
+      writeClipboard: clip,
+      onFocusInput: focus,
+      cellSize: () => ({ w: 10, h: 10 }),
+      onResize: (c, r) => sizes.push([c, r]),
+      split: { share, onShare },
+    });
+    const h = { scrollHeight: 1000, clientHeight: 100, paneHeight: 100 };
+    let top = 0;
+    const s = pane.scroller;
+    Object.defineProperty(s, 'scrollHeight', { get: () => h.scrollHeight, configurable: true });
+    Object.defineProperty(s, 'clientHeight', { get: () => h.clientHeight, configurable: true });
+    Object.defineProperty(s, 'clientWidth', { get: () => 800, configurable: true });
+    Object.defineProperty(s, 'scrollTop', {
+      get: () => top,
+      set: (v: number) => (top = Math.max(0, Math.min(v, h.scrollHeight - h.clientHeight))),
+      configurable: true,
+    });
+    Object.defineProperty(pane.el, 'clientHeight', { get: () => h.paneHeight, configurable: true });
+    const runFrames = () => {
+      while (frames.length) frames.shift()!();
+    };
+    const bar = pane.el.querySelector('.wc-split-bar') as HTMLElement;
+    const tail = pane.el.querySelector('.wc-split-tail') as HTMLElement;
+    const tailRows = () => Array.from(tail.querySelectorAll('.wc-split-rows > .wc-row')).map((r) => r.textContent);
+    const emit = (n: number, from = 0) => {
+      for (let i = from; i < from + n; i++) bus.emit('text.line', line('row ' + i));
+      runFrames();
+    };
+    return { bus, pane, h, bar, tail, tailRows, emit, runFrames, clip, focus, onShare, sizes };
+  }
+
+  it('is off without the option: the tail bar shows, as on touch devices and in the player', () => {
+    const t = setup(1000);
+    expect(t.pane.el.querySelector('.wc-split-bar')).toBeNull();
+    expect(t.pane.el.querySelector('.wc-split-tail')).toBeNull();
+    expect(t.pane.isSplit()).toBe(false);
+  });
+
+  it('keeps at least 2 rows in the tail and 2 above the divider', () => {
+    expect(clampSplitRows(40, 12)).toBe(12);
+    expect(clampSplitRows(40, 0)).toBe(2);
+    expect(clampSplitRows(40, 1)).toBe(2);
+    expect(clampSplitRows(40, 37)).toBe(37);
+    expect(clampSplitRows(40, 39)).toBe(37);
+    expect(clampSplitRows(0, 3)).toBe(0);
+  });
+
+  it('PgUp opens it: the divider, and clones of the newest rows below it', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.toTail();
+    expect(t.bar.hidden).toBe(true);
+    expect(t.tail.hidden).toBe(true);
+    // Nothing of the split exists at the tail.
+    expect(t.tailRows()).toEqual([]);
+    t.pane.pageUp();
+    expect(t.pane.isScrolled()).toBe(true);
+    expect(t.pane.isSplit()).toBe(true);
+    expect(t.bar.hidden).toBe(false);
+    expect(t.tail.hidden).toBe(false);
+    expect(t.tail.getAttribute('aria-hidden')).toBe('true');
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 3)');
+    expect(t.tailRows()).toEqual(['row 17', 'row 18', 'row 19']);
+    expect(t.bar.textContent).toMatch(/^━━ scrolled ━━ PgDn \/ Esc to return ━━━━/);
+  });
+
+  it('adds new rows to the tail one clone each, so a selection in it survives', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.toTail();
+    t.pane.pageUp();
+    const kept = t.tail.querySelectorAll('.wc-split-rows > .wc-row')[2]!;
+    t.emit(1, 20);
+    expect(t.tailRows()).toEqual(['row 18', 'row 19', 'row 20']);
+    expect(kept.isConnected).toBe(true);
+    expect(t.bar.textContent).toContain('━━ 1 new line ━━');
+    // A burst larger than the tail clones only what shows.
+    t.emit(50, 21);
+    expect(t.tailRows()).toEqual(['row 68', 'row 69', 'row 70']);
+    expect(t.bar.textContent).toContain('51 new lines');
+    // The rows in the scroller are untouched.
+    expect(t.pane.el.querySelectorAll('.wc-rows .wc-row')).toHaveLength(71);
+  });
+
+  it('clones the prompt row again when the echo is appended to it, and shows the partial', () => {
+    const t = setupSplit();
+    t.emit(5);
+    t.pane.toTail();
+    t.pane.pageUp();
+    t.bus.emit('text.line', line('HP:Fine>', true));
+    t.runFrames();
+    expect(t.tailRows()).toEqual(['row 3', 'row 4', 'HP:Fine>']);
+    t.bus.emit('cmd.sent', { text: 'look', ts: 0 });
+    t.runFrames();
+    expect(t.tailRows()).toEqual(['row 3', 'row 4', 'HP:Fine> look']);
+    // Typed at a partial prompt: the echo attaches to the line completing it.
+    t.bus.emit('text.partial', line('Name: '));
+    t.runFrames();
+    const partial = () => t.tail.querySelector(':scope > .wc-partial') as HTMLElement | null;
+    expect(partial()?.textContent).toBe('Name: ');
+    expect(partial()?.hidden).toBe(false);
+    t.bus.emit('cmd.sent', { text: 'gandalf', ts: 0 });
+    t.runFrames();
+    expect(partial()?.textContent).toBe('Name: gandalf');
+    t.bus.emit('text.line', line('Name: '));
+    t.runFrames();
+    expect(t.tailRows()).toEqual(['row 4', 'HP:Fine> look', 'Name: gandalf']);
+    expect(partial()).toBeNull();
+  });
+
+  it('clones room notes inserted after a row in the tail (ADR 0077)', () => {
+    const t = setupSplit();
+    t.emit(5);
+    const exits = line('Exits: north.');
+    t.pane.watchAnchor(exits);
+    t.bus.emit('text.line', exits);
+    t.bus.emit('text.line', line('HP:Fine>', true));
+    t.runFrames();
+    t.pane.toTail();
+    t.pane.pageUp();
+    expect(t.tailRows()).toEqual(['row 4', 'Exits: north.', 'HP:Fine>']);
+    expect(t.pane.insertAfter(exits, [{ cls: 'wc-note', segs: [{ text: 'Note: a trap' }] }])).toBe(true);
+    expect(t.tailRows()).toEqual(['Exits: north.', 'Note: a trap', 'HP:Fine>']);
+  });
+
+  it('closes at the bottom and on toTail; NAWS rows come from the whole pane', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.remeasure();
+    expect(t.sizes).toEqual([[80, 10]]);
+    t.pane.toTail();
+    t.pane.pageUp();
+    // The scroller shrinks to the share above the divider; the size MUME sees does not.
+    t.h.clientHeight = 60;
+    t.pane.remeasure();
+    expect(t.pane.measureCells()).toEqual({ cols: 80, rows: 10 });
+    expect(t.sizes).toEqual([[80, 10]]);
+    for (let i = 0; i < 30 && t.pane.isScrolled(); i++) t.pane.pageDown();
+    expect(t.pane.isScrolled()).toBe(false);
+    expect(t.pane.isSplit()).toBe(false);
+    expect(t.bar.hidden).toBe(true);
+    expect(t.tail.hidden).toBe(true);
+    expect(t.tailRows()).toEqual([]);
+    t.pane.pageUp();
+    expect(t.pane.isSplit()).toBe(true);
+    t.pane.toTail();
+    expect(t.pane.isSplit()).toBe(false);
+    expect(t.tail.hidden).toBe(true);
+    expect(t.pane.scroller.scrollTop).toBe(940);
+  });
+
+  it('a PgUp with nothing above leaves no split open', () => {
+    const t = setupSplit();
+    t.emit(3);
+    t.h.scrollHeight = 30;
+    t.pane.pageUp();
+    expect(t.pane.isScrolled()).toBe(false);
+    expect(t.pane.isSplit()).toBe(false);
+    expect(t.bar.hidden).toBe(true);
+  });
+
+  it('copies a selection in the tail on mouseup, then returns focus', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.toTail();
+    t.pane.pageUp();
+    const row = t.tail.querySelectorAll('.wc-split-rows > .wc-row')[1]!;
+    const range = document.createRange();
+    range.selectNodeContents(row);
+    const sel = document.getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(range);
+    t.tail.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(t.clip).toHaveBeenCalledWith('row 18');
+    expect(t.focus).toHaveBeenCalled();
+    sel.removeAllRanges();
+  });
+
+  it('a drag on the divider snaps the tail to whole rows, clamps it, and reports the share at the end', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.toTail();
+    t.pane.pageUp();
+    // The pane at y 0–100, the divider below a 6-row scroller.
+    const rect = (top: number, height: number) => ({ top, bottom: top + height, left: 0, right: 800, width: 800, height, x: 0, y: top, toJSON: () => ({}) });
+    t.pane.el.getBoundingClientRect = () => rect(0, 100) as DOMRect;
+    t.bar.getBoundingClientRect = () => rect(60, 10) as DOMRect;
+    const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    t.bar.dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    const ptr = (type: string, y: number) => {
+      const e = new MouseEvent(type, { bubbles: true, clientY: y, button: 0 }) as PointerEvent;
+      Object.defineProperty(e, 'pointerId', { value: 1 });
+      return e;
+    };
+    t.bar.dispatchEvent(ptr('pointerdown', 65));
+    expect(t.bar.classList.contains('wc-dragging')).toBe(true);
+    // Up 2.7 rows: the tail takes 3 more.
+    window.dispatchEvent(ptr('pointermove', 38));
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 6)');
+    expect(t.tailRows()).toEqual(['row 14', 'row 15', 'row 16', 'row 17', 'row 18', 'row 19']);
+    // Far up: 2 rows stay above the divider.
+    window.dispatchEvent(ptr('pointermove', -50));
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 7)');
+    // Far down: 2 rows stay in the tail.
+    window.dispatchEvent(ptr('pointermove', 500));
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 2)');
+    expect(t.tailRows()).toEqual(['row 18', 'row 19']);
+    expect(t.onShare).not.toHaveBeenCalled();
+    window.dispatchEvent(ptr('pointermove', 45));
+    window.dispatchEvent(ptr('pointerup', 45));
+    expect(t.bar.classList.contains('wc-dragging')).toBe(false);
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 5)');
+    expect(t.onShare).toHaveBeenCalledWith(0.5);
+    // Moves after the drag do nothing.
+    window.dispatchEvent(ptr('pointermove', 10));
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 5)');
+    expect(t.sizes.every(([, r]) => r === 10)).toBe(true);
+  });
+
+  it('follows a change of the pane height and of the share as a share', () => {
+    const t = setupSplit();
+    t.emit(20);
+    t.pane.toTail();
+    t.pane.pageUp();
+    t.h.paneHeight = 200;
+    t.pane.remeasure();
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 6)');
+    t.pane.setSplitShare(0.5);
+    expect(t.tail.style.height).toBe('calc(var(--cell-h) * 10)');
+    expect(t.tailRows()).toHaveLength(10);
   });
 });

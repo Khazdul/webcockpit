@@ -40,10 +40,26 @@ Released 0.2.1 (stage 34: menu surfaces follow the background, ADR 0116, approve
 | 32 | Players and the start menu | Done | `docs/stages/32-players.md` |
 | 33 | Full-width Scripts and a new Export Editor | Owner testing | `docs/stages/33-export-editor.md` |
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
+| 35 | Split scrollback | Owner testing | `docs/stages/35-split-scrollback.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-03 — Stage 35 split scrollback (built, owner testing)
+
+- **Owner answers:** no snap back on send while split; always on, no
+  setting; computer first, touch keeps today's behaviour; 30 % default;
+  the divider should look like one and show a drag cursor.
+- **Done:** ADR 0117; built on branch `stage-35-split-scrollback`
+  (OutputPane split, divider rule with drag, tail clones, NAWS from the
+  whole window, `settings.output.splitShare`, no snap while split, off on
+  touch and in the players); review fix: a selection stays in its half.
+  Unit 3086 passed; output/scrolling/smoke e2e green in both engines.
+- **Open:** full e2e had 2 failures outside the output pane (phone
+  scrollbar drag, flaky on the base too; script editor Ctrl+F under
+  load). Hover on Paper is subtle.
+- **Next:** owner test (guide in the stage file), then merge and release.
 
 ### 2026-11-03 — Split scrollback (investigation, no stage)
 

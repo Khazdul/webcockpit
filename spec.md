@@ -178,7 +178,10 @@ Mapped to Inv §1.
   - Scrollback follows Inv §1.1.
   - Page Up/Down scroll the output.
   - A scrolled-back view shows the split and live indicator described
-    there.
+    there. On the desktop it splits (ADR 0117): the live tail stays
+    visible below a draggable divider, the split goes at the bottom or
+    on Esc, and sending a command keeps the view. Touch devices, the log
+    player and the HTML replay keep the tail bar and the snap on send.
   - Sent commands are echoed as Cockpit/tt++ does. The exact form is
     checked against a live session in stage 1.
 - **Input pane.** Always on, full width, one line (Inv §1.2).

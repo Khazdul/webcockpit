@@ -59,6 +59,8 @@ import {
   SCRIPT_PANE_DEFAULTS,
   SCROLLBACK_CHOICES,
   SETTINGS_VERSION,
+  SPLIT_SHARE_MAX,
+  SPLIT_SHARE_MIN,
   SPOTLIGHT_PERIODS,
   type Settings,
   type SpotlightSettings,
@@ -335,11 +337,19 @@ export function migrateSpotlights(raw: unknown): SpotlightSettings {
   };
 }
 
-/** Game window options from anything (a depth not offered takes the default). */
+/**
+ * Game window options from anything (a depth not offered takes the
+ * default; a split share that is not a number takes the default, one out
+ * of bounds is clamped, ADR 0117).
+ */
 export function migrateOutput(raw: unknown): OutputSettings {
   const d = defaultSettings().output;
   const x = isObj(raw) ? raw : {};
-  return { scrollback: oneOf(x.scrollback, SCROLLBACK_CHOICES, d.scrollback) };
+  const share =
+    typeof x.splitShare === 'number' && Number.isFinite(x.splitShare)
+      ? Math.min(SPLIT_SHARE_MAX, Math.max(SPLIT_SHARE_MIN, x.splitShare))
+      : d.splitShare;
+  return { scrollback: oneOf(x.scrollback, SCROLLBACK_CHOICES, d.scrollback), splitShare: share };
 }
 
 /** Input line options from anything (both default off, ADR 0063). */

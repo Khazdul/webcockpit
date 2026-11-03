@@ -19,6 +19,9 @@ import {
   migrateInput,
   migrateMapper,
   SCROLLBACK_CHOICES,
+  DEFAULT_SPLIT_SHARE,
+  SPLIT_SHARE_MAX,
+  SPLIT_SHARE_MIN,
   SETTINGS_VERSION,
   defaultTimersSettings,
   TIMER_COLOR_HEX,
@@ -358,15 +361,28 @@ describe('migrateSettings', () => {
   });
 
   it('adds the scrollback depth with its default and keeps only offered depths (ADR 0046)', () => {
-    expect(migrateSettings({ profile: 'x' }).output).toEqual({ scrollback: 20000 });
-    expect(migrateOutput({ scrollback: 5000 })).toEqual({ scrollback: 5000 });
-    expect(migrateOutput({ scrollback: 50000 })).toEqual({ scrollback: 50000 });
+    expect(migrateSettings({ profile: 'x' }).output).toEqual({ scrollback: 20000, splitShare: 0.3 });
+    expect(migrateOutput({ scrollback: 5000 })).toEqual({ scrollback: 5000, splitShare: 0.3 });
+    expect(migrateOutput({ scrollback: 50000 })).toEqual({ scrollback: 50000, splitShare: 0.3 });
     for (const bad of [12345, '5000', -1, 1e9, null]) expect(migrateOutput({ scrollback: bad }).scrollback).toBe(20000);
     expect(SCROLLBACK_CHOICES).toContain(defaultSettings().output.scrollback);
     expect(viewSnapshot(defaultSettings())).not.toHaveProperty('output');
     const store = new SettingsStore({ factory: null, storage: null, win: null });
     store.update({ output: { scrollback: 10000 } });
     expect(store.get().output.scrollback).toBe(10000);
+  });
+
+  it('adds the split share, 0.3 by default, clamped to its bounds (ADR 0117)', () => {
+    expect(defaultSettings().output.splitShare).toBe(DEFAULT_SPLIT_SHARE);
+    expect(DEFAULT_SPLIT_SHARE).toBe(0.3);
+    expect(migrateOutput({ scrollback: 5000, splitShare: 0.45 }).splitShare).toBe(0.45);
+    expect(migrateOutput({ splitShare: 0 }).splitShare).toBe(SPLIT_SHARE_MIN);
+    expect(migrateOutput({ splitShare: -3 }).splitShare).toBe(SPLIT_SHARE_MIN);
+    expect(migrateOutput({ splitShare: 7 }).splitShare).toBe(SPLIT_SHARE_MAX);
+    for (const bad of ['0.4', null, NaN, Infinity, {}]) expect(migrateOutput({ splitShare: bad }).splitShare).toBe(0.3);
+    const store = new SettingsStore({ factory: null, storage: null, win: null });
+    store.update({ output: { splitShare: 0.5 } });
+    expect(store.get().output).toEqual({ scrollback: 20000, splitShare: 0.5 });
   });
 
   it('adds the input line options, both off, and keeps only booleans (ADR 0063)', () => {
