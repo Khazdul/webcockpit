@@ -1,6 +1,6 @@
 # Split scrollback — feasibility study
 
-Date: 2026-11-03. Status: investigation only, nothing built. Owner request:
+Date: 2026-11-03. Status: built in stage 35 and released in 0.2.2; ADR 0117 is authoritative (owner answers: no snap on send, always on, off on touch, 30 %). Owner request:
 while scrolled back, keep a few live rows at the bottom of the game window
 (the "split screen" of Mudlet, zMUD and others); scrolling back to the
 bottom removes the split; the border between the halves can be dragged.
