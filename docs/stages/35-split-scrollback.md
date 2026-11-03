@@ -73,4 +73,6 @@ scrolled?
 
 ## Owner feedback
 
-(after testing)
+2026-11-03, round 1: "Känns bra." The rule's teal colour does not fit;
+a grey like the vertical scrollbar suits it better. Done: neutral grey,
+light on dark backgrounds and darker on light ones, stronger on hover.

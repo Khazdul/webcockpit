@@ -42,7 +42,10 @@ the bottom the split goes; the border can be dragged.
   notes inserted by `insertAfter`) are re-cloned. `aria-hidden`.
 - **Divider.** Replaces the grey tail bar: a full-width TUI rule with the
   "N new lines" text set into it, drawn so it reads as a screen divider.
-  Hover: `row-resize` cursor and a brighter rule. Drag: pointer capture,
+  The rule is a neutral grey like the scrollbar thumb (owner, 2026-11-03):
+  `#a8a8a8` on a dark background, `#8c8c8c` on a light one (`light-dark()`
+  on `--sf-scheme`). Hover: `row-resize` cursor and a stronger grey
+  (`#dadada` / `#4a4a4a`). Drag: pointer capture,
   mousedown prevented (input keeps focus), snaps to whole cell rows, at
   least 2 rows on each side. The size is a share of the game window,
   `settings.output.splitShare`, default 0.3, saved when a drag ends.

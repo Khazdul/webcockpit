@@ -199,13 +199,21 @@ body {
   touch-action: none;
 }
 
+/* The rule is a neutral grey like the game window's scrollbar thumb
+ * (owner, 2026-11-03): light on a dark background, darker on a light one.
+ * `--sf-scheme` is the background's side (ADR 0116); `color-scheme` is
+ * inherited only by the bar's own few spans. */
+.wc-split-bar {
+  color-scheme: var(--sf-scheme, dark);
+}
+
 .wc-split-rule {
-  color: var(--c-section);
+  color: light-dark(#8c8c8c, #a8a8a8);
 }
 
 .wc-split-bar:hover .wc-split-rule,
 .wc-split-bar.wc-dragging .wc-split-rule {
-  color: var(--c-title);
+  color: light-dark(#4a4a4a, #dadada);
 }
 
 .wc-split-bar:hover .wc-split-text,
