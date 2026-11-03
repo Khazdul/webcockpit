@@ -22,20 +22,20 @@ divider can be dragged. ADR 0117, study `notes/research/split-scrollback.md`.
 
 ## Tasks
 
-- [ ] `OutputPane`: split option, divider, tail element, open/close with
+- [x] `OutputPane`: split option, divider, tail element, open/close with
       the ADR 0045 anchor, PgUp opens before stepping
-- [ ] Tail: incremental clones, partial, re-clone of mutated rows
+- [x] Tail: incremental clones, partial, re-clone of mutated rows
       (echo on prompt, `insertAfter`), `aria-hidden`, copy-on-select
-- [ ] Divider look (TUI rule, label, hover, drag cursor) and drag with
+- [x] Divider look (TUI rule, label, hover, drag cursor) and drag with
       snapping and clamps; `settings.output.splitShare` + migration
-- [ ] NAWS rows from `.wc-output`
-- [ ] No snap on send while split (desktop); touch unchanged
-- [ ] Off in the log player and HTML replay
-- [ ] Unit tests; e2e in Chromium and Firefox (open/close, anchoring
+- [x] NAWS rows from `.wc-output`
+- [x] No snap on send while split (desktop); touch unchanged
+- [x] Off in the log player and HTML replay
+- [x] Unit tests; e2e in Chromium and Firefox (open/close, anchoring
       through trims and width changes, NAWS unchanged, drag, send keeps
       the split, touch emulation unchanged); ADR 0045 tests adapted
-- [ ] Screenshots on Black and Paper, reviewed
-- [ ] Inv §1.1 / spec §2.2 notes
+- [x] Screenshots on Black and Paper, reviewed
+- [x] Inv §1.1 / spec §2.2 notes
 
 ## Test guide
 
