@@ -45,6 +45,18 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-03 — Split scrollback (investigation, no stage)
+
+- **Owner brief:** while scrolled back, keep live rows at the bottom of the
+  game window (split screen), gone at the bottom, draggable border; only if
+  nothing else gets worse. Investigate thoroughly.
+- **Done:** `notes/research/split-scrollback.md`: feasible inside the output
+  pane, no cost at the live tail; design (flex divider + cloned tail, NAWS
+  from `.wc-output`, player off), cost, risks (ADR 0045 e2e tests, phone
+  touch scrolling), files a stage would touch.
+- **Next:** owner answers Q1–Q4 in the note (snap on send, default on with
+  an off switch, phone, default size); then a stage.
+
 ### 2026-11-01 — Phone review (brainstorm, no stage)
 
 - **Owner brief:** a broad review of the phone experience, phone first;
