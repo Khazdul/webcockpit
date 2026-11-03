@@ -40,6 +40,7 @@ Released 0.2.1 (stage 34: menu surfaces follow the background, ADR 0116, approve
 | 32 | Players and the start menu | Done | `docs/stages/32-players.md` |
 | 33 | Full-width Scripts and a new Export Editor | Owner testing | `docs/stages/33-export-editor.md` |
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
+| 35 | Split scrollback | In progress | `docs/stages/35-split-scrollback.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
