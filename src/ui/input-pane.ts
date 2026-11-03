@@ -28,7 +28,8 @@
 //   is "on"; every caret update restarts it with the caret visible, and a
 //   change of the setting restarts or stops it at once.
 // - Send first (ADR 0044 rule 3): Enter sends before any UI work; the snap
-//   to the live tail follows the send and only runs while scrolled back. A
+//   to the live tail follows the send and only runs while scrolled back,
+//   and not while the split shows the live tail (desktop, ADR 0117). A
 //   macro runs before the refocus when focus is elsewhere.
 // - Macros (stage 3, ADR 0015): before its own key handling the pane asks
 //   `onMacroKey` with the key's canonical name (src/script/keys.ts); a
@@ -80,6 +81,8 @@ export interface ScrollTarget {
   pageDown(): void;
   toTail(): void;
   isScrolled(): boolean;
+  /** True while a split shows the live tail (ADR 0117): a send keeps the view. */
+  isSplit?(): boolean;
 }
 
 export interface InputPaneOptions {
@@ -504,11 +507,14 @@ export class InputPane {
 
   /**
    * Back to the live tail after a send. Not scrolled back, the output's
-   * next flush keeps the tail anyway, so the layout read is skipped.
+   * next flush keeps the tail anyway, so the layout read is skipped. While
+   * the split shows the live tail (desktop, ADR 0117) the view stays: the
+   * player reads old text and keeps playing; Esc, PgDn and scrolling down
+   * return.
    */
   private snapToTail(): void {
     const out = this.opts.output;
-    if (out?.isScrolled()) out.toTail();
+    if (out?.isScrolled() && !out.isSplit?.()) out.toTail();
   }
 
   // ---------------------------------------------------------------- history

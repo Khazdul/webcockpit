@@ -475,6 +475,16 @@ export class App {
           : {}),
       ...(cells ? { cellSize: () => cells.get() } : {}),
       ...(player ? { stampRows: true, wheelScale: 1 } : {}),
+      // Split scrollback on the desktop (ADR 0117); not on touch devices,
+      // nor in the log player or the HTML replay (player Apps).
+      ...(!player && !device().touch
+        ? {
+            split: {
+              share: this.settings.get().output.splitShare,
+              onShare: (share: number) => this.settings.update({ output: { splitShare: share } }),
+            },
+          }
+        : {}),
     });
     if (perf) perf.output = this.output;
     this.unsubs.push(this.mapNotes.attach(bus, this.output));
@@ -500,6 +510,7 @@ export class App {
     this.unsubs.push(
       this.settings.subscribe((s) => {
         this.output.setScrollback(s.output.scrollback);
+        this.output.setSplitShare(s.output.splitShare);
         applyInput(s);
       }),
     );
