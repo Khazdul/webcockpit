@@ -145,7 +145,7 @@ export interface OutputPaneOptions {
 /** The rule glyph of the split divider (ADR 0117). */
 const RULE = '\u2501';
 /** The divider's trailing rule: wider than any game window, clipped. */
-const RULE_FILL = ' ' + RULE.repeat(600);
+const RULE_FILL = ' ' + RULE.repeat(1000);
 
 /**
  * The live tail's height in cell rows for a pane `total` rows high and a
