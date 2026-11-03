@@ -4,7 +4,9 @@
 import { type Page, expect, test } from '@playwright/test';
 
 const scroller = (page: Page) => page.locator('.wc-output .wc-scroller');
-const tailBar = (page: Page) => page.locator('.wc-output .wc-tail-bar');
+/** The divider of the split scrollback (ADR 0117), which carries the old tail bar's text. */
+const divider = (page: Page) => page.locator('.wc-output .wc-split-bar');
+const splitTail = (page: Page) => page.locator('.wc-output .wc-split-tail');
 
 /**
  * Opens the offline page and fills the scrollback with `n` rows `row 0` …
@@ -87,7 +89,7 @@ test('PgUp and Esc enter and leave scroll mode with 20 000 rows of scrollback', 
   await fill(page, 20_500);
   expect(await page.evaluate(() => window.__wc!.app.output.rows)).toBeGreaterThanOrEqual(20_000);
   await expect.poll(() => atTail(page)).toBe(true);
-  await expect(tailBar(page)).toBeHidden();
+  await expect(divider(page)).toBeHidden();
 
   // Rule 2 of ADR 0044: the scroll-mode class must not change an inherited
   // property of the rows, so they keep their own scrollbar-color.
@@ -97,18 +99,18 @@ test('PgUp and Esc enter and leave scroll mode with 20 000 rows of scrollback', 
   await page.locator('.wc-input-field').focus();
   await page.keyboard.press('PageUp');
   await expect(scroller(page)).toHaveClass(/wc-scrolled/);
-  await expect(tailBar(page)).toBeVisible();
+  await expect(divider(page)).toBeVisible();
   expect(await atTail(page)).toBe(false);
   expect(await rowColour()).toBe(atTailColour);
 
   // New rows while scrolled back do not pull the view down.
   await page.evaluate(() => window.__wc!.app.bus.emit('sys.message', { text: 'while scrolled' }));
-  await expect(tailBar(page)).toContainText('1 new line');
+  await expect(divider(page)).toContainText('1 new line');
   expect(await atTail(page)).toBe(false);
 
   await page.keyboard.press('Escape');
   await expect(scroller(page)).not.toHaveClass(/wc-scrolled/);
-  await expect(tailBar(page)).toBeHidden();
+  await expect(divider(page)).toBeHidden();
   await expect.poll(() => atTail(page)).toBe(true);
   await expect(page.locator('.wc-rows .wc-row').last()).toHaveText('[SYSTEM] while scrolled');
   expect(await rowColour()).toBe(atTailColour);
@@ -278,6 +280,11 @@ test.describe('scrolling a full scrollback', () => {
     test.setTimeout(120_000);
     await fill(page, 20_500, true);
     await page.locator('.wc-input-field').focus();
+    // The first PgUp opens the split (ADR 0117); the steps after it move by
+    // the upper half's page.
+    await page.keyboard.press('PageUp');
+    await settle(page);
+    await expect(divider(page)).toBeVisible();
     const dy = await pageStep(page);
     // Back through ~1 500 rows: most chunks there were built and passed in
     // one frame of the burst, so they start at their estimated height.
@@ -328,7 +335,9 @@ test.describe('scrolling a full scrollback', () => {
     const after = await rowTop(page, before.n);
     expect(after, `row ${before.n}`).not.toBeNull();
     expect(Math.abs(after! - before.top), `row ${before.n} moved from ${before.top} to ${after}`).toBeLessThanOrEqual(1.5);
-    await expect(tailBar(page)).toContainText('3000 new lines');
+    await expect(divider(page)).toContainText('3000 new lines');
+    // The tail shows the newest rows meanwhile.
+    await expect(splitTail(page).locator('.wc-row').last()).toHaveText(/^\[SYSTEM\] row 23499\b/);
   });
 
   test('a width change keeps the tail at the tail, and a scrolled view near its rows', async ({ page }) => {
@@ -345,6 +354,8 @@ test.describe('scrolling a full scrollback', () => {
     // Steps faster than frames settle on a row in view two frames later.
     await settle(page);
     await settle(page);
+    // The width changes below happen with the split open (ADR 0117).
+    await expect(divider(page)).toBeVisible();
     const before = await shownRows(page);
     for (const width of [900, 1280]) {
       await page.setViewportSize({ width, height: 720 });
@@ -384,6 +395,173 @@ test.describe('scrolling a full scrollback', () => {
       return { n: lines.length, first: lines[0], last: lines.at(-1) };
     });
     expect(copied).toEqual({ n: 1001, first: '[SYSTEM] row 19499', last: '[SYSTEM] row 20499' });
+  });
+});
+
+// ------------------------------------------------ split scrollback (ADR 0117)
+
+test.describe('split scrollback', () => {
+  /** Records every window size the game window reports for NAWS from now on. */
+  async function watchNaws(page: Page): Promise<() => Promise<Array<[number, number]>>> {
+    await page.evaluate(() => {
+      const w = window as unknown as { __naws: Array<[number, number]> };
+      w.__naws = [];
+      const s = window.__wc!.app.session;
+      const orig = s.setWindowSize.bind(s);
+      s.setWindowSize = (c: number, r: number) => {
+        w.__naws.push([c, r]);
+        orig(c, r);
+      };
+    });
+    return () => page.evaluate(() => (window as unknown as { __naws: Array<[number, number]> }).__naws);
+  }
+
+  const cellH = (page: Page) =>
+    page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-h')));
+
+  /** The tail's height in cell rows. */
+  async function tailRows(page: Page): Promise<number> {
+    const h = await cellH(page);
+    return Math.round((await splitTail(page).evaluate((el) => el.getBoundingClientRect().height)) / h);
+  }
+
+  test('PgUp opens it with the old top row above the divider; the tail is live; sending keeps it; Esc closes', async ({ page }) => {
+    await fill(page, 2_000);
+    const naws = await watchNaws(page);
+    const size = await page.evaluate(() => window.__wc!.app.output.measureCells());
+    await page.locator('.wc-input-field').focus();
+    await expect(splitTail(page)).toBeHidden();
+    const full = await scroller(page).evaluate((s) => s.clientHeight);
+    const first = await topRow(page);
+    await page.keyboard.press('PageUp');
+    await settle(page);
+    await expect(divider(page)).toBeVisible();
+    await expect(splitTail(page)).toBeVisible();
+    await expect(divider(page)).toHaveText(/^━━ scrolled ━━ PgDn \/ Esc to return ━━━━/);
+    // The scroller shrank to the share above the divider; the old top row
+    // is now its last row.
+    const h = await cellH(page);
+    const upper = await scroller(page).evaluate((s) => s.clientHeight);
+    const total = Math.floor(full / h + 1e-6);
+    expect(await tailRows(page)).toBe(Math.round(total * 0.3));
+    expect(upper).toBeLessThan(full - h * 2);
+    const top = await rowTop(page, first.n);
+    expect(Math.abs(top! - (upper - h)), `row ${first.n} at ${top}, the upper half ${upper} px high`).toBeLessThanOrEqual(1.5);
+    const dividerTop = await divider(page).evaluate((el) => el.getBoundingClientRect().top);
+    const scrollerTop = await scroller(page).evaluate((el) => el.getBoundingClientRect().top);
+    expect(Math.abs(scrollerTop + upper - dividerTop)).toBeLessThanOrEqual(1);
+    // The tail ends with the newest row, and new rows show in it at once.
+    await expect(splitTail(page).locator('.wc-row').last()).toHaveText('[SYSTEM] row 1999');
+    await push(page, 2_000, 2_003);
+    await expect(splitTail(page).locator('.wc-row').last()).toHaveText('[SYSTEM] row 2002');
+    await expect(divider(page)).toContainText('3 new lines');
+    const still = await topRow(page);
+    // A command (also an empty one) leaves the view where it is.
+    await page.keyboard.type('look');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await settle(page);
+    await expect(divider(page)).toBeVisible();
+    expect(await page.evaluate(() => window.__wc!.app.output.isScrolled())).toBe(true);
+    expect(await topRow(page)).toEqual(still);
+    // The size MUME sees never changed.
+    expect(await page.evaluate(() => window.__wc!.app.output.measureCells())).toEqual(size);
+    expect(await naws()).toEqual([]);
+    await page.keyboard.press('Escape');
+    await expect(divider(page)).toBeHidden();
+    await expect(splitTail(page)).toBeHidden();
+    await expect.poll(() => atTail(page)).toBe(true);
+    expect(await scroller(page).evaluate((s) => s.clientHeight)).toBe(full);
+    await expect(page.locator('.wc-rows .wc-row').last()).toBeInViewport();
+    expect(await naws()).toEqual([]);
+  });
+
+  test('the wheel opens it without moving the text, and closes it at the bottom', async ({ page }) => {
+    await fill(page, 2_000);
+    const naws = await watchNaws(page);
+    const box = (await scroller(page).boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+    const before = await topRow(page);
+    const s0 = await scroller(page).evaluate((s) => s.scrollTop);
+    await page.mouse.wheel(0, -200);
+    await expect(divider(page)).toBeVisible();
+    await settle(page);
+    await settle(page);
+    // The row moved by the wheel's scroll only: opening the split did not move it.
+    const s1 = await scroller(page).evaluate((s) => s.scrollTop);
+    expect(s1).toBeLessThan(s0);
+    const at = await rowTop(page, before.n);
+    expect(Math.abs(at! - (before.top + s0 - s1)), `row ${before.n} at ${at}, expected ${before.top + s0 - s1}`).toBeLessThanOrEqual(1.5);
+    // Down to the upper half's bottom: the split goes and the tail is pinned.
+    for (let i = 0; i < 20 && (await divider(page).isVisible()); i++) await page.mouse.wheel(0, 400);
+    await expect(divider(page)).toBeHidden();
+    await expect.poll(() => atTail(page)).toBe(true);
+    await expect(page.locator('.wc-rows .wc-row').last()).toBeInViewport();
+    await push(page, 2_000, 2_005);
+    await expect.poll(() => atTail(page)).toBe(true);
+    expect(await naws()).toEqual([]);
+  });
+
+  test('the divider drags in whole rows, keeps the text above in place, and the share is saved', async ({ page }) => {
+    await fill(page, 2_000);
+    const naws = await watchNaws(page);
+    await page.locator('.wc-input-field').focus();
+    await page.keyboard.press('PageUp');
+    await settle(page);
+    const h = await cellH(page);
+    const rows0 = await tailRows(page);
+    const before = await topRow(page);
+    const bar = (await divider(page).boundingBox())!;
+    // Hover: the resize cursor and a brighter rule.
+    const rule = divider(page).locator('.wc-split-rule').last();
+    const restColour = await rule.evaluate((el) => getComputedStyle(el).color);
+    await page.mouse.move(bar.x + 300, bar.y + bar.height / 2);
+    await expect.poll(() => rule.evaluate((el) => getComputedStyle(el).color)).not.toBe(restColour);
+    expect(await divider(page).evaluate((el) => getComputedStyle(el).cursor)).toBe('row-resize');
+    await page.mouse.down();
+    await page.mouse.move(bar.x + 300, bar.y + bar.height / 2 - 4.4 * h, { steps: 5 });
+    await settle(page);
+    expect(await tailRows(page)).toBe(rows0 + 4);
+    await page.mouse.up();
+    await settle(page);
+    // The input kept the focus; the top row did not move.
+    expect(await page.evaluate(() => document.activeElement?.classList.contains('wc-input-field'))).toBe(true);
+    expect(await topRow(page)).toEqual(before);
+    const total = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
+    await expect.poll(() => page.evaluate(() => window.__wc!.settings.get().output.splitShare)).toBeCloseTo((rows0 + 4) / total, 6);
+    expect(await naws()).toEqual([]);
+    // The share outlives a reload.
+    await page.waitForTimeout(1500);
+    await page.reload();
+    await expect(page.locator('.wc-rows .wc-row').first()).toHaveText(/Offline replay mode/);
+    await push(page, 0, 500);
+    await page.locator('.wc-input-field').focus();
+    await page.keyboard.press('PageUp');
+    await expect(divider(page)).toBeVisible();
+    expect(await tailRows(page)).toBe(rows0 + 4);
+    // A window resize keeps the share.
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await settle(page);
+    await settle(page);
+    const total2 = await page.evaluate(() => window.__wc!.app.output.measureCells().rows);
+    expect(await tailRows(page)).toBe(Math.round(((rows0 + 4) / total) * total2));
+    await page.evaluate(() => window.__wc!.settings.reset());
+  });
+
+  test('a touch device keeps the tail bar and the snap on send', async ({ page }) => {
+    await page.goto('/?replay&touch=1');
+    await expect(page.locator('.wc-rows .wc-row').first()).toHaveText(/Offline replay mode/);
+    await push(page, 0, 1_000);
+    const full = await scroller(page).evaluate((s) => s.clientHeight);
+    await page.locator('.wc-input-field').focus();
+    await page.keyboard.press('PageUp');
+    await expect(page.locator('.wc-output .wc-tail-bar')).toBeVisible();
+    await expect(page.locator('.wc-output .wc-tail-bar')).toContainText('── scrolled ── PgDn / Esc to return ──');
+    await expect(divider(page)).toHaveCount(0);
+    expect(await scroller(page).evaluate((s) => s.clientHeight)).toBe(full);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.wc-output .wc-tail-bar')).toBeHidden();
+    await expect.poll(() => atTail(page)).toBe(true);
   });
 });
 

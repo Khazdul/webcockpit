@@ -85,11 +85,12 @@ test.describe('fixture replay', () => {
     await expect(f).toHaveValue('score');
   });
 
-  test('PageUp shows the live-tail bar and PageDown returns', async ({ page }) => {
+  test('PageUp shows the split divider and PageDown returns', async ({ page }) => {
     // Just above the 60 × 18-cell minimum (ADR 0010).
     await page.setViewportSize({ width: 900, height: 360 });
     await replayDone(page);
-    const bar = page.locator('.wc-tail-bar');
+    // On the desktop the old tail bar's text sits in the split's divider (ADR 0117).
+    const bar = page.locator('.wc-split-bar');
     const scroller = page.locator('.wc-scroller').first();
     await expect(bar).toBeHidden();
     // The scrollbar shows only while scrolled back (owner, 2026-09-28).
