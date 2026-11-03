@@ -1,6 +1,6 @@
 # Stage 35 — Split scrollback
 
-Status: **Owner testing** (2026-11-03). Branch `stage-35-split-scrollback`.
+Status: **Done** (2026-11-03). Released in 0.2.2.
 
 ## Goal
 
@@ -76,3 +76,6 @@ scrolled?
 2026-11-03, round 1: "Känns bra." The rule's teal colour does not fit;
 a grey like the vertical scrollbar suits it better. Done: neutral grey,
 light on dark backgrounds and darker on light ones, stronger on hover.
+
+2026-11-03, round 2: "merga och publicera". Approved and released in
+0.2.2.
