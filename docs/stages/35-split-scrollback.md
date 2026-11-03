@@ -1,6 +1,6 @@
 # Stage 35 — Split scrollback
 
-Status: **In progress** (2026-11-03).
+Status: **Owner testing** (2026-11-03). Branch `stage-35-split-scrollback`.
 
 ## Goal
 
@@ -37,9 +37,39 @@ divider can be dragged. ADR 0117, study `notes/research/split-scrollback.md`.
 - [x] Screenshots on Black and Paper, reviewed
 - [x] Inv §1.1 / spec §2.2 notes
 
+## Build notes
+
+- A mouse selection stays in the half it starts in (added in review):
+  dragging from the upper half into the tail ends at the last row above
+  the divider, and from the tail upward at the tail's first row. Without
+  it both browsers copied the newest rows twice, or the whole scrollback
+  below the view.
+- Touch devices, the log player and the HTML replay keep the old tail bar.
+
 ## Test guide
 
-(written when built)
+Dev server (`npm run dev`, http://localhost:5173/) on the branch, on the
+computer; connect to MUME and play a little so text keeps coming.
+
+1. **Open:** scroll up with the wheel (or PgUp). The text you are reading
+   stays put, a divider appears, and below it the game goes on live.
+2. **Play while split:** type commands and press Enter. The commands go
+   out and the answers show below the divider; the scrollback stays.
+3. **Close:** scroll the upper half all the way down, or press PgDn until
+   the end, or Esc. The divider goes and the window is whole again, with
+   no jump.
+4. **Drag:** hover the divider (up/down arrow cursor, brighter line) and
+   drag it up and down. It moves by whole rows; the input keeps the focus.
+   Scroll up again later, and after a reload: the size is kept.
+5. **Copy:** select text in the upper half and in the live part. The
+   selection is copied (paste somewhere to check); a drag across the
+   divider copies only the half it started in.
+6. **Themes:** look at the divider on a dark background and on Paper.
+
+Feedback wanted: does the divider read clearly as a divider (colour,
+line, text)? Is the hover strong enough, especially on Paper? Is 30 % a
+good default? Anything that feels different from before when you are not
+scrolled?
 
 ## Owner feedback
 
