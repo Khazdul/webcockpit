@@ -152,11 +152,17 @@ describe('fightView', () => {
     expect(v.foe.bar.title).toBe('HP · badly wounded');
   });
 
-  it('you tank: your own HP', () => {
+  it('you tank (your own name, or no buffer): the opponent alone', () => {
     const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: 'rasta', tankId: null };
     const v = fightView(f, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!;
-    expect(v.tank).toMatchObject({ name: 'Rasta', numbers: '50/100' });
+    expect(v.tank).toBeNull();
     expect(v.foe.bar.pct).toBe(58);
+    expect(fightView({ ...f, tank: null }, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!.tank).toBeNull();
+  });
+
+  it('another buffer outside the group: its name only', () => {
+    const f = { opponent: 'an orc', opponentWord: 'hurt', opponentMember: null, tank: 'Legolas', tankId: null };
+    expect(fightView(f, null, { name: 'Rasta', hp: 50, maxhp: 100 }, env())!.tank).toEqual({ name: 'Legolas', bar: null, numbers: '' });
   });
 });
 
@@ -205,13 +211,51 @@ describe('GroupPane', () => {
     const zone = p.content.querySelector('.wc-gp-fight')!;
     expect(zone.querySelector('.wc-gp-fn')!.textContent).toBe('Gibur');
     expect(zone.querySelector('.wc-gp-fn.is-foe')!.textContent).toBe('a black-robed orc');
-    expect(p.content.querySelector('.wc-gp-sep')!.textContent).toBe('Group2');
+    // No divider between the card and the members (owner round 1).
+    expect(p.content.querySelector('.wc-gp-sep')).toBeNull();
     // The tank is marked in the list too.
     expect(p.content.querySelector('[data-key="m2"] [data-tip-title="Tanking"]')).not.toBeNull();
     t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { opponent: null } });
     t.flush();
     expect(p.content.querySelector('.wc-gp-fight')).toBeNull();
-    expect(p.content.querySelector('.wc-gp-sep')).toBeNull();
+    p.dispose();
+  });
+
+  it('you tank (buffer Nobody): the card is the opponent alone; the Fight card setting turns it off', () => {
+    const t = setup();
+    const p = new GroupPane(t.ctx);
+    place(p, 40, 10);
+    t.bus.emit('gmcp', { pkg: 'Group.Set', data: set });
+    t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { buffer: 'Nobody', opponent: 'a large bat', 'opponent-hits': 'healthy' } });
+    t.flush();
+    const zone = p.content.querySelector('.wc-gp-fight')!;
+    expect(zone.classList.contains('is-solo')).toBe(true);
+    expect([...zone.querySelectorAll('.wc-gp-fn')].map((e) => e.textContent)).toEqual(['a large bat']);
+    expect(zone.textContent).not.toContain('Nobody');
+    expect(zone.querySelector('.wc-gp-vs')).toBeNull();
+    // Nobody is not a tank in the list either.
+    expect(p.content.querySelector('[data-tip-title="Tanking"]')).toBeNull();
+    // Crowded (one line): the strip is the opponent alone too.
+    place(p, 40, 3);
+    t.flush();
+    const strip = p.content.querySelector('.wc-gp-fstrip')!;
+    expect(strip.classList.contains('is-solo')).toBe(true);
+    expect(strip.textContent).toBe('a large bat');
+    // The Fight card off: no card, no strip.
+    t.settings.update({ group: { fight: false } });
+    t.flush();
+    expect(p.content.querySelector('.wc-gp-fight, .wc-gp-fstrip')).toBeNull();
+    p.dispose();
+  });
+
+  it('bars are solid: no hatched estimate class', () => {
+    const t = setup();
+    const p = new GroupPane(t.ctx);
+    place(p, 40, 10);
+    t.bus.emit('gmcp', { pkg: 'Group.Set', data: [{ id: 6, type: 'npc', name: 'a hungry warg', label: 'MIN', 'hp-string': 'wounded' }] });
+    t.flush();
+    expect(p.content.querySelectorAll('.wc-gp-fill').length).toBeGreaterThan(0);
+    expect(p.content.querySelector('.is-est')).toBeNull();
     p.dispose();
   });
 

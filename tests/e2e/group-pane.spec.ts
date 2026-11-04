@@ -57,6 +57,28 @@ test('the fight zone comes and goes; the tank is marked in the list', async ({ p
   expect(errors).toEqual([]);
 });
 
+test('you tank (buffer Nobody): the opponent fills the card; the Fight card toggle hides it; bars are solid', async ({ page }) => {
+  await group(page);
+  await emit(page, 'Char.Vitals', { buffer: 'Nobody', opponent: 'a large bat', 'opponent-hits': 'healthy' });
+  const card = pane(page).locator('.wc-gp-fight');
+  await expect(card).toHaveClass(/is-solo/);
+  await expect(card).not.toContainText('Nobody');
+  await expect(card.locator('.wc-gp-fn')).toHaveText(['a large bat']);
+  await expect(card.locator('.wc-gp-vs')).toHaveCount(0);
+  // No "Group" divider under the card.
+  await expect(pane(page).locator('.wc-gp-sep')).toHaveCount(0);
+  // Solid bars: no stripes on a band-word bar.
+  const fill = card.locator('.wc-gp-fill').first();
+  await expect(fill).toHaveCSS('background-image', 'none');
+  // The gear's Fight card toggle.
+  await page.locator('.wc-pane-group').hover();
+  await page.locator('.wc-pane-group > .wc-pane-btn-gear').click();
+  await page.locator('.wc-sp-gear-group [aria-label="Fight card"]').click();
+  await expect(card).toHaveCount(0);
+  expect(await page.evaluate(() => window.__wc!.settings.get().group.fight)).toBe(false);
+  await page.evaluate(() => window.__wc!.settings.reset());
+});
+
 test('away members: the room name, or dimmed only from the gear', async ({ page }) => {
   await group(page);
   const kv = pane(page).locator('[data-key="m4"]');

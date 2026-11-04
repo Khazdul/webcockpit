@@ -96,7 +96,7 @@ export interface GroupFight {
   opponentWord: string | null;
   /** The member the opponent identity names (a group NPC you fight), or null. */
   opponentMember: Member | null;
-  /** Who tanks (the buffer identity, possibly you), or null. */
+  /** Who tanks (the buffer identity, possibly you), or null (MUME's `Nobody`: you tank). */
   tank: string | null;
   /** The member the buffer identity names, or null (you, or not in the group). */
   tankId: number | null;
@@ -297,12 +297,14 @@ export class GroupModel {
   /** The fight as `Char.Vitals` last told it (ADR 0122). */
   fight(): GroupFight {
     const opponentMember = this.opponent === null ? null : this.match(this.opponent);
-    const tankMember = this.buffer === null ? null : this.match(this.buffer);
+    // MUME says `Nobody` when nobody buffers you: you take the hits yourself.
+    const buffer = this.buffer !== null && foldName(this.buffer) === 'nobody' ? null : this.buffer;
+    const tankMember = buffer === null ? null : this.match(buffer);
     return {
       opponent: this.opponent,
       opponentWord: this.opponent === null ? null : this.opponentWord,
       opponentMember,
-      tank: this.opponent === null ? null : this.buffer,
+      tank: this.opponent === null ? null : buffer,
       tankId: this.opponent === null ? null : (tankMember?.id ?? null),
     };
   }

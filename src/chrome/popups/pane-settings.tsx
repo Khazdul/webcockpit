@@ -21,8 +21,9 @@
 //   side) and its layout (Default follows the global one). No style switch
 //   in the pane itself.
 // - Group (ADR 0122): Show players (allies and other races), NPC
-//   visibility, Away members (room name or dim only) and a colour per vital
-//   bar (ColorPicker; Auto shows the Group pane's own side, dark or light).
+//   visibility, Away members (room name or dim only), the Fight card and
+//   a colour per vital bar (ColorPicker; Auto shows the Group pane's own
+//   side, dark or light).
 
 import { Fragment, type VNode } from 'preact';
 import { TIMER_GROUPS, TIMER_GROUP_LABELS } from '../../timers/entry';
@@ -188,6 +189,9 @@ export function GroupSettings(): VNode {
       </Row>
       <Row label="Away members" help="Players not in your room">
         <Segmented label="Away members" value={g.away} options={AWAY_MODE_CHOICES} onChange={(away) => settings.update({ group: { away } })} />
+      </Row>
+      <Row label="Fight card" help="The tank against your opponent, on top while you fight">
+        <Toggle label="Fight card" on={g.fight} onChange={(fight) => settings.update({ group: { fight } })} />
       </Row>
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Bar colours</div>

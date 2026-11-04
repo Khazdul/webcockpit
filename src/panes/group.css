@@ -225,14 +225,6 @@
   transition: width 0.4s;
 }
 
-.wc-gp-fill.is-est {
-  background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgb(0 0 0 / 0.38) 5px 6px);
-}
-
-.wc-gp[data-light] .wc-gp-fill.is-est {
-  background-image: repeating-linear-gradient(90deg, transparent 0 5px, rgb(255 255 255 / 0.45) 5px 6px);
-}
-
 .wc-gp-row.is-away .wc-gp-name,
 .wc-gp-row.is-away .wc-gp-bars,
 .wc-gp-row.is-away .wc-gp-mini,
@@ -286,6 +278,8 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) calc(var(--gp-row) * 2) minmax(0, 1fr);
   height: calc(var(--gp-row) * 3);
+  /* Half a row of gap to the members (no divider; owner round 1). */
+  margin-bottom: calc(var(--gp-row) * 0.5);
   border: 1px solid var(--gp-line);
   border-radius: 5px;
   background: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
@@ -336,6 +330,25 @@
 .wc-gp-fbar .wc-gp-trk {
   height: max(6px, calc(var(--gp-row) * 0.45));
   border-radius: 4px;
+}
+
+/* You tank: the opponent alone fills the card (its bar from the left). */
+.wc-gp-fight.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 0 0.3em;
+  background: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
+}
+
+.wc-gp[data-light] .wc-gp-fight.is-solo {
+  background: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
+}
+
+.wc-gp-fs.is-solo .wc-gp-ft {
+  justify-content: flex-start;
+}
+
+.wc-gp-fs.is-solo .wc-gp-fsub.is-foe {
+  text-align: left;
 }
 
 /* The opponent's bar fills from the right, toward the middle. */
@@ -389,23 +402,6 @@
   letter-spacing: 0.04em;
 }
 
-.wc-gp-sep {
-  display: flex;
-  align-items: center;
-  gap: 0.6em;
-  height: var(--gp-row);
-  color: var(--gp-mid);
-  font-size: 0.7em;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.wc-gp-ln {
-  flex: 1;
-  height: 1px;
-  background: var(--gp-line);
-}
-
 /* The one-line fight strip. */
 .wc-gp-fstrip {
   display: grid;
@@ -413,7 +409,23 @@
   align-items: center;
   gap: 0.4em;
   height: var(--gp-row);
-  border-bottom: 1px solid var(--gp-line);
+  /* No divider (owner round 1): a faint tint tells it from the members. */
+  border-radius: 3px;
+  background: linear-gradient(90deg, rgb(232 195 90 / 0.07), transparent 45%, transparent 55%, rgb(255 77 77 / 0.08));
+}
+
+.wc-gp[data-light] .wc-gp-fstrip {
+  background: linear-gradient(90deg, rgb(143 106 0 / 0.08), transparent 45%, transparent 55%, rgb(196 32 32 / 0.07));
+}
+
+/* You tank: the foe icon, its name, a full-width bar. */
+.wc-gp-fstrip.is-solo {
+  grid-template-columns: auto minmax(0, max-content) minmax(0, 1fr);
+  background: linear-gradient(90deg, rgb(255 77 77 / 0.08), transparent 70%);
+}
+
+.wc-gp[data-light] .wc-gp-fstrip.is-solo {
+  background: linear-gradient(90deg, rgb(196 32 32 / 0.07), transparent 70%);
 }
 
 .wc-gp-svs {

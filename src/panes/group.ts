@@ -3,19 +3,24 @@
 // notes/research/group-timers-mockups/r2-P3c-revised.dc.html). DOM in the
 // terminal font, sized on the cell grid:
 //
-//   ┌ fight zone (while you fight, 4 rows) ───────────────────────┐
-//   │ ⛉ Gibur                    vs        a black-robed orc  🪓   │  names
+//   ┌ fight card (while you fight, 3 rows and a gap) ─────────────┐
+//   │ ⛉ Gibur                    vs        a black-robed orc  ⫽    │  names
 //   │ ██████████████░░░░                   ░░░░░░░░████████████    │  HP bars facing
-//   │ 132/160                                    badly wounded     │
-//   └ GROUP ─────────────────────────────────────────── 5 ─────────┘
+//   │ 132/160                                              bad     │
+//   └──────────────────────────────────────────────────────────────┘
 //   ☺ Gibur                         ⛉ ✺3:12 │ ♞      two lines per member:
 //   ━━━━━━━━━━  ━━━━━━  ━━━━━━━━                     marker, name, statuses,
 //   ◇ a citizen mercenary [MERC]      ✸ ▭  │ ☺      position; HP, mana, moves
-//   ▒▒▒▒▒▒▒▒▒▒  ······  ▒▒▒▒▒▒▒
+//   ━━━━━━━━━━  ······  ━━━━━━━
 //
+// - You tank (MUME's buffer `Nobody`, your own name, or none): the card is
+//   the opponent alone, its name, word and a full-width red bar. The
+//   `group.fight` setting turns the card off (the tank's shield in the
+//   list stays).
 // - Rows are whole cells: a two-line member is 2 rows, a one-line member
 //   (name, three mini bars, up to three icons and `+n`) 1 row; the fight
-//   zone 4 rows (a 1-row strip in one-line mode). Two lines when every
+//   card 3 rows and half a row of gap, counted as 4 (a 1-row strip in
+//   one-line mode). No divider between the card and the members. Two lines when every
 //   shown member fits that way, else one line; still too many: the first
 //   ones and `↓ N more members` (`groupLayout`).
 // - Markers: a player is the person icon in its relation colour (ally,
@@ -27,8 +32,8 @@
 // - Away (a player's mapid is not your room): `room` shows the room after
 //   the name and dims the row's name and bars; `dim` dims the row only.
 // - Vitals: a colour setting per bar (Auto by side, src/panes/palette.ts),
-//   orange at ≤ 45 % and red at ≤ 25 %; a band-word bar (no number) is
-//   hatched.
+//   orange at ≤ 45 % and red at ≤ 25 %; every bar is a solid fill (a
+//   band-word estimate says so in its tooltip).
 // - Every bar, icon, name, room and the opponent carry a tooltip
 //   (src/panes/pane-tooltip.ts). No browser `title`.
 // - Only rows whose look changed are rebuilt (`rowSig`); a timed sanctuary
@@ -117,7 +122,7 @@ export const groupColors = (light: boolean): Readonly<GroupColors> => (light ? G
 
 // ------------------------------------------------------------------ layout
 
-/** Rows of the fight zone in two-line mode (names, bars, numbers, divider). */
+/** Rows of the fight card in two-line mode (names, bars, numbers, and a gap). */
 export const FIGHT_ROWS = 4;
 
 export interface GroupLayout {
@@ -166,7 +171,7 @@ export interface BarView {
   /** Fill 0–100 (%). */
   pct: number;
   color: string;
-  /** Band-word estimate (hatched). */
+  /** Band-word estimate (said in the tooltip; drawn solid like the rest). */
   est: boolean;
   title: string;
   tip: string;
@@ -192,6 +197,7 @@ export interface MemberView {
 }
 
 export interface FightView {
+  /** The tank's side, or null: you tank (the card is the opponent alone). */
   tank: { name: string; bar: BarView | null; numbers: string } | null;
   foe: { name: string; word: string | null; bar: BarView };
 }
@@ -354,7 +360,11 @@ export function memberView(m: Member, env: MemberEnv): MemberView {
   };
 }
 
-/** The fight zone's view, or null without an opponent. */
+/**
+ * The fight card's view, or null without an opponent. The tank's side is
+ * a group member, or another named buffer; none when you tank (the
+ * buffer is `Nobody`, your own name, or unknown).
+ */
 export function fightView(
   f: GroupFight,
   tankMember: Member | null,
@@ -369,12 +379,7 @@ export function fightView(
     tank = { name: tankMember.name, bar, numbers };
   } else if (f.tank !== null) {
     const you = self.name !== null && foldName(self.name) === foldName(f.tank);
-    if (you && self.hp !== null && self.maxhp !== null) {
-      const bar = barView('hp', { value: self.hp, max: self.maxhp, word: null }, env.vitals.hp, env.light);
-      tank = { name: self.name ?? f.tank, bar, numbers: `${self.hp}/${self.maxhp}` };
-    } else {
-      tank = { name: f.tank, bar: null, numbers: '' };
-    }
+    if (!you) tank = { name: f.tank, bar: null, numbers: '' };
   }
   const om = f.opponentMember;
   const word = f.opponentWord;
@@ -439,7 +444,7 @@ function iconEl(doc: Document, v: IconView, key: string): HTMLElement {
 function barEl(doc: Document, b: BarView, key: string, cls = 'wc-gp-bar'): HTMLElement {
   const w = el(doc, 'span', cls);
   const trk = el(doc, 'span', 'wc-gp-trk');
-  const fill = el(doc, 'span', b.est ? 'wc-gp-fill is-est' : 'wc-gp-fill');
+  const fill = el(doc, 'span', 'wc-gp-fill');
   fill.style.width = `${b.pct}%`;
   if (b.color) fill.style.backgroundColor = b.color;
   trk.append(fill);
@@ -525,51 +530,66 @@ export function memberRow1(doc: Document, v: MemberView, tankColor: string): HTM
   return row;
 }
 
-function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>, count: number): HTMLElement[] {
+function foeIcon(doc: Document, c: Readonly<GroupColors>, tip: string, title: string, key: string): HTMLElement {
+  const ic = el(doc, 'span', 'wc-gp-ic');
+  ic.style.color = c.foe;
+  ic.append(svgIcon(doc, 'foe'));
+  setTip(ic, tip, title, key);
+  return ic;
+}
+
+function fightZone(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLElement {
   const zone = el(doc, 'div', 'wc-gp-row wc-gp-fight');
   zone.dataset.key = 'fight';
-  const side = (left: boolean): HTMLElement => el(doc, 'div', left ? 'wc-gp-fs' : 'wc-gp-fs is-foe');
-  const a = side(true);
-  const b = side(false);
-  // The tank.
+  // The opponent's side.
+  const b = el(doc, 'div', f.tank ? 'wc-gp-fs is-foe' : 'wc-gp-fs is-foe is-solo');
+  const bt = el(doc, 'div', 'wc-gp-ft');
+  const fn = el(doc, 'span', 'wc-gp-fn is-foe', f.foe.name);
+  setTip(fn, f.tank ? 'Your opponent: not a group member (Char.Vitals).' : 'Your opponent. You take the hits yourself.', f.foe.name, 'fight:foe');
+  const foe = foeIcon(doc, c, 'Whom you fight.', 'Your opponent', 'fight:foeic');
+  if (f.tank) bt.append(fn, foe);
+  else bt.append(foe, fn);
+  b.append(bt, barEl(doc, f.foe.bar, 'fight:foehp', f.tank ? 'wc-gp-fbar is-foe' : 'wc-gp-fbar'));
+  const word = el(doc, 'span', 'wc-gp-fsub is-foe', f.foe.word ?? '');
+  if (f.foe.word) setTip(word, f.foe.bar.tip, f.foe.bar.title, 'fight:word');
+  b.append(word);
+  if (!f.tank) {
+    zone.classList.add('is-solo');
+    zone.append(b);
+    return zone;
+  }
+  // The tank's side.
+  const a = el(doc, 'div', 'wc-gp-fs');
   const at = el(doc, 'div', 'wc-gp-ft');
   const shield = el(doc, 'span', 'wc-gp-ic');
   shield.style.color = c.gold;
   shield.append(svgIcon(doc, 'tank'));
   setTip(shield, 'Takes the hits: your fight buffer.', 'Tanking', 'fight:tankic');
   at.append(shield);
-  const tn = el(doc, 'span', 'wc-gp-fn', f.tank?.name ?? 'Nobody');
-  setTip(tn, f.tank ? 'Tanking (Char.Vitals buffer).' : 'No buffer known.', f.tank?.name ?? 'Tank', 'fight:tank');
+  const tn = el(doc, 'span', 'wc-gp-fn', f.tank.name);
+  setTip(tn, 'Tanking (Char.Vitals buffer).', f.tank.name, 'fight:tank');
   at.append(tn);
   a.append(at);
-  if (f.tank?.bar) a.append(barEl(doc, f.tank.bar, 'fight:tankhp', 'wc-gp-fbar'));
+  if (f.tank.bar) a.append(barEl(doc, f.tank.bar, 'fight:tankhp', 'wc-gp-fbar'));
   else a.append(el(doc, 'span', 'wc-gp-fbar is-empty'));
-  a.append(el(doc, 'span', 'wc-gp-fsub', f.tank?.numbers ?? ''));
-  // The opponent.
-  const bt = el(doc, 'div', 'wc-gp-ft');
-  const fn = el(doc, 'span', 'wc-gp-fn is-foe', f.foe.name);
-  setTip(fn, 'Your opponent: not a group member (Char.Vitals).', f.foe.name, 'fight:foe');
-  const axe = el(doc, 'span', 'wc-gp-ic');
-  axe.style.color = c.foe;
-  axe.append(svgIcon(doc, 'axe'));
-  setTip(axe, 'Whom you fight.', 'Your opponent', 'fight:foeic');
-  bt.append(fn, axe);
-  b.append(bt, barEl(doc, f.foe.bar, 'fight:foehp', 'wc-gp-fbar is-foe'));
-  const word = el(doc, 'span', 'wc-gp-fsub is-foe', f.foe.word ?? '');
-  if (f.foe.word) setTip(word, f.foe.bar.tip, f.foe.bar.title, 'fight:word');
-  b.append(word);
+  a.append(el(doc, 'span', 'wc-gp-fsub', f.tank.numbers));
   const vs = el(doc, 'div', 'wc-gp-vs');
   vs.append(el(doc, 'span', 'wc-gp-vsm', 'vs'));
   zone.append(a, vs, b);
-  const sep = el(doc, 'div', 'wc-gp-row wc-gp-sep');
-  sep.dataset.key = 'sep';
-  sep.append(el(doc, 'span', '', 'Group'), el(doc, 'span', 'wc-gp-ln'), el(doc, 'span', '', String(count)));
-  return [zone, sep];
+  return zone;
 }
 
 function fightStrip(doc: Document, f: FightView, c: Readonly<GroupColors>): HTMLElement {
   const row = el(doc, 'div', 'wc-gp-row wc-gp-fstrip');
   row.dataset.key = 'fight';
+  if (!f.tank) {
+    // You tank: the opponent alone, its name and a full-width bar.
+    row.classList.add('is-solo');
+    const name = el(doc, 'span', 'wc-gp-fn is-foe', f.foe.name);
+    setTip(name, f.foe.word ?? 'Your opponent.', f.foe.name, 'fight:foe');
+    row.append(foeIcon(doc, c, 'Whom you fight.', 'Your opponent', 'fight:foeic'), name, barEl(doc, f.foe.bar, 'fight:foehp', 'wc-gp-sbar'));
+    return row;
+  }
   const shield = el(doc, 'span', 'wc-gp-ic');
   shield.style.color = c.gold;
   shield.append(svgIcon(doc, 'tank'));
@@ -577,11 +597,7 @@ function fightStrip(doc: Document, f: FightView, c: Readonly<GroupColors>): HTML
   const tb = f.tank?.bar ? barEl(doc, f.tank.bar, 'fight:tankhp', 'wc-gp-sbar') : el(doc, 'span', 'wc-gp-sbar is-empty');
   const vs = el(doc, 'span', 'wc-gp-svs', 'vs');
   const fb = barEl(doc, f.foe.bar, 'fight:foehp', 'wc-gp-sbar is-foe');
-  const axe = el(doc, 'span', 'wc-gp-ic');
-  axe.style.color = c.foe;
-  axe.append(svgIcon(doc, 'axe'));
-  setTip(axe, f.foe.word ?? 'Your opponent.', f.foe.name, 'fight:foe');
-  row.append(shield, tb, vs, fb, axe);
+  row.append(shield, tb, vs, fb, foeIcon(doc, c, f.foe.word ?? 'Your opponent.', f.foe.name, 'fight:foe'));
   return row;
 }
 
@@ -648,13 +664,13 @@ export class GroupPane extends PaneShell {
       maxhp: charView.maxhp,
     };
     const tankMember = fight.tankId === null ? null : (game.group.get(fight.tankId) ?? null);
-    const fv = fightView(fight, tankMember, self, env);
+    const fv = s.group.fight ? fightView(fight, tankMember, self, env) : null;
     const layout = groupLayout(members.length, fv !== null, this.rows);
     const views = members.slice(0, layout.shown).map((m) => memberView(m, env));
 
-    const want: Array<{ key: string; sig: string; build: () => HTMLElement | HTMLElement[] }> = [];
+    const want: Array<{ key: string; sig: string; build: () => HTMLElement }> = [];
     if (fv && layout.fightRows > 1) {
-      want.push({ key: 'fight', sig: `2|${JSON.stringify(fv)}|${members.length}|${light}`, build: () => fightZone(doc, fv, colors, members.length) });
+      want.push({ key: 'fight', sig: `2|${JSON.stringify(fv)}|${light}`, build: () => fightZone(doc, fv, colors) });
     } else if (fv && layout.fightRows === 1) {
       want.push({ key: 'fight', sig: `1|${JSON.stringify(fv)}|${light}`, build: () => fightStrip(doc, fv, colors) });
     }
@@ -691,7 +707,7 @@ export class GroupPane extends PaneShell {
     this.content.toggleAttribute('data-light', light);
   }
 
-  private reconcile(want: Array<{ key: string; sig: string; build: () => HTMLElement | HTMLElement[] }>): void {
+  private reconcile(want: Array<{ key: string; sig: string; build: () => HTMLElement }>): void {
     const next = new Map<string, { sig: string; el: HTMLElement }>();
     const els: HTMLElement[] = [];
     let changed = false;
@@ -700,21 +716,12 @@ export class GroupPane extends PaneShell {
       if (old && old.sig === w.sig) {
         next.set(w.key, old);
         els.push(old.el);
-        if (w.key === 'fight') {
-          const sep = this.built.get('sep');
-          if (sep) {
-            next.set('sep', sep);
-            els.push(sep.el);
-          }
-        }
         continue;
       }
       changed = true;
       const built = w.build();
-      const list = Array.isArray(built) ? built : [built];
-      next.set(w.key, { sig: w.sig, el: list[0]! });
-      if (list[1]) next.set('sep', { sig: w.sig, el: list[1] });
-      els.push(...list);
+      next.set(w.key, { sig: w.sig, el: built });
+      els.push(built);
     }
     const order = els.map((e) => e.dataset.key).join(',');
     if (changed || order !== this.order || next.size !== this.built.size) {

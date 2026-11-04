@@ -324,6 +324,9 @@ describe('GroupModel: positions, flags, away and the fight (ADR 0122)', () => {
     // You tank: the tank is named, no member.
     g.apply('Char.Vitals', { buffer: 'Rasta' });
     expect(g.fight()).toMatchObject({ tank: 'Rasta', tankId: null });
+    // MUME's `Nobody` (nobody buffers you: you tank) is no tank at all.
+    g.apply('Char.Vitals', { buffer: 'Nobody' });
+    expect(g.fight()).toMatchObject({ tank: null, tankId: null });
     // Fighting your own group's NPC: the member is named.
     g.apply('Char.Vitals', { opponent: 'a citizen mercenary (MERC)' });
     expect(g.fight().opponentMember?.id).toBe(4);

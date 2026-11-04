@@ -5,6 +5,7 @@
 //      << [X] Show players >>
 //      << NPC visibility: Labeled >>
 //      << Away members: Room name >>
+//      << [X] Fight card >>
 //      << HP colour: Auto >>
 //      << Mana colour: Auto >>
 //      << Moves colour: Auto >>
@@ -48,6 +49,7 @@ export function GroupOptionsFrame(): VNode {
   const nav = useNav();
   const g = s.group;
   const togglePlayers = (): void => settings.update({ group: { showPlayers: !g.showPlayers } });
+  const toggleFight = (): void => settings.update({ group: { fight: !g.fight } });
   const items: MenuItem[] = [
     {
       key: 'players',
@@ -65,6 +67,13 @@ export function GroupOptionsFrame(): VNode {
       key: 'away',
       label: `Away members: ${AWAY_MODE_LABEL[g.away]}`,
       adjust: (d) => settings.update({ group: { away: cycle(GROUP_AWAY_MODES, g.away, d) } }),
+    },
+    {
+      key: 'fight',
+      glyph: g.fight ? '[X]' : '[ ]',
+      label: 'Fight card',
+      activate: toggleFight,
+      adjust: toggleFight,
     },
     ...VITAL_COLOR_ROWS.map(
       (r): MenuItem => ({
