@@ -530,15 +530,16 @@
 
 /* A label shrinks with a narrow card (the gear popup's five columns), so
  * ten characters ("Gefe & Rik", "Gray's Map") stay whole: at a font size
- * of 15 % of the card's width, about 11 characters of a mono font (0.6 em
- * each) fit. */
+ * of 15 % of the card's width, ten characters of a mono font (0.6 em
+ * each) take 90 %. Unhinted advances: Chromium on Linux otherwise rounds
+ * each advance up to whole pixels (DejaVu at 10.4 px: 7 px, not 6.2). */
 .wc-ck-card-l {
   overflow: hidden;
-  padding: 0 1px;
   color: var(--sf-fg);
   font-size: 0.846em;
   font-size: min(0.846em, 15cqi);
   line-height: 1.27;
+  text-rendering: geometricPrecision;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
