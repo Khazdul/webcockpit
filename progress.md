@@ -41,11 +41,24 @@ Released 0.2.2 (stage 35: split scrollback on the computer, ADR 0117, approved b
 | 33 | Full-width Scripts and a new Export Editor | Owner testing | `docs/stages/33-export-editor.md` |
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
-| 36 | Tileset picker | In progress | `docs/stages/36-tileset-picker.md` |
+| 36 | Tileset picker | Owner testing | `docs/stages/36-tileset-picker.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-04 — Stage 36 tileset picker (built, owner testing)
+
+- **Owner brief:** checkable previews instead of the Tileset dropdown;
+  Shimrod alternating shows all four seasons (variant A, quadrants); five
+  per row, tilesets last, the popup must not grow.
+- **Done:** mockup (`notes/research/tileset-picker-mockup/`), ADR 0118,
+  built on branch `stage-36-tileset-picker`: pre-rendered previews
+  (`scripts/build-tileset-previews.py`, 8 PNGs, ~120 KB), `CardGrid`
+  control, Mapper page reordered. Mapper 484 px vs Appearance 538 px,
+  popup 599 px unchanged. Unit 3091 passed; e2e 694/695 (the known flaky
+  script editor Ctrl+F); prod smoke at a subpath green.
+- **Next:** owner test (guide in the stage file), then merge and release.
 
 ### 2026-11-03 — Stage 35 split scrollback (built, owner testing)
 
