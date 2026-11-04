@@ -1,7 +1,7 @@
-/* Scripts page (scripts.tsx): cell-grid sizes and --c-* tokens only. */
+/* Scripts page (scripts.tsx, ADR 0121): cell-grid sizes and --c-* tokens only. */
 
 .wc-scr-left,
-.wc-scr-help {
+.wc-scr-right {
   flex: 0 0 auto;
   overflow: hidden;
 }
@@ -12,6 +12,31 @@
 
 .wc-scr-name.is-off:hover {
   color: var(--c-hover);
+}
+
+/* The selected script beside the frame is a tab: the panel fill, its
+ * name in the title role, no selection band. */
+.wc-scr-fill {
+  background: var(--c-panel);
+}
+
+.wc-scr-row.is-tab .wc-scr-name.is-cur,
+.wc-scr-row.is-tab .wc-scr-name.is-cur:hover {
+  background: none;
+  color: var(--c-title);
+  font-weight: bold;
+}
+
+.wc-scr-cells {
+  display: inline-block;
+  height: var(--cell-h);
+  overflow: hidden;
+  vertical-align: top;
+}
+
+.wc-scr-gap {
+  display: inline-block;
+  width: var(--cell-w);
 }
 
 /* The padlock of a bundled script: one cell, the hint colour. */
@@ -34,18 +59,120 @@
   width: var(--cell-w);
 }
 
-.wc-scr-error,
-.wc-scr-help-text {
+.wc-scr-error {
   display: inline-block;
   height: var(--cell-h);
   overflow: hidden;
   vertical-align: top;
 }
 
-/* Scripts → IMPORT: the code box's sides, one cell wide. */
+/* The list's scrollbar sits in the rows' scrollbar cell, over the rows. */
+.wc-scr-listwrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.wc-scr-listbar {
+  position: absolute;
+  top: 0;
+}
+
+/* The detail frame's lines (not bold) and the help box's. */
+.wc-scr-line {
+  color: var(--c-section);
+}
+
+.wc-scr-box {
+  color: var(--c-hint);
+}
+
+.wc-scr-frame {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Inside the frame: one cell of padding each side. */
+.wc-scr-pad {
+  box-sizing: border-box;
+  padding: 0 var(--cell-w);
+}
+
+.wc-scr-drow {
+  overflow: hidden;
+}
+
+.wc-scr-setting {
+  cursor: default;
+}
+
+/* A run that does something when clicked (a control, a fold). */
+.wc-scr-hit {
+  cursor: pointer;
+}
+
+.wc-scr-hit:hover {
+  color: var(--c-hover);
+}
+
+.wc-scr-cursor {
+  color: var(--c-cursor);
+  font-weight: bold;
+}
+
+.wc-scr-fold {
+  color: var(--c-section);
+  font-weight: bold;
+}
+
+.wc-scr-fold.is-cursor,
+.wc-scr-fold.is-cursor:hover {
+  color: var(--c-cursor);
+}
+
+.wc-scr-arrow {
+  color: var(--c-title);
+}
+
+.wc-scr-arrow:hover {
+  color: var(--c-active);
+}
+
+/* `[ON|OFF]`: the active half inverted. */
+.wc-scr-sw-on,
+.wc-scr-sw-on:hover {
+  background: var(--c-ok);
+  color: var(--c-sel-fg);
+  font-weight: bold;
+}
+
+.wc-scr-sw-off,
+.wc-scr-sw-off:hover {
+  background: var(--c-off);
+  color: var(--c-active);
+  font-weight: bold;
+}
+
+/* The value being typed. */
+.wc-scr-input {
+  background: var(--term-bg);
+}
+
+.wc-scr-title {
+  font-weight: bold;
+}
+
+/* Scripts → IMPORT (and the help box): a box side, one cell wide. */
 .wc-scr-import-side {
   flex: 0 0 auto;
   width: var(--cell-w);
   white-space: pre;
   line-height: var(--cell-h);
+}
+
+.wc-scr-help {
+  flex: 0 0 auto;
+}
+
+.wc-scrollrow > .wc-scr-gap {
+  flex: 0 0 auto;
 }

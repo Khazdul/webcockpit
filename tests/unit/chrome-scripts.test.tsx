@@ -7,15 +7,20 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { AppStatusState, AppStatusView } from '../../src/app/status';
 import { type ChromeServices, mountEscMenu, mountStartPage } from '../../src/chrome';
 import {
-  BUTTONS_W,
+  ALL_BUTTONS,
+  PAGE_BUTTONS,
+  PAGE_BUTTONS_W,
   ROW_FIXED,
   type Row,
-  helpRows,
+  detailRows,
+  edgeChar,
+  helpLines,
   listLines,
+  rowCells,
   scriptState,
   scriptsLayout,
-  setCommand,
-  syntaxSegs,
+  stepChoice,
+  stepSetting,
 } from '../../src/chrome/frames/scripts-model';
 import { ProfileStore } from '../../src/profiles';
 import { RunLibrary } from '../../src/runs/library';
@@ -45,21 +50,43 @@ async function library(): Promise<ScriptLibrary> {
 }
 
 describe('scripts model', () => {
-  it('lays the package out: name column grows, help fills the width, dropped when narrow', () => {
+  it('lays the package out: name column grows, the frame fills the width, dropped when narrow', () => {
     const wide = scriptsLayout(200, ['a', 'looter']);
-    expect(wide.listW).toBe(BUTTONS_W);
-    expect(wide.nameW).toBe(BUTTONS_W - ROW_FIXED);
+    // The button row is wider than a short name's row.
+    expect(wide.listW).toBe(PAGE_BUTTONS_W);
+    expect(wide.nameW).toBe(PAGE_BUTTONS_W - ROW_FIXED);
+    expect(wide.buttons).toEqual(PAGE_BUTTONS);
     // The package spans the grid less one cell each side (ADR 0115 §1).
     expect(wide.at).toBe(1);
-    expect(wide.listW + 1 + 3 + wide.detailW).toBe(200 - 2);
-    const huge = scriptsLayout(400, ['a']);
-    expect(huge.at).toBe(1);
-    expect(huge.listW + 1 + 3 + huge.detailW).toBe(400 - 2);
-    // The button row (with MANUAL) is wider than the longest name column.
-    expect(BUTTONS_W).toBeGreaterThan(32 + ROW_FIXED);
+    expect(wide.listW + 1 + wide.detailW).toBe(200 - 2);
     const long = scriptsLayout(200, ['x'.repeat(40)]);
-    expect(long.listW).toBe(BUTTONS_W);
-    expect(scriptsLayout(70, ['a']).detailW).toBe(0);
+    expect(long.nameW).toBe(32);
+    // The in-game window's least width (60) still has a frame.
+    expect(scriptsLayout(60, ['mercenaries']).detailW).toBe(60 - 2 - PAGE_BUTTONS_W - 1);
+    // A phone: the list alone, every button above it.
+    const phone = scriptsLayout(40, ['a'], true);
+    expect(phone.detailW).toBe(0);
+    expect(phone.buttons).toEqual(ALL_BUTTONS);
+  });
+
+  it('opens the frame\'s left edge at the selected line', () => {
+    expect([0, 1, 2, 3, 4].map((i) => edgeChar(i, 2))).toEqual(['│', '┘', ' ', '┐', '│']);
+    expect(edgeChar(0, -1)).toBe('│');
+  });
+
+  it('steps numbers on the step grid inside the range, and choices', () => {
+    const d = { name: 'n', type: 'number' as const, default: 25, label: '', min: 5, max: 60, step: 5 };
+    expect(stepSetting(d, 25, 1)).toBe(30);
+    expect(stepSetting(d, 27, 1)).toBe(30);
+    expect(stepSetting(d, 27, -1)).toBe(25);
+    expect(stepSetting(d, 60, 1)).toBe(60);
+    expect(stepSetting(d, 5, -1)).toBe(5);
+    expect(stepSetting({ ...d, min: undefined, max: undefined, step: 0.1 }, 0.2, 1)).toBe(0.3);
+    expect(stepSetting({ name: 'h', type: 'number', default: 12, label: '', min: 0.5, max: 24 }, 0.5, 1)).toBe(1);
+    const c = { name: 'c', type: 'choice' as const, default: 10, label: '', options: [10, 20] };
+    expect(stepChoice(c, 10, 1)).toBe(20);
+    expect(stepChoice(c, 20, 1)).toBe(20);
+    expect(stepChoice(c, 20, -1)).toBe(10);
   });
 
   it('states: off, running, failed, no host yet', async () => {
@@ -96,48 +123,69 @@ describe('scripts model', () => {
     expect(listLines(list, syntax).filter((l) => l.kind === 'error')).toEqual([
       { kind: 'error', index: i, text: "Syntax error: broken:3: unexpected symbol near '='" },
     ]);
-    const rows = helpRows(lib.get('broken')!, null, 60, syntax).map(text);
+    const rows = detailRows({ s: lib.get('broken')!, running: null, syntax, width: 60, cursor: null, editing: null, helpOpen: true }).rows.map((r) => text(r.segs));
     expect(rows).toContain("  Syntax error: broken:3: unexpected symbol near '='");
     // A load problem or last error comes first and alone.
     lib.setError('broken', 'broken:3: earlier');
     expect(listLines(lib.list(), syntax).filter((l) => l.kind === 'error').map((l) => l.kind === 'error' && l.text)).toEqual(['broken:3: earlier']);
   });
 
-  it('builds the help: summary, aliases, keys, help, settings with the #script set command', async () => {
+  it('builds the detail: summary, status, settings as controls, commands, the help heading', async () => {
     const lib = await library();
     await lib.setSetting('looter', 'delay', '2');
-    const rows = helpRows(lib.get('looter')!, null, 60).map(text);
-    expect(rows[0]).toBe('looter  bundled · read-only');
-    expect(rows[1]).toBe('Loots coins');
-    expect(rows).toContain('○ off');
+    const m = detailRows({ s: lib.get('looter')!, running: null, width: 60, cursor: 'set:delay', editing: null, helpOpen: true });
+    const rows = m.rows.map((r) => text(r.segs));
+    expect(rows[0]).toBe('Loots coins');
+    expect(rows[1]).toBe('○ off   bundled · read-only');
+    expect(rows[3]).toMatch(/^─ Settings ─+  RESET ALL $/);
+    expect(rows[3]!.length).toBe(60);
+    // The cursor marks delay; it differs from its default (*).
+    expect(rows[4]).toMatch(/^▸ delay\*  ◂   2 ▸ +Seconds before looting$/);
+    // The labels line up after the widest control.
+    expect(rows[4]!.indexOf('Seconds')).toBe(rows[5]!.indexOf('What to say'));
+    expect(rows[5]).toMatch(/^  greet   \[hello there +\]  What to say$/);
     expect(rows).toContain('  cl  toggle on/off');
     expect(rows).toContain('  F5  loot now');
-    const help = rows.indexOf('Help');
-    expect(rows.slice(help + 1, help + 4)).toEqual(['  First help line.', '', '  After a blank line.']);
-    expect(rows).toContain('  delay = 2  number');
-    expect(rows).toContain('    #script set looter delay 2');
-    expect(rows).toContain('    #script set looter greet {hello there}');
-    expect(rows.join(' ')).not.toContain('shows this in the game');
-    expect(rows.at(-1)).toBe('    #script set looter greet {hello there}');
-    for (const r of rows) expect(r.length).toBeLessThanOrEqual(60);
+    expect(rows.at(-1)).toMatch(/^▾ Help ─+ PgUp\/PgDn$/);
+    expect(m.keys).toEqual(['buttons', 'reset', 'set:delay', 'set:greet', 'help']);
+    expect(m.changed).toBe(true);
+    for (const r of m.rows) expect(rowCells(r.segs)).toBeLessThanOrEqual(60);
+    // RESET ALL is a button, disabled when every value is its default.
+    const reset = m.rows[3]!.segs.find((sg) => sg.button);
+    expect(reset).toMatchObject({ hit: 'reset', button: { disabled: false, cursor: false } });
+    await lib.resetSettings('looter');
+    const fresh = detailRows({ s: lib.get('looter')!, running: null, width: 60, cursor: 'reset', editing: null, helpOpen: false });
+    expect(fresh.changed).toBe(false);
+    expect(fresh.rows[3]!.segs.find((sg) => sg.button)).toMatchObject({ button: { disabled: true, cursor: true } });
+    expect(text(fresh.rows.at(-1)!.segs)).toMatch(/^▸ Help ─+$/);
   });
 
-  it('shows load problems and a hint for a script without help', async () => {
+  it('puts each label under its control when the frame is narrow', async () => {
+    const lib = await library();
+    const rows = detailRows({ s: lib.get('looter')!, running: null, width: 34, cursor: null, editing: { name: 'delay', text: '7' }, helpOpen: true }).rows;
+    const i = rows.findIndex((r) => r.key === 'set:delay');
+    expect(text(rows[i]!.segs)).toBe('  delay   ◂ 7 ▸');
+    expect(rows[i]!.segs.find((sg) => sg.field)).toMatchObject({ field: 3, text: '7' });
+    expect(text(rows[i + 1]!.segs)).toBe('    Seconds before looting');
+  });
+
+  it('typesets the help for the box, and says when there is none', async () => {
+    const lib = await library();
+    const help = helpLines(lib.get('looter')!, 40).map(text);
+    expect(help).toEqual(['First help line.', '', 'After a blank line.']);
+    await lib.create('bare', '-- @name bare\n-- @api 1\nx = 1\n');
+    expect(helpLines(lib.get('bare')!, 40).map(text).join(' ')).toContain('No help yet.');
+  });
+
+  it('shows load problems', async () => {
     const lib = await library();
     await lib.create('bare', '-- @name bare\n-- @setting x bogus 1\nx = 1\n');
     lib.setError('bare', 'bare:3: oops');
-    const rows = helpRows(lib.get('bare')!, false, 50).map(text);
+    const rows = detailRows({ s: lib.get('bare')!, running: false, width: 50, cursor: null, editing: null, helpOpen: true }).rows.map((r) => text(r.segs));
     expect(rows).toContain('  Cannot load: the header needs "-- @api 1".');
     expect(rows).toContain('  Last error: bare:3: oops');
     expect(rows.some((r) => r.startsWith('  Header line 2:'))).toBe(true);
-    expect(rows.join(' ')).toContain('No help yet.');
-  });
-
-  it('colours the command with the tt++ lexer', () => {
-    expect(setCommand('a', 'b', 'two words')).toBe('#script set a b {two words}');
-    const segs = syntaxSegs('#script set a b 1');
-    expect(segs[0]).toEqual({ text: '#script', cls: 'wc-syn-cmd' });
-    expect(segs.map((s) => s.text).join('')).toBe('#script set a b 1');
+    expect(rows).toContain('  No settings.');
   });
 });
 
@@ -239,7 +287,8 @@ describe('Scripts page', () => {
     expect(rows.map((r) => r.getAttribute('data-script'))).toEqual(['looter', 'mine']);
     expect(rows[0]!.querySelector('.wc-scr-lock')).not.toBeNull();
     expect(rows[1]!.querySelector('.wc-scr-lock')).toBeNull();
-    expect(f.querySelector('.wc-scr-help')?.textContent).toContain('#script set looter delay 0.5');
+    expect(f.querySelector('.wc-scr-frame')?.textContent).toContain('Seconds before looting');
+    expect(f.querySelector('.wc-scr-frame')?.textContent).not.toContain('#script set');
     // RENAME and DELETE are off for a bundled script.
     expect(f.querySelector('[data-btn="RENAME"]')?.getAttribute('aria-disabled')).toBe('true');
     expect(f.querySelector('[data-btn="EXPORT"]')?.getAttribute('aria-disabled')).toBeNull();
