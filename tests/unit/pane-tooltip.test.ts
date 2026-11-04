@@ -68,6 +68,18 @@ describe('PaneTooltip', () => {
     expect(tip.el.hidden).toBe(true);
   });
 
+  it('leaves out a body that only repeats the title', () => {
+    const tip = installPaneTooltip(document);
+    const root = document.createElement('div');
+    tip.attach(root);
+    const a = document.createElement('span');
+    setTip(a, 'HP 132/160 · 83%', 'HP 132/160 · 83%');
+    root.append(a);
+    document.body.append(root);
+    tip.show(a);
+    expect(tip.el.textContent).toBe('HP 132/160 · 83%');
+  });
+
   it('setTip(null) clears the data', () => {
     const a = document.createElement('span');
     setTip(a, 'x', 'y', 'k');

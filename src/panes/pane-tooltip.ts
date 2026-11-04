@@ -149,7 +149,10 @@ export class PaneTooltip {
     const title = a.dataset.tipTitle ?? '';
     this.titleEl.textContent = title;
     this.titleEl.hidden = title === '';
-    this.bodyEl.textContent = a.dataset.tip ?? '';
+    // A body that only repeats the title is left out.
+    const body = a.dataset.tip ?? '';
+    this.bodyEl.textContent = body === title ? '' : body;
+    this.bodyEl.hidden = body === '' || body === title;
     const win = this.doc.defaultView;
     const b = a.getBoundingClientRect();
     const p = tipPlace(b, this.el.offsetWidth, this.el.offsetHeight, win?.innerWidth ?? 0, win?.innerHeight ?? 0);
