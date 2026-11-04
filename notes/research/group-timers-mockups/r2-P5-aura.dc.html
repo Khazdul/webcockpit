@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>5 · Aura and rings that fade</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#050505}
+.board{width:1880px;height:1760px;position:relative;font-family:"DejaVu Sans Mono","JetBrains Mono",ui-monospace,monospace;font-size:13px;line-height:17px}
+.half{box-sizing:border-box;height:880px;padding:20px 40px 0;background:var(--page);color:var(--body);display:flex;flex-direction:column;gap:12px}
+.k-black{--page:#050505;--hole:#000;--rim:#4b4e51;--rimSheen:rgba(255,255,255,.16);--edge:rgba(0,0,0,.75);--rimHi:rgba(239,239,239,.42);--seamD:rgba(0,0,0,.75);--seamL:rgba(239,239,239,.2);--plateFg:#ececec;
+  --tx:#ececec;--tx2:#a9a9a9;--body:#c4c4c4;--dim:#898989;--faint:#5b5b5b;--hover:#101010;--track:#1b1b1b;--line:#1c1c1c;--stripe:rgba(0,0,0,.45);--gold:#d9a54a;
+  --tipBg:#0a0a0a;--tipBd:#2c2c2c;--tipSh:rgba(0,0,0,.75);--tipFg:#c4c4c4;--tipHot:#ebebeb;--auraC:rgba(242,236,216,.9);--auraLine:rgba(242,236,216,.45);
+  --sfBg:#0a0a0a;--sfField:#111111;--sfRaised:#2a2a2a;--sfBorder:#2c2c2c;--sfBorderHot:#585858;--sfLine:#1c1c1c;--sfHot:#ebebeb;--sfFg:#c4c4c4;--sfDim:#898989;--sfFaint:#5b5b5b;--sfIcon:#6c6c6c;--sfOff:#262626;--sfKnobOff:#5b5b5b;--sfOnTrack:#4a4a4a;--sfOnKnob:#ebebeb}
+.k-paper{--page:#f4ecd8;--hole:#f4ecd8;--rim:#a9a49a;--rimSheen:rgba(255,255,255,.42);--edge:rgba(0,0,0,.42);--rimHi:rgba(255,255,255,.6);--seamD:rgba(0,0,0,.3);--seamL:rgba(255,255,255,.55);--plateFg:#1d1c1a;
+  --tx:#1d1c1a;--tx2:#4a4538;--body:#3a3833;--dim:#6e6858;--faint:#8f897a;--hover:#ebe2cb;--track:#e0d6bc;--line:#ddd3bb;--stripe:rgba(244,236,216,.6);--gold:#846400;
+  --tipBg:#faf6ec;--tipBd:#d6d0c2;--tipSh:rgba(60,50,30,.18);--tipFg:#3a3833;--tipHot:#1d1c1a;--auraC:rgba(214,150,20,.85);--auraLine:rgba(184,120,10,.55);
+  --sfBg:#faf6ec;--sfField:#f3eee2;--sfRaised:#e7e1d3;--sfBorder:#d6d0c2;--sfBorderHot:#a39d8f;--sfLine:#e6e0d2;--sfHot:#1d1c1a;--sfFg:#3a3833;--sfDim:#6e6858;--sfFaint:#8f897a;--sfIcon:#7d776a;--sfOff:#ddd6c6;--sfKnobOff:#a39d8f;--sfOnTrack:#3a3833;--sfOnKnob:#faf6ec}
+.hcap{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);display:flex;gap:14px;align-items:baseline;height:18px}
+.hcap i{font-style:normal;letter-spacing:0;text-transform:none;color:var(--faint)}
+.cols{display:flex;gap:40px}
+.col{width:420px;flex:none;display:flex;flex-direction:column;gap:10px}
+.cap{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);display:flex;gap:10px;align-items:baseline}
+.cap i{font-style:normal;letter-spacing:0;text-transform:none;color:var(--faint)}
+svg{display:block}
+.i{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.i .f{opacity:.42}
+.glow{filter:drop-shadow(0 0 2.5px var(--auraC))}
+
+.pane{position:relative;box-sizing:border-box;padding:6px;border-radius:5px;border:1px solid var(--edge);background:linear-gradient(180deg,var(--rimSheen),rgba(255,255,255,0) 40%),var(--rim);box-shadow:inset 1px 1px 0 var(--rimHi),inset -1px -1px 0 rgba(0,0,0,.22)}
+.hole{position:relative;background:var(--hole);border:1px solid;border-color:var(--seamD) var(--seamL) var(--seamL) var(--seamD);padding:26px 8px 8px;box-sizing:border-box}
+.plate{position:absolute;top:-1px;left:16px;height:18px;padding:0 11px;display:flex;align-items:center;border-radius:0 0 5px 5px;background:linear-gradient(180deg,var(--rimSheen),rgba(255,255,255,0)),var(--rim);color:var(--plateFg);font-size:12px;font-weight:700}
+.gear{position:absolute;top:3px;right:6px;width:15px;height:15px;color:var(--faint)}
+
+.tw{position:relative}
+.tip{display:none;position:absolute;left:0;top:calc(100% + 5px);z-index:50;width:max-content;max-width:240px;background:var(--tipBg);border:1px solid var(--tipBd);border-radius:5px;box-shadow:0 10px 26px var(--tipSh);padding:7px 10px;font-size:11.5px;line-height:15px;color:var(--tipFg);white-space:normal;text-align:left;font-weight:400;letter-spacing:0;text-transform:none}
+.tip.r{left:auto;right:0}
+.tw:hover>.tip{display:block}
+.tip b{display:block;color:var(--tipHot);margin-bottom:2px;font-weight:700}
+
+/* group, tall */
+.m{display:flex;flex-direction:column;gap:5px;padding:6px 7px 7px;border-radius:6px;position:relative;margin-bottom:4px;transition:box-shadow .9s linear}
+.m:hover{background:var(--hover)}
+.m.unk{outline:1px dashed var(--auraLine);outline-offset:-1px}
+.m.away .bars,.m.away .nmw{opacity:.5}
+.l1{display:flex;align-items:center;gap:7px;height:18px}
+.mkw{flex:none;width:15px;height:15px;display:flex;align-items:center;justify-content:center}
+.mk{width:15px;height:15px}
+.nmw{flex:1 1 auto;min-width:0;display:flex}
+.nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm.pl{color:var(--tx);font-weight:700}
+.nm.npc{color:var(--tx2)}
+.tag{flex:none;font-size:10px;line-height:14px;letter-spacing:.06em;padding:0 5px;border-radius:3px;border:1px solid var(--line);color:var(--dim)}
+.where{flex:none;display:flex;align-items:center;gap:4px;color:var(--dim);font-size:11px}
+.where svg{width:12px;height:12px}
+.sts{flex:none;display:flex;gap:2px;align-items:center}
+.vr{width:1px;height:12px;background:var(--line);margin:0 3px}
+.ic{display:flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:4px;cursor:default}
+.ic:hover{background:var(--hover)}
+.ic svg{width:14px;height:14px}
+.stime{font-size:11px;margin:0 3px 0 0;font-variant-numeric:tabular-nums}
+.bars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.bw{display:block;padding:3px 0;cursor:default}
+.trk{display:block;height:5px;border-radius:3px;background:var(--track);overflow:hidden}
+.fill{display:block;height:100%;border-radius:3px;transition:width .6s}
+.fill.est{background-image:repeating-linear-gradient(90deg,transparent 0 5px,var(--stripe) 5px 6px)}
+
+/* foe block */
+.foe{margin:10px 0 0;display:flex;flex-direction:column;gap:6px}
+.dv{display:flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+.dv .ln{flex:1;height:1px;background:var(--line)}
+.frow{display:flex;align-items:center;gap:8px;padding:0 7px;height:20px}
+.frow .fn{flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-weight:700}
+.frow .word{flex:none;font-size:11px;cursor:default}
+.fbar{padding:0 7px}
+.fbar .trk{height:7px}
+.tank{display:grid;grid-template-columns:auto 16px auto minmax(0,1fr) 64px;align-items:center;gap:7px;padding:2px 7px 0;font-size:11.5px}
+.tank .lk{color:var(--dim)}
+.tank svg{width:14px;height:14px}
+.tank .tn{color:var(--tx);font-weight:700}
+.tank .num{text-align:right;color:var(--body);font-variant-numeric:tabular-nums}
+.tank .trk{height:4px}
+
+/* group, low */
+.c{display:grid;grid-template-columns:15px minmax(0,1fr) 128px 74px;align-items:center;gap:7px;height:22px;padding:0 5px;border-radius:4px;margin-bottom:2px}
+.c:hover{background:var(--hover)}
+.c.away{opacity:.55}
+.c.unk{outline:1px dashed var(--auraLine);outline-offset:-1px}
+.c .mk{width:13px;height:13px}
+.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px}
+.mini .bw{padding:4px 0}
+.mini .trk{height:4px;border-radius:2px}
+.c .sts{justify-content:flex-end;gap:0}
+.c .ic{width:17px;height:17px}
+.c .ic svg{width:12px;height:12px}
+.more{font-size:10px;color:var(--dim);padding-left:2px}
+.over{color:var(--gold);font-size:11px;padding:2px 5px 4px}
+.lfoe{display:grid;grid-template-columns:15px auto minmax(0,1fr) auto;align-items:center;gap:7px;height:24px;padding:0 5px;border-top:1px solid var(--line);margin-top:2px}
+.lfoe svg{width:13px;height:13px}
+.lfoe .fn{font-weight:700;white-space:nowrap}
+.lfoe .lt{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--dim)}
+.lfoe .lt svg{width:12px;height:12px}
+
+/* pinned tooltip demo and marker options */
+.demo{position:relative;height:104px;padding:6px 8px;border-radius:6px;border:1px dashed var(--line)}
+.demo .row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:center;font-size:12px}
+.demo .tip{display:block;top:30px;left:72px}
+.demo .cursor{position:absolute;left:96px;top:22px;width:10px;height:14px;color:var(--tx)}
+.opts{display:flex;flex-direction:column;gap:5px}
+.opt{all:unset;box-sizing:border-box;cursor:pointer;display:grid;grid-template-columns:15px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:5px 9px;border-radius:5px;border:1px solid var(--line);font-size:12px}
+.opt:hover{background:var(--hover)}
+.opt.on{border-color:var(--sfBorderHot);background:var(--hover)}
+.opt svg{width:13px;height:13px}
+.opt .on-l{font-size:10.5px;color:var(--dim)}
+.opt:focus-visible{outline:1px solid var(--sfBorderHot)}
+
+/* timers */
+.pseg{position:absolute;top:2px;right:28px}
+.seg{display:flex;padding:2px;gap:2px;border-radius:5px;background:var(--sfField);border:1px solid var(--sfBorder)}
+.seg button{all:unset;cursor:pointer;font-size:10.5px;line-height:14px;padding:1px 7px;border-radius:3px;color:var(--sfDim);display:flex;align-items:center;gap:4px}
+.seg button svg{width:10px;height:10px}
+.seg button:hover{color:var(--sfHot)}
+.seg button.on{background:var(--sfRaised);color:var(--sfHot)}
+.seg button:focus-visible{outline:1px solid var(--sfBorderHot)}
+.th{display:flex;align-items:center;gap:7px;margin:10px 2px 5px;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.th svg{width:13px;height:13px}
+.th .ln{flex:1;height:1px;background:var(--line)}
+.th .ct{letter-spacing:0;text-transform:none;color:var(--faint)}
+.rgrid{display:grid;gap:2px 4px}
+.rc{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 2px 3px;border-radius:5px;min-width:0;transition:opacity .9s linear,transform .6s;cursor:default}
+.rc:hover{background:var(--hover)}
+.rw{position:relative;width:32px;height:32px;display:block}
+.ring{width:32px;height:32px}
+.rb{fill:none;stroke:var(--track);stroke-width:2.2}
+.ra{fill:none;stroke-width:2.2;stroke-linecap:round;transform:rotate(-90deg);transform-origin:12px 12px;transition:stroke-dasharray .9s linear,stroke .4s}
+.ra.unk{stroke-dasharray:2.2 3.1 !important}
+.ri{position:absolute;left:9px;top:9px;width:14px;height:14px}
+.rc.sm .rw,.rc.sm .ring{width:27px;height:27px}
+.rc.sm .ri{left:7.5px;top:7.5px;width:12px;height:12px}
+.rn{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px;line-height:13px;color:var(--body)}
+.rt{font-size:11px;line-height:13px;font-variant-numeric:tabular-nums;color:var(--dim)}
+.untr .rn,.untr .rt,.untr .n,.untr .t{color:var(--faint) !important}
+.gone{opacity:0 !important;transform:scale(.6)}
+.pulse .rw{animation:pulse 1s ease-in-out infinite}
+.pulse .fill{animation:blink 1s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.bgrid{display:grid;gap:2px 10px}
+.bc{display:flex;flex-direction:column;gap:4px;padding:4px 5px 5px;border-radius:4px;transition:opacity .9s linear;min-width:0;cursor:default}
+.bc:hover{background:var(--hover)}
+.tl{display:flex;align-items:center;gap:6px;height:16px;min-width:0}
+.tl svg{width:12px;height:12px;flex:none}
+.tl .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--body)}
+.tl .t{flex:none;font-variant-numeric:tabular-nums;color:var(--dim)}
+.bc .trk{height:3px;border-radius:2px}
+.bc.dash .trk{background:repeating-linear-gradient(90deg,var(--track) 0 3px,transparent 3px 6px)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:0 2px}
+.chip{display:flex;align-items:center;gap:7px;padding:2px 3px 2px 8px;border-radius:12px;border:1px solid var(--line);font-size:12px}
+.chip svg{width:12px;height:12px}
+.chip .t{color:var(--dim);font-variant-numeric:tabular-nums}
+.x{all:unset;display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:9px;color:var(--faint);cursor:pointer}
+.x:hover{background:var(--hover);color:var(--tx)}
+.x:focus-visible{outline:1px solid var(--sfBorderHot)}
+.x svg{width:9px;height:9px}
+
+/* gear popups */
+.pop{background:var(--sfBg);border:1px solid var(--sfBorder);border-radius:6px;box-shadow:0 10px 28px var(--tipSh),inset 0 1px 0 rgba(255,255,255,.04);font-size:12.5px;line-height:16px;color:var(--sfFg)}
+.ph{display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 6px 0 12px;border-bottom:1px solid var(--sfLine)}
+.pt{color:var(--sfDim);letter-spacing:.08em;text-transform:uppercase;font-size:11px}
+.px{all:unset;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:3px;color:var(--sfIcon);cursor:pointer}
+.px:hover{color:var(--sfHot)}
+.px svg{width:10px;height:10px}
+.pb{padding:4px 12px 10px;display:flex;flex-direction:column}
+.ps{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--sfFaint);margin:9px 0 2px}
+.prow{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:28px}
+.pl{display:flex;flex-direction:column}
+.pn{color:var(--sfFaint);font-size:10.5px;line-height:13px}
+.tg{all:unset;cursor:pointer;width:28px;height:16px;border-radius:9px;background:var(--sfOff);position:relative;flex:none;border:1px solid var(--sfBorder)}
+.tg .kn{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--sfKnobOff);transition:left .15s}
+.tg.on{background:var(--sfOnTrack);border-color:var(--sfOnTrack)}
+.tg.on .kn{left:14px;background:var(--sfOnKnob)}
+.tg:focus-visible{outline:1px solid var(--sfBorderHot);outline-offset:2px}
+.gchips{display:flex;flex-wrap:wrap;gap:5px;padding:4px 0 2px}
+.gchip{all:unset;cursor:pointer;display:flex;align-items:center;gap:5px;font-size:11px;line-height:15px;padding:2px 8px 2px 6px;border-radius:10px;border:1px solid var(--sfBorder);color:var(--sfFaint)}
+.gchip svg{width:11px;height:11px}
+.gchip.on{color:var(--sfHot);background:var(--sfRaised)}
+.gchip:focus-visible{outline:1px solid var(--sfBorderHot)}
+.pfoot{border-top:1px solid var(--sfLine);padding:8px 12px;color:var(--sfFaint);font-size:11px;display:flex;align-items:center;gap:6px}
+.pfoot svg{width:12px;height:12px}
+</style>
+</helmet>
+<div class="board">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div class="half {{t.key}}">
+  <div class="hcap">{{t.caption}} <i>{{t.sub}}</i></div>
+  <div class="cols">
+
+    <!-- 1 · Group, tall -->
+    <div class="col">
+      <div class="cap">Group <i>· two lines per member, foe apart</i></div>
+      <div class="pane">
+        <div class="hole" style="min-height:612px">
+          <div class="plate">Group</div>
+          <svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.gear}}"></path></svg>
+          <sc-for list="{{t.members}}" as="m" hint-placeholder-count="6">
+            <div class="{{m.cls}}" style="box-shadow:{{m.aura}}">
+              <div class="l1">
+                <span class="tw mkw" style="color:{{m.mkColor}}"><svg class="mk i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.mk}}"></path></svg><span class="tip"><b>{{m.who.title}}</b>{{m.who.desc}}</span></span>
+                <span class="tw nmw"><span class="{{m.nmCls}}">{{m.name}}</span><span class="tip"><b>{{m.who.title}}</b>{{m.who.desc}}</span></span>
+                <sc-if value="{{m.tag}}" hint-placeholder-val="{{false}}"><span class="tag">{{m.tag}}</span></sc-if>
+                <sc-if value="{{m.room}}" hint-placeholder-val="{{false}}"><span class="tw where"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.pin}}"></path></svg>{{m.room}}<span class="tip r"><b>Not in your room</b>Players are reported wherever they are; this is their room name.</span></span></sc-if>
+                <span class="sts">
+                  <sc-for list="{{m.sts}}" as="s" hint-placeholder-count="2">
+                    <span class="tw ic" style="color:{{s.color}}"><svg class="{{s.svgCls}}" viewBox="0 0 24 24" aria-hidden="true"><path d="{{s.d}}"></path><path class="f" d="{{s.d2}}"></path></svg><span class="tip r"><b>{{s.title}}</b>{{s.desc}}</span></span>
+                    <sc-if value="{{s.time}}" hint-placeholder-val="{{false}}"><span class="stime" style="color:{{s.color}}">{{s.time}}</span></sc-if>
+                  </sc-for>
+                  <sc-if value="{{t.showPos}}" hint-placeholder-val="{{true}}">
+                    <span class="vr"></span>
+                    <span class="tw ic" style="color:{{m.pos.color}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.pos.d}}"></path></svg><span class="tip r"><b>{{m.pos.title}}</b>{{m.pos.desc}}</span></span>
+                  </sc-if>
+                </span>
+              </div>
+              <div class="bars">
+                <sc-for list="{{m.bars}}" as="b" hint-placeholder-count="3">
+                  <span class="tw bw"><span class="trk"><span class="{{b.cls}}" style="width:{{b.w}};background-color:{{b.color}}"></span></span><span class="tip"><b>{{b.title}}</b>{{b.desc}}</span></span>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+
+          <sc-if value="{{t.showFoe}}" hint-placeholder-val="{{true}}">
+            <div class="foe">
+              <div class="dv"><span class="ln"></span><span>Foe</span><span class="ln"></span></div>
+              <div class="frow">
+                <span class="tw ic" style="color:{{t.c.foe}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.axe}}"></path></svg><span class="tip"><b>Your opponent</b>From Char.Vitals: whom you fight. Not a group member.</span></span>
+                <span class="fn" style="color:{{t.c.foe}}">a black-robed orc</span>
+                <span class="tw word" style="color:{{t.c.foe}}">badly wounded<span class="tip r"><b>HP: badly wounded</b>The band word of every round. A foe has no exact numbers.</span></span>
+              </div>
+              <div class="fbar"><span class="tw bw"><span class="trk"><span class="fill est" style="width:28%;background-color:{{t.c.red}}"></span></span><span class="tip"><b>Foe HP ~28 %</b>Band word: badly wounded (the bar sits mid-band).</span></span></div>
+              <sc-if value="{{t.showTank}}" hint-placeholder-val="{{true}}">
+                <div class="tank">
+                  <span class="lk">↳ tanked by</span>
+                  <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.c.tank}}"><path d="{{t.icons.tank}}"></path></svg>
+                  <span class="tn">Gibur</span>
+                  <span class="tw bw"><span class="trk"><span class="fill" style="width:{{t.tank.w}};background-color:{{t.tank.color}}"></span></span><span class="tip r"><b>Gibur's HP {{t.tank.num}}</b>The buffer: who takes the foe's blows.</span></span>
+                  <span class="num">{{t.tank.num}}</span>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 · Group, low + hover + marker options -->
+    <div class="col">
+      <div class="cap">Group <i>· low pane, foe line stays pinned</i></div>
+      <div class="pane">
+        <div class="hole" style="padding-bottom:4px">
+          <div class="plate">Group</div>
+          <svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.gear}}"></path></svg>
+          <sc-for list="{{t.low}}" as="m" hint-placeholder-count="4">
+            <div class="{{m.cCls}}" style="box-shadow:{{m.auraLow}}">
+              <span class="tw mkw" style="color:{{m.mkColor}}"><svg class="mk i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.mk}}"></path></svg><span class="tip"><b>{{m.who.title}}</b>{{m.who.desc}}</span></span>
+              <span class="tw nmw"><span class="{{m.nmCls}}">{{m.short}}</span><span class="tip"><b>{{m.who.title}}</b>{{m.who.desc}}</span></span>
+              <div class="mini">
+                <sc-for list="{{m.bars}}" as="b" hint-placeholder-count="3">
+                  <span class="tw bw"><span class="trk"><span class="{{b.cls}}" style="width:{{b.w}};background-color:{{b.color}}"></span></span><span class="tip"><b>{{b.title}}</b>{{b.desc}}</span></span>
+                </sc-for>
+              </div>
+              <span class="sts">
+                <sc-for list="{{m.top}}" as="s" hint-placeholder-count="2">
+                  <span class="tw ic" style="color:{{s.color}}"><svg class="{{s.svgCls}}" viewBox="0 0 24 24" aria-hidden="true"><path d="{{s.d}}"></path><path class="f" d="{{s.d2}}"></path></svg><span class="tip r"><b>{{s.title}}</b>{{s.desc}}</span></span>
+                </sc-for>
+                <sc-if value="{{m.more}}" hint-placeholder-val="{{false}}"><span class="more">{{m.more}}</span></sc-if>
+              </span>
+            </div>
+          </sc-for>
+          <div class="over">↓ 2 more members</div>
+          <sc-if value="{{t.showFoe}}" hint-placeholder-val="{{true}}">
+            <div class="lfoe">
+              <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.c.foe}}"><path d="{{t.icons.axe}}"></path></svg>
+              <span class="fn" style="color:{{t.c.foe}}">black-robed orc</span>
+              <span class="tw bw"><span class="trk"><span class="fill est" style="width:28%;background-color:{{t.c.red}}"></span></span><span class="tip"><b>Foe HP ~28 %</b>badly wounded</span></span>
+              <sc-if value="{{t.showTank}}" hint-placeholder-val="{{true}}"><span class="lt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.c.tank}}"><path d="{{t.icons.tank}}"></path></svg>Gibur</span></sc-if>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div class="cap" style="margin-top:12px">Hover info <i>· pinned example: the HP bar</i></div>
+      <div class="demo">
+        <div class="row">
+          <span style="color:var(--tx);font-weight:700">Taube</span>
+          <div class="bars"><span class="bw"><span class="trk"><span class="fill" style="width:23%;background-color:{{t.c.red}}"></span></span></span><span class="bw"><span class="trk"><span class="fill" style="width:93%;background-color:{{t.c.mana}}"></span></span></span><span class="bw"><span class="trk"><span class="fill" style="width:31%;background-color:{{t.c.orange}}"></span></span></span></div>
+        </div>
+        <svg class="cursor" viewBox="0 0 10 14" aria-hidden="true"><path d="M1 1v11l3-3 2 4 2-1-2-4h4z" fill="currentColor" stroke="var(--page)" stroke-width="1"></path></svg>
+        <span class="tip"><b>HP 37/158 · 23 %</b>Under 25 %: the bar turns red.</span>
+      </div>
+
+      <div class="cap" style="margin-top:12px">NPC marker <i>· pick one (also in the gear)</i></div>
+      <div class="opts">
+        <sc-for list="{{t.ui.npcOpts}}" as="o" hint-placeholder-count="3">
+          <button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}">
+            <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{t.c.npc}}"><path d="{{o.d}}"></path></svg>
+            <span style="color:var(--tx2)">a citizen mercenary</span>
+            <span class="tag">MERC</span>
+            <span class="on-l">{{o.label}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- 3 · Timers -->
+    <div class="col">
+      <div class="cap">Timers <i>· rings by default, soonest first</i></div>
+      <div class="pane">
+        <div class="hole" style="min-height:790px">
+          <div class="plate">Timers</div>
+          <div class="pseg seg" role="group" aria-label="Timer style">
+            <sc-for list="{{t.ui.mode}}" as="o" hint-placeholder-count="2">
+              <button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{o.d}}"></path></svg>{{o.label}}</button>
+            </sc-for>
+          </div>
+          <svg class="gear i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.gear}}"></path></svg>
+
+          <sc-for list="{{t.groups}}" as="g" hint-placeholder-count="5">
+            <div class="th"><svg class="{{g.icCls}}" viewBox="0 0 24 24" aria-hidden="true" style="color:{{g.color}}"><path d="{{g.d}}"></path><path class="f" d="{{g.d2}}"></path></svg><span>{{g.label}}</span><span class="ln"></span><span class="ct">{{g.count}}</span></div>
+            <sc-if value="{{g.ring}}" hint-placeholder-val="{{true}}">
+              <div class="rgrid" style="grid-template-columns:{{g.cols}}">
+                <sc-for list="{{g.items}}" as="x" hint-placeholder-count="4">
+                  <div class="{{x.rcls}}" style="opacity:{{x.op}}">
+                    <span class="rw">
+                      <svg class="ring" viewBox="0 0 24 24" aria-hidden="true"><circle class="rb" cx="12" cy="12" r="10"></circle><circle class="{{x.arcCls}}" cx="12" cy="12" r="10" style="stroke-dasharray:{{x.dash}};stroke:{{x.color}}"></circle></svg>
+                      <svg class="{{x.icCls}}" viewBox="0 0 24 24" aria-hidden="true" style="color:{{x.icColor}}"><path d="{{x.d}}"></path><path class="f" d="{{x.d2}}"></path></svg>
+                    </span>
+                    <span class="rn">{{x.name}}</span>
+                    <span class="rt" style="color:{{x.tColor}}">{{x.time}}</span>
+                    <span class="tip"><b>{{x.title}}</b>{{x.desc}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{g.bar}}" hint-placeholder-val="{{false}}">
+              <div class="bgrid" style="grid-template-columns:{{g.cols}}">
+                <sc-for list="{{g.items}}" as="x" hint-placeholder-count="4">
+                  <div class="{{x.bcls}}" style="opacity:{{x.op}}">
+                    <div class="tl"><svg class="{{x.icCls}}" viewBox="0 0 24 24" aria-hidden="true" style="color:{{x.icColor}}"><path d="{{x.d}}"></path><path class="f" d="{{x.d2}}"></path></svg><span class="n">{{x.name}}</span><span class="t" style="color:{{x.tColor}}">{{x.time}}</span></div>
+                    <span class="trk"><span class="fill" style="width:{{x.w}};background-color:{{x.color}}"></span></span>
+                    <span class="tip"><b>{{x.title}}</b>{{x.desc}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{g.chip}}" hint-placeholder-val="{{false}}">
+              <div class="chips">
+                <sc-for list="{{g.items}}" as="x" hint-placeholder-count="1">
+                  <span class="tw chip">
+                    <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{g.color}}"><path d="{{x.d}}"></path></svg>
+                    <span style="color:var(--tx)">{{x.name}}</span>
+                    <span class="t">{{x.time}}</span>
+                    <button class="x" aria-label="Forget this charmie"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.close}}"></path></svg></button>
+                    <span class="tip"><b>{{x.title}}</b>{{x.desc}}</span>
+                  </span>
+                </sc-for>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 · Gear popups -->
+    <div class="col">
+      <div class="cap">Gear popups <i>· every switch works</i></div>
+      <div class="pop">
+        <div class="ph"><span class="pt">Group</span><button class="px" aria-label="Close Group settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.close}}"></path></svg></button></div>
+        <div class="pb">
+          <div class="ps">Members</div>
+          <div class="prow"><span class="pl">NPC marker</span><div class="seg" role="group" aria-label="NPC marker"><sc-for list="{{t.ui.npc}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}">{{o.label}}</button></sc-for></div></div>
+          <div class="prow"><span class="pl">Position icon</span><button class="{{t.ui.pos.cls}}" aria-pressed="{{t.ui.pos.on}}" aria-label="Position icon" onClick="{{t.ui.pos.click}}"><span class="kn"></span></button></div>
+          <div class="ps">Sanctuary</div>
+          <div class="prow"><span class="pl">Aura round the member<span class="pn">a glowing outline on the whole row</span></span><button class="{{t.ui.aura.cls}}" aria-pressed="{{t.ui.aura.on}}" aria-label="Aura round the member" onClick="{{t.ui.aura.click}}"><span class="kn"></span></button></div>
+          <div class="prow"><span class="pl">Aura fades with time<span class="pn">only sanctuaries you cast have a time</span></span><button class="{{t.ui.fade.cls}}" aria-pressed="{{t.ui.fade.on}}" aria-label="Aura fades with time" onClick="{{t.ui.fade.click}}"><span class="kn"></span></button></div>
+          <div class="ps">Fight</div>
+          <div class="prow"><span class="pl">Foe below the group</span><button class="{{t.ui.foe.cls}}" aria-pressed="{{t.ui.foe.on}}" aria-label="Foe below the group" onClick="{{t.ui.foe.click}}"><span class="kn"></span></button></div>
+          <div class="prow"><span class="pl">Tank beside the foe</span><button class="{{t.ui.tank.cls}}" aria-pressed="{{t.ui.tank.on}}" aria-label="Tank beside the foe" onClick="{{t.ui.tank.click}}"><span class="kn"></span></button></div>
+        </div>
+        <div class="pfoot"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.info}}"></path></svg>Hover a bar or an icon for its details.</div>
+      </div>
+
+      <div class="pop" style="margin-top:6px">
+        <div class="ph"><span class="pt">Timers</span><button class="px" aria-label="Close Timers settings"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icons.close}}"></path></svg></button></div>
+        <div class="pb">
+          <div class="ps">Look</div>
+          <div class="prow"><span class="pl">Timers as<span class="pn">every group, also in the pane header</span></span><div class="seg" role="group" aria-label="Timers as"><sc-for list="{{t.ui.mode}}" as="o" hint-placeholder-count="2"><button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}">{{o.label}}</button></sc-for></div></div>
+          <div class="prow"><span class="pl">Blinds<span class="pn">Auto: rings when more than 8</span></span><div class="seg" role="group" aria-label="Blinds layout"><sc-for list="{{t.ui.blinds}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}">{{o.label}}</button></sc-for></div></div>
+          <div class="prow"><span class="pl">Blinds fade as they run out</span><button class="{{t.ui.fadeBlinds.cls}}" aria-pressed="{{t.ui.fadeBlinds.on}}" aria-label="Blinds fade as they run out" onClick="{{t.ui.fadeBlinds.click}}"><span class="kn"></span></button></div>
+          <div class="ps">Ending soon</div>
+          <div class="prow"><span class="pl">Orange from<span class="pn">red always under 10 s</span></span><div class="seg" role="group" aria-label="Orange from"><sc-for list="{{t.ui.warn}}" as="o" hint-placeholder-count="3"><button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}">{{o.label}}</button></sc-for></div></div>
+          <div class="prow"><span class="pl">Soonest first</span><button class="{{t.ui.sortSoon.cls}}" aria-pressed="{{t.ui.sortSoon.on}}" aria-label="Soonest first" onClick="{{t.ui.sortSoon.click}}"><span class="kn"></span></button></div>
+          <div class="ps">Groups</div>
+          <div class="gchips">
+            <sc-for list="{{t.ui.chips}}" as="o" hint-placeholder-count="7">
+              <button class="{{o.cls}}" aria-pressed="{{o.on}}" onClick="{{o.click}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color:{{o.color}}"><path d="{{o.d}}"></path><path class="f" d="{{o.d2}}"></path></svg>{{o.label}}</button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1880,"height":1760}}'>
+const IC = {
+  gear: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6 M12 2v3 M12 19v3 M4.9 4.9l2.1 2.1 M17 17l2.1 2.1 M2 12h3 M19 12h3 M4.9 19.1L7 17 M17 7l2.1-2.1',
+  sanct: 'M12 7.4a2.2 2.2 0 1 0 0 4.4a2.2 2.2 0 1 0 0-4.4 M8 17.6c.5-2.5 2-3.8 4-3.8s3.5 1.3 4 3.8 M7.3 9.6a4.7 4.7 0 0 1 9.4 0',
+  shield: 'M12 2.4l7.6 2.8v6.1c0 5.2-3.3 9-7.6 10.5-4.3-1.5-7.6-5.3-7.6-10.5V5.2z',
+  vial: 'M9.5 3h5 M10.5 3v5.5L5.5 17.5A2.2 2.2 0 0 0 7.4 21h9.2a2.2 2.2 0 0 0 1.9-3.5l-5-9V3 M7.6 14.5h8.8',
+  drop: 'M12 3.5c-3 4-6 7-6 10.5a6 6 0 0 0 12 0c0-3.5-3-6.5-6-10.5z',
+  slept: 'M4 6h6l-6 7h6 M13 12h6l-6 7h6',
+  blind: 'M3 3l18 18 M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 9 4.5 9 6a10 10 0 0 1-2.4 3.2 M6.6 6.6C4.3 8 3 10.2 3 12c0 1.5 4 6 9 6a9 9 0 0 0 4.4-1.1 M9.9 9.9a3 3 0 0 0 4.2 4.2',
+  bashed: 'M12 2l1.8 5.5L19 5l-2.5 5.2L22 12l-5.5 1.8L19 19l-5.2-2.5L12 22l-1.8-5.5L5 19l2.5-5.2L2 12l5.5-1.8L5 5l5.2 2.5z',
+  snared: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  wound: 'M4.6 14.6l10-10a3.5 3.5 0 0 1 5 5l-10 10a3.5 3.5 0 0 1-5-5z M9 9l6 6',
+  hungry: 'M7 3v8 M5 3v4a2 2 0 0 0 4 0V3 M7 11v10 M17 3c-2 0-3 3-3 6s1 3 3 3 M17 3v18',
+  standing: 'M12 2.5a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M12 8.5v7 M7.5 11h9 M12 15.5l-3 6 M12 15.5l3 6',
+  fighting: 'M14.5 17.5L3 6V3h3l11.5 11.5 M13 19l6-6 M16 16l4 4 M19 21l2-2 M14.5 6.5L18 3h3v3l-3.5 3.5 M5 14l4 4 M7 17l-3 3 M3 19l2 2',
+  resting: 'M9 3a2 2 0 1 0 0 4a2 2 0 1 0 0-4 M9 9v6h6l1 6 M6 12h6 M4 21h16',
+  sleeping: 'M3 19V7 M3 15h18v4 M21 15v-2a3 3 0 0 0-3-3h-8v5 M6.5 10.5a1.5 1.5 0 1 0 0 3a1.5 1.5 0 1 0 0-3 M15 3h4l-4 4h4',
+  riding: 'M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5',
+  tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z M5.4 11h13.2',
+  axe: 'M4.5 20.5L15 10 M12.6 6.4c2.6-2.6 6-3.1 8-1.6 1.5 2 1 5.4-1.6 8z M3 19l2 2',
+  charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
+  spell: 'M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z',
+  buff: 'M12 19V5 M6 11l6-6 6 6',
+  debuff: 'M12 5v14 M6 13l6 6 6-6',
+  herb: 'M5 19c0-8 5-14 14-14 0 9-6 14-14 14z M5 19l8-8',
+  stored: 'M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z M6 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2 M9 8h6 M9 12h6',
+  pin: 'M12 21s-6-5.5-6-11a6 6 0 0 1 12 0c0 5.5-6 11-6 11z M12 8a2 2 0 1 0 0 4a2 2 0 1 0 0-4',
+  player: 'M12 4a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7 M5 20c0-3.5 3-6 7-6s7 2.5 7 6',
+  helm: 'M5 12a7 7 0 0 1 14 0v4l-2 3H7l-2-3z M5 12L2.5 6.5 M19 12l2.5-5.5 M8.5 13.5h2.5 M13 13.5h2.5 M12 13.5V19',
+  diamond: 'M12 4l7 8-7 8-7-8z',
+  hood: 'M12 3c-3.6 0-6 3-6 7v3l-2 8h16l-2-8v-3c0-4-2.4-7-6-7z M9.5 12c.8.7 1.6 1 2.5 1s1.7-.3 2.5-1',
+  tag: 'M3 12.5V4h8.5L21 13.5 13.5 21z M7.5 7.5h.01',
+  ringIc: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16',
+  barsIc: 'M4 8h16 M4 16h10',
+  info: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18 M12 11v5 M12 8h.01',
+  close: 'M5 5l14 14 M19 5L5 19',
+};
+
+const BLACK = {
+  key: 'k-black', caption: 'Black', sub: '· the default background',
+  hp: '#2fa84f', mana: '#3d7eff', mp: '#c08a3e', red: '#ff4d4d', orange: '#ff8c2a',
+  grp: { sanct: '#f2ecd8', spell: '#66b2ff', buff: '#4cc96a', debuff: '#ff6b6b', stored: '#ff7ae0', blind: '#3fd0d0', charm: '#b388ff' },
+  st: { sanct: '#f2ecd8', poison: '#9be15d', slept: '#a99bff', blind: '#7fd3e6', bashed: '#ffa04d', snared: '#5fd4b0', wound: '#ff6b6b', hungry: '#d9b25f', thirsty: '#5aa8ff', tank: '#e8c35a', charm: '#d38bff' },
+  pos: { standing: '#8a8a8a', fighting: '#ff7a6b', resting: '#8a8a8a', sleeping: '#8a9bd6', riding: '#c9a66b' },
+  rel: { ally: '#7fb2ff', neutral: '#e6b450', enemy: '#ff7b72', npc: '#9a9a9a' },
+  foe: '#ff7b72', aura: '242,236,216', auraK: 1, untr: '#4a4a4a', unk: '#8f8a7c',
+};
+const PAPER = {
+  key: 'k-paper', caption: 'Paper', sub: '· #f4ecd8, dark ink, the aura turns amber',
+  hp: '#2a6e1a', mana: '#2a56c8', mp: '#846400', red: '#c42020', orange: '#b85400',
+  grp: { sanct: '#9a6a00', spell: '#2a56c8', buff: '#2a6e1a', debuff: '#c42020', stored: '#a828a8', blind: '#00737e', charm: '#6a4bc4' },
+  st: { sanct: '#9a6a00', poison: '#2f7a14', slept: '#6a4bc4', blind: '#00737e', bashed: '#b85400', snared: '#106a72', wound: '#c42020', hungry: '#846400', thirsty: '#2a56c8', tank: '#8a6a00', charm: '#8a2a8a' },
+  pos: { standing: '#6e6858', fighting: '#c42020', resting: '#6e6858', sleeping: '#3c4f9a', riding: '#7a5c00' },
+  rel: { ally: '#2a56c8', neutral: '#846400', enemy: '#c42020', npc: '#6e6858' },
+  foe: '#a01c1c', aura: '214,150,20', auraK: 1.35, untr: '#b5ae9c', unk: '#a39d8f',
+};
+
+const STS = {
+  sanct: { d: IC.sanct, d2: IC.shield, title: 'Sanctuary', desc: 'A white aura: half damage taken.' },
+  poison: { d: IC.vial, title: 'Poisoned', desc: 'Loses HP every tick.' },
+  slept: { d: IC.slept, title: 'Magically asleep', desc: 'Cannot act until woken.' },
+  blind: { d: IC.blind, title: 'Blind', desc: 'Cannot see.' },
+  bashed: { d: IC.bashed, title: 'Bashed', desc: 'On the ground for a round.' },
+  snared: { d: IC.snared, title: 'Snared', desc: 'Cannot leave the room.' },
+  wound: { d: IC.wound, title: 'Wounded', desc: 'Bleeding.' },
+  hungry: { d: IC.hungry, title: 'Hungry', desc: 'Regenerates slower.' },
+  thirsty: { d: IC.drop, title: 'Thirsty', desc: 'Regenerates slower.' },
+  tank: { d: IC.tank, title: 'Tanking', desc: 'The fight’s buffer (Char.Vitals). See the foe below.' },
+  charm: { d: IC.charm, title: 'Your charmie', desc: 'Charmed 21m ago (Timers).' },
+};
+const POS = {
+  standing: { d: IC.standing, title: 'Standing', desc: 'Position from GMCP.' },
+  fighting: { d: IC.fighting, title: 'Fighting', desc: 'In combat.' },
+  resting: { d: IC.resting, title: 'Resting', desc: 'Regenerates faster.' },
+  sleeping: { d: IC.sleeping, title: 'Sleeping', desc: 'Regenerates fastest; sees nothing.' },
+  riding: { d: IC.riding, title: 'Riding', desc: 'Mounted (ride flag).' },
+};
+const MEMBERS = [
+  { name: 'Gibur', kind: 'ally', pos: 'riding', v: { hp: 'live', mana: [40, 100], mp: [72, 110] }, sts: ['sanctT', 'tank'] },
+  { name: 'Taube', kind: 'ally', pos: 'fighting', v: { hp: [37, 158], mana: [88, 95], mp: [31, 100] }, sts: ['sanctU', 'poison'] },
+  { name: 'Kvällulv', kind: 'ally', pos: 'sleeping', room: 'Prancing Pony', v: { hp: [140, 140], mana: [70, 120], mp: [120, 120] }, sts: ['hungry', 'thirsty'] },
+  { name: 'Morwen', kind: 'neutral', pos: 'resting', v: { hp: [121, 121], mana: [60, 100], mp: [80, 100] }, sts: ['blind'] },
+  { name: 'a citizen mercenary', short: 'mercenary', kind: 'npc', tag: 'MERC', pos: 'standing', v: { hp: ['wounded', 0.55], mana: null, mp: ['steadfast', 0.9] }, sts: ['bashed', 'wound'] },
+  { name: 'a huge stone troll', short: 'stone troll', kind: 'npc', tag: 'TROLL', pos: 'standing', v: { hp: ['fine', 0.95], mana: null, mp: ['unwearied', 0.7] }, sts: ['charm', 'snared', 'slept'] },
+];
+const BLINDS = [['2.orc', 8], ['3.orc', 22], ['4.orc', 35], ['5.orc', 51], ['troll', 64], ['2.troll', 77], ['warg', 15], ['2.warg', 44], ['3.warg', 83], ['goblin', 28], ['2.goblin', 58], ['wolf', 4]];
+const GKEYS = [['sanct', 'Sanctuary'], ['spell', 'Spells'], ['buff', 'Buffs'], ['debuff', 'Debuffs'], ['stored', 'Stored'], ['blind', 'Blinds'], ['charm', 'Charmies']];
+const GICON = { sanct: [IC.sanct, IC.shield], spell: [IC.spell, ''], buff: [IC.buff, ''], debuff: [IC.debuff, ''], stored: [IC.stored, ''], blind: [IC.blind, ''], charm: [IC.charm, ''] };
+const KIND = { hp: 'HP', mana: 'Mana', mp: 'Moves' };
+
+const C10 = 2 * Math.PI * 10;
+function dash(f) { const x = Math.max(0, Math.min(1, f)); return (x * C10).toFixed(2) + ' ' + C10.toFixed(2); }
+function fmt(s) { if (s >= 3600) return Math.floor(s / 3600) + 'h' + String(Math.floor(s % 3600 / 60)).padStart(2, '0'); if (s >= 60) return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); return s + 's'; }
+function left(base, dur, e) { return ((base - e) % dur + dur) % dur; }
+function pctS(p) { return Math.round(p * 100) + ' %'; }
+
+class Component extends DCLogic {
+  componentDidMount() { this.t0 = Date.now(); this.iv = setInterval(() => this.setState({ now: Date.now() }), 1000); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  renderVals() {
+    const st = Object.assign({
+      mode: 'ring', blinds: 'auto', warn: 30, npc: 'diamond', aura: true, fade: true, pos: true, foe: true, tank: true, fadeBlinds: true, sortSoon: true,
+      g: { sanct: true, spell: true, buff: true, debuff: true, stored: true, blind: true, charm: true },
+    }, this.state || {});
+    const now = (this.state && this.state.now) || this.t0 || 0;
+    const e = this.t0 ? Math.floor((now - this.t0) / 1000) : 0;
+
+    // ---- shared controls (both halves) ----
+    const set = (patch) => () => this.setState(patch);
+    const seg = (key, opts) => opts.map((o) => ({ label: o[1], d: o[2] || '', on: st[key] === o[0], cls: st[key] === o[0] ? 'on' : '', click: set({ [key]: o[0] }) }));
+    const tg = (key) => ({ on: !!st[key], cls: st[key] ? 'tg on' : 'tg', click: set({ [key]: !st[key] }) });
+    const npcMk = { diamond: IC.diamond, hood: IC.hood, tag: IC.tag };
+    const baseUi = {
+      mode: seg('mode', [['ring', 'Rings', IC.ringIc], ['bar', 'Bars', IC.barsIc]]),
+      blinds: seg('blinds', [['auto', 'Auto'], ['rings', 'Rings'], ['list', 'List']]),
+      warn: seg('warn', [[10, '10s'], [20, '20s'], [30, '30s']]),
+      npc: seg('npc', [['diamond', 'Diamond'], ['hood', 'Hood'], ['tag', 'Tag']]),
+      npcOpts: [['diamond', 'Diamond'], ['hood', 'Hood'], ['tag', 'Tag']].map((o) => ({ label: o[1], d: npcMk[o[0]], on: st.npc === o[0], cls: st.npc === o[0] ? 'opt on' : 'opt', click: set({ npc: o[0] }) })),
+      aura: tg('aura'), fade: tg('fade'), pos: tg('pos'), foe: tg('foe'), tank: tg('tank'), fadeBlinds: tg('fadeBlinds'), sortSoon: tg('sortSoon'),
+    };
+
+    const giburHp = 104 + Math.round(28 * Math.abs(Math.sin(e / 5)));
+    const sanctLeft = left(192, 270, e);
+
+    const build = (TH) => {
+      const barColor = (k, p) => (p <= 0.25 ? TH.red : p <= 0.45 ? TH.orange : TH[k]);
+      const auraFor = (kind, low) => {
+        if (!st.aura || !kind) return 'none';
+        const f = kind === 'T' ? (st.fade ? sanctLeft / 270 : 1) : 0.55;
+        const k = TH.auraK * (low ? 0.7 : 1);
+        const a1 = Math.min(1, (0.22 + 0.5 * f) * k), a2 = Math.min(1, (0.14 + 0.46 * f) * k), a3 = Math.min(1, (0.03 + 0.1 * f) * k);
+        const sp = (low ? 2 : 3) + (low ? 5 : 10) * f;
+        return '0 0 0 1px rgba(' + TH.aura + ',' + a1.toFixed(2) + '), 0 0 ' + sp.toFixed(1) + 'px rgba(' + TH.aura + ',' + a2.toFixed(2) + '), inset 0 0 ' + (sp * 0.8).toFixed(1) + 'px rgba(' + TH.aura + ',' + a3.toFixed(2) + ')';
+      };
+      const stIcon = (key) => {
+        if (key === 'sanctT') return { ...STS.sanct, color: TH.st.sanct, svgCls: 'i glow', time: fmt(sanctLeft), desc: 'Cast by you: ' + fmt(sanctLeft) + ' left of 4:30. The aura fades with it.' };
+        if (key === 'sanctU') return { ...STS.sanct, color: TH.st.sanct, svgCls: 'i glow', time: false, desc: 'Glowing (GMCP). Not cast by you, so the time is unknown.' };
+        const s = STS[key];
+        return { ...s, d2: s.d2 || '', color: TH.st[key], svgCls: 'i', time: false };
+      };
+      const bars = (m) => ['hp', 'mana', 'mp'].map((k) => {
+        let x = m.v[k];
+        if (x === 'live') x = [giburHp, 160];
+        if (x === null) return { w: '0%', color: TH.untr, cls: 'fill', title: KIND[k], desc: 'Not reported for this NPC.' };
+        if (typeof x[0] === 'string') {
+          const p = x[1];
+          return { w: Math.round(p * 100) + '%', color: barColor(k, p), cls: 'fill est', title: KIND[k] + ' ~' + pctS(p), desc: 'Band word: ' + x[0] + '. NPCs send words, not numbers.' };
+        }
+        const p = x[0] / x[1];
+        const note = p <= 0.25 ? 'Under 25 %: the bar turns red.' : p <= 0.45 ? 'Under 45 %: the bar turns orange.' : '';
+        return { w: Math.round(p * 100) + '%', color: barColor(k, p), cls: 'fill', title: KIND[k] + ' ' + x[0] + '/' + x[1] + ' · ' + pctS(p), desc: note };
+      });
+      const members = MEMBERS.map((m) => {
+        const npc = m.kind === 'npc';
+        const sts = m.sts.map(stIcon);
+        const sk = m.sts.indexOf('sanctT') >= 0 ? 'T' : m.sts.indexOf('sanctU') >= 0 ? 'U' : null;
+        const who = npc
+          ? { title: 'NPC · labelled ' + m.tag, desc: m.name + '. Shown while it is in your room.' }
+          : m.kind === 'ally'
+            ? { title: 'Player · ally', desc: m.room ? 'Elsewhere: ' + m.room + '.' : 'In your room.' }
+            : { title: 'Player · ' + m.kind + ' race', desc: 'MUME type: ' + m.kind + '. In your group, other race.' };
+        const unk = sk === 'U' && st.aura ? ' unk' : '';
+        return {
+          name: m.name, short: m.short || m.name, tag: m.tag || false, room: m.room || false, who,
+          cls: 'm' + (m.room ? ' away' : '') + unk, cCls: 'c' + (m.room ? ' away' : '') + unk,
+          aura: auraFor(sk, false), auraLow: auraFor(sk, true),
+          mk: npc ? npcMk[st.npc] : m.kind === 'enemy' ? IC.helm : IC.player,
+          mkColor: TH.rel[npc ? 'npc' : m.kind],
+          nmCls: npc ? 'nm npc' : 'nm pl',
+          sts, top: sts.slice(0, 3).map((s) => ({ ...s, time: false })), more: sts.length > 3 ? '+' + (sts.length - 3) : false,
+          pos: { ...POS[m.pos], color: TH.pos[m.pos] }, bars: bars(m),
+        };
+      });
+
+      // ---- timers ----
+      const warnAt = st.warn;
+      const tColor = (l, base) => (l <= 10 ? TH.red : l <= warnAt ? TH.orange : base);
+      const mkItem = (gk, it) => {
+        const gcol = TH.grp[gk];
+        const ic = it.d || GICON[gk][0], ic2 = it.d2 !== undefined ? it.d2 : GICON[gk][1];
+        const common = { name: it.name, d: ic, d2: ic2 };
+        if (it.untracked) return { ...common, r: 1e9, time: '—', dash: dash(0), color: TH.untr, icColor: TH.untr, tColor: TH.untr, w: '0%', op: 1, rcls: 'tw rc untr', bcls: 'tw bc untr dash', arcCls: 'ra', icCls: 'ri i', title: it.name, desc: 'Seen in stat, not tracked: no time known.' };
+        if (it.untimed) return { ...common, r: 1e8, time: 'on', dash: dash(1), color: TH.unk, icColor: gcol, tColor: TH.unk, w: '100%', op: 0.8, rcls: 'tw rc', bcls: 'tw bc dash', arcCls: 'ra unk', icCls: 'ri i', title: it.title || it.name, desc: it.desc };
+        let l, gone = false;
+        if (gk === 'blind') { const cyc = it.dur + 4; const raw = ((it.base - e) % cyc + cyc) % cyc; gone = raw >= it.dur; l = gone ? 0 : raw; }
+        else l = left(it.base, it.dur, e);
+        const f = l / it.dur;
+        const col = tColor(l, gcol);
+        const blind = gk === 'blind';
+        const pulse = blind && !gone && l <= 10;
+        const op = gone ? 0 : blind && st.fadeBlinds ? (0.28 + 0.72 * f) : 1;
+        const cls = (gone ? ' gone' : '') + (pulse ? ' pulse' : '');
+        return {
+          ...common, r: gone ? 1e7 : l, time: gone ? '' : fmt(l), dash: dash(f), color: col, icColor: blind ? col : (l <= warnAt ? col : gcol), tColor: l <= warnAt ? col : 'var(--dim)',
+          w: Math.round(f * 100) + '%', op: op.toFixed(2), rcls: 'tw rc' + (blind ? ' sm' : '') + cls, bcls: 'tw bc' + cls, arcCls: 'ra', icCls: blind ? 'ri i' : 'ri i',
+          title: it.title || it.name, desc: (gone ? 'Wore off.' : fmt(l) + ' left of ' + fmt(it.dur)) + (it.sub ? ' · ' + it.sub : ''),
+        };
+      };
+      const DATA = {
+        sanct: [
+          { name: 'You', base: 161, dur: 270, title: 'Sanctuary on you', sub: 'from your own glow lines' },
+          { name: 'Gibur', base: 192, dur: 270, title: 'Sanctuary on Gibur', sub: 'cast by you' },
+          { name: 'Taube', untimed: true, title: 'Sanctuary on Taube', desc: 'Glowing (GMCP). Not cast by you, so the time is unknown.' },
+        ],
+        spell: [{ name: 'Shield', base: 250, dur: 600 }, { name: 'Armour', base: 1100, dur: 1440 }, { name: 'Bless', base: 65, dur: 360 }, { name: 'Strength', base: 372, dur: 600 }, { name: 'Breath of briskness', base: 26, dur: 180 }],
+        buff: [{ name: 'Miruvor', base: 510, dur: 600 }, { name: 'Travelling', base: 6720, dur: 7200, d: IC.herb, sub: 'herblore' }, { name: 'Haste', base: 14, dur: 360, d: IC.herb, sub: 'herblore' }],
+        debuff: [{ name: 'Winded', base: 40, dur: 60 }, { name: 'Hunger', untracked: true }],
+        stored: [{ name: 'Fireball', base: 760, dur: 1800 }, { name: 'Teleport', base: 1500, dur: 1800 }],
+        blind: BLINDS.map((b) => ({ name: b[0], base: b[1], dur: 90, title: 'Blindness on ' + b[0], sub: 'cast by you' })),
+      };
+      const groups = [];
+      GKEYS.forEach(([gk, label]) => {
+        if (!st.g[gk]) return;
+        const gcol = TH.grp[gk];
+        const g = { label, color: gcol, d: GICON[gk][0], d2: GICON[gk][1], icCls: gk === 'sanct' ? 'i glow' : 'i' };
+        if (gk === 'charm') {
+          groups.push({ ...g, count: '1', ring: false, bar: false, chip: true, cols: '', items: [{ name: 'Huge stone troll', d: IC.charm, time: (21 + Math.floor(e / 60)) + 'm', title: 'Charmed 21m ago', desc: 'A charm has no end time: this counts up. × forgets it.' }] });
+          return;
+        }
+        let items = DATA[gk].map((it) => mkItem(gk, it));
+        if (st.sortSoon) items = items.slice().sort((a, b) => a.r - b.r);
+        const n = items.length;
+        let ring = st.mode === 'ring';
+        if (gk === 'blind') ring = st.blinds === 'rings' || (st.blinds === 'auto' && (st.mode === 'ring' || n > 8));
+        const k = ring ? (gk === 'blind' ? Math.min(n, 7) : 6) : (n >= 9 ? 3 : n >= 2 ? 2 : 1);
+        let count = String(n);
+        if (gk === 'blind') { const live = items.filter((x) => x.r < 1e7); count = live.length + ' blinded' + (live.length ? ' · next ' + live[0].time : ''); }
+        groups.push({ ...g, count, ring, bar: !ring, chip: false, cols: 'repeat(' + k + ',minmax(0,1fr))', items });
+      });
+
+      const tankP = giburHp / 160;
+      return {
+        key: 'half ' + TH.key, caption: TH.caption, sub: TH.sub, icons: IC,
+        c: { foe: TH.foe, red: TH.red, orange: TH.orange, mana: TH.mana, tank: TH.st.tank, npc: TH.rel.npc },
+        members, low: members.slice(0, 4),
+        showPos: st.pos, showFoe: st.foe, showTank: st.tank,
+        tank: { w: Math.round(tankP * 100) + '%', color: barColor('hp', tankP), num: giburHp + '/160' },
+        groups,
+        ui: { ...baseUi, chips: GKEYS.map(([gk, label]) => ({ label, d: GICON[gk][0], d2: GICON[gk][1], color: TH.grp[gk], on: st.g[gk], cls: st.g[gk] ? 'gchip on' : 'gchip', click: () => this.setState({ g: { ...st.g, [gk]: !st.g[gk] } }) })) },
+      };
+    };
+
+    return { themes: [build(BLACK), build(PAPER)] };
+  }
+}
+</script>
+</body>
+</html>
