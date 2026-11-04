@@ -181,38 +181,68 @@ describe('panes on the context', () => {
     const t = setup();
     const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;
     expect(p).toBeInstanceOf(TimersPane);
-    place(p, 20, 6);
+    place(p, 40, 8);
     const now = Date.now();
     const cell = (id: string, group: 'spell' | 'blind' | 'charm') =>
       ({ id, name: id, group, startedAt: now, expiresAt: now + 60_000, expected: 60_000, tracked: true }) as const;
     t.game.timers.debugAdd({ ...cell('armour', 'spell') });
-    t.game.timers.debugAdd({ ...cell('2.orc', 'blind') });
+    t.game.timers.debugAdd({ ...cell('a dark-skinned orc', 'blind') });
     t.game.timers.debugAdd({ ...cell('troll', 'charm') });
     t.game.timers.debugHerbs([{ key: 'healing', name: 'Healing' }]);
-    t.settings.update({ timers: { timeText: false } });
     t.flush();
-    const rows = () => [...p.content.querySelectorAll('.wc-prow')].map((r) => r.textContent!.trimEnd());
-    expect(rows()).toEqual(['Spells:            +', 'ARMOUR             ▌', 'Blinds:', '2.ORC              ▌', 'Charmies:', 'Troll           0m ×']);
-    t.settings.update({ timers: { groups: { blind: { enabled: false } }, headers: false } });
+    const groups = () => [...p.content.querySelectorAll<HTMLElement>('.wc-tm-g')].map((g) => g.dataset.group);
+    const names = () => [...p.content.querySelectorAll('.wc-tm-list .wc-tm-n')].map((n) => n.textContent);
+    expect(groups()).toEqual(['spell', 'blind', 'charm']);
+    expect(names()).toEqual(['Armour', 'dark-skinned orc', 'Troll']);
+    // Headers: the group name and count; the blind header names the next to end.
+    const heads = [...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')];
+    expect(heads.map((h) => h.textContent)).toEqual(['Spells1', 'Blinds1 · next 60s', 'Charmies1']);
+    // Bars by default: a pill with a fill; the time text is on.
+    const chip = p.content.querySelector<HTMLElement>('.wc-tm-chip[data-id="spell:armour"], .wc-tm-chip[data-id="armour"]')!;
+    expect(chip.querySelector<HTMLElement>('.wc-tm-fill')!.style.width).toBe('100.0%');
+    expect(chip.querySelector('.wc-tm-t')!.textContent).toBe('60s');
+    expect(chip.dataset.tipTitle).toBe('Armour');
+    // Circles: a ring row; headers off hide them; a group off goes.
+    t.settings.update({ timers: { style: 'circles', groups: { blind: { enabled: false } }, headers: false } });
     t.flush();
-    expect(rows()).toEqual(['ARMOUR             +', 'Troll           0m ×']);
-    const hit = (sel: string) => p.content.querySelector<HTMLElement>(`.wc-timers-hit${sel}`)!;
-    hit('[data-hit="charm"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(groups()).toEqual(['spell', 'charm']);
+    expect(p.content.querySelectorAll('.wc-tm-rc')).toHaveLength(2);
+    expect(p.content.querySelectorAll('.wc-tm-chip')).toHaveLength(0);
+    expect([...p.content.querySelectorAll<HTMLElement>('.wc-tm-h')].every((h) => h.hidden)).toBe(true);
+    // × forgets the charmie.
+    p.content.querySelector('.wc-tm-x')!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(rows()).toEqual(['ARMOUR             +']);
-    hit('[data-hit="corner"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(groups()).toEqual(['spell']);
+    // The corner opens the herblore add-view; a herb row starts it.
+    const corner = p.content.querySelector<HTMLElement>('.wc-tm-corner')!;
+    expect(corner.textContent).toBe('+');
+    corner.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
     expect(p.viewMode).toBe('add');
-    // The herblore tracker's catalogue (six entries) follows the debug herb.
-    expect(rows()[0]).toBe('[+] Healing        ×');
-    hit('[data-hit="herb"]').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    expect(corner.textContent).toBe('×');
+    const herb = () => p.content.querySelector<HTMLElement>('.wc-tm-herb')!;
+    expect(herb().textContent).toBe('+Healing');
+    herb().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
-    expect(rows()[0]).toBe('[-] Healing        ×');
-    // A disconnect blanks the pane and returns to the grid.
+    expect(herb().textContent).toBe('−Healing');
+    // A disconnect blanks the pane and returns to the list.
     t.bus.emit('conn.state', { state: 'disconnected', prev: 'playing' });
     t.flush();
     expect(p.content.textContent).toBe('');
-    expect(p.viewMode).toBe('grid');
+    expect(p.viewMode).toBe('list');
+    p.dispose();
+  });
+
+  it('Timers in a log player: no corner and no charm ×', () => {
+    const t = setup();
+    (t.ctx as { player?: boolean }).player = true;
+    const p = new TimersPane(t.ctx);
+    place(p, 40, 8);
+    const now = Date.now();
+    t.game.timers.debugAdd({ id: 'troll', name: 'troll', group: 'charm', startedAt: now, expiresAt: now + 60_000, expected: 60_000, tracked: true });
+    t.flush();
+    expect(p.content.querySelector<HTMLElement>('.wc-tm-corner')!.hidden).toBe(true);
+    expect(p.content.querySelector('.wc-tm-x')).toBeNull();
     p.dispose();
   });
 

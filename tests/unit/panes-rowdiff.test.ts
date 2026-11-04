@@ -157,32 +157,33 @@ describe('panes patch their rows', () => {
     p.dispose();
   });
 
-  it('Timers: a tick that shows the same cells touches no DOM; hit boxes stay', () => {
+  it('Timers: a tick that shows the same times touches no DOM but the tooltips; items keep their elements', () => {
     const t = setup();
     const p = new TimersPane(t.ctx);
-    place(p, 20, 6);
+    place(p, 30, 6);
     const now = t.now();
     const cell = (id: string, group: 'spell' | 'charm', secs: number) =>
       ({ id, name: id, group, startedAt: now, expiresAt: now + secs * 1000, expected: secs * 1000, tracked: true }) as const;
     t.game.timers.debugAdd({ ...cell('armour', 'spell', 3600) });
     t.game.timers.debugAdd({ ...cell('troll', 'charm', 3600) });
     t.flush();
-    const before = rowEls(p);
-    const hits = [...p.content.querySelectorAll('.wc-timers-hit')];
-    expect(hits.length).toBeGreaterThan(0);
+    const items = () => [...p.content.querySelectorAll('[data-id]:not(button)')];
+    const before = items();
+    expect(before).toHaveLength(2);
     const w = watch(p.content);
     t.advance(1000);
     p.markDirty();
     t.flush();
-    expect(w.take()).toEqual([]);
-    expect(rowEls(p)).toEqual(before);
-    expect([...p.content.querySelectorAll('.wc-timers-hit')]).toEqual(hits);
-    // A new cell changes the rows below the spells header and keeps the header.
-    t.game.timers.debugAdd({ ...cell('bless', 'spell', 3600) });
+    // Only the tooltips' exact time changes (an attribute, no rebuild).
+    expect(w.take().filter((r) => r.attributeName !== 'data-tip')).toEqual([]);
+    expect(items()).toEqual(before);
+    // A new spell joins its group; the others keep their elements.
+    t.game.timers.debugAdd({ ...cell('bless', 'spell', 1800) });
     t.flush();
-    const after = rowEls(p);
-    expect(after[0]).toBe(before[0]);
-    expect(p.content.querySelector('.wc-timers-rows')!.lastElementChild!.className).toBe('wc-timers-hits');
+    const after = items();
+    expect(after).toHaveLength(3);
+    expect(after).toContain(before[0]);
+    expect(after).toContain(before[1]);
     w.stop();
     p.dispose();
   });
