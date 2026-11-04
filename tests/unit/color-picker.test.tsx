@@ -3,7 +3,8 @@
 import { type VNode, render } from 'preact';
 import { act } from 'preact/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ColorPicker, colorLabel, pickerIndex, pickerStep } from '../../src/chrome/popups/color-picker';
+import { ColorPicker, pickerIndex, pickerStep } from '../../src/chrome/popups/color-picker';
+import { colorName as colorLabel } from '../../src/chrome/pane-options-model';
 import { PICKER_COLORS } from '../../src/panes/palette';
 
 const cleanup: Array<() => void> = [];

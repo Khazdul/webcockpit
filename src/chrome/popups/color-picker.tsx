@@ -19,6 +19,7 @@ import type { VNode } from 'preact';
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { PICKER_COLORS } from '../../panes/palette';
 import type { ColorSetting } from '../../settings/types';
+import { colorName } from '../pane-options-model';
 import { listPlace } from './controls';
 
 /** Swatches a row in the popover. */
@@ -31,13 +32,6 @@ export function pickerIndex(value: ColorSetting): number {
   if (value === 'auto') return -1;
   const v = value.toLowerCase();
   return PICKER_COLORS.findIndex((c) => c.hex.toLowerCase() === v);
-}
-
-/** The button's text: `Auto`, a picker colour's name or the hex. */
-export function colorLabel(value: ColorSetting): string {
-  if (value === 'auto') return 'Auto';
-  const i = pickerIndex(value);
-  return i >= 0 ? PICKER_COLORS[i]!.label : value.toLowerCase();
 }
 
 /** The next swatch index for a key in a `cols`-wide grid of `n`, or null. */
@@ -176,7 +170,7 @@ export function ColorPicker(p: {
         ref={btn}
         aria-haspopup="dialog"
         aria-expanded={open ? 'true' : 'false'}
-        aria-label={`${p.label}: ${colorLabel(p.value)}`}
+        aria-label={`${p.label}: ${colorName(p.value)}`}
         data-value={p.value}
         onKeyDown={onBtnKey}
         onClick={(e) => {
@@ -186,7 +180,7 @@ export function ColorPicker(p: {
         }}
       >
         <span class="wc-ck-sw" style={{ background: shown }} />
-        <span class="wc-cp-v">{colorLabel(p.value)}</span>
+        <span class="wc-cp-v">{colorName(p.value)}</span>
         <svg class="wc-ck-chev" viewBox="0 0 10 10" aria-hidden="true">
           <path d="M2 3.5l3 3 3-3" />
         </svg>

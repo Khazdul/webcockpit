@@ -19,7 +19,7 @@
 //          ↑↓ Move · ←→ Adjust · Enter Toggle · ESC Back
 //
 // A group's first row shows or hides it (Enter) and steps its colour (←→)
-// through Auto and the twelve picker colours (`colorCycle`, shared with the
+// through Auto and the twelve picker colours (`stepColor`, shared with the
 // Group page); the second steps its layout. Every change goes to the
 // settings store at once, so the pane follows live on both surfaces. The
 // choices and labels are shared with the Timers gear popup
@@ -38,11 +38,12 @@ import {
   TIMER_LAYOUT_LABEL,
   TIMER_SIGNAL_LABEL,
   TIMER_STYLE_LABEL,
+  colorName,
   colsLabel,
   patchTimerGroup,
   setTimers,
+  stepColor,
 } from '../pane-options-model';
-import { colorCycle, colorName } from './options-group';
 
 export function TimersOptionsFrame(): VNode {
   const { settings } = useServices();
@@ -69,11 +70,7 @@ export function TimersOptionsFrame(): VNode {
           glyph: gs.enabled ? '[X]' : '[ ]',
           label: `${name.padEnd(9)} colour: ${colorName(gs.color)}`,
           activate: show,
-          adjust: (d) => {
-            const list = colorCycle(gs.color);
-            const at = list.findIndex((c) => c.toLowerCase() === gs.color.toLowerCase());
-            patchTimerGroup(settings, g, { color: list[(at + d + list.length) % list.length]! });
-          },
+          adjust: (d) => patchTimerGroup(settings, g, { color: stepColor(gs.color, d) }),
         },
         {
           key: `l-${g}`,

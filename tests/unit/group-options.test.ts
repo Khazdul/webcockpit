@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorCycle, colorName } from '../../src/chrome/frames/options-group';
+import { colorCycle, colorName, stepColor } from '../../src/chrome/pane-options-model';
 import { AWAY_MODE_CHOICES, VITAL_COLOR_ROWS, setVitalColor } from '../../src/chrome/pane-options-model';
 import { PICKER_COLORS } from '../../src/panes/palette';
 import { SettingsStore } from '../../src/settings';
@@ -28,5 +28,8 @@ describe('Group options model (ADR 0122)', () => {
     expect(colorName('auto')).toBe('Auto');
     expect(colorName(PICKER_COLORS[0]!.hex.toUpperCase())).toBe(PICKER_COLORS[0]!.label);
     expect(colorName('#ABCDEF')).toBe('#abcdef');
+    expect(stepColor('auto', 1)).toBe(PICKER_COLORS[0]!.hex);
+    expect(stepColor('auto', -1)).toBe(PICKER_COLORS[11]!.hex);
+    expect(stepColor('#123456', 1)).toBe(PICKER_COLORS[0]!.hex);
   });
 });

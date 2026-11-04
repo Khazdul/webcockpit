@@ -9,7 +9,10 @@
 //   cancels its solo by itself when the filters change from outside it.
 // - Timers (ADR 0122): the choices of the look and ending-soon settings
 //   and the per-group patch.
-// - Group: the NPC visibility labels.
+// - Group: the NPC visibility and away labels, the vital colours, and
+//   `setGroup` for every other Group setting.
+// - Colours (ADR 0122): a colour setting's name, and the TUI pages' step
+//   through Auto and the twelve picker colours.
 
 import { COMM_CHANNEL_ORDER, DEFAULT_CAPTIONS, channelColor, channelEnabled, channelLabel } from '../gmcp/comm';
 import {
@@ -35,6 +38,8 @@ import {
   type TimerWarnAt,
   type TimersSettings,
 } from '../settings';
+import { PICKER_COLORS } from '../panes/palette';
+import type { GroupSettings } from '../settings/types';
 import type { TimerGroup } from '../timers/entry';
 
 // ------------------------------------------------------------------ comm
@@ -143,7 +148,34 @@ export const VITAL_COLOR_ROWS: readonly { key: 'hp' | 'mana' | 'mp'; label: stri
   { key: 'mp', label: 'Moves' },
 ];
 
+/** Writes `patch` into the Group settings (not the colours). */
+export function setGroup(settings: SettingsStore, patch: Partial<Omit<GroupSettings, 'colors'>>): void {
+  settings.update({ group: patch });
+}
+
 /** Writes one vital's colour setting. */
 export function setVitalColor(settings: SettingsStore, key: 'hp' | 'mana' | 'mp', color: ColorSetting): void {
   settings.update({ group: { colors: { [key]: color } } });
+}
+
+// ---------------------------------------------------------------- colours
+
+/** A colour setting's name: Auto, a picker colour's name, or the hex. */
+export function colorName(c: ColorSetting): string {
+  if (c === 'auto') return 'Auto';
+  return PICKER_COLORS.find((p) => p.hex.toLowerCase() === c.toLowerCase())?.label ?? c.toLowerCase();
+}
+
+/** Auto, then the picker colours; a free colour (not in the list) after Auto. */
+export function colorCycle(current: ColorSetting): ColorSetting[] {
+  const list: ColorSetting[] = ['auto', ...PICKER_COLORS.map((c) => c.hex)];
+  if (current !== 'auto' && !list.some((c) => c.toLowerCase() === current.toLowerCase())) list.splice(1, 0, current);
+  return list;
+}
+
+/** The colour `d` steps from `current` in `colorCycle` (the TUI pages' ←→). */
+export function stepColor(current: ColorSetting, d: number): ColorSetting {
+  const list = colorCycle(current);
+  const at = list.findIndex((c) => c.toLowerCase() === current.toLowerCase());
+  return list[(at + d + list.length) % list.length]!;
 }

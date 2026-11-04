@@ -44,6 +44,7 @@ import {
   commChannelRows,
   patchTimerGroup,
   setCommChannel,
+  setGroup,
   setTimers,
   setVitalColor,
   warnAtOf,
@@ -182,16 +183,16 @@ export function GroupSettings(): VNode {
   return (
     <div class="wc-sp-group">
       <Row label="Show players" help="Allies, and players of other races in your group">
-        <Toggle label="Show players" on={g.showPlayers} onChange={(showPlayers) => settings.update({ group: { showPlayers } })} />
+        <Toggle label="Show players" on={g.showPlayers} onChange={(showPlayers) => setGroup(settings, { showPlayers })} />
       </Row>
       <Row label="NPC visibility">
-        <Segmented label="NPC visibility" value={g.npcMode} options={NPC_MODE_CHOICES} onChange={(npcMode) => settings.update({ group: { npcMode } })} />
+        <Segmented label="NPC visibility" value={g.npcMode} options={NPC_MODE_CHOICES} onChange={(npcMode) => setGroup(settings, { npcMode })} />
       </Row>
       <Row label="Away members" help="Players not in your room">
-        <Segmented label="Away members" value={g.away} options={AWAY_MODE_CHOICES} onChange={(away) => settings.update({ group: { away } })} />
+        <Segmented label="Away members" value={g.away} options={AWAY_MODE_CHOICES} onChange={(away) => setGroup(settings, { away })} />
       </Row>
       <Row label="Fight card" help="The tank against your opponent, on top while you fight">
-        <Toggle label="Fight card" on={g.fight} onChange={(fight) => settings.update({ group: { fight } })} />
+        <Toggle label="Fight card" on={g.fight} onChange={(fight) => setGroup(settings, { fight })} />
       </Row>
       <div class="wc-ck-sep" />
       <div class="wc-ck-sub">Bar colours</div>
