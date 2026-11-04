@@ -918,9 +918,9 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     // Top border: `─┤ name ├──── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐`.
     const top = ((): VNode => {
       if (!cur) return <div class="wc-line wc-scr-line">{'─'.repeat(fw - 1) + '┐'}</div>;
-      const room = buttonsInside ? fw - 7 : nameRoom;
+      const room = buttonsInside ? fw - 8 : nameRoom;
       const name = truncate(cur.name, Math.max(1, room));
-      const used = 5 + cellLen(name) + (buttonsInside ? 0 : borderBtnsW + 1);
+      const used = 5 + cellLen(name) + (buttonsInside ? 0 : borderBtnsW);
       return (
         <div class="wc-line wc-scr-top">
           <span class="wc-scr-line">{'─┤ '}</span>
@@ -940,7 +940,8 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
             <div
               class={'wc-line wc-scr-drow' + (r.key?.startsWith('set:') ? ' wc-scr-setting' : '')}
               data-row={r.key}
-              onMouseDown={(e) => e.preventDefault()}
+              // No focus change or text selection, except in the value being typed.
+              onMouseDown={(e) => !(e.target instanceof HTMLInputElement) && e.preventDefault()}
               onClick={
                 r.key?.startsWith('set:')
                   ? () => {
