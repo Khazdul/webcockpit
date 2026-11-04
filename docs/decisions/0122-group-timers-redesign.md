@@ -300,7 +300,8 @@ After the owner's first test of the build:
   gives `tank: null`), and neither is your own name in the view: the card
   is then the opponent alone (its name, word and a full-width red bar from
   the left; `.is-solo`), in the one-line strip too.
-- **Fight card setting**: `group.fight` (on by default), in the gear and on
+- **Fight card setting**: `group.fight` (off by default, owner 2026-11-05;
+  a stored setting without it is off), in the gear and on
   the Options page. Off: no card or strip; the tank's shield in the list
   stays.
 - **Solid bars**: band-word estimates are no longer hatched; the tooltip

@@ -243,7 +243,7 @@ describe('migrateSettings', () => {
   it('adds the group and comm options with defaults (older stored data)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
-    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
     expect(s.comm).toEqual({ filters: {}, showHeader: true });
     expect(s.profile).toBe('pvp');
   });
@@ -271,7 +271,7 @@ describe('migrateSettings', () => {
     store.update({ comm: { filters: { tells: true } } });
     expect(store.get().comm.filters).toEqual({ says: false });
     store.update({ group: { npcMode: 'all' } });
-    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
   });
 
   it('adds the timers options with defaults (ADR 0122)', () => {
@@ -332,7 +332,7 @@ describe('migrateSettings', () => {
       showPlayers: false,
       npcMode: 'all',
       away: 'room',
-      fight: true,
+      fight: false,
       colors: { hp: 'auto', mana: 'auto', mp: 'auto' },
     });
     expect(migrateGroup({ away: 'dim', colors: { hp: '#FF0000', mana: 'blue', mp: 'auto' } })).toMatchObject({
@@ -340,8 +340,10 @@ describe('migrateSettings', () => {
       colors: { hp: '#ff0000', mana: 'auto', mp: 'auto' },
     });
     expect(migrateGroup({ away: 'far' }).away).toBe('room');
+    // Off by default (owner, 2026-11-05): a missing or bad key is off; a stored choice stays.
+    expect(migrateGroup({ fight: true }).fight).toBe(true);
     expect(migrateGroup({ fight: false }).fight).toBe(false);
-    expect(migrateGroup({ fight: 'no' }).fight).toBe(true);
+    expect(migrateGroup({ fight: 'no' }).fight).toBe(false);
   });
 
   it('adds the window places (ADR 0103): none placed, whole cells, garbage dropped', () => {

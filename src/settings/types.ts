@@ -152,7 +152,7 @@ export interface GroupSettings {
   npcMode: GroupNpcMode;
   /** A member not in your room: the room name after the name, or only dimmed. */
   away: GroupAwayMode;
-  /** The fight card on top while you fight (ADR 0122 addendum, owner round 1). */
+  /** The fight card on top while you fight (ADR 0122 addendum); off by default (owner, 2026-11-05). */
   fight: boolean;
   colors: GroupVitalColors;
 }
@@ -527,9 +527,9 @@ export function phoneDefaultSettings(): Settings {
   return s;
 }
 
-/** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, the fight card, Auto colours. */
+/** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, no fight card (owner), Auto colours. */
 export function defaultGroupSettings(): GroupSettings {
-  return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
+  return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: false, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
 }
 
 /** Timers defaults (ADR 0122): every group on in Auto colour, bars, flow, headers, time text. */

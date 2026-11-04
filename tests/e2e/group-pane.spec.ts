@@ -43,13 +43,19 @@ async function group(page: Page): Promise<void> {
   await expect(pane(page).locator('.wc-gp-row[data-name]')).toHaveCount(3);
 }
 
-test('the fight zone comes and goes; the tank is marked in the list', async ({ page }) => {
+/** The Fight card on (off by default, owner 2026-11-05). */
+const fightOn = (page: Page) => page.evaluate(() => window.__wc!.settings.update({ group: { fight: true } }));
+
+test('the fight zone (off by default) comes and goes; the tank is marked in the list', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await group(page);
   await expect(pane(page).locator('.wc-gp-fight, .wc-gp-fstrip')).toHaveCount(0);
   await emit(page, 'Char.Vitals', { buffer: 'Gibur', opponent: 'a black-robed orc', 'opponent-hits': 'hurt' });
   const fight = pane(page).locator('.wc-gp-fight, .wc-gp-fstrip');
+  await expect(pane(page).locator('[data-key="m2"] [data-tip-title="Tanking"]')).toHaveCount(1);
+  await expect(fight).toHaveCount(0);
+  await fightOn(page);
   await expect(fight).toHaveCount(1);
   await expect(pane(page).locator('[data-key="m2"] [data-tip-title="Tanking"]')).toHaveCount(1);
   await emit(page, 'Char.Vitals', { opponent: null });
@@ -59,6 +65,7 @@ test('the fight zone comes and goes; the tank is marked in the list', async ({ p
 
 test('you tank (buffer Nobody): the opponent fills the card; the Fight card toggle hides it; bars are solid', async ({ page }) => {
   await group(page);
+  await fightOn(page);
   await emit(page, 'Char.Vitals', { buffer: 'Nobody', opponent: 'a large bat', 'opponent-hits': 'healthy' });
   const card = pane(page).locator('.wc-gp-fight');
   await expect(card).toHaveClass(/is-solo/);

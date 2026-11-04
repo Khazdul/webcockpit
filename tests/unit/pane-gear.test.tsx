@@ -346,9 +346,9 @@ describe('gear popup contents', () => {
 
   it('Group: the Fight card toggle', () => {
     const t = mountWith(<GroupSettings />);
-    expect(t.s().group.fight).toBe(true);
-    click(t.host.querySelector('[aria-label="Fight card"]'));
     expect(t.s().group.fight).toBe(false);
+    click(t.host.querySelector('[aria-label="Fight card"]'));
+    expect(t.s().group.fight).toBe(true);
   });
 
   it('Group: Show players and NPC visibility', () => {

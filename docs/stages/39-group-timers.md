@@ -80,12 +80,13 @@ taller, or float them) and also try them small.
    tag. Two lines per member when there is room, one line when it is
    crowded. Hover a bar (`HP 37/158 · 23%`), an icon (poison, sanctuary,
    blind …), the position icon and a name: each has its own tooltip.
-2. **Group, fight:** start a fight. The card on top shows the tank (shield,
+2. **Group, fight:** the card is off by default: turn on Group gear →
+   Fight card first. Then start a fight. The card on top shows the tank (shield,
    HP, numbers) against your opponent (claw slashes, its HP word, a red bar
    from the right); the tank also has a shield in the list. When you tank
    yourself the card is the opponent alone. No "Group" line under the
    card. The card goes away when the fight ends; gear → Fight card turns
-   it off. All bars are solid (no small black stripes).
+   it off again. All bars are solid (no small black stripes).
 3. **Group, away:** a group mate in another room shows the room name and
    is dimmed. Gear → Away members → Dim only: just dimmed (the room is in
    the name's tooltip).

@@ -219,12 +219,17 @@ describe('GroupPane', () => {
     p.dispose();
   });
 
-  it('the fight zone comes and goes with the opponent', () => {
+  it('the fight card is off by default; turned on, it comes and goes with the opponent', () => {
     const t = setup();
     const p = new GroupPane(t.ctx);
     place(p, 40, 10);
     t.bus.emit('gmcp', { pkg: 'Group.Set', data: set });
     t.bus.emit('gmcp', { pkg: 'Char.Vitals', data: { buffer: 'Gibur', opponent: 'a black-robed orc', 'opponent-hits': 'hurt' } });
+    t.flush();
+    expect(p.content.querySelector('.wc-gp-fight, .wc-gp-fstrip')).toBeNull();
+    // The tank is still marked in the list.
+    expect(p.content.querySelector('[data-key="m2"] [data-tip-title="Tanking"]')).not.toBeNull();
+    t.settings.update({ group: { fight: true } });
     t.flush();
     const zone = p.content.querySelector('.wc-gp-fight')!;
     expect(zone.querySelector('.wc-gp-fn')!.textContent).toBe('Gibur');
@@ -241,6 +246,7 @@ describe('GroupPane', () => {
 
   it('you tank (buffer Nobody): the card is the opponent alone; the Fight card setting turns it off', () => {
     const t = setup();
+    t.settings.update({ group: { fight: true } });
     const p = new GroupPane(t.ctx);
     place(p, 40, 10);
     t.bus.emit('gmcp', { pkg: 'Group.Set', data: set });
