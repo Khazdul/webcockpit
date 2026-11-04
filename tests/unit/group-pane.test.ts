@@ -74,7 +74,7 @@ describe('bars', () => {
     const known = barView('hp', { value: 37, max: 158, word: null }, '#00ff00', false);
     expect(known).toMatchObject({ pct: 23, est: false, title: 'HP 37/158 · 23%', color: DARK_SIGNALS.vitalCritical });
     const word = barView('hp', { value: null, max: null, word: 'wounded' }, '#00ff00', false);
-    expect(word).toMatchObject({ pct: 36, est: true, title: 'HP · wounded', tip: 'About 36% (the band word).' });
+    expect(word).toMatchObject({ pct: 36, est: true, title: 'HP · wounded', tip: 'About 36%.' });
     const none = barView('mana', { value: null, max: null, word: null }, '#00ff00', false);
     expect(none).toMatchObject({ pct: 0, color: '', title: 'Mana', tip: 'Unknown' });
   });

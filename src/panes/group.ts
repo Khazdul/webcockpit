@@ -241,7 +241,7 @@ export function barView(kind: VitalKind, v: Vital, base: string, light: boolean)
     tip = p <= 25 ? 'Low: a quarter or less.' : p <= 45 ? 'Getting low.' : v.word ? capital(v.word) : '';
   } else {
     title = `${name} · ${v.word ?? ''}`.trim();
-    tip = `About ${p}% (the band word).`;
+    tip = `About ${p}%.`;
   }
   return { kind, pct: p, color: pct === null ? '' : vitalColor(base, pct, light), est: pct !== null && !known, title, tip: tip || title };
 }
