@@ -51,10 +51,10 @@ https://claude.ai/artifact/KQz9apKUpo9YMW5xhTscxf.
 - [x] 39a: Timers group `sanct`: own sanctuary moves there; others from
       GMCP flags, timed after your cast (cast queue + flag edge, 10 s);
       unit tests
-- [ ] 39b: Group pane DOM rendering: fight zone, member rows (two lines /
+- [x] 39b: Group pane DOM rendering: fight zone, member rows (two lines /
       one line), markers, statuses, position, away modes, overflow row,
       tooltips, dark and light; unit tests for the pure layout parts
-- [ ] 39b: Group gear popup and Options → Panes → Group: players, NPCs,
+- [x] 39b: Group gear popup and Options → Panes → Group: players, NPCs,
       away, vital colours (palette, free input, Auto)
 - [ ] 39c: Timers pane DOM rendering: groups and headers, bars and
       circles, flow and grid (per-group override), time text, ending-soon
