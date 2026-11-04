@@ -267,6 +267,25 @@
   animation: wc-tm-pulse 1.4s ease-in-out infinite;
 }
 
+/* The icon pulses too, with a soft glow in its own colour: a long timer's
+ * remaining fill is a sliver, the icon is always there (owner). */
+@keyframes wc-tm-pulse-icon {
+  0%,
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 0.18em var(--c));
+  }
+  50% {
+    opacity: 0.35;
+    filter: none;
+  }
+}
+
+.is-pulse .wc-tm-ic,
+.is-pulse .wc-tm-ii {
+  animation: wc-tm-pulse-icon 1.4s ease-in-out infinite;
+}
+
 /* The charm ×, and buttons in the pane (they keep the focus in the input). */
 .wc-tm button {
   all: unset;

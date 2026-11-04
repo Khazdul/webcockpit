@@ -177,6 +177,26 @@ describe('panes on the context', () => {
     p.dispose();
   });
 
+  it('Timers: Pulse lands on a long spell under warnAt (the item, so its icon pulses too)', () => {
+    const t = setup();
+    const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;
+    place(p, 40, 8);
+    const now = Date.now();
+    t.settings.update({ timers: { signal: 'pulse', warnAt: 20 } });
+    t.game.timers.debugAdd({ id: 'armour', name: 'armour', group: 'spell', startedAt: now - 585_000, expiresAt: now + 15_000, expected: 600_000, tracked: true });
+    t.game.timers.debugAdd({ id: 'shield', name: 'shield', group: 'spell', startedAt: now, expiresAt: now + 300_000, expected: 600_000, tracked: true });
+    t.flush();
+    const item = (id: string) => p.content.querySelector<HTMLElement>(`.wc-tm-list [data-id="${id}"]:not(button)`)!;
+    expect(item('armour').classList.contains('is-pulse')).toBe(true);
+    expect(item('armour').querySelector('.wc-tm-ic')).not.toBeNull();
+    expect(item('shield').classList.contains('is-pulse')).toBe(false);
+    t.settings.update({ timers: { style: 'circles' } });
+    t.flush();
+    expect(item('armour').classList.contains('is-pulse')).toBe(true);
+    expect(item('armour').querySelector('.wc-tm-ii')).not.toBeNull();
+    p.dispose();
+  });
+
   it('Timers draws game.timers, follows the options and handles clicks', () => {
     const t = setup();
     const p = PANE_FACTORIES.timers(t.ctx) as TimersPane;

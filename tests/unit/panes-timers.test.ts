@@ -125,6 +125,25 @@ describe('timersModel', () => {
     expect(n!.items.map((t) => t.ending)).toEqual([null, null]);
   });
 
+  it('every timed item crosses warnAt the same way (a long spell too); untimed and charmies never', () => {
+    const cells = [
+      cell('armour', 'spell', 15), // a 10-minute spell with 15 s left: a sliver of fill
+      cell('miruvor', 'buff', 15),
+      cell('winded', 'debuff', 15),
+      cell('fireball', 'stored', 15),
+      cell('Haste', 'herb', 15, { herbKey: 'Haste', phase: 'buff' }),
+      cell('sanctuary', 'sanct', 15),
+      cell('an orc', 'blind', 15),
+      cell('hunger', 'debuff', null, { tracked: false }),
+      cell('troll', 'charm', 15),
+    ];
+    const groups = timersModel(input(cells, { warnAt: 20, signal: 'pulse', soonestFirst: false }, {}, true));
+    const ending = Object.fromEntries(groups.flatMap((g) => g.items.map((t) => [t.id, t.ending])));
+    for (const id of ['spell:armour', 'buff:miruvor', 'debuff:winded', 'stored:fireball', 'herb:Haste', 'sanct:sanctuary', 'blind:an orc']) expect(ending[id]).toBe('pulse');
+    expect(ending['debuff:hunger']).toBeNull();
+    expect(ending['charm:troll']).toBeNull();
+  });
+
   it('soonest first sorts timed by time left, then still, then untimed; off keeps the hub order', () => {
     const cells = [
       cell('still', 'buff', null),

@@ -304,7 +304,7 @@ After the owner's first test of the build:
   the Options page. Off: no card or strip; the tank's shield in the list
   stays.
 - **Solid bars**: band-word estimates are no longer hatched; the tooltip
-  still says "About NN% (the band word)".
+  still says "About NN%".
 
 
 ### Addendum (owner, 2026-11-04): one-line rows align
@@ -314,3 +314,10 @@ After the owner's first test of the build:
   bars line up in every row whatever icons a member has (a tank shield
   used to push one row's bars left).
 - The herb group's label is "Herblores".
+
+### Addendum (owner, 2026-11-05): the pulse shows on the icon
+
+- With Signal Pulse, the item's icon pulses too (opacity and a soft glow in
+  its own colour, the fill's rhythm), in bars and circles: a long timer's
+  remaining fill is a sliver. Every timed item crosses `warnAt` the same
+  way; untimed items and charmies never pulse.
