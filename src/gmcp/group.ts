@@ -1,10 +1,13 @@
 // Group state from GMCP `Group.*` and the fight fields of `Char.Vitals`
 // (Inv §2.3 "Data", §8.2). Pure TS, no DOM.
 //
-// - Room-scoped: MUME reports only the members in your room. `Group.Remove`
-//   means "not here"; coming back is a `Group.Add` with a new id. The model
-//   is "who is here", ordered by id. Stable identity is `label` (NPC) or
-//   `name` (ally), used to match the fight fields below.
+// - Scope (ADR 0120, notes/research/gmcp-group.md): MUME reports NPC
+//   members only while they are in your room (`Group.Remove` = "not here",
+//   meeting again = `Group.Add`), but player members wherever they are.
+//   The model keeps what MUME sends, ordered by id. Stable identity is
+//   `label` (NPC) or `name` (player), used to match the fight fields below.
+//   Players are `ally`, `enemy` or `neutral`; only `ally` is tested below
+//   (Show players), a known gap left for the Group pane review.
 // - `type: "you"` is never kept as a member (the Character pane covers it);
 //   only its id and its `bashed` flag (`selfBashed`, for the weather
 //   effects' stun, owner item 116) are.

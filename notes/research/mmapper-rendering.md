@@ -434,9 +434,9 @@ with the owner or in the spec.
   (`group/mmapper2group.cpp:137-161`).
 - A member is drawn **only if `mapid` matches a room's serverId**. It is skipped for
   "unknown" rooms and for yourself.
-- [uncertain] Cockpit's `docs/gmcp.md` documents Group.* as **room-scoped**: only members in
-  your room, and no `mapid`/`room` fields listed. If MUME only reports co-located members,
-  showing members elsewhere on the map may do nothing. Verify with a live GMCP capture.
+- [resolved 2026-11-04] MUME sends `mapid` and `room` on every member. Player members stay
+  in the set when they are elsewhere, so they do show on other rooms; NPC members are only
+  reported in your room (`notes/research/gmcp-group.md`, ADR 0120).
 - Colors: member colors come from a golden-angle generator (`group/ColorGenerator.cpp`):
   HSL(hue, 255, 127) with hue starting at the hue of your color (yellow = 60), then
   +137.508° per new member (198°, 335°, 113°, …). Released hues are reused first. NPCs can be

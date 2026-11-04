@@ -664,11 +664,14 @@ pane colour. Mockup at W=31:
 #### Data (GMCP `Group.*`)
 
 - `Group.Set` (full), `Group.Add`, `Group.Update` (partial, by id), `Group.Remove`.
-- Member types: `ally` (player), `npc`, `you` (self — always excluded; covered by
-  Char.*).
-- **Room-scoped (ADR 0096):** MUME only reports members in your room. Leaving the room
-  → `Remove`; returning → `Add` with a **new id**. The pane shows "who is here", not
-  the roster. Stable identity = `label` (NPC) or `name` (ally).
+- Member types: `you` (self, always excluded; covered by Char.*), `npc`, and
+  three player types: `ally`, `enemy`, `neutral` (race relation; MUME help).
+- **Scope (corrected 2026-11-04, WebCockpit ADR 0120; Cockpit's ADR 0096 is wrong
+  for players):** NPC members are reported only while in your room (leaving →
+  `Remove`, returning → `Add`). Player members stay in the set wherever they are,
+  with `mapid`/`room` saying where. Stable identity = `label` (NPC) or `name`
+  (player). Full field list (`position`, `room`, `mapid`, status flags) and open
+  questions: `notes/research/gmcp-group.md`.
 - **Labeled NPCs (ADR 0094/0095):** NPC with non-empty string `label` is a member;
   `label: 0`/null/`""` = unlabeled. An `Update` adding a label promotes the NPC
   into the list; clearing it demotes it. Unlabeled NPCs are kept in a side set.
@@ -2969,14 +2972,16 @@ kebab-case. Debug aid: global trace plus a per-module/package whitelist trace
 | Comm.Channel.List | ← | name, caption, command | comm pane channel set; triggers Enable |
 | Comm.Channel.Enable | → | channel name | — |
 | Comm.Channel.Text | ← | channel, talker, talker-type (npc/ally/neutral/enemy), destination, text (ANSI kept) | **comm pane** + per-character comm archive |
-| Group.Set / Add / Update / Remove | ← | id, type (you/ally/npc), name, label, hp/mana/mp (+`-string`), maxhp/maxmana/maxmp | **group pane**; run log composition rows. See rules below. |
+| Group.Set / Add / Update / Remove | ← | id, type (you/npc/ally/enemy/neutral), name, label, hp/mana/mp (+`-string`), maxhp/maxmana/maxmp. Also sent, not used by Cockpit: position, room, mapid, flags ride/blind/bashed/waiting/poison/slept/wound/snared/hungry/thirsty/sanctuary (`notes/research/gmcp-group.md`) | **group pane**; run log composition rows. See rules below. |
 | Event.Sun | ← | what: rise/set (light/dark ignored) | **clock** sync → day/night countdown in the input strip + character pane Time |
 | Event.Darkness / Moon / Moved | ← | what / dir | stored only (Moved is key for a future map) |
 | Event.Achieved | ← | what | runs (`achievement` row), UI pane "ACHIEVEMENT: Unlocked.", game pane `## ACHIEVEMENT: <text>` (ADR 0117; replaced a text trigger) |
 
 Group rules for the table row above:
-- Membership is **room-scoped**: `Group.Remove` means "not in this room", and
-  ids are reassigned on re-add, so key members on label/name (ADR 0096).
+- Membership: NPCs are **room-scoped** (`Group.Remove` means "not in this room"),
+  players are not (they stay in the set with `mapid`). Key members on label/name;
+  Cockpit's ADR 0096 says ids change on re-add (corrected for players by
+  WebCockpit ADR 0120).
 - `label` is `0` or a string. Only NPCs with a non-empty label count as members
   (ADR 0094/0095, 0140).
 - `Group.Update` is partial: a value and its band string can arrive separately,

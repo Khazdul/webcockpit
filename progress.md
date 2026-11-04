@@ -48,6 +48,22 @@ Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
 
+### 2026-11-04 — GMCP Group research (between stages)
+
+- **Owner question:** what does GMCP tell you about group mates
+  (player/NPC, race …)? Answered from the owner's run exports and MUME's
+  `help gmcp group`; the owner wants it documented ahead of a pane review.
+- **Done:** `notes/research/gmcp-group.md` (fields, types, evidence,
+  open questions, review inputs); ADR 0120: NPC members are room-scoped,
+  players are not (Cockpit ADR 0096 was wrong for players). Corrected
+  Inv §2.3/§8.2, spec §2.4, MMapper note §7, `group.ts` header, script
+  manual, API reference, mercenaries help. No behaviour change. Unit 3091.
+- **Open (for the Group pane review):** `enemy`/`neutral` players bypass
+  Show players and run log composition (`type === 'ally'` only); status
+  flags, `position`, `room` unused; points needing a live capture are
+  listed in the note.
+- **Commits:** this one (on `main`, after the 0.2.4 release).
+
 ### 2026-11-04 — Stage 37 profile editor LITE keys (owner testing)
 
 - **Owner brief:** `n` on the kind row (ACTIONS, HIGHLIGHTS …) adds an

@@ -53,9 +53,9 @@ level. No log has a mercenary naming its price, so any line a citizen
 mercenary says, tells or asks that names 10 silver, or 1 gold / 20 silver,
 sets the cost setting.
 
-GMCP's Group messages only list the group members in your room, so a
-mercenary that is not in the room is "away", not gone. It is gone after
-the leave or death line, or a while after its contract ended.
+GMCP's Group messages only list the NPCs of your group that are in your
+room, so a mercenary that is not in the room is "away", not gone. It is
+gone after the leave or death line, or a while after its contract ended.
 
 Each mercenary is a record keyed by its label, with the time its contract
 ends as wall-clock seconds (getEpoch), so the records can be kept in the
@@ -349,8 +349,8 @@ local function pickName()
   return free[math.random(#free)]
 end
 
--- Who of ours is in the room: GMCP lists the members in your room, a
--- mercenary by its label.
+-- Who of ours is in the room: GMCP lists a group NPC only while it is in
+-- your room, a mercenary by its label.
 local function updatePresence()
   local here = {}
   for _, g in ipairs(state.group) do
