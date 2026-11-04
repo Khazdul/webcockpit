@@ -235,3 +235,37 @@ time). Timers never change colour.
 - The mockup's "Hunger and thirst icons" and "Sanctuary time" switches were
   not taken (not in the decision above): every flag is shown, and a
   sanctuary you cast always shows its ring.
+
+## Addendum (stage 39c, 2026-11-04)
+
+- **Timers DOM**: one element per group and per item, keyed by id
+  (`src/panes/timers.ts`); a render changes only what changed, so a 1 Hz
+  tick touches the times, fills and the tooltip text (`data-tip`), and a
+  pulse keeps running. The model is pure (`src/panes/timers-model.ts`).
+- **Sizes**: items at 0.85 of the pane font, headers at 0.72; a pill is
+  1.7em high, a ring row 1.55em with a 1.4em ring. The first group's header
+  (or, without headers, its items) leaves room for the corner `+`.
+- **Fills**: a pill's fill is the group colour at 30 % (20 % on a light
+  pane) over a faint track, its border the colour at 55 % (50 %); the text
+  stays the pane's own colour, so it reads on the filled and the empty part.
+- **Room for names**: the list's measured width and the measured character
+  width of the items' font (a hidden ten-character probe); Auto grid
+  columns take up to three, two when two still leave 8 characters. Blind
+  names are shortened by the model only when they exceed that room; every
+  other name clips on real overflow (sideways only, so an underscore under
+  the baseline is not cut).
+- **Time text**: `countdownText`, with `~` before another's sanctuary timed
+  from your cast; `?` for untimed items; the tooltip has the exact time
+  (`2:30 left. Of about 4:30.`).
+- **The indicator** counts timers (`↓ N more timers`, `↑ N timers above`)
+  and points up as soon as the list is scrolled at all.
+- **Herblore add-view**: a row per herb (`+ Healing`, `− Healing` when
+  running); the corner becomes `×`.
+- **Gear popup** (34em): Look (style, layout, grid columns, headers, time
+  text), Ending soon (signal, warn at, soonest first), then the group
+  table (shown, colour, layout). The colour control is the shared
+  `ColorPicker` (src/chrome/popups/color-picker.tsx): twelve swatches,
+  Auto and a free colour input in a popover.
+- **TUI page**: one row per setting, and two per group: `[X] Spells
+  colour: Auto` (Enter shows or hides it, ←→ step the colour like the
+  Group page) and `Spells layout: Default`.

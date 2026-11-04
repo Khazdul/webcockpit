@@ -56,11 +56,11 @@ https://claude.ai/artifact/KQz9apKUpo9YMW5xhTscxf.
       tooltips, dark and light; unit tests for the pure layout parts
 - [x] 39b: Group gear popup and Options → Panes → Group: players, NPCs,
       away, vital colours (palette, free input, Auto)
-- [ ] 39c: Timers pane DOM rendering: groups and headers, bars and
+- [x] 39c: Timers pane DOM rendering: groups and headers, bars and
       circles, flow and grid (per-group override), time text, ending-soon
       signal and threshold, soonest first, name shortening (blinds), herb
       add-view, charm ×, scrolling and indicator, log player read-only
-- [ ] 39c: Timers gear popup and Options → Panes → Timers: the new
+- [x] 39c: Timers gear popup and Options → Panes → Timers: the new
       settings and the per-group table (shown, colour, layout)
 - [ ] 39d: e2e for both panes (fight zone, away modes, tooltips, style,
       layout, headers, time text, colours, sanctuary on others), the
