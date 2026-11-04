@@ -1,6 +1,6 @@
 # Stage 38 — Scripts page: framed detail, editable settings, readable help
 
-Status: **In progress** (2026-11-04).
+Status: **Done** (2026-11-04). Merged to main, not released yet.
 
 ## Goal
 
@@ -104,4 +104,11 @@ narrow list are cut short (full text in the tooltip and the frame).
 
 ## Owner feedback
 
-(Pending.)
+2026-11-04, after the first build: drop the join between the selected row
+and the frame (the open edge that moved with the selection), and the
+`┤ ├` round the name in the top border; the line stops at the name.
+Done (ADR 0121 addendum, 650d036).
+
+2026-11-04: "Det här blir bra. Låt oss spara detta. Vi behöver inte
+publicera än." Approved; merged to main, release held back while the
+owner makes more changes.
