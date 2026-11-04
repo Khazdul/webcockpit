@@ -44,7 +44,7 @@ https://claude.ai/artifact/DivXdmw8KYn9xkgtPh71yW).
   `gridStep`): ←→ move along (into the next or previous row), ↑↓ a column
   up or down, Home/End; it stops at the ends (no wrap). The cards and
   their short names are `TILESET_CARDS` in `src/map/tilesets.ts`; the full
-  name ("Shimrod Spring", "Default (MMapper)") is each card's accessible
+  name ("Shimrod Spring") is each card's accessible
   name and tooltip.
 - **Previews** are 8 PNGs, 4–19 KB each (about 120 KB in all, the
   photographic Shimrod sets the largest). The Settings popup renders every
@@ -82,3 +82,8 @@ Feedback wanted: are the previews big and clear enough? Does the Shimrod
 card read as "follows the seasons"? Anything about the order?
 
 ## Owner feedback
+
+2026-11-04, round 1: "Default" should be called MMapper, since the
+new-player default is Shimrod (alternating). Done: the card and the
+choice's name (Options → Mapper too) are "MMapper"; the id stays
+`default`.

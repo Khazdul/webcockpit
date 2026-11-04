@@ -25,10 +25,13 @@ Mapper 293, Text input 135.
   component (`src/chrome/popups/mapper-settings.tsx`), so both Settings →
   Mapper and the map pane's gear popup get it. Five cards per row, two
   rows: Shimrod (alternating), Spring, Summer, Autumn, Winter; then
-  Default, Desert, Gefe & Rik, Gray's Map. Each card is a square preview
+  MMapper, Desert, Gefe & Rik, Gray's Map. Each card is a square preview
   with a check box in its top-right corner and the name under it.
-  Names: Shimrod, Spring, Summer, Autumn, Winter, Default, Desert,
-  Gefe & Rik, Gray's Map.
+  Names: Shimrod, Spring, Summer, Autumn, Winter, MMapper, Desert,
+  Gefe & Rik, Gray's Map. MMapper's set is called "MMapper", not
+  "Default", everywhere (the picker, Options → Mapper): new players get
+  Shimrod (alternating) since ADR 0092 (owner, 2026-11-04). Its id stays
+  `default`, so saved settings are unchanged.
 - **Last on the page.** Order: Show map pane, Room notes, Room info on
   hover, Hover text size, Background colour, Map file, then Tileset with
   the credit line (and "now <Season>") right of its label.

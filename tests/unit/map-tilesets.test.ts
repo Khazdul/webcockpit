@@ -42,7 +42,7 @@ function storage(key: string, value: string): Storage {
 describe('tileset catalogue', () => {
   it('lists the choices in Options → Mapper order', () => {
     expect(TILESET_CHOICES.map((c) => [c.id, c.name])).toEqual([
-      ['default', 'Default (MMapper)'],
+      ['default', 'MMapper'],
       ['shimrod', 'Shimrod (alternating)'],
       ['shimrod-spring', 'Shimrod Spring'],
       ['shimrod-summer', 'Shimrod Summer'],
@@ -98,7 +98,7 @@ describe('tileset catalogue', () => {
       'Summer',
       'Autumn',
       'Winter',
-      'Default',
+      'MMapper',
       'Desert',
       'Gefe & Rik',
       "Gray's Map",

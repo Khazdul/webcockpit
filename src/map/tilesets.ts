@@ -241,7 +241,7 @@ const setById = (id: string): Tileset | undefined => TILESETS.find((t) => t.id =
 const familyById = (id: string): TilesetFamily | undefined => TILESET_FAMILIES.find((f) => f.id === id);
 
 function choice(id: string): TilesetChoice {
-  if (id === DEFAULT_TILESET) return { id, name: 'Default (MMapper)', credit: DEFAULT_CREDIT };
+  if (id === DEFAULT_TILESET) return { id, name: 'MMapper', credit: DEFAULT_CREDIT };
   const f = familyById(id);
   if (f) return { id, name: f.name, credit: f.credit, family: f };
   const t = setById(id);
@@ -282,7 +282,7 @@ export const TILESET_CARDS: readonly TilesetCard[] = [
   { id: 'shimrod-summer', label: 'Summer' },
   { id: 'shimrod-autumn', label: 'Autumn' },
   { id: 'shimrod-winter', label: 'Winter' },
-  { id: DEFAULT_TILESET, label: 'Default' },
+  { id: DEFAULT_TILESET, label: 'MMapper' },
   { id: 'desert', label: 'Desert' },
   { id: 'gefe-rik', label: 'Gefe & Rik' },
   { id: 'grays-map', label: "Gray's Map" },

@@ -171,7 +171,7 @@ describe('Options → Mapper', () => {
       'Room notes: On',
       'Room info on hover: Full',
       'Hover text size: Medium',
-      'Tileset: Default (MMapper)',
+      'Tileset: MMapper',
       'Background colour: Default',
       'Import map file…',
       'Use bundled map',
