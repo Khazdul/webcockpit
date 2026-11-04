@@ -11,7 +11,8 @@ const ECHO = 1;
 
 const bytes = (codes: number[], text = '') => Buffer.concat([Buffer.from(codes), Buffer.from(text, 'latin1')]);
 const startFrame = (page: Page) => page.locator('.wc-start .wc-frame:not([hidden])');
-const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EXPORT', 'RENAME', 'DELETE', 'MANUAL'];
+/** Without room for the detail frame every button is above the list (ADR 0121). */
+const SCRIPT_BUTTONS = ['NEW', 'IMPORT', 'EDIT', 'EXPORT', 'RENAME', 'DELETE', 'MANUAL'];
 
 async function tapRow(page: Page, key: string): Promise<void> {
   await startFrame(page).locator(`.wc-mrow[data-key="${key}"]`).tap();
@@ -44,16 +45,16 @@ for (const width of [412, 360]) {
   test.describe(`${width} wide`, () => {
     test.use({ viewport: { width, height: 800 } });
 
-    test('Scripts: every button and EDIT in reach, the footer whole', async ({ page }) => {
+    test('Scripts: every button in reach, the footer whole', async ({ page }) => {
       const f = await openScripts(page);
       for (const b of SCRIPT_BUTTONS) await inView(page, f.locator(`.wc-scr-buttons [data-btn="${b}"]`));
       const row = f.locator('.wc-scr-row[data-script="phonetest"]');
       await inView(page, row.locator('.wc-check'));
-      await inView(page, row.locator('[data-btn="EDIT"]'));
+      await inView(page, row.locator('.wc-scr-name'));
       // The footer wraps instead of ending in `…`, and ESC Back is tappable.
       const footer = f.locator('.wc-footer');
       await expect(footer).not.toContainText('…');
-      await expect(footer).toContainText('PgUp/PgDn Help');
+      await expect(footer).toContainText('Space On/off');
       await inView(page, footer.locator('.wc-esc-btn', { hasText: 'ESC Back' }));
       for (const l of await footer.locator('.wc-line').all()) await inView(page, l);
       // A button far right on desktop works by tap: MANUAL opens the manual.
@@ -81,6 +82,17 @@ test('Scripts: a tap on [ ] toggles, a tap on the selected name opens the editor
   await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonetest');
   // Ctrl+S has a tap path on touch.
   await expect(page.locator('.wc-sed .wc-act-btn[data-act="Ctrl+S Save"]')).toBeVisible();
+});
+
+test('Scripts on a phone: the list alone, EDIT above it opens the selected script', async ({ page }) => {
+  const f = await openScripts(page);
+  // No room for the detail frame (ADR 0121): not drawn, nothing cut.
+  await expect(f.locator('.wc-scr-frame')).toHaveCount(0);
+  const row = f.locator('.wc-scr-row[data-script="phonetest"]');
+  await row.locator('.wc-scr-name').tap();
+  await expect(row.locator('.wc-scr-name')).toHaveClass(/is-cur/);
+  await f.locator('.wc-scr-buttons [data-btn="EDIT"]').tap();
+  await expect(page.locator('.wc-frame:not([hidden]) > .wc-sed')).toHaveAttribute('data-script', 'phonetest');
 });
 
 test('Profile: a tap on a profile selects it, a tap on the selected profile opens the editor', async ({ page }) => {

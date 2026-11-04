@@ -54,6 +54,7 @@ import {
   paneIsLight,
   paneOutline,
   paneShades,
+  panelFill,
   takesDarkInk,
 } from './color';
 import { applyAdaptive } from './adaptive';
@@ -208,6 +209,7 @@ export function rootTokens(s: Readonly<Settings>): Record<string, string> {
     '--font-mono': fontInfo(a.font).stack,
     '--pad': `${a.padding}px`,
     '--c-line-hl': lineHighlight(a.bg),
+    '--c-panel': panelFill(a.bg, a.fg),
     '--pane-outline': paneOutline(a.bg),
     '--term-echo': inputColor(a.inputColor, a.bg),
   };

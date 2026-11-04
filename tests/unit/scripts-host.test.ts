@@ -845,6 +845,34 @@ describe('#script', () => {
   });
 });
 
+describe('#script help and set (ADR 0121)', () => {
+  it('typesets the help and shows what each setting takes', async () => {
+    const header = [
+      '-- @setting cost choice 10 10|20 unit silver "Per payment"',
+      '-- @setting warn number 5 0..30 unit min "Warn before"',
+      '-- @help     ## Use',
+      '-- @help     One two',
+      '-- @help     three.',
+      '-- @help       merc        show the pane',
+      '-- @help       merc cost   switch the price',
+      '',
+    ].join('\n');
+    const t = await setup({ merc: src('', header) });
+    t.engine.input('#script help merc');
+    t.engine.input('#script set merc cost 15');
+    t.engine.input('#script set merc warn 31');
+    t.engine.input('#script set merc cost 20');
+    await t.settle();
+    const rows = t.printed[0]!.map((x) => x.segs.map((s) => s.text).join(''));
+    const help = rows.indexOf('Help');
+    expect(rows.slice(help + 1, help + 5)).toEqual(['  Use', '  One two three.', '    merc       show the pane', '    merc cost  switch the price']);
+    expect(rows).toContain('  cost = 10 silver  Per payment');
+    expect(rows).toContain('    #script set merc cost <10|20>');
+    expect(rows).toContain('    #script set merc warn <number 0..30>');
+    expect(t.msgs).toEqual(['#script set: cost must be one of 10, 20.', '#script set: warn must be between 0 and 30.', 'merc: cost = 20']);
+  });
+});
+
 describe('hang guard', () => {
   it('marks a running call and clears the mark after the task', async () => {
     const storage = new MemStorage();

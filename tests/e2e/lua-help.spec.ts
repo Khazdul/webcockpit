@@ -78,7 +78,8 @@ async function openEditor(page: Page): Promise<void> {
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await row(f, 'luahelp').locator('[data-btn="EDIT"]').click();
+  await row(f, 'luahelp').locator('.wc-scr-name').click();
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'luahelp');
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');

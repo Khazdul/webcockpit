@@ -1229,7 +1229,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
   v(
     "settings",
     "settings.<name>",
-    "The values of the header's @setting lines (read-only). Change one with #script set {script} {setting} {value}.",
+    "The values of the header's @setting lines (read-only). The player changes one on the Scripts page or with #script set {script} {setting} {value}.",
     {
       more: [
         "An unset setting has its default. When a setting changes, settings shows the new value at once, without a reload, so read settings.<name> when you need it instead of copying it once at load. The event sysSettingChanged (name, value) tells the script when one changed, for example to redraw a pane.",
@@ -1252,7 +1252,7 @@ export const SCRIPT_API: readonly ApiDoc[] = [
         p(
           "value",
           "any",
-          "A string, number or boolean, converted to the setting's type.",
+          "A string, number or boolean, converted to the setting's type. A number must be inside the setting's range, a choice one of its options.",
         ),
       ],
       more: [
@@ -1372,13 +1372,15 @@ export const HEADER_TAGS: readonly ApiDoc[] = [
   tag(
     "@setting",
     '-- @setting  delay number 0.5 "Seconds before looting"',
-    "A setting: name, type (number, string or boolean), default and label. Read it as settings.delay.",
+    "A setting: name, type (number, string, boolean or choice), default, options and label. Read it as settings.delay.",
     {
       more: [
         "A boolean default is true or false (on/off, yes/no and 1/0 work too). A string default may be quoted. A bad @setting line is skipped and shown as a problem.",
+        "Options come after the default, in any order. A number: <min>..<max> (the range; the Scripts page and #script set keep the value inside it), step <n> (what ← and → add on the Scripts page, default 1), unit <word> (shown after the value). A choice: its options with | between them (10|20, low|high), the default one of them; the value is a number when every option is one. unit works on a choice too.",
+        "On the Scripts page a boolean is a switch, a number has ◂ ▸ and can be typed, a choice shows its options and a string is a text field. A change is saved at once.",
       ],
       example:
-        '-- @setting  food   string  bread "What to eat"\n-- @setting  quiet  boolean true  "Hide the eat messages"',
+        '-- @setting  food   string  bread "What to eat"\n-- @setting  quiet  boolean true  "Hide the eat messages"\n-- @setting  delay  number  2  0..10 step 0.5 unit s  "Seconds before eating"\n-- @setting  cost   choice  10  10|20 unit silver  "Per payment"',
     },
   ),
   tag(
@@ -1386,9 +1388,11 @@ export const HEADER_TAGS: readonly ApiDoc[] = [
     "-- @help     Free text, one line per tag.",
     "A line of the help text.",
     {
-      more: ["May repeat; an empty @help gives a blank line."],
+      more: [
+        "May repeat; an empty @help gives a blank line. The help is typeset to the width: lines at the margin join into wrapped paragraphs, - starts a list item, ## Text is a heading, and indented lines are kept as written, or become a table when each is a term, two or more spaces and a description.",
+      ],
       example:
-        "-- @help     Eats when you get hungry.\n-- @help\n-- @help     Change the food with #script set autoeat food apple.",
+        "-- @help     Eats when you get hungry.\n-- @help\n-- @help     ## Commands\n-- @help       ae      turn it on or off\n-- @help       ae now  eat at once",
     },
   ),
 ];

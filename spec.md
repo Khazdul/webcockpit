@@ -381,18 +381,22 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   (stage 32). In play it
   is the menu bar's Scripts window (ADR 0103), and on the phone the ESC
   menu's Options → Scripts.
-- **Scripts page:**
-  - **List on the left:** every script by name, with an enable toggle, an
-    *Edit* button, and a lock mark on bundled scripts. *New*, *Import*
-    and *Export* sit above the list.
-  - **Right side:** the selected script's help, built from its header:
-    - name and summary;
+- **Scripts page** (layout A, ADR 0121):
+  - **List on the left:** every script by name, with an enable toggle, a
+    lock mark on bundled scripts and a running dot. *New*, *Import* and
+    *Manual* sit above the list.
+  - **Right side:** a framed detail that the selected list row runs into
+    (a tab with the panel fill). Its top border has the script's name and
+    its buttons *Edit*, *Export*, *Rename*, *Delete*. Inside:
+    - summary, status and problems;
+    - its settings as controls (a switch, a number with ◂ ▸, a choice, a
+      text field), saved at once, and *Reset all*;
     - its aliases and keys;
-    - the `@help` text;
-    - its settings, each with the current value and the
-      `#script set …` command that changes it.
+    - the `@help` text, typeset (paragraphs, lists, tables, headings) in
+      a box of its own that scrolls.
 
-    There are no settings forms.
+    Without room for the frame (a phone) the list is alone and every
+    button sits above it.
   - **Edit** opens a full-screen editor like the profile's EDITOR view:
     - CodeMirror with Lua mode;
     - completion and hover help for the script API;
@@ -408,9 +412,12 @@ Intent Goal 10, ADR 0051. Brainstorm: `notes/research/scripting.md`.
   -- @summary  Loots coins from corpses
   -- @api      1
   -- @alias    cl  toggle on/off
-  -- @setting  delay number 0.5 "Seconds before looting"
+  -- @setting  delay number 0.5 0..10 step 0.5 unit s "Seconds before looting"
   -- @help     Free text, one line per tag.
   ```
+
+  `@setting` types are `number`, `string`, `boolean` and `choice`
+  (`a|b|c`); a number takes a range, a step and a unit (ADR 0121).
 - **In-game commands:**
   - `#script list`
   - `#script help <name>`: prints the same help in the game output
@@ -721,6 +728,7 @@ what feedback is wanted.
 | 24 | **Loading indicators.** A TUI loading bar and fade-in for the start page (no piecemeal font reveal), and a progress bar over the map pane while map data and tiles load. | Load the page and turn the map on over a slow connection (phone). |
 | 30 | **Fixed menu.** A menu bar right of the input field (clock, Profile, Scripts, Panes, Settings, Fullscreen, Exit) in the ghost-icon look. Movable Profile and Scripts windows, a live Settings popup, gears on the panes, a Statistics pane, Spotlights settings in the reel; the ESC menu removed on desktop last (`docs/stages/30-fixed-menu.md`, steps 30a–f). | Change settings while you play. |
 | 31 | **Menu bar clock and weather smoothness.** Mockups for a clock that blends into the menu bar (small tweaks and drastic variants), then the chosen one built; a review of why snow (and other weather) feels jerky, and the fix (`docs/stages/31-clock-and-snow.md`, steps 31a–b). | Pick a clock; watch snow fall smoothly. |
+| 38 | **Scripts page.** Mockups in four directions, then the chosen one (A, pure TUI) built: the selected script joins a framed detail, settings edited in place and saved at once, typeset help in its own scrolling box, `@setting` ranges, units and choices (`docs/stages/38-scripts-page.md`, ADR 0121). | Change a script's settings in the small Scripts window; read a long help. |
 
 ## 6. Open questions for the owner
 

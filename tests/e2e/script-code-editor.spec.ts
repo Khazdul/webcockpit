@@ -66,7 +66,8 @@ async function openEditor(page: Page): Promise<Locator> {
   await page.keyboard.press('Enter');
   const f = startFrame(page);
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
-  await row(f, 'coder').locator('[data-btn="EDIT"]').click();
+  await row(f, 'coder').locator('.wc-scr-name').click();
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'coder');
   await expect(editor(page).locator('.cm-content')).toBeFocused();
   await page.keyboard.press('ControlOrMeta+End');

@@ -10,21 +10,22 @@
 -- @alias    tv        Show or hide the TVs; tv <name> opens one (also: kecho <name> [rows])
 -- @key      Ctrl+S    Teleport to the safe key (tsafe)
 -- @key      Alt+S     Teleport quickly to the safe key (qtsafe)
--- @setting  hours    number  12  "Hours a key works after it was located"
+-- @setting  hours    number  12  0.5..24 unit h  "Hours a key works after it was located"
 -- @setting  tvgag    boolean true "Hide watch and scry lines from the game text while they go to a TV"
--- @setting  tvclose  number  0   "Seconds a TV stays open after its watch ends (0: it closes at once)"
+-- @setting  tvclose  number  0   0..120 step 5 unit s  "Seconds a TV stays open after its watch ends (0: it closes at once)"
 -- @help     Locate life gives a key for a room: teleport, portal, scry and
 -- @help     watch room take it. This script stores the keys under short
 -- @help     names and casts with them. A key works only for the character
 -- @help     who located it and only for 12 hours, so each character has
 -- @help     its own keys, and old keys disappear by themselves.
 -- @help
--- @help       locatel home          store the key of the room you stand in
--- @help       locatel troll cave    store the key of the troll's room
--- @help       teleport home         cast n 'teleport' <home's key>
--- @help       portal home, scry home, watchr home
--- @help       cast 'teleport' $home any command: $home becomes the key
+-- @help       locatel home           store the key of the room you stand in
+-- @help       locatel troll cave     store the key of the troll's room
+-- @help       teleport home          cast n 'teleport' <home's key>
+-- @help       portal home            also scry home and watchr home
+-- @help       cast 'teleport' $home  any command: $home becomes the key
 -- @help
+-- @help     ## The pick window
 -- @help     Every locate life is caught, however you cast it (locatel, your
 -- @help     own alias, or by hand), and opens the pick window: type the
 -- @help     key's name and press Enter. Up and Down choose the hit (or
@@ -34,12 +35,14 @@
 -- @help     typing replaces it. A locatel with a name and a single hit is
 -- @help     stored at once. kpick opens the last window again.
 -- @help
+-- @help     ## The safe key
 -- @help     The first key you store is the safe key (the star in the pane):
 -- @help     Ctrl+S teleports there, Alt+S teleports quickly. Click another
 -- @help     key's star to change it. When the safe key expires, your
 -- @help     freshest key takes over.
 -- @help
--- @help     TV. What watch room and scry show goes to a small pane per key,
+-- @help     ## TV
+-- @help     What watch room and scry show goes to a small pane per key,
 -- @help     a TV, instead of the game text (setting tvgag). Up to four TVs
 -- @help     open side by side from the top left of the game text, two per
 -- @help     row in the order they opened; drag one to move them all.
@@ -50,6 +53,7 @@
 -- @help     gives it a delay), a scry's TV when its map blink ends (15 s);
 -- @help     one you open yourself (tv <name>, ◻) stays until you close it
 -- @help     or its watch ends. Its lines stay: ◻ or tv <name> shows them.
+-- @help
 -- @help     A scry also shows the room on the Map pane: it blinks magenta
 -- @help     for 15 seconds (an arrow points to it when it is off the view)
 -- @help     and the map zooms out to show it and you, then back, unless you
@@ -57,12 +61,14 @@
 -- @help     more minutes. Rooms are found by their name (several
 -- @help     with that name: the 20 nearest); the KEYS line says what it
 -- @help     found, or that the map is off.
--- @help     In the Port keys pane, a key with a watch running or a scry in
+-- @help
+-- @help     ## The Port keys pane
+-- @help     A key with a watch running or a scry in
 -- @help     the last 12 hours has a ◻ before its x: it opens and closes the
 -- @help     TV; it blinks red while a watch runs, and the time column
 -- @help     counts the watch down.
 -- @help
--- @help     In the Port keys pane, click a key's name to rename it (Enter
+-- @help     Click a key's name to rename it (Enter
 -- @help     saves, Esc cancels). The letters are casts: t teleport,
 -- @help     p portal, s scry, w watch room; x deletes (click it twice).
 -- @help     Point at one to see the command. Names are 1 to 10 letters,

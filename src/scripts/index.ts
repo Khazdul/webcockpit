@@ -11,7 +11,11 @@ export {
   type SettingValue,
   apiProblem,
   convertSetting,
+  formatNumber,
+  numericSetting,
   parseHeader,
+  settingValue,
+  storedSetting,
   withHeaderName,
 } from './header';
 export {

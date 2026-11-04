@@ -133,8 +133,8 @@ test('Scripts list and help scroll by pixels; the cursor stays in view', async (
   await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBe(0);
   // The help of the bundled coin looter is longer than the panel at this height.
   await f.locator('.wc-scr-row[data-script="coinlooter"] .wc-scr-name').click();
-  await expect(f.locator('.wc-scr-help')).toContainText('bundled · read-only');
-  await expectPixelWheel(page, f.locator('.wc-scr-help-rows'));
+  await expect(f.locator('.wc-scr-frame')).toContainText('bundled · read-only');
+  await expectPixelWheel(page, f.locator('.wc-scr-help'));
 });
 
 test('Scripts → IMPORT code view scrolls by pixels', async ({ page }) => {

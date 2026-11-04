@@ -71,7 +71,8 @@ async function scriptsPage(page: Page, source = SOURCE): Promise<Locator> {
 }
 
 async function openEditor(page: Page, f: Locator, name = 'finder'): Promise<void> {
-  await row(f, name).locator('[data-btn="EDIT"]').click();
+  await row(f, name).locator('.wc-scr-name').click();
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', name);
   await expect(editor(page).locator('.cm-content')).toBeFocused();
 }
@@ -258,9 +259,11 @@ test('runtime errors of the saved script are marked on their line, live, until t
 test('the Scripts page shows a syntax error of a script that is off', async ({ page }) => {
   const errors = watchErrors(page);
   const f = await scriptsPage(page, SOURCE.replace('end)\ntempAlias', 'end\ntempAlias'));
-  await expect(f.locator('.wc-scr-error')).toContainText(/^\s*Syntax error: finder:\d+: /);
+  // The list is narrow (ADR 0121): the row shows the start, its title and the frame the whole message.
+  await expect(f.locator('.wc-scr-error')).toContainText(/^\s*Syntax error: /);
+  await expect(f.locator('.wc-scr-error')).toHaveAttribute('title', /^Syntax error: finder:\d+: /);
   await row(f, 'finder').locator('.wc-scr-name').click();
-  await expect(f.locator('.wc-scr-help')).toContainText('Syntax error: finder:');
+  await expect(f.locator('.wc-scr-frame')).toContainText('Syntax error: finder:');
   expect(await lib<{ enabled: boolean }>(page, 'get', 'finder').then((s) => s.enabled)).toBe(false);
   expect(errors).toEqual([]);
 });

@@ -84,7 +84,7 @@ describe('headerDiagnostics', () => {
   it('puts bad tag lines on their line, in order', () => {
     const ds = headerDiagnostics('-- @name x\n-- @api 1\n-- @setting d bogus 1\n-- @alias\n');
     expect(ds.map((d) => [d.line, d.message])).toEqual([
-      [3, '@setting d: the type must be number, string or boolean.'],
+      [3, '@setting d: the type must be number, string, boolean or choice.'],
       [4, '@alias needs a name.'],
     ]);
   });

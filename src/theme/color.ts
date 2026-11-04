@@ -278,6 +278,20 @@ export function paneOutline(termBg: string): string {
   return isLight(bg) ? mix(bg, '#000000', OUTLINE_MIX_LIGHT) : mix(bg, '#ffffff', OUTLINE_MIX_DARK);
 }
 
+/**
+ * The panel fill (the Scripts page's detail frame, ADR 0121): the
+ * background mixed a little toward the terminal foreground, so it is a
+ * lighter grey on black, a lighter blue on blue and a darker paper on
+ * paper. A foreground too close to the background mixes toward white or
+ * black instead.
+ */
+export function panelFill(termBg: string, termFg: string): string {
+  const bg = normalizeHex(termBg) ?? '#000000';
+  const fg = normalizeHex(termFg);
+  const ink = fg && contrast(fg, bg) >= 3 ? fg : isLight(bg) ? '#000000' : '#ffffff';
+  return mix(bg, ink, isLight(bg) ? 0.07 : 0.09);
+}
+
 /** Editor current-line band: bg 12 % toward white (dark bg) or black (light bg). */
 export function lineHighlight(termBg: string): string {
   return mix(termBg, isLight(termBg) ? '#000000' : '#ffffff', 0.12);

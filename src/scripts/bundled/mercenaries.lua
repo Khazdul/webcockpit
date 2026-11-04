@@ -3,18 +3,18 @@
 -- @api      1
 -- @alias    merc  Show or hide the Mercenaries pane (also: merc autopay, merc cost, merc pay, merc list, merc label, merc forget)
 -- @setting  autopay boolean false "Pay a mercenary by itself when it asks for pay"
--- @setting  cost    number  10    "Silver per payment: 10, or 20 (paid as 1 gold)"
+-- @setting  cost    choice  10  10|20 unit silver  "Per payment (20 is paid as 1 gold)"
 -- @setting  group   boolean true  "Group a new mercenary"
--- @setting  minutes number  25    "Minutes one payment buys"
--- @setting  warn    number  5     "Warn this many minutes before a contract ends (0: never)"
+-- @setting  minutes number  25  5..60 step 5 unit min  "Minutes one payment buys"
+-- @setting  warn    number  5   0..30 unit min  "Warn this many minutes before a contract ends (0: never)"
 -- @help     Hire a citizen mercenary by paying it (give 10 silver mercenary,
 -- @help     or give 1 gold mercenary at a higher level). The script gives it
 -- @help     a short name with "label" and groups it, and the Mercenaries pane
 -- @help     shows how long its contract has left.
 -- @help
 -- @help     The price is 10 or 20 silver (paid as 1 gold): click Cost in the
--- @help     pane's top row to switch, or let the script learn it when a
--- @help     mercenary names its price.
+-- @help     pane's top row to switch, change the setting cost, or let the
+-- @help     script learn it when a mercenary names its price.
 -- @help
 -- @help     Near the end the mercenary taps you on the shoulder: pay it
 -- @help     within a minute or it leaves. Its row then says PAY DUE: click
@@ -24,14 +24,14 @@
 -- @help     f flee (ask <name> lead, ride or flee). Point at one to see the
 -- @help     command.
 -- @help
--- @help       merc               show or hide the pane
--- @help       merc autopay       turn autopay on or off (also: on, off)
--- @help       merc cost [10|20]  switch the price, or set it
--- @help       merc pay [name]    pay one mercenary, or all that ask for pay
--- @help       merc list          the mercenaries and their time, as text
--- @help       merc label <who>   label and track a mercenary by hand, for
--- @help                          example merc label 2.mercenary
--- @help       merc forget <name> stop tracking a mercenary
+-- @help       merc                show or hide the pane
+-- @help       merc autopay        turn autopay on or off (also: on, off)
+-- @help       merc cost [10|20]   switch the price, or set it
+-- @help       merc pay [name]     pay one mercenary, or all that ask for pay
+-- @help       merc list           the mercenaries and their time, as text
+-- @help       merc label <who>    label and track a mercenary by hand, for
+-- @help                           example merc label 2.mercenary
+-- @help       merc forget <name>  stop tracking a mercenary
 -- @help
 -- @help     The contracts are kept over a reload or a new connection.
 
