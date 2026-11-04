@@ -19,6 +19,7 @@
 import type { UiMessage } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
+import type { SanctMember } from './sanct';
 
 /** `◆` tags of the timers (Inv §2.4). */
 export type StateTag = 'SPELL' | 'BUFF' | 'DEBUFF' | 'STORE' | 'BLIND' | 'CHARM' | 'HERB';
@@ -83,6 +84,8 @@ export interface Tracker {
   removeHerb?(key: string, now: number): void;
   /** Forgets a charm by its cell id (the `×` on a charm row). */
   dropCharm?(id: string, now: number): void;
+  /** The group members after a Group.* change (GameState → `TimersHub.noteGroup`). */
+  onGroup?(members: readonly SanctMember[], now: number): void;
 }
 
 /** Builds the trackers for a hub (TimersHubOptions.trackers). */

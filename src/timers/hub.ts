@@ -19,6 +19,8 @@
 //                    Passwords (`secret`) never.
 //   system rules     `installRules(system)`: each tracker's game-text actions
 //   tick             one scheduler timer, every second: `tracker.tick(now)`
+//   noteGroup        GameState hands over the group members after every
+//                    Group.* change: `tracker.onGroup` (ADR 0122)
 //
 // Saving: after each change, coalesced (one write at most `saveDelayMs`
 // after the first unsaved change) and at once on `pagehide`. One record per
@@ -37,6 +39,7 @@ import { TimersArchive } from './archive';
 import { TIMER_GROUPS, type TimerCell, type TimersView, emptyView, sortCells } from './entry';
 import { ManualTracker, type StateTag, type Tracker, type TrackerFactory, type TrackerHost, stateMessage } from './tracker';
 import { createTrackers } from './trackers';
+import type { SanctMember } from './sanct';
 
 /** Version of the saved state. */
 export const TIMERS_STATE_VERSION = 1;
@@ -369,6 +372,15 @@ export class TimersHub {
     const now = this.now();
     for (const t of this.trackers) t.removeHerb?.(key, now);
     this.debug.removeHerb(key);
+  }
+
+  /**
+   * The group members after a Group.* change (GameState calls it): the
+   * sanctuary-on-others tracker follows their flags (ADR 0122).
+   */
+  noteGroup(members: readonly SanctMember[]): void {
+    const now = this.now();
+    for (const t of this.trackers) t.onGroup?.(members, now);
   }
 
   /** Forgets a charm by its cell id (nothing is sent to the game). */
