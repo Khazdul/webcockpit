@@ -8,7 +8,9 @@ import { act } from 'preact/test-utils';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { type ChromeServices, type SettingsPopupsHandle, mountSettingsPopups } from '../../src/chrome';
 import {
+  CardGrid,
   Dropdown,
+  gridStep,
   Segmented,
   Slider,
   SwatchGrid,
@@ -17,7 +19,9 @@ import {
   snapValue,
   stepIndex,
 } from '../../src/chrome/popups/controls';
-import { HOVER_CHOICES, mapFileLine } from '../../src/chrome/popups/mapper-settings';
+import { HOVER_CHOICES, TILESET_COLS, mapFileLine } from '../../src/chrome/popups/mapper-settings';
+import { seasonNow } from '../../src/chrome/mapper-model';
+import { TILESET_CARDS } from '../../src/map/tilesets';
 import { tabbables } from '../../src/chrome/popups/panel';
 import { CURSOR_CHOICES, SETTINGS_TABS, colorOptions, scrollbackOptions } from '../../src/chrome/popups/settings-popup';
 import { ProfileStore } from '../../src/profiles';
@@ -247,6 +251,56 @@ describe('control kit', () => {
     expect(document.activeElement).toBe(cells[9]);
     keydown(cells[9]!, 'ArrowLeft');
     expect(document.activeElement).toBe(cells[8]);
+  });
+});
+
+describe('card grid (ADR 0118)', () => {
+  it('steps a grid: ←→ along, ↑↓ a row, Home/End, stopping at the ends', () => {
+    expect(gridStep('ArrowRight', 4, 9, 5)).toBe(5);
+    expect(gridStep('ArrowLeft', 0, 9, 5)).toBe(0);
+    expect(gridStep('ArrowRight', 8, 9, 5)).toBe(8);
+    expect(gridStep('ArrowDown', 1, 9, 5)).toBe(6);
+    expect(gridStep('ArrowDown', 4, 9, 5)).toBe(4);
+    expect(gridStep('ArrowUp', 7, 9, 5)).toBe(2);
+    expect(gridStep('ArrowUp', 2, 9, 5)).toBe(2);
+    expect(gridStep('Home', 7, 9, 5)).toBe(0);
+    expect(gridStep('End', 0, 9, 5)).toBe(8);
+    expect(gridStep('a', 0, 9, 5)).toBeNull();
+  });
+
+  it('a radio group of cards: a click or the arrows choose; only the chosen card is tabbable', () => {
+    let v = 'b';
+    const onChange = vi.fn((x: string) => {
+      v = x;
+      act(() => render(grid(), host));
+    });
+    const opts = ['a', 'b', 'c', 'd'].map((x) => ({ value: x, label: x.toUpperCase(), name: `Set ${x}`, preview: <i /> }));
+    const grid = () => <CardGrid value={v} options={opts} onChange={onChange} cols={2} label="Sets" />;
+    const host = mount(grid());
+    const group = host.querySelector('.wc-ck-cards')!;
+    expect(group.getAttribute('role')).toBe('radiogroup');
+    expect(group.getAttribute('aria-label')).toBe('Sets');
+    const cards = () => [...host.querySelectorAll<HTMLElement>('.wc-ck-card')];
+    expect(cards().map((c) => c.getAttribute('aria-checked'))).toEqual(['false', 'true', 'false', 'false']);
+    expect(cards().map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1]);
+    expect(cards()[0]!.getAttribute('aria-label')).toBe('Set a');
+    expect(cards()[0]!.querySelector('.wc-ck-card-l')!.textContent).toBe('A');
+    // The check box is ticked on the chosen card only.
+    expect(cards().map((c) => !!c.querySelector('.wc-ck-card-box svg'))).toEqual([false, true, false, false]);
+    click(cards()[2]!);
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    expect(cards()[2]!.classList.contains('is-on')).toBe(true);
+    // Choosing the chosen card again changes nothing.
+    click(cards()[2]!);
+    expect(onChange).toHaveBeenCalledTimes(1);
+    keydown(cards()[2]!, 'ArrowUp');
+    expect(v).toBe('a');
+    expect(document.activeElement).toBe(cards()[0]);
+    keydown(cards()[0]!, 'End');
+    expect(v).toBe('d');
+    expect(document.activeElement).toBe(cards()[3]);
+    keydown(cards()[3]!, 'ArrowRight');
+    expect(onChange).toHaveBeenCalledTimes(3);
   });
 });
 
@@ -506,6 +560,50 @@ describe('Settings popup tabs', () => {
     expect(el.querySelector('.wc-sp-preview .wc-bold.wc-f1')!.textContent).toBe('*an Orc*');
   });
 
+  it('Mapper: the tileset picker chooses through chooseTileset; Shimrod shows its seasons (ADR 0118)', () => {
+    const t = surface();
+    act(() => t.svc.settings.update({ mapper: { tileset: 'default', background: '#101c3c' } }));
+    act(() => t.pops.open('settings', t.place));
+    const map = t.page('mapper');
+    const group = map.querySelector<HTMLElement>('.wc-sp-tileset [role="radiogroup"]')!;
+    expect(group.style.gridTemplateColumns).toBe(`repeat(${TILESET_COLS}, minmax(0, 1fr))`);
+    const label = map.querySelector('.wc-sp-thead > .wc-ck-l')!;
+    expect(group.getAttribute('aria-labelledby')).toBe(label.id);
+    expect(label.textContent).toBe('Tileset');
+    const card = (id: string) => map.querySelector<HTMLElement>(`.wc-ck-card[data-value="${id}"]`)!;
+    const cards = () => [...map.querySelectorAll<HTMLElement>('.wc-ck-card')];
+    expect(cards().map((c) => c.dataset.value)).toEqual(TILESET_CARDS.map((c) => c.id));
+    expect(cards().map((c) => c.querySelector('.wc-ck-card-l')!.textContent)).toEqual(TILESET_CARDS.map((c) => c.label));
+    expect(card('shimrod-spring').getAttribute('aria-label')).toBe('Shimrod Spring');
+    expect(card('default').getAttribute('aria-checked')).toBe('true');
+    // Each concrete set shows its own preview.
+    expect(card('desert').querySelector('img')!.getAttribute('src')).toBe('/map/tilesets/previews/desert.png');
+    expect(card('default').querySelector('img')!.getAttribute('src')).toBe('/map/tilesets/previews/default.png');
+    // Shimrod: the four seasons in quadrants, spring first; the one drawn now lit.
+    const quads = [...card('shimrod').querySelectorAll('img.wc-sp-tq')];
+    expect(quads.map((q) => q.getAttribute('src'))).toEqual(
+      ['spring', 'summer', 'autumn', 'winter'].map((s) => `/map/tilesets/previews/shimrod-${s}.png`),
+    );
+    expect(card('shimrod').querySelectorAll('img.is-now').length).toBe(1);
+    expect(card('shimrod').querySelector('img.is-now')!.classList.contains(`wc-sp-tq-${seasonNow()}`)).toBe(true);
+    // A light set switches the background to white; leaving it restores the Navy.
+    click(card('grays-map'));
+    expect(t.s().mapper).toMatchObject({ tileset: 'grays-map', background: '#ffffff', backgroundBefore: '#101c3c' });
+    expect(card('grays-map').getAttribute('aria-checked')).toBe('true');
+    expect(card('grays-map').tabIndex).toBe(0);
+    expect(card('default').tabIndex).toBe(-1);
+    expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).toBe("Tiles by Sunnyl75, after Gray's Mapeditor");
+    expect(map.querySelector('.wc-ck-dd[aria-label="Background colour"]')!.textContent).toBe('White');
+    keydown(card('grays-map'), 'Home');
+    expect(t.s().mapper).toMatchObject({ tileset: 'shimrod', background: '#101c3c', backgroundBefore: '' });
+    expect(document.activeElement).toBe(card('shimrod'));
+    expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).toMatch(/^Tiles by Shimrod \(v0\.92\) · now (Spring|Summer|Autumn|Winter)$/);
+    keydown(card('shimrod'), 'ArrowDown');
+    expect(t.s().mapper.tileset).toBe('default');
+    keydown(card('default'), 'ArrowRight');
+    expect(t.s().mapper.tileset).toBe('desert');
+  });
+
   it('Text input, Mapper and Weather effects', () => {
     const t = surface();
     act(() => t.pops.open('settings', t.place));
@@ -536,6 +634,10 @@ describe('Settings popup tabs', () => {
     expect(map.querySelector('.wc-sp-mapfile')!.textContent).toBe('arda.mm2 (bundled)');
     expect(map.querySelector<HTMLButtonElement>('.wc-sp-bundled')!.disabled).toBe(true);
     expect(map.querySelector('.wc-sp-tileset .wc-ck-help')!.textContent).not.toBe('');
+    // The order (ADR 0118): Background colour and Map file before the tileset picker, which is last.
+    const order = [...map.querySelectorAll('.wc-ck-row > .wc-ck-l, .wc-sp-thead > .wc-ck-l')].map((l) => l.firstChild!.textContent);
+    expect(order).toEqual(['Show map pane', 'Room notes', 'Room info on hover', 'Hover text size', 'Background colour', 'Map file', 'Tileset']);
+    expect(map.querySelector('.wc-sp-mapper')!.lastElementChild!.classList.contains('wc-sp-tileset')).toBe(true);
     // Without a map store, import says so.
     click(map.querySelector('.wc-sp-import'));
     expect(map.querySelector('.wc-sp-mapnote')!.textContent).toBe('Map import is not available here.');

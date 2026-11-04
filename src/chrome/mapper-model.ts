@@ -11,7 +11,7 @@
 // - Import a `.mm2` (checked in the map tools worker, stored in IndexedDB)
 //   and go back to the bundled map, reporting through a flash callback.
 
-import { seasonOf } from '../gmcp/gametime';
+import { type Season, seasonOf } from '../gmcp/gametime';
 import { MAP_BACKGROUNDS, MAP_BG_DEFAULT, isNamedMapBg } from '../map/backgrounds';
 import type { CurrentMap, MapStore } from '../map/store';
 import { localStorageOrNull, mumeMonth, storedClockEpoch, tilesetChoice } from '../map/tilesets';
@@ -63,9 +63,19 @@ export function tilesetCredit(id: string, month: number): string {
   return `${c.credit} · now ${season[0]!.toUpperCase()}${season.slice(1)}`;
 }
 
+/** The game month (0–11) now by the saved game clock, as the Map pane resolves a set. */
+export function mumeMonthNow(now: number = Date.now()): number {
+  return mumeMonth(storedClockEpoch(localStorageOrNull(), now), now);
+}
+
+/** The season an alternating set draws now (the saved game clock). */
+export function seasonNow(now: number = Date.now()): Season {
+  return seasonOf(mumeMonthNow(now));
+}
+
 /** The credit line for tileset `id` now (the saved game clock). */
 export function tilesetCreditNow(id: string, now: number = Date.now()): string {
-  return tilesetCredit(id, mumeMonth(storedClockEpoch(localStorageOrNull(), now), now));
+  return tilesetCredit(id, mumeMonthNow(now));
 }
 
 /** The background choices, Default first (ADR 0085). */

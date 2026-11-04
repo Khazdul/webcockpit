@@ -11,12 +11,14 @@
 //   <GhostButton onClick={…}>Reset palette</GhostButton>
 //   <Stepper value={4} min={1} max={6} onChange={…} label="Spells columns" />
 //   <Check on={x} onChange={…} label="Rasta" disabled={all} />
+//   <CardGrid value={v} options={[{ value, label, name, preview }]} onChange={…} cols={5} labelledBy={id} />
 //
 // - Every control is a real focusable element with its ARIA role, and is
 //   used from the keyboard once the popup has the keys (after a click in
 //   it, ADR 0099): Tab and Shift+Tab move between them, Space or Enter
 //   press, ←→ (and ↑↓) step a slider, a stepper, a segmented control, the
-//   tabs and the swatches, Home/End jump. A dropdown opens with Enter, Space or ↓;
+//   tabs and the swatches (a card grid: ←→ the next, ↑↓ the row above or
+//   below), Home/End jump. A dropdown opens with Enter, Space or ↓;
 //   its list takes ↑↓, Home/End, Enter and Esc (Esc closes only the list).
 // - A slider is drawn here (pointer capture, `touch-action: none`), so it
 //   drags the same in every browser and tells the popup while it is held
@@ -685,5 +687,114 @@ export function Check(p: { on: boolean; onChange: (on: boolean) => void; label: 
       </span>
       <span class="wc-ck-cb-l">{p.label}</span>
     </button>
+  );
+}
+
+export interface CardOption<T> extends Choice<T> {
+  /** The full name (accessible name and tooltip) when the label is short. */
+  name?: string;
+  /** The picture: fills a square above the label. */
+  preview: ComponentChildren;
+}
+
+/**
+ * The index a grid key moves to from `at` in `n` cards of `cols` a row:
+ * ←→ the previous or next card (into the row above or below), ↑↓ the
+ * same column a row up or down, Home/End the first and last; it stops at
+ * the ends. Null for another key.
+ */
+export function gridStep(key: string, at: number, n: number, cols: number): number | null {
+  let next: number;
+  switch (key) {
+    case 'ArrowLeft':
+      next = at - 1;
+      break;
+    case 'ArrowRight':
+      next = at + 1;
+      break;
+    case 'ArrowUp':
+      next = at - cols;
+      break;
+    case 'ArrowDown':
+      next = at + cols;
+      break;
+    case 'Home':
+      return n > 0 ? 0 : null;
+    case 'End':
+      return n > 0 ? n - 1 : null;
+    default:
+      return null;
+  }
+  return next >= 0 && next < n ? next : at;
+}
+
+/**
+ * One choice of a grid of picture cards (`role=radiogroup`, ADR 0118):
+ * each card a square preview with a check box in its top-right corner and
+ * its label under it. One tab stop (the chosen card); the arrow keys move
+ * and choose (`gridStep`).
+ */
+export function CardGrid<T extends string>(p: {
+  value: T;
+  options: readonly CardOption<T>[];
+  onChange: (v: T) => void;
+  cols: number;
+  /** The id of the element naming the group, else `label`. */
+  labelledBy?: string;
+  label?: string;
+  class?: string;
+}): VNode {
+  const ref = useRef<HTMLSpanElement>(null);
+  const at = p.options.findIndex((o) => o.value === p.value);
+  const onKey = (e: KeyboardEvent): void => {
+    if (!plain(e)) return;
+    const next = gridStep(e.key, Math.max(0, at), p.options.length, p.cols);
+    if (next === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (next !== at) p.onChange(p.options[next]!.value);
+    ref.current?.querySelectorAll<HTMLElement>('.wc-ck-card')[next]?.focus({ preventScroll: true });
+  };
+  return (
+    <span
+      class={cls('wc-ck-cards', p.class)}
+      role="radiogroup"
+      ref={ref}
+      onKeyDown={onKey}
+      style={{ gridTemplateColumns: `repeat(${p.cols}, minmax(0, 1fr))` }}
+      {...(p.labelledBy ? { 'aria-labelledby': p.labelledBy } : { 'aria-label': p.label })}
+    >
+      {p.options.map((o, i) => {
+        const on = i === at;
+        return (
+          <button
+            type="button"
+            role="radio"
+            class={cls('wc-ck-card', on && 'is-on')}
+            aria-checked={on ? 'true' : 'false'}
+            aria-label={o.name ?? o.label}
+            title={o.name ?? o.label}
+            tabIndex={on || (at < 0 && i === 0) ? 0 : -1}
+            data-value={o.value}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!on) p.onChange(o.value);
+            }}
+          >
+            <span class="wc-ck-card-pv">
+              {o.preview}
+              <span class="wc-ck-card-box" aria-hidden="true">
+                {on && (
+                  <svg viewBox="0 0 12 12">
+                    <path d={CHECK} />
+                  </svg>
+                )}
+              </span>
+            </span>
+            <span class="wc-ck-card-l">{o.label}</span>
+          </button>
+        );
+      })}
+    </span>
   );
 }
