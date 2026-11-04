@@ -43,11 +43,27 @@ Released 0.2.4 (stage 37: `n` on the profile editor's kind row, no Ctrl+F / Ctrl
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
 | 36 | Tileset picker | Done | `docs/stages/36-tileset-picker.md` |
 | 37 | Profile editor LITE keys | Done | `docs/stages/37-profile-lite-keys.md` |
-| 38 | Scripts page | In progress | `docs/stages/38-scripts-page.md` |
+| 38 | Scripts page | Owner testing | `docs/stages/38-scripts-page.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
 ## Session log
+
+### 2026-11-04 — Stage 38: Scripts page (layout A)
+
+- **Owner feedback:** the Scripts page's help crowds out the settings, is
+  hard to read in a small window, settings are not editable, and the
+  right side does not visibly belong to the selected script.
+- **Done:** four mockup directions on a design canvas
+  (https://claude.ai/artifact/AnegkBudftdxxgbKjL9ZiZ); the owner chose A
+  (pure TUI). ADR 0121; built by a subagent: framed detail joined to the
+  selected row, settings controls saved at once, RESET ALL, typeset help
+  in its own scrolling box, `@setting` ranges/steps/units/`choice`,
+  `## ` help headings, `--c-panel` role, bundled headers updated.
+- **Tests:** unit 3112 passed; e2e 711/712 (one flaky phone About
+  scrollbar drag, not touched by this stage).
+- **Next:** owner test (guide in the stage file), then merge and release.
+- **Commits:** 34f9b1d..HEAD on `stage-38-scripts-page`.
 
 ### 2026-11-04 — GMCP Group research (between stages)
 

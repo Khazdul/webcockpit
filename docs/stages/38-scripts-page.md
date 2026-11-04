@@ -61,11 +61,46 @@ and small window).
 - [x] e2e: selection and frame, edit each control type by keys and mouse
       (value saved, running script sees it), RESET ALL, help scroll with
       PgUp/PgDn, narrow window, phone width still usable
-- [ ] Owner test guide (below), progress.md
+- [x] Owner test guide (below), progress.md
 
 ## Test guide
 
-(Written when the build is done.)
+Dev server (`npm run dev`, http://localhost:5173/) on the branch
+`stage-38-scripts-page`.
+
+1. **Start menu → Profile → Scripts** (full width). Pick almanac: the row
+   turns into a tab that runs into the frame, `┤ almanac ├` sits in the
+   frame's top border, EDIT EXPORT RENAME DELETE on the right (RENAME and
+   DELETE dim for bundled scripts). Settings and Commands are at the top;
+   the help is in its own box below with a scrollbar.
+2. **Help readability:** scroll almanac's and keymanager's help with
+   PgUp/PgDn or the wheel. Paragraphs flow without odd breaks, the command
+   lists are two-column tables, headings ("Three tabs" …) stand out.
+   readability's "becomes:" examples keep their lines. `▾ Help` folds it.
+3. **Settings by mouse:** mercenaries: click `[ON|OFF]` on autopay, pick
+   `(•) 20` on cost, click `◂ ▸` on minutes, click the value of warn and
+   type 7. A changed value gets an amber `*`. RESET ALL brings everything
+   back to the defaults.
+4. **Settings by keys:** from the list press → (lands on the first
+   setting), ↑↓ between rows, ←→ change the value (flip, step, pick),
+   Enter on a number to type one, Esc back to the list. Tab cycles
+   buttons → list → detail. Try a string setting on a script of your own
+   (NEW, add `-- @setting food string bread "What to eat"`).
+5. **In game:** open the Scripts window from the menu bar, make it small.
+   Labels move under the controls and the help tables stack. Turn
+   coinlooter's `delay` up while you play: it takes effect at once.
+6. **Phone width** (optional): the page still works as before (no frame).
+
+Feedback wanted: does the frame make it clear which script you are
+looking at? Are the controls easy to use with keys and with the mouse?
+Is the help readable now, also in the small window? Are the ranges and
+units on the bundled settings sensible (remind 0–24 h, coinlooter delay
+0–10 s in 0.5 s steps, keymanager hours 0.5–24 h and tvclose 0–120 s,
+mercenaries minutes 5–60 and warn 0–30 min)?
+
+Known: at the smallest window size the frame content scrolls as a whole
+and the help box is only a few rows; error lines under a script in the
+narrow list are cut short (full text in the tooltip and the frame).
 
 ## Owner feedback
 
