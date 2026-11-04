@@ -1,6 +1,6 @@
 # Stage 37 — Profile editor LITE keys
 
-Status: **Owner testing** (2026-11-04).
+Status: **Done** (2026-11-04). Released in 0.2.4.
 
 ## Goal
 
@@ -74,4 +74,4 @@ footer hints clear? Anything else in LITE that should go or change?
 
 ## Owner feedback
 
-(pending)
+2026-11-04: "Fungerar bra. Publicera." Approved and released in 0.2.4.
