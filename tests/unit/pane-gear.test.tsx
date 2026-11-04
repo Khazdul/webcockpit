@@ -326,8 +326,11 @@ describe('gear popup contents', () => {
     }
     // A group row: shown, colour (picker), layout.
     expect([...t.host.querySelectorAll('.wc-sp-tg-l')].map((e) => e.textContent)).toEqual([
-      'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Stored', 'Blinds', 'Charmies',
+      'Sanctuary', 'Spells', 'Buffs', 'Debuffs', 'Herblore', 'Stored', 'Blinds', 'Charmies',
     ]);
+    // Herblore turns on and off like any group (its `+` lives in its header).
+    click(t.host.querySelector('[aria-label="Show Herblore"]'));
+    expect(t.s().timers.groups.herb.enabled).toBe(false);
     click(t.host.querySelector('[aria-label="Show Spells"]'));
     expect(t.s().timers.groups.spell.enabled).toBe(false);
     expect(t.host.querySelector('[data-group="spell"]')!.classList.contains('is-dim')).toBe(true);
@@ -339,6 +342,13 @@ describe('gear popup contents', () => {
     expect(t.s().timers.groups.blind.color).toBe('auto');
     seg('Blinds layout', 'grid');
     expect(t.s().timers.groups.blind.layout).toBe('grid');
+  });
+
+  it('Group: the Fight card toggle', () => {
+    const t = mountWith(<GroupSettings />);
+    expect(t.s().group.fight).toBe(true);
+    click(t.host.querySelector('[aria-label="Fight card"]'));
+    expect(t.s().group.fight).toBe(false);
   });
 
   it('Group: Show players and NPC visibility', () => {

@@ -152,6 +152,8 @@ export interface GroupSettings {
   npcMode: GroupNpcMode;
   /** A member not in your room: the room name after the name, or only dimmed. */
   away: GroupAwayMode;
+  /** The fight card on top while you fight (ADR 0122 addendum, owner round 1). */
+  fight: boolean;
   colors: GroupVitalColors;
 }
 
@@ -200,7 +202,7 @@ export const TIMER_COLOR_LABELS: Readonly<Record<TimerColor, string>> = {
   orange: 'Orange',
 };
 /** The swatch each group had by default before ADR 0122 (it migrates to `auto`). */
-export const TIMER_LEGACY_DEFAULT_COLOR: Readonly<Record<Exclude<TimerGroup, 'sanct'>, TimerColor>> = {
+export const TIMER_LEGACY_DEFAULT_COLOR: Readonly<Record<Exclude<TimerGroup, 'sanct' | 'herb'>, TimerColor>> = {
   spell: 'blue',
   buff: 'green',
   debuff: 'red',
@@ -535,16 +537,16 @@ export function phoneDefaultSettings(): Settings {
   return s;
 }
 
-/** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, Auto colours. */
+/** Group defaults (ADR 0122): players, labeled NPCs, the room name when away, the fight card, Auto colours. */
 export function defaultGroupSettings(): GroupSettings {
-  return { showPlayers: true, npcMode: 'labeled', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
+  return { showPlayers: true, npcMode: 'labeled', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } };
 }
 
 /** Timers defaults (ADR 0122): every group on in Auto colour, bars, flow, headers, time text. */
 export function defaultTimersSettings(): TimersSettings {
   const g = (): TimerGroupSettings => ({ enabled: true, color: 'auto', layout: 'default' });
   return {
-    groups: { sanct: g(), spell: g(), buff: g(), debuff: g(), stored: g(), blind: g(), charm: g() },
+    groups: { sanct: g(), spell: g(), buff: g(), debuff: g(), herb: g(), stored: g(), blind: g(), charm: g() },
     style: 'bars',
     layout: 'flow',
     cols: 'auto',

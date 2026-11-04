@@ -290,12 +290,12 @@ describe('herblores', () => {
     b.tr.herbs.addHerb('Clearthought', b.now());
     b.tr.herbs.addHerb('Clearthought', b.now()); // no refresh
     expect(b.take()).toEqual(['◆ HERB: Clearthought up.']);
-    expect(b.cell('Clearthought')).toMatchObject({ group: 'buff', expiresAt: T0 + 120_000, expected: 120_000 });
+    expect(b.cell('Clearthought')).toMatchObject({ group: 'herb', phase: 'buff', herbKey: 'Clearthought', expiresAt: T0 + 120_000, expected: 120_000 });
     b.advance(120);
     expect(b.take()).toEqual(['◆ HERB: Clearthought (low) up.']);
     b.advance(240);
     expect(b.take()).toEqual(['◆ HERB: Clearthought (neg) up.']);
-    expect(b.cell('Clearthought (neg)')).toMatchObject({ group: 'debuff', startedAt: T0 + 360_000, expected: 360_000 });
+    expect(b.cell('Clearthought (neg)')).toMatchObject({ group: 'herb', phase: 'debuff', startedAt: T0 + 360_000, expected: 360_000 });
     b.advance(360);
     expect(b.take()).toEqual(['◆ HERB: Clearthought (neg) down.']);
     b.tr.herbs.addHerb('DarkAura', b.now());

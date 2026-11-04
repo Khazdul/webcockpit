@@ -179,12 +179,12 @@ test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Re
   expect((await probe(page)).layout).toBe(false);
   await expect(panesPop(page).locator('[data-set="reset"]')).toHaveClass(/is-off/);
 
-  // The timers pane is active (live, an active pane always has the corner
-  // `+`, even empty) and never has a corner + or a charm × in a player.
+  // The timers pane is active (live, an active pane always has the Herblore
+  // header's `+`, even empty) and never has a + or a × in a player.
   for (const f of [0.3, 0.6, 0.95]) {
     await seek(page, f);
     await expect(pane(page, 'timers')).toHaveAttribute('data-active', '');
-    await expect(pane(page, 'timers').locator('.wc-tm-corner:not([hidden])')).toHaveCount(0);
+    await expect(pane(page, 'timers').locator('.wc-tm-add:not([hidden])')).toHaveCount(0);
     await expect(pane(page, 'timers').locator('.wc-tm-x')).toHaveCount(0);
   }
 
@@ -236,7 +236,7 @@ test('the HTML replay has Panes and Display and the same settings (file://, no s
   await expect(box(p).locator('[data-act="extra"]')).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(box(p).locator('[data-act="close"]')).toHaveCount(0);
   await settingsRound(p);
-  await expect(pane(p, 'timers').locator('.wc-tm-corner:not([hidden])')).toHaveCount(0);
+  await expect(pane(p, 'timers').locator('.wc-tm-add:not([hidden])')).toHaveCount(0);
   expect(await p.evaluate(() => (window as unknown as { __touched: string[] }).__touched)).toEqual([]);
   expect(errors).toEqual([]);
   await context.close();

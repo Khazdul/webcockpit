@@ -364,7 +364,7 @@ export class TimersHub {
   addHerb(key: string): void {
     const now = this.now();
     for (const t of this.trackers) t.addHerb?.(key, now);
-    this.debug.addHerb(key);
+    this.debug.addHerb(key, now);
   }
 
   /** Stops a herblore. */

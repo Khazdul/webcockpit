@@ -30,6 +30,7 @@ export const GROUP_TAG: Readonly<Record<TimerGroup, StateTag>> = {
   spell: 'SPELL',
   buff: 'BUFF',
   debuff: 'DEBUFF',
+  herb: 'HERB',
   stored: 'STORE',
   blind: 'BLIND',
   charm: 'CHARM',
@@ -161,12 +162,18 @@ export class ManualTracker implements Tracker {
     return this.catalogue.map((h) => ({ ...h }));
   }
 
-  addHerb(key: string): void {
+  /** Marks a catalogue herb running and, with `now`, puts a 10-minute Herblore cell (tests). */
+  addHerb(key: string, now?: number): void {
+    const h = this.catalogue.find((x) => x.key === key);
     this.flipHerb(key, true);
+    if (h && now !== undefined) {
+      this.put({ id: `herb:${key}`, name: h.name, group: 'herb', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true, phase: 'buff', herbKey: key });
+    }
   }
 
   removeHerb(key: string): void {
     this.flipHerb(key, false);
+    this.remove(`herb:${key}`);
   }
 
   dropCharm(id: string): void {

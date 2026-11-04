@@ -23,7 +23,7 @@ export type IconName =
   | 'sleeping'
   | 'riding'
   | 'tank'
-  | 'axe'
+  | 'foe'
   | 'charm'
   | 'spell'
   | 'buff'
@@ -71,8 +71,8 @@ export const ICONS: Readonly<Record<IconName, string>> = {
   riding: 'M6 21v-5l3-4-1.5-4L11 4l2 3h3l4 5-2 2-3-1-2 3v5',
   /** The tank (fight buffer): a shield. */
   tank: 'M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z',
-  /** The opponent: an axe. */
-  axe: 'M4 21L15.5 9.5 M12 6.2c1.2-2.7 4.6-3.9 7.3-1.5s1.2 6.1-1.5 7.3L12 6.2z M10.5 4.5l1.5 1.7',
+  /** The opponent: three claw slashes (a foe of any kind; not the fighting position's swords). */
+  foe: 'M14.5 3.5C11.5 7 8.8 10.8 5.5 15.5 M18.5 5.5C15.5 9.2 12.8 13 9.5 17.5 M20.5 10.5C18.4 13.5 16.4 16.3 14 19.5',
   /** A charmie: a heart. */
   charm: 'M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z',
   /** The Spells group: a sparkle. */
@@ -136,6 +136,7 @@ export const GROUP_ICON = {
   spell: 'spell',
   buff: 'buff',
   debuff: 'debuff',
+  herb: 'herb',
   stored: 'stored',
   blind: 'blind',
   charm: 'charm',

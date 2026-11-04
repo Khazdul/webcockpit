@@ -297,6 +297,7 @@ export function migrateGroup(raw: unknown): GroupSettings {
     showPlayers: bool(g.showPlayers, d.showPlayers),
     npcMode: oneOf(g.npcMode, GROUP_NPC_MODES, d.npcMode),
     away: oneOf(g.away, GROUP_AWAY_MODES, d.away),
+    fight: bool(g.fight, d.fight),
     colors: { hp: colorSetting(c.hp), mana: colorSetting(c.mana), mp: colorSetting(c.mp) },
   };
 }
@@ -328,7 +329,7 @@ export function migrateComm(raw: unknown): CommSettings {
 function timerColor(group: TimerGroup, v: unknown): ColorSetting {
   if (TIMER_COLOR_ORDER.includes(v as TimerColor)) {
     const name = v as TimerColor;
-    return group !== 'sanct' && TIMER_LEGACY_DEFAULT_COLOR[group] === name ? 'auto' : TIMER_COLOR_HEX[name];
+    return group !== 'sanct' && group !== 'herb' && TIMER_LEGACY_DEFAULT_COLOR[group] === name ? 'auto' : TIMER_COLOR_HEX[name];
   }
   return colorSetting(v);
 }

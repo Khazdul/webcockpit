@@ -25,6 +25,9 @@ describe('panes icons (ADR 0122)', () => {
     for (const d of Object.values(ICONS)) expect(d).toMatch(/^M[\d.\s\-a-zA-Z,]+$/);
     for (const f of STATUS_FLAGS) expect(ICONS[STATUS_ICON[f]]).toBeTruthy();
     for (const g of TIMER_GROUPS) expect(ICONS[GROUP_ICON[g]]).toBeTruthy();
+    // The opponent is the claw slashes, not the fighting position's crossed swords.
+    expect(ICONS.foe).not.toBe(ICONS.fighting);
+    expect('axe' in ICONS).toBe(false);
   });
 
   it('maps positions; riding shows only when standing', () => {

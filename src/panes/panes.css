@@ -98,7 +98,7 @@
  * sizes in em of it. `--c` is a group's colour; `--tm-*` the pane shade
  * ramp's text and line colours and the side's ending-soon red (set by the
  * pane). The list scrolls natively by pixels above the indicator row
- * (ADR 0052); the corner `+` sits top right, above the title-row grip. */
+ * (ADR 0052). */
 .wc-tm {
   position: absolute;
   inset: 0;
@@ -126,14 +126,8 @@
   scrollbar-width: none;
 }
 
-.wc-tm-list,
-.wc-tm-herbs {
+.wc-tm-list {
   padding: 0.15em 0.25em 0.3em;
-}
-
-.wc-tm-list[hidden],
-.wc-tm-herbs[hidden] {
-  display: none;
 }
 
 .wc-tm svg {
@@ -145,7 +139,7 @@
   stroke-linejoin: round;
 }
 
-/* A group: header (icon, name, rule, count), then its items. */
+/* A group: header (icon, name, Herblore's +, rule), then its items. */
 .wc-tm-g + .wc-tm-g {
   margin-top: 0.35em;
 }
@@ -178,17 +172,30 @@
   background: var(--tm-line);
 }
 
-.wc-tm-hc {
+/* Herblore's + (ADR 0122 addendum): beside the name, opens the herb menu. */
+.wc-tm .wc-tm-add {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  margin-left: -0.2em;
+  border-radius: 0.3em;
+  color: var(--c);
+  font-size: 1.25em;
+  font-weight: bold;
   letter-spacing: 0;
-  text-transform: none;
-  color: var(--tm-faint);
+  line-height: 1;
 }
 
-/* The first group's header (or, without headers, its items) leaves room for the corner. */
-.wc-tm[data-corner] .wc-tm-g.is-first > .wc-tm-h,
-.wc-tm[data-corner] .wc-tm-g.is-first > .wc-tm-h[hidden] + .wc-tm-items {
-  margin-right: 1.4em;
+.wc-tm .wc-tm-add:hover,
+.wc-tm .wc-tm-add[aria-expanded] {
+  background: color-mix(in srgb, var(--c) 18%, transparent);
+}
+
+.wc-tm .wc-tm-add[hidden] {
+  display: none;
 }
 
 .wc-tm-items {
@@ -398,57 +405,84 @@
   height: 0.7em;
 }
 
-.wc-tm .wc-tm-corner {
+/* A herblore's ×: only on hover, in place of its time. */
+.wc-tm-rc.has-herbx {
+  position: relative;
+}
+
+.wc-tm .wc-tm-x.is-herb {
   position: absolute;
-  top: 0;
-  right: 0;
-  z-index: 2;
-  width: var(--cell-w);
-  height: var(--cell-h);
-  line-height: var(--cell-h);
-  text-align: center;
-  color: #d4a04e;
+  top: 50%;
+  right: 0.35em;
+  margin: -0.6em 0 0;
+  visibility: hidden;
 }
 
-.wc-tm .wc-tm-corner:hover {
-  color: #f0c070;
+.has-herbx:hover > .wc-tm-x.is-herb {
+  visibility: visible;
 }
 
-.wc-tm .wc-tm-corner[hidden] {
+.has-herbx:hover > .wc-tm-t {
+  visibility: hidden;
+}
+
+/* The Herblore + menu (timers.ts HerbMenu): a small card in the menu
+ * surface colours, fixed under the +, one row per herb. */
+.wc-tm-menu {
+  position: fixed;
+  z-index: 270;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 12em;
+  max-height: min(60vh, 24em);
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--sf-border, #2c2c2c);
+  border-radius: 5px;
+  background: var(--sf-bg, #0a0a0a);
+  box-shadow: var(--sf-shadow, 0 10px 26px rgba(0, 0, 0, 0.75));
+  color: var(--sf-fg, #c4c4c4);
+  font-family: var(--font-mono);
+  font-size: calc(var(--font-size, 15px) * 0.82);
+  white-space: nowrap;
+}
+
+.wc-tm-menu[hidden] {
   display: none;
 }
 
-/* The herblore add-view: one row per herb, + starts it, − stops it. */
-.wc-tm .wc-tm-herb {
+.wc-tm-menu .wc-tm-mi {
+  all: unset;
   display: flex;
   align-items: center;
   gap: 0.6em;
-  height: var(--cell-h);
-  padding-right: 1.4em;
-  color: var(--tm-dim);
+  padding: 0.2em 0.6em 0.2em 0.4em;
+  border-radius: 3px;
+  cursor: pointer;
+  user-select: none;
 }
 
-.wc-tm .wc-tm-herb:hover {
-  color: var(--tm-fg);
+.wc-tm-menu .wc-tm-mi:hover {
+  background: var(--sf-hover, #171717);
+  color: var(--sf-hot, #ebebeb);
 }
 
-.wc-tm-hs {
+.wc-tm-menu .wc-tm-mi.is-on {
+  cursor: default;
+  color: var(--sf-faint, #5b5b5b);
+}
+
+.wc-tm-menu .wc-tm-mi.is-on:hover {
+  background: none;
+  color: var(--sf-faint, #5b5b5b);
+}
+
+.wc-tm-mm {
   width: 1em;
   text-align: center;
   font-weight: bold;
-  color: #7ed07e;
-}
-
-.wc-tm-herb.is-on .wc-tm-hs {
-  color: #e88888;
-}
-
-.wc-tm[data-light] .wc-tm-hs {
-  color: #2a6e1a;
-}
-
-.wc-tm[data-light] .wc-tm-herb.is-on .wc-tm-hs {
-  color: #c42020;
+  color: var(--sf-gold, #d4a04e);
 }
 
 /* Measures the items' character width (the room for blind names). */

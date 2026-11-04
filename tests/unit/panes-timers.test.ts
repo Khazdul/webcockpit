@@ -36,10 +36,13 @@ function cell(name: string, group: TimerGroup, secsLeft: number | null, o: Parti
   };
 }
 
-function input(cells: TimerCell[], s: Partial<TimersSettings> = {}, o: Partial<TimersModelInput> = {}): TimersModelInput {
+/** The model's input. Herblore (always shown while enabled) is off: `herbOn` turns it on. */
+function input(cells: TimerCell[], s: Partial<TimersSettings> = {}, o: Partial<TimersModelInput> = {}, herbOn = false): TimersModelInput {
   const view = emptyView();
   for (const c of cells) view.cells[c.group].push(c);
-  return { view, settings: { ...defaultTimersSettings(), ...s }, now: NOW, light: false, width: 400, charW: 8, ...o };
+  const settings = { ...defaultTimersSettings(), ...s };
+  settings.groups = { ...settings.groups, herb: { ...settings.groups.herb, enabled: herbOn } };
+  return { view, settings, now: NOW, light: false, width: 400, charW: 8, ...o };
 }
 
 describe('blind names', () => {
@@ -138,7 +141,7 @@ describe('timersModel', () => {
   it('charmies count up, can be forgotten, and keep their order', () => {
     const c = cell('huge stone troll', 'charm', 3000, { startedAt: NOW - 21 * 60_000 });
     const [g] = timersModel(input([c]));
-    expect(g!.items[0]).toMatchObject({ kind: 'charm', name: 'Huge stone troll', time: '21m', removable: true });
+    expect(g!.items[0]).toMatchObject({ kind: 'charm', name: 'Huge stone troll', time: '21m', remove: 'charm' });
   });
 
   it('layout: the global one or the group override; grid columns Auto or a cap', () => {
@@ -158,14 +161,13 @@ describe('timersModel', () => {
     expect(few!.cols).toBe(2);
   });
 
-  it('blinds: the header counts and names the next to end; long names shortened only when needed', () => {
+  it('blinds: long names shortened only when needed', () => {
     const blinds = [
       cell('the captain of the guard of Fornost', 'blind', 40),
       cell('a warg', 'blind', 4),
       cell('a huge black-scaled warg', 'blind', 70),
     ];
     const [wide] = timersModel(input(blinds, { layout: 'grid', cols: 1 }, { width: 600 }));
-    expect(wide!.count).toBe('3 · next 4s');
     expect(wide!.items.map((t) => t.name)).toEqual(['warg', 'captain of the guard of Fornost', 'huge black-scaled warg']);
     const [narrow] = timersModel(input(blinds, { layout: 'grid', cols: 2 }, { width: 400 }));
     const names = narrow!.items.map((t) => t.name);
@@ -181,13 +183,38 @@ describe('timersModel', () => {
     expect(g!.items[0]!.name).toBe('Breath of briskness and more words');
   });
 
-  it('herbs get the leaf; untracked items are untimed; something counting is timed', () => {
-    const cells = [cell('Healing', 'buff', 100, { id: 'herb:healing' }), cell('hunger', 'debuff', null, { tracked: false })];
+  it('untracked items are untimed; something counting is timed', () => {
+    const cells = [cell('Miruvor', 'buff', 100), cell('hunger', 'debuff', null, { tracked: false })];
     const g = timersModel(input(cells));
-    expect(g[0]!.items[0]!.icon).toBe('herb');
     expect(g[1]!.items[0]).toMatchObject({ kind: 'untimed', time: '?' });
     expect(timersTimed(g)).toBe(true);
     expect(timersTimed(timersModel(input([cells[1]!])))).toBe(false);
+  });
+
+  it('Herblore (owner round 1): shown while enabled, also empty; its header pinned with the +; items carry the × and the phase icon', () => {
+    // Empty, headers off: still there, header pinned, the + offered.
+    const [empty] = timersModel(input([], { headers: false }, {}, true));
+    expect(empty).toMatchObject({ group: 'herb', label: 'Herblore', icon: 'herb', pinnedHeader: true, addHerb: true, items: [] });
+    // Off: gone.
+    expect(timersModel(input([]))).toEqual([]);
+    // Its own Auto colour, unlike Buffs on both sides.
+    expect(empty!.color).toBe(DARK_COLORS.herb);
+    expect(DARK_COLORS.herb).not.toBe(DARK_COLORS.buff);
+    expect(LIGHT_COLORS.herb).not.toBe(LIGHT_COLORS.buff);
+    const cells = [
+      cell('Healing', 'herb', 100, { id: 'herb:Healing', herbKey: 'Healing', phase: 'buff' }),
+      cell('Haste (recovery)', 'herb', 900, { id: 'herb:Haste', herbKey: 'Haste', phase: 'debuff' }),
+    ];
+    const [g] = timersModel(input(cells, {}, {}, true));
+    expect(g!.items.map((t) => [t.name, t.icon, t.remove, t.herbKey])).toEqual([
+      ['Healing', 'herb', 'herb', 'Healing'],
+      ['Haste (recovery)', 'debuff', 'herb', 'Haste'],
+    ]);
+    expect(g!.items[1]!.tip).toContain('Herblore, a debuff phase.');
+    // Other groups have no pinned header and no +; a charm's × forgets it.
+    const [c] = timersModel(input([cell('troll', 'charm', null)]));
+    expect(c).toMatchObject({ pinnedHeader: false, addHerb: false });
+    expect(c!.items[0]!.remove).toBe('charm');
   });
 });
 

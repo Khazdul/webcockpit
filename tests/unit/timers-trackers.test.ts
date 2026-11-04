@@ -62,7 +62,7 @@ describe('timers trackers in the app', () => {
     expect(v.cells.blind.map((c) => c.name)).toEqual(['2.orc']);
     expect(v.cells.charm.map((c) => c.name)).toEqual(['enslaved shadow']);
     expect(v.cells.stored.map((c) => c.name)).toEqual(['fireball']);
-    expect(v.cells.buff.map((c) => c.name)).toEqual(['Haste']);
+    expect(v.cells.herb.map((c) => c.name)).toEqual(['Haste']);
     expect(v.herbs.find((h) => h.key === 'Haste')?.active).toBe(true);
     expect(b.msgs).toEqual([]);
     // The blind runs out 90 s after it landed.

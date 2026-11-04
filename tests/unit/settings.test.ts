@@ -243,7 +243,7 @@ describe('migrateSettings', () => {
   it('adds the group and comm options with defaults (older stored data)', () => {
     const old = { appearance: {}, panes: {}, layout: DEFAULT_SETTINGS.layout, profile: 'pvp' };
     const s = migrateSettings(old);
-    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(s.group).toEqual({ showPlayers: true, npcMode: 'labeled', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
     expect(s.comm).toEqual({ filters: {}, showHeader: true });
     expect(s.profile).toBe('pvp');
   });
@@ -271,13 +271,13 @@ describe('migrateSettings', () => {
     store.update({ comm: { filters: { tells: true } } });
     expect(store.get().comm.filters).toEqual({ says: false });
     store.update({ group: { npcMode: 'all' } });
-    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
+    expect(store.get().group).toEqual({ showPlayers: true, npcMode: 'all', away: 'room', fight: true, colors: { hp: 'auto', mana: 'auto', mp: 'auto' } });
   });
 
   it('adds the timers options with defaults (ADR 0122)', () => {
     const s = migrateSettings({ appearance: {}, profile: 'pvp' });
     expect(s.timers).toEqual(defaultTimersSettings());
-    expect(Object.keys(s.timers.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
+    expect(Object.keys(s.timers.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm']);
     expect(s.timers.groups.blind).toEqual({ enabled: true, color: 'auto', layout: 'default' });
     expect(s.timers).toMatchObject({
       style: 'bars',
@@ -313,7 +313,8 @@ describe('migrateSettings', () => {
     expect(t.groups.charm.color).toBe('auto');
     expect(t.groups.stored).toEqual(defaultTimersSettings().groups.stored);
     expect(t.groups.sanct).toEqual({ enabled: true, color: 'auto', layout: 'default' });
-    expect(Object.keys(t.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm']);
+    expect(t.groups.herb).toEqual({ enabled: true, color: 'auto', layout: 'default' });
+    expect(Object.keys(t.groups)).toEqual(['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm']);
     expect(t.headers).toBe(false);
     expect('compact' in t).toBe(false);
     expect('cols' in t.groups.spell).toBe(false);
@@ -326,11 +327,12 @@ describe('migrateSettings', () => {
     expect(store.get().timers.groups.debuff).toEqual({ enabled: true, color: '#123456', layout: 'default' });
   });
 
-  it('adds the group options (ADR 0122): away and vital colours, checked', () => {
+  it('adds the group options (ADR 0122): away, the fight card and vital colours, checked', () => {
     expect(migrateGroup({ showPlayers: false, npcMode: 'all' })).toEqual({
       showPlayers: false,
       npcMode: 'all',
       away: 'room',
+      fight: true,
       colors: { hp: 'auto', mana: 'auto', mp: 'auto' },
     });
     expect(migrateGroup({ away: 'dim', colors: { hp: '#FF0000', mana: 'blue', mp: 'auto' } })).toMatchObject({
@@ -338,6 +340,8 @@ describe('migrateSettings', () => {
       colors: { hp: '#ff0000', mana: 'auto', mp: 'auto' },
     });
     expect(migrateGroup({ away: 'far' }).away).toBe('room');
+    expect(migrateGroup({ fight: false }).fight).toBe(false);
+    expect(migrateGroup({ fight: 'no' }).fight).toBe(true);
   });
 
   it('adds the window places (ADR 0103): none placed, whole cells, garbage dropped', () => {

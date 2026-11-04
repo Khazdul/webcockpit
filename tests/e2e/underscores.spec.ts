@@ -213,9 +213,10 @@ for (const dpr of [1, 1.5]) {
       await expect(input).toHaveValue(NAME);
       // The Timers items are drawn at 0.85 of the pane font (ADR 0122); at the
       // full size here, so the probe's cell geometry applies to the name, and
-      // without the group header, so the charm is in view in the short pane.
+      // without the group headers (and the Herblore group, whose header stays),
+      // so the charm is in view in the short pane.
       await page.addStyleTag({ content: '.wc-pane[data-pane="timers"] .wc-tm-items { font-size: 1em !important; }' });
-      await page.evaluate(() => window.__wc!.settings.update({ timers: { headers: false } }));
+      await page.evaluate(() => window.__wc!.settings.update({ timers: { headers: false, groups: { herb: { enabled: false } } } }));
       const targets: Array<[string, Locator]> = [
         ['last output row', rows.last()],
         ['output row above a row', rows.nth(-3)],

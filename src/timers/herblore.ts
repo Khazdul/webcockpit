@@ -1,6 +1,7 @@
 // Herblore tracker (Inv §2.6.10): manual only. The player adds a herblore
-// from the pane's add-view; its current phase shows as a buff or debuff
-// cell whose bar drains across that phase. The phase is derived from the
+// from the Herblore group's `+` menu (ADR 0122 addendum); its current phase
+// shows as a cell of the Herblore group (`phase` says buff or debuff) whose
+// bar drains across that phase. The phase is derived from the
 // start time and the catalogue (data/herblores.ts), so only `{ key,
 // startedAt }` is saved and a restore lands in the right phase silently.
 //
@@ -78,7 +79,9 @@ export class HerbloreTracker implements Tracker {
       out.push({
         id: `herb:${r.key}`,
         name: at.phase.name,
-        group: at.phase.type,
+        group: 'herb',
+        phase: at.phase.type,
+        herbKey: r.key,
         startedAt: at.startedAt,
         expiresAt: at.expiresAt,
         expected: at.phase.duration * 1000,

@@ -10,9 +10,9 @@
 //   sortCells         the order within a group (Inv §2.6.1 "Sort order")
 
 /** The pane's groups, top to bottom (Inv §2.6.1). */
-export type TimerGroup = 'sanct' | 'spell' | 'buff' | 'debuff' | 'stored' | 'blind' | 'charm';
+export type TimerGroup = 'sanct' | 'spell' | 'buff' | 'debuff' | 'herb' | 'stored' | 'blind' | 'charm';
 
-export const TIMER_GROUPS: readonly TimerGroup[] = ['sanct', 'spell', 'buff', 'debuff', 'stored', 'blind', 'charm'];
+export const TIMER_GROUPS: readonly TimerGroup[] = ['sanct', 'spell', 'buff', 'debuff', 'herb', 'stored', 'blind', 'charm'];
 
 /** Group labels (Options, the `Group:` header rows). */
 export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {
@@ -20,6 +20,7 @@ export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {
   spell: 'Spells',
   buff: 'Buffs',
   debuff: 'Debuffs',
+  herb: 'Herblore',
   stored: 'Stored',
   blind: 'Blinds',
   charm: 'Charmies',
@@ -47,6 +48,10 @@ export interface TimerCell {
   target?: string;
   /** The duration is an estimate (another's sanctuary timed from your cast): the pane says "about". */
   estimated?: boolean;
+  /** Herblore group (ADR 0122 addendum): the phase's kind; the cell's herb key is `herbKey`. */
+  phase?: 'buff' | 'debuff';
+  /** Herblore group: the catalogue key (the × stops it). */
+  herbKey?: string;
 }
 
 /** What the pane reads from the hub (ADR 0017). */
@@ -60,7 +65,7 @@ export interface TimersView {
 /** An empty view (no trackers, before any line). */
 export function emptyView(): TimersView {
   return {
-    cells: { sanct: [], spell: [], buff: [], debuff: [], stored: [], blind: [], charm: [] },
+    cells: { sanct: [], spell: [], buff: [], debuff: [], herb: [], stored: [], blind: [], charm: [] },
     herbs: [],
   };
 }
@@ -186,6 +191,7 @@ export function sortCells(group: TimerGroup, cells: TimerCell[]): TimerCell[] {
     case 'spell':
     case 'buff':
     case 'debuff':
+    case 'herb':
       return sortAffectCells(cells);
     case 'stored':
       return sortStoredCells(cells);

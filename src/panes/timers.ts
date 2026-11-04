@@ -2,13 +2,15 @@
 // what is on the character, on others you cast at, and how long it lasts,
 // in the modern look of mockup 3c.
 //
-//   ✦ SANCTUARY ───────────────────── 2  +     <- header (icon, name, count); corner + (gold)
+//   ✦ SANCTUARY ──────────────────────────     <- header (icon, name, rule)
 //   (You        4m) (Gibur      ~3m)           <- bars: pills whose fill drains right → left
-//   ✧ SPELLS ──────────────────────── 5
+//   ✧ SPELLS ─────────────────────────────
 //   (Breath of briskness 8s) (Shield 52s) …
-//   ◉ BLINDS ───────────────── 12 · next 4s
+//   ❦ HERBLORE + ─────────────────────────     <- always shown while enabled; + opens the menu
+//   (Haste (recovery)  17m)                    <- hover: × stops the herblore
+//   ◉ BLINDS ─────────────────────────────
 //   ◔ huge black…warg  4s   ◔ warg  11s        <- circles: an 18 px ring, name and time beside
-//   ♡ CHARMIES ─────────────────────── 1
+//   ♡ CHARMIES ───────────────────────────
 //   (Huge stone troll        21m  ×)           <- × forgets the charmie
 //   ↓ 3 more timers                            <- indicator row on overflow
 //
@@ -22,10 +24,14 @@
 //   the ending-soon time in the side's signal red.
 // - Tooltips (pane-tooltip.ts): every item says its name in full, the time
 //   left exactly, what it is ("about" for another's sanctuary you cast).
-// - Corner `+` (gold, top right) opens the herblore add-view (one row per
-//   herb, `+` starts it, `−` stops it), where it becomes `×` (back). In a
-//   log player (`ctx.player`, ADR 0021) the pane is read-only: no corner
-//   and no charm `×`.
+// - Herblore (ADR 0122 addendum, owner round 1): the group's header shows
+//   whenever the group is enabled, also empty and with headers off. The `+`
+//   beside its name opens a small menu of the herblore catalogue (fixed, in
+//   the menu surface colours); a pick starts that herblore and closes the
+//   menu, as do Esc and a press outside it. A running herblore shows an ×
+//   on hover (in place of its time) that stops it. In a log player
+//   (`ctx.player`, ADR 0021) the pane is read-only: no `+`, no herb ×, no
+//   charm ×.
 // - The list scrolls natively by pixels (wheel, touchpad; ADR 0052). When it
 //   overflows, the last pane row is an indicator: `↑ N timers above` once
 //   scrolled at all (timers partly above count; click → top), else
@@ -45,15 +51,13 @@ import { type TimerGroupView, type TimerItem, timersModel, timersTimed } from '.
 
 export { blindShort, stripArticle, timersModel } from './timers-model';
 
-/** Corner and indicator gold (the old indicator's). */
+/** The indicator's gold. */
 export const CORNER_FG = '#d4a04e';
 /** ms after a wall-clock second boundary at which the 1 Hz redraw runs. */
 const TICK_LAG_MS = 5;
 /** A ring's circumference (r = 10 in a 24-unit box). */
 const RING_C = 2 * Math.PI * 10;
 const SVG_NS = 'http://www.w3.org/2000/svg';
-
-export type TimersMode = 'list' | 'add';
 
 /** The ring's dash for a fill of `pct`. */
 export function ringDash(pct: number): string {
@@ -122,7 +126,7 @@ class ItemEl {
     doc: Document,
     readonly style: TimersSettings['style'],
     readonly id: string,
-    removable: boolean,
+    readonly remove: TimerItem['remove'],
   ) {
     this.el = doc.createElement('div');
     this.el.dataset.id = id;
@@ -163,26 +167,23 @@ class ItemEl {
     this.timeEl = doc.createElement('span');
     this.timeEl.className = 'wc-tm-t';
     this.el.append(this.nameEl, this.timeEl);
-    if (removable) {
+    if (remove) {
       this.xEl = doc.createElement('button');
       this.xEl.type = 'button';
       this.xEl.tabIndex = -1;
-      this.xEl.className = 'wc-tm-x';
-      this.xEl.dataset.act = 'charm';
+      this.xEl.className = remove === 'herb' ? 'wc-tm-x is-herb' : 'wc-tm-x';
+      this.xEl.dataset.act = remove === 'herb' ? 'herbx' : 'charm';
       this.xEl.dataset.id = id;
-      this.xEl.setAttribute('aria-label', 'Forget this charmie');
+      this.xEl.setAttribute('aria-label', remove === 'herb' ? 'Stop this herblore' : 'Forget this charmie');
       this.xEl.append(svgIcon(doc, '', 'close'));
       this.el.append(this.xEl);
     }
   }
 
-  get removable(): boolean {
-    return this.xEl !== null;
-  }
-
   update(t: TimerItem): void {
     const base = this.style === 'bars' ? 'wc-tm-chip' : 'wc-tm-rc';
-    setClass(this.el, `${base} is-${t.kind}${t.ending ? ` is-${t.ending}` : ''}`);
+    setClass(this.el, `${base} is-${t.kind}${t.ending ? ` is-${t.ending}` : ''}${this.remove === 'herb' ? ' has-herbx' : ''}`);
+    if (this.xEl && t.herbKey) setAttr(this.xEl, 'data-key', t.herbKey);
     setIcon(this.icon, t.icon);
     if (this.fill) {
       setProp(this.icon, 'display', t.chipIcon ? '' : 'none');
@@ -204,7 +205,8 @@ class GroupEl {
   readonly el: HTMLDivElement;
   private readonly head: HTMLDivElement;
   private readonly headIcon: SVGSVGElement;
-  private readonly countEl: HTMLSpanElement;
+  /** Herblore's `+` (the menu), beside the name; null on the other groups. */
+  private readonly addEl: HTMLButtonElement | null = null;
   private readonly itemsEl: HTMLDivElement;
   private readonly items = new Map<string, ItemEl>();
 
@@ -221,9 +223,21 @@ class GroupEl {
     label.className = 'wc-tm-hl';
     const line = doc.createElement('span');
     line.className = 'wc-tm-hln';
-    this.countEl = doc.createElement('span');
-    this.countEl.className = 'wc-tm-hc';
-    this.head.append(this.headIcon, label, line, this.countEl);
+    this.head.append(this.headIcon, label);
+    if (group === 'herb') {
+      const add = doc.createElement('button');
+      add.type = 'button';
+      add.tabIndex = -1;
+      add.className = 'wc-tm-add';
+      add.dataset.act = 'herbadd';
+      add.textContent = '+';
+      add.setAttribute('aria-label', 'Start a herblore');
+      add.setAttribute('aria-haspopup', 'menu');
+      add.hidden = true;
+      this.addEl = add;
+      this.head.append(add);
+    }
+    this.head.append(line);
     this.itemsEl = doc.createElement('div');
     this.el.append(this.head, this.itemsEl);
   }
@@ -233,26 +247,34 @@ class GroupEl {
     return [...this.itemsEl.children] as HTMLElement[];
   }
 
-  update(g: TimerGroupView, s: TimersSettings, first: boolean, readOnly: boolean): void {
+  /** The herblore `+` (the menu's anchor), or null. */
+  get addButton(): HTMLButtonElement | null {
+    return this.addEl;
+  }
+
+  update(g: TimerGroupView, s: TimersSettings, first: boolean, readOnly: boolean, menuOpen: boolean): void {
     setClass(this.el, `wc-tm-g${first ? ' is-first' : ''}`);
     setProp(this.el, '--c', g.color);
-    setHidden(this.head, !s.headers);
+    setHidden(this.head, !s.headers && !g.pinnedHeader);
     setIcon(this.headIcon, g.icon);
     setText(this.head.children[1]!, g.label);
-    setText(this.countEl, g.count);
+    if (this.addEl) {
+      setHidden(this.addEl, !g.addHerb || readOnly);
+      setAttr(this.addEl, 'aria-expanded', g.addHerb && menuOpen ? 'true' : null);
+    }
     setClass(this.itemsEl, `wc-tm-items is-${g.layout}`);
     setProp(this.itemsEl, 'grid-template-columns', g.layout === 'grid' ? `repeat(${g.cols}, minmax(0, 1fr))` : '');
     const seen = new Set<string>();
     g.items.forEach((t, i) => {
       seen.add(t.id);
-      const removable = t.removable && !readOnly;
+      const remove = readOnly ? null : t.remove;
       let it = this.items.get(t.id);
-      if (it && (it.style !== s.style || it.removable !== removable)) {
+      if (it && (it.style !== s.style || it.remove !== remove)) {
         it.el.remove();
         it = undefined;
       }
       if (!it) {
-        it = new ItemEl(this.doc, s.style, t.id, removable);
+        it = new ItemEl(this.doc, s.style, t.id, remove);
         this.items.set(t.id, it);
       }
       it.update(t);
@@ -266,24 +288,156 @@ class GroupEl {
   }
 }
 
+// ------------------------------------------------------------ herb menu
+
+/** The herblore catalogue as the menu lists it. */
+export type HerbEntry = { key: string; name: string; active: boolean };
+
+/**
+ * The Herblore `+` menu: a small card under the `+`, in the menu surface
+ * colours (fixed, so a short pane does not clip it), one row per herb in
+ * the catalogue; a running one is checked and cannot be picked again. A
+ * pick, Esc or a press outside closes it. Pressing a row keeps the focus
+ * in the game input (mousedown is prevented).
+ */
+export class HerbMenu {
+  readonly el: HTMLDivElement;
+  private anchor: HTMLElement | null = null;
+
+  constructor(
+    private readonly doc: Document,
+    private readonly onPick: (key: string) => void,
+    private readonly onClose: () => void,
+  ) {
+    this.el = doc.createElement('div');
+    this.el.className = 'wc-tm-menu';
+    this.el.setAttribute('role', 'menu');
+    this.el.setAttribute('aria-label', 'Herblore');
+    this.el.hidden = true;
+    this.el.addEventListener('mousedown', this.onMenuDown);
+  }
+
+  get open(): boolean {
+    return !this.el.hidden && this.el.isConnected;
+  }
+
+  /** Opens under `anchor` with `herbs`, or refreshes the rows when open. */
+  show(anchor: HTMLElement, herbs: readonly HerbEntry[]): void {
+    this.anchor = anchor;
+    this.fill(herbs);
+    if (!this.el.isConnected) this.doc.body.append(this.el);
+    if (this.el.hidden) {
+      this.el.hidden = false;
+      this.doc.addEventListener('keydown', this.onKey, true);
+      this.doc.addEventListener('pointerdown', this.onOutside, true);
+    }
+    this.place();
+  }
+
+  /** New rows while open (a herblore started or ended meanwhile). */
+  update(herbs: readonly HerbEntry[]): void {
+    if (this.open) this.fill(herbs);
+  }
+
+  hide(): void {
+    if (this.el.hidden && !this.el.isConnected) return;
+    this.el.hidden = true;
+    this.el.remove();
+    this.anchor = null;
+    this.doc.removeEventListener('keydown', this.onKey, true);
+    this.doc.removeEventListener('pointerdown', this.onOutside, true);
+    this.onClose();
+  }
+
+  dispose(): void {
+    this.hide();
+    this.el.removeEventListener('mousedown', this.onMenuDown);
+  }
+
+  private fill(herbs: readonly HerbEntry[]): void {
+    const key = JSON.stringify(herbs);
+    if (this.el.dataset.rows === key) return;
+    this.el.dataset.rows = key;
+    const doc = this.doc;
+    this.el.replaceChildren(
+      ...herbs.map((h) => {
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.tabIndex = -1;
+        b.className = `wc-tm-mi${h.active ? ' is-on' : ''}`;
+        b.setAttribute('role', 'menuitem');
+        b.dataset.key = h.key;
+        b.disabled = h.active;
+        const mark = doc.createElement('span');
+        mark.className = 'wc-tm-mm';
+        mark.textContent = h.active ? '✓' : '+';
+        const name = doc.createElement('span');
+        name.className = 'wc-tm-mn';
+        name.textContent = h.name;
+        b.append(mark, name);
+        b.setAttribute('aria-label', h.active ? `${h.name} (running)` : `Start ${h.name}`);
+        return b;
+      }),
+    );
+  }
+
+  private place(): void {
+    const a = this.anchor;
+    const win = this.doc.defaultView;
+    if (!a || !win) return;
+    const r = a.getBoundingClientRect();
+    const w = this.el.offsetWidth;
+    const h = this.el.offsetHeight;
+    const vw = win.innerWidth;
+    const vh = win.innerHeight;
+    let left = Math.min(r.left, vw - w - 4);
+    left = Math.max(4, left);
+    let top = r.bottom + 2;
+    if (top + h > vh - 4 && r.top - h - 2 >= 4) top = r.top - h - 2;
+    this.el.style.left = `${Math.round(left)}px`;
+    this.el.style.top = `${Math.round(Math.max(4, top))}px`;
+  }
+
+  private readonly onMenuDown = (e: MouseEvent): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    const b = (e.target as HTMLElement | null)?.closest?.<HTMLButtonElement>('.wc-tm-mi') ?? null;
+    if (!b || b.disabled) return;
+    const key = b.dataset.key!;
+    this.hide();
+    this.onPick(key);
+  };
+
+  private readonly onKey = (e: KeyboardEvent): void => {
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.hide();
+  };
+
+  private readonly onOutside = (e: PointerEvent): void => {
+    const t = e.target as Node | null;
+    if (t && (this.el.contains(t) || this.anchor?.contains(t))) return;
+    this.hide();
+  };
+}
+
 // ------------------------------------------------------------------ pane
 
 export class TimersPane extends PaneShell {
-  private mode: TimersMode = 'list';
   private tickTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly root: HTMLDivElement;
   /** The native scroller, above the indicator row. */
   private readonly scroller: HTMLDivElement;
   private readonly listEl: HTMLDivElement;
-  private readonly herbsEl: HTMLDivElement;
   private readonly moreEl: HTMLDivElement;
-  private readonly corner: HTMLButtonElement;
   /** Ten characters in the items' font: the measured character width. */
   private readonly probe: HTMLSpanElement;
   private readonly groups = new Map<string, GroupEl>();
   private readonly tip: PaneTooltip;
-  private herbsKey = '';
-  /** Scroll to the top at the next render (a mode switch, a reset). */
+  private readonly menu: HerbMenu;
+  /** Scroll to the top at the next render (a reset). */
   private toTop = false;
 
   constructor(ctx: PaneContext) {
@@ -297,22 +451,23 @@ export class TimersPane extends PaneShell {
     this.scroller.className = 'wc-tm-scroll';
     this.listEl = doc.createElement('div');
     this.listEl.className = 'wc-tm-list';
-    this.herbsEl = doc.createElement('div');
-    this.herbsEl.className = 'wc-tm-herbs';
-    this.scroller.append(this.listEl, this.herbsEl);
+    this.scroller.append(this.listEl);
     this.moreEl = doc.createElement('div');
     this.moreEl.className = 'wc-tm-more';
     this.moreEl.hidden = true;
-    this.corner = doc.createElement('button');
-    this.corner.type = 'button';
-    this.corner.tabIndex = -1;
-    this.corner.className = 'wc-tm-corner';
-    this.corner.dataset.act = 'corner';
     this.probe = doc.createElement('span');
     this.probe.className = 'wc-tm-probe';
     this.probe.setAttribute('aria-hidden', 'true');
     this.probe.textContent = '0000000000';
-    this.root.append(this.scroller, this.moreEl, this.corner, this.probe);
+    this.root.append(this.scroller, this.moreEl, this.probe);
+    this.menu = new HerbMenu(
+      doc,
+      (key) => {
+        this.ctx.game.timers.addHerb(key);
+        this.markDirty();
+      },
+      () => this.markDirty(),
+    );
     this.own(ctx.game.subscribe((part) => part === 'timers' && this.markDirty()));
     this.own(
       ctx.settings.subscribe(
@@ -326,12 +481,18 @@ export class TimersPane extends PaneShell {
       this.root.removeEventListener('mousedown', this.onDown);
       this.scroller.removeEventListener('scroll', this.onScroll);
       this.clearTick();
+      this.menu.dispose();
     });
   }
 
-  /** `list` or the herblore add-view (tests). */
-  get viewMode(): TimersMode {
-    return this.mode;
+  /** True while the Herblore `+` menu is open (tests). */
+  get herbMenuOpen(): boolean {
+    return this.menu.open;
+  }
+
+  /** The Herblore menu's element (tests). */
+  get herbMenuEl(): HTMLDivElement {
+    return this.menu.el;
   }
 
   /** The scroller (tests). */
@@ -341,16 +502,16 @@ export class TimersPane extends PaneShell {
 
   protected override onActiveChange(active: boolean): void {
     if (active) return;
-    this.mode = 'list';
+    this.menu.hide();
     this.toTop = true;
     this.clearTick();
   }
 
   protected override blank(): void {
+    this.menu.hide();
     this.content.replaceChildren();
     this.listEl.replaceChildren();
     this.groups.clear();
-    this.herbsKey = '';
   }
 
   protected override render(): void {
@@ -371,37 +532,26 @@ export class TimersPane extends PaneShell {
     setProp(this.root, '--tm-line', shade.ramp.track);
     setProp(this.root, '--tm-ending', signalColors(shade.light).ending);
 
-    // Corner: `+` in the list, `×` in the add-view; none in a player.
-    setHidden(this.corner, ro);
-    setText(this.corner, this.mode === 'add' ? '×' : '+');
-    setAttr(this.corner, 'aria-label', this.mode === 'add' ? 'Close herblores' : 'Herblores');
-    setAttr(this.root, 'data-corner', ro ? null : '');
-
-    let timed = false;
-    if (this.mode === 'add') {
-      setHidden(this.listEl, true);
-      setHidden(this.herbsEl, false);
-      this.renderHerbs(view.herbs);
-    } else {
-      setHidden(this.listEl, false);
-      setHidden(this.herbsEl, true);
-      // The room for names: the list's measured width and character width
-      // (estimated from the cell metrics where nothing is laid out).
-      const cellW = cells.w || 8;
-      const charW = this.probe.getBoundingClientRect().width / 10 || cellW * 0.85;
-      const inner = this.listEl.clientWidth;
-      const pad = cellW * 0.6;
-      const groups = timersModel({
-        view,
-        settings: s.timers,
-        now,
-        light: shade.light,
-        width: Math.max(0, (inner > 0 ? inner : this.cols * cellW) - pad),
-        charW,
-      });
-      timed = timersTimed(groups);
-      this.renderGroups(groups, s.timers, ro);
-    }
+    // The room for names: the list's measured width and character width
+    // (estimated from the cell metrics where nothing is laid out).
+    const cellW = cells.w || 8;
+    const charW = this.probe.getBoundingClientRect().width / 10 || cellW * 0.85;
+    const inner = this.listEl.clientWidth;
+    const pad = cellW * 0.6;
+    const groups = timersModel({
+      view,
+      settings: s.timers,
+      now,
+      light: shade.light,
+      width: Math.max(0, (inner > 0 ? inner : this.cols * cellW) - pad),
+      charW,
+    });
+    const timed = timersTimed(groups);
+    this.renderGroups(groups, s.timers, ro);
+    // The menu goes with its `+` (Herblore off, a player) and follows the catalogue.
+    const herbGroup = this.groups.get('herb');
+    if (this.menu.open && (ro || !herbGroup?.addButton || herbGroup.addButton.hidden)) this.menu.hide();
+    else this.menu.update(view.herbs);
     if (this.toTop) {
       this.toTop = false;
       this.scroller.scrollTop = 0;
@@ -420,7 +570,7 @@ export class TimersPane extends PaneShell {
         ge = new GroupEl(this.ctx.doc, g.group);
         this.groups.set(g.group, ge);
       }
-      ge.update(g, s, i === 0, ro);
+      ge.update(g, s, i === 0, ro, this.menu.open);
       if (this.listEl.children[i] !== ge.el) this.listEl.insertBefore(ge.el, this.listEl.children[i] ?? null);
     });
     for (const [k, ge] of this.groups) {
@@ -428,33 +578,6 @@ export class TimersPane extends PaneShell {
       ge.el.remove();
       this.groups.delete(k);
     }
-  }
-
-  private renderHerbs(herbs: Array<{ key: string; name: string; active: boolean }>): void {
-    const key = JSON.stringify(herbs);
-    if (key === this.herbsKey) return;
-    this.herbsKey = key;
-    const doc = this.ctx.doc;
-    this.herbsEl.replaceChildren(
-      ...herbs.map((h) => {
-        const b = doc.createElement('button');
-        b.type = 'button';
-        b.tabIndex = -1;
-        b.className = `wc-tm-herb${h.active ? ' is-on' : ''}`;
-        b.dataset.act = 'herb';
-        b.dataset.key = h.key;
-        b.dataset.active = String(h.active);
-        const sign = doc.createElement('span');
-        sign.className = 'wc-tm-hs';
-        sign.textContent = h.active ? '−' : '+';
-        const name = doc.createElement('span');
-        name.className = 'wc-tm-hn';
-        name.textContent = h.name;
-        b.append(sign, name);
-        b.setAttribute('aria-label', `${h.active ? 'Stop' : 'Start'} ${h.name}`);
-        return b;
-      }),
-    );
   }
 
   /** The indicator row from the scroll position. */
@@ -465,10 +588,7 @@ export class TimersPane extends PaneShell {
     if (over) {
       const top = sc.scrollTop;
       const bottom = top + sc.clientHeight;
-      const els =
-        this.mode === 'add'
-          ? ([...this.herbsEl.children] as HTMLElement[])
-          : [...this.groups.values()].flatMap((g) => g.itemEls());
+      const els = [...this.groups.values()].flatMap((g) => g.itemEls());
       let above = 0;
       let below = 0;
       for (const el of els) {
@@ -524,14 +644,15 @@ export class TimersPane extends PaneShell {
       case 'charm':
         timers.dropCharm(z.dataset.id!);
         break;
-      case 'herb':
-        if (z.dataset.active === 'true') timers.removeHerb(z.dataset.key!);
-        else timers.addHerb(z.dataset.key!);
+      case 'herbx':
+        if (z.dataset.key) timers.removeHerb(z.dataset.key);
         break;
-      case 'corner':
-        this.mode = this.mode === 'list' ? 'add' : 'list';
-        this.toTop = true;
-        this.tip.hide();
+      case 'herbadd':
+        if (this.menu.open) this.menu.hide();
+        else {
+          this.tip.hide();
+          this.menu.show(z, this.ctx.game.timers.view(this.ctx.now()).herbs);
+        }
         break;
     }
     this.markDirty();

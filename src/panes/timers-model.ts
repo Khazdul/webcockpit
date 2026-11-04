@@ -3,7 +3,10 @@
 // DOM, no clock: `now` is passed in), unit tested in Node; the pane
 // (timers.ts) turns it into DOM.
 //
-// - Groups Sanctuary → Charmies, each shown when enabled and not empty.
+// - Groups Sanctuary → Charmies, each shown when enabled and not empty;
+//   Herblore (ADR 0122 addendum) is shown whenever it is enabled, with its
+//   header even when empty or when headers are off: the header carries the
+//   `+` that starts a herblore, and each herb item an × that stops it.
 // - An item is `timed` (counts down: fill = time left / duration),
 //   `still` (tracked, no end: full), `untimed` (not tracked, or another's
 //   sanctuary you did not cast: dashed, `?`) or `charm` (counts up).
@@ -52,14 +55,16 @@ export interface TimerItem {
   /** Ms left (timed), else null. */
   remaining: number | null;
   ending: TimerEnding;
-  /** The item's own icon (a herb's leaf, the group icon otherwise). */
+  /** The item's own icon (a herb's leaf or, in a debuff phase, the debuff arrow; the group icon otherwise). */
   icon: IconName;
   /** Draw the icon in a bar (chip); circles always have it in the ring. */
   chipIcon: boolean;
   /** The tooltip's text under the title. */
   tip: string;
-  /** A charm the × forgets. */
-  removable: boolean;
+  /** The × on the item: forget a charm, stop a herblore; null: none. */
+  remove: 'charm' | 'herb' | null;
+  /** A herblore item's catalogue key (the × stops it). */
+  herbKey: string | null;
 }
 
 export interface TimerGroupView {
@@ -67,8 +72,10 @@ export interface TimerGroupView {
   label: string;
   icon: IconName;
   color: string;
-  /** The header's count (`12 · next 4s` for blinds). */
-  count: string;
+  /** The header shows even with headers off (Herblore: its `+`). */
+  pinnedHeader: boolean;
+  /** The header has the `+` that starts a herblore. */
+  addHerb: boolean;
   layout: 'flow' | 'grid';
   /** Grid columns (1 for flow). */
   cols: number;
@@ -164,14 +171,16 @@ const fmtExact = (ms: number): string => {
 };
 
 function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
-  const herb = c.id.startsWith('herb:');
-  const icon: IconName = herb ? 'herb' : GROUP_ICON[c.group];
+  // A herblore's leaf; its debuff phases (`Haste (recovery)`) the debuff arrow.
+  const herb = c.group === 'herb' || c.id.startsWith('herb:');
+  const icon: IconName = herb ? (c.phase === 'debuff' ? 'debuff' : 'herb') : GROUP_ICON[c.group];
   const base = {
     id: c.id,
     group: c.group,
     icon,
     chipIcon: true,
-    removable: false,
+    remove: (c.group === 'herb' && c.herbKey ? 'herb' : null) as TimerItem['remove'],
+    herbKey: c.group === 'herb' ? (c.herbKey ?? null) : null,
     ending: null as TimerEnding,
   };
   if (c.group === 'charm') {
@@ -186,12 +195,21 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
       pct: 0,
       remaining: null,
       tip: mins !== null ? `Charmed ${mins}m ago.` : 'Charmed.',
-      removable: true,
+      remove: 'charm',
     };
   }
   const own = c.group === 'sanct' && c.target === undefined;
   const full = c.group === 'sanct' ? (own ? 'You' : c.target!) : c.group === 'blind' ? c.name : capFirst(c.name);
-  const who = c.group === 'sanct' ? (own ? 'On you.' : `On ${c.target}.`) : c.group === 'blind' ? 'Blinded by you.' : '';
+  const who =
+    c.group === 'sanct'
+      ? own
+        ? 'On you.'
+        : `On ${c.target}.`
+      : c.group === 'blind'
+        ? 'Blinded by you.'
+        : c.group === 'herb'
+          ? `Herblore, ${c.phase === 'debuff' ? 'a debuff' : 'a buff'} phase.`
+          : '';
   if (isTimed(c)) {
     const left = remainingMs(c, now)!;
     const sec = left / 1000;
@@ -240,7 +258,8 @@ export function timersModel(inp: TimersModelInput): TimerGroupView[] {
   for (const g of TIMER_GROUPS) {
     const gs = s.groups[g];
     const cells = view.cells[g];
-    if (!gs.enabled || cells.length === 0) continue;
+    const herb = g === 'herb';
+    if (!gs.enabled || (cells.length === 0 && !herb)) continue;
     let items = cells.map((c) => itemOf(c, s, now));
     if (s.soonestFirst && g !== 'charm') items = soonestFirst(items);
     // With headers, blind chips leave the icon to the header.
@@ -248,12 +267,14 @@ export function timersModel(inp: TimersModelInput): TimerGroupView[] {
     const layout = gs.layout === 'default' ? s.layout : gs.layout;
     const icon = s.style === 'bars' && items.some((t) => t.chipIcon);
     const time = items.some((t) => t.time !== null);
-    const over = itemOverhead(s.style, icon, time, items.some((t) => t.removable));
+    const over = itemOverhead(s.style, icon, time, items.some((t) => t.remove === 'charm'));
     const gap = itemGap(s.style);
     const n = items.length;
     let cols = 1;
     if (layout === 'grid') {
-      if (s.cols === 'auto') {
+      if (n === 0) {
+        cols = 1;
+      } else if (s.cols === 'auto') {
         const longest = Math.max(...items.map((t) => (g === 'blind' ? stripArticle(t.full) : t.full).length));
         cols = autoCols(n, Math.min(MAX_NAME_CHARS, longest), widthCh, over, gap);
       } else {
@@ -264,14 +285,13 @@ export function timersModel(inp: TimersModelInput): TimerGroupView[] {
       const room = Math.max(4, nameRoom(widthCh, cols, over, gap));
       items = items.map((t) => ({ ...t, name: blindShort(t.full, room) }));
     }
-    const next = g === 'blind' ? items.find((t) => t.kind === 'timed') : undefined;
-    const soonest = next ? Math.min(...items.filter((t) => t.remaining !== null).map((t) => t.remaining!)) : null;
     out.push({
       group: g,
       label: TIMER_GROUP_LABELS[g],
       icon: GROUP_ICON[g],
       color: groupColor(gs.color, g, light),
-      count: soonest !== null ? `${n} · next ${countdownText(soonest / 1000)}` : String(n),
+      pinnedHeader: herb,
+      addHerb: herb,
       layout,
       cols,
       items,
