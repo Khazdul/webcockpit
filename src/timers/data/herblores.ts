@@ -1,6 +1,6 @@
 // The herblore catalogue (Inv §2.6.10): each herblore is a fixed sequence of
 // phases, each a buff or a debuff with its own length. Facts about the game,
-// in our own format (ADR 0017). The order is the add-view's order.
+// in our own format (ADR 0017). The order is the Herblores `+` menu's order.
 
 export interface HerbPhase {
   name: string;
@@ -12,7 +12,7 @@ export interface HerbPhase {
 export interface HerbDef {
   /** Stable key (saved state, the pane's add/remove). */
   key: string;
-  /** Display name in the add-view. */
+  /** Display name in the Herblores `+` menu. */
   name: string;
   phases: readonly HerbPhase[];
 }

@@ -2,12 +2,15 @@
 // Pure: no DOM, no clock of its own (every function takes `now` in ms).
 //
 //   TimerCell         one entry as the pane draws it (trackers make them)
-//   barPct / barFill  bar drain: pct = clamp(remaining / expected, 0, 1),
-//                     filled = floor(pct * w + 0.5) (round half up)
-//   countdownText     `Ns` up to 90 s, else `(secs + 30) // 60` → `Nm`
-//   cellCountdown     the countdown of a cell, or null when it has none
+//   barPct            drain: clamp(remaining / expected, 0, 1)
+//   countdownText     the short time: `Ns` up to 90 s, else minutes
+//                     (`(secs + 30) // 60` → `Nm`), `1h52` from an hour
+//   exactText         the exact time for tooltips: `45s`, `3:12`, `1:52:00`
 //   charmMinutes      count-up minutes of a charm row (≤ 99)
 //   sortCells         the order within a group (Inv §2.6.1 "Sort order")
+//
+// Both panes (Group's sanctuary ring, Timers) use the two formatters, so
+// one time reads the same everywhere.
 
 /** The pane's groups, top to bottom (Inv §2.6.1). */
 export type TimerGroup = 'sanct' | 'spell' | 'buff' | 'debuff' | 'herb' | 'stored' | 'blind' | 'charm';
@@ -30,7 +33,7 @@ export const TIMER_GROUP_LABELS: Readonly<Record<TimerGroup, string>> = {
 export interface TimerCell {
   /** Stable across updates (the pane may key DOM or clicks on it). */
   id: string;
-  /** Display name; the pane upper-cases it (charm rows capitalise only the first letter). */
+  /** Display name (the pane capitalises its first letter; blind targets stay as written). */
   name: string;
   group: TimerGroup;
   /** Start time in ms, or null (untracked). */
@@ -54,12 +57,19 @@ export interface TimerCell {
   herbKey?: string;
 }
 
+/** One herblore of the catalogue, `active` while it runs (the Herblores `+` menu). */
+export interface HerbEntry {
+  key: string;
+  name: string;
+  active: boolean;
+}
+
 /** What the pane reads from the hub (ADR 0017). */
 export interface TimersView {
   /** Cells per group, already sorted. */
   cells: Record<TimerGroup, TimerCell[]>;
-  /** The herblore catalogue in its order, `active` when running. */
-  herbs: Array<{ key: string; name: string; active: boolean }>;
+  /** The herblore catalogue in its order. */
+  herbs: HerbEntry[];
 }
 
 /** An empty view (no trackers, before any line). */
@@ -82,8 +92,7 @@ export function remainingMs(c: TimerCell, now: number): number | null {
 
 /**
  * The bar's fill fraction 0–1: `remaining / expected` clamped. An
- * indefinite tracked cell is full (1); an untracked one is empty (0; the
- * pane draws untracked stored spells full in grey itself).
+ * indefinite tracked cell is full (1); an untracked one is empty (0).
  */
 export function barPct(c: TimerCell, now: number): number {
   if (!c.tracked) return 0;
@@ -91,13 +100,6 @@ export function barPct(c: TimerCell, now: number): number {
   if (c.expected <= 0) return 0;
   const p = (c.expiresAt - now) / c.expected;
   return p <= 0 ? 0 : p >= 1 ? 1 : p;
-}
-
-/** Filled cells of a `width`-cell bar at `pct`: round half up, clamped 0–width. */
-export function barFill(pct: number, width: number): number {
-  if (!(width > 0)) return 0;
-  const p = Number.isFinite(pct) ? Math.min(1, Math.max(0, pct)) : 0;
-  return Math.min(width, Math.max(0, Math.floor(p * width + 0.5)));
 }
 
 /**
@@ -115,13 +117,16 @@ export function countdownText(remainingSec: number): string {
 }
 
 /**
- * The countdown of a cell, or null when it shows none: charms (they count
- * up), indefinite and untracked cells.
+ * The exact time for tooltips from seconds: `45s` under a minute, `3:12`,
+ * `1:52:00` from an hour. Fractions are truncated; negative clamps to `0s`.
  */
-export function cellCountdown(c: TimerCell, now: number): string | null {
-  if (c.group === 'charm') return null;
-  const r = remainingMs(c, now);
-  return r === null ? null : countdownText(r / 1000);
+export function exactText(secs: number): string {
+  const s = Number.isFinite(secs) ? Math.max(0, Math.floor(secs)) : 0;
+  if (s < 60) return `${s}s`;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = String(s % 60).padStart(2, '0');
+  return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${r}` : `${m}:${r}`;
 }
 
 /** Minutes since a charm landed, 0–99; null for a permanent charm (no expiry). */

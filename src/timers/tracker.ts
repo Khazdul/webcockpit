@@ -18,7 +18,7 @@
 
 import type { UiMessage } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
-import { TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
+import { type HerbEntry, TIMER_GROUPS, type TimerCell, type TimerGroup } from './entry';
 import type { SanctMember } from './sanct';
 
 /** `◆` tags of the timers (Inv §2.4). */
@@ -80,7 +80,7 @@ export interface Tracker {
    */
   onSent?(text: string, now: number): void;
   /** The herblore catalogue with the active flags (the herblore tracker). */
-  herbs?(now: number): Array<{ key: string; name: string; active: boolean }>;
+  herbs?(now: number): HerbEntry[];
   addHerb?(key: string, now: number): void;
   removeHerb?(key: string, now: number): void;
   /** Forgets a charm by its cell id (the `×` on a charm row). */
@@ -96,7 +96,8 @@ export type TrackerFactory = (host: TrackerHost) => Tracker[];
  * A tracker whose cells are put in by hand: tests, and the hub's debug
  * hook (`hub.debugAdd`) so the pane can be built without the real
  * trackers. Cells are kept as given; `herbs` is a settable catalogue whose
- * add/remove flip `active`; `dropCharm` removes the cell with that id.
+ * add/remove flip `active` (remove also drops a `herb:<key>` cell a test
+ * put in); `dropCharm` removes the cell with that id.
  * With `persist` it saves and restores its cells (dropping expired ones).
  */
 export class ManualTracker implements Tracker {
@@ -104,7 +105,7 @@ export class ManualTracker implements Tracker {
   private readonly host: TrackerHost | null;
   private readonly persist: boolean;
   private items = new Map<string, TimerCell>();
-  private catalogue: Array<{ key: string; name: string; active: boolean }> = [];
+  private catalogue: HerbEntry[] = [];
 
   constructor(key = 'manual', host: TrackerHost | null = null, opts: { persist?: boolean } = {}) {
     this.key = key;
@@ -158,17 +159,13 @@ export class ManualTracker implements Tracker {
     for (const h of this.catalogue) h.active = false;
   }
 
-  herbs(): Array<{ key: string; name: string; active: boolean }> {
+  herbs(): HerbEntry[] {
     return this.catalogue.map((h) => ({ ...h }));
   }
 
-  /** Marks a catalogue herb running and, with `now`, puts a 10-minute Herblore cell (tests). */
-  addHerb(key: string, now?: number): void {
-    const h = this.catalogue.find((x) => x.key === key);
+  /** Marks a catalogue herb running (no cell: a test puts one in itself). */
+  addHerb(key: string): void {
     this.flipHerb(key, true);
-    if (h && now !== undefined) {
-      this.put({ id: `herb:${key}`, name: h.name, group: 'herb', startedAt: now, expiresAt: now + 600_000, expected: 600_000, tracked: true, phase: 'buff', herbKey: key });
-    }
   }
 
   removeHerb(key: string): void {

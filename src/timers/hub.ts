@@ -36,7 +36,7 @@ import { type UiMessage, gmcpKey } from '../core/types';
 import type { SystemRules } from '../gmcp/state';
 import { type Scheduler, realScheduler } from '../script/engine/timers';
 import { TimersArchive } from './archive';
-import { TIMER_GROUPS, type TimerCell, type TimersView, emptyView, sortCells } from './entry';
+import { TIMER_GROUPS, type TimerCell, type TimerGroup, type TimersView, emptyView, sortCells } from './entry';
 import { ManualTracker, type StateTag, type Tracker, type TrackerFactory, type TrackerHost, stateMessage } from './tracker';
 import { createTrackers } from './trackers';
 import type { SanctMember } from './sanct';
@@ -360,11 +360,22 @@ export class TimersHub {
     return v;
   }
 
+  /**
+   * One group's cells, sorted: what `view(now).cells[group]` holds, without
+   * building the other groups (the Group pane's sanctuary rings).
+   */
+  cellsIn(group: TimerGroup, now: number = this.now()): TimerCell[] {
+    const out: TimerCell[] = [];
+    for (const t of this.trackers) for (const c of t.cells(now)) if (c.group === group) out.push(c);
+    for (const c of this.debug.cells()) if (c.group === group) out.push(c);
+    return sortCells(group, out);
+  }
+
   /** Starts a herblore (no-op when it runs). */
   addHerb(key: string): void {
     const now = this.now();
     for (const t of this.trackers) t.addHerb?.(key, now);
-    this.debug.addHerb(key, now);
+    this.debug.addHerb(key);
   }
 
   /** Stops a herblore. */

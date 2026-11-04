@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   type TimerCell,
   type TimerGroup,
-  barFill,
   barPct,
-  cellCountdown,
   charmMinutes,
   countdownText,
+  exactText,
   sortCells,
 } from '../../src/timers/entry';
 
@@ -20,18 +19,6 @@ const timed = (name: string, group: TimerGroup, remainS: number, expectedS = 100
   cell(name, group, { expiresAt: T + remainS * 1000, expected: expectedS * 1000, ...extra });
 
 describe('bar', () => {
-  it('fills round half up, clamped', () => {
-    expect(barFill(0.5, 5)).toBe(3); // 2.5 → 3 (not banker's 2)
-    expect(barFill(0.25, 10)).toBe(3); // 2.5 → 3
-    expect(barFill(0.24, 10)).toBe(2);
-    expect(barFill(1, 7)).toBe(7);
-    expect(barFill(0, 7)).toBe(0);
-    expect(barFill(1.5, 7)).toBe(7);
-    expect(barFill(-1, 7)).toBe(0);
-    expect(barFill(Number.NaN, 7)).toBe(0);
-    expect(barFill(0.5, 0)).toBe(0);
-  });
-
   it('pct is remaining over expected; indefinite full; untracked and overrun empty', () => {
     expect(barPct(timed('a', 'spell', 50), T)).toBe(0.5);
     expect(barPct(timed('a', 'spell', 150), T)).toBe(1);
@@ -53,12 +40,18 @@ describe('countdown', () => {
     expect(countdownText(-12)).toBe('0s');
   });
 
-  it('only timed tracked non-charm cells count down', () => {
-    expect(cellCountdown(timed('a', 'spell', 42), T)).toBe('42s');
-    expect(cellCountdown(timed('a', 'spell', -3), T)).toBe('0s');
-    expect(cellCountdown(cell('hunger', 'debuff'), T)).toBeNull();
-    expect(cellCountdown(cell('x', 'stored', { tracked: false }), T)).toBeNull();
-    expect(cellCountdown(timed('troll', 'charm', 100), T)).toBeNull();
+  it('exact time for tooltips: seconds, m:ss, h:mm:ss', () => {
+    expect(exactText(45)).toBe('45s');
+    expect(exactText(45.9)).toBe('45s');
+    expect(exactText(60)).toBe('1:00');
+    expect(exactText(192)).toBe('3:12');
+    expect(exactText(6720)).toBe('1:52:00');
+    expect(exactText(-3)).toBe('0s');
+  });
+
+  it('from an hour: hours and two-digit minutes', () => {
+    expect(countdownText(6720)).toBe('1h52');
+    expect(countdownText(3600)).toBe('1h00');
   });
 
   it('charm minutes count up to 99; permanent has none', () => {

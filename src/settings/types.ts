@@ -191,16 +191,6 @@ export const TIMER_COLOR_HEX: Readonly<Record<TimerColor, string>> = {
   violet: '#b388ff',
   orange: '#ff9933',
 };
-/** The old swatch labels (the interim Options page until stage 39c). */
-export const TIMER_COLOR_LABELS: Readonly<Record<TimerColor, string>> = {
-  blue: 'Blue',
-  green: 'Green',
-  red: 'Red',
-  magenta: 'Magenta',
-  cyan: 'Cyan',
-  violet: 'Violet',
-  orange: 'Orange',
-};
 /** The swatch each group had by default before ADR 0122 (it migrates to `auto`). */
 export const TIMER_LEGACY_DEFAULT_COLOR: Readonly<Record<Exclude<TimerGroup, 'sanct' | 'herb'>, TimerColor>> = {
   spell: 'blue',

@@ -3,6 +3,12 @@
 // Each is one SVG path `d` on a 24×24 view box, drawn as a stroke (no
 // fill): stroke width 2, round caps and joins, `currentColor`. Several
 // subpaths share one `d` (`M … M …`).
+//
+// Also the two panes' SVG builders: `iconSvg` (an icon), `ringSvg` (a
+// countdown ring: a track and an arc of r = 10 in the same box, drawn by
+// icons.css; `ringDash` sets how much of it is left).
+
+import './icons.css';
 
 /** The icon names. */
 export type IconName =
@@ -131,7 +137,7 @@ export const STATUS_ICON = {
 } as const satisfies Record<string, IconName>;
 
 /** The header icon of each timer group. */
-export const GROUP_ICON = {
+export const TIMER_GROUP_ICON = {
   sanct: 'sanct',
   spell: 'spell',
   buff: 'buff',
@@ -141,3 +147,60 @@ export const GROUP_ICON = {
   blind: 'blind',
   charm: 'charm',
 } as const satisfies Record<string, IconName>;
+
+// ------------------------------------------------------------------ SVG
+
+export const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** A ring's circumference (r = 10 in the 24-unit box). */
+export const RING_C = 2 * Math.PI * 10;
+
+/** The arc's `stroke-dasharray` for `frac` (0–1) of the ring left. */
+export function ringDash(frac: number): string {
+  const p = Math.max(0, Math.min(1, Number.isFinite(frac) ? frac : 0));
+  return `${(p * RING_C).toFixed(2)} ${RING_C.toFixed(2)}`;
+}
+
+/** An icon's `<svg>` with class `cls` (decorative: `aria-hidden`). */
+export function iconSvg(doc: Document, name: IconName, cls: string): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  if (cls) svg.setAttribute('class', cls);
+  svg.setAttribute('viewBox', ICON_VIEWBOX);
+  svg.setAttribute('aria-hidden', 'true');
+  const p = doc.createElementNS(SVG_NS, 'path');
+  p.setAttribute('d', ICONS[name]);
+  svg.append(p);
+  return svg;
+}
+
+/** Points an `iconSvg` at another icon. */
+export function setIconSvg(svg: SVGSVGElement, name: IconName): void {
+  const p = svg.firstElementChild!;
+  const d = ICONS[name];
+  if (p.getAttribute('d') !== d) p.setAttribute('d', d);
+}
+
+/**
+ * A countdown ring (`.wc-ring`, extra classes `cls`): its track and its
+ * arc (`.wc-ring-arc`; `is-unknown` draws it dashed). The arc is returned
+ * so a tick can set its `stroke-dasharray` (`ringDash`) in place.
+ */
+export function ringSvg(doc: Document, cls: string): { svg: SVGSVGElement; arc: SVGCircleElement } {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('class', cls ? `wc-ring ${cls}` : 'wc-ring');
+  svg.setAttribute('viewBox', ICON_VIEWBOX);
+  svg.setAttribute('aria-hidden', 'true');
+  const track = doc.createElementNS(SVG_NS, 'circle');
+  const arc = doc.createElementNS(SVG_NS, 'circle');
+  for (const [c, k] of [
+    [track, 'wc-ring-bg'],
+    [arc, 'wc-ring-arc'],
+  ] as const) {
+    c.setAttribute('class', k);
+    c.setAttribute('cx', '12');
+    c.setAttribute('cy', '12');
+    c.setAttribute('r', '10');
+    svg.append(c);
+  }
+  return { svg, arc };
+}

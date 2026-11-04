@@ -10,7 +10,7 @@
 //   end       `◆ HERB: Clearthought (neg) down.` (last phase over, or removed)
 
 import { HERBLORES, herbDef, herbPhaseAt } from './data/herblores';
-import type { TimerCell } from './entry';
+import type { HerbEntry, TimerCell } from './entry';
 import type { Tracker, TrackerHost } from './tracker';
 
 interface Running {
@@ -31,7 +31,7 @@ export class HerbloreTracker implements Tracker {
     this.host = host;
   }
 
-  herbs(): Array<{ key: string; name: string; active: boolean }> {
+  herbs(): HerbEntry[] {
     return HERBLORES.map((h) => ({ key: h.key, name: h.name, active: this.running.has(h.key) }));
   }
 

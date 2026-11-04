@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GROUP_ICON, ICONS, STATUS_ICON, positionIcon } from '../../src/panes/icons';
+import { ICONS, TIMER_GROUP_ICON, STATUS_ICON, positionIcon } from '../../src/panes/icons';
 import { DARK_COLORS, LIGHT_COLORS, PICKER_COLORS, autoColor, resolveColor, signalColors } from '../../src/panes/palette';
 import { STATUS_FLAGS } from '../../src/gmcp/group';
 import { TIMER_GROUPS } from '../../src/timers/entry';
@@ -24,7 +24,7 @@ describe('panes icons (ADR 0122)', () => {
   it('every icon is one path; every flag and group has one', () => {
     for (const d of Object.values(ICONS)) expect(d).toMatch(/^M[\d.\s\-a-zA-Z,]+$/);
     for (const f of STATUS_FLAGS) expect(ICONS[STATUS_ICON[f]]).toBeTruthy();
-    for (const g of TIMER_GROUPS) expect(ICONS[GROUP_ICON[g]]).toBeTruthy();
+    for (const g of TIMER_GROUPS) expect(ICONS[TIMER_GROUP_ICON[g]]).toBeTruthy();
     // The opponent is the claw slashes, not the fighting position's crossed swords.
     expect(ICONS.foe).not.toBe(ICONS.fighting);
     expect('axe' in ICONS).toBe(false);

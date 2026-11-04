@@ -3,10 +3,11 @@
 // DOM, no clock: `now` is passed in), unit tested in Node; the pane
 // (timers.ts) turns it into DOM.
 //
-// - Groups Sanctuary → Charmies, each shown when enabled and not empty;
-//   Herblore (ADR 0122 addendum) is shown whenever it is enabled, with its
-//   header even when empty or when headers are off: the header carries the
-//   `+` that starts a herblore, and each herb item an × that stops it.
+// - Groups Herblores → Charmies (`TIMER_GROUPS`), each shown when enabled
+//   and not empty; Herblores (ADR 0122 addendum) is shown whenever it is
+//   enabled, with its header even when empty or when headers are off: the
+//   header carries the `+` that starts a herblore, and each herb item an ×
+//   that stops it.
 // - An item is `timed` (counts down: fill = time left / duration),
 //   `still` (tracked, no end: full), `untimed` (not tracked, or another's
 //   sanctuary you did not cast: dashed, `?`) or `charm` (counts up).
@@ -31,10 +32,12 @@ import {
   barPct,
   charmMinutes,
   countdownText,
+  exactText,
   isTimed,
   remainingMs,
 } from '../timers/entry';
-import { GROUP_ICON, type IconName } from './icons';
+import { capitalise } from '../gmcp/char';
+import { type IconName, TIMER_GROUP_ICON } from './icons';
 import { resolveColor } from './palette';
 
 export type TimerItemKind = 'timed' | 'still' | 'untimed' | 'charm';
@@ -127,9 +130,6 @@ export function blindShort(full: string, cap: number): string {
   return `${head.replace(/[\s,-]+$/, '')}…${last}`;
 }
 
-/** First letter upper case, the rest as is. */
-export const capFirst = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
-
 /** Characters of room per item beside the name: padding, icon or ring, time, ×. */
 export function itemOverhead(style: TimersSettings['style'], icon: boolean, time: boolean, x: boolean): number {
   const base = style === 'bars' ? 2.2 + (icon ? 1.8 : 0) : 3.4;
@@ -159,21 +159,15 @@ export function autoCols(n: number, chars: number, widthCh: number, over: number
   return c;
 }
 
-/** The colour of a group: its setting on this side. */
-export function groupColor(setting: ColorSetting, g: TimerGroup, light: boolean): string {
+/** The colour of a timer group: its setting on this side. */
+export function timerGroupColor(setting: ColorSetting, g: TimerGroup, light: boolean): string {
   return resolveColor(setting, g, light);
 }
-
-const fmtExact = (ms: number): string => {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  return m > 0 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
-};
 
 function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
   // A herblore's leaf; its debuff phases (`Haste (recovery)`) the debuff arrow.
   const herb = c.group === 'herb' || c.id.startsWith('herb:');
-  const icon: IconName = herb ? (c.phase === 'debuff' ? 'debuff' : 'herb') : GROUP_ICON[c.group];
+  const icon: IconName = herb ? (c.phase === 'debuff' ? 'debuff' : 'herb') : TIMER_GROUP_ICON[c.group];
   const base = {
     id: c.id,
     group: c.group,
@@ -185,7 +179,7 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
   };
   if (c.group === 'charm') {
     const mins = charmMinutes(c, now);
-    const full = capFirst(c.name);
+    const full = capitalise(c.name);
     return {
       ...base,
       kind: 'charm',
@@ -199,7 +193,7 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
     };
   }
   const own = c.group === 'sanct' && c.target === undefined;
-  const full = c.group === 'sanct' ? (own ? 'You' : c.target!) : c.group === 'blind' ? c.name : capFirst(c.name);
+  const full = c.group === 'sanct' ? (own ? 'You' : c.target!) : c.group === 'blind' ? c.name : capitalise(c.name);
   const who =
     c.group === 'sanct'
       ? own
@@ -215,7 +209,7 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
     const sec = left / 1000;
     const ending: TimerEnding = sec <= s.warnAt && s.signal !== 'none' ? s.signal : null;
     const about = c.estimated ? 'about ' : '';
-    const of = c.expected !== null ? ` Of ${about}${fmtExact(c.expected)}.` : '';
+    const of = c.expected !== null ? ` Of ${about}${exactText(c.expected / 1000)}.` : '';
     const cast = c.group === 'sanct' && !own ? ' Timed from your cast.' : '';
     return {
       ...base,
@@ -226,7 +220,7 @@ function itemOf(c: TimerCell, s: TimersSettings, now: number): TimerItem {
       pct: barPct(c, now),
       remaining: left,
       ending,
-      tip: `${about}${fmtExact(left)} left.${of}${cast}${who ? ` ${who}` : ''}`.trim(),
+      tip: `${about}${exactText(sec)} left.${of}${cast}${who ? ` ${who}` : ''}`.trim(),
     };
   }
   if (c.tracked) {
@@ -288,8 +282,8 @@ export function timersModel(inp: TimersModelInput): TimerGroupView[] {
     out.push({
       group: g,
       label: TIMER_GROUP_LABELS[g],
-      icon: GROUP_ICON[g],
-      color: groupColor(gs.color, g, light),
+      icon: TIMER_GROUP_ICON[g],
+      color: timerGroupColor(gs.color, g, light),
       pinnedHeader: herb,
       addHerb: herb,
       layout,

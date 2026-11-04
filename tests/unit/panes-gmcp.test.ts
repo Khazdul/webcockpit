@@ -227,6 +227,7 @@ describe('panes on the context', () => {
     row().dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     t.flush();
     expect(p.herbMenuOpen).toBe(false);
+    // The herblore tracker starts the herb (its first phase's cell).
     expect(names()).toEqual(['Healing', 'Armour']);
     // Running: checked in the menu, not pickable; Esc closes the menu.
     add.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
