@@ -103,9 +103,10 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^almanac\s*$/);
   await page.keyboard.press('ArrowDown');
   await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^coinlooter\s*$/);
-  const help = f.locator('.wc-scr-help');
-  await expect(help).toContainText('bundled · read-only');
-  await expect(help).toContainText('#script set coinlooter delay');
+  const detail = f.locator('.wc-scr-frame');
+  await expect(detail).toContainText('bundled · read-only');
+  await expect(detail).toContainText('Seconds to wait before looting');
+  await expect(detail).not.toContainText('#script set coinlooter');
   // Bundled: RENAME and DELETE are off.
   await expect(f.locator('[data-btn="RENAME"]')).toHaveAttribute('aria-disabled', 'true');
   await expect(f.locator('[data-btn="DELETE"]')).toHaveAttribute('aria-disabled', 'true');
@@ -118,8 +119,11 @@ test('Scripts from the start page: bundled coin looter, help, toggle, read-only 
   await page.keyboard.press('Enter');
   await expect(looter.locator('.wc-check')).not.toHaveClass(/is-on/);
 
-  // → EDIT, Enter: the read-only editor.
+  // → into the detail (its first setting), Home to its buttons, Enter on EDIT: the read-only editor.
   await page.keyboard.press('ArrowRight');
+  await expect(f.locator('.wc-scr-drow[data-row="set:auto"] .wc-scr-cursor')).toHaveText('▸');
+  await page.keyboard.press('Home');
+  await expect(f.locator('.wc-btn.is-sel-focus')).toHaveText(/EDIT/);
   await page.keyboard.press('Enter');
   await expect(editor(page)).toHaveAttribute('data-readonly', 'true');
   await expect(editor(page).locator('.wc-ped-title')).toContainText('─── Script Editor: coinlooter ───');
@@ -185,12 +189,12 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await page.keyboard.press('Escape');
   await expect(f.locator('.wc-title-row')).toHaveText('─── Scripts ───');
   await expect(f.locator('.wc-scr-name.is-cur')).toHaveText(/^pagetest\s*$/);
-  await expect(f.locator('.wc-scr-help')).toContainText('#script set pagetest loud false');
+  await expect(f.locator('.wc-scr-frame')).toContainText('Shout about it');
 
   // Turn it on with the mouse; the host starts it.
   await row(f, 'pagetest').locator('.wc-check').click();
   await expect(row(f, 'pagetest').locator('.wc-scr-mark')).toHaveText('●', { timeout: 10_000 });
-  await expect(f.locator('.wc-scr-help')).toContainText('● on · running');
+  await expect(f.locator('.wc-scr-frame')).toContainText('● on · running');
 
   // Esc on the list closes the window; back in the game the trigger fires.
   await page.keyboard.press('Escape');
@@ -203,14 +207,16 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
 
   // Edit and save while it runs: it reloads at once.
   await openScriptsWindow(page);
-  await expect(row(f, 'pagetest')).toBeVisible();
-  await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
+  await row(f, 'pagetest').locator('.wc-scr-name').click();
+  await expect(f.locator('.wc-scr-frame .wc-scr-title')).toHaveText('pagetest');
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   await expect(editor(page)).toHaveAttribute('data-script', 'pagetest');
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again'));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  for (let i = 0; i < 2; i++) await page.keyboard.press('Escape');
+  // Esc: the editor, the detail frame (EDIT was pressed there), the window.
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
@@ -221,12 +227,14 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
 
   // A runtime error shows on the editor's status row and under the list row.
   await openScriptsWindow(page);
-  await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
+  await row(f, 'pagetest').locator('.wc-scr-name').click();
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   await editor(page).locator('.cm-content').click();
   await setBuffer(page, SOURCE('again').replace('echo(', 'ecko('));
   await page.keyboard.press('ControlOrMeta+s');
   await expect(editor(page).locator('.wc-ped-footer')).toContainText('Saved. The script reloads.');
-  for (let i = 0; i < 2; i++) await page.keyboard.press('Escape');
+  // Esc: the editor, the detail frame (EDIT was pressed there), the window.
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await expect(page.locator('.wc-win')).toHaveCount(0);
   await expect(page.locator('.wc-overlay')).toBeHidden();
   await hostSynced(page);
@@ -234,8 +242,9 @@ test('the Scripts window: new script, edit, save, enable; its trigger works and 
   await page.keyboard.press('Enter');
   await expect.poll(() => lib<{ lastError: string | null }>(page, 'get', 'pagetest').then((s) => s.lastError)).toMatch(/^pagetest:8:/);
   await openScriptsWindow(page);
-  await expect(f.locator('.wc-scr-error')).toContainText('pagetest:8:');
-  await row(f, 'pagetest').locator('[data-btn="EDIT"]').click();
+  await expect(f.locator('.wc-scr-error').first()).toContainText('pagetest:8:');
+  await row(f, 'pagetest').locator('.wc-scr-name').click();
+  await f.locator('.wc-scr-frame [data-btn="EDIT"]').click();
   // … and on its line in the editor (lua-lint.ts).
   await expect(editor(page).locator('.wc-sed-status')).toHaveAttribute('title', /^Ln 8: Runtime error \(saved version\): /);
   await expect(editor(page).locator('.cm-lintRange.wc-diag-runtime')).toHaveCount(1);
