@@ -605,6 +605,7 @@ export class GroupPane extends PaneShell {
     super(ctx, 'group');
     this.content.classList.add('wc-gp');
     this.tip = installPaneTooltip(ctx.doc);
+    this.own(this.tip.attach(this.content));
     this.own(ctx.game.subscribe((part) => (part === 'group' || part === 'timers' || part === 'char') && this.markDirty()));
     this.own(
       ctx.settings.subscribe((next, prev) => {

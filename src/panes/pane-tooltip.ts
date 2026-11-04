@@ -5,12 +5,15 @@
 //
 //   <span data-tip="HP 37/158 · 23%" data-tip-key="m12:hp">…</span>
 //
-// - `installPaneTooltip(doc)` is idempotent: the first call creates the
-//   element (on `doc.body`) and one set of delegated listeners; later calls
-//   return the same instance. Panes call it in their constructor.
+// - `installPaneTooltip(doc)` returns the document's one instance (no side
+//   effects). A pane hands it its content: `this.own(tip.attach(content))`
+//   adds the hover listeners to that element; the returned function
+//   removes them (and hides a tooltip shown for something inside it).
 // - The tooltip shows after `PANE_TIP_DELAY_MS` of hover, below the
 //   element (above when there is no room), kept inside the viewport. It
-//   hides on leave, pointer down, scroll and wheel.
+//   hides on leave, pointer down, scroll and wheel. Its element is on
+//   `doc.body` and the document listeners (down, scroll, wheel) are there
+//   only while it is shown, so nothing is left behind when the panes go.
 // - Panes that rebuild their DOM while a tooltip is shown (a countdown, a
 //   new vital) call `refresh()` after rendering: the text is read again; an
 //   anchor that left the document is replaced by the element with the same
@@ -61,12 +64,18 @@ export class PaneTooltip {
     this.titleEl = doc.createElement('b');
     this.bodyEl = doc.createElement('span');
     this.el.append(this.titleEl, this.bodyEl);
-    doc.body.append(this.el);
-    doc.addEventListener('pointerover', this.onOver, true);
-    doc.addEventListener('pointerout', this.onOut, true);
-    doc.addEventListener('pointerdown', this.onDown, true);
-    doc.addEventListener('scroll', this.onDown, true);
-    doc.addEventListener('wheel', this.onDown, { capture: true, passive: true });
+  }
+
+  /** Shows tooltips for the `[data-tip]` elements inside `root`. Returns the detach function. */
+  attach(root: HTMLElement): () => void {
+    root.addEventListener('pointerover', this.onOver);
+    root.addEventListener('pointerout', this.onOut);
+    return () => {
+      root.removeEventListener('pointerover', this.onOver);
+      root.removeEventListener('pointerout', this.onOut);
+      const inside = (n: Node | null): boolean => n !== null && root.contains(n);
+      if (inside(this.anchor) || inside(this.pending)) this.hide();
+    };
   }
 
   /** The element the tooltip is shown for, or null. */
@@ -80,6 +89,12 @@ export class PaneTooltip {
     if (!el.isConnected || !el.dataset.tip) return;
     this.anchor = el;
     this.key = el.dataset.tipKey ?? null;
+    if (!this.el.isConnected) {
+      this.doc.body.append(this.el);
+      this.doc.addEventListener('pointerdown', this.onDown, true);
+      this.doc.addEventListener('scroll', this.onDown, true);
+      this.doc.addEventListener('wheel', this.onDown, { capture: true, passive: true });
+    }
     this.el.hidden = false;
     this.fill();
   }
@@ -90,6 +105,12 @@ export class PaneTooltip {
     this.anchor = null;
     this.key = null;
     this.el.hidden = true;
+    if (this.el.isConnected) {
+      this.el.remove();
+      this.doc.removeEventListener('pointerdown', this.onDown, true);
+      this.doc.removeEventListener('scroll', this.onDown, true);
+      this.doc.removeEventListener('wheel', this.onDown, true);
+    }
   }
 
   /** Re-reads the shown tooltip (after a pane rebuilt its DOM). */
@@ -111,14 +132,9 @@ export class PaneTooltip {
     this.fill();
   }
 
+  /** Hides it (nothing else to free: listeners live on the attached roots). */
   dispose(): void {
     this.hide();
-    this.doc.removeEventListener('pointerover', this.onOver, true);
-    this.doc.removeEventListener('pointerout', this.onOut, true);
-    this.doc.removeEventListener('pointerdown', this.onDown, true);
-    this.doc.removeEventListener('scroll', this.onDown, true);
-    this.doc.removeEventListener('wheel', this.onDown, true);
-    this.el.remove();
   }
 
   private find(key: string): HTMLElement | null {
@@ -184,10 +200,10 @@ export class PaneTooltip {
 
 const INSTANCES = new WeakMap<Document, PaneTooltip>();
 
-/** The document's pane tooltip, created on the first call. */
+/** The document's pane tooltip, created on the first call (no listeners until `attach`). */
 export function installPaneTooltip(doc: Document): PaneTooltip {
   let t = INSTANCES.get(doc);
-  if (!t || !t.el.isConnected) {
+  if (!t) {
     t = new PaneTooltip(doc);
     INSTANCES.set(doc, t);
   }

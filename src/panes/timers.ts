@@ -287,6 +287,7 @@ export class TimersPane extends PaneShell {
     super(ctx, 'timers');
     const doc = ctx.doc;
     this.tip = installPaneTooltip(doc);
+    this.own(this.tip.attach(this.content));
     this.root = doc.createElement('div');
     this.root.className = 'wc-tm';
     this.scroller = doc.createElement('div');

@@ -25,17 +25,28 @@ describe('PaneTooltip', () => {
     expect(installPaneTooltip(document)).toBe(installPaneTooltip(document));
   });
 
-  it('shows title and text, hides on leave', async () => {
+  it('shows title and text, hides on leave; detach removes the listeners', async () => {
     const tip = installPaneTooltip(document);
+    const root = document.createElement('div');
+    const detach = tip.attach(root);
     const a = document.createElement('span');
     setTip(a, 'HP 37/158 · 23%', 'Taube');
-    document.body.append(a);
+    root.append(a);
+    document.body.append(root);
     a.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
     expect(tip.el.hidden).toBe(true);
     await new Promise((r) => setTimeout(r, PANE_TIP_DELAY_MS + 30));
     expect(tip.el.hidden).toBe(false);
     expect(tip.el.textContent).toBe('TaubeHP 37/158 · 23%');
     a.dispatchEvent(new PointerEvent('pointerout', { bubbles: true }));
+    expect(tip.el.hidden).toBe(true);
+    expect(tip.el.isConnected).toBe(false);
+    tip.show(a);
+    expect(tip.el.isConnected).toBe(true);
+    detach();
+    expect(tip.el.isConnected).toBe(false);
+    a.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }));
+    await new Promise((r) => setTimeout(r, PANE_TIP_DELAY_MS + 30));
     expect(tip.el.hidden).toBe(true);
   });
 
