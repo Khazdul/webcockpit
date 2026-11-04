@@ -536,6 +536,17 @@ describe('events, gmcp and state', () => {
     expect(t.texts()).toEqual([]);
   });
 
+  it('state.group members carry position, ride, room, away and flags (ADR 0122)', async () => {
+    const t = await setup({
+      s: src(
+        `export("show", function() local m = state.group[1]; send(m.position .. " " .. tostring(m.ride) .. " " .. m.room .. " " .. tostring(m.away) .. " " .. tostring(m.flags.sanctuary) .. " " .. tostring(m.flags.poison)) end)`,
+      ),
+    });
+    t.gmcp('Group.Set', [{ id: 1, type: 'ally', name: 'Gimli', position: 'resting', ride: true, room: 'The Inn', mapid: 5, sanctuary: true, poison: false }]);
+    t.engine.input('#lua s show');
+    expect(t.sent).toEqual(['resting true The Inn false true false']);
+  });
+
   it('state.char and state.group are current inside a GMCP handler, whatever the bus order (ADR 0090)', async () => {
     const body = src(`
       registerAnonymousEventHandler("gmcp.Group", function(ev, full)

@@ -357,7 +357,7 @@ const EVENTS: HelpSection = {
     "- The table is cleared when a new connection starts. What MUME sent earlier in the session is there even when the first script is turned on later.",
     "The state table is a read-only view of what WebCockpit's own panes know:",
     "- state.char: name, fullname, vitals (the Char.Vitals fields, such as state.char.vitals.hp and state.char.vitals.mood) and status (the Char.StatusVars fields, such as state.char.status.race).",
-    "- state.group: a list of your group members, without you: players wherever they are, NPCs only while they are in your room. Each has id, type (ally, enemy or neutral for a player, or npc for a mercenary or key NPC with a label), name, label and hp, mana and mp, each a table { value, max, word }. A field MUME has not told is nil; word is the band word such as wounded.",
+    "- state.group: a list of your group members, without you: players wherever they are, NPCs only while they are in your room. Each has id, type (ally, enemy or neutral for a player, or npc for a mercenary or key NPC with a label), name, label and hp, mana and mp, each a table { value, max, word }; position (standing, fighting, resting, sleeping …), ride (true while mounted), room (the room's name) and mapid; away (true for a player who is not in your room); and flags, a table of true or false for sanctuary, poison, slept, blind, bashed, snared, wound, hungry, thirsty and waiting. A field MUME has not told is nil; word is the band word such as wounded.",
     "- state.room: the last Room.Info (see below).",
     "Common MUME GMCP messages and their fields:",
     "- Char.Name: name, fullname.",
