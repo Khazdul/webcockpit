@@ -13,7 +13,6 @@ import {
   ROW_FIXED,
   type Row,
   detailRows,
-  edgeChar,
   helpLines,
   listLines,
   rowCells,
@@ -67,11 +66,6 @@ describe('scripts model', () => {
     const phone = scriptsLayout(40, ['a'], true);
     expect(phone.detailW).toBe(0);
     expect(phone.buttons).toEqual(ALL_BUTTONS);
-  });
-
-  it('opens the frame\'s left edge at the selected line', () => {
-    expect([0, 1, 2, 3, 4].map((i) => edgeChar(i, 2))).toEqual(['│', '┘', ' ', '┐', '│']);
-    expect(edgeChar(0, -1)).toBe('│');
   });
 
   it('steps numbers on the step grid inside the range, and choices', () => {

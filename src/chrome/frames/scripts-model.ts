@@ -176,19 +176,6 @@ export function listLines(list: readonly ScriptInfo[], syntax?: SyntaxLookup): L
   return out;
 }
 
-/**
- * The frame's left edge beside list line `i` (ADR 0121): open (a blank)
- * at the selected script's line `sel`, so the line runs into the frame,
- * turning away from it on the lines either side; `│` elsewhere.
- */
-export function edgeChar(i: number, sel: number): string {
-  if (sel < 0) return '│';
-  if (i === sel) return ' ';
-  if (i === sel - 1) return '┘';
-  if (i === sel + 1) return '┐';
-  return '│';
-}
-
 /** Cuts a row of runs to `w` cells (the last run that does not fit ends in `…`). */
 export function cutRow(row: Row, w: number): Row {
   const out: Row = [];

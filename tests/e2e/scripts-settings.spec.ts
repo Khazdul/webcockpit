@@ -84,34 +84,34 @@ async function knobsRunning(page: Page): Promise<Locator> {
   return f;
 }
 
-test('the selected script is a tab that joins the framed detail', async ({ page }) => {
+test('the selected script has the panel fill beside the framed detail', async ({ page }) => {
   const errors = watchErrors(page);
   const f = await scriptsFromStart(page);
   // NEW IMPORT MANUAL above the list; the script's buttons in the frame's top border.
   await expect(f.locator('.wc-scr-buttons [data-btn]')).toHaveText([/NEW/, /IMPORT/, /MANUAL/]);
   await expect(f.locator('.wc-scr-top [data-btn]')).toHaveText([/EDIT/, /EXPORT/, /RENAME/, /DELETE/]);
   await expect(f.locator('.wc-scr-row [data-btn]')).toHaveCount(0);
-  // almanac first: its row is the tab, its name in the border, the edge open beside it.
-  await expect(f.locator('.wc-scr-row.is-tab')).toHaveAttribute('data-script', 'almanac');
-  await expect(f.locator('.wc-scr-top')).toContainText('┤ almanac ├');
+  // almanac first: its row is selected, its name in the border.
+  await expect(f.locator('.wc-scr-row.is-sel')).toHaveAttribute('data-script', 'almanac');
+  await expect(f.locator('.wc-scr-top')).toContainText('── almanac ──');
   await expect(f.locator('.wc-scr-frame')).toContainText('─ Settings');
   await expect(f.locator('.wc-scr-frame')).toContainText('─ Commands');
   await expect(f.locator('.wc-scr-frame')).toContainText('▾ Help');
   // The top border is as wide as the bottom one: its ┐ sits on the right edge.
   const cells = (l: Locator) => l.evaluate((e) => [...(e.textContent ?? '')].length);
   expect(await cells(f.locator('.wc-scr-top'))).toBe(await cells(f.locator('.wc-scr-frame > .wc-line').last()));
-  // Down: the tab moves; the edge is open at the new row and turns away either side.
+  // Down: the selection moves; the frame's left edge stays a whole line.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
-  const tab = f.locator('.wc-scr-row.is-tab');
+  const tab = f.locator('.wc-scr-row.is-sel');
   await expect(tab).toHaveAttribute('data-script', 'keymanager');
-  await expect(f.locator('.wc-scr-top')).toContainText('┤ keymanager ├');
+  await expect(f.locator('.wc-scr-top')).toContainText('── keymanager ──');
   const edges = await f.locator('.wc-scr-list .wc-line > .wc-scr-line').allTextContents();
-  expect(edges.slice(0, 5)).toEqual(['│', '┘', ' ', '┐', '│']);
+  expect(new Set(edges)).toEqual(new Set(['│']));
   // Bundled: RENAME and DELETE are off, its settings are not.
   await expect(f.locator('.wc-scr-top [data-btn="RENAME"]')).toHaveAttribute('aria-disabled', 'true');
   await expect(setting(f, 'hours')).toContainText('◂ 12 ▸ h');
-  // The tab has the panel fill, as the frame.
+  // The selected row has the panel fill, as the frame.
   const fill = await tab.locator('.wc-scr-cells').evaluate((e) => getComputedStyle(e).backgroundColor);
   const panel = await f.locator('.wc-scr-detail').evaluate((e) => getComputedStyle(e).backgroundColor);
   expect(fill).toBe(panel);

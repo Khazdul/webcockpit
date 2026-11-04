@@ -4,16 +4,17 @@
 // where the menu bar exists (ADR 0103).
 //
 //   [ NEW IMPORT MANUAL ]
-//                           ┌─┤ name ├──────── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐
+//                           ┌── name ───────── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐
 //   [X] name    🔒 ●         summary · status · problems
-//   [X] name    🔒 ●  ┘     ─ Settings ─────────────────────────── RESET ALL
-//   [X] NAME    🔒 ●        ▸ name*  control           label
-//   [X] name    🔒    ┐     ─ Commands ───────────────
+//   [X] name    🔒 ●  │     ─ Settings ─────────────────────────── RESET ALL
+//   [X] NAME    🔒 ●  │     ▸ name*  control           label
+//   [X] name    🔒    │     ─ Commands ───────────────
 //                     │     ▾ Help ─────────────────────────────── PgUp/PgDn
 //                     │     ┌ the typeset @help, its own scrollbar ┐
 //
-// The selected script's row is a tab: it has the panel fill and runs into
-// the detail frame, whose left edge is open there. The frame holds the
+// The selected script's row has the panel fill and its name in the title
+// role; the frame's left edge is a whole line (no join, owner 2026-11-04).
+// The frame holds the
 // script's buttons in its top border (on a row of their own when the frame
 // is narrow), its status, its settings as controls that save at once
 // (boolean `[ON|OFF]`, number `◂ 25 ▸ unit`, choice `( ) a  (•) b`,
@@ -81,7 +82,6 @@ import {
   buttonW,
   clampSetting,
   detailRows,
-  edgeChar,
   helpLines,
   listLines,
   problemText,
@@ -819,12 +819,11 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
 
   // The list: every line in a native scroll box (pixels, as EDITOR), each
   // line ending in the scrollbar's cell and, beside the frame, the frame's
-  // left edge (open at the selected script, ADR 0121).
-  const edgeAt = (i: number): string => edgeChar(i, cur ? curLine : -1);
-  const tail = (i: number, tab: boolean): VNode => (
+  // left edge.
+  const tail = (): VNode => (
     <>
-      <span class={'wc-scr-gap' + (tab ? ' wc-scr-fill' : '')}> </span>
-      {framed && <span class={'wc-scr-line' + (tab ? ' wc-scr-fill' : '')}>{edgeAt(i)}</span>}
+      <span class="wc-scr-gap"> </span>
+      {framed && <span class="wc-scr-line">│</span>}
     </>
   );
   const listRows = Array.from({ length: Math.max(listVisible, lines.length) }, (_, vi) => {
@@ -836,7 +835,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           <span class="wc-c-hint wc-scr-blank" style={cellsWide(L.listW)}>
             {empty ? truncate('No scripts yet: NEW writes one.', L.listW) : ''}
           </span>
-          {tail(vi, false)}
+          {tail()}
         </div>
       );
     }
@@ -847,17 +846,17 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           <span class="wc-c-err wc-scr-error" title={ln.text} style={cellsWide(L.listW)}>
             {truncate('    ' + ln.text, L.listW)}
           </span>
-          {tail(vi, false)}
+          {tail()}
         </div>
       );
     }
     const isCur = ln.index === cursor;
-    const tab = framed && isCur;
+    const sel = framed && isCur;
     const st = scriptState(s, running(s.name));
     const nameCls = 'wc-tr wc-scr-name' + (isCur ? ' is-cur' : s.enabled ? '' : ' is-off');
     return (
-      <div class={'wc-line wc-scr-row' + (tab ? ' is-tab' : '')} key={vi} data-script={s.name}>
-        <span class={'wc-scr-cells' + (tab ? ' wc-scr-fill' : '')} style={cellsWide(L.listW)}>
+      <div class={'wc-line wc-scr-row' + (sel ? ' is-sel' : '')} key={vi} data-script={s.name}>
+        <span class={'wc-scr-cells' + (sel ? ' wc-scr-fill' : '')} style={cellsWide(L.listW)}>
           <CheckCell
             checked={s.enabled}
             cursor={isCur && listFocused}
@@ -891,7 +890,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
           </span>
           {' '}
         </span>
-        {tail(vi, tab)}
+        {tail()}
       </div>
     );
   });
@@ -915,7 +914,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
   const fw = L.detailW - 1;
   const frame = ((): VNode | null => {
     if (!framed) return null;
-    // Top border: `─┤ name ├──── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐`.
+    // Top border: `── name ───── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐`.
     const top = ((): VNode => {
       if (!cur) return <div class="wc-line wc-scr-line">{'─'.repeat(fw - 1) + '┐'}</div>;
       const room = buttonsInside ? fw - 8 : nameRoom;
@@ -923,9 +922,9 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
       const used = 5 + cellLen(name) + (buttonsInside ? 0 : borderBtnsW);
       return (
         <div class="wc-line wc-scr-top">
-          <span class="wc-scr-line">{'─┤ '}</span>
+          <span class="wc-scr-line">{'── '}</span>
           <span class="wc-c-title wc-scr-title">{name}</span>
-          <span class="wc-scr-line">{' ├' + '─'.repeat(Math.max(1, fw - used - 2))}</span>
+          <span class="wc-scr-line">{' ─' + '─'.repeat(Math.max(1, fw - used - 2))}</span>
           {!buttonsInside && detailButtons(true)}
           <span class="wc-scr-line">{'─┐'}</span>
         </div>
@@ -1026,10 +1025,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
     );
   }
 
-  const cornerChar = (top: boolean): string => {
-    const open = !!cur && (top ? curLine === 0 : curLine === listVisible - 1 || (lines.length > listVisible && curLine === lines.length - 1));
-    return open ? '─' : top ? '┌' : '└';
-  };
+  const cornerChar = (top: boolean): string => (top ? '┌' : '└');
 
   return (
     <Page title="Scripts" footer={footer}>

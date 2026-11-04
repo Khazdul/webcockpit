@@ -14,14 +14,14 @@
   color: var(--c-hover);
 }
 
-/* The selected script beside the frame is a tab: the panel fill, its
- * name in the title role, no selection band. */
+/* The selected script beside the frame: the panel fill, its name in the
+ * title role, no selection band. */
 .wc-scr-fill {
   background: var(--c-panel);
 }
 
-.wc-scr-row.is-tab .wc-scr-name.is-cur,
-.wc-scr-row.is-tab .wc-scr-name.is-cur:hover {
+.wc-scr-row.is-sel .wc-scr-name.is-cur,
+.wc-scr-row.is-sel .wc-scr-name.is-cur:hover {
   background: none;
   color: var(--c-title);
   font-weight: bold;

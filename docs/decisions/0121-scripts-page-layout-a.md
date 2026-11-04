@@ -227,3 +227,15 @@ Decided while building stage 38, where the decision above is silent.
   the foreground is too close to the background (contrast under 3).
 - **`#script help`** shows each setting with its unit and what it
   takes (`#script set mercenaries cost <10|20>`, `<number 0..30>`).
+
+## Owner feedback (2026-11-04, after the first build)
+
+Supersedes two points above:
+
+- **No join.** The selected row no longer runs into the frame: the
+  frame's left edge is a whole `│` line and its corners stay `┌`/`└`
+  whatever is selected. The selected row keeps the panel fill (within the
+  list's cells) and its name in the title role, bold.
+- **No brackets round the name.** The top border reads
+  `┌── name ───── EDIT ─ EXPORT ─ RENAME ─ DELETE ─┐`: the line stops at
+  the name with a space either side, without `┤ ├`.
