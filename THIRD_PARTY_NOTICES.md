@@ -180,6 +180,10 @@ lookup. Lucida is a trademark of its owner.
   and `tilesets/grays-map/` are not from either release: they are
   WebCockpit's own (`scripts/build-flow-chevrons.py`, ADR 0088), under
   WebCockpit's licence.
+- The tileset previews (`tilesets/previews/`, ADR 0118) are scaled-down
+  scenes drawn with each set's own tiles
+  (`scripts/build-tileset-previews.py`); each keeps its set's terms and
+  credits above (`default.png`: MMapper's).
 
 The MIT License is GPL-compatible. The two licence texts, in full
 (also in `public/map/README`):

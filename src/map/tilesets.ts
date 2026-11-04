@@ -5,7 +5,9 @@
 // names and overrides the default `pixmaps/` file by file, as MMapper's
 // custom resource folder does: a file the set lacks (`lacks`) comes from
 // the default set. Adding a set = its folder + one `TILESETS` entry (+ a
-// `TILESET_CHOICES` row); the unit test checks `lacks` against the folder.
+// `TILESET_CHOICES` row and a `TILESET_CARDS` card) + its preview
+// (`scripts/build-tileset-previews.py`, ADR 0118); the unit test checks
+// `lacks` against the folder and that the preview is there.
 // A set may also draw a file with another of its own (`aliases`), carry
 // the background it is drawn for (`background`) and draw its flow marks
 // untinted (`streamsAsIs`); ADR 0088.
@@ -261,6 +263,40 @@ export const TILESET_CHOICES: readonly TilesetChoice[] = [
 ].map(choice);
 
 export const TILESET_IDS: readonly string[] = TILESET_CHOICES.map((c) => c.id);
+
+/** A card of the tileset picker (Settings → Mapper, ADR 0118). */
+export interface TilesetCard {
+  id: string;
+  /** The short name under the preview (the choice's full name is its accessible name). */
+  label: string;
+}
+
+/**
+ * The picker's cards in grid order, five a row: Shimrod (alternating) and
+ * its four seasons, then the default, Desert and the two community sets.
+ * Every choice once.
+ */
+export const TILESET_CARDS: readonly TilesetCard[] = [
+  { id: 'shimrod', label: 'Shimrod' },
+  { id: 'shimrod-spring', label: 'Spring' },
+  { id: 'shimrod-summer', label: 'Summer' },
+  { id: 'shimrod-autumn', label: 'Autumn' },
+  { id: 'shimrod-winter', label: 'Winter' },
+  { id: DEFAULT_TILESET, label: 'Default' },
+  { id: 'desert', label: 'Desert' },
+  { id: 'gefe-rik', label: 'Gefe & Rik' },
+  { id: 'grays-map', label: "Gray's Map" },
+];
+
+/**
+ * A concrete set's preview (the default or a `TILESETS` id), relative to
+ * the map asset root: one 6 × 6 scene in the set's own tiles, 144 × 144
+ * (`scripts/build-tileset-previews.py`, ADR 0118). A family has none: the
+ * picker draws it from its seasons' previews.
+ */
+export function tilesetPreviewPath(id: string): string {
+  return `tilesets/previews/${id}.png`;
+}
 
 /** The choice for a stored id (an unknown id: the default). */
 export function tilesetChoice(id: string): TilesetChoice {
