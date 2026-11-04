@@ -2,12 +2,11 @@
 import { describe, expect, it } from 'vitest';
 import { Bus } from '../../src/core/bus';
 import { CharModel } from '../../src/gmcp/char';
-import { GroupModel } from '../../src/gmcp/group';
 import { GameState } from '../../src/gmcp/state';
 import { CHARACTER_ROWS, CharacterPane, characterLines, colWidths, gaugeWidths, toothPositions } from '../../src/panes/character';
 import { createPaneContext } from '../../src/panes/context';
 import { CellLine, centre } from '../../src/panes/grid';
-import { BAR_ORANGE, BAR_RED, GroupPane, barColor, barFill, barWidths, groupLines } from '../../src/panes/group';
+import { GroupPane } from '../../src/panes/group';
 import { paneShade } from '../../src/panes/shade';
 import { PANE_FACTORIES } from '../../src/panes/factories';
 import { TimersPane } from '../../src/panes/timers';
@@ -121,48 +120,6 @@ describe('Character layout', () => {
   });
 });
 
-describe('Group layout', () => {
-  it('bar widths, fill and colours', () => {
-    expect(barWidths(31)).toEqual([11, 10, 10]);
-    expect(barWidths(32)).toEqual([11, 11, 10]);
-    expect(barWidths(2)).toEqual([1, 1, 0]);
-    expect(barFill(0.5, 11)).toBe(6); // 5.5 rounds up
-    expect(barFill(null, 11)).toBe(0);
-    expect(barFill(1.2, 11)).toBe(11);
-    expect(barColor('hp', 0.25, false)).toBe(BAR_RED);
-    expect(barColor('hp', 0.45, true)).toBe(BAR_ORANGE);
-    expect(barColor('hp', 0.46, false)).toBe('#005a18');
-    expect(barColor('hp', null, false)).toBe('#005a18');
-    // Light pane: default fills washed to pastels.
-    expect(barColor('hp', 1, true)).toBe('#90d5a2');
-    expect(barColor('mana', 1, true)).toBe('#9090d5');
-    expect(barColor('mp', 1, true)).toBe('#c4b3a1'); // Cockpit #c4b2a1 (rounding)
-  });
-
-  it('draws rows with the name overlay and overflow', () => {
-    const g = new GroupModel();
-    g.apply('Group.Set', [
-      { id: 2, type: 'ally', name: 'Gibur', hp: 140, maxhp: 140, mana: 20, maxmana: 90, mp: 50, maxmp: 100 },
-      { id: 4, type: 'npc', name: 'a citizen mercenary', label: 'MERC', hp: 200, maxhp: 200, 'mana-string': 'Full', mp: 150, maxmp: 150 },
-      { id: 5, type: 'ally', name: 'Dori', 'hp-string': 'Wounded' },
-    ]);
-    const lines = groupLines(g.list(), 31, 6, '#aaaaaa', false);
-    expect(lines.map((l) => l.text().trimEnd())).toEqual(['Gibur', 'a citizen mercenary (MERC)', 'Dori']);
-    const gibur = lines[0]!;
-    expect(gibur.bg.slice(0, 11).every((b) => b === '#005a18')).toBe(true);
-    // Mana 20/90 = 22 % → red, 2 of 10 cells.
-    expect(gibur.bg.slice(11, 21)).toEqual([BAR_RED, BAR_RED, '', '', '', '', '', '', '', '']);
-    expect(gibur.fg[0]).toBe('#aaaaaa');
-    // Dori: only a word → band midpoint 35.5 % → orange, 4 of 11 cells.
-    expect(lines[2]!.bg.slice(0, 5)).toEqual([BAR_ORANGE, BAR_ORANGE, BAR_ORANGE, BAR_ORANGE, '']);
-    const clipped = groupLines(g.list(), 31, 2, '#aaaaaa', false);
-    expect(clipped.map((l) => l.text().trimEnd())).toEqual(['Gibur', '↓ 2 more members']);
-    expect(groupLines([], 31, 6, '#aaaaaa', false)).toEqual([]);
-    // Truncated to W without an ellipsis.
-    expect(groupLines(g.list(), 8, 6, '#aaaaaa', false)[1]!.text()).toBe('a citize');
-  });
-});
-
 describe('panes on the context', () => {
   function setup(state: 'playing' | 'idle' = 'playing') {
     const bus = new Bus();
@@ -207,7 +164,7 @@ describe('panes on the context', () => {
       ],
     });
     t.flush();
-    const names = () => [...p.content.querySelectorAll('.wc-prow')].map((r) => r.textContent!.trimEnd());
+    const names = () => [...p.content.querySelectorAll<HTMLElement>('.wc-gp-row[data-name]')].map((r) => r.dataset.name);
     expect(names()).toEqual(['Gibur', 'a merc (M)']);
     t.settings.update({ group: { npcMode: 'all' } });
     t.flush();

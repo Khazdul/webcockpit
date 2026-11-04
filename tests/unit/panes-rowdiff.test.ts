@@ -141,7 +141,8 @@ describe('panes patch their rows', () => {
       ],
     });
     t.flush();
-    const before = rowEls(p);
+    const gpRows = (): Element[] => [...p.content.querySelectorAll('.wc-gp-row')];
+    const before = gpRows();
     expect(before).toHaveLength(2);
     const w = watch(p.content);
     p.markDirty();
@@ -149,7 +150,7 @@ describe('panes patch their rows', () => {
     expect(w.take()).toEqual([]);
     t.bus.emit('gmcp', { pkg: 'Group.Update', data: { id: 3, hp: 20 } });
     t.flush();
-    const after = rowEls(p);
+    const after = gpRows();
     expect(after[0]).toBe(before[0]);
     expect(after[1]).not.toBe(before[1]);
     w.stop();
