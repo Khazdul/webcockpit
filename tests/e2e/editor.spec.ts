@@ -173,6 +173,62 @@ test('EDITOR: Ctrl+F finds and replaces; ESC closes the panel, then the editor',
   expect(await stored(page)).toContain('kill troll');
 });
 
+test('kind row: n adds an entry of that kind, Del deletes nothing; the footer names the keys (ADR 0119)', async ({ page }) => {
+  const errors = watchErrors(page);
+  await openFromStart(page, '#action {orc} {kill orc}\n#macro {F1} {one}\n');
+
+  // The kind row's hints; the toggle has neither n nor Del, nor does n do anything there.
+  await ped(page).locator('[data-kind="action"]').first().click();
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  await expect(footer(page)).toHaveText('n New · Tab Cycle · ESC Back');
+  await page.keyboard.press('ArrowUp');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
+  await expect(footer(page)).toHaveText('Tab Cycle · ESC Back');
+  await page.keyboard.press('n');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'toggle');
+  await expect(ped(page)).toHaveAttribute('data-mode', 'lite');
+  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /\+ New entry/]);
+  await page.keyboard.press('ArrowDown');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+
+  // Del on the kind row deletes nothing.
+  await page.keyboard.press('Delete');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /\+ New entry/]);
+
+  // n: a new action, Pattern focused.
+  await page.keyboard.press('n');
+  await expect(ped(page).locator('input[data-field="pattern"]')).toBeFocused();
+  await expect(ped(page).locator('input[data-field="pattern"]')).toHaveValue('');
+  await page.keyboard.type('troll');
+  await expect(listRows(page)).toHaveText([/^orc\s+kill orc/, /^troll/, /\+ New entry/]);
+  // The list's hints.
+  await page.keyboard.press('Shift+Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'list');
+  await expect(footer(page)).toHaveText('n New · Del Delete · Tab Cycle · ESC Back');
+  // Elsewhere in LITE: no n.
+  await page.keyboard.press('Tab');
+  await expect(ped(page)).toHaveAttribute('data-zone', 'detail');
+  await expect(footer(page)).toHaveText('Tab Cycle · ESC Back');
+
+  // A macro: n on the kind row starts key capture.
+  await ped(page).locator('[data-kind="macro"]').first().click();
+  await expect(ped(page)).toHaveAttribute('data-zone', 'kind');
+  await page.keyboard.press('n');
+  const overlay = ped(page).locator('.wc-ped-overlay');
+  await expect(overlay).toContainText('Press the key to bind…');
+  await page.keyboard.press('F5');
+  await expect(overlay).toHaveCount(0);
+  await expect(ped(page).locator('textarea[data-field="body"]')).toBeFocused();
+  await page.keyboard.type('draw');
+  await expect(listRows(page)).toHaveText([/^F1\s+one/, /^F5\s+draw/, /\+ New entry/]);
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.wc-start .wc-frame:not([hidden]) .wc-flash')).toHaveText('Saved default.');
+  expect(await stored(page)).toBe('#action {orc} {kill orc}\n#action {troll} {}\n#macro {F1} {one}\n#macro {F5} {draw}\n');
+  expect(errors).toEqual([]);
+});
+
 test('macro key capture: F5 binds, Ctrl+W is rejected, ESC cancels a new entry', async ({ page }) => {
   await openFromStart(page, '#macro {F1} {one}\n');
   await kind(page, 'macro');

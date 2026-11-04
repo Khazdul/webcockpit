@@ -19,9 +19,12 @@
 // a persistent selection (current kind, entry being edited).
 //
 // Find (ADR 0070): Ctrl+F in EDITOR opens the buffer search (search.ts),
-// in HELP the manual's (manual-view.tsx). In LITE, Ctrl+F and Ctrl+H flip
-// to EDITOR with the search panel open (Replace focused for Ctrl+H), the
-// cursor at the selected entry.
+// Ctrl+H its replace; in HELP Ctrl+F opens the manual's (manual-view.tsx).
+// LITE has no find: there Ctrl+F and Ctrl+H do nothing (ADR 0119), so the
+// browser's own find or history does not open either.
+//
+// New entry (ADR 0119): `n` on the kind row or in the entry list adds an
+// entry of the current kind; Del deletes only in the list.
 //
 // Apply in place (ADR 0105): the editor stays open while the player plays,
 // so its changes take effect without leaving it. `base` is the text last
@@ -83,7 +86,7 @@ import {
 } from './cm';
 import { type ManualControl, ManualView } from './manual-view';
 import { type FindQuery, EMPTY_QUERY } from './manual-search';
-import { openSearch, searchFocused, searchFrameKey } from './search';
+import { searchFocused, searchFrameKey } from './search';
 import { helpFrame, helpLayout, helpMenu, helpMenuWidth } from './help';
 import {
   type EditorViewName,
@@ -204,29 +207,20 @@ const APPLY_HINT_SHORT = 'Y Apply · N Discard · ESC Keep editing';
 /** The prompt when what is left cannot be applied (held entries, a text that does not load). */
 const HELD_HINT = 'N to discard · ESC to keep editing';
 const HELD_HINT_SHORT = 'N Discard · ESC Keep editing';
-/** Footer hints of LITE, longest first (it applies by itself, ADR 0105). */
-const LITE_HINTS = ['Ctrl+F Find · Ctrl+H Replace · Tab Cycle · ESC Back', 'Tab Cycle · ESC Back'];
+/** Footer hints of LITE, longest first (it applies by itself, ADR 0105; no find, ADR 0119). */
+const LITE_HINTS = ['Tab Cycle · ESC Back', 'ESC Back'];
+/** On the kind row. */
+const KIND_HINTS = ['n New · Tab Cycle · ESC Back', 'n New · ESC Back', ...LITE_HINTS.slice(1)];
 /** In the entry list. */
-const LIST_HINTS = [
-  'n New · Del Delete · Ctrl+F Find · Ctrl+H Replace · Tab Cycle · ESC Back',
-  'n New · Del Delete · Tab Cycle · ESC Back',
-];
+const LIST_HINTS = ['n New · Del Delete · Tab Cycle · ESC Back', 'n New · Del Delete · ESC Back', ...KIND_HINTS.slice(1)];
 /** How long a failed or held apply stays in the footer. */
 const FAIL_MS = 6000;
-
-/** Where entry `id` starts in the serialised `doc` (0 when it is not there). */
-function entryOffset(doc: ProfileDoc, id: number | undefined): number {
-  let at = 0;
-  for (const n of doc.nodes) {
-    if (n.id === id) return at + (n.type === 'entry' ? n.lead.length : 0);
-    at += n.text.length;
-  }
-  return 0;
-}
 
 const errText = (e: unknown): string => (e instanceof Error ? e.message : String(e));
 const plain = (e: KeyboardEvent): boolean => !e.ctrlKey && !e.altKey && !e.metaKey;
 const cps = (s: string): number => [...s].length;
+/** The first of `hints` (longest first) that fits `cols`, else the last. */
+const fitHint = (hints: readonly string[], cols: number): string => hints.find((h) => cps(h) <= cols) ?? hints.at(-1)!;
 const pad = (s: string, w: number): string => s + ' '.repeat(Math.max(0, w - cps(s)));
 
 /** Visual rows of `text` in a box `w` cells wide (char wrap). */
@@ -273,8 +267,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
   const manualCtl = useRef<ManualControl | null>(null);
   // The manual's last find query, kept while HELP is closed.
   const helpFind = useRef<FindQuery>(EMPTY_QUERY);
-  // Ctrl+F / Ctrl+H in LITE: the search to open once the buffer is mounted.
-  const pendingSearch = useRef<{ replace: boolean; at: number } | null>(null);
   const [zone, setZone] = useState<Zone>('kind');
   const [field, setField] = useState<Field>('pattern');
   const initial = useMemo(() => parseProfile(host.text), []);
@@ -475,7 +467,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       const d = pendingDoc(baseRef.current, doc);
       bufferInit.current = serialize(d);
       setDoc(d);
-      if (pendingSearch.current) pendingSearch.current.at = entryOffset(d, cur?.id);
     } else {
       setDoc(alignDoc(baseRef.current, parseProfile(bufferNow())));
       setCursorIds({});
@@ -523,12 +514,6 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       onFocus: () => setZone('buffer'),
     });
     viewRef.current = view;
-    const ps = pendingSearch.current;
-    if (ps) {
-      pendingSearch.current = null;
-      view.dispatch({ selection: { anchor: Math.min(ps.at, view.state.doc.length) }, scrollIntoView: true });
-      openSearch(view, ps.replace);
-    }
     return () => {
       bufferInit.current = bufferText(view);
       view.destroy();
@@ -891,15 +876,10 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       if (inManual && zone !== 'help' && zone !== 'menu') focusZone('help');
       return inManual;
     }
-    // Ctrl+F / Ctrl+H in LITE: to EDITOR, with the search panel open there.
+    // Ctrl+F / Ctrl+H in LITE: nothing, not the browser's find or history (ADR 0119).
     if (mode === 'lite' && !help && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
       const k = e.key.toLowerCase();
-      if (k === 'f' || k === 'h') {
-        pendingSearch.current = { replace: k === 'h', at: 0 };
-        flip('editor');
-        focusZone('buffer');
-        return true;
-      }
+      if (k === 'f' || k === 'h') return true;
     }
     // Find and replace in EDITOR: Ctrl+F, the panel's keys; ESC closes it first.
     const buf = mode === 'editor' && !help ? viewRef.current : null;
@@ -944,7 +924,9 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
       }
       case 'kind': {
         const k = KINDS.indexOf(kind);
-        if (nk === 'left' || nk === 'right') {
+        // n: a new entry of this kind, as in the list (Del stays the list's).
+        if (plain(e) && e.key === 'n') newEntry();
+        else if (nk === 'left' || nk === 'right') {
           const next = KINDS[Math.max(0, Math.min(KINDS.length - 1, k + (nk === 'left' ? -1 : 1)))]!;
           if (next !== kind) selectKind(next);
         } else if (nk === 'up') focusZone('toggle');
@@ -1198,10 +1180,8 @@ export function ProfileEditor({ host }: { host: EditorHost }): VNode {
     const text = flash
       ? flash.text
       : help
-        ? (helpHints.find((h) => cps(h) <= cols) ?? helpHints.at(-1)!)
-        : zone === 'list'
-          ? (LIST_HINTS.find((h) => cps(h) <= cols) ?? LIST_HINTS.at(-1)!)
-          : (LITE_HINTS.find((h) => cps(h) <= cols) ?? LITE_HINTS.at(-1)!);
+        ? fitHint(helpHints, cols)
+        : fitHint(zone === 'list' ? LIST_HINTS : zone === 'kind' ? KIND_HINTS : LITE_HINTS, cols);
     const t = ellipsis(text, cols);
     footer = (
       <div
