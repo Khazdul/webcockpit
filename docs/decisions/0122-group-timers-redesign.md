@@ -168,3 +168,36 @@ time). Timers never change colour.
   something counts (as before).
 - Scripts read the group from `state.group`; the new model fields are
   documented in the script manual.
+
+## Addendum (stage 39a, 2026-11-04)
+
+- **Settings version 4.** The timers change is not additive, so
+  `SETTINGS_VERSION` is 4, but the migration does not depend on it: a
+  stored swatch name is recognised by value (`migrateTimers`), so old VIEW
+  records in logs migrate the same way.
+- **Your room** for "away" comes from `Room.Info` `id`, applied by
+  `GroupModel` itself (`selfRoom`, `isAway`), so the model has no
+  dependency on the map.
+- **The opponent's band word** is the last `opponent-hits` seen (as
+  `Char.Vitals` keeps it), shown only while there is an opponent. It is not
+  cleared when the opponent changes: MUME sends the identity and the first
+  word together, and the replay folding (src/share/fold.ts) merges vitals
+  packets the same way.
+- **Sanctuary on others** (`src/timers/sanct.ts`): GameState passes the
+  members to `TimersHub.noteGroup` after every Group.* change; trackers
+  get an optional `onGroup`. The tracker keeps its own pending casts (the
+  sent command parsed with `parseCast`), not the shared CastQueue: no game
+  line confirms a sanctuary on another, the flag edge does, so it must not
+  pop the shared queue's front. A cast's target matches a member when it
+  (without a `2.` prefix) starts a word of the name or the label; `sa` is
+  the shortest spell abbreviation taken. A timed entry that reaches zero
+  while the flag is still on turns untimed instead of vanishing (the
+  estimate was short). A recast on someone already glowing does not
+  restart the countdown (no flag edge): an open point.
+- **Interim UIs.** Until 39b/39c, the cell-grid Timers pane draws every
+  group with bars, the old column caps and the time text setting as its
+  clock, and the gear and Options page offer the old seven swatches
+  (the group's old default swatch is stored as `auto`).
+- **Countdown over an hour** reads `1h52` (`countdownText`).
+- **Picker colours**: the twelve swatches of mockup 3c
+  (`PICKER_COLORS` in src/panes/palette.ts).

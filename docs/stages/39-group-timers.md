@@ -40,15 +40,15 @@ https://claude.ai/artifact/KQz9apKUpo9YMW5xhTscxf.
 
 ## Tasks
 
-- [ ] 39a: `GroupModel` keeps the GMCP member fields (position, ride,
+- [x] 39a: `GroupModel` keeps the GMCP member fields (position, ride,
       room, mapid, the status flags, type ally/neutral/enemy) and exposes
       the fight (opponent name and band word, the tank's member id) and
       "away" (mapid ≠ your room); `showPlayers` covers neutral and enemy;
       unit tests
-- [ ] 39a: Settings types, defaults and migration per ADR 0122; unit tests
-- [ ] 39a: `src/panes/icons.ts` (the 3c icon set) and a colour helper
+- [x] 39a: Settings types, defaults and migration per ADR 0122; unit tests
+- [x] 39a: `src/panes/icons.ts` (the 3c icon set) and a colour helper
       (Auto → dark/light default, custom as is)
-- [ ] 39a: Timers group `sanct`: own sanctuary moves there; others from
+- [x] 39a: Timers group `sanct`: own sanctuary moves there; others from
       GMCP flags, timed after your cast (cast queue + flag edge, 10 s);
       unit tests
 - [ ] 39b: Group pane DOM rendering: fight zone, member rows (two lines /
