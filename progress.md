@@ -41,6 +41,7 @@ Released 0.2.2 (stage 35: split scrollback on the computer, ADR 0117, approved b
 | 33 | Full-width Scripts and a new Export Editor | Owner testing | `docs/stages/33-export-editor.md` |
 | 34 | Menu surfaces | Done | `docs/stages/34-menu-surfaces.md` |
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
+| 36 | Tileset picker | In progress | `docs/stages/36-tileset-picker.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 

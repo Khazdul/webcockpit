@@ -1,0 +1,305 @@
+<title>Tileset Picker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the Settings popup at 1:1 on the client's black, the Shimrod
+ * variants zoomed beside it, notes under them. One dark look by choice:
+ * it is the client's own (surface tokens for a black terminal, ADR 0116). */
+:root {
+  color-scheme: dark;
+  --term: #000000;
+  --panel: #0a0a0a;
+  --field: #0f0f0f;
+  --raised: #2a2a2a;
+  --line: #1e1e1e;
+  --border: #2e2e2e;
+  --border-hot: #5a5a5a;
+  --hot: #ececec;
+  --fg: #c0c0c0;
+  --label: #9a9a9a;
+  --dim: #7a7a7a;
+  --faint: #585858;
+  --icon: #686868;
+  --focus: #5fafff;
+  --mono: "DejaVu Sans Mono", "JetBrains Mono", ui-monospace, monospace;
+}
+body {
+  background: var(--term);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 16px;
+}
+.page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.head h1 {
+  margin: 0 0 6px;
+  color: var(--hot);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.head p { margin: 0; color: var(--dim); max-width: 70ch; }
+.cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40px;
+  align-items: flex-start;
+  margin-top: 24px;
+}
+.cols > * { min-width: 0; }
+
+/* ------------------------------------------------------------ popup */
+.pop {
+  width: 452px;
+  max-width: 100%;
+  box-sizing: border-box;
+  background: var(--panel);
+  border: 1px solid #2a2a2a;
+  border-radius: 5px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.ph { display: flex; align-items: center; justify-content: space-between; height: 30px; padding: 0 6px 0 12px; }
+.pt { color: #8a8a8a; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+.x { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
+.x svg { width: 11px; height: 11px; stroke: var(--icon); stroke-width: 1.8; stroke-linecap: round; fill: none; }
+.tabs { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; }
+.tab { padding: 6px 8px 7px; color: #6a6a6a; border-bottom: 1px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tab.sel { color: var(--hot); border-bottom-color: #bcbcbc; }
+.body { box-sizing: border-box; height: 538px; padding: 8px 0 6px; } /* the popup body today: Appearance's height */
+.r { display: flex; align-items: center; justify-content: space-between; min-height: 32px; padding: 0 14px; gap: 12px; }
+.l { color: var(--label); }
+.help { color: var(--faint); font-size: 11px; line-height: 14px; text-align: right; }
+.ctl { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.tg { position: relative; width: 26px; height: 14px; box-sizing: border-box; border-radius: 7px; border: 1px solid #5a5a5a; background: #3a3a3a; }
+.tg i { position: absolute; top: 2px; left: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--hot); }
+.seg { display: flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+.sg { padding: 0 10px; height: 22px; line-height: 22px; color: var(--dim); border-left: 1px solid var(--border); }
+.sg:first-child { border-left: 0; }
+.sg.on { background: var(--raised); color: var(--hot); }
+.dd { display: flex; align-items: center; gap: 8px; height: 24px; min-width: 190px; box-sizing: border-box; padding: 0 8px; border: 1px solid var(--border); border-radius: 3px; background: var(--field); color: #d0d0d0; }
+.dd .v { flex: 1; }
+.dd svg { width: 10px; height: 10px; stroke: var(--icon); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.sw { width: 12px; height: 12px; border-radius: 2px; border: 1px solid rgba(255, 255, 255, 0.18); box-sizing: border-box; }
+.gb { height: 22px; line-height: 22px; padding: 0 9px; border-radius: 3px; border: 1px solid var(--border); color: #a8a8a8; white-space: nowrap; }
+.gb.off { color: #4a4a4a; }
+.mapfile { display: block; color: var(--faint); font-size: 11px; line-height: 14px; margin-top: 2px; }
+.r.top { align-items: flex-start; padding-top: 7px; padding-bottom: 7px; }
+
+/* ----------------------------------------------------- tileset grid */
+.tset-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 14px 6px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 0 14px 8px;
+}
+.tc {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 3px 3px 4px;
+  border: 1px solid #222;
+  border-radius: 4px;
+  background: var(--field);
+  cursor: pointer;
+}
+.tc:hover { border-color: var(--border-hot); }
+.tc:hover .nm { color: var(--hot); }
+.tc.on { border-color: #bcbcbc; background: #161616; }
+.tc:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+.nm { display: block; text-overflow: ellipsis; padding: 0 1px; color: var(--fg); font-size: 11px; line-height: 14px; white-space: nowrap; overflow: hidden; }
+.nm small { color: var(--faint); font-size: 10px; }
+.tc.on .nm { color: var(--hot); }
+.cb { position: absolute; z-index: 1; top: 3px; right: 3px; width: 11px; height: 11px; box-sizing: border-box; border: 1px solid #6a6a6a; border-radius: 2px; background: rgba(10, 10, 10, 0.78); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.tc.on .cb { border-color: var(--hot); background: var(--hot); }
+.tc.on .cb::after {
+  content: "";
+  position: absolute;
+  left: 3px; top: 0.5px;
+  width: 3px; height: 6px;
+  border: solid var(--panel);
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+
+/* A preview: one or more 6×6 layers of the scene stacked. */
+.pv { position: relative; width: 100%; aspect-ratio: 1; max-width: 100%; border-radius: 2px; overflow: hidden; background: #000; }
+.ly { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, 1fr); grid-template-rows: repeat(6, 1fr); }
+.ly > i { background-size: 100% 100%; image-rendering: auto; }
+.tc:not(.on):not(:hover) .pv { filter: brightness(0.92); }
+
+/* Shimrod alternating, A: quadrants, the year clockwise from the NW,
+ * the season now at full strength. */
+.va .ly:nth-of-type(1) { clip-path: polygon(0 0, 50% 0, 50% 50%, 0 50%); }
+.va .ly:nth-of-type(2) { clip-path: polygon(50% 0, 100% 0, 100% 50%, 50% 50%); }
+.va .ly:nth-of-type(3) { clip-path: polygon(50% 50%, 100% 50%, 100% 100%, 50% 100%); }
+.va .ly:nth-of-type(4) { clip-path: polygon(0 50%, 50% 50%, 50% 100%, 0 100%); }
+.va .ly:not(.now) { filter: saturate(0.6) brightness(0.72); }
+.va .seam { position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(var(--panel), var(--panel)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(var(--panel), var(--panel)) 0 50% / 100% 1px no-repeat; }
+
+/* ------------------------------------------------------- side column */
+.side { flex: 1 1 420px; display: flex; flex-direction: column; gap: 28px; }
+.side h2 { margin: 0 0 4px; color: var(--hot); font-size: 13px; font-weight: 700; }
+.side .sub { margin: 0 0 14px; color: var(--dim); }
+.zoom { display: flex; flex-wrap: wrap; gap: 16px; }
+.zc {
+  all: unset;
+  cursor: default !important;
+  box-sizing: border-box;
+  flex: 1 1 150px;
+  max-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid #222;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.zc:hover { border-color: var(--border-hot); }
+.zc.on { border-color: #bcbcbc; }
+.zc:focus-visible { outline: 1px solid var(--focus); outline-offset: 1px; }
+.zc .pv { border-radius: 3px; }
+.zc .dots { right: 6px; bottom: 6px; gap: 5px; padding: 3px 5px; }
+.zc .dots b { width: 6px; height: 6px; }
+.zl { color: var(--hot); }
+.zl small { color: var(--faint); font-size: 11px; }
+.notes { margin: 0; padding-left: 18px; color: var(--label); display: flex; flex-direction: column; gap: 8px; max-width: 68ch; }
+.notes b { color: var(--fg); font-weight: 400; }
+</style>
+
+<div class="page">
+  <header class="head">
+    <h1>Tileset picker</h1>
+    <p>Settings → Mapper with the Tileset dropdown replaced by checkable previews, five per row, last on the page, inside today's popup height. Every preview is the same 6×6 scene drawn with that set's real tiles. Click a card to choose it; arrow keys move between cards.</p>
+  </header>
+
+  <div class="cols">
+    <div class="pop" aria-label="Settings popup mockup">
+      <div class="ph"><span class="pt">Settings</span><span class="x"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"></path></svg></span></div>
+      <div class="tabs"><span class="tab">Appearance</span><span class="tab">Text input</span><span class="tab sel">Mapper</span><span class="tab">Weather effects</span></div>
+      <div class="body">
+        <div class="r"><span class="l">Show map pane</span><span class="ctl"><span class="tg"><i></i></span></span></div>
+        <div class="r"><span class="l">Room notes</span><span class="ctl"><span class="tg"><i></i></span></span></div>
+        <div class="r"><span class="l">Room info on hover</span><span class="ctl"><span class="seg"><span class="sg">Off</span><span class="sg">Minimal</span><span class="sg on">Full</span></span></span></div>
+        <div class="r"><span class="l">Hover text size</span><span class="ctl"><span class="seg"><span class="sg">Small</span><span class="sg on">Medium</span><span class="sg">Large</span></span></span></div>
+        <div class="r"><span class="l">Background colour</span><span class="ctl"><span class="dd"><span class="sw" id="bg-sw"></span><span class="v" id="bg-name"></span><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5l3 3 3-3"></path></svg></span></span></div>
+        <div class="r top"><span class="l">Map file<span class="mapfile">arda.mm2 (bundled)</span></span><span class="ctl"><span class="gb">Import map file…</span><span class="gb off">Use bundled map</span></span></div>
+        <div class="tset-head"><span class="l" id="tset-label">Tileset</span><span class="help" id="tset-help"></span></div>
+        <div class="grid" id="grid" role="radiogroup" aria-labelledby="tset-label"></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <section>
+        <h2>Shimrod (alternating), zoomed</h2>
+        <p class="sub">The year clockwise from spring in the NW. The season now (Autumn in this mockup) is lit, the others are dimmed.</p>
+        <div class="zoom" id="zoom"></div>
+      </section>
+      <section>
+        <h2>Notes</h2>
+        <ul class="notes">
+          <li><b>One choice at a time.</b> The check looks like a checkbox but works as a radio: checking a card unchecks the others.</li>
+          <li><b>Credit and season</b> sit right of the Tileset label, as the dropdown's help line does today.</li>
+          <li><b>Light sets</b> (Gefe &amp; Rik, Gray's Map) still switch the background to White, and leaving them restores the colour you had.</li>
+          <li><b>Order.</b> Background colour and Map file come before the tilesets, so the grid ends the page.</li>
+          <li><b>Same height as today.</b> Appearance is the tallest tab (532 px of content), so the popup is 599 px tall. Mapper is 293 px today. Five per row at 12 px tiles (72 px previews) makes it about 495 px, so the popup does not grow and no tab gets more room. The panel above is drawn at today's body height.</li>
+          <li><b>Rows.</b> Shimrod and its four seasons fill the first row; Default, Desert, Gefe &amp; Rik and Gray's Map the second.</li>
+          <li><b>The check</b> moves to the preview's corner so the name gets the card's full width. The alternating card is just "Shimrod": its four corners and the "now Autumn" line say the rest.</li>
+          <li><b>Map pane gear popup</b> (403 px wide) keeps five columns; the tiles shrink to about 10 px.</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+const SCENE = /*SCENE*/;
+const TILES = /*TILES*/;
+const NOW = 'autumn';
+const SEASONS = ['spring', 'summer', 'autumn', 'winter'];
+const CHOICES = [
+  { id: 'shimrod', name: 'Shimrod', tag: 'auto', family: true, credit: 'Tiles by Shimrod (v0.92)' },
+  { id: 'spring', name: 'Spring', set: 'spring', credit: 'Tiles by Shimrod (v0.92)' },
+  { id: 'summer', name: 'Summer', set: 'summer', credit: 'Tiles by Shimrod (v0.92)' },
+  { id: 'autumn', name: 'Autumn', set: 'autumn', credit: 'Tiles by Shimrod (v0.92)' },
+  { id: 'winter', name: 'Winter', set: 'winter', credit: 'Tiles by Shimrod (v0.92)' },
+  { id: 'default', name: 'Default', set: 'default', credit: "MMapper's default tiles" },
+  { id: 'desert', name: 'Desert', set: 'desert', credit: "By Khazdul, from Shimrod's tiles" },
+  { id: 'gefe', name: 'Gefe & Rik', set: 'gefe', credit: "Tiles by Octavia, after Gefe & Rik's maps", light: true },
+  { id: 'grays', name: "Gray's Map", set: 'grays', credit: "Tiles by Sunnyl75, after Gray's Mapeditor", light: true },
+];
+
+// One CSS rule per tile, so each image is embedded once.
+const css = [];
+for (const [set, keys] of Object.entries(TILES)) {
+  for (const [k, uri] of Object.entries(keys)) css.push(`.s-${set} .k-${k}{background-image:url(${uri})}`);
+}
+const style = document.createElement('style');
+style.textContent = css.join('\n');
+document.head.append(style);
+
+const cells = SCENE.flat().map((k) => `<i class="k-${k}"></i>`).join('');
+const layer = (set, now) => `<span class="ly s-${set}${now ? ' now' : ''}">${cells}</span>`;
+
+function preview(c, variant) {
+  if (!c.family) return `<span class="pv">${layer(c.set)}</span>`;
+  const layers = SEASONS.map((s) => layer(s, s === NOW)).join('');
+  return `<span class="pv va">${layers}<span class="seam"></span></span>`;
+}
+
+let chosen = 'shimrod';
+let variant = 'a';
+const grid = document.getElementById('grid');
+const zoom = document.getElementById('zoom');
+
+function renderGrid() {
+  grid.innerHTML = CHOICES.map((c) => {
+    const on = c.id === chosen;
+    return `<button type="button" class="tc${on ? ' on' : ''}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-id="${c.id}">` +
+      preview(c, variant).replace('<span class="pv', '<span class="pv').replace(/^<span class="pv([^"]*)">/, '<span class="pv$1"><i class="cb"></i>') +
+      `<span class="nm">${c.name}</span></button>`;
+  }).join('');
+  const c = CHOICES.find((x) => x.id === chosen);
+  const season = NOW[0].toUpperCase() + NOW.slice(1);
+  document.getElementById('tset-help').textContent = c.family ? `${c.credit} · now ${season}` : c.credit;
+  document.getElementById('bg-sw').style.background = c.light ? '#ffffff' : '#000000';
+  document.getElementById('bg-name').textContent = c.light ? 'White' : 'Black';
+}
+
+function renderZoom() {
+  zoom.innerHTML = `<div class="zc on">${preview(CHOICES[0], 'a')}<span class="zl">Shimrod</span></div>`;
+}
+
+grid.addEventListener('click', (e) => {
+  const b = e.target.closest('.tc');
+  if (!b) return;
+  chosen = b.dataset.id;
+  renderGrid();
+  grid.querySelector('.tc.on').focus();
+});
+grid.addEventListener('keydown', (e) => {
+  const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 5, ArrowUp: -5 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  const i = CHOICES.findIndex((c) => c.id === chosen);
+  const n = i + step;
+  if (n < 0 || n >= CHOICES.length) return;
+  chosen = CHOICES[n].id;
+  renderGrid();
+  grid.querySelector('.tc.on').focus();
+});
+
+renderGrid();
+renderZoom();
+</script>
