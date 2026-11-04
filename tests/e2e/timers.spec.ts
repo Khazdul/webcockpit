@@ -159,7 +159,7 @@ test('the Timers gear: circles, grid, headers off, time text off, a custom colou
   await pop.locator('[aria-label="Style"] [data-value="circles"]').click();
   await expect(pane(page).locator('.wc-tm-rc')).toHaveCount(7);
   await expect(pane(page).locator('.wc-tm-chip')).toHaveCount(0);
-  await expect(item(page, 's2').locator('.wc-tm-ra')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
   // Grid: the blinds in columns; flow wraps by width.
   const blinds = group(page, 'blind').locator('.wc-tm-items');
   await expect(blinds).toHaveClass(/is-flow/);
@@ -178,14 +178,14 @@ test('the Timers gear: circles, grid, headers off, time text off, a custom colou
   // A custom colour for Spells from the picker; Auto brings the default back.
   await pop.locator('.wc-cp-btn[aria-label^="Spells colour"]').click();
   await page.locator('.wc-cp-sw[aria-label="Amber"]').click();
-  await expect(item(page, 's2').locator('.wc-tm-ra')).toHaveCSS('stroke', 'rgb(217, 165, 63)');
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(217, 165, 63)');
   const s = await timersSettings(page);
   expect(s).toMatchObject({ style: 'circles', layout: 'grid', headers: false, timeText: false });
   expect(s.groups.spell.color).toBe('#d9a53f');
   expect(s.groups.blind.layout).toBe('flow');
   await pop.locator('.wc-cp-btn[aria-label^="Spells colour"]').click();
   await page.locator('.wc-cp-auto').click();
-  await expect(item(page, 's2').locator('.wc-tm-ra')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
+  await expect(item(page, 's2').locator('.wc-ring-arc')).toHaveCSS('stroke', 'rgb(102, 178, 255)');
   await page.evaluate(() => window.__wc!.settings.reset());
 });
 

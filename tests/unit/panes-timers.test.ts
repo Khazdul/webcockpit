@@ -15,7 +15,8 @@ import {
   timersTimed,
   type TimersModelInput,
 } from '../../src/panes/timers-model';
-import { ringDash, timersIndicator } from '../../src/panes/timers';
+import { ringDash } from '../../src/panes/icons';
+import { timersIndicator } from '../../src/panes/timers';
 import { DARK_COLORS, LIGHT_COLORS } from '../../src/panes/palette';
 import { type TimersSettings, defaultTimersSettings } from '../../src/settings/types';
 import { type TimerCell, type TimerGroup, emptyView } from '../../src/timers/entry';

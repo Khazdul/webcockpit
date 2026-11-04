@@ -14,11 +14,15 @@
 //   (Huge stone troll        21m  ×)           <- × forgets the charmie
 //   ↓ 3 more timers                            <- indicator row on overflow
 //
-// - DOM, not cell rows: the pane's own font, sizes in em of it (panes.css,
+// - DOM, not cell rows: the pane's own font, sizes in em of it (timers.css,
 //   `.wc-tm`). The model (timers-model.ts) decides what is drawn; this file
 //   keeps one element per group and per item, keyed by id, and changes only
 //   what changed, so the 1 Hz tick touches only the times and fills (and
 //   a pulse keeps running).
+// - Layout reads: the character width and the list's width are measured
+//   only when the pane's size or the font changes; the indicator row
+//   reads the scroll position only when the items or their texts changed,
+//   and on a scroll (once a frame).
 // - Colours: each group's setting on the pane's side (Auto → the dark or
 //   light default, palette.ts); text and lines from the pane shade ramp;
 //   the ending-soon time in the side's signal red.
@@ -39,77 +43,24 @@
 // - Redraw at 1 Hz on wall-clock seconds while something counts; blank
 //   while inactive; a disconnect resets the view.
 
+import './timers.css';
 import type { TimersSettings } from '../settings/types';
+import type { HerbEntry } from '../timers/entry';
 import { forwardWheel } from './anchored-list';
 import type { PaneContext } from './context';
-import { ICONS, ICON_VIEWBOX, type IconName } from './icons';
+import { SecondTick, setAttr, setClass, setHidden, setProp, setText } from './dom';
+import { iconSvg, ringDash, ringSvg, setIconSvg } from './icons';
 import { signalColors } from './palette';
 import { PaneShell } from './pane';
-import { installPaneTooltip, type PaneTooltip } from './pane-tooltip';
+import { installPaneTooltip, type PaneTooltip, setTip } from './pane-tooltip';
 import { paneShade } from './shade';
 import { type TimerGroupView, type TimerItem, timersModel, timersTimed } from './timers-model';
-
-export { blindShort, stripArticle, timersModel } from './timers-model';
-
-/** The indicator's gold. */
-export const CORNER_FG = '#d4a04e';
-/** ms after a wall-clock second boundary at which the 1 Hz redraw runs. */
-const TICK_LAG_MS = 5;
-/** A ring's circumference (r = 10 in a 24-unit box). */
-const RING_C = 2 * Math.PI * 10;
-const SVG_NS = 'http://www.w3.org/2000/svg';
-
-/** The ring's dash for a fill of `pct`. */
-export function ringDash(pct: number): string {
-  const p = Math.max(0, Math.min(1, Number.isFinite(pct) ? pct : 0));
-  return `${(p * RING_C).toFixed(2)} ${RING_C.toFixed(2)}`;
-}
 
 /** The indicator text for `below` items under the view and `above` over it, or null. */
 export function timersIndicator(above: number, below: number): { text: string; up: boolean } | null {
   if (above > 0) return { text: `↑ ${above} ${above === 1 ? 'timer' : 'timers'} above`, up: true };
   if (below > 0) return { text: `↓ ${below} more ${below === 1 ? 'timer' : 'timers'}`, up: false };
   return null;
-}
-
-// ------------------------------------------------------- DOM helpers
-
-const setText = (el: Element, t: string): void => {
-  if (el.textContent !== t) el.textContent = t;
-};
-const setClass = (el: Element, c: string): void => {
-  if (el.getAttribute('class') !== c) el.setAttribute('class', c);
-};
-const setAttr = (el: Element, k: string, v: string | null): void => {
-  if (v === null) {
-    if (el.hasAttribute(k)) el.removeAttribute(k);
-  } else if (el.getAttribute(k) !== v) el.setAttribute(k, v);
-};
-const setProp = (el: HTMLElement | SVGElement, k: string, v: string): void => {
-  if (el.style.getPropertyValue(k) !== v) el.style.setProperty(k, v);
-};
-const setHidden = (el: HTMLElement, h: boolean): void => {
-  if (el.hidden !== h) el.hidden = h;
-};
-
-function svgIcon(doc: Document, cls: string, name: IconName): SVGSVGElement {
-  const svg = doc.createElementNS(SVG_NS, 'svg');
-  svg.setAttribute('class', cls);
-  svg.setAttribute('viewBox', ICON_VIEWBOX);
-  svg.setAttribute('aria-hidden', 'true');
-  const p = doc.createElementNS(SVG_NS, 'path');
-  p.setAttribute('d', ICONS[name]);
-  svg.append(p);
-  return svg;
-}
-
-const setIcon = (svg: SVGSVGElement, name: IconName): void => setAttr(svg.firstElementChild!, 'd', ICONS[name]);
-
-/** Sets the tooltip data only when it changed (a tick must not touch the DOM). */
-function setTipIf(el: HTMLElement, text: string, title: string, key: string): void {
-  if (el.dataset.tip !== text) el.dataset.tip = text;
-  if (el.dataset.tipTitle !== title) el.dataset.tipTitle = title;
-  if (el.dataset.tipKey !== key) el.dataset.tipKey = key;
 }
 
 /** One timer's element (a pill or a ring row), kept across renders. */
@@ -136,29 +87,14 @@ class ItemEl {
       this.fill = doc.createElement('span');
       this.fill.className = 'wc-tm-fill';
       clip.append(this.fill);
-      this.icon = svgIcon(doc, 'wc-tm-ic', 'spell');
+      this.icon = iconSvg(doc, 'spell', 'wc-tm-ic');
       this.el.append(clip, this.icon);
     } else {
       const rw = doc.createElement('span');
       rw.className = 'wc-tm-rw';
-      const svg = doc.createElementNS(SVG_NS, 'svg');
-      svg.setAttribute('class', 'wc-tm-ring');
-      svg.setAttribute('viewBox', ICON_VIEWBOX);
-      svg.setAttribute('aria-hidden', 'true');
-      const track = doc.createElementNS(SVG_NS, 'circle');
-      const arc = doc.createElementNS(SVG_NS, 'circle');
-      for (const [c, cls] of [
-        [track, 'wc-tm-rb'],
-        [arc, 'wc-tm-ra'],
-      ] as const) {
-        c.setAttribute('class', cls);
-        c.setAttribute('cx', '12');
-        c.setAttribute('cy', '12');
-        c.setAttribute('r', '10');
-        svg.append(c);
-      }
+      const { svg, arc } = ringSvg(doc, 'wc-tm-ring');
       this.ring = arc;
-      this.icon = svgIcon(doc, 'wc-tm-ii', 'spell');
+      this.icon = iconSvg(doc, 'spell', 'wc-tm-ii');
       rw.append(svg, this.icon);
       this.el.append(rw);
     }
@@ -175,7 +111,7 @@ class ItemEl {
       this.xEl.dataset.act = remove === 'herb' ? 'herbx' : 'charm';
       this.xEl.dataset.id = id;
       this.xEl.setAttribute('aria-label', remove === 'herb' ? 'Stop this herblore' : 'Forget this charmie');
-      this.xEl.append(svgIcon(doc, '', 'close'));
+      this.xEl.append(iconSvg(doc, 'close', ''));
       this.el.append(this.xEl);
     }
   }
@@ -184,19 +120,20 @@ class ItemEl {
     const base = this.style === 'bars' ? 'wc-tm-chip' : 'wc-tm-rc';
     setClass(this.el, `${base} is-${t.kind}${t.ending ? ` is-${t.ending}` : ''}${this.remove === 'herb' ? ' has-herbx' : ''}`);
     if (this.xEl && t.herbKey) setAttr(this.xEl, 'data-key', t.herbKey);
-    setIcon(this.icon, t.icon);
+    setIconSvg(this.icon, t.icon);
     if (this.fill) {
       setProp(this.icon, 'display', t.chipIcon ? '' : 'none');
       setProp(this.fill, 'width', `${(t.pct * 100).toFixed(1)}%`);
     }
     if (this.ring) {
-      setAttr(this.ring, 'class', t.kind === 'untimed' ? 'wc-tm-ra is-unk' : 'wc-tm-ra');
-      setProp(this.ring, 'stroke-dasharray', ringDash(t.kind === 'untimed' || t.kind === 'still' ? 1 : t.kind === 'charm' ? 1 : t.pct));
+      setAttr(this.ring, 'class', t.kind === 'untimed' ? 'wc-ring-arc is-unknown' : 'wc-ring-arc');
+      // Only a countdown drains; still, untimed (dashed) and charm rings are full.
+      setAttr(this.ring, 'stroke-dasharray', ringDash(t.kind === 'timed' ? t.pct : 1));
     }
     setText(this.nameEl, t.name);
     setText(this.timeEl, t.time ?? '');
     setHidden(this.timeEl, t.time === null);
-    setTipIf(this.el, t.tip, t.full, `tm:${t.id}`);
+    setTip(this.el, t.tip, t.full, `tm:${t.id}`);
   }
 }
 
@@ -218,7 +155,7 @@ class GroupEl {
     this.el.dataset.group = group;
     this.head = doc.createElement('div');
     this.head.className = 'wc-tm-h';
-    this.headIcon = svgIcon(doc, 'wc-tm-hi', 'spell');
+    this.headIcon = iconSvg(doc, 'spell', 'wc-tm-hi');
     const label = doc.createElement('span');
     label.className = 'wc-tm-hl';
     const line = doc.createElement('span');
@@ -256,7 +193,7 @@ class GroupEl {
     setClass(this.el, `wc-tm-g${first ? ' is-first' : ''}`);
     setProp(this.el, '--c', g.color);
     setHidden(this.head, !s.headers && !g.pinnedHeader);
-    setIcon(this.headIcon, g.icon);
+    setIconSvg(this.headIcon, g.icon);
     setText(this.head.children[1]!, g.label);
     if (this.addEl) {
       setHidden(this.addEl, !g.addHerb || readOnly);
@@ -289,9 +226,6 @@ class GroupEl {
 }
 
 // ------------------------------------------------------------ herb menu
-
-/** The herblore catalogue as the menu lists it. */
-export type HerbEntry = { key: string; name: string; active: boolean };
 
 /**
  * The Herblore `+` menu: a small card under the `+`, in the menu surface
@@ -426,7 +360,7 @@ export class HerbMenu {
 // ------------------------------------------------------------------ pane
 
 export class TimersPane extends PaneShell {
-  private tickTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly tick: SecondTick;
   private readonly root: HTMLDivElement;
   /** The native scroller, above the indicator row. */
   private readonly scroller: HTMLDivElement;
@@ -439,10 +373,17 @@ export class TimersPane extends PaneShell {
   private readonly menu: HerbMenu;
   /** Scroll to the top at the next render (a reset). */
   private toTop = false;
+  /** The measured character and list widths, and what they were measured for. */
+  private metrics = { key: '', charW: 0, inner: 0 };
+  /** What the items were at the last indicator update (ids and texts). */
+  private moreKey = '';
+  /** A scroll's indicator update, once a frame. */
+  private scrollFrame: number | null = null;
 
   constructor(ctx: PaneContext) {
     super(ctx, 'timers');
     const doc = ctx.doc;
+    this.tick = new SecondTick(doc, () => this.markDirty());
     this.tip = installPaneTooltip(doc);
     this.own(this.tip.attach(this.content));
     this.root = doc.createElement('div');
@@ -480,7 +421,8 @@ export class TimersPane extends PaneShell {
     this.own(() => {
       this.root.removeEventListener('mousedown', this.onDown);
       this.scroller.removeEventListener('scroll', this.onScroll);
-      this.clearTick();
+      this.tick.stop();
+      if (this.scrollFrame !== null) doc.defaultView?.cancelAnimationFrame(this.scrollFrame);
       this.menu.dispose();
     });
   }
@@ -504,7 +446,7 @@ export class TimersPane extends PaneShell {
     if (active) return;
     this.menu.hide();
     this.toTop = true;
-    this.clearTick();
+    this.tick.stop();
   }
 
   protected override blank(): void {
@@ -512,6 +454,7 @@ export class TimersPane extends PaneShell {
     this.content.replaceChildren();
     this.listEl.replaceChildren();
     this.groups.clear();
+    this.moreKey = '';
   }
 
   protected override render(): void {
@@ -532,11 +475,11 @@ export class TimersPane extends PaneShell {
     setProp(this.root, '--tm-line', shade.ramp.track);
     setProp(this.root, '--tm-ending', signalColors(shade.light).ending);
 
-    // The room for names: the list's measured width and character width
-    // (estimated from the cell metrics where nothing is laid out).
+    // The room for names: the list's width and the character width,
+    // measured only when the size or the font changed (estimated from the
+    // cell metrics where nothing is laid out).
     const cellW = cells.w || 8;
-    const charW = this.probe.getBoundingClientRect().width / 10 || cellW * 0.85;
-    const inner = this.listEl.clientWidth;
+    const { charW, inner } = this.measure(`${this.cols}x${this.rows}|${cells.w}x${cells.h}|${s.appearance.font}|${s.appearance.size}`, cellW);
     const pad = cellW * 0.6;
     const groups = timersModel({
       view,
@@ -552,13 +495,33 @@ export class TimersPane extends PaneShell {
     const herbGroup = this.groups.get('herb');
     if (this.menu.open && (ro || !herbGroup?.addButton || herbGroup.addButton.hidden)) this.menu.hide();
     else this.menu.update(view.herbs);
+    let moreKey = `${this.cols}x${this.rows}|${s.timers.style}|${s.timers.headers}`;
+    for (const g of groups) moreKey += `|${g.group}:${g.layout}:${g.cols}:${g.items.map((t) => `${t.id}:${t.name}:${t.time ?? ''}`).join(',')}`;
     if (this.toTop) {
       this.toTop = false;
       this.scroller.scrollTop = 0;
+      this.moreKey = '';
     }
-    this.updateMore();
+    // The indicator reads the layout: only when what is listed (or a text's
+    // width) changed, not on every tick.
+    if (moreKey !== this.moreKey) {
+      this.moreKey = moreKey;
+      this.updateMore();
+    }
     this.tip.refresh();
-    this.armTick(timed, now);
+    if (timed) this.tick.arm(now);
+    else this.tick.stop();
+  }
+
+  /** The character and list widths for `key` (size and font), measured on a change. */
+  private measure(key: string, cellW: number): { charW: number; inner: number } {
+    const m = this.metrics;
+    if (m.key !== key || m.inner <= 0) {
+      m.key = key;
+      m.charW = this.probe.getBoundingClientRect().width / 10 || cellW * 0.85;
+      m.inner = this.listEl.clientWidth;
+    }
+    return m;
   }
 
   private renderGroups(groups: TimerGroupView[], s: TimersSettings, ro: boolean): void {
@@ -603,26 +566,16 @@ export class TimersPane extends PaneShell {
     setAttr(this.moreEl, 'data-up', ind?.up ? '' : null);
   }
 
-  private readonly onScroll = (): void => this.updateMore();
-
-  /** The next redraw just after the coming wall-clock second, while anything counts. */
-  private armTick(timed: boolean, now: number): void {
-    if (!timed) return this.clearTick();
-    if (this.tickTimer !== null) return;
+  /** A scroll updates the indicator once a frame. */
+  private readonly onScroll = (): void => {
     const win = this.ctx.doc.defaultView;
-    const set = win ? win.setTimeout.bind(win) : setTimeout;
-    this.tickTimer = set(() => {
-      this.tickTimer = null;
-      this.markDirty();
-    }, 1000 - (now % 1000) + TICK_LAG_MS);
-  }
-
-  private clearTick(): void {
-    if (this.tickTimer === null) return;
-    const win = this.ctx.doc.defaultView;
-    (win ? win.clearTimeout.bind(win) : clearTimeout)(this.tickTimer);
-    this.tickTimer = null;
-  }
+    if (!win) return this.updateMore();
+    if (this.scrollFrame !== null) return;
+    this.scrollFrame = win.requestAnimationFrame(() => {
+      this.scrollFrame = null;
+      this.updateMore();
+    });
+  };
 
   private readonly onDown = (e: MouseEvent): void => {
     if (e.button !== 0 || !this.active) return;
