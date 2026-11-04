@@ -23,20 +23,44 @@ https://claude.ai/artifact/DivXdmw8KYn9xkgtPh71yW).
 
 ## Tasks
 
-- [ ] `scripts/build-tileset-previews.py`: 6×6 scene per concrete set,
+- [x] `scripts/build-tileset-previews.py`: 6×6 scene per concrete set,
       default fallback per file and aliases as in `src/map/tilesets.ts`,
       144 × 144 PNGs in `public/map/tilesets/previews/`, committed
-- [ ] Unit test: a preview for the default and every `TILESETS` entry
-- [ ] Mapper component: new order, Tileset grid (5 × 2) with credit line,
+- [x] Unit test: a preview for the default and every `TILESETS` entry
+- [x] Mapper component: new order, Tileset grid (5 × 2) with credit line,
       radio group semantics and keys, `chooseTileset` on choose
-- [ ] Shimrod card: four season quadrants, the season now full, others
+- [x] Shimrod card: four season quadrants, the season now full, others
       dimmed
-- [ ] CSS in surface tokens; check on Black and Paper
-- [ ] Height: Mapper page ≤ Appearance page (e2e)
-- [ ] Update e2e (`map-tilesets.spec.ts` dropdown helpers) and unit tests
+- [x] CSS in surface tokens; check on Black and Paper
+- [x] Height: Mapper page ≤ Appearance page (e2e)
+- [x] Update e2e (`map-tilesets.spec.ts` dropdown helpers) and unit tests
       (`chrome-mapper`, `chrome-popups`)
-- [ ] Screenshots of Settings → Mapper and the gear popup, reviewed
-- [ ] ADR 0107 note that the Tileset dropdown became the picker
+- [x] Screenshots of Settings → Mapper and the gear popup, reviewed
+- [x] ADR 0107 note that the Tileset dropdown became the picker
+
+## Build notes
+
+- **The control:** `CardGrid` in the control kit (`controls.tsx`, with
+  `gridStep`): ←→ move along (into the next or previous row), ↑↓ a column
+  up or down, Home/End; it stops at the ends (no wrap). The cards and
+  their short names are `TILESET_CARDS` in `src/map/tilesets.ts`; the full
+  name ("Shimrod Spring", "Default (MMapper)") is each card's accessible
+  name and tooltip.
+- **Previews** are 8 PNGs, 4–19 KB each (about 120 KB in all, the
+  photographic Shimrod sets the largest). The Settings popup renders every
+  page, so it loads them when it opens. The e2e tile tracker ignores
+  `tilesets/previews/`, and the catalogue test skips that folder.
+- **Names in the gear popup:** at five columns the cards are narrower, and
+  Chromium on Linux rounds DejaVu's advances up to whole pixels, which cut
+  "Gefe & Rik" and "Gray's Map". The name's size is
+  `min(0.846em, 15cqi)` (container units on the card) with unhinted
+  advances (`text-rendering: geometricPrecision`); an e2e checks every name
+  is whole in both popups.
+- **Focus ring** is offset 1 px outside the card so it shows on the chosen
+  card's `--sf-hot` border.
+- **Measured** (default font, 13 px popup font, Chromium/Firefox): page
+  content incl. padding Appearance 537.6 px, Mapper 483.9 px, Weather
+  453/440, Text input 141; popup 599 px, unchanged.
 
 ## Test guide
 
