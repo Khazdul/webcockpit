@@ -97,6 +97,9 @@ test('the selected script is a tab that joins the framed detail', async ({ page 
   await expect(f.locator('.wc-scr-frame')).toContainText('─ Settings');
   await expect(f.locator('.wc-scr-frame')).toContainText('─ Commands');
   await expect(f.locator('.wc-scr-frame')).toContainText('▾ Help');
+  // The top border is as wide as the bottom one: its ┐ sits on the right edge.
+  const cells = (l: Locator) => l.evaluate((e) => [...(e.textContent ?? '')].length);
+  expect(await cells(f.locator('.wc-scr-top'))).toBe(await cells(f.locator('.wc-scr-frame > .wc-line').last()));
   // Down: the tab moves; the edge is open at the new row and turns away either side.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
@@ -291,6 +294,8 @@ test('a narrow Scripts window: buttons on their own row, labels under the contro
   // The buttons do not fit the border: a row of their own.
   await expect(f.locator('.wc-scr-top [data-btn]')).toHaveCount(0);
   await expect(f.locator('.wc-scr-drow .wc-scr-dbuttons [data-btn]')).toHaveText([/EDIT/, /EXPORT/, /RENAME/, /DELETE/]);
+  const cells = (l: Locator) => l.evaluate((e) => [...(e.textContent ?? '')].length);
+  expect(await cells(f.locator('.wc-scr-top'))).toBe(await cells(f.locator('.wc-scr-frame > .wc-line').last()));
   // A label on the row under its control.
   const cost = setting(f, 'cost');
   await expect(cost).not.toContainText('Per payment');

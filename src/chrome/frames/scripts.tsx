@@ -833,7 +833,7 @@ function ScriptsPage({ lib }: { lib: ScriptLibrary }): VNode {
       const empty = vi === 0 && ready && list.length === 0;
       return (
         <div class="wc-line" key={vi}>
-          <span class="wc-c-hint wc-scr-error" style={cellsWide(L.listW)}>
+          <span class="wc-c-hint wc-scr-blank" style={cellsWide(L.listW)}>
             {empty ? truncate('No scripts yet: NEW writes one.', L.listW) : ''}
           </span>
           {tail(vi, false)}

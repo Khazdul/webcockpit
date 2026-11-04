@@ -150,7 +150,8 @@ test('script manual: the text and menu scrollbars drag their thumbs; the track p
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] [data-btn="EDIT"]').click();
+  await startFrame(page).locator('.wc-scr-row[data-script="dragtest"] .wc-scr-name').click();
+  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   await expect(editor.locator('.cm-content')).toBeFocused();
   // The script editor's own buffer bar needs a long script; the manual first.
@@ -180,7 +181,8 @@ test('script editor: the buffer scrollbar drags its thumb', async ({ page }) => 
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.wc-start .wc-mrow.is-sel')).toHaveText('<< Scripts >>');
   await page.keyboard.press('Enter');
-  await startFrame(page).locator('.wc-scr-row[data-script="longscript"] [data-btn="EDIT"]').click();
+  await startFrame(page).locator('.wc-scr-row[data-script="longscript"] .wc-scr-name').click();
+  await startFrame(page).locator('.wc-scr-frame [data-btn="EDIT"]').click();
   const editor = page.locator('.wc-frame:not([hidden]) > .wc-sed');
   const content = editor.locator('.cm-content');
   await expect(content).toBeFocused();
@@ -207,8 +209,8 @@ test('the Scripts window: the help scrollbar drags; the game input keeps away', 
   const win = page.locator('.wc-win[data-win="scripts"] .wc-frame:not([hidden])');
   await win.locator('.wc-scr-row[data-script="aaahelp"] .wc-scr-name').first().click();
   await expect(win.locator('.wc-scr-help')).toContainText('Help line 0');
-  const bar = win.locator('.wc-scr-help .wc-tui-bar');
-  const scroller = win.locator('.wc-scr-help-rows');
+  const bar = win.locator('.wc-scr-helpbox .wc-tui-bar');
+  const scroller = win.locator('.wc-scr-help');
   await dragThumb(page, bar, scroller);
   await expectTrackPagesUp(bar, scroller);
   // The mouseup stayed in the window: the game input did not take the focus.

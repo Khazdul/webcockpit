@@ -59,7 +59,8 @@
   width: var(--cell-w);
 }
 
-.wc-scr-error {
+.wc-scr-error,
+.wc-scr-blank {
   display: inline-block;
   height: var(--cell-h);
   overflow: hidden;
