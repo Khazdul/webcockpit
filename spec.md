@@ -721,6 +721,7 @@ what feedback is wanted.
 | 24 | **Loading indicators.** A TUI loading bar and fade-in for the start page (no piecemeal font reveal), and a progress bar over the map pane while map data and tiles load. | Load the page and turn the map on over a slow connection (phone). |
 | 30 | **Fixed menu.** A menu bar right of the input field (clock, Profile, Scripts, Panes, Settings, Fullscreen, Exit) in the ghost-icon look. Movable Profile and Scripts windows, a live Settings popup, gears on the panes, a Statistics pane, Spotlights settings in the reel; the ESC menu removed on desktop last (`docs/stages/30-fixed-menu.md`, steps 30a–f). | Change settings while you play. |
 | 31 | **Menu bar clock and weather smoothness.** Mockups for a clock that blends into the menu bar (small tweaks and drastic variants), then the chosen one built; a review of why snow (and other weather) feels jerky, and the fix (`docs/stages/31-clock-and-snow.md`, steps 31a–b). | Pick a clock; watch snow fall smoothly. |
+| 38 | **Scripts page.** Mockups in four directions, then the chosen one (A, pure TUI) built: the selected script joins a framed detail, settings edited in place and saved at once, typeset help in its own scrolling box, `@setting` ranges, units and choices (`docs/stages/38-scripts-page.md`, ADR 0121). | Change a script's settings in the small Scripts window; read a long help. |
 
 ## 6. Open questions for the owner
 

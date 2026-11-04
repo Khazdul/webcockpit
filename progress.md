@@ -43,6 +43,7 @@ Released 0.2.4 (stage 37: `n` on the profile editor's kind row, no Ctrl+F / Ctrl
 | 35 | Split scrollback | Done | `docs/stages/35-split-scrollback.md` |
 | 36 | Tileset picker | Done | `docs/stages/36-tileset-picker.md` |
 | 37 | Profile editor LITE keys | Done | `docs/stages/37-profile-lite-keys.md` |
+| 38 | Scripts page | In progress | `docs/stages/38-scripts-page.md` |
 
 Statuses: Next, In progress, Owner testing, Done.
 
