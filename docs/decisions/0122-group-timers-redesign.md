@@ -269,3 +269,40 @@ time). Timers never change colour.
 - **TUI page**: one row per setting, and two per group: `[X] Spells
   colour: Auto` (Enter shows or hides it, ←→ step the colour like the
   Group page) and `Spells layout: Default`.
+
+## Addendum (owner round 1, 2026-11-04)
+
+After the owner's first test of the build:
+
+- **Herblore group.** Herblores leave Buffs and Debuffs for a timer group
+  of their own, `herb` ("Herblore", between Debuffs and Stored), with the
+  leaf icon and its own Auto colour, a herb green unlike Buffs (`#a6c95a`
+  dark, `#5c7a12` light). A cell keeps its phase's kind (`phase: buff |
+  debuff`; a debuff phase such as `Haste (recovery)` shows the down arrow)
+  and its catalogue key (`herbKey`). The group is on by default (its
+  `enabled` in the group table; old settings get it on). While on it is
+  always shown, also empty, and its header shows even with Group headers
+  off: the `+` beside its name opens a small menu of the herblore
+  catalogue (fixed, in the menu surface colours; a running herb is checked
+  and cannot be picked again); a pick starts it and closes the menu, as do
+  Esc and a press outside. A running herb shows an × on hover, in place of
+  its time, that stops it. In a log player there is no `+` and no ×. The
+  gold corner `+` and the add-view are gone (a pane hover button was tried
+  first and dropped before it was built).
+- **Group headers** show the icon, the name and the rule; no count.
+- **The opponent's icon** is three claw slashes (`foe`), a generic foe for
+  orcs, wolves and bats alike, unlike the fighting position's crossed
+  swords. The axe is gone.
+- **No divider** between the fight card and the members: the card has
+  half a row of margin (it still counts as four rows); the one-line strip
+  has no rule, a faint tint instead.
+- **You tank**: MUME's buffer `Nobody` is no tank (the model's `fight()`
+  gives `tank: null`), and neither is your own name in the view: the card
+  is then the opponent alone (its name, word and a full-width red bar from
+  the left; `.is-solo`), in the one-line strip too.
+- **Fight card setting**: `group.fight` (on by default), in the gear and on
+  the Options page. Off: no card or strip; the tank's shield in the list
+  stays.
+- **Solid bars**: band-word estimates are no longer hatched; the tooltip
+  still says "About NN% (the band word)".
+

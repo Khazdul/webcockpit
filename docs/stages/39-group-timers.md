@@ -80,10 +80,12 @@ taller, or float them) and also try them small.
    tag. Two lines per member when there is room, one line when it is
    crowded. Hover a bar (`HP 37/158 · 23%`), an icon (poison, sanctuary,
    blind …), the position icon and a name: each has its own tooltip.
-2. **Group, fight:** start a fight. The zone on top shows the tank (shield,
-   HP, numbers) against your opponent (axe, its HP word, a red bar from
-   the right); the tank also has a shield in the list. The zone goes away
-   when the fight ends.
+2. **Group, fight:** start a fight. The card on top shows the tank (shield,
+   HP, numbers) against your opponent (claw slashes, its HP word, a red bar
+   from the right); the tank also has a shield in the list. When you tank
+   yourself the card is the opponent alone. No "Group" line under the
+   card. The card goes away when the fight ends; gear → Fight card turns
+   it off. All bars are solid (no small black stripes).
 3. **Group, away:** a group mate in another room shows the room name and
    is dimmed. Gear → Away members → Dim only: just dimmed (the room is in
    the name's tooltip).
@@ -103,8 +105,14 @@ taller, or float them) and also try them small.
    name is in the tooltip.
 8. **Paper:** Options → Appearance → background Paper. Both panes and
    their tooltips and gears follow the light side.
-9. **Kept:** the gold `+` (herblore add-view), the charmie `×`, and the
-   Options → Panes → Group and Timers pages.
+9. **Herblore:** Timers has a Herblore group (its own green), shown while
+   it is on in the gear, even empty and with headers off. The `+` beside
+   its name opens the herb menu; a pick starts it (Esc or a click outside
+   closes the menu). Hover a running herb: an × in place of its time
+   stops it. Its debuff phases (`Haste (recovery)`) have the down arrow.
+   The group headers no longer show a count.
+10. **Kept:** the charmie `×`, and the Options → Panes → Group and Timers
+    pages.
 
 Feedback wanted: how does it feel in a real fight and with many blinds?
 Is the one-line Group mode (small pane) readable, and is the fight row
@@ -120,4 +128,19 @@ the estimate (their flag never turns off).
 
 ## Owner feedback
 
-(After testing.)
+2026-11-04, first test of the build (with screenshots):
+
+- Remove the gold corner `+` for herblores. (First as a pane hover button
+  like the gear; then changed: a Herblore group of its own, on or off in
+  the settings, always with its header and a `+` beside the name that
+  opens a herb menu; a running herb has an × on hover; every herblore and
+  its phases go there, not into Buffs or Debuffs.)
+- The count at the right end of the Timers group headers is not needed.
+- The opponent's icon (the axe) is odd: find a better one.
+- No "Group" label and line between the fight card and the members.
+- When you tank yourself the card says "Nobody" as the buffer: let the
+  opponent fill the whole card instead.
+- A Group setting to show the fight card or not.
+- The Group bars have small black stripes: make them solid.
+
+Done in the round-1 commits (ADR 0122 addendum "Owner round 1").
