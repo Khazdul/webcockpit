@@ -184,8 +184,8 @@ test('RUN LOG: Panes and Display, pane toggles, colours, font, a sticky drag, Re
   for (const f of [0.3, 0.6, 0.95]) {
     await seek(page, f);
     await expect(pane(page, 'timers')).toHaveAttribute('data-active', '');
-    await expect(pane(page, 'timers').locator('.wc-timers-hit[data-hit="corner"]')).toHaveCount(0);
-    await expect(pane(page, 'timers').locator('.wc-timers-hit[data-hit="charm"]')).toHaveCount(0);
+    await expect(pane(page, 'timers').locator('.wc-tm-corner:not([hidden])')).toHaveCount(0);
+    await expect(pane(page, 'timers').locator('.wc-tm-x')).toHaveCount(0);
   }
 
   // ESC closes the popup, the next ESC leaves the player.
@@ -236,7 +236,7 @@ test('the HTML replay has Panes and Display and the same settings (file://, no s
   await expect(box(p).locator('[data-act="extra"]')).toHaveAttribute('aria-label', 'Fullscreen (F)');
   await expect(box(p).locator('[data-act="close"]')).toHaveCount(0);
   await settingsRound(p);
-  await expect(pane(p, 'timers').locator('.wc-timers-hit[data-hit="corner"]')).toHaveCount(0);
+  await expect(pane(p, 'timers').locator('.wc-tm-corner:not([hidden])')).toHaveCount(0);
   expect(await p.evaluate(() => (window as unknown as { __touched: string[] }).__touched)).toEqual([]);
   expect(errors).toEqual([]);
   await context.close();

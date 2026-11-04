@@ -165,9 +165,10 @@ test('Timers and Group controls write the settings live', async ({ page }) => {
   await open(page);
   await clickGear(page, 'timers');
   const pop = gearPop(page, 'timers');
-  await pop.locator('[aria-label="Spells colour"]').click();
-  await pop.locator('.wc-ck-opt[data-value="off"]').click();
+  await pop.locator('[aria-label="Show Spells"]').click();
   expect((await settings(page)).timers.groups.spell.enabled).toBe(false);
+  await pop.locator('[aria-label="Style"] [data-value="circles"]').click();
+  expect((await settings(page)).timers.style).toBe('circles');
   await pop.locator('[aria-label="Time text"]').click();
   expect((await settings(page)).timers.timeText).toBe(false);
   await clickGear(page, 'group');
