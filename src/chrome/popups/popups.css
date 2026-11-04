@@ -457,6 +457,7 @@
 }
 
 .wc-pop .wc-ck-card {
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: 0.31em;
@@ -474,6 +475,11 @@
 .wc-pop .wc-ck-card.is-on {
   border-color: var(--sf-hot);
   background: var(--sf-hover);
+}
+
+/* The ring outside the card, so it shows on the chosen card's border. */
+.wc-pop .wc-ck-card:focus-visible {
+  outline-offset: 1px;
 }
 
 .wc-ck-card-pv {
@@ -522,11 +528,16 @@
   stroke-linejoin: round;
 }
 
+/* A label shrinks with a narrow card (the gear popup's five columns), so
+ * ten characters ("Gefe & Rik", "Gray's Map") stay whole: at a font size
+ * of 15 % of the card's width, about 11 characters of a mono font (0.6 em
+ * each) fit. */
 .wc-ck-card-l {
   overflow: hidden;
   padding: 0 1px;
   color: var(--sf-fg);
   font-size: 0.846em;
+  font-size: min(0.846em, 15cqi);
   line-height: 1.27;
   text-overflow: ellipsis;
   white-space: nowrap;
